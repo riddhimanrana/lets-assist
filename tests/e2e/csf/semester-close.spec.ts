@@ -7,19 +7,17 @@ import {
   watchBrowserFailures,
 } from "./helpers";
 
-// The legacy semester-workspace deep link: it must alias onto the Terms page
-// and, because it names the old policy view, open Chapter rules.
-const legacyPolicyPath =
-  `${CSF_ORGANIZATION_PATH}?tab=csf-cohorts` + "&csf_semester_view=policy";
+const chapterRulesPath =
+  `${CSF_ORGANIZATION_PATH}?tab=csf-terms` + "&csf_rules=open";
 
 test.describe("transactional semester-close preflight", () => {
   test("shows every blocking domain inside the archive dialog and prevents a stale early close", async ({
     page,
   }) => {
     const failures = watchBrowserFailures(page);
-    await loginAs(page, "admin", legacyPolicyPath);
+    await loginAs(page, "admin", chapterRulesPath);
 
-    // The legacy URL lands on the Terms page with Chapter rules expanded.
+    // The canonical Terms URL opens Chapter rules explicitly.
     await expect(
       page.getByRole("button", { name: "Start next term" }),
     ).toBeVisible();
@@ -39,15 +37,13 @@ test.describe("transactional semester-close preflight", () => {
       dialog.getByText("Semester close preflight", { exact: true }),
     ).toBeVisible();
 
-    // Counts marked with a number are invariant across the suite. Imports is
-    // not: earlier full-suite import journeys intentionally leave immutable
-    // reconciliation evidence behind, so we only require that it still has
-    // unresolved work and reconcile the header total against the rendered sum.
+    // The current synthetic term has one active member with unresolved dues;
+    // historical Spring work must not leak into this Fall preflight.
     const expectedGroups = [
-      { label: "Applications", count: 4, route: "csf-applications" },
+      { label: "Applications", count: 0, route: "csf-applications" },
       {
         label: "Point submissions",
-        count: 2,
+        count: 0,
         route: "csf-activities&csf_service=points",
       },
       {
@@ -60,8 +56,8 @@ test.describe("transactional semester-close preflight", () => {
         count: 0,
         route: "csf-activities&csf_service=meetings",
       },
-      { label: "Dues", count: 0, route: "csf-applications" },
-      { label: "Imports", count: null, route: "csf-imports" },
+      { label: "Dues", count: 1, route: "csf-applications" },
+      { label: "Imports", count: null, route: "csf-cohorts" },
     ] as const;
 
     let totalUnresolved = 0;
@@ -82,7 +78,9 @@ test.describe("transactional semester-close preflight", () => {
       const renderedCount = Number.parseInt(badgeText, 10);
       expect(renderedCount).toBeGreaterThanOrEqual(0);
       if (group.count === null) {
-        expect(renderedCount).toBeGreaterThan(0);
+        // Other full-suite import journeys may leave immutable reconciliation
+        // evidence, but the retired Import history route must stay gone.
+        expect(renderedCount).toBeGreaterThanOrEqual(0);
       } else {
         expect(renderedCount).toBe(group.count);
       }

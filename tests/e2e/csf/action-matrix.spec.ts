@@ -4,14 +4,14 @@ import { CSF_ORGANIZATION_PATH, loginAs } from "./helpers";
 
 const primaryTabs = ["Home", "Classes", "Applications"] as const;
 const utilityTabs = [
+  "Terms",
   "Meetings",
   "Partner clubs",
-  "Import history",
-  "Reports",
   "Officers & access",
   "Change history",
   "Communications",
   "Settings",
+  "Help",
 ] as const;
 
 test.describe("admin visible-action matrix", () => {

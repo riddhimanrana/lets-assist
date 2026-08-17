@@ -259,40 +259,16 @@ test.describe("CSF communications workspace", () => {
     }
   });
 
-  test("an organization admin reaches Communications from the Settings hub", async ({
+  test("an organization admin reaches Communications from the More menu", async ({
     page,
   }) => {
     const failures = watchBrowserFailures(page);
-    await loginAs(page, "admin", `${CSF_ORGANIZATION_PATH}?tab=csf-settings`);
-
-    // The hub lists one row per operational settings workspace. Its links are
-    // Button-rendered anchors, whose accessible role is reported as button in
-    // this tree (see posts-compose for the same convention).
-    const settingsHub = page
-      .locator('[data-slot="card"]')
-      .filter({
-        hasText:
-          "Open the workspace where each operational setting is managed.",
-      })
-      .last();
-    await expect(settingsHub).toBeVisible();
-    await expect(
-      settingsHub.getByRole("button", { name: "Imports", exact: true }),
-    ).toBeVisible();
-    await expect(
-      settingsHub.getByRole("button", { name: "Semester", exact: true }),
-    ).toBeVisible();
-    await expect(
-      settingsHub.getByText("Email campaigns and broadcast topics", {
-        exact: true,
-      }),
-    ).toBeVisible();
-
-    await settingsHub
-      .getByRole("button", { name: "Communications", exact: true })
+    await loginAs(page, "admin");
+    await page.getByRole("button", { name: "More", exact: true }).click();
+    await page
+      .getByRole("menuitem", { name: "Communications", exact: true })
       .click();
     await expect(page).toHaveURL(/[?&]tab=csf-communications(?:&|$)/);
-    await expect(page).toHaveURL(/[?&]csf_communications_view=settings(?:&|$)/);
 
     await expect(
       page.getByRole("heading", {
@@ -305,6 +281,10 @@ test.describe("CSF communications workspace", () => {
       name: "Communications sections",
     });
     await expect(sections).toBeVisible();
+    await sections
+      .getByRole("button", { name: "Settings", exact: true })
+      .click();
+    await expect(page).toHaveURL(/[?&]csf_communications_view=settings(?:&|$)/);
     // The Campaigns control carries its count badge in the accessible name, so
     // it is asserted by prefix rather than exact name.
     await expect(

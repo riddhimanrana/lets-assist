@@ -290,8 +290,15 @@ async function cleanFixture(fixture: PeopleLifecycleFixture) {
 }
 
 async function openMembers(page: Page) {
-  await page.getByRole("tab", { name: "Members", exact: true }).click();
-  await expect(page).toHaveURL(/[?&]tab=csf-members(?:&|$)/);
+  await page.getByRole("tab", { name: "Classes", exact: true }).click();
+  await expect(page).toHaveURL(/[?&]tab=csf-cohorts(?:&|$)/);
+  await page.getByRole("link", { name: "Class of 2028", exact: true }).click();
+  await expect(page).toHaveURL(/[?&]csf_cohort=[^&]+(?:&|$)/);
+  await page
+    .getByRole("navigation", { name: "Class workspace tabs" })
+    .getByRole("button", { name: "Members", exact: true })
+    .click();
+  await expect(page).toHaveURL(/[?&]csf_cohort_tab=members(?:&|$)/);
 }
 
 test.describe("CSF visible people lifecycle", () => {
@@ -307,7 +314,7 @@ test.describe("CSF visible people lifecycle", () => {
     if (fixture) await cleanFixture(fixture);
   });
 
-  test("creates, verifies, and assigns a student through the officer workflow", async ({
+  test("creates and verifies a student while full officer seats fail closed", async ({
     page,
   }) => {
     const failures = watchBrowserFailures(page);
@@ -413,7 +420,7 @@ test.describe("CSF visible people lifecycle", () => {
       requestError,
     );
 
-    await page.getByRole("button", { name: "Account connections" }).click();
+    await page.getByRole("button", { name: "Needs account link" }).click();
     const connections = page.getByRole("region", {
       name: "Account connections",
     });
@@ -539,11 +546,12 @@ test.describe("CSF visible people lifecycle", () => {
     await expect(moreButton).toHaveAttribute("aria-expanded", "false");
     await moreButton.click();
     const staffAccessItem = page.getByRole("menuitem", {
-      name: "Staff access",
+      name: "Officers & access",
       exact: true,
     });
     await expect(staffAccessItem).toBeVisible();
     await staffAccessItem.click();
+    await expect(page).toHaveURL(/[?&]tab=csf-staff(?:&|$)/);
     await expect(
       page.getByRole("heading", { name: "Officer roster", exact: true }),
     ).toBeVisible();
@@ -577,64 +585,28 @@ test.describe("CSF visible people lifecycle", () => {
     await assignmentDialog
       .getByRole("button", { name: "Assign access" })
       .click();
-    await expect(assignmentDialog).toBeHidden();
     await expect(
-      page.getByText("Staff access assigned.", { exact: true }),
+      assignmentDialog
+        .getByRole("alert")
+        .getByText(
+          "Failed to assign staff access: All 5 seat(s) for this CSF position are already filled for 2026-2027.",
+          { exact: true },
+        ),
     ).toBeVisible();
 
-    await expect
-      .poll(async () => {
-        const { data, error } = await plugin
-          .from("csf_staff_positions")
-          .select("id, status, school_year, role_id, user_id")
-          .eq("organization_id", fixture.organizationId)
-          .eq("profile_id", fixture.profileId!)
-          .eq("role_id", fixture.roleId)
-          .eq("school_year", assignmentSchoolYear)
-          .single();
-        assertNoSupabaseError(
-          "Could not load the active staff position",
-          error,
-        );
-        return data;
-      })
-      .toMatchObject({
-        status: "active",
-        school_year: assignmentSchoolYear,
-        role_id: fixture.roleId,
-        user_id: fixture.userId,
-      });
-    const { data: staffPosition, error: staffPositionError } = await plugin
-      .from("csf_staff_positions")
-      .select("id")
-      .eq("organization_id", fixture.organizationId)
-      .eq("profile_id", fixture.profileId)
-      .eq("role_id", fixture.roleId)
-      .eq("school_year", assignmentSchoolYear)
-      .single();
+    const { count: staffPositionCount, error: staffPositionError } =
+      await plugin
+        .from("csf_staff_positions")
+        .select("id", { count: "exact", head: true })
+        .eq("organization_id", fixture.organizationId)
+        .eq("profile_id", fixture.profileId)
+        .eq("role_id", fixture.roleId)
+        .eq("school_year", assignmentSchoolYear);
     assertNoSupabaseError(
-      "Could not select the active staff position",
+      "Could not verify the refused staff position",
       staffPositionError,
     );
-    if (!staffPosition)
-      throw new Error("The active staff position is missing.");
-    fixture.staffPositionId = staffPosition.id;
-
-    const rosterRow = page
-      .getByRole("region", { name: "Officer roster" })
-      .getByRole("row")
-      .filter({ hasText: fixture.profileEmail });
-    await expect(rosterRow).toBeVisible();
-    await expect(rosterRow).toContainText("Activity Coordinator");
-    await expect(rosterRow).toContainText("Service activities");
-    // The roster shows one school year at a time; the header picker names it
-    // instead of a per-row column.
-    await expect(
-      page
-        .getByRole("region", { name: "Officer roster" })
-        .getByText(assignmentSchoolYear)
-        .first(),
-    ).toBeVisible();
+    expect(staffPositionCount).toBe(0);
 
     const { data: staffMembership, error: staffMembershipError } =
       await fixture.admin
@@ -647,7 +619,7 @@ test.describe("CSF visible people lifecycle", () => {
       "Could not verify the preserved host membership",
       staffMembershipError,
     );
-    expect(staffMembership).toEqual({ role: "staff", status: "active" });
+    expect(staffMembership).toEqual({ role: "member", status: "active" });
 
     expectNoBrowserFailures(failures);
   });

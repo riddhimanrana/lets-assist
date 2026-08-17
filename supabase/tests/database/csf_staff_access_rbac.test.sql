@@ -79,6 +79,12 @@ VALUES
   ('cf100000-0000-4000-8000-000000000001', 'CSF Staff Access A', 'csf-staff-access-a', 'school', '988001'),
   ('cf100000-0000-4000-8000-000000000002', 'CSF Staff Access B', 'csf-staff-access-b', 'school', '988002');
 
+INSERT INTO plugin_data.csf_terms (
+  id, organization_id, code, label, school_year, semester, lifecycle_status, is_current
+) VALUES
+  ('cf300000-0000-4000-8000-000000000001', 'cf100000-0000-4000-8000-000000000001', 'F26', 'Fall 2026', '2026-2027', 'fall', 'open', true),
+  ('cf300000-0000-4000-8000-000000000002', 'cf100000-0000-4000-8000-000000000002', 'F26', 'Fall 2026', '2026-2027', 'fall', 'open', true);
+
 INSERT INTO public.organization_members (organization_id, user_id, role, status)
 VALUES
   ('cf100000-0000-4000-8000-000000000001', 'cf000000-0000-4000-8000-000000000001', 'admin', 'active'),

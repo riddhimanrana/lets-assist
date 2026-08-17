@@ -64,10 +64,10 @@ SELECT extensions.ok(
     'plugin_data.csf_upsert_term_meeting(uuid,uuid,uuid,text,date,timestamptz,text,text,boolean,integer,text,uuid,uuid)'::regprocedure
   ) LIKE '%manage_meetings%'
   AND pg_get_functiondef(
-    'plugin_data.csf_upsert_term_meeting(uuid,uuid,uuid,text,date,timestamptz,text,text,boolean,integer,text,uuid,uuid)'::regprocedure
+    'plugin_data.csf_assert_meeting_source_permissions_under_lock(uuid,uuid,uuid,text,uuid)'::regprocedure
   ) LIKE '%import_meetings%'
   AND pg_get_functiondef(
-    'plugin_data.csf_upsert_term_meeting(uuid,uuid,uuid,text,date,timestamptz,text,text,boolean,integer,text,uuid,uuid)'::regprocedure
+    'plugin_data.csf_assert_meeting_source_permissions_under_lock(uuid,uuid,uuid,text,uuid)'::regprocedure
   ) LIKE '%reconcile_meeting_attendance%',
   'meeting upsert carries the exact schedule/add-source/replacement matrix'
 );
@@ -226,7 +226,7 @@ SELECT extensions.throws_ok(
 SELECT extensions.lives_ok(
   $$SELECT plugin_data.csf_upsert_term_meeting(
     'ea100000-0000-4000-8000-000000000001', 'ea400000-0000-4000-8000-000000000001',
-    'ea600000-0000-4000-8000-000000000001', 'Permission meeting renamed', '2050-09-10', NULL, 'Library',
+    'ea600000-0000-4000-8000-000000000001', 'Permission meeting renamed', DATE '2050-09-10', NULL, 'Library',
     'https://docs.google.com/spreadsheets/d/original', true, 1, 'active',
     'eaf00000-0000-4000-8000-000000000006', 'ea000000-0000-4000-8000-000000000005'
   )$$,
@@ -235,7 +235,7 @@ SELECT extensions.lives_ok(
 SELECT extensions.throws_ok(
   $$SELECT plugin_data.csf_upsert_term_meeting(
     'ea100000-0000-4000-8000-000000000001', 'ea400000-0000-4000-8000-000000000001',
-    'ea600000-0000-4000-8000-000000000001', 'Unauthorized replacement', '2050-09-10', NULL, 'Library',
+    'ea600000-0000-4000-8000-000000000001', 'Unauthorized replacement', DATE '2050-09-10', NULL, 'Library',
     'https://docs.google.com/spreadsheets/d/replacement-denied', true, 1, 'active',
     'eaf00000-0000-4000-8000-000000000007', 'ea000000-0000-4000-8000-000000000010'
   )$$,
@@ -251,7 +251,7 @@ SELECT extensions.is(
 SELECT extensions.lives_ok(
   $$SELECT plugin_data.csf_upsert_term_meeting(
     'ea100000-0000-4000-8000-000000000001', 'ea400000-0000-4000-8000-000000000001',
-    'ea600000-0000-4000-8000-000000000001', 'Authorized replacement', '2050-09-10', NULL, 'Library',
+    'ea600000-0000-4000-8000-000000000001', 'Authorized replacement', DATE '2050-09-10', NULL, 'Library',
     'https://docs.google.com/spreadsheets/d/replacement-allowed', true, 1, 'active',
     'eaf00000-0000-4000-8000-000000000008', 'ea000000-0000-4000-8000-000000000002'
   )$$,
@@ -266,7 +266,7 @@ SELECT extensions.is(
 SELECT extensions.lives_ok(
   $$SELECT plugin_data.csf_upsert_term_meeting(
     'ea100000-0000-4000-8000-000000000001', 'ea400000-0000-4000-8000-000000000001',
-    NULL, 'New sourced meeting', '2050-10-01', NULL, 'Library',
+    NULL, 'New sourced meeting', DATE '2050-10-01', NULL, 'Library',
     'https://docs.google.com/spreadsheets/d/new-source', true, 2, 'active',
     'eaf00000-0000-4000-8000-000000000009', 'ea000000-0000-4000-8000-000000000010'
   )$$,
@@ -275,7 +275,7 @@ SELECT extensions.lives_ok(
 SELECT extensions.throws_ok(
   $$SELECT plugin_data.csf_upsert_term_meeting(
     'ea100000-0000-4000-8000-000000000001', 'ea400000-0000-4000-8000-000000000001',
-    NULL, 'Import without scheduling', '2050-10-02', NULL, 'Library',
+    NULL, 'Import without scheduling', DATE '2050-10-02', NULL, 'Library',
     'https://docs.google.com/spreadsheets/d/import-only', true, 3, 'active',
     'eaf00000-0000-4000-8000-000000000011', 'ea000000-0000-4000-8000-000000000007'
   )$$,

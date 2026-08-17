@@ -41,12 +41,13 @@ test.describe("applications review workspace", () => {
   }) => {
     const failures = watchBrowserFailures(page);
 
-    const importLink = page.getByRole("link", { name: "Import" });
-    await expect(importLink).toBeVisible();
-    await expect(importLink).toHaveAttribute(
-      "href",
-      /csf_import_type=application_responses/,
-    );
+    const importButton = page.getByRole("button", {
+      name: "Import",
+      exact: true,
+    });
+    await expect(importButton).toBeVisible();
+    await importButton.click();
+    await expect(page).toHaveURL(/csf_import_type=application_responses/);
 
     expectNoBrowserFailures(failures);
   });

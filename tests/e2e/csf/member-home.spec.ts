@@ -110,8 +110,7 @@ test.describe("member Home class feed", () => {
     await expect(
       summary.getByRole("heading", { name: "Class of 2028" }),
     ).toBeVisible();
-    // The semester shares its line with the classmate count.
-    await expect(summary).toContainText("Spring 2026");
+    await expect(summary).toContainText("Fall 2026");
 
     // The stream shows the pinned post first, then reverse-chronological
     // items — announcements and published activities interleaved by their

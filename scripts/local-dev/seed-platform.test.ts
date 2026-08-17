@@ -117,6 +117,43 @@ describe("local platform seed authorization", () => {
     expect(resetList.indexOf('"csf_term_policy_drafts"')).toBeLessThan(
       resetList.indexOf('"csf_term_policies"'),
     );
+    expect(resetList).toContain(
+      'pluginDb.rpc("csf_purge_recovery_foundations"',
+    );
+  });
+
+  test("tracks the simplified partner-club schema without retired audit tables", () => {
+    const partnerSource = sourceSection(
+      '"csf-expanded-partner-clubs"',
+      '"csf-expanded-sheet-jobs"',
+    );
+    expect(seedSource).not.toContain("csf_partner_submission_rows");
+    expect(seedSource).not.toContain("csf_partner_submission_batches");
+    expect(partnerSource).not.toContain("source_batch_id");
+    expect(partnerSource).not.toContain("approved_point_types");
+    expect(partnerSource).not.toContain("non_drive_points");
+    expect(partnerSource).not.toContain("drive_points");
+    expect(partnerSource).toContain("spreadsheet_url");
+  });
+
+  test("assigns the synthetic fall activities to the current fall term", () => {
+    const opportunities = sourceSection(
+      '"csf-expanded-opportunities"',
+      '"csf-expanded-signups"',
+    );
+    for (const activityId of [
+      "IDS.csfOpportunityCleanup",
+      "IDS.csfOpportunityTutoring",
+      "IDS.csfOpportunityDrive",
+    ]) {
+      const start = opportunities.indexOf(`id: ${activityId}`);
+      expect(start, `Missing activity: ${activityId}`).toBeGreaterThanOrEqual(
+        0,
+      );
+      expect(opportunities.slice(start, start + 180)).toContain(
+        "term_id: IDS.csfTermF26",
+      );
+    }
   });
 
   test("seeds one local staff actor for every distinct CSF permission template", () => {

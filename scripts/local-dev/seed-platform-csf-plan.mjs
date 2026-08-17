@@ -14,8 +14,6 @@ export async function seedDvhsCsfFixtures({ admin, users, must }) {
     // delete cannot succeed. csf_seed_reset_synthetic_import below retires them
     // through the owned fixture seam, which refuses any organization outside the
     // reserved synthetic UUID namespace.
-    "csf_partner_submission_rows",
-    "csf_partner_submission_batches",
     "csf_partner_club_terms",
     "csf_partner_club_aliases",
     "csf_partner_clubs",
@@ -65,8 +63,18 @@ export async function seedDvhsCsfFixtures({ admin, users, must }) {
     "csf_term_policies",
   ];
 
-  // The import footprint first, through the owned seam. It has to precede the
-  // generic loop because onboarding links reference sheet sources.
+  // Durable communication history and partner-club recovery rows deliberately
+  // reject direct deletion. Reset them first through the service-role teardown
+  // seam so repeat browser runs cannot leave a campaign referencing a class.
+  await must(
+    "csf-reset-recovery-foundations",
+    pluginDb.rpc("csf_purge_recovery_foundations", {
+      p_organization_id: IDS.csfOrg,
+    }),
+  );
+
+  // The import footprint follows through its own owned seam. It has to precede
+  // the generic loop because onboarding links reference sheet sources.
   await must(
     "csf-reset-synthetic-import",
     pluginDb.rpc("csf_seed_reset_synthetic_import", {
@@ -415,7 +423,6 @@ export async function seedDvhsCsfFixtures({ admin, users, must }) {
         name: "Quail Run Elementary School",
         contact_name: "Quail Run Volunteer Office",
         contact_email: "quailrun.csf@example.test",
-        approved_point_types: ["non_drive"],
         notes: "Fixture partner source for imported participant sheets.",
         status: "active",
         created_by: users.csfOfficer.id,
@@ -1521,25 +1528,38 @@ export async function seedDvhsCsfFixtures({ admin, users, must }) {
   await must(
     "csf-term-memberships",
     pluginDb.from("csf_term_memberships").upsert(
-      seededApplications
-        .filter((application) => application.status === "accepted")
-        .map((application) => ({
+      [
+        ...seededApplications
+          .filter((application) => application.status === "accepted")
+          .map((application) => ({
+            organization_id: IDS.csfOrg,
+            profile_id: application.profile_id,
+            cohort_id: application.cohort_id,
+            term_id: application.term_id,
+            application_id: application.id,
+            status:
+              application.profile_id === IDS.csfProfileMember
+                ? "active"
+                : "accepted",
+            accepted_at: application.reviewed_at,
+            activated_at:
+              application.profile_id === IDS.csfProfileMember
+                ? application.reviewed_at
+                : null,
+            status_reason: "Seeded from an accepted CSF application.",
+          })),
+        {
           organization_id: IDS.csfOrg,
-          profile_id: application.profile_id,
-          cohort_id: application.cohort_id,
-          term_id: application.term_id,
-          application_id: application.id,
-          status:
-            application.profile_id === IDS.csfProfileMember
-              ? "active"
-              : "accepted",
-          accepted_at: application.reviewed_at,
-          activated_at:
-            application.profile_id === IDS.csfProfileMember
-              ? application.reviewed_at
-              : null,
-          status_reason: "Seeded from an accepted CSF application.",
-        })),
+          profile_id: IDS.csfProfileMember,
+          cohort_id: IDS.csfCohort2028,
+          term_id: IDS.csfTermF26,
+          application_id: null,
+          status: "active",
+          accepted_at: "2026-08-20T17:00:00-07:00",
+          activated_at: "2026-08-20T17:00:00-07:00",
+          status_reason: "Synthetic current-semester member.",
+        },
+      ],
       { onConflict: "organization_id,profile_id,term_id" },
     ),
   );
@@ -1732,7 +1752,7 @@ export async function seedDvhsCsfFixtures({ admin, users, must }) {
         // Project` below closes the link once the project row exists.
         id: IDS.csfOpportunityCleanup,
         organization_id: IDS.csfOrg,
-        term_id: IDS.csfTermS26,
+        term_id: IDS.csfTermF26,
         title: "Santa Cruz Beach Cleanup",
         body: "<p>Shoreline teams, a supply table, and recycling support. Sign up on the Let&rsquo;s Assist project page so officers can see the roster.</p>",
         starts_at: "2026-12-05T09:00:00-08:00",
@@ -1753,7 +1773,7 @@ export async function seedDvhsCsfFixtures({ admin, users, must }) {
       {
         id: IDS.csfOpportunityTutoring,
         organization_id: IDS.csfOrg,
-        term_id: IDS.csfTermS26,
+        term_id: IDS.csfTermF26,
         title: "Library Peer Tutoring",
         body: "<p>Support Algebra II and chemistry tutoring tables in the library. Members can claim one non-drive point per verified session.</p>",
         starts_at: "2026-09-02T15:30:00-07:00",
@@ -1778,7 +1798,7 @@ export async function seedDvhsCsfFixtures({ admin, users, must }) {
       {
         id: IDS.csfOpportunityDrive,
         organization_id: IDS.csfOrg,
-        term_id: IDS.csfTermS26,
+        term_id: IDS.csfTermF26,
         title: "Hygiene Kit Drive",
         body: "<p>Bring approved hygiene-kit supplies for a local shelter partner. Drive points are capped by CSF policy.</p>",
         starts_at: "2026-09-14T08:00:00-07:00",
@@ -2138,7 +2158,6 @@ export async function seedDvhsCsfFixtures({ admin, users, must }) {
           public_description:
             "Library support, tutoring, shelving, and literacy events approved for CSF non-drive credit.",
           communication_method: "Email and shared Google Sheet",
-          approved_point_types: ["non_drive"],
           notes: "Use weekly tutoring roster for verification.",
           status: "active",
           created_by: users.csfOfficer.id,
@@ -2178,23 +2197,6 @@ export async function seedDvhsCsfFixtures({ admin, users, must }) {
   );
 
   await must(
-    "csf-expanded-partner-batch",
-    pluginDb.from("csf_partner_submission_batches").upsert({
-      id: IDS.csfPartnerBatch,
-      organization_id: IDS.csfOrg,
-      partner_club_id: IDS.csfPartnerLibrary,
-      term_id: IDS.csfTermS26,
-      title: "March Library Tutoring Roster",
-      source: "sheet",
-      source_url:
-        "https://docs.google.com/spreadsheets/d/local-library-tutoring/edit",
-      status: "needs_verification",
-      submitted_by: users.csfOfficer.id,
-      summary: { rows: 14, matched: 11, ambiguous: 2, rejected: 1 },
-    }),
-  );
-
-  await must(
     "csf-partner-club-terms",
     pluginDb.from("csf_partner_club_terms").upsert(
       [
@@ -2204,9 +2206,8 @@ export async function seedDvhsCsfFixtures({ admin, users, must }) {
           term_id: IDS.csfTermS26,
           relationship_status: "returning",
           workflow_status: "active",
-          approved_point_types: ["non_drive"],
-          non_drive_points: 3,
-          drive_points: 0,
+          spreadsheet_url:
+            "https://docs.google.com/spreadsheets/d/local-quail-run-roster/edit",
           policy_notes:
             "Imported participant sheets are reviewed by a CSF officer.",
           reviewed_by: users.csfOfficer.id,
@@ -2218,10 +2219,8 @@ export async function seedDvhsCsfFixtures({ admin, users, must }) {
           term_id: IDS.csfTermS26,
           relationship_status: "new",
           workflow_status: "active",
-          approved_point_types: ["non_drive"],
-          non_drive_points: 3,
-          drive_points: 0,
-          source_batch_id: IDS.csfPartnerBatch,
+          spreadsheet_url:
+            "https://docs.google.com/spreadsheets/d/local-library-tutoring/edit",
           policy_notes: "Use the weekly tutoring roster for verification.",
           reviewed_by: users.csfOfficer.id,
           reviewed_at: "2026-03-01T12:00:00-08:00",

@@ -29,17 +29,27 @@ async function openMeetingsWorkspace(page: Page) {
   await expect(
     page.getByRole("heading", { name: "Meetings", exact: true }),
   ).toBeVisible();
+  const semester = page.getByRole("combobox", { name: "Choose semester" });
+  if ((await semester.textContent())?.includes("Fall 2026")) {
+    await semester.click();
+    await page.getByRole("option", { name: /Spring 2026/ }).click();
+  }
   const row = meetingRow(page);
   await expect(row).toHaveCount(1);
   return row;
 }
 
 /** Opens the row's overflow menu; items render in a portal, so query the page. */
-async function openMeetingActionsMenu(page: Page, row: ReturnType<typeof meetingRow>) {
+async function openMeetingActionsMenu(
+  page: Page,
+  row: ReturnType<typeof meetingRow>,
+) {
   await row
     .getByRole("button", { name: `Actions for ${MEETING_LABEL}`, exact: true })
     .click();
-  await expect(page.getByText("Meeting actions", { exact: true })).toBeVisible();
+  await expect(
+    page.getByText("Meeting actions", { exact: true }),
+  ).toBeVisible();
 }
 
 test.describe("meeting attendance role boundaries", () => {
@@ -193,27 +203,29 @@ test.describe("meeting attendance role boundaries", () => {
       await expect(dialog).toBeHidden();
     });
 
-    await test.step("the cohort meetings tab lists meetings without attendance controls", async () => {
+    await test.step("class workspaces do not duplicate the officer meetings console", async () => {
       await page.getByRole("tab", { name: "Classes", exact: true }).click();
       await expect(page).toHaveURL(/[?&]tab=csf-cohorts(?:&|$)/);
       await page
         .getByRole("link", { name: "Class of 2028", exact: true })
         .click();
       await expect(page).toHaveURL(/[?&]csf_cohort=/);
-      await page
-        .getByRole("navigation", { name: "Class workspace tabs" })
-        .getByRole("button", { name: "Meetings", exact: true })
-        .click();
-
-      const cohortRow = meetingRow(page);
-      await expect(cohortRow).toHaveCount(1);
+      const classTabs = page.getByRole("navigation", {
+        name: "Class workspace tabs",
+      });
+      await expect(
+        classTabs.getByRole("button", { name: "Meetings", exact: true }),
+      ).toHaveCount(0);
       await expect(
         page.getByRole("button", {
           name: `Actions for ${MEETING_LABEL}`,
           exact: true,
         }),
       ).toHaveCount(0);
-      for (const action of ["Correct attendance", "Import attendance"] as const) {
+      for (const action of [
+        "Correct attendance",
+        "Import attendance",
+      ] as const) {
         await expect(
           page.getByRole("button", { name: action, exact: true }),
         ).toHaveCount(0);
@@ -277,9 +289,12 @@ test.describe("meeting attendance role boundaries", () => {
       });
       await expect(dialog).toBeVisible();
       await expect(
-        dialog.getByText("Attendance already recorded stays in member histories.", {
-          exact: false,
-        }),
+        dialog.getByText(
+          "Attendance already recorded stays in member histories.",
+          {
+            exact: false,
+          },
+        ),
       ).toBeVisible();
       await page.keyboard.press("Escape");
       await expect(dialog).toBeHidden();

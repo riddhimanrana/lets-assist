@@ -46,18 +46,18 @@ Application decision, membership creation, decision event, and audit/request rec
 
 ## 4. Student joining and account connection
 
-### Reusable class link
+### Permanent class join code
 
-1. Create the cohort/term link from the member connection area.
-2. Share only the generated public link. Do not distribute a roster export.
+1. Open **Classes**, choose the graduating class, then open **Settings**. Use the class join code already assigned to that class; rotate it only when the old code must stop working.
+2. Share only that class code or its join URL. Do not distribute a roster export. The public organization and class pages expose no Stream, Activities, membership, or student-derived counts.
 3. After the student signs in with a confirmed email, the system may show **We found your CSF record — is this you?**
 4. The candidate contains only name, graduating class, term, and limited membership context.
 5. If the student confirms, the server atomically connects the account and records history.
 6. If the student selects **Not me**, or the email is missing, ambiguous, or conflicts with another link, the request moves to officer review.
 
-Creating, copying, or renewing this link does not send an email. The product must say **Create link**, **Copy link**, or **Renew link** and must not display a sent time or resend count unless an explicit recipient email has entered the durable delivery ledger.
+Viewing, copying, or rotating a class code does not send an email. The product must not display a sent time or resend count unless an explicit recipient email has entered the durable delivery ledger.
 
-Only a profile-connect or combined invitation may start this workflow. An application-only link is never a profile-claim link. The claimed profile must belong to the invitation's cohort.
+Only a class-code profile-connect flow or combined student-specific invitation may start this workflow. An application-only link is never a profile-claim link. The claimed profile must belong to the code or invitation's cohort. A name-only match never connects an account.
 
 ### Student-specific secure link
 

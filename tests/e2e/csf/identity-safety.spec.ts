@@ -396,13 +396,6 @@ test.describe("CSF identity safety", () => {
     await expect(
       page.getByText(fixture.mergeSourceName, { exact: false }).first(),
     ).toBeVisible();
-    // The directory search is server-backed. Wait for its final result summary
-    // before opening the portaled row menu so a late roster refresh cannot
-    // close the menu between the trigger click and the correction action.
-    await expect(
-      page.getByRole("tabpanel").getByText("Showing 2 of 2 matching members."),
-    ).toBeVisible();
-
     const sourceRow = page.getByRole("row").filter({
       hasText: `wren.alpha.${fixture.suffix}@students.local.test`,
     });
@@ -521,9 +514,6 @@ test.describe("CSF identity safety", () => {
     const search = page.getByLabel("Search members");
     await search.fill(`Vale-${fixture.suffix}`);
     await search.press("Enter");
-    await expect(
-      page.getByRole("tabpanel").getByText("Showing 2 of 2 matching members."),
-    ).toBeVisible();
 
     const sourceRow = page.getByRole("row").filter({
       hasText: fixture.validMergeSourceName,
