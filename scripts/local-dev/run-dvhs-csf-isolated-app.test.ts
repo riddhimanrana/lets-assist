@@ -203,6 +203,27 @@ describe("the isolated app child environment is built, not inherited", () => {
     expect(cronEnv.NEXT_DIST_DIR).not.toBe(browserEnv.NEXT_DIST_DIR);
   });
 
+  test("allows the redundant typecheck skip only for a production browser child", () => {
+    const hostEnv = {
+      CSF_BROWSER_SKIP_BUILD_TYPECHECK: "1",
+    };
+    const { childEnv } = build({ serverMode: "production", hostEnv });
+    expect(childEnv.CSF_BROWSER_SKIP_BUILD_TYPECHECK).toBe("1");
+
+    expect(() => build({ serverMode: "development", hostEnv })).toThrow(
+      "requires the isolated production browser app",
+    );
+    expect(() =>
+      build({
+        mode: "cron-probe",
+        secret: "run-scoped-cron-secret",
+        probeMode: "authenticated-empty",
+        serverMode: "production",
+        hostEnv,
+      }),
+    ).toThrow("requires the isolated production browser app");
+  });
+
   test("the validated local Supabase values stay exact", () => {
     const { childEnv } = build();
     for (const key of Object.keys(APP_ENV)) {

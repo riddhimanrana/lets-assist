@@ -66,6 +66,10 @@ export const BOOTSTRAP_OS_ENV_KEYS = [
   // here would make the child expect 3000 while the generated environment says
   // something else — the stack would come up and then refuse itself.
   "CSF_ISOLATED_APP_PORT",
+  // CI may skip only the browser build's redundant Next-integrated typecheck.
+  // next.config.ts binds this control to the isolated browser dist directory;
+  // the required quality job still runs standalone typecheck and a full build.
+  "CSF_BROWSER_SKIP_BUILD_TYPECHECK",
 ];
 
 function positiveRuntimeEnvironment(hostEnv = process.env) {
