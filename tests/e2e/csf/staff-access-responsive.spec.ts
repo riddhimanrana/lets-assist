@@ -24,7 +24,6 @@ const staffConcepts = [
   "Let's Assist account",
   "Public position",
   "Responsibility",
-  "School year",
   "Effective dates",
   "Access status",
   "Action",
@@ -164,7 +163,6 @@ test.describe("DVHS CSF staff access presentation", () => {
       "Let's Assist account",
       "Public position",
       "Responsibility",
-      "School year",
       "Effective dates",
       "Access status",
     ]) {

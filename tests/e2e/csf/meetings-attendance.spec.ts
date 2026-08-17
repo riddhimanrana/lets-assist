@@ -13,6 +13,14 @@ const ROSTER_MEMBER_NAME = "Aarav Mehta";
 const ROSTER_MEMBER_EMAIL = "aarav.mehta28@students.local.test";
 const ROSTER_MEMBER_LABEL = `${ROSTER_MEMBER_NAME} · ${ROSTER_MEMBER_EMAIL}`;
 
+const MENU_ACTIONS = [
+  "Import attendance",
+  "Advanced import",
+  "Correct attendance",
+  "Edit meeting",
+  "Delete meeting",
+] as const;
+
 function meetingRow(page: Page) {
   return page.getByRole("row").filter({ hasText: MEETING_LABEL });
 }
@@ -24,6 +32,14 @@ async function openMeetingsWorkspace(page: Page) {
   const row = meetingRow(page);
   await expect(row).toHaveCount(1);
   return row;
+}
+
+/** Opens the row's overflow menu; items render in a portal, so query the page. */
+async function openMeetingActionsMenu(page: Page, row: ReturnType<typeof meetingRow>) {
+  await row
+    .getByRole("button", { name: `Actions for ${MEETING_LABEL}`, exact: true })
+    .click();
+  await expect(page.getByText("Meeting actions", { exact: true })).toBeVisible();
 }
 
 test.describe("meeting attendance role boundaries", () => {
@@ -39,11 +55,14 @@ test.describe("meeting attendance role boundaries", () => {
       await expect(
         page.getByRole("button", { name: "Add meeting", exact: true }),
       ).toBeVisible();
-      for (const action of ["Attendance import", "Correct", "Edit"] as const) {
-        const control = row.getByRole("button", { name: action, exact: true });
-        await expect(control, `Secretary should see ${action}`).toBeVisible();
-        await expect(control).toBeEnabled();
+      await openMeetingActionsMenu(page, row);
+      for (const action of MENU_ACTIONS) {
+        await expect(
+          page.getByRole("button", { name: action, exact: true }),
+          `Secretary should see ${action}`,
+        ).toBeVisible();
       }
+      await page.keyboard.press("Escape");
     });
 
     await test.step("data management reconciles and corrects but cannot schedule", async () => {
@@ -51,20 +70,26 @@ test.describe("meeting attendance role boundaries", () => {
       await loginAs(page, "dataManagement", MEETINGS_PATH);
       const row = await openMeetingsWorkspace(page);
 
-      for (const action of ["Attendance import", "Correct"] as const) {
-        const control = row.getByRole("button", { name: action, exact: true });
-        await expect(
-          control,
-          `Data Management should see ${action}`,
-        ).toBeVisible();
-        await expect(control).toBeEnabled();
-      }
       await expect(
         page.getByRole("button", { name: "Add meeting", exact: true }),
       ).toHaveCount(0);
-      await expect(
-        row.getByRole("button", { name: "Edit", exact: true }),
-      ).toHaveCount(0);
+      await openMeetingActionsMenu(page, row);
+      for (const action of [
+        "Import attendance",
+        "Advanced import",
+        "Correct attendance",
+      ] as const) {
+        await expect(
+          page.getByRole("button", { name: action, exact: true }),
+          `Data Management should see ${action}`,
+        ).toBeVisible();
+      }
+      for (const action of ["Edit meeting", "Delete meeting"] as const) {
+        await expect(
+          page.getByRole("button", { name: action, exact: true }),
+        ).toHaveCount(0);
+      }
+      await page.keyboard.press("Escape");
     });
 
     await test.step("web master is denied the meetings route with the canonical alert", async () => {
@@ -115,7 +140,10 @@ test.describe("meeting attendance role boundaries", () => {
     const row = await openMeetingsWorkspace(page);
 
     await test.step("the Correct dialog offers only the placeholder before a search", async () => {
-      await row.getByRole("button", { name: "Correct", exact: true }).click();
+      await openMeetingActionsMenu(page, row);
+      await page
+        .getByRole("button", { name: "Correct attendance", exact: true })
+        .click();
       const dialog = page.getByRole("dialog", { name: "Correct attendance" });
       await expect(dialog).toBeVisible();
       await expect(
@@ -180,11 +208,16 @@ test.describe("meeting attendance role boundaries", () => {
       const cohortRow = meetingRow(page);
       await expect(cohortRow).toHaveCount(1);
       await expect(
-        page.getByRole("button", { name: "Correct", exact: true }),
+        page.getByRole("button", {
+          name: `Actions for ${MEETING_LABEL}`,
+          exact: true,
+        }),
       ).toHaveCount(0);
-      await expect(
-        page.getByRole("button", { name: "Attendance import", exact: true }),
-      ).toHaveCount(0);
+      for (const action of ["Correct attendance", "Import attendance"] as const) {
+        await expect(
+          page.getByRole("button", { name: action, exact: true }),
+        ).toHaveCount(0);
+      }
       await expect(
         page.getByRole("heading", { name: /Attendance review/ }),
       ).toHaveCount(0);
@@ -193,48 +226,78 @@ test.describe("meeting attendance role boundaries", () => {
     expectNoBrowserFailures(failures);
   });
 
-  test("secretary inspects the read-only attendance import preview without submitting", async ({
+  test("secretary inspects the advanced import and delete dialogs without submitting", async ({
     page,
   }) => {
     const failures = watchBrowserFailures(page);
     await loginAs(page, "secretary", MEETINGS_PATH);
     const row = await openMeetingsWorkspace(page);
 
-    await row
-      .getByRole("button", { name: "Attendance import", exact: true })
-      .click();
-    const dialog = page.getByRole("dialog", { name: "Preview attendance" });
-    await expect(dialog).toBeVisible();
-    await expect(
-      dialog.getByText(
-        "Select the exact tab and range. Attendance changes only after the reviewed preview is committed.",
-      ),
-    ).toBeVisible();
-    await expect(
-      dialog.getByRole("textbox", { name: "Sheet tab", exact: true }),
-    ).toBeVisible();
-    await expect(
-      dialog.getByRole("textbox", { name: "A1 range", exact: true }),
-    ).toBeVisible();
-    await expect(
-      dialog.getByRole("spinbutton", {
-        name: "Header row in range",
+    await test.step("the advanced import dialog carries the manual coordinates", async () => {
+      await openMeetingActionsMenu(page, row);
+      await page
+        .getByRole("button", { name: "Advanced import", exact: true })
+        .click();
+      const dialog = page.getByRole("dialog", { name: "Advanced import" });
+      await expect(dialog).toBeVisible();
+      await expect(
+        dialog.getByRole("textbox", { name: "Sheet tab", exact: true }),
+      ).toBeVisible();
+      await expect(
+        dialog.getByRole("textbox", { name: "A1 range", exact: true }),
+      ).toBeVisible();
+      await expect(
+        dialog.getByRole("spinbutton", {
+          name: "Header row in range",
+          exact: true,
+        }),
+      ).toBeVisible();
+      const submit = dialog.getByRole("button", {
+        name: "Preview rows",
         exact: true,
-      }),
-    ).toBeVisible();
-    const submit = dialog.getByRole("button", {
-      name: "Preview rows",
-      exact: true,
-    });
-    await expect(submit).toBeVisible();
-    await expect(submit).toBeEnabled();
+      });
+      await expect(submit).toBeVisible();
+      await expect(submit).toBeEnabled();
 
-    // Deliberate boundary: this scenario only inspects the preview form and
-    // dismisses it without submitting, so no import is ever requested. Any
-    // Drive read would happen server-side and is not observable from the
-    // browser, so this test makes no provider-traffic claim.
-    await page.keyboard.press("Escape");
-    await expect(dialog).toBeHidden();
+      // Deliberate boundary: this scenario only inspects the preview form and
+      // dismisses it without submitting, so no import is ever requested. Any
+      // Drive read would happen server-side and is not observable from the
+      // browser, so this test makes no provider-traffic claim.
+      await page.keyboard.press("Escape");
+      await expect(dialog).toBeHidden();
+    });
+
+    await test.step("delete confirms before archiving and is dismissed without submitting", async () => {
+      await openMeetingActionsMenu(page, row);
+      await page
+        .getByRole("button", { name: "Delete meeting", exact: true })
+        .click();
+      const dialog = page.getByRole("dialog", {
+        name: `Delete ${MEETING_LABEL}?`,
+      });
+      await expect(dialog).toBeVisible();
+      await expect(
+        dialog.getByText("Attendance already recorded stays in member histories.", {
+          exact: false,
+        }),
+      ).toBeVisible();
+      await page.keyboard.press("Escape");
+      await expect(dialog).toBeHidden();
+      await expect(meetingRow(page)).toHaveCount(1);
+    });
+
+    await test.step("the add-meeting form collects every date the meeting happens", async () => {
+      await page
+        .getByRole("button", { name: "Add meeting", exact: true })
+        .click();
+      const dialog = page.getByRole("dialog", { name: "Add Meeting" });
+      await expect(dialog).toBeVisible();
+      await expect(
+        dialog.getByRole("button", { name: "Add another date", exact: true }),
+      ).toBeVisible();
+      await page.keyboard.press("Escape");
+      await expect(dialog).toBeHidden();
+    });
 
     expectNoBrowserFailures(failures);
   });

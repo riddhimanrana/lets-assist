@@ -7,6 +7,7 @@ DVHS CSF officer UX → class-first Home → Classes → Applications → More; 
 - Base root `fe749b3d`; private gitlink `e9e86fe4`; Production ⊥.
 - UI says `Class`; existing `cohort` schema identifiers stay.
 - Stable profile + graduation class; term application/import alone activates term membership.
+- Public organization page exposes join/claim entry only; class Stream/Activities/membership content requires authenticated authorized class access.
 - Meetings chapter-wide under More; member dashboard visual model preserved.
 - Real student data, attached source rows, secrets, provider sends, hosted mutation ⊥.
 - Synthetic fixtures stay isolated local/CI; hosted fixture leakage ⊥.
@@ -18,9 +19,9 @@ DVHS CSF officer UX → class-first Home → Classes → Applications → More; 
 route: officer top nav → `Home | Classes | Applications | More`
 route: class workspace → `cohorts/<cohortId>/<stream|members|activities|submissions>` + URL term state
 route: legacy `points|meetings|verification` → compatible destination mapping
-route: public organization → class cards → public class Stream + Activities
+route: public organization → class cards → join code + sign-in/claim flow
 service: class loader → explicit `{organizationId, cohortId, termId}`
-service: public class loader → published safe post/activity fields only
+service: public class loader → safe class identity + join eligibility metadata only
 db: stable class join code → organization + cohort + code digest + lifecycle; direct invitations unchanged
 cmd: `bun run test:plugins`; `bun run typecheck`; `bun run lint`; `bun run db:validate`; focused pgTAP; `bun run build`
 
@@ -31,8 +32,8 @@ V2: ∀ class workspace → exact tabs Stream, Members, Activities, Submissions 
 V3: class member count/list → selected term participation only by default; chapter directory total substitution ⊥.
 V4: stable profile + class link survive term change; term membership requires accepted application or committed roster import.
 V5: class code → one active permanent code/class, owner rotate/revoke, no automatic term membership, exact verified-email match only; name-only match ⊥.
-V6: public class payload → published Stream + Activities safe fields only; rosters, codes, comments, applications, submissions, proof, points, attendance, account state ⊥.
-V7: published class post/activity → public; draft/archived ⊥; officer-only publication permission rechecked server-side.
+V6: public class payload → safe class identity + join entry only; Stream, Activities, terms, rosters, codes, comments, applications, submissions, proof, points, attendance, account state ⊥.
+V7: class Stream/Activities read → authenticated authorized class member/officer only; draft/archived remain scoped; publication permission rechecked server-side.
 V8: class Activities → class-targeted + chapter-wide records without duplication.
 V9: class Submissions → selected class/term queues + existing review detail/range assignment; user-facing `Verification` destination ⊥.
 V10: Meetings → one chapter-wide More workspace; class page mutation copy ⊥.
@@ -56,6 +57,7 @@ T5|x|add safe public class cards/Stream/Activities + publication contracts|V6,V7
 T6|~~|consolidate Applications/Appeals/Meetings/More + remove redundant entry points|V1,V10,V11,V12,V16,I.route
 T7|~~|harden fixture target fences + add DB/unit/component/browser/privacy coverage|V3,V4,V5,V6,V7,V8,V9,V11,V12,V13,V14,V15,V16,V17,I.cmd
 T8|~|run full gates, commit private first, merge/checkout private development, advance root gitlink, record exact evidence|V14,V15,V17,V18,I.cmd
+T9|.|replace public class content with join/sign-in/claim flow + authenticated class-content authorization|V4,V5,V6,V7,V13,V14,V16,V17,I.route,I.service,I.db
 
 §B
 

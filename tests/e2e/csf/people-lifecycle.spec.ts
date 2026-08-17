@@ -507,7 +507,9 @@ test.describe("CSF visible people lifecycle", () => {
       .click();
     const directorySearch = page.getByLabel("Search members");
     await directorySearch.fill(fixture.profileEmail);
-    await page.getByRole("button", { name: "Apply", exact: true }).click();
+    // The simplified filter bar has no Apply button; Enter submits the GET
+    // form the same way the removed button did.
+    await directorySearch.press("Enter");
     if (!fixture.profileId) {
       throw new Error("The connected CSF profile id is missing.");
     }
@@ -565,7 +567,13 @@ test.describe("CSF visible people lifecycle", () => {
         exact: true,
       })
       .click();
-    await assignmentDialog.getByLabel("School year").fill(assignmentSchoolYear);
+    // The school year is never typed: the dialog assigns for the roster's
+    // selected year and states it in its description.
+    await expect(
+      assignmentDialog.getByText(
+        `Assigning for the ${assignmentSchoolYear} school year.`,
+      ),
+    ).toBeVisible();
     await assignmentDialog
       .getByRole("button", { name: "Assign access" })
       .click();
@@ -619,7 +627,14 @@ test.describe("CSF visible people lifecycle", () => {
     await expect(rosterRow).toBeVisible();
     await expect(rosterRow).toContainText("Activity Coordinator");
     await expect(rosterRow).toContainText("Service activities");
-    await expect(rosterRow).toContainText(assignmentSchoolYear);
+    // The roster shows one school year at a time; the header picker names it
+    // instead of a per-row column.
+    await expect(
+      page
+        .getByRole("region", { name: "Officer roster" })
+        .getByText(assignmentSchoolYear)
+        .first(),
+    ).toBeVisible();
 
     const { data: staffMembership, error: staffMembershipError } =
       await fixture.admin
