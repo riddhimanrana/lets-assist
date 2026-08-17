@@ -21,6 +21,7 @@ route: legacy `points|meetings|verification` → compatible destination mapping
 route: public organization → class cards → public class Stream + Activities
 service: class loader → explicit `{organizationId, cohortId, termId}`
 service: public class loader → published safe post/activity fields only
+perf: CSF route response → active route-family component graph only; unrelated client references ⊥
 db: stable class join code → organization + cohort + code digest + lifecycle; direct invitations unchanged
 cmd: `bun run test:plugins`; `bun run typecheck`; `bun run lint`; `bun run db:validate`; focused pgTAP; `bun run build`
 
@@ -44,6 +45,7 @@ V15: fixture seed → isolated local/CI target proof; hosted Development/Product
 V16: old CSF deep links retain compatible redirect/mapping during migration.
 V17: no real attached row value enters migration, fixture, test, screenshot, log, prompt, or committed artifact.
 V18: private feature implementation may use `codex/*`; strict branch containment runs only after private commit merges to private `development` + root gitlink advances.
+V19: ∀ CSF route response → exactly one active route-family section; unrelated route client component references and repeated-navigation renderer growth ⊥.
 
 §T
 
@@ -56,9 +58,11 @@ T5|x|add safe public class cards/Stream/Activities + publication contracts|V6,V7
 T6|~~|consolidate Applications/Appeals/Meetings/More + remove redundant entry points|V1,V10,V11,V12,V16,I.route
 T7|~~|harden fixture target fences + add DB/unit/component/browser/privacy coverage|V3,V4,V5,V6,V7,V8,V9,V11,V12,V13,V14,V15,V16,V17,I.cmd
 T8|~|run full gates, commit private first, merge/checkout private development, advance root gitlink, record exact evidence|V14,V15,V17,V18,I.cmd
+T9|~|isolate CSF route rendering, add regression coverage, and prove bounded repeated-navigation renderer footprint|V13,V19,I.perf,I.cmd
 
 §B
 
 id|date|cause|fix
 B1|2026-08-16|strict containment invoked before private feature implementation/promotion|V18
 B2|2026-08-16|private PR #53 requires independent approval; auto-merge is disabled and branch protection was not bypassed|V18
+B3|2026-08-17|all five route families rendered into every CSF server response; repeated soft navigation retained unrelated Flight/client graphs until Chrome renderer termination|V19
