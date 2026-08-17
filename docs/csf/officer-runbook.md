@@ -95,8 +95,9 @@ Operational rules:
 - The encrypted Google connection is scoped to the exact organization, CSF plugin, import purpose, and officer capability approved during OAuth. Google user-info must also verify the exact account `dvhighcsf@gmail.com`; a calendar-email label or officer assertion is not identity evidence. Every token use and refresh rechecks the binding.
 - Picker deployment configuration uses a Google OAuth web client and Browser API key from the same Cloud project. The server derives the required numeric Picker app ID from `GOOGLE_CLIENT_ID`; there is no separate public app-ID setting, and file authorization remains limited to `drive.file`.
 - A wrong, missing, or legacy-unverified account shows **Switch or reconnect**. Officers must not work around it with another organization's token.
-- **Import changes** creates a new immutable snapshot; there is no background sync or Sheet writeback.
-- Google Sheets are input-only in this release. Reports download locally as a formula-safe ZIP; there is no timestamped compatibility-tab or report-write destination.
+- **Import changes** creates a new immutable snapshot; there is no background sync.
+- Application decisions write back to the source sheet: the imported row turns green (approved) or red (rejected) and any officer comment lands as a note on the row's first cell. This is ledger-recorded, retried via **Sync sheet**, and only active where `CSF_SHEET_WRITEBACK_ENABLED` is set; everywhere else the decisions stay queued.
+- Beyond that decision write-back, Google Sheets are input-only. Reports download locally as a formula-safe ZIP; there is no timestamped compatibility-tab or report-write destination.
 - A second import of the same snapshot must be idempotent.
 - Reviewed Let’s Assist fields are never silently overwritten.
 - A missing, blank, malformed, non-positive, or implausibly large historical point value blocks that activity; it never becomes one point.
