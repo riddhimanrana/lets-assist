@@ -18,11 +18,13 @@ Organization admins can operate every CSF area. Adviser-only responsibilities in
 
 ## 2. Semester setup
 
-Use **Classes** in this order:
+Create graduating classes on **Classes** (Add a class), then manage semesters
+on **More → Terms** in this order:
 
-1. Create or select the full term, such as **Fall 2026**.
+1. Select the term, such as **Fall 2026**, in the term selector. **Start next
+   term** advances the chapter when the current semester ends.
 2. Enter application, meeting, point, and closeout dates.
-3. Prepare the policy draft: academic thresholds, disqualifying grades, the six List I/II/III × A/B grade-point values, dues, total service points, per-activity cap, drive cap, required meetings, allowed absences, and outside-volunteering rule. The baseline is List I A=3/B=1, List II A=2/B=1, and List III A=1/B=0; A+/A− use A and B+/B− use B.
+3. Under **Chapter rules**, prepare the policy draft: academic thresholds, disqualifying grades, the six List I/II/III × A/B grade-point values, dues, total service points, per-activity cap, drive cap, required meetings, allowed absences, and outside-volunteering rule. The baseline is List I A=3/B=1, List II A=2/B=1, and List III A=1/B=0; A+/A− use A and B+/B− use B.
 4. Have the adviser review and publish the policy. Draft values do not govern applications, points, reports, or closeout.
 5. Create the required cohorts and connect only the source tabs that belong to the term. Codes such as `F26` identify Sheet tabs, not the product's semester name.
 
@@ -102,7 +104,7 @@ Operational rules:
 - Reviewed Let’s Assist fields are never silently overwritten.
 - A missing, blank, malformed, non-positive, or implausibly large historical point value blocks that activity; it never becomes one point.
 - An invalid meeting timestamp blocks commit until corrected with a recorded reason.
-- A partner-club Form import remains preview-only until an officer explicitly commits it.
+- Partner-club form-response imports are local export uploads, not Drive reads; each previewed row stays immutable until an officer explicitly applies it as a draft club record or skips it.
 - If Drive access is lost, reconnect the source. Do not delete the reviewed platform record.
 - **Disconnect from CSF** removes the local purpose binding and retains reviewed records/source history. **Disconnect and revoke at Google** is stronger: the product may say revoked only after Google confirms it and must preserve a shared grant still used by another active binding. Treat remote-success/local-cleanup-failure as a recovery state, not complete success.
 
@@ -147,10 +149,12 @@ Every submit/proof-finalize/withdraw/review/appeal action rechecks current accou
 
 ### Partner clubs
 
-1. Import or create the club record, then review it for a specific semester.
-2. Set standing, point type, cap, proof rule, and reviewer notes.
-3. Approve, renew, suspend, or expire explicitly; never overwrite a prior semester's standing.
-4. Reconcile any member-point source before accepting claims against the club.
+1. Use **Add club** to create the canonical club record, or apply a previewed form-response row (step 4) as a draft record.
+2. Filter the directory by term — the dropdown is chronological with the current term selected by default — and open a club's row to reach its detail dialog for edits.
+3. Approve, suspend, or expire the term standing explicitly, and archive or restore the club from the same dialog; never overwrite a prior semester's standing.
+4. Clubs apply and renew through the existing Google Form. Upload the response export with **Import form responses**; rows preview immutably, and each row is either applied as a draft — creating a not-reviewed club record for the term — or skipped.
+5. Record the club's spreadsheet link for reference only. The club owns that spreadsheet; the product never reads it.
+6. Accept member point claims against a club only while its standing is active for the current term. Vet point types, caps, and proof manually during point approval against the published semester policy; there is no per-club point policy or member-Sheet reconciliation.
 
 ## 8. Semester close and reopen
 
@@ -163,13 +167,14 @@ Every submit/proof-finalize/withdraw/review/appeal action rechecks current accou
 
 Only the adviser with the explicit permission, or an organization admin exercising admin authority, may reopen. Reopen requires a reason. Make the correction, rerun preflight, and close again; the new revision must preserve the earlier result in history.
 
-## 9. Reports and audit history
+## 9. Report downloads and audit history
 
-1. Select the semester before generating a report.
-2. Download the permission-checked local ZIP. It contains formula-safe CSV files and a manifest.
-3. Reconcile report totals with the underlying filtered list.
-4. Use **Change history** to trace consequential actions by actor, reason, source, correlation identifier, and revision.
-5. Never copy real student rows, tokens, proof, transcripts, or receipts into tickets, screenshots, fixtures, docs, or Slides.
+1. Open **More → Settings** and use the **Download reports** card; the retired Reports tab aliases here.
+2. In the modal, select the semester, the report sections to include, and whether to bundle uploaded proof pictures.
+3. Download the permission-checked local ZIP. It contains formula-safe CSV files and a manifest; included proof files sit in a proof folder with its own manifest that records anything skipped for size.
+4. Reconcile report totals with the underlying filtered list.
+5. Use **Change history** to trace consequential actions by actor, reason, source, correlation identifier, and revision.
+6. Never copy real student rows, tokens, proof, transcripts, or receipts into tickets, screenshots, fixtures, docs, or Slides.
 
 Reports do not write to Google Sheets and do not expose a Google destination picker.
 
@@ -179,19 +184,19 @@ This section is the one-time cutover procedure from Google Classroom + spreadshe
 
 ### 10.1 One-time semester and cohort setup
 
-1. Create cohorts Class of 2027 through Class of 2030 and terms Spring 2025, Fall 2025, Spring 2026 (closed) and Fall 2026 (current) through **Classes → Semesters & setup** (§2). Class of 2026 is out of scope. The Class of 2030 setup creates its cohort and terms only; never import its template workbook. Create each 2030 profile from reviewed current application evidence, then resolve the separate application row to that existing profile as described in §10.3.
+1. Create cohorts Class of 2027 through Class of 2030 and terms Spring 2025, Fall 2025, Spring 2026 (closed) and Fall 2026 (current) through **Classes** (Add a class) and the **Terms** page (§2). Class of 2026 is out of scope. The Class of 2030 setup creates its cohort and terms only; never import its template workbook. Create each 2030 profile from reviewed current application evidence, then resolve the separate application row to that existing profile as described in §10.3.
 2. In **More → Communications → Settings**, confirm the two stored values for the **Term members** audience: **Consent topic key** and **Resend topic id**. That section holds nothing else — sender domain and provider health are verified outside it, against the provider. An established consent key is read-only, because opt-outs are stored under that exact key; changing one takes a dedicated audited migration. A missing pair keeps broadcast queueing disabled for that audience rather than guessing a scope. Do not use the generic organization-plugin JSON editor; cohort posts email through the same announcements consent topic.
 
 ### 10.2 Legacy data seed (rehearse locally first: `bun run dev`)
 
 Import in this order through the existing Sheets workspace preview → commit fence; every commit is staff-approved and reversible only forward:
 
-1. **Club registry and policies** — `rosters/Clubs Points.xlsx`, `rosters/Spring 2025 CSF Returning Clubs Responses.xlsx`, `rosters/CSF Club Audit Spring 2026 Responses.xlsx` as partner-form imports → partner clubs with per-club point policy.
+1. **Club registry** — `rosters/Spring 2025 CSF Returning Clubs Responses.xlsx` and `rosters/CSF Club Audit Spring 2026 Responses.xlsx` as partner form-response imports; apply each previewed row as a draft club record (or skip it), then review standing per term. There is no per-club point policy to import; use `rosters/Clubs Points.xlsx` only as manual reference evidence when vetting points at approval time.
 2. **Historical class records** — import only Class of 2027 `S26` `A1:O168` (167 rows after the header), Class of 2028 `S26` `A1:O168` (167 rows), and Class of 2029 `S26` `A1:N89` (88 rows) as **Historical records**. Class of 2026 is out of scope: do not select, preview, or import it. Skip the template-only Class of 2030 workbook and create 2030 student records through the new application cycle. These sheets are historical evidence, not account-connection evidence; current canonical email, exact-name, and active-class checks still govern every connection.
 3. **March 2025 chapter attendance** — `rosters/CSF March Meeting Attendance 2025.xlsx` as `meeting_attendance` for Spring 2025. Name-only rows will land ambiguous/unmatched — resolve what you can; `skipped` is an honest terminal state for departed students.
-4. **Per-club Fall 2025 points** — normalize first: `bun run csf:normalize:legacy` (drafts editable mappings under `.artifacts/legacy-csf/mappings/`), review each mapping (sheet selection, club name, excluded rows, points-per-mark), then `bun run csf:normalize:legacy --apply` and upload each normalized workbook from `.artifacts/legacy-csf/normalized/` as a `partner_club_audit` import for Fall 2025.
+4. **Per-club Fall 2025 points** — the immutable partner-audit member-Sheet import was removed by the 2026-08-17 partner-clubs simplification, so per-club point workbooks are no longer imported as a `partner_club_audit` batch. Keep the club workbooks as reference evidence and record any historical awards that are still needed through the reviewed point workflows.
 
-Acceptance: the three historical previews use the exact bounded ranges and show 167, 167, and 88 rows respectively; the Class of 2030 template has no import job; spot-check at least three clubs' point totals against their source workbooks; ambiguous-row queues are triaged to zero or documented.
+Acceptance: the three historical previews use the exact bounded ranges and show 167, 167, and 88 rows respectively; the Class of 2030 template has no import job; every partner form-response row is applied as a draft or skipped and each retained club's term standing is reviewed; ambiguous-row queues are triaged to zero or documented.
 
 ### 10.3 Student rollout (replaces the four Classroom codes)
 

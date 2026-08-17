@@ -65,13 +65,14 @@ procedure; this is the DVHS path through them.
    populated. If either is empty the install hook failed and was compensated:
    check `plugin_audit_logs` instead of continuing, and never hand-seed the
    missing rows.
-4. **Create the graduating classes** (onboarding Stage 3). Open **Classes →
-   Semesters & setup** and select **Set up graduating class**. In **Set up a
-   graduating class**, enter the required **Graduation year** and optional
-   **Display name**, then select **Create class and semesters**. Do this once
+4. **Create the graduating classes** (onboarding Stage 3). Open **Classes**
+   and select **Add a class**. In **Set up a graduating class**, enter the
+   required **Graduation year** and optional **Display name**, then select
+   **Create class and semesters**. Do this once
    each for 2027, 2028, 2029, and 2030. Each class setup creates all eight
    semester records automatically, freshman fall through senior spring; do not
-   add those terms individually. **Add one semester** is only for restoring a
+   add those terms individually. **Add one semester** (behind **Class
+   administration** on the Terms page) is only for restoring a
    genuinely missing record or creating an approved exceptional record. On that
    exceptional form, leave **Current semester** unchecked unless the term is
    meant to replace the current term immediately. This creates the Class of
@@ -524,11 +525,16 @@ Every date, point requirement, dues rule, and deadline on this page is an
 adviser decision. An officer records it; an officer does not choose it. Nothing
 in this guide, in the public site, or in a prior semester authorizes a value.
 
-1. Open **Classes → Semesters & setup → Fall 2026**.
+1. Open **More → Terms** and choose **Fall 2026** in the term selector. The
+   page shows the term's dates, its **Deadlines**, and its **Meeting
+   schedule**; **Start next term** and **Archive term** are the lifecycle
+   actions, and archiving shows the **Semester close preflight** inside its
+   own dialog.
 2. Add the real application window, deadlines, and required meetings. Enter both
    application dates or leave both blank; before a semester opens both are
    required and the closing date must follow the opening date.
-3. Open **Policy** and enter the reviewed academic/dues/service rules. A draft
+3. Expand **Chapter rules** and enter the reviewed academic/dues/service rules
+   under **Edit chapter rules**. A draft
    saved by an officer governs nothing — the surface says _Draft saved; awaiting
    an adviser or organization admin._ An adviser or organization admin completes
    **Publish policy**, which requires a **Publication reason** and an explicit
@@ -613,6 +619,26 @@ it into a Fall 2026 rule.
 Every mutation rechecks the acting account, active membership, current open
 term, published policy, source relationship, cap, class, and finalized proof.
 If any changed, reload and resolve the current blocker.
+
+## Partner clubs
+
+1. Open **Service → Partner clubs**. The term dropdown is chronological with
+   the current term selected by default; the directory shows only that term's
+   club records.
+2. Use **Add club** to create a canonical club, or open a row's detail dialog
+   to edit it, approve/suspend/expire its term standing, or archive/restore
+   the club. Standing changes are explicit; a prior semester's standing is
+   never overwritten.
+3. Clubs apply and renew through the existing Google Form. Upload the response
+   export with **Import form responses**. Rows preview immutably; apply each
+   row as a draft — which creates a not-reviewed club record for the term — or
+   skip it. This is a local export upload, not a Drive read.
+4. The club's spreadsheet link is reference only. It points at the club's own
+   spreadsheet, owned by the club and never read by the product.
+5. A member point claim against a partner club requires only active standing
+   for the current term. Vet point types, caps, and proof manually during
+   point approval against the published semester policy; there is no per-club
+   point policy, member-Sheet import, or partner representative access.
 
 ## Posts
 
