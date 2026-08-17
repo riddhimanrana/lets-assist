@@ -486,19 +486,14 @@ INSERT INTO plugin_data.csf_partner_clubs (
 
 INSERT INTO plugin_data.csf_partner_club_terms (
   id, organization_id, partner_club_id, term_id, relationship_status,
-  workflow_status, approved_point_types, non_drive_points, drive_points,
-  proof_required
+  workflow_status
 ) VALUES (
   'fa520000-0000-4000-8000-000000000001',
   'fa100000-0000-4000-8000-000000000001',
   'fa510000-0000-4000-8000-000000000001',
   'fa300000-0000-4000-8000-000000000001',
   'new',
-  'active',
-  ARRAY['non_drive']::text[],
-  1,
-  0,
-  true
+  'active'
 );
 
 INSERT INTO plugin_data.csf_point_submissions (
@@ -530,7 +525,7 @@ INSERT INTO plugin_data.csf_point_submissions (
     'fa400000-0000-4000-8000-000000000001',
     'fa300000-0000-4000-8000-000000000001',
     NULL, 'fa520000-0000-4000-8000-000000000001',
-    'student', 'Partner-club appeal above its term cap.', 1,
+    'student', 'Partner-club appeal without finalized member proof.', 1,
     'non_drive', 'rejected', 'fa000000-0000-4000-8000-000000000001'
   ),
   (
@@ -605,13 +600,13 @@ SELECT extensions.throws_ok(
     'fa100000-0000-4000-8000-000000000001',
     (SELECT id FROM plugin_data.csf_point_appeals
       WHERE correlation_id = 'fab00000-0000-4000-8000-000000000003'),
-    'approved', 'The partner-club cap remains authoritative.',
+    'approved', 'Member proof is still absent from this partner-club claim.',
     'fa000000-0000-4000-8000-000000000004',
     'fac00000-0000-4000-8000-000000000003'
   ) $$,
   'P0001',
-  'Points exceed the selected partner-club limit of 1.00.',
-  'appeal approval cannot exceed the active partner-club term cap'
+  'A proof file is required for this point action.',
+  'appeal approval revalidates the student partner-club proof requirement'
 );
 
 SELECT extensions.throws_ok(
@@ -784,17 +779,14 @@ SELECT extensions.throws_ok(
     'fa400000-0000-4000-8000-000000000001',
     'fa300000-0000-4000-8000-000000000001',
     NULL, 'fa520000-0000-4000-8000-000000000001',
-    'student', 'The partner claim exceeds its published cap.', 1.5, 'non_drive', current_date,
+    'student', 'The partner claim omits its required proof.', 1.5, 'non_drive', current_date,
     'fa000000-0000-4000-8000-000000000001',
-    'fa610000-0000-4000-8000-000000000005', 'csf-private',
-    'organizations/point-authority/submissions/partner/proof.pdf',
-    'proof.pdf', 'application/pdf', 200,
-    'fa620000-0000-4000-8000-000000000005',
+    NULL, NULL, NULL, NULL, NULL, NULL, NULL,
     'fa700000-0000-4000-8000-000000000005'
   ) $$,
   'P0001',
-  'Points exceed the selected partner-club limit of 1.00.',
-  'a partner-club claim cannot exceed its active term policy cap'
+  'A proof file is required for this point action.',
+  'a student partner-club claim always requires proof'
 );
 
 SELECT extensions.throws_ok(

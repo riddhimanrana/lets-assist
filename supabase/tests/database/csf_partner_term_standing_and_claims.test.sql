@@ -3,7 +3,7 @@ BEGIN;
 CREATE EXTENSION IF NOT EXISTS pgtap WITH SCHEMA extensions;
 SELECT extensions.plan(13);
 
-SELECT extensions.has_column('plugin_data', 'csf_partner_club_terms', 'proof_required', 'partner-club terms store their proof policy');
+SELECT extensions.has_column('plugin_data', 'csf_partner_club_terms', 'spreadsheet_url', 'partner-club terms store the club-owned spreadsheet link');
 SELECT extensions.has_column('plugin_data', 'csf_point_submissions', 'partner_club_term_id', 'point submissions reference the reviewed partner-club term');
 SELECT extensions.ok(
   EXISTS (
@@ -63,11 +63,10 @@ VALUES
   ('d4400000-0000-4000-8000-000000000002', 'd4100000-0000-4000-8000-000000000002', 'Key Club', 'active');
 
 INSERT INTO plugin_data.csf_partner_club_terms (
-  id, organization_id, partner_club_id, term_id, relationship_status,
-  workflow_status, approved_point_types, non_drive_points, drive_points, proof_required
+  id, organization_id, partner_club_id, term_id, relationship_status, workflow_status
 ) VALUES
-  ('d4500000-0000-4000-8000-000000000001', 'd4100000-0000-4000-8000-000000000001', 'd4400000-0000-4000-8000-000000000001', 'd4200000-0000-4000-8000-000000000001', 'new', 'active', ARRAY['non_drive'], 3, 0, true),
-  ('d4500000-0000-4000-8000-000000000002', 'd4100000-0000-4000-8000-000000000002', 'd4400000-0000-4000-8000-000000000002', 'd4200000-0000-4000-8000-000000000002', 'new', 'active', ARRAY['non_drive'], 2, 0, false);
+  ('d4500000-0000-4000-8000-000000000001', 'd4100000-0000-4000-8000-000000000001', 'd4400000-0000-4000-8000-000000000001', 'd4200000-0000-4000-8000-000000000001', 'new', 'active'),
+  ('d4500000-0000-4000-8000-000000000002', 'd4100000-0000-4000-8000-000000000002', 'd4400000-0000-4000-8000-000000000002', 'd4200000-0000-4000-8000-000000000002', 'new', 'active');
 
 SELECT extensions.lives_ok(
   $$ SELECT plugin_data.csf_set_partner_club_term_status(

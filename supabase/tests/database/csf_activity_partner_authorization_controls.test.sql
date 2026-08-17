@@ -1,12 +1,13 @@
--- Independent two-connection proof for representative mutations and the
--- positive authorization controls shared by the nine CSF activity and
--- partner-club service transactions. This file intentionally runs in
--- autocommit so dblink sessions observe committed authority changes.
+-- Independent two-connection proof for the positive authorization controls
+-- shared by the seven CSF activity and partner-club service transactions.
+-- (Representative mutations were retired with the 2026-08-17 partner-club
+-- simplification.) This file intentionally runs in autocommit so dblink
+-- sessions observe committed authority changes.
 
 CREATE EXTENSION IF NOT EXISTS pgtap WITH SCHEMA extensions;
 CREATE EXTENSION IF NOT EXISTS dblink WITH SCHEMA extensions;
 
-SELECT extensions.plan(29);
+SELECT extensions.plan(17);
 
 -- The dblink sessions below commit independently, so a previous interrupted
 -- run can leave these fixed synthetic fixtures behind. Clean before setup as
@@ -17,17 +18,7 @@ LANGUAGE plpgsql
 SET search_path = ''
 AS $function$
 BEGIN
-  DELETE FROM plugin_data.csf_partner_club_representatives
-  WHERE organization_id IN (
-    'fa100000-0000-4000-8000-000000000001',
-    'fa100000-0000-4000-8000-000000000002'
-  );
   DELETE FROM plugin_data.csf_partner_club_terms
-  WHERE organization_id IN (
-    'fa100000-0000-4000-8000-000000000001',
-    'fa100000-0000-4000-8000-000000000002'
-  );
-  DELETE FROM plugin_data.csf_partner_submission_batches
   WHERE organization_id IN (
     'fa100000-0000-4000-8000-000000000001',
     'fa100000-0000-4000-8000-000000000002'
@@ -84,9 +75,7 @@ BEGIN
     'fa000000-0000-4000-8000-000000000007',
     'fa000000-0000-4000-8000-000000000008',
     'fa000000-0000-4000-8000-000000000009',
-    'fa000000-0000-4000-8000-000000000010',
-    'fa000000-0000-4000-8000-000000000011',
-    'fa000000-0000-4000-8000-000000000012'
+    'fa000000-0000-4000-8000-000000000010'
   );
 END;
 $function$;
@@ -135,9 +124,7 @@ INSERT INTO auth.users (
   ('fa000000-0000-4000-8000-000000000007', 'authenticated', 'authenticated', 'activity-controls-other-admin@local.test', now(), '{}', '{}', now(), now()),
   ('fa000000-0000-4000-8000-000000000008', 'authenticated', 'authenticated', 'activity-controls-standing@local.test', now(), '{}', '{}', now(), now()),
   ('fa000000-0000-4000-8000-000000000009', 'authenticated', 'authenticated', 'activity-controls-policy@local.test', now(), '{}', '{}', now(), now()),
-  ('fa000000-0000-4000-8000-000000000010', 'authenticated', 'authenticated', 'activity-controls-retry@local.test', now(), '{}', '{}', now(), now()),
-  ('fa000000-0000-4000-8000-000000000011', 'authenticated', 'authenticated', 'activity-controls-representative-assign@local.test', now(), '{}', '{}', now(), now()),
-  ('fa000000-0000-4000-8000-000000000012', 'authenticated', 'authenticated', 'activity-controls-representative-revoke@local.test', now(), '{}', '{}', now(), now());
+  ('fa000000-0000-4000-8000-000000000010', 'authenticated', 'authenticated', 'activity-controls-retry@local.test', now(), '{}', '{}', now(), now());
 
 INSERT INTO public.organizations (id, name, username, type, join_code)
 VALUES
@@ -156,8 +143,6 @@ INSERT INTO public.organization_members (
   ('fa100000-0000-4000-8000-000000000001', 'fa000000-0000-4000-8000-000000000008', 'member', 'active'),
   ('fa100000-0000-4000-8000-000000000001', 'fa000000-0000-4000-8000-000000000009', 'member', 'active'),
   ('fa100000-0000-4000-8000-000000000001', 'fa000000-0000-4000-8000-000000000010', 'member', 'active'),
-  ('fa100000-0000-4000-8000-000000000001', 'fa000000-0000-4000-8000-000000000011', 'member', 'active'),
-  ('fa100000-0000-4000-8000-000000000001', 'fa000000-0000-4000-8000-000000000012', 'member', 'active'),
   ('fa100000-0000-4000-8000-000000000002', 'fa000000-0000-4000-8000-000000000007', 'admin', 'active');
 
 INSERT INTO plugin_data.csf_roles (
@@ -171,9 +156,7 @@ INSERT INTO plugin_data.csf_roles (
   ('fa700000-0000-4000-8000-000000000005', 'fa100000-0000-4000-8000-000000000001', 'activity-controls-partner', 'Partner officer', 'Partner officer', 'Partner clubs', 'Synthetic authorization-fence role.', 'custom', false, 505),
   ('fa700000-0000-4000-8000-000000000006', 'fa100000-0000-4000-8000-000000000001', 'activity-controls-standing', 'Standing officer', 'Standing officer', 'Club standing', 'Synthetic authorization-fence role.', 'custom', false, 506),
   ('fa700000-0000-4000-8000-000000000007', 'fa100000-0000-4000-8000-000000000001', 'activity-controls-policy', 'Policy officer', 'Policy officer', 'Club policy', 'Synthetic authorization-fence role.', 'custom', false, 507),
-  ('fa700000-0000-4000-8000-000000000008', 'fa100000-0000-4000-8000-000000000001', 'activity-controls-retry', 'Retry officer', 'Retry officer', 'Activity retries', 'Synthetic authorization-fence role.', 'custom', false, 508),
-  ('fa700000-0000-4000-8000-000000000009', 'fa100000-0000-4000-8000-000000000001', 'activity-controls-representative-assign', 'Representative assignment officer', 'Representative assignment officer', 'Representative assignments', 'Synthetic authorization-fence role.', 'custom', false, 509),
-  ('fa700000-0000-4000-8000-000000000010', 'fa100000-0000-4000-8000-000000000001', 'activity-controls-representative-revoke', 'Representative revocation officer', 'Representative revocation officer', 'Representative revocations', 'Synthetic authorization-fence role.', 'custom', false, 510);
+  ('fa700000-0000-4000-8000-000000000008', 'fa100000-0000-4000-8000-000000000001', 'activity-controls-retry', 'Retry officer', 'Retry officer', 'Activity retries', 'Synthetic authorization-fence role.', 'custom', false, 508);
 
 INSERT INTO plugin_data.csf_role_permissions (
   organization_id, role_id, permission_key, enabled
@@ -185,9 +168,7 @@ INSERT INTO plugin_data.csf_role_permissions (
   ('fa100000-0000-4000-8000-000000000001', 'fa700000-0000-4000-8000-000000000005', 'manage_partner_clubs', true),
   ('fa100000-0000-4000-8000-000000000001', 'fa700000-0000-4000-8000-000000000006', 'manage_partner_clubs', true),
   ('fa100000-0000-4000-8000-000000000001', 'fa700000-0000-4000-8000-000000000007', 'manage_partner_clubs', true),
-  ('fa100000-0000-4000-8000-000000000001', 'fa700000-0000-4000-8000-000000000008', 'manage_opportunities', true),
-  ('fa100000-0000-4000-8000-000000000001', 'fa700000-0000-4000-8000-000000000009', 'manage_partner_clubs', true),
-  ('fa100000-0000-4000-8000-000000000001', 'fa700000-0000-4000-8000-000000000010', 'manage_partner_clubs', true);
+  ('fa100000-0000-4000-8000-000000000001', 'fa700000-0000-4000-8000-000000000008', 'manage_opportunities', true);
 
 INSERT INTO plugin_data.csf_staff_positions (
   id, organization_id, user_id, role_id, school_year,
@@ -200,9 +181,7 @@ INSERT INTO plugin_data.csf_staff_positions (
   ('fa800000-0000-4000-8000-000000000005', 'fa100000-0000-4000-8000-000000000001', 'fa000000-0000-4000-8000-000000000006', 'fa700000-0000-4000-8000-000000000005', '2040-2041', 'Partner officer', 'active', current_date - 1, current_date + 30),
   ('fa800000-0000-4000-8000-000000000006', 'fa100000-0000-4000-8000-000000000001', 'fa000000-0000-4000-8000-000000000008', 'fa700000-0000-4000-8000-000000000006', '2040-2041', 'Standing officer', 'active', current_date - 1, current_date + 30),
   ('fa800000-0000-4000-8000-000000000007', 'fa100000-0000-4000-8000-000000000001', 'fa000000-0000-4000-8000-000000000009', 'fa700000-0000-4000-8000-000000000007', '2040-2041', 'Policy officer', 'active', current_date - 1, current_date + 30),
-  ('fa800000-0000-4000-8000-000000000008', 'fa100000-0000-4000-8000-000000000001', 'fa000000-0000-4000-8000-000000000010', 'fa700000-0000-4000-8000-000000000008', '2040-2041', 'Retry officer', 'active', current_date - 1, current_date + 30),
-  ('fa800000-0000-4000-8000-000000000009', 'fa100000-0000-4000-8000-000000000001', 'fa000000-0000-4000-8000-000000000011', 'fa700000-0000-4000-8000-000000000009', '2040-2041', 'Representative assignment officer', 'active', current_date - 1, current_date + 30),
-  ('fa800000-0000-4000-8000-000000000010', 'fa100000-0000-4000-8000-000000000001', 'fa000000-0000-4000-8000-000000000012', 'fa700000-0000-4000-8000-000000000010', '2040-2041', 'Representative revocation officer', 'active', current_date - 1, current_date + 30);
+  ('fa800000-0000-4000-8000-000000000008', 'fa100000-0000-4000-8000-000000000001', 'fa000000-0000-4000-8000-000000000010', 'fa700000-0000-4000-8000-000000000008', '2040-2041', 'Retry officer', 'active', current_date - 1, current_date + 30);
 
 INSERT INTO plugin_data.csf_terms (
   id, organization_id, code, label, school_year, semester,
@@ -235,27 +214,9 @@ INSERT INTO plugin_data.csf_partner_clubs (
 
 INSERT INTO plugin_data.csf_partner_club_terms (
   id, organization_id, partner_club_id, term_id, relationship_status,
-  workflow_status, approved_point_types, non_drive_points, drive_points,
-  proof_required
+  workflow_status
 ) VALUES
-  ('fab00000-0000-4000-8000-000000000001', 'fa100000-0000-4000-8000-000000000001', 'fa600000-0000-4000-8000-000000000003', 'fa200000-0000-4000-8000-000000000001', 'new', 'active', ARRAY['non_drive']::text[], 2, 0, true);
-
-INSERT INTO plugin_data.csf_partner_club_representatives (
-  id, organization_id, partner_club_term_id, role, display_name, email,
-  status, effective_start, is_primary, created_by, metadata
-) VALUES (
-  'fac00000-0000-4000-8000-000000000001',
-  'fa100000-0000-4000-8000-000000000001',
-  'fab00000-0000-4000-8000-000000000001',
-  'coordinator',
-  'Revocation Target',
-  'revocation-target@local.test',
-  'invited',
-  current_date,
-  false,
-  'fa000000-0000-4000-8000-000000000001',
-  '{}'::jsonb
-);
+  ('fab00000-0000-4000-8000-000000000001', 'fa100000-0000-4000-8000-000000000001', 'fa600000-0000-4000-8000-000000000003', 'fa200000-0000-4000-8000-000000000001', 'new', 'active');
 
 CREATE TEMP TABLE csf_activity_partner_controls_results (
   key text PRIMARY KEY,
@@ -359,174 +320,7 @@ SELECT plugin_data.csf_update_role(
   'fa000000-0000-4000-8000-000000000001'
 );
 
--- 1-5: representative assignment queued behind a role-permission edit.
-SELECT extensions.ok(
-  plugin_data.csf_actor_has_permission(
-    'fa100000-0000-4000-8000-000000000001',
-    'fa000000-0000-4000-8000-000000000011',
-    'manage_partner_clubs'
-  ),
-  'the assignment actor is authorized before the concurrent role edit'
-);
-SELECT extensions.dblink_connect(
-  'representative_assignment_role_revoked',
-  pg_temp.csf_activity_partner_controls_dsn()
-);
-BEGIN;
-SELECT pg_catalog.pg_advisory_xact_lock(
-  plugin_data.csf_staff_access_lock_key('fa100000-0000-4000-8000-000000000001')
-);
-SELECT extensions.dblink_send_query(
-  'representative_assignment_role_revoked',
-  $query$
-    SELECT plugin_data.csf_assign_partner_representative(
-      'fa100000-0000-4000-8000-000000000001'::uuid,
-      'fab00000-0000-4000-8000-000000000001'::uuid,
-      'Queued Assignment',
-      'queued-assignment@local.test',
-      'coordinator',
-      current_date,
-      false,
-      'faa00000-0000-4000-8000-000000000008'::uuid,
-      'fa000000-0000-4000-8000-000000000011'::uuid
-    )::text
-  $query$
-);
-SELECT extensions.ok(
-  pg_temp.wait_for_csf_activity_partner_lock('faa00000-0000-4000-8000-000000000008'),
-  'the queued assignment passes its first check and waits on the staff-access lock'
-);
-SELECT plugin_data.csf_update_role(
-  'fa100000-0000-4000-8000-000000000001',
-  'fa700000-0000-4000-8000-000000000009',
-  'Representative assignment officer', 'Representative assignments',
-  'Permission revoked while a representative assignment waits.',
-  ARRAY[]::text[], NULL,
-  'fa000000-0000-4000-8000-000000000001'
-);
-COMMIT;
-SELECT extensions.ok(
-  pg_temp.wait_for_csf_activity_partner_result('representative_assignment_role_revoked'),
-  'the queued representative assignment finishes after the staff-access lock is released'
-);
-SELECT *
-FROM extensions.dblink_get_result('representative_assignment_role_revoked', false)
-  AS result(payload text);
-SELECT extensions.ok(
-  position(
-    'Not authorized to manage CSF partner clubs.'
-    IN extensions.dblink_error_message('representative_assignment_role_revoked')
-  ) > 0,
-  'the queued assignment fails after the role edit commits'
-);
-SELECT extensions.dblink_disconnect('representative_assignment_role_revoked');
-SELECT extensions.is(
-  (SELECT count(*)::integer
-   FROM plugin_data.csf_partner_club_representatives
-   WHERE organization_id = 'fa100000-0000-4000-8000-000000000001'
-     AND normalized_email = 'queued-assignment@local.test')
-  + (SELECT count(*)::integer
-     FROM plugin_data.csf_partner_club_term_events
-     WHERE organization_id = 'fa100000-0000-4000-8000-000000000001'
-       AND idempotency_key = 'representative:assignment-request:faa00000-0000-4000-8000-000000000008')
-  + (SELECT count(*)::integer
-     FROM plugin_data.csf_admin_audit_events
-     WHERE organization_id = 'fa100000-0000-4000-8000-000000000001'
-       AND actor_user_id = 'fa000000-0000-4000-8000-000000000011'
-       AND action = 'partner_representative.assign'),
-  0,
-  'the revoked queued assignment writes no representative, lifecycle event, or audit receipt'
-);
-SELECT extensions.is(
-  (SELECT enabled::text
-   FROM plugin_data.csf_role_permissions
-   WHERE role_id = 'fa700000-0000-4000-8000-000000000009'
-     AND permission_key = 'manage_partner_clubs'),
-  'false',
-  'the assignment actor role edit committed before the queued call resumed'
-);
-
--- 6-10: representative revocation queued behind a staff-position revocation.
-SELECT extensions.ok(
-  plugin_data.csf_actor_has_permission(
-    'fa100000-0000-4000-8000-000000000001',
-    'fa000000-0000-4000-8000-000000000012',
-    'manage_partner_clubs'
-  ),
-  'the revocation actor is authorized before the concurrent position revocation'
-);
-SELECT extensions.dblink_connect(
-  'representative_revocation_position_revoked',
-  pg_temp.csf_activity_partner_controls_dsn()
-);
-BEGIN;
-SELECT pg_catalog.pg_advisory_xact_lock(
-  plugin_data.csf_staff_access_lock_key('fa100000-0000-4000-8000-000000000001')
-);
-SELECT extensions.dblink_send_query(
-  'representative_revocation_position_revoked',
-  $query$
-    SELECT plugin_data.csf_revoke_partner_representative(
-      'fa100000-0000-4000-8000-000000000001'::uuid,
-      'fac00000-0000-4000-8000-000000000001'::uuid,
-      'fab00000-0000-4000-8000-000000000001'::uuid,
-      'Revocation queued behind a concurrent position revocation.',
-      'faa00000-0000-4000-8000-000000000009'::uuid,
-      'fa000000-0000-4000-8000-000000000012'::uuid
-    )::text
-  $query$
-);
-SELECT extensions.ok(
-  pg_temp.wait_for_csf_activity_partner_lock('faa00000-0000-4000-8000-000000000009'),
-  'the queued revocation passes its first check and waits on the staff-access lock'
-);
-SELECT plugin_data.csf_revoke_staff_position(
-  'fa100000-0000-4000-8000-000000000001',
-  'fa800000-0000-4000-8000-000000000010',
-  NULL,
-  'Revoke the queued representative-revocation actor position',
-  'fa000000-0000-4000-8000-000000000001'
-);
-COMMIT;
-SELECT extensions.ok(
-  pg_temp.wait_for_csf_activity_partner_result('representative_revocation_position_revoked'),
-  'the queued representative revocation finishes after the staff-access lock is released'
-);
-SELECT *
-FROM extensions.dblink_get_result('representative_revocation_position_revoked', false)
-  AS result(payload text);
-SELECT extensions.ok(
-  position(
-    'Not authorized to manage CSF partner clubs.'
-    IN extensions.dblink_error_message('representative_revocation_position_revoked')
-  ) > 0,
-  'the queued revocation fails after the position revocation commits'
-);
-SELECT extensions.dblink_disconnect('representative_revocation_position_revoked');
-SELECT extensions.ok(
-  (SELECT status = 'invited' AND effective_end IS NULL
-   FROM plugin_data.csf_partner_club_representatives
-   WHERE organization_id = 'fa100000-0000-4000-8000-000000000001'
-     AND id = 'fac00000-0000-4000-8000-000000000001')
-  AND (
-    (SELECT count(*)
-     FROM plugin_data.csf_partner_club_term_events
-     WHERE correlation_id = 'faa00000-0000-4000-8000-000000000009')
-    + (SELECT count(*)
-       FROM plugin_data.csf_admin_audit_events
-       WHERE correlation_id = 'faa00000-0000-4000-8000-000000000009')
-  ) = 0,
-  'the revoked queued revocation leaves the assignment unchanged and writes no lifecycle or audit receipt'
-);
-SELECT extensions.is(
-  (SELECT status
-   FROM plugin_data.csf_staff_positions
-   WHERE id = 'fa800000-0000-4000-8000-000000000010'),
-  'ended',
-  'the revocation actor position revocation committed before the queued call resumed'
-);
-
--- 11-13: the actor membership row is genuinely held for the whole transaction,
+-- 1-3: the actor membership row is genuinely held for the whole transaction,
 -- not merely re-read. A concurrent deactivation must block behind the share
 -- lock while an open wrapper transaction is still uncommitted.
 SELECT extensions.dblink_connect(
@@ -580,7 +374,7 @@ SELECT extensions.is(
   'the blocked deactivation left the retry actor membership active'
 );
 
--- 14-17: a still-authorized queued call is not denied, and its exact retry is
+-- 4-8: a still-authorized queued call is not denied, and its exact retry is
 -- still idempotent through the wrapper.
 SELECT extensions.dblink_connect(
   'activity_retry_after_benign_edit',
@@ -668,7 +462,7 @@ SELECT extensions.is(
   'the retried request leaves exactly one target row and one audit receipt'
 );
 
--- 18-20: replay lookup never bypasses current authorization. The committed
+-- 9-11: replay lookup never bypasses current authorization. The committed
 -- outcome stays durable; only re-reading it through this boundary is denied.
 SELECT extensions.throws_ok(
   $$
@@ -705,7 +499,7 @@ SELECT extensions.is(
   'the denied replay leaves exactly the original audit receipt'
 );
 
--- 21-23: active organization admins retain the unchanged nine-RPC semantics.
+-- 12-14: active organization admins retain the unchanged seven-RPC semantics.
 INSERT INTO csf_activity_partner_controls_results (key, payload)
 VALUES
   (
@@ -778,42 +572,17 @@ VALUES
       'fa100000-0000-4000-8000-000000000001',
       'fa000000-0000-4000-8000-000000000001',
       'faa00000-0000-4000-8000-000000000017',
-      '{"termId":"fa200000-0000-4000-8000-000000000001","termStatus":"new","name":"Admin policy club","approvedPointTypes":["non_drive"],"nonDrivePoints":"3","drivePoints":"0","proofRequired":"true"}'::jsonb
-    )
-  ),
-  (
-    'admin_representative_assign',
-    plugin_data.csf_assign_partner_representative(
-      'fa100000-0000-4000-8000-000000000001',
-      'fab00000-0000-4000-8000-000000000001',
-      'Admin Assigned Representative',
-      'admin-assigned-representative@local.test',
-      'coordinator',
-      current_date,
-      false,
-      'faa00000-0000-4000-8000-000000000018',
-      'fa000000-0000-4000-8000-000000000001'
-    )
-  ),
-  (
-    'admin_representative_revoke',
-    plugin_data.csf_revoke_partner_representative(
-      'fa100000-0000-4000-8000-000000000001',
-      'fac00000-0000-4000-8000-000000000001',
-      'fab00000-0000-4000-8000-000000000001',
-      'Admin revocation control proves unchanged representative semantics.',
-      'faa00000-0000-4000-8000-000000000019',
-      'fa000000-0000-4000-8000-000000000001'
+      '{"termId":"fa200000-0000-4000-8000-000000000001","termStatus":"new","name":"Admin policy club","spreadsheetUrl":"https://example.test/admin-policy-club-members"}'::jsonb
     )
   );
 SELECT extensions.ok(
   (
-    SELECT count(*) = 9
+    SELECT count(*) = 7
       AND bool_and((payload ->> 'idempotent')::boolean = false)
     FROM csf_activity_partner_controls_results
     WHERE key LIKE 'admin_%'
   ),
-  'the active admin receives the unchanged non-idempotent result contract from all nine RPCs'
+  'the active admin receives the unchanged non-idempotent result contract from all seven RPCs'
 );
 SELECT extensions.ok(
   EXISTS (
@@ -865,25 +634,7 @@ SELECT extensions.ok(
     )
       AND club.name = 'Admin policy club'
       AND term.workflow_status = 'active'
-  )
-  AND EXISTS (
-    SELECT 1
-    FROM plugin_data.csf_partner_club_representatives AS representative
-    WHERE representative.id = (
-      SELECT (payload ->> 'assignmentId')::uuid
-      FROM csf_activity_partner_controls_results
-      WHERE key = 'admin_representative_assign'
-    )
-      AND representative.organization_id = 'fa100000-0000-4000-8000-000000000001'
-      AND representative.partner_club_term_id = 'fab00000-0000-4000-8000-000000000001'
-      AND representative.normalized_email = 'admin-assigned-representative@local.test'
-      AND representative.status = 'invited'
-  )
-  AND (
-    SELECT status = 'revoked'
-      AND effective_end IS NOT NULL
-    FROM plugin_data.csf_partner_club_representatives
-    WHERE id = 'fac00000-0000-4000-8000-000000000001'
+      AND term.spreadsheet_url = 'https://example.test/admin-policy-club-members'
   ),
   'the active admin preserves each target mutation semantics'
 );
@@ -897,24 +648,13 @@ SELECT extensions.is(
      'faa00000-0000-4000-8000-000000000014',
      'faa00000-0000-4000-8000-000000000015',
      'faa00000-0000-4000-8000-000000000016',
-     'faa00000-0000-4000-8000-000000000017',
-     'faa00000-0000-4000-8000-000000000019'
-   ))
-  + (SELECT count(*)::integer
-     FROM plugin_data.csf_admin_audit_events
-     WHERE organization_id = 'fa100000-0000-4000-8000-000000000001'
-       AND actor_user_id = 'fa000000-0000-4000-8000-000000000001'
-       AND action = 'partner_representative.assign'
-       AND target_id = (
-         SELECT (payload ->> 'assignmentId')::uuid
-         FROM csf_activity_partner_controls_results
-         WHERE key = 'admin_representative_assign'
-       )),
-  9,
-  'the nine admin mutations retain one immutable receipt apiece'
+     'faa00000-0000-4000-8000-000000000017'
+   )),
+  7,
+  'the seven admin mutations retain one immutable receipt apiece'
 );
 
--- 24-26: an organization A staff lock cannot block organization B.
+-- 15-17: an organization A staff lock cannot block organization B.
 SELECT extensions.dblink_connect(
   'activity_partner_cross_org',
   pg_temp.csf_activity_partner_controls_dsn()

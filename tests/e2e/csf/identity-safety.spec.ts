@@ -5,6 +5,7 @@ import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 
 import { getCsfIsolatedSupabaseEnv } from "../../../scripts/local-dev/dv-local-env.mjs";
 import {
+  CSF_ORGANIZATION_PATH,
   expectNoBrowserFailures,
   watchBrowserFailures,
   loginAs,
@@ -358,8 +359,14 @@ async function cleanIdentityFixture(current: IdentityFixture) {
 }
 
 async function openMembersTab(page: Page) {
-  await page.getByRole("tab", { name: "Members", exact: true }).click();
-  await expect(page).toHaveURL(/[?&]tab=csf-members(?:&|$)/);
+  const classMembersUrl = new URLSearchParams({
+    tab: "csf-cohorts",
+    csf_cohort: fixture.cohortId,
+    csf_cohort_tab: "members",
+  });
+  await page.goto(`${CSF_ORGANIZATION_PATH}?${classMembersUrl.toString()}`);
+  await expect(page).toHaveURL(/[?&]tab=csf-cohorts(?:&|$)/);
+  await expect(page).toHaveURL(/[?&]csf_cohort_tab=members(?:&|$)/);
   await expect(
     page.getByRole("navigation", { name: "Member views" }),
   ).toBeVisible();
@@ -389,13 +396,6 @@ test.describe("CSF identity safety", () => {
     await expect(
       page.getByText(fixture.mergeSourceName, { exact: false }).first(),
     ).toBeVisible();
-    // The directory search is server-backed. Wait for its final result summary
-    // before opening the portaled row menu so a late roster refresh cannot
-    // close the menu between the trigger click and the correction action.
-    await expect(
-      page.getByRole("tabpanel").getByText("Showing 2 of 2 matching members."),
-    ).toBeVisible();
-
     const sourceRow = page.getByRole("row").filter({
       hasText: `wren.alpha.${fixture.suffix}@students.local.test`,
     });
@@ -514,9 +514,6 @@ test.describe("CSF identity safety", () => {
     const search = page.getByLabel("Search members");
     await search.fill(`Vale-${fixture.suffix}`);
     await search.press("Enter");
-    await expect(
-      page.getByRole("tabpanel").getByText("Showing 2 of 2 matching members."),
-    ).toBeVisible();
 
     const sourceRow = page.getByRole("row").filter({
       hasText: fixture.validMergeSourceName,
@@ -622,7 +619,7 @@ test.describe("CSF identity safety", () => {
     await loginAs(page, "admin");
     await openMembersTab(page);
 
-    await page.getByRole("button", { name: "Account connections" }).click();
+    await page.getByRole("button", { name: "Needs account link" }).click();
     await expect(page).toHaveURL(/[?&]csf_member_view=connections(?:&|$)/);
 
     const connections = page.getByRole("region", {

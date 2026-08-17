@@ -60,15 +60,16 @@ replace and approve them from the chapter calendar before a Production cutover.
    show public activities, but must not expose roster, applications, evidence,
    attendance, points, or account-connection data.
 6. As the relevant officer roles, click through Applications, Members,
-   Activities, Points, Meetings, Partner clubs, Imports, Reports, Staff access,
+   Activities, Points, Meetings, Partner clubs, Imports, Staff access,
    Change history, Communications, and Settings. A hidden route is an expected
    permission result; a blank page, runtime error, or cross-role private data is
    not.
 7. Keep email in no-send mode until the Resend topic id, webhook, audience
    consent key, sender domain, and exact recipient snapshot are all visible.
    Queue/delivery/provider outcomes are separate states.
-8. Download a report ZIP and inspect it locally. Do not upload generated reports
-   or browser traces to the repository.
+8. Download a report ZIP from Settings → Download reports and inspect it
+   locally. Do not upload generated reports or browser traces to the
+   repository.
 
 For Google acceptance, Chrome must be signed into exactly
 `dvhighcsf@gmail.com`. If the account is not offered by Google, stop at the
@@ -141,19 +142,19 @@ Only if the chapter has history worth carrying. Skip entirely for a brand-new ch
 
 Import through the Sheets workspace preview → commit fence. Google and the chapter website are source evidence, not a second database. Every commit is staff-approved and only reversible forward. The order matters, because later imports reference earlier ones:
 
-1. **Club registry and policies** — partner-form imports, producing partner clubs with per-club point policy.
+1. **Club registry** — partner form-response imports; apply each previewed row as a draft club record (or skip it), then review each club's term standing. There is no per-club point policy: officers vet point types, caps, and proof manually at point approval.
 2. **Student identities and history** — use **Student roster** only for a reviewed roster authorized to create current profiles, or **Historical records** for approved prior-class history. Application responses never seed student identities: each application row must resolve to an existing reviewed profile before it can commit.
 3. **Application responses, when they are in scope** — only after the profiles exist, preview the bounded source and resolve every application row to its existing profile. For an unresolved row, select **Match to member**, enter the required **Match reason**, and select **Use match**; otherwise skip it with a reason. A targetless application row is not ready to commit.
 4. **Attendance** — a meeting-attendance import per term. Name-only rows will land ambiguous; resolve what you can. `skipped` is an honest terminal state for a departed student.
-5. **Per-club points** — normalize first with `bun run csf:normalize:legacy`, review every generated mapping (sheet selection, club name, excluded rows, points per mark), then re-run with `--apply` and upload each normalized workbook as a partner-club-audit import.
+5. **Per-club points** — the partner-club-audit member-Sheet import was removed by the 2026-08-17 partner-clubs simplification. Keep per-club point workbooks as reference evidence and record any historical awards still needed through the reviewed point workflows.
 
-**Acceptance before moving on:** every imported student identity came from an approved roster/history source; every application row either names an existing reviewed profile or is explicitly skipped; at least three clubs' point totals are spot-checked against their source workbooks; the ambiguous-row queue is triaged to zero or every remaining row is documented.
+**Acceptance before moving on:** every imported student identity came from an approved roster/history source; every application row either names an existing reviewed profile or is explicitly skipped; every partner form-response row is applied as a draft or skipped and each retained club's term standing is reviewed; the ambiguous-row queue is triaged to zero or every remaining row is documented.
 
 For DVHS, the only historical student imports are the approved Class of 2027–2029 sheets: Class of 2027 `S26` `A1:O168`, Class of 2028 `S26` `A1:O168`, and Class of 2029 `S26` `A1:N89`. Class of 2026 is out of scope, the Class of 2030 workbook has no import job, and the Spring 2026 application-response workbook is comparison evidence only. DVHS-specific file names and expected row counts are in [officer runbook §10.2](officer-runbook.md).
 
 ## Stage 5 — Communications setup
 
-Before any announcement email: save the broadcast topic and the Resend topic id in the organization's plugin settings for the `term_members` audience. Cohort posts email through the same announcements consent topic, and the durable ledger will refuse to queue without it.
+Before any announcement email, open **Communications settings**, select **Check communications setup**, and confirm the **Term members** audience reports **Ready**. The platform provisions and validates provider topics server-side; ordinary officers never enter or see provider identifiers. Class posts use the same chapter-announcement unsubscribe boundary, and the durable ledger refuses to queue while setup is degraded or incomplete.
 
 ## Stage 6 — Student rollout
 

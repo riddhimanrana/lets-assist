@@ -54,6 +54,12 @@ VALUES
   ('f7100000-0000-4000-8000-000000000001', 'CSF Role Lifecycle A', 'csf-role-lifecycle-a', 'school', '997101'),
   ('f7100000-0000-4000-8000-000000000002', 'CSF Role Lifecycle B', 'csf-role-lifecycle-b', 'school', '997102');
 
+INSERT INTO plugin_data.csf_terms (
+  id, organization_id, code, label, school_year, semester, lifecycle_status, is_current
+) VALUES
+  ('f7300000-0000-4000-8000-000000000001', 'f7100000-0000-4000-8000-000000000001', 'F31', 'Fall 2031', '2031-2032', 'fall', 'open', true),
+  ('f7300000-0000-4000-8000-000000000002', 'f7100000-0000-4000-8000-000000000001', 'F32', 'Fall 2032', '2032-2033', 'fall', 'planned', false);
+
 INSERT INTO public.organization_members (organization_id, user_id, role, status)
 VALUES
   ('f7100000-0000-4000-8000-000000000001', 'f7000000-0000-4000-8000-000000000001', 'admin', 'active'),

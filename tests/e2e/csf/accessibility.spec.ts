@@ -300,10 +300,11 @@ test.describe("DVHS CSF accessibility acceptance", () => {
     await expect(page.getByRole("menu")).toMatchAriaSnapshot(`
       - menu "More":
         - group "More":
+          - text: More
+          - separator
+          - menuitem "Terms"
           - menuitem "Meetings"
           - menuitem "Partner clubs"
-          - menuitem "Import history"
-          - menuitem "Reports"
           - menuitem "Officers & access"
           - menuitem "Change history"
           - menuitem "Communications"
@@ -323,14 +324,16 @@ test.describe("DVHS CSF accessibility acceptance", () => {
     await expect(page.getByRole("menu")).toMatchAriaSnapshot(`
       - menu:
         - group "Workspace":
+          - text: Workspace
           - menuitem "Home"
           - menuitem "Classes"
           - menuitem "Applications"
+        - separator
         - group "More":
+          - text: More
+          - menuitem "Terms"
           - menuitem "Meetings"
           - menuitem "Partner clubs"
-          - menuitem "Import history"
-          - menuitem "Reports"
           - menuitem "Officers & access"
           - menuitem "Change history"
           - menuitem "Communications"

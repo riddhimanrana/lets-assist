@@ -1,8 +1,8 @@
 # DVHS CSF Product and Operational Specification
 
 **Status:** Approved implementation source of truth<br>
-**Version:** 1.3<br>
-**Last updated:** August 9, 2026<br>
+**Version:** 1.4<br>
+**Last updated:** August 17, 2026<br>
 **Product surface:** DVHS CSF private organization plugin inside Let’s Assist
 
 This document defines the product, operating model, information architecture, terminology, data boundaries, workflows, page behavior, and acceptance criteria for the DVHS CSF rebuild. If current code, old mockups, seed data, or earlier labels conflict with this document, this document wins unless it is amended explicitly.
@@ -44,6 +44,44 @@ The complete synthetic officer/member walkthrough found several surfaces where t
 - **Action and recovery states.** Mutating controls show pending, named success, and named failure states, prevent duplicate activation, and close only after confirmed success. Authorized CSF settings operators can configure communications and reconcile durable unknown outcomes from a CSF-owned surface.
 
 This amendment also resolves older navigation and Classroom wording: the member order is **Feed, Activities, Point submissions, My CSF**, and Google Classroom is retired rather than an active manual broadcast step.
+
+### Amendment 4 — The Terms page (v1.4, August 17, 2026)
+
+Semester management moves out of the Classes tab into a dedicated **Terms**
+page under **More**. The Classes tab keeps only the class picker and **Add a
+class**. This amendment supersedes the Classes-embedded semester views in
+§6.1, §6.3, §6.4, and §8.14–8.16 as follows:
+
+- **One page, one term.** Terms shows a term selector (the chapter's history is
+  the selector — closed terms are ordinary entries marked archived), the
+  selected term's dates and application window, its deadlines, and its meeting
+  schedule. There is no Schedule/Policy/Previous-semesters sub-navigation.
+- **Lifecycle actions.** **Start next term** derives the next operating period
+  from the current term (Fall 2026 → Spring 2027): if the next term record
+  exists it is made current, otherwise it is created prefilled and made current
+  in one step. **Archive term** keeps its blocking server preflight, rendered
+  inside the archive dialog; the submit stays locked while blockers remain.
+  Reopening a closed term is an affordance shown only when a closed term is
+  selected, with the same reasoned, audited flow.
+- **Chapter rules.** The versioned policy record is presented as a collapsed,
+  adviser-gated **Chapter rules** section: a compact statement of the published
+  values with the draft editor and publication controls behind an explicit Edit
+  disclosure. Draft/publish semantics, policy versioning, and immutability are
+  unchanged; only the presentation shrinks. Policy values remain operative data
+  and are never hard-coded.
+- **Class administration.** Per-class semester records, archived classes, and
+  the exceptional **Add one semester** repair live behind a collapsed **Class
+  administration** disclosure on the Terms page.
+- **The chapter cutover guide is removed.** Concrete missing setup is stated
+  where it blocks the action that needs it (for example, inside the archive
+  preflight), not as a standing checklist.
+- **Canonical URLs.** Terms is `/organization/:slug?tab=csf-terms` with
+  `csf_term=:id` selecting a term and `csf_rules=open` expanding Chapter rules.
+  Legacy `tab=csf-cohorts` links carrying `csf_semester_view` (any value) alias
+  onto the Terms tab; `csf_semester_view=policy|advanced` opens Chapter rules.
+  Class-workspace URLs (`csf_cohort` present) never redirect.
+
+Where earlier text conflicts with this record, this record wins.
 
 ---
 
@@ -247,7 +285,7 @@ The current implementation contains important work that should be retained and r
 | Activities                                  | Useful domain, but current posts mix member content and officer settings inconsistently                                                         | Retain and rebuild with explicit lifecycle and member preview                                              |
 | Points workbook                             | Useful for officers familiar with Sheets, but encourages free-form slot semantics                                                               | Retain density while using normalized submissions and awarded quantities                                   |
 | Meetings                                    | Useful, but needs clear logical meeting/session distinction and reconciliation                                                                  | Retain and rebuild around sessions, attendance imports, and unmatched rows                                 |
-| Partner Clubs                               | Legitimate DVHS workflow, but current metrics and term state are inconsistent                                                                   | Retain under Service with term approval and proof history                                                  |
+| Partner Clubs                               | Legitimate DVHS workflow, but current metrics and term state are inconsistent                                                                   | Retain under Service with per-term standing review                                                         |
 | Data & imports                              | Existing one-range workflow is too technical and incomplete                                                                                     | Rebuild as a guided source/map/preview/reconcile/commit/history wizard                                     |
 | Reports                                     | Generic totals and “at risk” counts do not correspond to chapter decisions                                                                      | Rebuild as term-scoped operational exports                                                                 |
 | Audit History                               | Technically correct but sounds punitive                                                                                                         | Rename visible UI to “Change history”; retain immutable audit model                                        |
@@ -303,7 +341,7 @@ The organization plugin shows one primary row:
 3. **Members**
 4. **Service**
 5. **Classes**
-6. **More** — Imports, Reports, Staff access, Change history, Settings
+6. **More** — Terms, Imports, Staff access, Change history, Settings (amended v1.5: the Reports page is retired; the term report download lives on Settings)
 
 The primary row must fit at ordinary desktop widths without a second “More tools” row. On smaller screens it becomes a labeled menu/sheet, not a clipped horizontal list.
 
@@ -336,10 +374,11 @@ The host organization route is canonical. Visible state must be addressable and 
 | Members                  | `/organization/:slug?tab=csf-members` plus stable member/view parameters                                                                        |
 | Service                  | `/organization/:slug?tab=csf-activities&csf_service=:section`, where section is opportunities, points, verification, meetings, or partner-clubs |
 | Selected service record  | Same route with the relevant stable record identifier                                                                                           |
-| Classes and setup        | `/organization/:slug?tab=csf-cohorts` plus `csf_semester_view=schedule`, `policy`, or `history`                                                 |
+| Classes                  | `/organization/:slug?tab=csf-cohorts` (class picker only; see Amendment 4)                                                                      |
+| Terms                    | `/organization/:slug?tab=csf-terms` plus `csf_term=:id` and optional `csf_rules=open` (Amendment 4)                                             |
 | Selected class workspace | Same route with `csf_cohort=:id` and optional `csf_cohort_tab=stream`, `members`, `points`, or `meetings`                                       |
 | Imports                  | `/organization/:slug?tab=csf-imports` with optional stable job/source parameters                                                                |
-| Reports                  | `/organization/:slug?tab=csf-reports`                                                                                                           |
+| Report download          | `/organization/:slug?tab=csf-settings` (the retired `?tab=csf-reports` aliases here)                                                            |
 | Staff access             | `/organization/:slug?tab=csf-staff`                                                                                                             |
 | Change history           | `/organization/:slug?tab=csf-audit`                                                                                                             |
 | Communications           | `/organization/:slug?tab=csf-communications`                                                                                                    |
@@ -366,7 +405,7 @@ Existing direct plugin routes remain temporary compatibility aliases. They redir
 | `audit`                            | Change history                                                                                                             |
 | `restrictions`                     | Member detail or Settings                                                                                                  |
 | `calendar`                         | Removed; legacy announcement rows are read-only migration data. New cohort posts are active per Amendment 1 (amended v1.1) |
-| `reports`                          | Reports                                                                                                                    |
+| `reports`                          | Settings → Download reports                                                                                                |
 | `settings`                         | Settings or Classes → Policy, depending on field                                                                           |
 | `my-profile`, `application-status` | My CSF                                                                                                                     |
 
@@ -583,11 +622,11 @@ Activity lifecycle: `draft`, `published`, `closed`, `cancelled`, `archived`.
 **Officer actions:** Approve, adjust with reason, request correction, reject, process appeal, and open member context.<br>
 **Filters/search:** Term, submission state, activity, point type, reviewer, appeal state, date, member search.<br>
 **Empty states:** Member has no submissions; officer queue is clear; no filter matches.<br>
-**Validation:** A submission chooses a published activity or approved partner club unless an officer records a permitted manual adjustment. One submission may award any valid numeric amount up to policy and activity caps; it is never represented by duplicated one-point slots.<br>
+**Validation:** A submission chooses a published activity or a partner club with active standing for the current term unless an officer records a permitted manual adjustment. One submission may award any valid numeric amount up to policy and activity caps; it is never represented by duplicated one-point slots.<br>
 **Permissions:** Members see only their own records and student-facing notes.<br>
 **Mobile:** Review becomes a full-height sheet/page with evidence and decision footer.
 
-A `needs_action` correction resubmits the same submission; it is not an appeal or a replacement claim. The atomic transition revalidates verified ownership, current open term, active membership, current activity/partner-club policy, and proof requirements while preserving prior review, audit, and correlated resubmission history.
+A `needs_action` correction resubmits the same submission; it is not an appeal or a replacement claim. The atomic transition revalidates verified ownership, current open term, active membership, current activity policy or active partner-club standing, and proof requirements while preserving prior review, audit, and correlated resubmission history.
 
 Every begin, proof finalization, withdrawal, review, appeal, and appeal decision reauthorizes the current actor and locks/revalidates the submission, current open term, active membership, published policy, source relationship, numeric caps, and finalized-proof requirement as applicable. Browser-provided eligibility or a previously valid membership is never sufficient authority for the write.
 
@@ -607,14 +646,16 @@ Meeting and session timestamps use the shared compact Pacific-time formatter. Ra
 
 ### 8.13 Service — Partner clubs
 
-**Purpose:** Record which clubs may issue CSF credit and review their term evidence.<br>
+**Purpose:** Record which clubs may issue CSF credit and review their standing each term.<br>
 **Primary users:** Partner-club lead, point reviewers, adviser.<br>
-**Shows:** Canonical club, aliases, contact/adviser, term status, approved point types/cap, proof rule, source form/sheet, reviewer notes, and standing history.<br>
-**Actions:** Import audits/renewals; approve, request correction, reject, archive; link member sheet; reconcile submitted rows.<br>
-**Filters/search:** Term, review status, point type, renewal status, search.<br>
-**Empty states:** No clubs imported; no clubs approved for term; no filter matches.<br>
-**Validation:** A club is not valid for member submission until the term relationship is approved. A renamed club attaches an alias instead of creating silent duplicate identity.<br>
-**Mobile:** Directory list plus full-page club record/reconciliation.
+**Shows:** A term-filtered directory of canonical clubs; each row opens a detail dialog with aliases, contact/adviser, relationship status, term standing, the policy-review flag and policy notes, standing history, and the club's reference spreadsheet link.<br>
+**Actions:** Add club; edit in the detail dialog; approve, suspend, or expire standing; archive/restore; import Google Form responses and apply rows as draft club records.<br>
+**Filters/search:** Term (chronological dropdown with the current term selected by default), standing, search.<br>
+**Empty states:** No clubs for term; no filter matches.<br>
+**Validation:** A club is not valid for member submission until its standing is active for the current term. A renamed club attaches an alias instead of creating silent duplicate identity. The spreadsheet link is a plain reference to the club's own spreadsheet — owned by the club, not the chapter account — and is never read programmatically. Point types, caps, and proof requirements are not stored per club; officers vet them manually during point approval against the published semester policy.<br>
+**Mobile:** Directory list plus the club detail dialog as a full page.
+
+Clubs keep applying and renewing through the existing Google Form. An officer uploads the form's response export as an **Import form responses** job; rows preview immutably (source type `partner_club_audit`, variant `partner_club_renewal`). Each row is either applied as a draft — creating a not-reviewed club record for the term — or skipped. There is no partner representative access and no Drive-linked member-Sheet import for partner clubs.
 
 ### 8.14 Classes — Semester schedule & deadlines
 
@@ -667,16 +708,15 @@ The selected job's status, blocker list, summary language, and commit control us
 
 The import workspace is specified in Section 12.
 
-### 8.18 Reports
+### 8.18 Report download (Settings)
 
-**Purpose:** Produce defensible term-scoped records for chapter operations.<br>
+**Purpose:** Produce defensible term-scoped records for chapter operations. The standalone Reports page is retired (amended v1.5); the download lives on the Settings workspace and the old tab/route alias to it.<br>
 **Primary users:** Officers with report permission and adviser.<br>
-**Shows:** Report chooser, semester, applied filters, generated time, source policy version, and export history.<br>
-**Reports:** Approved applicants, unresolved applications, dues status, current members, completed/incomplete memberships, point awards, meeting attendance, senior recognition, partner-club standing, import exceptions, and change history.<br>
-**Actions:** Preview; download a local ZIP containing formula-safe CSV files and a manifest. There is no Google Sheets write destination.<br>
-**Validation:** A semester is always explicit. Sensitive columns require sensitive-export permission.<br>
-**Empty state:** Explain why the selected report has no records; never render a decorative zero chart.<br>
-**Mobile:** Preview summary is usable; large exports are generated server-side.
+**Shows:** A Download reports card whose modal offers an explicit semester chooser, per-section checkboxes (approved members, unresolved cases, dues, point awards, meeting attendance, senior recognition, change history), and an opt-in to include uploaded proof pictures.<br>
+**Actions:** Download a local ZIP containing formula-safe CSV files and a manifest; optionally a proof folder grouped by point submission with its own manifest that records any file skipped for size. There is no Google Sheets write destination.<br>
+**Validation:** A semester is always explicit. The bundle requires sensitive-export permission plus the membership, dues, and service export keys; proof files travel only inside that same permission boundary.<br>
+**Empty state:** Sections with no records still appear in the manifest with zero rows; never render a decorative zero chart.<br>
+**Mobile:** The modal is usable; large exports are generated server-side.
 
 ### 8.19 Staff access
 
@@ -701,12 +741,12 @@ The import workspace is specified in Section 12.
 
 ### 8.21 Settings
 
-**Purpose:** Configure stable plugin behavior that is not a semester policy.<br>
-**Primary users:** Adviser/admin.<br>
-**Shows:** Organization identity/links, safe public-page settings, Drive/Sheets connection status, communications consent topic, Resend topic/sender health, recoverable email outcomes, default import behavior, file retention, and feature flags approved for this plugin.<br>
-**Actions:** Update safe defaults; reconnect or disconnect a provider; configure communications; reconcile an authorized unknown email outcome; disable public activity page; view integration health.<br>
+**Purpose:** Configure stable plugin behavior that is not a semester policy, and host the term report download (amended v1.5).<br>
+**Primary users:** Adviser/admin; officers holding report-export keys reach only the Download reports card.<br>
+**Shows:** The connected chapter Google account (Drive/Sheets connection status with connect/reconnect/disconnect), organization identity (name, username, logo — org admins only), and the Download reports card (Section 8.18).<br>
+**Actions:** Reconnect or disconnect the Google provider; edit the organization's public name, username, and logo through the host organization update path; download term report ZIPs.<br>
 **Empty/error:** Missing Google connection is an actionable setup state, not a failed semester.<br>
-**Exclusions:** Academic/service rules live in Classes → Policy; permissions live in Staff access.
+**Exclusions:** Academic/service rules live on the Terms page; permissions live in Staff access; communications configuration lives on the Communications workspace.
 
 ### 8.22 My CSF
 
@@ -734,12 +774,13 @@ The import workspace is specified in Section 12.
 
 ### 8.25 Public page
 
-**Purpose:** Provide a safe DVHS CSF identity and optional public activity discovery without becoming the official chapter site.<br>
-**Shows:** Seal/name, short description, official website/Instagram links, member sign-in, and activities deliberately marked public.<br>
-**Actions:** Open official site, sign in, open allowed signup link.<br>
-**Empty state:** No public activities; retain identity and official links.<br>
-**Privacy:** No roster, counts derived from private students, applications, dues, eligibility, meeting attendance, points, proofs, notes, or account state.<br>
-**Mobile:** Same Let’s Assist public shell and responsive activity list.
+**Purpose:** Provide a safe DVHS CSF identity and an entry into an authenticated class connection without becoming a public class workspace.<br>
+**Shows:** Seal/name, short description, official website/Instagram links, class identity cards, member sign-in, and join/claim guidance.<br>
+**Actions:** Open the official site, sign in to My CSF, or open a class join page and enter that class's permanent join code.<br>
+**Empty state:** Retain the chapter identity, official links, sign-in, and class-code guidance without inventing public content.<br>
+**Privacy:** Public organization and class routes never expose Stream posts, Activities, semesters, rosters, codes, student-derived counts, applications, dues, eligibility, meeting attendance, points, proofs, notes, or account state. Class Stream and Activities require a signed-in, server-authorized class connection.<br>
+**Identity:** A verified email may produce one limited claim candidate. Missing, ambiguous, conflicting, or name-only evidence moves to officer review and never auto-connects.<br>
+**Mobile:** Same Let’s Assist public shell with a responsive join/sign-in flow.
 
 ---
 
@@ -987,21 +1028,21 @@ Existing aggregate academic columns may remain as cached/source values but are n
 
 ### 11.3 Service and participation
 
-| Concept            | Physical model               | Required behavior                                                                                                                                                                                                                                                                                       |
-| ------------------ | ---------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Activity           | `csf_opportunities`          | Structured term record with lifecycle, audience, point rule, signup, evidence, and immutable award-sensitive versioning                                                                                                                                                                                 |
-| Signup             | `csf_opportunity_signups`    | External/linked-project verification state; never equated automatically with attendance or awarded points                                                                                                                                                                                               |
-| Point submission   | `csf_point_submissions`      | Claimed quantity, source, activity/club relation, state, and student-facing/private review fields separated                                                                                                                                                                                             |
-| Evidence           | `csf_submission_files`       | At most policy-supported active proof set; private and lifecycle-managed. `pending` requires an upload token and null terminal timestamps; `finalized` requires `finalized_at` and null `failed_at`. Direct fixture inserts declare the complete lifecycle tuple instead of relying on schema defaults. |
-| Awarded credit     | `csf_credit_records`         | Numeric quantity, type, status, source submission/import/manual adjustment; totals are derived                                                                                                                                                                                                          |
-| Review             | `csf_submission_reviews`     | Immutable review actions and changes                                                                                                                                                                                                                                                                    |
-| Appeal             | `csf_point_appeals`          | Separate member request and resolution history                                                                                                                                                                                                                                                          |
-| Meeting            | `csf_meetings`               | Logical requirement for a term                                                                                                                                                                                                                                                                          |
-| Session            | `csf_meeting_sessions`       | Dated attendance opportunity for one logical meeting                                                                                                                                                                                                                                                    |
-| Attendance         | `csf_meeting_attendance`     | One result per profile/session with match/source/reconciliation state                                                                                                                                                                                                                                   |
-| Partner club       | `csf_partner_clubs`, aliases | Durable canonical club identity                                                                                                                                                                                                                                                                         |
-| Club term approval | `csf_partner_club_terms`     | Term-specific review, allowed point rules, evidence, reviewer, and standing                                                                                                                                                                                                                             |
-| Club import        | partner batches/rows         | Raw evidence, member match, claimed value, generated submission/award link                                                                                                                                                                                                                              |
+| Concept          | Physical model               | Required behavior                                                                                                                                                                                                                                                                                       |
+| ---------------- | ---------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Activity         | `csf_opportunities`          | Structured term record with lifecycle, audience, point rule, signup, evidence, and immutable award-sensitive versioning                                                                                                                                                                                 |
+| Signup           | `csf_opportunity_signups`    | External/linked-project verification state; never equated automatically with attendance or awarded points                                                                                                                                                                                               |
+| Point submission | `csf_point_submissions`      | Claimed quantity, source, activity/club relation, state, and student-facing/private review fields separated                                                                                                                                                                                             |
+| Evidence         | `csf_submission_files`       | At most policy-supported active proof set; private and lifecycle-managed. `pending` requires an upload token and null terminal timestamps; `finalized` requires `finalized_at` and null `failed_at`. Direct fixture inserts declare the complete lifecycle tuple instead of relying on schema defaults. |
+| Awarded credit   | `csf_credit_records`         | Numeric quantity, type, status, source submission/import/manual adjustment; totals are derived                                                                                                                                                                                                          |
+| Review           | `csf_submission_reviews`     | Immutable review actions and changes                                                                                                                                                                                                                                                                    |
+| Appeal           | `csf_point_appeals`          | Separate member request and resolution history                                                                                                                                                                                                                                                          |
+| Meeting          | `csf_meetings`               | Logical requirement for a term                                                                                                                                                                                                                                                                          |
+| Session          | `csf_meeting_sessions`       | Dated attendance opportunity for one logical meeting                                                                                                                                                                                                                                                    |
+| Attendance       | `csf_meeting_attendance`     | One result per profile/session with match/source/reconciliation state                                                                                                                                                                                                                                   |
+| Partner club     | `csf_partner_clubs`, aliases | Durable canonical club identity                                                                                                                                                                                                                                                                         |
+| Club term record | `csf_partner_club_terms`     | Per-term relationship status, workflow standing, policy-review flag (`allocation_satisfied`) with policy notes, reference-only `spreadsheet_url`, reviewer, and append-only term events                                                                                                                 |
+| Club form import | shared import rows           | Immutable form-response export rows (`partner_club_audit` / `partner_club_renewal`); each row is applied as a draft not-reviewed club record or skipped                                                                                                                                                 |
 
 Free-form “Activity 1–7” columns are import evidence only. Current operational data always uses normalized activities/submissions/awards.
 
@@ -1065,8 +1106,7 @@ The same domain evaluator powers member UI, officer tables, reports, exports, an
 - Student roster and graduating-class identity data
 - Historical class workbooks with semester tabs
 - Meeting attendance responses
-- Returning-club applications and club audits/renewals
-- Partner-club member point sheets
+- Returning-club applications and club audits/renewals (Google Form response exports)
 
 ### 12.2 Workspace sections and controls
 
@@ -1188,7 +1228,7 @@ The import workspace is not a step wizard. There is no navigable step sequence, 
 ### 13.2 Google Drive
 
 - Drive Picker selects a file the connected account can access.
-- The CSF callback stores a connection only when Google user-info verifies the exact approved chapter identity, `dvhighcsf@gmail.com`, for the organization/plugin/import-purpose binding. A wrong, missing, or legacy-unverified identity requires account switch/reconnect before Picker access.
+- The CSF callback stores a connection only when Google user-info verifies the exact approved chapter identity, `dvhighcsf@gmail.com`, for the organization/plugin/import-purpose binding. A wrong, missing, or legacy-unverified identity requires account switch/reconnect before Picker access. This gate governs every Google-read importer; partner-club form-response imports are local export uploads with no Google read, so they neither require nor bypass it.
 - Persist provider file ID, display name, safe URL/reference, MIME type, modified time, selected tab/range where relevant, and import/access timestamp.
 - Recheck access before opening a supporting document.
 - Generate scoped links or server-mediated access; never turn a private source into a public URL.
@@ -1286,7 +1326,7 @@ All seed data is fictional and visibly synthetic.
 - Include current and historical completed/incomplete memberships sufficient to test senior recognition.
 - Include draft/published/closed/cancelled activities, numeric awards, correction requests, rejection, and appeal.
 - Include meetings with matched, ambiguous, unmatched, excused, and manually corrected attendance.
-- Include approved/pending/rejected partner clubs and aliases.
+- Include partner clubs across term-standing states (active, suspended, expired, not reviewed) and aliases.
 - Include successful, partial, failed, corrected-retry, and reviewed-field-conflict imports.
 - Do not seed Classroom announcements. Legacy (pre-v1.1) announcement rows may remain only as migration-history fixtures. Fixtures for the v1.1 posts surface are fictional cohort posts covering draft/published/archived, pinned, class-targeted, and email-queued states. A synthetic `scheduled` row may exist only to prove the open publisher-acceptance boundary and must not be presented as delivered or automatically published before V120 passes.
 - Load/performance fixtures generate approximately 600 applications and 1,000 member profiles without being committed as private-looking named data.
@@ -1642,7 +1682,7 @@ These counts describe source capacity and structure, not accepted platform recor
 - Application sources may use a fixed target or `derive_from_grade`; every preview row shows its resolved cohort and term.
 - Mappings persist stable column indexes/keys in addition to human-readable headers. Duplicate display headers never collapse into one field.
 - Native Sheets require Picker selection and explicit tab/range. Local `.xlsx` files remain a separate upload channel.
-- Meeting and partner-club sources use the same source → map → preview → reconcile → commit → summary grammar as application and roster imports.
+- Meeting sources use the same source → map → preview → reconcile → commit → summary grammar as application and roster imports. Partner-club form-response rows preview immutably and are resolved per row — applied as a draft club record or skipped — rather than batch-committed.
 - Every explicit **Import changes** action creates a new immutable snapshot and retry lineage. Reviewed platform fields are not silently overwritten.
 - Loss of Drive access changes the source state to **Reconnect** and preserves reviewed records.
 - Import history is source-specific and cursor-paginated; application/member/import queries default to 50 rows and cap at 100.

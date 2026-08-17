@@ -57,7 +57,6 @@ const canonicalOfficerFixtures = [
   "csf_contextual_commit_readiness.test.sql",
   "csf_contextual_commit_evidence.test.sql",
   "csf_contextual_commit_lock_order.test.sql",
-  "csf_partner_audit_provenance_state_machine.test.sql",
 ] as const;
 
 const IMPORT_IDENTITY_BOUNDARIES = [
@@ -318,7 +317,6 @@ describe("CSF import identity lock hierarchy", () => {
       "csf_commit_import_row_for_attempt",
       "csf_reconcile_sheet_import_row",
       "csf_commit_meeting_attendance_import",
-      "csf_commit_partner_audit_import",
     ]) {
       expect(raceTest).toContain(name);
     }

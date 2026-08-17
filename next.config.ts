@@ -1,6 +1,8 @@
 import type { NextConfig } from "next";
 
 const requestedDistDir = process.env.NEXT_DIST_DIR?.trim();
+const skipIsolatedBrowserTypecheck =
+  process.env.CSF_BROWSER_SKIP_BUILD_TYPECHECK === "1";
 const isolatedDistDirs = new Set([
   ".next-csf-isolated/browser-app",
   ".next-csf-isolated/cron-probe",
@@ -11,12 +13,30 @@ if (requestedDistDir && !isolatedDistDirs.has(requestedDistDir)) {
       "Only an isolated CSF child may select an alternate Next.js output directory.",
   );
 }
+if (
+  skipIsolatedBrowserTypecheck &&
+  requestedDistDir !== ".next-csf-isolated/browser-app"
+) {
+  throw new Error(
+    "CSF_BROWSER_SKIP_BUILD_TYPECHECK is restricted to the isolated browser build.",
+  );
+}
 
 const nextConfig: NextConfig = {
   // Next 16 locks each development output directory. The CSF runner uses a
   // separate directory so it can coexist with the developer's normal server.
   distDir: requestedDistDir || ".next",
   cacheComponents: false,
+
+  // The required quality job already runs both `bun run typecheck` and a full
+  // production build. The database/browser job compiles the same SHA again
+  // while the isolated Supabase stack is resident; letting Next compile and
+  // type-check in parallel there exceeds the bounded runner memory. Skip only
+  // that redundant check, in its isolated output directory. Ordinary local,
+  // Vercel, Development, and Production builds still type-check normally.
+  typescript: {
+    ignoreBuildErrors: skipIsolatedBrowserTypecheck,
+  },
 
   // Playwright and agent-browser use the loopback host so the app and local
   // Supabase share an origin. Keep this host-only allowlist narrow; Next.js

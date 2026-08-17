@@ -187,7 +187,13 @@ test.describe("officer post compose in the class Stream", () => {
     await expect(workspaceTabs).toBeVisible();
     // The tab controls are Button-rendered links; their accessible role is
     // reported as button in this tree, so assert by name within the nav.
-    for (const tab of ["Stream", "Members", "Points", "Meetings"]) {
+    for (const tab of [
+      "Stream",
+      "Members",
+      "Activities",
+      "Submissions",
+      "Settings",
+    ]) {
       await expect(
         workspaceTabs.getByRole("button", { name: tab, exact: true }),
       ).toBeVisible();
@@ -612,9 +618,11 @@ test.describe("officer post compose in the class Stream", () => {
         { waitUntil: "domcontentloaded" },
       );
       const stream = page.getByRole("region", { name: "Class stream" });
-      await stream
-        .getByRole("button", { name: "Announce something to Class of 2028" })
-        .click();
+      const composeTrigger = stream.getByRole("button", {
+        name: "Announce something to Class of 2028",
+      });
+      await expect(composeTrigger).toBeEnabled();
+      await composeTrigger.click();
       const dialog = page.getByRole("dialog");
       await dialog.getByLabel("Title").fill(queuedTitle);
       await dialog.getByLabel("Message").fill(queuedBody);

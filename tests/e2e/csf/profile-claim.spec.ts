@@ -355,22 +355,24 @@ test.describe("reusable class-link profile claiming", () => {
 });
 
 test.describe("signed-out CSF connection states", () => {
-  test("the no-code page explains that a class invitation is required", async ({
+  test("the no-code page accepts a permanent class join code", async ({
     page,
   }) => {
     const failures = watchBrowserFailures(page);
     await page.goto(noCodeConnectPath, { waitUntil: "domcontentloaded" });
 
     await expect(
-      page.getByRole("heading", { name: "Claim an existing CSF profile" }),
+      page.getByRole("heading", { name: "Join or connect to CSF" }),
     ).toBeVisible();
     const body = await page.locator("body").innerText();
-    expect(body).toContain("class invitation");
-    expect(body).toContain("cannot search the CSF roster");
+    expect(body).toContain("permanent code");
+    expect(body).toContain("verified email");
     expectNoPrivateBoundaryMarkers(body);
 
-    // No profile or candidate controls exist without an invitation.
-    await expect(page.locator("main form")).toHaveCount(0);
+    // Only code entry exists until a valid class code resolves.
+    await expect(page.locator("main form")).toHaveCount(1);
+    await expect(page.getByLabel("Class join code")).toBeVisible();
+    await expect(page.getByRole("button", { name: "Continue" })).toBeVisible();
     await expect(
       page.getByRole("button", { name: /Find my record/ }),
     ).toHaveCount(0);

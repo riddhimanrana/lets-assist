@@ -13,6 +13,7 @@ type OrganizationRow = Organization & {
   website?: string | null;
   logo_url?: string | null;
   created_at?: string | null;
+  show_members_publicly?: boolean | null;
   public_member_count?: number | null;
 };
 
@@ -95,6 +96,7 @@ export default async function OrganizationsPage() {
       type,
       verified,
       created_at,
+      show_members_publicly,
       public_member_count
     `,
     )
@@ -110,12 +112,17 @@ export default async function OrganizationsPage() {
       )
     : organizations || [];
 
+  // `null` marks an organization that hides its member list — the read model
+  // reports 0 for those, which would otherwise read as "no members".
   const orgMemberCounts = visibleOrganizations.reduce(
     (acc, organization) => {
-      acc[organization.id] = organization.public_member_count ?? 0;
+      acc[organization.id] =
+        organization.show_members_publicly === false
+          ? null
+          : (organization.public_member_count ?? null);
       return acc;
     },
-    {} as Record<string, number>,
+    {} as Record<string, number | null>,
   );
 
   // If user is logged in, fetch their organization memberships
@@ -156,6 +163,7 @@ export default async function OrganizationsPage() {
           type,
           verified,
           created_at,
+          show_members_publicly,
           public_member_count
         `,
         )

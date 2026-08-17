@@ -36,8 +36,8 @@ their named runs only.
 - The sole current CSF implementation/status register is
   `docs/development/cleanup-register.md`; this document is a testing runbook and
   retains older evidence below without promoting it to current status.
-- The repository candidate has 305 ordered migrations through
-  `20260817022000_csf_permanent_class_code_join`. The nine migrations
+- The repository candidate has 314 ordered migrations through
+  `20260817132000_restore_multi_date_meeting_permission_rechecks`. The eighteen migrations
   added after the audited `development` baseline merge two prior lines: the
   Development-hardening pair
   (`20260816185321_enforce_authoritative_plugin_releases`,
@@ -48,23 +48,34 @@ their named runs only.
   `20260816233000_csf_blank_row_convention`,
   `20260817010000_csf_source_evidence_revision_deadlock`,
   `20260817020000_csf_class_term_member_projection`,
-  `20260817021000_csf_permanent_class_join_codes`, and
-  `20260817022000_csf_permanent_class_code_join`).
+  `20260817021000_csf_permanent_class_join_codes`,
+  `20260817022000_csf_permanent_class_code_join`,
+  `20260817030000_csf_current_school_year_staff_authority`,
+  `20260817040000_csf_announcement_link_previews`, and
+  `20260817050000_publish_dvhs_csf_1_0_0`,
+  `20260817100000_csf_review_decision_drives_application`,
+  `20260817120000_csf_term_bound_staff_access`,
+  `20260817121000_dvhs_csf_partner_clubs_simplification`,
+  `20260817130000_csf_multi_date_meeting_sessions`,
+  `20260817131000_csf_partial_attendance_commit_and_ai_resolution`, and
+  `20260817132000_restore_multi_date_meeting_permission_rechecks`).
 - Hosted Development was healthy and migration-current at the audited 296-row
   base through `20260816083000_csf_import_annotation_settlement`. This
-  implementation did not apply the six new migrations or re-verify hosted
+  implementation did not apply the eighteen new migrations or re-verify hosted
   parity, advisors, application deployment, or provider acceptance.
 - Production remains untouched at the audited 236-row baseline through
-  `20260811001500`; the exact read-only preflight now expects a 69-migration
-  cutover to this 305-row candidate. Running that cutover is not authorized.
-- Local evidence includes a fresh isolated replay of all 305 migrations
-  (`Isolated replay passed: 305 migrations, 84 CSF tables`, 151 pgTAP files,
-  6011 tests, all passing), and passing static quality gates
-  (`typecheck`, `lint`, `format:check`). Full exact-tree tests, build, strict
+  `20260811001500`; the exact read-only preflight now expects a 78-migration
+  cutover to this 314-row candidate. Running that cutover requires separate
+  explicit action-time approval.
+- Local evidence on this candidate includes a fresh exact 314-migration replay,
+  155 pgTAP files with 5,833 assertions, focused workflow and browser tests,
+  and passing `typecheck`, `lint`, build, and strict
   submodule reachability, hosted role/browser acceptance, and provider
   acceptance remain release gates until recorded in the cleanup register.
-- Private CSF source merged both outstanding lines to private `development`
-  at `e9e86fe4d16a304b7e94bc5c4464d901653ef30d`: `feature/csf-member-onboarding`
+- Private CSF source is frozen on the release branch at
+  `a55c10d68c04fedd00614bcfdcd6230f17c2d526`, with manifest version `1.0.0`
+  and SHA-256 `7334038cb6519e1732d9ac9ba0111f0ae41cfef2861c36595be975ba60f95534`.
+  Its base had already merged `feature/csf-member-onboarding`
   and `codex/csf-reconciliation-guard-20260816`
   (`5e21d5dd60744dc50b7817bfc734a4e2ca71c8f5`). The two branches reworked CSF
   import annotation interpretation with opposite intent (full-evidence

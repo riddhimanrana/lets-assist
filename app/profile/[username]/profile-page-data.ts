@@ -36,16 +36,20 @@ export interface Organization {
   verified: boolean;
   logo_url: string | null;
   description: string | null;
+  show_members_publicly?: boolean | null;
+  public_member_count?: number | null;
 }
 
 export interface OrganizationMembership {
   role: "admin" | "staff" | "member";
-  organizations: Organization[];
+  organization: Organization;
+  /** `null` when the organization keeps its member list private. */
+  memberCount: number | null;
 }
 
 export interface OrganizationResponse {
   role: "admin" | "staff" | "member";
-  organizations: Organization[];
+  organization_id: string;
 }
 
 export async function buildProfileMetadata(

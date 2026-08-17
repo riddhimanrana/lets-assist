@@ -76,8 +76,8 @@ INSERT INTO plugin_data.csf_terms (
 INSERT INTO plugin_data.csf_term_meetings (
   id, organization_id, term_id, meeting_key, label, meeting_date, required, sort_order, status
 ) VALUES
-  ('fb600000-0000-4000-8000-000000000001', 'fb100000-0000-4000-8000-000000000001', 'fb200000-0000-4000-8000-000000000001', 'orphan-meeting', 'Orphan meeting', '2039-01-10', true, 90, 'active'),
-  ('fb600000-0000-4000-8000-000000000002', 'fb100000-0000-4000-8000-000000000002', 'fb200000-0000-4000-8000-000000000002', 'other-tenant-meeting', 'Other tenant meeting', '2039-01-11', true, 1, 'active');
+  ('fb600000-0000-4000-8000-000000000001', 'fb100000-0000-4000-8000-000000000001', 'fb200000-0000-4000-8000-000000000001', 'orphan-meeting', 'Orphan meeting', DATE '2039-01-10', true, 90, 'active'),
+  ('fb600000-0000-4000-8000-000000000002', 'fb100000-0000-4000-8000-000000000002', 'fb200000-0000-4000-8000-000000000002', 'other-tenant-meeting', 'Other tenant meeting', DATE '2039-01-11', true, 1, 'active');
 INSERT INTO plugin_data.csf_meetings (
   id, organization_id, term_id, meeting_key, label, required, sort_order, status
 ) VALUES (
@@ -86,7 +86,7 @@ INSERT INTO plugin_data.csf_meetings (
 INSERT INTO plugin_data.csf_meeting_sessions (
   id, organization_id, meeting_id, legacy_term_meeting_id, session_date, status
 ) VALUES (
-  'fb620000-0000-4000-8000-000000000002', 'fb100000-0000-4000-8000-000000000002', 'fb610000-0000-4000-8000-000000000002', 'fb600000-0000-4000-8000-000000000002', '2039-01-11', 'scheduled'
+  'fb620000-0000-4000-8000-000000000002', 'fb100000-0000-4000-8000-000000000002', 'fb610000-0000-4000-8000-000000000002', 'fb600000-0000-4000-8000-000000000002', DATE '2039-01-11', 'scheduled'
 );
 
 CREATE TEMP TABLE csf_atomic_meeting_results (
@@ -97,7 +97,7 @@ CREATE TEMP TABLE csf_atomic_meeting_results (
 SELECT extensions.throws_ok(
   $$SELECT plugin_data.csf_upsert_term_meeting(
     'fb100000-0000-4000-8000-000000000001', 'fb200000-0000-4000-8000-000000000001', NULL,
-    'Unauthorized meeting', '2039-02-01', '2039-02-01 18:00:00+00', 'Library', NULL,
+    'Unauthorized meeting', DATE '2039-02-01', '2039-02-01 18:00:00+00', 'Library', NULL,
     true, 1, 'active', 'fb900000-0000-4000-8000-000000000001', 'fb000000-0000-4000-8000-000000000002'
   )$$,
   '42501', 'Not authorized for the requested CSF meeting operation.',
@@ -106,7 +106,7 @@ SELECT extensions.throws_ok(
 SELECT extensions.throws_ok(
   $$SELECT plugin_data.csf_upsert_term_meeting(
     'fb100000-0000-4000-8000-000000000001', 'fb200000-0000-4000-8000-000000000002', NULL,
-    'Cross-tenant meeting', '2039-02-01', '2039-02-01 18:00:00+00', 'Library', NULL,
+    'Cross-tenant meeting', DATE '2039-02-01', '2039-02-01 18:00:00+00', 'Library', NULL,
     true, 1, 'active', 'fb900000-0000-4000-8000-000000000002', 'fb000000-0000-4000-8000-000000000001'
   )$$,
   'P0001', 'CSF semester was not found in this organization.',
@@ -116,7 +116,7 @@ SELECT extensions.lives_ok(
   $$INSERT INTO csf_atomic_meeting_results (kind, payload)
     SELECT 'create', plugin_data.csf_upsert_term_meeting(
       'fb100000-0000-4000-8000-000000000001', 'fb200000-0000-4000-8000-000000000001', NULL,
-      'February chapter meeting', '2039-02-15', '2039-02-16 02:00:00+00', 'School library', 'https://docs.google.com/spreadsheets/d/example',
+      'February chapter meeting', DATE '2039-02-15', '2039-02-16 02:00:00+00', 'School library', 'https://docs.google.com/spreadsheets/d/example',
       true, 1, 'active', 'fb900000-0000-4000-8000-000000000003', 'fb000000-0000-4000-8000-000000000001'
     )$$,
   'an authorized manager atomically creates a meeting'
@@ -175,7 +175,7 @@ SELECT extensions.ok(
 SELECT extensions.is(
   (plugin_data.csf_upsert_term_meeting(
     'fb100000-0000-4000-8000-000000000001', 'fb200000-0000-4000-8000-000000000001', NULL,
-    'February chapter meeting', '2039-02-15', '2039-02-16 02:00:00+00', 'School library', 'https://docs.google.com/spreadsheets/d/example',
+    'February chapter meeting', DATE '2039-02-15', '2039-02-16 02:00:00+00', 'School library', 'https://docs.google.com/spreadsheets/d/example',
     true, 1, 'active', 'fb900000-0000-4000-8000-000000000003', 'fb000000-0000-4000-8000-000000000001'
   ) ->> 'idempotent'),
   'true', 'an exact create request replay returns the committed result'
@@ -189,7 +189,7 @@ SELECT extensions.ok(
 SELECT extensions.throws_ok(
   $$SELECT plugin_data.csf_upsert_term_meeting(
     'fb100000-0000-4000-8000-000000000001', 'fb200000-0000-4000-8000-000000000001', NULL,
-    'Changed create payload', '2039-02-15', '2039-02-16 02:00:00+00', 'School library', NULL,
+    'Changed create payload', DATE '2039-02-15', '2039-02-16 02:00:00+00', 'School library', NULL,
     true, 1, 'active', 'fb900000-0000-4000-8000-000000000003', 'fb000000-0000-4000-8000-000000000001'
   )$$,
   'P0001', 'That meeting request identifier is already bound to a different change.',
@@ -202,7 +202,7 @@ SELECT extensions.is(
 SELECT extensions.throws_ok(
   $$SELECT plugin_data.csf_upsert_term_meeting(
     'fb100000-0000-4000-8000-000000000001', 'fb200000-0000-4000-8000-000000000001', 'fb600000-0000-4000-8000-000000000002',
-    'Cross-tenant edit', '2039-02-20', NULL, NULL, NULL,
+    'Cross-tenant edit', DATE '2039-02-20', NULL, NULL, NULL,
     true, 2, 'active', 'fb900000-0000-4000-8000-000000000004', 'fb000000-0000-4000-8000-000000000001'
   )$$,
   'P0001', 'Meeting was not found in this organization and semester.',
@@ -218,7 +218,7 @@ SELECT extensions.lives_ok(
     SELECT 'edit', plugin_data.csf_upsert_term_meeting(
       'fb100000-0000-4000-8000-000000000001', 'fb200000-0000-4000-8000-000000000001',
       (SELECT (payload ->> 'meetingId')::uuid FROM csf_atomic_meeting_results WHERE kind = 'create'),
-      'February member meeting', '2039-02-16', '2039-02-17 02:30:00+00', 'Community room', NULL,
+      'February member meeting', DATE '2039-02-16', '2039-02-17 02:30:00+00', 'Community room', NULL,
       false, 2, 'active', 'fb900000-0000-4000-8000-000000000005', 'fb000000-0000-4000-8000-000000000001'
     )$$,
   'an authorized manager atomically edits a meeting'
@@ -236,7 +236,7 @@ SELECT extensions.ok(
       AND legacy.required = false
       AND logical.required = false
       AND session.location = 'Community room'
-      AND session.session_date = '2039-02-16'
+      AND session.session_date = DATE '2039-02-16'
   ),
   'meeting edit changes the legacy, logical, and session projections together'
 );
@@ -252,7 +252,7 @@ SELECT extensions.is(
   (plugin_data.csf_upsert_term_meeting(
     'fb100000-0000-4000-8000-000000000001', 'fb200000-0000-4000-8000-000000000001',
     (SELECT (payload ->> 'meetingId')::uuid FROM csf_atomic_meeting_results WHERE kind = 'create'),
-    'February member meeting', '2039-02-16', '2039-02-17 02:30:00+00', 'Community room', NULL,
+    'February member meeting', DATE '2039-02-16', '2039-02-17 02:30:00+00', 'Community room', NULL,
     false, 2, 'active', 'fb900000-0000-4000-8000-000000000005', 'fb000000-0000-4000-8000-000000000001'
   ) ->> 'idempotent'),
   'true', 'an exact edit request replay returns the committed result'
@@ -265,7 +265,7 @@ SELECT extensions.throws_ok(
   $$SELECT plugin_data.csf_upsert_term_meeting(
     'fb100000-0000-4000-8000-000000000001', 'fb200000-0000-4000-8000-000000000001',
     (SELECT (payload ->> 'meetingId')::uuid FROM csf_atomic_meeting_results WHERE kind = 'create'),
-    'Conflicting edit', '2039-02-16', '2039-02-17 02:30:00+00', 'Community room', NULL,
+    'Conflicting edit', DATE '2039-02-16', '2039-02-17 02:30:00+00', 'Community room', NULL,
     false, 2, 'active', 'fb900000-0000-4000-8000-000000000005', 'fb000000-0000-4000-8000-000000000001'
   )$$,
   'P0001', 'That meeting request identifier is already bound to a different change.',
@@ -278,7 +278,7 @@ SELECT extensions.is(
 SELECT extensions.throws_ok(
   $$SELECT plugin_data.csf_upsert_term_meeting(
     'fb100000-0000-4000-8000-000000000001', 'fb200000-0000-4000-8000-000000000001', 'fb600000-0000-4000-8000-000000000001',
-    'Should not partially edit', '2039-01-12', NULL, NULL, NULL,
+    'Should not partially edit', DATE '2039-01-12', NULL, NULL, NULL,
     true, 90, 'active', 'fb900000-0000-4000-8000-000000000006', 'fb000000-0000-4000-8000-000000000001'
   )$$,
   'P0001', 'Meeting session projection was not found for this meeting.',

@@ -11,11 +11,6 @@ import {
 const CSF_CONNECT_PATH = `${CSF_ORGANIZATION_PATH}/plugins/dvhs-csf/connect`;
 const CSF_CANONICAL_PROFILE_PATH = `${CSF_ORGANIZATION_PATH}?tab=csf-profile`;
 
-// The local fixture configures exactly one active class link, and it carries
-// this fictional Google Form URL, so the public projection must resolve to it.
-const FIXTURE_APPLICATION_URL =
-  "https://docs.google.com/forms/d/local-csf-form-fixture/viewform";
-
 function isApprovedExternalFormUrl(value: string) {
   try {
     const url = new URL(value);
@@ -80,7 +75,7 @@ test.describe("DVHS CSF public privacy boundary", () => {
     expect(publicHrefs.some((href) => href.includes("S26-2028"))).toBe(false);
   });
 
-  test("the configured application call to action exposes only the approved Google Form URL", async ({
+  test("an out-of-term application link stays hidden while safe class join remains available", async ({
     page,
   }) => {
     const externalFormRequests: string[] = [];
@@ -92,28 +87,29 @@ test.describe("DVHS CSF public privacy boundary", () => {
 
     await page.goto(CSF_PUBLIC_PATH);
 
-    const applyCta = await soleAccessibleAction(
-      page,
-      "Apply with Google Forms",
-    );
-    await expect(applyCta).toHaveAttribute("href", FIXTURE_APPLICATION_URL);
-    await expect(applyCta).toHaveAttribute("target", "_blank");
-    expect(await applyCta.getAttribute("rel")).toContain("noreferrer");
+    await expect(
+      page.getByRole("button", {
+        name: "Apply with Google Forms",
+        exact: true,
+      }),
+    ).toHaveCount(0);
 
     // The page may advertise the form, never fetch, prefetch, or open it.
     expect(externalFormRequests).toEqual([]);
     expect(page.url()).toContain(CSF_PUBLIC_PATH);
     expect(page.context().pages()).toHaveLength(1);
 
-    // No generic join path, no first-party application UI, and no roster or
-    // profile search may co-exist with the Google Form intake.
-    await expect(page.getByRole("button", { name: /^Join/ })).toHaveCount(0);
+    // Class cards may open the safe join entry, but the organization page does
+    // not render a roster/profile search or accept a code itself.
+    await expect(
+      page.getByRole("button", { name: "Join class" }).first(),
+    ).toBeVisible();
     await expect(page.locator("main form")).toHaveCount(0);
     await expect(page.locator("main").getByRole("textbox")).toHaveCount(0);
     await expect(page.locator("main").getByRole("searchbox")).toHaveCount(0);
   });
 
-  test("public entry paths reach the canonical workspace and the no-code claim page", async ({
+  test("public entry paths reach the canonical workspace and class-code join page", async ({
     page,
   }) => {
     await page.goto(CSF_PUBLIC_PATH);
@@ -125,15 +121,32 @@ test.describe("DVHS CSF public privacy boundary", () => {
     );
     expect(decodeURIComponent(signInHref ?? "")).toContain("tab=csf-profile");
 
-    const claim = await soleAccessibleAction(page, "Claim existing profile");
+    const claim = await soleAccessibleAction(page, "Join or claim profile");
     await expect(claim).toHaveAttribute("href", CSF_CONNECT_PATH);
 
     await claim.click();
     await page.waitForURL((url) => url.pathname === CSF_CONNECT_PATH, {
       waitUntil: "domcontentloaded",
     });
-    // The claim entry point must not carry or invent an invitation code.
+    // The entry point must not carry or invent an invitation code.
     expect(new URL(page.url()).search).toBe("");
+    await expect(page.getByLabel("Class join code")).toBeVisible();
+  });
+
+  test("a public class page contains join entry and no stream or activities", async ({
+    page,
+  }) => {
+    await page.goto(CSF_PUBLIC_PATH);
+    await page.getByRole("button", { name: "Join class" }).first().click();
+    await expect(
+      page.getByRole("heading", { name: /^Join Class of/ }),
+    ).toBeVisible();
+    await expect(page.getByLabel(/Class of .* join code/)).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Stream" })).toHaveCount(0);
+    await expect(page.getByRole("heading", { name: "Activities" })).toHaveCount(
+      0,
+    );
+    expectNoPrivateBoundaryMarkers(await page.locator("body").innerText());
   });
 
   test("the public page renders no internal CSF workspace navigation", async ({

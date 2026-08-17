@@ -27,9 +27,6 @@ const opportunityActions = read(
 const partnerClubActions = read(
   "lib/plugins/private/plugins/dvhs-csf/server/actions/partner-clubs.ts",
 );
-const representativeActions = read(
-  "lib/plugins/private/plugins/dvhs-csf/representative-actions.ts",
-);
 
 const ACTIVITY_DENIAL = "Not authorized to manage CSF activities.";
 const PARTNER_DENIAL = "Not authorized to manage CSF partner clubs.";
@@ -83,20 +80,6 @@ const operations = [
     permission: "manage_partner_clubs",
     error: PARTNER_DENIAL,
     caller: partnerClubActions,
-  },
-  {
-    name: "csf_assign_partner_representative",
-    signature: "uuid, uuid, text, text, text, date, boolean, uuid, uuid",
-    permission: "manage_partner_clubs",
-    error: PARTNER_DENIAL,
-    caller: representativeActions,
-  },
-  {
-    name: "csf_revoke_partner_representative",
-    signature: "uuid, uuid, uuid, text, uuid, uuid",
-    permission: "manage_partner_clubs",
-    error: PARTNER_DENIAL,
-    caller: representativeActions,
   },
 ] as const;
 
@@ -156,32 +139,10 @@ const argumentNames: Record<string, readonly string[]> = {
     "p_request_id",
     "p_request",
   ],
-  csf_assign_partner_representative: [
-    "p_organization_id",
-    "p_partner_club_term_id",
-    "p_display_name",
-    "p_email",
-    "p_role",
-    "p_effective_start",
-    "p_is_primary",
-    "p_request_id",
-    "p_actor_user_id",
-  ],
-  csf_revoke_partner_representative: [
-    "p_organization_id",
-    "p_assignment_id",
-    "p_partner_club_term_id",
-    "p_reason",
-    "p_request_id",
-    "p_actor_user_id",
-  ],
 };
 
-function operationMigration(name: string): string {
-  return name === "csf_assign_partner_representative" ||
-    name === "csf_revoke_partner_representative"
-    ? repairMigration
-    : baseMigration;
+function operationMigration(_name: string): string {
+  return baseMigration;
 }
 
 function functionBody(name: string): string {
@@ -413,13 +374,6 @@ describe("CSF activity and partner mutation authorization lock boundary", () => 
         ),
       );
     }
-    for (const requestId of [
-      "faa00000-0000-4000-8000-000000000008",
-      "faa00000-0000-4000-8000-000000000009",
-    ]) {
-      expect(concurrencyTest).toContain(requestId);
-    }
-
     // Membership concurrency must be exercised for real, not asserted from
     // source strings.
     expect(concurrencyTest).toMatch(
@@ -436,23 +390,15 @@ describe("CSF activity and partner mutation authorization lock boundary", () => 
     for (const description of [
       "the queued standing call fails after the host membership is deactivated",
       "the queued policy call fails after the host membership row is deleted",
-      "the queued assignment fails after the role edit commits",
-      "the queued revocation fails after the position revocation commits",
       "a concurrent membership deactivation blocks while the wrapper holds the actor membership row",
       "a benign concurrent staff edit does not deny the still-authorized queued create",
       "the exact retry of a committed request still returns its idempotent receipt",
       "an exact committed replay is denied after the actor loses permission",
-      "the active admin receives the unchanged non-idempotent result contract from all nine RPCs",
+      "the active admin receives the unchanged non-idempotent result contract from all seven RPCs",
       "a cross-organization wrapper completes while the first organization lock is held",
     ]) {
       expect(concurrencyTest).toContain(description);
     }
-    expect(concurrencyTest).toContain(
-      "the revoked queued assignment writes no representative, lifecycle event, or audit receipt",
-    );
-    expect(concurrencyTest).toContain(
-      "the revoked queued revocation leaves the assignment unchanged and writes no lifecycle or audit receipt",
-    );
   });
 
   test("every calling Server Action surfaces the database authorization denial verbatim", () => {
@@ -465,11 +411,7 @@ describe("CSF activity and partner mutation authorization lock boundary", () => 
       );
     }
 
-    for (const caller of [
-      opportunityActions,
-      partnerClubActions,
-      representativeActions,
-    ]) {
+    for (const caller of [opportunityActions, partnerClubActions]) {
       // Every RPC error is thrown, so it reaches the shared catch that returns
       // `error.message`; nothing swallows it into a success result.
       expect(caller).toContain("error instanceof Error");
@@ -481,16 +423,11 @@ describe("CSF activity and partner mutation authorization lock boundary", () => 
       expect(caller).not.toContain("nothing was written");
     }
 
-    expect(representativeActions).toContain("p_actor_user_id: context.userId");
-
-    const rpcCallSites = [
-      opportunityActions,
-      partnerClubActions,
-      representativeActions,
-    ].flatMap((caller) =>
-      [...caller.matchAll(/\.rpc\(\s*"(csf_[a-z_]+)"/gu)].map(
-        (match) => match[1],
-      ),
+    const rpcCallSites = [opportunityActions, partnerClubActions].flatMap(
+      (caller) =>
+        [...caller.matchAll(/\.rpc\(\s*"(csf_[a-z_]+)"/gu)].map(
+          (match) => match[1],
+        ),
     );
     for (const operation of operations) {
       expect(rpcCallSites).toContain(operation.name);

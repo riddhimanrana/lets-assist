@@ -40,6 +40,7 @@ import { ProfileActions } from "./ProfileActions";
 import {
   buildProfileMetadata,
   calculateHours,
+  type Organization,
   type OrganizationMembership,
   type OrganizationResponse,
   type Profile,
@@ -49,6 +50,42 @@ import {
 type Props = {
   params: Promise<{ username: string }>;
 };
+
+// Tailwind needs the full class name at build time, so accents are looked up
+// rather than interpolated.
+const SECTION_ACCENTS = {
+  "chart-3": "bg-chart-3/10 text-chart-3",
+  "chart-4": "bg-chart-4/10 text-chart-4",
+  "chart-5": "bg-chart-5/10 text-chart-5",
+} as const;
+
+function SectionHeading({
+  icon,
+  accent,
+  title,
+  count,
+}: {
+  icon: React.ReactNode;
+  accent: keyof typeof SECTION_ACCENTS;
+  title: string;
+  count: number;
+}): React.ReactElement {
+  return (
+    <div className="flex items-center gap-3">
+      <div
+        className={`p-2 sm:p-2.5 rounded-lg sm:rounded-xl ${SECTION_ACCENTS[accent]}`}
+      >
+        {icon}
+      </div>
+      <h2 className="text-xl sm:text-3xl font-bold tracking-tight">{title}</h2>
+      {count > 0 && (
+        <span className="ml-auto shrink-0 rounded-full bg-muted px-2.5 py-1 text-xs font-semibold text-muted-foreground tabular-nums">
+          {count}
+        </span>
+      )}
+    </div>
+  );
+}
 
 export async function generateMetadata(params: Props): Promise<Metadata> {
   const { username } = await params.params;
@@ -184,27 +221,52 @@ export default async function ProfilePage(
     attendedProjects = fetchedProjects || [];
   }
 
-  const { data: userOrganizations } = (await supabase
+  // Memberships and organization details are fetched separately: the public
+  // read model exposes the member count (and whether it may be shown at all),
+  // which the embedded `organizations` join cannot provide.
+  const { data: userMemberships } = (await supabase
     .from("organization_members")
-    .select(
-      `
-      role,
-      organizations (
+    .select("role, organization_id")
+    .eq("user_id", profile.id)
+    .order("role", { ascending: false })) as {
+    data: OrganizationResponse[] | null;
+    error: { message: string } | null;
+  };
+
+  const membershipOrganizationIds = (userMemberships ?? []).map(
+    (membership) => membership.organization_id,
+  );
+
+  let membershipOrganizations: Organization[] = [];
+  if (membershipOrganizationIds.length > 0) {
+    const { data } = (await supabase
+      .from("organization_public_read_model")
+      .select(
+        `
         id,
         name,
         username,
         type,
         verified,
         logo_url,
-        description
+        description,
+        show_members_publicly,
+        public_member_count
+      `,
       )
-    `,
-    )
-    .eq("user_id", profile.id)
-    .order("role", { ascending: false })) as {
-    data: OrganizationResponse[] | null;
-    error: { message: string } | null;
-  };
+      .in("id", membershipOrganizationIds)) as {
+      data: Organization[] | null;
+      error: { message: string } | null;
+    };
+    membershipOrganizations = data || [];
+  }
+
+  const organizationById = new Map(
+    membershipOrganizations.map((organization) => [
+      organization.id,
+      organization,
+    ]),
+  );
 
   const { data: certificates, error: certificatesError } = await admin
     .from("certificates")
@@ -237,37 +299,34 @@ export default async function ProfilePage(
     return `${m}m`;
   }
 
-  const organizationIds = (userOrganizations ?? []).flatMap((item) => {
-    const organizations = Array.isArray(item.organizations)
-      ? item.organizations
-      : [item.organizations];
-    return organizations
-      .map((organization) => organization?.id)
-      .filter((organizationId): organizationId is string =>
-        Boolean(organizationId),
-      );
-  });
   const hiddenMembershipOrganizationIds = isOwner
     ? new Set<string>()
     : new Set(
-        (await resolveOrganizationPluginExperiences(organizationIds))
+        (await resolveOrganizationPluginExperiences(membershipOrganizationIds))
           .filter(({ experience }) => experience.profileMembership === "hidden")
           .map(({ organizationId }) => organizationId),
       );
-  const visibleUserOrganizations = (userOrganizations ?? []).filter((item) => {
-    const organization = Array.isArray(item.organizations)
-      ? item.organizations[0]
-      : item.organizations;
-    return (
-      !organization || !hiddenMembershipOrganizationIds.has(organization.id)
-    );
-  });
 
-  const formattedOrganizations: OrganizationMembership[] =
-    visibleUserOrganizations.map((item) => ({
-      role: item.role,
-      organizations: item.organizations,
-    }));
+  const formattedOrganizations: OrganizationMembership[] = (
+    userMemberships ?? []
+  ).flatMap((membership) => {
+    const organization = organizationById.get(membership.organization_id);
+    if (!organization) return [];
+    if (hiddenMembershipOrganizationIds.has(organization.id)) return [];
+
+    return [
+      {
+        role: membership.role,
+        organization,
+        // The read model zeroes the count for organizations that hide their
+        // member list, so distinguish "private" from a real zero.
+        memberCount:
+          organization.show_members_publicly === false
+            ? null
+            : (organization.public_member_count ?? null),
+      },
+    ];
+  });
 
   const totalCreatedProjects = createdProjects?.length || 0;
   const totalAttendedProjects = attendedProjects?.length || 0;
@@ -307,7 +366,7 @@ export default async function ProfilePage(
           </div>
         </CardHeader>
         <CardContent className="p-4 pt-0 flex-1 flex flex-col">
-          <CardDescription className="line-clamp-2 mb-3 text-xs break-all">
+          <CardDescription className="line-clamp-2 mb-3 text-xs break-words">
             {stripHtml(project.description)}
           </CardDescription>
           <div className="flex flex-col gap-1.5 text-xs text-muted-foreground mt-auto">
@@ -460,33 +519,28 @@ export default async function ProfilePage(
         {/* Content Sections */}
         <div className="space-y-12 sm:space-y-16 w-full">
           {/* Organizations */}
-          {formattedOrganizations && formattedOrganizations.length > 0 && (
+          {formattedOrganizations.length > 0 && (
             <div className="space-y-4 sm:space-y-6">
-              <div className="flex items-center gap-3">
-                <div className="p-2 sm:p-2.5 bg-chart-3/10 rounded-lg sm:rounded-xl text-chart-3">
-                  <Users className="h-5 w-5 sm:h-6 sm:w-6" />
-                </div>
-                <h2 className="text-xl sm:text-3xl font-bold tracking-tight">
-                  Organizations
-                </h2>
-              </div>
+              <SectionHeading
+                icon={<Users className="h-5 w-5 sm:h-6 sm:w-6" />}
+                accent="chart-3"
+                title="Organizations"
+                count={formattedOrganizations.length}
+              />
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
                 {formattedOrganizations.map(
-                  (membership: OrganizationMembership) => {
-                    const org = Array.isArray(membership.organizations)
-                      ? membership.organizations[0]
-                      : membership.organizations;
-                    if (!org) return null;
-                    return (
-                      <OrganizationCard
-                        key={org.id}
-                        org={{ ...org, verified: org.verified || false }}
-                        memberCount={0}
-                        isUserMember={true}
-                        userRole={membership.role}
-                      />
-                    );
-                  },
+                  (membership: OrganizationMembership) => (
+                    <OrganizationCard
+                      key={membership.organization.id}
+                      org={{
+                        ...membership.organization,
+                        verified: membership.organization.verified || false,
+                      }}
+                      memberCount={membership.memberCount}
+                      isUserMember={true}
+                      userRole={membership.role}
+                    />
+                  ),
                 )}
               </div>
             </div>
@@ -494,14 +548,12 @@ export default async function ProfilePage(
 
           {/* Created Projects */}
           <div className="space-y-4 sm:space-y-6">
-            <div className="flex items-center gap-3">
-              <div className="p-2 sm:p-2.5 bg-chart-5/10 rounded-lg sm:rounded-xl text-chart-5">
-                <PenTool className="h-5 w-5 sm:h-6 sm:w-6" />
-              </div>
-              <h2 className="text-xl sm:text-3xl font-bold tracking-tight">
-                Created Projects
-              </h2>
-            </div>
+            <SectionHeading
+              icon={<PenTool className="h-5 w-5 sm:h-6 sm:w-6" />}
+              accent="chart-5"
+              title="Created Projects"
+              count={totalCreatedProjects}
+            />
             {createdProjects && createdProjects.length > 0 ? (
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
                 {createdProjects.map((project) => (
@@ -529,14 +581,12 @@ export default async function ProfilePage(
 
           {/* Attended Projects */}
           <div className="space-y-4 sm:space-y-6">
-            <div className="flex items-center gap-3">
-              <div className="p-2 sm:p-2.5 bg-chart-4/10 rounded-lg sm:rounded-xl text-chart-4">
-                <Hash className="h-5 w-5 sm:h-6 sm:w-6" />
-              </div>
-              <h2 className="text-xl sm:text-3xl font-bold tracking-tight">
-                Attended Projects
-              </h2>
-            </div>
+            <SectionHeading
+              icon={<Hash className="h-5 w-5 sm:h-6 sm:w-6" />}
+              accent="chart-4"
+              title="Attended Projects"
+              count={totalAttendedProjects}
+            />
             {attendedProjects && attendedProjects.length > 0 ? (
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
                 {attendedProjects.map((project) => (

@@ -24,7 +24,7 @@ docs/csf/source-data/
 - Grade → cohort at Spring 2026: 9th → Class of 2029, 10th → 2028, 11th → 2027, 12th → Class of 2026 (out of scope; do not import).
 - School emails look like `2xxxxx@students.srvusd.net` (6-digit student number). Personal emails are free-form. The application workbook carries both; most club sheets carry one or neither.
 - "Points" are CSF service points (typically 1 point per attended club meeting, 2 per non-drive event per the club registry), not volunteer hours.
-- Import targets: partner clubs and policies from the registry/audit forms; the approved Class of 2027–2029 `S26` sheets are historical records; attendance and club sheets become term-scoped attendance/credit records with `source='sheet'` provenance. The Spring 2026 application workbook is historical comparison evidence for this cutover, not the roster seed or account-connection evidence. The template-only Class of 2030 workbook is skipped; 2030 student records come through the new application cycle.
+- Import targets: partner clubs from the returning-club/audit form responses (each previewed row applied as a draft club record or skipped; per-club point policy is no longer imported); the approved Class of 2027–2029 `S26` sheets are historical records; attendance sheets become term-scoped attendance records with `source='sheet'` provenance, while per-club point workbooks are manual reference evidence for point vetting rather than an import target. The Spring 2026 application workbook is historical comparison evidence for this cutover, not the roster seed or account-connection evidence. The template-only Class of 2030 workbook is skipped; 2030 student records come through the new application cycle.
 
 ## rosters/
 
@@ -110,4 +110,4 @@ Per-file shape (sheet → meaning; only sheets relevant to Fall 25 credit listed
 
 When a workbook has both a points/total column and per-meeting marks, the points column is authoritative; derived attendance counts are evidence only.
 
-The `bun run csf:inspect:legacy` script summarizes any of these workbooks; the normalizer (`bun run csf:normalize:legacy`, see `scripts/local-dev/`) converts them to canonical partner-audit uploads under `.artifacts/legacy-csf/normalized/` via human-approved column mappings.
+The `bun run csf:inspect:legacy` script summarizes any of these workbooks; the normalizer (`bun run csf:normalize:legacy`, see `scripts/local-dev/`) drafts human-approved column mappings and normalized workbooks under `.artifacts/legacy-csf/`. The 2026-08-17 partner-clubs simplification removed the partner-audit upload path, so normalized club-point output is reference material for manual point vetting, not an import payload.

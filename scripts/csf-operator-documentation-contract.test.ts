@@ -192,16 +192,27 @@ const STAFF_ACCESS: LabelContract[] = [
 const CLASSES_AND_POLICY: LabelContract[] = [
   {
     component: "CsfClassTermCreateDialogs.tsx",
-    labels: ["Set up graduating class", "Add one semester"],
+    labels: ["Set up a graduating class", "Add one semester"],
   },
   {
     component: "CsfClassTermActionsMenu.tsx",
     labels: ["Term actions", "Set as current"],
   },
   {
-    component: "CsfCohortHub.tsx",
-    labels: ["Semesters & setup"],
-    sourceSpelling: { "Semesters & setup": "Semesters &amp; setup" },
+    component: "CsfTermsWorkspace.tsx",
+    labels: ["Meeting schedule"],
+  },
+  {
+    component: "CsfStartNextTermDialog.tsx",
+    labels: ["Start next term"],
+  },
+  {
+    component: "CsfTermsChapterRules.tsx",
+    labels: ["Chapter rules"],
+  },
+  {
+    component: "CsfCloseTermDialog.tsx",
+    labels: ["Semester close preflight"],
   },
   {
     component: "CsfPolicyPublicationControls.tsx",
@@ -264,30 +275,14 @@ const IMPORTS: LabelContract[] = [
 
 const APPLICATIONS: LabelContract[] = [
   {
-    component: "CsfApplicationsWorkspaceSupporting.tsx",
-    labels: ["Application checks"],
-  },
-  {
-    component: "CsfApplicationsWorkspaceReview.tsx",
+    component: "csf-review/panels/ApplicationReviewPanel.tsx",
     labels: [
-      "Application history",
-      "Decision preflight",
-      "Decision record",
-      "Term membership",
-      "Approval blocked",
-    ],
-  },
-  {
-    component: "CsfApplicationReviewDialog.tsx",
-    labels: [
-      "Record decision",
-      "Review notes",
-      "Request changes",
-      "Approve application",
+      "Courses as imported",
+      "Reported point totals",
+      "Transcript",
+      "Webstore receipt",
       "Reject",
-      "Decision already saved; reload required",
-      "Decision request conflict; reload required",
-      "Reload application",
+      "Approve",
     ],
   },
 ];
@@ -361,7 +356,12 @@ const COMMUNICATIONS: LabelContract[] = [
   },
   {
     component: "CsfCommunicationsSettings.tsx",
-    labels: ["Consent topic key", "Resend topic id"],
+    labels: [
+      "Communications settings",
+      "Ready",
+      "Needs provider setup",
+      "Check communications setup",
+    ],
   },
   {
     component: "CsfCommunicationsCampaigns.tsx",
@@ -438,7 +438,7 @@ describe("CSF operator documentation label contract", () => {
     assertContract(IMPORTS);
   });
 
-  test("applications preserve preflight, decision, and reload labels", () => {
+  test("applications preserve the current evidence and decision labels", () => {
     assertContract(APPLICATIONS);
   });
 

@@ -115,6 +115,8 @@ export default defineConfig({
       // sequential suite is still interacting with the page, which made local
       // dialog and menu failures disagree with the hosted gate.
       CSF_BROWSER_SERVER_MODE: "production",
+      CSF_BROWSER_SKIP_BUILD_TYPECHECK:
+        process.env.CSF_BROWSER_SKIP_BUILD_TYPECHECK ?? "",
     },
   },
 });

@@ -1,16 +1,12 @@
 BEGIN;
 
 CREATE EXTENSION IF NOT EXISTS pgtap WITH SCHEMA extensions;
-SELECT extensions.plan(169);
+SELECT extensions.plan(148);
 
 -- ---------------------------------------------------------------------------
 -- Server-only boundaries for the new recovery-foundation tables
 -- ---------------------------------------------------------------------------
 
-SELECT extensions.has_table(
-  'plugin_data', 'csf_partner_club_representatives',
-  'term-scoped partner-club representatives have a durable table'
-);
 SELECT extensions.has_table(
   'plugin_data', 'csf_partner_club_term_events',
   'partner-club semester lifecycle events have a durable table'
@@ -37,7 +33,6 @@ SELECT extensions.ok(
     SELECT bool_and(class.relrowsecurity)
     FROM pg_class AS class
     WHERE class.oid IN (
-      'plugin_data.csf_partner_club_representatives'::regclass,
       'plugin_data.csf_partner_club_term_events'::regclass,
       'plugin_data.csf_communication_campaigns'::regclass,
       'plugin_data.csf_communication_recipient_snapshots'::regclass,
@@ -52,7 +47,6 @@ SELECT extensions.ok(
   NOT EXISTS (
     SELECT 1
     FROM unnest(ARRAY[
-      'plugin_data.csf_partner_club_representatives',
       'plugin_data.csf_partner_club_term_events',
       'plugin_data.csf_communication_campaigns',
       'plugin_data.csf_communication_recipient_snapshots',
@@ -84,7 +78,7 @@ SELECT extensions.ok(
 -- merely customary. Removal of communications history happens solely through the
 -- owner-run purge entry point, which needs no grant at all.
 --
--- The two mutable partner-club projections are genuinely ordinary tables and keep
+-- The mutable partner-club projection is a genuinely ordinary table and keeps
 -- the full read/write/delete grant.
 SELECT extensions.ok(
   (
@@ -92,14 +86,13 @@ SELECT extensions.ok(
       has_table_privilege('service_role', target.relation, wanted.privilege)
     )
     FROM unnest(ARRAY[
-      'plugin_data.csf_partner_club_representatives',
       'plugin_data.csf_partner_club_term_events'
     ]) AS target(relation)
     CROSS JOIN unnest(ARRAY[
       'SELECT', 'INSERT', 'UPDATE', 'DELETE'
     ]) AS wanted(privilege)
   ),
-  'the server role reads, writes, and deletes the two mutable partner-club projections directly'
+  'the server role reads, writes, and deletes the mutable partner-club projection directly'
 );
 
 -- The other four are append-and-amend-only through the RPCs. A direct INSERT,
@@ -138,7 +131,6 @@ SELECT extensions.ok(
   NOT EXISTS (
     SELECT 1
     FROM unnest(ARRAY[
-      'plugin_data.csf_partner_club_representatives',
       'plugin_data.csf_partner_club_term_events',
       'plugin_data.csf_communication_campaigns',
       'plugin_data.csf_communication_recipient_snapshots',
@@ -165,7 +157,6 @@ SELECT extensions.ok(
       'plugin_data.csf_reject_provider_event_mutation()',
       'plugin_data.csf_reject_partner_club_event_mutation()',
       'plugin_data.csf_enforce_representative_date_state()',
-      'plugin_data.csf_assert_representative_account_profile()',
       'plugin_data.csf_assert_snapshot_representative_pairing()',
       'plugin_data.csf_jsonb_carries_raw_content(jsonb)',
       'plugin_data.csf_recovery_teardown_authorized(uuid)',
@@ -800,281 +791,6 @@ SELECT extensions.throws_ok(
 SET CONSTRAINTS ALL IMMEDIATE;
 
 -- ---------------------------------------------------------------------------
--- B. Representative identity and date coherence
--- ---------------------------------------------------------------------------
-
-SELECT extensions.lives_ok(
-  $$
-    INSERT INTO plugin_data.csf_partner_club_representatives (
-      id, organization_id, partner_club_term_id, user_id, profile_id,
-      source_import_row_id, role, display_name, email, status,
-      effective_start, is_primary, created_by
-    ) VALUES (
-      'ac600000-0000-4000-8000-000000000001', 'ac100000-0000-4000-8000-000000000001',
-      'ac500000-0000-4000-8000-000000000001', 'ac000000-0000-4000-8000-000000000002',
-      'ac300000-0000-4000-8000-000000000001', 'acd00000-0000-4000-8000-000000000001',
-      'primary_contact', 'Robotics Lead', 'Club.Rep@Local.Test', 'active',
-      current_date - 30, true, 'ac000000-0000-4000-8000-000000000001'
-    )
-  $$,
-  'an officer can issue a term-scoped assignment whose account and profile are already linked'
-);
-SELECT extensions.is(
-  (
-    SELECT normalized_email
-    FROM plugin_data.csf_partner_club_representatives
-    WHERE id = 'ac600000-0000-4000-8000-000000000001'
-  ),
-  'club.rep@local.test',
-  'representative email is normalized for matching without losing the submitted form'
-);
-SELECT extensions.lives_ok(
-  $$
-    INSERT INTO plugin_data.csf_partner_club_representatives (
-      id, organization_id, partner_club_term_id, user_id, role,
-      display_name, email, status, effective_start, is_primary
-    ) VALUES (
-      'ac600000-0000-4000-8000-000000000002', 'ac100000-0000-4000-8000-000000000001',
-      'ac500000-0000-4000-8000-000000000002', 'ac000000-0000-4000-8000-000000000002',
-      'president', 'Interact Lead', 'club.rep@local.test', 'active',
-      current_date - 30, true
-    )
-  $$,
-  'one account may represent a second partner club in the same semester'
-);
-SELECT extensions.is(
-  (
-    SELECT count(*)::integer
-    FROM plugin_data.csf_partner_club_representatives
-    WHERE organization_id = 'ac100000-0000-4000-8000-000000000001'
-      AND user_id = 'ac000000-0000-4000-8000-000000000002'
-      AND status = 'active'
-  ),
-  2,
-  'the same account holds separate active assignments per club term'
-);
-
-SELECT extensions.throws_ok(
-  $$
-    INSERT INTO plugin_data.csf_partner_club_representatives (
-      organization_id, partner_club_term_id, role, display_name, email
-    ) VALUES (
-      'ac100000-0000-4000-8000-000000000001', 'ac500000-0000-4000-8000-000000000001',
-      'treasurer', 'Unsupported Role', 'treasurer@local.test'
-    )
-  $$,
-  '23514',
-  'new row for relation "csf_partner_club_representatives" violates check constraint "csf_partner_club_representatives_role_check"',
-  'an unsupported representative role is rejected'
-);
-SELECT extensions.throws_ok(
-  $$
-    INSERT INTO plugin_data.csf_partner_club_representatives (
-      organization_id, partner_club_term_id, display_name, email, status
-    ) VALUES (
-      'ac100000-0000-4000-8000-000000000001', 'ac500000-0000-4000-8000-000000000001',
-      'Unsupported Status', 'status@local.test', 'suspended'
-    )
-  $$,
-  '23514',
-  'new row for relation "csf_partner_club_representatives" violates check constraint "csf_partner_club_representatives_status_check"',
-  'an unsupported representative status is rejected'
-);
-SELECT extensions.throws_ok(
-  $$
-    INSERT INTO plugin_data.csf_partner_club_representatives (
-      organization_id, partner_club_term_id, display_name, email,
-      effective_start, effective_end
-    ) VALUES (
-      'ac100000-0000-4000-8000-000000000001', 'ac500000-0000-4000-8000-000000000001',
-      'Backwards Interval', 'interval@local.test', DATE '2031-09-01', DATE '2031-08-01'
-    )
-  $$,
-  '23514',
-  'new row for relation "csf_partner_club_representatives" violates check constraint "csf_partner_club_representatives_effective_range_check"',
-  'an assignment cannot end before it starts'
-);
-SELECT extensions.throws_ok(
-  $$
-    INSERT INTO plugin_data.csf_partner_club_representatives (
-      organization_id, partner_club_term_id, display_name, email
-    ) VALUES (
-      'ac100000-0000-4000-8000-000000000001', 'ac500000-0000-4000-8000-000000000003',
-      'Cross Tenant', 'cross@local.test'
-    )
-  $$,
-  '23503',
-  'insert or update on table "csf_partner_club_representatives" violates foreign key constraint "csf_partner_club_representatives_club_term_fkey"',
-  'a representative cannot be attached to another organization club term'
-);
-SELECT extensions.throws_ok(
-  $$
-    INSERT INTO plugin_data.csf_partner_club_representatives (
-      organization_id, partner_club_term_id, role, display_name, email, status, is_primary
-    ) VALUES (
-      'ac100000-0000-4000-8000-000000000001', 'ac500000-0000-4000-8000-000000000001',
-      'other', 'Duplicate Address', 'CLUB.REP@LOCAL.TEST', 'invited', false
-    )
-  $$,
-  '23505',
-  'duplicate key value violates unique constraint "csf_partner_club_representatives_live_email_idx"',
-  'one address cannot hold two live assignments for one club term'
-);
-SELECT extensions.throws_ok(
-  $$
-    INSERT INTO plugin_data.csf_partner_club_representatives (
-      organization_id, partner_club_term_id, user_id, role, display_name,
-      email, status, is_primary
-    ) VALUES (
-      'ac100000-0000-4000-8000-000000000001', 'ac500000-0000-4000-8000-000000000001',
-      'ac000000-0000-4000-8000-000000000002', 'other', 'Same Person New Address',
-      'club.rep.alternate@local.test', 'invited', false
-    )
-  $$,
-  '23505',
-  'duplicate key value violates unique constraint "csf_partner_club_representatives_live_account_idx"',
-  'one live account cannot hold two assignments for one club term under different addresses'
-);
-SELECT extensions.throws_ok(
-  $$
-    INSERT INTO plugin_data.csf_partner_club_representatives (
-      organization_id, partner_club_term_id, role, display_name, email, status, is_primary
-    ) VALUES (
-      'ac100000-0000-4000-8000-000000000001', 'ac500000-0000-4000-8000-000000000001',
-      'adviser', 'Second Primary', 'second.primary@local.test', 'active', true
-    )
-  $$,
-  '23505',
-  'duplicate key value violates unique constraint "csf_partner_club_representatives_single_primary_idx"',
-  'one club term keeps a single live primary contact'
-);
-SELECT extensions.throws_ok(
-  $$
-    INSERT INTO plugin_data.csf_partner_club_representatives (
-      organization_id, partner_club_term_id, user_id, profile_id,
-      role, display_name, email, status
-    ) VALUES (
-      'ac100000-0000-4000-8000-000000000001', 'ac500000-0000-4000-8000-000000000002',
-      'ac000000-0000-4000-8000-000000000001', 'ac300000-0000-4000-8000-000000000001',
-      'adviser', 'Unlinked Account', 'unlinked.adviser@local.test', 'invited'
-    )
-  $$,
-  '23514',
-  'A CSF partner-club representative that names both an account and a profile requires a verified profile link in the same organization.',
-  'an assignment cannot pair an account with a profile it is not verified against'
-);
-SELECT extensions.throws_ok(
-  $$
-    INSERT INTO plugin_data.csf_partner_club_representatives (
-      organization_id, partner_club_term_id, role, display_name, email,
-      status, effective_start
-    ) VALUES (
-      'ac100000-0000-4000-8000-000000000001', 'ac500000-0000-4000-8000-000000000002',
-      'adviser', 'Future Active', 'future.active@local.test', 'active',
-      current_date + 7
-    )
-  $$,
-  '23514',
-  'An active CSF partner-club representative cannot start in the future.',
-  'an active assignment cannot start in the future'
-);
-SELECT extensions.throws_ok(
-  $$
-    INSERT INTO plugin_data.csf_partner_club_representatives (
-      organization_id, partner_club_term_id, role, display_name, email,
-      status, effective_start, effective_end
-    ) VALUES (
-      'ac100000-0000-4000-8000-000000000001', 'ac500000-0000-4000-8000-000000000002',
-      'adviser', 'Already Ended', 'already.ended@local.test', 'active',
-      current_date - 30, current_date - 1
-    )
-  $$,
-  '23514',
-  'An active CSF partner-club representative cannot already be ended.',
-  'an active assignment cannot already be ended'
-);
-SELECT extensions.throws_ok(
-  $$
-    INSERT INTO plugin_data.csf_partner_club_representatives (
-      organization_id, partner_club_term_id, role, display_name, email,
-      status, effective_start, effective_end
-    ) VALUES (
-      'ac100000-0000-4000-8000-000000000001', 'ac500000-0000-4000-8000-000000000002',
-      'adviser', 'Future Expiry', 'future.expiry@local.test', 'expired',
-      current_date - 30, current_date + 30
-    )
-  $$,
-  '23514',
-  'An expired CSF partner-club representative cannot end in the future.',
-  'an expired assignment cannot end in the future'
-);
-SELECT extensions.throws_ok(
-  $$
-    INSERT INTO plugin_data.csf_partner_club_representatives (
-      organization_id, partner_club_term_id, role, display_name, email, status
-    ) VALUES (
-      'ac100000-0000-4000-8000-000000000001', 'ac500000-0000-4000-8000-000000000002',
-      'adviser', 'Open Revocation', 'open.revocation@local.test', 'revoked'
-    )
-  $$,
-  '23514',
-  'new row for relation "csf_partner_club_representatives" violates check constraint "csf_partner_club_representatives_revoked_end_check"',
-  'a revoked assignment must record when it ended'
-);
-SELECT extensions.ok(
-  NOT EXISTS (
-    SELECT 1
-    FROM pg_index AS index_meta
-    JOIN pg_class AS index_class ON index_class.oid = index_meta.indexrelid
-    WHERE index_class.relname IN (
-        'csf_partner_club_representatives_live_email_idx',
-        'csf_partner_club_representatives_live_account_idx',
-        'csf_partner_club_representatives_single_primary_idx'
-      )
-      AND pg_get_expr(index_meta.indpred, index_meta.indrelid) LIKE '%date%'
-  ),
-  'no representative unique index predicate depends on the current date'
-);
-SELECT extensions.ok(
-  NOT EXISTS (
-    SELECT 1
-    FROM pg_policies
-    WHERE schemaname = 'plugin_data'
-      AND tablename = 'csf_partner_club_representatives'
-  ),
-  'representatives carry no client-facing policy'
-);
-
-SELECT extensions.lives_ok(
-  $$
-    UPDATE plugin_data.csf_partner_club_representatives
-    SET status = 'revoked', effective_end = current_date, updated_at = now()
-    WHERE id = 'ac600000-0000-4000-8000-000000000001'
-  $$,
-  'an officer can revoke one club-term assignment without deleting its history'
-);
-SELECT extensions.lives_ok(
-  $$
-    INSERT INTO plugin_data.csf_partner_club_representatives (
-      id, organization_id, partner_club_term_id, role, display_name, email, status, is_primary
-    ) VALUES (
-      'ac600000-0000-4000-8000-000000000004', 'ac100000-0000-4000-8000-000000000001',
-      'ac500000-0000-4000-8000-000000000001', 'primary_contact', 'Replacement Lead',
-      'club.rep@local.test', 'active', true
-    )
-  $$,
-  'a revoked assignment frees the address and primary slot for a replacement'
-);
-
-INSERT INTO plugin_data.csf_partner_club_representatives (
-  id, organization_id, partner_club_term_id, role, display_name, email, status
-) VALUES (
-  'ac600000-0000-4000-8000-000000000005', 'ac100000-0000-4000-8000-000000000001',
-  'ac500000-0000-4000-8000-000000000002', 'coordinator', 'Ephemeral Coordinator',
-  'ephemeral.rep@local.test', 'active'
-);
-
--- ---------------------------------------------------------------------------
 -- C. Communication relationship coherence
 -- ---------------------------------------------------------------------------
 
@@ -1257,21 +973,6 @@ SELECT extensions.throws_ok(
   '23503',
   'insert or update on table "csf_communication_recipient_snapshots" violates foreign key constraint "csf_communication_recipient_snapshots_campaign_fkey"',
   'a snapshot cannot claim an audience revision its campaign never published'
-);
-SELECT extensions.throws_ok(
-  $$
-    INSERT INTO plugin_data.csf_communication_recipient_snapshots (
-      organization_id, campaign_id, snapshot_version, recipient_email,
-      subscription_decision, club_representative_id, partner_club_term_id
-    ) VALUES (
-      'ac100000-0000-4000-8000-000000000001', 'ac700000-0000-4000-8000-000000000001',
-      3, 'wrong.term@local.test', 'included',
-      'ac600000-0000-4000-8000-000000000004', 'ac500000-0000-4000-8000-000000000002'
-    )
-  $$,
-  '23503',
-  'insert or update on table "csf_communication_recipient_snapshots" violates foreign key constraint "csf_communication_recipient_snapshots_representative_fkey"',
-  'a snapshot cannot cite a representative of a different club term'
 );
 SELECT extensions.throws_ok(
   $$
@@ -1703,12 +1404,26 @@ SELECT extensions.throws_ok(
   'a reconciled provider event cannot be re-pointed at a second delivery'
 );
 
+-- The representatives table is gone; club_representative_id survives only as
+-- immutable ledger history. A non-null rewrite is still refused, and nulling a
+-- stale historical reference is the one mutation the column may still see.
+SELECT extensions.throws_ok(
+  $$
+    UPDATE plugin_data.csf_communication_recipient_snapshots
+    SET club_representative_id = 'ac600000-0000-4000-8000-000000000006'
+    WHERE id = 'ac800000-0000-4000-8000-000000000002'
+  $$,
+  '23514',
+  'CSF audience snapshots are immutable after insert.',
+  'a snapshot cannot rewrite its historical representative reference to another value'
+);
 SELECT extensions.lives_ok(
   $$
-    DELETE FROM plugin_data.csf_partner_club_representatives
-    WHERE id = 'ac600000-0000-4000-8000-000000000005'
+    UPDATE plugin_data.csf_communication_recipient_snapshots
+    SET club_representative_id = NULL
+    WHERE id = 'ac800000-0000-4000-8000-000000000002'
   $$,
-  'a representative assignment can be removed from the current roster'
+  'a stale historical representative reference may be nulled'
 );
 SELECT extensions.is(
   (
@@ -1719,7 +1434,7 @@ SELECT extensions.is(
     WHERE snapshot.id = 'ac800000-0000-4000-8000-000000000002'
   ),
   'ephemeral.rep@local.test|Ephemeral Coordinator|unlinked',
-  'a past audience is reconstructable from the snapshot after the roster changes'
+  'a past audience is reconstructable from the snapshot after the stale reference clears'
 );
 
 -- ---------------------------------------------------------------------------
@@ -2214,14 +1929,6 @@ INSERT INTO plugin_data.csf_communication_provider_events (
   '9999888877776666555544443333222211110000ffffeeeeddddccccbbbbaaaa'
 );
 
-INSERT INTO plugin_data.csf_partner_club_representatives (
-  id, organization_id, partner_club_term_id, role, display_name, email, status
-) VALUES (
-  'ac600000-0000-4000-8000-000000000009', 'ac100000-0000-4000-8000-000000000002',
-  'ac500000-0000-4000-8000-000000000003', 'primary_contact', 'Other Org Lead',
-  'other.lead@local.test', 'active'
-);
-
 INSERT INTO plugin_data.csf_partner_club_term_events (
   id, organization_id, partner_club_term_id, event_type, idempotency_key
 ) VALUES (
@@ -2257,8 +1964,6 @@ SELECT extensions.is(
       + (SELECT count(*) FROM plugin_data.csf_communication_campaigns
          WHERE organization_id = 'ac100000-0000-4000-8000-000000000001')
       + (SELECT count(*) FROM plugin_data.csf_partner_club_term_events
-         WHERE organization_id = 'ac100000-0000-4000-8000-000000000001')
-      + (SELECT count(*) FROM plugin_data.csf_partner_club_representatives
          WHERE organization_id = 'ac100000-0000-4000-8000-000000000001')
   )::integer,
   0,
@@ -2306,12 +2011,10 @@ SELECT extensions.is(
          WHERE organization_id = 'ac100000-0000-4000-8000-000000000002')
       + (SELECT count(*) FROM plugin_data.csf_partner_club_term_events
          WHERE organization_id = 'ac100000-0000-4000-8000-000000000002')
-      + (SELECT count(*) FROM plugin_data.csf_partner_club_representatives
-         WHERE organization_id = 'ac100000-0000-4000-8000-000000000002')
       + (SELECT count(*) FROM public.organization_calendar_events
          WHERE organization_id = 'ac100000-0000-4000-8000-000000000002')
   )::integer,
-  7,
+  6,
   'the purge leaves the other organization entirely untouched'
 );
 SELECT extensions.throws_ok(
@@ -2334,7 +2037,6 @@ SELECT extensions.ok(
     WHERE relkind = 'i'
       AND relname IN (
         'csf_communication_campaigns_created_by_idx',
-        'csf_partner_club_representatives_created_by_idx',
         'csf_partner_club_term_events_actor_idx'
       )
   ),
@@ -2357,8 +2059,7 @@ SELECT extensions.ok(
     JOIN pg_namespace AS schema_meta ON schema_meta.oid = table_class.relnamespace
     WHERE index_class.relname IN (
         'csf_sheet_import_rows_retry_of_row_idx',
-        'csf_communication_recipient_snapshots_representative_idx',
-        'csf_partner_club_representatives_import_row_idx'
+        'csf_communication_recipient_snapshots_representative_idx'
       )
       AND schema_meta.nspname <> 'plugin_data'
   )
@@ -2367,10 +2068,9 @@ SELECT extensions.ok(
     WHERE relkind = 'i'
       AND relname IN (
         'csf_sheet_import_rows_retry_of_row_idx',
-        'csf_communication_recipient_snapshots_representative_idx',
-        'csf_partner_club_representatives_import_row_idx'
+        'csf_communication_recipient_snapshots_representative_idx'
       )
-  ) = 3,
+  ) = 2,
   'the foreign-key delete paths that a routine delete actually walks stay indexed'
 );
 
