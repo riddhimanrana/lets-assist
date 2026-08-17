@@ -4,7 +4,7 @@ DVHS CSF officer UX → class-first Home → Classes → Applications → More; 
 
 §C
 
-- Base root `49ccf4f1`; private gitlink `e9e86fe4`; Production ⊥.
+- Base root `fe749b3d`; private gitlink `e9e86fe4`; Production ⊥.
 - UI says `Class`; existing `cohort` schema identifiers stay.
 - Stable profile + graduation class; term application/import alone activates term membership.
 - Meetings chapter-wide under More; member dashboard visual model preserved.
@@ -51,7 +51,7 @@ id|status|task|cites
 T1|x|baseline merged root/private tree + encode approved class-first contract|V17,I.cmd
 T2|x|replace officer nav + Home + class shell/tabs/term state + compatibility mapping|V1,V2,V9,V10,V16,I.route,I.service
 T3|~|build term-aware class Members, Activities, Submissions + contextual imports/review queues|V2,V3,V4,V8,V9,V12,V13,I.route,I.service
-T4|.|add permanent class-code schema/actions/UI + exact identity/term-membership boundaries|V4,V5,V14,V17,I.db,I.service
+T4|~|add permanent class-code schema/actions/UI + exact identity/term-membership boundaries|V4,V5,V14,V17,I.db,I.service
 T5|.|add safe public class cards/Stream/Activities + publication contracts|V6,V7,V13,V17,I.route,I.service
 T6|.|consolidate Applications/Appeals/Meetings/More + remove redundant entry points|V1,V10,V11,V12,V16,I.route
 T7|.|harden fixture target fences + add DB/unit/component/browser/privacy coverage|V3,V4,V5,V6,V7,V8,V9,V11,V12,V13,V14,V15,V16,V17,I.cmd
