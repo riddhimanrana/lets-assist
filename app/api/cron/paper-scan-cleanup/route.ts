@@ -50,7 +50,6 @@ export async function GET(request: NextRequest) {
         "Error draining paper-scan deletion queue:",
         initialDrain.error,
       );
-      return NextResponse.json({ error: initialDrain.error }, { status: 500 });
     }
 
     const { data: purgedCount, error: purgeError } = await supabase.rpc(
@@ -68,7 +67,18 @@ export async function GET(request: NextRequest) {
     const finalDrain = await drainPaperScanStorageDeletionQueue(supabase);
     if (finalDrain.error) {
       console.error("Error deleting purged scan photos:", finalDrain.error);
-      return NextResponse.json({ error: finalDrain.error }, { status: 500 });
+    }
+
+    const drainError = initialDrain.error ?? finalDrain.error;
+    if (drainError) {
+      return NextResponse.json(
+        {
+          error: drainError,
+          purgedBatches: Number(purgedCount ?? 0),
+          storageDeleted: initialDrain.deleted + finalDrain.deleted,
+        },
+        { status: 500 },
+      );
     }
 
     return NextResponse.json({

@@ -316,7 +316,22 @@ export async function GET(request: NextRequest) {
     // An authorization code is single use. Record the attempt as spent before
     // presenting it, so a callback that arrives after this handler dies
     // reconciles to an explicit unknown outcome instead of re-exchanging.
-    await markGoogleOAuthAttemptExchanged({ attemptId, claimEpoch });
+    const exchangeMarked = await markGoogleOAuthAttemptExchanged({
+      attemptId,
+      claimEpoch,
+    });
+    if (!exchangeMarked) {
+      console.warn("Google OAuth attempt exchange marker was not committed", {
+        correlationId: claim.correlationId,
+      });
+      return redirectAndConsumeAttemptCookie(
+        buildCallbackRedirect(baseUrl, returnTo, {
+          error: "connection_in_progress",
+          correlationId: claim.correlationId,
+        }),
+        attemptCookieName,
+      );
+    }
 
     // Exchange authorization code for tokens
     const tokenResponse = await fetch("https://oauth2.googleapis.com/token", {
