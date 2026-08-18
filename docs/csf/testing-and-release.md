@@ -36,8 +36,8 @@ their named runs only.
 - The sole current CSF implementation/status register is
   `docs/development/cleanup-register.md`; this document is a testing runbook and
   retains older evidence below without promoting it to current status.
-- The repository candidate has 326 ordered migrations through
-  `20260818170000_serialize_paper_attendance_publication`. The thirty migrations
+- The repository candidate has 327 ordered migrations through
+  `20260818180000_complete_function_acl_restoration`. The thirty-one migrations
   added after the audited `development` baseline merge two prior lines: the
   Development-hardening pair
   (`20260816185321_enforce_authoritative_plugin_releases`,
@@ -70,17 +70,18 @@ their named runs only.
   `20260818134000_restate_partner_function_acls`, and
   `20260818150000_bound_feedback_candidate_rotation`, and
   `20260818160000_review_project_feedback_trigger_acl`, and
-  `20260818170000_serialize_paper_attendance_publication`).
+  `20260818170000_serialize_paper_attendance_publication`, and
+  `20260818180000_complete_function_acl_restoration`).
 - Hosted Development serves exact root merge SHA
-  `8fe4602cfe819bf2ccacb057d21d72d8e3f29132` and is healthy and
-  migration-current at 325 rows through
-  `20260818160000_review_project_feedback_trigger_acl`. Google OAuth is
-  enabled and the hosted authorize endpoint redirects to Google. The new 326th
-  paper-attendance/publication serialization remains repository-only until this change
+  `50aea30ae7eca1e717c39a9916d02f1f85767d00` and is healthy and
+  migration-current at 326 rows through
+  `20260818170000_serialize_paper_attendance_publication`. Google OAuth is
+  enabled and the hosted authorize endpoint redirects to Google. The new 327th
+  explicit function-ACL restoration remains repository-only until this change
   passes CI and is promoted through Development.
 - Production remains untouched at the audited 236-row baseline through
-  `20260811001500`; the exact read-only preflight now expects a 90-migration
-  cutover to this 326-row candidate. Running that cutover requires
+  `20260811001500`; the exact read-only preflight now expects a 91-migration
+  cutover to this 327-row candidate. Running that cutover requires
   explicit action-time approval.
 - Local evidence on the prior candidate includes a fresh exact 324-migration replay
   and the focused storage/release, import, proof, and release-authority pgTAP
@@ -88,7 +89,7 @@ their named runs only.
   assertions passed; three unrelated files hit transient Docker DNS failures,
   so hosted CI is the clean full-replay authority. The new serialization
   migration has focused 27-assertion coverage and remains subject to the clean
-  hosted replay. The candidate has 164 pgTAP files with 5,943 assertions plus
+  hosted replay. The candidate has 165 pgTAP files with 5,949 assertions plus
   focused workflow/browser tests, `typecheck`, `lint`, build, and strict
   submodule reachability. Follow-up hosted parity, final role/browser
   acceptance, and provider acceptance remain release gates until recorded in

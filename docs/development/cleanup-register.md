@@ -57,7 +57,17 @@ This register separates actionable repository defects from provider/account and 
   snapshot cannot mark a session published while an eligible attended signup
   lacks a verified certificate. Candidate roster reads also fail closed on a
   database error. Focused evidence is 15/15 Bun assertions and 8 pgTAP
-  assertions; the clean 326-migration hosted replay remains the authority.
+  assertions; the clean 326-migration hosted replay remains the authority for
+  that merge.
+- The final ACL audit is closed by the forward-only
+  `20260818180000_complete_function_acl_restoration` migration. All twelve
+  restated partner functions, both paper-notification triggers, all four
+  plugin-release guards, and the hours publish-key helper now carry explicit
+  reviewed owner/executor grants. Legacy response-loss-unsafe point-resubmit
+  and profile-merge signatures remain unavailable to `service_role`; only the
+  existing purge and trigger boundaries retain it. Focused pgTAP passes 10/10,
+  and the repository candidate is 327 migrations with 165 pgTAP files and
+  5,949 assertions.
 - PITR is intentionally not part of this release. The cutover runbook requires
   a verified logical backup/restore path instead. Production remains unchanged
   until the root Development and Production promotion gates complete.
