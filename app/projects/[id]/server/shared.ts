@@ -7,7 +7,10 @@ import { type Project } from "@/types";
 import { headers } from "next/headers";
 import { getAdminClient } from "@/lib/supabase/admin";
 import { isTurnstileEnabled, verifyTurnstileToken } from "@/lib/turnstile";
-import { enqueueOrphanedWaiverEvidence } from "@/lib/waiver/cleanup-storage";
+import {
+  enqueueOrphanedWaiverEvidence,
+  removeWaiverStorageObjects,
+} from "@/lib/waiver/cleanup-storage";
 import { resolveWaiverSignerIdentity } from "@/lib/waiver/signer-identity";
 
 // Define your site URL (replace with environment variable ideally)
@@ -406,9 +409,9 @@ export function getScheduleDetails(project: Project, scheduleId: string) {
 /**
  * Queues signature assets whose signup transaction did not commit.
  *
- * Correctness does not depend on this running: the rolled-back transaction
- * already left no signup, no capacity, and no evidence row, so these objects
- * are unreferenced. Failing to queue them costs storage, never integrity.
+ * The durable queue is preferred. If queue persistence itself fails, remove
+ * the newly uploaded, now-unreferenced objects immediately so a transient
+ * database failure cannot leave waiver evidence without a cleanup record.
  */
 export async function releaseUncommittedWaiverEvidence(
   objectPaths: string[],
@@ -429,5 +432,19 @@ export async function releaseUncommittedWaiverEvidence(
     logSignupDebug(traceId, "uncommitted_waiver_evidence_queue_failed", {
       objectCount: objectPaths.length,
     });
+  }
+
+  if (error) {
+    const fallback = await removeWaiverStorageObjects(
+      async (bucket, paths) =>
+        await serviceSupabase.storage.from(bucket).remove(paths),
+      { signaturePaths: objectPaths, uploadPaths: [] },
+    );
+
+    if (fallback.error && traceId) {
+      logSignupDebug(traceId, "uncommitted_waiver_evidence_delete_failed", {
+        objectCount: objectPaths.length,
+      });
+    }
   }
 }
