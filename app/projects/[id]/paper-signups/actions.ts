@@ -191,6 +191,7 @@ export async function createPaperScanBatch(input: {
 const orphanCleanupSchema = z
   .object({
     projectId: z.string().uuid(),
+    cleanupToken: z.string().uuid(),
     objectPaths: z
       .array(z.string().min(1).max(500))
       .min(1)
@@ -205,13 +206,15 @@ const orphanCleanupSchema = z
  */
 export async function queueOrphanedPaperScanUploads(input: {
   projectId: string;
+  cleanupToken: string;
   objectPaths: string[];
-}): Promise<{ success: true } | { error: string }> {
+}): Promise<{ success: true } | { registered: true } | { error: string }> {
   const parsed = orphanCleanupSchema.safeParse(input);
   if (!parsed.success) return { error: "Invalid scan cleanup request." };
 
-  const access = await requirePaperScanAccess(parsed.data.projectId);
-  if (!access.ok) return { error: access.error };
+  const { user, error: authError } = await getAuthUser();
+  if (authError || !user) return { error: "Authentication required." };
+  const admin = getAdminClient();
 
   const pathPattern = new RegExp(
     `^paper_signups/${parsed.data.projectId}/${OBJECT_PATH_SEGMENT}/[0-9]+_[A-Za-z0-9_-]+\\.(jpg|jpeg|png|webp)$`,
@@ -220,7 +223,38 @@ export async function queueOrphanedPaperScanUploads(input: {
     return { error: "Invalid scan cleanup path." };
   }
 
-  const { error } = await access.admin
+  // Cleanup authority is intentionally narrower than project-management
+  // authority. A manager can lose project access after their browser uploads
+  // bytes but before batch registration. The unguessable token stored on each
+  // uploaded object proves this browser created the orphan without restoring
+  // any access to the project or its existing scan evidence.
+  const objectChecks = await Promise.all(
+    parsed.data.objectPaths.map((objectPath) =>
+      admin.storage.from("paper-signup-scans").info(objectPath),
+    ),
+  );
+  if (
+    objectChecks.some(
+      ({ data, error }) =>
+        error || data?.metadata?.cleanupToken !== parsed.data.cleanupToken,
+    )
+  ) {
+    return { error: "Could not verify the uploaded photos for cleanup." };
+  }
+
+  const { data: registeredImages, error: registeredImagesError } = await admin
+    .from("project_paper_scan_images")
+    .select("object_path")
+    .in("object_path", parsed.data.objectPaths)
+    .limit(1);
+  if (registeredImagesError) {
+    return { error: "Could not verify the scan registration state." };
+  }
+  if ((registeredImages ?? []).length > 0) {
+    return { registered: true };
+  }
+
+  const { error } = await admin
     .from("paper_scan_storage_deletion_queue")
     .upsert(
       parsed.data.objectPaths.map((objectPath) => ({
