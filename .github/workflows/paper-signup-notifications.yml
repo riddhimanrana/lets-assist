@@ -19,7 +19,7 @@ jobs:
       cancel-in-progress: false
     env:
       CRON_BASE_URL: ${{ secrets.CRON_BASE_URL }}
-      CRON_TOKEN: ${{ secrets.CRON_SECRET }}
+      CRON_TOKEN: ${{ secrets.PAPER_SIGNUP_NOTIFICATION_WORKER_SECRET_TOKEN || secrets.CRON_SECRET }}
       VERCEL_AUTOMATION_BYPASS_SECRET: ${{ secrets.VERCEL_AUTOMATION_BYPASS_SECRET || secrets.VERCEL_BYPASS_SECRET }}
       BETTERSTACK_HEARTBEAT_URL: ${{ secrets['BETTERSTACK_PAPER_SIGNUP_NOTIFICATIONS_HEARTBEAT_URL'] || secrets['BETTERSTACK_HEARTBEAT_URL'] }}
       ENDPOINT_PATH: /api/cron/paper-signup-notifications
@@ -28,7 +28,7 @@ jobs:
       - name: Validate configuration
         run: |
           test -n "$CRON_BASE_URL" || { echo "CRON_BASE_URL secret missing"; exit 1; }
-          test -n "$CRON_TOKEN" || { echo "CRON_SECRET secret missing"; exit 1; }
+          test -n "$CRON_TOKEN" || { echo "Paper notification worker token missing"; exit 1; }
 
       - name: Call paper signup notification worker with retries
         run: |

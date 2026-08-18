@@ -63,7 +63,9 @@ describe("production review consistency boundaries", () => {
       "ENDPOINT_PATH: /api/cron/paper-signup-notifications",
     );
     expect(workflow).toContain("environment: production");
-    expect(workflow).toContain("CRON_TOKEN: ${{ secrets.CRON_SECRET }}");
+    expect(workflow).toContain(
+      "CRON_TOKEN: ${{ secrets.PAPER_SIGNUP_NOTIFICATION_WORKER_SECRET_TOKEN || secrets.CRON_SECRET }}",
+    );
     expect(workflow).toContain("cancel-in-progress: false");
   });
 });
