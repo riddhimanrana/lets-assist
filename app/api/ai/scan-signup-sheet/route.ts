@@ -545,7 +545,7 @@ export async function POST(req: NextRequest) {
     }
 
     if (imagesProcessed === 0) {
-      await admin
+      const { data: failedBatch, error: failError } = await admin
         .from("project_paper_scan_batches")
         .update({
           status: "failed",
@@ -554,7 +554,14 @@ export async function POST(req: NextRequest) {
           extraction_claim_id: null,
         })
         .eq("id", batchId)
-        .eq("extraction_claim_id", claimId);
+        .eq("extraction_claim_id", claimId)
+        .select("id")
+        .maybeSingle();
+      if (failError || !failedBatch) {
+        throw new Error(
+          `Failed to settle unreadable scan: ${failError?.code ?? "claim_lost"}`,
+        );
+      }
       claimedBatch = null;
       return Response.json(
         { error: "None of the photos could be read. Try clearer photos." },
@@ -571,7 +578,7 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    await admin
+    const { data: reviewBatch, error: reviewError } = await admin
       .from("project_paper_scan_batches")
       .update({
         status: "review",
@@ -581,7 +588,14 @@ export async function POST(req: NextRequest) {
         extraction_claim_id: null,
       })
       .eq("id", batchId)
-      .eq("extraction_claim_id", claimId);
+      .eq("extraction_claim_id", claimId)
+      .select("id")
+      .maybeSingle();
+    if (reviewError || !reviewBatch) {
+      throw new Error(
+        `Failed to settle extracted scan: ${reviewError?.code ?? "claim_lost"}`,
+      );
+    }
     claimedBatch = null;
 
     return Response.json({

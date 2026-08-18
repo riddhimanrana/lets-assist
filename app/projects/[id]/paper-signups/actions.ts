@@ -271,18 +271,7 @@ export async function updatePaperScanRow(input: {
 
   const access = await requirePaperScanAccess(projectId);
   if (!access.ok) return { error: access.error };
-  const { admin } = access;
-
-  const { data: batch } = await admin
-    .from("project_paper_scan_batches")
-    .select("id, status, project_id")
-    .eq("id", batchId)
-    .eq("project_id", projectId)
-    .single();
-  if (!batch) return { error: "Batch not found." };
-  if (batch.status !== "review") {
-    return { error: "This batch is not in review." };
-  }
+  const { admin, userId } = access;
 
   const email =
     patch.email === undefined
@@ -295,29 +284,23 @@ export async function updatePaperScanRow(input: {
   }
 
   // raw_extraction is never touched: the AI's output stays immutable
-  // evidence, separate from the reviewer's working copy.
-  const { error: updateError } = await admin
-    .from("project_paper_scan_rows")
-    .update({
-      ...(patch.name !== undefined ? { name: patch.name } : {}),
-      ...(email !== undefined ? { email } : {}),
-      ...(patch.phone !== undefined ? { phone: patch.phone } : {}),
-      ...(patch.checkInTime !== undefined
-        ? { check_in_time: patch.checkInTime }
-        : {}),
-      ...(patch.checkOutTime !== undefined
-        ? { check_out_time: patch.checkOutTime }
-        : {}),
-      ...(patch.signaturePresent !== undefined
-        ? { signature_present: patch.signaturePresent }
-        : {}),
-      ...(patch.decision !== undefined ? { decision: patch.decision } : {}),
-      ...(patch.matchSignupId !== undefined
-        ? { match_signup_id: patch.matchSignupId }
-        : {}),
-    })
-    .eq("id", rowId)
-    .eq("batch_id", batchId);
+  // evidence, separate from the reviewer's working copy. The RPC locks the
+  // parent batch in the same order as commit/discard and rechecks review state
+  // before applying this patch.
+  const rpcPatch = {
+    ...patch,
+    ...(email !== undefined ? { email } : {}),
+  };
+  const { data: outcome, error: updateError } = await admin.rpc(
+    "update_paper_scan_review_row",
+    {
+      p_batch_id: batchId,
+      p_project_id: projectId,
+      p_row_id: rowId,
+      p_actor_id: userId,
+      p_patch: rpcPatch,
+    },
+  );
   if (updateError) {
     return {
       error:
@@ -326,6 +309,10 @@ export async function updatePaperScanRow(input: {
           : "Could not save the row.",
     };
   }
+  if (outcome === "not_review") {
+    return { error: "This batch is no longer in review." };
+  }
+  if (outcome !== "updated") return { error: "Batch or row not found." };
 
   return { success: true };
 }
@@ -406,6 +393,7 @@ export async function commitPaperScanBatch(input: {
       overCapacity: number;
       failed: Array<{ rowId: string; detail: string }>;
       certificatesIssued: number;
+      certificateErrors: string[];
       notificationsQueued: number;
     }
   | { error: string }
@@ -465,6 +453,7 @@ export async function commitPaperScanBatch(input: {
   // A session that already published its hours will never re-run
   // certificate issuance for these signups; do it here.
   let certificatesIssued = 0;
+  let certificateErrors: string[] = [];
   const publishKey = getPublishStateKey(project, batch.schedule_id);
   if (project.published?.[publishKey] === true) {
     const committedSignupIds = [...created, ...updated]
@@ -477,6 +466,7 @@ export async function commitPaperScanBatch(input: {
       actorId: userId,
     });
     certificatesIssued = issuance.issued;
+    certificateErrors = issuance.errors;
   }
 
   return {
@@ -487,7 +477,75 @@ export async function commitPaperScanBatch(input: {
     overCapacity: results.filter((row) => row.over_capacity).length,
     failed,
     certificatesIssued,
+    certificateErrors,
     notificationsQueued: newAnonymousIds.length,
+  };
+}
+
+export async function retryPaperScanCertificates(input: {
+  projectId: string;
+  batchId: string;
+}): Promise<
+  | { success: true; certificatesIssued: number; certificateErrors: string[] }
+  | { error: string }
+> {
+  const parsed = z
+    .object({ projectId: z.string().uuid(), batchId: z.string().uuid() })
+    .strict()
+    .safeParse(input);
+  if (!parsed.success) return { error: "Invalid retry request." };
+
+  const access = await requirePaperScanAccess(parsed.data.projectId);
+  if (!access.ok) return { error: access.error };
+  const { admin, project, userId } = access;
+
+  const { data: batch, error: batchError } = await admin
+    .from("project_paper_scan_batches")
+    .select("id, schedule_id, status")
+    .eq("id", parsed.data.batchId)
+    .eq("project_id", parsed.data.projectId)
+    .single();
+  if (batchError || !batch) return { error: "Batch not found." };
+  if (batch.status !== "committed") {
+    return { error: "Attendance must be committed before retrying." };
+  }
+  const publishKey = getPublishStateKey(project, batch.schedule_id);
+  if (project.published?.[publishKey] !== true) {
+    return { error: "This session's hours are not published." };
+  }
+
+  const { data: rows, error: rowsError } = await admin
+    .from("project_paper_scan_rows")
+    .select("committed_signup_id")
+    .eq("batch_id", batch.id)
+    .not("committed_signup_id", "is", null);
+  if (rowsError || !rows) return { error: "Could not load committed rows." };
+
+  const signupIds = rows.flatMap((row) =>
+    row.committed_signup_id ? [row.committed_signup_id] : [],
+  );
+  const issuance = await issueCertificatesForSignups({
+    projectId: parsed.data.projectId,
+    scheduleId: batch.schedule_id,
+    signupIds,
+    actorId: userId,
+  });
+  const certificateErrors = [...issuance.errors];
+  // A zero-row idempotent replay means certificates already exist. This
+  // closes an issuance retry, but it cannot prove an earlier email attempt
+  // reached its recipient; keep the operator on the explicit Hours resend
+  // path instead of silently declaring delivery repaired.
+  if (
+    signupIds.length > 0 &&
+    issuance.issued === 0 &&
+    certificateErrors.length === 0
+  ) {
+    certificateErrors.push("certificate_delivery_retry_required");
+  }
+  return {
+    success: true,
+    certificatesIssued: issuance.issued,
+    certificateErrors,
   };
 }
 
