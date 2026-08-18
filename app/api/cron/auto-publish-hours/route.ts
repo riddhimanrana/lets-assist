@@ -4,6 +4,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { cronAuthShapeProbe } from "@/lib/cron/auth-shape-probe";
 import { drainPublicationEmails } from "@/lib/projects/hours-publication-email-service";
 import { publishVolunteerHoursTransaction } from "@/lib/projects/hours-publication-service";
+import { getPublishStateKey } from "@/app/projects/[id]/hours/certificate-issuance";
 
 /**
  * Canonical cron endpoint implementation.
@@ -94,6 +95,7 @@ type ProjectRow = {
   status?: string | null;
   project_timezone?: string | null;
   creator_id?: string | null;
+  event_type: "oneTime" | "multiDay" | "sameDayMultiArea";
 };
 
 type SignupRow = {
@@ -340,24 +342,27 @@ async function processExpiredSessions(): Promise<{
         project: ProjectRow;
         signups: SignupRow[];
         sessionId: string;
+        publishKey: string;
         projectId: string;
       }
     >();
 
     eligibleSignups.forEach((signup) => {
-      const key = `${signup.project_id}-${signup.schedule_id}`;
+      const project = Array.isArray(signup.projects)
+        ? signup.projects[0]
+        : signup.projects;
+      if (!project || !signup.schedule_id || !signup.project_id) {
+        return;
+      }
+
+      const publishKey = getPublishStateKey(project, signup.schedule_id);
+      const key = `${signup.project_id}-${publishKey}`;
 
       if (!sessionGroups.has(key)) {
-        // Check if this session is already published
-        const project = Array.isArray(signup.projects)
-          ? signup.projects[0]
-          : signup.projects;
-        if (!project || !signup.schedule_id || !signup.project_id) {
-          return;
-        }
+        // Check the canonical publication key, not one raw schedule alias.
 
         const isPublished = Boolean(
-          project.published && project.published[signup.schedule_id],
+          project.published && project.published[publishKey],
         );
 
         if (
@@ -370,6 +375,7 @@ async function processExpiredSessions(): Promise<{
             project,
             signups: [],
             sessionId: signup.schedule_id,
+            publishKey,
             projectId: signup.project_id,
           });
         }
@@ -419,26 +425,32 @@ async function processExpiredSessions(): Promise<{
         // The time-window query identifies sessions that are due. Publication
         // itself must use the complete session snapshot, including attendees
         // whose checkout timestamps fall outside this particular cron window.
-        const { data: completeSessionSignups, error: completeSessionError } =
+        const { data: projectSignups, error: completeSessionError } =
           await supabase
             .from("project_signups")
             .select(
               "id, project_id, schedule_id, status, check_in_time, check_out_time",
             )
             .eq("project_id", sessionGroup.projectId)
-            .eq("schedule_id", sessionGroup.sessionId)
             .in("status", ["attended", "approved"])
             .not("check_in_time", "is", null)
             .not("check_out_time", "is", null);
 
-        if (completeSessionError || !completeSessionSignups) {
+        if (completeSessionError || !projectSignups) {
           throw new Error("complete_session_snapshot_unavailable");
         }
+
+        const completeSessionSignups = (projectSignups as SignupRow[]).filter(
+          (signup) =>
+            Boolean(signup.schedule_id) &&
+            getPublishStateKey(sessionGroup.project, signup.schedule_id!) ===
+              sessionGroup.publishKey,
+        );
 
         const result = await processSessionSignups(
           sessionGroup.project,
           sessionGroup.sessionId,
-          completeSessionSignups as SignupRow[],
+          completeSessionSignups,
           sessionName,
         );
         results.push(result);

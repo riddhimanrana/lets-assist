@@ -37,6 +37,17 @@ BEGIN
 END;
 $raise_hours_publication_limit$;
 
+REVOKE ALL ON FUNCTION
+  private.publish_volunteer_hours_transactional_legacy_status_fallback(
+    uuid, uuid, text, jsonb, text
+  )
+  FROM PUBLIC, anon, authenticated, service_role;
+GRANT EXECUTE ON FUNCTION
+  private.publish_volunteer_hours_transactional_legacy_status_fallback(
+    uuid, uuid, text, jsonb, text
+  )
+  TO postgres;
+
 -- The paper commit RPC receives and revalidates the authenticated staff actor,
 -- while its row triggers run under the service role. Carry that reviewed actor
 -- through the same transaction so late certificate issuance keeps the correct
@@ -78,6 +89,13 @@ $block$
   EXECUTE v_updated_definition;
 END;
 $carry_paper_commit_actor$;
+
+REVOKE ALL ON FUNCTION
+  public.commit_paper_signup_batch(uuid, uuid, uuid[], boolean, uuid)
+  FROM PUBLIC, anon, authenticated, service_role;
+GRANT EXECUTE ON FUNCTION
+  public.commit_paper_signup_batch(uuid, uuid, uuid[], boolean, uuid)
+  TO service_role;
 
 CREATE OR REPLACE FUNCTION app_private.lock_paper_scan_project_for_commit()
 RETURNS trigger

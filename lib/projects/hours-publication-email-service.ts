@@ -118,7 +118,7 @@ async function preparePublicationEmailPayload(
     sender =
       process.env.EMAIL_FROM?.trim() ||
       "Let's Assist <projects@notifications.lets-assist.com>";
-    subject = `Your volunteer certificate for ${publication.projectTitle} is ready!`;
+    subject = `${isAutoPublished ? "[Auto-Published] " : ""}Your volunteer certificate for ${publication.projectTitle} is ready!`;
     html = await render(
       React.createElement(CertificatePublished, {
         volunteerName: delivery.volunteerName!,

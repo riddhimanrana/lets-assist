@@ -134,6 +134,8 @@ test("the auto-publisher uses the atomic publication and durable email protocols
   assert.doesNotMatch(processSource, /sendCertificatePublishedEmails/u);
   assert.match(autoPublishSource, /completeSessionSignups/u);
   assert.match(autoPublishSource, /complete_session_snapshot_unavailable/u);
+  assert.match(autoPublishSource, /getPublishStateKey/u);
+  assert.match(publicationEmailServiceSource, /\[Auto-Published\]/u);
 });
 
 test("supplemental issuance delegates conflict arbitration to one database statement", () => {
