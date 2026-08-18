@@ -7,7 +7,8 @@ import { getAdminClient } from "@/lib/supabase/admin";
  * Unsubscribe from post-project follow-up emails (styled on
  * app/unsubscribe/csf/confirm/route.ts). Both GET and POST are handled
  * because RFC 8058 one-click unsubscribe (List-Unsubscribe-Post) requires
- * POST, while humans arrive by GET from the email footer.
+ * POST. Humans who arrive by GET from the email footer must explicitly
+ * confirm before anything changes: mailbox security scanners prefetch links.
  *
  * Anonymous subjects get anonymous_signups.email_opt_out_at (there is no
  * account to hold a preference); user subjects get
@@ -35,23 +36,45 @@ function escapeHtml(value: string) {
   });
 }
 
-function htmlPage(message: string, resubscribeUrl?: string) {
-  const resubscribeBlock = resubscribeUrl
-    ? `<p style="margin-top:16px"><a href="${escapeHtml(resubscribeUrl)}" style="color:#16a34a">Changed your mind? Resubscribe</a></p>`
+function htmlPage(
+  message: string,
+  action?: {
+    requestId: string;
+    token: string;
+    decision: "unsubscribe" | "resubscribe";
+    label: string;
+  },
+) {
+  const actionBlock = action
+    ? `<form method="post" action="/feedback/${escapeHtml(action.requestId)}/unsubscribe" style="margin-top:16px">` +
+      `<input type="hidden" name="token" value="${escapeHtml(action.token)}">` +
+      `<input type="hidden" name="decision" value="${escapeHtml(action.decision)}">` +
+      `<button type="submit" style="background:#16a34a;color:#fff;border:0;border-radius:6px;padding:10px 16px;font-size:1rem;cursor:pointer">${escapeHtml(action.label)}</button></form>`
     : "";
   return new NextResponse(
     `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex"><title>Project feedback emails</title></head>` +
       `<body style="font-family:system-ui,sans-serif;max-width:480px;margin:64px auto;padding:0 16px">` +
-      `<h1 style="font-size:1.4rem;margin:0 0 12px">Project feedback emails</h1><p style="line-height:1.6;color:#374151">${escapeHtml(message)}</p>${resubscribeBlock}` +
+      `<h1 style="font-size:1.4rem;margin:0 0 12px">Project feedback emails</h1><p style="line-height:1.6;color:#374151">${escapeHtml(message)}</p>${actionBlock}` +
       `</body></html>`,
-    { headers: { "Content-Type": "text/html; charset=utf-8" } },
+    {
+      headers: {
+        "Content-Type": "text/html; charset=utf-8",
+        "Cache-Control": "private, no-store",
+      },
+    },
   );
 }
 
-async function handle(request: NextRequest, requestId: string) {
-  const url = new URL(request.url);
-  const token = url.searchParams.get("token");
-  const resubscribe = url.searchParams.get("decision") === "resubscribe";
+function readDecision(value: FormDataEntryValue | string | null) {
+  return value === "resubscribe" ? "resubscribe" : "unsubscribe";
+}
+
+async function applyDecision(
+  requestId: string,
+  token: string | null,
+  decision: "unsubscribe" | "resubscribe",
+) {
+  const resubscribe = decision === "resubscribe";
 
   const payload = verifyProjectFeedbackToken(token);
   if (!payload || payload.requestId !== requestId) {
@@ -82,8 +105,6 @@ async function handle(request: NextRequest, requestId: string) {
     );
   }
 
-  const resubscribeUrl = `${url.origin}${url.pathname}?token=${encodeURIComponent(token!)}&decision=resubscribe`;
-
   if (payload.subject.kind === "anonymous") {
     const { error } = await admin
       .from("anonymous_signups")
@@ -113,7 +134,12 @@ async function handle(request: NextRequest, requestId: string) {
         payload.subject.kind === "anonymous"
           ? "Done — this address won't receive project follow-up emails anymore. Signup confirmations for events you register for are unaffected."
           : "Done — project update emails (including these follow-ups) are turned off for your account. You can change this anytime in your notification settings.",
-        resubscribeUrl,
+        {
+          requestId,
+          token: token!,
+          decision: "resubscribe",
+          label: "Changed your mind? Resubscribe",
+        },
       );
 }
 
@@ -122,7 +148,24 @@ export async function GET(
   context: { params: Promise<{ requestId: string }> },
 ) {
   const { requestId } = await context.params;
-  return handle(request, requestId);
+  const token = request.nextUrl.searchParams.get("token");
+  const decision = readDecision(request.nextUrl.searchParams.get("decision"));
+  const payload = verifyProjectFeedbackToken(token);
+  if (!payload || payload.requestId !== requestId || !token) {
+    return htmlPage(
+      "This link is invalid or has expired. Feedback links last 30 days.",
+    );
+  }
+
+  return decision === "resubscribe"
+    ? htmlPage(
+        "Confirm that you want to receive project update emails again.",
+        { requestId, token, decision, label: "Resubscribe" },
+      )
+    : htmlPage(
+        "Confirm that you want to stop receiving project follow-up emails.",
+        { requestId, token, decision, label: "Unsubscribe" },
+      );
 }
 
 // RFC 8058 one-click unsubscribe.
@@ -131,5 +174,17 @@ export async function POST(
   context: { params: Promise<{ requestId: string }> },
 ) {
   const { requestId } = await context.params;
-  return handle(request, requestId);
+  const form = await request.formData().catch(() => null);
+  const formToken = form?.get("token");
+  const token =
+    typeof formToken === "string"
+      ? formToken
+      : request.nextUrl.searchParams.get("token");
+  const formDecision = form?.get("decision");
+  const decision = readDecision(
+    typeof formDecision === "string"
+      ? formDecision
+      : request.nextUrl.searchParams.get("decision"),
+  );
+  return applyDecision(requestId, token, decision);
 }

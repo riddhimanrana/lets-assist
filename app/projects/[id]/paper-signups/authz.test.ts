@@ -1,6 +1,9 @@
 import { describe, expect, test } from "bun:test";
 
-import { canManageProjectAccess } from "@/lib/projects/management-access";
+import {
+  activeOrganizationRole,
+  canManageProjectAccess,
+} from "@/lib/projects/management-access";
 
 /**
  * The paper-signup decision table. Every server action in this directory
@@ -86,5 +89,40 @@ describe("paper signup management access", () => {
         canBeManagedByStaff: true,
       }),
     ).toBe(false);
+  });
+
+  test("inactive admins and staff confer no paper-scan access", () => {
+    for (const role of ["admin", "staff"]) {
+      expect(
+        canManageProjectAccess({
+          creatorId: CREATOR,
+          userId: OTHER,
+          organizationRole: activeOrganizationRole({
+            role,
+            status: "inactive",
+          }),
+          canBeManagedByStaff: true,
+        }),
+      ).toBe(false);
+    }
+  });
+
+  test("both service-role entry points derive an active membership and fence extraction ownership", async () => {
+    const actionsSource = await Bun.file(
+      new URL("./actions.ts", import.meta.url),
+    ).text();
+    const scanRouteSource = await Bun.file(
+      new URL("../../../api/ai/scan-signup-sheet/route.ts", import.meta.url),
+    ).text();
+
+    for (const source of [actionsSource, scanRouteSource]) {
+      expect(source).toContain('.select("role, status")');
+      expect(source).toContain("activeOrganizationRole(membership)");
+    }
+    expect(scanRouteSource).toContain("extraction_claim_id: claimId");
+    expect(scanRouteSource).toContain('.eq("updated_at", batch.updated_at)');
+    expect(scanRouteSource).toContain(
+      '.eq("extraction_claim_id", claimedBatch.claimId)',
+    );
   });
 });

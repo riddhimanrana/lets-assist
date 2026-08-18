@@ -6,6 +6,16 @@ This register separates actionable repository defects from provider/account and 
 
 ## Production release candidate — 2026-08-18
 
+- Production review findings `PROD-REV-001` through `PROD-REV-007` are
+  repository-closed on the follow-up candidate: feedback unsubscribe GET is
+  confirmation-only; the feedback worker rotates through bounded stable pages
+  without a creation-date exclusion; paper scans require active organization
+  membership and use compare-and-set extraction ownership tokens; the three
+  replaced CSF functions explicitly restore service-role-only execution; and
+  removed legacy workbook commands are no longer advertised. Focused evidence
+  is 27/27 Bun assertions, 10/10 pgTAP assertions, clean migration replay,
+  formatting, zero-warning lint, and TypeScript. Hosted Development and
+  Production acceptance remain separate release gates.
 - Private plugin PRs #65 and #66 are merged. DVHS CSF `1.1.0` is pinned to
   private main commit `4d1001e9d3269b8bd28de93c071c6b4b216824fd` and manifest
   SHA-256 `04aca8efa43e9d287c8d04909b733df97f6804224a4c6960a3609358eb574e79`;
@@ -15,7 +25,7 @@ This register separates actionable repository defects from provider/account and 
   namespaces DVHS CSF objects under `{organizationId}/dvhs-csf/...`, rewrites
   the reviewed SQL producers/validators, advances installed versions with audit
   rows, and publishes the immutable source/manifest release attestation.
-- Local evidence: clean 318-migration replay; 787 focused pgTAP assertions;
+- Local evidence: clean 319-migration replay; 797 focused pgTAP assertions;
   zero-warning lint; typecheck; strict private-gitlink containment; manifest
   digest/source gate; and release/preflight documentation contracts pass.
 - The pasted advisor exports are triaged, not mass-applied. `plugin_data` RLS

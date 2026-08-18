@@ -36,8 +36,8 @@ their named runs only.
 - The sole current CSF implementation/status register is
   `docs/development/cleanup-register.md`; this document is a testing runbook and
   retains older evidence below without promoting it to current status.
-- The repository candidate has 318 ordered migrations through
-  `20260818040246_generalize_private_plugin_storage_and_publish_dvhs_csf_1_1_0`. The twenty-two migrations
+- The repository candidate has 319 ordered migrations through
+  `20260818064000_close_production_review_security_gaps`. The twenty-three migrations
   added after the audited `development` baseline merge two prior lines: the
   Development-hardening pair
   (`20260816185321_enforce_authoritative_plugin_releases`,
@@ -62,19 +62,20 @@ their named runs only.
   `20260817131000_csf_partial_attendance_commit_and_ai_resolution`,
   `20260817132000_restore_multi_date_meeting_permission_rechecks`,
   `20260817133000_consolidate_plugin_version_read_policies`, and
-  `20260818040246_generalize_private_plugin_storage_and_publish_dvhs_csf_1_1_0`).
+  `20260818040246_generalize_private_plugin_storage_and_publish_dvhs_csf_1_1_0`, and
+  `20260818064000_close_production_review_security_gaps`).
 - Hosted Development serves exact root merge SHA
-  `471fbe012acb9f578d8c81e2cc9315c22cbb9a11` and is healthy and
-  migration-current at 317 rows through
-  `20260817133000_consolidate_plugin_version_read_policies`. Google OAuth is
-  enabled and the hosted authorize endpoint redirects to Google. The new 318th
-  generic-storage/release migration remains repository-only until this change
-  passes CI and is promoted through Development.
+  `7162c1c103c97c3d3ad9ead7475716c9bf5773b7` and is healthy and
+  migration-current at 318 rows through
+  `20260818040246_generalize_private_plugin_storage_and_publish_dvhs_csf_1_1_0`. Google OAuth is
+  enabled and the hosted authorize endpoint redirects to Google. The new 319th
+  production-review repair remains repository-only until this change passes CI
+  and is promoted through Development.
 - Production remains untouched at the audited 236-row baseline through
-  `20260811001500`; the exact read-only preflight now expects an 82-migration
-  cutover to this 318-row candidate. Running that cutover requires
+  `20260811001500`; the exact read-only preflight now expects an 83-migration
+  cutover to this 319-row candidate. Running that cutover requires
   explicit action-time approval.
-- Local evidence on this candidate includes a fresh exact 318-migration replay
+- Local evidence on this candidate includes a fresh exact 319-migration replay
   and the focused storage/release, import, proof, and release-authority pgTAP
   suites. The predecessor passed 155 pgTAP files with 5,833 assertions plus
   focused workflow/browser tests, `typecheck`, `lint`, build, and strict

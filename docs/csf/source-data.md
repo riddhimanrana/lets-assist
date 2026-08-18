@@ -110,4 +110,4 @@ Per-file shape (sheet → meaning; only sheets relevant to Fall 25 credit listed
 
 When a workbook has both a points/total column and per-meeting marks, the points column is authoritative; derived attendance counts are evidence only.
 
-The `bun run csf:inspect:legacy` script summarizes any of these workbooks; the normalizer (`bun run csf:normalize:legacy`, see `scripts/local-dev/`) drafts human-approved column mappings and normalized workbooks under `.artifacts/legacy-csf/`. The 2026-08-17 partner-clubs simplification removed the partner-audit upload path, so normalized club-point output is reference material for manual point vetting, not an import payload.
+The 2026-08-17 partner-clubs simplification removed the legacy workbook inspector, normalizer, and partner-audit upload path. These files are now reference material for manual point vetting, not an import payload; no repository command transforms or imports them.
