@@ -89,7 +89,9 @@ describe("CSF release-state documentation truthfulness guards", () => {
     expect(currentState).toContain(
       "`20260818040246_generalize_private_plugin_storage_and_publish_dvhs_csf_1_1_0`",
     );
-    expect(currentState).toContain("Hosted Development serves exact root merge SHA");
+    expect(currentState).toContain(
+      "Hosted Development serves exact root merge SHA",
+    );
     expect(currentState).toContain("migration-current at 317 rows through");
     expect(currentState).toContain(
       "Production remains untouched at the audited 236-row baseline",
