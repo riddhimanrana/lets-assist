@@ -135,12 +135,39 @@ describe("paper signup management access", () => {
     expect(captureSource).toContain(
       "registeredBatchId === null && uploadedPaths.length > 0",
     );
+    expect(captureSource).toContain("metadata: { cleanupToken }");
+    expect(captureSource).toContain("releaseOrphanedUploads(cleanup)");
+    expect(captureSource).toContain("setPendingCleanup(cleanup)");
+    expect(captureSource).toContain('"registered" in queueResult');
+    expect(captureSource).toContain('"Retry cleanup"');
     expect(captureSource).toContain('.from("project_paper_scan_batches")');
     expect(captureSource).toContain('recoveredBatch.status === "draft"');
     expect(captureSource).toContain('recoveredBatch.status === "review"');
     expect(captureSource).toContain('recoveredBatch.status === "failed"');
-    expect(captureSource.indexOf("window.location.reload()")).toBeGreaterThan(
+    expect(captureSource).toContain('recoveredBatch.status === "committed"');
+    expect(captureSource).toContain('recoveredBatch.status === "discarded"');
+    expect(
+      captureSource.lastIndexOf("window.location.reload()"),
+    ).toBeGreaterThan(
       captureSource.indexOf('recoveredBatch.status === "review"'),
     );
+  });
+
+  test("orphan cleanup survives revoked project access without widening management authority", async () => {
+    const actionsSource = await Bun.file(
+      new URL("./actions.ts", import.meta.url),
+    ).text();
+    const cleanupSource = actionsSource.slice(
+      actionsSource.indexOf(
+        "export async function queueOrphanedPaperScanUploads",
+      ),
+      actionsSource.indexOf("const updateRowSchema"),
+    );
+
+    expect(cleanupSource).toContain("getAuthUser()");
+    expect(cleanupSource).not.toContain("requirePaperScanAccess");
+    expect(cleanupSource).toContain("data?.metadata?.cleanupToken");
+    expect(cleanupSource).toContain('.from("project_paper_scan_images")');
+    expect(cleanupSource).toContain("return { registered: true }");
   });
 });

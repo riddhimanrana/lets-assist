@@ -33,6 +33,11 @@ interface PendingPhoto {
   file: File;
 }
 
+interface PendingCleanup {
+  cleanupToken: string;
+  objectPaths: string[];
+}
+
 interface CaptureStepProps {
   projectId: string;
   slot: PaperScanSlotOption;
@@ -94,7 +99,48 @@ export function CaptureStep({
 }: CaptureStepProps) {
   const [photos, setPhotos] = useState<PendingPhoto[]>([]);
   const [phase, setPhase] = useState<Phase>({ kind: "collecting" });
-  const busy = phase.kind !== "collecting";
+  const [pendingCleanup, setPendingCleanup] = useState<PendingCleanup | null>(
+    null,
+  );
+  const [cleanupBusy, setCleanupBusy] = useState(false);
+  const busy = phase.kind !== "collecting" || cleanupBusy;
+
+  const releaseOrphanedUploads = async (cleanup: PendingCleanup) => {
+    const queueResult = await queueOrphanedPaperScanUploads({
+      projectId,
+      cleanupToken: cleanup.cleanupToken,
+      objectPaths: cleanup.objectPaths,
+    }).catch(() => ({ error: "Cleanup request failed." }));
+    if ("success" in queueResult) return true;
+    if ("registered" in queueResult) {
+      // The batch-registration response was lost after commit. Preserve the
+      // now-referenced evidence and reload into the durable batch instead of
+      // treating it as an orphan or deleting it through the browser policy.
+      window.location.reload();
+      return true;
+    }
+
+    const supabase = createBrowserSupabaseClient();
+    const { error: removalError } = await supabase.storage
+      .from("paper-signup-scans")
+      .remove(cleanup.objectPaths);
+    return removalError === null;
+  };
+
+  const retryOrphanCleanup = async () => {
+    if (!pendingCleanup) return;
+    setCleanupBusy(true);
+    const released = await releaseOrphanedUploads(pendingCleanup);
+    setCleanupBusy(false);
+    if (released) {
+      setPendingCleanup(null);
+      toast.success("Uploaded photos were safely released.");
+      return;
+    }
+    toast.error(
+      "Cleanup still could not be saved. Please retry before leaving.",
+    );
+  };
 
   const addFiles = (files: File[]) => {
     setPhotos((current) => {
@@ -121,6 +167,7 @@ export function CaptureStep({
     if (photos.length === 0) return;
     const supabase = createBrowserSupabaseClient();
     const batchDir = crypto.randomUUID();
+    const cleanupToken = crypto.randomUUID();
     const uploadedPaths: string[] = [];
     let registeredBatchId: string | null = null;
 
@@ -155,7 +202,10 @@ export function CaptureStep({
 
         const { error: uploadError } = await supabase.storage
           .from("paper-signup-scans")
-          .upload(objectPath, item.file, { contentType: item.file.type });
+          .upload(objectPath, item.file, {
+            contentType: item.file.type,
+            metadata: { cleanupToken },
+          });
         if (uploadError) {
           throw new Error("One of the photos failed to upload.");
         }
@@ -204,14 +254,10 @@ export function CaptureStep({
       // already advanced it to review, so deleting those photos would destroy
       // evidence that the recovered review still needs.
       if (registeredBatchId === null && uploadedPaths.length > 0) {
-        await queueOrphanedPaperScanUploads({
-          projectId,
-          objectPaths: uploadedPaths,
-        }).catch(() => undefined);
-        await supabase.storage
-          .from("paper-signup-scans")
-          .remove(uploadedPaths)
-          .catch(() => undefined);
+        const cleanup = { cleanupToken, objectPaths: uploadedPaths };
+        if (!(await releaseOrphanedUploads(cleanup))) {
+          setPendingCleanup(cleanup);
+        }
       }
       toast.error(
         error instanceof Error ? error.message : "Something went wrong.",
@@ -236,7 +282,9 @@ export function CaptureStep({
             recoveredBatch === null ||
             recoveredBatch.status === "draft" ||
             recoveredBatch.status === "review" ||
-            recoveredBatch.status === "failed"
+            recoveredBatch.status === "failed" ||
+            recoveredBatch.status === "committed" ||
+            recoveredBatch.status === "discarded"
           ) {
             window.location.reload();
             return;
@@ -257,6 +305,24 @@ export function CaptureStep({
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
+        {pendingCleanup && (
+          <div className="rounded-md border border-destructive/40 bg-destructive/5 p-3 text-sm">
+            <p>
+              The scan failed and its uploaded photos still need to be released.
+              Retry cleanup before leaving this page.
+            </p>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="mt-2"
+              disabled={cleanupBusy}
+              onClick={retryOrphanCleanup}
+            >
+              {cleanupBusy ? "Retrying cleanup…" : "Retry cleanup"}
+            </Button>
+          </div>
+        )}
         {existingBatch && existingBatch.status !== "review" && (
           <p className="text-sm text-muted-foreground">
             A previous scan for this project didn&apos;t finish; starting a new
@@ -330,7 +396,7 @@ export function CaptureStep({
         </Button>
         <Button
           onClick={scan}
-          disabled={busy || photos.length === 0}
+          disabled={busy || pendingCleanup !== null || photos.length === 0}
           className="w-full sm:w-auto"
         >
           <ScanText className="size-4" />
