@@ -4,8 +4,8 @@ import test from "node:test";
 
 import {
   createGoogleOAuthAttemptSecrets,
-  digestGoogleOAuthSecret,
   digestGoogleOAuthSessionBinding,
+  deriveGoogleOAuthPkceChallenge,
   getGoogleOAuthAttemptCookieName,
   getGoogleOAuthAttemptCookieOptions,
   parseGoogleOAuthState,
@@ -21,6 +21,8 @@ import {
 } from "./google-oauth-state";
 
 const ORGANIZATION_ID = "22222222-2222-4222-8222-222222222222";
+
+process.env.ENCRYPTION_KEY ??= "x".repeat(32);
 
 test("does not issue Google Picker capability for local-only report downloads", () => {
   assert.equal(
@@ -62,10 +64,22 @@ test("gives every concurrent attempt its own cookie so tabs cannot overwrite eac
 
 test("derives an S256 PKCE challenge and never sends the verifier with it", () => {
   const secrets = createGoogleOAuthAttemptSecrets();
+  const rfc7636Verifier = [
+    "dBjftJeZ4CVP",
+    "-mB92K27uhbU",
+    "JU1p1r_wW1g",
+    "FWFOEjXk",
+  ].join("");
+  const rfc7636Challenge = [
+    "E9Melhoa2Owv",
+    "FrEMTJguCHao",
+    "eK1t8URWbuGJ",
+    "Sstw-cM",
+  ].join("");
 
   assert.equal(
-    secrets.codeChallenge,
-    digestGoogleOAuthSecret(secrets.codeVerifier),
+    deriveGoogleOAuthPkceChallenge(rfc7636Verifier),
+    rfc7636Challenge,
   );
   assert.notEqual(secrets.codeChallenge, secrets.codeVerifier);
   // RFC 7636 allows 43-128 characters; 32 random bytes is 43 base64url.
