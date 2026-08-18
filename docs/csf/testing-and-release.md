@@ -36,8 +36,8 @@ their named runs only.
 - The sole current CSF implementation/status register is
   `docs/development/cleanup-register.md`; this document is a testing runbook and
   retains older evidence below without promoting it to current status.
-- The repository candidate has 321 ordered migrations through
-  `20260818092855_atomic_paper_scan_review_row_update`. The twenty-five migrations
+- The repository candidate has 322 ordered migrations through
+  `20260818115000_align_super_admin_metadata_shapes`. The twenty-six migrations
   added after the audited `development` baseline merge two prior lines: the
   Development-hardening pair
   (`20260816185321_enforce_authoritative_plugin_releases`,
@@ -65,21 +65,22 @@ their named runs only.
   `20260818040246_generalize_private_plugin_storage_and_publish_dvhs_csf_1_1_0`, and
   `20260818064000_close_production_review_security_gaps`, and
   `20260818074500_atomic_paper_scan_discard`, and
-  `20260818092855_atomic_paper_scan_review_row_update`).
+  `20260818092855_atomic_paper_scan_review_row_update`, and
+  `20260818115000_align_super_admin_metadata_shapes`).
 - Hosted Development serves exact root merge SHA
-  `0e58cd0084027aec8f949e9940bc691e9b41dcf7` and is healthy and
-  migration-current at 320 rows through
-  `20260818074500_atomic_paper_scan_discard`. Google OAuth is
-  enabled and the hosted authorize endpoint redirects to Google. The new 321st
-  atomic review-row repair remains repository-only until this change passes CI
-  and is promoted through Development.
+  `4e33dd6d938688261a2a0bda060304522d7611da` and is healthy and
+  migration-current at 321 rows through
+  `20260818092855_atomic_paper_scan_review_row_update`. Google OAuth is
+  enabled and the hosted authorize endpoint redirects to Google. The new 322nd
+  super-admin metadata alignment remains repository-only until this change
+  passes CI and is promoted through Development.
 - Production remains untouched at the audited 236-row baseline through
-  `20260811001500`; the exact read-only preflight now expects an 85-migration
-  cutover to this 321-row candidate. Running that cutover requires
+  `20260811001500`; the exact read-only preflight now expects an 86-migration
+  cutover to this 322-row candidate. Running that cutover requires
   explicit action-time approval.
-- Local evidence on this candidate includes a fresh exact 321-migration replay
+- Local evidence on this candidate includes a fresh exact 322-migration replay
   and the focused storage/release, import, proof, and release-authority pgTAP
-  suites. The predecessor passed 155 pgTAP files with 5,833 assertions plus
+  suites. The candidate passes 160 pgTAP files with 5,897 assertions plus
   focused workflow/browser tests, `typecheck`, `lint`, build, and strict
   submodule reachability. Follow-up hosted parity, final role/browser
   acceptance, and provider acceptance remain release gates until recorded in
