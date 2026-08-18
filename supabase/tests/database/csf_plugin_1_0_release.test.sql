@@ -41,13 +41,13 @@ SELECT is(
 );
 SELECT is(
   (SELECT latest_version FROM public.plugins WHERE key = 'dvhs-csf'),
-  '1.0.0',
-  'catalog advertises the published 1.0.0 release'
+  '1.1.0',
+  'catalog advertises the latest published 1.1.0 release'
 );
 SELECT is(
   (SELECT code_reference FROM public.plugins WHERE key = 'dvhs-csf'),
-  'c8fe3d41e5ba40967b8f0fa9bb2681fe05b2e6aa',
-  'catalog points to the exact private source commit'
+  '4d1001e9d3269b8bd28de93c071c6b4b216824fd',
+  'catalog points to the exact latest private source commit'
 );
 
 SELECT * FROM finish();
