@@ -1,6 +1,6 @@
 BEGIN;
 
-SELECT plan(20);
+SELECT plan(22);
 
 SELECT has_function(
   'app_private',
@@ -234,6 +234,16 @@ SELECT results_eq(
 );
 
 SELECT results_eq(
+  $$SELECT outbox.state
+    FROM public.hours_publication_email_outbox AS outbox
+    JOIN public.certificates AS certificates
+      ON certificates.id = outbox.certificate_id
+    WHERE certificates.signup_id = 'ac200000-0000-4000-8000-000000000002'$$,
+  $$VALUES ('queued'::text)$$,
+  'late attendance atomically queues durable certificate email delivery'
+);
+
+SELECT results_eq(
   $$SELECT creator_id
     FROM public.certificates
     WHERE signup_id = 'ac200000-0000-4000-8000-000000000002'
@@ -282,6 +292,19 @@ SELECT results_eq(
       AND type = 'verified'$$,
   $$VALUES ('ac000000-0000-4000-8000-000000000002'::uuid)$$,
   'late paper attendance preserves the reviewed committing actor identity'
+);
+
+SELECT results_eq(
+  $$SELECT count(*)
+    FROM public.hours_publication_email_outbox AS outbox
+    JOIN public.certificates AS certificates
+      ON certificates.id = outbox.certificate_id
+    WHERE certificates.signup_id IN (
+      'ac200000-0000-4000-8000-000000000002',
+      'ac200000-0000-4000-8000-000000000003'
+    )$$,
+  $$VALUES (2::bigint)$$,
+  'each late certificate has one retry-safe durable email item'
 );
 
 SELECT * FROM finish();

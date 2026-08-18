@@ -186,6 +186,8 @@ DECLARE
   v_project public.projects%ROWTYPE;
   v_publish_key text;
   v_certificate_id uuid;
+  v_receipt_id uuid;
+  v_request_hash text;
   v_commit_actor_id uuid := NULLIF(
     pg_catalog.current_setting('app.paper_commit_actor_id', true),
     ''
@@ -235,6 +237,89 @@ BEGIN
       ARRAY[NEW.id],
       COALESCE(v_commit_actor_id, v_project.creator_id)
     ) AS issued;
+
+    IF v_certificate_id IS NOT NULL THEN
+      v_request_hash := pg_catalog.encode(
+        extensions.digest(
+          'late-certificate:' || v_certificate_id::text,
+          'sha256'
+        ),
+        'hex'
+      );
+
+      INSERT INTO public.hours_publication_receipts (
+        project_id,
+        schedule_id,
+        publish_key,
+        request_key,
+        request_hash,
+        requested_by,
+        certificate_count,
+        email_work_count
+      ) VALUES (
+        NEW.project_id,
+        NEW.schedule_id,
+        v_publish_key,
+        'hours-publication:v1:' || v_request_hash,
+        v_request_hash,
+        COALESCE(v_commit_actor_id, v_project.creator_id),
+        0,
+        0
+      )
+      ON CONFLICT (project_id, publish_key) DO UPDATE
+        SET project_id = EXCLUDED.project_id
+      RETURNING id INTO v_receipt_id;
+
+      INSERT INTO public.hours_publication_email_outbox (
+        receipt_id,
+        certificate_id,
+        idempotency_key,
+        state,
+        settled_at,
+        safe_code
+      )
+      SELECT
+        v_receipt_id,
+        certificates.id,
+        'hours-publication:v1:certificate:' || certificates.id,
+        CASE
+          WHEN NULLIF(certificates.volunteer_email, '') IS NULL
+            OR NULLIF(certificates.volunteer_name, '') IS NULL
+          THEN 'skipped'
+          ELSE 'queued'
+        END,
+        CASE
+          WHEN NULLIF(certificates.volunteer_email, '') IS NULL
+            OR NULLIF(certificates.volunteer_name, '') IS NULL
+          THEN now()
+          ELSE NULL
+        END,
+        CASE
+          WHEN NULLIF(certificates.volunteer_email, '') IS NULL
+            OR NULLIF(certificates.volunteer_name, '') IS NULL
+          THEN 'recipient_missing'
+          ELSE NULL
+        END
+      FROM public.certificates AS certificates
+      WHERE certificates.id = v_certificate_id
+      ON CONFLICT (certificate_id) DO NOTHING;
+
+      UPDATE public.hours_publication_receipts AS receipts
+      SET
+        certificate_count = (
+          SELECT count(*)::integer
+          FROM public.certificates AS certificates
+          WHERE certificates.project_id = NEW.project_id
+            AND certificates.schedule_id = NEW.schedule_id
+            AND certificates.type = 'verified'
+        ),
+        email_work_count = (
+          SELECT count(*)::integer
+          FROM public.hours_publication_email_outbox AS outbox
+          WHERE outbox.receipt_id = v_receipt_id
+        )
+      WHERE receipts.id = v_receipt_id;
+    END IF;
 
     IF v_certificate_id IS NOT NULL AND NEW.user_id IS NOT NULL THEN
       INSERT INTO public.notifications (

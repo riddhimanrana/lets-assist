@@ -126,7 +126,7 @@ describe("CSF release-state documentation truthfulness guards", () => {
     expect(currentState).toContain(
       "prior candidate includes a fresh exact 324-migration replay",
     );
-    expect(currentState).toContain("164 pgTAP files with 5,936 assertions");
+    expect(currentState).toContain("164 pgTAP files with 5,938 assertions");
     expect(currentState).toContain("6fd34120ab474cbf6db3b5fd47439324bc436345");
     expect(currentState).toContain("4d1001e9d3269b8bd28de93c071c6b4b216824fd");
     expect(currentState).toContain(

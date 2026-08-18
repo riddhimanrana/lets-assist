@@ -6,12 +6,11 @@ import { getAdminClient } from "@/lib/supabase/admin";
 import { canManageProjectAccess } from "@/lib/projects/management-access";
 import { logError, logInfo, logWarn } from "@/lib/logger";
 import { hoursPublicationOutcome } from "@/lib/projects/hours-publication-delivery";
-import { drainPublicationEmails } from "@/lib/projects/hours-publication-email-service";
 import {
-  publishVolunteerHoursTransaction,
-  type PublicationDelivery,
-  type TransactionalPublication,
-} from "@/lib/projects/hours-publication-service";
+  drainPublicationEmails,
+  loadDurablePublicationForRetry,
+} from "@/lib/projects/hours-publication-email-service";
+import { publishVolunteerHoursTransaction } from "@/lib/projects/hours-publication-service";
 import {
   getPublishStateKey,
   sendCertificatePublishedEmails,
@@ -87,76 +86,6 @@ function publicationRequestKey(
     .update(JSON.stringify({ projectId, sessionId, entries }))
     .digest("hex");
   return `hours-publication:v1:${digest}`;
-}
-
-async function loadDurablePublicationForRetry(
-  admin: ReturnType<typeof getAdminClient>,
-  projectId: string,
-  publishKey: string,
-  project: Pick<ResendProject, "title" | "project_timezone">,
-): Promise<TransactionalPublication | null> {
-  const { data: receipt, error: receiptError } = await admin
-    .from("hours_publication_receipts")
-    .select("id, request_key, certificate_count")
-    .eq("project_id", projectId)
-    .eq("publish_key", publishKey)
-    .maybeSingle();
-
-  if (receiptError) {
-    throw new Error("durable publication receipt lookup failed");
-  }
-  if (!receipt) return null;
-
-  const { data: outboxRows, error: outboxError } = await admin
-    .from("hours_publication_email_outbox")
-    .select("id, state, idempotency_key, certificate_id, payload_prepared_at")
-    .eq("receipt_id", receipt.id)
-    .order("created_at", { ascending: true });
-  if (outboxError || !outboxRows) {
-    throw new Error("durable publication delivery lookup failed");
-  }
-
-  const certificateIds = outboxRows.map((row) => row.certificate_id);
-  const { data: certificates, error: certificateError } = certificateIds.length
-    ? await admin
-        .from("certificates")
-        .select("id, volunteer_name, volunteer_email, event_start, event_end")
-        .in("id", certificateIds)
-    : { data: [], error: null };
-  if (certificateError || !certificates) {
-    throw new Error("durable publication certificate lookup failed");
-  }
-
-  const certificatesById = new Map(
-    certificates.map((certificate) => [certificate.id, certificate]),
-  );
-  const deliveries: PublicationDelivery[] = outboxRows.map((row) => {
-    const certificate = certificatesById.get(row.certificate_id);
-    if (!certificate) {
-      throw new Error("durable publication certificate is missing");
-    }
-    return {
-      deliveryId: row.id,
-      state: row.state,
-      payloadPrepared: row.payload_prepared_at !== null,
-      idempotencyKey: row.idempotency_key,
-      certificateId: certificate.id,
-      volunteerName: certificate.volunteer_name,
-      volunteerEmail: certificate.volunteer_email,
-      eventStart: certificate.event_start,
-      eventEnd: certificate.event_end,
-    };
-  });
-
-  return {
-    outcome: "replayed",
-    receiptId: receipt.id,
-    requestKey: receipt.request_key,
-    certificatesCreated: receipt.certificate_count,
-    projectTitle: project.title,
-    projectTimezone: project.project_timezone,
-    deliveries,
-  };
 }
 
 export async function publishVolunteerHours(
@@ -344,15 +273,14 @@ export async function resendCertificateEmails(
     const publishKey = getPublishStateKey(typedProject, sessionId);
     const legacyScheduleIds =
       publishKey === sessionId ? [sessionId] : [sessionId, publishKey];
-    let admin: ReturnType<typeof getAdminClient>;
     try {
-      admin = getAdminClient();
-      const durablePublication = await loadDurablePublicationForRetry(
-        admin,
+      const admin = getAdminClient();
+      const durablePublication = await loadDurablePublicationForRetry(admin, {
         projectId,
         publishKey,
-        typedProject,
-      );
+        projectTitle: typedProject.title,
+        projectTimezone: typedProject.project_timezone,
+      });
       if (durablePublication) {
         const delivery = await drainPublicationEmails(durablePublication);
         return {

@@ -11,6 +11,10 @@ import {
 import { getAttendanceScheduleWindow } from "@/lib/attendance/challenge";
 import { resolveScheduleId } from "@/utils/project";
 import {
+  drainPublicationEmails,
+  loadDurablePublicationForRetry,
+} from "@/lib/projects/hours-publication-email-service";
+import {
   getPublishStateKey,
   issueCertificatesForSignups,
 } from "../hours/certificate-issuance";
@@ -407,7 +411,7 @@ export async function commitPaperScanBatch(input: {
 
   const access = await requirePaperScanAccess(projectId);
   if (!access.ok) return { error: access.error };
-  const { admin, userId } = access;
+  const { admin, project, userId } = access;
 
   const { data: batch } = await admin
     .from("project_paper_scan_batches")
@@ -470,6 +474,27 @@ export async function commitPaperScanBatch(input: {
       ];
     } else {
       certificatesIssued = count ?? 0;
+      if (certificatesIssued > 0) {
+        try {
+          const durablePublication = await loadDurablePublicationForRetry(
+            admin,
+            {
+              projectId,
+              publishKey: getPublishStateKey(project, batch.schedule_id),
+              projectTitle: project.title,
+              projectTimezone: project.project_timezone ?? null,
+            },
+          );
+          if (durablePublication) {
+            const delivery = await drainPublicationEmails(durablePublication);
+            certificateErrors.push(...delivery.errors);
+          }
+        } catch {
+          certificateErrors.push(
+            "Certificate email remains queued for retry from the Hours page.",
+          );
+        }
+      }
     }
   }
 

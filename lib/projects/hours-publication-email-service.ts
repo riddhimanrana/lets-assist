@@ -23,6 +23,79 @@ export type HoursPublicationDeliverySummary = {
   partial: boolean;
 };
 
+export async function loadDurablePublicationForRetry(
+  admin: ReturnType<typeof getAdminClient>,
+  input: {
+    projectId: string;
+    publishKey: string;
+    projectTitle: string;
+    projectTimezone: string | null;
+  },
+): Promise<TransactionalPublication | null> {
+  const { data: receipt, error: receiptError } = await admin
+    .from("hours_publication_receipts")
+    .select("id, request_key, certificate_count")
+    .eq("project_id", input.projectId)
+    .eq("publish_key", input.publishKey)
+    .maybeSingle();
+
+  if (receiptError) {
+    throw new Error("durable publication receipt lookup failed");
+  }
+  if (!receipt) return null;
+
+  const { data: outboxRows, error: outboxError } = await admin
+    .from("hours_publication_email_outbox")
+    .select("id, state, idempotency_key, certificate_id, payload_prepared_at")
+    .eq("receipt_id", receipt.id)
+    .order("created_at", { ascending: true });
+  if (outboxError || !outboxRows) {
+    throw new Error("durable publication delivery lookup failed");
+  }
+
+  const certificateIds = outboxRows.map((row) => row.certificate_id);
+  const { data: certificates, error: certificateError } = certificateIds.length
+    ? await admin
+        .from("certificates")
+        .select("id, volunteer_name, volunteer_email, event_start, event_end")
+        .in("id", certificateIds)
+    : { data: [], error: null };
+  if (certificateError || !certificates) {
+    throw new Error("durable publication certificate lookup failed");
+  }
+
+  const certificatesById = new Map(
+    certificates.map((certificate) => [certificate.id, certificate]),
+  );
+  const deliveries: PublicationDelivery[] = outboxRows.map((row) => {
+    const certificate = certificatesById.get(row.certificate_id);
+    if (!certificate) {
+      throw new Error("durable publication certificate is missing");
+    }
+    return {
+      deliveryId: row.id,
+      state: row.state,
+      payloadPrepared: row.payload_prepared_at !== null,
+      idempotencyKey: row.idempotency_key,
+      certificateId: certificate.id,
+      volunteerName: certificate.volunteer_name,
+      volunteerEmail: certificate.volunteer_email,
+      eventStart: certificate.event_start,
+      eventEnd: certificate.event_end,
+    };
+  });
+
+  return {
+    outcome: "replayed",
+    receiptId: receipt.id,
+    requestKey: receipt.request_key,
+    certificatesCreated: receipt.certificate_count,
+    projectTitle: input.projectTitle,
+    projectTimezone: input.projectTimezone,
+    deliveries,
+  };
+}
+
 async function pauseBeforeSettlementRetry(attemptNumber: number) {
   await new Promise((resolve) => setTimeout(resolve, attemptNumber * 75));
 }
