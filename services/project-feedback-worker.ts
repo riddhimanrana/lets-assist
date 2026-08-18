@@ -32,12 +32,13 @@ import type { Project } from "@/types";
 export const FEEDBACK_WORKER_MAX_PROJECTS_PER_RUN = 25;
 export const FEEDBACK_WORKER_MAX_BATCH_SIZE = 50;
 export const FEEDBACK_WORKER_LEASE_SECONDS = 120;
-const FEEDBACK_CANDIDATE_WINDOW_PADDING_MS = 24 * 60 * 60 * 1000;
+const FEEDBACK_CANDIDATE_WINDOW_PADDING_MS = 2 * 24 * 60 * 60 * 1000;
 
 /**
  * A conservative UTC calendar-date window for the indexed candidate read
- * model. The one-day padding covers timezone extremes and overnight schedules;
- * getFeedbackEligibleAt remains the exact authority for instants.
+ * model. Two days cover the combined shift from a far-west timezone and an
+ * overnight rollover; getFeedbackEligibleAt remains the exact authority for
+ * instants.
  */
 export function feedbackCandidateDateWindow(now: number): {
   startDate: string;

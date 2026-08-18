@@ -362,8 +362,8 @@ describe("feedback project page rotation", () => {
   test("bounds candidates to the backfill guard with timezone padding", () => {
     const now = Date.parse("2026-08-18T12:00:00.000Z");
     expect(feedbackCandidateDateWindow(now)).toEqual({
-      startDate: "2026-07-18",
-      endDate: "2026-08-19",
+      startDate: "2026-07-17",
+      endDate: "2026-08-20",
     });
   });
 
