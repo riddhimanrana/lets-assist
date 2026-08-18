@@ -287,7 +287,16 @@ export async function submitProjectFeedbackWithToken(input: {
   if (existing) {
     const { error: updateError } = await admin
       .from("project_feedback")
-      .update({ rating, comment })
+      .update({
+        rating,
+        comment,
+        // This write uses service_role because the email-link bearer has no
+        // session, so the client-edit guard trigger intentionally does not
+        // reset moderation for us. Reset first; a moderation outage then
+        // leaves the new text pending instead of carrying an old verdict.
+        comment_moderation_status: comment ? "pending" : "not_applicable",
+        comment_flag_reason: null,
+      })
       .eq("id", existing.id);
     if (updateError) {
       return { success: false, error: "Could not update your feedback." };
