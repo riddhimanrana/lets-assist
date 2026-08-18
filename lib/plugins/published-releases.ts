@@ -30,7 +30,7 @@ export const publishedPluginReleases = [
     manifestFile: "plugins/dvhs-csf/plugin-manifest.ts",
     manifestHash:
       "7334038cb6519e1732d9ac9ba0111f0ae41cfef2861c36595be975ba60f95534",
-    sourceCommit: "a55c10d68c04fedd00614bcfdcd6230f17c2d526",
+    sourceCommit: "c8fe3d41e5ba40967b8f0fa9bb2681fe05b2e6aa",
     automaticUpdate: false,
     rolloutPercentage: 0,
   },

@@ -36,8 +36,8 @@ their named runs only.
 - The sole current CSF implementation/status register is
   `docs/development/cleanup-register.md`; this document is a testing runbook and
   retains older evidence below without promoting it to current status.
-- The repository candidate has 315 ordered migrations through
-  `20260817133000_consolidate_plugin_version_read_policies`. The nineteen migrations
+- The repository candidate has 317 ordered migrations through
+  `20260817133000_consolidate_plugin_version_read_policies`. The twenty-one migrations
   added after the audited `development` baseline merge two prior lines: the
   Development-hardening pair
   (`20260816185321_enforce_authoritative_plugin_releases`,
@@ -54,6 +54,8 @@ their named runs only.
   `20260817040000_csf_announcement_link_previews`, and
   `20260817050000_publish_dvhs_csf_1_0_0`,
   `20260817100000_csf_review_decision_drives_application`,
+  `20260817110500_csf_current_school_year_consequential_authority`,
+  `20260817114700_repin_dvhs_csf_1_0_0_source`,
   `20260817120000_csf_term_bound_staff_access`,
   `20260817121000_dvhs_csf_partner_clubs_simplification`,
   `20260817130000_csf_multi_date_meeting_sessions`,
@@ -69,10 +71,10 @@ their named runs only.
   the duplicate authenticated `plugin_versions` permissive-read policy that
   motivated `20260817133000`; that follow-up is not yet deployed or re-audited.
 - Production remains untouched at the audited 236-row baseline through
-  `20260811001500`; the exact read-only preflight now expects a 79-migration
-  cutover to this 315-row candidate. Running that cutover requires separate
+  `20260811001500`; the exact read-only preflight now expects an 81-migration
+  cutover to this 317-row candidate. Running that cutover requires separate
   explicit action-time approval.
-- Local evidence on this candidate must include a fresh exact 315-migration
+- Local evidence on this candidate must include a fresh exact 317-migration
   replay; the predecessor passed 155 pgTAP files with 5,833 assertions plus
   focused workflow/browser tests, `typecheck`, `lint`, build, and strict
   submodule reachability. Follow-up hosted parity, final role/browser
@@ -80,7 +82,8 @@ their named runs only.
   the cleanup register.
 - Private CSF source is merged to private `development` at
   `86f9727460db24f50a444c7b69c4cfac242164f0`. The published `1.0.0` release
-  attestation remains commit `a55c10d68c04fedd00614bcfdcd6230f17c2d526`
+  attestation is repinned by the forward migration to private `main` commit
+  `c8fe3d41e5ba40967b8f0fa9bb2681fe05b2e6aa`
   with manifest SHA-256
   `7334038cb6519e1732d9ac9ba0111f0ae41cfef2861c36595be975ba60f95534`.
   Its base had already merged `feature/csf-member-onboarding`

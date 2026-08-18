@@ -17,7 +17,7 @@ SELECT is(
 SELECT is(
   (SELECT commit_sha FROM public.plugin_versions
    WHERE plugin_key = 'dvhs-csf' AND version = '1.0.0'),
-  'a55c10d68c04fedd00614bcfdcd6230f17c2d526',
+  'c8fe3d41e5ba40967b8f0fa9bb2681fe05b2e6aa',
   'release records the exact private source commit'
 );
 SELECT is(
@@ -46,7 +46,7 @@ SELECT is(
 );
 SELECT is(
   (SELECT code_reference FROM public.plugins WHERE key = 'dvhs-csf'),
-  'a55c10d68c04fedd00614bcfdcd6230f17c2d526',
+  'c8fe3d41e5ba40967b8f0fa9bb2681fe05b2e6aa',
   'catalog points to the exact private source commit'
 );
 

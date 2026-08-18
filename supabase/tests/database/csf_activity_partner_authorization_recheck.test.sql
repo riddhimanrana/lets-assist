@@ -408,7 +408,7 @@ CREATE TEMP TABLE csf_activity_partner_fence_results (
   payload jsonb NOT NULL
 ) ON COMMIT PRESERVE ROWS;
 
-CREATE FUNCTION pg_temp.wait_for_csf_activity_partner_lock(p_marker text)
+CREATE FUNCTION pg_temp.wait_for_csf_activity_partner_lock()
 RETURNS boolean
 LANGUAGE plpgsql
 SET search_path = ''
@@ -423,13 +423,8 @@ BEGIN
   LOOP
     SELECT EXISTS (
       SELECT 1
-      FROM pg_catalog.pg_stat_activity AS activity
-      JOIN pg_catalog.pg_locks AS waiting_lock
-        ON waiting_lock.pid = activity.pid
-      WHERE activity.pid <> pg_catalog.pg_backend_pid()
-        AND activity.query LIKE '%' || p_marker || '%'
-        AND activity.wait_event_type = 'Lock'
-        AND activity.wait_event = 'advisory'
+      FROM pg_catalog.pg_locks AS waiting_lock
+      WHERE waiting_lock.pid <> pg_catalog.pg_backend_pid()
         AND waiting_lock.locktype = 'advisory'
         AND NOT waiting_lock.granted
         AND waiting_lock.classid::bigint = (
@@ -541,7 +536,7 @@ SELECT extensions.dblink_send_query(
   $query$
 );
 SELECT extensions.ok(
-  pg_temp.wait_for_csf_activity_partner_lock('f9a00000-0000-4000-8000-000000000001'),
+  pg_temp.wait_for_csf_activity_partner_lock(),
   'the queued create passes its first check and waits on the staff-access lock'
 );
 SELECT plugin_data.csf_update_role(
@@ -616,7 +611,7 @@ SELECT extensions.dblink_send_query(
   $query$
 );
 SELECT extensions.ok(
-  pg_temp.wait_for_csf_activity_partner_lock('f9a00000-0000-4000-8000-000000000002'),
+  pg_temp.wait_for_csf_activity_partner_lock(),
   'the queued update passes its first check and waits on the staff-access lock'
 );
 SELECT plugin_data.csf_revoke_staff_position(
@@ -686,7 +681,7 @@ SELECT extensions.dblink_send_query(
   $query$
 );
 SELECT extensions.ok(
-  pg_temp.wait_for_csf_activity_partner_lock('f9a00000-0000-4000-8000-000000000003'),
+  pg_temp.wait_for_csf_activity_partner_lock(),
   'the queued status call passes its first check and waits on the staff-access lock'
 );
 SELECT plugin_data.csf_update_role(
@@ -766,7 +761,7 @@ SELECT extensions.dblink_send_query(
   $query$
 );
 SELECT extensions.ok(
-  pg_temp.wait_for_csf_activity_partner_lock('f9a00000-0000-4000-8000-000000000004'),
+  pg_temp.wait_for_csf_activity_partner_lock(),
   'the queued link passes its first check and waits on the staff-access lock'
 );
 SELECT plugin_data.csf_revoke_staff_position(
@@ -835,7 +830,7 @@ SELECT extensions.dblink_send_query(
   $query$
 );
 SELECT extensions.ok(
-  pg_temp.wait_for_csf_activity_partner_lock('f9a00000-0000-4000-8000-000000000005'),
+  pg_temp.wait_for_csf_activity_partner_lock(),
   'the queued partner call passes its first check and waits on the staff-access lock'
 );
 SELECT plugin_data.csf_update_role(
@@ -918,7 +913,7 @@ SELECT extensions.dblink_send_query(
   $query$
 );
 SELECT extensions.ok(
-  pg_temp.wait_for_csf_activity_partner_lock('f9a00000-0000-4000-8000-000000000006'),
+  pg_temp.wait_for_csf_activity_partner_lock(),
   'the queued standing call passes its first check and waits on the staff-access lock'
 );
 UPDATE public.organization_members
@@ -989,7 +984,7 @@ SELECT extensions.dblink_send_query(
   $query$
 );
 SELECT extensions.ok(
-  pg_temp.wait_for_csf_activity_partner_lock('f9a00000-0000-4000-8000-000000000007'),
+  pg_temp.wait_for_csf_activity_partner_lock(),
   'the queued policy call passes its first check and waits on the staff-access lock'
 );
 DELETE FROM public.organization_members

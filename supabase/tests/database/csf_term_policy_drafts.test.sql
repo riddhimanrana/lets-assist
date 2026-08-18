@@ -146,11 +146,11 @@ INSERT INTO plugin_data.csf_staff_positions (
   ('d2100000-0000-4000-8000-000000000003', 'd1000000-0000-4000-8000-000000000001', 'd0000000-0000-4000-8000-000000000004', 'd2000000-0000-4000-8000-000000000003', '2026-2027', 'Policy observer', 'active');
 
 INSERT INTO plugin_data.csf_terms (
-  id, organization_id, code, label, school_year, semester, lifecycle_status
+  id, organization_id, code, label, school_year, semester, lifecycle_status, is_current
 ) VALUES
-  ('d3000000-0000-4000-8000-000000000001', 'd1000000-0000-4000-8000-000000000001', 'S26', 'Spring 2026', '2025-2026', 'spring', 'open'),
-  ('d3000000-0000-4000-8000-000000000002', 'd1000000-0000-4000-8000-000000000001', 'F26', 'Fall 2026', '2026-2027', 'fall', 'planned'),
-  ('d3000000-0000-4000-8000-000000000003', 'd1000000-0000-4000-8000-000000000002', 'F26', 'Fall 2026', '2026-2027', 'fall', 'planned');
+  ('d3000000-0000-4000-8000-000000000001', 'd1000000-0000-4000-8000-000000000001', 'S26', 'Spring 2026', '2025-2026', 'spring', 'open', false),
+  ('d3000000-0000-4000-8000-000000000002', 'd1000000-0000-4000-8000-000000000001', 'F26', 'Fall 2026', '2026-2027', 'fall', 'planned', true),
+  ('d3000000-0000-4000-8000-000000000003', 'd1000000-0000-4000-8000-000000000002', 'F26', 'Fall 2026', '2026-2027', 'fall', 'planned', true);
 
 INSERT INTO plugin_data.csf_term_policies (
   id, organization_id, term_id, policy_version,

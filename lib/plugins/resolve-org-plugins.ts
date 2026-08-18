@@ -9,6 +9,7 @@ import {
 import {
   coalescePluginVersion,
   isPluginVersionBehind,
+  isPluginRuntimeVersionExact,
 } from "@/lib/plugins/versioning";
 import type {
   OrganizationPluginAccessRole,
@@ -61,8 +62,21 @@ export async function resolveOrganizationPluginExperiences(
 
   return accessRows
     .flatMap((row) => {
-      const experience = getRegisteredPlugin(row.plugin_key)?.manifest
-        .organizationExperience;
+      const definition = getRegisteredPlugin(row.plugin_key);
+      const installedVersion = coalescePluginVersion(
+        row.installed_version,
+        row.latest_version,
+      );
+      if (
+        !definition ||
+        !isPluginRuntimeVersionExact(
+          installedVersion,
+          definition.manifest.version,
+        )
+      ) {
+        return [];
+      }
+      const experience = definition.manifest.organizationExperience;
       if (!experience) return [];
       return [
         {
@@ -130,6 +144,14 @@ export async function resolveOrganizationPlugins(options: {
       isPluginVersionBehind(installedVersion, access.force_update_version);
 
     if (forceUpdateRequired) {
+      continue;
+    }
+    if (
+      !isPluginRuntimeVersionExact(
+        installedVersion,
+        definition.manifest.version,
+      )
+    ) {
       continue;
     }
 
