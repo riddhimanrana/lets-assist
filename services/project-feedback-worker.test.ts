@@ -94,7 +94,7 @@ function defaultScenario(): Scenario {
 
 let scenario = defaultScenario();
 
-type QueryResult = { data: unknown; error: Error | null };
+type QueryResult = { data: unknown; error: Error | null; count?: number };
 
 class StatefulQuery {
   private readonly equals = new Map<string, unknown>();
@@ -131,6 +131,10 @@ class StatefulQuery {
   }
 
   limit() {
+    return this;
+  }
+
+  range() {
     return this;
   }
 
@@ -306,7 +310,7 @@ mock.module("@/services/email", () => ({
   },
 }));
 
-const { runProjectFeedbackWorker } =
+const { feedbackProjectPageOffset, runProjectFeedbackWorker } =
   await import("@/services/project-feedback-worker");
 
 const ENV_KEYS = [
@@ -335,6 +339,22 @@ afterEach(() => {
     if (savedEnvironment[key] === undefined) delete process.env[key];
     else process.env[key] = savedEnvironment[key];
   }
+});
+
+describe("feedback project page rotation", () => {
+  test("every bounded page is selected across consecutive hourly runs", () => {
+    const hour = 60 * 60 * 1000;
+    expect(feedbackProjectPageOffset(0 * hour, 61)).toBe(0);
+    expect(feedbackProjectPageOffset(1 * hour, 61)).toBe(25);
+    expect(feedbackProjectPageOffset(2 * hour, 61)).toBe(50);
+    expect(feedbackProjectPageOffset(3 * hour, 61)).toBe(0);
+  });
+
+  test("invalid and empty totals fail closed to the first page", () => {
+    expect(feedbackProjectPageOffset(Date.now(), 0)).toBe(0);
+    expect(feedbackProjectPageOffset(Date.now(), -1)).toBe(0);
+    expect(feedbackProjectPageOffset(Date.now(), 1.5)).toBe(0);
+  });
 });
 
 describe("feedback worker durable phases", () => {

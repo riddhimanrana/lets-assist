@@ -1,10 +1,14 @@
+import { randomUUID } from "node:crypto";
 import { generateText, Output } from "ai";
 import { NextRequest } from "next/server";
 import { z } from "zod";
 
 import { getAuthUser } from "@/lib/supabase/auth-helpers";
 import { getAdminClient } from "@/lib/supabase/admin";
-import { canManageProjectAccess } from "@/lib/projects/management-access";
+import {
+  activeOrganizationRole,
+  canManageProjectAccess,
+} from "@/lib/projects/management-access";
 import { consumeAiQuota } from "@/lib/ai/rate-limit";
 import { getRequestIp } from "@/lib/ai/parse-project-rate-limit-config";
 import { prepareTrackedAiCall } from "@/lib/ai/with-ai-tracking";
@@ -46,6 +50,7 @@ const SCAN_IP_LIMIT = 20;
 const SCAN_PROJECT_LIMIT = 10;
 const SCAN_WINDOW_SECONDS = 3600;
 const MAX_OUTPUT_TOKENS = 8000;
+const EXTRACTION_LEASE_MS = 10 * 60 * 1000;
 /** Auto-include requires a confidently-read email; below this the reviewer decides. */
 const EMAIL_AUTO_INCLUDE_CONFIDENCE = 0.8;
 
@@ -185,7 +190,7 @@ type StagedRowInsert = {
 
 export async function POST(req: NextRequest) {
   const admin = getAdminClient();
-  let claimedBatchId: string | null = null;
+  let claimedBatch: { id: string; claimId: string } | null = null;
 
   try {
     const { user, error: authError } = await getAuthUser({ sensitive: true });
@@ -207,7 +212,7 @@ export async function POST(req: NextRequest) {
     const { data: batch, error: batchError } = await admin
       .from("project_paper_scan_batches")
       .select(
-        "id, project_id, schedule_id, status, projects(id, creator_id, organization_id, can_be_managed_by_staff, event_type, schedule, project_timezone, title)",
+        "id, project_id, schedule_id, status, updated_at, projects(id, creator_id, organization_id, can_be_managed_by_staff, event_type, schedule, project_timezone, title)",
       )
       .eq("id", batchId)
       .single();
@@ -224,11 +229,11 @@ export async function POST(req: NextRequest) {
     if (project.organization_id && project.creator_id !== user.id) {
       const { data: membership } = await admin
         .from("organization_members")
-        .select("role")
+        .select("role, status")
         .eq("organization_id", project.organization_id)
         .eq("user_id", user.id)
         .maybeSingle();
-      organizationRole = membership?.role ?? null;
+      organizationRole = activeOrganizationRole(membership);
     }
 
     if (
@@ -245,6 +250,15 @@ export async function POST(req: NextRequest) {
     if (!["draft", "failed", "extracting"].includes(batch.status)) {
       return Response.json(
         { error: "This batch has already been extracted." },
+        { status: 409 },
+      );
+    }
+    if (
+      batch.status === "extracting" &&
+      new Date(batch.updated_at).getTime() > Date.now() - EXTRACTION_LEASE_MS
+    ) {
+      return Response.json(
+        { error: "This batch is already being scanned." },
         { status: 409 },
       );
     }
@@ -306,11 +320,29 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    claimedBatchId = batchId;
-    await admin
+    const claimId = randomUUID();
+    const { data: claimed, error: claimError } = await admin
       .from("project_paper_scan_batches")
-      .update({ status: "extracting", extraction_error: null })
-      .eq("id", batchId);
+      .update({
+        status: "extracting",
+        extraction_error: null,
+        extraction_claim_id: claimId,
+      })
+      .eq("id", batchId)
+      .eq("status", batch.status)
+      .eq("updated_at", batch.updated_at)
+      .select("id")
+      .maybeSingle();
+    if (claimError) {
+      throw new Error(`Failed to claim scan batch: ${claimError.code}`);
+    }
+    if (!claimed) {
+      return Response.json(
+        { error: "This batch is already being scanned." },
+        { status: 409 },
+      );
+    }
+    claimedBatch = { id: batchId, claimId };
     // Idempotent restart after a crash: clear any partial staging rows.
     await admin
       .from("project_paper_scan_rows")
@@ -519,8 +551,11 @@ export async function POST(req: NextRequest) {
           status: "failed",
           extraction_error: "no_images_extracted",
           models_used: [...modelsUsed],
+          extraction_claim_id: null,
         })
-        .eq("id", batchId);
+        .eq("id", batchId)
+        .eq("extraction_claim_id", claimId);
+      claimedBatch = null;
       return Response.json(
         { error: "None of the photos could be read. Try clearer photos." },
         { status: 422 },
@@ -543,8 +578,11 @@ export async function POST(req: NextRequest) {
         extracted_row_count: stagedRows.length,
         models_used: [...modelsUsed],
         extracted_at: new Date().toISOString(),
+        extraction_claim_id: null,
       })
-      .eq("id", batchId);
+      .eq("id", batchId)
+      .eq("extraction_claim_id", claimId);
+    claimedBatch = null;
 
     return Response.json({
       batchId,
@@ -555,11 +593,16 @@ export async function POST(req: NextRequest) {
     });
   } catch (error) {
     console.error("Paper signup scan failed:", error);
-    if (claimedBatchId) {
+    if (claimedBatch) {
       await admin
         .from("project_paper_scan_batches")
-        .update({ status: "failed", extraction_error: "extraction_crashed" })
-        .eq("id", claimedBatchId);
+        .update({
+          status: "failed",
+          extraction_error: "extraction_crashed",
+          extraction_claim_id: null,
+        })
+        .eq("id", claimedBatch.id)
+        .eq("extraction_claim_id", claimedBatch.claimId);
     }
     return Response.json(
       { error: "Scanning failed. Please try again." },

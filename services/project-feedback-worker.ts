@@ -32,6 +32,23 @@ export const FEEDBACK_WORKER_MAX_PROJECTS_PER_RUN = 25;
 export const FEEDBACK_WORKER_MAX_BATCH_SIZE = 50;
 export const FEEDBACK_WORKER_LEASE_SECONDS = 120;
 
+/**
+ * Rotate through stable, bounded pages so permanently ineligible projects do
+ * not pin every run to the same newest 25. The worker runs hourly; using the
+ * UTC hour makes every page reachable without a mutable cursor row.
+ */
+export function feedbackProjectPageOffset(
+  now: number,
+  totalProjects: number,
+): number {
+  if (!Number.isSafeInteger(totalProjects) || totalProjects <= 0) return 0;
+  const pageCount = Math.ceil(
+    totalProjects / FEEDBACK_WORKER_MAX_PROJECTS_PER_RUN,
+  );
+  const utcHour = Math.floor(now / (60 * 60 * 1000));
+  return (utcHour % pageCount) * FEEDBACK_WORKER_MAX_PROJECTS_PER_RUN;
+}
+
 export interface FeedbackWorkerOutcomes {
   sent: number;
   skipped: number;
@@ -94,15 +111,38 @@ async function enqueueEligibleProjects(
 
   // Coarse candidate filter only: status flips via the timezone-broken
   // process_projects(), so the real decision is getFeedbackEligibleAt's.
+  // Count first, then rotate through stable pages. A fixed newest-25 query
+  // permanently starved older completed projects whenever those 25 remained
+  // ineligible or had already been enqueued.
+  const { count: completedProjectCount, error: countError } = await admin
+    .from("projects")
+    .select("id", { count: "exact", head: true })
+    .eq("status", "completed");
+  if (countError) {
+    throwDatabaseError(
+      "Failed counting feedback-eligible projects",
+      countError,
+    );
+  }
+  const totalProjects = completedProjectCount ?? 0;
+  if (totalProjects === 0) return { projectsScanned: 0, enqueued: 0 };
+
+  const offset = feedbackProjectPageOffset(now, totalProjects);
   const { data: projects, error: projectsError } = await admin
     .from("projects")
     .select(
       "id, title, status, event_type, schedule, project_timezone, published, cancelled_at, organization_id, created_at",
     )
     .eq("status", "completed")
-    .gte("created_at", new Date(now - 120 * 24 * 60 * 60 * 1000).toISOString())
-    .order("created_at", { ascending: false })
-    .limit(FEEDBACK_WORKER_MAX_PROJECTS_PER_RUN);
+    .order("created_at", { ascending: true })
+    .order("id", { ascending: true })
+    .range(
+      offset,
+      Math.min(
+        offset + FEEDBACK_WORKER_MAX_PROJECTS_PER_RUN - 1,
+        totalProjects - 1,
+      ),
+    );
   if (projectsError) {
     throwDatabaseError(
       "Failed loading feedback-eligible projects",

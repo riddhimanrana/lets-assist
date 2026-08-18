@@ -4,7 +4,10 @@ import { z } from "zod";
 
 import { getAuthUser } from "@/lib/supabase/auth-helpers";
 import { getAdminClient } from "@/lib/supabase/admin";
-import { canManageProjectAccess } from "@/lib/projects/management-access";
+import {
+  activeOrganizationRole,
+  canManageProjectAccess,
+} from "@/lib/projects/management-access";
 import { getAttendanceScheduleWindow } from "@/lib/attendance/challenge";
 import { resolveScheduleId } from "@/utils/project";
 import {
@@ -58,11 +61,11 @@ async function requirePaperScanAccess(
   if (project.organization_id && project.creator_id !== user.id) {
     const { data: membership } = await admin
       .from("organization_members")
-      .select("role")
+      .select("role, status")
       .eq("organization_id", project.organization_id)
       .eq("user_id", user.id)
       .maybeSingle();
-    organizationRole = membership?.role ?? null;
+    organizationRole = activeOrganizationRole(membership);
   }
 
   if (
