@@ -135,6 +135,11 @@ describe("paper signup management access", () => {
     expect(captureSource).toContain(
       "registeredBatchId === null && uploadedPaths.length > 0",
     );
-    expect(captureSource).toContain("window.location.reload()");
+    expect(captureSource).toContain('.from("project_paper_scan_batches")');
+    expect(captureSource).toContain('recoveredBatch.status === "review"');
+    expect(captureSource).toContain('recoveredBatch.status === "failed"');
+    expect(captureSource.indexOf("window.location.reload()")).toBeGreaterThan(
+      captureSource.indexOf('recoveredBatch.status === "review"'),
+    );
   });
 });

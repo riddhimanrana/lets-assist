@@ -217,10 +217,30 @@ export function CaptureStep({
         error instanceof Error ? error.message : "Something went wrong.",
       );
       if (registeredBatchId !== null) {
-        // Reload from the server so an ambiguously completed extraction opens
-        // its recovered review batch instead of presenting a fresh uploader.
-        window.location.reload();
-        return;
+        // The extraction request may have completed even when its response was
+        // lost. Wait until the durable batch leaves its in-progress states so
+        // a reload cannot race the worker and present a second uploader while
+        // the first scan is still being processed.
+        const batchId = registeredBatchId;
+        for (;;) {
+          await new Promise((resolve) => window.setTimeout(resolve, 1_000));
+          const { data: recoveredBatch, error: recoveryError } = await supabase
+            .from("project_paper_scan_batches")
+            .select("status")
+            .eq("id", batchId)
+            .eq("project_id", projectId)
+            .maybeSingle();
+
+          if (recoveryError) continue;
+          if (
+            recoveredBatch === null ||
+            recoveredBatch.status === "review" ||
+            recoveredBatch.status === "failed"
+          ) {
+            window.location.reload();
+            return;
+          }
+        }
       }
       setPhase({ kind: "collecting" });
     }
