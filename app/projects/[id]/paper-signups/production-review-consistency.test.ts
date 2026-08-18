@@ -10,6 +10,9 @@ describe("production review consistency boundaries", () => {
     expect(source).toContain('.eq("comment", comment)');
     expect(source).toContain('.eq("comment_moderation_status", "pending")');
     expect(source).toContain('if (settled && status !== "allowed")');
+    expect(source).toContain('row.comment_moderation_status === "allowed"');
+    expect(source).toContain('row.comment_moderation_status === "flagged"');
+    expect(source).toContain("isSuperAdminUser(user)");
   });
 
   test("review edits use the parent-locking service RPC", async () => {
@@ -34,6 +37,8 @@ describe("production review consistency boundaries", () => {
     expect(source).toContain(
       "const { data: reviewBatch, error: reviewError } = await admin",
     );
+    expect(source).toContain("const { error: clearRowsError } = await admin");
+    expect(source).toContain("if (clearRowsError)");
   });
 
   test("supplemental certificate failures remain visible and retryable", async () => {
@@ -46,5 +51,19 @@ describe("production review consistency boundaries", () => {
     );
     expect(client).toContain("Attendance saved; certificates need attention");
     expect(client).toContain("Retry certificate issuance");
+  });
+
+  test("paper signup notification outbox has a hosted scheduler", async () => {
+    const workflow = await read(
+      "../../../../.github/workflows/paper-signup-notifications.yml",
+    );
+
+    expect(workflow).toContain('cron: "3,13,23,33,43,53 * * * *"');
+    expect(workflow).toContain(
+      "ENDPOINT_PATH: /api/cron/paper-signup-notifications",
+    );
+    expect(workflow).toContain("environment: production");
+    expect(workflow).toContain("CRON_TOKEN: ${{ secrets.CRON_SECRET }}");
+    expect(workflow).toContain("cancel-in-progress: false");
   });
 });

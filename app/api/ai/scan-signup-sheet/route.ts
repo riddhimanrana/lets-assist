@@ -344,10 +344,15 @@ export async function POST(req: NextRequest) {
     }
     claimedBatch = { id: batchId, claimId };
     // Idempotent restart after a crash: clear any partial staging rows.
-    await admin
+    const { error: clearRowsError } = await admin
       .from("project_paper_scan_rows")
       .delete()
       .eq("batch_id", batchId);
+    if (clearRowsError) {
+      throw new Error(
+        `Failed to clear prior scan rows: ${clearRowsError.code}`,
+      );
+    }
 
     const slotStart = new Date(window.startsAt);
     const prompt = buildPaperSignupExtractionPrompt({

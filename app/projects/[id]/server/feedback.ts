@@ -8,6 +8,7 @@ import { createClient } from "@/lib/supabase/server";
 import { getAuthUser } from "@/lib/supabase/auth-helpers";
 import { getAdminClient } from "@/lib/supabase/admin";
 import { canManageProjectAccess } from "@/lib/projects/management-access";
+import { isSuperAdminUser } from "@/lib/auth/super-admin";
 import { consumeAiQuota } from "@/lib/ai/rate-limit";
 import { getRequestIp } from "@/lib/ai/parse-project-rate-limit-config";
 import { moderateText, notifyAdminFlaggedContent } from "@/services/moderation";
@@ -402,6 +403,7 @@ export async function getProjectFeedbackSummary(projectId: string): Promise<
     organizationRole = membership?.role ?? null;
   }
   if (
+    !isSuperAdminUser(user) &&
     !canManageProjectAccess({
       creatorId: project.creator_id,
       userId: user.id,
@@ -442,9 +444,14 @@ export async function getProjectFeedbackSummary(projectId: string): Promise<
     return {
       id: row.id,
       rating: row.rating,
-      // A blocked comment is suppressed for the organizer; the text
-      // survives only in the moderation pipeline.
-      comment: row.comment_moderation_status === "blocked" ? null : row.comment,
+      // Pending and blocked text fail closed. A pending row can mean the AI
+      // verdict could not be durably settled, including after a blocked
+      // verdict, so only settled non-blocked states reach organizers.
+      comment:
+        row.comment_moderation_status === "allowed" ||
+        row.comment_moderation_status === "flagged"
+          ? row.comment
+          : null,
       commentModerationStatus: row.comment_moderation_status,
       volunteerName: profile?.full_name ?? anon?.name ?? null,
       submittedVia: row.submitted_via,
