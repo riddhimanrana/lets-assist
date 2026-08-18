@@ -58,6 +58,17 @@ describe("production review consistency boundaries", () => {
     expect(client).toContain("Retry certificate issuance");
   });
 
+  test("paper attendance and publication are serialized in the database", async () => {
+    const migration = await read(
+      "../../../../supabase/migrations/20260818170000_serialize_paper_attendance_publication.sql",
+    );
+
+    expect(migration).toContain("FOR UPDATE");
+    expect(migration).toContain("NEW.status = 'committing'");
+    expect(migration).toContain("publication snapshot is stale");
+    expect(migration).toContain("certificates.id IS NULL");
+  });
+
   test("candidate read failures abort extraction instead of matching an empty roster", async () => {
     const source = await read("../../../api/ai/scan-signup-sheet/route.ts");
 
