@@ -25,6 +25,7 @@ export type TransactionalPublication = {
   certificatesCreated: number;
   projectTitle: string;
   projectTimezone: string | null;
+  publicationOrigin: "manual" | "automatic";
   deliveries: PublicationDelivery[];
 };
 
@@ -41,6 +42,8 @@ function isTransactionalPublication(
     typeof candidate.projectTitle === "string" &&
     (typeof candidate.projectTimezone === "string" ||
       candidate.projectTimezone === null) &&
+    (candidate.publicationOrigin === "manual" ||
+      candidate.publicationOrigin === "automatic") &&
     Array.isArray(candidate.deliveries)
   );
 }
@@ -51,6 +54,7 @@ export async function publishVolunteerHoursTransaction(input: {
   scheduleId: string;
   entries: Array<{ signupId: string; checkIn: string; checkOut: string }>;
   requestKey: string;
+  origin?: "manual" | "automatic";
 }): Promise<HoursPublicationRpcResult<TransactionalPublication>> {
   const admin = getAdminClient();
   const rpcArguments = {
@@ -63,7 +67,12 @@ export async function publishVolunteerHoursTransaction(input: {
 
   return executeReplaySafeHoursPublicationRpc(
     async () =>
-      await admin.rpc("publish_volunteer_hours_transactional", rpcArguments),
+      await admin.rpc(
+        input.origin === "automatic"
+          ? "publish_volunteer_hours_transactional_automatic"
+          : "publish_volunteer_hours_transactional",
+        rpcArguments,
+      ),
     isTransactionalPublication,
   );
 }

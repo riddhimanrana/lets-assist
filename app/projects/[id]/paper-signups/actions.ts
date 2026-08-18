@@ -11,6 +11,10 @@ import {
 import { getAttendanceScheduleWindow } from "@/lib/attendance/challenge";
 import { resolveScheduleId } from "@/utils/project";
 import {
+  drainPublicationEmails,
+  loadDurablePublicationForRetry,
+} from "@/lib/projects/hours-publication-email-service";
+import {
   getPublishStateKey,
   issueCertificatesForSignups,
 } from "../hours/certificate-issuance";
@@ -450,23 +454,48 @@ export async function commitPaperScanBatch(input: {
         .filter((id): id is string => Boolean(id)),
     ),
   ];
-  // A session that already published its hours will never re-run
-  // certificate issuance for these signups; do it here.
+  // The database attendance trigger atomically creates certificates for an
+  // already-published session. This read reports that committed result; it
+  // never performs a second, crash-prone issuance transaction.
   let certificatesIssued = 0;
   let certificateErrors: string[] = [];
-  const publishKey = getPublishStateKey(project, batch.schedule_id);
-  if (project.published?.[publishKey] === true) {
-    const committedSignupIds = [...created, ...updated]
-      .map((row) => row.signup_id)
-      .filter((id): id is string => Boolean(id));
-    const issuance = await issueCertificatesForSignups({
-      projectId,
-      scheduleId: batch.schedule_id,
-      signupIds: committedSignupIds,
-      actorId: userId,
-    });
-    certificatesIssued = issuance.issued;
-    certificateErrors = issuance.errors;
+  const committedSignupIds = [...created, ...updated]
+    .map((row) => row.signup_id)
+    .filter((id): id is string => Boolean(id));
+  if (committedSignupIds.length > 0) {
+    const { count, error: certificateStatusError } = await admin
+      .from("certificates")
+      .select("id", { count: "exact", head: true })
+      .in("signup_id", committedSignupIds)
+      .eq("type", "verified");
+    if (certificateStatusError) {
+      certificateErrors = [
+        "Attendance was saved, but certificate status could not be confirmed. Retry certificate issuance.",
+      ];
+    } else {
+      certificatesIssued = count ?? 0;
+      if (certificatesIssued > 0) {
+        try {
+          const durablePublication = await loadDurablePublicationForRetry(
+            admin,
+            {
+              projectId,
+              publishKey: getPublishStateKey(project, batch.schedule_id),
+              projectTitle: project.title,
+              projectTimezone: project.project_timezone ?? null,
+            },
+          );
+          if (durablePublication) {
+            const delivery = await drainPublicationEmails(durablePublication);
+            certificateErrors.push(...delivery.errors);
+          }
+        } catch {
+          certificateErrors.push(
+            "Certificate email remains queued for retry from the Hours page.",
+          );
+        }
+      }
+    }
   }
 
   return {

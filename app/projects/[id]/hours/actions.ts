@@ -1,30 +1,22 @@
 "use server";
 
-import { createHash, randomUUID } from "node:crypto";
+import { createHash } from "node:crypto";
 import { createClient } from "@/lib/supabase/server";
 import { getAdminClient } from "@/lib/supabase/admin";
-import CertificatePublished from "@/emails/certificate-published";
-import * as React from "react";
-import { render } from "react-email";
-import { sendEmail } from "@/services/email";
 import { canManageProjectAccess } from "@/lib/projects/management-access";
 import { logError, logInfo, logWarn } from "@/lib/logger";
+import { hoursPublicationOutcome } from "@/lib/projects/hours-publication-delivery";
 import {
-  hoursEmailSettlement,
-  hoursPublicationOutcome,
-  parseHoursEmailPayloadSnapshot,
-  settleHoursDeliveryWithRetry,
-} from "@/lib/projects/hours-publication-delivery";
-import {
-  publishVolunteerHoursTransaction,
-  type PublicationDelivery,
-  type TransactionalPublication,
-} from "@/lib/projects/hours-publication-service";
+  drainPublicationEmails,
+  loadDurablePublicationForRetry,
+} from "@/lib/projects/hours-publication-email-service";
+import { publishVolunteerHoursTransaction } from "@/lib/projects/hours-publication-service";
 import {
   getPublishStateKey,
   sendCertificatePublishedEmails,
 } from "./certificate-issuance";
 import { normalizeHoursTimestamp } from "./hours-duration";
+import type { ProjectSchedule } from "@/types";
 
 // Define the structure for session data passed from the client
 type SessionVolunteerData = {
@@ -44,6 +36,7 @@ type ResendProject = ManageableProject & {
   event_type: "oneTime" | "multiDay" | "sameDayMultiArea";
   title: string;
   project_timezone: string | null;
+  schedule: ProjectSchedule;
 };
 
 export type HoursPublicationOutcome =
@@ -97,336 +90,6 @@ function publicationRequestKey(
   return `hours-publication:v1:${digest}`;
 }
 
-type DeliverySummary = {
-  emailsSent: number;
-  errors: string[];
-  partial: boolean;
-};
-
-async function pauseBeforeSettlementRetry(attemptNumber: number) {
-  await new Promise((resolve) => setTimeout(resolve, attemptNumber * 75));
-}
-
-async function loadDurablePublicationForRetry(
-  admin: ReturnType<typeof getAdminClient>,
-  projectId: string,
-  publishKey: string,
-  project: Pick<ResendProject, "title" | "project_timezone">,
-): Promise<TransactionalPublication | null> {
-  const { data: receipt, error: receiptError } = await admin
-    .from("hours_publication_receipts")
-    .select("id, request_key, certificate_count")
-    .eq("project_id", projectId)
-    .eq("publish_key", publishKey)
-    .maybeSingle();
-
-  if (receiptError) {
-    throw new Error("durable publication receipt lookup failed");
-  }
-  if (!receipt) return null;
-
-  const { data: outboxRows, error: outboxError } = await admin
-    .from("hours_publication_email_outbox")
-    .select("id, state, idempotency_key, certificate_id, payload_prepared_at")
-    .eq("receipt_id", receipt.id)
-    .order("created_at", { ascending: true });
-  if (outboxError || !outboxRows) {
-    throw new Error("durable publication delivery lookup failed");
-  }
-
-  const certificateIds = outboxRows.map((row) => row.certificate_id);
-  const { data: certificates, error: certificateError } = certificateIds.length
-    ? await admin
-        .from("certificates")
-        .select("id, volunteer_name, volunteer_email, event_start, event_end")
-        .in("id", certificateIds)
-    : { data: [], error: null };
-  if (certificateError || !certificates) {
-    throw new Error("durable publication certificate lookup failed");
-  }
-
-  const certificatesById = new Map(
-    certificates.map((certificate) => [certificate.id, certificate]),
-  );
-  const deliveries: PublicationDelivery[] = outboxRows.map((row) => {
-    const certificate = certificatesById.get(row.certificate_id);
-    if (!certificate) {
-      throw new Error("durable publication certificate is missing");
-    }
-    return {
-      deliveryId: row.id,
-      state: row.state,
-      payloadPrepared: row.payload_prepared_at !== null,
-      idempotencyKey: row.idempotency_key,
-      certificateId: certificate.id,
-      volunteerName: certificate.volunteer_name,
-      volunteerEmail: certificate.volunteer_email,
-      eventStart: certificate.event_start,
-      eventEnd: certificate.event_end,
-    };
-  });
-
-  return {
-    outcome: "replayed",
-    receiptId: receipt.id,
-    requestKey: receipt.request_key,
-    certificatesCreated: receipt.certificate_count,
-    projectTitle: project.title,
-    projectTimezone: project.project_timezone,
-    deliveries,
-  };
-}
-
-async function preparePublicationEmailPayload(
-  admin: ReturnType<typeof getAdminClient>,
-  publication: TransactionalPublication,
-  delivery: PublicationDelivery,
-  siteUrl: string,
-) {
-  let sender: string | null = null;
-  let subject: string | null = null;
-  let html: string | null = null;
-
-  // Once any provider attempt can have started, recovery asks the database for
-  // the first-writer-wins snapshot without rendering today's template or
-  // reading today's deployment configuration.
-  if (!delivery.payloadPrepared) {
-    sender =
-      process.env.EMAIL_FROM?.trim() ||
-      "Let's Assist <projects@notifications.lets-assist.com>";
-    subject = `Your volunteer certificate for ${publication.projectTitle} is ready!`;
-    html = await render(
-      React.createElement(CertificatePublished, {
-        volunteerName: delivery.volunteerName!,
-        projectTitle: publication.projectTitle,
-        certificateId: delivery.certificateId,
-        certificateUrl: `${siteUrl}/certificates/${delivery.certificateId}`,
-        isAutoPublished: false,
-        eventStart: delivery.eventStart,
-        eventEnd: delivery.eventEnd,
-        timezone: publication.projectTimezone ?? undefined,
-      }),
-    );
-  }
-
-  const { data, error } = await admin.rpc(
-    "prepare_hours_publication_email_delivery",
-    {
-      p_delivery_id: delivery.deliveryId,
-      p_sender: sender,
-      p_subject: subject,
-      p_html: html,
-    },
-  );
-  if (error) {
-    throw new Error("durable provider payload preparation failed");
-  }
-
-  const payload = parseHoursEmailPayloadSnapshot(data, publication.receiptId);
-  if (!payload) {
-    throw new Error("durable provider payload was invalid");
-  }
-  return payload;
-}
-
-async function drainPublicationEmails(
-  publication: TransactionalPublication,
-): Promise<DeliverySummary> {
-  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000";
-  let emailsSent = publication.deliveries.filter(
-    (delivery) => delivery.state === "accepted",
-  ).length;
-  let partial = false;
-  const errors: string[] = [];
-  let admin: ReturnType<typeof getAdminClient> | null = null;
-
-  for (const delivery of publication.deliveries) {
-    if (delivery.state === "accepted") {
-      continue;
-    }
-    if (delivery.state === "skipped") {
-      partial = true;
-      errors.push(
-        `Certificate ${delivery.certificateId}: email recipient missing`,
-      );
-      continue;
-    }
-    if (
-      delivery.state === "definitive_failure" ||
-      delivery.state === "unknown_outcome"
-    ) {
-      partial = true;
-      errors.push(
-        `Certificate ${delivery.certificateId}: email ${delivery.state.replaceAll("_", " ")}`,
-      );
-      continue;
-    }
-    if (
-      !delivery.payloadPrepared &&
-      (!delivery.volunteerEmail || !delivery.volunteerName)
-    ) {
-      partial = true;
-      errors.push(
-        `Certificate ${delivery.certificateId}: email recipient missing`,
-      );
-      continue;
-    }
-
-    if (!admin) {
-      try {
-        admin = getAdminClient();
-      } catch (error) {
-        logError(
-          "Volunteer-hours publication committed without an email worker",
-          error,
-          {
-            receipt_id: publication.receiptId,
-            outcome: "partial",
-          },
-        );
-        errors.push(
-          "Email delivery could not start; durable work remains queued for safe follow-up",
-        );
-        return { emailsSent, errors, partial: true };
-      }
-    }
-
-    let providerPayload;
-    try {
-      providerPayload = await preparePublicationEmailPayload(
-        admin,
-        publication,
-        delivery,
-        siteUrl,
-      );
-    } catch (error) {
-      partial = true;
-      errors.push(
-        `Certificate ${delivery.certificateId}: delivery payload preparation failed`,
-      );
-      logError("Volunteer-hours email payload preparation failed", error, {
-        receipt_id: publication.receiptId,
-        delivery_id: delivery.deliveryId,
-      });
-      continue;
-    }
-
-    const claimToken = randomUUID();
-    const { data: claimed, error: claimError } = await admin.rpc(
-      "claim_hours_publication_email_delivery",
-      {
-        p_delivery_id: delivery.deliveryId,
-        p_claim_token: claimToken,
-      },
-    );
-    if (claimError) {
-      partial = true;
-      errors.push(
-        `Certificate ${delivery.certificateId}: delivery claim failed`,
-      );
-      logError(
-        "Volunteer-hours email delivery claim failed",
-        new Error("durable delivery claim failed"),
-        {
-          receipt_id: publication.receiptId,
-          delivery_id: delivery.deliveryId,
-          error_code: claimError.code,
-        },
-      );
-      continue;
-    }
-    if (claimed !== true) {
-      // Another invocation claimed or settled it. SQL owns the bounded stale
-      // recovery and refuses work outside the provider idempotency window.
-      partial = true;
-      errors.push(
-        `Certificate ${delivery.certificateId}: delivery already in progress`,
-      );
-      continue;
-    }
-
-    let settlementState:
-      | "accepted"
-      | "retryable_failure"
-      | "definitive_failure"
-      | "unknown_outcome"
-      | "skipped";
-    let providerMessageId: string | null = null;
-    let safeCode: string | null = null;
-
-    try {
-      const result = await sendEmail({
-        to: providerPayload.to,
-        from: providerPayload.from,
-        subject: providerPayload.subject,
-        html: providerPayload.html,
-        type: "transactional",
-        idempotencyKey: delivery.idempotencyKey,
-        tags: providerPayload.tags,
-      });
-
-      const settlement = hoursEmailSettlement(result);
-      settlementState = settlement.state;
-      providerMessageId = settlement.providerMessageId;
-      safeCode = settlement.safeCode;
-      partial ||= settlement.partial;
-      if (settlement.accepted) {
-        emailsSent++;
-      }
-    } catch (error) {
-      // A throw outside the email service's bounded result contract may have
-      // happened after provider contact. Never retry it automatically.
-      settlementState = "unknown_outcome";
-      safeCode = "unhandled_dispatch_error";
-      partial = true;
-      logError("Volunteer-hours email dispatch threw", error, {
-        receipt_id: publication.receiptId,
-        delivery_id: delivery.deliveryId,
-        outcome: settlementState,
-      });
-    }
-
-    const settlementResult = await settleHoursDeliveryWithRetry(
-      async () =>
-        admin!.rpc("settle_hours_publication_email_delivery", {
-          p_delivery_id: delivery.deliveryId,
-          p_claim_token: claimToken,
-          p_state: settlementState,
-          p_provider_message_id: providerMessageId,
-          p_safe_code: safeCode,
-        }),
-      { pause: pauseBeforeSettlementRetry },
-    );
-
-    if (!settlementResult.settled) {
-      partial = true;
-      errors.push(
-        `Certificate ${delivery.certificateId}: delivery settlement failed`,
-      );
-      logError(
-        "Volunteer-hours email delivery settlement failed",
-        new Error("durable delivery settlement failed"),
-        {
-          receipt_id: publication.receiptId,
-          delivery_id: delivery.deliveryId,
-          outcome: settlementState,
-          error_code: settlementResult.errorCode ?? undefined,
-          settlement_attempts: settlementResult.attempts,
-        },
-      );
-      continue;
-    }
-
-    if (settlementState !== "accepted") {
-      errors.push(
-        `Certificate ${delivery.certificateId}: email ${settlementState.replaceAll("_", " ")}`,
-      );
-    }
-  }
-
-  return { emailsSent, errors, partial };
-}
-
 export async function publishVolunteerHours(
   projectId: string,
   sessionId: string,
@@ -447,11 +110,11 @@ export async function publishVolunteerHours(
       };
     }
 
-    if (!Array.isArray(sessionData) || sessionData.length > 500) {
+    if (!Array.isArray(sessionData) || sessionData.length > 1000) {
       return {
         outcome: "rejected",
         success: false,
-        error: "A publication can contain at most 500 volunteers.",
+        error: "A publication can contain at most 1,000 volunteers.",
       };
     }
 
@@ -592,7 +255,7 @@ export async function resendCertificateEmails(
     const { data: project, error: projectError } = await supabase
       .from("projects")
       .select(
-        "id, creator_id, organization_id, can_be_managed_by_staff, event_type, title, project_timezone",
+        "id, creator_id, organization_id, can_be_managed_by_staff, event_type, title, project_timezone, schedule",
       )
       .eq("id", projectId)
       .single();
@@ -612,15 +275,14 @@ export async function resendCertificateEmails(
     const publishKey = getPublishStateKey(typedProject, sessionId);
     const legacyScheduleIds =
       publishKey === sessionId ? [sessionId] : [sessionId, publishKey];
-    let admin: ReturnType<typeof getAdminClient>;
     try {
-      admin = getAdminClient();
-      const durablePublication = await loadDurablePublicationForRetry(
-        admin,
+      const admin = getAdminClient();
+      const durablePublication = await loadDurablePublicationForRetry(admin, {
         projectId,
         publishKey,
-        typedProject,
-      );
+        projectTitle: typedProject.title,
+        projectTimezone: typedProject.project_timezone,
+      });
       if (durablePublication) {
         const delivery = await drainPublicationEmails(durablePublication);
         return {

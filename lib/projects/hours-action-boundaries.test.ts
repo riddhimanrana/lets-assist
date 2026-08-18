@@ -14,6 +14,14 @@ const publicationServiceSource = readFileSync(
   `${process.cwd()}/lib/projects/hours-publication-service.ts`,
   "utf8",
 );
+const publicationEmailServiceSource = readFileSync(
+  `${process.cwd()}/lib/projects/hours-publication-email-service.ts`,
+  "utf8",
+);
+const autoPublishSource = readFileSync(
+  `${process.cwd()}/app/api/cron/auto-publish-hours/route.ts`,
+  "utf8",
+);
 
 test("publishing hours authenticates before crossing the service-only RPC boundary", () => {
   const publishStart = actionsSource.indexOf(
@@ -51,8 +59,9 @@ test("the publication service uses one exact service-role request for bounded re
   assert.match(publicationServiceSource, /p_actor_id: input\.actorId/u);
   assert.match(
     publicationServiceSource,
-    /await admin\.rpc\("publish_volunteer_hours_transactional", rpcArguments\)/u,
+    /publish_volunteer_hours_transactional_automatic/u,
   );
+  assert.match(publicationServiceSource, /input\.origin === "automatic"/u);
   assert.match(
     publicationServiceSource,
     /executeReplaySafeHoursPublicationRpc/u,
@@ -84,13 +93,10 @@ test("certificate resend is permission checked and scoped to one project session
 });
 
 test("durable delivery snapshots the rendered provider request before claim", () => {
-  const drainStart = actionsSource.indexOf(
-    "async function drainPublicationEmails",
+  const drainStart = publicationEmailServiceSource.indexOf(
+    "export async function drainPublicationEmails",
   );
-  const publishStart = actionsSource.indexOf(
-    "export async function publishVolunteerHours",
-  );
-  const drainSource = actionsSource.slice(drainStart, publishStart);
+  const drainSource = publicationEmailServiceSource.slice(drainStart);
   const prepareIndex = drainSource.indexOf("preparePublicationEmailPayload");
   const claimIndex = drainSource.indexOf(
     "claim_hours_publication_email_delivery",
@@ -104,6 +110,37 @@ test("durable delivery snapshots the rendered provider request before claim", ()
   assert.match(drainSource, /from: providerPayload\.from/u);
   assert.match(drainSource, /html: providerPayload\.html/u);
   assert.match(drainSource, /tags: providerPayload\.tags/u);
+});
+
+test("the auto-publisher uses the atomic publication and durable email protocols", () => {
+  const processStart = autoPublishSource.indexOf(
+    "async function processSessionSignups",
+  );
+  const processEnd = autoPublishSource.indexOf(
+    "async function processExpiredSessions",
+  );
+  const processSource = autoPublishSource.slice(processStart, processEnd);
+  const transactionIndex = processSource.indexOf(
+    "publishVolunteerHoursTransaction",
+  );
+  const emailDrainIndex = processSource.indexOf("drainPublicationEmails");
+
+  assert.ok(processStart >= 0 && processEnd > processStart);
+  assert.ok(transactionIndex >= 0 && transactionIndex < emailDrainIndex);
+  assert.match(processSource, /actorId: project\.creator_id/u);
+  assert.match(processSource, /autoPublicationRequestKey/u);
+  assert.match(processSource, /origin: "automatic"/u);
+  assert.doesNotMatch(processSource, /\.from\("certificates"\)\.insert/u);
+  assert.doesNotMatch(processSource, /\.from\("projects"\)\.update/u);
+  assert.doesNotMatch(processSource, /sendCertificatePublishedEmails/u);
+  assert.match(autoPublishSource, /completeSessionSignups/u);
+  assert.match(autoPublishSource, /complete_session_snapshot_unavailable/u);
+  assert.match(autoPublishSource, /getPublishStateKey/u);
+  assert.match(publicationEmailServiceSource, /\[Auto-Published\]/u);
+  assert.match(
+    publicationEmailServiceSource,
+    /publication\.publicationOrigin === "automatic"/u,
+  );
 });
 
 test("supplemental issuance delegates conflict arbitration to one database statement", () => {

@@ -51,6 +51,13 @@ This register separates actionable repository defects from provider/account and 
   evidence. `20260818160000_review_project_feedback_trigger_acl` explicitly
   grants the feedback trigger function only to `postgres` and revokes direct
   client/service invocation. Focused evidence is 9/9 Bun and 5/5 pgTAP.
+- The final publication-race review is closed at the database boundary by
+  `20260818170000_serialize_paper_attendance_publication`: paper attendance
+  locks its parent project before commit, and a stale hours-publication
+  snapshot cannot mark a session published while an eligible attended signup
+  lacks a verified certificate. Candidate roster reads also fail closed on a
+  database error. Focused evidence is 15/15 Bun assertions and 8 pgTAP
+  assertions; the clean 326-migration hosted replay remains the authority.
 - PITR is intentionally not part of this release. The cutover runbook requires
   a verified logical backup/restore path instead. Production remains unchanged
   until the root Development and Production promotion gates complete.

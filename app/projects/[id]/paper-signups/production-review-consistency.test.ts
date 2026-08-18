@@ -44,13 +44,51 @@ describe("production review consistency boundaries", () => {
   test("supplemental certificate failures remain visible and retryable", async () => {
     const actions = await read("./actions.ts");
     const client = await read("./PaperSignupsClient.tsx");
+    const migration = await read(
+      "../../../../supabase/migrations/20260818170000_serialize_paper_attendance_publication.sql",
+    );
 
-    expect(actions).toContain("certificateErrors = issuance.errors");
+    expect(actions).toContain("certificateStatusError");
+    expect(actions).toContain('.from("certificates")');
+    expect(actions).not.toContain("certificateErrors = issuance.errors");
+    expect(migration).toContain(
+      "issue_verified_certificate_for_late_attendance",
+    );
+    expect(migration).toContain(
+      "public.issue_supplemental_verified_certificates",
+    );
     expect(actions).toContain(
       "export async function retryPaperScanCertificates",
     );
     expect(client).toContain("Attendance saved; certificates need attention");
     expect(client).toContain("Retry certificate issuance");
+  });
+
+  test("paper attendance and publication are serialized in the database", async () => {
+    const migration = await read(
+      "../../../../supabase/migrations/20260818170000_serialize_paper_attendance_publication.sql",
+    );
+
+    expect(migration).toContain("FOR UPDATE");
+    expect(migration).toContain("NEW.status = 'committing'");
+    expect(migration).toContain("publication snapshot is stale");
+    expect(migration).toContain("certificates.id IS NULL");
+    expect(migration).toContain("v_entry_count > 1000");
+    expect(migration).toContain("hours-publication:certificate:");
+    expect(migration).toContain("hours_publication_email_outbox");
+    expect(migration).toContain("publication_origin = 'automatic'");
+    expect(migration).toContain("app.paper_commit_actor_id");
+    expect(migration).toContain(
+      "COALESCE(v_commit_actor_id, v_project.creator_id)",
+    );
+  });
+
+  test("candidate read failures abort extraction instead of matching an empty roster", async () => {
+    const source = await read("../../../api/ai/scan-signup-sheet/route.ts");
+
+    expect(source).toContain("signupCandidatesError");
+    expect(source).toContain("anonCandidatesError");
+    expect(source).toContain("Failed to load scan match candidates");
   });
 
   test("paper signup notification outbox has a hosted scheduler", async () => {

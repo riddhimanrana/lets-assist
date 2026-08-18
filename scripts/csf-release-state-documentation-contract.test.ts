@@ -45,9 +45,9 @@ describe("CSF release-state documentation truthfulness guards", () => {
     const migrations = readdirSync(join(repositoryRoot, "supabase/migrations"))
       .filter((name) => /^\d{14}_.+\.sql$/u.test(name))
       .sort();
-    expect(migrations).toHaveLength(325);
+    expect(migrations).toHaveLength(326);
     expect(migrations.at(-1)).toBe(
-      "20260818160000_review_project_feedback_trigger_acl.sql",
+      "20260818170000_serialize_paper_attendance_publication.sql",
     );
 
     const currentState = between(
@@ -59,7 +59,7 @@ describe("CSF release-state documentation truthfulness guards", () => {
       "sole current CSF implementation/status register is",
     );
     expect(currentState).toContain(
-      "repository candidate has 325 ordered migrations through",
+      "repository candidate has 326 ordered migrations through",
     );
     expect(currentState).toContain(
       "`20260816185321_enforce_authoritative_plugin_releases`",
@@ -111,19 +111,22 @@ describe("CSF release-state documentation truthfulness guards", () => {
       "`20260818160000_review_project_feedback_trigger_acl`",
     );
     expect(currentState).toContain(
+      "`20260818170000_serialize_paper_attendance_publication`",
+    );
+    expect(currentState).toContain(
       "Hosted Development serves exact root merge SHA",
     );
-    expect(currentState).toContain("migration-current at 324 rows through");
+    expect(currentState).toContain("migration-current at 325 rows through");
     expect(currentState).toContain(
       "Production remains untouched at the audited 236-row baseline",
     );
     expect(currentState).toContain(
-      "exact read-only preflight now expects an 89-migration cutover",
+      "exact read-only preflight now expects a 90-migration cutover",
     );
     expect(currentState).toContain(
       "prior candidate includes a fresh exact 324-migration replay",
     );
-    expect(currentState).toContain("163 pgTAP files with 5,916 assertions");
+    expect(currentState).toContain("164 pgTAP files with 5,943 assertions");
     expect(currentState).toContain("6fd34120ab474cbf6db3b5fd47439324bc436345");
     expect(currentState).toContain("4d1001e9d3269b8bd28de93c071c6b4b216824fd");
     expect(currentState).toContain(
@@ -167,12 +170,12 @@ describe("CSF release-state documentation truthfulness guards", () => {
 
   test("the officer runbook tracks the exact current cutover ledger", () => {
     expect(officerRunbook).toContain(
-      "this repository carries 325 ordered migrations through `20260818160000_review_project_feedback_trigger_acl`",
+      "this repository carries 326 ordered migrations through `20260818170000_serialize_paper_attendance_publication`",
     );
     expect(officerRunbook).toContain(
-      "exact repository-pinned 89-migration cutover",
+      "exact repository-pinned 90-migration cutover",
     );
-    expect(officerRunbook).toContain("ordered ledger through `20260818160000`");
+    expect(officerRunbook).toContain("ordered ledger through `20260818170000`");
     expect(officerRunbook).not.toContain(
       "this repository carries 277 ordered migrations",
     );
@@ -329,10 +332,10 @@ describe("CSF release-state documentation truthfulness guards", () => {
       "Production was last verified read-only at 236 ordered migrations through `20260811001500`",
     );
     expect(productionCutoverRunbook).toContain(
-      "current repository release candidate has exactly 325 ordered migrations through `20260818160000_review_project_feedback_trigger_acl`",
+      "current repository release candidate has exactly 326 ordered migrations through `20260818170000_serialize_paper_attendance_publication`",
     );
     expect(productionCutoverRunbook).toContain(
-      "read-only preflight pins an exact 89-migration tail",
+      "read-only preflight pins an exact 90-migration tail",
     );
     expect(productionCutoverRunbook).toContain(
       "current-school-year staff authority",
@@ -347,7 +350,7 @@ describe("CSF release-state documentation truthfulness guards", () => {
       "Hosted Development database parity",
     );
     expect(productionCutoverRunbook).toContain(
-      "fresh full 325-migration replay",
+      "fresh full 326-migration replay",
     );
     expect(productionCutoverRunbook).not.toContain("38 pending migrations");
     expect(productionCutoverRunbook).not.toContain("exactly 38 pending");
@@ -577,10 +580,10 @@ describe("CSF release-state documentation truthfulness guards", () => {
 
   test("the release pin is exact while hosted and Production gates remain open", () => {
     expect(testingAndRelease).toContain(
-      "repository candidate has 325 ordered migrations through",
+      "repository candidate has 326 ordered migrations through",
     );
     expect(productionCutoverRunbook).toContain(
-      "typed read-only preflight pins an exact 89-migration tail",
+      "typed read-only preflight pins an exact 90-migration tail",
     );
     expect(productionCutoverRunbook).toContain(
       "Executing it requires explicit action-time authorization",
@@ -588,8 +591,8 @@ describe("CSF release-state documentation truthfulness guards", () => {
     const preflight = flow(
       readRepositoryFile("scripts/production-cutover-preflight.sql"),
     );
-    expect(preflight).toContain("repository target 325");
-    expect(preflight).toContain("exact 89-row tail");
+    expect(preflight).toContain("repository target 326");
+    expect(preflight).toContain("exact 90-row tail");
   });
 
   test("testing and release states the exact nine-function and publication scope", () => {

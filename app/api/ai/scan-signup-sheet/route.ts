@@ -376,22 +376,29 @@ export async function POST(req: NextRequest) {
     // (any slot — people sign the wrong sheet), plus anonymous identities.
     // Never a global name search; cross-tenant identity lookups are only by
     // exact email, inside the commit RPC.
-    const [{ data: signupCandidates }, { data: anonCandidates }] =
-      await Promise.all([
-        admin
-          .from("project_signups")
-          .select(
-            "id, user_id, anonymous_id, created_at, profiles(full_name, email, phone), anonymous_signups(name, email, phone_number)",
-          )
-          .eq("project_id", batch.project_id)
-          .neq("status", "rejected")
-          .order("created_at"),
-        admin
-          .from("anonymous_signups")
-          .select("id, name, email, phone_number, created_at")
-          .eq("project_id", batch.project_id)
-          .order("created_at"),
-      ]);
+    const [
+      { data: signupCandidates, error: signupCandidatesError },
+      { data: anonCandidates, error: anonCandidatesError },
+    ] = await Promise.all([
+      admin
+        .from("project_signups")
+        .select(
+          "id, user_id, anonymous_id, created_at, profiles(full_name, email, phone), anonymous_signups(name, email, phone_number)",
+        )
+        .eq("project_id", batch.project_id)
+        .neq("status", "rejected")
+        .order("created_at"),
+      admin
+        .from("anonymous_signups")
+        .select("id, name, email, phone_number, created_at")
+        .eq("project_id", batch.project_id)
+        .order("created_at"),
+    ]);
+    if (signupCandidatesError || anonCandidatesError) {
+      throw new Error(
+        `Failed to load scan match candidates: ${signupCandidatesError?.code ?? anonCandidatesError?.code ?? "unknown"}`,
+      );
+    }
 
     const candidates: PaperMatchCandidate[] = [];
     for (const signup of signupCandidates ?? []) {

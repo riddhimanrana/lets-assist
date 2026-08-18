@@ -5,7 +5,7 @@ import * as React from "react";
 import CertificatePublished from "@/emails/certificate-published";
 import { sendEmail } from "@/services/email";
 import { getAdminClient } from "@/lib/supabase/admin";
-import type { Project } from "@/types";
+export { getPublishStateKey } from "@/lib/projects/hours-publish-key";
 
 /**
  * Certificate issuance shared between the hours publish flow
@@ -21,31 +21,6 @@ export type CertificateEmailRow = {
   project_title: string;
   event_start?: string;
   event_end?: string;
-};
-
-/** Key inside projects.published jsonb for a session's publish state. */
-export const getPublishStateKey = (
-  project: Pick<Project, "event_type">,
-  sessionId: string,
-): string => {
-  if (project.event_type === "oneTime") {
-    return "oneTime";
-  } else if (project.event_type === "multiDay") {
-    const parts = sessionId.split("-");
-    if (parts.length === 5) {
-      // New format: YYYY-MM-DD-dayIndex-slotIndex
-      const dateKey = `${parts[0]}-${parts[1]}-${parts[2]}`;
-      const slotIndex = parts[4];
-      return `${dateKey}-${slotIndex}`;
-    } else if (parts.length === 4) {
-      // Legacy format: YYYY-MM-DD-slotIndex
-      return sessionId;
-    }
-  } else if (project.event_type === "sameDayMultiArea") {
-    // For multi-area events, the sessionId is the role name
-    return sessionId;
-  }
-  return sessionId;
 };
 
 export const sendCertificatePublishedEmails = async (
