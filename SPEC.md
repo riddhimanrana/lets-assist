@@ -71,3 +71,4 @@ B3|2026-08-17|all five route families rendered into every CSF server response; r
 B4|2026-08-17|multi-date meeting migration replaced the locked authorization wrappers; private candidate also assumed host changes that had not reached development|V14,V15,V17,V18
 B5|2026-08-17|private source contract coupled a JSX assertion to one-line formatter output|assert semantic JSX structure with whitespace-tolerant matching
 B6|2026-08-17|db:validate reached its shared-instance stage with no local Supabase running|use the isolated replay gate for schema proof; report filename checks separately
+B7|2026-08-17|private account-link label changed without the root operator documentation contract|update cross-repository operator labels in the same root integration and run the contract test

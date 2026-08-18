@@ -127,7 +127,7 @@ const MEMBER_AND_ACCESS: LabelContract[] = [
   {
     component: "CsfAccountConnectionsPanel.tsx",
     labels: [
-      "Account connections",
+      "Needs account link",
       "Matches to review",
       "Student-specific links",
       "Reusable class links",
@@ -422,7 +422,7 @@ function assertContract(group: LabelContract[]) {
 }
 
 describe("CSF operator documentation label contract", () => {
-  test("members, account connections, and the review queue", () => {
+  test("members, account linking, and the review queue", () => {
     assertContract(MEMBER_AND_ACCESS);
   });
 

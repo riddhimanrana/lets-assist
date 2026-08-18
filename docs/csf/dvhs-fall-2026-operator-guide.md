@@ -122,7 +122,7 @@ create a Let's Assist login, it does not connect an existing account, and it
 does not make the student a current-semester member — semester membership comes
 from an application or an audited semester correction. The dialog says this
 itself under **Account access comes next**: after saving, go to **Members →
-Account connections** and either issue a **Student link** for one person or copy
+Needs account link** and either issue a **Student link** for one person or copy
 the reusable class link. Connecting an account is the separate, reviewed action
 described in the next three sections.
 
@@ -161,7 +161,7 @@ evidence; otherwise use **Reject request** or correct the student record first.
 
 ## Give that student a private account-connection link
 
-1. From **Members**, select **Account connections**.
+1. From **Members**, select **Needs account link**.
 2. Select **Student link**. The dialog is titled **Create a student-specific
    link**.
 3. Under **Unconnected student record**, choose the student. Records with a
@@ -201,7 +201,7 @@ audited member-correction workflow. Never backfill an address from the Spring
 email evidence, the student can submit a review request, but **Connect account**
 remains unavailable until an officer corrects the record.
 
-1. Open **Members → Account connections**.
+1. Open **Members → Needs account link**.
 2. Select **Class link**. The dialog is titled **Create a reusable class link**.
 3. Choose **Class** and **Semester** = Fall 2026. **Link name** derives from
    both and is officer-facing only.
@@ -222,7 +222,7 @@ student.
 
 ## Find a record when it is not in the list
 
-Both pickers on **Account connections** are one bounded server page, not the
+Both pickers on **Needs account link** are one bounded server page, not the
 whole roster. When the record you need is not listed:
 
 1. Under **Student record search**, type a name or recorded email and select
@@ -268,7 +268,7 @@ own class or officer access.
 
 ## Resolve the account review queue
 
-1. Open **Members → Account connections**. Requests waiting on a decision are
+1. Open **Members → Needs account link**. Requests waiting on a decision are
    counted in the header and listed under **Matches to review**.
 2. Select **Resolve** on the request, or **Review in Resolve** on one of its
    ranked suggestions. The dialog is titled **Review account connection**.
@@ -302,8 +302,8 @@ If suggestions cannot be loaded, the request stays open for rejection and
    editing (see below).
 4. Select **Assign position**. The dialog is titled **Assign staff access**.
    The trigger is disabled while nothing can be assigned, and the line beneath
-   it names which: _Connect a member's verified account first in Members →
-   Account connections_, or _Add an active position under Position seats before
+   it names which: _Connect a member's verified account first in Class → Members
+   → Needs account link_, or _Add an active position under Position seats before
    assigning access_.
 5. Fill **CSF member profile** (search by name or email; only connected members
    appear — an empty result reads _No connected members match that search_),
@@ -722,7 +722,7 @@ the 292-migration repository tree.
   synthetic identity; no real chapter roster import has been committed.
 - The copied student link was verified as an absolute
   `https://dev.lets-assist.com/...` URL.
-- Members renders **Account connections** as its own view. Each ready link
+- Members renders **Needs account link** as its own view. Each ready link
   offers **Copy link** and **Open link in new tab**, and the view closes with an
   explicit instruction to test copied links while signed out or in a private
   window. Staff access explains why **Assign position** is disabled when no
