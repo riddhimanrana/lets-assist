@@ -19,7 +19,7 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { ScheduleSlotStep } from "./ScheduleSlotStep";
 import { CaptureStep } from "./CaptureStep";
 import { ReviewTable } from "./ReviewTable";
-import { discardPaperScanBatch } from "./actions";
+import { discardPaperScanBatch, retryPaperScanCertificates } from "./actions";
 
 export interface PaperScanSlotOption {
   id: string;
@@ -69,6 +69,7 @@ export interface CommitSummary {
   overCapacity: number;
   failed: Array<{ rowId: string; detail: string }>;
   certificatesIssued: number;
+  certificateErrors: string[];
   notificationsQueued: number;
 }
 
@@ -107,6 +108,7 @@ export function PaperSignupsClient({
     null,
   );
   const [discarding, setDiscarding] = useState(false);
+  const [retryingCertificates, setRetryingCertificates] = useState(false);
 
   const [step, setStep] = useState<Step>(() => {
     if (initialBatch?.status === "review") return "review";
@@ -135,6 +137,33 @@ export function PaperSignupsClient({
     setBatch(null);
     setStep("slot");
     router.refresh();
+  };
+
+  const retryCertificates = async () => {
+    if (!batch || !commitSummary) return;
+    setRetryingCertificates(true);
+    const result = await retryPaperScanCertificates({
+      projectId,
+      batchId: batch.id,
+    });
+    setRetryingCertificates(false);
+    if ("error" in result) {
+      toast.error(result.error);
+      return;
+    }
+    setCommitSummary((current) =>
+      current
+        ? {
+            ...current,
+            certificatesIssued:
+              current.certificatesIssued + result.certificatesIssued,
+            certificateErrors: result.certificateErrors,
+          }
+        : current,
+    );
+    if (result.certificateErrors.length === 0) {
+      toast.success("Certificate issuance retry completed.");
+    }
   };
 
   return (
@@ -266,6 +295,37 @@ export function PaperSignupsClient({
                 </li>
               )}
             </ul>
+            {commitSummary.certificateErrors.length > 0 && (
+              <Alert variant="destructive">
+                <AlertTitle>
+                  Attendance saved; certificates need attention
+                </AlertTitle>
+                <AlertDescription className="space-y-3">
+                  <p>
+                    Retry issuance now. If delivery still fails, use the Hours
+                    page&apos;s certificate resend after confirming the
+                    recipient addresses.
+                  </p>
+                  <div className="flex flex-wrap gap-2">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      disabled={retryingCertificates}
+                      onClick={retryCertificates}
+                    >
+                      {retryingCertificates
+                        ? "Retrying…"
+                        : "Retry certificate issuance"}
+                    </Button>
+                    <Button asChild type="button" variant="outline">
+                      <Link href={`/projects/${projectId}/hours`}>
+                        Open Hours
+                      </Link>
+                    </Button>
+                  </div>
+                </AlertDescription>
+              </Alert>
+            )}
             {commitSummary.failed.length > 0 && (
               <Alert variant="destructive">
                 <AlertTitle>

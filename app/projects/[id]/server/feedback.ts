@@ -90,15 +90,26 @@ async function moderateFeedbackComment(
           : "allowed";
 
     const admin = getAdminClient();
-    await admin
+    const { data: settled, error: settleError } = await admin
       .from("project_feedback")
       .update({
         comment_moderation_status: status,
         comment_flag_reason: status === "allowed" ? null : result.flagReason,
       })
-      .eq("id", feedbackId);
+      .eq("id", feedbackId)
+      // Bind the asynchronous verdict to the exact text that was moderated.
+      // A later edit resets the row to pending, so an older AI response must
+      // not settle the newer comment.
+      .eq("comment", comment)
+      .eq("comment_moderation_status", "pending")
+      .select("id")
+      .maybeSingle();
 
-    if (status !== "allowed") {
+    if (settleError) {
+      throw settleError;
+    }
+
+    if (settled && status !== "allowed") {
       await notifyAdminFlaggedContent(
         feedbackId,
         "project_feedback",
