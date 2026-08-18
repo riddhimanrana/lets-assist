@@ -4,6 +4,31 @@ This register separates actionable repository defects from provider/account and 
 
 `AUD-` identifiers are allocated per branch and can drift while several audit branches are open at once. Current `development` includes the merged #152, #158, #174, #177, #179, and #181 findings, while open #180 can still carry overlapping historical identifiers. This branch retains `AUD-036` and `AUD-037` for its activity/partner authorization work without renumbering or restating the merged meeting findings.
 
+## Production release candidate — 2026-08-18
+
+- Private plugin PRs #65 and #66 are merged. DVHS CSF `1.1.0` is pinned to
+  private main commit `4d1001e9d3269b8bd28de93c071c6b4b216824fd` and manifest
+  SHA-256 `04aca8efa43e9d287c8d04909b733df97f6804224a4c6960a3609358eb574e79`;
+  PR #67 synchronized that Production ancestry back into private Development.
+- `20260818040246_generalize_private_plugin_storage_and_publish_dvhs_csf_1_1_0`
+  replaces the empty `csf-private` bucket with one server-only `plugins` bucket,
+  namespaces DVHS CSF objects under `{organizationId}/dvhs-csf/...`, rewrites
+  the reviewed SQL producers/validators, advances installed versions with audit
+  rows, and publishes the immutable source/manifest release attestation.
+- Local evidence: clean 318-migration replay; 787 focused pgTAP assertions;
+  zero-warning lint; typecheck; strict private-gitlink containment; manifest
+  digest/source gate; and release/preflight documentation contracts pass.
+- The pasted advisor exports are triaged, not mass-applied. `plugin_data` RLS
+  with no browser policies is intentional because the schema is server-only;
+  unused-index findings are observation signals, not deletion authorization;
+  and foreign-key indexes are added only for demonstrated join/delete paths.
+  The pending `20260811132454_disable_unused_pg_graphql` migration is expected
+  to remove the Production GraphQL exposure warnings. Hosted Development and
+  Production advisor scans after exact migration parity remain required proof.
+- PITR is intentionally not part of this release. The cutover runbook requires
+  a verified logical backup/restore path instead. Production remains unchanged
+  until the root Development and Production promotion gates complete.
+
 ## CSF renderer repair candidate — 2026-08-17
 
 - Repository finding: every CSF response rendered all five dashboard route

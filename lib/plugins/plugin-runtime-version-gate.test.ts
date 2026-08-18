@@ -12,7 +12,7 @@ const definition = {
     name: "DVHS CSF",
     description: "Private CSF workflows",
     navLabel: "CSF",
-    version: "1.0.0",
+    version: "1.1.0",
     visibility: "private",
     minimumRole: "member",
     organizationExperience: {
@@ -34,7 +34,7 @@ function accessRow() {
     configuration: {},
     installed_at: "2026-08-17T00:00:00.000Z",
     installed_version: installedVersion,
-    latest_version: "1.0.0",
+    latest_version: "1.1.0",
     force_update_version: null,
     is_accessible: true,
     entitlement_is_forced: false,
@@ -102,7 +102,7 @@ beforeEach(() => {
 });
 
 describe("plugin runtime version gate", () => {
-  test("a pinned older install cannot execute the loaded 1.0 runtime", async () => {
+  test("a pinned older install cannot execute the loaded 1.1 runtime", async () => {
     expect(
       await hasOrganizationPluginRuntimeAccess({
         organizationId: "org-1",
@@ -120,7 +120,7 @@ describe("plugin runtime version gate", () => {
   });
 
   test("the ordinary version transition unlocks the exact loaded runtime", async () => {
-    installedVersion = "1.0.0";
+    installedVersion = "1.1.0";
 
     expect(
       await hasOrganizationPluginRuntimeAccess({
@@ -134,7 +134,7 @@ describe("plugin runtime version gate", () => {
         userRole: "admin",
         viewerUserId: "user-1",
       }),
-    ).toMatchObject([{ key: "dvhs-csf", installedVersion: "1.0.0" }]);
+    ).toMatchObject([{ key: "dvhs-csf", installedVersion: "1.1.0" }]);
     expect(await resolveOrganizationPluginExperiences(["org-1"])).toEqual([
       {
         organizationId: "org-1",

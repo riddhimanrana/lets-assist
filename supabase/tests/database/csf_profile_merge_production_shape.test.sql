@@ -124,7 +124,7 @@ INSERT INTO plugin_data.csf_submission_files (
   'fc100000-0000-4000-8000-000000000001',
   'fc810000-0000-4000-8000-000000000001',
   'fc400000-0000-4000-8000-000000000001',
-  'fc200000-0000-4000-8000-000000000001', 'csf-private',
+  'fc200000-0000-4000-8000-000000000001', 'plugins',
   'merge-fixture/proof.pdf', 'proof.pdf', 'application/pdf', 512,
   'fc000000-0000-4000-8000-000000000002', 'finalized', NULL, now()
 );

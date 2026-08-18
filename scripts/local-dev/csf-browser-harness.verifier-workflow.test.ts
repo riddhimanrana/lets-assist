@@ -320,7 +320,12 @@ const FIXTURES = {
   csf_terms: [{ id: "t1", code: "S26", is_current: true, closed_at: null }],
   csf_point_submissions: [{ id: "s1", profile_id: "p1", term_id: "t1", status: "approved" }],
   csf_submission_files: [
-    { id: "f1", submission_id: "s1", bucket: "csf-private", object_path: "csf/org-1/f1.pdf" },
+    {
+      id: "f1",
+      submission_id: "s1",
+      bucket: "plugins",
+      object_path: "org-1/dvhs-csf/profiles/p1/f1.pdf",
+    },
   ],
   csf_credit_records: [
     { id: "c1", submission_id: "s1", profile_id: "p1", term_id: "t1", points: 1, status: "awarded" },

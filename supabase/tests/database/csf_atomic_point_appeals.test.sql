@@ -146,7 +146,7 @@ INSERT INTO plugin_data.csf_submission_files (
   'd6400000-0000-4000-8000-000000000001',
   'd6300000-0000-4000-8000-000000000001',
   'd6200000-0000-4000-8000-000000000001',
-  'csf-private',
+  'plugins',
   'organizations/atomic-appeals/rejected-claim/proof.pdf',
   'proof.pdf',
   'application/pdf',

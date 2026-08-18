@@ -28,7 +28,7 @@ SELECT extensions.results_eq(
     FROM (
       VALUES
         ('avatars'::text, true, 10485760::bigint, ARRAY['image/png', 'image/jpeg', 'image/jpg', 'image/webp']::text[], 'public'::text),
-        ('csf-private'::text, false, 20971520::bigint, ARRAY['application/pdf', 'image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'text/csv', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet']::text[], 'server-only'::text),
+        ('plugins'::text, false, 20971520::bigint, ARRAY['application/pdf', 'image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'text/csv', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet']::text[], 'server-only'::text),
         ('data-exports'::text, false, 52428800::bigint, ARRAY['application/zip']::text[], 'server-only'::text),
         ('organization-logos'::text, true, 10485760::bigint, ARRAY['image/png', 'image/jpeg', 'image/jpg', 'image/webp']::text[], 'public'::text),
         ('paper-signup-scans'::text, false, 8388608::bigint, ARRAY['image/jpeg', 'image/png', 'image/webp']::text[], 'private-client'::text),
@@ -243,18 +243,18 @@ SELECT extensions.ok(
   'an authenticated policy omitting a bucket predicate is rejected'
 );
 
-CREATE POLICY "audit probe PUBLIC csf-private read"
+CREATE POLICY "audit probe PUBLIC plugins read"
   ON storage.objects
   FOR SELECT
   TO PUBLIC
-  USING (bucket_id = 'csf-private');
+  USING (bucket_id = 'plugins');
 
 SELECT extensions.ok(
   EXISTS (
     SELECT 1
     FROM app_private.storage_object_policy_contract_violations()
     WHERE drift_kind = 'unexpected'
-      AND policy_name = 'audit probe PUBLIC csf-private read'
+      AND policy_name = 'audit probe PUBLIC plugins read'
       AND role_names = ARRAY['public']::text[]
   ),
   'a PUBLIC policy is client-reachable and exposes a server-only bucket violation'

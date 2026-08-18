@@ -121,7 +121,7 @@ SELECT extensions.lives_ok(
     'd5200000-0000-4000-8000-000000000001',
     NULL, NULL, 'student', 'Library volunteering', 2, 'non_drive', '2030-09-05',
     'd5000000-0000-4000-8000-000000000001',
-    'd5500000-0000-4000-8000-000000000001', 'csf-private',
+    'd5500000-0000-4000-8000-000000000001', 'plugins',
     'organizations/proof-one/submissions/one/proof.pdf', 'proof.pdf', 'application/pdf', 512,
     'd5600000-0000-4000-8000-000000000001', 'd5700000-0000-4000-8000-000000000001'
   ) $$,
@@ -182,7 +182,7 @@ SELECT plugin_data.csf_begin_point_submission(
   'd5200000-0000-4000-8000-000000000001',
   NULL, NULL, 'student', 'Food bank shift', 3, 'non_drive', '2030-09-06',
   'd5000000-0000-4000-8000-000000000001',
-  'd5500000-0000-4000-8000-000000000002', 'csf-private',
+  'd5500000-0000-4000-8000-000000000002', 'plugins',
   'organizations/proof-one/submissions/two/proof.png', 'proof.png', 'image/png', 256,
   'd5600000-0000-4000-8000-000000000002', 'd5700000-0000-4000-8000-000000000002'
 );
@@ -214,7 +214,7 @@ SELECT plugin_data.csf_begin_point_submission(
   'd5200000-0000-4000-8000-000000000001',
   NULL, NULL, 'student', 'Campus service', 1, 'non_drive', '2030-09-07',
   'd5000000-0000-4000-8000-000000000001',
-  'd5500000-0000-4000-8000-000000000003', 'csf-private',
+  'd5500000-0000-4000-8000-000000000003', 'plugins',
   'organizations/proof-one/submissions/three/proof.jpg', 'proof.jpg', 'image/jpeg', 128,
   'd5600000-0000-4000-8000-000000000003', 'd5700000-0000-4000-8000-000000000003'
 );

@@ -168,7 +168,7 @@ public = false
 file_size_limit = "10MiB"
 allowed_mime_types = ["application/pdf", "image/jpeg", "image/png"]
 
-[storage.buckets."csf-private"]
+[storage.buckets.plugins]
 public = false
 file_size_limit = "20MiB"
 allowed_mime_types = ["application/pdf", "image/jpeg", "image/jpg", "image/png", "image/webp", "text/csv", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"]
