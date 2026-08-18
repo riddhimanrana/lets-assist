@@ -92,6 +92,22 @@ test("certificate resend is permission checked and scoped to one project session
   assert.match(resendSource, /\.in\("schedule_id", legacyScheduleIds\)/u);
 });
 
+test("project-hours management requires an active organization membership", () => {
+  const helperStart = actionsSource.indexOf(
+    "async function canUserManageProjectHours",
+  );
+  const helperEnd = actionsSource.indexOf(
+    "function publicationRequestKey",
+    helperStart,
+  );
+  const helperSource = actionsSource.slice(helperStart, helperEnd);
+
+  assert.ok(helperStart >= 0 && helperEnd > helperStart);
+  assert.match(helperSource, /\.from\("organization_members"\)/u);
+  assert.match(helperSource, /\.eq\("status", "active"\)/u);
+  assert.match(helperSource, /canManageProjectAccess/u);
+});
+
 test("durable delivery snapshots the rendered provider request before claim", () => {
   const drainStart = publicationEmailServiceSource.indexOf(
     "export async function drainPublicationEmails",

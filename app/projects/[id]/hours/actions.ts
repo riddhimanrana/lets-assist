@@ -66,6 +66,7 @@ async function canUserManageProjectHours(
       .select("role")
       .eq("user_id", userId)
       .eq("organization_id", project.organization_id)
+      .eq("status", "active")
       .maybeSingle();
 
     organizationRole = membership?.role ?? null;
