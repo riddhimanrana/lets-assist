@@ -68,6 +68,12 @@ This register separates actionable repository defects from provider/account and 
   existing purge and trigger boundaries retain it. Focused pgTAP passes 10/10,
   and the repository candidate is 327 migrations with 165 pgTAP files and
   5,949 assertions.
+- The remaining application-decision and meeting-authorization ACL review is
+  closed by `20260818223637_complete_remaining_function_acl_restoration`.
+  Its six owner-internal helpers now carry explicit `postgres` grants while
+  remaining unavailable to `anon`, `authenticated`, and `service_role`; server
+  callers must continue through request-aware entrypoints. The repository
+  candidate is 328 migrations with 166 pgTAP files and 5,954 assertions.
 - PITR is intentionally not part of this release. The cutover runbook requires
   a verified logical backup/restore path instead. Production remains unchanged
   until the root Development and Production promotion gates complete.
