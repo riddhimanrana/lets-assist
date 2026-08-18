@@ -45,6 +45,24 @@ describe("architecture security documentation contract", () => {
     expect(exposedSchemas).not.toContain('"app_private"');
   });
 
+  test("keeps hosted Development Google auth enabled without committing its secret", () => {
+    const developmentGoogle = supabaseConfig.slice(
+      supabaseConfig.indexOf("[remotes.development.auth.external.google]"),
+      supabaseConfig.indexOf("[api]"),
+    );
+
+    expect(developmentGoogle).toContain("enabled = true");
+    expect(developmentGoogle).toMatch(
+      /client_id = "[0-9]+-[a-z0-9]+\.apps\.googleusercontent\.com"/u,
+    );
+    expect(developmentGoogle).toContain(
+      'redirect_uri = "https://ocbuygudvarsuxijxhau.supabase.co/auth/v1/callback"',
+    );
+    expect(developmentGoogle).toContain('secret = ""');
+    expect(developmentGoogle).not.toContain("GOCSPX-");
+    expect(developmentGoogle).toContain("skip_nonce_check = false");
+  });
+
   test("states and evidences the different schema security obligations", () => {
     expect(data).toContain(
       "Never grant `plugin_data` schema usage to `PUBLIC`, `anon`, or `authenticated`",

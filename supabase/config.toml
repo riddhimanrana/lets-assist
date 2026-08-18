@@ -16,13 +16,15 @@ additional_redirect_urls = [
 	"https://dev.lets-assist.com/auth/callback"
 ]
 
-# Hosted Development must not inherit or reuse Production/local OAuth
-# credentials. Enable this only after dedicated Development credentials exist.
+# Hosted Development owns a dedicated Google OAuth client. Keep the public
+# client ID here so config sync can enable the provider without copying a
+# Production/local credential. The stored client secret remains provider-side:
+# an empty value tells config sync to preserve it instead of committing it.
 [remotes.development.auth.external.google]
-enabled = false
-client_id = ""
+enabled = true
+client_id = "536666869896-en3fattv326s61don8hqgui2jv6qnmq1.apps.googleusercontent.com"
 secret = ""
-redirect_uri = ""
+redirect_uri = "https://ocbuygudvarsuxijxhau.supabase.co/auth/v1/callback"
 skip_nonce_check = false
 
 [api]
