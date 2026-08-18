@@ -497,46 +497,25 @@ export async function discardPaperScanBatch(input: {
 }): Promise<{ success: true } | { error: string }> {
   const access = await requirePaperScanAccess(input.projectId);
   if (!access.ok) return { error: access.error };
-  const { admin } = access;
+  const { admin, userId } = access;
 
-  const { data: batch } = await admin
-    .from("project_paper_scan_batches")
-    .select("id, status")
-    .eq("id", input.batchId)
-    .eq("project_id", input.projectId)
-    .single();
-  if (!batch) return { error: "Batch not found." };
-  if (batch.status === "committed") {
+  // The batch transition, image purge markers, and durable Storage outbox
+  // rows are one database transaction. The RPC locks the same batch row as
+  // commit_paper_signup_batch, so commit and discard cannot both win.
+  const { data: outcome, error } = await admin.rpc("discard_paper_scan_batch", {
+    p_batch_id: input.batchId,
+    p_project_id: input.projectId,
+    p_actor_id: userId,
+  });
+  if (error) {
+    console.error("Paper discard RPC failed:", error.message);
+    return { error: "Could not discard the batch." };
+  }
+  if (outcome === "not_found") return { error: "Batch not found." };
+  if (outcome === "committed") {
     return { error: "A committed batch cannot be discarded." };
   }
-
-  // Photos are never deleted inline: enqueue for the cleanup worker so the
-  // database and Storage can never disagree.
-  const { data: images } = await admin
-    .from("project_paper_scan_images")
-    .select("bucket_id, object_path")
-    .eq("batch_id", input.batchId)
-    .is("purged_at", null);
-  if (images && images.length > 0) {
-    await admin.from("paper_scan_storage_deletion_queue").upsert(
-      images.map((image) => ({
-        bucket_id: image.bucket_id,
-        object_path: image.object_path,
-      })),
-      { onConflict: "bucket_id,object_path", ignoreDuplicates: true },
-    );
-    await admin
-      .from("project_paper_scan_images")
-      .update({ purged_at: new Date().toISOString() })
-      .eq("batch_id", input.batchId)
-      .is("purged_at", null);
-  }
-
-  const { error: updateError } = await admin
-    .from("project_paper_scan_batches")
-    .update({ status: "discarded" })
-    .eq("id", input.batchId);
-  if (updateError) return { error: "Could not discard the batch." };
+  if (outcome !== "discarded") return { error: "Could not discard the batch." };
 
   return { success: true };
 }

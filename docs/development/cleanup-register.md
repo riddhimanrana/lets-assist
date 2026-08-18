@@ -16,6 +16,12 @@ This register separates actionable repository defects from provider/account and 
   is 27/27 Bun assertions, 10/10 pgTAP assertions, clean migration replay,
   formatting, zero-warning lint, and TypeScript. Hosted Development and
   Production acceptance remain separate release gates.
+- The second Production review pass is repository-closed on the follow-up
+  candidate: paper-scan discard now locks against commit and writes its Storage
+  deletion outbox, image purge markers, and terminal batch state in one
+  transaction; email-token feedback edits reset moderation before the AI call.
+  Focused source contracts and 11 rollback-only pgTAP assertions cover these
+  boundaries. Hosted Development and Production acceptance remain separate.
 - Private plugin PRs #65 and #66 are merged. DVHS CSF `1.1.0` is pinned to
   private main commit `4d1001e9d3269b8bd28de93c071c6b4b216824fd` and manifest
   SHA-256 `04aca8efa43e9d287c8d04909b733df97f6804224a4c6960a3609358eb574e79`;
@@ -25,7 +31,7 @@ This register separates actionable repository defects from provider/account and 
   namespaces DVHS CSF objects under `{organizationId}/dvhs-csf/...`, rewrites
   the reviewed SQL producers/validators, advances installed versions with audit
   rows, and publishes the immutable source/manifest release attestation.
-- Local evidence: clean 319-migration replay; 797 focused pgTAP assertions;
+- Local evidence: clean 320-migration replay; 808 focused pgTAP assertions;
   zero-warning lint; typecheck; strict private-gitlink containment; manifest
   digest/source gate; and release/preflight documentation contracts pass.
 - The pasted advisor exports are triaged, not mass-applied. `plugin_data` RLS
