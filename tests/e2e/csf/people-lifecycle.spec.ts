@@ -422,7 +422,7 @@ test.describe("CSF visible people lifecycle", () => {
 
     await page.getByRole("button", { name: "Needs account link" }).click();
     const connections = page.getByRole("region", {
-      name: "Account connections",
+      name: "Needs account link",
     });
     await expect(connections).toBeVisible();
     const fixtureRequestCard = connections
