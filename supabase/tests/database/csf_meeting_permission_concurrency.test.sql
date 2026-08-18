@@ -108,16 +108,26 @@ SELECT extensions.dblink_send_query(
 DO $wait_for_permission_lock$
 DECLARE
   v_waiting boolean := false;
-  v_deadline timestamptz := pg_catalog.clock_timestamp() + interval '2 seconds';
+  v_deadline timestamptz := pg_catalog.clock_timestamp() + interval '15 seconds';
 BEGIN
   LOOP
     SELECT EXISTS (
       SELECT 1
-      FROM pg_catalog.pg_stat_activity AS activity
-      WHERE activity.pid <> pg_catalog.pg_backend_pid()
-        AND activity.query LIKE '%edf00000-0000-4000-8000-000000000001%'
-        AND activity.wait_event_type = 'Lock'
-        AND activity.wait_event = 'advisory'
+      FROM pg_catalog.pg_locks AS waiting_lock
+      WHERE waiting_lock.pid <> pg_catalog.pg_backend_pid()
+        AND waiting_lock.locktype = 'advisory'
+        AND NOT waiting_lock.granted
+        AND waiting_lock.classid::bigint = (
+          (plugin_data.csf_staff_access_lock_key(
+            'ed100000-0000-4000-8000-000000000001'
+          ) >> 32) & 4294967295
+        )
+        AND waiting_lock.objid::bigint = (
+          plugin_data.csf_staff_access_lock_key(
+            'ed100000-0000-4000-8000-000000000001'
+          ) & 4294967295
+        )
+        AND waiting_lock.objsubid = 1
     ) INTO v_waiting;
     EXIT WHEN v_waiting OR pg_catalog.clock_timestamp() >= v_deadline;
     PERFORM pg_catalog.pg_sleep(0.01);
@@ -202,16 +212,26 @@ SELECT extensions.dblink_send_query(
 DO $wait_for_membership_lock$
 DECLARE
   v_waiting boolean := false;
-  v_deadline timestamptz := pg_catalog.clock_timestamp() + interval '2 seconds';
+  v_deadline timestamptz := pg_catalog.clock_timestamp() + interval '15 seconds';
 BEGIN
   LOOP
     SELECT EXISTS (
       SELECT 1
-      FROM pg_catalog.pg_stat_activity AS activity
-      WHERE activity.pid <> pg_catalog.pg_backend_pid()
-        AND activity.query LIKE '%edf00000-0000-4000-8000-000000000002%'
-        AND activity.wait_event_type = 'Lock'
-        AND activity.wait_event = 'advisory'
+      FROM pg_catalog.pg_locks AS waiting_lock
+      WHERE waiting_lock.pid <> pg_catalog.pg_backend_pid()
+        AND waiting_lock.locktype = 'advisory'
+        AND NOT waiting_lock.granted
+        AND waiting_lock.classid::bigint = (
+          (plugin_data.csf_staff_access_lock_key(
+            'ed100000-0000-4000-8000-000000000001'
+          ) >> 32) & 4294967295
+        )
+        AND waiting_lock.objid::bigint = (
+          plugin_data.csf_staff_access_lock_key(
+            'ed100000-0000-4000-8000-000000000001'
+          ) & 4294967295
+        )
+        AND waiting_lock.objsubid = 1
     ) INTO v_waiting;
     EXIT WHEN v_waiting OR pg_catalog.clock_timestamp() >= v_deadline;
     PERFORM pg_catalog.pg_sleep(0.01);
