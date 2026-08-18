@@ -422,9 +422,7 @@ describe("Production cutover preflight source contract", () => {
 
   test("T10 pins the bounded service-only feedback candidate read model", () => {
     expect(preflight).toContain("T10 Feedback candidate rotation boundary");
-    expect(preflight).toContain(
-      "public.project_feedback_candidate_read_model",
-    );
+    expect(preflight).toContain("public.project_feedback_candidate_read_model");
     expect(preflight).toContain(
       "private.project_feedback_candidate_end_date(text,jsonb)",
     );
