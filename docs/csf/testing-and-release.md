@@ -88,7 +88,7 @@ their named runs only.
   assertions passed; three unrelated files hit transient Docker DNS failures,
   so hosted CI is the clean full-replay authority. The new serialization
   migration has focused 8-assertion coverage and remains subject to the clean
-  hosted replay. The candidate has 164 pgTAP files with 5,927 assertions plus
+  hosted replay. The candidate has 164 pgTAP files with 5,933 assertions plus
   focused workflow/browser tests, `typecheck`, `lint`, build, and strict
   submodule reachability. Follow-up hosted parity, final role/browser
   acceptance, and provider acceptance remain release gates until recorded in

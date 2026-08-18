@@ -32,6 +32,7 @@ async function preparePublicationEmailPayload(
   publication: TransactionalPublication,
   delivery: PublicationDelivery,
   siteUrl: string,
+  isAutoPublished: boolean,
 ) {
   let sender: string | null = null;
   let subject: string | null = null;
@@ -51,7 +52,7 @@ async function preparePublicationEmailPayload(
         projectTitle: publication.projectTitle,
         certificateId: delivery.certificateId,
         certificateUrl: `${siteUrl}/certificates/${delivery.certificateId}`,
-        isAutoPublished: false,
+        isAutoPublished,
         eventStart: delivery.eventStart,
         eventEnd: delivery.eventEnd,
         timezone: publication.projectTimezone ?? undefined,
@@ -81,6 +82,7 @@ async function preparePublicationEmailPayload(
 
 export async function drainPublicationEmails(
   publication: TransactionalPublication,
+  options: { isAutoPublished?: boolean } = {},
 ): Promise<HoursPublicationDeliverySummary> {
   const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000";
   let emailsSent = publication.deliveries.filter(
@@ -144,6 +146,7 @@ export async function drainPublicationEmails(
         publication,
         delivery,
         siteUrl,
+        options.isAutoPublished === true,
       );
     } catch (error) {
       partial = true;

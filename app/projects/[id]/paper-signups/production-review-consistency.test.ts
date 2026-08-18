@@ -44,12 +44,18 @@ describe("production review consistency boundaries", () => {
   test("supplemental certificate failures remain visible and retryable", async () => {
     const actions = await read("./actions.ts");
     const client = await read("./PaperSignupsClient.tsx");
+    const migration = await read(
+      "../../../../supabase/migrations/20260818170000_serialize_paper_attendance_publication.sql",
+    );
 
-    expect(actions).toContain("certificateErrors = issuance.errors");
-    expect(actions).toContain("publicationStateError");
-    expect(actions).toContain('.select("published")');
-    expect(actions.indexOf('.select("published")')).toBeGreaterThan(
-      actions.indexOf('"commit_paper_signup_batch"'),
+    expect(actions).toContain("certificateStatusError");
+    expect(actions).toContain('.from("certificates")');
+    expect(actions).not.toContain("certificateErrors = issuance.errors");
+    expect(migration).toContain(
+      "issue_verified_certificate_for_late_attendance",
+    );
+    expect(migration).toContain(
+      "public.issue_supplemental_verified_certificates",
     );
     expect(actions).toContain(
       "export async function retryPaperScanCertificates",

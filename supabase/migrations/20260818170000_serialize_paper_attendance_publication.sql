@@ -97,3 +97,78 @@ COMMENT ON FUNCTION app_private.lock_paper_scan_project_for_commit() IS
   'Locks the parent project before a paper batch creates attendance so hours publication cannot overlap it.';
 COMMENT ON FUNCTION app_private.guard_hours_publication_completeness() IS
   'Rejects a newly published session when eligible attended signups still lack verified certificates.';
+
+CREATE OR REPLACE FUNCTION app_private.issue_verified_certificate_for_late_attendance()
+RETURNS trigger
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = ''
+AS $$
+DECLARE
+  v_project public.projects%ROWTYPE;
+  v_publish_key text;
+BEGIN
+  IF session_user <> 'postgres'
+    AND COALESCE(auth.role()::text, '') <> 'service_role'
+  THEN
+    RETURN NEW;
+  END IF;
+
+  IF NEW.status <> 'attended'
+    OR NEW.check_in_time IS NULL
+    OR NEW.check_out_time IS NULL
+    OR NEW.check_out_time <= NEW.check_in_time
+    OR NEW.check_out_time > NEW.check_in_time + interval '24 hours'
+  THEN
+    RETURN NEW;
+  END IF;
+
+  SELECT projects.*
+  INTO v_project
+  FROM public.projects AS projects
+  WHERE projects.id = NEW.project_id;
+
+  IF NOT FOUND THEN
+    RETURN NEW;
+  END IF;
+
+  v_publish_key := private.project_hours_publish_key(
+    v_project.event_type,
+    v_project.schedule,
+    NEW.schedule_id
+  );
+
+  IF v_publish_key IS NOT NULL
+    AND COALESCE((v_project.published ->> v_publish_key)::boolean, false)
+  THEN
+    -- This executes inside the attendance write transaction. A paper batch
+    -- cannot commit a late attendee to an already-published session without
+    -- also committing that attendee's verified certificate.
+    PERFORM issued.id
+    FROM public.issue_supplemental_verified_certificates(
+      NEW.project_id,
+      NEW.schedule_id,
+      ARRAY[NEW.id],
+      v_project.creator_id
+    ) AS issued;
+  END IF;
+
+  RETURN NEW;
+END;
+$$;
+
+REVOKE ALL ON FUNCTION app_private.issue_verified_certificate_for_late_attendance()
+  FROM PUBLIC, anon, authenticated, service_role;
+GRANT EXECUTE ON FUNCTION app_private.issue_verified_certificate_for_late_attendance()
+  TO postgres;
+
+DROP TRIGGER IF EXISTS issue_verified_certificate_for_late_attendance
+  ON public.project_signups;
+CREATE TRIGGER issue_verified_certificate_for_late_attendance
+  AFTER INSERT OR UPDATE OF status, check_in_time, check_out_time
+  ON public.project_signups
+  FOR EACH ROW
+  EXECUTE FUNCTION app_private.issue_verified_certificate_for_late_attendance();
+
+COMMENT ON FUNCTION app_private.issue_verified_certificate_for_late_attendance() IS
+  'Atomically issues a verified certificate when attendance lands after its project session was published.';

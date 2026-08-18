@@ -128,6 +128,7 @@ test("the auto-publisher uses the atomic publication and durable email protocols
   assert.ok(transactionIndex >= 0 && transactionIndex < emailDrainIndex);
   assert.match(processSource, /actorId: project\.creator_id/u);
   assert.match(processSource, /autoPublicationRequestKey/u);
+  assert.match(processSource, /isAutoPublished: true/u);
   assert.doesNotMatch(processSource, /\.from\("certificates"\)\.insert/u);
   assert.doesNotMatch(processSource, /\.from\("projects"\)\.update/u);
   assert.doesNotMatch(processSource, /sendCertificatePublishedEmails/u);

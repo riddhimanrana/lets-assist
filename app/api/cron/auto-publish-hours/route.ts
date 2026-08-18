@@ -234,7 +234,9 @@ async function processSessionSignups(
     }
 
     const publication = transaction.publication;
-    const emailResult = await drainPublicationEmails(publication);
+    const emailResult = await drainPublicationEmails(publication, {
+      isAutoPublished: true,
+    });
 
     console.log(
       `Email sending completed: ${emailResult.emailsSent} sent, ${emailResult.errors.length} errors`,

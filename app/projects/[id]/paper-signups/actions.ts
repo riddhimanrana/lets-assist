@@ -407,7 +407,7 @@ export async function commitPaperScanBatch(input: {
 
   const access = await requirePaperScanAccess(projectId);
   if (!access.ok) return { error: access.error };
-  const { admin, project, userId } = access;
+  const { admin, userId } = access;
 
   const { data: batch } = await admin
     .from("project_paper_scan_batches")
@@ -450,40 +450,26 @@ export async function commitPaperScanBatch(input: {
         .filter((id): id is string => Boolean(id)),
     ),
   ];
-  // A session that already published its hours will never re-run
-  // certificate issuance for these signups; do it here.
+  // The database attendance trigger atomically creates certificates for an
+  // already-published session. This read reports that committed result; it
+  // never performs a second, crash-prone issuance transaction.
   let certificatesIssued = 0;
   let certificateErrors: string[] = [];
-  const publishKey = getPublishStateKey(project, batch.schedule_id);
   const committedSignupIds = [...created, ...updated]
     .map((row) => row.signup_id)
     .filter((id): id is string => Boolean(id));
   if (committedSignupIds.length > 0) {
-    // Publication can race the commit. Re-read after the transaction so a
-    // session published between authorization and commit still receives its
-    // supplemental certificates.
-    const { data: publicationState, error: publicationStateError } = await admin
-      .from("projects")
-      .select("published")
-      .eq("id", projectId)
-      .single();
-    if (publicationStateError) {
+    const { count, error: certificateStatusError } = await admin
+      .from("certificates")
+      .select("id", { count: "exact", head: true })
+      .in("signup_id", committedSignupIds)
+      .eq("type", "verified");
+    if (certificateStatusError) {
       certificateErrors = [
         "Attendance was saved, but certificate status could not be confirmed. Retry certificate issuance.",
       ];
-    } else if (
-      (publicationState.published as Record<string, boolean> | null)?.[
-        publishKey
-      ] === true
-    ) {
-      const issuance = await issueCertificatesForSignups({
-        projectId,
-        scheduleId: batch.schedule_id,
-        signupIds: committedSignupIds,
-        actorId: userId,
-      });
-      certificatesIssued = issuance.issued;
-      certificateErrors = issuance.errors;
+    } else {
+      certificatesIssued = count ?? 0;
     }
   }
 
