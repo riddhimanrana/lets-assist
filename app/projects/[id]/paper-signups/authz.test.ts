@@ -125,4 +125,16 @@ describe("paper signup management access", () => {
       '.eq("extraction_claim_id", claimedBatch.claimId)',
     );
   });
+
+  test("registered scan photos survive an ambiguous extraction response", async () => {
+    const captureSource = await Bun.file(
+      new URL("./CaptureStep.tsx", import.meta.url),
+    ).text();
+
+    expect(captureSource).toContain("registeredBatchId = batchResult.batchId");
+    expect(captureSource).toContain(
+      "registeredBatchId === null && uploadedPaths.length > 0",
+    );
+    expect(captureSource).toContain("window.location.reload()");
+  });
 });

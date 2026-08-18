@@ -122,6 +122,7 @@ export function CaptureStep({
     const supabase = createBrowserSupabaseClient();
     const batchDir = crypto.randomUUID();
     const uploadedPaths: string[] = [];
+    let registeredBatchId: string | null = null;
 
     try {
       setPhase({ kind: "compressing", index: 0, total: photos.length });
@@ -175,6 +176,7 @@ export function CaptureStep({
       if ("error" in batchResult) {
         throw new Error(batchResult.error);
       }
+      registeredBatchId = batchResult.batchId;
 
       setPhase({ kind: "scanning" });
       const response = await fetch("/api/ai/scan-signup-sheet", {
@@ -197,8 +199,11 @@ export function CaptureStep({
         imageCount: images.length,
       });
     } catch (error) {
-      // Roll back stray uploads so abandoned objects never linger.
-      if (uploadedPaths.length > 0) {
+      // Only uploads that never became part of a batch are orphans. Once the
+      // batch exists, an extraction response can be lost after the server has
+      // already advanced it to review, so deleting those photos would destroy
+      // evidence that the recovered review still needs.
+      if (registeredBatchId === null && uploadedPaths.length > 0) {
         await queueOrphanedPaperScanUploads({
           projectId,
           objectPaths: uploadedPaths,
@@ -211,6 +216,12 @@ export function CaptureStep({
       toast.error(
         error instanceof Error ? error.message : "Something went wrong.",
       );
+      if (registeredBatchId !== null) {
+        // Reload from the server so an ambiguously completed extraction opens
+        // its recovered review batch instead of presenting a fresh uploader.
+        window.location.reload();
+        return;
+      }
       setPhase({ kind: "collecting" });
     }
   };
