@@ -2,7 +2,7 @@ BEGIN;
 
 CREATE EXTENSION IF NOT EXISTS pgtap WITH SCHEMA extensions;
 
-SELECT plan(4);
+SELECT plan(5);
 
 CREATE TEMP TABLE expected_partner_function_acl (
   function_oid regprocedure PRIMARY KEY,
@@ -32,6 +32,23 @@ SELECT is(
   ),
   true,
   'all replaced partner simplification functions are owned by postgres'
+);
+
+SELECT is(
+  (
+    SELECT bool_and(
+      EXISTS (
+        SELECT 1
+        FROM aclexplode(proc.proacl) AS acl
+        WHERE acl.grantee = (SELECT oid FROM pg_roles WHERE rolname = 'postgres')
+          AND acl.privilege_type = 'EXECUTE'
+      )
+    )
+    FROM expected_partner_function_acl AS expected
+    JOIN pg_proc AS proc ON proc.oid = expected.function_oid::oid
+  ),
+  true,
+  'every replaced partner function has an explicit postgres execute grant'
 );
 
 SELECT is(
