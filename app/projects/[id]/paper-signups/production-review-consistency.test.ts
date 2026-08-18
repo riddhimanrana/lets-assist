@@ -95,6 +95,9 @@ describe("production review consistency boundaries", () => {
     const workflow = await read(
       "../../../../.github/workflows/paper-signup-notifications.yml",
     );
+    const feedbackWorkflow = await read(
+      "../../../../.github/workflows/project-feedback-followups.yml",
+    );
 
     expect(workflow).toContain('cron: "3,13,23,33,43,53 * * * *"');
     expect(workflow).toContain(
@@ -105,5 +108,13 @@ describe("production review consistency boundaries", () => {
       "CRON_TOKEN: ${{ secrets.PAPER_SIGNUP_NOTIFICATION_WORKER_SECRET_TOKEN || secrets.CRON_SECRET }}",
     );
     expect(workflow).toContain("cancel-in-progress: false");
+    expect(workflow).toContain("jq -r '.enabled // false'");
+    expect(workflow).toContain(
+      "Paper signup notification worker is not enabled",
+    );
+    expect(feedbackWorkflow).toContain("jq -r '.enabled // false'");
+    expect(feedbackWorkflow).toContain(
+      "Project feedback worker is not enabled",
+    );
   });
 });

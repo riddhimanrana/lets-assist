@@ -74,6 +74,13 @@ This register separates actionable repository defects from provider/account and 
   remaining unavailable to `anon`, `authenticated`, and `service_role`; server
   callers must continue through request-aware entrypoints. The repository
   candidate is 328 migrations with 166 pgTAP files and 5,954 assertions.
+- The final import/profile owner-internal ACL review is closed by
+  `20260818232541_complete_final_owner_internal_function_acls`. Its seven
+  helpers now record explicit `postgres` execution while remaining unavailable
+  to browser and service roles. Paper-signup and project-feedback schedulers
+  also fail closed when their authenticated endpoint reports `enabled:false`,
+  preventing false-success heartbeats. The repository candidate is 329
+  migrations with 167 pgTAP files and 5,959 assertions.
 - PITR is intentionally not part of this release. The cutover runbook requires
   a verified logical backup/restore path instead. Production remains unchanged
   until the root Development and Production promotion gates complete.

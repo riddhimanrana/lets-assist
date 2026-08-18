@@ -83,6 +83,13 @@ jobs:
             fi
 
             if [[ "$status_code" =~ ^2[0-9][0-9]$ ]]; then
+              enabled="$(jq -r '.enabled // false' "$body_file" 2>/dev/null || echo false)"
+              if [[ "$enabled" != "true" ]]; then
+                echo "Paper signup notification worker is not enabled in the target environment."
+                rm -f "$headers_file" "$body_file"
+                exit 1
+              fi
+
               rm -f "$headers_file" "$body_file"
               echo "Cron endpoint succeeded."
               exit 0
