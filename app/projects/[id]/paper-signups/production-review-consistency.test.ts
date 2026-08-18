@@ -73,6 +73,10 @@ describe("production review consistency boundaries", () => {
     expect(migration).toContain("NEW.status = 'committing'");
     expect(migration).toContain("publication snapshot is stale");
     expect(migration).toContain("certificates.id IS NULL");
+    expect(migration).toContain("v_entry_count > 1000");
+    expect(migration).toContain("hours-publication:certificate:");
+    expect(migration).toContain("app.paper_commit_actor_id");
+    expect(migration).toContain("COALESCE(v_commit_actor_id, v_project.creator_id)");
   });
 
   test("candidate read failures abort extraction instead of matching an empty roster", async () => {

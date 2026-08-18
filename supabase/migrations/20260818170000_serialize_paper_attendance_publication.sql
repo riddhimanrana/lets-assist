@@ -1,6 +1,84 @@
 -- Serialize paper-attendance commits with hours publication and reject a
 -- publication snapshot that omitted newly committed attendance.
 
+-- The product permits event capacities up to 1,000. Raise the existing atomic
+-- publication transaction's bounded input limit without editing its historical
+-- migration; fail closed if the expected reviewed body ever drifts.
+DO $raise_hours_publication_limit$
+DECLARE
+  v_definition text;
+  v_updated_definition text;
+BEGIN
+  SELECT pg_catalog.pg_get_functiondef(
+    'private.publish_volunteer_hours_transactional_legacy_status_fallback(uuid,uuid,text,jsonb,text)'::regprocedure
+  )
+  INTO v_definition;
+
+  v_updated_definition := pg_catalog.regexp_replace(
+    v_definition,
+    'v_entry_count[[:space:]]*>[[:space:]]*500',
+    'v_entry_count > 1000',
+    'g'
+  );
+  v_updated_definition := pg_catalog.replace(
+    v_updated_definition,
+    'publication entries must contain between 1 and 500 signups',
+    'publication entries must contain between 1 and 1000 signups'
+  );
+
+  IF v_updated_definition = v_definition
+    OR v_updated_definition ~ 'v_entry_count[[:space:]]*>[[:space:]]*500'
+    OR v_updated_definition LIKE '%between 1 and 500 signups%'
+  THEN
+    RAISE EXCEPTION 'reviewed hours publication limit source drifted';
+  END IF;
+
+  EXECUTE v_updated_definition;
+END;
+$raise_hours_publication_limit$;
+
+-- The paper commit RPC receives and revalidates the authenticated staff actor,
+-- while its row triggers run under the service role. Carry that reviewed actor
+-- through the same transaction so late certificate issuance keeps the correct
+-- audit identity without trusting a browser-writable column.
+DO $carry_paper_commit_actor$
+DECLARE
+  v_definition text;
+  v_updated_definition text;
+  v_authorization_block text := $block$
+  IF NOT app_private.can_manage_project(v_batch.project_id, p_actor_id) THEN
+    RAISE EXCEPTION 'commit_paper_signup_batch: actor is not a project organizer';
+  END IF;
+$block$;
+BEGIN
+  SELECT pg_catalog.pg_get_functiondef(
+    'public.commit_paper_signup_batch(uuid,uuid,uuid[],boolean,uuid)'::regprocedure
+  )
+  INTO v_definition;
+
+  v_updated_definition := pg_catalog.replace(
+    v_definition,
+    v_authorization_block,
+    v_authorization_block || $block$
+
+  PERFORM pg_catalog.set_config(
+    'app.paper_commit_actor_id',
+    p_actor_id::text,
+    true
+  );
+$block$
+  );
+
+  IF v_updated_definition = v_definition
+    OR v_updated_definition NOT LIKE '%app.paper_commit_actor_id%'
+  THEN
+    RAISE EXCEPTION 'reviewed paper commit actor source drifted';
+  END IF;
+
+  EXECUTE v_updated_definition;
+END;
+$carry_paper_commit_actor$;
+
 CREATE OR REPLACE FUNCTION app_private.lock_paper_scan_project_for_commit()
 RETURNS trigger
 LANGUAGE plpgsql
@@ -107,6 +185,11 @@ AS $$
 DECLARE
   v_project public.projects%ROWTYPE;
   v_publish_key text;
+  v_certificate_id uuid;
+  v_commit_actor_id uuid := NULLIF(
+    pg_catalog.current_setting('app.paper_commit_actor_id', true),
+    ''
+  )::uuid;
 BEGIN
   IF session_user <> 'postgres'
     AND COALESCE(auth.role()::text, '') <> 'service_role'
@@ -144,13 +227,44 @@ BEGIN
     -- This executes inside the attendance write transaction. A paper batch
     -- cannot commit a late attendee to an already-published session without
     -- also committing that attendee's verified certificate.
-    PERFORM issued.id
+    SELECT issued.id
+    INTO v_certificate_id
     FROM public.issue_supplemental_verified_certificates(
       NEW.project_id,
       NEW.schedule_id,
       ARRAY[NEW.id],
-      v_project.creator_id
+      COALESCE(v_commit_actor_id, v_project.creator_id)
     ) AS issued;
+
+    IF v_certificate_id IS NOT NULL AND NEW.user_id IS NOT NULL THEN
+      INSERT INTO public.notifications (
+        user_id,
+        title,
+        body,
+        type,
+        severity,
+        action_url,
+        displayed,
+        read,
+        dedupe_key
+      ) VALUES (
+        NEW.user_id,
+        'Your Volunteer Hours Have Been Published! 🎉',
+        pg_catalog.format(
+          'Your volunteer certificate for "%s" is now available.',
+          v_project.title
+        ),
+        'project_updates',
+        'success',
+        '/certificates/' || v_certificate_id,
+        false,
+        false,
+        'hours-publication:certificate:' || v_certificate_id
+      )
+      ON CONFLICT (user_id, dedupe_key)
+        WHERE dedupe_key IS NOT NULL
+        DO NOTHING;
+    END IF;
   END IF;
 
   RETURN NEW;

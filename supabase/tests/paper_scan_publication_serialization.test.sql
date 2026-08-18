@@ -1,6 +1,6 @@
 BEGIN;
 
-SELECT plan(17);
+SELECT plan(20);
 
 SELECT has_function(
   'app_private',
@@ -224,6 +224,24 @@ SELECT results_eq(
   'an inserted late attendance row commits its verified certificate atomically'
 );
 
+SELECT results_eq(
+  $$SELECT count(*)
+    FROM public.notifications
+    WHERE user_id = 'ac000000-0000-4000-8000-000000000001'
+      AND dedupe_key LIKE 'hours-publication:certificate:%'$$,
+  $$VALUES (1::bigint)$$,
+  'registered late attendance atomically queues its certificate notification'
+);
+
+SELECT results_eq(
+  $$SELECT creator_id
+    FROM public.certificates
+    WHERE signup_id = 'ac200000-0000-4000-8000-000000000002'
+      AND type = 'verified'$$,
+  $$VALUES ('ac000000-0000-4000-8000-000000000001'::uuid)$$,
+  'late attendance outside a paper commit retains the project creator identity'
+);
+
 INSERT INTO public.project_signups (
   id, project_id, user_id, schedule_id, status
 )
@@ -233,6 +251,12 @@ VALUES (
   'ac000000-0000-4000-8000-000000000002',
   'oneTime',
   'approved'
+);
+
+SELECT pg_catalog.set_config(
+  'app.paper_commit_actor_id',
+  'ac000000-0000-4000-8000-000000000002',
+  true
 );
 
 UPDATE public.project_signups
@@ -249,6 +273,15 @@ SELECT results_eq(
       AND type = 'verified'$$,
   $$VALUES (1::bigint)$$,
   'an updated late attendance row commits its verified certificate atomically'
+);
+
+SELECT results_eq(
+  $$SELECT creator_id
+    FROM public.certificates
+    WHERE signup_id = 'ac200000-0000-4000-8000-000000000003'
+      AND type = 'verified'$$,
+  $$VALUES ('ac000000-0000-4000-8000-000000000002'::uuid)$$,
+  'late paper attendance preserves the reviewed committing actor identity'
 );
 
 SELECT * FROM finish();

@@ -416,10 +416,29 @@ async function processExpiredSessions(): Promise<{
       );
 
       try {
+        // The time-window query identifies sessions that are due. Publication
+        // itself must use the complete session snapshot, including attendees
+        // whose checkout timestamps fall outside this particular cron window.
+        const { data: completeSessionSignups, error: completeSessionError } =
+          await supabase
+            .from("project_signups")
+            .select(
+              "id, project_id, schedule_id, status, check_in_time, check_out_time",
+            )
+            .eq("project_id", sessionGroup.projectId)
+            .eq("schedule_id", sessionGroup.sessionId)
+            .in("status", ["attended", "approved"])
+            .not("check_in_time", "is", null)
+            .not("check_out_time", "is", null);
+
+        if (completeSessionError || !completeSessionSignups) {
+          throw new Error("complete_session_snapshot_unavailable");
+        }
+
         const result = await processSessionSignups(
           sessionGroup.project,
           sessionGroup.sessionId,
-          sessionGroup.signups,
+          completeSessionSignups as SignupRow[],
           sessionName,
         );
         results.push(result);

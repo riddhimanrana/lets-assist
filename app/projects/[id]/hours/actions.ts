@@ -179,11 +179,11 @@ export async function publishVolunteerHours(
       };
     }
 
-    if (!Array.isArray(sessionData) || sessionData.length > 500) {
+    if (!Array.isArray(sessionData) || sessionData.length > 1000) {
       return {
         outcome: "rejected",
         success: false,
-        error: "A publication can contain at most 500 volunteers.",
+        error: "A publication can contain at most 1,000 volunteers.",
       };
     }
 
