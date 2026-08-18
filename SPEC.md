@@ -73,3 +73,4 @@ B5|2026-08-17|private source contract coupled a JSX assertion to one-line format
 B6|2026-08-17|db:validate reached its shared-instance stage with no local Supabase running|use the isolated replay gate for schema proof; report filename checks separately
 B7|2026-08-17|private account-link label changed without the root operator documentation contract|update cross-repository operator labels in the same root integration and run the contract test
 B8|2026-08-17|a static import of the newer Next cache refresh export broke Bun tests whose next/cache mock exposed only revalidatePath|load refresh at the successful Server Action boundary and keep legacy mocks isolated
+B9|2026-08-17|two integrated commits inserted the same F26 term fixture into the recovery-seat pgTAP test|retain one lifecycle-aware term fixture and rerun the exact database test before the full replay
