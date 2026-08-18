@@ -31,7 +31,11 @@ This register separates actionable repository defects from provider/account and 
   namespaces DVHS CSF objects under `{organizationId}/dvhs-csf/...`, rewrites
   the reviewed SQL producers/validators, advances installed versions with audit
   rows, and publishes the immutable source/manifest release attestation.
-- Local evidence: clean 324-migration replay; 840 focused pgTAP assertions;
+- Local evidence: clean 324-migration replay for the prior candidate; the new
+  325th forward ACL migration replayed successfully and its 5/5 pgTAP
+  assertions passed, while three unrelated tests hit transient Docker DNS
+  resolution failures. The hosted CI replay remains the final clean-tree gate;
+  840 focused pgTAP assertions;
   zero-warning lint; typecheck; strict private-gitlink containment; manifest
   digest/source gate; and release/preflight documentation contracts pass.
 - The pasted advisor exports are triaged, not mass-applied. `plugin_data` RLS
@@ -41,6 +45,12 @@ This register separates actionable repository defects from provider/account and 
   The pending `20260811132454_disable_unused_pg_graphql` migration is expected
   to remove the Production GraphQL exposure warnings. Hosted Development and
   Production advisor scans after exact migration parity remain required proof.
+- The final Production review found two additional P1s. Registered paper-scan
+  photos are now deleted only when batch creation never succeeded; an ambiguous
+  extraction response reloads the durable batch instead of deleting review
+  evidence. `20260818160000_review_project_feedback_trigger_acl` explicitly
+  grants the feedback trigger function only to `postgres` and revokes direct
+  client/service invocation. Focused evidence is 9/9 Bun and 5/5 pgTAP.
 - PITR is intentionally not part of this release. The cutover runbook requires
   a verified logical backup/restore path instead. Production remains unchanged
   until the root Development and Production promotion gates complete.

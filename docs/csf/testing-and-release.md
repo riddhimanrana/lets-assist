@@ -36,8 +36,8 @@ their named runs only.
 - The sole current CSF implementation/status register is
   `docs/development/cleanup-register.md`; this document is a testing runbook and
   retains older evidence below without promoting it to current status.
-- The repository candidate has 324 ordered migrations through
-  `20260818150000_bound_feedback_candidate_rotation`. The twenty-eight migrations
+- The repository candidate has 325 ordered migrations through
+  `20260818160000_review_project_feedback_trigger_acl`. The twenty-nine migrations
   added after the audited `development` baseline merge two prior lines: the
   Development-hardening pair
   (`20260816185321_enforce_authoritative_plugin_releases`,
@@ -68,21 +68,25 @@ their named runs only.
   `20260818092855_atomic_paper_scan_review_row_update`,
   `20260818115000_align_super_admin_metadata_shapes`, and
   `20260818134000_restate_partner_function_acls`, and
-  `20260818150000_bound_feedback_candidate_rotation`).
+  `20260818150000_bound_feedback_candidate_rotation`, and
+  `20260818160000_review_project_feedback_trigger_acl`).
 - Hosted Development serves exact root merge SHA
-  `1b88d77ed3ea2cf6cc2975e744869281f4bd9b4e` and is healthy and
-  migration-current at 323 rows through
-  `20260818134000_restate_partner_function_acls`. Google OAuth is
-  enabled and the hosted authorize endpoint redirects to Google. The new 324th
-  bounded feedback candidate rotation remains repository-only until this change
+  `9b0262ea56e03bd845e796d544917b5191035c6c` and is healthy and
+  migration-current at 324 rows through
+  `20260818150000_bound_feedback_candidate_rotation`. Google OAuth is
+  enabled and the hosted authorize endpoint redirects to Google. The new 325th
+  trigger ACL restatement remains repository-only until this change
   passes CI and is promoted through Development.
 - Production remains untouched at the audited 236-row baseline through
-  `20260811001500`; the exact read-only preflight now expects an 88-migration
-  cutover to this 324-row candidate. Running that cutover requires
+  `20260811001500`; the exact read-only preflight now expects an 89-migration
+  cutover to this 325-row candidate. Running that cutover requires
   explicit action-time approval.
-- Local evidence on this candidate includes a fresh exact 324-migration replay
+- Local evidence on the prior candidate includes a fresh exact 324-migration replay
   and the focused storage/release, import, proof, and release-authority pgTAP
-  suites. The candidate passes 162 pgTAP files with 5,911 assertions plus
+  suites. The 325th migration replayed locally and its focused 5/5 pgTAP
+  assertions passed; three unrelated files hit transient Docker DNS failures,
+  so hosted CI is the clean full-replay authority. The candidate has 163 pgTAP
+  files with 5,916 assertions plus
   focused workflow/browser tests, `typecheck`, `lint`, build, and strict
   submodule reachability. Follow-up hosted parity, final role/browser
   acceptance, and provider acceptance remain release gates until recorded in

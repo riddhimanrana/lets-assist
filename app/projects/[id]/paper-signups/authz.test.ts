@@ -125,4 +125,22 @@ describe("paper signup management access", () => {
       '.eq("extraction_claim_id", claimedBatch.claimId)',
     );
   });
+
+  test("registered scan photos survive an ambiguous extraction response", async () => {
+    const captureSource = await Bun.file(
+      new URL("./CaptureStep.tsx", import.meta.url),
+    ).text();
+
+    expect(captureSource).toContain("registeredBatchId = batchResult.batchId");
+    expect(captureSource).toContain(
+      "registeredBatchId === null && uploadedPaths.length > 0",
+    );
+    expect(captureSource).toContain('.from("project_paper_scan_batches")');
+    expect(captureSource).toContain('recoveredBatch.status === "draft"');
+    expect(captureSource).toContain('recoveredBatch.status === "review"');
+    expect(captureSource).toContain('recoveredBatch.status === "failed"');
+    expect(captureSource.indexOf("window.location.reload()")).toBeGreaterThan(
+      captureSource.indexOf('recoveredBatch.status === "review"'),
+    );
+  });
 });

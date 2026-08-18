@@ -122,6 +122,7 @@ export function CaptureStep({
     const supabase = createBrowserSupabaseClient();
     const batchDir = crypto.randomUUID();
     const uploadedPaths: string[] = [];
+    let registeredBatchId: string | null = null;
 
     try {
       setPhase({ kind: "compressing", index: 0, total: photos.length });
@@ -175,6 +176,7 @@ export function CaptureStep({
       if ("error" in batchResult) {
         throw new Error(batchResult.error);
       }
+      registeredBatchId = batchResult.batchId;
 
       setPhase({ kind: "scanning" });
       const response = await fetch("/api/ai/scan-signup-sheet", {
@@ -197,8 +199,11 @@ export function CaptureStep({
         imageCount: images.length,
       });
     } catch (error) {
-      // Roll back stray uploads so abandoned objects never linger.
-      if (uploadedPaths.length > 0) {
+      // Only uploads that never became part of a batch are orphans. Once the
+      // batch exists, an extraction response can be lost after the server has
+      // already advanced it to review, so deleting those photos would destroy
+      // evidence that the recovered review still needs.
+      if (registeredBatchId === null && uploadedPaths.length > 0) {
         await queueOrphanedPaperScanUploads({
           projectId,
           objectPaths: uploadedPaths,
@@ -211,6 +216,33 @@ export function CaptureStep({
       toast.error(
         error instanceof Error ? error.message : "Something went wrong.",
       );
+      if (registeredBatchId !== null) {
+        // The extraction request may have completed even when its response was
+        // lost. Wait until the durable batch leaves its in-progress states so
+        // a reload cannot race the worker and present a second uploader while
+        // the first scan is still being processed.
+        const batchId = registeredBatchId;
+        for (;;) {
+          await new Promise((resolve) => window.setTimeout(resolve, 1_000));
+          const { data: recoveredBatch, error: recoveryError } = await supabase
+            .from("project_paper_scan_batches")
+            .select("status")
+            .eq("id", batchId)
+            .eq("project_id", projectId)
+            .maybeSingle();
+
+          if (recoveryError) continue;
+          if (
+            recoveredBatch === null ||
+            recoveredBatch.status === "draft" ||
+            recoveredBatch.status === "review" ||
+            recoveredBatch.status === "failed"
+          ) {
+            window.location.reload();
+            return;
+          }
+        }
+      }
       setPhase({ kind: "collecting" });
     }
   };
