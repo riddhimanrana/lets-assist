@@ -8,6 +8,7 @@ import { sendEmail } from "@/services/email";
 import { settlementForSendResult } from "@/services/project-feedback-dispatch";
 import { createProjectFeedbackToken } from "@/services/project-feedback-token";
 import {
+  FEEDBACK_BACKFILL_GUARD_MS,
   getFeedbackEligibleAt,
   type FeedbackEligibilityProject,
 } from "@/lib/projects/feedback-eligibility";
@@ -31,6 +32,32 @@ import type { Project } from "@/types";
 export const FEEDBACK_WORKER_MAX_PROJECTS_PER_RUN = 25;
 export const FEEDBACK_WORKER_MAX_BATCH_SIZE = 50;
 export const FEEDBACK_WORKER_LEASE_SECONDS = 120;
+const FEEDBACK_CANDIDATE_WINDOW_PADDING_MS = 24 * 60 * 60 * 1000;
+
+/**
+ * A conservative UTC calendar-date window for the indexed candidate read
+ * model. The one-day padding covers timezone extremes and overnight schedules;
+ * getFeedbackEligibleAt remains the exact authority for instants.
+ */
+export function feedbackCandidateDateWindow(now: number): {
+  startDate: string;
+  endDate: string;
+} {
+  if (!Number.isFinite(now)) {
+    throw new TypeError("Feedback candidate time must be finite");
+  }
+
+  return {
+    startDate: new Date(
+      now - FEEDBACK_BACKFILL_GUARD_MS - FEEDBACK_CANDIDATE_WINDOW_PADDING_MS,
+    )
+      .toISOString()
+      .slice(0, 10),
+    endDate: new Date(now + FEEDBACK_CANDIDATE_WINDOW_PADDING_MS)
+      .toISOString()
+      .slice(0, 10),
+  };
+}
 
 /**
  * Rotate through stable, bounded pages so permanently ineligible projects do
@@ -109,15 +136,16 @@ async function enqueueEligibleProjects(
 ): Promise<{ projectsScanned: number; enqueued: number }> {
   const admin = getAdminClient();
 
-  // Coarse candidate filter only: status flips via the timezone-broken
-  // process_projects(), so the real decision is getFeedbackEligibleAt's.
-  // Count first, then rotate through stable pages. A fixed newest-25 query
-  // permanently starved older completed projects whenever those 25 remained
-  // ineligible or had already been enqueued.
+  // The service-only read model excludes fully enqueued projects, while this
+  // date window keeps rotation bounded as historical completed-project volume
+  // grows. It is only a coarse prefilter: status flips via the timezone-broken
+  // process_projects(), so getFeedbackEligibleAt remains the real decision.
+  const candidateWindow = feedbackCandidateDateWindow(now);
   const { count: completedProjectCount, error: countError } = await admin
-    .from("projects")
+    .from("project_feedback_candidate_read_model")
     .select("id", { count: "exact", head: true })
-    .eq("status", "completed");
+    .gte("candidate_end_date", candidateWindow.startDate)
+    .lte("candidate_end_date", candidateWindow.endDate);
   if (countError) {
     throwDatabaseError(
       "Failed counting feedback-eligible projects",
@@ -129,12 +157,13 @@ async function enqueueEligibleProjects(
 
   const offset = feedbackProjectPageOffset(now, totalProjects);
   const { data: projects, error: projectsError } = await admin
-    .from("projects")
+    .from("project_feedback_candidate_read_model")
     .select(
       "id, title, status, event_type, schedule, project_timezone, published, cancelled_at, organization_id, created_at",
     )
-    .eq("status", "completed")
-    .order("created_at", { ascending: true })
+    .gte("candidate_end_date", candidateWindow.startDate)
+    .lte("candidate_end_date", candidateWindow.endDate)
+    .order("candidate_end_date", { ascending: true })
     .order("id", { ascending: true })
     .range(
       offset,
