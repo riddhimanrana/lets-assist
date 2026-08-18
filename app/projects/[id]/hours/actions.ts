@@ -16,6 +16,7 @@ import {
   sendCertificatePublishedEmails,
 } from "./certificate-issuance";
 import { normalizeHoursTimestamp } from "./hours-duration";
+import type { ProjectSchedule } from "@/types";
 
 // Define the structure for session data passed from the client
 type SessionVolunteerData = {
@@ -35,6 +36,7 @@ type ResendProject = ManageableProject & {
   event_type: "oneTime" | "multiDay" | "sameDayMultiArea";
   title: string;
   project_timezone: string | null;
+  schedule: ProjectSchedule;
 };
 
 export type HoursPublicationOutcome =
@@ -253,7 +255,7 @@ export async function resendCertificateEmails(
     const { data: project, error: projectError } = await supabase
       .from("projects")
       .select(
-        "id, creator_id, organization_id, can_be_managed_by_staff, event_type, title, project_timezone",
+        "id, creator_id, organization_id, can_be_managed_by_staff, event_type, title, project_timezone, schedule",
       )
       .eq("id", projectId)
       .single();

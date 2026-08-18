@@ -34,7 +34,7 @@ export async function loadDurablePublicationForRetry(
 ): Promise<TransactionalPublication | null> {
   const { data: receipt, error: receiptError } = await admin
     .from("hours_publication_receipts")
-    .select("id, request_key, certificate_count")
+    .select("id, request_key, certificate_count, publication_origin")
     .eq("project_id", input.projectId)
     .eq("publish_key", input.publishKey)
     .maybeSingle();
@@ -92,6 +92,8 @@ export async function loadDurablePublicationForRetry(
     certificatesCreated: receipt.certificate_count,
     projectTitle: input.projectTitle,
     projectTimezone: input.projectTimezone,
+    publicationOrigin:
+      receipt.publication_origin === "automatic" ? "automatic" : "manual",
     deliveries,
   };
 }
@@ -155,7 +157,6 @@ async function preparePublicationEmailPayload(
 
 export async function drainPublicationEmails(
   publication: TransactionalPublication,
-  options: { isAutoPublished?: boolean } = {},
 ): Promise<HoursPublicationDeliverySummary> {
   const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000";
   let emailsSent = publication.deliveries.filter(
@@ -219,7 +220,7 @@ export async function drainPublicationEmails(
         publication,
         delivery,
         siteUrl,
-        options.isAutoPublished === true,
+        publication.publicationOrigin === "automatic",
       );
     } catch (error) {
       partial = true;

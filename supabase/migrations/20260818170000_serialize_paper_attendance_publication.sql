@@ -1,6 +1,61 @@
 -- Serialize paper-attendance commits with hours publication and reject a
 -- publication snapshot that omitted newly committed attendance.
 
+ALTER TABLE public.hours_publication_receipts
+  ADD COLUMN publication_origin text NOT NULL DEFAULT 'manual';
+ALTER TABLE public.hours_publication_receipts
+  ADD CONSTRAINT hours_publication_receipts_origin_check
+  CHECK (publication_origin IN ('manual', 'automatic'));
+
+CREATE OR REPLACE FUNCTION private.hours_publication_result(
+  p_receipt_id uuid,
+  p_outcome text
+)
+RETURNS jsonb
+LANGUAGE sql
+STABLE
+SET search_path = ''
+AS $$
+  SELECT pg_catalog.jsonb_build_object(
+    'outcome', p_outcome,
+    'receiptId', receipts.id,
+    'requestKey', receipts.request_key,
+    'certificatesCreated', receipts.certificate_count,
+    'projectTitle', projects.title,
+    'projectTimezone', projects.project_timezone,
+    'publicationOrigin', receipts.publication_origin,
+    'deliveries', COALESCE(
+      pg_catalog.jsonb_agg(
+        pg_catalog.jsonb_build_object(
+          'deliveryId', outbox.id,
+          'state', outbox.state,
+          'payloadPrepared', outbox.payload_snapshot IS NOT NULL,
+          'idempotencyKey', outbox.idempotency_key,
+          'certificateId', certificates.id,
+          'volunteerName', certificates.volunteer_name,
+          'volunteerEmail', certificates.volunteer_email,
+          'eventStart', certificates.event_start,
+          'eventEnd', certificates.event_end
+        ) ORDER BY certificates.signup_id
+      ) FILTER (WHERE outbox.id IS NOT NULL),
+      '[]'::jsonb
+    )
+  )
+  FROM public.hours_publication_receipts AS receipts
+  JOIN public.projects AS projects ON projects.id = receipts.project_id
+  LEFT JOIN public.hours_publication_email_outbox AS outbox
+    ON outbox.receipt_id = receipts.id
+  LEFT JOIN public.certificates AS certificates
+    ON certificates.id = outbox.certificate_id
+  WHERE receipts.id = p_receipt_id
+  GROUP BY receipts.id, projects.id;
+$$;
+
+REVOKE ALL ON FUNCTION private.hours_publication_result(uuid, text)
+  FROM PUBLIC, anon, authenticated, service_role;
+GRANT EXECUTE ON FUNCTION private.hours_publication_result(uuid, text)
+  TO postgres;
+
 -- The product permits event capacities up to 1,000. Raise the existing atomic
 -- publication transaction's bounded input limit without editing its historical
 -- migration; fail closed if the expected reviewed body ever drifts.
@@ -47,6 +102,65 @@ GRANT EXECUTE ON FUNCTION
     uuid, uuid, text, jsonb, text
   )
   TO postgres;
+
+CREATE OR REPLACE FUNCTION public.publish_volunteer_hours_transactional_automatic(
+  p_actor_id uuid,
+  p_project_id uuid,
+  p_schedule_id text,
+  p_entries jsonb,
+  p_request_key text
+)
+RETURNS jsonb
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = ''
+AS $$
+DECLARE
+  v_result jsonb;
+  v_receipt_id uuid;
+BEGIN
+  v_result := private.publish_volunteer_hours_transactional(
+    p_actor_id,
+    p_project_id,
+    p_schedule_id,
+    p_entries,
+    p_request_key
+  );
+  v_receipt_id := NULLIF(v_result ->> 'receiptId', '')::uuid;
+  IF v_receipt_id IS NULL THEN
+    RAISE EXCEPTION 'automatic hours publication returned no receipt';
+  END IF;
+
+  UPDATE public.hours_publication_receipts
+  SET publication_origin = 'automatic'
+  WHERE id = v_receipt_id;
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'automatic hours publication receipt is missing';
+  END IF;
+
+  RETURN private.hours_publication_result(
+    v_receipt_id,
+    v_result ->> 'outcome'
+  );
+END;
+$$;
+
+REVOKE ALL ON FUNCTION
+  public.publish_volunteer_hours_transactional_automatic(
+    uuid, uuid, text, jsonb, text
+  )
+  FROM PUBLIC, anon, authenticated, service_role;
+GRANT EXECUTE ON FUNCTION
+  public.publish_volunteer_hours_transactional_automatic(
+    uuid, uuid, text, jsonb, text
+  )
+  TO service_role;
+
+COMMENT ON FUNCTION
+  public.publish_volunteer_hours_transactional_automatic(
+    uuid, uuid, text, jsonb, text
+  ) IS
+  'Service-only atomic hours publication entrypoint that durably records automatic origin for retry-safe email rendering.';
 
 -- The paper commit RPC receives and revalidates the authenticated staff actor,
 -- while its row triggers run under the service role. Carry that reviewed actor

@@ -1,6 +1,29 @@
 BEGIN;
 
-SELECT plan(22);
+SELECT plan(27);
+
+SELECT has_function(
+  'public',
+  'publish_volunteer_hours_transactional_automatic',
+  ARRAY['uuid', 'uuid', 'text', 'jsonb', 'text'],
+  'automatic publication entrypoint exists'
+);
+SELECT function_privs_are(
+  'public',
+  'publish_volunteer_hours_transactional_automatic',
+  ARRAY['uuid', 'uuid', 'text', 'jsonb', 'text'],
+  'service_role',
+  ARRAY['EXECUTE'],
+  'service role can execute automatic publication'
+);
+SELECT function_privs_are(
+  'public',
+  'publish_volunteer_hours_transactional_automatic',
+  ARRAY['uuid', 'uuid', 'text', 'jsonb', 'text'],
+  'authenticated',
+  ARRAY[]::text[],
+  'authenticated clients cannot execute automatic publication'
+);
 
 SELECT has_function(
   'app_private',
@@ -305,6 +328,59 @@ SELECT results_eq(
     )$$,
   $$VALUES (2::bigint)$$,
   'each late certificate has one retry-safe durable email item'
+);
+
+INSERT INTO public.projects (
+  id, creator_id, title, location, description, event_type,
+  verification_method, schedule, require_login
+)
+VALUES (
+  'ac100000-0000-4000-8000-000000000003',
+  'ac000000-0000-4000-8000-000000000002',
+  'Automatic origin fixture',
+  'Local',
+  'Synthetic durable origin fixture',
+  'oneTime',
+  'manual',
+  '{"oneTime":{"date":"2030-08-20","startTime":"09:00","endTime":"12:00","volunteers":5}}',
+  true
+);
+
+INSERT INTO public.project_signups (
+  id, project_id, user_id, schedule_id, status, check_in_time, check_out_time
+)
+VALUES (
+  'ac200000-0000-4000-8000-000000000004',
+  'ac100000-0000-4000-8000-000000000003',
+  'ac000000-0000-4000-8000-000000000001',
+  'oneTime',
+  'attended',
+  '2030-08-20T16:00:00Z',
+  '2030-08-20T18:00:00Z'
+);
+
+SELECT results_eq(
+  $$SELECT public.publish_volunteer_hours_transactional_automatic(
+      'ac000000-0000-4000-8000-000000000002',
+      'ac100000-0000-4000-8000-000000000003',
+      'oneTime',
+      pg_catalog.jsonb_build_array(pg_catalog.jsonb_build_object(
+        'signupId', 'ac200000-0000-4000-8000-000000000004',
+        'checkIn', '2030-08-20T16:00:00Z',
+        'checkOut', '2030-08-20T18:00:00Z'
+      )),
+      'hours-publication:v1:' || repeat('a', 64)
+    ) ->> 'publicationOrigin'$$,
+  $$VALUES ('automatic'::text)$$,
+  'automatic publication returns its durable origin'
+);
+
+SELECT results_eq(
+  $$SELECT publication_origin
+    FROM public.hours_publication_receipts
+    WHERE project_id = 'ac100000-0000-4000-8000-000000000003'$$,
+  $$VALUES ('automatic'::text)$$,
+  'automatic publication persists origin for later retries'
 );
 
 SELECT * FROM finish();

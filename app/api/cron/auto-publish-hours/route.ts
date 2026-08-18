@@ -4,7 +4,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { cronAuthShapeProbe } from "@/lib/cron/auth-shape-probe";
 import { drainPublicationEmails } from "@/lib/projects/hours-publication-email-service";
 import { publishVolunteerHoursTransaction } from "@/lib/projects/hours-publication-service";
-import { getPublishStateKey } from "@/app/projects/[id]/hours/certificate-issuance";
+import { getPublishStateKey } from "@/lib/projects/hours-publish-key";
+import type { Project } from "@/types";
 
 /**
  * Canonical cron endpoint implementation.
@@ -96,6 +97,7 @@ type ProjectRow = {
   project_timezone?: string | null;
   creator_id?: string | null;
   event_type: "oneTime" | "multiDay" | "sameDayMultiArea";
+  schedule: Project["schedule"];
 };
 
 type SignupRow = {
@@ -217,6 +219,7 @@ async function processSessionSignups(
       scheduleId: sessionId,
       entries,
       requestKey,
+      origin: "automatic",
     });
 
     if (!transaction.publication) {
@@ -236,9 +239,7 @@ async function processSessionSignups(
     }
 
     const publication = transaction.publication;
-    const emailResult = await drainPublicationEmails(publication, {
-      isAutoPublished: true,
-    });
+    const emailResult = await drainPublicationEmails(publication);
 
     console.log(
       `Email sending completed: ${emailResult.emailsSent} sent, ${emailResult.errors.length} errors`,

@@ -76,6 +76,7 @@ describe("production review consistency boundaries", () => {
     expect(migration).toContain("v_entry_count > 1000");
     expect(migration).toContain("hours-publication:certificate:");
     expect(migration).toContain("hours_publication_email_outbox");
+    expect(migration).toContain("publication_origin = 'automatic'");
     expect(migration).toContain("app.paper_commit_actor_id");
     expect(migration).toContain(
       "COALESCE(v_commit_actor_id, v_project.creator_id)",

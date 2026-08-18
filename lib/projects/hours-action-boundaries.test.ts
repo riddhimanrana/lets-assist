@@ -59,8 +59,9 @@ test("the publication service uses one exact service-role request for bounded re
   assert.match(publicationServiceSource, /p_actor_id: input\.actorId/u);
   assert.match(
     publicationServiceSource,
-    /await admin\.rpc\("publish_volunteer_hours_transactional", rpcArguments\)/u,
+    /publish_volunteer_hours_transactional_automatic/u,
   );
+  assert.match(publicationServiceSource, /input\.origin === "automatic"/u);
   assert.match(
     publicationServiceSource,
     /executeReplaySafeHoursPublicationRpc/u,
@@ -128,7 +129,7 @@ test("the auto-publisher uses the atomic publication and durable email protocols
   assert.ok(transactionIndex >= 0 && transactionIndex < emailDrainIndex);
   assert.match(processSource, /actorId: project\.creator_id/u);
   assert.match(processSource, /autoPublicationRequestKey/u);
-  assert.match(processSource, /isAutoPublished: true/u);
+  assert.match(processSource, /origin: "automatic"/u);
   assert.doesNotMatch(processSource, /\.from\("certificates"\)\.insert/u);
   assert.doesNotMatch(processSource, /\.from\("projects"\)\.update/u);
   assert.doesNotMatch(processSource, /sendCertificatePublishedEmails/u);
@@ -136,6 +137,10 @@ test("the auto-publisher uses the atomic publication and durable email protocols
   assert.match(autoPublishSource, /complete_session_snapshot_unavailable/u);
   assert.match(autoPublishSource, /getPublishStateKey/u);
   assert.match(publicationEmailServiceSource, /\[Auto-Published\]/u);
+  assert.match(
+    publicationEmailServiceSource,
+    /publication\.publicationOrigin === "automatic"/u,
+  );
 });
 
 test("supplemental issuance delegates conflict arbitration to one database statement", () => {
