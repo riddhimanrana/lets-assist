@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { ArrowLeft, ScanText, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -31,7 +31,6 @@ import type {
 interface PendingPhoto {
   key: string;
   file: File;
-  previewUrl: string;
 }
 
 interface CaptureStepProps {
@@ -50,6 +49,41 @@ type Phase =
 
 const photoKey = (file: File) =>
   `${file.name}-${file.size}-${file.lastModified}`;
+
+function PaperPhotoPreview({ file, label }: { file: File; label: string }) {
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+
+  useEffect(() => {
+    let active = true;
+    let bitmap: ImageBitmap | null = null;
+
+    void createImageBitmap(file)
+      .then((decoded) => {
+        bitmap = decoded;
+        const canvas = canvasRef.current;
+        if (!active || !canvas) return;
+
+        canvas.width = decoded.width;
+        canvas.height = decoded.height;
+        canvas.getContext("2d")?.drawImage(decoded, 0, 0);
+      })
+      .catch(() => undefined);
+
+    return () => {
+      active = false;
+      bitmap?.close();
+    };
+  }, [file]);
+
+  return (
+    <canvas
+      ref={canvasRef}
+      role="img"
+      aria-label={label}
+      className="size-full rounded-md border object-cover"
+    />
+  );
+}
 
 export function CaptureStep({
   projectId,
@@ -71,7 +105,6 @@ export function CaptureStep({
         .map((file) => ({
           key: photoKey(file),
           file,
-          previewUrl: URL.createObjectURL(file),
         }));
       if (current.length + files.length > PAPER_SCAN_MAX_IMAGES) {
         toast.warning(`Up to ${PAPER_SCAN_MAX_IMAGES} photos per scan.`);
@@ -81,11 +114,7 @@ export function CaptureStep({
   };
 
   const removePhoto = (key: string) => {
-    setPhotos((current) => {
-      const removed = current.find((photo) => photo.key === key);
-      if (removed) URL.revokeObjectURL(removed.previewUrl);
-      return current.filter((photo) => photo.key !== key);
-    });
+    setPhotos((current) => current.filter((photo) => photo.key !== key));
   };
 
   const scan = async () => {
@@ -213,11 +242,9 @@ export function CaptureStep({
             {photos.map((photo, index) => (
               <li key={photo.key} className="relative">
                 <AspectRatio ratio={3 / 4}>
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img
-                    src={photo.previewUrl}
-                    alt={`Sheet page ${index + 1}`}
-                    className="size-full rounded-md border object-cover"
+                  <PaperPhotoPreview
+                    file={photo.file}
+                    label={`Sheet page ${index + 1}`}
                   />
                 </AspectRatio>
                 <Badge

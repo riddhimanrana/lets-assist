@@ -19,7 +19,12 @@
  * can be tested without a database or a request.
  */
 
-import { createHash, randomBytes, timingSafeEqual } from "node:crypto";
+import {
+  createHash,
+  createHmac,
+  randomBytes,
+  timingSafeEqual,
+} from "node:crypto";
 
 import { resolveGoogleOAuthCallbackPath } from "./google-oauth-callback-path";
 
@@ -39,6 +44,8 @@ const SECRET_BYTES = 32; // 43 base64url characters
 const COOKIE_NAME_PREFIX = "la_goauth_";
 const CORRELATION_ALPHABET = "ABCDEFGHJKMNPQRSTVWXYZ0123456789";
 const CORRELATION_LENGTH = 10;
+const CORRELATION_MASK = CORRELATION_ALPHABET.length - 1;
+const SECRET_DIGEST_DOMAIN = "lets-assist/google-oauth-attempt/v1";
 
 export type GoogleOAuthAttemptSecrets = {
   attemptRef: string;
@@ -58,9 +65,29 @@ function base64Url(value: Buffer): string {
   return value.toString("base64url");
 }
 
-/** SHA-256, base64url. 43 characters, matching the ledger's CHECK. */
+/**
+ * Keyed SHA-256, base64url. 43 characters, matching the ledger's CHECK.
+ *
+ * The attempt values already carry 256 bits of entropy, but a keyed digest
+ * also prevents an exported ledger from becoming an offline verifier. The
+ * environment key is mandatory in every runtime that can start or complete an
+ * OAuth attempt.
+ */
 export function digestGoogleOAuthSecret(secret: string): string {
-  return base64Url(createHash("sha256").update(secret, "utf8").digest());
+  const digestKey = process.env.ENCRYPTION_KEY;
+  if (!digestKey || digestKey.length < 32) {
+    throw new Error(
+      "ENCRYPTION_KEY must contain at least 32 characters for Google OAuth attempt digests.",
+    );
+  }
+
+  return base64Url(
+    createHmac("sha256", digestKey)
+      .update(SECRET_DIGEST_DOMAIN, "utf8")
+      .update("\0", "utf8")
+      .update(secret, "utf8")
+      .digest(),
+  );
 }
 
 /**
@@ -72,7 +99,9 @@ export function createGoogleOAuthCorrelationId(): string {
   const bytes = randomBytes(CORRELATION_LENGTH);
   let code = "";
   for (const byte of bytes) {
-    code += CORRELATION_ALPHABET[byte % CORRELATION_ALPHABET.length];
+    // The alphabet has exactly 32 symbols, so masking five random bits is
+    // uniform and avoids modulo-bias constructions entirely.
+    code += CORRELATION_ALPHABET[byte & CORRELATION_MASK];
   }
   return code;
 }
@@ -112,10 +141,13 @@ export function createGoogleOAuthPkcePair(): {
   const codeVerifier = base64Url(randomBytes(SECRET_BYTES));
   return {
     codeVerifier,
-    codeChallenge: base64Url(
-      createHash("sha256").update(codeVerifier, "ascii").digest(),
-    ),
+    codeChallenge: deriveGoogleOAuthPkceChallenge(codeVerifier),
   };
+}
+
+/** RFC 7636 requires this exact fast S256 transform, not a password KDF. */
+export function deriveGoogleOAuthPkceChallenge(codeVerifier: string): string {
+  return base64Url(createHash("sha256").update(codeVerifier, "ascii").digest());
 }
 
 export function createGoogleOAuthAttemptSecrets(): GoogleOAuthAttemptSecrets {
