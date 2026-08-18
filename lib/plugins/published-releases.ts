@@ -26,11 +26,11 @@ export const publishedPluginReleases = [
   },
   {
     pluginKey: "dvhs-csf",
-    version: "1.0.0",
+    version: "1.1.0",
     manifestFile: "plugins/dvhs-csf/plugin-manifest.ts",
     manifestHash:
-      "7334038cb6519e1732d9ac9ba0111f0ae41cfef2861c36595be975ba60f95534",
-    sourceCommit: "c8fe3d41e5ba40967b8f0fa9bb2681fe05b2e6aa",
+      "04aca8efa43e9d287c8d04909b733df97f6804224a4c6960a3609358eb574e79",
+    sourceCommit: "4d1001e9d3269b8bd28de93c071c6b4b216824fd",
     automaticUpdate: false,
     rolloutPercentage: 0,
   },

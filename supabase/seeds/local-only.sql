@@ -45,7 +45,7 @@ VALUES (
   'Private CSF workflow system for class membership, applications, officer roles, points, posts, and sheets.',
   'private',
   true,
-  '1.0.0',
+  '1.1.0',
   true,
   jsonb_build_object('privacyMode', 'strict-minor-safe', 'defaultOwnerEmails', jsonb_build_array('dvhs-csf-admin@local.test'))
 )

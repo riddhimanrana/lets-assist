@@ -388,7 +388,7 @@ INSERT INTO plugin_data.csf_sheet_import_staging_objects (
   'df210000-0000-4000-8000-000000000001',
   'df100000-0000-4000-8000-000000000001',
   'df200000-0000-4000-8000-000000000007',
-  1, 'ready', 'csf-private',
+  1, 'ready', 'plugins',
   'df100000-0000-4000-8000-000000000001/df200000-0000-4000-8000-000000000007/1.xlsx',
   'xlsx', repeat('5', 64), 2048,
   now() + interval '1 hour', now(), now() + interval '1 hour'
@@ -2403,7 +2403,7 @@ SELECT extensions.is(
       'df100000-0000-4000-8000-000000000001',
       'df000000-0000-4000-8000-000000000001',
       'df200000-0000-4000-8000-00000000000e',
-      'csf-private', 'xlsx', repeat('c', 64), 2048, 3600
+      'plugins', 'xlsx', repeat('c', 64), 2048, 3600
     ) ->> 'generation'
   ),
   '1',
@@ -2430,7 +2430,7 @@ SELECT extensions.throws_ok(
       'df100000-0000-4000-8000-000000000001',
       'df000000-0000-4000-8000-000000000001',
       'df200000-0000-4000-8000-00000000000e',
-      'csf-private', 'csv', repeat('c', 64), 2048, 3600
+      'plugins', 'csv', repeat('c', 64), 2048, 3600
     )
   $$,
   '23514',
@@ -2444,7 +2444,7 @@ SELECT extensions.throws_ok(
       'df100000-0000-4000-8000-000000000001',
       'df000000-0000-4000-8000-000000000001',
       'df200000-0000-4000-8000-000000000003',
-      'csf-private', 'xlsx', repeat('c', 64), 2048, 3600
+      'plugins', 'xlsx', repeat('c', 64), 2048, 3600
     )
   $$,
   '23514',
@@ -2505,7 +2505,7 @@ SELECT extensions.is(
       'df100000-0000-4000-8000-000000000001',
       'df000000-0000-4000-8000-000000000001',
       'df200000-0000-4000-8000-00000000000e',
-      'csf-private', 'xlsx', repeat('c', 64), 2048, 3600
+      'plugins', 'xlsx', repeat('c', 64), 2048, 3600
     ) ->> 'generation'
   ),
   '2',
@@ -4023,7 +4023,7 @@ SELECT extensions.lives_ok(
       'df100000-0000-4000-8000-000000000001',
       'df000000-0000-4000-8000-000000000001',
       'df200000-0000-4000-8000-000000000005',
-      'csf-private', 'xlsx', repeat('b', 64), 8192, 3600
+      'plugins', 'xlsx', repeat('b', 64), 8192, 3600
     )
   $$,
   'a workbook may be staged for the crashed-preview fixture'
@@ -4801,7 +4801,7 @@ SELECT extensions.throws_ok(
     ) VALUES (
       'df100000-0000-4000-8000-000000000001',
       'df200000-0000-4000-8000-000000000001',
-      99, 'csf-private', 'forged/path.xlsx', 'xlsx',
+      99, 'plugins', 'forged/path.xlsx', 'xlsx',
       repeat('a', 64), 10, now() + interval '1 hour'
     )
   $$,
@@ -5295,7 +5295,7 @@ SELECT extensions.lives_ok(
       'df100000-0000-4000-8000-000000000001',
       'df000000-0000-4000-8000-000000000001',
       'df200000-0000-4000-8000-000000000001',
-      'csf-private', 'xlsx', repeat('a', 64), 4096, 3600)$$,
+      'plugins', 'xlsx', repeat('a', 64), 4096, 3600)$$,
   'a permitted officer may open a staging generation'
 );
 
@@ -5304,7 +5304,7 @@ SELECT extensions.throws_ok(
       'df100000-0000-4000-8000-000000000001',
       'df000000-0000-4000-8000-000000000002',
       'df200000-0000-4000-8000-000000000001',
-      'csf-private', 'xlsx', repeat('b', 64), 4096, 3600)$$,
+      'plugins', 'xlsx', repeat('b', 64), 4096, 3600)$$,
   '42501', NULL,
   'a cross-tenant officer may not open a staging generation'
 );
@@ -5393,7 +5393,7 @@ SELECT extensions.lives_ok(
       'df100000-0000-4000-8000-000000000001',
       'df000000-0000-4000-8000-000000000001',
       'df200000-0000-4000-8000-000000000001',
-      'csf-private', 'xlsx', repeat('a', 64), 4096, 3600)$$,
+      'plugins', 'xlsx', repeat('a', 64), 4096, 3600)$$,
   'a second staging generation opens for the registry contract source'
 );
 
@@ -5633,7 +5633,7 @@ SELECT extensions.lives_ok(
       'df100000-0000-4000-8000-000000000001',
       'df000000-0000-4000-8000-000000000001',
       'df200000-0000-4000-8000-000000000001',
-      'csf-private', 'xlsx', repeat('a', 64), 1024, 3600)$$,
+      'plugins', 'xlsx', repeat('a', 64), 1024, 3600)$$,
   'opening a generation resolves the retirement primitive for the abandoned upload'
 );
 
@@ -5642,7 +5642,7 @@ SELECT extensions.lives_ok(
       'df100000-0000-4000-8000-000000000001',
       'df000000-0000-4000-8000-000000000001',
       'df200000-0000-4000-8000-000000000001',
-      'csf-private', 'xlsx', repeat('a', 64), 1024, 3600)$$,
+      'plugins', 'xlsx', repeat('a', 64), 1024, 3600)$$,
   'and opening a replacement retires the previous abandoned upload without error'
 );
 
@@ -8998,7 +8998,7 @@ INSERT INTO plugin_data.csf_sheet_import_staging_objects (
   'df210000-0000-4000-8000-000000000003',
   'df100000-0000-4000-8000-000000000001',
   'df200000-0000-4000-8000-000000000009',
-  1, 'ready', 'csf-private',
+  1, 'ready', 'plugins',
   'df100000-0000-4000-8000-000000000001/df200000-0000-4000-8000-000000000009/1.csv',
   'csv', repeat('c', 64), 1024,
   now() + interval '1 hour', now(), now() + interval '1 hour'

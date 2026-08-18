@@ -19,6 +19,16 @@ export {};
 // This script audits registry metadata in Bun, so replace only that marker.
 mock.module("server-only", () => ({}));
 
+// Some plugin UI modules import host services that eventually reference the
+// assembled registry. This gate is constructing that registry, so replace only
+// the host back-reference while the private definitions initialize; otherwise
+// the audit can fail on a JavaScript cycle before it reaches any release check.
+mock.module("@/lib/plugins/registry", () => ({
+  getPluginRegistry: () => new Map(),
+  getRegisteredPlugin: () => undefined,
+  listRegisteredPlugins: () => [],
+}));
+
 const { privatePlugins } = await import("../../lib/plugins/private/registry");
 
 const pluginKeys = (privatePlugins as PluginDefinition[])

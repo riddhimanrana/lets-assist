@@ -36,8 +36,8 @@ their named runs only.
 - The sole current CSF implementation/status register is
   `docs/development/cleanup-register.md`; this document is a testing runbook and
   retains older evidence below without promoting it to current status.
-- The repository candidate has 317 ordered migrations through
-  `20260817133000_consolidate_plugin_version_read_policies`. The twenty-one migrations
+- The repository candidate has 318 ordered migrations through
+  `20260818040246_generalize_private_plugin_storage_and_publish_dvhs_csf_1_1_0`. The twenty-two migrations
   added after the audited `development` baseline merge two prior lines: the
   Development-hardening pair
   (`20260816185321_enforce_authoritative_plugin_releases`,
@@ -60,32 +60,33 @@ their named runs only.
   `20260817121000_dvhs_csf_partner_clubs_simplification`,
   `20260817130000_csf_multi_date_meeting_sessions`,
   `20260817131000_csf_partial_attendance_commit_and_ai_resolution`,
-  `20260817132000_restore_multi_date_meeting_permission_rechecks`, and
-  `20260817133000_consolidate_plugin_version_read_policies`).
-- Hosted Development served exact merge SHA
-  `59f916ad30b423137ae2134ca4b516a8938714f1` and was healthy and
-  migration-current at 314 rows through
-  `20260817132000_restore_multi_date_meeting_permission_rechecks`. The advisor
-  snapshot recorded 101 INFO and zero WARN/ERROR security findings plus 616
-  INFO, one WARN, and zero ERROR performance findings. The single warning was
-  the duplicate authenticated `plugin_versions` permissive-read policy that
-  motivated `20260817133000`; that follow-up is not yet deployed or re-audited.
+  `20260817132000_restore_multi_date_meeting_permission_rechecks`,
+  `20260817133000_consolidate_plugin_version_read_policies`, and
+  `20260818040246_generalize_private_plugin_storage_and_publish_dvhs_csf_1_1_0`).
+- Hosted Development serves exact root merge SHA
+  `471fbe012acb9f578d8c81e2cc9315c22cbb9a11` and is healthy and
+  migration-current at 317 rows through
+  `20260817133000_consolidate_plugin_version_read_policies`. Google OAuth is
+  enabled and the hosted authorize endpoint redirects to Google. The new 318th
+  generic-storage/release migration remains repository-only until this change
+  passes CI and is promoted through Development.
 - Production remains untouched at the audited 236-row baseline through
-  `20260811001500`; the exact read-only preflight now expects an 81-migration
-  cutover to this 317-row candidate. Running that cutover requires separate
+  `20260811001500`; the exact read-only preflight now expects an 82-migration
+  cutover to this 318-row candidate. Running that cutover requires
   explicit action-time approval.
-- Local evidence on this candidate must include a fresh exact 317-migration
-  replay; the predecessor passed 155 pgTAP files with 5,833 assertions plus
+- Local evidence on this candidate includes a fresh exact 318-migration replay
+  and the focused storage/release, import, proof, and release-authority pgTAP
+  suites. The predecessor passed 155 pgTAP files with 5,833 assertions plus
   focused workflow/browser tests, `typecheck`, `lint`, build, and strict
   submodule reachability. Follow-up hosted parity, final role/browser
   acceptance, and provider acceptance remain release gates until recorded in
   the cleanup register.
-- Private CSF source is merged to private `development` at
-  `86f9727460db24f50a444c7b69c4cfac242164f0`. The published `1.0.0` release
-  attestation is repinned by the forward migration to private `main` commit
-  `c8fe3d41e5ba40967b8f0fa9bb2681fe05b2e6aa`
-  with manifest SHA-256
-  `7334038cb6519e1732d9ac9ba0111f0ae41cfef2861c36595be975ba60f95534`.
+- Private CSF source is merged to private `main` at
+  `4d1001e9d3269b8bd28de93c071c6b4b216824fd` and synchronized back into
+  private `development` at `6fd34120ab474cbf6db3b5fd47439324bc436345`.
+  The published `1.1.0` release attestation pins the private main commit with
+  manifest SHA-256
+  `04aca8efa43e9d287c8d04909b733df97f6804224a4c6960a3609358eb574e79`.
   Its base had already merged `feature/csf-member-onboarding`
   and `codex/csf-reconciliation-guard-20260816`
   (`5e21d5dd60744dc50b7817bfc734a4e2ca71c8f5`). The two branches reworked CSF
