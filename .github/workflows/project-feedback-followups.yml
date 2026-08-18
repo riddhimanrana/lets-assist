@@ -30,7 +30,7 @@ jobs:
           test -n "$CRON_BASE_URL" || { echo "CRON_BASE_URL secret missing"; exit 1; }
           test -n "$CRON_TOKEN" || { echo "CRON_SECRET secret missing"; exit 1; }
 
-      - name: Call data export processor with retries
+      - name: Call project feedback worker with retries
         run: |
           set -euo pipefail
 
@@ -83,6 +83,13 @@ jobs:
             fi
 
             if [[ "$status_code" =~ ^2[0-9][0-9]$ ]]; then
+              enabled="$(jq -r '.enabled // false' "$body_file" 2>/dev/null || echo false)"
+              if [[ "$enabled" != "true" ]]; then
+                echo "Project feedback worker is not enabled in the target environment."
+                rm -f "$headers_file" "$body_file"
+                exit 1
+              fi
+
               rm -f "$headers_file" "$body_file"
               echo "Cron endpoint succeeded."
               exit 0
