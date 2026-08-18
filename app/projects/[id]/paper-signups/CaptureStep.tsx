@@ -104,6 +104,31 @@ export function CaptureStep({
   );
   const [cleanupBusy, setCleanupBusy] = useState(false);
   const busy = phase.kind !== "collecting" || cleanupBusy;
+  const cleanupStorageKey = `paper-scan-orphan-cleanup:${projectId}`;
+
+  useEffect(() => {
+    const stored = window.localStorage.getItem(cleanupStorageKey);
+    if (!stored) return;
+    try {
+      const parsed = JSON.parse(stored) as PendingCleanup;
+      if (
+        typeof parsed.cleanupToken === "string" &&
+        Array.isArray(parsed.objectPaths) &&
+        parsed.objectPaths.every((path) => typeof path === "string")
+      ) {
+        setPendingCleanup(parsed);
+        return;
+      }
+    } catch {
+      // Invalid browser-local recovery data must not block a fresh scan.
+    }
+    window.localStorage.removeItem(cleanupStorageKey);
+  }, [cleanupStorageKey]);
+
+  const rememberPendingCleanup = (cleanup: PendingCleanup) => {
+    window.localStorage.setItem(cleanupStorageKey, JSON.stringify(cleanup));
+    setPendingCleanup(cleanup);
+  };
 
   const releaseOrphanedUploads = async (cleanup: PendingCleanup) => {
     const queueResult = await queueOrphanedPaperScanUploads({
@@ -111,20 +136,19 @@ export function CaptureStep({
       cleanupToken: cleanup.cleanupToken,
       objectPaths: cleanup.objectPaths,
     }).catch(() => ({ error: "Cleanup request failed." }));
-    if ("success" in queueResult) return true;
+    if ("success" in queueResult) {
+      window.localStorage.removeItem(cleanupStorageKey);
+      return true;
+    }
     if ("registered" in queueResult) {
       // The batch-registration response was lost after commit. Preserve the
       // now-referenced evidence and reload into the durable batch instead of
       // treating it as an orphan or deleting it through the browser policy.
+      window.localStorage.removeItem(cleanupStorageKey);
       window.location.reload();
       return true;
     }
-
-    const supabase = createBrowserSupabaseClient();
-    const { error: removalError } = await supabase.storage
-      .from("paper-signup-scans")
-      .remove(cleanup.objectPaths);
-    return removalError === null;
+    return false;
   };
 
   const retryOrphanCleanup = async () => {
@@ -256,7 +280,7 @@ export function CaptureStep({
       if (registeredBatchId === null && uploadedPaths.length > 0) {
         const cleanup = { cleanupToken, objectPaths: uploadedPaths };
         if (!(await releaseOrphanedUploads(cleanup))) {
-          setPendingCleanup(cleanup);
+          rememberPendingCleanup(cleanup);
         }
       }
       toast.error(

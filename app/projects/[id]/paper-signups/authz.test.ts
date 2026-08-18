@@ -137,8 +137,11 @@ describe("paper signup management access", () => {
     );
     expect(captureSource).toContain("metadata: { cleanupToken }");
     expect(captureSource).toContain("releaseOrphanedUploads(cleanup)");
-    expect(captureSource).toContain("setPendingCleanup(cleanup)");
+    expect(captureSource).toContain("rememberPendingCleanup(cleanup)");
+    expect(captureSource).toContain("window.localStorage.setItem");
+    expect(captureSource).toContain("window.localStorage.getItem");
     expect(captureSource).toContain('"registered" in queueResult');
+    expect(captureSource).not.toContain(".remove(cleanup.objectPaths)");
     expect(captureSource).toContain('"Retry cleanup"');
     expect(captureSource).toContain('.from("project_paper_scan_batches")');
     expect(captureSource).toContain('recoveredBatch.status === "draft"');
