@@ -46,11 +46,24 @@ describe("production review consistency boundaries", () => {
     const client = await read("./PaperSignupsClient.tsx");
 
     expect(actions).toContain("certificateErrors = issuance.errors");
+    expect(actions).toContain("publicationStateError");
+    expect(actions).toContain('.select("published")');
+    expect(actions.indexOf('.select("published")')).toBeGreaterThan(
+      actions.indexOf('"commit_paper_signup_batch"'),
+    );
     expect(actions).toContain(
       "export async function retryPaperScanCertificates",
     );
     expect(client).toContain("Attendance saved; certificates need attention");
     expect(client).toContain("Retry certificate issuance");
+  });
+
+  test("candidate read failures abort extraction instead of matching an empty roster", async () => {
+    const source = await read("../../../api/ai/scan-signup-sheet/route.ts");
+
+    expect(source).toContain("signupCandidatesError");
+    expect(source).toContain("anonCandidatesError");
+    expect(source).toContain("Failed to load scan match candidates");
   });
 
   test("paper signup notification outbox has a hosted scheduler", async () => {

@@ -455,18 +455,36 @@ export async function commitPaperScanBatch(input: {
   let certificatesIssued = 0;
   let certificateErrors: string[] = [];
   const publishKey = getPublishStateKey(project, batch.schedule_id);
-  if (project.published?.[publishKey] === true) {
-    const committedSignupIds = [...created, ...updated]
-      .map((row) => row.signup_id)
-      .filter((id): id is string => Boolean(id));
-    const issuance = await issueCertificatesForSignups({
-      projectId,
-      scheduleId: batch.schedule_id,
-      signupIds: committedSignupIds,
-      actorId: userId,
-    });
-    certificatesIssued = issuance.issued;
-    certificateErrors = issuance.errors;
+  const committedSignupIds = [...created, ...updated]
+    .map((row) => row.signup_id)
+    .filter((id): id is string => Boolean(id));
+  if (committedSignupIds.length > 0) {
+    // Publication can race the commit. Re-read after the transaction so a
+    // session published between authorization and commit still receives its
+    // supplemental certificates.
+    const { data: publicationState, error: publicationStateError } = await admin
+      .from("projects")
+      .select("published")
+      .eq("id", projectId)
+      .single();
+    if (publicationStateError) {
+      certificateErrors = [
+        "Attendance was saved, but certificate status could not be confirmed. Retry certificate issuance.",
+      ];
+    } else if (
+      (publicationState.published as Record<string, boolean> | null)?.[
+        publishKey
+      ] === true
+    ) {
+      const issuance = await issueCertificatesForSignups({
+        projectId,
+        scheduleId: batch.schedule_id,
+        signupIds: committedSignupIds,
+        actorId: userId,
+      });
+      certificatesIssued = issuance.issued;
+      certificateErrors = issuance.errors;
+    }
   }
 
   return {
