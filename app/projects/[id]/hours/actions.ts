@@ -610,6 +610,8 @@ export async function resendCertificateEmails(
 
     const typedProject = project as ResendProject;
     const publishKey = getPublishStateKey(typedProject, sessionId);
+    const legacyScheduleIds =
+      publishKey === sessionId ? [sessionId] : [sessionId, publishKey];
     let admin: ReturnType<typeof getAdminClient>;
     try {
       admin = getAdminClient();
@@ -646,7 +648,7 @@ export async function resendCertificateEmails(
         "id, volunteer_name, volunteer_email, project_title, event_start, event_end",
       )
       .eq("project_id", projectId)
-      .eq("schedule_id", publishKey);
+      .in("schedule_id", legacyScheduleIds);
 
     if (certError || !certificates) {
       return { success: false, error: "Failed to fetch certificates." };
