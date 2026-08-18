@@ -93,13 +93,22 @@ function defaultScenario(): Scenario {
 }
 
 let scenario = defaultScenario();
+let queryTrace: Array<{
+  table: string;
+  gte: Array<[string, unknown]>;
+  lte: Array<[string, unknown]>;
+}> = [];
 
 type QueryResult = { data: unknown; error: Error | null; count?: number };
 
 class StatefulQuery {
   private readonly equals = new Map<string, unknown>();
+  private readonly trace: (typeof queryTrace)[number];
 
-  constructor(private readonly table: string) {}
+  constructor(private readonly table: string) {
+    this.trace = { table, gte: [], lte: [] };
+    queryTrace.push(this.trace);
+  }
 
   select() {
     return this;
@@ -110,11 +119,13 @@ class StatefulQuery {
     return this;
   }
 
-  gte() {
+  gte(column: string, value: unknown) {
+    this.trace.gte.push([column, value]);
     return this;
   }
 
-  lte() {
+  lte(column: string, value: unknown) {
+    this.trace.lte.push([column, value]);
     return this;
   }
 
@@ -146,6 +157,8 @@ class StatefulQuery {
     if (error) return { data: null, error };
 
     switch (this.table) {
+      case "project_feedback_candidate_read_model":
+        return { data: [], error: null, count: 0 };
       case "projects":
         return single
           ? { data: scenario.project, error: null }
@@ -310,8 +323,11 @@ mock.module("@/services/email", () => ({
   },
 }));
 
-const { feedbackProjectPageOffset, runProjectFeedbackWorker } =
-  await import("@/services/project-feedback-worker");
+const {
+  feedbackCandidateDateWindow,
+  feedbackProjectPageOffset,
+  runProjectFeedbackWorker,
+} = await import("@/services/project-feedback-worker");
 
 const ENV_KEYS = [
   "PROJECT_FEEDBACK_TOKEN_SECRET",
@@ -322,6 +338,7 @@ const savedEnvironment: Record<string, string | undefined> = {};
 
 beforeEach(() => {
   scenario = defaultScenario();
+  queryTrace = [];
   sendEmailCalls = [];
   sendEmailImplementation = async () => ACCEPTED;
 
@@ -342,6 +359,30 @@ afterEach(() => {
 });
 
 describe("feedback project page rotation", () => {
+  test("bounds candidates to the backfill guard with timezone padding", () => {
+    const now = Date.parse("2026-08-18T12:00:00.000Z");
+    expect(feedbackCandidateDateWindow(now)).toEqual({
+      startDate: "2026-07-17",
+      endDate: "2026-08-20",
+    });
+  });
+
+  test("rejects non-finite candidate timestamps", () => {
+    expect(() => feedbackCandidateDateWindow(Number.NaN)).toThrow(
+      "Feedback candidate time must be finite",
+    );
+  });
+
+  test("starts each run from the bounded candidate read model", async () => {
+    await runProjectFeedbackWorker({ batchSize: 1 });
+
+    expect(queryTrace[0]).toMatchObject({
+      table: "project_feedback_candidate_read_model",
+      gte: [["candidate_end_date", expect.any(String)]],
+      lte: [["candidate_end_date", expect.any(String)]],
+    });
+  });
+
   test("every bounded page is selected across consecutive hourly runs", () => {
     const hour = 60 * 60 * 1000;
     expect(feedbackProjectPageOffset(0 * hour, 61)).toBe(0);

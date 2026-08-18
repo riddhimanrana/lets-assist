@@ -1,4 +1,4 @@
--- Production 236 -> repository target 323 cutover preflight.
+-- Production 236 -> repository target 324 cutover preflight.
 --
 -- Read-only by construction: every check is SELECT or SHOW inside an explicit
 -- READ ONLY transaction. Run this only with the reviewed Production read-only
@@ -10,7 +10,7 @@
 --
 -- The only supported ledgers are:
 --   pre-cutover   236 rows headed by 20260811001500
---   post-cutover  323 rows headed by 20260818134000 with the exact 87-row tail
+--   post-cutover  324 rows headed by 20260818150000 with the exact 88-row tail
 --
 -- Any partial, divergent, later, or wrong-tail ledger exits non-zero before
 -- shape-specific relations are parsed. Relation inventories then fail with a
@@ -48,7 +48,7 @@ SELECT current_setting('transaction_read_only') = 'on' AS read_only_transaction
 \echo ''
 \echo '=============================================================='
 \echo 'L0  Exact migration ledger'
-\echo '    PASS: exactly 236/baseline or exactly 323/target'
+\echo '    PASS: exactly 236/baseline or exactly 324/target'
 \echo '=============================================================='
 SELECT count(*) AS applied_migrations,
        min(version::text) AS first_version,
@@ -151,9 +151,9 @@ SELECT
     AND count(*) FILTER (
       WHERE version::text > '20260811001500'
     ) = 0 AS baseline_ledger,
-  count(*) = 323
+  count(*) = 324
     AND min(version::text) = '20260325181408'
-    AND max(version::text) = '20260818134000'
+    AND max(version::text) = '20260818150000'
     AND :'baseline_versions_exact'::boolean
     AND (
       SELECT array_agg(pending.version ORDER BY pending.version)
@@ -193,7 +193,7 @@ SELECT
       '20260817130000','20260817131000','20260817132000',
       '20260817133000','20260818040246','20260818064000',
       '20260818074500','20260818092855','20260818115000',
-      '20260818134000'
+      '20260818134000','20260818150000'
       -- END EXACT PRODUCTION TARGET TAIL
     ]::text[] AS target_ledger
 FROM supabase_migrations.schema_migrations
@@ -201,7 +201,7 @@ FROM supabase_migrations.schema_migrations
 
 \if :baseline_ledger
   \set cutover_shape pre
-  \echo 'PASS L0: exact Production baseline; 87 migrations pending.'
+  \echo 'PASS L0: exact Production baseline; 88 migrations pending.'
 \elif :target_ledger
   \set cutover_shape post
   \echo 'PASS L0: exact repository target; zero migrations pending.'
@@ -2496,6 +2496,68 @@ SELECT
     \echo 'PASS T9: outcome resolver ACL, lock bracket, and bounded read are exact.'
   \else
     \echo 'FAIL T9: outcome resolver ACL, lock order, or bounded read drifted.'
+    SELECT 1 / 0 AS preflight_check_failed;
+  \endif
+
+  \echo ''
+  \echo '=============================================================='
+  \echo 'T10 Feedback candidate rotation boundary'
+  \echo '=============================================================='
+  SELECT
+    to_regclass('public.project_feedback_candidate_read_model') IS NOT NULL
+    AND to_regclass('public.projects_feedback_candidate_end_date_idx') IS NOT NULL
+    AND EXISTS (
+      SELECT 1
+      FROM pg_catalog.pg_class AS candidate_view
+      WHERE candidate_view.oid = 'public.project_feedback_candidate_read_model'::regclass
+        AND candidate_view.reloptions @> ARRAY[
+          'security_invoker=true',
+          'security_barrier=true'
+        ]
+    )
+    AND has_table_privilege(
+      'service_role',
+      'public.project_feedback_candidate_read_model',
+      'SELECT'
+    )
+    AND NOT has_table_privilege(
+      'anon',
+      'public.project_feedback_candidate_read_model',
+      'SELECT'
+    )
+    AND NOT has_table_privilege(
+      'authenticated',
+      'public.project_feedback_candidate_read_model',
+      'SELECT'
+    )
+    AND EXISTS (
+      SELECT 1
+      FROM pg_catalog.pg_proc AS helper
+      WHERE helper.oid = 'private.project_feedback_candidate_end_date(text,jsonb)'::regprocedure
+        AND pg_catalog.pg_get_userbyid(helper.proowner) = 'postgres'
+        AND helper.provolatile = 'i'
+        AND helper.proparallel = 's'
+    )
+    AND has_function_privilege(
+      'service_role',
+      'private.project_feedback_candidate_end_date(text,jsonb)',
+      'EXECUTE'
+    )
+    AND NOT has_function_privilege(
+      'anon',
+      'private.project_feedback_candidate_end_date(text,jsonb)',
+      'EXECUTE'
+    )
+    AND NOT has_function_privilege(
+      'authenticated',
+      'private.project_feedback_candidate_end_date(text,jsonb)',
+      'EXECUTE'
+    ) AS target_feedback_candidate_rotation_pass
+  \gset
+  \if :target_feedback_candidate_rotation_pass
+    \echo 'PASS T10: indexed feedback candidate read model and ACLs are exact.'
+  \else
+    \echo 'FAIL T10: feedback candidate index, view, helper, or ACLs drifted.'
     SELECT 1 / 0 AS preflight_check_failed;
   \endif
 \endif

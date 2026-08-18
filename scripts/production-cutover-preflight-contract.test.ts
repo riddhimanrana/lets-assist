@@ -22,9 +22,9 @@ const architectureAudit = readFileSync(
 );
 
 const PRODUCTION_HEAD = "20260811001500";
-const TARGET_HEAD = "20260818134000";
+const TARGET_HEAD = "20260818150000";
 const HARD_FAIL_STATEMENT = "SELECT 1 / 0 AS preflight_check_failed;";
-const HARD_FAIL_SITES = 30;
+const HARD_FAIL_SITES = 31;
 const hardFailStatements =
   preflight.match(/^[ \t]*SELECT 1 \/ 0 AS preflight_check_failed;$/gmu) ?? [];
 const PENDING_VERSIONS = [
@@ -115,6 +115,7 @@ const PENDING_VERSIONS = [
   "20260818092855",
   "20260818115000",
   "20260818134000",
+  "20260818150000",
 ] as const;
 
 function readMigration(version: string) {
@@ -126,7 +127,7 @@ function readMigration(version: string) {
 }
 
 describe("Production cutover preflight source contract", () => {
-  test("pins the exact 236 -> 323 ledger and all 87 pending versions", () => {
+  test("pins the exact 236 -> 324 ledger and all 88 pending versions", () => {
     const migrations = readdirSync(migrationsRoot)
       .filter((name) => /^\d{14}_.+\.sql$/u.test(name))
       .sort();
@@ -148,7 +149,7 @@ describe("Production cutover preflight source contract", () => {
       (match) => match[1],
     );
 
-    expect(migrations).toHaveLength(323);
+    expect(migrations).toHaveLength(324);
     expect(migrations.at(0)?.slice(0, 14)).toBe("20260325181408");
     expect(migrations.at(-1)?.slice(0, 14)).toBe(TARGET_HEAD);
     expect(pinnedBaseline).toEqual(
@@ -157,9 +158,9 @@ describe("Production cutover preflight source contract", () => {
     expect(pending).toEqual([...PENDING_VERSIONS]);
     expect(pinnedTargetTail).toEqual([...PENDING_VERSIONS]);
     expect(preflight).toContain("count(*) = 236");
-    expect(preflight).toContain("count(*) = 323");
+    expect(preflight).toContain("count(*) = 324");
     expect(preflight).toContain("min(version::text) = '20260325181408'");
-    expect(preflight).toContain("87 migrations pending");
+    expect(preflight).toContain("88 migrations pending");
     expect(preflight).not.toContain("count(*) = 295");
     for (const version of PENDING_VERSIONS) {
       expect(preflight).toContain(`'${version}'`);
@@ -417,6 +418,19 @@ describe("Production cutover preflight source contract", () => {
     expect(t9).toContain(`'service_role',\n        resolver_boundary.oid`);
     expect(t9).toContain(`'anon',\n        resolver_boundary.oid`);
     expect(t9).toContain(`'authenticated',\n        resolver_boundary.oid`);
+  });
+
+  test("T10 pins the bounded service-only feedback candidate read model", () => {
+    expect(preflight).toContain("T10 Feedback candidate rotation boundary");
+    expect(preflight).toContain("public.project_feedback_candidate_read_model");
+    expect(preflight).toContain(
+      "private.project_feedback_candidate_end_date(text,jsonb)",
+    );
+    expect(preflight).toContain("security_invoker=true");
+    expect(preflight).toContain("security_barrier=true");
+    expect(preflight).toContain(
+      "PASS T10: indexed feedback candidate read model and ACLs are exact.",
+    );
   });
 
   test("verifies the moderation evidence shape this cutover introduces", () => {
