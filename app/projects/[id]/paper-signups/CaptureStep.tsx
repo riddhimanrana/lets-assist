@@ -234,6 +234,7 @@ export function CaptureStep({
           if (recoveryError) continue;
           if (
             recoveredBatch === null ||
+            recoveredBatch.status === "draft" ||
             recoveredBatch.status === "review" ||
             recoveredBatch.status === "failed"
           ) {
