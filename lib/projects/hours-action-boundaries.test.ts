@@ -75,8 +75,12 @@ test("certificate resend is permission checked and scoped to one project session
   assert.match(resendSource, /getPublishStateKey/u);
   assert.match(resendSource, /loadDurablePublicationForRetry/u);
   assert.match(resendSource, /drainPublicationEmails/u);
+  assert.match(
+    resendSource,
+    /publishKey === sessionId \? \[sessionId\] : \[sessionId, publishKey\]/u,
+  );
   assert.match(resendSource, /\.eq\("project_id", projectId\)/u);
-  assert.match(resendSource, /\.eq\("schedule_id", publishKey\)/u);
+  assert.match(resendSource, /\.in\("schedule_id", legacyScheduleIds\)/u);
 });
 
 test("durable delivery snapshots the rendered provider request before claim", () => {
