@@ -242,28 +242,22 @@ export async function queueOrphanedPaperScanUploads(input: {
     return { error: "Could not verify the uploaded photos for cleanup." };
   }
 
-  const { data: registeredImages, error: registeredImagesError } = await admin
-    .from("project_paper_scan_images")
-    .select("object_path")
-    .in("object_path", parsed.data.objectPaths)
-    .limit(1);
-  if (registeredImagesError) {
+  const { data: queueResult, error } = await admin.rpc(
+    "queue_orphaned_paper_scan_uploads",
+    { p_object_paths: parsed.data.objectPaths },
+  );
+  if (error) {
     return { error: "Could not verify the scan registration state." };
   }
-  if ((registeredImages ?? []).length > 0) {
+  if (
+    queueResult &&
+    typeof queueResult === "object" &&
+    !Array.isArray(queueResult) &&
+    queueResult.registered === true
+  ) {
     return { registered: true };
   }
-
-  const { error } = await admin
-    .from("paper_scan_storage_deletion_queue")
-    .upsert(
-      parsed.data.objectPaths.map((objectPath) => ({
-        bucket_id: "paper-signup-scans",
-        object_path: objectPath,
-      })),
-      { onConflict: "bucket_id,object_path", ignoreDuplicates: true },
-    );
-  return error ? { error: "Could not queue scan cleanup." } : { success: true };
+  return { success: true };
 }
 
 const updateRowSchema = z

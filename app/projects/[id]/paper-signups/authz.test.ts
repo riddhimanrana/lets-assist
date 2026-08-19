@@ -170,7 +170,7 @@ describe("paper signup management access", () => {
     expect(cleanupSource).toContain("getAuthUser()");
     expect(cleanupSource).not.toContain("requirePaperScanAccess");
     expect(cleanupSource).toContain("data?.metadata?.cleanupToken");
-    expect(cleanupSource).toContain('.from("project_paper_scan_images")');
+    expect(cleanupSource).toContain('"queue_orphaned_paper_scan_uploads"');
     expect(cleanupSource).toContain("return { registered: true }");
   });
 });
