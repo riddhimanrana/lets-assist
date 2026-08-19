@@ -1,4 +1,4 @@
--- Production 236 -> repository target 331 cutover preflight.
+-- Production 236 -> repository target 332 cutover preflight.
 --
 -- Read-only by construction: every check is SELECT or SHOW inside an explicit
 -- READ ONLY transaction. Run this only with the reviewed Production read-only
@@ -10,7 +10,7 @@
 --
 -- The only supported ledgers are:
 --   pre-cutover   236 rows headed by 20260811001500
---   post-cutover  331 rows headed by 20260819020000 with the exact 95-row tail
+--   post-cutover  332 rows headed by 20260819030000 with the exact 96-row tail
 --
 -- Any partial, divergent, later, or wrong-tail ledger exits non-zero before
 -- shape-specific relations are parsed. Relation inventories then fail with a
@@ -48,7 +48,7 @@ SELECT current_setting('transaction_read_only') = 'on' AS read_only_transaction
 \echo ''
 \echo '=============================================================='
 \echo 'L0  Exact migration ledger'
-\echo '    PASS: exactly 236/baseline or exactly 331/target'
+\echo '    PASS: exactly 236/baseline or exactly 332/target'
 \echo '=============================================================='
 SELECT count(*) AS applied_migrations,
        min(version::text) AS first_version,
@@ -151,9 +151,9 @@ SELECT
     AND count(*) FILTER (
       WHERE version::text > '20260811001500'
     ) = 0 AS baseline_ledger,
-  count(*) = 331
+  count(*) = 332
     AND min(version::text) = '20260325181408'
-    AND max(version::text) = '20260819020000'
+    AND max(version::text) = '20260819030000'
     AND :'baseline_versions_exact'::boolean
     AND (
       SELECT array_agg(pending.version ORDER BY pending.version)
@@ -195,7 +195,8 @@ SELECT
       '20260818074500','20260818092855','20260818115000',
       '20260818134000','20260818150000','20260818160000',
       '20260818170000','20260818180000','20260818223637',
-      '20260818232541','20260819002500','20260819020000'
+      '20260818232541','20260819002500','20260819020000',
+      '20260819030000'
       -- END EXACT PRODUCTION TARGET TAIL
     ]::text[] AS target_ledger
 FROM supabase_migrations.schema_migrations
@@ -203,7 +204,7 @@ FROM supabase_migrations.schema_migrations
 
 \if :baseline_ledger
   \set cutover_shape pre
-  \echo 'PASS L0: exact Production baseline; 95 migrations pending.'
+  \echo 'PASS L0: exact Production baseline; 96 migrations pending.'
 \elif :target_ledger
   \set cutover_shape post
   \echo 'PASS L0: exact repository target; zero migrations pending.'
@@ -1241,6 +1242,7 @@ SELECT
       ('public.api_rate_limit_receipts'),
       ('private.project_series_end_receipts'),
       ('private.plugin_data_deletion_requests'),
+      ('private.anonymous_feedback_email_preferences'),
       ('private.google_cap_event_receipts'),
       ('app_private.storage_object_policy_contract')
   ) AS required(relation_name)
@@ -1259,6 +1261,7 @@ SELECT
       ('public.api_rate_limit_receipts'),
       ('private.project_series_end_receipts'),
       ('private.plugin_data_deletion_requests'),
+      ('private.anonymous_feedback_email_preferences'),
       ('private.google_cap_event_receipts'),
       ('app_private.storage_object_policy_contract')
   ) AS required(relation_name)
@@ -1320,6 +1323,14 @@ SELECT
         'consume_content_report_attempt(text[],integer[],integer)'),
       ('server_only_function', 'public',
         'detach_content_report_reporter(uuid)'),
+      ('server_only_function', 'public',
+        'set_anonymous_feedback_email_opt_out(uuid,boolean)'),
+      ('owner_only_function', 'app_private',
+        'apply_anonymous_feedback_email_preference()'),
+      ('trigger', 'public.anonymous_signups',
+        'apply_anonymous_feedback_email_preference'),
+      ('index', 'public.anonymous_signups',
+        'anonymous_signups_feedback_normalized_email_idx'),
       ('index', 'public.api_rate_limit_receipts',
         'api_rate_limit_receipts_expiry_idx')
   ) AS expected(kind, relation_name, object_name)
@@ -1370,6 +1381,44 @@ SELECT
         AND function_record.proconfig @> ARRAY['search_path=""']
         AND has_function_privilege('service_role', function_record.oid, 'EXECUTE')
     )
+  ) OR (
+    expected.kind = 'owner_only_function'
+    AND NOT EXISTS (
+      SELECT 1
+      FROM pg_catalog.pg_proc AS function_record
+      WHERE function_record.oid = to_regprocedure(
+          expected.relation_name || '.' || expected.object_name
+        )
+        AND function_record.prosecdef
+        AND function_record.proconfig @> ARRAY['search_path=""']
+        AND NOT has_function_privilege('anon', function_record.oid, 'EXECUTE')
+        AND NOT has_function_privilege('authenticated', function_record.oid, 'EXECUTE')
+        AND NOT has_function_privilege('service_role', function_record.oid, 'EXECUTE')
+    )
+  ) OR (
+    expected.kind = 'trigger'
+    AND NOT EXISTS (
+      SELECT 1
+      FROM pg_catalog.pg_trigger AS trigger_record
+      WHERE trigger_record.tgrelid = to_regclass(expected.relation_name)
+        AND trigger_record.tgname = expected.object_name
+        AND NOT trigger_record.tgisinternal
+        AND trigger_record.tgenabled <> 'D'
+        AND trigger_record.tgtype = 23
+        AND (
+          SELECT array_agg(attribute_record.attnum::smallint ORDER BY attribute_record.attnum)
+          FROM pg_catalog.pg_attribute AS attribute_record
+          WHERE attribute_record.attrelid = trigger_record.tgrelid
+            AND attribute_record.attname IN ('email', 'email_opt_out_at')
+            AND NOT attribute_record.attisdropped
+        ) = (
+          SELECT array_agg(trigger_column.attnum ORDER BY trigger_column.attnum)
+          FROM unnest(trigger_record.tgattr::smallint[]) AS trigger_column(attnum)
+        )
+        AND trigger_record.tgfoid = to_regprocedure(
+          'app_private.apply_anonymous_feedback_email_preference()'
+        )
+    )
   )
   ORDER BY expected.kind, expected.object_name;
 
@@ -1419,6 +1468,14 @@ SELECT
           'consume_content_report_attempt(text[],integer[],integer)'),
         ('server_only_function', 'public',
           'detach_content_report_reporter(uuid)'),
+        ('server_only_function', 'public',
+          'set_anonymous_feedback_email_opt_out(uuid,boolean)'),
+        ('owner_only_function', 'app_private',
+          'apply_anonymous_feedback_email_preference()'),
+        ('trigger', 'public.anonymous_signups',
+          'apply_anonymous_feedback_email_preference'),
+        ('index', 'public.anonymous_signups',
+          'anonymous_signups_feedback_normalized_email_idx'),
         ('index', 'public.api_rate_limit_receipts',
           'api_rate_limit_receipts_expiry_idx')
     ) AS expected(kind, relation_name, object_name)
@@ -1468,6 +1525,44 @@ SELECT
           AND function_record.prosecdef
           AND function_record.proconfig @> ARRAY['search_path=""']
           AND has_function_privilege('service_role', function_record.oid, 'EXECUTE')
+      )
+    ) OR (
+      expected.kind = 'owner_only_function'
+      AND NOT EXISTS (
+        SELECT 1
+        FROM pg_catalog.pg_proc AS function_record
+        WHERE function_record.oid = to_regprocedure(
+            expected.relation_name || '.' || expected.object_name
+          )
+          AND function_record.prosecdef
+          AND function_record.proconfig @> ARRAY['search_path=""']
+          AND NOT has_function_privilege('anon', function_record.oid, 'EXECUTE')
+          AND NOT has_function_privilege('authenticated', function_record.oid, 'EXECUTE')
+          AND NOT has_function_privilege('service_role', function_record.oid, 'EXECUTE')
+      )
+    ) OR (
+      expected.kind = 'trigger'
+      AND NOT EXISTS (
+        SELECT 1
+        FROM pg_catalog.pg_trigger AS trigger_record
+        WHERE trigger_record.tgrelid = to_regclass(expected.relation_name)
+          AND trigger_record.tgname = expected.object_name
+          AND NOT trigger_record.tgisinternal
+          AND trigger_record.tgenabled <> 'D'
+          AND trigger_record.tgtype = 23
+          AND (
+            SELECT array_agg(attribute_record.attnum::smallint ORDER BY attribute_record.attnum)
+            FROM pg_catalog.pg_attribute AS attribute_record
+            WHERE attribute_record.attrelid = trigger_record.tgrelid
+              AND attribute_record.attname IN ('email', 'email_opt_out_at')
+              AND NOT attribute_record.attisdropped
+          ) = (
+            SELECT array_agg(trigger_column.attnum ORDER BY trigger_column.attnum)
+            FROM unnest(trigger_record.tgattr::smallint[]) AS trigger_column(attnum)
+          )
+          AND trigger_record.tgfoid = to_regprocedure(
+            'app_private.apply_anonymous_feedback_email_preference()'
+          )
       )
     )
   ) AS t2_pass

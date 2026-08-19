@@ -10,7 +10,8 @@ import { getAdminClient } from "@/lib/supabase/admin";
  * POST. Humans who arrive by GET from the email footer must explicitly
  * confirm before anything changes: mailbox security scanners prefetch links.
  *
- * Anonymous subjects get anonymous_signups.email_opt_out_at (there is no
+ * Anonymous subjects propagate anonymous_signups.email_opt_out_at across
+ * every project-scoped identity with the same normalized address (there is no
  * account to hold a preference); user subjects get
  * notification_settings.project_updates = false — the same switch that
  * gates every other project update email. ?decision=resubscribe reverses
@@ -106,12 +107,10 @@ async function applyDecision(
   }
 
   if (payload.subject.kind === "anonymous") {
-    const { error } = await admin
-      .from("anonymous_signups")
-      .update({
-        email_opt_out_at: resubscribe ? null : new Date().toISOString(),
-      })
-      .eq("id", payload.subject.anonymousSignupId);
+    const { error } = await admin.rpc("set_anonymous_feedback_email_opt_out", {
+      p_anonymous_signup_id: payload.subject.anonymousSignupId,
+      p_opted_out: !resubscribe,
+    });
     if (error) {
       return htmlPage("Something went wrong. Please try the link again.");
     }

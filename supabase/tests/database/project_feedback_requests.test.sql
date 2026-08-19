@@ -85,9 +85,16 @@ VALUES
    'd8100000-0000-4000-8000-000000000001',
    'flw-optout@local.test', 'Optout Flw', now());
 
-UPDATE public.anonymous_signups
-SET email_opt_out_at = now()
-WHERE id = 'd8200000-0000-4000-8000-000000000002';
+SET LOCAL ROLE service_role;
+SET LOCAL "request.jwt.claims" =
+  '{"role":"service_role"}';
+
+SELECT public.set_anonymous_feedback_email_opt_out(
+  'd8200000-0000-4000-8000-000000000002',
+  true
+);
+
+RESET ROLE;
 
 INSERT INTO public.project_signups (id, project_id, user_id, anonymous_id, schedule_id, status)
 VALUES

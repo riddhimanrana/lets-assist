@@ -11,6 +11,11 @@ const feedbackActions = readFileSync(
   join(root, "app/projects/[id]/server/feedback.ts"),
   "utf8",
 );
+const signupActions = readFileSync(join(root, "app/signup/actions.ts"), "utf8");
+const feedbackUnsubscribeRoute = readFileSync(
+  join(root, "app/feedback/[requestId]/unsubscribe/route.ts"),
+  "utf8",
+);
 const paperCleanupWorker = readFileSync(
   join(root, "lib/projects/paper-signup/cleanup-storage.ts"),
   "utf8",
@@ -33,6 +38,13 @@ const paperCleanupMigration = readFileSync(
   join(
     root,
     "supabase/migrations/20260819020000_serialize_paper_scan_orphan_cleanup.sql",
+  ),
+  "utf8",
+);
+const anonymousFeedbackPreferenceMigration = readFileSync(
+  join(
+    root,
+    "supabase/migrations/20260819030000_propagate_anonymous_feedback_opt_out.sql",
   ),
   "utf8",
 );
@@ -112,6 +124,36 @@ describe("Production review round-two contracts", () => {
     );
     expect(paperCleanupMigration).toContain(
       "DELETE FROM public.paper_scan_storage_deletion_queue",
+    );
+  });
+
+  test("canonical signup context and anonymous address preferences survive later identities", () => {
+    const googleSignup = signupActions.slice(
+      signupActions.indexOf("export async function signInWithGoogle"),
+    );
+    expect(googleSignup).toContain("buildCanonicalSignupPath({");
+    expect(googleSignup).toContain("redirectPath: redirectAfterAuth");
+    expect(googleSignup).toContain("staffToken: inviteContext?.staffToken");
+    expect(feedbackUnsubscribeRoute).toContain(
+      'admin.rpc("set_anonymous_feedback_email_opt_out"',
+    );
+    expect(anonymousFeedbackPreferenceMigration).toContain(
+      "CREATE TABLE private.anonymous_feedback_email_preferences",
+    );
+    expect(anonymousFeedbackPreferenceMigration).toContain(
+      "CREATE TRIGGER apply_anonymous_feedback_email_preference",
+    );
+    expect(anonymousFeedbackPreferenceMigration).toContain(
+      "BEFORE INSERT OR UPDATE OF email, email_opt_out_at",
+    );
+    expect(anonymousFeedbackPreferenceMigration).toContain(
+      "anonymous-feedback-email-preference:",
+    );
+    expect(anonymousFeedbackPreferenceMigration).toContain(
+      "WHERE signup.email_opt_out_at IS NOT NULL",
+    );
+    expect(anonymousFeedbackPreferenceMigration).toContain(
+      "FROM PUBLIC, anon, authenticated, service_role",
     );
   });
 });
