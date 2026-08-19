@@ -113,7 +113,7 @@ export default function CalendarOptionsModal({
 
     // Redirect to Google OAuth
     // eslint-disable-next-line @next/next/no-location-assign-relative-destination
-    window.location.href = `/api/calendar/google/connect?purpose=personal_calendar&scopes=calendar&return_to=${encodeURIComponent(projectUrl)}`;
+    window.location.href = `/api/google/oauth/connect?purpose=personal_calendar&scopes=calendar&return_to=${encodeURIComponent(projectUrl)}`;
   };
 
   const syncToCalendar = async () => {

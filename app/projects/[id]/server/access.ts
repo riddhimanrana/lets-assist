@@ -7,8 +7,9 @@ import { isProjectVisible } from "@/utils/project";
 import { type Project } from "@/types";
 import { getAdminClient } from "@/lib/supabase/admin";
 import { getProjectCreatorProfileById } from "@/lib/profile/public";
-import { canManageProjectAccess } from "@/lib/projects/management-access";
+import { activeOrganizationRole } from "@/lib/projects/management-access";
 import { isMissingWaiverDisableEsignatureColumnError } from "./shared";
+import { canUserManageProject } from "./access-helpers";
 
 export async function isProjectCreator(projectId: string) {
   "use server";
@@ -34,54 +35,12 @@ export async function isProjectCreator(projectId: string) {
   }
 }
 
-export type ManageableProjectRecord = {
-  creator_id?: string | null;
-  organization_id?: string | null;
-  organization?: { id?: string | null } | null;
-  can_be_managed_by_staff?: boolean;
-};
-
 export type CurrentUserProjectPermissions = {
   userId: string | null;
   isCreator: boolean;
   isOrgAdmin: boolean;
   canManageProject: boolean;
 };
-
-const getManageableProjectOrganizationId = (
-  project?: ManageableProjectRecord | null,
-) => project?.organization_id ?? project?.organization?.id ?? null;
-
-export async function canUserManageProject(
-  supabase: Awaited<ReturnType<typeof createClient>>,
-  project: ManageableProjectRecord | null | undefined,
-  userId: string,
-) {
-  if (!project) return false;
-
-  const orgId = getManageableProjectOrganizationId(project);
-  if (project.creator_id === userId || !orgId) {
-    return canManageProjectAccess({
-      creatorId: project.creator_id ?? null,
-      userId,
-      canBeManagedByStaff: project.can_be_managed_by_staff,
-    });
-  }
-
-  const { data: membership } = await supabase
-    .from("organization_members")
-    .select("role")
-    .eq("organization_id", orgId)
-    .eq("user_id", userId)
-    .single();
-
-  return canManageProjectAccess({
-    creatorId: project.creator_id ?? null,
-    userId,
-    organizationRole: membership?.role,
-    canBeManagedByStaff: project.can_be_managed_by_staff,
-  });
-}
 
 export async function getCurrentUserProjectPermissions(
   projectId: string,
@@ -128,11 +87,11 @@ export async function getCurrentUserProjectPermissions(
     if (orgId && !isCreator) {
       const { data: membership } = await supabase
         .from("organization_members")
-        .select("role")
+        .select("role, status")
         .eq("organization_id", orgId)
         .eq("user_id", user.id)
         .single();
-      isOrgAdmin = membership?.role === "admin";
+      isOrgAdmin = activeOrganizationRole(membership) === "admin";
     }
 
     return {

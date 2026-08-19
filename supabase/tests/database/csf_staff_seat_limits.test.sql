@@ -21,6 +21,14 @@ INSERT INTO auth.users (
 INSERT INTO public.organizations (id, name, username, type, join_code)
 VALUES ('d2100000-0000-4000-8000-000000000001', 'CSF Seat Limits', 'csf-seat-limits', 'school', '992101');
 
+INSERT INTO plugin_data.csf_terms (
+  id, organization_id, code, label, school_year, semester, lifecycle_status, is_current
+) VALUES (
+  'd2300000-0000-4000-8000-000000000001',
+  'd2100000-0000-4000-8000-000000000001',
+  'F30', 'Fall 2030', '2030-2031', 'fall', 'open', true
+);
+
 INSERT INTO public.organization_members (organization_id, user_id, role, status)
 VALUES ('d2100000-0000-4000-8000-000000000001', 'd2000000-0000-4000-8000-000000000001', 'admin', 'active');
 

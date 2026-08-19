@@ -26,6 +26,7 @@ const campaign = await import("./csf-communications-campaign");
 const ORG = "ce100000-0000-4000-8000-000000000001";
 const ACTOR = "ce000000-0000-4000-8000-000000000001";
 const CAMPAIGN = "ce400000-0000-4000-8000-000000000001";
+const ENVIRONMENT = "abcdefghijklmnopqrst";
 
 type RpcCall = { fn: string; args: Record<string, unknown> };
 
@@ -53,6 +54,7 @@ let lastCalls: RpcCall[] = [];
 
 beforeEach(() => {
   lastCalls = [];
+  process.env.NEXT_PUBLIC_SUPABASE_URL = `https://${ENVIRONMENT}.supabase.co`;
 });
 
 describe("creating a campaign draft", () => {
@@ -123,6 +125,30 @@ describe("creating a campaign draft", () => {
       p_resend_topic_id: null,
       // And it was not queued from a post.
       p_source_announcement_id: null,
+      // Resend subscriptions are account-wide, so the signed provider request
+      // must name the backend that owns this campaign.
+      p_tags: { csf_environment: ENVIRONMENT },
+    });
+  });
+
+  test("a caller cannot claim that a campaign belongs to another backend", async () => {
+    const { calls, plugin } = harness();
+
+    await campaign.createCsfCampaignDraft(plugin, {
+      organizationId: ORG,
+      campaignKind: "transactional",
+      subject: "Mandatory notice",
+      bodyText: "Environment ownership is server-derived.",
+      actorUserId: ACTOR,
+      tags: {
+        csf_environment: "zyxwvutsrqponmlkjihg",
+        source: "operator_test",
+      },
+    });
+
+    expect(calls[0].args.p_tags).toEqual({
+      csf_environment: ENVIRONMENT,
+      source: "operator_test",
     });
   });
 

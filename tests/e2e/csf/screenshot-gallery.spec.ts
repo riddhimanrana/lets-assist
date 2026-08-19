@@ -100,12 +100,18 @@ test.describe("sanitized DVHS CSF screenshot gallery", () => {
         "Club Directory",
       ],
       [
-        "48-semester",
+        "48-classes",
         `${CSF_ORGANIZATION_PATH}?tab=csf-cohorts`,
-        // The cohorts tab is the class hub: "Schedule & deadlines" now lives
-        // inside the collapsed "Semesters & setup" disclosure, so the marker
-        // asserts the setup trigger the collapsed hub actually shows.
-        "Semesters & setup",
+        // The cohorts tab is the class picker only; semester management moved
+        // to the Terms page.
+        "Your classes",
+      ],
+      [
+        "48b-terms",
+        `${CSF_ORGANIZATION_PATH}?tab=csf-terms`,
+        // The Terms page: deadlines and the meeting schedule for the selected
+        // term, with lifecycle actions in the header.
+        "Meeting schedule",
       ],
       [
         "49-imports",
@@ -113,9 +119,11 @@ test.describe("sanitized DVHS CSF screenshot gallery", () => {
         "Import records",
       ],
       [
-        "50-reports",
+        // The Reports tab is retired; its old tab value aliases to Settings,
+        // where the semester report download now lives.
+        "50-reports-alias-settings",
         `${CSF_ORGANIZATION_PATH}?tab=csf-reports`,
-        "Semester reports",
+        "Download reports",
       ],
       [
         "51-staff-access",
@@ -143,28 +151,31 @@ test.describe("sanitized DVHS CSF screenshot gallery", () => {
       ).toBeVisible();
       await capture(page, name);
 
-      if (name === "48-semester") {
-        // Prove the marker is the *collapsed* hub truth: the class picker and
-        // the server-derived cutover summary are both readable without opening
-        // the disclosure, and the gallery never expands it.
+      if (name === "48-classes") {
+        // The retired setup disclosure must not come back to this route.
         await expect(
           tabpanel.getByRole("heading", { name: "Your classes" }),
         ).toBeVisible();
-        const setupTrigger = tabpanel.getByRole("button", {
-          name: "Semesters & setup",
-        });
-        await expect(setupTrigger).toHaveAttribute("aria-expanded", "false");
+        await expect(tabpanel.getByText("Semesters & setup")).toHaveCount(0);
+      }
+
+      if (name === "48b-terms") {
+        // The lifecycle actions live on the page header, and chapter rules
+        // stay collapsed until asked for.
         await expect(
-          setupTrigger.getByText(/of \d+ setup checkpoints? recorded/),
+          tabpanel.getByRole("button", { name: "Start next term" }),
         ).toBeVisible();
+        const rulesTrigger = tabpanel.getByRole("button", {
+          name: /Chapter rules/,
+        });
+        await expect(rulesTrigger).toHaveAttribute("aria-expanded", "false");
       }
 
       if (name === "41-applications-list") {
-        const reviewLinks = page.locator('a[href*="csf_application="]');
-        expect(await reviewLinks.count()).toBeGreaterThan(0);
-        await reviewLinks.first().click();
-        await expect(page).toHaveURL(/csf_application=/);
-        await capture(page, "42-application-review");
+        // The tab now mounts the review campaign workspace; a per-application
+        // review screen only exists once an officer enters the queue, so the
+        // gallery keeps the roster capture.
+        await expect(page.locator("#applications")).toBeVisible();
       }
     }
   });

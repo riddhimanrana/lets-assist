@@ -98,6 +98,8 @@ export default defineConfig({
       // launcher remains available separately; E2E uses the compiled server so
       // long runs cannot be invalidated by incremental recompiles.
       CSF_BROWSER_SERVER_MODE: "production",
+      CSF_BROWSER_SKIP_BUILD_TYPECHECK:
+        process.env.CSF_BROWSER_SKIP_BUILD_TYPECHECK ?? "",
     },
   },
 });

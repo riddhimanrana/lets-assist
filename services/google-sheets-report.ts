@@ -293,12 +293,18 @@ export function buildSpreadsheetUrl(sheetId: string) {
 export async function getSpreadsheetMetadata(
   accessToken: string,
   sheetId: string,
-): Promise<{ sheetId: string; sheetTitle: string; tabs: string[] } | null> {
+): Promise<{
+  sheetId: string;
+  sheetTitle: string;
+  tabs: string[];
+  /** Grid extent per tab title, so callers can build bounded A1 ranges. */
+  tabGrids: Record<string, { rowCount: number; columnCount: number }>;
+} | null> {
   try {
     const response = await fetch(
       `${GOOGLE_SHEETS_API}/${encodeURIComponent(
         sheetId,
-      )}?fields=spreadsheetId,properties.title,sheets.properties.title`,
+      )}?fields=spreadsheetId,properties.title,sheets.properties(title,gridProperties(rowCount,columnCount))`,
       {
         headers: {
           Authorization: `Bearer ${accessToken}`,
@@ -307,33 +313,56 @@ export async function getSpreadsheetMetadata(
     );
 
     if (!response.ok) {
-      const error = await response.text();
       logError(
         "Failed to fetch Google spreadsheet metadata",
-        new Error(error),
+        new Error(`Sheets returned ${response.status}`),
         {
-          sheet_id: sheetId,
+          status: response.status,
         },
       );
       return null;
     }
 
     const data = await response.json();
-    const tabs = (data.sheets || [])
-      .map(
-        (sheet: { properties?: { title?: string } }) => sheet.properties?.title,
-      )
+    type SheetProperties = {
+      properties?: {
+        title?: string;
+        gridProperties?: { rowCount?: number; columnCount?: number };
+      };
+    };
+    const sheets: SheetProperties[] = data.sheets || [];
+    const tabs = sheets
+      .map((sheet) => sheet.properties?.title)
       .filter((title: string | undefined): title is string => Boolean(title));
+    const tabGrids: Record<string, { rowCount: number; columnCount: number }> =
+      {};
+    for (const sheet of sheets) {
+      const title = sheet.properties?.title;
+      const grid = sheet.properties?.gridProperties;
+      if (!title || !grid) continue;
+      const rowCount = Number(grid.rowCount);
+      const columnCount = Number(grid.columnCount);
+      if (
+        Number.isInteger(rowCount) &&
+        rowCount > 0 &&
+        Number.isInteger(columnCount) &&
+        columnCount > 0
+      ) {
+        tabGrids[title] = { rowCount, columnCount };
+      }
+    }
 
     return {
       sheetId: data.spreadsheetId,
       sheetTitle: data.properties?.title || "Untitled Spreadsheet",
       tabs,
+      tabGrids,
     };
-  } catch (error) {
-    logError("Exception while fetching Google spreadsheet metadata", error, {
-      sheet_id: sheetId,
-    });
+  } catch {
+    logError(
+      "Exception while fetching Google spreadsheet metadata",
+      new Error("Sheets metadata request failed"),
+    );
     return null;
   }
 }

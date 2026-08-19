@@ -2,6 +2,7 @@ import { isEntitlementActive } from "@/lib/plugins/resolve-org-plugins";
 import {
   coalescePluginVersion,
   isPluginVersionBehind,
+  isPluginRuntimeVersionExact,
 } from "@/lib/plugins/versioning";
 import type { OrganizationPluginAdminSetting } from "@/types";
 
@@ -44,6 +45,7 @@ export type RuntimePluginInfo = {
   detailedDescription?: OrganizationPluginAdminSetting["detailedDescription"];
   capabilityHighlights?: OrganizationPluginAdminSetting["capabilityHighlights"];
   dataAccess?: OrganizationPluginAdminSetting["dataAccess"];
+  dataAccessPurposes?: OrganizationPluginAdminSetting["dataAccessPurposes"];
   routes?: Array<{ path: string; label: string }>;
   backendCapabilities?: Array<{
     key: string;
@@ -52,6 +54,8 @@ export type RuntimePluginInfo = {
   }>;
   configSchema?: OrganizationPluginAdminSetting["configSchema"];
   requiredScopes?: OrganizationPluginAdminSetting["requiredScopes"];
+  dataDeletionAvailable?: boolean;
+  dataDeletionExternalSystemsNotCovered?: string[];
 };
 
 export function buildOrganizationPluginAdminSettings(input: {
@@ -122,6 +126,13 @@ export function buildOrganizationPluginAdminSettings(input: {
       if (!blockedReason && forceUpdateRequired) {
         blockedReason =
           "A platform-enforced update is required before this plugin can be used.";
+      } else if (
+        !blockedReason &&
+        runtimePlugin &&
+        !isPluginRuntimeVersionExact(installedVersion, runtimePlugin.version)
+      ) {
+        blockedReason =
+          "Update this installation before using the plugin version loaded by the platform.";
       }
 
       return {
@@ -141,6 +152,7 @@ export function buildOrganizationPluginAdminSettings(input: {
             (capability) => `${capability.kind}: ${capability.description}`,
           ),
         ],
+        dataAccessPurposes: runtimePlugin?.dataAccessPurposes ?? [],
         visibility: plugin.visibility,
         navLabel: runtimePlugin?.navLabel ?? plugin.name,
         version: runtimePlugin?.version ?? "unregistered",
@@ -163,6 +175,14 @@ export function buildOrganizationPluginAdminSettings(input: {
         configuration: install?.configuration ?? null,
         configSchema: runtimePlugin?.configSchema ?? null,
         requiredScopes: runtimePlugin?.requiredScopes ?? [],
+        dataDeletionAvailable: Boolean(
+          runtimePlugin?.dataDeletionAvailable &&
+          entitled &&
+          !isForced &&
+          !install,
+        ),
+        dataDeletionExternalSystemsNotCovered:
+          runtimePlugin?.dataDeletionExternalSystemsNotCovered ?? [],
       } satisfies OrganizationPluginAdminSetting;
     })
     .sort((a, b) => a.name.localeCompare(b.name));

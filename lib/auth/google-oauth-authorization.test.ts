@@ -161,11 +161,11 @@ test("both OAuth endpoints use the active-membership authorization gate", () => 
     "utf8",
   );
   const connectSource = readFileSync(
-    `${process.cwd()}/app/api/calendar/google/connect/route.ts`,
+    `${process.cwd()}/app/api/google/oauth/connect/route.ts`,
     "utf8",
   );
   const callbackSource = readFileSync(
-    `${process.cwd()}/app/api/calendar/google/callback/route.ts`,
+    `${process.cwd()}/app/api/google/oauth/callback/route.ts`,
     "utf8",
   );
 

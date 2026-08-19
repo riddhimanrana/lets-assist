@@ -3,6 +3,8 @@ import { createHash } from "node:crypto";
 import { NextRequest, NextResponse } from "next/server";
 import { Resend } from "resend";
 
+import { resolveCsfCommunicationsEnvironment } from "@/services/csf-communications-environment";
+
 /**
  * Resend webhook implementation for DVHS CSF durable communications.
  *
@@ -44,6 +46,8 @@ export const CSF_CAMPAIGN_TAG = "csf_campaign_id";
  * single byte of message content or a recipient address.
  */
 export const CSF_ATTEMPT_TAG = "csf_attempt_id";
+/** Signed tag carrying the Supabase backend that owns the ledger row. */
+export const CSF_ENVIRONMENT_TAG = "csf_environment";
 /** Signed tag carrying the broadcast topic, when the send was a broadcast. */
 export const CSF_TOPIC_TAG = "csf_topic_key";
 
@@ -70,15 +74,43 @@ type LegacySignedTag = { name?: unknown; value?: unknown };
 
 export type CsfRouting = {
   isCsf: boolean;
+  /**
+   * The signed plugin tag says this event came from CSF, regardless of whether
+   * the tenant tag survived. `isCsf` additionally requires a routable tenant.
+   */
+  claimsCsf: boolean;
   organizationId: string | null;
   campaignId: string | null;
   attemptId: string | null;
+  environment: string | null;
   topicKey: string | null;
 };
 
 /** SHA-256 of the exact raw request body, hex encoded. */
 export function sha256Hex(raw: string): string {
   return createHash("sha256").update(raw, "utf8").digest("hex");
+}
+
+type QuarantineCoordinateKind = "provider_event" | "provider_message";
+
+/**
+ * Bound a verified provider coordinate before it reaches quarantine storage.
+ *
+ * Provider identifiers are opaque strings and may grow beyond the quarantine
+ * table's 255-character contract. Quarantine must still be able to durably
+ * acknowledge that signed poison instead of throwing and creating a permanent
+ * provider retry loop. A domain-separated digest preserves deterministic
+ * correlation while keeping the raw opaque identifier out of the worklist and
+ * structured quarantine logs.
+ */
+export function quarantineCoordinate(
+  kind: QuarantineCoordinateKind,
+  value: string | null,
+): string | null {
+  if (value === null) return null;
+
+  const prefix = kind === "provider_event" ? "qevt_sha256_" : "qmsg_sha256_";
+  return `${prefix}${sha256Hex(`${kind}\u0000${value}`)}`;
 }
 
 export function isCsfSupportedEvent(eventType: unknown): boolean {
@@ -142,18 +174,35 @@ function readUuidTag(event: unknown, tagName: string): string | null {
  * that disagrees.
  */
 export function extractCsfRouting(event: unknown): CsfRouting {
-  const plugin = readSignedTag(event, CSF_PLUGIN_TAG);
   const organizationId = readUuidTag(event, CSF_ORGANIZATION_TAG);
   const topicKey = readSignedTag(event, CSF_TOPIC_TAG);
 
-  const isCsf = plugin === CSF_PLUGIN_TAG_VALUE && organizationId !== null;
+  // THE TENANT TAG IS NOT A PRECONDITION FOR READING THE OTHER COORDINATES.
+  //
+  // These were all gated on `isCsf`, which requires a well-formed organization
+  // tag -- so in the one case where the organization tag is the corrupt field,
+  // every other coordinate was discarded too. That is exactly backwards. The
+  // unroutable-tenant quarantine exists to preserve the evidence that our own
+  // send produced an unroutable event, and it was landing rows with an envelope
+  // id, a body hash, and nothing that names the delivery, even when the attempt
+  // and campaign tags were present and already UUID-validated. The environment
+  // tag went with them, so a foreign backend's poison event was quarantined in
+  // every environment that received it rather than only in the one that sent it.
+  //
+  // The plugin tag alone decides whether these belong to us. Each coordinate is
+  // still independently validated -- UUID shape here, tenant re-resolution in the
+  // database -- and the ledger treats all of them as untrusted claims either way.
+  const claimsCsf = readsCsfPluginTag(event);
+  const isCsf = claimsCsf && organizationId !== null;
 
   return {
     isCsf,
+    claimsCsf,
     organizationId: isCsf ? organizationId : null,
-    campaignId: isCsf ? readUuidTag(event, CSF_CAMPAIGN_TAG) : null,
-    attemptId: isCsf ? readUuidTag(event, CSF_ATTEMPT_TAG) : null,
-    topicKey: isCsf && topicKey ? topicKey : null,
+    campaignId: claimsCsf ? readUuidTag(event, CSF_CAMPAIGN_TAG) : null,
+    attemptId: claimsCsf ? readUuidTag(event, CSF_ATTEMPT_TAG) : null,
+    environment: claimsCsf ? readSignedTag(event, CSF_ENVIRONMENT_TAG) : null,
+    topicKey: claimsCsf && topicKey ? topicKey : null,
   };
 }
 
@@ -516,7 +565,123 @@ const PERMANENT_LEDGER_FAULTS: ReadonlyArray<{
     code: "unknown_tenant_coordinate",
     detail: "signed routing coordinate does not exist in this organization",
   },
+  {
+    // foreign_key_violation, raised by the resolver when the campaign the
+    // evidence resolves to was purged. Distinct sentence from the row above --
+    // "no longer exists" is not a substring of "does not exist" -- so it matched
+    // nothing and a permanently unresolvable event was retried forever.
+    sqlstate: "23503",
+    marker: "no longer exists in this organization",
+    code: "unknown_tenant_coordinate",
+    detail: "the campaign this signed evidence resolves to no longer exists",
+  },
+  {
+    // foreign_key_violation: the attempt resolves, but its audience snapshot
+    // belongs to a different campaign than the campaign tag names. A broken
+    // ownership chain is not something a redelivery repairs.
+    sqlstate: "23503",
+    marker: "does not belong to the tagged campaign",
+    code: "contradictory_routing_evidence",
+    detail:
+      "the audience snapshot behind the signed routing tag belongs to a different campaign",
+  },
+  {
+    // check_violation: the evidence row is already past the states the resolver
+    // accepts. Immutable history, so a retry cannot move it.
+    sqlstate: "23514",
+    marker: "CSF webhook evidence can be resolved",
+    code: "immutable_replay_conflict",
+    detail: "this signed evidence was already resolved",
+  },
+  // THE INPUT-SHAPE FAULTS.
+  //
+  // Each of these is the ledger refusing a value it cannot store. The request
+  // body is fixed -- Resend redelivers the identical bytes -- so every retry
+  // fails identically, forever, and nothing durable is ever written. They are
+  // the same failure mode as the routing faults above and belong in the same
+  // table; they were simply never enumerated, because the route bounds the event
+  // type itself and it was assumed the rest could not be out of range.
+  //
+  // They quarantine as `malformed_event_shape`: the signed event cannot be
+  // recorded in the form it arrived in, which is exactly what that code means.
+  {
+    sqlstate: "22004",
+    marker: "A CSF provider event requires an organization",
+    code: "malformed_event_shape",
+    detail: "the ledger was asked to record an event with no organization",
+  },
+  {
+    sqlstate: "22023",
+    marker: "requires the verified webhook envelope id",
+    code: "malformed_event_shape",
+    detail: "the webhook envelope id is not a value the ledger can store",
+  },
+  {
+    sqlstate: "22023",
+    marker: "requires an event type of at most",
+    code: "malformed_event_shape",
+    detail: "the event type exceeds the length the ledger can store",
+  },
+  {
+    sqlstate: "22023",
+    marker: "provider message identity is at most",
+    code: "malformed_event_shape",
+    detail:
+      "the provider message identity exceeds the length the ledger can store",
+  },
+  {
+    sqlstate: "22023",
+    marker: "requires the SHA-256 of the exact verified raw request body",
+    code: "malformed_event_shape",
+    detail: "the raw body digest is not a value the ledger can store",
+  },
+  {
+    sqlstate: "22023",
+    marker: "Only the svix webhook signature scheme is supported",
+    code: "malformed_event_shape",
+    detail: "the signature scheme recorded with this event is not supported",
+  },
+  {
+    sqlstate: "22023",
+    marker: "metadata may hold only allowlisted",
+    code: "malformed_event_shape",
+    detail: "the derived event metadata is outside the ledger's allowlist",
+  },
+  {
+    sqlstate: "23514",
+    marker: "the database does not verify signatures",
+    code: "malformed_event_shape",
+    detail: "the ledger was asked to record evidence the route did not verify",
+  },
+  {
+    sqlstate: "23514",
+    marker: "is only resolved after the application verifies the signature",
+    code: "malformed_event_shape",
+    detail: "the ledger was asked to resolve evidence the route did not verify",
+  },
 ];
+
+/**
+ * The ledger diagnostics reachable from the record path that a redelivery CAN
+ * fix, and must therefore stay 503.
+ *
+ * This list is the other half of the contract, and it exists so that
+ * "unclassified" stops being an accident. Every fault the record RPC and its
+ * resolver can raise is now either in the permanent table above -- durable
+ * quarantine, acknowledged 200 -- or named here as a deliberate retry. Anything
+ * that is in neither is a gap, and `quarantine-reason-contract.test.ts` reads
+ * both function bodies out of the migration and fails on one.
+ *
+ * All four are lost races: the row moved between the unlocked coordinate
+ * discovery and the campaign lock, or a concurrent writer removed it. The next
+ * delivery attempt re-discovers the current state, which is precisely what a
+ * retry is for.
+ */
+export const CSF_RETRYABLE_LEDGER_FAULT_MARKERS = [
+  "A concurrent writer removed CSF provider webhook evidence mid-transaction",
+  "moved campaign between discovery and the campaign lock",
+  "was re-bound between coordinate discovery and the campaign lock",
+] as const;
 
 /**
  * The code a permanent fault quarantines under, or null when it is not permanent.
@@ -785,8 +950,18 @@ export async function POST(req: NextRequest) {
   // is a real server-side fault, and being retried is exactly what we want, so the
   // event is still deliverable once an operator supplies the secret.
   if (!webhookSecret) {
+    // The BODY is opaque, the log line is not. This is the first statement in the
+    // handler -- it runs before the header check and before verification -- so
+    // any unauthenticated caller reaches it by POSTing an empty body. Naming the
+    // environment variable in the response told them which one is missing; every
+    // other error string on this route is deliberately opaque for the same
+    // reason. The 500 stays: it is a real server fault, and Resend retrying is
+    // what keeps the event deliverable once an operator supplies the secret.
+    logWebhook("error", "Resend webhook secret is not configured.", {
+      variable: "RESEND_WEBHOOK_SECRET",
+    });
     return NextResponse.json(
-      { error: "RESEND_WEBHOOK_SECRET is not configured." },
+      { error: "Webhook receiver unavailable." },
       { status: 500 },
     );
   }
@@ -922,6 +1097,15 @@ export async function POST(req: NextRequest) {
     reasonCode: CsfQuarantineReasonCode,
     detail: string,
   ): Promise<NextResponse> {
+    const quarantineProviderEventId = quarantineCoordinate(
+      "provider_event",
+      id!,
+    )!;
+    const quarantineProviderMessageId = quarantineCoordinate(
+      "provider_message",
+      resolveProviderMessageId(event),
+    );
+
     // FAIL CLOSED ON A CODE THE SQL CONTRACT DOES NOT ADMIT.
     //
     // The parameter is typed, so this is unreachable from this module -- but the
@@ -935,7 +1119,7 @@ export async function POST(req: NextRequest) {
         "error",
         "CSF webhook quarantine refused an unmodelled reason.",
         {
-          providerEventId: id,
+          providerEventId: quarantineProviderEventId,
           eventType: safeEventType,
           reasonCode,
         },
@@ -948,13 +1132,13 @@ export async function POST(req: NextRequest) {
 
     try {
       const { data, error } = await quarantineCsfProviderEvent({
-        providerEventId: id!,
+        providerEventId: quarantineProviderEventId,
         rawBodyHash,
         reasonCode,
         reasonDetail: detail,
         // The closed token, never the caller's string. See safeEventType.
         eventType: safeEventType,
-        providerMessageId: resolveProviderMessageId(event),
+        providerMessageId: quarantineProviderMessageId,
         claimedOrganizationId: routing.organizationId,
         claimedAttemptId: routing.attemptId,
         claimedCampaignId: routing.campaignId,
@@ -962,7 +1146,7 @@ export async function POST(req: NextRequest) {
 
       if (error) {
         logWebhook("error", "CSF webhook quarantine failed.", {
-          providerEventId: id,
+          providerEventId: quarantineProviderEventId,
           eventType: safeEventType,
           reasonCode,
           quarantineFailureCode: ledgerReasonCode(error),
@@ -983,7 +1167,7 @@ export async function POST(req: NextRequest) {
       };
 
       logWebhook("info", "Quarantined signed CSF webhook.", {
-        providerEventId: id,
+        providerEventId: quarantineProviderEventId,
         eventType: safeEventType,
         reasonCode,
         firstCapture: captured.firstCapture ?? false,
@@ -999,7 +1183,7 @@ export async function POST(req: NextRequest) {
       });
     } catch (error) {
       logWebhook("error", "CSF webhook quarantine threw.", {
-        providerEventId: id,
+        providerEventId: quarantineProviderEventId,
         reasonCode,
         faultKind: thrownFaultKind(error),
       });
@@ -1010,6 +1194,58 @@ export async function POST(req: NextRequest) {
     }
   }
 
+  const claimsCsf = routing.claimsCsf;
+
+  // RESEND WEBHOOK SUBSCRIPTIONS ARE ACCOUNT-WIDE. Both the Production and
+  // Development endpoints receive the same signed event, so the provider
+  // payload carries the backend coordinate that authored it. A foreign event is
+  // valid CSF evidence, just not evidence for this database; acknowledge it
+  // without creating a false quarantine row or attempting a cross-environment
+  // organization lookup.
+  //
+  // THIS RUNS BEFORE THE UNROUTABLE-TENANT QUARANTINE, not after it. When it ran
+  // after, an event whose organization tag was corrupt never reached this gate:
+  // it was quarantined first, in every environment that received it, and the
+  // isolation contract -- exactly one backend records each signed event -- held
+  // only for events that were already routable. A poison event is precisely the
+  // kind that should not be filed three times.
+  //
+  // Missing coordinates keep the legacy behavior below. That preserves events
+  // created before this tag existed while every new campaign is required to
+  // carry it by the canonical provider-request builder.
+  if (claimsCsf && routing.environment !== null) {
+    let currentEnvironment: string;
+    try {
+      currentEnvironment = resolveCsfCommunicationsEnvironment();
+    } catch {
+      logWebhook(
+        "error",
+        "CSF webhook could not resolve its current environment.",
+        {
+          providerEventId: id,
+          eventType: safeEventType,
+        },
+      );
+      return NextResponse.json(
+        { error: "Webhook environment is not configured." },
+        { status: 503 },
+      );
+    }
+
+    if (routing.environment !== currentEnvironment) {
+      logWebhook("info", "Acknowledged CSF webhook for another environment.", {
+        providerEventId: id,
+        eventType: safeEventType,
+        csf: true,
+      });
+      return NextResponse.json({
+        received: true,
+        csf: true,
+        foreignEnvironment: true,
+      });
+    }
+  }
+
   // A SIGNED CSF-TAGGED EVENT WE CANNOT ROUTE IS CSF POISON, NOT SOMEBODY ELSE'S
   // EVENT.
   //
@@ -1017,9 +1253,9 @@ export async function POST(req: NextRequest) {
   // malformed, discarding it as "non-CSF" throws away the only record that our own
   // send produced an unroutable event -- and the tenant tag is exactly the field a
   // bug or a tampered integration would corrupt. It is quarantined with a null
-  // organization, because no evidence proves one.
-  const claimsCsf = readsCsfPluginTag(event);
-
+  // organization, because no evidence proves one -- but with whatever attempt and
+  // campaign coordinates the signed body did carry, which is what makes the row
+  // something an officer can act on.
   if (claimsCsf && !routing.organizationId) {
     return quarantineAndAcknowledge(
       "unroutable_tenant",

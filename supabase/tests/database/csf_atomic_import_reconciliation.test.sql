@@ -2,7 +2,7 @@ BEGIN;
 
 CREATE EXTENSION IF NOT EXISTS pgtap WITH SCHEMA extensions;
 
-SELECT extensions.plan(47);
+SELECT extensions.plan(29);
 
 SELECT extensions.ok(
   NOT has_function_privilege(
@@ -31,7 +31,7 @@ SELECT extensions.ok(
 SELECT extensions.ok(
   NOT has_function_privilege(
     'anon',
-    'plugin_data.csf_commit_meeting_attendance_import(uuid,uuid,uuid,text,uuid)',
+    'plugin_data.csf_commit_meeting_attendance_import(uuid,uuid,uuid,text,uuid,uuid)',
     'EXECUTE'
   ),
   'anonymous clients cannot commit meeting attendance imports'
@@ -39,7 +39,7 @@ SELECT extensions.ok(
 SELECT extensions.ok(
   NOT has_function_privilege(
     'authenticated',
-    'plugin_data.csf_commit_meeting_attendance_import(uuid,uuid,uuid,text,uuid)',
+    'plugin_data.csf_commit_meeting_attendance_import(uuid,uuid,uuid,text,uuid,uuid)',
     'EXECUTE'
   ),
   'authenticated clients cannot commit meeting attendance imports directly'
@@ -47,34 +47,14 @@ SELECT extensions.ok(
 SELECT extensions.ok(
   has_function_privilege(
     'service_role',
-    'plugin_data.csf_commit_meeting_attendance_import(uuid,uuid,uuid,text,uuid)',
+    'plugin_data.csf_commit_meeting_attendance_import(uuid,uuid,uuid,text,uuid,uuid)',
     'EXECUTE'
   ),
   'the server role can atomically commit meeting attendance imports'
 );
 SELECT extensions.ok(
-  NOT has_function_privilege(
-    'anon',
-    'plugin_data.csf_commit_partner_audit_import(uuid,uuid,text,uuid,text,uuid)',
-    'EXECUTE'
-  ),
-  'anonymous clients cannot commit partner-club audit imports'
-);
-SELECT extensions.ok(
-  NOT has_function_privilege(
-    'authenticated',
-    'plugin_data.csf_commit_partner_audit_import(uuid,uuid,text,uuid,text,uuid)',
-    'EXECUTE'
-  ),
-  'authenticated clients cannot commit partner-club audit imports directly'
-);
-SELECT extensions.ok(
-  has_function_privilege(
-    'service_role',
-    'plugin_data.csf_commit_partner_audit_import(uuid,uuid,text,uuid,text,uuid)',
-    'EXECUTE'
-  ),
-  'the server role can atomically commit partner-club audit imports'
+  to_regprocedure('plugin_data.csf_commit_partner_audit_import(uuid,uuid,text,uuid,text,uuid,uuid)') IS NULL,
+  'the retired partner-club audit commit RPC no longer exists'
 );
 
 INSERT INTO auth.users (
@@ -101,6 +81,15 @@ VALUES
     '994002'
   );
 
+INSERT INTO public.organization_members (
+  organization_id, user_id, role, status
+) VALUES (
+  'd9100000-0000-4000-8000-000000000001',
+  'd9000000-0000-4000-8000-000000000001',
+  'admin',
+  'active'
+);
+
 INSERT INTO plugin_data.csf_terms (
   id, organization_id, code, label, school_year, semester
 ) VALUES (
@@ -121,16 +110,6 @@ INSERT INTO plugin_data.csf_profiles (
     'd9300000-0000-4000-8000-000000000002',
     'd9100000-0000-4000-8000-000000000001',
     'Meeting', 'Rollback', 'meeting', 'rollback'
-  ),
-  (
-    'd9300000-0000-4000-8000-000000000003',
-    'd9100000-0000-4000-8000-000000000001',
-    'Partner', 'Success', 'partner', 'success'
-  ),
-  (
-    'd9300000-0000-4000-8000-000000000004',
-    'd9100000-0000-4000-8000-000000000001',
-    'Partner', 'Rollback', 'partner', 'rollback'
   ),
   (
     'd9300000-0000-4000-8000-000000000005',
@@ -188,24 +167,22 @@ INSERT INTO plugin_data.csf_meeting_sessions (
     '2030-12-01'
   );
 
-INSERT INTO plugin_data.csf_partner_clubs (
-  id, organization_id, name, approved_point_types
-) VALUES (
-  'd9800000-0000-4000-8000-000000000001',
-  'd9100000-0000-4000-8000-000000000001',
-  'Synthetic Service Club',
-  ARRAY['non_drive']::text[]
-);
-
+-- The partner source is Sheets-backed here, as the form-responses import
+-- registers it; the partner batch pipeline it once fed was retired with the
+-- 2026-08-17 partner-club simplification, but the source type itself is kept
+-- for identity reconciliation of its rows.
 INSERT INTO plugin_data.csf_sheet_sources (
-  id, organization_id, source_type, title, provider, spreadsheet_id, uploaded_file_path, sync_status, settings
+  id, organization_id, source_type, title, provider, spreadsheet_id, uploaded_file_path,
+  drive_file_id, drive_mime_type, drive_modified_at, sync_status, settings
 ) VALUES
   (
     'd9500000-0000-4000-8000-000000000001',
     'd9100000-0000-4000-8000-000000000001',
     'meeting_attendance',
     'Atomic meeting success source',
-    'google_sheets', 'atomic-meeting-success', NULL, 'not_synced',
+    'google_sheets', 'atomic-meeting-success', NULL,
+    'atomic-meeting-success', 'application/vnd.google-apps.spreadsheet',
+    '2030-08-01T00:00:00Z', 'not_synced',
     '{"sourceKind":"meeting_attendance","meetingId":"d9400000-0000-4000-8000-000000000001"}'
   ),
   (
@@ -213,7 +190,9 @@ INSERT INTO plugin_data.csf_sheet_sources (
     'd9100000-0000-4000-8000-000000000001',
     'meeting_attendance',
     'Atomic meeting rollback source',
-    'google_sheets', 'atomic-meeting-rollback', NULL, 'not_synced',
+    'google_sheets', 'atomic-meeting-rollback', NULL,
+    'atomic-meeting-rollback', 'application/vnd.google-apps.spreadsheet',
+    '2030-08-02T00:00:00Z', 'not_synced',
     '{"sourceKind":"meeting_attendance","meetingId":"d9400000-0000-4000-8000-000000000002"}'
   ),
   (
@@ -221,15 +200,9 @@ INSERT INTO plugin_data.csf_sheet_sources (
     'd9100000-0000-4000-8000-000000000001',
     'partner_club_audit',
     'Atomic partner success source',
-    'uploaded_xlsx', NULL, 'csf/fixture/partner-success.xlsx', 'not_synced',
-    '{"sourceKind":"partner_club_audit"}'
-  ),
-  (
-    'd9500000-0000-4000-8000-000000000004',
-    'd9100000-0000-4000-8000-000000000001',
-    'partner_club_audit',
-    'Atomic partner rollback source',
-    'uploaded_xlsx', NULL, 'csf/fixture/partner-rollback.xlsx', 'not_synced',
+    'google_sheets', 'atomic-partner-success', NULL,
+    'atomic-partner-success', 'application/vnd.google-apps.spreadsheet',
+    '2030-08-03T00:00:00Z', 'not_synced',
     '{"sourceKind":"partner_club_audit"}'
   );
 
@@ -259,26 +232,6 @@ INSERT INTO plugin_data.csf_sheet_import_jobs (
     'd9d00000-0000-4000-8000-000000000002', '{}', now()
   ),
   (
-    'd9600000-0000-4000-8000-000000000003',
-    'd9100000-0000-4000-8000-000000000001',
-    'd9500000-0000-4000-8000-000000000003',
-    'd9000000-0000-4000-8000-000000000001',
-    'preview', 'completed', 'partner_club_audit',
-    'csf/fixture/partner-success.xlsx', 'Partner Success', 'Audit', 'used-range',
-    '{"version":1,"sourceType":"partner_club_audit"}', 1,
-    'd9d00000-0000-4000-8000-000000000003', '{}', now()
-  ),
-  (
-    'd9600000-0000-4000-8000-000000000004',
-    'd9100000-0000-4000-8000-000000000001',
-    'd9500000-0000-4000-8000-000000000004',
-    'd9000000-0000-4000-8000-000000000001',
-    'preview', 'completed', 'partner_club_audit',
-    'csf/fixture/partner-rollback.xlsx', 'Partner Rollback', 'Audit', 'used-range',
-    '{"version":1,"sourceType":"partner_club_audit"}', 1,
-    'd9d00000-0000-4000-8000-000000000004', '{}', now()
-  ),
-  (
     'd9600000-0000-4000-8000-000000000005',
     'd9100000-0000-4000-8000-000000000001',
     'd9500000-0000-4000-8000-000000000003',
@@ -287,37 +240,6 @@ INSERT INTO plugin_data.csf_sheet_import_jobs (
     'csf/fixture/partner-success.xlsx', 'Partner Resolution', 'Audit', 'used-range',
     '{"version":1,"sourceType":"partner_club_audit"}', 1,
     'd9d00000-0000-4000-8000-000000000005', '{}', now()
-  );
-
-INSERT INTO plugin_data.csf_partner_submission_batches (
-  id, organization_id, partner_club_id, term_id, title, source, source_url, status, submitted_by, summary
-) VALUES
-  (
-    'd9900000-0000-4000-8000-000000000001',
-    'd9100000-0000-4000-8000-000000000001',
-    'd9800000-0000-4000-8000-000000000001',
-    'd9200000-0000-4000-8000-000000000001',
-    'Synthetic partner audit success', 'sheet', 'csf/fixture/partner-success.xlsx', 'needs_verification',
-    'd9000000-0000-4000-8000-000000000001',
-    '{"sheetImportPreviewJobId":"d9600000-0000-4000-8000-000000000003","sheetImportCorrelationId":"d9d00000-0000-4000-8000-000000000003"}'
-  ),
-  (
-    'd9900000-0000-4000-8000-000000000002',
-    'd9100000-0000-4000-8000-000000000001',
-    'd9800000-0000-4000-8000-000000000001',
-    'd9200000-0000-4000-8000-000000000001',
-    'Synthetic partner audit rollback', 'sheet', 'csf/fixture/partner-rollback.xlsx', 'needs_verification',
-    'd9000000-0000-4000-8000-000000000001',
-    '{"sheetImportPreviewJobId":"d9600000-0000-4000-8000-000000000004","sheetImportCorrelationId":"d9d00000-0000-4000-8000-000000000004"}'
-  ),
-  (
-    'd9900000-0000-4000-8000-000000000003',
-    'd9100000-0000-4000-8000-000000000001',
-    'd9800000-0000-4000-8000-000000000001',
-    'd9200000-0000-4000-8000-000000000001',
-    'Synthetic partner resolution', 'sheet', 'csf/fixture/partner-success.xlsx', 'needs_verification',
-    'd9000000-0000-4000-8000-000000000001',
-    '{"sheetImportPreviewJobId":"d9600000-0000-4000-8000-000000000005","sheetImportCorrelationId":"d9d00000-0000-4000-8000-000000000005"}'
   );
 
 INSERT INTO plugin_data.csf_sheet_import_rows (
@@ -347,35 +269,13 @@ INSERT INTO plugin_data.csf_sheet_import_rows (
     'd9d00000-0000-4000-8000-000000000002'
   ),
   (
-    'd9700000-0000-4000-8000-000000000003',
-    'd9100000-0000-4000-8000-000000000001',
-    'd9600000-0000-4000-8000-000000000003',
-    'd9500000-0000-4000-8000-000000000003',
-    'd9200000-0000-4000-8000-000000000001',
-    'Audit', 2, '{"Name":"Partner Success"}',
-    '{"partnerAuditBatchId":"d9900000-0000-4000-8000-000000000001","source":{"rowHash":"partner-success-hash"}}',
-    'partner-success-hash', 'd9300000-0000-4000-8000-000000000003', 'pending',
-    'd9d00000-0000-4000-8000-000000000003'
-  ),
-  (
-    'd9700000-0000-4000-8000-000000000004',
-    'd9100000-0000-4000-8000-000000000001',
-    'd9600000-0000-4000-8000-000000000004',
-    'd9500000-0000-4000-8000-000000000004',
-    'd9200000-0000-4000-8000-000000000001',
-    'Audit', 2, '{"Name":"Partner Rollback"}',
-    '{"partnerAuditBatchId":"d9900000-0000-4000-8000-000000000002","source":{"rowHash":"partner-rollback-hash"}}',
-    'partner-rollback-hash', 'd9300000-0000-4000-8000-000000000004', 'pending',
-    'd9d00000-0000-4000-8000-000000000004'
-  ),
-  (
     'd9700000-0000-4000-8000-000000000005',
     'd9100000-0000-4000-8000-000000000001',
     'd9600000-0000-4000-8000-000000000005',
     'd9500000-0000-4000-8000-000000000003',
     'd9200000-0000-4000-8000-000000000001',
     'Audit', 3, '{"Name":"Resolved Member"}',
-    '{"partnerAuditBatchId":"d9900000-0000-4000-8000-000000000003","source":{"rowHash":"partner-resolution-hash"}}',
+    '{"source":{"rowHash":"partner-resolution-hash"}}',
     'partner-resolution-hash', NULL, 'ambiguous',
     'd9d00000-0000-4000-8000-000000000005'
   ),
@@ -386,45 +286,76 @@ INSERT INTO plugin_data.csf_sheet_import_rows (
     'd9500000-0000-4000-8000-000000000003',
     'd9200000-0000-4000-8000-000000000001',
     'Audit', 4, '{"Name":"Skipped Record"}',
-    '{"partnerAuditBatchId":"d9900000-0000-4000-8000-000000000003","source":{"rowHash":"partner-skip-hash"}}',
+    '{"source":{"rowHash":"partner-skip-hash"}}',
     'partner-skip-hash', NULL, 'conflict',
     'd9d00000-0000-4000-8000-000000000006'
   );
 
-INSERT INTO plugin_data.csf_partner_submission_rows (
-  id, organization_id, batch_id, profile_id, matched_status, raw_data, normalized_data,
-  claimed_points, point_type
-) VALUES
-  (
-    'd9a00000-0000-4000-8000-000000000001',
-    'd9100000-0000-4000-8000-000000000001',
-    'd9900000-0000-4000-8000-000000000001',
-    'd9300000-0000-4000-8000-000000000003',
-    'matched', '{"Name":"Partner Success"}',
-    '{"source":{"rowHash":"partner-success-hash"}}', 2, 'non_drive'
-  ),
-  (
-    'd9a00000-0000-4000-8000-000000000002',
-    'd9100000-0000-4000-8000-000000000001',
-    'd9900000-0000-4000-8000-000000000002',
-    'd9300000-0000-4000-8000-000000000004',
-    'matched', '{"Name":"Partner Rollback"}',
-    '{"source":{"rowHash":"partner-rollback-hash"}}', 2, 'non_drive'
-  ),
-  (
-    'd9a00000-0000-4000-8000-000000000003',
-    'd9100000-0000-4000-8000-000000000001',
-    'd9900000-0000-4000-8000-000000000003',
-    NULL, 'ambiguous', '{"Name":"Resolved Member"}',
-    '{"source":{"rowHash":"partner-resolution-hash"}}', 1, 'non_drive'
-  ),
-  (
-    'd9a00000-0000-4000-8000-000000000004',
-    'd9100000-0000-4000-8000-000000000001',
-    'd9900000-0000-4000-8000-000000000003',
-    NULL, 'unmatched', '{"Name":"Skipped Record"}',
-    '{"source":{"rowHash":"partner-skip-hash"}}', 1, 'non_drive'
-  );
+-- The source-evidence receipts the two succeeding or write-reaching commits spend,
+-- written exactly as `csf_refresh_sheet_source_evidence` writes them: the same canonical
+-- metadata digest recomputed from the receipt's own coordinates, the same
+-- `evidenceRevision`/`evidenceDigest` pair on the source, the same generation.
+-- `csf_consume_sheet_source_evidence` re-derives all three, so a receipt that did not
+-- describe itself would be refused rather than accepted.
+WITH minted AS (
+  SELECT *
+  FROM (VALUES
+    ('d9600000-0000-4000-8000-000000000001'::uuid, 'd9e00000-0000-4000-8000-000000000001'::uuid),
+    ('d9600000-0000-4000-8000-000000000002'::uuid, 'd9e00000-0000-4000-8000-000000000002'::uuid)
+  ) AS pair(preview_job_id, nonce)
+),
+coordinate AS (
+  SELECT
+    minted.preview_job_id,
+    minted.nonce,
+    job.organization_id,
+    job.source_id,
+    source.spreadsheet_id AS provider_file_id,
+    source.drive_modified_at AS modified_time,
+    encode(
+      sha256(convert_to(
+        plugin_data.csf_canonical_json(jsonb_build_object(
+          'fileId', source.spreadsheet_id,
+          'mimeType', 'application/vnd.google-apps.spreadsheet',
+          'modifiedTime', to_char(
+            source.drive_modified_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.US"Z"'
+          ),
+          'version', '5',
+          'trashed', false
+        )),
+        'UTF8'
+      )),
+      'hex'
+    ) AS metadata_digest
+  FROM minted
+  JOIN plugin_data.csf_sheet_import_jobs AS job ON job.id = minted.preview_job_id
+  JOIN plugin_data.csf_sheet_sources AS source ON source.id = job.source_id
+),
+refreshed AS (
+  UPDATE plugin_data.csf_sheet_sources AS source
+  SET evidence_generation = 1,
+      evidence_refreshed_at = now(),
+      settings = source.settings || jsonb_build_object(
+        'evidenceRevision', '5',
+        'evidenceDigest', coordinate.metadata_digest
+      )
+  FROM coordinate
+  WHERE source.id = coordinate.source_id
+  RETURNING source.id
+)
+INSERT INTO plugin_data.csf_sheet_source_evidence_tokens (
+  organization_id, source_id, actor_user_id, preview_job_id, provider, nonce,
+  evidence_generation, metadata_digest, provider_file_id, provider_version,
+  mime_type, modified_time, access_checked_at, expires_at
+)
+SELECT
+  coordinate.organization_id, coordinate.source_id,
+  'd9000000-0000-4000-8000-000000000001', coordinate.preview_job_id,
+  'google_sheets', coordinate.nonce, 1, coordinate.metadata_digest,
+  coordinate.provider_file_id, '5',
+  'application/vnd.google-apps.spreadsheet', coordinate.modified_time,
+  now(), now() + interval '10 minutes'
+FROM coordinate;
 
 SELECT extensions.lives_ok(
   $$
@@ -433,7 +364,8 @@ SELECT extensions.lives_ok(
       'd9600000-0000-4000-8000-000000000001',
       'd9000000-0000-4000-8000-000000000001',
       'Verified the synthetic attendance preview.',
-      'd9d00000-0000-4000-8000-000000000001'
+      'd9d00000-0000-4000-8000-000000000001',
+      'd9e00000-0000-4000-8000-000000000001'
     )
   $$,
   'a reconciled meeting-attendance preview commits atomically'
@@ -477,7 +409,7 @@ SELECT extensions.ok(
       'd9600000-0000-4000-8000-000000000001',
       'd9000000-0000-4000-8000-000000000001',
       'Verified the synthetic attendance preview.',
-      'd9d00000-0000-4000-8000-000000000001'
+      'd9d00000-0000-4000-8000-000000000001', NULL
     )->>'idempotent'
   )::boolean,
   'repeating the same meeting commit returns an idempotent result'
@@ -494,80 +426,6 @@ SELECT extensions.is(
 
 SELECT extensions.lives_ok(
   $$
-    SELECT plugin_data.csf_commit_partner_audit_import(
-      'd9100000-0000-4000-8000-000000000001',
-      'd9900000-0000-4000-8000-000000000001',
-      'approved',
-      'd9000000-0000-4000-8000-000000000001',
-      'Approved the reconciled synthetic partner audit.',
-      'd9d00000-0000-4000-8000-000000000003'
-    )
-  $$,
-  'a reconciled partner-club audit commits atomically'
-);
-SELECT extensions.is(
-  (SELECT count(*)::integer FROM plugin_data.csf_point_submissions
-   WHERE organization_id = 'd9100000-0000-4000-8000-000000000001'
-     AND description = 'Synthetic partner audit success partner club audit'),
-  1,
-  'partner commit creates one normalized point submission'
-);
-SELECT extensions.is(
-  (SELECT count(*)::integer FROM plugin_data.csf_credit_records AS credit
-   JOIN plugin_data.csf_point_submissions AS submission ON submission.id = credit.submission_id
-   WHERE submission.description = 'Synthetic partner audit success partner club audit'),
-  1,
-  'partner commit creates one linked credit record'
-);
-SELECT extensions.is(
-  (SELECT count(*)::integer FROM plugin_data.csf_profile_activity_events AS event
-   WHERE event.source_ref->>'partnerAuditRowId' = 'd9a00000-0000-4000-8000-000000000001'),
-  1,
-  'partner commit creates one normalized member activity event'
-);
-SELECT extensions.ok(
-  (SELECT generated_submission_id IS NOT NULL
-   FROM plugin_data.csf_partner_submission_rows
-   WHERE id = 'd9a00000-0000-4000-8000-000000000001'),
-  'partner commit marks the source row with its generated submission'
-);
-SELECT extensions.ok(
-  (
-    SELECT correlation_id = 'd9d00000-0000-4000-8000-000000000003'
-      AND source_type = 'sheet_import'
-      AND reason_code = 'partner_audit_committed'
-      AND after_data->>'reason' = 'Approved the reconciled synthetic partner audit.'
-    FROM plugin_data.csf_admin_audit_events
-    WHERE target_id = 'd9900000-0000-4000-8000-000000000001'
-      AND action = 'partner_audit.commit'
-  ),
-  'partner audit preserves explicit correlation, source, and reason'
-);
-SELECT extensions.ok(
-  (
-    plugin_data.csf_commit_partner_audit_import(
-      'd9100000-0000-4000-8000-000000000001',
-      'd9900000-0000-4000-8000-000000000001',
-      'approved',
-      'd9000000-0000-4000-8000-000000000001',
-      'Approved the reconciled synthetic partner audit.',
-      'd9d00000-0000-4000-8000-000000000003'
-    )->>'idempotent'
-  )::boolean,
-  'repeating the same partner-audit commit returns an idempotent result'
-);
-SELECT extensions.is(
-  (SELECT count(*)::integer FROM plugin_data.csf_sheet_import_jobs
-   WHERE organization_id = 'd9100000-0000-4000-8000-000000000001'
-     AND mode = 'commit'
-     AND source_type = 'partner_club_audit'
-     AND summary->>'previewJobId' = 'd9600000-0000-4000-8000-000000000003'),
-  1,
-  'repeated partner-audit commits do not duplicate commit jobs'
-);
-
-SELECT extensions.lives_ok(
-  $$
     SELECT plugin_data.csf_reconcile_sheet_import_row(
       'd9100000-0000-4000-8000-000000000001',
       'd9700000-0000-4000-8000-000000000005',
@@ -578,7 +436,7 @@ SELECT extensions.lives_ok(
       'd9d00000-0000-4000-8000-000000000005'
     )
   $$,
-  'an officer match decision updates the import row and linked partner row atomically'
+  'an officer match decision updates the import row atomically'
 );
 SELECT extensions.ok(
   (
@@ -589,15 +447,6 @@ SELECT extensions.ok(
     WHERE id = 'd9700000-0000-4000-8000-000000000005'
   ),
   'the reconciled import row is ready for commit with explicit resolution metadata'
-);
-SELECT extensions.ok(
-  (
-    SELECT matched_status = 'matched'
-      AND profile_id = 'd9300000-0000-4000-8000-000000000005'
-    FROM plugin_data.csf_partner_submission_rows
-    WHERE id = 'd9a00000-0000-4000-8000-000000000003'
-  ),
-  'the linked partner row receives the same match decision'
 );
 SELECT extensions.ok(
   (
@@ -637,7 +486,7 @@ SELECT extensions.lives_ok(
       'd9d00000-0000-4000-8000-000000000006'
     )
   $$,
-  'an officer skip decision updates the import row and linked partner row atomically'
+  'an officer skip decision updates the import row atomically'
 );
 SELECT extensions.ok(
   (
@@ -648,12 +497,6 @@ SELECT extensions.ok(
     WHERE id = 'd9700000-0000-4000-8000-000000000006'
   ),
   'the skipped import row preserves explicit resolution metadata'
-);
-SELECT extensions.is(
-  (SELECT matched_status FROM plugin_data.csf_partner_submission_rows
-   WHERE id = 'd9a00000-0000-4000-8000-000000000004'),
-  'rejected',
-  'the linked partner row receives the same skip decision'
 );
 SELECT extensions.ok(
   (
@@ -688,7 +531,7 @@ SELECT extensions.throws_ok(
       'd9600000-0000-4000-8000-000000000002',
       'd9000000-0000-4000-8000-000000000001',
       'Attempted cross-organization commit.',
-      'd9d00000-0000-4000-8000-000000000002'
+      'd9d00000-0000-4000-8000-000000000002', NULL
     )
   $$,
   'P0001',
@@ -702,7 +545,7 @@ SELECT extensions.throws_ok(
       'd9600000-0000-4000-8000-000000000002',
       'd9000000-0000-4000-8000-000000000001',
       '',
-      'd9d00000-0000-4000-8000-000000000002'
+      'd9d00000-0000-4000-8000-000000000002', NULL
     )
   $$,
   'P0001',
@@ -715,10 +558,7 @@ RETURNS trigger
 LANGUAGE plpgsql
 AS $$
 BEGIN
-  IF NEW.target_id IN (
-    'd9400000-0000-4000-8000-000000000002'::uuid,
-    'd9900000-0000-4000-8000-000000000002'::uuid
-  ) THEN
+  IF NEW.target_id = 'd9400000-0000-4000-8000-000000000002'::uuid THEN
     RAISE EXCEPTION 'synthetic audit failure';
   END IF;
   RETURN NEW;
@@ -736,7 +576,8 @@ SELECT extensions.throws_ok(
       'd9600000-0000-4000-8000-000000000002',
       'd9000000-0000-4000-8000-000000000001',
       'This transaction must roll back at the audit boundary.',
-      'd9d00000-0000-4000-8000-000000000002'
+      'd9d00000-0000-4000-8000-000000000002',
+      'd9e00000-0000-4000-8000-000000000002'
     )
   $$,
   'P0001',
@@ -765,63 +606,11 @@ SELECT extensions.is(
   'rolled-back meeting commit leaves its preview row unchanged'
 );
 
-SELECT extensions.throws_ok(
-  $$
-    SELECT plugin_data.csf_commit_partner_audit_import(
-      'd9100000-0000-4000-8000-000000000001',
-      'd9900000-0000-4000-8000-000000000002',
-      'approved',
-      'd9000000-0000-4000-8000-000000000001',
-      'This transaction must roll back at the audit boundary.',
-      'd9d00000-0000-4000-8000-000000000004'
-    )
-  $$,
-  'P0001',
-  'synthetic audit failure',
-  'an audit failure aborts the full partner-audit commit'
-);
-SELECT extensions.is(
-  (SELECT count(*)::integer FROM plugin_data.csf_point_submissions
-   WHERE description = 'Synthetic partner audit rollback partner club audit'),
-  0,
-  'rolled-back partner commit leaves no point submission'
-);
-SELECT extensions.is(
-  (SELECT count(*)::integer FROM plugin_data.csf_credit_records AS credit
-   JOIN plugin_data.csf_point_submissions AS submission ON submission.id = credit.submission_id
-   WHERE submission.description = 'Synthetic partner audit rollback partner club audit'),
-  0,
-  'rolled-back partner commit leaves no credit record'
-);
-SELECT extensions.is(
-  (SELECT count(*)::integer FROM plugin_data.csf_profile_activity_events
-   WHERE source_ref->>'partnerAuditRowId' = 'd9a00000-0000-4000-8000-000000000002'),
-  0,
-  'rolled-back partner commit leaves no member activity event'
-);
-SELECT extensions.ok(
-  (SELECT generated_submission_id IS NULL
-   FROM plugin_data.csf_partner_submission_rows
-   WHERE id = 'd9a00000-0000-4000-8000-000000000002'),
-  'rolled-back partner commit leaves the source row uncommitted'
-);
-SELECT extensions.is(
-  (SELECT count(*)::integer FROM plugin_data.csf_sheet_import_jobs
-   WHERE organization_id = 'd9100000-0000-4000-8000-000000000001'
-     AND mode = 'commit'
-     AND source_type = 'partner_club_audit'
-     AND summary->>'previewJobId' = 'd9600000-0000-4000-8000-000000000004'),
-  0,
-  'rolled-back partner commit leaves no orphan commit job'
-);
 SELECT extensions.is(
   (SELECT count(*)::integer FROM plugin_data.csf_admin_audit_events
-   WHERE target_id IN (
-     'd9400000-0000-4000-8000-000000000002',
-     'd9900000-0000-4000-8000-000000000002'
-   )),
+   WHERE target_id = 'd9400000-0000-4000-8000-000000000002'),
   0,
-  'failed atomic commits leave no partial audit records'
+  'the failed atomic commit leaves no partial audit records'
 );
 
 DROP TRIGGER fail_atomic_csf_import_audit ON plugin_data.csf_admin_audit_events;

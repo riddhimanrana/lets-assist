@@ -10,12 +10,17 @@ import {
   Puzzle,
   Search,
   Settings2,
+  ShieldAlert,
   Store,
   Trash2,
   Wrench,
 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
+
+import { describePluginUninstallImpact } from "@/lib/plugins/plugin-uninstall-impact";
+
+import { PluginPermanentDeletionDialog } from "./PluginPermanentDeletionDialog";
 
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import {
@@ -88,6 +93,7 @@ import {
 
 type OrganizationPluginSettingsProps = {
   organizationId: string;
+  organizationName: string;
 };
 
 type MarketplaceFilter = "all" | "installed" | "available" | "updates";
@@ -228,6 +234,7 @@ function formatLastUpdated(lastUpdatedAt: string | null | undefined): string {
 
 export default function OrganizationPluginSettings({
   organizationId,
+  organizationName,
 }: OrganizationPluginSettingsProps) {
   const [result, setResult] = useState<OrganizationPluginSettingsResult | null>(
     null,
@@ -241,6 +248,8 @@ export default function OrganizationPluginSettings({
   const [pluginActionConfirmation, setPluginActionConfirmation] =
     useState<PluginActionConfirmation>(null);
   const [installConsentChecked, setInstallConsentChecked] = useState(false);
+  const [pluginPendingDataDeletion, setPluginPendingDataDeletion] =
+    useState<OrganizationPluginAdminSetting | null>(null);
   const [settingsPluginKey, setSettingsPluginKey] = useState<string | null>(
     null,
   );
@@ -303,6 +312,17 @@ export default function OrganizationPluginSettings({
   const isInstallAction = pluginActionConfirmation?.intent === "install";
   const isPluginActionSubmitting =
     Boolean(activePluginActionId) && updatingActionId === activePluginActionId;
+
+  const uninstallImpact = useMemo(() => {
+    if (!activePluginAction || isInstallAction) {
+      return null;
+    }
+    return describePluginUninstallImpact({
+      pluginName: activePluginAction.name,
+      dataAccessPurposes: activePluginAction.dataAccessPurposes,
+      permanentDeletionAvailable: activePluginAction.dataDeletionAvailable,
+    });
+  }, [activePluginAction, isInstallAction]);
 
   const configFields = useMemo<ConfigFieldDescriptor[]>(() => {
     if (!activeSettingsPlugin?.configSchema) {
@@ -426,6 +446,12 @@ export default function OrganizationPluginSettings({
     setPluginActionConfirmation({ plugin, intent });
   };
 
+  const handleRequestDataDeletion = (
+    plugin: OrganizationPluginAdminSetting,
+  ) => {
+    setPluginPendingDataDeletion(plugin);
+  };
+
   const handleConfirmPluginAction = async () => {
     if (!pluginActionConfirmation) {
       return;
@@ -446,34 +472,51 @@ export default function OrganizationPluginSettings({
     const actionId = `${pluginKey}:${intent}`;
     setUpdatingActionId(actionId);
 
-    const response =
-      intent === "install"
-        ? await setOrganizationPluginInstallState({
-            organizationId,
-            pluginKey,
-            enabled: true,
-          })
-        : await uninstallOrganizationPlugin({
-            organizationId,
-            pluginKey,
-          });
+    try {
+      const response: {
+        success: boolean;
+        error?: string;
+        message?: string;
+        changed?: boolean;
+      } =
+        intent === "install"
+          ? await setOrganizationPluginInstallState({
+              organizationId,
+              pluginKey,
+              enabled: true,
+            })
+          : await uninstallOrganizationPlugin({
+              organizationId,
+              pluginKey,
+            });
 
-    if (!response.success) {
-      toast.error(response.error || "Failed to update plugin state");
+      if (!response.success) {
+        toast.error(
+          response.error || "Something went wrong — please try again.",
+        );
+        return;
+      }
+
+      if (intent === "install") {
+        toast.success(`${pluginName} installed successfully`);
+      } else if (response.changed === false) {
+        toast.success(`${pluginName} was already uninstalled`, {
+          description: response.message,
+        });
+      } else {
+        toast.success(`${pluginName} uninstalled`, {
+          description: response.message,
+        });
+      }
+
+      setPluginActionConfirmation(null);
+      setInstallConsentChecked(false);
+      await loadSettings();
+    } catch {
+      toast.error("Connection error — please try again.");
+    } finally {
       setUpdatingActionId(null);
-      return;
     }
-
-    toast.success(
-      intent === "install"
-        ? `${pluginName} installed successfully`
-        : `${pluginName} uninstalled successfully`,
-    );
-
-    setPluginActionConfirmation(null);
-    setInstallConsentChecked(false);
-    await loadSettings();
-    setUpdatingActionId(null);
   };
 
   const handleUpdatePlugin = async (pluginKey: string) => {
@@ -638,24 +681,39 @@ export default function OrganizationPluginSettings({
             ) : null}
           </div>
 
-          <Button
-            type="button"
-            size="sm"
-            onClick={() => handleRequestPluginAction(plugin, "install")}
-            disabled={isInstallUpdating || !canInstall}
-          >
-            {isInstallUpdating ? (
-              <>
-                <Loader2 data-icon="inline-start" className="animate-spin" />
-                Installing…
-              </>
-            ) : (
-              <>
-                <Store data-icon="inline-start" />
-                Install
-              </>
-            )}
-          </Button>
+          <div className="flex flex-col items-end gap-2">
+            <Button
+              type="button"
+              size="sm"
+              onClick={() => handleRequestPluginAction(plugin, "install")}
+              disabled={isInstallUpdating || !canInstall}
+            >
+              {isInstallUpdating ? (
+                <>
+                  <Loader2 data-icon="inline-start" className="animate-spin" />
+                  Installing…
+                </>
+              ) : (
+                <>
+                  <Store data-icon="inline-start" />
+                  Install
+                </>
+              )}
+            </Button>
+
+            {plugin.dataDeletionAvailable ? (
+              <Button
+                type="button"
+                size="sm"
+                variant="ghost"
+                className="text-destructive hover:text-destructive"
+                onClick={() => handleRequestDataDeletion(plugin)}
+              >
+                <ShieldAlert data-icon="inline-start" />
+                Delete retained data
+              </Button>
+            ) : null}
+          </div>
         </div>
       </div>
     );
@@ -1097,7 +1155,14 @@ export default function OrganizationPluginSettings({
           }
         }}
       >
-        <AlertDialogContent className="max-h-[calc(100dvh-2rem)] gap-0 overflow-x-hidden overflow-y-auto p-0 sm:max-w-md">
+        <AlertDialogContent
+          className="max-h-[calc(100dvh-2rem)] gap-0 overflow-x-hidden overflow-y-auto p-0 sm:max-w-md"
+          aria-describedby={
+            !isInstallAction
+              ? "plugin-action-desc plugin-uninstall-retention-clause"
+              : "plugin-action-desc"
+          }
+        >
           {activePluginAction ? (
             <>
               <div className="flex flex-col items-center text-center px-6 pt-8 pb-6">
@@ -1120,10 +1185,13 @@ export default function OrganizationPluginSettings({
                     : `Uninstall ${activePluginAction.name}?`}
                 </AlertDialogTitle>
 
-                <AlertDialogDescription className="mt-2 text-center text-sm text-muted-foreground w-[90%]">
+                <AlertDialogDescription
+                  id="plugin-action-desc"
+                  className="mt-2 text-center text-sm text-muted-foreground w-[90%]"
+                >
                   {isInstallAction
                     ? `Are you sure you want to add this plugin to your organization?`
-                    : "This will remove the plugin and its settings from your organization immediately."}
+                    : "This removes the install record and saved settings immediately. Uninstall runs no plugin code and deletes no plugin data — see the retention note below."}
                 </AlertDialogDescription>
               </div>
 
@@ -1188,12 +1256,67 @@ export default function OrganizationPluginSettings({
                     </div>
                   </>
                 ) : (
-                  <div className="rounded-lg border border-destructive/20 bg-destructive/5 p-4 flex items-start gap-3">
+                  <div
+                    role="group"
+                    aria-label="Data handling information"
+                    className="rounded-lg border border-destructive/20 bg-destructive/5 p-4 flex items-start gap-3"
+                  >
                     <AlertTriangle className="mt-0.5 size-4 shrink-0 text-destructive" />
-                    <p className="text-sm text-destructive font-medium leading-relaxed">
-                      All plugin workflows will stop, and your settings will be
-                      permanently lost. This cannot be undone.
-                    </p>
+                    <div className="flex flex-col gap-2 text-sm leading-relaxed">
+                      <p className="text-destructive font-medium">
+                        {
+                          "Plugin surfaces are disabled immediately and saved settings permanently removed. This cannot be undone; already-queued work may still complete."
+                        }
+                      </p>
+                      {uninstallImpact ? (
+                        <>
+                          <p
+                            id="plugin-uninstall-retention-clause"
+                            className="text-muted-foreground"
+                          >
+                            {uninstallImpact.retentionClause}
+                          </p>
+                          {uninstallImpact.dataCategories.length > 0 ? (
+                            <div
+                              tabIndex={0}
+                              role="group"
+                              aria-label="Declared data categories"
+                              className="mt-1 flex max-h-32 flex-col gap-1.5 overflow-y-auto rounded-md border bg-background/50 p-3"
+                            >
+                              <p
+                                aria-hidden="true"
+                                className="text-xs font-semibold uppercase tracking-wider text-muted-foreground"
+                              >
+                                Declared data categories
+                              </p>
+                              <ul className="flex flex-col gap-1">
+                                {uninstallImpact.dataCategories.map(
+                                  (category) => (
+                                    <li
+                                      key={category}
+                                      className="text-xs text-foreground"
+                                    >
+                                      {category}
+                                    </li>
+                                  ),
+                                )}
+                              </ul>
+                              {uninstallImpact.additionalDataCategoryCount >
+                              0 ? (
+                                <p className="text-xs text-muted-foreground">
+                                  +{uninstallImpact.additionalDataCategoryCount}{" "}
+                                  more categor
+                                  {uninstallImpact.additionalDataCategoryCount ===
+                                  1
+                                    ? "y"
+                                    : "ies"}
+                                </p>
+                              ) : null}
+                            </div>
+                          ) : null}
+                        </>
+                      ) : null}
+                    </div>
                   </div>
                 )}
               </div>
@@ -1641,6 +1764,17 @@ export default function OrganizationPluginSettings({
           ) : null}
         </DialogContent>
       </Dialog>
+
+      <PluginPermanentDeletionDialog
+        organizationId={organizationId}
+        organizationName={organizationName}
+        plugin={pluginPendingDataDeletion}
+        onClose={() => setPluginPendingDataDeletion(null)}
+        onDeleted={() => {
+          setPluginPendingDataDeletion(null);
+          void loadSettings();
+        }}
+      />
     </>
   );
 }

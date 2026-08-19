@@ -45,6 +45,20 @@ export type CsfSheetRowEvidence = {
   /** True when at least one cell in the row resolved to a non-empty value. */
   hasEffectiveValue: boolean;
   values: string[];
+  /**
+   * Sparse per-cell presentation evidence keyed by one-based column number.
+   * Officers encode decisions as fill colors and cell notes (green = met,
+   * red = not met, yellow = exception), so acquisition preserves them for
+   * reconciliation instead of flattening the sheet to bare values.
+   */
+  annotations: Record<number, CsfSheetCellAnnotation>;
+};
+
+export type CsfSheetCellAnnotation = {
+  /** Lowercase #rrggbb fill, absent for the default white/transparent fill. */
+  background?: string;
+  /** The cell note verbatim, trimmed. */
+  note?: string;
 };
 
 export type CsfSheetSourceSnapshot = {
@@ -68,6 +82,26 @@ export type CsfSheetSourceSnapshotResult =
       reason: CsfSheetSourceUnavailableReason;
       message: string;
     };
+
+/**
+ * Sheets reports fills as fractional RGB and omits channels at zero. White is
+ * the default grid fill, so it normalizes to "no annotation" rather than a
+ * meaningful color.
+ */
+function normalizeSheetBackground(
+  color: { red?: number; green?: number; blue?: number } | undefined,
+): string | undefined {
+  if (!color) return undefined;
+  const channel = (value: number | undefined) =>
+    Math.max(0, Math.min(255, Math.round((value ?? 0) * 255)));
+  const red = channel(color.red);
+  const green = channel(color.green);
+  const blue = channel(color.blue);
+  if (red >= 250 && green >= 250 && blue >= 250) return undefined;
+  return `#${[red, green, blue]
+    .map((value) => value.toString(16).padStart(2, "0"))
+    .join("")}`;
+}
 
 function unavailableReasonForStatus(
   status: number,
@@ -221,6 +255,10 @@ type SheetsGridResponse = {
       rowData?: Array<{
         values?: Array<{
           formattedValue?: string;
+          note?: string;
+          effectiveFormat?: {
+            backgroundColor?: { red?: number; green?: number; blue?: number };
+          };
           effectiveValue?: Record<string, unknown>;
           userEnteredValue?: { formulaValue?: string };
         }>;
@@ -418,7 +456,7 @@ export async function getCsfSheetSourceSnapshot(
     [
       "sheets.properties(sheetId,title)",
       "sheets.basicFilter.range",
-      "sheets.data(startRow,startColumn,rowMetadata(hiddenByUser,hiddenByFilter),rowData.values(formattedValue,effectiveValue,userEnteredValue.formulaValue))",
+      "sheets.data(startRow,startColumn,rowMetadata(hiddenByUser,hiddenByFilter),rowData.values(formattedValue,effectiveValue,userEnteredValue.formulaValue,note,effectiveFormat.backgroundColor))",
     ].join(","),
   );
 
@@ -502,12 +540,29 @@ export async function getCsfSheetSourceSnapshot(
             ]
           : [],
       );
+      const annotations: Record<number, CsfSheetCellAnnotation> = {};
+      cells.forEach((cell, cellOffset) => {
+        const background = normalizeSheetBackground(
+          cell?.effectiveFormat?.backgroundColor,
+        );
+        const note =
+          typeof cell?.note === "string" && cell.note.trim() !== ""
+            ? cell.note.trim()
+            : undefined;
+        if (background || note) {
+          annotations[blockStartColumn + cellOffset] = {
+            ...(background ? { background } : {}),
+            ...(note ? { note } : {}),
+          };
+        }
+      });
       return {
         sourceRowNumber: blockStartRow + offset,
         hiddenByUser: metadata?.hiddenByUser === true,
         hiddenByFilter: metadata?.hiddenByFilter === true,
         formulaColumns,
         formulaDigests,
+        annotations,
         hasEffectiveValue: cells.some(
           (cell) =>
             cell?.effectiveValue !== undefined &&
@@ -520,6 +575,7 @@ export async function getCsfSheetSourceSnapshot(
       row.hiddenByUser ||
       row.hiddenByFilter ||
       row.formulaColumns.length > 0 ||
+      Object.keys(row.annotations).length > 0 ||
       row.hasEffectiveValue,
   );
   const structuralByRow = new Map(
@@ -542,6 +598,7 @@ export async function getCsfSheetSourceSnapshot(
         hiddenByUser: structural?.hiddenByUser === true,
         hiddenByFilter: structural?.hiddenByFilter === true,
         formulaColumns: structural?.formulaColumns ?? [],
+        annotations: structural?.annotations ?? {},
         hasEffectiveValue: structural?.hasEffectiveValue === true,
         values:
           requestedValues[sourceRowNumber - requestedRange.startRow]?.slice(

@@ -35,6 +35,8 @@ import {
   CalendarCheck,
   ChevronRight,
   Copy,
+  ScanText,
+  MessageSquareText,
 } from "lucide-react";
 import { useState, useMemo, useEffect, useTransition } from "react";
 import { deleteProject, updateProjectStatus, cloneProject } from "./actions";
@@ -180,8 +182,7 @@ export default function CreatorDashboard({
         toast.error(result.error);
       } else {
         toast.success("Project deleted successfully");
-        router.push("/home");
-        router.refresh(); // Trigger server-side re-fetch of home page data
+        router.replace("/home");
       }
     } catch {
       toast.error("Failed to delete project");
@@ -633,6 +634,42 @@ export default function CreatorDashboard({
                     <ChevronRight className="h-4 w-4 text-muted-foreground" />
                   </Button>
                 </div>
+                {isCompleted && !isCancelled && (
+                  <div>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-10 w-full justify-between px-2"
+                      onClick={() =>
+                        router.push(`/projects/${project.id}/paper-signups`)
+                      }
+                    >
+                      <span className="flex items-center gap-2">
+                        <ScanText className="h-4 w-4" />
+                        Scan Paper Signups
+                      </span>
+                      <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                    </Button>
+                  </div>
+                )}
+                {isCompleted && !isCancelled && (
+                  <div>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-10 w-full justify-between px-2"
+                      onClick={() =>
+                        router.push(`/projects/${project.id}/feedback`)
+                      }
+                    >
+                      <span className="flex items-center gap-2">
+                        <MessageSquareText className="h-4 w-4" />
+                        Volunteer Feedback
+                      </span>
+                      <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                    </Button>
+                  </div>
+                )}
                 <div>
                   <TooltipProvider>
                     <Tooltip>
@@ -807,6 +844,38 @@ export default function CreatorDashboard({
                 </span>
                 <ChevronRight className="h-4 w-4 text-muted-foreground" />
               </Button>
+
+              {isCompleted && !isCancelled && (
+                <Button
+                  variant="outline"
+                  className="h-10 w-full justify-between gap-2 bg-background/60 shadow-none"
+                  onClick={() =>
+                    router.push(`/projects/${project.id}/paper-signups`)
+                  }
+                >
+                  <span className="flex items-center gap-2">
+                    <ScanText className="h-4 w-4" />
+                    Scan Paper Signups
+                  </span>
+                  <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                </Button>
+              )}
+
+              {isCompleted && !isCancelled && (
+                <Button
+                  variant="outline"
+                  className="h-10 w-full justify-between gap-2 bg-background/60 shadow-none"
+                  onClick={() =>
+                    router.push(`/projects/${project.id}/feedback`)
+                  }
+                >
+                  <span className="flex items-center gap-2">
+                    <MessageSquareText className="h-4 w-4" />
+                    Volunteer Feedback
+                  </span>
+                  <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                </Button>
+              )}
 
               <TooltipProvider>
                 <Tooltip>

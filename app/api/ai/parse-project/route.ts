@@ -1,7 +1,7 @@
 import { generateText } from "ai";
 import { NextRequest } from "next/server";
-import { gatewayModel } from "@/lib/ai/gateway";
-import { createPostHogTelemetry } from "@/lib/ai/posthog-telemetry";
+import { AI_MODEL_FAST } from "@/lib/ai/models";
+import { prepareTrackedAiCall } from "@/lib/ai/with-ai-tracking";
 import { getAuthUser } from "@/lib/supabase/auth-helpers";
 import { consumeParseProjectQuota } from "@/lib/ai/parse-project-rate-limit";
 import { getRequestIp } from "@/lib/ai/parse-project-rate-limit-config";
@@ -185,21 +185,40 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const { text } = await generateText({
-      model: gatewayModel("platform", "google/gemini-2.5-flash-lite"),
-      experimental_telemetry: createPostHogTelemetry({
-        functionId: "parse-project",
-        distinctId: user.id,
-        metadata: {
-          ai_feature: "project-form-parser",
-          prompt_length: prompt.length,
-          rate_limit_remaining: quota.remaining,
-        },
-      }),
-      system: systemPrompt,
-      prompt,
-      temperature: 0.3,
+    const tracked = prepareTrackedAiCall({
+      context: {
+        scope: "platform",
+        userId: user.id,
+        feature: "parse-project",
+      },
+      modelId: AI_MODEL_FAST,
     });
+    const startedAt = Date.now();
+    let text: string;
+    try {
+      const result = await generateText({
+        model: tracked.model,
+        experimental_telemetry: tracked.telemetry,
+        providerOptions: { gateway: tracked.gatewayOptions },
+        system: systemPrompt,
+        prompt,
+        temperature: 0.3,
+      });
+      text = result.text;
+      await tracked.logUsage({
+        promptTokens: result.usage?.inputTokens,
+        completionTokens: result.usage?.outputTokens,
+        latencyMs: Date.now() - startedAt,
+        success: true,
+      });
+    } catch (error) {
+      await tracked.logUsage({
+        latencyMs: Date.now() - startedAt,
+        success: false,
+        errorMessage: error instanceof Error ? error.name : "unknown",
+      });
+      throw error;
+    }
 
     // Parse the JSON response
     try {
@@ -239,7 +258,10 @@ export async function POST(req: NextRequest) {
 
       return Response.json(parsedData.data);
     } catch (parseError) {
-      console.error("Project parser returned invalid JSON:", parseError);
+      console.error(
+        "Project parser returned invalid JSON:",
+        parseError instanceof Error ? parseError.name : "unknown",
+      );
       return Response.json(
         {
           error:
@@ -249,7 +271,10 @@ export async function POST(req: NextRequest) {
       );
     }
   } catch (error) {
-    console.error("AI parsing error:", error);
+    console.error(
+      "AI parsing error:",
+      error instanceof Error ? error.name : "unknown",
+    );
     return Response.json(
       { error: "Failed to process your request. Please try again." },
       { status: 500 },

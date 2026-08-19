@@ -3,6 +3,7 @@ import { IDS } from "./seed-platform-fixtures.mjs";
 export async function seedDvhsCsfFixtures({ admin, users, must }) {
   const pluginDb = admin.schema("plugin_data");
   const csfTablesToReset = [
+    "csf_staff_view_preferences",
     "csf_storage_deletion_queue",
     "csf_profile_activity_events",
     "csf_profile_merge_reviews",
@@ -13,8 +14,6 @@ export async function seedDvhsCsfFixtures({ admin, users, must }) {
     // delete cannot succeed. csf_seed_reset_synthetic_import below retires them
     // through the owned fixture seam, which refuses any organization outside the
     // reserved synthetic UUID namespace.
-    "csf_partner_submission_rows",
-    "csf_partner_submission_batches",
     "csf_partner_club_terms",
     "csf_partner_club_aliases",
     "csf_partner_clubs",
@@ -64,8 +63,18 @@ export async function seedDvhsCsfFixtures({ admin, users, must }) {
     "csf_term_policies",
   ];
 
-  // The import footprint first, through the owned seam. It has to precede the
-  // generic loop because onboarding links reference sheet sources.
+  // Durable communication history and partner-club recovery rows deliberately
+  // reject direct deletion. Reset them first through the service-role teardown
+  // seam so repeat browser runs cannot leave a campaign referencing a class.
+  await must(
+    "csf-reset-recovery-foundations",
+    pluginDb.rpc("csf_purge_recovery_foundations", {
+      p_organization_id: IDS.csfOrg,
+    }),
+  );
+
+  // The import footprint follows through its own owned seam. It has to precede
+  // the generic loop because onboarding links reference sheet sources.
   await must(
     "csf-reset-synthetic-import",
     pluginDb.rpc("csf_seed_reset_synthetic_import", {
@@ -143,7 +152,7 @@ export async function seedDvhsCsfFixtures({ admin, users, must }) {
       organization_id: IDS.csfOrg,
       user_id: users.csfOfficer.id,
       role_id: IDS.csfRoleActivityCoordinator,
-      school_year: "2025-2026",
+      school_year: "2026-2027",
       display_title: "Activity Coordinator",
       status: "active",
       appointed_by: users.developer.id,
@@ -414,7 +423,6 @@ export async function seedDvhsCsfFixtures({ admin, users, must }) {
         name: "Quail Run Elementary School",
         contact_name: "Quail Run Volunteer Office",
         contact_email: "quailrun.csf@example.test",
-        approved_point_types: ["non_drive"],
         notes: "Fixture partner source for imported participant sheets.",
         status: "active",
         created_by: users.csfOfficer.id,
@@ -749,14 +757,86 @@ export async function seedDvhsCsfFixtures({ admin, users, must }) {
     pluginDb.from("csf_terms").upsert(
       [
         {
+          id: IDS.csfTermF23,
+          organization_id: IDS.csfOrg,
+          code: "F23",
+          label: "Fall 2023",
+          school_year: "2023-2024",
+          semester: "fall",
+          starts_at: "2023-07-01",
+          ends_at: "2023-12-31",
+          is_current: false,
+          lifecycle_status: "open",
+          closed_at: null,
+          closed_by: null,
+          closure_policy_version: null,
+          settings: {
+            csfPointPolicy: { minimumTotalPoints: 7, maxDrivePoints: 2 },
+          },
+        },
+        {
+          id: IDS.csfTermS24,
+          organization_id: IDS.csfOrg,
+          code: "S24",
+          label: "Spring 2024",
+          school_year: "2023-2024",
+          semester: "spring",
+          starts_at: "2024-01-01",
+          ends_at: "2024-06-30",
+          is_current: false,
+          lifecycle_status: "open",
+          closed_at: null,
+          closed_by: null,
+          closure_policy_version: null,
+          settings: {
+            csfPointPolicy: { minimumTotalPoints: 7, maxDrivePoints: 2 },
+          },
+        },
+        {
+          id: IDS.csfTermF24,
+          organization_id: IDS.csfOrg,
+          code: "F24",
+          label: "Fall 2024",
+          school_year: "2024-2025",
+          semester: "fall",
+          starts_at: "2024-07-01",
+          ends_at: "2024-12-31",
+          is_current: false,
+          lifecycle_status: "open",
+          closed_at: null,
+          closed_by: null,
+          closure_policy_version: null,
+          settings: {
+            csfPointPolicy: { minimumTotalPoints: 7, maxDrivePoints: 2 },
+          },
+        },
+        {
+          id: IDS.csfTermS25,
+          organization_id: IDS.csfOrg,
+          code: "S25",
+          label: "Spring 2025",
+          school_year: "2024-2025",
+          semester: "spring",
+          starts_at: "2025-01-01",
+          ends_at: "2025-06-30",
+          is_current: false,
+          lifecycle_status: "open",
+          closed_at: null,
+          closed_by: null,
+          closure_policy_version: null,
+          settings: {
+            csfPointPolicy: { minimumTotalPoints: 7, maxDrivePoints: 2 },
+          },
+        },
+        {
           id: IDS.csfTermF25,
           organization_id: IDS.csfOrg,
           code: "F25",
           label: "Fall 2025",
           school_year: "2025-2026",
           semester: "fall",
-          starts_at: "2025-08-12",
-          ends_at: "2025-12-19",
+          starts_at: "2025-08-04",
+          ends_at: "2025-12-25",
           is_current: false,
           lifecycle_status: "open",
           closed_at: null,
@@ -774,7 +854,28 @@ export async function seedDvhsCsfFixtures({ admin, users, must }) {
           school_year: "2025-2026",
           semester: "spring",
           starts_at: "2026-01-06",
-          ends_at: "2026-05-29",
+          ends_at: "2026-06-22",
+          is_current: false,
+          lifecycle_status: "open",
+          closed_at: null,
+          closed_by: null,
+          closure_policy_version: null,
+          settings: {
+            csfPointPolicy: { minimumTotalPoints: 7, maxDrivePoints: 2 },
+          },
+        },
+        {
+          // The live term. A fixture whose "current" semester ended months ago
+          // makes every current-term surface look broken for reasons that have
+          // nothing to do with the code under test.
+          id: IDS.csfTermF26,
+          organization_id: IDS.csfOrg,
+          code: "F26",
+          label: "Fall 2026",
+          school_year: "2026-2027",
+          semester: "fall",
+          starts_at: "2026-08-04",
+          ends_at: "2026-12-25",
           is_current: true,
           lifecycle_status: "open",
           closed_at: null,
@@ -792,7 +893,15 @@ export async function seedDvhsCsfFixtures({ admin, users, must }) {
   await must(
     "csf-term-policies",
     pluginDb.from("csf_term_policies").upsert(
-      [IDS.csfTermF25, IDS.csfTermS26].map((termId) => ({
+      [
+        IDS.csfTermF23,
+        IDS.csfTermS24,
+        IDS.csfTermF24,
+        IDS.csfTermS25,
+        IDS.csfTermF25,
+        IDS.csfTermS26,
+        IDS.csfTermF26,
+      ].map((termId) => ({
         organization_id: IDS.csfOrg,
         term_id: termId,
         policy_version: 1,
@@ -845,6 +954,62 @@ export async function seedDvhsCsfFixtures({ admin, users, must }) {
         {
           organization_id: IDS.csfOrg,
           cohort_id: IDS.csfCohort2027,
+          term_id: IDS.csfTermF23,
+          grade_level: 9,
+          sheet_tab_name: "F23-2027",
+          status: "active",
+        },
+        {
+          organization_id: IDS.csfOrg,
+          cohort_id: IDS.csfCohort2027,
+          term_id: IDS.csfTermS24,
+          grade_level: 9,
+          sheet_tab_name: "S24-2027",
+          status: "active",
+        },
+        {
+          organization_id: IDS.csfOrg,
+          cohort_id: IDS.csfCohort2027,
+          term_id: IDS.csfTermF24,
+          grade_level: 10,
+          sheet_tab_name: "F24-2027",
+          status: "active",
+        },
+        {
+          organization_id: IDS.csfOrg,
+          cohort_id: IDS.csfCohort2027,
+          term_id: IDS.csfTermS25,
+          grade_level: 10,
+          sheet_tab_name: "S25-2027",
+          status: "active",
+        },
+        {
+          organization_id: IDS.csfOrg,
+          cohort_id: IDS.csfCohort2028,
+          term_id: IDS.csfTermF24,
+          grade_level: 9,
+          sheet_tab_name: "F24-2028",
+          status: "active",
+        },
+        {
+          organization_id: IDS.csfOrg,
+          cohort_id: IDS.csfCohort2028,
+          term_id: IDS.csfTermS25,
+          grade_level: 9,
+          sheet_tab_name: "S25-2028",
+          status: "active",
+        },
+        {
+          organization_id: IDS.csfOrg,
+          cohort_id: IDS.csfCohort2029,
+          term_id: IDS.csfTermF25,
+          grade_level: 9,
+          sheet_tab_name: "F25-2029",
+          status: "active",
+        },
+        {
+          organization_id: IDS.csfOrg,
+          cohort_id: IDS.csfCohort2027,
           term_id: IDS.csfTermF25,
           grade_level: 11,
           sheet_tab_name: "F25-2027",
@@ -872,6 +1037,32 @@ export async function seedDvhsCsfFixtures({ admin, users, must }) {
           term_id: IDS.csfTermS26,
           grade_level: 9,
           sheet_tab_name: "S26-2029",
+          status: "active",
+        },
+        {
+          // Seniors in Fall 2026. Without this the class reads "No current
+          // semester" during the very term it is graduating from.
+          organization_id: IDS.csfOrg,
+          cohort_id: IDS.csfCohort2027,
+          term_id: IDS.csfTermF26,
+          grade_level: 12,
+          sheet_tab_name: "F26-2027",
+          status: "active",
+        },
+        {
+          organization_id: IDS.csfOrg,
+          cohort_id: IDS.csfCohort2028,
+          term_id: IDS.csfTermF26,
+          grade_level: 11,
+          sheet_tab_name: "F26-2028",
+          status: "active",
+        },
+        {
+          organization_id: IDS.csfOrg,
+          cohort_id: IDS.csfCohort2029,
+          term_id: IDS.csfTermF26,
+          grade_level: 10,
+          sheet_tab_name: "F26-2029",
           status: "active",
         },
       ],
@@ -1040,7 +1231,7 @@ export async function seedDvhsCsfFixtures({ admin, users, must }) {
           organization_id: IDS.csfOrg,
           user_id: users.csfAdviser.id,
           role_id: IDS.csfRoleAdvisor,
-          school_year: "2025-2026",
+          school_year: "2026-2027",
           display_title: "Adviser",
           status: "active",
           appointed_by: users.developer.id,
@@ -1051,7 +1242,7 @@ export async function seedDvhsCsfFixtures({ admin, users, must }) {
           organization_id: IDS.csfOrg,
           user_id: users.csfCoPresidentOne.id,
           role_id: IDS.csfRoleCoPresident,
-          school_year: "2025-2026",
+          school_year: "2026-2027",
           display_title: "Co-President",
           status: "active",
           appointed_by: users.developer.id,
@@ -1062,7 +1253,7 @@ export async function seedDvhsCsfFixtures({ admin, users, must }) {
           organization_id: IDS.csfOrg,
           user_id: users.csfCoPresidentTwo.id,
           role_id: IDS.csfRoleCoPresident,
-          school_year: "2025-2026",
+          school_year: "2026-2027",
           display_title: "Co-President",
           status: "active",
           appointed_by: users.developer.id,
@@ -1073,7 +1264,7 @@ export async function seedDvhsCsfFixtures({ admin, users, must }) {
           organization_id: IDS.csfOrg,
           user_id: users.csfVpMembership.id,
           role_id: IDS.csfRoleVicePresidentMembership,
-          school_year: "2025-2026",
+          school_year: "2026-2027",
           display_title: "Vice President — Membership",
           status: "active",
           appointed_by: users.developer.id,
@@ -1084,7 +1275,7 @@ export async function seedDvhsCsfFixtures({ admin, users, must }) {
           organization_id: IDS.csfOrg,
           user_id: users.csfVpPublicity.id,
           role_id: IDS.csfRoleVicePresidentPublicity,
-          school_year: "2025-2026",
+          school_year: "2026-2027",
           display_title: "Vice President — Publicity",
           status: "active",
           appointed_by: users.developer.id,
@@ -1095,7 +1286,7 @@ export async function seedDvhsCsfFixtures({ admin, users, must }) {
           organization_id: IDS.csfOrg,
           user_id: users.csfVpClubs.id,
           role_id: IDS.csfRoleVicePresidentClubs,
-          school_year: "2025-2026",
+          school_year: "2026-2027",
           display_title: "Vice President — Clubs",
           status: "active",
           appointed_by: users.developer.id,
@@ -1106,7 +1297,7 @@ export async function seedDvhsCsfFixtures({ admin, users, must }) {
           organization_id: IDS.csfOrg,
           user_id: users.csfTreasurer.id,
           role_id: IDS.csfRoleTreasurer,
-          school_year: "2025-2026",
+          school_year: "2026-2027",
           display_title: "Treasurer",
           status: "active",
           appointed_by: users.developer.id,
@@ -1118,7 +1309,7 @@ export async function seedDvhsCsfFixtures({ admin, users, must }) {
           profile_id: IDS.csfProfileComplete,
           user_id: users.csfSecretary.id,
           role_id: IDS.csfRoleSecretary,
-          school_year: "2025-2026",
+          school_year: "2026-2027",
           display_title: "Secretary",
           status: "active",
           appointed_by: users.developer.id,
@@ -1129,7 +1320,7 @@ export async function seedDvhsCsfFixtures({ admin, users, must }) {
           organization_id: IDS.csfOrg,
           user_id: users.csfWebMaster.id,
           role_id: IDS.csfRoleWebMaster,
-          school_year: "2025-2026",
+          school_year: "2026-2027",
           display_title: "Web Master",
           status: "active",
           appointed_by: users.developer.id,
@@ -1141,7 +1332,7 @@ export async function seedDvhsCsfFixtures({ admin, users, must }) {
           profile_id: IDS.csfProfileOfficer,
           user_id: users.csfOfficer.id,
           role_id: IDS.csfRoleActivityCoordinator,
-          school_year: "2025-2026",
+          school_year: "2026-2027",
           display_title: "Activity Coordinator",
           status: "active",
           appointed_by: users.developer.id,
@@ -1152,7 +1343,7 @@ export async function seedDvhsCsfFixtures({ admin, users, must }) {
           organization_id: IDS.csfOrg,
           user_id: users.csfActivityCoordinatorTwo.id,
           role_id: IDS.csfRoleActivityCoordinator,
-          school_year: "2025-2026",
+          school_year: "2026-2027",
           display_title: "Activity Coordinator",
           status: "active",
           appointed_by: users.developer.id,
@@ -1163,7 +1354,7 @@ export async function seedDvhsCsfFixtures({ admin, users, must }) {
           organization_id: IDS.csfOrg,
           user_id: users.csfActivityCoordinatorThree.id,
           role_id: IDS.csfRoleActivityCoordinator,
-          school_year: "2025-2026",
+          school_year: "2026-2027",
           display_title: "Activity Coordinator",
           status: "active",
           appointed_by: users.developer.id,
@@ -1174,7 +1365,7 @@ export async function seedDvhsCsfFixtures({ admin, users, must }) {
           organization_id: IDS.csfOrg,
           user_id: users.csfActivityCoordinatorFour.id,
           role_id: IDS.csfRoleActivityCoordinator,
-          school_year: "2025-2026",
+          school_year: "2026-2027",
           display_title: "Activity Coordinator",
           status: "active",
           appointed_by: users.developer.id,
@@ -1185,7 +1376,7 @@ export async function seedDvhsCsfFixtures({ admin, users, must }) {
           organization_id: IDS.csfOrg,
           user_id: users.csfActivityCoordinatorFive.id,
           role_id: IDS.csfRoleActivityCoordinator,
-          school_year: "2025-2026",
+          school_year: "2026-2027",
           display_title: "Activity Coordinator",
           status: "active",
           appointed_by: users.developer.id,
@@ -1196,7 +1387,7 @@ export async function seedDvhsCsfFixtures({ admin, users, must }) {
           organization_id: IDS.csfOrg,
           user_id: users.csfDataManagement.id,
           role_id: IDS.csfRoleDataManagement,
-          school_year: "2025-2026",
+          school_year: "2026-2027",
           display_title: "Data Management",
           status: "active",
           appointed_by: users.developer.id,
@@ -1204,6 +1395,40 @@ export async function seedDvhsCsfFixtures({ admin, users, must }) {
         },
       ],
       { onConflict: "id" },
+    ),
+  );
+
+  // Officers land on the member view by default and switch into the officer
+  // workspace explicitly. The fixtures pre-choose officer mode so every
+  // staff-flow spec still opens on officer navigation; specs that exercise
+  // the switch itself override this per account.
+  await must(
+    "csf-staff-view-preferences",
+    pluginDb.from("csf_staff_view_preferences").upsert(
+      [
+        users.developer,
+        users.csfAdmin,
+        users.csfOfficer,
+        users.csfAdviser,
+        users.csfCoPresidentOne,
+        users.csfCoPresidentTwo,
+        users.csfVpMembership,
+        users.csfVpPublicity,
+        users.csfVpClubs,
+        users.csfTreasurer,
+        users.csfSecretary,
+        users.csfWebMaster,
+        users.csfDataManagement,
+        users.csfActivityCoordinatorTwo,
+        users.csfActivityCoordinatorThree,
+        users.csfActivityCoordinatorFour,
+        users.csfActivityCoordinatorFive,
+      ].map((user) => ({
+        organization_id: IDS.csfOrg,
+        user_id: user.id,
+        view_mode: "officer",
+      })),
+      { onConflict: "organization_id,user_id" },
     ),
   );
 
@@ -1303,25 +1528,38 @@ export async function seedDvhsCsfFixtures({ admin, users, must }) {
   await must(
     "csf-term-memberships",
     pluginDb.from("csf_term_memberships").upsert(
-      seededApplications
-        .filter((application) => application.status === "accepted")
-        .map((application) => ({
+      [
+        ...seededApplications
+          .filter((application) => application.status === "accepted")
+          .map((application) => ({
+            organization_id: IDS.csfOrg,
+            profile_id: application.profile_id,
+            cohort_id: application.cohort_id,
+            term_id: application.term_id,
+            application_id: application.id,
+            status:
+              application.profile_id === IDS.csfProfileMember
+                ? "active"
+                : "accepted",
+            accepted_at: application.reviewed_at,
+            activated_at:
+              application.profile_id === IDS.csfProfileMember
+                ? application.reviewed_at
+                : null,
+            status_reason: "Seeded from an accepted CSF application.",
+          })),
+        {
           organization_id: IDS.csfOrg,
-          profile_id: application.profile_id,
-          cohort_id: application.cohort_id,
-          term_id: application.term_id,
-          application_id: application.id,
-          status:
-            application.profile_id === IDS.csfProfileMember
-              ? "active"
-              : "accepted",
-          accepted_at: application.reviewed_at,
-          activated_at:
-            application.profile_id === IDS.csfProfileMember
-              ? application.reviewed_at
-              : null,
-          status_reason: "Seeded from an accepted CSF application.",
-        })),
+          profile_id: IDS.csfProfileMember,
+          cohort_id: IDS.csfCohort2028,
+          term_id: IDS.csfTermF26,
+          application_id: null,
+          status: "active",
+          accepted_at: "2026-08-20T17:00:00-07:00",
+          activated_at: "2026-08-20T17:00:00-07:00",
+          status_reason: "Synthetic current-semester member.",
+        },
+      ],
       { onConflict: "organization_id,profile_id,term_id" },
     ),
   );
@@ -1372,6 +1610,63 @@ export async function seedDvhsCsfFixtures({ admin, users, must }) {
       .select(
         "id, organization_id, term_id, meeting_key, label, meeting_date, starts_at, location, attendance_source_url, required, sort_order, status, settings, created_by",
       ),
+  );
+
+  // Realistic officer-owned deadlines for the seeded semester, so the Terms
+  // page and officer home rehearse against operational-looking dates instead
+  // of placeholder rows.
+  await must(
+    "csf-term-deadlines",
+    pluginDb.from("csf_term_deadlines").upsert(
+      [
+        {
+          id: IDS.csfDeadlineApplicationsClose,
+          organization_id: IDS.csfOrg,
+          term_id: IDS.csfTermS26,
+          deadline_type: "application_close",
+          title: "Spring 2026 applications close",
+          description:
+            "Final day for students to submit the semester application form.",
+          due_at: "2026-02-06T23:59:00-08:00",
+          status: "completed",
+          audience: "all",
+          related_route: "applications",
+          owner_user_id: users.csfOfficer.id,
+          completed_by: users.csfOfficer.id,
+          completed_at: "2026-02-07T09:00:00-08:00",
+        },
+        {
+          id: IDS.csfDeadlineDues,
+          organization_id: IDS.csfOrg,
+          term_id: IDS.csfTermS26,
+          deadline_type: "dues",
+          title: "Dues receipts due",
+          description: "Webstore dues receipts submitted for verification.",
+          due_at: "2026-02-20T23:59:00-08:00",
+          status: "completed",
+          audience: "members",
+          related_route: "applications",
+          owner_user_id: users.csfOfficer.id,
+          completed_by: users.csfOfficer.id,
+          completed_at: "2026-02-21T09:00:00-08:00",
+        },
+        {
+          id: IDS.csfDeadlinePoints,
+          organization_id: IDS.csfOrg,
+          term_id: IDS.csfTermS26,
+          deadline_type: "points",
+          title: "Service points due",
+          description:
+            "Last day for members to submit service point evidence for review.",
+          due_at: "2026-05-01T23:59:00-07:00",
+          status: "open",
+          audience: "members",
+          related_route: "points",
+          owner_user_id: users.csfOfficer.id,
+        },
+      ],
+      { onConflict: "id" },
+    ),
   );
 
   const meetingProjectionByLegacyId = new Map();
@@ -1457,7 +1752,7 @@ export async function seedDvhsCsfFixtures({ admin, users, must }) {
         // Project` below closes the link once the project row exists.
         id: IDS.csfOpportunityCleanup,
         organization_id: IDS.csfOrg,
-        term_id: IDS.csfTermS26,
+        term_id: IDS.csfTermF26,
         title: "Santa Cruz Beach Cleanup",
         body: "<p>Shoreline teams, a supply table, and recycling support. Sign up on the Let&rsquo;s Assist project page so officers can see the roster.</p>",
         starts_at: "2026-12-05T09:00:00-08:00",
@@ -1478,7 +1773,7 @@ export async function seedDvhsCsfFixtures({ admin, users, must }) {
       {
         id: IDS.csfOpportunityTutoring,
         organization_id: IDS.csfOrg,
-        term_id: IDS.csfTermS26,
+        term_id: IDS.csfTermF26,
         title: "Library Peer Tutoring",
         body: "<p>Support Algebra II and chemistry tutoring tables in the library. Members can claim one non-drive point per verified session.</p>",
         starts_at: "2026-09-02T15:30:00-07:00",
@@ -1503,7 +1798,7 @@ export async function seedDvhsCsfFixtures({ admin, users, must }) {
       {
         id: IDS.csfOpportunityDrive,
         organization_id: IDS.csfOrg,
-        term_id: IDS.csfTermS26,
+        term_id: IDS.csfTermF26,
         title: "Hygiene Kit Drive",
         body: "<p>Bring approved hygiene-kit supplies for a local shelter partner. Drive points are capped by CSF policy.</p>",
         starts_at: "2026-09-14T08:00:00-07:00",
@@ -1863,7 +2158,6 @@ export async function seedDvhsCsfFixtures({ admin, users, must }) {
           public_description:
             "Library support, tutoring, shelving, and literacy events approved for CSF non-drive credit.",
           communication_method: "Email and shared Google Sheet",
-          approved_point_types: ["non_drive"],
           notes: "Use weekly tutoring roster for verification.",
           status: "active",
           created_by: users.csfOfficer.id,
@@ -1903,23 +2197,6 @@ export async function seedDvhsCsfFixtures({ admin, users, must }) {
   );
 
   await must(
-    "csf-expanded-partner-batch",
-    pluginDb.from("csf_partner_submission_batches").upsert({
-      id: IDS.csfPartnerBatch,
-      organization_id: IDS.csfOrg,
-      partner_club_id: IDS.csfPartnerLibrary,
-      term_id: IDS.csfTermS26,
-      title: "March Library Tutoring Roster",
-      source: "sheet",
-      source_url:
-        "https://docs.google.com/spreadsheets/d/local-library-tutoring/edit",
-      status: "needs_verification",
-      submitted_by: users.csfOfficer.id,
-      summary: { rows: 14, matched: 11, ambiguous: 2, rejected: 1 },
-    }),
-  );
-
-  await must(
     "csf-partner-club-terms",
     pluginDb.from("csf_partner_club_terms").upsert(
       [
@@ -1929,9 +2206,8 @@ export async function seedDvhsCsfFixtures({ admin, users, must }) {
           term_id: IDS.csfTermS26,
           relationship_status: "returning",
           workflow_status: "active",
-          approved_point_types: ["non_drive"],
-          non_drive_points: 3,
-          drive_points: 0,
+          spreadsheet_url:
+            "https://docs.google.com/spreadsheets/d/local-quail-run-roster/edit",
           policy_notes:
             "Imported participant sheets are reviewed by a CSF officer.",
           reviewed_by: users.csfOfficer.id,
@@ -1943,10 +2219,8 @@ export async function seedDvhsCsfFixtures({ admin, users, must }) {
           term_id: IDS.csfTermS26,
           relationship_status: "new",
           workflow_status: "active",
-          approved_point_types: ["non_drive"],
-          non_drive_points: 3,
-          drive_points: 0,
-          source_batch_id: IDS.csfPartnerBatch,
+          spreadsheet_url:
+            "https://docs.google.com/spreadsheets/d/local-library-tutoring/edit",
           policy_notes: "Use the weekly tutoring roster for verification.",
           reviewed_by: users.csfOfficer.id,
           reviewed_at: "2026-03-01T12:00:00-08:00",

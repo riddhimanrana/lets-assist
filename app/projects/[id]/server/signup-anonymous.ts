@@ -16,14 +16,82 @@ import { verifyAnonymousSignupContinuation } from "@/lib/anonymous-signup-contin
 import { confirmAnonymousSignupWithCapacity } from "@/lib/projects/signup-capacity";
 
 import {
+  type WaiverSignatureRecord,
   getProjectSignupInsertErrorMessage,
   getScheduleDetails,
   insertProjectSignupAtomically,
   logSignupDebug,
+  releaseUncommittedWaiverEvidence,
+  resolveWaiverSignerIdentity,
   siteUrl,
   summarizePostgrestError,
   validateAnonymousSignupCaptcha,
 } from "./shared";
+import {
+  prepareClonedAnonymousWaiverRecord,
+  prepareWaiverSignatureRecord,
+} from "./waiver-persistence";
+
+type PreparedGuestWaiver =
+  | { record: WaiverSignatureRecord | null; evidencePaths: string[] }
+  | { error: string; evidencePaths: string[] };
+
+/**
+ * Builds the guest waiver evidence row, either from this submission or by
+ * copying the profile's most recent signature. Nothing is written here; the
+ * signup transaction inserts the row it returns.
+ */
+async function prepareGuestWaiverEvidence(params: {
+  projectId: string;
+  anonymousData: AnonymousSignupData;
+  waiverSignature?: WaiverSignatureInput | null;
+  reuseAnonymousId?: string | null;
+}): Promise<PreparedGuestWaiver> {
+  const evidenceKey = crypto.randomUUID();
+
+  if (params.waiverSignature) {
+    const signer = resolveWaiverSignerIdentity({
+      signerNameInput: params.waiverSignature.signerName,
+      signerEmailInput: params.waiverSignature.signerEmail,
+      guestName: params.anonymousData.name,
+      guestEmail: params.anonymousData.email,
+      isSessionActor: false,
+    });
+
+    if (!signer) {
+      return {
+        error: "Signer email is required for the waiver.",
+        evidencePaths: [],
+      };
+    }
+
+    const prepared = await prepareWaiverSignatureRecord({
+      projectId: params.projectId,
+      evidenceKey,
+      signerName: signer.signerName,
+      signerEmail: signer.signerEmail,
+      waiverSignature: params.waiverSignature,
+    });
+
+    return "error" in prepared
+      ? { error: prepared.error, evidencePaths: prepared.uploadedPaths }
+      : { record: prepared.record, evidencePaths: prepared.uploadedPaths };
+  }
+
+  if (params.reuseAnonymousId) {
+    const prepared = await prepareClonedAnonymousWaiverRecord({
+      projectId: params.projectId,
+      anonymousId: params.reuseAnonymousId,
+      evidenceKey,
+    });
+
+    return "error" in prepared
+      ? { error: prepared.error, evidencePaths: prepared.uploadedPaths }
+      : { record: prepared.record, evidencePaths: prepared.uploadedPaths };
+  }
+
+  return { record: null, evidencePaths: [] };
+}
 
 type AdminClient = ReturnType<typeof getAdminClient>;
 
@@ -58,7 +126,6 @@ export async function registerAnonymousSignup({
   const isSignupOnlyProject = project.verification_method === "signup-only";
   let createdSignupId: string | undefined;
   let createdAnonymousSignupId: string | null = null;
-  let createdNewAnonymousProfile = false;
   let shouldReuseExistingAnonymousWaiver = false;
   let anonymousProfileAlreadyConfirmed = false;
 
@@ -279,11 +346,22 @@ export async function registerAnonymousSignup({
     anonymousProfileAlreadyConfirmed = isProfileConfirmed;
     const newSignupStatus = isProfileConfirmed ? "approved" : "pending";
 
-    if (!confirmationRequired && !existingAnonProfile.confirmed_at) {
-      await serviceSupabase
-        .from("anonymous_signups")
-        .update({ confirmed_at: new Date().toISOString() })
-        .eq("id", existingAnonProfile.id);
+    const preparedWaiver = await prepareGuestWaiverEvidence({
+      projectId,
+      anonymousData,
+      waiverSignature,
+      reuseAnonymousId: shouldReuseExistingAnonymousWaiver
+        ? existingAnonProfile.id
+        : null,
+    });
+
+    if ("error" in preparedWaiver) {
+      await releaseUncommittedWaiverEvidence(
+        preparedWaiver.evidencePaths,
+        traceId,
+      );
+      logSignupDebug(traceId, "anonymous_waiver_prepare_failed");
+      return { response: { error: preparedWaiver.error } };
     }
 
     const projectSignupData: Omit<ProjectSignup, "id" | "created_at"> = {
@@ -296,9 +374,15 @@ export async function registerAnonymousSignup({
       response_data: formData || null,
     };
     const { data: insertedProjectSignup, error: projectSignupInsertError } =
-      await insertProjectSignupAtomically(projectSignupData, traceId);
+      await insertProjectSignupAtomically(projectSignupData, traceId, {
+        waiver: preparedWaiver.record,
+      });
 
     if (projectSignupInsertError || !insertedProjectSignup) {
+      await releaseUncommittedWaiverEvidence(
+        preparedWaiver.evidencePaths,
+        traceId,
+      );
       logSignupDebug(traceId, "anonymous_existing_profile_insert_failed", {
         error: summarizePostgrestError(projectSignupInsertError),
       });
@@ -309,6 +393,13 @@ export async function registerAnonymousSignup({
       };
     }
     createdSignupId = insertedProjectSignup.id;
+
+    if (!confirmationRequired && !existingAnonProfile.confirmed_at) {
+      await serviceSupabase
+        .from("anonymous_signups")
+        .update({ confirmed_at: new Date().toISOString() })
+        .eq("id", existingAnonProfile.id);
+    }
 
     if (
       isProfileConfirmed &&
@@ -389,64 +480,57 @@ export async function registerAnonymousSignup({
     }
 
     const confirmationToken = crypto.randomUUID();
-    const anonSignupData = {
-      project_id: projectId,
-      email: anonymousData.email ?? "",
-      name: anonymousData.name,
-      phone_number: anonymousData.phone || null,
-      token: confirmationToken,
-      confirmed_at: confirmationRequired ? null : new Date().toISOString(),
-    };
-    logSignupDebug(traceId, "anonymous_profile_insert_attempt", {
-      projectId,
-      hasEmail: Boolean(anonSignupData.email),
-      hasName: Boolean(anonSignupData.name),
-      hasPhone: Boolean(anonSignupData.phone_number),
-    });
-    const { data: insertedAnonSignup, error: anonInsertError } =
-      await serviceSupabase
-        .from("anonymous_signups")
-        .insert(anonSignupData)
-        .select("id")
-        .single();
 
-    if (anonInsertError || !insertedAnonSignup) {
-      logSignupDebug(traceId, "anonymous_profile_insert_failed", {
-        error: summarizePostgrestError(anonInsertError),
-      });
-      return {
-        response: {
-          error: "Failed to initiate anonymous signup. Please try again.",
-        },
-      };
-    }
-    createdAnonymousSignupId = insertedAnonSignup.id;
-    createdNewAnonymousProfile = true;
-    anonymousProfileAlreadyConfirmed = !confirmationRequired;
-    logSignupDebug(traceId, "anonymous_profile_insert_success", {
-      anonymousSignupId: createdAnonymousSignupId,
+    const preparedWaiver = await prepareGuestWaiverEvidence({
+      projectId,
+      anonymousData,
+      waiverSignature,
     });
+
+    if ("error" in preparedWaiver) {
+      await releaseUncommittedWaiverEvidence(
+        preparedWaiver.evidencePaths,
+        traceId,
+      );
+      logSignupDebug(traceId, "anonymous_waiver_prepare_failed");
+      return { response: { error: preparedWaiver.error } };
+    }
 
     const projectSignupData: Omit<ProjectSignup, "id" | "created_at"> = {
       project_id: projectId,
       schedule_id: scheduleId,
       user_id: null,
       status: confirmationRequired ? "pending" : "approved",
-      anonymous_id: createdAnonymousSignupId,
+      anonymous_id: null,
       volunteer_comment: volunteerComment,
       response_data: formData || null,
     };
+    // The guest profile is created by the same transaction as the signup and
+    // the waiver, so a refusal leaves no identity, no seat, and no evidence.
     const { data: insertedProjectSignup, error: projectSignupInsertError } =
-      await insertProjectSignupAtomically(projectSignupData, traceId);
+      await insertProjectSignupAtomically(projectSignupData, traceId, {
+        waiver: preparedWaiver.record,
+        anonymousProfile: {
+          email: anonymousData.email ?? "",
+          name: anonymousData.name ?? null,
+          phone_number: anonymousData.phone || null,
+          token: confirmationToken,
+          confirmed: !confirmationRequired,
+        },
+      });
 
-    if (projectSignupInsertError || !insertedProjectSignup) {
+    if (
+      projectSignupInsertError ||
+      !insertedProjectSignup ||
+      !insertedProjectSignup.anonymousId
+    ) {
+      await releaseUncommittedWaiverEvidence(
+        preparedWaiver.evidencePaths,
+        traceId,
+      );
       logSignupDebug(traceId, "anonymous_new_profile_signup_insert_failed", {
         error: summarizePostgrestError(projectSignupInsertError),
       });
-      await serviceSupabase
-        .from("anonymous_signups")
-        .delete()
-        .eq("id", createdAnonymousSignupId);
       return {
         response: {
           error: getProjectSignupInsertErrorMessage(projectSignupInsertError),
@@ -454,6 +538,11 @@ export async function registerAnonymousSignup({
       };
     }
     createdSignupId = insertedProjectSignup.id;
+    createdAnonymousSignupId = insertedProjectSignup.anonymousId;
+    anonymousProfileAlreadyConfirmed = !confirmationRequired;
+    logSignupDebug(traceId, "anonymous_profile_insert_success", {
+      anonymousSignupId: createdAnonymousSignupId,
+    });
 
     if (
       anonymousData.email &&
@@ -494,7 +583,6 @@ export async function registerAnonymousSignup({
   return {
     createdSignupId,
     createdAnonymousSignupId,
-    createdNewAnonymousProfile,
     shouldReuseExistingAnonymousWaiver,
     anonymousProfileAlreadyConfirmed,
   };

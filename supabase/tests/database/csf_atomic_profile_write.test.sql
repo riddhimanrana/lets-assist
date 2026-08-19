@@ -563,7 +563,9 @@ SELECT extensions.is(
   'a rejected accepted-decision request cannot partially edit the profile'
 );
 
-SELECT extensions.throws_ok(
+-- Checks and dues no longer gate an accepted decision, so an authorized
+-- officer can create and accept a manual application in one atomic write.
+SELECT extensions.lives_ok(
   $$SELECT plugin_data.csf_upsert_profile(
     'be100000-0000-4000-8000-000000000001',
     'be000000-0000-4000-8000-000000000001',
@@ -576,28 +578,26 @@ SELECT extensions.throws_ok(
       'termMembershipStatus', 'accepted', 'nicknames', '[]'::jsonb
     )
   )$$,
-  'P0001', 'Application review is incomplete: 5 mandatory check(s) remain unresolved.',
-  'a new manual application cannot bypass eligibility and accepted-decision checks'
+  'an authorized officer can accept a new manual application without check or dues state'
 );
 SELECT extensions.is(
   (SELECT count(*)::integer FROM plugin_data.csf_profiles WHERE normalized_first_name = 'incomplete' AND normalized_last_name = 'review'),
-  0,
-  'failed acceptance rolls back the newly inserted profile'
+  1,
+  'the accepted manual application creates its profile'
 );
 SELECT extensions.is(
-  (SELECT count(*)::integer FROM plugin_data.csf_term_applications AS application JOIN plugin_data.csf_profiles AS profile ON profile.id = application.profile_id WHERE profile.normalized_first_name = 'incomplete'),
-  0,
-  'failed acceptance rolls back the application projection'
+  (SELECT count(*)::integer FROM plugin_data.csf_term_applications AS application JOIN plugin_data.csf_profiles AS profile ON profile.id = application.profile_id WHERE profile.normalized_first_name = 'incomplete' AND application.decision_status = 'approved'),
+  1,
+  'the manual application lands approved'
 );
 SELECT extensions.is(
   (SELECT count(*)::integer FROM plugin_data.csf_profile_cohort_memberships AS membership JOIN plugin_data.csf_profiles AS profile ON profile.id = membership.profile_id WHERE profile.normalized_first_name = 'incomplete'),
-  0,
-  'failed acceptance rolls back the class membership projection'
+  1,
+  'the accepted manual application joins its class projection'
 );
-SELECT extensions.is(
-  (SELECT count(*)::integer FROM plugin_data.csf_admin_audit_events WHERE correlation_id = 'be900000-0000-4000-8000-000000000014'),
-  0,
-  'failed acceptance writes no profile receipt'
+SELECT extensions.ok(
+  (SELECT count(*)::integer FROM plugin_data.csf_admin_audit_events WHERE correlation_id = 'be900000-0000-4000-8000-000000000014') >= 1,
+  'the accepted manual application writes its receipt'
 );
 SELECT extensions.is(
   (SELECT count(*)::integer FROM plugin_data.csf_cohorts WHERE organization_id = 'be100000-0000-4000-8000-000000000001'),

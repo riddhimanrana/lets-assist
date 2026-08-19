@@ -6,6 +6,11 @@ import { revalidatePath } from "next/cache";
 import { getAuthUser } from "@/lib/supabase/auth-helpers";
 import { getAdminClient } from "@/lib/supabase/admin";
 import { getRegisteredPlugin } from "@/lib/plugins/registry";
+import { getPluginDataDeletionReadiness } from "@/lib/plugins/plugin-data-deletion-readiness";
+import {
+  describePluginUninstallImpact,
+  extractDataAccessPurposes,
+} from "@/lib/plugins/plugin-uninstall-impact";
 import { transitionOrganizationPluginInstall } from "@/lib/plugins/control-plane-transition";
 import {
   applyConfigDefaults,
@@ -34,7 +39,11 @@ export async function setOrganizationPluginInstallState(options: {
 
   const adminSupabase = getAdminClient();
 
-  const isAdmin = await isOrganizationAdminForSettings(organizationId, user.id);
+  const isAdmin = await isOrganizationAdminForSettings(
+    organizationId,
+    user.id,
+    adminSupabase,
+  );
   if (!isAdmin) {
     return {
       success: false,
@@ -170,7 +179,12 @@ export async function setOrganizationPluginInstallState(options: {
 export async function uninstallOrganizationPlugin(options: {
   organizationId: string;
   pluginKey: string;
-}): Promise<{ success: boolean; error?: string }> {
+}): Promise<{
+  success: boolean;
+  error?: string;
+  message?: string;
+  changed?: boolean;
+}> {
   "use server";
   const { organizationId, pluginKey } = options;
   const { user } = await getAuthUser();
@@ -180,7 +194,11 @@ export async function uninstallOrganizationPlugin(options: {
   }
 
   const adminSupabase = getAdminClient();
-  const isAdmin = await isOrganizationAdminForSettings(organizationId, user.id);
+  const isAdmin = await isOrganizationAdminForSettings(
+    organizationId,
+    user.id,
+    adminSupabase,
+  );
 
   if (!isAdmin) {
     return {
@@ -192,11 +210,12 @@ export async function uninstallOrganizationPlugin(options: {
   const { data: pluginCatalog, error: pluginCatalogError } =
     (await adminSupabase
       .from("plugins")
-      .select("key, visibility")
+      .select("key, name, visibility")
       .eq("key", pluginKey)
       .maybeSingle()) as {
       data: {
         key: string;
+        name: string;
         visibility: "global" | "private";
       } | null;
       error: SupabaseLikeError | null;
@@ -288,7 +307,41 @@ export async function uninstallOrganizationPlugin(options: {
   revalidatePath(`/organization/${organizationId}`);
   revalidatePath(`/organization/${organizationId}/settings`);
 
-  return { success: true };
+  if (!transitionResult.changed) {
+    // No install row existed for this organization/plugin pair by the time
+    // this ran (a retried request, a lost first response, a double click).
+    // Nothing was removed and no hook ran this time — say so truthfully
+    // instead of repeating the "just uninstalled" copy for an action that
+    // didn't happen.
+    return {
+      success: true,
+      changed: false,
+      message:
+        "This plugin was already uninstalled. The platform's own operation did not request deletion of any stored plugin data; it remains scoped to your organization.",
+    };
+  }
+
+  const definition = getRegisteredPlugin(pluginKey);
+  // Use the catalog name (same source as the dialog title) to avoid
+  // manifest/catalog drift when the two names differ.
+  const displayName =
+    pluginCatalog?.name ?? definition?.manifest.name ?? pluginKey;
+  // definition is guaranteed non-null here (transitionOrganizationPluginInstall
+  // returns success:false when the plugin isn't registered), but optional
+  // chaining handles the technically-unreachable null without a defensive branch.
+  return {
+    success: true,
+    changed: true,
+    message: describePluginUninstallImpact({
+      pluginName: displayName,
+      dataAccessPurposes: extractDataAccessPurposes(
+        definition?.manifest.dataAccess,
+      ),
+      permanentDeletionAvailable: definition
+        ? getPluginDataDeletionReadiness(definition).ready
+        : false,
+    }).summary,
+  };
 }
 
 export async function updateOrganizationPluginToLatest(options: {
@@ -305,7 +358,11 @@ export async function updateOrganizationPluginToLatest(options: {
 
   const adminSupabase = getAdminClient();
 
-  const isAdmin = await isOrganizationAdminForSettings(organizationId, user.id);
+  const isAdmin = await isOrganizationAdminForSettings(
+    organizationId,
+    user.id,
+    adminSupabase,
+  );
   if (!isAdmin) {
     return {
       success: false,
@@ -419,7 +476,11 @@ export async function updateOrganizationPluginConfiguration(options: {
 
   const adminSupabase = getAdminClient();
 
-  const isAdmin = await isOrganizationAdminForSettings(organizationId, user.id);
+  const isAdmin = await isOrganizationAdminForSettings(
+    organizationId,
+    user.id,
+    adminSupabase,
+  );
   if (!isAdmin) {
     return {
       success: false,

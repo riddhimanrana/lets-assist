@@ -79,10 +79,11 @@ VALUES
   ('e9100000-0000-4000-8000-000000000002', 'e9000000-0000-4000-8000-000000000003', 'staff', 'active');
 
 INSERT INTO public.organization_plugin_installs (
-  organization_id, plugin_key, configuration, installed_by
+  organization_id, plugin_key, installed_version, configuration, installed_by
 ) VALUES (
   'e9100000-0000-4000-8000-000000000001',
   'dvhs-csf',
+  '0.1.0',
   '{"communications":{"broadcastTopics":{"term_members":{"topicKey":"announcements","resendTopicId":"resend_topic_synthetic"}}}}'::jsonb,
   'e9000000-0000-4000-8000-000000000001'
 );

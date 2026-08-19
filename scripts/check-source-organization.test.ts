@@ -40,6 +40,7 @@ describe("source organization guard", () => {
     expect(
       findMaintainabilityIssues(
         [
+          // Route and component modules are deliberately uncapped.
           { file: "components/NewPanel.tsx", lines: 601 },
           {
             file: "plugins/dvhs-csf/components/NestedPanel.tsx",
@@ -52,13 +53,7 @@ describe("source organization guard", () => {
         ],
         "lets-assist",
       ).map((issue: { file: string }) => issue.file),
-    ).toEqual([
-      "components/NewPanel.tsx",
-      "plugins/dvhs-csf/components/NestedPanel.tsx",
-      "app/organizations/[id]/layout.tsx",
-      "services/new-service.ts",
-      "services/new-service.test.ts",
-    ]);
+    ).toEqual(["services/new-service.ts", "services/new-service.test.ts"]);
     expect(
       findMaintainabilityIssues(
         [{ file: "app/projects/[id]/actions.ts", lines: 3698 }],

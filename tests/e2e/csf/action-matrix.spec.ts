@@ -2,20 +2,16 @@ import { expect, test } from "@playwright/test";
 
 import { CSF_ORGANIZATION_PATH, loginAs } from "./helpers";
 
-const primaryTabs = [
-  "Home",
-  "Applications",
-  "Members",
-  "Service",
-  "Classes",
-] as const;
+const primaryTabs = ["Home", "Classes", "Applications"] as const;
 const utilityTabs = [
-  "Imports",
-  "Reports",
-  "Staff access",
+  "Terms",
+  "Meetings",
+  "Partner clubs",
+  "Officers & access",
   "Change history",
   "Communications",
   "Settings",
+  "Help",
 ] as const;
 
 test.describe("admin visible-action matrix", () => {
@@ -56,17 +52,15 @@ test.describe("admin visible-action matrix", () => {
     await expect(page).toHaveURL(/[?&]tab=csf-settings(?:&|$)/);
   });
 
-  test("application list exposes enabled operational controls", async ({
+  test("applications tab mounts the review campaign workspace", async ({
     page,
   }) => {
     await page.goto(`${CSF_ORGANIZATION_PATH}?tab=csf-applications`);
-    const controls = page.locator(
-      '[aria-label="Application views"] button:visible, [aria-label="Application filters"] button:visible, form[role="search"] button:visible, button[aria-label^="Sort applications"]:visible',
-    );
-    expect(await controls.count()).toBeGreaterThanOrEqual(8);
-    for (const control of await controls.all()) {
-      await expect(control).toBeVisible();
-      await expect(control).toBeEnabled();
-    }
+    // The tab is the application review campaign: the shared review chrome
+    // renders and the old queue-chip toolbar is gone.
+    await expect(page.locator("#applications")).toBeVisible();
+    await expect(
+      page.locator('[aria-label="Application work queues"]'),
+    ).toHaveCount(0);
   });
 });

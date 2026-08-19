@@ -2,7 +2,7 @@ BEGIN;
 
 CREATE EXTENSION IF NOT EXISTS pgtap WITH SCHEMA extensions;
 
-SELECT extensions.plan(46);
+SELECT extensions.plan(47);
 
 SELECT extensions.ok(
   NOT has_function_privilege(
@@ -137,25 +137,32 @@ VALUES
   );
 
 INSERT INTO public.organization_members (organization_id, user_id, role, status)
-VALUES (
-  'ca100000-0000-4000-8000-000000000001',
-  'ca000000-0000-4000-8000-000000000001',
-  'admin',
-  'active'
-);
+VALUES
+  (
+    'ca100000-0000-4000-8000-000000000001',
+    'ca000000-0000-4000-8000-000000000001',
+    'admin',
+    'active'
+  ),
+  (
+    'ca100000-0000-4000-8000-000000000001',
+    'ca000000-0000-4000-8000-000000000004',
+    'staff',
+    'active'
+  );
 
 INSERT INTO plugin_data.csf_terms (
-  id, organization_id, code, label, school_year, semester
+  id, organization_id, code, label, school_year, semester, is_current
 ) VALUES
   (
     'ca200000-0000-4000-8000-000000000001',
     'ca100000-0000-4000-8000-000000000001',
-    'F28', 'Fall 2028', '2028-2029', 'fall'
+    'F28', 'Fall 2028', '2028-2029', 'fall', true
   ),
   (
     'ca200000-0000-4000-8000-000000000002',
     'ca100000-0000-4000-8000-000000000002',
-    'F28', 'Fall 2028', '2028-2029', 'fall'
+    'F28', 'Fall 2028', '2028-2029', 'fall', true
   );
 
 INSERT INTO plugin_data.csf_term_policies (
@@ -239,6 +246,12 @@ INSERT INTO plugin_data.csf_staff_positions (
     'ca000000-0000-4000-8000-000000000004',
     'ca500000-0000-4000-8000-000000000001',
     '2028-2029', 'Application Reviewer', 'active'
+  ),
+  (
+    'ca100000-0000-4000-8000-000000000001',
+    'ca000000-0000-4000-8000-000000000003',
+    'ca500000-0000-4000-8000-000000000002',
+    '2027-2028', 'Former Advisor', 'active'
   );
 
 INSERT INTO plugin_data.csf_term_applications (
@@ -294,19 +307,22 @@ SELECT extensions.is(
   'a required term starts a new application with unrecorded dues'
 );
 
+-- Checks no longer gate the decision; the officer decides from the imported
+-- row. A rejection without notes is still refused, and a refused decision
+-- still leaves zero partial state behind.
 SELECT extensions.throws_ok(
   $$
     SELECT plugin_data.csf_decide_term_application(
       'ca100000-0000-4000-8000-000000000001',
       'ca600000-0000-4000-8000-000000000001',
-      'accepted',
+      'rejected',
       NULL,
       'ca000000-0000-4000-8000-000000000001'
     )
   $$,
   'P0001',
-  'Application review is incomplete: 5 mandatory check(s) remain unresolved.',
-  'an application cannot be accepted while mandatory checks remain unresolved'
+  'Review notes are required for this decision.',
+  'a rejection cannot be recorded without review notes'
 );
 SELECT extensions.is(
   (
@@ -384,6 +400,19 @@ SELECT extensions.throws_ok(
   'P0001',
   'Academic eligibility may only be overridden by a CSF adviser.',
   'a non-adviser cannot waive academic eligibility'
+);
+SELECT extensions.throws_ok(
+  $$
+    SELECT plugin_data.csf_set_application_check(
+      'ca100000-0000-4000-8000-000000000001',
+      'ca600000-0000-4000-8000-000000000001',
+      'academic_eligibility', 'waived', 'former_adviser_override', 'Former adviser override.', '{}',
+      'ca000000-0000-4000-8000-000000000003', 'Attempted prior-year adviser exception'
+    )
+  $$,
+  'P0001',
+  'Academic eligibility may only be overridden by a CSF adviser.',
+  'a prior-year adviser cannot waive current academic eligibility'
 );
 SELECT extensions.lives_ok(
   $$
@@ -659,7 +688,9 @@ WHERE organization_id = 'ca100000-0000-4000-8000-000000000001'
   AND application_id = 'ca600000-0000-4000-8000-000000000002'
   AND check_type <> 'dues';
 
-SELECT extensions.throws_ok(
+-- Dues no longer gate the decision: an officer can accept straight from the
+-- imported row, and the membership transition happens in the same transaction.
+SELECT extensions.lives_ok(
   $$
     SELECT plugin_data.csf_decide_term_application(
       'ca100000-0000-4000-8000-000000000001',
@@ -668,9 +699,7 @@ SELECT extensions.throws_ok(
       'ca000000-0000-4000-8000-000000000001'
     )
   $$,
-  'P0001',
-  'Application review is incomplete: 1 mandatory check(s) remain unresolved.',
-  'verified academic checks cannot bypass unresolved dues'
+  'unresolved dues do not block an application decision'
 );
 SELECT extensions.is(
   (
@@ -678,8 +707,8 @@ SELECT extensions.is(
     FROM plugin_data.csf_term_memberships
     WHERE application_id = 'ca600000-0000-4000-8000-000000000002'
   ),
-  0,
-  'a dues-blocked decision does not create partial membership state'
+  1,
+  'the relaxed decision still creates the matching term membership'
 );
 
 SELECT extensions.ok(

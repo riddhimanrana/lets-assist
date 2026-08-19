@@ -18,6 +18,49 @@ type RuntimeContractRow = {
   updated_at: string;
 };
 
+type PluginReleaseDefinition = Pick<OrganizationPluginDefinition, "manifest">;
+type PluginCatalogReleaseRow = {
+  key: string;
+  latest_version: string;
+  is_active: boolean;
+};
+type PublishedReleaseRow = {
+  plugin_key: string;
+  version: string;
+};
+
+export function assertPluginReleaseAlignment(input: {
+  definitions: readonly PluginReleaseDefinition[];
+  catalogRows: readonly PluginCatalogReleaseRow[];
+  publishedRows: readonly PublishedReleaseRow[];
+}): void {
+  const catalogByKey = new Map(input.catalogRows.map((row) => [row.key, row]));
+  const published = new Set(
+    input.publishedRows.map((row) => `${row.plugin_key}@${row.version}`),
+  );
+
+  for (const definition of input.definitions) {
+    const { key, version } = definition.manifest;
+    const catalog = catalogByKey.get(key);
+    if (!catalog) {
+      throw new Error(`Registered plugin ${key} is missing from the catalog.`);
+    }
+    if (!catalog.is_active) {
+      throw new Error(`Registered plugin ${key} is inactive in the catalog.`);
+    }
+    if (catalog.latest_version !== version) {
+      throw new Error(
+        `Plugin ${key} manifest ${version} does not match catalog ${catalog.latest_version}.`,
+      );
+    }
+    if (!published.has(`${key}@${version}`)) {
+      throw new Error(
+        `Plugin ${key}@${version} has no authoritative published release.`,
+      );
+    }
+  }
+}
+
 function objectKeys(value: Record<string, unknown> | undefined): string[] {
   return value ? Object.keys(value).sort() : [];
 }
@@ -70,7 +113,7 @@ export async function syncRegisteredPluginRuntimeContracts() {
 
   const { data: catalogRows, error: catalogError } = await service
     .from("plugins")
-    .select("key");
+    .select("key, latest_version, is_active");
 
   if (catalogError) {
     throw new Error(
@@ -78,23 +121,32 @@ export async function syncRegisteredPluginRuntimeContracts() {
     );
   }
 
-  const catalogKeys = new Set(
-    (catalogRows ?? []).map((row) => row.key as string),
-  );
   const registeredPlugins = listRegisteredPlugins();
-  const rows = registeredPlugins
-    .filter((definition) => catalogKeys.has(definition.manifest.key))
-    .map((definition) => buildPluginRuntimeContractRow(definition));
+  const registeredKeys = registeredPlugins.map(
+    (definition) => definition.manifest.key,
+  );
+  const { data: publishedRows, error: publishedError } = await service
+    .from("plugin_versions")
+    .select("plugin_key, version")
+    .eq("status", "published")
+    .in("plugin_key", registeredKeys);
+  if (publishedError) {
+    throw new Error(
+      `Failed to load published plugin releases: ${publishedError.message}`,
+    );
+  }
 
-  const skipped = registeredPlugins.filter(
-    (definition) => !catalogKeys.has(definition.manifest.key),
+  assertPluginReleaseAlignment({
+    definitions: registeredPlugins,
+    catalogRows: (catalogRows ?? []) as PluginCatalogReleaseRow[],
+    publishedRows: (publishedRows ?? []) as PublishedReleaseRow[],
+  });
+  const rows = registeredPlugins.map((definition) =>
+    buildPluginRuntimeContractRow(definition),
   );
 
   if (rows.length === 0) {
-    return {
-      synced: 0,
-      skipped: skipped.map((definition) => definition.manifest.key),
-    };
+    return { synced: 0, skipped: [] as string[] };
   }
 
   const { error } = await service
@@ -109,6 +161,6 @@ export async function syncRegisteredPluginRuntimeContracts() {
 
   return {
     synced: rows.length,
-    skipped: skipped.map((definition) => definition.manifest.key),
+    skipped: [] as string[],
   };
 }

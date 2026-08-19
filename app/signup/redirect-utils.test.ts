@@ -1,7 +1,11 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { isCsfConnectRedirect, normalizeRedirectPath } from "./redirect-utils";
+import {
+  buildCanonicalSignupPath,
+  isCsfConnectRedirect,
+  normalizeRedirectPath,
+} from "./redirect-utils";
 
 test("accepts only same-origin relative redirect paths", () => {
   assert.equal(
@@ -73,7 +77,10 @@ test("rejects non-CSF-connect redirect paths", () => {
     false,
   );
   // Missing org segment.
-  assert.equal(isCsfConnectRedirect("/organization/plugins/dvhs-csf/connect"), false);
+  assert.equal(
+    isCsfConnectRedirect("/organization/plugins/dvhs-csf/connect"),
+    false,
+  );
   // Too deep.
   assert.equal(
     isCsfConnectRedirect(
@@ -91,5 +98,26 @@ test("rejects non-CSF-connect redirect paths", () => {
   assert.equal(
     isCsfConnectRedirect("//evil.example/plugins/dvhs-csf/connect"),
     false,
+  );
+});
+
+test("preserves validated signup continuation context across a canonical-host hop", () => {
+  assert.equal(
+    buildCanonicalSignupPath({
+      redirectPath: "/organization/dvhs/plugins/dvhs-csf/connect/abc123",
+      staffToken: "staff token/+",
+      orgUsername: "dvhs-csf",
+    }),
+    "/signup?redirect=%2Forganization%2Fdvhs%2Fplugins%2Fdvhs-csf%2Fconnect%2Fabc123&staff_token=staff+token%2F%2B&org=dvhs-csf",
+  );
+});
+
+test("drops unsafe redirects and incomplete staff invitation pairs", () => {
+  assert.equal(
+    buildCanonicalSignupPath({
+      redirectPath: "https://evil.example/steal",
+      staffToken: "token-only",
+    }),
+    "/signup",
   );
 });

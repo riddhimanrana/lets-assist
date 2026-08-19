@@ -39,9 +39,7 @@ export function normalizeRedirectPath(
   }
 }
 
-export function isCsfConnectRedirect(
-  path: string | null | undefined,
-): boolean {
+export function isCsfConnectRedirect(path: string | null | undefined): boolean {
   const normalized = normalizeRedirectPath(path);
   if (!normalized) {
     return false;
@@ -77,4 +75,26 @@ export function buildAuthConfirmRedirectUrl(
   }
 
   return url.toString();
+}
+
+export function buildCanonicalSignupPath({
+  redirectPath,
+  staffToken,
+  orgUsername,
+}: {
+  redirectPath?: string | null;
+  staffToken?: string | null;
+  orgUsername?: string | null;
+}): string {
+  const params = new URLSearchParams();
+  const normalizedRedirect = normalizeRedirectPath(redirectPath);
+
+  if (normalizedRedirect) params.set("redirect", normalizedRedirect);
+  if (staffToken && orgUsername) {
+    params.set("staff_token", staffToken);
+    params.set("org", orgUsername);
+  }
+
+  const query = params.toString();
+  return query ? `/signup?${query}` : "/signup";
 }

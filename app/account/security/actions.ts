@@ -6,6 +6,7 @@ import { getAdminClient } from "@/lib/supabase/admin";
 import { deleteUserWithCleanup } from "@/lib/supabase/delete-user-with-cleanup";
 import { getAuthUser } from "@/lib/supabase/auth-helpers";
 import { passwordSchema } from "@/lib/auth/password-policy";
+import { runOnCanonicalAuthOrigin } from "@/app/signup/canonical-auth-request";
 
 // Zod schema for password update (for users with existing password)
 const updatePasswordSchema = z
@@ -202,32 +203,27 @@ export async function updateEmailAction(formData: FormData) {
     return { error: { server: ["Not authenticated"] } as ActionErrorResponse };
   }
 
-  const supabase = await createClient();
+  return runOnCanonicalAuthOrigin("/account/security", async (origin) => {
+    const supabase = await createClient();
+    const { error } = await supabase.auth.updateUser(
+      { email: validatedFields.data.newEmail },
+      {
+        // Supabase will automatically append token_hash and type parameters to this URL
+        emailRedirectTo: `${origin}/auth/confirm?type=email_change`,
+      },
+    );
 
-  // Determine the correct redirect URL
-  let redirectUrl = process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000";
-  if (process.env.NODE_ENV === "development") {
-    redirectUrl = "http://localhost:3000";
-  }
+    if (error) {
+      console.error("Update email error:", error);
+      return { error: { server: [error.message] } as ActionErrorResponse };
+    }
 
-  const { error } = await supabase.auth.updateUser(
-    { email: validatedFields.data.newEmail },
-    {
-      // Supabase will automatically append token_hash and type parameters to this URL
-      emailRedirectTo: `${redirectUrl.replace(/\/$/, "")}/auth/confirm?type=email_change`,
-    },
-  );
-
-  if (error) {
-    console.error("Update email error:", error);
-    return { error: { server: [error.message] } as ActionErrorResponse };
-  }
-
-  return {
-    success: true,
-    message:
-      "Verification email sent to your new address. Please check your inbox and click the link to complete the change.",
-  };
+    return {
+      success: true,
+      message:
+        "Verification email sent to your new address. Please check your inbox and click the link to complete the change.",
+    };
+  });
 }
 
 export async function emailDataExport() {

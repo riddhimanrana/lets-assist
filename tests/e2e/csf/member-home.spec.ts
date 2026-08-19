@@ -110,8 +110,7 @@ test.describe("member Home class feed", () => {
     await expect(
       summary.getByRole("heading", { name: "Class of 2028" }),
     ).toBeVisible();
-    // The semester shares its line with the classmate count.
-    await expect(summary).toContainText("Spring 2026");
+    await expect(summary).toContainText("Fall 2026");
 
     // The stream shows the pinned post first, then reverse-chronological
     // items — announcements and published activities interleaved by their
@@ -186,7 +185,8 @@ test.describe("member Home class feed", () => {
     const outsider = usersResult.data.users.find(
       (candidate) => candidate.email === "platform.outsider@local.test",
     );
-    if (!outsider) throw new Error("The local outsider auth fixture is missing.");
+    if (!outsider)
+      throw new Error("The local outsider auth fixture is missing.");
     outsiderUserId = outsider.id;
 
     const { error: membershipError } = await fixture.admin
@@ -245,6 +245,9 @@ test.describe("member Home class feed", () => {
         .eq("user_id", outsiderUserId);
       cleanupError = error?.message ?? null;
     }
-    expect(cleanupError, `membership cleanup failed: ${cleanupError}`).toBeNull();
+    expect(
+      cleanupError,
+      `membership cleanup failed: ${cleanupError}`,
+    ).toBeNull();
   });
 });

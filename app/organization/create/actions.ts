@@ -5,6 +5,15 @@ import { revalidatePath } from "next/cache";
 import { customAlphabet } from "nanoid";
 import { hasSuperAdminMetadata } from "@/lib/auth/super-admin";
 import { getAdminClient } from "@/lib/supabase/admin";
+import {
+  getActiveOrganizationMembershipRole,
+  hasActiveOrganizationAdminMembership,
+} from "@/lib/organization/active-membership";
+import {
+  isReservedOrganizationSlug,
+  usernameUnavailableMessage,
+} from "@/lib/organization/reserved-slugs";
+import { validateOrganizationUsername } from "@/lib/organization/username";
 
 // Generate a random 6-digit code
 const generateJoinCode = customAlphabet("0123456789", 6);
@@ -45,11 +54,13 @@ type OrganizationCreationData = {
  * Check if an organization username is available
  */
 export async function checkOrgUsername(username: string): Promise<boolean> {
-  const supabase = await createClient();
-
-  if (!username || username.length < 3) {
+  if (isReservedOrganizationSlug(username)) {
     return false;
   }
+
+  if (!validateOrganizationUsername(username).ok) return false;
+
+  const supabase = await createClient();
 
   const { data, error } = await supabase
     .from("organizations")
@@ -130,10 +141,19 @@ export async function createOrganization(data: OrganizationCreationData) {
     };
   }
 
+  if (isReservedOrganizationSlug(data.username)) {
+    return { error: usernameUnavailableMessage(true) };
+  }
+
+  const usernameValidation = validateOrganizationUsername(data.username);
+  if (!usernameValidation.ok) {
+    return { error: usernameValidation.error };
+  }
+
   // Double-check username availability
   const isUsernameAvailable = await checkOrgUsername(data.username);
   if (!isUsernameAvailable) {
-    return { error: "Username is already taken" };
+    return { error: usernameUnavailableMessage(false) };
   }
 
   // New organizations are unverified. A platform review must happen before an
@@ -311,6 +331,7 @@ export async function regenerateJoinCode(organizationId: string) {
     .eq("organization_id", organizationId)
     .eq("user_id", user.id)
     .eq("role", "admin")
+    .eq("status", "active")
     .single();
 
   if (!membership) {
@@ -320,23 +341,40 @@ export async function regenerateJoinCode(organizationId: string) {
   // Update the organization with a unique new code. Collisions are rare but
   // must not turn an otherwise valid rotation into an ambiguous capability.
   const admin = getAdminClient();
-  const rotateJoinCode = () =>
-    admin
+  const rotateJoinCode = async () => {
+    if (
+      !(await hasActiveOrganizationAdminMembership(
+        admin,
+        organizationId,
+        user.id,
+      ))
+    ) {
+      return { authorized: false as const };
+    }
+
+    const result = await admin
       .from("organizations")
       .update({ join_code: generateJoinCode() })
       .eq("id", organizationId)
       .select("join_code")
       .single();
+    return { authorized: true as const, ...result };
+  };
 
   let rotateResult = await rotateJoinCode();
   for (
     let attempt = 1;
-    attempt < MAX_JOIN_CODE_ATTEMPTS && isJoinCodeCollision(rotateResult.error);
+    attempt < MAX_JOIN_CODE_ATTEMPTS &&
+    rotateResult.authorized &&
+    isJoinCodeCollision(rotateResult.error);
     attempt += 1
   ) {
     rotateResult = await rotateJoinCode();
   }
 
+  if (!rotateResult.authorized) {
+    return { error: "Only admins can regenerate join codes" };
+  }
   const { data, error } = rotateResult;
 
   if (error || !data) {
@@ -360,10 +398,19 @@ export async function getOrganizationJoinCode(organizationId: string) {
     .eq("organization_id", organizationId)
     .eq("user_id", user.id)
     .in("role", ["admin", "staff"])
+    .eq("status", "active")
     .maybeSingle();
   if (!membership) return { error: "You cannot view this join code" };
 
   const admin = getAdminClient();
+  const currentRole = await getActiveOrganizationMembershipRole(
+    admin,
+    organizationId,
+    user.id,
+  );
+  if (currentRole !== "admin" && currentRole !== "staff") {
+    return { error: "You cannot view this join code" };
+  }
   const { data: organization, error } = await admin
     .from("organizations")
     .select("join_code")

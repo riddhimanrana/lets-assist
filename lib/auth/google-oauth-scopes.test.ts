@@ -61,6 +61,10 @@ test("rejects read-only and substring lookalike Calendar grants", () => {
 });
 
 test("matches Drive file grants exactly", () => {
+  assert.equal(
+    GOOGLE_DRIVE_FILE_SCOPE,
+    "https://www.googleapis.com/auth/drive.file",
+  );
   assert.equal(hasGoogleDriveFileScope(GOOGLE_DRIVE_FILE_SCOPE), true);
   assert.equal(
     hasGoogleDriveFileScope(`${GOOGLE_DRIVE_FILE_SCOPE}.readonly`),
@@ -70,15 +74,23 @@ test("matches Drive file grants exactly", () => {
 
 test("connect and callback routes share the exact scope boundary", () => {
   const connectSource = readFileSync(
-    `${process.cwd()}/app/api/calendar/google/connect/route.ts`,
+    `${process.cwd()}/app/api/google/oauth/connect/route.ts`,
     "utf8",
   );
   const callbackSource = readFileSync(
-    `${process.cwd()}/app/api/calendar/google/callback/route.ts`,
+    `${process.cwd()}/app/api/google/oauth/callback/route.ts`,
     "utf8",
   );
 
   assert.match(connectSource, /GOOGLE_CALENDAR_APP_CREATED_SCOPE/u);
+  assert.match(
+    connectSource,
+    /const sheetsScopes = \[GOOGLE_DRIVE_FILE_SCOPE\]/u,
+  );
+  assert.doesNotMatch(
+    connectSource,
+    /https:\/\/www\.googleapis\.com\/auth\/drive(?:\.readonly)?["']/u,
+  );
   assert.doesNotMatch(
     connectSource,
     /scopes\.push\("https:\/\/www\.googleapis\.com\/auth\/calendar"\)/u,

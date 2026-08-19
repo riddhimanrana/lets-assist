@@ -1067,6 +1067,11 @@ export default function EditProjectClient({ project }: Props) {
         ...values,
         schedule,
         recurrence_rule: recurrenceRule,
+        ...(recurrenceRule === null && project.recurrence_rule !== null
+          ? {
+              recurrence_generation_id: project.recurrence_generation_id,
+            }
+          : {}),
       };
 
       const result = await updateProject(project.id, updates);
@@ -1157,8 +1162,7 @@ export default function EditProjectClient({ project }: Props) {
         toast.error(result.error);
       } else {
         toast.success("Project deleted successfully");
-        router.push("/home");
-        router.refresh(); // Trigger server-side re-fetch of home page data
+        router.replace("/home");
       }
     } catch {
       toast.error("Failed to delete project");

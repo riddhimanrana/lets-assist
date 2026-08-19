@@ -10,21 +10,17 @@ import {
   watchBrowserFailures,
 } from "./helpers";
 
-const canonicalTabs = [
-  "Home",
-  "Applications",
-  "Members",
-  "Service",
-  "Classes",
-] as const;
+const canonicalTabs = ["Home", "Classes", "Applications"] as const;
 
 const canonicalMoreItems = [
-  "Imports",
-  "Reports",
-  "Staff access",
+  "Terms",
+  "Meetings",
+  "Partner clubs",
+  "Officers & access",
   "Change history",
   "Communications",
   "Settings",
+  "Help",
 ] as const;
 
 type CanonicalTab = (typeof canonicalTabs)[number];
@@ -37,6 +33,7 @@ type StaffRoleNavigationScenario = {
   visibleMoreItems: readonly CanonicalMoreItem[];
   deniedRoute: "applications" | "profiles" | "staff" | null;
   opensClassStream?: boolean;
+  opensMembers?: boolean;
 };
 
 const staffRoleNavigationMatrix: readonly StaffRoleNavigationScenario[] = [
@@ -46,36 +43,37 @@ const staffRoleNavigationMatrix: readonly StaffRoleNavigationScenario[] = [
     visibleTabs: canonicalTabs,
     visibleMoreItems: canonicalMoreItems,
     deniedRoute: null,
+    opensMembers: true,
   },
   {
     actor: "coPresident",
     label: "Co-President",
     visibleTabs: canonicalTabs,
-    visibleMoreItems: [
-      "Imports",
-      "Reports",
-      "Change history",
-      "Communications",
-      "Settings",
-    ],
+    visibleMoreItems: canonicalMoreItems.filter(
+      (item) => item !== "Officers & access",
+    ),
     deniedRoute: "staff",
+    opensMembers: true,
   },
   {
     actor: "vpMembership",
     label: "Vice President — Membership",
     // The Classes hub opens for any class-tab capability; membership holds
     // manage_profiles, process_points, and manage_meetings.
-    visibleTabs: ["Home", "Applications", "Members", "Service", "Classes"],
-    visibleMoreItems: ["Imports", "Reports"],
+    visibleTabs: canonicalTabs,
+    // The report download moved to Settings, which admits every report-export
+    // key the retired Reports page honored.
+    visibleMoreItems: ["Meetings", "Settings", "Help"],
     deniedRoute: "staff",
+    opensMembers: true,
   },
   {
     actor: "vpPublicity",
     label: "Vice President — Publicity",
     // manage_posts opens Classes so posting officers can reach each class Stream
     // without gaining Members, Points, Meetings, or the Communications console.
-    visibleTabs: ["Home", "Service", "Classes"],
-    visibleMoreItems: [],
+    visibleTabs: ["Home", "Classes"],
+    visibleMoreItems: ["Help"],
     deniedRoute: "applications",
     opensClassStream: true,
   },
@@ -83,46 +81,48 @@ const staffRoleNavigationMatrix: readonly StaffRoleNavigationScenario[] = [
     actor: "vpClubs",
     label: "Vice President — Clubs",
     // process_points opens the Classes hub (Points tab only inside it).
-    visibleTabs: ["Home", "Service", "Classes"],
-    visibleMoreItems: ["Imports", "Reports"],
-    deniedRoute: "applications",
+    visibleTabs: canonicalTabs,
+    visibleMoreItems: ["Partner clubs", "Settings", "Help"],
+    deniedRoute: "staff",
   },
   {
     actor: "treasurer",
     label: "Treasurer",
-    visibleTabs: ["Home", "Applications"],
-    visibleMoreItems: ["Reports"],
-    deniedRoute: "profiles",
+    visibleTabs: ["Home"],
+    visibleMoreItems: ["Settings", "Help"],
+    deniedRoute: "applications",
   },
   {
     actor: "secretary",
     label: "Secretary",
-    // The former Semester tab now lives inside the Classes hub.
-    visibleTabs: ["Home", "Members", "Service", "Classes"],
-    visibleMoreItems: ["Imports", "Reports"],
+    // manage_schedule opens the Terms page (deadline editing lives there).
+    visibleTabs: ["Home", "Classes"],
+    visibleMoreItems: ["Terms", "Meetings", "Settings", "Help"],
     deniedRoute: "applications",
+    opensMembers: true,
   },
   {
     actor: "webMaster",
     label: "Web Master",
-    visibleTabs: ["Home", "Service", "Classes"],
-    visibleMoreItems: [],
+    visibleTabs: ["Home", "Classes"],
+    visibleMoreItems: ["Help"],
     deniedRoute: "applications",
     opensClassStream: true,
   },
   {
     actor: "activityCoordinator",
     label: "Activity Coordinator",
-    visibleTabs: ["Home", "Service"],
-    visibleMoreItems: [],
+    visibleTabs: ["Home", "Classes"],
+    visibleMoreItems: ["Help"],
     deniedRoute: "applications",
   },
   {
     actor: "dataManagement",
     label: "Data Management",
-    visibleTabs: ["Home", "Applications", "Members", "Service", "Classes"],
-    visibleMoreItems: ["Imports", "Reports", "Change history"],
+    visibleTabs: canonicalTabs,
+    visibleMoreItems: ["Meetings", "Change history", "Settings", "Help"],
     deniedRoute: "staff",
+    opensMembers: true,
   },
 ] as const;
 
@@ -165,8 +165,15 @@ async function expectCanonicalNavigation(
 }
 
 async function expectMembersDirectory(page: Page) {
-  await page.getByRole("tab", { name: "Members", exact: true }).click();
-  await expect(page).toHaveURL(/[?&]tab=csf-members(?:&|$)/);
+  await page.getByRole("tab", { name: "Classes", exact: true }).click();
+  await expect(page).toHaveURL(/[?&]tab=csf-cohorts(?:&|$)/);
+  await page.getByRole("link", { name: "Class of 2028", exact: true }).click();
+  await expect(page).toHaveURL(/[?&]csf_cohort=[^&]+(?:&|$)/);
+  await page
+    .getByRole("navigation", { name: "Class workspace tabs" })
+    .getByRole("button", { name: "Members", exact: true })
+    .click();
+  await expect(page).toHaveURL(/[?&]csf_cohort_tab=members(?:&|$)/);
 
   const memberViews = page.getByRole("navigation", { name: "Member views" });
   await expect(memberViews).toBeVisible();
@@ -273,15 +280,15 @@ test.describe("DVHS CSF role-aware navigation", () => {
     }
 
     await switcherMenu
-      .getByRole("menuitem", { name: "Members", exact: true })
+      .getByRole("menuitem", { name: "Classes", exact: true })
       .click();
-    await expect(page).toHaveURL(/[?&]tab=csf-members(?:&|$)/);
+    await expect(page).toHaveURL(/[?&]tab=csf-cohorts(?:&|$)/);
     await expect(
-      page.getByRole("navigation", { name: "Member views" }),
+      page.getByRole("heading", { name: "Your classes", exact: true }),
     ).toBeVisible();
 
     await expect(switcherMenu).toBeHidden();
-    await expect(switcher).toHaveAccessibleName(/^Members\b/);
+    await expect(switcher).toHaveAccessibleName(/^Classes\b/);
     await expectNoHorizontalOverflow(page);
 
     expectNoBrowserFailures(failures);
@@ -310,7 +317,7 @@ test.describe("DVHS CSF role-aware navigation", () => {
       await loginAs(page, scenario.actor);
       await expectCanonicalNavigation(page, scenario);
 
-      if (scenario.visibleTabs.includes("Members")) {
+      if (scenario.opensMembers) {
         await test.step("opens the authorized Members directory", async () => {
           await expectMembersDirectory(page);
         });
@@ -353,7 +360,7 @@ test.describe("DVHS CSF role-aware navigation", () => {
     expectNoBrowserFailures(failures);
   });
 
-  test("member sees only Feed, Activities, Point submissions, and My CSF", async ({
+  test("member sees only Feed, My CSF, Activities, Point submissions, and Help", async ({
     page,
   }) => {
     await loginAs(page, "member");
@@ -368,6 +375,16 @@ test.describe("DVHS CSF role-aware navigation", () => {
         page.getByRole("tab", { name: tab, exact: true }),
       ).toBeVisible();
     }
+    const memberMore = page.getByRole("button", {
+      name: "More",
+      exact: true,
+    });
+    await expect(memberMore).toBeVisible();
+    await memberMore.click();
+    await expect(
+      page.getByRole("menuitem", { name: "Help", exact: true }),
+    ).toBeVisible();
+    await page.keyboard.press("Escape");
     for (const tab of ["Applications", "Members", "Service", "Classes"]) {
       await expect(
         page.getByRole("tab", { name: tab, exact: true }),
@@ -392,10 +409,22 @@ test.describe("DVHS CSF role-aware navigation", () => {
         page.getByRole("tab", { name: tab, exact: true }),
       ).toBeVisible();
     }
-    // The applicant's review state lives in My CSF; Feed is the landing tab.
+    const applicantMore = page.getByRole("button", {
+      name: "More",
+      exact: true,
+    });
+    await expect(applicantMore).toBeVisible();
+    await applicantMore.click();
+    await expect(
+      page.getByRole("menuitem", { name: "Help", exact: true }),
+    ).toBeVisible();
+    await page.keyboard.press("Escape");
+    // The applicant's current-semester state lives in My CSF; Feed is the
+    // landing tab. This fixture has only a historical pending application, so
+    // the current Fall term truth is "Not submitted."
     await page.getByRole("tab", { name: "My CSF", exact: true }).click();
     await expect(
-      page.getByText("Under review", { exact: true }).first(),
+      page.getByText("Not submitted", { exact: true }).first(),
     ).toBeVisible();
     for (const tab of ["Applications", "Members", "Service", "Classes"]) {
       await expect(

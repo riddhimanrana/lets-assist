@@ -85,6 +85,39 @@ export class PluginControlPlaneConcurrencyError extends Error {
   }
 }
 
+/**
+ * Extra audit detail for one control-plane action, merged alongside the
+ * transition kind.
+ *
+ * For `install.removed`, this now asserts `pluginDataRetained: true` as a
+ * platform-certified fact, not a claim about arbitrary plugin behavior:
+ * the `"uninstall"` transition below runs no plugin lifecycle hook at all
+ * and its DELETE is scoped to `organization_plugin_installs` alone, so
+ * nothing this transition does can touch `plugin_data`. Permanent erasure
+ * is a separate, explicit action (`onDataDelete`/`runPluginDataDelete`,
+ * wired through `lib/plugins/plugin-data-deletion.ts`) that this
+ * transition never invokes.
+ */
+export function pluginControlPlaneAuditDetails(
+  action: PluginControlPlaneAuditAction,
+  context?: { configuration?: Record<string, unknown> },
+): Record<string, unknown> {
+  if (action === "install.removed") {
+    return {
+      platformInstallRowRemoved: true,
+      pluginDataDeletionNotRequested: true,
+      pluginDataRetained: true,
+      // A boolean fact, never the configuration content itself — the
+      // configuration blob can hold plugin-defined values that should not
+      // be persisted verbatim into an audit log.
+      configurationRemoved: Boolean(
+        context?.configuration && Object.keys(context.configuration).length > 0,
+      ),
+    };
+  }
+  return {};
+}
+
 function errorMessage(error: unknown) {
   return error instanceof Error ? error.message : String(error);
 }
@@ -271,6 +304,15 @@ export async function applyPluginControlPlaneTransition(input: {
   }
 
   if (!current) {
+    if (transition.kind === "uninstall") {
+      // A repeat uninstall (lost response, retried request, double click)
+      // observes no install row and has nothing left to do. Refusing here
+      // would be a false error for an already-satisfied request; silently
+      // "succeeding" while rerunning the uninstall hook or re-emitting
+      // install.removed would be worse, since neither happened. Report the
+      // one thing that is true: no change.
+      return { success: true, changed: false, actions: [] };
+    }
     return {
       success: false,
       changed: false,
@@ -298,19 +340,23 @@ export async function applyPluginControlPlaneTransition(input: {
   }
 
   if (transition.kind === "uninstall") {
-    const lifecycle = await runLifecycleSequence(
-      [{ hook: "uninstall", config: current.configuration }],
-      callbacks,
-    );
-    if (!lifecycle.success)
-      return { ...lifecycle, changed: false, actions: [] };
-    const persisted = await persistAfterLifecycle(
-      lifecycle.completed,
-      callbacks,
-      callbacks.removeInstall,
-    );
-    if (!persisted.success)
-      return { ...persisted, changed: false, actions: [] };
+    // Deliberately runs no lifecycle hook. `onUninstall` is arbitrary
+    // plugin code with no bound on what it can do to `plugin_data`, so
+    // invoking it here would make the `pluginDataRetained: true` audit
+    // claim above false. The only effect of an organization-initiated
+    // uninstall is removing its own install row (and configuration with
+    // it); permanent data erasure is a separate, explicitly authorized
+    // action (see `plugin-data-deletion.ts`).
+    try {
+      await callbacks.removeInstall();
+    } catch (error) {
+      return {
+        success: false,
+        changed: false,
+        actions: [],
+        error: `Failed to remove plugin install: ${errorMessage(error)}`,
+      };
+    }
     return { success: true, changed: true, actions: ["install.removed"] };
   }
 

@@ -1,6 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
+import fg from "fast-glob";
 import {
   repositoryRoot,
   createSandbox,
@@ -164,6 +165,25 @@ describe("CI db-replay-validation uses the recovery topology and isolated seed",
     expect(job).toContain("bun run csf:seed:platform:isolated");
     expect(job).not.toContain("bun run supabase:seed:local-dev");
   });
+
+  test("both isolated production browser builds skip only their redundant typecheck", () => {
+    const job = dbReplayJob();
+    const dvStep = job.slice(
+      job.indexOf("- name: Validate DV browser workflows"),
+      job.indexOf("- name: Skip private DV browser workflows"),
+    );
+    const csfStep = job.slice(
+      job.indexOf("- name: Validate CSF browser workflows"),
+      job.indexOf("- name: Verify isolated Supabase remains healthy"),
+    );
+
+    for (const step of [dvStep, csfStep]) {
+      expect(step).toContain('CSF_BROWSER_SKIP_BUILD_TYPECHECK: "1"');
+    }
+    expect(job.match(/CSF_BROWSER_SKIP_BUILD_TYPECHECK: "1"/gu)?.length).toBe(
+      2,
+    );
+  });
 });
 
 // ---------------------------------------------------------------------------
@@ -198,11 +218,12 @@ describe("CI runs mock-sensitive tests through the shared process orchestrator",
 
   test("the quality job invokes the same test interface developers use", () => {
     const job = ciJob("quality");
+    expect(job).toContain("run: bun run format:check");
     expect(job).toContain("run: bun run test");
     expect(job).not.toContain("bun test \\");
   });
 
-  test("the orchestrator names each sensitive suite once and spawns every group", () => {
+  test("the orchestrator names each sensitive suite once and isolates grouped mocks", () => {
     const orchestrator = readFileSync(
       join(repositoryRoot, "scripts/run-tests.mjs"),
       "utf8",
@@ -211,7 +232,70 @@ describe("CI runs mock-sensitive tests through the shared process orchestrator",
       expect(orchestrator.split(file).length - 1, file).toBe(1);
     }
     expect(orchestrator).toContain("spawnSync(command, args");
-    expect(orchestrator).toContain("for (const group of groups)");
+    expect(orchestrator).toContain(
+      "for (const group of groups) runGroup(group)",
+    );
+    expect(orchestrator).toContain("files.filter(hasGlobalModuleMock)");
+    expect(orchestrator).toContain("mock-isolated root test");
+  });
+
+  test("plugin tests with global module mocks run in isolated Bun processes", () => {
+    const orchestrator = readFileSync(
+      join(repositoryRoot, "scripts/run-tests.mjs"),
+      "utf8",
+    );
+    const packageSource = readFileSync(
+      join(repositoryRoot, "package.json"),
+      "utf8",
+    );
+    expect(orchestrator).toMatch(
+      /const isolatedPluginMockFiles =\s*discoveredPluginFiles\.filter\(hasGlobalModuleMock\)/u,
+    );
+    expect(orchestrator).toMatch(
+      /for \(const file of isolatedPluginMockFiles\)[\s\S]*mock-isolated plugin test/u,
+    );
+    expect(orchestrator).not.toContain(
+      'run("plugin unit and security", "bun", ["test", ...preload, "lib/plugins"])',
+    );
+    expect(packageSource).toContain(
+      '"test:plugins": "node scripts/run-tests.mjs --plugins-only"',
+    );
+  });
+
+  test("global module mocks are declared only in discoverable tests or the preload", async () => {
+    const sourceFiles = await fg("**/*.{ts,tsx,js,mjs,cjs}", {
+      cwd: repositoryRoot,
+      ignore: ["**/.artifacts/**", "**/.next/**", "**/node_modules/**"],
+      onlyFiles: true,
+      unique: true,
+    });
+    const allowedStandaloneMockEntrypoints = new Set([
+      "scripts/local-dev/server-only-test-preload.ts",
+      "scripts/local-dev/test-plugin-registry-gates.ts",
+      "scripts/local-dev/test-plugin-runtime-contracts.mjs",
+    ]);
+    const testFilePattern = /\.(?:test|spec)\.[cm]?[jt]sx?$/u;
+    const mockModulePattern = /\bmock\s*\.\s*module\s*\(/u;
+    const hiddenMocks = sourceFiles.filter(
+      (file) =>
+        !allowedStandaloneMockEntrypoints.has(file) &&
+        !testFilePattern.test(file) &&
+        mockModulePattern.test(
+          readFileSync(join(repositoryRoot, file), "utf8"),
+        ),
+    );
+    expect(hiddenMocks).toEqual([]);
+  });
+
+  test("test discovery fails closed and rejects unknown mode flags", () => {
+    const orchestrator = readFileSync(
+      join(repositoryRoot, "scripts/run-tests.mjs"),
+      "utf8",
+    );
+    expect(orchestrator).toContain("No root test files were discovered.");
+    expect(orchestrator).toContain("No plugin test files were discovered.");
+    expect(orchestrator).toContain("Unknown test-runner argument");
+    expect(orchestrator).toContain("**/node_modules/**");
   });
 
   test("the cron probe suite keeps its server-only preload", () => {

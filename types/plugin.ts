@@ -4,6 +4,8 @@ import type { Organization } from "./organization";
 export type OrganizationPluginVisibility = "global" | "private";
 
 export type OrganizationPluginAccessRole = "admin" | "staff" | "member";
+export type OrganizationPluginPageRole =
+  OrganizationPluginAccessRole | "public";
 
 /**
  * Organization with the viewer's role
@@ -249,6 +251,57 @@ export interface OrganizationPluginStorageAccessDeclaration {
   purpose: string;
 }
 
+/**
+ * A plugin author's reviewed, mechanically-gated claim about what permanent
+ * deletion (`onDataDelete`) actually does. This is distinct from ordinary
+ * uninstall, which the platform now guarantees never runs plugin code and
+ * never touches `plugin_data` at all — this declaration exists solely to
+ * gate the separate, explicit permanent-deletion action.
+ *
+ * `reviewed` only accepts `true`: there is no honest way to under-declare
+ * this and still offer permanent deletion through the platform. A plugin
+ * with no `dataDeletion` declaration (or no `onDataDelete` hook) is treated
+ * as not supporting permanent deletion, and the platform refuses the
+ * request rather than guessing — see
+ * `lib/plugins/plugin-data-deletion-readiness.ts`.
+ */
+export type OrganizationPluginDataDeletionDisposition = "delete" | "retain";
+
+export interface OrganizationPluginDataDeletionDataTarget {
+  schema: string;
+  relation: string;
+  tenantColumn: string | null;
+  disposition: OrganizationPluginDataDeletionDisposition;
+  reason?: string;
+}
+
+export interface OrganizationPluginDataDeletionStorageTarget {
+  bucket: string;
+  pathPattern: string;
+  disposition: OrganizationPluginDataDeletionDisposition;
+  reason?: string;
+}
+
+export interface OrganizationPluginDataDeletionDeclaration {
+  /** Explicit reviewer assertion; never inferred from hook presence. */
+  reviewed: true;
+  /** ISO calendar date when this contract was checked against the hook. */
+  reviewedAt: string;
+  execution: {
+    atomicity: "transactional" | "non-transactional";
+    retrySafety: "idempotent" | "manual-reconciliation";
+  };
+  /** Exact one-to-one disposition for every manifest `dataAccess` target. */
+  dataTargets: OrganizationPluginDataDeletionDataTarget[];
+  /** Exact one-to-one disposition for every manifest `storageAccess` target. */
+  storageTargets: OrganizationPluginDataDeletionStorageTarget[];
+  /**
+   * External systems whose retained copies the hook cannot reach. The array
+   * must be present even when empty so reviewers cannot omit this decision.
+   */
+  externalSystemsNotCovered: string[];
+}
+
 export interface AnonymousProfileExperienceBehavior {
   bannerMessage?: string;
   hideLinkingSection?: boolean;
@@ -492,15 +545,37 @@ export interface OrganizationPluginManifest {
    * Tables/data this plugin manages (for documentation/cleanup)
    */
   dataScope?: string[];
+  /**
+   * Reviewed retention/deletion contract gating the separate permanent
+   * plugin-data-deletion action. Absent = permanent deletion is disabled
+   * for this plugin (fails safe); see
+   * `lib/plugins/plugin-data-deletion-readiness.ts`.
+   */
+  dataDeletion?: OrganizationPluginDataDeletionDeclaration;
 }
 
-export interface OrganizationPluginPageProps {
+export interface OrganizationPluginPageProps<
+  TRole extends OrganizationPluginPageRole = OrganizationPluginAccessRole,
+> {
   organizationId: string;
   organizationSlug: string;
   organizationName: string;
-  userRole: OrganizationPluginAccessRole;
+  userRole: TRole;
   configuration: Record<string, unknown> | null;
 }
+
+export type OrganizationPluginPageRenderer = {
+  bivarianceHack(
+    props: OrganizationPluginPageProps<OrganizationPluginPageRole>,
+  ): ReactNode | Promise<ReactNode>;
+}["bivarianceHack"];
+
+export type OrganizationPluginRouteRenderer = {
+  bivarianceHack(
+    routePath: string,
+    props: OrganizationPluginPageProps<OrganizationPluginPageRole>,
+  ): ReactNode | null | Promise<ReactNode | null>;
+}["bivarianceHack"];
 
 /**
  * Context passed to lifecycle hooks
@@ -526,7 +601,16 @@ export interface OrganizationPluginLifecycleHooks {
   onInstall?: (context: OrganizationPluginLifecycleContext) => Promise<void>;
 
   /**
-   * Called when a plugin is being uninstalled
+   * No longer invoked by the platform's organization-initiated uninstall
+   * transition (see `applyPluginControlPlaneTransition`'s `"uninstall"`
+   * branch) — uninstall now only removes the install row and configuration,
+   * running no plugin code, so data retention is a platform guarantee
+   * rather than a claim about arbitrary plugin behavior. This hook is
+   * retained solely as the compensating action the control plane runs to
+   * roll back a plugin's `onInstall` side effects when a new install fails
+   * after the hook succeeds but before persistence commits. Do not rely on
+   * it running when an organization removes an already-installed plugin —
+   * use `onDataDelete` for actual data erasure.
    */
   onUninstall?: (context: OrganizationPluginLifecycleContext) => Promise<void>;
 
@@ -670,6 +754,13 @@ export interface OrganizationPluginAdminSetting {
   ownerType: OrganizationPluginOwnerType;
   capabilityHighlights: string[];
   dataAccess: string[];
+  /**
+   * Human-readable `dataAccess[].purpose` values only, deduplicated
+   * server-side — never schema/relation identifiers. Feeds
+   * `describePluginUninstallImpact` so the uninstall confirmation dialog
+   * never has to interpolate internal relation names.
+   */
+  dataAccessPurposes: string[];
   visibility: OrganizationPluginVisibility;
   navLabel: string;
   version: string;
@@ -692,4 +783,19 @@ export interface OrganizationPluginAdminSetting {
   configuration: Record<string, unknown> | null;
   configSchema: OrganizationPluginConfigSchema | null;
   requiredScopes: OrganizationPluginScope[];
+  /**
+   * Whether this plugin's manifest and lifecycle hooks satisfy
+   * `getPluginDataDeletionReadiness` — the platform refuses permanent data
+   * deletion for any plugin where this is false, regardless of admin
+   * confirmation, so the settings UI uses it to decide whether to offer
+   * the permanent-deletion action at all.
+   */
+  dataDeletionAvailable: boolean;
+  /**
+   * External systems `onDataDelete` cannot reach, from the manifest's
+   * `dataDeletion.externalSystemsNotCovered`. Shown to the admin before
+   * they confirm permanent deletion. Empty when deletion is unavailable or
+   * the plugin declared no uncovered systems.
+   */
+  dataDeletionExternalSystemsNotCovered: string[];
 }

@@ -2,9 +2,8 @@ import { describe, expect, mock, test } from "bun:test";
 
 mock.module("server-only", () => ({}));
 
-const { createCsfUnsubscribeToken, verifyCsfUnsubscribeToken } = await import(
-  "./csf-unsubscribe-token"
-);
+const { createCsfUnsubscribeToken, verifyCsfUnsubscribeToken } =
+  await import("./csf-unsubscribe-token");
 
 const SECRET = "0123456789abcdef0123456789abcdef";
 const identity = {
@@ -65,8 +64,6 @@ describe("CSF unsubscribe tokens", () => {
     expect(
       verifyCsfUnsubscribeToken("not-a-token", { secret: SECRET }),
     ).toBeNull();
-    expect(
-      verifyCsfUnsubscribeToken("a.b.c", { secret: SECRET }),
-    ).toBeNull();
+    expect(verifyCsfUnsubscribeToken("a.b.c", { secret: SECRET })).toBeNull();
   });
 });

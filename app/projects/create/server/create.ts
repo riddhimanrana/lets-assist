@@ -3,8 +3,9 @@
 import "server-only";
 
 import { createClient } from "@/lib/supabase/server";
+import { revalidatePath } from "next/cache";
 import { sanitizeRichTextHtml } from "@/lib/security/html.server";
-import { getWaiverPdfRequirementError } from "@/lib/projects/waiver-validation";
+import { getWaiverConfigurationError } from "@/lib/projects/waiver-validation";
 import type { EventFormState } from "@/hooks/use-event-form";
 import { resolveOrganizationPlugins } from "@/lib/plugins/resolve-org-plugins";
 import { runProjectCreate } from "@/lib/plugins/lifecycle";
@@ -16,11 +17,45 @@ import {
   normalizeRequireLoginForVerificationMethod,
   omitProjectColumns,
 } from "./shared";
+import {
+  validateRecurrenceRule,
+  validateProjectTimezone,
+} from "@/lib/projects/schedule-validation";
+
+export type CreateBasicProjectResult = {
+  success?: boolean;
+  id?: string;
+  error?: string;
+  /** True when the row was created unpublished and still needs its waiver. */
+  requiresWaiverPublication?: boolean;
+  /** True when an earlier attempt with the same key already created the row. */
+  reusedExistingAttempt?: boolean;
+};
+
+const UUID_PATTERN =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu;
+
+function isDuplicateKeyError(error: unknown): boolean {
+  return (
+    !!error &&
+    typeof error === "object" &&
+    (error as { code?: unknown }).code === "23505"
+  );
+}
+
+function normalizeIdempotencyKey(key: unknown): string | null {
+  return typeof key === "string" && UUID_PATTERN.test(key.trim())
+    ? key.trim().toLowerCase()
+    : null;
+}
 
 export async function createBasicProject(
-  projectData: EventFormState & { userNow?: string },
+  projectData: EventFormState & {
+    userNow?: string;
+    creationIdempotencyKey?: string;
+  },
   isDraft: boolean = false,
-) {
+): Promise<CreateBasicProjectResult> {
   "use server";
   // Validate that all dates and times are in the future (using user's local time)
   // if (projectData.eventType === "oneTime") {
@@ -137,9 +172,39 @@ export async function createBasicProject(
     }
   }
 
-  const waiverPdfError = getWaiverPdfRequirementError(projectData);
-  if (waiverPdfError) {
-    return { error: waiverPdfError };
+  const waiverConfigurationError = getWaiverConfigurationError(projectData);
+  if (waiverConfigurationError) {
+    return { error: waiverConfigurationError };
+  }
+
+  const stagesWaiverPublication = !isDraft && !!projectData.waiverRequired;
+  const creationIdempotencyKey = normalizeIdempotencyKey(
+    projectData.creationIdempotencyKey,
+  );
+
+  // A staged waiver project is created before its PDF exists, so a reload or a
+  // failed publication has to be able to finish the same row. The creator
+  // scoped key makes that convergence durable instead of depending on client
+  // memory: the same key always resolves to the same project.
+  if (creationIdempotencyKey) {
+    const { data: existingAttempt } = await supabase
+      .from("projects")
+      .select("id, workflow_status, waiver_required")
+      .eq("creator_id", user.id)
+      .eq("creation_idempotency_key", creationIdempotencyKey)
+      .maybeSingle();
+
+    if (existingAttempt?.id) {
+      return {
+        success: true,
+        id: existingAttempt.id,
+        reusedExistingAttempt: true,
+        ...(existingAttempt.workflow_status === "draft" &&
+        existingAttempt.waiver_required
+          ? { requiresWaiverPublication: true }
+          : {}),
+      };
+    }
   }
 
   try {
@@ -187,17 +252,36 @@ export async function createBasicProject(
       );
     }
 
-    // Build recurrence rule if enabled
-    const recurrenceRule = projectData.recurrence?.enabled
-      ? {
-          frequency: projectData.recurrence.frequency,
-          interval: projectData.recurrence.interval || 1,
-          end_type: projectData.recurrence.endType,
-          end_date: projectData.recurrence.endDate || null,
-          end_occurrences: projectData.recurrence.endOccurrences || null,
-          weekdays: projectData.recurrence.weekdays || [],
-        }
-      : null;
+    // Validate project_timezone (server is authoritative).
+    const rawTimezone =
+      projectData.basicInfo.projectTimezone || "America/Los_Angeles";
+    const timezoneValidation = validateProjectTimezone(rawTimezone);
+    if (!timezoneValidation.ok) {
+      return { error: `Invalid project timezone: ${timezoneValidation.error}` };
+    }
+    const projectTimezone = rawTimezone;
+
+    // Build and validate recurrence rule if enabled.
+    let recurrenceRule:
+      | import("@/lib/projects/schedule-validation").ValidatedRecurrenceRule
+      | null = null;
+    if (projectData.recurrence?.enabled) {
+      const rawRule = {
+        frequency: projectData.recurrence.frequency,
+        interval: projectData.recurrence.interval,
+        end_type: projectData.recurrence.endType,
+        end_date: projectData.recurrence.endDate || null,
+        end_occurrences: projectData.recurrence.endOccurrences || null,
+        weekdays: projectData.recurrence.weekdays || [],
+      };
+      const ruleValidation = validateRecurrenceRule(rawRule);
+      if (!ruleValidation.ok) {
+        return {
+          error: `Invalid recurrence rule: ${ruleValidation.error}`,
+        };
+      }
+      recurrenceRule = ruleValidation.rule;
+    }
 
     const baseProjectPayload = {
       creator_id: user.id,
@@ -220,12 +304,17 @@ export async function createBasicProject(
       organization_id: organizationId || null, // Save organization_id if provided
       visibility: requestedVisibility, // Public requires Trusted Member. Unlisted / org-only do not.
       published: publishedState, // Add the published state tracking
-      project_timezone:
-        projectData.basicInfo.projectTimezone || "America/Los_Angeles", // Save project timezone with fallback
+      project_timezone: projectTimezone,
       restrict_to_org_domains: projectData.restrictToOrgDomains || false, // Add domain restriction flag
-      workflow_status: isDraft ? "draft" : "published", // Support draft saving
+      // A waiver project is staged unpublished. The client marker for an
+      // attached PDF is not proof, so the row stays invisible to the public
+      // and unsignable until publish_waiver_staged_project verifies the real
+      // Storage object and the signing configuration.
+      workflow_status:
+        isDraft || stagesWaiverPublication ? "draft" : "published",
       recurrence_rule: recurrenceRule, // Support recurring projects
       signup_form_schema: projectData.signupFormSchema || null,
+      creation_idempotency_key: creationIdempotencyKey,
     };
 
     const projectInsertPayload = {
@@ -271,6 +360,30 @@ export async function createBasicProject(
     }
 
     if (projectError || !project) {
+      // Two submits of the same attempt race here. The loser resolves to the
+      // row the winner created instead of reporting a failure the user would
+      // retry into a duplicate.
+      if (creationIdempotencyKey && isDuplicateKeyError(projectError)) {
+        const { data: racedAttempt } = await supabase
+          .from("projects")
+          .select("id, workflow_status, waiver_required")
+          .eq("creator_id", user.id)
+          .eq("creation_idempotency_key", creationIdempotencyKey)
+          .maybeSingle();
+
+        if (racedAttempt?.id) {
+          return {
+            success: true,
+            id: racedAttempt.id,
+            reusedExistingAttempt: true,
+            ...(racedAttempt.workflow_status === "draft" &&
+            racedAttempt.waiver_required
+              ? { requiresWaiverPublication: true }
+              : {}),
+          };
+        }
+      }
+
       console.error("Error creating project:", projectError);
       return { error: "Failed to create project. Please try again." };
     }
@@ -292,6 +405,7 @@ export async function createBasicProject(
           .select("role")
           .eq("organization_id", projectData.basicInfo.organizationId)
           .eq("user_id", user.id)
+          .eq("status", "active")
           .single();
 
         const userRole = member?.role || null;
@@ -299,6 +413,7 @@ export async function createBasicProject(
         const plugins = await resolveOrganizationPlugins({
           organizationId: projectData.basicInfo.organizationId,
           userRole,
+          viewerUserId: user.id,
         });
 
         for (const resolved of plugins) {
@@ -322,9 +437,96 @@ export async function createBasicProject(
     }
 
     // Return success with the new project ID
-    return { success: true, id: project.id };
+    return {
+      success: true,
+      id: project.id,
+      ...(stagesWaiverPublication ? { requiresWaiverPublication: true } : {}),
+    };
   } catch (error) {
     console.error("Error in create project action:", error);
+    return { error: "An unexpected error occurred. Please try again." };
+  }
+}
+
+const WAIVER_PUBLICATION_MESSAGES: Record<string, string> = {
+  project_not_found: "Project not found.",
+  forbidden: "You don't have permission to publish this project.",
+  not_waiver_project: "This project does not require a waiver.",
+  invalid_state: "This project can no longer be published from the creator.",
+  missing_waiver_source:
+    "The waiver PDF has not finished uploading yet. Please retry.",
+  missing_storage_object:
+    "The waiver PDF was not stored successfully. Please upload it again.",
+  missing_waiver_definition:
+    "Configure the waiver signature placements before publishing.",
+  definition_source_mismatch:
+    "The waiver configuration does not match the uploaded PDF. Please reconfigure it.",
+  definition_missing_signature_field:
+    "The waiver configuration needs at least one signature placement.",
+  no_signing_mode:
+    "Enable e-signatures or print-and-upload so volunteers can sign the waiver.",
+  invalid_input: "Project not found.",
+};
+
+/**
+ * Publishes a staged waiver project once the database can prove its waiver.
+ *
+ * Retry safe: the check is re-run from scratch on every call, so a lost
+ * response or a repeated finalize converges on the same published row instead
+ * of creating a second one.
+ */
+export async function publishWaiverStagedProject(
+  projectId: string,
+): Promise<{ success?: boolean; alreadyPublished?: boolean; error?: string }> {
+  "use server";
+  try {
+    const supabase = await createClient();
+    const {
+      data: { user },
+      error: userError,
+    } = await supabase.auth.getUser();
+
+    if (userError || !user) {
+      return { error: "You must be logged in to publish a project" };
+    }
+
+    const admin = getAdminClient();
+    const { data, error } = await admin.rpc("publish_waiver_staged_project", {
+      p_project_id: projectId,
+      p_actor_id: user.id,
+    });
+
+    if (error) {
+      console.error("Error publishing staged waiver project:", error);
+      return { error: "Failed to publish the project. Please try again." };
+    }
+
+    const result =
+      (data as { outcome: string; workflow_status: string }[] | null)?.[0] ??
+      null;
+
+    if (!result) {
+      return { error: "Failed to publish the project. Please try again." };
+    }
+
+    if (result.outcome === "published") {
+      revalidatePath("/projects");
+      revalidatePath(`/projects/${projectId}`);
+      return { success: true };
+    }
+
+    if (result.outcome === "already_published") {
+      revalidatePath(`/projects/${projectId}`);
+      return { success: true, alreadyPublished: true };
+    }
+
+    return {
+      error:
+        WAIVER_PUBLICATION_MESSAGES[result.outcome] ??
+        "This project cannot be published yet.",
+    };
+  } catch (error) {
+    console.error("Error in publish staged waiver project action:", error);
     return { error: "An unexpected error occurred. Please try again." };
   }
 }

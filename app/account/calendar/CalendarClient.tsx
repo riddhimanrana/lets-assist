@@ -79,13 +79,13 @@ export default function CalendarClient({
     // OAuth begins with a redirect response, so this must be a document navigation.
     // eslint-disable-next-line @next/next/no-location-assign-relative-destination
     window.location.href =
-      "/api/calendar/google/connect?purpose=personal_calendar";
+      "/api/google/oauth/connect?purpose=personal_calendar";
   };
 
   const handleDisconnect = async () => {
     setIsDisconnecting(true);
     try {
-      const response = await fetch("/api/calendar/google/disconnect", {
+      const response = await fetch("/api/google/oauth/disconnect", {
         method: "POST",
       });
 

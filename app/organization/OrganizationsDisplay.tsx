@@ -41,7 +41,7 @@ type MembershipRow = {
 
 interface OrganizationsDisplayProps {
   organizations: OrganizationDisplay[];
-  memberCounts: Record<string, number>;
+  memberCounts: Record<string, number | null>;
   isLoggedIn: boolean;
   userMemberships: MembershipRow[];
   isTrusted?: boolean;
@@ -332,7 +332,7 @@ export default function OrganizationsDisplay({
                     <OrganizationCard
                       key={org.id}
                       org={org}
-                      memberCount={memberCounts[org.id] || 0}
+                      memberCount={memberCounts[org.id] ?? null}
                       isUserMember={true}
                       userRole={getUserRole(org.id)}
                     />
@@ -352,7 +352,7 @@ export default function OrganizationsDisplay({
                     <OrganizationCard
                       key={org.id}
                       org={org}
-                      memberCount={memberCounts[org.id] || 0}
+                      memberCount={memberCounts[org.id] ?? null}
                     />
                   ))}
                 </div>

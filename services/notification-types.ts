@@ -7,9 +7,7 @@
  */
 
 export type NotificationType =
-  | "email_notifications"
-  | "project_updates"
-  | "general";
+  "email_notifications" | "project_updates" | "general";
 
 export type NotificationSeverity = "info" | "warning" | "success";
 
@@ -20,4 +18,9 @@ export interface NotificationData {
   severity?: NotificationSeverity;
   actionUrl?: string;
   data?: Record<string, unknown>;
+  /**
+   * Opts this notification into replay-safe delivery for one recipient.
+   * Omit for ordinary event notifications, which must always be repeatable.
+   */
+  dedupeKey?: string;
 }

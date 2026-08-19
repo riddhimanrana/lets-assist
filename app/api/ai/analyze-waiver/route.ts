@@ -1,3 +1,5 @@
+import { createHash } from "node:crypto";
+
 import { NextRequest, NextResponse } from "next/server";
 import { generateText, Output } from "ai";
 import { z } from "zod";
@@ -9,8 +11,13 @@ import { detectCandidateAreas } from "@/lib/waiver/candidate-detection";
 import { detectPdfWidgets } from "@/lib/waiver/pdf-field-detect";
 import type { CandidateArea } from "@/lib/waiver/candidate-detection";
 import type { DetectedPdfField } from "@/lib/waiver/pdf-field-detect";
-import { gatewayModel } from "@/lib/ai/gateway";
-import { createPostHogTelemetry } from "@/lib/ai/posthog-telemetry";
+import { AI_MODEL_FAST, AI_MODEL_FALLBACK_CHAIN } from "@/lib/ai/models";
+import { prepareTrackedAiCall } from "@/lib/ai/with-ai-tracking";
+import {
+  buildAnalyzeWaiverQuotaIdentity,
+  consumeAnalyzeWaiverQuota,
+} from "@/lib/ai/analyze-waiver-rate-limit";
+import { getRequestIp } from "@/lib/ai/parse-project-rate-limit-config";
 
 const FIELD_TYPES = [
   "signature",
@@ -28,12 +35,8 @@ const FIELD_TYPES = [
 
 const ENABLE_VISION_FALLBACK = true;
 const DEFAULT_STRICT_HALLUCINATION_GUARD = true;
-const DEFAULT_AI_MODEL = "google/gemini-2.5-flash-lite";
-const ALLOWED_AI_MODELS = new Set([
-  "google/gemini-2.5-flash-lite",
-  "google/gemini-2.5-flash",
-  "google/gemini-3-flash",
-]);
+const DEFAULT_AI_MODEL = AI_MODEL_FAST;
+const ALLOWED_AI_MODELS = new Set<string>(AI_MODEL_FALLBACK_CHAIN);
 
 // Phase 3: New schema for AI output with candidate selection
 const SelectedFieldSchema = z.object({
@@ -1304,13 +1307,75 @@ export async function POST(request: NextRequest) {
       process.env.NODE_ENV !== "production" &&
       process.env.ENABLE_E2E_AUTH_BYPASS === "true";
     let posthogDistinctId: string | undefined;
+    let expectedContentDigest: string | null = null;
 
     if (!isE2EBypassEnabled) {
-      const authResult = await getAuthUser();
+      const authResult = await getAuthUser({ sensitive: true });
+      if (authResult.error) {
+        return NextResponse.json(
+          {
+            error:
+              "Waiver analysis is temporarily unavailable. Please try again.",
+          },
+          { status: 503 },
+        );
+      }
       if (!authResult.user) {
         return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
       }
       posthogDistinctId = authResult.user.id;
+      const quotaIdentity = buildAnalyzeWaiverQuotaIdentity(
+        authResult.user.id,
+        request.headers,
+      );
+      expectedContentDigest = quotaIdentity.expectedContentDigest;
+
+      let quota: Awaited<ReturnType<typeof consumeAnalyzeWaiverQuota>>;
+      try {
+        quota = await consumeAnalyzeWaiverQuota({
+          userId: authResult.user.id,
+          requestIp: getRequestIp(request.headers),
+          requestKey: quotaIdentity.requestKey,
+          requestFingerprint: quotaIdentity.requestFingerprint,
+        });
+      } catch (rateLimitError) {
+        console.error("Waiver analysis rate-limit check failed", {
+          errorClass:
+            rateLimitError instanceof Error
+              ? rateLimitError.name
+              : "unknown_error",
+        });
+        return NextResponse.json(
+          {
+            error:
+              "Waiver analysis is temporarily unavailable. Please try again.",
+          },
+          { status: 503 },
+        );
+      }
+
+      if (!quota.allowed) {
+        const retryAfterSeconds = Math.max(
+          Math.ceil((new Date(quota.resetAt).getTime() - Date.now()) / 1_000),
+          1,
+        );
+        return NextResponse.json(
+          {
+            error: "Too many waiver-analysis requests. Please try again later.",
+          },
+          {
+            status: 429,
+            headers: { "Retry-After": retryAfterSeconds.toString() },
+          },
+        );
+      }
+
+      if (quota.replayed && !quota.recovered) {
+        return NextResponse.json(
+          { error: "This waiver-analysis request was already accepted." },
+          { status: 409 },
+        );
+      }
     }
 
     const MAX_PDF_BYTES = 20 * 1024 * 1024; // 20MB
@@ -1368,6 +1433,16 @@ export async function POST(request: NextRequest) {
 
     const arrayBuffer = await file.arrayBuffer();
     const pdfBytes = Buffer.from(arrayBuffer);
+    if (
+      expectedContentDigest &&
+      createHash("sha256").update(pdfBytes).digest("hex") !==
+        expectedContentDigest
+    ) {
+      return NextResponse.json(
+        { error: "Uploaded PDF did not match request metadata" },
+        { status: 400 },
+      );
+    }
 
     let pdfDoc: PDFDocument;
     try {
@@ -1503,15 +1578,19 @@ export async function POST(request: NextRequest) {
       2,
     );
 
+    const trackedWaiverAnalysis = prepareTrackedAiCall({
+      context: {
+        scope: "platform",
+        userId: posthogDistinctId,
+        feature: "waiver-analysis",
+      },
+      modelId: selectedModel,
+    });
+    const waiverAnalysisStartedAt = Date.now();
     const result = await generateText({
-      model: gatewayModel("platform", selectedModel),
-      experimental_telemetry: createPostHogTelemetry({
-        functionId: "analyze-waiver",
-        distinctId: posthogDistinctId,
-        metadata: {
-          ai_feature: "waiver-analysis",
-        },
-      }),
+      model: trackedWaiverAnalysis.model,
+      experimental_telemetry: trackedWaiverAnalysis.telemetry,
+      providerOptions: { gateway: trackedWaiverAnalysis.gatewayOptions },
       output: Output.object({ schema: WaiverClassificationSchema }),
       messages: [
         {
@@ -1579,6 +1658,11 @@ ${structuredInput}
         },
       ],
       temperature: 0,
+    });
+    await trackedWaiverAnalysis.logUsage({
+      promptTokens: result.usage.inputTokens,
+      completionTokens: result.usage.outputTokens,
+      latencyMs: Date.now() - waiverAnalysisStartedAt,
     });
     const structured = result.output;
 
@@ -1671,16 +1755,19 @@ ${structuredInput}
           2,
         );
 
+        const trackedVisionFallback = prepareTrackedAiCall({
+          context: {
+            scope: "platform",
+            userId: posthogDistinctId,
+            feature: "waiver-analysis-vision-fallback",
+          },
+          modelId: selectedModel,
+        });
+        const visionFallbackStartedAt = Date.now();
         const fallback = await generateText({
-          model: gatewayModel("platform", selectedModel),
-          experimental_telemetry: createPostHogTelemetry({
-            functionId: "analyze-waiver-vision-fallback",
-            distinctId: posthogDistinctId,
-            metadata: {
-              ai_feature: "waiver-analysis",
-              ai_phase: "vision-fallback",
-            },
-          }),
+          model: trackedVisionFallback.model,
+          experimental_telemetry: trackedVisionFallback.telemetry,
+          providerOptions: { gateway: trackedVisionFallback.gatewayOptions },
           output: Output.object({ schema: VisionFallbackSchema }),
           messages: [
             {
@@ -1757,6 +1844,11 @@ Return only high-confidence fields that you can clearly see in the PDF.`,
           ],
           temperature: 0,
         });
+        await trackedVisionFallback.logUsage({
+          promptTokens: fallback.usage.inputTokens,
+          completionTokens: fallback.usage.outputTokens,
+          latencyMs: Date.now() - visionFallbackStartedAt,
+        });
 
         const minVisionConfidence = strictHallucinationGuard
           ? isLiteModel
@@ -1818,10 +1910,12 @@ Return only high-confidence fields that you can clearly see in the PDF.`,
         }
       } catch (fallbackError) {
         if (process.env.NODE_ENV !== "test") {
-          console.warn(
-            "Vision fallback failed, continuing without fallback fields:",
-            fallbackError,
-          );
+          console.warn("Waiver analysis vision fallback failed", {
+            errorClass:
+              fallbackError instanceof Error
+                ? fallbackError.name
+                : "unknown_error",
+          });
         }
       }
     }
@@ -1863,11 +1957,12 @@ Return only high-confidence fields that you can clearly see in the PDF.`,
       },
     });
   } catch (error) {
-    console.error("AI waiver analysis error:", error);
+    console.error("AI waiver analysis failed", {
+      errorClass: error instanceof Error ? error.name : "unknown_error",
+    });
     return NextResponse.json(
       {
         error: "Failed to analyze waiver",
-        details: error instanceof Error ? error.message : "Unknown error",
       },
       { status: 500 },
     );

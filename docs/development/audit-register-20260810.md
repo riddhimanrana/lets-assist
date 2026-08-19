@@ -6,28 +6,48 @@ Method: local gate execution, plus read-only catalog queries against both hosted
 
 Evidence: `.artifacts/audit-20260810/`.
 
+The staged repository-wide program also generates a fresh source inventory with `bun run audit:inventory` under `.artifacts/audit/surface-inventory/`. The inventory records exact root/private commits, root dirty state, and a SHA-256 digest over every inventory input while keeping source discovery separate from runtime catalog and hosted Development evidence.
+
 Priority scale: **P0** exploitable now against real users · **P1** security-relevant, not directly exploitable · **P2** correctness/maintainability · **P3** cosmetic or dead code.
 
 ---
 
 ## Summary
 
-| ID | Pri | Area | Finding | Status |
-|---|---|---|---|---|
-| [AUD-001](#aud-001) | P0 | Core RLS | `trusted_member` INSERT policy has no `status` guard — self-granted trusted status | **Fixed on `development`**; live in Production until cutover |
-| [AUD-002](#aud-002) | P0 | Core RLS | `notifications` INSERT policy ends in `OR (auth.uid() IS NULL)` — unauthenticated notification injection | **Fixed on `development`**; live in Production until cutover |
-| [AUD-003](#aud-003) | P1 | Grants | `public` default privileges still grant `anon`/`authenticated` on all future tables and functions | **Tables fixed**; functions half still open |
-| [AUD-004](#aud-004) | P1 | Plugin audit | `plugin_audit_logs_action_check` allows 22 values; the code emits 28 — six lifecycle events are silently unaudited | **Fixed on `development`** |
-| [AUD-005](#aud-005) | P3 | Plugin RLS | `organization_plugin_installs` is readable by ordinary members, including the whole `configuration` blob | Reclassified — designed behaviour, document the contract |
-| [AUD-006](#aud-006) | P2 | Architecture | Three `server-only` modules drive notifications through the **browser** Supabase client — the root cause of AUD-002 | **Fixed on `development`** |
-| [AUD-012](#aud-012) | P2 | Notifications | The browser service suppresses any notification whose `(user_id, type)` pair already exists, with no other filter | Confirmed; fixed for the server path only |
-| [AUD-007](#aud-007) | P2 | CI | CI had been red since 2026-08-08 on an unpushed submodule ref, masking a failing test | Fixed this session |
-| [AUD-008](#aud-008) | P2 | Architecture | CSF's 78 sensitive tables have no second authorization layer — RLS is deny-all, all decisions live in TypeScript | Confirmed, by design |
-| [AUD-009](#aud-009) | P2 | Gate coverage | `audit-supabase-architecture.sh` bucket allowlist omits `csf-private` and `plugin_form_uploads` | Confirmed |
-| [AUD-010](#aud-010) | P3 | Moderation | `content_flags` admin UPDATE policy tests `auth.jwt() ->> 'role' = 'admin'`, which is never true | Confirmed, dead policy |
-| [AUD-011](#aud-011) | P3 | Plugin control plane | Advertised control-plane surfaces that no code path reads | Confirmed |
+| ID                  | Pri | Area                   | Finding                                                                                                                | Status                                                       |
+| ------------------- | --- | ---------------------- | ---------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------ |
+| [AUD-001](#aud-001) | P0  | Core RLS               | `trusted_member` INSERT policy has no `status` guard — self-granted trusted status                                     | **Fixed on `development`**; live in Production until cutover |
+| [AUD-002](#aud-002) | P0  | Core RLS               | `notifications` INSERT policy ends in `OR (auth.uid() IS NULL)` — unauthenticated notification injection               | **Fixed on `development`**; live in Production until cutover |
+| [AUD-003](#aud-003) | P1  | Grants                 | `public` defaults and existing relation/column ACL residue can expose client capabilities outside the reviewed catalog | Source fix amended; exact CI replay pending                  |
+| [AUD-004](#aud-004) | P1  | Plugin audit           | `plugin_audit_logs_action_check` allows 22 values; the code emits 28 — six lifecycle events are silently unaudited     | **Fixed on `development`**                                   |
+| [AUD-005](#aud-005) | P3  | Plugin RLS             | `organization_plugin_installs` is readable by ordinary members, including the whole `configuration` blob               | Reclassified — designed behaviour, document the contract     |
+| [AUD-006](#aud-006) | P2  | Architecture           | Three `server-only` modules drive notifications through the **browser** Supabase client — the root cause of AUD-002    | **Fixed on `development`**                                   |
+| [AUD-012](#aud-012) | P2  | Notifications          | The browser service suppresses any notification whose `(user_id, type)` pair already exists, with no other filter      | **Fixed locally**; hosted Development pending                |
+| [AUD-015](#aud-015) | P1  | Hours publication      | Certificate publication trusts client identity and commits database/provider work non-atomically                       | **Fixed locally**; full and hosted Development gates pending |
+| [AUD-016](#aud-016) | P1  | Stored HTML            | The DV form-editor preview inserted persisted rich-text help content without sanitization                              | **Fixed on `development`**; exact CI green                   |
+| [AUD-017](#aud-017) | P1  | Next.js route contract | The paper-signup AI route exported an unsupported value, so clean isolated production builds failed type checking      | **Fixed on `development`**; exact CI green                   |
+| [AUD-018](#aud-018) | P1  | Guardian form          | Hydration could replace a guardian's reviewed availability and notes with SSR defaults before submission               | **Fixed on `development`**; exact CI green                   |
+| [AUD-030](#aud-030) | P0  | Server Actions         | File-level `"use server"` exposed internal waiver persistence and project-access helpers as direct POST surfaces       | **Fixed locally**; hosted Development pending                |
+| [AUD-007](#aud-007) | P2  | CI                     | CI had been red since 2026-08-08 on an unpushed submodule ref, masking a failing test                                  | Fixed this session                                           |
+| [AUD-008](#aud-008) | P2  | Architecture           | CSF's 78 sensitive tables have no second authorization layer — RLS is deny-all, all decisions live in TypeScript       | Confirmed, by design                                         |
+| [AUD-009](#aud-009) | P1  | Gate coverage          | storage policy heuristics could miss broad client policies that reach every bucket, including server-only buckets      | Source re-amended after failed replay; rerun pending         |
+| [AUD-010](#aud-010) | P3  | Moderation             | `content_flags` admin UPDATE policy tests `auth.jwt() ->> 'role' = 'admin'`, which is never true                       | Confirmed, dead policy                                       |
+| [AUD-011](#aud-011) | P3  | Plugin control plane   | Advertised control-plane surfaces that no code path reads                                                              | Confirmed                                                    |
+| [AUD-020](#aud-020) | P2  | Plugin data deletion   | Permanent deletion lacked a complete contract, authorization boundary, and truthful durable replay state               | **Fixed locally**; hosted Development pending                |
+| [AUD-021](#aud-021) | P2  | Plugin uninstall       | Ordinary uninstall could run arbitrary plugin code and therefore could not guarantee data retention                    | **Fixed locally**; hosted Development pending                |
+| [AUD-031](#aud-031) | P1  | Organization RLS       | Inactive membership rows still granted helper-backed tenant authority and could support self-reactivation              | **Fixed locally**; hosted Development pending                |
+| [AUD-032](#aud-032) | P1  | Project status         | Browser writes could bypass cancellation atomicity or revive cancelled projects, and failures were console-only        | **Fixed locally**; hosted Development pending                |
+| [AUD-033](#aud-033) | P1  | Recurrence             | Series ending and child generation lacked one serialized parent boundary and exposed a public definer                  | **Fixed locally**; hosted Development pending                |
+| [AUD-034](#aud-034) | P1  | Cancellation worker    | Healthy pagination spent the abandoned-lease retry budget and could amplify retries                                    | **Fixed locally**; hosted Development pending                |
+| [AUD-041](#aud-041) | P1  | Moderation evidence    | Reporters could directly create, rewrite, or delete `content_reports` evidence and retries duplicated it               | **Fixed locally**; hosted Development pending                |
+| [AUD-042](#aud-042) | P1  | Plugin data ACLs       | `plugin_data` default privileges re-granted `authenticated` on every future table, sequence, and routine               | **Fixed locally**; hosted Development pending                |
+| [AUD-043](#aud-043) | P1  | Private function ACLs  | Three fixed-path private definers retained default `PUBLIC` execute beyond their reviewed callers                      | **Fixed locally**; exact replay pending                      |
 
 **Clean results worth recording:** all 176 base tables in `public` and `plugin_data` have RLS enabled (131 + 45, zero exceptions). The private buckets `csf-private`, `data-exports`, and `waiver-signatures` have **zero** `storage.objects` policies — service-role only, which is the correct posture. Hosted `development` security advisors return 90 lints, all `INFO`/`rls_enabled_no_policy` on `plugin_data.csf_*`, which is the intended deny-all design; zero `ERROR` or `WARN`.
+
+**Static surface inventory, local only:** the initial generator run after rebasing over `development` `15ba480` and private gitlink `8efdc9a` found 46 route handlers, 351 exported Server Actions, 166 RPC call sites, 464 SQL function definitions (321 marked `SECURITY DEFINER`), 359 RLS policy definitions, 10 storage buckets, 12 cron routes, 2 webhook routes, 3 OAuth callback boundaries, 38 upload boundaries, 20 file-processing boundaries, and 8 credential-name references. That last historical count did not recognize the repository's actual `getAdminClient` factory. The corrected local generator run at root HEAD `295a39c9` with private gitlink `cdbeb59e` records 389 reviewed service-role/admin indicators: 1 factory definition, 141 imports (including reviewed relative paths and import renames), 239 calls, and 8 credential references. Tests, docs, and generated artifacts are excluded. These are source-definition and call-site counts, not distinct effective database objects or proof of reachability. Generated JSON/Markdown remains ignored under `.artifacts/` and records the exact commit and dirty state of each run.
+
+**Current private publication boundary, local only:** root gitlink `cdbeb59e6cc086e8794ec8b35157ab043f65c01c` exists only in the local private object store and is not an ancestor of the locally known private `origin/development`. The root candidate is release-blocked until that private commit merges first and the local remote-tracking ref reflects it. The strict checker uses local refs and performs no fetch. This does not close or update hosted Development or Production evidence.
 
 ---
 
@@ -44,6 +64,7 @@ WITH CHECK ((SELECT is_super_admin()) OR ((SELECT auth.uid()) = user_id))
 No guard on `status`. The sibling UPDATE policy correctly carries `AND (status IS NULL)` — the INSERT policy simply missed it.
 
 Chain:
+
 1. `authenticated` holds `SELECT,INSERT,UPDATE,DELETE,REFERENCES,TRIGGER,TRUNCATE` on the table (baseline ~line 3780), never revoked.
 2. `trusted_member_set_user_id_trg` (BEFORE INSERT) forces `new.user_id` but never touches `new.status`.
 3. `trg_tm_sync_profiles` (AFTER INSERT OR UPDATE OF status) calls `sync_profiles_trusted_from_tm()`, which sets `app.allow_trusted_sync` and writes `profiles.trusted_member = NEW.status`, deliberately bypassing `prevent_trusted_member_edit()`.
@@ -83,6 +104,7 @@ Reads are correctly scoped (`SELECT` uses `auth.uid() = user_id`), so this is wr
 **Why the clause exists:** see AUD-006. It is load-bearing for two `server-only` modules that reach the database through the browser client, where `auth.uid()` is NULL.
 
 **Fix (ordered — the code change must land first):**
+
 1. Route `app/projects/[id]/server/cancellation.ts` and `app/admin/moderation/server/notifications.ts` through the admin client, e.g. the existing `createServerNotification` in `app/admin/server/shared.ts:99`.
 2. Drop the `OR ((SELECT auth.uid()) IS NULL)` disjunct in a forward migration.
 3. Add `supabase/tests/database/notifications_rls.test.sql` asserting that `anon` cannot insert, that an authenticated user cannot insert for another user, that a project creator still can insert for a signed-up attendee, and that reads stay self-scoped.
@@ -93,7 +115,7 @@ Reversing this order breaks project cancellation and moderation notifications.
 
 ## AUD-003 — `public` default privileges still grant clients everything {#aud-003}
 
-**Priority:** P1 · **Status:** Confirmed
+**Priority:** P1 · **Status:** Source fix amended; exact CI database replay pending
 
 Baseline `20260325181408` (~lines 3836-3847) still carries:
 
@@ -109,16 +131,23 @@ The FUNCTIONS half is the more valuable fix: `GRANT ALL ON FUNCTIONS TO anon` me
 
 **Blast radius of fixing it: zero at cutover.** `ALTER DEFAULT PRIVILEGES` affects only objects created after it runs, and every existing object carries explicit grants.
 
-**Status after implementation — the tables half is fixed, the functions half is not, and that distinction was established by testing rather than assumed.**
+**Status after implementation — the table, sequence, and function halves are merged on `development`; shared Development catalog verification is still pending.**
 
 `20260810220400_revoke_public_default_privileges.sql` revokes the TABLES and SEQUENCES defaults for grantors `postgres` and `service_role`. `public_default_privileges.test.sql` proves the property that matters: a freshly created `public` table is unreadable and unwritable by both `anon` and `authenticated`.
 
-Two deliberate exclusions, both verified rather than guessed:
+The function half is closed without a broad DDL event trigger. `20260811074518_public_rpc_acl_allowlist.sql` explicitly revokes `PUBLIC`, `anon`, and `authenticated` execution from 18 trigger or maintenance functions, then normalizes the reviewed callable catalog to seven signatures and eight signature/role pairs. Only `get_public_attendees(uuid)` is callable by both `anon` and `authenticated`; the six RLS helpers are `authenticated` only.
 
-1. **FUNCTIONS.** Postgres grants `EXECUTE` to PUBLIC as a built-in default. Revoking it through `ALTER DEFAULT PRIVILEGES ... REVOKE EXECUTE ON FUNCTIONS FROM PUBLIC` was tested locally and did **not** suppress the `=X/postgres` entry on a newly created function — `has_function_privilege('anon', …)` still returned true even with the default ACL correctly reduced to `{postgres=X, service_role=X}`. Shipping that revoke would have been security theatre. New `SECURITY DEFINER` functions must keep carrying their own explicit `REVOKE EXECUTE … FROM PUBLIC, anon, authenticated`, as `20260701040027`, `20260701051022`, and `20260802195500` already do. **This half of AUD-003 remains open** and needs a different mechanism — most likely a `ddl_command_end` event trigger, or a gate check that fails any migration creating a `public` function without an accompanying revoke.
-2. **`supabase_admin`'s default ACLs**, which also name `anon` and `authenticated`. `postgres` is not superuser on hosted Supabase and cannot alter another role's defaults, so attempting it would fail the deploy. Objects created by migrations use the `postgres` grantor, so this does not affect the fix's coverage.
+`public_function_acl_allowlist.test.sql` compares effective client privileges, including inherited `PUBLIC` grants, to that exact catalog and separately proves that the maintenance functions are not client-executable. `audit-supabase-architecture.sh` performs the same catalog comparison as a hard gate, and `AGENTS.md` now requires every new or replaced SQL function to carry explicit reviewed `REVOKE`/`GRANT` statements and update the allowlist when client-callable.
 
-**Still to do:** extend `audit-supabase-architecture.sh` so re-introduction fails the gate, and add the explicit-`GRANT` rule to `AGENTS.md`.
+The remaining half is **existing-object ACL residue** on already-created `public` tables and views: historical defaults left full `anon`/`authenticated` DML (plus `TRUNCATE`/`REFERENCES`/`TRIGGER` residue) on objects that RLS never intended to expose. That is distinct from the merged default-privilege closure, which only affects objects created afterward. The amended `20260812100900_public_client_relation_acl_catalog.sql` treats relation ACLs and independent `pg_attribute.attacl` entries as separate layers. Independently of the storage policy catalog, it preflights every reviewed relation capability with effective privilege checks, revokes direct relation and column ACLs for `PUBLIC`, `anon`, and `authenticated`, restores only identifier-quoted catalog grants, and verifies exact direct ACL shape and effective privileges including PUBLIC and role inheritance. `client_relation_grant_catalog.test.sql` and the architecture audit exercise the same direct/effective distinction, including redundant column grants hidden beside whole-table grants. The amended migration has not yet been replayed, so AUD-003 remains open pending the exact CI database replay and pgTAP gate.
+
+Earlier local evidence on 2026-08-11 covered the pre-review implementation only. It is retained as historical evidence but does not validate the amended column-ACL reconciliation. No hosted or Production conclusion follows from it.
+
+One deliberate exclusion remains: `supabase_admin`'s default ACLs also name `anon` and `authenticated`. Hosted migrations execute as `postgres`, which cannot alter another role's defaults on Supabase. The effective callable-catalog gate covers the resulting runtime posture instead.
+
+GitHub evidence on 2026-08-11: PR #117 merged as `15ba480` after quality/build, GitGuardian, Supabase Preview, and the full isolated database/DV/CSF browser replay passed. Vercel Development deployment `dpl_GS7WcMq2tN62ZiuetZLmutCpUJAa` is READY for that exact commit and aliased to `dev.lets-assist.com` without an alias error. The PR Preview build remained deliberately fail-closed until an exact non-Production Supabase ref was available.
+
+**Still to do:** first pass the exact CI database replay and amended pgTAP contract, then verify the shared hosted Development migration ledger and effective callable catalog and rerun Development advisors. The Supabase connector currently exposes only the excluded Production project, so no fallback query was attempted. Production remains a separate excluded cutover.
 
 ---
 
@@ -188,7 +217,7 @@ Because CI never reached the test step, it never reported that `lib/auth/local-d
 
 **Resolution:** the submodule work was published (`lets-assist-plugins` PR #13) and the gitlink moved onto a merged commit; the test now asserts the port contract — that `APP_PORT` defaults to 3000 and every emitted origin derives from it — instead of a literal.
 
-**Standing lesson:** a submodule commit must be pushed *before* the root gitlink that references it, or CI cannot check out the tree and every gate result becomes vacuous.
+**Standing lesson:** a submodule commit must be pushed _before_ the root gitlink that references it, or CI cannot check out the tree and every gate result becomes vacuous.
 
 ---
 
@@ -198,7 +227,7 @@ Because CI never reached the test step, it never reported that `lib/auth/local-d
 
 All 131 `plugin_data` tables have RLS enabled. The 78 `csf_*` tables have RLS enabled and **zero policies**, combined with revoked schema `USAGE` and revoked table grants for `anon` and `authenticated`. Only `service_role` reaches them.
 
-That is a correct and defensible deny-all posture, and it is what produces the 90 `INFO` advisor lints. But the honest characterization is: *CSF data is RLS-protected in the sense that RLS denies everyone; it is not RLS-authorized.* Every real authorization decision — which chapter, which term, which role, which permission — lives in TypeScript. A missed check in a server action is not caught by a second layer.
+That is a correct and defensible deny-all posture, and it is what produces the 90 `INFO` advisor lints. But the honest characterization is: _CSF data is RLS-protected in the sense that RLS denies everyone; it is not RLS-authorized._ Every real authorization decision — which chapter, which term, which role, which permission — lives in TypeScript. A missed check in a server action is not caught by a second layer.
 
 `plugin_data.csf_assert_import_actor` is the one SQL-level actor guard and is the model the rest could follow.
 
@@ -206,15 +235,19 @@ That is a correct and defensible deny-all posture, and it is what produces the 9
 
 ---
 
-## AUD-009 — Bucket drift detection has two blind spots {#aud-009}
+## AUD-009 — Storage policy drift detection was fail-open {#aud-009}
 
-**Priority:** P2 · **Status:** Confirmed
+**Priority:** P1 · **Status:** Source fix re-amended after failed replay; exact CI database replay pending
 
-`scripts/audit-supabase-architecture.sh` (~lines 302-368) enumerates nine expected buckets; `csf-private` is not among them, and the "server-only buckets exposed through client policies" pattern matches only `data-exports` and `waiver-signatures`. `plugin_form_uploads` has the same gap.
+`scripts/audit-supabase-architecture.sh` (~lines 302-368) enumerated nine expected buckets and already included `plugin_form_uploads`, but it omitted `csf-private` and `paper-signup-scans`. The property-drift query used a catalog-to-live `LEFT JOIN`, so buckets present in `storage.buckets` but absent from the allowlist were invisible. The server-only client-policy pattern matched only `data-exports` and `waiver-signatures`, so a new client policy on `csf-private` would also have stayed green.
 
-Current posture is correct — `csf-private` is `public = false` with zero object policies — but if it flipped to public, or gained a `storage.objects` policy, the gate would stay green.
+The first catalog fix still classified policies by searching deparsed SQL for bucket literals. That remained fail-open: an additional authenticated `USING (true)` policy, a policy with no bucket predicate, or a policy granted to `PUBLIC` could make server-only objects client-reachable without matching the heuristic's expected text.
 
-**Fix:** add both buckets to the expected-bucket enumeration and the client-policy pattern set. Verify by adding a policy locally and confirming the gate fails. Plan Task 2.6.
+**Resolution:** `20260812100800_client_acl_and_storage_posture_catalogs.sql` adds `app_private.storage_bucket_posture_catalog()` as the reviewed source for all eleven buckets, their public/MIME/size properties, and posture classes: six `public`, two `private-client` (`paper-signup-scans`, `plugin_form_uploads`), and three `server-only` (`csf-private`, `data-exports`, `waiver-signatures`). The amended migration now converges every client-reachable `storage.objects` policy before recreating the complete 21-policy browser surface, then snapshots its canonical `pg_policy` identity, command, role array, permissive/restrictive shape, `USING`, and `WITH CHECK` expressions. The architecture gate rejects every missing, changed, or unnamed client-reachable policy, including `PUBLIC` and inherited role reachability; therefore a broad `USING (true)` policy or any policy reaching a server-only bucket cannot be admitted by naming or bucket-text heuristics. The catalog still preserves the reviewed public-bucket write policies and the seven exact private-client policies.
+
+The first exact clean replay of that stronger contract aborted with 30 violations. Fifteen policies that recheck organization membership, project authority, waiver references, or paper-scan authority were captured by `pg_get_expr()` under the migration session search path but compared inside a function with `search_path = ''`; each identical policy was therefore reported once as missing and once as unexpected. The six UID/path-only policies did not reference search-path-sensitive objects. The re-amendment routes capture and comparison through one fixed-search-path live-policy reader, retains exact expressions, and adds a pure historical-ledger inventory covering every role, command, bucket, predicate side, permissive shape, and intended owner. This is source evidence only until replayed.
+
+Earlier local evidence on 2026-08-11 covered the weaker pre-review policy heuristic only. The amended 25-assertion pgTAP contract proves `storage.objects` RLS is enabled and adds fixed-context deparse checks plus adversarial probes for broad authenticated access, missing bucket predicates, `PUBLIC`, inherited-role reachability, command/role/expression/shape drift, valid private-client policies, and zero server-only exposure. The re-amended migration and pgTAP have not been replayed after the recorded 30-violation failure. AUD-009 remains open until the mandatory exact isolated/CI database replay and pgTAP gate pass.
 
 ---
 
@@ -241,16 +274,16 @@ Not exploitable, but misleading — it reads as though client-side admin moderat
 
 Present in schema and, in several cases, in the admin UI — but consulted by no code path:
 
-| Surface | Reality |
-|---|---|
-| `public.plugin_versions` | The `draft → review → published/rejected` workflow, `commit_sha`, `published_by`, `review_notes` are all inert. Its RLS is `FOR SELECT USING (true)` for every role, contradicting its own "platform admins can manage" comment. |
-| `organization_plugin_feature_flags` + `rollout_percentage` | **Feature gating is unimplemented.** |
-| `organization_plugin_installs.auto_update` | Never read. |
-| `organization_plugin_data_boundaries`, `organization_data_isolation_profiles` | Surfaced in the admin UI; never consulted by any enforcement path, despite the developer docs calling a missing boundary row "a schema/process bug". |
-| `validatePluginUninstall` | Always returns `canUninstall: true`, and the transition path never calls it. |
-| `createPluginRegistry(..., allowList)` | Always invoked with `null`. |
-| `syncRegisteredPluginRuntimeContracts()` | Runs only when a super admin loads `/admin/plugins`, so `plugin_runtime_contracts` is stale by default, and it silently skips any registered plugin with no catalog row. |
-| `renderOrganizationPluginPage` | Still carries a "no renderer is registered yet" placeholder branch. |
+| Surface                                                                       | Reality                                                                                                                                                                                                                          |
+| ----------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `public.plugin_versions`                                                      | The `draft → review → published/rejected` workflow, `commit_sha`, `published_by`, `review_notes` are all inert. Its RLS is `FOR SELECT USING (true)` for every role, contradicting its own "platform admins can manage" comment. |
+| `organization_plugin_feature_flags` + `rollout_percentage`                    | **Feature gating is unimplemented.**                                                                                                                                                                                             |
+| `organization_plugin_installs.auto_update`                                    | Never read.                                                                                                                                                                                                                      |
+| `organization_plugin_data_boundaries`, `organization_data_isolation_profiles` | Surfaced in the admin UI; never consulted by any enforcement path, despite the developer docs calling a missing boundary row "a schema/process bug".                                                                             |
+| `validatePluginUninstall`                                                     | Always returns `canUninstall: true`, and the transition path never calls it.                                                                                                                                                     |
+| `createPluginRegistry(..., allowList)`                                        | Always invoked with `null`.                                                                                                                                                                                                      |
+| `syncRegisteredPluginRuntimeContracts()`                                      | Runs only when a super admin loads `/admin/plugins`, so `plugin_runtime_contracts` is stale by default, and it silently skips any registered plugin with no catalog row.                                                         |
+| `renderOrganizationPluginPage`                                                | Still carries a "no renderer is registered yet" placeholder branch.                                                                                                                                                              |
 
 **Recommendation:** do not build these speculatively. Decide per surface whether to implement or remove, and until then make sure the plugin install documentation (plan Task 3.3) states plainly which of them do not work, so operators do not rely on them.
 
@@ -260,7 +293,7 @@ Present in schema and, in several cases, in the admin UI — but consulted by no
 
 ## AUD-012 — Repeat notifications are silently suppressed {#aud-012}
 
-**Priority:** P2 · **Status:** Confirmed; fixed for the server path, still present in the browser path
+**Priority:** P2 · **Status:** Fixed locally; hosted Development pending
 
 `services/notifications.ts` checks for an existing notification before inserting:
 
@@ -269,15 +302,265 @@ Present in schema and, in several cases, in the admin UI — but consulted by no
   .eq("user_id", userId).eq("type", notification.type).limit(1)
 ```
 
-There is no filter on `read`, `displayed`, or `created_at`, and `type` only ever takes three broad values (`general`, `project_updates`, `email_notifications`). So a user who has *ever* received a `project_updates` notification never receives another one. A volunteer whose signup is rejected twice is told once, forever.
+There is no filter on `read`, `displayed`, or `created_at`, and `type` only ever takes three broad values (`general`, `project_updates`, `email_notifications`). So a user who has _ever_ received a `project_updates` notification never receives another one. A volunteer whose signup is rejected twice is told once, forever.
 
 The check was almost certainly written for `checkUsernameSetting`'s one-time "set a custom username" nudge, where suppressing repeats is correct, and then applied to every caller.
 
 `services/notifications-server.ts` deliberately omits it, so cancellation and moderation notifications now deliver per event. The browser path — used by `SignupsClient.tsx` — is unchanged and still suppresses.
 
-**Fix:** give the browser service an explicit one-time-nudge affordance (an optional dedupe key) rather than deduping on `type`, and drop the blanket check. Not done in this pass because it changes user-visible behaviour in a flow the audit had not yet exercised.
+**Resolution:** notification creation now accepts an optional caller-owned
+`dedupeKey`. Missing keys bypass deduplication entirely, so independent events
+of the same broad type remain repeatable. A non-null key is unique per recipient
+through the partial `notifications_user_dedupe_key_unique` index. Browser and
+server delivery classify only a conflict from that named index as a successful
+replay; unrelated `23505` errors still surface. The custom-username nudge uses
+the stable `account:set-custom-username` key, and its lookup/display update is
+scoped to that key rather than every `general` notification.
+
+**Local evidence, 2026-08-10:** the forward migration replayed successfully from
+the local ledger; `notification_dedupe_keys.test.sql` passed 8 focused pgTAP
+assertions; the full isolated database gate passed 83 files / 3,752 assertions,
+clean local advisors, architecture/plugin audits, and the 373-assertion cron
+no-egress probe; the browser and server notification suites passed 17 tests;
+`format:check`, `lint`, `typecheck`, `security:audit`, and the strict
+private-gitlink check passed. The generated isolated stack was removed with no
+Docker residue. No hosted database was mutated in this verification. Hosted
+Development remains pending, and Production was not read, written, queried,
+deployed, or tested.
 
 **Related, not yet investigated:** `app/projects/[id]/hours/actions.ts` inserts volunteer notifications with the publisher's session client. The surviving policy branch requires `p.creator_id = auth.uid()`, so a **staff manager** publishing hours for a project they did not create would fail that insert. This predates today's change — the removed `auth.uid() IS NULL` disjunct never applied there, since a session is always present — but it should be confirmed against a `can_be_managed_by_staff` project.
+
+---
+
+## AUD-015 — Volunteer-hours publication is non-atomic and trusts client identity {#aud-015}
+
+**Priority:** P1 · **Confidence:** confirmed · **Status:** Fixed locally; hosted
+Development gates pending
+
+**Blast radius:** every manual project-session hours publication. The prior
+Server Action accepted browser-supplied `userId`, name, email, duration, and
+session data; inserted all certificates; separately updated `projects.published`;
+looked up a new certificate by volunteer name for in-app notification; then sent
+email sequentially without a receipt or provider idempotency key. A failed
+publish-state update left committed certificates behind, an action retry could
+create duplicates, two same-named volunteers could be paired to one certificate,
+and provider ambiguity had no durable reconciliation state.
+
+**Evidence provenance:** local source trace plus an empty migration replay and
+synthetic database fixtures only. No hosted database, provider, browser session,
+credential, real recipient, or Production surface was used. The synthetic
+fixtures include staff-managed authorization, two distinct users with the same
+display name, forged cross-project signup/session input, an excessive duration,
+rounded-zero and exact-over-24-hour input, fractional-minute notification text,
+exact replay, idempotent provider settlement, immutable provider-payload replay
+across simulated deployment drift, canonical session aliases, and real
+multi-connection project/signup/membership lock races.
+
+**Resolution:** `publishVolunteerHours(projectId, sessionId, sessionData)` keeps
+its three-argument public signature and compatibility result fields, but reduces
+the browser payload to signup ID plus check-in/out timestamps and derives a
+deterministic request key. The reviewed authenticated RPC locks the project,
+locks and rechecks creator/admin/active-staff authority and
+`can_be_managed_by_staff`,
+normalizes legacy session IDs, validates 1–500 exact project/session signups and
+rounded-positive ranges no longer than exactly 24 hours, locks every referenced signup before
+eligibility checks, derives identity from profile/anonymous-signup rows, and
+atomically writes signup times, verified certificates under the canonical
+session key, publish state, deduplicated in-app notifications, a receipt, and
+one email outbox row per certificate. Notification hours/minutes are decomposed
+from the same rounded total used by the publication review.
+
+The forward migration aborts if duplicate verified certificates already exist;
+it deletes or rewrites no evidence. A partial unique index prevents future
+duplicates. Email work is claimed once with a UUID token and settled to
+`accepted`, `retryable_failure`, `definitive_failure`, `unknown_outcome`, or
+`skipped`. Only a proven pre-send refusal remains retryable. The published
+session's resend action first drains only queued/retryable durable work. An
+interrupted processing claim becomes explicitly reclaimable after 15 minutes
+using the same deterministic provider key, but only inside Resend's documented
+24-hour idempotency window; older ambiguous work terminalizes as
+`unknown_outcome` instead of risking a duplicate. The immutable
+`first_attempt_at` anchors that 24-hour boundary while `last_attempt_at` renews
+only the 15-minute processing lease, so repeated reclaims cannot slide the
+provider-safety window. Before any claim, a
+service-only RPC stores a first-writer-wins, integrity-hashed snapshot of the
+exact recipient, sender, subject, rendered HTML, and tags. Recovery replays that
+snapshot instead of today's project, template, site URL, or environment, so the
+same provider key never carries a changed payload. Settlement retries are
+bounded and claim-token idempotent, so a lost successful database response
+cannot overwrite the provider outcome. Provider calls use the
+certificate-derived key and synthetic workflow/receipt tags.
+
+The Server Action also normalizes accepted client timestamps to ISO millisecond
+precision before hashing or calling the RPC. This keeps JavaScript validation
+and PostgreSQL rounded-minute validation aligned when a database-originated ISO
+value contains microseconds.
+
+The verified-signup uniqueness arbiter is also used by a service-only
+supplemental issuance RPC for paper signups committed after publication. Its
+single `INSERT ... ON CONFLICT` statement skips only a concurrently issued
+signup and still returns unaffected certificates for notification and email;
+the prior check-then-batch-insert race is gone. A settlement classified as a
+confirmed pre-send refusal clears the provider-risk anchor, so a delayed retry
+starts a fresh 24-hour window without weakening ambiguous-outcome handling.
+
+**Local verification, 2026-08-11:** empty ledger replay passed; the focused
+publication pgTAP file passed 48 assertions; action boundaries, all five email
+outcome mappings, publication-outcome precedence, bounded settlement retries,
+payload parsing, snapshot-before-claim ordering, and supplemental issuance boundaries passed 16 tests; five exact-duration and timestamp-normalization tests passed;
+TypeScript passed; and the loopback-only multi-session probe
+proved accepted/replayed serialization plus concurrent signup rejection and
+membership revocation winning before publication.
+The full generated isolated gate then passed 85 pgTAP files / 3,783 assertions,
+synthetic DV and CSF database workflows, zero-issue local advisors, architecture
+and plugin-isolation checks, strict private-gitlink validation, static checks,
+and the 373-assertion cron authentication/no-egress probe; teardown proved that
+no owned container, volume, network, or temporary work directory remained.
+GitHub, Vercel Development, Supabase Development, Mailpit/Resend test-event, and
+browser acceptance gates remain open for the amended exact commit. After the
+review hardening, the complete 2,908-test / 173-file root/plugin unit
+orchestrator, the CI-shaped local Next.js build, the 21 focused tests,
+formatting, lint, TypeScript, migration replay, 53 pgTAP assertions, and the
+expanded publication, wall-clock lock-wait boundary, and deterministically
+synchronized supplemental-issuance concurrency probes all passed.
+Production remains excluded.
+
+---
+
+## AUD-016 — DV form-editor preview rendered stored HTML unsafely {#aud-016}
+
+**Priority:** P1 · **Confidence:** Confirmed · **Blast radius:** authenticated
+DV form editors who open a stored field preview
+
+`DvFormFieldBlock.tsx` inserted the persisted `field.helpText` value with a
+direct `dangerouslySetInnerHTML` call. The adjacent form editor permits rich
+text updates to that field, so executable markup persisted by one authorized
+editor could run when another editor opened the preview. The public form
+renderers escaped help text as text; this finding was limited to the private DV
+editor surface, not every form respondent.
+
+**Resolution:** private PR #20 replaced the raw sink with the shared
+`RichTextContent` boundary, whose client sanitizer allowlists formatting tags,
+anchor attributes, and `http`, `https`, `mailto`, and `tel` schemes. The private
+regression forbids a direct HTML sink in the field block. Root behavior coverage
+proves that scripts, event handlers, inline styles, images, and `javascript:`
+links are removed while reviewed formatting and HTTPS links remain.
+
+**Evidence, 2026-08-11:** private commit `a465266` passed its focused 4-assertion
+contract, Prettier, root integration lint and typecheck, GitGuardian, and an
+exact-commit Codex review with no major issue. It merged to private
+`development` as `711c848`. Root PR #122 kept that exact gitlink and added two
+sanitizer behavior tests; it merged to `development` as `5ad8cc7`. Exact run
+`31480704997` passed quality/build, empty replay, pgTAP, fictional seeding, DV
+RLS, CSF workflow/scale, cron no-egress, DV/CSF browser suites, trace validation,
+and owned teardown. Production, `main`, credentials, providers, live data, and
+Production browser surfaces were not accessed.
+
+---
+
+## AUD-017 — Paper scan route broke clean production builds {#aud-017}
+
+**Priority:** P1 · **Confidence:** Confirmed · **Blast radius:** Development
+build and browser-acceptance pipelines containing the paper-signup feature
+
+`app/api/ai/scan-signup-sheet/route.ts` exported `PAPER_SCAN_MODELS` alongside
+the supported HTTP method and route configuration fields. Next.js rejects extra
+route-module value exports. The default build output had stale generated types
+and passed, while two exact GitHub DV runs failed when their clean isolated
+output regenerated the route contract.
+
+**Resolution:** keep the model fallback tuple in `lib/ai/models.ts` and make the
+route's local alias private. A focused source contract now asserts that the
+route exports only `POST`, `dynamic`, and `maxDuration`.
+
+**Evidence, 2026-08-11:** GitHub runs `31475757024` and `31477491456` passed
+empty replay, pgTAP, synthetic seeding, DV RLS, CSF workflow and scale, and cron
+checks before failing at the same nested Next type-check boundary. A sterile,
+provider-disabled local build using the isolated alternate output reproduced
+the exact `PAPER_SCAN_MODELS` diagnostic. The same clean build passes after the
+fix, together with the focused regression, formatting, lint, and root
+typecheck. PR #123 merged to `development` as `f6a0931`; exact-commit manual run
+`31479507620` then passed quality/build, empty replay, pgTAP, synthetic seed, DV
+RLS, CSF workflow/scale, the cron no-egress probe, DV and CSF browser suites,
+trace validation, and owned teardown. Production, `main`, provider credentials,
+live data, and Production browser surfaces were not accessed.
+
+---
+
+## AUD-018 — Guardian availability could reset during hydration {#aud-018}
+
+**Priority:** P1 · **Confidence:** Confirmed · **Blast radius:** guardians using
+single-use DV judge-availability links during a slow or cold page hydration
+
+The guardian form rendered interactive uncontrolled inputs before its client
+boundary was ready. In exact Development CI, Playwright selected `limited`,
+confirmed that radio was checked, and filled a scheduling note. Hydration then
+reconciled the form to its server-rendered defaults immediately before the
+Server Action submission. The action received `available` and a blank note,
+consumed the single-use token, persisted the wrong availability, and displayed
+**Availability recorded**.
+
+**Evidence provenance:** GitHub run `31482117709` used the isolated fictional DV
+stack and retained sanitized Playwright evidence. Its trace recorded the checked
+control and filled textarea, followed by a multipart Server Action request whose
+status was `available` and whose notes were empty. The database assertion then
+read that exact wrong status. No hosted database, provider, credential, live
+identity, or Production surface was used.
+
+**Resolution:** the form is now a small Client Component with controlled status
+and notes. Every mutable control and the submit button remain disabled until the
+component has hydrated, the form exposes an explicit readiness marker for
+acceptance, and the submit button prevents repeat work while the Server Action is
+pending. The public page and action URL remain unchanged. The DV browser journey
+now waits for the same readiness contract and proves both values immediately
+before submission; a focused source contract prevents the uncontrolled/default
+form from returning.
+
+**Verification, 2026-08-11:** merged root PR #124 as `e830fdf`. Exact GitHub
+run `31483374291` passed formatting, lint, TypeScript, all root/private tests,
+the production build, database replay and pgTAP, DV/CSF database workflows,
+cron no-egress, the strengthened DV journey, the CSF browser lifecycle, trace
+validation, health verification, and owned teardown. Production remained
+excluded.
+
+---
+
+## AUD-030 — Internal project helpers exposed as Server Actions {#aud-030}
+
+**Priority:** P0 · **Confidence:** Confirmed (high) · **Status:** Fixed locally;
+hosted Development pending
+
+**Evidence and blast radius:** the baseline source inventory found
+`uploadWaiverAsset`, `getCurrentSignups`, `persistWaiverSignature`, and
+`cloneAnonymousWaiverSignatureToSignup` exported from file-level `"use server"`
+`waiver-assets.ts`. Next therefore registered them as directly POST-reachable
+Server Actions even though no UI imported them. The persistence paths use the
+service role and accepted caller-selected project, signup, anonymous identity,
+storage bucket/path, payload, and size limit inputs, so the exposure reached
+every project's waiver evidence rather than one user's session. No exploit was
+executed. The same baseline inventory and new AST boundary test identified an
+additional accidental action, `canUserManageProject`, whose client and project
+record parameters were intended only for trusted server orchestration. A clean
+nonfunctional Preview-mode build of baseline commit `2e61074` independently
+confirmed all five internal helpers in Next's compiled
+`server-reference-manifest.json`; this is runtime registration evidence, not an
+inference from the static inventory.
+
+**Resolution and verification:** the four waiver helpers and their unchanged
+implementation now live in server-only `waiver-persistence.ts`, which contains
+no `"use server"` directive; `signup.ts` is their action-orchestration consumer.
+`waiver-assets.ts` retains its file-level directive and exact two public PDF
+action signatures/results. The internal access helper now lives in server-only
+`access-helpers.ts`; the reviewed public access actions retain their file-level
+and inline boundaries. The module test now parses every file-level server module
+and rejects every exported async function outside `PUBLIC_ACTIONS`. Locally,
+`bun test "app/projects/[id]/server/module-boundaries.test.ts"` passed 5 tests /
+74 expectations and
+`bun test "lib/waiver/persistence-boundaries.test.ts"` passed 8 tests. Hosted
+Development was not deployed or tested. The fixed nonfunctional Preview-mode
+build passed and its compiled manifest retained only `uploadProjectWaiverPdf`
+and `removeProjectWaiverPdf` from this seven-name comparison. Production,
+providers, credentials, and live data were not accessed.
 
 ---
 
@@ -285,27 +568,27 @@ The check was almost certainly written for `checkUsernameSetting`'s one-time "se
 
 Local, on `development` at `9b9abcd`, macOS, Bun 1.3.14.
 
-| Gate | Result |
-|---|---|
-| `plugin:submodules:check:strict` | Pass (after AUD-007 remediation) |
-| `security:seeds` | Pass |
-| `lint` | Pass |
-| `typecheck` | Pass |
-| `test` | Pass — 3,714 assertions, 0 failures (after AUD-007 remediation) |
-| `build` | Pass |
-| `db:test:redesign` | Not yet run in this pass |
-| Hosted `development` advisors (security) | 90 lints, all `INFO`/`rls_enabled_no_policy`; 0 ERROR, 0 WARN |
+| Gate                                     | Result                                                          |
+| ---------------------------------------- | --------------------------------------------------------------- |
+| `plugin:submodules:check:strict`         | Pass (after AUD-007 remediation)                                |
+| `security:seeds`                         | Pass                                                            |
+| `lint`                                   | Pass                                                            |
+| `typecheck`                              | Pass                                                            |
+| `test`                                   | Pass — 3,714 assertions, 0 failures (after AUD-007 remediation) |
+| `build`                                  | Pass                                                            |
+| `db:test:redesign`                       | Not yet run in this pass                                        |
+| Hosted `development` advisors (security) | 90 lints, all `INFO`/`rls_enabled_no_policy`; 0 ERROR, 0 WARN   |
 
 After the AUD-001..004 fixes, on a full local replay of all 222 migrations:
 
-| Gate | Result |
-|---|---|
-| `supabase db reset` (full replay) | Pass |
-| `supabase test db` (whole suite) | **Pass — 70 files, 3,262 tests** (was 66 files, 3,219) |
-| `db:audit:architecture` | Pass |
-| `db:audit:plugin-isolation` | Pass |
-| `plugin:audit:data-access` | Pass |
-| `supabase db advisors --local --fail-on error` | No issues found |
+| Gate                                           | Result                                                 |
+| ---------------------------------------------- | ------------------------------------------------------ |
+| `supabase db reset` (full replay)              | Pass                                                   |
+| `supabase test db` (whole suite)               | **Pass — 70 files, 3,262 tests** (was 66 files, 3,219) |
+| `db:audit:architecture`                        | Pass                                                   |
+| `db:audit:plugin-isolation`                    | Pass                                                   |
+| `plugin:audit:data-access`                     | Pass                                                   |
+| `supabase db advisors --local --fail-on error` | No issues found                                        |
 
 **Local environment note:** three orphaned isolated CSF stacks (32 containers, ~19 hours old) were left running by earlier sessions and prevented the shared local stack from starting. They were torn down with `scripts/local-dev/stop-dvhs-csf-isolated-stack.sh`, which validated resource ownership before and residual absence after. Nine stale work directories under `/tmp` and `$TMPDIR` were removed with them. Worth checking for periodically — a failed run leaves its stack behind.
 
@@ -319,16 +602,16 @@ Dependabot reports 2 high-severity vulnerabilities on the default branch; not ye
 
 Verified in the Vercel dashboard as `admin@lets-assist.com` on team `lets-assist-team` (Hobby plan), project `lets-assist`.
 
-| Check | Result |
-|---|---|
-| `dev.lets-assist.com` domain | **Valid Configuration**, assigned to the `development` branch |
-| `lets-assist.com` domain | **Valid Configuration**, Production |
-| Branch-scoped Preview variables | Present and scoped to `development`: `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`, `EXPECTED_NON_PRODUCTION_SUPABASE_PROJECT_REF` (all marked Sensitive, added 2026-08-04) |
-| Latest `development` deployments | `f3fcf79`, `83ce42f`, `9b9abcd`, `e4f0179` — all **Ready** |
-| `dev.lets-assist.com` serves | Yes. Vercel deployment protection is on; an authenticated Vercel session passes through |
-| Supabase branch migrations | 218, head `20260807223600` — identical to the repository ledger |
-| Supabase branch advisors | 90 lints, all `INFO`/`rls_enabled_no_policy`; 0 ERROR, 0 WARN |
-| **Production untouched** | **49 migrations, head `20260603035734`** — unchanged throughout this session |
+| Check                            | Result                                                                                                                                                                                           |
+| -------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `dev.lets-assist.com` domain     | **Valid Configuration**, assigned to the `development` branch                                                                                                                                    |
+| `lets-assist.com` domain         | **Valid Configuration**, Production                                                                                                                                                              |
+| Branch-scoped Preview variables  | Present and scoped to `development`: `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`, `EXPECTED_NON_PRODUCTION_SUPABASE_PROJECT_REF` (all marked Sensitive, added 2026-08-04) |
+| Latest `development` deployments | `f3fcf79`, `83ce42f`, `9b9abcd`, `e4f0179` — all **Ready**                                                                                                                                       |
+| `dev.lets-assist.com` serves     | Yes. Vercel deployment protection is on; an authenticated Vercel session passes through                                                                                                          |
+| Supabase branch migrations       | 218, head `20260807223600` — identical to the repository ledger                                                                                                                                  |
+| Supabase branch advisors         | 90 lints, all `INFO`/`rls_enabled_no_policy`; 0 ERROR, 0 WARN                                                                                                                                    |
+| **Production untouched**         | **49 migrations, head `20260603035734`** — unchanged throughout this session                                                                                                                     |
 
 **Which Supabase project the deployment targets is proven by construction rather than by reading a value.** Every Vercel build runs `bun run build`, whose second step is `node scripts/verify-deployment-environment.mjs`. That script refuses any non-production `VERCEL_ENV` whose `NEXT_PUBLIC_SUPABASE_URL` is not HTTPS, is a production host (`api.lets-assist.com`, `fotdmeakexgrkronxlof.supabase.co`), or does not exactly match `EXPECTED_NON_PRODUCTION_SUPABASE_PROJECT_REF`. A **Ready** Preview deployment therefore cannot have been built against production. The three Supabase variables being branch-scoped to `development` is the other half of the same proof.
 
@@ -336,7 +619,7 @@ Browser network inspection could not confirm the target independently: the pages
 
 ### The stale-deployment finding
 
-`a5c4ea7` (*Land the class-stream redesign*) shows **Error at 11 s, 2 days ago** — the same unpushed-submodule failure that took CI down (AUD-007). The Vercel build died at submodule fetch too.
+`a5c4ea7` (_Land the class-stream redesign_) shows **Error at 11 s, 2 days ago** — the same unpushed-submodule failure that took CI down (AUD-007). The Vercel build died at submodule fetch too.
 
 So `dev.lets-assist.com` had been serving a **stale build from 2026-08-06** for two days, and every deployment attempt in between failed the same way. Anyone testing hosted Development during that window was testing old code. Several earlier Errors on 2026-08-02 and 2026-08-03 (`93ca1f2`, `388cb2a`, `c20d31f`, `287cb57`) suggest this has recurred.
 
@@ -360,12 +643,12 @@ Not investigated further here: reading or rotating a provider credential is outs
 
 Neither the root branch nor its submodule branch was on any remote, and both carried uncommitted work. A stray checkout would have destroyed it. All of it is now pushed:
 
-| Ref | Repository | Contents |
-|---|---|---|
-| `codex/csf-lifecycle-overhaul` | root | 2 commits ahead of `development`, +18,611 lines |
-| `codex/csf-lifecycle-overhaul` | plugins | Codex's private-plugin work, including `42388fc` |
-| `wip/codex-root-snapshot-20260810` | root | The worktree's uncommitted work — 28 files, 2,521 insertions |
-| `wip/codex-spill-20260810` | plugins | An intermediate Codex state found in the main checkout |
+| Ref                                | Repository | Contents                                                     |
+| ---------------------------------- | ---------- | ------------------------------------------------------------ |
+| `codex/csf-lifecycle-overhaul`     | root       | 2 commits ahead of `development`, +18,611 lines              |
+| `codex/csf-lifecycle-overhaul`     | plugins    | Codex's private-plugin work, including `42388fc`             |
+| `wip/codex-root-snapshot-20260810` | root       | The worktree's uncommitted work — 28 files, 2,521 insertions |
+| `wip/codex-spill-20260810`         | plugins    | An intermediate Codex state found in the main checkout       |
 
 The root snapshot was taken with `commit-tree` against a throwaway index, so the worktree, its HEAD, and its index were left untouched and Codex can resume exactly where it stopped. It contains work that existed nowhere else, notably `supabase/migrations/20260810021019_csf_posting_role_permission_rollout.sql` and new suites for design-token contrast, brand-token separation, footer target size, focusable scrollable regions, signup request origin, and a signup email PKCE round trip.
 
@@ -373,18 +656,18 @@ The root snapshot was taken with `commit-tree` against a throwaway index, so the
 
 **Priority:** P2 · **Status:** Confirmed · **Affects merge order, not correctness**
 
-| Set | Range | Count |
-|---|---|---|
-| Codex | `20260809211732` → `20260810015500` | 11 committed, plus `20260810021019` uncommitted |
-| This session | `20260810220100` → `20260810220500` | 5 |
+| Set          | Range                               | Count                                           |
+| ------------ | ----------------------------------- | ----------------------------------------------- |
+| Codex        | `20260809211732` → `20260810015500` | 11 committed, plus `20260810021019` uncommitted |
+| This session | `20260810220100` → `20260810220500` | 5                                               |
 
-No filename or timestamp collisions. But **every Codex timestamp is earlier than every one of this session's**, so merging Codex *after* these have been applied somewhere would append migrations that sort before the recorded head — the ledger would no longer be ordered.
+No filename or timestamp collisions. But **every Codex timestamp is earlier than every one of this session's**, so merging Codex _after_ these have been applied somewhere would append migrations that sort before the recorded head — the ledger would no longer be ordered.
 
 There is no problem yet: the hosted `development` branch is still at `20260807223600`, so **neither set has been applied anywhere remote**. That is what makes this cheap to fix, and it will not stay true.
 
 **Recommendation: merge `codex/csf-lifecycle-overhaul` into `development` before pushing anything to the hosted branch or Production.** A replay then orders both sets correctly by timestamp and a single `db push` applies them in order.
 
-If Codex lands later instead, renumber its migrations to follow the current head. That is legitimate here precisely because they have never been applied to any database — renumbering an *applied* migration would not be.
+If Codex lands later instead, renumber its migrations to follow the current head. That is legitimate here precisely because they have never been applied to any database — renumbering an _applied_ migration would not be.
 
 The two sets are also disjoint in what they touch: Codex's are all `csf_*`, while this session's touch `trusted_member`, `notifications`, `plugin_audit_logs`, `public` default privileges, and `organizations`. So the risk is ledger hygiene rather than a broken dependency.
 
@@ -393,6 +676,393 @@ The two sets are also disjoint in what they touch: Codex's are all `csf_*`, whil
 - A full `db:test:redesign` replay in its own worktree, which needs its own isolated stack.
 - Reconciling its `app/organization/[id]/page.tsx` changes with the setup checklist added to the same file this session — a likely merge conflict.
 - Reviewing its 11 migrations and ~6,000 lines of new pgTAP on their merits.
+
+---
+
+<a id="aud-021"></a>
+
+## AUD-020 / AUD-021 — Plugin data lifecycle boundary {#aud-020}
+
+**Priority:** P2 · **Status:** Fixed locally; hosted Development pending
+
+Ordinary uninstall is now mechanically non-destructive: the transition core
+removes only the exact organization/plugin install row and never invokes
+`onUninstall`, `onDataDelete`, or any plugin code. Its audit evidence may
+therefore state `pluginDataRetained: true`. `onUninstall` remains only as
+compensation for a successful install hook followed by failed persistence.
+
+Permanent deletion is a separate MFA-aware organization-admin action. It
+revalidates current membership, registry, catalog, entitlement/forced/private
+state, absence of an install row, and an organization/plugin-bound confirmation
+under the control-plane transition lease. A complete manifest declaration must
+exactly cover every tenant database/storage target and declare idempotent retry
+semantics; missing or partial contracts fail closed.
+
+Migration `20260812115556_plugin_data_deletion_requests.sql` adds a private,
+RLS-enabled, service-only redacted receipt. Globally unique request keys are
+bound to actor/organization/plugin/fingerprint, per-scope processing is unique,
+and attempt claim tokens make completion compare-and-set. Processing after a
+crash is treated as ambiguous and never auto-replayed; only an explicitly
+reported `retryable_failed` receipt may run again. Hook outcome is finalized
+before independent audit attachment, so audit failure cannot turn successful
+destruction into a false failed/replayable operation.
+
+No private manifest declares the complete new contract in this root change.
+That is deliberately fail-safe: permanent deletion remains unavailable for
+private plugins until a separate private-repository review enumerates targets
+and external systems, lands there, and only then updates the root gitlink.
+Local evidence is green: 78 focused Bun tests, 59 focused pgTAP assertions, and
+a full local migration reset/replay pass. Hosted Development remains pending.
+Production was not read, written, queried, deployed, or tested.
+
+---
+
+<a id="aud-029"></a>
+
+## AUD-029 — CSF post replies were not an atomic tenant boundary {#aud-029}
+
+**Priority:** P1 · **Status:** Audited source verified; exact integrated-branch and hosted Development verification pending
+
+`addCsfPostReplyAction` and `deleteCsfPostReplyAction` previously performed
+authorization, parent/reply reads, row mutation, and audit insertion as separate
+application statements. A process failure could commit the reply without its
+history, a lost response could duplicate an add, and a queued request could
+continue after current staff authority changed. The reply table also had
+independent organization and announcement foreign keys, so the database did not
+itself prove that both identifiers named the same tenant.
+
+Migration `20260812152300_atomic_csf_post_replies.sql` adds and validates the
+composite tenant-parent foreign key and moves add/delete plus the immutable
+audit receipt into one service-only transaction. The transaction authorizes
+before caller-controlled record inspection, takes the shared organization
+staff-access lock, pins the active host-membership row, rechecks
+`manage_posts`, locks the published parent or target reply, enforces current
+author-or-admin deletion, and binds the normalized intent to one request UUID.
+Exact retries return the original reply; conflicting reuse and stale committed
+state fail closed. Direct service-role INSERT, UPDATE, DELETE, TRUNCATE,
+REFERENCES, and TRIGGER privileges are removed while server-rendered SELECT is
+retained. Both parent foreign keys now use `ON DELETE RESTRICT`, so deleting an
+announcement cannot cascade around the reply boundary. The existing
+service-role-only plugin teardown RPC removes tenant replies explicitly under
+the same staff-access lock before delegating to its owner-only prior
+implementation; its public signature and exact fourteen-key result contract
+remain unchanged. Audit state stores hashes and bounded lengths, not reply
+text.
+
+The private action keeps its existing parameters and accepts one optional final
+request UUID. The UI retains that UUID across an unknown add/delete outcome and
+reuses it on an unchanged manual retry; changing the body discards the stale
+key. Private PR #44 merged first into the private repository's `development`
+branch at `d4188dd7`; locally known private `origin/development` at `605342ca`
+contains that reply code, the later preview-summary correction, meeting
+hardening, and inactive-access hardening. The current root gitlink `cdbeb59e`
+also contains that work but is local-only and not yet contained in the locally
+known private `origin/development`, so the root candidate remains release-blocked
+until the private-first merge.
+Audited source evidence passes 48 focused private tests (220 expectations), all
+121 database files and 5,126 pgTAP assertions, including observed
+two-connection advisory-lock waits for same-request replay and a staff-only
+`manage_posts` revocation. The exact integrated branch still requires fresh
+replay. Hosted Development migration, advisor, and browser acceptance also
+remain required before this finding closes.
+
+Production was not accessed or changed for this finding.
+
+---
+
+<a id="aud-031"></a>
+
+## AUD-031 — Inactive membership retained shared tenant authority {#aud-031}
+
+**Severity:** P1 · **Confidence:** confirmed · **Status:** fixed locally; hosted
+Development verification pending
+
+The four shared `private` organization helpers selected membership rows without
+requiring `status = 'active'`. Because organization-member updates and multiple
+public/plugin RLS policies call those definer helpers, an inactive admin or
+staff actor could still satisfy tenant authorization, including the update
+policy governing their own membership row.
+
+**Local evidence:** the hostile fixture covers an inactive administrator's
+self-reactivation, null/inactive cancellation and unrejection authority,
+null/inactive hours publication, a separately active cross-tenant administrator,
+and active same-tenant admin/staff controls. The lifecycle source contract,
+focused pgTAP, and fresh local replay pass.
+
+**Local resolution candidate:** `20260813013000_reconcile_project_lifecycle_boundaries.sql`
+replaces all four helpers with fixed-path definitions that require the exact
+organization, current user, reviewed role, and explicit active status. It
+reapplies explicit function ACLs without changing the stronger
+`app_private.is_project_organizer` or `app_private.can_manage_project`
+definitions owned by current Development.
+
+`20260813013100_lock_project_lifecycle_transactions.sql` additionally
+forward-replaces cancellation, unrejection, and hours publication with locked
+exact-active authorization wrappers while preserving their mature transactional
+implementations and public signatures.
+
+**Hosted resolution:** not applied or verified on hosted Development. Production
+was not accessed.
+
+---
+
+<a id="aud-032"></a>
+
+## AUD-032 — Cancelled projects could bypass or reverse lifecycle authority {#aud-032}
+
+**Severity:** P1 · **Confidence:** confirmed · **Status:** fixed locally; hosted
+Development verification pending
+
+The general authenticated project update surface could enter `cancelled`
+without the transaction that freezes its audience/outbox, or move a cancelled
+row back to another status. `ProjectDetails.tsx` also persisted calculated
+status directly through the browser client and reported authorization failures
+only in the console.
+
+**Local evidence:** focused lifecycle TypeScript coverage, the full unit suite,
+fresh replay, and hostile pgTAP pass. The database fixture exercises direct
+cancellation, direct revival, preserved state/outbox truth, and the reviewed
+transactional cancellation path.
+
+**Local resolution candidate:** the project trigger now rejects every direct
+authenticated status change. Cancellation retains its audience/outbox
+transaction, while `transition_project_status_transactional` derives the actor,
+locks the project and exact active membership, enforces only
+`upcoming → in-progress/completed` and `in-progress → completed`, and returns an
+exact receipt consumed by the unchanged Server Action signature.
+
+**Hosted resolution:** not applied or verified on hosted Development. Production
+was not accessed.
+
+---
+
+<a id="aud-033"></a>
+
+## AUD-033 — Recurrence ending lacked one serialized private transaction {#aud-033}
+
+**Severity:** P1 · **Confidence:** confirmed · **Status:** fixed locally; hosted
+Development verification pending
+
+A recurrence worker could decide to create a child without locking the parent
+against series ending. The first repair also exposed the complete privileged
+series transaction as a client-executable public SECURITY DEFINER function,
+contrary to the current public-function boundary.
+
+**Local evidence:** the source contract asserts the parent lock, private call to
+the canonical cancellation transaction, fixed empty paths, public invoker
+wrapper, immutable generation-and-edit-bound replay receipt, and absence of a
+public definer. The pgTAP transaction and two-session serialization proofs cover
+status versus cancellation, child generation versus series ending, and
+membership revocation before locked authority recheck; the architecture audit
+and fresh replay also pass. The exact merged candidate now replays 279 ordered
+migrations, retains rejection and lifecycle entries in both reviewed public ACL
+catalogs, and orders the `161500` rejection transaction before the `215733`
+union guard. The three inherited #152 assertions now prove that active
+administrators cannot bypass capacity-safe approval or unrejection through a
+direct browser update, while manager and participant cancellation remain
+available. The full generated isolated gate passes 132 database files and 5,475
+pgTAP assertions. Hosted Development and Production were not moved.
+
+**Local resolution candidate:** the one-argument public SECURITY INVOKER
+signature remains as a compatibility wrapper. A new two-argument invoker
+overload delegates to a private transaction that locks the parent and child
+rows, applies a strict allowlist of ordinary edits, delegates every eligible
+child to canonical cancellation, clears recurrence, and persists the locked
+cleanup decision in a private replay marker, including zero-child series. The
+marker binds the exact canonical ordinary edit to the recurrence generation;
+exact retries return before mutating the parent, while mismatched reuse is
+rejected. Constraint failure rolls the entire edit and all child cancellations
+back. The ledger tail also reapplies the combined
+approval/attendance/rejection signup guard so #152 remains compatible.
+
+**Hosted resolution:** not applied or verified on hosted Development. Production
+was not accessed.
+
+---
+
+<a id="aud-034"></a>
+
+## AUD-034 — Healthy pagination consumed the cancellation failure budget {#aud-034}
+
+**Severity:** P1 · **Confidence:** confirmed · **Status:** fixed locally; hosted
+Development verification pending
+
+The job claim increment represented both an ordinary bounded page and an
+abandoned lease. Large healthy jobs could therefore reach five attempts and
+fail merely because the worker honored its per-run delivery budget, while
+retries multiplied across later runs.
+
+**Local evidence:** the stateful worker suite passes 20 tests / 90 assertions,
+including more than five healthy one-delivery runs, five abandoned leases,
+per-job round-robin quanta under one global maximum, terminal pre-send
+exhaustion, and no accepted-email resend. Focused pgTAP covering healthy
+finalizer refunds and true abandoned-lease exhaustion passes, as do the fresh
+replay and complete local database suite.
+
+**Local resolution candidate:** an owned, unexpired finalizer refunds the
+provisional claim with `GREATEST(attempts - 1, 0)`. Only a lease that reaches the
+reaper retains an attempt. The worker preserves one clamped
+`maxDeliveries` counter across all claimed jobs and one unique per-delivery
+provider idempotency key.
+
+**Hosted resolution:** not applied or verified on hosted Development. No
+provider request was made, and Production was not accessed.
+
+---
+
+<a id="aud-041"></a>
+
+## AUD-041 — Content reports were client-written {#aud-041}
+
+**Priority:** P1 · **Status:** Fixed and verified locally; hosted Development pending
+
+`authenticated` held INSERT, UPDATE, and DELETE on `public.content_reports` with
+matching owner policies, so a reporter could file evidence with a status and
+priority of their choosing, rewrite or delete it after a moderator had seen it,
+attach an arbitrary UUID as the reported target, and forge the moderation
+dashboard's `Content URL:` marker inside their own free-text description. The
+route carried no durable rate limit of any kind — neither per user nor per
+address — so submission volume was bounded only by the client, and a retried
+submission created a second report.
+
+`20260812203000_make_content_reports_server_written.sql` revokes every browser
+write grant and column grant, drops the write policies, keeps owner-scoped
+SELECT, and rewrites the reviewed relation catalog with a literal body rather
+than deparsing the live catalog. Writes now go through one `SECURITY DEFINER`
+transaction that only `service_role` may execute. Under an advisory lock on the
+request fingerprint it replays a still-open duplicate, confirms the target
+exists in the literal relation its type names, decides the user and address
+buckets together so neither is charged unless both pass, resolves the
+reporter's durable pseudonym, and derives status, priority, and timestamps
+itself.
+
+Four properties of that transaction are worth stating exactly, because each
+replaced a weaker earlier design in this branch:
+
+- **Replay is bounded, not permanent.** Deduplication is keyed on a
+  `request_fingerprint` plus a server-derived `replay_expires_at`, currently 15
+  minutes. Inside the window a retry returns the original report; past it, the
+  same report can be filed again with an incremented `request_sequence`, so a
+  dismissed issue that recurs is not silently swallowed. Client-supplied time
+  never enters the fingerprint.
+- **The reporter pseudonym is opaque, not derived.** `reporter_reference` is a
+  random UUID held in the server-only `public.reporter_references` mapping, not
+  a hash of the account identifier, so nobody holding a user UUID can recompute
+  it. The mapping is `ON DELETE SET NULL` on its reporter and carries no client
+  grants and no RLS policy.
+- **A forged target cannot reach the queue.** Existence is checked in the
+  transaction against `public.projects`, `public.profiles`, or
+  `public.organizations`. The refusal is generic; reporter visibility stays in
+  the caller's own RLS-scoped session, which is the only place that knows who is
+  asking.
+- **Refused work still costs.** `public.consume_content_report_attempt` charges
+  a separate, higher attempt ceiling before any target lookup, so invisible
+  targets, malformed locations, and replays are bounded too, while the
+  stored-report quota is only charged when a report is actually written.
+
+`reporter_id` became `ON DELETE SET NULL`, and account deletion and enforcement
+bans detach the reporter instead of deleting the evidence. A failed detach
+aborts the ban outright rather than leaving reports pointed at an account that
+is about to become unreachable.
+
+The route keeps its public request and success shapes. It revalidates the actor
+against the auth server, reads a byte-bounded body, parses a strict schema, and
+refuses a target the reporter cannot already read. A reported URL is kept only
+when it resolves to the configured origin, and is stored as a relative path; a
+preview or alias host is simply absent rather than fatal, since the target type
+and identifier are authoritative. Genuinely unsafe locations — other schemes,
+embedded credentials, authority-relative or backslash forms, control and bidi
+characters — are still refused, and the dashboard links to a stored location
+only when it is a safe leading-slash path. Logs carry the content type and
+reason only — no reporter identity, target identifier, IP, or database error
+text.
+
+Local evidence: 84 pgTAP assertions in
+`supabase/tests/database/content_reports_server_written.test.sql`, 8
+two-connection assertions in
+`supabase/tests/database/content_reports_submission_concurrency.test.sql`, and
+82 route, service, domain, and retention tests. Withholding the migration fails
+the contract outright: the direct-write denial assertions fail against the old
+grants and the transaction the rest of the file exercises does not exist.
+No provider, hosted Development, or Production resource was accessed.
+
+---
+
+<a id="aud-042"></a>
+
+## AUD-042 — Legacy plugin_data default ACLs could re-expose new private objects {#aud-042}
+
+**Priority:** P1 · **Status:** Fixed and verified locally; hosted Development pending
+
+Schema `USAGE` was already denied to `anon` and `authenticated`, but
+`plugin_data` still carried schema-scoped default privileges naming
+`authenticated` for every future table, sequence, and routine, so the next
+private-plugin migration would have re-granted it. The trigger function
+`plugin_data.csf_stamp_application_policy_version` also still carried `PUBLIC`,
+`anon`, and `authenticated` EXECUTE from the built-in default in force when it
+was created.
+
+`20260812203500_close_plugin_data_browser_default_acl.sql` revokes schema,
+existing-object, and default privileges from `PUBLIC`, `anon`, and
+`authenticated` for every role that owns an object in the schema plus the role
+applying the ledger, preserves `service_role` usage, and fails closed on any
+residual browser-facing privilege or default. No event trigger is introduced.
+
+One limit is deliberate and documented in the migration: PostgreSQL's built-in
+global default grants `EXECUTE` on new functions to `PUBLIC`, and per
+`ALTER DEFAULT PRIVILEGES` a per-schema entry cannot revoke a globally granted
+default. Revoking it globally for a shared owner role would reach far outside
+this schema. Schema `USAGE` denial is therefore the enforced gate, and both the
+migration probe and the pgTAP contract prove it by creating a table, identity
+sequence, and function and then calling as `anon` and `authenticated`, rather
+than by reading the ACL alone.
+
+Local evidence: 17 pgTAP assertions in
+`supabase/tests/database/plugin_data_browser_default_acl.test.sql` and a clean
+migration replay. Withholding the migration fails 5 of those 17 — the existing
+routine grant, the browser-facing default ACL entries, and inheritance on a new
+table, sequence, and routine. Production was not queried or changed.
+
+---
+
+<a id="aud-043"></a>
+
+## AUD-043 — Private helper definers retained default execute
+
+**Priority:** P1 · **Status:** Fixed locally; exact replay and hosted Development pending
+
+`private.is_plugin_enabled(uuid,text)` was created as a fixed-empty-path
+`SECURITY DEFINER`, but its historical migration did not state an execution ACL,
+so PostgreSQL's default `PUBLIC` execute remained. `private` is omitted from the
+PostgREST exposed-schema list, and a repository-wide source scan found no
+runtime caller, so no browser-callable exploit or required `service_role`
+capability is claimed.
+
+`20260813085442_harden_private_is_plugin_enabled_acl.sql` preserves the stable
+definition, revokes execution from `PUBLIC`, `anon`, `authenticated`, and
+`service_role`, grants only owner `postgres`, and fails if the definer or empty
+search path drifts. The source contract pins the zero-caller fact and the
+owner-only ACL; eight pgTAP assertions cover the runtime signature, definition,
+effective denials, and owner grant. Because the function remains in `private`,
+the public callable catalog is unchanged. Production was not accessed.
+
+The follow-up found the same inherited `PUBLIC` capability on
+`private.is_dv_student(uuid)` and
+`private.can_access_dv_household(uuid)`. Both are stable SQL `SECURITY DEFINER`
+functions with `search_path = ''`; unlike the dormant plugin predicate, they
+remain runtime dependencies of 20 DV policies declared `TO authenticated`
+(13 student-policy callers and 7 household-policy callers). No application,
+service, private-plugin, `anon`, or `service_role` caller requires execution.
+
+`20260813091801_harden_dv_private_policy_helper_acls.sql` therefore preserves
+both definitions, revokes `PUBLIC`, `anon`, `authenticated`, and `service_role`,
+then grants only the proven policy role `authenticated` plus owner `postgres`.
+The source contract pins the exact signatures, security/search-path mode, 20
+policy names and roles, absence of another runtime caller, unchanged policy
+ledger, and explicit ACL statements. Twenty pgTAP assertions pin the exact
+direct ACL and effective role posture. The focused source contract passes;
+exact database replay and hosted Development remain pending. Production was not
+accessed.
 
 ---
 

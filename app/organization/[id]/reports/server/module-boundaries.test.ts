@@ -53,4 +53,22 @@ describe("organization sheet action modules", () => {
     expect(shared).toStartWith('import "server-only";');
     expect(shared).toContain("organizationSheetsGoogleBinding(organizationId)");
   });
+
+  test("the Picker token action returns only the shared minimal credential DTO", () => {
+    const setup = read("app/organization/[id]/reports/server/setup.ts");
+    const actionStart = setup.indexOf(
+      "export async function getSheetsAccessTokenForPicker",
+    );
+    const actionEnd = setup.indexOf(
+      "\nexport async function getSpreadsheetSetupMetadata",
+      actionStart,
+    );
+    const action = setup.slice(actionStart, actionEnd);
+
+    expect(action).toContain("resolveGooglePickerAppId()");
+    expect(action).toContain("createGooglePickerAccessTokenResult(");
+    expect(action).not.toContain("GOOGLE_CLIENT_ID");
+    expect(action).not.toContain("clientId");
+    expect(action).not.toContain("refreshToken");
+  });
 });

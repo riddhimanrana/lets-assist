@@ -26,19 +26,18 @@ history, or repository.
 Use these roles to verify the actual permission boundary rather than testing
 everything as an administrator:
 
-| Account | Rehearsal purpose |
-|---|---|
-| `csf.admin@local.test` | Organization and CSF administration |
-| `csf.vp-membership@local.test` | Applications, members, and account connections |
-| `csf.secretary@local.test` | Meetings and attendance |
-| `csf.treasurer@local.test` | Dues |
-| `csf.data-management@local.test` | Imports and reconciliation |
-| `student.2028@local.test` | Existing Class of 2028 record and exact-email profile claim |
-| `csf.applicant@local.test` | Applicant and unmatched account-link paths |
-| `platform.outsider@local.test` | Public/private boundary check |
+| Account                          | Rehearsal purpose                                           |
+| -------------------------------- | ----------------------------------------------------------- |
+| `csf.admin@local.test`           | Organization and CSF administration                         |
+| `csf.vp-membership@local.test`   | Applications, members, and account connections              |
+| `csf.secretary@local.test`       | Meetings and attendance                                     |
+| `csf.treasurer@local.test`       | Dues                                                        |
+| `csf.data-management@local.test` | Imports and reconciliation                                  |
+| `student.2028@local.test`        | Existing Class of 2028 record and exact-email profile claim |
+| `csf.applicant@local.test`       | Applicant and unmatched account-link paths                  |
+| `platform.outsider@local.test`   | Public/private boundary check                               |
 
-The current Development rehearsal tracks Classes of 2027, 2028, 2029, and
-2030. Each class has an active Fall 2026 semester record and reusable combined
+The current Development rehearsal tracks Classes of 2027, 2028, 2029, and 2030. Each class has an active Fall 2026 semester record and reusable combined
 link. Development dates and policies are rehearsal inputs only; an adviser must
 replace and approve them from the chapter calendar before a Production cutover.
 
@@ -61,15 +60,16 @@ replace and approve them from the chapter calendar before a Production cutover.
    show public activities, but must not expose roster, applications, evidence,
    attendance, points, or account-connection data.
 6. As the relevant officer roles, click through Applications, Members,
-   Activities, Points, Meetings, Partner clubs, Imports, Reports, Staff access,
+   Activities, Points, Meetings, Partner clubs, Imports, Staff access,
    Change history, Communications, and Settings. A hidden route is an expected
    permission result; a blank page, runtime error, or cross-role private data is
    not.
 7. Keep email in no-send mode until the Resend topic id, webhook, audience
    consent key, sender domain, and exact recipient snapshot are all visible.
    Queue/delivery/provider outcomes are separate states.
-8. Download a report ZIP and inspect it locally. Do not upload generated reports
-   or browser traces to the repository.
+8. Download a report ZIP from Settings → Download reports and inspect it
+   locally. Do not upload generated reports or browser traces to the
+   repository.
 
 For Google acceptance, Chrome must be signed into exactly
 `dvhighcsf@gmail.com`. If the account is not offered by Google, stop at the
@@ -80,12 +80,12 @@ source identity first.
 
 ## Before you start
 
-| Prerequisite | Who provides it | Notes |
-|---|---|---|
-| The organization exists on the platform | An org admin | Created by a trusted member; the creator becomes `admin` |
-| A named chapter owner | The chapter | Becomes the `owner` staff position, which carries every capability |
-| A chapter Google account | The chapter | For Sheets and Drive imports. Never a personal account — see [source data](source-data.md) |
-| Legacy records, if any | The chapter | Rosters, attendance, club audits. Layouts in [source data](source-data.md) |
+| Prerequisite                            | Who provides it | Notes                                                                                      |
+| --------------------------------------- | --------------- | ------------------------------------------------------------------------------------------ |
+| The organization exists on the platform | An org admin    | Created by a trusted member; the creator becomes `admin`                                   |
+| A named chapter owner                   | The chapter     | Becomes the `owner` staff position, which carries every capability                         |
+| A chapter Google account                | The chapter     | For Sheets and Drive imports. Never a personal account — see [source data](source-data.md) |
+| Legacy records, if any                  | The chapter     | Rosters, attendance, club audits. Layouts in [source data](source-data.md)                 |
 
 ## Stage 1 — Entitlement (platform super admin)
 
@@ -142,18 +142,19 @@ Only if the chapter has history worth carrying. Skip entirely for a brand-new ch
 
 Import through the Sheets workspace preview → commit fence. Google and the chapter website are source evidence, not a second database. Every commit is staff-approved and only reversible forward. The order matters, because later imports reference earlier ones:
 
-1. **Club registry and policies** — partner-form imports, producing partner clubs with per-club point policy.
-2. **Member roster** — an application-responses import for the earliest term you are seeding. Grade maps to graduating class.
-3. **Attendance** — a meeting-attendance import per term. Name-only rows will land ambiguous; resolve what you can. `skipped` is an honest terminal state for a departed student.
-4. **Per-club points** — normalize first with `bun run csf:normalize:legacy`, review every generated mapping (sheet selection, club name, excluded rows, points per mark), then re-run with `--apply` and upload each normalized workbook as a partner-club-audit import.
+1. **Club registry** — partner form-response imports; apply each previewed row as a draft club record (or skip it), then review each club's term standing. There is no per-club point policy: officers vet point types, caps, and proof manually at point approval.
+2. **Student identities and history** — use **Student roster** only for a reviewed roster authorized to create current profiles, or **Historical records** for approved prior-class history. Application responses never seed student identities: each application row must resolve to an existing reviewed profile before it can commit.
+3. **Application responses, when they are in scope** — only after the profiles exist, preview the bounded source and resolve every application row to its existing profile. For an unresolved row, select **Match to member**, enter the required **Match reason**, and select **Use match**; otherwise skip it with a reason. A targetless application row is not ready to commit.
+4. **Attendance** — a meeting-attendance import per term. Name-only rows will land ambiguous; resolve what you can. `skipped` is an honest terminal state for a departed student.
+5. **Per-club points** — the partner-club-audit member-Sheet import was removed by the 2026-08-17 partner-clubs simplification. Keep per-club point workbooks as reference evidence and record any historical awards still needed through the reviewed point workflows.
 
-**Acceptance before moving on:** per-cohort roster counts match the application grade distribution; at least three clubs' point totals spot-checked against their source workbooks; the ambiguous-row queue is triaged to zero or every remaining row is documented.
+**Acceptance before moving on:** every imported student identity came from an approved roster/history source; every application row either names an existing reviewed profile or is explicitly skipped; every partner form-response row is applied as a draft or skipped and each retained club's term standing is reviewed; the ambiguous-row queue is triaged to zero or every remaining row is documented.
 
-DVHS-specific file names and expected row counts are in [officer runbook §10.2](officer-runbook.md).
+For DVHS, the only historical student imports are the approved Class of 2027–2029 sheets: Class of 2027 `S26` `A1:O168`, Class of 2028 `S26` `A1:O168`, and Class of 2029 `S26` `A1:N89`. Class of 2026 is out of scope, the Class of 2030 workbook has no import job, and the Spring 2026 application-response workbook is comparison evidence only. DVHS-specific file names and expected row counts are in [officer runbook §10.2](officer-runbook.md).
 
 ## Stage 5 — Communications setup
 
-Before any announcement email: save the broadcast topic and the Resend topic id in the organization's plugin settings for the `term_members` audience. Cohort posts email through the same announcements consent topic, and the durable ledger will refuse to queue without it.
+Before any announcement email, open **Communications settings**, select **Check communications setup**, and confirm the **Term members** audience reports **Ready**. The platform provisions and validates provider topics server-side; ordinary officers never enter or see provider identifiers. Class posts use the same chapter-announcement unsubscribe boundary, and the durable ledger refuses to queue while setup is degraded or incomplete.
 
 ## Stage 6 — Student rollout
 
@@ -162,7 +163,20 @@ Before any announcement email: save the broadcast topic and the Resend topic id 
 
 What a student experiences: they sign up through the link, skip the generic platform tour, confirm an exact-email claim ("is this you?"), pick a username in place, and land on their class Home with the CSF member tour.
 
-A student whose sign-up email is not on the roster submits a **link request** instead. Officers resolve these in the Members queue, which offers ranked name-similarity suggestions for one-click connection. **Roster names are never exposed to students** — the student sees only their own request's state.
+A student whose sign-up email is not on a current profile submits a **link request** instead. Officers resolve these in the Members queue. Ranked name-similarity suggestions are advisory only; **Connect account** remains unavailable until the confirmed account email, exact name, and one active class corroborate one current profile. **Roster names are never exposed to students** — the student sees only their own request's state.
+
+### New application cycle when no profile exists (DVHS Class of 2030)
+
+The application response does not create the profile, and the application decision does not create the profile. For a class that begins with an empty cohort shell, use this sequence:
+
+1. Keep the reviewed combined class link attached to the new application form. For DVHS, the Class of 2030 workbook remains unimported.
+2. After a student submits the current form, open **More → Imports**, choose **Applications**, select the exact source tab and bounded range, map it, and select **Preview normalized rows**. Preview records source evidence but creates no profile, application, or membership.
+3. A response with no reviewed profile is held for reconciliation. Open **Members → Add member**, use **Add a student record**, enter the exact reviewed identity and current unique school/personal email, choose **Class** = Class of 2030, and select **Add student record**. Wait for **Student record created.** Do not create a duplicate when a current profile already exists.
+4. This staff action creates the permanent profile and class membership through the replay-safe profile-write transaction and records a separate `profile.create` audit receipt. It does not create the imported application, term membership, or account connection, and its audit receipt does not replace the source-row evidence.
+5. Return to the application preview. Select the profile under **Match to member**, enter a 4–500 character **Match reason** that names the corroborating current evidence, and select **Use match**. That separate reconciliation writes the selected target, actor, reason, and source-row audit history. Name similarity alone is not evidence.
+6. When every row is resolved or explicitly skipped, select **Verify source and commit**. A targetless application row cannot be committed. Commit attaches the application to the reviewed profile and preserves source provenance; it does not approve the application or create term membership.
+7. Open **Applications → Review queue**, complete the required checks and dues review, then use **Record decision**. **Approve application** creates or updates term membership atomically with the decision and history; it does not create the profile.
+8. Connect the student's account separately through the exact-email class-link, student-link, or reasoned officer-review path. No application or profile action silently connects an account.
 
 ## Stage 7 — First-term operation
 
@@ -181,13 +195,13 @@ Run a term close only after at least one full cycle of points and attendance. Th
 
 Stop and escalate rather than improvising:
 
-| Condition | Action |
-|---|---|
-| The wrong Google identity is connected | Stop before selecting files; reconnect the approved chapter account |
-| An imported point value is missing or malformed | Leave the row unresolved and fix the source mapping. Never guess a value |
-| A profile is duplicate or ambiguous | Send it to account-connection review. Never search the roster on a student's behalf or read names back to them |
-| `onInstall` left roles or point categories empty | Do not proceed to Stage 3. Check `plugin_audit_logs` |
-| A term policy is missing | Do not record points. Create the policy first |
+| Condition                                        | Action                                                                                                         |
+| ------------------------------------------------ | -------------------------------------------------------------------------------------------------------------- |
+| The wrong Google identity is connected           | Stop before selecting files; reconnect the approved chapter account                                            |
+| An imported point value is missing or malformed  | Leave the row unresolved and fix the source mapping. Never guess a value                                       |
+| A profile is duplicate or ambiguous              | Send it to account-connection review. Never search the roster on a student's behalf or read names back to them |
+| `onInstall` left roles or point categories empty | Do not proceed to Stage 3. Check `plugin_audit_logs`                                                           |
+| A term policy is missing                         | Do not record points. Create the policy first                                                                  |
 
 ## Related
 

@@ -80,6 +80,14 @@ export interface SendEmailParams {
    */
   topicId?: string;
   idempotencyKey?: string;
+  /**
+   * Optional caller-owned cancellation for the provider request only.
+   *
+   * Once the request begins, an abort is an unknown provider outcome, never a
+   * retryable pre-send failure. Callers with a hard execution deadline use this
+   * to leave enough time to durably settle that ambiguity.
+   */
+  signal?: AbortSignal;
 }
 
 /**
@@ -345,9 +353,87 @@ export function shouldUseMailpitTransport(): boolean {
   if (configured === "mailpit") return true;
   if (configured === "resend") return false;
 
-  // Local convenience fallback: always route emails to local Mailpit/Inbucket
-  // in development, unless EMAIL_TRANSPORT=resend is explicitly set.
-  return process.env.NODE_ENV !== "production";
+  // The environment fallback MUST key off VERCEL_ENV, never NODE_ENV.
+  //
+  // Next.js sets NODE_ENV=production for every built deployment, Preview
+  // included, so NODE_ENV cannot tell a Preview build from Production. Keying
+  // the fallback off it meant Preview selected the Resend transport and mailed
+  // real people from a non-production environment -- signup verifications,
+  // anonymous-signup confirmations, and feedback requests all went out live
+  // whenever EMAIL_TRANSPORT happened to be unset, which it was.
+  //
+  // VERCEL_ENV is "production" only on Production deployments; it is "preview"
+  // or "development" on other Vercel environments and undefined off-Vercel
+  // (local, CI, tests). Preview therefore falls back to the local transport,
+  // which has no reachable catcher on Vercel and fails closed rather than
+  // delivering to a real inbox.
+  return process.env.VERCEL_ENV?.trim().toLowerCase() !== "production";
+}
+
+type DevelopmentProviderGuardResult =
+  | { allowed: true }
+  | {
+      allowed: false;
+      code:
+        | "development_sender_domain_missing"
+        | "development_sender_domain_mismatch"
+        | "development_recipient_blocked";
+    };
+
+function emailAddress(value: string): string | null {
+  const bracketed = value.match(/<([^<>]+)>/u)?.[1] ?? value;
+  const normalized = bracketed.trim().toLowerCase();
+  return /^[^\s@]+@[^\s@]+$/u.test(normalized) ? normalized : null;
+}
+
+function configuredDevelopmentRecipients(): Set<string> {
+  return new Set(
+    (process.env.RESEND_DEV_RECIPIENT_ALLOWLIST ?? "")
+      .split(",")
+      .map((value) => emailAddress(value))
+      .filter((value): value is string => value !== null),
+  );
+}
+
+/**
+ * A Preview may deliberately opt into Resend for provider acceptance, but that
+ * must never turn a branch deployment into a general-purpose mail sender.
+ * Production is governed by its separate environment and is intentionally not
+ * affected by this Development-only gate.
+ */
+export function guardDevelopmentProviderSend(input: {
+  to: string | string[];
+  from: string;
+}): DevelopmentProviderGuardResult {
+  const vercelEnvironment = process.env.VERCEL_ENV?.trim().toLowerCase();
+  if (vercelEnvironment !== "preview" && vercelEnvironment !== "development") {
+    return { allowed: true };
+  }
+
+  const allowedDomain =
+    process.env.RESEND_DEV_FROM_DOMAIN?.trim().toLowerCase();
+  if (!allowedDomain) {
+    return { allowed: false, code: "development_sender_domain_missing" };
+  }
+
+  const sender = emailAddress(input.from);
+  if (!sender || !sender.endsWith(`@${allowedDomain}`)) {
+    return { allowed: false, code: "development_sender_domain_mismatch" };
+  }
+
+  const allowlist = configuredDevelopmentRecipients();
+  const recipients = Array.isArray(input.to) ? input.to : [input.to];
+  const allRecipientsAreSafe = recipients.every((recipient) => {
+    const normalized = emailAddress(recipient);
+    return (
+      normalized !== null &&
+      (normalized.endsWith("@resend.dev") || allowlist.has(normalized))
+    );
+  });
+
+  return allRecipientsAreSafe
+    ? { allowed: true }
+    : { allowed: false, code: "development_recipient_blocked" };
 }
 
 export async function sendViaMailpit({

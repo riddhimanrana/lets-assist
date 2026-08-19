@@ -8,6 +8,7 @@ import { escapeHtml, escapeHtmlWithLineBreaks } from "@/lib/security/html";
 import { Project } from "@/types";
 import {
   getWaiverDownloadUrl,
+  rejectSignup,
   togglePauseSignups,
   unrejectSignup,
 } from "../actions";
@@ -42,6 +43,7 @@ import {
   XCircle,
   Clock,
   ArrowLeft,
+  ScanText,
   Loader2,
   UserRoundSearch,
   ArrowUpDown,
@@ -61,7 +63,6 @@ import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
-import { NotificationService } from "@/services/notifications";
 import {
   WaiverPreviewDialog,
   WaiverPreviewSignature,
@@ -385,65 +386,45 @@ export function SignupsClient({ projectId }: Props): React.JSX.Element {
     setRefreshing(false);
   };
 
-  const updateSignupStatus = async (signupId: string, status: "rejected") => {
+  // The rejection and the volunteer's notification commit together in one
+  // server transaction, so the toast can state exactly what happened instead of
+  // reporting success for a half-completed change.
+  const handleReject = async (signupId: string) => {
     try {
       setProcessingSignups((prev) => ({ ...prev, [signupId]: true }));
-      const supabase = createClient();
 
-      // Get the signup details first
-      const { data: signup } = await supabase
-        .from("project_signups")
-        .select("user_id, project_id")
-        .eq("id", signupId)
-        .single();
+      const result = await rejectSignup(signupId);
 
-      if (!signup) {
-        throw new Error("Failed to get signup details");
+      if (result.error) {
+        toast.error(result.error);
+        return;
       }
 
-      // Update the signup status
-      const { error: updateError } = await supabase
-        .from("project_signups")
-        .update({ status })
-        .eq("id", signupId);
-
-      if (updateError) {
-        throw new Error("Failed to update signup status");
-      }
-
-      // Send notification if user is registered - directly from client
-      if (signup.user_id) {
-        // Get project title for the notification
-        const { data: projectData } = await supabase
-          .from("projects")
-          .select("title")
-          .eq("id", projectId)
-          .single();
-
-        if (projectData) {
-          // Create notification directly using NotificationService
-          await NotificationService.createNotification(
-            {
-              title: "Project Status Update",
-              body: `Your signup to volunteer for "${projectData.title}" has been rejected`,
-              type: "project_updates",
-              severity: "warning",
-              actionUrl: `/projects/${projectId}`,
-              data: { projectId, signupId },
-            },
-            signup.user_id,
-          );
-        }
-      }
-
-      // Refresh the signups list
       await loadSignups();
-      toast.success("Signup rejected successfully");
+
+      if (result.outcome === "replayed") {
+        toast.info("This signup was already rejected.");
+        return;
+      }
+
+      if (result.notificationReason === "anonymous_signup") {
+        toast.success(
+          "Signup rejected. Anonymous volunteers receive no in-app notification.",
+        );
+        return;
+      }
+
+      if (result.notificationReason === "notification_preference_disabled") {
+        toast.success(
+          "Signup rejected. This volunteer has turned off project update notifications.",
+        );
+        return;
+      }
+
+      toast.success("Signup rejected and the volunteer was notified.");
     } catch (error) {
-      console.error("Error updating signup:", error);
-      toast.error(
-        error instanceof Error ? error.message : "Failed to update signup",
-      );
+      console.error("Error rejecting signup:", error);
+      toast.error("Failed to reject signup");
     } finally {
       setProcessingSignups((prev) => ({ ...prev, [signupId]: false }));
     }
@@ -762,10 +743,19 @@ export function SignupsClient({ projectId }: Props): React.JSX.Element {
         }
       />
 
-      <div className="mb-6">
+      <div className="mb-6 flex items-center justify-between">
         <Button variant="ghost" className="gap-2" onClick={() => router.back()}>
           <ArrowLeft className="h-4 w-4" />
           Back to Project
+        </Button>
+        <Button
+          variant="outline"
+          className="gap-2"
+          onClick={() => router.push(`/projects/${projectId}/paper-signups`)}
+        >
+          <ScanText className="h-4 w-4" />
+          <span className="hidden sm:inline">Scan paper sheet</span>
+          <span className="sm:hidden">Paper sheet</span>
         </Button>
       </div>
 
@@ -783,7 +773,9 @@ export function SignupsClient({ projectId }: Props): React.JSX.Element {
         <CardHeader>
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
             <div>
-              <CardTitle>Manage Volunteer Signups</CardTitle>
+              <CardTitle role="heading" aria-level={1}>
+                Manage Volunteer Signups
+              </CardTitle>
               <CardDescription>
                 Review and manage volunteer signups.
               </CardDescription>
@@ -1066,9 +1058,7 @@ export function SignupsClient({ projectId }: Props): React.JSX.Element {
                               <Button
                                 variant="destructive"
                                 size="sm"
-                                onClick={() =>
-                                  updateSignupStatus(signup.id, "rejected")
-                                }
+                                onClick={() => handleReject(signup.id)}
                                 disabled={processingSignups[signup.id]}
                               >
                                 {processingSignups[signup.id] ? (

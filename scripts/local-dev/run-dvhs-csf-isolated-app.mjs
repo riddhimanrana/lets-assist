@@ -83,8 +83,11 @@ export const DISABLED_WORKER_ENV_KEYS = [
   "PROJECT_CANCELLATION_WORKER_ENABLED",
   "ORG_CALENDAR_SYNC_WORKER_ENABLED",
   "ORG_SHEET_SYNC_WORKER_ENABLED",
+  "CSF_SHEET_WRITEBACK_ENABLED",
   "CSF_COMMUNICATIONS_WORKER_ENABLED",
   "CSF_SCHEDULED_POST_PUBLISHER_ENABLED",
+  "PROJECT_FEEDBACK_WORKER_ENABLED",
+  "PAPER_SIGNUP_NOTIFICATION_WORKER_ENABLED",
 ];
 
 /**
@@ -105,6 +108,7 @@ export const DISABLED_PROVIDER_ENV_KEYS = [
   "GOOGLE_CLIENT_SECRET",
   "GOOGLE_REDIRECT_URI",
   "GOOGLE_OAUTH_STATE_SECRET",
+  "GOOGLE_CAP_ENVIRONMENT",
   "GOOGLE_CAP_CLIENT_IDS",
   "NEXT_PUBLIC_GOOGLE_MAPS_API_KEY",
   "NEXT_PUBLIC_GOOGLE_PICKER_API_KEY",
@@ -287,6 +291,14 @@ export function buildIsolatedChildEnvironment(options) {
     mode === "cron-probe"
       ? ".next-csf-isolated/cron-probe"
       : ".next-csf-isolated/browser-app";
+  if (hostEnv.CSF_BROWSER_SKIP_BUILD_TYPECHECK === "1") {
+    if (mode !== "isolated-app" || serverMode !== "production") {
+      throw new Error(
+        "CSF_BROWSER_SKIP_BUILD_TYPECHECK requires the isolated production browser app.",
+      );
+    }
+    childEnv.CSF_BROWSER_SKIP_BUILD_TYPECHECK = "1";
+  }
   childEnv.CSF_LOCAL_FIXTURE_MODE = "1";
   childEnv.PORT = String(port);
   childEnv.EMAIL_TRANSPORT = "mailpit";

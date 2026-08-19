@@ -23,11 +23,7 @@ import {
   getProjectWaiver,
 } from "./access";
 import { logSignupDebug } from "./shared";
-import {
-  cloneAnonymousWaiverSignatureToSignup,
-  getCurrentSignups,
-  persistWaiverSignature,
-} from "./waiver-assets";
+import { getCurrentSignups } from "./waiver-persistence";
 import { registerAnonymousSignup } from "./signup-anonymous";
 import { registerAuthenticatedSignup } from "./signup-registered";
 
@@ -92,7 +88,13 @@ export async function signUpForProject(
   "use server";
   const supabase = await createClient();
   const serviceSupabase = getAdminClient();
-  const isAnonymous = !!anonymousData;
+  // The actor is whatever the verified session says it is. A guest payload is
+  // only ever honored when there is no session at all, so a signed-in caller
+  // cannot supply an arbitrary guest email to slip past the waiver, domain, or
+  // confirmation gates and still be persisted as themselves.
+  const { user } = await getAuthUser();
+  const hasGuestPayload = !!anonymousData;
+  const isAnonymous = !user && hasGuestPayload;
   const requestedSkipAnonymousConfirmationEmail =
     !!anonymousData?.skipConfirmationEmail;
   const selectedSlotCount = Math.max(
@@ -101,11 +103,18 @@ export async function signUpForProject(
   );
   let createdSignupId: string | undefined = undefined; // Track the created signup ID
   let createdAnonymousSignupId: string | null = null;
-  let createdNewAnonymousProfile = false;
-  let shouldReuseExistingAnonymousWaiver = false;
   let anonymousProfileAlreadyConfirmed = false;
   let anonymousContinuationToken: string | undefined;
   const traceId = crypto.randomUUID();
+
+  if (user && hasGuestPayload) {
+    logSignupDebug(traceId, "blocked_conflicting_identity");
+    return {
+      error:
+        "You are signed in, so this signup cannot be submitted as a guest. Please reload the page and try again.",
+      traceId,
+    };
+  }
 
   try {
     logSignupDebug(traceId, "start", {
@@ -292,9 +301,6 @@ export async function signUpForProject(
       const allowedDomains = project.organization
         .allowed_email_domains as string[];
       let hasValidEmail = false;
-      const userEmailToCheck = isAnonymous
-        ? anonymousData?.email
-        : (await getAuthUser()).user?.email;
 
       // Helper to check domain
       const checkDomain = (email: string) => {
@@ -302,35 +308,29 @@ export async function signUpForProject(
         return domain && allowedDomains.includes(domain);
       };
 
-      if (isAnonymous) {
-        if (userEmailToCheck && checkDomain(userEmailToCheck)) {
+      if (user) {
+        // A session actor is only ever measured against verified identity:
+        // the session email, then its verified secondary addresses.
+        if (user.email && checkDomain(user.email)) {
           hasValidEmail = true;
-        }
-      } else {
-        // Logged in user - get user via getClaims() for better performance
-        const { user } = await getAuthUser();
-        if (user) {
-          // 1. Check primary email
-          if (user.email && checkDomain(user.email)) {
-            hasValidEmail = true;
-          } else {
-            // 2. Check secondary verified emails
-            const { data: secondaryEmails } = await supabase
-              .from("user_emails")
-              .select("email")
-              .eq("user_id", user.id)
-              .not("verified_at", "is", null);
+        } else {
+          const { data: secondaryEmails } = await supabase
+            .from("user_emails")
+            .select("email")
+            .eq("user_id", user.id)
+            .not("verified_at", "is", null);
 
-            if (secondaryEmails) {
-              for (const record of secondaryEmails) {
-                if (checkDomain(record.email)) {
-                  hasValidEmail = true;
-                  break;
-                }
+          if (secondaryEmails) {
+            for (const record of secondaryEmails) {
+              if (checkDomain(record.email)) {
+                hasValidEmail = true;
+                break;
               }
             }
           }
         }
+      } else if (isAnonymous && anonymousData?.email) {
+        hasValidEmail = checkDomain(anonymousData.email) === true;
       }
 
       if (!hasValidEmail) {
@@ -384,9 +384,6 @@ export async function signUpForProject(
       return { error: "This slot is full" };
     }
 
-    // Handle user authentication using getClaims() for better performance
-    const { user } = await getAuthUser();
-
     // If project requires login but user isn't logged in
     if (project.require_login && !user) {
       logSignupDebug(traceId, "blocked_login_required");
@@ -408,6 +405,7 @@ export async function signUpForProject(
         projectId,
         scheduleId,
         volunteerComment: volunteerCommentToSave,
+        waiverSignature,
         formData,
         traceId,
       });
@@ -435,101 +433,12 @@ export async function signUpForProject(
       }
       createdSignupId = anonymousResult.createdSignupId;
       createdAnonymousSignupId = anonymousResult.createdAnonymousSignupId;
-      createdNewAnonymousProfile = anonymousResult.createdNewAnonymousProfile;
-      shouldReuseExistingAnonymousWaiver =
-        anonymousResult.shouldReuseExistingAnonymousWaiver;
       anonymousProfileAlreadyConfirmed =
         anonymousResult.anonymousProfileAlreadyConfirmed;
     } else {
       return {
         error: "Cannot sign up without user login or anonymous details.",
       };
-    }
-    if ((project.waiver_required || waiverSignature) && createdSignupId) {
-      logSignupDebug(traceId, "waiver_persist_start", {
-        waiverRequired: project.waiver_required,
-        hasWaiverSignature: Boolean(waiverSignature),
-        shouldReuseExistingAnonymousWaiver,
-      });
-
-      if (waiverSignature) {
-        const userMetadata = user?.user_metadata as
-          { full_name?: string } | undefined;
-        const signerName =
-          (waiverSignature.signerName || "").trim() ||
-          (anonymousData?.name || "").trim() ||
-          userMetadata?.full_name ||
-          "Volunteer";
-        const signerEmail =
-          (user?.email || "").trim() ||
-          (waiverSignature.signerEmail || "").trim() ||
-          (anonymousData?.email || "").trim();
-
-        if (!signerEmail) {
-          return { error: "Signer email is required for the waiver." };
-        }
-
-        const persistResult = await persistWaiverSignature({
-          projectId: project.id,
-          signupId: createdSignupId,
-          userId: user?.id ?? null,
-          anonymousId: createdAnonymousSignupId ?? null,
-          signerName,
-          signerEmail,
-          waiverSignature,
-        });
-
-        if (persistResult?.error) {
-          logSignupDebug(traceId, "waiver_persist_failed", {
-            error: persistResult.error,
-          });
-          await serviceSupabase
-            .from("project_signups")
-            .delete()
-            .eq("id", createdSignupId);
-          if (createdAnonymousSignupId && createdNewAnonymousProfile) {
-            await serviceSupabase
-              .from("anonymous_signups")
-              .delete()
-              .eq("id", createdAnonymousSignupId);
-          }
-
-          return { error: persistResult.error };
-        }
-      } else if (
-        project.waiver_required &&
-        shouldReuseExistingAnonymousWaiver &&
-        createdAnonymousSignupId
-      ) {
-        const cloneResult = await cloneAnonymousWaiverSignatureToSignup({
-          projectId: project.id,
-          anonymousId: createdAnonymousSignupId,
-          signupId: createdSignupId,
-        });
-
-        if (cloneResult?.error) {
-          logSignupDebug(traceId, "waiver_clone_failed", {
-            error: cloneResult.error,
-          });
-          await serviceSupabase
-            .from("project_signups")
-            .delete()
-            .eq("id", createdSignupId);
-          if (createdAnonymousSignupId && createdNewAnonymousProfile) {
-            await serviceSupabase
-              .from("anonymous_signups")
-              .delete()
-              .eq("id", createdAnonymousSignupId);
-          }
-
-          return { error: cloneResult.error };
-        }
-      } else if (project.waiver_required) {
-        logSignupDebug(traceId, "blocked_missing_waiver_signature");
-        return {
-          error: "Waiver signature is required before completing signup.",
-        };
-      }
     }
 
     // --- Trigger Plugin onSignup Hooks ---
@@ -545,6 +454,7 @@ export async function signUpForProject(
           .select("role")
           .eq("organization_id", project.organization_id)
           .eq("user_id", user?.id || "00000000-0000-0000-0000-000000000000") // Fallback for anon
+          .eq("status", "active")
           .maybeSingle();
 
         const viewerRole =
@@ -552,6 +462,7 @@ export async function signUpForProject(
         const installedPlugins = await resolveOrganizationPlugins({
           organizationId: project.organization_id,
           userRole: viewerRole,
+          ...(user ? { viewerUserId: user.id } : {}),
         });
 
         const registry = getPluginRegistry();

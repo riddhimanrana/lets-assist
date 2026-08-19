@@ -146,4 +146,83 @@ describe("plugin control-plane action wiring", () => {
     };
     expect(packageJson.dependencies?.["server-only"]).toBe("0.0.1");
   });
+
+  test("uninstallOrganizationPlugin returns an explicit changed discriminator — not derived from message content", () => {
+    const source = exportedFunctionSource(
+      organizationActions,
+      "uninstallOrganizationPlugin",
+    );
+    // Both the no-op and real-removal paths must carry an explicit changed field.
+    expect(source).toContain("changed: false,");
+    expect(source).toContain("changed: true,");
+    // The return type signature must include changed.
+    expect(source).toContain("changed?: boolean");
+  });
+
+  test("OrganizationPluginSettings uses response.changed to select the toast title, not message parsing", () => {
+    // Real removal → "X uninstalled"; idempotent no-op → "X was already uninstalled".
+    expect(organizationPluginSettings).toContain("response.changed === false");
+    expect(organizationPluginSettings).toContain("was already uninstalled");
+    // Must NOT rely on inspecting the message string to decide the title.
+    expect(organizationPluginSettings).not.toMatch(
+      /response\.message.*uninstall/i,
+    );
+  });
+
+  test("uninstall dialog copy does not claim all workflows stop", () => {
+    expect(organizationPluginSettings).not.toMatch(
+      /all plugin workflows will stop/i,
+    );
+    expect(organizationPluginSettings).not.toMatch(/stops its workflows/i);
+    expect(organizationPluginSettings).toContain(
+      "already-queued work may still complete",
+    );
+  });
+
+  test("plugin-uninstall-impact summary never says all workflows stop", () => {
+    const impactSource = read("lib/plugins/plugin-uninstall-impact.ts");
+    expect(impactSource).not.toContain("stops its workflows");
+    expect(impactSource).not.toContain("All plugin workflows will stop");
+    expect(impactSource).toContain("disables plugin surfaces");
+    expect(impactSource).toContain("already-queued work may still complete");
+  });
+
+  test("erasure copy in plugin-uninstall-impact does not imply a support-triggered request channel when unavailable", () => {
+    const impactSource = read("lib/plugins/plugin-uninstall-impact.ts");
+    expect(impactSource).not.toContain("authorized request");
+    expect(impactSource).toContain(
+      "does not currently support an automated, self-service, or support-triggered path",
+    );
+  });
+
+  test("plugin-uninstall-impact never claims uninstall's own hook is unconstrained by the platform", () => {
+    // Ordinary uninstall no longer runs any plugin code at all, so this copy
+    // must not resurrect the old "hook runs before removal, unconstrained by
+    // the platform" framing that justified treating retention as unprovable.
+    const impactSource = read("lib/plugins/plugin-uninstall-impact.ts");
+    expect(impactSource).not.toContain("not constrained by the platform");
+    expect(impactSource).toContain("does not run any of");
+  });
+
+  test("ordinary uninstall never invokes runPluginUninstall or any plugin lifecycle hook", () => {
+    const transitionCore = read("lib/plugins/control-plane-transition-core.ts");
+    expect(transitionCore).not.toContain("runPluginUninstall(");
+    expect(transitionCore).not.toMatch(
+      /runLifecycleSequence\(\s*\[\s*\{\s*hook:\s*["']uninstall["']/,
+    );
+    // The transition adapter and ordinary organization actions must not call
+    // the data-deletion hook either — only the dedicated, authorized
+    // permanent-deletion service may.
+    expect(transitionAdapter).not.toContain("runPluginDataDelete(");
+    expect(organizationActions).not.toContain("runPluginDataDelete(");
+  });
+
+  test("runPluginDataDelete has exactly one authorized caller: the permanent plugin-data deletion service", () => {
+    const lifecycleSource = read("lib/plugins/lifecycle.ts");
+    expect(lifecycleSource).toContain(
+      "export async function runPluginDataDelete(",
+    );
+    const deletionService = read("lib/plugins/plugin-data-deletion.ts");
+    expect(deletionService).toContain("runPluginDataDelete(");
+  });
 });

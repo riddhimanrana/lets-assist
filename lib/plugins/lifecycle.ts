@@ -134,7 +134,15 @@ export async function runPluginInstall(
 }
 
 /**
- * Run the uninstall lifecycle for a plugin
+ * Run the uninstall lifecycle for a plugin.
+ *
+ * Not called by the organization-initiated uninstall transition (see
+ * `applyPluginControlPlaneTransition`'s `"uninstall"` branch in
+ * `control-plane-transition-core.ts`) — that transition only removes the
+ * install row, running no plugin code, so retention is certifiable. This
+ * function is retained solely for `control-plane-transition.ts`'s
+ * `runLifecycle("uninstall")` compensation path, which rolls back a
+ * plugin's `onInstall` side effects when persistence fails after install.
  */
 export async function runPluginUninstall(
   plugin: OrganizationPluginDefinition,
@@ -212,10 +220,31 @@ export async function runPluginDataDelete(
   plugin: OrganizationPluginDefinition,
   context: Omit<OrganizationPluginLifecycleContext, "pluginKey">,
 ): Promise<{ success: boolean; error?: string }> {
-  return executeLifecycleHook(plugin, "onDataDelete", {
+  const hook = plugin.lifecycle?.onDataDelete;
+  if (!hook) {
+    return {
+      success: false,
+      error: "Plugin data deletion hook is unavailable.",
+    };
+  }
+
+  const lifecycleContext = {
     ...context,
     pluginKey: plugin.manifest.key,
-  });
+  };
+  try {
+    await hook(lifecycleContext);
+    return { success: true };
+  } catch {
+    // Deletion hooks may cross provider boundaries. The orchestrator owns
+    // receipt finalization and writes one redacted audit event afterward;
+    // do not emit generic execution metrics/audit before finalization or
+    // persist a raw provider error.
+    return {
+      success: false,
+      error: "Plugin data deletion hook reported a failure.",
+    };
+  }
 }
 /**
  * Run the project create lifecycle for a plugin.
@@ -270,34 +299,4 @@ export async function runPluginOnSignup(
     ...context,
     pluginKey: plugin.manifest.key,
   });
-}
-
-/**
- * Validate that a plugin can be safely uninstalled
- * Checks if there's any data that would be orphaned
- */
-export async function validatePluginUninstall(
-  plugin: OrganizationPluginDefinition,
-  _context: Omit<OrganizationPluginLifecycleContext, "pluginKey">,
-): Promise<{ canUninstall: boolean; warnings: string[] }> {
-  const warnings: string[] = [];
-
-  // If the plugin has custom cleanup, it should handle its own data
-  if (plugin.lifecycle?.onUninstall) {
-    warnings.push(
-      "This plugin has custom data that will be cleaned up during uninstall.",
-    );
-  }
-
-  // Check manifest for any data dependencies
-  if (plugin.manifest.dataScope && plugin.manifest.dataScope.length > 0) {
-    warnings.push(
-      `This plugin manages data in: ${plugin.manifest.dataScope.join(", ")}. This data may be deleted.`,
-    );
-  }
-
-  return {
-    canUninstall: true, // Currently always allow, but warnings inform the user
-    warnings,
-  };
 }

@@ -1,3 +1,5 @@
+import { randomUUID } from "node:crypto";
+
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 
 import { getCsfIsolatedSupabaseEnv } from "../../../scripts/local-dev/dv-local-env.mjs";
@@ -13,6 +15,7 @@ import { getCsfIsolatedSupabaseEnv } from "../../../scripts/local-dev/dv-local-e
 export type CsfFeedFixture = {
   admin: SupabaseClient;
   organizationId: string;
+  organizationAdminUserId: string;
   /** graduation year -> cohort id for the three seeded classes. */
   cohortIdsByYear: Record<number, string>;
 };
@@ -34,6 +37,22 @@ export async function loadCsfFeedFixture(): Promise<CsfFeedFixture> {
     );
   }
 
+  const { data: organizationAdmin, error: organizationAdminError } = await admin
+    .from("organization_members")
+    .select("user_id")
+    .eq("organization_id", organization.id)
+    .eq("role", "admin")
+    .eq("status", "active")
+    .order("joined_at", { ascending: true })
+    .order("user_id", { ascending: true })
+    .limit(1)
+    .single();
+  if (organizationAdminError || !organizationAdmin) {
+    throw new Error(
+      `Could not load the local DVHS CSF organization admin: ${organizationAdminError?.message ?? "missing fixture"}`,
+    );
+  }
+
   const { data: cohorts, error: cohortsError } = await admin
     .schema("plugin_data")
     .from("csf_cohorts")
@@ -50,7 +69,12 @@ export async function loadCsfFeedFixture(): Promise<CsfFeedFixture> {
     cohortIdsByYear[Number(cohort.graduation_year)] = String(cohort.id);
   }
 
-  return { admin, organizationId: organization.id, cohortIdsByYear };
+  return {
+    admin,
+    organizationId: organization.id,
+    organizationAdminUserId: organizationAdmin.user_id,
+    cohortIdsByYear,
+  };
 }
 
 export type SeededFeedPost = {
@@ -61,6 +85,11 @@ export type SeededFeedPost = {
   pinned?: boolean;
   /** ISO timestamp; defaults to now. */
   publishedAt?: string;
+};
+
+export type GuardedFeedPostCleanup = {
+  id: string;
+  emailCampaignId: string | null;
 };
 
 export async function seedFeedPosts(
@@ -150,20 +179,91 @@ export async function cleanFeedActivities(
 }
 
 /**
- * Delete every announcement whose title carries the spec's prefix. Safe for
- * repeated runs and crashed prior runs; the deterministic seed announcements
- * never use these prefixes.
+ * Delete every announcement whose title carries the spec's prefix. Follow-up
+ * rows are retired first through the same audited RPC as the product; parent
+ * deletion is intentionally RESTRICTed from cascading around that boundary.
+ * Safe for repeated or crashed runs; deterministic seed announcements never
+ * use these prefixes.
  */
 export async function cleanFeedPosts(
   fixture: CsfFeedFixture,
   titlePrefix: string,
+  options?: { expectedPosts?: GuardedFeedPostCleanup[] },
 ) {
-  const { error } = await fixture.admin
+  const expectedPosts = options?.expectedPosts;
+  if (expectedPosts?.length === 0) return;
+  const postsQuery = fixture.admin
+    .schema("plugin_data")
+    .from("csf_announcements")
+    .select("id, email_campaign_id")
+    .eq("organization_id", fixture.organizationId);
+  const { data: posts, error: postsError } = expectedPosts
+    ? await postsQuery.in(
+        "id",
+        expectedPosts.map((post) => post.id),
+      )
+    : await postsQuery.like("title", `${titlePrefix}%`);
+  if (postsError) {
+    throw new Error(`Could not find fixture feed posts: ${postsError.message}`);
+  }
+
+  const postIds = (posts ?? []).map((post) => post.id);
+  if (expectedPosts) {
+    const currentCampaigns = new Map(
+      (posts ?? []).map((post) => [post.id, post.email_campaign_id]),
+    );
+    const changed = expectedPosts.some(
+      (post) =>
+        currentCampaigns.get(post.id) === undefined ||
+        currentCampaigns.get(post.id) !== post.emailCampaignId,
+    );
+    if (posts?.length !== expectedPosts.length || changed) {
+      throw new Error(
+        "Synthetic announcement campaign links changed before guarded cleanup.",
+      );
+    }
+  }
+  if (postIds.length > 0) {
+    const { data: replies, error: repliesError } = await fixture.admin
+      .schema("plugin_data")
+      .from("csf_announcement_replies")
+      .select("id")
+      .eq("organization_id", fixture.organizationId)
+      .in("announcement_id", postIds);
+    if (repliesError) {
+      throw new Error(
+        `Could not find fixture feed replies: ${repliesError.message}`,
+      );
+    }
+
+    for (const reply of replies ?? []) {
+      const { error: replyError } = await fixture.admin
+        .schema("plugin_data")
+        .rpc("csf_mutate_post_reply", {
+          p_organization_id: fixture.organizationId,
+          p_operation: "delete",
+          p_post_id: null,
+          p_reply_id: reply.id,
+          p_body: null,
+          p_actor_user_id: fixture.organizationAdminUserId,
+          p_request_id: randomUUID(),
+        });
+      if (replyError) {
+        throw new Error(
+          `Could not clean fixture feed reply: ${replyError.message}`,
+        );
+      }
+    }
+  }
+
+  const deleteQuery = fixture.admin
     .schema("plugin_data")
     .from("csf_announcements")
     .delete()
-    .eq("organization_id", fixture.organizationId)
-    .like("title", `${titlePrefix}%`);
+    .eq("organization_id", fixture.organizationId);
+  const { error } = expectedPosts
+    ? await deleteQuery.in("id", postIds)
+    : await deleteQuery.like("title", `${titlePrefix}%`);
   if (error) {
     throw new Error(`Could not clean fixture feed posts: ${error.message}`);
   }

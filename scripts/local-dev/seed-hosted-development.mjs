@@ -62,10 +62,22 @@ function resolveBranch() {
   const branchId = required("SUPABASE_BRANCH_ID");
   if (!UUID_PATTERN.test(branchId)) fail("SUPABASE_BRANCH_ID is malformed.");
 
+  // An unlinked worktree gives the CLI no project ref to infer, so the branch
+  // lookup names its parent project explicitly. The parent may legitimately be
+  // the Supabase parent project; only the seed target ref above is refused.
+  const parentProjectRef = required(
+    "SUPABASE_PARENT_PROJECT_REF",
+  ).toLowerCase();
+  if (!/^[a-z0-9]{20}$/u.test(parentProjectRef)) {
+    fail("SUPABASE_PARENT_PROJECT_REF is malformed.");
+  }
+
   const raw = run("supabase", [
     "branches",
     "get",
     branchId,
+    "--project-ref",
+    parentProjectRef,
     "--experimental",
     "--output",
     "json",
@@ -80,6 +92,19 @@ function resolveBranch() {
   }
   if (!branch.POSTGRES_URL_NON_POOLING || !branch.SUPABASE_SERVICE_ROLE_KEY) {
     fail("Supabase branch credentials are incomplete.");
+  }
+
+  let databaseUrl;
+  try {
+    databaseUrl = new URL(branch.POSTGRES_URL_NON_POOLING);
+  } catch {
+    fail("Supabase branch database URL is malformed.");
+  }
+  if (
+    databaseUrl.protocol !== "postgresql:" ||
+    databaseUrl.hostname !== `db.${projectRef}.supabase.co`
+  ) {
+    fail("Supabase branch database URL belongs to a different project ref.");
   }
 
   return {
@@ -118,6 +143,11 @@ function psql(databaseUrl, args, options = {}) {
 }
 
 async function main() {
+  fail(
+    "Hosted Development fixture seeding is disabled. Use isolated local/CI fixtures; inspect hosted rows with a read-only cleanup preview before any reviewed cleanup.",
+  );
+
+  /* c8 ignore start -- retained only as inert historical implementation notes */
   required("CSF_LOCAL_TEST_PASSWORD");
   const branch = resolveBranch();
   let seamInstalled = false;
@@ -142,6 +172,7 @@ async function main() {
       psql(branch.databaseUrl, [], { input: cleanupSql });
     }
   }
+  /* c8 ignore stop */
 }
 
 main().catch((error) => {

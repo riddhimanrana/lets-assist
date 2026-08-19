@@ -84,8 +84,21 @@ export async function updateCalendarEventForProject(projectId: string) {
  *   await removeCalendarEventForProject(projectId);
  * }
  */
-export async function removeCalendarEventForProject(projectId: string) {
+export async function removeCalendarEventForProject(
+  projectId: string,
+  deletionSnapshot?: { userId: string; calendarEventId: string },
+) {
   try {
+    if (deletionSnapshot) {
+      const deleted = await deleteGoogleCalendarEvent(
+        deletionSnapshot.userId,
+        deletionSnapshot.calendarEventId,
+      );
+      return deleted
+        ? { success: true, message: "Calendar event removed successfully" }
+        : { success: false, error: "Failed to remove calendar event" };
+    }
+
     const supabase = await createClient();
 
     // Get current user

@@ -2,7 +2,9 @@ import { describe, expect, test } from "bun:test";
 
 import {
   applyPluginControlPlaneTransition,
+  pluginControlPlaneAuditDetails,
   PluginControlPlaneConcurrencyError,
+  type PluginControlPlaneAuditAction,
   type PluginControlPlaneCallbacks,
   type PluginInstallSnapshot,
   type PluginLifecycleInvocation,
@@ -142,26 +144,21 @@ describe("plugin control-plane lifecycle ordering", () => {
     expect(harness.events).toEqual(["lifecycle:install", "persist:update"]);
   });
 
-  test("disable and uninstall hooks veto state changes", async () => {
-    for (const transition of [
-      { kind: "disable" },
-      { kind: "uninstall" },
-    ] as const) {
-      const harness = callbacks({
-        failLifecycle: (invocation) => invocation.hook === transition.kind,
-      });
-      const result = await applyPluginControlPlaneTransition({
-        current: currentInstall,
-        transition,
-        callbacks: harness.implementation,
-      });
+  test("disable hooks veto state changes", async () => {
+    const harness = callbacks({
+      failLifecycle: (invocation) => invocation.hook === "disable",
+    });
+    const result = await applyPluginControlPlaneTransition({
+      current: currentInstall,
+      transition: { kind: "disable" },
+      callbacks: harness.implementation,
+    });
 
-      expect(result.success).toBe(false);
-      expect(harness.events).toEqual([`lifecycle:${transition.kind}`]);
-    }
+    expect(result.success).toBe(false);
+    expect(harness.events).toEqual(["lifecycle:disable"]);
   });
 
-  test("disable and uninstall persist only after their hooks succeed", async () => {
+  test("disable persists only after its hook succeeds", async () => {
     const disableHarness = callbacks();
     const disabled = await applyPluginControlPlaneTransition({
       current: currentInstall,
@@ -173,18 +170,20 @@ describe("plugin control-plane lifecycle ordering", () => {
       "lifecycle:disable",
       "persist:update",
     ]);
+  });
 
-    const uninstallHarness = callbacks();
+  test("ordinary uninstall never invokes plugin lifecycle code", async () => {
+    const uninstallHarness = callbacks({
+      failLifecycle: (invocation) => invocation.hook === "uninstall",
+    });
     const uninstalled = await applyPluginControlPlaneTransition({
       current: currentInstall,
       transition: { kind: "uninstall" },
       callbacks: uninstallHarness.implementation,
     });
     expect(uninstalled.success).toBe(true);
-    expect(uninstallHarness.events).toEqual([
-      "lifecycle:uninstall",
-      "persist:remove",
-    ]);
+    expect(uninstalled.actions).toEqual(["install.removed"]);
+    expect(uninstallHarness.events).toEqual(["persist:remove"]);
   });
 
   test("config persistence failure invokes the inverse config hook", async () => {
@@ -305,5 +304,114 @@ describe("plugin control-plane lifecycle ordering", () => {
       "persist:update",
       "lifecycle:disable",
     ]);
+  });
+
+  test("a repeat uninstall with no current install is an idempotent no-op, not an error", async () => {
+    const harness = callbacks();
+    const result = await applyPluginControlPlaneTransition({
+      current: null,
+      transition: { kind: "uninstall" },
+      callbacks: harness.implementation,
+    });
+
+    expect(result).toEqual({ success: true, changed: false, actions: [] });
+    // No hook reran and no persistence call was issued: nothing was there
+    // to compensate, so nothing should have executed.
+    expect(harness.events).toEqual([]);
+  });
+
+  test("disable with no current install is still refused, unlike uninstall", async () => {
+    const harness = callbacks();
+    const result = await applyPluginControlPlaneTransition({
+      current: null,
+      transition: { kind: "disable" },
+      callbacks: harness.implementation,
+    });
+
+    expect(result).toEqual({
+      success: false,
+      changed: false,
+      actions: [],
+      error: "Plugin is not installed for this organization.",
+    });
+    expect(harness.events).toEqual([]);
+  });
+
+  test("config_update with no current install is still refused, unlike uninstall", async () => {
+    const harness = callbacks();
+    const result = await applyPluginControlPlaneTransition({
+      current: null,
+      transition: { kind: "config_update", configuration: { mode: "new" } },
+      callbacks: harness.implementation,
+    });
+
+    expect(result).toEqual({
+      success: false,
+      changed: false,
+      actions: [],
+      error: "Plugin is not installed for this organization.",
+    });
+    expect(harness.events).toEqual([]);
+  });
+
+  test("version_update with no current install is still refused, unlike uninstall", async () => {
+    const harness = callbacks();
+    const result = await applyPluginControlPlaneTransition({
+      current: null,
+      transition: { kind: "version_update", targetVersion: "2.0.0" },
+      callbacks: harness.implementation,
+    });
+
+    expect(result).toEqual({
+      success: false,
+      changed: false,
+      actions: [],
+      error: "Plugin is not installed for this organization.",
+    });
+    expect(harness.events).toEqual([]);
+  });
+});
+
+describe("plugin control-plane audit details", () => {
+  test("install.removed records the platform-controlled no-hook data-retention invariant", () => {
+    const actions: PluginControlPlaneAuditAction[] = [
+      "install.created",
+      "install.enabled",
+      "install.disabled",
+      "install.updated",
+      "install.config_changed",
+      "install.version_updated",
+      "install.removed",
+    ];
+
+    for (const action of actions) {
+      const details = pluginControlPlaneAuditDetails(action);
+      if (action === "install.removed") {
+        expect(details).toEqual({
+          platformInstallRowRemoved: true,
+          pluginDataDeletionNotRequested: true,
+          pluginDataRetained: true,
+          configurationRemoved: false,
+        });
+      } else {
+        expect(details).toEqual({});
+      }
+    }
+  });
+
+  test("install.removed records whether a non-empty configuration existed, never its content", () => {
+    const withConfig = pluginControlPlaneAuditDetails("install.removed", {
+      configuration: { apiKey: "secret-value", mode: "strict" },
+    });
+    expect(withConfig.configurationRemoved).toBe(true);
+    expect(JSON.stringify(withConfig)).not.toContain("secret-value");
+
+    const emptyConfig = pluginControlPlaneAuditDetails("install.removed", {
+      configuration: {},
+    });
+    expect(emptyConfig.configurationRemoved).toBe(false);
+
+    const noConfig = pluginControlPlaneAuditDetails("install.removed", {});
+    expect(noConfig.configurationRemoved).toBe(false);
   });
 });

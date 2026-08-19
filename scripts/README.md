@@ -4,6 +4,16 @@ Safe, automated schema deployment for Supabase with built-in validation.
 
 ## Available Commands
 
+### `bun run audit:inventory`
+
+Generates a local, static inventory of externally reachable and privileged repository surfaces under ignored `.artifacts/audit/surface-inventory/`.
+
+The JSON and Markdown outputs record the exact root/private commits and enumerate route handlers, Server Actions, RPC call sites, SQL functions and `SECURITY DEFINER` definitions, RLS policies, storage buckets, cron/webhook/OAuth/upload/file-processing boundaries, and service-role references. The output contains source identities and paths only; it does not retain credentials, provider payloads, browser state, or application data.
+
+This is discovery evidence, not runtime proof. Effective grants, deployed reachability, and hosted behavior still require the database architecture gate and explicit Development verification.
+
+---
+
 ### `bun run db:validate`
 
 **Comprehensive local validation before pushing to production.**

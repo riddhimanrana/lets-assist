@@ -25,9 +25,10 @@ SELECT extensions.ok(
 -- 20260730001004 revoked direct service access to the strict importer as well:
 -- reaching it requires the fenced wrapper
 -- plugin_data.csf_commit_import_row_for_attempt, which derives every authoritative
--- argument from the immutable preview row. The strict-validation behavior
--- assertions below still call it directly because pgTAP runs as the migration
--- owner. The unsafe legacy importer stays revoked for everyone, as asserted next.
+-- argument from the immutable preview row. The strict-validation fixture below
+-- deliberately calls the owner-internal delegate so it can test malformed point
+-- handling without inventing browser membership. The unsafe legacy importer stays
+-- revoked for everyone, as asserted next.
 SELECT extensions.ok(
   NOT has_function_privilege(
     'service_role',
@@ -59,7 +60,7 @@ CREATE FUNCTION pg_temp.call_class_history_import(p_activities jsonb)
 RETURNS jsonb
 LANGUAGE sql
 AS $$
-  SELECT plugin_data.csf_import_class_history_row_v2(
+  SELECT plugin_data.csf_import_class_history_row_v2_identity_base(
     '00000000-0000-4000-8000-000000000001',
     NULL,
     'Strict',

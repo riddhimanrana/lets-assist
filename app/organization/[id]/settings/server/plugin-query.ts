@@ -6,6 +6,8 @@ import { createClient } from "@/lib/supabase/server";
 import { getAuthUser } from "@/lib/supabase/auth-helpers";
 import { listRegisteredPlugins } from "@/lib/plugins/registry";
 import { buildOrganizationPluginAdminSettings } from "@/lib/plugins/organization-plugin-settings";
+import { extractDataAccessPurposes } from "@/lib/plugins/plugin-uninstall-impact";
+import { getPluginDataDeletionReadiness } from "@/lib/plugins/plugin-data-deletion-readiness";
 import {
   isMissingPluginTableError,
   isOrganizationAdminForSettings,
@@ -119,10 +121,14 @@ export async function getOrganizationPluginSettings(
         ) ??
         plugin.manifest.dataScope ??
         [],
+      dataAccessPurposes: extractDataAccessPurposes(plugin.manifest.dataAccess),
       routes: plugin.manifest.routes ?? [],
       backendCapabilities: plugin.manifest.backendCapabilities ?? [],
       configSchema: plugin.manifest.configSchema ?? null,
       requiredScopes: plugin.manifest.requiredScopes ?? [],
+      dataDeletionAvailable: getPluginDataDeletionReadiness(plugin).ready,
+      dataDeletionExternalSystemsNotCovered:
+        plugin.manifest.dataDeletion?.externalSystemsNotCovered ?? [],
     }));
 
     const plugins = buildOrganizationPluginAdminSettings({
@@ -168,10 +174,14 @@ export async function getOrganizationPluginSettings(
       ) ??
       plugin.manifest.dataScope ??
       [],
+    dataAccessPurposes: extractDataAccessPurposes(plugin.manifest.dataAccess),
     routes: plugin.manifest.routes ?? [],
     backendCapabilities: plugin.manifest.backendCapabilities ?? [],
     configSchema: plugin.manifest.configSchema ?? null,
     requiredScopes: plugin.manifest.requiredScopes ?? [],
+    dataDeletionAvailable: getPluginDataDeletionReadiness(plugin).ready,
+    dataDeletionExternalSystemsNotCovered:
+      plugin.manifest.dataDeletion?.externalSystemsNotCovered ?? [],
   }));
 
   const accessRows = (accessResult.data ?? []) as PluginAccessRow[];

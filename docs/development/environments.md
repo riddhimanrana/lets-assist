@@ -29,6 +29,46 @@ Run `bun run dev`. The launcher owns a dedicated project name, ports, containers
 
 Hosted proof requires the actual `development` deployment, branch-scoped environment variables, a Development database/migration history, and authenticated browser acceptance. Local tests do not establish those facts.
 
+The deployment build runs `scripts/verify-deployment-environment.mjs`. Every
+non-Production Vercel environment must name the exact expected non-Production
+Supabase host or project ref; a missing value, an unexpected host, HTTP, or either
+known Production endpoint fails the build. The supported matrix is:
+
+| Vercel scope                 | Database                                                                  | Email/provider posture                                                                                                         |
+| ---------------------------- | ------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------ |
+| `development` branch Preview | Persistent Development Supabase only                                      | Mailpit by default; Resend only with an explicit transport override, `RESEND_DEV_FROM_DOMAIN`, and test/allowlisted recipients |
+| Other PR Preview             | Ephemeral branch with an exact expected ref, or no database/build failure | No provider access by default                                                                                                  |
+| Production                   | Production Supabase, bound to `main` only                                 | Production credentials; promotion is separately authorized                                                                     |
+
+Development Resend variables are deliberately additive rather than fallbacks:
+
+- `EMAIL_TRANSPORT=resend` opts a Development Preview into provider delivery.
+- `RESEND_DEV_FROM_DOMAIN` must exactly match the sender domain.
+- `RESEND_DEV_RECIPIENT_ALLOWLIST` is a comma-separated synthetic/authorized
+  allowlist; `@resend.dev` test addresses are always accepted.
+- `PROJECT_FEEDBACK_WORKER_ENABLED` and
+  `PAPER_SIGNUP_NOTIFICATION_WORKER_ENABLED` remain unset until their own
+  Development acceptance is complete.
+
+No Production credential is a valid generic Preview fallback.
+
+Seed only a confirmed non-Production Supabase branch with the supported synthetic
+fixture wrapper:
+
+```sh
+CSF_LOCAL_TEST_PASSWORD='<run-scoped synthetic password>' \
+EXPECTED_NON_PRODUCTION_SUPABASE_PROJECT_REF='<target branch project ref>' \
+SUPABASE_BRANCH_ID='<target branch UUID>' \
+SUPABASE_PARENT_PROJECT_REF='fotdmeakexgrkronxlof' \
+bun run csf:seed:hosted-development
+```
+
+`SUPABASE_PARENT_PROJECT_REF` names the Supabase parent solely for the read-only
+branch metadata lookup; it is expected to be `fotdmeakexgrkronxlof`. The wrapper
+still refuses that Production ref as the seed target, verifies both returned API
+and database hosts against the separate target branch ref, and removes its
+temporary fixture seam in `finally`.
+
 ## Production
 
 `main`, Production Supabase, Production Vercel aliases, live OAuth configuration, and live provider credentials are outside routine cleanup/refactor work.

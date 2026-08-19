@@ -1,11 +1,312 @@
 # DVHS CSF local browser acceptance and lifecycle-gap audit
 
-**Run:** `20260806-post-cleanup`<br>
-**Environment:** local Let’s Assist at `http://localhost:3001`, local Supabase only  
+**Run:** `20260812-current-development-state` (with the historical `20260811-hosted-development` amendment and `20260806-post-cleanup` gallery retained)<br>
+**Environment:** hosted Development plus the isolated CI replay; Production is a read-only release reference
 **Evidence policy:** synthetic browser data; real Google Drive and Gmail are read-only operational evidence and never appear in screenshots, fixtures, or committed row data  
-**Status:** the August 6 isolated replay, production build, root/private suites, plugin-isolation checks, 40-scenario CSF browser gate, 3-scenario DV gate, workflow/scale/cron gates, and sanitized gallery are the last consolidated pass. The August 9 v1.3 implementation is under combined verification; full visible mutation, live Google, hosted Development and communications-dispatch cadence, scheduled-post publication, accessibility, and Slides acceptance remain open.
+**Historical status snapshot:** This repository carried 292 ordered migrations through
+`20260815100500_dvhs_csf_application_queue_projection`, including project-signup
+rejection, active staff-invite issuer, content-report integrity, plugin ACL,
+atomic AI quota, CSF meeting-permission, Google CAP effect fencing, and the
+project-lifecycle transaction repair plus the CSF under-lock authorization and
+publication/term-close serialization repairs. Hosted Development Supabase
+remains at 273 through the atomic post-reply boundary; the nineteen
+repository-only migrations have not been applied or deployed there. The
+`dev.lets-assist.com` alias still serves the earlier Ready code at
+`cf330e5faa844d63a2f41c8f0be4d1c727d51a47`, whose repository tree ended at 272
+through `20260812132725`, because the external Vercel 100-deployment-per-day
+project cap prevented the refreshed deployment. The current exact local isolated
+union replay passed all 293 migrations and 143 pgTAP files with 5,794
+assertions and 84 CSF tables present; it is local evidence only, and hosted
+acceptance remains pending. Google
+OAuth and Picker are connected. On
+that earlier deployed code,
+the real Spring 2026 application Preview passed the metadata RPC and stored 85
+preview rows, then failed at the seal because the caller supplied a reserved
+derived summary key. Zero term applications were committed. Production remains
+at 236 ordered migrations through `20260811001500`, so 55 migrations are
+Production-pending; Production remains untouched.
 
-**Latest contract amendment:** August 9, 2026; the new focused implementation evidence below does not supersede the consolidated August 6 counts or upgrade any external/unexecuted scope
+**Historical contract amendment:** August 12, 2026; this snapshot
+separates the repository target, hosted Development ledger, and stale code
+served by the Development alias. Historical counts below remain evidence for
+their named runs only.
+
+## Current hosted Development state
+
+- The sole current CSF implementation/status register is
+  `docs/development/cleanup-register.md`; this document is a testing runbook and
+  retains older evidence below without promoting it to current status.
+- The repository candidate has 333 ordered migrations through
+  `20260819050728_complete_reviewed_internal_function_acls`. The thirty-seven migrations
+  added after the audited `development` baseline merge two prior lines: the
+  Development-hardening pair
+  (`20260816185321_enforce_authoritative_plugin_releases`,
+  `20260816190454_durable_paper_signup_notifications`) and the CSF
+  member-onboarding tail
+  (`20260816190000_remove_example_tier_test_plugins`,
+  `20260816230000_csf_preview_row_annotations`,
+  `20260816233000_csf_blank_row_convention`,
+  `20260817010000_csf_source_evidence_revision_deadlock`,
+  `20260817020000_csf_class_term_member_projection`,
+  `20260817021000_csf_permanent_class_join_codes`,
+  `20260817022000_csf_permanent_class_code_join`,
+  `20260817030000_csf_current_school_year_staff_authority`,
+  `20260817040000_csf_announcement_link_previews`, and
+  `20260817050000_publish_dvhs_csf_1_0_0`,
+  `20260817100000_csf_review_decision_drives_application`,
+  `20260817110500_csf_current_school_year_consequential_authority`,
+  `20260817114700_repin_dvhs_csf_1_0_0_source`,
+  `20260817120000_csf_term_bound_staff_access`,
+  `20260817121000_dvhs_csf_partner_clubs_simplification`,
+  `20260817130000_csf_multi_date_meeting_sessions`,
+  `20260817131000_csf_partial_attendance_commit_and_ai_resolution`,
+  `20260817132000_restore_multi_date_meeting_permission_rechecks`,
+  `20260817133000_consolidate_plugin_version_read_policies`, and
+  `20260818040246_generalize_private_plugin_storage_and_publish_dvhs_csf_1_1_0`, and
+  `20260818064000_close_production_review_security_gaps`, and
+  `20260818074500_atomic_paper_scan_discard`, and
+  `20260818092855_atomic_paper_scan_review_row_update`,
+  `20260818115000_align_super_admin_metadata_shapes`, and
+  `20260818134000_restate_partner_function_acls`, and
+  `20260818150000_bound_feedback_candidate_rotation`, and
+  `20260818160000_review_project_feedback_trigger_acl`, and
+  `20260818170000_serialize_paper_attendance_publication`,
+  `20260818180000_complete_function_acl_restoration`, and
+  `20260818223637_complete_remaining_function_acl_restoration`, and
+  `20260818232541_complete_final_owner_internal_function_acls`, and
+  `20260819002500_serialize_plugin_deletion_and_token_feedback`, and
+  `20260819020000_serialize_paper_scan_orphan_cleanup`, and
+  `20260819030000_propagate_anonymous_feedback_opt_out`, and
+  `20260819050728_complete_reviewed_internal_function_acls`).
+- Hosted Development serves exact root merge SHA
+  `5ef6e4ccdf4492206e3e41a0b84afac91551fff0` and is healthy and
+  migration-current at 331 rows through
+  `20260819020000_serialize_paper_scan_orphan_cleanup`. Google OAuth is enabled
+  and the hosted authorize endpoint redirects to Google. The new 332nd and
+  333rd address-level feedback preference and owner-internal ACL migrations
+  remain repository-only until this change passes CI and is promoted through
+  Development.
+- Production remains untouched at the audited 236-row baseline through
+  `20260811001500`; the exact read-only preflight now expects a 97-migration
+  cutover to this 333-row candidate. Running that cutover requires
+  explicit action-time approval.
+- Local evidence on the prior candidate includes a fresh exact 324-migration replay
+  and the focused storage/release, import, proof, and release-authority pgTAP
+  suites. The 325th migration replayed locally and its focused 5/5 pgTAP
+  assertions passed; three unrelated files hit transient Docker DNS failures,
+  so hosted CI is the clean full-replay authority. The new serialization
+  migration has focused 27-assertion coverage and remains subject to the clean
+  hosted replay. The candidate has 170 pgTAP files with 5,992 assertions plus
+  focused workflow/browser tests, `typecheck`, `lint`, build, and strict
+  submodule reachability. Follow-up hosted parity, final role/browser
+  acceptance, and provider acceptance remain release gates until recorded in
+  the cleanup register.
+- Private CSF source is merged to private `main` at
+  `4d1001e9d3269b8bd28de93c071c6b4b216824fd` and synchronized back into
+  private `development` at `6fd34120ab474cbf6db3b5fd47439324bc436345`.
+  The published `1.1.0` release attestation pins the private main commit with
+  manifest SHA-256
+  `04aca8efa43e9d287c8d04909b733df97f6804224a4c6960a3609358eb574e79`.
+  Its base had already merged `feature/csf-member-onboarding`
+  and `codex/csf-reconciliation-guard-20260816`
+  (`5e21d5dd60744dc50b7817bfc734a4e2ca71c8f5`). The two branches reworked CSF
+  import annotation interpretation with opposite intent (full-evidence
+  auto-settlement versus redacted advisory-only); the merge resolved in favor
+  of auto-settlement as the later, deliberate design, keeping the guard's
+  class-of-2030 template block, hosted-Development commit allowlist, and AI
+  usage tracking.
+- Real CSF sources remain immutable-preview-only. Class of 2030 is
+  template-only; no real-row commit, real-recipient email, model submission, or
+  Production operation occurred during this acceptance pass.
+
+## Historical pre-hardening Development state
+
+- The repository branch has 296 ordered migrations through
+  `20260816083000_csf_import_annotation_settlement`.
+- Hosted Development Supabase remains at 273 ordered migrations through
+  `20260812152300_atomic_csf_post_replies`. The twenty repository-only migrations are
+  `20260812161500_atomic_project_signup_rejection`,
+  `20260812185500_atomic_staff_invite_issuer_redemption`,
+  `20260812193329_google_cap_replay_safety`,
+  `20260812193400_protect_staff_invite_issuer_capability`,
+  `20260812203000_make_content_reports_server_written`,
+  `20260812203500_close_plugin_data_browser_default_acl`,
+  `20260812220000_csf_meeting_permission_followups`,
+  `20260813010000_atomic_ai_quota_receipts`,
+  `20260813012206_google_cap_effect_fencing`,
+  `20260813013000_reconcile_project_lifecycle_boundaries`,
+  `20260813013100_lock_project_lifecycle_transactions`,
+  `20260813013200_recheck_csf_activity_partner_authorization_under_lock`,
+  `20260813013300_close_csf_representative_and_publication_races`,
+  `20260813020000_cancellation_preserves_unknown_delivery_outcomes`,
+  `20260813085442_harden_private_is_plugin_enabled_acl`,
+  `20260813091801_harden_dv_private_policy_helper_acls`,
+  `20260814001123_csf_import_lineage_transport_settlement`,
+  `20260814051720_csf_post_mutation_outcome_recovery`, and
+  `20260815100500_dvhs_csf_application_queue_projection`, and
+  `20260815110000_log_ai_usage_rpc`. They are
+  repository-only local work: hosted Development database parity, application
+  deployment, and provider acceptance have not been established for them.
+- Pull requests #152, #158, #174, #177, #179, and #181 are merged in current
+  `development`; #180 remains open with a later migration. The 292-row pin is
+  therefore provisional, and the last migration pull request to merge must
+  recompute the count, head, and exact tail from the merged tree.
+- `20260813013200` closes the CSF activity and partner-club stale-authority
+  class across all seven service-only transactions: `csf_create_activity`,
+  `csf_update_activity`, `csf_set_activity_status`, `csf_link_activity_project`,
+  `csf_set_partner_club_status`, `csf_set_partner_club_term_status`, and
+  `csf_upsert_partner_club_policy`. Each keeps its exact prior signature and
+  named arguments and delegates to an owner-only `_locked_impl` after taking the
+  organization staff-access lock, sharing the actor's active
+  `organization_members` row, and rechecking the exact permission.
+  **Intentional behavior change:** replaying an exact committed request as an
+  actor who has since lost the permission now raises the authorization error
+  instead of returning the earlier idempotent receipt. The committed outcome
+  stays durable; only re-reading it through this boundary is denied. Callers
+  must report that case as lost authorization over a possibly already-durable
+  outcome, never as proof that the write did not happen.
+- `20260813013300` extends the same owner-only implementation, staff-access
+  lock, active-membership share lock, and under-lock `manage_partner_clubs`
+  recheck to `csf_assign_partner_representative` and
+  `csf_revoke_partner_representative`. Activity publication now takes the
+  term-close advisory and term row locks and revalidates the exact tenant-scoped
+  open term before writing. The migration is intentionally ordered after #174
+  and #158 and does not restate their definitions.
+- `20260813020000` preserves ambiguous delivery evidence during cancellation,
+  recomputes current ambiguous-delivery and unexpired processing-lease counts
+  under the campaign lock, and keeps later provider reconciliation possible.
+  Focused regression coverage exists; the full exact replay and hosted
+  Development acceptance remain pending.
+- Root gitlink commit `8419171d` moved the private submodule to exact commit
+  `cdbeb59e6cc086e8794ec8b35157ab043f65c01c`, landing the officer-facing
+  cancellation UX: `communications-actions.ts` types the outcome
+  (`CsfCancellationOutcome`) and builds its message, while
+  `components/CsfCommunicationsActions.tsx` closes the cancel dialog only on
+  the `clean` outcome, renders the always-mounted accessible `ActionStatus`
+  region, and shows warning-styled toasts for
+  `ambiguous`/`leased`/`ambiguous_and_leased` outcomes; the cancel dialog is
+  hosted per campaign card in `components/CsfCommunicationsCampaigns.tsx`.
+  Focused private coverage lives in
+  `lib/plugins/private/plugins/dvhs-csf/services/communications-actions.test.ts`.
+  CLEAN-022 is source-complete in this repository-local contract and its
+  private lineage is now published: `cdbeb59e` is contained in the locally
+  known private `origin/development`, whose head
+  `c33b9c2ac7f084d14daad5df999d5eda3a2c2ac1` (`c33b9c2`) is also the staged
+  root gitlink target, and the strict submodule publication gate passes. The
+  earlier record that `cdbeb59e` was local-only and that the strict release
+  check must fail until a private-first merge is superseded history.
+  Docker-backed isolated verification, hosted Development acceptance,
+  provider/browser gates, and Production remain unverified and pending.
+- `20260813085442` keeps the dormant fixed-path
+  `private.is_plugin_enabled(uuid,text)` helper owner-only. A repository-wide
+  caller scan found no role requiring execution, so `PUBLIC`, `anon`,
+  `authenticated`, and `service_role` are revoked; the private function is not
+  part of the reviewed public callable catalog.
+- `20260813091801` keeps the stable fixed-path DV student and household helper
+  definitions while removing inherited `PUBLIC` execution. Their exact 20 RLS
+  callers are all declared `TO authenticated`, so only `authenticated` and
+  owner `postgres` retain execution; `anon` and `service_role` do not.
+- `20260814001123` applies the canonical identity-first order to central import
+  begin and commit, removes the caller-selected six-argument failure overload,
+  and exposes only the service-role five-argument unknown-only transport
+  settlement. Focused lifecycle/RPC, concurrency, signature, and ACL evidence
+  is accepted, and the exact 292-migration replay covers it.
+- `20260814051720` adds the service-only
+  `plugin_data.csf_resolve_post_mutation_outcome(uuid,uuid,uuid)` resolver for
+  an ambiguous `csf_mutate_post` result: it rechecks `manage_posts` before and
+  after the same per-request advisory lock and performs only a bounded
+  immutable receipt read that reports committed-versus-not-written, never
+  receipt contents.
+- The current exact local isolated union replay passed all 293 migrations and
+  143 pgTAP files with 5,794 assertions and 84 CSF tables present. It is local
+  evidence only and does not establish hosted or Production acceptance.
+- Production remains at 236 ordered migrations through `20260811001500`; the
+  57-migration cutover has not run.
+- The last accepted Development advisor snapshot was captured on the preceding
+  272-migration shape: 95 INFO, 0 WARN, and 0 ERROR security findings, plus 611
+  INFO, 0 WARN, and 0 ERROR performance findings. Those counts have not been
+  re-established for either the hosted 273 or repository 292 shape and are not
+  current-parity evidence.
+- `dev.lets-assist.com` still serves exact development SHA
+  `cf330e5faa844d63a2f41c8f0be4d1c727d51a47`, whose Ready repository tree ended
+  at 272 through `20260812132725_csf_drive_metadata_compare_and_set_fence`.
+  The external Vercel 100-deployment-per-day project cap blocked the refreshed
+  deployment, so the alias is not exact-current-code evidence.
+- The seven-argument metadata RPC exists, its old four-argument overload is
+  absent, and only `service_role` can execute the current RPC; `anon` and
+  `authenticated` cannot.
+- Google OAuth and Picker are connected. The real Spring 2026 application
+  workbook bounded `A1:Q518` was inspected and mapped.
+- The saved real source passed the metadata RPC and appended 85 stored preview
+  rows. Preview then failed while sealing because the caller summary wrongly
+  stated the reserved derived `rows` key. The run left one failed preview job;
+  zero term applications were committed.
+- No names or email addresses are recorded here. Real-source evidence remains
+  aggregate-only.
+- Superseded August 13 gitlink snapshot, retained verbatim for lineage: "The
+  current root gitlink is `cdbeb59e6cc086e8794ec8b35157ab043f65c01c`. The
+  locally known private `origin/development` still ends at
+  `605342ca8a3f2d83c4a7b40abf60ba03b9f12b5b`, so the current target is not
+  contained there and remains a local-only, private-first release blocker."
+  That snapshot no longer describes this tree.
+- The private-first merge has since been published: the locally known private
+  `origin/development` and the staged root gitlink are both
+  `c33b9c2ac7f084d14daad5df999d5eda3a2c2ac1` (`c33b9c2`), which contains
+  `cdbeb59e`, the meeting hardening, and the `ca817bf` preview-summary
+  correction. The target is published and contained, and the strict submodule
+  publication gate passes. The stale Ready Development SHA above does not
+  include this gitlink.
+- The Drive metadata RPC is no longer the current Preview blocker. Production
+  remains untouched.
+
+## Historical August 11 hosted Development amendment
+
+- GitHub PR #134 passed quality, production build, the full isolated database
+  replay, DV browser workflows, CSF browser workflows, and security checks for
+  the exact root/private gitlink. Its merge commit was deployed Ready and is the
+  deployment that was behind `dev.lets-assist.com` at the time of this
+  historical amendment.
+- For that historical deployment, hosted Development matched the repository
+  through `20260811132454` with zero local/remote mismatches. At the time, the
+  Development database was at `20260812073000`, while the release-integration
+  repository continued with the unpublished ordered series through
+  `20260812101100`; hosted parity for that integration series had not been
+  checked.
+  PR #130 removed the unused `pg_graphql` extension with `RESTRICT`; the
+  historical post-apply Development schema dump contains no `pg_graphql`
+  definition.
+- Members → Account connections, class/student links, verified-account staff
+  eligibility, result-bearing profile/staff mutations, capability-filtered Help,
+  and the three-section Communications workspace were accepted in the hosted
+  admin session. Unknown campaign URLs show an unavailable state instead of a
+  different campaign.
+- On the exact PR #134 Development deployment, the Class of 2028 composer
+  exposed **Schedule for later**, required a publication date and time, removed
+  the email option, saved a synthetic scheduled post, read it back as scheduled,
+  and archived it out of the active stream. The secret-gated publisher itself
+  has not yet produced an accepted enabled invocation or schedule → Feed result.
+- A fictional organization-owned project completed location selection, all five
+  creation steps, its creator dashboard, and permanent cleanup. The Maps key now
+  accepts the exact Development referrer. PR #128 removes the deleted-route
+  refresh; the repeated hosted deletion returned Home with no error log on the
+  exact deployment.
+- The Production GitHub environment has the dispatch endpoint, cron secret, and
+  Vercel bypass secret. Eight consecutive scheduled runs plus one controlled run
+  returned HTTP 200; the latest observed pass was enabled, claimed zero work,
+  and reported zero faults. The workflow requests a ten-minute cadence, but
+  observed GitHub start intervals were irregular, so no fixed delivery-time SLA
+  is accepted.
+- Two controlled Development messages produced signature-verified `sent` and
+  `delivered` events with zero quarantine rows. This proves Development
+  transport and webhook reduction, not Production webhook ingestion.
+- Google Cloud contains the exact Development JavaScript origin and callback;
+  Drive, Sheets, Picker, Maps JavaScript, and Places are enabled with scoped API
+  keys. The in-product chapter connection is still **Not connected** until the
+  operator completes the private `dvhighcsf@gmail.com` password/verification
+  handoff.
+- Production remains unchanged. Its Resend webhook is disabled, its database is
+  behind the Development ledger, and its remaining advisor findings must be
+  reviewed before cutover.
 
 ## Scope and safety boundary
 
@@ -28,6 +329,11 @@ An earlier read-only evidence review established the following source shapes wit
 | Spring 2026 club audit   | 1 tab, 132 rows, 27 columns | Partner-club audit is a first-class import type.                                                |
 | 2025–26 club tracker     |                     11 tabs | A metadata-only link is insufficient; officers need source-specific preview and reconciliation. |
 | Classes of 2027–2030     |            8 term tabs each | `F26` exists on every current workbook and remains source-tab terminology only.                 |
+
+That table is the superseded July source snapshot. The current reviewed Spring
+2026 application source is bounded to `A1:Q518`: 17 columns and 517 response
+rows after the header. The earlier 618-row/23-column shape must not be used for
+the Fall 2026 preview or reconciliation.
 
 Three representative Gmail messages were previously inspected and reduced to workflow flags only. They confirm that applications, transcripts, points, club auditing, meeting operations, Forms, Sheets, Classroom broadcasts, and volunteering all participate in current operations. No Gmail integration or send behavior is introduced, and Gmail was not mutated during this run.
 
@@ -69,7 +375,7 @@ The separate namespaced synthetic lifecycle organization now contains Classes of
 | CSF-E2E-021 | P1       | Partner-club officer / artifact reader | Synthetic fixture privacy       | A partner-club fixture and its screenshot contained a real external contact identity.                                                                             | Replace it with a fictional privacy-safe contact on a reserved test domain and make repeat fixture upsert preserve sanitation.                                                                                                                                                  | Fixture privacy regression passed 1/1; fixture re-upsert succeeded; complete gallery recapture passed 3/3.                                                                                                                                        | Fixed                                                 |
 | CSF-E2E-022 | P2       | Developer / workflow operator          | Point-proof workflow probe      | The proof-uniqueness probe relied on a stale finalized-status default but omitted the required finalization timestamp.                                            | Direct proof probes declare an explicit valid lifecycle tuple; finalized proof has `finalized_at` and no `failed_at`, while pending proof retains its upload token and has no terminal timestamp.                                                                               | V83 proof lifecycle regression passes; `bun run csf:test:workflows` passes locally.                                                                                                                                                               | Fixed                                                 |
 
-### July 16 regression closure
+### Historical July 16 regression closure
 
 | Contract                   | Confirmed correction                                                                                                                                                                               | Evidence boundary                                                                               |
 | -------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------- |
@@ -81,7 +387,7 @@ The separate namespaced synthetic lifecycle organization now contains Classes of
 | `V81`, `V82`               | Responsive footers share Let’s Assist product-company branding; synthetic partner-club contacts remain fictional and privacy-safe after repeat fixture upsert.                                     | Two focused privacy/branding tests, successful re-upsert, and clean 3/3 gallery recapture.      |
 | `V83`                      | Direct proof probes declare complete valid pending/finalized upload lifecycle tuples instead of relying on schema defaults.                                                                        | Focused lifecycle regression plus green local CSF workflow gate.                                |
 
-### July 21 verified contract amendment
+### Historical July 21 verified contract amendment
 
 This table extends the July 16 browser baseline. It records local implementation and database evidence only; it does not claim a completed live Google or remote browser lifecycle.
 
@@ -94,7 +400,7 @@ This table extends the July 16 browser baseline. It records local implementation
 | CSF-E2E-027 | P1       | Developer/operator / tracked seeds      | The historical canonical seed could carry contact, token, invitation, or hosted-project material into source control and builds.                                  | Canonical seed is non-executable; fictional local data is isolated; a build/CI scanner rejects unsafe seed paths, contact data, OAuth/bearer material, invitation material, and hosted Supabase URLs.                                                          | Seed-safety scanner and 9 focused tests pass; focused lint and typecheck pass.                                                                  | The scanner prevents recurrence but does not purge earlier Git history or rotate any previously exposed value. GitGuardian disposition remains required before merge. |
 | CSF-E2E-028 | P1       | Developer/operator / migration baseline | New data contracts required proof that the full forward-only ledger and database tests replay independently from the shared stack.                                | Replayed a disposable isolated Supabase stack before resetting the shared fictional local stack.                                                                                                                                                               | Initial milestone: 188 migrations, 55 CSF tables, 39 database test files, and 1,129 assertions. The later final replay supersedes these counts. | Green PR #96 and isolated cloud-development acceptance remain pending.                                                                                                |
 
-### July 22 final local verification amendment
+### Historical July 22 final local verification amendment
 
 This amendment supersedes earlier local test-count and build-status summaries only. Historical issue reproduction evidence remains unchanged. It does not claim live Google Picker/import, a Supabase cloud branch, a green PR, Vercel Preview acceptance, a complete visible mutation lifecycle, accessibility acceptance, or Slides completion.
 
@@ -118,24 +424,84 @@ This amendment supersedes earlier local test-count and build-status summaries on
 | CSF-E2E-044 | P3       | Restricted officer / denial test                            | Permission-denied copy appeared in more than one accessible text node, making a broad text locator ambiguous.                                                                | Scope the assertion to the sole alert role, matching the actual accessible denial surface.                                                                                                                                                                  | Targeted role-navigation matrix passes 14/14.                                                                                                                                                                                | Keep one authoritative alert for denial copy.                                                                                                                        |
 | CSF-E2E-045 | P2       | Complete CSF browser gate                                   | The earlier post-hardening browser state had not been rerun as a single full suite.                                                                                          | Run plugin isolation browser/API smoke, targeted role navigation, and the complete CSF Playwright suite against the final local fixture.                                                                                                                    | `20260722-final-pass`: 26 passed, 3 explicitly skipped, 0 failed in 2.3 minutes; targeted role navigation: 14/14.                                                                                                            | The 3 skips are intentional Google consent/configuration gates; they must run only after action-time authorization.                                                  |
 
-### August 9 lifecycle-truth delta
+### Historical August 9 lifecycle-truth delta
 
 These findings apply to the current v1.3 tree. “Implemented under combined verification” means focused source/unit/database coverage exists in the working tree, but the fresh full replay/build/browser pack for the exact combined root/private state has not yet established a new release baseline.
 
-| ID          | Severity | Surface                          | Confirmed finding                                                                                                                                              | Implemented/required contract                                                                                                                                                                                                                                  | Current evidence boundary                                                                                                                                                                                                               | Status                                  |
-| ----------- | -------- | -------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------- |
-| CSF-E2E-046 | P0       | Profile merge/account connection | Merge/connection UI could treat similarity or a unique name as sufficient despite conflicting identity evidence.                                               | Server hard-conflict preflight; exact current account email + one active profile + exact name + one active class for manual connect; audited correction first.                                                                                                 | Focused migration/service/UI tests exist; blocked visible journeys and combined replay remain pending.                                                                                                                                  | Implemented under combined verification |
-| CSF-E2E-047 | P0       | Application decision             | Queue/detail/confirmation could disagree about missing, failed, stale, or contradictory academic/check evidence.                                               | One server-derived preflight and request-aware atomic decision; ordinary approval fails closed on any current blocker.                                                                                                                                         | Focused database/service/UI tests exist; full role decision journey remains pending.                                                                                                                                                    | Implemented under combined verification |
-| CSF-E2E-048 | P1       | Student-specific secure links    | Officer-typed email, fabricated send telemetry, and response loss could detach link truth from the selected member record.                                     | Select one current unique recorded profile email; no email send; stable request/intent receipt; exact replay revalidates current profile/email/link state.                                                                                                     | Focused database/service/UI tests exist; visible create/copy/renew/replay journey remains pending.                                                                                                                                      | Implemented under combined verification |
-| CSF-E2E-049 | P1       | Posts and announcement email     | Posting roles could lack a composer, persistence could be mislabeled after queue failure, and class campaign scope could drift.                                | **Classes → Stream** reachability; atomic request-safe post mutation; separate post/email outcomes; frozen term/audience/class/content/recipient campaign coordinates.                                                                                         | Focused role/action/database tests exist; full partial-success/provider-disabled journey remains pending.                                                                                                                               | Implemented under combined verification |
-| CSF-E2E-050 | P1       | Imports/reconciliation/history   | A failed job could look ready; match/skip lacked a visible reason; history could omit lineage/evidence or invent missing facts.                                | One readiness blocker set; required bounded match/skip reason with failure preservation; history shows only recorded counts/operator/digest/decisions/preview-retry ancestry.                                                                                  | Focused service/component tests exist; visible failure/retry/history lifecycle and combined replay are pending.                                                                                                                         | Implemented under combined verification |
-| CSF-E2E-051 | P1       | Semester policy                  | Configurable List I/II/III grade-point mappings were not operable from the officer editor.                                                                     | Six explicit A/B values, baseline 3/1, 2/1, 1/0; plus/minus normalization; draft revision check; advanced-key preservation; publish-only activation.                                                                                                           | Focused domain/action/UI tests exist; visible draft/publish/recalculation journey remains pending.                                                                                                                                      | Implemented under combined verification |
-| CSF-E2E-052 | P1       | Google connection lifecycle      | A calendar-email field could masquerade as verified chapter identity, and disconnect/revoke results lacked truthful partial-state recovery.                    | Verified Google user-info must equal `dvhighcsf@gmail.com`; legacy/wrong identities reconnect; local disconnect preserves history; remote revoke claimed only when confirmed; shared grants preserved.                                                         | Local callback/database/component contracts exist; every live Google state remains external and unexecuted.                                                                                                                             | Implemented locally; live gate pending  |
-| CSF-E2E-053 | P1       | Communications recovery          | Unknown outcomes and quarantined webhook events lacked a reachable evidence-only officer recovery path.                                                        | CSF-owned `manage_settings` UI; provider-evidence-only outcome reconciliation; quarantine acknowledgement is reasoned/audited and never sends/retries/suppresses/applies/rewrites an event.                                                                    | Focused migration/service/UI tests exist; provider-disabled visible recovery and live provider evidence remain pending.                                                                                                                 | Implemented under combined verification |
-| CSF-E2E-054 | P1       | Point lifecycle authority        | Point begin/proof/withdraw/review/appeal paths did not consistently rederive current actor, membership, policy, source, cap, and proof state.                  | Service-only locked database boundaries reauthorize/revalidate every applicable condition before the atomic engine.                                                                                                                                            | Focused pgTAP/service coverage exists; fresh combined replay and complete member/reviewer lifecycle pending.                                                                                                                            | Implemented under combined verification |
-| CSF-E2E-055 | P1       | Scheduled posts                  | The accepted baseline can store `scheduled`, but has no accepted due-post transition into the member Feed.                                                     | Do not promise automatic publication or scheduled email until the permission-rechecked, retry-safe, atomic/audited publisher passes migration, route, pgTAP, and central replay.                                                                               | A publisher implementation lane is active; its evidence is not part of the accepted baseline yet.                                                                                                                                       | Open                                    |
-| CSF-E2E-056 | P1       | Google Sheets/report boundary    | Canonical docs promised timestamped compatibility tabs while the implemented report contract forbids Google writes.                                            | Sheets are explicit read/import evidence only; reports download as a permission-checked formula-safe ZIP; no Sheet writeback or destination.                                                                                                                   | Canonical docs aligned; existing report archive tests are historical evidence, and a visible download remains pending.                                                                                                                  | Contract corrected                      |
-| CSF-E2E-057 | P1       | Announcement dispatch cadence    | Operator instructions promised ten-minute delivery draining even though the repository contains the ledger/worker route but no hosted scheduler configuration. | **Email queued** is not delivery; keep the route auth-first, exact opt-in, input-free, bounded, and covered by the isolated no-egress probe; configure and repeatedly verify hosted invocation separately before claiming automatic or fixed-cadence dispatch. | The local route safety contract and seven-route probe are implemented under combined verification. `vercel.json` deliberately has no CSF worker cron because the Vercel plan/cadence and isolated hosted-Production run are unaccepted. | Open                                    |
+| ID          | Severity | Surface                          | Confirmed finding                                                                                                                              | Implemented/required contract                                                                                                                                                                                                                                                              | Current evidence boundary                                                                                                                                                                                                                                                                                                                                                                                          | Status                                              |
+| ----------- | -------- | -------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | --------------------------------------------------- |
+| CSF-E2E-046 | P0       | Profile merge/account connection | Merge/connection UI could treat similarity or a unique name as sufficient despite conflicting identity evidence.                               | Server hard-conflict preflight; exact current account email + one active profile + exact name + one active class for manual connect; audited correction first.                                                                                                                             | Focused migration/service/UI tests exist; blocked visible journeys and combined replay remain pending.                                                                                                                                                                                                                                                                                                             | Implemented under combined verification             |
+| CSF-E2E-047 | P0       | Application decision             | Queue/detail/confirmation could disagree about missing, failed, stale, or contradictory academic/check evidence.                               | One server-derived preflight and request-aware atomic decision; ordinary approval fails closed on any current blocker.                                                                                                                                                                     | Focused database/service/UI tests exist; full role decision journey remains pending.                                                                                                                                                                                                                                                                                                                               | Implemented under combined verification             |
+| CSF-E2E-048 | P1       | Student-specific secure links    | Officer-typed email, fabricated send telemetry, and response loss could detach link truth from the selected member record.                     | Select one current unique recorded profile email; no email send; stable request/intent receipt; exact replay revalidates current profile/email/link state.                                                                                                                                 | Focused database/service/UI tests exist; visible create/copy/renew/replay journey remains pending.                                                                                                                                                                                                                                                                                                                 | Implemented under combined verification             |
+| CSF-E2E-049 | P1       | Posts and announcement email     | Posting roles could lack a composer, persistence could be mislabeled after queue failure, and class campaign scope could drift.                | **Classes → Stream** reachability; atomic request-safe post mutation; separate post/email outcomes; frozen term/audience/class/content/recipient campaign coordinates.                                                                                                                     | Focused role/action/database tests exist; full partial-success/provider-disabled journey remains pending.                                                                                                                                                                                                                                                                                                          | Implemented under combined verification             |
+| CSF-E2E-050 | P1       | Imports/reconciliation/history   | A failed job could look ready; match/skip lacked a visible reason; history could omit lineage/evidence or invent missing facts.                | One readiness blocker set; required bounded match/skip reason with failure preservation; history shows only recorded counts/operator/digest/decisions/preview-retry ancestry.                                                                                                              | Focused service/component tests exist; visible failure/retry/history lifecycle and combined replay are pending.                                                                                                                                                                                                                                                                                                    | Implemented under combined verification             |
+| CSF-E2E-051 | P1       | Semester policy                  | Configurable List I/II/III grade-point mappings were not operable from the officer editor.                                                     | Six explicit A/B values, baseline 3/1, 2/1, 1/0; plus/minus normalization; draft revision check; advanced-key preservation; publish-only activation.                                                                                                                                       | Focused domain/action/UI tests exist; visible draft/publish/recalculation journey remains pending.                                                                                                                                                                                                                                                                                                                 | Implemented under combined verification             |
+| CSF-E2E-052 | P1       | Google connection lifecycle      | A calendar-email field could masquerade as verified chapter identity, and disconnect/revoke results lacked truthful partial-state recovery.    | Verified Google user-info must equal `dvhighcsf@gmail.com`; legacy/wrong identities reconnect; local disconnect preserves history; remote revoke claimed only when confirmed; shared grants preserved.                                                                                     | Local callback/database/component contracts exist; every live Google state remains external and unexecuted.                                                                                                                                                                                                                                                                                                        | Implemented locally; live gate pending              |
+| CSF-E2E-053 | P1       | Communications recovery          | Unknown outcomes and quarantined webhook events lacked a reachable evidence-only officer recovery path.                                        | CSF-owned `manage_settings` UI; provider-evidence-only outcome reconciliation; quarantine acknowledgement is reasoned/audited and never sends/retries/suppresses/applies/rewrites an event.                                                                                                | Focused migration/service/UI tests exist; provider-disabled visible recovery and live provider evidence remain pending.                                                                                                                                                                                                                                                                                            | Implemented under combined verification             |
+| CSF-E2E-054 | P1       | Point lifecycle authority        | Point begin/proof/withdraw/review/appeal paths did not consistently rederive current actor, membership, policy, source, cap, and proof state.  | Service-only locked database boundaries reauthorize/revalidate every applicable condition before the atomic engine.                                                                                                                                                                        | Focused pgTAP/service coverage exists; fresh combined replay and complete member/reviewer lifecycle pending.                                                                                                                                                                                                                                                                                                       | Implemented under combined verification             |
+| CSF-E2E-055 | P1       | Scheduled posts                  | The accepted baseline could store `scheduled`, but had no accepted due-post transition into the member Feed.                                   | A permission-rechecked, serialized, retry-safe, atomic/audited publisher revalidates the scheduling actor, plugin, term, cohort, expiry, and no-email boundary before publication. The checked-in GitHub workflow invokes only the bounded auth-first route and makes no fixed-time claim. | Migration, route, pgTAP, cron no-egress, exact August 11 central replay, UI hold-state contracts, and repository-owned cadence tests pass. PR #134 is on Development and its visible composer schedule/readback/archive lifecycle passed. The workflow still cannot run on a schedule until it reaches the default branch; hosted enabled invocation and visible schedule → Feed publication remain release gates. | Implemented; hosted publisher acceptance pending    |
+| CSF-E2E-056 | P1       | Google Sheets/report boundary    | Canonical docs promised timestamped compatibility tabs while the implemented report contract forbids Google writes.                            | Sheets are explicit read/import evidence only; reports download as a permission-checked formula-safe ZIP; no Sheet writeback or destination.                                                                                                                                               | Canonical docs aligned; existing report archive tests are historical evidence, and a visible download remains pending.                                                                                                                                                                                                                                                                                             | Contract corrected                                  |
+| CSF-E2E-057 | P1       | Announcement dispatch cadence    | Operator instructions promised ten-minute delivery draining without distinguishing a requested cron expression from actual hosted start times. | **Email queued** is not delivery; keep the route auth-first, exact opt-in, input-free, bounded, and no-egress-probed. Schedule it outside Vercel, verify aggregate hosted outcomes repeatedly, and never claim a fixed delivery time from the cron expression alone.                       | The checked-in GitHub workflow requests every ten minutes and the Production environment has the required endpoint/auth/bypass secrets. Eight consecutive scheduled runs and one controlled run returned HTTP 200; the latest was enabled with zero work and zero faults. Observed starts were irregular.                                                                                                          | Hosted invocation accepted; fixed-time SLA rejected |
+
+### Historical August 11 people-access safety delta
+
+Nothing here has been applied to Production. The initial behavioral evidence came
+from a disposable local PostgreSQL 18 cluster; the complete generated isolated
+Supabase replay subsequently passed all 93 database files and 3,998 assertions.
+
+Merge state, corrected 2026-08-11: these three findings are no longer
+working-tree only. The combined root and private change landed on `development`
+as `9984f23` (root PR #140) with the private gitlink moved in the same commit, so
+the earlier note that the gitlink was intentionally uncommitted is withdrawn.
+Hosted Development now carries both migrations in its ordered 248-migration
+ledger. The visible Members → Account connections and More → Staff access
+surfaces load on the exact Ready Development deployment. What remains open is a
+bounded browser journey that deliberately reaches each database refusal and
+proves the officer-facing recovery copy; merely loading the controls is not that
+acceptance.
+
+| ID          | Severity | Surface                    | Confirmed finding                                                                                                                                                                                                                                          | Implemented contract                                                                                                                                                                                                                                                                       | Current evidence boundary                                                                                                                                                                                                                                                                      | Status                                                 |
+| ----------- | -------- | -------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------ |
+| CSF-E2E-058 | P0       | Staff access               | A chapter could be left with nobody able to reach Staff access: revocation ended the last recovery-capable seat, and a role-permission edit could clear `manage_roles` from the only role whose active seats still held it, without ending any assignment. | `csf_revoke_staff_position` and `csf_update_role` take one shared organization advisory lock, evaluate the same capability predicate (active, currently effective, account-held, unarchived role, `manage_roles` enabled), and refuse with SQLSTATE `23514`. Role keys are not hard-coded. | Generated isolated replay: `csf_staff_recovery_seat_floor.test.sql` passed 41/41, including future-dated, unlinked, archived-role, rollback/audit, and real two-session race coverage; all 93 database files and 3,998 assertions passed.                                                      | Applied to hosted Development; refusal journey pending |
+| CSF-E2E-059 | P0       | Reusable class invitations | `csf_mutate_onboarding_link` deduplicated only by request identifier, so two officers — or one lost response retried with a fresh request id — could leave two active cohort links for one class and semester.                                             | The RPC refuses the duplicate under the organization lock with officer-actionable copy, and `csf_onboarding_links_active_cohort_uidx` enforces the same rule for any write path. A preflight fails the migration with the exact conflicting rows instead of deleting or merging them.      | Generated isolated replay: `csf_cohort_link_uniqueness.test.sql` passed 24/24, including duplicate create/reactivation, receipt replay, direct-link allowance, preflight preservation, raw-write refusal, and the real two-connection race; all 93 database files and 3,998 assertions passed. | Applied to hosted Development; refusal journey pending |
+| CSF-E2E-060 | P1       | Account connections picker | The student-specific link picker loaded the whole active roster, and its email-uniqueness probe interpolated stored addresses into PostgREST grammar and blanked every candidate when one pathological address truncated the read.                         | One bounded page with URL-backed keyset paging on `csf_link_cursor`, a scope-bound validated cursor, robust double-quoted literal encoding, SQL `LIKE` escaping that keeps `+` and `_` searchable, and per-address fail-closed uniqueness.                                                 | Focused Bun tests only: 22 loader assertions including a later-page candidate, cursor scope rejection, punctuation-bearing stored emails, and a 400-record duplicate that no longer blanks the page; 15 rendered panel/field assertions. No browser journey.                                   | Implemented under focused verification                 |
+
+### Historical August 11 contextual import commit delta
+
+This change merged to `development` in root PR #141 as `7a1548e`, with the exact
+private gitlink `35ca7f2`. Hosted Development has applied
+`20260811170000_csf_contextual_commit_readiness.sql` as migration 248. Exact CI
+run `31549318876` passed quality and the complete isolated database, DV browser,
+CSF browser, trace-validation, and owned-teardown gate; Supabase Preview also
+passed. Vercel's feature-branch check failed only at the intentional environment
+isolation guard, while the subsequent `development` deployment
+`dpl_4z3DgTviFk4M4oNdPUTwj3KvFemq` built from the merged commit and is Ready at
+`dev.lets-assist.com`. A real Google source connection and a visible
+blocked-then-reconciled contextual commit are still pending, so this evidence
+does not claim a live import was committed or any Production readiness.
+
+| ID          | Severity | Surface                   | Confirmed finding                                                                                                                                                                                                                                                                                                                                                                                    | Implemented contract                                                                                                                                                                                                                                                                                                       | Current evidence boundary                                                                                                                                                                                                                                                                        | Status                                                        |
+| ----------- | -------- | ------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------- |
+| CSF-E2E-061 | P0       | Contextual import commits | Meeting-attendance and partner-club-audit commits selected only `pending` rows and wrote attendance, submissions, credits, and activity events while ambiguous, conflicting, duplicate, invalid, and in-flight siblings were untouched, recording the result as `partially_completed`. The workspace's disabled button was the only barrier, and a disabled button is not an authorization boundary. | Both contextual commits refuse before any business write while a sibling row in the same authoritative population is unresolved, and hold that population locked while deciding. The readiness vocabulary reuses the existing `import_status` and `commit_outcome_state` columns rather than adding a second status model. | Exact local and CI replay passed all new pgTAP contracts, the strict private gitlink, DV/CSF browser packs, trace validation, and teardown. Hosted Development carries the migration and Ready deployment. Google OAuth and the visible blocked-then-reconciled real-source journey remain open. | Applied to hosted Development; live import acceptance pending |
+
+### August 12 meeting identity and capability delta
+
+Private PR #46 merged the implementation to the private repository's
+`development` branch as `fbd18fa`; maintainability follow-up PR #47 produced
+the meeting follow-up commit `4f20fa5`. The historical August 12 integration
+candidate pinned private `development`
+`605342ca8a3f2d83c4a7b40abf60ba03b9f12b5b`, which contained that follow-up and
+the inactive-membership hardening. That historical pin is not the current root
+gitlink; the later `cdbeb59e` target and the historical pin are both contained
+in the published private `origin/development` head
+`c33b9c2ac7f084d14daad5df999d5eda3a2c2ac1` (`c33b9c2`), which the staged root
+gitlink pins. Neither state claims a deployment merely because private work
+merged. No provider, hosted database,
+Production credential, live roster, or real Google source was used.
+
+| ID          | Severity | Surface                              | Confirmed finding                                                                                                                                                                                                                                                                | Implemented contract                                                                                                                                                                                                                                                                                                                                                                             | Current evidence boundary                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         | Status                                         |
+| ----------- | -------- | ------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------- |
+| CSF-E2E-062 | P1       | Meetings / attendance import privacy | Scheduling-only and cohort views could query and serialize active-student identity options; hidden preview rows retained submitted identity fields; direct meeting preview/commit and generic row-recovery actions accepted broader legacy import grants than the visible route. | Manual correction requires `reconcile_meeting_attendance`; Google preview/commit also requires exact `import_meetings` at every route, loader, component, and Server Action boundary. Meeting row decisions derive source type server-side and require reconciliation. Non-correction views receive no roster options, and the permitted picker loads only minimal active tenant-scoped options. | Exact root integration passed typecheck, exact lint, 8 focused private meeting/import test files carrying 223 tests and 1,372 expectations, and the canonical test orchestrator discovering 207 root plus 206 plugin files after `development` was merged in. The earlier 72-test/739-expectation and 205-root figures described the pre-merge subset and tree. The private repository exposes no GitHub workflow, so private hosted CI is unavailable rather than green. Root CI, compiled role journeys, and hosted Development remain pending. | Private merged; root/hosted acceptance pending |
 
 The current officer procedure is documented in the [officer runbook](officer-runbook.md). It deliberately marks live Google and cloud-only steps as release-gated.
 
@@ -147,7 +513,7 @@ The current officer procedure is documented in the [officer runbook](officer-run
 | Organization creation and plugin install | Synthetic organization created; entitlement/install/uninstall/reinstall completed                  | N/A                                            | N/A                                                                                                                     | N/A                            | N/A                                   | Passed locally; install idempotency verified                                                                                      |
 | Staff positions and role denial          | Fictional admin and all templates seeded                                                           | Adviser actor seeded                           | Every distinct template plus all documented seats seeded; all officer-role navigation and direct-route scenarios passed | Applicant actor seeded         | Approved-member actor seeded          | Navigation/direct-URL boundaries passed; seat-assignment mutation lifecycle remains pending                                       |
 | Fall 2026 semester setup                 | Classes 2026–2030 created; Fall 2026 current; dates, policy v1, and one fictional deadline entered | Draft/publish and reopen authority implemented | Read/edit capability separated                                                                                          | Own status only                | Own published policy only             | Partial: controls and atomic contracts implemented; clean database replay passed                                                  |
-| Imports and reconciliation               | UI and database contracts covered; meeting and partner-club commits are atomic                     | Adviser capability exists                      | Data/meeting/club role contracts exist                                                                                  | Denied by navigation           | Denied by navigation                  | Partial: Google consent, Picker, and real Drive import execution pending                                                          |
+| Imports and reconciliation               | UI and database contracts covered; meeting and partner-club commits are atomic                     | Adviser capability exists                      | Data/meeting/club role contracts exist                                                                                  | Denied by navigation           | Denied by navigation                  | Partial: real-source Preview stored 85 rows and failed at sealing; reconciliation and commit remain pending                       |
 | Application lifecycle                    | Compact list, full-page detail, effective eligibility, and sticky actions automated                | Override capability covered in database tests  | Activity Coordinator denied; role navigation passed                                                                     | Own status only                | Own status only                       | Partial: read-only browser acceptance passed; decision mutation lifecycle pending                                                 |
 | Member connection and correction         | Directory captured                                                                                 | Capability contracts exist                     | Officer navigation boundaries passed                                                                                    | Exact claim and decline passed | My CSF captured                       | Partial: officer resolution, unlink/relink, secure-link create/renew/acceptance, and duplicate-merge mutations remain pending     |
 | Activities and points                    | Service UI captured                                                                                | Capability contracts exist                     | Activity Coordinator Service-only navigation passed                                                                     | Published read                 | My CSF and member navigation captured | Partial: mutation/appeal/proof lifecycle pending                                                                                  |
@@ -158,7 +524,7 @@ The current officer procedure is documented in the [officer runbook](officer-run
 
 ## Acceptance gates
 
-- [x] Clean isolated replay: 214 migrations, 82 CSF tables, 63 pgTAP files, and 3,165/3,165 assertions
+- [x] Historical clean isolated replay: 214 migrations, 82 CSF tables, 63 pgTAP files, and 3,165/3,165 assertions; this is retained run evidence, not the current 291-ledger replay
 - [x] Profile-claim concurrency/idempotent retry, tenant foreign keys, legacy-close revocation, nine evidence-write guards, and real `dblink` two-session close-vs-insert race
 - [x] Private-plugin CSF unit/security suite: 2,337 passed
 - [x] Import parser/reconciliation and idempotency tests for the implemented contracts
@@ -172,18 +538,18 @@ The current officer procedure is documented in the [officer runbook](officer-run
 - [x] Latest focused hardening gate: 73/73 Bun tests with 761 expectations; root typecheck clean; focused ESLint clean
 - [x] Formatting, source organization, typecheck, and lint: 0 errors and 0 warnings
 - [x] `bun run csf:test:workflows`, `bun run csf:test:scale`, and the 5-route cron probe passed locally; cron recorded 269 assertions, zero dispatch, and zero egress
-- [x] Supabase advisors report no issues; architecture hard checks and plugin isolation/data-access audits pass
+- [ ] Supabase advisor closeout: the preceding 272-migration Development snapshot is 95 INFO/0 WARN/0 ERROR for security and 611 INFO/0 WARN/0 ERROR for performance; re-establish it after hosted Development reaches the exact 292-migration repository target, and run Production's release-time post-apply advisor check
 - [x] Post-hardening private-plugin isolation browser/API smoke
-- [x] Exact detached private gitlink, registry/runtime contracts, and strict submodule validation pass
+- [x] Current private-gitlink publication gate: the exact detached checkout and registry/runtime contracts are locally valid, and strict validation passes because the staged gitlink `c33b9c2ac7f084d14daad5df999d5eda3a2c2ac1` (`c33b9c2`) is the published head of the locally known private `origin/development` and contains the historical `cdbeb59e` target; the earlier intentional failure is superseded
 - [x] `bun audit --production`: no vulnerabilities
 - [ ] Complete visible signup → organization/install → import → application → points → meetings/clubs → close/reopen mutation lifecycle
-- [ ] Live Google OAuth, account chooser, Picker, reconnect/revocation, and Drive failure-state execution
+- [ ] Complete Google reconnect/revocation and Drive failure-state execution; connected OAuth/Picker and one real-source Preview retry are current Development evidence
 - [ ] Native Google Slides process suite; gated by incomplete `T35`
 - [ ] Zero P0/P1 defects across the unexecuted mutation/Google scope; ordinary read-only browser acceptance has no uncaught browser error
 
-### August 9 combined gate
+### Historical August 9 combined gate
 
-- [ ] Fresh isolated replay for the exact combined migration ledger, including application/merge/direct-link/post request receipts, point authority, Google identity/disconnect, communications quarantine, frozen class campaign scope, and all existing pgTAP files
+- [ ] Fresh isolated replay for the exact combined migration ledger, including application/merge/direct-link/post request receipts, frozen import-target merge agreement, point authority, Google identity/disconnect, communications quarantine, frozen class campaign scope, and all existing pgTAP files
 - [ ] Root/private lint, typecheck, focused/full tests, strict private gitlink validation, and production build from the final combined tree
 - [ ] Browser role/navigation delta proving **Classes → Stream** for every `manage_posts` template and **Feed** for members, with no active Classroom wording
 - [ ] Visible student-specific link create/copy/renew/replay using only an exact recorded profile email and no send telemetry
@@ -195,8 +561,8 @@ The current officer procedure is documented in the [officer runbook](officer-run
 - [ ] Visible communications settings, unknown-outcome evidence reconciliation, and quarantine acknowledgement proving no blind send/retry/event rewrite
 - [ ] Complete point submit/proof/correct/withdraw/review/appeal authorization and stale-state journey
 - [ ] New sanitized lifecycle delta screenshot manifest at desktop/tablet/phone, plus keyboard/focus/axe/manual screen-reader acceptance
-- [ ] Scheduled-post P1 closed by the due-post publisher's migration, route, pgTAP, and central replay acceptance
-- [ ] Hosted `csf-communications-dispatch` invocation configured and repeatedly verified before any automatic/fixed-cadence delivery claim
+- [x] Scheduled-post publisher migration, route, pgTAP, central replay, repository-owned GitHub scheduler, and visible Development composer schedule/readback/archive lifecycle accepted; hosted enabled invocation plus visible schedule → Feed publication remain release gates
+- [x] Hosted `csf-communications-dispatch` configured and repeatedly verified; actual GitHub start intervals are documented as irregular, with no fixed-time delivery claim
 
 ### Historical July 22 gate delta
 
@@ -232,9 +598,40 @@ The current officer procedure is documented in the [officer runbook](officer-run
 
 ### External and action-time gates
 
-- No live Google OAuth consent, account chooser, Picker selection, Drive read/import, token refresh, reconnect/revocation, 403/429 exercise, or Google write was performed.
-- No paid Supabase `development` branch was created, because its ongoing cost requires explicit approval.
-- No production Supabase, production Vercel, `main`, existing DVHS CSF tenant, Gmail mailbox, Classroom, website, Instagram, or officer-maintained Sheet was mutated.
+- The exact chapter Google account is connected and a live Picker selection plus
+  bounded Drive Preview read ran in hosted Development. Token refresh,
+  reconnect/revocation, 403/429 exercise, and every Google write remain
+  unexecuted.
+- Development uses a distinct hosted Supabase project. Its database remains at
+  273 ordered migrations through `20260812152300_atomic_csf_post_replies`; this
+  repository branch has 293 through
+  `20260815100500_dvhs_csf_application_queue_projection`, including
+  `20260812161500_atomic_project_signup_rejection`,
+  `20260812185500_atomic_staff_invite_issuer_redemption`,
+  `20260812193329_google_cap_replay_safety`,
+  `20260812193400_protect_staff_invite_issuer_capability`,
+  `20260812203000_make_content_reports_server_written`,
+  `20260812203500_close_plugin_data_browser_default_acl`,
+  `20260812220000_csf_meeting_permission_followups`,
+  `20260813010000_atomic_ai_quota_receipts`,
+  `20260813012206_google_cap_effect_fencing`,
+  `20260813013000_reconcile_project_lifecycle_boundaries`,
+  `20260813013100_lock_project_lifecycle_transactions`,
+  `20260813013200_recheck_csf_activity_partner_authorization_under_lock`,
+  `20260813013300_close_csf_representative_and_publication_races`,
+  `20260813020000_cancellation_preserves_unknown_delivery_outcomes`,
+  `20260813085442_harden_private_is_plugin_enabled_acl`,
+  `20260813091801_harden_dv_private_policy_helper_acls`,
+  `20260814001123_csf_import_lineage_transport_settlement`, and
+  `20260814051720_csf_post_mutation_outcome_recovery`. These eighteen
+  migrations have not been applied or deployed in hosted Development. The Ready alias still
+  serves development SHA `cf330e5faa844d63a2f41c8f0be4d1c727d51a47`, whose repository
+  tree ended at 272 through
+  `20260812132725_csf_drive_metadata_compare_and_set_fence`; the external Vercel
+  100-deployment-per-day project cap blocked the refreshed code deployment.
+  Preview reached 85 stored rows before the seal failure; no term application
+  commit occurred. No additional paid branch was created.
+- Production Supabase, Production Vercel, `main`, the Production DVHS CSF tenant, Gmail mailbox, Classroom, website, Instagram, and officer-maintained Sheets were not mutated.
 - No Vela service, Supabase stack, container, volume, network, port, credential, or database was accessed or reused.
 
 ## Artifact index
@@ -257,4 +654,7 @@ The August behavioral run skips only the 3 opt-in screenshot-capture cases. The 
 The gallery intentionally omits earlier screenshots containing the real platform
 administrator identity or the chapter inbox. No Google chooser, consent screen,
 real student row, transcript, receipt, or proof is included in the curated handoff.
-No live Google workflow or complete visible mutation lifecycle was executed, no Slides were created, and no remote system was mutated.
+A live Google Preview workflow was executed only in hosted Development. It
+stopped at the failed seal with one failed job, 85 stored preview rows, and zero
+committed term applications. No complete visible mutation lifecycle was
+executed, no Slides were created, and Production was not mutated.

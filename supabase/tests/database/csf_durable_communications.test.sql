@@ -8,7 +8,14 @@
 BEGIN;
 
 CREATE EXTENSION IF NOT EXISTS pgtap WITH SCHEMA extensions;
-SELECT extensions.plan(421);
+SELECT extensions.plan(427);
+
+-- This transaction is one synthetic local backend. Direct fixture inserts do
+-- not pass through the server wrapper that derives the hosted project ref, so
+-- make their signed environment coordinate explicit at the table boundary.
+ALTER TABLE plugin_data.csf_communication_campaigns
+  ALTER COLUMN metadata
+  SET DEFAULT '{"csf_environment":"local"}'::jsonb;
 
 -- ---------------------------------------------------------------------------
 -- A. Fresh schema presence and explicit, in-limit object names
@@ -573,7 +580,7 @@ SELECT extensions.lives_ok(
       content_hash, term_id, audience_kind, broadcast_topic_key, resend_topic_id,
       created_by, created_by_identity, content_finalized_at, content_finalized_by,
       content_finalized_by_identity, audience_snapshot_version,
-      provider_idempotency_key
+      provider_idempotency_key, metadata
     ) VALUES (
       'bd400000-0000-4000-8000-000000000001', 'bd100000-0000-4000-8000-000000000001',
       'broadcast', 'draft', 'DVHS CSF', 'csf@notifications.lets-assist.com',
@@ -587,7 +594,8 @@ SELECT extensions.lives_ok(
       'topic_synthetic_partner_clubs',
       'bd000000-0000-4000-8000-000000000001', 'csf-officer@local.test',
       now(), 'bd000000-0000-4000-8000-000000000001', 'csf-officer@local.test', 1,
-      'spring-2032-audit-broadcast'
+      'spring-2032-audit-broadcast',
+      '{"csf_environment":"local"}'::jsonb
     )
   $$,
   'a dispatch-ready broadcast records the DVHS identity, body, topic, provider topic, term, and creator'
@@ -1946,6 +1954,7 @@ SELECT extensions.is(
     SELECT jsonb_build_array(
       jsonb_build_object('name', 'csf_attempt_id', 'value', attempt.id::text),
       jsonb_build_object('name', 'csf_campaign_id', 'value', attempt.campaign_id::text),
+      jsonb_build_object('name', 'csf_environment', 'value', 'local'),
       jsonb_build_object(
         'name', 'csf_organization_id', 'value', attempt.organization_id::text
       ),
@@ -1958,7 +1967,7 @@ SELECT extensions.is(
     WHERE snapshot.normalized_recipient_email = 'rep.one@local.test'
       AND attempt.campaign_id = 'bd400000-0000-4000-8000-000000000001'
   ),
-  'the sendable payload carries the signed plugin, organization, campaign, attempt, and topic tags as a name/value array'
+  'the sendable payload carries the signed environment, plugin, organization, campaign, attempt, and topic tags as a name/value array'
 );
 
 -- THE PROVIDER TOPIC IS IN THE SENDABLE PAYLOAD AND THEREFORE IN THE DIGEST.
@@ -5286,9 +5295,18 @@ SELECT extensions.is(
   'the campaign that will be cancelled has queued work'
 );
 
--- One recipient is handed to a worker, then that worker's lease lapses. This is the
--- case cancellation used to strand: the claim path refuses to yield work for a
--- cancelled campaign, so nothing would ever settle a lapsed lease afterwards.
+-- Make the claimed recipient deterministic rather than relying on UUID order
+-- among attempts created at the same transaction timestamp.
+UPDATE plugin_data.csf_communication_dispatch_attempts AS attempt
+SET available_at = now() - interval '1 minute'
+FROM plugin_data.csf_communication_recipient_snapshots AS snapshot
+WHERE attempt.recipient_snapshot_id = snapshot.id
+  AND attempt.campaign_id = 'bd400000-0000-4000-8000-000000000005'
+  AND snapshot.recipient_email = 'cancelled.recipient@local.test';
+
+-- cancelled.recipient is handed to a worker, then that worker's lease lapses.
+-- This is the case cancellation used to strand: the claim path refuses to yield
+-- work for a cancelled campaign, so nothing would settle a lapsed lease later.
 SELECT extensions.is(
   (
     SELECT plugin_data.csf_claim_communication_dispatch_batch(
@@ -5393,6 +5411,104 @@ SELECT extensions.is(
   'cancellation never enqueues a successor attempt for anything it settled'
 );
 
+-- ---------------------------------------------------------------------------
+-- CANCELLATION DOES NOT RESOLVE THE AMBIGUITY IT JUST CREATED.
+--
+-- The two recipients above are deliberately different cases, and the difference
+-- is the whole point:
+--
+--   * cancelled.recipient   -- claimed, its lease lapsed, reaped to
+--                              unknown_outcome by this same cancellation. The
+--                              provider may already have accepted it.
+--   * cancelled.midflight   -- never claimed, never leased, provably never
+--                              handed to the provider. 'failed' is the truth.
+--
+-- The fixture explicitly makes cancelled.recipient available first before the
+-- single-row claim, so these address-specific assertions cannot swap cases.
+--
+-- The delivery sweep used to match BOTH, because a reaped attempt is in neither
+-- 'queued' nor 'processing'. So the same call that recorded "we do not know"
+-- wrote status = 'failed', which asserts "it was not sent" -- and 'failed' is
+-- terminal in csf_communication_delivery_transition_allowed(), so when the
+-- message HAD been accepted and Resend's email.delivered arrived afterwards,
+-- the webhook could not move the row. A student who was mailed stayed recorded
+-- as not mailed, permanently.
+-- ---------------------------------------------------------------------------
+
+SELECT extensions.is(
+  (
+    SELECT delivery.status
+      || '|' || (delivery.unknown_outcome_at IS NOT NULL)::text
+      || '|' || delivery.review_state
+    FROM plugin_data.csf_communication_deliveries AS delivery
+    JOIN plugin_data.csf_communication_recipient_snapshots AS snapshot
+      ON snapshot.id = delivery.recipient_snapshot_id
+    WHERE delivery.campaign_id = 'bd400000-0000-4000-8000-000000000005'
+      AND snapshot.recipient_email = 'cancelled.recipient@local.test'
+  ),
+  'queued|true|pending',
+  'the reaped recipient keeps the reviewable ambiguous state instead of being called failed'
+);
+
+-- THE POSITIVE CONTROL. Without it, "never write failed" would pass by never
+-- settling anything, which would strand every cancelled recipient in the queue.
+SELECT extensions.is(
+  (
+    SELECT delivery.status
+      || '|' || (delivery.unknown_outcome_at IS NULL)::text
+      || '|' || (delivery.failed_at IS NOT NULL)::text
+    FROM plugin_data.csf_communication_deliveries AS delivery
+    JOIN plugin_data.csf_communication_recipient_snapshots AS snapshot
+      ON snapshot.id = delivery.recipient_snapshot_id
+    WHERE delivery.campaign_id = 'bd400000-0000-4000-8000-000000000005'
+      AND snapshot.recipient_email = 'cancelled.midflight@local.test'
+  ),
+  'failed|true|true',
+  'the never-dispatched recipient still settles as a definite failure'
+);
+
+-- THE REAPER'S EVIDENCE SURVIVES. last_error carried the lapsed-lease sentence,
+-- and the sweep overwrote it with the officer's cancellation reason -- replacing
+-- the one field that said why this recipient is under review.
+SELECT extensions.ok(
+  (
+    SELECT delivery.last_error LIKE '%lease lapsed%'
+    FROM plugin_data.csf_communication_deliveries AS delivery
+    JOIN plugin_data.csf_communication_recipient_snapshots AS snapshot
+      ON snapshot.id = delivery.recipient_snapshot_id
+    WHERE delivery.campaign_id = 'bd400000-0000-4000-8000-000000000005'
+      AND snapshot.recipient_email = 'cancelled.recipient@local.test'
+  ),
+  'the ambiguous delivery keeps the lapsed-lease reason rather than the cancellation reason'
+);
+
+-- THE COUNTS ARE THE OFFICER-FACING TRUTH, so they are reported separately: one
+-- recipient provably stopped, one who may have been mailed anyway.
+SELECT extensions.is(
+  (
+    SELECT (result->>'deliveriesSettled') || '|'
+      || (result->>'deliveriesLeftAmbiguous')
+    FROM t_cancel
+  ),
+  '1|1',
+  'cancellation reports what it settled and what it could not settle separately'
+);
+
+-- AND THE PROVIDER CAN STILL CORRECT THE RECORD. This is the consequence the
+-- whole fix exists for: had the row been written 'failed', this transition would
+-- be refused and the send would be misreported forever.
+SELECT extensions.ok(
+  plugin_data.csf_communication_delivery_transition_allowed('queued', 'sent'),
+  'the ambiguous delivery is still reachable by a later provider event'
+);
+SELECT extensions.ok(
+  NOT plugin_data.csf_communication_delivery_transition_allowed('failed', 'sent')
+    AND NOT plugin_data.csf_communication_delivery_transition_allowed(
+      'failed', 'delivered'
+    ),
+  'and would not have been, because failed is terminal'
+);
+
 SELECT extensions.is(
   (
     SELECT status || '|' || (cancelled_at IS NOT NULL)::text
@@ -5418,15 +5534,20 @@ SELECT extensions.is(
 
 SELECT extensions.is(
   (
-    SELECT plugin_data.csf_cancel_communication_campaign(
+    SELECT (replay->>'idempotentReplay') || '|'
+      || (replay->>'deliveriesLeftAmbiguous') || '|'
+      || (replay->>'attemptsStillLeased')
+    FROM (
+      SELECT plugin_data.csf_cancel_communication_campaign(
       'bd100000-0000-4000-8000-000000000001',
       'bd400000-0000-4000-8000-000000000005',
       'Officer withdrew the send.',
       'bd000000-0000-4000-8000-000000000001'
-    )->>'idempotentReplay'
+      ) AS replay
+    ) AS replay_result
   ),
-  'true',
-  'cancelling an already cancelled campaign is idempotent'
+  'true|1|0',
+  'a cancellation replay is idempotent and still reports the current ambiguous and live-lease counts'
 );
 
 -- A completed campaign yields no work either.
@@ -6928,8 +7049,7 @@ SELECT extensions.ok(
       'organizationId', 'dispatchAttempts', 'preferenceDecisionEvents',
       'broadcastPreferences', 'addressSafetyEvents', 'addressSafetyRecords',
       'webhookQuarantine', 'providerEvents', 'deliveries', 'recipientSnapshots',
-      'campaigns', 'partnerClubTermEvents', 'partnerClubRepresentatives',
-      'calendarProjections'
+      'campaigns', 'partnerClubTermEvents', 'calendarProjections'
     ])
   )
   AND NOT EXISTS (
@@ -6937,16 +7057,15 @@ SELECT extensions.ok(
       'organizationId', 'dispatchAttempts', 'preferenceDecisionEvents',
       'broadcastPreferences', 'addressSafetyEvents', 'addressSafetyRecords',
       'webhookQuarantine', 'providerEvents', 'deliveries', 'recipientSnapshots',
-      'campaigns', 'partnerClubTermEvents', 'partnerClubRepresentatives',
-      'calendarProjections'
+      'campaigns', 'partnerClubTermEvents', 'calendarProjections'
     ])
     EXCEPT
     SELECT key FROM jsonb_object_keys((SELECT result FROM t_qpurge)) AS key
   )
   AND (
     SELECT count(*) FROM jsonb_object_keys((SELECT result FROM t_qpurge))
-  ) = 14,
-  'plugin_data.csf_purge_recovery_foundations(uuid) returns exactly its fourteen documented keys'
+  ) = 13,
+  'plugin_data.csf_purge_recovery_foundations(uuid) returns exactly its thirteen documented keys'
 );
 
 -- The owner-only helper, called standalone against the now-empty fixture

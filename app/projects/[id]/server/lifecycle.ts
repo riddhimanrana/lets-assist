@@ -4,7 +4,6 @@ import "server-only";
 import { createClient } from "@/lib/supabase/server";
 import { sanitizeRichTextHtml } from "@/lib/security/html.server";
 import { getAuthUser } from "@/lib/supabase/auth-helpers";
-import { canCancelProject } from "@/utils/project";
 import { revalidatePath } from "next/cache";
 import { ProjectStatus } from "@/types";
 import { type Project } from "@/types";
@@ -14,7 +13,75 @@ import { getAdminClient } from "@/lib/supabase/admin";
 import { getPluginRegistry } from "@/lib/plugins/registry";
 import { runProjectClone } from "@/lib/plugins/lifecycle";
 import { resolveOrganizationPlugins } from "@/lib/plugins/resolve-org-plugins";
-import { canUserManageProject, getProject } from "./access";
+import {
+  extractWaiverSettingUpdates,
+  getWaiverSettingsErrorMessage,
+  type WaiverSettingUpdates,
+} from "@/lib/projects/waiver-settings";
+import { canUserManageProject } from "./access-helpers";
+import {
+  getExactCancellationReceipt,
+  getExactRecurringSeriesEndReceipt,
+} from "./lifecycle-receipts";
+import { getExactProjectStatusTransitionReceipt } from "./status-transition-receipt";
+import {
+  validateRecurrenceRule,
+  validateProjectSchedule,
+  validateProjectTimezone,
+} from "@/lib/projects/schedule-validation";
+
+/**
+ * Applies the waiver switches through the sanctioned service-role RPC.
+ *
+ * Returns a user-facing reason when the database refused, or null when the
+ * settings were applied (or were already in the requested state).
+ */
+async function applyWaiverSettings(
+  projectId: string,
+  actorId: string,
+  settings: WaiverSettingUpdates,
+): Promise<string | null> {
+  const admin = getAdminClient();
+  const { data, error } = await admin.rpc("apply_project_waiver_settings", {
+    p_project_id: projectId,
+    p_actor_id: actorId,
+    p_waiver_required: settings.waiver_required,
+    p_waiver_allow_upload: settings.waiver_allow_upload,
+    p_waiver_disable_esignature: settings.waiver_disable_esignature,
+  });
+
+  if (error) {
+    console.error("Error applying project waiver settings:", error);
+    return "This project's waiver settings could not be saved.";
+  }
+
+  const outcome = (data as { outcome: string }[] | null)?.[0]?.outcome;
+
+  if (!outcome) {
+    return "This project's waiver settings could not be saved.";
+  }
+
+  return getWaiverSettingsErrorMessage(outcome);
+}
+
+async function getProjectForMutation(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  projectId: string,
+) {
+  // Keep mutation authorization independent of PostgREST relationship-cache
+  // state. These actions only need the project row and its organization_id.
+  const { data: project, error } = await supabase
+    .from("projects")
+    .select("*")
+    .eq("id", projectId)
+    .maybeSingle();
+
+  if (error || !project || project.id !== projectId) {
+    return { project: null, error: error ?? new Error("Project not found") };
+  }
+
+  return { project: project as Project, error: null };
+}
 
 export async function updateProjectStatus(
   projectId: string,
@@ -34,163 +101,131 @@ export async function updateProjectStatus(
   }
 
   // Verify user has permission to update the project
-  const { project, error: projectError } = await getProject(projectId);
+  const { project, error: projectError } = await getProjectForMutation(
+    supabase,
+    projectId,
+  );
 
   if (!project || projectError) {
     return { error: "Project not found" };
   }
 
-  // Check if user has permission
-  let hasPermission = project.creator_id === user.id;
-  if (project.organization && !hasPermission) {
-    const { data: orgMember } = await supabase
-      .from("organization_members")
-      .select("role")
-      .eq("organization_id", project.organization.id)
-      .eq("user_id", user.id)
-      .single();
-
-    if (orgMember?.role) {
-      hasPermission = ["admin", "staff"].includes(orgMember.role);
-    }
-  }
-
-  if (!hasPermission) {
-    return { error: "You don't have permission to update this project" };
-  }
-
-  // If cancelling, validate cancellation is allowed
   if (newStatus === "cancelled") {
-    if (!canCancelProject(project)) {
-      return {
-        error: "Project can only be cancelled within 24 hours of start time",
-      };
-    }
     if (!cancellationReason) {
       return { error: "Cancellation reason is required" };
     }
-  }
-
-  // Update project status
-  const updateData: {
-    status: ProjectStatus;
-    cancelled_at?: string;
-    cancellation_reason?: string | null;
-  } = { status: newStatus };
-  if (newStatus === "cancelled") {
-    updateData.cancelled_at = new Date().toISOString();
-    updateData.cancellation_reason = cancellationReason;
-  }
-
-  const { error: updateError } = await supabase
-    .from("projects")
-    .update(updateData)
-    .eq("id", projectId);
-
-  if (updateError) {
-    console.error("Error updating project status:", updateError);
-    return { error: "Failed to update project status" };
-  }
-
-  // If cancelling, remove calendar events (non-blocking) and enqueue notifications.
-  if (newStatus === "cancelled") {
-    // Remove creator's calendar event (non-blocking)
-    try {
-      await removeCalendarEventForProject(projectId);
-    } catch (calendarError) {
-      console.error(
-        "Error removing calendar event for cancelled project:",
-        calendarError,
-      );
-      // Don't fail the cancellation if calendar cleanup fails
+    if (project.status !== "upcoming" && project.status !== "cancelled") {
+      return { error: "Only an upcoming project can be cancelled" };
     }
 
-    // --- ENQUEUE CANCELLATION NOTIFICATIONS (BACKGROUND) ---
-    // We enqueue a job for a cron/worker route to process. This is more reliable
-    // than doing a potentially large fanout inside the server action.
-    cancellationNotifications = { enqueued: false, triggerAttempted: false };
-    try {
-      const cancelledAt = updateData.cancelled_at ?? new Date().toISOString();
-      const serviceSupabase = getAdminClient();
+    // The RPC rechecks permission under the project-row lock, performs the real
+    // upcoming -> cancelled transition, and freezes the exact audience/outbox in
+    // the same transaction. There is no service-role enqueue transaction to lose.
+    const { data: cancellationResult, error: cancellationError } =
+      await supabase.rpc("cancel_project_transactional", {
+        p_project_id: projectId,
+        p_cancellation_reason: cancellationReason,
+      });
 
-      const { error: enqueueError } = await serviceSupabase
-        .from("project_cancellation_jobs")
-        .upsert(
-          {
-            project_id: projectId,
-            cancelled_at: cancelledAt,
-            cancellation_reason: cancellationReason!,
-            created_by: user.id,
-            status: "pending",
-            cursor: 0,
-            attempts: 0,
-            last_error: null,
-            processing_started_at: null,
-            completed_at: null,
-            updated_at: new Date().toISOString(),
-          },
-          { onConflict: "project_id" },
-        );
+    const cancellationReceipt = getExactCancellationReceipt(cancellationResult);
 
-      if (enqueueError) {
-        if (process.env.NODE_ENV !== "test") {
-          console.error(
-            "Error enqueueing project cancellation job:",
-            enqueueError,
-          );
-        }
-        cancellationNotifications.error =
-          "Failed to queue cancellation notifications.";
-      } else {
-        cancellationNotifications.enqueued = true;
-
-        // Best-effort: kick the worker immediately, but don't block the user.
-        // Cron should still run this periodically in production.
-        const workerEnabled =
-          process.env.PROJECT_CANCELLATION_WORKER_ENABLED === "true";
-        const workerBaseUrl = process.env.NEXT_PUBLIC_SITE_URL;
-        const workerToken =
-          process.env.PROJECT_CANCELLATION_WORKER_SECRET_TOKEN;
-
-        if (!workerEnabled) {
-          cancellationNotifications.error =
-            "Project cancellation worker is disabled.";
-        } else if (workerBaseUrl && workerToken) {
-          cancellationNotifications.triggerAttempted = true;
-          void fetch(`${workerBaseUrl}/api/cron/project-cancellations`, {
-            method: "POST",
-            headers: {
-              authorization: `Bearer ${workerToken}`,
-            },
-          }).catch((err) => {
-            if (process.env.NODE_ENV !== "test") {
-              console.error(
-                "Failed to trigger project cancellation worker:",
-                err,
-              );
-            }
-          });
-        } else {
-          cancellationNotifications.error =
-            "Project cancellation worker is not configured.";
-        }
-      }
-    } catch (notificationError) {
+    if (cancellationError || !cancellationReceipt) {
       if (process.env.NODE_ENV !== "test") {
+        console.error("Error cancelling project transactionally:", {
+          code: cancellationError?.code,
+        });
+      }
+      return { error: "Failed to cancel project" };
+    }
+
+    const receipt = cancellationReceipt;
+
+    cancellationNotifications = {
+      enqueued: receipt.accepted,
+      triggerAttempted: false,
+    };
+
+    if (receipt.outcome === "cancelled") {
+      try {
+        await removeCalendarEventForProject(projectId);
+      } catch (calendarError) {
         console.error(
-          "Error enqueueing project cancellation notifications:",
-          notificationError,
+          "Error removing calendar event for cancelled project:",
+          calendarError,
         );
       }
+    }
+
+    if (!receipt.accepted) {
       cancellationNotifications.error =
-        "Failed to queue cancellation notifications.";
-      // Don't fail the cancellation if notifications queueing fails
+        "Cancellation notifications require manual review.";
+    } else if (
+      receipt.outcome === "cancelled" &&
+      receipt.jobStatus === "pending"
+    ) {
+      const workerEnabled =
+        process.env.PROJECT_CANCELLATION_WORKER_ENABLED === "true";
+      const workerBaseUrl = process.env.NEXT_PUBLIC_SITE_URL;
+      const workerToken = process.env.PROJECT_CANCELLATION_WORKER_SECRET_TOKEN;
+
+      if (!workerEnabled) {
+        cancellationNotifications.error =
+          "Project cancellation worker is disabled.";
+      } else if (workerBaseUrl && workerToken) {
+        cancellationNotifications.triggerAttempted = true;
+        void fetch(`${workerBaseUrl}/api/cron/project-cancellations`, {
+          method: "POST",
+          headers: { authorization: `Bearer ${workerToken}` },
+        }).catch((err) => {
+          if (process.env.NODE_ENV !== "test") {
+            console.error(
+              "Failed to trigger project cancellation worker:",
+              err,
+            );
+          }
+        });
+      } else {
+        cancellationNotifications.error =
+          "Project cancellation worker is not configured.";
+      }
+    }
+  } else {
+    if (!(await canUserManageProject(supabase, project, user.id))) {
+      return { error: "You don't have permission to update this project" };
+    }
+
+    if (newStatus !== "in-progress" && newStatus !== "completed") {
+      return { error: "Project status transition is not allowed" };
+    }
+
+    const { data: transitionResult, error: transitionError } =
+      await supabase.rpc("transition_project_status_transactional", {
+        p_project_id: projectId,
+        p_status: newStatus,
+      });
+    const transitionReceipt =
+      getExactProjectStatusTransitionReceipt(transitionResult);
+
+    if (
+      transitionError ||
+      !transitionReceipt ||
+      transitionReceipt.projectId !== projectId ||
+      transitionReceipt.status !== newStatus
+    ) {
+      if (process.env.NODE_ENV !== "test") {
+        console.error("Error updating project status transactionally:", {
+          code: transitionError?.code,
+        });
+      }
+      return { error: "Failed to update project status" };
     }
   }
 
   // Revalidate project pages
   revalidatePath(`/projects/${projectId}`);
-  revalidatePath(`/organization/${project.organization?.id}`);
+  if (project.organization_id) {
+    revalidatePath(`/organization/${project.organization_id}`);
+  }
   revalidatePath("/home");
 
   return { success: true, cancellationNotifications };
@@ -217,24 +252,62 @@ export async function cloneProject(projectId: string) {
     return { error: "You don't have permission to clone this project" };
   }
 
-  // Prepare new project data
-  const {
-    id: _,
-    created_at: __,
-    updated_at: ___,
-    creator_id: ____,
-    status: _____,
-    workflow_status: ______,
-    creator_calendar_event_id: _______,
-    creator_synced_at: ________,
-    published: _________,
-    certificates: __________,
-    ...clonableData
-  } = source;
+  const scheduleResult = validateProjectSchedule(
+    source.event_type,
+    source.schedule,
+  );
+  if (!scheduleResult.ok) {
+    return { error: `Cannot clone invalid schedule: ${scheduleResult.error}` };
+  }
 
+  const projectTimezone = source.project_timezone;
+  const timezoneResult = validateProjectTimezone(projectTimezone);
+  if (!timezoneResult.ok) {
+    return {
+      error: `Cannot clone invalid project timezone: ${timezoneResult.error}`,
+    };
+  }
+
+  let recurrenceRule = null;
+  if (source.recurrence_rule !== null) {
+    const ruleResult = validateRecurrenceRule(source.recurrence_rule);
+    if (!ruleResult.ok) {
+      return {
+        error: `Cannot clone invalid recurrence rule: ${ruleResult.error}`,
+      };
+    }
+    recurrenceRule = ruleResult.rule;
+  }
+
+  // A clone is a new project identity. Only reviewed user-facing configuration
+  // is copied; row identity, workflow/review state, publication state, calendar
+  // bindings, and recurrence lineage are deliberately rebuilt or cleared.
   const newProjectData = {
-    ...clonableData,
     title: `${source.title} (Copy)`,
+    description: source.description,
+    location: source.location,
+    location_data: source.location_data,
+    event_type: source.event_type,
+    schedule: scheduleResult.schedule,
+    verification_method: source.verification_method,
+    require_login: source.require_login,
+    enable_volunteer_comments: source.enable_volunteer_comments,
+    show_attendees_publicly: source.show_attendees_publicly,
+    waiver_required: source.waiver_required,
+    waiver_allow_upload: source.waiver_allow_upload,
+    waiver_disable_esignature: source.waiver_disable_esignature,
+    cover_image_url: source.cover_image_url,
+    documents: source.documents,
+    organization_id: source.organization_id,
+    visibility: source.visibility,
+    can_be_managed_by_staff: source.can_be_managed_by_staff,
+    project_timezone: projectTimezone,
+    restrict_to_org_domains: source.restrict_to_org_domains,
+    signup_form_schema: source.signup_form_schema,
+    recurrence_rule: recurrenceRule,
+    recurrence_parent_id: null,
+    recurrence_sequence: null,
+    recurrence_occurrence_date: null,
     creator_id: user.id,
     status: "draft",
     workflow_status: "draft",
@@ -260,12 +333,14 @@ export async function cloneProject(projectId: string) {
         .select("role")
         .eq("organization_id", source.organization_id)
         .eq("user_id", user.id)
+        .eq("status", "active")
         .maybeSingle();
 
       const viewerRole = toOrganizationPluginAccessRole(orgMember?.role);
       const installedPlugins = await resolveOrganizationPlugins({
         organizationId: source.organization_id,
         userRole: viewerRole,
+        viewerUserId: user.id,
       });
 
       const registry = getPluginRegistry();
@@ -310,7 +385,10 @@ export async function deleteProject(projectId: string) {
   }
 
   // Verify user has permission to delete the project
-  const { project, error: projectError } = await getProject(projectId);
+  const { project, error: projectError } = await getProjectForMutation(
+    supabase,
+    projectId,
+  );
 
   if (!project || projectError) {
     return { error: "Project not found" };
@@ -318,15 +396,19 @@ export async function deleteProject(projectId: string) {
 
   // Check if user has permission
   let hasPermission = project.creator_id === user.id;
-  if (project.organization && !hasPermission) {
-    const { data: orgMember } = await supabase
+  if (project.organization_id && !hasPermission) {
+    const { data: orgMember, error: orgMemberError } = await supabase
       .from("organization_members")
-      .select("role")
-      .eq("organization_id", project.organization.id)
+      .select("role, status")
+      .eq("organization_id", project.organization_id)
       .eq("user_id", user.id)
-      .single();
+      .maybeSingle();
 
-    if (orgMember?.role) {
+    if (orgMemberError) {
+      return { error: "Failed to verify project permissions" };
+    }
+
+    if ((orgMember?.status ?? "active") === "active" && orgMember?.role) {
       hasPermission = orgMember.role === "admin"; // Only admins can delete projects
     }
   }
@@ -342,32 +424,44 @@ export async function deleteProject(projectId: string) {
       .select("id", { count: "exact", head: true })
       .eq("project_id", projectId);
 
-  if (signedWaiverError) {
+  if (signedWaiverError || signedWaiverCount === null) {
     return { error: "Unable to verify the project's waiver-retention state" };
   }
 
-  if ((signedWaiverCount ?? 0) > 0) {
+  if (signedWaiverCount > 0) {
     return {
       error:
         "Projects with signed waivers must be cancelled and retained until their evidence-retention period ends",
     };
   }
 
-  // Delete project documents from storage if they exist
+  // Keep the project row (and therefore its retry/authorization anchor) until
+  // every external cleanup step has settled. The service client is required
+  // because user Storage policies intentionally depend on that project row.
   if ((project.documents?.length ?? 0) > 0) {
-    const { data: storageData } = await supabase.storage
-      .from("project-documents")
-      .list();
+    const { data: storageData, error: storageListError } =
+      await serviceSupabase.storage.from("project-documents").list();
 
-    if (storageData) {
+    if (storageListError) {
+      console.error("Error listing project documents:", storageListError);
+      return { error: "Failed to clean up project documents" };
+    } else if (storageData) {
       const projectFiles = storageData.filter((file) =>
         file.name.startsWith(`project_${projectId}`),
       );
 
       if (projectFiles.length > 0) {
-        await supabase.storage
+        const { error: documentRemovalError } = await serviceSupabase.storage
           .from("project-documents")
           .remove(projectFiles.map((file) => file.name));
+
+        if (documentRemovalError) {
+          console.error(
+            "Error removing project documents:",
+            documentRemovalError,
+          );
+          return { error: "Failed to clean up project documents" };
+        }
       }
     }
   }
@@ -376,33 +470,47 @@ export async function deleteProject(projectId: string) {
   if (project.cover_image_url) {
     const fileName = project.cover_image_url.split("/").pop();
     if (fileName) {
-      await supabase.storage.from("project-images").remove([fileName]);
+      const { error: coverRemovalError } = await serviceSupabase.storage
+        .from("project-images")
+        .remove([fileName]);
+
+      if (coverRemovalError) {
+        console.error("Error removing project cover image:", coverRemovalError);
+        return { error: "Failed to clean up the project cover image" };
+      }
     }
   }
 
-  // Remove calendar event if it exists (non-blocking)
-  try {
-    await removeCalendarEventForProject(projectId);
-  } catch (calendarError) {
-    console.error("Error removing calendar event:", calendarError);
-    // Don't fail the deletion if calendar removal fails
+  if (project.creator_calendar_event_id) {
+    const calendarResult = await removeCalendarEventForProject(projectId, {
+      userId: user.id,
+      calendarEventId: project.creator_calendar_event_id,
+    });
+    if (!calendarResult.success) {
+      return { error: "Failed to clean up the project calendar event" };
+    }
   }
 
-  // Delete project from database
-  const { error: deleteError } = await supabase
+  const { data: deletedProject, error: deleteError } = await supabase
     .from("projects")
     .delete()
-    .eq("id", projectId);
+    .eq("id", projectId)
+    .select("id")
+    .maybeSingle();
 
   if (deleteError) {
     console.error("Error deleting project:", deleteError);
     return { error: "Failed to delete project" };
   }
 
+  if (!deletedProject || deletedProject.id !== projectId) {
+    return { error: "Failed to delete project" };
+  }
+
   // Revalidate paths
   revalidatePath("/home");
-  if (project.organization) {
-    revalidatePath(`/organization/${project.organization.id}`);
+  if (project.organization_id) {
+    revalidatePath(`/organization/${project.organization_id}`);
   }
 
   return { success: true };
@@ -415,13 +523,37 @@ export async function updateProject(
   "use server";
   try {
     const supabase = await createClient();
+
+    // Authentication and authorization first: unauthorized callers must not
+    // be able to trigger sanitization/parsing or probe field-level errors.
+    const { user, error: userError } = await getAuthUser();
+    if (userError || !user) {
+      return { error: "Unauthorized" };
+    }
+
+    // Verify project ownership
+    const { data: project } = await supabase
+      .from("projects")
+      .select(
+        "creator_id, organization_id, can_be_managed_by_staff, recurrence_parent_id, recurrence_rule, recurrence_generation_id, visibility",
+      )
+      .eq("id", projectId)
+      .single();
+
+    if (!project || !(await canUserManageProject(supabase, project, user.id))) {
+      return { error: "Unauthorized" };
+    }
+
     const sanitizedUpdates: Partial<Project> = {
       ...updates,
       ...(typeof updates.description === "string"
         ? { description: sanitizeRichTextHtml(updates.description) }
         : {}),
     };
+
     const mutableSanitizedUpdates = sanitizedUpdates as Record<string, unknown>;
+    const submittedRecurrenceGeneration =
+      sanitizedUpdates.recurrence_generation_id;
     const immutableProjectFields = [
       "id",
       "creator_id",
@@ -435,28 +567,63 @@ export async function updateProject(
       "creator_synced_at",
       "reviewed_by",
       "reviewed_at",
+      "status",
+      "cancelled_at",
+      "cancellation_reason",
+      "cancellation_tenant_id",
+      "recurrence_parent_id",
+      "recurrence_generation_id",
+      "recurrence_sequence",
+      "recurrence_occurrence_date",
+      // Publication is a consequential transition, not a generic field write.
+      // It is owned by publish_waiver_staged_project / publishDraft.
+      "workflow_status",
+      "creation_idempotency_key",
     ] as const;
     for (const field of immutableProjectFields) {
       delete mutableSanitizedUpdates[field];
     }
 
-    // Get current user using getClaims() for better performance
-    const { user, error: userError } = await getAuthUser();
-    if (userError || !user) {
-      return { error: "Unauthorized" };
+    // Waiver switches leave this generic update entirely. Turning a published
+    // project into a waiver project (or changing how its waiver may be signed)
+    // has to keep proving the waiver, so it goes through the service-role
+    // organizer-scoped RPC the database boundary sanctions.
+    const requestedWaiverSettings = extractWaiverSettingUpdates(
+      mutableSanitizedUpdates,
+    );
+
+    // Validate project_timezone when being updated (explicit undefined means omitted).
+    if (
+      Object.prototype.hasOwnProperty.call(
+        sanitizedUpdates,
+        "project_timezone",
+      ) &&
+      sanitizedUpdates.project_timezone !== undefined
+    ) {
+      const tzResult = validateProjectTimezone(
+        sanitizedUpdates.project_timezone,
+      );
+      if (!tzResult.ok) {
+        return { error: `Invalid project timezone: ${tzResult.error}` };
+      }
     }
 
-    // Verify project ownership
-    const { data: project } = await supabase
-      .from("projects")
-      .select(
-        "creator_id, organization_id, can_be_managed_by_staff, recurrence_parent_id, recurrence_rule, visibility",
-      )
-      .eq("id", projectId)
-      .single();
-
-    if (!project || !(await canUserManageProject(supabase, project, user.id))) {
-      return { error: "Unauthorized" };
+    // Validate recurrence_rule when being updated (null clears the rule).
+    if (
+      Object.prototype.hasOwnProperty.call(
+        sanitizedUpdates,
+        "recurrence_rule",
+      ) &&
+      sanitizedUpdates.recurrence_rule !== null &&
+      sanitizedUpdates.recurrence_rule !== undefined
+    ) {
+      const ruleResult = validateRecurrenceRule(
+        sanitizedUpdates.recurrence_rule,
+      );
+      if (!ruleResult.ok) {
+        return { error: `Invalid recurrence rule: ${ruleResult.error}` };
+      }
+      sanitizedUpdates.recurrence_rule = ruleResult.rule;
     }
 
     const requestsPublicVisibility =
@@ -486,47 +653,116 @@ export async function updateProject(
       }
     }
 
+    // Applied before anything else so a refused waiver change leaves the whole
+    // project untouched rather than half saved.
+    if (requestedWaiverSettings) {
+      const waiverSettingsError = await applyWaiverSettings(
+        projectId,
+        user.id,
+        requestedWaiverSettings,
+      );
+
+      if (waiverSettingsError) {
+        return { error: waiverSettingsError };
+      }
+    }
+
     const disablesRecurrence =
       Object.prototype.hasOwnProperty.call(
         sanitizedUpdates,
         "recurrence_rule",
       ) && sanitizedUpdates.recurrence_rule === null;
-    const isRecurringParent =
-      !project.recurrence_parent_id && !!project.recurrence_rule;
 
-    // Update the project
-    const { error: updateError } = await supabase
-      .from("projects")
-      .update(sanitizedUpdates)
-      .eq("id", projectId);
-
-    if (updateError) throw updateError;
-
+    let endedRecurringSeries = false;
     let cancelledOccurrences = 0;
 
-    if (disablesRecurrence && isRecurringParent) {
-      const nowIso = new Date().toISOString();
-      const { data: cancelledRows, error: cancelError } = await supabase
-        .from("projects")
-        .update({
-          status: "cancelled",
-          cancelled_at: nowIso,
-          cancellation_reason: "Recurring series ended by organizer",
-        })
-        .eq("recurrence_parent_id", projectId)
-        .eq("status", "upcoming")
-        .select("id");
-
-      if (cancelError) {
-        console.error("Error cancelling recurring occurrences:", cancelError);
+    if (disablesRecurrence && project.recurrence_parent_id === null) {
+      const atomicSeriesUpdates = Object.fromEntries(
+        Object.entries(mutableSanitizedUpdates).filter(
+          ([, value]) => value !== undefined,
+        ),
+      );
+      if (project.recurrence_rule !== null) {
+        if (
+          typeof submittedRecurrenceGeneration !== "string" ||
+          submittedRecurrenceGeneration !== project.recurrence_generation_id
+        ) {
+          return {
+            error:
+              "Project recurrence changed. Refresh the project before ending this series.",
+            endedRecurringSeries: false,
+            cancelledOccurrences,
+          };
+        }
+        atomicSeriesUpdates.series_end_generation =
+          submittedRecurrenceGeneration;
+      } else if (typeof submittedRecurrenceGeneration === "string") {
+        atomicSeriesUpdates.series_end_generation =
+          submittedRecurrenceGeneration;
       } else {
-        cancelledOccurrences = cancelledRows?.length ?? 0;
+        atomicSeriesUpdates.series_end_expect_ordinary = true;
+      }
+      const { data: seriesEndResult, error: seriesEndError } =
+        await supabase.rpc("end_recurring_project_series_transactional", {
+          p_project_id: projectId,
+          p_updates: atomicSeriesUpdates,
+        });
+      const receipt = getExactRecurringSeriesEndReceipt(seriesEndResult);
+      if (seriesEndError || !receipt) {
+        if (process.env.NODE_ENV !== "test") {
+          console.error("Error ending recurring project series:", {
+            code: seriesEndError?.code,
+          });
+        }
+        return {
+          error: "Failed to end recurring series",
+          endedRecurringSeries: false,
+          cancelledOccurrences,
+        };
+      }
+      endedRecurringSeries = receipt.endedRecurringSeries;
+      cancelledOccurrences = receipt.cancelledOccurrences;
+      for (const field of Object.keys(mutableSanitizedUpdates)) {
+        delete mutableSanitizedUpdates[field];
+      }
+      for (const cleanupProjectId of receipt.calendarCleanupProjectIds) {
+        try {
+          await removeCalendarEventForProject(cleanupProjectId);
+        } catch (calendarError) {
+          console.error(
+            "Error removing calendar event for recurring occurrence:",
+            calendarError,
+          );
+        }
+      }
+    }
+
+    if (Object.keys(mutableSanitizedUpdates).length > 0) {
+      const { data: updatedProject, error: updateError } = await supabase
+        .from("projects")
+        .update(sanitizedUpdates)
+        .eq("id", projectId)
+        .select("id")
+        .maybeSingle();
+
+      if (updateError || !updatedProject || updatedProject.id !== projectId) {
+        if (endedRecurringSeries) {
+          return {
+            error: "Failed to update project",
+            endedRecurringSeries,
+            cancelledOccurrences,
+          };
+        }
+        if (updateError) throw updateError;
+        return {
+          error: "Failed to update project",
+        };
       }
     }
 
     return {
       success: true,
-      endedRecurringSeries: disablesRecurrence && isRecurringParent,
+      endedRecurringSeries,
       cancelledOccurrences,
     };
   } catch (error) {

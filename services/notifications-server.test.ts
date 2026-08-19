@@ -22,7 +22,13 @@ type InsertedRow = Record<string, unknown>;
 let insertedRows: InsertedRow[] = [];
 let preferenceRow: Record<string, unknown> | null = null;
 let preferenceError: { code: string } | null = null;
+let insertError: {
+  code: string;
+  details?: string;
+  message: string;
+} | null = null;
 let browserClientCalls = 0;
+let preferenceReads = 0;
 
 mock.module("@/lib/supabase/client", () => ({
   createClient: () => {
@@ -37,6 +43,7 @@ mock.module("@/lib/supabase/admin", () => ({
   getAdminClient: () => ({
     from(table: string) {
       if (table === "notification_settings") {
+        preferenceReads += 1;
         return {
           select: () => ({
             eq: () => ({
@@ -53,7 +60,7 @@ mock.module("@/lib/supabase/admin", () => ({
         return {
           insert: async (row: InsertedRow) => {
             insertedRows.push(row);
-            return { data: row, error: null };
+            return { data: row, error: insertError };
           },
         };
       }
@@ -71,7 +78,9 @@ beforeEach(() => {
   insertedRows = [];
   preferenceRow = null;
   preferenceError = null;
+  insertError = null;
   browserClientCalls = 0;
+  preferenceReads = 0;
 });
 
 describe("createNotificationForUser", () => {
@@ -114,6 +123,7 @@ describe("createNotificationForUser", () => {
       severity: "info",
       action_url: "/projects/xyz",
       data: { kind: "moderation_report_update" },
+      dedupe_key: undefined,
       displayed: false,
       read: false,
     });
@@ -138,6 +148,25 @@ describe("createNotificationForUser", () => {
 
     expect(result).toEqual({ success: false, skipped: true });
     expect(insertedRows).toHaveLength(0);
+  });
+
+  test("required cancellation notification bypasses preferences", async () => {
+    preferenceRow = { project_updates: false, email_notifications: false };
+
+    const result = await createNotificationForUser(
+      {
+        title: "Project Cancelled",
+        body: "The project was cancelled",
+        type: "project_updates",
+        dedupeKey: "project-cancelled:fixture",
+      },
+      USER,
+      { respectPreferences: false },
+    );
+
+    expect(result).toEqual({ success: true });
+    expect(preferenceReads).toBe(0);
+    expect(insertedRows).toHaveLength(1);
   });
 
   test("delivers when the preference row is absent", async () => {
@@ -166,13 +195,66 @@ describe("createNotificationForUser", () => {
 
     expect(insertedRows.map((row) => row.title)).toEqual(["first", "second"]);
   });
+
+  test("persists an explicit dedupe key", async () => {
+    await createNotificationForUser(
+      {
+        title: "Set Your Custom Username",
+        body: "Choose a username",
+        type: "general",
+        dedupeKey: "account:set-custom-username",
+      },
+      USER,
+    );
+
+    expect(insertedRows[0]?.dedupe_key).toBe("account:set-custom-username");
+  });
+
+  test("classifies the named dedupe conflict as a replay", async () => {
+    insertError = {
+      code: "23505",
+      message:
+        'duplicate key value violates unique constraint "notifications_user_dedupe_key_unique"',
+    };
+
+    const result = await createNotificationForUser(
+      {
+        title: "Set Your Custom Username",
+        body: "Choose a username",
+        type: "general",
+        dedupeKey: "account:set-custom-username",
+      },
+      USER,
+    );
+
+    expect(result).toEqual({ success: true, replayed: true });
+  });
+
+  test("does not hide an unrelated unique violation", async () => {
+    insertError = {
+      code: "23505",
+      message:
+        'duplicate key value violates unique constraint "some_other_index"',
+    };
+
+    const result = await createNotificationForUser(
+      {
+        title: "Set Your Custom Username",
+        body: "Choose a username",
+        type: "general",
+        dedupeKey: "account:set-custom-username",
+      },
+      USER,
+    );
+
+    expect(result).toEqual({ error: insertError });
+  });
 });
 
 describe("server notification callers", () => {
   const repoRoot = join(import.meta.dir, "..");
 
   for (const relativePath of [
-    "app/projects/[id]/server/cancellation.ts",
     "app/admin/moderation/server/notifications.ts",
     "app/admin/moderation/server/reports.ts",
   ]) {
@@ -182,10 +264,25 @@ describe("server notification callers", () => {
       expect(source).toContain("@/services/notifications-server");
       // The browser service pulls in @/lib/supabase/client and sonner, neither
       // of which belongs in a server-only module.
-      expect(source).not.toMatch(
-        /from\s+["']@\/services\/notifications["']/u,
-      );
+      expect(source).not.toMatch(/from\s+["']@\/services\/notifications["']/u);
       expect(source).not.toMatch(/from\s+["']@\/lib\/supabase\/client["']/u);
     });
   }
+
+  // Rejection notifications are written inside public.reject_project_signup, so
+  // this module must not notify from TypeScript through either service: a
+  // separate insert here would be a delivery that could fail on its own again.
+  test("app/projects/[id]/server/cancellation.ts leaves rejection notifications to the database transaction", () => {
+    const source = readFileSync(
+      join(repoRoot, "app/projects/[id]/server/cancellation.ts"),
+      "utf8",
+    );
+
+    expect(source).toContain('supabase.rpc("reject_project_signup"');
+    expect(source).not.toMatch(/from\s+["']@\/services\/notifications["']/u);
+    expect(source).not.toMatch(
+      /from\s+["']@\/services\/notifications-server["']/u,
+    );
+    expect(source).not.toMatch(/from\s+["']@\/lib\/supabase\/client["']/u);
+  });
 });

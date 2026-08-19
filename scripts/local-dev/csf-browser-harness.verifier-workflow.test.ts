@@ -218,6 +218,8 @@ describe("db-replay-validation CI job contract", () => {
       "Validate CSF workflows and public privacy boundary",
     );
     expect(job).not.toContain("- name: Validate DB reset replay");
+    expect(job).toContain("- name: Validate volunteer-hours lock concurrency");
+    expect(job).toContain("run: bun run db:test:hours-concurrency");
     expect(job).toContain("- name: Seed fictional platform and DV fixtures");
     expect(job).toContain("- name: Stop isolated Let’s Assist Supabase");
     expect(job).toContain("if: always()");
@@ -318,7 +320,12 @@ const FIXTURES = {
   csf_terms: [{ id: "t1", code: "S26", is_current: true, closed_at: null }],
   csf_point_submissions: [{ id: "s1", profile_id: "p1", term_id: "t1", status: "approved" }],
   csf_submission_files: [
-    { id: "f1", submission_id: "s1", bucket: "csf-private", object_path: "csf/org-1/f1.pdf" },
+    {
+      id: "f1",
+      submission_id: "s1",
+      bucket: "plugins",
+      object_path: "org-1/dvhs-csf/profiles/p1/f1.pdf",
+    },
   ],
   csf_credit_records: [
     { id: "c1", submission_id: "s1", profile_id: "p1", term_id: "t1", points: 1, status: "awarded" },

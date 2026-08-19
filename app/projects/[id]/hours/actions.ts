@@ -1,22 +1,28 @@
 "use server";
 
+import { createHash } from "node:crypto";
 import { createClient } from "@/lib/supabase/server";
-import { Project } from "@/types"; // Import Project type
-// Import React Email template and React
-import CertificatePublished from "@/emails/certificate-published";
-import * as React from "react";
-import { sendEmail } from "@/services/email";
+import { getAdminClient } from "@/lib/supabase/admin";
 import { canManageProjectAccess } from "@/lib/projects/management-access";
+import { logError, logInfo, logWarn } from "@/lib/logger";
+import { hoursPublicationOutcome } from "@/lib/projects/hours-publication-delivery";
+import {
+  drainPublicationEmails,
+  loadDurablePublicationForRetry,
+} from "@/lib/projects/hours-publication-email-service";
+import { publishVolunteerHoursTransaction } from "@/lib/projects/hours-publication-service";
+import {
+  getPublishStateKey,
+  sendCertificatePublishedEmails,
+} from "./certificate-issuance";
+import { normalizeHoursTimestamp } from "./hours-duration";
+import type { ProjectSchedule } from "@/types";
 
 // Define the structure for session data passed from the client
 type SessionVolunteerData = {
   signupId: string;
-  userId: string | null;
-  name: string | null;
-  email: string | null;
   checkIn: string | null;
   checkOut: string | null;
-  durationMinutes: number;
   isValid: boolean;
 };
 
@@ -24,6 +30,27 @@ type ManageableProject = {
   creator_id: string | null;
   organization_id?: string | null;
   can_be_managed_by_staff?: boolean | null;
+};
+
+type ResendProject = ManageableProject & {
+  event_type: "oneTime" | "multiDay" | "sameDayMultiArea";
+  title: string;
+  project_timezone: string | null;
+  schedule: ProjectSchedule;
+};
+
+export type HoursPublicationOutcome =
+  "accepted" | "replayed" | "partial" | "rejected";
+
+export type HoursPublicationResult = {
+  outcome: HoursPublicationOutcome;
+  success: boolean;
+  error?: string;
+  certificatesCreated?: number;
+  emailsSent?: number;
+  emailErrors?: string[];
+  requestKey?: string;
+  receiptId?: string;
 };
 
 async function canUserManageProjectHours(
@@ -39,6 +66,7 @@ async function canUserManageProjectHours(
       .select("role")
       .eq("user_id", userId)
       .eq("organization_id", project.organization_id)
+      .eq("status", "active")
       .maybeSingle();
 
     organizationRole = membership?.role ?? null;
@@ -52,292 +80,145 @@ async function canUserManageProjectHours(
   });
 }
 
-// Helper function to get the key for the 'published' JSONB field
-const getPublishStateKey = (project: Project, sessionId: string): string => {
-  if (project.event_type === "oneTime") {
-    return "oneTime";
-  } else if (project.event_type === "multiDay") {
-    const parts = sessionId.split("-");
-    if (parts.length === 5) {
-      // New format: YYYY-MM-DD-dayIndex-slotIndex
-      const dateKey = `${parts[0]}-${parts[1]}-${parts[2]}`;
-      const slotIndex = parts[4];
-      return `${dateKey}-${slotIndex}`;
-    } else if (parts.length === 4) {
-      // Legacy format: YYYY-MM-DD-slotIndex
-      return sessionId;
-    }
-  } else if (project.event_type === "sameDayMultiArea") {
-    // For multi-area events, the sessionId is the role name
-    return sessionId;
-  }
-  return sessionId; // Fallback
-};
-
-// Function to send certificate published notifications
-const sendCertificatePublishedEmails = async (
-  certificates: Array<{
-    id: string;
-    volunteer_name: string | null;
-    volunteer_email: string | null;
-    project_title: string;
-    event_start?: string;
-    event_end?: string;
-  }>,
-  projectTimezone?: string,
-): Promise<{ success: boolean; emailsSent: number; errors: string[] }> => {
-  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000";
-
-  let emailsSent = 0;
-  const errors: string[] = [];
-
-  for (const cert of certificates) {
-    if (!cert.volunteer_email || !cert.volunteer_name) {
-      errors.push(`Skipped certificate ${cert.id}: Missing email or name`);
-      continue;
-    }
-
-    try {
-      const certificateUrl = `${siteUrl}/certificates/${cert.id}`;
-
-      const { error: emailError } = await sendEmail({
-        to: cert.volunteer_email,
-        subject: `Your volunteer certificate for ${cert.project_title} is ready!`,
-        react: React.createElement(CertificatePublished, {
-          volunteerName: cert.volunteer_name,
-          projectTitle: cert.project_title,
-          certificateId: cert.id,
-          certificateUrl,
-          isAutoPublished: false,
-          eventStart: cert.event_start,
-          eventEnd: cert.event_end,
-          timezone: projectTimezone,
-        }),
-        type: "transactional",
-      });
-
-      if (emailError) {
-        console.error(`Error sending certificate ${cert.id}:`, emailError);
-        errors.push(`Failed to send certificate ${cert.id}: ${emailError}`);
-      } else {
-        emailsSent++;
-      }
-    } catch (error) {
-      const errorMessage =
-        error instanceof Error ? error.message : "Unknown error";
-      console.error(`Unexpected error sending certificate ${cert.id}:`, error);
-      errors.push(
-        `Unexpected error for certificate ${cert.id}: ${errorMessage}`,
-      );
-    }
-  }
-
-  return {
-    success: emailsSent > 0,
-    emailsSent,
-    errors,
-  };
-};
+function publicationRequestKey(
+  projectId: string,
+  sessionId: string,
+  entries: Array<{ signupId: string; checkIn: string; checkOut: string }>,
+): string {
+  const digest = createHash("sha256")
+    .update(JSON.stringify({ projectId, sessionId, entries }))
+    .digest("hex");
+  return `hours-publication:v1:${digest}`;
+}
 
 export async function publishVolunteerHours(
   projectId: string,
   sessionId: string,
   sessionData: SessionVolunteerData[],
-): Promise<{
-  success: boolean;
-  error?: string;
-  certificatesCreated?: number;
-  emailsSent?: number;
-  emailErrors?: string[];
-}> {
+): Promise<HoursPublicationResult> {
   const supabase = await createClient();
 
   try {
-    // 1. Verify user authentication
     const {
       data: { user },
       error: userError,
     } = await supabase.auth.getUser();
     if (userError || !user) {
-      return { success: false, error: "Authentication required." };
-    }
-
-    // 2. Fetch Project, Organization, and Creator data
-    const { data: projectData, error: projectError } = await supabase
-      .from("projects")
-      .select(
-        `
-        *,
-        profiles!projects_creator_id_fkey1 (full_name),
-        organization:organizations (name, verified) 
-      `,
-      )
-      .eq("id", projectId)
-      .single();
-
-    if (projectError || !projectData) {
-      console.error("Error fetching project data:", projectError);
       return {
+        outcome: "rejected",
         success: false,
-        error: "Project not found or error fetching data.",
+        error: "Authentication required.",
       };
     }
 
-    // Type assertion after successful fetch
-    const project = projectData as Project;
-    if (!(await canUserManageProjectHours(supabase, user.id, project))) {
+    if (!Array.isArray(sessionData) || sessionData.length > 1000) {
       return {
+        outcome: "rejected",
         success: false,
-        error: "Unauthorized: You cannot publish hours for this project.",
+        error: "A publication can contain at most 1,000 volunteers.",
       };
     }
 
-    const creatorName = project.profiles?.full_name || "Project Organizer"; // Fallback name
-    const organizationName = project.organization?.name || null;
-    const isOrganizationVerified = project.organization?.verified || false;
+    const entries = sessionData
+      .filter((v) => v.isValid && v.checkIn && v.checkOut)
+      .map((volunteer) => {
+        const checkIn = normalizeHoursTimestamp(volunteer.checkIn!);
+        const checkOut = normalizeHoursTimestamp(volunteer.checkOut!);
+        return checkIn && checkOut
+          ? { signupId: volunteer.signupId, checkIn, checkOut }
+          : null;
+      })
+      .filter((entry): entry is NonNullable<typeof entry> => entry !== null)
+      .sort((left, right) => left.signupId.localeCompare(right.signupId));
 
-    // 3. Filter out invalid entries (though client should prevent this)
-    const validVolunteers = sessionData.filter(
-      (v) => v.isValid && v.checkIn && v.checkOut,
-    );
-    if (validVolunteers.length === 0) {
+    if (entries.length === 0) {
       return {
+        outcome: "rejected",
         success: false,
         error: "No valid volunteer hours data to publish.",
       };
     }
 
-    // 4. Prepare certificate data
-    const certificatesToInsert = validVolunteers.map((volunteer) => ({
-      project_id: projectId, // check
-      user_id: volunteer.userId, // Can be null for anonymous // check
-      signup_id: volunteer.signupId,
-      volunteer_name: volunteer.name || "No Name Volunteer", // Use provided name or fallback // check
-      volunteer_email: volunteer.email, // Can be null // check
-      project_title: project.title, // check
-      project_location: project.location, // check
-      event_start: volunteer.checkIn,
-      event_end: volunteer.checkOut,
-      //   issued_at: new Date().toISOString(), //handled by database trigger
-      organization_name: organizationName, // Use fetched org name
-      creator_name: creatorName, // Use fetched creator name
-      is_certified: isOrganizationVerified, // Use org verified status
-      creator_id: user.id, // Added creator_id
-      type: "verified" as const,
-      // --- END UPDATED FIELDS ---
-      check_in_method: project.verification_method,
-      schedule_id: sessionId, // Store the session identifier, sessionId renamed to scheduleId
-    }));
+    const requestKey = publicationRequestKey(projectId, sessionId, entries);
+    const transaction = await publishVolunteerHoursTransaction({
+      actorId: user.id,
+      projectId,
+      scheduleId: sessionId,
+      entries,
+      requestKey,
+    });
 
-    // 5. Insert certificates into the database and get the created certificates for email sending
-    const { data: insertedCerts, error: insertError } = (await supabase
-      .from("certificates")
-      .insert(certificatesToInsert)
-      .select(
-        "id, volunteer_name, volunteer_email, project_title, event_start, event_end",
-      )) as {
-      data: Array<{
-        id: string;
-        volunteer_name: string | null;
-        volunteer_email: string | null;
-        project_title: string;
-        event_start?: string | null;
-        event_end?: string | null;
-      }> | null;
-      error: { message: string } | null;
-    };
-
-    if (insertError) {
-      console.error("Error inserting certificates:", insertError);
+    if (!transaction.publication && !transaction.invalidResponse) {
+      logWarn("Volunteer-hours publication rejected", {
+        project_id: projectId,
+        request_key_suffix: requestKey.slice(-12),
+        error_code: transaction.errorCode ?? undefined,
+        rpc_attempt_count: transaction.attempts,
+      });
       return {
+        outcome: "rejected",
         success: false,
-        error: `Database error inserting certificates: ${insertError.message}`,
+        error:
+          transaction.errorCode === "42501"
+            ? "Unauthorized: You cannot publish hours for this project."
+            : "The hours could not be published. Refresh the project and verify the session data before trying again.",
+        requestKey,
       };
     }
 
-    // 6. Update the project's 'published' status
-    const publishKey = getPublishStateKey(project, sessionId);
-    const currentPublishedState = (project.published || {}) as Record<
-      string,
-      boolean
-    >;
-    const updatedPublishedState = {
-      ...currentPublishedState,
-      [publishKey]: true,
-    };
-
-    const { error: updateProjectError } = await supabase
-      .from("projects")
-      .update({ published: updatedPublishedState })
-      .eq("id", projectId);
-
-    if (updateProjectError) {
-      console.error(
-        "Error updating project published status:",
-        updateProjectError,
+    if (!transaction.publication) {
+      logError(
+        "Volunteer-hours publication returned an invalid receipt",
+        new Error("invalid transactional publication result"),
+        {
+          project_id: projectId,
+          request_key_suffix: requestKey.slice(-12),
+          rpc_attempt_count: transaction.attempts,
+        },
       );
-      // Even if this fails, certificates were created, so maybe return success but log error?
-      // For now, let's return an error to be safe.
       return {
+        outcome: "rejected",
         success: false,
-        error: `Failed to update project status: ${updateProjectError.message}`,
+        error:
+          "The publication receipt was invalid. No provider retry was attempted.",
+        requestKey,
       };
     }
 
-    // 6.5. Send in-app notifications to volunteers about their published certificates
-    if (insertedCerts && insertedCerts.length > 0) {
-      const notificationPromises = validVolunteers
-        .filter((v) => v.userId) // Only send to registered users
-        .map(async (volunteer) => {
-          try {
-            const certificateData = insertedCerts.find(
-              (cert) => cert.volunteer_name === volunteer.name,
-            );
-            if (!certificateData) return;
-
-            await supabase.from("notifications").insert({
-              user_id: volunteer.userId,
-              title: "Your Volunteer Hours Have Been Published! 🎉",
-              body: `Your volunteer certificate for "${project.title}" is now available. You volunteered for ${Math.floor(volunteer.durationMinutes / 60)} hours and ${volunteer.durationMinutes % 60} minutes.`,
-              type: "project_updates",
-              severity: "success",
-              action_url: `/certificates/${certificateData.id}`,
-              displayed: false,
-              read: false,
-            });
-          } catch (error) {
-            console.error("Failed to send certificate notification:", error);
-          }
-        });
-
-      await Promise.allSettled(notificationPromises);
-    }
-
-    // 7. Send email notifications
-    const emailCertificates = (insertedCerts || []).map((cert) => ({
-      ...cert,
-      event_start: cert.event_start ?? undefined,
-      event_end: cert.event_end ?? undefined,
-    }));
-
-    const emailResult = await sendCertificatePublishedEmails(
-      emailCertificates,
-      project.project_timezone,
+    const data = transaction.publication;
+    const emailResult = await drainPublicationEmails(data);
+    const outcome: HoursPublicationOutcome = hoursPublicationOutcome(
+      data.outcome,
+      emailResult.partial,
     );
 
+    logInfo("Volunteer-hours publication committed", {
+      project_id: projectId,
+      receipt_id: data.receiptId,
+      outcome,
+      certificate_count: data.certificatesCreated,
+      email_accepted_count: emailResult.emailsSent,
+      email_error_count: emailResult.errors.length,
+    });
+
     return {
+      outcome,
       success: true,
-      certificatesCreated: certificatesToInsert.length,
+      certificatesCreated: data.certificatesCreated,
       emailsSent: emailResult.emailsSent,
       emailErrors: emailResult.errors,
+      requestKey: data.requestKey,
+      receiptId: data.receiptId,
     };
   } catch (error) {
-    console.error("Unexpected error in publishVolunteerHours:", error);
-    const message =
-      error instanceof Error
-        ? error.message
-        : "An unexpected server error occurred.";
-    return { success: false, error: message };
+    logError("Unexpected volunteer-hours publication failure", error, {
+      project_id: projectId,
+    });
+    return {
+      outcome: "rejected",
+      success: false,
+      error: "An unexpected server error occurred.",
+    };
   }
 }
 
@@ -353,6 +234,7 @@ export async function resendCertificateEmails(
   error?: string;
   emailsSent?: number;
   emailErrors?: string[];
+  deliveryMode?: "durable-retry" | "manual-resend";
 }> {
   const supabase = await createClient();
 
@@ -374,7 +256,7 @@ export async function resendCertificateEmails(
     const { data: project, error: projectError } = await supabase
       .from("projects")
       .select(
-        "id, creator_id, organization_id, can_be_managed_by_staff, project_timezone",
+        "id, creator_id, organization_id, can_be_managed_by_staff, event_type, title, project_timezone, schedule",
       )
       .eq("id", projectId)
       .single();
@@ -390,6 +272,38 @@ export async function resendCertificateEmails(
       };
     }
 
+    const typedProject = project as ResendProject;
+    const publishKey = getPublishStateKey(typedProject, sessionId);
+    const legacyScheduleIds =
+      publishKey === sessionId ? [sessionId] : [sessionId, publishKey];
+    try {
+      const admin = getAdminClient();
+      const durablePublication = await loadDurablePublicationForRetry(admin, {
+        projectId,
+        publishKey,
+        projectTitle: typedProject.title,
+        projectTimezone: typedProject.project_timezone,
+      });
+      if (durablePublication) {
+        const delivery = await drainPublicationEmails(durablePublication);
+        return {
+          success: true,
+          emailsSent: delivery.emailsSent,
+          emailErrors: delivery.errors,
+          deliveryMode: "durable-retry",
+        };
+      }
+    } catch (error) {
+      logError("Durable certificate delivery retry failed closed", error, {
+        project_id: projectId,
+        publish_key: publishKey,
+      });
+      return {
+        success: false,
+        error: "The durable email ledger could not be checked safely.",
+      };
+    }
+
     // 3. Fetch the certificates to resend
     const { data: certificates, error: certError } = await supabase
       .from("certificates")
@@ -397,7 +311,7 @@ export async function resendCertificateEmails(
         "id, volunteer_name, volunteer_email, project_title, event_start, event_end",
       )
       .eq("project_id", projectId)
-      .eq("schedule_id", sessionId);
+      .in("schedule_id", legacyScheduleIds);
 
     if (certError || !certificates) {
       return { success: false, error: "Failed to fetch certificates." };
@@ -425,13 +339,12 @@ export async function resendCertificateEmails(
       success: true,
       emailsSent: emailResult.emailsSent,
       emailErrors: emailResult.errors,
+      deliveryMode: "manual-resend",
     };
   } catch (error) {
-    console.error("Unexpected error in resendCertificateEmails:", error);
-    const message =
-      error instanceof Error
-        ? error.message
-        : "An unexpected server error occurred.";
-    return { success: false, error: message };
+    logError("Unexpected certificate resend failure", error, {
+      project_id: projectId,
+    });
+    return { success: false, error: "An unexpected server error occurred." };
   }
 }

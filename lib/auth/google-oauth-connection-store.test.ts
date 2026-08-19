@@ -9,13 +9,19 @@ const readSource = (path: string) => readFileSync(join(root, path), "utf8");
 
 describe("Google OAuth credential purpose boundaries", () => {
   test("the callback resolves and saves only the signed binding", () => {
-    const source = readSource("app/api/calendar/google/callback/route.ts");
+    const source = readSource("app/api/google/oauth/callback/route.ts");
 
     expect(source).toContain("getGoogleOAuthConnectionForBinding(");
     expect(source).toContain("saveGoogleOAuthConnectionForBinding({");
-    expect(source).toContain("purpose: stateData.purpose");
-    expect(source).toContain("organizationId: stateData.organizationId");
-    expect(source).toContain("pluginKey: stateData.pluginKey");
+    // The binding is built from the durable attempt the ledger returned, so
+    // nothing the callback request carries can redirect a credential to
+    // another purpose, organization, or plugin.
+    expect(source).toContain("purpose: attemptBinding.purpose");
+    expect(source).toContain("organizationId: attemptBinding.organizationId");
+    expect(source).toContain("pluginKey: attemptBinding.pluginKey");
+    expect(source).toContain(
+      "const { attemptId, claimEpoch, binding: attemptBinding, returnTo } = claim;",
+    );
     expect(source).not.toContain('.from("user_calendar_connections")');
     expect(source).not.toContain("google_oauth_binding:");
   });
@@ -62,7 +68,7 @@ describe("Google OAuth credential purpose boundaries", () => {
   test("disconnects delete only the selected purpose credential and report shared-grant handling", () => {
     const service = readCalendarServiceSource();
     const personalDisconnect = readSource(
-      "app/api/calendar/google/disconnect/route.ts",
+      "app/api/google/oauth/disconnect/route.ts",
     );
     const orgCalendar = readSource("app/organization/[id]/calendar/actions.ts");
     const orgSheets = readOrganizationSheetActionsSource();
@@ -145,7 +151,7 @@ describe("Google OAuth credential purpose boundaries", () => {
   });
 
   test("OAuth token failures never log provider response bodies", () => {
-    const callback = readSource("app/api/calendar/google/callback/route.ts");
+    const callback = readSource("app/api/google/oauth/callback/route.ts");
     const service = readCalendarServiceSource();
     const refreshStart = service.indexOf("async function refreshAccessToken(");
     const refreshEnd = service.indexOf(

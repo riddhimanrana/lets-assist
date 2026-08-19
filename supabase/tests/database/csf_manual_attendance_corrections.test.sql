@@ -31,6 +31,14 @@ VALUES
   ('d3100000-0000-4000-8000-000000000001', 'CSF Attendance One', 'csf-attendance-one', 'school', '993101'),
   ('d3100000-0000-4000-8000-000000000002', 'CSF Attendance Two', 'csf-attendance-two', 'school', '993102');
 
+INSERT INTO public.organization_members (organization_id, user_id, role, status)
+VALUES (
+  'd3100000-0000-4000-8000-000000000001',
+  'd3000000-0000-4000-8000-000000000001',
+  'admin',
+  'active'
+);
+
 INSERT INTO plugin_data.csf_terms (id, organization_id, code, label, school_year, semester, is_current)
 VALUES
   ('d3200000-0000-4000-8000-000000000001', 'd3100000-0000-4000-8000-000000000001', 'F30', 'Fall 2030', '2030-2031', 'fall', true),

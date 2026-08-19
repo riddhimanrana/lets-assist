@@ -17,11 +17,11 @@ import { streamText } from "ai";
 import { createClient } from "@/lib/supabase/server";
 import { notifyAdminUserBatched } from "@/services/admin-notifications";
 import { logError } from "@/lib/logger";
-import { gatewayModel } from "@/lib/ai/gateway";
-import { createPostHogTelemetry } from "@/lib/ai/posthog-telemetry";
+import { prepareTrackedAiCall } from "@/lib/ai/with-ai-tracking";
+import { AI_MODEL_FAST } from "@/lib/ai/models";
 
-// Model configuration for Vercel AI Gateway
-const MODEL = "google/gemini-2.0-flash-lite";
+// Model configuration for Vercel AI Gateway (see lib/ai/models.ts)
+const MODEL = AI_MODEL_FAST;
 
 export interface ModerationResult {
   safe: boolean;
@@ -52,20 +52,22 @@ export async function moderateImage(
   imageUrl: string,
   userId?: string,
 ): Promise<ModerationResult> {
+  const tracked = prepareTrackedAiCall({
+    context: {
+      scope: "moderation",
+      userId,
+      feature: "moderate-image",
+    },
+    modelId: MODEL,
+  });
+  const startedAt = Date.now();
   try {
     let fullText = "";
-    const telemetry = createPostHogTelemetry({
-      functionId: "moderate-image",
-      distinctId: userId,
-      metadata: {
-        ai_feature: "content-moderation",
-        content_type: "image",
-      },
-    });
 
     const result = streamText({
-      model: gatewayModel("moderation", MODEL),
-      experimental_telemetry: telemetry,
+      model: tracked.model,
+      experimental_telemetry: tracked.telemetry,
+      providerOptions: { gateway: tracked.gatewayOptions },
       messages: [
         {
           role: "system",
@@ -117,6 +119,13 @@ export async function moderateImage(
     for await (const textPart of result.textStream) {
       fullText += textPart;
     }
+    const usage = await result.usage;
+    await tracked.logUsage({
+      promptTokens: usage.inputTokens,
+      completionTokens: usage.outputTokens,
+      latencyMs: Date.now() - startedAt,
+      success: true,
+    });
 
     const analysis = JSON.parse(fullText);
 
@@ -152,9 +161,14 @@ export async function moderateImage(
 
     return moderationResult;
   } catch (error) {
-    logError("Image moderation failed", error, {
+    await tracked.logUsage({
+      latencyMs: Date.now() - startedAt,
+      success: false,
+      errorMessage: error instanceof Error ? error.name : "unknown",
+    });
+    logError("Image moderation failed", new Error("AI moderation failed"), {
       user_id: userId,
-      image_url: imageUrl.substring(0, 100),
+      error_kind: error instanceof Error ? error.name : "unknown",
     });
     // On error, fail safe - allow but flag for review
     return {
@@ -177,20 +191,22 @@ export async function moderateText(
   userId?: string,
   contentId?: string,
 ): Promise<ModerationResult> {
+  const tracked = prepareTrackedAiCall({
+    context: {
+      scope: "moderation",
+      userId,
+      feature: "moderate-text",
+    },
+    modelId: MODEL,
+  });
+  const startedAt = Date.now();
   try {
     let fullText = "";
-    const telemetry = createPostHogTelemetry({
-      functionId: "moderate-text",
-      distinctId: userId,
-      metadata: {
-        ai_feature: "content-moderation",
-        content_type: "text",
-      },
-    });
 
     const result = streamText({
-      model: gatewayModel("moderation", MODEL),
-      experimental_telemetry: telemetry,
+      model: tracked.model,
+      experimental_telemetry: tracked.telemetry,
+      providerOptions: { gateway: tracked.gatewayOptions },
       messages: [
         {
           role: "system",
@@ -234,6 +250,13 @@ export async function moderateText(
     for await (const textPart of result.textStream) {
       fullText += textPart;
     }
+    const usage = await result.usage;
+    await tracked.logUsage({
+      promptTokens: usage.inputTokens,
+      completionTokens: usage.outputTokens,
+      latencyMs: Date.now() - startedAt,
+      success: true,
+    });
 
     const moderation = JSON.parse(fullText);
 
@@ -295,10 +318,16 @@ export async function moderateText(
 
     return moderationResult;
   } catch (error) {
-    logError("Text moderation failed", error, {
+    await tracked.logUsage({
+      latencyMs: Date.now() - startedAt,
+      success: false,
+      errorMessage: error instanceof Error ? error.name : "unknown",
+    });
+    logError("Text moderation failed", new Error("AI moderation failed"), {
       user_id: userId,
-      content_id: contentId,
+      has_content_id: Boolean(contentId),
       text_length: text.length,
+      error_kind: error instanceof Error ? error.name : "unknown",
     });
     // On error, fail safe - allow but flag for review
     return {
@@ -359,13 +388,17 @@ async function logModeration({
       });
     }
   } catch (error) {
-    logError("Failed to log moderation result to database", error, {
-      user_id: userId,
-      content_type: contentType,
-      content_id: contentId.substring(0, 50),
-      action: result.action,
-      severity: result.severity,
-    });
+    logError(
+      "Failed to log moderation result to database",
+      new Error("Moderation persistence failed"),
+      {
+        user_id: userId,
+        content_type: contentType,
+        action: result.action,
+        severity: result.severity,
+        error_kind: error instanceof Error ? error.name : "unknown",
+      },
+    );
   }
 }
 

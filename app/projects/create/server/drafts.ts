@@ -4,7 +4,10 @@ import "server-only";
 
 import { createClient } from "@/lib/supabase/server";
 import { sanitizeRichTextHtml } from "@/lib/security/html.server";
-import { getWaiverPdfRequirementError } from "@/lib/projects/waiver-validation";
+import {
+  getWaiverConfigurationError,
+  getWaiverPdfRequirementError,
+} from "@/lib/projects/waiver-validation";
 import { revalidatePath } from "next/cache";
 import type { EventFormState } from "@/hooks/use-event-form";
 import { createBasicProject } from "./create";
@@ -13,6 +16,10 @@ import {
   normalizeRequireLoginForVerificationMethod,
   sanitizeDraftData,
 } from "./shared";
+import {
+  validateProjectTimezone,
+  validateRecurrenceRule,
+} from "@/lib/projects/schedule-validation";
 
 export async function finalizeProject(projectId: string) {
   "use server";
@@ -30,17 +37,40 @@ export async function finalizeProject(projectId: string) {
 export async function createProject(formData: FormData) {
   "use server";
   try {
+    const supabase = await createClient();
+    const {
+      data: { user },
+      error: userError,
+    } = await supabase.auth.getUser();
+    if (userError || !user) {
+      return { error: "You must be logged in to create a project" };
+    }
+
     // Parse project data
     const projectDataStr = formData.get("projectData") as string;
     if (!projectDataStr) return { error: "Missing project data" };
     const projectData = JSON.parse(projectDataStr);
+    const creationIdempotencyKey = formData.get("creationIdempotencyKey");
 
-    // Create basic project record
-    const basicResult = await createBasicProject(projectData);
+    // Create basic project record. The key makes a replayed create resolve to
+    // the row the first attempt created instead of inserting another one.
+    const basicResult = await createBasicProject({
+      ...projectData,
+      creationIdempotencyKey:
+        typeof creationIdempotencyKey === "string"
+          ? creationIdempotencyKey
+          : undefined,
+    });
     if (basicResult.error) return basicResult;
 
-    // Return the project ID - client will handle file uploads separately
-    return { success: true, id: basicResult.id };
+    // Return the project ID - client will handle file uploads separately. A
+    // waiver project is staged unpublished, so the caller must finish it.
+    return {
+      success: true,
+      id: basicResult.id,
+      requiresWaiverPublication: basicResult.requiresWaiverPublication ?? false,
+      reusedExistingAttempt: basicResult.reusedExistingAttempt ?? false,
+    };
   } catch (error) {
     console.error("Error in create project wrapper:", error);
     return { error: "An unexpected error occurred. Please try again." };
@@ -57,7 +87,6 @@ export async function autoSaveDraft(
   "use server";
   try {
     const supabase = await createClient();
-    const sanitizedProjectData = sanitizeDraftData(projectData);
 
     // Get current user
     const {
@@ -70,6 +99,8 @@ export async function autoSaveDraft(
         autosaved: false,
       };
     }
+
+    const sanitizedProjectData = sanitizeDraftData(projectData);
 
     const waiverPdfError = getWaiverPdfRequirementError(sanitizedProjectData);
     if (waiverPdfError) {
@@ -135,11 +166,6 @@ export async function saveProjectAsNewDraft(formData: FormData) {
   try {
     const supabase = await createClient();
 
-    const projectDataStr = formData.get("projectData") as string;
-    if (!projectDataStr) return { error: "Missing project data" };
-    const projectData = JSON.parse(projectDataStr);
-    const sanitizedProjectData = sanitizeDraftData(projectData);
-
     // Get current user
     const {
       data: { user },
@@ -148,6 +174,11 @@ export async function saveProjectAsNewDraft(formData: FormData) {
     if (userError || !user) {
       return { error: "You must be logged in to save a draft" };
     }
+
+    const projectDataStr = formData.get("projectData") as string;
+    if (!projectDataStr) return { error: "Missing project data" };
+    const projectData = JSON.parse(projectDataStr);
+    const sanitizedProjectData = sanitizeDraftData(projectData);
 
     const waiverPdfError = getWaiverPdfRequirementError(sanitizedProjectData);
     if (waiverPdfError) {
@@ -187,11 +218,6 @@ export async function saveProjectAsDraft(formData: FormData) {
   try {
     const supabase = await createClient();
 
-    const projectDataStr = formData.get("projectData") as string;
-    if (!projectDataStr) return { error: "Missing project data" };
-    const projectData = JSON.parse(projectDataStr);
-    const sanitizedProjectData = sanitizeDraftData(projectData);
-
     // Get current user
     const {
       data: { user },
@@ -200,6 +226,11 @@ export async function saveProjectAsDraft(formData: FormData) {
     if (userError || !user) {
       return { error: "You must be logged in to save a draft" };
     }
+
+    const projectDataStr = formData.get("projectData") as string;
+    if (!projectDataStr) return { error: "Missing project data" };
+    const projectData = JSON.parse(projectDataStr);
+    const sanitizedProjectData = sanitizeDraftData(projectData);
 
     const waiverPdfError = getWaiverPdfRequirementError(sanitizedProjectData);
     if (waiverPdfError) {
@@ -261,10 +292,21 @@ export async function publishDraft(draftId: string) {
 
   // Create the project from draft data
   const projectData = draft.draft_data;
-  const waiverPdfError = getWaiverPdfRequirementError(projectData);
-  if (waiverPdfError) {
-    return { error: waiverPdfError };
+  const waiverConfigurationError = getWaiverConfigurationError(projectData);
+  if (waiverConfigurationError) {
+    return { error: waiverConfigurationError };
   }
+
+  // Drafts intentionally never carry the uploaded waiver PDF, so this path
+  // cannot prove one. Refusing here beats creating a project that would stay
+  // staged and unpublishable with nobody to finish it.
+  if (projectData?.waiverRequired) {
+    return {
+      error:
+        "Projects that require a waiver must be published from the create flow so the waiver PDF can be attached.",
+    };
+  }
+
   const basicResult = await createBasicProject(projectData, false);
 
   if (basicResult.error) {
@@ -326,9 +368,9 @@ export async function updateDraft(
     return { error: "Incomplete project data for draft update" };
   }
 
-  const waiverPdfError = getWaiverPdfRequirementError(projectData);
-  if (waiverPdfError) {
-    return { error: waiverPdfError };
+  const waiverConfigurationError = getWaiverConfigurationError(projectData);
+  if (waiverConfigurationError) {
+    return { error: waiverConfigurationError };
   }
 
   const targetVisibility =
@@ -357,17 +399,33 @@ export async function updateDraft(
     }
   }
 
-  // Build recurrence rule if enabled
-  const recurrenceRule = projectData.recurrence?.enabled
-    ? {
-        frequency: projectData.recurrence.frequency,
-        interval: projectData.recurrence.interval || 1,
-        end_type: projectData.recurrence.endType,
-        end_date: projectData.recurrence.endDate || null,
-        end_occurrences: projectData.recurrence.endOccurrences || null,
-        weekdays: projectData.recurrence.weekdays || [],
-      }
-    : null;
+  // Validate project_timezone server-side.
+  const rawTimezone =
+    projectData.basicInfo.projectTimezone || "America/Los_Angeles";
+  const timezoneResult = validateProjectTimezone(rawTimezone);
+  if (!timezoneResult.ok) {
+    return { error: `Invalid project timezone: ${timezoneResult.error}` };
+  }
+
+  // Build and validate recurrence rule if enabled.
+  let recurrenceRule:
+    | import("@/lib/projects/schedule-validation").ValidatedRecurrenceRule
+    | null = null;
+  if (projectData.recurrence?.enabled) {
+    const rawRule = {
+      frequency: projectData.recurrence.frequency,
+      interval: projectData.recurrence.interval,
+      end_type: projectData.recurrence.endType,
+      end_date: projectData.recurrence.endDate || null,
+      end_occurrences: projectData.recurrence.endOccurrences || null,
+      weekdays: projectData.recurrence.weekdays || [],
+    };
+    const ruleResult = validateRecurrenceRule(rawRule);
+    if (!ruleResult.ok) {
+      return { error: `Invalid recurrence rule: ${ruleResult.error}` };
+    }
+    recurrenceRule = ruleResult.rule;
+  }
 
   // Update the draft
   const baseUpdatePayload = {
@@ -387,8 +445,7 @@ export async function updateDraft(
     waiver_required: projectData.waiverRequired || false,
     waiver_allow_upload: projectData.waiverAllowUpload ?? true,
     visibility: targetVisibility,
-    project_timezone:
-      projectData.basicInfo.projectTimezone || "America/Los_Angeles",
+    project_timezone: rawTimezone,
     restrict_to_org_domains: projectData.restrictToOrgDomains || false,
     recurrence_rule: recurrenceRule,
   };

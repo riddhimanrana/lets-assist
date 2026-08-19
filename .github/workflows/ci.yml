@@ -95,6 +95,7 @@ jobs:
           ref: ${{ steps.private-plugin-gitlink.outputs.sha }}
           path: lib/plugins/private
           ssh-key: ${{ secrets.PRIVATE_SUBMODULE_SSH_KEY }}
+          fetch-depth: 0
           persist-credentials: false
 
       - name: Normalize private plugin remote metadata
@@ -117,6 +118,9 @@ jobs:
 
       - name: Install dependencies
         run: bun install --frozen-lockfile
+
+      - name: Check formatting
+        run: bun run format:check
 
       - name: Validate Supabase seed safety
         run: |
@@ -182,6 +186,7 @@ jobs:
           ref: ${{ steps.private-plugin-gitlink.outputs.sha }}
           path: lib/plugins/private
           ssh-key: ${{ secrets.PRIVATE_SUBMODULE_SSH_KEY }}
+          fetch-depth: 0
           persist-credentials: false
 
       - name: Normalize private plugin remote metadata
@@ -296,6 +301,9 @@ jobs:
       - name: Validate database tests on the same running isolated stack
         run: supabase test db --workdir "${CSF_ISOLATED_WORK_DIR}"
 
+      - name: Validate volunteer-hours lock concurrency
+        run: bun run db:test:hours-concurrency
+
       - name: Seed fictional platform and DV fixtures
         run: |
           # JavaScript-managed fictional records only. The migration and SQL-seed
@@ -339,6 +347,10 @@ jobs:
         run: bun run dv:test:e2e
         env:
           DV_LOCAL_TEST_PASSWORD: ${{ github.run_id }}-${{ github.run_attempt }}-DvTest!
+          # Standalone typecheck and the full quality build already passed on
+          # this SHA. Keep the second isolated browser build compile-only while
+          # its Supabase stack is resident, matching the CSF browser step.
+          CSF_BROWSER_SKIP_BUILD_TYPECHECK: "1"
 
       - name: Skip private DV browser workflows
         if: ${{ hashFiles('lib/plugins/private/plugins/dv-speech-debate/plugin.tsx') == '' }}
@@ -348,6 +360,7 @@ jobs:
         run: bun run csf:test:e2e
         env:
           CSF_LOCAL_TEST_PASSWORD: ${{ github.run_id }}-${{ github.run_attempt }}-CsfTest!
+          CSF_BROWSER_SKIP_BUILD_TYPECHECK: "1"
 
       - name: Verify isolated Supabase remains healthy
         if: ${{ always() && steps.start-isolated.outcome == 'success' }}

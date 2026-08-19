@@ -15,6 +15,11 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 
+import {
+  GOOGLE_OAUTH_CALLBACK_PARAMS,
+  readGoogleOAuthCallbackNotice,
+} from "@/lib/auth/google-oauth-connection-messages";
+
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -106,7 +111,7 @@ export default function OrganizationSheetsSettings({
 
   const connectUrl = useMemo(
     () =>
-      `/api/calendar/google/connect?purpose=organization_sheets&scopes=sheets&sheets_sync=1&force=1&org_id=${organizationId}&return_to=${encodeURIComponent(
+      `/api/google/oauth/connect?purpose=organization_sheets&scopes=sheets&sheets_sync=1&force=1&org_id=${organizationId}&return_to=${encodeURIComponent(
         `/organization/${organizationSlug}/settings?section=sheets`,
       )}`,
     [organizationId, organizationSlug],
@@ -156,22 +161,30 @@ export default function OrganizationSheetsSettings({
         toast.success("Google account connected successfully!");
         // Clean up URL
         const newParams = new URLSearchParams(searchParams.toString());
-        newParams.delete("success");
+        for (const param of GOOGLE_OAUTH_CALLBACK_PARAMS) {
+          newParams.delete(param);
+        }
         router.replace(`?${newParams.toString()}`, { scroll: false });
         loadStatus();
       } else if (error) {
-        if (error === "access_denied") {
-          toast.error("Access denied. Please grant the required permissions.");
-        } else if (error === "no_refresh_token") {
-          toast.error(
-            "Google did not return a refresh token. Please reconnect and approve offline access.",
-          );
-        } else {
-          toast.error(`Connection failed: ${error}`);
+        // Render from the shared catalogue rather than echoing the code, so an
+        // outcome this build does not recognize can never become screen text.
+        const notice = readGoogleOAuthCallbackNotice(searchParams.toString());
+        if (notice) {
+          const detail = notice.correlationId
+            ? `${notice.message} Reference: ${notice.correlationId}.`
+            : notice.message;
+          if (notice.tone === "warning") {
+            toast.warning(detail);
+          } else {
+            toast.error(detail);
+          }
         }
         // Clean up URL
         const newParams = new URLSearchParams(searchParams.toString());
-        newParams.delete("error");
+        for (const param of GOOGLE_OAUTH_CALLBACK_PARAMS) {
+          newParams.delete(param);
+        }
         router.replace(`?${newParams.toString()}`, { scroll: false });
       }
     }
@@ -288,9 +301,9 @@ export default function OrganizationSheetsSettings({
                       <Image
                         src="/resources/google-sheets-logo-2026.png"
                         alt="Google Sheets"
-                        width={24}
+                        width={33}
                         height={24}
-                        className="size-6"
+                        className="h-6 w-auto object-contain"
                       />
                     </span>
                     <div className="space-y-1">
@@ -562,9 +575,9 @@ export default function OrganizationSheetsSettings({
               <Image
                 src="/resources/google-sheets-logo-2026.png"
                 alt="Google Sheets"
-                width={24}
+                width={33}
                 height={24}
-                className="size-6"
+                className="h-6 w-auto object-contain"
               />
             </div>
             <div>
@@ -611,9 +624,9 @@ export default function OrganizationSheetsSettings({
               <Image
                 src="/resources/google-sheets-logo-2026.png"
                 alt="Google Sheets"
-                width={24}
+                width={33}
                 height={24}
-                className="size-6"
+                className="h-6 w-auto object-contain"
               />
             </div>
             <div>

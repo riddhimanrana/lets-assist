@@ -579,6 +579,36 @@ describe("fencing and restart safety", () => {
     expect(sendCalls).toHaveLength(0);
   });
 
+  test("an oversized claim response is rejected before the first authorization or send", async () => {
+    const secondClaim = {
+      ...claim(),
+      attemptId: "bd900000-0000-4000-8000-000000000002",
+      deliveryId: "bda00000-0000-4000-8000-000000000002",
+      recipientSnapshotId: "bd800000-0000-4000-8000-000000000002",
+    };
+    const { calls, plugin } = pluginHarness(
+      defaultHandlers({
+        csf_claim_communication_dispatch_batch: () => ({
+          data: { claimedCount: 2, claims: [claim(), secondClaim] },
+          error: null,
+        }),
+      }),
+    );
+
+    await expect(
+      worker.runCsfDispatchWorker(plugin, {
+        organizationId: ORG,
+        workerId: "bounded-worker",
+        batchSize: 1,
+      }),
+    ).rejects.toThrow(worker.CsfWorkerRpcError);
+
+    expect(calls.map((call) => call.fn)).toEqual([
+      "csf_claim_communication_dispatch_batch",
+    ]);
+    expect(sendCalls).toHaveLength(0);
+  });
+
   test("an empty claim batch sends nothing", async () => {
     const { plugin } = pluginHarness({
       csf_claim_communication_dispatch_batch: () => ({

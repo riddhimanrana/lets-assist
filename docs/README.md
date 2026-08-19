@@ -35,6 +35,8 @@ This directory is the canonical documentation home for humans and coding agents.
 - [Production cutover runbook](development/production-cutover-runbook.md)
 - [Local fictional accounts](development/local-accounts.md)
 - [Member import parser setup](development/member-imports.md)
+- [Post-project suite: paper signups, feedback, follow-up email](development/post-project-suite.md)
+- [Project cancellation worker](development/project-cancellation-worker.md)
 - [Google Cross-Account Protection](development/google-cross-account-protection.md)
 - [Database simplification roadmap](development/database-simplification-roadmap.md)
 - [Dependency modernization ledger](development/dependency-modernization.md)
@@ -42,6 +44,7 @@ This directory is the canonical documentation home for humans and coding agents.
 ## DVHS CSF
 
 - [Subsystem overview](csf/README.md)
+- [DVHS Fall 2026 operator guide](csf/dvhs-fall-2026-operator-guide.md)
 - [Onboarding a new chapter](csf/new-chapter-onboarding.md)
 - [Formal invariants](csf/invariants.md)
 - [Product contract](csf/product-contract.md)

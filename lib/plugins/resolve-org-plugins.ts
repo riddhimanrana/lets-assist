@@ -9,12 +9,14 @@ import {
 import {
   coalescePluginVersion,
   isPluginVersionBehind,
+  isPluginRuntimeVersionExact,
 } from "@/lib/plugins/versioning";
 import type {
   OrganizationPluginAccessRole,
   OrganizationPluginExperience,
   ResolvedOrganizationPlugin,
 } from "@/types";
+import { getActiveOrganizationMembershipRole } from "@/lib/organization/active-membership";
 
 export interface ResolvedOrganizationPluginExperience {
   organizationId: string;
@@ -60,8 +62,21 @@ export async function resolveOrganizationPluginExperiences(
 
   return accessRows
     .flatMap((row) => {
-      const experience = getRegisteredPlugin(row.plugin_key)?.manifest
-        .organizationExperience;
+      const definition = getRegisteredPlugin(row.plugin_key);
+      const installedVersion = coalescePluginVersion(
+        row.installed_version,
+        row.latest_version,
+      );
+      if (
+        !definition ||
+        !isPluginRuntimeVersionExact(
+          installedVersion,
+          definition.manifest.version,
+        )
+      ) {
+        return [];
+      }
+      const experience = definition.manifest.organizationExperience;
       if (!experience) return [];
       return [
         {
@@ -77,11 +92,17 @@ export async function resolveOrganizationPluginExperiences(
 export async function resolveOrganizationPlugins(options: {
   organizationId: string;
   userRole: OrganizationPluginAccessRole | null;
+  viewerUserId?: string;
+  allowPublicAccess?: boolean;
   failureMode?: PluginAccessFailureMode;
 }): Promise<ResolvedOrganizationPlugin[]> {
-  const { organizationId, userRole } = options;
+  const { organizationId } = options;
 
-  if (!userRole) {
+  if (
+    !options.userRole &&
+    !options.viewerUserId &&
+    !options.allowPublicAccess
+  ) {
     return [];
   }
 
@@ -91,6 +112,15 @@ export async function resolveOrganizationPlugins(options: {
   } catch {
     supabase = await createClient();
   }
+
+  const userRole = options.viewerUserId
+    ? await getActiveOrganizationMembershipRole(
+        supabase,
+        organizationId,
+        options.viewerUserId,
+      )
+    : options.userRole;
+  if (!userRole && !options.allowPublicAccess) return [];
 
   const accessRows = await loadAccessibleOrganizationPluginAccess({
     supabase,
@@ -116,9 +146,20 @@ export async function resolveOrganizationPlugins(options: {
     if (forceUpdateRequired) {
       continue;
     }
+    if (
+      !isPluginRuntimeVersionExact(
+        installedVersion,
+        definition.manifest.version,
+      )
+    ) {
+      continue;
+    }
 
     const minimumRole = definition.manifest.minimumRole ?? "member";
-    if (!hasOrganizationPluginAccess(userRole, minimumRole)) {
+    if (
+      !options.allowPublicAccess &&
+      !hasOrganizationPluginAccess(userRole, minimumRole)
+    ) {
       continue;
     }
 
@@ -146,12 +187,16 @@ export async function resolveOrganizationPlugins(options: {
 export async function resolveOrganizationPluginByKey(options: {
   organizationId: string;
   userRole: OrganizationPluginAccessRole | null;
+  viewerUserId?: string;
+  allowPublicAccess?: boolean;
   pluginKey: string;
   failureMode?: PluginAccessFailureMode;
 }): Promise<ResolvedOrganizationPlugin | null> {
   const plugins = await resolveOrganizationPlugins({
     organizationId: options.organizationId,
     userRole: options.userRole,
+    viewerUserId: options.viewerUserId,
+    allowPublicAccess: options.allowPublicAccess,
     failureMode: options.failureMode,
   });
 

@@ -131,7 +131,7 @@ assert(
   "A point submission has more than one proof file.",
 );
 assert(
-  (filesResult.data ?? []).every((file) => file.bucket === "csf-private"),
+  (filesResult.data ?? []).every((file) => file.bucket === "plugins"),
   "CSF proof escaped the private storage bucket.",
 );
 
@@ -165,7 +165,7 @@ const proofProbe = {
   submission_id: proofProbeSubmission.id,
   profile_id: proofProbeSubmission.profile_id,
   term_id: proofProbeSubmission.term_id,
-  bucket: "csf-private",
+  bucket: "plugins",
   object_path: `csf/${organization.id}/test-only/proof-uniqueness-probe.pdf`,
   original_filename: "proof-uniqueness-probe.pdf",
   mime_type: "application/pdf",

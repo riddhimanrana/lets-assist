@@ -26,13 +26,24 @@ SELECT extensions.ok(
   'only the service role may read connect evidence'
 );
 SELECT extensions.ok(
-  pg_get_functiondef(
-    'plugin_data.csf_resolve_profile_link_request(uuid,uuid,uuid,text,text,uuid)'::regprocedure
-  ) LIKE '%LOCK TABLE plugin_data.csf_profiles%'
-  AND pg_get_functiondef(
-    'plugin_data.csf_resolve_profile_link_request(uuid,uuid,uuid,text,text,uuid)'::regprocedure
-  ) LIKE '%LOCK TABLE plugin_data.csf_profile_accounts%',
-  'the connect path evaluates its evidence under identity table locks'
+  pg_catalog.strpos(
+    pg_get_functiondef(
+      'plugin_data.csf_resolve_profile_link_request(uuid,uuid,uuid,text,text,uuid)'::regprocedure
+    ),
+    'csf_lock_identity_mutation'
+  ) > 0
+  AND pg_catalog.strpos(
+    pg_get_functiondef(
+      'plugin_data.csf_resolve_profile_link_request(uuid,uuid,uuid,text,text,uuid)'::regprocedure
+    ),
+    'csf_lock_identity_mutation'
+  ) < pg_catalog.strpos(
+    pg_get_functiondef(
+      'plugin_data.csf_resolve_profile_link_request(uuid,uuid,uuid,text,text,uuid)'::regprocedure
+    ),
+    'FOR UPDATE'
+  ),
+  'the connect path takes the organization identity lock before request and evidence rows'
 );
 
 INSERT INTO auth.users (

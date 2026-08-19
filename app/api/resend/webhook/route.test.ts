@@ -85,6 +85,8 @@ const ORG = "bd100000-0000-4000-8000-000000000001";
 const CAMPAIGN = "bd400000-0000-4000-8000-000000000001";
 const ATTEMPT = "bd900000-0000-4000-8000-000000000001";
 const SVIX_ID = "msg_2synthetic0000000000001";
+const CURRENT_ENVIRONMENT = "abcdefghijklmnopqrst";
+const FOREIGN_ENVIRONMENT = "zyxwvutsrqponmlkjihg";
 
 /**
  * The canonical webhook tag shape. Resend types `WebhookEvent.data.tags` as
@@ -148,6 +150,7 @@ beforeEach(() => {
   };
   process.env.RESEND_WEBHOOK_SECRET = "whsec_synthetic";
   process.env.RESEND_API_KEY = "re_synthetic";
+  process.env.NEXT_PUBLIC_SUPABASE_URL = `https://${CURRENT_ENVIRONMENT}.supabase.co`;
 
   restoreInfo = console.info;
   restoreError = console.error;
@@ -428,6 +431,148 @@ describe("CSF routing comes from signed object-shaped tags", () => {
 
     expect(rpcCalls[0].args.p_attempt_id).toBe(ATTEMPT);
     expect(rpcCalls[0].args.p_campaign_id).toBe(CAMPAIGN);
+  });
+
+  test("the signed environment coordinate is exposed by routing", () => {
+    const routing = route.extractCsfRouting({
+      data: {
+        tags: csfTags({ csf_environment: CURRENT_ENVIRONMENT }),
+      },
+    });
+
+    expect(routing.environment).toBe(CURRENT_ENVIRONMENT);
+  });
+
+  test("a foreign environment event is acknowledged without ledger or quarantine writes", async () => {
+    const raw =
+      '{"type":"email.delivered","created_at":"2032-04-01T11:30:00.000Z","data":{"email_id":"synthetic-foreign-message","tags":' +
+      JSON.stringify(
+        csfTags({
+          csf_environment: FOREIGN_ENVIRONMENT,
+          csf_campaign_id: CAMPAIGN,
+          csf_attempt_id: ATTEMPT,
+        }),
+      ) +
+      "}}";
+    verifyImpl = () => JSON.parse(raw);
+
+    const response = await route.POST(makeRequest(raw));
+
+    expect(response.status).toBe(200);
+    expect(await response.json()).toEqual({
+      received: true,
+      csf: true,
+      foreignEnvironment: true,
+    });
+    expect(rpcCalls).toHaveLength(0);
+  });
+
+  // THE ISOLATION CONTRACT HAS TO HOLD FOR POISON TOO, OR IT IS NOT A CONTRACT.
+  //
+  // Resend webhook subscriptions are account-wide: Production and every preview
+  // backend receive the same signed bytes, and the environment tag is what makes
+  // exactly one of them the owner. The unroutable-tenant quarantine used to run
+  // FIRST, so the one event class most likely to be corrupt -- a bad organization
+  // tag -- never reached that gate. Every environment that received it filed its
+  // own quarantine row, and the same fault appeared as N independent incidents on
+  // N worklists.
+  //
+  // The corrupt tenant tag does not make the environment tag less trustworthy:
+  // both were signed by the same provider over the same body.
+  test("a foreign environment wins over an unroutable tenant: no local quarantine", async () => {
+    const raw = JSON.stringify({
+      type: "email.delivered",
+      created_at: "2032-04-01T11:30:00.000Z",
+      data: {
+        email_id: "synthetic-foreign-poison",
+        tags: {
+          csf_plugin: "dvhs_csf",
+          csf_organization_id: "not-a-uuid",
+          csf_environment: FOREIGN_ENVIRONMENT,
+          csf_campaign_id: CAMPAIGN,
+        },
+      },
+    });
+    verifyImpl = () => JSON.parse(raw);
+
+    const response = await route.POST(makeRequest(raw));
+
+    expect(response.status).toBe(200);
+    expect(await response.json()).toEqual({
+      received: true,
+      csf: true,
+      foreignEnvironment: true,
+    });
+    // Neither ledger nor quarantine. The environment that owns this event will
+    // quarantine it once, which is the correct number of times.
+    expect(rpcCalls).toHaveLength(0);
+  });
+
+  test("an unroutable tenant in THIS environment is still quarantined here", async () => {
+    // The positive control for the ordering above. Without it, the reordering
+    // could be satisfied by never quarantining an unroutable event at all.
+    const raw = JSON.stringify({
+      type: "email.delivered",
+      created_at: "2032-04-01T11:30:00.000Z",
+      data: {
+        email_id: "synthetic-local-poison",
+        tags: {
+          csf_plugin: "dvhs_csf",
+          csf_organization_id: "not-a-uuid",
+          csf_environment: CURRENT_ENVIRONMENT,
+        },
+      },
+    });
+    verifyImpl = () => JSON.parse(raw);
+
+    const response = await route.POST(makeRequest(raw));
+
+    expect(response.status).toBe(200);
+    expect(await response.json()).toMatchObject({
+      quarantined: true,
+      reasonCode: "unroutable_tenant",
+    });
+  });
+
+  test("an untagged environment still quarantines, so legacy events are not lost", async () => {
+    // Events predating the environment tag have no owner to defer to. Deferring
+    // on absence would mean every backend acknowledges and none records.
+    const raw = JSON.stringify({
+      type: "email.delivered",
+      created_at: "2032-04-01T11:30:00.000Z",
+      data: {
+        email_id: "synthetic-legacy-poison",
+        tags: { csf_plugin: "dvhs_csf", csf_organization_id: "not-a-uuid" },
+      },
+    });
+    verifyImpl = () => JSON.parse(raw);
+
+    const response = await route.POST(makeRequest(raw));
+
+    expect(await response.json()).toMatchObject({
+      quarantined: true,
+      reasonCode: "unroutable_tenant",
+    });
+  });
+
+  test("a matching environment event reaches the owning ledger", async () => {
+    const raw =
+      '{"type":"email.delivered","created_at":"2032-04-01T11:30:00.000Z","data":{"email_id":"synthetic-current-message","tags":' +
+      JSON.stringify(
+        csfTags({
+          csf_environment: CURRENT_ENVIRONMENT,
+          csf_campaign_id: CAMPAIGN,
+          csf_attempt_id: ATTEMPT,
+        }),
+      ) +
+      "}}";
+    verifyImpl = () => JSON.parse(raw);
+
+    const response = await route.POST(makeRequest(raw));
+
+    expect(response.status).toBe(200);
+    expect(rpcCalls).toHaveLength(1);
+    expect(rpcCalls[0].fn).toBe("csf_record_communication_provider_event");
   });
 
   test("a non-uuid attempt tag is forwarded as null rather than passed through", () => {

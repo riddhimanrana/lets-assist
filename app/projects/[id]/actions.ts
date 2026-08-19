@@ -13,6 +13,7 @@ export {
 export { togglePauseSignups, signUpForProject } from "./server/signup";
 export {
   unrejectSignup,
+  rejectSignup,
   createRejectionNotification,
   cancelSignup,
 } from "./server/cancellation";
@@ -34,3 +35,9 @@ export {
   getWaiverDefinition,
   saveWaiverDefinition,
 } from "./server/waiver-definition";
+export {
+  getMyProjectFeedback,
+  getProjectFeedbackSummary,
+  submitProjectFeedback,
+  submitProjectFeedbackWithToken,
+} from "./server/feedback";

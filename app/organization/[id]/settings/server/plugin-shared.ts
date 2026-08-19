@@ -1,6 +1,10 @@
 import "server-only";
 
 import { createClient } from "@/lib/supabase/server";
+import {
+  hasActiveOrganizationAdminMembership,
+  type OrganizationMembershipQueryClient,
+} from "@/lib/organization/active-membership";
 import type { OrganizationPluginAdminSetting } from "@/types";
 
 export type PluginCatalogRow = {
@@ -83,15 +87,8 @@ export function isPlainObjectRecord(
 export async function isOrganizationAdminForSettings(
   organizationId: string,
   userId: string,
+  client?: OrganizationMembershipQueryClient,
 ): Promise<boolean> {
-  const supabase = await createClient();
-  const { data: membership } = await supabase
-    .from("organization_members")
-    .select("role")
-    .eq("organization_id", organizationId)
-    .eq("user_id", userId)
-    .eq("role", "admin")
-    .single();
-
-  return Boolean(membership);
+  const supabase = client ?? (await createClient());
+  return hasActiveOrganizationAdminMembership(supabase, organizationId, userId);
 }

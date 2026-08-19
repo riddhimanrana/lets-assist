@@ -20,6 +20,11 @@ interface DateTimePickerProps {
   clearable?: boolean;
   disabled?: boolean;
   placeholder?: string;
+  id?: string;
+  required?: boolean;
+  error?: boolean;
+  "aria-describedby"?: string;
+  "aria-label"?: string;
 }
 
 export function DateTimePicker({
@@ -28,6 +33,11 @@ export function DateTimePicker({
   clearable = true,
   disabled = false,
   placeholder = "MM/DD/YYYY hh:mm aa",
+  id,
+  required,
+  error = false,
+  "aria-describedby": ariaDescribedBy,
+  "aria-label": ariaLabel,
 }: DateTimePickerProps) {
   // Use value from props if provided, otherwise use internal state
   const [date, setDate] = React.useState<Date | null>(value || null);
@@ -118,14 +128,21 @@ export function DateTimePicker({
       <PopoverTrigger
         render={
           <Button
+            type="button"
+            id={id}
             variant="outline"
             className={cn(
               "w-full justify-start text-left font-normal",
               !date && "text-muted-foreground",
+              error && "border-destructive focus-visible:ring-destructive",
             )}
             disabled={disabled}
+            aria-describedby={ariaDescribedBy}
+            aria-label={ariaLabel}
+            aria-required={required}
+            aria-invalid={error || undefined}
           >
-            <CalendarIcon className="mr-2 h-4 w-4" />
+            <CalendarIcon data-icon="inline-start" />
             {date ? (
               format(date, "MM/dd/yyyy hh:mm aa")
             ) : (
@@ -147,6 +164,7 @@ export function DateTimePicker({
               <div className="flex sm:flex-col p-2">
                 {hours.map((hour) => (
                   <Button
+                    type="button"
                     key={hour}
                     size="icon"
                     variant={
@@ -167,6 +185,7 @@ export function DateTimePicker({
               <div className="flex sm:flex-col p-2">
                 {minutes.map((minute) => (
                   <Button
+                    type="button"
                     key={minute}
                     size="icon"
                     variant={
@@ -187,6 +206,7 @@ export function DateTimePicker({
               <div className="flex sm:flex-col p-2">
                 {["AM", "PM"].map((ampm) => (
                   <Button
+                    type="button"
                     key={ampm}
                     size="icon"
                     variant={
@@ -211,22 +231,24 @@ export function DateTimePicker({
         <div className="p-3 border-t flex justify-between">
           {clearable && (
             <Button
+              type="button"
               variant="ghost"
               size="sm"
               onClick={handleClear}
               className="text-destructive hover:text-destructive hover:bg-destructive/10"
             >
-              <X className="mr-2 h-4 w-4" />
+              <X data-icon="inline-start" />
               Clear
             </Button>
           )}
           <Button
+            type="button"
             variant="ghost"
             size="sm"
             onClick={handleDone}
             className="ml-auto"
           >
-            <Check className="mr-2 h-4 w-4" />
+            <Check data-icon="inline-start" />
             Done
           </Button>
         </div>

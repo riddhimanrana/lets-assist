@@ -1,10 +1,11 @@
 import { createClient } from "@supabase/supabase-js";
+import { createHash } from "node:crypto";
 import { NextRequest, NextResponse } from "next/server";
-// Import React Email template and services
-import CertificatePublished from "@/emails/certificate-published";
-import * as React from "react";
-import { sendEmail } from "@/services/email";
 import { cronAuthShapeProbe } from "@/lib/cron/auth-shape-probe";
+import { drainPublicationEmails } from "@/lib/projects/hours-publication-email-service";
+import { publishVolunteerHoursTransaction } from "@/lib/projects/hours-publication-service";
+import { getPublishStateKey } from "@/lib/projects/hours-publish-key";
+import type { Project } from "@/types";
 
 /**
  * Canonical cron endpoint implementation.
@@ -86,15 +87,6 @@ type SignupAnonymousRow = {
   email?: string | null;
 };
 
-type OrganizationRow = {
-  name?: string | null;
-  verified?: boolean | null;
-};
-
-type ProjectCreatorRow = {
-  full_name?: string | null;
-};
-
 type ProjectRow = {
   id: string;
   title: string;
@@ -104,8 +96,8 @@ type ProjectRow = {
   status?: string | null;
   project_timezone?: string | null;
   creator_id?: string | null;
-  profiles?: ProjectCreatorRow | ProjectCreatorRow[] | null;
-  organization?: OrganizationRow | OrganizationRow[] | null;
+  event_type: "oneTime" | "multiDay" | "sameDayMultiArea";
+  schedule: Project["schedule"];
 };
 
 type SignupRow = {
@@ -151,101 +143,35 @@ function calculateDuration(
   }
 }
 
-// Send certificate published notifications
-async function sendCertificatePublishedEmails(
-  certificates: Array<{
-    id: string;
-    volunteer_name: string | null;
-    volunteer_email: string | null;
-    project_title: string;
-    event_start?: string;
-    event_end?: string;
-  }>,
-  projectTimezone?: string,
-): Promise<{ success: boolean; emailsSent: number; errors: string[] }> {
-  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000";
-
-  let emailsSent = 0;
-  const errors: string[] = [];
-
-  for (const cert of certificates) {
-    if (!cert.volunteer_email || !cert.volunteer_name) {
-      errors.push(`Skipped certificate ${cert.id}: Missing email or name`);
-      continue;
-    }
-
-    try {
-      const certificateUrl = `${siteUrl}/certificates/${cert.id}`;
-
-      const { error: emailError } = await sendEmail({
-        to: cert.volunteer_email,
-        subject: `[Auto-Published] Your volunteer certificate for ${cert.project_title} is ready!`,
-        react: React.createElement(CertificatePublished, {
-          volunteerName: cert.volunteer_name,
-          projectTitle: cert.project_title,
-          certificateId: cert.id,
-          certificateUrl,
-          isAutoPublished: true,
-          eventStart: cert.event_start,
-          eventEnd: cert.event_end,
-          timezone: projectTimezone,
-        }),
-        type: "transactional",
-      });
-
-      if (emailError) {
-        console.error(
-          `Error sending email to ${cert.volunteer_email}:`,
-          emailError,
-        );
-        errors.push(
-          `Failed to send email to ${cert.volunteer_email}: ${emailError}`,
-        );
-      } else {
-        emailsSent++;
-        console.log(
-          `Certificate email sent successfully to ${cert.volunteer_email}`,
-        );
-      }
-
-      // Add a 200ms delay between individual emails to keep Resend/Server happy
-      await new Promise((resolve) => setTimeout(resolve, 200));
-    } catch (error) {
-      const errorMessage =
-        error instanceof Error ? error.message : "Unknown error";
-      console.error(
-        `Unexpected error sending email to ${cert.volunteer_email}:`,
-        error,
-      );
-      errors.push(
-        `Unexpected error for ${cert.volunteer_email}: ${errorMessage}`,
-      );
-    }
-  }
-
-  return {
-    success: emailsSent > 0,
-    emailsSent,
-    errors,
-  };
+function autoPublicationRequestKey(
+  projectId: string,
+  sessionId: string,
+  entries: Array<{ signupId: string; checkIn: string; checkOut: string }>,
+) {
+  const digest = createHash("sha256")
+    .update(JSON.stringify({ projectId, sessionId, entries }))
+    .digest("hex");
+  return `hours-publication:v1:${digest}`;
 }
 
-// Process signups directly into certificates
+// Publish certificates, notifications, email work, and the session flag in the
+// same replay-safe database transaction used by the organizer workflow.
 async function processSessionSignups(
   project: ProjectRow,
   sessionId: string,
   signups: SignupRow[],
   sessionName: string,
 ): Promise<AutoPublishResult> {
-  const supabase = createServiceClient();
-
   try {
     console.log(
       `Processing ${signups.length} signups for session ${sessionId}`,
     );
 
-    // Process volunteers and validate hours
-    const validVolunteers = [];
+    const entries: Array<{
+      signupId: string;
+      checkIn: string;
+      checkOut: string;
+    }> = [];
 
     for (const signup of signups) {
       if (!signup.check_in_time || !signup.check_out_time) {
@@ -260,28 +186,16 @@ async function processSessionSignups(
         continue; // Skip invalid durations
       }
 
-      const profile = Array.isArray(signup.profile)
-        ? signup.profile[0]
-        : signup.profile;
-      const anonymous = Array.isArray(signup.anonymous_signup)
-        ? signup.anonymous_signup[0]
-        : signup.anonymous_signup;
-      const name =
-        profile?.full_name || anonymous?.name || "Anonymous Volunteer";
-      const email = profile?.email || anonymous?.email || null;
-
-      validVolunteers.push({
+      entries.push({
         signupId: signup.id,
-        userId: signup.user_id || null,
-        name,
-        email,
         checkIn: signup.check_in_time,
         checkOut: signup.check_out_time,
-        durationMinutes: duration.minutes,
       });
     }
 
-    if (validVolunteers.length === 0) {
+    entries.sort((left, right) => left.signupId.localeCompare(right.signupId));
+
+    if (entries.length === 0 || !project.creator_id) {
       console.log(`No valid volunteer hours found for session ${sessionId}`);
       return {
         success: false,
@@ -294,51 +208,21 @@ async function processSessionSignups(
       };
     }
 
-    console.log(
-      `Processing ${validVolunteers.length} volunteers with valid hours`,
+    const requestKey = autoPublicationRequestKey(
+      project.id,
+      sessionId,
+      entries,
     );
+    const transaction = await publishVolunteerHoursTransaction({
+      actorId: project.creator_id,
+      projectId: project.id,
+      scheduleId: sessionId,
+      entries,
+      requestKey,
+      origin: "automatic",
+    });
 
-    // Get organization info for certificate generation
-    const creatorProfile = Array.isArray(project.profiles)
-      ? project.profiles[0]
-      : project.profiles;
-    const organization = Array.isArray(project.organization)
-      ? project.organization[0]
-      : project.organization;
-    const creatorName = creatorProfile?.full_name || "Project Organizer";
-    const organizationName = organization?.name || null;
-    const isOrganizationVerified = organization?.verified || false;
-
-    // Prepare certificate data
-    const certificatesToInsert = validVolunteers.map((volunteer) => ({
-      project_id: project.id,
-      user_id: volunteer.userId,
-      signup_id: volunteer.signupId,
-      volunteer_name: volunteer.name,
-      volunteer_email: volunteer.email,
-      project_title: project.title,
-      project_location: project.location,
-      event_start: volunteer.checkIn,
-      event_end: volunteer.checkOut,
-      organization_name: organizationName,
-      creator_name: creatorName,
-      is_certified: isOrganizationVerified,
-      creator_id: project.creator_id,
-      type: "verified" as const,
-      check_in_method: project.verification_method,
-      schedule_id: sessionId,
-    }));
-
-    // Insert certificates into the database
-    const { data: insertedCerts, error: insertError } = await supabase
-      .from("certificates")
-      .insert(certificatesToInsert)
-      .select(
-        "id, volunteer_name, volunteer_email, project_title, event_start, event_end",
-      );
-
-    if (insertError) {
-      console.error("Error inserting certificates:", insertError);
+    if (!transaction.publication) {
       return {
         success: false,
         projectId: project.id,
@@ -347,92 +231,15 @@ async function processSessionSignups(
         certificatesCreated: 0,
         emailsSent: 0,
         errors: [
-          `Database error inserting certificates: ${insertError.message}`,
+          transaction.invalidResponse
+            ? "Atomic publication returned an invalid receipt"
+            : `Atomic publication failed${transaction.errorCode ? ` (${transaction.errorCode})` : ""}`,
         ],
       };
     }
 
-    console.log(
-      `Successfully created ${certificatesToInsert.length} certificates`,
-    );
-
-    // Send in-app notifications to volunteers about their published certificates
-    if (insertedCerts && insertedCerts.length > 0) {
-      console.log(
-        `Sending ${insertedCerts.length} notifications to volunteers`,
-      );
-
-      const notificationPromises = validVolunteers
-        .filter((v) => v.userId) // Only send to registered users
-        .map(async (volunteer) => {
-          try {
-            const certificateData = insertedCerts.find(
-              (cert) => cert.volunteer_name === volunteer.name,
-            );
-            if (!certificateData) return;
-
-            await supabase.from("notifications").insert({
-              user_id: volunteer.userId,
-              title: "Your Volunteer Hours Have Been Published! 🎉",
-              body: `Your volunteer certificate for "${project.title}" is now available. You volunteered for ${Math.floor(volunteer.durationMinutes / 60)} hours and ${volunteer.durationMinutes % 60} minutes.`,
-              type: "project_updates",
-              severity: "success",
-              action_url: `/certificates/${certificateData.id}`,
-              displayed: false,
-              read: false,
-            });
-          } catch (error) {
-            console.error(
-              `Failed to send notification to user ${volunteer.userId}:`,
-              error,
-            );
-          }
-        });
-
-      await Promise.allSettled(notificationPromises);
-      console.log("Finished sending notifications");
-    }
-
-    // Update the project's 'published' status
-    const currentPublishedState = (project.published || {}) as Record<
-      string,
-      boolean
-    >;
-    const updatedPublishedState = {
-      ...currentPublishedState,
-      [sessionId]: true,
-    };
-
-    const { error: updateProjectError } = await supabase
-      .from("projects")
-      .update({ published: updatedPublishedState })
-      .eq("id", project.id);
-
-    if (updateProjectError) {
-      console.error(
-        "Error updating project published status:",
-        updateProjectError,
-      );
-      return {
-        success: false,
-        projectId: project.id,
-        sessionId,
-        sessionName,
-        certificatesCreated: certificatesToInsert.length,
-        emailsSent: 0,
-        errors: [
-          `Failed to update project status: ${updateProjectError.message}`,
-        ],
-      };
-    }
-
-    console.log(`Updated project published status for session ${sessionId}`);
-
-    // Send email notifications
-    const emailResult = await sendCertificatePublishedEmails(
-      insertedCerts || [],
-      project.project_timezone || undefined,
-    );
+    const publication = transaction.publication;
+    const emailResult = await drainPublicationEmails(publication);
 
     console.log(
       `Email sending completed: ${emailResult.emailsSent} sent, ${emailResult.errors.length} errors`,
@@ -443,7 +250,7 @@ async function processSessionSignups(
       projectId: project.id,
       sessionId,
       sessionName,
-      certificatesCreated: certificatesToInsert.length,
+      certificatesCreated: publication.certificatesCreated,
       emailsSent: emailResult.emailsSent,
       errors: emailResult.errors,
     };
@@ -500,7 +307,7 @@ async function processExpiredSessions(): Promise<{
           name,
           email
         ),
-        projects!inner (
+        projects!project_signups_project_id_fkey!inner (
           *,
           profiles!projects_creator_id_fkey1 (full_name),
           organization:organizations (name, verified)
@@ -536,24 +343,27 @@ async function processExpiredSessions(): Promise<{
         project: ProjectRow;
         signups: SignupRow[];
         sessionId: string;
+        publishKey: string;
         projectId: string;
       }
     >();
 
     eligibleSignups.forEach((signup) => {
-      const key = `${signup.project_id}-${signup.schedule_id}`;
+      const project = Array.isArray(signup.projects)
+        ? signup.projects[0]
+        : signup.projects;
+      if (!project || !signup.schedule_id || !signup.project_id) {
+        return;
+      }
+
+      const publishKey = getPublishStateKey(project, signup.schedule_id);
+      const key = `${signup.project_id}-${publishKey}`;
 
       if (!sessionGroups.has(key)) {
-        // Check if this session is already published
-        const project = Array.isArray(signup.projects)
-          ? signup.projects[0]
-          : signup.projects;
-        if (!project || !signup.schedule_id || !signup.project_id) {
-          return;
-        }
+        // Check the canonical publication key, not one raw schedule alias.
 
         const isPublished = Boolean(
-          project.published && project.published[signup.schedule_id],
+          project.published && project.published[publishKey],
         );
 
         if (
@@ -563,17 +373,10 @@ async function processExpiredSessions(): Promise<{
           project.status !== "cancelled"
         ) {
           sessionGroups.set(key, {
-            project: {
-              ...project,
-              profiles: Array.isArray(project.profiles)
-                ? project.profiles[0]
-                : project.profiles,
-              organization: Array.isArray(project.organization)
-                ? project.organization[0]
-                : project.organization,
-            },
+            project,
             signups: [],
             sessionId: signup.schedule_id,
+            publishKey,
             projectId: signup.project_id,
           });
         }
@@ -620,10 +423,35 @@ async function processExpiredSessions(): Promise<{
       );
 
       try {
+        // The time-window query identifies sessions that are due. Publication
+        // itself must use the complete session snapshot, including attendees
+        // whose checkout timestamps fall outside this particular cron window.
+        const { data: projectSignups, error: completeSessionError } =
+          await supabase
+            .from("project_signups")
+            .select(
+              "id, project_id, schedule_id, status, check_in_time, check_out_time",
+            )
+            .eq("project_id", sessionGroup.projectId)
+            .in("status", ["attended", "approved"])
+            .not("check_in_time", "is", null)
+            .not("check_out_time", "is", null);
+
+        if (completeSessionError || !projectSignups) {
+          throw new Error("complete_session_snapshot_unavailable");
+        }
+
+        const completeSessionSignups = (projectSignups as SignupRow[]).filter(
+          (signup) =>
+            Boolean(signup.schedule_id) &&
+            getPublishStateKey(sessionGroup.project, signup.schedule_id!) ===
+              sessionGroup.publishKey,
+        );
+
         const result = await processSessionSignups(
           sessionGroup.project,
           sessionGroup.sessionId,
-          sessionGroup.signups,
+          completeSessionSignups,
           sessionName,
         );
         results.push(result);

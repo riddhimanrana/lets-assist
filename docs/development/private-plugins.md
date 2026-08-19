@@ -22,7 +22,7 @@ CI must use recursive submodules and a credential that can read the private repo
     token: ${{ secrets.PRIVATE_REPO_TOKEN }}
 ```
 
-The main repository pins an exact submodule commit. A plugin release is incomplete until the private commit is pushed and the main repository pointer is updated.
+The main repository pins an exact submodule commit. A plugin release is incomplete until the private commit is pushed, the main repository pointer is updated, and an immutable `plugin_versions` release certificate pins that commit plus the SHA-256 of the shipped manifest.
 
 ## Change workflow
 
@@ -31,6 +31,11 @@ The main repository pins an exact submodule commit. A plugin release is incomple
 3. Return to the main repository.
 4. Add migrations, fixtures, generated types, host routes, and CI changes.
 5. Commit the updated submodule pointer with the main-repository changes.
+
+For storage, use the private `plugins` bucket and namespace every object as
+`{organizationId}/{pluginKey}/...`. The manifest must declare each live path
+pattern as `server-only`; plugin code must use a shared path builder instead of
+assembling bucket names or tenant prefixes ad hoc.
 
 Do not leave the main branch pointing at an unpushed private commit.
 

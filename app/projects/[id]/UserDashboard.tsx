@@ -47,7 +47,8 @@ import Link from "next/link";
 import { QRCodeScannerModal } from "@/app/projects/_components/QRCodeScannerModal"; // Import the new component
 import { createClient } from "@/lib/supabase/client"; // 🆕 add supabase client
 import { toast } from "sonner";
-import { getMyWaiverSignatures } from "./actions";
+import { getMyProjectFeedback, getMyWaiverSignatures } from "./actions";
+import { ProjectFeedbackDialog } from "@/components/projects/ProjectFeedbackDialog";
 import {
   Carousel,
   CarouselContent,
@@ -272,6 +273,34 @@ export default function UserDashboard({
     [projectEndDateTime, now],
   );
   // --- END ADDED ---
+
+  // --- Private post-project feedback ---
+  const attendedFeedbackSignupId = useMemo(
+    () => signups.find((signup) => signup.status === "attended")?.id ?? null,
+    [signups],
+  );
+  const [myFeedback, setMyFeedback] = useState<{
+    rating: number;
+    comment: string | null;
+  } | null>(null);
+  const [feedbackLoaded, setFeedbackLoaded] = useState(false);
+  useEffect(() => {
+    if (!isProjectCompleted || !attendedFeedbackSignupId) return;
+    let cancelled = false;
+    getMyProjectFeedback(project.id)
+      .then((result) => {
+        if (cancelled) return;
+        setMyFeedback(result.feedback);
+        setFeedbackLoaded(true);
+      })
+      .catch(() => {
+        if (!cancelled) setFeedbackLoaded(true);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [isProjectCompleted, attendedFeedbackSignupId, project.id]);
+  // --- END feedback ---
 
   // --- Process Each Signup ---
   const signupStatuses = useMemo(() => {
@@ -1298,9 +1327,35 @@ export default function UserDashboard({
     return null;
   }
 
+  /**
+   * Private post-project feedback, deliberately independent of eventCards.
+   * A signup can drop out of the carousel entirely (past the 48h hours
+   * window, 'none' render state, missing slot details) while the volunteer
+   * is still an attendee who should be able to rate the project — and the
+   * follow-up email links them here 24-96h after the event, which is
+   * exactly when the carousel tends to be empty.
+   */
+  const feedbackPrompt =
+    isProjectCompleted && attendedFeedbackSignupId && feedbackLoaded ? (
+      <ProjectFeedbackDialog
+        projectId={project.id}
+        signupId={attendedFeedbackSignupId}
+        initial={myFeedback}
+        onSubmitted={setMyFeedback}
+      />
+    ) : null;
+
   if (!eventCards || eventCards.length === 0) {
-    // Render general alerts even if no specific signup cards are shown
-    return <div className="space-y-4">{renderGeneralSignupOnlyAlert()}</div>;
+    // Render general alerts and feedback even if no specific signup cards show
+    if (!feedbackPrompt && !renderGeneralSignupOnlyAlert()) {
+      return null;
+    }
+    return (
+      <div className="space-y-4 mb-6">
+        {renderGeneralSignupOnlyAlert()}
+        {feedbackPrompt}
+      </div>
+    );
   }
 
   return (
@@ -1308,6 +1363,8 @@ export default function UserDashboard({
       {/* --- ADDED: Render general signup-only alert --- */}
       {renderGeneralSignupOnlyAlert()}
       {/* --- END ADDED --- */}
+
+      {feedbackPrompt}
 
       {/* Event Cards Carousel */}
       <Carousel
