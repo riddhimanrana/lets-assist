@@ -108,13 +108,19 @@ export function ReviewRowEditor({
     setSaving(true);
     const checkInTime = localTimeToIso(form.timeIn, timezone, window);
     const checkOutTime = localTimeToIso(form.timeOut, timezone, window);
+    const reviewedName = form.name.trim() || null;
+    const reviewedEmail = form.email.trim().toLowerCase() || null;
+    const identityChanged =
+      reviewedName !== (row.name?.trim() || null) ||
+      reviewedEmail !== (row.email?.trim().toLowerCase() || null);
     const patch = {
-      name: form.name.trim() || null,
-      email: form.email.trim() || null,
+      name: reviewedName,
+      email: reviewedEmail,
       phone: form.phone.trim() || null,
       checkInTime,
       checkOutTime,
       signaturePresent: form.signaturePresent,
+      matchSignupId: identityChanged ? null : row.matchSignupId,
     };
     const result = await updatePaperScanRow({
       projectId,
@@ -135,6 +141,7 @@ export function ReviewRowEditor({
       checkInTime,
       checkOutTime,
       signaturePresent: form.signaturePresent,
+      matchSignupId: patch.matchSignupId,
     });
   };
 

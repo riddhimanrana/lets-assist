@@ -17,6 +17,7 @@ describe("production review consistency boundaries", () => {
 
   test("review edits use the parent-locking service RPC", async () => {
     const source = await read("./actions.ts");
+    const editor = await read("./ReviewRowEditor.tsx");
 
     expect(source).toContain('"update_paper_scan_review_row"');
     expect(source).toContain("p_actor_id: userId");
@@ -24,6 +25,11 @@ describe("production review consistency boundaries", () => {
     expect(source).not.toContain(
       '.from("project_paper_scan_rows")\n    .update({',
     );
+    expect(editor).toContain("const identityChanged =");
+    expect(editor).toContain(
+      "matchSignupId: identityChanged ? null : row.matchSignupId",
+    );
+    expect(editor).toContain("matchSignupId: patch.matchSignupId");
   });
 
   test("claim-owned final transitions prove a matched update", async () => {
