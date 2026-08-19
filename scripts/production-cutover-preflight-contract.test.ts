@@ -517,15 +517,11 @@ describe("Production cutover preflight source contract", () => {
   });
 
   test("requires exact target relation and storage contracts", () => {
-    expect(preflight).toContain(
-      "private.anonymous_feedback_email_preferences",
-    );
+    expect(preflight).toContain("private.anonymous_feedback_email_preferences");
     expect(preflight).toContain(
       "set_anonymous_feedback_email_opt_out(uuid,boolean)",
     );
-    expect(preflight).toContain(
-      "apply_anonymous_feedback_email_preference()",
-    );
+    expect(preflight).toContain("apply_anonymous_feedback_email_preference()");
     expect(preflight).toContain(
       "anonymous_signups_feedback_normalized_email_idx",
     );
