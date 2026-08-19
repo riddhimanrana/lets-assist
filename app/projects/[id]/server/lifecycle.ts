@@ -8,10 +8,7 @@ import { revalidatePath } from "next/cache";
 import { ProjectStatus } from "@/types";
 import { type Project } from "@/types";
 import { toOrganizationPluginAccessRole } from "@/lib/plugins/access-role";
-import {
-  removeCalendarEventForProject,
-  removeCalendarEventFromProjectSnapshot,
-} from "@/utils/calendar-helpers";
+import { removeCalendarEventForProject } from "@/utils/calendar-helpers";
 import { getAdminClient } from "@/lib/supabase/admin";
 import { getPluginRegistry } from "@/lib/plugins/registry";
 import { runProjectClone } from "@/lib/plugins/lifecycle";
@@ -485,10 +482,10 @@ export async function deleteProject(projectId: string) {
   }
 
   if (project.creator_calendar_event_id) {
-    const calendarResult = await removeCalendarEventFromProjectSnapshot(
-      user.id,
-      project.creator_calendar_event_id,
-    );
+    const calendarResult = await removeCalendarEventForProject(projectId, {
+      userId: user.id,
+      calendarEventId: project.creator_calendar_event_id,
+    });
     if (!calendarResult.success) {
       return { error: "Failed to clean up the project calendar event" };
     }

@@ -84,15 +84,11 @@ mock.module("@/utils/calendar-helpers", () => ({
   removeCalendarEventForProject: async (projectId: string) => {
     eventLog.push("calendar:project");
     calendarProjectRemovals.push(projectId);
+    return { success: true };
   },
   removeCalendarEventForSignup: async (signupId: string) => {
     eventLog.push("calendar:signup");
     calendarSignupRemovals.push(signupId);
-  },
-  removeCalendarEventFromProjectSnapshot: async () => {
-    eventLog.push("calendar:project");
-    calendarProjectRemovals.push(PROJECT_ID);
-    return { success: true };
   },
 }));
 

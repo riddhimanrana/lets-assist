@@ -84,8 +84,21 @@ export async function updateCalendarEventForProject(projectId: string) {
  *   await removeCalendarEventForProject(projectId);
  * }
  */
-export async function removeCalendarEventForProject(projectId: string) {
+export async function removeCalendarEventForProject(
+  projectId: string,
+  deletionSnapshot?: { userId: string; calendarEventId: string },
+) {
   try {
+    if (deletionSnapshot) {
+      const deleted = await deleteGoogleCalendarEvent(
+        deletionSnapshot.userId,
+        deletionSnapshot.calendarEventId,
+      );
+      return deleted
+        ? { success: true, message: "Calendar event removed successfully" }
+        : { success: false, error: "Failed to remove calendar event" };
+    }
+
     const supabase = await createClient();
 
     // Get current user
@@ -146,24 +159,6 @@ export async function removeCalendarEventForProject(projectId: string) {
         error instanceof Error
           ? error.message
           : "Failed to remove calendar event",
-    };
-  }
-}
-
-/** Remove a project event from an authorization-checked deletion snapshot. */
-export async function removeCalendarEventFromProjectSnapshot(
-  userId: string,
-  calendarEventId: string,
-) {
-  try {
-    const deleted = await deleteGoogleCalendarEvent(userId, calendarEventId);
-    return deleted
-      ? { success: true as const }
-      : { success: false as const, error: "Failed to remove calendar event" };
-  } catch {
-    return {
-      success: false as const,
-      error: "Failed to remove calendar event",
     };
   }
 }
