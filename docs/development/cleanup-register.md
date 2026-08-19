@@ -87,7 +87,14 @@ This register separates actionable repository defects from provider/account and 
   revalidates install/entitlement state after its durable claim, and token
   feedback rechecks attendance plus project completion in the same database
   transaction as the write. The repository candidate is 330 migrations with
-  168 pgTAP files and 5,969 assertions.
+  168 pgTAP files and 5,970 assertions.
+- The late paper-scan orphan-cleanup review is closed by
+  `20260819020000_serialize_paper_scan_orphan_cleanup`. Verified orphan enqueue
+  and image registration share one database mutex; a durable worker lease
+  blocks registration during external Storage deletion; registration cancels
+  stale cleanup work; and the worker rechecks references under that lease. The
+  repository candidate is 331 migrations with 169 pgTAP files and 5,978
+  assertions.
 - PITR is intentionally not part of this release. The cutover runbook requires
   a verified logical backup/restore path instead. Production remains unchanged
   until the root Development and Production promotion gates complete.

@@ -11,6 +11,10 @@ const feedbackActions = readFileSync(
   join(root, "app/projects/[id]/server/feedback.ts"),
   "utf8",
 );
+const paperCleanupWorker = readFileSync(
+  join(root, "lib/projects/paper-signup/cleanup-storage.ts"),
+  "utf8",
+);
 const migration = readFileSync(
   join(
     root,
@@ -22,6 +26,13 @@ const raceGuardMigration = readFileSync(
   join(
     root,
     "supabase/migrations/20260819002500_serialize_plugin_deletion_and_token_feedback.sql",
+  ),
+  "utf8",
+);
+const paperCleanupMigration = readFileSync(
+  join(
+    root,
+    "supabase/migrations/20260819020000_serialize_paper_scan_orphan_cleanup.sql",
   ),
   "utf8",
 );
@@ -81,5 +92,25 @@ describe("Production review round-two contracts", () => {
     );
     expect(raceGuardMigration).toContain("comment_flag_reason = NULL");
     expect(moderationIndex).toBeGreaterThan(updateIndex);
+  });
+
+  test("orphan cleanup holds a durable lease across reference recheck and Storage deletion", () => {
+    expect(paperActions).toContain('"queue_orphaned_paper_scan_uploads"');
+    expect(paperCleanupWorker).toContain(
+      '"acquire_paper_scan_storage_cleanup_lock"',
+    );
+    expect(paperCleanupWorker).toContain('.from("project_paper_scan_images")');
+    expect(paperCleanupWorker).toContain(
+      '"release_paper_scan_storage_cleanup_lock"',
+    );
+    expect(paperCleanupMigration).toContain(
+      "hashtextextended('paper-scan-storage-cleanup', 0)",
+    );
+    expect(paperCleanupMigration).toContain(
+      "paper scan storage cleanup is in progress",
+    );
+    expect(paperCleanupMigration).toContain(
+      "DELETE FROM public.paper_scan_storage_deletion_queue",
+    );
   });
 });
