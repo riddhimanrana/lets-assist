@@ -144,6 +144,9 @@ describe("Production review round-two contracts", () => {
       "CREATE TRIGGER apply_anonymous_feedback_email_preference",
     );
     expect(anonymousFeedbackPreferenceMigration).toContain(
+      "BEFORE INSERT OR UPDATE OF email, email_opt_out_at",
+    );
+    expect(anonymousFeedbackPreferenceMigration).toContain(
       "anonymous-feedback-email-preference:",
     );
     expect(anonymousFeedbackPreferenceMigration).toContain(

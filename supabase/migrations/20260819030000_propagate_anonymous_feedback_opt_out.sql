@@ -52,7 +52,7 @@ $$;
 DROP TRIGGER IF EXISTS apply_anonymous_feedback_email_preference
   ON public.anonymous_signups;
 CREATE TRIGGER apply_anonymous_feedback_email_preference
-BEFORE INSERT OR UPDATE OF email
+BEFORE INSERT OR UPDATE OF email, email_opt_out_at
 ON public.anonymous_signups
 FOR EACH ROW
 EXECUTE FUNCTION app_private.apply_anonymous_feedback_email_preference();

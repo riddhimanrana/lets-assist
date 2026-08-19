@@ -2,7 +2,7 @@ BEGIN;
 
 CREATE EXTENSION IF NOT EXISTS pgtap WITH SCHEMA extensions;
 
-SELECT extensions.plan(12);
+SELECT extensions.plan(14);
 
 SELECT extensions.ok(
   NOT has_function_privilege(
@@ -137,6 +137,17 @@ SELECT extensions.ok(
   'a future project-scoped identity inherits the durable opt-out'
 );
 
+UPDATE public.anonymous_signups
+SET email_opt_out_at = NULL
+WHERE id = 'efa00000-0000-4000-8000-000000000007';
+
+SELECT extensions.ok(
+  (SELECT email_opt_out_at IS NOT NULL
+   FROM public.anonymous_signups
+   WHERE id = 'efa00000-0000-4000-8000-000000000007'),
+  'a direct row update cannot clear a durable address opt-out'
+);
+
 SET LOCAL ROLE service_role;
 SELECT extensions.is(
   public.set_anonymous_feedback_email_opt_out(
@@ -164,6 +175,17 @@ SELECT extensions.is(
    WHERE normalized_email = 'shared.person@local.test'),
   0::bigint,
   'resubscribe removes the durable normalized-address suppression record'
+);
+
+UPDATE public.anonymous_signups
+SET email_opt_out_at = now()
+WHERE id = 'efa00000-0000-4000-8000-000000000007';
+
+SELECT extensions.ok(
+  (SELECT email_opt_out_at IS NULL
+   FROM public.anonymous_signups
+   WHERE id = 'efa00000-0000-4000-8000-000000000007'),
+  'a direct row update cannot invent an address opt-out outside the RPC'
 );
 
 INSERT INTO public.anonymous_signups (id, project_id, email, name, confirmed_at)

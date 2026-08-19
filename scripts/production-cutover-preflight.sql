@@ -1242,6 +1242,7 @@ SELECT
       ('public.api_rate_limit_receipts'),
       ('private.project_series_end_receipts'),
       ('private.plugin_data_deletion_requests'),
+      ('private.anonymous_feedback_email_preferences'),
       ('private.google_cap_event_receipts'),
       ('app_private.storage_object_policy_contract')
   ) AS required(relation_name)
@@ -1260,6 +1261,7 @@ SELECT
       ('public.api_rate_limit_receipts'),
       ('private.project_series_end_receipts'),
       ('private.plugin_data_deletion_requests'),
+      ('private.anonymous_feedback_email_preferences'),
       ('private.google_cap_event_receipts'),
       ('app_private.storage_object_policy_contract')
   ) AS required(relation_name)
@@ -1321,6 +1323,14 @@ SELECT
         'consume_content_report_attempt(text[],integer[],integer)'),
       ('server_only_function', 'public',
         'detach_content_report_reporter(uuid)'),
+      ('server_only_function', 'public',
+        'set_anonymous_feedback_email_opt_out(uuid,boolean)'),
+      ('owner_only_function', 'app_private',
+        'apply_anonymous_feedback_email_preference()'),
+      ('trigger', 'public.anonymous_signups',
+        'apply_anonymous_feedback_email_preference'),
+      ('index', 'public.anonymous_signups',
+        'anonymous_signups_feedback_normalized_email_idx'),
       ('index', 'public.api_rate_limit_receipts',
         'api_rate_limit_receipts_expiry_idx')
   ) AS expected(kind, relation_name, object_name)
@@ -1371,6 +1381,33 @@ SELECT
         AND function_record.proconfig @> ARRAY['search_path=""']
         AND has_function_privilege('service_role', function_record.oid, 'EXECUTE')
     )
+  ) OR (
+    expected.kind = 'owner_only_function'
+    AND NOT EXISTS (
+      SELECT 1
+      FROM pg_catalog.pg_proc AS function_record
+      WHERE function_record.oid = to_regprocedure(
+          expected.relation_name || '.' || expected.object_name
+        )
+        AND function_record.prosecdef
+        AND function_record.proconfig @> ARRAY['search_path=""']
+        AND NOT has_function_privilege('anon', function_record.oid, 'EXECUTE')
+        AND NOT has_function_privilege('authenticated', function_record.oid, 'EXECUTE')
+        AND NOT has_function_privilege('service_role', function_record.oid, 'EXECUTE')
+    )
+  ) OR (
+    expected.kind = 'trigger'
+    AND NOT EXISTS (
+      SELECT 1
+      FROM pg_catalog.pg_trigger AS trigger_record
+      WHERE trigger_record.tgrelid = to_regclass(expected.relation_name)
+        AND trigger_record.tgname = expected.object_name
+        AND NOT trigger_record.tgisinternal
+        AND trigger_record.tgenabled <> 'D'
+        AND trigger_record.tgfoid = to_regprocedure(
+          'app_private.apply_anonymous_feedback_email_preference()'
+        )
+    )
   )
   ORDER BY expected.kind, expected.object_name;
 
@@ -1420,6 +1457,14 @@ SELECT
           'consume_content_report_attempt(text[],integer[],integer)'),
         ('server_only_function', 'public',
           'detach_content_report_reporter(uuid)'),
+        ('server_only_function', 'public',
+          'set_anonymous_feedback_email_opt_out(uuid,boolean)'),
+        ('owner_only_function', 'app_private',
+          'apply_anonymous_feedback_email_preference()'),
+        ('trigger', 'public.anonymous_signups',
+          'apply_anonymous_feedback_email_preference'),
+        ('index', 'public.anonymous_signups',
+          'anonymous_signups_feedback_normalized_email_idx'),
         ('index', 'public.api_rate_limit_receipts',
           'api_rate_limit_receipts_expiry_idx')
     ) AS expected(kind, relation_name, object_name)
@@ -1469,6 +1514,33 @@ SELECT
           AND function_record.prosecdef
           AND function_record.proconfig @> ARRAY['search_path=""']
           AND has_function_privilege('service_role', function_record.oid, 'EXECUTE')
+      )
+    ) OR (
+      expected.kind = 'owner_only_function'
+      AND NOT EXISTS (
+        SELECT 1
+        FROM pg_catalog.pg_proc AS function_record
+        WHERE function_record.oid = to_regprocedure(
+            expected.relation_name || '.' || expected.object_name
+          )
+          AND function_record.prosecdef
+          AND function_record.proconfig @> ARRAY['search_path=""']
+          AND NOT has_function_privilege('anon', function_record.oid, 'EXECUTE')
+          AND NOT has_function_privilege('authenticated', function_record.oid, 'EXECUTE')
+          AND NOT has_function_privilege('service_role', function_record.oid, 'EXECUTE')
+      )
+    ) OR (
+      expected.kind = 'trigger'
+      AND NOT EXISTS (
+        SELECT 1
+        FROM pg_catalog.pg_trigger AS trigger_record
+        WHERE trigger_record.tgrelid = to_regclass(expected.relation_name)
+          AND trigger_record.tgname = expected.object_name
+          AND NOT trigger_record.tgisinternal
+          AND trigger_record.tgenabled <> 'D'
+          AND trigger_record.tgfoid = to_regprocedure(
+            'app_private.apply_anonymous_feedback_email_preference()'
+          )
       )
     )
   ) AS t2_pass
