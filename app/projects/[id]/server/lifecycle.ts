@@ -8,7 +8,10 @@ import { revalidatePath } from "next/cache";
 import { ProjectStatus } from "@/types";
 import { type Project } from "@/types";
 import { toOrganizationPluginAccessRole } from "@/lib/plugins/access-role";
-import { removeCalendarEventForProject } from "@/utils/calendar-helpers";
+import {
+  removeCalendarEventForProject,
+  removeCalendarEventFromProjectSnapshot,
+} from "@/utils/calendar-helpers";
 import { getAdminClient } from "@/lib/supabase/admin";
 import { getPluginRegistry } from "@/lib/plugins/registry";
 import { runProjectClone } from "@/lib/plugins/lifecycle";
@@ -435,8 +438,62 @@ export async function deleteProject(projectId: string) {
     };
   }
 
-  // Prove the RLS-scoped delete before touching external systems. The project
-  // snapshot above retains every cleanup path needed after the row is gone.
+  // Keep the project row (and therefore its retry/authorization anchor) until
+  // every external cleanup step has settled. The service client is required
+  // because user Storage policies intentionally depend on that project row.
+  if ((project.documents?.length ?? 0) > 0) {
+    const { data: storageData, error: storageListError } =
+      await serviceSupabase.storage.from("project-documents").list();
+
+    if (storageListError) {
+      console.error("Error listing project documents:", storageListError);
+      return { error: "Failed to clean up project documents" };
+    } else if (storageData) {
+      const projectFiles = storageData.filter((file) =>
+        file.name.startsWith(`project_${projectId}`),
+      );
+
+      if (projectFiles.length > 0) {
+        const { error: documentRemovalError } = await serviceSupabase.storage
+          .from("project-documents")
+          .remove(projectFiles.map((file) => file.name));
+
+        if (documentRemovalError) {
+          console.error(
+            "Error removing project documents:",
+            documentRemovalError,
+          );
+          return { error: "Failed to clean up project documents" };
+        }
+      }
+    }
+  }
+
+  // Delete cover image if it exists
+  if (project.cover_image_url) {
+    const fileName = project.cover_image_url.split("/").pop();
+    if (fileName) {
+      const { error: coverRemovalError } = await serviceSupabase.storage
+        .from("project-images")
+        .remove([fileName]);
+
+      if (coverRemovalError) {
+        console.error("Error removing project cover image:", coverRemovalError);
+        return { error: "Failed to clean up the project cover image" };
+      }
+    }
+  }
+
+  if (project.creator_calendar_event_id) {
+    const calendarResult = await removeCalendarEventFromProjectSnapshot(
+      user.id,
+      project.creator_calendar_event_id,
+    );
+    if (!calendarResult.success) {
+      return { error: "Failed to clean up the project calendar event" };
+    }
+  }
+
   const { data: deletedProject, error: deleteError } = await supabase
     .from("projects")
     .delete()
@@ -451,61 +508,6 @@ export async function deleteProject(projectId: string) {
 
   if (!deletedProject || deletedProject.id !== projectId) {
     return { error: "Failed to delete project" };
-  }
-
-  // Delete project documents from storage if they exist
-  if ((project.documents?.length ?? 0) > 0) {
-    const { data: storageData, error: storageListError } =
-      await supabase.storage.from("project-documents").list();
-
-    if (storageListError) {
-      console.error(
-        "Error listing deleted project documents:",
-        storageListError,
-      );
-    } else if (storageData) {
-      const projectFiles = storageData.filter((file) =>
-        file.name.startsWith(`project_${projectId}`),
-      );
-
-      if (projectFiles.length > 0) {
-        const { error: documentRemovalError } = await supabase.storage
-          .from("project-documents")
-          .remove(projectFiles.map((file) => file.name));
-
-        if (documentRemovalError) {
-          console.error(
-            "Error removing deleted project documents:",
-            documentRemovalError,
-          );
-        }
-      }
-    }
-  }
-
-  // Delete cover image if it exists
-  if (project.cover_image_url) {
-    const fileName = project.cover_image_url.split("/").pop();
-    if (fileName) {
-      const { error: coverRemovalError } = await supabase.storage
-        .from("project-images")
-        .remove([fileName]);
-
-      if (coverRemovalError) {
-        console.error(
-          "Error removing deleted project cover image:",
-          coverRemovalError,
-        );
-      }
-    }
-  }
-
-  // Remove calendar event if it exists (non-blocking)
-  try {
-    await removeCalendarEventForProject(projectId);
-  } catch (calendarError) {
-    console.error("Error removing calendar event:", calendarError);
-    // Don't fail the deletion if calendar removal fails
   }
 
   // Revalidate paths

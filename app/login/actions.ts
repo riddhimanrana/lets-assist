@@ -19,7 +19,20 @@ export async function signInWithGoogle(
   redirectAfterAuth?: string | null,
   inviteContext?: { staffToken?: string; orgUsername?: string } | null,
 ) {
-  return runOnCanonicalAuthOrigin("/login", async (origin) => {
+  const loginParams = new URLSearchParams();
+  if (redirectAfterAuth)
+    loginParams.set("redirectAfterAuth", redirectAfterAuth);
+  if (inviteContext?.staffToken) {
+    loginParams.set("staffToken", inviteContext.staffToken);
+  }
+  if (inviteContext?.orgUsername) {
+    loginParams.set("orgUsername", inviteContext.orgUsername);
+  }
+  const canonicalLoginPath = loginParams.size
+    ? `/login?${loginParams.toString()}`
+    : "/login";
+
+  return runOnCanonicalAuthOrigin(canonicalLoginPath, async (origin) => {
     const supabase = await createClient();
 
     let redirectTo = `${origin}/auth/callback`;

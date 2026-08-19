@@ -1,9 +1,3 @@
-/**
- * Behavioral proof for project/sign-up mutation boundaries. The mocks retain
- * row state across calls so retries exercise the actions' real predicates
- * instead of tests manually inventing a second zero-row result.
- */
-
 import { beforeEach, describe, expect, mock, test } from "bun:test";
 
 type WriteResult = { data: { id: string } | null; error: unknown };
@@ -94,6 +88,11 @@ mock.module("@/utils/calendar-helpers", () => ({
   removeCalendarEventForSignup: async (signupId: string) => {
     eventLog.push("calendar:signup");
     calendarSignupRemovals.push(signupId);
+  },
+  removeCalendarEventFromProjectSnapshot: async () => {
+    eventLog.push("calendar:project");
+    calendarProjectRemovals.push(PROJECT_ID);
+    return { success: true };
   },
 }));
 
@@ -1089,21 +1088,22 @@ describe("cancelSignup organizer authorization", () => {
 });
 
 describe("deleteProject", () => {
-  test("a proven delete precedes retained-path storage and calendar cleanup", async () => {
+  test("external cleanup settles while the project still anchors authority", async () => {
     mockProject = baseProject({
       documents: [{ name: "guide.pdf" }],
       cover_image_url:
         "https://example.test/storage/project-images/project-cover.png",
+      creator_calendar_event_id: "calendar-event-1",
     });
 
     const result = await deleteProject(PROJECT_ID);
 
     expect(result).toEqual({ success: true });
     expect(eventLog).toEqual([
-      "db:project-delete",
       "storage:project-documents",
       "storage:project-images",
       "calendar:project",
+      "db:project-delete",
     ]);
     expect(storageRemovals).toEqual([
       {
@@ -1114,7 +1114,7 @@ describe("deleteProject", () => {
     ]);
   });
 
-  test("an RLS zero-row delete performs no external cleanup", async () => {
+  test("an RLS zero-row delete is reported after settled external cleanup", async () => {
     mockProject = baseProject({
       documents: [{ name: "guide.pdf" }],
       cover_image_url: "https://example.test/project-cover.png",
@@ -1124,12 +1124,12 @@ describe("deleteProject", () => {
     const result = await deleteProject(PROJECT_ID);
 
     expect(result).toEqual({ error: "Failed to delete project" });
-    expect(storageRemovals).toHaveLength(0);
+    expect(storageRemovals).toHaveLength(2);
     expect(calendarProjectRemovals).toHaveLength(0);
   });
 
   test("an explicit delete error performs no external cleanup", async () => {
-    mockProject = baseProject({ documents: [{ name: "guide.pdf" }] });
+    mockProject = baseProject();
     mockProjectDeleteResult = {
       data: null,
       error: { message: "foreign key refusal" },
@@ -1143,7 +1143,7 @@ describe("deleteProject", () => {
   });
 
   test("a mismatched delete result performs no external cleanup", async () => {
-    mockProject = baseProject({ documents: [{ name: "guide.pdf" }] });
+    mockProject = baseProject();
     mockProjectDeleteResult = {
       data: { id: "different-project" },
       error: null,
@@ -1187,14 +1187,14 @@ describe("deleteProject", () => {
     expect(eventLog).toHaveLength(0);
   });
 
-  test("a checked storage-list fault happens only after database truth", async () => {
+  test("a checked storage-list fault retains the project for retry", async () => {
     mockProject = baseProject({ documents: [{ name: "guide.pdf" }] });
     mockStorageListError = { message: "storage unavailable" };
 
     const result = await deleteProject(PROJECT_ID);
 
-    expect(result).toEqual({ success: true });
-    expect(eventLog).toEqual(["db:project-delete", "calendar:project"]);
+    expect(result).toEqual({ error: "Failed to clean up project documents" });
+    expect(eventLog).toEqual([]);
     expect(storageRemovals).toHaveLength(0);
   });
 });
