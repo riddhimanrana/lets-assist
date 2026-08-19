@@ -26,7 +26,7 @@ BEGIN
   END IF;
 
   PERFORM pg_advisory_xact_lock(
-    hashtextextended(p_organization_id::text || '/' || p_plugin_key, 0)
+    hashtextextended('plugin-control-plane-entitlements', 0)
   );
 
   INSERT INTO private.plugin_control_plane_transition_locks (
@@ -70,7 +70,7 @@ DECLARE
   v_plugin_key text := CASE WHEN TG_OP = 'DELETE' THEN OLD.plugin_key ELSE NEW.plugin_key END;
 BEGIN
   PERFORM pg_advisory_xact_lock(
-    hashtextextended(v_organization_id::text || '/' || v_plugin_key, 0)
+    hashtextextended('plugin-control-plane-entitlements', 0)
   );
 
   IF EXISTS (
@@ -136,22 +136,22 @@ BEGIN
   END IF;
 
   PERFORM 1
-  FROM public.project_signups AS signups
-  WHERE signups.id = v_request.signup_id
-    AND signups.project_id = v_request.project_id
-    AND signups.status = 'attended'
-    AND signups.user_id IS NOT DISTINCT FROM v_request.user_id
-    AND signups.anonymous_id IS NOT DISTINCT FROM v_request.anonymous_id
+  FROM public.projects AS projects
+  WHERE projects.id = v_request.project_id
+    AND projects.status = 'completed'
+    AND projects.cancelled_at IS NULL
   FOR UPDATE;
   IF NOT found THEN
     RAISE EXCEPTION 'feedback request is not eligible' USING errcode = '42501';
   END IF;
 
   PERFORM 1
-  FROM public.projects AS projects
-  WHERE projects.id = v_request.project_id
-    AND projects.status = 'completed'
-    AND projects.cancelled_at IS NULL
+  FROM public.project_signups AS signups
+  WHERE signups.id = v_request.signup_id
+    AND signups.project_id = v_request.project_id
+    AND signups.status = 'attended'
+    AND signups.user_id IS NOT DISTINCT FROM v_request.user_id
+    AND signups.anonymous_id IS NOT DISTINCT FROM v_request.anonymous_id
   FOR UPDATE;
   IF NOT found THEN
     RAISE EXCEPTION 'feedback request is not eligible' USING errcode = '42501';
@@ -213,4 +213,3 @@ REVOKE ALL ON FUNCTION public.submit_project_feedback_from_request(uuid, smallin
   FROM PUBLIC, anon, authenticated;
 GRANT EXECUTE ON FUNCTION public.submit_project_feedback_from_request(uuid, smallint, text)
   TO service_role;
-

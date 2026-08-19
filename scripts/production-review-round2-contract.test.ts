@@ -63,6 +63,16 @@ describe("Production review round-two contracts", () => {
     expect(raceGuardMigration).toContain("FOR UPDATE");
     expect(raceGuardMigration).toContain("signups.status = 'attended'");
     expect(raceGuardMigration).toContain("projects.status = 'completed'");
+    expect(
+      raceGuardMigration.indexOf("FROM public.projects AS projects"),
+    ).toBeLessThan(
+      raceGuardMigration.indexOf("FROM public.project_signups AS signups"),
+    );
+    expect(
+      raceGuardMigration.match(
+        /hashtextextended\('plugin-control-plane-entitlements', 0\)/g,
+      ),
+    ).toHaveLength(2);
     expect(raceGuardMigration).toContain("comment_flag_reason = NULL");
     expect(moderationIndex).toBeGreaterThan(updateIndex);
   });
