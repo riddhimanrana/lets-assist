@@ -526,6 +526,9 @@ describe("Production cutover preflight source contract", () => {
       "anonymous_signups_feedback_normalized_email_idx",
     );
     expect(preflight).toContain("trigger_record.tgfoid");
+    expect(preflight).toContain("trigger_record.tgtype = 23");
+    expect(preflight).toContain("trigger_record.tgattr::smallint[]");
+    expect(preflight).toContain("'email_opt_out_at'");
     const relationAclBlock = preflight.slice(
       preflight.indexOf("T6  Exact target relation ACL"),
       preflight.indexOf("T7  Exact target storage posture"),

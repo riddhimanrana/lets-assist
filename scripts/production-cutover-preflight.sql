@@ -1404,6 +1404,17 @@ SELECT
         AND trigger_record.tgname = expected.object_name
         AND NOT trigger_record.tgisinternal
         AND trigger_record.tgenabled <> 'D'
+        AND trigger_record.tgtype = 23
+        AND (
+          SELECT array_agg(attribute_record.attnum::smallint ORDER BY attribute_record.attnum)
+          FROM pg_catalog.pg_attribute AS attribute_record
+          WHERE attribute_record.attrelid = trigger_record.tgrelid
+            AND attribute_record.attname IN ('email', 'email_opt_out_at')
+            AND NOT attribute_record.attisdropped
+        ) = (
+          SELECT array_agg(trigger_column.attnum ORDER BY trigger_column.attnum)
+          FROM unnest(trigger_record.tgattr::smallint[]) AS trigger_column(attnum)
+        )
         AND trigger_record.tgfoid = to_regprocedure(
           'app_private.apply_anonymous_feedback_email_preference()'
         )
@@ -1538,6 +1549,17 @@ SELECT
           AND trigger_record.tgname = expected.object_name
           AND NOT trigger_record.tgisinternal
           AND trigger_record.tgenabled <> 'D'
+          AND trigger_record.tgtype = 23
+          AND (
+            SELECT array_agg(attribute_record.attnum::smallint ORDER BY attribute_record.attnum)
+            FROM pg_catalog.pg_attribute AS attribute_record
+            WHERE attribute_record.attrelid = trigger_record.tgrelid
+              AND attribute_record.attname IN ('email', 'email_opt_out_at')
+              AND NOT attribute_record.attisdropped
+          ) = (
+            SELECT array_agg(trigger_column.attnum ORDER BY trigger_column.attnum)
+            FROM unnest(trigger_record.tgattr::smallint[]) AS trigger_column(attnum)
+          )
           AND trigger_record.tgfoid = to_regprocedure(
             'app_private.apply_anonymous_feedback_email_preference()'
           )
