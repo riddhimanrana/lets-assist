@@ -94,7 +94,7 @@ INSERT INTO public.organization_plugin_entitlements (
 ) VALUES (
   'ef100000-0000-4000-8000-000000000001',
   'race-guard-plugin',
-  'active',
+  'inactive',
   true
 );
 
