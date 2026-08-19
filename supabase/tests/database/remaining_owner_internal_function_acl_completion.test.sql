@@ -15,7 +15,12 @@ VALUES
   ('plugin_data.csf_queue_application_sheet_writeback(uuid,uuid,text,text)'::regprocedure),
   ('plugin_data.csf_assert_meeting_permission_under_lock(uuid,uuid,text)'::regprocedure),
   ('plugin_data.csf_validate_application_check()'::regprocedure),
-  ('plugin_data.csf_assert_meeting_source_permissions_under_lock(uuid,uuid,uuid,text,uuid)'::regprocedure);
+  ('plugin_data.csf_assert_meeting_source_permissions_under_lock(uuid,uuid,uuid,text,uuid)'::regprocedure),
+  ('plugin_data.csf_sanitize_profile_merge_audit()'::regprocedure),
+  ('plugin_data.csf_merge_profiles_identity_base(uuid,uuid,uuid,text,uuid)'::regprocedure),
+  ('plugin_data.csf_commit_import_row_for_attempt_identity_base(uuid,uuid,uuid)'::regprocedure),
+  ('plugin_data.csf_import_compatibility_permissions(text)'::regprocedure),
+  ('private.end_recurring_project_series_transactional()'::regprocedure);
 
 SELECT is(
   (
@@ -24,7 +29,7 @@ SELECT is(
     JOIN pg_proc AS proc ON proc.oid = expected.function_oid::oid
   ),
   true,
-  'remaining application and meeting helpers are owned by postgres'
+  'remaining owner-internal helpers are owned by postgres'
 );
 
 SELECT is(
@@ -59,7 +64,7 @@ SELECT is(
 SELECT is(
   (SELECT bool_and(NOT has_function_privilege('service_role', function_oid, 'EXECUTE')) FROM expected_owner_internal_function_acl),
   true,
-  'service_role must use request-aware application and meeting entrypoints'
+  'service_role must use request-aware entrypoints'
 );
 
 SELECT * FROM finish();

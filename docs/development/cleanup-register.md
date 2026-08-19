@@ -102,6 +102,13 @@ This register separates actionable repository defects from provider/account and 
   resubscribe decisions propagate to every project-scoped identity for the
   normalized email address through a service-only transaction. The repository
   candidate is 332 migrations with 170 pgTAP files and 5,992 assertions.
+- The final owner-internal ACL review is closed by
+  `20260819050728_complete_reviewed_internal_function_acls`. The profile-merge
+  audit trigger, profile-merge implementation, import-row commit implementation,
+  import compatibility helper, and recurrence trigger now record explicit
+  `postgres` ownership and execution while remaining unavailable to browser and
+  service roles. The repository candidate is 333 migrations with 170 pgTAP
+  files and 5,992 assertions.
 - PITR is intentionally not part of this release. The cutover runbook requires
   a verified logical backup/restore path instead. Production remains unchanged
   until the root Development and Production promotion gates complete.

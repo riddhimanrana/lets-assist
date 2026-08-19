@@ -48,8 +48,32 @@ const anonymousFeedbackPreferenceMigration = readFileSync(
   ),
   "utf8",
 );
+const internalAclMigration = readFileSync(
+  join(
+    root,
+    "supabase/migrations/20260819050728_complete_reviewed_internal_function_acls.sql",
+  ),
+  "utf8",
+);
 
 describe("Production review round-two contracts", () => {
+  test("every remaining owner-internal helper has an explicit executor", () => {
+    for (const signature of [
+      "plugin_data.csf_sanitize_profile_merge_audit()",
+      "plugin_data.csf_merge_profiles_identity_base(\n  uuid, uuid, uuid, text, uuid\n)",
+      "plugin_data.csf_commit_import_row_for_attempt_identity_base(\n  uuid, uuid, uuid\n)",
+      "plugin_data.csf_import_compatibility_permissions(text)",
+      "private.end_recurring_project_series_transactional()",
+    ]) {
+      expect(internalAclMigration).toContain(
+        `REVOKE ALL ON FUNCTION ${signature}`,
+      );
+      expect(internalAclMigration).toContain(
+        `GRANT EXECUTE ON FUNCTION ${signature}`,
+      );
+    }
+  });
+
   test("paper discard is one locked RPC with a transactional deletion outbox", () => {
     const discardAction = paperActions.slice(
       paperActions.indexOf("export async function discardPaperScanBatch"),
