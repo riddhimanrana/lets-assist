@@ -157,7 +157,7 @@ SELECT extensions.ok(
 );
 
 UPDATE public.project_signups
-SET status = 'approved'
+SET status = 'rejected'
 WHERE id = 'ef400000-0000-4000-8000-000000000001';
 
 SELECT extensions.throws_ok(
