@@ -6,6 +6,7 @@ import { getAdminClient } from "@/lib/supabase/admin";
 import { randomUUID } from "crypto";
 import {
   buildAuthConfirmRedirectUrl,
+  buildCanonicalSignupPath,
   isCsfConnectRedirect,
   normalizeRedirectPath,
 } from "./redirect-utils";
@@ -97,7 +98,13 @@ export async function signup(formData: FormData): Promise<SignupActionResult> {
     };
   }
 
-  return runOnCanonicalAuthOrigin("/signup", async (origin) => {
+  const canonicalSignupPath = buildCanonicalSignupPath({
+    redirectPath: redirectUrl,
+    staffToken: validatedFields.data.staffToken,
+    orgUsername: validatedFields.data.orgUsername,
+  });
+
+  return runOnCanonicalAuthOrigin(canonicalSignupPath, async (origin) => {
     const supabase = await createClient();
 
     try {

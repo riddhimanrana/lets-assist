@@ -366,10 +366,13 @@ async function prepareFeedbackRequest(input: {
   }
   if (!projectRow) return { kind: "skip", reason: "project_missing" };
   const project = projectRow as unknown as FeedbackProject;
+  if (project.status !== "completed" || project.cancelled_at) {
+    return { kind: "skip", reason: "project_not_completed" };
+  }
 
   const { data: signup, error: signupError } = await admin
     .from("project_signups")
-    .select("project_id, schedule_id")
+    .select("project_id, schedule_id, status")
     .eq("id", claim.signup_id)
     .eq("project_id", claim.project_id)
     .maybeSingle();
@@ -380,6 +383,9 @@ async function prepareFeedbackRequest(input: {
     );
   }
   if (!signup) return { kind: "skip", reason: "signup_missing" };
+  if (signup.status !== "attended") {
+    return { kind: "skip", reason: "signup_not_attended" };
+  }
 
   const token = createProjectFeedbackToken({
     projectId: claim.project_id,
