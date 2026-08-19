@@ -18,6 +18,13 @@ const migration = readFileSync(
   ),
   "utf8",
 );
+const raceGuardMigration = readFileSync(
+  join(
+    root,
+    "supabase/migrations/20260819002500_serialize_plugin_deletion_and_token_feedback.sql",
+  ),
+  "utf8",
+);
 
 describe("Production review round-two contracts", () => {
   test("paper discard is one locked RPC with a transactional deletion outbox", () => {
@@ -40,20 +47,39 @@ describe("Production review round-two contracts", () => {
     expect(migration).toContain("SET status = 'discarded'");
   });
 
-  test("service-role token edits reset moderation before the AI call", () => {
+  test("service-role token edits use the atomic eligibility RPC before the AI call", () => {
     const tokenAction = feedbackActions.slice(
       feedbackActions.indexOf(
         "export async function submitProjectFeedbackWithToken",
       ),
     );
     const updateIndex = tokenAction.indexOf(
-      'comment_moderation_status: comment ? "pending" : "not_applicable"',
+      '"submit_project_feedback_from_request"',
     );
     const moderationIndex = tokenAction.indexOf(
       "await moderateFeedbackComment(",
     );
     expect(updateIndex).toBeGreaterThan(0);
-    expect(tokenAction).toContain("comment_flag_reason: null");
+    expect(raceGuardMigration).toContain("FOR UPDATE");
+    expect(raceGuardMigration).toContain("signups.status = 'attended'");
+    expect(raceGuardMigration).toContain("projects.status = 'completed'");
+    expect(
+      raceGuardMigration.indexOf("FROM public.projects AS projects"),
+    ).toBeLessThan(
+      raceGuardMigration.indexOf("FROM public.project_signups AS signups"),
+    );
+    expect(
+      raceGuardMigration.match(
+        /hashtextextended\('plugin-control-plane-entitlements', 0\)/g,
+      ),
+    ).toHaveLength(2);
+    expect(raceGuardMigration).toContain(
+      "locks.organization_id = v_old_organization_id",
+    );
+    expect(raceGuardMigration).toContain(
+      "locks.organization_id = v_new_organization_id",
+    );
+    expect(raceGuardMigration).toContain("comment_flag_reason = NULL");
     expect(moderationIndex).toBeGreaterThan(updateIndex);
   });
 });

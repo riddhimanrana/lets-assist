@@ -430,20 +430,17 @@ async function runPermanentPluginDataDeletionWithLease(options: {
     };
   }
 
-  if (
-    !(await hasActiveOrganizationAdminMembership(
-      service,
-      input.organizationId,
-      input.actor.id,
-    ))
-  ) {
+  async function stopBeforeHook(options: {
+    safeErrorCode: string;
+    error: string;
+  }): Promise<PluginDataDeletionResult> {
     const { data: completed, error: completeError } = await service.rpc(
       "complete_plugin_data_deletion_request",
       {
-        p_request_id: receipt.request_id,
-        p_claim_token: receipt.claim_token,
+        p_request_id: receipt!.request_id,
+        p_claim_token: receipt!.claim_token,
         p_status: "retryable_failed",
-        p_safe_error_code: "authorization_revoked",
+        p_safe_error_code: options.safeErrorCode,
       },
     );
     if (completeError || completed !== true) {
@@ -452,16 +449,71 @@ async function runPermanentPluginDataDeletionWithLease(options: {
         status: "manual_reconciliation",
         canRetry: false,
         error:
-          "Admin access was revoked after this deletion request was claimed, and its durable receipt could not be finalized. No plugin code ran; contact platform support before retrying.",
+          "Deletion was stopped before plugin code ran, but its durable receipt could not be finalized. Contact platform support before retrying.",
       };
     }
     return {
       success: false,
       status: "retryable_failed",
       canRetry: true,
+      error: options.error,
+    };
+  }
+
+  if (
+    !(await hasActiveOrganizationAdminMembership(
+      service,
+      input.organizationId,
+      input.actor.id,
+    ))
+  ) {
+    return stopBeforeHook({
+      safeErrorCode: "authorization_revoked",
       error:
         "Admin access was revoked before permanent deletion began. No plugin code ran; restore current admin authority before retrying.",
-    };
+    });
+  }
+
+  // The outer lease serializes install transitions across the whole hook.
+  // Entitlement writes are paired with that same lease by a database trigger.
+  // Re-read both after the durable claim so a transition that committed just
+  // before lease acquisition cannot cross the irreversible hook boundary.
+  const [finalInstallResult, finalEntitlementResult] = await Promise.all([
+    service
+      .from("organization_plugin_installs")
+      .select("id")
+      .eq("organization_id", input.organizationId)
+      .eq("plugin_key", input.pluginKey)
+      .maybeSingle(),
+    service
+      .from("organization_plugin_entitlements")
+      .select("status, is_forced, starts_at, ends_at")
+      .eq("organization_id", input.organizationId)
+      .eq("plugin_key", input.pluginKey)
+      .maybeSingle(),
+  ]);
+  if (finalInstallResult.error || finalEntitlementResult.error) {
+    return stopBeforeHook({
+      safeErrorCode: "plugin_state_revalidation_failed",
+      error:
+        "Plugin state could not be revalidated before permanent deletion. No plugin code ran; retry after the control plane is available.",
+    });
+  }
+  const finalEntitlement = finalEntitlementResult.data as EntitlementRow | null;
+  const finalEntitlementActive = entitlementIsActive(
+    finalEntitlement,
+    new Date(),
+  );
+  if (
+    finalInstallResult.data ||
+    (finalEntitlementActive && finalEntitlement?.is_forced) ||
+    (catalog.visibility === "private" && !finalEntitlementActive)
+  ) {
+    return stopBeforeHook({
+      safeErrorCode: "plugin_state_changed",
+      error:
+        "Plugin install or entitlement state changed before permanent deletion. No plugin code ran; review the current state before retrying.",
+    });
   }
 
   const hookResult = await runPluginDataDelete(definition, {
