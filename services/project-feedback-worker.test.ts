@@ -30,7 +30,11 @@ type LedgerRow = {
 type Scenario = {
   ledger: LedgerRow[];
   project: Record<string, unknown> | null;
-  signup: { project_id: string; schedule_id: string | null } | null;
+  signup: {
+    project_id: string;
+    schedule_id: string | null;
+    status: string;
+  } | null;
   profile: { email: string; full_name: string | null } | null;
   settings: {
     email_notifications: boolean;
@@ -83,7 +87,11 @@ function defaultScenario(): Scenario {
   return {
     ledger: [queuedRow()],
     project: structuredClone(ONE_TIME_PROJECT),
-    signup: { project_id: PROJECT_ID, schedule_id: "oneTime" },
+    signup: {
+      project_id: PROJECT_ID,
+      schedule_id: "oneTime",
+      status: "attended",
+    },
     profile: { email: "volunteer@example.com", full_name: "Val Volunteer" },
     settings: null,
     queryErrors: {},
@@ -399,6 +407,36 @@ describe("feedback project page rotation", () => {
 });
 
 describe("feedback worker durable phases", () => {
+  test("a corrected non-attendance is skipped before dispatch", async () => {
+    scenario.signup = {
+      project_id: PROJECT_ID,
+      schedule_id: "oneTime",
+      status: "approved",
+    };
+
+    const result = await runProjectFeedbackWorker({ batchSize: 1 });
+
+    expect(sendEmailCalls).toHaveLength(0);
+    expect(scenario.ledger[0]).toMatchObject({
+      state: "skipped",
+      failureCode: "signup_not_attended",
+    });
+    expect(result.outcomes.skipped).toBe(1);
+  });
+
+  test("a reopened or cancelled project is skipped before dispatch", async () => {
+    scenario.project = { ...ONE_TIME_PROJECT, status: "open" };
+
+    const result = await runProjectFeedbackWorker({ batchSize: 1 });
+
+    expect(sendEmailCalls).toHaveLength(0);
+    expect(scenario.ledger[0]).toMatchObject({
+      state: "skipped",
+      failureCode: "project_not_completed",
+    });
+    expect(result.outcomes.skipped).toBe(1);
+  });
+
   test("a deterministic preparation failure settles failed without dispatch", async () => {
     delete process.env.PROJECT_FEEDBACK_TOKEN_SECRET;
 
@@ -579,6 +617,7 @@ describe("feedback signup schedule binding", () => {
     scenario.signup = {
       project_id: PROJECT_ID,
       schedule_id: "2026-09-03-1-0",
+      status: "attended",
     };
 
     await runProjectFeedbackWorker({ batchSize: 1 });
@@ -611,6 +650,7 @@ describe("feedback signup schedule binding", () => {
     scenario.signup = {
       project_id: PROJECT_ID,
       schedule_id: "legacy-ambiguous-slot",
+      status: "attended",
     };
 
     await runProjectFeedbackWorker({ batchSize: 1 });
@@ -622,7 +662,11 @@ describe("feedback signup schedule binding", () => {
   });
 
   test("a missing schedule id uses the date only when the project is unambiguous", async () => {
-    scenario.signup = { project_id: PROJECT_ID, schedule_id: null };
+    scenario.signup = {
+      project_id: PROJECT_ID,
+      schedule_id: null,
+      status: "attended",
+    };
 
     await runProjectFeedbackWorker({ batchSize: 1 });
 
