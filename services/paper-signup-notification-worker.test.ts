@@ -2,10 +2,22 @@ import { describe, expect, mock, test } from "bun:test";
 
 mock.module("server-only", () => ({}));
 
-const { paperSignupNotificationSettlement } =
+const { deletedPaperSignupIdentityResult, paperSignupNotificationSettlement } =
   await import("./paper-signup-notification-worker");
 
 describe("paper signup notification settlement", () => {
+  test("skips delivery when the anonymous identity was deleted", () => {
+    expect(deletedPaperSignupIdentityResult(true)).toBeNull();
+    expect(deletedPaperSignupIdentityResult(false)).toEqual({
+      outcome: "skipped",
+      success: false,
+      skipped: true,
+      phase: "preference_check",
+      code: "anonymous_identity_deleted",
+      reason: "Anonymous volunteer record no longer exists",
+    });
+  });
+
   test("preserves provider identity only for accepted sends", () => {
     expect(
       paperSignupNotificationSettlement({
