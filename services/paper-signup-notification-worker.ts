@@ -46,6 +46,20 @@ export function paperSignupNotificationSettlement(result: SendEmailResult): {
   };
 }
 
+export function deletedPaperSignupIdentityResult(
+  identityExists: boolean,
+): SendEmailResult | null {
+  if (identityExists) return null;
+  return {
+    outcome: "skipped",
+    success: false,
+    skipped: true,
+    phase: "preference_check",
+    code: "anonymous_identity_deleted",
+    reason: "Anonymous volunteer record no longer exists",
+  };
+}
+
 export async function runPaperSignupNotificationWorker(options?: {
   batchSize?: number;
 }) {
@@ -85,64 +99,83 @@ export async function runPaperSignupNotificationWorker(options?: {
     let result: SendEmailResult;
     let dispatchStarted = false;
     try {
-      const { data: project, error: projectError } = await admin
-        .from("projects")
-        .select("id, event_type, schedule, project_timezone")
-        .eq("id", claim.project_id)
-        .single();
-      if (projectError || !project) {
-        throw new Error("project_unavailable");
+      const { data: anonymousIdentity, error: anonymousIdentityError } =
+        claim.anonymous_id
+          ? await admin
+              .from("anonymous_signups")
+              .select("id")
+              .eq("id", claim.anonymous_id)
+              .maybeSingle()
+          : { data: null, error: null };
+      if (anonymousIdentityError) {
+        throw new Error("anonymous_identity_unavailable");
       }
 
-      const window = getAttendanceScheduleWindow(
-        project as unknown as Project,
-        claim.schedule_id,
+      const deletedIdentityResult = deletedPaperSignupIdentityResult(
+        Boolean(anonymousIdentity),
       );
-      const timezone = claim.project_timezone || "America/Los_Angeles";
-      const projectDate = window
-        ? new Date(window.startsAt).toLocaleDateString("en-US", {
-            timeZone: timezone,
-            dateStyle: "long",
-          })
-        : "";
-      const projectTime = window
-        ? `${new Date(window.startsAt).toLocaleTimeString("en-US", {
-            timeZone: timezone,
-            hour: "numeric",
-            minute: "2-digit",
-          })} - ${new Date(window.endsAt).toLocaleTimeString("en-US", {
-            timeZone: timezone,
-            hour: "numeric",
-            minute: "2-digit",
-          })}`
-        : "";
+      if (deletedIdentityResult) {
+        result = deletedIdentityResult;
+      } else {
+        const { data: project, error: projectError } = await admin
+          .from("projects")
+          .select("id, event_type, schedule, project_timezone")
+          .eq("id", claim.project_id)
+          .single();
+        if (projectError || !project) {
+          throw new Error("project_unavailable");
+        }
 
-      const { error: beginError } = await admin.rpc(
-        "begin_paper_signup_notification_dispatch",
-        {
-          p_id: claim.id,
-          p_worker_id: workerId,
-          p_lease_token: claim.lease_token,
-        },
-      );
-      if (beginError) throw new Error("dispatch_transition_failed");
-      dispatchStarted = true;
+        const window = getAttendanceScheduleWindow(
+          project as unknown as Project,
+          claim.schedule_id,
+        );
+        const timezone = claim.project_timezone || "America/Los_Angeles";
+        const projectDate = window
+          ? new Date(window.startsAt).toLocaleDateString("en-US", {
+              timeZone: timezone,
+              dateStyle: "long",
+            })
+          : "";
+        const projectTime = window
+          ? `${new Date(window.startsAt).toLocaleTimeString("en-US", {
+              timeZone: timezone,
+              hour: "numeric",
+              minute: "2-digit",
+            })} - ${new Date(window.endsAt).toLocaleTimeString("en-US", {
+              timeZone: timezone,
+              hour: "numeric",
+              minute: "2-digit",
+            })}`
+          : "";
 
-      result = await sendEmail({
-        to: claim.recipient_email,
-        subject: `Your volunteering at ${claim.project_title} was recorded`,
-        react: React.createElement(PaperSignupRecorded, {
-          volunteerName: claim.recipient_name || "Volunteer",
-          projectName: claim.project_title,
-          organizerName: claim.organizer_name,
-          projectDate,
-          projectTime,
-          anonymousProfileUrl: `${siteUrl}/anonymous/${claim.anonymous_id}?token=${claim.anonymous_profile_token}`,
-        }),
-        type: "transactional",
-        idempotencyKey: claim.idempotency_key,
-        tags: [{ name: "feature", value: "paper-signup-recorded" }],
-      });
+        const { error: beginError } = await admin.rpc(
+          "begin_paper_signup_notification_dispatch",
+          {
+            p_id: claim.id,
+            p_worker_id: workerId,
+            p_lease_token: claim.lease_token,
+          },
+        );
+        if (beginError) throw new Error("dispatch_transition_failed");
+        dispatchStarted = true;
+
+        result = await sendEmail({
+          to: claim.recipient_email,
+          subject: `Your volunteering at ${claim.project_title} was recorded`,
+          react: React.createElement(PaperSignupRecorded, {
+            volunteerName: claim.recipient_name || "Volunteer",
+            projectName: claim.project_title,
+            organizerName: claim.organizer_name,
+            projectDate,
+            projectTime,
+            anonymousProfileUrl: `${siteUrl}/anonymous/${claim.anonymous_id}?token=${claim.anonymous_profile_token}`,
+          }),
+          type: "transactional",
+          idempotencyKey: claim.idempotency_key,
+          tags: [{ name: "feature", value: "paper-signup-recorded" }],
+        });
+      }
     } catch {
       result = dispatchStarted
         ? {
