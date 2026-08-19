@@ -190,8 +190,15 @@ describe("signup PKCE producer host preflight", () => {
   test("a hosted alias redirects before clients, provider calls, or verifier cookies", async () => {
     requestHost = "stale-alias.example";
 
-    await expect(signInWithGoogle()).rejects.toBeInstanceOf(RedirectSignal);
-    expect(redirects).toEqual(["https://lets-assist.com/signup"]);
+    await expect(
+      signInWithGoogle("/plugins/dvhs-csf/connect?class=2027", {
+        staffToken: "staff-token-1",
+        orgUsername: "dvhs-csf",
+      }),
+    ).rejects.toBeInstanceOf(RedirectSignal);
+    expect(redirects).toEqual([
+      "https://lets-assist.com/signup?redirect=%2Fplugins%2Fdvhs-csf%2Fconnect%3Fclass%3D2027&staff_token=staff-token-1&org=dvhs-csf",
+    ]);
     expect(createClientCalls).toBe(0);
     expect(oauthCalls).toBe(0);
     expect(verifierCookieHosts).toHaveLength(0);

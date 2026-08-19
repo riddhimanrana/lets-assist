@@ -284,7 +284,13 @@ export async function signInWithGoogle(
   redirectAfterAuth?: string | null,
   inviteContext?: { staffToken?: string; orgUsername?: string } | null,
 ) {
-  return runOnCanonicalAuthOrigin("/signup", async (origin) => {
+  const canonicalSignupPath = buildCanonicalSignupPath({
+    redirectPath: redirectAfterAuth,
+    staffToken: inviteContext?.staffToken,
+    orgUsername: inviteContext?.orgUsername,
+  });
+
+  return runOnCanonicalAuthOrigin(canonicalSignupPath, async (origin) => {
     const supabase = await createClient();
 
     // Build callback URL with query params for redirect and staff invite context

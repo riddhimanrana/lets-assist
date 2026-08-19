@@ -95,6 +95,13 @@ This register separates actionable repository defects from provider/account and 
   stale cleanup work; and the worker rechecks references under that lease. The
   repository candidate is 331 migrations with 169 pgTAP files and 5,978
   assertions.
+- The final signup and feedback-preference review is closed by
+  `20260819030000_propagate_anonymous_feedback_opt_out` plus the matching
+  application changes. Canonical Google signup redirects preserve CSF and staff
+  invitation context, while verified anonymous feedback unsubscribe and
+  resubscribe decisions propagate to every project-scoped identity for the
+  normalized email address through a service-only transaction. The repository
+  candidate is 332 migrations with 170 pgTAP files and 5,985 assertions.
 - PITR is intentionally not part of this release. The cutover runbook requires
   a verified logical backup/restore path instead. Production remains unchanged
   until the root Development and Production promotion gates complete.
