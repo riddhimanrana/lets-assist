@@ -66,8 +66,10 @@ SECURITY DEFINER
 SET search_path = ''
 AS $$
 DECLARE
-  v_organization_id uuid := CASE WHEN TG_OP = 'DELETE' THEN OLD.organization_id ELSE NEW.organization_id END;
-  v_plugin_key text := CASE WHEN TG_OP = 'DELETE' THEN OLD.plugin_key ELSE NEW.plugin_key END;
+  v_old_organization_id uuid := CASE WHEN TG_OP IN ('UPDATE', 'DELETE') THEN OLD.organization_id END;
+  v_old_plugin_key text := CASE WHEN TG_OP IN ('UPDATE', 'DELETE') THEN OLD.plugin_key END;
+  v_new_organization_id uuid := CASE WHEN TG_OP IN ('INSERT', 'UPDATE') THEN NEW.organization_id END;
+  v_new_plugin_key text := CASE WHEN TG_OP IN ('INSERT', 'UPDATE') THEN NEW.plugin_key END;
 BEGIN
   PERFORM pg_advisory_xact_lock(
     hashtextextended('plugin-control-plane-entitlements', 0)
@@ -76,8 +78,13 @@ BEGIN
   IF EXISTS (
     SELECT 1
     FROM private.plugin_control_plane_transition_locks AS locks
-    WHERE locks.organization_id = v_organization_id
-      AND locks.plugin_key = v_plugin_key
+    WHERE (
+        (locks.organization_id = v_old_organization_id
+          AND locks.plugin_key = v_old_plugin_key)
+        OR
+        (locks.organization_id = v_new_organization_id
+          AND locks.plugin_key = v_new_plugin_key)
+      )
       AND locks.expires_at > now()
   ) THEN
     RAISE EXCEPTION 'plugin entitlement transition is locked'

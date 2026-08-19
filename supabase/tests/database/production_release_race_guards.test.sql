@@ -2,7 +2,7 @@ BEGIN;
 
 CREATE EXTENSION IF NOT EXISTS pgtap WITH SCHEMA extensions;
 
-SELECT extensions.plan(10);
+SELECT extensions.plan(11);
 
 SELECT extensions.ok(
   NOT has_function_privilege(
@@ -40,15 +40,32 @@ VALUES
    'race-attendee@local.test', now(), '{}', '{"username":"race_attendee"}', now(), now());
 
 INSERT INTO public.organizations (id, name, username, type, join_code)
-VALUES (
-  'ef100000-0000-4000-8000-000000000001',
-  'Race Guard Org',
-  'race_guard_org',
-  'nonprofit',
-  '619274'
-);
+VALUES
+  (
+    'ef100000-0000-4000-8000-000000000001',
+    'Race Guard Org',
+    'race_guard_org',
+    'nonprofit',
+    '619274'
+  ),
+  (
+    'ef100000-0000-4000-8000-000000000002',
+    'Race Guard Destination Org',
+    'race_guard_destination_org',
+    'nonprofit',
+    '619275'
+  );
 INSERT INTO public.plugins (key, name, visibility, is_active)
 VALUES ('race-guard-plugin', 'Race Guard Plugin', 'private', false);
+
+INSERT INTO public.organization_plugin_entitlements (
+  organization_id, plugin_key, status, is_forced
+) VALUES (
+  'ef100000-0000-4000-8000-000000000001',
+  'race-guard-plugin',
+  'inactive',
+  true
+);
 
 SET LOCAL ROLE service_role;
 SET LOCAL "request.jwt.claims" =
@@ -80,6 +97,18 @@ SELECT extensions.throws_ok(
   'a forced entitlement cannot cross an active deletion lease'
 );
 
+SELECT extensions.throws_ok(
+  $$
+    UPDATE public.organization_plugin_entitlements
+    SET organization_id = 'ef100000-0000-4000-8000-000000000002'
+    WHERE organization_id = 'ef100000-0000-4000-8000-000000000001'
+      AND plugin_key = 'race-guard-plugin'
+  $$,
+  '40001',
+  'plugin entitlement transition is locked',
+  'an entitlement cannot move away from a pair with an active deletion lease'
+);
+
 SELECT extensions.ok(
   public.release_plugin_control_plane_transition_lock(
     'ef100000-0000-4000-8000-000000000001',
@@ -89,14 +118,10 @@ SELECT extensions.ok(
   'the deletion lease can be released by its owner'
 );
 
-INSERT INTO public.organization_plugin_entitlements (
-  organization_id, plugin_key, status, is_forced
-) VALUES (
-  'ef100000-0000-4000-8000-000000000001',
-  'race-guard-plugin',
-  'inactive',
-  true
-);
+UPDATE public.organization_plugin_entitlements
+SET is_forced = false
+WHERE organization_id = 'ef100000-0000-4000-8000-000000000001'
+  AND plugin_key = 'race-guard-plugin';
 
 SELECT extensions.is(
   (

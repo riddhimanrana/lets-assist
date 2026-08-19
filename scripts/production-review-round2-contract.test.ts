@@ -73,6 +73,12 @@ describe("Production review round-two contracts", () => {
         /hashtextextended\('plugin-control-plane-entitlements', 0\)/g,
       ),
     ).toHaveLength(2);
+    expect(raceGuardMigration).toContain(
+      "locks.organization_id = v_old_organization_id",
+    );
+    expect(raceGuardMigration).toContain(
+      "locks.organization_id = v_new_organization_id",
+    );
     expect(raceGuardMigration).toContain("comment_flag_reason = NULL");
     expect(moderationIndex).toBeGreaterThan(updateIndex);
   });
