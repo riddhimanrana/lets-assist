@@ -48,7 +48,7 @@ VALUES (
   '619274'
 );
 INSERT INTO public.plugins (key, name, visibility, is_active)
-VALUES ('race-guard-plugin', 'Race Guard Plugin', 'private', true);
+VALUES ('race-guard-plugin', 'Race Guard Plugin', 'private', false);
 
 SET LOCAL ROLE service_role;
 SET LOCAL "request.jwt.claims" =
