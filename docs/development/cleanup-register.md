@@ -101,7 +101,7 @@ This register separates actionable repository defects from provider/account and 
   invitation context, while verified anonymous feedback unsubscribe and
   resubscribe decisions propagate to every project-scoped identity for the
   normalized email address through a service-only transaction. The repository
-  candidate is 332 migrations with 170 pgTAP files and 5,985 assertions.
+  candidate is 332 migrations with 170 pgTAP files and 5,990 assertions.
 - PITR is intentionally not part of this release. The cutover runbook requires
   a verified logical backup/restore path instead. Production remains unchanged
   until the root Development and Production promotion gates complete.
