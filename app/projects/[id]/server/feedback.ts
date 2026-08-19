@@ -281,57 +281,25 @@ export async function submitProjectFeedbackWithToken(input: {
     console.error("Token feedback rate-limit check failed:", error);
   }
 
-  const identity = request.user_id
-    ? { user_id: request.user_id, anonymous_id: null }
-    : { user_id: null, anonymous_id: request.anonymous_id };
-
-  const { data: existing } = await admin
-    .from("project_feedback")
-    .select("id")
-    .eq("project_id", request.project_id)
-    .eq(
-      request.user_id ? "user_id" : "anonymous_id",
-      (request.user_id ?? request.anonymous_id)!,
-    )
-    .maybeSingle();
-
-  let feedbackId: string;
-  if (existing) {
-    const { error: updateError } = await admin
-      .from("project_feedback")
-      .update({
-        rating,
-        comment,
-        // This write uses service_role because the email-link bearer has no
-        // session, so the client-edit guard trigger intentionally does not
-        // reset moderation for us. Reset first; a moderation outage then
-        // leaves the new text pending instead of carrying an old verdict.
-        comment_moderation_status: comment ? "pending" : "not_applicable",
-        comment_flag_reason: null,
-      })
-      .eq("id", existing.id);
-    if (updateError) {
-      return { success: false, error: "Could not update your feedback." };
-    }
-    feedbackId = existing.id;
-  } else {
-    const { data: inserted, error: insertError } = await admin
-      .from("project_feedback")
-      .insert({
-        project_id: request.project_id,
-        ...identity,
-        signup_id: request.signup_id,
-        rating,
-        comment,
-        submitted_via: "email_link",
-        comment_moderation_status: comment ? "pending" : "not_applicable",
-      })
-      .select("id")
-      .single();
-    if (insertError || !inserted) {
-      return { success: false, error: "Could not save your feedback." };
-    }
-    feedbackId = inserted.id;
+  // The service-role bearer path must not bypass the same eligibility that
+  // RLS applies to signed-in volunteers. The RPC locks the request, signup,
+  // and project and performs the eligibility check plus write atomically.
+  const { data: feedbackId, error: writeError } = await admin.rpc(
+    "submit_project_feedback_from_request",
+    {
+      p_request_id: requestId,
+      p_rating: rating,
+      p_comment: comment,
+    },
+  );
+  if (writeError || typeof feedbackId !== "string") {
+    return {
+      success: false,
+      error:
+        writeError?.code === "42501"
+          ? "Feedback is only available for attendees of completed projects."
+          : "Could not save your feedback.",
+    };
   }
 
   if (comment) {

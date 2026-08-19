@@ -81,6 +81,13 @@ This register separates actionable repository defects from provider/account and 
   also fail closed when their authenticated endpoint reports `enabled:false`,
   preventing false-success heartbeats. The repository candidate is 329
   migrations with 167 pgTAP files and 5,959 assertions.
+- The final Production race review is closed by
+  `20260819002500_serialize_plugin_deletion_and_token_feedback`. Plugin
+  entitlement changes now serialize with the deletion lease, deletion
+  revalidates install/entitlement state after its durable claim, and token
+  feedback rechecks attendance plus project completion in the same database
+  transaction as the write. The repository candidate is 330 migrations with
+  168 pgTAP files and 5,969 assertions.
 - PITR is intentionally not part of this release. The cutover runbook requires
   a verified logical backup/restore path instead. Production remains unchanged
   until the root Development and Production promotion gates complete.

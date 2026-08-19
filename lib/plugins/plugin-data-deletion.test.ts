@@ -24,6 +24,8 @@ let hookCalls = 0;
 let strictAuditError: Error | null = null;
 let completeSucceeds = true;
 let revokeActorAfterClaim = false;
+let installPluginAfterClaim = false;
+let forceEntitlementAfterClaim = false;
 
 class Query {
   private filters: Array<[string, unknown]> = [];
@@ -70,6 +72,27 @@ const adminClient = {
               row.user_id === ACTOR_ID,
           );
           if (actorMembership) actorMembership.status = "inactive";
+        }
+        if (installPluginAfterClaim) {
+          tables.set("organization_plugin_installs", [
+            {
+              id: "a7000000-0000-4000-8000-000000000099",
+              organization_id: ORGANIZATION_ID,
+              plugin_key: "test-plugin",
+            },
+          ]);
+        }
+        if (forceEntitlementAfterClaim) {
+          tables.set("organization_plugin_entitlements", [
+            {
+              organization_id: ORGANIZATION_ID,
+              plugin_key: "test-plugin",
+              status: "active",
+              starts_at: null,
+              ends_at: null,
+              is_forced: true,
+            },
+          ]);
         }
         return {
           data: [
@@ -223,6 +246,8 @@ beforeEach(() => {
   strictAuditError = null;
   completeSucceeds = true;
   revokeActorAfterClaim = false;
+  installPluginAfterClaim = false;
+  forceEntitlementAfterClaim = false;
 });
 
 describe("runPermanentPluginDataDeletion", () => {
@@ -346,6 +371,38 @@ describe("runPermanentPluginDataDeletion", () => {
         p_safe_error_code: "authorization_revoked",
       }),
     ]);
+  });
+
+  test("stops before the hook when an install appears after the durable claim", async () => {
+    installPluginAfterClaim = true;
+
+    const result = await runPermanentPluginDataDeletion(validInput());
+
+    expect(result).toMatchObject({
+      success: false,
+      status: "retryable_failed",
+      canRetry: true,
+    });
+    expect(hookCalls).toBe(0);
+    expect(completeCalls.at(-1)).toMatchObject({
+      p_safe_error_code: "plugin_state_changed",
+    });
+  });
+
+  test("stops before the hook when a forced entitlement appears after the durable claim", async () => {
+    forceEntitlementAfterClaim = true;
+
+    const result = await runPermanentPluginDataDeletion(validInput());
+
+    expect(result).toMatchObject({
+      success: false,
+      status: "retryable_failed",
+      canRetry: true,
+    });
+    expect(hookCalls).toBe(0);
+    expect(completeCalls.at(-1)).toMatchObject({
+      p_safe_error_code: "plugin_state_changed",
+    });
   });
 
   test("requires ordinary uninstall to finish before permanent deletion", async () => {
