@@ -150,6 +150,24 @@ export async function removeCalendarEventForProject(projectId: string) {
   }
 }
 
+/** Remove a project event from an authorization-checked deletion snapshot. */
+export async function removeCalendarEventFromProjectSnapshot(
+  userId: string,
+  calendarEventId: string,
+) {
+  try {
+    const deleted = await deleteGoogleCalendarEvent(userId, calendarEventId);
+    return deleted
+      ? { success: true as const }
+      : { success: false as const, error: "Failed to remove calendar event" };
+  } catch {
+    return {
+      success: false as const,
+      error: "Failed to remove calendar event",
+    };
+  }
+}
+
 /**
  * Removes calendar event for a signup when it's cancelled.
  * Call this after successfully cancelling a signup.

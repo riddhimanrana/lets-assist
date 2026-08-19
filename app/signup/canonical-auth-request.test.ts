@@ -48,6 +48,22 @@ afterEach(() => {
 });
 
 describe("runOnCanonicalAuthOrigin", () => {
+  test("Google login preserves invite and continuation context on canonical navigation", async () => {
+    const loginActions = await Bun.file(
+      new URL("../login/actions.ts", import.meta.url),
+    ).text();
+
+    expect(loginActions).toContain(
+      "const canonicalLoginPath = loginParams.size",
+    );
+    expect(loginActions).toContain('loginParams.set("redirectAfterAuth"');
+    expect(loginActions).toContain('loginParams.set("staffToken"');
+    expect(loginActions).toContain('loginParams.set("orgUsername"');
+    expect(loginActions).toContain(
+      "runOnCanonicalAuthOrigin(canonicalLoginPath",
+    );
+  });
+
   test("redirects a non-canonical hosted browser before the provider can write a PKCE cookie", async () => {
     requestHost = "stale-alias.example";
     const providerCalls: string[] = [];
