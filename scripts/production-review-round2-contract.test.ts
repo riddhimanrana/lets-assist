@@ -100,6 +100,7 @@ describe("Production review round-two contracts", () => {
       '"acquire_paper_scan_storage_cleanup_lock"',
     );
     expect(paperCleanupWorker).toContain('.from("project_paper_scan_images")');
+    expect(paperCleanupWorker).toContain('.is("purged_at", null)');
     expect(paperCleanupWorker).toContain(
       '"release_paper_scan_storage_cleanup_lock"',
     );

@@ -77,6 +77,7 @@ export async function drainPaperScanStorageDeletionQueue(
           .from("project_paper_scan_images")
           .select("object_path")
           .eq("bucket_id", bucket)
+          .is("purged_at", null)
           .in("object_path", candidatePaths);
         if (registeredError) {
           firstError ??= "Failed to recheck paper-scan photo registrations";
