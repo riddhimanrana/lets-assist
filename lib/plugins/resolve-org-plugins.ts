@@ -1,6 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { getAdminClient } from "@/lib/supabase/admin";
 import { getRegisteredPlugin } from "@/lib/plugins/registry";
+import { getPublishedPluginRelease } from "@/lib/plugins/published-releases";
 import {
   isEntitlementActive,
   loadAccessibleOrganizationPluginAccess,
@@ -9,7 +10,7 @@ import {
 import {
   coalescePluginVersion,
   isPluginVersionBehind,
-  isPluginRuntimeVersionExact,
+  isPluginVersionWithinContractRange,
 } from "@/lib/plugins/versioning";
 import type {
   OrganizationPluginAccessRole,
@@ -63,15 +64,17 @@ export async function resolveOrganizationPluginExperiences(
   return accessRows
     .flatMap((row) => {
       const definition = getRegisteredPlugin(row.plugin_key);
+      const loadedRelease = getPublishedPluginRelease(row.plugin_key);
       const installedVersion = coalescePluginVersion(
         row.installed_version,
         row.latest_version,
       );
       if (
         !definition ||
-        !isPluginRuntimeVersionExact(
+        !loadedRelease ||
+        !isPluginVersionWithinContractRange(
           installedVersion,
-          definition.manifest.version,
+          loadedRelease.supportedInstallContracts,
         )
       ) {
         return [];
@@ -131,7 +134,8 @@ export async function resolveOrganizationPlugins(options: {
 
   for (const access of accessRows) {
     const definition = getRegisteredPlugin(access.plugin_key);
-    if (!definition) {
+    const loadedRelease = getPublishedPluginRelease(access.plugin_key);
+    if (!definition || !loadedRelease) {
       continue;
     }
 
@@ -147,9 +151,9 @@ export async function resolveOrganizationPlugins(options: {
       continue;
     }
     if (
-      !isPluginRuntimeVersionExact(
+      !isPluginVersionWithinContractRange(
         installedVersion,
-        definition.manifest.version,
+        loadedRelease.supportedInstallContracts,
       )
     ) {
       continue;

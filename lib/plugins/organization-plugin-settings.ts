@@ -3,7 +3,9 @@ import {
   coalescePluginVersion,
   isPluginVersionBehind,
   isPluginRuntimeVersionExact,
+  isPluginVersionWithinContractRange,
 } from "@/lib/plugins/versioning";
+import type { PluginInstallContractRange } from "@/lib/plugins/versioning";
 import type { OrganizationPluginAdminSetting } from "@/types";
 
 export type PluginCatalogForSettings = {
@@ -39,6 +41,7 @@ export type RuntimePluginInfo = {
   key: string;
   navLabel: string;
   version: string;
+  supportedInstallContracts: PluginInstallContractRange;
   minimumRole: "admin" | "staff" | "member";
   ownerName?: OrganizationPluginAdminSetting["ownerName"];
   ownerType?: OrganizationPluginAdminSetting["ownerType"];
@@ -136,7 +139,10 @@ export function buildOrganizationPluginAdminSettings(input: {
       } else if (
         !blockedReason &&
         runtimePlugin &&
-        !isPluginRuntimeVersionExact(installedVersion, runtimePlugin.version)
+        !isPluginVersionWithinContractRange(
+          installedVersion,
+          runtimePlugin.supportedInstallContracts,
+        )
       ) {
         blockedReason =
           "Update this installation before using the plugin version loaded by the platform.";

@@ -35,6 +35,7 @@ function runtimePlugin(version: string) {
     key: "contract-plugin",
     navLabel: "Contract plugin",
     version,
+    supportedInstallContracts: { minimum: "1.0.0", maximum: version },
     minimumRole: "member" as const,
   };
 }
@@ -63,5 +64,6 @@ describe("organization plugin update deployment truth", () => {
 
     expect(plugin.updateAvailable).toBe(true);
     expect(plugin.updateDeployedInRuntime).toBe(true);
+    expect(plugin.blockedReason).toBeNull();
   });
 });

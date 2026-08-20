@@ -36,6 +36,7 @@
     "plugin:check:boundary": "node scripts/plugins/check-plugin-host-boundary.mjs",
     "plugin:test:isolation": "bun scripts/local-dev/test-plugin-isolation-browser.ts",
     "plugin:test:registry": "bun scripts/local-dev/test-plugin-registry-gates.ts",
+    "plugin:test:release-integration": "node --test scripts/plugins/integrate-private-release.test.mjs",
     "plugin:test:contracts": "bun scripts/local-dev/test-plugin-runtime-contracts.mjs",
     "plugin:test:unit": "bun run test:plugins",
     "csf:test:db:isolated": "bun run test:db:isolated",

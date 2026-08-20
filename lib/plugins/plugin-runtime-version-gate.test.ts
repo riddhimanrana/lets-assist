@@ -88,6 +88,26 @@ mock.module("@/lib/plugins/registry", () => ({
   getRegisteredPlugin: (key: string) =>
     key === definition.manifest.key ? definition : undefined,
 }));
+mock.module("@/lib/plugins/published-releases", () => ({
+  publishedPluginReleases: [
+    {
+      pluginKey: "dvhs-csf",
+      version: "1.1.0",
+      supportedInstallContracts: { minimum: "1.0.0", maximum: "1.1.0" },
+    },
+  ],
+  getPublishedPluginRelease: (key: string) =>
+    key === "dvhs-csf"
+      ? {
+          pluginKey: "dvhs-csf",
+          version: "1.1.0",
+          supportedInstallContracts: {
+            minimum: "1.0.0",
+            maximum: "1.1.0",
+          },
+        }
+      : undefined,
+}));
 mock.module("@/lib/plugins/organization-plugin-access", () => ({
   isEntitlementActive: () => true,
   loadAccessibleOrganizationPluginAccess: async () => [accessRow()],
@@ -142,5 +162,26 @@ describe("plugin runtime version gate", () => {
         experience: definition.manifest.organizationExperience!,
       },
     ]);
+  });
+
+  test("a preceding install remains available when the loaded release declares support", async () => {
+    installedVersion = "1.0.0";
+
+    expect(
+      await hasOrganizationPluginRuntimeAccess({
+        organizationId: "org-1",
+        pluginKey: "dvhs-csf",
+      }),
+    ).toBe(true);
+    expect(
+      await resolveOrganizationPlugins({
+        organizationId: "org-1",
+        userRole: "admin",
+        viewerUserId: "user-1",
+      }),
+    ).toMatchObject([{ key: "dvhs-csf", installedVersion: "1.0.0" }]);
+    expect(await resolveOrganizationPluginExperiences(["org-1"])).toHaveLength(
+      1,
+    );
   });
 });
