@@ -138,6 +138,9 @@ jobs:
       - name: Check plugin/host import boundary
         run: bun run plugin:check:boundary
 
+      - name: Test signed plugin release integration
+        run: bun run plugin:test:release-integration
+
       - name: Typecheck
         run: bun run typecheck
 

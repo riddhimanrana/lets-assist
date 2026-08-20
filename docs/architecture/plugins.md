@@ -67,6 +67,9 @@ cryptographic signature. Signing and verification tooling must verify the
 declared release inputs and constrain both signer identity and issuer before
 the certificate can be described as signed.
 
+The signed private-to-root release path and its credential boundary are
+documented in [signed plugin release integration](../development/plugin-release-integration.md).
+
 ## Storage contracts
 
 The server-only `plugins` bucket uses
