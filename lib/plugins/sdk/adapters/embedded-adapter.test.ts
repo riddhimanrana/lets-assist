@@ -4,6 +4,7 @@ mock.module("server-only", () => ({}));
 
 import { validatePluginSdkManifest } from "@/lib/plugins/sdk/v1/schema";
 import {
+  adoptionFromPublishedRelease,
   currentHostSupports,
   embeddedPluginAdoptions,
 } from "@/lib/plugins/sdk-adoption";
@@ -57,22 +58,15 @@ describe("embedded adapter over the real private plugins", () => {
       expect(pkg.definition).toBe(definition);
     });
 
-    test(`${key} adopts the signed release contract`, () => {
+    test(`${key} keeps bootstrap provenance unknown`, () => {
       const adoption = embeddedPluginAdoptions[key];
       const release = getPublishedPluginRelease(key);
 
       expect(release).toBeDefined();
       if (!release) throw new Error(`Missing published release for ${key}`);
-      if (!release.releaseInputs) {
-        throw new Error(`Missing release inputs for ${key}`);
-      }
-      expect(adoption).toEqual({
-        hostApiRange: release.hostApiRange,
-        pluginDataSchemaVersion: release.pluginDataSchemaVersion,
-        requiredPlatformSchemaVersion: release.requiredPlatformSchemaVersion,
-        supportedInstallContracts: release.supportedInstallContracts,
-        releaseInputs: release.releaseInputs,
-      });
+      expect(release.signer).toBeNull();
+      expect(release.releaseInputs).toBeNull();
+      expect(release.requiredPlatformSchemaVersion).toBe("legacy");
       expect(
         isPluginVersionWithinContractRange(
           definition.manifest.version,
@@ -125,5 +119,31 @@ describe("embedded host API compatibility", () => {
     expect(currentHostSupports({ minimum: "0.9.0", maximum: "0.9.9" })).toBe(
       false,
     );
+  });
+
+  test("a signed release replaces every bootstrap adoption field", () => {
+    const current = getPublishedPluginRelease("dvhs-csf");
+    if (!current) throw new Error("Missing DVHS CSF release fixture");
+    const signed = {
+      ...current,
+      signer: {
+        identity: "https://github.com/example/release.yml@refs/tags/v1.2.0",
+        issuer: "https://token.actions.githubusercontent.com",
+        attestationRef: "github-release:v1.2.0/bundle.json",
+      },
+      hostApiRange: { minimum: "1.0.0", maximum: "1.0.0" },
+      pluginDataSchemaVersion: 2,
+      requiredPlatformSchemaVersion: "20260820000000",
+      supportedInstallContracts: { minimum: "1.1.0", maximum: "1.2.0" },
+      releaseInputs: ["plugins/dvhs-csf", "apps/csf"],
+    };
+
+    expect(adoptionFromPublishedRelease("dvhs-csf", signed)).toEqual({
+      hostApiRange: signed.hostApiRange,
+      pluginDataSchemaVersion: 2,
+      requiredPlatformSchemaVersion: "20260820000000",
+      supportedInstallContracts: signed.supportedInstallContracts,
+      releaseInputs: signed.releaseInputs,
+    });
   });
 });
