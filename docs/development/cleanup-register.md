@@ -18,9 +18,10 @@ This register separates actionable repository defects from provider/account and 
   storage contract and the full database suite.
 - `PLUGIN-FOUND-003` is repository-closed at the schema boundary.
   `plugin_versions` records complete release identity for new publications and
-  preserves NULL legacy provenance honestly. Manifest-only release verification
-  remains open for Phase 2 tooling until complete release-input hashing, exact
-  tree equality, SBOM generation, and signature verification exist.
+  preserves NULL legacy provenance honestly. The merged signed-release receiver
+  independently reconstructs the embedded source digest, verifies the Sigstore
+  bundle, records the signed contract in one forward migration, and opens one
+  ordered Development integration pull request with generated pgTAP coverage.
 - `PLUGIN-FOUND-004` is repository-closed at the inert schema boundary.
   Deployment observations, workflow-reported health evidence, desired versions,
   manual/security-only update policy, and idempotent lease-bound update
@@ -33,6 +34,12 @@ This register separates actionable repository defects from provider/account and 
   deployment observation. Phase 4 must extend the existing control-plane
   transition, never create a second update path, then enable the lease- and
   health-checked activation RPC.
+- `PLUGIN-FOUND-006` remains active until the next signed private release. The
+  host now separates moderation, platform, and plugin Gateway authentication,
+  falls back to Vercel OIDC, and rejects plugin tracking without organization
+  and plugin identity. Private Development PR #71 forwards those tags on every
+  DV Speech and Debate model call, but the root gitlink deliberately remains on
+  the current signed private release.
 - All evidence in this section is local. No hosted Supabase schema, Vercel
   project, GitHub branch, pull request, or Production service was changed.
 

@@ -1,82 +1,69 @@
-# AI key architecture (moderation vs product AI vs plugins)
+# AI Gateway authentication and plugin accounting
 
-This project now supports scoped AI Gateway key resolution by workload.
+The host owns every AI Gateway credential. Plugins request a model through
+`prepareTrackedAiCall` and never receive an API key or OIDC token. That wrapper
+prepares telemetry for the plugin key, organization, feature, and model without
+recording prompts or model output. The caller must invoke its `logUsage`
+callback after the response to store token usage.
 
-## Why split keys
+## Workload scopes
 
-Using one key for everything makes it hard to:
+The host routes calls into three accounting scopes:
 
-- enforce least-privilege by workload
-- set different budgets/rate limits
-- monitor costs clearly
-- isolate failures/abuse
+- `moderation` for safety and moderation work
+- `platform` for product features owned by the main application
+- `plugin` for code owned by an installed plugin
 
-## Current scoped resolution
+These scopes support separate Gateway budgets and incident isolation. They do
+not authorize a request. The server route or action must still authorize the
+user, organization, entitlement, plugin install, and feature before making an
+AI call.
 
-Implemented in `lib/ai/gateway.ts` via `gatewayModel(scope, modelId)`.
+## Authentication order
 
-### Scopes
+`lib/ai/gateway.ts` resolves authentication in this order:
 
-- `moderation`
-- `platform`
-- `plugin`
+1. The scope's current key name.
+2. A compatibility alias used by older deployments or documentation.
+3. The shared `AI_GATEWAY_API_KEY` migration fallback.
+4. Vercel OIDC when no API key exists.
 
-### Environment variable resolution order
+Current key names:
 
-- `moderation`:
-  1. `AI_GATEWAY_API_KEY_MODERATION`
-  2. `AI_GATEWAY_API_KEY`
-- `platform`:
-  1. `AI_GATEWAY_API_KEY_PLATFORM`
-  2. `AI_GATEWAY_API_KEY`
-- `plugin`:
-  1. `AI_GATEWAY_API_KEY_PLUGIN`
-  2. `AI_GATEWAY_API_KEY_PLATFORM`
-  3. `AI_GATEWAY_API_KEY`
+- `AI_GATEWAY_KEY_MODERATION`
+- `AI_GATEWAY_KEY_PLATFORM`
+- `AI_GATEWAY_KEY_PLUGINS`
 
-If only `AI_GATEWAY_API_KEY` is set, behavior remains backward-compatible.
-
-## Mapped workloads in code
-
-### Moderation scope
-
-- `services/moderation.ts`
-- `app/admin/moderation/ai-generation.ts`
-
-### Platform scope
-
-- `app/api/ai/parse-project/route.ts`
-- `app/api/ai/analyze-waiver/route.ts`
-
-## Recommended production setup
-
-Set separate keys in Vercel project envs:
+Compatibility aliases:
 
 - `AI_GATEWAY_API_KEY_MODERATION`
 - `AI_GATEWAY_API_KEY_PLATFORM`
-- `AI_GATEWAY_API_KEY_PLUGIN` (optional until plugin BYOK rollout)
+- `AI_GATEWAY_KEY_PLUGIN`
+- `AI_GATEWAY_API_KEY_PLUGIN`
 
-Keep `AI_GATEWAY_API_KEY` only as migration fallback, then remove once all scoped keys are set.
+Plugin work never falls back to a platform-scoped key. It may use the shared
+migration key or Vercel OIDC. The plugin tracking context requires a plugin key
+and organization ID, and each AI SDK call must forward `tracked.gatewayOptions`
+to carry those tags into Vercel Gateway usage. Remove `AI_GATEWAY_API_KEY` after
+every environment has either scoped keys or working OIDC.
 
-## Plugin / organization BYOK strategy (next phase)
+The AI SDK refreshes Vercel OIDC tokens in Preview and Production. Local work
+can use an explicit key, `vercel dev`, or a recently pulled Vercel OIDC token.
+Passing an empty `apiKey` disables the SDK's OIDC path, so the host omits the
+option when it selects OIDC.
 
-For plugins/org-level key isolation, prefer request-scoped routing:
+## Plugin call requirements
 
-1. Store plugin/org provider credentials encrypted at rest (never client-exposed).
-2. Decrypt server-side only for execution.
-3. Use provider scoping per request (e.g., gateway provider options / BYOK flow).
-4. Tag usage with `plugin_id`, `organization_id`, `feature` for observability.
-5. Enforce per-plugin/org quotas and hard limits.
+Plugin AI code must:
 
-## Should AI be used for import parsing?
+- run on the server
+- authorize the caller and active plugin install before model selection
+- use the `plugin` scope and include `pluginKey`, `organizationId`, and `feature`
+- use `prepareTrackedAiCall` so PostHog and `plugin_data.ai_usage_log` receive the
+  same accounting identity
+- keep telemetry inputs and outputs disabled
+- require staff review before AI changes consequential organization state
 
-Short answer: **deterministic parser first, AI as optional fallback**.
-
-Recommended approach:
-
-1. Keep deterministic parsing as primary path (already implemented).
-2. Trigger AI only for ambiguous mapping cases (e.g., no clear email column).
-3. Require confidence threshold + human review before sending invites.
-4. Never auto-send invites from AI-only extraction without preview.
-
-This preserves reliability and keeps invitation flows auditable.
+Provider BYOK belongs in Vercel AI Gateway team settings. Do not store provider
+credentials in plugin configuration, `plugin_data`, browser storage, or the
+shared plugin upload bucket.
