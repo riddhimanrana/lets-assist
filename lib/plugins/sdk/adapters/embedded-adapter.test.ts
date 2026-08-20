@@ -3,7 +3,10 @@ import { describe, expect, mock, test } from "bun:test";
 mock.module("server-only", () => ({}));
 
 import { validatePluginSdkManifest } from "@/lib/plugins/sdk/v1/schema";
-import { embeddedPluginAdoptions } from "@/lib/plugins/sdk-adoption";
+import {
+  currentHostSupports,
+  embeddedPluginAdoptions,
+} from "@/lib/plugins/sdk-adoption";
 import { getPublishedPluginRelease } from "@/lib/plugins/published-releases";
 import { isPluginVersionWithinContractRange } from "@/lib/plugins/sdk/v1/compatibility";
 import { adoptEmbeddedPlugin, toSdkManifest } from "./embedded";
@@ -60,9 +63,16 @@ describe("embedded adapter over the real private plugins", () => {
 
       expect(release).toBeDefined();
       if (!release) throw new Error(`Missing published release for ${key}`);
-      expect(adoption.supportedInstallContracts).toEqual(
-        release.supportedInstallContracts,
-      );
+      if (!release.releaseInputs) {
+        throw new Error(`Missing release inputs for ${key}`);
+      }
+      expect(adoption).toEqual({
+        hostApiRange: release.hostApiRange,
+        pluginDataSchemaVersion: release.pluginDataSchemaVersion,
+        requiredPlatformSchemaVersion: release.requiredPlatformSchemaVersion,
+        supportedInstallContracts: release.supportedInstallContracts,
+        releaseInputs: release.releaseInputs,
+      });
       expect(
         isPluginVersionWithinContractRange(
           definition.manifest.version,
@@ -102,5 +112,18 @@ describe("adoption refuses an inconsistent contract", () => {
         supportedInstallContracts: { minimum: "9.0.0", maximum: "1.0.0" },
       }),
     ).toThrow(/supportedInstallContracts/u);
+  });
+});
+
+describe("embedded host API compatibility", () => {
+  test("accepts only ranges that contain the current host API", () => {
+    expect(currentHostSupports({ minimum: "1.0.0" })).toBe(true);
+    expect(currentHostSupports({ minimum: "1.0.0", maximum: "1.0.0" })).toBe(
+      true,
+    );
+    expect(currentHostSupports({ minimum: "1.1.0" })).toBe(false);
+    expect(currentHostSupports({ minimum: "0.9.0", maximum: "0.9.9" })).toBe(
+      false,
+    );
   });
 });

@@ -10,13 +10,13 @@
     "runtimeProfile": "embedded",
     "sourceTree": null,
     "contentDigest": null,
-    "releaseInputs": null,
+    "releaseInputs": ["plugins/dv-speech-debate"],
     "buildDigest": null,
     "sbomDigest": null,
     "signer": null,
     "hostApiRange": { "minimum": "1.0.0", "maximum": "1.0.0" },
     "pluginDataSchemaVersion": 1,
-    "requiredPlatformSchemaVersion": "legacy",
+    "requiredPlatformSchemaVersion": "20260412000001",
     "supportedInstallContracts": { "minimum": "2.0.0", "maximum": "2.0.0" }
   },
   {
@@ -30,13 +30,13 @@
     "runtimeProfile": "embedded",
     "sourceTree": null,
     "contentDigest": null,
-    "releaseInputs": null,
+    "releaseInputs": ["plugins/dvhs-csf"],
     "buildDigest": null,
     "sbomDigest": null,
     "signer": null,
     "hostApiRange": { "minimum": "1.0.0", "maximum": "1.0.0" },
     "pluginDataSchemaVersion": 1,
-    "requiredPlatformSchemaVersion": "legacy",
+    "requiredPlatformSchemaVersion": "20260412000001",
     "supportedInstallContracts": { "minimum": "1.1.0", "maximum": "1.1.0" }
   }
 ]

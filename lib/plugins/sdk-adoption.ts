@@ -8,37 +8,53 @@
  * mechanical step.
  */
 
+import { comparePluginVersions } from "@/lib/plugins/sdk/v1/compatibility";
+import type { PluginHostApiRange } from "@/lib/plugins/sdk/v1/release";
 import type { EmbeddedPluginAdoption } from "@/lib/plugins/sdk/adapters/embedded";
 import { PLUGIN_HOST_API_VERSION } from "@/lib/plugins/sdk/host-api-version";
 import { getPublishedPluginRelease } from "@/lib/plugins/published-releases";
 
-/**
- * The platform migration each plugin's data depends on existing.
- *
- * Both are pinned to the migration that created the plugin data schema rather
- * than to the newest migration: the floor is what the plugin actually requires,
- * and raising it without cause would refuse activation on hosts that can in
- * fact serve the plugin.
- */
-const PLUGIN_DATA_SCHEMA_FLOOR = "20260412000001";
+const EMBEDDED_PLUGIN_KEYS = ["dvhs-csf", "dv-speech-debate"] as const;
 
-const embeddedPluginAdoptionDefaults: Record<
-  string,
-  Omit<EmbeddedPluginAdoption, "supportedInstallContracts">
-> = {
-  "dvhs-csf": {
-    hostApiRange: { minimum: PLUGIN_HOST_API_VERSION },
-    pluginDataSchemaVersion: 1,
-    requiredPlatformSchemaVersion: PLUGIN_DATA_SCHEMA_FLOOR,
-    releaseInputs: ["plugins/dvhs-csf"],
-  },
-  "dv-speech-debate": {
-    hostApiRange: { minimum: PLUGIN_HOST_API_VERSION },
-    pluginDataSchemaVersion: 1,
-    requiredPlatformSchemaVersion: PLUGIN_DATA_SCHEMA_FLOOR,
-    releaseInputs: ["plugins/dv-speech-debate"],
-  },
-};
+export function currentHostSupports(range: PluginHostApiRange): boolean {
+  return (
+    comparePluginVersions(PLUGIN_HOST_API_VERSION, range.minimum) >= 0 &&
+    (range.maximum === undefined ||
+      comparePluginVersions(PLUGIN_HOST_API_VERSION, range.maximum) <= 0)
+  );
+}
+
+function adoptionFromRelease(pluginKey: string): EmbeddedPluginAdoption {
+  const release = getPublishedPluginRelease(pluginKey);
+  if (!release) {
+    throw new Error(
+      `Plugin "${pluginKey}" declares an SDK adoption but has no published release.`,
+    );
+  }
+  if (release.runtimeProfile !== "embedded") {
+    throw new Error(
+      `Plugin "${pluginKey}" is embedded but its published release uses the "${release.runtimeProfile}" runtime.`,
+    );
+  }
+  if (!release.releaseInputs) {
+    throw new Error(
+      `Embedded plugin "${pluginKey}" has no signed release input contract.`,
+    );
+  }
+  if (!currentHostSupports(release.hostApiRange)) {
+    throw new Error(
+      `Plugin "${pluginKey}" does not support host API ${PLUGIN_HOST_API_VERSION}.`,
+    );
+  }
+
+  return {
+    hostApiRange: release.hostApiRange,
+    pluginDataSchemaVersion: release.pluginDataSchemaVersion,
+    requiredPlatformSchemaVersion: release.requiredPlatformSchemaVersion,
+    supportedInstallContracts: release.supportedInstallContracts,
+    releaseInputs: release.releaseInputs,
+  };
+}
 
 /**
  * The signed release registry owns the install range used by both the embedded
@@ -47,24 +63,10 @@ const embeddedPluginAdoptionDefaults: Record<
  */
 export const embeddedPluginAdoptions: Record<string, EmbeddedPluginAdoption> =
   Object.fromEntries(
-    Object.entries(embeddedPluginAdoptionDefaults).map(
-      ([pluginKey, adoption]) => {
-        const release = getPublishedPluginRelease(pluginKey);
-        if (!release) {
-          throw new Error(
-            `Plugin "${pluginKey}" declares an SDK adoption but has no published release.`,
-          );
-        }
-
-        return [
-          pluginKey,
-          {
-            ...adoption,
-            supportedInstallContracts: release.supportedInstallContracts,
-          },
-        ];
-      },
-    ),
+    EMBEDDED_PLUGIN_KEYS.map((pluginKey) => [
+      pluginKey,
+      adoptionFromRelease(pluginKey),
+    ]),
   );
 
 export function adoptionFor(pluginKey: string): EmbeddedPluginAdoption {
