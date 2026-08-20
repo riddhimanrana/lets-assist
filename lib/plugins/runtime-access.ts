@@ -69,7 +69,7 @@ export async function hasOrganizationPluginRuntimeAccess(input: {
 
   const installedVersion = coalescePluginVersion(
     install?.installed_version ?? null,
-    access.latest_version,
+    loadedRelease.version,
   );
   if (
     access.force_update_version &&

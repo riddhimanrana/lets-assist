@@ -70,7 +70,7 @@ export async function resolveOrganizationPluginExperiences(
       );
       const installedVersion = coalescePluginVersion(
         row.installed_version,
-        row.latest_version,
+        loadedRelease?.version ?? null,
       );
       if (
         !definition ||
@@ -147,7 +147,7 @@ export async function resolveOrganizationPlugins(options: {
 
     const installedVersion = coalescePluginVersion(
       access.installed_version,
-      access.latest_version,
+      loadedRelease.version,
     );
     const forceUpdateRequired =
       Boolean(access.force_update_version) &&

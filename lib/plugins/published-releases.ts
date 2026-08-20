@@ -70,7 +70,9 @@ function assertPublishedPluginReleases(
         (release.buildArtifact?.name !== "plugin-build.tar.gz" ||
           release.buildArtifact?.format !== "vercel-prebuilt-v1" ||
           typeof release.buildArtifact?.root !== "string" ||
+          release.buildArtifact.root.length === 0 ||
           typeof release.buildArtifact?.projectName !== "string" ||
+          release.buildArtifact.projectName.length === 0 ||
           !/^prj_[A-Za-z0-9]+$/u.test(release.buildArtifact?.projectId) ||
           !/^team_[A-Za-z0-9]+$/u.test(
             release.buildArtifact?.organizationId,
@@ -88,6 +90,24 @@ function assertPublishedPluginReleases(
       !isInstallContractRangeSane(release.supportedInstallContracts)
     ) {
       throw new Error("Published plugin release data failed validation.");
+    }
+
+    if (
+      release.runtimeProfile === "application" &&
+      (release.buildDigest === null || release.buildArtifact === null)
+    ) {
+      throw new Error(
+        "Published application releases require a verified build artifact.",
+      );
+    }
+
+    if (
+      release.runtimeProfile === "embedded" &&
+      (release.buildDigest !== null || release.buildArtifact !== null)
+    ) {
+      throw new Error(
+        "Published embedded releases cannot claim an independent build artifact.",
+      );
     }
   }
 }

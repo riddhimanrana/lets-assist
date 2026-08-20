@@ -156,7 +156,7 @@ jobs:
           if [[ "${EVENT_NAME}" == repository_dispatch ]]; then
             jq -e \
               --argjson payload "${CLIENT_PAYLOAD}" \
-              '$payload.summary == {pluginKey,version,tag,sourceCommit,contentDigest,manifestDigest,buildDigest,sbomDigest,runtimeProfile}' \
+              '$payload.summary == {pluginKey,version,tag,sourceCommit,contentDigest,manifestDigest,buildDigest,buildArtifact,sbomDigest,runtimeProfile}' \
               "${manifest}" >/dev/null
             jq -e \
               --arg repository "${PRIVATE_REPOSITORY}" \

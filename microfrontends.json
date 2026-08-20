@@ -27,6 +27,6 @@
   },
   "options": {
     "localProxyPort": 3024,
-    "disableOverrides": false
+    "disableOverrides": true
   }
 }
