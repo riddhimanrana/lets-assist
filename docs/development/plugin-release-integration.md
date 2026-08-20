@@ -11,7 +11,7 @@ Plugin source, release publication, host integration, deployment, and organizati
 5. Create the plugin-scoped tag, such as `dvhs-csf/v1.2.0`, on that exact commit.
 6. The private release workflow reconstructs the plugin inputs from Git, generates a CycloneDX SBOM, signs the release manifest with GitHub OIDC and Cosign, publishes immutable GitHub Release assets, and dispatches the root integration.
 7. The root workflow downloads assets from the fixed private repository, verifies the signature issuer and tag-bound workflow identity, checks the release tag and private `main` plus `development` ancestry, then independently reconstructs every signed digest.
-8. The root workflow pins the exact private commit, updates the code-owned release registry, generates one forward publication migration plus its exact pgTAP contract, and opens a pull request against root `development`. Root integrations are serialized because the migration ledger is global.
+8. The root workflow pins the exact private commit, updates the code-owned release registry, generates one forward publication migration plus its exact pgTAP contract, and opens a pull request against root `development`. The workflow serializes jobs and refuses a new release while an earlier `codex/plugin-release-*` pull request is open because the migration ledger is global.
 9. Root CI, Supabase Preview, and Vercel Preview validate that integration. Merging the root pull request deploys code to Development only.
 10. An organization administrator may then select Update. The update operation remains lease-bound, idempotent, audited, and manual by default.
 

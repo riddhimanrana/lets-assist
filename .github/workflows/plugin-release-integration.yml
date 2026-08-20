@@ -50,6 +50,26 @@ jobs:
           fetch-depth: 0
           submodules: false
 
+      - name: Refuse an unordered integration pull request
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          open_integrations="$(
+            gh pr list \
+              --repo "${GITHUB_REPOSITORY}" \
+              --base development \
+              --state open \
+              --json number,headRefName,url \
+            | jq '[.[] | select(.headRefName | startswith("codex/plugin-release-"))]'
+          )"
+          if [[ "$(jq 'length' <<<"${open_integrations}")" -ne 0 ]]; then
+            echo "A signed plugin integration PR is already open. Merge or close it before publishing the next ledger entry." >&2
+            jq -r '.[] | "#\(.number) \(.headRefName) \(.url)"' <<<"${open_integrations}" >&2
+            exit 1
+          fi
+
       - name: Setup Node
         uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
