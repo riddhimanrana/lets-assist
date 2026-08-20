@@ -35,6 +35,8 @@ SELECT extensions.results_eq(
         ('public.cancel_project_transactional(uuid,text)', 'authenticated'),
         ('public.end_recurring_project_series_transactional(uuid)', 'authenticated'),
         ('public.end_recurring_project_series_transactional(uuid,jsonb)', 'authenticated'),
+        ('public.get_csf_application_role_context(uuid,text)', 'authenticated'),
+        ('public.get_plugin_application_access_context(uuid,text,text)', 'authenticated'),
         ('public.get_public_attendees(uuid)', 'anon'),
         ('public.get_public_attendees(uuid)', 'authenticated'),
         ('public.is_project_organizer(uuid,uuid)', 'authenticated'),

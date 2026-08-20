@@ -58,6 +58,31 @@ revalidate the request's Supabase session and organization access on the server.
 It must not receive a service-role or secret key, query `plugin_data` from the
 browser, or treat the host's path-routing decision as authorization.
 
+### Application caller proof
+
+An independently deployed application calls
+`public.get_plugin_application_access_context(organization_id, plugin_key,
+runtime_version)` with the caller's authenticated Supabase session. The
+function first proves active organization membership, then reads the same
+`organization_plugin_access` model used by the embedded host gate. It also
+requires the exact published release to have verified signer metadata and the
+`application` profile, checks the release against the current host API, and
+evaluates its install-contract range and any catalog force-update floor.
+Non-members receive no catalog, entitlement, install, or release facts.
+Ordinary members also receive one generic denial when access is unavailable;
+staff and admins retain specific denial reasons for support and update work.
+
+Plugin-specific role projection stays separate from that generic control-plane
+proof. The first projection,
+`public.get_csf_application_role_context(organization_id, runtime_version)`,
+returns only the current caller's CSF role labels and enabled permission keys.
+It does not expose roster or domain rows and does not authorize a consequential
+mutation. The CSF child verifies the session on its server, calls both proofs,
+and returns a narrow DTO to its own page. A browser can technically call these
+self-only RPCs with its own session, so their safety does not depend on the
+child hiding their names. Service-only CSF operations still repeat their own
+fresh authorization and tenant checks.
+
 ## Releases, deployments, and installs
 
 These are separate records:

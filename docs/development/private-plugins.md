@@ -92,6 +92,24 @@ entitlement, install, organization membership, and plugin-role checks inside
 its server data boundary. Do not configure `SUPABASE_SERVICE_ROLE_KEY` or
 `SUPABASE_SECRET_KEY` in the child project.
 
+For every server-rendered application request:
+
+1. Create a request-scoped Supabase SSR client from the public URL,
+   publishable key, and request cookies.
+2. Verify the caller with `auth.getUser()`. Do not authorize from an unverified
+   cookie or decoded token alone.
+3. Call `get_plugin_application_access_context` with the requested
+   organization, exact plugin key, and exact child build version.
+4. Call the plugin-specific role projection when the route needs role facts.
+5. Render only the narrow caller-scoped result. Treat a missing, malformed, or
+   denied proof as inaccessible.
+
+The host route, Vercel microfrontend claim, and organization identifier are
+routing inputs, not authorization. Child reads and mutations repeat this
+sequence on every request. Consequential plugin operations use their existing
+server-only transactions and recheck capability after taking the required
+locks.
+
 SDK releases use the `plugin-sdk/v<version>` Git tag family in the public
 repository. The release workflow accepts a tag only when it matches the stable
 version in `packages/plugin-sdk/package.json` and the tagged commit belongs to

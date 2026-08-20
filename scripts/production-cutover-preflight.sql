@@ -1,4 +1,4 @@
--- Production 236 -> repository target 337 cutover preflight.
+-- Production 236 -> repository target 338 cutover preflight.
 --
 -- Read-only by construction: every check is SELECT or SHOW inside an explicit
 -- READ ONLY transaction. Run this only with the reviewed Production read-only
@@ -10,7 +10,7 @@
 --
 -- The only supported ledgers are:
 --   pre-cutover   236 rows headed by 20260811001500
---   post-cutover  337 rows headed by 20260820120000 with the exact 101-row tail
+--   post-cutover  338 rows headed by 20260820130000 with the exact 102-row tail
 --
 -- Any partial, divergent, later, or wrong-tail ledger exits non-zero before
 -- shape-specific relations are parsed. Relation inventories then fail with a
@@ -48,7 +48,7 @@ SELECT current_setting('transaction_read_only') = 'on' AS read_only_transaction
 \echo ''
 \echo '=============================================================='
 \echo 'L0  Exact migration ledger'
-\echo '    PASS: exactly 236/baseline or exactly 337/target'
+\echo '    PASS: exactly 236/baseline or exactly 338/target'
 \echo '=============================================================='
 SELECT count(*) AS applied_migrations,
        min(version::text) AS first_version,
@@ -151,9 +151,9 @@ SELECT
     AND count(*) FILTER (
       WHERE version::text > '20260811001500'
     ) = 0 AS baseline_ledger,
-  count(*) = 337
+  count(*) = 338
     AND min(version::text) = '20260325181408'
-    AND max(version::text) = '20260820120000'
+    AND max(version::text) = '20260820130000'
     AND :'baseline_versions_exact'::boolean
     AND (
       SELECT array_agg(pending.version ORDER BY pending.version)
@@ -197,7 +197,7 @@ SELECT
       '20260818170000','20260818180000','20260818223637',
       '20260818232541','20260819002500','20260819020000',
       '20260819030000','20260819050728','20260820090000',
-      '20260820100000','20260820110000','20260820120000'
+      '20260820100000','20260820110000','20260820120000','20260820130000'
       -- END EXACT PRODUCTION TARGET TAIL
     ]::text[] AS target_ledger
 FROM supabase_migrations.schema_migrations
@@ -205,7 +205,7 @@ FROM supabase_migrations.schema_migrations
 
 \if :baseline_ledger
   \set cutover_shape pre
-  \echo 'PASS L0: exact Production baseline; 101 migrations pending.'
+  \echo 'PASS L0: exact Production baseline; 102 migrations pending.'
 \elif :target_ledger
   \set cutover_shape post
   \echo 'PASS L0: exact repository target; zero migrations pending.'
@@ -1788,6 +1788,8 @@ SELECT
       ('public.cancel_project_transactional(uuid,text)', 'authenticated'),
       ('public.end_recurring_project_series_transactional(uuid)', 'authenticated'),
       ('public.end_recurring_project_series_transactional(uuid,jsonb)', 'authenticated'),
+      ('public.get_csf_application_role_context(uuid,text)', 'authenticated'),
+      ('public.get_plugin_application_access_context(uuid,text,text)', 'authenticated'),
       ('public.get_public_attendees(uuid)', 'anon'),
       ('public.get_public_attendees(uuid)', 'authenticated'),
       ('public.is_project_organizer(uuid,uuid)', 'authenticated'),
@@ -1799,6 +1801,14 @@ SELECT
   ),
   client(role_name) AS (
     VALUES ('anon'::text), ('authenticated'::text)
+  ),
+  reviewed_security_definer(signature, role_name) AS (
+    SELECT expected.signature, expected.role_name
+    FROM expected
+    WHERE expected.signature IN (
+      'public.get_csf_application_role_context(uuid,text)',
+      'public.get_plugin_application_access_context(uuid,text,text)'
+    )
   ),
   actual AS (
     SELECT
@@ -1866,11 +1876,40 @@ SELECT
         function_record.oid,
         'EXECUTE'
       )
+      AND NOT EXISTS (
+        SELECT 1
+        FROM reviewed_security_definer AS reviewed
+        WHERE reviewed.signature = pg_catalog.format(
+          'public.%I(%s)',
+          function_record.proname,
+          pg_catalog.replace(
+            pg_catalog.oidvectortypes(function_record.proargtypes),
+            ', ',
+            ','
+          )
+        )
+          AND reviewed.role_name = client.role_name
+      )
+  ),
+  security_definer_posture_drift AS (
+    SELECT
+      'reviewed_security_definer_posture'::text AS drift_kind,
+      reviewed.signature,
+      reviewed.role_name
+    FROM reviewed_security_definer AS reviewed
+    WHERE pg_catalog.to_regprocedure(reviewed.signature) IS NULL
+      OR NOT (
+        SELECT function_record.prosecdef
+        FROM pg_catalog.pg_proc AS function_record
+        WHERE function_record.oid = pg_catalog.to_regprocedure(reviewed.signature)
+      )
   ),
   violations AS (
     SELECT * FROM acl_drift
     UNION ALL
     SELECT * FROM security_definer_client_exec
+    UNION ALL
+    SELECT * FROM security_definer_posture_drift
   )
   SELECT
     count(*) = 0 AS target_function_acl_pass,

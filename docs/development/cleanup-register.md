@@ -40,6 +40,31 @@ This register separates actionable repository defects from provider/account and 
   and plugin identity. Private Development PR #71 forwards those tags on every
   DV Speech and Debate model call, but the root gitlink deliberately remains on
   the current signed private release.
+- `PLUGIN-FOUND-007` is repository-closed at the local caller-proof boundary.
+  The generic application RPC revalidates active membership against the same
+  consolidated catalog/install/entitlement model as the embedded host, accepts
+  only an exact signed application-profile runtime compatible with the current
+  host API, and checks its N/N-1 install range and force-update floor. The CSF projection returns only
+  the current caller's role and permission facts. Both use the authenticated
+  caller session and expose no roster or CSF domain rows. Ordinary members get
+  one generic denial rather than private catalog or entitlement details. Hosted
+  Private PR #72 now carries a child app and its independently locked local
+  gates, but hosted Development and the Vercel microfrontend remain unverified.
+  The original boundary passed a clean 338-migration replay with 28 caller-proof
+  assertions. The signed-release and host-API follow-up adds three assertions;
+  lint, typecheck, and architecture contracts pass, while its isolated replay
+  did not start because local Docker remained in `supabase start` and the first
+  CI attempt found its selected port occupied before migrations ran.
+- `PLUGIN-FOUND-008` remains active. The signed root release integrator accepts
+  embedded releases only, and the code-owned publication registry models one
+  current profile per plugin. Before CSF can publish `1.2.0`, the release lane
+  and registry must support an application release alongside the embedded
+  `1.1.0` fallback without making host startup reject the profile transition.
+- `PLUGIN-FOUND-009` remains active. The application manifest path prefix and
+  required direct-access protection are contracts, not active routing. A
+  Development Vercel microfrontend group, a per-request rollout flag, direct
+  child-domain protection, deployment observation, and accepted health evidence
+  must exist before any CSF route is claimed or an install is activated.
 - All evidence in this section is local. No hosted Supabase schema, Vercel
   project, GitHub branch, pull request, or Production service was changed.
 
