@@ -18,7 +18,6 @@ function embeddedManifest(
     requiredPlatformSchemaVersion: "20260325181408",
     supportedInstallContracts: { minimum: "1.0.0", maximum: "1.0.0" },
     releaseInputs: ["plugins/example-plugin"],
-    hostBuildSurface: ["@/lib/plugins/supabase"],
     dataIsolation: "shared",
     ...overrides,
   } as PluginSdkManifest;

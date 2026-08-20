@@ -73,17 +73,6 @@ export interface PluginSdkManifest {
    */
   releaseInputs: PluginReleaseInputs;
 
-  /**
-   * Host modules this plugin compiles against.
-   *
-   * Declared rather than discovered, because the private repository's CI type
-   * checks plugins against the host at its current tip: an undeclared import of
-   * a host module that does not exist there yet fails as an opaque module
-   * resolution error inside a circular pair of pull requests. Declaring the
-   * surface turns that into a named, actionable failure and caps growth.
-   */
-  hostBuildSurface: string[];
-
   routes?: PluginRouteDeclaration[];
   navigation?: PluginNavigationDeclaration;
   capabilities?: PluginCapabilityDeclaration[];

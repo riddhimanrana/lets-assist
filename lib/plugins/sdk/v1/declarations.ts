@@ -9,6 +9,16 @@
 
 export type PluginAccessRole = "admin" | "staff" | "member";
 
+/**
+ * The minimum standing required to reach a route or capability.
+ *
+ * Wider than {@link PluginAccessRole} because some plugin surfaces are reached
+ * without organization membership at all: a guardian acting on a signed token,
+ * for example, is `public` and holds no role. Keeping the two types distinct
+ * stops "which role" and "how much access" from being conflated.
+ */
+export type PluginSurfaceAccessLevel = PluginAccessRole | "public";
+
 export type PluginVisibility = "global" | "private";
 
 export interface PluginRouteDeclaration {
@@ -20,7 +30,7 @@ export interface PluginRouteDeclaration {
   label: string;
   title?: string;
   description?: string;
-  minimumRole?: PluginAccessRole;
+  minimumRole?: PluginSurfaceAccessLevel;
   navSection?: "plugin" | "organization" | "hidden";
 }
 
@@ -36,7 +46,7 @@ export interface PluginCapabilityDeclaration {
     | "workflow";
   description: string;
   route?: string;
-  minimumRole?: PluginAccessRole;
+  minimumRole?: PluginSurfaceAccessLevel;
   idempotencyRequired?: boolean;
 }
 

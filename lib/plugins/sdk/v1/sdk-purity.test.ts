@@ -13,7 +13,16 @@ import { join } from "node:path";
  * point the dependency would be load-bearing.
  */
 
-const sdkRoot = join(import.meta.dir, "..");
+/**
+ * Scope is `sdk/v1` deliberately, not all of `sdk/`.
+ *
+ * `sdk/v1` is the portable contract: it must survive being consumed by a plugin
+ * that has no host module graph. `sdk/adapters` is the opposite by design — an
+ * adapter's whole job is to bridge host types to the contract, so it imports
+ * host code and is not portable. Scanning both would either fail honestly or
+ * force the adapters to be excluded case by case, which would erode the rule.
+ */
+const sdkRoot = join(import.meta.dir);
 
 const FORBIDDEN_SPECIFIER_PATTERNS: Array<{ pattern: RegExp; why: string }> = [
   {

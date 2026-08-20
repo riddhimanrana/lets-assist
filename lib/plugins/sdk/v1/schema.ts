@@ -34,6 +34,12 @@ export interface PluginManifestValidationResult {
 }
 
 const ACCESS_ROLES = ["admin", "staff", "member"] as const;
+/**
+ * Routes and capabilities can be reachable without organization membership —
+ * a guardian acting on a signed token holds no role — so they admit `public`
+ * where `minimumRole` on the manifest itself does not.
+ */
+const SURFACE_ACCESS_LEVELS = [...ACCESS_ROLES, "public"] as const;
 const SEMVER_PATTERN = "^v?\\d+\\.\\d+\\.\\d+(?:[-+][0-9A-Za-z.-]+)?$";
 
 const configPropertySchema = {
@@ -78,7 +84,6 @@ const manifestSchema = {
     "requiredPlatformSchemaVersion",
     "supportedInstallContracts",
     "releaseInputs",
-    "hostBuildSurface",
     "dataIsolation",
   ],
   properties: {
@@ -166,10 +171,6 @@ const manifestSchema = {
       minItems: 1,
       items: { type: "string", minLength: 1 },
     },
-    hostBuildSurface: {
-      type: "array",
-      items: { type: "string", minLength: 1 },
-    },
 
     routes: {
       type: "array",
@@ -182,7 +183,7 @@ const manifestSchema = {
           label: { type: "string" },
           title: { type: "string" },
           description: { type: "string" },
-          minimumRole: { enum: [...ACCESS_ROLES] },
+          minimumRole: { enum: [...SURFACE_ACCESS_LEVELS] },
           navSection: { enum: ["plugin", "organization", "hidden"] },
         },
       },
@@ -218,7 +219,7 @@ const manifestSchema = {
           },
           description: { type: "string" },
           route: { type: "string" },
-          minimumRole: { enum: [...ACCESS_ROLES] },
+          minimumRole: { enum: [...SURFACE_ACCESS_LEVELS] },
           idempotencyRequired: { type: "boolean" },
         },
       },
