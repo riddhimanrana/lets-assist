@@ -1,6 +1,5 @@
 import "server-only";
 
-import { createHash } from "node:crypto";
 import { createGateway } from "ai";
 
 export type AiWorkloadScope = "moderation" | "platform" | "plugin";
@@ -15,7 +14,12 @@ const SCOPE_KEY_CANDIDATES: Record<AiWorkloadScope, string[]> = {
   ],
 };
 
-const gatewayCache = new Map<string, ReturnType<typeof createGateway>>();
+interface CachedGateway {
+  apiKey?: string;
+  provider: ReturnType<typeof createGateway>;
+}
+
+const gatewayCache = new Map<string, CachedGateway>();
 
 interface GatewayAuthResolution {
   apiKey?: string;
@@ -48,19 +52,16 @@ function resolveGatewayAuth(
 
 function getGateway(scope: AiWorkloadScope) {
   const { apiKey, source } = resolveGatewayAuth(scope);
-  const credentialIdentity = apiKey
-    ? createHash("sha256").update(apiKey).digest("hex")
-    : "oidc";
-  const cacheKey = `${scope}:${source}:${credentialIdentity}`;
+  const cacheKey = `${scope}:${source}`;
 
   const cached = gatewayCache.get(cacheKey);
-  if (cached) {
-    return cached;
+  if (cached && cached.apiKey === apiKey) {
+    return cached.provider;
   }
 
-  const gateway = apiKey ? createGateway({ apiKey }) : createGateway();
-  gatewayCache.set(cacheKey, gateway);
-  return gateway;
+  const provider = apiKey ? createGateway({ apiKey }) : createGateway();
+  gatewayCache.set(cacheKey, { apiKey, provider });
+  return provider;
 }
 
 export function gatewayModel(scope: AiWorkloadScope, modelId: string) {
