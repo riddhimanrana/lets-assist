@@ -37,6 +37,20 @@ becomes independently deployable after its application profile has its own
 build, deployment identity, session revalidation, and server authorization
 boundary.
 
+Application packages live at `lib/plugins/private/apps/<app>` and do not enter
+the host TypeScript, ESLint, unit-test, plugin-data audit, or route-inventory
+programs. That exclusion is conditional on a replacement gate. Each child owns
+a Bun lockfile and `lint`, `typecheck`, `test`, `build`, `audit:data-access`,
+and `inventory:routes` scripts. `bun run plugin:apps:check` discovers every
+child and runs those gates with privileged Supabase keys removed from its
+environment. The root quality workflow and the private-candidate test path both
+invoke this command, so an excluded child cannot become an untested directory.
+
+The child may receive the public Supabase URL and publishable key. It must
+revalidate the request's Supabase session and organization access on the server.
+It must not receive a service-role or secret key, query `plugin_data` from the
+browser, or treat the host's path-routing decision as authorization.
+
 ## Releases, deployments, and installs
 
 These are separate records:

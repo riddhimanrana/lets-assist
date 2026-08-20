@@ -65,6 +65,33 @@ plugins/<plugin-key>/
 - fixtures contain sanitized external-service captures.
 - lifecycle handlers delegate to services rather than directly mutating tables.
 
+An independently deployed application profile uses a separate package:
+
+```text
+apps/<app>/
+├── package.json
+├── bun.lock
+├── app/
+├── src/
+├── scripts/
+└── tests/
+```
+
+The package must pin the same Bun version as the platform and define `lint`,
+`typecheck`, `test`, `build`, `audit:data-access`, and `inventory:routes`.
+Run `bun run plugin:apps:check` from the platform checkout to install and verify
+every child package. Host tooling deliberately excludes `apps/**` only because
+this replacement gate runs in root CI and in the existing private-candidate
+test path.
+
+An application profile consumes the published plugin SDK package. It cannot use
+host `@/app`, `@/components`, `@/lib`, or `@/services` imports. It shares the
+environment's Supabase Auth session through the main-domain request, uses only
+the publishable key to refresh and verify that session, and repeats current
+entitlement, install, organization membership, and plugin-role checks inside
+its server data boundary. Do not configure `SUPABASE_SERVICE_ROLE_KEY` or
+`SUPABASE_SECRET_KEY` in the child project.
+
 ## Platform contract
 
 Every production plugin should declare its host integration contract in `plugin.tsx`:
@@ -120,7 +147,11 @@ public one-time token handlers, and trusted background jobs.
 
 For new tables, default to server-only access unless the manifest `dataAccess` contract explains why direct RLS client access or a public read model is required. Avoid adding new blanket `GRANT ... ON ALL TABLES IN SCHEMA plugin_data` behavior; grant only the narrow role/object access required by the declared contract.
 
-When a plugin needs browser-visible or public data, create a narrow read model for that specific route or workflow. Prefer `WITH (security_invoker = true)` views on Postgres 15+ when the view should honor the caller's RLS. Keep base plugin tables tenant-owned with `organization_id`, foreign keys, and indexes that match the route's query pattern.
+When an application plugin needs browser-visible data, return a narrow DTO from
+its server boundary after fresh session and tenant authorization. Do not expose
+CSF domain tables or a new PostgREST schema to make an application route work.
+Keep base plugin tables tenant-owned with `organization_id`, foreign keys, and
+indexes that match the route's query pattern.
 
 Every installed plugin should have a row in `public.organization_plugin_data_boundaries`. Regular organizations use `isolation_mode = 'shared'`; enterprise customers can be marked for `dedicated_schema`, `dedicated_project`, or `external` handling without changing the default install flow.
 
