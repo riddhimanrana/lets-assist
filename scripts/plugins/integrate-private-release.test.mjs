@@ -311,6 +311,7 @@ test("root workflow verifies known assets and opens only a Development PR", () =
   assert.match(workflow, /--base development/u);
   assert.match(workflow, /--migration-version auto/u);
   assert.match(workflow, /group: plugin-release-integration\n/u);
+  assert.match(workflow, /gh api \\\n\s+--paginate \\\n\s+--slurp/u);
   assert.match(workflow, /startswith\("codex\/plugin-release-"\)/u);
   assert.match(workflow, /A signed plugin integration PR is already open/u);
   assert.match(workflow, /supabase\/tests\/database/u);
