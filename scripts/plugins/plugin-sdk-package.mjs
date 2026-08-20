@@ -62,6 +62,7 @@ export function collectPluginSdkReleaseInputs(repositoryRoot) {
   const packageFiles = [
     paths.packageJsonPath,
     join(paths.packageRoot, "README.md"),
+    join(paths.packageRoot, "bun.lock"),
     join(paths.packageRoot, "tsconfig.build.json"),
   ];
   return [...sourceFiles, ...packageFiles]

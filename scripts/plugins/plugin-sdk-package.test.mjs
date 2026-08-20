@@ -6,6 +6,7 @@ import { fileURLToPath } from "node:url";
 
 import {
   buildPluginSdkPackage,
+  collectPluginSdkReleaseInputs,
   createPluginSdkReleaseManifest,
   pluginSdkSourceDigest,
   readPluginSdkPackage,
@@ -18,16 +19,21 @@ const repositoryRoot = resolve(
 test("the SDK package has a stable public identity", () => {
   const { packageJson } = readPluginSdkPackage(repositoryRoot);
   expect(packageJson.name).toBe("@lets-assist/plugin-sdk");
-  expect(packageJson.version).toBe("1.0.0");
+  expect(packageJson.version).toBe("1.0.1");
   expect(packageJson.private).toBeUndefined();
   expect(packageJson.files).toEqual(["dist", "README.md"]);
 });
 
 test("the source digest is stable and covers the serializable SDK", () => {
+  const inputs = collectPluginSdkReleaseInputs(repositoryRoot).map(
+    ({ path }) => path,
+  );
   const first = pluginSdkSourceDigest(repositoryRoot);
   const second = pluginSdkSourceDigest(repositoryRoot);
   expect(first).toMatch(/^[0-9a-f]{64}$/u);
   expect(first).toBe(second);
+  expect(inputs).toContain("packages/plugin-sdk/bun.lock");
+  expect(inputs).toContain("lib/plugins/sdk/v1/index.ts");
 });
 
 test("the package builds without host or private imports", async () => {
@@ -43,7 +49,7 @@ test("the package builds without host or private imports", async () => {
 
 test("the signed manifest binds source, package bytes, and SBOM bytes", () => {
   const root = mkdtempSync(join(tmpdir(), "plugin-sdk-release-"));
-  const tarballPath = join(root, "lets-assist-plugin-sdk-1.0.0.tgz");
+  const tarballPath = join(root, "lets-assist-plugin-sdk-1.0.1.tgz");
   const sbomPath = join(root, "plugin-sdk.cdx.json");
   mkdirSync(root, { recursive: true });
   writeFileSync(tarballPath, "package");
@@ -55,7 +61,7 @@ test("the signed manifest binds source, package bytes, and SBOM bytes", () => {
     tarballPath,
     sbomPath,
   });
-  expect(manifest.tag).toBe("plugin-sdk/v1.0.0");
+  expect(manifest.tag).toBe("plugin-sdk/v1.0.1");
   expect(manifest.tarballDigest).toMatch(/^[0-9a-f]{64}$/u);
   expect(manifest.sbomDigest).toMatch(/^[0-9a-f]{64}$/u);
   expect(manifest.tarballDigest).not.toBe(manifest.sbomDigest);

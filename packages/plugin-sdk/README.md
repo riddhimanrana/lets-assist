@@ -12,3 +12,5 @@ session and current organization access inside its own server boundary.
 Releases use the `plugin-sdk/v<version>` tag family. Each GitHub release carries
 the package tarball, a CycloneDX SBOM, a source and build manifest, a Sigstore
 bundle, and SHA-256 checksums. Consumers pin the release tarball in `bun.lock`.
+The package's own lockfile is part of the signed source inputs and supplies the
+dependency closure recorded in the SBOM.
