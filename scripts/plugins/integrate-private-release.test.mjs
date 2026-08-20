@@ -178,6 +178,25 @@ function fixture({ application = false } = {}) {
   const manifestPath = join(artifacts, "release-manifest.json");
   writeFileSync(manifestPath, `${JSON.stringify(manifest, null, 2)}\n`);
   const registryPath = join(root, "published-releases.json");
+  const applicationTargetsPath = join(
+    root,
+    "application-deployment-targets.json",
+  );
+  writeFileSync(
+    applicationTargetsPath,
+    `${JSON.stringify(
+      {
+        "example-plugin": {
+          routingApplication: "example-app",
+          projectName: "example-app",
+          projectId: "prj_example",
+          organizationId: "team_example",
+        },
+      },
+      null,
+      2,
+    )}\n`,
+  );
   writeFileSync(
     registryPath,
     `${JSON.stringify(
@@ -218,6 +237,7 @@ function fixture({ application = false } = {}) {
     artifacts,
     migrationsDir,
     registryPath,
+    applicationTargetsPath,
     manifestPath,
     sbomPath,
     buildPath,
@@ -232,6 +252,7 @@ function integrate(input) {
     buildPath: input.buildPath,
     privateRoot: input.privateRoot,
     registryPath: input.registryPath,
+    applicationTargetsPath: input.applicationTargetsPath,
     migrationsDir: input.migrationsDir,
     migrationVersion: "20260820150000",
     attestationRef:
@@ -294,6 +315,30 @@ test("integrates an application only after hashing its independent build", () =>
   assert.equal(registry[1].runtimeProfile, "application");
   assert.equal(registry[1].buildDigest, input.manifest.buildDigest);
   assert.equal(registry[1].buildArtifact.format, "vercel-prebuilt-v1");
+
+  const migrationName = readdirSync(input.migrationsDir).find((file) =>
+    file.startsWith("20260820150000_"),
+  );
+  const migration = readFileSync(
+    join(input.migrationsDir, migrationName),
+    "utf8",
+  );
+  assert.doesNotMatch(migration, /SET latest_version = '1\.2\.3'/u);
+  assert.match(migration, /AND latest_version = '1\.2\.2'/u);
+});
+
+test("refuses an application build targeted at an unapproved project", () => {
+  const input = fixture({ application: true });
+  const targets = JSON.parse(
+    readFileSync(input.applicationTargetsPath, "utf8"),
+  );
+  targets["example-plugin"].projectId = "prj_different";
+  writeFileSync(
+    input.applicationTargetsPath,
+    `${JSON.stringify(targets, null, 2)}\n`,
+  );
+
+  assert.throws(() => integrate(input), /target is not approved/u);
 });
 
 test("refuses an application artifact whose bytes do not match the signature", () => {

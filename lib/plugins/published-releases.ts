@@ -39,7 +39,7 @@ export type PublishedPluginRelease = {
   supportedInstallContracts: PluginInstallContractRange;
 };
 
-function assertPublishedPluginReleases(
+export function assertPublishedPluginReleases(
   value: unknown,
 ): asserts value is PublishedPluginRelease[] {
   if (!Array.isArray(value)) {

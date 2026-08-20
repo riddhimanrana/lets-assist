@@ -96,8 +96,8 @@ mock.module("@/lib/plugins/published-releases", () => ({
       supportedInstallContracts: { minimum: "1.0.0", maximum: "1.1.0" },
     },
   ],
-  getPublishedPluginRelease: (key: string) =>
-    key === "dvhs-csf"
+  getPublishedPluginRelease: (key: string, runtimeProfile?: string) =>
+    key === "dvhs-csf" && runtimeProfile === "embedded"
       ? {
           pluginKey: "dvhs-csf",
           version: "1.1.0",

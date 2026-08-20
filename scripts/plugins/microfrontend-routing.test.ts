@@ -4,6 +4,7 @@ import { resolve } from "node:path";
 import { validateRouting } from "@vercel/microfrontends/next/testing";
 
 const configPath = resolve("microfrontends.json");
+const targetsPath = resolve("lib/plugins/application-deployment-targets.json");
 
 test("the CSF application path belongs to the flagged child project", () => {
   expect(() =>
@@ -24,4 +25,11 @@ test("the committed routing config names only the expected projects", () => {
     "lets-assist",
     "lets-assist-csf",
   ]);
+
+  const targets = JSON.parse(readFileSync(targetsPath, "utf8"));
+  expect(targets["dvhs-csf"].routingApplication).toBe("lets-assist-csf");
+  expect(targets["dvhs-csf"].projectName).toBe("lets-assist-csf");
+  expect(
+    config.applications[targets["dvhs-csf"].routingApplication],
+  ).toBeTruthy();
 });

@@ -212,6 +212,7 @@ jobs:
             --sbom .artifacts/plugin-release/release.cdx.json \
             --private-root lib/plugins/private \
             --registry lib/plugins/published-releases.json \
+            --application-targets lib/plugins/application-deployment-targets.json \
             --migrations-dir supabase/migrations \
             --migration-version auto \
             --attestation-ref "${attestation_ref}"
