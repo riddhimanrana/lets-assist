@@ -92,6 +92,15 @@ entitlement, install, organization membership, and plugin-role checks inside
 its server data boundary. Do not configure `SUPABASE_SERVICE_ROLE_KEY` or
 `SUPABASE_SECRET_KEY` in the child project.
 
+SDK releases use the `plugin-sdk/v<version>` Git tag family in the public
+repository. The release workflow accepts a tag only when it matches the stable
+version in `packages/plugin-sdk/package.json` and the tagged commit belongs to
+Development. It packages the SDK with Bun, creates a CycloneDX SBOM, binds both
+files and their source inputs into a release manifest, and signs that manifest
+with GitHub Actions OIDC through Cosign. A child package pins the immutable
+GitHub Release tarball and commits the resulting `bun.lock`. Do not copy
+`lib/plugins/sdk` into a child or depend on an unversioned branch URL.
+
 ## Platform contract
 
 Every production plugin should declare its host integration contract in `plugin.tsx`:

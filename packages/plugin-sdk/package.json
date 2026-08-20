@@ -1,0 +1,30 @@
+{
+  "name": "@lets-assist/plugin-sdk",
+  "version": "1.0.0",
+  "description": "Serializable contracts for independently deployed Let's Assist plugins.",
+  "type": "module",
+  "sideEffects": false,
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "engines": {
+    "node": ">=22.22.0 <23"
+  },
+  "packageManager": "bun@1.3.14",
+  "license": "GPL-3.0-only",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/riddhimanrana/lets-assist.git",
+    "directory": "packages/plugin-sdk"
+  },
+  "dependencies": {
+    "ajv": "8.20.0"
+  }
+}
