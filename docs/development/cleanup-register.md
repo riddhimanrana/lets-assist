@@ -40,6 +40,18 @@ This register separates actionable repository defects from provider/account and 
   and plugin identity. Private Development PR #71 forwards those tags on every
   DV Speech and Debate model call, but the root gitlink deliberately remains on
   the current signed private release.
+- `PLUGIN-FOUND-007` is repository-closed at the local caller-proof boundary.
+  The generic application RPC revalidates active membership against the same
+  consolidated catalog/install/entitlement model as the embedded host, accepts
+  only an exact published application-profile runtime, and checks its signed
+  N/N-1 install range and force-update floor. The CSF projection returns only
+  the current caller's role and permission facts. Both use the authenticated
+  caller session and expose no roster or CSF domain rows. Ordinary members get
+  one generic denial rather than private catalog or entitlement details. Hosted
+  Development, the child app, and the Vercel microfrontend remain unbuilt and
+  unverified. Local evidence is a clean 338-migration replay with analytics
+  disabled, 28 caller-proof assertions, two public ACL assertions, 30 existing
+  privileged-function boundary assertions, and a passing architecture audit.
 - All evidence in this section is local. No hosted Supabase schema, Vercel
   project, GitHub branch, pull request, or Production service was changed.
 

@@ -802,8 +802,13 @@ fail_if_rows "auth schema tables directly granted to anon/authenticated roles" "
 
 unexpected_security_definer_exec="$(
   psql "$DB_URL" -AtF $'\t' -c "
-    with grants as (
-      select n.nspname, p.proname, pg_get_function_identity_arguments(p.oid) as identity_arguments, r.rolname
+    with reviewed(function_oid, role_name) as (
+      values
+        (pg_catalog.to_regprocedure('public.get_csf_application_role_context(uuid,text)')::oid, 'authenticated'::text),
+        (pg_catalog.to_regprocedure('public.get_plugin_application_access_context(uuid,text,text)')::oid, 'authenticated'::text)
+    ),
+    grants as (
+      select p.oid as function_oid, n.nspname, p.proname, pg_get_function_identity_arguments(p.oid) as identity_arguments, r.rolname
       from pg_proc p
       join pg_namespace n on n.oid = p.pronamespace
       cross join (values ('public'), ('anon'), ('authenticated')) r(rolname)
@@ -813,10 +818,16 @@ unexpected_security_definer_exec="$(
     )
     select g.nspname, g.proname, g.identity_arguments, g.rolname
     from grants g
+    where not exists (
+      select 1
+      from reviewed
+      where reviewed.function_oid = g.function_oid
+        and reviewed.role_name = g.rolname
+    )
     order by g.nspname, g.proname, g.identity_arguments, g.rolname;
   "
 )"
-fail_if_rows "client EXECUTE grants on public SECURITY DEFINER functions" "$unexpected_security_definer_exec"
+fail_if_rows "unreviewed client EXECUTE grants on public SECURITY DEFINER functions" "$unexpected_security_definer_exec"
 
 public_client_function_acl_drift="$(
   psql "$DB_URL" -AtF $'\t' -c "
@@ -828,6 +839,8 @@ public_client_function_acl_drift="$(
         ('public.cancel_project_transactional(uuid,text)', 'authenticated'),
         ('public.end_recurring_project_series_transactional(uuid)', 'authenticated'),
         ('public.end_recurring_project_series_transactional(uuid,jsonb)', 'authenticated'),
+        ('public.get_csf_application_role_context(uuid,text)', 'authenticated'),
+        ('public.get_plugin_application_access_context(uuid,text,text)', 'authenticated'),
         ('public.get_public_attendees(uuid)', 'anon'),
         ('public.get_public_attendees(uuid)', 'authenticated'),
         ('public.is_project_organizer(uuid,uuid)', 'authenticated'),
