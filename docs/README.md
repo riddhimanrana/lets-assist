@@ -31,6 +31,7 @@ This directory is the canonical documentation home for humans and coding agents.
 - [Deployment model](development/deployment.md)
 - [Private-plugin and submodule workflow](development/private-plugins.md)
 - [Plugin install and entitlement guide](development/plugin-install-guide.md)
+- [Signed plugin release integration](development/plugin-release-integration.md)
 - [Supabase deployment workflow](development/supabase-deployment.md)
 - [Production cutover runbook](development/production-cutover-runbook.md)
 - [Local fictional accounts](development/local-accounts.md)

@@ -87,4 +87,12 @@ function assertPublishedPluginReleases(
  */
 assertPublishedPluginReleases(releaseData);
 
-export const publishedPluginReleases = releaseData;
+export const publishedPluginReleases: PublishedPluginRelease[] = releaseData;
+
+export function getPublishedPluginRelease(
+  pluginKey: string,
+): PublishedPluginRelease | undefined {
+  return publishedPluginReleases.find(
+    (release) => release.pluginKey === pluginKey,
+  );
+}

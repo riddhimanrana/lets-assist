@@ -5,7 +5,7 @@ import { publishedPluginReleases } from "@/lib/plugins/published-releases";
 import {
   coalescePluginVersion,
   isPluginVersionBehind,
-  isPluginRuntimeVersionExact,
+  isPluginVersionWithinContractRange,
 } from "@/lib/plugins/versioning";
 
 type PluginInstallAccessRow = {
@@ -79,5 +79,8 @@ export async function hasOrganizationPluginRuntimeAccess(input: {
   ) {
     return false;
   }
-  return isPluginRuntimeVersionExact(installedVersion, loadedRelease.version);
+  return isPluginVersionWithinContractRange(
+    installedVersion,
+    loadedRelease.supportedInstallContracts,
+  );
 }

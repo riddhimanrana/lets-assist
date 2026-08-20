@@ -12,7 +12,9 @@ on:
         type: string
 
 concurrency:
-  group: plugin-release-integration-${{ github.event.client_payload.summary.pluginKey || inputs.release_tag }}
+  # The migration ledger is global. Serialize all plugin publications so two
+  # releases cannot allocate the same next timestamp from one Development head.
+  group: plugin-release-integration
   cancel-in-progress: false
 
 permissions:
@@ -36,7 +38,7 @@ jobs:
             echo "PRIVATE_PLUGIN_RELEASE_TOKEN is required to read signed private release assets." >&2
             exit 1
           fi
-          if [[ ! "${RELEASE_TAG}" =~ ^[a-z0-9]+(-[a-z0-9]+)*/v[0-9]+\.[0-9]+\.[0-9]+([+-][0-9A-Za-z.-]+)?$ ]]; then
+          if [[ ! "${RELEASE_TAG}" =~ ^[a-z0-9]+(-[a-z0-9]+)*/v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
             echo "Refusing malformed private release tag: ${RELEASE_TAG}" >&2
             exit 1
           fi
@@ -209,7 +211,8 @@ jobs:
           git add \
             lib/plugins/private \
             lib/plugins/published-releases.json \
-            supabase/migrations
+            supabase/migrations \
+            supabase/tests/database
           git commit -m "release(${PLUGIN_KEY}): integrate v${VERSION}"
           git push --set-upstream origin "${branch}"
           gh pr create \

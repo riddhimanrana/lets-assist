@@ -48,10 +48,12 @@ function fixture() {
   const privateRoot = join(root, "private");
   const artifacts = join(root, "artifacts");
   const migrationsDir = join(root, "migrations");
+  const migrationTestsDir = join(root, "tests/database");
   const pluginRoot = join(privateRoot, "plugins/example-plugin");
   mkdirSync(pluginRoot, { recursive: true });
   mkdirSync(artifacts, { recursive: true });
   mkdirSync(migrationsDir, { recursive: true });
+  mkdirSync(migrationTestsDir, { recursive: true });
   writeFileSync(
     join(pluginRoot, "plugin.ts"),
     'export const plugin = {\n  version: "1.2.3",\n};\n',
@@ -212,6 +214,13 @@ test("integrates an independently reconstructed signed release", () => {
     join(input.migrationsDir, migrationName),
     "utf8",
   );
+  const migrationTestName = readdirSync(
+    join(input.root, "tests/database"),
+  ).find((file) => file.includes("example_plugin_1_2_3"));
+  const migrationTest = readFileSync(
+    join(input.root, "tests/database", migrationTestName),
+    "utf8",
+  );
 
   assert.equal(result.version, "1.2.3");
   assert.equal(registry[0].sourceTree, input.manifest.sourceTree);
@@ -220,6 +229,32 @@ test("integrates an independently reconstructed signed release", () => {
   assert.match(migration, /INSERT INTO public\.plugin_versions/u);
   assert.match(migration, /Signed update/u);
   assert.doesNotMatch(migration, /organization_plugin_installs/u);
+  assert.match(migrationTest, /SELECT plan\(8\)/u);
+  assert.match(migrationTest, /supported_install_contracts/u);
+  assert.match(migrationTest, /1\.2\.3/u);
+});
+
+test("refuses prerelease and build versions in the stable integration lane", () => {
+  for (const version of ["1.2.3-beta.2", "1.2.3+build.1"]) {
+    const input = fixture();
+    const manifest = JSON.parse(readFileSync(input.manifestPath, "utf8"));
+    manifest.version = version;
+    manifest.tag = `example-plugin/v${version}`;
+    manifest.supportedInstallContracts.maximum = version;
+    writeFileSync(input.manifestPath, `${JSON.stringify(manifest, null, 2)}\n`);
+
+    assert.throws(() => integrate(input), /invalid plugin version/u);
+  }
+});
+
+test("refuses independent runtime profiles until build bytes are verified", () => {
+  const input = fixture();
+  const manifest = JSON.parse(readFileSync(input.manifestPath, "utf8"));
+  manifest.runtimeProfile = "application";
+  manifest.buildDigest = `sha256:${"1".repeat(64)}`;
+  writeFileSync(input.manifestPath, `${JSON.stringify(manifest, null, 2)}\n`);
+
+  assert.throws(() => integrate(input), /supports embedded releases only/u);
 });
 
 test("refuses a signed inventory that does not match the private Git tree", () => {
@@ -275,6 +310,8 @@ test("root workflow verifies known assets and opens only a Development PR", () =
   assert.match(workflow, /origin\/development/u);
   assert.match(workflow, /--base development/u);
   assert.match(workflow, /--migration-version auto/u);
+  assert.match(workflow, /group: plugin-release-integration\n/u);
+  assert.match(workflow, /supabase\/tests\/database/u);
   assert.doesNotMatch(workflow, /gh release download "\$\{.*AssetUrl/u);
   assert.doesNotMatch(workflow, /--base main/u);
 });

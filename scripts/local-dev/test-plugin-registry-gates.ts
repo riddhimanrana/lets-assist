@@ -26,7 +26,9 @@ mock.module("server-only", () => ({}));
 mock.module("@/lib/plugins/registry", () => ({
   getPluginRegistry: () => new Map(),
   getRegisteredPlugin: () => undefined,
+  getRegisteredPluginPackage: () => undefined,
   listRegisteredPlugins: () => [],
+  listRegisteredPluginPackages: () => [],
 }));
 
 const { privatePlugins } = await import("../../lib/plugins/private/registry");
