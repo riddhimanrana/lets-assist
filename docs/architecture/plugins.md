@@ -32,6 +32,13 @@ imports are frozen in a generated CI allowlist. New host-internal imports fail
 import surface and consume a published version of the SDK rather than copied
 host source.
 
+The host builds `@lets-assist/plugin-sdk` from `lib/plugins/sdk/v1`. A
+`plugin-sdk/v<version>` tag publishes an immutable GitHub Release tarball, a
+CycloneDX SBOM, a release manifest, checksums, and a Sigstore bundle. Child
+applications pin that exact tarball in their Bun lockfile. The package is a
+transport for serializable contracts only. It does not expose host components,
+database clients, Server Actions, or private implementation code.
+
 An adapter or lazy import is not a package or security boundary. A plugin only
 becomes independently deployable after its application profile has its own
 build, deployment identity, session revalidation, and server authorization

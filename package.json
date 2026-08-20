@@ -36,6 +36,8 @@
     "plugin:check:boundary": "node scripts/plugins/check-plugin-host-boundary.mjs",
     "plugin:apps:check": "node scripts/plugins/check-private-application-packages.mjs",
     "plugin:apps:contract": "node scripts/plugins/check-private-application-packages.mjs --contract-only",
+    "plugin:sdk:build": "bun scripts/plugins/build-plugin-sdk-package.mjs",
+    "plugin:sdk:test": "bun test scripts/plugins/plugin-sdk-package.test.mjs scripts/plugins/plugin-sdk-release-contract.test.mjs",
     "plugin:test:isolation": "bun scripts/local-dev/test-plugin-isolation-browser.ts",
     "plugin:test:registry": "bun scripts/local-dev/test-plugin-registry-gates.ts",
     "plugin:test:release-integration": "node --test scripts/plugins/integrate-private-release.test.mjs",

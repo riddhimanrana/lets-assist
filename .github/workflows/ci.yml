@@ -144,6 +144,9 @@ jobs:
       - name: Check independent plugin applications
         run: bun run plugin:apps:check
 
+      - name: Build and test the versioned plugin SDK
+        run: bun run plugin:sdk:test
+
       - name: Test signed plugin release integration
         run: bun run plugin:test:release-integration
 

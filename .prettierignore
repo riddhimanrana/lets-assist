@@ -17,3 +17,4 @@ artifacts/
 coverage/
 playwright-report/
 test-results/
+packages/plugin-sdk/dist/
