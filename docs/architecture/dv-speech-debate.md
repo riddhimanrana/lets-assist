@@ -28,7 +28,10 @@ Requirements are independent records, including receipt, code of conduct, permis
 
 ## Data ownership
 
-The `plugin_data` schema is exposed through PostgREST and protected by RLS. It is not a service-role-only schema.
+The `plugin_data` schema is retained in the PostgREST schema list only for the
+server-side adapter. `PUBLIC`, `anon`, and `authenticated` have no schema or
+object access. DV domain operations reach it through checked server boundaries;
+RLS remains defense in depth rather than a browser API.
 
 - Authenticated clients are used for ordinary student and staff workflows.
 - Organization membership and role checks constrain every operation.

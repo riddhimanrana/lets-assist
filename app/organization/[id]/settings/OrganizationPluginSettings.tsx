@@ -732,6 +732,7 @@ export default function OrganizationPluginSettings({
     const canUninstall = plugin.installed && !plugin.isForced;
     const canUpdate =
       plugin.availableInRuntime &&
+      plugin.updateDeployedInRuntime &&
       plugin.entitled &&
       (plugin.updateAvailable || plugin.forceUpdateRequired);
 
@@ -781,6 +782,14 @@ export default function OrganizationPluginSettings({
               </p>
             ) : null}
 
+            {(plugin.updateAvailable || plugin.forceUpdateRequired) &&
+            !plugin.updateDeployedInRuntime ? (
+              <p className="text-xs text-amber-700">
+                Update pending deployment. This version becomes installable
+                after the platform deployment includes its code.
+              </p>
+            ) : null}
+
             {plugin.blockedReason &&
             !plugin.availableInRuntime ? null : plugin.blockedReason ? (
               <p className="text-xs text-destructive">{plugin.blockedReason}</p>
@@ -820,7 +829,9 @@ export default function OrganizationPluginSettings({
                 ) : (
                   <>
                     <Wrench data-icon="inline-start" />
-                    Update
+                    {plugin.updateDeployedInRuntime
+                      ? "Update"
+                      : "Update pending deployment"}
                   </>
                 )}
               </Button>
@@ -964,7 +975,8 @@ export default function OrganizationPluginSettings({
           </CardTitle>
           <CardDescription>
             Browse available plugins, install what you need, and manage
-            per-plugin settings.
+            per-plugin settings. Embedded plugin code ships through a platform
+            deployment before an update can be installed.
           </CardDescription>
         </CardHeader>
 

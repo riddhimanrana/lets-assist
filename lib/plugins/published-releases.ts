@@ -1,3 +1,11 @@
+import type {
+  PluginHostApiRange,
+  PluginReleaseInputs,
+  PluginReleaseSigner,
+} from "./sdk/v1/release";
+import type { PluginInstallContractRange } from "./sdk/v1/compatibility";
+import type { PluginRuntimeProfile } from "./sdk/v1/runtime-profile";
+
 export type PublishedPluginRelease = {
   pluginKey: string;
   version: string;
@@ -6,6 +14,17 @@ export type PublishedPluginRelease = {
   sourceCommit: string;
   automaticUpdate: boolean;
   rolloutPercentage: number;
+  runtimeProfile: PluginRuntimeProfile;
+  sourceTree: string | null;
+  contentDigest: string | null;
+  releaseInputs: PluginReleaseInputs | null;
+  buildDigest: string | null;
+  sbomDigest: string | null;
+  signer: PluginReleaseSigner | null;
+  hostApiRange: PluginHostApiRange;
+  pluginDataSchemaVersion: number;
+  requiredPlatformSchemaVersion: string;
+  supportedInstallContracts: PluginInstallContractRange;
 };
 
 /**
@@ -23,6 +42,17 @@ export const publishedPluginReleases = [
     sourceCommit: "5e21d5dd60744dc50b7817bfc734a4e2ca71c8f5",
     automaticUpdate: false,
     rolloutPercentage: 0,
+    runtimeProfile: "embedded",
+    sourceTree: null,
+    contentDigest: null,
+    releaseInputs: null,
+    buildDigest: null,
+    sbomDigest: null,
+    signer: null,
+    hostApiRange: { minimum: "1.0.0", maximum: "1.0.0" },
+    pluginDataSchemaVersion: 1,
+    requiredPlatformSchemaVersion: "legacy",
+    supportedInstallContracts: { minimum: "2.0.0", maximum: "2.0.0" },
   },
   {
     pluginKey: "dvhs-csf",
@@ -33,5 +63,16 @@ export const publishedPluginReleases = [
     sourceCommit: "4d1001e9d3269b8bd28de93c071c6b4b216824fd",
     automaticUpdate: false,
     rolloutPercentage: 0,
+    runtimeProfile: "embedded",
+    sourceTree: null,
+    contentDigest: null,
+    releaseInputs: null,
+    buildDigest: null,
+    sbomDigest: null,
+    signer: null,
+    hostApiRange: { minimum: "1.0.0", maximum: "1.0.0" },
+    pluginDataSchemaVersion: 1,
+    requiredPlatformSchemaVersion: "legacy",
+    supportedInstallContracts: { minimum: "1.1.0", maximum: "1.1.0" },
   },
 ] as const satisfies readonly PublishedPluginRelease[];

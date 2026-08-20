@@ -775,6 +775,8 @@ export interface OrganizationPluginAdminSetting {
   installedVersion: string | null;
   forceUpdateVersion: string | null;
   updateAvailable: boolean;
+  /** Whether the catalog target is included in the code serving this request. */
+  updateDeployedInRuntime: boolean;
   forceUpdateRequired: boolean;
   codeRepository: string | null;
   codeReference: string | null;

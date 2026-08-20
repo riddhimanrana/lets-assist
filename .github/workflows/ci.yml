@@ -130,6 +130,14 @@ jobs:
       - name: Lint
         run: bun run lint
 
+      # Runs against the exact gitlink checked out above, which is the same
+      # revision the private repository type checks against. A new plugin import
+      # of a host module that is not yet on the default branch fails here with
+      # the specifier named, instead of surfacing as an opaque module-resolution
+      # error inside a pair of pull requests that block each other.
+      - name: Check plugin/host import boundary
+        run: bun run plugin:check:boundary
+
       - name: Typecheck
         run: bun run typecheck
 

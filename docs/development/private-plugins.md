@@ -22,7 +22,7 @@ CI must use recursive submodules and a credential that can read the private repo
     token: ${{ secrets.PRIVATE_REPO_TOKEN }}
 ```
 
-The main repository pins an exact submodule commit. A plugin release is incomplete until the private commit is pushed, the main repository pointer is updated, and an immutable `plugin_versions` release certificate pins that commit plus the SHA-256 of the shipped manifest.
+The main repository pins an exact submodule commit. A plugin release is incomplete until the private commit is pushed, the main repository pointer is updated, and an immutable `plugin_versions` release record pins the commit, source tree, declared release inputs, and their content digest. A manifest hash alone does not identify all code that runs.
 
 ## Change workflow
 
@@ -36,6 +36,11 @@ For storage, use the private `plugins` bucket and namespace every object as
 `{organizationId}/{pluginKey}/...`. The manifest must declare each live path
 pattern as `server-only`; plugin code must use a shared path builder instead of
 assembling bucket names or tenant prefixes ad hoc.
+
+Browser-assisted form uploads use `plugin_form_uploads` instead, with exact
+paths `{organizationId}/{pluginKey}/{userId}/{file}`. RLS verifies every scope
+segment and that the organization has the plugin enabled. Do not reuse that
+browser path for server-managed plugin artifacts.
 
 Do not leave the main branch pointing at an unpushed private commit.
 
@@ -107,7 +112,11 @@ bun run dv:test:db
 - test storage object paths;
 - make audit/ledger data append-only where required.
 
-Ordinary workflows use authenticated RLS clients. Service-role clients are restricted to controlled maintenance, fixture generation, public one-time token handlers, and trusted background jobs.
+Reviewed browser workflows use authenticated RLS clients only on public API
+surfaces. Private plugin domain data uses server actions or narrow RPCs with
+fresh authorization and organization scope. Service-role clients are restricted
+to those checked server boundaries, controlled maintenance, fixture generation,
+public one-time token handlers, and trusted background jobs.
 
 For new tables, default to server-only access unless the manifest `dataAccess` contract explains why direct RLS client access or a public read model is required. Avoid adding new blanket `GRANT ... ON ALL TABLES IN SCHEMA plugin_data` behavior; grant only the narrow role/object access required by the declared contract.
 
@@ -189,12 +198,26 @@ For Next.js, review Server Component boundaries, async route APIs, Server Action
 
 ## Release and rollback
 
+Treat publication, deployment, and installation as different steps. Publishing
+a release does not prove that any deployment contains it, and observing a
+process start does not prove that deployment is healthy. An embedded plugin
+ships only when the root platform deployment contains its pinned private tree.
+An application plugin also needs its independently built artifact, SBOM, and
+deployment identity.
+
+New releases declare every repository-relative `releaseInput` whose bytes form
+the program. Embedded releases include their plugin subtree. Application and
+service releases also include the child application and dependency lockfile.
+Release tooling must hash that complete set and verify exact tree equality, not
+only that the source commit is an ancestor.
+
 Before release:
 
 - migrations replay from empty;
 - all local and CI checks pass;
 - the private commit is pushed;
 - the main repository points to that exact commit;
+- the release input digest and compatibility ranges match the reviewed source;
 - no credentials or production-capable local env files are committed;
 - schema changes are backward-compatible with the currently deployed plugin during rollout.
 
@@ -207,6 +230,11 @@ To roll back plugin code:
 3. Run build and focused workflow tests.
 4. Deploy the main revision.
 5. If data correction is required, add a reviewed forward migration or maintenance script with an audit trail.
+
+Do not advance `organization_plugin_installs.installed_version` from a schema
+migration. Record the operator's desired version, run the leased update
+lifecycle, recheck authorization under the lease, and persist the activation
+through the reviewed control-plane path. Automatic updates remain disabled.
 
 ## Security checklist
 

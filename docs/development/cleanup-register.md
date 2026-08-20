@@ -4,6 +4,38 @@ This register separates actionable repository defects from provider/account and 
 
 `AUD-` identifiers are allocated per branch and can drift while several audit branches are open at once. Current `development` includes the merged #152, #158, #174, #177, #179, and #181 findings, while open #180 can still carry overlapping historical identifiers. This branch retains `AUD-036` and `AUD-037` for its activity/partner authorization work without renumbering or restating the merged meeting findings.
 
+## Plugin platform foundation candidate — 2026-08-19
+
+- `PLUGIN-FOUND-001` is repository-closed locally. The plugin registry and
+  serializable SDK contract now fail closed, both embedded private plugins pass
+  the adapter, and `plugin:check:boundary` is part of CI. Existing host imports
+  are a frozen allowlist; new undeclared imports fail. The existing private
+  `@/app/**` dependency remains a P1 migration finding before an application
+  profile can claim host independence.
+- `PLUGIN-FOUND-002` is repository-closed locally. `plugin_form_uploads` now
+  binds organization, plugin, and uploader path segments, while preserving the
+  pre-membership DV application upload. A fresh isolated replay passed the
+  storage contract and the full database suite.
+- `PLUGIN-FOUND-003` is repository-closed at the schema boundary.
+  `plugin_versions` records complete release identity for new publications and
+  preserves NULL legacy provenance honestly. Manifest-only release verification
+  remains open for Phase 2 tooling until complete release-input hashing, exact
+  tree equality, SBOM generation, and signature verification exist.
+- `PLUGIN-FOUND-004` is repository-closed at the inert schema boundary.
+  Deployment observations, workflow-reported health evidence, desired versions,
+  manual/security-only update policy, and idempotent lease-bound update
+  operations exist. Activation enforcement is deliberately deferred until
+  hosted Development records a real deployment and the reporter passes its
+  authorization and browser checks. Enabling it sooner would block existing
+  updates without valid health evidence.
+- `PLUGIN-FOUND-005` remains active. The host still performs direct
+  `installed_version` mutations and runtime-contract sync is not yet wired to
+  deployment observation. Phase 4 must extend the existing control-plane
+  transition, never create a second update path, then enable the lease- and
+  health-checked activation RPC.
+- All evidence in this section is local. No hosted Supabase schema, Vercel
+  project, GitHub branch, pull request, or Production service was changed.
+
 ## Production release candidate — 2026-08-18
 
 - Production review findings `PROD-REV-001` through `PROD-REV-007` are
