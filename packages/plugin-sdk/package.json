@@ -1,6 +1,6 @@
 {
   "name": "@lets-assist/plugin-sdk",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Serializable contracts for independently deployed Let's Assist plugins.",
   "type": "module",
   "sideEffects": false,

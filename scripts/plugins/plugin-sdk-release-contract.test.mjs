@@ -22,10 +22,17 @@ test("the SDK release accepts only an exact stable package tag from Development"
   );
 });
 
-test("the SDK release signs immutable package and SBOM evidence without a registry token", () => {
+test("the SDK release signs immutable package and complete SBOM evidence without a registry token", () => {
   expect(workflow).toContain("cosign sign-blob --yes --bundle");
   expect(workflow).toContain("cosign verify-blob");
-  expect(workflow).toContain("path: packages/plugin-sdk");
+  expect(workflow).toContain("bunx @cyclonedx/cdxgen@12.8.4");
+  expect(workflow).toContain("--fail-on-error");
+  expect(workflow).toContain(
+    'any(.components[]; .purl == "pkg:npm/ajv@8.20.0")',
+  );
+  expect(workflow).toContain(
+    '.ref == "pkg:npm/@lets-assist/plugin-sdk@\\($version)"',
+  );
   expect(workflow).toContain("plugin-sdk.cdx.json");
   expect(workflow).toContain("release-manifest.json");
   expect(workflow).toContain("release-manifest.sigstore.json");
@@ -34,7 +41,7 @@ test("the SDK release signs immutable package and SBOM evidence without a regist
 
 test("the checksum manifest names every release input and cannot hash itself", () => {
   const checksumStep = workflow.slice(
-    workflow.indexOf("sha256sum"),
+    workflow.indexOf("cd .artifacts/plugin-sdk"),
     workflow.indexOf("- name: Retain signed SDK evidence"),
   );
   expect(checksumStep).toContain(
@@ -44,4 +51,5 @@ test("the checksum manifest names every release input and cannot hash itself", (
   expect(checksumStep).toContain("release-manifest.json");
   expect(checksumStep).toContain("release-manifest.sigstore.json");
   expect(checksumStep).not.toContain(".artifacts/plugin-sdk/*");
+  expect(checksumStep).toContain("cd .artifacts/plugin-sdk");
 });

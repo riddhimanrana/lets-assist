@@ -56,6 +56,10 @@ jobs:
       - name: Install locked platform dependencies
         run: bun install --frozen-lockfile
 
+      - name: Install locked SDK dependencies
+        working-directory: packages/plugin-sdk
+        run: bun install --frozen-lockfile
+
       - name: Build and test the package
         run: bun run plugin:sdk:test
 
@@ -69,14 +73,29 @@ jobs:
             --destination ../../.artifacts/plugin-sdk \
             --ignore-scripts
 
-      - name: Generate CycloneDX SBOM
-        uses: anchore/sbom-action@e22c389904149dbc22b58101806040fa8d37a610 # v0.24.0
-        with:
-          path: packages/plugin-sdk
-          format: cyclonedx-json
-          output-file: .artifacts/plugin-sdk/plugin-sdk.cdx.json
-          upload-artifact: false
-          upload-release-assets: false
+      - name: Generate and validate the CycloneDX SBOM
+        working-directory: packages/plugin-sdk
+        shell: bash
+        run: |
+          set -euo pipefail
+          bunx @cyclonedx/cdxgen@12.8.4 \
+            -t js \
+            --fail-on-error \
+            --no-recurse \
+            --spec-version 1.6 \
+            -o ../../.artifacts/plugin-sdk/plugin-sdk.cdx.json \
+            .
+          jq -e --arg version "${{ steps.release.outputs.version }}" '
+            .bomFormat == "CycloneDX" and
+            .metadata.component.purl == "pkg:npm/%40lets-assist/plugin-sdk@\($version)" and
+            .metadata.component.version == $version and
+            any(.components[]; .purl == "pkg:npm/ajv@8.20.0") and
+            any(
+              .dependencies[];
+              .ref == "pkg:npm/@lets-assist/plugin-sdk@\($version)" and
+              (.dependsOn | index("pkg:npm/ajv@8.20.0")) != null
+            )
+          ' ../../.artifacts/plugin-sdk/plugin-sdk.cdx.json
 
       - name: Bind package and SBOM bytes into the release manifest
         shell: bash
@@ -104,12 +123,15 @@ jobs:
             --certificate-identity "${identity}" \
             --certificate-oidc-issuer https://token.actions.githubusercontent.com \
             "${manifest}"
-          sha256sum \
-            .artifacts/plugin-sdk/lets-assist-plugin-sdk-${{ steps.release.outputs.version }}.tgz \
-            .artifacts/plugin-sdk/plugin-sdk.cdx.json \
-            .artifacts/plugin-sdk/release-manifest.json \
-            .artifacts/plugin-sdk/release-manifest.sigstore.json \
-            > .artifacts/plugin-sdk/SHA256SUMS
+          (
+            cd .artifacts/plugin-sdk
+            sha256sum \
+              "lets-assist-plugin-sdk-${{ steps.release.outputs.version }}.tgz" \
+              plugin-sdk.cdx.json \
+              release-manifest.json \
+              release-manifest.sigstore.json \
+              > SHA256SUMS
+          )
 
       - name: Retain signed SDK evidence
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
