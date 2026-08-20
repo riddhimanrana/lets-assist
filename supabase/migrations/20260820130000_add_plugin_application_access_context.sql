@@ -25,6 +25,18 @@ $$;
 REVOKE ALL ON FUNCTION private.plugin_stable_semver_key(text)
   FROM PUBLIC, anon, authenticated, service_role;
 
+CREATE OR REPLACE FUNCTION private.plugin_host_api_version()
+RETURNS text
+LANGUAGE sql
+IMMUTABLE
+SET search_path = ''
+AS $$
+  SELECT '1.0.0'::text;
+$$;
+
+REVOKE ALL ON FUNCTION private.plugin_host_api_version()
+  FROM PUBLIC, anon, authenticated, service_role;
+
 CREATE OR REPLACE FUNCTION public.get_plugin_application_access_context(
   p_organization_id uuid,
   p_plugin_key text,
@@ -47,6 +59,11 @@ DECLARE
   v_minimum_key integer[];
   v_maximum_key integer[];
   v_force_key integer[];
+  v_host_key integer[] := private.plugin_stable_semver_key(
+    private.plugin_host_api_version()
+  );
+  v_host_minimum_key integer[];
+  v_host_maximum_key integer[];
   v_entitlement_active boolean := false;
   v_enabled boolean := false;
   v_reason text := 'accessible';
@@ -119,6 +136,12 @@ BEGIN
     v_release.supported_install_contracts ->> 'maximum'
   );
   v_force_key := private.plugin_stable_semver_key(v_plugin.force_update_version);
+  v_host_minimum_key := private.plugin_stable_semver_key(
+    v_release.host_api_range ->> 'minimum'
+  );
+  v_host_maximum_key := private.plugin_stable_semver_key(
+    v_release.host_api_range ->> 'maximum'
+  );
 
   v_reason := CASE
     WHEN v_plugin.key IS NULL OR NOT coalesce(v_plugin.is_active, false)
@@ -127,6 +150,22 @@ BEGIN
       THEN 'runtime_release_missing'
     WHEN v_release.runtime_profile <> 'application'
       THEN 'runtime_profile_mismatch'
+    WHEN v_release.signer_identity IS NULL
+      THEN 'runtime_release_unsigned'
+    WHEN v_host_key IS NULL
+      OR v_host_minimum_key IS NULL
+      OR (
+        v_release.host_api_range ? 'maximum'
+        AND v_host_maximum_key IS NULL
+      )
+      OR (
+        v_host_maximum_key IS NOT NULL
+        AND v_host_minimum_key > v_host_maximum_key
+      )
+      THEN 'host_api_contract_invalid'
+    WHEN v_host_key < v_host_minimum_key
+      OR (v_host_maximum_key IS NOT NULL AND v_host_key > v_host_maximum_key)
+      THEN 'host_api_unsupported'
     WHEN v_plugin.visibility = 'private' AND NOT v_entitlement_active
       THEN 'entitlement_required'
     WHEN NOT v_enabled
@@ -181,7 +220,7 @@ GRANT EXECUTE ON FUNCTION public.get_plugin_application_access_context(uuid, tex
   TO authenticated;
 
 COMMENT ON FUNCTION public.get_plugin_application_access_context(uuid, text, text) IS
-  'Caller-scoped application-plugin access proof. Revalidates active organization membership, the consolidated catalog/install/entitlement access model, an application-profile published runtime release, forced updates, and the signed install-contract range without exposing plugin data.';
+  'Caller-scoped application-plugin access proof. Revalidates active organization membership, the consolidated catalog/install/entitlement access model, a signed application-profile release compatible with the current host API, forced updates, and its install-contract range without exposing plugin data.';
 
 CREATE OR REPLACE FUNCTION public.get_csf_application_role_context(
   p_organization_id uuid,
