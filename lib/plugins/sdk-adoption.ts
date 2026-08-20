@@ -10,6 +10,7 @@
 
 import type { EmbeddedPluginAdoption } from "@/lib/plugins/sdk/adapters/embedded";
 import { PLUGIN_HOST_API_VERSION } from "@/lib/plugins/sdk/host-api-version";
+import { getPublishedPluginRelease } from "@/lib/plugins/published-releases";
 
 /**
  * The platform migration each plugin's data depends on existing.
@@ -21,25 +22,50 @@ import { PLUGIN_HOST_API_VERSION } from "@/lib/plugins/sdk/host-api-version";
  */
 const PLUGIN_DATA_SCHEMA_FLOOR = "20260412000001";
 
-export const embeddedPluginAdoptions: Record<string, EmbeddedPluginAdoption> = {
+const embeddedPluginAdoptionDefaults: Record<
+  string,
+  Omit<EmbeddedPluginAdoption, "supportedInstallContracts">
+> = {
   "dvhs-csf": {
     hostApiRange: { minimum: PLUGIN_HOST_API_VERSION },
     pluginDataSchemaVersion: 1,
     requiredPlatformSchemaVersion: PLUGIN_DATA_SCHEMA_FLOOR,
-    // Exactly the current version: this reproduces the previous exact-match
-    // runtime gate. Widening is a per-release decision made when a rollout
-    // actually needs to serve two contracts.
-    supportedInstallContracts: { minimum: "1.1.0", maximum: "1.1.0" },
     releaseInputs: ["plugins/dvhs-csf"],
   },
   "dv-speech-debate": {
     hostApiRange: { minimum: PLUGIN_HOST_API_VERSION },
     pluginDataSchemaVersion: 1,
     requiredPlatformSchemaVersion: PLUGIN_DATA_SCHEMA_FLOOR,
-    supportedInstallContracts: { minimum: "2.0.0", maximum: "2.0.0" },
     releaseInputs: ["plugins/dv-speech-debate"],
   },
 };
+
+/**
+ * The signed release registry owns the install range used by both the embedded
+ * SDK package and runtime authorization. A release integration updates that
+ * registry in one place, so the compiled package cannot keep an older range.
+ */
+export const embeddedPluginAdoptions: Record<string, EmbeddedPluginAdoption> =
+  Object.fromEntries(
+    Object.entries(embeddedPluginAdoptionDefaults).map(
+      ([pluginKey, adoption]) => {
+        const release = getPublishedPluginRelease(pluginKey);
+        if (!release) {
+          throw new Error(
+            `Plugin "${pluginKey}" declares an SDK adoption but has no published release.`,
+          );
+        }
+
+        return [
+          pluginKey,
+          {
+            ...adoption,
+            supportedInstallContracts: release.supportedInstallContracts,
+          },
+        ];
+      },
+    ),
+  );
 
 export function adoptionFor(pluginKey: string): EmbeddedPluginAdoption {
   const adoption = embeddedPluginAdoptions[pluginKey];

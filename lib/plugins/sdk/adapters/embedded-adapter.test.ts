@@ -4,6 +4,8 @@ mock.module("server-only", () => ({}));
 
 import { validatePluginSdkManifest } from "@/lib/plugins/sdk/v1/schema";
 import { embeddedPluginAdoptions } from "@/lib/plugins/sdk-adoption";
+import { getPublishedPluginRelease } from "@/lib/plugins/published-releases";
+import { isPluginVersionWithinContractRange } from "@/lib/plugins/sdk/v1/compatibility";
 import { adoptEmbeddedPlugin, toSdkManifest } from "./embedded";
 
 const { listRegisteredPlugins } = await import("@/lib/plugins/registry");
@@ -52,18 +54,22 @@ describe("embedded adapter over the real private plugins", () => {
       expect(pkg.definition).toBe(definition);
     });
 
-    test(`${key} starts at an exact install contract`, () => {
-      // Adoption must reproduce the previous exact-match runtime gate. A range
-      // wider than the manifest version here would silently change which
-      // organizations the deployed code serves.
+    test(`${key} adopts the signed release contract`, () => {
       const adoption = embeddedPluginAdoptions[key];
+      const release = getPublishedPluginRelease(key);
 
-      expect(adoption.supportedInstallContracts.minimum).toBe(
-        definition.manifest.version,
+      expect(release).toBeDefined();
+      if (!release) throw new Error(`Missing published release for ${key}`);
+      expect(adoption.supportedInstallContracts).toEqual(
+        release.supportedInstallContracts,
       );
-      expect(adoption.supportedInstallContracts.maximum).toBe(
-        definition.manifest.version,
-      );
+      expect(
+        isPluginVersionWithinContractRange(
+          definition.manifest.version,
+          adoption.supportedInstallContracts,
+        ),
+      ).toBe(true);
+      expect(release.version).toBe(definition.manifest.version);
     });
 
     test(`${key} carries no unserializable value into the contract`, () => {
