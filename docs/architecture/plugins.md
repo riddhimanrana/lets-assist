@@ -65,8 +65,9 @@ An independently deployed application calls
 runtime_version)` with the caller's authenticated Supabase session. The
 function first proves active organization membership, then reads the same
 `organization_plugin_access` model used by the embedded host gate. It also
-requires the exact published release to have the `application` profile and
-checks its signed install-contract range and any catalog force-update floor.
+requires the exact published release to have verified signer metadata and the
+`application` profile, checks the release against the current host API, and
+evaluates its install-contract range and any catalog force-update floor.
 Non-members receive no catalog, entitlement, install, or release facts.
 Ordinary members also receive one generic denial when access is unavailable;
 staff and admins retain specific denial reasons for support and update work.
