@@ -248,6 +248,9 @@ describe("CI runs mock-sensitive tests through the shared process orchestrator",
       join(repositoryRoot, "package.json"),
       "utf8",
     );
+    const packageJson = JSON.parse(packageSource) as {
+      scripts?: Record<string, string>;
+    };
     expect(orchestrator).toMatch(
       /const isolatedPluginMockFiles =\s*discoveredPluginFiles\.filter\(hasGlobalModuleMock\)/u,
     );
@@ -257,8 +260,11 @@ describe("CI runs mock-sensitive tests through the shared process orchestrator",
     expect(orchestrator).not.toContain(
       'run("plugin unit and security", "bun", ["test", ...preload, "lib/plugins"])',
     );
-    expect(packageSource).toContain(
-      '"test:plugins": "node scripts/run-tests.mjs --plugins-only"',
+    expect(packageJson.scripts?.["test:plugins"]).toContain(
+      "node scripts/run-tests.mjs --plugins-only",
+    );
+    expect(packageJson.scripts?.["test:plugins"]).toContain(
+      "plugin:apps:check",
     );
   });
 

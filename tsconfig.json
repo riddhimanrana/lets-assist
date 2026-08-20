@@ -37,5 +37,5 @@
     ".next-csf-isolated/cron-probe/types/**/*.ts",
     ".next-csf-isolated/cron-probe/dev/types/**/*.ts"
   ],
-  "exclude": ["node_modules"]
+  "exclude": ["node_modules", "**/node_modules", "lib/plugins/private/apps"]
 }

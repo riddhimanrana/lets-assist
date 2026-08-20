@@ -138,6 +138,12 @@ jobs:
       - name: Check plugin/host import boundary
         run: bun run plugin:check:boundary
 
+      # Application-profile plugins own their package graph and security gates.
+      # The host verifies that ownership before excluding child sources from its
+      # own compiler, linter, test discovery, and route inventory.
+      - name: Check independent plugin applications
+        run: bun run plugin:apps:check
+
       - name: Test signed plugin release integration
         run: bun run plugin:test:release-integration
 
