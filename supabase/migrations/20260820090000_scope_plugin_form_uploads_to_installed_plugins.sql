@@ -24,7 +24,7 @@
 -- therefore smuggle in the membership requirement this migration is explicitly
 -- avoiding, and would break the join-flow upload it is meant to preserve.
 --
--- private.is_plugin_enabled already answers exactly this question, but it was
+-- An existing private enabled-plugin predicate answers this question, but it was
 -- deliberately hardened to postgres-only execution, so a policy running as
 -- `authenticated` cannot call it. This is a separate, narrow entry point with
 -- its own reviewed grant, taking the raw path segments rather than typed

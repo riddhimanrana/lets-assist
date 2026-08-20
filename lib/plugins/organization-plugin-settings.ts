@@ -122,6 +122,13 @@ export function buildOrganizationPluginAdminSettings(input: {
         installedVersion,
         plugin.latest_version,
       );
+      const updateDeployedInRuntime = Boolean(
+        runtimePlugin &&
+        isPluginRuntimeVersionExact(
+          plugin.latest_version,
+          runtimePlugin.version,
+        ),
+      );
 
       if (!blockedReason && forceUpdateRequired) {
         blockedReason =
@@ -167,6 +174,7 @@ export function buildOrganizationPluginAdminSettings(input: {
         installedVersion: install?.installed_version ?? null,
         forceUpdateVersion: plugin.force_update_version,
         updateAvailable,
+        updateDeployedInRuntime,
         forceUpdateRequired,
         codeRepository: plugin.code_repository,
         codeReference: plugin.code_reference,

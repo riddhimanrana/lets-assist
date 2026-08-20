@@ -278,7 +278,10 @@ VALUES ('org-boundary-test', 'Organization Boundary Test', 'private', false, '1.
 
 INSERT INTO public.plugin_versions (
   plugin_key, version, status, commit_sha, manifest_hash,
-  compatibility_contract, published_at
+  compatibility_contract, published_at, source_tree, content_digest,
+  release_inputs, host_api_range, plugin_data_schema_version,
+  required_platform_schema_version, supported_install_contracts,
+  runtime_profile
 )
 VALUES (
   'org-boundary-test',
@@ -287,7 +290,12 @@ VALUES (
   '1111111111111111111111111111111111111111',
   '1111111111111111111111111111111111111111111111111111111111111111',
   '{"host":"lets-assist","automaticUpdate":false}'::jsonb,
-  now()
+  now(), repeat('2', 40), repeat('2', 64),
+  '["plugins/org-boundary-test"]'::jsonb,
+  '{"minimum":"1.0.0","maximum":"1.0.0"}'::jsonb,
+  1, '20260820100000',
+  '{"minimum":"1.0.0","maximum":"1.0.0"}'::jsonb,
+  'embedded'
 );
 
 UPDATE public.plugins

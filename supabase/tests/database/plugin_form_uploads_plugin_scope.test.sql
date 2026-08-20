@@ -33,7 +33,10 @@ VALUES
 -- The fixture therefore publishes first and activates second.
 INSERT INTO public.plugin_versions (
   plugin_key, version, status, commit_sha, manifest_hash,
-  compatibility_contract, published_at
+  compatibility_contract, published_at, source_tree, content_digest,
+  release_inputs, host_api_range, plugin_data_schema_version,
+  required_platform_schema_version, supported_install_contracts,
+  runtime_profile
 ) VALUES (
   'upload-scope-installed',
   '1.0.0',
@@ -41,7 +44,12 @@ INSERT INTO public.plugin_versions (
   '3333333333333333333333333333333333333333',
   '3333333333333333333333333333333333333333333333333333333333333333',
   '{"host":"lets-assist","automaticUpdate":false}'::jsonb,
-  now()
+  now(), repeat('4', 40), repeat('5', 64),
+  '["plugins/upload-scope-installed"]'::jsonb,
+  '{"minimum":"1.0.0","maximum":"1.0.0"}'::jsonb,
+  1, '20260820100000',
+  '{"minimum":"1.0.0","maximum":"1.0.0"}'::jsonb,
+  'embedded'
 );
 
 UPDATE public.plugins

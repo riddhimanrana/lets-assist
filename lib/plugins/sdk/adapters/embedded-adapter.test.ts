@@ -1,9 +1,12 @@
-import { describe, expect, test } from "bun:test";
+import { describe, expect, mock, test } from "bun:test";
+
+mock.module("server-only", () => ({}));
 
 import { validatePluginSdkManifest } from "@/lib/plugins/sdk/v1/schema";
 import { embeddedPluginAdoptions } from "@/lib/plugins/sdk-adoption";
-import { listRegisteredPlugins } from "@/lib/plugins/registry";
 import { adoptEmbeddedPlugin, toSdkManifest } from "./embedded";
+
+const { listRegisteredPlugins } = await import("@/lib/plugins/registry");
 
 /**
  * The point of the SDK is that it describes real plugins, not a hypothetical

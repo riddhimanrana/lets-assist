@@ -17,6 +17,66 @@ Private changes follow a two-PR sequence:
 
 The private repository commit must be accessible to CI through its least-privilege submodule credential. See [the submodule workflow](../development/private-plugins.md).
 
+## SDK and runtime profiles
+
+The serializable SDK contract under `lib/plugins/sdk/v1` separates a plugin's
+identity from its host adapter. A manifest declares its runtime profile,
+compatibility ranges, routes, capabilities, permissions, data and Storage
+scope, lifecycle messages, release inputs, and host build surface. It cannot
+contain React nodes, callbacks, Supabase clients, or other host objects.
+
+`embedded` plugins compile into the platform deployment. Their current private
+implementations pass through the embedded adapter, and their existing host
+imports are frozen in a generated CI allowlist. New host-internal imports fail
+`bun run plugin:check:boundary`. An `application` plugin must have an empty host
+import surface and consume a published version of the SDK rather than copied
+host source.
+
+An adapter or lazy import is not a package or security boundary. A plugin only
+becomes independently deployable after its application profile has its own
+build, deployment identity, session revalidation, and server authorization
+boundary.
+
+## Releases, deployments, and installs
+
+These are separate records:
+
+- `plugin_versions` is the immutable publication ledger. New publications
+  record the exact source tree, declared release inputs, content digest,
+  compatibility ranges, runtime profile, and schema requirements. Application
+  and service releases also require build and SBOM digests. Legacy rows retain
+  NULL provenance where it was never captured.
+- `private.plugin_deployments` records one provider deployment observation.
+  Process boot can create or refresh a `pending` observation, but cannot claim
+  health. A separate service-only workflow records accepted health evidence.
+- `organization_plugin_installs` records an organization's installed version,
+  desired version, and manual or security-only update policy. A catalog version
+  is not installable until its code exists in the serving deployment.
+- `private.plugin_update_operations` records idempotent, lease-bound update
+  attempts and redacted outcomes. The deployment-health activation gate remains
+  disabled until hosted Development proves the reporter and creates real
+  deployment evidence.
+
+Database migrations advance schema contracts, not organization installations.
+Do not use a migration to silently change installed versions. Production
+migrations are forward-only; code rollback means deploying a schema-compatible
+release or adding a corrective migration.
+
+The current release certificate is source and digest metadata. It is not a
+cryptographic signature. Signing and verification tooling must verify the
+declared release inputs and constrain both signer identity and issuer before
+the certificate can be described as signed.
+
+## Storage contracts
+
+The server-only `plugins` bucket uses
+`{organizationId}/{pluginKey}/...`. Browser-assisted form uploads use the
+separate `plugin_form_uploads` grammar
+`{organizationId}/{pluginKey}/{userId}/{file}`. Its RLS binds all three scope
+segments and requires the plugin to be enabled for the organization. It does
+not require membership because DV applications upload before membership
+exists. The `plugins` bucket has no browser policies.
+
 ## Uninstall and permanent deletion
 
 Ordinary organization uninstall is a non-extensible control-plane operation: it deletes only the exact `organization_plugin_installs` row and runs no plugin lifecycle code. `onUninstall` is reserved for compensating a failed new-install persistence step. Consequently, uninstall retains plugin-owned data by construction.
