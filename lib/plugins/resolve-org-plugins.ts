@@ -64,7 +64,10 @@ export async function resolveOrganizationPluginExperiences(
   return accessRows
     .flatMap((row) => {
       const definition = getRegisteredPlugin(row.plugin_key);
-      const loadedRelease = getPublishedPluginRelease(row.plugin_key);
+      const loadedRelease = getPublishedPluginRelease(
+        row.plugin_key,
+        "embedded",
+      );
       const installedVersion = coalescePluginVersion(
         row.installed_version,
         row.latest_version,
@@ -134,7 +137,10 @@ export async function resolveOrganizationPlugins(options: {
 
   for (const access of accessRows) {
     const definition = getRegisteredPlugin(access.plugin_key);
-    const loadedRelease = getPublishedPluginRelease(access.plugin_key);
+    const loadedRelease = getPublishedPluginRelease(
+      access.plugin_key,
+      "embedded",
+    );
     if (!definition || !loadedRelease) {
       continue;
     }

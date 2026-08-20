@@ -1,7 +1,7 @@
 import "server-only";
 
 import { getAdminClient } from "@/lib/supabase/admin";
-import { publishedPluginReleases } from "@/lib/plugins/published-releases";
+import { getPublishedPluginRelease } from "@/lib/plugins/published-releases";
 import {
   coalescePluginVersion,
   isPluginVersionBehind,
@@ -62,9 +62,7 @@ export async function hasOrganizationPluginRuntimeAccess(input: {
 
   const install = installResult.data as PluginInstallAccessRow | null;
   const access = accessResult.data as PluginRuntimeAccessRow | null;
-  const loadedRelease = publishedPluginReleases.find(
-    (release) => release.pluginKey === input.pluginKey,
-  );
+  const loadedRelease = getPublishedPluginRelease(input.pluginKey, "embedded");
   if (!loadedRelease) return false;
   if (!access?.is_accessible) return false;
   if (!install?.enabled && !access.entitlement_is_forced) return false;

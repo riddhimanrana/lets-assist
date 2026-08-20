@@ -1,9 +1,11 @@
 import type {
   PluginHostApiRange,
+  PluginBuildArtifact,
   PluginReleaseInputs,
   PluginReleaseSigner,
 } from "./sdk/v1/release";
 import {
+  comparePluginVersions,
   isInstallContractRangeSane,
   isPluginVersionString,
   type PluginInstallContractRange,
@@ -28,6 +30,7 @@ export type PublishedPluginRelease = {
   contentDigest: string | null;
   releaseInputs: PluginReleaseInputs | null;
   buildDigest: string | null;
+  buildArtifact: PluginBuildArtifact | null;
   sbomDigest: string | null;
   signer: PluginReleaseSigner | null;
   hostApiRange: PluginHostApiRange;
@@ -63,6 +66,15 @@ function assertPublishedPluginReleases(
             (input: unknown) => typeof input !== "string" || input.length === 0,
           ))) ||
       (release.buildDigest !== null && !isContentDigest(release.buildDigest)) ||
+      (release.buildArtifact !== null &&
+        (release.buildArtifact?.name !== "plugin-build.tar.gz" ||
+          release.buildArtifact?.format !== "vercel-prebuilt-v1" ||
+          typeof release.buildArtifact?.root !== "string" ||
+          typeof release.buildArtifact?.projectName !== "string" ||
+          !/^prj_[A-Za-z0-9]+$/u.test(release.buildArtifact?.projectId) ||
+          !/^team_[A-Za-z0-9]+$/u.test(
+            release.buildArtifact?.organizationId,
+          ))) ||
       (release.sbomDigest !== null && !isContentDigest(release.sbomDigest)) ||
       (release.signer !== null &&
         (typeof release.signer?.identity !== "string" ||
@@ -91,8 +103,16 @@ export const publishedPluginReleases: PublishedPluginRelease[] = releaseData;
 
 export function getPublishedPluginRelease(
   pluginKey: string,
+  runtimeProfile?: PluginRuntimeProfile,
 ): PublishedPluginRelease | undefined {
-  return publishedPluginReleases.find(
-    (release) => release.pluginKey === pluginKey,
-  );
+  return publishedPluginReleases
+    .filter(
+      (release) =>
+        release.pluginKey === pluginKey &&
+        (runtimeProfile === undefined ||
+          release.runtimeProfile === runtimeProfile),
+    )
+    .sort((left, right) =>
+      comparePluginVersions(right.version, left.version),
+    )[0];
 }

@@ -32,6 +32,15 @@ export interface PluginReleaseSigner {
   attestationRef: string;
 }
 
+export interface PluginBuildArtifact {
+  name: "plugin-build.tar.gz";
+  format: "vercel-prebuilt-v1";
+  root: string;
+  projectName: string;
+  projectId: string;
+  organizationId: string;
+}
+
 export interface PluginReleaseIdentity {
   pluginKey: string;
   version: string;
@@ -57,6 +66,7 @@ export interface PluginReleaseIdentity {
    * is the host build; required for profiles that build independently.
    */
   buildDigest: string | null;
+  buildArtifact: PluginBuildArtifact | null;
   sbomDigest: string | null;
   signer: PluginReleaseSigner | null;
 

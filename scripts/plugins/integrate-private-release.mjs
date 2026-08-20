@@ -14,6 +14,7 @@ const SHA256 = /^sha256:[a-f0-9]{64}$/u;
 const MIGRATION_VERSION = /^\d{14}$/u;
 const RELEASE_KEYS = [
   "buildDigest",
+  "buildArtifact",
   "changelogDigest",
   "changelogPath",
   "contentDigest",
@@ -126,7 +127,8 @@ function listReleaseFiles(privateRoot, manifest) {
 
 function validateManifestShape(manifest) {
   assertExactKeys(manifest, RELEASE_KEYS, "release manifest");
-  if (manifest.schemaVersion !== 1) fail("unsupported release schema version");
+  if (![1, 2].includes(manifest.schemaVersion))
+    fail("unsupported release schema version");
   if (!PLUGIN_KEY.test(manifest.pluginKey)) fail("invalid plugin key");
   if (!SEMVER.test(manifest.version)) fail("invalid plugin version");
   if (manifest.tag !== `${manifest.pluginKey}/v${manifest.version}`) {
@@ -146,13 +148,31 @@ function validateManifestShape(manifest) {
   ]) {
     if (!SHA256.test(value)) fail(`${label} must be a SHA-256 digest`);
   }
-  if (manifest.runtimeProfile !== "embedded") {
-    fail(
-      "automatic root integration supports embedded releases only until independent build artifacts are downloaded and verified",
-    );
-  }
-  if (manifest.buildDigest !== null) {
-    fail("an embedded release cannot claim an independent build digest");
+  if (!["embedded", "application", "service"].includes(manifest.runtimeProfile))
+    fail("unsupported runtime profile");
+  if (manifest.runtimeProfile === "service")
+    fail("automatic root integration does not support service releases yet");
+  if (
+    manifest.runtimeProfile === "embedded" &&
+    (manifest.buildDigest !== null || manifest.buildArtifact !== null)
+  )
+    fail("an embedded release cannot claim an independent build artifact");
+  if (manifest.runtimeProfile === "application") {
+    const artifact = manifest.buildArtifact;
+    if (
+      manifest.schemaVersion !== 2 ||
+      !SHA256.test(manifest.buildDigest) ||
+      !artifact ||
+      Object.keys(artifact).sort().join(",") !==
+        "format,name,organizationId,projectId,projectName,root" ||
+      artifact.name !== "plugin-build.tar.gz" ||
+      artifact.format !== "vercel-prebuilt-v1" ||
+      !PLUGIN_KEY.test(artifact.projectName) ||
+      !/^prj_[A-Za-z0-9]+$/u.test(artifact.projectId) ||
+      !/^team_[A-Za-z0-9]+$/u.test(artifact.organizationId)
+    )
+      fail("invalid application build artifact contract");
+    assertRelativePath(artifact.root, "application build root");
   }
   if (
     !Array.isArray(manifest.releaseInputs) ||
@@ -182,9 +202,20 @@ function validateManifestShape(manifest) {
     ["changelog path", manifest.changelogPath],
   ]) {
     assertRelativePath(value, label);
-    if (!value.startsWith(`${pluginRoot}/`))
-      fail(`${label} must belong to the plugin`);
   }
+  if (!manifest.changelogPath.startsWith(`${pluginRoot}/`))
+    fail("changelog path must belong to the plugin");
+  if (
+    manifest.runtimeProfile === "embedded" &&
+    !manifest.manifestPath.startsWith(`${pluginRoot}/`)
+  )
+    fail("embedded manifest path must belong to the plugin");
+  if (
+    manifest.runtimeProfile === "application" &&
+    (!manifest.releaseInputs.includes(manifest.buildArtifact.root) ||
+      !manifest.manifestPath.startsWith(`${manifest.buildArtifact.root}/`))
+  )
+    fail("application release inputs do not cover the build root and manifest");
   if (
     !manifest.hostApiRange ||
     !SEMVER.test(manifest.hostApiRange.minimum) ||
@@ -222,7 +253,7 @@ function validateManifestShape(manifest) {
   }
 }
 
-function verifyReleaseBytes(privateRoot, manifest, sbomPath) {
+function verifyReleaseBytes(privateRoot, manifest, sbomPath, buildPath) {
   const sourceTree = git(privateRoot, [
     "rev-parse",
     `${manifest.sourceCommit}:plugins/${manifest.pluginKey}`,
@@ -270,6 +301,14 @@ function verifyReleaseBytes(privateRoot, manifest, sbomPath) {
   }
   if (sha256(readFileSync(sbomPath)) !== manifest.sbomDigest) {
     fail("SBOM bytes do not match the signed digest");
+  }
+  if (manifest.runtimeProfile === "application") {
+    if (!buildPath || !existsSync(buildPath))
+      fail("application build artifact is missing");
+    if (sha256(readFileSync(buildPath)) !== manifest.buildDigest)
+      fail("application build artifact does not match the signed digest");
+  } else if (buildPath) {
+    fail("embedded release supplied an unexpected build artifact");
   }
   const manifestSource = git(
     privateRoot,
@@ -369,6 +408,7 @@ function buildMigrationTest(manifest) {
 export function integratePrivateRelease({
   manifestPath,
   sbomPath,
+  buildPath,
   privateRoot,
   registryPath,
   migrationsDir,
@@ -392,7 +432,7 @@ export function integratePrivateRelease({
   }
   const manifest = JSON.parse(readFileSync(manifestPath, "utf8"));
   validateManifestShape(manifest);
-  verifyReleaseBytes(privateRoot, manifest, sbomPath);
+  verifyReleaseBytes(privateRoot, manifest, sbomPath, buildPath);
   if (
     !readdirSync(migrationsDir).some((file) =>
       file.startsWith(`${manifest.requiredPlatformSchemaVersion}_`),
@@ -406,12 +446,14 @@ export function integratePrivateRelease({
   const registry = JSON.parse(readFileSync(registryPath, "utf8"));
   if (!Array.isArray(registry))
     fail("published release registry must be an array");
-  const index = registry.findIndex(
+  const pluginReleases = registry.filter(
     (entry) => entry.pluginKey === manifest.pluginKey,
   );
-  if (index < 0)
+  if (pluginReleases.length === 0)
     fail("release plugin is absent from the root runtime registry");
-  const previous = registry[index];
+  const previous = pluginReleases.sort((left, right) =>
+    compareVersions(right.version, left.version),
+  )[0];
   if (compareVersions(manifest.version, previous.version) <= 0) {
     fail(
       "signed release version must be newer than the published runtime release",
@@ -441,7 +483,7 @@ export function integratePrivateRelease({
   }
 
   const releaseNotes = extractReleaseNotes(privateRoot, manifest);
-  registry[index] = {
+  const nextRelease = {
     pluginKey: manifest.pluginKey,
     version: manifest.version,
     manifestFile: manifest.manifestPath,
@@ -454,6 +496,7 @@ export function integratePrivateRelease({
     contentDigest: manifest.contentDigest,
     releaseInputs: manifest.releaseInputs,
     buildDigest: manifest.buildDigest,
+    buildArtifact: manifest.buildArtifact,
     sbomDigest: manifest.sbomDigest,
     signer: {
       identity: manifest.signerIdentity.subject,
@@ -465,7 +508,18 @@ export function integratePrivateRelease({
     requiredPlatformSchemaVersion: manifest.requiredPlatformSchemaVersion,
     supportedInstallContracts: manifest.supportedInstallContracts,
   };
-  registry.sort((left, right) => left.pluginKey.localeCompare(right.pluginKey));
+  const profileIndex = registry.findIndex(
+    (entry) =>
+      entry.pluginKey === manifest.pluginKey &&
+      entry.runtimeProfile === manifest.runtimeProfile,
+  );
+  if (profileIndex >= 0) registry[profileIndex] = nextRelease;
+  else registry.push(nextRelease);
+  registry.sort(
+    (left, right) =>
+      left.pluginKey.localeCompare(right.pluginKey) ||
+      compareVersions(left.version, right.version),
+  );
 
   const migrationPath = join(
     migrationsDir,
@@ -530,6 +584,7 @@ if (
   const result = integratePrivateRelease({
     manifestPath: resolve(args.get("--manifest")),
     sbomPath: resolve(args.get("--sbom")),
+    buildPath: args.get("--build") ? resolve(args.get("--build")) : undefined,
     privateRoot: resolve(args.get("--private-root")),
     registryPath: resolve(args.get("--registry")),
     migrationsDir: resolve(args.get("--migrations-dir")),

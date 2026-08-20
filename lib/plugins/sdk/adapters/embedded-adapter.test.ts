@@ -60,7 +60,7 @@ describe("embedded adapter over the real private plugins", () => {
 
     test(`${key} keeps bootstrap provenance unknown`, () => {
       const adoption = embeddedPluginAdoptions[key];
-      const release = getPublishedPluginRelease(key);
+      const release = getPublishedPluginRelease(key, "embedded");
 
       expect(release).toBeDefined();
       if (!release) throw new Error(`Missing published release for ${key}`);
@@ -122,7 +122,7 @@ describe("embedded host API compatibility", () => {
   });
 
   test("a signed release replaces every bootstrap adoption field", () => {
-    const current = getPublishedPluginRelease("dvhs-csf");
+    const current = getPublishedPluginRelease("dvhs-csf", "embedded");
     if (!current) throw new Error("Missing DVHS CSF release fixture");
     const signed = {
       ...current,

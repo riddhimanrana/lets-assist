@@ -66,6 +66,7 @@ const definitionsByKey = new Map(
   ]),
 );
 const releaseKeys = publishedPluginReleases
+  .filter((release) => release.runtimeProfile === "embedded")
   .map((release) => release.pluginKey)
   .sort();
 
@@ -77,7 +78,10 @@ if (JSON.stringify(releaseKeys) !== JSON.stringify(pluginKeys)) {
 
 for (const release of publishedPluginReleases) {
   const definition = definitionsByKey.get(release.pluginKey);
-  if (definition?.manifest?.version !== release.version) {
+  if (
+    release.runtimeProfile === "embedded" &&
+    definition?.manifest?.version !== release.version
+  ) {
     throw new Error(
       `${release.pluginKey} manifest version ${definition?.manifest?.version ?? "missing"} does not match published ${release.version}`,
     );
@@ -115,6 +119,14 @@ for (const release of publishedPluginReleases) {
   if (release.automaticUpdate || release.rolloutPercentage !== 0) {
     throw new Error(
       `${release.pluginKey} cannot auto-update until a reviewed compatibility rollout is published`,
+    );
+  }
+  if (
+    release.runtimeProfile === "application" &&
+    (!release.buildDigest || !release.buildArtifact)
+  ) {
+    throw new Error(
+      `${release.pluginKey}@${release.version} application release has no verified build artifact`,
     );
   }
 }
