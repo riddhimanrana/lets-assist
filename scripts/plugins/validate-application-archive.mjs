@@ -3,9 +3,19 @@ import { dirname, isAbsolute, join, normalize, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const outputRoot = ".vercel/output";
+const tracedRoots = [".next", "node_modules"];
+const tracedFiles = new Set([".env.example", "package.json"]);
 
 function isInsideOutput(path) {
   return path === outputRoot || path.startsWith(`${outputRoot}/`);
+}
+
+function isReviewedBuildPath(path) {
+  return (
+    isInsideOutput(path) ||
+    tracedFiles.has(path) ||
+    tracedRoots.some((root) => path === root || path.startsWith(`${root}/`))
+  );
 }
 
 function validatePath(path, label) {
@@ -15,7 +25,7 @@ function validatePath(path, label) {
     path.includes("\\") ||
     isAbsolute(path) ||
     normalize(withoutTrailingSlash) !== withoutTrailingSlash ||
-    !isInsideOutput(withoutTrailingSlash)
+    !isReviewedBuildPath(withoutTrailingSlash)
   ) {
     throw new Error(`Refusing unsafe ${label}: ${path}`);
   }
@@ -54,7 +64,12 @@ export function validateApplicationArchiveListings(entriesText, verboseText) {
     }
 
     const target = verboseEntries[index].slice(markerIndex + marker.length);
-    if (!target || target.includes("\\") || isAbsolute(target)) {
+    if (
+      !isInsideOutput(entry) ||
+      !target ||
+      target.includes("\\") ||
+      isAbsolute(target)
+    ) {
       throw new Error(`Refusing unsafe archive symlink target: ${entry}`);
     }
 
