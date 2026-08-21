@@ -93,6 +93,7 @@ jobs:
           for asset in \
             release-manifest.json \
             release-manifest.sigstore.json \
+            release.cdx.json \
             SHA256SUMS \
             plugin-build.tar.gz
           do
@@ -141,17 +142,7 @@ jobs:
         run: |
           set -euo pipefail
           archive=.artifacts/plugin-application-release/plugin-build.tar.gz
-          while IFS= read -r entry; do
-            case "${entry}" in
-              /*|../*|*/../*|*/..) echo "Refusing unsafe archive path: ${entry}" >&2; exit 1 ;;
-              .vercel/output|.vercel/output/*) ;;
-              *) echo "Refusing unexpected archive path: ${entry}" >&2; exit 1 ;;
-            esac
-          done < <(tar -tzf "${archive}")
-          if tar -tvzf "${archive}" | awk 'substr($1,1,1) !~ /[-d]/ { found=1 } END { exit found ? 0 : 1 }'; then
-            echo "Refusing non-file entries in the prebuilt artifact." >&2
-            exit 1
-          fi
+          node scripts/plugins/validate-application-archive.mjs "${archive}"
           mkdir -p .artifacts/plugin-deploy/.vercel
           tar -xzf "${archive}" -C .artifacts/plugin-deploy
           jq -n \
