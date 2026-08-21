@@ -529,57 +529,58 @@ function buildMigrationTest(manifest, catalogRelease) {
 
   return `BEGIN;
 
-SELECT plan(8);
+CREATE EXTENSION IF NOT EXISTS pgtap WITH SCHEMA extensions;
+SELECT extensions.plan(8);
 
-SELECT is(
+SELECT extensions.is(
   (SELECT status::text FROM public.plugin_versions WHERE plugin_key = ${sqlString(manifest.pluginKey)} AND version = ${sqlString(manifest.version)}),
   'published',
   'signed plugin release is published'
 );
 
-SELECT is(
+SELECT extensions.is(
   (SELECT commit_sha FROM public.plugin_versions WHERE plugin_key = ${sqlString(manifest.pluginKey)} AND version = ${sqlString(manifest.version)}),
   ${sqlString(manifest.sourceCommit)},
   'signed source commit is recorded'
 );
 
-SELECT is(
+SELECT extensions.is(
   (SELECT manifest_hash FROM public.plugin_versions WHERE plugin_key = ${sqlString(manifest.pluginKey)} AND version = ${sqlString(manifest.version)}),
   ${sqlString(manifestHash)},
   'signed manifest hash is recorded'
 );
 
-SELECT is(
+SELECT extensions.is(
   (SELECT source_tree FROM public.plugin_versions WHERE plugin_key = ${sqlString(manifest.pluginKey)} AND version = ${sqlString(manifest.version)}),
   ${sqlString(manifest.sourceTree)},
   'signed source tree is recorded'
 );
 
-SELECT is(
+SELECT extensions.is(
   (SELECT content_digest FROM public.plugin_versions WHERE plugin_key = ${sqlString(manifest.pluginKey)} AND version = ${sqlString(manifest.version)}),
   ${sqlString(manifest.contentDigest)},
   'signed content digest is recorded'
 );
 
-SELECT is(
+SELECT extensions.is(
   (SELECT supported_install_contracts FROM public.plugin_versions WHERE plugin_key = ${sqlString(manifest.pluginKey)} AND version = ${sqlString(manifest.version)}),
   ${sqlJson(manifest.supportedInstallContracts)},
   'install compatibility range is recorded'
 );
 
-SELECT is(
+SELECT extensions.is(
   (SELECT latest_version FROM public.plugins WHERE key = ${sqlString(manifest.pluginKey)}),
   ${sqlString(expectedCatalogVersion)},
   'plugin catalog keeps the serving embedded release truthful'
 );
 
-SELECT is(
+SELECT extensions.is(
   (SELECT code_reference FROM public.plugins WHERE key = ${sqlString(manifest.pluginKey)}),
   ${sqlString(expectedCodeReference)},
   'plugin catalog keeps the serving embedded source truthful'
 );
 
-SELECT * FROM finish();
+SELECT * FROM extensions.finish();
 ROLLBACK;
 `;
 }
