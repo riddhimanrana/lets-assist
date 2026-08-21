@@ -1,0 +1,34 @@
+name: Deploy signed plugin application
+
+on:
+  workflow_dispatch:
+    inputs:
+      plugin_key:
+        description: "Published application plugin key"
+        required: true
+        type: string
+      release_tag:
+        description: "Exact signed private release tag"
+        required: true
+        type: string
+      environment:
+        description: "Deployment environment"
+        required: true
+        type: choice
+        options:
+          - development
+          - production
+
+permissions:
+  contents: read
+
+jobs:
+  registration-only:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Require the reviewed release implementation
+        shell: bash
+        run: |
+          echo "This default-branch stub only registers the Development release workflow." >&2
+          echo "Dispatch the workflow from development until the reviewed implementation reaches main." >&2
+          exit 1
