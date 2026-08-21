@@ -331,6 +331,7 @@ function verifyApplicationDeploymentTarget(applicationTargetsPath, manifest) {
   const target = targets?.[manifest.pluginKey];
   if (
     !target ||
+    target.root !== manifest.buildArtifact.root ||
     target.projectName !== manifest.buildArtifact.projectName ||
     target.projectId !== manifest.buildArtifact.projectId ||
     target.organizationId !== manifest.buildArtifact.organizationId ||
