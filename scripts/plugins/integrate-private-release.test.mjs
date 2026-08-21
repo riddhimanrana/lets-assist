@@ -42,7 +42,11 @@ function digest(bytes) {
   return `sha256:${createHash("sha256").update(bytes).digest("hex")}`;
 }
 
-function fixture({ application = false, priorApplication = false } = {}) {
+function fixture({
+  application = false,
+  priorApplication = false,
+  multiEnvironment = false,
+} = {}) {
   const root = mkdtempSync(join(tmpdir(), "root-plugin-integration-"));
   temporaryRoots.push(root);
   const privateRoot = join(root, "private");
@@ -130,12 +134,35 @@ function fixture({ application = false, priorApplication = false } = {}) {
   const buildPath = application
     ? join(artifacts, "plugin-build.tar.gz")
     : undefined;
-  if (buildPath) writeFileSync(buildPath, "exact Vercel prebuilt bytes\n");
+  const buildPaths = multiEnvironment
+    ? {
+        development: join(artifacts, "plugin-build-development.tar.gz"),
+        production: join(artifacts, "plugin-build-production.tar.gz"),
+      }
+    : undefined;
+  if (buildPaths) {
+    writeFileSync(buildPaths.development, "Development Vercel bytes\n");
+    writeFileSync(buildPaths.production, "Production Vercel bytes\n");
+  } else if (buildPath) {
+    writeFileSync(buildPath, "exact Vercel prebuilt bytes\n");
+  }
+  const environmentArtifacts = buildPaths
+    ? {
+        development: {
+          name: "plugin-build-development.tar.gz",
+          digest: digest(readFileSync(buildPaths.development)),
+        },
+        production: {
+          name: "plugin-build-production.tar.gz",
+          digest: digest(readFileSync(buildPaths.production)),
+        },
+      }
+    : undefined;
   const manifestPathInSource = application
     ? "apps/example/lib/manifest.ts"
     : "plugins/example-plugin/plugin.ts";
   const manifest = {
-    schemaVersion: application ? 2 : 1,
+    schemaVersion: multiEnvironment ? 3 : application ? 2 : 1,
     pluginKey: "example-plugin",
     version: "1.2.3",
     tag: "example-plugin/v1.2.3",
@@ -154,16 +181,29 @@ function fixture({ application = false, priorApplication = false } = {}) {
     fileCount: files.length,
     files,
     buildArtifact: application
-      ? {
-          name: "plugin-build.tar.gz",
-          format: "vercel-prebuilt-v1",
-          root: "apps/example",
-          projectName: "example-app",
-          projectId: "prj_example",
-          organizationId: "team_example",
-        }
+      ? multiEnvironment
+        ? {
+            format: "vercel-prebuilt-multi-env-v1",
+            root: "apps/example",
+            projectName: "example-app",
+            projectId: "prj_example",
+            organizationId: "team_example",
+            artifacts: environmentArtifacts,
+          }
+        : {
+            name: "plugin-build.tar.gz",
+            format: "vercel-prebuilt-v1",
+            root: "apps/example",
+            projectName: "example-app",
+            projectId: "prj_example",
+            organizationId: "team_example",
+          }
       : null,
-    buildDigest: buildPath ? digest(readFileSync(buildPath)) : null,
+    buildDigest: buildPaths
+      ? digest(Buffer.from(JSON.stringify(environmentArtifacts), "utf8"))
+      : buildPath
+        ? digest(readFileSync(buildPath))
+        : null,
     sbomDigest: digest(readFileSync(sbomPath)),
     signerIdentity: {
       issuer: "https://token.actions.githubusercontent.com",
@@ -269,6 +309,7 @@ function fixture({ application = false, priorApplication = false } = {}) {
     manifestPath,
     sbomPath,
     buildPath,
+    buildPaths,
     manifest,
   };
 }
@@ -278,6 +319,7 @@ function integrate(input) {
     manifestPath: input.manifestPath,
     sbomPath: input.sbomPath,
     buildPath: input.buildPath,
+    buildPaths: input.buildPaths,
     privateRoot: input.privateRoot,
     registryPath: input.registryPath,
     applicationTargetsPath: input.applicationTargetsPath,
@@ -359,6 +401,20 @@ test("integrates an application only after hashing its independent build", () =>
   );
   assert.doesNotMatch(migration, /SET latest_version = '1\.2\.3'/u);
   assert.match(migration, /AND latest_version = '1\.2\.2'/u);
+});
+
+test("integrates separately hashed Development and Production builds", () => {
+  const input = fixture({ application: true, multiEnvironment: true });
+  integrate(input);
+  const registry = JSON.parse(readFileSync(input.registryPath, "utf8"));
+  assert.equal(
+    registry[1].buildArtifact.format,
+    "vercel-prebuilt-multi-env-v1",
+  );
+  assert.notEqual(
+    registry[1].buildArtifact.artifacts.development.digest,
+    registry[1].buildArtifact.artifacts.production.digest,
+  );
 });
 
 test("refuses an application build targeted at an unapproved project", () => {
@@ -471,7 +527,8 @@ test("root workflow verifies known assets and opens only a Development PR", () =
   assert.match(workflow, /startswith\("codex\/plugin-release-"\)/u);
   assert.match(workflow, /A signed plugin integration PR is already open/u);
   assert.match(workflow, /supabase\/tests\/database/u);
-  assert.match(workflow, /plugin-build\.tar\.gz/u);
+  assert.match(workflow, /plugin-build-development\.tar\.gz/u);
+  assert.match(workflow, /plugin-build-production\.tar\.gz/u);
   assert.match(
     workflow,
     /bunx prettier --write lib\/plugins\/published-releases\.json/u,

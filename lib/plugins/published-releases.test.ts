@@ -41,6 +41,33 @@ describe("published release validation", () => {
     expect(() => assertPublishedPluginReleases([baseRelease])).not.toThrow();
   });
 
+  test("accepts environment-specific application artifacts", () => {
+    expect(() =>
+      assertPublishedPluginReleases([
+        {
+          ...baseRelease,
+          buildArtifact: {
+            format: "vercel-prebuilt-multi-env-v1",
+            root: "apps/example",
+            projectName: "example-app",
+            projectId: "prj_example",
+            organizationId: "team_example",
+            artifacts: {
+              development: {
+                name: "plugin-build-development.tar.gz",
+                digest: `sha256:${"1".repeat(64)}`,
+              },
+              production: {
+                name: "plugin-build-production.tar.gz",
+                digest: `sha256:${"2".repeat(64)}`,
+              },
+            },
+          },
+        },
+      ]),
+    ).not.toThrow();
+  });
+
   test("rejects an application release without verified build evidence", () => {
     expect(() =>
       assertPublishedPluginReleases([

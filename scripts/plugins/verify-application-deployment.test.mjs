@@ -18,16 +18,28 @@ afterEach(() => {
 function fixture() {
   const root = mkdtempSync(join(tmpdir(), "plugin-deploy-"));
   temporaryDirectories.push(root);
-  const buildPath = join(root, "plugin-build.tar.gz");
+  const buildPath = join(root, "plugin-build-development.tar.gz");
   writeFileSync(buildPath, "exact signed bytes");
-  const buildDigest = `sha256:${createHash("sha256").update("exact signed bytes").digest("hex")}`;
+  const developmentDigest = `sha256:${createHash("sha256").update("exact signed bytes").digest("hex")}`;
+  const productionDigest = `sha256:${"f".repeat(64)}`;
+  const artifacts = {
+    development: {
+      name: "plugin-build-development.tar.gz",
+      digest: developmentDigest,
+    },
+    production: {
+      name: "plugin-build-production.tar.gz",
+      digest: productionDigest,
+    },
+  };
+  const buildDigest = `sha256:${createHash("sha256").update(JSON.stringify(artifacts)).digest("hex")}`;
   const buildArtifact = {
-    name: "plugin-build.tar.gz",
-    format: "vercel-prebuilt-v1",
+    format: "vercel-prebuilt-multi-env-v1",
     root: "apps/csf",
     projectName: "lets-assist-csf",
     projectId: "prj_child",
     organizationId: "team_owner",
+    artifacts,
   };
   const manifest = {
     pluginKey: "dvhs-csf",
@@ -79,6 +91,7 @@ function verify(input) {
     buildPath: input.buildPath,
     releaseTag: "dvhs-csf/v1.2.0",
     pluginKey: "dvhs-csf",
+    environment: "development",
   });
 }
 
@@ -91,6 +104,14 @@ test("rejects bytes that differ from the signed digest", () => {
   const input = fixture();
   writeFileSync(input.buildPath, "different bytes");
   assert.throws(() => verify(input), /build digest/u);
+});
+
+test("rejects a build signed for another environment", () => {
+  const input = fixture();
+  input.manifest.buildArtifact.artifacts.development.name =
+    "plugin-build-production.tar.gz";
+  writeFileSync(input.manifestPath, JSON.stringify(input.manifest));
+  assert.throws(() => verify(input), /no approved build artifact/u);
 });
 
 test("rejects an application release absent from the host registry", () => {

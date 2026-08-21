@@ -55,6 +55,35 @@ function sha256(bytes) {
   return `sha256:${createHash("sha256").update(bytes).digest("hex")}`;
 }
 
+function isSingleBuildArtifact(artifact) {
+  return (
+    artifact &&
+    Object.keys(artifact).sort().join(",") ===
+      "format,name,organizationId,projectId,projectName,root" &&
+    artifact.name === "plugin-build.tar.gz" &&
+    artifact.format === "vercel-prebuilt-v1"
+  );
+}
+
+function isMultiEnvironmentBuildArtifact(artifact) {
+  const environments = ["development", "production"];
+  return (
+    artifact &&
+    Object.keys(artifact).sort().join(",") ===
+      "artifacts,format,organizationId,projectId,projectName,root" &&
+    artifact.format === "vercel-prebuilt-multi-env-v1" &&
+    Object.keys(artifact.artifacts ?? {})
+      .sort()
+      .join(",") === environments.join(",") &&
+    environments.every(
+      (environment) =>
+        artifact.artifacts[environment]?.name ===
+          `plugin-build-${environment}.tar.gz` &&
+        SHA256.test(artifact.artifacts[environment]?.digest),
+    )
+  );
+}
+
 function assertExactKeys(value, keys, label) {
   if (!value || typeof value !== "object" || Array.isArray(value)) {
     fail(`${label} must be an object`);
@@ -127,7 +156,7 @@ function listReleaseFiles(privateRoot, manifest) {
 
 function validateManifestShape(manifest) {
   assertExactKeys(manifest, RELEASE_KEYS, "release manifest");
-  if (![1, 2].includes(manifest.schemaVersion))
+  if (![1, 2, 3].includes(manifest.schemaVersion))
     fail("unsupported release schema version");
   if (!PLUGIN_KEY.test(manifest.pluginKey)) fail("invalid plugin key");
   if (!SEMVER.test(manifest.version)) fail("invalid plugin version");
@@ -160,13 +189,12 @@ function validateManifestShape(manifest) {
   if (manifest.runtimeProfile === "application") {
     const artifact = manifest.buildArtifact;
     if (
-      manifest.schemaVersion !== 2 ||
+      ![2, 3].includes(manifest.schemaVersion) ||
       !SHA256.test(manifest.buildDigest) ||
       !artifact ||
-      Object.keys(artifact).sort().join(",") !==
-        "format,name,organizationId,projectId,projectName,root" ||
-      artifact.name !== "plugin-build.tar.gz" ||
-      artifact.format !== "vercel-prebuilt-v1" ||
+      (manifest.schemaVersion === 2 && !isSingleBuildArtifact(artifact)) ||
+      (manifest.schemaVersion === 3 &&
+        !isMultiEnvironmentBuildArtifact(artifact)) ||
       !PLUGIN_KEY.test(artifact.projectName) ||
       !/^prj_[A-Za-z0-9]+$/u.test(artifact.projectId) ||
       !/^team_[A-Za-z0-9]+$/u.test(artifact.organizationId)
@@ -253,7 +281,13 @@ function validateManifestShape(manifest) {
   }
 }
 
-function verifyReleaseBytes(privateRoot, manifest, sbomPath, buildPath) {
+function verifyReleaseBytes(
+  privateRoot,
+  manifest,
+  sbomPath,
+  buildPath,
+  buildPaths,
+) {
   const sourceTree = git(privateRoot, [
     "rev-parse",
     `${manifest.sourceCommit}:plugins/${manifest.pluginKey}`,
@@ -303,11 +337,35 @@ function verifyReleaseBytes(privateRoot, manifest, sbomPath, buildPath) {
     fail("SBOM bytes do not match the signed digest");
   }
   if (manifest.runtimeProfile === "application") {
-    if (!buildPath || !existsSync(buildPath))
-      fail("application build artifact is missing");
-    if (sha256(readFileSync(buildPath)) !== manifest.buildDigest)
-      fail("application build artifact does not match the signed digest");
-  } else if (buildPath) {
+    if (manifest.schemaVersion === 3) {
+      const artifacts = {};
+      for (const environment of ["development", "production"]) {
+        const path = buildPaths?.[environment];
+        if (!path || !existsSync(path)) {
+          fail(`${environment} application build artifact is missing`);
+        }
+        const digest = sha256(readFileSync(path));
+        if (digest !== manifest.buildArtifact.artifacts[environment].digest) {
+          fail(`${environment} application build artifact digest is invalid`);
+        }
+        artifacts[environment] = {
+          name: `plugin-build-${environment}.tar.gz`,
+          digest,
+        };
+      }
+      if (
+        sha256(Buffer.from(JSON.stringify(artifacts), "utf8")) !==
+        manifest.buildDigest
+      ) {
+        fail("multi-environment build set digest is invalid");
+      }
+    } else {
+      if (!buildPath || !existsSync(buildPath))
+        fail("application build artifact is missing");
+      if (sha256(readFileSync(buildPath)) !== manifest.buildDigest)
+        fail("application build artifact does not match the signed digest");
+    }
+  } else if (buildPath || buildPaths) {
     fail("embedded release supplied an unexpected build artifact");
   }
   const manifestSource = git(
@@ -589,6 +647,7 @@ export function integratePrivateRelease({
   manifestPath,
   sbomPath,
   buildPath,
+  buildPaths,
   privateRoot,
   registryPath,
   migrationsDir,
@@ -614,7 +673,7 @@ export function integratePrivateRelease({
   const manifest = JSON.parse(readFileSync(manifestPath, "utf8"));
   validateManifestShape(manifest);
   verifyApplicationDeploymentTarget(applicationTargetsPath, manifest);
-  verifyReleaseBytes(privateRoot, manifest, sbomPath, buildPath);
+  verifyReleaseBytes(privateRoot, manifest, sbomPath, buildPath, buildPaths);
   if (
     !readdirSync(migrationsDir).some((file) =>
       file.startsWith(`${manifest.requiredPlatformSchemaVersion}_`),
@@ -780,6 +839,13 @@ if (
     manifestPath: resolve(args.get("--manifest")),
     sbomPath: resolve(args.get("--sbom")),
     buildPath: args.get("--build") ? resolve(args.get("--build")) : undefined,
+    buildPaths:
+      args.get("--build-development") && args.get("--build-production")
+        ? {
+            development: resolve(args.get("--build-development")),
+            production: resolve(args.get("--build-production")),
+          }
+        : undefined,
     privateRoot: resolve(args.get("--private-root")),
     registryPath: resolve(args.get("--registry")),
     migrationsDir: resolve(args.get("--migrations-dir")),
