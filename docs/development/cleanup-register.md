@@ -65,17 +65,21 @@ This register separates actionable repository defects from provider/account and 
   every traced Vercel function input and passes the host archive validator.
   Hosted deployment, activation, and routing evidence remain tracked by
   `PLUGIN-FOUND-009`.
-- `PLUGIN-FOUND-009` remains active. The application manifest path prefix and
-  required direct-access protection are contracts, not active routing. A
-  Development Vercel microfrontend group, a per-request rollout flag, direct
-  child-domain protection, deployment observation, and accepted health evidence
+- `PLUGIN-FOUND-009` remains active. The exact signed 1.2.1 archive is Ready on
+  the Development child project as deployment
+  `dpl_C4CzkCdNu2ZjKJVnWJCqkhXbdcPp`, and the Development control plane records
+  its exact digest and release tag with healthy status. Vercel Authentication
+  protects direct child-domain access. The application manifest path prefix is
+  still a contract rather than active host routing. A Development
+  microfrontend group, per-request rollout flag, and hosted browser acceptance
   must exist before any CSF route is claimed or an install is activated.
 - Private release `1.2.1` is signed and published. Root PR #238 merged it into
   `development` at `411421a9bf9ea3f1aa251abda3f7664f054d48ea`, and hosted
   Development is migration-current at 342 rows through `20260821044815` with
   the application release still at zero rollout. The exact hosted Development
-  application deploy, direct-domain protection, and activation remain pending.
-  Production remains untouched.
+  child deployment is Ready and healthy behind Vercel Authentication. Routing,
+  activation, and hosted browser acceptance remain pending. Production remains
+  untouched.
 
 ## Production release candidate — 2026-08-18
 

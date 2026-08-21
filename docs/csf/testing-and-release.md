@@ -92,7 +92,11 @@ their named runs only.
   `20260821044815_publish_dvhs_csf_1_2_1`. Google OAuth is enabled and the
   hosted authorize endpoint redirects to Google. The signed `dvhs-csf` 1.2.1
   release is published with zero rollout and the embedded 1.1.0 install remains
-  active until the independent application passes hosted acceptance.
+  active. The exact signed 1.2.1 artifact is Ready on the Development child
+  project as deployment `dpl_C4CzkCdNu2ZjKJVnWJCqkhXbdcPp`; the control plane
+  records its exact digest and release tag as healthy, and Vercel
+  Authentication protects direct access. Microfrontend routing and hosted
+  browser acceptance remain gates before activation.
 - Production remains untouched at the audited 236-row baseline through
   `20260811001500`; the exact read-only preflight now expects a 106-migration
   cutover to this 342-row candidate. Running that cutover requires
@@ -112,11 +116,11 @@ their named runs only.
   local attempt lost Docker DNS between unrelated test files. Follow-up
   local validation replayed all 340 migrations through the signed 1.2.0
   publication, and its focused release pgTAP passed 8/8. The signed 1.2.1
-  publication, portable build archive, and deployment-target fix pass their
+  publication, portable build archive, and deployment-target handling pass their
   focused local contract tests. The 341-migration replay passed in hosted CI,
   and the ledger reconciliation migration is covered by the same signed-release
   pgTAP identity assertions. Final role/browser
-  acceptance, and provider acceptance remain release gates until recorded in
+  acceptance and provider acceptance remain release gates until recorded in
   the cleanup register.
 - Private CSF source is merged to private `main` at
   `4d1001e9d3269b8bd28de93c071c6b4b216824fd` and synchronized back into
