@@ -31,13 +31,13 @@ test("deployment workflow verifies immutable release identity before deploy", ()
   assert.match(workflow, /--environment "\$\{DEPLOYMENT_ENVIRONMENT\}"/u);
 });
 
-test("deployment workflow pins the Vercel target and accepts current CLI JSON", () => {
-  assert.match(workflow, /args\+=\(--target=development\)/u);
+test("deployment workflow separates Vercel Preview and Production targets", () => {
+  assert.doesNotMatch(workflow, /--target=development/u);
   assert.match(workflow, /args\+=\(--prod\)/u);
   assert.match(workflow, /\.deployment\.url \/\/ \.url/u);
   assert.match(workflow, /\.deployment\.id \/\/ \.id/u);
   assert.match(workflow, /\.deployment\.target \/\/ \.target/u);
-  assert.match(workflow, /deployment_target.*== development/u);
+  assert.match(workflow, /deployment_target.*== preview/u);
   assert.match(workflow, /deployment_target.*== null/u);
   assert.match(workflow, /deployment_target.*== production/u);
 });
