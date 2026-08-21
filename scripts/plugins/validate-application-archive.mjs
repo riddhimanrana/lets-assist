@@ -1,0 +1,105 @@
+import { execFileSync } from "node:child_process";
+import { dirname, isAbsolute, join, normalize, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
+
+const outputRoot = ".vercel/output";
+
+function isInsideOutput(path) {
+  return path === outputRoot || path.startsWith(`${outputRoot}/`);
+}
+
+function validatePath(path, label) {
+  const withoutTrailingSlash = path.replace(/\/$/u, "");
+  if (
+    !path ||
+    path.includes("\\") ||
+    isAbsolute(path) ||
+    normalize(withoutTrailingSlash) !== withoutTrailingSlash ||
+    !isInsideOutput(withoutTrailingSlash)
+  ) {
+    throw new Error(`Refusing unsafe ${label}: ${path}`);
+  }
+}
+
+export function validateApplicationArchiveListings(entriesText, verboseText) {
+  const entries = entriesText.trimEnd().split("\n");
+  const verboseEntries = verboseText.trimEnd().split("\n");
+
+  if (entries.length !== verboseEntries.length) {
+    throw new Error("Archive listings disagree about the entry count");
+  }
+
+  const seen = new Set();
+  const symlinks = new Set();
+
+  entries.forEach((entry, index) => {
+    validatePath(entry, "archive path");
+    if (seen.has(entry)) {
+      throw new Error(`Refusing duplicate archive path: ${entry}`);
+    }
+    seen.add(entry);
+
+    const type = verboseEntries[index]?.[0];
+    if (type === "-" || type === "d") return;
+    if (type !== "l") {
+      throw new Error(
+        `Refusing archive entry type ${type ?? "unknown"}: ${entry}`,
+      );
+    }
+
+    const marker = `${entry} -> `;
+    const markerIndex = verboseEntries[index].indexOf(marker);
+    if (markerIndex === -1) {
+      throw new Error(`Cannot validate archive symlink: ${entry}`);
+    }
+
+    const target = verboseEntries[index].slice(markerIndex + marker.length);
+    if (!target || target.includes("\\") || isAbsolute(target)) {
+      throw new Error(`Refusing unsafe archive symlink target: ${entry}`);
+    }
+
+    const resolvedTarget = normalize(join(dirname(entry), target));
+    if (!isInsideOutput(resolvedTarget)) {
+      throw new Error(`Refusing escaping archive symlink: ${entry}`);
+    }
+    symlinks.add(entry);
+  });
+
+  for (const symlink of symlinks) {
+    if (entries.some((entry) => entry.startsWith(`${symlink}/`))) {
+      throw new Error(`Refusing archive traversal through symlink: ${symlink}`);
+    }
+  }
+}
+
+export function validateApplicationArchive(archivePath) {
+  const entries = execFileSync("tar", ["-tzf", archivePath], {
+    encoding: "utf8",
+    maxBuffer: 64 * 1024 * 1024,
+  });
+  const verboseEntries = execFileSync("tar", ["-tvzf", archivePath], {
+    encoding: "utf8",
+    maxBuffer: 64 * 1024 * 1024,
+  });
+  validateApplicationArchiveListings(entries, verboseEntries);
+}
+
+if (
+  process.argv[1] &&
+  fileURLToPath(import.meta.url) === resolve(process.argv[1])
+) {
+  const archivePath = process.argv[2];
+  if (!archivePath || process.argv.length !== 3) {
+    console.error(
+      "Usage: node validate-application-archive.mjs <archive.tar.gz>",
+    );
+    process.exit(1);
+  }
+
+  try {
+    validateApplicationArchive(archivePath);
+  } catch (error) {
+    console.error(error instanceof Error ? error.message : String(error));
+    process.exit(1);
+  }
+}

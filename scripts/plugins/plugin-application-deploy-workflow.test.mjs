@@ -21,9 +21,7 @@ test("deployment workflow verifies immutable release identity before deploy", ()
   assert.match(workflow, /cosign verify-blob/u);
   assert.match(workflow, /sha256sum --check/u);
   assert.match(workflow, /verify-application-deployment\.mjs/u);
-  assert.match(workflow, /Refusing unsafe archive path/u);
-  assert.match(workflow, /Refusing unexpected archive path/u);
-  assert.match(workflow, /Refusing non-file entries in the prebuilt artifact/u);
+  assert.match(workflow, /validate-application-archive\.mjs/u);
   assert.match(workflow, /vercel@59\.3\.0/u);
   assert.match(workflow, /--prebuilt/u);
 });
