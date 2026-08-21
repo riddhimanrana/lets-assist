@@ -70,10 +70,12 @@ This register separates actionable repository defects from provider/account and 
   Development Vercel microfrontend group, a per-request rollout flag, direct
   child-domain protection, deployment observation, and accepted health evidence
   must exist before any CSF route is claimed or an install is activated.
-- The repository checks above are local evidence. Private release `1.2.1` is
-  signed and published. Its root integration, exact hosted Development deploy,
-  direct-domain protection, and activation remain pending. Production remains
-  untouched.
+- Private release `1.2.1` is signed and published. Root PR #238 merged it into
+  `development` at `411421a9bf9ea3f1aa251abda3f7664f054d48ea`, and hosted
+  Development is migration-current at 342 rows through `20260821044815` with
+  the application release still at zero rollout. The exact hosted Development
+  application deploy, direct-domain protection, and activation remain pending.
+  Production remains untouched.
 
 ## Production release candidate — 2026-08-18
 

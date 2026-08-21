@@ -36,8 +36,9 @@ their named runs only.
 - The sole current CSF implementation/status register is
   `docs/development/cleanup-register.md`; this document is a testing runbook and
   retains older evidence below without promoting it to current status.
-- The repository candidate has 341 ordered migrations through
-  `20260821041738_publish_dvhs_csf_1_2_1`. The forty-five migrations
+- The repository candidate has 342 ordered migrations through
+  `20260821044815_publish_dvhs_csf_1_2_1`. The final migration preserves the
+  append-only hosted Development ledger entry created during publication. The migrations
   added after the audited `development` baseline merge two prior lines: the
   Development-hardening pair
   (`20260816185321_enforce_authoritative_plugin_releases`,
@@ -84,16 +85,17 @@ their named runs only.
   `20260820120000_add_plugin_update_operation_fk_index`,
   `20260820130000_add_plugin_application_access_context`,
   `20260821005258_add_plugin_application_runtime_admin_controls`,
-  `20260821024024_publish_dvhs_csf_1_2_0`, and
-  `20260821041738_publish_dvhs_csf_1_2_1`).
-- Hosted Development is migration-current at 340 rows through
-  `20260821024024_publish_dvhs_csf_1_2_0`. Google OAuth is enabled and the
+  `20260821024024_publish_dvhs_csf_1_2_0`,
+  `20260821041738_publish_dvhs_csf_1_2_1`, and
+  `20260821044815_publish_dvhs_csf_1_2_1`).
+- Hosted Development is migration-current at 342 rows through
+  `20260821044815_publish_dvhs_csf_1_2_1`. Google OAuth is enabled and the
   hosted authorize endpoint redirects to Google. The signed `dvhs-csf` 1.2.1
-  publication migration remains repository-only until this integration passes
-  CI and is promoted through Development.
+  release is published with zero rollout and the embedded 1.1.0 install remains
+  active until the independent application passes hosted acceptance.
 - Production remains untouched at the audited 236-row baseline through
-  `20260811001500`; the exact read-only preflight now expects a 105-migration
-  cutover to this 341-row candidate. Running that cutover requires
+  `20260811001500`; the exact read-only preflight now expects a 106-migration
+  cutover to this 342-row candidate. Running that cutover requires
   explicit action-time approval.
 - Local evidence on the prior candidate includes a fresh exact 324-migration replay
   and the focused storage/release, import, proof, and release-authority pgTAP
@@ -111,8 +113,9 @@ their named runs only.
   local validation replayed all 340 migrations through the signed 1.2.0
   publication, and its focused release pgTAP passed 8/8. The signed 1.2.1
   publication, portable build archive, and deployment-target fix pass their
-  focused local contract tests. The 341-migration replay remains a CI gate.
-  hosted parity, final role/browser
+  focused local contract tests. The 341-migration replay passed in hosted CI,
+  and the ledger reconciliation migration is covered by the same signed-release
+  pgTAP identity assertions. Final role/browser
   acceptance, and provider acceptance remain release gates until recorded in
   the cleanup register.
 - Private CSF source is merged to private `main` at

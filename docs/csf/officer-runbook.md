@@ -1,7 +1,7 @@
 # DVHS CSF Officer Operations Runbook
 
 **Audience:** organization administrators, adviser, chapter officers, and Data Management
-**Current status:** this candidate carries 341 ordered migrations through `20260821041738_publish_dvhs_csf_1_2_1`; Production was last verified read-only at 236 through `20260811001500`, leaving an exact repository-pinned 105-migration cutover. Hosted Development has the verified 340-migration ledger through `20260821024024_publish_dvhs_csf_1_2_0`, and Google authentication redirects successfully there. The exact 341-migration hosted CI replay is the next candidate gate. Hosted plugin deployment, browser/provider acceptance, and Production email-webhook proof remain release gates. Google OAuth and Picker were previously connected for a bounded Spring 2026 application preview that committed zero applications. Production remains untouched, and schema deployment or real-data mutation requires explicit action-time approval.
+**Current status:** this candidate carries 342 ordered migrations through `20260821044815_publish_dvhs_csf_1_2_1`; Production was last verified read-only at 236 through `20260811001500`, leaving an exact repository-pinned 106-migration cutover. Hosted Development has the verified 342-migration ledger through the same head, and Google authentication redirects successfully there. The signed 1.2.1 release is published with zero rollout while its hosted application deployment and browser/provider acceptance remain release gates. Production email-webhook proof also remains open. Google OAuth and Picker were previously connected for a bounded Spring 2026 application preview that committed zero applications. Production remains untouched, and schema deployment or real-data mutation requires explicit action-time approval.
 **Authoritative record after review:** Let's Assist
 
 This runbook describes the v1.3 officer workflow. Do not use it for a production cutover until the remaining Google, full browser-mutation, accessibility, hosted scheduled-post, Production email/webhook, advisor, and database cutover gates in [testing and release](testing-and-release.md) pass.
@@ -275,7 +275,8 @@ Before this runbook is used for the real chapter cutover, all boxes must be chec
 - [x] Deploy the orphan-cleanup-serialized release candidate, then prove branch-scoped non-production Supabase parity against the 331-row ordered ledger through `20260819020000`
 - [x] Deploy the completed plugin-platform foundation candidate, then prove branch-scoped non-production Supabase parity against the 339-row ordered ledger through `20260821005258`
 - [x] Deploy the signed DVHS CSF 1.2.0 publication, then prove hosted Development Supabase parity against the 340-row ordered ledger through `20260821024024`
-- [ ] Integrate and deploy signed DVHS CSF 1.2.1, then prove hosted Development parity against the 341-row ordered ledger through `20260821041738`
+- [x] Integrate signed DVHS CSF 1.2.1 and prove hosted Development parity against the 342-row ordered ledger through `20260821044815`
+- [ ] Deploy the exact signed 1.2.1 application artifact, protect its direct child domain, and complete hosted Development browser acceptance before activation
 - [x] Authorize local and hosted Development Google origins/callbacks, including `http://localhost:3001` and `https://dev.lets-assist.com`
 - [ ] Complete Google reconnect, revocation, and failure-state verification; the exact chapter identity, Picker selection, and one bounded failed-preview attempt are current Development evidence, not full import acceptance
 - [ ] Complete synthetic visible mutation lifecycle for every actor
