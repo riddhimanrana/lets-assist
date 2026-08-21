@@ -81,8 +81,10 @@ This register separates actionable repository defects from provider/account and 
 - Private release `1.2.1` is signed and published. Root PR #238 merged it into
   `development` at `411421a9bf9ea3f1aa251abda3f7664f054d48ea`, and hosted
   Development is migration-current at 342 rows through `20260821044815` with
-  the application release still at zero rollout. The exact hosted Development
-  child deployment is Ready and healthy behind Vercel Authentication. The
+  the application release still at zero rollout. The complete signed-identity
+  guard is a new forward migration pending on PR #239; the applied ledger rows
+  remain unchanged. The exact hosted Development child deployment is Ready and
+  healthy behind Vercel Authentication. The
   two-project microfrontend group exists, but its committed config, paid routed
   traffic, activation, and hosted browser acceptance remain pending. Production
   remains untouched.
