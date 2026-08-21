@@ -93,6 +93,7 @@ jobs:
           for asset in \
             release-manifest.json \
             release-manifest.sigstore.json \
+            release.cdx.json \
             SHA256SUMS \
             plugin-build.tar.gz
           do
