@@ -12,10 +12,13 @@ INSERT INTO expected_private_trigger_helper_acl (function_oid)
 VALUES
   ('private.enqueue_paper_signup_notification()'::regprocedure),
   ('private.protect_paper_signup_notification_identity()'::regprocedure),
+  ('private.require_plugin_release_identity()'::regprocedure),
   ('private.enforce_plugin_release_immutability()'::regprocedure),
   ('private.enforce_catalog_published_plugin_release()'::regprocedure),
   ('private.enforce_plugin_install_release()'::regprocedure),
   ('private.enforce_plugin_entitlement_release()'::regprocedure),
+  ('private.plugin_stable_semver_key(text)'::regprocedure),
+  ('private.plugin_host_api_version()'::regprocedure),
   ('private.project_hours_publish_key(text,jsonb,text)'::regprocedure);
 
 SELECT is(
