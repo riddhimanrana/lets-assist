@@ -26,6 +26,15 @@ test("deployment workflow verifies immutable release identity before deploy", ()
   assert.match(workflow, /--prebuilt/u);
 });
 
+test("deployment workflow pins the Vercel target and accepts current CLI JSON", () => {
+  assert.match(workflow, /args\+=\(--target=preview\)/u);
+  assert.match(workflow, /args\+=\(--prod\)/u);
+  assert.match(workflow, /\.deployment\.url \/\/ \.url/u);
+  assert.match(workflow, /\.deployment\.id \/\/ \.id/u);
+  assert.match(workflow, /\.deployment\.target \/\/ \.target/u);
+  assert.match(workflow, /deployment_target/u);
+});
+
 test("deployment workflow records health through service-only RPCs", () => {
   assert.match(workflow, /secrets\.SUPABASE_SERVICE_ROLE_KEY/u);
   assert.match(workflow, /rpc\/observe_plugin_deployment/u);
