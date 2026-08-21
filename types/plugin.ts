@@ -800,4 +800,13 @@ export interface OrganizationPluginAdminSetting {
    * the plugin declared no uncovered systems.
    */
   dataDeletionExternalSystemsNotCovered: string[];
+  applicationRuntime: {
+    environment: "development" | "production";
+    version: string | null;
+    enabled: boolean;
+    canEnable: boolean;
+    deploymentHealthy: boolean;
+    deploymentUrl: string | null;
+    healthReportedAt: string | null;
+  } | null;
 }

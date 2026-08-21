@@ -3,7 +3,9 @@
 import "server-only";
 
 import { createClient } from "@/lib/supabase/server";
+import { getAdminClient } from "@/lib/supabase/admin";
 import { getAuthUser } from "@/lib/supabase/auth-helpers";
+import { resolvePluginApplicationEnvironment } from "@/lib/plugins/application-environment";
 import { listRegisteredPlugins } from "@/lib/plugins/registry";
 import { getPublishedPluginRelease } from "@/lib/plugins/published-releases";
 import {
@@ -61,6 +63,59 @@ function listRuntimePluginsForSettings(): RuntimePluginInfo[] {
         plugin.manifest.dataDeletion?.externalSystemsNotCovered ?? [],
     };
   });
+}
+
+type ApplicationRuntimeStatus = {
+  applicationVersion?: string | null;
+  applicationEnabled?: boolean;
+  canEnable?: boolean;
+  deploymentHealthy?: boolean;
+  deploymentUrl?: string | null;
+  healthReportedAt?: string | null;
+};
+
+async function attachApplicationRuntimeStatus(
+  organizationId: string,
+  plugins: OrganizationPluginSettingsResult["plugins"],
+): Promise<OrganizationPluginSettingsResult["plugins"]> {
+  const environment = resolvePluginApplicationEnvironment();
+  if (!environment) {
+    return plugins;
+  }
+
+  const admin = getAdminClient();
+  return Promise.all(
+    plugins.map(async (plugin) => {
+      const { data, error } = await admin.rpc(
+        "get_plugin_application_runtime_admin_status",
+        {
+          p_organization_id: organizationId,
+          p_plugin_key: plugin.key,
+          p_environment: environment,
+        },
+      );
+      if (error || !data || typeof data !== "object" || Array.isArray(data)) {
+        return plugin;
+      }
+
+      const status = data as ApplicationRuntimeStatus;
+      if (!status.applicationVersion) {
+        return plugin;
+      }
+      return {
+        ...plugin,
+        applicationRuntime: {
+          environment,
+          version: status.applicationVersion,
+          enabled: status.applicationEnabled === true,
+          canEnable: status.canEnable === true,
+          deploymentHealthy: status.deploymentHealthy === true,
+          deploymentUrl: status.deploymentUrl ?? null,
+          healthReportedAt: status.healthReportedAt ?? null,
+        },
+      };
+    }),
+  );
 }
 
 export async function getOrganizationPluginSettings(
@@ -156,7 +211,9 @@ export async function getOrganizationPluginSettings(
       runtimePlugins,
     });
 
-    return { plugins };
+    return {
+      plugins: await attachApplicationRuntimeStatus(organizationId, plugins),
+    };
   }
 
   if (catalogResult.error) {
@@ -203,5 +260,7 @@ export async function getOrganizationPluginSettings(
     runtimePlugins,
   });
 
-  return { plugins };
+  return {
+    plugins: await attachApplicationRuntimeStatus(organizationId, plugins),
+  };
 }

@@ -197,6 +197,7 @@ export function buildOrganizationPluginAdminSettings(input: {
         ),
         dataDeletionExternalSystemsNotCovered:
           runtimePlugin?.dataDeletionExternalSystemsNotCovered ?? [],
+        applicationRuntime: null,
       } satisfies OrganizationPluginAdminSetting;
     })
     .sort((a, b) => a.name.localeCompare(b.name));
