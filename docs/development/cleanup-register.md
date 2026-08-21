@@ -55,18 +55,23 @@ This register separates actionable repository defects from provider/account and 
   lint, typecheck, and architecture contracts pass, while its isolated replay
   did not start because local Docker remained in `supabase start` and the first
   CI attempt found its selected port occupied before migrations ran.
-- `PLUGIN-FOUND-008` remains active. The signed root release integrator accepts
-  embedded releases only, and the code-owned publication registry models one
-  current profile per plugin. Before CSF can publish `1.2.0`, the release lane
-  and registry must support an application release alongside the embedded
-  `1.1.0` fallback without making host startup reject the profile transition.
+- `PLUGIN-FOUND-008` is repository-closed on this candidate. The signed root
+  release integrator accepts an application-profile release, the code-owned
+  registry publishes CSF `1.2.0` while retaining embedded `1.1.0` as its
+  fallback, and host startup accepts that profile transition. The private
+  source commit `b1f4fa8e` is tagged `dvhs-csf/v1.2.0`; its signed release,
+  checksums, Sigstore bundle, and SBOM verified before the root publication
+  migration and focused 8/8 pgTAP contract were generated. Hosted deployment,
+  activation, and routing evidence remain tracked by `PLUGIN-FOUND-009`.
 - `PLUGIN-FOUND-009` remains active. The application manifest path prefix and
   required direct-access protection are contracts, not active routing. A
   Development Vercel microfrontend group, a per-request rollout flag, direct
   child-domain protection, deployment observation, and accepted health evidence
   must exist before any CSF route is claimed or an install is activated.
-- All evidence in this section is local. No hosted Supabase schema, Vercel
-  project, GitHub branch, pull request, or Production service was changed.
+- The repository checks above are local evidence. The private signed release is
+  published, and the root integration is under review in PR #236 with a
+  branch-scoped Supabase Preview and Vercel Preview. Persistent hosted
+  Development activation remains pending. Production remains untouched.
 
 ## Production release candidate — 2026-08-18
 
