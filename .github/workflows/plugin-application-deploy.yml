@@ -100,9 +100,19 @@ jobs:
             release-manifest.json \
             release-manifest.sigstore.json \
             release.cdx.json \
-            SHA256SUMS \
-            plugin-build.tar.gz
+            SHA256SUMS
           do
+            gh release download "${RELEASE_TAG}" \
+              --repo "${PRIVATE_REPOSITORY}" \
+              --pattern "${asset}" \
+              --dir .artifacts/plugin-application-release
+          done
+          manifest=.artifacts/plugin-application-release/release-manifest.json
+          mapfile -t build_assets < <(
+            jq -r '.buildArtifact.artifacts.development.name,
+                   .buildArtifact.artifacts.production.name' "${manifest}"
+          )
+          for asset in "${build_assets[@]}"; do
             gh release download "${RELEASE_TAG}" \
               --repo "${PRIVATE_REPOSITORY}" \
               --pattern "${asset}" \
@@ -133,21 +143,23 @@ jobs:
             --manifest "${manifest}" \
             --registry lib/plugins/published-releases.json \
             --targets lib/plugins/application-deployment-targets.json \
-            --build "${release_dir}/plugin-build.tar.gz" \
+            --build "${release_dir}/plugin-build-${DEPLOYMENT_ENVIRONMENT}.tar.gz" \
             --tag "${RELEASE_TAG}" \
             --plugin "${PLUGIN_KEY}" \
+            --environment "${DEPLOYMENT_ENVIRONMENT}" \
             > "${release_dir}/deployment-summary.json"
           echo "version=$(jq -r .version "${release_dir}/deployment-summary.json")" >> "${GITHUB_OUTPUT}"
           echo "project_id=$(jq -r .buildArtifact.projectId "${release_dir}/deployment-summary.json")" >> "${GITHUB_OUTPUT}"
           echo "project_name=$(jq -r .buildArtifact.projectName "${release_dir}/deployment-summary.json")" >> "${GITHUB_OUTPUT}"
           echo "organization_id=$(jq -r .buildArtifact.organizationId "${release_dir}/deployment-summary.json")" >> "${GITHUB_OUTPUT}"
           echo "build_digest=$(jq -r .buildDigest "${release_dir}/deployment-summary.json")" >> "${GITHUB_OUTPUT}"
+          echo "artifact_name=$(jq -r .artifactName "${release_dir}/deployment-summary.json")" >> "${GITHUB_OUTPUT}"
 
       - name: Extract the prebuilt artifact safely
         shell: bash
         run: |
           set -euo pipefail
-          archive=.artifacts/plugin-application-release/plugin-build.tar.gz
+          archive=".artifacts/plugin-application-release/${{ steps.release.outputs.artifact_name }}"
           node scripts/plugins/validate-application-archive.mjs "${archive}"
           mkdir -p .artifacts/plugin-deploy/.vercel
           tar -xzf "${archive}" -C .artifacts/plugin-deploy

@@ -32,7 +32,7 @@ export interface PluginReleaseSigner {
   attestationRef: string;
 }
 
-export interface PluginBuildArtifact {
+export interface PluginSingleEnvironmentBuildArtifact {
   name: "plugin-build.tar.gz";
   format: "vercel-prebuilt-v1";
   root: string;
@@ -40,6 +40,26 @@ export interface PluginBuildArtifact {
   projectId: string;
   organizationId: string;
 }
+
+export interface PluginEnvironmentBuild {
+  name: "plugin-build-development.tar.gz" | "plugin-build-production.tar.gz";
+  digest: string;
+}
+
+export interface PluginMultiEnvironmentBuildArtifact {
+  format: "vercel-prebuilt-multi-env-v1";
+  root: string;
+  projectName: string;
+  projectId: string;
+  organizationId: string;
+  artifacts: {
+    development: PluginEnvironmentBuild;
+    production: PluginEnvironmentBuild;
+  };
+}
+
+export type PluginBuildArtifact =
+  PluginSingleEnvironmentBuildArtifact | PluginMultiEnvironmentBuildArtifact;
 
 export interface PluginReleaseIdentity {
   pluginKey: string;

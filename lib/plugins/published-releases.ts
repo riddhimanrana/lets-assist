@@ -39,6 +39,27 @@ export type PublishedPluginRelease = {
   supportedInstallContracts: PluginInstallContractRange;
 };
 
+function isBuildArtifact(value: PluginBuildArtifact): boolean {
+  const sharedFieldsAreValid =
+    typeof value.root === "string" &&
+    value.root.length > 0 &&
+    typeof value.projectName === "string" &&
+    value.projectName.length > 0 &&
+    /^prj_[A-Za-z0-9]+$/u.test(value.projectId) &&
+    /^team_[A-Za-z0-9]+$/u.test(value.organizationId);
+  if (!sharedFieldsAreValid) return false;
+  if (value.format === "vercel-prebuilt-v1") {
+    return value.name === "plugin-build.tar.gz";
+  }
+  if (value.format !== "vercel-prebuilt-multi-env-v1") return false;
+  return (
+    value.artifacts?.development?.name === "plugin-build-development.tar.gz" &&
+    isContentDigest(value.artifacts.development.digest) &&
+    value.artifacts?.production?.name === "plugin-build-production.tar.gz" &&
+    isContentDigest(value.artifacts.production.digest)
+  );
+}
+
 export function assertPublishedPluginReleases(
   value: unknown,
 ): asserts value is PublishedPluginRelease[] {
@@ -69,16 +90,7 @@ export function assertPublishedPluginReleases(
           ))) ||
       (release.buildDigest !== null && !isContentDigest(release.buildDigest)) ||
       (release.buildArtifact !== null &&
-        (release.buildArtifact?.name !== "plugin-build.tar.gz" ||
-          release.buildArtifact?.format !== "vercel-prebuilt-v1" ||
-          typeof release.buildArtifact?.root !== "string" ||
-          release.buildArtifact.root.length === 0 ||
-          typeof release.buildArtifact?.projectName !== "string" ||
-          release.buildArtifact.projectName.length === 0 ||
-          !/^prj_[A-Za-z0-9]+$/u.test(release.buildArtifact?.projectId) ||
-          !/^team_[A-Za-z0-9]+$/u.test(
-            release.buildArtifact?.organizationId,
-          ))) ||
+        !isBuildArtifact(release.buildArtifact)) ||
       (release.sbomDigest !== null && !isContentDigest(release.sbomDigest)) ||
       (release.signer !== null &&
         (typeof release.signer?.identity !== "string" ||

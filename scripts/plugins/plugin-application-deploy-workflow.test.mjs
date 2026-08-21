@@ -25,6 +25,10 @@ test("deployment workflow verifies immutable release identity before deploy", ()
   assert.match(workflow, /vercel@59\.3\.0/u);
   assert.match(workflow, /--prebuilt/u);
   assert.doesNotMatch(workflow, /--scope=/u);
+  assert.match(workflow, /\.buildArtifact\.artifacts\.development\.name/u);
+  assert.match(workflow, /\.buildArtifact\.artifacts\.production\.name/u);
+  assert.match(workflow, /plugin-build-\$\{DEPLOYMENT_ENVIRONMENT\}\.tar\.gz/u);
+  assert.match(workflow, /--environment "\$\{DEPLOYMENT_ENVIRONMENT\}"/u);
 });
 
 test("deployment workflow pins the Vercel target and accepts current CLI JSON", () => {
