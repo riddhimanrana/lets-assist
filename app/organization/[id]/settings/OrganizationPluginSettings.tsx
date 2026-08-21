@@ -84,6 +84,7 @@ import type {
 } from "@/types";
 import {
   getOrganizationPluginSettings,
+  setOrganizationPluginApplicationRuntime,
   setOrganizationPluginInstallState,
   uninstallOrganizationPlugin,
   updateOrganizationPluginConfiguration,
@@ -538,6 +539,33 @@ export default function OrganizationPluginSettings({
     setUpdatingActionId(null);
   };
 
+  const handleApplicationRuntime = async (
+    plugin: OrganizationPluginAdminSetting,
+    enabled: boolean,
+  ) => {
+    setUpdatingActionId(`${plugin.key}:application-runtime`);
+    const response = await setOrganizationPluginApplicationRuntime({
+      organizationId,
+      pluginKey: plugin.key,
+      enabled,
+      targetVersion: plugin.applicationRuntime?.version ?? undefined,
+    });
+
+    if (!response.success) {
+      toast.error(response.error || "Failed to change the plugin runtime");
+      setUpdatingActionId(null);
+      return;
+    }
+
+    toast.success(
+      enabled
+        ? `Application ${plugin.applicationRuntime?.version} enabled`
+        : `Embedded ${plugin.installedVersion || plugin.latestVersion} restored`,
+    );
+    await loadSettings();
+    setUpdatingActionId(null);
+  };
+
   const handleOpenSettingsEditor = (plugin: OrganizationPluginAdminSetting) => {
     if (!plugin.installed) {
       toast.error("Install the plugin before editing its settings");
@@ -724,6 +752,8 @@ export default function OrganizationPluginSettings({
   ) => {
     const isToggleUpdating = updatingActionId === `${plugin.key}:toggle`;
     const isVersionUpdating = updatingActionId === `${plugin.key}:update`;
+    const isRuntimeUpdating =
+      updatingActionId === `${plugin.key}:application-runtime`;
     const isUninstalling = updatingActionId === `${plugin.key}:uninstall`;
     const isPrivatePlugin =
       plugin.visibility === "private" || plugin.privateCodebase;
@@ -790,6 +820,32 @@ export default function OrganizationPluginSettings({
               </p>
             ) : null}
 
+            {plugin.applicationRuntime ? (
+              <div className="mt-1 rounded-md border border-border/70 bg-muted/30 px-2.5 py-2">
+                <div className="flex flex-wrap items-center gap-2">
+                  <Badge
+                    variant={
+                      plugin.applicationRuntime.enabled
+                        ? "default"
+                        : "secondary"
+                    }
+                  >
+                    {plugin.applicationRuntime.enabled
+                      ? "Application active"
+                      : "Embedded active"}
+                  </Badge>
+                  <span className="text-xs text-muted-foreground">
+                    Application {plugin.applicationRuntime.version}
+                  </span>
+                </div>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  {plugin.applicationRuntime.deploymentHealthy
+                    ? `Healthy on ${plugin.applicationRuntime.environment}`
+                    : `Waiting for a healthy ${plugin.applicationRuntime.environment} deployment`}
+                </p>
+              </div>
+            ) : null}
+
             {plugin.blockedReason &&
             !plugin.availableInRuntime ? null : plugin.blockedReason ? (
               <p className="text-xs text-destructive">{plugin.blockedReason}</p>
@@ -797,6 +853,41 @@ export default function OrganizationPluginSettings({
           </div>
 
           <div className="flex flex-wrap items-center justify-end gap-2">
+            {plugin.applicationRuntime ? (
+              <Button
+                type="button"
+                size="sm"
+                variant={
+                  plugin.applicationRuntime.enabled ? "outline" : "default"
+                }
+                onClick={() => {
+                  void handleApplicationRuntime(
+                    plugin,
+                    !plugin.applicationRuntime?.enabled,
+                  );
+                }}
+                disabled={
+                  isRuntimeUpdating ||
+                  (!plugin.applicationRuntime.enabled &&
+                    !plugin.applicationRuntime.canEnable)
+                }
+              >
+                {isRuntimeUpdating ? (
+                  <>
+                    <Loader2
+                      data-icon="inline-start"
+                      className="animate-spin"
+                    />
+                    Switching…
+                  </>
+                ) : plugin.applicationRuntime.enabled ? (
+                  `Use embedded ${plugin.installedVersion || plugin.latestVersion}`
+                ) : (
+                  `Use application ${plugin.applicationRuntime.version}`
+                )}
+              </Button>
+            ) : null}
+
             <Button
               type="button"
               size="sm"

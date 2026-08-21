@@ -7,6 +7,7 @@ import { getAuthUser } from "@/lib/supabase/auth-helpers";
 import { getAdminClient } from "@/lib/supabase/admin";
 import { getRegisteredPlugin } from "@/lib/plugins/registry";
 import { getPluginDataDeletionReadiness } from "@/lib/plugins/plugin-data-deletion-readiness";
+import { resolvePluginApplicationEnvironment } from "@/lib/plugins/application-environment";
 import {
   describePluginUninstallImpact,
   extractDataAccessPurposes,
@@ -455,6 +456,64 @@ export async function updateOrganizationPluginToLatest(options: {
   revalidatePath(`/organization/${organizationId}`);
   revalidatePath(`/organization/${organizationId}/settings`);
 
+  return { success: true };
+}
+
+export async function setOrganizationPluginApplicationRuntime(options: {
+  organizationId: string;
+  pluginKey: string;
+  enabled: boolean;
+  targetVersion?: string;
+}): Promise<{ success: boolean; error?: string }> {
+  "use server";
+  const { organizationId, pluginKey, enabled, targetVersion } = options;
+  const { user } = await getAuthUser();
+
+  if (!user) {
+    return { success: false, error: "You must be logged in to manage plugins" };
+  }
+
+  const environment = resolvePluginApplicationEnvironment();
+  if (!environment) {
+    return {
+      success: false,
+      error:
+        "Application runtime changes are available on hosted Development and Production only.",
+    };
+  }
+  if (enabled && !targetVersion) {
+    return { success: false, error: "Choose a published application version." };
+  }
+
+  const adminSupabase = getAdminClient();
+  if (
+    !(await isOrganizationAdminForSettings(
+      organizationId,
+      user.id,
+      adminSupabase,
+    ))
+  ) {
+    return {
+      success: false,
+      error: "Only organization admins can change the plugin runtime",
+    };
+  }
+
+  const { error } = await adminSupabase.rpc("set_plugin_application_runtime", {
+    p_organization_id: organizationId,
+    p_plugin_key: pluginKey,
+    p_target_version: enabled ? targetVersion : null,
+    p_environment: environment,
+    p_enabled: enabled,
+    p_actor_id: user.id,
+    p_request_id: crypto.randomUUID(),
+  });
+  if (error) {
+    return { success: false, error: error.message };
+  }
+
+  revalidatePath(`/organization/${organizationId}`);
+  revalidatePath(`/organization/${organizationId}/settings`);
   return { success: true };
 }
 
