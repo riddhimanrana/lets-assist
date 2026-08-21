@@ -36,6 +36,7 @@ jobs:
       RELEASE_TAG: ${{ inputs.release_tag }}
       DEPLOYMENT_ENVIRONMENT: ${{ inputs.environment }}
       VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+      VERCEL_AUTOMATION_BYPASS_SECRET: ${{ secrets.VERCEL_AUTOMATION_BYPASS_SECRET }}
       SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
       SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
     steps:
@@ -56,7 +57,12 @@ jobs:
             echo "Refusing malformed plugin release coordinates." >&2
             exit 1
           fi
-          for variable in VERCEL_TOKEN SUPABASE_URL SUPABASE_SERVICE_ROLE_KEY; do
+          for variable in \
+            VERCEL_TOKEN \
+            VERCEL_AUTOMATION_BYPASS_SECRET \
+            SUPABASE_URL \
+            SUPABASE_SERVICE_ROLE_KEY
+          do
             if [[ -z "${!variable:-}" ]]; then
               echo "${variable} is required in the ${DEPLOYMENT_ENVIRONMENT} GitHub environment." >&2
               exit 1
@@ -224,16 +230,17 @@ jobs:
       - name: Verify application health
         id: health
         continue-on-error: true
+        env:
+          DEPLOYMENT_URL: ${{ steps.deploy.outputs.url }}
         shell: bash
         run: |
           set -euo pipefail
-          (
-            cd .artifacts/plugin-deploy
-            bunx vercel@59.3.0 curl /api/health \
-              --deployment "${{ steps.deploy.outputs.url }}" \
-              --scope="${{ steps.release.outputs.organization_id }}" \
-              > ../plugin-health.json
-          )
+          deployment_host="${DEPLOYMENT_URL#https://}"
+          deployment_host="${deployment_host#http://}"
+          curl --fail-with-body --silent --show-error \
+            --header "x-vercel-protection-bypass: ${VERCEL_AUTOMATION_BYPASS_SECRET}" \
+            "https://${deployment_host}/api/health" \
+            > .artifacts/plugin-health.json
           jq -e 'type == "object"' .artifacts/plugin-health.json >/dev/null
           echo "response_reached=true" >> "${GITHUB_OUTPUT}"
           jq -e \

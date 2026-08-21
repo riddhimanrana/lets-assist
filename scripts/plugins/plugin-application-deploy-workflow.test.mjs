@@ -43,10 +43,11 @@ test("deployment workflow records health through service-only RPCs", () => {
   )?.[0];
   assert.ok(healthStep);
   assert.match(workflow, /secrets\.SUPABASE_SERVICE_ROLE_KEY/u);
+  assert.match(workflow, /secrets\.VERCEL_AUTOMATION_BYPASS_SECRET/u);
   assert.match(workflow, /rpc\/observe_plugin_deployment/u);
   assert.match(
     healthStep,
-    /cd \.artifacts\/plugin-deploy[\s\S]*vercel@59\.3\.0 curl \/api\/health[\s\S]*--deployment[\s\S]*--scope=/u,
+    /x-vercel-protection-bypass: \$\{VERCEL_AUTOMATION_BYPASS_SECRET\}[\s\S]*\/api\/health/u,
   );
   assert.doesNotMatch(healthStep, /--token="\$\{VERCEL_TOKEN\}"/u);
   assert.match(healthStep, /response_reached=true/u);
