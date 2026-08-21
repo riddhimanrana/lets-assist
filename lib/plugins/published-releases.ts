@@ -45,6 +45,8 @@ export function assertPublishedPluginReleases(
   if (!Array.isArray(value)) {
     throw new Error("Published plugin release data must be an array.");
   }
+  const profileKeys = new Set<string>();
+  const versionKeys = new Set<string>();
   for (const release of value) {
     if (
       !release ||
@@ -109,6 +111,14 @@ export function assertPublishedPluginReleases(
         "Published embedded releases cannot claim an independent build artifact.",
       );
     }
+
+    const profileKey = `${release.pluginKey}:${release.runtimeProfile}`;
+    const versionKey = `${release.pluginKey}:${release.version}`;
+    if (profileKeys.has(profileKey) || versionKeys.has(versionKey)) {
+      throw new Error("Published plugin release identities must be unique.");
+    }
+    profileKeys.add(profileKey);
+    versionKeys.add(versionKey);
   }
 }
 
@@ -123,14 +133,13 @@ export const publishedPluginReleases: PublishedPluginRelease[] = releaseData;
 
 export function getPublishedPluginRelease(
   pluginKey: string,
-  runtimeProfile?: PluginRuntimeProfile,
+  runtimeProfile: PluginRuntimeProfile,
 ): PublishedPluginRelease | undefined {
   return publishedPluginReleases
     .filter(
       (release) =>
         release.pluginKey === pluginKey &&
-        (runtimeProfile === undefined ||
-          release.runtimeProfile === runtimeProfile),
+        release.runtimeProfile === runtimeProfile,
     )
     .sort((left, right) =>
       comparePluginVersions(right.version, left.version),

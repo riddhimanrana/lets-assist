@@ -42,7 +42,7 @@ function digest(bytes) {
   return `sha256:${createHash("sha256").update(bytes).digest("hex")}`;
 }
 
-function fixture({ application = false } = {}) {
+function fixture({ application = false, priorApplication = false } = {}) {
   const root = mkdtempSync(join(tmpdir(), "root-plugin-integration-"));
   temporaryRoots.push(root);
   const privateRoot = join(root, "private");
@@ -227,6 +227,33 @@ function fixture({ application = false } = {}) {
       2,
     )}\n`,
   );
+  if (priorApplication) {
+    const releases = JSON.parse(readFileSync(registryPath, "utf8"));
+    releases[0].version = "1.2.1";
+    releases[0].supportedInstallContracts = {
+      minimum: "1.2.1",
+      maximum: "1.2.1",
+    };
+    releases.push({
+      ...releases[0],
+      version: "1.2.2",
+      runtimeProfile: "application",
+      buildDigest: `sha256:${"9".repeat(64)}`,
+      buildArtifact: {
+        name: "plugin-build.tar.gz",
+        format: "vercel-prebuilt-v1",
+        root: "apps/example",
+        projectName: "example-app",
+        projectId: "prj_example",
+        organizationId: "team_example",
+      },
+      supportedInstallContracts: {
+        minimum: "1.2.1",
+        maximum: "1.2.2",
+      },
+    });
+    writeFileSync(registryPath, `${JSON.stringify(releases, null, 2)}\n`);
+  }
   writeFileSync(
     join(migrationsDir, "20260412000001_existing.sql"),
     "-- existing contract\n",
@@ -339,6 +366,23 @@ test("refuses an application build targeted at an unapproved project", () => {
   );
 
   assert.throws(() => integrate(input), /target is not approved/u);
+});
+
+test("anchors later releases to the serving embedded catalog entry", () => {
+  for (const application of [true, false]) {
+    const input = fixture({ application, priorApplication: true });
+    integrate(input);
+    const migrationName = readdirSync(input.migrationsDir).find((file) =>
+      file.startsWith("20260820150000_"),
+    );
+    const migration = readFileSync(
+      join(input.migrationsDir, migrationName),
+      "utf8",
+    );
+
+    assert.match(migration, /latest_version = '1\.2\.1'/u);
+    assert.doesNotMatch(migration, /latest_version = '1\.2\.2'/u);
+  }
 });
 
 test("refuses an application artifact whose bytes do not match the signature", () => {

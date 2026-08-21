@@ -67,4 +67,22 @@ describe("published release validation", () => {
       ]),
     ).toThrow("cannot claim an independent build artifact");
   });
+
+  test("rejects duplicate profile and version identities", () => {
+    expect(() =>
+      assertPublishedPluginReleases([baseRelease, { ...baseRelease }]),
+    ).toThrow("identities must be unique");
+
+    expect(() =>
+      assertPublishedPluginReleases([
+        baseRelease,
+        {
+          ...baseRelease,
+          runtimeProfile: "embedded",
+          buildDigest: null,
+          buildArtifact: null,
+        },
+      ]),
+    ).toThrow("identities must be unique");
+  });
 });

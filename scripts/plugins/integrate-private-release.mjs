@@ -406,7 +406,7 @@ export function nextMigrationVersion(migrationsDir, now = new Date()) {
 function buildMigration(
   manifest,
   releaseNotes,
-  previousRelease,
+  catalogRelease,
   attestationRef,
 ) {
   const manifestHash = manifest.manifestDigest.slice("sha256:".length);
@@ -423,7 +423,8 @@ function buildMigration(
       code_reference = ${sqlString(manifest.sourceCommit)},
       updated_at = now()
   WHERE key = ${sqlString(manifest.pluginKey)}
-    AND latest_version = ${sqlString(previousRelease.version)};
+    AND latest_version = ${sqlString(catalogRelease.version)}
+    AND code_reference = ${sqlString(catalogRelease.sourceCommit)};
 
   IF NOT FOUND AND NOT EXISTS (
     SELECT 1 FROM public.plugins
@@ -433,19 +434,13 @@ function buildMigration(
   ) THEN
     RAISE EXCEPTION 'Plugin catalog moved since this signed integration was prepared';
   END IF;`
-      : `UPDATE public.plugins
-  SET code_reference = ${sqlString(manifest.sourceCommit)},
-      updated_at = now()
+      : `PERFORM 1
+  FROM public.plugins
   WHERE key = ${sqlString(manifest.pluginKey)}
-    AND latest_version = ${sqlString(previousRelease.version)}
-    AND code_reference = ${sqlString(previousRelease.sourceCommit)};
+    AND latest_version = ${sqlString(catalogRelease.version)}
+    AND code_reference = ${sqlString(catalogRelease.sourceCommit)};
 
-  IF NOT FOUND AND NOT EXISTS (
-    SELECT 1 FROM public.plugins
-    WHERE key = ${sqlString(manifest.pluginKey)}
-      AND latest_version = ${sqlString(previousRelease.version)}
-      AND code_reference = ${sqlString(manifest.sourceCommit)}
-  ) THEN
+  IF NOT FOUND THEN
     RAISE EXCEPTION 'Plugin catalog moved since this signed integration was prepared';
   END IF;`;
 
@@ -520,11 +515,72 @@ COMMIT;
 `;
 }
 
-function buildMigrationTest(manifest, previousVersion) {
+function buildMigrationTest(manifest, catalogRelease) {
   const manifestHash = manifest.manifestDigest.slice("sha256:".length);
   const expectedCatalogVersion =
-    manifest.runtimeProfile === "embedded" ? manifest.version : previousVersion;
-  return `BEGIN;\n\nSELECT plan(8);\n\nSELECT is(\n  (SELECT status::text FROM public.plugin_versions WHERE plugin_key = ${sqlString(manifest.pluginKey)} AND version = ${sqlString(manifest.version)}),\n  'published',\n  'signed plugin release is published'\n);\n\nSELECT is(\n  (SELECT commit_sha FROM public.plugin_versions WHERE plugin_key = ${sqlString(manifest.pluginKey)} AND version = ${sqlString(manifest.version)}),\n  ${sqlString(manifest.sourceCommit)},\n  'signed source commit is recorded'\n);\n\nSELECT is(\n  (SELECT manifest_hash FROM public.plugin_versions WHERE plugin_key = ${sqlString(manifest.pluginKey)} AND version = ${sqlString(manifest.version)}),\n  ${sqlString(manifestHash)},\n  'signed manifest hash is recorded'\n);\n\nSELECT is(\n  (SELECT source_tree FROM public.plugin_versions WHERE plugin_key = ${sqlString(manifest.pluginKey)} AND version = ${sqlString(manifest.version)}),\n  ${sqlString(manifest.sourceTree)},\n  'signed source tree is recorded'\n);\n\nSELECT is(\n  (SELECT content_digest FROM public.plugin_versions WHERE plugin_key = ${sqlString(manifest.pluginKey)} AND version = ${sqlString(manifest.version)}),\n  ${sqlString(manifest.contentDigest)},\n  'signed content digest is recorded'\n);\n\nSELECT is(\n  (SELECT supported_install_contracts FROM public.plugin_versions WHERE plugin_key = ${sqlString(manifest.pluginKey)} AND version = ${sqlString(manifest.version)}),\n  ${sqlJson(manifest.supportedInstallContracts)},\n  'install compatibility range is recorded'\n);\n\nSELECT is(\n  (SELECT latest_version FROM public.plugins WHERE key = ${sqlString(manifest.pluginKey)}),\n  ${sqlString(expectedCatalogVersion)},\n  'plugin catalog keeps the serving embedded release truthful'\n);\n\nSELECT is(\n  (SELECT code_reference FROM public.plugins WHERE key = ${sqlString(manifest.pluginKey)}),\n  ${sqlString(manifest.sourceCommit)},\n  'plugin catalog points at the signed source commit'\n);\n\nSELECT * FROM finish();\nROLLBACK;\n`;
+    manifest.runtimeProfile === "embedded"
+      ? manifest.version
+      : catalogRelease.version;
+  const expectedCodeReference =
+    manifest.runtimeProfile === "embedded"
+      ? manifest.sourceCommit
+      : catalogRelease.sourceCommit;
+
+  return `BEGIN;
+
+SELECT plan(8);
+
+SELECT is(
+  (SELECT status::text FROM public.plugin_versions WHERE plugin_key = ${sqlString(manifest.pluginKey)} AND version = ${sqlString(manifest.version)}),
+  'published',
+  'signed plugin release is published'
+);
+
+SELECT is(
+  (SELECT commit_sha FROM public.plugin_versions WHERE plugin_key = ${sqlString(manifest.pluginKey)} AND version = ${sqlString(manifest.version)}),
+  ${sqlString(manifest.sourceCommit)},
+  'signed source commit is recorded'
+);
+
+SELECT is(
+  (SELECT manifest_hash FROM public.plugin_versions WHERE plugin_key = ${sqlString(manifest.pluginKey)} AND version = ${sqlString(manifest.version)}),
+  ${sqlString(manifestHash)},
+  'signed manifest hash is recorded'
+);
+
+SELECT is(
+  (SELECT source_tree FROM public.plugin_versions WHERE plugin_key = ${sqlString(manifest.pluginKey)} AND version = ${sqlString(manifest.version)}),
+  ${sqlString(manifest.sourceTree)},
+  'signed source tree is recorded'
+);
+
+SELECT is(
+  (SELECT content_digest FROM public.plugin_versions WHERE plugin_key = ${sqlString(manifest.pluginKey)} AND version = ${sqlString(manifest.version)}),
+  ${sqlString(manifest.contentDigest)},
+  'signed content digest is recorded'
+);
+
+SELECT is(
+  (SELECT supported_install_contracts FROM public.plugin_versions WHERE plugin_key = ${sqlString(manifest.pluginKey)} AND version = ${sqlString(manifest.version)}),
+  ${sqlJson(manifest.supportedInstallContracts)},
+  'install compatibility range is recorded'
+);
+
+SELECT is(
+  (SELECT latest_version FROM public.plugins WHERE key = ${sqlString(manifest.pluginKey)}),
+  ${sqlString(expectedCatalogVersion)},
+  'plugin catalog keeps the serving embedded release truthful'
+);
+
+SELECT is(
+  (SELECT code_reference FROM public.plugins WHERE key = ${sqlString(manifest.pluginKey)}),
+  ${sqlString(expectedCodeReference)},
+  'plugin catalog keeps the serving embedded source truthful'
+);
+
+SELECT * FROM finish();
+ROLLBACK;
+`;
 }
 
 export function integratePrivateRelease({
@@ -581,6 +637,12 @@ export function integratePrivateRelease({
   const previous = pluginReleases.sort((left, right) =>
     compareVersions(right.version, left.version),
   )[0];
+  const catalogRelease = pluginReleases
+    .filter((entry) => entry.runtimeProfile === "embedded")
+    .sort((left, right) => compareVersions(right.version, left.version))[0];
+  if (!catalogRelease) {
+    fail("plugin has no embedded catalog release");
+  }
   if (compareVersions(manifest.version, previous.version) <= 0) {
     fail(
       "signed release version must be newer than the published runtime release",
@@ -664,11 +726,11 @@ export function integratePrivateRelease({
   writeFileSync(registryPath, `${JSON.stringify(registry, null, 2)}\n`);
   writeFileSync(
     migrationPath,
-    buildMigration(manifest, releaseNotes, previous, attestationRef),
+    buildMigration(manifest, releaseNotes, catalogRelease, attestationRef),
   );
   writeFileSync(
     migrationTestPath,
-    buildMigrationTest(manifest, previous.version),
+    buildMigrationTest(manifest, catalogRelease),
   );
   git(privateRoot, ["checkout", "--detach", manifest.sourceCommit]);
 

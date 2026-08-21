@@ -278,3 +278,16 @@ test("proxy preserves cookies and returns a no-store retry on transient auth or 
   assert.match(source, /mfaState\.lookupError/u);
   assert.match(source, /return authRetryResponse\(\)/u);
 });
+
+test("authenticated downstream responses use the real auth finalizer", () => {
+  const source = readFileSync(`${process.cwd()}/lib/supabase/proxy.ts`, "utf8");
+
+  assert.match(
+    source,
+    /return finalizeResponse\(authenticatedPassThrough \?\? supabaseResponse\)/u,
+  );
+  assert.match(
+    source,
+    /const finalizeResponse = <T extends NextResponse>\(response: T\): T => \{[\s\S]*applyPendingAuthCookies\(response\)[\s\S]*pendingAuthHeaders\.forEach/u,
+  );
+});
