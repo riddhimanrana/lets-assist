@@ -169,11 +169,13 @@ jobs:
             --yes
             --json
             --token="${VERCEL_TOKEN}"
-            --scope="${{ steps.release.outputs.organization_id }}"
             --meta="pluginKey=${PLUGIN_KEY}"
             --meta="pluginVersion=${{ steps.release.outputs.version }}"
             --meta="releaseTag=${RELEASE_TAG}"
           )
+          # VERCEL_TOKEN is scoped to the child project. Scoped access tokens
+          # infer their project and must not be combined with --scope, which
+          # makes the CLI attempt a personal-user lookup before deployment.
           if [[ "${DEPLOYMENT_ENVIRONMENT}" == production ]]; then
             args+=(--prod)
           else
