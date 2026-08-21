@@ -55,17 +55,17 @@
   },
   {
     "pluginKey": "dvhs-csf",
-    "version": "1.2.0",
+    "version": "1.2.1",
     "manifestFile": "apps/csf/lib/manifest.ts",
-    "manifestHash": "3bbb852420cf02f2ac055b8f640e36c0e3d3c01f953382d10503d6a90b60e762",
-    "sourceCommit": "b1f4fa8e13856dc0c868b4bb952069d7507dfe6b",
+    "manifestHash": "3b510417bf5e8d8512cbe9f74a5cd3cd0faf894b9a1c8325001c2dbb7d2de3cb",
+    "sourceCommit": "37d0dbd414a64bf53076fe30450b38b1e90a4ec9",
     "automaticUpdate": false,
     "rolloutPercentage": 0,
     "runtimeProfile": "application",
-    "sourceTree": "688ce4a9deb04454dd43839569e3c3eb37f9294e",
-    "contentDigest": "sha256:f1e0703ed4216dfd30557ed321a408d8bc7b185dbbd7489b0d698630401ad00f",
+    "sourceTree": "afa6799615e1d0af2b14072fee26122c07ca37d6",
+    "contentDigest": "sha256:689a9c24c4d931c331a100911db2ce7fb20061102d2e3dd192c2185f40c91e0e",
     "releaseInputs": ["plugins/dvhs-csf", "apps/csf"],
-    "buildDigest": "sha256:a24450fc6d0e8421e872fb7302c3f298d0c0b9ac88e2aefca14d6702e2cd396d",
+    "buildDigest": "sha256:dee24c38f33f33de934eeb1815d2b07daeb78135fb4b4a13f3cf4855497de15b",
     "buildArtifact": {
       "name": "plugin-build.tar.gz",
       "format": "vercel-prebuilt-v1",
@@ -74,11 +74,11 @@
       "projectId": "prj_yFm448TGxkW5oNYCH7NMnddNVpWL",
       "organizationId": "team_CjhwP5Wl7iAhbDrSFJRFxJjE"
     },
-    "sbomDigest": "sha256:d73dda3df00af3ce3bbeefef06e48203905a1be1cc3027401496e42ab1ae3a32",
+    "sbomDigest": "sha256:f315149d63f3c3a279e1ae0986d45acade45b0a3b2622be16ad54913f3a0a00c",
     "signer": {
-      "identity": "https://github.com/riddhimanrana/lets-assist-plugins/.github/workflows/plugin-release.yml@refs/tags/dvhs-csf/v1.2.0",
+      "identity": "https://github.com/riddhimanrana/lets-assist-plugins/.github/workflows/plugin-release.yml@refs/tags/dvhs-csf/v1.2.1",
       "issuer": "https://token.actions.githubusercontent.com",
-      "attestationRef": "github-release:dvhs-csf/v1.2.0/release-manifest.sigstore.json"
+      "attestationRef": "github-release:dvhs-csf/v1.2.1/release-manifest.sigstore.json"
     },
     "hostApiRange": {
       "minimum": "1.0.0",
@@ -88,7 +88,7 @@
     "requiredPlatformSchemaVersion": "20260820130000",
     "supportedInstallContracts": {
       "minimum": "1.1.0",
-      "maximum": "1.2.0"
+      "maximum": "1.2.1"
     }
   }
 ]

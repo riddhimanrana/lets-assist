@@ -170,12 +170,23 @@ jobs:
           )
           if [[ "${DEPLOYMENT_ENVIRONMENT}" == production ]]; then
             args+=(--prod)
+          else
+            args+=(--target=preview)
           fi
           bunx vercel@59.3.0 "${args[@]}" > .artifacts/plugin-deployment.json
-          deployment_url="$(jq -r .url .artifacts/plugin-deployment.json)"
-          deployment_id="$(jq -r .id .artifacts/plugin-deployment.json)"
+          deployment_url="$(jq -r '.deployment.url // .url' .artifacts/plugin-deployment.json)"
+          deployment_id="$(jq -r '.deployment.id // .id' .artifacts/plugin-deployment.json)"
+          deployment_target="$(jq -r '.deployment.target // .target' .artifacts/plugin-deployment.json)"
           test -n "${deployment_url}" && test "${deployment_url}" != null
           test -n "${deployment_id}" && test "${deployment_id}" != null
+          expected_target=preview
+          if [[ "${DEPLOYMENT_ENVIRONMENT}" == production ]]; then
+            expected_target=production
+          fi
+          if [[ "${deployment_target}" != "${expected_target}" ]]; then
+            echo "Vercel created a ${deployment_target} deployment for the ${DEPLOYMENT_ENVIRONMENT} release." >&2
+            exit 1
+          fi
           echo "url=${deployment_url}" >> "${GITHUB_OUTPUT}"
           echo "id=${deployment_id}" >> "${GITHUB_OUTPUT}"
 

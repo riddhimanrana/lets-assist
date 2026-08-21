@@ -57,21 +57,23 @@ This register separates actionable repository defects from provider/account and 
   CI attempt found its selected port occupied before migrations ran.
 - `PLUGIN-FOUND-008` is repository-closed on this candidate. The signed root
   release integrator accepts an application-profile release, the code-owned
-  registry publishes CSF `1.2.0` while retaining embedded `1.1.0` as its
+  registry publishes CSF `1.2.1` while retaining embedded `1.1.0` as its
   fallback, and host startup accepts that profile transition. The private
-  source commit `b1f4fa8e` is tagged `dvhs-csf/v1.2.0`; its signed release,
+  source commit `37d0dbd4` is tagged `dvhs-csf/v1.2.1`; its signed release,
   checksums, Sigstore bundle, and SBOM verified before the root publication
-  migration and focused 8/8 pgTAP contract were generated. Hosted deployment,
-  activation, and routing evidence remain tracked by `PLUGIN-FOUND-009`.
+  migration and pgTAP contract were generated. The release archive also carries
+  every traced Vercel function input and passes the host archive validator.
+  Hosted deployment, activation, and routing evidence remain tracked by
+  `PLUGIN-FOUND-009`.
 - `PLUGIN-FOUND-009` remains active. The application manifest path prefix and
   required direct-access protection are contracts, not active routing. A
   Development Vercel microfrontend group, a per-request rollout flag, direct
   child-domain protection, deployment observation, and accepted health evidence
   must exist before any CSF route is claimed or an install is activated.
-- The repository checks above are local evidence. The private signed release is
-  published, and the root integration is under review in PR #236 with a
-  branch-scoped Supabase Preview and Vercel Preview. Persistent hosted
-  Development activation remains pending. Production remains untouched.
+- The repository checks above are local evidence. Private release `1.2.1` is
+  signed and published. Its root integration, exact hosted Development deploy,
+  direct-domain protection, and activation remain pending. Production remains
+  untouched.
 
 ## Production release candidate — 2026-08-18
 
