@@ -70,16 +70,22 @@ This register separates actionable repository defects from provider/account and 
   `dpl_C4CzkCdNu2ZjKJVnWJCqkhXbdcPp`, and the Development control plane records
   its exact digest and release tag with healthy status. Vercel Authentication
   protects direct child-domain access. The application manifest path prefix is
-  still a contract rather than active host routing. A Development
-  microfrontend group, per-request rollout flag, and hosted browser acceptance
-  must exist before any CSF route is claimed or an install is activated.
+  still a contract rather than active host routing. Vercel group
+  `mfe_W64mCurqcnCgOvWojPr0FoRQUluS` now contains only `lets-assist` and
+  `lets-assist-csf`, with the host as its default app and the reviewed
+  access-proof path as the child's default route. Its committed config remains
+  inactive until the next deployments. Vercel charges no project fee for these
+  first two projects but disclosed a $2 per million routed-request fee, so the
+  rollout flag and routed acceptance remain blocked on explicit cost approval.
+  Hosted browser acceptance must pass before any install is activated.
 - Private release `1.2.1` is signed and published. Root PR #238 merged it into
   `development` at `411421a9bf9ea3f1aa251abda3f7664f054d48ea`, and hosted
   Development is migration-current at 342 rows through `20260821044815` with
   the application release still at zero rollout. The exact hosted Development
-  child deployment is Ready and healthy behind Vercel Authentication. Routing,
-  activation, and hosted browser acceptance remain pending. Production remains
-  untouched.
+  child deployment is Ready and healthy behind Vercel Authentication. The
+  two-project microfrontend group exists, but its committed config, paid routed
+  traffic, activation, and hosted browser acceptance remain pending. Production
+  remains untouched.
 
 ## Production release candidate — 2026-08-18
 

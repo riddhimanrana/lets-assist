@@ -96,7 +96,10 @@ their named runs only.
   project as deployment `dpl_C4CzkCdNu2ZjKJVnWJCqkhXbdcPp`; the control plane
   records its exact digest and release tag as healthy, and Vercel
   Authentication protects direct access. Microfrontend routing and hosted
-  browser acceptance remain gates before activation.
+  browser acceptance remain gates before activation. The two-project group
+  `mfe_W64mCurqcnCgOvWojPr0FoRQUluS` exists, but its committed config needs the
+  next deployments and its $2 per million routed-request fee needs explicit
+  approval before the rollout flag or routed acceptance is enabled.
 - Production remains untouched at the audited 236-row baseline through
   `20260811001500`; the exact read-only preflight now expects a 106-migration
   cutover to this 342-row candidate. Running that cutover requires
