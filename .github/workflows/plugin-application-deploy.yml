@@ -191,10 +191,10 @@ jobs:
           if [[ "${DEPLOYMENT_ENVIRONMENT}" == production ]]; then
             args+=(--prod)
           else
-            # The host's development branch runs in Vercel's Development
-            # environment. Keep the child in that same environment so the
-            # microfrontend group's Same Environment fallback can resolve it.
-            args+=(--target=development)
+            # The host's development branch and the child both run as Vercel
+            # Preview deployments. The child project has no custom environments,
+            # so omitting --prod and --target selects the supported Preview lane.
+            :
           fi
           bunx vercel@59.3.0 "${args[@]}" > .artifacts/plugin-deployment.json
           deployment_url="$(jq -r '.deployment.url // .url' .artifacts/plugin-deployment.json)"
@@ -207,9 +207,8 @@ jobs:
             if [[ "${deployment_target}" == production ]]; then
               target_is_valid=true
             fi
-          elif [[ "${deployment_target}" == development || "${deployment_target}" == null ]]; then
-            # Vercel's JSON response may omit the named custom target even
-            # though the deploy command pinned it to Development above.
+          elif [[ "${deployment_target}" == preview || "${deployment_target}" == null ]]; then
+            # Vercel reports Preview as either "preview" or an omitted target.
             target_is_valid=true
           fi
           if [[ "${target_is_valid}" != true ]]; then
