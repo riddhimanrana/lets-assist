@@ -95,7 +95,7 @@ export function adoptionFromPublishedRelease(
 }
 
 function adoptionFromRelease(pluginKey: string): EmbeddedPluginAdoption {
-  const release = getPublishedPluginRelease(pluginKey);
+  const release = getPublishedPluginRelease(pluginKey, "embedded");
   if (!release) {
     throw new Error(
       `Plugin "${pluginKey}" declares an SDK adoption but has no published release.`,

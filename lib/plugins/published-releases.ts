@@ -1,9 +1,11 @@
 import type {
   PluginHostApiRange,
+  PluginBuildArtifact,
   PluginReleaseInputs,
   PluginReleaseSigner,
 } from "./sdk/v1/release";
 import {
+  comparePluginVersions,
   isInstallContractRangeSane,
   isPluginVersionString,
   type PluginInstallContractRange,
@@ -28,6 +30,7 @@ export type PublishedPluginRelease = {
   contentDigest: string | null;
   releaseInputs: PluginReleaseInputs | null;
   buildDigest: string | null;
+  buildArtifact: PluginBuildArtifact | null;
   sbomDigest: string | null;
   signer: PluginReleaseSigner | null;
   hostApiRange: PluginHostApiRange;
@@ -36,12 +39,14 @@ export type PublishedPluginRelease = {
   supportedInstallContracts: PluginInstallContractRange;
 };
 
-function assertPublishedPluginReleases(
+export function assertPublishedPluginReleases(
   value: unknown,
 ): asserts value is PublishedPluginRelease[] {
   if (!Array.isArray(value)) {
     throw new Error("Published plugin release data must be an array.");
   }
+  const profileKeys = new Set<string>();
+  const versionKeys = new Set<string>();
   for (const release of value) {
     if (
       !release ||
@@ -63,6 +68,17 @@ function assertPublishedPluginReleases(
             (input: unknown) => typeof input !== "string" || input.length === 0,
           ))) ||
       (release.buildDigest !== null && !isContentDigest(release.buildDigest)) ||
+      (release.buildArtifact !== null &&
+        (release.buildArtifact?.name !== "plugin-build.tar.gz" ||
+          release.buildArtifact?.format !== "vercel-prebuilt-v1" ||
+          typeof release.buildArtifact?.root !== "string" ||
+          release.buildArtifact.root.length === 0 ||
+          typeof release.buildArtifact?.projectName !== "string" ||
+          release.buildArtifact.projectName.length === 0 ||
+          !/^prj_[A-Za-z0-9]+$/u.test(release.buildArtifact?.projectId) ||
+          !/^team_[A-Za-z0-9]+$/u.test(
+            release.buildArtifact?.organizationId,
+          ))) ||
       (release.sbomDigest !== null && !isContentDigest(release.sbomDigest)) ||
       (release.signer !== null &&
         (typeof release.signer?.identity !== "string" ||
@@ -77,6 +93,32 @@ function assertPublishedPluginReleases(
     ) {
       throw new Error("Published plugin release data failed validation.");
     }
+
+    if (
+      release.runtimeProfile === "application" &&
+      (release.buildDigest === null || release.buildArtifact === null)
+    ) {
+      throw new Error(
+        "Published application releases require a verified build artifact.",
+      );
+    }
+
+    if (
+      release.runtimeProfile === "embedded" &&
+      (release.buildDigest !== null || release.buildArtifact !== null)
+    ) {
+      throw new Error(
+        "Published embedded releases cannot claim an independent build artifact.",
+      );
+    }
+
+    const profileKey = `${release.pluginKey}:${release.runtimeProfile}`;
+    const versionKey = `${release.pluginKey}:${release.version}`;
+    if (profileKeys.has(profileKey) || versionKeys.has(versionKey)) {
+      throw new Error("Published plugin release identities must be unique.");
+    }
+    profileKeys.add(profileKey);
+    versionKeys.add(versionKey);
   }
 }
 
@@ -91,8 +133,15 @@ export const publishedPluginReleases: PublishedPluginRelease[] = releaseData;
 
 export function getPublishedPluginRelease(
   pluginKey: string,
+  runtimeProfile: PluginRuntimeProfile,
 ): PublishedPluginRelease | undefined {
-  return publishedPluginReleases.find(
-    (release) => release.pluginKey === pluginKey,
-  );
+  return publishedPluginReleases
+    .filter(
+      (release) =>
+        release.pluginKey === pluginKey &&
+        release.runtimeProfile === runtimeProfile,
+    )
+    .sort((left, right) =>
+      comparePluginVersions(right.version, left.version),
+    )[0];
 }

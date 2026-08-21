@@ -14,6 +14,7 @@ const SHA256 = /^sha256:[a-f0-9]{64}$/u;
 const MIGRATION_VERSION = /^\d{14}$/u;
 const RELEASE_KEYS = [
   "buildDigest",
+  "buildArtifact",
   "changelogDigest",
   "changelogPath",
   "contentDigest",
@@ -126,7 +127,8 @@ function listReleaseFiles(privateRoot, manifest) {
 
 function validateManifestShape(manifest) {
   assertExactKeys(manifest, RELEASE_KEYS, "release manifest");
-  if (manifest.schemaVersion !== 1) fail("unsupported release schema version");
+  if (![1, 2].includes(manifest.schemaVersion))
+    fail("unsupported release schema version");
   if (!PLUGIN_KEY.test(manifest.pluginKey)) fail("invalid plugin key");
   if (!SEMVER.test(manifest.version)) fail("invalid plugin version");
   if (manifest.tag !== `${manifest.pluginKey}/v${manifest.version}`) {
@@ -146,13 +148,31 @@ function validateManifestShape(manifest) {
   ]) {
     if (!SHA256.test(value)) fail(`${label} must be a SHA-256 digest`);
   }
-  if (manifest.runtimeProfile !== "embedded") {
-    fail(
-      "automatic root integration supports embedded releases only until independent build artifacts are downloaded and verified",
-    );
-  }
-  if (manifest.buildDigest !== null) {
-    fail("an embedded release cannot claim an independent build digest");
+  if (!["embedded", "application", "service"].includes(manifest.runtimeProfile))
+    fail("unsupported runtime profile");
+  if (manifest.runtimeProfile === "service")
+    fail("automatic root integration does not support service releases yet");
+  if (
+    manifest.runtimeProfile === "embedded" &&
+    (manifest.buildDigest !== null || manifest.buildArtifact !== null)
+  )
+    fail("an embedded release cannot claim an independent build artifact");
+  if (manifest.runtimeProfile === "application") {
+    const artifact = manifest.buildArtifact;
+    if (
+      manifest.schemaVersion !== 2 ||
+      !SHA256.test(manifest.buildDigest) ||
+      !artifact ||
+      Object.keys(artifact).sort().join(",") !==
+        "format,name,organizationId,projectId,projectName,root" ||
+      artifact.name !== "plugin-build.tar.gz" ||
+      artifact.format !== "vercel-prebuilt-v1" ||
+      !PLUGIN_KEY.test(artifact.projectName) ||
+      !/^prj_[A-Za-z0-9]+$/u.test(artifact.projectId) ||
+      !/^team_[A-Za-z0-9]+$/u.test(artifact.organizationId)
+    )
+      fail("invalid application build artifact contract");
+    assertRelativePath(artifact.root, "application build root");
   }
   if (
     !Array.isArray(manifest.releaseInputs) ||
@@ -182,9 +202,20 @@ function validateManifestShape(manifest) {
     ["changelog path", manifest.changelogPath],
   ]) {
     assertRelativePath(value, label);
-    if (!value.startsWith(`${pluginRoot}/`))
-      fail(`${label} must belong to the plugin`);
   }
+  if (!manifest.changelogPath.startsWith(`${pluginRoot}/`))
+    fail("changelog path must belong to the plugin");
+  if (
+    manifest.runtimeProfile === "embedded" &&
+    !manifest.manifestPath.startsWith(`${pluginRoot}/`)
+  )
+    fail("embedded manifest path must belong to the plugin");
+  if (
+    manifest.runtimeProfile === "application" &&
+    (!manifest.releaseInputs.includes(manifest.buildArtifact.root) ||
+      !manifest.manifestPath.startsWith(`${manifest.buildArtifact.root}/`))
+  )
+    fail("application release inputs do not cover the build root and manifest");
   if (
     !manifest.hostApiRange ||
     !SEMVER.test(manifest.hostApiRange.minimum) ||
@@ -222,7 +253,7 @@ function validateManifestShape(manifest) {
   }
 }
 
-function verifyReleaseBytes(privateRoot, manifest, sbomPath) {
+function verifyReleaseBytes(privateRoot, manifest, sbomPath, buildPath) {
   const sourceTree = git(privateRoot, [
     "rev-parse",
     `${manifest.sourceCommit}:plugins/${manifest.pluginKey}`,
@@ -271,6 +302,14 @@ function verifyReleaseBytes(privateRoot, manifest, sbomPath) {
   if (sha256(readFileSync(sbomPath)) !== manifest.sbomDigest) {
     fail("SBOM bytes do not match the signed digest");
   }
+  if (manifest.runtimeProfile === "application") {
+    if (!buildPath || !existsSync(buildPath))
+      fail("application build artifact is missing");
+    if (sha256(readFileSync(buildPath)) !== manifest.buildDigest)
+      fail("application build artifact does not match the signed digest");
+  } else if (buildPath) {
+    fail("embedded release supplied an unexpected build artifact");
+  }
   const manifestSource = git(
     privateRoot,
     ["show", `${manifest.sourceCommit}:${manifest.manifestPath}`],
@@ -279,6 +318,25 @@ function verifyReleaseBytes(privateRoot, manifest, sbomPath) {
   const versions = [...manifestSource.matchAll(/^\s*version:\s*"([^"]+)"/gmu)];
   if (versions.length !== 1 || versions[0][1] !== manifest.version) {
     fail("runtime manifest version does not match the release version");
+  }
+}
+
+function verifyApplicationDeploymentTarget(applicationTargetsPath, manifest) {
+  if (manifest.runtimeProfile !== "application") return;
+  if (!applicationTargetsPath || !existsSync(applicationTargetsPath)) {
+    fail("application deployment target registry is required");
+  }
+
+  const targets = JSON.parse(readFileSync(applicationTargetsPath, "utf8"));
+  const target = targets?.[manifest.pluginKey];
+  if (
+    !target ||
+    target.projectName !== manifest.buildArtifact.projectName ||
+    target.projectId !== manifest.buildArtifact.projectId ||
+    target.organizationId !== manifest.buildArtifact.organizationId ||
+    target.routingApplication !== manifest.buildArtifact.projectName
+  ) {
+    fail("signed application build target is not approved by the host");
   }
 }
 
@@ -348,7 +406,7 @@ export function nextMigrationVersion(migrationsDir, now = new Date()) {
 function buildMigration(
   manifest,
   releaseNotes,
-  previousVersion,
+  catalogRelease,
   attestationRef,
 ) {
   const manifestHash = manifest.manifestDigest.slice("sha256:".length);
@@ -358,22 +416,183 @@ function buildMigration(
     attestationRef,
   };
   const compatibility = { host: "lets-assist", automaticUpdate: false };
-  return `-- Publish a signed private plugin release without changing organization installs.\n\nBEGIN;\n\nDO $$\nDECLARE\n  v_existing public.plugin_versions%ROWTYPE;\nBEGIN\n  SELECT * INTO v_existing\n  FROM public.plugin_versions\n  WHERE plugin_key = ${sqlString(manifest.pluginKey)}\n    AND version = ${sqlString(manifest.version)};\n\n  IF FOUND THEN\n    IF v_existing.status IS DISTINCT FROM 'published'\n      OR v_existing.commit_sha IS DISTINCT FROM ${sqlString(manifest.sourceCommit)}\n      OR v_existing.manifest_hash IS DISTINCT FROM ${sqlString(manifestHash)}\n      OR v_existing.source_tree IS DISTINCT FROM ${sqlString(manifest.sourceTree)}\n      OR v_existing.content_digest IS DISTINCT FROM ${sqlString(manifest.contentDigest)}\n      OR v_existing.release_inputs IS DISTINCT FROM ${sqlJson(manifest.releaseInputs)}\n      OR v_existing.build_digest IS DISTINCT FROM ${manifest.buildDigest === null ? "NULL" : sqlString(manifest.buildDigest)}\n      OR v_existing.sbom_digest IS DISTINCT FROM ${sqlString(manifest.sbomDigest)}\n      OR v_existing.signer_identity IS DISTINCT FROM ${sqlJson(signer)}\n      OR v_existing.host_api_range IS DISTINCT FROM ${sqlJson(manifest.hostApiRange)}\n      OR v_existing.plugin_data_schema_version IS DISTINCT FROM ${manifest.pluginDataSchemaVersion}\n      OR v_existing.required_platform_schema_version IS DISTINCT FROM ${sqlString(manifest.requiredPlatformSchemaVersion)}\n      OR v_existing.supported_install_contracts IS DISTINCT FROM ${sqlJson(manifest.supportedInstallContracts)}\n      OR v_existing.runtime_profile IS DISTINCT FROM ${sqlString(manifest.runtimeProfile)}\n      OR v_existing.rollout_percentage IS DISTINCT FROM 0\n    THEN\n      RAISE EXCEPTION 'Existing plugin release conflicts with the signed release identity';\n    END IF;\n  ELSE\n    INSERT INTO public.plugin_versions (\n      plugin_key, version, status, changelog, commit_sha, manifest_hash,\n      compatibility_contract, rollout_percentage, source_tree, content_digest,\n      release_inputs, build_digest, sbom_digest, signer_identity, host_api_range,\n      plugin_data_schema_version, required_platform_schema_version,\n      supported_install_contracts, runtime_profile, published_at\n    ) VALUES (\n      ${sqlString(manifest.pluginKey)},\n      ${sqlString(manifest.version)},\n      'published',\n      ${sqlString(releaseNotes)},\n      ${sqlString(manifest.sourceCommit)},\n      ${sqlString(manifestHash)},\n      ${sqlJson(compatibility)},\n      0,\n      ${sqlString(manifest.sourceTree)},\n      ${sqlString(manifest.contentDigest)},\n      ${sqlJson(manifest.releaseInputs)},\n      ${manifest.buildDigest === null ? "NULL" : sqlString(manifest.buildDigest)},\n      ${sqlString(manifest.sbomDigest)},\n      ${sqlJson(signer)},\n      ${sqlJson(manifest.hostApiRange)},\n      ${manifest.pluginDataSchemaVersion},\n      ${sqlString(manifest.requiredPlatformSchemaVersion)},\n      ${sqlJson(manifest.supportedInstallContracts)},\n      ${sqlString(manifest.runtimeProfile)},\n      now()\n    );\n  END IF;\n\n  UPDATE public.plugins\n  SET latest_version = ${sqlString(manifest.version)},\n      code_reference = ${sqlString(manifest.sourceCommit)},\n      updated_at = now()\n  WHERE key = ${sqlString(manifest.pluginKey)}\n    AND latest_version = ${sqlString(previousVersion)};\n\n  IF NOT FOUND AND NOT EXISTS (\n    SELECT 1 FROM public.plugins\n    WHERE key = ${sqlString(manifest.pluginKey)}\n      AND latest_version = ${sqlString(manifest.version)}\n      AND code_reference = ${sqlString(manifest.sourceCommit)}\n  ) THEN\n    RAISE EXCEPTION 'Plugin catalog moved since this signed integration was prepared';\n  END IF;\nEND;\n$$;\n\nCOMMIT;\n`;
+  const catalogUpdate =
+    manifest.runtimeProfile === "embedded"
+      ? `UPDATE public.plugins
+  SET latest_version = ${sqlString(manifest.version)},
+      code_reference = ${sqlString(manifest.sourceCommit)},
+      updated_at = now()
+  WHERE key = ${sqlString(manifest.pluginKey)}
+    AND latest_version = ${sqlString(catalogRelease.version)}
+    AND code_reference = ${sqlString(catalogRelease.sourceCommit)};
+
+  IF NOT FOUND AND NOT EXISTS (
+    SELECT 1 FROM public.plugins
+    WHERE key = ${sqlString(manifest.pluginKey)}
+      AND latest_version = ${sqlString(manifest.version)}
+      AND code_reference = ${sqlString(manifest.sourceCommit)}
+  ) THEN
+    RAISE EXCEPTION 'Plugin catalog moved since this signed integration was prepared';
+  END IF;`
+      : `PERFORM 1
+  FROM public.plugins
+  WHERE key = ${sqlString(manifest.pluginKey)}
+    AND latest_version = ${sqlString(catalogRelease.version)}
+    AND code_reference = ${sqlString(catalogRelease.sourceCommit)};
+
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'Plugin catalog moved since this signed integration was prepared';
+  END IF;`;
+
+  return `-- Publish a signed private plugin release without changing organization installs.
+
+BEGIN;
+
+DO $$
+DECLARE
+  v_existing public.plugin_versions%ROWTYPE;
+BEGIN
+  SELECT * INTO v_existing
+  FROM public.plugin_versions
+  WHERE plugin_key = ${sqlString(manifest.pluginKey)}
+    AND version = ${sqlString(manifest.version)};
+
+  IF FOUND THEN
+    IF v_existing.status IS DISTINCT FROM 'published'
+      OR v_existing.commit_sha IS DISTINCT FROM ${sqlString(manifest.sourceCommit)}
+      OR v_existing.manifest_hash IS DISTINCT FROM ${sqlString(manifestHash)}
+      OR v_existing.source_tree IS DISTINCT FROM ${sqlString(manifest.sourceTree)}
+      OR v_existing.content_digest IS DISTINCT FROM ${sqlString(manifest.contentDigest)}
+      OR v_existing.release_inputs IS DISTINCT FROM ${sqlJson(manifest.releaseInputs)}
+      OR v_existing.build_digest IS DISTINCT FROM ${manifest.buildDigest === null ? "NULL" : sqlString(manifest.buildDigest)}
+      OR v_existing.sbom_digest IS DISTINCT FROM ${sqlString(manifest.sbomDigest)}
+      OR v_existing.signer_identity IS DISTINCT FROM ${sqlJson(signer)}
+      OR v_existing.host_api_range IS DISTINCT FROM ${sqlJson(manifest.hostApiRange)}
+      OR v_existing.plugin_data_schema_version IS DISTINCT FROM ${manifest.pluginDataSchemaVersion}
+      OR v_existing.required_platform_schema_version IS DISTINCT FROM ${sqlString(manifest.requiredPlatformSchemaVersion)}
+      OR v_existing.supported_install_contracts IS DISTINCT FROM ${sqlJson(manifest.supportedInstallContracts)}
+      OR v_existing.runtime_profile IS DISTINCT FROM ${sqlString(manifest.runtimeProfile)}
+      OR v_existing.rollout_percentage IS DISTINCT FROM 0
+    THEN
+      RAISE EXCEPTION 'Existing plugin release conflicts with the signed release identity';
+    END IF;
+  ELSE
+    INSERT INTO public.plugin_versions (
+      plugin_key, version, status, changelog, commit_sha, manifest_hash,
+      compatibility_contract, rollout_percentage, source_tree, content_digest,
+      release_inputs, build_digest, sbom_digest, signer_identity, host_api_range,
+      plugin_data_schema_version, required_platform_schema_version,
+      supported_install_contracts, runtime_profile, published_at
+    ) VALUES (
+      ${sqlString(manifest.pluginKey)},
+      ${sqlString(manifest.version)},
+      'published',
+      ${sqlString(releaseNotes)},
+      ${sqlString(manifest.sourceCommit)},
+      ${sqlString(manifestHash)},
+      ${sqlJson(compatibility)},
+      0,
+      ${sqlString(manifest.sourceTree)},
+      ${sqlString(manifest.contentDigest)},
+      ${sqlJson(manifest.releaseInputs)},
+      ${manifest.buildDigest === null ? "NULL" : sqlString(manifest.buildDigest)},
+      ${sqlString(manifest.sbomDigest)},
+      ${sqlJson(signer)},
+      ${sqlJson(manifest.hostApiRange)},
+      ${manifest.pluginDataSchemaVersion},
+      ${sqlString(manifest.requiredPlatformSchemaVersion)},
+      ${sqlJson(manifest.supportedInstallContracts)},
+      ${sqlString(manifest.runtimeProfile)},
+      now()
+    );
+  END IF;
+
+  ${catalogUpdate}
+END;
+$$;
+
+COMMIT;
+`;
 }
 
-function buildMigrationTest(manifest) {
+function buildMigrationTest(manifest, catalogRelease) {
   const manifestHash = manifest.manifestDigest.slice("sha256:".length);
-  return `BEGIN;\n\nSELECT plan(8);\n\nSELECT is(\n  (SELECT status::text FROM public.plugin_versions WHERE plugin_key = ${sqlString(manifest.pluginKey)} AND version = ${sqlString(manifest.version)}),\n  'published',\n  'signed plugin release is published'\n);\n\nSELECT is(\n  (SELECT commit_sha FROM public.plugin_versions WHERE plugin_key = ${sqlString(manifest.pluginKey)} AND version = ${sqlString(manifest.version)}),\n  ${sqlString(manifest.sourceCommit)},\n  'signed source commit is recorded'\n);\n\nSELECT is(\n  (SELECT manifest_hash FROM public.plugin_versions WHERE plugin_key = ${sqlString(manifest.pluginKey)} AND version = ${sqlString(manifest.version)}),\n  ${sqlString(manifestHash)},\n  'signed manifest hash is recorded'\n);\n\nSELECT is(\n  (SELECT source_tree FROM public.plugin_versions WHERE plugin_key = ${sqlString(manifest.pluginKey)} AND version = ${sqlString(manifest.version)}),\n  ${sqlString(manifest.sourceTree)},\n  'signed source tree is recorded'\n);\n\nSELECT is(\n  (SELECT content_digest FROM public.plugin_versions WHERE plugin_key = ${sqlString(manifest.pluginKey)} AND version = ${sqlString(manifest.version)}),\n  ${sqlString(manifest.contentDigest)},\n  'signed content digest is recorded'\n);\n\nSELECT is(\n  (SELECT supported_install_contracts FROM public.plugin_versions WHERE plugin_key = ${sqlString(manifest.pluginKey)} AND version = ${sqlString(manifest.version)}),\n  ${sqlJson(manifest.supportedInstallContracts)},\n  'install compatibility range is recorded'\n);\n\nSELECT is(\n  (SELECT latest_version FROM public.plugins WHERE key = ${sqlString(manifest.pluginKey)}),\n  ${sqlString(manifest.version)},\n  'plugin catalog points at the signed release'\n);\n\nSELECT is(\n  (SELECT code_reference FROM public.plugins WHERE key = ${sqlString(manifest.pluginKey)}),\n  ${sqlString(manifest.sourceCommit)},\n  'plugin catalog points at the signed source commit'\n);\n\nSELECT * FROM finish();\nROLLBACK;\n`;
+  const expectedCatalogVersion =
+    manifest.runtimeProfile === "embedded"
+      ? manifest.version
+      : catalogRelease.version;
+  const expectedCodeReference =
+    manifest.runtimeProfile === "embedded"
+      ? manifest.sourceCommit
+      : catalogRelease.sourceCommit;
+
+  return `BEGIN;
+
+SELECT plan(8);
+
+SELECT is(
+  (SELECT status::text FROM public.plugin_versions WHERE plugin_key = ${sqlString(manifest.pluginKey)} AND version = ${sqlString(manifest.version)}),
+  'published',
+  'signed plugin release is published'
+);
+
+SELECT is(
+  (SELECT commit_sha FROM public.plugin_versions WHERE plugin_key = ${sqlString(manifest.pluginKey)} AND version = ${sqlString(manifest.version)}),
+  ${sqlString(manifest.sourceCommit)},
+  'signed source commit is recorded'
+);
+
+SELECT is(
+  (SELECT manifest_hash FROM public.plugin_versions WHERE plugin_key = ${sqlString(manifest.pluginKey)} AND version = ${sqlString(manifest.version)}),
+  ${sqlString(manifestHash)},
+  'signed manifest hash is recorded'
+);
+
+SELECT is(
+  (SELECT source_tree FROM public.plugin_versions WHERE plugin_key = ${sqlString(manifest.pluginKey)} AND version = ${sqlString(manifest.version)}),
+  ${sqlString(manifest.sourceTree)},
+  'signed source tree is recorded'
+);
+
+SELECT is(
+  (SELECT content_digest FROM public.plugin_versions WHERE plugin_key = ${sqlString(manifest.pluginKey)} AND version = ${sqlString(manifest.version)}),
+  ${sqlString(manifest.contentDigest)},
+  'signed content digest is recorded'
+);
+
+SELECT is(
+  (SELECT supported_install_contracts FROM public.plugin_versions WHERE plugin_key = ${sqlString(manifest.pluginKey)} AND version = ${sqlString(manifest.version)}),
+  ${sqlJson(manifest.supportedInstallContracts)},
+  'install compatibility range is recorded'
+);
+
+SELECT is(
+  (SELECT latest_version FROM public.plugins WHERE key = ${sqlString(manifest.pluginKey)}),
+  ${sqlString(expectedCatalogVersion)},
+  'plugin catalog keeps the serving embedded release truthful'
+);
+
+SELECT is(
+  (SELECT code_reference FROM public.plugins WHERE key = ${sqlString(manifest.pluginKey)}),
+  ${sqlString(expectedCodeReference)},
+  'plugin catalog keeps the serving embedded source truthful'
+);
+
+SELECT * FROM finish();
+ROLLBACK;
+`;
 }
 
 export function integratePrivateRelease({
   manifestPath,
   sbomPath,
+  buildPath,
   privateRoot,
   registryPath,
   migrationsDir,
   migrationVersion,
   attestationRef,
+  applicationTargetsPath,
 }) {
   const resolvedMigrationVersion =
     migrationVersion === "auto"
@@ -392,7 +611,8 @@ export function integratePrivateRelease({
   }
   const manifest = JSON.parse(readFileSync(manifestPath, "utf8"));
   validateManifestShape(manifest);
-  verifyReleaseBytes(privateRoot, manifest, sbomPath);
+  verifyApplicationDeploymentTarget(applicationTargetsPath, manifest);
+  verifyReleaseBytes(privateRoot, manifest, sbomPath, buildPath);
   if (
     !readdirSync(migrationsDir).some((file) =>
       file.startsWith(`${manifest.requiredPlatformSchemaVersion}_`),
@@ -406,12 +626,23 @@ export function integratePrivateRelease({
   const registry = JSON.parse(readFileSync(registryPath, "utf8"));
   if (!Array.isArray(registry))
     fail("published release registry must be an array");
-  const index = registry.findIndex(
+  const pluginReleases = registry.filter(
     (entry) => entry.pluginKey === manifest.pluginKey,
   );
-  if (index < 0)
+  if (pluginReleases.length === 0)
     fail("release plugin is absent from the root runtime registry");
-  const previous = registry[index];
+  // One plugin owns one stable SemVer line across delivery profiles. A profile
+  // describes how a release runs, not a separate product version namespace.
+  // This also gives source ancestry and install contracts one ordered history.
+  const previous = pluginReleases.sort((left, right) =>
+    compareVersions(right.version, left.version),
+  )[0];
+  const catalogRelease = pluginReleases
+    .filter((entry) => entry.runtimeProfile === "embedded")
+    .sort((left, right) => compareVersions(right.version, left.version))[0];
+  if (!catalogRelease) {
+    fail("plugin has no embedded catalog release");
+  }
   if (compareVersions(manifest.version, previous.version) <= 0) {
     fail(
       "signed release version must be newer than the published runtime release",
@@ -441,7 +672,7 @@ export function integratePrivateRelease({
   }
 
   const releaseNotes = extractReleaseNotes(privateRoot, manifest);
-  registry[index] = {
+  const nextRelease = {
     pluginKey: manifest.pluginKey,
     version: manifest.version,
     manifestFile: manifest.manifestPath,
@@ -454,6 +685,7 @@ export function integratePrivateRelease({
     contentDigest: manifest.contentDigest,
     releaseInputs: manifest.releaseInputs,
     buildDigest: manifest.buildDigest,
+    buildArtifact: manifest.buildArtifact,
     sbomDigest: manifest.sbomDigest,
     signer: {
       identity: manifest.signerIdentity.subject,
@@ -465,7 +697,18 @@ export function integratePrivateRelease({
     requiredPlatformSchemaVersion: manifest.requiredPlatformSchemaVersion,
     supportedInstallContracts: manifest.supportedInstallContracts,
   };
-  registry.sort((left, right) => left.pluginKey.localeCompare(right.pluginKey));
+  const profileIndex = registry.findIndex(
+    (entry) =>
+      entry.pluginKey === manifest.pluginKey &&
+      entry.runtimeProfile === manifest.runtimeProfile,
+  );
+  if (profileIndex >= 0) registry[profileIndex] = nextRelease;
+  else registry.push(nextRelease);
+  registry.sort(
+    (left, right) =>
+      left.pluginKey.localeCompare(right.pluginKey) ||
+      compareVersions(left.version, right.version),
+  );
 
   const migrationPath = join(
     migrationsDir,
@@ -483,9 +726,12 @@ export function integratePrivateRelease({
   writeFileSync(registryPath, `${JSON.stringify(registry, null, 2)}\n`);
   writeFileSync(
     migrationPath,
-    buildMigration(manifest, releaseNotes, previous.version, attestationRef),
+    buildMigration(manifest, releaseNotes, catalogRelease, attestationRef),
   );
-  writeFileSync(migrationTestPath, buildMigrationTest(manifest));
+  writeFileSync(
+    migrationTestPath,
+    buildMigrationTest(manifest, catalogRelease),
+  );
   git(privateRoot, ["checkout", "--detach", manifest.sourceCommit]);
 
   return {
@@ -522,6 +768,7 @@ if (
     "--sbom",
     "--private-root",
     "--registry",
+    "--application-targets",
     "--migrations-dir",
     "--migration-version",
     "--attestation-ref",
@@ -530,11 +777,15 @@ if (
   const result = integratePrivateRelease({
     manifestPath: resolve(args.get("--manifest")),
     sbomPath: resolve(args.get("--sbom")),
+    buildPath: args.get("--build") ? resolve(args.get("--build")) : undefined,
     privateRoot: resolve(args.get("--private-root")),
     registryPath: resolve(args.get("--registry")),
     migrationsDir: resolve(args.get("--migrations-dir")),
     migrationVersion: args.get("--migration-version"),
     attestationRef: args.get("--attestation-ref"),
+    applicationTargetsPath: args.get("--application-targets")
+      ? resolve(args.get("--application-targets"))
+      : undefined,
   });
   process.stdout.write(`${JSON.stringify(result)}\n`);
 }

@@ -24,7 +24,7 @@ import {
 
 function listRuntimePluginsForSettings(): RuntimePluginInfo[] {
   return listRegisteredPlugins().map((plugin) => {
-    const release = getPublishedPluginRelease(plugin.manifest.key);
+    const release = getPublishedPluginRelease(plugin.manifest.key, "embedded");
     if (!release) {
       throw new Error(
         `Registered plugin ${plugin.manifest.key} has no published release contract.`,

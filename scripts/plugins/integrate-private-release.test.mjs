@@ -42,7 +42,7 @@ function digest(bytes) {
   return `sha256:${createHash("sha256").update(bytes).digest("hex")}`;
 }
 
-function fixture() {
+function fixture({ application = false, priorApplication = false } = {}) {
   const root = mkdtempSync(join(tmpdir(), "root-plugin-integration-"));
   temporaryRoots.push(root);
   const privateRoot = join(root, "private");
@@ -50,7 +50,9 @@ function fixture() {
   const migrationsDir = join(root, "migrations");
   const migrationTestsDir = join(root, "tests/database");
   const pluginRoot = join(privateRoot, "plugins/example-plugin");
+  const applicationRoot = join(privateRoot, "apps/example");
   mkdirSync(pluginRoot, { recursive: true });
+  if (application) mkdirSync(join(applicationRoot, "lib"), { recursive: true });
   mkdirSync(artifacts, { recursive: true });
   mkdirSync(migrationsDir, { recursive: true });
   mkdirSync(migrationTestsDir, { recursive: true });
@@ -66,6 +68,17 @@ function fixture() {
     join(pluginRoot, "feature.ts"),
     'export const value = "new";\n',
   );
+  if (application) {
+    writeFileSync(
+      join(applicationRoot, "lib/manifest.ts"),
+      'export const manifest = {\n  version: "1.2.3",\n};\n',
+    );
+    writeFileSync(
+      join(applicationRoot, "package.json"),
+      '{"name":"example-app","version":"1.2.3"}\n',
+    );
+    writeFileSync(join(applicationRoot, "bun.lock"), "lockfileVersion = 1\n");
+  }
   runGit(privateRoot, "init", "-b", "main");
   runGit(privateRoot, "config", "user.name", "Integration Test");
   runGit(privateRoot, "config", "user.email", "integration@local.test");
@@ -77,6 +90,9 @@ function fixture() {
     "rev-parse",
     "HEAD:plugins/example-plugin",
   );
+  const releaseInputs = application
+    ? ["plugins/example-plugin", "apps/example"]
+    : ["plugins/example-plugin"];
   const output = execFileSync(
     "git",
     [
@@ -86,7 +102,7 @@ function fixture() {
       "--full-tree",
       sourceCommit,
       "--",
-      "plugins/example-plugin",
+      ...releaseInputs,
     ],
     { cwd: privateRoot },
   );
@@ -111,26 +127,43 @@ function fixture() {
   );
   const sbomPath = join(artifacts, "release.cdx.json");
   writeFileSync(sbomPath, '{"bomFormat":"CycloneDX","specVersion":"1.6"}\n');
+  const buildPath = application
+    ? join(artifacts, "plugin-build.tar.gz")
+    : undefined;
+  if (buildPath) writeFileSync(buildPath, "exact Vercel prebuilt bytes\n");
+  const manifestPathInSource = application
+    ? "apps/example/lib/manifest.ts"
+    : "plugins/example-plugin/plugin.ts";
   const manifest = {
-    schemaVersion: 1,
+    schemaVersion: application ? 2 : 1,
     pluginKey: "example-plugin",
     version: "1.2.3",
     tag: "example-plugin/v1.2.3",
-    runtimeProfile: "embedded",
+    runtimeProfile: application ? "application" : "embedded",
     sourceCommit,
     sourceCommitTime: "2026-08-20T00:00:00Z",
     sourceTree,
     contentDigest: digest(Buffer.concat(canonical)),
-    manifestPath: "plugins/example-plugin/plugin.ts",
-    manifestDigest: files.find((file) => file.path.endsWith("plugin.ts"))
+    manifestPath: manifestPathInSource,
+    manifestDigest: files.find((file) => file.path === manifestPathInSource)
       .digest,
     changelogPath: "plugins/example-plugin/CHANGELOG.md",
     changelogDigest: files.find((file) => file.path.endsWith("CHANGELOG.md"))
       .digest,
-    releaseInputs: ["plugins/example-plugin"],
+    releaseInputs,
     fileCount: files.length,
     files,
-    buildDigest: null,
+    buildArtifact: application
+      ? {
+          name: "plugin-build.tar.gz",
+          format: "vercel-prebuilt-v1",
+          root: "apps/example",
+          projectName: "example-app",
+          projectId: "prj_example",
+          organizationId: "team_example",
+        }
+      : null,
+    buildDigest: buildPath ? digest(readFileSync(buildPath)) : null,
     sbomDigest: digest(readFileSync(sbomPath)),
     signerIdentity: {
       issuer: "https://token.actions.githubusercontent.com",
@@ -145,6 +178,25 @@ function fixture() {
   const manifestPath = join(artifacts, "release-manifest.json");
   writeFileSync(manifestPath, `${JSON.stringify(manifest, null, 2)}\n`);
   const registryPath = join(root, "published-releases.json");
+  const applicationTargetsPath = join(
+    root,
+    "application-deployment-targets.json",
+  );
+  writeFileSync(
+    applicationTargetsPath,
+    `${JSON.stringify(
+      {
+        "example-plugin": {
+          routingApplication: "example-app",
+          projectName: "example-app",
+          projectId: "prj_example",
+          organizationId: "team_example",
+        },
+      },
+      null,
+      2,
+    )}\n`,
+  );
   writeFileSync(
     registryPath,
     `${JSON.stringify(
@@ -162,6 +214,7 @@ function fixture() {
           contentDigest: null,
           releaseInputs: null,
           buildDigest: null,
+          buildArtifact: null,
           sbomDigest: null,
           signer: null,
           hostApiRange: { minimum: "1.0.0", maximum: "1.0.0" },
@@ -174,6 +227,33 @@ function fixture() {
       2,
     )}\n`,
   );
+  if (priorApplication) {
+    const releases = JSON.parse(readFileSync(registryPath, "utf8"));
+    releases[0].version = "1.2.1";
+    releases[0].supportedInstallContracts = {
+      minimum: "1.2.1",
+      maximum: "1.2.1",
+    };
+    releases.push({
+      ...releases[0],
+      version: "1.2.2",
+      runtimeProfile: "application",
+      buildDigest: `sha256:${"9".repeat(64)}`,
+      buildArtifact: {
+        name: "plugin-build.tar.gz",
+        format: "vercel-prebuilt-v1",
+        root: "apps/example",
+        projectName: "example-app",
+        projectId: "prj_example",
+        organizationId: "team_example",
+      },
+      supportedInstallContracts: {
+        minimum: "1.2.1",
+        maximum: "1.2.2",
+      },
+    });
+    writeFileSync(registryPath, `${JSON.stringify(releases, null, 2)}\n`);
+  }
   writeFileSync(
     join(migrationsDir, "20260412000001_existing.sql"),
     "-- existing contract\n",
@@ -184,8 +264,10 @@ function fixture() {
     artifacts,
     migrationsDir,
     registryPath,
+    applicationTargetsPath,
     manifestPath,
     sbomPath,
+    buildPath,
     manifest,
   };
 }
@@ -194,8 +276,10 @@ function integrate(input) {
   return integratePrivateRelease({
     manifestPath: input.manifestPath,
     sbomPath: input.sbomPath,
+    buildPath: input.buildPath,
     privateRoot: input.privateRoot,
     registryPath: input.registryPath,
+    applicationTargetsPath: input.applicationTargetsPath,
     migrationsDir: input.migrationsDir,
     migrationVersion: "20260820150000",
     attestationRef:
@@ -247,14 +331,65 @@ test("refuses prerelease and build versions in the stable integration lane", () 
   }
 });
 
-test("refuses independent runtime profiles until build bytes are verified", () => {
-  const input = fixture();
-  const manifest = JSON.parse(readFileSync(input.manifestPath, "utf8"));
-  manifest.runtimeProfile = "application";
-  manifest.buildDigest = `sha256:${"1".repeat(64)}`;
-  writeFileSync(input.manifestPath, `${JSON.stringify(manifest, null, 2)}\n`);
+test("integrates an application only after hashing its independent build", () => {
+  const input = fixture({ application: true });
+  const result = integrate(input);
+  const registry = JSON.parse(readFileSync(input.registryPath, "utf8"));
 
-  assert.throws(() => integrate(input), /supports embedded releases only/u);
+  assert.equal(result.version, "1.2.3");
+  assert.equal(registry.length, 2);
+  assert.equal(registry[0].runtimeProfile, "embedded");
+  assert.equal(registry[1].runtimeProfile, "application");
+  assert.equal(registry[1].buildDigest, input.manifest.buildDigest);
+  assert.equal(registry[1].buildArtifact.format, "vercel-prebuilt-v1");
+
+  const migrationName = readdirSync(input.migrationsDir).find((file) =>
+    file.startsWith("20260820150000_"),
+  );
+  const migration = readFileSync(
+    join(input.migrationsDir, migrationName),
+    "utf8",
+  );
+  assert.doesNotMatch(migration, /SET latest_version = '1\.2\.3'/u);
+  assert.match(migration, /AND latest_version = '1\.2\.2'/u);
+});
+
+test("refuses an application build targeted at an unapproved project", () => {
+  const input = fixture({ application: true });
+  const targets = JSON.parse(
+    readFileSync(input.applicationTargetsPath, "utf8"),
+  );
+  targets["example-plugin"].projectId = "prj_different";
+  writeFileSync(
+    input.applicationTargetsPath,
+    `${JSON.stringify(targets, null, 2)}\n`,
+  );
+
+  assert.throws(() => integrate(input), /target is not approved/u);
+});
+
+test("anchors later releases to the serving embedded catalog entry", () => {
+  for (const application of [true, false]) {
+    const input = fixture({ application, priorApplication: true });
+    integrate(input);
+    const migrationName = readdirSync(input.migrationsDir).find((file) =>
+      file.startsWith("20260820150000_"),
+    );
+    const migration = readFileSync(
+      join(input.migrationsDir, migrationName),
+      "utf8",
+    );
+
+    assert.match(migration, /latest_version = '1\.2\.1'/u);
+    assert.doesNotMatch(migration, /latest_version = '1\.2\.2'/u);
+  }
+});
+
+test("refuses an application artifact whose bytes do not match the signature", () => {
+  const input = fixture({ application: true });
+  writeFileSync(input.buildPath, "different bytes\n");
+
+  assert.throws(() => integrate(input), /does not match the signed digest/u);
 });
 
 test("refuses a signed inventory that does not match the private Git tree", () => {
@@ -315,6 +450,7 @@ test("root workflow verifies known assets and opens only a Development PR", () =
   assert.match(workflow, /startswith\("codex\/plugin-release-"\)/u);
   assert.match(workflow, /A signed plugin integration PR is already open/u);
   assert.match(workflow, /supabase\/tests\/database/u);
+  assert.match(workflow, /plugin-build\.tar\.gz/u);
   assert.doesNotMatch(workflow, /gh release download "\$\{.*AssetUrl/u);
   assert.doesNotMatch(workflow, /--base main/u);
 });

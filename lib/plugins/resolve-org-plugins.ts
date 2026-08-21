@@ -64,10 +64,13 @@ export async function resolveOrganizationPluginExperiences(
   return accessRows
     .flatMap((row) => {
       const definition = getRegisteredPlugin(row.plugin_key);
-      const loadedRelease = getPublishedPluginRelease(row.plugin_key);
+      const loadedRelease = getPublishedPluginRelease(
+        row.plugin_key,
+        "embedded",
+      );
       const installedVersion = coalescePluginVersion(
         row.installed_version,
-        row.latest_version,
+        loadedRelease?.version ?? null,
       );
       if (
         !definition ||
@@ -134,14 +137,17 @@ export async function resolveOrganizationPlugins(options: {
 
   for (const access of accessRows) {
     const definition = getRegisteredPlugin(access.plugin_key);
-    const loadedRelease = getPublishedPluginRelease(access.plugin_key);
+    const loadedRelease = getPublishedPluginRelease(
+      access.plugin_key,
+      "embedded",
+    );
     if (!definition || !loadedRelease) {
       continue;
     }
 
     const installedVersion = coalescePluginVersion(
       access.installed_version,
-      access.latest_version,
+      loadedRelease.version,
     );
     const forceUpdateRequired =
       Boolean(access.force_update_version) &&

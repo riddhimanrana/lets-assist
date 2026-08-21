@@ -1,9 +1,110 @@
-import { type NextRequest } from "next/server";
-import { updateSession } from "@/lib/supabase/proxy";
+import { NextRequest, NextResponse } from "next/server";
+import { runMicrofrontendsMiddleware } from "@vercel/microfrontends/next/middleware";
 
-export async function proxy(request: NextRequest) {
-  return await updateSession(request);
+import {
+  CSF_APPLICATION_RUNTIME_DATABASE_FLAG,
+  CSF_APPLICATION_RUNTIME_FLAG,
+  getCsfApplicationOrganizationId,
+  shouldRouteCsfApplication,
+} from "@/lib/plugins/application-routing";
+import {
+  updateSession,
+  type AuthenticatedProxyContext,
+  type ProxyOptions,
+} from "@/lib/supabase/proxy";
+
+const MICROFRONTENDS_CLIENT_CONFIG_PATH =
+  "/.well-known/vercel/microfrontends/client-config";
+
+type RootProxyDependencies = {
+  updateSession: (
+    request: NextRequest,
+    options?: ProxyOptions,
+  ) => Promise<NextResponse>;
+  runMicrofrontendsMiddleware: typeof runMicrofrontendsMiddleware;
+  readCsfApplicationFlag: (
+    context: AuthenticatedProxyContext,
+    organizationId: string,
+  ) => Promise<boolean>;
+};
+
+async function readCsfApplicationFlag(
+  context: AuthenticatedProxyContext,
+  organizationId: string,
+): Promise<boolean> {
+  const { data, error } = await context.supabase
+    .from("organization_plugin_feature_flags")
+    .select("enabled")
+    .eq("organization_id", organizationId)
+    .eq("plugin_key", "dvhs-csf")
+    .eq("flag_key", CSF_APPLICATION_RUNTIME_DATABASE_FLAG)
+    .maybeSingle();
+
+  return !error && data?.enabled === true;
 }
+
+function withoutLocalFlagOverride(request: NextRequest): NextRequest {
+  if (!request.headers.has("x-vercel-mfe-flag-value")) return request;
+
+  request.headers.delete("x-vercel-mfe-flag-value");
+  return request;
+}
+
+export function createRootProxy(
+  dependencies: RootProxyDependencies,
+): (request: NextRequest) => Promise<NextResponse> {
+  return async (request) => {
+    if (request.nextUrl.pathname === MICROFRONTENDS_CLIENT_CONFIG_PATH) {
+      const response = await dependencies.runMicrofrontendsMiddleware({
+        request: withoutLocalFlagOverride(request),
+        flagValues: {
+          [CSF_APPLICATION_RUNTIME_FLAG]: async () => false,
+        },
+      });
+      const resolved = response
+        ? new NextResponse(response.body, response)
+        : NextResponse.next();
+      resolved.headers.set("Cache-Control", "private, no-store");
+      return resolved;
+    }
+
+    return dependencies.updateSession(request, {
+      onAuthenticatedPassThrough: async (context) => {
+        const organizationId = getCsfApplicationOrganizationId(
+          request.nextUrl.pathname,
+        );
+        if (!organizationId) return null;
+
+        const featureFlagEnabled = await dependencies.readCsfApplicationFlag(
+          context,
+          organizationId,
+        );
+        if (
+          !shouldRouteCsfApplication({
+            pathname: request.nextUrl.pathname,
+            featureFlagEnabled,
+          })
+        ) {
+          return null;
+        }
+
+        const response = await dependencies.runMicrofrontendsMiddleware({
+          request: withoutLocalFlagOverride(request),
+          flagValues: {
+            [CSF_APPLICATION_RUNTIME_FLAG]: async () => true,
+          },
+        });
+        return response ? new NextResponse(response.body, response) : null;
+      },
+    });
+  };
+}
+
+export const proxy = createRootProxy({
+  updateSession,
+  runMicrofrontendsMiddleware,
+  readCsfApplicationFlag,
+});
 
 export const config = {
   matcher: [
