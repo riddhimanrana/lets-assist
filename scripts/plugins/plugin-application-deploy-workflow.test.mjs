@@ -38,16 +38,20 @@ test("deployment workflow pins the Vercel target and accepts current CLI JSON", 
 });
 
 test("deployment workflow records health through service-only RPCs", () => {
+  const healthStep = workflow.match(
+    /- name: Verify application health[\s\S]*?(?=\n {6}- name:)/u,
+  )?.[0];
+  assert.ok(healthStep);
   assert.match(workflow, /secrets\.SUPABASE_SERVICE_ROLE_KEY/u);
   assert.match(workflow, /rpc\/observe_plugin_deployment/u);
   assert.match(
-    workflow,
-    /vercel@59\.3\.0[\s\S]*--token="\$\{VERCEL_TOKEN\}"[\s\S]*--scope=[\s\S]*curl \/api\/health/u,
+    healthStep,
+    /cd \.artifacts\/plugin-deploy[\s\S]*vercel@59\.3\.0 curl \/api\/health[\s\S]*--deployment[\s\S]*--scope=/u,
   );
-  assert.doesNotMatch(
-    workflow,
-    /curl \/api\/health[\s\S]*--token="\$\{VERCEL_TOKEN\}"/u,
-  );
+  assert.doesNotMatch(healthStep, /--token="\$\{VERCEL_TOKEN\}"/u);
+  assert.match(healthStep, /response_reached=true/u);
+  assert.match(workflow, /recorded state remains pending/u);
+  assert.match(workflow, /steps\.health\.outputs\.response_reached == 'true'/u);
   assert.match(workflow, /rpc\/report_plugin_deployment_health/u);
   assert.match(workflow, /p_health_status:"unhealthy"/u);
   assert.doesNotMatch(workflow, /NEXT_PUBLIC_SUPABASE_SERVICE_ROLE_KEY/u);

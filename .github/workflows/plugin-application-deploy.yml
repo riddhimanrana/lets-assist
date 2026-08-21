@@ -224,12 +224,15 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          bunx vercel@59.3.0 \
-            --token="${VERCEL_TOKEN}" \
-            --scope="${{ steps.release.outputs.organization_id }}" \
-            curl /api/health \
-            --deployment "${{ steps.deploy.outputs.url }}" \
-            > .artifacts/plugin-health.json
+          (
+            cd .artifacts/plugin-deploy
+            bunx vercel@59.3.0 curl /api/health \
+              --deployment "${{ steps.deploy.outputs.url }}" \
+              --scope="${{ steps.release.outputs.organization_id }}" \
+              > ../plugin-health.json
+          )
+          jq -e 'type == "object"' .artifacts/plugin-health.json >/dev/null
+          echo "response_reached=true" >> "${GITHUB_OUTPUT}"
           jq -e \
             --arg plugin "${PLUGIN_KEY}" \
             --arg version "${{ steps.release.outputs.version }}" \
@@ -263,7 +266,7 @@ jobs:
             | jq -e '. == true' >/dev/null
 
       - name: Record rejected deployment evidence
-        if: steps.health.outcome == 'failure'
+        if: steps.health.outcome == 'failure' && steps.health.outputs.response_reached == 'true'
         shell: bash
         run: |
           set -euo pipefail
@@ -283,6 +286,13 @@ jobs:
             --data-binary @.artifacts/report-deployment.json \
             | jq -e '. == true' >/dev/null
           echo "The deployed application failed its health contract." >&2
+          exit 1
+
+      - name: Fail an inaccessible health probe without misclassifying the deployment
+        if: steps.health.outcome == 'failure' && steps.health.outputs.response_reached != 'true'
+        shell: bash
+        run: |
+          echo "The deployment health endpoint could not be reached as JSON. Its recorded state remains pending." >&2
           exit 1
 
       - name: Publish deployment summary
