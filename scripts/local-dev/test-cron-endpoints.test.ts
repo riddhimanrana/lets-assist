@@ -547,6 +547,10 @@ describe("the child environment is a positive allowlist", () => {
     const grep = Bun.spawnSync(
       [
         "grep",
+        "--exclude-dir=node_modules",
+        "--exclude-dir=.next",
+        "--exclude-dir=.vercel",
+        "--exclude-dir=.artifacts",
         "-rhoE",
         "process\\.env\\.[A-Z][A-Z0-9_]*_ENABLED",
         join(repositoryRoot, "app"),

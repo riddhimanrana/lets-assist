@@ -15,10 +15,16 @@
     "buildArtifact": null,
     "sbomDigest": null,
     "signer": null,
-    "hostApiRange": { "minimum": "1.0.0", "maximum": "1.0.0" },
+    "hostApiRange": {
+      "minimum": "1.0.0",
+      "maximum": "1.0.0"
+    },
     "pluginDataSchemaVersion": 1,
     "requiredPlatformSchemaVersion": "legacy",
-    "supportedInstallContracts": { "minimum": "2.0.0", "maximum": "2.0.0" }
+    "supportedInstallContracts": {
+      "minimum": "2.0.0",
+      "maximum": "2.0.0"
+    }
   },
   {
     "pluginKey": "dvhs-csf",
@@ -36,9 +42,53 @@
     "buildArtifact": null,
     "sbomDigest": null,
     "signer": null,
-    "hostApiRange": { "minimum": "1.0.0", "maximum": "1.0.0" },
+    "hostApiRange": {
+      "minimum": "1.0.0",
+      "maximum": "1.0.0"
+    },
     "pluginDataSchemaVersion": 1,
     "requiredPlatformSchemaVersion": "legacy",
-    "supportedInstallContracts": { "minimum": "1.1.0", "maximum": "1.1.0" }
+    "supportedInstallContracts": {
+      "minimum": "1.1.0",
+      "maximum": "1.1.0"
+    }
+  },
+  {
+    "pluginKey": "dvhs-csf",
+    "version": "1.2.0",
+    "manifestFile": "apps/csf/lib/manifest.ts",
+    "manifestHash": "3bbb852420cf02f2ac055b8f640e36c0e3d3c01f953382d10503d6a90b60e762",
+    "sourceCommit": "b1f4fa8e13856dc0c868b4bb952069d7507dfe6b",
+    "automaticUpdate": false,
+    "rolloutPercentage": 0,
+    "runtimeProfile": "application",
+    "sourceTree": "688ce4a9deb04454dd43839569e3c3eb37f9294e",
+    "contentDigest": "sha256:f1e0703ed4216dfd30557ed321a408d8bc7b185dbbd7489b0d698630401ad00f",
+    "releaseInputs": ["plugins/dvhs-csf", "apps/csf"],
+    "buildDigest": "sha256:a24450fc6d0e8421e872fb7302c3f298d0c0b9ac88e2aefca14d6702e2cd396d",
+    "buildArtifact": {
+      "name": "plugin-build.tar.gz",
+      "format": "vercel-prebuilt-v1",
+      "root": "apps/csf",
+      "projectName": "lets-assist-csf",
+      "projectId": "prj_yFm448TGxkW5oNYCH7NMnddNVpWL",
+      "organizationId": "team_CjhwP5Wl7iAhbDrSFJRFxJjE"
+    },
+    "sbomDigest": "sha256:d73dda3df00af3ce3bbeefef06e48203905a1be1cc3027401496e42ab1ae3a32",
+    "signer": {
+      "identity": "https://github.com/riddhimanrana/lets-assist-plugins/.github/workflows/plugin-release.yml@refs/tags/dvhs-csf/v1.2.0",
+      "issuer": "https://token.actions.githubusercontent.com",
+      "attestationRef": "github-release:dvhs-csf/v1.2.0/release-manifest.sigstore.json"
+    },
+    "hostApiRange": {
+      "minimum": "1.0.0",
+      "maximum": "1.0.0"
+    },
+    "pluginDataSchemaVersion": 1,
+    "requiredPlatformSchemaVersion": "20260820130000",
+    "supportedInstallContracts": {
+      "minimum": "1.1.0",
+      "maximum": "1.2.0"
+    }
   }
 ]

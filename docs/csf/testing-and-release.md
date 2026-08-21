@@ -36,8 +36,8 @@ their named runs only.
 - The sole current CSF implementation/status register is
   `docs/development/cleanup-register.md`; this document is a testing runbook and
   retains older evidence below without promoting it to current status.
-- The repository candidate has 339 ordered migrations through
-  `20260821005258_add_plugin_application_runtime_admin_controls`. The forty-three migrations
+- The repository candidate has 340 ordered migrations through
+  `20260821024024_publish_dvhs_csf_1_2_0`. The forty-four migrations
   added after the audited `development` baseline merge two prior lines: the
   Development-hardening pair
   (`20260816185321_enforce_authoritative_plugin_releases`,
@@ -82,21 +82,19 @@ their named runs only.
   `20260820100000_add_plugin_release_identity`,
   `20260820110000_add_plugin_deployments_and_update_operations`,
   `20260820120000_add_plugin_update_operation_fk_index`,
-  `20260820130000_add_plugin_application_access_context`, and
-  `20260821005258_add_plugin_application_runtime_admin_controls`).
+  `20260820130000_add_plugin_application_access_context`,
+  `20260821005258_add_plugin_application_runtime_admin_controls`, and
+  `20260821024024_publish_dvhs_csf_1_2_0`).
 - Hosted Development serves exact root merge SHA
-  `5ef6e4ccdf4492206e3e41a0b84afac91551fff0` and is healthy and
-  migration-current at 331 rows through
-  `20260819020000_serialize_paper_scan_orphan_cleanup`. Google OAuth is enabled
-  and the hosted authorize endpoint redirects to Google. The eight migrations
-  after that hosted ledger, including feedback preference propagation, final
-  owner-internal ACLs, plugin upload scoping, release identity, and inert
-  deployment/update-operation records, their supporting index, and the caller
-  application access proof and admin runtime switch remain repository-only
-  until this change passes CI and is promoted through Development.
+  `4f0b3901d4a7244adc3c73f7021105e7dfd12bd3` and is healthy and
+  migration-current at 339 rows through
+  `20260821005258_add_plugin_application_runtime_admin_controls`. Google OAuth
+  is enabled and the hosted authorize endpoint redirects to Google. The signed
+  `dvhs-csf` 1.2.0 publication migration remains repository-only until this
+  integration passes CI and is promoted through Development.
 - Production remains untouched at the audited 236-row baseline through
-  `20260811001500`; the exact read-only preflight now expects a 103-migration
-  cutover to this 339-row candidate. Running that cutover requires
+  `20260811001500`; the exact read-only preflight now expects a 104-migration
+  cutover to this 340-row candidate. Running that cutover requires
   explicit action-time approval.
 - Local evidence on the prior candidate includes a fresh exact 324-migration replay
   and the focused storage/release, import, proof, and release-authority pgTAP
@@ -111,6 +109,8 @@ their named runs only.
   privileged-function boundary assertions, and the architecture hard checks
   pass. The all-file replay remains the hosted CI authority because a prior
   local attempt lost Docker DNS between unrelated test files. Follow-up
+  local validation replayed all 340 migrations through the signed 1.2.0
+  publication, and its focused release pgTAP passed 8/8.
   hosted parity, final role/browser
   acceptance, and provider acceptance remain release gates until recorded in
   the cleanup register.

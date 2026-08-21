@@ -314,7 +314,13 @@ test("integrates an independently reconstructed signed release", () => {
   assert.match(migration, /INSERT INTO public\.plugin_versions/u);
   assert.match(migration, /Signed update/u);
   assert.doesNotMatch(migration, /organization_plugin_installs/u);
-  assert.match(migrationTest, /SELECT plan\(8\)/u);
+  assert.match(
+    migrationTest,
+    /CREATE EXTENSION IF NOT EXISTS pgtap WITH SCHEMA extensions/u,
+  );
+  assert.match(migrationTest, /SELECT extensions\.plan\(8\)/u);
+  assert.match(migrationTest, /SELECT extensions\.is\(/u);
+  assert.match(migrationTest, /SELECT \* FROM extensions\.finish\(\)/u);
   assert.match(migrationTest, /supported_install_contracts/u);
   assert.match(migrationTest, /1\.2\.3/u);
 });
@@ -466,6 +472,10 @@ test("root workflow verifies known assets and opens only a Development PR", () =
   assert.match(workflow, /A signed plugin integration PR is already open/u);
   assert.match(workflow, /supabase\/tests\/database/u);
   assert.match(workflow, /plugin-build\.tar\.gz/u);
+  assert.match(
+    workflow,
+    /bunx prettier --write lib\/plugins\/published-releases\.json/u,
+  );
   assert.doesNotMatch(workflow, /gh release download "\$\{.*AssetUrl/u);
   assert.doesNotMatch(workflow, /--base main/u);
 });

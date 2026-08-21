@@ -193,7 +193,8 @@ INSERT INTO public.plugin_versions (
   '20260820130000',
   '{"minimum":"1.1.0","maximum":"1.2.0"}'::jsonb,
   'application'
-);
+)
+ON CONFLICT (plugin_key, version) DO NOTHING;
 
 -- The real CSF release remains the authorization source for the local proof.
 INSERT INTO public.organization_plugin_entitlements (

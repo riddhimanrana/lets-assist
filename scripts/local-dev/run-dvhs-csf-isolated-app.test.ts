@@ -248,6 +248,10 @@ describe("the isolated app child environment is built, not inherited", () => {
     const grep = Bun.spawnSync(
       [
         "grep",
+        "--exclude-dir=node_modules",
+        "--exclude-dir=.next",
+        "--exclude-dir=.vercel",
+        "--exclude-dir=.artifacts",
         "-rhoE",
         "process\\.env\\.[A-Z][A-Z0-9_]*_ENABLED",
         join(repositoryRoot, "app"),
