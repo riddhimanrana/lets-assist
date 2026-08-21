@@ -18,6 +18,15 @@ function isReviewedBuildPath(path) {
   );
 }
 
+function reviewedRoot(path) {
+  if (isInsideOutput(path)) return outputRoot;
+  if (path === ".next" || path.startsWith(".next/")) return ".next";
+  if (path === "node_modules" || path.startsWith("node_modules/")) {
+    return "node_modules";
+  }
+  return tracedFiles.has(path) ? path : null;
+}
+
 function validatePath(path, label) {
   const withoutTrailingSlash = path.replace(/\/$/u, "");
   if (
@@ -40,7 +49,7 @@ export function validateApplicationArchiveListings(entriesText, verboseText) {
   }
 
   const seen = new Set();
-  const symlinks = new Set();
+  const symlinks = new Map();
 
   entries.forEach((entry, index) => {
     validatePath(entry, "archive path");
@@ -64,25 +73,33 @@ export function validateApplicationArchiveListings(entriesText, verboseText) {
     }
 
     const target = verboseEntries[index].slice(markerIndex + marker.length);
-    if (
-      !isInsideOutput(entry) ||
-      !target ||
-      target.includes("\\") ||
-      isAbsolute(target)
-    ) {
+    if (!target || target.includes("\\") || isAbsolute(target)) {
       throw new Error(`Refusing unsafe archive symlink target: ${entry}`);
     }
 
     const resolvedTarget = normalize(join(dirname(entry), target));
-    if (!isInsideOutput(resolvedTarget)) {
+    const entryRoot = reviewedRoot(entry);
+    if (
+      tracedFiles.has(entry) ||
+      entryRoot === null ||
+      reviewedRoot(resolvedTarget) !== entryRoot
+    ) {
       throw new Error(`Refusing escaping archive symlink: ${entry}`);
     }
-    symlinks.add(entry);
+    symlinks.set(entry, resolvedTarget);
   });
 
-  for (const symlink of symlinks) {
+  for (const [symlink, target] of symlinks) {
     if (entries.some((entry) => entry.startsWith(`${symlink}/`))) {
       throw new Error(`Refusing archive traversal through symlink: ${symlink}`);
+    }
+    if (
+      [...symlinks.keys()].some(
+        (candidate) =>
+          target === candidate || target.startsWith(`${candidate}/`),
+      )
+    ) {
+      throw new Error(`Refusing archive symlink chain: ${symlink}`);
     }
   }
 }
