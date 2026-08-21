@@ -187,6 +187,7 @@ function fixture({ application = false, priorApplication = false } = {}) {
     `${JSON.stringify(
       {
         "example-plugin": {
+          root: "apps/example",
           routingApplication: "example-app",
           projectName: "example-app",
           projectId: "prj_example",
@@ -360,6 +361,20 @@ test("refuses an application build targeted at an unapproved project", () => {
     readFileSync(input.applicationTargetsPath, "utf8"),
   );
   targets["example-plugin"].projectId = "prj_different";
+  writeFileSync(
+    input.applicationTargetsPath,
+    `${JSON.stringify(targets, null, 2)}\n`,
+  );
+
+  assert.throws(() => integrate(input), /target is not approved/u);
+});
+
+test("refuses an application build rooted outside the approved child app", () => {
+  const input = fixture({ application: true });
+  const targets = JSON.parse(
+    readFileSync(input.applicationTargetsPath, "utf8"),
+  );
+  targets["example-plugin"].root = "apps/other";
   writeFileSync(
     input.applicationTargetsPath,
     `${JSON.stringify(targets, null, 2)}\n`,
