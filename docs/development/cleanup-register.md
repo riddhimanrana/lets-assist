@@ -65,15 +65,29 @@ This register separates actionable repository defects from provider/account and 
   every traced Vercel function input and passes the host archive validator.
   Hosted deployment, activation, and routing evidence remain tracked by
   `PLUGIN-FOUND-009`.
-- `PLUGIN-FOUND-009` remains active. The application manifest path prefix and
-  required direct-access protection are contracts, not active routing. A
-  Development Vercel microfrontend group, a per-request rollout flag, direct
-  child-domain protection, deployment observation, and accepted health evidence
-  must exist before any CSF route is claimed or an install is activated.
-- The repository checks above are local evidence. Private release `1.2.1` is
-  signed and published. Its root integration, exact hosted Development deploy,
-  direct-domain protection, and activation remain pending. Production remains
-  untouched.
+- `PLUGIN-FOUND-009` remains active. The exact signed 1.2.1 archive is Ready on
+  the Development child project as deployment
+  `dpl_C4CzkCdNu2ZjKJVnWJCqkhXbdcPp`, and the Development control plane records
+  its exact digest and release tag with healthy status. Vercel Authentication
+  protects direct child-domain access. The application manifest path prefix is
+  still a contract rather than active host routing. Vercel group
+  `mfe_W64mCurqcnCgOvWojPr0FoRQUluS` now contains only `lets-assist` and
+  `lets-assist-csf`, with the host as its default app and the reviewed
+  access-proof path as the child's default route. Its committed config remains
+  inactive until the next deployments. Vercel charges no project fee for these
+  first two projects but disclosed a $2 per million routed-request fee, so the
+  rollout flag and routed acceptance remain blocked on explicit cost approval.
+  Hosted browser acceptance must pass before any install is activated.
+- Private release `1.2.1` is signed and published. Root PR #238 merged it into
+  `development` at `411421a9bf9ea3f1aa251abda3f7664f054d48ea`, and hosted
+  Development is migration-current at 342 rows through `20260821044815` with
+  the application release still at zero rollout. The complete signed-identity
+  guard is a new forward migration pending on PR #239; the applied ledger rows
+  remain unchanged. The exact hosted Development child deployment is Ready and
+  healthy behind Vercel Authentication. The
+  two-project microfrontend group exists, but its committed config, paid routed
+  traffic, activation, and hosted browser acceptance remain pending. Production
+  remains untouched.
 
 ## Production release candidate — 2026-08-18
 

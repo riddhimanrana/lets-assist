@@ -1,7 +1,7 @@
 BEGIN;
 
 CREATE EXTENSION IF NOT EXISTS pgtap WITH SCHEMA extensions;
-SELECT extensions.plan(8);
+SELECT extensions.plan(11);
 
 SELECT extensions.is(
   (SELECT status::text FROM public.plugin_versions WHERE plugin_key = 'dvhs-csf' AND version = '1.2.1'),
@@ -49,6 +49,41 @@ SELECT extensions.is(
   (SELECT code_reference FROM public.plugins WHERE key = 'dvhs-csf'),
   '4d1001e9d3269b8bd28de93c071c6b4b216824fd',
   'plugin catalog keeps the serving embedded source truthful'
+);
+
+SELECT extensions.lives_ok(
+  $$SELECT private.assert_dvhs_csf_1_2_1_release_identity()$$,
+  'the reconciliation guard accepts the exact signed release identity'
+);
+
+ALTER TABLE public.plugin_versions
+  DISABLE TRIGGER plugin_versions_enforce_immutable_release;
+UPDATE public.plugin_versions
+SET compatibility_contract = '{"host":"other-platform","automaticUpdate":false}'::jsonb
+WHERE plugin_key = 'dvhs-csf'
+  AND version = '1.2.1';
+ALTER TABLE public.plugin_versions
+  ENABLE TRIGGER plugin_versions_enforce_immutable_release;
+
+SELECT extensions.throws_ok(
+  $$SELECT private.assert_dvhs_csf_1_2_1_release_identity()$$,
+  NULL,
+  'Signed DVHS CSF 1.2.1 release identity is missing or divergent',
+  'the reconciliation guard rejects a divergent signed identity field'
+);
+
+ALTER TABLE public.plugin_versions
+  DISABLE TRIGGER plugin_versions_enforce_immutable_release;
+UPDATE public.plugin_versions
+SET compatibility_contract = '{"host":"lets-assist","automaticUpdate":false}'::jsonb
+WHERE plugin_key = 'dvhs-csf'
+  AND version = '1.2.1';
+ALTER TABLE public.plugin_versions
+  ENABLE TRIGGER plugin_versions_enforce_immutable_release;
+
+SELECT extensions.lives_ok(
+  $$SELECT private.assert_dvhs_csf_1_2_1_release_identity()$$,
+  'the reconciliation guard accepts the restored signed release identity'
 );
 
 SELECT * FROM extensions.finish();

@@ -179,11 +179,17 @@ jobs:
           deployment_target="$(jq -r '.deployment.target // .target' .artifacts/plugin-deployment.json)"
           test -n "${deployment_url}" && test "${deployment_url}" != null
           test -n "${deployment_id}" && test "${deployment_id}" != null
-          expected_target=preview
+          target_is_valid=false
           if [[ "${DEPLOYMENT_ENVIRONMENT}" == production ]]; then
-            expected_target=production
+            if [[ "${deployment_target}" == production ]]; then
+              target_is_valid=true
+            fi
+          elif [[ "${deployment_target}" == preview || "${deployment_target}" == null ]]; then
+            # Vercel CLI 59.3.0 serializes Preview deployments with a null
+            # target even when --target=preview is supplied.
+            target_is_valid=true
           fi
-          if [[ "${deployment_target}" != "${expected_target}" ]]; then
+          if [[ "${target_is_valid}" != true ]]; then
             echo "Vercel created a ${deployment_target} deployment for the ${DEPLOYMENT_ENVIRONMENT} release." >&2
             exit 1
           fi
@@ -218,10 +224,11 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          bunx vercel@59.3.0 curl /api/health \
-            --deployment "${{ steps.deploy.outputs.url }}" \
+          bunx vercel@59.3.0 \
             --token="${VERCEL_TOKEN}" \
             --scope="${{ steps.release.outputs.organization_id }}" \
+            curl /api/health \
+            --deployment "${{ steps.deploy.outputs.url }}" \
             > .artifacts/plugin-health.json
           jq -e \
             --arg plugin "${PLUGIN_KEY}" \
