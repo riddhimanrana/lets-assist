@@ -28,10 +28,27 @@ type RootProxyDependencies = {
   ) => Promise<boolean>;
 };
 
-async function readCsfApplicationFlag(
+const ORGANIZATION_ID_PATTERN =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu;
+
+export async function readCsfApplicationFlag(
   context: AuthenticatedProxyContext,
-  organizationId: string,
+  organizationIdentifier: string,
 ): Promise<boolean> {
+  let organizationId = organizationIdentifier;
+
+  if (!ORGANIZATION_ID_PATTERN.test(organizationIdentifier)) {
+    const { data: organization, error: organizationError } =
+      await context.supabase
+        .from("organizations")
+        .select("id")
+        .eq("username", organizationIdentifier)
+        .maybeSingle();
+
+    if (organizationError || !organization?.id) return false;
+    organizationId = organization.id;
+  }
+
   const { data, error } = await context.supabase
     .from("organization_plugin_feature_flags")
     .select("enabled")

@@ -3,7 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 
 import type { AuthenticatedProxyContext } from "@/lib/supabase/proxy";
 
-import { createRootProxy } from "./proxy";
+import { createRootProxy, readCsfApplicationFlag } from "./proxy";
 
 const applicationPath =
   "/organization/22222222-2222-4222-8222-222222222222/plugins/dvhs-csf/access-proof";
@@ -17,6 +17,96 @@ function authenticatedContext(request: NextRequest): AuthenticatedProxyContext {
 }
 
 describe("root proxy composition", () => {
+  test("resolves an organization username before reading its application flag", async () => {
+    const queries: Array<{
+      table: string;
+      filters: Array<[string, string]>;
+    }> = [];
+    const organizationId = "22222222-2222-4222-8222-222222222222";
+    const supabase = {
+      from(table: string) {
+        const query = { table, filters: [] as Array<[string, string]> };
+        queries.push(query);
+        const builder = {
+          select() {
+            return builder;
+          },
+          eq(column: string, value: string) {
+            query.filters.push([column, value]);
+            return builder;
+          },
+          async maybeSingle() {
+            if (table === "organizations") {
+              return { data: { id: organizationId }, error: null };
+            }
+            return { data: { enabled: true }, error: null };
+          },
+        };
+        return builder;
+      },
+    };
+
+    const enabled = await readCsfApplicationFlag(
+      {
+        request: new NextRequest(`https://example.test${applicationPath}`),
+        userId: "11111111-1111-4111-8111-111111111111",
+        supabase: supabase as never,
+      },
+      "dvhighcsf",
+    );
+
+    expect(enabled).toBe(true);
+    expect(queries).toEqual([
+      {
+        table: "organizations",
+        filters: [["username", "dvhighcsf"]],
+      },
+      {
+        table: "organization_plugin_feature_flags",
+        filters: [
+          ["organization_id", organizationId],
+          ["plugin_key", "dvhs-csf"],
+          ["flag_key", "application-runtime"],
+        ],
+      },
+    ]);
+  });
+
+  test("fails closed when an organization username cannot be resolved", async () => {
+    let featureFlagReads = 0;
+    const supabase = {
+      from(table: string) {
+        if (table === "organization_plugin_feature_flags") {
+          featureFlagReads += 1;
+        }
+        const builder = {
+          select() {
+            return builder;
+          },
+          eq() {
+            return builder;
+          },
+          async maybeSingle() {
+            return { data: null, error: null };
+          },
+        };
+        return builder;
+      },
+    };
+
+    const enabled = await readCsfApplicationFlag(
+      {
+        request: new NextRequest(`https://example.test${applicationPath}`),
+        userId: "11111111-1111-4111-8111-111111111111",
+        supabase: supabase as never,
+      },
+      "missing-organization",
+    );
+
+    expect(enabled).toBe(false);
+    expect(featureFlagReads).toBe(0);
+  });
+
   test("finishes host auth before routing and preserves auth response policy", async () => {
     const events: string[] = [];
     const request = new NextRequest(`https://example.test${applicationPath}`, {
