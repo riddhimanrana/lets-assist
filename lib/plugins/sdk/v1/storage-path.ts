@@ -17,7 +17,7 @@ export const PRIVATE_PLUGIN_STORAGE_BUCKET = "plugins";
 
 const ORGANIZATION_ID_PATTERN =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/u;
-const PLUGIN_KEY_PATTERN = /^[a-z0-9][a-z0-9-_.]*$/u;
+const PLUGIN_KEY_PATTERN = /^[a-z0-9]+(?:-[a-z0-9]+)*$/u;
 
 export function isCanonicalOrganizationId(value: unknown): value is string {
   return typeof value === "string" && ORGANIZATION_ID_PATTERN.test(value);

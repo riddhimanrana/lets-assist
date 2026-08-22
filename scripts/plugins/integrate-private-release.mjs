@@ -8,7 +8,7 @@ const PLUGIN_KEY = /^[a-z0-9]+(?:-[a-z0-9]+)*$/u;
 // The automatic integration lane accepts stable releases only. Supporting
 // prereleases requires channel-aware ordering and install policy, neither of
 // which this workflow claims to implement.
-const SEMVER = /^(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)$/u;
+const SEMVER = /^(?:0|[1-9]\d{0,8})\.(?:0|[1-9]\d{0,8})\.(?:0|[1-9]\d{0,8})$/u;
 const GIT_SHA = /^[a-f0-9]{40}$/u;
 const SHA256 = /^sha256:[a-f0-9]{64}$/u;
 const MIGRATION_VERSION = /^\d{14}$/u;

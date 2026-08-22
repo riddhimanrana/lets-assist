@@ -45,6 +45,7 @@ describe("version string strictness", () => {
   test("accepts well-formed versions", () => {
     expect(isPluginVersionString("1.0.0")).toBe(true);
     expect(isPluginVersionString("2.10.3")).toBe(true);
+    expect(isPluginVersionString("999999999.0.0")).toBe(true);
   });
 
   test("rejects anything else", () => {
@@ -52,6 +53,8 @@ describe("version string strictness", () => {
       "v2.10.3",
       "1.0.0-rc.1",
       "1.0.0+build.1",
+      "1000000000.0.0",
+      "01.0.0",
       "1.0",
       "one.0.0",
       "",

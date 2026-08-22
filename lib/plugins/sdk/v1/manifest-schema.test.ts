@@ -115,7 +115,13 @@ describe("plugin manifest validation", () => {
   });
 
   test("rejects versions outside the stable publication lane", () => {
-    for (const version of ["v1.0.0", "1.0.0-beta.1", "1.0.0+build.1"]) {
+    for (const version of [
+      "v1.0.0",
+      "1.0.0-beta.1",
+      "1.0.0+build.1",
+      "1000000000.0.0",
+      "01.0.0",
+    ]) {
       expect(
         validatePluginSdkManifest(embeddedManifest({ version })).valid,
       ).toBe(false);

@@ -40,7 +40,8 @@ const ACCESS_ROLES = ["admin", "staff", "member"] as const;
  * where `minimumRole` on the manifest itself does not.
  */
 const SURFACE_ACCESS_LEVELS = [...ACCESS_ROLES, "public"] as const;
-const SEMVER_PATTERN = "^\\d+\\.\\d+\\.\\d+$";
+const SEMVER_PATTERN =
+  "^(?:0|[1-9]\\d{0,8})\\.(?:0|[1-9]\\d{0,8})\\.(?:0|[1-9]\\d{0,8})$";
 
 const configPropertySchema = {
   type: "object",

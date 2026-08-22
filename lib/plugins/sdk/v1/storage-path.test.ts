@@ -75,6 +75,16 @@ describe("plugin storage paths", () => {
         resource: "file.pdf",
       }),
     ).toThrow();
+
+    for (const pluginKey of ["school_tools", "school.plugin", "school-"]) {
+      expect(() =>
+        buildPluginStoragePath({
+          organizationId: ORG,
+          pluginKey,
+          resource: "file.pdf",
+        }),
+      ).toThrow();
+    }
   });
 
   test("round-trips through parse", () => {

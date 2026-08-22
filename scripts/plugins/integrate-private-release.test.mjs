@@ -380,6 +380,19 @@ test("refuses prerelease and build versions in the stable integration lane", () 
   }
 });
 
+test("refuses versions the database semver key cannot represent", () => {
+  for (const version of ["1000000000.0.0", "01.0.0"]) {
+    const input = fixture();
+    const manifest = JSON.parse(readFileSync(input.manifestPath, "utf8"));
+    manifest.version = version;
+    manifest.tag = `example-plugin/v${version}`;
+    manifest.supportedInstallContracts.maximum = version;
+    writeFileSync(input.manifestPath, `${JSON.stringify(manifest, null, 2)}\n`);
+
+    assert.throws(() => integrate(input), /invalid plugin version/u);
+  }
+});
+
 test("integrates an application only after hashing its independent build", () => {
   const input = fixture({ application: true });
   const result = integrate(input);
