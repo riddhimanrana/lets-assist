@@ -464,9 +464,20 @@ export async function setOrganizationPluginApplicationRuntime(options: {
   pluginKey: string;
   enabled: boolean;
   targetVersion?: string;
+  expectedEnabled: boolean;
+  expectedVersion?: string;
+  requestId: string;
 }): Promise<{ success: boolean; error?: string }> {
   "use server";
-  const { organizationId, pluginKey, enabled, targetVersion } = options;
+  const {
+    organizationId,
+    pluginKey,
+    enabled,
+    targetVersion,
+    expectedEnabled,
+    expectedVersion,
+    requestId,
+  } = options;
   const { user } = await getAuthUser();
 
   if (!user) {
@@ -506,7 +517,9 @@ export async function setOrganizationPluginApplicationRuntime(options: {
     p_environment: environment,
     p_enabled: enabled,
     p_actor_id: user.id,
-    p_request_id: crypto.randomUUID(),
+    p_request_id: requestId,
+    p_expected_enabled: expectedEnabled,
+    p_expected_version: expectedEnabled ? expectedVersion : null,
   });
   if (error) {
     return { success: false, error: error.message };
