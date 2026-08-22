@@ -22,7 +22,7 @@ This register separates actionable repository defects from provider/account and 
   The generated asset namespace now preserves that selection across nested
   imports with a deployment-keyed, path-limited routing-context cookie. Each
   request still repeats host authentication and the caller-scoped database
-  lookup. A fresh 356-migration replay and the complete database pgTAP
+  lookup. A fresh 357-migration replay and the complete database pgTAP
   suite pass 6,177 assertions. The direct proxy and release-contract bundle
   passes 58 tests, and the literal-import collector passes 7 tests,
   and lint, source organization, plugin boundaries, and TypeScript pass.
@@ -50,6 +50,9 @@ This register separates actionable repository defects from provider/account and 
   lease only after repeating the exact healthy-deployment gate. The child access
   proof accepts that lease while still rechecking membership, entitlement,
   install, release, compatibility, deployment health, and force-update policy.
+  A follow-up forward migration requires the application runtime flag to remain
+  enabled for both lease renewal and lease acceptance, so switching back to the
+  embedded runtime invalidates existing leases immediately.
 - PR #245 remains the Development-to-Production release vehicle. Production is
   still at 333 migrations through `20260819050728`, with the DVHS CSF install
   enabled on embedded `1.1.0`. No Production schema, child deployment, or

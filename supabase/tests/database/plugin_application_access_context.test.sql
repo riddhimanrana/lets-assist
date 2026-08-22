@@ -1,7 +1,7 @@
 BEGIN;
 
 CREATE EXTENSION IF NOT EXISTS pgtap WITH SCHEMA extensions;
-SELECT extensions.plan(42);
+SELECT extensions.plan(44);
 
 SELECT extensions.ok(
   has_function_privilege(
@@ -448,6 +448,46 @@ SELECT extensions.is(
   'true',
   'the exact caller-scoped deployment lease authorizes the historical runtime'
 );
+
+RESET ROLE;
+UPDATE public.organization_plugin_feature_flags
+SET enabled = false
+WHERE organization_id = 'f0100000-0000-4000-8000-000000000001'
+  AND plugin_key = 'application-access-fixture'
+  AND flag_key = 'application-runtime';
+SET LOCAL ROLE authenticated;
+SET LOCAL "request.jwt.claims" =
+  '{"sub":"f0000000-0000-4000-8000-000000000001","role":"authenticated"}';
+
+SELECT extensions.is(
+  public.get_plugin_application_asset_route_target_by_identifier(
+    'plugin-application-access',
+    'application-access-fixture',
+    'development',
+    'dpl_historical_fixture'
+  ) ->> 'routable',
+  'false',
+  'a disabled application runtime cannot renew a historical deployment lease'
+);
+SELECT extensions.is(
+  public.get_plugin_application_access_context(
+    'f0100000-0000-4000-8000-000000000001',
+    'application-access-fixture',
+    '1.1.0'
+  ) ->> 'reason',
+  'runtime_not_selected',
+  'disabling the application runtime immediately invalidates an active lease'
+);
+
+RESET ROLE;
+UPDATE public.organization_plugin_feature_flags
+SET enabled = true
+WHERE organization_id = 'f0100000-0000-4000-8000-000000000001'
+  AND plugin_key = 'application-access-fixture'
+  AND flag_key = 'application-runtime';
+SET LOCAL ROLE authenticated;
+SET LOCAL "request.jwt.claims" =
+  '{"sub":"f0000000-0000-4000-8000-000000000001","role":"authenticated"}';
 
 RESET ROLE;
 UPDATE private.plugin_application_runtime_leases
