@@ -439,7 +439,7 @@ export function validatePluginSdkManifest(
       message:
         manifest.runtime.profile === "embedded"
           ? "must include the plugin's own source subtree"
-          : "must include the plugin subtree and a dependency lockfile, or the digest would not identify the deployed program",
+          : "must include the plugin subtree, a separate build source root, and a dependency lockfile inside that root, or the digest would not identify the deployed program",
       keyword: "releaseInputs",
     });
   }

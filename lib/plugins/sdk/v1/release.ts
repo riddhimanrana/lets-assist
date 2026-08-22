@@ -128,14 +128,21 @@ export function releaseInputsAreComplete(
 
   if (profile === "embedded") return true;
 
-  // An independently built profile must also pin what it builds. Without a
-  // lockfile the same declared sources can resolve to different dependencies,
-  // so the digest would not identify the deployed program.
-  return normalized.some((entry) =>
-    /(?:^|\/)(?:bun\.lock|bun\.lockb|package-lock\.json|pnpm-lock\.yaml|yarn\.lock)$/u.test(
-      entry,
-    ),
-  );
+  // An independently built profile must declare a separate application or
+  // service root and pin dependencies inside that root. Merely naming an
+  // unrelated lockfile does not prove the digest covers the program that was
+  // built. Release integration separately binds this declared root to the
+  // build artifact's exact root.
+  const pluginRoot = `plugins/${pluginKey}`;
+  const lockfilePattern =
+    /\/(?:bun\.lock|bun\.lockb|package-lock\.json|pnpm-lock\.yaml|yarn\.lock)$/u;
+
+  return normalized.some((entry) => {
+    if (!lockfilePattern.test(entry)) return false;
+
+    const sourceRoot = entry.slice(0, entry.lastIndexOf("/"));
+    return sourceRoot !== pluginRoot && normalized.includes(sourceRoot);
+  });
 }
 
 const HEX_40 = /^[0-9a-f]{40}$/u;

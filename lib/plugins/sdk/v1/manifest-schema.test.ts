@@ -74,6 +74,61 @@ describe("plugin manifest validation", () => {
     expect(pathsOf(result)).toContain("/releaseInputs");
   });
 
+  test("rejects an application lockfile whose source root is not declared", () => {
+    const result = validatePluginSdkManifest(
+      embeddedManifest({
+        runtime: {
+          profile: "application",
+          pathPrefix: "/organization/:id/plugins/example-plugin",
+          directAccessProtection: "required",
+        },
+        releaseInputs: ["plugins/example-plugin", "unrelated/bun.lock"],
+      }),
+    );
+
+    expect(result.valid).toBe(false);
+    expect(pathsOf(result)).toContain("/releaseInputs");
+  });
+
+  test("rejects an application lockfile outside its declared source root", () => {
+    const result = validatePluginSdkManifest(
+      embeddedManifest({
+        runtime: {
+          profile: "application",
+          pathPrefix: "/organization/:id/plugins/example-plugin",
+          directAccessProtection: "required",
+        },
+        releaseInputs: [
+          "plugins/example-plugin",
+          "apps/example",
+          "unrelated/bun.lock",
+        ],
+      }),
+    );
+
+    expect(result.valid).toBe(false);
+    expect(pathsOf(result)).toContain("/releaseInputs");
+  });
+
+  test("rejects the plugin subtree as an independent build root", () => {
+    const result = validatePluginSdkManifest(
+      embeddedManifest({
+        runtime: {
+          profile: "application",
+          pathPrefix: "/organization/:id/plugins/example-plugin",
+          directAccessProtection: "required",
+        },
+        releaseInputs: [
+          "plugins/example-plugin",
+          "plugins/example-plugin/bun.lock",
+        ],
+      }),
+    );
+
+    expect(result.valid).toBe(false);
+    expect(pathsOf(result)).toContain("/releaseInputs");
+  });
+
   test("rejects release inputs that omit the plugin's own subtree", () => {
     const result = validatePluginSdkManifest(
       embeddedManifest({ releaseInputs: ["plugins/some-other-plugin"] }),
