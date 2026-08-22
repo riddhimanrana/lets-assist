@@ -36,8 +36,8 @@ their named runs only.
 - The sole current CSF implementation/status register is
   `docs/development/cleanup-register.md`; this document is a testing runbook and
   retains older evidence below without promoting it to current status.
-- The repository candidate has 353 ordered migrations through
-  `20260822134710_revalidate_plugin_runtime_admin_authority`. The preceding releases publish signed
+- The repository candidate has 354 ordered migrations through
+  `20260822151500_pin_plugin_asset_deployments`. The preceding releases publish signed
   1.2.2 and 1.2.3 artifacts and complete the reviewed helper ACLs. The 1.2.4
   migration records the plugin-specific child health route update without
   changing organization installs. The migrations
