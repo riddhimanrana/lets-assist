@@ -155,7 +155,7 @@ const manifestSchema = {
     },
 
     pluginDataSchemaVersion: { type: "integer", minimum: 1 },
-    requiredPlatformSchemaVersion: { type: "string", minLength: 1 },
+    requiredPlatformSchemaVersion: { type: "string", pattern: "^\\d{14}$" },
 
     supportedInstallContracts: {
       type: "object",

@@ -32,6 +32,20 @@ describe("host import specifier collection", () => {
     expect([...collectHostImportSpecifiers(source)]).toEqual([]);
   });
 
+  test("collects dynamic host imports with import attributes", () => {
+    const source = `
+      const json = import("@/lib/data.json", { with: { type: "json" } });
+      const template = import(\`@/lib/template.json\`, {
+        with: { type: "json" },
+      });
+    `;
+
+    expect([...collectHostImportSpecifiers(source)].sort()).toEqual([
+      "@/lib/data.json",
+      "@/lib/template.json",
+    ]);
+  });
+
   test("ignores non-host imports", () => {
     const source = `
       import "react";

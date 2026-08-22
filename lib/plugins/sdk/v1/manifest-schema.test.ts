@@ -220,6 +220,15 @@ describe("plugin manifest validation", () => {
     expect(pathsOf(result)).toContain("/version");
   });
 
+  test("requires a migration-shaped platform schema version", () => {
+    const result = validatePluginSdkManifest(
+      embeddedManifest({ requiredPlatformSchemaVersion: "not-a-migration" }),
+    );
+
+    expect(result.valid).toBe(false);
+    expect(pathsOf(result)).toContain("/requiredPlatformSchemaVersion");
+  });
+
   test("rejects versions outside the stable publication lane", () => {
     for (const version of [
       "v1.0.0",
