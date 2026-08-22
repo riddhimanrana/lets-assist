@@ -205,6 +205,12 @@ export function createRootProxy(
               dependencies.localApplicationUrl!,
             );
         if (!routeTarget) return null;
+        if (
+          dependencies.applicationEnvironment === "development" &&
+          !dependencies.applicationDeploymentBypassSecret
+        ) {
+          return null;
+        }
 
         return rewriteToPluginApplicationDeployment({
           target: routeTarget!,

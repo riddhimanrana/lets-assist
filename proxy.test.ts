@@ -21,6 +21,7 @@ const routeTarget = {
 
 const defaultDependencies = {
   applicationEnvironment: "development" as const,
+  applicationDeploymentBypassSecret: "fixture-bypass",
   localApplicationUrl: null,
   readCsfLocalApplicationRouteTarget: async () => null,
 };
@@ -230,6 +231,24 @@ describe("root proxy composition", () => {
     await rootProxy(request);
 
     expect(microfrontendCalls).toBe(0);
+  });
+
+  test("keeps hosted Development in the host without a protection bypass", async () => {
+    const request = new NextRequest(`https://example.test${applicationPath}`);
+    const rootProxy = createRootProxy({
+      ...defaultDependencies,
+      applicationDeploymentBypassSecret: undefined,
+      updateSession: async (authRequest, options) =>
+        (await options?.onAuthenticatedPassThrough?.(
+          authenticatedContext(authRequest),
+        )) ?? NextResponse.next(),
+      readCsfApplicationRouteTarget: async () => routeTarget,
+      runMicrofrontendsMiddleware: async () => NextResponse.next(),
+    });
+
+    const response = await rootProxy(request);
+
+    expect(response.headers.get("x-middleware-rewrite")).toBeNull();
   });
 
   test("serves the required client config without exposing active routes", async () => {

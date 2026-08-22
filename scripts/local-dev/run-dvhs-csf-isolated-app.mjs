@@ -165,12 +165,13 @@ const CRON_TOKEN_KEYS = [
 
 // `@next/env` writes every parsed key into the *loading* process's environment,
 // so discovering keys in-process would pollute the very environment this runner
-// exists to keep clean. The child is given nothing but PATH and a development
+// exists to keep clean. The child is given nothing but PATH and the selected
 // NODE_ENV, and prints key names only — never a value.
 const ENV_KEY_DISCOVERY_SOURCE = [
   'const { loadEnvConfig } = require("@next/env");',
   "const quiet = { info() {}, warn() {}, error() {} };",
-  "const { loadedEnvFiles } = loadEnvConfig(process.cwd(), true, quiet, true);",
+  'const development = process.env.NODE_ENV !== "production";',
+  "const { loadedEnvFiles } = loadEnvConfig(process.cwd(), development, quiet, true);",
   "const keys = new Set();",
   "for (const file of loadedEnvFiles) {",
   "  for (const key of Object.keys(file.env || {})) keys.add(key);",
@@ -180,9 +181,16 @@ const ENV_KEY_DISCOVERY_SOURCE = [
 
 /**
  * @param {string} [repoRoot]
+ * @param {"development" | "production"} [serverMode]
  * @returns {string[]} every key any repository `.env*` file declares
  */
-export function discoverRepositoryEnvFileKeys(repoRoot = REPO_ROOT) {
+export function discoverRepositoryEnvFileKeys(
+  repoRoot = REPO_ROOT,
+  serverMode = "development",
+) {
+  if (serverMode !== "development" && serverMode !== "production") {
+    throw new Error(`Unknown env-file discovery mode: ${serverMode}`);
+  }
   // A real node, so the discovery resolves `@next/env` exactly the way the Next
   // server about to be started will.
   const result = spawnSync(
@@ -192,7 +200,7 @@ export function discoverRepositoryEnvFileKeys(repoRoot = REPO_ROOT) {
       cwd: repoRoot,
       env: {
         PATH: process.env.PATH ?? "/usr/bin:/bin",
-        NODE_ENV: "development",
+        NODE_ENV: serverMode,
       },
       encoding: "utf8",
     },
@@ -748,9 +756,10 @@ async function main() {
       ? resolveNextProductionCommands(APP_PORT, REPO_ROOT)
       : { start: resolveNextDevCommand(APP_PORT, REPO_ROOT) };
   const pluginNext = resolvePluginApplicationCommands(serverMode);
-  const envFileKeys = discoverRepositoryEnvFileKeys(REPO_ROOT);
+  const envFileKeys = discoverRepositoryEnvFileKeys(REPO_ROOT, serverMode);
   const pluginEnvFileKeys = discoverRepositoryEnvFileKeys(
     PLUGIN_APPLICATION_ROOT,
+    serverMode,
   );
   const ledgerPath = path.join(
     isolated.workDir,

@@ -471,6 +471,34 @@ describe("repository .env* keys are discovered by a real @next/env load", () => 
     expect(process.env.SOME_UNCLASSIFIED_FIXTURE_KEY).toBeUndefined();
   });
 
+  test("discovers production env files for a production child", () => {
+    const directory = fixtureRepository({ DEVELOPMENT_ONLY: "development" });
+    writeFileSync(
+      join(directory, ".env.production.local"),
+      "PLUGIN_PRODUCTION_PRIVATE_KEY=must-not-reach-child\n",
+      "utf8",
+    );
+
+    const keys = discoverRepositoryEnvFileKeys(directory, "production");
+    const childEnv = buildPluginApplicationChildEnvironment({
+      appEnv: APP_ENV,
+      isolated: ISOLATED,
+      ledgerPath: "/tmp/plugin-runner-test-ledger.jsonl",
+      envFileKeys: keys,
+      serverMode: "production",
+      hostEnv: {
+        PLUGIN_PRODUCTION_PRIVATE_KEY: "must-not-reach-child",
+      },
+    });
+
+    expect(keys).toContain("PLUGIN_PRODUCTION_PRIVATE_KEY");
+    expect(childEnv.PLUGIN_PRODUCTION_PRIVATE_KEY).toBe("");
+    expect(JSON.stringify(childEnv)).not.toContain("must-not-reach-child");
+    expect(() =>
+      discoverRepositoryEnvFileKeys(directory, "preview" as "development"),
+    ).toThrow(/Unknown env-file discovery mode/u);
+  });
+
   test("every discovered provider value is absent or empty in the child", () => {
     const directory = fixtureRepository(PLANTED);
     const envFileKeys = discoverRepositoryEnvFileKeys(directory);
