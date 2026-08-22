@@ -36,8 +36,8 @@ their named runs only.
 - The sole current CSF implementation/status register is
   `docs/development/cleanup-register.md`; this document is a testing runbook and
   retains older evidence below without promoting it to current status.
-- The repository candidate has 352 ordered migrations through
-  `20260822084356_route_plugin_applications_to_selected_deployments`. The preceding releases publish signed
+- The repository candidate has 353 ordered migrations through
+  `20260822134710_revalidate_plugin_runtime_admin_authority`. The preceding releases publish signed
   1.2.2 and 1.2.3 artifacts and complete the reviewed helper ACLs. The 1.2.4
   migration records the plugin-specific child health route update without
   changing organization installs. The migrations
@@ -98,10 +98,11 @@ their named runs only.
   `20260822044742_resolve_plugin_application_organization_username`,
   `20260822060000_harden_plugin_application_runtime_controls`, and
   `20260822070000_complete_plugin_application_runtime_compatibility`, and
-  `20260822075815_make_plugin_application_runtime_transitions_idempotent`, and
-  `20260822084356_route_plugin_applications_to_selected_deployments`).
-- Hosted Development is migration-current at 351 rows through
-  `20260822075815_make_plugin_application_runtime_transitions_idempotent`. Google OAuth is enabled and the
+  `20260822075815_make_plugin_application_runtime_transitions_idempotent`,
+  `20260822084356_route_plugin_applications_to_selected_deployments`, and
+  `20260822134710_revalidate_plugin_runtime_admin_authority`).
+- Hosted Development is migration-current at 353 rows through
+  `20260822134710_revalidate_plugin_runtime_admin_authority`. Google OAuth is enabled and the
   hosted authorize endpoint redirects to Google. The signed `dvhs-csf` 1.2.7
   GitHub release is published, while catalog integration and rollout remain
   pending and the embedded 1.1.0 install remains active. The exact signed 1.2.3 artifact is Ready on the Development child
@@ -114,9 +115,9 @@ their named runs only.
   routing, while organization application pages resolve the selected immutable
   deployment in the host because a project-level route cannot select a
   different version for each organization.
-- Production remains untouched at the audited 236-row baseline through
-  `20260811001500`; the exact read-only preflight now expects a 116-migration
-  cutover to this 352-row candidate. Running that cutover requires
+- Production was verified read-only at 333 rows through
+  `20260819050728_complete_reviewed_internal_function_acls`; the exact read-only
+  preflight now expects a 20-migration cutover to this 353-row candidate. Running that cutover requires
   explicit action-time approval.
 - Local evidence on the prior candidate includes a fresh exact 324-migration replay
   and the focused storage/release, import, proof, and release-authority pgTAP
@@ -147,9 +148,11 @@ their named runs only.
   migration, the first runtime hardening is the 349th, and the completed
   runtime compatibility checks are the 350th. The retry-safe runtime transition
   receipts and selected-deployment status are the 351st. The version-pinned
-  application route and optional compatibility ceiling fix are the 352nd. A
-  fresh local reset replayed the exact 352-migration ledger, and the focused
-  runtime suite passed 42/42 assertions.
+  application route and optional compatibility ceiling fix are the 352nd. The
+  admin-authority transaction lock is the 353rd. A fresh isolated replay applied
+  all 353 migrations and passed all 182 pgTAP files with 6,194 assertions. The
+  later fictional fixture seed failed at the local Auth service and did not
+  invalidate the completed schema and pgTAP proof.
   Final role/browser
   acceptance and provider acceptance remain release gates until recorded in
   the cleanup register.

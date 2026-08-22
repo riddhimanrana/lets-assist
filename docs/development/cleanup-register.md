@@ -98,7 +98,7 @@ This register separates actionable repository defects from provider/account and 
   and child processes, routes the namespaced assets locally, and excludes
   platform authority from the child environment. The same migration makes an
   omitted host API maximum genuinely unbounded in both status and activation
-  paths. A fresh 352-migration replay, 42 focused pgTAP assertions, 63 focused
+  paths. A fresh 353-migration replay, 52 focused pgTAP assertions, 63 focused
   runner and proxy assertions, TypeScript, architecture checks, and a live
   two-process local startup pass. Hosted Development migration, Skew Protection
   confirmation, protection-bypass setup, and browser acceptance remain release
@@ -273,7 +273,7 @@ historical evidence and do not override it.
   Development baseline was healthy and migration-current at 296 through
   `20260816083000_csf_import_annotation_settlement`; this implementation has
   not applied the two new migrations or re-verified hosted parity/advisors.
-  Production remains untouched at the audited 236-migration baseline.
+  Production was verified read-only at 333 migrations through `20260819050728`.
 - Implemented locally: authoritative attested plugin releases and fail-closed
   entitlement/install resolution; centralized AI usage/quota/privacy handling;
   Development Resend sender/recipient guards; durable paper-signup notification
