@@ -1,7 +1,7 @@
 BEGIN;
 
 CREATE EXTENSION IF NOT EXISTS pgtap WITH SCHEMA extensions;
-SELECT extensions.plan(42);
+SELECT extensions.plan(43);
 
 SELECT extensions.ok(
   NOT has_function_privilege(
@@ -267,6 +267,7 @@ SELECT extensions.ok(
     SELECT enabled
       AND metadata ->> 'runtimeVersion' = '1.1.0'
       AND metadata ->> 'environment' = 'development'
+      AND metadata ->> 'deploymentId' = 'dpl_application_admin_002'
     FROM public.organization_plugin_feature_flags
     WHERE organization_id = 'fa100000-0000-4000-8000-000000000001'
       AND plugin_key = 'application-admin-fixture'
@@ -305,6 +306,18 @@ SELECT extensions.ok(
   'activation stores a completed request receipt and its outcome'
 );
 
+SET LOCAL ROLE service_role;
+SET LOCAL request.jwt.claims = '{"role":"service_role"}';
+SELECT public.observe_plugin_deployment(
+  'application-admin-fixture', '1.1.0', 'production', 'application',
+  'dpl_application_admin_production', repeat('e', 40),
+  '{"releaseTag":"application-admin-fixture/v1.1.0"}'::jsonb
+);
+SELECT public.report_plugin_deployment_health(
+  'application-admin-fixture', 'production',
+  'dpl_application_admin_production', 'healthy', 'promoted',
+  '{"deploymentUrl":"https://application-admin-production.vercel.app","healthRoute":"/api/health"}'::jsonb
+);
 SET LOCAL ROLE authenticated;
 SET LOCAL request.jwt.claims = '{"sub":"fa000000-0000-4000-8000-000000000002","role":"authenticated"}';
 SELECT extensions.ok(
@@ -322,10 +335,7 @@ SELECT extensions.ok(
     'application-runtime-admin',
     'application-admin-fixture',
     'development'
-  ) ->> 'deploymentUrl' IN (
-    'https://application-admin-old.vercel.app',
-    'https://application-admin-new.vercel.app'
-  ),
+  ) ->> 'deploymentUrl' = 'https://application-admin-new.vercel.app',
   'an active member receives the immutable deployment for the selected version'
 );
 SELECT extensions.is(
@@ -335,7 +345,7 @@ SELECT extensions.is(
     'production'
   ) ->> 'routable',
   'false',
-  'routing fails closed when the selected version has no healthy deployment in the environment'
+  'routing fails closed when the selected flag belongs to another environment'
 );
 SET LOCAL request.jwt.claims = '{"sub":"fa000000-0000-4000-8000-000000000099","role":"authenticated"}';
 SELECT extensions.is(
@@ -489,6 +499,29 @@ SELECT public.set_plugin_application_runtime(
   'fa000000-0000-4000-8000-000000000001',
   'fa200000-0000-4000-8000-000000000008', false, NULL
 );
+SELECT public.observe_plugin_deployment(
+  'application-admin-fixture', '1.1.0', 'development', 'application',
+  'dpl_application_admin_003', repeat('f', 40),
+  '{"releaseTag":"application-admin-fixture/v1.1.0"}'::jsonb
+);
+SELECT public.report_plugin_deployment_health(
+  'application-admin-fixture', 'development', 'dpl_application_admin_003',
+  'healthy', 'deployed',
+  '{"deploymentUrl":"https://application-admin-later.vercel.app","healthRoute":"/api/health"}'::jsonb
+);
+SET LOCAL ROLE authenticated;
+SET LOCAL request.jwt.claims = '{"sub":"fa000000-0000-4000-8000-000000000002","role":"authenticated"}';
+SELECT extensions.is(
+  public.get_plugin_application_route_target_by_identifier(
+    'application-runtime-admin',
+    'application-admin-fixture',
+    'development'
+  ) ->> 'deploymentId',
+  'dpl_application_admin_002',
+  'a later same-version deployment does not move the organization pin'
+);
+SET LOCAL ROLE service_role;
+SET LOCAL request.jwt.claims = '{"role":"service_role"}';
 INSERT INTO public.plugin_versions (
   plugin_key, version, status, changelog, commit_sha, manifest_hash,
   compatibility_contract, rollout_percentage, published_at, source_tree,

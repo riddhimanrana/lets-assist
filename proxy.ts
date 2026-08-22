@@ -9,6 +9,10 @@ import {
   type PluginApplicationRouteTarget,
 } from "@/lib/plugins/application-routing";
 import {
+  resolvePluginApplicationEnvironment,
+  type PluginApplicationEnvironment,
+} from "@/lib/plugins/application-environment";
+import {
   updateSession,
   type AuthenticatedProxyContext,
   type ProxyOptions,
@@ -26,18 +30,19 @@ type RootProxyDependencies = {
   readCsfApplicationRouteTarget: (
     context: AuthenticatedProxyContext,
     organizationId: string,
+    environment: PluginApplicationEnvironment,
   ) => Promise<PluginApplicationRouteTarget | null>;
+  applicationEnvironment: PluginApplicationEnvironment | null;
   applicationDeploymentBypassSecret?: string;
 };
 
 export async function readCsfApplicationRouteTarget(
   context: AuthenticatedProxyContext,
   organizationIdentifier: string,
-  environment: "development" | "production" = process.env.VERCEL_ENV ===
-  "production"
-    ? "production"
-    : "development",
+  environment: PluginApplicationEnvironment | null = resolvePluginApplicationEnvironment(),
 ): Promise<PluginApplicationRouteTarget | null> {
+  if (!environment) return null;
+
   const { data, error } = await context.supabase.rpc(
     "get_plugin_application_route_target_by_identifier",
     {
@@ -108,11 +113,14 @@ export function createRootProxy(
         const organizationId = getCsfApplicationOrganizationId(
           request.nextUrl.pathname,
         );
-        if (!organizationId) return null;
+        if (!organizationId || !dependencies.applicationEnvironment) {
+          return null;
+        }
 
         const routeTarget = await dependencies.readCsfApplicationRouteTarget(
           context,
           organizationId,
+          dependencies.applicationEnvironment,
         );
         if (
           !shouldRouteCsfApplication({
@@ -137,6 +145,7 @@ export const proxy = createRootProxy({
   updateSession,
   runMicrofrontendsMiddleware,
   readCsfApplicationRouteTarget,
+  applicationEnvironment: resolvePluginApplicationEnvironment(),
   applicationDeploymentBypassSecret:
     process.env.PLUGIN_APPLICATION_DEPLOYMENT_BYPASS_SECRET,
 });

@@ -83,6 +83,7 @@ describe("root proxy composition", () => {
       headers: { "x-vercel-mfe-flag-value": "true" },
     });
     const rootProxy = createRootProxy({
+      applicationEnvironment: "development",
       updateSession: async (authRequest, options) => {
         events.push("auth");
         const routed = await options?.onAuthenticatedPassThrough?.(
@@ -122,6 +123,7 @@ describe("root proxy composition", () => {
   test("never evaluates child routing when host auth redirects", async () => {
     let childCalls = 0;
     const rootProxy = createRootProxy({
+      applicationEnvironment: "development",
       updateSession: async () =>
         NextResponse.redirect("https://example.test/login"),
       readCsfApplicationRouteTarget: async () => {
@@ -146,6 +148,7 @@ describe("root proxy composition", () => {
     let microfrontendCalls = 0;
     const request = new NextRequest(`https://example.test${applicationPath}`);
     const rootProxy = createRootProxy({
+      applicationEnvironment: "development",
       updateSession: async (authRequest, options) =>
         (await options?.onAuthenticatedPassThrough?.(
           authenticatedContext(authRequest),
@@ -166,6 +169,7 @@ describe("root proxy composition", () => {
     let authCalls = 0;
     let resolvedFlag = true;
     const rootProxy = createRootProxy({
+      applicationEnvironment: "development",
       updateSession: async () => {
         authCalls += 1;
         return NextResponse.next();
@@ -186,6 +190,28 @@ describe("root proxy composition", () => {
     expect(authCalls).toBe(0);
     expect(resolvedFlag).toBe(false);
     expect(response.headers.get("Cache-Control")).toBe("private, no-store");
+  });
+
+  test("fails closed on unrelated Vercel preview branches", async () => {
+    let targetCalls = 0;
+    const request = new NextRequest(`https://example.test${applicationPath}`);
+    const rootProxy = createRootProxy({
+      applicationEnvironment: null,
+      updateSession: async (authRequest, options) =>
+        (await options?.onAuthenticatedPassThrough?.(
+          authenticatedContext(authRequest),
+        )) ?? NextResponse.next(),
+      readCsfApplicationRouteTarget: async () => {
+        targetCalls += 1;
+        return routeTarget;
+      },
+      runMicrofrontendsMiddleware: async () => NextResponse.next(),
+    });
+
+    const response = await rootProxy(request);
+
+    expect(targetCalls).toBe(0);
+    expect(response.headers.get("x-middleware-rewrite")).toBeNull();
   });
 
   test("forwards the trusted bypass only upstream to the selected deployment", () => {

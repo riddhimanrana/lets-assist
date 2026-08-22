@@ -118,11 +118,20 @@ AS $$
 DECLARE
   v_release public.plugin_versions%ROWTYPE;
   v_deployment private.plugin_deployments%ROWTYPE;
+  v_previous_deployment_id text;
   v_host_key integer[];
   v_host_minimum_key integer[];
   v_host_maximum_key integer[];
+  v_result jsonb;
 BEGIN
   IF p_enabled THEN
+    SELECT flags.metadata ->> 'deploymentId'
+    INTO v_previous_deployment_id
+    FROM public.organization_plugin_feature_flags AS flags
+    WHERE flags.organization_id = p_organization_id
+      AND flags.plugin_key = p_plugin_key
+      AND flags.flag_key = 'application-runtime';
+
     SELECT releases.*
     INTO v_release
     FROM public.plugin_versions AS releases
@@ -179,7 +188,7 @@ BEGIN
     END IF;
   END IF;
 
-  RETURN private.set_plugin_application_runtime_hardened_20260822(
+  v_result := private.set_plugin_application_runtime_hardened_20260822(
     p_organization_id,
     p_plugin_key,
     p_target_version,
@@ -188,6 +197,55 @@ BEGIN
     p_actor_id,
     p_request_id
   );
+
+  IF p_enabled THEN
+    UPDATE public.organization_plugin_feature_flags
+    SET metadata = metadata || jsonb_build_object(
+        'runtimeVersion', p_target_version,
+        'environment', p_environment,
+        'deploymentId', v_deployment.deployment_id
+      ),
+      updated_by = p_actor_id,
+      updated_at = now()
+    WHERE organization_id = p_organization_id
+      AND plugin_key = p_plugin_key
+      AND flag_key = 'application-runtime';
+
+    IF v_previous_deployment_id IS DISTINCT FROM v_deployment.deployment_id
+      AND NOT coalesce((v_result ->> 'changed')::boolean, false)
+    THEN
+      INSERT INTO public.plugin_audit_logs (
+        organization_id,
+        plugin_key,
+        action,
+        actor_id,
+        actor_type,
+        details
+      ) VALUES (
+        p_organization_id,
+        p_plugin_key,
+        'install.updated',
+        p_actor_id,
+        'user',
+        jsonb_build_object(
+          'applicationRuntimeEnabled', true,
+          'targetVersion', p_target_version,
+          'environment', p_environment,
+          'deploymentId', v_deployment.deployment_id,
+          'requestId', p_request_id
+        )
+      );
+    END IF;
+
+    v_result := v_result || jsonb_build_object(
+      'changed', coalesce((v_result ->> 'changed')::boolean, false)
+        OR v_previous_deployment_id IS DISTINCT FROM v_deployment.deployment_id,
+      'selectedDeploymentId', v_deployment.deployment_id,
+      'selectedDeploymentUrl', v_deployment.health_evidence ->> 'deploymentUrl'
+    );
+  END IF;
+
+  RETURN v_result;
 END;
 $$;
 
@@ -195,6 +253,75 @@ REVOKE ALL ON FUNCTION private.set_plugin_application_runtime_compatibility_2026
   FROM PUBLIC, anon, authenticated, service_role;
 GRANT EXECUTE ON FUNCTION private.set_plugin_application_runtime_compatibility_20260822(uuid, text, text, text, boolean, uuid, uuid)
   TO postgres;
+
+CREATE OR REPLACE FUNCTION public.get_plugin_application_runtime_admin_status(
+  p_organization_id uuid,
+  p_plugin_key text,
+  p_environment text
+)
+RETURNS jsonb
+LANGUAGE plpgsql
+STABLE
+SECURITY DEFINER
+SET search_path = ''
+AS $$
+DECLARE
+  v_result jsonb;
+  v_selected_version text;
+  v_selected_deployment_id text;
+  v_selected_environment text;
+  v_selected_deployment private.plugin_deployments%ROWTYPE;
+  v_selected_deployment_healthy boolean := false;
+BEGIN
+  v_result := private.get_plugin_app_runtime_status_20260822(
+    p_organization_id,
+    p_plugin_key,
+    p_environment
+  );
+  v_selected_version := nullif(v_result ->> 'selectedApplicationVersion', '');
+
+  SELECT
+    flags.metadata ->> 'deploymentId',
+    flags.metadata ->> 'environment'
+  INTO v_selected_deployment_id, v_selected_environment
+  FROM public.organization_plugin_feature_flags AS flags
+  WHERE flags.organization_id = p_organization_id
+    AND flags.plugin_key = p_plugin_key
+    AND flags.flag_key = 'application-runtime';
+
+  IF v_selected_version IS NOT NULL
+    AND v_selected_deployment_id IS NOT NULL
+    AND v_selected_environment = p_environment
+  THEN
+    SELECT deployments.*
+    INTO v_selected_deployment
+    FROM private.plugin_deployments AS deployments
+    WHERE deployments.plugin_key = p_plugin_key
+      AND deployments.version = v_selected_version
+      AND deployments.environment = p_environment
+      AND deployments.runtime_profile = 'application'
+      AND deployments.deployment_id = v_selected_deployment_id
+    LIMIT 1;
+  END IF;
+
+  v_selected_deployment_healthy := v_selected_deployment.id IS NOT NULL
+    AND v_selected_deployment.health_status = 'healthy'
+    AND v_selected_deployment.promotion_status IN ('deployed', 'promoted');
+
+  RETURN v_result || jsonb_build_object(
+    'selectedDeploymentHealthy', v_selected_deployment_healthy,
+    'selectedDeploymentId', v_selected_deployment.deployment_id,
+    'selectedDeploymentUrl',
+      v_selected_deployment.health_evidence ->> 'deploymentUrl',
+    'selectedHealthReportedAt', v_selected_deployment.health_reported_at
+  );
+END;
+$$;
+
+REVOKE ALL ON FUNCTION public.get_plugin_application_runtime_admin_status(uuid, text, text)
+  FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.get_plugin_application_runtime_admin_status(uuid, text, text)
+  TO service_role;
 
 CREATE FUNCTION public.get_plugin_application_route_target_by_identifier(
   p_organization_identifier text,
@@ -211,6 +338,7 @@ DECLARE
   v_actor_id uuid := (SELECT auth.uid());
   v_organization_id uuid;
   v_runtime_version text;
+  v_selected_deployment_id text;
   v_access jsonb;
   v_deployment private.plugin_deployments%ROWTYPE;
   v_deployment_url text;
@@ -253,8 +381,8 @@ BEGIN
     RETURN jsonb_build_object('schemaVersion', 1, 'routable', false);
   END IF;
 
-  SELECT installs.desired_version
-  INTO v_runtime_version
+  SELECT installs.desired_version, flags.metadata ->> 'deploymentId'
+  INTO v_runtime_version, v_selected_deployment_id
   FROM public.organization_plugin_installs AS installs
   JOIN public.organization_plugin_feature_flags AS flags
     ON flags.organization_id = installs.organization_id
@@ -264,9 +392,10 @@ BEGIN
     AND installs.plugin_key = p_plugin_key
     AND installs.enabled
     AND flags.enabled
-    AND flags.metadata ->> 'runtimeVersion' = installs.desired_version;
+    AND flags.metadata ->> 'runtimeVersion' = installs.desired_version
+    AND flags.metadata ->> 'environment' = p_environment;
 
-  IF v_runtime_version IS NULL THEN
+  IF v_runtime_version IS NULL OR v_selected_deployment_id IS NULL THEN
     RETURN jsonb_build_object('schemaVersion', 1, 'routable', false);
   END IF;
 
@@ -284,13 +413,11 @@ BEGIN
   FROM private.plugin_deployments AS deployments
   WHERE deployments.plugin_key = p_plugin_key
     AND deployments.version = v_runtime_version
+    AND deployments.deployment_id = v_selected_deployment_id
     AND deployments.environment = p_environment
     AND deployments.runtime_profile = 'application'
     AND deployments.health_status = 'healthy'
     AND deployments.promotion_status IN ('deployed', 'promoted')
-  ORDER BY deployments.last_seen_at DESC,
-    deployments.first_seen_at DESC,
-    deployments.id DESC
   LIMIT 1;
 
   v_deployment_url := v_deployment.health_evidence ->> 'deploymentUrl';
