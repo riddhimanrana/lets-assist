@@ -1,153 +1,10 @@
 import { dirname, isAbsolute, relative, resolve } from "node:path";
+import ts from "typescript";
 
-const SPECIFIER_PATTERNS = [
-  /(?:^|\n)\s*(?:import|export)[\s\S]*?from\s+["']([^"']+)["']/gu,
-  /(?:^|\n)\s*import\s+["']([^"']+)["']\s*;?/gu,
-];
-
-function isIdentifierCharacter(character) {
-  return character !== undefined && /[A-Za-z0-9_$]/u.test(character);
-}
-
-function skipJavascriptTrivia(source, start) {
-  let cursor = start;
-
-  while (cursor < source.length) {
-    if (/\s/u.test(source[cursor])) {
-      cursor += 1;
-      continue;
-    }
-
-    if (source.startsWith("//", cursor)) {
-      const newline = source.indexOf("\n", cursor + 2);
-      if (newline === -1) return source.length;
-      cursor = newline + 1;
-      continue;
-    }
-
-    if (source.startsWith("/*", cursor)) {
-      const commentEnd = source.indexOf("*/", cursor + 2);
-      if (commentEnd === -1) return source.length;
-      cursor = commentEnd + 2;
-      continue;
-    }
-
-    break;
-  }
-
-  return cursor;
-}
-
-function decodeModuleSpecifier(raw) {
-  let decoded = "";
-  const simpleEscapes = {
-    b: "\b",
-    f: "\f",
-    n: "\n",
-    r: "\r",
-    t: "\t",
-    v: "\v",
-  };
-
-  for (let cursor = 0; cursor < raw.length; cursor += 1) {
-    const character = raw[cursor];
-    if (character !== "\\") {
-      decoded += character;
-      continue;
-    }
-
-    const escaped = raw[cursor + 1];
-    if (escaped === undefined) return null;
-    cursor += 1;
-
-    if (escaped === "\n") continue;
-    if (escaped === "\r") {
-      if (raw[cursor + 1] === "\n") cursor += 1;
-      continue;
-    }
-    if (escaped === "x") {
-      const digits = raw.slice(cursor + 1, cursor + 3);
-      if (!/^[0-9A-Fa-f]{2}$/u.test(digits)) return null;
-      decoded += String.fromCodePoint(Number.parseInt(digits, 16));
-      cursor += 2;
-      continue;
-    }
-    if (escaped === "u") {
-      if (raw[cursor + 1] === "{") {
-        const end = raw.indexOf("}", cursor + 2);
-        if (end === -1) return null;
-        const digits = raw.slice(cursor + 2, end);
-        if (!/^[0-9A-Fa-f]{1,6}$/u.test(digits)) return null;
-        const codePoint = Number.parseInt(digits, 16);
-        if (codePoint > 0x10ffff) return null;
-        decoded += String.fromCodePoint(codePoint);
-        cursor = end;
-        continue;
-      }
-      const digits = raw.slice(cursor + 1, cursor + 5);
-      if (!/^[0-9A-Fa-f]{4}$/u.test(digits)) return null;
-      decoded += String.fromCodePoint(Number.parseInt(digits, 16));
-      cursor += 4;
-      continue;
-    }
-
-    decoded += simpleEscapes[escaped] ?? escaped;
-  }
-
-  return decoded;
-}
-
-function collectCallImportSpecifiers(source, callee) {
-  const specifiers = [];
-  let searchFrom = 0;
-
-  while (searchFrom < source.length) {
-    const callStart = source.indexOf(callee, searchFrom);
-    if (callStart === -1) break;
-    searchFrom = callStart + callee.length;
-
-    if (
-      isIdentifierCharacter(source[callStart - 1]) ||
-      isIdentifierCharacter(source[searchFrom])
-    ) {
-      continue;
-    }
-
-    let cursor = skipJavascriptTrivia(source, searchFrom);
-    if (source[cursor] !== "(") continue;
-
-    cursor = skipJavascriptTrivia(source, cursor + 1);
-    const delimiter = source[cursor];
-    if (delimiter !== '"' && delimiter !== "'" && delimiter !== "`") continue;
-
-    let value = "";
-    let interpolated = false;
-    for (cursor += 1; cursor < source.length; cursor += 1) {
-      const character = source[cursor];
-      if (character === "\\") {
-        if (cursor + 1 >= source.length) break;
-        value += character + source[cursor + 1];
-        cursor += 1;
-        continue;
-      }
-      if (
-        delimiter === "`" &&
-        character === "$" &&
-        source[cursor + 1] === "{"
-      ) {
-        interpolated = true;
-      }
-      if (character === delimiter) {
-        const decoded = decodeModuleSpecifier(value);
-        if (!interpolated && decoded !== null) specifiers.push(decoded);
-        searchFrom = cursor + 1;
-        break;
-      }
-      value += character;
-    }
-  }
-
-  return specifiers;
+function literalModuleSpecifier(node) {
+  return ts.isStringLiteral(node) || ts.isNoSubstitutionTemplateLiteral(node)
+    ? node.text
+    : null;
 }
 
 function isOutside(root, candidate) {
@@ -185,18 +42,37 @@ export function collectHostImportSpecifiers(source, context) {
 }
 
 export function collectLiteralImportSpecifiers(source) {
-  const literals = new Set([
-    ...collectCallImportSpecifiers(source, "import"),
-    ...collectCallImportSpecifiers(source, "require"),
-  ]);
+  const literals = new Set();
+  const sourceFile = ts.createSourceFile(
+    "plugin-source.tsx",
+    source,
+    ts.ScriptTarget.Latest,
+    true,
+    ts.ScriptKind.TSX,
+  );
 
-  for (const pattern of SPECIFIER_PATTERNS) {
-    pattern.lastIndex = 0;
-    for (const match of source.matchAll(pattern)) {
-      const decoded = decodeModuleSpecifier(match[1]);
-      if (decoded !== null) literals.add(decoded);
+  function visit(node) {
+    if (
+      (ts.isImportDeclaration(node) || ts.isExportDeclaration(node)) &&
+      node.moduleSpecifier
+    ) {
+      const specifier = literalModuleSpecifier(node.moduleSpecifier);
+      if (specifier !== null) literals.add(specifier);
+    } else if (ts.isCallExpression(node) && node.arguments.length > 0) {
+      const isDynamicImport =
+        node.expression.kind === ts.SyntaxKind.ImportKeyword;
+      const isRequire =
+        ts.isIdentifier(node.expression) && node.expression.text === "require";
+      if (isDynamicImport || isRequire) {
+        const specifier = literalModuleSpecifier(node.arguments[0]);
+        if (specifier !== null) literals.add(specifier);
+      }
     }
+
+    ts.forEachChild(node, visit);
   }
+
+  visit(sourceFile);
 
   return literals;
 }

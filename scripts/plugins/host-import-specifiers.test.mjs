@@ -112,6 +112,20 @@ describe("host import specifier collection", () => {
     ]);
   });
 
+  test("accepts comments before static import and export specifiers", () => {
+    const source = `
+      import value from /* bundler */ "@/lib/static-import";
+      import /* setup */ "@/lib/side-effect";
+      export { value } from /* stable */ "@/lib/static-export";
+    `;
+
+    expect([...collectHostImportSpecifiers(source)].sort()).toEqual([
+      "@/lib/side-effect",
+      "@/lib/static-export",
+      "@/lib/static-import",
+    ]);
+  });
+
   test("ignores non-host imports", () => {
     const source = `
       import "react";
