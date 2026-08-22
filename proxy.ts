@@ -192,6 +192,12 @@ export function createRootProxy(
         ) {
           return null;
         }
+        if (
+          dependencies.applicationEnvironment &&
+          !dependencies.applicationDeploymentBypassSecret
+        ) {
+          return null;
+        }
 
         const routeTarget = dependencies.applicationEnvironment
           ? await dependencies.readCsfApplicationRouteTarget(
@@ -205,12 +211,6 @@ export function createRootProxy(
               dependencies.localApplicationUrl!,
             );
         if (!routeTarget) return null;
-        if (
-          dependencies.applicationEnvironment === "development" &&
-          !dependencies.applicationDeploymentBypassSecret
-        ) {
-          return null;
-        }
 
         return rewriteToPluginApplicationDeployment({
           target: routeTarget!,

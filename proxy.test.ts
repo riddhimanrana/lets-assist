@@ -233,22 +233,33 @@ describe("root proxy composition", () => {
     expect(microfrontendCalls).toBe(0);
   });
 
-  test("keeps hosted Development in the host without a protection bypass", async () => {
-    const request = new NextRequest(`https://example.test${applicationPath}`);
-    const rootProxy = createRootProxy({
-      ...defaultDependencies,
-      applicationDeploymentBypassSecret: undefined,
-      updateSession: async (authRequest, options) =>
-        (await options?.onAuthenticatedPassThrough?.(
-          authenticatedContext(authRequest),
-        )) ?? NextResponse.next(),
-      readCsfApplicationRouteTarget: async () => routeTarget,
-      runMicrofrontendsMiddleware: async () => NextResponse.next(),
-    });
+  test("keeps every hosted environment in the host without a protection bypass", async () => {
+    for (const applicationEnvironment of [
+      "development",
+      "production",
+    ] as const) {
+      let targetCalls = 0;
+      const request = new NextRequest(`https://example.test${applicationPath}`);
+      const rootProxy = createRootProxy({
+        ...defaultDependencies,
+        applicationEnvironment,
+        applicationDeploymentBypassSecret: undefined,
+        updateSession: async (authRequest, options) =>
+          (await options?.onAuthenticatedPassThrough?.(
+            authenticatedContext(authRequest),
+          )) ?? NextResponse.next(),
+        readCsfApplicationRouteTarget: async () => {
+          targetCalls += 1;
+          return routeTarget;
+        },
+        runMicrofrontendsMiddleware: async () => NextResponse.next(),
+      });
 
-    const response = await rootProxy(request);
+      const response = await rootProxy(request);
 
-    expect(response.headers.get("x-middleware-rewrite")).toBeNull();
+      expect(response.headers.get("x-middleware-rewrite")).toBeNull();
+      expect(targetCalls).toBe(0);
+    }
   });
 
   test("serves the required client config without exposing active routes", async () => {
