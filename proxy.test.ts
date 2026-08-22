@@ -4,7 +4,9 @@ import { NextRequest, NextResponse } from "next/server";
 import type { AuthenticatedProxyContext } from "@/lib/supabase/proxy";
 
 import {
+  config,
   createRootProxy,
+  getCsfApplicationOrganizationIdForRequest,
   readCsfLocalApplicationRouteTarget,
   readCsfApplicationRouteTarget,
   rewriteToPluginApplicationDeployment,
@@ -333,5 +335,61 @@ describe("root proxy composition", () => {
         "x-middleware-request-x-lets-assist-plugin-runtime-version",
       ),
     ).toBe("1.2.7");
+  });
+
+  test("routes child static assets to the same selected deployment", async () => {
+    const assetPath = "/_next/static/chunks/app/access-proof.js";
+    const request = new NextRequest(`https://example.test${assetPath}`, {
+      headers: { referer: `https://example.test${applicationPath}` },
+    });
+    const rootProxy = createRootProxy({
+      ...defaultDependencies,
+      updateSession: async (authRequest, options) =>
+        (await options?.onAuthenticatedPassThrough?.(
+          authenticatedContext(authRequest),
+        )) ?? NextResponse.next(),
+      readCsfApplicationRouteTarget: async () => routeTarget,
+      runMicrofrontendsMiddleware: async () => NextResponse.next(),
+    });
+
+    const response = await rootProxy(request);
+
+    expect(response.headers.get("x-middleware-rewrite")).toBe(
+      `https://lets-assist-csf-v1.vercel.app${assetPath}`,
+    );
+    expect(config.matcher[0]).not.toContain("_next/static");
+  });
+
+  test("keeps host and cross-origin static asset requests in the host", async () => {
+    const hostAsset = new NextRequest(
+      "https://example.test/_next/static/chunks/app/layout.js",
+      { headers: { referer: "https://example.test/dashboard" } },
+    );
+    const crossOriginAsset = new NextRequest(
+      "https://example.test/_next/static/chunks/app/layout.js",
+      { headers: { referer: `https://attacker.test${applicationPath}` } },
+    );
+    let authCalls = 0;
+    const rootProxy = createRootProxy({
+      ...defaultDependencies,
+      updateSession: async () => {
+        authCalls += 1;
+        return NextResponse.next();
+      },
+      readCsfApplicationRouteTarget: async () => routeTarget,
+      runMicrofrontendsMiddleware: async () => NextResponse.next(),
+    });
+
+    expect(getCsfApplicationOrganizationIdForRequest(hostAsset)).toBeNull();
+    expect(
+      getCsfApplicationOrganizationIdForRequest(crossOriginAsset),
+    ).toBeNull();
+    expect(
+      (await rootProxy(hostAsset)).headers.get("x-middleware-rewrite"),
+    ).toBeNull();
+    expect(
+      (await rootProxy(crossOriginAsset)).headers.get("x-middleware-rewrite"),
+    ).toBeNull();
+    expect(authCalls).toBe(0);
   });
 });

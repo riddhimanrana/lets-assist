@@ -5,7 +5,6 @@ import {
   CSF_APPLICATION_RUNTIME_FLAG,
   getCsfApplicationOrganizationId,
   parsePluginApplicationRouteTarget,
-  shouldRouteCsfApplication,
   type PluginApplicationRouteTarget,
 } from "@/lib/plugins/application-routing";
 import {
@@ -146,6 +145,28 @@ export function rewriteToPluginApplicationDeployment(input: {
   });
 }
 
+const NEXT_STATIC_ASSET_PATH = /^\/_next\/static\//u;
+
+export function getCsfApplicationOrganizationIdForRequest(
+  request: NextRequest,
+): string | null {
+  const directOrganizationId = getCsfApplicationOrganizationId(
+    request.nextUrl.pathname,
+  );
+  if (directOrganizationId) return directOrganizationId;
+  if (!NEXT_STATIC_ASSET_PATH.test(request.nextUrl.pathname)) return null;
+
+  const referer = request.headers.get("referer");
+  if (!referer) return null;
+  try {
+    const refererUrl = new URL(referer);
+    if (refererUrl.origin !== request.nextUrl.origin) return null;
+    return getCsfApplicationOrganizationId(refererUrl.pathname);
+  } catch {
+    return null;
+  }
+}
+
 export function createRootProxy(
   dependencies: RootProxyDependencies,
 ): (request: NextRequest) => Promise<NextResponse> {
@@ -164,11 +185,15 @@ export function createRootProxy(
       return resolved;
     }
 
+    const organizationId = getCsfApplicationOrganizationIdForRequest(request);
+    if (
+      NEXT_STATIC_ASSET_PATH.test(request.nextUrl.pathname) &&
+      !organizationId
+    )
+      return NextResponse.next();
+
     return dependencies.updateSession(request, {
       onAuthenticatedPassThrough: async (context) => {
-        const organizationId = getCsfApplicationOrganizationId(
-          request.nextUrl.pathname,
-        );
         if (
           !organizationId ||
           (!dependencies.applicationEnvironment &&
@@ -188,14 +213,7 @@ export function createRootProxy(
               organizationId,
               dependencies.localApplicationUrl!,
             );
-        if (
-          !shouldRouteCsfApplication({
-            pathname: request.nextUrl.pathname,
-            routeTargetAvailable: routeTarget !== null,
-          })
-        ) {
-          return null;
-        }
+        if (!routeTarget) return null;
 
         return rewriteToPluginApplicationDeployment({
           target: routeTarget!,
@@ -222,11 +240,10 @@ export const config = {
   matcher: [
     /*
      * Match all request paths except for the ones starting with:
-     * - _next/static (static files)
      * - _next/image (image optimization files)
      * - favicon.ico (favicon file)
      * Feel free to modify this pattern to include more paths.
      */
-    "/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)",
+    "/((?!_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)",
   ],
 };
