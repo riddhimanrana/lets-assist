@@ -418,6 +418,7 @@ describe("the child environment is a positive allowlist", () => {
       "NEXT_TELEMETRY_DISABLED",
       "NEXT_DIST_DIR",
       "CSF_LOCAL_FIXTURE_MODE",
+      "PLUGIN_APPLICATION_LOCAL_URL",
       "PORT",
       "NODE_ENV",
     ]);
@@ -456,8 +457,10 @@ describe("the child environment is a positive allowlist", () => {
         stack.isolated.databasePort,
         stack.isolated.smtpPort,
         3000,
+        3001,
       ].join(","),
     );
+    expect(appChild.PLUGIN_APPLICATION_LOCAL_URL).toBe("http://127.0.0.1:3001");
     // The app child is not a cron child: no probe mode, no cron tokens.
     expect(Object.hasOwn(appChild, "CRON_AUTH_SHAPE_PROBE_ONLY")).toBe(false);
     expect(Object.hasOwn(appChild, "CRON_TOKEN")).toBe(false);
