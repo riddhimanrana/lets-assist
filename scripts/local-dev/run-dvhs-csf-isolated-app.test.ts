@@ -139,6 +139,12 @@ describe("the isolated app child environment is built, not inherited", () => {
       process.env[key] = value;
     try {
       const { childEnv } = build();
+      expect(childEnv.PLUGIN_APPLICATION_LOCAL_URL).toBe(
+        "http://127.0.0.1:3001",
+      );
+      expect(childEnv.CRON_EGRESS_ALLOWED_LOOPBACK_PORTS?.split(",")).toContain(
+        "3001",
+      );
       const serialized = JSON.stringify(childEnv);
       for (const [key, value] of Object.entries(planted)) {
         expect(serialized, key).not.toContain(value);
@@ -176,6 +182,7 @@ describe("the isolated app child environment is built, not inherited", () => {
       "TURNSTILE_BYPASS",
       "NEXT_PUBLIC_TURNSTILE_BYPASS",
       "DV_TABROOM_LIVE",
+      "PLUGIN_APPLICATION_LOCAL_URL",
       "CRON_EGRESS_LEDGER",
       "CRON_EGRESS_SMTP_PORTS",
       "CRON_EGRESS_ALLOWED_SMTP_PORTS",
@@ -286,7 +293,7 @@ describe("the isolated app child environment is built, not inherited", () => {
     expect(childEnv.RESEND_API_KEY).toBe("");
   });
 
-  test("only loopback Supabase, database, SMTP, and the local app are permitted", () => {
+  test("only loopback Supabase, database, SMTP, and the local apps are permitted", () => {
     const { childEnv } = build();
     expect(childEnv.CRON_EGRESS_ALLOWED_LOOPBACK_PORTS).toBe(
       [
@@ -294,6 +301,7 @@ describe("the isolated app child environment is built, not inherited", () => {
         ISOLATED.databasePort,
         ISOLATED.smtpPort,
         APP_PORT,
+        3001,
       ].join(","),
     );
     expect(childEnv.CRON_EGRESS_ALLOWED_SMTP_PORTS).toBe(

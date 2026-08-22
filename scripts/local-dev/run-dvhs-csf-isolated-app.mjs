@@ -141,6 +141,7 @@ export const DISABLED_PROVIDER_ENV_KEYS = [
 ];
 
 const LOCAL_MAIL_FROM = "Let's Assist <no-reply@local.lets-assist.test>";
+const LOCAL_PLUGIN_APPLICATION_PORT = 3001;
 
 /** Cron token keys, set only in the cron-probe child. */
 const CRON_TOKEN_KEYS = [
@@ -309,6 +310,7 @@ export function buildIsolatedChildEnvironment(options) {
   childEnv.TURNSTILE_BYPASS = "true";
   childEnv.NEXT_PUBLIC_TURNSTILE_BYPASS = "true";
   childEnv.DV_TABROOM_LIVE = "0";
+  childEnv.PLUGIN_APPLICATION_LOCAL_URL = `http://127.0.0.1:${LOCAL_PLUGIN_APPLICATION_PORT}`;
   for (const key of DISABLED_WORKER_ENV_KEYS) childEnv[key] = "false";
 
   // Guard wiring, shared by both children.
@@ -333,6 +335,7 @@ export function buildIsolatedChildEnvironment(options) {
       isolated.databasePort,
       isolated.smtpPort,
       port,
+      LOCAL_PLUGIN_APPLICATION_PORT,
     ].join(",");
   }
 

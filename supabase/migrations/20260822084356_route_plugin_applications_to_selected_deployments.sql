@@ -320,7 +320,7 @@ BEGIN
   v_reported_url := p_health_evidence ->> 'deploymentUrl';
   IF v_deployment.runtime_profile = 'application'
     AND v_existing_url IS NOT NULL
-    AND v_existing_url IS DISTINCT FROM v_reported_url
+    AND rtrim(v_existing_url, '/') IS DISTINCT FROM rtrim(v_reported_url, '/')
     AND EXISTS (
       SELECT 1
       FROM public.organization_plugin_feature_flags AS flags

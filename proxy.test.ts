@@ -5,6 +5,7 @@ import type { AuthenticatedProxyContext } from "@/lib/supabase/proxy";
 
 import {
   createRootProxy,
+  readCsfLocalApplicationRouteTarget,
   readCsfApplicationRouteTarget,
   rewriteToPluginApplicationDeployment,
 } from "./proxy";
@@ -15,6 +16,12 @@ const routeTarget = {
   deploymentId: "dpl_selected_v1",
   deploymentUrl: "https://lets-assist-csf-v1.vercel.app",
   runtimeVersion: "1.2.7",
+};
+
+const defaultDependencies = {
+  applicationEnvironment: "development" as const,
+  localApplicationUrl: null,
+  readCsfLocalApplicationRouteTarget: async () => null,
 };
 
 function authenticatedContext(request: NextRequest): AuthenticatedProxyContext {
@@ -77,13 +84,72 @@ describe("root proxy composition", () => {
     expect(target).toBeNull();
   });
 
+  test("reads the selected runtime for the isolated local child", async () => {
+    const queries: Array<{ table: string; filters: Array<[string, string]> }> =
+      [];
+    const supabase = {
+      from(table: string) {
+        const query = { table, filters: [] as Array<[string, string]> };
+        queries.push(query);
+        const builder = {
+          select() {
+            return builder;
+          },
+          eq(column: string, value: string) {
+            query.filters.push([column, value]);
+            return builder;
+          },
+          async maybeSingle() {
+            if (table === "organizations") {
+              return {
+                data: { id: "22222222-2222-4222-8222-222222222222" },
+                error: null,
+              };
+            }
+            return {
+              data: {
+                enabled: true,
+                metadata: {
+                  environment: "development",
+                  runtimeVersion: "1.2.7",
+                },
+              },
+              error: null,
+            };
+          },
+        };
+        return builder;
+      },
+    };
+
+    expect(
+      await readCsfLocalApplicationRouteTarget(
+        {
+          request: new NextRequest(`http://127.0.0.1:3000${applicationPath}`),
+          userId: "11111111-1111-4111-8111-111111111111",
+          supabase: supabase as never,
+        },
+        "dvhighcsf",
+        "http://127.0.0.1:3001",
+      ),
+    ).toEqual({
+      deploymentId: "local-1.2.7",
+      deploymentUrl: "http://127.0.0.1:3001",
+      runtimeVersion: "1.2.7",
+    });
+    expect(queries.map((query) => query.table)).toEqual([
+      "organizations",
+      "organization_plugin_feature_flags",
+    ]);
+  });
+
   test("finishes host auth before routing and preserves auth response policy", async () => {
     const events: string[] = [];
     const request = new NextRequest(`https://example.test${applicationPath}`, {
       headers: { "x-vercel-mfe-flag-value": "true" },
     });
     const rootProxy = createRootProxy({
-      applicationEnvironment: "development",
+      ...defaultDependencies,
       updateSession: async (authRequest, options) => {
         events.push("auth");
         const routed = await options?.onAuthenticatedPassThrough?.(
@@ -123,7 +189,7 @@ describe("root proxy composition", () => {
   test("never evaluates child routing when host auth redirects", async () => {
     let childCalls = 0;
     const rootProxy = createRootProxy({
-      applicationEnvironment: "development",
+      ...defaultDependencies,
       updateSession: async () =>
         NextResponse.redirect("https://example.test/login"),
       readCsfApplicationRouteTarget: async () => {
@@ -148,7 +214,7 @@ describe("root proxy composition", () => {
     let microfrontendCalls = 0;
     const request = new NextRequest(`https://example.test${applicationPath}`);
     const rootProxy = createRootProxy({
-      applicationEnvironment: "development",
+      ...defaultDependencies,
       updateSession: async (authRequest, options) =>
         (await options?.onAuthenticatedPassThrough?.(
           authenticatedContext(authRequest),
@@ -169,7 +235,7 @@ describe("root proxy composition", () => {
     let authCalls = 0;
     let resolvedFlag = true;
     const rootProxy = createRootProxy({
-      applicationEnvironment: "development",
+      ...defaultDependencies,
       updateSession: async () => {
         authCalls += 1;
         return NextResponse.next();
@@ -197,11 +263,16 @@ describe("root proxy composition", () => {
     const request = new NextRequest(`https://example.test${applicationPath}`);
     const rootProxy = createRootProxy({
       applicationEnvironment: null,
+      localApplicationUrl: null,
       updateSession: async (authRequest, options) =>
         (await options?.onAuthenticatedPassThrough?.(
           authenticatedContext(authRequest),
         )) ?? NextResponse.next(),
       readCsfApplicationRouteTarget: async () => {
+        targetCalls += 1;
+        return routeTarget;
+      },
+      readCsfLocalApplicationRouteTarget: async () => {
         targetCalls += 1;
         return routeTarget;
       },
@@ -212,6 +283,31 @@ describe("root proxy composition", () => {
 
     expect(targetCalls).toBe(0);
     expect(response.headers.get("x-middleware-rewrite")).toBeNull();
+  });
+
+  test("routes an enabled isolated fixture to the loopback child", async () => {
+    const request = new NextRequest(`http://127.0.0.1:3000${applicationPath}`);
+    const rootProxy = createRootProxy({
+      applicationEnvironment: null,
+      localApplicationUrl: "http://127.0.0.1:3001",
+      updateSession: async (authRequest, options) =>
+        (await options?.onAuthenticatedPassThrough?.(
+          authenticatedContext(authRequest),
+        )) ?? NextResponse.next(),
+      readCsfApplicationRouteTarget: async () => null,
+      readCsfLocalApplicationRouteTarget: async () => ({
+        deploymentId: "local-1.2.7",
+        deploymentUrl: "http://127.0.0.1:3001",
+        runtimeVersion: "1.2.7",
+      }),
+      runMicrofrontendsMiddleware: async () => NextResponse.next(),
+    });
+
+    const response = await rootProxy(request);
+
+    expect(response.headers.get("x-middleware-rewrite")).toBe(
+      `http://127.0.0.1:3001${applicationPath}`,
+    );
   });
 
   test("forwards the trusted bypass only upstream to the selected deployment", () => {

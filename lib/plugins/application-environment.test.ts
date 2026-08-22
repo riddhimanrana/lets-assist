@@ -1,6 +1,9 @@
 import { describe, expect, test } from "bun:test";
 
-import { resolvePluginApplicationEnvironment } from "./application-environment";
+import {
+  resolveLocalPluginApplicationUrl,
+  resolvePluginApplicationEnvironment,
+} from "./application-environment";
 
 describe("resolvePluginApplicationEnvironment", () => {
   test("maps the production target to the Production deployment ledger", () => {
@@ -26,5 +29,34 @@ describe("resolvePluginApplicationEnvironment", () => {
       }),
     ).toBeNull();
     expect(resolvePluginApplicationEnvironment({})).toBeNull();
+  });
+});
+
+describe("resolveLocalPluginApplicationUrl", () => {
+  test("routes only the isolated fictional fixture lane to the local child", () => {
+    expect(
+      resolveLocalPluginApplicationUrl({
+        CSF_LOCAL_FIXTURE_MODE: "1",
+        PLUGIN_APPLICATION_LOCAL_URL: "http://127.0.0.1:3001",
+      }),
+    ).toBe("http://127.0.0.1:3001");
+    expect(resolveLocalPluginApplicationUrl({})).toBeNull();
+    expect(
+      resolveLocalPluginApplicationUrl({
+        CSF_LOCAL_FIXTURE_MODE: "1",
+        PLUGIN_APPLICATION_LOCAL_URL: "https://example.com",
+      }),
+    ).toBeNull();
+  });
+
+  test("never enables the local child on a hosted deployment", () => {
+    expect(
+      resolveLocalPluginApplicationUrl({
+        CSF_LOCAL_FIXTURE_MODE: "1",
+        PLUGIN_APPLICATION_LOCAL_URL: "http://127.0.0.1:3001",
+        VERCEL: "1",
+        VERCEL_ENV: "preview",
+      }),
+    ).toBeNull();
   });
 });

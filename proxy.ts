@@ -9,6 +9,7 @@ import {
   type PluginApplicationRouteTarget,
 } from "@/lib/plugins/application-routing";
 import {
+  resolveLocalPluginApplicationUrl,
   resolvePluginApplicationEnvironment,
   type PluginApplicationEnvironment,
 } from "@/lib/plugins/application-environment";
@@ -32,9 +33,18 @@ type RootProxyDependencies = {
     organizationId: string,
     environment: PluginApplicationEnvironment,
   ) => Promise<PluginApplicationRouteTarget | null>;
+  readCsfLocalApplicationRouteTarget: (
+    context: AuthenticatedProxyContext,
+    organizationId: string,
+    localApplicationUrl: string,
+  ) => Promise<PluginApplicationRouteTarget | null>;
   applicationEnvironment: PluginApplicationEnvironment | null;
+  localApplicationUrl: string | null;
   applicationDeploymentBypassSecret?: string;
 };
+
+const ORGANIZATION_ID_PATTERN =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu;
 
 export async function readCsfApplicationRouteTarget(
   context: AuthenticatedProxyContext,
@@ -53,6 +63,51 @@ export async function readCsfApplicationRouteTarget(
   );
 
   return error ? null : parsePluginApplicationRouteTarget(data);
+}
+
+export async function readCsfLocalApplicationRouteTarget(
+  context: AuthenticatedProxyContext,
+  organizationIdentifier: string,
+  localApplicationUrl: string,
+): Promise<PluginApplicationRouteTarget | null> {
+  if (localApplicationUrl !== "http://127.0.0.1:3001") return null;
+
+  let organizationId = organizationIdentifier;
+  if (!ORGANIZATION_ID_PATTERN.test(organizationIdentifier)) {
+    const { data: organization, error: organizationError } =
+      await context.supabase
+        .from("organizations")
+        .select("id")
+        .eq("username", organizationIdentifier)
+        .maybeSingle();
+    if (organizationError || !organization?.id) return null;
+    organizationId = organization.id;
+  }
+
+  const { data: flag, error: flagError } = await context.supabase
+    .from("organization_plugin_feature_flags")
+    .select("enabled, metadata")
+    .eq("organization_id", organizationId)
+    .eq("plugin_key", "dvhs-csf")
+    .eq("flag_key", "application-runtime")
+    .maybeSingle();
+  const metadata = flag?.metadata as Record<string, unknown> | undefined;
+  const runtimeVersion = metadata?.runtimeVersion;
+  if (
+    flagError ||
+    flag?.enabled !== true ||
+    metadata?.environment !== "development" ||
+    typeof runtimeVersion !== "string" ||
+    runtimeVersion.length === 0
+  ) {
+    return null;
+  }
+
+  return {
+    deploymentId: `local-${runtimeVersion}`,
+    deploymentUrl: localApplicationUrl,
+    runtimeVersion,
+  };
 }
 
 function withoutLocalFlagOverride(request: NextRequest): NextRequest {
@@ -113,15 +168,25 @@ export function createRootProxy(
         const organizationId = getCsfApplicationOrganizationId(
           request.nextUrl.pathname,
         );
-        if (!organizationId || !dependencies.applicationEnvironment) {
+        if (
+          !organizationId ||
+          (!dependencies.applicationEnvironment &&
+            !dependencies.localApplicationUrl)
+        ) {
           return null;
         }
 
-        const routeTarget = await dependencies.readCsfApplicationRouteTarget(
-          context,
-          organizationId,
-          dependencies.applicationEnvironment,
-        );
+        const routeTarget = dependencies.applicationEnvironment
+          ? await dependencies.readCsfApplicationRouteTarget(
+              context,
+              organizationId,
+              dependencies.applicationEnvironment,
+            )
+          : await dependencies.readCsfLocalApplicationRouteTarget(
+              context,
+              organizationId,
+              dependencies.localApplicationUrl!,
+            );
         if (
           !shouldRouteCsfApplication({
             pathname: request.nextUrl.pathname,
@@ -145,7 +210,9 @@ export const proxy = createRootProxy({
   updateSession,
   runMicrofrontendsMiddleware,
   readCsfApplicationRouteTarget,
+  readCsfLocalApplicationRouteTarget,
   applicationEnvironment: resolvePluginApplicationEnvironment(),
+  localApplicationUrl: resolveLocalPluginApplicationUrl(),
   applicationDeploymentBypassSecret:
     process.env.PLUGIN_APPLICATION_DEPLOYMENT_BYPASS_SECRET,
 });

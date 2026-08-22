@@ -1,7 +1,7 @@
 BEGIN;
 
 CREATE EXTENSION IF NOT EXISTS pgtap WITH SCHEMA extensions;
-SELECT extensions.plan(48);
+SELECT extensions.plan(49);
 
 SELECT extensions.ok(
   NOT has_function_privilege(
@@ -723,6 +723,17 @@ SELECT extensions.ok(
       AND logs.details ->> 'deploymentId' = 'dpl_application_admin_002'
   ),
   'the legacy pin is attributed to the system and recorded in the audit log'
+);
+SET LOCAL ROLE service_role;
+SET LOCAL request.jwt.claims = '{"role":"service_role"}';
+SELECT extensions.is(
+  public.report_plugin_deployment_health(
+    'application-admin-fixture', 'development',
+    'dpl_application_admin_002', 'healthy', 'deployed',
+    '{"deploymentUrl":"https://application-admin-new.vercel.app/","healthRoute":"/api/health"}'::jsonb
+  ),
+  true,
+  'equivalent trailing-slash deployment origins do not block health reports'
 );
 SET LOCAL ROLE service_role;
 SET LOCAL request.jwt.claims = '{"role":"service_role"}';
