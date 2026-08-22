@@ -70,7 +70,16 @@ export function collectLiteralImportSpecifiers(source) {
         node.expression.kind === ts.SyntaxKind.ImportKeyword;
       const isRequire =
         ts.isIdentifier(node.expression) && node.expression.text === "require";
-      if (isDynamicImport || isRequire) {
+      const isRequireProperty =
+        ts.isPropertyAccessExpression(node.expression) &&
+        ((ts.isIdentifier(node.expression.expression) &&
+          node.expression.expression.text === "require" &&
+          (node.expression.name.text === "resolve" ||
+            node.expression.name.text === "resolveWeak")) ||
+          (ts.isIdentifier(node.expression.expression) &&
+            node.expression.expression.text === "module" &&
+            node.expression.name.text === "require"));
+      if (isDynamicImport || isRequire || isRequireProperty) {
         const specifier = literalModuleSpecifier(node.arguments[0]);
         if (specifier !== null) literals.add(specifier);
       }

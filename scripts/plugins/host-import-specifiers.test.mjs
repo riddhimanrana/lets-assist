@@ -137,6 +137,21 @@ describe("host import specifier collection", () => {
     ]);
   });
 
+  test("collects literal CommonJS resolution dependencies", () => {
+    const source = `
+      const resolved = require.resolve("@/lib/resolved-host");
+      const weak = require.resolveWeak("@/lib/weak-host");
+      const loaded = module.require("@/lib/module-host");
+      const external = require.resolve("external-package");
+    `;
+
+    expect([...collectHostImportSpecifiers(source)].sort()).toEqual([
+      "@/lib/module-host",
+      "@/lib/resolved-host",
+      "@/lib/weak-host",
+    ]);
+  });
+
   test("ignores non-host imports", () => {
     const source = `
       import "react";
