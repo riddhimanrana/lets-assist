@@ -70,6 +70,18 @@ describe("host import specifier collection", () => {
     ]);
   });
 
+  test("scans adversarial comment sequences without regular-expression backtracking", () => {
+    const noise = "/* */".repeat(10_000);
+    const source = `
+      const ignored = import(${noise} "react");
+      const host = import(${noise} "@/lib/after-noise");
+    `;
+
+    expect([...collectHostImportSpecifiers(source)]).toEqual([
+      "@/lib/after-noise",
+    ]);
+  });
+
   test("ignores non-host imports", () => {
     const source = `
       import "react";
