@@ -1,7 +1,7 @@
 BEGIN;
 
 CREATE EXTENSION IF NOT EXISTS pgtap WITH SCHEMA extensions;
-SELECT extensions.plan(45);
+SELECT extensions.plan(46);
 
 SELECT extensions.ok(
   NOT has_function_privilege(
@@ -347,6 +347,20 @@ SELECT extensions.ok(
     WHERE request_id = 'fa200000-0000-4000-8000-000000000002'
   ),
   'activation stores a completed request receipt and its outcome'
+);
+SET LOCAL ROLE service_role;
+SET LOCAL request.jwt.claims = '{"role":"service_role"}';
+SELECT extensions.throws_ok(
+  $$
+    SELECT public.report_plugin_deployment_health(
+      'application-admin-fixture', 'development',
+      'dpl_application_admin_002', 'healthy', 'deployed',
+      '{"deploymentUrl":"https://application-admin-moved.vercel.app","healthRoute":"/api/health"}'::jsonb
+    )
+  $$,
+  '55000',
+  'plugin deployment URL cannot change after it is selected',
+  'a health re-report cannot move a selected deployment ID to another origin'
 );
 
 SET LOCAL ROLE service_role;

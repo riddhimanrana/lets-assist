@@ -182,7 +182,8 @@ BEGIN
       ORDER BY deployments.last_seen_at DESC,
         deployments.first_seen_at DESC,
         deployments.id DESC
-      LIMIT 1;
+      LIMIT 1
+      FOR SHARE;
       IF v_deployment.id IS NULL
         OR v_deployment.health_status <> 'healthy'
         OR v_deployment.promotion_status NOT IN ('deployed', 'promoted')
@@ -268,6 +269,86 @@ REVOKE ALL ON FUNCTION private.set_plugin_application_runtime_compatibility_2026
   FROM PUBLIC, anon, authenticated, service_role;
 GRANT EXECUTE ON FUNCTION private.set_plugin_application_runtime_compatibility_20260822(uuid, text, text, text, boolean, uuid, uuid)
   TO postgres;
+
+CREATE OR REPLACE FUNCTION public.report_plugin_deployment_health(
+  p_plugin_key text,
+  p_environment text,
+  p_deployment_id text,
+  p_health_status text,
+  p_promotion_status text,
+  p_health_evidence jsonb
+)
+RETURNS boolean
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = ''
+AS $$
+DECLARE
+  v_deployment private.plugin_deployments%ROWTYPE;
+  v_existing_url text;
+  v_reported_url text;
+BEGIN
+  IF (SELECT auth.role()) <> 'service_role' THEN
+    RAISE EXCEPTION 'service_role is required' USING errcode = '42501';
+  END IF;
+
+  IF p_health_status NOT IN ('healthy', 'unhealthy')
+    OR p_promotion_status NOT IN ('deployed', 'promoted', 'rolled_back', 'retired')
+    OR p_health_evidence IS NULL
+    OR jsonb_typeof(p_health_evidence) <> 'object'
+    OR p_health_evidence = '{}'::jsonb
+  THEN
+    RAISE EXCEPTION 'a terminal health report and non-empty evidence are required'
+      USING errcode = '22023';
+  END IF;
+
+  SELECT deployments.*
+  INTO v_deployment
+  FROM private.plugin_deployments AS deployments
+  WHERE deployments.plugin_key = p_plugin_key
+    AND deployments.environment = p_environment
+    AND deployments.deployment_id = p_deployment_id
+  FOR UPDATE;
+
+  IF v_deployment.id IS NULL THEN
+    RETURN false;
+  END IF;
+
+  v_existing_url := v_deployment.health_evidence ->> 'deploymentUrl';
+  v_reported_url := p_health_evidence ->> 'deploymentUrl';
+  IF v_deployment.runtime_profile = 'application'
+    AND v_existing_url IS NOT NULL
+    AND v_existing_url IS DISTINCT FROM v_reported_url
+    AND EXISTS (
+      SELECT 1
+      FROM public.organization_plugin_feature_flags AS flags
+      WHERE flags.plugin_key = p_plugin_key
+        AND flags.flag_key = 'application-runtime'
+        AND flags.enabled
+        AND flags.metadata ->> 'environment' = p_environment
+        AND flags.metadata ->> 'deploymentId' = p_deployment_id
+    )
+  THEN
+    RAISE EXCEPTION 'plugin deployment URL cannot change after it is selected'
+      USING errcode = '55000';
+  END IF;
+
+  UPDATE private.plugin_deployments
+  SET health_status = p_health_status,
+    promotion_status = p_promotion_status,
+    health_evidence = p_health_evidence,
+    health_reported_at = now(),
+    last_seen_at = now()
+  WHERE id = v_deployment.id;
+
+  RETURN true;
+END;
+$$;
+
+REVOKE ALL ON FUNCTION public.report_plugin_deployment_health(text, text, text, text, text, jsonb)
+  FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.report_plugin_deployment_health(text, text, text, text, text, jsonb)
+  TO service_role;
 
 CREATE OR REPLACE FUNCTION public.get_plugin_application_runtime_admin_status(
   p_organization_id uuid,
