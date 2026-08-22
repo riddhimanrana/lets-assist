@@ -380,6 +380,7 @@ export function buildIsolatedChildEnvironment(options) {
  *   appEnv: Record<string, string>,
  *   isolated: { apiPort: number, databasePort: number, smtpPort: number },
  *   ledgerPath: string,
+ *   envFileKeys?: string[],
  *   serverMode?: "development" | "production",
  *   hostEnv?: Record<string, string | undefined>,
  * }} options
@@ -389,6 +390,7 @@ export function buildPluginApplicationChildEnvironment(options) {
     appEnv,
     isolated,
     ledgerPath,
+    envFileKeys = [],
     serverMode = "development",
     hostEnv = process.env,
   } = options;
@@ -430,6 +432,10 @@ export function buildPluginApplicationChildEnvironment(options) {
   childEnv.NODE_OPTIONS = `--require ${EGRESS_GUARD}`;
 
   for (const key of DISABLED_PROVIDER_ENV_KEYS) childEnv[key] = "";
+  for (const key of envFileKeys) {
+    if (Object.hasOwn(childEnv, key)) continue;
+    childEnv[key] = "";
+  }
   return childEnv;
 }
 
@@ -743,6 +749,9 @@ async function main() {
       : { start: resolveNextDevCommand(APP_PORT, REPO_ROOT) };
   const pluginNext = resolvePluginApplicationCommands(serverMode);
   const envFileKeys = discoverRepositoryEnvFileKeys(REPO_ROOT);
+  const pluginEnvFileKeys = discoverRepositoryEnvFileKeys(
+    PLUGIN_APPLICATION_ROOT,
+  );
   const ledgerPath = path.join(
     isolated.workDir,
     "isolated-app-egress-ledger.jsonl",
@@ -762,6 +771,7 @@ async function main() {
     appEnv,
     isolated,
     ledgerPath,
+    envFileKeys: pluginEnvFileKeys,
     serverMode,
   });
 
@@ -807,6 +817,7 @@ async function main() {
   );
   console.log(`  child env keys   : ${Object.keys(childEnv).length}`);
   console.log(`  .env* keys shadowed: ${shadowedEnvFileKeys.length}`);
+  console.log(`  plugin .env* keys bounded: ${pluginEnvFileKeys.length}`);
   console.log(`  egress ledger    : ${ledgerPath}`);
 
   if ("build" in next) {

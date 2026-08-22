@@ -383,6 +383,30 @@ describe("the plugin application child has a narrower environment", () => {
     );
     expect(childEnv.NODE_OPTIONS).toBe(`--require ${guardPath}`);
   });
+
+  test("shadows plugin env-file keys except for approved local values", () => {
+    const childEnv = buildPluginApplicationChildEnvironment({
+      appEnv: APP_ENV,
+      isolated: ISOLATED,
+      ledgerPath: "/tmp/plugin-runner-test-ledger.jsonl",
+      envFileKeys: [
+        "CSF_UNLISTED_PRIVATE_VALUE",
+        "SUPABASE_SERVICE_ROLE_KEY",
+        "NEXT_PUBLIC_SUPABASE_URL",
+      ],
+      hostEnv: {
+        CSF_UNLISTED_PRIVATE_VALUE: "must-not-reach-child",
+        SUPABASE_SERVICE_ROLE_KEY: "must-not-reach-child",
+      },
+    });
+
+    expect(childEnv.CSF_UNLISTED_PRIVATE_VALUE).toBe("");
+    expect(childEnv.SUPABASE_SERVICE_ROLE_KEY).toBe("");
+    expect(childEnv.NEXT_PUBLIC_SUPABASE_URL).toBe(
+      APP_ENV.NEXT_PUBLIC_SUPABASE_URL,
+    );
+    expect(JSON.stringify(childEnv)).not.toContain("must-not-reach-child");
+  });
 });
 
 // ---------------------------------------------------------------------------
