@@ -484,8 +484,33 @@ describe("root proxy composition", () => {
     );
 
     expect(response.headers.get("x-middleware-rewrite")).toBeNull();
+    expect(response.status).toBe(404);
+    expect(response.headers.get("Cache-Control")).toBe("private, no-store");
     expect(targetCalls).toBe(0);
     expect(microfrontendCalls).toBe(0);
+  });
+
+  test("blocks an asset when current authorization rejects its deployment", async () => {
+    const assetPath = "/vc-ap-5431dc/_next/static/chunks/app/revoked.js";
+    const rootProxy = createRootProxy({
+      ...defaultDependencies,
+      updateSession: async (authRequest, options) =>
+        (await options?.onAuthenticatedPassThrough?.(
+          authenticatedContext(authRequest),
+        )) ?? NextResponse.next(),
+      readCsfApplicationAssetRouteTarget: async () => null,
+      runMicrofrontendsMiddleware: async () => NextResponse.next(),
+    });
+
+    const response = await rootProxy(
+      new NextRequest(`https://example.test${assetPath}?dpl=dpl_selected_v1`, {
+        headers: { referer: `https://example.test${applicationPath}` },
+      }),
+    );
+
+    expect(response.status).toBe(404);
+    expect(response.headers.get("x-middleware-rewrite")).toBeNull();
+    expect(response.headers.get("X-Content-Type-Options")).toBe("nosniff");
   });
 
   test("preserves the selected deployment across nested asset requests", async () => {

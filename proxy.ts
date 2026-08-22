@@ -25,6 +25,16 @@ const CSF_APPLICATION_ASSET_PREFIX = "/vc-ap-5431dc/";
 const CSF_APPLICATION_ASSET_COOKIE_PREFIX = "la-csf-asset-";
 const VERCEL_DEPLOYMENT_ID_PATTERN = /^dpl_[A-Za-z0-9_]{1,195}$/u;
 
+function blockPluginApplicationAsset(): NextResponse {
+  return new NextResponse(null, {
+    status: 404,
+    headers: {
+      "Cache-Control": "private, no-store",
+      "X-Content-Type-Options": "nosniff",
+    },
+  });
+}
+
 function isCsfOrganizationIdentifier(value: string): boolean {
   if (ORGANIZATION_ID_PATTERN.test(value)) return true;
   return (
@@ -244,26 +254,26 @@ export function createRootProxy(
   dependencies: RootProxyDependencies,
 ): (request: NextRequest) => Promise<NextResponse> {
   return async (request) => {
-    if (
-      request.nextUrl.pathname.startsWith(CSF_APPLICATION_ASSET_PREFIX) &&
-      dependencies.localApplicationUrl
-    ) {
-      return NextResponse.rewrite(
-        new URL(
-          `${request.nextUrl.pathname}${request.nextUrl.search}`,
-          dependencies.localApplicationUrl,
-        ),
-      );
-    }
-    if (
-      request.nextUrl.pathname.startsWith(CSF_APPLICATION_ASSET_PREFIX) &&
-      dependencies.applicationEnvironment &&
-      dependencies.applicationDeploymentBypassSecret
-    ) {
-      const routeContext = getCsfAssetRouteContext(request);
-      if (!routeContext) return NextResponse.next();
+    if (request.nextUrl.pathname.startsWith(CSF_APPLICATION_ASSET_PREFIX)) {
+      if (dependencies.localApplicationUrl) {
+        return NextResponse.rewrite(
+          new URL(
+            `${request.nextUrl.pathname}${request.nextUrl.search}`,
+            dependencies.localApplicationUrl,
+          ),
+        );
+      }
+      if (
+        !dependencies.applicationEnvironment ||
+        !dependencies.applicationDeploymentBypassSecret
+      ) {
+        return blockPluginApplicationAsset();
+      }
 
-      return dependencies.updateSession(request, {
+      const routeContext = getCsfAssetRouteContext(request);
+      if (!routeContext) return blockPluginApplicationAsset();
+
+      const response = await dependencies.updateSession(request, {
         onAuthenticatedPassThrough: async (context) => {
           const target = await dependencies.readCsfApplicationAssetRouteTarget(
             context,
@@ -271,7 +281,7 @@ export function createRootProxy(
             dependencies.applicationEnvironment!,
             routeContext.deploymentId,
           );
-          if (!target) return null;
+          if (!target) return blockPluginApplicationAsset();
 
           return rewriteToPluginApplicationDeployment({
             request: withoutLocalFlagOverride(request),
@@ -281,6 +291,10 @@ export function createRootProxy(
           });
         },
       });
+
+      return response.headers.get("x-middleware-next") === "1"
+        ? blockPluginApplicationAsset()
+        : response;
     }
     if (request.nextUrl.pathname === MICROFRONTENDS_CLIENT_CONFIG_PATH) {
       const response = await dependencies.runMicrofrontendsMiddleware({

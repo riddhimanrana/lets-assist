@@ -22,8 +22,9 @@ This register separates actionable repository defects from provider/account and 
   The generated asset namespace now preserves that selection across nested
   imports with a deployment-keyed, path-limited routing-context cookie. Each
   request still repeats host authentication and the caller-scoped database
-  lookup. A fresh 354-migration replay and the complete 182-file pgTAP suite
-  pass 6,203 assertions. The focused source regression bundle passes 43 tests,
+  lookup. A fresh 355-migration replay and the complete 181-file database pgTAP
+  suite pass 6,177 assertions. The direct proxy and release-contract bundle
+  passes 56 tests,
   and lint, source organization, plugin boundaries, and TypeScript pass.
 - PR #245 remains the Development-to-Production release vehicle. Production is
   still at 333 migrations through `20260819050728`, with the DVHS CSF install

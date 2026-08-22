@@ -1,7 +1,7 @@
 BEGIN;
 
 CREATE EXTENSION IF NOT EXISTS pgtap WITH SCHEMA extensions;
-SELECT extensions.plan(59);
+SELECT extensions.plan(60);
 
 SELECT extensions.ok(
   NOT has_function_privilege(
@@ -300,6 +300,14 @@ SELECT extensions.throws_ok(
   'the newest requested application deployment is not routable',
   'activation rejects a healthy deployment without a routable Vercel URL'
 );
+RESET ROLE;
+UPDATE private.plugin_deployments
+SET health_evidence = '{}'::jsonb
+WHERE plugin_key = 'application-admin-fixture'
+  AND environment = 'development'
+  AND deployment_id = 'dpl_application_admin_002';
+SET LOCAL ROLE service_role;
+SET LOCAL request.jwt.claims = '{"role":"service_role"}';
 SELECT public.report_plugin_deployment_health(
   'application-admin-fixture', 'development', 'dpl_application_admin_002',
   'healthy', 'deployed',
@@ -413,7 +421,7 @@ SELECT extensions.throws_ok(
     )
   $$,
   '55000',
-  'plugin deployment URL cannot change after it is selected',
+  'plugin deployment URL cannot change after it is recorded',
   'a health re-report cannot move a selected deployment ID to another origin'
 );
 
@@ -582,6 +590,18 @@ SELECT extensions.is(
   ) ->> 'changed',
   'true',
   'the admin can return to the embedded runtime'
+);
+SELECT extensions.throws_ok(
+  $$
+    SELECT public.report_plugin_deployment_health(
+      'application-admin-fixture', 'development',
+      'dpl_application_admin_002', 'healthy', 'deployed',
+      '{"deploymentUrl":"https://application-admin-rebound.vercel.app","healthRoute":"/api/health"}'::jsonb
+    )
+  $$,
+  '55000',
+  'plugin deployment URL cannot change after it is recorded',
+  'a deployment origin remains immutable after every organization moves away'
 );
 SELECT extensions.is(
   public.set_plugin_application_runtime(
