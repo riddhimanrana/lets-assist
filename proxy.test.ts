@@ -186,6 +186,9 @@ describe("root proxy composition", () => {
     expect(response.headers.get("x-middleware-rewrite")).toBe(
       `https://lets-assist-csf-v1.vercel.app${applicationPath}`,
     );
+    expect(response.cookies.get("la-csf-asset-organization")?.value).toBe(
+      "22222222-2222-4222-8222-222222222222",
+    );
   });
 
   test("never evaluates child routing when host auth redirects", async () => {
@@ -428,6 +431,42 @@ describe("root proxy composition", () => {
     expect(response.headers.get("x-middleware-rewrite")).toBeNull();
     expect(targetCalls).toBe(0);
     expect(microfrontendCalls).toBe(0);
+  });
+
+  test("preserves the selected deployment across nested asset requests", async () => {
+    const assetPath = "/vc-ap-5431dc/_next/static/chunks/app/nested.js";
+    const organizationId = "22222222-2222-4222-8222-222222222222";
+    const selectedOrganizations: string[] = [];
+    const rootProxy = createRootProxy({
+      ...defaultDependencies,
+      updateSession: async (authRequest, options) =>
+        (await options?.onAuthenticatedPassThrough?.(
+          authenticatedContext(authRequest),
+        )) ?? NextResponse.next(),
+      readCsfApplicationRouteTarget: async (_context, identifier) => {
+        selectedOrganizations.push(identifier);
+        return routeTarget;
+      },
+      runMicrofrontendsMiddleware: async () => NextResponse.next(),
+    });
+
+    const response = await rootProxy(
+      new NextRequest(`https://example.test${assetPath}`, {
+        headers: {
+          cookie: `la-csf-asset-organization=${organizationId}`,
+          referer:
+            "https://example.test/vc-ap-5431dc/_next/static/chunks/app/parent.js",
+        },
+      }),
+    );
+
+    expect(selectedOrganizations).toEqual([organizationId]);
+    expect(response.headers.get("x-middleware-rewrite")).toBe(
+      `https://lets-assist-csf-v1.vercel.app${assetPath}`,
+    );
+    expect(response.cookies.get("la-csf-asset-organization")?.value).toBe(
+      organizationId,
+    );
   });
 
   test("matches the complete child namespace while excluding host assets", () => {

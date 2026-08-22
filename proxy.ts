@@ -22,20 +22,39 @@ import {
 const MICROFRONTENDS_CLIENT_CONFIG_PATH =
   "/.well-known/vercel/microfrontends/client-config";
 const CSF_APPLICATION_ASSET_PREFIX = "/vc-ap-5431dc/";
+const CSF_APPLICATION_ASSET_ORGANIZATION_COOKIE = "la-csf-asset-organization";
+
+function isCsfOrganizationIdentifier(value: string): boolean {
+  return (
+    value.length <= 128 &&
+    (ORGANIZATION_ID_PATTERN.test(value) ||
+      /^[a-z0-9]+(?:-[a-z0-9]+)*$/u.test(value))
+  );
+}
 
 function getCsfAssetOrganizationIdentifier(
   request: NextRequest,
 ): string | null {
   const referer = request.headers.get("referer");
-  if (!referer) return null;
-
-  try {
-    const refererUrl = new URL(referer);
-    if (refererUrl.origin !== request.nextUrl.origin) return null;
-    return getCsfApplicationOrganizationId(refererUrl.pathname);
-  } catch {
-    return null;
+  if (referer) {
+    try {
+      const refererUrl = new URL(referer);
+      if (refererUrl.origin === request.nextUrl.origin) {
+        const identifier = getCsfApplicationOrganizationId(refererUrl.pathname);
+        if (identifier && isCsfOrganizationIdentifier(identifier)) {
+          return identifier;
+        }
+      }
+    } catch {
+      // Fall through to the caller-scoped cookie. The route-target RPC still
+      // revalidates access before any deployment receives the request.
+    }
   }
+
+  const cookie = request.cookies.get(
+    CSF_APPLICATION_ASSET_ORGANIZATION_COOKIE,
+  )?.value;
+  return cookie && isCsfOrganizationIdentifier(cookie) ? cookie : null;
 }
 
 type RootProxyDependencies = {
@@ -137,6 +156,7 @@ export function rewriteToPluginApplicationDeployment(input: {
   request: NextRequest;
   target: PluginApplicationRouteTarget;
   bypassSecret?: string;
+  assetOrganizationIdentifier?: string;
 }): NextResponse {
   const destination = new URL(
     `${input.request.nextUrl.pathname}${input.request.nextUrl.search}`,
@@ -156,9 +176,25 @@ export function rewriteToPluginApplicationDeployment(input: {
     requestHeaders.set("x-vercel-protection-bypass", input.bypassSecret);
   }
 
-  return NextResponse.rewrite(destination, {
+  const response = NextResponse.rewrite(destination, {
     request: { headers: requestHeaders },
   });
+  if (
+    input.assetOrganizationIdentifier &&
+    isCsfOrganizationIdentifier(input.assetOrganizationIdentifier)
+  ) {
+    response.cookies.set(
+      CSF_APPLICATION_ASSET_ORGANIZATION_COOKIE,
+      input.assetOrganizationIdentifier,
+      {
+        httpOnly: true,
+        path: CSF_APPLICATION_ASSET_PREFIX,
+        sameSite: "strict",
+        secure: input.request.nextUrl.protocol === "https:",
+      },
+    );
+  }
+  return response;
 }
 
 export function createRootProxy(
@@ -197,6 +233,7 @@ export function createRootProxy(
             request: withoutLocalFlagOverride(request),
             target,
             bypassSecret: dependencies.applicationDeploymentBypassSecret,
+            assetOrganizationIdentifier: organizationIdentifier,
           });
         },
       });
@@ -253,6 +290,7 @@ export function createRootProxy(
           target: routeTarget!,
           request: withoutLocalFlagOverride(request),
           bypassSecret: dependencies.applicationDeploymentBypassSecret,
+          assetOrganizationIdentifier: organizationId,
         });
       },
     });
