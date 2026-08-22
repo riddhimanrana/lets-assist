@@ -140,7 +140,9 @@ export function releaseInputsAreComplete(
   const ownsPluginSubtree = normalized.includes(`plugins/${pluginKey}`);
   if (!ownsPluginSubtree) return false;
 
-  if (profile === "embedded") return true;
+  if (profile === "embedded") {
+    return normalized.length === 1 && normalized[0] === `plugins/${pluginKey}`;
+  }
 
   // An independently built profile must declare a separate application or
   // service root and pin dependencies inside that root. Merely naming an

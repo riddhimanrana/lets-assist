@@ -366,31 +366,68 @@ describe("root proxy composition", () => {
     ).toBe("1.2.7");
   });
 
-  test("delegates the child's namespaced assets to Vercel microfrontend routing", async () => {
+  test("routes namespaced assets to the deployment selected for their document", async () => {
     const assetPath = "/vc-ap-5431dc/_next/static/chunks/app/access-proof.js";
-    const request = new NextRequest(`https://example.test${assetPath}`);
+    const request = new NextRequest(`https://example.test${assetPath}`, {
+      headers: { referer: `https://example.test${applicationPath}` },
+    });
     let authCalls = 0;
+    let microfrontendCalls = 0;
     const rootProxy = createRootProxy({
       ...defaultDependencies,
-      updateSession: async () => {
+      updateSession: async (authRequest, options) => {
         authCalls += 1;
-        return NextResponse.next();
-      },
-      readCsfApplicationRouteTarget: async () => routeTarget,
-      runMicrofrontendsMiddleware: async ({ request: assetRequest }) => {
-        expect(assetRequest.nextUrl.pathname).toBe(assetPath);
-        return NextResponse.rewrite(
-          `http://127.0.0.1:3001${assetRequest.nextUrl.pathname}`,
+        return (
+          (await options?.onAuthenticatedPassThrough?.(
+            authenticatedContext(authRequest),
+          )) ?? NextResponse.next()
         );
+      },
+      readCsfApplicationRouteTarget: async (_context, organizationId) => {
+        expect(organizationId).toBe("22222222-2222-4222-8222-222222222222");
+        return routeTarget;
+      },
+      runMicrofrontendsMiddleware: async () => {
+        microfrontendCalls += 1;
+        return NextResponse.next();
       },
     });
 
     const response = await rootProxy(request);
 
     expect(response.headers.get("x-middleware-rewrite")).toBe(
-      `http://127.0.0.1:3001${assetPath}`,
+      `https://lets-assist-csf-v1.vercel.app${assetPath}`,
     );
-    expect(authCalls).toBe(0);
+    expect(authCalls).toBe(1);
+    expect(microfrontendCalls).toBe(0);
+  });
+
+  test("does not route an asset without a same-origin CSF document", async () => {
+    const assetPath = "/vc-ap-5431dc/_next/static/chunks/app/access-proof.js";
+    let targetCalls = 0;
+    let microfrontendCalls = 0;
+    const rootProxy = createRootProxy({
+      ...defaultDependencies,
+      updateSession: async () => NextResponse.next(),
+      readCsfApplicationRouteTarget: async () => {
+        targetCalls += 1;
+        return routeTarget;
+      },
+      runMicrofrontendsMiddleware: async () => {
+        microfrontendCalls += 1;
+        return NextResponse.next();
+      },
+    });
+
+    const response = await rootProxy(
+      new NextRequest(`https://example.test${assetPath}`, {
+        headers: { referer: "https://attacker.example.test/page" },
+      }),
+    );
+
+    expect(response.headers.get("x-middleware-rewrite")).toBeNull();
+    expect(targetCalls).toBe(0);
+    expect(microfrontendCalls).toBe(0);
   });
 
   test("matches the complete child namespace while excluding host assets", () => {

@@ -169,6 +169,17 @@ describe("plugin manifest validation", () => {
     expect(pathsOf(result)).toContain("/releaseInputs");
   });
 
+  test("rejects extra release inputs for an embedded plugin", () => {
+    const result = validatePluginSdkManifest(
+      embeddedManifest({
+        releaseInputs: ["plugins/example-plugin", "apps/unrelated"],
+      }),
+    );
+
+    expect(result.valid).toBe(false);
+    expect(pathsOf(result)).toContain("/releaseInputs");
+  });
+
   test("rejects release inputs that omit the plugin's own subtree", () => {
     const result = validatePluginSdkManifest(
       embeddedManifest({ releaseInputs: ["plugins/some-other-plugin"] }),

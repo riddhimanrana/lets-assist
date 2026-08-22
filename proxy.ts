@@ -23,6 +23,21 @@ const MICROFRONTENDS_CLIENT_CONFIG_PATH =
   "/.well-known/vercel/microfrontends/client-config";
 const CSF_APPLICATION_ASSET_PREFIX = "/vc-ap-5431dc/";
 
+function getCsfAssetOrganizationIdentifier(
+  request: NextRequest,
+): string | null {
+  const referer = request.headers.get("referer");
+  if (!referer) return null;
+
+  try {
+    const refererUrl = new URL(referer);
+    if (refererUrl.origin !== request.nextUrl.origin) return null;
+    return getCsfApplicationOrganizationId(refererUrl.pathname);
+  } catch {
+    return null;
+  }
+}
+
 type RootProxyDependencies = {
   updateSession: (
     request: NextRequest,
@@ -162,9 +177,31 @@ export function createRootProxy(
       );
     }
     if (
-      request.nextUrl.pathname === MICROFRONTENDS_CLIENT_CONFIG_PATH ||
-      request.nextUrl.pathname.startsWith(CSF_APPLICATION_ASSET_PREFIX)
+      request.nextUrl.pathname.startsWith(CSF_APPLICATION_ASSET_PREFIX) &&
+      dependencies.applicationEnvironment &&
+      dependencies.applicationDeploymentBypassSecret
     ) {
+      const organizationIdentifier = getCsfAssetOrganizationIdentifier(request);
+      if (!organizationIdentifier) return NextResponse.next();
+
+      return dependencies.updateSession(request, {
+        onAuthenticatedPassThrough: async (context) => {
+          const target = await dependencies.readCsfApplicationRouteTarget(
+            context,
+            organizationIdentifier,
+            dependencies.applicationEnvironment!,
+          );
+          if (!target) return null;
+
+          return rewriteToPluginApplicationDeployment({
+            request: withoutLocalFlagOverride(request),
+            target,
+            bypassSecret: dependencies.applicationDeploymentBypassSecret,
+          });
+        },
+      });
+    }
+    if (request.nextUrl.pathname === MICROFRONTENDS_CLIENT_CONFIG_PATH) {
       const response = await dependencies.runMicrofrontendsMiddleware({
         request: withoutLocalFlagOverride(request),
         flagValues: {
