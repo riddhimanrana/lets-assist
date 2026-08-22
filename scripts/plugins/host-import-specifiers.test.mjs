@@ -10,6 +10,8 @@ describe("host import specifier collection", () => {
       import "@/lib/register-plugin";
       const fourth = import("@/lib/fourth");
       const fifth = require("@/lib/fifth");
+      const sixth = import(\`@/lib/sixth\`);
+      const seventh = require(\`@/lib/seventh\`);
     `;
 
     expect([...collectHostImportSpecifiers(source)].sort()).toEqual([
@@ -18,7 +20,15 @@ describe("host import specifier collection", () => {
       "@/lib/fourth",
       "@/lib/register-plugin",
       "@/lib/second",
+      "@/lib/seventh",
+      "@/lib/sixth",
     ]);
+  });
+
+  test("ignores interpolated template-literal specifiers", () => {
+    const source = "const plugin = import(`@/lib/${pluginName}`);";
+
+    expect([...collectHostImportSpecifiers(source)]).toEqual([]);
   });
 
   test("ignores non-host imports", () => {

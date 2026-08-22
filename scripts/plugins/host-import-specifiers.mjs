@@ -2,7 +2,9 @@ const SPECIFIER_PATTERNS = [
   /(?:^|\n)\s*(?:import|export)[\s\S]*?from\s+["'](@\/[^"']+)["']/gu,
   /(?:^|\n)\s*import\s+["'](@\/[^"']+)["']\s*;?/gu,
   /\bimport\(\s*["'](@\/[^"']+)["']\s*\)/gu,
+  /\bimport\(\s*`(@\/[^`${}]+)`\s*\)/gu,
   /\brequire\(\s*["'](@\/[^"']+)["']\s*\)/gu,
+  /\brequire\(\s*`(@\/[^`${}]+)`\s*\)/gu,
 ];
 
 export function collectHostImportSpecifiers(source) {
