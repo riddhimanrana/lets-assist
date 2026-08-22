@@ -397,6 +397,14 @@ export function validatePluginSdkManifest(
     });
   }
 
+  if (manifest.supportedInstallContracts.maximum !== manifest.version) {
+    errors.push({
+      path: "/supportedInstallContracts/maximum",
+      message: "must equal the manifest version",
+      keyword: "installContractVersion",
+    });
+  }
+
   if (
     manifest.hostApiRange.maximum !== undefined &&
     !isInstallContractRangeSane({

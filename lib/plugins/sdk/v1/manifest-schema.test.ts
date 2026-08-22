@@ -83,6 +83,17 @@ describe("plugin manifest validation", () => {
     expect(pathsOf(result)).toContain("/releaseInputs");
   });
 
+  test("rejects a nested file in place of the plugin source root", () => {
+    const result = validatePluginSdkManifest(
+      embeddedManifest({
+        releaseInputs: ["plugins/example-plugin/manifest.ts"],
+      }),
+    );
+
+    expect(result.valid).toBe(false);
+    expect(pathsOf(result)).toContain("/releaseInputs");
+  });
+
   test("requires direct access protection on an application runtime", () => {
     const result = validatePluginSdkManifest(
       embeddedManifest({
@@ -153,6 +164,18 @@ describe("plugin manifest validation", () => {
 
     expect(result.valid).toBe(false);
     expect(pathsOf(result)).toContain("/supportedInstallContracts");
+  });
+
+  test("requires the maximum install contract to match the release version", () => {
+    const result = validatePluginSdkManifest(
+      embeddedManifest({
+        version: "1.2.0",
+        supportedInstallContracts: { minimum: "1.0.0", maximum: "1.1.0" },
+      }),
+    );
+
+    expect(result.valid).toBe(false);
+    expect(pathsOf(result)).toContain("/supportedInstallContracts/maximum");
   });
 
   test("rejects an inverted host API range", () => {

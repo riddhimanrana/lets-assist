@@ -25,6 +25,8 @@
 import { readdirSync, readFileSync, statSync } from "node:fs";
 import { join, resolve } from "node:path";
 
+import { collectHostImportSpecifiers } from "./host-import-specifiers.mjs";
+
 const repositoryRoot = resolve(import.meta.dirname, "../..");
 const pluginsRoot = join(repositoryRoot, "lib/plugins/private/plugins");
 const surfacePath = join(
@@ -45,12 +47,6 @@ const APPLICATION_PROFILE_PLUGINS = new Set([]);
 const GRANDFATHERED_APP_IMPORTS = new Set([
   "@/app/organization/[id]/settings/actions",
 ]);
-
-const SPECIFIER_PATTERNS = [
-  /(?:^|\n)\s*(?:import|export)[\s\S]*?from\s+["'](@\/[^"']+)["']/gu,
-  /\bimport\(\s*["'](@\/[^"']+)["']\s*\)/gu,
-  /\brequire\(\s*["'](@\/[^"']+)["']\s*\)/gu,
-];
 
 function sourceFiles(directory) {
   const found = [];
@@ -76,12 +72,9 @@ function collectByPlugin() {
     const specifiers = new Map();
     for (const file of sourceFiles(pluginDirectory)) {
       const source = readFileSync(file, "utf8");
-      for (const pattern of SPECIFIER_PATTERNS) {
-        pattern.lastIndex = 0;
-        for (const match of source.matchAll(pattern)) {
-          const relativeFile = file.slice(repositoryRoot.length + 1);
-          if (!specifiers.has(match[1])) specifiers.set(match[1], relativeFile);
-        }
+      for (const specifier of collectHostImportSpecifiers(source)) {
+        const relativeFile = file.slice(repositoryRoot.length + 1);
+        if (!specifiers.has(specifier)) specifiers.set(specifier, relativeFile);
       }
     }
 

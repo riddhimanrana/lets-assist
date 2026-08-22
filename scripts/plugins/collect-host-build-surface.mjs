@@ -15,18 +15,14 @@
 import { readdirSync, readFileSync, statSync, writeFileSync } from "node:fs";
 import { join, relative, resolve } from "node:path";
 
+import { collectHostImportSpecifiers } from "./host-import-specifiers.mjs";
+
 const repositoryRoot = resolve(import.meta.dirname, "../..");
 const pluginsRoot = join(repositoryRoot, "lib/plugins/private/plugins");
 const outputPath = join(
   repositoryRoot,
   "lib/plugins/host-build-surface.generated.json",
 );
-
-const SPECIFIER_PATTERNS = [
-  /(?:^|\n)\s*(?:import|export)[\s\S]*?from\s+["'](@\/[^"']+)["']/gu,
-  /\bimport\(\s*["'](@\/[^"']+)["']\s*\)/gu,
-  /\brequire\(\s*["'](@\/[^"']+)["']\s*\)/gu,
-];
 
 function sourceFiles(directory) {
   const found = [];
@@ -52,10 +48,8 @@ function collect() {
     const specifiers = new Set();
     for (const file of sourceFiles(pluginDirectory)) {
       const source = readFileSync(file, "utf8");
-      for (const pattern of SPECIFIER_PATTERNS) {
-        pattern.lastIndex = 0;
-        for (const match of source.matchAll(pattern)) specifiers.add(match[1]);
-      }
+      for (const specifier of collectHostImportSpecifiers(source))
+        specifiers.add(specifier);
     }
 
     surface[pluginKey] = [...specifiers].sort();

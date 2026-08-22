@@ -123,11 +123,7 @@ export function releaseInputsAreComplete(
   const normalized = inputs.map((entry) => entry.trim()).filter(Boolean);
   if (normalized.length !== inputs.length) return false;
 
-  const ownsPluginSubtree = normalized.some(
-    (entry) =>
-      entry === `plugins/${pluginKey}` ||
-      entry.startsWith(`plugins/${pluginKey}/`),
-  );
+  const ownsPluginSubtree = normalized.includes(`plugins/${pluginKey}`);
   if (!ownsPluginSubtree) return false;
 
   if (profile === "embedded") return true;
