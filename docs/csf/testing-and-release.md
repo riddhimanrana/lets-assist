@@ -36,8 +36,8 @@ their named runs only.
 - The sole current CSF implementation/status register is
   `docs/development/cleanup-register.md`; this document is a testing runbook and
   retains older evidence below without promoting it to current status.
-- The repository candidate has 351 ordered migrations through
-  `20260822075815_make_plugin_application_runtime_transitions_idempotent`. The preceding releases publish signed
+- The repository candidate has 352 ordered migrations through
+  `20260822084356_route_plugin_applications_to_selected_deployments`. The preceding releases publish signed
   1.2.2 and 1.2.3 artifacts and complete the reviewed helper ACLs. The 1.2.4
   migration records the plugin-specific child health route update without
   changing organization installs. The migrations
@@ -98,22 +98,25 @@ their named runs only.
   `20260822044742_resolve_plugin_application_organization_username`,
   `20260822060000_harden_plugin_application_runtime_controls`, and
   `20260822070000_complete_plugin_application_runtime_compatibility`, and
-  `20260822075815_make_plugin_application_runtime_transitions_idempotent`).
-- Hosted Development is migration-current at 349 rows through
-  `20260822060000_harden_plugin_application_runtime_controls`. Google OAuth is enabled and the
+  `20260822075815_make_plugin_application_runtime_transitions_idempotent`, and
+  `20260822084356_route_plugin_applications_to_selected_deployments`).
+- Hosted Development is migration-current at 351 rows through
+  `20260822075815_make_plugin_application_runtime_transitions_idempotent`. Google OAuth is enabled and the
   hosted authorize endpoint redirects to Google. The signed `dvhs-csf` 1.2.7
   GitHub release is published, while catalog integration and rollout remain
   pending and the embedded 1.1.0 install remains active. The exact signed 1.2.3 artifact is Ready on the Development child
   project as deployment `dpl_C4CzkCdNu2ZjKJVnWJCqkhXbdcPp`; the control plane
   records its exact digest and release tag as healthy, and Vercel
-  Authentication protects direct access. Microfrontend routing and hosted
+  Authentication protects direct access. Version-pinned host routing and hosted
   browser acceptance remain gates before activation. The two-project group
   `mfe_W64mCurqcnCgOvWojPr0FoRQUluS` exists, and the $2 per million
-  routed-request fee is approved. Its committed config still needs the next
-  deployments before the rollout flag or routed acceptance is enabled.
+  routed-request fee is approved. The group remains useful for shared health
+  routing, while organization application pages resolve the selected immutable
+  deployment in the host because a project-level route cannot select a
+  different version for each organization.
 - Production remains untouched at the audited 236-row baseline through
-  `20260811001500`; the exact read-only preflight now expects a 115-migration
-  cutover to this 351-row candidate. Running that cutover requires
+  `20260811001500`; the exact read-only preflight now expects a 116-migration
+  cutover to this 352-row candidate. Running that cutover requires
   explicit action-time approval.
 - Local evidence on the prior candidate includes a fresh exact 324-migration replay
   and the focused storage/release, import, proof, and release-authority pgTAP
@@ -143,9 +146,10 @@ their named runs only.
   release pgTAP passed 8/8. The organization-identifier wrapper is the 348th
   migration, the first runtime hardening is the 349th, and the completed
   runtime compatibility checks are the 350th. The retry-safe runtime transition
-  receipts and selected-deployment status are the 351st. A fresh local reset
-  replayed the exact 351-migration ledger, and the focused runtime suite passed
-  35/35 assertions.
+  receipts and selected-deployment status are the 351st. The version-pinned
+  application route and optional compatibility ceiling fix are the 352nd. A
+  fresh local reset replayed the exact 352-migration ledger, and the focused
+  runtime suite passed 42/42 assertions.
   Final role/browser
   acceptance and provider acceptance remain release gates until recorded in
   the cleanup register.

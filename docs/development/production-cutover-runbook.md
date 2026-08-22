@@ -1,10 +1,10 @@
 # Production cutover runbook
 
 Production was last verified read-only at 236 ordered migrations through
-`20260811001500`. The current repository release candidate has exactly 351
+`20260811001500`. The current repository release candidate has exactly 352
 ordered migrations through
-`20260822075815_make_plugin_application_runtime_transitions_idempotent`, so the typed read-only
-preflight pins an exact 115-migration tail. This count is a
+`20260822084356_route_plugin_applications_to_selected_deployments`, so the typed read-only
+preflight pins an exact 116-migration tail. This count is a
 repository contract, not proof of live Production state: re-run the read-only
 preflight against the exact Production project immediately before the cutover.
 
@@ -15,7 +15,7 @@ generic private plugin storage namespace, application
 decision projection, term-bound staff access, simplified partner clubs, and
 multi-date meeting attendance with permission rechecks. Hosted
 Development database parity, exact served SHA, role-bound browser acceptance,
-provider acceptance, and a fresh full 351-migration replay must all be recorded
+provider acceptance, and a fresh full 352-migration replay must all be recorded
 before promotion. Until those gates are green, both the hosted and Production
 release gates remain open.
 
@@ -28,7 +28,7 @@ provider gates are green.
 
 **1. The schema push and the application deploy are one release, not two.**
 
-The 115 pending migrations and their exact application release SHA must be
+The 116 pending migrations and their exact application release SHA must be
 treated as one change. Do not push the schema independently or infer application
 compatibility from the migration ledger. Schedule one window, with the exact
 application release ready before the push starts.
@@ -47,7 +47,7 @@ because the cutover still builds on that baseline. See the
 - **AUD-002** — the `notifications` INSERT policy ends in `OR (auth.uid() IS NULL)`, so anyone holding the public anon key can inject a notification for any user, with an attacker-chosen title, body, and action URL.
 
 The fixing migrations, `20260810220100` and `20260810220200`, are historical
-context rather than part of the current 115-migration pending set.
+context rather than part of the current 116-migration pending set.
 
 ---
 
@@ -81,7 +81,7 @@ psql -X "$PRODUCTION_READONLY_URL" \
 
 Every check is `SELECT` or `SHOW` inside an explicit read-only transaction. The
 script accepts only the exact 236-version Production baseline or exact
-351-version target, exits non-zero on a partial or divergent ledger, and checks
+352-version target, exits non-zero on a partial or divergent ledger, and checks
 relation existence before parsing shape-specific tables. `pipefail` preserves
 that non-zero status through `tee`. Capture the whole output into the change
 record.
@@ -106,7 +106,7 @@ record.
   `DROP EXTENSION ... RESTRICT` fail.
 - **D10** mirrors the reviewed effective client-grant catalog before
   `20260812100900` revokes and rebuilds public relation ACLs.
-- **T1–T10** run only on the 351 shape and prove target relations, expected
+- **T1–T10** run only on the 352 shape and prove target relations, expected
   validated constraints/indexes, the reporter-detachment behavior moderation
   evidence depends on, the server-only posture of the three content report
   functions, lifecycle transaction receipts and ACLs, the atomic AI quota
@@ -129,7 +129,7 @@ reviewed forward migration.
 296-migration ledger proves ordered application only through
 `20260816083000` against the Development database; it excludes the twenty-one
 repository-only migrations and
-does not prove the repository branch's Production-shaped 236→351 transition. It does not
+does not prove the repository branch's Production-shaped 236→352 transition. It does not
 exercise data-dependent DDL, lock behaviour at Production table sizes, or
 Production data.
 
@@ -140,7 +140,7 @@ Production data.
 3. **Verify it is a clone, not a replay** — `list_migrations` on the new ref.
    - **236 rows, head `20260811001500`** → a genuine current-baseline clone.
      Continue.
-   - **351 rows, head `20260822075815`** → it was built by replaying the
+   - **352 rows, head `20260822084356`** → it was built by replaying the
      repository branch, which is the artifact you already have and proves nothing new.
      Abandon and use the fallback.
 
@@ -152,7 +152,7 @@ Production data.
    ```bash
    set -euo pipefail
    supabase link --project-ref <branch-ref>
-   supabase db push --linked --dry-run      # expect exactly 115 pending
+   supabase db push --linked --dry-run      # expect exactly 116 pending
    time supabase db push --linked --yes 2>&1 | tee rehearsal.log
    ```
 7. Capture: total and per-file wall clock; `SELECT ... FROM pg_index WHERE NOT
@@ -160,7 +160,7 @@ indisvalid` (must be empty); `verify-supabase-migration-parity.mjs`;
    `get_advisors` (the 95 INFO/0 WARN/0 ERROR security and 611 INFO/0 WARN/0
    ERROR performance counts were captured on the preceding 272-migration
    Development shape and are comparison evidence, not proof for hosted 331 or
-   repository 351);
+   repository 352);
    and
    `supabase db diff --linked` — compare that last one against the destructive
    drift recorded in
@@ -213,7 +213,7 @@ Then restore them into a throwaway Postgres 17 and compare row counts for the to
 ## The window
 
 **Length:** rehearsal-measured duration × 3, floor 90 minutes. Use the timed
-Production-shaped 236→351 rehearsal as the authority; the pending set's
+Production-shaped 236→352 rehearsal as the authority; the pending set's
 validated constraints, index builds, ACL convergence, and cancellation-ledger
 work determine this window. Do not reuse timing assumptions from migrations
 already included in the 236 baseline.
@@ -232,7 +232,7 @@ already included in the 236 baseline.
    - `SELECT ... FROM pg_index WHERE NOT indisvalid` — must be empty
    - `get_advisors(type: 'security')` — expect only the known `INFO`/`rls_enabled_no_policy` shape
    - Re-run `production-cutover-preflight.sql`; it must select the exact
-     351-row target path and pass T1–T10
+     352-row target path and pass T1–T10
    - Storage bucket counts against the **E7** baseline
    - Upgrade DV installs to `2.0.0` through the leased control plane **before** enabling DV traffic
 10. Smoke tests while still in maintenance mode, then again after opening: sign in, view a project, sign up for a project, an organization page, a CSF workspace, one email path.

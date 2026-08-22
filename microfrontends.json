@@ -14,14 +14,7 @@
       "routing": [
         {
           "group": "dvhs-csf-health",
-          "paths": ["/api/plugins/dvhs-csf/health"]
-        },
-        {
-          "group": "dvhs-csf-application",
-          "flag": "dvhs-csf-application-runtime",
-          "paths": [
-            "/organization/:organizationId/plugins/dvhs-csf/access-proof"
-          ]
+          "paths": ["/api/plugins/dvhs-csf/health", "/vc-ap-5431dc/:path*"]
         }
       ],
       "development": {

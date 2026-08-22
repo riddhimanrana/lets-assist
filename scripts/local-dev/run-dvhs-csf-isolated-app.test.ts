@@ -18,15 +18,18 @@ import {
   APP_PORT_CLAIM_NAME,
   DISABLED_PROVIDER_ENV_KEYS,
   DISABLED_WORKER_ENV_KEYS,
+  LOCAL_PLUGIN_APPLICATION_PORT,
   OS_RUNTIME_KEYS,
   appPortClaimRoot,
   assertPortFree,
   buildIsolatedChildEnvironment,
+  buildPluginApplicationChildEnvironment,
   claimAppPort,
   discoverRepositoryEnvFileKeys,
   releaseAppPort,
   resolveNextDevCommand,
   resolveNextProductionCommands,
+  resolvePluginApplicationCommands,
 } from "./run-dvhs-csf-isolated-app.mjs";
 
 /**
@@ -139,6 +142,12 @@ describe("the isolated app child environment is built, not inherited", () => {
       process.env[key] = value;
     try {
       const { childEnv } = build();
+      expect(childEnv.PLUGIN_APPLICATION_LOCAL_URL).toBe(
+        "http://127.0.0.1:3001",
+      );
+      expect(childEnv.CRON_EGRESS_ALLOWED_LOOPBACK_PORTS?.split(",")).toContain(
+        "3001",
+      );
       const serialized = JSON.stringify(childEnv);
       for (const [key, value] of Object.entries(planted)) {
         expect(serialized, key).not.toContain(value);
@@ -176,6 +185,7 @@ describe("the isolated app child environment is built, not inherited", () => {
       "TURNSTILE_BYPASS",
       "NEXT_PUBLIC_TURNSTILE_BYPASS",
       "DV_TABROOM_LIVE",
+      "PLUGIN_APPLICATION_LOCAL_URL",
       "CRON_EGRESS_LEDGER",
       "CRON_EGRESS_SMTP_PORTS",
       "CRON_EGRESS_ALLOWED_SMTP_PORTS",
@@ -286,7 +296,7 @@ describe("the isolated app child environment is built, not inherited", () => {
     expect(childEnv.RESEND_API_KEY).toBe("");
   });
 
-  test("only loopback Supabase, database, SMTP, and the local app are permitted", () => {
+  test("only loopback Supabase, database, SMTP, and the local apps are permitted", () => {
     const { childEnv } = build();
     expect(childEnv.CRON_EGRESS_ALLOWED_LOOPBACK_PORTS).toBe(
       [
@@ -294,6 +304,7 @@ describe("the isolated app child environment is built, not inherited", () => {
         ISOLATED.databasePort,
         ISOLATED.smtpPort,
         APP_PORT,
+        3001,
       ].join(","),
     );
     expect(childEnv.CRON_EGRESS_ALLOWED_SMTP_PORTS).toBe(
@@ -329,6 +340,72 @@ describe("the isolated app child environment is built, not inherited", () => {
     expect(() => build({ serverMode: "preview" as "development" })).toThrow(
       /Unknown isolated browser server mode/u,
     );
+  });
+});
+
+describe("the plugin application child has a narrower environment", () => {
+  test("receives public Supabase values but no platform authority", () => {
+    const childEnv = buildPluginApplicationChildEnvironment({
+      appEnv: APP_ENV,
+      isolated: ISOLATED,
+      ledgerPath: "/tmp/plugin-runner-test-ledger.jsonl",
+    });
+
+    expect(childEnv.PORT).toBe("3001");
+    expect(childEnv.SUPABASE_URL).toBe(APP_ENV.NEXT_PUBLIC_SUPABASE_URL);
+    expect(childEnv.SUPABASE_PUBLISHABLE_KEY).toBe(
+      APP_ENV.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY,
+    );
+    expect(childEnv.VC_MICROFRONTENDS_CONFIG).toBe(
+      "./microfrontends.host.json",
+    );
+    for (const forbidden of [
+      "SERVICE_ROLE_KEY",
+      "SUPABASE_SERVICE_ROLE_KEY",
+      "SUPABASE_SECRET_KEY",
+      "DB_URL",
+      "SUPABASE_DB_URL",
+      "CSF_PROFILE_CLAIM_SECRET",
+      "RESEND_API_KEY",
+    ]) {
+      expect(childEnv[forbidden] ?? "", forbidden).toBe("");
+    }
+  });
+
+  test("permits only the two apps and the isolated Supabase ports", () => {
+    const childEnv = buildPluginApplicationChildEnvironment({
+      appEnv: APP_ENV,
+      isolated: ISOLATED,
+      ledgerPath: "/tmp/plugin-runner-test-ledger.jsonl",
+    });
+    expect(childEnv.CRON_EGRESS_ALLOWED_LOOPBACK_PORTS).toBe(
+      [ISOLATED.apiPort, ISOLATED.databasePort, 3001, APP_PORT].join(","),
+    );
+    expect(childEnv.NODE_OPTIONS).toBe(`--require ${guardPath}`);
+  });
+
+  test("shadows plugin env-file keys except for approved local values", () => {
+    const childEnv = buildPluginApplicationChildEnvironment({
+      appEnv: APP_ENV,
+      isolated: ISOLATED,
+      ledgerPath: "/tmp/plugin-runner-test-ledger.jsonl",
+      envFileKeys: [
+        "CSF_UNLISTED_PRIVATE_VALUE",
+        "SUPABASE_SERVICE_ROLE_KEY",
+        "NEXT_PUBLIC_SUPABASE_URL",
+      ],
+      hostEnv: {
+        CSF_UNLISTED_PRIVATE_VALUE: "must-not-reach-child",
+        SUPABASE_SERVICE_ROLE_KEY: "must-not-reach-child",
+      },
+    });
+
+    expect(childEnv.CSF_UNLISTED_PRIVATE_VALUE).toBe("");
+    expect(childEnv.SUPABASE_SERVICE_ROLE_KEY).toBe("");
+    expect(childEnv.NEXT_PUBLIC_SUPABASE_URL).toBe(
+      APP_ENV.NEXT_PUBLIC_SUPABASE_URL,
+    );
+    expect(JSON.stringify(childEnv)).not.toContain("must-not-reach-child");
   });
 });
 
@@ -392,6 +469,34 @@ describe("repository .env* keys are discovered by a real @next/env load", () => 
       );
     }
     expect(process.env.SOME_UNCLASSIFIED_FIXTURE_KEY).toBeUndefined();
+  });
+
+  test("discovers production env files for a production child", () => {
+    const directory = fixtureRepository({ DEVELOPMENT_ONLY: "development" });
+    writeFileSync(
+      join(directory, ".env.production.local"),
+      "PLUGIN_PRODUCTION_PRIVATE_KEY=must-not-reach-child\n",
+      "utf8",
+    );
+
+    const keys = discoverRepositoryEnvFileKeys(directory, "production");
+    const childEnv = buildPluginApplicationChildEnvironment({
+      appEnv: APP_ENV,
+      isolated: ISOLATED,
+      ledgerPath: "/tmp/plugin-runner-test-ledger.jsonl",
+      envFileKeys: keys,
+      serverMode: "production",
+      hostEnv: {
+        PLUGIN_PRODUCTION_PRIVATE_KEY: "must-not-reach-child",
+      },
+    });
+
+    expect(keys).toContain("PLUGIN_PRODUCTION_PRIVATE_KEY");
+    expect(childEnv.PLUGIN_PRODUCTION_PRIVATE_KEY).toBe("");
+    expect(JSON.stringify(childEnv)).not.toContain("must-not-reach-child");
+    expect(() =>
+      discoverRepositoryEnvFileKeys(directory, "preview" as "development"),
+    ).toThrow(/Unknown env-file discovery mode/u);
   });
 
   test("every discovered provider value is absent or empty in the child", () => {
@@ -563,13 +668,13 @@ describe("the fixed app port is owned through one atomic claim", () => {
     // the claim and the spawn, and its failure path releases before throwing.
     const claimIndex = runnerSource.indexOf("const claim = claimAppPort();");
     const secondCheck = runnerSource.indexOf(
-      "await assertPortFree(APP_PORT);",
+      "assertPortFree(APP_PORT),",
       claimIndex,
     );
     const releaseOnFailure = runnerSource.indexOf(
       "release();\n    throw error;",
     );
-    const spawnIndex = runnerSource.indexOf("child = spawn(next.start.command");
+    const spawnIndex = runnerSource.indexOf("const spawnOwnedChild =");
 
     expect(claimIndex).toBeGreaterThan(-1);
     expect(secondCheck).toBeGreaterThan(claimIndex);
@@ -577,7 +682,7 @@ describe("the fixed app port is owned through one atomic claim", () => {
     expect(spawnIndex).toBeGreaterThan(releaseOnFailure);
   });
 
-  test("termination is forwarded to the child group and the claim is released after exit", () => {
+  test("termination reaches both child process groups and the claim is released after exit", () => {
     expect(runnerSource).toContain("detached: true");
     expect(runnerSource).toContain("process.kill(-child.pid, signal)");
     expect(runnerSource).toContain('forward("SIGKILL")');
@@ -590,7 +695,7 @@ describe("the fixed app port is owned through one atomic claim", () => {
     // Awaiting the group's exit before releasing is what stops a peer from
     // taking a port this runner is still vacating.
     const awaitExit = runnerSource.indexOf(
-      "const { code, signal } = await exited;",
+      "const firstExit = await Promise.race(exits);",
     );
     const releaseAfter = runnerSource.indexOf("release();", awaitExit);
     expect(awaitExit).toBeGreaterThan(-1);
@@ -652,12 +757,40 @@ describe("the runner starts Next directly through Node", () => {
     expect(commands.start.command).toBe(commands.build.command);
   });
 
+  test("starts the private plugin app on its fixed second port", () => {
+    expect(LOCAL_PLUGIN_APPLICATION_PORT).toBe(3001);
+    const development = resolvePluginApplicationCommands(
+      "development",
+      join(repositoryRoot, "lib/plugins/private/apps/csf"),
+    );
+    expect(development.start.command).toMatch(/(^|\/)node(\.exe)?$/u);
+    expect(development.start.args.slice(1)).toEqual([
+      "dev",
+      "--webpack",
+      "--hostname",
+      "127.0.0.1",
+      "--port",
+      "3001",
+    ]);
+
+    const production = resolvePluginApplicationCommands(
+      "production",
+      join(repositoryRoot, "lib/plugins/private/apps/csf"),
+    );
+    expect(production.build?.args.slice(1)).toEqual(["build", "--webpack"]);
+    expect(production.start.args.slice(1)).toEqual([
+      "start",
+      "--hostname",
+      "127.0.0.1",
+      "--port",
+      "3001",
+    ]);
+  });
+
   test("never shells out to a package script or a bun runtime", () => {
     // Structural, not textual: the prose above the code explains what it
     // replaced, so the assertion has to look at the spawn itself.
-    expect(runnerSource).toContain(
-      "child = spawn(next.start.command, next.start.args, {",
-    );
+    expect(runnerSource).toContain("const child = spawn(command, args, {");
     expect(runnerSource).not.toMatch(/spawn(Sync)?\(\s*"bun"/u);
     expect(runnerSource).not.toMatch(/"run",\s*"dev"/u);
     expect(runnerSource).not.toMatch(/shell:\s*true/u);

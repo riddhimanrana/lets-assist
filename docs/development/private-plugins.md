@@ -105,11 +105,21 @@ For every server-rendered application request:
 5. Render only the narrow caller-scoped result. Treat a missing, malformed, or
    denied proof as inaccessible.
 
-The host route, Vercel microfrontend claim, and organization identifier are
-routing inputs, not authorization. Child reads and mutations repeat this
-sequence on every request. Consequential plugin operations use their existing
-server-only transactions and recheck capability after taking the required
-locks.
+The host resolves an application page with
+`get_plugin_application_route_target_by_identifier`, then rewrites it to the
+exact healthy immutable Vercel deployment selected for the organization and
+environment. The host accepts only HTTPS `*.vercel.app` targets returned by the
+database. It removes any caller-supplied deployment-protection bypass header
+and, when configured, supplies the trusted bypass value only on the upstream
+request.
+
+The host route, microfrontend project claim, and organization identifier are
+routing inputs, not authorization. Vercel's project-level microfrontend route
+cannot select different immutable releases for different organizations, so it
+must not claim the versioned application page. Child reads and mutations repeat
+the caller-proof sequence on every request. Consequential plugin operations use
+their existing server-only transactions and recheck capability after taking
+the required locks.
 
 SDK releases use the `plugin-sdk/v<version>` Git tag family in the public
 repository. The release workflow accepts a tag only when it matches the stable

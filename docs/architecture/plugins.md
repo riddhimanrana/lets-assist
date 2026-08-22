@@ -87,6 +87,32 @@ self-only RPCs with its own session, so their safety does not depend on the
 child hiding their names. Service-only CSF operations still repeat their own
 fresh authorization and tenant checks.
 
+### Version-pinned application routing
+
+The host resolves application pages through
+`public.get_plugin_application_route_target_by_identifier`. The authenticated
+RPC repeats membership, install, entitlement, release, compatibility, rollout
+flag, and deployment-health checks, then returns only the exact immutable
+`*.vercel.app` deployment selected for that organization and environment. The
+host rewrites the request to that URL while preserving the public organization
+URL. It never treats the newest published or most recently deployed version as
+the selected version.
+
+Vercel microfrontend routes select a project, not a tenant-specific immutable
+deployment. The shared group therefore owns only version-independent child
+routes: health checks and the child application's generated asset namespace.
+It must not claim organization application pages, because one static project
+route would move every organization when a newer child deployment becomes
+active. The child uses Vercel's generated asset prefix and Skew Protection so
+framework-managed JavaScript, CSS, images, navigations, and Server Actions stay
+on the deployment that rendered the selected page.
+
+The isolated local runner starts both applications as owned process groups on
+ports 3000 and 3001. It routes the same generated asset namespace directly to
+the local child. The child receives only the public local Supabase connection;
+the runner does not give it service-role, database, profile-claim, or mail
+credentials.
+
 ## Releases, deployments, and installs
 
 These are separate records:
