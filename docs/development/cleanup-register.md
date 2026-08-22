@@ -91,12 +91,18 @@ This register separates actionable repository defects from provider/account and 
   install selected an older version. The host now resolves the exact healthy
   immutable Vercel deployment through an authenticated, membership-scoped RPC
   and rewrites the application page without changing its public URL. The shared
-  microfrontend group retains only the version-independent health route. The
-  same migration makes an omitted host API maximum genuinely unbounded in both
-  status and activation paths. A fresh 352-migration replay, 42 focused pgTAP
-  assertions, 23 focused Bun assertions, TypeScript, and architecture hard
-  checks pass locally. Hosted Development migration, protection-bypass setup,
-  and browser acceptance remain release gates.
+  microfrontend group retains only version-independent health and generated
+  child-asset routes. The child build emits the namespaced asset URLs, while
+  Vercel Skew Protection pins framework-managed asset requests to the deployment
+  that rendered the selected page. The isolated runner now owns both platform
+  and child processes, routes the namespaced assets locally, and excludes
+  platform authority from the child environment. The same migration makes an
+  omitted host API maximum genuinely unbounded in both status and activation
+  paths. A fresh 352-migration replay, 42 focused pgTAP assertions, 63 focused
+  runner and proxy assertions, TypeScript, architecture checks, and a live
+  two-process local startup pass. Hosted Development migration, Skew Protection
+  confirmation, protection-bypass setup, and browser acceptance remain release
+  gates.
 - Private release `1.2.1` is signed and published. Root PR #238 merged it into
   `development` at `411421a9bf9ea3f1aa251abda3f7664f054d48ea`, and hosted
   Development is migration-current at 342 rows through `20260821044815` with

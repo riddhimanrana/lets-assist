@@ -6,7 +6,6 @@ import type { AuthenticatedProxyContext } from "@/lib/supabase/proxy";
 import {
   config,
   createRootProxy,
-  getCsfApplicationOrganizationIdForRequest,
   readCsfLocalApplicationRouteTarget,
   readCsfApplicationRouteTarget,
   rewriteToPluginApplicationDeployment,
@@ -337,37 +336,67 @@ describe("root proxy composition", () => {
     ).toBe("1.2.7");
   });
 
-  test("routes child static assets to the same selected deployment", async () => {
-    const assetPath = "/_next/static/chunks/app/access-proof.js";
-    const request = new NextRequest(`https://example.test${assetPath}`, {
-      headers: { referer: `https://example.test${applicationPath}` },
-    });
+  test("delegates the child's namespaced assets to Vercel microfrontend routing", async () => {
+    const assetPath = "/vc-ap-5431dc/_next/static/chunks/app/access-proof.js";
+    const request = new NextRequest(`https://example.test${assetPath}`);
+    let authCalls = 0;
     const rootProxy = createRootProxy({
       ...defaultDependencies,
-      updateSession: async (authRequest, options) =>
-        (await options?.onAuthenticatedPassThrough?.(
-          authenticatedContext(authRequest),
-        )) ?? NextResponse.next(),
+      updateSession: async () => {
+        authCalls += 1;
+        return NextResponse.next();
+      },
       readCsfApplicationRouteTarget: async () => routeTarget,
-      runMicrofrontendsMiddleware: async () => NextResponse.next(),
+      runMicrofrontendsMiddleware: async ({ request: assetRequest }) => {
+        expect(assetRequest.nextUrl.pathname).toBe(assetPath);
+        return NextResponse.rewrite(
+          `http://127.0.0.1:3001${assetRequest.nextUrl.pathname}`,
+        );
+      },
     });
 
     const response = await rootProxy(request);
 
     expect(response.headers.get("x-middleware-rewrite")).toBe(
-      `https://lets-assist-csf-v1.vercel.app${assetPath}`,
+      `http://127.0.0.1:3001${assetPath}`,
     );
-    expect(config.matcher[0]).not.toContain("_next/static");
+    expect(authCalls).toBe(0);
+    expect(config.matcher[0]).toContain("_next/image");
   });
 
-  test("keeps host and cross-origin static asset requests in the host", async () => {
+  test("routes namespaced assets directly to the owned isolated child", async () => {
+    const assetPath = "/vc-ap-5431dc/_next/static/chunks/main-app.js";
+    let authCalls = 0;
+    let microfrontendCalls = 0;
+    const rootProxy = createRootProxy({
+      ...defaultDependencies,
+      applicationEnvironment: null,
+      localApplicationUrl: "http://127.0.0.1:3001",
+      updateSession: async () => {
+        authCalls += 1;
+        return NextResponse.next();
+      },
+      readCsfApplicationRouteTarget: async () => null,
+      runMicrofrontendsMiddleware: async () => {
+        microfrontendCalls += 1;
+        return NextResponse.next();
+      },
+    });
+
+    const response = await rootProxy(
+      new NextRequest(`http://127.0.0.1:3000${assetPath}?v=fixture`),
+    );
+
+    expect(response.headers.get("x-middleware-rewrite")).toBe(
+      `http://127.0.0.1:3001${assetPath}?v=fixture`,
+    );
+    expect(authCalls).toBe(0);
+    expect(microfrontendCalls).toBe(0);
+  });
+
+  test("keeps ordinary host static assets in the host", async () => {
     const hostAsset = new NextRequest(
       "https://example.test/_next/static/chunks/app/layout.js",
-      { headers: { referer: "https://example.test/dashboard" } },
-    );
-    const crossOriginAsset = new NextRequest(
-      "https://example.test/_next/static/chunks/app/layout.js",
-      { headers: { referer: `https://attacker.test${applicationPath}` } },
     );
     let authCalls = 0;
     const rootProxy = createRootProxy({
@@ -380,16 +409,9 @@ describe("root proxy composition", () => {
       runMicrofrontendsMiddleware: async () => NextResponse.next(),
     });
 
-    expect(getCsfApplicationOrganizationIdForRequest(hostAsset)).toBeNull();
-    expect(
-      getCsfApplicationOrganizationIdForRequest(crossOriginAsset),
-    ).toBeNull();
     expect(
       (await rootProxy(hostAsset)).headers.get("x-middleware-rewrite"),
     ).toBeNull();
-    expect(
-      (await rootProxy(crossOriginAsset)).headers.get("x-middleware-rewrite"),
-    ).toBeNull();
-    expect(authCalls).toBe(0);
+    expect(authCalls).toBe(1);
   });
 });

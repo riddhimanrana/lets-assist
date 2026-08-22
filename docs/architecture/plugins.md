@@ -100,9 +100,18 @@ the selected version.
 
 Vercel microfrontend routes select a project, not a tenant-specific immutable
 deployment. The shared group therefore owns only version-independent child
-routes such as health checks. It must not claim organization application pages,
-because one static project route would move every organization when a newer
-child deployment becomes active.
+routes: health checks and the child application's generated asset namespace.
+It must not claim organization application pages, because one static project
+route would move every organization when a newer child deployment becomes
+active. The child uses Vercel's generated asset prefix and Skew Protection so
+framework-managed JavaScript, CSS, images, navigations, and Server Actions stay
+on the deployment that rendered the selected page.
+
+The isolated local runner starts both applications as owned process groups on
+ports 3000 and 3001. It routes the same generated asset namespace directly to
+the local child. The child receives only the public local Supabase connection;
+the runner does not give it service-role, database, profile-claim, or mail
+credentials.
 
 ## Releases, deployments, and installs
 

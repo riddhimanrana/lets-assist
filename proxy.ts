@@ -21,6 +21,7 @@ import {
 
 const MICROFRONTENDS_CLIENT_CONFIG_PATH =
   "/.well-known/vercel/microfrontends/client-config";
+const CSF_APPLICATION_ASSET_PREFIX = "/vc-ap-5431dc/";
 
 type RootProxyDependencies = {
   updateSession: (
@@ -145,33 +146,25 @@ export function rewriteToPluginApplicationDeployment(input: {
   });
 }
 
-const NEXT_STATIC_ASSET_PATH = /^\/_next\/static\//u;
-
-export function getCsfApplicationOrganizationIdForRequest(
-  request: NextRequest,
-): string | null {
-  const directOrganizationId = getCsfApplicationOrganizationId(
-    request.nextUrl.pathname,
-  );
-  if (directOrganizationId) return directOrganizationId;
-  if (!NEXT_STATIC_ASSET_PATH.test(request.nextUrl.pathname)) return null;
-
-  const referer = request.headers.get("referer");
-  if (!referer) return null;
-  try {
-    const refererUrl = new URL(referer);
-    if (refererUrl.origin !== request.nextUrl.origin) return null;
-    return getCsfApplicationOrganizationId(refererUrl.pathname);
-  } catch {
-    return null;
-  }
-}
-
 export function createRootProxy(
   dependencies: RootProxyDependencies,
 ): (request: NextRequest) => Promise<NextResponse> {
   return async (request) => {
-    if (request.nextUrl.pathname === MICROFRONTENDS_CLIENT_CONFIG_PATH) {
+    if (
+      request.nextUrl.pathname.startsWith(CSF_APPLICATION_ASSET_PREFIX) &&
+      dependencies.localApplicationUrl
+    ) {
+      return NextResponse.rewrite(
+        new URL(
+          `${request.nextUrl.pathname}${request.nextUrl.search}`,
+          dependencies.localApplicationUrl,
+        ),
+      );
+    }
+    if (
+      request.nextUrl.pathname === MICROFRONTENDS_CLIENT_CONFIG_PATH ||
+      request.nextUrl.pathname.startsWith(CSF_APPLICATION_ASSET_PREFIX)
+    ) {
       const response = await dependencies.runMicrofrontendsMiddleware({
         request: withoutLocalFlagOverride(request),
         flagValues: {
@@ -181,19 +174,17 @@ export function createRootProxy(
       const resolved = response
         ? new NextResponse(response.body, response)
         : NextResponse.next();
-      resolved.headers.set("Cache-Control", "private, no-store");
+      if (request.nextUrl.pathname === MICROFRONTENDS_CLIENT_CONFIG_PATH) {
+        resolved.headers.set("Cache-Control", "private, no-store");
+      }
       return resolved;
     }
 
-    const organizationId = getCsfApplicationOrganizationIdForRequest(request);
-    if (
-      NEXT_STATIC_ASSET_PATH.test(request.nextUrl.pathname) &&
-      !organizationId
-    )
-      return NextResponse.next();
-
     return dependencies.updateSession(request, {
       onAuthenticatedPassThrough: async (context) => {
+        const organizationId = getCsfApplicationOrganizationId(
+          request.nextUrl.pathname,
+        );
         if (
           !organizationId ||
           (!dependencies.applicationEnvironment &&

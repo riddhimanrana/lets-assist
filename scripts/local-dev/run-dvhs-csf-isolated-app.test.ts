@@ -18,15 +18,18 @@ import {
   APP_PORT_CLAIM_NAME,
   DISABLED_PROVIDER_ENV_KEYS,
   DISABLED_WORKER_ENV_KEYS,
+  LOCAL_PLUGIN_APPLICATION_PORT,
   OS_RUNTIME_KEYS,
   appPortClaimRoot,
   assertPortFree,
   buildIsolatedChildEnvironment,
+  buildPluginApplicationChildEnvironment,
   claimAppPort,
   discoverRepositoryEnvFileKeys,
   releaseAppPort,
   resolveNextDevCommand,
   resolveNextProductionCommands,
+  resolvePluginApplicationCommands,
 } from "./run-dvhs-csf-isolated-app.mjs";
 
 /**
@@ -340,6 +343,48 @@ describe("the isolated app child environment is built, not inherited", () => {
   });
 });
 
+describe("the plugin application child has a narrower environment", () => {
+  test("receives public Supabase values but no platform authority", () => {
+    const childEnv = buildPluginApplicationChildEnvironment({
+      appEnv: APP_ENV,
+      isolated: ISOLATED,
+      ledgerPath: "/tmp/plugin-runner-test-ledger.jsonl",
+    });
+
+    expect(childEnv.PORT).toBe("3001");
+    expect(childEnv.SUPABASE_URL).toBe(APP_ENV.NEXT_PUBLIC_SUPABASE_URL);
+    expect(childEnv.SUPABASE_PUBLISHABLE_KEY).toBe(
+      APP_ENV.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY,
+    );
+    expect(childEnv.VC_MICROFRONTENDS_CONFIG).toBe(
+      "./microfrontends.host.json",
+    );
+    for (const forbidden of [
+      "SERVICE_ROLE_KEY",
+      "SUPABASE_SERVICE_ROLE_KEY",
+      "SUPABASE_SECRET_KEY",
+      "DB_URL",
+      "SUPABASE_DB_URL",
+      "CSF_PROFILE_CLAIM_SECRET",
+      "RESEND_API_KEY",
+    ]) {
+      expect(childEnv[forbidden] ?? "", forbidden).toBe("");
+    }
+  });
+
+  test("permits only the two apps and the isolated Supabase ports", () => {
+    const childEnv = buildPluginApplicationChildEnvironment({
+      appEnv: APP_ENV,
+      isolated: ISOLATED,
+      ledgerPath: "/tmp/plugin-runner-test-ledger.jsonl",
+    });
+    expect(childEnv.CRON_EGRESS_ALLOWED_LOOPBACK_PORTS).toBe(
+      [ISOLATED.apiPort, ISOLATED.databasePort, 3001, APP_PORT].join(","),
+    );
+    expect(childEnv.NODE_OPTIONS).toBe(`--require ${guardPath}`);
+  });
+});
+
 // ---------------------------------------------------------------------------
 // 2. Real @next/env discovery over a fixture .env.local
 // ---------------------------------------------------------------------------
@@ -571,13 +616,13 @@ describe("the fixed app port is owned through one atomic claim", () => {
     // the claim and the spawn, and its failure path releases before throwing.
     const claimIndex = runnerSource.indexOf("const claim = claimAppPort();");
     const secondCheck = runnerSource.indexOf(
-      "await assertPortFree(APP_PORT);",
+      "assertPortFree(APP_PORT),",
       claimIndex,
     );
     const releaseOnFailure = runnerSource.indexOf(
       "release();\n    throw error;",
     );
-    const spawnIndex = runnerSource.indexOf("child = spawn(next.start.command");
+    const spawnIndex = runnerSource.indexOf("const spawnOwnedChild =");
 
     expect(claimIndex).toBeGreaterThan(-1);
     expect(secondCheck).toBeGreaterThan(claimIndex);
@@ -585,7 +630,7 @@ describe("the fixed app port is owned through one atomic claim", () => {
     expect(spawnIndex).toBeGreaterThan(releaseOnFailure);
   });
 
-  test("termination is forwarded to the child group and the claim is released after exit", () => {
+  test("termination reaches both child process groups and the claim is released after exit", () => {
     expect(runnerSource).toContain("detached: true");
     expect(runnerSource).toContain("process.kill(-child.pid, signal)");
     expect(runnerSource).toContain('forward("SIGKILL")');
@@ -598,7 +643,7 @@ describe("the fixed app port is owned through one atomic claim", () => {
     // Awaiting the group's exit before releasing is what stops a peer from
     // taking a port this runner is still vacating.
     const awaitExit = runnerSource.indexOf(
-      "const { code, signal } = await exited;",
+      "const firstExit = await Promise.race(exits);",
     );
     const releaseAfter = runnerSource.indexOf("release();", awaitExit);
     expect(awaitExit).toBeGreaterThan(-1);
@@ -660,12 +705,40 @@ describe("the runner starts Next directly through Node", () => {
     expect(commands.start.command).toBe(commands.build.command);
   });
 
+  test("starts the private plugin app on its fixed second port", () => {
+    expect(LOCAL_PLUGIN_APPLICATION_PORT).toBe(3001);
+    const development = resolvePluginApplicationCommands(
+      "development",
+      join(repositoryRoot, "lib/plugins/private/apps/csf"),
+    );
+    expect(development.start.command).toMatch(/(^|\/)node(\.exe)?$/u);
+    expect(development.start.args.slice(1)).toEqual([
+      "dev",
+      "--webpack",
+      "--hostname",
+      "127.0.0.1",
+      "--port",
+      "3001",
+    ]);
+
+    const production = resolvePluginApplicationCommands(
+      "production",
+      join(repositoryRoot, "lib/plugins/private/apps/csf"),
+    );
+    expect(production.build?.args.slice(1)).toEqual(["build", "--webpack"]);
+    expect(production.start.args.slice(1)).toEqual([
+      "start",
+      "--hostname",
+      "127.0.0.1",
+      "--port",
+      "3001",
+    ]);
+  });
+
   test("never shells out to a package script or a bun runtime", () => {
     // Structural, not textual: the prose above the code explains what it
     // replaced, so the assertion has to look at the spawn itself.
-    expect(runnerSource).toContain(
-      "child = spawn(next.start.command, next.start.args, {",
-    );
+    expect(runnerSource).toContain("const child = spawn(command, args, {");
     expect(runnerSource).not.toMatch(/spawn(Sync)?\(\s*"bun"/u);
     expect(runnerSource).not.toMatch(/"run",\s*"dev"/u);
     expect(runnerSource).not.toMatch(/shell:\s*true/u);

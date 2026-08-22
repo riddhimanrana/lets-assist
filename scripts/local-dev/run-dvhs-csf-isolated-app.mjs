@@ -52,6 +52,10 @@ import {
 const SCRIPT_DIR = path.dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = path.resolve(SCRIPT_DIR, "..", "..");
 const EGRESS_GUARD = path.join(SCRIPT_DIR, "cron-egress-guard.cjs");
+const PLUGIN_APPLICATION_ROOT = path.join(
+  REPO_ROOT,
+  "lib/plugins/private/apps/csf",
+);
 
 export const APP_PORT = CSF_ISOLATED_APP_PORT;
 export const APP_PORT_CLAIM_NAME = `app-port-${APP_PORT}`;
@@ -141,7 +145,7 @@ export const DISABLED_PROVIDER_ENV_KEYS = [
 ];
 
 const LOCAL_MAIL_FROM = "Let's Assist <no-reply@local.lets-assist.test>";
-const LOCAL_PLUGIN_APPLICATION_PORT = 3001;
+export const LOCAL_PLUGIN_APPLICATION_PORT = 3001;
 
 /** Cron token keys, set only in the cron-probe child. */
 const CRON_TOKEN_KEYS = [
@@ -366,6 +370,69 @@ export function buildIsolatedChildEnvironment(options) {
   return { childEnv, shadowedEnvFileKeys };
 }
 
+/**
+ * The standalone plugin app receives only its public Supabase connection and
+ * the local runtime controls it needs. In particular, it never receives the
+ * service-role key, database URL, profile-claim secret, or mail credentials
+ * that the platform child needs.
+ *
+ * @param {{
+ *   appEnv: Record<string, string>,
+ *   isolated: { apiPort: number, databasePort: number, smtpPort: number },
+ *   ledgerPath: string,
+ *   serverMode?: "development" | "production",
+ *   hostEnv?: Record<string, string | undefined>,
+ * }} options
+ */
+export function buildPluginApplicationChildEnvironment(options) {
+  const {
+    appEnv,
+    isolated,
+    ledgerPath,
+    serverMode = "development",
+    hostEnv = process.env,
+  } = options;
+  if (serverMode !== "development" && serverMode !== "production") {
+    throw new Error(`Unknown isolated plugin server mode: ${serverMode}`);
+  }
+
+  /** @type {Record<string, string>} */
+  const childEnv = {};
+  for (const key of OS_RUNTIME_KEYS) {
+    const value = hostEnv[key];
+    if (typeof value === "string" && value !== "") childEnv[key] = value;
+  }
+
+  const supabaseUrl = appEnv.NEXT_PUBLIC_SUPABASE_URL;
+  const publishableKey = appEnv.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
+  if (!supabaseUrl || !publishableKey) {
+    throw new Error(
+      "Validated isolated plugin environment is missing its public Supabase configuration.",
+    );
+  }
+
+  childEnv.NODE_ENV = serverMode;
+  childEnv.NEXT_TELEMETRY_DISABLED = "1";
+  childEnv.PORT = String(LOCAL_PLUGIN_APPLICATION_PORT);
+  childEnv.SUPABASE_URL = supabaseUrl;
+  childEnv.SUPABASE_PUBLISHABLE_KEY = publishableKey;
+  childEnv.NEXT_PUBLIC_SUPABASE_URL = supabaseUrl;
+  childEnv.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY = publishableKey;
+  childEnv.NEXT_PUBLIC_SUPABASE_ANON_KEY = appEnv.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  childEnv.VC_MICROFRONTENDS_CONFIG = "./microfrontends.host.json";
+  childEnv.CRON_EGRESS_LEDGER = ledgerPath;
+  childEnv.CRON_EGRESS_ALLOWED_LOOPBACK_PORTS = [
+    isolated.apiPort,
+    isolated.databasePort,
+    LOCAL_PLUGIN_APPLICATION_PORT,
+    APP_PORT,
+  ].join(",");
+  childEnv.NODE_OPTIONS = `--require ${EGRESS_GUARD}`;
+
+  for (const key of DISABLED_PROVIDER_ENV_KEYS) childEnv[key] = "";
+  return childEnv;
+}
+
 // ---------------------------------------------------------------------------
 // Next, started directly through Node
 // ---------------------------------------------------------------------------
@@ -475,6 +542,42 @@ export function resolveNextProductionCommands(port, repoRoot = REPO_ROOT) {
       ],
     },
   };
+}
+
+/** @param {"development" | "production"} serverMode */
+export function resolvePluginApplicationCommands(
+  serverMode,
+  pluginRoot = PLUGIN_APPLICATION_ROOT,
+) {
+  const nextBin = path.join(
+    pluginRoot,
+    "node_modules",
+    "next",
+    "dist",
+    "bin",
+    "next",
+  );
+  if (!existsSync(nextBin)) {
+    throw new Error(
+      `Missing the plugin application's Next executable: ${nextBin}`,
+    );
+  }
+  const command = resolveNodeExecutable();
+  const startArgs = [
+    nextBin,
+    serverMode === "production" ? "start" : "dev",
+    ...(serverMode === "development" ? ["--webpack"] : []),
+    "--hostname",
+    "127.0.0.1",
+    "--port",
+    String(LOCAL_PLUGIN_APPLICATION_PORT),
+  ];
+  return serverMode === "production"
+    ? {
+        build: { command, args: [nextBin, "build", "--webpack"] },
+        start: { command, args: startArgs },
+      }
+    : { start: { command, args: startArgs } };
 }
 
 // ---------------------------------------------------------------------------
@@ -638,6 +741,7 @@ async function main() {
     serverMode === "production"
       ? resolveNextProductionCommands(APP_PORT, REPO_ROOT)
       : { start: resolveNextDevCommand(APP_PORT, REPO_ROOT) };
+  const pluginNext = resolvePluginApplicationCommands(serverMode);
   const envFileKeys = discoverRepositoryEnvFileKeys(REPO_ROOT);
   const ledgerPath = path.join(
     isolated.workDir,
@@ -654,12 +758,22 @@ async function main() {
     envFileKeys,
     serverMode,
   });
+  const pluginChildEnv = buildPluginApplicationChildEnvironment({
+    appEnv,
+    isolated,
+    ledgerPath,
+    serverMode,
+  });
 
   // Free before the claim, so an occupied port never even takes one.
-  await assertPortFree(APP_PORT);
+  await Promise.all([
+    assertPortFree(APP_PORT),
+    assertPortFree(LOCAL_PLUGIN_APPLICATION_PORT),
+  ]);
   const claim = claimAppPort();
 
-  let child = null;
+  /** @type {import("node:child_process").ChildProcess[]} */
+  const children = [];
   let released = false;
   const release = () => {
     if (released) return;
@@ -670,7 +784,10 @@ async function main() {
   try {
     // And free again after the claim: a server that appeared in between must
     // start nothing, and must give back only the claim this process took.
-    await assertPortFree(APP_PORT);
+    await Promise.all([
+      assertPortFree(APP_PORT),
+      assertPortFree(LOCAL_PLUGIN_APPLICATION_PORT),
+    ]);
   } catch (error) {
     release();
     throw error;
@@ -684,6 +801,9 @@ async function main() {
   );
   console.log(
     `  app              : http://127.0.0.1:${APP_PORT} (owned claim ${claim.claimPath})`,
+  );
+  console.log(
+    `  plugin app       : http://127.0.0.1:${LOCAL_PLUGIN_APPLICATION_PORT}`,
   );
   console.log(`  child env keys   : ${Object.keys(childEnv).length}`);
   console.log(`  .env* keys shadowed: ${shadowedEnvFileKeys.length}`);
@@ -707,25 +827,61 @@ async function main() {
     console.log("  browser runtime  : development server");
   }
 
-  child = spawn(next.start.command, next.start.args, {
-    cwd: REPO_ROOT,
-    env: childEnv,
-    stdio: ["ignore", "inherit", "inherit"],
-    // Its own process group, so termination reaches every descendant Next spawns
-    // rather than orphaning them onto the claimed port.
-    detached: true,
-  });
+  if ("build" in pluginNext) {
+    const build = spawnSync(pluginNext.build.command, pluginNext.build.args, {
+      cwd: PLUGIN_APPLICATION_ROOT,
+      env: pluginChildEnv,
+      stdio: "inherit",
+    });
+    if (build.error) throw build.error;
+    if (build.status !== 0) {
+      release();
+      throw new Error(
+        `The isolated plugin application build exited with code ${build.status}.`,
+      );
+    }
+  }
 
-  const exited = new Promise((resolve) => {
-    child.once("exit", (code, signal) => resolve({ code, signal }));
-  });
+  const spawnOwnedChild = (command, args, cwd, env, name) => {
+    const child = spawn(command, args, {
+      cwd,
+      env,
+      stdio: ["ignore", "inherit", "inherit"],
+      detached: true,
+    });
+    children.push(child);
+    return new Promise((resolve) => {
+      child.once("exit", (code, signal) =>
+        resolve({ child, code, signal, name }),
+      );
+    });
+  };
+
+  const exits = [
+    spawnOwnedChild(
+      pluginNext.start.command,
+      pluginNext.start.args,
+      PLUGIN_APPLICATION_ROOT,
+      pluginChildEnv,
+      "plugin application",
+    ),
+    spawnOwnedChild(
+      next.start.command,
+      next.start.args,
+      REPO_ROOT,
+      childEnv,
+      "platform application",
+    ),
+  ];
 
   const forward = (signal) => {
-    if (!child.pid) return;
-    try {
-      process.kill(-child.pid, signal);
-    } catch (error) {
-      if (error.code !== "ESRCH") throw error;
+    for (const child of children) {
+      if (!child.pid) continue;
+      try {
+        process.kill(-child.pid, signal);
+      } catch (error) {
+        if (error.code !== "ESRCH") throw error;
+      }
     }
   };
 
@@ -749,13 +905,19 @@ async function main() {
 
   // Wait for the whole group to be gone before the claim goes back: releasing
   // first would let a peer take a port this runner is still vacating.
-  const { code, signal } = await exited;
+  const firstExit = await Promise.race(exits);
+  forward("SIGTERM");
+  if (!forcedShutdown) {
+    forcedShutdown = setTimeout(() => forward("SIGKILL"), 5_000);
+    forcedShutdown.unref();
+  }
+  await Promise.all(exits);
   if (forcedShutdown) clearTimeout(forcedShutdown);
   for (const [registeredSignal, handler] of signalHandlers) {
     process.removeListener(registeredSignal, handler);
   }
   release();
-  process.exitCode = signal ? 1 : (code ?? 1);
+  process.exitCode = firstExit.signal ? 1 : (firstExit.code ?? 1);
 }
 
 if (isEntrypoint()) {
