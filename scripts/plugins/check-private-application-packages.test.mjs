@@ -81,6 +81,36 @@ test("rejects privileged Supabase keys even in an example environment file", () 
   );
 });
 
+test("rejects provider, database, and deployment credentials in child dotenv files", () => {
+  for (const envName of [
+    "SUPABASE_DB_URL",
+    "SUPABASE_ACCESS_TOKEN",
+    "GITHUB_TOKEN",
+    "VERCEL_TOKEN",
+    "RESEND_API_KEY",
+    "DATABASE_URL",
+  ]) {
+    const { appRoot } = fixture();
+    writeFileSync(join(appRoot, ".env.local"), `${envName}=privileged\n`);
+    assert.throws(
+      () => validatePrivateApplicationPackage(appRoot, "bun@1.3.14"),
+      new RegExp(`must not declare ${envName}`, "u"),
+    );
+  }
+});
+
+test("allows public child configuration in dotenv examples", () => {
+  const { appRoot } = fixture();
+  writeFileSync(
+    join(appRoot, ".env.example"),
+    "NEXT_PUBLIC_SUPABASE_URL=https://example.invalid\nNEXT_PUBLIC_ANALYTICS_API_KEY=public\n",
+  );
+
+  assert.doesNotThrow(() =>
+    validatePrivateApplicationPackage(appRoot, "bun@1.3.14"),
+  );
+});
+
 test("builds child command environments from an explicit safe allowlist", () => {
   const environment = scrubPrivilegedPluginAppEnvironment({
     PATH: "/bin",

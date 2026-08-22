@@ -129,6 +129,49 @@ describe("plugin manifest validation", () => {
     expect(pathsOf(result)).toContain("/releaseInputs");
   });
 
+  test("rejects release inputs outside normalized repository-relative paths", () => {
+    for (const invalidRoot of [
+      "/tmp/app",
+      "../app",
+      "apps/../app",
+      "apps//app",
+      "apps\\app",
+      " apps/example",
+    ]) {
+      const result = validatePluginSdkManifest(
+        embeddedManifest({
+          runtime: {
+            profile: "application",
+            pathPrefix: "/organization/:id/plugins/example-plugin",
+            directAccessProtection: "required",
+          },
+          releaseInputs: [
+            "plugins/example-plugin",
+            invalidRoot,
+            `${invalidRoot}/bun.lock`,
+          ],
+        }),
+      );
+
+      expect(result.valid).toBe(false);
+      expect(pathsOf(result)).toContain("/releaseInputs");
+    }
+  });
+
+  test("rejects duplicate release inputs", () => {
+    const result = validatePluginSdkManifest(
+      embeddedManifest({
+        releaseInputs: [
+          "plugins/example-plugin",
+          "plugins/example-plugin",
+        ],
+      }),
+    );
+
+    expect(result.valid).toBe(false);
+    expect(pathsOf(result)).toContain("/releaseInputs");
+  });
+
   test("rejects release inputs that omit the plugin's own subtree", () => {
     const result = validatePluginSdkManifest(
       embeddedManifest({ releaseInputs: ["plugins/some-other-plugin"] }),

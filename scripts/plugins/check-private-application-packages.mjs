@@ -13,10 +13,8 @@ const REQUIRED_SCRIPTS = [
   "audit:data-access",
   "inventory:routes",
 ];
-const FORBIDDEN_ENV_NAMES = [
-  "SUPABASE_SERVICE_ROLE_KEY",
-  "SUPABASE_SECRET_KEY",
-];
+const PRIVILEGED_ENV_NAME =
+  /(?:^|_)(?:ACCESS_TOKEN|API_KEY|DATABASE_URL|DB_URL|PASSWORD|PRIVATE_KEY|SECRET|SECRET_KEY|SERVICE_ROLE_KEY|TOKEN)$/u;
 const SAFE_CHILD_ENV_NAMES = new Set([
   "CI",
   "GITHUB_ACTIONS",
@@ -44,6 +42,10 @@ const SAFE_CHILD_ENV_NAMES = new Set([
   "VERCEL_GIT_COMMIT_SHA",
 ]);
 const LOCKFILES = ["bun.lock", "bun.lockb"];
+
+function isPrivilegedEnvName(name) {
+  return !name.startsWith("NEXT_PUBLIC_") && PRIVILEGED_ENV_NAME.test(name);
+}
 
 function fail(message) {
   throw new Error(`[plugin-apps] ${message}`);
@@ -98,13 +100,16 @@ export function validatePrivateApplicationPackage(
     }
   }
 
-  for (const envName of FORBIDDEN_ENV_NAMES) {
-    for (const entry of readdirSync(appRoot).filter((name) =>
-      name.startsWith(".env"),
-    )) {
-      const contents = readFileSync(join(appRoot, entry), "utf8");
-      if (new RegExp(`^\\s*${envName}\\s*=`, "mu").test(contents)) {
-        fail(`${label}/${entry} must not declare ${envName}.`);
+  for (const entry of readdirSync(appRoot).filter((name) =>
+    name.startsWith(".env"),
+  )) {
+    const contents = readFileSync(join(appRoot, entry), "utf8");
+    for (const line of contents.split(/\r?\n/u)) {
+      const match = /^\s*(?:export\s+)?([A-Za-z_][A-Za-z0-9_]*)\s*=/u.exec(
+        line,
+      );
+      if (match && isPrivilegedEnvName(match[1])) {
+        fail(`${label}/${entry} must not declare ${match[1]}.`);
       }
     }
   }
@@ -137,9 +142,9 @@ export function scrubPrivilegedPluginAppEnvironment(environment) {
 
 export function runPrivateApplicationGates(app, environment = process.env) {
   const scrubbed = scrubPrivilegedPluginAppEnvironment(environment);
-  run(app, "bun", ["install", "--frozen-lockfile"], scrubbed);
+  run(app, "bun", ["--no-env-file", "install", "--frozen-lockfile"], scrubbed);
   for (const script of REQUIRED_SCRIPTS) {
-    run(app, "bun", ["run", script], scrubbed);
+    run(app, "bun", ["--no-env-file", "run", script], scrubbed);
   }
 }
 

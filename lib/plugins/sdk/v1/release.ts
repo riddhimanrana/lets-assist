@@ -121,7 +121,21 @@ export function releaseInputsAreComplete(
   if (!Array.isArray(inputs) || inputs.length === 0) return false;
 
   const normalized = inputs.map((entry) => entry.trim()).filter(Boolean);
-  if (normalized.length !== inputs.length) return false;
+  if (
+    normalized.length !== inputs.length ||
+    normalized.some((entry, index) => entry !== inputs[index]) ||
+    new Set(normalized).size !== normalized.length ||
+    normalized.some(
+      (entry) =>
+        entry.startsWith("/") ||
+        entry.includes("\\") ||
+        entry
+          .split("/")
+          .some((part) => part === "" || part === "." || part === ".."),
+    )
+  ) {
+    return false;
+  }
 
   const ownsPluginSubtree = normalized.includes(`plugins/${pluginKey}`);
   if (!ownsPluginSubtree) return false;
