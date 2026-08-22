@@ -74,7 +74,11 @@ function collectDynamicImportSpecifiers(source) {
         cursor += 1;
         continue;
       }
-      if (delimiter === "`" && character === "$" && source[cursor + 1] === "{") {
+      if (
+        delimiter === "`" &&
+        character === "$" &&
+        source[cursor + 1] === "{"
+      ) {
         interpolated = true;
       }
       if (character === delimiter) {
