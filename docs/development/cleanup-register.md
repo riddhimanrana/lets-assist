@@ -36,6 +36,12 @@ This register separates actionable repository defects from provider/account and 
   `.` and `_`, while the SDK and every registered manifest use the canonical
   hyphen-only grammar. Documentation and regression coverage now state and pin
   that narrower SDK boundary instead of claiming identical behavior.
+- A later PR review found two release-documentation defects. The application
+  health probe exited before recording a reached HTTP 4xx/5xx response, and the
+  cutover rehearsal expected 20 pending migrations instead of the verified 22.
+  The probe now captures the HTTP status and body before rejecting non-2xx
+  responses, so the workflow records them as unhealthy. Focused workflow and
+  cutover contracts pass 19 tests.
 - PR #245 remains the Development-to-Production release vehicle. Production is
   still at 333 migrations through `20260819050728`, with the DVHS CSF install
   enabled on embedded `1.1.0`. No Production schema, child deployment, or

@@ -258,12 +258,14 @@ jobs:
           set -euo pipefail
           deployment_host="${DEPLOYMENT_URL#https://}"
           deployment_host="${deployment_host#http://}"
-          curl --fail-with-body --silent --show-error \
+          http_status="$(curl --silent --show-error \
             --header "x-vercel-protection-bypass: ${VERCEL_AUTOMATION_BYPASS_SECRET}" \
             "https://${deployment_host}/api/plugins/${PLUGIN_KEY}/health" \
-            > .artifacts/plugin-health.json
-          jq -e 'type == "object"' .artifacts/plugin-health.json >/dev/null
+            --output .artifacts/plugin-health.json \
+            --write-out '%{http_code}')"
           echo "response_reached=true" >> "${GITHUB_OUTPUT}"
+          [[ "${http_status}" =~ ^2[0-9][0-9]$ ]]
+          jq -e 'type == "object"' .artifacts/plugin-health.json >/dev/null
           jq -e \
             --arg plugin "${PLUGIN_KEY}" \
             --arg version "${{ steps.release.outputs.version }}" \

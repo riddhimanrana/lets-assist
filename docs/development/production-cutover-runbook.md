@@ -152,7 +152,7 @@ Production data.
    ```bash
    set -euo pipefail
    supabase link --project-ref <branch-ref>
-   supabase db push --linked --dry-run      # expect exactly 20 pending
+   supabase db push --linked --dry-run      # expect exactly 22 pending
    time supabase db push --linked --yes 2>&1 | tee rehearsal.log
    ```
 7. Capture: total and per-file wall clock; `SELECT ... FROM pg_index WHERE NOT
