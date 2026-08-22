@@ -397,6 +397,20 @@ export function validatePluginSdkManifest(
     });
   }
 
+  if (
+    manifest.hostApiRange.maximum !== undefined &&
+    !isInstallContractRangeSane({
+      minimum: manifest.hostApiRange.minimum,
+      maximum: manifest.hostApiRange.maximum,
+    })
+  ) {
+    errors.push({
+      path: "/hostApiRange",
+      message: "maximum must not be below minimum",
+      keyword: "hostApiRange",
+    });
+  }
+
   if (!isPluginVersionString(manifest.version)) {
     errors.push({
       path: "/version",

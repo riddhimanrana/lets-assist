@@ -155,6 +155,17 @@ describe("plugin manifest validation", () => {
     expect(pathsOf(result)).toContain("/supportedInstallContracts");
   });
 
+  test("rejects an inverted host API range", () => {
+    const result = validatePluginSdkManifest(
+      embeddedManifest({
+        hostApiRange: { minimum: "2.0.0", maximum: "1.0.0" },
+      }),
+    );
+
+    expect(result.valid).toBe(false);
+    expect(pathsOf(result)).toContain("/hostApiRange");
+  });
+
   test("rejects a storage bucket the platform does not operate", () => {
     const result = validatePluginSdkManifest(
       embeddedManifest({
