@@ -98,8 +98,9 @@ For every server-rendered application request:
    publishable key, and request cookies.
 2. Verify the caller with `auth.getUser()`. Do not authorize from an unverified
    cookie or decoded token alone.
-3. Call `get_plugin_application_access_context` with the requested
-   organization, exact plugin key, and exact child build version.
+3. Call `get_plugin_application_access_context_by_identifier` with the requested
+   organization UUID or route username, exact plugin key, and exact child build
+   version.
 4. Call the plugin-specific role projection when the route needs role facts.
 5. Render only the narrow caller-scoped result. Treat a missing, malformed, or
    denied proof as inaccessible.

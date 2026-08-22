@@ -61,9 +61,13 @@ browser, or treat the host's path-routing decision as authorization.
 ### Application caller proof
 
 An independently deployed application calls
+`public.get_plugin_application_access_context_by_identifier(organization_identifier,
+plugin_key, runtime_version)` with the caller's authenticated Supabase session.
+The wrapper resolves a canonical organization UUID or public route username
+inside the database, then delegates to
 `public.get_plugin_application_access_context(organization_id, plugin_key,
-runtime_version)` with the caller's authenticated Supabase session. The
-function first proves active organization membership, then reads the same
+runtime_version)`. The delegated function first proves active organization
+membership, then reads the same
 `organization_plugin_access` model used by the embedded host gate. It also
 requires the exact published release to have verified signer metadata and the
 `application` profile, checks the release against the current host API, and
