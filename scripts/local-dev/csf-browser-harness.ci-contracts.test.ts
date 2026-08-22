@@ -166,6 +166,26 @@ describe("CI db-replay-validation uses the recovery topology and isolated seed",
     expect(job).not.toContain("bun run supabase:seed:local-dev");
   });
 
+  test("installs the independently locked CSF application before browser validation", () => {
+    const job = dbReplayJob();
+    const rootInstall = job.indexOf("run: bun install --frozen-lockfile");
+    const pluginInstall = job.indexOf(
+      "run: bun install --frozen-lockfile --cwd lib/plugins/private/apps/csf",
+    );
+    const dvBrowser = job.indexOf("run: bun run dv:test:e2e");
+    const csfBrowser = job.indexOf("run: bun run csf:test:e2e");
+
+    expect(rootInstall).toBeGreaterThan(-1);
+    expect(pluginInstall).toBeGreaterThan(rootInstall);
+    expect(pluginInstall).toBeLessThan(dvBrowser);
+    expect(pluginInstall).toBeLessThan(csfBrowser);
+    expect(
+      job.match(
+        /bun install --frozen-lockfile --cwd lib\/plugins\/private\/apps\/csf/gu,
+      )?.length,
+    ).toBe(1);
+  });
+
   test("both isolated production browser builds skip only their redundant typecheck", () => {
     const job = dbReplayJob();
     const dvStep = job.slice(
