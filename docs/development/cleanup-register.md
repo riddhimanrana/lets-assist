@@ -22,7 +22,7 @@ This register separates actionable repository defects from provider/account and 
   The generated asset namespace now preserves that selection across nested
   imports with a deployment-keyed, path-limited routing-context cookie. Each
   request still repeats host authentication and the caller-scoped database
-  lookup. A fresh 355-migration replay and the complete 181-file database pgTAP
+  lookup. A fresh 356-migration replay and the complete database pgTAP
   suite pass 6,177 assertions. The direct proxy and release-contract bundle
   passes 58 tests, and the literal-import collector passes 7 tests,
   and lint, source organization, plugin boundaries, and TypeScript pass.
@@ -44,6 +44,12 @@ This register separates actionable repository defects from provider/account and 
   cutover contracts pass 19 tests. Follow-up review also bounded the probe to a
   10-second connection and 30-second total transfer, and extended the shared
   AST collector to cover literal Webpack `require.context()` roots.
+- Final routing review found that an already-rendered prior application version
+  lost database access as soon as an admin selected a newer version. The host
+  route RPCs now issue a short caller-, organization-, and deployment-scoped
+  lease only after repeating the exact healthy-deployment gate. The child access
+  proof accepts that lease while still rechecking membership, entitlement,
+  install, release, compatibility, deployment health, and force-update policy.
 - PR #245 remains the Development-to-Production release vehicle. Production is
   still at 333 migrations through `20260819050728`, with the DVHS CSF install
   enabled on embedded `1.1.0`. No Production schema, child deployment, or

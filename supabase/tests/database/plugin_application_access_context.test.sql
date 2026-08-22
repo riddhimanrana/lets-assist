@@ -1,7 +1,7 @@
 BEGIN;
 
 CREATE EXTENSION IF NOT EXISTS pgtap WITH SCHEMA extensions;
-SELECT extensions.plan(37);
+SELECT extensions.plan(42);
 
 SELECT extensions.ok(
   has_function_privilege(
@@ -66,6 +66,14 @@ SELECT extensions.ok(
     'EXECUTE'
   ),
   'the platform host API version stays internal'
+);
+SELECT extensions.ok(
+  NOT has_table_privilege(
+    'authenticated',
+    'private.plugin_application_runtime_leases',
+    'SELECT'
+  ),
+  'runtime leases are not browser-readable'
 );
 
 INSERT INTO auth.users (
@@ -187,6 +195,26 @@ INSERT INTO public.organization_plugin_feature_flags (
   true,
   100,
   '{"runtimeVersion":"1.2.0","environment":"development"}'::jsonb
+);
+
+INSERT INTO private.plugin_deployments (
+  plugin_key,
+  version,
+  environment,
+  runtime_profile,
+  deployment_id,
+  health_status,
+  promotion_status,
+  health_evidence
+) VALUES (
+  'application-access-fixture',
+  '1.1.0',
+  'development',
+  'application',
+  'dpl_historical_fixture',
+  'healthy',
+  'deployed',
+  '{"deploymentUrl":"https://historical-fixture.vercel.app"}'::jsonb
 );
 
 -- Model the first independently deployed CSF child without changing the real
@@ -390,6 +418,55 @@ SELECT extensions.is(
     '1.2.0'
   ) ->> 'accessible',
   'the application proof shares the embedded host access decision'
+);
+
+SELECT extensions.is(
+  public.get_plugin_application_access_context(
+    'f0100000-0000-4000-8000-000000000001',
+    'application-access-fixture',
+    '1.1.0'
+  ) ->> 'reason',
+  'runtime_not_selected',
+  'an unleased historical runtime is denied even when its release is compatible'
+);
+SELECT extensions.is(
+  public.get_plugin_application_asset_route_target_by_identifier(
+    'plugin-application-access',
+    'application-access-fixture',
+    'development',
+    'dpl_historical_fixture'
+  ) ->> 'routable',
+  'true',
+  'the host may route the active member to one exact healthy historical deployment'
+);
+SELECT extensions.is(
+  public.get_plugin_application_access_context(
+    'f0100000-0000-4000-8000-000000000001',
+    'application-access-fixture',
+    '1.1.0'
+  ) ->> 'accessible',
+  'true',
+  'the exact caller-scoped deployment lease authorizes the historical runtime'
+);
+
+RESET ROLE;
+UPDATE private.plugin_application_runtime_leases
+SET expires_at = now() - interval '1 second'
+WHERE organization_id = 'f0100000-0000-4000-8000-000000000001'
+  AND plugin_key = 'application-access-fixture'
+  AND actor_user_id = 'f0000000-0000-4000-8000-000000000001';
+SET LOCAL ROLE authenticated;
+SET LOCAL "request.jwt.claims" =
+  '{"sub":"f0000000-0000-4000-8000-000000000001","role":"authenticated"}';
+
+SELECT extensions.is(
+  public.get_plugin_application_access_context(
+    'f0100000-0000-4000-8000-000000000001',
+    'application-access-fixture',
+    '1.1.0'
+  ) ->> 'reason',
+  'runtime_not_selected',
+  'an expired deployment lease fails closed'
 );
 
 SELECT extensions.is(
