@@ -449,4 +449,43 @@ GRANT EXECUTE ON FUNCTION public.get_plugin_application_route_target_by_identifi
 COMMENT ON FUNCTION public.get_plugin_application_route_target_by_identifier(text, text, text) IS
   'Returns an immutable healthy deployment URL only when the authenticated caller is an active member and the exact organization-selected application release remains accessible.';
 
+WITH ranked_existing_targets AS (
+  SELECT
+    flags.organization_id,
+    flags.plugin_key,
+    deployments.deployment_id,
+    row_number() OVER (
+      PARTITION BY flags.organization_id, flags.plugin_key
+      ORDER BY deployments.last_seen_at DESC,
+        deployments.first_seen_at DESC,
+        deployments.id DESC
+    ) AS target_rank
+  FROM public.organization_plugin_feature_flags AS flags
+  JOIN public.organization_plugin_installs AS installs
+    ON installs.organization_id = flags.organization_id
+   AND installs.plugin_key = flags.plugin_key
+  JOIN private.plugin_deployments AS deployments
+    ON deployments.plugin_key = flags.plugin_key
+   AND deployments.version = installs.desired_version
+   AND deployments.environment = flags.metadata ->> 'environment'
+   AND deployments.runtime_profile = 'application'
+   AND deployments.health_status = 'healthy'
+   AND deployments.promotion_status IN ('deployed', 'promoted')
+  WHERE flags.flag_key = 'application-runtime'
+    AND flags.enabled
+    AND installs.enabled
+    AND installs.desired_version IS NOT NULL
+    AND flags.metadata ->> 'runtimeVersion' = installs.desired_version
+    AND NOT (flags.metadata ? 'deploymentId')
+)
+UPDATE public.organization_plugin_feature_flags AS flags
+SET metadata = flags.metadata || jsonb_build_object(
+    'deploymentId', targets.deployment_id
+  ),
+  updated_at = now()
+FROM ranked_existing_targets AS targets
+WHERE targets.organization_id = flags.organization_id
+  AND targets.plugin_key = flags.plugin_key
+  AND targets.target_rank = 1;
+
 COMMIT;
