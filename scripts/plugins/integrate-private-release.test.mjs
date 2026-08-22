@@ -448,6 +448,9 @@ test("refuses an application build rooted outside the approved child app", () =>
 test("anchors later releases to the serving embedded catalog entry", () => {
   for (const application of [true, false]) {
     const input = fixture({ application, priorApplication: true });
+    const manifest = JSON.parse(readFileSync(input.manifestPath, "utf8"));
+    manifest.supportedInstallContracts.minimum = "1.2.1";
+    writeFileSync(input.manifestPath, `${JSON.stringify(manifest, null, 2)}\n`);
     integrate(input);
     const migrationName = readdirSync(input.migrationsDir).find((file) =>
       file.startsWith("20260820150000_"),
@@ -460,6 +463,22 @@ test("anchors later releases to the serving embedded catalog entry", () => {
     assert.match(migration, /latest_version = '1\.2\.1'/u);
     assert.doesNotMatch(migration, /latest_version = '1\.2\.2'/u);
   }
+});
+
+test("refuses to drop the prior release minimum install contract", () => {
+  const input = fixture({ application: true, priorApplication: true });
+  assert.throws(
+    () => integrate(input),
+    /exclude the currently published install contract/u,
+  );
+});
+
+test("refuses an inverted host API range", () => {
+  const input = fixture({ application: true });
+  const manifest = JSON.parse(readFileSync(input.manifestPath, "utf8"));
+  manifest.hostApiRange = { minimum: "2.0.0", maximum: "1.0.0" };
+  writeFileSync(input.manifestPath, `${JSON.stringify(manifest, null, 2)}\n`);
+  assert.throws(() => integrate(input), /invalid host API range/u);
 });
 
 test("refuses an application artifact whose bytes do not match the signature", () => {
@@ -521,6 +540,11 @@ test("root workflow verifies known assets and opens only a Development PR", () =
   assert.match(workflow, /origin\/main/u);
   assert.match(workflow, /origin\/development/u);
   assert.match(workflow, /--base development/u);
+  assert.match(workflow, /Record the embedded runtime pin/u);
+  assert.match(
+    workflow,
+    /runtimeProfile[\s\S]*== application[\s\S]*steps\.embedded\.outputs\.source_commit/u,
+  );
   assert.match(workflow, /--migration-version auto/u);
   assert.match(workflow, /group: plugin-release-integration\n/u);
   assert.match(workflow, /gh api \\\n\s+--paginate \\\n\s+--slurp/u);
