@@ -475,6 +475,74 @@ export function resolveNodeExecutable() {
 }
 
 /**
+ * Install the independently locked child application when a fresh root
+ * checkout has not installed it yet. The installer receives a disposable home
+ * and cache, so ambient registry credentials and provider secrets do not cross
+ * this setup boundary.
+ *
+ * @param {{ pluginRoot?: string, homeDirectory: string, bunExecutable?: string }} options
+ */
+export function ensurePluginApplicationDependencies({
+  pluginRoot = PLUGIN_APPLICATION_ROOT,
+  homeDirectory,
+  bunExecutable = "bun",
+}) {
+  const nextBin = path.join(
+    pluginRoot,
+    "node_modules",
+    "next",
+    "dist",
+    "bin",
+    "next",
+  );
+  if (existsSync(nextBin)) return { installed: false, nextBin };
+
+  for (const requiredFile of ["package.json", "bun.lock"]) {
+    const requiredPath = path.join(pluginRoot, requiredFile);
+    if (!existsSync(requiredPath)) {
+      throw new Error(
+        `Cannot install the plugin application without ${requiredPath}.`,
+      );
+    }
+  }
+
+  const cacheDirectory = path.join(homeDirectory, ".cache");
+  mkdirSync(cacheDirectory, { recursive: true, mode: 0o700 });
+  const installEnv = {};
+  for (const key of OS_RUNTIME_KEYS) {
+    if (key === "HOME") continue;
+    const value = process.env[key];
+    if (typeof value === "string" && value !== "") installEnv[key] = value;
+  }
+  installEnv.HOME = homeDirectory;
+  installEnv.XDG_CACHE_HOME = cacheDirectory;
+  installEnv.BUN_INSTALL_CACHE_DIR = path.join(cacheDirectory, "bun-install");
+  installEnv.NEXT_TELEMETRY_DISABLED = "1";
+
+  const result = spawnSync(
+    bunExecutable,
+    ["--no-env-file", "install", "--frozen-lockfile", "--ignore-scripts"],
+    {
+      cwd: pluginRoot,
+      env: installEnv,
+      stdio: "inherit",
+    },
+  );
+  if (result.error) throw result.error;
+  if (result.status !== 0) {
+    throw new Error(
+      `The plugin application dependency install exited with code ${result.status}.`,
+    );
+  }
+  if (!existsSync(nextBin)) {
+    throw new Error(
+      `The plugin application dependency install did not create ${nextBin}.`,
+    );
+  }
+  return { installed: true, nextBin };
+}
+
+/**
  * @param {number} port
  * @param {string} [repoRoot]
  * @param {"webpack" | "turbopack"} [bundler]
@@ -751,6 +819,9 @@ async function main() {
   if (serverMode !== "development" && serverMode !== "production") {
     throw new Error(`Unknown isolated browser server mode: ${serverMode}`);
   }
+  const dependencySetup = ensurePluginApplicationDependencies({
+    homeDirectory: path.join(isolated.workDir, "plugin-dependency-install"),
+  });
   const next =
     serverMode === "production"
       ? resolveNextProductionCommands(APP_PORT, REPO_ROOT)
@@ -823,6 +894,9 @@ async function main() {
   );
   console.log(
     `  plugin app       : http://127.0.0.1:${LOCAL_PLUGIN_APPLICATION_PORT}`,
+  );
+  console.log(
+    `  plugin deps      : ${dependencySetup.installed ? "installed from lockfile" : "already present"}`,
   );
   console.log(`  child env keys   : ${Object.keys(childEnv).length}`);
   console.log(`  .env* keys shadowed: ${shadowedEnvFileKeys.length}`);

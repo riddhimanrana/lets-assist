@@ -121,9 +121,11 @@ Requests without valid context fail closed.
 
 The isolated local runner starts both applications as owned process groups on
 ports 3000 and 3001. It routes the same generated asset namespace directly to
-the local child. The child receives only the public local Supabase connection;
-the runner does not give it service-role, database, profile-claim, or mail
-credentials.
+the local child. On a fresh checkout, it installs the child's independently
+locked dependencies before resolving its Next executable. That one-time install
+uses a disposable home and cache and runs no package lifecycle scripts. The
+child receives only the public local Supabase connection; the runner does not
+give it service-role, database, profile-claim, or mail credentials.
 
 ## Releases, deployments, and installs
 

@@ -84,6 +84,12 @@ every child package. Host tooling deliberately excludes `apps/**` only because
 this replacement gate runs in root CI and in the existing private-candidate
 test path.
 
+`bun run dev` also supports a fresh initialized submodule. If the CSF child has
+no local Next executable, the isolated runner installs its own frozen lockfile
+with lifecycle scripts disabled and a disposable credential-free home. It then
+starts both application runtimes directly through Node in the bounded local
+environment.
+
 An application profile consumes the published plugin SDK package. It cannot use
 host `@/app`, `@/components`, `@/lib`, or `@/services` imports. It shares the
 environment's Supabase Auth session through the main-domain request, uses only

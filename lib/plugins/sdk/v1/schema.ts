@@ -43,6 +43,20 @@ const SURFACE_ACCESS_LEVELS = [...ACCESS_ROLES, "public"] as const;
 const SEMVER_PATTERN =
   "^(?:0|[1-9]\\d{0,8})\\.(?:0|[1-9]\\d{0,8})\\.(?:0|[1-9]\\d{0,8})$";
 
+const jsonValueSchema = {
+  anyOf: [
+    { type: "null" },
+    { type: "boolean" },
+    { type: "number" },
+    { type: "string" },
+    { type: "array", items: { $ref: "#/$defs/jsonValue" } },
+    {
+      type: "object",
+      additionalProperties: { $ref: "#/$defs/jsonValue" },
+    },
+  ],
+} as const;
+
 const configPropertySchema = {
   type: "object",
   additionalProperties: false,
@@ -53,8 +67,8 @@ const configPropertySchema = {
     },
     title: { type: "string" },
     description: { type: "string" },
-    default: {},
-    enum: { type: "array" },
+    default: { $ref: "#/$defs/jsonValue" },
+    enum: { type: "array", items: { $ref: "#/$defs/jsonValue" } },
     minimum: { type: "number" },
     maximum: { type: "number" },
     minLength: { type: "integer" },
@@ -356,11 +370,113 @@ const manifestSchema = {
       },
     },
   },
-  $defs: { configProperty: configPropertySchema },
+  $defs: {
+    configProperty: configPropertySchema,
+    jsonValue: jsonValueSchema,
+  },
 } as const;
 
 const ajv = new Ajv({ allErrors: true, strict: false });
 const validate = ajv.compile(manifestSchema);
+
+function escapeJsonPointerSegment(segment: string) {
+  return segment.replaceAll("~", "~0").replaceAll("/", "~1");
+}
+
+/**
+ * Locate values that JSON cannot preserve. This runs before Ajv because a
+ * circular object can make a recursive JSON Schema validator recurse forever.
+ */
+function findNonJsonValue(
+  value: unknown,
+  path = "",
+  ancestors = new WeakSet<object>(),
+): string | null {
+  if (value === null) return null;
+
+  switch (typeof value) {
+    case "string":
+    case "boolean":
+      return null;
+    case "number":
+      return Number.isFinite(value) ? null : path || "/";
+    case "undefined":
+    case "bigint":
+    case "symbol":
+    case "function":
+      return path || "/";
+    case "object":
+      break;
+  }
+
+  if (ancestors.has(value)) return path || "/";
+  ancestors.add(value);
+
+  if (Array.isArray(value)) {
+    for (let index = 0; index < value.length; index += 1) {
+      const descriptor = Object.getOwnPropertyDescriptor(value, String(index));
+      if (!descriptor || !("value" in descriptor)) {
+        ancestors.delete(value);
+        return `${path}/${index}`;
+      }
+      const invalidPath = findNonJsonValue(
+        descriptor.value,
+        `${path}/${index}`,
+        ancestors,
+      );
+      if (invalidPath) {
+        ancestors.delete(value);
+        return invalidPath;
+      }
+    }
+    const allowedKeys = new Set([
+      "length",
+      ...Array.from({ length: value.length }, (_, index) => String(index)),
+    ]);
+    for (const key of Reflect.ownKeys(value)) {
+      if (typeof key === "symbol" || !allowedKeys.has(key)) {
+        ancestors.delete(value);
+        return (
+          `${path}/${
+            typeof key === "symbol" ? "" : escapeJsonPointerSegment(key)
+          }`.replace(/\/$/u, "") || "/"
+        );
+      }
+    }
+    ancestors.delete(value);
+    return null;
+  }
+
+  const prototype = Object.getPrototypeOf(value);
+  if (prototype !== Object.prototype && prototype !== null) {
+    ancestors.delete(value);
+    return path || "/";
+  }
+
+  for (const key of Reflect.ownKeys(value)) {
+    if (typeof key === "symbol") {
+      ancestors.delete(value);
+      return path || "/";
+    }
+    const descriptor = Object.getOwnPropertyDescriptor(value, key);
+    if (!descriptor?.enumerable || !("value" in descriptor)) {
+      ancestors.delete(value);
+      return `${path}/${escapeJsonPointerSegment(key)}`;
+    }
+    const invalidPath = findNonJsonValue(
+      descriptor.value,
+      `${path}/${escapeJsonPointerSegment(key)}`,
+      ancestors,
+    );
+    if (invalidPath) {
+      ancestors.delete(value);
+      return invalidPath;
+    }
+  }
+
+  ancestors.delete(value);
+  return null;
+}
 
 function toValidationErrors(
   errors: ErrorObject[] | null | undefined,
@@ -380,6 +496,25 @@ function toValidationErrors(
 export function validatePluginSdkManifest(
   value: unknown,
 ): PluginManifestValidationResult {
+  let nonJsonPath: string | null;
+  try {
+    nonJsonPath = findNonJsonValue(value);
+  } catch {
+    nonJsonPath = "/";
+  }
+  if (nonJsonPath) {
+    return {
+      valid: false,
+      errors: [
+        {
+          path: nonJsonPath,
+          message: "must be a finite, acyclic JSON value",
+          keyword: "jsonSerializable",
+        },
+      ],
+    };
+  }
+
   const structurallyValid = validate(value);
   const errors = toValidationErrors(validate.errors);
 

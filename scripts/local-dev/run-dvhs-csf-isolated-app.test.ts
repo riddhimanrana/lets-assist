@@ -26,6 +26,7 @@ import {
   buildPluginApplicationChildEnvironment,
   claimAppPort,
   discoverRepositoryEnvFileKeys,
+  ensurePluginApplicationDependencies,
   releaseAppPort,
   resolveNextDevCommand,
   resolveNextProductionCommands,
@@ -708,6 +709,55 @@ describe("the fixed app port is owned through one atomic claim", () => {
 // ---------------------------------------------------------------------------
 
 describe("the runner starts Next directly through Node", () => {
+  test("bootstraps a fresh plugin application from its own frozen lockfile", () => {
+    const pluginRoot = scratchDirectory("lets-assist-plugin-install-");
+    const installerHome = scratchDirectory("lets-assist-plugin-home-");
+    writeFileSync(join(pluginRoot, "package.json"), "{}\n");
+    writeFileSync(join(pluginRoot, "bun.lock"), "lockfile\n");
+    const fakeBun = join(pluginRoot, "fake-bun");
+    writeFileSync(
+      fakeBun,
+      [
+        "#!/bin/sh",
+        'printf "%s\\n" "$@" > install-args.txt',
+        "mkdir -p node_modules/next/dist/bin",
+        ": > node_modules/next/dist/bin/next",
+        "env > install-env.txt",
+        "",
+      ].join("\n"),
+    );
+    chmodSync(fakeBun, 0o755);
+    process.env.RESEND_API_KEY = "re_must_not_reach_installer";
+    try {
+      const result = ensurePluginApplicationDependencies({
+        pluginRoot,
+        homeDirectory: installerHome,
+        bunExecutable: fakeBun,
+      });
+
+      expect(result.installed).toBe(true);
+      expect(readFileSync(join(pluginRoot, "install-args.txt"), "utf8")).toBe(
+        "--no-env-file\ninstall\n--frozen-lockfile\n--ignore-scripts\n",
+      );
+      const environment = readFileSync(
+        join(pluginRoot, "install-env.txt"),
+        "utf8",
+      );
+      expect(environment).not.toContain("RESEND_API_KEY");
+      expect(environment).not.toContain("re_must_not_reach_installer");
+      expect(environment).toContain(`HOME=${installerHome}`);
+    } finally {
+      delete process.env.RESEND_API_KEY;
+    }
+
+    const second = ensurePluginApplicationDependencies({
+      pluginRoot,
+      homeDirectory: installerHome,
+      bunExecutable: join(pluginRoot, "missing-bun"),
+    });
+    expect(second.installed).toBe(false);
+  });
+
   test("resolves a real node executable and the local next binary", () => {
     const command = resolveNextDevCommand(APP_PORT, repositoryRoot);
     expect(command.command).toMatch(/(^|\/)node(\.exe)?$/u);
@@ -787,9 +837,9 @@ describe("the runner starts Next directly through Node", () => {
     ]);
   });
 
-  test("never shells out to a package script or a bun runtime", () => {
-    // Structural, not textual: the prose above the code explains what it
-    // replaced, so the assertion has to look at the spawn itself.
+  test("starts both application runtimes directly through Node", () => {
+    // Dependency bootstrap may invoke Bun install once. The long-running app
+    // processes still bypass package scripts and ambient Bun runtime loading.
     expect(runnerSource).toContain("const child = spawn(command, args, {");
     expect(runnerSource).not.toMatch(/spawn(Sync)?\(\s*"bun"/u);
     expect(runnerSource).not.toMatch(/"run",\s*"dev"/u);

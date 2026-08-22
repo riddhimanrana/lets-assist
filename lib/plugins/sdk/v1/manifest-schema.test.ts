@@ -342,6 +342,103 @@ describe("plugin manifest validation", () => {
     expect(result.valid).toBe(false);
   });
 
+  test("rejects configuration defaults that cannot cross the JSON boundary", () => {
+    for (const invalidDefault of [
+      () => null,
+      Symbol("not-json"),
+      BigInt(1),
+      Number.POSITIVE_INFINITY,
+    ]) {
+      const result = validatePluginSdkManifest(
+        embeddedManifest({
+          configSchema: {
+            type: "object",
+            properties: {
+              setting: { type: "string", default: invalidDefault },
+            },
+            additionalProperties: false,
+          } as never,
+        }),
+      );
+
+      expect(result.valid).toBe(false);
+      expect(result.errors[0]?.keyword).toBe("jsonSerializable");
+      expect(pathsOf(result)).toContain(
+        "/configSchema/properties/setting/default",
+      );
+    }
+  });
+
+  test("rejects circular configuration defaults before recursive schema validation", () => {
+    const circular: Record<string, unknown> = {};
+    circular.self = circular;
+
+    const result = validatePluginSdkManifest(
+      embeddedManifest({
+        configSchema: {
+          type: "object",
+          properties: {
+            setting: { type: "object", default: circular },
+          },
+          additionalProperties: false,
+        } as never,
+      }),
+    );
+
+    expect(result.valid).toBe(false);
+    expect(result.errors).toEqual([
+      {
+        path: "/configSchema/properties/setting/default/self",
+        message: "must be a finite, acyclic JSON value",
+        keyword: "jsonSerializable",
+      },
+    ]);
+  });
+
+  test("rejects non-JSON values nested in a configuration enum", () => {
+    const result = validatePluginSdkManifest(
+      embeddedManifest({
+        configSchema: {
+          type: "object",
+          properties: {
+            setting: { type: "array", enum: [["valid", undefined]] },
+          },
+          additionalProperties: false,
+        } as never,
+      }),
+    );
+
+    expect(result.valid).toBe(false);
+    expect(pathsOf(result)).toContain(
+      "/configSchema/properties/setting/enum/0/1",
+    );
+  });
+
+  test("rejects values JSON would omit or execute while serializing", () => {
+    const hidden = embeddedManifest();
+    Object.defineProperty(hidden, "hidden", {
+      value: "unsigned",
+      enumerable: false,
+    });
+    expect(validatePluginSdkManifest(hidden).valid).toBe(false);
+
+    const accessor = embeddedManifest();
+    Object.defineProperty(accessor, "description", {
+      get() {
+        throw new Error("must not execute");
+      },
+      enumerable: true,
+    });
+    expect(validatePluginSdkManifest(accessor).valid).toBe(false);
+
+    const hostile = new Proxy(embeddedManifest(), {
+      ownKeys() {
+        throw new Error("hostile object");
+      },
+    });
+    expect(validatePluginSdkManifest(hostile).valid).toBe(false);
+  });
+
   test("rejects a data-deletion contract that is not explicitly reviewed", () => {
     const result = validatePluginSdkManifest(
       embeddedManifest({
