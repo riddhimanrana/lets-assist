@@ -6,18 +6,22 @@ import { validateRouting } from "@vercel/microfrontends/next/testing";
 const configPath = resolve("microfrontends.json");
 const targetsPath = resolve("lib/plugins/application-deployment-targets.json");
 
-test("the CSF application path belongs to the flagged child project", () => {
+test("only the version-independent CSF health path belongs to the child project", () => {
   expect(() =>
     validateRouting(configPath, {
-      "lets-assist-csf": [
-        "/api/plugins/dvhs-csf/health",
-        {
-          path: "/organization/example/plugins/dvhs-csf/access-proof",
-          flag: "dvhs-csf-application-runtime",
-        },
-      ],
+      "lets-assist-csf": ["/api/plugins/dvhs-csf/health"],
     }),
   ).not.toThrow();
+});
+
+test("organization application paths are absent from static project routing", () => {
+  const config = JSON.parse(readFileSync(configPath, "utf8"));
+  const routes = config.applications["lets-assist-csf"].routing.flatMap(
+    (entry: { paths: string[] }) => entry.paths,
+  );
+  expect(routes).not.toContain(
+    "/organization/:organizationId/plugins/dvhs-csf/access-proof",
+  );
 });
 
 test("the committed routing config names only the expected projects", () => {

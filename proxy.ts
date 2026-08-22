@@ -2,10 +2,11 @@ import { NextRequest, NextResponse } from "next/server";
 import { runMicrofrontendsMiddleware } from "@vercel/microfrontends/next/middleware";
 
 import {
-  CSF_APPLICATION_RUNTIME_DATABASE_FLAG,
   CSF_APPLICATION_RUNTIME_FLAG,
   getCsfApplicationOrganizationId,
+  parsePluginApplicationRouteTarget,
   shouldRouteCsfApplication,
+  type PluginApplicationRouteTarget,
 } from "@/lib/plugins/application-routing";
 import {
   updateSession,
@@ -22,42 +23,31 @@ type RootProxyDependencies = {
     options?: ProxyOptions,
   ) => Promise<NextResponse>;
   runMicrofrontendsMiddleware: typeof runMicrofrontendsMiddleware;
-  readCsfApplicationFlag: (
+  readCsfApplicationRouteTarget: (
     context: AuthenticatedProxyContext,
     organizationId: string,
-  ) => Promise<boolean>;
+  ) => Promise<PluginApplicationRouteTarget | null>;
+  applicationDeploymentBypassSecret?: string;
 };
 
-const ORGANIZATION_ID_PATTERN =
-  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu;
-
-export async function readCsfApplicationFlag(
+export async function readCsfApplicationRouteTarget(
   context: AuthenticatedProxyContext,
   organizationIdentifier: string,
-): Promise<boolean> {
-  let organizationId = organizationIdentifier;
+  environment: "development" | "production" = process.env.VERCEL_ENV ===
+  "production"
+    ? "production"
+    : "development",
+): Promise<PluginApplicationRouteTarget | null> {
+  const { data, error } = await context.supabase.rpc(
+    "get_plugin_application_route_target_by_identifier",
+    {
+      p_organization_identifier: organizationIdentifier,
+      p_plugin_key: "dvhs-csf",
+      p_environment: environment,
+    },
+  );
 
-  if (!ORGANIZATION_ID_PATTERN.test(organizationIdentifier)) {
-    const { data: organization, error: organizationError } =
-      await context.supabase
-        .from("organizations")
-        .select("id")
-        .eq("username", organizationIdentifier)
-        .maybeSingle();
-
-    if (organizationError || !organization?.id) return false;
-    organizationId = organization.id;
-  }
-
-  const { data, error } = await context.supabase
-    .from("organization_plugin_feature_flags")
-    .select("enabled")
-    .eq("organization_id", organizationId)
-    .eq("plugin_key", "dvhs-csf")
-    .eq("flag_key", CSF_APPLICATION_RUNTIME_DATABASE_FLAG)
-    .maybeSingle();
-
-  return !error && data?.enabled === true;
+  return error ? null : parsePluginApplicationRouteTarget(data);
 }
 
 function withoutLocalFlagOverride(request: NextRequest): NextRequest {
@@ -65,6 +55,34 @@ function withoutLocalFlagOverride(request: NextRequest): NextRequest {
 
   request.headers.delete("x-vercel-mfe-flag-value");
   return request;
+}
+
+export function rewriteToPluginApplicationDeployment(input: {
+  request: NextRequest;
+  target: PluginApplicationRouteTarget;
+  bypassSecret?: string;
+}): NextResponse {
+  const destination = new URL(
+    `${input.request.nextUrl.pathname}${input.request.nextUrl.search}`,
+    input.target.deploymentUrl,
+  );
+  const requestHeaders = new Headers(input.request.headers);
+  requestHeaders.delete("x-vercel-protection-bypass");
+  requestHeaders.set(
+    "x-lets-assist-plugin-runtime-version",
+    input.target.runtimeVersion,
+  );
+  requestHeaders.set(
+    "x-lets-assist-plugin-deployment-id",
+    input.target.deploymentId,
+  );
+  if (input.bypassSecret) {
+    requestHeaders.set("x-vercel-protection-bypass", input.bypassSecret);
+  }
+
+  return NextResponse.rewrite(destination, {
+    request: { headers: requestHeaders },
+  });
 }
 
 export function createRootProxy(
@@ -92,26 +110,24 @@ export function createRootProxy(
         );
         if (!organizationId) return null;
 
-        const featureFlagEnabled = await dependencies.readCsfApplicationFlag(
+        const routeTarget = await dependencies.readCsfApplicationRouteTarget(
           context,
           organizationId,
         );
         if (
           !shouldRouteCsfApplication({
             pathname: request.nextUrl.pathname,
-            featureFlagEnabled,
+            routeTargetAvailable: routeTarget !== null,
           })
         ) {
           return null;
         }
 
-        const response = await dependencies.runMicrofrontendsMiddleware({
+        return rewriteToPluginApplicationDeployment({
+          target: routeTarget!,
           request: withoutLocalFlagOverride(request),
-          flagValues: {
-            [CSF_APPLICATION_RUNTIME_FLAG]: async () => true,
-          },
+          bypassSecret: dependencies.applicationDeploymentBypassSecret,
         });
-        return response ? new NextResponse(response.body, response) : null;
       },
     });
   };
@@ -120,7 +136,9 @@ export function createRootProxy(
 export const proxy = createRootProxy({
   updateSession,
   runMicrofrontendsMiddleware,
-  readCsfApplicationFlag,
+  readCsfApplicationRouteTarget,
+  applicationDeploymentBypassSecret:
+    process.env.PLUGIN_APPLICATION_DEPLOYMENT_BYPASS_SECRET,
 });
 
 export const config = {

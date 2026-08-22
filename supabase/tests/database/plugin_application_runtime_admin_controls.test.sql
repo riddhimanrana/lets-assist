@@ -1,7 +1,7 @@
 BEGIN;
 
 CREATE EXTENSION IF NOT EXISTS pgtap WITH SCHEMA extensions;
-SELECT extensions.plan(35);
+SELECT extensions.plan(42);
 
 SELECT extensions.ok(
   NOT has_function_privilege(
@@ -28,6 +28,24 @@ SELECT extensions.ok(
     'EXECUTE'
   ),
   'service_role owns the server-only application runtime paths'
+);
+SELECT extensions.ok(
+  has_function_privilege(
+    'authenticated',
+    'public.get_plugin_application_route_target_by_identifier(text,text,text)',
+    'EXECUTE'
+  )
+  AND NOT has_function_privilege(
+    'anon',
+    'public.get_plugin_application_route_target_by_identifier(text,text,text)',
+    'EXECUTE'
+  )
+  AND NOT has_function_privilege(
+    'service_role',
+    'public.get_plugin_application_route_target_by_identifier(text,text,text)',
+    'EXECUTE'
+  ),
+  'only an authenticated caller can ask for its selected route target'
 );
 
 INSERT INTO auth.users (
@@ -209,7 +227,7 @@ SELECT extensions.throws_ok(
 SELECT public.report_plugin_deployment_health(
   'application-admin-fixture', 'development', 'dpl_application_admin_002',
   'healthy', 'deployed',
-  '{"deploymentUrl":"https://application-admin-new.example.test","healthRoute":"/api/health"}'::jsonb
+  '{"deploymentUrl":"https://application-admin-new.vercel.app","healthRoute":"/api/health"}'::jsonb
 );
 
 SELECT extensions.is(
@@ -285,6 +303,46 @@ SELECT extensions.ok(
     WHERE request_id = 'fa200000-0000-4000-8000-000000000002'
   ),
   'activation stores a completed request receipt and its outcome'
+);
+
+SET LOCAL ROLE authenticated;
+SET LOCAL request.jwt.claims = '{"sub":"fa000000-0000-4000-8000-000000000002","role":"authenticated"}';
+SELECT extensions.ok(
+  public.get_plugin_application_route_target_by_identifier(
+    'application-runtime-admin',
+    'application-admin-fixture',
+    'development'
+  ) ->> 'routable' = 'true'
+  AND public.get_plugin_application_route_target_by_identifier(
+    'application-runtime-admin',
+    'application-admin-fixture',
+    'development'
+  ) ->> 'runtimeVersion' = '1.1.0'
+  AND public.get_plugin_application_route_target_by_identifier(
+    'application-runtime-admin',
+    'application-admin-fixture',
+    'development'
+  ) ->> 'deploymentUrl' = 'https://application-admin-new.vercel.app',
+  'an active member receives the immutable deployment for the selected version'
+);
+SELECT extensions.is(
+  public.get_plugin_application_route_target_by_identifier(
+    'application-runtime-admin',
+    'application-admin-fixture',
+    'production'
+  ) ->> 'routable',
+  'false',
+  'routing fails closed when the selected version has no healthy deployment in the environment'
+);
+SET LOCAL request.jwt.claims = '{"sub":"fa000000-0000-4000-8000-000000000099","role":"authenticated"}';
+SELECT extensions.is(
+  public.get_plugin_application_route_target_by_identifier(
+    'application-runtime-admin',
+    'application-admin-fixture',
+    'development'
+  ) ->> 'routable',
+  'false',
+  'routing does not disclose a deployment target to a non-member'
 );
 
 SET LOCAL ROLE service_role;
@@ -443,7 +501,7 @@ INSERT INTO public.plugin_versions (
   '["plugins/application-admin-fixture","apps/application-admin-fixture"]'::jsonb,
   repeat('1', 64), repeat('1', 64),
   '{"identity":"fixture","issuer":"fixture","attestationRef":"fixture"}'::jsonb,
-  '{"minimum":"1.0.0","maximum":"1.0.0"}'::jsonb, 1,
+  '{"minimum":"1.0.0"}'::jsonb, 1,
   '20260821005258',
   '{"minimum":"1.0.0","maximum":"1.1.0"}'::jsonb, 'application'
 );
@@ -455,7 +513,7 @@ SELECT public.observe_plugin_deployment(
 SELECT public.report_plugin_deployment_health(
   'application-admin-fixture', 'development',
   'dpl_application_admin_candidate', 'healthy', 'deployed',
-  '{"deploymentUrl":"https://application-admin-candidate.example.test","healthRoute":"/api/health"}'::jsonb
+  '{"deploymentUrl":"https://application-admin-candidate.vercel.app","healthRoute":"/api/health"}'::jsonb
 );
 SELECT extensions.is(
   public.get_plugin_application_runtime_admin_status(
@@ -475,6 +533,15 @@ SELECT extensions.is(
   '1.1.0',
   'status preserves the selected application version'
 );
+SELECT extensions.is(
+  public.get_plugin_application_runtime_admin_status(
+    'fa100000-0000-4000-8000-000000000001',
+    'application-admin-fixture',
+    'development'
+  ) ->> 'hostApiSupported',
+  'true',
+  'an omitted host API maximum is treated as unbounded above'
+);
 SELECT extensions.ok(
   public.get_plugin_application_runtime_admin_status(
     'fa100000-0000-4000-8000-000000000001',
@@ -482,17 +549,53 @@ SELECT extensions.ok(
     'development'
   ) ->> 'selectedDeploymentUrl' IN (
     'https://application-admin.example.test',
-    'https://application-admin-new.example.test'
+    'https://application-admin-new.vercel.app'
   )
   AND public.get_plugin_application_runtime_admin_status(
     'fa100000-0000-4000-8000-000000000001',
     'application-admin-fixture',
     'development'
   ) ->> 'selectedDeploymentUrl'
-    <> 'https://application-admin-candidate.example.test',
+    <> 'https://application-admin-candidate.vercel.app',
   'status keeps selected version health separate from the newest candidate'
 );
 RESET ROLE;
+SET LOCAL ROLE authenticated;
+SET LOCAL request.jwt.claims = '{"sub":"fa000000-0000-4000-8000-000000000002","role":"authenticated"}';
+SELECT extensions.is(
+  public.get_plugin_application_route_target_by_identifier(
+    'application-runtime-admin',
+    'application-admin-fixture',
+    'development'
+  ) ->> 'runtimeVersion',
+  '1.1.0',
+  'publishing a newer deployment does not move an organization off its selected target'
+);
+SET LOCAL ROLE service_role;
+SET LOCAL request.jwt.claims = '{"role":"service_role"}';
+SELECT extensions.is(
+  public.set_plugin_application_runtime(
+    'fa100000-0000-4000-8000-000000000001',
+    'application-admin-fixture', '1.1.1', 'development', true,
+    'fa000000-0000-4000-8000-000000000001',
+    'fa200000-0000-4000-8000-00000000000b', true, '1.1.0'
+  ) ->> 'applicationEnabled',
+  'true',
+  'activation accepts a compatible release with no host API maximum'
+);
+SELECT public.set_plugin_application_runtime(
+  'fa100000-0000-4000-8000-000000000001',
+  'application-admin-fixture', NULL, 'development', false,
+  'fa000000-0000-4000-8000-000000000001',
+  'fa200000-0000-4000-8000-00000000000c', true, '1.1.1'
+);
+RESET ROLE;
+DELETE FROM private.plugin_application_runtime_transitions
+WHERE plugin_key = 'application-admin-fixture'
+  AND (
+    target_version = '1.1.1'
+    OR expected_version = '1.1.1'
+  );
 DELETE FROM private.plugin_deployments
 WHERE plugin_key = 'application-admin-fixture'
   AND version = '1.1.1';

@@ -3,6 +3,7 @@ import { describe, expect, test } from "bun:test";
 import {
   getCsfApplicationOrganizationId,
   isCsfApplicationPath,
+  parsePluginApplicationRouteTarget,
   shouldRouteCsfApplication,
 } from "./application-routing";
 
@@ -24,20 +25,43 @@ describe("CSF application microfrontend routing", () => {
     expect(
       shouldRouteCsfApplication({
         pathname: path,
-        featureFlagEnabled: false,
+        routeTargetAvailable: false,
       }),
     ).toBe(false);
     expect(
       shouldRouteCsfApplication({
         pathname: path,
-        featureFlagEnabled: true,
+        routeTargetAvailable: true,
       }),
     ).toBe(true);
     expect(
       shouldRouteCsfApplication({
         pathname: `/organization/${organizationId}/plugins/dvhs-csf/classes`,
-        featureFlagEnabled: true,
+        routeTargetAvailable: true,
       }),
     ).toBe(false);
+  });
+
+  test("accepts only an immutable Vercel deployment origin", () => {
+    expect(
+      parsePluginApplicationRouteTarget({
+        routable: true,
+        deploymentId: "dpl_v1",
+        deploymentUrl: "https://lets-assist-csf-v1.vercel.app",
+        runtimeVersion: "1.2.7",
+      }),
+    ).toEqual({
+      deploymentId: "dpl_v1",
+      deploymentUrl: "https://lets-assist-csf-v1.vercel.app",
+      runtimeVersion: "1.2.7",
+    });
+    expect(
+      parsePluginApplicationRouteTarget({
+        routable: true,
+        deploymentId: "dpl_v1",
+        deploymentUrl: "https://attacker.example.test",
+        runtimeVersion: "1.2.7",
+      }),
+    ).toBeNull();
   });
 });

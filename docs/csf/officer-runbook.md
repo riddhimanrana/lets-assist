@@ -1,7 +1,7 @@
 # DVHS CSF Officer Operations Runbook
 
 **Audience:** organization administrators, adviser, chapter officers, and Data Management
-**Current status:** this candidate carries 351 ordered migrations through `20260822075815_make_plugin_application_runtime_transitions_idempotent`; Production was last verified read-only at 236 through `20260811001500`, leaving an exact repository-pinned 115-migration cutover. Hosted Development has the verified 350-migration ledger through `20260822070000`, and Google authentication redirects successfully there. The signed 1.2.7 GitHub release has separate Preview-compatible Development and Production child artifacts; catalog integration and rollout remain pending. Browser and provider acceptance remain release gates. Production email-webhook proof also remains open. Google OAuth and Picker were previously connected for a bounded Spring 2026 application preview that committed zero applications. Production remains untouched until the authorized release workflow applies the reviewed cutover.
+**Current status:** this candidate carries 352 ordered migrations through `20260822084356_route_plugin_applications_to_selected_deployments`; Production was last verified read-only at 236 through `20260811001500`, leaving an exact repository-pinned 116-migration cutover. Hosted Development has the verified 351-migration ledger through `20260822075815`, and Google authentication redirects successfully there. The signed 1.2.7 GitHub release has separate Preview-compatible Development and Production child artifacts; catalog integration and rollout remain pending. Browser and provider acceptance remain release gates. Production email-webhook proof also remains open. Google OAuth and Picker were previously connected for a bounded Spring 2026 application preview that committed zero applications. Production remains untouched until the authorized release workflow applies the reviewed cutover.
 **Authoritative record after review:** Let's Assist
 
 This runbook describes the v1.3 officer workflow. Do not use it for a production cutover until the remaining Google, full browser-mutation, accessibility, hosted scheduled-post, Production email/webhook, advisor, and database cutover gates in [testing and release](testing-and-release.md) pass.
@@ -278,8 +278,8 @@ Before this runbook is used for the real chapter cutover, all boxes must be chec
 - [x] Integrate signed DVHS CSF 1.2.1 and prove hosted Development parity against the 342-row ordered ledger through `20260821044815`
 - [ ] Apply and verify the signed 1.2.2 publication and private-helper ACL completion through `20260821233000`
 - [x] Deploy the exact signed 1.2.1 application artifact and protect its direct child domain
-- [x] Create the two-project Vercel microfrontend group with the reviewed child route
-- [ ] Approve the $2 per million routed-request fee, deploy the group config, and complete hosted browser acceptance before activation
+- [x] Create the two-project Vercel microfrontend group and approve its $2 per million routed-request fee
+- [ ] Deploy the version-pinned host routing change and complete hosted browser acceptance before activation
 - [x] Authorize local and hosted Development Google origins/callbacks, including `http://localhost:3001` and `https://dev.lets-assist.com`
 - [ ] Complete Google reconnect, revocation, and failure-state verification; the exact chapter identity, Picker selection, and one bounded failed-preview attempt are current Development evidence, not full import acceptance
 - [ ] Complete synthetic visible mutation lifecycle for every actor

@@ -86,6 +86,17 @@ This register separates actionable repository defects from provider/account and 
   available release. A fresh 351-migration replay, 35 focused pgTAP assertions,
   TypeScript, focused ESLint, and the architecture audit pass locally. Hosted
   Development migration and browser acceptance remain release gates.
+- `PLUGIN-FOUND-011` is repository-closed locally. Static microfrontend routing
+  could move every organization to the newest child deployment even when its
+  install selected an older version. The host now resolves the exact healthy
+  immutable Vercel deployment through an authenticated, membership-scoped RPC
+  and rewrites the application page without changing its public URL. The shared
+  microfrontend group retains only the version-independent health route. The
+  same migration makes an omitted host API maximum genuinely unbounded in both
+  status and activation paths. A fresh 352-migration replay, 42 focused pgTAP
+  assertions, 23 focused Bun assertions, TypeScript, and architecture hard
+  checks pass locally. Hosted Development migration, protection-bypass setup,
+  and browser acceptance remain release gates.
 - Private release `1.2.1` is signed and published. Root PR #238 merged it into
   `development` at `411421a9bf9ea3f1aa251abda3f7664f054d48ea`, and hosted
   Development is migration-current at 342 rows through `20260821044815` with

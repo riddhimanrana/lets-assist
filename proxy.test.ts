@@ -3,10 +3,19 @@ import { NextRequest, NextResponse } from "next/server";
 
 import type { AuthenticatedProxyContext } from "@/lib/supabase/proxy";
 
-import { createRootProxy, readCsfApplicationFlag } from "./proxy";
+import {
+  createRootProxy,
+  readCsfApplicationRouteTarget,
+  rewriteToPluginApplicationDeployment,
+} from "./proxy";
 
 const applicationPath =
   "/organization/22222222-2222-4222-8222-222222222222/plugins/dvhs-csf/access-proof";
+const routeTarget = {
+  deploymentId: "dpl_selected_v1",
+  deploymentUrl: "https://lets-assist-csf-v1.vercel.app",
+  runtimeVersion: "1.2.7",
+};
 
 function authenticatedContext(request: NextRequest): AuthenticatedProxyContext {
   return {
@@ -17,84 +26,46 @@ function authenticatedContext(request: NextRequest): AuthenticatedProxyContext {
 }
 
 describe("root proxy composition", () => {
-  test("resolves an organization username before reading its application flag", async () => {
-    const queries: Array<{
-      table: string;
-      filters: Array<[string, string]>;
-    }> = [];
-    const organizationId = "22222222-2222-4222-8222-222222222222";
+  test("reads one caller-scoped immutable route target", async () => {
+    const calls: Array<{ functionName: string; parameters: unknown }> = [];
     const supabase = {
-      from(table: string) {
-        const query = { table, filters: [] as Array<[string, string]> };
-        queries.push(query);
-        const builder = {
-          select() {
-            return builder;
-          },
-          eq(column: string, value: string) {
-            query.filters.push([column, value]);
-            return builder;
-          },
-          async maybeSingle() {
-            if (table === "organizations") {
-              return { data: { id: organizationId }, error: null };
-            }
-            return { data: { enabled: true }, error: null };
-          },
-        };
-        return builder;
+      async rpc(functionName: string, parameters: unknown) {
+        calls.push({ functionName, parameters });
+        return { data: { routable: true, ...routeTarget }, error: null };
       },
     };
 
-    const enabled = await readCsfApplicationFlag(
+    const target = await readCsfApplicationRouteTarget(
       {
         request: new NextRequest(`https://example.test${applicationPath}`),
         userId: "11111111-1111-4111-8111-111111111111",
         supabase: supabase as never,
       },
       "dvhighcsf",
+      "development",
     );
 
-    expect(enabled).toBe(true);
-    expect(queries).toEqual([
+    expect(target).toEqual(routeTarget);
+    expect(calls).toEqual([
       {
-        table: "organizations",
-        filters: [["username", "dvhighcsf"]],
-      },
-      {
-        table: "organization_plugin_feature_flags",
-        filters: [
-          ["organization_id", organizationId],
-          ["plugin_key", "dvhs-csf"],
-          ["flag_key", "application-runtime"],
-        ],
+        functionName: "get_plugin_application_route_target_by_identifier",
+        parameters: {
+          p_environment: "development",
+          p_organization_identifier: "dvhighcsf",
+          p_plugin_key: "dvhs-csf",
+        },
       },
     ]);
   });
 
-  test("fails closed when an organization username cannot be resolved", async () => {
-    let featureFlagReads = 0;
+  test("fails closed when the route target RPC denies access", async () => {
     const supabase = {
-      from(table: string) {
-        if (table === "organization_plugin_feature_flags") {
-          featureFlagReads += 1;
-        }
-        const builder = {
-          select() {
-            return builder;
-          },
-          eq() {
-            return builder;
-          },
-          async maybeSingle() {
-            return { data: null, error: null };
-          },
-        };
-        return builder;
+      async rpc() {
+        return { data: { routable: false }, error: null };
       },
     };
 
-    const enabled = await readCsfApplicationFlag(
+    const target = await readCsfApplicationRouteTarget(
       {
         request: new NextRequest(`https://example.test${applicationPath}`),
         userId: "11111111-1111-4111-8111-111111111111",
@@ -103,8 +74,7 @@ describe("root proxy composition", () => {
       "missing-organization",
     );
 
-    expect(enabled).toBe(false);
-    expect(featureFlagReads).toBe(0);
+    expect(target).toBeNull();
   });
 
   test("finishes host auth before routing and preserves auth response policy", async () => {
@@ -124,9 +94,9 @@ describe("root proxy composition", () => {
         response.cookies.set("sb-test-auth-token", "refreshed");
         return response;
       },
-      readCsfApplicationFlag: async () => {
-        events.push("flag");
-        return true;
+      readCsfApplicationRouteTarget: async () => {
+        events.push("target");
+        return routeTarget;
       },
       runMicrofrontendsMiddleware: async ({ request: routedRequest }) => {
         events.push("microfrontend");
@@ -141,11 +111,11 @@ describe("root proxy composition", () => {
 
     const response = await rootProxy(request);
 
-    expect(events).toEqual(["auth", "flag", "microfrontend", "auth-finalize"]);
+    expect(events).toEqual(["auth", "target", "auth-finalize"]);
     expect(response.headers.get("Cache-Control")).toBe("private, no-store");
     expect(response.cookies.get("sb-test-auth-token")?.value).toBe("refreshed");
-    expect(response.headers.get("x-middleware-request-x-vercel-mfe-zone")).toBe(
-      "lets-assist-csf",
+    expect(response.headers.get("x-middleware-rewrite")).toBe(
+      `https://lets-assist-csf-v1.vercel.app${applicationPath}`,
     );
   });
 
@@ -154,9 +124,9 @@ describe("root proxy composition", () => {
     const rootProxy = createRootProxy({
       updateSession: async () =>
         NextResponse.redirect("https://example.test/login"),
-      readCsfApplicationFlag: async () => {
+      readCsfApplicationRouteTarget: async () => {
         childCalls += 1;
-        return true;
+        return routeTarget;
       },
       runMicrofrontendsMiddleware: async () => {
         childCalls += 1;
@@ -180,7 +150,7 @@ describe("root proxy composition", () => {
         (await options?.onAuthenticatedPassThrough?.(
           authenticatedContext(authRequest),
         )) ?? NextResponse.next(),
-      readCsfApplicationFlag: async () => false,
+      readCsfApplicationRouteTarget: async () => null,
       runMicrofrontendsMiddleware: async () => {
         microfrontendCalls += 1;
         return NextResponse.next();
@@ -200,7 +170,7 @@ describe("root proxy composition", () => {
         authCalls += 1;
         return NextResponse.next();
       },
-      readCsfApplicationFlag: async () => true,
+      readCsfApplicationRouteTarget: async () => routeTarget,
       runMicrofrontendsMiddleware: async ({ flagValues }) => {
         resolvedFlag = await flagValues["dvhs-csf-application-runtime"]();
         return NextResponse.json({ config: {} });
@@ -216,5 +186,30 @@ describe("root proxy composition", () => {
     expect(authCalls).toBe(0);
     expect(resolvedFlag).toBe(false);
     expect(response.headers.get("Cache-Control")).toBe("private, no-store");
+  });
+
+  test("forwards the trusted bypass only upstream to the selected deployment", () => {
+    const request = new NextRequest(
+      `https://example.test${applicationPath}?view=summary`,
+      { headers: { "x-vercel-protection-bypass": "attacker-value" } },
+    );
+    const response = rewriteToPluginApplicationDeployment({
+      request,
+      target: routeTarget,
+      bypassSecret: "trusted-value",
+    });
+
+    expect(response.headers.get("x-middleware-rewrite")).toBe(
+      `https://lets-assist-csf-v1.vercel.app${applicationPath}?view=summary`,
+    );
+    expect(response.headers.get("x-vercel-protection-bypass")).toBeNull();
+    expect(
+      response.headers.get("x-middleware-request-x-vercel-protection-bypass"),
+    ).toBe("trusted-value");
+    expect(
+      response.headers.get(
+        "x-middleware-request-x-lets-assist-plugin-runtime-version",
+      ),
+    ).toBe("1.2.7");
   });
 });
