@@ -41,7 +41,9 @@ This register separates actionable repository defects from provider/account and 
   cutover rehearsal expected 20 pending migrations instead of the verified 22.
   The probe now captures the HTTP status and body before rejecting non-2xx
   responses, so the workflow records them as unhealthy. Focused workflow and
-  cutover contracts pass 19 tests.
+  cutover contracts pass 19 tests. Follow-up review also bounded the probe to a
+  10-second connection and 30-second total transfer, and extended the shared
+  AST collector to cover literal Webpack `require.context()` roots.
 - PR #245 remains the Development-to-Production release vehicle. Production is
   still at 333 migrations through `20260819050728`, with the DVHS CSF install
   enabled on embedded `1.1.0`. No Production schema, child deployment, or

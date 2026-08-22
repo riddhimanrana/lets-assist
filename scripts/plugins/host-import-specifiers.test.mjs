@@ -152,6 +152,27 @@ describe("host import specifier collection", () => {
     ]);
   });
 
+  test("collects literal Webpack context dependency roots", () => {
+    const source = `
+      const host = require.context("@/lib/context-host", true, /\\.tsx$/);
+      const relative = require.context("../../../../registry", false);
+      const external = require.context("external-package", false);
+    `;
+    const repositoryRoot = "/work/lets-assist";
+    const privateRoot = join(repositoryRoot, "lib/plugins/private");
+    const sourceFile = join(privateRoot, "plugins/example/feature/index.ts");
+
+    expect(
+      [
+        ...collectHostImportSpecifiers(source, {
+          sourceFile,
+          privateRoot,
+          repositoryRoot,
+        }),
+      ].sort(),
+    ).toEqual(["@/lib/context-host", "@/lib/plugins/registry"]);
+  });
+
   test("ignores non-host imports", () => {
     const source = `
       import "react";

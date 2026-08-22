@@ -57,6 +57,8 @@ test("deployment workflow records health through service-only RPCs", () => {
   assert.doesNotMatch(healthStep, /--token="\$\{VERCEL_TOKEN\}"/u);
   assert.match(healthStep, /response_reached=true/u);
   assert.match(healthStep, /--write-out '%\{http_code\}'/u);
+  assert.match(healthStep, /--connect-timeout 10/u);
+  assert.match(healthStep, /--max-time 30/u);
   assert.match(healthStep, /\^2\[0-9\]\[0-9\]\$/u);
   assert.doesNotMatch(healthStep, /--fail-with-body/u);
   assert.match(workflow, /recorded state remains pending/u);

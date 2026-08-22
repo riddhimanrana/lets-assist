@@ -259,6 +259,8 @@ jobs:
           deployment_host="${DEPLOYMENT_URL#https://}"
           deployment_host="${deployment_host#http://}"
           http_status="$(curl --silent --show-error \
+            --connect-timeout 10 \
+            --max-time 30 \
             --header "x-vercel-protection-bypass: ${VERCEL_AUTOMATION_BYPASS_SECRET}" \
             "https://${deployment_host}/api/plugins/${PLUGIN_KEY}/health" \
             --output .artifacts/plugin-health.json \

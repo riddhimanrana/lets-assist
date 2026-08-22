@@ -75,7 +75,8 @@ export function collectLiteralImportSpecifiers(source) {
         ((ts.isIdentifier(node.expression.expression) &&
           node.expression.expression.text === "require" &&
           (node.expression.name.text === "resolve" ||
-            node.expression.name.text === "resolveWeak")) ||
+            node.expression.name.text === "resolveWeak" ||
+            node.expression.name.text === "context")) ||
           (ts.isIdentifier(node.expression.expression) &&
             node.expression.expression.text === "module" &&
             node.expression.name.text === "require"));
