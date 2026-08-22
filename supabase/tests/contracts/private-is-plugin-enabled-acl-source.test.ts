@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { readFileSync, readdirSync } from "node:fs";
+import { readFileSync, readdirSync, statSync } from "node:fs";
 import { extname, join } from "node:path";
 
 const repositoryRoot = join(import.meta.dir, "../../..");
@@ -44,6 +44,7 @@ function currentCallers() {
     .filter(
       (name) =>
         searchableExtensions.has(extname(name)) &&
+        statSync(join(repositoryRoot, name)).isFile() &&
         !ignored.has(name) &&
         readFileSync(join(repositoryRoot, name), "utf8").includes(
           "is_plugin_enabled",

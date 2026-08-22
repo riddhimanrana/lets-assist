@@ -24,7 +24,8 @@ fail_if_matches() {
 }
 
 browser_plugin_schema_access="$(
-  find app lib -type f \( -name '*.ts' -o -name '*.tsx' \) -print0 \
+  find app lib -type f \( -name '*.ts' -o -name '*.tsx' \) \
+    -not -path 'lib/plugins/private/apps/*' -print0 \
     | xargs -0 rg -l "^['\"]use client['\"]|^\"use client\"|^'use client'" \
     | xargs rg -n "schema\\(['\"]plugin_data|@/lib/plugins/supabase|getPluginSupabase|createPluginClient|createDualClient" \
     || true

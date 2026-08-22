@@ -4,7 +4,7 @@ import type { OrganizationPluginDefinition } from "@/types";
 
 mock.module("server-only", () => ({}));
 
-let installedVersion = "0.1.0";
+let installedVersion: string | null = "0.1.0";
 
 const definition = {
   manifest: {
@@ -34,7 +34,7 @@ function accessRow() {
     configuration: {},
     installed_at: "2026-08-17T00:00:00.000Z",
     installed_version: installedVersion,
-    latest_version: "1.1.0",
+    latest_version: "1.2.0",
     force_update_version: null,
     is_accessible: true,
     entitlement_is_forced: false,
@@ -87,6 +87,26 @@ mock.module("@/lib/supabase/server", () => ({
 mock.module("@/lib/plugins/registry", () => ({
   getRegisteredPlugin: (key: string) =>
     key === definition.manifest.key ? definition : undefined,
+}));
+mock.module("@/lib/plugins/published-releases", () => ({
+  publishedPluginReleases: [
+    {
+      pluginKey: "dvhs-csf",
+      version: "1.1.0",
+      supportedInstallContracts: { minimum: "1.0.0", maximum: "1.1.0" },
+    },
+  ],
+  getPublishedPluginRelease: (key: string, runtimeProfile?: string) =>
+    key === "dvhs-csf" && runtimeProfile === "embedded"
+      ? {
+          pluginKey: "dvhs-csf",
+          version: "1.1.0",
+          supportedInstallContracts: {
+            minimum: "1.0.0",
+            maximum: "1.1.0",
+          },
+        }
+      : undefined,
 }));
 mock.module("@/lib/plugins/organization-plugin-access", () => ({
   isEntitlementActive: () => true,
@@ -142,5 +162,47 @@ describe("plugin runtime version gate", () => {
         experience: definition.manifest.organizationExperience!,
       },
     ]);
+  });
+
+  test("an unpinned install keeps using the embedded release when the catalog advertises a newer application", async () => {
+    installedVersion = null;
+
+    expect(
+      await hasOrganizationPluginRuntimeAccess({
+        organizationId: "org-1",
+        pluginKey: "dvhs-csf",
+      }),
+    ).toBe(true);
+    expect(
+      await resolveOrganizationPlugins({
+        organizationId: "org-1",
+        userRole: "admin",
+        viewerUserId: "user-1",
+      }),
+    ).toMatchObject([{ key: "dvhs-csf", installedVersion: "1.1.0" }]);
+    expect(await resolveOrganizationPluginExperiences(["org-1"])).toHaveLength(
+      1,
+    );
+  });
+
+  test("a preceding install remains available when the loaded release declares support", async () => {
+    installedVersion = "1.0.0";
+
+    expect(
+      await hasOrganizationPluginRuntimeAccess({
+        organizationId: "org-1",
+        pluginKey: "dvhs-csf",
+      }),
+    ).toBe(true);
+    expect(
+      await resolveOrganizationPlugins({
+        organizationId: "org-1",
+        userRole: "admin",
+        viewerUserId: "user-1",
+      }),
+    ).toMatchObject([{ key: "dvhs-csf", installedVersion: "1.0.0" }]);
+    expect(await resolveOrganizationPluginExperiences(["org-1"])).toHaveLength(
+      1,
+    );
   });
 });

@@ -1,4 +1,5 @@
 import type { NextConfig } from "next";
+import { withMicrofrontends } from "@vercel/microfrontends/next/config";
 
 const requestedDistDir = process.env.NEXT_DIST_DIR?.trim();
 const skipIsolatedBrowserTypecheck =
@@ -88,4 +89,4 @@ const nextConfig: NextConfig = {
   },
 };
 
-export default nextConfig;
+export default withMicrofrontends(nextConfig);

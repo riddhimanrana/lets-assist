@@ -18,6 +18,7 @@ import {
   canManageProjectAccess,
   type ProjectManagementAccessInput,
 } from "@/lib/projects/management-access";
+import { isCsfApplicationPath } from "@/lib/plugins/application-routing";
 
 type PendingAuthCookie = {
   name: string;
@@ -28,6 +29,18 @@ type PendingAuthCookie = {
 type ProxyUser = {
   id: string;
   app_metadata?: Record<string, unknown> | null;
+};
+
+export type AuthenticatedProxyContext = {
+  request: NextRequest;
+  userId: string;
+  supabase: ReturnType<typeof createServerClient>;
+};
+
+export type ProxyOptions = {
+  onAuthenticatedPassThrough?: (
+    context: AuthenticatedProxyContext,
+  ) => Promise<NextResponse | null>;
 };
 
 type FreshUserErrorLike = {
@@ -75,9 +88,12 @@ const RESTRICTED_PATHS_FOR_LOGGED_IN_USERS = [
 
 // Function to check if a path requires authentication
 export function isProtectedPath(path: string) {
-  return PROTECTED_PATHS.some(
-    (protectedPath) =>
-      path === protectedPath || path.startsWith(`${protectedPath}/`),
+  return (
+    isCsfApplicationPath(path) ||
+    PROTECTED_PATHS.some(
+      (protectedPath) =>
+        path === protectedPath || path.startsWith(`${protectedPath}/`),
+    )
   );
 }
 
@@ -193,7 +209,10 @@ export function canManageProjectRoute(input: ProjectManagementAccessInput) {
   return canManageProjectAccess(input);
 }
 
-export async function updateSession(request: NextRequest) {
+export async function updateSession(
+  request: NextRequest,
+  options: ProxyOptions = {},
+) {
   // Capture the original auth context before Supabase's setAll callback mutates
   // the request cookie store during a token refresh.
   const hasIncomingAuthContext =
@@ -598,5 +617,14 @@ export async function updateSession(request: NextRequest) {
     }
   }
 
-  return finalizeResponse(supabaseResponse);
+  const authenticatedPassThrough =
+    user && options.onAuthenticatedPassThrough
+      ? await options.onAuthenticatedPassThrough({
+          request,
+          userId: user.id,
+          supabase,
+        })
+      : null;
+
+  return finalizeResponse(authenticatedPassThrough ?? supabaseResponse);
 }

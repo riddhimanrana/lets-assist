@@ -15,7 +15,7 @@ import {
   Trash2,
   Wrench,
 } from "lucide-react";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 
 import { describePluginUninstallImpact } from "@/lib/plugins/plugin-uninstall-impact";
@@ -84,6 +84,7 @@ import type {
 } from "@/types";
 import {
   getOrganizationPluginSettings,
+  setOrganizationPluginApplicationRuntime,
   setOrganizationPluginInstallState,
   uninstallOrganizationPlugin,
   updateOrganizationPluginConfiguration,
@@ -236,6 +237,7 @@ export default function OrganizationPluginSettings({
   organizationId,
   organizationName,
 }: OrganizationPluginSettingsProps) {
+  const applicationRuntimeRequestIds = useRef(new Map<string, string>());
   const [result, setResult] = useState<OrganizationPluginSettingsResult | null>(
     null,
   );
@@ -538,6 +540,57 @@ export default function OrganizationPluginSettings({
     setUpdatingActionId(null);
   };
 
+  const handleApplicationRuntime = async (
+    plugin: OrganizationPluginAdminSetting,
+    enabled: boolean,
+  ) => {
+    setUpdatingActionId(`${plugin.key}:application-runtime`);
+    const targetVersion = enabled
+      ? plugin.applicationRuntime?.availableVersion
+      : undefined;
+    const requestKey = [
+      plugin.key,
+      enabled ? "application" : "embedded",
+      targetVersion ?? "none",
+      plugin.applicationRuntime?.enabled ? "enabled" : "disabled",
+      plugin.applicationRuntime?.selectedVersion ?? "none",
+    ].join(":");
+    const requestId =
+      applicationRuntimeRequestIds.current.get(requestKey) ??
+      crypto.randomUUID();
+    applicationRuntimeRequestIds.current.set(requestKey, requestId);
+    try {
+      const response = await setOrganizationPluginApplicationRuntime({
+        organizationId,
+        pluginKey: plugin.key,
+        enabled,
+        targetVersion,
+        expectedEnabled: plugin.applicationRuntime?.enabled === true,
+        expectedVersion:
+          plugin.applicationRuntime?.selectedVersion ?? undefined,
+        requestId,
+      });
+
+      if (!response.success) {
+        toast.error(response.error || "Failed to change the plugin runtime");
+        return;
+      }
+
+      applicationRuntimeRequestIds.current.delete(requestKey);
+
+      toast.success(
+        enabled
+          ? `Application ${targetVersion} enabled`
+          : `Embedded ${plugin.installedVersion || plugin.latestVersion} restored`,
+      );
+      await loadSettings();
+    } catch {
+      toast.error("Connection error. Retry the same change safely.");
+    } finally {
+      setUpdatingActionId(null);
+    }
+  };
+
   const handleOpenSettingsEditor = (plugin: OrganizationPluginAdminSetting) => {
     if (!plugin.installed) {
       toast.error("Install the plugin before editing its settings");
@@ -724,6 +777,8 @@ export default function OrganizationPluginSettings({
   ) => {
     const isToggleUpdating = updatingActionId === `${plugin.key}:toggle`;
     const isVersionUpdating = updatingActionId === `${plugin.key}:update`;
+    const isRuntimeUpdating =
+      updatingActionId === `${plugin.key}:application-runtime`;
     const isUninstalling = updatingActionId === `${plugin.key}:uninstall`;
     const isPrivatePlugin =
       plugin.visibility === "private" || plugin.privateCodebase;
@@ -732,8 +787,14 @@ export default function OrganizationPluginSettings({
     const canUninstall = plugin.installed && !plugin.isForced;
     const canUpdate =
       plugin.availableInRuntime &&
+      plugin.updateDeployedInRuntime &&
       plugin.entitled &&
       (plugin.updateAvailable || plugin.forceUpdateRequired);
+    const applicationUpdateAvailable =
+      plugin.applicationRuntime?.enabled === true &&
+      plugin.applicationRuntime.selectedVersion !== null &&
+      plugin.applicationRuntime.selectedVersion !==
+        plugin.applicationRuntime.availableVersion;
 
     return (
       <div
@@ -781,6 +842,45 @@ export default function OrganizationPluginSettings({
               </p>
             ) : null}
 
+            {(plugin.updateAvailable || plugin.forceUpdateRequired) &&
+            !plugin.updateDeployedInRuntime ? (
+              <p className="text-xs text-amber-700">
+                Update pending deployment. This version becomes installable
+                after the platform deployment includes its code.
+              </p>
+            ) : null}
+
+            {plugin.applicationRuntime ? (
+              <div className="mt-1 rounded-md border border-border/70 bg-muted/30 px-2.5 py-2">
+                <div className="flex flex-wrap items-center gap-2">
+                  <Badge
+                    variant={
+                      plugin.applicationRuntime.enabled
+                        ? "default"
+                        : "secondary"
+                    }
+                  >
+                    {plugin.applicationRuntime.enabled
+                      ? "Application active"
+                      : "Embedded active"}
+                  </Badge>
+                  <span className="text-xs text-muted-foreground">
+                    Application {plugin.applicationRuntime.version}
+                  </span>
+                  {applicationUpdateAvailable ? (
+                    <Badge variant="outline">
+                      {plugin.applicationRuntime.availableVersion} available
+                    </Badge>
+                  ) : null}
+                </div>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  {plugin.applicationRuntime.deploymentHealthy
+                    ? `Healthy on ${plugin.applicationRuntime.environment}`
+                    : `Waiting for a healthy ${plugin.applicationRuntime.environment} deployment`}
+                </p>
+              </div>
+            ) : null}
+
             {plugin.blockedReason &&
             !plugin.availableInRuntime ? null : plugin.blockedReason ? (
               <p className="text-xs text-destructive">{plugin.blockedReason}</p>
@@ -788,6 +888,66 @@ export default function OrganizationPluginSettings({
           </div>
 
           <div className="flex flex-wrap items-center justify-end gap-2">
+            {plugin.applicationRuntime && applicationUpdateAvailable ? (
+              <Button
+                type="button"
+                size="sm"
+                onClick={() => {
+                  void handleApplicationRuntime(plugin, true);
+                }}
+                disabled={
+                  isRuntimeUpdating || !plugin.applicationRuntime.canEnable
+                }
+              >
+                {isRuntimeUpdating ? (
+                  <>
+                    <Loader2
+                      data-icon="inline-start"
+                      className="animate-spin"
+                    />
+                    Updating application…
+                  </>
+                ) : (
+                  `Update application ${plugin.applicationRuntime.availableVersion}`
+                )}
+              </Button>
+            ) : null}
+
+            {plugin.applicationRuntime ? (
+              <Button
+                type="button"
+                size="sm"
+                variant={
+                  plugin.applicationRuntime.enabled ? "outline" : "default"
+                }
+                onClick={() => {
+                  void handleApplicationRuntime(
+                    plugin,
+                    !plugin.applicationRuntime?.enabled,
+                  );
+                }}
+                disabled={
+                  isRuntimeUpdating ||
+                  (!plugin.applicationRuntime.enabled &&
+                    !plugin.applicationRuntime.canEnable)
+                }
+              >
+                {isRuntimeUpdating ? (
+                  <>
+                    <Loader2
+                      data-icon="inline-start"
+                      className="animate-spin"
+                    />
+                    Switching…
+                  </>
+                ) : plugin.applicationRuntime.enabled ? (
+                  `Use embedded ${plugin.installedVersion || plugin.latestVersion}`
+                ) : (
+                  `Use application ${plugin.applicationRuntime.availableVersion}`
+                )}
+              </Button>
+            ) : null}
+
             <Button
               type="button"
               size="sm"
@@ -820,7 +980,9 @@ export default function OrganizationPluginSettings({
                 ) : (
                   <>
                     <Wrench data-icon="inline-start" />
-                    Update
+                    {plugin.updateDeployedInRuntime
+                      ? "Update"
+                      : "Update pending deployment"}
                   </>
                 )}
               </Button>
@@ -964,7 +1126,8 @@ export default function OrganizationPluginSettings({
           </CardTitle>
           <CardDescription>
             Browse available plugins, install what you need, and manage
-            per-plugin settings.
+            per-plugin settings. Embedded plugin code ships through a platform
+            deployment before an update can be installed.
           </CardDescription>
         </CardHeader>
 

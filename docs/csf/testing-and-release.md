@@ -36,8 +36,11 @@ their named runs only.
 - The sole current CSF implementation/status register is
   `docs/development/cleanup-register.md`; this document is a testing runbook and
   retains older evidence below without promoting it to current status.
-- The repository candidate has 333 ordered migrations through
-  `20260819050728_complete_reviewed_internal_function_acls`. The thirty-seven migrations
+- The repository candidate has 355 ordered migrations through
+  `20260822154500_make_plugin_deployment_urls_immutable`. The preceding releases publish signed
+  1.2.2 and 1.2.3 artifacts and complete the reviewed helper ACLs. The 1.2.4
+  migration records the plugin-specific child health route update without
+  changing organization installs. The migrations
   added after the audited `development` baseline merge two prior lines: the
   Development-hardening pair
   (`20260816185321_enforce_authoritative_plugin_releases`,
@@ -77,18 +80,48 @@ their named runs only.
   `20260819002500_serialize_plugin_deletion_and_token_feedback`, and
   `20260819020000_serialize_paper_scan_orphan_cleanup`, and
   `20260819030000_propagate_anonymous_feedback_opt_out`, and
-  `20260819050728_complete_reviewed_internal_function_acls`).
-- Hosted Development serves exact root merge SHA
-  `5ef6e4ccdf4492206e3e41a0b84afac91551fff0` and is healthy and
-  migration-current at 331 rows through
-  `20260819020000_serialize_paper_scan_orphan_cleanup`. Google OAuth is enabled
-  and the hosted authorize endpoint redirects to Google. The new 332nd and
-  333rd address-level feedback preference and owner-internal ACL migrations
-  remain repository-only until this change passes CI and is promoted through
-  Development.
-- Production remains untouched at the audited 236-row baseline through
-  `20260811001500`; the exact read-only preflight now expects a 97-migration
-  cutover to this 333-row candidate. Running that cutover requires
+  `20260819050728_complete_reviewed_internal_function_acls`,
+  `20260820090000_scope_plugin_form_uploads_to_installed_plugins`,
+  `20260820100000_add_plugin_release_identity`,
+  `20260820110000_add_plugin_deployments_and_update_operations`,
+  `20260820120000_add_plugin_update_operation_fk_index`,
+  `20260820130000_add_plugin_application_access_context`,
+  `20260821005258_add_plugin_application_runtime_admin_controls`,
+  `20260821024024_publish_dvhs_csf_1_2_0`,
+  `20260821041738_publish_dvhs_csf_1_2_1`,
+  `20260821044815_publish_dvhs_csf_1_2_1`,
+  `20260821052000_harden_dvhs_csf_1_2_1_reconciliation`,
+  `20260821232923_publish_dvhs_csf_1_2_2`, and
+  `20260821233000_complete_plugin_release_helper_acls`,
+  `20260822000923_publish_dvhs_csf_1_2_3`, and
+  `20260822032423_publish_dvhs_csf_1_2_4`,
+  `20260822044742_resolve_plugin_application_organization_username`,
+  `20260822060000_harden_plugin_application_runtime_controls`, and
+  `20260822070000_complete_plugin_application_runtime_compatibility`, and
+  `20260822075815_make_plugin_application_runtime_transitions_idempotent`,
+  `20260822084356_route_plugin_applications_to_selected_deployments`,
+  `20260822134710_revalidate_plugin_runtime_admin_authority`, and
+  `20260822151500_pin_plugin_asset_deployments`, and
+  `20260822154500_make_plugin_deployment_urls_immutable`).
+- Hosted Development is migration-current at 353 rows through
+  `20260822134710_revalidate_plugin_runtime_admin_authority`; the candidate adds
+  the 354th and 355th migrations above. Google OAuth is enabled and the hosted authorize
+  endpoint redirects to Google. The signed `dvhs-csf` 1.2.4 GitHub release is
+  published, while the embedded 1.1.0 install remains active. The exact signed
+  1.2.4 artifact is Ready on the Development child project as deployment
+  `dpl_C5ZHpGf8RPVbw8ss1tEjZy8HKSur`; the control plane
+  records its exact digest and release tag as healthy, and Vercel
+  Authentication protects direct access. Version-pinned host routing and hosted
+  browser acceptance remain gates before activation. The two-project group
+  `mfe_W64mCurqcnCgOvWojPr0FoRQUluS` exists, and the $2 per million
+  routed-request fee is approved. The group remains useful for shared health
+  routing, while organization application pages resolve the selected immutable
+  deployment in the host because a project-level route cannot select a
+  different version for each organization.
+- Production was verified read-only on 2026-08-22 in Supabase project
+  `fotdmeakexgrkronxlof` at 333 rows through
+  `20260819050728_complete_reviewed_internal_function_acls`; the exact read-only
+  preflight now expects a 22-migration cutover to this 355-row candidate. Running that cutover requires
   explicit action-time approval.
 - Local evidence on the prior candidate includes a fresh exact 324-migration replay
   and the focused storage/release, import, proof, and release-authority pgTAP
@@ -96,14 +129,40 @@ their named runs only.
   assertions passed; three unrelated files hit transient Docker DNS failures,
   so hosted CI is the clean full-replay authority. The new serialization
   migration has focused 27-assertion coverage and remains subject to the clean
-  hosted replay. The candidate has 170 pgTAP files with 5,992 assertions plus
-  focused workflow/browser tests, `typecheck`, `lint`, build, and strict
-  submodule reachability. Follow-up hosted parity, final role/browser
-  acceptance, and provider acceptance remain release gates until recorded in
+  hosted replay. The preceding local candidate replay passed 337 migrations and
+  176 pgTAP files with 6,071 assertions. The caller-proof candidate completed a
+  clean 338-migration replay with optional analytics disabled; its 28 focused
+  assertions, the two exact public-function ACL assertions, the 30 existing
+  privileged-function boundary assertions, and the architecture hard checks
+  pass. The all-file replay remains the hosted CI authority because a prior
+  local attempt lost Docker DNS between unrelated test files. Follow-up
+  local validation replayed all 340 migrations through the signed 1.2.0
+  publication, and its focused release pgTAP passed 8/8. The signed 1.2.1
+  publication, portable build archive, and deployment-target handling pass their
+  focused local contract tests. The 341-migration replay passed in hosted CI,
+  and the first ledger reconciliation migration is covered by the same
+  signed-release pgTAP identity assertions. The final forward guard also
+  exercises its accept, divergent-identity rejection, and restored-identity
+  paths in pgTAP. A fresh local reset replayed all 345 migrations successfully,
+  and the focused 1.2.2 release and helper ACL suites passed 13/13. The signed
+  1.2.3 publication adds the Preview-targeted Development artifact and is the
+  346th migration. The signed 1.2.4 publication is the 347th migration. A fresh
+  local reset replayed the exact 347-migration ledger, and the focused 1.2.4
+  release pgTAP passed 8/8. The organization-identifier wrapper is the 348th
+  migration, the first runtime hardening is the 349th, and the completed
+  runtime compatibility checks are the 350th. The retry-safe runtime transition
+  receipts and selected-deployment status are the 351st. The version-pinned
+  application route and optional compatibility ceiling fix are the 352nd. The
+  admin-authority transaction lock is the 353rd. A fresh isolated replay applied
+  all 353 migrations and passed all 182 pgTAP files with 6,194 assertions. The
+  later fictional fixture seed failed at the local Auth service and did not
+  invalidate the completed schema and pgTAP proof.
+  Final role/browser
+  acceptance and provider acceptance remain release gates until recorded in
   the cleanup register.
-- Private CSF source is merged to private `main` at
-  `4d1001e9d3269b8bd28de93c071c6b4b216824fd` and synchronized back into
-  private `development` at `6fd34120ab474cbf6db3b5fd47439324bc436345`.
+- Private CSF 1.2.4 source is merged to private `main` at
+  `0aab18750002098e80933a8c84248d4ce23c8dc3` and published from
+  private `development` at `063f986f075b5b8d0e8979585edad771749bc17e`.
   The published `1.1.0` release attestation pins the private main commit with
   manifest SHA-256
   `04aca8efa43e9d287c8d04909b733df97f6804224a4c6960a3609358eb574e79`.

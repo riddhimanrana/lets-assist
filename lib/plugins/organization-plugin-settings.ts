@@ -3,7 +3,9 @@ import {
   coalescePluginVersion,
   isPluginVersionBehind,
   isPluginRuntimeVersionExact,
+  isPluginVersionWithinContractRange,
 } from "@/lib/plugins/versioning";
+import type { PluginInstallContractRange } from "@/lib/plugins/versioning";
 import type { OrganizationPluginAdminSetting } from "@/types";
 
 export type PluginCatalogForSettings = {
@@ -39,6 +41,7 @@ export type RuntimePluginInfo = {
   key: string;
   navLabel: string;
   version: string;
+  supportedInstallContracts: PluginInstallContractRange;
   minimumRole: "admin" | "staff" | "member";
   ownerName?: OrganizationPluginAdminSetting["ownerName"];
   ownerType?: OrganizationPluginAdminSetting["ownerType"];
@@ -122,6 +125,13 @@ export function buildOrganizationPluginAdminSettings(input: {
         installedVersion,
         plugin.latest_version,
       );
+      const updateDeployedInRuntime = Boolean(
+        runtimePlugin &&
+        isPluginRuntimeVersionExact(
+          plugin.latest_version,
+          runtimePlugin.version,
+        ),
+      );
 
       if (!blockedReason && forceUpdateRequired) {
         blockedReason =
@@ -129,7 +139,10 @@ export function buildOrganizationPluginAdminSettings(input: {
       } else if (
         !blockedReason &&
         runtimePlugin &&
-        !isPluginRuntimeVersionExact(installedVersion, runtimePlugin.version)
+        !isPluginVersionWithinContractRange(
+          installedVersion,
+          runtimePlugin.supportedInstallContracts,
+        )
       ) {
         blockedReason =
           "Update this installation before using the plugin version loaded by the platform.";
@@ -167,6 +180,7 @@ export function buildOrganizationPluginAdminSettings(input: {
         installedVersion: install?.installed_version ?? null,
         forceUpdateVersion: plugin.force_update_version,
         updateAvailable,
+        updateDeployedInRuntime,
         forceUpdateRequired,
         codeRepository: plugin.code_repository,
         codeReference: plugin.code_reference,
@@ -183,6 +197,7 @@ export function buildOrganizationPluginAdminSettings(input: {
         ),
         dataDeletionExternalSystemsNotCovered:
           runtimePlugin?.dataDeletionExternalSystemsNotCovered ?? [],
+        applicationRuntime: null,
       } satisfies OrganizationPluginAdminSetting;
     })
     .sort((a, b) => a.name.localeCompare(b.name));

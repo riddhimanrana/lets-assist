@@ -1,0 +1,9 @@
+{
+  "dvhs-csf": {
+    "root": "apps/csf",
+    "routingApplication": "lets-assist-csf",
+    "projectName": "lets-assist-csf",
+    "projectId": "prj_yFm448TGxkW5oNYCH7NMnddNVpWL",
+    "organizationId": "team_CjhwP5Wl7iAhbDrSFJRFxJjE"
+  }
+}

@@ -9,6 +9,7 @@ export {
 export { getOrganizationPluginSettings } from "./server/plugin-query";
 export {
   setOrganizationPluginInstallState,
+  setOrganizationPluginApplicationRuntime,
   uninstallOrganizationPlugin,
   updateOrganizationPluginConfiguration,
   updateOrganizationPluginToLatest,

@@ -1,7 +1,7 @@
 BEGIN;
 
 CREATE EXTENSION IF NOT EXISTS pgtap WITH SCHEMA extensions;
-SELECT extensions.plan(16);
+SELECT extensions.plan(17);
 
 SELECT extensions.is(
   (
@@ -102,7 +102,15 @@ INSERT INTO public.plugin_versions (
   manifest_hash,
   compatibility_contract,
   rollout_percentage,
-  published_at
+  published_at,
+  source_tree,
+  content_digest,
+  release_inputs,
+  host_api_range,
+  plugin_data_schema_version,
+  required_platform_schema_version,
+  supported_install_contracts,
+  runtime_profile
 ) VALUES (
   'synthetic-release-contract',
   '1.0.0',
@@ -112,7 +120,42 @@ INSERT INTO public.plugin_versions (
   repeat('2', 64),
   '{"host":"lets-assist","automaticUpdate":false}'::jsonb,
   0,
-  now()
+  now(),
+  repeat('3', 40),
+  repeat('4', 64),
+  '["plugins/synthetic-release-contract"]'::jsonb,
+  '{"minimum":"1.0.0","maximum":"1.0.0"}'::jsonb,
+  1,
+  '20260820100000',
+  '{"minimum":"1.0.0","maximum":"1.0.0"}'::jsonb,
+  'embedded'
+);
+
+SELECT extensions.throws_ok(
+  $$
+    INSERT INTO public.plugin_versions (
+      plugin_key, version, status, changelog, commit_sha, manifest_hash,
+      compatibility_contract, rollout_percentage, published_at, source_tree,
+      content_digest, release_inputs, build_digest, sbom_digest,
+      signer_identity, host_api_range, plugin_data_schema_version,
+      required_platform_schema_version, supported_install_contracts,
+      runtime_profile
+    ) VALUES (
+      'synthetic-release-contract', '1.1.0', 'published',
+      'Unsigned application fixture', repeat('5', 40), repeat('5', 64),
+      '{"host":"lets-assist","automaticUpdate":false}'::jsonb, 0, now(),
+      repeat('5', 40), repeat('5', 64),
+      '["apps/synthetic-release-contract"]'::jsonb,
+      repeat('5', 64), repeat('5', 64), '{}'::jsonb,
+      '{"minimum":"1.0.0","maximum":"1.0.0"}'::jsonb, 1,
+      '20260822151500',
+      '{"minimum":"1.0.0","maximum":"1.1.0"}'::jsonb,
+      'application'
+    )
+  $$,
+  '23514',
+  NULL,
+  'a published application release cannot use unconstrained signer metadata'
 );
 
 SELECT extensions.lives_ok(

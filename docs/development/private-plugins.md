@@ -22,7 +22,7 @@ CI must use recursive submodules and a credential that can read the private repo
     token: ${{ secrets.PRIVATE_REPO_TOKEN }}
 ```
 
-The main repository pins an exact submodule commit. A plugin release is incomplete until the private commit is pushed, the main repository pointer is updated, and an immutable `plugin_versions` release certificate pins that commit plus the SHA-256 of the shipped manifest.
+The main repository pins an exact submodule commit. A plugin release is incomplete until the private commit is pushed, the main repository pointer is updated, and an immutable `plugin_versions` release record pins the commit, source tree, declared release inputs, and their content digest. A manifest hash alone does not identify all code that runs.
 
 ## Change workflow
 
@@ -36,6 +36,11 @@ For storage, use the private `plugins` bucket and namespace every object as
 `{organizationId}/{pluginKey}/...`. The manifest must declare each live path
 pattern as `server-only`; plugin code must use a shared path builder instead of
 assembling bucket names or tenant prefixes ad hoc.
+
+Browser-assisted form uploads use `plugin_form_uploads` instead, with exact
+paths `{organizationId}/{pluginKey}/{userId}/{file}`. RLS verifies every scope
+segment and that the organization has the plugin enabled. Do not reuse that
+browser path for server-managed plugin artifacts.
 
 Do not leave the main branch pointing at an unpushed private commit.
 
@@ -59,6 +64,71 @@ plugins/<plugin-key>/
 - components call server actions/services and do not embed database policy.
 - fixtures contain sanitized external-service captures.
 - lifecycle handlers delegate to services rather than directly mutating tables.
+
+An independently deployed application profile uses a separate package:
+
+```text
+apps/<app>/
+├── package.json
+├── bun.lock
+├── app/
+├── src/
+├── scripts/
+└── tests/
+```
+
+The package must pin the same Bun version as the platform and define `lint`,
+`typecheck`, `test`, `build`, `audit:data-access`, and `inventory:routes`.
+Run `bun run plugin:apps:check` from the platform checkout to install and verify
+every child package. Host tooling deliberately excludes `apps/**` only because
+this replacement gate runs in root CI and in the existing private-candidate
+test path.
+
+An application profile consumes the published plugin SDK package. It cannot use
+host `@/app`, `@/components`, `@/lib`, or `@/services` imports. It shares the
+environment's Supabase Auth session through the main-domain request, uses only
+the publishable key to refresh and verify that session, and repeats current
+entitlement, install, organization membership, and plugin-role checks inside
+its server data boundary. Do not configure `SUPABASE_SERVICE_ROLE_KEY` or
+`SUPABASE_SECRET_KEY` in the child project.
+
+For every server-rendered application request:
+
+1. Create a request-scoped Supabase SSR client from the public URL,
+   publishable key, and request cookies.
+2. Verify the caller with `auth.getUser()`. Do not authorize from an unverified
+   cookie or decoded token alone.
+3. Call `get_plugin_application_access_context_by_identifier` with the requested
+   organization UUID or route username, exact plugin key, and exact child build
+   version.
+4. Call the plugin-specific role projection when the route needs role facts.
+5. Render only the narrow caller-scoped result. Treat a missing, malformed, or
+   denied proof as inaccessible.
+
+The host resolves an application page with
+`get_plugin_application_route_target_by_identifier`, then rewrites it to the
+exact healthy immutable Vercel deployment selected for the organization and
+environment. The host accepts only HTTPS `*.vercel.app` targets returned by the
+database. It removes any caller-supplied deployment-protection bypass header
+and, when configured, supplies the trusted bypass value only on the upstream
+request.
+
+The host route, microfrontend project claim, and organization identifier are
+routing inputs, not authorization. Vercel's project-level microfrontend route
+cannot select different immutable releases for different organizations, so it
+must not claim the versioned application page. Child reads and mutations repeat
+the caller-proof sequence on every request. Consequential plugin operations use
+their existing server-only transactions and recheck capability after taking
+the required locks.
+
+SDK releases use the `plugin-sdk/v<version>` Git tag family in the public
+repository. The release workflow accepts a tag only when it matches the stable
+version in `packages/plugin-sdk/package.json` and the tagged commit belongs to
+Development. It packages the SDK with Bun, creates a CycloneDX SBOM, binds both
+files and their source inputs into a release manifest, and signs that manifest
+with GitHub Actions OIDC through Cosign. A child package pins the immutable
+GitHub Release tarball and commits the resulting `bun.lock`. Do not copy
+`lib/plugins/sdk` into a child or depend on an unversioned branch URL.
 
 ## Platform contract
 
@@ -107,11 +177,19 @@ bun run dv:test:db
 - test storage object paths;
 - make audit/ledger data append-only where required.
 
-Ordinary workflows use authenticated RLS clients. Service-role clients are restricted to controlled maintenance, fixture generation, public one-time token handlers, and trusted background jobs.
+Reviewed browser workflows use authenticated RLS clients only on public API
+surfaces. Private plugin domain data uses server actions or narrow RPCs with
+fresh authorization and organization scope. Service-role clients are restricted
+to those checked server boundaries, controlled maintenance, fixture generation,
+public one-time token handlers, and trusted background jobs.
 
 For new tables, default to server-only access unless the manifest `dataAccess` contract explains why direct RLS client access or a public read model is required. Avoid adding new blanket `GRANT ... ON ALL TABLES IN SCHEMA plugin_data` behavior; grant only the narrow role/object access required by the declared contract.
 
-When a plugin needs browser-visible or public data, create a narrow read model for that specific route or workflow. Prefer `WITH (security_invoker = true)` views on Postgres 15+ when the view should honor the caller's RLS. Keep base plugin tables tenant-owned with `organization_id`, foreign keys, and indexes that match the route's query pattern.
+When an application plugin needs browser-visible data, return a narrow DTO from
+its server boundary after fresh session and tenant authorization. Do not expose
+CSF domain tables or a new PostgREST schema to make an application route work.
+Keep base plugin tables tenant-owned with `organization_id`, foreign keys, and
+indexes that match the route's query pattern.
 
 Every installed plugin should have a row in `public.organization_plugin_data_boundaries`. Regular organizations use `isolation_mode = 'shared'`; enterprise customers can be marked for `dedicated_schema`, `dedicated_project`, or `external` handling without changing the default install flow.
 
@@ -189,12 +267,26 @@ For Next.js, review Server Component boundaries, async route APIs, Server Action
 
 ## Release and rollback
 
+Treat publication, deployment, and installation as different steps. Publishing
+a release does not prove that any deployment contains it, and observing a
+process start does not prove that deployment is healthy. An embedded plugin
+ships only when the root platform deployment contains its pinned private tree.
+An application plugin also needs its independently built artifact, SBOM, and
+deployment identity.
+
+New releases declare every repository-relative `releaseInput` whose bytes form
+the program. Embedded releases include their plugin subtree. Application and
+service releases also include the child application and dependency lockfile.
+Release tooling must hash that complete set and verify exact tree equality, not
+only that the source commit is an ancestor.
+
 Before release:
 
 - migrations replay from empty;
 - all local and CI checks pass;
 - the private commit is pushed;
 - the main repository points to that exact commit;
+- the release input digest and compatibility ranges match the reviewed source;
 - no credentials or production-capable local env files are committed;
 - schema changes are backward-compatible with the currently deployed plugin during rollout.
 
@@ -207,6 +299,11 @@ To roll back plugin code:
 3. Run build and focused workflow tests.
 4. Deploy the main revision.
 5. If data correction is required, add a reviewed forward migration or maintenance script with an audit trail.
+
+Do not advance `organization_plugin_installs.installed_version` from a schema
+migration. Record the operator's desired version, run the leased update
+lifecycle, recheck authorization under the lease, and persist the activation
+through the reviewed control-plane path. Automatic updates remain disabled.
 
 ## Security checklist
 

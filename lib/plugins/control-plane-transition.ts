@@ -412,6 +412,21 @@ export async function transitionOrganizationPluginInstall(
     };
   }
 
+  const targetVersion =
+    input.transition.kind === "install_or_enable" ||
+    input.transition.kind === "version_update"
+      ? input.transition.targetVersion
+      : null;
+  if (targetVersion && targetVersion !== definition.manifest.version) {
+    return {
+      success: false,
+      changed: false,
+      actions: [],
+      error:
+        "The requested embedded plugin version is not loaded in this deployment.",
+    };
+  }
+
   const service = getAdminClient();
   if (!(await hasCurrentTransitionAuthority(service, input))) {
     return {

@@ -1,4 +1,4 @@
--- Production 236 -> repository target 333 cutover preflight.
+-- Production 333 -> repository target 355 cutover preflight.
 --
 -- Read-only by construction: every check is SELECT or SHOW inside an explicit
 -- READ ONLY transaction. Run this only with the reviewed Production read-only
@@ -9,8 +9,8 @@
 --     -f scripts/production-cutover-preflight.sql
 --
 -- The only supported ledgers are:
---   pre-cutover   236 rows headed by 20260811001500
---   post-cutover  333 rows headed by 20260819050728 with the exact 97-row tail
+--   pre-cutover   333 rows headed by 20260819050728
+--   post-cutover  355 rows headed by 20260822154500 with the exact 22-row tail
 --
 -- Any partial, divergent, later, or wrong-tail ledger exits non-zero before
 -- shape-specific relations are parsed. Relation inventories then fail with a
@@ -48,13 +48,13 @@ SELECT current_setting('transaction_read_only') = 'on' AS read_only_transaction
 \echo ''
 \echo '=============================================================='
 \echo 'L0  Exact migration ledger'
-\echo '    PASS: exactly 236/baseline or exactly 333/target'
+\echo '    PASS: exactly 333/baseline or exactly 355/target'
 \echo '=============================================================='
 SELECT count(*) AS applied_migrations,
        min(version::text) AS first_version,
        max(version::text) AS head_version,
        count(*) FILTER (
-         WHERE version::text > '20260811001500'
+         WHERE version::text > '20260819050728'
        ) AS target_migrations_applied
 FROM supabase_migrations.schema_migrations;
 
@@ -119,14 +119,46 @@ WITH expected_baseline(version) AS (
     '20260809212324','20260809212833','20260809230155','20260810000028',
     '20260810002428','20260810004500','20260810013000','20260810014500',
     '20260810015500','20260810021019','20260810220100','20260810220200',
-    '20260810220300','20260810220400','20260810220500','20260811001500'
+    '20260810220300','20260810220400','20260810220500','20260811001500',
+    '20260811063522','20260811073000','20260811074518',
+    '20260811081506','20260811085048','20260811100000',
+    '20260811110000','20260811120000','20260811132454',
+    '20260811160000','20260811161000','20260811170000',
+    '20260811180000','20260811233646','20260812010529',
+    '20260812030000','20260812065621','20260812071500',
+    '20260812072357','20260812073000','20260812100000',
+    '20260812100100','20260812100200','20260812100300',
+    '20260812100400','20260812100500','20260812100600',
+    '20260812100700','20260812100800','20260812100900',
+    '20260812101000','20260812101100','20260812104754',
+    '20260812114638','20260812115556','20260812132725',
+    '20260812152300','20260812161500','20260812185500',
+    '20260812193329','20260812193400','20260812203000',
+    '20260812203500','20260812220000','20260813010000',
+    '20260813012206','20260813013000','20260813013100',
+    '20260813013200','20260813013300','20260813020000',
+    '20260813085442','20260813091801','20260814001123',
+    '20260814051720','20260815100500','20260815110000',
+    '20260815120000','20260815130000','20260816083000',
+    '20260816185321','20260816190000','20260816190454',
+    '20260816230000','20260816233000','20260817010000',
+    '20260817020000','20260817021000','20260817022000',
+    '20260817030000','20260817040000','20260817050000',
+    '20260817100000','20260817110500','20260817114700',
+    '20260817120000','20260817121000','20260817130000',
+    '20260817131000','20260817132000','20260817133000',
+    '20260818040246','20260818064000','20260818074500',
+    '20260818092855','20260818115000','20260818134000',
+    '20260818150000','20260818160000','20260818170000',
+    '20260818180000','20260818223637','20260818232541',
+    '20260819002500','20260819020000','20260819030000','20260819050728'
     -- END EXACT PRODUCTION BASELINE VERSIONS
   ]::text[])
 ),
 actual_baseline(version) AS (
   SELECT version::text
   FROM supabase_migrations.schema_migrations
-  WHERE version::text <= '20260811001500'
+  WHERE version::text <= '20260819050728'
 )
 SELECT NOT EXISTS (
   (
@@ -144,59 +176,33 @@ SELECT NOT EXISTS (
 \gset
 
 SELECT
-  count(*) = 236
-    AND min(version::text) = '20260325181408'
-    AND max(version::text) = '20260811001500'
-    AND :'baseline_versions_exact'::boolean
-    AND count(*) FILTER (
-      WHERE version::text > '20260811001500'
-    ) = 0 AS baseline_ledger,
   count(*) = 333
     AND min(version::text) = '20260325181408'
     AND max(version::text) = '20260819050728'
+    AND :'baseline_versions_exact'::boolean
+    AND count(*) FILTER (
+      WHERE version::text > '20260819050728'
+    ) = 0 AS baseline_ledger,
+  count(*) = 355
+    AND min(version::text) = '20260325181408'
+    AND max(version::text) = '20260822154500'
     AND :'baseline_versions_exact'::boolean
     AND (
       SELECT array_agg(pending.version ORDER BY pending.version)
       FROM (
         SELECT version::text AS version
         FROM supabase_migrations.schema_migrations
-        WHERE version::text > '20260811001500'
+        WHERE version::text > '20260819050728'
       ) AS pending
     ) = ARRAY[
       -- BEGIN EXACT PRODUCTION TARGET TAIL
-      '20260811063522','20260811073000','20260811074518',
-      '20260811081506','20260811085048','20260811100000',
-      '20260811110000','20260811120000','20260811132454',
-      '20260811160000','20260811161000','20260811170000',
-      '20260811180000','20260811233646','20260812010529',
-      '20260812030000','20260812065621','20260812071500',
-      '20260812072357','20260812073000','20260812100000',
-      '20260812100100','20260812100200','20260812100300',
-      '20260812100400','20260812100500','20260812100600',
-      '20260812100700','20260812100800','20260812100900',
-      '20260812101000','20260812101100','20260812104754',
-      '20260812114638','20260812115556','20260812132725',
-      '20260812152300','20260812161500','20260812185500',
-      '20260812193329','20260812193400','20260812203000',
-      '20260812203500','20260812220000','20260813010000',
-      '20260813012206','20260813013000','20260813013100',
-      '20260813013200','20260813013300','20260813020000',
-      '20260813085442','20260813091801','20260814001123',
-      '20260814051720','20260815100500','20260815110000',
-      '20260815120000','20260815130000','20260816083000',
-      '20260816185321','20260816190000','20260816190454',
-      '20260816230000','20260816233000','20260817010000',
-      '20260817020000','20260817021000','20260817022000',
-      '20260817030000','20260817040000','20260817050000',
-      '20260817100000','20260817110500','20260817114700',
-      '20260817120000','20260817121000',
-      '20260817130000','20260817131000','20260817132000',
-      '20260817133000','20260818040246','20260818064000',
-      '20260818074500','20260818092855','20260818115000',
-      '20260818134000','20260818150000','20260818160000',
-      '20260818170000','20260818180000','20260818223637',
-      '20260818232541','20260819002500','20260819020000',
-      '20260819030000','20260819050728'
+      '20260820090000',
+      '20260820100000','20260820110000','20260820120000','20260820130000',
+      '20260821005258','20260821024024','20260821041738','20260821044815',
+      '20260821052000','20260821232923','20260821233000','20260822000923',
+      '20260822032423','20260822044742','20260822060000','20260822070000',
+      '20260822075815','20260822084356','20260822134710','20260822151500',
+      '20260822154500'
       -- END EXACT PRODUCTION TARGET TAIL
     ]::text[] AS target_ledger
 FROM supabase_migrations.schema_migrations
@@ -204,7 +210,7 @@ FROM supabase_migrations.schema_migrations
 
 \if :baseline_ledger
   \set cutover_shape pre
-  \echo 'PASS L0: exact Production baseline; 97 migrations pending.'
+  \echo 'PASS L0: exact Production baseline; 22 migrations pending.'
 \elif :target_ledger
   \set cutover_shape post
   \echo 'PASS L0: exact repository target; zero migrations pending.'
@@ -1787,6 +1793,11 @@ SELECT
       ('public.cancel_project_transactional(uuid,text)', 'authenticated'),
       ('public.end_recurring_project_series_transactional(uuid)', 'authenticated'),
       ('public.end_recurring_project_series_transactional(uuid,jsonb)', 'authenticated'),
+      ('public.get_csf_application_role_context(uuid,text)', 'authenticated'),
+      ('public.get_plugin_application_access_context(uuid,text,text)', 'authenticated'),
+      ('public.get_plugin_application_access_context_by_identifier(text,text,text)', 'authenticated'),
+      ('public.get_plugin_application_route_target_by_identifier(text,text,text)', 'authenticated'),
+      ('public.get_plugin_application_asset_route_target_by_identifier(text,text,text,text)', 'authenticated'),
       ('public.get_public_attendees(uuid)', 'anon'),
       ('public.get_public_attendees(uuid)', 'authenticated'),
       ('public.is_project_organizer(uuid,uuid)', 'authenticated'),
@@ -1798,6 +1809,17 @@ SELECT
   ),
   client(role_name) AS (
     VALUES ('anon'::text), ('authenticated'::text)
+  ),
+  reviewed_security_definer(signature, role_name) AS (
+    SELECT expected.signature, expected.role_name
+    FROM expected
+    WHERE expected.signature IN (
+      'public.get_csf_application_role_context(uuid,text)',
+      'public.get_plugin_application_access_context(uuid,text,text)',
+      'public.get_plugin_application_access_context_by_identifier(text,text,text)',
+      'public.get_plugin_application_route_target_by_identifier(text,text,text)',
+      'public.get_plugin_application_asset_route_target_by_identifier(text,text,text,text)'
+    )
   ),
   actual AS (
     SELECT
@@ -1865,11 +1887,40 @@ SELECT
         function_record.oid,
         'EXECUTE'
       )
+      AND NOT EXISTS (
+        SELECT 1
+        FROM reviewed_security_definer AS reviewed
+        WHERE reviewed.signature = pg_catalog.format(
+          'public.%I(%s)',
+          function_record.proname,
+          pg_catalog.replace(
+            pg_catalog.oidvectortypes(function_record.proargtypes),
+            ', ',
+            ','
+          )
+        )
+          AND reviewed.role_name = client.role_name
+      )
+  ),
+  security_definer_posture_drift AS (
+    SELECT
+      'reviewed_security_definer_posture'::text AS drift_kind,
+      reviewed.signature,
+      reviewed.role_name
+    FROM reviewed_security_definer AS reviewed
+    WHERE pg_catalog.to_regprocedure(reviewed.signature) IS NULL
+      OR NOT (
+        SELECT function_record.prosecdef
+        FROM pg_catalog.pg_proc AS function_record
+        WHERE function_record.oid = pg_catalog.to_regprocedure(reviewed.signature)
+      )
   ),
   violations AS (
     SELECT * FROM acl_drift
     UNION ALL
     SELECT * FROM security_definer_client_exec
+    UNION ALL
+    SELECT * FROM security_definer_posture_drift
   )
   SELECT
     count(*) = 0 AS target_function_acl_pass,

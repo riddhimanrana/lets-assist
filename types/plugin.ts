@@ -775,6 +775,8 @@ export interface OrganizationPluginAdminSetting {
   installedVersion: string | null;
   forceUpdateVersion: string | null;
   updateAvailable: boolean;
+  /** Whether the catalog target is included in the code serving this request. */
+  updateDeployedInRuntime: boolean;
   forceUpdateRequired: boolean;
   codeRepository: string | null;
   codeReference: string | null;
@@ -798,4 +800,15 @@ export interface OrganizationPluginAdminSetting {
    * the plugin declared no uncovered systems.
    */
   dataDeletionExternalSystemsNotCovered: string[];
+  applicationRuntime: {
+    environment: "development" | "production";
+    availableVersion: string;
+    selectedVersion: string | null;
+    version: string | null;
+    enabled: boolean;
+    canEnable: boolean;
+    deploymentHealthy: boolean;
+    deploymentUrl: string | null;
+    healthReportedAt: string | null;
+  } | null;
 }

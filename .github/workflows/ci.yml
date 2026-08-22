@@ -16,7 +16,7 @@ on:
   workflow_dispatch:
 
 concurrency:
-  group: pr-quality-${{ github.ref }}
+  group: pr-quality-${{ github.event.pull_request.head.sha || github.sha }}
   cancel-in-progress: true
 
 permissions:
@@ -130,6 +130,26 @@ jobs:
       - name: Lint
         run: bun run lint
 
+      # Runs against the exact gitlink checked out above, which is the same
+      # revision the private repository type checks against. A new plugin import
+      # of a host module that is not yet on the default branch fails here with
+      # the specifier named, instead of surfacing as an opaque module-resolution
+      # error inside a pair of pull requests that block each other.
+      - name: Check plugin/host import boundary
+        run: bun run plugin:check:boundary
+
+      # Application-profile plugins own their package graph and security gates.
+      # The host verifies that ownership before excluding child sources from its
+      # own compiler, linter, test discovery, and route inventory.
+      - name: Check independent plugin applications
+        run: bun run plugin:apps:check
+
+      - name: Build and test the versioned plugin SDK
+        run: bun run plugin:sdk:test
+
+      - name: Test signed plugin release integration
+        run: bun run plugin:test:release-integration
+
       - name: Typecheck
         run: bun run typecheck
 
@@ -220,6 +240,12 @@ jobs:
 
       - name: Install dependencies
         run: bun install --frozen-lockfile
+
+      # The CSF application owns an independent lockfile and package graph. The
+      # browser launcher starts that application on port 3001, so this job must
+      # install its exact dependencies even though the root install succeeded.
+      - name: Install private plugin application dependencies
+        run: bun install --frozen-lockfile --cwd lib/plugins/private/apps/csf
 
       - name: Setup Supabase CLI
         uses: supabase/setup-cli@v2

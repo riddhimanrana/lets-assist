@@ -1,0 +1,297 @@
+name: Integrate signed private plugin release
+
+on:
+  repository_dispatch:
+    types:
+      - plugin-release-published
+  workflow_dispatch:
+    inputs:
+      release_tag:
+        description: "Exact private release tag, for example dvhs-csf/v1.2.0"
+        required: true
+        type: string
+
+concurrency:
+  # The migration ledger is global. Serialize all plugin publications so two
+  # releases cannot allocate the same next timestamp from one Development head.
+  group: plugin-release-integration
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  integrate:
+    runs-on: ubuntu-latest
+    env:
+      PRIVATE_REPOSITORY: riddhimanrana/lets-assist-plugins
+      RELEASE_TAG: ${{ github.event.client_payload.summary.tag || inputs.release_tag }}
+    steps:
+      - name: Require the private release read credential
+        env:
+          PRIVATE_PLUGIN_RELEASE_TOKEN: ${{ secrets.PRIVATE_PLUGIN_RELEASE_TOKEN }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ -z "${PRIVATE_PLUGIN_RELEASE_TOKEN:-}" ]]; then
+            echo "PRIVATE_PLUGIN_RELEASE_TOKEN is required to read signed private release assets." >&2
+            exit 1
+          fi
+          if [[ ! "${RELEASE_TAG}" =~ ^[a-z0-9]+(-[a-z0-9]+)*/v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "Refusing malformed private release tag: ${RELEASE_TAG}" >&2
+            exit 1
+          fi
+
+      - name: Checkout root Development
+        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # ratchet:actions/checkout@v6
+        with:
+          ref: development
+          fetch-depth: 0
+          submodules: false
+
+      - name: Refuse an unordered integration pull request
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          open_integrations="$(
+            gh api \
+              --paginate \
+              --slurp \
+              "/repos/${GITHUB_REPOSITORY}/pulls?base=development&state=open&per_page=100" \
+            | jq '[.[][] | select(.head.ref | startswith("codex/plugin-release-"))]'
+          )"
+          if [[ "$(jq 'length' <<<"${open_integrations}")" -ne 0 ]]; then
+            echo "A signed plugin integration PR is already open. Merge or close it before publishing the next ledger entry." >&2
+            jq -r '.[] | "#\(.number) \(.head.ref) \(.html_url)"' <<<"${open_integrations}" >&2
+            exit 1
+          fi
+
+      - name: Setup Node
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version-file: .node-version
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
+        with:
+          bun-version: 1.3.14
+
+      - name: Download the known private release assets
+        env:
+          GH_TOKEN: ${{ secrets.PRIVATE_PLUGIN_RELEASE_TOKEN }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p .artifacts/plugin-release
+          for asset in \
+            release-manifest.json \
+            release-manifest.sigstore.json \
+            release.cdx.json \
+            SHA256SUMS
+          do
+            gh release download "${RELEASE_TAG}" \
+              --repo "${PRIVATE_REPOSITORY}" \
+              --pattern "${asset}" \
+              --dir .artifacts/plugin-release
+          done
+
+      - name: Download the signed independent build artifact
+        env:
+          GH_TOKEN: ${{ secrets.PRIVATE_PLUGIN_RELEASE_TOKEN }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          manifest=.artifacts/plugin-release/release-manifest.json
+          profile="$(jq -r .runtimeProfile "${manifest}")"
+          if [[ "${profile}" == application ]]; then
+            format="$(jq -r .buildArtifact.format "${manifest}")"
+            if [[ "${format}" == vercel-prebuilt-v1 ]]; then
+              artifacts=(plugin-build.tar.gz)
+            elif [[ "${format}" == vercel-prebuilt-multi-env-v1 ]]; then
+              artifacts=(
+                plugin-build-development.tar.gz
+                plugin-build-production.tar.gz
+              )
+            else
+              echo "Unsupported application build format: ${format}" >&2
+              exit 1
+            fi
+            for artifact in "${artifacts[@]}"; do
+              gh release download "${RELEASE_TAG}" \
+                --repo "${PRIVATE_REPOSITORY}" \
+                --pattern "${artifact}" \
+                --dir .artifacts/plugin-release
+            done
+          elif [[ "${profile}" != embedded ]]; then
+            echo "Unsupported private runtime profile: ${profile}" >&2
+            exit 1
+          fi
+
+      - name: Install Cosign
+        uses: sigstore/cosign-installer@6f9f17788090df1f26f669e9d70d6ae9567deba6 # v4.1.2
+
+      - name: Verify the signed release identity
+        shell: bash
+        run: |
+          set -euo pipefail
+          manifest=.artifacts/plugin-release/release-manifest.json
+          bundle=.artifacts/plugin-release/release-manifest.sigstore.json
+          identity="https://github.com/${PRIVATE_REPOSITORY}/.github/workflows/plugin-release.yml@refs/tags/${RELEASE_TAG}"
+          cosign verify-blob \
+            --bundle "${bundle}" \
+            --certificate-identity "${identity}" \
+            --certificate-oidc-issuer https://token.actions.githubusercontent.com \
+            "${manifest}"
+          (
+            cd .artifacts/plugin-release
+            sed 's#\.artifacts/plugin-release/##' SHA256SUMS | sha256sum --check -
+          )
+
+      - name: Bind dispatch metadata to the signed manifest
+        id: release
+        env:
+          CLIENT_PAYLOAD: ${{ toJson(github.event.client_payload) }}
+          EVENT_NAME: ${{ github.event_name }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          manifest=.artifacts/plugin-release/release-manifest.json
+          jq -e \
+            --arg tag "${RELEASE_TAG}" \
+            --arg repository "${PRIVATE_REPOSITORY}" \
+            '.tag == $tag
+             and .signerIdentity.subject == ("https://github.com/" + $repository + "/.github/workflows/plugin-release.yml@refs/tags/" + $tag)
+             and .signerIdentity.issuer == "https://token.actions.githubusercontent.com"' \
+            "${manifest}" >/dev/null
+          if [[ "${EVENT_NAME}" == repository_dispatch ]]; then
+            jq -e \
+              --argjson payload "${CLIENT_PAYLOAD}" \
+              '$payload.summary == {pluginKey,version,tag,sourceCommit,contentDigest,manifestDigest,buildDigest,buildArtifact,sbomDigest,runtimeProfile}' \
+              "${manifest}" >/dev/null
+            jq -e \
+              --arg repository "${PRIVATE_REPOSITORY}" \
+              '.releaseUrl | startswith("https://github.com/" + $repository + "/releases/tag/")' \
+              <<<"${CLIENT_PAYLOAD}" >/dev/null
+          fi
+          echo "plugin_key=$(jq -r .pluginKey "${manifest}")" >> "${GITHUB_OUTPUT}"
+          echo "version=$(jq -r .version "${manifest}")" >> "${GITHUB_OUTPUT}"
+          echo "source_commit=$(jq -r .sourceCommit "${manifest}")" >> "${GITHUB_OUTPUT}"
+
+      - name: Checkout the exact private release source
+        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # ratchet:actions/checkout@v6
+        with:
+          repository: riddhimanrana/lets-assist-plugins
+          ref: ${{ steps.release.outputs.source_commit }}
+          path: lib/plugins/private
+          token: ${{ secrets.PRIVATE_PLUGIN_RELEASE_TOKEN }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Record the embedded runtime pin
+        id: embedded
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo "source_commit=$(git rev-parse HEAD:lib/plugins/private)" >> "${GITHUB_OUTPUT}"
+
+      - name: Recheck the tag and private promotion ancestry
+        env:
+          GH_TOKEN: ${{ secrets.PRIVATE_PLUGIN_RELEASE_TOKEN }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          gh auth setup-git
+          git -C lib/plugins/private remote set-url origin \
+            https://github.com/riddhimanrana/lets-assist-plugins.git
+          git -C lib/plugins/private fetch --force origin \
+            refs/heads/main:refs/remotes/origin/main \
+            refs/heads/development:refs/remotes/origin/development \
+            "refs/tags/${RELEASE_TAG}:refs/tags/${RELEASE_TAG}"
+          tag_commit="$(git -C lib/plugins/private rev-list -n 1 "${RELEASE_TAG}")"
+          if [[ "${tag_commit}" != "${{ steps.release.outputs.source_commit }}" ]]; then
+            echo "Private release tag does not resolve to the signed source commit." >&2
+            exit 1
+          fi
+          git -C lib/plugins/private merge-base --is-ancestor \
+            "${tag_commit}" origin/main
+          git -C lib/plugins/private merge-base --is-ancestor \
+            "${tag_commit}" origin/development
+          git submodule absorbgitdirs lib/plugins/private
+
+      - name: Reconstruct and integrate the release
+        id: integrate
+        shell: bash
+        run: |
+          set -euo pipefail
+          attestation_ref="github-release:${RELEASE_TAG}/release-manifest.sigstore.json"
+          args=(
+            --manifest .artifacts/plugin-release/release-manifest.json \
+            --sbom .artifacts/plugin-release/release.cdx.json \
+            --private-root lib/plugins/private \
+            --registry lib/plugins/published-releases.json \
+            --application-targets lib/plugins/application-deployment-targets.json \
+            --migrations-dir supabase/migrations \
+            --migration-version auto \
+            --attestation-ref "${attestation_ref}"
+          )
+          if [[ -f .artifacts/plugin-release/plugin-build.tar.gz ]]; then
+            args+=(--build .artifacts/plugin-release/plugin-build.tar.gz)
+          elif [[ -f .artifacts/plugin-release/plugin-build-development.tar.gz ]]; then
+            args+=(
+              --build-development .artifacts/plugin-release/plugin-build-development.tar.gz
+              --build-production .artifacts/plugin-release/plugin-build-production.tar.gz
+            )
+          fi
+          node scripts/plugins/integrate-private-release.mjs "${args[@]}" \
+            > .artifacts/plugin-release/integration-summary.json
+          echo "migration=$(jq -r .migrationPath .artifacts/plugin-release/integration-summary.json)" >> "${GITHUB_OUTPUT}"
+
+      - name: Validate the generated integration
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ "$(jq -r .runtimeProfile .artifacts/plugin-release/release-manifest.json)" == application ]]; then
+            git -C lib/plugins/private checkout --detach \
+              "${{ steps.embedded.outputs.source_commit }}"
+          fi
+          git add lib/plugins/private
+          bun install --frozen-lockfile
+          bunx prettier --write lib/plugins/published-releases.json
+          bun run plugin:submodules:check:strict
+          bun run plugin:test:registry
+          node --test scripts/plugins/integrate-private-release.test.mjs
+          bunx prettier --check \
+            lib/plugins/published-releases.json \
+            lib/plugins/published-releases.ts \
+            scripts/plugins/integrate-private-release.mjs
+          git diff --check
+
+      - name: Open the ordered root integration pull request
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PLUGIN_KEY: ${{ steps.release.outputs.plugin_key }}
+          VERSION: ${{ steps.release.outputs.version }}
+          SOURCE_COMMIT: ${{ steps.release.outputs.source_commit }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          branch="codex/plugin-release-${PLUGIN_KEY}-v${VERSION}"
+          git switch -c "${branch}"
+          git config user.name "lets-assist-release[bot]"
+          git config user.email "lets-assist-release[bot]@users.noreply.github.com"
+          git add \
+            lib/plugins/private \
+            lib/plugins/published-releases.json \
+            supabase/migrations \
+            supabase/tests/database
+          git commit -m "release(${PLUGIN_KEY}): integrate v${VERSION}"
+          git push --set-upstream origin "${branch}"
+          gh pr create \
+            --repo "${GITHUB_REPOSITORY}" \
+            --base development \
+            --head "${branch}" \
+            --title "release(${PLUGIN_KEY}): integrate v${VERSION}" \
+            --body "Signed private release ${RELEASE_TAG}. Source commit: ${SOURCE_COMMIT}. Organization installs remain pinned until an administrator selects Update."
