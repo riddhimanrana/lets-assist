@@ -15,7 +15,7 @@ import {
   Trash2,
   Wrench,
 } from "lucide-react";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 
 import { describePluginUninstallImpact } from "@/lib/plugins/plugin-uninstall-impact";
@@ -237,6 +237,7 @@ export default function OrganizationPluginSettings({
   organizationId,
   organizationName,
 }: OrganizationPluginSettingsProps) {
+  const applicationRuntimeRequestIds = useRef(new Map<string, string>());
   const [result, setResult] = useState<OrganizationPluginSettingsResult | null>(
     null,
   );
@@ -544,26 +545,50 @@ export default function OrganizationPluginSettings({
     enabled: boolean,
   ) => {
     setUpdatingActionId(`${plugin.key}:application-runtime`);
-    const response = await setOrganizationPluginApplicationRuntime({
-      organizationId,
-      pluginKey: plugin.key,
-      enabled,
-      targetVersion: plugin.applicationRuntime?.version ?? undefined,
-    });
+    const targetVersion = enabled
+      ? plugin.applicationRuntime?.availableVersion
+      : undefined;
+    const requestKey = [
+      plugin.key,
+      enabled ? "application" : "embedded",
+      targetVersion ?? "none",
+      plugin.applicationRuntime?.enabled ? "enabled" : "disabled",
+      plugin.applicationRuntime?.selectedVersion ?? "none",
+    ].join(":");
+    const requestId =
+      applicationRuntimeRequestIds.current.get(requestKey) ??
+      crypto.randomUUID();
+    applicationRuntimeRequestIds.current.set(requestKey, requestId);
+    try {
+      const response = await setOrganizationPluginApplicationRuntime({
+        organizationId,
+        pluginKey: plugin.key,
+        enabled,
+        targetVersion,
+        expectedEnabled: plugin.applicationRuntime?.enabled === true,
+        expectedVersion:
+          plugin.applicationRuntime?.selectedVersion ?? undefined,
+        requestId,
+      });
 
-    if (!response.success) {
-      toast.error(response.error || "Failed to change the plugin runtime");
+      if (!response.success) {
+        toast.error(response.error || "Failed to change the plugin runtime");
+        return;
+      }
+
+      applicationRuntimeRequestIds.current.delete(requestKey);
+
+      toast.success(
+        enabled
+          ? `Application ${targetVersion} enabled`
+          : `Embedded ${plugin.installedVersion || plugin.latestVersion} restored`,
+      );
+      await loadSettings();
+    } catch {
+      toast.error("Connection error. Retry the same change safely.");
+    } finally {
       setUpdatingActionId(null);
-      return;
     }
-
-    toast.success(
-      enabled
-        ? `Application ${plugin.applicationRuntime?.version} enabled`
-        : `Embedded ${plugin.installedVersion || plugin.latestVersion} restored`,
-    );
-    await loadSettings();
-    setUpdatingActionId(null);
   };
 
   const handleOpenSettingsEditor = (plugin: OrganizationPluginAdminSetting) => {

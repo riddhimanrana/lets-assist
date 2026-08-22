@@ -78,6 +78,14 @@ This register separates actionable repository defects from provider/account and 
   first two projects but disclosed a $2 per million routed-request fee, so the
   rollout flag and routed acceptance remain blocked on explicit cost approval.
   Hosted browser acceptance must pass before any install is activated.
+- `PLUGIN-FOUND-010` is repository-closed on this candidate. Application
+  runtime changes now use a browser-stable request ID, a durable payload-bound
+  receipt, and a database compare-and-set check. A delayed retry returns its
+  recorded outcome without restoring obsolete routing. Settings keep the
+  selected version and its deployment health separate from the newest
+  available release. A fresh 351-migration replay, 35 focused pgTAP assertions,
+  TypeScript, focused ESLint, and the architecture audit pass locally. Hosted
+  Development migration and browser acceptance remain release gates.
 - Private release `1.2.1` is signed and published. Root PR #238 merged it into
   `development` at `411421a9bf9ea3f1aa251abda3f7664f054d48ea`, and hosted
   Development is migration-current at 342 rows through `20260821044815` with

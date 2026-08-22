@@ -802,6 +802,8 @@ export interface OrganizationPluginAdminSetting {
   dataDeletionExternalSystemsNotCovered: string[];
   applicationRuntime: {
     environment: "development" | "production";
+    availableVersion: string;
+    selectedVersion: string | null;
     version: string | null;
     enabled: boolean;
     canEnable: boolean;

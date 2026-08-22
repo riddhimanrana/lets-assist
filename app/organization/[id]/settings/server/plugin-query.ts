@@ -67,11 +67,15 @@ function listRuntimePluginsForSettings(): RuntimePluginInfo[] {
 
 type ApplicationRuntimeStatus = {
   applicationVersion?: string | null;
+  selectedApplicationVersion?: string | null;
   applicationEnabled?: boolean;
   canEnable?: boolean;
   deploymentHealthy?: boolean;
   deploymentUrl?: string | null;
   healthReportedAt?: string | null;
+  selectedDeploymentHealthy?: boolean;
+  selectedDeploymentUrl?: string | null;
+  selectedHealthReportedAt?: string | null;
 };
 
 async function attachApplicationRuntimeStatus(
@@ -102,16 +106,29 @@ async function attachApplicationRuntimeStatus(
       if (!status.applicationVersion) {
         return plugin;
       }
+      const applicationEnabled = status.applicationEnabled === true;
+      const selectedVersion = status.selectedApplicationVersion ?? null;
       return {
         ...plugin,
         applicationRuntime: {
           environment,
-          version: status.applicationVersion,
-          enabled: status.applicationEnabled === true,
+          availableVersion: status.applicationVersion,
+          selectedVersion,
+          version:
+            applicationEnabled && selectedVersion
+              ? selectedVersion
+              : status.applicationVersion,
+          enabled: applicationEnabled,
           canEnable: status.canEnable === true,
-          deploymentHealthy: status.deploymentHealthy === true,
-          deploymentUrl: status.deploymentUrl ?? null,
-          healthReportedAt: status.healthReportedAt ?? null,
+          deploymentHealthy: applicationEnabled
+            ? status.selectedDeploymentHealthy === true
+            : status.deploymentHealthy === true,
+          deploymentUrl: applicationEnabled
+            ? (status.selectedDeploymentUrl ?? null)
+            : (status.deploymentUrl ?? null),
+          healthReportedAt: applicationEnabled
+            ? (status.selectedHealthReportedAt ?? null)
+            : (status.healthReportedAt ?? null),
         },
       };
     }),
