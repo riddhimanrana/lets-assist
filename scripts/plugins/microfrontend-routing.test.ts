@@ -10,6 +10,7 @@ test("the CSF application path belongs to the flagged child project", () => {
   expect(() =>
     validateRouting(configPath, {
       "lets-assist-csf": [
+        "/api/plugins/dvhs-csf/health",
         {
           path: "/organization/example/plugins/dvhs-csf/access-proof",
           flag: "dvhs-csf-application-runtime",

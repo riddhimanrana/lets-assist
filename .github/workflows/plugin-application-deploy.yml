@@ -252,7 +252,7 @@ jobs:
           deployment_host="${deployment_host#http://}"
           curl --fail-with-body --silent --show-error \
             --header "x-vercel-protection-bypass: ${VERCEL_AUTOMATION_BYPASS_SECRET}" \
-            "https://${deployment_host}/api/health" \
+            "https://${deployment_host}/api/plugins/${PLUGIN_KEY}/health" \
             > .artifacts/plugin-health.json
           jq -e 'type == "object"' .artifacts/plugin-health.json >/dev/null
           echo "response_reached=true" >> "${GITHUB_OUTPUT}"
@@ -278,7 +278,7 @@ jobs:
             --arg promotion "${promotion_status}" \
             --arg url "${{ steps.deploy.outputs.url }}" \
             --arg tag "${RELEASE_TAG}" \
-            '{p_plugin_key:$plugin,p_environment:$environment,p_deployment_id:$deployment,p_health_status:"healthy",p_promotion_status:$promotion,p_health_evidence:{healthRoute:"/api/health",deploymentUrl:$url,releaseTag:$tag}}' \
+            '{p_plugin_key:$plugin,p_environment:$environment,p_deployment_id:$deployment,p_health_status:"healthy",p_promotion_status:$promotion,p_health_evidence:{healthRoute:("/api/plugins/" + $plugin + "/health"),deploymentUrl:$url,releaseTag:$tag}}' \
             > .artifacts/report-deployment.json
           curl --fail-with-body --silent --show-error \
             "${SUPABASE_URL}/rest/v1/rpc/report_plugin_deployment_health" \
@@ -299,7 +299,7 @@ jobs:
             --arg deployment "${{ steps.deploy.outputs.id }}" \
             --arg url "${{ steps.deploy.outputs.url }}" \
             --arg tag "${RELEASE_TAG}" \
-            '{p_plugin_key:$plugin,p_environment:$environment,p_deployment_id:$deployment,p_health_status:"unhealthy",p_promotion_status:"deployed",p_health_evidence:{healthRoute:"/api/health",deploymentUrl:$url,releaseTag:$tag,result:"rejected"}}' \
+            '{p_plugin_key:$plugin,p_environment:$environment,p_deployment_id:$deployment,p_health_status:"unhealthy",p_promotion_status:"deployed",p_health_evidence:{healthRoute:("/api/plugins/" + $plugin + "/health"),deploymentUrl:$url,releaseTag:$tag,result:"rejected"}}' \
             > .artifacts/report-deployment.json
           curl --fail-with-body --silent --show-error \
             "${SUPABASE_URL}/rest/v1/rpc/report_plugin_deployment_health" \
