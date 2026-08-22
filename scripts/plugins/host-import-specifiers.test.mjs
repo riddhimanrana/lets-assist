@@ -82,6 +82,36 @@ describe("host import specifier collection", () => {
     ]);
   });
 
+  test("decodes escaped host and escaping-relative module specifiers", () => {
+    const repositoryRoot = "/work/lets-assist";
+    const privateRoot = join(repositoryRoot, "lib/plugins/private");
+    const sourceFile = join(privateRoot, "plugins/example/feature/index.ts");
+    const source = String.raw`
+      import host from "@\x2flib/escaped-host";
+      const relative = import("\u002e\u002e/\u002e\u002e/\u002e\u002e/\u002e\u002e/registry");
+    `;
+
+    expect(
+      [
+        ...collectHostImportSpecifiers(source, {
+          sourceFile,
+          privateRoot,
+          repositoryRoot,
+        }),
+      ].sort(),
+    ).toEqual(["@/lib/escaped-host", "@/lib/plugins/registry"]);
+  });
+
+  test("accepts comments between CommonJS call tokens", () => {
+    const source = `
+      const host = require /* bundler */ (/* keep */ "@/lib/commented");
+    `;
+
+    expect([...collectHostImportSpecifiers(source)]).toEqual([
+      "@/lib/commented",
+    ]);
+  });
+
   test("ignores non-host imports", () => {
     const source = `
       import "react";

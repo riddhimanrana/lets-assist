@@ -807,7 +807,8 @@ unexpected_security_definer_exec="$(
         (pg_catalog.to_regprocedure('public.get_csf_application_role_context(uuid,text)')::oid, 'authenticated'::text),
         (pg_catalog.to_regprocedure('public.get_plugin_application_access_context(uuid,text,text)')::oid, 'authenticated'::text),
         (pg_catalog.to_regprocedure('public.get_plugin_application_access_context_by_identifier(text,text,text)')::oid, 'authenticated'::text),
-        (pg_catalog.to_regprocedure('public.get_plugin_application_route_target_by_identifier(text,text,text)')::oid, 'authenticated'::text)
+        (pg_catalog.to_regprocedure('public.get_plugin_application_route_target_by_identifier(text,text,text)')::oid, 'authenticated'::text),
+        (pg_catalog.to_regprocedure('public.get_plugin_application_asset_route_target_by_identifier(text,text,text,text)')::oid, 'authenticated'::text)
     ),
     grants as (
       select p.oid as function_oid, n.nspname, p.proname, pg_get_function_identity_arguments(p.oid) as identity_arguments, r.rolname
@@ -845,6 +846,7 @@ public_client_function_acl_drift="$(
         ('public.get_plugin_application_access_context(uuid,text,text)', 'authenticated'),
         ('public.get_plugin_application_access_context_by_identifier(text,text,text)', 'authenticated'),
         ('public.get_plugin_application_route_target_by_identifier(text,text,text)', 'authenticated'),
+        ('public.get_plugin_application_asset_route_target_by_identifier(text,text,text,text)', 'authenticated'),
         ('public.get_public_attendees(uuid)', 'anon'),
         ('public.get_public_attendees(uuid)', 'authenticated'),
         ('public.is_project_organizer(uuid,uuid)', 'authenticated'),

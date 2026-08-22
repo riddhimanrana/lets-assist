@@ -88,6 +88,8 @@ test("rejects provider, database, and deployment credentials in child dotenv fil
     "GITHUB_TOKEN",
     "VERCEL_TOKEN",
     "RESEND_API_KEY",
+    "AWS_SECRET_ACCESS_KEY",
+    "STRIPE_SECRET_KEY",
     "DATABASE_URL",
   ]) {
     const { appRoot } = fixture();
