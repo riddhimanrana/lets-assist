@@ -1,7 +1,7 @@
 BEGIN;
 
 CREATE EXTENSION IF NOT EXISTS pgtap WITH SCHEMA extensions;
-SELECT extensions.plan(44);
+SELECT extensions.plan(45);
 
 SELECT extensions.ok(
   has_function_privilege(
@@ -429,6 +429,54 @@ SELECT extensions.is(
   'runtime_not_selected',
   'an unleased historical runtime is denied even when its release is compatible'
 );
+
+RESET ROLE;
+UPDATE public.organization_plugin_installs
+SET desired_version = '1.1.0'
+WHERE organization_id = 'f0100000-0000-4000-8000-000000000001'
+  AND plugin_key = 'application-access-fixture';
+UPDATE public.organization_plugin_feature_flags
+SET metadata = '{"runtimeVersion":"1.1.0","environment":"development","deploymentId":"dpl_historical_fixture"}'::jsonb
+WHERE organization_id = 'f0100000-0000-4000-8000-000000000001'
+  AND plugin_key = 'application-access-fixture'
+  AND flag_key = 'application-runtime';
+SET LOCAL ROLE authenticated;
+SET LOCAL "request.jwt.claims" =
+  '{"sub":"f0000000-0000-4000-8000-000000000001","role":"authenticated"}';
+
+SELECT extensions.is(
+  public.get_plugin_application_route_target_by_identifier(
+    'plugin-application-access',
+    'application-access-fixture',
+    'development'
+  ) ->> 'deploymentId',
+  'dpl_historical_fixture',
+  'only selecting the historical runtime may mint its bounded grace lease'
+);
+
+RESET ROLE;
+UPDATE public.organization_plugin_installs
+SET desired_version = '1.2.0'
+WHERE organization_id = 'f0100000-0000-4000-8000-000000000001'
+  AND plugin_key = 'application-access-fixture';
+UPDATE public.organization_plugin_feature_flags
+SET metadata = '{"runtimeVersion":"1.2.0","environment":"development"}'::jsonb
+WHERE organization_id = 'f0100000-0000-4000-8000-000000000001'
+  AND plugin_key = 'application-access-fixture'
+  AND flag_key = 'application-runtime';
+SET LOCAL ROLE authenticated;
+SET LOCAL "request.jwt.claims" =
+  '{"sub":"f0000000-0000-4000-8000-000000000001","role":"authenticated"}';
+
+SELECT extensions.is(
+  public.get_plugin_application_access_context(
+    'f0100000-0000-4000-8000-000000000001',
+    'application-access-fixture',
+    '1.1.0'
+  ) ->> 'accessible',
+  'true',
+  'a lease minted while selected authorizes the historical runtime after an update'
+);
 SELECT extensions.is(
   public.get_plugin_application_asset_route_target_by_identifier(
     'plugin-application-access',
@@ -439,19 +487,54 @@ SELECT extensions.is(
   'true',
   'the host may route the active member to one exact healthy historical deployment'
 );
+
+RESET ROLE;
+UPDATE private.plugin_application_runtime_leases
+SET expires_at = now() - interval '1 second'
+WHERE organization_id = 'f0100000-0000-4000-8000-000000000001'
+  AND plugin_key = 'application-access-fixture'
+  AND actor_user_id = 'f0000000-0000-4000-8000-000000000001';
+SET LOCAL ROLE authenticated;
+SET LOCAL "request.jwt.claims" =
+  '{"sub":"f0000000-0000-4000-8000-000000000001","role":"authenticated"}';
+
 SELECT extensions.is(
   public.get_plugin_application_access_context(
     'f0100000-0000-4000-8000-000000000001',
     'application-access-fixture',
     '1.1.0'
-  ) ->> 'accessible',
-  'true',
-  'the exact caller-scoped deployment lease authorizes the historical runtime'
+  ) ->> 'reason',
+  'runtime_not_selected',
+  'exact asset routing cannot renew an expired historical lease'
 );
 
 RESET ROLE;
+UPDATE public.organization_plugin_installs
+SET desired_version = '1.1.0'
+WHERE organization_id = 'f0100000-0000-4000-8000-000000000001'
+  AND plugin_key = 'application-access-fixture';
 UPDATE public.organization_plugin_feature_flags
-SET enabled = false
+SET metadata = '{"runtimeVersion":"1.1.0","environment":"development","deploymentId":"dpl_historical_fixture"}'::jsonb
+WHERE organization_id = 'f0100000-0000-4000-8000-000000000001'
+  AND plugin_key = 'application-access-fixture'
+  AND flag_key = 'application-runtime';
+SET LOCAL ROLE authenticated;
+SET LOCAL "request.jwt.claims" =
+  '{"sub":"f0000000-0000-4000-8000-000000000001","role":"authenticated"}';
+SELECT public.get_plugin_application_route_target_by_identifier(
+  'plugin-application-access',
+  'application-access-fixture',
+  'development'
+);
+
+RESET ROLE;
+UPDATE public.organization_plugin_installs
+SET desired_version = '1.2.0'
+WHERE organization_id = 'f0100000-0000-4000-8000-000000000001'
+  AND plugin_key = 'application-access-fixture';
+UPDATE public.organization_plugin_feature_flags
+SET enabled = false,
+  metadata = '{"environment":"development"}'::jsonb
 WHERE organization_id = 'f0100000-0000-4000-8000-000000000001'
   AND plugin_key = 'application-access-fixture'
   AND flag_key = 'application-runtime';
@@ -476,7 +559,7 @@ SELECT extensions.is(
     '1.1.0'
   ) ->> 'reason',
   'runtime_not_selected',
-  'disabling the application runtime immediately invalidates an active lease'
+  'disabling the application runtime deletes an active lease immediately'
 );
 
 RESET ROLE;
@@ -488,26 +571,6 @@ WHERE organization_id = 'f0100000-0000-4000-8000-000000000001'
 SET LOCAL ROLE authenticated;
 SET LOCAL "request.jwt.claims" =
   '{"sub":"f0000000-0000-4000-8000-000000000001","role":"authenticated"}';
-
-RESET ROLE;
-UPDATE private.plugin_application_runtime_leases
-SET expires_at = now() - interval '1 second'
-WHERE organization_id = 'f0100000-0000-4000-8000-000000000001'
-  AND plugin_key = 'application-access-fixture'
-  AND actor_user_id = 'f0000000-0000-4000-8000-000000000001';
-SET LOCAL ROLE authenticated;
-SET LOCAL "request.jwt.claims" =
-  '{"sub":"f0000000-0000-4000-8000-000000000001","role":"authenticated"}';
-
-SELECT extensions.is(
-  public.get_plugin_application_access_context(
-    'f0100000-0000-4000-8000-000000000001',
-    'application-access-fixture',
-    '1.1.0'
-  ) ->> 'reason',
-  'runtime_not_selected',
-  'an expired deployment lease fails closed'
-);
 
 SELECT extensions.is(
   public.get_csf_application_role_context(

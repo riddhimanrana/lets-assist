@@ -36,8 +36,8 @@ their named runs only.
 - The sole current CSF implementation/status register is
   `docs/development/cleanup-register.md`; this document is a testing runbook and
   retains older evidence below without promoting it to current status.
-- The repository candidate has 357 ordered migrations through
-  `20260822231000_stop_disabled_plugin_application_leases`. The preceding releases publish signed
+- The repository candidate has 358 ordered migrations through
+  `20260822233000_bound_historical_plugin_runtime_grace`. The preceding releases publish signed
   1.2.2 and 1.2.3 artifacts and complete the reviewed helper ACLs. The 1.2.4
   migration records the plugin-specific child health route update without
   changing organization installs. The migrations
@@ -104,10 +104,11 @@ their named runs only.
   `20260822151500_pin_plugin_asset_deployments`, and
   `20260822154500_make_plugin_deployment_urls_immutable`, and
   `20260822224500_lease_historical_plugin_application_runtimes`, and
-  `20260822231000_stop_disabled_plugin_application_leases`).
+  `20260822231000_stop_disabled_plugin_application_leases`, and
+  `20260822233000_bound_historical_plugin_runtime_grace`).
 - Hosted Development is migration-current at 353 rows through
   `20260822134710_revalidate_plugin_runtime_admin_authority`; the candidate adds
-  the 354th through 357th migrations above. Google OAuth is enabled and the hosted authorize
+  the 354th through 358th migrations above. Google OAuth is enabled and the hosted authorize
   endpoint redirects to Google. The signed `dvhs-csf` 1.2.4 GitHub release is
   published, while the embedded 1.1.0 install remains active. The exact signed
   1.2.4 artifact is Ready on the Development child project as deployment
@@ -123,7 +124,7 @@ their named runs only.
 - Production was verified read-only on 2026-08-22 in Supabase project
   `fotdmeakexgrkronxlof` at 333 rows through
   `20260819050728_complete_reviewed_internal_function_acls`; the exact read-only
-  preflight now expects a 24-migration cutover to this 357-row candidate. Running that cutover requires
+  preflight now expects a 25-migration cutover to this 358-row candidate. Running that cutover requires
   explicit action-time approval.
 - Local evidence on the prior candidate includes a fresh exact 324-migration replay
   and the focused storage/release, import, proof, and release-authority pgTAP
