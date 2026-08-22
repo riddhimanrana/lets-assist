@@ -1,7 +1,7 @@
 BEGIN;
 
 CREATE EXTENSION IF NOT EXISTS pgtap WITH SCHEMA extensions;
-SELECT extensions.plan(43);
+SELECT extensions.plan(45);
 
 SELECT extensions.ok(
   NOT has_function_privilege(
@@ -227,8 +227,51 @@ SELECT extensions.throws_ok(
 SELECT public.report_plugin_deployment_health(
   'application-admin-fixture', 'development', 'dpl_application_admin_002',
   'healthy', 'deployed',
+  '{"deploymentUrl":"https://application-admin.example.test","healthRoute":"/api/health"}'::jsonb
+);
+RESET ROLE;
+UPDATE private.plugin_deployments
+SET last_seen_at = last_seen_at + interval '1 second'
+WHERE plugin_key = 'application-admin-fixture'
+  AND environment = 'development'
+  AND deployment_id = 'dpl_application_admin_002';
+SET LOCAL ROLE service_role;
+SET LOCAL request.jwt.claims = '{"role":"service_role"}';
+SELECT extensions.is(
+  public.get_plugin_application_runtime_admin_status(
+    'fa100000-0000-4000-8000-000000000001',
+    'application-admin-fixture',
+    'development'
+  ) ->> 'canEnable',
+  'false',
+  'a healthy deployment without a routable Vercel URL cannot be enabled'
+);
+SELECT extensions.throws_ok(
+  $$
+    SELECT public.set_plugin_application_runtime(
+      'fa100000-0000-4000-8000-000000000001',
+      'application-admin-fixture', '1.1.0', 'development', true,
+      'fa000000-0000-4000-8000-000000000001',
+      'fa200000-0000-4000-8000-00000000000d', false, NULL
+    )
+  $$,
+  '55000',
+  'the newest requested application deployment is not routable',
+  'activation rejects a healthy deployment without a routable Vercel URL'
+);
+SELECT public.report_plugin_deployment_health(
+  'application-admin-fixture', 'development', 'dpl_application_admin_002',
+  'healthy', 'deployed',
   '{"deploymentUrl":"https://application-admin-new.vercel.app","healthRoute":"/api/health"}'::jsonb
 );
+RESET ROLE;
+UPDATE private.plugin_deployments
+SET last_seen_at = last_seen_at + interval '1 second'
+WHERE plugin_key = 'application-admin-fixture'
+  AND environment = 'development'
+  AND deployment_id = 'dpl_application_admin_002';
+SET LOCAL ROLE service_role;
+SET LOCAL request.jwt.claims = '{"role":"service_role"}';
 
 SELECT extensions.is(
   public.get_plugin_application_runtime_admin_status(

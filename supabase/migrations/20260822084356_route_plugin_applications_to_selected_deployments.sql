@@ -78,7 +78,12 @@ BEGIN
 
   v_deployment_healthy := v_deployment.id IS NOT NULL
     AND v_deployment.health_status = 'healthy'
-    AND v_deployment.promotion_status IN ('deployed', 'promoted');
+    AND v_deployment.promotion_status IN ('deployed', 'promoted')
+    AND v_deployment.health_evidence ->> 'deploymentUrl'
+      ~ '^https://[a-z0-9][a-z0-9.-]*\.vercel\.app/?$'
+    AND position(
+      '..' in v_deployment.health_evidence ->> 'deploymentUrl'
+    ) = 0;
 
   RETURN v_result || jsonb_build_object(
     'deploymentHealthy', v_deployment_healthy,
@@ -183,6 +188,16 @@ BEGIN
         OR v_deployment.promotion_status NOT IN ('deployed', 'promoted')
       THEN
         RAISE EXCEPTION 'the newest requested application deployment is not healthy'
+          USING errcode = '55000';
+      END IF;
+      IF v_deployment.health_evidence ->> 'deploymentUrl' IS NULL
+        OR v_deployment.health_evidence ->> 'deploymentUrl'
+          !~ '^https://[a-z0-9][a-z0-9.-]*\.vercel\.app/?$'
+        OR position(
+          '..' in v_deployment.health_evidence ->> 'deploymentUrl'
+        ) > 0
+      THEN
+        RAISE EXCEPTION 'the newest requested application deployment is not routable'
           USING errcode = '55000';
       END IF;
     END IF;
@@ -471,6 +486,11 @@ WITH ranked_existing_targets AS (
    AND deployments.runtime_profile = 'application'
    AND deployments.health_status = 'healthy'
    AND deployments.promotion_status IN ('deployed', 'promoted')
+   AND deployments.health_evidence ->> 'deploymentUrl'
+     ~ '^https://[a-z0-9][a-z0-9.-]*\.vercel\.app/?$'
+   AND position(
+     '..' in deployments.health_evidence ->> 'deploymentUrl'
+   ) = 0
   WHERE flags.flag_key = 'application-runtime'
     AND flags.enabled
     AND installs.enabled
