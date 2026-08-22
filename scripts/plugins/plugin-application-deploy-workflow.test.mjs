@@ -52,7 +52,7 @@ test("deployment workflow records health through service-only RPCs", () => {
   assert.match(workflow, /rpc\/observe_plugin_deployment/u);
   assert.match(
     healthStep,
-    /x-vercel-protection-bypass: \$\{VERCEL_AUTOMATION_BYPASS_SECRET\}[\s\S]*\/api\/health/u,
+    /x-vercel-protection-bypass: \$\{VERCEL_AUTOMATION_BYPASS_SECRET\}[\s\S]*\/api\/plugins\/\$\{PLUGIN_KEY\}\/health/u,
   );
   assert.doesNotMatch(healthStep, /--token="\$\{VERCEL_TOKEN\}"/u);
   assert.match(healthStep, /response_reached=true/u);
