@@ -26,6 +26,7 @@ import { readdirSync, readFileSync, statSync } from "node:fs";
 import { join, resolve } from "node:path";
 
 import { collectHostImportSpecifiers } from "./host-import-specifiers.mjs";
+import { collectPluginSourceFiles } from "./plugin-source-files.mjs";
 
 const repositoryRoot = resolve(import.meta.dirname, "../..");
 const pluginsRoot = join(repositoryRoot, "lib/plugins/private/plugins");
@@ -48,20 +49,6 @@ const GRANDFATHERED_APP_IMPORTS = new Set([
   "@/app/organization/[id]/settings/actions",
 ]);
 
-function sourceFiles(directory) {
-  const found = [];
-  for (const entry of readdirSync(directory)) {
-    if (entry === "node_modules") continue;
-    const absolute = join(directory, entry);
-    if (statSync(absolute).isDirectory()) {
-      found.push(...sourceFiles(absolute));
-      continue;
-    }
-    if (/\.tsx?$/u.test(entry)) found.push(absolute);
-  }
-  return found;
-}
-
 function collectByPlugin() {
   const byPlugin = new Map();
 
@@ -70,7 +57,7 @@ function collectByPlugin() {
     if (!statSync(pluginDirectory).isDirectory()) continue;
 
     const specifiers = new Map();
-    for (const file of sourceFiles(pluginDirectory)) {
+    for (const file of collectPluginSourceFiles(pluginDirectory)) {
       const source = readFileSync(file, "utf8");
       for (const specifier of collectHostImportSpecifiers(source)) {
         const relativeFile = file.slice(repositoryRoot.length + 1);

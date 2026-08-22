@@ -17,6 +17,32 @@ const FORBIDDEN_ENV_NAMES = [
   "SUPABASE_SERVICE_ROLE_KEY",
   "SUPABASE_SECRET_KEY",
 ];
+const SAFE_CHILD_ENV_NAMES = new Set([
+  "CI",
+  "GITHUB_ACTIONS",
+  "HOME",
+  "LANG",
+  "LC_ALL",
+  "NEXT_PUBLIC_SUPABASE_ANON_KEY",
+  "NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY",
+  "NEXT_PUBLIC_SUPABASE_URL",
+  "NEXT_TELEMETRY_DISABLED",
+  "NODE_ENV",
+  "PATH",
+  "RUNNER_ARCH",
+  "RUNNER_OS",
+  "SHELL",
+  "SUPABASE_ANON_KEY",
+  "SUPABASE_PUBLISHABLE_KEY",
+  "SUPABASE_URL",
+  "TEMP",
+  "TMP",
+  "TMPDIR",
+  "TZ",
+  "VERCEL_ENV",
+  "VERCEL_GIT_COMMIT_REF",
+  "VERCEL_GIT_COMMIT_SHA",
+]);
 const LOCKFILES = ["bun.lock", "bun.lockb"];
 
 function fail(message) {
@@ -102,9 +128,11 @@ function run(app, command, args, environment) {
 }
 
 export function scrubPrivilegedPluginAppEnvironment(environment) {
-  const scrubbed = { ...environment };
-  for (const name of FORBIDDEN_ENV_NAMES) delete scrubbed[name];
-  return scrubbed;
+  return Object.fromEntries(
+    Object.entries(environment).filter(
+      ([name, value]) => SAFE_CHILD_ENV_NAMES.has(name) && value !== undefined,
+    ),
+  );
 }
 
 export function runPrivateApplicationGates(app, environment = process.env) {

@@ -81,15 +81,25 @@ test("rejects privileged Supabase keys even in an example environment file", () 
   );
 });
 
-test("scrubs privileged keys before running any child-owned command", () => {
+test("builds child command environments from an explicit safe allowlist", () => {
   const environment = scrubPrivilegedPluginAppEnvironment({
     PATH: "/bin",
     SUPABASE_SERVICE_ROLE_KEY: "service-role",
     SUPABASE_SECRET_KEY: "secret",
+    SUPABASE_DB_URL: "postgres://privileged",
+    SUPABASE_ACCESS_TOKEN: "provider-token",
+    GITHUB_TOKEN: "github-token",
+    VERCEL_TOKEN: "vercel-token",
+    RESEND_API_KEY: "resend-token",
     NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: "publishable",
   });
   assert.equal(environment.PATH, "/bin");
   assert.equal(environment.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY, "publishable");
   assert.equal(environment.SUPABASE_SERVICE_ROLE_KEY, undefined);
   assert.equal(environment.SUPABASE_SECRET_KEY, undefined);
+  assert.equal(environment.SUPABASE_DB_URL, undefined);
+  assert.equal(environment.SUPABASE_ACCESS_TOKEN, undefined);
+  assert.equal(environment.GITHUB_TOKEN, undefined);
+  assert.equal(environment.VERCEL_TOKEN, undefined);
+  assert.equal(environment.RESEND_API_KEY, undefined);
 });
