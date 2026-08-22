@@ -36,8 +36,8 @@ their named runs only.
 - The sole current CSF implementation/status register is
   `docs/development/cleanup-register.md`; this document is a testing runbook and
   retains older evidence below without promoting it to current status.
-- The repository candidate has 349 ordered migrations through
-  `20260822060000_harden_plugin_application_runtime_controls`. The preceding releases publish signed
+- The repository candidate has 350 ordered migrations through
+  `20260822070000_complete_plugin_application_runtime_compatibility`. The preceding releases publish signed
   1.2.2 and 1.2.3 artifacts and complete the reviewed helper ACLs. The 1.2.4
   migration records the plugin-specific child health route update without
   changing organization installs. The migrations
@@ -94,23 +94,25 @@ their named runs only.
   `20260821232923_publish_dvhs_csf_1_2_2`, and
   `20260821233000_complete_plugin_release_helper_acls`,
   `20260822000923_publish_dvhs_csf_1_2_3`, and
-  `20260822032423_publish_dvhs_csf_1_2_4`, and
-  `20260822060000_harden_plugin_application_runtime_controls`).
-- Hosted Development is migration-current at 347 rows through
-  `20260822032423_publish_dvhs_csf_1_2_4`. Google OAuth is enabled and the
-  hosted authorize endpoint redirects to Google. The signed `dvhs-csf` 1.2.4
-  release is published with zero rollout and the embedded 1.1.0 install remains
-  active. The exact signed 1.2.3 artifact is Ready on the Development child
+  `20260822032423_publish_dvhs_csf_1_2_4`,
+  `20260822044742_resolve_plugin_application_organization_username`,
+  `20260822060000_harden_plugin_application_runtime_controls`, and
+  `20260822070000_complete_plugin_application_runtime_compatibility`).
+- Hosted Development is migration-current at 349 rows through
+  `20260822060000_harden_plugin_application_runtime_controls`. Google OAuth is enabled and the
+  hosted authorize endpoint redirects to Google. The signed `dvhs-csf` 1.2.7
+  GitHub release is published, while catalog integration and rollout remain
+  pending and the embedded 1.1.0 install remains active. The exact signed 1.2.3 artifact is Ready on the Development child
   project as deployment `dpl_C4CzkCdNu2ZjKJVnWJCqkhXbdcPp`; the control plane
   records its exact digest and release tag as healthy, and Vercel
   Authentication protects direct access. Microfrontend routing and hosted
   browser acceptance remain gates before activation. The two-project group
-  `mfe_W64mCurqcnCgOvWojPr0FoRQUluS` exists, but its committed config needs the
-  next deployments and its $2 per million routed-request fee needs explicit
-  approval before the rollout flag or routed acceptance is enabled.
+  `mfe_W64mCurqcnCgOvWojPr0FoRQUluS` exists, and the $2 per million
+  routed-request fee is approved. Its committed config still needs the next
+  deployments before the rollout flag or routed acceptance is enabled.
 - Production remains untouched at the audited 236-row baseline through
-  `20260811001500`; the exact read-only preflight now expects a 113-migration
-  cutover to this 349-row candidate. Running that cutover requires
+  `20260811001500`; the exact read-only preflight now expects a 114-migration
+  cutover to this 350-row candidate. Running that cutover requires
   explicit action-time approval.
 - Local evidence on the prior candidate includes a fresh exact 324-migration replay
   and the focused storage/release, import, proof, and release-authority pgTAP
@@ -138,8 +140,10 @@ their named runs only.
   346th migration. The signed 1.2.4 publication is the 347th migration. A fresh
   local reset replayed the exact 347-migration ledger, and the focused 1.2.4
   release pgTAP passed 8/8. The organization-identifier wrapper is the 348th
-  migration; a fresh local reset replayed the exact 349-migration ledger, and
-  its focused access and ACL suites passed 38/38. Final role/browser
+  migration, the first runtime hardening is the 349th, and the completed
+  runtime compatibility checks are the 350th. A fresh local reset replayed the
+  exact 350-migration ledger, and the focused runtime suite passed 27/27.
+  Final role/browser
   acceptance and provider acceptance remain release gates until recorded in
   the cleanup register.
 - Private CSF 1.2.4 source is merged to private `main` at

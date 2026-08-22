@@ -1,7 +1,7 @@
 BEGIN;
 
 CREATE EXTENSION IF NOT EXISTS pgtap WITH SCHEMA extensions;
-SELECT extensions.plan(21);
+SELECT extensions.plan(27);
 
 SELECT extensions.ok(
   NOT has_function_privilege(
@@ -161,6 +161,57 @@ SELECT public.report_plugin_deployment_health(
   '{"deploymentUrl":"https://application-admin.example.test","healthRoute":"/api/health"}'::jsonb
 );
 
+SELECT public.observe_plugin_deployment(
+  'application-admin-fixture', '1.1.0', 'development', 'application',
+  'dpl_application_admin_002', repeat('d', 40),
+  '{"releaseTag":"application-admin-fixture/v1.1.0"}'::jsonb
+);
+RESET ROLE;
+UPDATE private.plugin_deployments
+SET last_seen_at = last_seen_at + interval '1 second'
+WHERE plugin_key = 'application-admin-fixture'
+  AND environment = 'development'
+  AND deployment_id = 'dpl_application_admin_002';
+SET LOCAL ROLE service_role;
+SET LOCAL request.jwt.claims = '{"role":"service_role"}';
+
+SELECT extensions.is(
+  public.get_plugin_application_runtime_admin_status(
+    'fa100000-0000-4000-8000-000000000001',
+    'application-admin-fixture',
+    'development'
+  ) ->> 'deploymentId',
+  'dpl_application_admin_002',
+  'status selects the newest observed deployment'
+);
+SELECT extensions.is(
+  public.get_plugin_application_runtime_admin_status(
+    'fa100000-0000-4000-8000-000000000001',
+    'application-admin-fixture',
+    'development'
+  ) ->> 'canEnable',
+  'false',
+  'a newer pending deployment masks an older healthy deployment'
+);
+SELECT extensions.throws_ok(
+  $$
+    SELECT public.set_plugin_application_runtime(
+      'fa100000-0000-4000-8000-000000000001',
+      'application-admin-fixture', '1.1.0', 'development', true,
+      'fa000000-0000-4000-8000-000000000001',
+      'fa200000-0000-4000-8000-000000000007'
+    )
+  $$,
+  '55000',
+  'the newest requested application deployment is not healthy',
+  'activation refuses a newer deployment until it reports healthy'
+);
+SELECT public.report_plugin_deployment_health(
+  'application-admin-fixture', 'development', 'dpl_application_admin_002',
+  'healthy', 'deployed',
+  '{"deploymentUrl":"https://application-admin-new.example.test","healthRoute":"/api/health"}'::jsonb
+);
+
 SELECT extensions.is(
   public.get_plugin_application_runtime_admin_status(
     'fa100000-0000-4000-8000-000000000001',
@@ -306,6 +357,117 @@ SELECT extensions.is(
   2,
   'rollback adds one separate audit record'
 );
+
+SET LOCAL ROLE service_role;
+SET LOCAL request.jwt.claims = '{"role":"service_role"}';
+SELECT public.set_plugin_application_runtime(
+  'fa100000-0000-4000-8000-000000000001',
+  'application-admin-fixture', '1.1.0', 'development', true,
+  'fa000000-0000-4000-8000-000000000001',
+  'fa200000-0000-4000-8000-000000000008'
+);
+RESET ROLE;
+
+INSERT INTO public.plugin_versions (
+  plugin_key, version, status, changelog, commit_sha, manifest_hash,
+  compatibility_contract, rollout_percentage, published_at, source_tree,
+  content_digest, release_inputs, build_digest, sbom_digest,
+  signer_identity, host_api_range, plugin_data_schema_version,
+  required_platform_schema_version, supported_install_contracts,
+  runtime_profile
+) VALUES (
+  'application-admin-fixture', '2.0.0', 'published',
+  'Embedded fixture outside the selected application install contract.',
+  repeat('0', 40), repeat('0', 64),
+  '{"host":"lets-assist","automaticUpdate":false}'::jsonb, 0, now(),
+  repeat('0', 40), repeat('0', 64),
+  '["plugins/application-admin-fixture"]'::jsonb,
+  NULL, repeat('0', 64),
+  '{"identity":"fixture","issuer":"fixture","attestationRef":"fixture"}'::jsonb,
+  '{"minimum":"1.0.0","maximum":"1.0.0"}'::jsonb, 1,
+  '20260821005258',
+  '{"minimum":"2.0.0","maximum":"2.0.0"}'::jsonb, 'embedded'
+);
+UPDATE public.organization_plugin_installs
+SET installed_version = '2.0.0'
+WHERE organization_id = 'fa100000-0000-4000-8000-000000000001'
+  AND plugin_key = 'application-admin-fixture';
+SELECT extensions.ok(
+  (
+    SELECT desired_version IS NULL
+    FROM public.organization_plugin_installs
+    WHERE organization_id = 'fa100000-0000-4000-8000-000000000001'
+      AND plugin_key = 'application-admin-fixture'
+  )
+  AND NOT (
+    SELECT enabled
+    FROM public.organization_plugin_feature_flags
+    WHERE organization_id = 'fa100000-0000-4000-8000-000000000001'
+      AND plugin_key = 'application-admin-fixture'
+      AND flag_key = 'application-runtime'
+  ),
+  'an incompatible embedded update clears application routing'
+);
+UPDATE public.organization_plugin_installs
+SET installed_version = '1.0.0'
+WHERE organization_id = 'fa100000-0000-4000-8000-000000000001'
+  AND plugin_key = 'application-admin-fixture';
+
+INSERT INTO public.plugin_versions (
+  plugin_key, version, status, changelog, commit_sha, manifest_hash,
+  compatibility_contract, rollout_percentage, published_at, source_tree,
+  content_digest, release_inputs, build_digest, sbom_digest,
+  signer_identity, host_api_range, plugin_data_schema_version,
+  required_platform_schema_version, supported_install_contracts,
+  runtime_profile
+) VALUES (
+  'application-admin-fixture', '1.2.0', 'published',
+  'Application fixture requiring a future host API.',
+  repeat('e', 40), repeat('e', 64),
+  '{"host":"lets-assist","automaticUpdate":false}'::jsonb, 0, now(),
+  repeat('e', 40), repeat('e', 64),
+  '["plugins/application-admin-fixture","apps/application-admin-fixture"]'::jsonb,
+  repeat('e', 64), repeat('e', 64),
+  '{"identity":"fixture","issuer":"fixture","attestationRef":"fixture"}'::jsonb,
+  '{"minimum":"2.0.0","maximum":"2.0.0"}'::jsonb, 1,
+  '20260821005258',
+  '{"minimum":"1.0.0","maximum":"1.1.0"}'::jsonb, 'application'
+);
+SET LOCAL ROLE service_role;
+SET LOCAL request.jwt.claims = '{"role":"service_role"}';
+SELECT public.observe_plugin_deployment(
+  'application-admin-fixture', '1.2.0', 'development', 'application',
+  'dpl_application_admin_003', repeat('f', 40),
+  '{"releaseTag":"application-admin-fixture/v1.2.0"}'::jsonb
+);
+SELECT public.report_plugin_deployment_health(
+  'application-admin-fixture', 'development', 'dpl_application_admin_003',
+  'healthy', 'deployed',
+  '{"deploymentUrl":"https://application-admin-future.example.test","healthRoute":"/api/health"}'::jsonb
+);
+SELECT extensions.is(
+  public.get_plugin_application_runtime_admin_status(
+    'fa100000-0000-4000-8000-000000000001',
+    'application-admin-fixture',
+    'development'
+  ) ->> 'hostApiSupported',
+  'false',
+  'status hides an application release requiring an unsupported host API'
+);
+SELECT extensions.throws_ok(
+  $$
+    SELECT public.set_plugin_application_runtime(
+      'fa100000-0000-4000-8000-000000000001',
+      'application-admin-fixture', '1.2.0', 'development', true,
+      'fa000000-0000-4000-8000-000000000001',
+      'fa200000-0000-4000-8000-000000000009'
+    )
+  $$,
+  '55000',
+  'the requested application release does not support the current host API',
+  'activation rejects a release requiring an unsupported host API'
+);
+RESET ROLE;
 
 UPDATE public.organization_plugin_entitlements
 SET status = 'inactive'
