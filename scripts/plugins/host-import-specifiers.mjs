@@ -3,8 +3,8 @@ import { dirname, isAbsolute, relative, resolve } from "node:path";
 const SPECIFIER_PATTERNS = [
   /(?:^|\n)\s*(?:import|export)[\s\S]*?from\s+["']([^"']+)["']/gu,
   /(?:^|\n)\s*import\s+["']([^"']+)["']\s*;?/gu,
-  /\bimport\(\s*["']([^"']+)["']\s*(?:,\s*[^)]*)?\)/gu,
-  /\bimport\(\s*`([^`${}]+)`\s*(?:,\s*[^)]*)?\)/gu,
+  /\bimport\((?:\s|\/\*[\s\S]*?\*\/|\/\/[^\r\n]*(?:\r?\n|$))*["']([^"']+)["']\s*(?:,\s*[^)]*)?\)/gu,
+  /\bimport\((?:\s|\/\*[\s\S]*?\*\/|\/\/[^\r\n]*(?:\r?\n|$))*`([^`${}]+)`\s*(?:,\s*[^)]*)?\)/gu,
   /\brequire\(\s*["']([^"']+)["']\s*\)/gu,
   /\brequire\(\s*`([^`${}]+)`\s*\)/gu,
 ];

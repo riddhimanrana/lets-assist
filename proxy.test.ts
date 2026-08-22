@@ -603,6 +603,78 @@ describe("root proxy composition", () => {
     );
   });
 
+  test("routes old-page actions to the deployment that rendered the page", async () => {
+    const oldTarget = {
+      deploymentId: "dpl_oldVersion",
+      deploymentUrl: "https://lets-assist-csf-old.vercel.app",
+      runtimeVersion: "1.2.6",
+    };
+    let selectedTargetCalls = 0;
+    const rootProxy = createRootProxy({
+      ...defaultDependencies,
+      updateSession: async (authRequest, options) =>
+        (await options?.onAuthenticatedPassThrough?.(
+          authenticatedContext(authRequest),
+        )) ?? NextResponse.next(),
+      readCsfApplicationRouteTarget: async () => {
+        selectedTargetCalls += 1;
+        return routeTarget;
+      },
+      readCsfApplicationAssetRouteTarget: async (
+        _context,
+        identifier,
+        environment,
+        deploymentId,
+      ) => {
+        expect(identifier).toBe("22222222-2222-4222-8222-222222222222");
+        expect(environment).toBe("development");
+        expect(deploymentId).toBe(oldTarget.deploymentId);
+        return oldTarget;
+      },
+      runMicrofrontendsMiddleware: async () => NextResponse.next(),
+    });
+
+    const response = await rootProxy(
+      new NextRequest(`https://example.test${applicationPath}`, {
+        method: "POST",
+        headers: {
+          "next-action": "old-action-id",
+          "x-deployment-id": oldTarget.deploymentId,
+        },
+      }),
+    );
+
+    expect(selectedTargetCalls).toBe(0);
+    expect(response.headers.get("x-middleware-rewrite")).toBe(
+      `${oldTarget.deploymentUrl}${applicationPath}`,
+    );
+  });
+
+  test("blocks old-page actions when the historical deployment is no longer authorized", async () => {
+    const rootProxy = createRootProxy({
+      ...defaultDependencies,
+      updateSession: async (authRequest, options) =>
+        (await options?.onAuthenticatedPassThrough?.(
+          authenticatedContext(authRequest),
+        )) ?? NextResponse.next(),
+      readCsfApplicationAssetRouteTarget: async () => null,
+      runMicrofrontendsMiddleware: async () => NextResponse.next(),
+    });
+
+    const response = await rootProxy(
+      new NextRequest(`https://example.test${applicationPath}`, {
+        method: "POST",
+        headers: {
+          "next-action": "old-action-id",
+          "x-deployment-id": "dpl_oldVersion",
+        },
+      }),
+    );
+
+    expect(response.status).toBe(404);
+    expect(response.headers.get("x-middleware-rewrite")).toBeNull();
+  });
+
   test("matches the complete child namespace while excluding host assets", () => {
     expect(config.matcher).toEqual([
       "/vc-ap-5431dc/:path*",

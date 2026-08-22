@@ -55,6 +55,21 @@ describe("host import specifier collection", () => {
     ]);
   });
 
+  test("collects dynamic imports with bundler comments before the literal", () => {
+    const source = `
+      const chunk = import(/* webpackChunkName: "host" */ "@/lib/chunk");
+      const template = import(
+        // Keep this chunk name stable.
+        \`@/lib/template-chunk\`
+      );
+    `;
+
+    expect([...collectHostImportSpecifiers(source)].sort()).toEqual([
+      "@/lib/chunk",
+      "@/lib/template-chunk",
+    ]);
+  });
+
   test("ignores non-host imports", () => {
     const source = `
       import "react";
