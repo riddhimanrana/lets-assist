@@ -13,9 +13,9 @@ export const organizationUsernameSchema = z
     ORGANIZATION_USERNAME_MAX_LENGTH,
     `Username cannot exceed ${ORGANIZATION_USERNAME_MAX_LENGTH} characters`,
   )
-  .regex(/^[A-Za-z0-9_.-]+$/u, {
+  .regex(/^[a-z0-9_.-]+$/u, {
     message:
-      "Username can only contain ASCII letters, numbers, underscores, dots and hyphens",
+      "Username can only contain lowercase letters, numbers, underscores, dots and hyphens",
   })
   .refine((value) => !value.includes(".."), {
     message: "Username cannot contain consecutive dots",

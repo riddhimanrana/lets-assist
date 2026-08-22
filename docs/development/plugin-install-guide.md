@@ -2,7 +2,24 @@
 
 How a plugin gets from the catalog into an organization, who can do each step, and what the platform actually enforces. This is the operator guide; [private plugins](private-plugins.md) is the developer guide for building one.
 
-Read the [inert surfaces](#surfaces-that-do-not-do-anything-yet) section before planning a rollout around a feature — several controls exist in the schema and the admin UI but are not consulted by any code path.
+Read the [current limits](#current-limits) section before planning a rollout.
+The control plane keeps publication, deployment, entitlement, installation,
+and runtime selection as separate decisions.
+
+## State model
+
+| Record                             | Meaning                                                                           | What it cannot prove                                             |
+| ---------------------------------- | --------------------------------------------------------------------------------- | ---------------------------------------------------------------- |
+| `plugin_versions`                  | Immutable, signed release publication                                             | That the release is deployed or selected by an organization      |
+| `private.plugin_deployments`       | Provider deployment observation and accepted health evidence                      | That any organization uses it                                    |
+| `plugins`                          | Catalog visibility, latest version, and security floor                            | That an organization is entitled or installed                    |
+| `organization_plugin_entitlements` | An organization may use the plugin during the stated window                       | That it consented, installed, or selected an application runtime |
+| `organization_plugin_installs`     | Enabled install, current contract, desired application version, and update policy | That a child deployment is healthy                               |
+| `private.plugin_update_operations` | Idempotent, lease-bound update attempt and redacted result                        | That a failed or ambiguous provider action is safe to retry      |
+
+No single row means "live." Application route access recomputes the catalog,
+entitlement, install, release compatibility, deployment health, and caller
+authorization for each request.
 
 ## The two sides
 
@@ -14,6 +31,23 @@ Installing a plugin takes two different people in two different places.
 | **Organization install** | Organization **admin** | `/organization/[id]/settings` | Turns it on for that organization and configures it                                |
 
 Neither side can do the other's job. A super admin granting an entitlement does not install anything; an org admin cannot install a private plugin they have no entitlement for. Organization **staff** cannot manage plugins at all — `isOrganizationAdminForSettings()` requires role `admin`.
+
+## Admin dashboard map
+
+The super-admin page keeps advanced controls out of the organization workflow:
+
+| Tab                 | Use it for                                                                                          |
+| ------------------- | --------------------------------------------------------------------------------------------------- |
+| **Catalog**         | Inspect signed versions, activate a catalog entry, select `latest_version`, or set a security floor |
+| **Access**          | Grant, expire, or force an organization's entitlement                                               |
+| **Data Boundaries** | Review and record the organization's storage and isolation posture                                  |
+| **Rollouts**        | Recover or override one exact installation after checking its release and deployment state          |
+| **Config**          | Edit validated per-organization settings that contain no secrets                                    |
+
+Routine work should use Catalog and Access, followed by the organization-admin
+Plugins page. Rollouts is an operator recovery surface, not the normal release
+path. Its force actions still use the same leased transition and must not be
+replaced with direct database writes.
 
 ## Step 1 — Catalog control (super admin)
 
@@ -57,10 +91,18 @@ For DVHS CSF specifically, `onInstall` seeds the chapter's roles and point categ
 
 ## Updating
 
-1. Bump `manifest.version` in the private plugin repository, test it, and merge it there first.
-2. Hash the exact manifest and publish a forward migration that inserts an immutable `plugin_versions` certificate containing the semantic version, private commit SHA, manifest SHA-256, compatibility contract, and rollout posture.
-3. Update the root gitlink and code-owned `publishedPluginReleases` entry to the same private commit and manifest digest.
-4. Advance `plugins.latest_version` and each intended `organization_plugin_installs.installed_version` in the same reviewed release migration, recording an `install.version_updated` audit row.
+1. Bump the private manifest, `release.json`, and changelog. Merge the private change and create the plugin-scoped tag on the reviewed commit.
+2. Let the private workflow reconstruct, SBOM, sign, and publish the immutable release assets.
+3. Let root integration verify those assets, pin the exact private commit, update the code-owned release registry, and create one forward publication migration plus pgTAP coverage.
+4. Merge the root integration into `development`. This publishes the release contract. It does not update an organization.
+5. For an `application` profile, deploy the signed child bytes to Development and record a separate healthy deployment observation.
+6. Test the preceding install contract, then let the organization admin choose **Update** and, when offered, enable the application runtime. The embedded runtime remains the rollback choice.
+7. Promote the verified root tree and schema to Production, deploy the same signed child digest, then repeat the explicit organization update and runtime choice in Production.
+
+Migrations never advance `organization_plugin_installs`. They publish schema
+and release contracts only. Organization changes go through the leased,
+idempotent control-plane transition so authorization, compatibility, health,
+audit, and retry behavior are rechecked at action time.
 
 Raising `force_update_version` is the blunt instrument: every organization below that floor loses the plugin at runtime — `hasOrganizationPluginRuntimeAccess` returns false and the plugin disappears from their navigation — until an admin clicks update. Use it for a security fix, not for a routine release.
 
@@ -91,19 +133,22 @@ Worth knowing which guarantees are real:
 - **Every organization-scoped plugin relation carries `organization_id`**, declared per relation in the manifest as `tenantColumn`.
 - **Lifecycle transitions are leased, compensated, and audited.**
 
-## Surfaces that do not do anything yet
+## Current limits
 
-These exist in the schema, and several appear in the admin UI, but **no code path reads them**. Do not plan a rollout around them:
+Do not plan a rollout around behavior that is not implemented:
 
-| Surface                                                                       | Reality                                                                                                                                                                                                                                                                                                           |
-| ----------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `organization_plugin_feature_flags`, `rollout_percentage`                     | Feature gating and percentage rollout are **unimplemented**.                                                                                                                                                                                                                                                      |
-| Automatic-update worker                                                       | `auto_update=true` is accepted only for an explicitly compatible published release with a non-zero rollout, but no worker currently advances installs automatically. Releases remain migration/admin driven.                                                                                                      |
-| `organization_plugin_data_boundaries`, `organization_data_isolation_profiles` | Editable in the admin UI, consulted by no enforcement path. The `shared / dedicated_schema / dedicated_project / external` model is planning metadata only.                                                                                                                                                       |
-| `onDataDelete` / `runPluginDataDelete`                                        | Wired only through the separate permanent-deletion action and complete manifest readiness gate. Processing receipts are not automatically rerun after ambiguous outcomes. No private manifest declares the complete contract yet, so those plugins remain deletion-unavailable pending private-repository review. |
-| `plugin_runtime_contracts`                                                    | Only refreshed when a super admin loads `/admin/plugins`, so it is stale by default, and it silently skips any registered plugin with no catalog row.                                                                                                                                                             |
+| Surface                                | Reality                                                                                                                                                                                                                                                                                                           |
+| -------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| General percentage rollout             | The reserved `application-runtime` flag selects an exact healthy application release for one organization. There is no generic percentage-rollout engine.                                                                                                                                                         |
+| Automatic-update worker                | The legacy `auto_update` field is frozen false. `update_policy` records `manual` or `security_only`, but no worker advances installs automatically. An admin must choose an update.                                                                                                                               |
+| Data-isolation profiles                | Boundary rows are required and audited, and direct browser access is rejected. The `shared / dedicated_schema / dedicated_project / external` profile does not provision a new database or schema by itself. Server authorization and tenant-scoped relations remain the enforcement boundary.                    |
+| `onDataDelete` / `runPluginDataDelete` | Wired only through the separate permanent-deletion action and complete manifest readiness gate. Processing receipts are not automatically rerun after ambiguous outcomes. No private manifest declares the complete contract yet, so those plugins remain deletion-unavailable pending private-repository review. |
+| `plugin_runtime_contracts`             | The admin query synchronizes registered contracts and fails if a registered plugin lacks an active, aligned catalog release. It is an inventory snapshot, not an authorization source, and it is not refreshed by a background worker.                                                                            |
 
-Plugin releases use a source attestation rather than a package-signing key: immutable `plugin_versions` rows pin the private commit and manifest SHA-256, `publishedPluginReleases` mirrors that evidence in code, CI verifies the digest and gitlink ancestry, and the catalog `code_reference` is advanced to the same commit. This proves exactly which reviewed private source is loaded; it is not a third-party code-signing certificate.
+Plugin application releases use GitHub OIDC and Cosign. The root workflows
+verify the Sigstore issuer and exact workflow identity, reconstruct the signed
+digests, pin the private commit, and publish the verified signer evidence in
+`plugin_versions`. See [signed plugin release integration](plugin-release-integration.md).
 
 ## Troubleshooting
 

@@ -790,6 +790,11 @@ export default function OrganizationPluginSettings({
       plugin.updateDeployedInRuntime &&
       plugin.entitled &&
       (plugin.updateAvailable || plugin.forceUpdateRequired);
+    const applicationUpdateAvailable =
+      plugin.applicationRuntime?.enabled === true &&
+      plugin.applicationRuntime.selectedVersion !== null &&
+      plugin.applicationRuntime.selectedVersion !==
+        plugin.applicationRuntime.availableVersion;
 
     return (
       <div
@@ -862,6 +867,11 @@ export default function OrganizationPluginSettings({
                   <span className="text-xs text-muted-foreground">
                     Application {plugin.applicationRuntime.version}
                   </span>
+                  {applicationUpdateAvailable ? (
+                    <Badge variant="outline">
+                      {plugin.applicationRuntime.availableVersion} available
+                    </Badge>
+                  ) : null}
                 </div>
                 <p className="mt-1 text-xs text-muted-foreground">
                   {plugin.applicationRuntime.deploymentHealthy
@@ -878,6 +888,31 @@ export default function OrganizationPluginSettings({
           </div>
 
           <div className="flex flex-wrap items-center justify-end gap-2">
+            {plugin.applicationRuntime && applicationUpdateAvailable ? (
+              <Button
+                type="button"
+                size="sm"
+                onClick={() => {
+                  void handleApplicationRuntime(plugin, true);
+                }}
+                disabled={
+                  isRuntimeUpdating || !plugin.applicationRuntime.canEnable
+                }
+              >
+                {isRuntimeUpdating ? (
+                  <>
+                    <Loader2
+                      data-icon="inline-start"
+                      className="animate-spin"
+                    />
+                    Updating application…
+                  </>
+                ) : (
+                  `Update application ${plugin.applicationRuntime.availableVersion}`
+                )}
+              </Button>
+            ) : null}
+
             {plugin.applicationRuntime ? (
               <Button
                 type="button"
@@ -908,7 +943,7 @@ export default function OrganizationPluginSettings({
                 ) : plugin.applicationRuntime.enabled ? (
                   `Use embedded ${plugin.installedVersion || plugin.latestVersion}`
                 ) : (
-                  `Use application ${plugin.applicationRuntime.version}`
+                  `Use application ${plugin.applicationRuntime.availableVersion}`
                 )}
               </Button>
             ) : null}

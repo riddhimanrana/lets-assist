@@ -1,9 +1,18 @@
 import { describe, expect, test } from "bun:test";
 import { join } from "node:path";
 
-import { collectHostImportSpecifiers } from "./host-import-specifiers.mjs";
+import {
+  collectHostImportSpecifiers,
+  collectLiteralImportSpecifiers,
+} from "./host-import-specifiers.mjs";
 
 describe("host import specifier collection", () => {
+  test("exposes literal imports for independent application checks", () => {
+    expect([
+      ...collectLiteralImportSpecifiers('import x from "../../host";'),
+    ]).toEqual(["../../host"]);
+  });
+
   test("collects static, side-effect, dynamic, and CommonJS host imports", () => {
     const source = `
       import { first } from "@/lib/first";

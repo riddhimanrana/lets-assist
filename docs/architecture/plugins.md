@@ -107,6 +107,18 @@ active. The child uses Vercel's generated asset prefix and Skew Protection so
 framework-managed JavaScript, CSS, images, navigations, and Server Actions stay
 on the deployment that rendered the selected page.
 
+The asset namespace still passes through host middleware. Next.js Skew
+Protection puts the rendering deployment ID in the `dpl` query parameter. The
+first asset request must have a same-origin CSF document referrer. The host keys
+an HttpOnly, SameSite=Strict routing cookie by that deployment ID and limits it
+to the asset path. Nested imports must carry the same `dpl` value as their
+referrer. Every request repeats authentication and a caller-scoped database
+lookup for that exact healthy deployment. A compatible prior deployment may
+keep serving an open page after an admin selects a newer version, but current
+membership, entitlement, install, compatibility, and security-floor checks
+must still pass. The cookie is a routing hint, not an authorization credential.
+Requests without valid context fail closed.
+
 The isolated local runner starts both applications as owned process groups on
 ports 3000 and 3001. It routes the same generated asset namespace directly to
 the local child. The child receives only the public local Supabase connection;
@@ -129,19 +141,22 @@ These are separate records:
   desired version, and manual or security-only update policy. A catalog version
   is not installable until its code exists in the serving deployment.
 - `private.plugin_update_operations` records idempotent, lease-bound update
-  attempts and redacted outcomes. The deployment-health activation gate remains
-  disabled until hosted Development proves the reporter and creates real
-  deployment evidence.
+  attempts and redacted outcomes. Application activation requires a signed,
+  compatible release and one exact healthy deployment in the target
+  environment.
 
 Database migrations advance schema contracts, not organization installations.
 Do not use a migration to silently change installed versions. Production
 migrations are forward-only; code rollback means deploying a schema-compatible
 release or adding a corrective migration.
 
-The current release certificate is source and digest metadata. It is not a
-cryptographic signature. Signing and verification tooling must verify the
-declared release inputs and constrain both signer identity and issuer before
-the certificate can be described as signed.
+Current application releases are cryptographically signed. The private release
+workflow reconstructs the declared inputs from Git, generates a CycloneDX SBOM,
+and signs the release manifest with GitHub OIDC and Cosign. Root integration and
+deployment verify the Sigstore issuer, the tag-bound workflow identity, source,
+content, build, release-input, and SBOM digests before accepting the release.
+The database publication row records that verified identity and evidence. It
+does not replace verification of the immutable release assets in CI.
 
 The signed private-to-root release path and its credential boundary are
 documented in [signed plugin release integration](../development/plugin-release-integration.md).

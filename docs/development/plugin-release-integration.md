@@ -16,8 +16,47 @@ Plugin source, release publication, host integration, deployment, and organizati
 10. Run `Deploy signed plugin application` from root `development` with the exact plugin key, tag, and `development` environment. The workflow verifies the signed release and host allowlist, deploys the recorded prebuilt bytes, checks `/api/health`, and records the deployment in Development Supabase.
 11. Enable the organization's application runtime only after the Development deployment is healthy. The embedded version remains the rollback path.
 12. Promote root `development` to `main` through the normal production release. Run the same deployment workflow from `main` with `production`. It deploys the same signed build digest and records Production health.
+13. In Production organization settings, update the install and enable the application runtime only after the Production deployment is healthy. The control plane resolves that organization to the exact immutable deployment; it does not move every tenant to the newest child deployment.
 
 Production promotion remains a separate root `development` to `main` release. Do not create a private release tag or merge a root integration to `main` as part of routine plugin development.
+
+## Operator workflow
+
+For a normal release, the platform owner handles catalog publication and child
+deployment. The organization admin sees only the choices that matter to the
+organization: consent and install, **Update** when a compatible release exists,
+and **Use application** after a healthy deployment exists. Switching back to
+the embedded runtime is the first rollback action. Uninstall removes the
+control-plane install but retains plugin data. Permanent deletion is a separate
+MFA-aware operation and appears only when the manifest declares a complete,
+reviewed deletion contract.
+
+If a deployment fails health checks, do not change the install or runtime flag.
+If activation fails with an ambiguous response, inspect the durable operation
+and audit records before retrying with a new request. Never repair an
+organization version with a direct table update or a migration.
+
+The code-owned registry retains only the current application release for each
+plugin. After a newer release is integrated, the deploy workflow intentionally
+refuses to redeploy an older application release from that branch. The supported
+rollback is the organization-level switch to the compatible embedded runtime.
+If an old application must be redeployed, restore it through a reviewed release
+integration instead of bypassing the registry.
+
+## Vercel topology and plan
+
+The intended topology has two projects in one microfrontend group: the Let's
+Assist host and the CSF application. The group claims only the child health and
+generated asset paths. Organization application pages remain host-owned so the
+control plane can choose an exact deployment per organization and version.
+
+This topology fits Vercel Hobby's two-project microfrontend allowance while
+usage stays below its included routed-request quota. Pro is not a code
+requirement. It is the recommended operating plan for Production because it
+raises deployment and concurrent-build limits, retains runtime logs longer,
+and supports paid routed-request overage. Do not create one Vercel project per
+ordinary plugin. Use an embedded profile unless independent deployment is
+needed; extra microfrontend projects are a separate paid resource.
 
 ## Repository credentials
 

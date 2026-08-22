@@ -94,12 +94,14 @@ SELECT extensions.throws_ok(
     WHERE plugin_key = 'release-identity-test' AND version = '2.0.0'
   $$,
   'P0001',
-  'independently deployed plugin releases require build and SBOM digests',
-  'an application release cannot publish without artifact identity'
+  'independently deployed plugin releases require signed build and SBOM evidence',
+  'an application release cannot publish without signed artifact identity'
 );
 
 UPDATE public.plugin_versions
-SET build_digest = repeat('6', 64), sbom_digest = repeat('7', 64)
+SET build_digest = repeat('6', 64),
+  sbom_digest = repeat('7', 64),
+  signer_identity = '{"identity":"https://github.com/riddhimanrana/lets-assist-plugins/.github/workflows/plugin-release.yml@refs/tags/release-identity-test/v2.0.0","issuer":"https://token.actions.githubusercontent.com","attestationRef":"github-release:release-identity-test/v2.0.0/release-manifest.sigstore.json"}'::jsonb
 WHERE plugin_key = 'release-identity-test' AND version = '2.0.0';
 
 SELECT extensions.lives_ok(
@@ -108,7 +110,7 @@ SELECT extensions.lives_ok(
     SET status = 'published'
     WHERE plugin_key = 'release-identity-test' AND version = '2.0.0'
   $$,
-  'an application release publishes after build and SBOM identity exists'
+  'an application release publishes after signed build and SBOM identity exists'
 );
 
 SELECT extensions.is(

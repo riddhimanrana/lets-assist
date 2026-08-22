@@ -28,12 +28,7 @@ function normalizeRelativeHostSpecifier(specifier, context) {
 }
 
 export function collectHostImportSpecifiers(source, context) {
-  const literals = new Set();
-
-  for (const pattern of SPECIFIER_PATTERNS) {
-    pattern.lastIndex = 0;
-    for (const match of source.matchAll(pattern)) literals.add(match[1]);
-  }
+  const literals = collectLiteralImportSpecifiers(source);
 
   const hostSpecifiers = new Set();
   for (const specifier of literals) {
@@ -46,4 +41,15 @@ export function collectHostImportSpecifiers(source, context) {
   }
 
   return hostSpecifiers;
+}
+
+export function collectLiteralImportSpecifiers(source) {
+  const literals = new Set();
+
+  for (const pattern of SPECIFIER_PATTERNS) {
+    pattern.lastIndex = 0;
+    for (const match of source.matchAll(pattern)) literals.add(match[1]);
+  }
+
+  return literals;
 }

@@ -202,6 +202,14 @@ jobs:
           deployment_target="$(jq -r '.deployment.target // .target' .artifacts/plugin-deployment.json)"
           test -n "${deployment_url}" && test "${deployment_url}" != null
           test -n "${deployment_id}" && test "${deployment_id}" != null
+          deployment_host="${deployment_url#https://}"
+          deployment_host="${deployment_host#http://}"
+          deployment_host="${deployment_host%/}"
+          if [[ ! "${deployment_host}" =~ ^[a-z0-9][a-z0-9.-]*\.vercel\.app$ ]] || [[ "${deployment_host}" == *".."* ]]; then
+            echo "Vercel returned a non-canonical deployment URL." >&2
+            exit 1
+          fi
+          deployment_url="https://${deployment_host}"
           target_is_valid=false
           if [[ "${DEPLOYMENT_ENVIRONMENT}" == production ]]; then
             if [[ "${deployment_target}" == production ]]; then

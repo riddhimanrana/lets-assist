@@ -1,10 +1,11 @@
 # Production cutover runbook
 
-Production was verified read-only at 333 ordered migrations through
-`20260819050728_complete_reviewed_internal_function_acls`. The current repository release candidate has exactly 353
-ordered migrations through
-`20260822134710_revalidate_plugin_runtime_admin_authority`, so the typed read-only
-preflight pins an exact 20-migration tail. This count is a
+Production was verified read-only on 2026-08-22 in Supabase project
+`fotdmeakexgrkronxlof` at 333 ordered migrations through
+`20260819050728_complete_reviewed_internal_function_acls`. The current repository
+release candidate has exactly 354 ordered migrations through
+`20260822151500_pin_plugin_asset_deployments`, so the typed read-only preflight
+pins an exact 21-migration tail. This count is a
 repository contract, not proof of live Production state: re-run the read-only
 preflight against the exact Production project immediately before the cutover.
 
@@ -15,7 +16,7 @@ generic private plugin storage namespace, application
 decision projection, term-bound staff access, simplified partner clubs, and
 multi-date meeting attendance with permission rechecks. Hosted
 Development database parity, exact served SHA, role-bound browser acceptance,
-provider acceptance, and a fresh full 353-migration replay must all be recorded
+provider acceptance, and a fresh full 354-migration replay must all be recorded
 before promotion. Until those gates are green, both the hosted and Production
 release gates remain open.
 
@@ -47,7 +48,7 @@ because the cutover still builds on that baseline. See the
 - **AUD-002** — the `notifications` INSERT policy ends in `OR (auth.uid() IS NULL)`, so anyone holding the public anon key can inject a notification for any user, with an attacker-chosen title, body, and action URL.
 
 The fixing migrations, `20260810220100` and `20260810220200`, are historical
-context rather than part of the current 20-migration pending set.
+context rather than part of the current 21-migration pending set.
 
 ---
 
@@ -126,7 +127,7 @@ reviewed forward migration.
 ## Rehearsal
 
 **The Supabase `development` branch is not a rehearsal.** Its current
-353-migration ledger proves ordered application against the Development
+354-migration ledger proves ordered application against the Development
 database, but it does not prove the repository branch's Production-shaped
 333-to-353 transition. It does not
 exercise data-dependent DDL, lock behaviour at Production table sizes, or
@@ -231,7 +232,7 @@ already included in the 333 baseline.
    - `SELECT ... FROM pg_index WHERE NOT indisvalid` — must be empty
    - `get_advisors(type: 'security')` — expect only the known `INFO`/`rls_enabled_no_policy` shape
    - Re-run `production-cutover-preflight.sql`; it must select the exact
-     353-row target path and pass T1–T10
+     354-row target path and pass T1–T10
    - Storage bucket counts against the **E7** baseline
    - Upgrade DV installs to `2.0.0` through the leased control plane **before** enabling DV traffic
 10. Smoke tests while still in maintenance mode, then again after opening: sign in, view a project, sign up for a project, an organization page, a CSF workspace, one email path.

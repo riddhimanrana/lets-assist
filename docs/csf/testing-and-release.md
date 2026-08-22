@@ -99,14 +99,16 @@ their named runs only.
   `20260822060000_harden_plugin_application_runtime_controls`, and
   `20260822070000_complete_plugin_application_runtime_compatibility`, and
   `20260822075815_make_plugin_application_runtime_transitions_idempotent`,
-  `20260822084356_route_plugin_applications_to_selected_deployments`, and
-  `20260822134710_revalidate_plugin_runtime_admin_authority`).
+  `20260822084356_route_plugin_applications_to_selected_deployments`,
+  `20260822134710_revalidate_plugin_runtime_admin_authority`, and
+  `20260822151500_pin_plugin_asset_deployments`).
 - Hosted Development is migration-current at 353 rows through
-  `20260822134710_revalidate_plugin_runtime_admin_authority`. Google OAuth is enabled and the
-  hosted authorize endpoint redirects to Google. The signed `dvhs-csf` 1.2.7
-  GitHub release is published, while catalog integration and rollout remain
-  pending and the embedded 1.1.0 install remains active. The exact signed 1.2.3 artifact is Ready on the Development child
-  project as deployment `dpl_C4CzkCdNu2ZjKJVnWJCqkhXbdcPp`; the control plane
+  `20260822134710_revalidate_plugin_runtime_admin_authority`; the candidate adds
+  the 354th migration above. Google OAuth is enabled and the hosted authorize
+  endpoint redirects to Google. The signed `dvhs-csf` 1.2.4 GitHub release is
+  published, while the embedded 1.1.0 install remains active. The exact signed
+  1.2.4 artifact is Ready on the Development child project as deployment
+  `dpl_C5ZHpGf8RPVbw8ss1tEjZy8HKSur`; the control plane
   records its exact digest and release tag as healthy, and Vercel
   Authentication protects direct access. Version-pinned host routing and hosted
   browser acceptance remain gates before activation. The two-project group
@@ -115,9 +117,10 @@ their named runs only.
   routing, while organization application pages resolve the selected immutable
   deployment in the host because a project-level route cannot select a
   different version for each organization.
-- Production was verified read-only at 333 rows through
+- Production was verified read-only on 2026-08-22 in Supabase project
+  `fotdmeakexgrkronxlof` at 333 rows through
   `20260819050728_complete_reviewed_internal_function_acls`; the exact read-only
-  preflight now expects a 20-migration cutover to this 353-row candidate. Running that cutover requires
+  preflight now expects a 21-migration cutover to this 354-row candidate. Running that cutover requires
   explicit action-time approval.
 - Local evidence on the prior candidate includes a fresh exact 324-migration replay
   and the focused storage/release, import, proof, and release-authority pgTAP

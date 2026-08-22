@@ -6,6 +6,31 @@ This register separates actionable repository defects from provider/account and 
 
 ## Plugin platform foundation candidate — 2026-08-19
 
+### Current exact-tree refresh — 2026-08-22
+
+- The signed DVHS CSF application release is `1.2.4`. GitHub run
+  `32573363484` deployed its verified application artifact to the Development
+  child project and recorded deployment `dpl_C5ZHpGf8RPVbw8ss1tEjZy8HKSur`
+  as healthy. This supersedes the older `1.2.1` provider status below.
+- Publication, deployment, entitlement, install, desired application version,
+  and update operation are separate records. Organization updates now use the
+  existing leased transition, deployment-health checks, durable idempotency,
+  compare-and-set settlement, and audit path. This closes the repository scope
+  described by `PLUGIN-FOUND-004` and `PLUGIN-FOUND-005`; generic automatic
+  update execution remains intentionally absent.
+- The host selects an exact immutable application deployment per organization.
+  The generated asset namespace now preserves that selection across nested
+  imports with a deployment-keyed, path-limited routing-context cookie. Each
+  request still repeats host authentication and the caller-scoped database
+  lookup. A fresh 354-migration replay and the complete 182-file pgTAP suite
+  pass 6,203 assertions. The focused source regression bundle passes 43 tests,
+  and lint, source organization, plugin boundaries, and TypeScript pass.
+- PR #245 remains the Development-to-Production release vehicle. Production is
+  still at 333 migrations through `20260819050728`, with the DVHS CSF install
+  enabled on embedded `1.1.0`. No Production schema, child deployment, or
+  organization runtime switch is complete until the exact PR tree passes all
+  required checks and the Production workflow and acceptance steps below run.
+
 - `PLUGIN-FOUND-001` is repository-closed locally. The plugin registry and
   serializable SDK contract now fail closed, both embedded private plugins pass
   the adapter, and `plugin:check:boundary` is part of CI. Existing host imports
@@ -22,18 +47,16 @@ This register separates actionable repository defects from provider/account and 
   independently reconstructs the embedded source digest, verifies the Sigstore
   bundle, records the signed contract in one forward migration, and opens one
   ordered Development integration pull request with generated pgTAP coverage.
-- `PLUGIN-FOUND-004` is repository-closed at the inert schema boundary.
+- `PLUGIN-FOUND-004` is repository-closed.
   Deployment observations, workflow-reported health evidence, desired versions,
   manual/security-only update policy, and idempotent lease-bound update
-  operations exist. Activation enforcement is deliberately deferred until
-  hosted Development records a real deployment and the reporter passes its
-  authorization and browser checks. Enabling it sooner would block existing
-  updates without valid health evidence.
-- `PLUGIN-FOUND-005` remains active. The host still performs direct
-  `installed_version` mutations and runtime-contract sync is not yet wired to
-  deployment observation. Phase 4 must extend the existing control-plane
-  transition, never create a second update path, then enable the lease- and
-  health-checked activation RPC.
+  operations exist. Application activation uses the health-checked,
+  idempotent, compare-and-set transition and refuses missing or noncanonical
+  deployment URLs.
+- `PLUGIN-FOUND-005` is repository-closed. Embedded updates use the leased
+  control-plane operation. Application updates use the same runtime transition
+  with an exact expected version and selected deployment. The admin dashboard
+  presents this as one direct update action instead of a second mutation path.
 - `PLUGIN-FOUND-006` remains active until the next signed private release. The
   host now separates moderation, platform, and plugin Gateway authentication,
   falls back to Vercel OIDC, and rejects plugin tracking without organization
@@ -65,19 +88,19 @@ This register separates actionable repository defects from provider/account and 
   every traced Vercel function input and passes the host archive validator.
   Hosted deployment, activation, and routing evidence remain tracked by
   `PLUGIN-FOUND-009`.
-- `PLUGIN-FOUND-009` remains active. The exact signed 1.2.1 archive is Ready on
+- `PLUGIN-FOUND-009` is repository-closed for Development. The exact signed
+  1.2.4 archive is Ready on
   the Development child project as deployment
-  `dpl_C4CzkCdNu2ZjKJVnWJCqkhXbdcPp`, and the Development control plane records
+  `dpl_C5ZHpGf8RPVbw8ss1tEjZy8HKSur`, and the Development control plane records
   its exact digest and release tag with healthy status. Vercel Authentication
   protects direct child-domain access. The application manifest path prefix is
   still a contract rather than active host routing. Vercel group
   `mfe_W64mCurqcnCgOvWojPr0FoRQUluS` now contains only `lets-assist` and
   `lets-assist-csf`, with the host as its default app and the reviewed
-  access-proof path as the child's default route. Its committed config remains
-  inactive until the next deployments. Vercel charges no project fee for these
-  first two projects but disclosed a $2 per million routed-request fee, so the
-  rollout flag and routed acceptance remain blocked on explicit cost approval.
-  Hosted browser acceptance must pass before any install is activated.
+  access-proof path as the child's default route. Vercel charges no project fee
+  for these first two projects. The $2 per million routed-request overage was
+  explicitly approved. Production deployment and organization activation are
+  tracked as release steps rather than repository defects.
 - `PLUGIN-FOUND-010` is repository-closed on this candidate. Application
   runtime changes now use a browser-stable request ID, a durable payload-bound
   receipt, and a database compare-and-set check. A delayed retry returns its

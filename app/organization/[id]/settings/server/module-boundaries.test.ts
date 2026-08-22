@@ -56,5 +56,8 @@ describe("organization settings action modules", () => {
     expect(query).toContain("selectedApplicationVersion");
     expect(query).toContain("selectedDeploymentHealthy");
     expect(query).toContain("availableVersion: status.applicationVersion");
+    expect(component).toContain("applicationUpdateAvailable");
+    expect(component).toContain("Update application ${");
+    expect(component).toContain("handleApplicationRuntime(plugin, true)");
   });
 });

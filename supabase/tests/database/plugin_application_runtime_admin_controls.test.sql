@@ -1,7 +1,7 @@
 BEGIN;
 
 CREATE EXTENSION IF NOT EXISTS pgtap WITH SCHEMA extensions;
-SELECT extensions.plan(52);
+SELECT extensions.plan(59);
 
 SELECT extensions.ok(
   NOT has_function_privilege(
@@ -46,6 +46,24 @@ SELECT extensions.ok(
     'EXECUTE'
   ),
   'only an authenticated caller can ask for its selected route target'
+);
+SELECT extensions.ok(
+  has_function_privilege(
+    'authenticated',
+    'public.get_plugin_application_asset_route_target_by_identifier(text,text,text,text)',
+    'EXECUTE'
+  )
+  AND NOT has_function_privilege(
+    'anon',
+    'public.get_plugin_application_asset_route_target_by_identifier(text,text,text,text)',
+    'EXECUTE'
+  )
+  AND NOT has_function_privilege(
+    'service_role',
+    'public.get_plugin_application_asset_route_target_by_identifier(text,text,text,text)',
+    'EXECUTE'
+  ),
+  'only an authenticated caller can ask for an exact asset route target'
 );
 
 INSERT INTO auth.users (
@@ -94,7 +112,7 @@ INSERT INTO public.plugin_versions (
     '{"host":"lets-assist","automaticUpdate":false}'::jsonb, 0, now(),
     repeat('a', 40), repeat('a', 64),
     '["plugins/application-admin-fixture"]'::jsonb, NULL, repeat('a', 64),
-    '{"identity":"fixture","issuer":"fixture","attestationRef":"fixture"}'::jsonb,
+    '{"identity":"https://github.com/riddhimanrana/lets-assist-plugins/.github/workflows/plugin-release.yml@refs/tags/application-admin-fixture/v1.1.0","issuer":"https://token.actions.githubusercontent.com","attestationRef":"github-release:application-admin-fixture/v1.1.0/release-manifest.sigstore.json"}'::jsonb,
     '{"minimum":"1.0.0","maximum":"1.0.0"}'::jsonb, 1,
     '20260821005258',
     '{"minimum":"1.0.0","maximum":"1.0.0"}'::jsonb, 'embedded'
@@ -106,7 +124,7 @@ INSERT INTO public.plugin_versions (
     repeat('b', 40), repeat('b', 64),
     '["plugins/application-admin-fixture","apps/application-admin-fixture"]'::jsonb,
     repeat('b', 64), repeat('b', 64),
-    '{"identity":"fixture","issuer":"fixture","attestationRef":"fixture"}'::jsonb,
+    '{"identity":"https://github.com/riddhimanrana/lets-assist-plugins/.github/workflows/plugin-release.yml@refs/tags/application-admin-fixture/v1.1.0","issuer":"https://token.actions.githubusercontent.com","attestationRef":"github-release:application-admin-fixture/v1.1.0/release-manifest.sigstore.json"}'::jsonb,
     '{"minimum":"1.0.0","maximum":"1.0.0"}'::jsonb, 1,
     '20260821005258',
     '{"minimum":"1.0.0","maximum":"1.1.0"}'::jsonb, 'application'
@@ -178,11 +196,35 @@ SELECT public.report_plugin_deployment_health(
   'healthy', 'deployed',
   '{"deploymentUrl":"https://application-admin-old.vercel.app","healthRoute":"/api/health"}'::jsonb
 );
+SELECT extensions.throws_ok(
+  $$
+    SELECT public.observe_plugin_deployment(
+      'application-admin-fixture', '1.1.0', 'development', 'service',
+      'dpl_application_admin_001', repeat('c', 40),
+      '{"releaseTag":"application-admin-fixture/v1.1.0"}'::jsonb
+    )
+  $$,
+  '55000',
+  'plugin deployment identity cannot change',
+  'an observed deployment ID cannot inherit health under another runtime profile'
+);
 
 SELECT public.observe_plugin_deployment(
   'application-admin-fixture', '1.1.0', 'development', 'application',
   'dpl_application_admin_002', repeat('d', 40),
   '{"releaseTag":"application-admin-fixture/v1.1.0"}'::jsonb
+);
+SELECT extensions.throws_ok(
+  $$
+    SELECT public.report_plugin_deployment_health(
+      'application-admin-fixture', 'development',
+      'dpl_application_admin_002', 'healthy', 'deployed',
+      '{"healthRoute":"/api/health"}'::jsonb
+    )
+  $$,
+  '22023',
+  'a healthy application deployment requires a canonical Vercel URL',
+  'health reporting rejects an application deployment without a routable URL'
 );
 RESET ROLE;
 UPDATE private.plugin_deployments
@@ -224,14 +266,13 @@ SELECT extensions.throws_ok(
   'the newest requested application deployment is not healthy',
   'activation refuses a newer deployment until it reports healthy'
 );
-SELECT public.report_plugin_deployment_health(
-  'application-admin-fixture', 'development', 'dpl_application_admin_002',
-  'healthy', 'deployed',
-  '{"deploymentUrl":"https://application-admin.example.test","healthRoute":"/api/health"}'::jsonb
-);
 RESET ROLE;
 UPDATE private.plugin_deployments
-SET last_seen_at = last_seen_at + interval '1 second'
+SET health_status = 'healthy',
+  promotion_status = 'deployed',
+  health_evidence = '{"deploymentUrl":"https://application-admin.example.test","healthRoute":"/api/health"}'::jsonb,
+  health_reported_at = now(),
+  last_seen_at = last_seen_at + interval '1 second'
 WHERE plugin_key = 'application-admin-fixture'
   AND environment = 'development'
   AND deployment_id = 'dpl_application_admin_002';
@@ -426,6 +467,53 @@ SELECT extensions.is(
   ) ->> 'routable',
   'false',
   'routing does not disclose a deployment target to a non-member'
+);
+SET LOCAL request.jwt.claims = '{"sub":"fa000000-0000-4000-8000-000000000002","role":"authenticated"}';
+SELECT extensions.ok(
+  public.get_plugin_application_asset_route_target_by_identifier(
+    'application-runtime-admin',
+    'application-admin-fixture',
+    'development',
+    'dpl_application_admin_001'
+  ) ->> 'routable' = 'true'
+  AND public.get_plugin_application_asset_route_target_by_identifier(
+    'application-runtime-admin',
+    'application-admin-fixture',
+    'development',
+    'dpl_application_admin_001'
+  ) ->> 'deploymentUrl' = 'https://application-admin-old.vercel.app',
+  'an open page can keep loading its prior compatible healthy deployment'
+);
+SELECT extensions.is(
+  public.get_plugin_application_asset_route_target_by_identifier(
+    'application-runtime-admin',
+    'application-admin-fixture',
+    'production',
+    'dpl_application_admin_001'
+  ) ->> 'routable',
+  'false',
+  'an asset target cannot cross environments'
+);
+SELECT extensions.is(
+  public.get_plugin_application_asset_route_target_by_identifier(
+    'application-runtime-admin',
+    'application-admin-fixture',
+    'development',
+    'dpl_missing'
+  ) ->> 'routable',
+  'false',
+  'an unknown asset deployment fails closed'
+);
+SET LOCAL request.jwt.claims = '{"sub":"fa000000-0000-4000-8000-000000000099","role":"authenticated"}';
+SELECT extensions.is(
+  public.get_plugin_application_asset_route_target_by_identifier(
+    'application-runtime-admin',
+    'application-admin-fixture',
+    'development',
+    'dpl_application_admin_001'
+  ) ->> 'routable',
+  'false',
+  'an asset target does not disclose a historical deployment to a non-member'
 );
 
 SET LOCAL ROLE service_role;
@@ -623,11 +711,11 @@ SELECT public.set_plugin_application_runtime(
 );
 SELECT public.observe_plugin_deployment(
   'application-admin-fixture', '1.1.0', 'development', 'application',
-  'dpl_application_admin_003', repeat('f', 40),
+  'dpl_application_admin_004', repeat('f', 40),
   '{"releaseTag":"application-admin-fixture/v1.1.0"}'::jsonb
 );
 SELECT public.report_plugin_deployment_health(
-  'application-admin-fixture', 'development', 'dpl_application_admin_003',
+  'application-admin-fixture', 'development', 'dpl_application_admin_004',
   'healthy', 'deployed',
   '{"deploymentUrl":"https://application-admin-later.vercel.app","healthRoute":"/api/health"}'::jsonb
 );
@@ -658,7 +746,7 @@ INSERT INTO public.plugin_versions (
   repeat('1', 40), repeat('1', 64),
   '["plugins/application-admin-fixture","apps/application-admin-fixture"]'::jsonb,
   repeat('1', 64), repeat('1', 64),
-  '{"identity":"fixture","issuer":"fixture","attestationRef":"fixture"}'::jsonb,
+  '{"identity":"https://github.com/riddhimanrana/lets-assist-plugins/.github/workflows/plugin-release.yml@refs/tags/application-admin-fixture/v1.1.1","issuer":"https://token.actions.githubusercontent.com","attestationRef":"github-release:application-admin-fixture/v1.1.1/release-manifest.sigstore.json"}'::jsonb,
   '{"minimum":"1.0.0"}'::jsonb, 1,
   '20260821005258',
   '{"minimum":"1.0.0","maximum":"1.1.0"}'::jsonb, 'application'
@@ -836,7 +924,7 @@ INSERT INTO public.plugin_versions (
   repeat('0', 40), repeat('0', 64),
   '["plugins/application-admin-fixture"]'::jsonb,
   NULL, repeat('0', 64),
-  '{"identity":"fixture","issuer":"fixture","attestationRef":"fixture"}'::jsonb,
+  '{"identity":"https://github.com/riddhimanrana/lets-assist-plugins/.github/workflows/plugin-release.yml@refs/tags/application-admin-fixture/v1.2.0","issuer":"https://token.actions.githubusercontent.com","attestationRef":"github-release:application-admin-fixture/v1.2.0/release-manifest.sigstore.json"}'::jsonb,
   '{"minimum":"1.0.0","maximum":"1.0.0"}'::jsonb, 1,
   '20260821005258',
   '{"minimum":"2.0.0","maximum":"2.0.0"}'::jsonb, 'embedded'
@@ -881,7 +969,7 @@ INSERT INTO public.plugin_versions (
   repeat('e', 40), repeat('e', 64),
   '["plugins/application-admin-fixture","apps/application-admin-fixture"]'::jsonb,
   repeat('e', 64), repeat('e', 64),
-  '{"identity":"fixture","issuer":"fixture","attestationRef":"fixture"}'::jsonb,
+  '{"identity":"https://github.com/riddhimanrana/lets-assist-plugins/.github/workflows/plugin-release.yml@refs/tags/application-admin-fixture/v1.2.0","issuer":"https://token.actions.githubusercontent.com","attestationRef":"github-release:application-admin-fixture/v1.2.0/release-manifest.sigstore.json"}'::jsonb,
   '{"minimum":"2.0.0","maximum":"2.0.0"}'::jsonb, 1,
   '20260821005258',
   '{"minimum":"1.0.0","maximum":"1.1.0"}'::jsonb, 'application'
@@ -896,7 +984,7 @@ SELECT public.observe_plugin_deployment(
 SELECT public.report_plugin_deployment_health(
   'application-admin-fixture', 'development', 'dpl_application_admin_003',
   'healthy', 'deployed',
-  '{"deploymentUrl":"https://application-admin-future.example.test","healthRoute":"/api/health"}'::jsonb
+  '{"deploymentUrl":"https://application-admin-future.vercel.app","healthRoute":"/api/health"}'::jsonb
 );
 SELECT extensions.is(
   public.get_plugin_application_runtime_admin_status(

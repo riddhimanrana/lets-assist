@@ -1,7 +1,7 @@
 BEGIN;
 
 CREATE EXTENSION IF NOT EXISTS pgtap WITH SCHEMA extensions;
-SELECT extensions.plan(36);
+SELECT extensions.plan(37);
 
 SELECT extensions.ok(
   has_function_privilege(
@@ -140,9 +140,9 @@ SELECT
   repeat(release.hash_character, 64),
   repeat(release.hash_character, 64),
   jsonb_build_object(
-    'identity', 'https://github.com/riddhimanrana/lets-assist-plugins/.github/workflows/plugin-release.yml@refs/heads/development',
+    'identity', 'https://github.com/riddhimanrana/lets-assist-plugins/.github/workflows/plugin-release.yml@refs/tags/application-access-fixture/v' || release.version,
     'issuer', 'https://token.actions.githubusercontent.com',
-    'attestationRef', 'release.sigstore.json'
+    'attestationRef', 'github-release:application-access-fixture/v' || release.version || '/release-manifest.sigstore.json'
   ),
   '{"minimum":"1.0.0","maximum":"1.0.0"}'::jsonb,
   1,
@@ -214,7 +214,7 @@ INSERT INTO public.plugin_versions (
   '["plugins/dvhs-csf","apps/csf"]'::jsonb,
   repeat('4', 64),
   repeat('4', 64),
-  '{"identity":"https://github.com/riddhimanrana/lets-assist-plugins/.github/workflows/plugin-release.yml@refs/heads/development","issuer":"https://token.actions.githubusercontent.com","attestationRef":"release.sigstore.json"}'::jsonb,
+  '{"identity":"https://github.com/riddhimanrana/lets-assist-plugins/.github/workflows/plugin-release.yml@refs/tags/dvhs-csf/v1.2.0","issuer":"https://token.actions.githubusercontent.com","attestationRef":"github-release:dvhs-csf/v1.2.0/release-manifest.sigstore.json"}'::jsonb,
   '{"minimum":"1.0.0","maximum":"1.0.0"}'::jsonb,
   1,
   '20260820130000',
@@ -519,7 +519,7 @@ INSERT INTO public.plugin_versions (
   repeat('5', 40), repeat('5', 64),
   '["apps/application-access-fixture"]'::jsonb,
   repeat('5', 64), repeat('5', 64),
-  '{"identity":"https://github.com/riddhimanrana/lets-assist-plugins/.github/workflows/plugin-release.yml@refs/heads/development","issuer":"https://token.actions.githubusercontent.com","attestationRef":"release.sigstore.json"}'::jsonb,
+  '{"identity":"https://github.com/riddhimanrana/lets-assist-plugins/.github/workflows/plugin-release.yml@refs/tags/application-access-fixture/v1.3.0","issuer":"https://token.actions.githubusercontent.com","attestationRef":"github-release:application-access-fixture/v1.3.0/release-manifest.sigstore.json"}'::jsonb,
   '{"minimum":"1.0.0","maximum":"1.0.0"}'::jsonb,
   1, '20260820130000',
   '{"minimum":"invalid","maximum":"1.3.0"}'::jsonb,
@@ -624,24 +624,31 @@ SELECT extensions.is(
 );
 
 RESET ROLE;
-INSERT INTO public.plugin_versions (
-  plugin_key, version, status, changelog, commit_sha, manifest_hash,
-  compatibility_contract, rollout_percentage, published_at, source_tree,
-  content_digest, release_inputs, build_digest, sbom_digest,
-  host_api_range, plugin_data_schema_version,
-  required_platform_schema_version, supported_install_contracts,
-  runtime_profile
-) VALUES (
-  'application-access-fixture', '1.4.0', 'published',
-  'Unsigned application fixture.', repeat('6', 40), repeat('6', 64),
-  '{"host":"lets-assist","automaticUpdate":false}'::jsonb, 0, now(),
-  repeat('6', 40), repeat('6', 64),
-  '["apps/application-access-fixture"]'::jsonb,
-  repeat('6', 64), repeat('6', 64),
-  '{"minimum":"1.0.0","maximum":"1.0.0"}'::jsonb,
-  1, '20260820130000',
-  '{"minimum":"1.0.0","maximum":"1.4.0"}'::jsonb,
-  'application'
+SELECT extensions.throws_ok(
+  $$
+    INSERT INTO public.plugin_versions (
+      plugin_key, version, status, changelog, commit_sha, manifest_hash,
+      compatibility_contract, rollout_percentage, published_at, source_tree,
+      content_digest, release_inputs, build_digest, sbom_digest,
+      host_api_range, plugin_data_schema_version,
+      required_platform_schema_version, supported_install_contracts,
+      runtime_profile
+    ) VALUES (
+      'application-access-fixture', '1.4.0', 'published',
+      'Unsigned application fixture.', repeat('6', 40), repeat('6', 64),
+      '{"host":"lets-assist","automaticUpdate":false}'::jsonb, 0, now(),
+      repeat('6', 40), repeat('6', 64),
+      '["apps/application-access-fixture"]'::jsonb,
+      repeat('6', 64), repeat('6', 64),
+      '{"minimum":"1.0.0","maximum":"1.0.0"}'::jsonb,
+      1, '20260820130000',
+      '{"minimum":"1.0.0","maximum":"1.4.0"}'::jsonb,
+      'application'
+    )
+  $$,
+  'P0001',
+  'independently deployed plugin releases require signed build and SBOM evidence',
+  'an unsigned application release cannot be published'
 );
 INSERT INTO public.plugin_versions (
   plugin_key, version, status, changelog, commit_sha, manifest_hash,
@@ -657,7 +664,7 @@ INSERT INTO public.plugin_versions (
   repeat('7', 40), repeat('7', 64),
   '["apps/application-access-fixture"]'::jsonb,
   repeat('7', 64), repeat('7', 64),
-  '{"identity":"https://github.com/riddhimanrana/lets-assist-plugins/.github/workflows/plugin-release.yml@refs/heads/development","issuer":"https://token.actions.githubusercontent.com","attestationRef":"release.sigstore.json"}'::jsonb,
+  '{"identity":"https://github.com/riddhimanrana/lets-assist-plugins/.github/workflows/plugin-release.yml@refs/tags/application-access-fixture/v1.5.0","issuer":"https://token.actions.githubusercontent.com","attestationRef":"github-release:application-access-fixture/v1.5.0/release-manifest.sigstore.json"}'::jsonb,
   '{"minimum":"2.0.0","maximum":"2.0.0"}'::jsonb,
   1, '20260820130000',
   '{"minimum":"1.0.0","maximum":"1.5.0"}'::jsonb,
@@ -673,8 +680,8 @@ SELECT extensions.is(
     'application-access-fixture',
     '1.4.0'
   ) ->> 'reason',
-  'runtime_release_unsigned',
-  'an unsigned application release cannot authorize a child runtime'
+  'runtime_release_missing',
+  'a rejected unsigned application release cannot authorize a child runtime'
 );
 SELECT extensions.is(
   public.get_plugin_application_access_context(

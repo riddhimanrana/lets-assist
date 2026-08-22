@@ -11,7 +11,7 @@ export function collectPluginSourceFiles(directory) {
   const found = [];
 
   for (const entry of readdirSync(directory)) {
-    if (entry === "node_modules") continue;
+    if ([".next", ".turbo", "dist", "node_modules"].includes(entry)) continue;
     const absolute = join(directory, entry);
     if (statSync(absolute).isDirectory()) {
       found.push(...collectPluginSourceFiles(absolute));

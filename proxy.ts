@@ -22,39 +22,56 @@ import {
 const MICROFRONTENDS_CLIENT_CONFIG_PATH =
   "/.well-known/vercel/microfrontends/client-config";
 const CSF_APPLICATION_ASSET_PREFIX = "/vc-ap-5431dc/";
-const CSF_APPLICATION_ASSET_ORGANIZATION_COOKIE = "la-csf-asset-organization";
+const CSF_APPLICATION_ASSET_COOKIE_PREFIX = "la-csf-asset-";
+const VERCEL_DEPLOYMENT_ID_PATTERN = /^dpl_[A-Za-z0-9_]{1,195}$/u;
 
 function isCsfOrganizationIdentifier(value: string): boolean {
+  if (ORGANIZATION_ID_PATTERN.test(value)) return true;
   return (
-    value.length <= 128 &&
-    (ORGANIZATION_ID_PATTERN.test(value) ||
-      /^[a-z0-9]+(?:-[a-z0-9]+)*$/u.test(value))
+    /^[a-z0-9_.-]{3,32}$/u.test(value) &&
+    !value.startsWith(".") &&
+    !value.endsWith(".") &&
+    !value.includes("..")
   );
 }
 
-function getCsfAssetOrganizationIdentifier(
+function getCsfAssetCookieName(deploymentId: string): string | null {
+  return VERCEL_DEPLOYMENT_ID_PATTERN.test(deploymentId)
+    ? `${CSF_APPLICATION_ASSET_COOKIE_PREFIX}${deploymentId}`
+    : null;
+}
+
+function getCsfAssetRouteContext(
   request: NextRequest,
-): string | null {
+): { organizationIdentifier: string; deploymentId: string } | null {
+  const deploymentId = request.nextUrl.searchParams.get("dpl");
+  const cookieName = deploymentId ? getCsfAssetCookieName(deploymentId) : null;
+  if (!deploymentId || !cookieName) return null;
+
   const referer = request.headers.get("referer");
-  if (referer) {
-    try {
-      const refererUrl = new URL(referer);
-      if (refererUrl.origin === request.nextUrl.origin) {
-        const identifier = getCsfApplicationOrganizationId(refererUrl.pathname);
-        if (identifier && isCsfOrganizationIdentifier(identifier)) {
-          return identifier;
-        }
-      }
-    } catch {
-      // Fall through to the caller-scoped cookie. The route-target RPC still
-      // revalidates access before any deployment receives the request.
+  if (!referer) return null;
+
+  try {
+    const refererUrl = new URL(referer);
+    if (refererUrl.origin !== request.nextUrl.origin) return null;
+
+    const identifier = getCsfApplicationOrganizationId(refererUrl.pathname);
+    if (identifier && isCsfOrganizationIdentifier(identifier)) {
+      return { organizationIdentifier: identifier, deploymentId };
     }
+
+    if (refererUrl.pathname.startsWith(CSF_APPLICATION_ASSET_PREFIX)) {
+      if (refererUrl.searchParams.get("dpl") !== deploymentId) return null;
+      const cookie = request.cookies.get(cookieName)?.value;
+      if (cookie && isCsfOrganizationIdentifier(cookie)) {
+        return { organizationIdentifier: cookie, deploymentId };
+      }
+    }
+  } catch {
+    return null;
   }
 
-  const cookie = request.cookies.get(
-    CSF_APPLICATION_ASSET_ORGANIZATION_COOKIE,
-  )?.value;
-  return cookie && isCsfOrganizationIdentifier(cookie) ? cookie : null;
+  return null;
 }
 
 type RootProxyDependencies = {
@@ -67,6 +84,12 @@ type RootProxyDependencies = {
     context: AuthenticatedProxyContext,
     organizationId: string,
     environment: PluginApplicationEnvironment,
+  ) => Promise<PluginApplicationRouteTarget | null>;
+  readCsfApplicationAssetRouteTarget: (
+    context: AuthenticatedProxyContext,
+    organizationId: string,
+    environment: PluginApplicationEnvironment,
+    deploymentId: string,
   ) => Promise<PluginApplicationRouteTarget | null>;
   readCsfLocalApplicationRouteTarget: (
     context: AuthenticatedProxyContext,
@@ -98,6 +121,27 @@ export async function readCsfApplicationRouteTarget(
   );
 
   return error ? null : parsePluginApplicationRouteTarget(data);
+}
+
+export async function readCsfApplicationAssetRouteTarget(
+  context: AuthenticatedProxyContext,
+  organizationIdentifier: string,
+  environment: PluginApplicationEnvironment,
+  deploymentId: string,
+): Promise<PluginApplicationRouteTarget | null> {
+  if (!getCsfAssetCookieName(deploymentId)) return null;
+
+  const { data, error } = await context.supabase.rpc(
+    "get_plugin_application_asset_route_target_by_identifier",
+    {
+      p_organization_identifier: organizationIdentifier,
+      p_plugin_key: "dvhs-csf",
+      p_environment: environment,
+      p_deployment_id: deploymentId,
+    },
+  );
+  const target = error ? null : parsePluginApplicationRouteTarget(data);
+  return target?.deploymentId === deploymentId ? target : null;
 }
 
 export async function readCsfLocalApplicationRouteTarget(
@@ -183,16 +227,15 @@ export function rewriteToPluginApplicationDeployment(input: {
     input.assetOrganizationIdentifier &&
     isCsfOrganizationIdentifier(input.assetOrganizationIdentifier)
   ) {
-    response.cookies.set(
-      CSF_APPLICATION_ASSET_ORGANIZATION_COOKIE,
-      input.assetOrganizationIdentifier,
-      {
+    const cookieName = getCsfAssetCookieName(input.target.deploymentId);
+    if (cookieName) {
+      response.cookies.set(cookieName, input.assetOrganizationIdentifier, {
         httpOnly: true,
         path: CSF_APPLICATION_ASSET_PREFIX,
         sameSite: "strict",
         secure: input.request.nextUrl.protocol === "https:",
-      },
-    );
+      });
+    }
   }
   return response;
 }
@@ -217,15 +260,16 @@ export function createRootProxy(
       dependencies.applicationEnvironment &&
       dependencies.applicationDeploymentBypassSecret
     ) {
-      const organizationIdentifier = getCsfAssetOrganizationIdentifier(request);
-      if (!organizationIdentifier) return NextResponse.next();
+      const routeContext = getCsfAssetRouteContext(request);
+      if (!routeContext) return NextResponse.next();
 
       return dependencies.updateSession(request, {
         onAuthenticatedPassThrough: async (context) => {
-          const target = await dependencies.readCsfApplicationRouteTarget(
+          const target = await dependencies.readCsfApplicationAssetRouteTarget(
             context,
-            organizationIdentifier,
+            routeContext.organizationIdentifier,
             dependencies.applicationEnvironment!,
+            routeContext.deploymentId,
           );
           if (!target) return null;
 
@@ -233,7 +277,7 @@ export function createRootProxy(
             request: withoutLocalFlagOverride(request),
             target,
             bypassSecret: dependencies.applicationDeploymentBypassSecret,
-            assetOrganizationIdentifier: organizationIdentifier,
+            assetOrganizationIdentifier: routeContext.organizationIdentifier,
           });
         },
       });
@@ -301,6 +345,7 @@ export const proxy = createRootProxy({
   updateSession,
   runMicrofrontendsMiddleware,
   readCsfApplicationRouteTarget,
+  readCsfApplicationAssetRouteTarget,
   readCsfLocalApplicationRouteTarget,
   applicationEnvironment: resolvePluginApplicationEnvironment(),
   localApplicationUrl: resolveLocalPluginApplicationUrl(),

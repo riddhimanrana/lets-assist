@@ -6,6 +6,7 @@ import type { AuthenticatedProxyContext } from "@/lib/supabase/proxy";
 import {
   config,
   createRootProxy,
+  readCsfApplicationAssetRouteTarget,
   readCsfLocalApplicationRouteTarget,
   readCsfApplicationRouteTarget,
   rewriteToPluginApplicationDeployment,
@@ -23,6 +24,8 @@ const defaultDependencies = {
   applicationEnvironment: "development" as const,
   applicationDeploymentBypassSecret: "fixture-bypass",
   localApplicationUrl: null,
+  readCsfApplicationRouteTarget: async () => null,
+  readCsfApplicationAssetRouteTarget: async () => null,
   readCsfLocalApplicationRouteTarget: async () => null,
 };
 
@@ -59,6 +62,40 @@ describe("root proxy composition", () => {
       {
         functionName: "get_plugin_application_route_target_by_identifier",
         parameters: {
+          p_environment: "development",
+          p_organization_identifier: "dvhighcsf",
+          p_plugin_key: "dvhs-csf",
+        },
+      },
+    ]);
+  });
+
+  test("reads an exact caller-scoped asset deployment target", async () => {
+    const calls: Array<{ functionName: string; parameters: unknown }> = [];
+    const supabase = {
+      async rpc(functionName: string, parameters: unknown) {
+        calls.push({ functionName, parameters });
+        return { data: { routable: true, ...routeTarget }, error: null };
+      },
+    };
+
+    const target = await readCsfApplicationAssetRouteTarget(
+      {
+        request: new NextRequest(`https://example.test${applicationPath}`),
+        userId: "11111111-1111-4111-8111-111111111111",
+        supabase: supabase as never,
+      },
+      "dvhighcsf",
+      "development",
+      "dpl_selected_v1",
+    );
+
+    expect(target).toEqual(routeTarget);
+    expect(calls).toEqual([
+      {
+        functionName: "get_plugin_application_asset_route_target_by_identifier",
+        parameters: {
+          p_deployment_id: "dpl_selected_v1",
           p_environment: "development",
           p_organization_identifier: "dvhighcsf",
           p_plugin_key: "dvhs-csf",
@@ -186,7 +223,7 @@ describe("root proxy composition", () => {
     expect(response.headers.get("x-middleware-rewrite")).toBe(
       `https://lets-assist-csf-v1.vercel.app${applicationPath}`,
     );
-    expect(response.cookies.get("la-csf-asset-organization")?.value).toBe(
+    expect(response.cookies.get("la-csf-asset-dpl_selected_v1")?.value).toBe(
       "22222222-2222-4222-8222-222222222222",
     );
   });
@@ -306,6 +343,10 @@ describe("root proxy composition", () => {
         targetCalls += 1;
         return routeTarget;
       },
+      readCsfApplicationAssetRouteTarget: async () => {
+        targetCalls += 1;
+        return routeTarget;
+      },
       readCsfLocalApplicationRouteTarget: async () => {
         targetCalls += 1;
         return routeTarget;
@@ -329,6 +370,7 @@ describe("root proxy composition", () => {
           authenticatedContext(authRequest),
         )) ?? NextResponse.next(),
       readCsfApplicationRouteTarget: async () => null,
+      readCsfApplicationAssetRouteTarget: async () => null,
       readCsfLocalApplicationRouteTarget: async () => ({
         deploymentId: "local-1.2.7",
         deploymentUrl: "http://127.0.0.1:3001",
@@ -371,9 +413,12 @@ describe("root proxy composition", () => {
 
   test("routes namespaced assets to the deployment selected for their document", async () => {
     const assetPath = "/vc-ap-5431dc/_next/static/chunks/app/access-proof.js";
-    const request = new NextRequest(`https://example.test${assetPath}`, {
-      headers: { referer: `https://example.test${applicationPath}` },
-    });
+    const request = new NextRequest(
+      `https://example.test${assetPath}?dpl=dpl_selected_v1`,
+      {
+        headers: { referer: `https://example.test${applicationPath}` },
+      },
+    );
     let authCalls = 0;
     let microfrontendCalls = 0;
     const rootProxy = createRootProxy({
@@ -386,8 +431,14 @@ describe("root proxy composition", () => {
           )) ?? NextResponse.next()
         );
       },
-      readCsfApplicationRouteTarget: async (_context, organizationId) => {
+      readCsfApplicationAssetRouteTarget: async (
+        _context,
+        organizationId,
+        _environment,
+        deploymentId,
+      ) => {
         expect(organizationId).toBe("22222222-2222-4222-8222-222222222222");
+        expect(deploymentId).toBe("dpl_selected_v1");
         return routeTarget;
       },
       runMicrofrontendsMiddleware: async () => {
@@ -399,7 +450,7 @@ describe("root proxy composition", () => {
     const response = await rootProxy(request);
 
     expect(response.headers.get("x-middleware-rewrite")).toBe(
-      `https://lets-assist-csf-v1.vercel.app${assetPath}`,
+      `https://lets-assist-csf-v1.vercel.app${assetPath}?dpl=dpl_selected_v1`,
     );
     expect(authCalls).toBe(1);
     expect(microfrontendCalls).toBe(0);
@@ -413,6 +464,10 @@ describe("root proxy composition", () => {
       ...defaultDependencies,
       updateSession: async () => NextResponse.next(),
       readCsfApplicationRouteTarget: async () => {
+        targetCalls += 1;
+        return routeTarget;
+      },
+      readCsfApplicationAssetRouteTarget: async () => {
         targetCalls += 1;
         return routeTarget;
       },
@@ -443,29 +498,83 @@ describe("root proxy composition", () => {
         (await options?.onAuthenticatedPassThrough?.(
           authenticatedContext(authRequest),
         )) ?? NextResponse.next(),
-      readCsfApplicationRouteTarget: async (_context, identifier) => {
+      readCsfApplicationAssetRouteTarget: async (
+        _context,
+        identifier,
+        _environment,
+        deploymentId,
+      ) => {
         selectedOrganizations.push(identifier);
+        expect(deploymentId).toBe("dpl_selected_v1");
         return routeTarget;
       },
       runMicrofrontendsMiddleware: async () => NextResponse.next(),
     });
 
     const response = await rootProxy(
-      new NextRequest(`https://example.test${assetPath}`, {
+      new NextRequest(`https://example.test${assetPath}?dpl=dpl_selected_v1`, {
         headers: {
-          cookie: `la-csf-asset-organization=${organizationId}`,
+          cookie: `la-csf-asset-dpl_selected_v1=${organizationId}`,
           referer:
-            "https://example.test/vc-ap-5431dc/_next/static/chunks/app/parent.js",
+            "https://example.test/vc-ap-5431dc/_next/static/chunks/app/parent.js?dpl=dpl_selected_v1",
         },
       }),
     );
 
     expect(selectedOrganizations).toEqual([organizationId]);
     expect(response.headers.get("x-middleware-rewrite")).toBe(
-      `https://lets-assist-csf-v1.vercel.app${assetPath}`,
+      `https://lets-assist-csf-v1.vercel.app${assetPath}?dpl=dpl_selected_v1`,
     );
-    expect(response.cookies.get("la-csf-asset-organization")?.value).toBe(
+    expect(response.cookies.get("la-csf-asset-dpl_selected_v1")?.value).toBe(
       organizationId,
+    );
+  });
+
+  test("keeps deployment contexts independent across organization tabs", async () => {
+    const organizationId = "22222222-2222-4222-8222-222222222222";
+    const oldTarget = {
+      deploymentId: "dpl_oldVersion",
+      deploymentUrl: "https://lets-assist-csf-old.vercel.app",
+      runtimeVersion: "1.2.6",
+    };
+    const rootProxy = createRootProxy({
+      ...defaultDependencies,
+      updateSession: async (authRequest, options) =>
+        (await options?.onAuthenticatedPassThrough?.(
+          authenticatedContext(authRequest),
+        )) ?? NextResponse.next(),
+      readCsfApplicationAssetRouteTarget: async (
+        _context,
+        identifier,
+        _environment,
+        deploymentId,
+      ) => {
+        expect(identifier).toBe(organizationId);
+        return deploymentId === oldTarget.deploymentId
+          ? oldTarget
+          : routeTarget;
+      },
+      runMicrofrontendsMiddleware: async () => NextResponse.next(),
+    });
+
+    const response = await rootProxy(
+      new NextRequest(
+        "https://example.test/vc-ap-5431dc/_next/static/chunks/app/old.js?dpl=dpl_oldVersion",
+        {
+          headers: {
+            cookie: [
+              `la-csf-asset-dpl_oldVersion=${organizationId}`,
+              "la-csf-asset-dpl_selected_v1=another-organization",
+            ].join("; "),
+            referer:
+              "https://example.test/vc-ap-5431dc/_next/static/chunks/app/parent.js?dpl=dpl_oldVersion",
+          },
+        },
+      ),
+    );
+
+    expect(response.headers.get("x-middleware-rewrite")).toBe(
+      "https://lets-assist-csf-old.vercel.app/vc-ap-5431dc/_next/static/chunks/app/old.js?dpl=dpl_oldVersion",
     );
   });
 
