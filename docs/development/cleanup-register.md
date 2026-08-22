@@ -26,6 +26,16 @@ This register separates actionable repository defects from provider/account and 
   suite pass 6,177 assertions. The direct proxy and release-contract bundle
   passes 58 tests, and the literal-import collector passes 7 tests,
   and lint, source organization, plugin boundaries, and TypeScript pass.
+- A final independent Claude review reported two P2 candidates. The deployment
+  project concern is disproved as a second runtime authorization gate: the
+  signed project/team allowlist check occurs before the service-role-only
+  provider-ingestion RPC, which then makes the accepted origin immutable.
+  Request routing repeats caller and control-plane authorization without
+  trusting a client-supplied project identity. The storage-grammar report found
+  a real legacy compatibility difference: the embedded private helper admits
+  `.` and `_`, while the SDK and every registered manifest use the canonical
+  hyphen-only grammar. Documentation and regression coverage now state and pin
+  that narrower SDK boundary instead of claiming identical behavior.
 - PR #245 remains the Development-to-Production release vehicle. Production is
   still at 333 migrations through `20260819050728`, with the DVHS CSF install
   enabled on embedded `1.1.0`. No Production schema, child deployment, or

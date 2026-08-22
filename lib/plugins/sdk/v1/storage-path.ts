@@ -3,9 +3,10 @@
  *
  * Every organization-owned plugin file lives at
  * `plugins/{organizationId}/{pluginKey}/{resource...}`. The rules here are the
- * authority for that shape and are byte-compatible with the private repo's
- * `plugin-storage.ts`, which shipped the same grammar first; a parity test
- * keeps the two from drifting until that module re-exports this one.
+ * authority for that shape. The older embedded helper also admits `.` and `_`
+ * in plugin keys, but every registered manifest uses the host's narrower
+ * hyphen-separated grammar. A compatibility test keeps that legacy difference
+ * explicit until the private module can consume the published SDK.
  *
  * Path construction is the only sanctioned way to address plugin storage,
  * because the bucket has no row-level policies at all: scope is enforced

@@ -5,16 +5,15 @@ import { join } from "node:path";
 import { buildPluginStoragePath } from "./storage-path";
 
 /**
- * The private plugin repository shipped this storage grammar first, in
- * `plugin-storage.ts`. The SDK now states the same rules so a plugin deployed
- * as its own application can address storage without importing host or private
- * code.
+ * The private plugin repository shipped the storage helper first, in
+ * `plugin-storage.ts`. The SDK now owns the canonical plugin-key grammar so an
+ * independently deployed application can address storage without importing
+ * host or private code.
  *
- * Two implementations of a tenancy rule are a liability, so this test holds
- * them to identical behavior over a shared corpus until the private module
- * re-exports the SDK. It compares behavior rather than source text, because
- * matching bytes are neither necessary nor sufficient: what matters is that
- * both accept and reject exactly the same keys.
+ * The embedded helper still accepts legacy `.` and `_` key punctuation. No
+ * registered manifest can use those keys, and its production call sites pass
+ * the fixed `dvhs-csf` key. These tests make the canonical intersection and
+ * legacy-only difference explicit until a private release can consume the SDK.
  */
 
 const privateModulePath = join(
@@ -72,7 +71,7 @@ describe("storage grammar parity with the private plugin repository", () => {
   });
 
   test.skipIf(!submodulePresent)(
-    "both implementations accept and reject the same keys",
+    "both implementations agree for canonical keys and tenant suffixes",
     async () => {
       const privateModule = (await import(privateModulePath)) as {
         PRIVATE_PLUGIN_STORAGE_BUCKET: string;
@@ -114,6 +113,40 @@ describe("storage grammar parity with the private plugin repository", () => {
       }
 
       expect(divergences).toEqual([]);
+    },
+  );
+
+  test.skipIf(!submodulePresent)(
+    "the SDK rejects legacy private-only plugin-key punctuation",
+    async () => {
+      const privateModule = (await import(privateModulePath)) as {
+        buildPrivatePluginStoragePath: (input: {
+          organizationId: string;
+          pluginKey: string;
+          suffix: string;
+        }) => string;
+      };
+
+      for (const pluginKey of ["legacy_plugin", "legacy.plugin"]) {
+        expect(
+          attempt(() =>
+            privateModule.buildPrivatePluginStoragePath({
+              organizationId: ORG,
+              pluginKey,
+              suffix: "file.pdf",
+            }),
+          ).ok,
+        ).toBe(true);
+        expect(
+          attempt(() =>
+            buildPluginStoragePath({
+              organizationId: ORG,
+              pluginKey,
+              resource: "file.pdf",
+            }),
+          ).ok,
+        ).toBe(false);
+      }
     },
   );
 });

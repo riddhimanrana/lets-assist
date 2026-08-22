@@ -163,6 +163,17 @@ does not replace verification of the immutable release assets in CI.
 The signed private-to-root release path and its credential boundary are
 documented in [signed plugin release integration](../development/plugin-release-integration.md).
 
+Deployment provider identity is verified at the trusted ingestion boundary.
+The deployment workflow compares the signed release's Vercel project and team
+identifiers with the code-owned target allowlist before it can call the
+service-role-only observation and health RPCs. Those RPCs store one immutable
+deployment origin. Request routing then revalidates the caller, organization,
+install, entitlement, selected version, compatibility, security floor, and
+recorded health without making a Vercel API call on every request. A caller
+with the Production service-role credential is already inside this trusted
+provider-ingestion boundary; duplicating the project identifier in its payload
+would not create an independent authorization gate.
+
 ## Storage contracts
 
 The server-only `plugins` bucket uses
