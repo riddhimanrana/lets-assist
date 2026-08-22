@@ -1,7 +1,7 @@
 BEGIN;
 
 CREATE EXTENSION IF NOT EXISTS pgtap WITH SCHEMA extensions;
-SELECT extensions.plan(49);
+SELECT extensions.plan(52);
 
 SELECT extensions.ok(
   NOT has_function_privilege(
@@ -507,6 +507,58 @@ SELECT extensions.is(
 );
 
 RESET ROLE;
+
+UPDATE public.organization_members
+SET status = 'inactive'
+WHERE organization_id = 'fa100000-0000-4000-8000-000000000001'
+  AND user_id = 'fa000000-0000-4000-8000-000000000001';
+
+SET LOCAL ROLE service_role;
+SET LOCAL request.jwt.claims = '{"role":"service_role"}';
+
+SELECT extensions.throws_ok(
+  $$
+    SELECT public.set_plugin_application_runtime(
+      'fa100000-0000-4000-8000-000000000001',
+      'application-admin-fixture', '1.1.0', 'development', true,
+      'fa000000-0000-4000-8000-000000000001',
+      'fa200000-0000-4000-8000-000000000002', false, NULL
+    )
+  $$,
+  '42501',
+  'active organization admin is required',
+  'a revoked admin cannot replay a completed runtime transition'
+);
+SELECT extensions.throws_ok(
+  $$
+    SELECT public.set_plugin_application_runtime(
+      'fa100000-0000-4000-8000-000000000001',
+      'application-admin-fixture', '1.1.0', 'development', true,
+      'fa000000-0000-4000-8000-000000000001',
+      'fa200000-0000-4000-8000-00000000000e', false, NULL
+    )
+  $$,
+  '42501',
+  'active organization admin is required',
+  'a revoked admin cannot start a runtime transition'
+);
+
+RESET ROLE;
+
+SELECT extensions.is(
+  (
+    SELECT count(*)::integer
+    FROM private.plugin_application_runtime_transitions
+    WHERE request_id = 'fa200000-0000-4000-8000-00000000000e'
+  ),
+  0,
+  'a rejected revoked-admin request leaves no transition receipt'
+);
+
+UPDATE public.organization_members
+SET status = 'active'
+WHERE organization_id = 'fa100000-0000-4000-8000-000000000001'
+  AND user_id = 'fa000000-0000-4000-8000-000000000001';
 
 SELECT extensions.ok(
   (
