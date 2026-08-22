@@ -229,12 +229,15 @@ export const proxy = createRootProxy({
 
 export const config = {
   matcher: [
+    // Admit every generated child asset, including files whose extensions are
+    // excluded from the host's authentication matcher below.
+    "/vc-ap-5431dc/:path*",
     /*
      * Match all request paths except for the ones starting with:
+     * - _next/static (host static files)
      * - _next/image (image optimization files)
      * - favicon.ico (favicon file)
-     * Feel free to modify this pattern to include more paths.
      */
-    "/((?!_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)",
+    "/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)",
   ],
 };

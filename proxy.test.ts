@@ -361,7 +361,13 @@ describe("root proxy composition", () => {
       `http://127.0.0.1:3001${assetPath}`,
     );
     expect(authCalls).toBe(0);
-    expect(config.matcher[0]).toContain("_next/image");
+  });
+
+  test("matches the complete child namespace while excluding host assets", () => {
+    expect(config.matcher).toEqual([
+      "/vc-ap-5431dc/:path*",
+      "/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)",
+    ]);
   });
 
   test("routes namespaced assets directly to the owned isolated child", async () => {
