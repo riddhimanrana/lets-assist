@@ -1,7 +1,7 @@
 BEGIN;
 
 CREATE EXTENSION IF NOT EXISTS pgtap WITH SCHEMA extensions;
-SELECT extensions.plan(46);
+SELECT extensions.plan(48);
 
 SELECT extensions.ok(
   NOT has_function_privilege(
@@ -282,15 +282,24 @@ SELECT extensions.is(
   'true',
   'a healthy deployment makes the application choice available'
 );
-SELECT extensions.is(
-  public.set_plugin_application_runtime(
-    'fa100000-0000-4000-8000-000000000001',
-    'application-admin-fixture', '1.1.0', 'development', true,
-    'fa000000-0000-4000-8000-000000000001',
-    'fa200000-0000-4000-8000-000000000002', false, NULL
-  ) ->> 'applicationEnabled',
-  'true',
-  'an active organization admin can select the healthy application runtime'
+SELECT extensions.ok(
+  (
+    SELECT result ->> 'applicationEnabled' = 'true'
+      AND result ->> 'selectedDeploymentHealthy' = 'true'
+      AND result ->> 'selectedDeploymentId' = 'dpl_application_admin_002'
+      AND result ->> 'selectedDeploymentUrl'
+        = 'https://application-admin-new.vercel.app'
+      AND result ->> 'selectedHealthReportedAt' IS NOT NULL
+    FROM (
+      SELECT public.set_plugin_application_runtime(
+        'fa100000-0000-4000-8000-000000000001',
+        'application-admin-fixture', '1.1.0', 'development', true,
+        'fa000000-0000-4000-8000-000000000001',
+        'fa200000-0000-4000-8000-000000000002', false, NULL
+      ) AS result
+    ) AS activation
+  ),
+  'an active organization admin receives the healthy pinned deployment status'
 );
 
 RESET ROLE;
@@ -343,6 +352,9 @@ SELECT extensions.ok(
   (
     SELECT completed_at IS NOT NULL
       AND outcome ->> 'applicationEnabled' = 'true'
+      AND outcome ->> 'selectedDeploymentHealthy' = 'true'
+      AND outcome ->> 'selectedDeploymentId' = 'dpl_application_admin_002'
+      AND outcome ->> 'selectedHealthReportedAt' IS NOT NULL
     FROM private.plugin_application_runtime_transitions
     WHERE request_id = 'fa200000-0000-4000-8000-000000000002'
   ),
@@ -663,6 +675,54 @@ SELECT extensions.is(
   ) ->> 'runtimeVersion',
   '1.1.0',
   'publishing a newer deployment does not move an organization off its selected target'
+);
+
+RESET ROLE;
+UPDATE public.organization_plugin_installs
+SET enabled = true,
+  desired_version = '1.1.0'
+WHERE organization_id = 'fa100000-0000-4000-8000-000000000001'
+  AND plugin_key = 'application-admin-fixture';
+UPDATE public.organization_plugin_feature_flags
+SET enabled = true,
+  metadata = jsonb_build_object(
+    'runtimeVersion', '1.1.0',
+    'environment', 'development'
+  ),
+  updated_by = 'fa000000-0000-4000-8000-000000000001'
+WHERE organization_id = 'fa100000-0000-4000-8000-000000000001'
+  AND plugin_key = 'application-admin-fixture'
+  AND flag_key = 'application-runtime';
+DELETE FROM public.plugin_audit_logs
+WHERE organization_id = 'fa100000-0000-4000-8000-000000000001'
+  AND plugin_key = 'application-admin-fixture'
+  AND details ->> 'migrationBackfill' = 'true';
+SELECT extensions.is(
+  private.backfill_plugin_application_deployment_targets_20260822(),
+  1,
+  'legacy application selections receive one exact deployment pin'
+);
+SELECT extensions.ok(
+  (
+    SELECT flags.metadata ->> 'deploymentId' = 'dpl_application_admin_002'
+      AND flags.updated_by IS NULL
+    FROM public.organization_plugin_feature_flags AS flags
+    WHERE flags.organization_id = 'fa100000-0000-4000-8000-000000000001'
+      AND flags.plugin_key = 'application-admin-fixture'
+      AND flags.flag_key = 'application-runtime'
+  )
+  AND (
+    SELECT count(*) = 1
+    FROM public.plugin_audit_logs AS logs
+    WHERE logs.organization_id = 'fa100000-0000-4000-8000-000000000001'
+      AND logs.plugin_key = 'application-admin-fixture'
+      AND logs.actor_id IS NULL
+      AND logs.actor_type = 'system'
+      AND logs.details ->> 'migrationBackfill' = 'true'
+      AND logs.details ->> 'targetVersion' = '1.1.0'
+      AND logs.details ->> 'deploymentId' = 'dpl_application_admin_002'
+  ),
+  'the legacy pin is attributed to the system and recorded in the audit log'
 );
 SET LOCAL ROLE service_role;
 SET LOCAL request.jwt.claims = '{"role":"service_role"}';

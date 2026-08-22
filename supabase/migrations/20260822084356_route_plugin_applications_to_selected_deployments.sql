@@ -253,11 +253,13 @@ BEGIN
       );
     END IF;
 
-    v_result := v_result || jsonb_build_object(
+    v_result := public.get_plugin_application_runtime_admin_status(
+      p_organization_id,
+      p_plugin_key,
+      p_environment
+    ) || jsonb_build_object(
       'changed', coalesce((v_result ->> 'changed')::boolean, false)
-        OR v_previous_deployment_id IS DISTINCT FROM v_deployment.deployment_id,
-      'selectedDeploymentId', v_deployment.deployment_id,
-      'selectedDeploymentUrl', v_deployment.health_evidence ->> 'deploymentUrl'
+        OR v_previous_deployment_id IS DISTINCT FROM v_deployment.deployment_id
     );
   END IF;
 
@@ -545,48 +547,101 @@ GRANT EXECUTE ON FUNCTION public.get_plugin_application_route_target_by_identifi
 COMMENT ON FUNCTION public.get_plugin_application_route_target_by_identifier(text, text, text) IS
   'Returns an immutable healthy deployment URL only when the authenticated caller is an active member and the exact organization-selected application release remains accessible.';
 
-WITH ranked_existing_targets AS (
-  SELECT
-    flags.organization_id,
-    flags.plugin_key,
-    deployments.deployment_id,
-    row_number() OVER (
-      PARTITION BY flags.organization_id, flags.plugin_key
-      ORDER BY deployments.last_seen_at DESC,
-        deployments.first_seen_at DESC,
-        deployments.id DESC
-    ) AS target_rank
-  FROM public.organization_plugin_feature_flags AS flags
-  JOIN public.organization_plugin_installs AS installs
-    ON installs.organization_id = flags.organization_id
-   AND installs.plugin_key = flags.plugin_key
-  JOIN private.plugin_deployments AS deployments
-    ON deployments.plugin_key = flags.plugin_key
-   AND deployments.version = installs.desired_version
-   AND deployments.environment = flags.metadata ->> 'environment'
-   AND deployments.runtime_profile = 'application'
-   AND deployments.health_status = 'healthy'
-   AND deployments.promotion_status IN ('deployed', 'promoted')
-   AND deployments.health_evidence ->> 'deploymentUrl'
-     ~ '^https://[a-z0-9][a-z0-9.-]*\.vercel\.app/?$'
-   AND position(
-     '..' in deployments.health_evidence ->> 'deploymentUrl'
-   ) = 0
-  WHERE flags.flag_key = 'application-runtime'
-    AND flags.enabled
-    AND installs.enabled
-    AND installs.desired_version IS NOT NULL
-    AND flags.metadata ->> 'runtimeVersion' = installs.desired_version
-    AND NOT (flags.metadata ? 'deploymentId')
-)
-UPDATE public.organization_plugin_feature_flags AS flags
-SET metadata = flags.metadata || jsonb_build_object(
-    'deploymentId', targets.deployment_id
-  ),
-  updated_at = now()
-FROM ranked_existing_targets AS targets
-WHERE targets.organization_id = flags.organization_id
-  AND targets.plugin_key = flags.plugin_key
-  AND targets.target_rank = 1;
+CREATE OR REPLACE FUNCTION private.backfill_plugin_application_deployment_targets_20260822()
+RETURNS integer
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = ''
+AS $$
+DECLARE
+  v_audit_count integer;
+BEGIN
+  WITH ranked_existing_targets AS (
+    SELECT
+      flags.organization_id,
+      flags.plugin_key,
+      deployments.deployment_id,
+      row_number() OVER (
+        PARTITION BY flags.organization_id, flags.plugin_key
+        ORDER BY deployments.last_seen_at DESC,
+          deployments.first_seen_at DESC,
+          deployments.id DESC
+      ) AS target_rank
+    FROM public.organization_plugin_feature_flags AS flags
+    JOIN public.organization_plugin_installs AS installs
+      ON installs.organization_id = flags.organization_id
+     AND installs.plugin_key = flags.plugin_key
+    JOIN private.plugin_deployments AS deployments
+      ON deployments.plugin_key = flags.plugin_key
+     AND deployments.version = installs.desired_version
+     AND deployments.environment = flags.metadata ->> 'environment'
+     AND deployments.runtime_profile = 'application'
+     AND deployments.health_status = 'healthy'
+     AND deployments.promotion_status IN ('deployed', 'promoted')
+     AND deployments.health_evidence ->> 'deploymentUrl'
+       ~ '^https://[a-z0-9][a-z0-9.-]*\.vercel\.app/?$'
+     AND position(
+       '..' in deployments.health_evidence ->> 'deploymentUrl'
+     ) = 0
+    WHERE flags.flag_key = 'application-runtime'
+      AND flags.enabled
+      AND installs.enabled
+      AND installs.desired_version IS NOT NULL
+      AND flags.metadata ->> 'runtimeVersion' = installs.desired_version
+      AND NOT (flags.metadata ? 'deploymentId')
+  ), backfilled_targets AS (
+    UPDATE public.organization_plugin_feature_flags AS flags
+    SET metadata = flags.metadata || jsonb_build_object(
+        'deploymentId', targets.deployment_id
+      ),
+      updated_by = NULL,
+      updated_at = now()
+    FROM ranked_existing_targets AS targets
+    WHERE targets.organization_id = flags.organization_id
+      AND targets.plugin_key = flags.plugin_key
+      AND targets.target_rank = 1
+    RETURNING
+      flags.organization_id,
+      flags.plugin_key,
+      flags.metadata ->> 'runtimeVersion' AS runtime_version,
+      targets.deployment_id
+  ), audit_entries AS (
+    INSERT INTO public.plugin_audit_logs (
+      organization_id,
+      plugin_key,
+      action,
+      actor_id,
+      actor_type,
+      details
+    )
+    SELECT
+      targets.organization_id,
+      targets.plugin_key,
+      'install.updated',
+      NULL,
+      'system',
+      jsonb_build_object(
+        'applicationRuntimeEnabled', true,
+        'targetVersion', targets.runtime_version,
+        'deploymentId', targets.deployment_id,
+        'migrationBackfill', true
+      )
+    FROM backfilled_targets AS targets
+    RETURNING 1
+  )
+  SELECT count(*)::integer
+  INTO v_audit_count
+  FROM audit_entries;
+
+  RETURN v_audit_count;
+END;
+$$;
+
+REVOKE ALL ON FUNCTION private.backfill_plugin_application_deployment_targets_20260822()
+  FROM PUBLIC, anon, authenticated, service_role;
+GRANT EXECUTE ON FUNCTION private.backfill_plugin_application_deployment_targets_20260822()
+  TO postgres;
+
+SELECT private.backfill_plugin_application_deployment_targets_20260822();
 
 COMMIT;
