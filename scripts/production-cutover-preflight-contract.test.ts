@@ -22,7 +22,7 @@ const architectureAudit = readFileSync(
 );
 
 const PRODUCTION_HEAD = "20260819050728";
-const TARGET_HEAD = "20260822233000";
+const TARGET_HEAD = "20260822234500";
 const HARD_FAIL_STATEMENT = "SELECT 1 / 0 AS preflight_check_failed;";
 const HARD_FAIL_SITES = 31;
 const hardFailStatements =
@@ -53,6 +53,7 @@ const PENDING_VERSIONS = [
   "20260822224500",
   "20260822231000",
   "20260822233000",
+  "20260822234500",
 ] as const;
 
 function readMigration(version: string) {
@@ -64,7 +65,7 @@ function readMigration(version: string) {
 }
 
 describe("Production cutover preflight source contract", () => {
-  test("pins the exact 333 -> 358 ledger and all 25 pending versions", () => {
+  test("pins the exact 333 -> 359 ledger and all 26 pending versions", () => {
     const migrations = readdirSync(migrationsRoot)
       .filter((name) => /^\d{14}_.+\.sql$/u.test(name))
       .sort();
@@ -86,7 +87,7 @@ describe("Production cutover preflight source contract", () => {
       (match) => match[1],
     );
 
-    expect(migrations).toHaveLength(358);
+    expect(migrations).toHaveLength(359);
     expect(migrations.at(0)?.slice(0, 14)).toBe("20260325181408");
     expect(migrations.at(-1)?.slice(0, 14)).toBe(TARGET_HEAD);
     expect(pinnedBaseline).toEqual(
@@ -95,9 +96,9 @@ describe("Production cutover preflight source contract", () => {
     expect(pending).toEqual([...PENDING_VERSIONS]);
     expect(pinnedTargetTail).toEqual([...PENDING_VERSIONS]);
     expect(preflight).toContain("count(*) = 333");
-    expect(preflight).toContain("count(*) = 358");
+    expect(preflight).toContain("count(*) = 359");
     expect(preflight).toContain("min(version::text) = '20260325181408'");
-    expect(preflight).toContain("25 migrations pending");
+    expect(preflight).toContain("26 migrations pending");
     expect(preflight).not.toContain("count(*) = 295");
     for (const version of PENDING_VERSIONS) {
       expect(preflight).toContain(`'${version}'`);

@@ -1,7 +1,7 @@
 BEGIN;
 
 CREATE EXTENSION IF NOT EXISTS pgtap WITH SCHEMA extensions;
-SELECT extensions.plan(45);
+SELECT extensions.plan(48);
 
 SELECT extensions.ok(
   has_function_privilege(
@@ -564,7 +564,77 @@ SELECT extensions.is(
 
 RESET ROLE;
 UPDATE public.organization_plugin_feature_flags
-SET enabled = true
+SET enabled = true,
+  metadata = '{"runtimeVersion":"1.1.0","environment":"development","deploymentId":"dpl_historical_fixture"}'::jsonb
+WHERE organization_id = 'f0100000-0000-4000-8000-000000000001'
+  AND plugin_key = 'application-access-fixture'
+  AND flag_key = 'application-runtime';
+UPDATE public.organization_plugin_installs
+SET desired_version = '1.1.0'
+WHERE organization_id = 'f0100000-0000-4000-8000-000000000001'
+  AND plugin_key = 'application-access-fixture';
+SET LOCAL ROLE authenticated;
+SET LOCAL "request.jwt.claims" =
+  '{"sub":"f0000000-0000-4000-8000-000000000001","role":"authenticated"}';
+SELECT public.get_plugin_application_route_target_by_identifier(
+  'plugin-application-access',
+  'application-access-fixture',
+  'development'
+);
+
+RESET ROLE;
+DELETE FROM public.organization_plugin_installs
+WHERE organization_id = 'f0100000-0000-4000-8000-000000000001'
+  AND plugin_key = 'application-access-fixture';
+
+SELECT extensions.is(
+  (
+    SELECT enabled
+    FROM public.organization_plugin_feature_flags
+    WHERE organization_id = 'f0100000-0000-4000-8000-000000000001'
+      AND plugin_key = 'application-access-fixture'
+      AND flag_key = 'application-runtime'
+  ),
+  false,
+  'uninstalling a plugin disables its application runtime atomically'
+);
+SELECT extensions.is(
+  (
+    SELECT count(*)::integer
+    FROM private.plugin_application_runtime_leases
+    WHERE organization_id = 'f0100000-0000-4000-8000-000000000001'
+      AND plugin_key = 'application-access-fixture'
+  ),
+  0,
+  'uninstalling a plugin deletes every outstanding application runtime lease'
+);
+
+INSERT INTO public.organization_plugin_installs (
+  organization_id, plugin_key, enabled, installed_version, desired_version
+) VALUES (
+  'f0100000-0000-4000-8000-000000000001',
+  'application-access-fixture',
+  true,
+  '1.1.0',
+  '1.2.0'
+);
+SET LOCAL ROLE authenticated;
+SET LOCAL "request.jwt.claims" =
+  '{"sub":"f0000000-0000-4000-8000-000000000001","role":"authenticated"}';
+SELECT extensions.is(
+  public.get_plugin_application_access_context(
+    'f0100000-0000-4000-8000-000000000001',
+    'application-access-fixture',
+    '1.1.0'
+  ) ->> 'reason',
+  'runtime_not_selected',
+  'reinstalling an embedded-compatible version cannot restore a stale child lease'
+);
+
+RESET ROLE;
+UPDATE public.organization_plugin_feature_flags
+SET enabled = true,
+  metadata = '{"runtimeVersion":"1.2.0","environment":"development"}'::jsonb
 WHERE organization_id = 'f0100000-0000-4000-8000-000000000001'
   AND plugin_key = 'application-access-fixture'
   AND flag_key = 'application-runtime';

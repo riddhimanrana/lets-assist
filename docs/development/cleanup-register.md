@@ -22,10 +22,16 @@ This register separates actionable repository defects from provider/account and 
   The generated asset namespace now preserves that selection across nested
   imports with a deployment-keyed, path-limited routing-context cookie. Each
   request still repeats host authentication and the caller-scoped database
-  lookup. A fresh 358-migration replay and the complete database pgTAP
-  suite pass 6,177 assertions. The direct proxy and release-contract bundle
-  passes 58 tests, and the literal-import collector passes 7 tests,
+  lookup. A fresh 359-migration replay passes, and the uninstall access suite
+  passes 48 focused assertions. The preceding exact tree's complete database
+  pgTAP suite passed 6,177 assertions. The direct proxy and release-contract
+  bundle passes 58 tests, and the literal-import collector passes 7 tests,
   and lint, source organization, plugin boundaries, and TypeScript pass.
+- Runtime shutdown now covers both disable and uninstall. Disabling the
+  application-runtime flag clears outstanding historical leases, and deleting
+  an organization install atomically disables that flag and clears every lease
+  for the organization/plugin pair. Reinstall alone cannot revive an earlier
+  child deployment.
 - A final independent Claude review reported two P2 candidates. The deployment
   project concern is disproved as a second runtime authorization gate: the
   signed project/team allowlist check occurs before the service-role-only
