@@ -573,6 +573,7 @@ BEGIN
       flags.organization_id,
       flags.plugin_key,
       deployments.deployment_id,
+      deployments.environment,
       row_number() OVER (
         PARTITION BY flags.organization_id, flags.plugin_key
         ORDER BY deployments.last_seen_at DESC,
@@ -616,7 +617,8 @@ BEGIN
       flags.organization_id,
       flags.plugin_key,
       flags.metadata ->> 'runtimeVersion' AS runtime_version,
-      targets.deployment_id
+      targets.deployment_id,
+      targets.environment
   ), audit_entries AS (
     INSERT INTO public.plugin_audit_logs (
       organization_id,
@@ -636,6 +638,7 @@ BEGIN
         'applicationRuntimeEnabled', true,
         'targetVersion', targets.runtime_version,
         'deploymentId', targets.deployment_id,
+        'environment', targets.environment,
         'migrationBackfill', true
       )
     FROM backfilled_targets AS targets

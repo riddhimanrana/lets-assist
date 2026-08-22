@@ -722,6 +722,7 @@ SELECT extensions.ok(
       AND logs.details ->> 'migrationBackfill' = 'true'
       AND logs.details ->> 'targetVersion' = '1.1.0'
       AND logs.details ->> 'deploymentId' = 'dpl_application_admin_002'
+      AND logs.details ->> 'environment' = 'development'
   ),
   'the legacy pin is attributed to the system and recorded in the audit log'
 );
