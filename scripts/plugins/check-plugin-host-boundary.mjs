@@ -59,7 +59,11 @@ function collectByPlugin() {
     const specifiers = new Map();
     for (const file of collectPluginSourceFiles(pluginDirectory)) {
       const source = readFileSync(file, "utf8");
-      for (const specifier of collectHostImportSpecifiers(source)) {
+      for (const specifier of collectHostImportSpecifiers(source, {
+        sourceFile: file,
+        privateRoot: join(repositoryRoot, "lib/plugins/private"),
+        repositoryRoot,
+      })) {
         const relativeFile = file.slice(repositoryRoot.length + 1);
         if (!specifiers.has(specifier)) specifiers.set(specifier, relativeFile);
       }

@@ -35,7 +35,11 @@ function collect() {
     const specifiers = new Set();
     for (const file of collectPluginSourceFiles(pluginDirectory)) {
       const source = readFileSync(file, "utf8");
-      for (const specifier of collectHostImportSpecifiers(source))
+      for (const specifier of collectHostImportSpecifiers(source, {
+        sourceFile: file,
+        privateRoot: join(repositoryRoot, "lib/plugins/private"),
+        repositoryRoot,
+      }))
         specifiers.add(specifier);
     }
 

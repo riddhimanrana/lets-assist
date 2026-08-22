@@ -1,4 +1,5 @@
 import { describe, expect, test } from "bun:test";
+import { join } from "node:path";
 
 import { collectHostImportSpecifiers } from "./host-import-specifiers.mjs";
 
@@ -39,5 +40,27 @@ describe("host import specifier collection", () => {
     `;
 
     expect([...collectHostImportSpecifiers(source)]).toEqual([]);
+  });
+
+  test("normalizes relative imports that escape the private tree", () => {
+    const repositoryRoot = "/work/lets-assist";
+    const privateRoot = join(repositoryRoot, "lib/plugins/private");
+    const sourceFile = join(
+      privateRoot,
+      "plugins/example-plugin/feature/index.ts",
+    );
+    const source = `
+      import local from "./local";
+      import shared from "../../../shared";
+      import host from "../../../../registry";
+    `;
+
+    expect([
+      ...collectHostImportSpecifiers(source, {
+        sourceFile,
+        privateRoot,
+        repositoryRoot,
+      }),
+    ]).toEqual(["@/lib/plugins/registry"]);
   });
 });
