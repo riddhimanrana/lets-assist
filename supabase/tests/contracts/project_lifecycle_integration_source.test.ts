@@ -240,6 +240,9 @@ describe("combined project lifecycle source contract", () => {
       "public.get_plugin_application_access_context(uuid,text,text)",
     );
     expect(securityDefinerAudit).toContain(
+      "public.get_plugin_application_access_context_by_identifier(text,text,text)",
+    );
+    expect(securityDefinerAudit).toContain(
       "public.get_csf_application_role_context(uuid,text)",
     );
     expect(transactionBoundaryMigration).toContain(

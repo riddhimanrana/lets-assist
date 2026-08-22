@@ -1,7 +1,7 @@
 BEGIN;
 
 CREATE EXTENSION IF NOT EXISTS pgtap WITH SCHEMA extensions;
-SELECT extensions.plan(31);
+SELECT extensions.plan(36);
 
 SELECT extensions.ok(
   has_function_privilege(
@@ -10,6 +10,14 @@ SELECT extensions.ok(
     'EXECUTE'
   ),
   'authenticated callers can request their own plugin application access proof'
+);
+SELECT extensions.ok(
+  has_function_privilege(
+    'authenticated',
+    'public.get_plugin_application_access_context_by_identifier(text,text,text)',
+    'EXECUTE'
+  ),
+  'authenticated callers can request access by route identifier'
 );
 SELECT extensions.ok(
   has_function_privilege(
@@ -26,6 +34,14 @@ SELECT extensions.ok(
     'EXECUTE'
   ),
   'anonymous callers cannot request plugin application access facts'
+);
+SELECT extensions.ok(
+  NOT has_function_privilege(
+    'anon',
+    'public.get_plugin_application_access_context_by_identifier(text,text,text)',
+    'EXECUTE'
+  ),
+  'anonymous callers cannot resolve plugin application route identifiers'
 );
 SELECT extensions.ok(
   NOT has_function_privilege(
@@ -256,6 +272,34 @@ INSERT INTO plugin_data.csf_staff_positions (
 SET LOCAL ROLE authenticated;
 SET LOCAL "request.jwt.claims" =
   '{"sub":"f0000000-0000-4000-8000-000000000001","role":"authenticated"}';
+
+SELECT extensions.is(
+  public.get_plugin_application_access_context_by_identifier(
+    'plugin-application-access',
+    'application-access-fixture',
+    '1.2.0'
+  ) ->> 'accessible',
+  'true',
+  'the route-identifier proof accepts an organization username'
+);
+SELECT extensions.is(
+  public.get_plugin_application_access_context_by_identifier(
+    'plugin-application-access',
+    'application-access-fixture',
+    '1.2.0'
+  ) ->> 'organizationId',
+  'f0100000-0000-4000-8000-000000000001',
+  'the route-identifier proof returns the canonical organization ID'
+);
+SELECT extensions.is(
+  public.get_plugin_application_access_context_by_identifier(
+    'missing-plugin-organization',
+    'application-access-fixture',
+    '1.2.0'
+  ) ->> 'reason',
+  'membership_required',
+  'an unknown username returns the same generic non-member denial'
+);
 
 SELECT extensions.is(
   public.get_plugin_application_access_context(
