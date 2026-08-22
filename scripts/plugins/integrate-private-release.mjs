@@ -248,7 +248,11 @@ function validateManifestShape(manifest) {
     !manifest.hostApiRange ||
     !SEMVER.test(manifest.hostApiRange.minimum) ||
     (manifest.hostApiRange.maximum !== undefined &&
-      !SEMVER.test(manifest.hostApiRange.maximum))
+      (!SEMVER.test(manifest.hostApiRange.maximum) ||
+        compareVersions(
+          manifest.hostApiRange.minimum,
+          manifest.hostApiRange.maximum,
+        ) > 0))
   ) {
     fail("invalid host API range");
   }
@@ -723,7 +727,7 @@ export function integratePrivateRelease({
   }
   if (
     compareVersions(
-      previous.version,
+      previous.supportedInstallContracts.minimum,
       manifest.supportedInstallContracts.minimum,
     ) < 0
   ) {

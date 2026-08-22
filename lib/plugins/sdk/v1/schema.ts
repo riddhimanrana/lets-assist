@@ -40,7 +40,7 @@ const ACCESS_ROLES = ["admin", "staff", "member"] as const;
  * where `minimumRole` on the manifest itself does not.
  */
 const SURFACE_ACCESS_LEVELS = [...ACCESS_ROLES, "public"] as const;
-const SEMVER_PATTERN = "^v?\\d+\\.\\d+\\.\\d+(?:[-+][0-9A-Za-z.-]+)?$";
+const SEMVER_PATTERN = "^\\d+\\.\\d+\\.\\d+$";
 
 const configPropertySchema = {
   type: "object",
@@ -88,7 +88,7 @@ const manifestSchema = {
   ],
   properties: {
     sdkVersion: { const: 1 },
-    key: { type: "string", pattern: "^[a-z0-9][a-z0-9-_.]*$" },
+    key: { type: "string", pattern: "^[a-z0-9]+(?:-[a-z0-9]+)*$" },
     name: { type: "string", minLength: 1 },
     description: { type: "string" },
     version: { type: "string", pattern: SEMVER_PATTERN },

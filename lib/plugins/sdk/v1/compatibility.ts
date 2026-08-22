@@ -107,7 +107,7 @@ export function isPluginVersionWithinContractRange(
   );
 }
 
-const VERSION_PATTERN = /^v?\d+\.\d+\.\d+(?:[-+][0-9A-Za-z.-]+)?$/u;
+const VERSION_PATTERN = /^\d+\.\d+\.\d+$/u;
 
 /**
  * Strict shape check, unlike {@link parsePluginVersion}, which coerces junk to

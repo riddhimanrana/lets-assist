@@ -44,12 +44,21 @@ describe("plugin version comparison", () => {
 describe("version string strictness", () => {
   test("accepts well-formed versions", () => {
     expect(isPluginVersionString("1.0.0")).toBe(true);
-    expect(isPluginVersionString("v2.10.3")).toBe(true);
-    expect(isPluginVersionString("1.0.0-rc.1")).toBe(true);
+    expect(isPluginVersionString("2.10.3")).toBe(true);
   });
 
   test("rejects anything else", () => {
-    for (const value of ["1.0", "one.0.0", "", null, undefined, 100]) {
+    for (const value of [
+      "v2.10.3",
+      "1.0.0-rc.1",
+      "1.0.0+build.1",
+      "1.0",
+      "one.0.0",
+      "",
+      null,
+      undefined,
+      100,
+    ]) {
       expect(isPluginVersionString(value)).toBe(false);
     }
   });

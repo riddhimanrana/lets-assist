@@ -170,12 +170,23 @@ INSERT INTO public.organization_plugin_entitlements (
 );
 
 INSERT INTO public.organization_plugin_installs (
-  organization_id, plugin_key, enabled, installed_version
+  organization_id, plugin_key, enabled, installed_version, desired_version
 ) VALUES (
   'f0100000-0000-4000-8000-000000000001',
   'application-access-fixture',
   true,
-  '1.1.0'
+  '1.1.0',
+  '1.2.0'
+);
+INSERT INTO public.organization_plugin_feature_flags (
+  organization_id, plugin_key, flag_key, enabled, rollout_percentage, metadata
+) VALUES (
+  'f0100000-0000-4000-8000-000000000001',
+  'application-access-fixture',
+  'application-runtime',
+  true,
+  100,
+  '{"runtimeVersion":"1.2.0","environment":"development"}'::jsonb
 );
 
 -- Model the first independently deployed CSF child without changing the real
@@ -222,12 +233,23 @@ INSERT INTO public.organization_plugin_entitlements (
   false
 );
 INSERT INTO public.organization_plugin_installs (
-  organization_id, plugin_key, enabled, installed_version
+  organization_id, plugin_key, enabled, installed_version, desired_version
 ) VALUES (
   'f0100000-0000-4000-8000-000000000001',
   'dvhs-csf',
   true,
-  '1.1.0'
+  '1.1.0',
+  '1.2.0'
+);
+INSERT INTO public.organization_plugin_feature_flags (
+  organization_id, plugin_key, flag_key, enabled, rollout_percentage, metadata
+) VALUES (
+  'f0100000-0000-4000-8000-000000000001',
+  'dvhs-csf',
+  'application-runtime',
+  true,
+  100,
+  '{"runtimeVersion":"1.2.0","environment":"development"}'::jsonb
 );
 
 INSERT INTO plugin_data.csf_terms (
@@ -429,8 +451,8 @@ SELECT extensions.is(
     'application-access-fixture',
     '1.2.0'
   ) ->> 'accessible',
-  'true',
-  'a forced entitlement enables the application without an enabled install'
+  'false',
+  'a forced entitlement cannot select an application runtime for the admin'
 );
 
 RESET ROLE;

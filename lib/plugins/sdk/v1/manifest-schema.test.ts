@@ -114,6 +114,30 @@ describe("plugin manifest validation", () => {
     expect(pathsOf(result)).toContain("/version");
   });
 
+  test("rejects versions outside the stable publication lane", () => {
+    for (const version of ["v1.0.0", "1.0.0-beta.1", "1.0.0+build.1"]) {
+      expect(
+        validatePluginSdkManifest(embeddedManifest({ version })).valid,
+      ).toBe(false);
+    }
+  });
+
+  test("uses the host plugin-key grammar", () => {
+    for (const key of ["school_tools", "school.plugin", "school-"]) {
+      expect(validatePluginSdkManifest(embeddedManifest({ key })).valid).toBe(
+        false,
+      );
+    }
+    expect(
+      validatePluginSdkManifest(
+        embeddedManifest({
+          key: "school-tools",
+          releaseInputs: ["plugins/school-tools"],
+        }),
+      ).valid,
+    ).toBe(true);
+  });
+
   test("rejects an inverted install-contract range", () => {
     const result = validatePluginSdkManifest(
       embeddedManifest({

@@ -146,7 +146,7 @@ SELECT extensions.throws_ok(
     )
   $$,
   '55000',
-  'the requested application release has no healthy deployment',
+  'the newest requested application deployment is not healthy',
   'activation fails closed before hosted health exists'
 );
 
