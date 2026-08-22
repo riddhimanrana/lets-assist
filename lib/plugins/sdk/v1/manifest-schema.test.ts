@@ -161,10 +161,7 @@ describe("plugin manifest validation", () => {
   test("rejects duplicate release inputs", () => {
     const result = validatePluginSdkManifest(
       embeddedManifest({
-        releaseInputs: [
-          "plugins/example-plugin",
-          "plugins/example-plugin",
-        ],
+        releaseInputs: ["plugins/example-plugin", "plugins/example-plugin"],
       }),
     );
 
