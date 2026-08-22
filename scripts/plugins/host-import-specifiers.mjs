@@ -58,6 +58,13 @@ export function collectLiteralImportSpecifiers(source) {
     ) {
       const specifier = literalModuleSpecifier(node.moduleSpecifier);
       if (specifier !== null) literals.add(specifier);
+    } else if (
+      ts.isImportEqualsDeclaration(node) &&
+      ts.isExternalModuleReference(node.moduleReference) &&
+      node.moduleReference.expression
+    ) {
+      const specifier = literalModuleSpecifier(node.moduleReference.expression);
+      if (specifier !== null) literals.add(specifier);
     } else if (ts.isCallExpression(node) && node.arguments.length > 0) {
       const isDynamicImport =
         node.expression.kind === ts.SyntaxKind.ImportKeyword;

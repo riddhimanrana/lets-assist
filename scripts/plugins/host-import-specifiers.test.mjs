@@ -126,6 +126,17 @@ describe("host import specifier collection", () => {
     ]);
   });
 
+  test("collects TypeScript import-equals host dependencies", () => {
+    const source = `
+      import host = require("@/lib/import-equals");
+      import external = require("external-package");
+    `;
+
+    expect([...collectHostImportSpecifiers(source)]).toEqual([
+      "@/lib/import-equals",
+    ]);
+  });
+
   test("ignores non-host imports", () => {
     const source = `
       import "react";
