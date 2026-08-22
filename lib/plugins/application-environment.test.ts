@@ -2,6 +2,7 @@ import { describe, expect, test } from "bun:test";
 
 import {
   resolveLocalPluginApplicationUrl,
+  resolvePluginApplicationDeploymentBypassSecret,
   resolvePluginApplicationEnvironment,
 } from "./application-environment";
 
@@ -58,5 +59,24 @@ describe("resolveLocalPluginApplicationUrl", () => {
         VERCEL_ENV: "preview",
       }),
     ).toBeNull();
+  });
+});
+
+describe("resolvePluginApplicationDeploymentBypassSecret", () => {
+  test("uses the same protection secret contract as deployment health probes", () => {
+    expect(
+      resolvePluginApplicationDeploymentBypassSecret({
+        VERCEL_AUTOMATION_BYPASS_SECRET: " shared-protection-secret ",
+      }),
+    ).toBe("shared-protection-secret");
+  });
+
+  test("fails closed when the shared protection secret is absent", () => {
+    expect(resolvePluginApplicationDeploymentBypassSecret({})).toBeUndefined();
+    expect(
+      resolvePluginApplicationDeploymentBypassSecret({
+        VERCEL_AUTOMATION_BYPASS_SECRET: "   ",
+      }),
+    ).toBeUndefined();
   });
 });

@@ -10,6 +10,7 @@ import {
 } from "@/lib/plugins/application-routing";
 import {
   resolveLocalPluginApplicationUrl,
+  resolvePluginApplicationDeploymentBypassSecret,
   resolvePluginApplicationEnvironment,
   type PluginApplicationEnvironment,
 } from "@/lib/plugins/application-environment";
@@ -214,7 +215,7 @@ export const proxy = createRootProxy({
   applicationEnvironment: resolvePluginApplicationEnvironment(),
   localApplicationUrl: resolveLocalPluginApplicationUrl(),
   applicationDeploymentBypassSecret:
-    process.env.PLUGIN_APPLICATION_DEPLOYMENT_BYPASS_SECRET,
+    resolvePluginApplicationDeploymentBypassSecret(),
 });
 
 export const config = {

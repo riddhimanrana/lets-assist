@@ -23,3 +23,10 @@ export function resolveLocalPluginApplicationUrl(
     return null;
   return LOCAL_PLUGIN_APPLICATION_URL;
 }
+
+export function resolvePluginApplicationDeploymentBypassSecret(
+  environment: Readonly<Record<string, string | undefined>> = process.env,
+): string | undefined {
+  const secret = environment.VERCEL_AUTOMATION_BYPASS_SECRET?.trim();
+  return secret || undefined;
+}

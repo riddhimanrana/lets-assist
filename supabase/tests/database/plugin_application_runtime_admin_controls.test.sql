@@ -344,9 +344,10 @@ SELECT extensions.is(
     WHERE organization_id = 'fa100000-0000-4000-8000-000000000001'
       AND plugin_key = 'application-admin-fixture'
       AND details ->> 'requestId' = 'fa200000-0000-4000-8000-000000000002'
+      AND details ->> 'deploymentId' = 'dpl_application_admin_002'
   ),
   1,
-  'activation writes one audit record without release credentials'
+  'activation audits the exact selected deployment without release credentials'
 );
 SELECT extensions.ok(
   (

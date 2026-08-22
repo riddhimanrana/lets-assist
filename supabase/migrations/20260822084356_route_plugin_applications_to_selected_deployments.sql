@@ -227,6 +227,18 @@ BEGIN
       AND plugin_key = p_plugin_key
       AND flag_key = 'application-runtime';
 
+    IF coalesce((v_result ->> 'changed')::boolean, false) THEN
+      UPDATE public.plugin_audit_logs
+      SET details = details || jsonb_build_object(
+          'deploymentId', v_deployment.deployment_id
+        )
+      WHERE organization_id = p_organization_id
+        AND plugin_key = p_plugin_key
+        AND action = 'install.updated'
+        AND actor_id = p_actor_id
+        AND details ->> 'requestId' = p_request_id::text;
+    END IF;
+
     IF v_previous_deployment_id IS DISTINCT FROM v_deployment.deployment_id
       AND NOT coalesce((v_result ->> 'changed')::boolean, false)
     THEN
