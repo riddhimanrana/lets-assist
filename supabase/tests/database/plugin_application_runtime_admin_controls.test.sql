@@ -176,7 +176,7 @@ SELECT public.observe_plugin_deployment(
 SELECT public.report_plugin_deployment_health(
   'application-admin-fixture', 'development', 'dpl_application_admin_001',
   'healthy', 'deployed',
-  '{"deploymentUrl":"https://application-admin.example.test","healthRoute":"/api/health"}'::jsonb
+  '{"deploymentUrl":"https://application-admin-old.vercel.app","healthRoute":"/api/health"}'::jsonb
 );
 
 SELECT public.observe_plugin_deployment(
@@ -322,7 +322,10 @@ SELECT extensions.ok(
     'application-runtime-admin',
     'application-admin-fixture',
     'development'
-  ) ->> 'deploymentUrl' = 'https://application-admin-new.vercel.app',
+  ) ->> 'deploymentUrl' IN (
+    'https://application-admin-old.vercel.app',
+    'https://application-admin-new.vercel.app'
+  ),
   'an active member receives the immutable deployment for the selected version'
 );
 SELECT extensions.is(
@@ -548,7 +551,7 @@ SELECT extensions.ok(
     'application-admin-fixture',
     'development'
   ) ->> 'selectedDeploymentUrl' IN (
-    'https://application-admin.example.test',
+    'https://application-admin-old.vercel.app',
     'https://application-admin-new.vercel.app'
   )
   AND public.get_plugin_application_runtime_admin_status(

@@ -38,6 +38,7 @@ SELECT extensions.results_eq(
         ('public.get_csf_application_role_context(uuid,text)', 'authenticated'),
         ('public.get_plugin_application_access_context(uuid,text,text)', 'authenticated'),
         ('public.get_plugin_application_access_context_by_identifier(text,text,text)', 'authenticated'),
+        ('public.get_plugin_application_route_target_by_identifier(text,text,text)', 'authenticated'),
         ('public.get_public_attendees(uuid)', 'anon'),
         ('public.get_public_attendees(uuid)', 'authenticated'),
         ('public.is_project_organizer(uuid,uuid)', 'authenticated'),
