@@ -1,29 +1,32 @@
 [
   {
     "pluginKey": "dv-speech-debate",
-    "version": "2.0.0",
+    "version": "2.0.2",
     "manifestFile": "plugins/dv-speech-debate/plugin.tsx",
-    "manifestHash": "82a9b548b570c8a2b7af3fe7a13fe889fc214abfb169ca0c64865063d4810f1b",
-    "sourceCommit": "5e21d5dd60744dc50b7817bfc734a4e2ca71c8f5",
+    "manifestHash": "745f4422d3e59bb38ff26f1219bb91881864f7226e83f78677bc90ad46d19861",
+    "sourceCommit": "99c3df1a7e9f39523c7a615017461c14ed88c7fc",
     "automaticUpdate": false,
     "rolloutPercentage": 0,
     "runtimeProfile": "embedded",
-    "sourceTree": null,
-    "contentDigest": null,
-    "releaseInputs": null,
+    "sourceTree": "8f1bbfcb8000e468f5339e6e004ee17def0cede0",
+    "contentDigest": "sha256:5b7facdf91a1338bf19373007e413e1cea168f606bec8300480ae985b660c845",
+    "releaseInputs": ["plugins/dv-speech-debate"],
     "buildDigest": null,
     "buildArtifact": null,
-    "sbomDigest": null,
-    "signer": null,
+    "sbomDigest": "sha256:634933965c17e2233bfc8d3e6961d61c6aae099c6ec53ca458ba5c6ea87571a2",
+    "signer": {
+      "identity": "https://github.com/riddhimanrana/lets-assist-plugins/.github/workflows/plugin-release.yml@refs/tags/dv-speech-debate/v2.0.2",
+      "issuer": "https://token.actions.githubusercontent.com",
+      "attestationRef": "github-release:dv-speech-debate/v2.0.2/release-manifest.sigstore.json"
+    },
     "hostApiRange": {
-      "minimum": "1.0.0",
-      "maximum": "1.0.0"
+      "minimum": "1.0.0"
     },
     "pluginDataSchemaVersion": 1,
-    "requiredPlatformSchemaVersion": "legacy",
+    "requiredPlatformSchemaVersion": "20260412000001",
     "supportedInstallContracts": {
       "minimum": "2.0.0",
-      "maximum": "2.0.0"
+      "maximum": "2.0.2"
     }
   },
   {
