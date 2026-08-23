@@ -23,11 +23,13 @@
  */
 
 import { readdirSync, readFileSync, statSync } from "node:fs";
-import { dirname, isAbsolute, join, relative, resolve } from "node:path";
+import { join, resolve } from "node:path";
 
 import {
   collectHostImportSpecifiers,
   collectLiteralImportSpecifiers,
+  readApplicationCompilerOptions,
+  resolveEscapingApplicationImportSpecifier,
 } from "./host-import-specifiers.mjs";
 import { collectPluginSourceFiles } from "./plugin-source-files.mjs";
 
@@ -86,25 +88,21 @@ try {
 const failures = [];
 const stale = [];
 
-function isOutside(root, candidate) {
-  const path = relative(root, candidate);
-  return (
-    path === ".." ||
-    path.startsWith(`..${process.platform === "win32" ? "\\" : "/"}`) ||
-    isAbsolute(path)
-  );
-}
-
 for (const applicationName of readdirSync(applicationsRoot).sort()) {
   const applicationDirectory = join(applicationsRoot, applicationName);
   if (!statSync(applicationDirectory).isDirectory()) continue;
+  const compilerOptions = readApplicationCompilerOptions(applicationDirectory);
 
   for (const file of collectPluginSourceFiles(applicationDirectory)) {
     const source = readFileSync(file, "utf8");
     for (const specifier of collectLiteralImportSpecifiers(source)) {
-      if (!specifier.startsWith(".")) continue;
-      const target = resolve(dirname(file), specifier);
-      if (isOutside(applicationDirectory, target)) {
+      const target = resolveEscapingApplicationImportSpecifier(
+        specifier,
+        file,
+        applicationDirectory,
+        compilerOptions,
+      );
+      if (target) {
         failures.push(
           `${applicationName}: ${specifier} (${file.slice(repositoryRoot.length + 1)}) — application source cannot import outside its own build root`,
         );

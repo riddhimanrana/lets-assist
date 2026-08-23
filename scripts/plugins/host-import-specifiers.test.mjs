@@ -1,9 +1,14 @@
 import { describe, expect, test } from "bun:test";
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
 import { join } from "node:path";
 
 import {
   collectHostImportSpecifiers,
   collectLiteralImportSpecifiers,
+  readApplicationCompilerOptions,
+  resolveApplicationImportSpecifier,
+  resolveEscapingApplicationImportSpecifier,
 } from "./host-import-specifiers.mjs";
 
 describe("host import specifier collection", () => {
@@ -135,6 +140,67 @@ describe("host import specifier collection", () => {
     expect([...collectHostImportSpecifiers(source)]).toEqual([
       "@/lib/import-equals",
     ]);
+  });
+
+  test("collects TypeScript type-position import dependencies", () => {
+    const source = `
+      type Host = import("@/lib/type-host").Host;
+      type HostModule = typeof import("@/lib/type-module");
+      type External = import("external-package").External;
+    `;
+
+    expect([...collectHostImportSpecifiers(source)].sort()).toEqual([
+      "@/lib/type-host",
+      "@/lib/type-module",
+    ]);
+  });
+
+  test("resolves child path aliases before classifying them as packages", () => {
+    const root = mkdtempSync(join(tmpdir(), "plugin-import-alias-"));
+    try {
+      const applicationRoot = join(root, "private/apps/example");
+      const applicationSource = join(applicationRoot, "src/index.ts");
+      const hostSource = join(root, "host/new-host.ts");
+      mkdirSync(join(applicationRoot, "src"), { recursive: true });
+      mkdirSync(join(root, "host"), { recursive: true });
+      writeFileSync(applicationSource, 'import "host/new-host";\n');
+      writeFileSync(hostSource, "export type Host = string;\n");
+      writeFileSync(
+        join(applicationRoot, "tsconfig.json"),
+        `${JSON.stringify(
+          {
+            compilerOptions: {
+              baseUrl: ".",
+              module: "esnext",
+              moduleResolution: "bundler",
+              paths: { "host/*": ["../../../host/*"] },
+            },
+            include: ["src/**/*.ts"],
+          },
+          null,
+          2,
+        )}\n`,
+      );
+
+      const options = readApplicationCompilerOptions(applicationRoot);
+      expect(
+        resolveApplicationImportSpecifier(
+          "host/new-host",
+          applicationSource,
+          options,
+        ),
+      ).toBe(hostSource);
+      expect(
+        resolveEscapingApplicationImportSpecifier(
+          "host/new-host",
+          applicationSource,
+          applicationRoot,
+          options,
+        ),
+      ).toBe(hostSource);
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
   });
 
   test("collects literal CommonJS resolution dependencies", () => {

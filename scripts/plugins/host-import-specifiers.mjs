@@ -65,6 +65,12 @@ export function collectLiteralImportSpecifiers(source) {
     ) {
       const specifier = literalModuleSpecifier(node.moduleReference.expression);
       if (specifier !== null) literals.add(specifier);
+    } else if (
+      ts.isImportTypeNode(node) &&
+      ts.isLiteralTypeNode(node.argument)
+    ) {
+      const specifier = literalModuleSpecifier(node.argument.literal);
+      if (specifier !== null) literals.add(specifier);
     } else if (ts.isCallExpression(node) && node.arguments.length > 0) {
       const isDynamicImport =
         node.expression.kind === ts.SyntaxKind.ImportKeyword;
@@ -92,4 +98,66 @@ export function collectLiteralImportSpecifiers(source) {
   visit(sourceFile);
 
   return literals;
+}
+
+function formatDiagnostics(diagnostics) {
+  return ts.formatDiagnostics(diagnostics, {
+    getCanonicalFileName: (fileName) => fileName,
+    getCurrentDirectory: () => process.cwd(),
+    getNewLine: () => "\n",
+  });
+}
+
+export function readApplicationCompilerOptions(applicationDirectory) {
+  const configPath = ts.findConfigFile(
+    applicationDirectory,
+    ts.sys.fileExists,
+    "tsconfig.json",
+  );
+  if (!configPath) return {};
+
+  const config = ts.readConfigFile(configPath, ts.sys.readFile);
+  if (config.error) {
+    throw new Error(formatDiagnostics([config.error]));
+  }
+  const parsed = ts.parseJsonConfigFileContent(
+    config.config,
+    ts.sys,
+    dirname(configPath),
+    undefined,
+    configPath,
+  );
+  if (parsed.errors.length > 0) {
+    throw new Error(formatDiagnostics(parsed.errors));
+  }
+  return parsed.options;
+}
+
+export function resolveApplicationImportSpecifier(
+  specifier,
+  sourceFile,
+  compilerOptions,
+) {
+  const resolution = ts.resolveModuleName(
+    specifier,
+    sourceFile,
+    compilerOptions,
+    ts.sys,
+  );
+  return resolution.resolvedModule
+    ? resolve(resolution.resolvedModule.resolvedFileName)
+    : null;
+}
+
+export function resolveEscapingApplicationImportSpecifier(
+  specifier,
+  sourceFile,
+  applicationRoot,
+  compilerOptions,
+) {
+  const target = specifier.startsWith(".")
+    ? resolve(dirname(sourceFile), specifier)
+    : resolveApplicationImportSpecifier(specifier, sourceFile, compilerOptions);
+  if (!target || target.split(/[\\/]/u).includes("node_modules")) return null;
+  return isOutside(applicationRoot, target) ? target : null;
 }
