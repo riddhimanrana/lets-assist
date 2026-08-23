@@ -46,7 +46,17 @@ This register separates actionable repository defects from provider/account and 
   child's parsed TypeScript configuration, so a path alias cannot disguise a
   source import that escapes the declared application root.
   It also covers literal `new URL(..., import.meta.url)` assets and
-  `import.meta.resolve(...)` dependencies used by child bundlers.
+  `import.meta.resolve(...)` dependencies used by child bundlers. The same
+  boundary now scans CSS and Sass `@import`, `@use`, and `@forward`
+  dependencies, so a stylesheet cannot pull host source into the child build.
+- Host client navigation into the application ignores the ambient host
+  `x-deployment-id` and selects the organization's current child target.
+  Historical deployment pins are honored only when the same-origin referrer is
+  already the child application route, preserving old-page actions without
+  confusing a host deployment for a child deployment.
+- Manifest validation now applies each configuration property schema to its
+  declared default and every enum member. An installable manifest therefore
+  cannot advertise rendered settings values that the host will refuse to save.
 - A final independent Claude review reported two P2 candidates. The deployment
   project concern is disproved as a second runtime authorization gate: the
   signed project/team allowlist check occurs before the service-role-only

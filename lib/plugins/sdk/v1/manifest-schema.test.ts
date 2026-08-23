@@ -414,6 +414,29 @@ describe("plugin manifest validation", () => {
     );
   });
 
+  test("rejects defaults and enum members that violate their property schema", () => {
+    const result = validatePluginSdkManifest(
+      embeddedManifest({
+        configSchema: {
+          type: "object",
+          properties: {
+            retries: { type: "integer", default: "many" },
+            enabled: { type: "boolean", enum: [true, "sometimes"] },
+          },
+          additionalProperties: false,
+        } as never,
+      }),
+    );
+
+    expect(result.valid).toBe(false);
+    expect(pathsOf(result)).toContain(
+      "/configSchema/properties/retries/default",
+    );
+    expect(pathsOf(result)).toContain(
+      "/configSchema/properties/enabled/enum/1",
+    );
+  });
+
   test("rejects values JSON would omit or execute while serializing", () => {
     const hidden = embeddedManifest();
     Object.defineProperty(hidden, "hidden", {

@@ -7,6 +7,7 @@ import {
   collectHostImportSpecifiers,
   collectLiteralApplicationDependencySpecifiers,
   collectLiteralImportSpecifiers,
+  collectStylesheetDependencySpecifiers,
   readApplicationCompilerOptions,
   resolveApplicationImportSpecifier,
   resolveEscapingApplicationImportSpecifier,
@@ -237,6 +238,27 @@ describe("host import specifier collection", () => {
     ]);
     expect([...collectLiteralImportSpecifiers(source)]).toEqual([
       "../../outside/config.json",
+    ]);
+  });
+
+  test("collects CSS and Sass dependency specifiers", () => {
+    const source = `
+      /* @import "../../ignored.css"; */
+      @import "../../outside/host.css";
+      @import url('../local.css');
+      @import url(../../outside/print.css) print;
+      @use "../../outside/tokens" as tokens;
+      @forward './local-theme';
+      @use "../../outside/indented-sass"
+    `;
+
+    expect([...collectStylesheetDependencySpecifiers(source)].sort()).toEqual([
+      "../../outside/host.css",
+      "../../outside/indented-sass",
+      "../../outside/print.css",
+      "../../outside/tokens",
+      "../local.css",
+      "./local-theme",
     ]);
   });
 

@@ -28,10 +28,15 @@ import { join, resolve } from "node:path";
 import {
   collectHostImportSpecifiers,
   collectLiteralApplicationDependencySpecifiers,
+  collectStylesheetDependencySpecifiers,
   readApplicationCompilerOptions,
   resolveEscapingApplicationImportSpecifier,
 } from "./host-import-specifiers.mjs";
-import { collectPluginSourceFiles } from "./plugin-source-files.mjs";
+import {
+  collectPluginApplicationDependencyFiles,
+  collectPluginSourceFiles,
+  isExecutablePluginModule,
+} from "./plugin-source-files.mjs";
 
 const repositoryRoot = resolve(import.meta.dirname, "../..");
 const pluginsRoot = join(repositoryRoot, "lib/plugins/private/plugins");
@@ -93,11 +98,14 @@ for (const applicationName of readdirSync(applicationsRoot).sort()) {
   if (!statSync(applicationDirectory).isDirectory()) continue;
   const compilerOptions = readApplicationCompilerOptions(applicationDirectory);
 
-  for (const file of collectPluginSourceFiles(applicationDirectory)) {
+  for (const file of collectPluginApplicationDependencyFiles(
+    applicationDirectory,
+  )) {
     const source = readFileSync(file, "utf8");
-    for (const specifier of collectLiteralApplicationDependencySpecifiers(
-      source,
-    )) {
+    const specifiers = isExecutablePluginModule(file)
+      ? collectLiteralApplicationDependencySpecifiers(source)
+      : collectStylesheetDependencySpecifiers(source);
+    for (const specifier of specifiers) {
       const target = resolveEscapingApplicationImportSpecifier(
         specifier,
         file,

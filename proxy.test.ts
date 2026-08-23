@@ -640,6 +640,7 @@ describe("root proxy composition", () => {
         headers: {
           "next-action": "old-action-id",
           "x-deployment-id": oldTarget.deploymentId,
+          referer: `https://example.test${applicationPath}`,
         },
       }),
     );
@@ -667,12 +668,50 @@ describe("root proxy composition", () => {
         headers: {
           "next-action": "old-action-id",
           "x-deployment-id": "dpl_oldVersion",
+          referer: `https://example.test${applicationPath}`,
         },
       }),
     );
 
     expect(response.status).toBe(404);
     expect(response.headers.get("x-middleware-rewrite")).toBeNull();
+  });
+
+  test("ignores the host deployment ID on client navigation into the child", async () => {
+    let selectedTargetCalls = 0;
+    let exactTargetCalls = 0;
+    const rootProxy = createRootProxy({
+      ...defaultDependencies,
+      updateSession: async (authRequest, options) =>
+        (await options?.onAuthenticatedPassThrough?.(
+          authenticatedContext(authRequest),
+        )) ?? NextResponse.next(),
+      readCsfApplicationRouteTarget: async () => {
+        selectedTargetCalls += 1;
+        return routeTarget;
+      },
+      readCsfApplicationAssetRouteTarget: async () => {
+        exactTargetCalls += 1;
+        return null;
+      },
+      runMicrofrontendsMiddleware: async () => NextResponse.next(),
+    });
+
+    const response = await rootProxy(
+      new NextRequest(`https://example.test${applicationPath}`, {
+        headers: {
+          "x-deployment-id": "dpl_hostDeployment",
+          referer:
+            "https://example.test/organization/22222222-2222-4222-8222-222222222222",
+        },
+      }),
+    );
+
+    expect(selectedTargetCalls).toBe(1);
+    expect(exactTargetCalls).toBe(0);
+    expect(response.headers.get("x-middleware-rewrite")).toBe(
+      `${routeTarget.deploymentUrl}${applicationPath}`,
+    );
   });
 
   test("matches the complete child namespace while excluding host assets", () => {

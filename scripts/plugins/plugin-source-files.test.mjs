@@ -1,6 +1,9 @@
 import { describe, expect, test } from "bun:test";
 
-import { isExecutablePluginModule } from "./plugin-source-files.mjs";
+import {
+  isExecutablePluginModule,
+  isPluginApplicationDependencyFile,
+} from "./plugin-source-files.mjs";
 
 describe("plugin source file discovery", () => {
   test("includes every executable JavaScript and TypeScript module extension", () => {
@@ -22,5 +25,12 @@ describe("plugin source file discovery", () => {
     for (const path of ["manifest.json", "styles.css", "README.md"]) {
       expect(isExecutablePluginModule(path)).toBe(false);
     }
+  });
+
+  test("includes stylesheets in an application dependency scan", () => {
+    for (const path of ["styles.css", "theme.scss", "tokens.sass"]) {
+      expect(isPluginApplicationDependencyFile(path)).toBe(true);
+    }
+    expect(isPluginApplicationDependencyFile("README.md")).toBe(false);
   });
 });

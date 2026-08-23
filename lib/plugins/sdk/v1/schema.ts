@@ -488,6 +488,58 @@ function toValidationErrors(
   }));
 }
 
+function validateConfigPropertyValues(
+  property: Record<string, unknown>,
+  path: string,
+  errors: PluginManifestValidationError[],
+): void {
+  let validateValue: ReturnType<Ajv["compile"]>;
+  try {
+    validateValue = ajv.compile(property);
+  } catch {
+    errors.push({
+      path,
+      message: "must be a valid configuration property schema",
+      keyword: "configPropertySchema",
+    });
+    return;
+  }
+
+  const validateCandidate = (candidate: unknown, candidatePath: string) => {
+    if (validateValue(candidate)) return;
+    errors.push({
+      path: candidatePath,
+      message: "must satisfy its enclosing configuration property schema",
+      keyword: "configPropertyValue",
+    });
+  };
+
+  if (Object.hasOwn(property, "default")) {
+    validateCandidate(property.default, `${path}/default`);
+  }
+  if (Array.isArray(property.enum)) {
+    property.enum.forEach((candidate, index) => {
+      validateCandidate(candidate, `${path}/enum/${index}`);
+    });
+  }
+  if (property.items && typeof property.items === "object") {
+    validateConfigPropertyValues(
+      property.items as Record<string, unknown>,
+      `${path}/items`,
+      errors,
+    );
+  }
+  if (property.properties && typeof property.properties === "object") {
+    for (const [key, child] of Object.entries(property.properties)) {
+      validateConfigPropertyValues(
+        child as Record<string, unknown>,
+        `${path}/properties/${escapeJsonPointerSegment(key)}`,
+        errors,
+      );
+    }
+  }
+}
+
 /**
  * Structural validation plus the cross-field rules JSON Schema cannot express:
  * an ordered range, and a release-input set that actually covers the deployed
@@ -523,6 +575,18 @@ export function validatePluginSdkManifest(
   }
 
   const manifest = value as PluginSdkManifest;
+
+  if (manifest.configSchema) {
+    for (const [key, property] of Object.entries(
+      manifest.configSchema.properties,
+    )) {
+      validateConfigPropertyValues(
+        property as unknown as Record<string, unknown>,
+        `/configSchema/properties/${escapeJsonPointerSegment(key)}`,
+        errors,
+      );
+    }
+  }
 
   if (!isInstallContractRangeSane(manifest.supportedInstallContracts)) {
     errors.push({

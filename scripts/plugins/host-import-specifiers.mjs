@@ -63,6 +63,27 @@ export function collectLiteralApplicationDependencySpecifiers(source) {
   });
 }
 
+export function collectStylesheetDependencySpecifiers(source) {
+  const withoutComments = source.replace(/\/\*[\s\S]*?\*\//gu, "");
+  const specifiers = new Set();
+  const statementPattern = /@(import|use|forward)\s+([^;\r\n]+)(?:;|$)/gimu;
+
+  for (const statement of withoutComments.matchAll(statementPattern)) {
+    const parameters = statement[2] ?? "";
+    const quotedPattern = /["']([^"']+)["']/gu;
+    for (const quoted of parameters.matchAll(quotedPattern)) {
+      if (quoted[1]) specifiers.add(quoted[1]);
+    }
+
+    const bareUrlPattern = /url\(\s*([^\s"')]+)\s*\)/giu;
+    for (const bareUrl of parameters.matchAll(bareUrlPattern)) {
+      if (bareUrl[1]) specifiers.add(bareUrl[1]);
+    }
+  }
+
+  return specifiers;
+}
+
 function collectLiteralDependencySpecifiers(
   source,
   { includeUrlDependencies },

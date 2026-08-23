@@ -4,6 +4,7 @@ import { runMicrofrontendsMiddleware } from "@vercel/microfrontends/next/middlew
 import {
   CSF_APPLICATION_RUNTIME_FLAG,
   getCsfApplicationOrganizationId,
+  isCsfApplicationPath,
   parsePluginApplicationRouteTarget,
   type PluginApplicationRouteTarget,
 } from "@/lib/plugins/application-routing";
@@ -56,6 +57,21 @@ function getCsfRequestDeploymentId(request: NextRequest): string | null {
   return deploymentId && VERCEL_DEPLOYMENT_ID_PATTERN.test(deploymentId)
     ? deploymentId
     : null;
+}
+
+function requestOriginatedFromCsfApplication(request: NextRequest): boolean {
+  const referer = request.headers.get("referer");
+  if (!referer) return false;
+
+  try {
+    const refererUrl = new URL(referer);
+    return (
+      refererUrl.origin === request.nextUrl.origin &&
+      isCsfApplicationPath(refererUrl.pathname)
+    );
+  } catch {
+    return false;
+  }
 }
 
 function getCsfAssetRouteContext(
@@ -338,9 +354,18 @@ export function createRootProxy(
           return null;
         }
 
-        const requestedDeploymentHeader =
-          request.headers.get("x-deployment-id");
-        const requestedDeploymentId = getCsfRequestDeploymentId(request);
+        // Next client navigations carry the deployment ID of the page that
+        // initiated them. Only a request from an existing child document may
+        // use that value as a historical child pin. A host-side router.push
+        // into this route carries the host deployment ID and must select the
+        // organization's current child target instead.
+        const childOrigin = requestOriginatedFromCsfApplication(request);
+        const requestedDeploymentHeader = childOrigin
+          ? request.headers.get("x-deployment-id")
+          : null;
+        const requestedDeploymentId = childOrigin
+          ? getCsfRequestDeploymentId(request)
+          : null;
         if (requestedDeploymentHeader && !requestedDeploymentId) {
           return blockPluginApplicationRequest();
         }
