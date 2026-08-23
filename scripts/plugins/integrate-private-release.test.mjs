@@ -439,6 +439,43 @@ test("refuses an application release that advances published embedded code", () 
   );
 });
 
+test("anchors an unsigned bootstrap release to the code the host serves", () => {
+  const input = fixture({ application: true, multiEnvironment: true });
+  const registry = JSON.parse(readFileSync(input.registryPath, "utf8"));
+  const feature = join(input.privateRoot, "plugins/example-plugin/feature.ts");
+  writeFileSync(feature, 'export const value = "serving baseline";\n');
+  runGit(input.privateRoot, "add", ".");
+  runGit(input.privateRoot, "commit", "-m", "serving baseline");
+  const servingCommit = runGit(input.privateRoot, "rev-parse", "HEAD");
+
+  assert.doesNotThrow(() =>
+    verifyPublishedEmbeddedTrees(
+      input.privateRoot,
+      registry,
+      servingCommit,
+      null,
+      servingCommit,
+    ),
+  );
+
+  writeFileSync(feature, 'export const value = "unpublished change";\n');
+  runGit(input.privateRoot, "add", ".");
+  runGit(input.privateRoot, "commit", "-m", "unpublished change");
+  const targetCommit = runGit(input.privateRoot, "rev-parse", "HEAD");
+
+  assert.throws(
+    () =>
+      verifyPublishedEmbeddedTrees(
+        input.privateRoot,
+        registry,
+        targetCommit,
+        null,
+        servingCommit,
+      ),
+    /release changes published embedded code/u,
+  );
+});
+
 test("refuses an embedded release that advances another embedded plugin", () => {
   const input = fixture();
   const otherPlugin = join(input.privateRoot, "plugins/other-plugin");
@@ -615,6 +652,10 @@ test("root workflow verifies known assets and opens only a Development PR", () =
     /runtimeProfile[\s\S]*== application[\s\S]*steps\.embedded\.outputs\.source_commit/u,
   );
   assert.match(workflow, /--migration-version auto/u);
+  assert.match(
+    workflow,
+    /--serving-private-commit "\$\{\{ steps\.embedded\.outputs\.source_commit \}\}"/u,
+  );
   assert.match(workflow, /group: plugin-release-integration\n/u);
   assert.match(workflow, /gh api \\\n\s+--paginate \\\n\s+--slurp/u);
   assert.match(workflow, /startswith\("codex\/plugin-release-"\)/u);

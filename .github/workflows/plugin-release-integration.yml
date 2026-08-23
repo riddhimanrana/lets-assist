@@ -233,6 +233,7 @@ jobs:
             --migrations-dir supabase/migrations \
             --migration-version auto \
             --attestation-ref "${attestation_ref}"
+            --serving-private-commit "${{ steps.embedded.outputs.source_commit }}"
           )
           if [[ -f .artifacts/plugin-release/plugin-build-development.tar.gz ]]; then
             args+=(

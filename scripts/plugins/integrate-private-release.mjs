@@ -56,6 +56,7 @@ export function verifyPublishedEmbeddedTrees(
   registry,
   targetCommit,
   releasedPluginKey = null,
+  servingPrivateCommit = null,
 ) {
   const latestEmbeddedByPlugin = new Map();
   for (const release of registry.filter(
@@ -72,9 +73,13 @@ export function verifyPublishedEmbeddedTrees(
     let publishedTree;
     let targetTree;
     try {
+      const baselineCommit =
+        release.signer == null && servingPrivateCommit
+          ? servingPrivateCommit
+          : release.sourceCommit;
       publishedTree = git(privateRoot, [
         "rev-parse",
-        `${release.sourceCommit}:${pluginPath}`,
+        `${baselineCommit}:${pluginPath}`,
       ]).trim();
       targetTree = git(privateRoot, [
         "rev-parse",
@@ -676,6 +681,7 @@ export function integratePrivateRelease({
   migrationVersion,
   attestationRef,
   applicationTargetsPath,
+  servingPrivateCommit,
 }) {
   const resolvedMigrationVersion =
     migrationVersion === "auto"
@@ -709,6 +715,9 @@ export function integratePrivateRelease({
   const registry = JSON.parse(readFileSync(registryPath, "utf8"));
   if (!Array.isArray(registry))
     fail("published release registry must be an array");
+  if (servingPrivateCommit && !GIT_SHA.test(servingPrivateCommit)) {
+    fail("serving private commit must be a full Git SHA");
+  }
   const pluginReleases = registry.filter(
     (entry) => entry.pluginKey === manifest.pluginKey,
   );
@@ -731,6 +740,7 @@ export function integratePrivateRelease({
     registry,
     manifest.sourceCommit,
     manifest.runtimeProfile === "embedded" ? manifest.pluginKey : null,
+    servingPrivateCommit,
   );
   if (compareVersions(manifest.version, previous.version) <= 0) {
     fail(
@@ -861,6 +871,7 @@ if (
     "--migrations-dir",
     "--migration-version",
     "--attestation-ref",
+    "--serving-private-commit",
   ];
   for (const flag of required) if (!args.has(flag)) fail(`missing ${flag}`);
   const result = integratePrivateRelease({
@@ -882,6 +893,7 @@ if (
     applicationTargetsPath: args.get("--application-targets")
       ? resolve(args.get("--application-targets"))
       : undefined,
+    servingPrivateCommit: args.get("--serving-private-commit"),
   });
   process.stdout.write(`${JSON.stringify(result)}\n`);
 }
