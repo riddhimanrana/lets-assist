@@ -195,9 +195,7 @@ async function seedJoinProfile(fixture: PkceFixture) {
     source_summary: fixtureMarker,
   });
   if (profileError) {
-    throw new Error(
-      `Could not seed the join profile: ${profileError.message}`,
-    );
+    throw new Error(`Could not seed the join profile: ${profileError.message}`);
   }
 
   const { error: membershipError } = await plugin

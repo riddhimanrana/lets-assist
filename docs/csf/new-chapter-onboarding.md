@@ -26,16 +26,16 @@ history, or repository.
 Use these roles to verify the actual permission boundary rather than testing
 everything as an administrator:
 
-| Account                          | Rehearsal purpose                                           |
-| -------------------------------- | ----------------------------------------------------------- |
-| `csf.admin@local.test`           | Organization and CSF administration                         |
-| `csf.vp-membership@local.test`   | Applications, members, and account connections              |
-| `csf.secretary@local.test`       | Meetings and attendance                                     |
-| `csf.treasurer@local.test`       | Dues                                                        |
-| `csf.data-management@local.test` | Imports and reconciliation                                  |
-| `student.2028@local.test`        | Existing Class of 2028 record and exact-email auto-connect  |
-| `csf.applicant@local.test`       | Applicant and unmatched account-connection paths            |
-| `platform.outsider@local.test`   | Public/private boundary check                               |
+| Account                          | Rehearsal purpose                                          |
+| -------------------------------- | ---------------------------------------------------------- |
+| `csf.admin@local.test`           | Organization and CSF administration                        |
+| `csf.vp-membership@local.test`   | Applications, members, and account connections             |
+| `csf.secretary@local.test`       | Meetings and attendance                                    |
+| `csf.treasurer@local.test`       | Dues                                                       |
+| `csf.data-management@local.test` | Imports and reconciliation                                 |
+| `student.2028@local.test`        | Existing Class of 2028 record and exact-email auto-connect |
+| `csf.applicant@local.test`       | Applicant and unmatched account-connection paths           |
+| `platform.outsider@local.test`   | Public/private boundary check                              |
 
 The current Development rehearsal tracks Classes of 2027, 2028, 2029, and 2030.
 Each class has an active Fall 2026 semester record and a permanent class join
