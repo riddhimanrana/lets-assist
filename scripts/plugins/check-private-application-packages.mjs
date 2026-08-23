@@ -148,7 +148,11 @@ export function scrubPrivilegedPluginAppEnvironment(environment) {
   );
 }
 
-export function runPrivateApplicationGates(app, environment = process.env) {
+export function runPrivateApplicationGates(
+  app,
+  environment = process.env,
+  { installOnly = false } = {},
+) {
   const scrubbed = scrubPrivilegedPluginAppEnvironment(environment);
   const homeDirectory = mkdtempSync(
     join(tmpdir(), "lets-assist-plugin-app-gates-"),
@@ -169,8 +173,10 @@ export function runPrivateApplicationGates(app, environment = process.env) {
       ["--no-env-file", "install", "--frozen-lockfile", "--ignore-scripts"],
       isolated,
     );
-    for (const script of REQUIRED_SCRIPTS) {
-      run(app, "bun", ["--no-env-file", "run", script], isolated);
+    if (!installOnly) {
+      for (const script of REQUIRED_SCRIPTS) {
+        run(app, "bun", ["--no-env-file", "run", script], isolated);
+      }
     }
   } finally {
     rmSync(homeDirectory, { recursive: true, force: true });
@@ -180,10 +186,13 @@ export function runPrivateApplicationGates(app, environment = process.env) {
 function parseArguments(arguments_) {
   let privateRoot = resolve("lib/plugins/private");
   let contractOnly = false;
+  let installOnly = false;
   for (let index = 0; index < arguments_.length; index += 1) {
     const argument = arguments_[index];
     if (argument === "--contract-only") {
       contractOnly = true;
+    } else if (argument === "--install-only") {
+      installOnly = true;
     } else if (argument === "--private-root") {
       const value = arguments_[index + 1];
       if (!value) fail("--private-root requires a path.");
@@ -193,11 +202,14 @@ function parseArguments(arguments_) {
       fail(`Unknown argument ${argument}.`);
     }
   }
-  return { privateRoot, contractOnly };
+  if (contractOnly && installOnly) {
+    fail("--contract-only and --install-only cannot be combined.");
+  }
+  return { privateRoot, contractOnly, installOnly };
 }
 
 export function main(arguments_ = process.argv.slice(2)) {
-  const { privateRoot, contractOnly } = parseArguments(arguments_);
+  const { privateRoot, contractOnly, installOnly } = parseArguments(arguments_);
   const rootPackage = readJson(resolve("package.json"));
   const expectedPackageManager = rootPackage.packageManager;
   if (
@@ -213,11 +225,18 @@ export function main(arguments_ = process.argv.slice(2)) {
   );
 
   if (!contractOnly) {
-    for (const app of apps) runPrivateApplicationGates(app);
+    for (const app of apps) {
+      runPrivateApplicationGates(app, process.env, { installOnly });
+    }
   }
 
+  const outcome = contractOnly
+    ? "satisfy the ownership contract"
+    : installOnly
+      ? "installed with isolated dependency gates"
+      : "passed independent gates";
   process.stdout.write(
-    `[plugin-apps] PASS: ${apps.length} private application package${apps.length === 1 ? "" : "s"} ${contractOnly ? "satisfy the ownership contract" : "passed independent gates"}.\n`,
+    `[plugin-apps] PASS: ${apps.length} private application package${apps.length === 1 ? "" : "s"} ${outcome}.\n`,
   );
 }
 

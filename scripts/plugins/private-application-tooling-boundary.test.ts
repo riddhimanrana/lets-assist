@@ -20,6 +20,10 @@ describe("private application tooling ownership", () => {
 
     const workflow = read(".github/workflows/ci.yml");
     expect(workflow).toContain("bun run plugin:apps:check");
+    expect(workflow).toContain("bun run plugin:apps:check -- --install-only");
+    expect(workflow).not.toContain(
+      "bun install --frozen-lockfile --cwd lib/plugins/private/apps/csf",
+    );
   });
 
   test("child gates cannot inherit developer home credentials or run install scripts", () => {

@@ -170,7 +170,7 @@ describe("CI db-replay-validation uses the recovery topology and isolated seed",
     const job = dbReplayJob();
     const rootInstall = job.indexOf("run: bun install --frozen-lockfile");
     const pluginInstall = job.indexOf(
-      "run: bun install --frozen-lockfile --cwd lib/plugins/private/apps/csf",
+      "run: bun run plugin:apps:check -- --install-only",
     );
     const dvBrowser = job.indexOf("run: bun run dv:test:e2e");
     const csfBrowser = job.indexOf("run: bun run csf:test:e2e");
@@ -180,10 +180,11 @@ describe("CI db-replay-validation uses the recovery topology and isolated seed",
     expect(pluginInstall).toBeLessThan(dvBrowser);
     expect(pluginInstall).toBeLessThan(csfBrowser);
     expect(
-      job.match(
-        /bun install --frozen-lockfile --cwd lib\/plugins\/private\/apps\/csf/gu,
-      )?.length,
+      job.match(/bun run plugin:apps:check -- --install-only/gu)?.length,
     ).toBe(1);
+    expect(job).not.toContain(
+      "bun install --frozen-lockfile --cwd lib/plugins/private/apps/csf",
+    );
   });
 
   test("both isolated production browser builds skip only their redundant typecheck", () => {

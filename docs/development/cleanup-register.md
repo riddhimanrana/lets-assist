@@ -36,6 +36,8 @@ This register separates actionable repository defects from provider/account and 
   test, and build command a disposable home and Bun cache. It does not inherit
   the developer home directory, and dependency installation runs with lifecycle
   scripts disabled.
+  The database/browser CI job uses the same installer in install-only mode, so
+  it cannot bypass that credential and lifecycle-script boundary.
 - New application releases must use the signed two-artifact Development and
   Production format. Integration rejects the older single-artifact format, so
   every published application release is consumable by the deployment lane.
