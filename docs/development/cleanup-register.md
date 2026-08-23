@@ -45,6 +45,8 @@ This register separates actionable repository defects from provider/account and 
   runtime syntax. Independent child checks resolve bare specifiers through the
   child's parsed TypeScript configuration, so a path alias cannot disguise a
   source import that escapes the declared application root.
+  It also covers literal `new URL(..., import.meta.url)` assets and
+  `import.meta.resolve(...)` dependencies used by child bundlers.
 - A final independent Claude review reported two P2 candidates. The deployment
   project concern is disproved as a second runtime authorization gate: the
   signed project/team allowlist check occurs before the service-role-only

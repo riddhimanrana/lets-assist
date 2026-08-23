@@ -5,6 +5,7 @@ import { join } from "node:path";
 
 import {
   collectHostImportSpecifiers,
+  collectLiteralApplicationDependencySpecifiers,
   collectLiteralImportSpecifiers,
   readApplicationCompilerOptions,
   resolveApplicationImportSpecifier,
@@ -215,6 +216,27 @@ describe("host import specifier collection", () => {
       "@/lib/module-host",
       "@/lib/resolved-host",
       "@/lib/weak-host",
+    ]);
+  });
+
+  test("collects URL-based and import-meta build dependencies", () => {
+    const source = `
+      const worker = new URL("../../outside/worker.ts", import.meta.url);
+      const local = new URL("./local-worker.ts", import.meta.url);
+      const resolved = import.meta.resolve("../../outside/config.json");
+      const ignoredOrigin = new URL("../../outside/runtime.txt", baseUrl);
+      const ignoredDynamic = new URL(path, import.meta.url);
+    `;
+
+    expect(
+      [...collectLiteralApplicationDependencySpecifiers(source)].sort(),
+    ).toEqual([
+      "../../outside/config.json",
+      "../../outside/worker.ts",
+      "./local-worker.ts",
+    ]);
+    expect([...collectLiteralImportSpecifiers(source)]).toEqual([
+      "../../outside/config.json",
     ]);
   });
 

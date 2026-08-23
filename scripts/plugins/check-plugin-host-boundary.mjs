@@ -27,7 +27,7 @@ import { join, resolve } from "node:path";
 
 import {
   collectHostImportSpecifiers,
-  collectLiteralImportSpecifiers,
+  collectLiteralApplicationDependencySpecifiers,
   readApplicationCompilerOptions,
   resolveEscapingApplicationImportSpecifier,
 } from "./host-import-specifiers.mjs";
@@ -95,7 +95,9 @@ for (const applicationName of readdirSync(applicationsRoot).sort()) {
 
   for (const file of collectPluginSourceFiles(applicationDirectory)) {
     const source = readFileSync(file, "utf8");
-    for (const specifier of collectLiteralImportSpecifiers(source)) {
+    for (const specifier of collectLiteralApplicationDependencySpecifiers(
+      source,
+    )) {
       const target = resolveEscapingApplicationImportSpecifier(
         specifier,
         file,

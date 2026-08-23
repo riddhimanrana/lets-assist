@@ -7,6 +7,16 @@ function literalModuleSpecifier(node) {
     : null;
 }
 
+function isImportMetaProperty(node, propertyName) {
+  return (
+    ts.isPropertyAccessExpression(node) &&
+    ts.isMetaProperty(node.expression) &&
+    node.expression.keywordToken === ts.SyntaxKind.ImportKeyword &&
+    node.expression.name.text === "meta" &&
+    node.name.text === propertyName
+  );
+}
+
 function isOutside(root, candidate) {
   const path = relative(root, candidate);
   return (
@@ -42,6 +52,21 @@ export function collectHostImportSpecifiers(source, context) {
 }
 
 export function collectLiteralImportSpecifiers(source) {
+  return collectLiteralDependencySpecifiers(source, {
+    includeUrlDependencies: false,
+  });
+}
+
+export function collectLiteralApplicationDependencySpecifiers(source) {
+  return collectLiteralDependencySpecifiers(source, {
+    includeUrlDependencies: true,
+  });
+}
+
+function collectLiteralDependencySpecifiers(
+  source,
+  { includeUrlDependencies },
+) {
   const literals = new Set();
   const sourceFile = ts.createSourceFile(
     "plugin-source.tsx",
@@ -86,10 +111,29 @@ export function collectLiteralImportSpecifiers(source) {
           (ts.isIdentifier(node.expression.expression) &&
             node.expression.expression.text === "module" &&
             node.expression.name.text === "require"));
-      if (isDynamicImport || isRequire || isRequireProperty) {
+      const isImportMetaResolve = isImportMetaProperty(
+        node.expression,
+        "resolve",
+      );
+      if (
+        isDynamicImport ||
+        isRequire ||
+        isRequireProperty ||
+        isImportMetaResolve
+      ) {
         const specifier = literalModuleSpecifier(node.arguments[0]);
         if (specifier !== null) literals.add(specifier);
       }
+    } else if (
+      includeUrlDependencies &&
+      ts.isNewExpression(node) &&
+      ts.isIdentifier(node.expression) &&
+      node.expression.text === "URL" &&
+      node.arguments?.length === 2 &&
+      isImportMetaProperty(node.arguments[1], "url")
+    ) {
+      const specifier = literalModuleSpecifier(node.arguments[0]);
+      if (specifier !== null) literals.add(specifier);
     }
 
     ts.forEachChild(node, visit);
