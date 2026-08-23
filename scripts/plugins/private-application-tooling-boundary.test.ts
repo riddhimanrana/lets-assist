@@ -10,6 +10,21 @@ function read(relativePath: string): string {
 }
 
 describe("private application tooling ownership", () => {
+  test("one developer command runs the complete plugin verification set", () => {
+    const packageJson = JSON.parse(read("package.json")) as {
+      scripts?: Record<string, string>;
+    };
+    const command = packageJson.scripts?.["plugin:verify"];
+    const strictCommand = packageJson.scripts?.["plugin:verify:strict"];
+
+    expect(command).toBe(
+      "bun run plugin:submodules:check && bun run plugin:test:registry && bun run plugin:check:boundary && bun run plugin:sdk:test && bun run plugin:test:release-integration && bun run plugin:apps:check && bun run test:private-plugins",
+    );
+    expect(strictCommand).toBe(
+      "bun run plugin:submodules:check:strict && bun run plugin:test:registry && bun run plugin:check:boundary && bun run plugin:sdk:test && bun run plugin:test:release-integration && bun run plugin:apps:check && bun run test:private-plugins",
+    );
+  });
+
   test("the private candidate CI path runs the independent application gates", () => {
     const packageJson = JSON.parse(read("package.json")) as {
       scripts?: Record<string, string>;
@@ -61,6 +76,19 @@ describe("private application tooling ownership", () => {
     );
     expect(sharedIgnore).not.toBeNull();
     expect(sharedIgnore?.[1]).toContain(`"${childAppsPath}/**"`);
+  });
+
+  test("private candidates can run isolated private tests before publication", () => {
+    const packageJson = JSON.parse(read("package.json")) as {
+      scripts?: Record<string, string>;
+    };
+    expect(packageJson.scripts?.["test:private-plugins"]).toBe(
+      "node scripts/run-tests.mjs --private-only",
+    );
+
+    const runner = read("scripts/run-tests.mjs");
+    expect(runner).toContain('"--private-only"');
+    expect(runner).toContain('file.startsWith("lib/plugins/private/")');
   });
 
   test("host data and route audits exclude only the independently gated child", () => {

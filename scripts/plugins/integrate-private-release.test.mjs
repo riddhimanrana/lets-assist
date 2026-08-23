@@ -402,6 +402,19 @@ test("refuses the obsolete single-environment application artifact", () => {
   );
 });
 
+test("requires the canonical plugin changelog path", () => {
+  const input = fixture({ application: true, multiEnvironment: true });
+  const manifest = JSON.parse(readFileSync(input.manifestPath, "utf8"));
+  manifest.changelogPath = "plugins/example-plugin/plugin.ts";
+  manifest.changelogDigest = manifest.manifestDigest;
+  writeFileSync(input.manifestPath, `${JSON.stringify(manifest, null, 2)}\n`);
+
+  assert.throws(
+    () => integrate(input),
+    /changelog path must be the canonical plugin CHANGELOG\.md/u,
+  );
+});
+
 test("integrates separately hashed Development and Production builds", () => {
   const input = fixture({ application: true, multiEnvironment: true });
   const result = integrate(input);
@@ -435,6 +448,107 @@ test("refuses an application release that advances published embedded code", () 
   assert.throws(
     () =>
       verifyPublishedEmbeddedTrees(input.privateRoot, registry, targetCommit),
+    /release changes published embedded code/u,
+  );
+});
+
+test("allows application release metadata without advancing embedded code", () => {
+  const input = fixture({ application: true, multiEnvironment: true });
+  const registry = JSON.parse(readFileSync(input.registryPath, "utf8"));
+  const servingCommit = input.manifest.sourceCommit;
+  writeFileSync(
+    join(input.privateRoot, "plugins/example-plugin/release.json"),
+    '{"version":"1.2.3"}\n',
+  );
+  writeFileSync(
+    join(input.privateRoot, "plugins/example-plugin/CHANGELOG.md"),
+    "# Changelog\n\n## 1.2.3\n\n- Application release.\n",
+  );
+  runGit(input.privateRoot, "add", ".");
+  runGit(input.privateRoot, "commit", "-m", "update release metadata");
+  const targetCommit = runGit(input.privateRoot, "rev-parse", "HEAD");
+
+  assert.doesNotThrow(() =>
+    verifyPublishedEmbeddedTrees(
+      input.privateRoot,
+      registry,
+      targetCommit,
+      "example-plugin",
+      servingCommit,
+      [
+        "plugins/example-plugin/CHANGELOG.md",
+        "plugins/example-plugin/release.json",
+      ],
+    ),
+  );
+});
+
+test("still refuses embedded code in an application release", () => {
+  const input = fixture({ application: true, multiEnvironment: true });
+  const registry = JSON.parse(readFileSync(input.registryPath, "utf8"));
+  const servingCommit = input.manifest.sourceCommit;
+  writeFileSync(
+    join(input.privateRoot, "plugins/example-plugin/release.json"),
+    '{"version":"1.2.3"}\n',
+  );
+  writeFileSync(
+    join(input.privateRoot, "plugins/example-plugin/feature.ts"),
+    'export const value = "changed with application release";\n',
+  );
+  runGit(input.privateRoot, "add", ".");
+  runGit(input.privateRoot, "commit", "-m", "mix runtime and release changes");
+  const targetCommit = runGit(input.privateRoot, "rev-parse", "HEAD");
+
+  assert.throws(
+    () =>
+      verifyPublishedEmbeddedTrees(
+        input.privateRoot,
+        registry,
+        targetCommit,
+        "example-plugin",
+        servingCommit,
+        [
+          "plugins/example-plugin/CHANGELOG.md",
+          "plugins/example-plugin/release.json",
+        ],
+      ),
+    /release changes published embedded code/u,
+  );
+});
+
+test("anchors an unsigned bootstrap release to the code the host serves", () => {
+  const input = fixture({ application: true, multiEnvironment: true });
+  const registry = JSON.parse(readFileSync(input.registryPath, "utf8"));
+  const feature = join(input.privateRoot, "plugins/example-plugin/feature.ts");
+  writeFileSync(feature, 'export const value = "serving baseline";\n');
+  runGit(input.privateRoot, "add", ".");
+  runGit(input.privateRoot, "commit", "-m", "serving baseline");
+  const servingCommit = runGit(input.privateRoot, "rev-parse", "HEAD");
+
+  assert.doesNotThrow(() =>
+    verifyPublishedEmbeddedTrees(
+      input.privateRoot,
+      registry,
+      servingCommit,
+      null,
+      servingCommit,
+    ),
+  );
+
+  writeFileSync(feature, 'export const value = "unpublished change";\n');
+  runGit(input.privateRoot, "add", ".");
+  runGit(input.privateRoot, "commit", "-m", "unpublished change");
+  const targetCommit = runGit(input.privateRoot, "rev-parse", "HEAD");
+
+  assert.throws(
+    () =>
+      verifyPublishedEmbeddedTrees(
+        input.privateRoot,
+        registry,
+        targetCommit,
+        null,
+        servingCommit,
+      ),
     /release changes published embedded code/u,
   );
 });
@@ -610,11 +724,16 @@ test("root workflow verifies known assets and opens only a Development PR", () =
   assert.match(workflow, /origin\/development/u);
   assert.match(workflow, /--base development/u);
   assert.match(workflow, /Record the embedded runtime pin/u);
+  assert.match(workflow, /git submodule init lib\/plugins\/private/u);
   assert.match(
     workflow,
     /runtimeProfile[\s\S]*== application[\s\S]*steps\.embedded\.outputs\.source_commit/u,
   );
   assert.match(workflow, /--migration-version auto/u);
+  assert.match(
+    workflow,
+    /--serving-private-commit "\$\{\{ steps\.embedded\.outputs\.source_commit \}\}"/u,
+  );
   assert.match(workflow, /group: plugin-release-integration\n/u);
   assert.match(workflow, /gh api \\\n\s+--paginate \\\n\s+--slurp/u);
   assert.match(workflow, /startswith\("codex\/plugin-release-"\)/u);

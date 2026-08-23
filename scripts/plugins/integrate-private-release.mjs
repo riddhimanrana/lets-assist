@@ -56,6 +56,8 @@ export function verifyPublishedEmbeddedTrees(
   registry,
   targetCommit,
   releasedPluginKey = null,
+  servingPrivateCommit = null,
+  allowedReleasedPluginPaths = null,
 ) {
   const latestEmbeddedByPlugin = new Map();
   for (const release of registry.filter(
@@ -67,14 +69,42 @@ export function verifyPublishedEmbeddedTrees(
     }
   }
   for (const release of latestEmbeddedByPlugin.values()) {
-    if (release.pluginKey === releasedPluginKey) continue;
     const pluginPath = `plugins/${release.pluginKey}`;
     let publishedTree;
     let targetTree;
+    const baselineCommit =
+      release.signer == null && servingPrivateCommit
+        ? servingPrivateCommit
+        : release.sourceCommit;
+    if (release.pluginKey === releasedPluginKey) {
+      if (allowedReleasedPluginPaths === null) continue;
+      let changedPaths;
+      try {
+        changedPaths = git(privateRoot, [
+          "diff",
+          "--name-only",
+          baselineCommit,
+          targetCommit,
+          "--",
+          pluginPath,
+        ])
+          .split("\n")
+          .filter(Boolean);
+      } catch {
+        fail(`cannot verify published embedded tree for ${release.pluginKey}`);
+      }
+      const allowedPaths = new Set(allowedReleasedPluginPaths);
+      if (changedPaths.some((path) => !allowedPaths.has(path))) {
+        fail(
+          `release changes published embedded code for ${release.pluginKey}`,
+        );
+      }
+      continue;
+    }
     try {
       publishedTree = git(privateRoot, [
         "rev-parse",
-        `${release.sourceCommit}:${pluginPath}`,
+        `${baselineCommit}:${pluginPath}`,
       ]).trim();
       targetTree = git(privateRoot, [
         "rev-parse",
@@ -256,8 +286,8 @@ function validateManifestShape(manifest) {
   ]) {
     assertRelativePath(value, label);
   }
-  if (!manifest.changelogPath.startsWith(`${pluginRoot}/`))
-    fail("changelog path must belong to the plugin");
+  if (manifest.changelogPath !== `${pluginRoot}/CHANGELOG.md`)
+    fail("changelog path must be the canonical plugin CHANGELOG.md");
   if (
     manifest.runtimeProfile === "embedded" &&
     !manifest.manifestPath.startsWith(`${pluginRoot}/`)
@@ -676,6 +706,7 @@ export function integratePrivateRelease({
   migrationVersion,
   attestationRef,
   applicationTargetsPath,
+  servingPrivateCommit,
 }) {
   const resolvedMigrationVersion =
     migrationVersion === "auto"
@@ -709,6 +740,9 @@ export function integratePrivateRelease({
   const registry = JSON.parse(readFileSync(registryPath, "utf8"));
   if (!Array.isArray(registry))
     fail("published release registry must be an array");
+  if (servingPrivateCommit && !GIT_SHA.test(servingPrivateCommit)) {
+    fail("serving private commit must be a full Git SHA");
+  }
   const pluginReleases = registry.filter(
     (entry) => entry.pluginKey === manifest.pluginKey,
   );
@@ -730,7 +764,14 @@ export function integratePrivateRelease({
     privateRoot,
     registry,
     manifest.sourceCommit,
-    manifest.runtimeProfile === "embedded" ? manifest.pluginKey : null,
+    manifest.pluginKey,
+    servingPrivateCommit,
+    manifest.runtimeProfile === "application"
+      ? [
+          `plugins/${manifest.pluginKey}/CHANGELOG.md`,
+          `plugins/${manifest.pluginKey}/release.json`,
+        ]
+      : null,
   );
   if (compareVersions(manifest.version, previous.version) <= 0) {
     fail(
@@ -861,6 +902,7 @@ if (
     "--migrations-dir",
     "--migration-version",
     "--attestation-ref",
+    "--serving-private-commit",
   ];
   for (const flag of required) if (!args.has(flag)) fail(`missing ${flag}`);
   const result = integratePrivateRelease({
@@ -882,6 +924,7 @@ if (
     applicationTargetsPath: args.get("--application-targets")
       ? resolve(args.get("--application-targets"))
       : undefined,
+    servingPrivateCommit: args.get("--serving-private-commit"),
   });
   process.stdout.write(`${JSON.stringify(result)}\n`);
 }

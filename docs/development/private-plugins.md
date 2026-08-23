@@ -10,27 +10,60 @@ Private plugins use two repositories:
 ```bash
 git clone --recurse-submodules <main-repository-url>
 cd lets-assist
-git submodule update --init --recursive
+bun run plugin:submodules:init
 ```
 
-CI must use recursive submodules and a credential that can read the private repository:
+Run the complete local plugin gate with one command:
 
-```yaml
-- uses: actions/checkout@v4
-  with:
-    submodules: recursive
-    token: ${{ secrets.PRIVATE_REPO_TOKEN }}
+```bash
+bun run plugin:verify
 ```
+
+It checks gitlink drift, the host-import boundary, versioned SDK,
+signed-release integration, embedded private tests, and every independent
+application package. Each application package gets a frozen credential-free
+install followed by lint, typecheck, tests, build, data-access audit, and route
+inventory.
+
+During active private-plugin development, gitlink drift and private working-tree
+changes are reported as warnings so the remaining gates still run. Run the
+exact publication gate only after the root index points at the private commit
+you intend to publish:
+
+```bash
+bun run plugin:verify:strict
+```
+
+Before creating a private release tag, run `bun run plugin:verify`. The signed
+release workflow verifies the reviewed private source, and the root integration
+then runs the strict gate after it updates the gitlink for an embedded release.
+
+Pull requests run the short static and plugin-contract check. Merging to
+`development` does not repeat the full database and browser suite. Run the
+manual `Code quality` workflow only for a hosted full rehearsal; Production
+schema deployment has its own exact reset and pgTAP gate.
+
+CI checks out the exact committed private gitlink with the repository-scoped
+`PRIVATE_SUBMODULE_SSH_KEY`. It does not use a reusable personal access token.
 
 The main repository pins an exact submodule commit. A plugin release is incomplete until the private commit is pushed, the main repository pointer is updated, and an immutable `plugin_versions` release record pins the commit, source tree, declared release inputs, and their content digest. A manifest hash alone does not identify all code that runs.
 
-## Change workflow
+## Routine change workflow
 
 1. Implement and test inside `lib/plugins/private`.
-2. Commit and push the private repository change.
-3. Return to the main repository.
-4. Add migrations, fixtures, generated types, host routes, and CI changes.
-5. Commit the updated submodule pointer with the main-repository changes.
+2. Run `bun run plugin:verify` from the platform root.
+3. Commit and merge the private change into private `development`.
+4. For an ordinary embedded change, update the root gitlink through a root
+   pull request. For a versioned release, promote the private commit to private
+   `main` and create the plugin-scoped release tag. The signed release workflow
+   verifies the source and opens the root integration pull request for you.
+5. Merge the root integration into `development` after its short checks pass.
+   Run a full hosted rehearsal only when the change or release risk calls for
+   it.
+
+Application publication, deployment, organization installation, and runtime
+activation remain separate. This keeps each step reversible and prevents a
+new release from moving an organization automatically.
 
 For storage, use the private `plugins` bucket and namespace every object as
 `{organizationId}/{pluginKey}/...`. The manifest must declare each live path

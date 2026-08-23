@@ -78,42 +78,41 @@ if (JSON.stringify(releaseKeys) !== JSON.stringify(pluginKeys)) {
 
 for (const release of publishedPluginReleases) {
   const definition = definitionsByKey.get(release.pluginKey);
-  if (
-    release.runtimeProfile === "embedded" &&
-    definition?.manifest?.version !== release.version
-  ) {
-    throw new Error(
-      `${release.pluginKey} manifest version ${definition?.manifest?.version ?? "missing"} does not match published ${release.version}`,
-    );
-  }
+  if (release.runtimeProfile === "embedded") {
+    if (definition?.manifest?.version !== release.version) {
+      throw new Error(
+        `${release.pluginKey} manifest version ${definition?.manifest?.version ?? "missing"} does not match published ${release.version}`,
+      );
+    }
 
-  const manifestBytes = readFileSync(
-    resolve(privateRoot, release.manifestFile),
-  );
-  const actualHash = createHash("sha256").update(manifestBytes).digest("hex");
-  if (actualHash !== release.manifestHash) {
-    throw new Error(
-      `${release.pluginKey} manifest hash drifted: expected ${release.manifestHash}, received ${actualHash}`,
+    const manifestBytes = readFileSync(
+      resolve(privateRoot, release.manifestFile),
     );
-  }
+    const actualHash = createHash("sha256").update(manifestBytes).digest("hex");
+    if (actualHash !== release.manifestHash) {
+      throw new Error(
+        `${release.pluginKey} manifest hash drifted: expected ${release.manifestHash}, received ${actualHash}`,
+      );
+    }
 
-  try {
-    execFileSync(
-      "git",
-      [
-        "-C",
-        privateRoot,
-        "merge-base",
-        "--is-ancestor",
-        release.sourceCommit,
-        "HEAD",
-      ],
-      { stdio: "ignore" },
-    );
-  } catch {
-    throw new Error(
-      `${release.pluginKey} published source ${release.sourceCommit} is not contained in the private gitlink`,
-    );
+    try {
+      execFileSync(
+        "git",
+        [
+          "-C",
+          privateRoot,
+          "merge-base",
+          "--is-ancestor",
+          release.sourceCommit,
+          "HEAD",
+        ],
+        { stdio: "ignore" },
+      );
+    } catch {
+      throw new Error(
+        `${release.pluginKey} published source ${release.sourceCommit} is not contained in the private gitlink`,
+      );
+    }
   }
 
   if (release.automaticUpdate || release.rolloutPercentage !== 0) {
@@ -123,10 +122,10 @@ for (const release of publishedPluginReleases) {
   }
   if (
     release.runtimeProfile === "application" &&
-    (!release.buildDigest || !release.buildArtifact)
+    (!release.buildDigest || !release.buildArtifact || !release.signer)
   ) {
     throw new Error(
-      `${release.pluginKey}@${release.version} application release has no verified build artifact`,
+      `${release.pluginKey}@${release.version} application release has no signed build artifact`,
     );
   }
 }

@@ -4,7 +4,11 @@ import { spawnSync } from "node:child_process";
 import { readFileSync } from "node:fs";
 import fg from "fast-glob";
 
-const supportedArguments = new Set(["--root-only", "--plugins-only"]);
+const supportedArguments = new Set([
+  "--root-only",
+  "--plugins-only",
+  "--private-only",
+]);
 const unknownArguments = process.argv
   .slice(2)
   .filter((argument) => !supportedArguments.has(argument));
@@ -16,8 +20,11 @@ if (unknownArguments.length > 0) {
 
 const rootOnly = process.argv.includes("--root-only");
 const pluginsOnly = process.argv.includes("--plugins-only");
-if (rootOnly && pluginsOnly) {
-  throw new Error("--root-only and --plugins-only cannot be combined.");
+const privateOnly = process.argv.includes("--private-only");
+if ([rootOnly, pluginsOnly, privateOnly].filter(Boolean).length > 1) {
+  throw new Error(
+    "--root-only, --plugins-only, and --private-only cannot be combined.",
+  );
 }
 
 const preload = [
@@ -127,7 +134,7 @@ const isolatedMockFiles = remainingRootFiles.filter(hasGlobalModuleMock);
 const ordinaryRootFiles = remainingRootFiles.filter(
   (file) => !isolatedMockFiles.includes(file),
 );
-const discoveredPluginFiles = (
+let discoveredPluginFiles = (
   await fg(testFilePatterns, {
     cwd: process.cwd(),
     ignore: sharedDiscoveryIgnore,
@@ -137,6 +144,11 @@ const discoveredPluginFiles = (
 )
   .filter((file) => file.startsWith("lib/plugins/"))
   .sort();
+if (privateOnly) {
+  discoveredPluginFiles = discoveredPluginFiles.filter((file) =>
+    file.startsWith("lib/plugins/private/"),
+  );
+}
 const isolatedPluginMockFiles =
   discoveredPluginFiles.filter(hasGlobalModuleMock);
 const ordinaryPluginFiles = discoveredPluginFiles.filter(
@@ -173,14 +185,14 @@ function runGroup(group) {
   }
 }
 
-if (!pluginsOnly && discoveredRootFiles.length === 0) {
+if (!pluginsOnly && !privateOnly && discoveredRootFiles.length === 0) {
   throw new Error("No root test files were discovered.");
 }
 if (!rootOnly && discoveredPluginFiles.length === 0) {
   throw new Error("No plugin test files were discovered.");
 }
 
-if (!pluginsOnly) {
+if (!pluginsOnly && !privateOnly) {
   for (const group of groups) runGroup(group);
 
   if (ordinaryRootFiles.length > 0) {
@@ -215,5 +227,5 @@ if (!rootOnly) {
 }
 
 console.log(
-  `\n[test] PASS: ${pluginsOnly ? 0 : discoveredRootFiles.length} root and ${rootOnly ? 0 : discoveredPluginFiles.length} plugin test files were discovered; every mock-sensitive file ran in its own Bun process.`,
+  `\n[test] PASS: ${pluginsOnly || privateOnly ? 0 : discoveredRootFiles.length} root and ${rootOnly ? 0 : discoveredPluginFiles.length} plugin test files were discovered; every mock-sensitive file ran in its own Bun process.`,
 );
