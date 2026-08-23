@@ -36,6 +36,9 @@ This register separates actionable repository defects from provider/account and 
   test, and build command a disposable home and Bun cache. It does not inherit
   the developer home directory, and dependency installation runs with lifecycle
   scripts disabled.
+- New application releases must use the signed two-artifact Development and
+  Production format. Integration rejects the older single-artifact format, so
+  every published application release is consumable by the deployment lane.
 - A final independent Claude review reported two P2 candidates. The deployment
   project concern is disproved as a second runtime authorization gate: the
   signed project/team allowlist check occurs before the service-role-only

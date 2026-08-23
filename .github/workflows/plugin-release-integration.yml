@@ -108,17 +108,14 @@ jobs:
           profile="$(jq -r .runtimeProfile "${manifest}")"
           if [[ "${profile}" == application ]]; then
             format="$(jq -r .buildArtifact.format "${manifest}")"
-            if [[ "${format}" == vercel-prebuilt-v1 ]]; then
-              artifacts=(plugin-build.tar.gz)
-            elif [[ "${format}" == vercel-prebuilt-multi-env-v1 ]]; then
-              artifacts=(
-                plugin-build-development.tar.gz
-                plugin-build-production.tar.gz
-              )
-            else
+            if [[ "${format}" != vercel-prebuilt-multi-env-v1 ]]; then
               echo "Unsupported application build format: ${format}" >&2
               exit 1
             fi
+            artifacts=(
+              plugin-build-development.tar.gz
+              plugin-build-production.tar.gz
+            )
             for artifact in "${artifacts[@]}"; do
               gh release download "${RELEASE_TAG}" \
                 --repo "${PRIVATE_REPOSITORY}" \
@@ -237,9 +234,7 @@ jobs:
             --migration-version auto \
             --attestation-ref "${attestation_ref}"
           )
-          if [[ -f .artifacts/plugin-release/plugin-build.tar.gz ]]; then
-            args+=(--build .artifacts/plugin-release/plugin-build.tar.gz)
-          elif [[ -f .artifacts/plugin-release/plugin-build-development.tar.gz ]]; then
+          if [[ -f .artifacts/plugin-release/plugin-build-development.tar.gz ]]; then
             args+=(
               --build-development .artifacts/plugin-release/plugin-build-development.tar.gz
               --build-production .artifacts/plugin-release/plugin-build-production.tar.gz

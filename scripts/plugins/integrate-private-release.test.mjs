@@ -393,33 +393,23 @@ test("refuses versions the database semver key cannot represent", () => {
   }
 });
 
-test("integrates an application only after hashing its independent build", () => {
+test("refuses the obsolete single-environment application artifact", () => {
   const input = fixture({ application: true });
+  assert.throws(
+    () => integrate(input),
+    /invalid application build artifact contract/u,
+  );
+});
+
+test("integrates separately hashed Development and Production builds", () => {
+  const input = fixture({ application: true, multiEnvironment: true });
   const result = integrate(input);
   const registry = JSON.parse(readFileSync(input.registryPath, "utf8"));
-
   assert.equal(result.version, "1.2.3");
   assert.equal(registry.length, 2);
   assert.equal(registry[0].runtimeProfile, "embedded");
   assert.equal(registry[1].runtimeProfile, "application");
   assert.equal(registry[1].buildDigest, input.manifest.buildDigest);
-  assert.equal(registry[1].buildArtifact.format, "vercel-prebuilt-v1");
-
-  const migrationName = readdirSync(input.migrationsDir).find((file) =>
-    file.startsWith("20260820150000_"),
-  );
-  const migration = readFileSync(
-    join(input.migrationsDir, migrationName),
-    "utf8",
-  );
-  assert.doesNotMatch(migration, /SET latest_version = '1\.2\.3'/u);
-  assert.match(migration, /AND latest_version = '1\.2\.2'/u);
-});
-
-test("integrates separately hashed Development and Production builds", () => {
-  const input = fixture({ application: true, multiEnvironment: true });
-  integrate(input);
-  const registry = JSON.parse(readFileSync(input.registryPath, "utf8"));
   assert.equal(
     registry[1].buildArtifact.format,
     "vercel-prebuilt-multi-env-v1",
@@ -431,7 +421,7 @@ test("integrates separately hashed Development and Production builds", () => {
 });
 
 test("refuses an application build targeted at an unapproved project", () => {
-  const input = fixture({ application: true });
+  const input = fixture({ application: true, multiEnvironment: true });
   const targets = JSON.parse(
     readFileSync(input.applicationTargetsPath, "utf8"),
   );
@@ -445,7 +435,7 @@ test("refuses an application build targeted at an unapproved project", () => {
 });
 
 test("refuses an application build rooted outside the approved child app", () => {
-  const input = fixture({ application: true });
+  const input = fixture({ application: true, multiEnvironment: true });
   const targets = JSON.parse(
     readFileSync(input.applicationTargetsPath, "utf8"),
   );
@@ -460,7 +450,11 @@ test("refuses an application build rooted outside the approved child app", () =>
 
 test("anchors later releases to the serving embedded catalog entry", () => {
   for (const application of [true, false]) {
-    const input = fixture({ application, priorApplication: true });
+    const input = fixture({
+      application,
+      priorApplication: true,
+      multiEnvironment: application,
+    });
     const manifest = JSON.parse(readFileSync(input.manifestPath, "utf8"));
     manifest.supportedInstallContracts.minimum = "1.2.1";
     writeFileSync(input.manifestPath, `${JSON.stringify(manifest, null, 2)}\n`);
@@ -479,7 +473,11 @@ test("anchors later releases to the serving embedded catalog entry", () => {
 });
 
 test("refuses to drop the prior release minimum install contract", () => {
-  const input = fixture({ application: true, priorApplication: true });
+  const input = fixture({
+    application: true,
+    priorApplication: true,
+    multiEnvironment: true,
+  });
   assert.throws(
     () => integrate(input),
     /exclude the currently published install contract/u,
@@ -487,7 +485,7 @@ test("refuses to drop the prior release minimum install contract", () => {
 });
 
 test("refuses an inverted host API range", () => {
-  const input = fixture({ application: true });
+  const input = fixture({ application: true, multiEnvironment: true });
   const manifest = JSON.parse(readFileSync(input.manifestPath, "utf8"));
   manifest.hostApiRange = { minimum: "2.0.0", maximum: "1.0.0" };
   writeFileSync(input.manifestPath, `${JSON.stringify(manifest, null, 2)}\n`);
@@ -495,10 +493,10 @@ test("refuses an inverted host API range", () => {
 });
 
 test("refuses an application artifact whose bytes do not match the signature", () => {
-  const input = fixture({ application: true });
-  writeFileSync(input.buildPath, "different bytes\n");
+  const input = fixture({ application: true, multiEnvironment: true });
+  writeFileSync(input.buildPaths.development, "different bytes\n");
 
-  assert.throws(() => integrate(input), /does not match the signed digest/u);
+  assert.throws(() => integrate(input), /artifact digest is invalid/u);
 });
 
 test("refuses a signed inventory that does not match the private Git tree", () => {
@@ -566,6 +564,9 @@ test("root workflow verifies known assets and opens only a Development PR", () =
   assert.match(workflow, /supabase\/tests\/database/u);
   assert.match(workflow, /plugin-build-development\.tar\.gz/u);
   assert.match(workflow, /plugin-build-production\.tar\.gz/u);
+  assert.match(workflow, /Unsupported application build format/u);
+  assert.match(workflow, /vercel-prebuilt-multi-env-v1/u);
+  assert.doesNotMatch(workflow, /plugin-build\.tar\.gz/u);
   assert.match(
     workflow,
     /bunx prettier --write lib\/plugins\/published-releases\.json/u,

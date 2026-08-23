@@ -55,16 +55,6 @@ function sha256(bytes) {
   return `sha256:${createHash("sha256").update(bytes).digest("hex")}`;
 }
 
-function isSingleBuildArtifact(artifact) {
-  return (
-    artifact &&
-    Object.keys(artifact).sort().join(",") ===
-      "format,name,organizationId,projectId,projectName,root" &&
-    artifact.name === "plugin-build.tar.gz" &&
-    artifact.format === "vercel-prebuilt-v1"
-  );
-}
-
 function isMultiEnvironmentBuildArtifact(artifact) {
   const environments = ["development", "production"];
   return (
@@ -189,12 +179,9 @@ function validateManifestShape(manifest) {
   if (manifest.runtimeProfile === "application") {
     const artifact = manifest.buildArtifact;
     if (
-      ![2, 3].includes(manifest.schemaVersion) ||
+      manifest.schemaVersion !== 3 ||
       !SHA256.test(manifest.buildDigest) ||
-      !artifact ||
-      (manifest.schemaVersion === 2 && !isSingleBuildArtifact(artifact)) ||
-      (manifest.schemaVersion === 3 &&
-        !isMultiEnvironmentBuildArtifact(artifact)) ||
+      !isMultiEnvironmentBuildArtifact(artifact) ||
       !PLUGIN_KEY.test(artifact.projectName) ||
       !/^prj_[A-Za-z0-9]+$/u.test(artifact.projectId) ||
       !/^team_[A-Za-z0-9]+$/u.test(artifact.organizationId)
@@ -341,33 +328,26 @@ function verifyReleaseBytes(
     fail("SBOM bytes do not match the signed digest");
   }
   if (manifest.runtimeProfile === "application") {
-    if (manifest.schemaVersion === 3) {
-      const artifacts = {};
-      for (const environment of ["development", "production"]) {
-        const path = buildPaths?.[environment];
-        if (!path || !existsSync(path)) {
-          fail(`${environment} application build artifact is missing`);
-        }
-        const digest = sha256(readFileSync(path));
-        if (digest !== manifest.buildArtifact.artifacts[environment].digest) {
-          fail(`${environment} application build artifact digest is invalid`);
-        }
-        artifacts[environment] = {
-          name: `plugin-build-${environment}.tar.gz`,
-          digest,
-        };
+    const artifacts = {};
+    for (const environment of ["development", "production"]) {
+      const path = buildPaths?.[environment];
+      if (!path || !existsSync(path)) {
+        fail(`${environment} application build artifact is missing`);
       }
-      if (
-        sha256(Buffer.from(JSON.stringify(artifacts), "utf8")) !==
-        manifest.buildDigest
-      ) {
-        fail("multi-environment build set digest is invalid");
+      const digest = sha256(readFileSync(path));
+      if (digest !== manifest.buildArtifact.artifacts[environment].digest) {
+        fail(`${environment} application build artifact digest is invalid`);
       }
-    } else {
-      if (!buildPath || !existsSync(buildPath))
-        fail("application build artifact is missing");
-      if (sha256(readFileSync(buildPath)) !== manifest.buildDigest)
-        fail("application build artifact does not match the signed digest");
+      artifacts[environment] = {
+        name: `plugin-build-${environment}.tar.gz`,
+        digest,
+      };
+    }
+    if (
+      sha256(Buffer.from(JSON.stringify(artifacts), "utf8")) !==
+      manifest.buildDigest
+    ) {
+      fail("multi-environment build set digest is invalid");
     }
   } else if (buildPath || buildPaths) {
     fail("embedded release supplied an unexpected build artifact");
