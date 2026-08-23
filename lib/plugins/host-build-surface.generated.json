@@ -85,6 +85,7 @@
     "@/lib/auth/google-oauth-scopes",
     "@/lib/auth/google-oauth-state",
     "@/lib/auth/google-picker-config",
+    "@/lib/auth/google-picker-preflight",
     "@/lib/logger",
     "@/lib/organization/csf-calendar-sync",
     "@/lib/organization/invitation-utils",
