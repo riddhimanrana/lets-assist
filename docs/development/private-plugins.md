@@ -24,6 +24,14 @@ signed-release integration, and every independent application package. Each
 application package gets a frozen credential-free install followed by lint,
 typecheck, tests, build, data-access audit, and route inventory.
 
+During active private-plugin development, gitlink drift and private working-tree
+changes are reported as warnings so the remaining gates still run. Before
+publishing a root gitlink or cutting a release, run the exact publication gate:
+
+```bash
+bun run plugin:verify:strict
+```
+
 Pull requests run the short static and plugin-contract check. Merging to
 `development` does not repeat the full database and browser suite. Run the
 manual `Code quality` workflow only for a hosted full rehearsal; Production
