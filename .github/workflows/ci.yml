@@ -1,4 +1,4 @@
-name: PR Quality Gates
+name: Code quality
 
 on:
   pull_request:
@@ -65,6 +65,7 @@ jobs:
               - 'app/auth/**'
 
   quality:
+    name: ${{ github.event_name == 'pull_request' && 'quality' || 'full-quality' }}
     runs-on: ubuntu-latest
     if: github.event_name != 'pull_request' || github.event.pull_request.draft == false
     steps:
@@ -157,9 +158,11 @@ jobs:
       # installs global module mocks because Bun's module registry is per-process.
       # This is the same interface developers run.
       - name: Root and plugin tests
+        if: github.event_name != 'pull_request'
         run: bun run test
 
       - name: Production build
+        if: github.event_name != 'pull_request'
         run: bun run build
         env:
           VERCEL_ENV: preview
@@ -174,7 +177,7 @@ jobs:
     needs: changes
     runs-on: ubuntu-latest
     timeout-minutes: 40
-    if: needs.changes.outputs.db == 'true' && (github.event_name != 'pull_request' || github.event.pull_request.draft == false)
+    if: github.event_name != 'pull_request' && needs.changes.outputs.db == 'true'
     env:
       CSF_ISOLATED_BASE_PORT: "55320"
       CSF_E2E_RUN_ID: ci-${{ github.run_id }}-${{ github.run_attempt }}
