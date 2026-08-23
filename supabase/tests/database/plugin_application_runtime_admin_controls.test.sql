@@ -1,7 +1,7 @@
 BEGIN;
 
 CREATE EXTENSION IF NOT EXISTS pgtap WITH SCHEMA extensions;
-SELECT extensions.plan(60);
+SELECT extensions.plan(61);
 
 SELECT extensions.ok(
   NOT has_function_privilege(
@@ -457,6 +457,27 @@ SELECT extensions.ok(
   ) ->> 'deploymentUrl' = 'https://application-admin-new.vercel.app',
   'an active member receives the immutable deployment for the selected version'
 );
+RESET ROLE;
+UPDATE public.organizations
+SET username = 'ApplicationRuntimeAdmin'
+WHERE id = 'fa100000-0000-4000-8000-000000000001';
+SET LOCAL ROLE authenticated;
+SET LOCAL request.jwt.claims = '{"sub":"fa000000-0000-4000-8000-000000000002","role":"authenticated"}';
+SELECT extensions.is(
+  public.get_plugin_application_route_target_by_identifier(
+    'ApplicationRuntimeAdmin',
+    'application-admin-fixture',
+    'development'
+  ) ->> 'routable',
+  'true',
+  'a historical mixed-case organization username routes to its selected application'
+);
+RESET ROLE;
+UPDATE public.organizations
+SET username = 'application-runtime-admin'
+WHERE id = 'fa100000-0000-4000-8000-000000000001';
+SET LOCAL ROLE authenticated;
+SET LOCAL request.jwt.claims = '{"sub":"fa000000-0000-4000-8000-000000000002","role":"authenticated"}';
 SELECT extensions.is(
   public.get_plugin_application_route_target_by_identifier(
     'application-runtime-admin',

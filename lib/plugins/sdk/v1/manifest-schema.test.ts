@@ -1,5 +1,6 @@
 import { describe, expect, test } from "bun:test";
 
+import { validatePluginConfig } from "../../config-schema";
 import type { PluginSdkManifest } from "./manifest";
 import { validatePluginSdkManifest } from "./schema";
 
@@ -33,6 +34,25 @@ describe("plugin manifest validation", () => {
 
     expect(result.errors).toEqual([]);
     expect(result.valid).toBe(true);
+  });
+
+  test("keeps presentation-only configuration formats valid at runtime", () => {
+    const configSchema = {
+      type: "object" as const,
+      properties: {
+        message: { type: "string" as const, format: "textarea" },
+      },
+      additionalProperties: false,
+    };
+    const manifestResult = validatePluginSdkManifest(
+      embeddedManifest({ configSchema }),
+    );
+
+    expect(manifestResult.valid).toBe(true);
+    expect(validatePluginConfig({ message: "Hello" }, configSchema)).toEqual({
+      valid: true,
+      errors: [],
+    });
   });
 
   test("accepts an application manifest that declares its full build inputs", () => {

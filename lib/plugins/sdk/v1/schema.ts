@@ -376,7 +376,11 @@ const manifestSchema = {
   },
 } as const;
 
-const ajv = new Ajv({ allErrors: true, strict: false });
+const ajv = new Ajv({
+  allErrors: true,
+  strict: false,
+  validateFormats: false,
+});
 const validate = ajv.compile(manifestSchema);
 
 function escapeJsonPointerSegment(segment: string) {
