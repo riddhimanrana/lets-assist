@@ -1,7 +1,16 @@
 #!/usr/bin/env node
 
 import { spawnSync } from "node:child_process";
-import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
+import {
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readdirSync,
+  readFileSync,
+  rmSync,
+  statSync,
+} from "node:fs";
+import { tmpdir } from "node:os";
 import { basename, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -18,7 +27,6 @@ const PRIVILEGED_ENV_NAME =
 const SAFE_CHILD_ENV_NAMES = new Set([
   "CI",
   "GITHUB_ACTIONS",
-  "HOME",
   "LANG",
   "LC_ALL",
   "NEXT_PUBLIC_SUPABASE_ANON_KEY",
@@ -142,9 +150,30 @@ export function scrubPrivilegedPluginAppEnvironment(environment) {
 
 export function runPrivateApplicationGates(app, environment = process.env) {
   const scrubbed = scrubPrivilegedPluginAppEnvironment(environment);
-  run(app, "bun", ["--no-env-file", "install", "--frozen-lockfile"], scrubbed);
-  for (const script of REQUIRED_SCRIPTS) {
-    run(app, "bun", ["--no-env-file", "run", script], scrubbed);
+  const homeDirectory = mkdtempSync(
+    join(tmpdir(), "lets-assist-plugin-app-gates-"),
+  );
+  const cacheDirectory = join(homeDirectory, ".cache");
+  mkdirSync(cacheDirectory, { recursive: true, mode: 0o700 });
+  const isolated = {
+    ...scrubbed,
+    HOME: homeDirectory,
+    XDG_CACHE_HOME: cacheDirectory,
+    BUN_INSTALL_CACHE_DIR: join(cacheDirectory, "bun-install"),
+  };
+
+  try {
+    run(
+      app,
+      "bun",
+      ["--no-env-file", "install", "--frozen-lockfile", "--ignore-scripts"],
+      isolated,
+    );
+    for (const script of REQUIRED_SCRIPTS) {
+      run(app, "bun", ["--no-env-file", "run", script], isolated);
+    }
+  } finally {
+    rmSync(homeDirectory, { recursive: true, force: true });
   }
 }
 

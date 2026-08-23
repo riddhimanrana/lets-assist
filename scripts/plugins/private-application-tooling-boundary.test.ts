@@ -22,6 +22,25 @@ describe("private application tooling ownership", () => {
     expect(workflow).toContain("bun run plugin:apps:check");
   });
 
+  test("child gates cannot inherit developer home credentials or run install scripts", () => {
+    const checker = read(
+      "scripts/plugins/check-private-application-packages.mjs",
+    );
+    expect(checker).not.toMatch(/^\s*"HOME",$/mu);
+    expect(checker).toContain(
+      'mkdtempSync(\n    join(tmpdir(), "lets-assist-plugin-app-gates-"),',
+    );
+    expect(checker).toContain("HOME: homeDirectory");
+    expect(checker).toContain("XDG_CACHE_HOME: cacheDirectory");
+    expect(checker).toContain(
+      'BUN_INSTALL_CACHE_DIR: join(cacheDirectory, "bun-install")',
+    );
+    expect(checker).toContain('"--ignore-scripts"');
+    expect(checker).toContain(
+      "rmSync(homeDirectory, { recursive: true, force: true })",
+    );
+  });
+
   test("the host compiler and linter exclude child-owned packages", () => {
     const tsconfig = JSON.parse(read("tsconfig.json")) as {
       exclude?: string[];

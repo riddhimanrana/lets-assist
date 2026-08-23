@@ -32,6 +32,10 @@ This register separates actionable repository defects from provider/account and 
   an organization install atomically disables that flag and clears every lease
   for the organization/plugin pair. Reinstall alone cannot revive an earlier
   child deployment.
+- The independent private-application gate now gives every install, audit,
+  test, and build command a disposable home and Bun cache. It does not inherit
+  the developer home directory, and dependency installation runs with lifecycle
+  scripts disabled.
 - A final independent Claude review reported two P2 candidates. The deployment
   project concern is disproved as a second runtime authorization gate: the
   signed project/team allowlist check occurs before the service-role-only
