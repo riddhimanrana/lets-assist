@@ -435,7 +435,46 @@ test("refuses an application release that advances published embedded code", () 
   assert.throws(
     () =>
       verifyPublishedEmbeddedTrees(input.privateRoot, registry, targetCommit),
-    /application release changes published embedded code/u,
+    /release changes published embedded code/u,
+  );
+});
+
+test("refuses an embedded release that advances another embedded plugin", () => {
+  const input = fixture();
+  const otherPlugin = join(input.privateRoot, "plugins/other-plugin");
+  mkdirSync(otherPlugin, { recursive: true });
+  writeFileSync(
+    join(otherPlugin, "plugin.ts"),
+    'export const value = "old";\n',
+  );
+  runGit(input.privateRoot, "add", ".");
+  runGit(input.privateRoot, "commit", "-m", "publish other plugin");
+  const publishedCommit = runGit(input.privateRoot, "rev-parse", "HEAD");
+  const registry = JSON.parse(readFileSync(input.registryPath, "utf8"));
+  registry.push({
+    pluginKey: "other-plugin",
+    version: "1.0.0",
+    runtimeProfile: "embedded",
+    sourceCommit: publishedCommit,
+  });
+
+  writeFileSync(
+    join(otherPlugin, "plugin.ts"),
+    'export const value = "new";\n',
+  );
+  runGit(input.privateRoot, "add", ".");
+  runGit(input.privateRoot, "commit", "-m", "change other plugin");
+  const targetCommit = runGit(input.privateRoot, "rev-parse", "HEAD");
+
+  assert.throws(
+    () =>
+      verifyPublishedEmbeddedTrees(
+        input.privateRoot,
+        registry,
+        targetCommit,
+        "example-plugin",
+      ),
+    /release changes published embedded code for other-plugin/u,
   );
 });
 

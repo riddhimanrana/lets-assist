@@ -1,3 +1,4 @@
+import { existsSync, realpathSync } from "node:fs";
 import { dirname, isAbsolute, relative, resolve } from "node:path";
 import ts from "typescript";
 
@@ -250,6 +251,33 @@ export function readApplicationCompilerOptions(applicationDirectory) {
     if (isOutside(applicationDirectory, resolve(reference.path))) {
       throw new Error(
         `application TypeScript project reference escapes its build root: ${reference.path}`,
+      );
+    }
+  }
+  for (const typeRoot of parsed.options.typeRoots ?? []) {
+    const resolvedTypeRoot = existsSync(typeRoot)
+      ? realpathSync(typeRoot)
+      : resolve(typeRoot);
+    if (isOutside(applicationDirectory, resolvedTypeRoot)) {
+      throw new Error(
+        `application TypeScript type root escapes its build root: ${typeRoot}`,
+      );
+    }
+  }
+  for (const typeName of parsed.options.types ?? []) {
+    const resolution = ts.resolveTypeReferenceDirective(
+      typeName,
+      configPath,
+      parsed.options,
+      ts.sys,
+    ).resolvedTypeReferenceDirective;
+    if (!resolution) continue;
+    const declaration = existsSync(resolution.resolvedFileName)
+      ? realpathSync(resolution.resolvedFileName)
+      : resolve(resolution.resolvedFileName);
+    if (isOutside(applicationDirectory, declaration)) {
+      throw new Error(
+        `application TypeScript type package escapes its build root: ${typeName} (${resolution.resolvedFileName})`,
       );
     }
   }

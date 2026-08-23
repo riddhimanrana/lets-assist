@@ -55,10 +55,19 @@ export function verifyPublishedEmbeddedTrees(
   privateRoot,
   registry,
   targetCommit,
+  releasedPluginKey = null,
 ) {
+  const latestEmbeddedByPlugin = new Map();
   for (const release of registry.filter(
     (entry) => entry.runtimeProfile === "embedded",
   )) {
+    const current = latestEmbeddedByPlugin.get(release.pluginKey);
+    if (!current || compareVersions(release.version, current.version) > 0) {
+      latestEmbeddedByPlugin.set(release.pluginKey, release);
+    }
+  }
+  for (const release of latestEmbeddedByPlugin.values()) {
+    if (release.pluginKey === releasedPluginKey) continue;
     const pluginPath = `plugins/${release.pluginKey}`;
     let publishedTree;
     let targetTree;
@@ -75,9 +84,7 @@ export function verifyPublishedEmbeddedTrees(
       fail(`cannot verify published embedded tree for ${release.pluginKey}`);
     }
     if (publishedTree !== targetTree) {
-      fail(
-        `application release changes published embedded code for ${release.pluginKey}`,
-      );
+      fail(`release changes published embedded code for ${release.pluginKey}`);
     }
   }
 }
@@ -719,9 +726,12 @@ export function integratePrivateRelease({
   if (!catalogRelease) {
     fail("plugin has no embedded catalog release");
   }
-  if (manifest.runtimeProfile === "application") {
-    verifyPublishedEmbeddedTrees(privateRoot, registry, manifest.sourceCommit);
-  }
+  verifyPublishedEmbeddedTrees(
+    privateRoot,
+    registry,
+    manifest.sourceCommit,
+    manifest.runtimeProfile === "embedded" ? manifest.pluginKey : null,
+  );
   if (compareVersions(manifest.version, previous.version) <= 0) {
     fail(
       "signed release version must be newer than the published runtime release",

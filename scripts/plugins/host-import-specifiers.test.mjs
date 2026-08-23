@@ -266,6 +266,54 @@ describe("host import specifier collection", () => {
     }
   });
 
+  test("rejects configured TypeScript type packages outside the application root", () => {
+    const root = mkdtempSync(join(tmpdir(), "plugin-type-root-boundary-"));
+    try {
+      const applicationRoot = join(root, "apps/example");
+      const outsideTypes = join(root, "outside-types/example-host");
+      mkdirSync(join(applicationRoot, "src"), { recursive: true });
+      mkdirSync(outsideTypes, { recursive: true });
+      writeFileSync(join(applicationRoot, "src/index.ts"), "export {};\n");
+      writeFileSync(
+        join(outsideTypes, "index.d.ts"),
+        "declare const host: string;\n",
+      );
+      writeFileSync(
+        join(applicationRoot, "tsconfig.json"),
+        JSON.stringify({
+          compilerOptions: {
+            typeRoots: ["../../outside-types"],
+            types: ["example-host"],
+          },
+          include: ["src/index.ts"],
+        }),
+      );
+
+      expect(() => readApplicationCompilerOptions(applicationRoot)).toThrow(
+        /TypeScript type root escapes its build root/u,
+      );
+
+      const outsidePackage = join(root, "node_modules/@types/example-host");
+      mkdirSync(outsidePackage, { recursive: true });
+      writeFileSync(
+        join(outsidePackage, "index.d.ts"),
+        "declare const host: string;\n",
+      );
+      writeFileSync(
+        join(applicationRoot, "tsconfig.json"),
+        JSON.stringify({
+          compilerOptions: { types: ["example-host"] },
+          include: ["src/index.ts"],
+        }),
+      );
+      expect(() => readApplicationCompilerOptions(applicationRoot)).toThrow(
+        /TypeScript type package escapes its build root/u,
+      );
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
   test("resolves relative imports through rootDirs before classifying them", () => {
     const root = mkdtempSync(join(tmpdir(), "plugin-root-dirs-boundary-"));
     try {
