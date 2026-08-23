@@ -10,6 +10,17 @@ function read(relativePath: string): string {
 }
 
 describe("private application tooling ownership", () => {
+  test("one developer command runs the complete plugin verification set", () => {
+    const packageJson = JSON.parse(read("package.json")) as {
+      scripts?: Record<string, string>;
+    };
+    const command = packageJson.scripts?.["plugin:verify"];
+
+    expect(command).toBe(
+      "bun run plugin:submodules:check:strict && bun run plugin:check:boundary && bun run plugin:sdk:test && bun run plugin:test:release-integration && bun run plugin:apps:check",
+    );
+  });
+
   test("the private candidate CI path runs the independent application gates", () => {
     const packageJson = JSON.parse(read("package.json")) as {
       scripts?: Record<string, string>;
