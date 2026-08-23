@@ -236,6 +236,54 @@ export function readApplicationCompilerOptions(applicationDirectory) {
   if (parsed.errors.length > 0) {
     throw new Error(formatDiagnostics(parsed.errors));
   }
+  for (const fileName of parsed.fileNames) {
+    if (isOutside(applicationDirectory, resolve(fileName))) {
+      throw new Error(
+        `application TypeScript input escapes its build root: ${fileName}`,
+      );
+    }
+  }
+  for (const reference of parsed.projectReferences ?? []) {
+    if (isOutside(applicationDirectory, resolve(reference.path))) {
+      throw new Error(
+        `application TypeScript project reference escapes its build root: ${reference.path}`,
+      );
+    }
+  }
+  const visitedConfigs = new Set();
+  const assertConfigGraphInside = (currentConfigPath, currentConfig) => {
+    if (visitedConfigs.has(currentConfigPath)) return;
+    visitedConfigs.add(currentConfigPath);
+    const extendedConfigs = Array.isArray(currentConfig.extends)
+      ? currentConfig.extends
+      : currentConfig.extends
+        ? [currentConfig.extends]
+        : [];
+    for (const extendedConfig of extendedConfigs) {
+      if (
+        typeof extendedConfig !== "string" ||
+        (!extendedConfig.startsWith(".") && !isAbsolute(extendedConfig))
+      ) {
+        continue;
+      }
+      const candidate = resolve(dirname(currentConfigPath), extendedConfig);
+      const resolvedConfig = [
+        candidate,
+        `${candidate}.json`,
+        resolve(candidate, "tsconfig.json"),
+      ].find(ts.sys.fileExists);
+      if (!resolvedConfig) continue;
+      if (isOutside(applicationDirectory, resolvedConfig)) {
+        throw new Error(
+          `application TypeScript config escapes its build root: ${resolvedConfig}`,
+        );
+      }
+      const extended = ts.readConfigFile(resolvedConfig, ts.sys.readFile);
+      if (extended.error) throw new Error(formatDiagnostics([extended.error]));
+      assertConfigGraphInside(resolvedConfig, extended.config);
+    }
+  };
+  assertConfigGraphInside(configPath, config.config);
   return parsed.options;
 }
 

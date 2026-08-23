@@ -457,6 +457,29 @@ describe("plugin manifest validation", () => {
     });
   });
 
+  test("rejects inverted configuration property bounds", () => {
+    const result = validatePluginSdkManifest(
+      embeddedManifest({
+        configSchema: {
+          type: "object",
+          properties: {
+            retries: { type: "number", minimum: 10, maximum: 1 },
+            label: { type: "string", minLength: 8, maxLength: 2 },
+          },
+          additionalProperties: false,
+        },
+      }),
+    );
+
+    expect(result.valid).toBe(false);
+    expect(pathsOf(result)).toContain(
+      "/configSchema/properties/retries/maximum",
+    );
+    expect(pathsOf(result)).toContain(
+      "/configSchema/properties/label/maxLength",
+    );
+  });
+
   test("rejects values JSON would omit or execute while serializing", () => {
     const hidden = embeddedManifest();
     Object.defineProperty(hidden, "hidden", {

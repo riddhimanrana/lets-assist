@@ -217,6 +217,46 @@ describe("host import specifier collection", () => {
     }
   });
 
+  test("rejects TypeScript inputs and configs outside the application root", () => {
+    const root = mkdtempSync(join(tmpdir(), "plugin-tsconfig-boundary-"));
+    try {
+      const applicationRoot = join(root, "apps/example");
+      mkdirSync(applicationRoot, { recursive: true });
+      writeFileSync(join(root, "outside.ts"), "export {};\n");
+      writeFileSync(join(root, "tsconfig.shared.json"), "{}\n");
+
+      writeFileSync(
+        join(applicationRoot, "tsconfig.json"),
+        JSON.stringify({ files: ["../../outside.ts"] }),
+      );
+      expect(() => readApplicationCompilerOptions(applicationRoot)).toThrow(
+        /TypeScript input escapes its build root/u,
+      );
+
+      writeFileSync(
+        join(applicationRoot, "tsconfig.json"),
+        JSON.stringify({ extends: "../../tsconfig.shared.json", files: [] }),
+      );
+      expect(() => readApplicationCompilerOptions(applicationRoot)).toThrow(
+        /TypeScript config escapes its build root/u,
+      );
+
+      writeFileSync(
+        join(applicationRoot, "tsconfig.base.json"),
+        JSON.stringify({ extends: "../../tsconfig.shared.json" }),
+      );
+      writeFileSync(
+        join(applicationRoot, "tsconfig.json"),
+        JSON.stringify({ extends: "./tsconfig.base.json", files: [] }),
+      );
+      expect(() => readApplicationCompilerOptions(applicationRoot)).toThrow(
+        /TypeScript config escapes its build root/u,
+      );
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
   test("collects literal CommonJS resolution dependencies", () => {
     const source = `
       const resolved = require.resolve("@/lib/resolved-host");

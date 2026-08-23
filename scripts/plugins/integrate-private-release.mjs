@@ -51,6 +51,37 @@ function git(repository, args, encoding = "utf8") {
   });
 }
 
+export function verifyPublishedEmbeddedTrees(
+  privateRoot,
+  registry,
+  targetCommit,
+) {
+  for (const release of registry.filter(
+    (entry) => entry.runtimeProfile === "embedded",
+  )) {
+    const pluginPath = `plugins/${release.pluginKey}`;
+    let publishedTree;
+    let targetTree;
+    try {
+      publishedTree = git(privateRoot, [
+        "rev-parse",
+        `${release.sourceCommit}:${pluginPath}`,
+      ]).trim();
+      targetTree = git(privateRoot, [
+        "rev-parse",
+        `${targetCommit}:${pluginPath}`,
+      ]).trim();
+    } catch {
+      fail(`cannot verify published embedded tree for ${release.pluginKey}`);
+    }
+    if (publishedTree !== targetTree) {
+      fail(
+        `application release changes published embedded code for ${release.pluginKey}`,
+      );
+    }
+  }
+}
+
 function sha256(bytes) {
   return `sha256:${createHash("sha256").update(bytes).digest("hex")}`;
 }
@@ -687,6 +718,9 @@ export function integratePrivateRelease({
     .sort((left, right) => compareVersions(right.version, left.version))[0];
   if (!catalogRelease) {
     fail("plugin has no embedded catalog release");
+  }
+  if (manifest.runtimeProfile === "application") {
+    verifyPublishedEmbeddedTrees(privateRoot, registry, manifest.sourceCommit);
   }
   if (compareVersions(manifest.version, previous.version) <= 0) {
     fail(

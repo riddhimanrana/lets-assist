@@ -54,6 +54,8 @@ This register separates actionable repository defects from provider/account and 
   so those build inputs cannot disguise host source dependencies. Data,
   external, fragment, and protocol-relative stylesheet URLs remain outside this
   local-file check.
+  Parsed TypeScript files, project references, and relative extended configs
+  must also remain within the child application root.
 - Host client navigation into the application ignores the ambient host
   `x-deployment-id` and selects the organization's current child target.
   Historical deployment pins are honored only when the same-origin referrer is
@@ -61,8 +63,13 @@ This register separates actionable repository defects from provider/account and 
   confusing a host deployment for a child deployment.
 - Manifest validation now applies each configuration property schema to its
   declared default and every enum member, and every required key must name a
-  declared property. An installable manifest therefore cannot advertise
-  rendered settings values that the host will refuse to save.
+  declared property. Numeric and string-length bounds must remain ordered. An
+  installable manifest therefore cannot advertise rendered settings values
+  that the host will refuse to save.
+- Application-profile release integration compares every published embedded
+  plugin tree at its recorded source commit with the proposed private gitlink.
+  An application release therefore cannot advance embedded code under an older
+  embedded release identity.
 - Application routing accepts the historical mixed-case organization username
   shape enforced by the database, so selected child routes can retain their
   deployment-scoped asset context for those organizations.

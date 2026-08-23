@@ -17,6 +17,7 @@ import { fileURLToPath } from "node:url";
 import {
   integratePrivateRelease,
   nextMigrationVersion,
+  verifyPublishedEmbeddedTrees,
 } from "./integrate-private-release.mjs";
 
 const temporaryRoots = [];
@@ -417,6 +418,24 @@ test("integrates separately hashed Development and Production builds", () => {
   assert.notEqual(
     registry[1].buildArtifact.artifacts.development.digest,
     registry[1].buildArtifact.artifacts.production.digest,
+  );
+});
+
+test("refuses an application release that advances published embedded code", () => {
+  const input = fixture({ application: true, multiEnvironment: true });
+  const registry = JSON.parse(readFileSync(input.registryPath, "utf8"));
+  writeFileSync(
+    join(input.privateRoot, "plugins/example-plugin/feature.ts"),
+    'export const value = "silently changed";\n',
+  );
+  runGit(input.privateRoot, "add", ".");
+  runGit(input.privateRoot, "commit", "-m", "change embedded code");
+  const targetCommit = runGit(input.privateRoot, "rev-parse", "HEAD");
+
+  assert.throws(
+    () =>
+      verifyPublishedEmbeddedTrees(input.privateRoot, registry, targetCommit),
+    /application release changes published embedded code/u,
   );
 });
 

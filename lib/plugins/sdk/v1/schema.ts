@@ -505,6 +505,25 @@ function validateConfigPropertyValues(
     return;
   }
 
+  for (const [minimumKey, maximumKey] of [
+    ["minimum", "maximum"],
+    ["minLength", "maxLength"],
+  ] as const) {
+    const minimum = property[minimumKey];
+    const maximum = property[maximumKey];
+    if (
+      typeof minimum === "number" &&
+      typeof maximum === "number" &&
+      minimum > maximum
+    ) {
+      errors.push({
+        path: `${path}/${maximumKey}`,
+        message: `must not be below ${minimumKey}`,
+        keyword: "configPropertyRange",
+      });
+    }
+  }
+
   const validateCandidate = (candidate: unknown, candidatePath: string) => {
     if (validateValue(candidate)) return;
     errors.push({
