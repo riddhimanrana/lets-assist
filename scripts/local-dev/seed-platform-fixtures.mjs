@@ -259,7 +259,7 @@ const pluginCatalogRows = [
       "Private CSF workflow system for cohort membership, applications, officer roles, points, posts, and sheets.",
     visibility: "private",
     is_active: true,
-    latest_version: "1.2.8",
+    latest_version: "1.1.0",
     private_codebase: true,
   },
 ];
