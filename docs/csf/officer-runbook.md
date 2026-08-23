@@ -114,6 +114,16 @@ Use **Members** to locate the permanent student identity and current-semester re
 
 The member's **My CSF** view should agree with the officer record for application, eligibility, dues, attendance dates, points, decision, and deadlines.
 
+### Appeals
+
+Appeals arrive outside the app (the semester appeal form). Resolve each one directly on the member's profile:
+
+1. Open the member detail and select the disputed semester.
+2. Fix the record in place: correct a meeting's attendance with a reason, review or re-review a point submission, add missing points, or fix identity through edit or merge.
+3. Add an officer note tagged **Appealed** stating what was claimed, what evidence was checked, and what changed. The note is the durable appeal record; denials get a note with no record change.
+
+Notes are officer-only and redactable, never deletable. Every correction writes the same audit trail as any other officer change.
+
 ## 7. Activities, points, meetings, and partner clubs
 
 ### Activities

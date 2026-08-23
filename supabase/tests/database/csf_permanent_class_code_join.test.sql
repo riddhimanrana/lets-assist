@@ -6,7 +6,7 @@ SELECT extensions.plan(13);
 SELECT extensions.ok(
   NOT has_function_privilege(
     'authenticated',
-    'plugin_data.csf_join_class_by_code(uuid,text,uuid,text,text,text,text)',
+    'plugin_data.csf_join_class_by_code(uuid,text,uuid,text,text,text,text,uuid,uuid)',
     'EXECUTE'
   ),
   'authenticated clients cannot redeem class codes through a browser-direct RPC'
@@ -14,7 +14,7 @@ SELECT extensions.ok(
 SELECT extensions.ok(
   has_function_privilege(
     'service_role',
-    'plugin_data.csf_join_class_by_code(uuid,text,uuid,text,text,text,text)',
+    'plugin_data.csf_join_class_by_code(uuid,text,uuid,text,text,text,text,uuid,uuid)',
     'EXECUTE'
   ),
   'the server role can perform the audited class-code join operation'
