@@ -63,6 +63,23 @@ export function collectLiteralApplicationDependencySpecifiers(source) {
   });
 }
 
+function decodeCssEscapes(value) {
+  return value.replace(
+    /\\(?:([\da-f]{1,6})(?:\r\n|[\t\n\f\r ])?|\r\n|[\n\f\r]|(.))/giu,
+    (_match, hexadecimal, escapedCharacter) => {
+      if (hexadecimal) {
+        const codePoint = Number.parseInt(hexadecimal, 16);
+        return codePoint === 0 ||
+          codePoint > 0x10ffff ||
+          (codePoint >= 0xd800 && codePoint <= 0xdfff)
+          ? "\uFFFD"
+          : String.fromCodePoint(codePoint);
+      }
+      return escapedCharacter ?? "";
+    },
+  );
+}
+
 export function collectStylesheetDependencySpecifiers(source) {
   const withoutComments = source.replace(/\/\*[\s\S]*?\*\//gu, "");
   const specifiers = new Set();
@@ -72,18 +89,25 @@ export function collectStylesheetDependencySpecifiers(source) {
     const parameters = statement[2] ?? "";
     const quotedPattern = /["']([^"']+)["']/gu;
     for (const quoted of parameters.matchAll(quotedPattern)) {
-      if (quoted[1]) specifiers.add(quoted[1]);
+      if (quoted[1]) specifiers.add(decodeCssEscapes(quoted[1]));
     }
 
     const bareUrlPattern = /url\(\s*([^\s"')]+)\s*\)/giu;
     for (const bareUrl of parameters.matchAll(bareUrlPattern)) {
-      if (bareUrl[1]) specifiers.add(bareUrl[1]);
+      if (bareUrl[1]) specifiers.add(decodeCssEscapes(bareUrl[1]));
     }
+  }
+
+  const compositionPattern =
+    /\bcomposes\s*:[^;\r\n]*?\bfrom\s+(["'])(.*?)\1/giu;
+  for (const composition of withoutComments.matchAll(compositionPattern)) {
+    if (composition[2]) specifiers.add(decodeCssEscapes(composition[2]));
   }
 
   const urlPattern = /url\(\s*(?:(["'])(.*?)\1|([^\s"')]+))\s*\)/giu;
   for (const url of withoutComments.matchAll(urlPattern)) {
-    const specifier = url[2] ?? url[3];
+    const rawSpecifier = url[2] ?? url[3];
+    const specifier = rawSpecifier ? decodeCssEscapes(rawSpecifier) : null;
     if (
       specifier &&
       !specifier.startsWith("#") &&

@@ -266,6 +266,10 @@ describe("host import specifier collection", () => {
       .hero { background: url("../../outside/hero.png"); }
       @font-face { src: url(../../outside/font.woff2) format("woff2"); }
       .local { mask-image: url('./mask.svg'); }
+      .composed { composes: base from "../../outside/base.module.css"; }
+      .global { composes: global-button from global; }
+      @import "\\2e \\2e /outside/escaped.css";
+      .escaped { background: url("\\2e \\2e /outside/escaped.png"); }
       .embedded { background: url(data:image/png;base64,abc); }
       .remote { background: url("https://cdn.example.com/image.png"); }
       .protocol-relative { background: url(//cdn.example.com/image.png); }
@@ -273,6 +277,7 @@ describe("host import specifier collection", () => {
     `;
 
     expect([...collectStylesheetDependencySpecifiers(source)].sort()).toEqual([
+      "../../outside/base.module.css",
       "../../outside/font.woff2",
       "../../outside/hero.png",
       "../../outside/host.css",
@@ -280,6 +285,8 @@ describe("host import specifier collection", () => {
       "../../outside/print.css",
       "../../outside/tokens",
       "../local.css",
+      "../outside/escaped.css",
+      "../outside/escaped.png",
       "./local-theme",
       "./mask.svg",
     ]);
