@@ -157,6 +157,18 @@ describe("host import specifier collection", () => {
     ]);
   });
 
+  test("collects TypeScript path reference directives", () => {
+    const source = `
+      /// <reference path="../../outside/host.d.ts" />
+      /// <reference types="node" />
+      export type Local = string;
+    `;
+
+    expect([...collectLiteralApplicationDependencySpecifiers(source)]).toEqual([
+      "../../outside/host.d.ts",
+    ]);
+  });
+
   test("resolves child path aliases before classifying them as packages", () => {
     const root = mkdtempSync(join(tmpdir(), "plugin-import-alias-"));
     try {

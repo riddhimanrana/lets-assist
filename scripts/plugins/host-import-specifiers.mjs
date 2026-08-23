@@ -97,6 +97,10 @@ function collectLiteralDependencySpecifiers(
     ts.ScriptKind.TSX,
   );
 
+  for (const reference of sourceFile.referencedFiles) {
+    literals.add(reference.fileName);
+  }
+
   function visit(node) {
     if (
       (ts.isImportDeclaration(node) || ts.isExportDeclaration(node)) &&
