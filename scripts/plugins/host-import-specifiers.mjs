@@ -81,6 +81,19 @@ export function collectStylesheetDependencySpecifiers(source) {
     }
   }
 
+  const urlPattern = /url\(\s*(?:(["'])(.*?)\1|([^\s"')]+))\s*\)/giu;
+  for (const url of withoutComments.matchAll(urlPattern)) {
+    const specifier = url[2] ?? url[3];
+    if (
+      specifier &&
+      !specifier.startsWith("#") &&
+      !specifier.startsWith("//") &&
+      !/^[a-z][a-z\d+.-]*:/iu.test(specifier)
+    ) {
+      specifiers.add(specifier);
+    }
+  }
+
   return specifiers;
 }
 

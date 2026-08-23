@@ -48,8 +48,10 @@ This register separates actionable repository defects from provider/account and 
   It also covers literal `new URL(..., import.meta.url)` assets and
   `import.meta.resolve(...)` dependencies used by child bundlers. The same
   boundary now scans CSS and Sass `@import`, `@use`, and `@forward`
-  dependencies, plus TypeScript triple-slash path references, so those build
-  inputs cannot pull host source into the child build.
+  dependencies, ordinary local `url(...)` assets such as backgrounds and font
+  sources, plus TypeScript triple-slash path references, so those build inputs
+  cannot pull host source into the child build. Data, external, fragment, and
+  protocol-relative stylesheet URLs remain outside this local-file check.
 - Host client navigation into the application ignores the ambient host
   `x-deployment-id` and selects the organization's current child target.
   Historical deployment pins are honored only when the same-origin referrer is

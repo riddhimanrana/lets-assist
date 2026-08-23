@@ -256,21 +256,32 @@ describe("host import specifier collection", () => {
   test("collects CSS and Sass dependency specifiers", () => {
     const source = `
       /* @import "../../ignored.css"; */
+      /* .ignored { background: url("../../ignored.png"); } */
       @import "../../outside/host.css";
       @import url('../local.css');
       @import url(../../outside/print.css) print;
       @use "../../outside/tokens" as tokens;
       @forward './local-theme';
       @use "../../outside/indented-sass"
+      .hero { background: url("../../outside/hero.png"); }
+      @font-face { src: url(../../outside/font.woff2) format("woff2"); }
+      .local { mask-image: url('./mask.svg'); }
+      .embedded { background: url(data:image/png;base64,abc); }
+      .remote { background: url("https://cdn.example.com/image.png"); }
+      .protocol-relative { background: url(//cdn.example.com/image.png); }
+      .fragment { filter: url('#shadow'); }
     `;
 
     expect([...collectStylesheetDependencySpecifiers(source)].sort()).toEqual([
+      "../../outside/font.woff2",
+      "../../outside/hero.png",
       "../../outside/host.css",
       "../../outside/indented-sass",
       "../../outside/print.css",
       "../../outside/tokens",
       "../local.css",
       "./local-theme",
+      "./mask.svg",
     ]);
   });
 
