@@ -4,6 +4,219 @@ This register separates actionable repository defects from provider/account and 
 
 `AUD-` identifiers are allocated per branch and can drift while several audit branches are open at once. Current `development` includes the merged #152, #158, #174, #177, #179, and #181 findings, while open #180 can still carry overlapping historical identifiers. This branch retains `AUD-036` and `AUD-037` for its activity/partner authorization work without renumbering or restating the merged meeting findings.
 
+## Plugin platform foundation candidate — 2026-08-19
+
+### Current exact-tree refresh — 2026-08-22
+
+- The signed DVHS CSF application release is `1.2.4`. GitHub run
+  `32573363484` deployed its verified application artifact to the Development
+  child project and recorded deployment `dpl_C5ZHpGf8RPVbw8ss1tEjZy8HKSur`
+  as healthy. This supersedes the older `1.2.1` provider status below.
+- Publication, deployment, entitlement, install, desired application version,
+  and update operation are separate records. Organization updates now use the
+  existing leased transition, deployment-health checks, durable idempotency,
+  compare-and-set settlement, and audit path. This closes the repository scope
+  described by `PLUGIN-FOUND-004` and `PLUGIN-FOUND-005`; generic automatic
+  update execution remains intentionally absent.
+- The host selects an exact immutable application deployment per organization.
+  The generated asset namespace now preserves that selection across nested
+  imports with a deployment-keyed, path-limited routing-context cookie. Each
+  request still repeats host authentication and the caller-scoped database
+  lookup. A fresh 359-migration replay passes, and the uninstall access suite
+  passes 48 focused assertions. The preceding exact tree's complete database
+  pgTAP suite passed 6,177 assertions. The direct proxy and release-contract
+  bundle passes 58 tests, and the literal-import collector passes 7 tests,
+  and lint, source organization, plugin boundaries, and TypeScript pass.
+- Runtime shutdown now covers both disable and uninstall. Disabling the
+  application-runtime flag clears outstanding historical leases, and deleting
+  an organization install atomically disables that flag and clears every lease
+  for the organization/plugin pair. Reinstall alone cannot revive an earlier
+  child deployment.
+- The independent private-application gate now gives every install, audit,
+  test, and build command a disposable home and Bun cache. It does not inherit
+  the developer home directory, and dependency installation runs with lifecycle
+  scripts disabled.
+  The database/browser CI job uses the same installer in install-only mode, so
+  it cannot bypass that credential and lifecycle-script boundary.
+- New application releases must use the signed two-artifact Development and
+  Production format. Integration rejects the older single-artifact format, so
+  every published application release is consumable by the deployment lane.
+- The shared host-import scanner covers TypeScript import types as well as
+  runtime syntax. Independent child checks resolve bare specifiers through the
+  child's parsed TypeScript configuration, so a path alias cannot disguise a
+  source import that escapes the declared application root.
+  It also covers literal `new URL(..., import.meta.url)` assets and
+  `import.meta.resolve(...)` dependencies used by child bundlers. The same
+  boundary now scans CSS and Sass `@import`, `@use`, and `@forward`
+  dependencies, ordinary local `url(...)` assets such as backgrounds and font
+  sources, CSS Modules file-valued `composes` declarations, and TypeScript
+  triple-slash path and type references. CSS escapes are decoded before path
+  resolution, so those build inputs cannot disguise host source dependencies. Data,
+  external, fragment, and protocol-relative stylesheet URLs remain outside this
+  local-file check.
+  Parsed TypeScript files, project references, and relative extended configs
+  must also remain within the child application root. Relative imports use the
+  parsed TypeScript resolver before containment checks, including `rootDirs`.
+- Host client navigation into the application ignores the ambient host
+  `x-deployment-id` and selects the organization's current child target.
+  Historical deployment pins are honored only when the same-origin referrer is
+  already the child application route, preserving old-page actions without
+  confusing a host deployment for a child deployment.
+- Manifest validation now applies each configuration property schema to its
+  declared default and every enum member, and every required key must name a
+  declared property. Numeric and string-length bounds must remain ordered, and
+  integer ranges must contain an integer. An installable manifest therefore
+  cannot advertise rendered settings values that the host will refuse to save.
+- Application-profile release integration compares every published embedded
+  plugin tree at its recorded source commit with the proposed private gitlink.
+  An application release therefore cannot advance embedded code under an older
+  embedded release identity.
+- Application routing accepts the historical mixed-case organization username
+  shape enforced by the database, so selected child routes can retain their
+  deployment-scoped asset context for those organizations. Profile edits also
+  preserve an unchanged historical mixed-case username while new names retain
+  the lowercase product rule.
+- A final independent Claude review reported two P2 candidates. The deployment
+  project concern is disproved as a second runtime authorization gate: the
+  signed project/team allowlist check occurs before the service-role-only
+  provider-ingestion RPC, which then makes the accepted origin immutable.
+  Request routing repeats caller and control-plane authorization without
+  trusting a client-supplied project identity. The storage-grammar report found
+  a real legacy compatibility difference: the embedded private helper admits
+  `.` and `_`, while the SDK and every registered manifest use the canonical
+  hyphen-only grammar. Documentation and regression coverage now state and pin
+  that narrower SDK boundary instead of claiming identical behavior.
+- A later PR review found two release-documentation defects. The application
+  health probe exited before recording a reached HTTP 4xx/5xx response, and the
+  cutover rehearsal expected 20 pending migrations instead of the verified 22.
+  The probe now captures the HTTP status and body before rejecting non-2xx
+  responses, so the workflow records them as unhealthy. Focused workflow and
+  cutover contracts pass 19 tests. Follow-up review also bounded the probe to a
+  10-second connection and 30-second total transfer, and extended the shared
+  AST collector to cover literal Webpack `require.context()` roots.
+- Final routing review found that an already-rendered prior application version
+  lost database access as soon as an admin selected a newer version. The host
+  route RPCs now issue a short caller-, organization-, and deployment-scoped
+  lease only after repeating the exact healthy-deployment gate. The child access
+  proof accepts that lease while still rechecking membership, entitlement,
+  install, release, compatibility, deployment health, and force-update policy.
+  A follow-up forward migration requires the application runtime flag to remain
+  enabled for both lease issuance and lease acceptance, so switching back to the
+  embedded runtime invalidates existing leases immediately. Only the currently
+  selected route can mint a bounded 12-hour grace lease. Client-callable exact
+  asset routing cannot create or renew historical access.
+- PR #245 remains the Development-to-Production release vehicle. Production is
+  still at 333 migrations through `20260819050728`, with the DVHS CSF install
+  enabled on embedded `1.1.0`. No Production schema, child deployment, or
+  organization runtime switch is complete until the exact PR tree passes all
+  required checks and the Production workflow and acceptance steps below run.
+
+- `PLUGIN-FOUND-001` is repository-closed locally. The plugin registry and
+  serializable SDK contract now fail closed, both embedded private plugins pass
+  the adapter, and `plugin:check:boundary` is part of CI. Existing host imports
+  are a frozen allowlist; new undeclared imports fail. The existing private
+  `@/app/**` dependency remains a P1 migration finding before an application
+  profile can claim host independence.
+- `PLUGIN-FOUND-002` is repository-closed locally. `plugin_form_uploads` now
+  binds organization, plugin, and uploader path segments, while preserving the
+  pre-membership DV application upload. A fresh isolated replay passed the
+  storage contract and the full database suite.
+- `PLUGIN-FOUND-003` is repository-closed at the schema boundary.
+  `plugin_versions` records complete release identity for new publications and
+  preserves NULL legacy provenance honestly. The merged signed-release receiver
+  independently reconstructs the embedded source digest, verifies the Sigstore
+  bundle, records the signed contract in one forward migration, and opens one
+  ordered Development integration pull request with generated pgTAP coverage.
+- `PLUGIN-FOUND-004` is repository-closed.
+  Deployment observations, workflow-reported health evidence, desired versions,
+  manual/security-only update policy, and idempotent lease-bound update
+  operations exist. Application activation uses the health-checked,
+  idempotent, compare-and-set transition and refuses missing or noncanonical
+  deployment URLs.
+- `PLUGIN-FOUND-005` is repository-closed. Embedded updates use the leased
+  control-plane operation. Application updates use the same runtime transition
+  with an exact expected version and selected deployment. The admin dashboard
+  presents this as one direct update action instead of a second mutation path.
+- `PLUGIN-FOUND-006` remains active until the next signed private release. The
+  host now separates moderation, platform, and plugin Gateway authentication,
+  falls back to Vercel OIDC, and rejects plugin tracking without organization
+  and plugin identity. Private Development PR #71 forwards those tags on every
+  DV Speech and Debate model call, but the root gitlink deliberately remains on
+  the current signed private release.
+- `PLUGIN-FOUND-007` is repository-closed at the local caller-proof boundary.
+  The generic application RPC revalidates active membership against the same
+  consolidated catalog/install/entitlement model as the embedded host, accepts
+  only an exact signed application-profile runtime compatible with the current
+  host API, and checks its N/N-1 install range and force-update floor. The CSF projection returns only
+  the current caller's role and permission facts. Both use the authenticated
+  caller session and expose no roster or CSF domain rows. Ordinary members get
+  one generic denial rather than private catalog or entitlement details. Hosted
+  Private PR #72 now carries a child app and its independently locked local
+  gates, but hosted Development and the Vercel microfrontend remain unverified.
+  The original boundary passed a clean 338-migration replay with 28 caller-proof
+  assertions. The signed-release and host-API follow-up adds three assertions;
+  lint, typecheck, and architecture contracts pass, while its isolated replay
+  did not start because local Docker remained in `supabase start` and the first
+  CI attempt found its selected port occupied before migrations ran.
+- `PLUGIN-FOUND-008` is repository-closed on this candidate. The signed root
+  release integrator accepts an application-profile release, the code-owned
+  registry publishes CSF `1.2.1` while retaining embedded `1.1.0` as its
+  fallback, and host startup accepts that profile transition. The private
+  source commit `37d0dbd4` is tagged `dvhs-csf/v1.2.1`; its signed release,
+  checksums, Sigstore bundle, and SBOM verified before the root publication
+  migration and pgTAP contract were generated. The release archive also carries
+  every traced Vercel function input and passes the host archive validator.
+  Hosted deployment, activation, and routing evidence remain tracked by
+  `PLUGIN-FOUND-009`.
+- `PLUGIN-FOUND-009` is repository-closed for Development. The exact signed
+  1.2.4 archive is Ready on
+  the Development child project as deployment
+  `dpl_C5ZHpGf8RPVbw8ss1tEjZy8HKSur`, and the Development control plane records
+  its exact digest and release tag with healthy status. Vercel Authentication
+  protects direct child-domain access. The application manifest path prefix is
+  still a contract rather than active host routing. Vercel group
+  `mfe_W64mCurqcnCgOvWojPr0FoRQUluS` now contains only `lets-assist` and
+  `lets-assist-csf`, with the host as its default app and the reviewed
+  access-proof path as the child's default route. Vercel charges no project fee
+  for these first two projects. The $2 per million routed-request overage was
+  explicitly approved. Production deployment and organization activation are
+  tracked as release steps rather than repository defects.
+- `PLUGIN-FOUND-010` is repository-closed on this candidate. Application
+  runtime changes now use a browser-stable request ID, a durable payload-bound
+  receipt, and a database compare-and-set check. A delayed retry returns its
+  recorded outcome without restoring obsolete routing. Settings keep the
+  selected version and its deployment health separate from the newest
+  available release. A fresh 351-migration replay, 35 focused pgTAP assertions,
+  TypeScript, focused ESLint, and the architecture audit pass locally. Hosted
+  Development migration and browser acceptance remain release gates.
+- `PLUGIN-FOUND-011` is repository-closed locally. Static microfrontend routing
+  could move every organization to the newest child deployment even when its
+  install selected an older version. The host now resolves the exact healthy
+  immutable Vercel deployment through an authenticated, membership-scoped RPC
+  and rewrites the application page without changing its public URL. The shared
+  microfrontend group retains only version-independent health and generated
+  child-asset routes. The child build emits the namespaced asset URLs, while
+  Vercel Skew Protection pins framework-managed asset requests to the deployment
+  that rendered the selected page. The isolated runner now owns both platform
+  and child processes, routes the namespaced assets locally, and excludes
+  platform authority from the child environment. The same migration makes an
+  omitted host API maximum genuinely unbounded in both status and activation
+  paths. A fresh 353-migration replay, 52 focused pgTAP assertions, 63 focused
+  runner and proxy assertions, TypeScript, architecture checks, and a live
+  two-process local startup pass. Hosted Development migration, Skew Protection
+  confirmation, protection-bypass setup, and browser acceptance remain release
+  gates.
+- Private release `1.2.1` is signed and published. Root PR #238 merged it into
+  `development` at `411421a9bf9ea3f1aa251abda3f7664f054d48ea`, and hosted
+  Development is migration-current at 342 rows through `20260821044815` with
+  the application release still at zero rollout. The complete signed-identity
+  guard is a new forward migration pending on PR #239; the applied ledger rows
+  remain unchanged. The exact hosted Development child deployment is Ready and
+  healthy behind Vercel Authentication. The
+  two-project microfrontend group exists, but its committed config, paid routed
+  traffic, activation, and hosted browser acceptance remain pending. Production
+  remains untouched.
+
 ## Production release candidate — 2026-08-18
 
 - Production review findings `PROD-REV-001` through `PROD-REV-007` are
@@ -163,7 +376,7 @@ historical evidence and do not override it.
   Development baseline was healthy and migration-current at 296 through
   `20260816083000_csf_import_annotation_settlement`; this implementation has
   not applied the two new migrations or re-verified hosted parity/advisors.
-  Production remains untouched at the audited 236-migration baseline.
+  Production was verified read-only at 333 migrations through `20260819050728`.
 - Implemented locally: authoritative attested plugin releases and fail-closed
   entitlement/install resolution; centralized AI usage/quota/privacy handling;
   Development Resend sender/recipient guards; durable paper-signup notification
@@ -664,23 +877,29 @@ hosted Development verification.
 
 ### Production release review findings (2026-08-18)
 
-| ID      | Priority | Finding                                                                                                                                                                                              | Owner                     | Evidence / exit gate                                                                                                                                                                                                                                                                                                                                                                                                                              |
-| ------- | -------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| AUD-035 | P1       | A Google authorization code could be presented to the provider after the durable attempt ledger failed to record the exchange marker.                                                                | Platform Google OAuth     | Fixed in the release candidate: the callback checks the marker result and returns `connection_in_progress` before any provider request when the current claim cannot persist it. The focused round-three contract and existing OAuth state suite pass; exact CI and hosted release gates remain required.                                                                                                                                         |
-| AUD-036 | P1       | A rolled-back signup could leave newly uploaded private waiver evidence without a durable cleanup record when queue persistence failed.                                                              | Platform waiver lifecycle | Fixed in the release candidate: the durable outbox remains primary and a failed enqueue immediately removes the unreferenced objects from the private bucket, with redacted failure telemetry. The focused round-three contract and waiver cleanup suite pass; exact CI and hosted release gates remain required.                                                                                                                                 |
-| AUD-037 | P1       | One persistent paper-scan Storage deletion failure could prevent the same cleanup invocation from transactionally purging and enqueueing newly expired batches.                                      | Platform paper scans      | Fixed in the release candidate: initial drain errors are retained for the failed worker result, but the transactional purge and final drain still run first. The focused round-three contract passes; exact CI and hosted release gates remain required.                                                                                                                                                                                          |
-| AUD-038 | P1       | A delayed moderation result could overwrite the pending verdict for a newer edit of the same feedback comment.                                                                                       | Platform moderation       | Fixed in the release candidate: settlement is conditional on both the exact moderated text and the row remaining pending; notification is emitted only when that conditional write succeeds. Exact round-four tests, CI, and hosted release gates remain required.                                                                                                                                                                                |
-| AUD-039 | P2       | Supplemental certificate issuance failures after an already-published paper attendance commit were discarded from the operator response.                                                             | Platform hours            | Round-four remediation returns the bounded failure details and exposes an explicit idempotent retry path after attendance succeeds. Exact tests, CI, and hosted release gates remain required.                                                                                                                                                                                                                                                    |
-| AUD-040 | P2       | A paper-scan review-row edit could race the locked batch commit and mutate the row after the batch became committed.                                                                                 | Platform paper scans      | Round-four remediation moves the edit behind a service-only RPC that locks the parent batch and conditionally updates only while it remains in review. Exact replay, pgTAP, CI, and hosted release gates remain required.                                                                                                                                                                                                                         |
-| AUD-041 | P2       | The scan endpoint could return extraction success after losing ownership of the batch's final state transition.                                                                                      | Platform paper scans      | Fixed in the release candidate: both unreadable and successful final transitions require an error-free, matched claim-owned update before clearing local ownership or returning. Exact round-four tests, CI, and hosted release gates remain required.                                                                                                                                                                                            |
-| AUD-042 | P2       | A retry could continue after failing to clear stale paper-scan staging rows, allowing an empty new extraction to expose rows from the previous attempt.                                              | Platform paper scans      | Round-five remediation treats any staging-row deletion error as a failed claimed extraction before reading new images. Focused source coverage pins the checked deletion result; exact CI and hosted release gates remain required.                                                                                                                                                                                                               |
-| AUD-043 | P1       | Organizer feedback summaries exposed pending comment text when a blocked moderation verdict could not be durably settled.                                                                            | Platform moderation       | Round-five remediation fails closed for pending, blocked, and unknown moderation states; only settled `allowed` or `flagged` text reaches organizers. Focused source coverage and exact CI remain required.                                                                                                                                                                                                                                       |
-| AUD-044 | P2       | The application-level feedback-summary gate rejected platform admins even though the database policy and product contract explicitly authorize them.                                                 | Platform feedback         | Round-five remediation admits only the existing app-metadata-derived super-admin predicate before the manager predicate; user metadata remains untrusted and RLS remains the second gate. Focused source coverage and exact CI remain required.                                                                                                                                                                                                   |
-| AUD-045 | P2       | The durable paper-attendance notification outbox had a worker route but no hosted recurring caller, so enabled deliveries could remain queued indefinitely.                                          | Platform notifications    | Round-five remediation adds a bounded, retrying GitHub Actions scheduler every ten minutes, using the existing Production environment, dedicated worker token with shared-token fallback, Vercel bypass, concurrency, and heartbeat conventions. Source contract, exact CI, and hosted invocation evidence remain required.                                                                                                                       |
-| AUD-046 | P2       | The server accepted trusted role-only platform-admin metadata while the canonical database RLS helper recognized only the boolean flag, yielding successful but empty privileged reads.              | Platform authorization    | Round-six remediation forward-replaces `public.is_super_admin()` so the boolean and locale-independent, ECMAScript-whitespace-normalized role-only shapes in trusted `app_metadata` match the server helper, while user metadata, top-level claims, Unicode confusables, and malformed values fail closed. Explicit ACLs and nine adversarial pgTAP assertions pin the boundary; exact replay, CI, and hosted gates remain required.              |
-| AUD-047 | P1       | The partner-club simplification migration replaced twelve `plugin_data` functions without explicitly restating their reviewed ownership and execution ACLs.                                          | CSF database boundary     | Round-seven remediation uses a forward-only migration to restore `postgres` ownership, deny `PUBLIC`/`anon`/`authenticated`, and preserve `service_role` execution only for the reviewed recovery and recipient-snapshot trigger functions. Four aggregate pgTAP assertions pin all twelve exact signatures without changing historical migrations or unrelated overloads.                                                                        |
-| AUD-048 | P2       | Legacy certificate resend normalized a multi-day session ID before querying certificates, so certificates published before the durable ledger under the raw five-part session ID could not be found. | Certificate delivery      | Round-seven remediation scopes the legacy lookup to the project and both the raw session ID and normalized publish key, while retaining the durable-ledger-first path and manager authorization check. The source boundary contract pins the two-key fallback.                                                                                                                                                                                    |
-| AUD-049 | P2       | The feedback worker rotated across every historical completed project, so at sufficient volume one full rotation could exceed the 30-day eligibility guard and starve newly eligible projects.       | Platform feedback         | Round-eight remediation uses an indexed, service-only, security-invoker read model containing only projects with an attended identity not already represented in the durable queue, then applies a conservatively padded 30-day calendar window before rotating. TypeScript retains the exact timezone-aware 24-hour floor, publication hold, 96-hour backstop, and 30-day guard. Ten pgTAP assertions and focused worker tests pin the boundary. |
+| ID      | Priority | Finding                                                                                                                                                                                                                                                                                       | Owner                       | Evidence / exit gate                                                                                                                                                                                                                                                                                                                                                                                                                              |
+| ------- | -------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| AUD-035 | P1       | A Google authorization code could be presented to the provider after the durable attempt ledger failed to record the exchange marker.                                                                                                                                                         | Platform Google OAuth       | Fixed in the release candidate: the callback checks the marker result and returns `connection_in_progress` before any provider request when the current claim cannot persist it. The focused round-three contract and existing OAuth state suite pass; exact CI and hosted release gates remain required.                                                                                                                                         |
+| AUD-036 | P1       | A rolled-back signup could leave newly uploaded private waiver evidence without a durable cleanup record when queue persistence failed.                                                                                                                                                       | Platform waiver lifecycle   | Fixed in the release candidate: the durable outbox remains primary and a failed enqueue immediately removes the unreferenced objects from the private bucket, with redacted failure telemetry. The focused round-three contract and waiver cleanup suite pass; exact CI and hosted release gates remain required.                                                                                                                                 |
+| AUD-037 | P1       | One persistent paper-scan Storage deletion failure could prevent the same cleanup invocation from transactionally purging and enqueueing newly expired batches.                                                                                                                               | Platform paper scans        | Fixed in the release candidate: initial drain errors are retained for the failed worker result, but the transactional purge and final drain still run first. The focused round-three contract passes; exact CI and hosted release gates remain required.                                                                                                                                                                                          |
+| AUD-038 | P1       | A delayed moderation result could overwrite the pending verdict for a newer edit of the same feedback comment.                                                                                                                                                                                | Platform moderation         | Fixed in the release candidate: settlement is conditional on both the exact moderated text and the row remaining pending; notification is emitted only when that conditional write succeeds. Exact round-four tests, CI, and hosted release gates remain required.                                                                                                                                                                                |
+| AUD-039 | P2       | Supplemental certificate issuance failures after an already-published paper attendance commit were discarded from the operator response.                                                                                                                                                      | Platform hours              | Round-four remediation returns the bounded failure details and exposes an explicit idempotent retry path after attendance succeeds. Exact tests, CI, and hosted release gates remain required.                                                                                                                                                                                                                                                    |
+| AUD-040 | P2       | A paper-scan review-row edit could race the locked batch commit and mutate the row after the batch became committed.                                                                                                                                                                          | Platform paper scans        | Round-four remediation moves the edit behind a service-only RPC that locks the parent batch and conditionally updates only while it remains in review. Exact replay, pgTAP, CI, and hosted release gates remain required.                                                                                                                                                                                                                         |
+| AUD-041 | P2       | The scan endpoint could return extraction success after losing ownership of the batch's final state transition.                                                                                                                                                                               | Platform paper scans        | Fixed in the release candidate: both unreadable and successful final transitions require an error-free, matched claim-owned update before clearing local ownership or returning. Exact round-four tests, CI, and hosted release gates remain required.                                                                                                                                                                                            |
+| AUD-042 | P2       | A retry could continue after failing to clear stale paper-scan staging rows, allowing an empty new extraction to expose rows from the previous attempt.                                                                                                                                       | Platform paper scans        | Round-five remediation treats any staging-row deletion error as a failed claimed extraction before reading new images. Focused source coverage pins the checked deletion result; exact CI and hosted release gates remain required.                                                                                                                                                                                                               |
+| AUD-043 | P1       | Organizer feedback summaries exposed pending comment text when a blocked moderation verdict could not be durably settled.                                                                                                                                                                     | Platform moderation         | Round-five remediation fails closed for pending, blocked, and unknown moderation states; only settled `allowed` or `flagged` text reaches organizers. Focused source coverage and exact CI remain required.                                                                                                                                                                                                                                       |
+| AUD-044 | P2       | The application-level feedback-summary gate rejected platform admins even though the database policy and product contract explicitly authorize them.                                                                                                                                          | Platform feedback           | Round-five remediation admits only the existing app-metadata-derived super-admin predicate before the manager predicate; user metadata remains untrusted and RLS remains the second gate. Focused source coverage and exact CI remain required.                                                                                                                                                                                                   |
+| AUD-045 | P2       | The durable paper-attendance notification outbox had a worker route but no hosted recurring caller, so enabled deliveries could remain queued indefinitely.                                                                                                                                   | Platform notifications      | Round-five remediation adds a bounded, retrying GitHub Actions scheduler every ten minutes, using the existing Production environment, dedicated worker token with shared-token fallback, Vercel bypass, concurrency, and heartbeat conventions. Source contract, exact CI, and hosted invocation evidence remain required.                                                                                                                       |
+| AUD-046 | P2       | The server accepted trusted role-only platform-admin metadata while the canonical database RLS helper recognized only the boolean flag, yielding successful but empty privileged reads.                                                                                                       | Platform authorization      | Round-six remediation forward-replaces `public.is_super_admin()` so the boolean and locale-independent, ECMAScript-whitespace-normalized role-only shapes in trusted `app_metadata` match the server helper, while user metadata, top-level claims, Unicode confusables, and malformed values fail closed. Explicit ACLs and nine adversarial pgTAP assertions pin the boundary; exact replay, CI, and hosted gates remain required.              |
+| AUD-047 | P1       | The partner-club simplification migration replaced twelve `plugin_data` functions without explicitly restating their reviewed ownership and execution ACLs.                                                                                                                                   | CSF database boundary       | Round-seven remediation uses a forward-only migration to restore `postgres` ownership, deny `PUBLIC`/`anon`/`authenticated`, and preserve `service_role` execution only for the reviewed recovery and recipient-snapshot trigger functions. Four aggregate pgTAP assertions pin all twelve exact signatures without changing historical migrations or unrelated overloads.                                                                        |
+| AUD-048 | P2       | Legacy certificate resend normalized a multi-day session ID before querying certificates, so certificates published before the durable ledger under the raw five-part session ID could not be found.                                                                                          | Certificate delivery        | Round-seven remediation scopes the legacy lookup to the project and both the raw session ID and normalized publish key, while retaining the durable-ledger-first path and manager authorization check. The source boundary contract pins the two-key fallback.                                                                                                                                                                                    |
+| AUD-049 | P2       | The feedback worker rotated across every historical completed project, so at sufficient volume one full rotation could exceed the 30-day eligibility guard and starve newly eligible projects.                                                                                                | Platform feedback           | Round-eight remediation uses an indexed, service-only, security-invoker read model containing only projects with an attended identity not already represented in the durable queue, then applies a conservatively padded 30-day calendar window before rotating. TypeScript retains the exact timezone-aware 24-hour floor, publication hold, 96-hour backstop, and 30-day guard. Ten pgTAP assertions and focused worker tests pin the boundary. |
+| AUD-050 | P1       | Four private plugin-release helpers introduced or replaced after the prior ACL restoration denied browser roles but omitted the required explicit owner execution grant.                                                                                                                      | Plugin control plane        | Fixed by the forward-only `20260821233000_complete_plugin_release_helper_acls.sql` migration. It restores `postgres` ownership, denies `PUBLIC`/`anon`/`authenticated`/`service_role`, and explicitly grants `postgres` execution for all four exact signatures. The aggregate private-helper pgTAP test now includes each signature; exact replay and hosted release gates remain required.                                                      |
+| AUD-051 | P1       | The plugin application workflow targeted a Vercel custom environment named `development`, but the child project supports no custom environments. The signed 1.2.2 Development bundle was also built for that unavailable target, so Vercel rejected it when the deploy lane moved to Preview. | Plugin deployment           | Fixed in signed 1.2.3 by mapping the logical Development release artifact to Vercel Preview during both `vercel pull` and `vercel build`, while retaining a Production-targeted Production artifact. The root deploy workflow selects Preview without `--target=development` and accepts the CLI's `preview` or omitted target response. Hosted 1.2.3 rerun remains required.                                                                     |
+| AUD-052 | P2       | Application routing rejected historical mixed-case organization usernames even though the organization table and existing settings flow preserve them.                                                                                                                                        | Plugin application routing  | Fixed by forward migration `20260823040000_route_historical_mixed_case_organization_usernames.sql`. Public caller-scoped RPCs now resolve the exact historical username or UUID and delegate to the prior reviewed access logic in the private schema. Final local replay passed, and the focused route pgTAP file passes 61 assertions. Hosted acceptance remains required.                                                                      |
+| AUD-053 | P2       | The SDK accepted UI-only configuration formats such as `textarea`, but the admin runtime validator could throw while compiling the same schema.                                                                                                                                               | Plugin configuration        | Fixed by disabling format assertion in both Ajv validators while retaining schema constraints. The shared manifest/runtime regression passes within the 35-test SDK file, and full typecheck passes. Exact PR and hosted acceptance remain required.                                                                                                                                                                                              |
+| AUD-054 | P1       | An embedded plugin release could advance unrelated embedded plugin code in the shared private gitlink without updating the unrelated plugin's published source identity.                                                                                                                      | Plugin release integrity    | Fixed by checking the latest published embedded tree for every plugin on every release. Only the plugin named by an embedded release may change; application releases may change no embedded tree. The focused integration suite passes 17 tests, including the unrelated-plugin refusal. Exact PR and hosted release evidence remain required.                                                                                                   |
+| AUD-055 | P2       | An independent child app could load an explicitly configured TypeScript type root or type package from outside its application root without exposing that dependency through parsed source inputs.                                                                                            | Plugin application boundary | Fixed by resolving explicit type roots and type packages, following existing paths to their real locations, rejecting external type roots and undeclared external packages, and permitting only declared `@types` packages from `node_modules`. The focused boundary suite passes 23 tests, including external root and package cases. Exact PR evidence remains required.                                                                        |
 
 ## External/account blockers
 

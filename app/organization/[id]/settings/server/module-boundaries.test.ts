@@ -15,6 +15,7 @@ describe("organization settings action modules", () => {
       "getStaffLinkDetails",
       "permanentlyDeleteOrganizationPluginData",
       "revokeStaffLink",
+      "setOrganizationPluginApplicationRuntime",
       "setOrganizationPluginInstallState",
       "uninstallOrganizationPlugin",
       "updateOrganization",
@@ -35,5 +36,28 @@ describe("organization settings action modules", () => {
     ]) {
       expect(read(path).split("\n").length).toBeLessThanOrEqual(800);
     }
+  });
+
+  test("application runtime changes keep retry identity and selected version distinct", () => {
+    const component = read(
+      "app/organization/[id]/settings/OrganizationPluginSettings.tsx",
+    );
+    const mutations = read(
+      "app/organization/[id]/settings/server/plugin-mutations.ts",
+    );
+    const query = read("app/organization/[id]/settings/server/plugin-query.ts");
+
+    expect(component).toContain(
+      "applicationRuntimeRequestIds.current.get(requestKey)",
+    );
+    expect(component).toContain("requestId,");
+    expect(mutations).toContain("p_request_id: requestId");
+    expect(mutations).not.toContain("p_request_id: crypto.randomUUID()");
+    expect(query).toContain("selectedApplicationVersion");
+    expect(query).toContain("selectedDeploymentHealthy");
+    expect(query).toContain("availableVersion: status.applicationVersion");
+    expect(component).toContain("applicationUpdateAvailable");
+    expect(component).toContain("Update application ${");
+    expect(component).toContain("handleApplicationRuntime(plugin, true)");
   });
 });

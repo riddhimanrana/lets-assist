@@ -1,4 +1,4 @@
-name: PR Quality Gates
+name: Code quality
 
 on:
   pull_request:
@@ -16,7 +16,7 @@ on:
   workflow_dispatch:
 
 concurrency:
-  group: pr-quality-${{ github.ref }}
+  group: pr-quality-${{ github.event_name }}-${{ github.event.pull_request.head.sha || github.sha }}
   cancel-in-progress: true
 
 permissions:
@@ -65,6 +65,7 @@ jobs:
               - 'app/auth/**'
 
   quality:
+    name: ${{ github.event_name == 'pull_request' && 'quality' || 'full-quality' }}
     runs-on: ubuntu-latest
     if: github.event_name != 'pull_request' || github.event.pull_request.draft == false
     steps:
@@ -130,6 +131,26 @@ jobs:
       - name: Lint
         run: bun run lint
 
+      # Runs against the exact gitlink checked out above, which is the same
+      # revision the private repository type checks against. A new plugin import
+      # of a host module that is not yet on the default branch fails here with
+      # the specifier named, instead of surfacing as an opaque module-resolution
+      # error inside a pair of pull requests that block each other.
+      - name: Check plugin/host import boundary
+        run: bun run plugin:check:boundary
+
+      # Application-profile plugins own their package graph and security gates.
+      # The host verifies that ownership before excluding child sources from its
+      # own compiler, linter, test discovery, and route inventory.
+      - name: Check independent plugin applications
+        run: bun run plugin:apps:check
+
+      - name: Build and test the versioned plugin SDK
+        run: bun run plugin:sdk:test
+
+      - name: Test signed plugin release integration
+        run: bun run plugin:test:release-integration
+
       - name: Typecheck
         run: bun run typecheck
 
@@ -137,9 +158,11 @@ jobs:
       # installs global module mocks because Bun's module registry is per-process.
       # This is the same interface developers run.
       - name: Root and plugin tests
+        if: github.event_name != 'pull_request'
         run: bun run test
 
       - name: Production build
+        if: github.event_name != 'pull_request'
         run: bun run build
         env:
           VERCEL_ENV: preview
@@ -154,7 +177,7 @@ jobs:
     needs: changes
     runs-on: ubuntu-latest
     timeout-minutes: 40
-    if: needs.changes.outputs.db == 'true' && (github.event_name != 'pull_request' || github.event.pull_request.draft == false)
+    if: github.event_name != 'pull_request' && needs.changes.outputs.db == 'true'
     env:
       CSF_ISOLATED_BASE_PORT: "55320"
       CSF_E2E_RUN_ID: ci-${{ github.run_id }}-${{ github.run_attempt }}
@@ -220,6 +243,14 @@ jobs:
 
       - name: Install dependencies
         run: bun install --frozen-lockfile
+
+      # The CSF application owns an independent lockfile and package graph. The
+      # browser launcher starts that application on port 3001, so this job must
+      # install its exact dependencies even though the root install succeeded.
+      # The shared installer scrubs ambient credentials, uses a disposable
+      # home/cache, and disables dependency lifecycle scripts.
+      - name: Install private plugin application dependencies
+        run: bun run plugin:apps:check -- --install-only
 
       - name: Setup Supabase CLI
         uses: supabase/setup-cli@v2

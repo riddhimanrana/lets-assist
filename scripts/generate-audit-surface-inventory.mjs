@@ -27,6 +27,7 @@ const IGNORE = [
   "**/*.test.*",
   "**/*.spec.*",
   "**/node_modules/**",
+  "lib/plugins/private/apps/**",
   ".artifacts/**",
 ];
 

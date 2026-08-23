@@ -1,0 +1,103 @@
+[
+  {
+    "pluginKey": "dv-speech-debate",
+    "version": "2.0.0",
+    "manifestFile": "plugins/dv-speech-debate/plugin.tsx",
+    "manifestHash": "82a9b548b570c8a2b7af3fe7a13fe889fc214abfb169ca0c64865063d4810f1b",
+    "sourceCommit": "5e21d5dd60744dc50b7817bfc734a4e2ca71c8f5",
+    "automaticUpdate": false,
+    "rolloutPercentage": 0,
+    "runtimeProfile": "embedded",
+    "sourceTree": null,
+    "contentDigest": null,
+    "releaseInputs": null,
+    "buildDigest": null,
+    "buildArtifact": null,
+    "sbomDigest": null,
+    "signer": null,
+    "hostApiRange": {
+      "minimum": "1.0.0",
+      "maximum": "1.0.0"
+    },
+    "pluginDataSchemaVersion": 1,
+    "requiredPlatformSchemaVersion": "legacy",
+    "supportedInstallContracts": {
+      "minimum": "2.0.0",
+      "maximum": "2.0.0"
+    }
+  },
+  {
+    "pluginKey": "dvhs-csf",
+    "version": "1.1.0",
+    "manifestFile": "plugins/dvhs-csf/plugin-manifest.ts",
+    "manifestHash": "04aca8efa43e9d287c8d04909b733df97f6804224a4c6960a3609358eb574e79",
+    "sourceCommit": "4d1001e9d3269b8bd28de93c071c6b4b216824fd",
+    "automaticUpdate": false,
+    "rolloutPercentage": 0,
+    "runtimeProfile": "embedded",
+    "sourceTree": null,
+    "contentDigest": null,
+    "releaseInputs": null,
+    "buildDigest": null,
+    "buildArtifact": null,
+    "sbomDigest": null,
+    "signer": null,
+    "hostApiRange": {
+      "minimum": "1.0.0",
+      "maximum": "1.0.0"
+    },
+    "pluginDataSchemaVersion": 1,
+    "requiredPlatformSchemaVersion": "legacy",
+    "supportedInstallContracts": {
+      "minimum": "1.1.0",
+      "maximum": "1.1.0"
+    }
+  },
+  {
+    "pluginKey": "dvhs-csf",
+    "version": "1.2.4",
+    "manifestFile": "apps/csf/lib/manifest.ts",
+    "manifestHash": "c9295e2c192b91cb3ed49d6af7637e259678da30e5d7498af280877c847f3978",
+    "sourceCommit": "063f986f075b5b8d0e8979585edad771749bc17e",
+    "automaticUpdate": false,
+    "rolloutPercentage": 0,
+    "runtimeProfile": "application",
+    "sourceTree": "e7dce8fee8a827bd3d2bde8ee9b279b121029333",
+    "contentDigest": "sha256:1d9884fa94e5632d11bcda4c7645d81bc480d988ed1c52ed696c21de20e3e0f3",
+    "releaseInputs": ["plugins/dvhs-csf", "apps/csf"],
+    "buildDigest": "sha256:8e6c55817bf6a38385b8391124d6e43e97721ce42cb3de3ab5f62f877e828d7c",
+    "buildArtifact": {
+      "format": "vercel-prebuilt-multi-env-v1",
+      "root": "apps/csf",
+      "projectName": "lets-assist-csf",
+      "projectId": "prj_yFm448TGxkW5oNYCH7NMnddNVpWL",
+      "organizationId": "team_CjhwP5Wl7iAhbDrSFJRFxJjE",
+      "artifacts": {
+        "development": {
+          "name": "plugin-build-development.tar.gz",
+          "digest": "sha256:442ee8a33285927266c65283ea717ad8963877354781a0a5c90115e76788691f"
+        },
+        "production": {
+          "name": "plugin-build-production.tar.gz",
+          "digest": "sha256:b91571caaed56620a3936a9e6ef8fc2d17c61629d496f80fa92fb8af5219c8d3"
+        }
+      }
+    },
+    "sbomDigest": "sha256:df74dc9b7e8e20b5555481c42a8fd25d722c820794c88a804079cf4ef53e7e7f",
+    "signer": {
+      "identity": "https://github.com/riddhimanrana/lets-assist-plugins/.github/workflows/plugin-release.yml@refs/tags/dvhs-csf/v1.2.4",
+      "issuer": "https://token.actions.githubusercontent.com",
+      "attestationRef": "github-release:dvhs-csf/v1.2.4/release-manifest.sigstore.json"
+    },
+    "hostApiRange": {
+      "minimum": "1.0.0",
+      "maximum": "1.0.0"
+    },
+    "pluginDataSchemaVersion": 1,
+    "requiredPlatformSchemaVersion": "20260820130000",
+    "supportedInstallContracts": {
+      "minimum": "1.1.0",
+      "maximum": "1.2.4"
+    }
+  }
+]

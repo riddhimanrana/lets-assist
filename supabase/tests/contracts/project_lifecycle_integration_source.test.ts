@@ -204,7 +204,7 @@ describe("combined project lifecycle source contract", () => {
     );
   });
 
-  test("the additive catalogs retain lifecycle authorities without SECURITY DEFINER exceptions", () => {
+  test("the additive catalogs retain lifecycle authorities without adding lifecycle SECURITY DEFINER exceptions", () => {
     const audit = read("scripts/audit-supabase-architecture.sh");
     const aclTest = read(
       "supabase/tests/database/public_function_acl_allowlist.test.sql",
@@ -218,7 +218,7 @@ describe("combined project lifecycle source contract", () => {
     const securityDefinerAudit = sliceBetween(
       audit,
       'unexpected_security_definer_exec="$(',
-      'fail_if_rows "client EXECUTE grants on public SECURITY DEFINER functions"',
+      'fail_if_rows "unreviewed client EXECUTE grants on public SECURITY DEFINER functions"',
     );
 
     for (const signature of [
@@ -236,6 +236,15 @@ describe("combined project lifecycle source contract", () => {
       "unreject_project_signup_with_capacity",
     );
     expect(securityDefinerAudit).not.toContain("cancel_project_transactional");
+    expect(securityDefinerAudit).toContain(
+      "public.get_plugin_application_access_context(uuid,text,text)",
+    );
+    expect(securityDefinerAudit).toContain(
+      "public.get_plugin_application_access_context_by_identifier(text,text,text)",
+    );
+    expect(securityDefinerAudit).toContain(
+      "public.get_csf_application_role_context(uuid,text)",
+    );
     expect(transactionBoundaryMigration).toContain(
       "ALTER FUNCTION public.cancel_project_transactional(uuid, text)\n  SET SCHEMA private",
     );

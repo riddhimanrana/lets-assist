@@ -115,9 +115,11 @@ export async function updateOrganization(data: OrganizationUpdateData) {
     return { error: usernameUnavailableMessage(true) };
   }
 
-  const usernameValidation = validateOrganizationUsername(data.username);
-  if (!usernameValidation.ok) {
-    return { error: usernameValidation.error };
+  if (data.username !== currentOrg.username) {
+    const usernameValidation = validateOrganizationUsername(data.username);
+    if (!usernameValidation.ok) {
+      return { error: usernameValidation.error };
+    }
   }
 
   try {

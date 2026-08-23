@@ -141,6 +141,16 @@ export default function EditOrganizationForm({
   )
     ? (organization.type as OrganizationTypeOption)
     : "nonprofit";
+  const updateSchema = useMemo(
+    () =>
+      orgUpdateSchema.extend({
+        username: z.union([
+          organizationUsernameSchema,
+          z.literal(organization.username),
+        ]),
+      }),
+    [organization.username],
+  );
   const initialValues = useMemo<OrganizationFormValues>(
     () => ({
       name: organization.name || "",
@@ -176,7 +186,7 @@ export default function EditOrganizationForm({
 
   // Setup form with initial values from organization
   const form = useForm<OrganizationFormValues>({
-    resolver: zodResolver(orgUpdateSchema),
+    resolver: zodResolver(updateSchema),
     defaultValues: initialValues,
   });
 

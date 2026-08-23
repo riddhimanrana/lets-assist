@@ -1,7 +1,7 @@
 # DVHS CSF Officer Operations Runbook
 
 **Audience:** organization administrators, adviser, chapter officers, and Data Management
-**Current status:** this repository carries 333 ordered migrations through `20260819050728_complete_reviewed_internal_function_acls`; Production was last verified read-only at 236 through `20260811001500`, leaving an exact repository-pinned 97-migration cutover. Hosted Development serves root merge SHA `5ef6e4ccdf4492206e3e41a0b84afac91551fff0` with the verified 331-migration ledger through `20260819020000`, and Google authentication redirects successfully there. The exact 333-migration hosted CI replay is the final candidate gate; final hosted browser/provider acceptance and Production email-webhook proof remain release gates. Google OAuth and Picker were previously connected for a bounded Spring 2026 application preview that committed zero applications. Production remains untouched, and schema deployment or real-data mutation requires explicit action-time approval.
+**Current status:** this candidate carries 353 ordered migrations through `20260822134710_revalidate_plugin_runtime_admin_authority`; Production was verified read-only at 333 through `20260819050728`, leaving an exact repository-pinned 20-migration cutover. Hosted Development has the verified 353-migration ledger through `20260822134710`, and Google authentication redirects successfully there. The signed 1.2.7 GitHub release has separate Preview-compatible Development and Production child artifacts; catalog integration and rollout remain pending. Browser and provider acceptance remain release gates. Production email-webhook proof also remains open. Google OAuth and Picker were previously connected for a bounded Spring 2026 application preview that committed zero applications. Production remains unchanged by this release task until the authorized release workflow applies the reviewed cutover.
 **Authoritative record after review:** Let's Assist
 
 This runbook describes the v1.3 officer workflow. Do not use it for a production cutover until the remaining Google, full browser-mutation, accessibility, hosted scheduled-post, Production email/webhook, advisor, and database cutover gates in [testing and release](testing-and-release.md) pass.
@@ -273,7 +273,13 @@ Before this runbook is used for the real chapter cutover, all boxes must be chec
 - [x] Deploy the super-admin metadata alignment, then prove branch-scoped non-production Supabase parity against the 322-row ordered ledger through `20260818115000`
 - [x] Deploy the partner-function ACL restatement, then prove hosted Development parity against the 323-row ordered ledger through `20260818134000`
 - [x] Deploy the orphan-cleanup-serialized release candidate, then prove branch-scoped non-production Supabase parity against the 331-row ordered ledger through `20260819020000`
-- [ ] Deploy the completed anonymous feedback preference and owner-internal ACL release candidate, then prove branch-scoped non-production Supabase parity against the 333-row ordered ledger through `20260819050728`
+- [x] Deploy the completed plugin-platform foundation candidate, then prove branch-scoped non-production Supabase parity against the 339-row ordered ledger through `20260821005258`
+- [x] Deploy the signed DVHS CSF 1.2.0 publication, then prove hosted Development Supabase parity against the 340-row ordered ledger through `20260821024024`
+- [x] Integrate signed DVHS CSF 1.2.1 and prove hosted Development parity against the 342-row ordered ledger through `20260821044815`
+- [ ] Apply and verify the signed 1.2.2 publication and private-helper ACL completion through `20260821233000`
+- [x] Deploy the exact signed 1.2.1 application artifact and protect its direct child domain
+- [x] Create the two-project Vercel microfrontend group and approve its $2 per million routed-request fee
+- [ ] Deploy the version-pinned host routing change and complete hosted browser acceptance before activation
 - [x] Authorize local and hosted Development Google origins/callbacks, including `http://localhost:3001` and `https://dev.lets-assist.com`
 - [ ] Complete Google reconnect, revocation, and failure-state verification; the exact chapter identity, Picker selection, and one bounded failed-preview attempt are current Development evidence, not full import acceptance
 - [ ] Complete synthetic visible mutation lifecycle for every actor

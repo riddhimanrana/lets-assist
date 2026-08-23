@@ -140,6 +140,15 @@ describe("plugin control-plane action wiring", () => {
     );
   });
 
+  test("install and update transitions reject catalog versions absent from the host runtime", () => {
+    expect(transitionAdapter).toContain(
+      "targetVersion !== definition.manifest.version",
+    );
+    expect(transitionAdapter).toContain(
+      "The requested embedded plugin version is not loaded in this deployment.",
+    );
+  });
+
   test("the server-only marker is a pinned runtime dependency", () => {
     const packageJson = JSON.parse(read("package.json")) as {
       dependencies?: Record<string, string>;

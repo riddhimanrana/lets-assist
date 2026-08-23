@@ -3,9 +3,15 @@
 import "server-only";
 
 import { createClient } from "@/lib/supabase/server";
+import { getAdminClient } from "@/lib/supabase/admin";
 import { getAuthUser } from "@/lib/supabase/auth-helpers";
+import { resolvePluginApplicationEnvironment } from "@/lib/plugins/application-environment";
 import { listRegisteredPlugins } from "@/lib/plugins/registry";
-import { buildOrganizationPluginAdminSettings } from "@/lib/plugins/organization-plugin-settings";
+import { getPublishedPluginRelease } from "@/lib/plugins/published-releases";
+import {
+  buildOrganizationPluginAdminSettings,
+  type RuntimePluginInfo,
+} from "@/lib/plugins/organization-plugin-settings";
 import { extractDataAccessPurposes } from "@/lib/plugins/plugin-uninstall-impact";
 import { getPluginDataDeletionReadiness } from "@/lib/plugins/plugin-data-deletion-readiness";
 import {
@@ -17,6 +23,117 @@ import {
   type PluginEntitlementRow,
   type PluginInstallRow,
 } from "./plugin-shared";
+
+function listRuntimePluginsForSettings(): RuntimePluginInfo[] {
+  return listRegisteredPlugins().map((plugin) => {
+    const release = getPublishedPluginRelease(plugin.manifest.key, "embedded");
+    if (!release) {
+      throw new Error(
+        `Registered plugin ${plugin.manifest.key} has no published release contract.`,
+      );
+    }
+
+    return {
+      key: plugin.manifest.key,
+      navLabel: plugin.manifest.navLabel ?? plugin.manifest.name,
+      version: plugin.manifest.version,
+      supportedInstallContracts: release.supportedInstallContracts,
+      minimumRole: plugin.manifest.minimumRole ?? "member",
+      ownerName: plugin.manifest.owner?.name ?? "Let's Assist",
+      ownerType: plugin.manifest.owner?.type ?? "platform-official",
+      detailedDescription:
+        plugin.manifest.detailedDescription ??
+        plugin.manifest.description ??
+        `${plugin.manifest.name} plugin for organization workflows.`,
+      capabilityHighlights: plugin.manifest.capabilityHighlights ?? [],
+      dataAccess:
+        plugin.manifest.dataAccess?.map(
+          (entry) =>
+            `${entry.access}: ${entry.schema}.${entry.relation} - ${entry.purpose}`,
+        ) ??
+        plugin.manifest.dataScope ??
+        [],
+      dataAccessPurposes: extractDataAccessPurposes(plugin.manifest.dataAccess),
+      routes: plugin.manifest.routes ?? [],
+      backendCapabilities: plugin.manifest.backendCapabilities ?? [],
+      configSchema: plugin.manifest.configSchema ?? null,
+      requiredScopes: plugin.manifest.requiredScopes ?? [],
+      dataDeletionAvailable: getPluginDataDeletionReadiness(plugin).ready,
+      dataDeletionExternalSystemsNotCovered:
+        plugin.manifest.dataDeletion?.externalSystemsNotCovered ?? [],
+    };
+  });
+}
+
+type ApplicationRuntimeStatus = {
+  applicationVersion?: string | null;
+  selectedApplicationVersion?: string | null;
+  applicationEnabled?: boolean;
+  canEnable?: boolean;
+  deploymentHealthy?: boolean;
+  deploymentUrl?: string | null;
+  healthReportedAt?: string | null;
+  selectedDeploymentHealthy?: boolean;
+  selectedDeploymentUrl?: string | null;
+  selectedHealthReportedAt?: string | null;
+};
+
+async function attachApplicationRuntimeStatus(
+  organizationId: string,
+  plugins: OrganizationPluginSettingsResult["plugins"],
+): Promise<OrganizationPluginSettingsResult["plugins"]> {
+  const environment = resolvePluginApplicationEnvironment();
+  if (!environment) {
+    return plugins;
+  }
+
+  const admin = getAdminClient();
+  return Promise.all(
+    plugins.map(async (plugin) => {
+      const { data, error } = await admin.rpc(
+        "get_plugin_application_runtime_admin_status",
+        {
+          p_organization_id: organizationId,
+          p_plugin_key: plugin.key,
+          p_environment: environment,
+        },
+      );
+      if (error || !data || typeof data !== "object" || Array.isArray(data)) {
+        return plugin;
+      }
+
+      const status = data as ApplicationRuntimeStatus;
+      if (!status.applicationVersion) {
+        return plugin;
+      }
+      const applicationEnabled = status.applicationEnabled === true;
+      const selectedVersion = status.selectedApplicationVersion ?? null;
+      return {
+        ...plugin,
+        applicationRuntime: {
+          environment,
+          availableVersion: status.applicationVersion,
+          selectedVersion,
+          version:
+            applicationEnabled && selectedVersion
+              ? selectedVersion
+              : status.applicationVersion,
+          enabled: applicationEnabled,
+          canEnable: status.canEnable === true,
+          deploymentHealthy: applicationEnabled
+            ? status.selectedDeploymentHealthy === true
+            : status.deploymentHealthy === true,
+          deploymentUrl: applicationEnabled
+            ? (status.selectedDeploymentUrl ?? null)
+            : (status.deploymentUrl ?? null),
+          healthReportedAt: applicationEnabled
+            ? (status.selectedHealthReportedAt ?? null)
+            : (status.healthReportedAt ?? null),
+        },
+      };
+    }),
+  );
+}
 
 export async function getOrganizationPluginSettings(
   organizationId: string,
@@ -102,34 +219,7 @@ export async function getOrganizationPluginSettings(
       };
     }
 
-    const runtimePlugins = listRegisteredPlugins().map((plugin) => ({
-      key: plugin.manifest.key,
-      navLabel: plugin.manifest.navLabel ?? plugin.manifest.name,
-      version: plugin.manifest.version,
-      minimumRole: plugin.manifest.minimumRole ?? "member",
-      ownerName: plugin.manifest.owner?.name ?? "Let's Assist",
-      ownerType: plugin.manifest.owner?.type ?? "platform-official",
-      detailedDescription:
-        plugin.manifest.detailedDescription ??
-        plugin.manifest.description ??
-        `${plugin.manifest.name} plugin for organization workflows.`,
-      capabilityHighlights: plugin.manifest.capabilityHighlights ?? [],
-      dataAccess:
-        plugin.manifest.dataAccess?.map(
-          (entry) =>
-            `${entry.access}: ${entry.schema}.${entry.relation} - ${entry.purpose}`,
-        ) ??
-        plugin.manifest.dataScope ??
-        [],
-      dataAccessPurposes: extractDataAccessPurposes(plugin.manifest.dataAccess),
-      routes: plugin.manifest.routes ?? [],
-      backendCapabilities: plugin.manifest.backendCapabilities ?? [],
-      configSchema: plugin.manifest.configSchema ?? null,
-      requiredScopes: plugin.manifest.requiredScopes ?? [],
-      dataDeletionAvailable: getPluginDataDeletionReadiness(plugin).ready,
-      dataDeletionExternalSystemsNotCovered:
-        plugin.manifest.dataDeletion?.externalSystemsNotCovered ?? [],
-    }));
+    const runtimePlugins = listRuntimePluginsForSettings();
 
     const plugins = buildOrganizationPluginAdminSettings({
       catalog: (catalogResult.data ?? []) as PluginCatalogRow[],
@@ -138,7 +228,9 @@ export async function getOrganizationPluginSettings(
       runtimePlugins,
     });
 
-    return { plugins };
+    return {
+      plugins: await attachApplicationRuntimeStatus(organizationId, plugins),
+    };
   }
 
   if (catalogResult.error) {
@@ -155,34 +247,7 @@ export async function getOrganizationPluginSettings(
     };
   }
 
-  const runtimePlugins = listRegisteredPlugins().map((plugin) => ({
-    key: plugin.manifest.key,
-    navLabel: plugin.manifest.navLabel ?? plugin.manifest.name,
-    version: plugin.manifest.version,
-    minimumRole: plugin.manifest.minimumRole ?? "member",
-    ownerName: plugin.manifest.owner?.name ?? "Let's Assist",
-    ownerType: plugin.manifest.owner?.type ?? "platform-official",
-    detailedDescription:
-      plugin.manifest.detailedDescription ??
-      plugin.manifest.description ??
-      `${plugin.manifest.name} plugin for organization workflows.`,
-    capabilityHighlights: plugin.manifest.capabilityHighlights ?? [],
-    dataAccess:
-      plugin.manifest.dataAccess?.map(
-        (entry) =>
-          `${entry.access}: ${entry.schema}.${entry.relation} - ${entry.purpose}`,
-      ) ??
-      plugin.manifest.dataScope ??
-      [],
-    dataAccessPurposes: extractDataAccessPurposes(plugin.manifest.dataAccess),
-    routes: plugin.manifest.routes ?? [],
-    backendCapabilities: plugin.manifest.backendCapabilities ?? [],
-    configSchema: plugin.manifest.configSchema ?? null,
-    requiredScopes: plugin.manifest.requiredScopes ?? [],
-    dataDeletionAvailable: getPluginDataDeletionReadiness(plugin).ready,
-    dataDeletionExternalSystemsNotCovered:
-      plugin.manifest.dataDeletion?.externalSystemsNotCovered ?? [],
-  }));
+  const runtimePlugins = listRuntimePluginsForSettings();
 
   const accessRows = (accessResult.data ?? []) as PluginAccessRow[];
 
@@ -212,5 +277,7 @@ export async function getOrganizationPluginSettings(
     runtimePlugins,
   });
 
-  return { plugins };
+  return {
+    plugins: await attachApplicationRuntimeStatus(organizationId, plugins),
+  };
 }

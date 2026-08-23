@@ -1,0 +1,29 @@
+{
+  "$schema": "https://openapi.vercel.sh/microfrontends.json",
+  "version": "1",
+  "applications": {
+    "lets-assist": {
+      "packageName": "lets-assist",
+      "development": {
+        "local": 3000,
+        "fallback": "lets-assist.com"
+      }
+    },
+    "lets-assist-csf": {
+      "packageName": "@lets-assist/dvhs-csf-app",
+      "routing": [
+        {
+          "group": "dvhs-csf-health",
+          "paths": ["/api/plugins/dvhs-csf/health", "/vc-ap-5431dc/:path*"]
+        }
+      ],
+      "development": {
+        "local": 3001
+      }
+    }
+  },
+  "options": {
+    "localProxyPort": 3024,
+    "disableOverrides": true
+  }
+}

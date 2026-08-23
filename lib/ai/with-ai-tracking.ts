@@ -16,25 +16,32 @@ import {
 } from "./posthog-telemetry";
 import { logAiUsage } from "./usage-tracker";
 
-// Re-export for convenience
-export { gatewayModel };
-
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
 
-export interface AiTrackingContext {
-  /** AI Gateway scope for key resolution */
-  scope: AiWorkloadScope;
+interface AiTrackingContextBase {
   /** User who triggered the call */
   userId?: string;
-  /** Organization context for billing */
-  organizationId?: string;
-  /** Plugin making the call (null for core platform) */
-  pluginKey?: string;
   /** Feature name for grouping (e.g. 'content-moderation', 'judge-optimizer') */
   feature: string;
 }
+
+export interface PluginAiTrackingContext extends AiTrackingContextBase {
+  scope: "plugin";
+  organizationId: string;
+  pluginKey: string;
+}
+
+export interface HostAiTrackingContext extends AiTrackingContextBase {
+  /** AI Gateway scope for key resolution */
+  scope: Exclude<AiWorkloadScope, "plugin">;
+  /** Organization context for billing */
+  organizationId?: string;
+  pluginKey?: never;
+}
+
+export type AiTrackingContext = PluginAiTrackingContext | HostAiTrackingContext;
 
 export interface TrackedAiOptions {
   /** Context for tracking */
@@ -48,7 +55,7 @@ export interface TrackedAiResult {
   telemetry: ReturnType<typeof createPostHogTelemetry>;
   /** Model instance — pass to `model` */
   model: ReturnType<typeof gatewayModel>;
-  /** Gateway provider options — pass to `providerOptions.gateway` if you want Vercel tags */
+  /** Gateway provider options. Pass these to `providerOptions.gateway`. */
   gatewayOptions: {
     user?: string;
     tags?: string[];
@@ -92,6 +99,7 @@ export interface TrackedAiResult {
  *   model: tracked.model,
  *   prompt: '...',
  *   experimental_telemetry: tracked.telemetry,
+ *   providerOptions: { gateway: tracked.gatewayOptions },
  * });
  *
  * await tracked.logUsage({
@@ -105,6 +113,15 @@ export function prepareTrackedAiCall(
 ): TrackedAiResult {
   const { context, modelId } = options;
   const { scope, userId, organizationId, pluginKey, feature } = context;
+
+  if (scope === "plugin" && (!organizationId?.trim() || !pluginKey?.trim())) {
+    throw new Error(
+      "Plugin AI calls require an organizationId and pluginKey for accounting.",
+    );
+  }
+  if (scope !== "plugin" && pluginKey !== undefined) {
+    throw new Error("Host AI calls cannot claim a plugin accounting identity.");
+  }
 
   // Build the function ID for PostHog
   const functionId = pluginKey ? `${pluginKey}-${feature}` : feature;

@@ -166,6 +166,27 @@ describe("CI db-replay-validation uses the recovery topology and isolated seed",
     expect(job).not.toContain("bun run supabase:seed:local-dev");
   });
 
+  test("installs the independently locked CSF application before browser validation", () => {
+    const job = dbReplayJob();
+    const rootInstall = job.indexOf("run: bun install --frozen-lockfile");
+    const pluginInstall = job.indexOf(
+      "run: bun run plugin:apps:check -- --install-only",
+    );
+    const dvBrowser = job.indexOf("run: bun run dv:test:e2e");
+    const csfBrowser = job.indexOf("run: bun run csf:test:e2e");
+
+    expect(rootInstall).toBeGreaterThan(-1);
+    expect(pluginInstall).toBeGreaterThan(rootInstall);
+    expect(pluginInstall).toBeLessThan(dvBrowser);
+    expect(pluginInstall).toBeLessThan(csfBrowser);
+    expect(
+      job.match(/bun run plugin:apps:check -- --install-only/gu)?.length,
+    ).toBe(1);
+    expect(job).not.toContain(
+      "bun install --frozen-lockfile --cwd lib/plugins/private/apps/csf",
+    );
+  });
+
   test("both isolated production browser builds skip only their redundant typecheck", () => {
     const job = dbReplayJob();
     const dvStep = job.slice(
@@ -248,6 +269,9 @@ describe("CI runs mock-sensitive tests through the shared process orchestrator",
       join(repositoryRoot, "package.json"),
       "utf8",
     );
+    const packageJson = JSON.parse(packageSource) as {
+      scripts?: Record<string, string>;
+    };
     expect(orchestrator).toMatch(
       /const isolatedPluginMockFiles =\s*discoveredPluginFiles\.filter\(hasGlobalModuleMock\)/u,
     );
@@ -257,8 +281,11 @@ describe("CI runs mock-sensitive tests through the shared process orchestrator",
     expect(orchestrator).not.toContain(
       'run("plugin unit and security", "bun", ["test", ...preload, "lib/plugins"])',
     );
-    expect(packageSource).toContain(
-      '"test:plugins": "node scripts/run-tests.mjs --plugins-only"',
+    expect(packageJson.scripts?.["test:plugins"]).toContain(
+      "node scripts/run-tests.mjs --plugins-only",
+    );
+    expect(packageJson.scripts?.["test:plugins"]).toContain(
+      "plugin:apps:check",
     );
   });
 

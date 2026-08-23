@@ -28,6 +28,9 @@ export default tseslint.config(
       "*.config.mjs",
       "tmp-component-usage.json",
       "**/*.backup.tsx",
+      // Application-profile plugins own a locked package toolchain and run the
+      // required gates through plugin:apps:check.
+      "lib/plugins/private/apps/**",
     ],
   },
   js.configs.recommended,

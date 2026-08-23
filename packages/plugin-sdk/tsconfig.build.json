@@ -1,0 +1,15 @@
+{
+  "compilerOptions": {
+    "declaration": true,
+    "emitDeclarationOnly": true,
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "outDir": "dist",
+    "rootDir": "../../lib/plugins/sdk/v1",
+    "skipLibCheck": true,
+    "strict": true,
+    "target": "ES2022"
+  },
+  "include": ["../../lib/plugins/sdk/v1/*.ts"],
+  "exclude": ["../../lib/plugins/sdk/v1/*.test.ts"]
+}

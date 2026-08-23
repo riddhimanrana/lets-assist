@@ -1,6 +1,13 @@
 import Ajv from "ajv";
 
-const ajv = new Ajv({ allErrors: false });
+// Plugin manifests use presentation-only formats such as `textarea`. Keep
+// runtime validation aligned with SDK validation: constraints still run, while
+// unknown formats remain UI hints instead of compile-time failures.
+const ajv = new Ajv({
+  allErrors: false,
+  strict: false,
+  validateFormats: false,
+});
 
 export interface PluginConfigSchema {
   $schema?: string;

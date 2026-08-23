@@ -11,12 +11,16 @@ describe("organizationUsernameSchema", () => {
   test("accepts the documented ASCII format and boundary lengths", () => {
     for (const username of [
       "abc",
-      "A_b.c-9",
+      "a_b.c-9",
       "a".repeat(ORGANIZATION_USERNAME_MAX_LENGTH),
     ]) {
       expect(organizationUsernameSchema.safeParse(username).success).toBe(true);
       expect(validateOrganizationUsername(username)).toEqual({ ok: true });
     }
+  });
+
+  test("rejects uppercase before the database lowercase constraint", () => {
+    expect(validateOrganizationUsername("DVHS-csf").ok).toBe(false);
   });
 
   test("rejects values outside 3 through 32 characters", () => {

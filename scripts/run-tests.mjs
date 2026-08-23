@@ -95,6 +95,7 @@ const sharedDiscoveryIgnore = [
   "**/.artifacts/**",
   "**/.next/**",
   "**/node_modules/**",
+  "lib/plugins/private/apps/**",
   "tests/e2e/**",
 ];
 const discoveryIgnore = [...sharedDiscoveryIgnore, "lib/plugins/**"];

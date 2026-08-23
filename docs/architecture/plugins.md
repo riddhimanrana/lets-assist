@@ -17,6 +17,173 @@ Private changes follow a two-PR sequence:
 
 The private repository commit must be accessible to CI through its least-privilege submodule credential. See [the submodule workflow](../development/private-plugins.md).
 
+## SDK and runtime profiles
+
+The serializable SDK contract under `lib/plugins/sdk/v1` separates a plugin's
+identity from its host adapter. A manifest declares its runtime profile,
+compatibility ranges, routes, capabilities, permissions, data and Storage
+scope, lifecycle messages, release inputs, and host build surface. It cannot
+contain React nodes, callbacks, Supabase clients, or other host objects.
+
+`embedded` plugins compile into the platform deployment. Their current private
+implementations pass through the embedded adapter, and their existing host
+imports are frozen in a generated CI allowlist. New host-internal imports fail
+`bun run plugin:check:boundary`. An `application` plugin must have an empty host
+import surface and consume a published version of the SDK rather than copied
+host source.
+
+The host builds `@lets-assist/plugin-sdk` from `lib/plugins/sdk/v1`. A
+`plugin-sdk/v<version>` tag publishes an immutable GitHub Release tarball, a
+CycloneDX SBOM, a release manifest, checksums, and a Sigstore bundle. Child
+applications pin that exact tarball in their Bun lockfile. The package is a
+transport for serializable contracts only. It does not expose host components,
+database clients, Server Actions, or private implementation code.
+
+An adapter or lazy import is not a package or security boundary. A plugin only
+becomes independently deployable after its application profile has its own
+build, deployment identity, session revalidation, and server authorization
+boundary.
+
+Application packages live at `lib/plugins/private/apps/<app>` and do not enter
+the host TypeScript, ESLint, unit-test, plugin-data audit, or route-inventory
+programs. That exclusion is conditional on a replacement gate. Each child owns
+a Bun lockfile and `lint`, `typecheck`, `test`, `build`, `audit:data-access`,
+and `inventory:routes` scripts. `bun run plugin:apps:check` discovers every
+child and runs those gates with privileged Supabase keys removed from its
+environment. The root quality workflow and the private-candidate test path both
+invoke this command, so an excluded child cannot become an untested directory.
+
+The child may receive the public Supabase URL and publishable key. It must
+revalidate the request's Supabase session and organization access on the server.
+It must not receive a service-role or secret key, query `plugin_data` from the
+browser, or treat the host's path-routing decision as authorization.
+
+### Application caller proof
+
+An independently deployed application calls
+`public.get_plugin_application_access_context_by_identifier(organization_identifier,
+plugin_key, runtime_version)` with the caller's authenticated Supabase session.
+The wrapper resolves a canonical organization UUID or public route username
+inside the database, then delegates to
+`public.get_plugin_application_access_context(organization_id, plugin_key,
+runtime_version)`. The delegated function first proves active organization
+membership, then reads the same
+`organization_plugin_access` model used by the embedded host gate. It also
+requires the exact published release to have verified signer metadata and the
+`application` profile, checks the release against the current host API, and
+evaluates its install-contract range and any catalog force-update floor.
+Non-members receive no catalog, entitlement, install, or release facts.
+Ordinary members also receive one generic denial when access is unavailable;
+staff and admins retain specific denial reasons for support and update work.
+
+Plugin-specific role projection stays separate from that generic control-plane
+proof. The first projection,
+`public.get_csf_application_role_context(organization_id, runtime_version)`,
+returns only the current caller's CSF role labels and enabled permission keys.
+It does not expose roster or domain rows and does not authorize a consequential
+mutation. The CSF child verifies the session on its server, calls both proofs,
+and returns a narrow DTO to its own page. A browser can technically call these
+self-only RPCs with its own session, so their safety does not depend on the
+child hiding their names. Service-only CSF operations still repeat their own
+fresh authorization and tenant checks.
+
+### Version-pinned application routing
+
+The host resolves application pages through
+`public.get_plugin_application_route_target_by_identifier`. The authenticated
+RPC repeats membership, install, entitlement, release, compatibility, rollout
+flag, and deployment-health checks, then returns only the exact immutable
+`*.vercel.app` deployment selected for that organization and environment. The
+host rewrites the request to that URL while preserving the public organization
+URL. It never treats the newest published or most recently deployed version as
+the selected version.
+
+Vercel microfrontend routes select a project, not a tenant-specific immutable
+deployment. The shared group therefore owns only version-independent child
+routes: health checks and the child application's generated asset namespace.
+It must not claim organization application pages, because one static project
+route would move every organization when a newer child deployment becomes
+active. The child uses Vercel's generated asset prefix and Skew Protection so
+framework-managed JavaScript, CSS, images, navigations, and Server Actions stay
+on the deployment that rendered the selected page.
+
+The asset namespace still passes through host middleware. Next.js Skew
+Protection puts the rendering deployment ID in the `dpl` query parameter. The
+first asset request must have a same-origin CSF document referrer. The host keys
+an HttpOnly, SameSite=Strict routing cookie by that deployment ID and limits it
+to the asset path. Nested imports must carry the same `dpl` value as their
+referrer. Every request repeats authentication and a caller-scoped database
+lookup for that exact healthy deployment. A compatible prior deployment may
+keep serving an open page after an admin selects a newer version, but current
+membership, entitlement, install, compatibility, and security-floor checks
+must still pass. The cookie is a routing hint, not an authorization credential.
+Requests without valid context fail closed.
+
+The isolated local runner starts both applications as owned process groups on
+ports 3000 and 3001. It routes the same generated asset namespace directly to
+the local child. On a fresh checkout, it installs the child's independently
+locked dependencies before resolving its Next executable. That one-time install
+uses a disposable home and cache and runs no package lifecycle scripts. The
+child receives only the public local Supabase connection; the runner does not
+give it service-role, database, profile-claim, or mail credentials.
+
+## Releases, deployments, and installs
+
+These are separate records:
+
+- `plugin_versions` is the immutable publication ledger. New publications
+  record the exact source tree, declared release inputs, content digest,
+  compatibility ranges, runtime profile, and schema requirements. Application
+  and service releases also require build and SBOM digests. Legacy rows retain
+  NULL provenance where it was never captured.
+- `private.plugin_deployments` records one provider deployment observation.
+  Process boot can create or refresh a `pending` observation, but cannot claim
+  health. A separate service-only workflow records accepted health evidence.
+- `organization_plugin_installs` records an organization's installed version,
+  desired version, and manual or security-only update policy. A catalog version
+  is not installable until its code exists in the serving deployment.
+- `private.plugin_update_operations` records idempotent, lease-bound update
+  attempts and redacted outcomes. Application activation requires a signed,
+  compatible release and one exact healthy deployment in the target
+  environment.
+
+Database migrations advance schema contracts, not organization installations.
+Do not use a migration to silently change installed versions. Production
+migrations are forward-only; code rollback means deploying a schema-compatible
+release or adding a corrective migration.
+
+Current application releases are cryptographically signed. The private release
+workflow reconstructs the declared inputs from Git, generates a CycloneDX SBOM,
+and signs the release manifest with GitHub OIDC and Cosign. Root integration and
+deployment verify the Sigstore issuer, the tag-bound workflow identity, source,
+content, build, release-input, and SBOM digests before accepting the release.
+The database publication row records that verified identity and evidence. It
+does not replace verification of the immutable release assets in CI.
+
+The signed private-to-root release path and its credential boundary are
+documented in [signed plugin release integration](../development/plugin-release-integration.md).
+
+Deployment provider identity is verified at the trusted ingestion boundary.
+The deployment workflow compares the signed release's Vercel project and team
+identifiers with the code-owned target allowlist before it can call the
+service-role-only observation and health RPCs. Those RPCs store one immutable
+deployment origin. Request routing then revalidates the caller, organization,
+install, entitlement, selected version, compatibility, security floor, and
+recorded health without making a Vercel API call on every request. A caller
+with the Production service-role credential is already inside this trusted
+provider-ingestion boundary; duplicating the project identifier in its payload
+would not create an independent authorization gate.
+
+## Storage contracts
+
+The server-only `plugins` bucket uses
+`{organizationId}/{pluginKey}/...`. Browser-assisted form uploads use the
+separate `plugin_form_uploads` grammar
+`{organizationId}/{pluginKey}/{userId}/{file}`. Its RLS binds all three scope
+segments and requires the plugin to be enabled for the organization. It does
+not require membership because DV applications upload before membership
+exists. The `plugins` bucket has no browser policies.
+
 ## Uninstall and permanent deletion
 
 Ordinary organization uninstall is a non-extensible control-plane operation: it deletes only the exact `organization_plugin_installs` row and runs no plugin lifecycle code. `onUninstall` is reserved for compensating a failed new-install persistence step. Consequently, uninstall retains plugin-owned data by construction.

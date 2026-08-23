@@ -40,6 +40,43 @@ VALUES
   ('ae100000-0000-4000-8000-000000000002',
    'ae000000-0000-4000-8000-000000000003', 'staff', 'active');
 
+-- plugin_form_uploads paths are valid only for an enabled, installed plugin.
+-- Keep this fixture's synthetic `example` namespace inside that contract so
+-- the assertions below continue to isolate active-membership behavior.
+INSERT INTO public.plugins (key, name, visibility, is_active, latest_version)
+VALUES ('example', 'Storage contract example', 'global', false, '1.0.0');
+
+INSERT INTO public.plugin_versions (
+  plugin_key, version, status, commit_sha, manifest_hash,
+  compatibility_contract, published_at, source_tree, content_digest,
+  release_inputs, host_api_range, plugin_data_schema_version,
+  required_platform_schema_version, supported_install_contracts,
+  runtime_profile
+) VALUES (
+  'example',
+  '1.0.0',
+  'published',
+  '4444444444444444444444444444444444444444',
+  '4444444444444444444444444444444444444444444444444444444444444444',
+  '{"host":"lets-assist","automaticUpdate":false}'::jsonb,
+  now(), repeat('5', 40), repeat('6', 64),
+  '["plugins/example"]'::jsonb,
+  '{"minimum":"1.0.0","maximum":"1.0.0"}'::jsonb,
+  1, '20260820100000',
+  '{"minimum":"1.0.0","maximum":"1.0.0"}'::jsonb,
+  'embedded'
+);
+
+UPDATE public.plugins
+SET is_active = true
+WHERE key = 'example';
+
+INSERT INTO public.organization_plugin_installs (
+  organization_id, plugin_key, enabled, installed_version
+) VALUES (
+  'ae100000-0000-4000-8000-000000000001', 'example', true, '1.0.0'
+);
+
 INSERT INTO public.projects (
   id, creator_id, title, location, description, event_type,
   verification_method, schedule, require_login, organization_id,
