@@ -1,4 +1,4 @@
-import { existsSync, realpathSync } from "node:fs";
+import { existsSync, readFileSync, realpathSync } from "node:fs";
 import { dirname, isAbsolute, relative, resolve } from "node:path";
 import ts from "typescript";
 
@@ -264,6 +264,18 @@ export function readApplicationCompilerOptions(applicationDirectory) {
       );
     }
   }
+  const packageJsonPath = resolve(applicationDirectory, "package.json");
+  const packageJson = existsSync(packageJsonPath)
+    ? JSON.parse(readFileSync(packageJsonPath, "utf8"))
+    : {};
+  const declaredPackages = new Set(
+    [
+      packageJson.dependencies,
+      packageJson.devDependencies,
+      packageJson.optionalDependencies,
+      packageJson.peerDependencies,
+    ].flatMap((dependencies) => Object.keys(dependencies ?? {})),
+  );
   for (const typeName of parsed.options.types ?? []) {
     const resolution = ts.resolveTypeReferenceDirective(
       typeName,
@@ -275,7 +287,17 @@ export function readApplicationCompilerOptions(applicationDirectory) {
     const declaration = existsSync(resolution.resolvedFileName)
       ? realpathSync(resolution.resolvedFileName)
       : resolve(resolution.resolvedFileName);
-    if (isOutside(applicationDirectory, declaration)) {
+    const typePackage = typeName.startsWith("@")
+      ? `@types/${typeName.slice(1).replace("/", "__")}`
+      : `@types/${typeName}`;
+    const normalizedDeclaration = declaration.replaceAll("\\", "/");
+    const isDeclaredExternalPackage =
+      declaredPackages.has(typePackage) &&
+      normalizedDeclaration.includes(`/node_modules/${typePackage}/`);
+    if (
+      isOutside(applicationDirectory, declaration) &&
+      !isDeclaredExternalPackage
+    ) {
       throw new Error(
         `application TypeScript type package escapes its build root: ${typeName} (${resolution.resolvedFileName})`,
       );

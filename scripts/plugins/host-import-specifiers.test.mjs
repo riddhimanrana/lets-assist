@@ -275,6 +275,10 @@ describe("host import specifier collection", () => {
       mkdirSync(outsideTypes, { recursive: true });
       writeFileSync(join(applicationRoot, "src/index.ts"), "export {};\n");
       writeFileSync(
+        join(applicationRoot, "package.json"),
+        '{"private":true,"devDependencies":{}}\n',
+      );
+      writeFileSync(
         join(outsideTypes, "index.d.ts"),
         "declare const host: string;\n",
       );
@@ -309,6 +313,14 @@ describe("host import specifier collection", () => {
       expect(() => readApplicationCompilerOptions(applicationRoot)).toThrow(
         /TypeScript type package escapes its build root/u,
       );
+
+      writeFileSync(
+        join(applicationRoot, "package.json"),
+        '{"private":true,"devDependencies":{"@types/example-host":"1.0.0"}}\n',
+      );
+      expect(() =>
+        readApplicationCompilerOptions(applicationRoot),
+      ).not.toThrow();
     } finally {
       rmSync(root, { recursive: true, force: true });
     }
