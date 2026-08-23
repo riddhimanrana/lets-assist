@@ -1,6 +1,4 @@
 import {
-  ArrowRight,
-  Boxes,
   CheckCircle2,
   Cloud,
   Code2,
@@ -100,25 +98,17 @@ export default function PluginOverview({
 
   return (
     <div className="space-y-5">
-      <section className="overflow-hidden rounded-2xl border bg-card shadow-sm">
-        <div className="grid gap-6 border-b bg-[linear-gradient(135deg,hsl(var(--muted)/0.58),hsl(var(--background))_60%)] p-5 lg:grid-cols-[1fr_auto] lg:items-end lg:p-7">
-          <div className="max-w-2xl space-y-2">
-            <div className="flex items-center gap-2 text-sm font-medium text-primary">
-              <Boxes className="size-4" />
-              Plugin operations
-            </div>
-            <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">
-              Install and update plugins without touching platform code
-            </h1>
-            <p className="text-sm leading-6 text-muted-foreground">
-              Pick a plugin, grant an organization access, then let its admin
-              install or switch runtimes. Release metadata and recovery controls
-              stay available when you need them.
+      <section className="overflow-hidden rounded-xl border bg-card">
+        <div className="flex flex-col gap-4 border-b p-5 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <h1 className="text-xl font-semibold tracking-tight">Plugins</h1>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Manage access, installed versions, runtimes, and deployment
+              health.
             </p>
           </div>
-          <Button type="button" onClick={() => onOpenAccess()}>
-            Grant organization access
-            <ArrowRight className="size-4" />
+          <Button type="button" size="sm" onClick={() => onOpenAccess()}>
+            Grant access
           </Button>
         </div>
 
@@ -293,45 +283,6 @@ export default function PluginOverview({
               </Card>
             );
           })}
-        </div>
-      </section>
-
-      <section className="rounded-2xl border bg-muted/15 p-5">
-        <div className="flex items-center gap-2">
-          <ShieldCheck className="size-4 text-primary" />
-          <h2 className="font-semibold">How a release moves</h2>
-        </div>
-        <div className="mt-4 grid gap-3 md:grid-cols-4">
-          {[
-            [
-              "1",
-              "Build and sign",
-              "The plugin repository creates an immutable release.",
-            ],
-            [
-              "2",
-              "Publish",
-              "The platform records the version and compatibility.",
-            ],
-            [
-              "3",
-              "Deploy",
-              "Application plugins ship without rebuilding the host.",
-            ],
-            ["4", "Switch", "An organization admin chooses the new runtime."],
-          ].map(([step, title, detail]) => (
-            <div key={step} className="rounded-xl border bg-background p-3">
-              <div className="flex items-center gap-2">
-                <span className="flex size-6 items-center justify-center rounded-full bg-primary text-xs font-semibold text-primary-foreground">
-                  {step}
-                </span>
-                <p className="text-sm font-medium">{title}</p>
-              </div>
-              <p className="mt-2 text-xs leading-5 text-muted-foreground">
-                {detail}
-              </p>
-            </div>
-          ))}
         </div>
       </section>
     </div>

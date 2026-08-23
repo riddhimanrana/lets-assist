@@ -16,9 +16,8 @@ describe("plugin admin console", () => {
     expect(controlPlane).toContain('useState("overview")');
     expect(controlPlane).toContain('value="advanced"');
     expect(overview).toContain("Microfrontend app");
-    expect(overview).toContain(
-      "Install and update plugins without touching platform code",
-    );
+    expect(overview).toContain("Manage access, installed versions, runtimes");
+    expect(overview).not.toContain("How a release moves");
   });
 
   it("keeps handwritten plugin console modules within the component limit", () => {
