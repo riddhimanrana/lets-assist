@@ -60,6 +60,32 @@ export type PluginInstallRow = {
   plugin_key: string;
   enabled: boolean;
   installed_version: string | null;
+  desired_version: string | null;
+  update_policy: "manual" | "security_only";
+};
+
+export type PluginRuntimeProfileSummary = {
+  plugin_key: string;
+  profile: "embedded" | "application" | "service";
+  version: string;
+  signed: boolean;
+  project_name: string | null;
+  project_id: string | null;
+};
+
+export type PluginInstallRuntimeSummary = {
+  organization_id: string;
+  organization_name: string;
+  plugin_key: string;
+  enabled: boolean;
+  installed_version: string | null;
+  desired_version: string | null;
+  update_policy: "manual" | "security_only";
+  application_enabled: boolean;
+  application_environment: "development" | "production" | null;
+  application_version: string | null;
+  deployment_healthy: boolean | null;
+  deployment_id: string | null;
 };
 
 export type PluginAccessControlRow = {
@@ -134,6 +160,8 @@ export type PluginControlPlaneData = {
   entitlements: PluginEntitlementRow[];
   dataBoundaries: PluginDataBoundaryRow[];
   organizations: PluginOrganizationOption[];
+  runtimeProfiles: PluginRuntimeProfileSummary[];
+  installRuntimes: PluginInstallRuntimeSummary[];
   error?: string;
   warning?: string;
 };

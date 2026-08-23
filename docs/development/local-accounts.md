@@ -1,71 +1,54 @@
-# Local Development Accounts
+# Local development accounts
 
-Use these only in local development.
+These fictional accounts work only against a local Supabase stack. The
+repository does not store their password.
 
-## Bootstrap command
+## Shared local setup
 
-Run from the repository root:
+Create one run-scoped password before resetting and seeding the shared local
+stack:
 
 ```bash
+export CSF_LOCAL_TEST_PASSWORD="$(openssl rand -base64 24)"
+export DV_LOCAL_TEST_PASSWORD="$CSF_LOCAL_TEST_PASSWORD"
 bun run supabase
+bun run dev:next
 ```
 
-That command starts local Supabase, resets the database through the current migrations, seeds the deterministic fixture accounts, and checks the local stack health.
+All accounts created by that fixture run use the exported password. Keep the
+terminal open or save the value in a local password manager until you finish
+testing.
 
-## Core sign-in accounts
+The shared platform seed includes:
 
-All passwords: `robo6737`
+| Account                        | Role                                                               |
+| ------------------------------ | ------------------------------------------------------------------ |
+| `platform.admin@local.test`    | Platform super admin and administrator in the seeded organizations |
+| `platform.staff@local.test`    | Staff in the seeded platform organizations                         |
+| `platform.member@local.test`   | Member in a seeded platform organization                           |
+| `platform.outsider@local.test` | Authenticated account with no organization membership              |
 
-1. Admin account
-   - Email: `riddhiman.rana@gmail.com`
-   - Name: `Riddhiman Rana`
-   - Role: Admin in all seeded orgs
+The shared seed does not create DVHS CSF records. Use the isolated CSF setup for
+that plugin.
 
-2. DV admin
-   - Email: `dv.admin@local.test`
-   - Name: `DV Admin`
-   - Role: Admin in DV Speech & Debate only
+## Optional Speech and Debate accounts
 
-3. DV staff
-   - Email: `dv.staff@local.test`
-   - Name: `DV Staff`
-   - Role: Staff in DV Speech & Debate only
+After the shared seed, run `bun run dv:fixtures` with the same exported
+password. This adds `dv.admin@local.test`, `dv.staff@local.test`, three student
+accounts, an outsider, and the numbered member fixtures documented in
+[the fixture catalog](../../scripts/local-dev/README-fixtures.md).
 
-4. DV student
-   - Email: `dv.student.a@local.test`
-   - Name: `Alex Student`
-   - Role: Member in DV Speech & Debate only
+## Isolated CSF accounts
 
-5. DV student
-   - Email: `dv.student.b@local.test`
-   - Name: `Blair Student`
-   - Role: Member in DV Speech & Debate only
+Run `bun run dev`. The isolated launcher creates or reuses an owner-only
+password file, prints the current password, and starts the fictional CSF stack.
+Use `csf.admin@local.test` for organization and plugin administration. The full
+officer and member account list is in the
+[fixture catalog](../../scripts/local-dev/README-fixtures.md).
 
-6. DV student
-   - Email: `dv.student.c@local.test`
-   - Name: `Casey Student`
-   - Role: Member in DV Speech & Debate only
+## If sign-in fails
 
-7. Outside user
-   - Email: `dv.outsider@local.test`
-   - Name: `Outside User`
-   - Role: Not a member of the seeded orgs
-
-## Mock members
-
-All passwords: `robo6737`
-
-- `member.1@local.test` through `member.5@local.test` are seeded into DV Speech & Debate
-- `member.6@local.test` through `member.10@local.test` are seeded into Acts of Hearts
-- `member.11@local.test` through `member.15@local.test` are seeded into WRMS Speech & Debate
-
-## Remote preview mapping
-
-When Remote Preview is enabled, the local admin account maps to the remote user ID below:
-
-- `riddhiman.rana@gmail.com` -> `b6ee0559-a406-4992-b621-9c5af015adce`
-
-## Notes
-
-- The fixture seed is idempotent and safe to re-run.
-- If login appears stale, sign out and sign back in after re-running `bun run supabase`.
+- Confirm the browser points at the same local stack that was seeded.
+- Reuse the password from the current fixture run. A database reset invalidates
+  the previous run's accounts.
+- Sign out before retrying if the browser holds an older local session.

@@ -76,6 +76,30 @@ Real chapter spreadsheets live git-ignored in `docs/csf/source-data/`; their lay
 
 Consequential transitions must be organization-scoped, atomic, audited, retry-safe, and covered at both the Server Action/service boundary and the database boundary. Extend existing CSF models instead of creating parallel concepts.
 
+## Plugin work
+
+Read [plugin quickstart](docs/development/plugin-quickstart.md) before changing a
+plugin, its admin controls, or its release workflow. Then read
+[private plugins](docs/development/private-plugins.md) for repository boundaries
+and [signed release integration](docs/development/plugin-release-integration.md)
+for publication and deployment.
+
+- Treat embedded, application, and service runtimes as different release
+  profiles. Do not infer a runtime type from a route or folder name.
+- Run `bun run plugin:submodules:init` and
+  `bun run plugin:submodules:check:strict` in every fresh worktree.
+- Before `bun run supabase`, export a run-scoped
+  `CSF_LOCAL_TEST_PASSWORD`; reuse it as `DV_LOCAL_TEST_PASSWORD` when loading
+  the optional Speech and Debate fixtures.
+- Use one branch and worktree per concurrent agent task. Merge reviewed work
+  into `development`, then delete only branches proven to be ancestors of
+  `origin/development`.
+- Keep normal admin work in Overview and Organization access. Plugin details
+  and Advanced are operator controls, not an installation shortcut.
+- Never advance an organization install or application selection with a data
+  migration. Use the leased control-plane actions so authorization, release
+  compatibility, deployment health, audit, and retries run at action time.
+
 ## Change discipline
 
 - Preserve product routes and public action signatures during refactors. Use temporary barrel exports only while consumers migrate.

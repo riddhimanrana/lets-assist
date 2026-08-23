@@ -12,9 +12,8 @@ import PluginControlPlane from "./PluginControlPlane";
 import { getPluginControlPlaneData } from "./actions";
 
 export const metadata = {
-  title: "Plugin Control Plane | Let's Assist Admin",
-  description:
-    "Manage plugin catalog controls, organization entitlements, and force-update operations.",
+  title: "Plugins | Let's Assist Admin",
+  description: "Install, update, and monitor organization plugins.",
 };
 
 export default async function AdminPluginsPage() {
@@ -30,7 +29,7 @@ export default async function AdminPluginsPage() {
       <div className="container mx-auto max-w-7xl px-4 py-8">
         <Card>
           <CardHeader>
-            <CardTitle>Plugin Control Plane</CardTitle>
+            <CardTitle>Plugins</CardTitle>
             <CardDescription>
               Unable to load plugin control data.
             </CardDescription>
