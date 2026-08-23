@@ -92,23 +92,24 @@ git commit -m "Add schema changes: <description>"
 git push origin development
 
 # Create PR: development → main
-# GitHub Actions will automatically run full validation
+# The short PR quality lane runs before merge
 ```
 
-### 5. **CI on Main, and the manual production gate**
+### 5. **Manual Production validation and deployment**
 
-> **Merging to `main` does not deploy the schema.** A push to `main` that touches
-> `supabase/migrations/**` or `supabase/config.toml` runs validation only. The
-> `deploy-to-production` job in `.github/workflows/deploy-schema.yml` runs **only**
-> on a manual `workflow_dispatch`, only from `refs/heads/main`, and only when the
-> `production_confirmation` input exactly matches
-> `deploy-production:fotdmeakexgrkronxlof`. It then verifies the target project
-> ref twice, dry-runs, pushes, and checks migration-ledger parity.
+> **Merging to `main` does not validate or deploy the Production schema.** After
+> the merge, an authorized operator must manually start
+> `.github/workflows/deploy-schema.yml` from `main`. The workflow accepts only
+> `refs/heads/main` and requires the exact `production_confirmation` input
+> `deploy-production:fotdmeakexgrkronxlof`. One isolated Supabase stack replays
+> the migration ledger, runs pgTAP and the database advisors, then the workflow
+> verifies the target project ref twice, performs a dry run, pushes the pending
+> migrations, and checks migration-ledger parity.
 >
-> The real safeguard is stronger than automation would be. Treat production
-> schema deployment as a deliberate, authorized act.
+> Record the manual workflow run as the Production database release evidence.
+> A merged PR or successful Vercel deployment is not database release evidence.
 
-When your PR merges to `main`, GitHub Actions automatically:
+The manually dispatched workflow:
 
 1. ✅ **Validates Migrations**
    - Checks file naming conventions
@@ -124,7 +125,7 @@ When your PR merges to `main`, GitHub Actions automatically:
    - Security checks (RLS policies, exposed functions, etc.)
    - Performance analysis (missing indexes, etc.)
 
-4. ✅ **Deploys to Production**
+4. ✅ **Deploys to Production after the local gates pass**
    - Links to remote database
    - Shows pending changes
    - Dry-run validation

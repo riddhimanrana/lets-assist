@@ -43,6 +43,21 @@ function occurrenceCount(source: string, value: string) {
 }
 
 describe("local platform seed authorization", () => {
+  test("keeps catalog seeds aligned with each serving runtime", () => {
+    const catalog = sourceSection(
+      "const pluginCatalogRows = [",
+      "export function buildSeedFixtureSets",
+    );
+
+    expect(catalog).toMatch(
+      /key: "dv-speech-debate",[\s\S]*?latest_version: "2\.0\.2"/u,
+    );
+    expect(catalog).toMatch(
+      /key: "dvhs-csf",[\s\S]*?latest_version: "1\.1\.0"/u,
+    );
+    expect(catalog).not.toContain('latest_version: "1.2.8"');
+  });
+
   test("keeps the isolated CSF administrator fictional and portrait-free", () => {
     const csfAdmin = sourceSection('key: "csfAdmin"', 'key: "csfOfficer"');
 
