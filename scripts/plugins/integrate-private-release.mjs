@@ -57,6 +57,7 @@ export function verifyPublishedEmbeddedTrees(
   targetCommit,
   releasedPluginKey = null,
   servingPrivateCommit = null,
+  allowedReleasedPluginPaths = null,
 ) {
   const latestEmbeddedByPlugin = new Map();
   for (const release of registry.filter(
@@ -68,15 +69,39 @@ export function verifyPublishedEmbeddedTrees(
     }
   }
   for (const release of latestEmbeddedByPlugin.values()) {
-    if (release.pluginKey === releasedPluginKey) continue;
     const pluginPath = `plugins/${release.pluginKey}`;
     let publishedTree;
     let targetTree;
+    const baselineCommit =
+      release.signer == null && servingPrivateCommit
+        ? servingPrivateCommit
+        : release.sourceCommit;
+    if (release.pluginKey === releasedPluginKey) {
+      if (allowedReleasedPluginPaths === null) continue;
+      let changedPaths;
+      try {
+        changedPaths = git(privateRoot, [
+          "diff",
+          "--name-only",
+          baselineCommit,
+          targetCommit,
+          "--",
+          pluginPath,
+        ])
+          .split("\n")
+          .filter(Boolean);
+      } catch {
+        fail(`cannot verify published embedded tree for ${release.pluginKey}`);
+      }
+      const allowedPaths = new Set(allowedReleasedPluginPaths);
+      if (changedPaths.some((path) => !allowedPaths.has(path))) {
+        fail(
+          `release changes published embedded code for ${release.pluginKey}`,
+        );
+      }
+      continue;
+    }
     try {
-      const baselineCommit =
-        release.signer == null && servingPrivateCommit
-          ? servingPrivateCommit
-          : release.sourceCommit;
       publishedTree = git(privateRoot, [
         "rev-parse",
         `${baselineCommit}:${pluginPath}`,
@@ -739,8 +764,11 @@ export function integratePrivateRelease({
     privateRoot,
     registry,
     manifest.sourceCommit,
-    manifest.runtimeProfile === "embedded" ? manifest.pluginKey : null,
+    manifest.pluginKey,
     servingPrivateCommit,
+    manifest.runtimeProfile === "application"
+      ? [manifest.changelogPath, `plugins/${manifest.pluginKey}/release.json`]
+      : null,
   );
   if (compareVersions(manifest.version, previous.version) <= 0) {
     fail(

@@ -439,6 +439,70 @@ test("refuses an application release that advances published embedded code", () 
   );
 });
 
+test("allows application release metadata without advancing embedded code", () => {
+  const input = fixture({ application: true, multiEnvironment: true });
+  const registry = JSON.parse(readFileSync(input.registryPath, "utf8"));
+  const servingCommit = input.manifest.sourceCommit;
+  writeFileSync(
+    join(input.privateRoot, "plugins/example-plugin/release.json"),
+    '{"version":"1.2.3"}\n',
+  );
+  writeFileSync(
+    join(input.privateRoot, "plugins/example-plugin/CHANGELOG.md"),
+    "# Changelog\n\n## 1.2.3\n\n- Application release.\n",
+  );
+  runGit(input.privateRoot, "add", ".");
+  runGit(input.privateRoot, "commit", "-m", "update release metadata");
+  const targetCommit = runGit(input.privateRoot, "rev-parse", "HEAD");
+
+  assert.doesNotThrow(() =>
+    verifyPublishedEmbeddedTrees(
+      input.privateRoot,
+      registry,
+      targetCommit,
+      "example-plugin",
+      servingCommit,
+      [
+        "plugins/example-plugin/CHANGELOG.md",
+        "plugins/example-plugin/release.json",
+      ],
+    ),
+  );
+});
+
+test("still refuses embedded code in an application release", () => {
+  const input = fixture({ application: true, multiEnvironment: true });
+  const registry = JSON.parse(readFileSync(input.registryPath, "utf8"));
+  const servingCommit = input.manifest.sourceCommit;
+  writeFileSync(
+    join(input.privateRoot, "plugins/example-plugin/release.json"),
+    '{"version":"1.2.3"}\n',
+  );
+  writeFileSync(
+    join(input.privateRoot, "plugins/example-plugin/feature.ts"),
+    'export const value = "changed with application release";\n',
+  );
+  runGit(input.privateRoot, "add", ".");
+  runGit(input.privateRoot, "commit", "-m", "mix runtime and release changes");
+  const targetCommit = runGit(input.privateRoot, "rev-parse", "HEAD");
+
+  assert.throws(
+    () =>
+      verifyPublishedEmbeddedTrees(
+        input.privateRoot,
+        registry,
+        targetCommit,
+        "example-plugin",
+        servingCommit,
+        [
+          "plugins/example-plugin/CHANGELOG.md",
+          "plugins/example-plugin/release.json",
+        ],
+      ),
+    /release changes published embedded code/u,
+  );
+});
+
 test("anchors an unsigned bootstrap release to the code the host serves", () => {
   const input = fixture({ application: true, multiEnvironment: true });
   const registry = JSON.parse(readFileSync(input.registryPath, "utf8"));
