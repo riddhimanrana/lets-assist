@@ -309,9 +309,16 @@ export function resolveEscapingApplicationImportSpecifier(
   applicationRoot,
   compilerOptions,
 ) {
-  const target = specifier.startsWith(".")
-    ? resolve(dirname(sourceFile), specifier)
-    : resolveApplicationImportSpecifier(specifier, sourceFile, compilerOptions);
+  const resolvedTarget = resolveApplicationImportSpecifier(
+    specifier,
+    sourceFile,
+    compilerOptions,
+  );
+  const target =
+    resolvedTarget ??
+    (specifier.startsWith(".")
+      ? resolve(dirname(sourceFile), specifier)
+      : null);
   if (!target || target.split(/[\\/]/u).includes("node_modules")) return null;
   return isOutside(applicationRoot, target) ? target : null;
 }

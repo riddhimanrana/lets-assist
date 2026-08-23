@@ -523,6 +523,18 @@ function validateConfigPropertyValues(
       });
     }
   }
+  if (
+    property.type === "integer" &&
+    typeof property.minimum === "number" &&
+    typeof property.maximum === "number" &&
+    Math.ceil(property.minimum) > Math.floor(property.maximum)
+  ) {
+    errors.push({
+      path: `${path}/maximum`,
+      message: "must form a range containing at least one integer",
+      keyword: "configIntegerRange",
+    });
+  }
 
   const validateCandidate = (candidate: unknown, candidatePath: string) => {
     if (validateValue(candidate)) return;

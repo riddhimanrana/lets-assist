@@ -480,6 +480,28 @@ describe("plugin manifest validation", () => {
     );
   });
 
+  test("rejects an ordered integer range containing no integer", () => {
+    const result = validatePluginSdkManifest(
+      embeddedManifest({
+        configSchema: {
+          type: "object",
+          properties: {
+            count: { type: "integer", minimum: 0.1, maximum: 0.9 },
+          },
+          required: ["count"],
+          additionalProperties: false,
+        },
+      }),
+    );
+
+    expect(result.valid).toBe(false);
+    expect(result.errors).toContainEqual({
+      path: "/configSchema/properties/count/maximum",
+      message: "must form a range containing at least one integer",
+      keyword: "configIntegerRange",
+    });
+  });
+
   test("rejects values JSON would omit or execute while serializing", () => {
     const hidden = embeddedManifest();
     Object.defineProperty(hidden, "hidden", {

@@ -257,6 +257,18 @@ describe("updateOrganization reserved-slug enforcement", () => {
     expect(appliedUpdate?.username).toBe("acme-nonprofit");
   });
 
+  test("preserves an unchanged historical mixed-case username", async () => {
+    currentOrgRow!.username = "SchoolClub";
+    const result = await updateOrganization({
+      ...baseUpdateData,
+      username: "SchoolClub",
+      name: "School Club Updated",
+    });
+
+    expect(result).toEqual({ success: true });
+    expect(appliedUpdate?.username).toBe("SchoolClub");
+  });
+
   test("a non-admin caller is rejected before the reserved-slug check runs", async () => {
     isOrgAdmin = false;
     const result = await updateOrganization({

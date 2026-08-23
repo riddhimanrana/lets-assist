@@ -257,6 +257,36 @@ describe("host import specifier collection", () => {
     }
   });
 
+  test("resolves relative imports through rootDirs before classifying them", () => {
+    const root = mkdtempSync(join(tmpdir(), "plugin-root-dirs-boundary-"));
+    try {
+      const applicationRoot = join(root, "apps/example");
+      const sourceRoot = join(applicationRoot, "src");
+      const outsideRoot = join(root, "outside");
+      mkdirSync(sourceRoot, { recursive: true });
+      mkdirSync(outsideRoot, { recursive: true });
+      const sourceFile = join(sourceRoot, "index.ts");
+      const outsideFile = join(outsideRoot, "shared.ts");
+      writeFileSync(sourceFile, 'import "./shared";\n');
+      writeFileSync(outsideFile, "export {};\n");
+
+      expect(
+        resolveEscapingApplicationImportSpecifier(
+          "./shared",
+          sourceFile,
+          applicationRoot,
+          {
+            module: 99,
+            moduleResolution: 100,
+            rootDirs: [sourceRoot, outsideRoot],
+          },
+        ),
+      ).toBe(outsideFile);
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
   test("collects literal CommonJS resolution dependencies", () => {
     const source = `
       const resolved = require.resolve("@/lib/resolved-host");
