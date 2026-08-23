@@ -83,6 +83,46 @@ class**. This amendment supersedes the Classes-embedded semester views in
 
 Where earlier text conflicts with this record, this record wins.
 
+### Amendment 5 — Class join codes replace onboarding links (v1.5, August 23, 2026)
+
+The onboarding-link system is retired (`20260823210000`–`20260823212000`):
+reusable class links, student-specific direct invitations, the profile-claim
+confirm/decline flow, the organization-level account-connections view, and
+officer student-record search no longer exist. One student connection path
+remains:
+
+- **Permanent class join code.** Each graduating class holds one permanent
+  6-character code drawn from a 32-letter alphabet that omits 0/O/1/I. The
+  class page's **Invite students** dialog shows it with **Copy**, and offers
+  **Create code**, **Regenerate code** (the replaced code stops working
+  immediately), and **Disable code**. Code state carries no send telemetry,
+  and no code action emails anyone.
+- **Student journey.** A student opens the public `/connect/<code>` route or
+  enters the code in the **Class join code** form, signs in with a verified
+  account, and submits the **Find my record** details.
+  `csf_join_class_by_code` uses the verified account email as the only
+  automatic signal: one active same-class email match connects atomically with
+  recorded history; zero matches create a new stable profile from the account
+  identity; a conflicting account or class assignment, or an email shared by
+  several records, creates a review request instead. Joining connects the
+  lasting graduating class only and never activates semester membership.
+- **Per-class review.** Unresolved joins wait in that class's Members tab
+  under **Needs attention**, paged by `csf_connect_cursor`. The **Resolve**
+  dialog renders **Connect account** only when the database confirms canonical
+  evidence — the confirmed account email matching the roster email, the exact
+  name, and exactly one matching active class membership; **Reject request**
+  is always available, with a required decision reason. Officer Home shows a
+  **Connection requests** chip with the total pending count.
+- **Application form link.** The public apply call to action comes from the
+  per-term `application_form_url`, edited in the term dialog's **Application
+  form link** field and rendered only while that term is current and inside
+  its application window.
+
+Clauses about onboarding links, invitations, profile claims, or the account
+connections view in earlier sections (§8.5, §9.5, §19.22–23, §22.1) are
+superseded and annotated in place. Where earlier text conflicts with this
+record, this record wins.
+
 ---
 
 ## 1. Executive decision record
@@ -548,8 +588,8 @@ Prohibited home content: “At risk,” “Review inbox,” “Semester readines
 **Purpose:** Find a durable student record and understand its current-semester state quickly.<br>
 **Primary users:** Profile managers and adviser.<br>
 **Shows:** Student, graduating class, account connection, current application decision, eligibility, dues, membership outcome/progress, counted points, meetings, and last update. Empty future semesters are never rendered as chips.<br>
-**Primary actions:** Open member; add a missing student; create a reusable class link; create a student-specific secure link from one current unique email recorded on the selected active profile.<br>
-**Secondary actions:** Merge duplicate candidates; copy/renew/expire a secure link; export filtered directory. Link actions do not send email or change email-delivery telemetry.<br>
+**Primary actions:** Open member; add a missing student; share the class's permanent join code from **Invite students** (see Amendment 5).<br>
+**Secondary actions:** Merge duplicate candidates; export filtered directory. Code actions do not send email or change email-delivery telemetry.<br>
 **Filters/search:** Class, account connection, application decision, eligibility, dues, membership outcome, and search.<br>
 **Empty states:** No students imported; no filter matches.<br>
 **Permissions:** Application/dues fields are column-filtered by capability; profile managers without payment access see a neutral “Complete/Needs verification” summary only if permitted.<br>
@@ -775,11 +815,11 @@ The import workspace is specified in Section 12.
 ### 8.25 Public page
 
 **Purpose:** Provide a safe DVHS CSF identity and an entry into an authenticated class connection without becoming a public class workspace.<br>
-**Shows:** Seal/name, short description, official website/Instagram links, class identity cards, member sign-in, and join/claim guidance.<br>
+**Shows:** Seal/name, short description, official website/Instagram links, class identity cards, member sign-in, and join guidance.<br>
 **Actions:** Open the official site, sign in to My CSF, or open a class join page and enter that class's permanent join code.<br>
 **Empty state:** Retain the chapter identity, official links, sign-in, and class-code guidance without inventing public content.<br>
 **Privacy:** Public organization and class routes never expose Stream posts, Activities, semesters, rosters, codes, student-derived counts, applications, dues, eligibility, meeting attendance, points, proofs, notes, or account state. Class Stream and Activities require a signed-in, server-authorized class connection.<br>
-**Identity:** A verified email may produce one limited claim candidate. Missing, ambiguous, conflicting, or name-only evidence moves to officer review and never auto-connects.<br>
+**Identity:** The verified account email is the only automatic connection signal (see Amendment 5). Conflicting or shared-email evidence moves to per-class officer review, and names never auto-connect.<br>
 **Mobile:** Same Let’s Assist public shell with a responsive join/sign-in flow.
 
 ---
@@ -828,15 +868,13 @@ Prior-term closure and next-term setup may overlap.
 4. Corrected normalized value records actor, time, reason/source, and prior value.
 5. Eligibility checks rerun explicitly and return the application to the appropriate queue.
 
-### 9.5 Connect a Let’s Assist account
+### 9.5 Connect a Let’s Assist account (amended v1.5)
 
-1. A confirmed signed-in email that uniquely matches one active student record may offer the limited **We found your CSF record — is this you?** confirmation; it does not connect before the student confirms.
-2. A duplicate email, conflicting account, or nonunique match creates a review request.
-3. Name and graduating class may identify candidates but never auto-connect an account.
-4. To create a student-specific secure link, the officer selects an unconnected active profile, then selects one of that profile's current unique school/personal emails and a semester. Arbitrary recipient typing, shared email, and missing email are blocked; correct the member record first.
-5. Creating, copying, or renewing the link sends no email. The stable request receipt records link state only and an exact retry returns success only while the same profile/email/link evidence remains current.
-6. Officer compares limited identity evidence and connects or rejects. The account's current confirmed email, exact name, and one active cohort must corroborate the selected profile; a candidate ranking or unique name alone is insufficient.
-7. Linking, unlinking, and merge resolution are audited. Unlinking/merging requires a reason.
+1. The student redeems the class's permanent join code at `/connect/<code>` with a verified signed-in account. The verified account email is the only automatic matching signal.
+2. One active same-class record carrying that email connects atomically; zero matches create a new stable profile from the account identity; a conflicting account or class assignment, or an email shared by several records, creates a review request in that class's **Needs attention** queue.
+3. Name and graduating class may identify candidates for officer review but never auto-connect an account.
+4. Officer compares limited identity evidence in **Resolve** and connects or rejects. The account's current confirmed email, exact name, and one matching active class must corroborate the selected profile; a candidate ranking or unique name alone is insufficient.
+5. Linking, unlinking, and merge resolution are audited. Unlinking/merging requires a reason.
 
 ### 9.6 Verify dues
 
@@ -911,7 +949,7 @@ Prior-term closure and next-term setup may overlap.
 | Prepare Spring 2026         | Spring 2026; Configure Spring 2026 only on setup action                                     |
 | F25/S26 in visible headings | Fall 2025/Spring 2026; codes may remain in imports and compact metadata                     |
 | CSF member ledger           | Members or Member directory                                                                 |
-| Onboarding                  | Connect student record or Class invitation                                                  |
+| Onboarding                  | Connect student record or Class join code                                                   |
 | Audit                       | Change history in UI; audit remains an internal technical term                              |
 | Sync                        | Import for inbound data; Export for outbound data; reserve sync for provider health logs    |
 | Point claim                 | Point submission in general UI; “claim” may appear in explanatory copy                      |
@@ -1561,8 +1599,8 @@ These invariants are mandatory across schema, server actions, UI, imports, tests
 19. Responsive variants retain the same Let’s Assist product-company branding.
 20. Synthetic fixtures and generated screenshots contain only fictional privacy-safe contacts on reserved test domains.
 21. Every direct proof fixture insert declares a valid complete upload lifecycle tuple; schema defaults never substitute for finalization.
-22. A reusable class link may offer a claim only when the signed-in account has exactly one active CSF profile with the same verified email; missing, ambiguous, declined, and conflicting matches enter officer review without roster search.
-23. Student profile confirmation and officer connection resolution update organization access, the account link, applicable cohort and term membership, the request record, and immutable history in one organization-scoped transaction.
+22. (amended v1.5) A class join code auto-connects only on one active same-class profile carrying the account's verified email; conflicting or shared-email matches enter per-class officer review without roster search.
+23. (amended v1.5) Class-code join and officer connection resolution update organization access, the account link, cohort membership, the request record, and immutable history in one organization-scoped transaction; the join never activates term membership, while resolution may atomically activate an already-accepted application's term membership.
 24. A Google connection is authorized for one signed-in user, organization, plugin, purpose, capability, return route, and short expiry; the callback rechecks current permission before storing a purpose-bound connection.
 25. Historical activity imports never infer a point value. Every imported award must contain an explicit, positive numeric quantity within the accepted import bound.
 26. Semester close accepts the reviewed evidence hash—not browser-supplied membership decisions—and derives outcomes while the relevant policy and operational records are locked.
@@ -1740,7 +1778,7 @@ Public-route tests must assert the presence of organization identity, official l
 
 This amendment records the contracts verified after the July 16 browser baseline. It does not upgrade the live Google, remote-development, full browser-mutation, accessibility, or Slides acceptance status.
 
-### 22.1 Account claim and connection resolution
+### 22.1 Account claim and connection resolution (superseded by Amendment 5)
 
 - A reusable cohort link now performs candidate discovery through `csf_profile_claim_candidate`. It requires the authenticated account's confirmed email and returns a candidate only when that email identifies exactly one active profile in the same organization.
 - Candidate data is intentionally limited to the student's name, cohort label, term label, and compact membership context. The applicant cannot search or enumerate the roster.

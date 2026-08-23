@@ -420,9 +420,11 @@ test.describe("CSF visible people lifecycle", () => {
       requestError,
     );
 
-    await page.getByRole("button", { name: "Needs account link" }).click();
-    const connections = page.getByRole("region", {
-      name: "Needs account link",
+    // The class-scoped review queue renders directly on the Members tab; a
+    // page reload picks up the request row seeded above.
+    await page.reload({ waitUntil: "domcontentloaded" });
+    const connections = page.locator("section").filter({
+      has: page.getByRole("heading", { name: "Needs attention", exact: true }),
     });
     await expect(connections).toBeVisible();
     const fixtureRequestCard = connections
@@ -506,12 +508,10 @@ test.describe("CSF visible people lifecycle", () => {
         member: { role: "member", status: "active" },
         request: { match_status: "resolved" },
       });
-    await expect(
-      connections.getByText("No account matches need a decision."),
-    ).toBeVisible();
-    await connections
-      .getByRole("button", { name: "Member directory", exact: true })
-      .click();
+    // A resolved request leaves the queue; with nothing pending the section
+    // does not render at all, and the roster is already on the same tab.
+    await page.reload({ waitUntil: "domcontentloaded" });
+    await expect(connections).toHaveCount(0);
     const directorySearch = page.getByLabel("Search members");
     await directorySearch.fill(fixture.profileEmail);
     // The simplified filter bar has no Apply button; Enter submits the GET

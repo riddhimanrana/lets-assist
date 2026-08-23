@@ -616,15 +616,17 @@ test.describe("CSF identity safety", () => {
     page,
   }) => {
     const failures = watchBrowserFailures(page);
+    // The review queue is class-scoped now: it renders on the class's own
+    // Members tab beside the roster it affects.
     await loginAs(
       page,
       "admin",
-      `${CSF_ORGANIZATION_PATH}?tab=csf-members&csf_member_view=connections`,
+      `${CSF_ORGANIZATION_PATH}?tab=csf-cohorts&csf_cohort=${fixture.cohortId}&csf_cohort_tab=members`,
     );
-    await expect(page).toHaveURL(/[?&]csf_member_view=connections(?:&|$)/);
+    await expect(page).toHaveURL(/[?&]csf_cohort_tab=members(?:&|$)/);
 
-    const connections = page.getByRole("region", {
-      name: "Needs account link",
+    const connections = page.locator("section").filter({
+      has: page.getByRole("heading", { name: "Needs attention", exact: true }),
     });
     await expect(connections).toBeVisible();
     await expect(

@@ -2,7 +2,7 @@
 
 End-to-end procedure for bringing a chapter onto the DVHS CSF plugin, from an empty organization to students signing up. Written to be run in order; each stage names the person who can do it.
 
-This generalizes the DVHS-specific cutover in [officer runbook §10](officer-runbook.md#10-fall-2026-rollout-cohort-links-legacy-seed-and-posts). Day-to-day operation after onboarding is the rest of the [officer runbook](officer-runbook.md).
+This generalizes the DVHS-specific cutover in [officer runbook §10](officer-runbook.md#10-fall-2026-rollout-class-join-codes-legacy-seed-and-posts). Day-to-day operation after onboarding is the rest of the [officer runbook](officer-runbook.md).
 
 **Rehearse the whole sequence locally first** — `bun run dev` brings up the isolated CSF stack with fictional fixtures. Never rehearse against a real chapter's data.
 
@@ -33,29 +33,33 @@ everything as an administrator:
 | `csf.secretary@local.test`       | Meetings and attendance                                     |
 | `csf.treasurer@local.test`       | Dues                                                        |
 | `csf.data-management@local.test` | Imports and reconciliation                                  |
-| `student.2028@local.test`        | Existing Class of 2028 record and exact-email profile claim |
-| `csf.applicant@local.test`       | Applicant and unmatched account-link paths                  |
+| `student.2028@local.test`        | Existing Class of 2028 record and exact-email auto-connect  |
+| `csf.applicant@local.test`       | Applicant and unmatched account-connection paths            |
 | `platform.outsider@local.test`   | Public/private boundary check                               |
 
-The current Development rehearsal tracks Classes of 2027, 2028, 2029, and 2030. Each class has an active Fall 2026 semester record and reusable combined
-link. Development dates and policies are rehearsal inputs only; an adviser must
+The current Development rehearsal tracks Classes of 2027, 2028, 2029, and 2030.
+Each class has an active Fall 2026 semester record and a permanent class join
+code. Development dates and policies are rehearsal inputs only; an adviser must
 replace and approve them from the chapter calendar before a Production cutover.
 
 ### Development acceptance walk-through
 
 1. Sign in as `csf.admin@local.test`; open **DVHS CSF → Classes**. Confirm all
    four classes point to Fall 2026, the application window is set, the policy is
-   published, and each class has one active reusable link.
-2. Open **Members → account connections** and note the queue before testing a
-   new link. Never expose or export the member roster to perform this check.
-3. In a signed-out window, open the Class of 2028 link and sign in as
-   `student.2028@local.test`. Confirm **Is this you?**, choose **Use this
-   profile**, then verify **Home** and **My CSF** show the class, current policy,
-   and historical semesters.
-4. Repeat with `csf.applicant@local.test`, choose **Not me** or submit the
-   unmatched request, then return as the Membership VP. Verify the request
-   appears in the officer queue. Connect only when the recorded email, name, and
-   class all corroborate; otherwise reject with a reason.
+   published, and each class has an active join code in **Invite students**.
+2. Open the Class of 2028 class page's **Members** tab and note the **Needs
+   attention** queue before testing a new join. Never expose or export the
+   member roster to perform this check.
+3. In a signed-out window, open the Class of 2028 code's `/connect/<code>` URL
+   and sign in as `student.2028@local.test`. Complete **Add profile details →
+   Find my record**; the record whose roster email matches the verified account
+   email connects automatically. Verify **Home** and **My CSF** show the class,
+   current policy, and historical semesters.
+4. Repeat with `csf.applicant@local.test`. An email that matches no class
+   record creates a new stable profile from the account identity; a conflicting
+   or shared email lands the join in **Needs attention** instead. As the
+   Membership VP, resolve any queued request: connect only when the recorded
+   email, name, and class all corroborate; otherwise reject with a reason.
 5. Sign in as `platform.outsider@local.test`. The public organization page may
    show public activities, but must not expose roster, applications, evidence,
    attendance, points, or account-connection data.
@@ -158,25 +162,25 @@ Before any announcement email, open **Communications settings**, select **Check 
 
 ## Stage 6 — Student rollout
 
-1. Create one cohort onboarding link per graduating class for the current term, combined link type. These replace whatever the chapter published before — Classroom codes, a form, a spreadsheet.
-2. Publish the links wherever the chapter reaches students.
+1. Each graduating class already holds one permanent 6-character join code; read it from the class page's **Invite students** dialog (create one there if the class has none). These codes replace whatever the chapter published before — Classroom codes, a form, a spreadsheet.
+2. Publish each class's code or its `/connect/<code>` URL wherever the chapter reaches students. Record the current term's application form URL in the term's **Application form link** so the public page can offer it during the application window.
 
-What a student experiences: they sign up through the link, skip the generic platform tour, confirm an exact-email claim ("is this you?"), pick a username in place, and land on their class Home with the CSF member tour.
+What a student experiences: they open `/connect/<code>`, sign in with a verified account, submit **Find my record**, and the record carrying their verified email connects automatically — they pick a username in place and land on their class Home with the CSF member tour. An email on no class record creates a new stable profile in that class instead of a dead end.
 
-A student whose sign-up email is not on a current profile submits a **link request** instead. Officers resolve these in the Members queue. Ranked name-similarity suggestions are advisory only; **Connect account** remains unavailable until the confirmed account email, exact name, and one active class corroborate one current profile. **Roster names are never exposed to students** — the student sees only their own request's state.
+A join whose email conflicts with an account or class assignment, or is shared by several records, waits in that class's **Needs attention** queue. Ranked suggestions are advisory only; **Connect account** remains unavailable until the confirmed account email, exact name, and one active class corroborate one current profile. **Roster names are never exposed to students** — the student sees only their own request's state.
 
 ### New application cycle when no profile exists (DVHS Class of 2030)
 
 The application response does not create the profile, and the application decision does not create the profile. For a class that begins with an empty cohort shell, use this sequence:
 
-1. Keep the reviewed combined class link attached to the new application form. For DVHS, the Class of 2030 workbook remains unimported.
+1. Record the reviewed new application form URL in the current term's **Application form link**. For DVHS, the Class of 2030 workbook remains unimported.
 2. After a student submits the current form, open **More → Imports**, choose **Applications**, select the exact source tab and bounded range, map it, and select **Preview normalized rows**. Preview records source evidence but creates no profile, application, or membership.
 3. A response with no reviewed profile is held for reconciliation. Open **Members → Add member**, use **Add a student record**, enter the exact reviewed identity and current unique school/personal email, choose **Class** = Class of 2030, and select **Add student record**. Wait for **Student record created.** Do not create a duplicate when a current profile already exists.
 4. This staff action creates the permanent profile and class membership through the replay-safe profile-write transaction and records a separate `profile.create` audit receipt. It does not create the imported application, term membership, or account connection, and its audit receipt does not replace the source-row evidence.
 5. Return to the application preview. Select the profile under **Match to member**, enter a 4–500 character **Match reason** that names the corroborating current evidence, and select **Use match**. That separate reconciliation writes the selected target, actor, reason, and source-row audit history. Name similarity alone is not evidence.
 6. When every row is resolved or explicitly skipped, select **Verify source and commit**. A targetless application row cannot be committed. Commit attaches the application to the reviewed profile and preserves source provenance; it does not approve the application or create term membership.
 7. Open **Applications → Review queue**, complete the required checks and dues review, then use **Record decision**. **Approve application** creates or updates term membership atomically with the decision and history; it does not create the profile.
-8. Connect the student's account separately through the exact-email class-link, student-link, or reasoned officer-review path. No application or profile action silently connects an account.
+8. Connect the student's account separately through the class join code's exact verified-email match or the reasoned officer-review path. No application or profile action silently connects an account.
 
 ## Stage 7 — First-term operation
 

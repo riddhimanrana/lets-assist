@@ -70,7 +70,7 @@ One sheet, header + 32 club rows:
 
 ## mail/
 
-`Club Audit Acceptance.eml` (+ `Gmail - Club Audit Acceptance.pdf`, same content): the officer acceptance email BCC'd to ~30 club contacts from `dvhighcsf@gmail.com`. Documents the operating model being replaced: per-club Google Sheets point tracking, photo evidence requirements, and the four Google Classroom class codes (Freshman/Sophomore/Junior/Senior) that the cohort onboarding links supersede.
+`Club Audit Acceptance.eml` (+ `Gmail - Club Audit Acceptance.pdf`, same content): the officer acceptance email BCC'd to ~30 club contacts from `dvhighcsf@gmail.com`. Documents the operating model being replaced: per-club Google Sheets point tracking, photo evidence requirements, and the four Google Classroom class codes (Freshman/Sophomore/Junior/Senior) that the permanent class join codes supersede.
 
 ## clubs/ — 21 per-club Fall 2025 audit workbooks
 

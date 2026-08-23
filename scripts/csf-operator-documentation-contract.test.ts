@@ -98,58 +98,38 @@ const MEMBER_AND_ACCESS: LabelContract[] = [
     ],
   },
   {
-    component: "CsfAccountConnectionActions.tsx",
+    component: "CsfClassInviteDialog.tsx",
     labels: [
-      "Class link",
-      "Student link",
-      "Create a reusable class link",
-      "Create class link",
-      "Reusable class link created.",
-      "Create a student-specific link",
-      "Create secure link",
-      "Student-specific link is ready.",
-      "Application form (optional)",
-      "Student note",
-      "Renew link",
-      "Deactivate",
+      "Invite students",
+      "Create code",
+      "Regenerate code",
+      "Disable code",
+      "This class does not have an active code yet.",
     ],
   },
   {
-    component: "CsfInvitationDialogFields.tsx",
+    component: "CsfCohortMembersReviewQueue.tsx",
     labels: [
-      "Unconnected student record",
-      "Email on this student record",
-      "Expires in days",
-      "Internal label",
-      "Link name",
+      "Needs attention",
+      "Class-code joins waiting for an officer decision",
+      "First page",
     ],
   },
   {
-    component: "CsfAccountConnectionsPanel.tsx",
+    component: "CsfClassCodeEntryForm.tsx",
     labels: [
-      "Needs account link",
-      "Matches to review",
-      "Student-specific links",
-      "Reusable class links",
-      "Student record search",
-      "Search records",
-      "First results",
-      "More results",
-      "First student records",
-      "More student records",
-      "Copy link",
-      "Open link in new tab",
+      "Class join code",
+      "6 letters and numbers; codes never use O, I, 0, or 1",
     ],
-  },
-  {
-    component: "CsfAccountConnectionsModel.ts",
-    labels: ["Recorded email changed"],
   },
   {
     component: "CsfResolveConnectionDialog.tsx",
     labels: [
       "Review account connection",
       "Review in Resolve",
+      "Suggestions · advisory only",
+      "Canonical evidence ready",
+      "Review only",
       "Decision reason",
       "Reject request",
       "Connect account",
@@ -380,17 +360,16 @@ const STUDENT_JOURNEY: LabelContract[] = [
   {
     component: "CsfDashboardContentSection1Connect.tsx",
     labels: [
-      "We found your CSF record — is this you?",
-      "Yes, connect this record",
-      "Not me",
-      "Use this profile",
+      "Student record connection",
+      "Join or connect to CSF",
+      "This class join code is unavailable",
+      "Already have a CSF record?",
+      "You are new to CSF",
       "Add profile details",
+      "Find your CSF record",
+      "Student information",
       "Find my record",
     ],
-  },
-  {
-    component: "CsfDirectInvitationAcceptForm.tsx",
-    labels: ["Accept invitation"],
   },
 ];
 
@@ -454,55 +433,72 @@ describe("CSF operator documentation label contract", () => {
     assertContract(COMMUNICATIONS);
   });
 
-  test("the student-facing claim screen", () => {
+  test("the student-facing connect screen", () => {
     assertContract(STUDENT_JOURNEY);
   });
 });
 
 describe("CSF operator documentation truthfulness guards", () => {
-  test("the guide keeps the three student connection paths distinct", () => {
-    const candidateSource = readComponent(
+  test("the guide documents the single class-code connection path", () => {
+    // The product now has exactly one student connection surface: the connect
+    // page behind a permanent class join code. Its source must still carry the
+    // journey the guide narrates, in the same order.
+    const connectSource = readComponent(
       "CsfDashboardContentSection1Connect.tsx",
     );
-    expectInOrder(candidateSource, [
-      "We found your CSF record — is this you?",
-      "Not me",
-      "Yes, connect this record",
+    expectInOrder(connectSource, [
+      "Join or connect to CSF",
+      "Already have a CSF record?",
+      "You are new to CSF",
     ]);
-    expect(readComponent("CsfDirectInvitationAcceptForm.tsx")).toContain(
-      "Accept invitation",
-    );
-    expectInOrder(candidateSource, ["Add profile details", "Find my record"]);
+    expectInOrder(connectSource, ["Add profile details", "Find my record"]);
+    const codeEntrySource = readComponent("CsfClassCodeEntryForm.tsx");
+    expect(codeEntrySource).toContain("Class join code");
+    // The 6-character alphabet excludes the lookalikes O/I/0/1 by contract.
+    expect(codeEntrySource).toContain('pattern="[A-HJ-NP-Za-hj-np-z2-9]{6}"');
 
-    const candidatePath = between(
+    // The guide walks the one path in operating order: share the code, the
+    // student joins at /connect/<code>, unresolved joins land in the per-class
+    // Needs attention queue, and Resolve gates Connect on canonical evidence.
+    const codePath = between(
       operatorGuide,
-      "**Candidate claim",
-      "**Direct student-specific invitation",
+      "## Share the class join code",
+      "## Make a connected person an officer",
     );
-    expectInOrder(candidatePath, [
-      "We found your CSF record — is this you?",
-      "Yes, connect this record",
-      "Not me",
+    expectInOrder(codePath, [
+      "**Invite students**",
+      "**Create code**",
+      "**Regenerate code**",
+      "**Disable code**",
+      "`/connect/<code>`",
+      "**Class join code**",
+      "**Add profile details**",
+      "**Find my record**",
+      "**Needs attention**",
+      "**Resolve**",
+      "**Connect account**",
+      "**Reject request**",
     ]);
-    expect(candidatePath).not.toContain("Use this profile");
 
-    const directPath = between(
-      operatorGuide,
-      "**Direct student-specific invitation",
-      "**No automatic match",
-    );
-    expect(directPath).toContain("Accept invitation");
-
-    const noMatchPath = between(
-      operatorGuide,
-      "**No automatic match",
-      "Use this profile",
-    );
-    expectInOrder(noMatchPath, [
-      "Add profile details",
-      "Find my record",
-      "Matches to review",
-    ]);
+    // The retired paths must not be resurrected in any operator document:
+    // reusable class links, student-specific invitation links, the
+    // profile-claim confirmation, and the org-level account-connections view.
+    for (const doc of OPERATOR_DOCUMENTS) {
+      for (const retired of [
+        "reusable class link",
+        "student-specific link",
+        "Student link",
+        "Class link",
+        "Accept invitation",
+        "We found your CSF record",
+        "Yes, connect this record",
+        "Needs account link",
+        "Matches to review",
+        "onboarding link",
+      ]) {
+        expect(doc).not.toContain(retired);
+      }
+    }
   });
 
   test("organization creation is documented from the guarded route and form", () => {

@@ -10,6 +10,13 @@ const migration = readFileSync(
   ),
   "utf8",
 );
+const teardownMigration = readFileSync(
+  join(
+    repositoryRoot,
+    "supabase/migrations/20260823211000_drop_csf_onboarding_links.sql",
+  ),
+  "utf8",
+);
 const referenceTest = readFileSync(
   join(
     repositoryRoot,
@@ -55,7 +62,6 @@ describe("CSF profile-merge hardening source contract", () => {
       "csf_term_memberships.profile_id",
       "csf_point_appeals.profile_id",
       "csf_dues_records.profile_id",
-      "csf_onboarding_links.recipient_profile_id",
       "csf_application_correction_requests.profile_id",
       "csf_term_membership_outcomes.profile_id",
       "csf_communication_recipient_snapshots.profile_id",
@@ -66,6 +72,25 @@ describe("CSF profile-merge hardening source contract", () => {
       expect(migration).toContain(`plugin_data.${reference}`);
       expect(referenceTest).toContain(reference);
     }
+  });
+
+  test("the onboarding-link teardown removed its reference arm from the plan", () => {
+    // 20260823211000 recreates csf_profile_merge_reference_plan and
+    // csf_merge_profiles without the retired onboarding-link surface.
+    expect(teardownMigration).toContain(
+      "CREATE OR REPLACE FUNCTION plugin_data.csf_profile_merge_reference_plan",
+    );
+    expect(teardownMigration).toContain(
+      "DROP TABLE plugin_data.csf_onboarding_links",
+    );
+    expect(teardownMigration).toContain(
+      "Onboarding-link teardown left function(s) behind",
+    );
+    expect(teardownMigration).not.toContain(
+      "csf_onboarding_links.recipient_profile_id",
+    );
+    expect(teardownMigration).not.toContain("directInvitations");
+    expect(referenceTest).not.toContain("csf_onboarding_links");
   });
 
   test("uses every profile-key uniqueness predicate in preview and a live-reference postcondition", () => {
@@ -133,7 +158,7 @@ describe("CSF profile-merge hardening source contract", () => {
     expect(referenceTest).toContain(
       "execution rechecks and refuses the same unknown import blocker",
     );
-    expect(referenceTest).toContain("SELECT extensions.plan(49)");
+    expect(referenceTest).toContain("SELECT extensions.plan(48)");
   });
 
   test("has one organization-first lock hierarchy and no global table locks", () => {
@@ -143,7 +168,6 @@ describe("CSF profile-merge hardening source contract", () => {
     expect(concurrencyTest).toContain("dblink_send_query");
     expect(concurrencyTest).toContain("same-organization atomic profile edit");
     expect(concurrencyTest).toContain("cross-organization profile edit");
-    expect(concurrencyTest).toContain("serializes behind the profile claim");
     expect(migration).toContain(
       "RENAME TO csf_claim_import_commit_attempt_identity_base",
     );

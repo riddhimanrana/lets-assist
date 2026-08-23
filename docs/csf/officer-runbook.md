@@ -4,7 +4,7 @@
 **Current status:** this candidate carries 353 ordered migrations through `20260822134710_revalidate_plugin_runtime_admin_authority`; Production was verified read-only at 333 through `20260819050728`, leaving an exact repository-pinned 20-migration cutover. Hosted Development has the verified 353-migration ledger through `20260822134710`, and Google authentication redirects successfully there. The signed 1.2.7 GitHub release has separate Preview-compatible Development and Production child artifacts; catalog integration and rollout remain pending. Browser and provider acceptance remain release gates. Production email-webhook proof also remains open. Google OAuth and Picker were previously connected for a bounded Spring 2026 application preview that committed zero applications. Production remains unchanged by this release task until the authorized release workflow applies the reviewed cutover.
 **Authoritative record after review:** Let's Assist
 
-This runbook describes the v1.3 officer workflow. Do not use it for a production cutover until the remaining Google, full browser-mutation, accessibility, hosted scheduled-post, Production email/webhook, advisor, and database cutover gates in [testing and release](testing-and-release.md) pass.
+This runbook describes the v1.5 officer workflow. Do not use it for a production cutover until the remaining Google, full browser-mutation, accessibility, hosted scheduled-post, Production email/webhook, advisor, and database cutover gates in [testing and release](testing-and-release.md) pass.
 
 ## 1. Start of each work session
 
@@ -48,30 +48,23 @@ Application decision, membership creation, decision event, and audit/request rec
 
 ### Permanent class join code
 
-1. Open **Classes**, choose the graduating class, then open **Settings**. Use the class join code already assigned to that class; rotate it only when the old code must stop working.
-2. Share only that class code or its join URL. Do not distribute a roster export. The public organization and class pages expose no Stream, Activities, membership, or student-derived counts.
-3. After the student signs in with a confirmed email, the system may show **We found your CSF record — is this you?**
-4. The candidate contains only name, graduating class, term, and limited membership context.
-5. If the student confirms, the server atomically connects the account and records history.
-6. If the student selects **Not me**, or the email is missing, ambiguous, or conflicts with another link, the request moves to officer review.
+The class join code is the only student connection path. Each graduating class holds one permanent 6-character code (letters and digits; the characters O, I, 0, and 1 never appear), and connecting through it joins the lasting graduating class only — semester membership still comes from an accepted application or an approved roster import.
 
-Viewing, copying, or rotating a class code does not send an email. The product must not display a sent time or resend count unless an explicit recipient email has entered the durable delivery ledger.
+1. Open **Classes**, choose the graduating class, and select **Invite students**. **Copy** shares the active code; **Regenerate code** replaces it only when the old code must stop working; **Disable code** withdraws it without a replacement. A class without a code offers **Create code**.
+2. Share only that class code or its `/connect/<code>` URL. Do not distribute a roster export. The public organization and class pages expose no Stream, Activities, membership, or student-derived counts.
+3. The student enters the code at the public `/connect/<code>` route, or types it into the **Class join code** entry form, then creates or signs in to a verified Let's Assist account.
+4. The student selects **Add profile details** and submits only the requested identity details with **Find my record**. The account's verified email is the only automatic matching signal: one active same-class record carrying that email connects atomically with recorded history, and no matching record creates a new stable profile in that class from the verified account identity.
+5. A conflicting account, conflicting class assignment, or several records sharing the email moves the request to that class's **Needs attention** queue instead of connecting.
 
-Only a class-code profile-connect flow or combined student-specific invitation may start this workflow. An application-only link is never a profile-claim link. The claimed profile must belong to the code or invitation's cohort. A name-only match never connects an account.
+Viewing, copying, regenerating, or disabling a class code does not send an email. The product must not display a sent time or resend count unless an explicit recipient email has entered the durable delivery ledger.
 
-### Student-specific secure link
-
-1. Open the unconnected-student list in **Members** and choose the active student record first.
-2. Choose one of the school/personal emails the product lists for that record. The product excludes missing or shared addresses; officers cannot type an arbitrary recipient. If the intended address is absent or belongs to more than one active record, close the dialog and make an audited member correction first.
-3. Choose the semester and expiry, then create the link once. The result is a secure link ready to copy; no email is sent.
-4. Copy the existing link when the student needs it again. Use **Renew link** only when the old token must stop working, and then share the replacement manually.
-5. If a response is lost, reload Members before retrying. The stable request receipt returns the original result only if the selected profile, recorded email, and link remain current; it refuses a changed or stale request.
+Only the class join code starts this workflow, and the connected profile must belong to the code's graduating class. A name — even a unique one — is review context only and never connects an account automatically.
 
 ### Officer review
 
-1. Open **Members → Needs account link** and work the **Matches to review** list. Open the request with **Resolve**, or a ranked candidate with **Review in Resolve**; both open the **Review account connection** dialog.
+1. Open the class's **Members** tab and work the **Needs attention** queue (_Class-code joins waiting for an officer decision_), paged with **First page** and **Next**. **Home** shows a **Connection requests** chip with the total pending count, linking to the classes hub. Open the request with **Resolve**, or a ranked candidate with **Review in Resolve**; both open the **Review account connection** dialog.
 2. Compare the request with the student's submitted evidence; never match on name alone. Everything under **Suggestions · advisory only** is a discovery aid, including a candidate badged **Canonical evidence ready**. A conflicting cohort, verified email, or existing account is a hard stop.
-3. Choose **Connect account** or **Reject request** and enter a **Decision reason** of at least four characters. **Connect account** is rendered only when the account's current confirmed email still matches the request snapshot, appears on exactly one active student record, and that record also has the exact requested name and one matching active class; otherwise the dialog states **Connection unavailable** with the specific blockers and offers only **Reject request**. A unique name is still name-only and never authorizes a connection. If those checks fail, correct the student record through the audited member-correction workflow first, or reject the request and issue a student-specific link to the address you can verify.
+3. Choose **Connect account** or **Reject request** and enter a **Decision reason** of at least four characters. **Connect account** is rendered only when the account's current confirmed email still matches the request snapshot, appears on exactly one active student record, and that record also has the exact requested name and one matching active class; otherwise the dialog states **Connection unavailable** with the specific blockers and offers only **Reject request**. A unique name is still name-only and never authorizes a connection. If those checks fail, correct the student record through the audited member-correction workflow first, then have the student join with the class code again.
 4. If the student already has an accepted application for the same cohort and term, the atomic connection may activate that term membership.
 5. Use unlink/relink only to correct a documented error and always include a reason.
 
@@ -178,7 +171,7 @@ Only the adviser with the explicit permission, or an organization admin exercisi
 
 Reports do not write to Google Sheets and do not expose a Google destination picker.
 
-## 10. Fall 2026 rollout: cohort links, legacy seed, and posts
+## 10. Fall 2026 rollout: class join codes, legacy seed, and posts
 
 This section is the one-time cutover procedure from Google Classroom + spreadsheets to Let's Assist, plus the recurring posts/email workflow it enables. Real source files live git-ignored in `docs/csf/source-data/` — see [source data](source-data.md) for every file's layout. Never copy real values out of them.
 
@@ -200,14 +193,14 @@ Acceptance: the three historical previews use the exact bounded ranges and show 
 
 ### 10.3 Student rollout (replaces the four Classroom codes)
 
-1. For Class of 2030, attach the reviewed new application form to the combined link and keep the template workbook unimported. After a current response arrives, preview it as **Applications**. A targetless response is held for reconciliation and cannot commit.
+1. Record the reviewed new application form URL in Fall 2026's **Application form link** (**Term actions → Edit term**) and keep the Class of 2030 template workbook unimported. The public class page offers the form only while the term is current and inside the application window. After a current response arrives, preview it as **Applications**. A targetless response is held for reconciliation and cannot commit.
 2. From that reviewed response, use **Members → Add member → Add a student record** to create the permanent Class of 2030 profile with its current unique email. This replay-safe staff action records `profile.create` audit history but creates no imported application, term membership, or account connection.
 3. Return to the application preview, select the profile under **Match to member**, enter the required 4–500 character **Match reason**, and select **Use match**. This separate audited reconciliation records the target and source-row reason. Only after every row is resolved or skipped may the officer commit; commit attaches the application to the existing profile but does not decide it.
 4. Review the committed application through **Applications → Review queue**. Approval creates or updates term membership atomically with the decision and history; neither the import nor the decision creates the profile. Account connection remains a separate exact-email or reasoned-review action.
-5. Before publishing links for Classes of 2027–2029, establish a current, unique school or personal email on each imported historical profile that is expected to support automatic discovery or a student-specific link. Use the current approved application cycle or another reviewed current source, then record the change through the audited member-correction workflow. Never copy an address from the historical comparison workbook merely to make a match.
-6. Create four cohort onboarding links (§4) — one per graduating class, Fall 2026 term, combined link type. These replace the Freshman/Sophomore/Junior/Senior Google Classroom codes everywhere the chapter publishes them.
-7. A student whose confirmed sign-in email uniquely matches the current email on one same-class profile may see **We found your CSF record — is this you?**, confirm it, pick a username in place, and get the CSF member tour on their **Feed**. The historical class sheet alone can never produce that result.
-8. A student whose current unique email has not been established submits a link request instead. Resolve it in **Members → Needs account link → Matches to review**, but understand that **Connect account** remains unavailable until an officer first records current corroborating email evidence through the audited correction workflow. Ranked suggestions only help locate evidence. Never expose roster names to students.
+5. Before sharing class join codes for Classes of 2027–2029, establish a current, unique school or personal email on each imported historical profile that is expected to connect automatically. Use the current approved application cycle or another reviewed current source, then record the change through the audited member-correction workflow. Never copy an address from the historical comparison workbook merely to make a match.
+6. Confirm each class's permanent join code from **Invite students** (§4) — one per graduating class. These codes replace the Freshman/Sophomore/Junior/Senior Google Classroom codes everywhere the chapter publishes them.
+7. A student whose verified sign-in email uniquely matches the current email on one same-class profile connects automatically, picks a username in place, and gets the CSF member tour on their **Feed**. The historical class sheet alone can never produce that result.
+8. A returning student whose current email has not been established cannot reach their historical record automatically: the join either creates a separate new profile from the account identity — merge the duplicate afterwards through the audited workflow — or, when the email conflicts with an account or class assignment, lands in the class's **Members → Needs attention** queue. There, **Connect account** remains unavailable until an officer first records current corroborating email evidence through the audited correction workflow. Ranked suggestions only help locate evidence. Never expose roster names to students.
 
 ### 10.4 Posts and announcement email
 
@@ -225,7 +218,7 @@ Acceptance: the three historical previews use the exact bounded ranges and show 
 | Wrong connected Google identity                          | Stop before file selection; reconnect the approved chapter account.                                                                                                            |
 | Google source says **Reconnect**                         | Reauthorize; keep existing reviewed records.                                                                                                                                   |
 | Google Picker says it is not configured                  | Stop and ask an administrator to verify `GOOGLE_CLIENT_ID`, the Picker API key, and their shared Google Cloud project; do not request a broader Drive scope.                   |
-| Intended secure-link email is absent/shared              | Close link creation and make an audited member correction first; never type a substitute.                                                                                      |
+| Roster email for a connection is absent/shared           | Record the current unique address through an audited member correction first; never type a substitute or connect on name similarity.                                           |
 | Missing or malformed imported point value                | Leave the row unresolved and correct the source mapping/value; never guess.                                                                                                    |
 | Invalid meeting timestamp                                | Correct with a reason before commit.                                                                                                                                           |
 | Import match/skip action fails                           | Keep the visible member/reason, read the inline error, and retry only after correction.                                                                                        |
@@ -243,19 +236,19 @@ Acceptance: the three historical previews use the exact bounded ranges and show 
 
 Before this runbook is used for the real chapter cutover, all boxes must be checked:
 
-- [x] Atomic exact-email profile claim and reasoned officer resolution
+- [x] Atomic exact-email account connection and reasoned officer resolution
 - [x] Signed purpose/capability-bound Google OAuth state and callback reauthorization
 - [x] Strict historical point import; no one-point fallback
 - [x] Transactional semester close with stale-evidence rejection
 - [x] Fictional-only tracked seed enforcement
 - [x] Clean isolated replay through 214 migrations, 82 CSF tables, 63 pgTAP files, and 3,165/3,165 assertions
-- [x] Profile claim concurrency/idempotent retry, validated tenant foreign keys, legacy close revocation, nine evidence-write guards, and real `dblink` two-session close-vs-insert race
+- [x] Account-connection concurrency/idempotent retry, validated tenant foreign keys, legacy close revocation, nine evidence-write guards, and real `dblink` two-session close-vs-insert race
 - [x] Final post-hardening production build and root typecheck
 - [x] Lint completed with 0 errors and 0 warnings
 - [x] Private-plugin CSF unit/security suite: 2,337 passed
 - [x] Latest focused hardening gate: 73/73 Bun tests with 761 expectations, clean root typecheck, clean focused ESLint
 - [x] Exact Google organization/plugin/purpose/capability binding with legacy reconnect
-- [x] Signed/manual profile-link link-type, cohort, application-lock, and stale-retry hardening
+- [x] Connection-request cohort, application-lock, and stale-retry hardening
 - [x] Local ZIP reports with formula-safe CSV and no Google write destination
 - [x] Dedicated CSF stack validation and label-scoped cleanup; no Vela infrastructure access
 - [x] Compiled-runtime CSF Playwright: 40 behavioral scenarios passed, 3 opt-in screenshot captures intentionally skipped, 0 failed
@@ -264,7 +257,7 @@ Before this runbook is used for the real chapter cutover, all boxes must be chec
 - [x] DV Playwright: 3 passed after explicit fictional DV fixture seeding
 - [x] Repeatable fixture reset preserves audit-linked profiles; obsolete project-feed fetches cancel cleanly; denial assertion targets the sole alert
 - [x] Composite-FK PostgREST onboarding/cohort ambiguity fixed in private-plugin commit `7f12388` with explicit constraint embeds and regression coverage
-- [x] Exact profile claim and decline plus navigation/direct-route boundaries for every officer role
+- [x] Exact account connection and officer review plus navigation/direct-route boundaries for every officer role
 - [x] Login hydration-ready marker and arbitrary-port isolated Supabase environment resolution
 - [x] Final sanitized 22-image curated gallery at [`evidence/20260806-post-cleanup/index.html`](evidence/20260806-post-cleanup/index.html), separate from generated Playwright output
 - [ ] Complete green PR checks; least-privilege `PRIVATE_SUBMODULE_TOKEN`, GitGuardian disposition for the removed local-only fixture password, and authenticated Vercel Preview diagnosis remain open
@@ -285,10 +278,10 @@ Before this runbook is used for the real chapter cutover, all boxes must be chec
 - [ ] Complete synthetic visible mutation lifecycle for every actor
 - [ ] Keyboard, focus, and screen-reader acceptance
 - [ ] Three native Google Slides decks created and visually accepted
-- [ ] Re-run merge/connection hard-conflict, application-preflight, invitation-telemetry, post partial-success, and import-readiness acceptance added after the August 9 lifecycle audit
+- [ ] Re-run merge/connection hard-conflict, application-preflight, post partial-success, and import-readiness acceptance added after the August 9 lifecycle audit
 - [ ] Verify CSF-owned communications configuration and unknown-outcome reconciliation with `manage_settings`, plus reachable post composition for every `manage_posts` template
 - [x] Fresh combined replay/build/static/DV-browser/CSF-browser gates for the exact August 11 root + private-submodule tree
-- [ ] Visible exact-recorded-email student-specific link and response-loss replay journeys; no fabricated send telemetry
+- [ ] Visible class join code create/regenerate/disable and student connect journeys, including response-loss replay; no fabricated send telemetry
 - [ ] Visible six-value grade-policy edit → publish → recalculation journey with stale-draft refusal
 - [ ] Visible import match/skip failure-preservation and truthful history/lineage journey
 - [x] Accept the authorized, retry-safe scheduled-post publisher through migration, route, pgTAP, central replay, and repository-owned scheduler

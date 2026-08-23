@@ -86,10 +86,14 @@ procedure; this is the DVHS path through them.
    2027** (`S27`) for Classes of 2027–2030 and **Fall 2027** (`F27`) for Classes
    of 2028–2030. On each applicable row, open **Term actions → Edit term**.
    Enter only approved values in **Term label**, **Start date**, **End date**,
-   **Applications open**, **Applications close**, **Sheet tab**, and **Status**,
-   then select **Save term**. Application dates must be both entered or both
-   blank. The dates and application window are shared semester values; the
-   Sheet tab and status belong to that class-semester row. Preparation does not
+   **Applications open**, **Applications close**, **Application form link**,
+   **Sheet tab**, and **Status**, then select **Save term**. Application dates
+   must be both entered or both blank. **Application form link** holds the
+   semester's reviewed Google Forms application URL; the public class page shows
+   it as the apply button only while that semester is current and inside its
+   application window, and a blank value hides the button. The dates,
+   application window, and form link are shared semester values; the Sheet tab
+   and status belong to that class-semester row. Preparation does not
    make the future term current: do not select **Set as current** for `S27` or
    `F27` during Fall 2026 setup.
 
@@ -98,10 +102,9 @@ Steps 4 and 5 are prerequisites, not preferences:
 - In **Add a student record**, the **Class** field reads _No active classes
   configured_ and **Add student record** stays disabled until an active class
   exists.
-- **Class link** is disabled with _Create an active class and open semester
-  before making a reusable class link_ until both exist.
-- **Student link** is disabled with _Create an open semester before making a
-  student-specific link_ until a semester is open.
+- **Invite students** lives on each class page, so no class join code can exist
+  before its graduating class does. A class without a code shows _This class
+  does not have an active code yet._ and offers **Create code**.
 
 ## Add one student
 
@@ -121,155 +124,83 @@ This creates the permanent CSF student record and nothing else. It does not
 create a Let's Assist login, it does not connect an existing account, and it
 does not make the student a current-semester member — semester membership comes
 from an application or an audited semester correction. The dialog says this
-itself under **Account access comes next**: after saving, go to **Members →
-Needs account link** and either issue a **Student link** for one person or copy
-the reusable class link. Connecting an account is the separate, reviewed action
-described in the next three sections.
+itself under **Account access comes next**: after saving, share the class's
+permanent join code from **Invite students** on the class page. Connecting an
+account is the separate, reviewed action described in the next sections.
 
-### Choose exactly one of the three connection paths
+## Share the class join code
 
-1. **Candidate claim — exact record found:** the signed-in student follows the
-   reviewed reusable class link and sees **We found your CSF record — is this
-   you?**. After checking the displayed name and class, they select **Yes,
-   connect this record** only when both are exact; otherwise they select **Not
-   me**. Declining creates a review request and does not connect the account.
-2. **Direct student-specific invitation:** the student opens the private link
-   created for their one record, signs in with the exact verified address held
-   on that record, and selects **Accept invitation**. This path does not show the
-   reusable-link candidate confirmation.
-3. **No automatic match — reusable class link:** when no exact candidate is
-   available, the student selects **Add profile details**, enters only the
-   requested identity details, and selects **Find my record**. The request then
-   waits in **Matches to review** for officer review when required; it does not
-   let the student choose or connect a roster row.
+The class join code is the one student connection path. Each graduating class
+holds one permanent 6-character code — letters and digits only; the characters
+O, I, 0, and 1 never appear. The code connects a verified account to the
+graduating class and nothing more: it never activates membership for any
+semester.
 
-The lower generic **Use this profile** control belongs to a different card for
-an already-selected organization profile. It is not the candidate confirmation
-and must never be described as a substitute for **Yes, connect this record**.
+1. Open **Classes**, choose the class, and select **Invite students**. The
+   dialog shows the active code with **Copy**.
+2. If the dialog reads _This class does not have an active code yet._, select
+   **Create code**. Use **Regenerate code** only when the old code must stop
+   working — the replaced code is refused immediately — and **Disable code** to
+   withdraw the code without a replacement.
+3. Share only the code, or its `/connect/<code>` URL on the current
+   environment, through an approved chapter channel. Viewing, copying,
+   regenerating, or disabling a code sends no email, so the product never shows
+   a sent time or resend count for it.
+4. Repeat once for Classes of 2027, 2028, 2029, and 2030.
 
-Officers still provision access through one of two link controls: **Student link
-→ Create a student-specific link → Create secure link → Copy link** for one
-known record, or **Class link → Create a reusable class link → Create class link
-→ Copy link** for class rollout. Use **Renew link** only to invalidate an old
-student token, **Cancel** to stop one without replacement, and **Deactivate**
-before replacing the one active class/semester reusable link.
-
-Similarity is never a fourth connection path. Any request that cannot satisfy
-the exact account/profile evidence enters **Matches to review**, where
-**Connect account** is available only after the database recomputes canonical
-evidence; otherwise use **Reject request** or correct the student record first.
-
-## Give that student a private account-connection link
-
-1. From **Members**, select **Needs account link**.
-2. Select **Student link**. The dialog is titled **Create a student-specific
-   link**.
-3. Under **Unconnected student record**, choose the student. Records with a
-   verified account, and records without a unique current school or personal
-   email, are excluded from this list by design.
-4. Under **Email on this student record**, choose one of the recorded
-   school/personal addresses the product offers. The address cannot be typed
-   arbitrarily.
-5. Choose **Semester** = Fall 2026 and confirm **Expires in days** (default
-   `14`, range 1–90). Leave **Internal label** as derived unless the chapter has
-   a reason to change it; it is officer-only.
-6. Select **Create secure link** and wait for **Student-specific link is
-   ready.**
-7. In **Student-specific links**, select **Copy link** and share it through an
-   approved chapter channel. Creating or copying the link sends no email.
-
-The copied value must be an absolute HTTPS URL on the current environment, for
-example `https://dev.lets-assist.com/...` during rehearsal. Use **Renew link**
-only when the old token must stop working; use **Cancel** to invalidate it.
-**Open link in new tab** is an officer convenience, not the student test — see
-[Test every link signed out](#test-every-link-signed-out).
-
-If the row's badge reads **Recorded email changed**, the student record no
-longer carries that exact address on an active profile. **Copy link** and
-**Renew link** are withdrawn and only **Cancel** remains: correct the student
-record through the audited member-correction workflow first, then issue a new
-link.
-
-## Give a whole class its reusable join link
-
-For Classes of 2027–2029, the historical class sheets do not supply reliable
-account emails. Before publishing a link as an automatic record-discovery path,
-establish a current, unique school or personal email from the approved current
-application cycle or another reviewed current source, then record it through the
-audited member-correction workflow. Never backfill an address from the Spring
-2026 comparison workbook merely to make a match. Without current corroborating
-email evidence, the student can submit a review request, but **Connect account**
-remains unavailable until an officer corrects the record.
-
-1. Open **Members → Needs account link**.
-2. Select **Class link**. The dialog is titled **Create a reusable class link**.
-3. Choose **Class** and **Semester** = Fall 2026. **Link name** derives from
-   both and is officer-facing only.
-4. Leave **Application form (optional)** blank unless the reviewed Fall 2026
-   form URL is ready. Add a **Student note** only when the chapter has approved
-   the wording.
-5. Select **Create class link** and wait for **Reusable class link created.**
-6. Under **Reusable class links**, select **Copy link** for that class.
-7. Repeat once for Classes of 2027, 2028, 2029, and 2030.
-
-One class may hold only one active reusable link per semester; a second create
-is refused rather than silently duplicated. Use **Deactivate** on the existing
-link before replacing it.
-
-Use the reusable class link for ordinary rollout. Use a student-specific link
-when one known record needs a bounded recovery path. Neither action emails the
-student.
-
-## Find a record when it is not in the list
-
-Both pickers on **Needs account link** are one bounded server page, not the
-whole roster. When the record you need is not listed:
-
-1. Under **Student record search**, type a name or recorded email and select
-   **Search records**. **Clear** returns to the unfiltered page.
-2. Read the count line under the form. It states how many records match, how
-   many are available on this result page, and separately how many are eligible
-   in the student-specific link picker.
-3. Use **First results** / **More results** to page the resolution list, and
-   **First student records** / **More student records** to page the
-   student-specific link picker. They are separate pages of the same search.
-
-An empty picker is disambiguated in the message: _no student record matching
-your search on this page_, _none of this page is eligible_, or _no unconnected
-student record has a unique current email_. Only the last means the record must
-be corrected before a link is possible.
-
-## Test every link signed out
-
-The page says it directly: _Test copied links while signed out or in a private
-browser window. An officer's signed-in session is not the student onboarding
-journey._
-
-Before publishing any link, paste the copied URL into a signed-out or private
-window and confirm it renders the student's first screen. **Open link in new
-tab** reuses your officer session, so it proves the URL resolves and nothing
-about the student's path. Never complete a claim on a student's behalf.
+Before publishing a code, open its `/connect/<code>` URL in a signed-out or
+private browser window and confirm it renders the student's first screen. An
+officer's signed-in session is not the student onboarding journey; never
+complete a connection on a student's behalf. A mistyped, disabled, or replaced
+code renders **This class join code is unavailable** with instructions to ask
+an officer for the current code.
 
 ## What the student does
 
-1. Open the reviewed class or student-specific link in a signed-out/private
-   browser window.
-2. Create a Let's Assist account or sign in using the exact verified email on
-   the CSF record.
-3. Follow the one path the page presents: **Yes, connect this record** / **Not
-   me** for an exact candidate, **Accept invitation** for a direct
-   student-specific invitation, or **Add profile details → Find my record** when
-   no automatic match exists.
-4. If the last path creates a request, wait for an officer decision; do not
-   submit another profile or try to choose a roster record.
+1. Open `/connect/<code>` from the shared code, or open the connect page —
+   headed **Student record connection** — and type the code under **Class join
+   code**. The field states the format itself: _6 letters and numbers; codes
+   never use O, I, 0, or 1_.
+2. Create a Let's Assist account or sign in. The signed-out entry page is
+   headed **Join or connect to CSF** and names both audiences: **Already have a
+   CSF record?** for returning members, and **You are new to CSF**, which
+   carries the semester's application button when the current term has an
+   **Application form link**.
+3. Select **Add profile details**. The dialog is titled **Find your CSF
+   record**: the student enters only the requested identity details under
+   **Student information** and selects **Find my record**.
+4. The server connects on exactly one automatic signal — the account's
+   verified email. One active record in the code's class carrying that email
+   connects atomically with recorded history; no matching record creates a new
+   stable profile in that class from the verified account identity; a
+   conflicting account, a conflicting class assignment, or several records
+   sharing the email creates a request in that class's **Needs attention**
+   queue and connects nothing.
 
 The student never chooses a roster record from a list and never assigns their
-own class or officer access.
+own class or officer access. Submitted names are review context for officers;
+they are never an automatic matching signal.
 
-## Resolve the account review queue
+## Resolve the connection queue
 
-1. Open **Members → Needs account link**. Requests waiting on a decision are
-   counted in the header and listed under **Matches to review**.
+Requests that could not connect automatically wait on the class's own
+**Members** tab, not in an organization-wide view. **Home** shows a
+**Connection requests** chip with the total pending count; it opens the classes
+hub.
+
+For Classes of 2027–2029, the historical class sheets do not supply reliable
+account emails. Establish a current, unique school or personal email from the
+approved current application cycle or another reviewed current source, recorded
+through the audited member-correction workflow, before expecting either an
+automatic email match or officer **Connect account** evidence. Without it, a
+returning student's join cannot find the historical record and creates a
+separate new profile that must later be merged through the audited workflow.
+Never backfill an address from the Spring 2026 comparison workbook merely to
+make a match.
+
+1. Open **Classes**, choose the class, then **Members**. Requests wait under
+   **Needs attention** — _Class-code joins waiting for an officer decision_ —
+   one bounded page at a time, paged with **First page** and **Next**.
 2. Select **Resolve** on the request, or **Review in Resolve** on one of its
    ranked suggestions. The dialog is titled **Review account connection**.
    Everything under **Suggestions · advisory only** is a discovery aid: a
@@ -285,7 +216,8 @@ own class or officer access.
    confirms canonical evidence for the selected record; if it is absent, that is
    the answer. Otherwise select **Reject request**, or correct the student
    record through the audited member-correction workflow and start again.
-6. Return to **Members** and confirm the row says **Connected**.
+6. Return to the class **Members** tab and confirm the request left **Needs
+   attention** and the student's roster row shows the connected account.
 
 If suggestions cannot be loaded, the request stays open for rejection and
 **Connect account** is withheld until canonical evidence can be read again.
@@ -302,8 +234,8 @@ If suggestions cannot be loaded, the request stays open for rejection and
    editing (see below).
 4. Select **Assign position**. The dialog is titled **Assign staff access**.
    The trigger is disabled while nothing can be assigned, and the line beneath
-   it names which: _Connect a member's verified account first in Class → Members
-   → Needs account link_, or _Add an active position under Position seats before
+   it names which: _Connect a member's verified account first in Members →
+   Unlinked accounts_, or _Add an active position under Position seats before
    assigning access_.
 5. Fill **CSF member profile** (search by name or email; only connected members
    appear — an empty result reads _No connected members match that search_),
@@ -441,7 +373,7 @@ resumed commit does not write committed rows twice.
 
 On Development, stop after the reviewed preview and reconciliation evidence.
 Commit real chapter rows only in Production after the release gates below pass;
-never copy the Development fixture rows or connection links forward.
+never copy the Development fixture rows or class join codes forward.
 
 ### Privacy-safe source totals verified 2026-08-11
 
@@ -483,9 +415,10 @@ decision never creates one. The central application import refuses a row with
 no reviewed profile target. Never select, preview, or import the Class of 2030
 workbook. Use the current application form and this sequence:
 
-1. Keep the Class of 2030 combined class link attached to the reviewed new
-   application form. A student submits that current form before an officer
-   creates or resolves platform records.
+1. Record the reviewed new application form URL in the current term's
+   **Application form link** (**Term actions → Edit term**); the public class
+   page then offers it while the application window is open. A student submits
+   that current form before an officer creates or resolves platform records.
 2. Open **More → Imports**, choose **Applications**, select the exact current
    response file, tab, and bounded range, complete the mapping, and select
    **Preview normalized rows**. Preview persists source evidence but creates no
@@ -515,9 +448,9 @@ workbook. Use the current application form and this sequence:
    updates term membership atomically with the application decision and
    history. Approving the application creates or updates term membership; it
    does not create the profile.
-8. Connect the account separately through the exact-email class-link,
-   student-link, or reasoned officer-review path. Neither profile creation nor
-   application processing silently connects an account.
+8. Connect the account separately through the class join code's exact
+   verified-email match or the reasoned officer-review path. Neither profile
+   creation nor application processing silently connects an account.
 
 ## Set up Fall 2026 policy only from approved chapter facts
 
@@ -694,14 +627,14 @@ between them:
 | Database                 | separate Supabase Development branch                 | Production                                       |
 | Records                  | synthetic data plus bounded preview artifacts        | real chapter records                             |
 | Real chapter Sheets      | read-only source; preview artifacts may persist      | commit only after the release gates pass         |
-| Links, tokens, decisions | rehearsal artifacts; never carried forward           | issued fresh                                     |
+| Codes, tokens, decisions | rehearsal artifacts; never carried forward           | issued fresh                                     |
 
 A Development rehearsal proves the procedure, not the release. A green
 Development result is not Production readiness, and this guide does not claim
 Production readiness for any surface: Production's communications webhook is
 still disabled, no chapter roster has been committed anywhere, and the release
 gates in [testing and release](testing-and-release.md) are open. Do not copy a
-Development fixture, connection link, import preview, or policy decision into
+Development fixture, class join code, import preview, or policy decision into
 Production, and do not treat a Development screenshot as Production evidence.
 
 At this guide's current evidence point, the repository has 292 migrations
@@ -717,16 +650,14 @@ the 292-migration repository tree.
 
 - DVHigh CSF exists at `dev.lets-assist.com`, the DVHS CSF plugin is installed,
   Classes of 2027–2030 exist, and Fall 2026 is current.
-- Two Development-only student records, two student-specific links, and one
-  reusable combined link per class are present. One record uses the reserved
+- Two Development-only student records are present. One uses the reserved
   synthetic identity; no real chapter roster import has been committed.
-- The copied student link was verified as an absolute
-  `https://dev.lets-assist.com/...` URL.
-- Members renders **Needs account link** as its own view. Each ready link
-  offers **Copy link** and **Open link in new tab**, and the view closes with an
-  explicit instruction to test copied links while signed out or in a private
-  window. Staff access explains why **Assign position** is disabled when no
-  verified account exists and links directly back to that view.
+- The rehearsal artifacts recorded for the retired link-based onboarding
+  system are superseded: student connection now goes through each class page's
+  **Invite students** join code, the `/connect/<code>` route, and the class
+  **Members** tab's **Needs attention** queue. Staff access explains why
+  **Assign position** is disabled when no verified account exists and links
+  back to the members view.
 - Help, Members, Staff access, Imports, and the three-section Communications
   workspace were clicked through on the deployed Development build. Help is
   filtered by exact position capabilities rather than broad route access.
@@ -860,8 +791,9 @@ Do not use real chapter rows or credentials until every item is checked:
       setup, officer seats, and published policy.
 - [ ] Complete live `dvhighcsf@gmail.com` OAuth, Picker, preview, reconnect,
       revocation, and failure-state checks without committing during rehearsal.
-- [ ] Test every class and student-specific link while signed out or in a
-      private window; complete existing-account claim and officer-review paths.
+- [ ] Test every class join code at its `/connect/<code>` URL while signed out
+      or in a private window; complete the exact verified-email auto-connect
+      and officer-review paths.
 - [ ] Commit only the approved Class of 2027, 2028, and 2029 `S26` historical
       sheets at their exact bounded ranges; keep Class of 2026 out of scope,
       skip the Class of 2030 template, create 2030 through the new application
@@ -871,7 +803,7 @@ Do not use real chapter rows or credentials until every item is checked:
       webhook reduction, unknown-outcome handling, and Production scheduled-post
       publication without claiming a fixed delivery time.
 - [ ] Record the exact cutover evidence and remaining limitations. Never copy a
-      Development fixture, connection link, import preview, or policy decision into
+      Development fixture, class join code, import preview, or policy decision into
       Production.
 
 ## Related references

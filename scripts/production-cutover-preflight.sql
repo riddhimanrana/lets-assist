@@ -271,8 +271,7 @@ FROM (
     ('plugin_data.csf_announcements'),
     ('plugin_data.csf_announcement_replies'),
     ('plugin_data.csf_communication_campaigns'),
-    ('plugin_data.csf_communication_dispatch_attempts'),
-    ('plugin_data.csf_onboarding_links')
+    ('plugin_data.csf_communication_dispatch_attempts')
 ) AS required(relation_name)
 WHERE to_regclass(required.relation_name) IS NULL
 ORDER BY required.relation_name;
@@ -280,7 +279,7 @@ ORDER BY required.relation_name;
 SELECT
   count(*) FILTER (
     WHERE to_regclass(required.relation_name) IS NOT NULL
-  ) = 6 AS csf_shape_ready,
+  ) = 5 AS csf_shape_ready,
   count(*) FILTER (
     WHERE to_regclass(required.relation_name) IS NOT NULL
   ) = 0 AS csf_shape_absent
@@ -290,8 +289,7 @@ FROM (
     ('plugin_data.csf_announcements'),
     ('plugin_data.csf_announcement_replies'),
     ('plugin_data.csf_communication_campaigns'),
-    ('plugin_data.csf_communication_dispatch_attempts'),
-    ('plugin_data.csf_onboarding_links')
+    ('plugin_data.csf_communication_dispatch_attempts')
 ) AS required(relation_name)
 \gset
 
@@ -708,34 +706,28 @@ SELECT NOT EXISTS (
 
 \echo ''
 \echo '=============================================================='
-\echo 'D3  Duplicate active reusable class links — PASS: 0 rows'
-\echo '    Blocks 20260811161000 one-active-link index'
+\echo 'D3  Duplicate active class join codes — PASS: 0 rows'
+\echo '    Blocks the one-active-code-per-class index (20260817021000)'
 \echo '=============================================================='
-SELECT organization_id, cohort_id, term_id, count(*) AS active_links,
-       array_agg(id ORDER BY id) AS link_ids
-FROM plugin_data.csf_onboarding_links
-WHERE invitation_scope = 'cohort'
-  AND is_active
-  AND cohort_id IS NOT NULL
-  AND term_id IS NOT NULL
-GROUP BY organization_id, cohort_id, term_id
+SELECT organization_id, cohort_id, count(*) AS active_codes,
+       array_agg(id ORDER BY id) AS code_ids
+FROM plugin_data.csf_class_join_codes
+WHERE status = 'active'
+GROUP BY organization_id, cohort_id
 HAVING count(*) > 1;
 
 SELECT NOT EXISTS (
   SELECT 1
-  FROM plugin_data.csf_onboarding_links
-  WHERE invitation_scope = 'cohort'
-    AND is_active
-    AND cohort_id IS NOT NULL
-    AND term_id IS NOT NULL
-  GROUP BY organization_id, cohort_id, term_id
+  FROM plugin_data.csf_class_join_codes
+  WHERE status = 'active'
+  GROUP BY organization_id, cohort_id
   HAVING count(*) > 1
 ) AS d3_pass
 \gset
 \if :d3_pass
   \echo 'PASS D3'
 \else
-  \echo 'FAIL D3: deactivate extras through Members -> Account connections.'
+  \echo 'FAIL D3: rotate or revoke the extra codes from the class page.'
   SELECT 1 / 0 AS preflight_check_failed;
 \endif
 
@@ -1304,8 +1296,8 @@ SELECT
         'csf_announcement_replies_announcement_organization_fkey'),
       ('index', 'public.certificates',
         'certificates_verified_signup_unique'),
-      ('index', 'plugin_data.csf_onboarding_links',
-        'csf_onboarding_links_active_cohort_uidx'),
+      ('index', 'plugin_data.csf_profile_link_requests',
+        'csf_profile_link_requests_cohort_review_idx'),
       ('index', 'plugin_data.csf_admin_audit_events',
         'csf_admin_audit_events_post_reply_request_idx'),
       ('index', 'private.google_cap_event_receipts',
@@ -1449,8 +1441,8 @@ SELECT
           'csf_announcement_replies_announcement_organization_fkey'),
         ('index', 'public.certificates',
           'certificates_verified_signup_unique'),
-        ('index', 'plugin_data.csf_onboarding_links',
-          'csf_onboarding_links_active_cohort_uidx'),
+        ('index', 'plugin_data.csf_profile_link_requests',
+          'csf_profile_link_requests_cohort_review_idx'),
         ('index', 'plugin_data.csf_admin_audit_events',
           'csf_admin_audit_events_post_reply_request_idx'),
         ('index', 'private.google_cap_event_receipts',
@@ -1595,6 +1587,78 @@ SELECT
     \echo 'PASS T3'
   \else
     \echo 'FAIL T3: target ledger says pg_graphql was removed, but it remains.'
+    SELECT 1 / 0 AS preflight_check_failed;
+  \endif
+
+  \echo ''
+  \echo '=============================================================='
+  \echo 'T3B Retired onboarding-link surface — PASS: fully absent'
+  \echo '    20260823211000 drops the table, its RPC families, and the'
+  \echo '    link-request pointer column; 20260823210000 moves class codes'
+  \echo '    to the six-character unambiguous alphabet'
+  \echo '=============================================================='
+  SELECT proc.proname || '(' || pg_get_function_identity_arguments(proc.oid) || ')'
+    AS surviving_retired_function
+  FROM pg_catalog.pg_proc AS proc
+  JOIN pg_catalog.pg_namespace AS namespace
+    ON namespace.oid = proc.pronamespace
+  WHERE namespace.nspname = 'plugin_data'
+    AND (
+      proc.proname LIKE '%onboarding_link%'
+      OR proc.proname LIKE '%direct_invitation%'
+      OR proc.proname LIKE 'csf_submit_profile_link_request%'
+      OR proc.proname IN (
+        'csf_profile_claim_candidate',
+        'csf_confirm_profile_claim',
+        'csf_confirm_profile_claim_identity_base',
+        'csf_decline_profile_claim',
+        'csf_decline_profile_claim_identity_base'
+      )
+    )
+  ORDER BY proc.proname;
+
+  SELECT to_regclass('plugin_data.csf_onboarding_links') IS NULL
+    AND NOT EXISTS (
+      SELECT 1
+      FROM pg_catalog.pg_attribute AS attribute_record
+      WHERE attribute_record.attrelid =
+          to_regclass('plugin_data.csf_profile_link_requests')
+        AND attribute_record.attname = 'onboarding_link_id'
+        AND NOT attribute_record.attisdropped
+    )
+    AND NOT EXISTS (
+      SELECT 1
+      FROM pg_catalog.pg_proc AS proc
+      JOIN pg_catalog.pg_namespace AS namespace
+        ON namespace.oid = proc.pronamespace
+      WHERE namespace.nspname = 'plugin_data'
+        AND (
+          proc.proname LIKE '%onboarding_link%'
+          OR proc.proname LIKE '%direct_invitation%'
+          OR proc.proname LIKE 'csf_submit_profile_link_request%'
+          OR proc.proname IN (
+            'csf_profile_claim_candidate',
+            'csf_confirm_profile_claim',
+            'csf_confirm_profile_claim_identity_base',
+            'csf_decline_profile_claim',
+            'csf_decline_profile_claim_identity_base'
+          )
+        )
+    )
+    AND EXISTS (
+      SELECT 1
+      FROM pg_catalog.pg_constraint AS constraint_row
+      WHERE constraint_row.conrelid =
+          to_regclass('plugin_data.csf_class_join_codes')
+        AND constraint_row.contype = 'c'
+        AND pg_get_constraintdef(constraint_row.oid)
+          LIKE '%[A-HJ-NP-Z2-9]{6}%'
+    ) AS target_onboarding_teardown_pass
+  \gset
+  \if :target_onboarding_teardown_pass
+    \echo 'PASS T3B'
+  \else
+    \echo 'FAIL T3B: retired onboarding-link objects remain after cutover.'
     SELECT 1 / 0 AS preflight_check_failed;
   \endif
 
@@ -2788,7 +2852,7 @@ WHERE relname IN (
   'csf_admin_audit_events',
   'csf_announcement_replies',
   'csf_communication_campaigns',
-  'csf_onboarding_links',
+  'csf_class_join_codes',
   'notifications',
   'organizations',
   'project_cancellation_jobs',

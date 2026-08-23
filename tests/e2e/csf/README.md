@@ -37,7 +37,7 @@ Coverage:
 
 - organization admin, adviser, distinct officer templates, applicant, member,
   direct-route denial, and phone navigation;
-- class Stream, applications, onboarding/profile claim, points, semester,
+- class Stream, applications, class-code join onboarding, points, semester,
   communications, account connection, responsive, privacy, and accessibility
   journeys represented by the current `*.spec.ts` files;
 - positive and negative visible outcomes, with mutation cleanup where a spec

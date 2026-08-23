@@ -2,7 +2,7 @@ BEGIN;
 
 CREATE EXTENSION IF NOT EXISTS pgtap WITH SCHEMA extensions;
 
-SELECT extensions.plan(49);
+SELECT extensions.plan(48);
 
 -- ---------------------------------------------------------------------------
 -- Exact current-schema profile-reference catalog
@@ -35,7 +35,6 @@ INSERT INTO expected_csf_profile_fk_references (reference) VALUES
   ('csf_term_memberships.profile_id'),
   ('csf_point_appeals.profile_id'),
   ('csf_dues_records.profile_id'),
-  ('csf_onboarding_links.recipient_profile_id'),
   ('csf_application_correction_requests.profile_id'),
   ('csf_term_membership_outcomes.profile_id'),
   ('csf_communication_recipient_snapshots.profile_id'),
@@ -67,8 +66,8 @@ WHERE constraint_row.contype = 'f'
 
 SELECT extensions.is(
   (SELECT pg_catalog.count(*)::integer FROM actual_csf_profile_fk_references),
-  27,
-  'the exact current schema has twenty-seven logical FK columns that reference CSF profiles'
+  26,
+  'the exact current schema has twenty-six logical FK columns that reference CSF profiles'
 );
 SELECT extensions.ok(
   NOT EXISTS (
@@ -131,19 +130,6 @@ SELECT extensions.ok(
       'plugin_data.csf_profile_link_requests.candidate_profile_ids'
   ),
   'the canonical plan also inventories the non-FK candidate-profile array'
-);
-SELECT extensions.ok(
-  EXISTS (
-    SELECT 1
-    FROM merge_reference_plan,
-      LATERAL pg_catalog.jsonb_array_elements(
-        payload->'sameTransactionRewrites'
-      ) AS entry
-    WHERE entry->>'reference' =
-      'plugin_data.csf_onboarding_links.recipient_profile_id'
-      AND entry->>'scope' ~ 'open delivery, acceptance, expiry, and cancellation state is preserved'
-  ),
-  'direct invitations explicitly preserve open, accepted, expired, and cancelled delivery semantics while rebinding ownership'
 );
 SELECT extensions.ok(
   EXISTS (
