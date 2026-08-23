@@ -123,62 +123,19 @@ enabled = true
 # The maximum file size allowed (e.g. "5MB", "500KB").
 file_size_limit = "50MiB"
 
-# Uncomment to configure local storage buckets
+# Bucket metadata is migration-owned. Do not declare application buckets here:
+# the Supabase GitHub integration pushes this file through the Management API,
+# while the migration ledger creates and audits the same buckets in Postgres.
+# Declaring them in both places makes branch configuration sync replay every
+# bucket update after migrations.
+#
+# Uncomment only for disposable buckets that are not part of the application
+# schema ledger.
 # [storage.buckets.images]
 # public = false
 # file_size_limit = "50MiB"
 # allowed_mime_types = ["image/png", "image/jpeg"]
 # objects_path = "./images"
-
-[storage.buckets.avatars]
-public = true
-file_size_limit = "10MiB"
-allowed_mime_types = ["image/png", "image/jpeg", "image/jpg", "image/webp"]
-
-[storage.buckets."organization-logos"]
-public = true
-file_size_limit = "10MiB"
-allowed_mime_types = ["image/png", "image/jpeg", "image/jpg", "image/webp"]
-
-[storage.buckets."project-images"]
-public = true
-file_size_limit = "20MiB"
-allowed_mime_types = ["image/png", "image/jpeg", "image/jpg", "image/webp"]
-
-[storage.buckets."project-documents"]
-public = true
-file_size_limit = "20MiB"
-allowed_mime_types = ["application/pdf"]
-
-[storage.buckets."waiver-uploads"]
-public = true
-file_size_limit = "20MiB"
-allowed_mime_types = ["application/pdf"]
-
-[storage.buckets.waivers]
-public = true
-file_size_limit = "20MiB"
-allowed_mime_types = ["application/pdf"]
-
-[storage.buckets."data-exports"]
-public = false
-file_size_limit = "50MiB"
-allowed_mime_types = ["application/zip"]
-
-[storage.buckets."plugin_form_uploads"]
-public = false
-file_size_limit = "10MiB"
-allowed_mime_types = ["application/pdf", "image/jpeg", "image/png"]
-
-[storage.buckets.plugins]
-public = false
-file_size_limit = "20MiB"
-allowed_mime_types = ["application/pdf", "image/jpeg", "image/jpg", "image/png", "image/webp", "text/csv", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"]
-
-[storage.buckets."waiver-signatures"]
-public = false
-file_size_limit = "10MiB"
-allowed_mime_types = ["application/pdf", "image/png", "image/jpeg", "image/jpg"]
 
 # Image transformation API is available to Supabase Pro plan.
 # [storage.image_transformation]
