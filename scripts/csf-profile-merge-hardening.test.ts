@@ -13,7 +13,7 @@ const migration = readFileSync(
 const teardownMigration = readFileSync(
   join(
     repositoryRoot,
-    "supabase/migrations/20260823211000_drop_csf_onboarding_links.sql",
+    "supabase/migrations/20260823221000_drop_csf_onboarding_links.sql",
   ),
   "utf8",
 );

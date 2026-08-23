@@ -6,7 +6,7 @@ This register separates actionable repository defects from provider/account and 
 
 ## Onboarding-link teardown retention — 2026-08-23
 
-- `20260823211000_drop_csf_onboarding_links.sql` removed the
+- `20260823221000_drop_csf_onboarding_links.sql` removed the
   `plugin_data.csf_onboarding_links` table, its RPC families, and the
   link-request pointer column. Historical `csf_admin_audit_events` rows whose
   actions or payloads reference onboarding links (for example
