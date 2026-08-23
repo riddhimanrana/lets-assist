@@ -34,12 +34,12 @@ test.describe("DVHS CSF public privacy boundary", () => {
     expectNoPrivateBoundaryMarkers(rawHtml);
     expect(rawHtml).not.toContain("csf_application");
     expect(rawHtml).not.toContain("csf_profile");
-    expect(rawHtml).not.toContain("csf_onboarding_links");
-    // The invitation code, its title, and its landing message stay private
-    // even though the Google Form URL that row carries is public.
-    expect(rawHtml).not.toContain("S26-2028");
-    expect(rawHtml).not.toContain("Spring 2026 Class of 2028");
-    expect(rawHtml).not.toContain("Connect your Let’s Assist profile");
+    expect(rawHtml).not.toContain("csf_class_join_codes");
+    // The seeded permanent class join codes stay private: students receive
+    // them from officers, never from the public page.
+    expect(rawHtml).not.toContain("HAWK28");
+    expect(rawHtml).not.toContain("HAWK27");
+    expect(rawHtml).not.toContain("HAWK29");
 
     const documentResponse = await page.goto(CSF_PUBLIC_PATH);
     expectNoPrivateBoundaryMarkers(await responseText(documentResponse));
@@ -72,7 +72,7 @@ test.describe("DVHS CSF public privacy boundary", () => {
     expect(publicHrefs.some((href) => href.includes("csf_profile"))).toBe(
       false,
     );
-    expect(publicHrefs.some((href) => href.includes("S26-2028"))).toBe(false);
+    expect(publicHrefs.some((href) => href.includes("HAWK28"))).toBe(false);
   });
 
   test("an out-of-term application link stays hidden while safe class join remains available", async ({
@@ -128,7 +128,7 @@ test.describe("DVHS CSF public privacy boundary", () => {
     await page.waitForURL((url) => url.pathname === CSF_CONNECT_PATH, {
       waitUntil: "domcontentloaded",
     });
-    // The entry point must not carry or invent an invitation code.
+    // The entry point must not carry or invent a class join code.
     expect(new URL(page.url()).search).toBe("");
     await expect(page.getByLabel("Class join code")).toBeVisible();
   });

@@ -33,8 +33,8 @@ import { CSF_ORGANIZATION_PATH } from "./helpers";
  * assertion message.
  */
 
-const onboardingCode = "S26-2028";
-const connectPath = `${CSF_ORGANIZATION_PATH}/plugins/dvhs-csf/connect/${onboardingCode}`;
+const classJoinCode = "HAWK28";
+const connectPath = `${CSF_ORGANIZATION_PATH}/plugins/dvhs-csf/connect/${classJoinCode}`;
 
 /** The subject `[auth.email.template.confirmation]` pins in `supabase/config.toml`. */
 const confirmationSubject = "Verify your email address";
@@ -172,7 +172,13 @@ async function findUserByEmail(fixture: PkceFixture, email: string) {
   );
 }
 
-async function seedClaimProfile(fixture: PkceFixture) {
+/**
+ * A roster record carrying the synthetic account's email and an active Class
+ * of 2028 membership. It is not consumed by this suite's assertions beyond
+ * giving the connect route a realistic joinable state; the join submission
+ * itself is covered by class-code-join.spec.ts.
+ */
+async function seedJoinProfile(fixture: PkceFixture) {
   const plugin = fixture.admin.schema("plugin_data");
   const profileId = randomUUID();
 
@@ -189,9 +195,7 @@ async function seedClaimProfile(fixture: PkceFixture) {
     source_summary: fixtureMarker,
   });
   if (profileError) {
-    throw new Error(
-      `Could not seed the claim profile: ${profileError.message}`,
-    );
+    throw new Error(`Could not seed the join profile: ${profileError.message}`);
   }
 
   const { error: membershipError } = await plugin
@@ -213,7 +217,7 @@ async function seedClaimProfile(fixture: PkceFixture) {
 
 /**
  * Same cleanup contract as the existing signup suite: link requests, the
- * organization membership, and any claim account are removed or retired, the
+ * organization membership, and any linked account are removed or retired, the
  * seeded profile is de-identified rather than deleted because immutable audit
  * rows reference it, and the synthetic auth user is deleted last (the merger is
  * recorded as the persistent developer fixture, whose `merged_by` FK is
@@ -230,7 +234,7 @@ async function cleanPkceFixture(fixture: PkceFixture, userId: string | null) {
       .eq("user_id", userId);
     if (requestsError) {
       throw new Error(
-        `Could not clean claim requests: ${requestsError.message}`,
+        `Could not clean join requests: ${requestsError.message}`,
       );
     }
 
@@ -257,7 +261,7 @@ async function cleanPkceFixture(fixture: PkceFixture, userId: string | null) {
       .eq("user_id", userId);
     if (accountError) {
       throw new Error(
-        `Could not retire claim accounts: ${accountError.message}`,
+        `Could not retire join accounts: ${accountError.message}`,
       );
     }
   }
@@ -278,7 +282,7 @@ async function cleanPkceFixture(fixture: PkceFixture, userId: string | null) {
     .contains("source_summary", fixtureMarker);
   if (profileError) {
     throw new Error(
-      `Could not retire the claim profile: ${profileError.message}`,
+      `Could not retire the join profile: ${profileError.message}`,
     );
   }
 
@@ -619,7 +623,7 @@ test.describe("signup email PKCE round trip", () => {
       // `/auth/confirm` signs the session out after the exchange, so the round
       // trip finishes through the page's own CTA, which carries the preserved
       // connect path into login.
-      await seedClaimProfile(fixture);
+      await seedJoinProfile(fixture);
 
       const loginCta = page.getByRole("link", { name: "Go to Login" });
       await expect(loginCta).toBeVisible();
@@ -648,9 +652,10 @@ test.describe("signup email PKCE round trip", () => {
         timeout: 60_000,
       });
       await expect(
-        page.getByRole("heading", {
-          name: "We found your CSF record — is this you?",
-        }),
+        page.getByRole("heading", { name: "Connect your CSF record" }),
+      ).toBeVisible();
+      await expect(
+        page.getByRole("button", { name: "Add profile details", exact: true }),
       ).toBeVisible();
 
       expect(

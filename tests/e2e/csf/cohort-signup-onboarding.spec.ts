@@ -7,17 +7,18 @@ import { getCsfIsolatedSupabaseEnv } from "../../../scripts/local-dev/dv-local-e
 import { CSF_ORGANIZATION_PATH } from "./helpers";
 
 /**
- * The full cohort-link signup seam, end to end with fictional data only:
- * class invitation -> account signup (metadata seam) -> admin email
- * confirmation (the local stack requires confirmed email, and the browser
- * suite never reads real mail) -> login back into the invitation -> claim
- * confirm -> `?connected=1` -> the CSF-variant username modal on the connect
- * route -> the member Home CSF setup tour. The generic 8-step FirstLoginTour
- * must never render for this account.
+ * The full class-code signup seam, end to end with fictional data only:
+ * the permanent class join code page -> account signup (metadata seam) ->
+ * admin email confirmation (the local stack requires confirmed email, and the
+ * browser suite never reads real mail) -> login back into the join code
+ * route -> the join form -> the verified-email auto-connect ->
+ * `?connected=1` -> the CSF-variant username modal on the connect route ->
+ * the member Home CSF setup tour. The generic 8-step FirstLoginTour must
+ * never render for this account.
  */
 
-const onboardingCode = "S26-2028";
-const connectPath = `${CSF_ORGANIZATION_PATH}/plugins/dvhs-csf/connect/${onboardingCode}`;
+const classJoinCode = "HAWK28";
+const connectPath = `${CSF_ORGANIZATION_PATH}/plugins/dvhs-csf/connect/${classJoinCode}`;
 
 const runToken = Date.now().toString(36);
 const signupEmail = `csf.e2e.signup.${runToken}@local.test`;
@@ -117,7 +118,12 @@ async function findUserIdByEmail(fixture: SignupFixture, email: string) {
   );
 }
 
-async function seedClaimProfile(fixture: SignupFixture) {
+/**
+ * The roster record the join form's verified-email match auto-connects: it
+ * carries the synthetic account's email and an active Class of 2028
+ * membership, so `csf_join_class_by_code` finds exactly one candidate.
+ */
+async function seedJoinProfile(fixture: SignupFixture) {
   const plugin = fixture.admin.schema("plugin_data");
   const profileId = randomUUID();
 
@@ -134,9 +140,7 @@ async function seedClaimProfile(fixture: SignupFixture) {
     source_summary: { e2eSignupFixture: true },
   });
   if (profileError) {
-    throw new Error(
-      `Could not seed the claim profile: ${profileError.message}`,
-    );
+    throw new Error(`Could not seed the join profile: ${profileError.message}`);
   }
 
   const { error: membershipError } = await plugin
@@ -170,7 +174,7 @@ async function cleanSignupFixture(
       .eq("user_id", userId);
     if (requestsError) {
       throw new Error(
-        `Could not clean claim requests: ${requestsError.message}`,
+        `Could not clean join requests: ${requestsError.message}`,
       );
     }
 
@@ -197,14 +201,14 @@ async function cleanSignupFixture(
       .eq("user_id", userId);
     if (accountError) {
       throw new Error(
-        `Could not retire claim accounts: ${accountError.message}`,
+        `Could not retire join accounts: ${accountError.message}`,
       );
     }
   }
 
-  // Confirmed claims are referenced by immutable audit rows, so browser
+  // Connected joins are referenced by immutable audit rows, so browser
   // fixtures are de-identified rather than deleted (same contract as
-  // profile-claim.spec.ts). The merger is recorded as the persistent
+  // class-code-join.spec.ts). The merger is recorded as the persistent
   // developer fixture: `merged_by` has an ON DELETE RESTRICT FK to
   // auth.users, and the synthetic signup user is deleted below.
   const { error: profileError } = await plugin
@@ -223,7 +227,7 @@ async function cleanSignupFixture(
     .contains("source_summary", { e2eSignupFixture: true });
   if (profileError) {
     throw new Error(
-      `Could not retire the claim profile: ${profileError.message}`,
+      `Could not retire the join profile: ${profileError.message}`,
     );
   }
 
@@ -245,11 +249,12 @@ async function expectNoGenericFirstLoginTour(page: Page) {
   await expect(page.getByText("Welcome to your hub")).toHaveCount(0);
 }
 
-test.describe("cohort-link signup onboarding", () => {
+test.describe("class-code signup onboarding", () => {
   test.describe.configure({ mode: "serial" });
 
   let fixture: SignupFixture;
   let createdUserId: string | null = null;
+  let seededProfileId: string | null = null;
 
   test.beforeAll(async () => {
     fixture = await loadSignupFixture();
@@ -261,12 +266,35 @@ test.describe("cohort-link signup onboarding", () => {
     await cleanSignupFixture(fixture, user?.id ?? createdUserId);
   });
 
-  test("cohort link signup carries the CSF metadata seam and finishes on the connect route", async ({
+  test("class-code signup carries the CSF metadata seam and finishes on the connect route", async ({
     page,
   }) => {
     test.setTimeout(180_000);
 
-    await test.step("sign up from the class invitation redirect", async () => {
+    await test.step("the signed-out code page shows safe class context and preserves the route", async () => {
+      await page.goto(connectPath, { waitUntil: "domcontentloaded" });
+      await expect(
+        page.getByRole("heading", { name: "Connect your CSF record" }),
+      ).toBeVisible();
+      const body = await page.locator("body").innerText();
+      expect(body).toContain("Class of 2028");
+      expect(body).toContain(
+        "Participation is approved separately each semester",
+      );
+
+      // Sign-in keeps the full connect route, so the account created next can
+      // come straight back to this page.
+      const signIn = page.getByRole("button", {
+        name: "Sign in to claim profile",
+        exact: true,
+      });
+      await expect(signIn).toHaveAttribute(
+        "href",
+        `/login?redirect=${encodeURIComponent(connectPath)}`,
+      );
+    });
+
+    await test.step("sign up from the class-code redirect", async () => {
       await page.goto(`/signup?redirect=${encodeURIComponent(connectPath)}`, {
         waitUntil: "domcontentloaded",
       });
@@ -322,10 +350,10 @@ test.describe("cohort-link signup onboarding", () => {
         throw new Error(`Could not confirm the signup email: ${error.message}`);
       }
 
-      await seedClaimProfile(fixture);
+      seededProfileId = await seedJoinProfile(fixture);
     });
 
-    await test.step("log in back into the invitation and confirm the record", async () => {
+    await test.step("log in back into the code page and submit the join form", async () => {
       await page.goto(`/login?redirect=${encodeURIComponent(connectPath)}`, {
         waitUntil: "domcontentloaded",
       });
@@ -343,28 +371,40 @@ test.describe("cohort-link signup onboarding", () => {
       });
 
       await expect(
-        page.getByRole("heading", {
-          name: "We found your CSF record — is this you?",
-        }),
+        page.getByRole("heading", { name: "Connect your CSF record" }),
       ).toBeVisible();
       await expectNoGenericFirstLoginTour(page);
+
       await page
-        .getByRole("button", { name: "Yes, connect this record" })
+        .getByRole("button", { name: "Add profile details", exact: true })
         .click();
+      const joinDialog = page.getByRole("dialog", {
+        name: "Find your CSF record",
+      });
+      await expect(joinDialog).toBeVisible();
+      // The name fields prefill asynchronously from the account's full name
+      // and remount when the prefill arrives; the auto-connect decision rests
+      // on the verified account email, not on the typed name, so the flow is
+      // deterministic either way.
+      await joinDialog.getByLabel("First name").fill("Casey");
+      await joinDialog.getByLabel("Last name").fill("Signup");
+      await joinDialog.getByRole("button", { name: "Find my record" }).click();
 
       await expect
         .poll(async () => {
           const { data } = await fixture.admin
             .schema("plugin_data")
             .from("csf_profile_accounts")
-            .select("status")
+            .select("status,profile_id")
             .eq("organization_id", fixture.organizationId)
             .eq("user_id", createdUserId as string)
             .eq("status", "verified")
             .maybeSingle();
-          return data?.status ?? null;
+          return data
+            ? { status: data.status, profileId: data.profile_id }
+            : null;
         })
-        .toBe("verified");
+        .toEqual({ status: "verified", profileId: seededProfileId });
     });
 
     await test.step("the connect route gains ?connected=1 and the CSF username modal", async () => {

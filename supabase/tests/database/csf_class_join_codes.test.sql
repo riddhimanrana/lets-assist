@@ -2,7 +2,7 @@ BEGIN;
 
 CREATE EXTENSION IF NOT EXISTS pgtap WITH SCHEMA extensions;
 
-SELECT extensions.plan(11);
+SELECT extensions.plan(14);
 
 SELECT extensions.ok(
   NOT has_table_privilege('anon', 'plugin_data.csf_class_join_codes', 'SELECT'),
@@ -44,6 +44,19 @@ SELECT extensions.ok(
   ),
   'the server role can revoke class codes'
 );
+SELECT extensions.ok(
+  NOT has_function_privilege(
+    'authenticated',
+    'plugin_data.csf_generate_class_join_code()',
+    'EXECUTE'
+  ),
+  'authenticated clients cannot generate class codes directly'
+);
+SELECT extensions.matches(
+  plugin_data.csf_generate_class_join_code(),
+  '^[A-HJ-NP-Z2-9]{6}$',
+  'the generator returns six characters from the unambiguous alphabet'
+);
 
 INSERT INTO auth.users (
   id, aud, role, email, email_confirmed_at, raw_app_meta_data,
@@ -78,14 +91,18 @@ SELECT extensions.matches(
     'cf300000-0000-4000-8000-000000000001',
     'cf100000-0000-4000-8000-000000000001'
   ) ->> 'code',
-  '^[A-F0-9]{8}$',
-  'creating a class code returns the controlled eight-character format'
+  '^[A-HJ-NP-Z2-9]{6}$',
+  'creating a class code returns the controlled six-character format'
 );
 
-SELECT plugin_data.csf_rotate_class_join_code(
-  'cf200000-0000-4000-8000-000000000001',
-  'cf300000-0000-4000-8000-000000000001',
-  'cf100000-0000-4000-8000-000000000001'
+SELECT extensions.matches(
+  plugin_data.csf_rotate_class_join_code(
+    'cf200000-0000-4000-8000-000000000001',
+    'cf300000-0000-4000-8000-000000000001',
+    'cf100000-0000-4000-8000-000000000001'
+  ) ->> 'code',
+  '^[A-HJ-NP-Z2-9]{6}$',
+  'rotating a class code issues a replacement in the six-character format'
 );
 
 SELECT extensions.is(

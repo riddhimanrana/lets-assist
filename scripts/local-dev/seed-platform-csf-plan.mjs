@@ -17,7 +17,7 @@ export async function seedDvhsCsfFixtures({ admin, users, must }) {
     "csf_partner_club_terms",
     "csf_partner_club_aliases",
     "csf_partner_clubs",
-    "csf_onboarding_links",
+    "csf_class_join_codes",
     "csf_meeting_attendance",
     "csf_meeting_sessions",
     "csf_meetings",
@@ -73,8 +73,9 @@ export async function seedDvhsCsfFixtures({ admin, users, must }) {
     }),
   );
 
-  // The import footprint follows through its own owned seam. It has to precede
-  // the generic loop because onboarding links reference sheet sources.
+  // The import footprint follows through its own owned seam: sheet sources,
+  // jobs, and rows are SELECT-only to service_role, so the generic loop cannot
+  // reset them.
   await must(
     "csf-reset-synthetic-import",
     pluginDb.rpc("csf_seed_reset_synthetic_import", {
@@ -179,6 +180,10 @@ export async function seedDvhsCsfFixtures({ admin, users, must }) {
         school_year: "2025-2026",
         semester: "spring",
         is_current: true,
+        // The public "Apply with Google Forms" call to action lives on the
+        // semester row since 20260823211000 retired onboarding links.
+        application_form_url:
+          "https://docs.google.com/forms/d/local-csf-form-fixture/viewform",
       },
       { onConflict: "organization_id,code" },
     ),
@@ -363,25 +368,21 @@ export async function seedDvhsCsfFixtures({ admin, users, must }) {
     }),
   );
 
+  // The permanent class join code students redeem for this class. The other
+  // seeded classes receive their codes after the expanded cohorts exist.
   await must(
-    "csf-onboarding-link",
-    pluginDb.from("csf_onboarding_links").upsert(
+    "csf-class-join-code-2028",
+    pluginDb.from("csf_class_join_codes").upsert(
       {
         organization_id: IDS.csfOrg,
-        term_id: IDS.csfTermS26,
         cohort_id: IDS.csfCohort2028,
-        sheet_source_id: IDS.csfSheetSource,
-        code: "S26-2028",
-        title: "Spring 2026 Class of 2028",
-        link_type: "combined",
-        google_form_url:
-          "https://docs.google.com/forms/d/local-csf-form-fixture/viewform",
-        landing_message:
-          "Connect your Let’s Assist profile, then complete the official CSF Google Form.",
-        is_active: true,
-        created_by: users.developer.id,
+        // Fixture codes use the production alphabet (A-HJ-NP-Z2-9; no 0/O/1/I)
+        // and stay mnemonic so local testers can type them from memory.
+        code: "HAWK28",
+        status: "active",
+        created_by: users.csfOfficer.id,
       },
-      { onConflict: "organization_id,code" },
+      { onConflict: "code" },
     ),
   );
 
@@ -944,6 +945,31 @@ export async function seedDvhsCsfFixtures({ admin, users, must }) {
         },
       ],
       { onConflict: "organization_id,graduation_year" },
+    ),
+  );
+
+  // One active permanent join code per remaining seeded class (2028 received
+  // its code beside the core fixtures above). Codes are globally unique.
+  await must(
+    "csf-expanded-class-join-codes",
+    pluginDb.from("csf_class_join_codes").upsert(
+      [
+        {
+          organization_id: IDS.csfOrg,
+          cohort_id: IDS.csfCohort2027,
+          code: "HAWK27",
+          status: "active",
+          created_by: users.csfOfficer.id,
+        },
+        {
+          organization_id: IDS.csfOrg,
+          cohort_id: IDS.csfCohort2029,
+          code: "HAWK29",
+          status: "active",
+          created_by: users.csfOfficer.id,
+        },
+      ],
+      { onConflict: "code" },
     ),
   );
 

@@ -2,7 +2,7 @@ BEGIN;
 
 CREATE EXTENSION IF NOT EXISTS pgtap WITH SCHEMA extensions;
 
-SELECT extensions.plan(56);
+SELECT extensions.plan(67);
 
 SELECT extensions.ok(
   NOT has_function_privilege('anon', operation.signature, 'EXECUTE')
@@ -768,6 +768,216 @@ SELECT extensions.throws_ok(
   'CSF audit events are immutable.',
   'class and semester management receipts cannot be rewritten'
 );
+
+-- The Google Forms application URL now lives on the semester row
+-- (20260823211000) and rides the same edit RPC (20260823212000). The key is
+-- presence-keyed like the application window: absent leaves the stored value,
+-- present-empty clears it, and only Google Forms hosts are storable.
+SELECT extensions.has_column(
+  'plugin_data', 'csf_terms', 'application_form_url',
+  'the semester row owns the public application form URL'
+);
+SELECT extensions.throws_ok(
+  $$
+    SELECT plugin_data.csf_update_cohort_term(
+      'b7100000-0000-4000-8000-000000000001',
+      'b7f00000-0000-4000-8000-000000000018',
+      jsonb_build_object(
+        'termId', (
+          SELECT id FROM plugin_data.csf_terms
+          WHERE organization_id = 'b7100000-0000-4000-8000-000000000001' AND code = 'S44'
+        ),
+        'cohortTermId', (
+          SELECT link.id
+          FROM plugin_data.csf_cohort_terms AS link
+          JOIN plugin_data.csf_terms AS term ON term.id = link.term_id
+          WHERE link.organization_id = 'b7100000-0000-4000-8000-000000000001' AND term.code = 'S44'
+        ),
+        'label', 'Spring 2044 adjusted',
+        'startsAt', '2044-01-05',
+        'endsAt', '2044-06-25',
+        'sheetTabName', 'S44 adjusted',
+        'linkStatus', 'inactive',
+        'applicationFormUrl', 'https://example.com/not-a-google-form'
+      ),
+      'b7000000-0000-4000-8000-000000000001'
+    )
+  $$,
+  'P0001',
+  'The application form link must be a Google Forms URL.',
+  'the semester edit rejects a non-Google-Forms application URL'
+);
+SELECT extensions.lives_ok(
+  $$
+    SELECT plugin_data.csf_update_cohort_term(
+      'b7100000-0000-4000-8000-000000000001',
+      'b7f00000-0000-4000-8000-000000000014',
+      jsonb_build_object(
+        'termId', (
+          SELECT id FROM plugin_data.csf_terms
+          WHERE organization_id = 'b7100000-0000-4000-8000-000000000001' AND code = 'S44'
+        ),
+        'cohortTermId', (
+          SELECT link.id
+          FROM plugin_data.csf_cohort_terms AS link
+          JOIN plugin_data.csf_terms AS term ON term.id = link.term_id
+          WHERE link.organization_id = 'b7100000-0000-4000-8000-000000000001' AND term.code = 'S44'
+        ),
+        'label', 'Spring 2044 adjusted',
+        'startsAt', '2044-01-05',
+        'endsAt', '2044-06-25',
+        'sheetTabName', 'S44 adjusted',
+        'linkStatus', 'inactive',
+        'applicationFormUrl', 'https://docs.google.com/forms/d/e/synthetic-spring-form/viewform'
+      ),
+      'b7000000-0000-4000-8000-000000000001'
+    )
+  $$,
+  'the semester edit stores a docs.google.com Forms application URL'
+);
+SELECT extensions.ok(
+  (
+    SELECT application_form_url = 'https://docs.google.com/forms/d/e/synthetic-spring-form/viewform'
+    FROM plugin_data.csf_terms
+    WHERE organization_id = 'b7100000-0000-4000-8000-000000000001'
+      AND code = 'S44'
+  )
+  AND EXISTS (
+    SELECT 1
+    FROM plugin_data.csf_admin_audit_events
+    WHERE organization_id = 'b7100000-0000-4000-8000-000000000001'
+      AND correlation_id = 'b7f00000-0000-4000-8000-000000000014'
+      AND action = 'term.edit'
+      AND before_data ? 'applicationFormUrl'
+      AND after_data->>'applicationFormUrl' = 'https://docs.google.com/forms/d/e/synthetic-spring-form/viewform'
+  ),
+  'the stored form URL and its audit before/after payloads agree'
+);
+SELECT extensions.lives_ok(
+  $$
+    SELECT plugin_data.csf_update_cohort_term(
+      'b7100000-0000-4000-8000-000000000001',
+      'b7f00000-0000-4000-8000-000000000015',
+      jsonb_build_object(
+        'termId', (
+          SELECT id FROM plugin_data.csf_terms
+          WHERE organization_id = 'b7100000-0000-4000-8000-000000000001' AND code = 'S44'
+        ),
+        'cohortTermId', (
+          SELECT link.id
+          FROM plugin_data.csf_cohort_terms AS link
+          JOIN plugin_data.csf_terms AS term ON term.id = link.term_id
+          WHERE link.organization_id = 'b7100000-0000-4000-8000-000000000001' AND term.code = 'S44'
+        ),
+        'label', 'Spring 2044 readjusted',
+        'startsAt', '2044-01-05',
+        'endsAt', '2044-06-25',
+        'sheetTabName', 'S44 adjusted',
+        'linkStatus', 'inactive'
+      ),
+      'b7000000-0000-4000-8000-000000000001'
+    )
+  $$,
+  'a semester edit that omits the form-URL key still succeeds'
+);
+SELECT extensions.is(
+  (
+    SELECT application_form_url
+    FROM plugin_data.csf_terms
+    WHERE organization_id = 'b7100000-0000-4000-8000-000000000001'
+      AND code = 'S44'
+  ),
+  'https://docs.google.com/forms/d/e/synthetic-spring-form/viewform',
+  'omitting the form-URL key leaves the stored application URL unchanged'
+);
+SELECT extensions.lives_ok(
+  $$
+    SELECT plugin_data.csf_update_cohort_term(
+      'b7100000-0000-4000-8000-000000000001',
+      'b7f00000-0000-4000-8000-000000000016',
+      jsonb_build_object(
+        'termId', (
+          SELECT id FROM plugin_data.csf_terms
+          WHERE organization_id = 'b7100000-0000-4000-8000-000000000001' AND code = 'S44'
+        ),
+        'cohortTermId', (
+          SELECT link.id
+          FROM plugin_data.csf_cohort_terms AS link
+          JOIN plugin_data.csf_terms AS term ON term.id = link.term_id
+          WHERE link.organization_id = 'b7100000-0000-4000-8000-000000000001' AND term.code = 'S44'
+        ),
+        'label', 'Spring 2044 readjusted',
+        'startsAt', '2044-01-05',
+        'endsAt', '2044-06-25',
+        'sheetTabName', 'S44 adjusted',
+        'linkStatus', 'inactive',
+        'applicationFormUrl', 'https://forms.gle/syntheticShortLink'
+      ),
+      'b7000000-0000-4000-8000-000000000001'
+    )
+  $$,
+  'the semester edit accepts a forms.gle short application URL'
+);
+SELECT extensions.is(
+  (
+    SELECT application_form_url
+    FROM plugin_data.csf_terms
+    WHERE organization_id = 'b7100000-0000-4000-8000-000000000001'
+      AND code = 'S44'
+  ),
+  'https://forms.gle/syntheticShortLink',
+  'the forms.gle URL is stored verbatim'
+);
+SELECT extensions.lives_ok(
+  $$
+    SELECT plugin_data.csf_update_cohort_term(
+      'b7100000-0000-4000-8000-000000000001',
+      'b7f00000-0000-4000-8000-000000000017',
+      jsonb_build_object(
+        'termId', (
+          SELECT id FROM plugin_data.csf_terms
+          WHERE organization_id = 'b7100000-0000-4000-8000-000000000001' AND code = 'S44'
+        ),
+        'cohortTermId', (
+          SELECT link.id
+          FROM plugin_data.csf_cohort_terms AS link
+          JOIN plugin_data.csf_terms AS term ON term.id = link.term_id
+          WHERE link.organization_id = 'b7100000-0000-4000-8000-000000000001' AND term.code = 'S44'
+        ),
+        'label', 'Spring 2044 readjusted',
+        'startsAt', '2044-01-05',
+        'endsAt', '2044-06-25',
+        'sheetTabName', 'S44 adjusted',
+        'linkStatus', 'inactive',
+        'applicationFormUrl', ''
+      ),
+      'b7000000-0000-4000-8000-000000000001'
+    )
+  $$,
+  'a present-but-empty form-URL key clears the stored application URL'
+);
+SELECT extensions.is(
+  (
+    SELECT application_form_url
+    FROM plugin_data.csf_terms
+    WHERE organization_id = 'b7100000-0000-4000-8000-000000000001'
+      AND code = 'S44'
+  ),
+  NULL,
+  'the cleared application URL is stored as NULL'
+);
+SELECT extensions.throws_ok(
+  $$
+    UPDATE plugin_data.csf_terms
+    SET application_form_url = 'https://phishing.example/forms'
+    WHERE organization_id = 'b7100000-0000-4000-8000-000000000001'
+      AND code = 'S44'
+  $$,
+  '23514',
+  NULL,
+  'the database CHECK rejects a non-Google-Forms URL on any write path'
+);
+
 SELECT extensions.ok(
   (
     SELECT cohort.label = 'Other organization class'

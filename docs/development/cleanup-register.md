@@ -4,6 +4,18 @@ This register separates actionable repository defects from provider/account and 
 
 `AUD-` identifiers are allocated per branch and can drift while several audit branches are open at once. Current `development` includes the merged #152, #158, #174, #177, #179, and #181 findings, while open #180 can still carry overlapping historical identifiers. This branch retains `AUD-036` and `AUD-037` for its activity/partner authorization work without renumbering or restating the merged meeting findings.
 
+## Onboarding-link teardown retention — 2026-08-23
+
+- `20260823221000_drop_csf_onboarding_links.sql` removed the
+  `plugin_data.csf_onboarding_links` table, its RPC families, and the
+  link-request pointer column. Historical `csf_admin_audit_events` rows whose
+  actions or payloads reference onboarding links (for example
+  `onboarding.direct_invitation_created`) deliberately remain: audit events
+  are immutable by trigger and record decisions that actually happened.
+  Nothing else from the retired flow remains to clean; the preflight's T3B
+  check and `csf_onboarding_links_teardown.test.sql` prove the schema surface
+  is fully absent.
+
 ## Plugin platform foundation candidate — 2026-08-19
 
 ### Current exact-tree refresh — 2026-08-22
