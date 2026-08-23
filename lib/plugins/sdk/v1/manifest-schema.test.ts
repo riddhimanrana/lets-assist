@@ -437,6 +437,26 @@ describe("plugin manifest validation", () => {
     );
   });
 
+  test("rejects required configuration keys without declared properties", () => {
+    const result = validatePluginSdkManifest(
+      embeddedManifest({
+        configSchema: {
+          type: "object",
+          properties: {},
+          required: ["missing"],
+          additionalProperties: false,
+        },
+      }),
+    );
+
+    expect(result.valid).toBe(false);
+    expect(result.errors).toContainEqual({
+      path: "/configSchema/required/0",
+      message: "must name a declared configuration property",
+      keyword: "configRequiredProperty",
+    });
+  });
+
   test("rejects values JSON would omit or execute while serializing", () => {
     const hidden = embeddedManifest();
     Object.defineProperty(hidden, "hidden", {

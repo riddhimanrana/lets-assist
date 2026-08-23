@@ -39,7 +39,7 @@ function blockPluginApplicationRequest(): NextResponse {
 function isCsfOrganizationIdentifier(value: string): boolean {
   if (ORGANIZATION_ID_PATTERN.test(value)) return true;
   return (
-    /^[a-z0-9_.-]{3,32}$/u.test(value) &&
+    /^[a-z0-9_.-]{3,32}$/iu.test(value) &&
     !value.startsWith(".") &&
     !value.endsWith(".") &&
     !value.includes("..")

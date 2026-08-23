@@ -60,8 +60,12 @@ This register separates actionable repository defects from provider/account and 
   already the child application route, preserving old-page actions without
   confusing a host deployment for a child deployment.
 - Manifest validation now applies each configuration property schema to its
-  declared default and every enum member. An installable manifest therefore
-  cannot advertise rendered settings values that the host will refuse to save.
+  declared default and every enum member, and every required key must name a
+  declared property. An installable manifest therefore cannot advertise
+  rendered settings values that the host will refuse to save.
+- Application routing accepts the historical mixed-case organization username
+  shape enforced by the database, so selected child routes can retain their
+  deployment-scoped asset context for those organizations.
 - A final independent Claude review reported two P2 candidates. The deployment
   project concern is disproved as a second runtime authorization gate: the
   signed project/team allowlist check occurs before the service-role-only

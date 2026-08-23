@@ -577,6 +577,17 @@ export function validatePluginSdkManifest(
   const manifest = value as PluginSdkManifest;
 
   if (manifest.configSchema) {
+    for (const [index, requiredKey] of (
+      manifest.configSchema.required ?? []
+    ).entries()) {
+      if (!Object.hasOwn(manifest.configSchema.properties, requiredKey)) {
+        errors.push({
+          path: `/configSchema/required/${index}`,
+          message: "must name a declared configuration property",
+          keyword: "configRequiredProperty",
+        });
+      }
+    }
     for (const [key, property] of Object.entries(
       manifest.configSchema.properties,
     )) {

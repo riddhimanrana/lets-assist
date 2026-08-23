@@ -411,6 +411,22 @@ describe("root proxy composition", () => {
     ).toBe("1.2.7");
   });
 
+  test("preserves asset routing for historical mixed-case organization usernames", () => {
+    const request = new NextRequest(
+      "https://example.test/organization/SchoolClub/plugins/dvhs-csf/access-proof",
+    );
+    const response = rewriteToPluginApplicationDeployment({
+      request,
+      target: routeTarget,
+      bypassSecret: "trusted-value",
+      assetOrganizationIdentifier: "SchoolClub",
+    });
+
+    expect(response.cookies.get("la-csf-asset-dpl_selected_v1")?.value).toBe(
+      "SchoolClub",
+    );
+  });
+
   test("routes namespaced assets to the deployment selected for their document", async () => {
     const assetPath = "/vc-ap-5431dc/_next/static/chunks/app/access-proof.js";
     const request = new NextRequest(
