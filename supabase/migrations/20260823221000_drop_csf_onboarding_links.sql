@@ -295,6 +295,12 @@ AS $$
         'scope', 'all current communication preferences',
         'sourceCount', (SELECT pg_catalog.count(*) FROM plugin_data.csf_communication_broadcast_preferences AS referenced_row
           WHERE referenced_row.organization_id = p_organization_id AND referenced_row.profile_id = p_source_profile_id)
+      ),
+      pg_catalog.jsonb_build_object(
+        'reference', 'plugin_data.csf_profile_notes.profile_id',
+        'scope', 'all officer note ownership rows',
+        'sourceCount', (SELECT pg_catalog.count(*) FROM plugin_data.csf_profile_notes AS referenced_row
+          WHERE referenced_row.organization_id = p_organization_id AND referenced_row.profile_id = p_source_profile_id)
       )
     ),
     'immutableHistoryRetentions', pg_catalog.jsonb_build_array(
@@ -757,6 +763,8 @@ BEGIN
     UNION ALL SELECT pg_catalog.count(*) FROM plugin_data.csf_application_correction_requests AS referenced_row
       WHERE referenced_row.organization_id = p_organization_id AND referenced_row.profile_id = p_source_profile_id
     UNION ALL SELECT pg_catalog.count(*) FROM plugin_data.csf_communication_broadcast_preferences AS referenced_row
+      WHERE referenced_row.organization_id = p_organization_id AND referenced_row.profile_id = p_source_profile_id
+    UNION ALL SELECT pg_catalog.count(*) FROM plugin_data.csf_profile_notes AS referenced_row
       WHERE referenced_row.organization_id = p_organization_id AND referenced_row.profile_id = p_source_profile_id
   ) AS live_references;
   IF v_live_source_references <> 0 THEN
