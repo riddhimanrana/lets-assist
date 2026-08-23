@@ -249,7 +249,7 @@ const pluginCatalogRows = [
     visibility: "private",
     is_active: true,
     // Must match the manifest and a published `plugin_versions` row.
-    latest_version: "2.0.0",
+    latest_version: "2.0.2",
     private_codebase: true,
   },
   {
@@ -259,7 +259,7 @@ const pluginCatalogRows = [
       "Private CSF workflow system for cohort membership, applications, officer roles, points, posts, and sheets.",
     visibility: "private",
     is_active: true,
-    latest_version: "1.1.0",
+    latest_version: "1.2.8",
     private_codebase: true,
   },
 ];

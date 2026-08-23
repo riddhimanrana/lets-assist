@@ -402,6 +402,19 @@ test("refuses the obsolete single-environment application artifact", () => {
   );
 });
 
+test("requires the canonical plugin changelog path", () => {
+  const input = fixture({ application: true, multiEnvironment: true });
+  const manifest = JSON.parse(readFileSync(input.manifestPath, "utf8"));
+  manifest.changelogPath = "plugins/example-plugin/plugin.ts";
+  manifest.changelogDigest = manifest.manifestDigest;
+  writeFileSync(input.manifestPath, `${JSON.stringify(manifest, null, 2)}\n`);
+
+  assert.throws(
+    () => integrate(input),
+    /changelog path must be the canonical plugin CHANGELOG\.md/u,
+  );
+});
+
 test("integrates separately hashed Development and Production builds", () => {
   const input = fixture({ application: true, multiEnvironment: true });
   const result = integrate(input);

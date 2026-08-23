@@ -17,7 +17,7 @@ VALUES (
   'Server-only seasonal membership, tournament, guardian, and team operations for speech and debate organizations.',
   'private',
   true,
-  '2.0.0',
+  '2.0.2',
   true
 )
 ON CONFLICT (key) DO UPDATE SET
@@ -45,7 +45,7 @@ VALUES (
   'Private CSF workflow system for class membership, applications, officer roles, points, posts, and sheets.',
   'private',
   true,
-  '1.1.0',
+  '1.2.8',
   true,
   jsonb_build_object('privacyMode', 'strict-minor-safe', 'defaultOwnerEmails', jsonb_build_array('dvhs-csf-admin@local.test'))
 )

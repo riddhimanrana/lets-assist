@@ -286,8 +286,8 @@ function validateManifestShape(manifest) {
   ]) {
     assertRelativePath(value, label);
   }
-  if (!manifest.changelogPath.startsWith(`${pluginRoot}/`))
-    fail("changelog path must belong to the plugin");
+  if (manifest.changelogPath !== `${pluginRoot}/CHANGELOG.md`)
+    fail("changelog path must be the canonical plugin CHANGELOG.md");
   if (
     manifest.runtimeProfile === "embedded" &&
     !manifest.manifestPath.startsWith(`${pluginRoot}/`)
@@ -767,7 +767,10 @@ export function integratePrivateRelease({
     manifest.pluginKey,
     servingPrivateCommit,
     manifest.runtimeProfile === "application"
-      ? [manifest.changelogPath, `plugins/${manifest.pluginKey}/release.json`]
+      ? [
+          `plugins/${manifest.pluginKey}/CHANGELOG.md`,
+          `plugins/${manifest.pluginKey}/release.json`,
+        ]
       : null,
   );
   if (compareVersions(manifest.version, previous.version) <= 0) {

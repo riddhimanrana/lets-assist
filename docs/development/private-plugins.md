@@ -19,18 +19,24 @@ Run the complete local plugin gate with one command:
 bun run plugin:verify
 ```
 
-It checks the exact private gitlink, host-import boundary, versioned SDK,
-signed-release integration, and every independent application package. Each
-application package gets a frozen credential-free install followed by lint,
-typecheck, tests, build, data-access audit, and route inventory.
+It checks gitlink drift, the host-import boundary, versioned SDK,
+signed-release integration, embedded private tests, and every independent
+application package. Each application package gets a frozen credential-free
+install followed by lint, typecheck, tests, build, data-access audit, and route
+inventory.
 
 During active private-plugin development, gitlink drift and private working-tree
-changes are reported as warnings so the remaining gates still run. Before
-publishing a root gitlink or cutting a release, run the exact publication gate:
+changes are reported as warnings so the remaining gates still run. Run the
+exact publication gate only after the root index points at the private commit
+you intend to publish:
 
 ```bash
 bun run plugin:verify:strict
 ```
+
+Before creating a private release tag, run `bun run plugin:verify`. The signed
+release workflow verifies the reviewed private source, and the root integration
+then runs the strict gate after it updates the gitlink for an embedded release.
 
 Pull requests run the short static and plugin-contract check. Merging to
 `development` does not repeat the full database and browser suite. Run the

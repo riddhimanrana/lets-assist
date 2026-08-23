@@ -18,10 +18,10 @@ describe("private application tooling ownership", () => {
     const strictCommand = packageJson.scripts?.["plugin:verify:strict"];
 
     expect(command).toBe(
-      "bun run plugin:submodules:check && bun run plugin:check:boundary && bun run plugin:sdk:test && bun run plugin:test:release-integration && bun run plugin:apps:check",
+      "bun run plugin:submodules:check && bun run plugin:check:boundary && bun run plugin:sdk:test && bun run plugin:test:release-integration && bun run plugin:apps:check && bun run test:private-plugins",
     );
     expect(strictCommand).toBe(
-      "bun run plugin:submodules:check:strict && bun run plugin:check:boundary && bun run plugin:sdk:test && bun run plugin:test:release-integration && bun run plugin:apps:check",
+      "bun run plugin:submodules:check:strict && bun run plugin:check:boundary && bun run plugin:sdk:test && bun run plugin:test:release-integration && bun run plugin:apps:check && bun run test:private-plugins",
     );
   });
 
