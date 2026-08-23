@@ -78,6 +78,19 @@ describe("private application tooling ownership", () => {
     expect(sharedIgnore?.[1]).toContain(`"${childAppsPath}/**"`);
   });
 
+  test("private candidates can run isolated private tests before publication", () => {
+    const packageJson = JSON.parse(read("package.json")) as {
+      scripts?: Record<string, string>;
+    };
+    expect(packageJson.scripts?.["test:private-plugins"]).toBe(
+      "node scripts/run-tests.mjs --private-only",
+    );
+
+    const runner = read("scripts/run-tests.mjs");
+    expect(runner).toContain('"--private-only"');
+    expect(runner).toContain('file.startsWith("lib/plugins/private/")');
+  });
+
   test("host data and route audits exclude only the independently gated child", () => {
     const dataAudit = read("scripts/audit-plugin-data-access.sh");
     expect(dataAudit).toContain(`-not -path '${childAppsPath}/*'`);
