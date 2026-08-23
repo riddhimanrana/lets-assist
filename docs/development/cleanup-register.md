@@ -50,8 +50,8 @@ This register separates actionable repository defects from provider/account and 
   boundary now scans CSS and Sass `@import`, `@use`, and `@forward`
   dependencies, ordinary local `url(...)` assets such as backgrounds and font
   sources, CSS Modules file-valued `composes` declarations, and TypeScript
-  triple-slash path references. CSS escapes are decoded before path resolution,
-  so those build inputs cannot disguise host source dependencies. Data,
+  triple-slash path and type references. CSS escapes are decoded before path
+  resolution, so those build inputs cannot disguise host source dependencies. Data,
   external, fragment, and protocol-relative stylesheet URLs remain outside this
   local-file check.
   Parsed TypeScript files, project references, and relative extended configs

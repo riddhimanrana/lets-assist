@@ -137,6 +137,9 @@ function collectLiteralDependencySpecifiers(
   for (const reference of sourceFile.referencedFiles) {
     literals.add(reference.fileName);
   }
+  for (const reference of sourceFile.typeReferenceDirectives) {
+    literals.add(reference.fileName);
+  }
 
   function visit(node) {
     if (

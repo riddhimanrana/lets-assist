@@ -166,6 +166,15 @@ describe("host import specifier collection", () => {
 
     expect([...collectLiteralApplicationDependencySpecifiers(source)]).toEqual([
       "../../outside/host.d.ts",
+      "node",
+    ]);
+  });
+
+  test("collects TypeScript type reference directives", () => {
+    const source = `/// <reference types="../../outside/host" />\nexport {};`;
+
+    expect([...collectLiteralApplicationDependencySpecifiers(source)]).toEqual([
+      "../../outside/host",
     ]);
   });
 
