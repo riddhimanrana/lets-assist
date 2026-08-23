@@ -136,8 +136,9 @@ export function assertPublishedPluginReleases(
 
 /**
  * Code-owned publication evidence mirrored by the forward database migration.
- * CI hashes the exact files and verifies that sourceCommit is contained in the
- * private gitlink before a root release can advance.
+ * CI hashes embedded manifests against the exact private gitlink. Application
+ * releases instead carry a signed source identity and independent build digest
+ * because their source does not become part of the host gitlink.
  */
 assertPublishedPluginReleases(releaseData);
 
