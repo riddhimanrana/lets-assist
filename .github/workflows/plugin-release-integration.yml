@@ -253,6 +253,7 @@ jobs:
             git -C lib/plugins/private checkout --detach \
               "${{ steps.embedded.outputs.source_commit }}"
           fi
+          git submodule init lib/plugins/private
           git add lib/plugins/private
           bun install --frozen-lockfile
           bunx prettier --write lib/plugins/published-releases.json

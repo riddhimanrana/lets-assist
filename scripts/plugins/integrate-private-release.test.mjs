@@ -647,6 +647,7 @@ test("root workflow verifies known assets and opens only a Development PR", () =
   assert.match(workflow, /origin\/development/u);
   assert.match(workflow, /--base development/u);
   assert.match(workflow, /Record the embedded runtime pin/u);
+  assert.match(workflow, /git submodule init lib\/plugins\/private/u);
   assert.match(
     workflow,
     /runtimeProfile[\s\S]*== application[\s\S]*steps\.embedded\.outputs\.source_commit/u,
