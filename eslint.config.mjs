@@ -19,6 +19,8 @@ export default tseslint.config(
       "dist",
       "coverage",
       ".artifacts/**",
+      // Local agent memory caches are generated outside the source tree.
+      ".remember/**",
       // Design-sync tooling drops generated bundles at the repo root; they are
       // not source and must not fail the zero-warning gate.
       ".design-sync/**",

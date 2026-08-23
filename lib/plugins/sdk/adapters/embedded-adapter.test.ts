@@ -58,15 +58,20 @@ describe("embedded adapter over the real private plugins", () => {
       expect(pkg.definition).toBe(definition);
     });
 
-    test(`${key} keeps bootstrap provenance unknown`, () => {
+    test(`${key} uses its published provenance contract`, () => {
       const adoption = embeddedPluginAdoptions[key];
       const release = getPublishedPluginRelease(key, "embedded");
 
       expect(release).toBeDefined();
       if (!release) throw new Error(`Missing published release for ${key}`);
-      expect(release.signer).toBeNull();
-      expect(release.releaseInputs).toBeNull();
-      expect(release.requiredPlatformSchemaVersion).toBe("legacy");
+      if (release.signer) {
+        expect(adoption).toEqual(adoptionFromPublishedRelease(key, release));
+        expect(release.releaseInputs).not.toBeNull();
+        expect(release.requiredPlatformSchemaVersion).not.toBe("legacy");
+      } else {
+        expect(release.releaseInputs).toBeNull();
+        expect(release.requiredPlatformSchemaVersion).toBe("legacy");
+      }
       expect(
         isPluginVersionWithinContractRange(
           definition.manifest.version,
