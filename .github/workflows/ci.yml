@@ -10,9 +10,6 @@ on:
       - synchronize
       - reopened
       - ready_for_review
-  push:
-    branches:
-      - development
   workflow_dispatch:
 
 concurrency:
@@ -23,47 +20,6 @@ permissions:
   contents: read
 
 jobs:
-  changes:
-    runs-on: ubuntu-latest
-    outputs:
-      db: ${{ steps.filter.outputs.db }}
-    steps:
-      - name: Checkout
-        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # ratchet:actions/checkout@v6
-
-      - name: Detect DB-related changes
-        id: filter
-        uses: dorny/paths-filter@v4
-        with:
-          filters: |
-            db:
-              - 'supabase/**'
-              - '.github/workflows/**'
-              - 'app/api/calendar/google/**'
-              - 'app/api/cron/**'
-              - 'lib/cron/**'
-              - 'app/organization/**/calendar/**'
-              - 'app/organization/**/reports/sheets-actions.ts'
-              - 'lib/supabase/**'
-              - 'lib/auth/**'
-              - 'lib/organization/calendar-sync.ts'
-              - 'lib/plugins/**'
-              - 'services/calendar.ts'
-              - 'services/google-drive-metadata*'
-              - 'services/google-sheets.ts'
-              - 'scripts/check-private-submodules.mjs'
-              - 'scripts/check-supabase-seed-safety*'
-              - 'scripts/sync-private-submodules.mjs'
-              - 'scripts/verify-*'
-              - 'scripts/local-dev/**'
-              - 'playwright.*.config.ts'
-              - 'tests/e2e/csf/**'
-              - 'tests/e2e/dv/**'
-              - 'package.json'
-              - 'bun.lock'
-              - 'app/**/auth/**'
-              - 'app/auth/**'
-
   quality:
     name: ${{ github.event_name == 'pull_request' && 'quality' || 'full-quality' }}
     runs-on: ubuntu-latest
@@ -174,10 +130,13 @@ jobs:
           NEXT_PUBLIC_SITE_URL: http://localhost:3000
 
   db-replay-validation:
-    needs: changes
     runs-on: ubuntu-latest
     timeout-minutes: 40
-    if: github.event_name != 'pull_request' && needs.changes.outputs.db == 'true'
+    # Full schema replay is an explicit release/rehearsal gate. Pull requests
+    # stay fast, and merging to development does not repeat work already run
+    # locally. Production schema deployment runs its own exact reset and pgTAP
+    # gate before it can push migrations.
+    if: github.event_name == 'workflow_dispatch'
     env:
       CSF_ISOLATED_BASE_PORT: "55320"
       CSF_E2E_RUN_ID: ci-${{ github.run_id }}-${{ github.run_attempt }}

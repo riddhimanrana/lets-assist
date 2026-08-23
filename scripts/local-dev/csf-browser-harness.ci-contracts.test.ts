@@ -363,18 +363,16 @@ describe("CI replays the seven-route cron smoke in the right order", () => {
     expect(job.match(/bun run dev:test:cron/gu)?.length).toBe(1);
   });
 
-  test("cron route and helper paths trigger the DB-related job", () => {
+  test("the full DB replay is an explicit manual rehearsal", () => {
     const workflow = ciWorkflowSource();
-    const filters = workflow.slice(
-      workflow.indexOf("filters: |"),
-      workflow.indexOf("  quality:"),
+    const job = dbReplayJob();
+
+    expect(workflow).toContain("  workflow_dispatch:");
+    expect(workflow).not.toContain(
+      "  push:\n    branches:\n      - development",
     );
-    expect(filters).toContain("- 'app/api/cron/**'");
-    expect(filters).toContain("- 'lib/cron/**'");
-    // Broadened, not narrowed: the single-route filter it replaces is gone.
-    expect(filters).not.toContain(
-      "- 'app/api/cron/organization-sheet-sync/**'",
-    );
+    expect(workflow).not.toContain("dorny/paths-filter");
+    expect(job).toContain("if: github.event_name == 'workflow_dispatch'");
   });
 
   test("CI still contacts neither Production nor preview", () => {
