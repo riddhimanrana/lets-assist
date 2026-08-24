@@ -34,8 +34,38 @@ GRANT EXECUTE ON FUNCTION plugin_data.csf_generate_class_join_code()
 COMMENT ON FUNCTION plugin_data.csf_generate_class_join_code() IS
   'Six characters from a 32-letter alphabet that omits 0/O/1/I. Callers own collision retries against csf_class_join_codes_code_uidx.';
 
--- Regenerate every existing code (active and historical) before swapping the
--- CHECK: the constraint validates all rows, not just active ones.
+-- Drop the 8-hex CHECK BEFORE regenerating, not after.
+--
+-- The constraint validates every row, so rewriting existing codes into the new
+-- six-character alphabet while the old CHECK is still installed fails outright:
+--   new row for relation "csf_class_join_codes" violates check constraint
+--   "csf_class_join_codes_code_check"
+-- This ordering passed everywhere the table happened to be empty (the loop
+-- simply never ran) and failed the first time it met an environment holding a
+-- real code, which is exactly what happened on Production.
+DO $$
+DECLARE
+  v_constraint text;
+BEGIN
+  SELECT conname
+  INTO v_constraint
+  FROM pg_constraint
+  WHERE conrelid = 'plugin_data.csf_class_join_codes'::regclass
+    AND contype = 'c'
+    AND pg_get_constraintdef(oid) LIKE '%[A-F0-9]{8}%';
+  IF v_constraint IS NULL THEN
+    RAISE EXCEPTION
+      'Expected the 8-hex CHECK on plugin_data.csf_class_join_codes; refusing to guess.';
+  END IF;
+  EXECUTE format(
+    'ALTER TABLE plugin_data.csf_class_join_codes DROP CONSTRAINT %I',
+    v_constraint
+  );
+END;
+$$;
+
+-- Regenerate every existing code (active and historical) now that the old
+-- CHECK is gone and the new one is not yet installed.
 DO $$
 DECLARE
   v_row record;
@@ -63,27 +93,6 @@ BEGIN
       END;
     END LOOP;
   END LOOP;
-END;
-$$;
-
-DO $$
-DECLARE
-  v_constraint text;
-BEGIN
-  SELECT conname
-  INTO v_constraint
-  FROM pg_constraint
-  WHERE conrelid = 'plugin_data.csf_class_join_codes'::regclass
-    AND contype = 'c'
-    AND pg_get_constraintdef(oid) LIKE '%[A-F0-9]{8}%';
-  IF v_constraint IS NULL THEN
-    RAISE EXCEPTION
-      'Expected the 8-hex CHECK on plugin_data.csf_class_join_codes; refusing to guess.';
-  END IF;
-  EXECUTE format(
-    'ALTER TABLE plugin_data.csf_class_join_codes DROP CONSTRAINT %I',
-    v_constraint
-  );
 END;
 $$;
 
