@@ -16,10 +16,18 @@ This register separates actionable repository defects from provider/account and 
   filter to the counter projection. Calls without a class remain organization
   wide.
 - The pgTAP fixture now includes two classes in the same organization and
-  checks directory and attention counts for each selected class. Production
-  has not received this migration yet. A fresh disposable database replay
-  applied all 378 migrations, exposed 85 CSF tables, and passed all 6,147
-  assertions across 190 pgTAP files.
+  checks directory and attention counts for each selected class. A fresh
+  disposable database replay applied all 378 migrations, exposed 85 CSF
+  tables, and passed all 6,147 assertions across 190 pgTAP files.
+- Root PR #300 merged the repair to `development`; release PR #301 merged it to
+  `main` at `1213d741`. Production schema workflow run `32717261485` passed its
+  exact-tree validation, fresh replay, pgTAP, dry run, push, and parity gates.
+  Production now records migration
+  `20260824123000_scope_csf_member_counts_to_class`. A read-only call for the
+  empty Class of 2028 returned zero directory, semester, connected, and
+  attention counts. The function remains security-invoker and executable only
+  by `service_role`. Supabase advisors reported no finding for this function or
+  migration.
 
 ## Production communications repair, 2026-08-24
 
@@ -35,7 +43,8 @@ This register separates actionable repository defects from provider/account and 
   retains the restricted sending credential. Local and CI-shaped development
   launchers clear both provider credentials.
 - Activity creation as Published and draft-to-published status changes now
-  expose an unchecked `Also email members` option. A checked first publication
+  expose a default-checked `Also email members` option that the publisher can
+  clear before submitting. A checked first publication
   creates one source-linked, consent-aware campaign in the durable ledger.
   Publication and queueing remain separate reported outcomes. Database guards
   require `manage_opportunities`, freeze the exact semester and optional class,
@@ -68,12 +77,15 @@ This register separates actionable repository defects from provider/account and 
   Production ledger. Read-only Production checks confirmed the activity source
   column and campaign function in `plugin_data`, with zero active campaigns or
   delivery attempts. No recipient email was sent.
-- Private PR #121 merged the requested composer behavior at `5a2a21a`: new,
+- Private PR #121 merged the requested class composer behavior at `5a2a21a`: new,
   draft, scheduled, archived, and republished class posts select **Email
   members** by default, while edits to an already-published post remain
-  unchecked to prevent repeat delivery. Activity publication retains the
-  explicit, unchecked **Also email members** option. The focused post and
-  activity email suite passes 72 tests.
+  unchecked to prevent repeat delivery. Private PR #125 merged the follow-up
+  activity behavior to `development` at `1474fc5`: both first-publication
+  surfaces now default the explicit checkbox on while allowing the publisher
+  to clear it. TypeScript, lint, source organization, 75 focused tests, the
+  207-file isolated private-plugin suite, private `plugin-quality`, and
+  GitGuardian passed. No email was sent.
 - Root PR #292 merged the recurring worker repair at `1413a098`. The Production
   Vercel team is on Pro, and `vercel.json` owns the bounded recurrence:
   communications dispatch every ten minutes and scheduled-post publication at
