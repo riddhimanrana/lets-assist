@@ -4,7 +4,7 @@ This register separates actionable repository defects from provider/account and 
 
 `AUD-` identifiers are allocated per branch and can drift while several audit branches are open at once. Current `development` includes the merged #152, #158, #174, #177, #179, and #181 findings, while open #180 can still carry overlapping historical identifiers. This branch retains `AUD-036` and `AUD-037` for its activity/partner authorization work without renumbering or restating the merged meeting findings.
 
-## Production communications repair candidate — 2026-08-24
+## Production communications repair, 2026-08-24
 
 - Production audit found one configured member announcement topic, three
   missing CSF audience topics, two disabled duplicate webhook endpoints, and a
@@ -43,13 +43,25 @@ This register separates actionable repository defects from provider/account and 
   creation time matches the stored Production signing-secret setup is enabled;
   the later duplicate remains disabled. No webhook was deleted and no email
   was sent.
-- Still open: root gitlink integration, hosted Development acceptance,
-  creation of the separate Production management credential,
+- Root PR #284 passed Quality, CodeQL, GitGuardian, and Vercel, then merged to
+  `development` at `ca456499`. Its hosted Development deployment reached
+  `Ready`. Release PR #285 passed the same source gates and merged to `main` at
+  `09a7b202`; the matching Vercel Production deployment reached `Ready` and
+  migration `20260824065333_csf_activity_publication_email` is present in the
+  Production ledger. Read-only Production checks confirmed the activity source
+  column and campaign function in `plugin_data`, with zero active campaigns or
+  delivery attempts. No recipient email was sent.
+- Still open: creation of the separate Production management credential and
   saving the three new provider topic bindings through the audited plugin
-  configuration path, scheduler recovery, Production migration and deployment,
-  and a no-recipient Production runtime check. Real email delivery requires a
-  separately controlled test recipient and is not part of this candidate
-  evidence.
+  configuration path. Member and class announcements remain bound to the
+  existing valid member topic, so optional class-post and activity-publication
+  email can use the durable worker path now. A manual dispatcher run on exact
+  Production SHA `09a7b202` remains pending before runner assignment, as do
+  other workflows that use the protected Production environment; the run
+  exposes no approval request through GitHub's pending-deployments API. This is
+  an account/environment scheduler blocker, not a successful runtime check.
+  Real email delivery requires a separately controlled test recipient and was
+  not part of this repair evidence.
 
 ## Onboarding-link teardown retention — 2026-08-23
 
