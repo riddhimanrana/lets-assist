@@ -51,18 +51,39 @@ This register separates actionable repository defects from provider/account and 
   Production ledger. Read-only Production checks confirmed the activity source
   column and campaign function in `plugin_data`, with zero active campaigns or
   delivery attempts. No recipient email was sent.
-- Still open: creation of the separate Production management credential and
-  saving the three new provider topic bindings through the audited plugin
-  configuration path. Member and class announcements remain bound to the
-  existing valid member topic, so optional class-post and activity-publication
-  email can use the durable worker path now. Manual dispatcher run
-  `32701843186` on exact Production SHA `09a7b202` was cancelled after four
-  minutes without runner assignment or steps when a later scheduled run
-  arrived. Other workflows that use the protected Production environment also
-  remain pending, and the manual run exposed no approval request through
-  GitHub's pending-deployments API. This is an account/environment scheduler
-  blocker, not a successful runtime check.
-  Real email delivery requires a separately controlled test recipient and was
+- Private PR #121 merged the requested composer behavior at `5a2a21a`: new,
+  draft, scheduled, archived, and republished class posts select **Email
+  members** by default, while edits to an already-published post remain
+  unchecked to prevent repeat delivery. Activity publication retains the
+  explicit, unchecked **Also email members** option. The focused post and
+  activity email suite passes 72 tests.
+- Root PR #292 merged the recurring worker repair at `1413a098`. The Production
+  Vercel team is on Pro, and `vercel.json` owns the bounded recurrence:
+  communications dispatch every ten minutes and scheduled-post publication at
+  minutes 7, 17, 27, 37, 47, and 57. The GitHub workflows remain available as
+  manual, Production-approval-gated fallbacks. Production deployment
+  `dpl_93RQbD7d79XicfEXzy1PnRXYkWBv` served `1413a098`; Vercel reported both
+  crons enabled with no undeployed or modified definitions. Runtime logs showed
+  HTTP 200 dispatch starts at 09:00:57 and 09:10:00 UTC and a 200 scheduled-post
+  start at 09:07:23 UTC. The durable ledger still contained zero campaigns,
+  recipient snapshots, and dispatch attempts after those ticks, so the worker
+  started successfully and sent no email.
+- Signed private release `dvhs-csf/v1.2.10` points to promoted private source
+  `c23b6067`. Root PR #296 published the signed identity to `main` at
+  `3de2e4f5`; Production migration
+  `20260824092128_publish_dvhs_csf_1_2_10` records the same source, manifest,
+  content, build, SBOM, and required-schema identity. Production child
+  deployment `dpl_3A9GPMFaTXCLcHS1QW1taRTDuLYZ` passed the exact application
+  health contract and is recorded as healthy and promoted for version 1.2.10.
+- Still open: DVHS CSF remains selected on application runtime 1.2.8 until an
+  organization owner signs in and completes the audited version update to
+  1.2.10. The requested owner account was not present in the connected Google
+  chooser, so no unrelated account was selected and no direct database update
+  bypassed the product control. The separate Production management credential
+  is also still absent, so staff, partner, and applicant provider-topic
+  bindings cannot be saved through **Check communications setup**. Member and
+  class announcements remain bound to the existing valid member topic. Real
+  delivery proof still requires a separately controlled test recipient and was
   not part of this repair evidence.
 
 ## Onboarding-link teardown retention — 2026-08-23
@@ -675,12 +696,11 @@ apply, advisor, or acceptance evidence is missing. Production is not implied.
 
 ## External/provider and Production-only
 
-| ID        | Classification      | Boundary                                                                                                                                                 |
-| --------- | ------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| CLEAN-016 | Provider/Production | Scheduler source is complete; cadence, secrets, repeated starts, and isolated provider behavior require provider configuration and Production authority. |
-| AUD-001   | Production-only     | Separate Production migration/application authorization and acceptance.                                                                                  |
-| AUD-002   | Production-only     | Separate Production migration/application authorization and acceptance.                                                                                  |
-| AUD-013   | Provider/Production | Provider credential ownership and Production acceptance are external to this Development repository closeout.                                            |
+| ID      | Classification      | Boundary                                                                                                      |
+| ------- | ------------------- | ------------------------------------------------------------------------------------------------------------- |
+| AUD-001 | Production-only     | Separate Production migration/application authorization and acceptance.                                       |
+| AUD-002 | Production-only     | Separate Production migration/application authorization and acceptance.                                       |
+| AUD-013 | Provider/Production | Provider credential ownership and Production acceptance are external to this Development repository closeout. |
 
 ## Outside P0–P2
 
@@ -978,25 +998,25 @@ hosted Development verification.
 
 ## External/account blockers
 
-| ID      | Dependency                    | Blocker                                                                                                                                                                                                                                                                                                                                                                                                  | Required owner/action                                                                                                                                                                                                |
-| ------- | ----------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| EXT-001 | GitHub Support                | Cached views and PR #97 refs for the removed raw workbook require server-side dereferencing/garbage collection. The available browser Support account does not include repository owner `riddhimanrana`.                                                                                                                                                                                                 | Repository owner opens Support ticket with affected commit mappings and PR #97                                                                                                                                       |
-| EXT-002 | Google                        | Live OAuth chooser, Picker, Drive import, refresh/reconnect/revocation, 403, and 429 journeys require approved test account/configuration.                                                                                                                                                                                                                                                               | Google account owner authorizes Development-only run                                                                                                                                                                 |
-| EXT-003 | Hosted Development            | **Resolved 2026-08-10.** Persistent Supabase Development branch exists (`ocbuygudvarsuxijxhau`, 218 migrations, advisors clean). `dev.lets-assist.com` is wired to the `development` branch with Valid Configuration. Branch-scoped Vercel Preview variables for the three Supabase keys are present and scoped to `development`. Authenticated preview access and deployment-log access both confirmed. | Closed — verified in the Vercel dashboard and against the Supabase branch                                                                                                                                            |
-| EXT-004 | Production Resend             | **Partially resolved 2026-08-24.** Production schema and Vercel release acceptance passed. The member topic is bound and the webhook is enabled. The separate restricted management credential is still absent, so the audited Settings action cannot validate and save the new staff, partner, and applicant topic bindings.                                                                            | Platform administrator creates a topic-management-only Resend key, stores it as `RESEND_MANAGEMENT_API_KEY` in Vercel Production, redeploys, then an organization administrator runs **Check communications setup**. |
-| EXT-005 | GitHub Production environment | Manual CSF dispatcher run `32701843186` on `09a7b202` was cancelled after four minutes without runner assignment or steps when a later schedule arrived. Other Production-environment workflows remain pending, and GitHub reported no deployment request that could be approved through the workflow-run API. The no-recipient dispatcher runtime check has not executed.                               | Repository owner inspects the protected Production environment and GitHub Actions account state, dispatches a fresh run, and confirms a zero-claimed successful pass before relying on scheduled delivery.           |
+| ID      | Dependency         | Blocker                                                                                                                                                                                                                                                                                                                                                                                                  | Required owner/action                                                                                                                                                                                                |
+| ------- | ------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| EXT-001 | GitHub Support     | Cached views and PR #97 refs for the removed raw workbook require server-side dereferencing/garbage collection. The available browser Support account does not include repository owner `riddhimanrana`.                                                                                                                                                                                                 | Repository owner opens Support ticket with affected commit mappings and PR #97                                                                                                                                       |
+| EXT-002 | Google             | Live OAuth chooser, Picker, Drive import, refresh/reconnect/revocation, 403, and 429 journeys require approved test account/configuration.                                                                                                                                                                                                                                                               | Google account owner authorizes Development-only run                                                                                                                                                                 |
+| EXT-003 | Hosted Development | **Resolved 2026-08-10.** Persistent Supabase Development branch exists (`ocbuygudvarsuxijxhau`, 218 migrations, advisors clean). `dev.lets-assist.com` is wired to the `development` branch with Valid Configuration. Branch-scoped Vercel Preview variables for the three Supabase keys are present and scoped to `development`. Authenticated preview access and deployment-log access both confirmed. | Closed — verified in the Vercel dashboard and against the Supabase branch                                                                                                                                            |
+| EXT-004 | Production Resend  | **Partially resolved 2026-08-24.** Production schema and Vercel release acceptance passed. The member topic is bound and the webhook is enabled. The separate restricted management credential is still absent, so the audited Settings action cannot validate and save the new staff, partner, and applicant topic bindings.                                                                            | Platform administrator creates a topic-management-only Resend key, stores it as `RESEND_MANAGEMENT_API_KEY` in Vercel Production, redeploys, then an organization administrator runs **Check communications setup**. |
 
 ## Completed milestones
 
-| Milestone                           | Evidence                                                                                                                                                                                               |
-| ----------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| Root browser harness modularization | The former 3,277-line harness is split by launcher ownership, Docker lifecycle, verifier workflow, and CI contracts; all resulting test modules remain below 1,200 lines.                              |
-| Test process isolation              | `bun run test` discovers both root and plugin suites, executes every `mock.module` file in its own Bun process, and prevents one plugin test's global mock from deciding another test's result.        |
-| Artifact boundary                   | Generated browser output and formatter caches use ignored `.artifacts/`; the allowlisted cleaner is dry-run by default.                                                                                |
-| Production dependency audit         | `bun audit --production` reports no vulnerabilities and now runs inside `quality:static`; compatible direct dependencies are current and four major-version holds have explicit peer/runtime evidence. |
-| Root module extraction              | Oversized root action, report, moderation, seed, and browser-harness code is split behind compatibility exports; maintainability checks, focused tests, and the production build pass.                 |
-| Private CSF module extraction       | The private CSF actions, dashboard assembly, and import-integrity suites are split by domain; 2,337 private tests, root gitlink integration, and the isolated replay pass.                             |
-| Compiled browser runtime            | Local CSF/DV E2E now uses the same compiled runtime as CI, eliminating the development hot-reload module invalidation failure; CSF passes 40/40 behavioral scenarios and DV passes 3/3.                |
-| Fictional fixture identity          | CSF admin fixtures no longer reuse a real owner name or portrait; seed reruns synchronize the public profile through authenticated self-update RLS, with regression coverage and reviewed screenshots. |
-| Isolated teardown                   | Dry-run ownership validation preceded deletion; the exact CSF stack then proved zero residual labeled containers, volumes, or networks and removed its generated work directory and secrets.           |
-| Fresh-install dependency graph      | The global Ajv override that broke ESLint after a clean Bun install is removed, and the imported Shadcn Tailwind v4 stylesheet is now declared; both resolutions have regression coverage.             |
+| Milestone                           | Evidence                                                                                                                                                                                                                                                                                                                    |
+| ----------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| CSF communications recurrence       | **CLEAN-016 and EXT-005 resolved 2026-08-24.** Production Vercel Pro owns both recurring CSF routes. Enabled cron definitions, repeated HTTP 200 starts, and a zero-campaign durable ledger prove the scheduler invokes the bounded worker without contacting recipients. GitHub remains a manual, approval-gated fallback. |
+| Root browser harness modularization | The former 3,277-line harness is split by launcher ownership, Docker lifecycle, verifier workflow, and CI contracts; all resulting test modules remain below 1,200 lines.                                                                                                                                                   |
+| Test process isolation              | `bun run test` discovers both root and plugin suites, executes every `mock.module` file in its own Bun process, and prevents one plugin test's global mock from deciding another test's result.                                                                                                                             |
+| Artifact boundary                   | Generated browser output and formatter caches use ignored `.artifacts/`; the allowlisted cleaner is dry-run by default.                                                                                                                                                                                                     |
+| Production dependency audit         | `bun audit --production` reports no vulnerabilities and now runs inside `quality:static`; compatible direct dependencies are current and four major-version holds have explicit peer/runtime evidence.                                                                                                                      |
+| Root module extraction              | Oversized root action, report, moderation, seed, and browser-harness code is split behind compatibility exports; maintainability checks, focused tests, and the production build pass.                                                                                                                                      |
+| Private CSF module extraction       | The private CSF actions, dashboard assembly, and import-integrity suites are split by domain; 2,337 private tests, root gitlink integration, and the isolated replay pass.                                                                                                                                                  |
+| Compiled browser runtime            | Local CSF/DV E2E now uses the same compiled runtime as CI, eliminating the development hot-reload module invalidation failure; CSF passes 40/40 behavioral scenarios and DV passes 3/3.                                                                                                                                     |
+| Fictional fixture identity          | CSF admin fixtures no longer reuse a real owner name or portrait; seed reruns synchronize the public profile through authenticated self-update RLS, with regression coverage and reviewed screenshots.                                                                                                                      |
+| Isolated teardown                   | Dry-run ownership validation preceded deletion; the exact CSF stack then proved zero residual labeled containers, volumes, or networks and removed its generated work directory and secrets.                                                                                                                                |
+| Fresh-install dependency graph      | The global Ajv override that broke ESLint after a clean Bun install is removed, and the imported Shadcn Tailwind v4 stylesheet is now declared; both resolutions have regression coverage.                                                                                                                                  |
