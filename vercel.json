@@ -4,5 +4,15 @@
     "deploymentEnabled": {
       "codex/plugin-release-*": false
     }
-  }
+  },
+  "crons": [
+    {
+      "path": "/api/cron/csf-communications-dispatch",
+      "schedule": "*/10 * * * *"
+    },
+    {
+      "path": "/api/cron/csf-scheduled-post-publisher",
+      "schedule": "7,17,27,37,47,57 * * * *"
+    }
+  ]
 }

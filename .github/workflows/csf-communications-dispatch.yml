@@ -2,14 +2,12 @@ name: CSF Communications Dispatch
 
 # Drains the durable CSF communications ledger. Queued campaign mail is sent
 # ONLY by this worker; without a scheduler, finalized campaigns would sit
-# queued forever. The cron expression requests a run every ten minutes, but
-# GitHub Actions schedules can be delayed and do not provide a fixed delivery
-# SLA. The drain loop below finishes a full ~500-recipient campaign inside one
-# run instead of one 50-send batch per tick.
+# queued forever. Vercel Cron owns the Production schedule. This workflow is a
+# manual, approval-gated fallback for operator recovery. The drain loop below
+# finishes a full ~500-recipient campaign inside one run instead of one 50-send
+# batch per tick.
 
 on:
-  schedule:
-    - cron: "*/10 * * * *" # Requested cadence; GitHub may start scheduled runs late.
   workflow_dispatch:
 
 permissions:

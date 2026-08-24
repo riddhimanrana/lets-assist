@@ -1,14 +1,10 @@
 name: CSF Scheduled Post Publisher
 
 # Publishes due CSF posts through the permission-rechecked, bounded database
-# transition. GitHub evaluates scheduled workflows only from the default branch.
-# The cron expression requests a run every ten minutes, offset from the top of
-# the hour, but GitHub Actions schedules can be delayed or dropped under load
-# and therefore provide no fixed publication-time SLA.
+# transition. Vercel Cron owns the Production schedule. This workflow is a
+# manual, approval-gated fallback for operator recovery.
 
 on:
-  schedule:
-    - cron: "7,17,27,37,47,57 * * * *"
   workflow_dispatch:
 
 permissions:
