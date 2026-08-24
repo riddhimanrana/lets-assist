@@ -55,11 +55,13 @@ This register separates actionable repository defects from provider/account and 
   saving the three new provider topic bindings through the audited plugin
   configuration path. Member and class announcements remain bound to the
   existing valid member topic, so optional class-post and activity-publication
-  email can use the durable worker path now. A manual dispatcher run on exact
-  Production SHA `09a7b202` remains pending before runner assignment, as do
-  other workflows that use the protected Production environment; the run
-  exposes no approval request through GitHub's pending-deployments API. This is
-  an account/environment scheduler blocker, not a successful runtime check.
+  email can use the durable worker path now. Manual dispatcher run
+  `32701843186` on exact Production SHA `09a7b202` was cancelled after four
+  minutes without runner assignment or steps when a later scheduled run
+  arrived. Other workflows that use the protected Production environment also
+  remain pending, and the manual run exposed no approval request through
+  GitHub's pending-deployments API. This is an account/environment scheduler
+  blocker, not a successful runtime check.
   Real email delivery requires a separately controlled test recipient and was
   not part of this repair evidence.
 
@@ -982,7 +984,7 @@ hosted Development verification.
 | EXT-002 | Google                        | Live OAuth chooser, Picker, Drive import, refresh/reconnect/revocation, 403, and 429 journeys require approved test account/configuration.                                                                                                                                                                                                                                                               | Google account owner authorizes Development-only run                                                                                                                                                                 |
 | EXT-003 | Hosted Development            | **Resolved 2026-08-10.** Persistent Supabase Development branch exists (`ocbuygudvarsuxijxhau`, 218 migrations, advisors clean). `dev.lets-assist.com` is wired to the `development` branch with Valid Configuration. Branch-scoped Vercel Preview variables for the three Supabase keys are present and scoped to `development`. Authenticated preview access and deployment-log access both confirmed. | Closed — verified in the Vercel dashboard and against the Supabase branch                                                                                                                                            |
 | EXT-004 | Production Resend             | **Partially resolved 2026-08-24.** Production schema and Vercel release acceptance passed. The member topic is bound and the webhook is enabled. The separate restricted management credential is still absent, so the audited Settings action cannot validate and save the new staff, partner, and applicant topic bindings.                                                                            | Platform administrator creates a topic-management-only Resend key, stores it as `RESEND_MANAGEMENT_API_KEY` in Vercel Production, redeploys, then an organization administrator runs **Check communications setup**. |
-| EXT-005 | GitHub Production environment | The manual CSF dispatcher run on `09a7b202` and other scheduled workflows remain pending before runner assignment. GitHub reports no pending deployment request that can be approved through the workflow-run API, so the no-recipient dispatcher runtime check has not executed.                                                                                                                        | Repository owner inspects the protected Production environment and GitHub Actions account state, releases run `32701843186`, and confirms a zero-claimed successful pass before relying on scheduled delivery.       |
+| EXT-005 | GitHub Production environment | Manual CSF dispatcher run `32701843186` on `09a7b202` was cancelled after four minutes without runner assignment or steps when a later schedule arrived. Other Production-environment workflows remain pending, and GitHub reported no deployment request that could be approved through the workflow-run API. The no-recipient dispatcher runtime check has not executed.                               | Repository owner inspects the protected Production environment and GitHub Actions account state, dispatches a fresh run, and confirms a zero-claimed successful pass before relying on scheduled delivery.           |
 
 ## Completed milestones
 
