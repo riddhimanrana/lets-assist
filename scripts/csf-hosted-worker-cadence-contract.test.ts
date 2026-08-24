@@ -33,20 +33,26 @@ function configuredCrons(): VercelCron[] {
 }
 
 describe("CSF hosted-worker cadence acceptance boundary", () => {
-  test("keeps both CSF workers out of Vercel cron", () => {
+  test("schedules both CSF workers through Vercel cron", () => {
     const configuredTargets = configuredCrons().filter(
       (cron) => typeof cron.path === "string" && TARGET_PATHS.has(cron.path),
     );
 
-    expect(
-      configuredTargets,
-      "CSF workers are scheduled outside Vercel because the accepted hosted " +
-        "cadence and plan do not use Vercel cron.",
-    ).toEqual([]);
+    expect(configuredTargets).toEqual([
+      {
+        path: "/api/cron/csf-communications-dispatch",
+        schedule: "*/10 * * * *",
+      },
+      {
+        path: "/api/cron/csf-scheduled-post-publisher",
+        schedule: "7,17,27,37,47,57 * * * *",
+      },
+    ]);
   });
 
-  test("checks in the accepted GitHub communications scheduler", () => {
-    expect(githubDispatchWorkflow).toContain('cron: "*/10 * * * *"');
+  test("keeps an approval-gated manual communications fallback", () => {
+    expect(githubDispatchWorkflow).toContain("workflow_dispatch:");
+    expect(githubDispatchWorkflow).not.toContain("schedule:");
     expect(githubDispatchWorkflow).toContain(
       "ENDPOINT_PATH: /api/cron/csf-communications-dispatch",
     );
@@ -54,18 +60,15 @@ describe("CSF hosted-worker cadence acceptance boundary", () => {
     expect(githubDispatchWorkflow).toContain(
       "CRON_TOKEN: ${{ secrets.CRON_SECRET }}",
     );
-    expect(githubDispatchWorkflow).toContain(
-      "GitHub Actions schedules can be delayed",
-    );
+    expect(githubDispatchWorkflow).toContain("Vercel Cron owns");
     expect(githubDispatchWorkflow).not.toContain(
       "/api/cron/csf-scheduled-post-publisher",
     );
   });
 
-  test("checks in the bounded GitHub scheduled-post publisher away from the top of the hour", () => {
-    expect(githubScheduledPostWorkflow).toContain(
-      'cron: "7,17,27,37,47,57 * * * *"',
-    );
+  test("keeps an approval-gated manual scheduled-post fallback", () => {
+    expect(githubScheduledPostWorkflow).toContain("workflow_dispatch:");
+    expect(githubScheduledPostWorkflow).not.toContain("schedule:");
     expect(githubScheduledPostWorkflow).toContain(
       "ENDPOINT_PATH: /api/cron/csf-scheduled-post-publisher",
     );
@@ -73,9 +76,7 @@ describe("CSF hosted-worker cadence acceptance boundary", () => {
     expect(githubScheduledPostWorkflow).toContain(
       "CRON_TOKEN: ${{ secrets.CRON_SECRET }}",
     );
-    expect(githubScheduledPostWorkflow).toContain(
-      "GitHub Actions schedules can be delayed or dropped under load",
-    );
+    expect(githubScheduledPostWorkflow).toContain("Vercel Cron owns");
     expect(githubScheduledPostWorkflow).toContain("cancel-in-progress: false");
     expect(githubScheduledPostWorkflow).toContain(
       'if [[ "$enabled" != "true" ]]',
