@@ -86,6 +86,14 @@ This register separates actionable repository defects from provider/account and 
   to clear it. TypeScript, lint, source organization, 75 focused tests, the
   207-file isolated private-plugin suite, private `plugin-quality`, and
   GitGuardian passed. No email was sent.
+- Root PR #302 merged the exact private gitlink to `development` at
+  `467cb357`; Quality, CodeQL, GitGuardian, strict containment, and the local
+  plugin release gates passed. Release PR #303 passed Quality, CodeQL,
+  GitGuardian, Supabase Preview, and Vercel, then merged to `main` at
+  `a7767cc3`. Production deployment
+  `dpl_GGt1rkJGwFmNigRzD5EC7Q7YLE2v` is `Ready`, targets Production, and serves
+  `https://lets-assist.com`. The authenticated visual check remains pending
+  because the local Mac session is locked. No email was sent.
 - Root PR #292 merged the recurring worker repair at `1413a098`. The Production
   Vercel team is on Pro, and `vercel.json` owns the bounded recurrence:
   communications dispatch every ten minutes and scheduled-post publication at
