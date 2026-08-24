@@ -29,7 +29,9 @@ This register separates actionable repository defects from provider/account and 
   tests; email and topic coverage passes 53 tests; TypeScript, zero-warning
   lint and source organization pass; the isolated private runner passes all
   207 discovered plugin test files, and the strict submodule initialization
-  check passed before edits. The fresh isolated database replay applies 375
+  and containment check passes at the published private merge. The optimized
+  Next.js Production build passes with explicit local-only Supabase placeholders.
+  The fresh isolated database replay applies 375
   migrations, exposes 85 CSF tables, and passes 6,109 assertions across 188
   files. The broad one-process private test command remains unsuitable because
   global Bun mocks cross-contaminate files; the repository's isolated test
@@ -41,8 +43,8 @@ This register separates actionable repository defects from provider/account and 
   creation time matches the stored Production signing-secret setup is enabled;
   the later duplicate remains disabled. No webhook was deleted and no email
   was sent.
-- Still open: production build, root gitlink integration, hosted Development
-  acceptance, creation of the separate Production management credential,
+- Still open: root gitlink integration, hosted Development acceptance,
+  creation of the separate Production management credential,
   saving the three new provider topic bindings through the audited plugin
   configuration path, scheduler recovery, Production migration and deployment,
   and a no-recipient Production runtime check. Real email delivery requires a
