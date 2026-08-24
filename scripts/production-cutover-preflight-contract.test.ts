@@ -69,9 +69,14 @@ describe("Production cutover preflight source contract", () => {
     const migrations = readdirSync(migrationsRoot)
       .filter((name) => /^\d{14}_.+\.sql$/u.test(name))
       .sort();
+    // The preflight is a frozen record of one cutover: production sat at 333
+    // migrations (head PRODUCTION_HEAD) and 26 were pending up to TARGET_HEAD.
+    // Bound the window to that cutover instead of everything newer than
+    // PRODUCTION_HEAD, so migrations added after it do not retroactively make
+    // the record look wrong.
     const pending = migrations
       .map((name) => name.slice(0, 14))
-      .filter((version) => version > PRODUCTION_HEAD);
+      .filter((version) => version > PRODUCTION_HEAD && version <= TARGET_HEAD);
     const baselineBlock = preflight.slice(
       preflight.indexOf("-- BEGIN EXACT PRODUCTION BASELINE VERSIONS"),
       preflight.indexOf("-- END EXACT PRODUCTION BASELINE VERSIONS"),
@@ -87,9 +92,12 @@ describe("Production cutover preflight source contract", () => {
       (match) => match[1],
     );
 
-    expect(migrations).toHaveLength(359);
+    // The cutover's 359-migration target must remain an exact prefix of the
+    // ledger. That keeps every pinned version verifiable while the ledger grows
+    // past the cutover.
+    expect(migrations.length).toBeGreaterThanOrEqual(359);
     expect(migrations.at(0)?.slice(0, 14)).toBe("20260325181408");
-    expect(migrations.at(-1)?.slice(0, 14)).toBe(TARGET_HEAD);
+    expect(migrations.slice(0, 359).at(-1)?.slice(0, 14)).toBe(TARGET_HEAD);
     expect(pinnedBaseline).toEqual(
       migrations.slice(0, 333).map((name) => name.slice(0, 14)),
     );

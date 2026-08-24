@@ -548,20 +548,31 @@ describe("CSF operator documentation truthfulness guards", () => {
   });
 
   test("plugin entitlement and install use the current routes and controls", () => {
-    const controlPlane = readRepositoryFile(
+    // PluginControlPlane is now only the tab shell; the operator controls the
+    // guide names live in the per-tab components it renders. Assert against that
+    // whole surface so a label cannot pass by sitting in the shell alone.
+    const controlPlane = [
       "app/admin/plugins/PluginControlPlane.tsx",
-    );
+      "app/admin/plugins/PluginAccessControls.tsx",
+      "app/admin/plugins/PluginDetails.tsx",
+      "app/admin/plugins/PluginAdvancedControls.tsx",
+    ]
+      .map((file) => readRepositoryFile(file))
+      .join("\n");
     const organizationPlugins = readRepositoryFile(
       "app/organization/[id]/settings/OrganizationPluginSettings.tsx",
     );
     const pluginManifest = readComponent("../plugin-manifest.ts");
     for (const label of [
-      "Access",
       "Organization access",
-      "Starts at (optional)",
-      "Ends at (optional)",
-      "Force plugin for organization (managed install)",
-      "Save entitlement",
+      "Plugin key",
+      "Active in catalog",
+      "Latest version",
+      "Starts at",
+      "Ends at",
+      "Platform controlled",
+      "Save access",
+      "Force install",
     ]) {
       expect(controlPlane).toContain(label);
     }
@@ -587,15 +598,17 @@ describe("CSF operator documentation truthfulness guards", () => {
     );
     expectInOrder(entitlementPath, [
       "`/admin/plugins`",
-      "**Catalog**",
-      "**Catalog source of truth**",
-      "**Access**",
+      "**Plugin details**",
+      "**Plugin key**",
+      "**Active in catalog**",
+      "**Latest version**",
       "**Organization access**",
       "**Organization** = `DVHigh CSF`",
       "**Plugin** = `DVHS CSF`",
       "**Status** = **Active**",
-      "**Force plugin for organization (managed install)**",
-      "**Save entitlement**",
+      "**Platform controlled**",
+      "**Save access**",
+      "**Force install**",
     ]);
 
     const installPath = between(

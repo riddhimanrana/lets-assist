@@ -46,15 +46,14 @@ procedure; this is the DVHS path through them.
    inserted as the organization `admin`, and the successful form opens
    `/organization/dvhighcsf`.
 2. **Entitle the plugin** (platform super admin — onboarding Stage 1). Open
-   `/admin/plugins`. Under **Catalog** → **Catalog source of truth**, confirm
-   **DVHS CSF** has plugin key `dvhs-csf`, is **Active**, and its **Latest
-   version** matches the shipped manifest. Then open **Access** →
-   **Organization access** and set **Organization** = `DVHigh CSF`, **Plugin** =
-   `DVHS CSF`,
-   and **Status** = **Active**. Leave **Starts at (optional)** and **Ends at
-   (optional)** blank for the reviewed open window, leave **Force plugin for
-   organization (managed install)** off unless that separate behavior was
-   authorized, and select **Save entitlement**.
+   `/admin/plugins`. On **Plugin details**, confirm **DVHS CSF** has **Plugin
+   key** `dvhs-csf`, has **Active in catalog** set, and shows a **Latest
+   version** matching the shipped manifest. Then open **Organization access**
+   and set **Organization** = `DVHigh CSF`, **Plugin** = `DVHS CSF`, and
+   **Status** = **Active**. Leave **Starts at** and **Ends at** blank for the
+   reviewed open window, leave **Platform controlled** off unless that separate
+   behavior was authorized, and select **Save access**. **Force install** is a
+   different operation and lives on **Advanced**; entitling never needs it.
 3. **Install the plugin** (organization admin — onboarding Stage 2). Open
    `/organization/dvhighcsf/settings#organization-plugins`, find **Organization
    Plugins**, and select **Open plugin marketplace**. Under **Available to
