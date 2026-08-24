@@ -37,6 +37,27 @@ DECLARE
   v_school_year text := nullif(btrim(coalesce(p_school_year, '')), '');
   v_notes text := nullif(btrim(coalesce(p_notes, '')), '');
 BEGIN
+  -- Authorization is mutable staff state. Check before inspecting mutation
+  -- input, then serialize with role edits and position revocations and check
+  -- again after this transaction owns the shared organization lock.
+  IF NOT plugin_data.csf_actor_can_manage_staff(
+    p_organization_id,
+    p_actor_user_id
+  ) THEN
+    RAISE EXCEPTION 'Not authorized to manage CSF staff access.';
+  END IF;
+
+  PERFORM pg_catalog.pg_advisory_xact_lock(
+    plugin_data.csf_staff_access_lock_key(p_organization_id)
+  );
+
+  IF NOT plugin_data.csf_actor_can_manage_staff(
+    p_organization_id,
+    p_actor_user_id
+  ) THEN
+    RAISE EXCEPTION 'Not authorized to manage CSF staff access.';
+  END IF;
+
   IF (p_profile_id IS NULL) = (p_user_id IS NULL) THEN
     RAISE EXCEPTION 'Choose exactly one CSF member or organization account.';
   END IF;
@@ -55,12 +76,6 @@ BEGIN
     );
   END IF;
 
-  IF NOT plugin_data.csf_actor_can_manage_staff(
-    p_organization_id,
-    p_actor_user_id
-  ) THEN
-    RAISE EXCEPTION 'Not authorized to manage CSF staff access.';
-  END IF;
   IF v_school_year IS NULL OR v_school_year !~ '^20[0-9]{2}-20[0-9]{2}$' THEN
     RAISE EXCEPTION 'School year must use YYYY-YYYY.';
   END IF;
@@ -297,6 +312,6 @@ COMMENT ON FUNCTION plugin_data.csf_assign_staff_position_v2(
   text,
   uuid
 ) IS
-  'Assigns a CSF staff position to either a verified CSF profile or an active organization account, then records immutable history and audit data.';
+  'Assigns a CSF staff position to either a verified CSF profile or an active organization account. Authorization is checked before input processing and rechecked after acquiring the organization staff-access lock.';
 
 COMMIT;
