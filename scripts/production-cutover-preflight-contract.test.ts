@@ -76,9 +76,7 @@ describe("Production cutover preflight source contract", () => {
     // the record look wrong.
     const pending = migrations
       .map((name) => name.slice(0, 14))
-      .filter(
-        (version) => version > PRODUCTION_HEAD && version <= TARGET_HEAD,
-      );
+      .filter((version) => version > PRODUCTION_HEAD && version <= TARGET_HEAD);
     const baselineBlock = preflight.slice(
       preflight.indexOf("-- BEGIN EXACT PRODUCTION BASELINE VERSIONS"),
       preflight.indexOf("-- END EXACT PRODUCTION BASELINE VERSIONS"),
