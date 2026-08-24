@@ -1,3 +1,33 @@
+-- Forward publication of dvhs-csf 1.2.9, after reconciling 20260824002008.
+--
+-- 20260824002008 asserts the plugin catalog sits at
+-- latest_version 1.1.0 / code_reference df7c59fd..., and aborts everywhere:
+--
+--   ERROR: Plugin catalog moved since this signed integration was prepared
+--
+-- That value is a phantom. Across the whole migration tree df7c59fd appears
+-- exactly once, as that assertion; no migration ever writes it. 20260818040246
+-- set the catalog to 1.1.0 / 4d1001e9..., every publish migration since carries
+-- 4d1001e9, and published-releases.json agrees after #270 reverted #268's repin
+-- in a20d7aed. The integration was generated at 00:19 and merged at 00:32 with
+-- the revert landing at 00:28 between them, so it froze a value that was true in
+-- the repo for nine minutes and in no database ever.
+--
+-- 20260824002008 is left exactly as it merged. Because it can never succeed, it
+-- is reconciled in each database's migration history rather than executed
+-- (`supabase migration repair --status applied 20260824002008`), which is what
+-- makes this file reachable. Editing it instead would have made one repository
+-- revision produce different database state depending on whether an environment
+-- had already recorded that version.
+--
+-- This file carries the same signed release identity verbatim -- commit_sha,
+-- manifest_hash, source_tree, content_digest, build and SBOM digests, signer
+-- identity, host API range, install contracts -- and differs only in asserting
+-- the catalog state that actually exists. 1.2.9 is an `application` runtime
+-- profile, so the catalog block only PERFORMs a check and never writes
+-- public.plugins. The INSERT branch is idempotent, so re-running verifies the
+-- existing row and changes nothing.
+
 -- Publish a signed private plugin release without changing organization installs.
 
 BEGIN;
@@ -73,7 +103,7 @@ BEGIN
   FROM public.plugins
   WHERE key = 'dvhs-csf'
     AND latest_version = '1.1.0'
-    AND code_reference = 'df7c59fdd6bfce5898966e244ac0909d972473be';
+    AND code_reference = '4d1001e9d3269b8bd28de93c071c6b4b216824fd';
 
   IF NOT FOUND THEN
     RAISE EXCEPTION 'Plugin catalog moved since this signed integration was prepared';
