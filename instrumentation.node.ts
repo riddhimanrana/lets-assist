@@ -1,39 +1,19 @@
 import { logs } from "@opentelemetry/api-logs";
-import { OTLPLogExporter } from "@opentelemetry/exporter-logs-otlp-http";
 import { resourceFromAttributes } from "@opentelemetry/resources";
-import {
-  BatchLogRecordProcessor,
-  LoggerProvider,
-} from "@opentelemetry/sdk-logs";
+
+import { loggerProvider } from "@/lib/otel-logger-provider";
 
 // Keep every Node-only OpenTelemetry dependency behind instrumentation.ts's
 // NEXT_RUNTIME guard. This is required for the Webpack dev fallback and also
 // prevents Edge bundles from trying to resolve Node core modules.
-const processors: BatchLogRecordProcessor[] = [];
+//
+// `@opentelemetry/sdk-node` in particular must stay behind the dynamic import
+// below. It reaches `@grpc/grpc-js`, which requires Node builtins that cannot
+// be resolved from inside a bundle; the log provider it used to sit beside now
+// lives in `lib/otel-logger-provider` so that logging never drags it in.
 let posthogTraceSdkStarted = false;
 
-if (process.env.NEXT_PUBLIC_POSTHOG_PROJECT_TOKEN) {
-  processors.push(
-    new BatchLogRecordProcessor({
-      exporter: new OTLPLogExporter({
-        url: "https://us.i.posthog.com/i/v1/logs",
-        headers: {
-          Authorization: `Bearer ${process.env.NEXT_PUBLIC_POSTHOG_PROJECT_TOKEN}`,
-          "Content-Type": "application/json",
-        },
-      }),
-    }),
-  );
-} else {
-  console.warn(
-    "[Instrumentation] NEXT_PUBLIC_POSTHOG_PROJECT_TOKEN not set — skipping PostHog log exporter",
-  );
-}
-
-export const loggerProvider = new LoggerProvider({
-  resource: resourceFromAttributes({ "service.name": "lets-assist" }),
-  processors,
-});
+export { loggerProvider };
 
 async function startPostHogTraceExporter() {
   if (
