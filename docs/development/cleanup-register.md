@@ -100,9 +100,24 @@ This register separates actionable repository defects from provider/account and 
   root integration workflow `32721536604` produced migration
   `20260824123001_publish_dvhs_csf_1_2_11`. Root PR #307 passed CodeQL and
   GitGuardian and merged the signed release record to `development` at
-  `06fed219`. Production schema publication, child deployment, organization
-  selection, and authenticated visual acceptance remain pending. No email was
-  sent.
+  `06fed219`. Release PR #305 then passed Quality, CodeQL, GitGuardian,
+  Supabase Preview, and Vercel and merged to `main` at `cd79d758`. Host
+  Production deployment `dpl_2kYgAaYTGqDKQAy16bbi5sCqPawH` is `Ready`, serves
+  `https://lets-assist.com`, and is the successful Vercel status for that exact
+  commit. Guarded schema run `32722329097` passed full local migration replay,
+  pgTAP, schema integrity, security advisors, Production push, and migration
+  parity. Signed application run `32722826110` verified the Production artifact
+  signature and digest, deployed exact prebuilt v1.2.11 bytes as
+  `dpl_AWQpQ2rwqk4rnW5eMCTpUBNMeBRd`, passed the exact health contract, and
+  recorded the deployment as healthy and promoted. Service-only idempotent
+  transition `46d70f04-dc71-4167-a6c2-737bd65930f4` locked and revalidated the
+  same active organization-admin actor, compared the expected enabled v1.2.10
+  state, and selected v1.2.11. A post-transition read shows desired and runtime
+  version 1.2.11 with that exact selected healthy/promoted application
+  deployment. Chrome redirected to Login, and the signed-in Zen session could
+  not be inspected while the Mac was locked, so authenticated visual acceptance
+  remains pending. The durable ledger still contained zero campaigns, recipient
+  snapshots, deliveries, and provider events. No email was sent.
 - Root PR #292 merged the recurring worker repair at `1413a098`. The Production
   Vercel team is on Pro, and `vercel.json` owns the bounded recurrence:
   communications dispatch every ten minutes and scheduled-post publication at
