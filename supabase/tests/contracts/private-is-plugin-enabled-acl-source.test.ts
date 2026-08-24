@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import { readFileSync, readdirSync, statSync } from "node:fs";
-import { extname, join } from "node:path";
+import { extname, join, sep } from "node:path";
 
 const repositoryRoot = join(import.meta.dir, "../../..");
 const migrationName = "20260813085442_harden_private_is_plugin_enabled_acl.sql";
@@ -43,6 +43,11 @@ function currentCallers() {
     )
     .filter(
       (name) =>
+        // Dot-directories are local scratch, not repository source. .gitignore
+        // keeps them out of the repo, so a developer holding one (for example
+        // supabase/migrations/.pending-plugin-data) must not fail a contract
+        // about what the committed tree contains.
+        !name.split(sep).some((segment) => segment.startsWith(".")) &&
         searchableExtensions.has(extname(name)) &&
         statSync(join(repositoryRoot, name)).isFile() &&
         !ignored.has(name) &&

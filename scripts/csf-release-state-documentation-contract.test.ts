@@ -45,8 +45,12 @@ describe("CSF release-state documentation truthfulness guards", () => {
     const migrations = readdirSync(join(repositoryRoot, "supabase/migrations"))
       .filter((name) => /^\d{14}_.+\.sql$/u.test(name))
       .sort();
-    expect(migrations).toHaveLength(359);
-    expect(migrations.at(-1)).toBe(
+    // The documented release candidate is a dated 359-migration snapshot, so
+    // verify it as an exact prefix of the ledger rather than as the whole of it.
+    // Pinning the live tail here made every later migration look like the docs
+    // had drifted, when the candidate they describe had not changed at all.
+    expect(migrations.length).toBeGreaterThanOrEqual(359);
+    expect(migrations[358]).toBe(
       "20260822234500_clear_uninstalled_plugin_application_runtime.sql",
     );
 

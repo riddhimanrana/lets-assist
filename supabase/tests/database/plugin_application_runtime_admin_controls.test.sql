@@ -458,6 +458,7 @@ SELECT extensions.ok(
   'an active member receives the immutable deployment for the selected version'
 );
 RESET ROLE;
+-- organization-username-fixture-exempt: historical mixed-case username predating the lowercase-only rule; the assertion below proves such a row still routes
 UPDATE public.organizations
 SET username = 'ApplicationRuntimeAdmin'
 WHERE id = 'fa100000-0000-4000-8000-000000000001';
