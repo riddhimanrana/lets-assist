@@ -264,10 +264,11 @@ describe("CSF cohort import documentation truthfulness guards", () => {
   });
 
   test("cohort rollout requires current email evidence before account connection", () => {
+    // The guide reorganized this material into "Resolve the connection queue".
     const cohortLink = between(
       operatorGuide,
-      "## Give a whole class its reusable join link",
-      "## Find a record when it is not in the list",
+      "## Resolve the connection queue",
+      "## Make a connected person an officer",
     );
     expect(cohortLink).toContain(
       "the historical class sheets do not supply reliable account emails",
@@ -280,7 +281,7 @@ describe("CSF cohort import documentation truthfulness guards", () => {
       "Never backfill an address from the Spring 2026 comparison workbook",
     );
     expect(cohortLink).toContain(
-      "**Connect account** remains unavailable until an officer corrects the record",
+      "**Connect account** is withheld until canonical evidence can be read again",
     );
 
     const studentRollout = between(
@@ -292,7 +293,10 @@ describe("CSF cohort import documentation truthfulness guards", () => {
       "current, unique school or personal email",
       "current approved application cycle",
       "audited member-correction workflow",
-      "Create four cohort onboarding links",
+      // The four Classroom-style onboarding links were replaced by one
+      // permanent join code per graduating class, confirmed from Invite
+      // students. The section heading says so outright.
+      "permanent join code from **Invite students**",
     ]);
     expect(studentRollout).toContain(
       "The historical class sheet alone can never produce that result",

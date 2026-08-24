@@ -10,6 +10,7 @@ type UsernameFixture = {
   file: string;
   line: number;
   value: string;
+  exemptionReason?: string;
 };
 
 const SQL_FIXTURE_PATTERNS = [
@@ -20,6 +21,11 @@ const SQL_FIXTURE_PATTERNS = [
   "scripts/**/*.sql",
   "scripts/**/*.sh",
 ];
+// A fixture may hold a value the product schema rejects only when it exists to
+// test that value, and only when it says so on the line directly above the
+// write. Every marker is itemized by the accounting test below, so adding one is
+// a deliberate edit to this file rather than a quiet opt-out.
+const EXEMPTION_MARKER = "organization-username-fixture-exempt:";
 const RESERVED_SLUG_DATABASE_TEST =
   "supabase/tests/database/organization_username_reserved_slugs.test.sql";
 const JAVASCRIPT_ORGANIZATION_WRITERS = [
@@ -159,6 +165,20 @@ function splitTopLevel(source: string, delimiter = ","): string[] {
 
   parts.push(source.slice(start).trim());
   return parts;
+}
+
+function exemptionReasonsByLine(rawSource: string): Map<number, string> {
+  // Keyed by the line the write starts on, which is the line after the marker.
+  // Scoping it that tightly means an exemption cannot drift onto a statement it
+  // was not written for.
+  const reasons = new Map<number, string>();
+  rawSource.split("\n").forEach((line, index) => {
+    const marker = line.indexOf(EXEMPTION_MARKER);
+    if (marker === -1) return;
+    const reason = line.slice(marker + EXEMPTION_MARKER.length).trim();
+    if (reason.length > 0) reasons.set(index + 2, reason);
+  });
+  return reasons;
 }
 
 function throwsOkRanges(source: string): Array<[number, number]> {
@@ -337,7 +357,11 @@ function sqlOrganizationUsernameFixtures(
     }
   }
 
-  return fixtures;
+  const exemptions = exemptionReasonsByLine(rawSource);
+  return fixtures.map((fixture) => {
+    const reason = exemptions.get(fixture.line);
+    return reason ? { ...fixture, exemptionReason: reason } : fixture;
+  });
 }
 
 function literalUsernames(source: string): string[] {
@@ -419,11 +443,46 @@ describe("organization username fixture inventory", () => {
     expect(fixtures.length).toBeGreaterThan(0);
 
     const invalid = fixtures.filter(
-      ({ value }) =>
-        !organizationUsernameSchema.safeParse(value).success ||
-        isReservedOrganizationSlug(value),
+      ({ value, exemptionReason }) =>
+        exemptionReason === undefined &&
+        (!organizationUsernameSchema.safeParse(value).success ||
+          isReservedOrganizationSlug(value)),
     );
     expect(invalid.map(fixtureError)).toEqual([]);
+  });
+
+  test("every schema-invalid fixture is exempted deliberately and for a stated reason", () => {
+    const files = fg.sync(SQL_FIXTURE_PATTERNS, { onlyFiles: true }).sort();
+    const exempted = files
+      .flatMap((file) =>
+        sqlOrganizationUsernameFixtures(file, readFileSync(file, "utf8")),
+      )
+      .filter(({ exemptionReason }) => exemptionReason !== undefined)
+      .map(({ file, value, exemptionReason }) => ({
+        file,
+        value,
+        exemptionReason,
+      }));
+
+    // Itemized on purpose. A new exemption fails here until someone adds it,
+    // which is the point: the marker cannot be used to quietly widen what the
+    // product schema accepts.
+    expect(exempted).toEqual([
+      {
+        file: "supabase/tests/database/plugin_application_runtime_admin_controls.test.sql",
+        value: "ApplicationRuntimeAdmin",
+        exemptionReason:
+          "historical mixed-case username predating the lowercase-only rule; the assertion below proves such a row still routes",
+      },
+    ]);
+
+    // An exemption is only meaningful if the value really would have failed.
+    for (const { value } of exempted) {
+      expect(
+        organizationUsernameSchema.safeParse(value).success &&
+          !isReservedOrganizationSlug(value),
+      ).toBe(false);
+    }
   });
 
   test("every JavaScript seed and scale write satisfies the shared product schema", () => {
