@@ -89,11 +89,20 @@ This register separates actionable repository defects from provider/account and 
 - Root PR #302 merged the exact private gitlink to `development` at
   `467cb357`; Quality, CodeQL, GitGuardian, strict containment, and the local
   plugin release gates passed. Release PR #303 passed Quality, CodeQL,
-  GitGuardian, Supabase Preview, and Vercel, then merged to `main` at
-  `a7767cc3`. Production deployment
-  `dpl_GGt1rkJGwFmNigRzD5EC7Q7YLE2v` is `Ready`, targets Production, and serves
-  `https://lets-assist.com`. The authenticated visual check remains pending
-  because the local Mac session is locked. No email was sent.
+  GitGuardian, Supabase Preview, and Vercel, then merged the host fallback
+  source to `main` at `a7767cc3`. Production deployment
+  `dpl_GGt1rkJGwFmNigRzD5EC7Q7YLE2v` is `Ready` and serves that host source at
+  `https://lets-assist.com`, but it does not prove the separately selected
+  child application changed; Production still selected signed v1.2.10 at that
+  checkpoint. Private PRs #126, #127, and #128 prepared, promoted, and synced
+  signed v1.2.11, with private `main` commit `d3002879`. Tag workflow
+  `32721434002` built and signed the Development and Production artifacts, and
+  root integration workflow `32721536604` produced migration
+  `20260824123001_publish_dvhs_csf_1_2_11`. Root PR #307 passed CodeQL and
+  GitGuardian and merged the signed release record to `development` at
+  `06fed219`. Production schema publication, child deployment, organization
+  selection, and authenticated visual acceptance remain pending. No email was
+  sent.
 - Root PR #292 merged the recurring worker repair at `1413a098`. The Production
   Vercel team is on Pro, and `vercel.json` owns the bounded recurrence:
   communications dispatch every ten minutes and scheduled-post publication at
