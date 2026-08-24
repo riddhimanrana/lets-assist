@@ -4,6 +4,23 @@ This register separates actionable repository defects from provider/account and 
 
 `AUD-` identifiers are allocated per branch and can drift while several audit branches are open at once. Current `development` includes the merged #152, #158, #174, #177, #179, and #181 findings, while open #180 can still carry overlapping historical identifiers. This branch retains `AUD-036` and `AUD-037` for its activity/partner authorization work without renumbering or restating the merged meeting findings.
 
+## Class member count scoping repair, 2026-08-24
+
+- A read-only Production check of the Class of 2028 Members workspace showed
+  zero class rows while its header reported one directory member, one connected
+  account, and one member needing attention. Production aggregate checks
+  confirmed that the class has no profile, account, or semester-membership rows.
+- `plugin_data.csf_list_profiles_page` applied `p_cohort_id` to the returned
+  rows but calculated its five header counters from the unfiltered organization
+  directory. The migration candidate now applies the same optional cohort
+  filter to the counter projection. Calls without a class remain organization
+  wide.
+- The pgTAP fixture now includes two classes in the same organization and
+  checks directory and attention counts for each selected class. Production
+  has not received this migration yet. A fresh disposable database replay
+  applied all 378 migrations, exposed 85 CSF tables, and passed all 6,147
+  assertions across 190 pgTAP files.
+
 ## Production communications repair, 2026-08-24
 
 - Production audit found one configured member announcement topic, three
