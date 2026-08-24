@@ -34,7 +34,7 @@
     "version": "1.1.0",
     "manifestFile": "plugins/dvhs-csf/plugin-manifest.ts",
     "manifestHash": "0cb20fc117267b861779a05f10bb73fecedf9a03bba1ac4bfbb3d1a2f8491735",
-    "sourceCommit": "df7c59fdd6bfce5898966e244ac0909d972473be",
+    "sourceCommit": "4d1001e9d3269b8bd28de93c071c6b4b216824fd",
     "automaticUpdate": false,
     "rolloutPercentage": 0,
     "runtimeProfile": "embedded",
