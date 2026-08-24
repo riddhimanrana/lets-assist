@@ -1,5 +1,5 @@
 import { SeverityNumber } from "@opentelemetry/api-logs";
-import { loggerProvider } from "@/lib/otel-logger-provider";
+import { loggerProvider } from "./otel-logger-provider";
 
 const logger = loggerProvider.getLogger("lets-assist");
 

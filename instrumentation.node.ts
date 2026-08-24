@@ -1,7 +1,10 @@
 import { logs } from "@opentelemetry/api-logs";
 import { resourceFromAttributes } from "@opentelemetry/resources";
 
-import { loggerProvider } from "@/lib/otel-logger-provider";
+// Relative, not the "@/" alias. The independent CSF plugin application compiles
+// this file in its own project context, where "@/" resolves to that app's root
+// and the alias would not find this module.
+import { loggerProvider } from "./lib/otel-logger-provider";
 
 // Keep every Node-only OpenTelemetry dependency behind instrumentation.ts's
 // NEXT_RUNTIME guard. This is required for the Webpack dev fallback and also
