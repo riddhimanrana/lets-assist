@@ -47,7 +47,7 @@ SELECT extensions.is(
 
 SELECT extensions.is(
   (SELECT code_reference FROM public.plugins WHERE key = 'dvhs-csf'),
-  'df7c59fdd6bfce5898966e244ac0909d972473be',
+  '4d1001e9d3269b8bd28de93c071c6b4b216824fd',
   'plugin catalog keeps the serving embedded source truthful'
 );
 

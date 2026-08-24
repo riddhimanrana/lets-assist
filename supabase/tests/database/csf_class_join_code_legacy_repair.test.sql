@@ -16,6 +16,43 @@ CREATE EXTENSION IF NOT EXISTS pgtap WITH SCHEMA extensions;
 
 SELECT extensions.plan(4);
 
+-- Build the whole fixture here. A clean replay has no cohorts, so selecting an
+-- existing one inserts zero rows and every assertion below degrades to NULL
+-- instead of failing loudly. The transaction rolls back, so these rows are local
+-- to the test.
+INSERT INTO auth.users (
+  id, aud, role, email, email_confirmed_at, raw_app_meta_data,
+  raw_user_meta_data, created_at, updated_at
+) VALUES (
+  'c9000000-0000-4000-8000-000000000001',
+  'authenticated', 'authenticated', 'join-code-repair@local.test',
+  now(), '{}', '{}', now(), now()
+);
+
+INSERT INTO public.organizations (id, name, username, type, join_code)
+VALUES (
+  'c9100000-0000-4000-8000-000000000001',
+  'CSF Join Code Repair', 'csf-join-code-repair', 'school', '998231'
+);
+
+INSERT INTO public.organization_members (organization_id, user_id, role, status)
+VALUES (
+  'c9100000-0000-4000-8000-000000000001',
+  'c9000000-0000-4000-8000-000000000001',
+  'admin',
+  'active'
+);
+
+INSERT INTO plugin_data.csf_cohorts (
+  id, organization_id, graduation_year, label, status
+) VALUES (
+  'c9200000-0000-4000-8000-000000000001',
+  'c9100000-0000-4000-8000-000000000001',
+  2049,
+  'Join code repair class',
+  'active'
+);
+
 -- A database still carrying the legacy CHECK and a real eight-hex code.
 ALTER TABLE plugin_data.csf_class_join_codes
   DROP CONSTRAINT IF EXISTS csf_class_join_codes_code_check;
@@ -26,21 +63,15 @@ ALTER TABLE plugin_data.csf_class_join_codes
 DELETE FROM plugin_data.csf_class_join_codes;
 INSERT INTO plugin_data.csf_class_join_codes
   (id, organization_id, cohort_id, code, status, created_by, created_at)
-SELECT
+VALUES (
   '00000000-0000-4000-8000-00000000f001',
-  cohort.organization_id,
-  cohort.id,
+  'c9100000-0000-4000-8000-000000000001',
+  'c9200000-0000-4000-8000-000000000001',
   'ABCD1234',
   'active',
-  (
-    SELECT member.user_id
-    FROM public.organization_members AS member
-    WHERE member.organization_id = cohort.organization_id
-    LIMIT 1
-  ),
+  'c9000000-0000-4000-8000-000000000001',
   now()
-FROM plugin_data.csf_cohorts AS cohort
-LIMIT 1;
+);
 
 SELECT extensions.is(
   (SELECT code FROM plugin_data.csf_class_join_codes
