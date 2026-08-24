@@ -24,7 +24,7 @@ const architectureAudit = readFileSync(
 const PRODUCTION_HEAD = "20260819050728";
 const TARGET_HEAD = "20260822234500";
 const HARD_FAIL_STATEMENT = "SELECT 1 / 0 AS preflight_check_failed;";
-const HARD_FAIL_SITES = 31;
+const HARD_FAIL_SITES = 32;
 const hardFailStatements =
   preflight.match(/^[ \t]*SELECT 1 \/ 0 AS preflight_check_failed;$/gmu) ?? [];
 const PENDING_VERSIONS = [
@@ -577,7 +577,7 @@ describe("Production cutover preflight source contract", () => {
     expect(readMigration("20260811161000")).toContain(
       "one-active-link-per-class-and-semester index cannot be created",
     );
-    expect(preflight).toContain("Duplicate active reusable class links");
+    expect(preflight).toContain("Duplicate active class join codes");
 
     expect(readMigration("20260812100000")).toContain(
       "organizations_username_not_reserved_check",

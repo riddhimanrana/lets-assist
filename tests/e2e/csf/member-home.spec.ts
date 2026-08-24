@@ -172,7 +172,7 @@ test.describe("member Home class feed", () => {
   }) => {
     // Promote the outsider fixture to a plain organization member with no
     // verified CSF record link, mirroring a student who joined without a
-    // class invitation. The membership is removed again below.
+    // class join code. The membership is removed again below.
     const usersResult = await fixture.admin.auth.admin.listUsers({
       page: 1,
       perPage: 1_000,

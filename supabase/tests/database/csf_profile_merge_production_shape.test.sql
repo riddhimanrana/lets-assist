@@ -2,7 +2,7 @@ BEGIN;
 
 CREATE EXTENSION IF NOT EXISTS pgtap WITH SCHEMA extensions;
 
-SELECT extensions.plan(17);
+SELECT extensions.plan(16);
 
 -- A successful, production-shaped merge. Every value is synthetic, but the
 -- fixture spans the current ownership projections and deliberate history
@@ -153,14 +153,6 @@ INSERT INTO plugin_data.csf_meeting_attendance (
   'fc000000-0000-4000-8000-000000000001'
 );
 
-INSERT INTO plugin_data.csf_onboarding_links (
-  id, organization_id, term_id, cohort_id, code, title, link_type,
-  invitation_scope, recipient_profile_id, recipient_email, delivery_status,
-  expires_at, accepted_by, accepted_at, is_active, created_by
-) VALUES
-  ('fc900000-0000-4000-8000-000000000001', 'fc100000-0000-4000-8000-000000000001', 'fc200000-0000-4000-8000-000000000001', 'fc300000-0000-4000-8000-000000000001', 'production-shape-open-direct-token-0001', 'Open direct invitation', 'profile_connect', 'direct', 'fc400000-0000-4000-8000-000000000001', 'quinn.harbor@local.test', 'link_ready', now() + interval '7 days', NULL, NULL, true, 'fc000000-0000-4000-8000-000000000001'),
-  ('fc900000-0000-4000-8000-000000000002', 'fc100000-0000-4000-8000-000000000001', 'fc200000-0000-4000-8000-000000000001', 'fc300000-0000-4000-8000-000000000001', 'production-shape-accepted-token-0002', 'Accepted direct invitation', 'profile_connect', 'direct', 'fc400000-0000-4000-8000-000000000001', 'quinn.harbor@local.test', 'accepted', now() + interval '7 days', 'fc000000-0000-4000-8000-000000000002', now() - interval '1 hour', false, 'fc000000-0000-4000-8000-000000000001');
-
 INSERT INTO plugin_data.csf_profile_link_requests (
   id, organization_id, term_id, cohort_id, user_id, signed_in_email,
   first_name, last_name, normalized_first_name, normalized_last_name,
@@ -274,19 +266,6 @@ SELECT extensions.ok(
   'the revoked account binding deliberately remains on the historical source'
 );
 SELECT extensions.ok(
-  (SELECT pg_catalog.count(*) = 2 FROM plugin_data.csf_onboarding_links
-    WHERE id IN ('fc900000-0000-4000-8000-000000000001', 'fc900000-0000-4000-8000-000000000002')
-      AND recipient_profile_id = 'fc400000-0000-4000-8000-000000000002')
-  AND EXISTS (SELECT 1 FROM plugin_data.csf_onboarding_links
-    WHERE id = 'fc900000-0000-4000-8000-000000000001'
-      AND delivery_status = 'link_ready' AND is_active)
-  AND EXISTS (SELECT 1 FROM plugin_data.csf_onboarding_links
-    WHERE id = 'fc900000-0000-4000-8000-000000000002'
-      AND delivery_status = 'accepted' AND NOT is_active
-      AND accepted_by = 'fc000000-0000-4000-8000-000000000002'),
-  'open and accepted direct invitations rebind without changing delivery or acceptance semantics'
-);
-SELECT extensions.ok(
   EXISTS (SELECT 1 FROM plugin_data.csf_term_applications
     WHERE id = 'fc700000-0000-4000-8000-000000000001'
       AND profile_id = 'fc400000-0000-4000-8000-000000000002'
@@ -363,10 +342,6 @@ SELECT extensions.ok(
 );
 SELECT extensions.ok(
   NOT EXISTS (
-    SELECT 1 FROM plugin_data.csf_onboarding_links
-    WHERE recipient_profile_id = 'fc400000-0000-4000-8000-000000000001'
-  )
-  AND NOT EXISTS (
     SELECT 1 FROM plugin_data.csf_application_correction_requests
     WHERE profile_id = 'fc400000-0000-4000-8000-000000000001'
   )
