@@ -17,8 +17,7 @@ type ResendSetup =
   | { ok: false; configured: false }
   | { ok: false; configured: true; code: string };
 
-export function getResendClient(): ResendSetup {
-  const apiKey = process.env.RESEND_API_KEY;
+function getResendClientForKey(apiKey: string | undefined): ResendSetup {
   if (!apiKey || apiKey.trim().length === 0) {
     return { ok: false, configured: false };
   }
@@ -30,6 +29,20 @@ export function getResendClient(): ResendSetup {
     // pre-send fault the operator can fix -- never provider ambiguity.
     return { ok: false, configured: true, code: "resend_client_setup_failed" };
   }
+}
+
+/** Sending-only provider client used by every delivery worker. */
+export function getResendClient(): ResendSetup {
+  return getResendClientForKey(process.env.RESEND_API_KEY);
+}
+
+/**
+ * Provider-management client used only by explicit operator setup actions.
+ * Keeping this credential separate lets the delivery worker retain send-only
+ * access while topic provisioning can read and create consent topics.
+ */
+export function getResendManagementClient(): ResendSetup {
+  return getResendClientForKey(process.env.RESEND_MANAGEMENT_API_KEY);
 }
 
 export type EmailType = "project_updates" | "general" | "transactional";
