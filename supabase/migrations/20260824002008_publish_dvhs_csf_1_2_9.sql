@@ -73,7 +73,7 @@ BEGIN
   FROM public.plugins
   WHERE key = 'dvhs-csf'
     AND latest_version = '1.1.0'
-    AND code_reference = 'df7c59fdd6bfce5898966e244ac0909d972473be';
+    AND code_reference = '4d1001e9d3269b8bd28de93c071c6b4b216824fd';
 
   IF NOT FOUND THEN
     RAISE EXCEPTION 'Plugin catalog moved since this signed integration was prepared';
