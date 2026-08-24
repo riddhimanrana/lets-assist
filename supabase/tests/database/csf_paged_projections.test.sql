@@ -2,7 +2,7 @@ BEGIN;
 
 CREATE EXTENSION IF NOT EXISTS pgtap WITH SCHEMA extensions;
 
-SELECT extensions.plan(22);
+SELECT extensions.plan(25);
 
 SELECT extensions.ok(
   NOT has_function_privilege(
@@ -91,6 +91,7 @@ INSERT INTO plugin_data.csf_cohorts (
   id, organization_id, graduation_year, label
 ) VALUES
   ('cd300000-0000-4000-8000-000000000001', 'cd100000-0000-4000-8000-000000000001', 2031, 'Class of 2031'),
+  ('cd300000-0000-4000-8000-000000000003', 'cd100000-0000-4000-8000-000000000001', 2032, 'Class of 2032'),
   ('cd300000-0000-4000-8000-000000000002', 'cd100000-0000-4000-8000-000000000002', 2031, 'Class of 2031');
 
 INSERT INTO plugin_data.csf_profiles (
@@ -108,7 +109,7 @@ INSERT INTO plugin_data.csf_profile_cohort_memberships (
 ) VALUES
   ('cd100000-0000-4000-8000-000000000001', 'cd400000-0000-4000-8000-000000000001', 'cd300000-0000-4000-8000-000000000001'),
   ('cd100000-0000-4000-8000-000000000001', 'cd400000-0000-4000-8000-000000000002', 'cd300000-0000-4000-8000-000000000001'),
-  ('cd100000-0000-4000-8000-000000000001', 'cd400000-0000-4000-8000-000000000003', 'cd300000-0000-4000-8000-000000000001'),
+  ('cd100000-0000-4000-8000-000000000001', 'cd400000-0000-4000-8000-000000000003', 'cd300000-0000-4000-8000-000000000003'),
   ('cd100000-0000-4000-8000-000000000002', 'cd400000-0000-4000-8000-000000000004', 'cd300000-0000-4000-8000-000000000002');
 
 INSERT INTO plugin_data.csf_term_applications (
@@ -183,6 +184,39 @@ SELECT extensions.is(
   ),
   3,
   'member projection reports the filtered total independently of page size'
+);
+SELECT extensions.is(
+  (
+    SELECT max(directory_count)::integer
+    FROM plugin_data.csf_list_profiles_page(
+      'cd100000-0000-4000-8000-000000000001',
+      'directory', NULL, 'cd300000-0000-4000-8000-000000000001', NULL, NULL, 'name', NULL, NULL, 50
+    )
+  ),
+  2,
+  'member directory count is scoped to the selected class'
+);
+SELECT extensions.is(
+  (
+    SELECT max(attention_count)::integer
+    FROM plugin_data.csf_list_profiles_page(
+      'cd100000-0000-4000-8000-000000000001',
+      'directory', NULL, 'cd300000-0000-4000-8000-000000000001', NULL, NULL, 'name', NULL, NULL, 50
+    )
+  ),
+  2,
+  'member attention count is scoped to the selected class'
+);
+SELECT extensions.is(
+  (
+    SELECT max(directory_count)::integer
+    FROM plugin_data.csf_list_profiles_page(
+      'cd100000-0000-4000-8000-000000000001',
+      'directory', NULL, 'cd300000-0000-4000-8000-000000000003', NULL, NULL, 'name', NULL, NULL, 50
+    )
+  ),
+  1,
+  'member counts do not include another class in the same organization'
 );
 SELECT extensions.is(
   (
