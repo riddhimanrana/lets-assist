@@ -4,6 +4,53 @@ This register separates actionable repository defects from provider/account and 
 
 `AUD-` identifiers are allocated per branch and can drift while several audit branches are open at once. Current `development` includes the merged #152, #158, #174, #177, #179, and #181 findings, while open #180 can still carry overlapping historical identifiers. This branch retains `AUD-036` and `AUD-037` for its activity/partner authorization work without renumbering or restating the merged meeting findings.
 
+## Production communications repair candidate — 2026-08-24
+
+- Production audit found one configured member announcement topic, three
+  missing CSF audience topics, two disabled duplicate webhook endpoints, and a
+  sending credential that is intentionally too narrow for topic management.
+  The production dispatch workflow's recent scheduled jobs were cancelled
+  before runner assignment. No campaign or delivery attempt was present in the
+  inspected production organization, and no recipient email was sent during
+  the audit.
+- The source candidate separates `RESEND_MANAGEMENT_API_KEY` from the existing
+  sending key. Topic setup uses only the management client, while the worker
+  retains the restricted sending credential. Local and CI-shaped development
+  launchers clear both provider credentials.
+- Activity creation as Published and draft-to-published status changes now
+  expose an unchecked `Also email members` option. A checked first publication
+  creates one source-linked, consent-aware campaign in the durable ledger.
+  Publication and queueing remain separate reported outcomes. Database guards
+  require `manage_opportunities`, freeze the exact semester and optional class,
+  keep one live campaign per activity, and refuse source drift or browser-role
+  execution.
+- Current candidate evidence: the activity campaign pgTAP contract passes 21
+  rollback-only assertions; focused activity and action coverage passes 25
+  tests; email and topic coverage passes 53 tests; TypeScript, zero-warning
+  lint and source organization pass; the isolated private runner passes all
+  207 discovered plugin test files, and the strict submodule initialization
+  and containment check passes at the published private merge. The optimized
+  Next.js Production build passes with explicit local-only Supabase placeholders.
+  The fresh isolated database replay applies 375
+  migrations, exposes 85 CSF tables, and passes 6,109 assertions across 188
+  files. The broad one-process private test command remains unsuitable because
+  global Bun mocks cross-contaminate files; the repository's isolated test
+  runner is the release gate.
+- Private PR #118 passed `plugin-quality` and GitGuardian, then merged to
+  private `development` at `d6bc4f5`. The Production Resend account now has
+  separate opt-in topics for staff, partner representatives, and applicants in
+  addition to its existing member topic. The older Production webhook whose
+  creation time matches the stored Production signing-secret setup is enabled;
+  the later duplicate remains disabled. No webhook was deleted and no email
+  was sent.
+- Still open: root gitlink integration, hosted Development acceptance,
+  creation of the separate Production management credential,
+  saving the three new provider topic bindings through the audited plugin
+  configuration path, scheduler recovery, Production migration and deployment,
+  and a no-recipient Production runtime check. Real email delivery requires a
+  separately controlled test recipient and is not part of this candidate
+  evidence.
+
 ## Onboarding-link teardown retention — 2026-08-23
 
 - `20260823221000_drop_csf_onboarding_links.sql` removed the

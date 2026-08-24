@@ -45,7 +45,8 @@ mock.module("react-email", () => ({ render }));
 mock.module("@/lib/logger", () => ({ logError, logInfo, logWarn }));
 mock.module("nodemailer", () => ({ createTransport }));
 
-const { sendEmail } = await import("./email");
+const { getResendClient, getResendManagementClient, sendEmail } =
+  await import("./email");
 
 const originalEnvironment = {
   EMAIL_FROM: process.env.EMAIL_FROM,
@@ -55,6 +56,7 @@ const originalEnvironment = {
   MAILPIT_SMTP_PORT: process.env.MAILPIT_SMTP_PORT,
   NODE_ENV: process.env.NODE_ENV,
   RESEND_API_KEY: process.env.RESEND_API_KEY,
+  RESEND_MANAGEMENT_API_KEY: process.env.RESEND_MANAGEMENT_API_KEY,
 };
 
 function restoreEnvironment() {
@@ -122,6 +124,26 @@ beforeEach(() => {
 afterAll(restoreEnvironment);
 
 describe("shared email transport contract", () => {
+  test("keeps sending and provider-management credentials separate", () => {
+    process.env.RESEND_API_KEY = "synthetic-send-key";
+    process.env.RESEND_MANAGEMENT_API_KEY = "synthetic-management-key";
+
+    expect(getResendClient().ok).toBe(true);
+    expect(getResendManagementClient().ok).toBe(true);
+    expect(resendApiKeys).toEqual([
+      "synthetic-send-key",
+      "synthetic-management-key",
+    ]);
+
+    resendApiKeys.length = 0;
+    delete process.env.RESEND_MANAGEMENT_API_KEY;
+    expect(getResendManagementClient()).toEqual({
+      ok: false,
+      configured: false,
+    });
+    expect(resendApiKeys).toEqual([]);
+  });
+
   test("forwards chapter sender, reply-to, text, tags, and idempotency to Resend", async () => {
     process.env.EMAIL_TRANSPORT = "resend";
     process.env.RESEND_API_KEY = "synthetic-resend-key";

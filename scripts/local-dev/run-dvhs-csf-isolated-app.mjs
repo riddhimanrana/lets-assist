@@ -106,6 +106,7 @@ export const DISABLED_WORKER_ENV_KEYS = [
 export const DISABLED_PROVIDER_ENV_KEYS = [
   // Resend
   "RESEND_API_KEY",
+  "RESEND_MANAGEMENT_API_KEY",
   "RESEND_WEBHOOK_SECRET",
   // Google: OAuth, Calendar, Drive, Sheets, Maps, Picker
   "GOOGLE_CLIENT_ID",

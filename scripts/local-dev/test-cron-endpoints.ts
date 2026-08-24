@@ -654,6 +654,7 @@ async function main() {
     // *copied* one.
     for (const key of [
       "RESEND_API_KEY",
+      "RESEND_MANAGEMENT_API_KEY",
       "GOOGLE_CLIENT_SECRET",
       "STRIPE_SECRET_KEY",
     ]) {
