@@ -6,6 +6,50 @@ This register separates actionable repository defects from provider/account and 
 
 ## Class Sheet import reliability repair, 2026-08-24
 
+- The 2026-08-25 continuation expands the reviewed Development policy from a
+  single Spring 2026 tab to every populated canonical semester tab in the
+  approved Class of 2027–2029 workbooks. Class of 2030 remains template-only.
+  Discovery now recognizes the legacy `Acitivty` typo, carries a stable mapping
+  for the damaged legacy last-name header, and refuses populated tabs whose
+  class semester is not configured instead of silently omitting them.
+- Repeated plain activity labels count one point per occupied numbered slot for
+  each student. One explicit quantity for the same normalized activity is
+  authoritative, repeated copies do not multiply it, and conflicting,
+  non-positive, malformed, or over-100 quantities block preview readiness.
+  New class-history previews retain only approved activity and meeting cells,
+  their source coordinates, the saved point mode, and a database-derived
+  evidence digest. Meeting labels now agree across the TypeScript and database
+  canonical contracts and survive into the commit payload.
+- Replacing a linked class workbook now reconfigures each existing
+  class-and-semester source instead of colliding with its unique title. A
+  database trigger clears preview, commit, status, and error state when the
+  source file identity changes, so the new workbook cannot display the old
+  workbook's sync evidence.
+- A committed needs-resolution preview no longer suppresses the next provider
+  acquisition. The retry path keeps reviewed profile targets only for the same
+  source identity, rejects conflicting email evidence, and gives automatic
+  annotation interpretation a 15-second deadline. Officers can explicitly
+  confirm unique same-class name candidates in bounded batches. The review UI
+  stays collapsed and renders five rows per page instead of every candidate
+  profile for every row.
+- Native Sheet acquisition now reads Drive comment threads inside the same
+  source-version fence as values, formatting, formulas, and cell notes. A
+  thread is attached to a row only when its quoted cell text identifies one
+  cell in the selected range. Ambiguous threads remain counted in immutable
+  preview provenance instead of being guessed onto a student. Hosted
+  Development reacquired the populated Class of 2029 Spring tab, captured 54
+  threads, assigned 43 uniquely, recorded 11 as unmatched, and committed all
+  88 rows with no profile-review items.
+- The repaired subset rule now imports one dominant class-history row and skips
+  a repeated row only when the repeated row contributes no retained activity,
+  meeting, requirement, or identity evidence. The remaining Class of 2027 Fall
+  queue is a data-identity blocker, not a parser failure: 105 rows point at 120
+  same-class duplicate-name groups containing 202 excess unclaimed profiles.
+  None has an email or verified account to corroborate a merge, and the database
+  correctly refuses all 202 proposed merges with `identity_email_missing`.
+  Development therefore keeps those rows for officer identity evidence instead
+  of creating more duplicate profiles or choosing a record by name alone.
+
 - The Class of 2028 Google Sheet test in hosted Development found stale term
   aliases, header-only tabs registered as live sources, repeated one-point
   activity slots treated as nonnumeric warnings, an unbounded preview proposal

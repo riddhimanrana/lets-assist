@@ -1,6 +1,7 @@
 import { logError } from "@/lib/logger";
 import {
   GOOGLE_SHEETS_API,
+  getGoogleDriveCommentThreads,
   getGoogleDriveFileMetadata,
   type CsfDriveFileMetadata,
   type SpreadsheetValueInputOption,
@@ -134,6 +135,17 @@ export async function acquireFencedCsfSheetSnapshots(
     }
 
     const snapshots: CsfSheetSourceSnapshot[] = [];
+    const commentThreads = await getGoogleDriveCommentThreads(
+      accessToken,
+      spreadsheetId,
+    );
+    if (commentThreads.status !== "ok") {
+      return {
+        status: "unavailable",
+        reason: commentThreads.reason,
+        message: commentThreads.message,
+      };
+    }
     let failed: {
       reason: CsfSheetSourceUnavailableReason;
       message: string;
@@ -144,6 +156,7 @@ export async function acquireFencedCsfSheetSnapshots(
         spreadsheetId,
         request.rangeA1,
         request.fallbackTabName,
+        commentThreads.comments,
       );
       if (snapshot.status !== "ok") {
         failed = { reason: snapshot.reason, message: snapshot.message };
