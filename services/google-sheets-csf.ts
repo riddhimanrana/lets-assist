@@ -1,6 +1,9 @@
 import { createHash } from "node:crypto";
 import { logError } from "@/lib/logger";
-import { GOOGLE_SHEETS_API } from "./google-drive";
+import {
+  GOOGLE_SHEETS_API,
+  type CsfDriveCommentThread,
+} from "./google-drive";
 import {
   CSF_SHEET_MAX_BOUNDED_CELLS,
   GOOGLE_SHEETS_MAX_COLUMN_INDEX,
@@ -73,6 +76,17 @@ export type CsfSheetSourceSnapshot = {
   rows: CsfSheetRowEvidence[];
   contentHash: string;
   hasBasicFilter: boolean;
+  threadedCommentsByRow: Record<
+    number,
+    Array<{
+      columnNumber: number;
+      content: string;
+      replies: string[];
+      resolved: boolean;
+    }>
+  >;
+  threadedCommentCount: number;
+  unmatchedThreadedCommentCount: number;
 };
 
 export type CsfSheetSourceSnapshotResult =
@@ -303,6 +317,7 @@ export async function getCsfSheetSourceSnapshot(
   spreadsheetId: string,
   requestedRangeA1: string,
   fallbackTabName: string,
+  threadedComments: readonly CsfDriveCommentThread[] = [],
 ): Promise<CsfSheetSourceSnapshotResult> {
   const requestedRange = parseCsfSheetBoundedRange(
     requestedRangeA1,
@@ -610,6 +625,50 @@ export async function getCsfSheetSourceSnapshot(
       };
     });
 
+  const decodeQuotedText = (html: string) =>
+    html
+      .replace(/<br\s*\/?>/giu, "\n")
+      .replace(/<[^>]*>/gu, "")
+      .replace(/&nbsp;/giu, " ")
+      .replace(/&amp;/giu, "&")
+      .replace(/&lt;/giu, "<")
+      .replace(/&gt;/giu, ">")
+      .replace(/&quot;/giu, '"')
+      .replace(/&#39;|&apos;/giu, "'")
+      .trim();
+  const threadedCommentsByRow: CsfSheetSourceSnapshot["threadedCommentsByRow"] =
+    {};
+  let matchedThreadedCommentCount = 0;
+  for (const comment of threadedComments) {
+    if (!comment.quotedHtml) continue;
+    const quotedText = decodeQuotedText(comment.quotedHtml);
+    if (!quotedText) continue;
+    const matches: Array<{ sourceRowNumber: number; columnNumber: number }> = [];
+    requestedValues.forEach((values, rowOffset) => {
+      values.forEach((value, columnOffset) => {
+        if (String(value ?? "").trim() === quotedText) {
+          matches.push({
+            sourceRowNumber: requestedRange.startRow + rowOffset,
+            columnNumber: requestedRange.startColumn + columnOffset,
+          });
+        }
+      });
+    });
+    // Drive's Sheet anchors are opaque workbook-range identifiers. Only bind a
+    // thread when its quoted cell text identifies one cell in this bounded tab.
+    // Ambiguous and off-range threads stay in the snapshot digest but never get
+    // guessed onto a student record.
+    if (matches.length !== 1) continue;
+    const [{ sourceRowNumber, columnNumber }] = matches;
+    (threadedCommentsByRow[sourceRowNumber] ??= []).push({
+      columnNumber,
+      content: comment.content,
+      replies: comment.replies.map((reply) => reply.content),
+      resolved: comment.resolved,
+    });
+    matchedThreadedCommentCount += 1;
+  }
+
   const contentHash = createHash("sha256")
     .update(
       JSON.stringify({
@@ -632,6 +691,14 @@ export async function getCsfSheetSourceSnapshot(
               ]
             : [],
         ),
+        threadedComments: threadedComments.map((comment) => ({
+          id: comment.id,
+          anchor: comment.anchor,
+          quotedHtml: comment.quotedHtml,
+          content: comment.content,
+          resolved: comment.resolved,
+          replies: comment.replies,
+        })),
       }),
     )
     .digest("hex");
@@ -647,5 +714,9 @@ export async function getCsfSheetSourceSnapshot(
     rows,
     contentHash,
     hasBasicFilter: Boolean(selectedSheet.basicFilter),
+    threadedCommentsByRow,
+    threadedCommentCount: threadedComments.length,
+    unmatchedThreadedCommentCount:
+      threadedComments.length - matchedThreadedCommentCount,
   };
 }

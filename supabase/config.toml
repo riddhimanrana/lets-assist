@@ -13,7 +13,9 @@ project_id = "ocbuygudvarsuxijxhau"
 [remotes.development.auth]
 site_url = "https://dev.lets-assist.com"
 additional_redirect_urls = [
-	"https://dev.lets-assist.com/auth/callback"
+	"https://dev.lets-assist.com/auth/callback",
+	"http://localhost:3000/auth/callback**",
+	"http://127.0.0.1:3000/auth/callback**"
 ]
 
 # Hosted Development owns a dedicated Google OAuth client. Keep the public

@@ -982,7 +982,7 @@ export async function seedDvhsCsfFixtures({ admin, users, must }) {
           cohort_id: IDS.csfCohort2027,
           term_id: IDS.csfTermF23,
           grade_level: 9,
-          sheet_tab_name: "F23-2027",
+          sheet_tab_name: "F23",
           status: "active",
         },
         {
@@ -990,7 +990,7 @@ export async function seedDvhsCsfFixtures({ admin, users, must }) {
           cohort_id: IDS.csfCohort2027,
           term_id: IDS.csfTermS24,
           grade_level: 9,
-          sheet_tab_name: "S24-2027",
+          sheet_tab_name: "S24",
           status: "active",
         },
         {
@@ -998,7 +998,7 @@ export async function seedDvhsCsfFixtures({ admin, users, must }) {
           cohort_id: IDS.csfCohort2027,
           term_id: IDS.csfTermF24,
           grade_level: 10,
-          sheet_tab_name: "F24-2027",
+          sheet_tab_name: "F24",
           status: "active",
         },
         {
@@ -1006,7 +1006,7 @@ export async function seedDvhsCsfFixtures({ admin, users, must }) {
           cohort_id: IDS.csfCohort2027,
           term_id: IDS.csfTermS25,
           grade_level: 10,
-          sheet_tab_name: "S25-2027",
+          sheet_tab_name: "S25",
           status: "active",
         },
         {
@@ -1014,7 +1014,7 @@ export async function seedDvhsCsfFixtures({ admin, users, must }) {
           cohort_id: IDS.csfCohort2028,
           term_id: IDS.csfTermF24,
           grade_level: 9,
-          sheet_tab_name: "F24-2028",
+          sheet_tab_name: "F24",
           status: "active",
         },
         {
@@ -1022,7 +1022,7 @@ export async function seedDvhsCsfFixtures({ admin, users, must }) {
           cohort_id: IDS.csfCohort2028,
           term_id: IDS.csfTermS25,
           grade_level: 9,
-          sheet_tab_name: "S25-2028",
+          sheet_tab_name: "S25",
           status: "active",
         },
         {
@@ -1030,7 +1030,7 @@ export async function seedDvhsCsfFixtures({ admin, users, must }) {
           cohort_id: IDS.csfCohort2029,
           term_id: IDS.csfTermF25,
           grade_level: 9,
-          sheet_tab_name: "F25-2029",
+          sheet_tab_name: "F25",
           status: "active",
         },
         {
@@ -1038,7 +1038,7 @@ export async function seedDvhsCsfFixtures({ admin, users, must }) {
           cohort_id: IDS.csfCohort2027,
           term_id: IDS.csfTermF25,
           grade_level: 11,
-          sheet_tab_name: "F25-2027",
+          sheet_tab_name: "F25",
           status: "active",
         },
         {
@@ -1046,7 +1046,7 @@ export async function seedDvhsCsfFixtures({ admin, users, must }) {
           cohort_id: IDS.csfCohort2027,
           term_id: IDS.csfTermS26,
           grade_level: 11,
-          sheet_tab_name: "S26-2027",
+          sheet_tab_name: "S26",
           status: "active",
         },
         {
@@ -1054,7 +1054,7 @@ export async function seedDvhsCsfFixtures({ admin, users, must }) {
           cohort_id: IDS.csfCohort2028,
           term_id: IDS.csfTermF25,
           grade_level: 10,
-          sheet_tab_name: "F25-2028",
+          sheet_tab_name: "F25",
           status: "active",
         },
         {
@@ -1062,7 +1062,7 @@ export async function seedDvhsCsfFixtures({ admin, users, must }) {
           cohort_id: IDS.csfCohort2029,
           term_id: IDS.csfTermS26,
           grade_level: 9,
-          sheet_tab_name: "S26-2029",
+          sheet_tab_name: "S26",
           status: "active",
         },
         {
@@ -1072,7 +1072,7 @@ export async function seedDvhsCsfFixtures({ admin, users, must }) {
           cohort_id: IDS.csfCohort2027,
           term_id: IDS.csfTermF26,
           grade_level: 12,
-          sheet_tab_name: "F26-2027",
+          sheet_tab_name: "F26",
           status: "active",
         },
         {
@@ -1080,7 +1080,7 @@ export async function seedDvhsCsfFixtures({ admin, users, must }) {
           cohort_id: IDS.csfCohort2028,
           term_id: IDS.csfTermF26,
           grade_level: 11,
-          sheet_tab_name: "F26-2028",
+          sheet_tab_name: "F26",
           status: "active",
         },
         {
@@ -1088,7 +1088,7 @@ export async function seedDvhsCsfFixtures({ admin, users, must }) {
           cohort_id: IDS.csfCohort2029,
           term_id: IDS.csfTermF26,
           grade_level: 10,
-          sheet_tab_name: "F26-2029",
+          sheet_tab_name: "F26",
           status: "active",
         },
       ],

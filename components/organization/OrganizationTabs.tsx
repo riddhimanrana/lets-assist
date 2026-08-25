@@ -32,6 +32,7 @@ import type {
 } from "@/types";
 import { OrganizationOverviewTab } from "./OrganizationOverviewTab";
 import { OrganizationTabsNavigation } from "./OrganizationTabsNavigation";
+import { resolveOrganizationTabAlias } from "@/lib/plugins/active-organization-plugin-tabs";
 
 type OrganizationMember = {
   id: string;
@@ -102,21 +103,6 @@ interface OrganizationTabsProps {
       totalHours: number;
     }
   >;
-}
-
-function resolveOrganizationTabAlias(
-  value: string,
-  aliases: Readonly<Record<string, string>> | undefined,
-) {
-  let resolvedValue = value;
-  const visited = new Set<string>();
-
-  while (aliases?.[resolvedValue] && !visited.has(resolvedValue)) {
-    visited.add(resolvedValue);
-    resolvedValue = aliases[resolvedValue];
-  }
-
-  return resolvedValue;
 }
 
 export default function OrganizationTabs({

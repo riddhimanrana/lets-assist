@@ -4,6 +4,113 @@ This register separates actionable repository defects from provider/account and 
 
 `AUD-` identifiers are allocated per branch and can drift while several audit branches are open at once. Current `development` includes the merged #152, #158, #174, #177, #179, and #181 findings, while open #180 can still carry overlapping historical identifiers. This branch retains `AUD-036` and `AUD-037` for its activity/partner authorization work without renumbering or restating the merged meeting findings.
 
+## Class Sheet import reliability repair, 2026-08-24
+
+- The 2026-08-25 continuation expands the reviewed Development policy from a
+  single Spring 2026 tab to every populated canonical semester tab in the
+  approved Class of 2027–2029 workbooks. Class of 2030 remains template-only.
+  Discovery now recognizes the legacy `Acitivty` typo, carries a stable mapping
+  for the damaged legacy last-name header, and refuses populated tabs whose
+  class semester is not configured instead of silently omitting them.
+- Repeated plain activity labels count one point per occupied numbered slot for
+  each student. One explicit quantity for the same normalized activity is
+  authoritative, repeated copies do not multiply it, and conflicting,
+  non-positive, malformed, or over-100 quantities block preview readiness.
+  New class-history previews retain only approved activity and meeting cells,
+  their source coordinates, the saved point mode, and a database-derived
+  evidence digest. Meeting labels now agree across the TypeScript and database
+  canonical contracts and survive into the commit payload.
+- Replacing a linked class workbook now reconfigures each existing
+  class-and-semester source instead of colliding with its unique title. A
+  database trigger clears preview, commit, status, and error state when the
+  source file identity changes, so the new workbook cannot display the old
+  workbook's sync evidence.
+- A committed needs-resolution preview no longer suppresses the next provider
+  acquisition. The retry path keeps reviewed profile targets only for the same
+  source identity and rejects conflicting email evidence. Annotation review no
+  longer has a 15-second product cutoff. Known missing-participation notes and
+  officer exemptions settle without a model, while model review runs only for
+  eligible sheet-marking rows. Identity-only queues do not call the model.
+  Officers can explicitly confirm unique same-class name candidates in bounded
+  batches. The review UI stays collapsed and renders five rows per page.
+- Native Sheet acquisition now reads Drive comment threads inside the same
+  source-version fence as values, formatting, formulas, and cell notes. A
+  thread is attached to a row only when its quoted cell text identifies one
+  cell in the selected range. Ambiguous threads remain counted in immutable
+  preview provenance instead of being guessed onto a student. Hosted
+  Development reacquired the populated Class of 2029 Spring tab, captured 54
+  threads, assigned 43 uniquely, recorded 11 as unmatched, and committed all
+  88 rows with no profile-review items.
+- The repaired subset rule now imports one dominant class-history row and skips
+  a repeated row only when the repeated row contributes no retained activity,
+  meeting, requirement, or identity evidence. The remaining Class of 2027 Fall
+  queue is a data-identity blocker, not a parser failure: 105 rows point at 120
+  same-class duplicate-name groups containing 202 excess unclaimed profiles.
+  None has an email or verified account to corroborate a merge, and the database
+  correctly refuses all 202 proposed merges with `identity_email_missing`.
+  Development therefore keeps those rows for officer identity evidence instead
+  of creating more duplicate profiles or choosing a record by name alone. The
+  candidate selector is now class-scoped and gives every otherwise identical
+  record a short stable code.
+
+- The Class of 2028 Google Sheet test in hosted Development found stale term
+  aliases, header-only tabs registered as live sources, repeated one-point
+  activity slots treated as nonnumeric warnings, an unbounded preview proposal
+  summary, and new-profile commits rejected by their lineage guard. Partial
+  source registrations also made the class unlink and stale-source cleanup
+  paths fail because they omitted the source's required settings contract.
+- The candidate now discovers every canonical term tab from the live workbook,
+  records its bounded populated range and one-point-slot provenance, skips
+  header-only templates, retires sources from old or missing tabs after a
+  successful relink, bounds proposal evidence, and derives activity warnings
+  from the parser's unresolved evidence instead of comparing raw slots with
+  grouped activities. A forward migration stamps the frozen officer only when
+  the created profile's source lineage names the exact import row.
+- Hosted Development accepted all populated historical tabs from the official
+  workbook: F24 163 rows, S25 129 rows, F25 193 rows, and S26 167 rows. The
+  immutable previews retained 8,843 background-color annotations and zero cell
+  notes. F26, S27, F27, and S28 were header-only or unpopulated and remain
+  visible as semesters without an importable tab. No Production resource was
+  read or changed during this acceptance run.
+- Current evidence: 62 focused private tests, TypeScript, zero-warning lint,
+  source organization, two focused pgTAP files, and a complete local migration
+  replay pass. The Development database records 286 active Class of 2028
+  profiles and completed import jobs with zero pending or unknown outcomes for
+  all four populated terms.
+- Browser profiling found that the organization host executed every private
+  plugin tab while showing only one. Repeated Classes transitions took
+  5.9–6.4 seconds and Applications took 5.3–5.5 seconds even though the DOM
+  stayed stable. The host now projects only the selected tab's server content.
+  Signed-in local browser checks against the Development backend measured warm
+  Classes transitions at 2.7 seconds and Applications at 1.8 seconds.
+- Profiles now open the newest semester that has imported records instead of
+  an empty current semester. They render one meeting ledger, humanize legacy
+  keys such as `november_meeting`, and preserve the source meeting label on
+  future imports. The Class of 2028 Development data already contains 1,452
+  distinct imported activity events across 208 profiles, including unclaimed
+  profiles.
+- The annotation pass now handles the chapter's known green, red, and yellow
+  cell fills before model review. It omits student names and verbatim officer
+  notes from model prompts. Notes that say the student was not in Google
+  Classroom or submitted nothing settle as not met when no activity is
+  recorded. Officer exemption notes settle as exceptions. Conflicting signals
+  still require staff review, and yellow cells with activity evidence remain
+  unresolved instead of being guessed.
+- Member onboarding now uses the installed six-slot class-code input and keeps
+  Activities and Point submissions out of the My CSF action list because both
+  already have member tabs. Point claims hide single-choice source and semester
+  controls, refuse to open when no valid claim path exists, and default the
+  semester to the workspace's selected current term.
+- A reviewed application-import row can now create an unclaimed profile and
+  reconcile that row in one service-only database transaction. The action does
+  not link an account or promote an application email into canonical identity.
+  The forward migration is present only in the Development project. Its
+  function has an empty search path, service-role-only execution, and no new
+  Supabase advisor finding. Focused private coverage passes 56 tests, the new
+  application and decision pgTAP coverage passes 75 assertions, TypeScript and
+  zero-warning lint pass, and the full local migration replay passes. No
+  Production resource was read or changed for this extension.
+
 ## Class member count scoping repair, 2026-08-24
 
 - A read-only Production check of the Class of 2028 Members workspace showed

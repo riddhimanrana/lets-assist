@@ -195,11 +195,11 @@ This section is the one-time cutover procedure from Google Classroom + spreadshe
 Import in this order through the existing Sheets workspace preview → commit fence; every commit is staff-approved and reversible only forward:
 
 1. **Club registry** — `rosters/Spring 2025 CSF Returning Clubs Responses.xlsx` and `rosters/CSF Club Audit Spring 2026 Responses.xlsx` as partner form-response imports; apply each previewed row as a draft club record (or skip it), then review standing per term. There is no per-club point policy to import; use `rosters/Clubs Points.xlsx` only as manual reference evidence when vetting points at approval time.
-2. **Historical class records** — import only Class of 2027 `S26` `A1:O168` (167 rows after the header), Class of 2028 `S26` `A1:O168` (167 rows), and Class of 2029 `S26` `A1:N89` (88 rows) as **Historical records**. Class of 2026 is out of scope: do not select, preview, or import it. Skip the template-only Class of 2030 workbook and create 2030 student records through the new application cycle. These sheets are historical evidence, not account-connection evidence; current canonical email, exact-name, and active-class checks still govern every connection.
+2. **Historical class records** — link each approved Class of 2027–2029 workbook once. The importer discovers every populated canonical semester tab, preserves its bounded range, and refuses a populated tab whose class semester has not been configured. Review each discovered tab before commit. Numbered activity slots use the source's recorded `one_per_populated_slot` mode: each occupied plain-label slot is one point for that student, while one explicit numeric quantity for the same activity is authoritative. Conflicting, non-positive, malformed, or over-100 quantities block the row. Class of 2026 is out of scope: do not select, preview, or import it. Skip the template-only Class of 2030 workbook and create 2030 student records through the new application cycle. These sheets are historical evidence, not account-connection evidence; current canonical email, exact-name, and active-class checks still govern every connection.
 3. **March 2025 chapter attendance** — `rosters/CSF March Meeting Attendance 2025.xlsx` as `meeting_attendance` for Spring 2025. Name-only rows will land ambiguous/unmatched — resolve what you can; `skipped` is an honest terminal state for departed students.
 4. **Per-club Fall 2025 points** — the immutable partner-audit member-Sheet import was removed by the 2026-08-17 partner-clubs simplification, so per-club point workbooks are no longer imported as a `partner_club_audit` batch. Keep the club workbooks as reference evidence and record any historical awards that are still needed through the reviewed point workflows.
 
-Acceptance: the three historical previews use the exact bounded ranges and show 167, 167, and 88 rows respectively; the Class of 2030 template has no import job; every partner form-response row is applied as a draft or skipped and each retained club's term standing is reviewed; ambiguous-row queues are triaged to zero or documented.
+Acceptance: every populated canonical tab discovered in the approved Class of 2027–2029 workbooks has one immutable preview and a configured class semester; header-only future tabs have no live source; preview provenance records the point mode, exact activity and meeting cells, coordinates, and a server-derived evidence digest; the Class of 2030 template has no historical import job; every partner form-response row is applied as a draft or skipped and each retained club's term standing is reviewed; ambiguous-row queues are triaged to zero or documented.
 
 ### 10.3 Student rollout (replaces the four Classroom codes)
 
@@ -248,7 +248,7 @@ Before this runbook is used for the real chapter cutover, all boxes must be chec
 
 - [x] Atomic exact-email account connection and reasoned officer resolution
 - [x] Signed purpose/capability-bound Google OAuth state and callback reauthorization
-- [x] Strict historical point import; no one-point fallback
+- [x] Strict historical point import; one-point slots only under an explicit saved source mode
 - [x] Transactional semester close with stale-evidence rejection
 - [x] Fictional-only tracked seed enforcement
 - [x] Clean isolated replay through 214 migrations, 82 CSF tables, 63 pgTAP files, and 3,165/3,165 assertions
