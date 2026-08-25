@@ -27,11 +27,12 @@ This register separates actionable repository defects from provider/account and 
   workbook's sync evidence.
 - A committed needs-resolution preview no longer suppresses the next provider
   acquisition. The retry path keeps reviewed profile targets only for the same
-  source identity, rejects conflicting email evidence, and gives automatic
-  annotation interpretation a 15-second deadline. Officers can explicitly
-  confirm unique same-class name candidates in bounded batches. The review UI
-  stays collapsed and renders five rows per page instead of every candidate
-  profile for every row.
+  source identity and rejects conflicting email evidence. Annotation review no
+  longer has a 15-second product cutoff. Known missing-participation notes and
+  officer exemptions settle without a model, while model review runs only for
+  eligible sheet-marking rows. Identity-only queues do not call the model.
+  Officers can explicitly confirm unique same-class name candidates in bounded
+  batches. The review UI stays collapsed and renders five rows per page.
 - Native Sheet acquisition now reads Drive comment threads inside the same
   source-version fence as values, formatting, formulas, and cell notes. A
   thread is attached to a row only when its quoted cell text identifies one
@@ -48,7 +49,9 @@ This register separates actionable repository defects from provider/account and 
   None has an email or verified account to corroborate a merge, and the database
   correctly refuses all 202 proposed merges with `identity_email_missing`.
   Development therefore keeps those rows for officer identity evidence instead
-  of creating more duplicate profiles or choosing a record by name alone.
+  of creating more duplicate profiles or choosing a record by name alone. The
+  candidate selector is now class-scoped and gives every otherwise identical
+  record a short stable code.
 
 - The Class of 2028 Google Sheet test in hosted Development found stale term
   aliases, header-only tabs registered as live sources, repeated one-point
@@ -88,9 +91,16 @@ This register separates actionable repository defects from provider/account and 
   profiles.
 - The annotation pass now handles the chapter's known green, red, and yellow
   cell fills before model review. It omits student names and verbatim officer
-  notes from model prompts. Notes and conflicting signals still require staff
-  review, and yellow cells with activity evidence remain unresolved rather
-  than being guessed.
+  notes from model prompts. Notes that say the student was not in Google
+  Classroom or submitted nothing settle as not met when no activity is
+  recorded. Officer exemption notes settle as exceptions. Conflicting signals
+  still require staff review, and yellow cells with activity evidence remain
+  unresolved instead of being guessed.
+- Member onboarding now uses the installed six-slot class-code input and keeps
+  Activities and Point submissions out of the My CSF action list because both
+  already have member tabs. Point claims hide single-choice source and semester
+  controls, refuse to open when no valid claim path exists, and default the
+  semester to the workspace's selected current term.
 - A reviewed application-import row can now create an unclaimed profile and
   reconcile that row in one service-only database transaction. The action does
   not link an account or promote an application email into canonical identity.
