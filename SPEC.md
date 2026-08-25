@@ -47,6 +47,11 @@ V16: old CSF deep links retain compatible redirect/mapping during migration.
 V17: no real attached row value enters migration, fixture, test, screenshot, log, prompt, or committed artifact.
 V18: private feature implementation may use `codex/*`; strict branch containment runs only after private commit merges to private `development` + root gitlink advances.
 V19: ∀ CSF route response → exactly one active route-family section; unrelated route client component references and repeated-navigation renderer growth ⊥.
+V20: historical class source discovery → every populated term-coded tab mapped once with exact term, range, header, class, fills, notes; empty/template/unrecognized tabs disclosed and skipped.
+V21: legacy class activity slots → explicit mapping mode only; each populated slot = 1 point; repeated normalized labels aggregate; generic plain-label fallback ⊥.
+V22: application analysis → deterministic header-only mapping + current-selection result guard + manual fallback; student-row model input ⊥.
+V23: import identity → validated canonical email may auto-match; name-only candidate remains officer decision; one profile reused across distinct term tabs; same-term duplicate writes ⊥.
+V24: import read path → one workbook parse/request, bounded diagnostics text, one authorized readiness RPC/load.
 
 §T
 
@@ -61,6 +66,7 @@ T7|~~|harden fixture target fences + add DB/unit/component/browser/privacy cover
 T8|~~|run full gates, commit private first, merge/checkout private development, advance root gitlink, record exact evidence|V14,V15,V17,V18,I.cmd
 T9|~~|isolate CSF route rendering, add regression coverage, and prove bounded repeated-navigation renderer footprint|V13,V19,I.perf,I.cmd
 T10|x|replace public class content with join/sign-in/claim flow + authenticated class-content authorization|V4,V5,V6,V7,V13,V14,V16,V17,I.route,I.service,I.db
+T11|~|repair class/application imports + all-term discovery + comments + profile reconciliation + read performance|V4,V12,V14,V17,V20,V21,V22,V23,V24,I.service,I.db,I.cmd
 
 §B
 
@@ -76,3 +82,9 @@ B8|2026-08-17|a static import of the newer Next cache refresh export broke Bun t
 B9|2026-08-17|two integrated commits inserted the same F26 term fixture into the recovery-seat pgTAP test|retain one lifecycle-aware term fixture and rerun the exact database test before the full replay
 B10|2026-08-17|two root Playwright journeys still queried the pre-rename Account connections region|select the shipped Needs account link accessible name in identity and people-lifecycle acceptance
 B11|2026-08-17|concurrency pgTAP checks identified queued sessions through runner-dependent pg_stat_activity query text|identify the exact ungranted staff-access advisory lock directly with a bounded cold-runner deadline
+B12|2026-08-24|legacy class ledgers encode one point per populated activity slot; parser accepted explicit numeric text only|V21
+B13|2026-08-24|historical Google source UI and save action replaced source mappings with one manually selected tab|V20
+B14|2026-08-24|application analysis requests lacked current-selection identity and stale responses could replace current plan|V22
+B15|2026-08-24|application analysis prompt serialized verbatim student cells and exposed no manual fallback|V17,V22
+B16|2026-08-24|uploaded preview parsed bytes four times; readiness loaded 17 requests; diagnostics rendered full row-number arrays|V24
+B17|2026-08-24|multi-term history could not reuse one explicit source plan, producing repeated manual matching and conflict work|V23
