@@ -4,6 +4,33 @@ This register separates actionable repository defects from provider/account and 
 
 `AUD-` identifiers are allocated per branch and can drift while several audit branches are open at once. Current `development` includes the merged #152, #158, #174, #177, #179, and #181 findings, while open #180 can still carry overlapping historical identifiers. This branch retains `AUD-036` and `AUD-037` for its activity/partner authorization work without renumbering or restating the merged meeting findings.
 
+## Class Sheet import reliability repair, 2026-08-24
+
+- The Class of 2028 Google Sheet test in hosted Development found stale term
+  aliases, header-only tabs registered as live sources, repeated one-point
+  activity slots treated as nonnumeric warnings, an unbounded preview proposal
+  summary, and new-profile commits rejected by their lineage guard. Partial
+  source registrations also made the class unlink and stale-source cleanup
+  paths fail because they omitted the source's required settings contract.
+- The candidate now discovers every canonical term tab from the live workbook,
+  records its bounded populated range and one-point-slot provenance, skips
+  header-only templates, retires sources from old or missing tabs after a
+  successful relink, bounds proposal evidence, and derives activity warnings
+  from the parser's unresolved evidence instead of comparing raw slots with
+  grouped activities. A forward migration stamps the frozen officer only when
+  the created profile's source lineage names the exact import row.
+- Hosted Development accepted all populated historical tabs from the official
+  workbook: F24 163 rows, S25 129 rows, F25 193 rows, and S26 167 rows. The
+  immutable previews retained 8,843 background-color annotations and zero cell
+  notes. F26, S27, F27, and S28 were header-only or unpopulated and remain
+  visible as semesters without an importable tab. No Production resource was
+  read or changed during this acceptance run.
+- Current evidence: 62 focused private tests, TypeScript, zero-warning lint,
+  source organization, two focused pgTAP files, and a complete local migration
+  replay pass. The Development database records 286 active Class of 2028
+  profiles and completed import jobs with zero pending or unknown outcomes for
+  all four populated terms.
+
 ## Class member count scoping repair, 2026-08-24
 
 - A read-only Production check of the Class of 2028 Members workspace showed
