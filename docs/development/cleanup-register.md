@@ -30,6 +30,32 @@ This register separates actionable repository defects from provider/account and 
   replay pass. The Development database records 286 active Class of 2028
   profiles and completed import jobs with zero pending or unknown outcomes for
   all four populated terms.
+- Browser profiling found that the organization host executed every private
+  plugin tab while showing only one. Repeated Classes transitions took
+  5.9–6.4 seconds and Applications took 5.3–5.5 seconds even though the DOM
+  stayed stable. The host now projects only the selected tab's server content.
+  Signed-in local browser checks against the Development backend measured warm
+  Classes transitions at 2.7 seconds and Applications at 1.8 seconds.
+- Profiles now open the newest semester that has imported records instead of
+  an empty current semester. They render one meeting ledger, humanize legacy
+  keys such as `november_meeting`, and preserve the source meeting label on
+  future imports. The Class of 2028 Development data already contains 1,452
+  distinct imported activity events across 208 profiles, including unclaimed
+  profiles.
+- The annotation pass now handles the chapter's known green, red, and yellow
+  cell fills before model review. It omits student names and verbatim officer
+  notes from model prompts. Notes and conflicting signals still require staff
+  review, and yellow cells with activity evidence remain unresolved rather
+  than being guessed.
+- A reviewed application-import row can now create an unclaimed profile and
+  reconcile that row in one service-only database transaction. The action does
+  not link an account or promote an application email into canonical identity.
+  The forward migration is present only in the Development project. Its
+  function has an empty search path, service-role-only execution, and no new
+  Supabase advisor finding. Focused private coverage passes 56 tests, the new
+  application and decision pgTAP coverage passes 75 assertions, TypeScript and
+  zero-warning lint pass, and the full local migration replay passes. No
+  Production resource was read or changed for this extension.
 
 ## Class member count scoping repair, 2026-08-24
 

@@ -28,6 +28,10 @@ import { getServerPreviewSource } from "@/lib/supabase/preview-source.server";
 import { cn } from "@/lib/utils";
 import { shouldRedirectMemberToPluginRoot } from "@/lib/plugins/organization-page-routing";
 import { toOrganizationPluginAccessRole } from "@/lib/plugins/access-role";
+import {
+  projectActiveOrganizationPluginTabs,
+  resolveActiveOrganizationTab,
+} from "@/lib/plugins/active-organization-plugin-tabs";
 
 type Props = {
   params: Promise<{ id: string }>;
@@ -419,6 +423,15 @@ export default async function OrganizationPage({
   const pluginTabs = pluginTabsContributions
     .filter((contribution) => isAllowedPluginSurface(contribution.pluginKey))
     .flatMap((c) => c.behavior);
+  const activeEmbeddedTab = resolveActiveOrganizationTab({
+    requestedTab: resolvedSearchParams.tab,
+    defaultTab: navOverrides.defaultTab,
+    aliases: navOverrides.tabAliases,
+  });
+  const activePluginTabs = projectActiveOrganizationPluginTabs(
+    pluginTabs,
+    activeEmbeddedTab,
+  );
   // Admins get a setup checklist until the organization is configured or they
   // dismiss it. Everything but the dismissal flag comes from data already
   // loaded above, so this is one narrow read and only for admins.
@@ -569,7 +582,7 @@ export default async function OrganizationPage({
             organizationCreatedLabel={organizationCreatedLabel}
             canViewMembers={canViewMembers}
             pluginOverviewExtensions={visiblePluginOverviewExtensions}
-            pluginTabs={pluginTabs}
+            pluginTabs={activePluginTabs}
             pluginRouteTabs={pluginRouteTabs}
             pluginNavigationOverrides={navOverrides}
           />
