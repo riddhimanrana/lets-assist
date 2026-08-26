@@ -61,6 +61,22 @@ export type CsfSheetCellAnnotation = {
   note?: string;
 };
 
+export type CsfSheetUnmatchedThreadedComment = {
+  provider: "sheets_anchor" | "drive_legacy";
+  id: string | null;
+  anchorId: string | null;
+  anchor: string | null;
+  quotedHtml: string | null;
+  sheetId: number | null;
+  startRowIndex: number | null;
+  endRowIndex: number | null;
+  startColumnIndex: number | null;
+  endColumnIndex: number | null;
+  content: string;
+  replies: string[];
+  resolved: boolean;
+};
+
 export type CsfSheetSourceSnapshot = {
   status: "ok";
   spreadsheetId: string;
@@ -84,6 +100,8 @@ export type CsfSheetSourceSnapshot = {
   >;
   threadedCommentCount: number;
   unmatchedThreadedCommentCount: number;
+  /** Workbook-level threads that could not be assigned to one selected cell. */
+  unmatchedThreadedComments: CsfSheetUnmatchedThreadedComment[];
 };
 
 export type CsfSheetSourceSnapshotResult =
@@ -675,5 +693,20 @@ export async function getCsfSheetSourceSnapshot(
     threadedCommentsByRow,
     threadedCommentCount: 0,
     unmatchedThreadedCommentCount: threadedComments.length,
+    unmatchedThreadedComments: threadedComments.map((comment) => ({
+      provider: "drive_legacy",
+      id: comment.id,
+      anchorId: null,
+      anchor: comment.anchor,
+      quotedHtml: comment.quotedHtml,
+      sheetId: null,
+      startRowIndex: null,
+      endRowIndex: null,
+      startColumnIndex: null,
+      endColumnIndex: null,
+      content: comment.content,
+      replies: comment.replies.map((reply) => reply.content),
+      resolved: comment.resolved,
+    })),
   };
 }
