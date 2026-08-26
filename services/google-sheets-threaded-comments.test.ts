@@ -229,6 +229,8 @@ test("fenced acquisition binds only provider-anchored comments inside selected r
       });
     }
     if (url.includes("commentsViewMode=COMMENTS_VIEW_MODE_INCLUDED")) {
+      expect(decodedUrl).toContain("'Term A'!A1:A3");
+      expect(decodedUrl).toContain("'Term B'!A1:A3");
       return jsonResponse({
         sheets: [
           {
@@ -334,8 +336,8 @@ test("fenced acquisition binds only provider-anchored comments inside selected r
   }) as typeof fetch;
 
   const result = await acquireFencedCsfSheetSnapshots("token", spreadsheetId, [
-    { rangeA1: ranges.a, fallbackTabName: "Term A" },
-    { rangeA1: ranges.b, fallbackTabName: "Term B" },
+    { rangeA1: "A1:A3", fallbackTabName: "Term A" },
+    { rangeA1: "A1:A3", fallbackTabName: "Term B" },
   ]);
 
   expect(result.status).toBe("ok");
