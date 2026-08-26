@@ -1,6 +1,7 @@
 import { createHash } from "node:crypto";
 import { logError } from "@/lib/logger";
 import { GOOGLE_SHEETS_API, type CsfDriveCommentThread } from "./google-drive";
+import { extractDriveQuotedText } from "./google-sheets-comment-scope";
 import {
   CSF_SHEET_MAX_BOUNDED_CELLS,
   GOOGLE_SHEETS_MAX_COLUMN_INDEX,
@@ -121,77 +122,6 @@ function unavailableReasonForStatus(
   if (status === 404) return "not_found";
   if (status === 429) return "rate_limited";
   return "unavailable";
-}
-
-const DRIVE_QUOTED_TEXT_ENTITIES = new Map<string, string>([
-  ["&nbsp;", " "],
-  ["&amp;", "&"],
-  ["&lt;", "<"],
-  ["&gt;", ">"],
-  ["&quot;", '"'],
-  ["&#39;", "'"],
-  ["&apos;", "'"],
-]);
-
-/**
- * Extracts the plain cell quotation carried by a Drive comment. Entities are
- * decoded in one pass so an encoded ampersand cannot expose a second entity.
- * The result is used only for exact cell matching, never as rendered markup.
- */
-function extractDriveQuotedText(markup: string) {
-  let result = "";
-  let cursor = 0;
-
-  while (cursor < markup.length) {
-    const character = markup[cursor];
-    if (character === "<") {
-      const tagEnd = markup.indexOf(">", cursor + 1);
-      if (tagEnd === -1) {
-        result += character;
-        cursor += 1;
-        continue;
-      }
-
-      let tagCursor = cursor + 1;
-      while (
-        tagCursor < tagEnd &&
-        (markup[tagCursor] === " " || markup[tagCursor] === "/")
-      ) {
-        tagCursor += 1;
-      }
-      let tagName = "";
-      while (tagCursor < tagEnd) {
-        const codePoint = markup.charCodeAt(tagCursor);
-        const isAsciiLetter =
-          (codePoint >= 65 && codePoint <= 90) ||
-          (codePoint >= 97 && codePoint <= 122);
-        if (!isAsciiLetter) break;
-        tagName += markup[tagCursor].toLowerCase();
-        tagCursor += 1;
-      }
-      if (tagName === "br") result += "\n";
-      cursor = tagEnd + 1;
-      continue;
-    }
-
-    if (character === "&") {
-      const entityEnd = markup.indexOf(";", cursor + 1);
-      if (entityEnd !== -1 && entityEnd - cursor <= 6) {
-        const entity = markup.slice(cursor, entityEnd + 1).toLowerCase();
-        const decoded = DRIVE_QUOTED_TEXT_ENTITIES.get(entity);
-        if (decoded !== undefined) {
-          result += decoded;
-          cursor = entityEnd + 1;
-          continue;
-        }
-      }
-    }
-
-    result += character;
-    cursor += 1;
-  }
-
-  return result.trim();
 }
 
 export function parseCsfSheetBoundedRange(

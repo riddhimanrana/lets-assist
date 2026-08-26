@@ -8,7 +8,8 @@ mock.module("@/lib/logger", () => ({
 }));
 mock.module("server-only", () => ({}));
 
-const { getCsfSheetSourceSnapshot } = await import("./google-sheets");
+const { acquireFencedCsfSheetSnapshots, getCsfSheetSourceSnapshot } =
+  await import("./google-sheets");
 const originalFetch = globalThis.fetch;
 afterEach(() => {
   globalThis.fetch = originalFetch;
@@ -201,4 +202,148 @@ test("Drive quotations decode entities once without reconstructing nested markup
   expect(snapshot.threadedCommentsByRow[3]?.[0]?.content).toBe(
     "Literal markup-like cell text",
   );
+});
+
+test("fenced acquisition binds a Drive comment to only one selected tab", async () => {
+  const spreadsheetId = "synthetic-multi-tab-sheet";
+  const ranges = {
+    a: "'Term A'!A1:A3",
+    b: "'Term B'!A1:A3",
+  };
+  const workbookSheets = [
+    {
+      properties: {
+        sheetId: 10,
+        title: "Term A",
+        gridProperties: { rowCount: 3, columnCount: 1 },
+      },
+    },
+    {
+      properties: {
+        sheetId: 11,
+        title: "Term B",
+        gridProperties: { rowCount: 3, columnCount: 1 },
+      },
+    },
+  ];
+
+  globalThis.fetch = (async (input: RequestInfo | URL) => {
+    const url = String(input);
+    const decodedUrl = decodeURIComponent(url).replaceAll("+", " ");
+    if (url.includes(`/drive/v3/files/${spreadsheetId}?`)) {
+      return jsonResponse({
+        id: spreadsheetId,
+        name: "Synthetic multi-tab workbook",
+        mimeType: "application/vnd.google-apps.spreadsheet",
+        modifiedTime: "2026-08-25T18:00:00.000Z",
+        version: "9",
+        trashed: false,
+      });
+    }
+    if (url.includes("/comments?")) {
+      return jsonResponse({
+        comments: [
+          {
+            id: "ambiguous-thread",
+            anchor: '{"type":"workbook-range","range":"opaque-one"}',
+            content: "Do not attach this to either term",
+            resolved: false,
+            quotedFileContent: {
+              mimeType: "text/html",
+              value: "<div>November meeting</div>",
+            },
+            replies: [],
+          },
+          {
+            id: "term-a-thread",
+            anchor: '{"type":"workbook-range","range":"opaque-two"}',
+            content: "Term A officer detail",
+            resolved: false,
+            quotedFileContent: {
+              mimeType: "text/html",
+              value: "<div>Term A only</div>",
+            },
+            replies: [],
+          },
+        ],
+      });
+    }
+    if (url.includes("values:batchGet")) {
+      const isTermA = decodedUrl.includes(ranges.a);
+      return jsonResponse({
+        valueRanges: [
+          {
+            range: isTermA ? ranges.a : ranges.b,
+            values: isTermA
+              ? [["Activity"], ["November meeting"], ["Term A only"]]
+              : [["Activity"], ["November meeting"], ["Term B only"]],
+          },
+        ],
+      });
+    }
+    if (url.includes("includeGridData=false")) {
+      return jsonResponse({
+        spreadsheetId,
+        properties: { title: "Synthetic multi-tab workbook" },
+        sheets: workbookSheets,
+      });
+    }
+
+    const isTermA = decodedUrl.includes(ranges.a);
+    const title = isTermA ? "Term A" : "Term B";
+    return jsonResponse({
+      spreadsheetId,
+      sheets: [
+        {
+          properties: workbookSheets[isTermA ? 0 : 1].properties,
+          data: [
+            {
+              startRow: 0,
+              startColumn: 0,
+              rowData: [
+                { values: [{ formattedValue: "Activity" }] },
+                {
+                  values: [
+                    {
+                      formattedValue: "November meeting",
+                      effectiveValue: { stringValue: "November meeting" },
+                    },
+                  ],
+                },
+                {
+                  values: [
+                    {
+                      formattedValue: `${title} only`,
+                      effectiveValue: { stringValue: `${title} only` },
+                    },
+                  ],
+                },
+              ],
+            },
+          ],
+        },
+      ],
+    });
+  }) as typeof fetch;
+
+  const result = await acquireFencedCsfSheetSnapshots("token", spreadsheetId, [
+    { rangeA1: ranges.a, fallbackTabName: "Term A" },
+    { rangeA1: ranges.b, fallbackTabName: "Term B" },
+  ]);
+
+  expect(result.status).toBe("ok");
+  if (result.status !== "ok") return;
+  expect(result.unmatchedThreadedCommentCount).toBe(1);
+  expect(result.snapshots[0].threadedCommentCount).toBe(1);
+  expect(result.snapshots[0].threadedCommentsByRow[3]).toEqual([
+    {
+      columnNumber: 1,
+      content: "Term A officer detail",
+      replies: [],
+      resolved: false,
+    },
+  ]);
+  expect(result.snapshots[1].threadedCommentCount).toBe(0);
+  expect(result.snapshots[1].threadedCommentsByRow).toEqual({});
+  expect(result.snapshots[0].threadedCommentsByRow[2]).toBeUndefined();
 });
