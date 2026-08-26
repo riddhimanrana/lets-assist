@@ -107,3 +107,98 @@ test("a uniquely quoted Drive thread binds to its source cell and changes the di
   ]);
   expect(withThread.contentHash).not.toBe(withoutThread.contentHash);
 });
+
+test("Drive quotations decode entities once without reconstructing nested markup", async () => {
+  globalThis.fetch = (async (input: RequestInfo | URL) => {
+    const url = String(input);
+    if (url.includes("values:batchGet")) {
+      return jsonResponse({
+        valueRanges: [
+          {
+            values: [
+              ["Quoted value"],
+              ["&lt;script&gt;"],
+              ["<script>alert(1)</script>"],
+            ],
+          },
+        ],
+      });
+    }
+    return jsonResponse({
+      spreadsheetId: "synthetic-sheet",
+      properties: { title: "Synthetic workbook" },
+      sheets: [
+        {
+          properties: {
+            sheetId: 0,
+            title: "Synthetic tab",
+            gridProperties: { rowCount: 10, columnCount: 1 },
+          },
+          data: [
+            {
+              startRow: 0,
+              startColumn: 0,
+              rowData: [
+                { values: [{ formattedValue: "Quoted value" }] },
+                {
+                  values: [
+                    {
+                      formattedValue: "&lt;script&gt;",
+                      effectiveValue: { stringValue: "&lt;script&gt;" },
+                    },
+                  ],
+                },
+                {
+                  values: [
+                    {
+                      formattedValue: "<script>alert(1)</script>",
+                      effectiveValue: {
+                        stringValue: "<script>alert(1)</script>",
+                      },
+                    },
+                  ],
+                },
+              ],
+            },
+          ],
+        },
+      ],
+    });
+  }) as typeof fetch;
+
+  const snapshot = await getCsfSheetSourceSnapshot(
+    "token",
+    "synthetic-sheet",
+    "'Synthetic tab'!A1:A10",
+    "Synthetic tab",
+    [
+      {
+        id: "single-pass-entity",
+        anchor: '{"type":"workbook-range","range":"synthetic-one"}',
+        quotedHtml: "<div>&amp;lt;script&amp;gt;</div>",
+        content: "Encoded entity stays text",
+        resolved: false,
+        replies: [],
+      },
+      {
+        id: "literal-script-text",
+        anchor: '{"type":"workbook-range","range":"synthetic-two"}',
+        quotedHtml: "<div>&lt;script&gt;alert(1)&lt;/script&gt;</div>",
+        content: "Literal markup-like cell text",
+        resolved: true,
+        replies: [],
+      },
+    ],
+  );
+
+  expect(snapshot.status).toBe("ok");
+  if (snapshot.status !== "ok") return;
+  expect(snapshot.threadedCommentCount).toBe(2);
+  expect(snapshot.unmatchedThreadedCommentCount).toBe(0);
+  expect(snapshot.threadedCommentsByRow[2]?.[0]?.content).toBe(
+    "Encoded entity stays text",
+  );
+  expect(snapshot.threadedCommentsByRow[3]?.[0]?.content).toBe(
+    "Literal markup-like cell text",
+  );
+});

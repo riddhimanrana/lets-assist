@@ -123,6 +123,77 @@ function unavailableReasonForStatus(
   return "unavailable";
 }
 
+const DRIVE_QUOTED_TEXT_ENTITIES = new Map<string, string>([
+  ["&nbsp;", " "],
+  ["&amp;", "&"],
+  ["&lt;", "<"],
+  ["&gt;", ">"],
+  ["&quot;", '"'],
+  ["&#39;", "'"],
+  ["&apos;", "'"],
+]);
+
+/**
+ * Extracts the plain cell quotation carried by a Drive comment. Entities are
+ * decoded in one pass so an encoded ampersand cannot expose a second entity.
+ * The result is used only for exact cell matching, never as rendered markup.
+ */
+function extractDriveQuotedText(markup: string) {
+  let result = "";
+  let cursor = 0;
+
+  while (cursor < markup.length) {
+    const character = markup[cursor];
+    if (character === "<") {
+      const tagEnd = markup.indexOf(">", cursor + 1);
+      if (tagEnd === -1) {
+        result += character;
+        cursor += 1;
+        continue;
+      }
+
+      let tagCursor = cursor + 1;
+      while (
+        tagCursor < tagEnd &&
+        (markup[tagCursor] === " " || markup[tagCursor] === "/")
+      ) {
+        tagCursor += 1;
+      }
+      let tagName = "";
+      while (tagCursor < tagEnd) {
+        const codePoint = markup.charCodeAt(tagCursor);
+        const isAsciiLetter =
+          (codePoint >= 65 && codePoint <= 90) ||
+          (codePoint >= 97 && codePoint <= 122);
+        if (!isAsciiLetter) break;
+        tagName += markup[tagCursor].toLowerCase();
+        tagCursor += 1;
+      }
+      if (tagName === "br") result += "\n";
+      cursor = tagEnd + 1;
+      continue;
+    }
+
+    if (character === "&") {
+      const entityEnd = markup.indexOf(";", cursor + 1);
+      if (entityEnd !== -1 && entityEnd - cursor <= 6) {
+        const entity = markup.slice(cursor, entityEnd + 1).toLowerCase();
+        const decoded = DRIVE_QUOTED_TEXT_ENTITIES.get(entity);
+        if (decoded !== undefined) {
+          result += decoded;
+          cursor = entityEnd + 1;
+          continue;
+        }
+      }
+    }
+
+    result += character;
+    cursor += 1;
+  }
+
+  return result.trim();
+}
+
 export function parseCsfSheetBoundedRange(
   range: string,
   fallbackTabName: string,
@@ -622,23 +693,12 @@ export async function getCsfSheetSourceSnapshot(
       };
     });
 
-  const decodeQuotedText = (html: string) =>
-    html
-      .replace(/<br\s*\/?>/giu, "\n")
-      .replace(/<[^>]*>/gu, "")
-      .replace(/&nbsp;/giu, " ")
-      .replace(/&amp;/giu, "&")
-      .replace(/&lt;/giu, "<")
-      .replace(/&gt;/giu, ">")
-      .replace(/&quot;/giu, '"')
-      .replace(/&#39;|&apos;/giu, "'")
-      .trim();
   const threadedCommentsByRow: CsfSheetSourceSnapshot["threadedCommentsByRow"] =
     {};
   let matchedThreadedCommentCount = 0;
   for (const comment of threadedComments) {
     if (!comment.quotedHtml) continue;
-    const quotedText = decodeQuotedText(comment.quotedHtml);
+    const quotedText = extractDriveQuotedText(comment.quotedHtml);
     if (!quotedText) continue;
     const matches: Array<{ sourceRowNumber: number; columnNumber: number }> =
       [];
