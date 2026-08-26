@@ -462,7 +462,7 @@ in this guide, in the public site, or in a prior semester authorizes a value.
 1. Open **More → Terms** and choose **Fall 2026** in the term selector. The
    page shows the term's dates, its **Deadlines**, and its **Meeting
    schedule**; **Start next term** and **Close term** are the lifecycle
-   actions, and archiving shows the **Semester close preflight** inside its
+   actions, and closing shows the **Semester close preflight** inside its
    own dialog.
 2. Add the real application window, deadlines, and required meetings. Enter both
    application dates or leave both blank; before a semester opens both are
