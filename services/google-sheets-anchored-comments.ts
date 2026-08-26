@@ -1,6 +1,9 @@
 import { logError } from "@/lib/logger";
 import { GOOGLE_SHEETS_API } from "./google-drive";
-import type { CsfSheetSourceUnavailableReason } from "./google-sheets-csf";
+import type {
+  CsfSheetSourceUnavailableReason,
+  CsfSheetUnmatchedThreadedComment,
+} from "./google-sheets-csf";
 
 export type CsfSheetAnchoredCommentThread = {
   id: string;
@@ -19,7 +22,7 @@ export type CsfSheetAnchoredCommentResult =
   | {
       status: "ok";
       comments: CsfSheetAnchoredCommentThread[];
-      unmatchedCommentCount: number;
+      unmatchedComments: CsfSheetUnmatchedThreadedComment[];
     }
   | {
       status: "unavailable";
@@ -42,6 +45,46 @@ function boundedIndex(value: unknown) {
     value <= 10_000_000
     ? value
     : null;
+}
+
+function unmatchedEvidence(
+  comment: {
+    commentId?: unknown;
+    anchorId?: unknown;
+    headPost?: { content?: unknown };
+    replies?: Array<{ content?: unknown; deleted?: unknown }>;
+    status?: unknown;
+  },
+  anchor: ProviderRange | null,
+): CsfSheetUnmatchedThreadedComment {
+  return {
+    provider: "sheets_anchor",
+    id:
+      typeof comment.commentId === "string"
+        ? comment.commentId.slice(0, 2048)
+        : null,
+    anchorId:
+      typeof comment.anchorId === "string"
+        ? comment.anchorId.slice(0, 2048)
+        : null,
+    anchor: null,
+    quotedHtml: null,
+    sheetId: boundedIndex(anchor?.sheetId),
+    startRowIndex: boundedIndex(anchor?.startRowIndex),
+    endRowIndex: boundedIndex(anchor?.endRowIndex),
+    startColumnIndex: boundedIndex(anchor?.startColumnIndex),
+    endColumnIndex: boundedIndex(anchor?.endColumnIndex),
+    content:
+      typeof comment.headPost?.content === "string"
+        ? comment.headPost.content.slice(0, 16_384)
+        : "",
+    replies: (comment.replies ?? []).flatMap((reply) =>
+      reply.deleted !== true && typeof reply.content === "string"
+        ? [reply.content.slice(0, 16_384)]
+        : [],
+    ),
+    resolved: comment.status === "RESOLVED",
+  };
 }
 
 /**
@@ -121,9 +164,11 @@ export async function getGoogleSheetAnchoredCommentThreads(
       "id" | "anchorId" | "content" | "replies" | "resolved"
     >
   >();
+  const providerRanges = new Map<string, ProviderRange>();
   for (const sheet of data.sheets ?? []) {
     for (const anchor of sheet.commentAnchors ?? []) {
       if (typeof anchor.anchorId !== "string" || !anchor.range) continue;
+      providerRanges.set(anchor.anchorId, anchor.range);
       const sheetId = boundedIndex(anchor.range.sheetId);
       const startRowIndex = boundedIndex(anchor.range.startRowIndex);
       const endRowIndex = boundedIndex(anchor.range.endRowIndex);
@@ -151,7 +196,7 @@ export async function getGoogleSheetAnchoredCommentThreads(
   }
 
   const comments: CsfSheetAnchoredCommentThread[] = [];
-  let unmatchedCommentCount = 0;
+  const unmatchedComments: CsfSheetUnmatchedThreadedComment[] = [];
   for (const comment of data.comments ?? []) {
     if (comment.headPost?.deleted === true) continue;
     if (
@@ -159,12 +204,24 @@ export async function getGoogleSheetAnchoredCommentThreads(
       typeof comment.anchorId !== "string" ||
       typeof comment.headPost?.content !== "string"
     ) {
-      unmatchedCommentCount += 1;
+      unmatchedComments.push(
+        unmatchedEvidence(
+          comment,
+          typeof comment.anchorId === "string"
+            ? (providerRanges.get(comment.anchorId) ?? null)
+            : null,
+        ),
+      );
       continue;
     }
     const anchor = anchors.get(comment.anchorId);
     if (!anchor) {
-      unmatchedCommentCount += 1;
+      unmatchedComments.push(
+        unmatchedEvidence(
+          comment,
+          providerRanges.get(comment.anchorId) ?? null,
+        ),
+      );
       continue;
     }
     comments.push({
@@ -181,5 +238,5 @@ export async function getGoogleSheetAnchoredCommentThreads(
     });
   }
 
-  return { status: "ok", comments, unmatchedCommentCount };
+  return { status: "ok", comments, unmatchedComments };
 }

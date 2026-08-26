@@ -10,6 +10,7 @@ import {
   getCsfSheetSourceSnapshot,
   type CsfSheetSourceUnavailableReason,
   type CsfSheetSourceSnapshot,
+  type CsfSheetUnmatchedThreadedComment,
 } from "./google-sheets-csf";
 import { formatSheetNameForA1 } from "./google-sheets-report";
 import { getGoogleSheetAnchoredCommentThreads } from "./google-sheets-anchored-comments";
@@ -60,6 +61,7 @@ export type CsfFencedSheetAcquisitionResult =
       driveFile: CsfDriveFileMetadata;
       snapshots: CsfSheetSourceSnapshot[];
       unmatchedThreadedCommentCount: number;
+      unmatchedThreadedComments: CsfSheetUnmatchedThreadedComment[];
       attempts: number;
     }
   | {
@@ -228,6 +230,7 @@ export async function acquireFencedCsfSheetSnapshots(
           ? attachAnchoredCommentsToSnapshots(
               snapshots,
               anchoredComments.comments,
+              anchoredComments.unmatchedComments,
             )
           : scopeCsfThreadedCommentsToSnapshots(
               snapshots,
@@ -239,10 +242,8 @@ export async function acquireFencedCsfSheetSnapshots(
         driveFile: after,
         snapshots: scopedComments.snapshots,
         unmatchedThreadedCommentCount:
-          scopedComments.unmatchedThreadedCommentCount +
-          (anchoredComments.status === "ok"
-            ? anchoredComments.unmatchedCommentCount
-            : 0),
+          scopedComments.unmatchedThreadedCommentCount,
+        unmatchedThreadedComments: scopedComments.unmatchedThreadedComments,
         attempts: attempt,
       };
     }

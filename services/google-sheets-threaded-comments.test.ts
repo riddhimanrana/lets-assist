@@ -99,6 +99,14 @@ test("a legacy Drive quotation stays unmatched and changes the digest", async ()
   expect(withThread.threadedCommentCount).toBe(0);
   expect(withThread.unmatchedThreadedCommentCount).toBe(1);
   expect(withThread.threadedCommentsByRow).toEqual({});
+  expect(withThread.unmatchedThreadedComments).toEqual([
+    expect.objectContaining({
+      provider: "drive_legacy",
+      id: "synthetic-thread",
+      content: "Synthetic exception detail",
+      replies: ["Synthetic officer reply"],
+    }),
+  ]);
   expect(withThread.contentHash).not.toBe(withoutThread.contentHash);
 });
 
@@ -190,6 +198,7 @@ test("legacy Drive quotations never bind by decoded text", async () => {
   expect(snapshot.threadedCommentCount).toBe(0);
   expect(snapshot.unmatchedThreadedCommentCount).toBe(2);
   expect(snapshot.threadedCommentsByRow).toEqual({});
+  expect(snapshot.unmatchedThreadedComments).toHaveLength(2);
 });
 
 test("fenced acquisition binds only provider-anchored comments inside selected ranges", async () => {
@@ -272,7 +281,7 @@ test("fenced acquisition binds only provider-anchored comments inside selected r
             anchorId: "multi-cell-anchor",
             headPost: { content: "Needs manual placement" },
             status: "OPEN",
-            replies: [],
+            replies: [{ content: "Keep the officer reply too" }],
           },
         ],
       });
@@ -343,6 +352,29 @@ test("fenced acquisition binds only provider-anchored comments inside selected r
   expect(result.status).toBe("ok");
   if (result.status !== "ok") return;
   expect(result.unmatchedThreadedCommentCount).toBe(1);
+  expect(result.unmatchedThreadedComments).toEqual([
+    {
+      provider: "sheets_anchor",
+      id: "multi-cell-thread",
+      anchorId: "multi-cell-anchor",
+      anchor: null,
+      quotedHtml: null,
+      sheetId: 10,
+      startRowIndex: 0,
+      endRowIndex: 2,
+      startColumnIndex: 0,
+      endColumnIndex: 1,
+      content: "Needs manual placement",
+      replies: ["Keep the officer reply too"],
+      resolved: false,
+    },
+  ]);
+  expect(result.snapshots[0].unmatchedThreadedComments).toEqual(
+    result.unmatchedThreadedComments,
+  );
+  expect(result.snapshots[1].unmatchedThreadedComments).toEqual(
+    result.unmatchedThreadedComments,
+  );
   expect(result.snapshots[0].threadedCommentCount).toBe(1);
   expect(result.snapshots[0].threadedCommentsByRow[3]).toEqual([
     {
