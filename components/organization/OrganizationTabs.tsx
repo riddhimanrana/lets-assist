@@ -354,7 +354,6 @@ export default function OrganizationTabs({
       return;
     }
 
-    setActiveTab(canonicalValue);
     const params = new URLSearchParams(searchParams.toString());
     for (const key of pluginNavigationOverrides.transientQueryParams ?? []) {
       params.delete(key);

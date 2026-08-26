@@ -13,4 +13,18 @@ describe("organization plugin tab server rendering", () => {
     );
     expect(organizationPage).not.toContain("pluginTabs={pluginTabs}");
   });
+
+  test("keeps the current tab rendered until navigation supplies the next payload", () => {
+    const organizationTabs = readFileSync(
+      new URL("./OrganizationTabs.tsx", import.meta.url),
+      "utf8",
+    );
+    const handleTabChange = organizationTabs.match(
+      /const handleTabChange = \(value: string\) => \{([\s\S]*?)\n {2}\};/u,
+    )?.[1];
+
+    expect(handleTabChange).toBeDefined();
+    expect(handleTabChange).not.toContain("setActiveTab(canonicalValue)");
+    expect(handleTabChange).toContain("router.replace");
+  });
 });
