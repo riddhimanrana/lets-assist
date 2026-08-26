@@ -561,10 +561,7 @@ test.describe("CSF visible people lifecycle", () => {
     const assignmentDialog = page.getByRole("dialog", {
       name: "Assign staff access",
     });
-    const profileField = assignmentDialog
-      .getByText("CSF member profile", { exact: true })
-      .locator("..");
-    await profileField.getByRole("combobox").click();
+    await assignmentDialog.getByRole("combobox", { name: "Person" }).click();
     await page
       .getByRole("option", { name: new RegExp(fixture.profileEmail) })
       .click();
