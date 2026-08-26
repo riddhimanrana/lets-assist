@@ -216,11 +216,14 @@ test.describe("officer post compose in the class Stream", () => {
     await dialog.getByLabel("Title").fill(composedTitle);
     await dialog.getByLabel("Message").fill(composedBody);
 
-    // The email decision exists but stays off for this scenario.
+    // New posts default email on. This scenario explicitly turns it off and
+    // proves that publication remains separate from email delivery.
     const emailToggle = dialog.getByRole("checkbox", {
       name: "Also send this as an email",
     });
     await expect(emailToggle).toBeVisible();
+    await expect(emailToggle).toBeChecked();
+    await emailToggle.click();
     await expect(emailToggle).not.toBeChecked();
 
     const publishButton = dialog.getByRole("button", {
