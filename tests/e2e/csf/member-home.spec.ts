@@ -228,7 +228,7 @@ test.describe("member Home class feed", () => {
       await expect(connectCard).toBeVisible();
       await expect(
         connectCard.getByText(
-          "Enter the identity details used on your CSF forms.",
+          "Enter the class join code your CSF officers shared.",
         ),
       ).toBeVisible();
 

@@ -374,7 +374,8 @@ test.describe("class join code connections", () => {
               .from("csf_profile_accounts")
               .select("id")
               .eq("organization_id", fixture.organizationId)
-              .eq("user_id", fixture.userId),
+              .eq("user_id", fixture.userId)
+              .eq("status", "verified"),
             fixture.admin
               .schema("plugin_data")
               .from("csf_profile_link_requests")
