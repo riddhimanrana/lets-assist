@@ -60,7 +60,7 @@ class**. This amendment supersedes the Classes-embedded semester views in
   from the current term (Fall 2026 → Spring 2027): if the next term record
   exists it is made current, otherwise it is created prefilled and made current
   in one step. **Close term** keeps its blocking server preflight, rendered
-  inside the archive dialog; the submit stays locked while blockers remain.
+  inside the close dialog; the submit stays locked while blockers remain.
   Reopening a closed term is an affordance shown only when a closed term is
   selected, with the same reasoned, audited flow.
 - **Chapter rules.** The versioned policy record is presented as a collapsed,
