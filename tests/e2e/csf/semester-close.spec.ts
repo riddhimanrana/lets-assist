@@ -27,7 +27,7 @@ test.describe("transactional semester-close preflight", () => {
 
     // The preflight lives inside the archive flow now: the trigger stays
     // available, and opening it presents the server-derived blocker list.
-    const archiveTrigger = page.getByRole("button", { name: "Archive term" });
+    const archiveTrigger = page.getByRole("button", { name: "Close term" });
     await expect(archiveTrigger).toBeEnabled();
     await archiveTrigger.click();
 
