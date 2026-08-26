@@ -11,7 +11,7 @@ const chapterRulesPath =
   `${CSF_ORGANIZATION_PATH}?tab=csf-terms` + "&csf_rules=open";
 
 test.describe("transactional semester-close preflight", () => {
-  test("shows every blocking domain inside the archive dialog and prevents a stale early close", async ({
+  test("shows every blocking domain inside the close dialog and prevents a stale early close", async ({
     page,
   }) => {
     const failures = watchBrowserFailures(page);
@@ -25,13 +25,13 @@ test.describe("transactional semester-close preflight", () => {
       page.getByText("Chapter rules", { exact: true }),
     ).toBeVisible();
 
-    // The preflight lives inside the archive flow now: the trigger stays
+    // The preflight lives inside the close flow: the trigger stays
     // available, and opening it presents the server-derived blocker list.
     const archiveTrigger = page.getByRole("button", { name: "Close term" });
     await expect(archiveTrigger).toBeEnabled();
     await archiveTrigger.click();
 
-    const dialog = page.getByRole("dialog", { name: "Close a CSF term" });
+    const dialog = page.getByRole("dialog", { name: "Close this semester" });
     await expect(dialog).toBeVisible();
     await expect(
       dialog.getByText("Semester close preflight", { exact: true }),
