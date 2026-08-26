@@ -11,6 +11,7 @@ import {
   type CsfSheetSourceUnavailableReason,
   type CsfSheetSourceSnapshot,
 } from "./google-sheets-csf";
+import { formatSheetNameForA1 } from "./google-sheets-report";
 import { getGoogleSheetAnchoredCommentThreads } from "./google-sheets-anchored-comments";
 import {
   attachAnchoredCommentsToSnapshots,
@@ -144,7 +145,11 @@ export async function acquireFencedCsfSheetSnapshots(
     const anchoredComments = await getGoogleSheetAnchoredCommentThreads(
       accessToken,
       spreadsheetId,
-      requests.map((request) => request.rangeA1),
+      requests.map((request) =>
+        request.rangeA1.includes("!")
+          ? request.rangeA1
+          : `${formatSheetNameForA1(request.fallbackTabName)}!${request.rangeA1}`,
+      ),
     );
     const legacyComments =
       anchoredComments.status === "ok"
