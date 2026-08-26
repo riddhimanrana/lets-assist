@@ -11,6 +11,7 @@ import {
   type CsfSheetSourceUnavailableReason,
   type CsfSheetSourceSnapshot,
 } from "./google-sheets-csf";
+import { scopeCsfThreadedCommentsToSnapshots } from "./google-sheets-comment-scope";
 
 /* -------------------------------------------------------------------------
  * Fenced multi-read acquisition.
@@ -53,6 +54,7 @@ export type CsfFencedSheetAcquisitionResult =
       fence: CsfSheetSourceFence;
       driveFile: CsfDriveFileMetadata;
       snapshots: CsfSheetSourceSnapshot[];
+      unmatchedThreadedCommentCount: number;
       attempts: number;
     }
   | {
@@ -207,11 +209,17 @@ export async function acquireFencedCsfSheetSnapshots(
     lastAfter = afterFence;
 
     if (fencesAgree(beforeFence, afterFence)) {
+      const scopedComments = scopeCsfThreadedCommentsToSnapshots(
+        snapshots,
+        commentThreads.comments,
+      );
       return {
         status: "ok",
         fence: afterFence,
         driveFile: after,
-        snapshots,
+        snapshots: scopedComments.snapshots,
+        unmatchedThreadedCommentCount:
+          scopedComments.unmatchedThreadedCommentCount,
         attempts: attempt,
       };
     }
