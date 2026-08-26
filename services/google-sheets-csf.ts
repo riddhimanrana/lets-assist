@@ -1,7 +1,6 @@
 import { createHash } from "node:crypto";
 import { logError } from "@/lib/logger";
 import { GOOGLE_SHEETS_API, type CsfDriveCommentThread } from "./google-drive";
-import { extractDriveQuotedText } from "./google-sheets-comment-scope";
 import {
   CSF_SHEET_MAX_BOUNDED_CELLS,
   GOOGLE_SHEETS_MAX_COLUMN_INDEX,
@@ -623,39 +622,10 @@ export async function getCsfSheetSourceSnapshot(
       };
     });
 
+  // Native Sheets coordinates are attached by the fenced workbook reader.
+  // Legacy Drive threads remain in this digest, but never bind by quoted text.
   const threadedCommentsByRow: CsfSheetSourceSnapshot["threadedCommentsByRow"] =
     {};
-  let matchedThreadedCommentCount = 0;
-  for (const comment of threadedComments) {
-    if (!comment.quotedHtml) continue;
-    const quotedText = extractDriveQuotedText(comment.quotedHtml);
-    if (!quotedText) continue;
-    const matches: Array<{ sourceRowNumber: number; columnNumber: number }> =
-      [];
-    requestedValues.forEach((values, rowOffset) => {
-      values.forEach((value, columnOffset) => {
-        if (String(value ?? "").trim() === quotedText) {
-          matches.push({
-            sourceRowNumber: requestedRange.startRow + rowOffset,
-            columnNumber: requestedRange.startColumn + columnOffset,
-          });
-        }
-      });
-    });
-    // Drive's Sheet anchors are opaque workbook-range identifiers. Only bind a
-    // thread when its quoted cell text identifies one cell in this bounded tab.
-    // Ambiguous and off-range threads stay in the snapshot digest but never get
-    // guessed onto a student record.
-    if (matches.length !== 1) continue;
-    const [{ sourceRowNumber, columnNumber }] = matches;
-    (threadedCommentsByRow[sourceRowNumber] ??= []).push({
-      columnNumber,
-      content: comment.content,
-      replies: comment.replies.map((reply) => reply.content),
-      resolved: comment.resolved,
-    });
-    matchedThreadedCommentCount += 1;
-  }
 
   const contentHash = createHash("sha256")
     .update(
@@ -703,8 +673,7 @@ export async function getCsfSheetSourceSnapshot(
     contentHash,
     hasBasicFilter: Boolean(selectedSheet.basicFilter),
     threadedCommentsByRow,
-    threadedCommentCount: threadedComments.length,
-    unmatchedThreadedCommentCount:
-      threadedComments.length - matchedThreadedCommentCount,
+    threadedCommentCount: 0,
+    unmatchedThreadedCommentCount: threadedComments.length,
   };
 }

@@ -21,7 +21,7 @@ const jsonResponse = (body: unknown) =>
     headers: { "Content-Type": "application/json" },
   });
 
-test("a uniquely quoted Drive thread binds to its source cell and changes the digest", async () => {
+test("a legacy Drive quotation stays unmatched and changes the digest", async () => {
   globalThis.fetch = (async (input: RequestInfo | URL) => {
     const url = String(input);
     if (url.includes("values:batchGet")) {
@@ -96,20 +96,13 @@ test("a uniquely quoted Drive thread binds to its source cell and changes the di
   expect(withoutThread.status).toBe("ok");
   expect(withThread.status).toBe("ok");
   if (withoutThread.status !== "ok" || withThread.status !== "ok") return;
-  expect(withThread.threadedCommentCount).toBe(1);
-  expect(withThread.unmatchedThreadedCommentCount).toBe(0);
-  expect(withThread.threadedCommentsByRow[2]).toEqual([
-    {
-      columnNumber: 1,
-      content: "Synthetic exception detail",
-      replies: ["Synthetic officer reply"],
-      resolved: false,
-    },
-  ]);
+  expect(withThread.threadedCommentCount).toBe(0);
+  expect(withThread.unmatchedThreadedCommentCount).toBe(1);
+  expect(withThread.threadedCommentsByRow).toEqual({});
   expect(withThread.contentHash).not.toBe(withoutThread.contentHash);
 });
 
-test("Drive quotations decode entities once without reconstructing nested markup", async () => {
+test("legacy Drive quotations never bind by decoded text", async () => {
   globalThis.fetch = (async (input: RequestInfo | URL) => {
     const url = String(input);
     if (url.includes("values:batchGet")) {
@@ -194,17 +187,12 @@ test("Drive quotations decode entities once without reconstructing nested markup
 
   expect(snapshot.status).toBe("ok");
   if (snapshot.status !== "ok") return;
-  expect(snapshot.threadedCommentCount).toBe(2);
-  expect(snapshot.unmatchedThreadedCommentCount).toBe(0);
-  expect(snapshot.threadedCommentsByRow[2]?.[0]?.content).toBe(
-    "Encoded entity stays text",
-  );
-  expect(snapshot.threadedCommentsByRow[3]?.[0]?.content).toBe(
-    "Literal markup-like cell text",
-  );
+  expect(snapshot.threadedCommentCount).toBe(0);
+  expect(snapshot.unmatchedThreadedCommentCount).toBe(2);
+  expect(snapshot.threadedCommentsByRow).toEqual({});
 });
 
-test("fenced acquisition binds a Drive comment to only one selected tab", async () => {
+test("fenced acquisition binds only provider-anchored comments inside selected ranges", async () => {
   const spreadsheetId = "synthetic-multi-tab-sheet";
   const ranges = {
     a: "'Term A'!A1:A3",
@@ -240,29 +228,48 @@ test("fenced acquisition binds a Drive comment to only one selected tab", async 
         trashed: false,
       });
     }
-    if (url.includes("/comments?")) {
+    if (url.includes("commentsViewMode=COMMENTS_VIEW_MODE_INCLUDED")) {
       return jsonResponse({
+        sheets: [
+          {
+            properties: { sheetId: 10, title: "Term A" },
+            commentAnchors: [
+              {
+                anchorId: "term-a-anchor",
+                range: {
+                  sheetId: 10,
+                  startRowIndex: 2,
+                  endRowIndex: 3,
+                  startColumnIndex: 0,
+                  endColumnIndex: 1,
+                },
+              },
+              {
+                anchorId: "multi-cell-anchor",
+                range: {
+                  sheetId: 10,
+                  startRowIndex: 0,
+                  endRowIndex: 2,
+                  startColumnIndex: 0,
+                  endColumnIndex: 1,
+                },
+              },
+            ],
+          },
+        ],
         comments: [
           {
-            id: "ambiguous-thread",
-            anchor: '{"type":"workbook-range","range":"opaque-one"}',
-            content: "Do not attach this to either term",
-            resolved: false,
-            quotedFileContent: {
-              mimeType: "text/html",
-              value: "<div>November meeting</div>",
-            },
+            commentId: "term-a-thread",
+            anchorId: "term-a-anchor",
+            headPost: { content: "Term A officer detail" },
+            status: "OPEN",
             replies: [],
           },
           {
-            id: "term-a-thread",
-            anchor: '{"type":"workbook-range","range":"opaque-two"}',
-            content: "Term A officer detail",
-            resolved: false,
-            quotedFileContent: {
-              mimeType: "text/html",
-              value: "<div>Term A only</div>",
-            },
+            commentId: "multi-cell-thread",
+            anchorId: "multi-cell-anchor",
+            headPost: { content: "Needs manual placement" },
+            status: "OPEN",
             replies: [],
           },
         ],
