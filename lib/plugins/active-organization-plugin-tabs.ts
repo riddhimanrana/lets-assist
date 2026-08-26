@@ -19,14 +19,26 @@ export function resolveActiveOrganizationTab(input: {
   requestedTab: string | string[] | undefined;
   defaultTab: string | undefined;
   aliases: Readonly<Record<string, string>> | undefined;
+  availableTabs?: readonly string[];
 }) {
   const requestedTab = Array.isArray(input.requestedTab)
     ? input.requestedTab[0]
     : input.requestedTab;
-  return resolveOrganizationTabAlias(
+  const resolvedTab = resolveOrganizationTabAlias(
     requestedTab || input.defaultTab || "overview",
     input.aliases,
   );
+  if (!input.availableTabs || input.availableTabs.includes(resolvedTab)) {
+    return resolvedTab;
+  }
+
+  const resolvedDefault = resolveOrganizationTabAlias(
+    input.defaultTab || "overview",
+    input.aliases,
+  );
+  return input.availableTabs.includes(resolvedDefault)
+    ? resolvedDefault
+    : (input.availableTabs[0] ?? "overview");
 }
 
 /**

@@ -423,15 +423,6 @@ export default async function OrganizationPage({
   const pluginTabs = pluginTabsContributions
     .filter((contribution) => isAllowedPluginSurface(contribution.pluginKey))
     .flatMap((c) => c.behavior);
-  const activeEmbeddedTab = resolveActiveOrganizationTab({
-    requestedTab: resolvedSearchParams.tab,
-    defaultTab: navOverrides.defaultTab,
-    aliases: navOverrides.tabAliases,
-  });
-  const activePluginTabs = projectActiveOrganizationPluginTabs(
-    pluginTabs,
-    activeEmbeddedTab,
-  );
   // Admins get a setup checklist until the organization is configured or they
   // dismiss it. Everything but the dismissal flag comes from data already
   // loaded above, so this is one narrow read and only for admins.
@@ -510,6 +501,50 @@ export default async function OrganizationPage({
         pluginRole,
         overviewReplacement.minimumRole ?? "member",
       ));
+
+  const canUseCoreReplacement = (
+    tab: "overview" | "members" | "projects" | "reports",
+  ) => {
+    const replacement = navOverrides.coreTabReplacements?.[tab];
+    return (
+      !replacement ||
+      replacement.minimumRole === "public" ||
+      hasOrganizationPluginAccess(
+        pluginRole,
+        replacement.minimumRole ?? "member",
+      )
+    );
+  };
+  const availableEmbeddedTabs = [
+    ...(!navOverrides.hideOverviewTab && canUseCoreReplacement("overview")
+      ? ["overview"]
+      : []),
+    ...(canViewMembers &&
+    !navOverrides.hideMembersTab &&
+    canUseCoreReplacement("members")
+      ? ["members"]
+      : []),
+    ...(!navOverrides.hideProjectsTab && canUseCoreReplacement("projects")
+      ? ["projects"]
+      : []),
+    ...(!navOverrides.hideReportsTab &&
+    (userRole === "admin" || userRole === "staff") &&
+    canUseCoreReplacement("reports")
+      ? ["reports"]
+      : []),
+    ...pluginTabs.map((tab) => tab.value),
+    ...pluginRouteTabs.map((tab) => tab.value),
+  ];
+  const activeEmbeddedTab = resolveActiveOrganizationTab({
+    requestedTab: resolvedSearchParams.tab,
+    defaultTab: navOverrides.defaultTab,
+    aliases: navOverrides.tabAliases,
+    availableTabs: availableEmbeddedTabs,
+  });
+  const activePluginTabs = projectActiveOrganizationPluginTabs(
+    pluginTabs,
+    activeEmbeddedTab,
+  );
 
   if (
     !resolvedSearchParams.tab &&
