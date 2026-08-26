@@ -1,9 +1,6 @@
 import { createHash } from "node:crypto";
 import { logError } from "@/lib/logger";
-import {
-  GOOGLE_SHEETS_API,
-  type CsfDriveCommentThread,
-} from "./google-drive";
+import { GOOGLE_SHEETS_API, type CsfDriveCommentThread } from "./google-drive";
 import {
   CSF_SHEET_MAX_BOUNDED_CELLS,
   GOOGLE_SHEETS_MAX_COLUMN_INDEX,
@@ -643,7 +640,8 @@ export async function getCsfSheetSourceSnapshot(
     if (!comment.quotedHtml) continue;
     const quotedText = decodeQuotedText(comment.quotedHtml);
     if (!quotedText) continue;
-    const matches: Array<{ sourceRowNumber: number; columnNumber: number }> = [];
+    const matches: Array<{ sourceRowNumber: number; columnNumber: number }> =
+      [];
     requestedValues.forEach((values, rowOffset) => {
       values.forEach((value, columnOffset) => {
         if (String(value ?? "").trim() === quotedText) {
