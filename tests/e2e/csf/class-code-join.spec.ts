@@ -374,7 +374,8 @@ test.describe("class join code connections", () => {
               .from("csf_profile_accounts")
               .select("id")
               .eq("organization_id", fixture.organizationId)
-              .eq("user_id", fixture.userId),
+              .eq("user_id", fixture.userId)
+              .eq("status", "verified"),
             fixture.admin
               .schema("plugin_data")
               .from("csf_profile_link_requests")
@@ -417,16 +418,12 @@ test.describe("class join code connections", () => {
       reviewQueue.getByText("Class-code joins waiting for an officer decision"),
     ).toBeVisible();
 
-    const requestName = `Rowan ${reviewLastName}`;
-    const requestCard = reviewQueue
-      .getByText(requestName, { exact: true })
-      .first()
-      .locator("..")
-      .locator("..");
-    await expect(requestCard).toBeVisible();
-    await requestCard
-      .getByRole("button", { name: "Resolve", exact: true })
-      .click();
+    const resolveButton = reviewQueue.getByRole("button", {
+      name: "Resolve",
+      exact: true,
+    });
+    await expect(resolveButton).toBeVisible();
+    await resolveButton.click();
 
     const resolveDialog = page.getByRole("dialog", {
       name: "Review account connection",
@@ -461,7 +458,8 @@ test.describe("class join code connections", () => {
               .from("csf_profile_accounts")
               .select("id")
               .eq("organization_id", fixture.organizationId)
-              .eq("user_id", fixture.userId),
+              .eq("user_id", fixture.userId)
+              .eq("status", "verified"),
             fixture.admin
               .from("organization_members")
               .select("id")

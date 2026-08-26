@@ -4,6 +4,144 @@ export const GOOGLE_SHEETS_API =
   "https://sheets.googleapis.com/v4/spreadsheets";
 const GOOGLE_DRIVE_FILES_API = "https://www.googleapis.com/drive/v3/files";
 
+export type CsfDriveCommentThread = {
+  id: string;
+  anchor: string | null;
+  quotedHtml: string | null;
+  content: string;
+  resolved: boolean;
+  replies: Array<{ id: string; content: string }>;
+};
+
+export type CsfDriveCommentThreadResult =
+  | { status: "ok"; comments: CsfDriveCommentThread[] }
+  | {
+      status: "unavailable";
+      reason: "reconnect_required" | "not_found" | "unavailable";
+      message: string;
+    };
+
+/**
+ * Read every active Drive comment thread on one app-selected Sheet.
+ *
+ * Threaded comments are a Drive resource, not Sheet cell notes. The bounded
+ * importer therefore has to acquire them separately and include them inside
+ * the same Drive version fence as the grid read.
+ */
+export async function getGoogleDriveCommentThreads(
+  accessToken: string,
+  fileId: string,
+): Promise<CsfDriveCommentThreadResult> {
+  if (exactProviderText(fileId, MAX_PROVIDER_FILE_ID) === null) {
+    return {
+      status: "unavailable",
+      reason: "unavailable",
+      message: "The selected Sheet comment threads could not be inspected.",
+    };
+  }
+
+  const comments: CsfDriveCommentThread[] = [];
+  let pageToken: string | null = null;
+  for (let page = 0; page < 20; page += 1) {
+    const params = new URLSearchParams({
+      includeDeleted: "false",
+      pageSize: "100",
+      fields:
+        "nextPageToken,comments(id,anchor,content,resolved,quotedFileContent(mimeType,value),replies(id,content,deleted))",
+    });
+    if (pageToken) params.set("pageToken", pageToken);
+
+    let response: Response;
+    try {
+      response = await fetch(
+        `${GOOGLE_DRIVE_FILES_API}/${encodeURIComponent(fileId)}/comments?${params.toString()}`,
+        { headers: { Authorization: `Bearer ${accessToken}` } },
+      );
+    } catch (error) {
+      logError("Exception while reading Google Drive comment threads", error);
+      return {
+        status: "unavailable",
+        reason: "unavailable",
+        message: "The selected Sheet comment threads could not be inspected.",
+      };
+    }
+
+    if (!response.ok) {
+      logError(
+        "Failed to read Google Drive comment threads",
+        new Error(`Drive returned ${response.status}`),
+        { status: response.status },
+      );
+      return {
+        status: "unavailable",
+        reason:
+          response.status === 401 || response.status === 403
+            ? "reconnect_required"
+            : response.status === 404
+              ? "not_found"
+              : "unavailable",
+        message:
+          response.status === 401 || response.status === 403
+            ? "Reconnect Google Sheets so comment threads can be imported."
+            : "The selected Sheet comment threads could not be inspected.",
+      };
+    }
+
+    const data = (await response.json()) as {
+      nextPageToken?: unknown;
+      comments?: Array<{
+        id?: unknown;
+        anchor?: unknown;
+        content?: unknown;
+        resolved?: unknown;
+        quotedFileContent?: { mimeType?: unknown; value?: unknown };
+        replies?: Array<{ id?: unknown; content?: unknown; deleted?: unknown }>;
+      }>;
+    };
+    for (const comment of data.comments ?? []) {
+      const id = exactProviderText(comment.id, MAX_PROVIDER_FILE_ID);
+      if (!id || typeof comment.content !== "string") continue;
+      comments.push({
+        id,
+        anchor:
+          typeof comment.anchor === "string" && comment.anchor.length <= 2048
+            ? comment.anchor
+            : null,
+        quotedHtml:
+          comment.quotedFileContent?.mimeType === "text/html" &&
+          typeof comment.quotedFileContent.value === "string" &&
+          comment.quotedFileContent.value.length <= 16_384
+            ? comment.quotedFileContent.value
+            : null,
+        content: comment.content.slice(0, 16_384),
+        resolved: comment.resolved === true,
+        replies: (comment.replies ?? []).flatMap((reply) => {
+          const replyId = exactProviderText(reply.id, MAX_PROVIDER_FILE_ID);
+          return reply.deleted !== true &&
+            replyId &&
+            typeof reply.content === "string"
+            ? [{ id: replyId, content: reply.content.slice(0, 16_384) }]
+            : [];
+        }),
+      });
+    }
+
+    pageToken =
+      typeof data.nextPageToken === "string" &&
+      data.nextPageToken.length > 0 &&
+      data.nextPageToken.length <= 2048
+        ? data.nextPageToken
+        : null;
+    if (!pageToken) return { status: "ok", comments };
+  }
+
+  return {
+    status: "unavailable",
+    reason: "unavailable",
+    message: "The selected Sheet has too many comment pages to import safely.",
+  };
+}
+
 export type SpreadsheetValueInputOption = "RAW" | "USER_ENTERED";
 
 export type CsfDriveFileAccessState =

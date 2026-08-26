@@ -28,6 +28,10 @@ import { getServerPreviewSource } from "@/lib/supabase/preview-source.server";
 import { cn } from "@/lib/utils";
 import { shouldRedirectMemberToPluginRoot } from "@/lib/plugins/organization-page-routing";
 import { toOrganizationPluginAccessRole } from "@/lib/plugins/access-role";
+import {
+  projectActiveOrganizationPluginTabs,
+  resolveActiveOrganizationTab,
+} from "@/lib/plugins/active-organization-plugin-tabs";
 
 type Props = {
   params: Promise<{ id: string }>;
@@ -498,6 +502,50 @@ export default async function OrganizationPage({
         overviewReplacement.minimumRole ?? "member",
       ));
 
+  const canUseCoreReplacement = (
+    tab: "overview" | "members" | "projects" | "reports",
+  ) => {
+    const replacement = navOverrides.coreTabReplacements?.[tab];
+    return (
+      !replacement ||
+      replacement.minimumRole === "public" ||
+      hasOrganizationPluginAccess(
+        pluginRole,
+        replacement.minimumRole ?? "member",
+      )
+    );
+  };
+  const availableEmbeddedTabs = [
+    ...(!navOverrides.hideOverviewTab && canUseCoreReplacement("overview")
+      ? ["overview"]
+      : []),
+    ...(canViewMembers &&
+    !navOverrides.hideMembersTab &&
+    canUseCoreReplacement("members")
+      ? ["members"]
+      : []),
+    ...(!navOverrides.hideProjectsTab && canUseCoreReplacement("projects")
+      ? ["projects"]
+      : []),
+    ...(!navOverrides.hideReportsTab &&
+    (userRole === "admin" || userRole === "staff") &&
+    canUseCoreReplacement("reports")
+      ? ["reports"]
+      : []),
+    ...pluginTabs.map((tab) => tab.value),
+    ...pluginRouteTabs.map((tab) => tab.value),
+  ];
+  const activeEmbeddedTab = resolveActiveOrganizationTab({
+    requestedTab: resolvedSearchParams.tab,
+    defaultTab: navOverrides.defaultTab,
+    aliases: navOverrides.tabAliases,
+    availableTabs: availableEmbeddedTabs,
+  });
+  const activePluginTabs = projectActiveOrganizationPluginTabs(
+    pluginTabs,
+    activeEmbeddedTab,
+  );
+
   if (
     !resolvedSearchParams.tab &&
     overviewReplacement &&
@@ -569,7 +617,7 @@ export default async function OrganizationPage({
             organizationCreatedLabel={organizationCreatedLabel}
             canViewMembers={canViewMembers}
             pluginOverviewExtensions={visiblePluginOverviewExtensions}
-            pluginTabs={pluginTabs}
+            pluginTabs={activePluginTabs}
             pluginRouteTabs={pluginRouteTabs}
             pluginNavigationOverrides={navOverrides}
           />

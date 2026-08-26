@@ -76,6 +76,10 @@ function gridResponse(overrides: Record<string, unknown> = {}) {
                   {
                     formattedValue: "Avery",
                     effectiveValue: { stringValue: "Avery" },
+                    note: "Synthetic officer comment",
+                    effectiveFormat: {
+                      backgroundColor: { red: 1, green: 1, blue: 0 },
+                    },
                   },
                 ],
               },
@@ -295,6 +299,12 @@ describe("CSF Google Sheets acquisition snapshot", () => {
     expect(snapshot.rows[1]).toMatchObject({
       hiddenByUser: true,
       hiddenByFilter: false,
+      annotations: {
+        1: {
+          background: "#ffff00",
+          note: "Synthetic officer comment",
+        },
+      },
     });
     expect(snapshot.rows[2]).toMatchObject({
       hiddenByUser: false,
@@ -610,7 +620,7 @@ describe("CSF Google Sheets acquisition snapshot", () => {
  * describing a state the workbook was never in.
  */
 describe("CSF Google Sheets fenced acquisition", () => {
-  const DRIVE_METADATA = "www.googleapis.com/drive/v3/files";
+  const DRIVE_METADATA = `www.googleapis.com/drive/v3/files/${SPREADSHEET_ID}?`;
 
   /**
    * A native Sheet's Drive answer. `version` is required and `headRevisionId` is

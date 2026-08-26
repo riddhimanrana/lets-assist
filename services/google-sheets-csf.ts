@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
 import { logError } from "@/lib/logger";
-import { GOOGLE_SHEETS_API } from "./google-drive";
+import { GOOGLE_SHEETS_API, type CsfDriveCommentThread } from "./google-drive";
 import {
   CSF_SHEET_MAX_BOUNDED_CELLS,
   GOOGLE_SHEETS_MAX_COLUMN_INDEX,
@@ -61,6 +61,22 @@ export type CsfSheetCellAnnotation = {
   note?: string;
 };
 
+export type CsfSheetUnmatchedThreadedComment = {
+  provider: "sheets_anchor" | "drive_legacy";
+  id: string | null;
+  anchorId: string | null;
+  anchor: string | null;
+  quotedHtml: string | null;
+  sheetId: number | null;
+  startRowIndex: number | null;
+  endRowIndex: number | null;
+  startColumnIndex: number | null;
+  endColumnIndex: number | null;
+  content: string;
+  replies: string[];
+  resolved: boolean;
+};
+
 export type CsfSheetSourceSnapshot = {
   status: "ok";
   spreadsheetId: string;
@@ -73,6 +89,19 @@ export type CsfSheetSourceSnapshot = {
   rows: CsfSheetRowEvidence[];
   contentHash: string;
   hasBasicFilter: boolean;
+  threadedCommentsByRow: Record<
+    number,
+    Array<{
+      columnNumber: number;
+      content: string;
+      replies: string[];
+      resolved: boolean;
+    }>
+  >;
+  threadedCommentCount: number;
+  unmatchedThreadedCommentCount: number;
+  /** Workbook-level threads that could not be assigned to one selected cell. */
+  unmatchedThreadedComments: CsfSheetUnmatchedThreadedComment[];
 };
 
 export type CsfSheetSourceSnapshotResult =
@@ -303,6 +332,7 @@ export async function getCsfSheetSourceSnapshot(
   spreadsheetId: string,
   requestedRangeA1: string,
   fallbackTabName: string,
+  threadedComments: readonly CsfDriveCommentThread[] = [],
 ): Promise<CsfSheetSourceSnapshotResult> {
   const requestedRange = parseCsfSheetBoundedRange(
     requestedRangeA1,
@@ -610,6 +640,11 @@ export async function getCsfSheetSourceSnapshot(
       };
     });
 
+  // Native Sheets coordinates are attached by the fenced workbook reader.
+  // Legacy Drive threads remain in this digest, but never bind by quoted text.
+  const threadedCommentsByRow: CsfSheetSourceSnapshot["threadedCommentsByRow"] =
+    {};
+
   const contentHash = createHash("sha256")
     .update(
       JSON.stringify({
@@ -632,6 +667,14 @@ export async function getCsfSheetSourceSnapshot(
               ]
             : [],
         ),
+        threadedComments: threadedComments.map((comment) => ({
+          id: comment.id,
+          anchor: comment.anchor,
+          quotedHtml: comment.quotedHtml,
+          content: comment.content,
+          resolved: comment.resolved,
+          replies: comment.replies,
+        })),
       }),
     )
     .digest("hex");
@@ -647,5 +690,23 @@ export async function getCsfSheetSourceSnapshot(
     rows,
     contentHash,
     hasBasicFilter: Boolean(selectedSheet.basicFilter),
+    threadedCommentsByRow,
+    threadedCommentCount: 0,
+    unmatchedThreadedCommentCount: threadedComments.length,
+    unmatchedThreadedComments: threadedComments.map((comment) => ({
+      provider: "drive_legacy",
+      id: comment.id,
+      anchorId: null,
+      anchor: comment.anchor,
+      quotedHtml: comment.quotedHtml,
+      sheetId: null,
+      startRowIndex: null,
+      endRowIndex: null,
+      startColumnIndex: null,
+      endColumnIndex: null,
+      content: comment.content,
+      replies: comment.replies.map((reply) => reply.content),
+      resolved: comment.resolved,
+    })),
   };
 }

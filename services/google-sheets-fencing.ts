@@ -1,6 +1,7 @@
 import { logError } from "@/lib/logger";
 import {
   GOOGLE_SHEETS_API,
+  getGoogleDriveCommentThreads,
   getGoogleDriveFileMetadata,
   type CsfDriveFileMetadata,
   type SpreadsheetValueInputOption,
@@ -9,7 +10,14 @@ import {
   getCsfSheetSourceSnapshot,
   type CsfSheetSourceUnavailableReason,
   type CsfSheetSourceSnapshot,
+  type CsfSheetUnmatchedThreadedComment,
 } from "./google-sheets-csf";
+import { formatSheetNameForA1 } from "./google-sheets-report";
+import { getGoogleSheetAnchoredCommentThreads } from "./google-sheets-anchored-comments";
+import {
+  attachAnchoredCommentsToSnapshots,
+  scopeCsfThreadedCommentsToSnapshots,
+} from "./google-sheets-comment-scope";
 
 /* -------------------------------------------------------------------------
  * Fenced multi-read acquisition.
@@ -52,6 +60,8 @@ export type CsfFencedSheetAcquisitionResult =
       fence: CsfSheetSourceFence;
       driveFile: CsfDriveFileMetadata;
       snapshots: CsfSheetSourceSnapshot[];
+      unmatchedThreadedCommentCount: number;
+      unmatchedThreadedComments: CsfSheetUnmatchedThreadedComment[];
       attempts: number;
     }
   | {
@@ -134,6 +144,26 @@ export async function acquireFencedCsfSheetSnapshots(
     }
 
     const snapshots: CsfSheetSourceSnapshot[] = [];
+    const anchoredComments = await getGoogleSheetAnchoredCommentThreads(
+      accessToken,
+      spreadsheetId,
+      requests.map((request) =>
+        request.rangeA1.includes("!")
+          ? request.rangeA1
+          : `${formatSheetNameForA1(request.fallbackTabName)}!${request.rangeA1}`,
+      ),
+    );
+    const legacyComments =
+      anchoredComments.status === "ok"
+        ? null
+        : await getGoogleDriveCommentThreads(accessToken, spreadsheetId);
+    if (legacyComments?.status === "unavailable") {
+      return {
+        status: "unavailable",
+        reason: legacyComments.reason,
+        message: legacyComments.message,
+      };
+    }
     let failed: {
       reason: CsfSheetSourceUnavailableReason;
       message: string;
@@ -144,6 +174,7 @@ export async function acquireFencedCsfSheetSnapshots(
         spreadsheetId,
         request.rangeA1,
         request.fallbackTabName,
+        legacyComments?.status === "ok" ? legacyComments.comments : [],
       );
       if (snapshot.status !== "ok") {
         failed = { reason: snapshot.reason, message: snapshot.message };
@@ -194,11 +225,25 @@ export async function acquireFencedCsfSheetSnapshots(
     lastAfter = afterFence;
 
     if (fencesAgree(beforeFence, afterFence)) {
+      const scopedComments =
+        anchoredComments.status === "ok"
+          ? attachAnchoredCommentsToSnapshots(
+              snapshots,
+              anchoredComments.comments,
+              anchoredComments.unmatchedComments,
+            )
+          : scopeCsfThreadedCommentsToSnapshots(
+              snapshots,
+              legacyComments?.status === "ok" ? legacyComments.comments : [],
+            );
       return {
         status: "ok",
         fence: afterFence,
         driveFile: after,
-        snapshots,
+        snapshots: scopedComments.snapshots,
+        unmatchedThreadedCommentCount:
+          scopedComments.unmatchedThreadedCommentCount,
+        unmatchedThreadedComments: scopedComments.unmatchedThreadedComments,
         attempts: attempt,
       };
     }

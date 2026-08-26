@@ -149,7 +149,9 @@ const STAFF_ACCESS: LabelContract[] = [
     labels: [
       "Assign position",
       "Assign staff access",
-      "CSF member profile",
+      "Person",
+      "Search members and organization accounts",
+      "No eligible account matches that search.",
       "Public title override",
       "Effective from",
       "Effective through",
@@ -455,7 +457,10 @@ describe("CSF operator documentation truthfulness guards", () => {
     const codeEntrySource = readComponent("CsfClassCodeEntryForm.tsx");
     expect(codeEntrySource).toContain("Class join code");
     // The 6-character alphabet excludes the lookalikes O/I/0/1 by contract.
-    expect(codeEntrySource).toContain('pattern="[A-HJ-NP-Za-hj-np-z2-9]{6}"');
+    expect(codeEntrySource).toContain(
+      'const CSF_CLASS_CODE_PATTERN = "[A-HJ-NP-Za-hj-np-z2-9]{6}"',
+    );
+    expect(codeEntrySource).toContain("pattern={CSF_CLASS_CODE_PATTERN}");
 
     // The guide walks the one path in operating order: share the code, the
     // student joins at /connect/<code>, unresolved joins land in the per-class

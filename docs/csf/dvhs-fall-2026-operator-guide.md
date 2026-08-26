@@ -236,10 +236,12 @@ If suggestions cannot be loaded, the request stays open for rejection and
    it names which: _Connect a member's verified account first in Members →
    Unlinked accounts_, or _Add an active position under Position seats before
    assigning access_.
-5. Fill **CSF member profile** (search by name or email; only connected members
-   appear — an empty result reads _No connected members match that search_),
-   **Position**, **School year**, and optionally **Public title override**,
-   **Effective from**, **Effective through**, and **Notes**.
+5. Fill **Person** using **Search members and organization accounts**. Verified
+   CSF members and active organization accounts are eligible; an empty result
+   reads _No eligible account matches that search._ Then choose **Position** and
+   optionally fill **Public title override**, **Effective from**, **Effective
+   through**, and **Notes**. The selected roster school year is applied
+   automatically.
 6. Select **Assign access**, wait for **Staff access assigned.**, and confirm
    the row appears in **Officer roster**.
 
@@ -278,12 +280,14 @@ Grant the replacement seat first, confirm it is effective today — a future
 
 ## Import the reviewed Fall 2026 starting records
 
-Import exactly these three Spring 2026 class sheets as **Historical records**,
-one class at a time:
-
-1. **Class of 2027** — tab `S26`, range `A1:O168`, 167 rows after the header.
-2. **Class of 2028** — tab `S26`, range `A1:O168`, 167 rows after the header.
-3. **Class of 2029** — tab `S26`, range `A1:N89`, 88 rows after the header.
+Import the approved Class of 2027, Class of 2028, and Class of 2029 workbooks
+as **Historical records**, one class at a time. After selecting a workbook, run
+semester-tab discovery. Review every populated canonical semester tab that
+discovery returns, confirm its inferred semester and bounded range, and give
+each tab its own immutable preview before commit. Do not assume `S26` is the
+only historical tab. A populated canonical tab is a blocker when its semester
+has not been configured for that class; configure the missing semester, then
+inspect and preview again. Header-only or template tabs are not import targets.
 
 Class of 2026 is out of scope. Do not select, preview, reconcile, or import its
 rows. Skip the template-only Class of 2030 workbook; create Class of 2030
@@ -291,7 +295,7 @@ student records through the new application cycle sequence below instead. Do
 not use the Spring 2026 application response workbook as a Fall 2026 roster
 seed.
 
-Each of the three approved sources keeps its own immutable preview. **Preview**,
+Each discovered populated tab keeps its own immutable preview. **Preview**,
 **Reconcile**, and **Commit** are separate boundaries; a clean preview neither
 imports rows nor authorizes a commit. Choose **Historical records**, never
 **Student roster** or **Applications**, as the **Record type** for these sheets.
@@ -331,8 +335,10 @@ sees the same position. The work happens in these sections:
 2. Choose **Record type**: **Student roster**, **Applications**, or **Historical
    records**. Use **Historical records** for the prior-semester class workbooks.
 3. Select the spreadsheet through the Google picker.
-4. Set **Graduating class** and **Semester**, then **Sheet tab**. For
-   **Applications** the class is not chosen here — the panel states _Resolved
+4. For a historical class workbook, run semester-tab discovery and review every
+   populated canonical tab it returns. Confirm the **Graduating class**,
+   inferred **Semester**, **Sheet tab**, and bounded range for each preview. For
+   **Applications** the class is not chosen here; the panel states _Resolved
    for each row from grade and semester_.
 5. Under **Source range**, set **Header row** (`1` for the class workbooks) and
    the bounded **A1 range**.
@@ -374,7 +380,11 @@ On Development, stop after the reviewed preview and reconciliation evidence.
 Commit real chapter rows only in Production after the release gates below pass;
 never copy the Development fixture rows or class join codes forward.
 
-### Privacy-safe source totals verified 2026-08-11
+### Privacy-safe Spring 2026 reference totals verified 2026-08-11
+
+These `S26` totals are reconciliation references, not the complete historical
+import scope. Discovery determines the populated canonical tabs that must be
+reviewed for each approved workbook.
 
 | Graduating class | Historical source  | Exact bounded range | Rows after header |
 | ---------------- | ------------------ | ------------------- | ----------------: |
@@ -459,8 +469,8 @@ in this guide, in the public site, or in a prior semester authorizes a value.
 
 1. Open **More → Terms** and choose **Fall 2026** in the term selector. The
    page shows the term's dates, its **Deadlines**, and its **Meeting
-   schedule**; **Start next term** and **Archive term** are the lifecycle
-   actions, and archiving shows the **Semester close preflight** inside its
+   schedule**; **Start next term** and **Close term** are the lifecycle
+   actions, and closing shows the **Semester close preflight** inside its
    own dialog.
 2. Add the real application window, deadlines, and required meetings. Enter both
    application dates or leave both blank; before a semester opens both are
@@ -793,11 +803,13 @@ Do not use real chapter rows or credentials until every item is checked:
 - [ ] Test every class join code at its `/connect/<code>` URL while signed out
       or in a private window; complete the exact verified-email auto-connect
       and officer-review paths.
-- [ ] Commit only the approved Class of 2027, 2028, and 2029 `S26` historical
-      sheets at their exact bounded ranges; keep Class of 2026 out of scope,
-      skip the Class of 2030 template, create 2030 through the new application
-      cycle, and then accept applications, service/points, posts,
-      Communications, and role-aware Help journeys.
+- [ ] For each approved Class of 2027, 2028, and 2029 workbook, discover every
+      populated canonical semester tab, confirm its configured semester and
+      bounded range, review and reconcile its immutable preview, and commit only
+      those approved tabs. Keep Class of 2026 out of scope, skip the Class of
+      2030 template, create 2030 through the new application cycle, and then
+      accept applications, service/points, posts, Communications, and role-aware
+      Help journeys.
 - [ ] Verify sender domain, consent topics, one-recipient delivery, signed
       webhook reduction, unknown-outcome handling, and Production scheduled-post
       publication without claiming a fixed delivery time.

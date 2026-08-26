@@ -4,6 +4,113 @@ This register separates actionable repository defects from provider/account and 
 
 `AUD-` identifiers are allocated per branch and can drift while several audit branches are open at once. Current `development` includes the merged #152, #158, #174, #177, #179, and #181 findings, while open #180 can still carry overlapping historical identifiers. This branch retains `AUD-036` and `AUD-037` for its activity/partner authorization work without renumbering or restating the merged meeting findings.
 
+## Class Sheet import reliability repair, 2026-08-24
+
+- The 2026-08-25 continuation expands the reviewed Development policy from a
+  single Spring 2026 tab to every populated canonical semester tab in the
+  approved Class of 2027–2029 workbooks. Class of 2030 remains template-only.
+  Discovery now recognizes the legacy `Acitivty` typo, carries a stable mapping
+  for the damaged legacy last-name header, and refuses populated tabs whose
+  class semester is not configured instead of silently omitting them.
+- Repeated plain activity labels count one point per occupied numbered slot for
+  each student. One explicit quantity for the same normalized activity is
+  authoritative, repeated copies do not multiply it, and conflicting,
+  non-positive, malformed, or over-100 quantities block preview readiness.
+  New class-history previews retain only approved activity and meeting cells,
+  their source coordinates, the saved point mode, and a database-derived
+  evidence digest. Meeting labels now agree across the TypeScript and database
+  canonical contracts and survive into the commit payload.
+- Replacing a linked class workbook now reconfigures each existing
+  class-and-semester source instead of colliding with its unique title. A
+  database trigger clears preview, commit, status, and error state when the
+  source file identity changes, so the new workbook cannot display the old
+  workbook's sync evidence.
+- A committed needs-resolution preview no longer suppresses the next provider
+  acquisition. The retry path keeps reviewed profile targets only for the same
+  source identity and rejects conflicting email evidence. Annotation review no
+  longer has a 15-second product cutoff. Known missing-participation notes and
+  officer exemptions settle without a model, while model review runs only for
+  eligible sheet-marking rows. Identity-only queues do not call the model.
+  Officers can explicitly confirm unique same-class name candidates in bounded
+  batches. The review UI stays collapsed and renders five rows per page.
+- Native Sheet acquisition now reads Drive comment threads inside the same
+  source-version fence as values, formatting, formulas, and cell notes. A
+  thread is attached to a row only when its quoted cell text identifies one
+  cell in the selected range. Ambiguous threads remain counted in immutable
+  preview provenance instead of being guessed onto a student. Hosted
+  Development reacquired the populated Class of 2029 Spring tab, captured 54
+  threads, assigned 43 uniquely, recorded 11 as unmatched, and committed all
+  88 rows with no profile-review items.
+- The repaired subset rule now imports one dominant class-history row and skips
+  a repeated row only when the repeated row contributes no retained activity,
+  meeting, requirement, or identity evidence. The remaining Class of 2027 Fall
+  queue is a data-identity blocker, not a parser failure: 105 rows point at 120
+  same-class duplicate-name groups containing 202 excess unclaimed profiles.
+  None has an email or verified account to corroborate a merge, and the database
+  correctly refuses all 202 proposed merges with `identity_email_missing`.
+  Development therefore keeps those rows for officer identity evidence instead
+  of creating more duplicate profiles or choosing a record by name alone. The
+  candidate selector is now class-scoped and gives every otherwise identical
+  record a short stable code.
+
+- The Class of 2028 Google Sheet test in hosted Development found stale term
+  aliases, header-only tabs registered as live sources, repeated one-point
+  activity slots treated as nonnumeric warnings, an unbounded preview proposal
+  summary, and new-profile commits rejected by their lineage guard. Partial
+  source registrations also made the class unlink and stale-source cleanup
+  paths fail because they omitted the source's required settings contract.
+- The candidate now discovers every canonical term tab from the live workbook,
+  records its bounded populated range and one-point-slot provenance, skips
+  header-only templates, retires sources from old or missing tabs after a
+  successful relink, bounds proposal evidence, and derives activity warnings
+  from the parser's unresolved evidence instead of comparing raw slots with
+  grouped activities. A forward migration stamps the frozen officer only when
+  the created profile's source lineage names the exact import row.
+- Hosted Development accepted all populated historical tabs from the official
+  workbook: F24 163 rows, S25 129 rows, F25 193 rows, and S26 167 rows. The
+  immutable previews retained 8,843 background-color annotations and zero cell
+  notes. F26, S27, F27, and S28 were header-only or unpopulated and remain
+  visible as semesters without an importable tab. No Production resource was
+  read or changed during this acceptance run.
+- Current evidence: 62 focused private tests, TypeScript, zero-warning lint,
+  source organization, two focused pgTAP files, and a complete local migration
+  replay pass. The Development database records 286 active Class of 2028
+  profiles and completed import jobs with zero pending or unknown outcomes for
+  all four populated terms.
+- Browser profiling found that the organization host executed every private
+  plugin tab while showing only one. Repeated Classes transitions took
+  5.9–6.4 seconds and Applications took 5.3–5.5 seconds even though the DOM
+  stayed stable. The host now projects only the selected tab's server content.
+  Signed-in local browser checks against the Development backend measured warm
+  Classes transitions at 2.7 seconds and Applications at 1.8 seconds.
+- Profiles now open the newest semester that has imported records instead of
+  an empty current semester. They render one meeting ledger, humanize legacy
+  keys such as `november_meeting`, and preserve the source meeting label on
+  future imports. The Class of 2028 Development data already contains 1,452
+  distinct imported activity events across 208 profiles, including unclaimed
+  profiles.
+- The annotation pass now handles the chapter's known green, red, and yellow
+  cell fills before model review. It omits student names and verbatim officer
+  notes from model prompts. Notes that say the student was not in Google
+  Classroom or submitted nothing settle as not met when no activity is
+  recorded. Officer exemption notes settle as exceptions. Conflicting signals
+  still require staff review, and yellow cells with activity evidence remain
+  unresolved instead of being guessed.
+- Member onboarding now uses the installed six-slot class-code input and keeps
+  Activities and Point submissions out of the My CSF action list because both
+  already have member tabs. Point claims hide single-choice source and semester
+  controls, refuse to open when no valid claim path exists, and default the
+  semester to the workspace's selected current term.
+- A reviewed application-import row can now create an unclaimed profile and
+  reconcile that row in one service-only database transaction. The action does
+  not link an account or promote an application email into canonical identity.
+  The forward migration is present only in the Development project. Its
+  function has an empty search path, service-role-only execution, and no new
+  Supabase advisor finding. Focused private coverage passes 56 tests, the new
+  application and decision pgTAP coverage passes 75 assertions, TypeScript and
+  zero-warning lint pass, and the full local migration replay passes. No
+  Production resource was read or changed for this extension.
+
 ## Class member count scoping repair, 2026-08-24
 
 - A read-only Production check of the Class of 2028 Members workspace showed
@@ -1059,6 +1166,12 @@ hosted Development verification.
 | AUD-055 | P2       | An independent child app could load an explicitly configured TypeScript type root or type package from outside its application root without exposing that dependency through parsed source inputs.                                                                                            | Plugin application boundary  | Fixed by resolving explicit type roots and type packages, following existing paths to their real locations, rejecting external type roots and undeclared external packages, and permitting only declared `@types` packages from `node_modules`. The focused boundary suite passes 23 tests, including external root and package cases. Exact PR evidence remains required.                                                                                                                                                                                              |
 | AUD-056 | P1       | The anonymous public organization member view joined a security-invoker profile view, so reading otherwise permitted public membership rows required direct `profiles` access and logged `42501 permission denied for table profiles`.                                                        | Platform organizations       | Fixed by forward migration `20260823200804_remove_profiles_dependency_from_public_org_members.sql`. The view now returns only the membership fields used by the public route, while the server-only profile data-access layer resolves the permitted public profile projection. The focused anonymous pgTAP regression and the complete 6,235-assertion database suite pass locally. Hosted Development applied the migration and a transaction-scoped `anon` query returned the permitted public rows without error. Production runtime confirmation remains separate. |
 | AUD-057 | P1       | Supabase GitHub configuration sync replayed bucket updates after migrations had already established the same Storage catalog. The Management API returned HTTP 413 after migration success, which failed the GitHub check without changing database health.                                   | Supabase release integration | Fixed by keeping application bucket metadata solely in the append-only migration ledger and removing duplicate `[storage.buckets.*]` declarations from `config.toml`. A source contract prevents dual ownership. A fresh 360-migration reset recreated the reviewed eleven-bucket catalog, and the Storage posture pgTAP contract passed within the complete database suite. The hosted Supabase Preview check passed for `038ac733`, and the Development bucket catalog retained the reviewed eleven-bucket shape.                                                     |
+| AUD-058 | P1       | Drive's opaque native-Sheets anchors were ignored, so quote matching could duplicate comments across tabs or attach an out-of-range comment to unrelated selected evidence.                                                                                                                   | CSF Google Sheets import     | Fixed by reading Google's native Sheets comment threads with range-filtered `commentAnchors` and attaching only a provider-owned, single-cell coordinate inside exactly one bounded snapshot. The legacy Drive endpoint is now manual-placement evidence only. Focused import, exact CI, and hosted Development acceptance remain required.                                                                                                                                                                                                                             |
+| AUD-059 | P2       | Partner-policy review idempotency normalized omitted notes and an explicit empty-string clear to the same request fingerprint.                                                                                                                                                                | CSF database boundary        | Fixed by a forward-only wrapper receipt that fingerprints `preserve`, `clear`, and `set` intent separately before delegating to the existing atomic review transaction. pgTAP rejects a reused request UUID whose note intent changes. Exact replay and hosted Development acceptance remain required.                                                                                                                                                                                                                                                                  |
+| AUD-060 | P2       | Application import profile creation delegated its request UUID to a generic profile fingerprint that did not include the import row or officer reason.                                                                                                                                        | CSF database boundary        | Fixed by a forward-only, row-scoped wrapper receipt that binds the request UUID to the exact import row, normalized reviewed reason, actor, and stored result before a replay can return. A unique partial receipt index and pgTAP contract pin the boundary. Exact replay and hosted Development acceptance remain required.                                                                                                                                                                                                                                           |
+| AUD-061 | P2       | An unqualified bounded range could ask the comment-anchor endpoint about the workbook's default tab instead of the request's fallback tab.                                                                                                                                                    | CSF Google Sheets import     | Fixed by qualifying every unqualified anchor range with the same escaped fallback tab used by snapshot acquisition. The focused multi-tab regression pins both provider request ranges. Exact CI and hosted Development acceptance remain required.                                                                                                                                                                                                                                                                                                                     |
+| AUD-062 | P1       | Native Sheets threads that had a valid multi-cell anchor or could not be assigned to exactly one bounded snapshot were reduced to a count, losing their content, replies, coordinates, and provenance effect.                                                                                 | CSF Google Sheets import     | Fixed by retaining normalized workbook-level evidence for every unmatched anchored or legacy thread, returning it with each fenced snapshot and acquisition, and hashing the evidence into each snapshot digest. Focused tests pin multi-cell content, replies, coordinates, and legacy evidence. Exact CI and hosted Development acceptance remain required.                                                                                                                                                                                                           |
+| AUD-063 | P1       | Replaced CSF normalization helpers, source-settings helpers, and the created-profile resolution trigger denied public roles but lacked the required explicit execution grant for their reviewed owner role.                                                                                   | CSF database boundary        | Fixed by forward migration `20260826074500_complete_csf_internal_helper_acls.sql`, which denies `PUBLIC`/`anon`/`authenticated`/`service_role` and explicitly grants `postgres` execution on all six exact internal signatures. Aggregate pgTAP coverage pins the complete helper set. Exact replay and hosted Development acceptance remain required.                                                                                                                                                                                                                  |
 
 ## External/account blockers
 
