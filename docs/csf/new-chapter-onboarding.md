@@ -154,7 +154,13 @@ Import through the Sheets workspace preview → commit fence. Google and the cha
 
 **Acceptance before moving on:** every imported student identity came from an approved roster/history source; every application row either names an existing reviewed profile or is explicitly skipped; every partner form-response row is applied as a draft or skipped and each retained club's term standing is reviewed; the ambiguous-row queue is triaged to zero or every remaining row is documented.
 
-For DVHS, the only historical student imports are the approved Class of 2027–2029 sheets: Class of 2027 `S26` `A1:O168`, Class of 2028 `S26` `A1:O168`, and Class of 2029 `S26` `A1:N89`. Class of 2026 is out of scope, the Class of 2030 workbook has no import job, and the Spring 2026 application-response workbook is comparison evidence only. DVHS-specific file names and expected row counts are in [officer runbook §10.2](officer-runbook.md).
+For DVHS, the only historical student imports are the approved Class of
+2027–2029 workbooks. Run semester-tab discovery for each workbook, then review
+every populated canonical semester tab and its bounded range before creating a
+separate immutable preview. Class of 2026 is out of scope, the Class of 2030
+workbook has no import job, and the Spring 2026 application-response workbook
+is comparison evidence only. DVHS-specific source rules are in
+[officer runbook §10.2](officer-runbook.md).
 
 ## Stage 5 — Communications setup
 
