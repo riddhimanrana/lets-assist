@@ -1,6 +1,6 @@
 BEGIN;
 
-SELECT plan(6);
+SELECT plan(8);
 
 SELECT has_function(
   'plugin_data',
@@ -53,6 +53,23 @@ SELECT function_privs_are(
   'service_role',
   ARRAY['EXECUTE'],
   'only the service boundary may invoke application import profile creation'
+);
+
+SELECT ok(
+  pg_get_functiondef(
+    'plugin_data.csf_create_profile_for_application_import_row(uuid,uuid,uuid,uuid,text)'::regprocedure
+  ) LIKE '%''rowId'', p_row_id%'
+  AND pg_get_functiondef(
+    'plugin_data.csf_create_profile_for_application_import_row(uuid,uuid,uuid,uuid,text)'::regprocedure
+  ) LIKE '%''reason'', v_reason%',
+  'the request fingerprint binds the operation to its import row and reviewed reason'
+);
+
+SELECT has_index(
+  'plugin_data',
+  'csf_admin_audit_events',
+  'csf_application_profile_create_request_idx',
+  'application profile-create receipts enforce one durable request binding'
 );
 
 SELECT * FROM finish();

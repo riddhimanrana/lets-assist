@@ -8,7 +8,7 @@
 BEGIN;
 
 CREATE EXTENSION IF NOT EXISTS pgtap WITH SCHEMA extensions;
-SELECT extensions.plan(14);
+SELECT extensions.plan(15);
 
 SELECT extensions.ok(
   to_regprocedure('plugin_data.csf_set_partner_club_policy_review(uuid,uuid,uuid,uuid,text,text)') IS NOT NULL,
@@ -171,6 +171,16 @@ SELECT extensions.is(
   ),
   1,
   'the replay recorded no second event'
+);
+
+SELECT extensions.throws_ok(
+  $$SELECT plugin_data.csf_set_partner_club_policy_review(
+    'fd100000-0000-4000-8000-000000000001', 'fd000000-0000-4000-8000-000000000001',
+    'fd900000-0000-4000-8000-000000000003', 'fd400000-0000-4000-8000-000000000001',
+    'yes', ''
+  )$$,
+  'P0001', 'That review request identifier is already bound to a different review.',
+  'a replay cannot change omitted notes into an explicit clear'
 );
 
 SELECT * FROM extensions.finish();

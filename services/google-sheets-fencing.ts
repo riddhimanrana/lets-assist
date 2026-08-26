@@ -11,7 +11,11 @@ import {
   type CsfSheetSourceUnavailableReason,
   type CsfSheetSourceSnapshot,
 } from "./google-sheets-csf";
-import { scopeCsfThreadedCommentsToSnapshots } from "./google-sheets-comment-scope";
+import { getGoogleSheetAnchoredCommentThreads } from "./google-sheets-anchored-comments";
+import {
+  attachAnchoredCommentsToSnapshots,
+  scopeCsfThreadedCommentsToSnapshots,
+} from "./google-sheets-comment-scope";
 
 /* -------------------------------------------------------------------------
  * Fenced multi-read acquisition.
@@ -137,15 +141,20 @@ export async function acquireFencedCsfSheetSnapshots(
     }
 
     const snapshots: CsfSheetSourceSnapshot[] = [];
-    const commentThreads = await getGoogleDriveCommentThreads(
+    const anchoredComments = await getGoogleSheetAnchoredCommentThreads(
       accessToken,
       spreadsheetId,
+      requests.map((request) => request.rangeA1),
     );
-    if (commentThreads.status !== "ok") {
+    const legacyComments =
+      anchoredComments.status === "ok"
+        ? null
+        : await getGoogleDriveCommentThreads(accessToken, spreadsheetId);
+    if (legacyComments?.status === "unavailable") {
       return {
         status: "unavailable",
-        reason: commentThreads.reason,
-        message: commentThreads.message,
+        reason: legacyComments.reason,
+        message: legacyComments.message,
       };
     }
     let failed: {
@@ -158,7 +167,7 @@ export async function acquireFencedCsfSheetSnapshots(
         spreadsheetId,
         request.rangeA1,
         request.fallbackTabName,
-        commentThreads.comments,
+        legacyComments?.status === "ok" ? legacyComments.comments : [],
       );
       if (snapshot.status !== "ok") {
         failed = { reason: snapshot.reason, message: snapshot.message };
@@ -209,17 +218,26 @@ export async function acquireFencedCsfSheetSnapshots(
     lastAfter = afterFence;
 
     if (fencesAgree(beforeFence, afterFence)) {
-      const scopedComments = scopeCsfThreadedCommentsToSnapshots(
-        snapshots,
-        commentThreads.comments,
-      );
+      const scopedComments =
+        anchoredComments.status === "ok"
+          ? attachAnchoredCommentsToSnapshots(
+              snapshots,
+              anchoredComments.comments,
+            )
+          : scopeCsfThreadedCommentsToSnapshots(
+              snapshots,
+              legacyComments?.status === "ok" ? legacyComments.comments : [],
+            );
       return {
         status: "ok",
         fence: afterFence,
         driveFile: after,
         snapshots: scopedComments.snapshots,
         unmatchedThreadedCommentCount:
-          scopedComments.unmatchedThreadedCommentCount,
+          scopedComments.unmatchedThreadedCommentCount +
+          (anchoredComments.status === "ok"
+            ? anchoredComments.unmatchedCommentCount
+            : 0),
         attempts: attempt,
       };
     }
