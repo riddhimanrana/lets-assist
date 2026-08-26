@@ -280,14 +280,14 @@ Grant the replacement seat first, confirm it is effective today — a future
 
 ## Import the reviewed Fall 2026 starting records
 
-Import the approved Class of 2027, 2028, and 2029 workbooks as **Historical
-records**, one class at a time. After selecting a workbook, run semester-tab
-discovery. Review every populated canonical semester tab that discovery
-returns, confirm its inferred semester and bounded range, and give each tab its
-own immutable preview before commit. Do not assume `S26` is the only historical
-tab. A populated canonical tab is a blocker when its semester has not been
-configured for that class; configure the missing semester, then inspect and
-preview again. Header-only or template tabs are not import targets.
+Import the approved Class of 2027, Class of 2028, and Class of 2029 workbooks
+as **Historical records**, one class at a time. After selecting a workbook, run
+semester-tab discovery. Review every populated canonical semester tab that
+discovery returns, confirm its inferred semester and bounded range, and give
+each tab its own immutable preview before commit. Do not assume `S26` is the
+only historical tab. A populated canonical tab is a blocker when its semester
+has not been configured for that class; configure the missing semester, then
+inspect and preview again. Header-only or template tabs are not import targets.
 
 Class of 2026 is out of scope. Do not select, preview, reconcile, or import its
 rows. Skip the template-only Class of 2030 workbook; create Class of 2030

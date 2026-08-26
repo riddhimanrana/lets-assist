@@ -97,22 +97,42 @@ describe("CSF cohort import documentation truthfulness guards", () => {
     );
     expectInOrder(sourceOrder, [
       "Class of 2027",
-      "`S26`",
-      "`A1:O168`",
-      "167 rows",
       "Class of 2028",
-      "`S26`",
-      "`A1:O168`",
-      "167 rows",
       "Class of 2029",
-      "`S26`",
-      "`A1:N89`",
-      "88 rows",
     ]);
+    expect(sourceOrder).toContain("semester-tab discovery");
+    expect(sourceOrder).toContain("every populated canonical semester tab");
+    expect(sourceOrder).toContain("own immutable preview");
+    expect(sourceOrder).toContain(
+      "Header-only or template tabs are not import targets",
+    );
     expect(sourceOrder).toContain("Class of 2026 is out of scope");
     expect(sourceOrder).toContain("template-only Class of 2030 workbook");
     expect(sourceOrder).toContain("new application cycle");
     expect(sourceOrder).not.toContain("Classes of 2027–2030 sheets");
+
+    const springReferenceTotals = between(
+      operatorGuide,
+      "### Privacy-safe Spring 2026 reference totals",
+      "## Set up Fall 2026 policy",
+    );
+    expectInOrder(springReferenceTotals, [
+      "| 2027",
+      "`S26`",
+      "`A1:O168`",
+      "167",
+      "| 2028",
+      "`S26`",
+      "`A1:O168`",
+      "167",
+      "| 2029",
+      "`S26`",
+      "`A1:N89`",
+      "88",
+    ]);
+    expect(springReferenceTotals).toContain(
+      "not the complete historical import scope",
+    );
 
     const legacySeed = between(
       officerRunbook,
@@ -130,7 +150,7 @@ describe("CSF cohort import documentation truthfulness guards", () => {
   test("historical imports are not documented as account-connection evidence", () => {
     const sourceTotals = between(
       operatorGuide,
-      "### Privacy-safe source totals",
+      "### Privacy-safe Spring 2026 reference totals",
       "## Set up Fall 2026 policy",
     );
     expect(sourceTotals).toContain(
@@ -155,17 +175,9 @@ describe("CSF cohort import documentation truthfulness guards", () => {
     expect(legacyImport).toContain(
       "the only historical student imports are the approved Class of 2027–2029",
     );
-    expectInOrder(legacyImport, [
-      "Class of 2027",
-      "`S26`",
-      "`A1:O168`",
-      "Class of 2028",
-      "`S26`",
-      "`A1:O168`",
-      "Class of 2029",
-      "`S26`",
-      "`A1:N89`",
-    ]);
+    expect(legacyImport).toContain("semester-tab discovery");
+    expect(legacyImport).toContain("every populated canonical semester tab");
+    expect(legacyImport).toContain("separate immutable preview");
     expect(legacyImport).toContain("Class of 2026 is out of scope");
     expect(legacyImport).toContain(
       "the Class of 2030 workbook has no import job",
