@@ -615,9 +615,13 @@ describe("CSF release-state documentation truthfulness guards", () => {
       "## Repository-owned P0–P2",
     );
 
-    expect(preamble).toMatch(
-      /`AUD-` identifiers are allocated per branch[\s\S]*Current `development` includes the merged #152, #158, #174, #177, #179, and #181 findings[\s\S]*open #180[\s\S]*retains `AUD-036` and `AUD-037`[\s\S]*merged meeting findings/u,
+    expect(preamble).toContain("`AUD-` identifiers are allocated per branch");
+    expect(preamble).toContain(
+      "Current `development` includes the merged #152, #158, #174, #177, #179, and #181 findings",
     );
+    expect(preamble).toContain("open #180");
+    expect(preamble).toContain("retains `AUD-036` and `AUD-037`");
+    expect(preamble).toContain("merged meeting findings");
   });
 
   test("the release pin is exact while hosted and Production gates remain open", () => {

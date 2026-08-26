@@ -236,10 +236,12 @@ If suggestions cannot be loaded, the request stays open for rejection and
    it names which: _Connect a member's verified account first in Members →
    Unlinked accounts_, or _Add an active position under Position seats before
    assigning access_.
-5. Fill **CSF member profile** (search by name or email; only connected members
-   appear — an empty result reads _No connected members match that search_),
-   **Position**, **School year**, and optionally **Public title override**,
-   **Effective from**, **Effective through**, and **Notes**.
+5. Fill **Person** using **Search members and organization accounts**. Verified
+   CSF members and active organization accounts are eligible; an empty result
+   reads _No eligible account matches that search._ Then choose **Position** and
+   optionally fill **Public title override**, **Effective from**, **Effective
+   through**, and **Notes**. The selected roster school year is applied
+   automatically.
 6. Select **Assign access**, wait for **Staff access assigned.**, and confirm
    the row appears in **Officer roster**.
 
