@@ -207,10 +207,11 @@ test("fenced acquisition binds only provider-anchored comments inside selected r
     a: "'Term A'!A1:A3",
     b: "'Term B'!A1:A3",
   };
+  const largeSheetId = 1_234_567_890;
   const workbookSheets = [
     {
       properties: {
-        sheetId: 10,
+        sheetId: largeSheetId,
         title: "Term A",
         gridProperties: { rowCount: 3, columnCount: 1 },
       },
@@ -243,12 +244,12 @@ test("fenced acquisition binds only provider-anchored comments inside selected r
       return jsonResponse({
         sheets: [
           {
-            properties: { sheetId: 10, title: "Term A" },
+            properties: { sheetId: largeSheetId, title: "Term A" },
             commentAnchors: [
               {
                 anchorId: "term-a-anchor",
                 range: {
-                  sheetId: 10,
+                  sheetId: largeSheetId,
                   startRowIndex: 2,
                   endRowIndex: 3,
                   startColumnIndex: 0,
@@ -258,7 +259,7 @@ test("fenced acquisition binds only provider-anchored comments inside selected r
               {
                 anchorId: "multi-cell-anchor",
                 range: {
-                  sheetId: 10,
+                  sheetId: largeSheetId,
                   startRowIndex: 0,
                   endRowIndex: 2,
                   startColumnIndex: 0,
@@ -359,7 +360,7 @@ test("fenced acquisition binds only provider-anchored comments inside selected r
       anchorId: "multi-cell-anchor",
       anchor: null,
       quotedHtml: null,
-      sheetId: 10,
+      sheetId: largeSheetId,
       startRowIndex: 0,
       endRowIndex: 2,
       startColumnIndex: 0,

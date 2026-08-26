@@ -38,11 +38,20 @@ type ProviderRange = {
   endColumnIndex?: unknown;
 };
 
-function boundedIndex(value: unknown) {
+function boundedGridIndex(value: unknown) {
   return typeof value === "number" &&
     Number.isSafeInteger(value) &&
     value >= 0 &&
     value <= 10_000_000
+    ? value
+    : null;
+}
+
+function boundedSheetId(value: unknown) {
+  return typeof value === "number" &&
+    Number.isSafeInteger(value) &&
+    value >= 0 &&
+    value <= 2_147_483_647
     ? value
     : null;
 }
@@ -69,11 +78,11 @@ function unmatchedEvidence(
         : null,
     anchor: null,
     quotedHtml: null,
-    sheetId: boundedIndex(anchor?.sheetId),
-    startRowIndex: boundedIndex(anchor?.startRowIndex),
-    endRowIndex: boundedIndex(anchor?.endRowIndex),
-    startColumnIndex: boundedIndex(anchor?.startColumnIndex),
-    endColumnIndex: boundedIndex(anchor?.endColumnIndex),
+    sheetId: boundedSheetId(anchor?.sheetId),
+    startRowIndex: boundedGridIndex(anchor?.startRowIndex),
+    endRowIndex: boundedGridIndex(anchor?.endRowIndex),
+    startColumnIndex: boundedGridIndex(anchor?.startColumnIndex),
+    endColumnIndex: boundedGridIndex(anchor?.endColumnIndex),
     content:
       typeof comment.headPost?.content === "string"
         ? comment.headPost.content.slice(0, 16_384)
@@ -169,11 +178,11 @@ export async function getGoogleSheetAnchoredCommentThreads(
     for (const anchor of sheet.commentAnchors ?? []) {
       if (typeof anchor.anchorId !== "string" || !anchor.range) continue;
       providerRanges.set(anchor.anchorId, anchor.range);
-      const sheetId = boundedIndex(anchor.range.sheetId);
-      const startRowIndex = boundedIndex(anchor.range.startRowIndex);
-      const endRowIndex = boundedIndex(anchor.range.endRowIndex);
-      const startColumnIndex = boundedIndex(anchor.range.startColumnIndex);
-      const endColumnIndex = boundedIndex(anchor.range.endColumnIndex);
+      const sheetId = boundedSheetId(anchor.range.sheetId);
+      const startRowIndex = boundedGridIndex(anchor.range.startRowIndex);
+      const endRowIndex = boundedGridIndex(anchor.range.endRowIndex);
+      const startColumnIndex = boundedGridIndex(anchor.range.startColumnIndex);
+      const endColumnIndex = boundedGridIndex(anchor.range.endColumnIndex);
       if (
         sheetId === null ||
         startRowIndex === null ||
