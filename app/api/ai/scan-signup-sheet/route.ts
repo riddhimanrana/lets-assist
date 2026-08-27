@@ -51,6 +51,8 @@ const SCAN_PROJECT_LIMIT = 10;
 const SCAN_WINDOW_SECONDS = 3600;
 const MAX_OUTPUT_TOKENS = 8000;
 const EXTRACTION_LEASE_MS = 10 * 60 * 1000;
+const MODEL_CALL_TIMEOUT_MS = 45 * 1000;
+const EXTRACTION_ROUTE_BUDGET_MS = 270 * 1000;
 /** Auto-include requires a confidently-read email; below this the reviewer decides. */
 const EMAIL_AUTO_INCLUDE_CONFIDENCE = 0.8;
 
@@ -73,6 +75,7 @@ async function extractImageWithModel(options: {
   mediaType: string;
   userId: string;
   organizationId: string | undefined;
+  deadlineMs: number;
 }): Promise<PaperSignupExtraction | null> {
   const tracked = prepareTrackedAiCall({
     context: {
@@ -86,6 +89,9 @@ async function extractImageWithModel(options: {
 
   const startedAt = Date.now();
   try {
+    const remainingMs = options.deadlineMs - startedAt;
+    if (remainingMs <= 0) return null;
+
     const result = await generateText({
       model: tracked.model,
       experimental_telemetry: tracked.telemetry,
@@ -106,6 +112,12 @@ async function extractImageWithModel(options: {
       ],
       temperature: 0,
       maxOutputTokens: MAX_OUTPUT_TOKENS,
+      // The model ladder already supplies an availability fallback. Disabling
+      // hidden SDK retries keeps a ten-page scan inside the route budget, and
+      // the per-call timeout prevents one provider request from stranding the
+      // durable batch in `extracting` until its lease expires.
+      maxRetries: 0,
+      timeout: Math.min(MODEL_CALL_TIMEOUT_MS, remainingMs),
     });
 
     await tracked.logUsage({
@@ -142,12 +154,14 @@ async function extractImage(options: {
   mediaType: string;
   userId: string;
   organizationId: string | undefined;
+  deadlineMs: number;
 }): Promise<ExtractionAttempt> {
   const modelsTried: string[] = [];
   let best: PaperSignupExtraction | null = null;
   let bestModel: string | null = null;
 
   for (const modelId of PAPER_SCAN_MODELS) {
+    if (Date.now() >= options.deadlineMs) break;
     modelsTried.push(modelId);
     const extraction = await extractImageWithModel({ ...options, modelId });
 
@@ -307,6 +321,7 @@ export async function POST(req: NextRequest) {
       );
     }
     const timezone = project.project_timezone || "America/Los_Angeles";
+    const extractionDeadlineMs = Date.now() + EXTRACTION_ROUTE_BUDGET_MS;
 
     const { data: images, error: imagesError } = await admin
       .from("project_paper_scan_images")
@@ -463,6 +478,7 @@ export async function POST(req: NextRequest) {
         mediaType: image.content_type,
         userId: user.id,
         organizationId: project.organization_id ?? undefined,
+        deadlineMs: extractionDeadlineMs,
       });
       attempt.modelsTried.forEach((model) => modelsUsed.add(model));
 
