@@ -52,6 +52,11 @@ type Phase =
   | { kind: "uploading"; index: number; total: number }
   | { kind: "scanning" };
 
+const PREVIEW_MAX_EDGE = 800;
+const SCAN_REQUEST_TIMEOUT_MS = 285_000;
+const RECOVERY_POLL_INTERVAL_MS = 2_000;
+const RECOVERY_POLL_BUDGET_MS = 315_000;
+
 const photoKey = (file: File) =>
   `${file.name}-${file.size}-${file.lastModified}`;
 
@@ -66,11 +71,21 @@ function PaperPhotoPreview({ file, label }: { file: File; label: string }) {
       .then((decoded) => {
         bitmap = decoded;
         const canvas = canvasRef.current;
-        if (!active || !canvas) return;
+        if (!active || !canvas) {
+          decoded.close();
+          bitmap = null;
+          return;
+        }
 
-        canvas.width = decoded.width;
-        canvas.height = decoded.height;
-        canvas.getContext("2d")?.drawImage(decoded, 0, 0);
+        const scale = Math.min(
+          1,
+          PREVIEW_MAX_EDGE / Math.max(decoded.width, decoded.height),
+        );
+        canvas.width = Math.max(1, Math.round(decoded.width * scale));
+        canvas.height = Math.max(1, Math.round(decoded.height * scale));
+        canvas
+          .getContext("2d")
+          ?.drawImage(decoded, 0, 0, canvas.width, canvas.height);
       })
       .catch(() => undefined);
 
@@ -124,6 +139,34 @@ export function CaptureStep({
     }
     window.localStorage.removeItem(cleanupStorageKey);
   }, [cleanupStorageKey]);
+
+  useEffect(() => {
+    if (existingBatch?.status !== "extracting") return;
+
+    let active = true;
+    const supabase = createBrowserSupabaseClient();
+    const check = async () => {
+      const { data, error } = await supabase
+        .from("project_paper_scan_batches")
+        .select("status")
+        .eq("id", existingBatch.id)
+        .eq("project_id", projectId)
+        .maybeSingle();
+      if (active && !error && data?.status !== "extracting") {
+        window.location.reload();
+      }
+    };
+
+    void check();
+    const intervalId = window.setInterval(
+      () => void check(),
+      RECOVERY_POLL_INTERVAL_MS,
+    );
+    return () => {
+      active = false;
+      window.clearInterval(intervalId);
+    };
+  }, [existingBatch?.id, existingBatch?.status, projectId]);
 
   const rememberPendingCleanup = (cleanup: PendingCleanup) => {
     window.localStorage.setItem(cleanupStorageKey, JSON.stringify(cleanup));
@@ -253,11 +296,17 @@ export function CaptureStep({
       registeredBatchId = batchResult.batchId;
 
       setPhase({ kind: "scanning" });
+      const scanController = new AbortController();
+      const scanTimeoutId = window.setTimeout(
+        () => scanController.abort(),
+        SCAN_REQUEST_TIMEOUT_MS,
+      );
       const response = await fetch("/api/ai/scan-signup-sheet", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ batchId: batchResult.batchId }),
-      });
+        signal: scanController.signal,
+      }).finally(() => window.clearTimeout(scanTimeoutId));
       const payload = await response.json().catch(() => null);
       if (!response.ok) {
         throw new Error(payload?.error ?? "Scanning failed. Please try again.");
@@ -292,7 +341,8 @@ export function CaptureStep({
         // a reload cannot race the worker and present a second uploader while
         // the first scan is still being processed.
         const batchId = registeredBatchId;
-        for (;;) {
+        const recoveryDeadline = Date.now() + RECOVERY_POLL_BUDGET_MS;
+        while (Date.now() < recoveryDeadline) {
           await new Promise((resolve) => window.setTimeout(resolve, 1_000));
           const { data: recoveredBatch, error: recoveryError } = await supabase
             .from("project_paper_scan_batches")
@@ -314,10 +364,43 @@ export function CaptureStep({
             return;
           }
         }
+        // Never leave the browser in an endless spinner when RLS, connectivity,
+        // or a provider outage prevents recovery polling. The durable batch and
+        // its photos remain intact; a reload can resume review or show the
+        // current failure state.
+        window.location.reload();
+        return;
       }
       setPhase({ kind: "collecting" });
     }
   };
+
+  if (existingBatch?.status === "extracting") {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle>Reading the uploaded sheet</CardTitle>
+          <CardDescription>
+            The photos are safely uploaded. This page will open review as soon
+            as extraction finishes.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="flex items-center gap-2 text-sm text-muted-foreground">
+          <Spinner className="size-4" />
+          Checking scan progress…
+        </CardContent>
+        <CardFooter>
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => window.location.reload()}
+          >
+            Refresh status
+          </Button>
+        </CardFooter>
+      </Card>
+    );
+  }
 
   return (
     <Card>

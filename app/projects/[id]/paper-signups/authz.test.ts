@@ -126,6 +126,18 @@ describe("paper signup management access", () => {
     );
   });
 
+  test("the paper scan page derives access from an active membership", async () => {
+    const pageSource = await Bun.file(
+      new URL("./page.tsx", import.meta.url),
+    ).text();
+
+    expect(pageSource).toContain('.select("role, status")');
+    expect(pageSource).toContain("activeOrganizationRole(membership)");
+    expect(pageSource).not.toContain(
+      "organizationRole = membership?.role ?? null",
+    );
+  });
+
   test("registered scan photos survive an ambiguous extraction response", async () => {
     const captureSource = await Bun.file(
       new URL("./CaptureStep.tsx", import.meta.url),
@@ -149,6 +161,9 @@ describe("paper signup management access", () => {
     expect(captureSource).toContain('recoveredBatch.status === "failed"');
     expect(captureSource).toContain('recoveredBatch.status === "committed"');
     expect(captureSource).toContain('recoveredBatch.status === "discarded"');
+    expect(captureSource).toContain("RECOVERY_POLL_BUDGET_MS");
+    expect(captureSource).toContain('existingBatch?.status === "extracting"');
+    expect(captureSource).toContain("Refresh status");
     expect(
       captureSource.lastIndexOf("window.location.reload()"),
     ).toBeGreaterThan(

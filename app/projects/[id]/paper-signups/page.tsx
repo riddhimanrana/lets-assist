@@ -3,7 +3,10 @@ import { notFound, redirect } from "next/navigation";
 
 import { createClient } from "@/lib/supabase/server";
 import { getAuthUser } from "@/lib/supabase/auth-helpers";
-import { canManageProjectAccess } from "@/lib/projects/management-access";
+import {
+  activeOrganizationRole,
+  canManageProjectAccess,
+} from "@/lib/projects/management-access";
 import { getAttendanceScheduleWindow } from "@/lib/attendance/challenge";
 import { getMultiDaySlotDisplayName, getProjectStatus } from "@/utils/project";
 import type { Project } from "@/types";
@@ -97,11 +100,11 @@ export default async function PaperSignupsPage({
   if (project.organization_id && project.creator_id !== user.id) {
     const { data: membership } = await supabase
       .from("organization_members")
-      .select("role")
+      .select("role, status")
       .eq("organization_id", project.organization_id)
       .eq("user_id", user.id)
       .maybeSingle();
-    organizationRole = membership?.role ?? null;
+    organizationRole = activeOrganizationRole(membership);
   }
   if (
     !canManageProjectAccess({
