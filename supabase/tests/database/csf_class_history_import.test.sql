@@ -2,7 +2,7 @@ BEGIN;
 
 CREATE EXTENSION IF NOT EXISTS pgtap WITH SCHEMA extensions;
 
-SELECT extensions.plan(35);
+SELECT extensions.plan(40);
 
 SELECT extensions.ok(
   NOT has_function_privilege(
@@ -415,6 +415,59 @@ SELECT extensions.is(
   ),
   '2.50',
   'an explicit decimal legacy value remains numeric'
+);
+
+SELECT extensions.ok(
+  NOT has_function_privilege(
+    'anon',
+    'plugin_data.csf_list_historical_activity_summaries(uuid,uuid,uuid,integer)',
+    'EXECUTE'
+  ),
+  'anonymous clients cannot list imported activity history'
+);
+SELECT extensions.ok(
+  NOT has_function_privilege(
+    'authenticated',
+    'plugin_data.csf_list_historical_activity_summaries(uuid,uuid,uuid,integer)',
+    'EXECUTE'
+  ),
+  'authenticated clients cannot list imported activity history'
+);
+SELECT extensions.ok(
+  has_function_privilege(
+    'service_role',
+    'plugin_data.csf_list_historical_activity_summaries(uuid,uuid,uuid,integer)',
+    'EXECUTE'
+  ),
+  'the server role can read the bounded imported activity summary'
+);
+SELECT extensions.is(
+  (
+    SELECT count(*)::integer
+    FROM plugin_data.csf_list_historical_activity_summaries(
+      'ce100000-0000-4000-8000-000000000001',
+      'ce200000-0000-4000-8000-000000000001',
+      'ce300000-0000-4000-8000-000000000001',
+      250
+    )
+    WHERE title IN ('Food Drive', 'Peer tutoring')
+  ),
+  2,
+  'the historical activity summary keeps each imported activity title'
+);
+SELECT extensions.is(
+  (
+    SELECT concat(minimum_points::text, ':', maximum_points::text)
+    FROM plugin_data.csf_list_historical_activity_summaries(
+      'ce100000-0000-4000-8000-000000000001',
+      'ce200000-0000-4000-8000-000000000001',
+      'ce300000-0000-4000-8000-000000000001',
+      250
+    )
+    WHERE title = 'Food Drive'
+  ),
+  '2.00:2.00',
+  'the historical summary reports the awarded points shown by the workbook'
 );
 
 SELECT extensions.lives_ok(

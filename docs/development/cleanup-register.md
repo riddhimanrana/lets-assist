@@ -90,6 +90,13 @@ This register separates actionable repository defects from provider/account and 
   future imports. The Class of 2028 Development data already contains 1,452
   distinct imported activity events across 208 profiles, including unclaimed
   profiles.
+- Class-history rows now retain the workbook's normalized roster key, such as
+  `LastFirst`, as source-scoped identity. Resync uses that key before any name
+  evidence, keeps equal names with different keys separate, and runs one
+  bounded consolidation pass after an authorized sync. The officer Activities
+  page now lists exact imported activity labels by class and semester with the
+  awarded per-member point range. Historical records remain non-claimable, and
+  member profiles continue to show their own activity and meeting ledgers.
 - The annotation pass now handles the chapter's known green, red, and yellow
   cell fills before model review. It omits student names and verbatim officer
   notes from model prompts. Notes that say the student was not in Google
