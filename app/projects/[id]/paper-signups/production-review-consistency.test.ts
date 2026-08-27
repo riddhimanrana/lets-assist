@@ -47,6 +47,18 @@ describe("production review consistency boundaries", () => {
     expect(source).toContain("if (clearRowsError)");
   });
 
+  test("vision calls are bounded by the route budget", async () => {
+    const source = await read("../../../api/ai/scan-signup-sheet/route.ts");
+
+    expect(source).toContain("EXTRACTION_ROUTE_BUDGET_MS");
+    expect(source).toContain("MODEL_CALL_TIMEOUT_MS");
+    expect(source).toContain("maxRetries: 0");
+    expect(source).toContain(
+      "timeout: Math.min(MODEL_CALL_TIMEOUT_MS, remainingMs)",
+    );
+    expect(source).toContain("if (Date.now() >= options.deadlineMs) break");
+  });
+
   test("supplemental certificate failures remain visible and retryable", async () => {
     const actions = await read("./actions.ts");
     const client = await read("./PaperSignupsClient.tsx");

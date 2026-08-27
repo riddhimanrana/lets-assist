@@ -71,6 +71,7 @@ import {
   isMultiDaySlotPastByScheduleId,
   isSameDayMultiAreaSlotPast,
   isOneTimeSlotPast,
+  isForwardProjectStatusTransition,
 } from "@/utils/project";
 import { getProjectStatus } from "@/utils/project"; // Import the getProjectStatus utility and date utils
 import {
@@ -599,7 +600,7 @@ export default function ProjectDetails({
     if (
       canManageProject &&
       !isUpdatingStatus &&
-      newCalculatedStatus !== project.status &&
+      isForwardProjectStatusTransition(project.status, newCalculatedStatus) &&
       !statusMismatchHandled.current
     ) {
       console.log(
@@ -632,7 +633,7 @@ export default function ProjectDetails({
           if (
             canManageProject &&
             !isUpdatingStatus &&
-            newStatus !== project.status
+            isForwardProjectStatusTransition(project.status, newStatus)
           ) {
             startTransition(() => {
               void updateProjectStatusInDB(newStatus);

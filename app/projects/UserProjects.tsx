@@ -13,6 +13,8 @@ import type { Project, RecurrenceRule, RecurrenceWeekday } from "@/types";
 import { cn } from "@/lib/utils";
 import { ProjectCard } from "./ProjectCard";
 import { format } from "date-fns";
+import { ACTIVE_PROJECT_SIGNUP_STATUSES } from "@/lib/projects/availability";
+import { deduplicateVolunteerProjectCards } from "@/lib/projects/user-project-cards";
 
 // Helper to format recurrence summary for display
 function formatRecurrenceSummary(rule: RecurrenceRule): string {
@@ -142,7 +144,7 @@ export default async function UserProjects() {
     `,
     )
     .eq("user_id", user.id)
-    .not("status", "eq", "rejected")
+    .in("status", [...ACTIVE_PROJECT_SIGNUP_STATUSES])
     .order("created_at", { ascending: false });
 
   if (signupsError) {
@@ -177,7 +179,7 @@ export default async function UserProjects() {
   }
 
   // Transform and process volunteer projects properly with creator info
-  const volunteeredProjects: ProjectWithCreator[] =
+  const volunteeredProjects = deduplicateVolunteerProjectCards(
     signups
       ?.filter((signup) => signup.projects)
       .map((signup) => {
@@ -199,7 +201,8 @@ export default async function UserProjects() {
           signup_schedule_id: signup.schedule_id,
           areHoursPublished, // Include this in the returned object
         };
-      }) || [];
+      }) || [],
+  );
 
   // Process projects to add status and creator info
   const processedCreatedProjects: ProjectWithSignups[] =
