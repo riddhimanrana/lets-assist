@@ -9,6 +9,7 @@ import {
   subHours,
   isWithinInterval,
 } from "date-fns";
+import { TZDate } from "@date-fns/tz";
 import { canManageProjectAccess } from "@/lib/projects/management-access";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
@@ -24,6 +25,124 @@ type MultiDaySlotLike = {
   endTime: string;
   volunteers?: number;
 };
+
+type ProjectLifecycleWindow = {
+  start: Date;
+  end: Date;
+};
+
+function parseScheduleDateTime(
+  dateValue: string,
+  timeValue: string,
+  timezone: string,
+): Date | null {
+  const dateMatch = /^(\d{4})-(\d{2})-(\d{2})$/.exec(dateValue);
+  const timeMatch = /^(\d{1,2}):(\d{2})$/.exec(timeValue);
+  if (!dateMatch || !timeMatch) return null;
+
+  const [, yearValue, monthValue, dayValue] = dateMatch;
+  const [, hourValue, minuteValue] = timeMatch;
+  const year = Number(yearValue);
+  const month = Number(monthValue);
+  const day = Number(dayValue);
+  const hour = Number(hourValue);
+  const minute = Number(minuteValue);
+
+  if (
+    month < 1 ||
+    month > 12 ||
+    day < 1 ||
+    day > 31 ||
+    hour < 0 ||
+    hour > 23 ||
+    minute < 0 ||
+    minute > 59
+  ) {
+    return null;
+  }
+
+  try {
+    const result = new TZDate(year, month - 1, day, hour, minute, 0, timezone);
+    if (
+      Number.isNaN(result.getTime()) ||
+      result.getFullYear() !== year ||
+      result.getMonth() !== month - 1 ||
+      result.getDate() !== day ||
+      result.getHours() !== hour ||
+      result.getMinutes() !== minute
+    ) {
+      return null;
+    }
+
+    return result;
+  } catch {
+    return null;
+  }
+}
+
+function getProjectLifecycleWindow(
+  project: Project,
+): ProjectLifecycleWindow | null {
+  const timezone = project.project_timezone || "UTC";
+
+  if (project.event_type === "oneTime" && project.schedule.oneTime) {
+    const start = parseScheduleDateTime(
+      project.schedule.oneTime.date,
+      project.schedule.oneTime.startTime,
+      timezone,
+    );
+    const end = parseScheduleDateTime(
+      project.schedule.oneTime.date,
+      project.schedule.oneTime.endTime,
+      timezone,
+    );
+    return start && end ? { start, end } : null;
+  }
+
+  if (
+    project.event_type === "sameDayMultiArea" &&
+    project.schedule.sameDayMultiArea
+  ) {
+    const start = parseScheduleDateTime(
+      project.schedule.sameDayMultiArea.date,
+      project.schedule.sameDayMultiArea.overallStart,
+      timezone,
+    );
+    const end = parseScheduleDateTime(
+      project.schedule.sameDayMultiArea.date,
+      project.schedule.sameDayMultiArea.overallEnd,
+      timezone,
+    );
+    return start && end ? { start, end } : null;
+  }
+
+  if (project.event_type !== "multiDay" || !project.schedule.multiDay) {
+    return null;
+  }
+
+  let start: Date | null = null;
+  let end: Date | null = null;
+
+  for (const scheduleDay of project.schedule.multiDay) {
+    for (const slot of scheduleDay.slots) {
+      const slotStart = parseScheduleDateTime(
+        scheduleDay.date,
+        slot.startTime,
+        timezone,
+      );
+      const slotEnd = parseScheduleDateTime(
+        scheduleDay.date,
+        slot.endTime,
+        timezone,
+      );
+
+      if (slotStart && (!start || slotStart < start)) start = slotStart;
+      if (slotEnd && (!end || slotEnd > end)) end = slotEnd;
+    }
+  }
+
+  return start && end ? { start, end } : null;
+}
 
 export function parseMultiDayScheduleId(
   scheduleId: string,
@@ -192,98 +311,18 @@ export const getProjectEndDate = (project: Project): Date => {
 
 // Get the earliest start time for any project type
 export const getProjectStartDateTime = (project: Project): Date => {
-  switch (project.event_type) {
-    case "oneTime": {
-      const date = parseISO(project.schedule.oneTime!.date);
-      const [hours, minutes] = project.schedule
-        .oneTime!.startTime.split(":")
-        .map(Number);
-      return new Date(date.setHours(hours, minutes));
-    }
-    case "multiDay": {
-      // Find the earliest start time across all days and slots
-      let earliestDateTime: Date | null = null;
-
-      project.schedule.multiDay!.forEach((day) => {
-        const dayDate = parseISO(day.date);
-
-        day.slots.forEach((slot) => {
-          const [hours, minutes] = slot.startTime.split(":").map(Number);
-          const slotStartTime = new Date(dayDate);
-          slotStartTime.setHours(hours, minutes, 0, 0);
-
-          if (!earliestDateTime || slotStartTime < earliestDateTime) {
-            earliestDateTime = slotStartTime;
-          }
-        });
-      });
-
-      return earliestDateTime!;
-    }
-    case "sameDayMultiArea": {
-      const date = parseISO(project.schedule.sameDayMultiArea!.date);
-      const [hours, minutes] = project.schedule
-        .sameDayMultiArea!.overallStart.split(":")
-        .map(Number);
-      return new Date(date.setHours(hours, minutes));
-    }
-    default:
-      // Unknown/legacy event_type — log and return epoch so the project
-      // is treated as upcoming rather than crashing the page.
-      console.warn(
-        `[getProjectStartDateTime] Unknown event_type: "${(project as { event_type: string }).event_type}" on project ${project.id}`,
-      );
-      return new Date(0);
-  }
+  return getProjectLifecycleWindow(project)?.start ?? new Date(0);
 };
 
 // Get the latest end time for any project type
 export const getProjectEndDateTime = (project: Project): Date => {
-  switch (project.event_type) {
-    case "oneTime": {
-      const date = parseISO(project.schedule.oneTime!.date);
-      const [hours, minutes] = project.schedule
-        .oneTime!.endTime.split(":")
-        .map(Number);
-      return new Date(date.setHours(hours, minutes));
-    }
-    case "multiDay": {
-      // Find the latest end time across all days and slots
-      let latestDateTime: Date | null = null;
-
-      project.schedule.multiDay!.forEach((day) => {
-        const dayDate = parseISO(day.date);
-
-        day.slots.forEach((slot) => {
-          const [hours, minutes] = slot.endTime.split(":").map(Number);
-          const slotEndTime = new Date(dayDate);
-          slotEndTime.setHours(hours, minutes, 0, 0);
-
-          if (!latestDateTime || slotEndTime > latestDateTime) {
-            latestDateTime = slotEndTime;
-          }
-        });
-      });
-
-      return latestDateTime!;
-    }
-    case "sameDayMultiArea": {
-      const date = parseISO(project.schedule.sameDayMultiArea!.date);
-      const [hours, minutes] = project.schedule
-        .sameDayMultiArea!.overallEnd.split(":")
-        .map(Number);
-      return new Date(date.setHours(hours, minutes));
-    }
-    default:
-      // Unknown/legacy event_type — return far-future so it shows as upcoming.
-      console.warn(
-        `[getProjectEndDateTime] Unknown event_type: "${(project as { event_type: string }).event_type}" on project ${project.id}`,
-      );
-      return new Date(8640000000000000);
-  }
+  return getProjectLifecycleWindow(project)?.end ?? new Date(8640000000000000);
 };
 
-export const getProjectStatus = (project: Project): ProjectStatus => {
+export const getProjectStatus = (
+  project: Project,
+  now: Date = new Date(),
+): ProjectStatus => {
   // If project is explicitly marked as cancelled, respect that status
   if (project.status === "cancelled") {
     return "cancelled";
@@ -326,49 +365,10 @@ export const getProjectStatus = (project: Project): ProjectStatus => {
     return "upcoming";
   }
 
-  const now = new Date();
+  const lifecycleWindow = getProjectLifecycleWindow(project);
+  if (!lifecycleWindow) return "upcoming";
 
-  // For multiDay events, check if ANY day is still available
-  if (project.event_type === "multiDay") {
-    const hasAvailable = hasAvailableMultiDaySlots(project);
-
-    if (!hasAvailable) {
-      return "completed";
-    }
-
-    // Check if any day is currently in progress
-    const multiDaySchedule = project.schedule.multiDay!;
-    for (const day of multiDaySchedule) {
-      const dayDate = parseISO(day.date);
-
-      for (const slot of day.slots) {
-        const [startHours, startMinutes] = slot.startTime
-          .split(":")
-          .map(Number);
-        const [endHours, endMinutes] = slot.endTime.split(":").map(Number);
-
-        const slotStart = new Date(dayDate);
-        slotStart.setHours(startHours, startMinutes, 0, 0);
-
-        const slotEnd = new Date(dayDate);
-        slotEnd.setHours(endHours, endMinutes, 0, 0);
-
-        if (
-          (isAfter(now, slotStart) && isBefore(now, slotEnd)) ||
-          isEqual(now, slotStart)
-        ) {
-          return "in-progress";
-        }
-      }
-    }
-
-    // If we have available days but none are in progress, it's upcoming
-    return "upcoming";
-  }
-
-  // For other event types, use existing logic
-  const startDateTime = getProjectStartDateTime(project);
-  const endDateTime = getProjectEndDateTime(project);
+  const { start: startDateTime, end: endDateTime } = lifecycleWindow;
 
   // Check if the project is completed (after end time)
   if (isAfter(now, endDateTime)) {
@@ -386,6 +386,19 @@ export const getProjectStatus = (project: Project): ProjectStatus => {
   // If none of the above, the project is upcoming
   return "upcoming";
 };
+
+export function isForwardProjectStatusTransition(
+  storedStatus: ProjectStatus,
+  calculatedStatus: ProjectStatus,
+): boolean {
+  if (storedStatus === "upcoming") {
+    return (
+      calculatedStatus === "in-progress" || calculatedStatus === "completed"
+    );
+  }
+
+  return storedStatus === "in-progress" && calculatedStatus === "completed";
+}
 
 export const isWithinDeletionRestrictionWindow = (
   project: Project,
@@ -643,37 +656,51 @@ export function isSlotAvailable(
 }
 
 // Check if a specific multi-day slot has passed
-export function isMultiDaySlotPast(day: {
-  date: string;
-  slots: Array<{ endTime: string }>;
-}): boolean {
+export function isMultiDaySlotPast(
+  day: {
+    date: string;
+    slots: Array<{ endTime: string }>;
+  },
+  now: Date = new Date(),
+  timezone = "UTC",
+): boolean {
   if (!day.slots || day.slots.length === 0) return true;
 
-  const latestSlot = day.slots[day.slots.length - 1];
-  const dayDate = parseISO(day.date);
-  const [hours, minutes] = latestSlot.endTime.split(":").map(Number);
-  const dayEndDateTime = new Date(dayDate);
-  dayEndDateTime.setHours(hours, minutes, 0, 0);
+  const validEndTimes = day.slots
+    .map((slot) => parseScheduleDateTime(day.date, slot.endTime, timezone))
+    .filter((value): value is Date => value !== null);
+  if (validEndTimes.length === 0) return true;
 
-  const now = new Date();
-  return isAfter(now, dayEndDateTime);
+  const latestEndTime = validEndTimes.reduce((latest, candidate) =>
+    candidate > latest ? candidate : latest,
+  );
+  return isAfter(now, latestEndTime);
 }
 
 // Get available days for signup (filters out past days)
-export function getAvailableMultiDaySlots(project: Project): number[] {
+export function getAvailableMultiDaySlots(
+  project: Project,
+  now: Date = new Date(),
+): number[] {
   if (project.event_type !== "multiDay" || !project.schedule.multiDay) {
     return [];
   }
 
   return project.schedule.multiDay
     .map((day, index) => ({ day, index }))
-    .filter(({ day }) => !isMultiDaySlotPast(day))
+    .filter(
+      ({ day }) =>
+        !isMultiDaySlotPast(day, now, project.project_timezone || "UTC"),
+    )
     .map(({ index }) => index);
 }
 
 // Check if ANY day is still available
-export function hasAvailableMultiDaySlots(project: Project): boolean {
-  return getAvailableMultiDaySlots(project).length > 0;
+export function hasAvailableMultiDaySlots(
+  project: Project,
+  now: Date = new Date(),
+): boolean {
+  return getAvailableMultiDaySlots(project, now).length > 0;
 }
 
 // Check if a specific slot within a multi-day event has passed
@@ -682,13 +709,15 @@ export function isMultiDaySlotPastByScheduleId(
   scheduleId: string,
 ): boolean {
   const slotData = getMultiDaySlotByScheduleId(_project, scheduleId);
-  if (!slotData) return false;
+  if (!slotData) return true;
 
   const { day, slot } = slotData;
-  const dayDate = parseISO(day.date);
-  const [hours, minutes] = slot.endTime.split(":").map(Number);
-  const slotEndDateTime = new Date(dayDate);
-  slotEndDateTime.setHours(hours, minutes, 0, 0);
+  const slotEndDateTime = parseScheduleDateTime(
+    day.date,
+    slot.endTime,
+    _project.project_timezone || "UTC",
+  );
+  if (!slotEndDateTime) return true;
 
   const now = new Date();
   return isAfter(now, slotEndDateTime);
@@ -711,10 +740,12 @@ export function isSameDayMultiAreaSlotPast(
   );
   if (!role) return false;
 
-  const eventDate = parseISO(project.schedule.sameDayMultiArea.date);
-  const [hours, minutes] = role.endTime.split(":").map(Number);
-  const slotEndDateTime = new Date(eventDate);
-  slotEndDateTime.setHours(hours, minutes, 0, 0);
+  const slotEndDateTime = parseScheduleDateTime(
+    project.schedule.sameDayMultiArea.date,
+    role.endTime,
+    project.project_timezone || "UTC",
+  );
+  if (!slotEndDateTime) return true;
 
   const now = new Date();
   return isAfter(now, slotEndDateTime);
@@ -726,12 +757,12 @@ export function isOneTimeSlotPast(project: Project): boolean {
     return false;
   }
 
-  const eventDate = parseISO(project.schedule.oneTime.date);
-  const [hours, minutes] = project.schedule.oneTime.endTime
-    .split(":")
-    .map(Number);
-  const slotEndDateTime = new Date(eventDate);
-  slotEndDateTime.setHours(hours, minutes, 0, 0);
+  const slotEndDateTime = parseScheduleDateTime(
+    project.schedule.oneTime.date,
+    project.schedule.oneTime.endTime,
+    project.project_timezone || "UTC",
+  );
+  if (!slotEndDateTime) return true;
 
   const now = new Date();
   return isAfter(now, slotEndDateTime);
