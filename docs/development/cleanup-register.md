@@ -43,15 +43,16 @@ This register separates actionable repository defects from provider/account and 
   88 rows with no profile-review items.
 - The repaired subset rule now imports one dominant class-history row and skips
   a repeated row only when the repeated row contributes no retained activity,
-  meeting, requirement, or identity evidence. The remaining Class of 2027 Fall
-  queue is a data-identity blocker, not a parser failure: 105 rows point at 120
-  same-class duplicate-name groups containing 202 excess unclaimed profiles.
-  None has an email or verified account to corroborate a merge, and the database
-  correctly refuses all 202 proposed merges with `identity_email_missing`.
-  Development therefore keeps those rows for officer identity evidence instead
-  of creating more duplicate profiles or choosing a record by name alone. The
-  candidate selector is now class-scoped and gives every otherwise identical
-  record a short stable code.
+  meeting, requirement, or identity evidence. The Class of 2027 Fall queue then
+  exposed 120 same-class duplicate-name groups containing 202 excess unclaimed
+  profiles. The 1.2.19 candidate adds a bounded consolidation path for records
+  backed by the same official class workbook. It requires exact normalized
+  names, the same active cohort, immutable imported-row provenance, no canonical
+  contact on either record, and separate tabs or the same repeated coordinate.
+  It also refuses overlapping semester membership and preserves every existing
+  merge conflict except the missing-email blocker. Local evidence includes the
+  complete 6,272-assertion database suite and 2,031 private-plugin tests. Hosted
+  Development and Production acceptance remain pending.
 
 - The Class of 2028 Google Sheet test in hosted Development found stale term
   aliases, header-only tabs registered as live sources, repeated one-point
