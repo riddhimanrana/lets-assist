@@ -2,7 +2,7 @@ BEGIN;
 
 CREATE EXTENSION IF NOT EXISTS pgtap WITH SCHEMA extensions;
 
-SELECT extensions.plan(14);
+SELECT extensions.plan(16);
 
 SELECT extensions.ok(
   NOT has_function_privilege(
@@ -217,6 +217,41 @@ SELECT extensions.is(
   ) #>> '{identityEvidence,termMembershipConsolidationCount}',
   '1',
   'the preview records one audited same-term consolidation'
+);
+
+UPDATE plugin_data.csf_sheet_import_rows
+SET matched_profile_id = CASE id
+  WHEN 'da400000-0000-4000-8000-000000000001'::uuid
+    THEN 'da500000-0000-4000-8000-000000000001'::uuid
+  WHEN 'da400000-0000-4000-8000-000000000002'::uuid
+    THEN 'da500000-0000-4000-8000-000000000002'::uuid
+END
+WHERE id IN (
+  'da400000-0000-4000-8000-000000000001',
+  'da400000-0000-4000-8000-000000000002'
+);
+UPDATE plugin_data.csf_profiles
+SET source_summary = '{}'::jsonb
+WHERE id IN (
+  'da500000-0000-4000-8000-000000000001',
+  'da500000-0000-4000-8000-000000000002'
+);
+
+SELECT extensions.ok(
+  plugin_data.csf_profiles_share_class_source_key(
+    'da100000-0000-4000-8000-000000000001',
+    'da500000-0000-4000-8000-000000000001',
+    'da500000-0000-4000-8000-000000000002'
+  ),
+  'committed matched rows prove the exact workbook key without legacy profile markers'
+);
+SELECT extensions.ok(
+  (plugin_data.csf_profile_merge_preview(
+    'da100000-0000-4000-8000-000000000001',
+    'da500000-0000-4000-8000-000000000001',
+    'da500000-0000-4000-8000-000000000002'
+  )->>'canMerge')::boolean,
+  'legacy profiles remain mergeable from immutable matched-row lineage'
 );
 SELECT extensions.ok(
   NOT jsonb_path_exists(
