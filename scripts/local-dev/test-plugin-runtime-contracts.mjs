@@ -15,10 +15,13 @@ process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY = anonKey;
 process.env.SUPABASE_SECRET_KEY = serviceRoleKey;
 process.env.SUPABASE_DB_URL = dbUrl;
 
-const { privatePlugins } =
-  await import("../../lib/plugins/private/registry.ts");
+const { listRegisteredPlugins } = await import("../../lib/plugins/registry.ts");
 const { syncRegisteredPluginRuntimeContracts } =
   await import("../../lib/plugins/runtime-contracts.ts");
+
+const privatePlugins = listRegisteredPlugins().filter(
+  (definition) => definition.manifest.visibility === "private",
+);
 
 const admin = createClient(url, serviceRoleKey, {
   auth: {
