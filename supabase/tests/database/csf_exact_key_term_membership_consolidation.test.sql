@@ -2,7 +2,7 @@ BEGIN;
 
 CREATE EXTENSION IF NOT EXISTS pgtap WITH SCHEMA extensions;
 
-SELECT extensions.plan(16);
+SELECT extensions.plan(18);
 
 SELECT extensions.ok(
   NOT has_function_privilege(
@@ -252,6 +252,30 @@ SELECT extensions.ok(
     'da500000-0000-4000-8000-000000000002'
   )->>'canMerge')::boolean,
   'legacy profiles remain mergeable from immutable matched-row lineage'
+);
+
+UPDATE plugin_data.csf_profiles
+SET first_name = 'Sample Alt', normalized_first_name = 'sample-alt'
+WHERE id = 'da500000-0000-4000-8000-000000000001';
+
+SELECT extensions.ok(
+  (plugin_data.csf_profile_merge_preview(
+    'da100000-0000-4000-8000-000000000001',
+    'da500000-0000-4000-8000-000000000001',
+    'da500000-0000-4000-8000-000000000002'
+  )->>'canMerge')::boolean,
+  'one exact class-workbook key resolves a legacy profile name variation'
+);
+SELECT extensions.ok(
+  NOT jsonb_path_exists(
+    plugin_data.csf_profile_merge_preview(
+      'da100000-0000-4000-8000-000000000001',
+      'da500000-0000-4000-8000-000000000002',
+      'da500000-0000-4000-8000-000000000001'
+    ),
+    '$.conflicts[*] ? (@.type == "identity_name_mismatch")'
+  ),
+  'the exact-key proof is symmetric across canonical profile selection'
 );
 SELECT extensions.ok(
   NOT jsonb_path_exists(
