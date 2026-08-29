@@ -167,6 +167,44 @@ test.describe("member Home class feed", () => {
     expectNoBrowserFailures(failures);
   });
 
+  test("a linked applicant awaiting approval sees only the feed and one status", async ({
+    page,
+  }) => {
+    const failures = watchBrowserFailures(page);
+    await loginAs(page, "applicant");
+
+    const feed = page.getByRole("region", { name: "Class feed" });
+    await expect(feed).toBeVisible();
+    const reviewNotice = page.getByRole("alert").filter({
+      hasText: "Your CSF profile is being reviewed",
+    });
+    await expect(reviewNotice).toHaveCount(1);
+    await expect(reviewNotice).toContainText(
+      "You can view class updates while officers finish processing it.",
+    );
+
+    await expect(
+      page.locator('[data-tour-id="csf-points-summary"]'),
+    ).toHaveCount(0);
+    await expect(
+      page.locator('[data-tour-id="csf-member-agenda"]'),
+    ).toHaveCount(0);
+    await expect(
+      page.locator('[data-tour-id="csf-tab-activities"]'),
+    ).toHaveCount(0);
+    await expect(
+      page.locator('[data-tour-id="csf-tab-submissions"]'),
+    ).toHaveCount(0);
+    await expect(page.locator('[data-tour-id="csf-tab-profile"]')).toHaveCount(
+      0,
+    );
+    await expect(
+      page.getByText("Membership pending", { exact: true }),
+    ).toHaveCount(0);
+
+    expectNoBrowserFailures(failures);
+  });
+
   test("an unlinked member sees the connect call to action instead of a class label", async ({
     page,
   }) => {
@@ -228,7 +266,7 @@ test.describe("member Home class feed", () => {
       await expect(connectCard).toBeVisible();
       await expect(
         connectCard.getByText(
-          "Enter the class join code your CSF officers shared.",
+          "Enter the six-character code for your graduation class.",
         ),
       ).toBeVisible();
 
