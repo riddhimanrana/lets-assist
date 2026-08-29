@@ -2,7 +2,7 @@ BEGIN;
 
 CREATE EXTENSION IF NOT EXISTS pgtap WITH SCHEMA extensions;
 
-SELECT extensions.plan(40);
+SELECT extensions.plan(46);
 
 SELECT extensions.ok(
   NOT has_function_privilege(
@@ -389,7 +389,7 @@ SELECT extensions.lives_ok(
       'ce800000-0000-4000-8000-000000000006',
       'numeric-credit-hash',
       '[{"slot":"activity_1","label":"Food Drive","value":"Food Drive","points":2,"sourceColumns":["Activity 1","Activity 2"]},{"slot":"activity_2","label":"Peer tutoring","value":"Peer tutoring","points":2.5,"sourceColumns":["Activity 3"]}]',
-      '[]',
+      '[{"key":"november_meeting","label":"November Meeting","value":"X","status":"attended"}]',
       NULL,
       'ce000000-0000-4000-8000-000000000001'
     )
@@ -415,6 +415,78 @@ SELECT extensions.is(
   ),
   '2.50',
   'an explicit decimal legacy value remains numeric'
+);
+SELECT extensions.is(
+  (
+    SELECT count(*)::integer
+    FROM plugin_data.csf_opportunities
+    WHERE organization_id = 'ce100000-0000-4000-8000-000000000001'
+      AND term_id = 'ce200000-0000-4000-8000-000000000001'
+      AND record_origin = 'class_history_import'
+  ),
+  2,
+  'two imported titles become two canonical semester activities'
+);
+SELECT extensions.is(
+  (
+    SELECT count(*)::integer
+    FROM plugin_data.csf_credit_records
+    WHERE organization_id = 'ce100000-0000-4000-8000-000000000001'
+      AND evidence ->> 'importRowId' = 'ce800000-0000-4000-8000-000000000006'
+      AND opportunity_id IS NOT NULL
+  ),
+  2,
+  'every imported member award links to its canonical activity'
+);
+SELECT extensions.is(
+  (
+    SELECT count(*)::integer
+    FROM plugin_data.csf_profile_activity_events
+    WHERE organization_id = 'ce100000-0000-4000-8000-000000000001'
+      AND source_ref ->> 'importRowId' = 'ce800000-0000-4000-8000-000000000006'
+      AND opportunity_id IS NOT NULL
+      AND credit_record_id IS NOT NULL
+  ),
+  2,
+  'each profile activity event links the canonical activity and exact award'
+);
+SELECT extensions.is(
+  (
+    SELECT count(*)::integer
+    FROM plugin_data.csf_profile_activity_events AS event
+    JOIN plugin_data.csf_credit_records AS credit
+      ON credit.id = event.credit_record_id
+     AND credit.opportunity_id = event.opportunity_id
+    WHERE event.organization_id = 'ce100000-0000-4000-8000-000000000001'
+      AND event.source_ref ->> 'importRowId' = 'ce800000-0000-4000-8000-000000000006'
+  ),
+  2,
+  'the profile event and award resolve to the same activity'
+);
+SELECT extensions.is(
+  (
+    SELECT count(*)::integer
+    FROM plugin_data.csf_meetings
+    WHERE organization_id = 'ce100000-0000-4000-8000-000000000001'
+      AND term_id = 'ce200000-0000-4000-8000-000000000001'
+      AND meeting_key = 'november_meeting'
+      AND label = 'November Meeting'
+  ),
+  1,
+  'an imported meeting label becomes one canonical semester meeting'
+);
+SELECT extensions.is(
+  (
+    SELECT count(*)::integer
+    FROM plugin_data.csf_meeting_attendance
+    WHERE organization_id = 'ce100000-0000-4000-8000-000000000001'
+      AND match_details ->> 'importRowId' = 'ce800000-0000-4000-8000-000000000006'
+      AND term_meeting_id IS NOT NULL
+      AND meeting_id IS NOT NULL
+      AND meeting_session_id IS NOT NULL
+  ),
+  1,
+  'imported attendance links to the canonical meeting and session'
 );
 
 SELECT extensions.ok(
