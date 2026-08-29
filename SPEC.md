@@ -66,7 +66,7 @@ V31: application and point review decision → selected person/semester/source e
 V32: point claim source → one explicit Activity | Club | Other choice for members; Manual officer record staff-only; unavailable policy source ⊥; changing source clears stale linked IDs.
 V33: Activity/Club choice → searchable current-semester authorized options + explicit empty state; Other → no linked activity/club + required plain-language description.
 V34: proof control → native one-file FormData + shadcn Attachment presentation; filename, size, accepted types, 10 MB cap, private storage copy, remove/retry, server authority; fake byte progress ⊥.
-V35: point claim form → compact mobile-first fields + visible sticky submit + keyboard/focus/reduced-motion support; existing authorization, proof lifecycle, retry/reconciliation, review semantics, and FormData names unchanged.
+V35: point claim form → compact mobile-first fields + fixed dialog header/footer outside the scrolling field body + keyboard/focus/reduced-motion support; existing authorization, proof lifecycle, retry/reconciliation, review semantics, and FormData names unchanged.
 
 §T
 
