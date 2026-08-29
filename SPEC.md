@@ -56,7 +56,7 @@ V21: legacy class activity slots → explicit mapping mode only; each populated 
 V22: application analysis → deterministic header-only mapping + current-selection result guard + manual fallback; student-row model input ⊥.
 V23: import identity → validated canonical email may auto-match; name-only candidate remains officer decision; one profile reused across distinct term tabs; same-term duplicate writes ⊥.
 V24: import read path → one workbook parse/request, bounded diagnostics text, one authorized readiness RPC/load.
-V25: member entry → accessible six-character class-code control; My CSF duplicate Activities/Submissions actions ⊥; point claim defaults to selected semester; identity-only review never invokes annotation AI.
+V25: member entry → accessible six-character class-code control; My CSF duplicate Activities/Submissions actions ⊥; point claim inherits current class semester with no member-facing class/semester control; identity-only review never invokes annotation AI.
 V26: class join journey → code accepted, account confirmed, profile checked, then durable connected or officer-review receipt; loading animation never claims a later state before the server result.
 V27: profile match → exact verified-email record may be confirmed and connected; name-only or ambiguous candidate becomes one officer-review request; automatic name-only link and duplicate request ⊥.
 V28: first eligible CSF workspace visit → one versioned, organization-scoped tour for the viewer's effective member or officer role; completion/skip persists through an authenticated server action; role change may offer the other tour; automatic repeat ⊥ and Help replay remains available.
@@ -67,6 +67,8 @@ V32: point claim source → one explicit Activity | Club | Other choice for memb
 V33: Activity/Club choice → searchable current-semester authorized options + explicit empty state; Other → no linked activity/club + required plain-language description.
 V34: proof control → native one-file FormData + shadcn Attachment presentation; filename, size, accepted types, 10 MB cap, private storage copy, remove/retry, server authority; fake byte progress ⊥.
 V35: point claim form → compact mobile-first fields + fixed dialog header/footer outside the scrolling field body + keyboard/focus/reduced-motion support; existing authorization, proof lifecycle, retry/reconciliation, review semantics, and FormData names unchanged.
+V36: member point claim context → current term from authorized member class context + hidden stable `termId`; missing current context disables submission; historical-term fallback and member-facing semester selector ⊥; server revalidation remains authoritative.
+V37: class-scoped activity/post compose → class + selected current class term inherited from class workspace; redundant audience/class/semester selectors ⊥; broad officer compose may keep explicit scope controls when no class context exists.
 
 §T
 
@@ -85,6 +87,7 @@ T11|~~|repair class/application imports + all-term discovery + comments + profil
 T12|x|simplify member entry/My CSF + correct point-claim defaults + separate sheet-marking and identity review|V5,V17,V23,V25,I.route,I.service,I.cmd
 T13|~~|replace the legacy CSF member card tour, add the officer tour, polish join/profile-match transitions, and harden application/point review interaction states|V17,V26,V27,V28,V29,V30,V31,I.route,I.service,I.cmd
 T14|x|redesign point claim source pickers, searchable Activity/Club choice, Other path, and shadcn Attachment proof UI|V17,V32,V33,V34,V35,I.form,I.cmd
+T15|x|infer member point and class-scoped compose context; remove redundant class/semester controls|V17,V25,V36,V37,I.form,I.route,I.cmd
 
 §B
 
