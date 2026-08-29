@@ -106,8 +106,13 @@ Operational rules:
 Use **Members** to locate the permanent student identity and current-semester record.
 
 1. Search by student or confirmed account; filter by class, connection, application, eligibility, dues, or membership result.
-2. Open the member detail before correcting identity, class, account connection, attendance, or points.
-3. Record corrections with the source, reason, and current officer identity.
+2. Use **Edit** on the member row for identity, contact, class, or an explicit
+   semester application status change. The row uses the semester selected in
+   the class header. Leave **Application status** unchanged for detail-only
+   edits.
+3. Open the member detail for account connection, attendance, points, notes,
+   and duplicate-record corrections. Record the source, reason, and current
+   officer identity where the correction flow requests them.
 4. Merge duplicate profiles only after confirming both records describe the same person with stable corroborating evidence. The preview must enumerate every moved record and block hard identity conflicts.
 5. If merge preview reports an outstanding import target, finish, retry, skip, or reconcile that import first. Settled successful and explicitly terminally skipped rows remain attached to the source tombstone as recovery evidence.
 6. Keep completed historical semesters visible; hide empty future terms.
