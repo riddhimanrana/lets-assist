@@ -13,6 +13,8 @@ DVHS CSF officer UX → class-first Home → Classes → Applications → More; 
 - Synthetic fixtures stay isolated local/CI; hosted fixture leakage ⊥.
 - Imports keep source identity, explicit tab/range/mapping, immutable preview, reconciliation, auth recheck, atomic commit.
 - Private plugin commits precede root gitlink update.
+- Guided tours are presentation only; they never approve, link, award, or submit records.
+- Tour progress may live in versioned auth metadata because it controls presentation only; consequential workflow state remains server-owned and audited.
 
 §I
 
@@ -22,6 +24,7 @@ route: legacy `points|meetings|verification` → compatible destination mapping
 route: public organization → class cards → join code + sign-in/claim flow
 service: class loader → explicit `{organizationId, cohortId, termId}`
 service: public class loader → safe class identity + join eligibility metadata only
+service: CSF tour completion → authenticated server action + organization/role/version key
 perf: CSF route response → active route-family component graph only; unrelated client references ⊥
 db: stable class join code → organization + cohort + code digest + lifecycle; direct invitations unchanged
 cmd: `bun run test:plugins`; `bun run typecheck`; `bun run lint`; `bun run db:validate`; focused pgTAP; `bun run build`
@@ -53,6 +56,12 @@ V22: application analysis → deterministic header-only mapping + current-select
 V23: import identity → validated canonical email may auto-match; name-only candidate remains officer decision; one profile reused across distinct term tabs; same-term duplicate writes ⊥.
 V24: import read path → one workbook parse/request, bounded diagnostics text, one authorized readiness RPC/load.
 V25: member entry → accessible six-character class-code control; My CSF duplicate Activities/Submissions actions ⊥; point claim defaults to selected semester; identity-only review never invokes annotation AI.
+V26: class join journey → code accepted, account confirmed, profile checked, then durable connected or officer-review receipt; loading animation never claims a later state before the server result.
+V27: profile match → exact verified-email record may be confirmed and connected; name-only or ambiguous candidate becomes one officer-review request; automatic name-only link and duplicate request ⊥.
+V28: first eligible CSF workspace visit → one versioned, organization-scoped tour for the viewer's effective member or officer role; completion/skip persists through an authenticated server action; role change may offer the other tour; automatic repeat ⊥ and Help replay remains available.
+V29: tour step → stable visible anchor + truthful action-oriented copy + keyboard navigation + focus restoration + viewport-safe placement; missing/unauthorized anchor skips; reduced motion removes animated scrolling and transitions; tour never blocks the underlying workflow after dismissal.
+V30: officer onboarding → Home work queue, Classes, Applications, and point-submission review are explained from real permitted destinations; member onboarding → class feed, meetings/deadlines, point summary, submission entry/status, and My CSF record are explained; unavailable destinations are omitted rather than simulated.
+V31: application and point review decision → selected person/semester/source evidence stays visible, reject requires an inline reason dialog, pending action is disabled against repeat submission, success advances only after a durable server receipt, unknown outcome asks for refresh/reconciliation instead of claiming success.
 
 §T
 
@@ -67,8 +76,9 @@ T7|~~|harden fixture target fences + add DB/unit/component/browser/privacy cover
 T8|~~|run full gates, commit private first, merge/checkout private development, advance root gitlink, record exact evidence|V14,V15,V17,V18,I.cmd
 T9|~~|isolate CSF route rendering, add regression coverage, and prove bounded repeated-navigation renderer footprint|V13,V19,I.perf,I.cmd
 T10|x|replace public class content with join/sign-in/claim flow + authenticated class-content authorization|V4,V5,V6,V7,V13,V14,V16,V17,I.route,I.service,I.db
-T11|~|repair class/application imports + all-term discovery + comments + profile reconciliation + read performance|V4,V12,V14,V17,V20,V21,V22,V23,V24,I.service,I.db,I.cmd
+T11|~~|repair class/application imports + all-term discovery + comments + profile reconciliation + read performance|V4,V12,V14,V17,V20,V21,V22,V23,V24,I.service,I.db,I.cmd
 T12|x|simplify member entry/My CSF + correct point-claim defaults + separate sheet-marking and identity review|V5,V17,V23,V25,I.route,I.service,I.cmd
+T13|~~|replace the legacy CSF member card tour, add the officer tour, polish join/profile-match transitions, and harden application/point review interaction states|V17,V26,V27,V28,V29,V30,V31,I.route,I.service,I.cmd
 
 §B
 
