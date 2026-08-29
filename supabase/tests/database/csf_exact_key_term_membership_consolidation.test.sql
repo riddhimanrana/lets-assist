@@ -2,7 +2,7 @@ BEGIN;
 
 CREATE EXTENSION IF NOT EXISTS pgtap WITH SCHEMA extensions;
 
-SELECT extensions.plan(18);
+SELECT extensions.plan(26);
 
 SELECT extensions.ok(
   NOT has_function_privilege(
@@ -374,6 +374,135 @@ SELECT extensions.ok(
     '$.conflicts[*] ? (@.type == "term_membership")'
   ),
   'the preview retains the term-membership conflict when outcomes differ'
+);
+
+INSERT INTO plugin_data.csf_sheet_import_jobs (
+  id, organization_id, mode, status, source_type, source_file_id
+) VALUES (
+  'da300000-0000-4000-8000-000000000002',
+  'da100000-0000-4000-8000-000000000001',
+  'preview', 'completed', 'class_history', 'official-class-workbook'
+);
+INSERT INTO plugin_data.csf_sheet_import_rows (
+  id, organization_id, job_id, sheet_tab_name, row_number,
+  normalized_data, import_status
+) VALUES (
+  'da400000-0000-4000-8000-000000000005',
+  'da100000-0000-4000-8000-000000000001',
+  'da300000-0000-4000-8000-000000000001',
+  'F36', 20,
+  '{"identity":{"firstName":"Legacy","lastName":"Coordinate"}}',
+  'created'
+);
+INSERT INTO plugin_data.csf_profiles (
+  id, organization_id, first_name, last_name,
+  normalized_first_name, normalized_last_name, source_summary
+) VALUES
+  (
+    'da500000-0000-4000-8000-000000000005',
+    'da100000-0000-4000-8000-000000000001',
+    'Legacy', 'Coordinate', 'legacy', 'coordinate',
+    '{"importedFrom":"csf_sheet_sync","importRowId":"da400000-0000-4000-8000-000000000005"}'
+  ),
+  (
+    'da500000-0000-4000-8000-000000000006',
+    'da100000-0000-4000-8000-000000000001',
+    'Legacy', 'Coordinate', 'legacy', 'coordinate',
+    '{"importedFrom":"csf_sheet_sync","importRowId":"da400000-0000-4000-8000-000000000006"}'
+  );
+INSERT INTO plugin_data.csf_sheet_import_rows (
+  id, organization_id, job_id, sheet_tab_name, row_number,
+  normalized_data, import_status, matched_profile_id
+) VALUES (
+  'da400000-0000-4000-8000-000000000006',
+  'da100000-0000-4000-8000-000000000001',
+  'da300000-0000-4000-8000-000000000002',
+  'F36', 20,
+  '{"identity":{"firstName":"Legacy","lastName":"Coordinate","sourceStudentKey":"LegacyCoordinate"}}',
+  'created', 'da500000-0000-4000-8000-000000000006'
+);
+INSERT INTO plugin_data.csf_profile_cohort_memberships (
+  organization_id, profile_id, cohort_id, status
+) VALUES
+  ('da100000-0000-4000-8000-000000000001', 'da500000-0000-4000-8000-000000000005', 'da200000-0000-4000-8000-000000000001', 'active'),
+  ('da100000-0000-4000-8000-000000000001', 'da500000-0000-4000-8000-000000000006', 'da200000-0000-4000-8000-000000000001', 'active');
+INSERT INTO plugin_data.csf_term_memberships (
+  id, organization_id, profile_id, term_id, cohort_id, status, completed_at
+) VALUES
+  ('da600000-0000-4000-8000-000000000005', 'da100000-0000-4000-8000-000000000001', 'da500000-0000-4000-8000-000000000005', 'da210000-0000-4000-8000-000000000001', 'da200000-0000-4000-8000-000000000001', 'completed', now()),
+  ('da600000-0000-4000-8000-000000000006', 'da100000-0000-4000-8000-000000000001', 'da500000-0000-4000-8000-000000000006', 'da210000-0000-4000-8000-000000000001', 'da200000-0000-4000-8000-000000000001', 'completed', now());
+INSERT INTO plugin_data.csf_meeting_attendance (
+  id, organization_id, profile_id, term_id, meeting_key, meeting_label,
+  status, source
+) VALUES
+  ('da800000-0000-4000-8000-000000000001', 'da100000-0000-4000-8000-000000000001', 'da500000-0000-4000-8000-000000000005', 'da210000-0000-4000-8000-000000000001', 'november-meeting', 'November meeting', 'attended', 'sheet'),
+  ('da800000-0000-4000-8000-000000000002', 'da100000-0000-4000-8000-000000000001', 'da500000-0000-4000-8000-000000000006', 'da210000-0000-4000-8000-000000000001', 'november-meeting', 'November meeting', 'attended', 'sheet');
+
+SELECT extensions.ok(
+  plugin_data.csf_profiles_share_class_source_key(
+    'da100000-0000-4000-8000-000000000001',
+    'da500000-0000-4000-8000-000000000005',
+    'da500000-0000-4000-8000-000000000006'
+  ),
+  'a later committed row contributes a key only to the same legacy coordinate'
+);
+SELECT extensions.ok(
+  (plugin_data.csf_profile_merge_preview(
+    'da100000-0000-4000-8000-000000000001',
+    'da500000-0000-4000-8000-000000000005',
+    'da500000-0000-4000-8000-000000000006'
+  )->>'canMerge')::boolean,
+  'identical term and meeting outcomes are mergeable with coordinate proof'
+);
+SELECT extensions.is(
+  plugin_data.csf_profile_merge_preview(
+    'da100000-0000-4000-8000-000000000001',
+    'da500000-0000-4000-8000-000000000005',
+    'da500000-0000-4000-8000-000000000006'
+  )->>'consolidatedMeetingAttendance',
+  '1',
+  'the preview reports one identical attendance row to consolidate'
+);
+SELECT extensions.is(
+  plugin_data.csf_merge_profiles(
+    'da100000-0000-4000-8000-000000000001',
+    'da500000-0000-4000-8000-000000000005',
+    'da500000-0000-4000-8000-000000000006',
+    'Same official source coordinate and identical imported outcomes.',
+    'da000000-0000-4000-8000-000000000001',
+    'da700000-0000-4000-8000-000000000002'
+  )->>'consolidatedMeetingAttendance',
+  '1',
+  'the request-aware merge reports one attendance consolidation'
+);
+SELECT extensions.is(
+  (SELECT record_status FROM plugin_data.csf_profiles WHERE id = 'da500000-0000-4000-8000-000000000005'),
+  'merged',
+  'the legacy coordinate profile becomes a merge tombstone'
+);
+SELECT extensions.is(
+  (SELECT count(*)::integer FROM plugin_data.csf_meeting_attendance WHERE organization_id = 'da100000-0000-4000-8000-000000000001' AND term_id = 'da210000-0000-4000-8000-000000000001' AND meeting_key = 'november-meeting' AND profile_id IN ('da500000-0000-4000-8000-000000000005','da500000-0000-4000-8000-000000000006')),
+  1,
+  'one canonical meeting-attendance row remains'
+);
+SELECT extensions.is(
+  (SELECT count(*)::integer FROM plugin_data.csf_term_memberships WHERE organization_id = 'da100000-0000-4000-8000-000000000001' AND term_id = 'da210000-0000-4000-8000-000000000001' AND profile_id IN ('da500000-0000-4000-8000-000000000005','da500000-0000-4000-8000-000000000006')),
+  1,
+  'one canonical term-membership row remains for the coordinate pair'
+);
+SELECT extensions.ok(
+  EXISTS (
+    SELECT 1
+    FROM plugin_data.csf_profile_merge_meeting_attendance_consolidations AS evidence
+    JOIN plugin_data.csf_profile_merge_reviews AS review
+      ON review.id = evidence.merge_review_id
+    WHERE evidence.source_profile_id = 'da500000-0000-4000-8000-000000000005'
+      AND evidence.target_profile_id = 'da500000-0000-4000-8000-000000000006'
+      AND evidence.source_snapshot ->> 'status' = 'attended'
+      AND evidence.target_snapshot ->> 'status' = 'attended'
+      AND review.status = 'approved'
+  ),
+  'private evidence retains both attendance rows and the approved review'
 );
 
 SELECT * FROM extensions.finish();

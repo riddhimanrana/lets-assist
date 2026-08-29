@@ -31,6 +31,8 @@ INSERT INTO expected_csf_profile_fk_references (reference) VALUES
   ('csf_profile_merge_reviews.target_profile_id'),
   ('csf_profile_merge_term_membership_consolidations.source_profile_id'),
   ('csf_profile_merge_term_membership_consolidations.target_profile_id'),
+  ('csf_profile_merge_meeting_attendance_consolidations.source_profile_id'),
+  ('csf_profile_merge_meeting_attendance_consolidations.target_profile_id'),
   ('csf_profile_activity_events.profile_id'),
   ('csf_admin_audit_events.actor_profile_id'),
   ('csf_opportunity_signups.profile_id'),
@@ -69,8 +71,8 @@ WHERE constraint_row.contype = 'f'
 
 SELECT extensions.is(
   (SELECT pg_catalog.count(*)::integer FROM actual_csf_profile_fk_references),
-  29,
-  'the exact current schema has twenty-nine logical FK columns that reference CSF profiles'
+  31,
+  'the exact current schema has thirty-one logical FK columns that reference CSF profiles'
 );
 SELECT extensions.ok(
   NOT EXISTS (
