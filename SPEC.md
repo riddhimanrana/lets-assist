@@ -69,6 +69,8 @@ V34: proof control → native one-file FormData + shadcn Attachment presentation
 V35: point claim form → compact mobile-first fields + fixed dialog header/footer outside the scrolling field body + keyboard/focus/reduced-motion support; existing authorization, proof lifecycle, retry/reconciliation, review semantics, and FormData names unchanged.
 V36: member point claim context → current term from authorized member class context + hidden stable `termId`; missing current context disables submission; historical-term fallback and member-facing semester selector ⊥; server revalidation remains authoritative.
 V37: class-scoped activity/post compose → class + current class term inherited from class workspace; redundant audience/class/semester selectors ⊥; broad officer compose may keep explicit scope controls when no class context exists.
+V38: linked activity point claim → authorized current-term activity supplies exact configured point value + type; member credit controls ⊥; hidden stable FormData retained; mutation rejects changed or invalid configured credit.
+V39: class activity/announcement compose → empty text entry fields carry no example placeholder copy; unavailable scheduling explainer ⊥; valid scheduling and scheduled-post recovery contracts remain.
 
 §T
 
@@ -88,6 +90,7 @@ T12|x|simplify member entry/My CSF + correct point-claim defaults + separate she
 T13|~~|replace the legacy CSF member card tour, add the officer tour, polish join/profile-match transitions, and harden application/point review interaction states|V17,V26,V27,V28,V29,V30,V31,I.route,I.service,I.cmd
 T14|x|redesign point claim source pickers, searchable Activity/Club choice, Other path, and shadcn Attachment proof UI|V17,V32,V33,V34,V35,I.form,I.cmd
 T15|x|infer member point and class-scoped compose context; remove redundant class/semester controls|V17,V25,V36,V37,I.form,I.route,I.cmd
+T16|x|auto-apply linked activity credit and remove compose filler/scheduling notice|V17,V32,V33,V35,V36,V38,V39,I.form,I.cmd
 
 §B
 
