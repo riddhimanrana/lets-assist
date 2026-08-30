@@ -4,7 +4,7 @@ DVHS CSF officer UX → class-first Home → Classes → Applications → More; 
 
 §C
 
-- Base root `fe749b3d`; private gitlink `e9e86fe4`; Production ⊥.
+- Base root `52d623f3`; private gitlink `8cb12dd`; Production ⊥.
 - UI says `Class`; existing `cohort` schema identifiers stay.
 - Stable profile + graduation class; term application/import alone activates term membership.
 - Public organization page exposes join/claim entry only; class Stream/Activities/membership content requires authenticated authorized class access.
@@ -74,6 +74,7 @@ V39: class activity/announcement compose → empty text entry fields carry no ex
 V40: linked member without accepted current-term membership → class Feed + one truthful review/setup notice; points rail + agenda + member workflow links + first-use tour + their backing reads ⊥; refused/closed states never described as processing.
 V41: post email acceptance → browser publication receipt + frozen positive audience + durable queued campaign + worker dispatch + local mailbox receipt; Development Resend proof uses synthetic `@resend.dev` only; queue ≠ delivery and student provider sends ⊥.
 V42: officer member correction → class Members uses the semester already selected in the class header and exposes identity, account, points, meetings, and semester standing in one compact roster; permitted edits use narrow audited saves and accepted status still runs the application decision transaction; a separate semester-management flow or raw bulk overwrite ⊥.
+V43: My CSF → profile identity + graduation class + current-semester service-point, activity, and attended-meeting totals + semester tabs containing exact activity names, meeting labels, attendance, credits, and submissions; application/eligibility/dues tracker and duplicate application actions ⊥. Exact verified-account join match → “Is this you?” profile preview + bounded recent activity names and points + one confirmation action; five-step progress tracker and account-status card ⊥. Name-only candidate activity disclosure and automatic connection ⊥.
 
 §T
 
@@ -96,6 +97,7 @@ T15|x|infer member point and class-scoped compose context; remove redundant clas
 T16|x|auto-apply linked activity credit and remove compose filler/scheduling notice|V17,V32,V33,V35,V36,V38,V39,I.form,I.cmd
 T17|x|reduce pending-member Home to Feed/status and prove post email dispatch|V7,V13,V17,V25,V28,V30,V40,V41,I.route,I.service,I.cmd
 T18|x|make class member records spreadsheet-like with selected-semester standing and direct audited edits; verify approval, appeal, officer, and pending-member flows with synthetic browser evidence|V4,V11,V17,V20,V26,V31,V40,V42,I.route,I.service,I.cmd
+T19|x|replace the My CSF application tracker with a semester profile and reduce class joining to safe profile confirmation; verify exact activity, meeting, and point history on desktop and mobile fictional fixtures|V17,V23,V25,V26,V27,V43,I.route,I.service,I.cmd
 
 §B
 
