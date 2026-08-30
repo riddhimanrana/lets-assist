@@ -165,6 +165,18 @@ This register separates actionable repository defects from provider/account and 
   900 local MP4 records member matching, pending review, officer decisions,
   point review, and linked workbook preparation without names, emails, join
   codes, comments, or evidence.
+- The scale-hardening candidate groups Officer Home and My CSF into one
+  permission-checked database read per surface. Class settings resolves every
+  term readiness state in one call. Point submissions and appeals use stable
+  keyset pages with 25 unresolved and 50 settled records, while proof links are
+  signed only for the selected claim. Member selectors search after two
+  characters and return at most 20 profiles. Feed posts include three reply
+  previews and load older replies on request. The forward migration adds the
+  supporting partial and prefix indexes and leaves each new function
+  executable only by `service_role`. Local evidence includes a fresh migration
+  replay, 26 focused pgTAP assertions, 120 focused private test cases,
+  TypeScript, zero-warning lint, and source-organization checks. Hosted
+  Development and Production were not changed.
 
 ## Class member count scoping repair, 2026-08-24
 

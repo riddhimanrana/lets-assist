@@ -119,7 +119,7 @@ T20|x|repair compact and damaged historical identity headers; put club, proof, a
 T21|x|remove legacy name-only linking; rate-limit join/search; align current onboarding and Class 2030 docs|V5,V17,V23,V27,V43,V45,I.route,I.service,I.db,I.cmd
 T22|x|add class workbook registry, revision leases, changed-version preparation queue, and worker|V14,V17,V20,V22,V24,V46,I.service,I.db,I.cmd
 T23|x|add count-only batch approval and idempotent 50-row background import commits|V14,V17,V20,V23,V24,V31,V47,I.service,I.db,I.cmd
-T24|.|group Home/settings reads; page point/appeal queues; bound proof, profile search, and replies|V3,V9,V13,V19,V31,V42,V43,V48,I.service,I.perf,I.cmd
+T24|x|group Home/settings reads; page point/appeal queues; bound proof, profile search, and replies|V3,V9,V13,V19,V31,V42,V43,V48,I.service,I.perf,I.cmd
 T25|.|rotate Resend webhook safely; raise bounded dispatch throughput; split runtime secrets and add alerts|V14,V17,V41,V49,V50,I.service,I.cmd
 T26|.|add 1,000-member/100-session acceptance, require full CI gates, merge private first, and stage Development|V15,V17,V18,V19,V41,V51,I.perf,I.cmd
 
