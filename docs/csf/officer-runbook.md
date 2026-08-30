@@ -139,11 +139,11 @@ Notes are officer-only and redactable, never deletable. Every correction writes 
 
 ### Point submissions
 
-1. Open the submission and inspect the selected activity/club, claimed numeric points, and proof access.
+1. Open the submission and inspect the selected activity or club, member description, claimed points, configured point rule, proof, and any existing appeal. A partner-club claim also shows the club's review state and saved spreadsheet reference.
 2. Request correction, reject, adjust, or approve with the required reason.
 3. An Activity Coordinator may verify participation but cannot perform final point processing unless separately granted.
 4. Verify the awarded quantity in the member's My CSF view. Multiple points are one numeric award, not repeated one-point rows.
-5. Process an appeal as a separate reasoned decision; do not edit the original decision out of history.
+5. Process an open appeal from the same evidence panel as a separate reasoned decision; do not edit the original decision out of history.
 
 Every submit/proof-finalize/withdraw/review/appeal action rechecks current account ownership or reviewer permission, open semester, active membership, published policy, source relationship, cap, class, and finalized proof as applicable. If any of those changed, reload and resolve the current blocker instead of retrying from an older page.
 

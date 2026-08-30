@@ -4,7 +4,7 @@ DVHS CSF officer UX → class-first Home → Classes → Applications → More; 
 
 §C
 
-- Base root `52d623f3`; private gitlink `8cb12dd`; Production ⊥.
+- Base root `bd1b79b9`; private gitlink `3c34b91d`; Production ⊥.
 - UI says `Class`; existing `cohort` schema identifiers stay.
 - Stable profile + graduation class; term application/import alone activates term membership.
 - Public organization page exposes join/claim entry only; class Stream/Activities/membership content requires authenticated authorized class access.
@@ -25,6 +25,7 @@ route: public organization → class cards → join code + sign-in/claim flow
 service: class loader → explicit `{organizationId, cohortId, termId}`
 service: public class loader → safe class identity + join eligibility metadata only
 service: CSF tour completion → authenticated server action + organization/role/version key
+service: officer point review → member claim + canonical activity/club + proof + club review + appeal history
 form: point claim → stable `sourceKind|opportunityId|partnerClubTermId|description|termId|pointType|claimedPoints|activityDate|evidence` FormData contract
 perf: CSF route response → active route-family component graph only; unrelated client references ⊥
 db: stable class join code → organization + cohort + code digest + lifecycle; direct invitations unchanged
@@ -75,6 +76,7 @@ V40: linked member without accepted current-term membership → class Feed + one
 V41: post email acceptance → browser publication receipt + frozen positive audience + durable queued campaign + worker dispatch + local mailbox receipt; Development Resend proof uses synthetic `@resend.dev` only; queue ≠ delivery and student provider sends ⊥.
 V42: officer member correction → class Members uses the semester already selected in the class header and exposes identity, account, points, meetings, and semester standing in one compact roster; permitted edits use narrow audited saves and accepted status still runs the application decision transaction; a separate semester-management flow or raw bulk overwrite ⊥.
 V43: My CSF → profile identity + graduation class + current-semester service-point, activity, and attended-meeting totals + semester tabs containing exact activity names, meeting labels, attendance, credits, and submissions; application/eligibility/dues tracker and duplicate application actions ⊥. Exact verified-account join match → “Is this you?” profile preview + bounded recent activity names and points + one confirmation action; five-step progress tracker and account-status card ⊥. Name-only candidate activity disclosure and automatic connection ⊥.
+V44: class-history identity columns → standard spaced or compact first/last headers; one damaged identity header may be inferred only from one unclaimed pre-key column in a class-history source; application inference and explicit `not_mapped` override ⊥. Officer point review → canonical activity or club, member description, configured point rule, proof, club review state, sheet reference, and appeal history stay beside the decision; an open appeal can be decided there. Member personal-calendar connection UI and member-route calendar read ⊥.
 
 §T
 
@@ -98,6 +100,7 @@ T16|x|auto-apply linked activity credit and remove compose filler/scheduling not
 T17|x|reduce pending-member Home to Feed/status and prove post email dispatch|V7,V13,V17,V25,V28,V30,V40,V41,I.route,I.service,I.cmd
 T18|x|make class member records spreadsheet-like with selected-semester standing and direct audited edits; verify approval, appeal, officer, and pending-member flows with synthetic browser evidence|V4,V11,V17,V20,V26,V31,V40,V42,I.route,I.service,I.cmd
 T19|x|replace the My CSF application tracker with a semester profile and reduce class joining to safe profile confirmation; verify exact activity, meeting, and point history on desktop and mobile fictional fixtures|V17,V23,V25,V26,V27,V43,I.route,I.service,I.cmd
+T20|x|repair compact and damaged historical identity headers; put club, proof, and appeal evidence in the point queue; open applications by application subject; remove the member calendar connection|V17,V20,V23,V31,V44,I.route,I.service,I.cmd
 
 §B
 
@@ -123,3 +126,4 @@ B18|2026-08-25|identity-only class review offered a large annotation-model call;
 B19|2026-08-29|pending linked members rendered approved-member tools and fetched their data; post browser acceptance stopped at queue creation before worker/mailbox proof|V40,V41
 B20|2026-08-29|class member edits hid semester standing behind a separate profile path, used the globally current semester instead of the class-selected semester, and left point appeals outside Applications|V11,V42
 B21|2026-08-30|soft App Router tab changes removed visible CSF content but retained each detached review tree and its listeners, causing linear renderer growth|V19
+B22|2026-08-30|application rows opened by profile id instead of application subject id; compact historical identity headers blocked populated tabs; point decisions split club and appeal evidence across workspaces|V31,V44
