@@ -46,6 +46,7 @@
     "@/components/ui/accordion",
     "@/components/ui/alert",
     "@/components/ui/alert-dialog",
+    "@/components/ui/attachment",
     "@/components/ui/avatar",
     "@/components/ui/badge",
     "@/components/ui/button",

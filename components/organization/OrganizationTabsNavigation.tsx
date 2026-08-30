@@ -60,6 +60,7 @@ type Props = {
   hasActiveMoreTab: boolean;
   activeTab: string;
   getTabHref: (value: string) => string;
+  fullDocumentTabNavigation: boolean;
 };
 
 export function OrganizationTabsNavigation(props: Props) {
@@ -86,9 +87,12 @@ export function OrganizationTabsNavigation(props: Props) {
     hasActiveMoreTab,
     activeTab,
     getTabHref,
+    fullDocumentTabNavigation,
   } = props;
 
   const activeMoreTab = hasActiveMoreTab;
+  const renderNavigationAnchor = (href: string) =>
+    fullDocumentTabNavigation ? <a href={href} /> : <Link href={href} />;
 
   return (
     <div
@@ -260,7 +264,7 @@ export function OrganizationTabsNavigation(props: Props) {
                 return (
                   <DropdownMenuItem
                     key={pt.value}
-                    render={<Link href={getTabHref(pt.value)} />}
+                    render={renderNavigationAnchor(getTabHref(pt.value))}
                     aria-current={isActive ? "page" : undefined}
                     className="justify-between"
                   >

@@ -655,7 +655,7 @@ test.describe("signup email PKCE round trip", () => {
         page.getByRole("heading", { name: "Connect your CSF record" }),
       ).toBeVisible();
       await expect(
-        page.getByRole("button", { name: "Add profile details", exact: true }),
+        page.getByRole("button", { name: "Find my record", exact: true }),
       ).toBeVisible();
 
       expect(

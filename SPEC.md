@@ -51,9 +51,9 @@ V16: old CSF deep links retain compatible redirect/mapping during migration.
 V17: no real attached row value enters migration, fixture, test, screenshot, log, prompt, or committed artifact.
 V18: private feature implementation may use `codex/*`; strict branch containment runs only after private commit merges to private `development` + root gitlink advances.
 V19: ∀ CSF route response → exactly one active route-family section; unrelated route client component references and repeated-navigation renderer growth ⊥.
-V20: historical class source discovery → every populated term-coded tab mapped once with exact term, range, header, class, fills, notes; empty/template/unrecognized tabs disclosed and skipped.
+V20: linked historical class workbook → every term-coded tab discovered with exact term, range, header, class, fills, notes, and populated/template state; a changed Drive version prepares newly populated tabs on the next authorized class Settings/Home read; officer commit remains explicit; unrecognized tabs disclosed and skipped.
 V21: legacy class activity slots → explicit mapping mode only; each populated slot = 1 point; repeated normalized labels aggregate; generic plain-label fallback ⊥.
-V22: application analysis → deterministic header-only mapping + current-selection result guard + manual fallback; student-row model input ⊥.
+V22: application analysis → deterministic header-only mapping first; incomplete mapping may request one tracked AI proposal containing bounded headers, column indexes, and redacted type/shape signals only; server validates the proposal against the current workbook, current-selection guard rejects stale results, manual fallback remains; student-row value, name, email, response, evidence, note, or comment model input ⊥.
 V23: import identity → validated canonical email may auto-match; name-only candidate remains officer decision; one profile reused across distinct term tabs; same-term duplicate writes ⊥.
 V24: import read path → one workbook parse/request, bounded diagnostics text, one authorized readiness RPC/load.
 V25: member entry → accessible six-character class-code control; My CSF duplicate Activities/Submissions actions ⊥; point claim inherits current class semester with no member-facing class/semester control; identity-only review never invokes annotation AI.
@@ -86,11 +86,11 @@ T5|x|add safe public class cards/Stream/Activities + publication contracts|V6,V7
 T6|~~|consolidate Applications/Appeals/Meetings/More + remove redundant entry points|V1,V10,V11,V12,V16,I.route
 T7|~~|harden fixture target fences + add DB/unit/component/browser/privacy coverage|V3,V4,V5,V6,V7,V8,V9,V11,V12,V13,V14,V15,V16,V17,I.cmd
 T8|~~|run full gates, commit private first, merge/checkout private development, advance root gitlink, record exact evidence|V14,V15,V17,V18,I.cmd
-T9|~~|isolate CSF route rendering, add regression coverage, and prove bounded repeated-navigation renderer footprint|V13,V19,I.perf,I.cmd
+T9|x|isolate CSF route rendering, add regression coverage, and prove bounded repeated-navigation renderer footprint|V13,V19,I.perf,I.cmd
 T10|x|replace public class content with join/sign-in/claim flow + authenticated class-content authorization|V4,V5,V6,V7,V13,V14,V16,V17,I.route,I.service,I.db
-T11|~~|repair class/application imports + all-term discovery + comments + profile reconciliation + read performance|V4,V12,V14,V17,V20,V21,V22,V23,V24,I.service,I.db,I.cmd
+T11|x|repair class/application imports + all-term discovery + comments + profile reconciliation + read performance|V4,V12,V14,V17,V20,V21,V22,V23,V24,I.service,I.db,I.cmd
 T12|x|simplify member entry/My CSF + correct point-claim defaults + separate sheet-marking and identity review|V5,V17,V23,V25,I.route,I.service,I.cmd
-T13|~~|replace the legacy CSF member card tour, add the officer tour, polish join/profile-match transitions, and harden application/point review interaction states|V17,V26,V27,V28,V29,V30,V31,I.route,I.service,I.cmd
+T13|x|replace the legacy CSF member card tour, add the officer tour, polish join/profile-match transitions, and harden application/point review interaction states|V17,V26,V27,V28,V29,V30,V31,I.route,I.service,I.cmd
 T14|x|redesign point claim source pickers, searchable Activity/Club choice, Other path, and shadcn Attachment proof UI|V17,V32,V33,V34,V35,I.form,I.cmd
 T15|x|infer member point and class-scoped compose context; remove redundant class/semester controls|V17,V25,V36,V37,I.form,I.route,I.cmd
 T16|x|auto-apply linked activity credit and remove compose filler/scheduling notice|V17,V32,V33,V35,V36,V38,V39,I.form,I.cmd
@@ -120,3 +120,4 @@ B17|2026-08-24|multi-term history could not reuse one explicit source plan, prod
 B18|2026-08-25|identity-only class review offered a large annotation-model call; the 15-second cutoff hid the wrong routing and the provider later returned no structured output|V23,V25
 B19|2026-08-29|pending linked members rendered approved-member tools and fetched their data; post browser acceptance stopped at queue creation before worker/mailbox proof|V40,V41
 B20|2026-08-29|class member edits hid semester standing behind a separate profile path, used the globally current semester instead of the class-selected semester, and left point appeals outside Applications|V11,V42
+B21|2026-08-30|soft App Router tab changes removed visible CSF content but retained each detached review tree and its listeners, causing linear renderer growth|V19

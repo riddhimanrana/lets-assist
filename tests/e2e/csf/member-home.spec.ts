@@ -261,12 +261,12 @@ test.describe("member Home class feed", () => {
 
       const connectCard = page
         .locator('[data-slot="card"]')
-        .filter({ hasText: "Connect student record" })
+        .filter({ hasText: "Join a class" })
         .first();
       await expect(connectCard).toBeVisible();
       await expect(
         connectCard.getByText(
-          "Enter the six-character code for your graduation class.",
+          "Enter the six-character code an officer shared with you.",
         ),
       ).toBeVisible();
 

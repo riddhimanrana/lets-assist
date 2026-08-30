@@ -118,6 +118,40 @@ This register separates actionable repository defects from provider/account and 
   application and decision pgTAP coverage passes 75 assertions, TypeScript and
   zero-warning lint pass, and the full local migration replay passes. No
   Production resource was read or changed for this extension.
+- The 2026-08-30 candidate keeps one linked workbook per class and records both
+  populated and header-only canonical semester tabs. Linking prepares every
+  populated tab without committing it. Authorized Home and Settings reads
+  compare the saved Drive version once per browser session and prepare changed
+  tabs as an officer task. Header-only future tabs stay linked as templates and
+  create no profiles or participation records.
+- Application mapping now uses deterministic aliases first. A model proposal
+  is allowed only for an incomplete header match, receives bounded headers and
+  redacted column type counts, and is checked against the workbook's real tab,
+  row, and column bounds before display. Local evidence includes 2,111 private
+  plugin tests, a fresh 414-migration replay with 6,393 pgTAP assertions, the
+  CSF database workflow suite, TypeScript, zero-warning lint, source
+  organization, and synthetic browser checks for the member feed, combined
+  semester history, application review, and officer task views. Hosted
+  Development linking and acceptance remain pending. No Production resource
+  was read or changed.
+- Repeated soft navigation between Classes and Applications retained detached
+  route trees even though only one panel remained visible. A measured 25-step
+  loop grew from 101.7 MB to 827.4 MB, 45,627 to 424,442 DOM nodes, and 12,182
+  to 110,312 listeners. The host now offers an explicit full-document tab mode,
+  enabled only by the CSF workspace. The same loop completes without a crash,
+  settles every warm transition below 2.23 seconds, and ends at 76 percent of
+  the post-first-cycle heap baseline. Generic organization tabs keep client
+  navigation.
+- Private plugin PRs #214, #215, and #216 are merged to private `development`
+  at `8cb12dd`. PR #216 gives the class creation action a stable React key; the
+  member directory then loaded without a browser console error. The final
+  compiled isolated browser sweep passed all 81 enabled journeys with four
+  expected opt-in evidence skips. Strict plugin verification, TypeScript,
+  zero-warning lint, the focused host navigation tests, and the isolated
+  production build also pass on the exact candidate tree. A sanitized 1440 by
+  900 local MP4 records member matching, pending review, officer decisions,
+  point review, and linked workbook preparation without names, emails, join
+  codes, comments, or evidence.
 
 ## Class member count scoping repair, 2026-08-24
 

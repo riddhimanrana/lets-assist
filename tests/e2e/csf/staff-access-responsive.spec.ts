@@ -67,7 +67,7 @@ async function withdrawSyntheticSubmission(
   let durable = await loadSyntheticSubmission(fixture, description);
 
   while (!durable && Date.now() < deadline) {
-    const dialog = page.getByRole("dialog");
+    const dialog = page.getByRole("dialog", { name: "Submit points" });
     const actionSettledWithoutWrite =
       (await dialog.isVisible().catch(() => false)) &&
       (await dialog.locator("form").getAttribute("aria-busy")) !== "true" &&
@@ -192,7 +192,7 @@ test.describe("DVHS CSF staff access presentation", () => {
       .first();
     await expect(revoke).toHaveAccessibleName(/^Revoke .+ access$/);
     await revoke.click();
-    const dialog = page.getByRole("dialog");
+    const dialog = page.getByRole("dialog", { name: "Revoke staff access" });
     await expect(
       dialog.getByRole("heading", { name: "Revoke staff access", exact: true }),
     ).toBeVisible();
@@ -258,8 +258,11 @@ test.describe("DVHS CSF proof submission", () => {
     await page
       .getByRole("button", { name: "Submit points", exact: true })
       .click();
-    const dialog = page.getByRole("dialog");
-    const proof = dialog.getByLabel("One proof file");
+    const dialog = page.getByRole("dialog", { name: "Submit points" });
+    const proof = dialog.getByRole("button", {
+      name: "Proof file",
+      exact: true,
+    });
     await expect(proof).toBeVisible();
 
     // The constraints are associated with the input, not merely nearby.
@@ -329,24 +332,23 @@ test.describe("DVHS CSF proof submission", () => {
     await page
       .getByRole("button", { name: "Submit points", exact: true })
       .click();
-    const dialog = page.getByRole("dialog");
+    const dialog = page.getByRole("dialog", { name: "Submit points" });
     const form = dialog.locator("form");
     await expect(form).not.toHaveAttribute("aria-busy", "true");
 
-    await dialog.getByLabel("One proof file").setInputFiles({
-      name: "service-proof.png",
-      mimeType: "image/png",
-      buffer: Buffer.from(
-        "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=",
-        "base64",
-      ),
-    });
     await dialog
-      .getByRole("combobox", { name: "Activity", exact: true })
-      .click();
+      .getByRole("button", { name: "Proof file", exact: true })
+      .setInputFiles({
+        name: "service-proof.png",
+        mimeType: "image/png",
+        buffer: Buffer.from(
+          "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=",
+          "base64",
+        ),
+      });
+    await dialog.getByRole("combobox", { name: /^Activity:/ }).click();
     await page.getByRole("option", { name: /Library Peer Tutoring/ }).click();
-    // Exact, so "Point type" and "Point source" cannot also match.
-    await dialog.getByLabel("Points", { exact: true }).fill("1");
+    await expect(dialog.getByText("Credit 1 non-drive point")).toBeVisible();
     await dialog.getByLabel("Description").fill(description);
 
     let submissionWithdrawn = false;

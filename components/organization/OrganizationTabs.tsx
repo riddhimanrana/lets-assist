@@ -55,6 +55,11 @@ type OrganizationMember = {
     | null;
 };
 
+function navigateWithFullDocument(href: string) {
+  // This opt-in releases retained plugin route trees after heavy review pages.
+  window.location.assign(href);
+}
+
 type OrganizationWithWebsite = Organization & {
   website?: string | null;
   created_at?: string | null;
@@ -134,6 +139,11 @@ export default function OrganizationTabs({
       pluginNavigationOverrides.tabAliases,
     ),
   );
+  const [navigationHydrated, setNavigationHydrated] = useState(false);
+
+  useEffect(() => {
+    setNavigationHydrated(true);
+  }, []);
   const rolePriority = { public: 0, member: 1, staff: 2, admin: 3 } as const;
   const viewerPriority =
     userRole === "admin" || userRole === "staff" || userRole === "member"
@@ -350,6 +360,10 @@ export default function OrganizationTabs({
     );
     const routeHref = routeBackedTabs.get(canonicalValue);
     if (routeHref) {
+      if (pluginNavigationOverrides.fullDocumentTabNavigation) {
+        navigateWithFullDocument(routeHref);
+        return;
+      }
       router.push(routeHref);
       return;
     }
@@ -359,7 +373,12 @@ export default function OrganizationTabs({
       params.delete(key);
     }
     params.set("tab", canonicalValue);
-    router.replace(`?${params.toString()}`, { scroll: false });
+    const nextHref = `?${params.toString()}`;
+    if (pluginNavigationOverrides.fullDocumentTabNavigation) {
+      navigateWithFullDocument(nextHref);
+      return;
+    }
+    router.replace(nextHref, { scroll: false });
   };
 
   const getTabHref = (value: string) => {
@@ -383,7 +402,11 @@ export default function OrganizationTabs({
       <DropdownMenuItem
         key={`section-${destination.value}`}
         render={
-          <Link href={destination.href ?? getTabHref(destination.value)} />
+          pluginNavigationOverrides.fullDocumentTabNavigation ? (
+            <a href={destination.href ?? getTabHref(destination.value)} />
+          ) : (
+            <Link href={destination.href ?? getTabHref(destination.value)} />
+          )
         }
         aria-current={isActive ? "page" : undefined}
         className="justify-between"
@@ -444,6 +467,7 @@ export default function OrganizationTabs({
 
   return (
     <Tabs
+      data-organization-tabs-hydrated={navigationHydrated}
       defaultValue="overview"
       value={activeTab}
       onValueChange={handleTabChange}
@@ -472,6 +496,9 @@ export default function OrganizationTabs({
         hasActiveMoreTab={Boolean(activeMoreTab)}
         activeTab={activeTab}
         getTabHref={getTabHref}
+        fullDocumentTabNavigation={Boolean(
+          pluginNavigationOverrides.fullDocumentTabNavigation,
+        )}
       />
 
       {!pluginNavigationOverrides.hideOverviewTab &&
