@@ -89,7 +89,7 @@ describe("CSF cohort import documentation truthfulness guards", () => {
     );
   });
 
-  test("the operator import scope is limited to Classes of 2027 through 2029", () => {
+  test("the operator import scope covers Classes of 2027 through 2030", () => {
     const sourceOrder = between(
       operatorGuide,
       "## Import the reviewed Fall 2026 starting records",
@@ -140,8 +140,12 @@ describe("CSF cohort import documentation truthfulness guards", () => {
       "### 10.3 Student rollout",
     );
     expect(legacySeed).toContain("Class of 2026 is out of scope");
-    expect(legacySeed).toContain("template-only Class of 2030 workbook");
-    expect(legacySeed).toContain("new application cycle");
+    expect(legacySeed).toContain(
+      "Empty Class of 2030 tabs remain linked but create no profiles",
+    );
+    expect(legacySeed).toContain(
+      "header-only future tabs remain linked as empty templates",
+    );
     expect(sourceData).toContain(
       "12th → Class of 2026 (out of scope; do not import)",
     );

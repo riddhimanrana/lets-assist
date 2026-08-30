@@ -151,23 +151,25 @@ Before publishing a code, open its `/connect/<code>` URL in a signed-out or
 private browser window and confirm it renders the student's first screen. An
 officer's signed-in session is not the student onboarding journey; never
 complete a connection on a student's behalf. A mistyped, disabled, or replaced
-code renders **This class join code is unavailable** with instructions to ask
-an officer for the current code.
+code renders **That class code did not work** with instructions to ask an
+officer for the current code.
 
 ## What the student does
 
-1. Open `/connect/<code>` from the shared code, or open the connect page —
-   headed **Student record connection** — and type the code under **Class join
-   code**. The field states the format itself: _6 letters and numbers; codes
+1. Open `/connect/<code>` from the shared code, or open **Join a class** and
+   type the code under **Join code**. The field states the format itself: _6 letters and numbers; codes
    never use O, I, 0, or 1_.
 2. Create a Let's Assist account or sign in. The signed-out entry page is
-   headed **Join or connect to CSF** and names both audiences: **Already have a
+   headed **Join a class** and names both audiences: **Already have a
    CSF record?** for returning members, and **You are new to CSF**, which
    carries the semester's application button when the current term has an
    **Application form link**.
-3. Select **Add profile details**. The dialog is titled **Find your CSF
-   record**: the student enters only the requested identity details under
-   **Student information** and selects **Find my record**.
+3. After signing in, the page is headed **Find your CSF profile**. Use **Find
+   your record**. The dialog is titled **Find your
+   CSF record**: the student enters only the requested identity details under
+   **Student information** and selects **Find my record**. If the page shows
+   **We found a CSF record. Is this you?**, **This is my record** and **Not me,
+   use my name** both send the name-only case to officer review.
 4. The server connects on exactly one automatic signal — the account's
    verified email. One active record in the code's class carrying that email
    connects atomically with recorded history; no matching record creates a new

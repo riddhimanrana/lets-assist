@@ -15,6 +15,9 @@ DVHS CSF officer UX → class-first Home → Classes → Applications → More; 
 - Private plugin commits precede root gitlink update.
 - Guided tours are presentation only; they never approve, link, award, or submit records.
 - Tour progress may live in versioned auth metadata because it controls presentation only; consequential workflow state remains server-owned and audited.
+- Scale acceptance = 1,000 fictional members + 100 concurrent active sessions; real student load fixtures ⊥.
+- Production/provider mutation requires post-Development action-time approval; code rollout never implies workbook commit or email send.
+- Application appeals remain audited officer notes; club audits remain manual point-review evidence.
 
 §I
 
@@ -30,6 +33,11 @@ form: point claim → stable `sourceKind|opportunityId|partnerClubTermId|descrip
 perf: CSF route response → active route-family component graph only; unrelated client references ⊥
 db: stable class join code → organization + cohort + code digest + lifecycle; direct invitations unchanged
 cmd: `bun run test:plugins`; `bun run typecheck`; `bun run lint`; `bun run db:validate`; focused pgTAP; `bun run build`
+service: class workbook check → leased Drive revision read → unchanged receipt | durable changed-version preparation job
+service: import approval → frozen ready-preview batch receipt → leased 50-row commit batches
+service: point/profile queue read → `{items,nextCursor,unresolvedCount}`; proof signed for selected item only
+service: communication worker → 125 attempts/minute max, 5 concurrent sends, 8 request starts/second, durable provider settlement
+perf: acceptance → 1,000 members, 100 concurrent, read p95 ≤2.5s, mutation p95 ≤3s, 5xx <0.1%
 
 §V
 
@@ -77,6 +85,13 @@ V41: post email acceptance → browser publication receipt + frozen positive aud
 V42: officer member correction → class Members uses the semester already selected in the class header and exposes identity, account, points, meetings, and semester standing in one compact roster; permitted edits use narrow audited saves and accepted status still runs the application decision transaction; a separate semester-management flow or raw bulk overwrite ⊥.
 V43: My CSF → profile identity + graduation class + current-semester service-point, activity, and attended-meeting totals + semester tabs containing exact activity names, meeting labels, attendance, credits, and submissions; application/eligibility/dues tracker and duplicate application actions ⊥. Exact verified-account join match → “Is this you?” profile preview + bounded recent activity names and points + one confirmation action; five-step progress tracker and account-status card ⊥. Name-only candidate activity disclosure and automatic connection ⊥.
 V44: class-history identity columns → standard spaced or compact first/last headers; one damaged identity header may be inferred only from one unclaimed pre-key column in a class-history source; application inference and explicit `not_mapped` override ⊥. Officer point review → canonical activity or club, member description, configured point rule, proof, club review state, sheet reference, and appeal history stay beside the decision; an open appeal can be decided there. Member personal-calendar connection UI and member-route calendar read ⊥.
+V45: class join identity → verified-email auto-link or one officer request; exported legacy name-confirm action, name-only confirmation RPC, non-null `p_confirmed_profile_id`, duplicate request, and name-only activity disclosure ⊥; account + address attempt buckets atomic.
+V46: class workbook → one organization/class registry + exact Drive revision + five-minute check lease; unchanged revision creates no tab read/preview; changed revision creates one durable preparation job; revoked owner or OAuth access blocks.
+V47: workbook approval → one officer batch freezes ready preview ids and count-only evidence; conflicted/stale previews stay blocked; each ready preview commits independently through idempotent leased batches of ≤50 rows; lost response replays receipt, never row write.
+V48: CSF reads → member Home ≤10 external reads, officer Home ≤8; unresolved point/appeal queues keyset-paged 25, history 50; profile search min 2 chars/max 20; selected proof only; feed reply preview ≤3.
+V49: communication dispatch → every minute, ≤125 attempts/run, ≤5 concurrent sends, ≤8 request starts/second; `Retry-After` preserved; 1,000 fake-provider attempts reach accepted or durable retry within 10 minutes, duplicate send ⊥.
+V50: webhook rotation → versioned secret keyring + legacy single-secret fallback; verified raw-body signature before parse; replacement endpoint settles Development test event before old endpoint disable; raw message body/storage ⊥.
+V51: scale release → 1,000 fictional members + 90 member/10 officer sessions for 15 minutes; read p95 ≤2.5s, p99 ≤5s, mutation p95 ≤3s, total error <0.5%, 5xx <0.1%, LCP <2.5s, INP <200ms, CLS <0.1, renderer crash ⊥, retained heap growth ≤20%; exact root/private SHA gates required.
 
 §T
 
@@ -101,6 +116,12 @@ T17|x|reduce pending-member Home to Feed/status and prove post email dispatch|V7
 T18|x|make class member records spreadsheet-like with selected-semester standing and direct audited edits; verify approval, appeal, officer, and pending-member flows with synthetic browser evidence|V4,V11,V17,V20,V26,V31,V40,V42,I.route,I.service,I.cmd
 T19|x|replace the My CSF application tracker with a semester profile and reduce class joining to safe profile confirmation; verify exact activity, meeting, and point history on desktop and mobile fictional fixtures|V17,V23,V25,V26,V27,V43,I.route,I.service,I.cmd
 T20|x|repair compact and damaged historical identity headers; put club, proof, and appeal evidence in the point queue; open applications by application subject; remove the member calendar connection|V17,V20,V23,V31,V44,I.route,I.service,I.cmd
+T21|x|remove legacy name-only linking; rate-limit join/search; align current onboarding and Class 2030 docs|V5,V17,V23,V27,V43,V45,I.route,I.service,I.db,I.cmd
+T22|.|add class workbook registry, revision leases, changed-version preparation queue, and worker|V14,V17,V20,V22,V24,V46,I.service,I.db,I.cmd
+T23|.|add count-only batch approval and idempotent 50-row background import commits|V14,V17,V20,V23,V24,V31,V47,I.service,I.db,I.cmd
+T24|.|group Home/settings reads; page point/appeal queues; bound proof, profile search, and replies|V3,V9,V13,V19,V31,V42,V43,V48,I.service,I.perf,I.cmd
+T25|.|rotate Resend webhook safely; raise bounded dispatch throughput; split runtime secrets and add alerts|V14,V17,V41,V49,V50,I.service,I.cmd
+T26|.|add 1,000-member/100-session acceptance, require full CI gates, merge private first, and stage Development|V15,V17,V18,V19,V41,V51,I.perf,I.cmd
 
 §B
 
@@ -127,3 +148,10 @@ B19|2026-08-29|pending linked members rendered approved-member tools and fetched
 B20|2026-08-29|class member edits hid semester standing behind a separate profile path, used the globally current semester instead of the class-selected semester, and left point appeals outside Applications|V11,V42
 B21|2026-08-30|soft App Router tab changes removed visible CSF content but retained each detached review tree and its listeners, causing linear renderer growth|V19
 B22|2026-08-30|application rows opened by profile id instead of application subject id; compact historical identity headers blocked populated tabs; point decisions split club and appeal evidence across workspaces|V31,V44
+B23|2026-08-30|legacy exported name-confirm actions and RPC could link one unique normalized-name record outside current officer-review journey|V45
+B24|2026-08-30|Officer Home reran full Drive tab reads and previews once per browser session without a revision lease|V46
+B25|2026-08-30|1,000-row import required at least 2,000 sequential PostgREST calls inside one Server Action|V47
+B26|2026-08-30|point queues signed every proof and routine staff selectors loaded the complete profile graph|V48
+B27|2026-08-30|ten-minute cron + 25 sequential sends required about 6h40m for 1,000 recipients|V49
+B28|2026-08-30|Production Resend webhook rejected every sampled delivery event because configured secret did not verify provider signatures|V50
+B29|2026-08-30|direct 1,000-row fixture benchmark did not test authenticated route concurrency, browser memory, email, or Drive|V51

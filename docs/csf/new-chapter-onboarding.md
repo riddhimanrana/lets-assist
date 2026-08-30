@@ -51,8 +51,8 @@ replace and approve them from the chapter calendar before a Production cutover.
    attention** queue before testing a new join. Never expose or export the
    member roster to perform this check.
 3. In a signed-out window, open the Class of 2028 code's `/connect/<code>` URL
-   and sign in as `student.2028@local.test`. Complete **Add profile details →
-   Find my record**; the record whose roster email matches the verified account
+   and sign in as `student.2028@local.test`. Complete **Find your record → Find
+   my record**; the record whose roster email matches the verified account
    email connects automatically. Verify **Home** and **My CSF** show the class,
    current policy, and historical semesters.
 4. Repeat with `csf.applicant@local.test`. An email that matches no class

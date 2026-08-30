@@ -118,7 +118,7 @@ const MEMBER_AND_ACCESS: LabelContract[] = [
   {
     component: "CsfClassCodeEntryForm.tsx",
     labels: [
-      "Class join code",
+      "Join code",
       "6 letters and numbers; codes never use O, I, 0, or 1",
     ],
   },
@@ -362,12 +362,12 @@ const STUDENT_JOURNEY: LabelContract[] = [
   {
     component: "CsfDashboardContentSection1Connect.tsx",
     labels: [
-      "Student record connection",
-      "Join or connect to CSF",
-      "This class join code is unavailable",
+      "Join a class",
+      "That class code did not work",
       "Already have a CSF record?",
       "You are new to CSF",
-      "Add profile details",
+      "Find your CSF profile",
+      "Find your record",
       "Find your CSF record",
       "Student information",
       "Find my record",
@@ -449,13 +449,14 @@ describe("CSF operator documentation truthfulness guards", () => {
       "CsfDashboardContentSection1Connect.tsx",
     );
     expectInOrder(connectSource, [
-      "Join or connect to CSF",
+      "Join a class",
+      "That class code did not work",
       "Already have a CSF record?",
       "You are new to CSF",
     ]);
-    expectInOrder(connectSource, ["Add profile details", "Find my record"]);
+    expectInOrder(connectSource, ["Find your CSF profile", "Find my record"]);
     const codeEntrySource = readComponent("CsfClassCodeEntryForm.tsx");
-    expect(codeEntrySource).toContain("Class join code");
+    expect(codeEntrySource).toContain("Join code");
     // The 6-character alphabet excludes the lookalikes O/I/0/1 by contract.
     expect(codeEntrySource).toContain(
       'const CSF_CLASS_CODE_PATTERN = "[A-HJ-NP-Za-hj-np-z2-9]{6}"',
@@ -476,8 +477,8 @@ describe("CSF operator documentation truthfulness guards", () => {
       "**Regenerate code**",
       "**Disable code**",
       "`/connect/<code>`",
-      "**Class join code**",
-      "**Add profile details**",
+      "**Join code**",
+      "**Find your record**",
       "**Find my record**",
       "**Needs attention**",
       "**Resolve**",

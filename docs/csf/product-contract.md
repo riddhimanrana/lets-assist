@@ -98,7 +98,7 @@ remains:
   immediately), and **Disable code**. Code state carries no send telemetry,
   and no code action emails anyone.
 - **Student journey.** A student opens the public `/connect/<code>` route or
-  enters the code in the **Class join code** form, signs in with a verified
+  enters the **Join code** on **Join a class**, signs in with a verified
   account, and submits the **Find my record** details.
   `csf_join_class_by_code` uses the verified account email as the only
   automatic signal: one active same-class email match connects atomically with
