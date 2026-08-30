@@ -428,6 +428,12 @@ export interface OrganizationNavigationBehavior {
   tabAliases?: Record<string, string>;
   /** Query parameters that should be cleared when the host navigation changes tabs. */
   transientQueryParams?: string[];
+  /**
+   * Reload the document when changing embedded organization tabs. Use this for
+   * data-heavy plugin workspaces whose server-rendered route trees should not
+   * remain in the App Router's client cache after navigation.
+   */
+  fullDocumentTabNavigation?: boolean;
 }
 
 export interface ProjectCreateAdditionalStep {

@@ -34,9 +34,11 @@ async function awaitWorkspaceChrome(
   viewportWidth: number,
 ) {
   if (viewportWidth < 640) {
-    await expect(
-      page.getByTestId("organization-section-switcher"),
-    ).toBeVisible();
+    const visibleSwitcher = page.locator(
+      '[data-testid="organization-section-switcher"]:visible',
+    );
+    await expect(visibleSwitcher).toHaveCount(1);
+    await expect(visibleSwitcher).toBeVisible();
   } else {
     await expect(
       page.getByRole("tab", { name: defaultTab, exact: true }),
@@ -80,7 +82,7 @@ test.describe("DVHS CSF accessibility acceptance", () => {
         await page.goto(CSF_PUBLIC_PATH);
         await expect(
           page.getByRole("heading", {
-            name: /DVHS CSF|Dougherty Valley High School CSF/,
+            name: /DVHS CSF|Dougherty Valley High School(?: CSF)?/,
           }),
         ).toBeVisible();
         await expectNoCriticalAxeViolations(
@@ -242,7 +244,9 @@ test.describe("DVHS CSF accessibility acceptance", () => {
     const dialog = page.getByRole("dialog");
     await expect(dialog).toBeVisible();
 
-    await dialog.getByLabel("One proof file").setInputFiles({
+    await dialog
+      .getByRole("button", { name: "Proof file", exact: true })
+      .setInputFiles({
       name: "service-proof.png",
       mimeType: "image/png",
       buffer: Buffer.alloc(2048, 7),
@@ -255,10 +259,10 @@ test.describe("DVHS CSF accessibility acceptance", () => {
     // through the status live region inside that group. An aria snapshot
     // would have to describe the dialog's full subtree, so the semantics
     // are pinned with targeted accessible-role assertions instead.
-    await expect(dialog).toHaveAccessibleName("Submit service points");
+    await expect(dialog).toHaveAccessibleName("Submit points");
     await expect(
       dialog.getByRole("heading", {
-        name: "Submit service points",
+        name: "Submit points",
         level: 2,
         exact: true,
       }),
@@ -266,7 +270,7 @@ test.describe("DVHS CSF accessibility acceptance", () => {
     const proof = dialog.getByRole("group", { name: "Proof" });
     await expect(proof).toBeVisible();
     await expect(
-      proof.getByRole("button", { name: "One proof file" }),
+      proof.getByRole("button", { name: "Proof file", exact: true }),
     ).toBeVisible();
     await expect(proof.getByRole("status")).toHaveText(
       /Selected service-proof\.png/,

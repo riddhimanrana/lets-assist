@@ -221,7 +221,7 @@ async function submitJoinForm(
   names: { first: string; last: string },
 ) {
   await page
-    .getByRole("button", { name: "Add profile details", exact: true })
+    .getByRole("button", { name: "Find my record", exact: true })
     .click();
   const dialog = page.getByRole("dialog", { name: "Find your CSF record" });
   await expect(dialog).toBeVisible();
@@ -264,7 +264,7 @@ test.describe("class join code connections", () => {
       page.getByRole("heading", { name: "Connect your CSF record" }),
     ).toBeVisible();
     await expect(
-      page.getByRole("button", { name: "Add profile details", exact: true }),
+      page.getByRole("button", { name: "Find my record", exact: true }),
     ).toBeVisible();
 
     // Nothing about the roster record is previewed before the student
@@ -328,7 +328,7 @@ test.describe("class join code connections", () => {
       page.getByRole("button", { name: "Use this profile" }),
     ).toBeVisible();
     await expect(
-      page.getByRole("button", { name: "Add profile details", exact: true }),
+      page.getByRole("button", { name: "Find my record", exact: true }),
     ).toHaveCount(0);
 
     expectNoBrowserFailures(failures);
@@ -493,28 +493,28 @@ test.describe("signed-out CSF connection states", () => {
     await page.goto(noCodeConnectPath, { waitUntil: "domcontentloaded" });
 
     await expect(
-      page.getByRole("heading", { name: "Join or connect to CSF" }),
+      page.getByRole("heading", { name: "Join a class" }),
     ).toBeVisible();
     const body = await page.locator("body").innerText();
-    expect(body).toContain("permanent code");
-    expect(body).toContain("verified email");
+    expect(body).toContain("six-character code");
+    expect(body).toContain("officer shared with you");
     expectNoPrivateBoundaryMarkers(body);
 
     // Only code entry exists until a valid class code resolves.
     await expect(page.locator("main form")).toHaveCount(1);
-    await expect(page.getByLabel("Class join code")).toBeVisible();
+    await expect(page.getByLabel("Join code")).toBeVisible();
     await expect(page.getByRole("button", { name: "Continue" })).toBeVisible();
     await expect(
       page.getByRole("button", { name: /Find my record/ }),
     ).toHaveCount(0);
     await expect(
-      page.getByRole("button", { name: /Add profile details/ }),
+      page.getByRole("button", { name: /Find my record/ }),
     ).toHaveCount(0);
     await expect(
       page.getByRole("button", { name: /Use this profile/ }),
     ).toHaveCount(0);
     await expect(
-      page.getByRole("button", { name: /Sign in to claim profile/ }),
+      page.getByRole("button", { name: /Sign in and continue/ }),
     ).toHaveCount(0);
 
     const returnLink = await soleAccessibleAction(page, "Back to the CSF page");
@@ -541,15 +541,11 @@ test.describe("signed-out CSF connection states", () => {
     await page.goto(unusableConnectPath, { waitUntil: "domcontentloaded" });
 
     await expect(
-      page.getByRole("heading", {
-        name: "This class join code is unavailable",
-      }),
+      page.getByRole("heading", { name: "That class code did not work" }),
     ).toBeVisible();
     const body = await page.locator("body").innerText();
-    expect(body).toContain("mistyped, disabled, or replaced");
-    expect(body).toContain(
-      "Ask a CSF officer for the current join code for your class",
-    );
+    expect(body).toContain("Check the six characters");
+    expect(body).toContain("ask an officer");
     expectNoPrivateBoundaryMarkers(body);
 
     // No join form, and no sign-in tied to the unusable code.
@@ -587,14 +583,12 @@ test.describe("signed-out CSF connection states", () => {
     // Safe class context only: the lasting class, and the reminder that
     // semester participation is approved separately.
     expect(body).toContain("Class of 2028");
-    expect(body).toContain(
-      "Participation is approved separately each semester",
-    );
+    expect(body).toContain("Approved per semester");
     expectNoPrivateBoundaryMarkers(body);
     // The code itself is never rendered back to the visitor.
     expect(body).not.toContain(classJoinCode);
 
-    const signIn = await soleAccessibleAction(page, "Sign in to claim profile");
+    const signIn = await soleAccessibleAction(page, "Sign in and continue");
     await expect(signIn).toHaveAttribute(
       "href",
       `/login?redirect=${encodeURIComponent(connectPath)}`,
@@ -604,7 +598,7 @@ test.describe("signed-out CSF connection states", () => {
     // affordances.
     await expect(page.locator("main form")).toHaveCount(0);
     await expect(
-      page.getByRole("button", { name: /Add profile details/ }),
+      page.getByRole("button", { name: /Find my record/ }),
     ).toHaveCount(0);
     await expect(
       page.getByRole("button", { name: /Use this profile/ }),
