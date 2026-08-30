@@ -6,8 +6,10 @@ import { createClient } from "@supabase/supabase-js";
 
 import { readPositiveInteger } from "@/lib/async/map-with-concurrency";
 import { cronAuthShapeProbe } from "@/lib/cron/auth-shape-probe";
+import { logWarn } from "@/lib/logger";
 import {
   runCsfDispatchWorker,
+  CSF_COMMUNICATION_WORKER_MAX_CONCURRENCY,
   type CsfPluginRpc,
   type CsfWorkerAttemptReport,
 } from "@/services/csf-communications-worker";
@@ -41,7 +43,8 @@ export const maxDuration = 60;
  */
 
 /** Bounded work per invocation. A cron tick is not a place to drain a queue. */
-const MAX_BATCH_SIZE = 50;
+const MAX_BATCH_SIZE = 125;
+const MAX_ORGANIZATION_QUANTUM = 25;
 const MAX_ORGANIZATIONS_PER_RUN = 10;
 const MAX_MAINTENANCE_CAMPAIGNS_PER_PASS = 50;
 /** Absolute wall-clock ceiling. No awaited scheduler or worker operation may outlive it. */
@@ -264,6 +267,45 @@ async function maintainCampaigns(plugin: CsfPluginRpc, deadlineAt: number) {
   }
 }
 
+type OperationalAlertSnapshot = {
+  communicationBacklogOlderThanFiveMinutes: number;
+  unresolvedImportBatches: number;
+  blockedImportCommits: number;
+};
+
+async function readOperationalAlerts(
+  plugin: CsfPluginRpc,
+  deadlineAt: number,
+): Promise<OperationalAlertSnapshot | null> {
+  if (process.env.CSF_OPERATIONAL_ALERTS_ENABLED !== "true") return null;
+  try {
+    const result = await beforeDeadline(
+      plugin.rpc("csf_get_worker_alert_snapshot", {}),
+      deadlineAt,
+    );
+    if (result.error || !result.data || typeof result.data !== "object") {
+      return null;
+    }
+    const snapshot = result.data as Record<string, unknown>;
+    return {
+      communicationBacklogOlderThanFiveMinutes: boundedCount(
+        snapshot.communicationBacklogOlderThanFiveMinutes,
+        Number.MAX_SAFE_INTEGER,
+      ),
+      unresolvedImportBatches: boundedCount(
+        snapshot.unresolvedImportBatches,
+        Number.MAX_SAFE_INTEGER,
+      ),
+      blockedImportCommits: boundedCount(
+        snapshot.blockedImportCommits,
+        Number.MAX_SAFE_INTEGER,
+      ),
+    };
+  } catch {
+    return null;
+  }
+}
+
 export async function POST(request: NextRequest) {
   if (!isAuthorized(request)) {
     // NOTHING HAS HAPPENED YET. No client is built, no organization is read, and
@@ -366,6 +408,7 @@ export async function POST(request: NextRequest) {
   // claim-time fault rotates on the next tick without creating a lock inversion.
   while (
     !deadlineReached &&
+    claimed < batchSize &&
     workerPasses < batchSize &&
     processedOrganizationIds.size < MAX_ORGANIZATIONS_PER_RUN
   ) {
@@ -468,9 +511,13 @@ export async function POST(request: NextRequest) {
         runCsfDispatchWorker(plugin, {
           organizationId,
           workerId,
-          batchSize: 1,
+          batchSize: Math.min(
+            MAX_ORGANIZATION_QUANTUM,
+            batchSize - claimed,
+          ),
           leaseSeconds: LEASE_SECONDS,
           providerSignal: providerAbortController.signal,
+          concurrency: CSF_COMMUNICATION_WORKER_MAX_CONCURRENCY,
         }),
         deadlineAt,
       );
@@ -525,6 +572,17 @@ export async function POST(request: NextRequest) {
     }
   }
 
+  const operationalAlerts = await readOperationalAlerts(plugin, deadlineAt);
+  if (
+    operationalAlerts &&
+    Object.values(operationalAlerts).some((count) => count > 0)
+  ) {
+    logWarn("CSF worker alert threshold reached", {
+      alert_code: "csf_worker_backlog",
+      ...operationalAlerts,
+    });
+  }
+
   // AGGREGATES ONLY. No attempt identity, no campaign identity, no recipient
   // address, no subject, no provider message id, and no provider error text.
   return json({
@@ -539,6 +597,7 @@ export async function POST(request: NextRequest) {
     deadlineReached,
     batchSize,
     durationMs: Date.now() - startedAt,
+    operationalAlerts,
   });
 }
 

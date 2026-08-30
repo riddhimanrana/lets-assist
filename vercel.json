@@ -8,7 +8,7 @@
   "crons": [
     {
       "path": "/api/cron/csf-communications-dispatch",
-      "schedule": "*/10 * * * *"
+      "schedule": "* * * * *"
     },
     {
       "path": "/api/cron/csf-class-workbook-refresh",

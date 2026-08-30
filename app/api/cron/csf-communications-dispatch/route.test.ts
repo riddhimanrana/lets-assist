@@ -756,10 +756,10 @@ describe("the bounded CSF dispatch worker route", () => {
     const claim = rpcCalls.find(
       (call) => call.fn === "csf_claim_communication_dispatch_batch",
     );
-    // The configured value is the run-wide attempt budget. Each durable claim is
-    // one attempt so the absolute wall-clock deadline remains enforceable.
-    expect(claim?.args.p_batch_size).toBe(1);
-    expect(body.batchSize).toBe(50);
+    // The configured value is the run-wide attempt budget. Claims use a bounded
+    // organization quantum while the route enforces the absolute run budget.
+    expect(claim?.args.p_batch_size).toBe(25);
+    expect(body.batchSize).toBe(125);
     delete process.env.CSF_COMMUNICATIONS_WORKER_BATCH_SIZE;
   });
 

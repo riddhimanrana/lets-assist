@@ -46,11 +46,30 @@ Development Resend variables are deliberately additive rather than fallbacks:
 - `RESEND_DEV_FROM_DOMAIN` must exactly match the sender domain.
 - `RESEND_DEV_RECIPIENT_ALLOWLIST` is a comma-separated synthetic/authorized
   allowlist; `@resend.dev` test addresses are always accepted.
+- `RESEND_API_KEY` is a send-only key scoped to this environment. The deployed
+  application does not load a Resend management key.
+- `RESEND_WEBHOOK_SECRET_KEYRING` is versioned JSON with `activeKeyId` and
+  `keys`. Keep the old `RESEND_WEBHOOK_SECRET` for one cutover release, then
+  remove it only after the replacement endpoint records verified events.
+- `CSF_RESEND_TOPIC_CONFIGURATION` contains versioned, non-secret topic IDs by
+  organization and audience. Create topics in an operator-only process, then
+  place only their IDs in the application environment.
+- `ENCRYPTION_KEYRING` is versioned JSON with `activeKeyId` and `keys`. Keep
+  `ENCRYPTION_KEY` while legacy OAuth ciphertext remains. Successful Google
+  credential reads rewrite legacy or retained-key values under the active key.
+- `CSF_OPERATIONAL_ALERTS_ENABLED=true` lets the worker emit count-only alerts
+  for communication backlog and unresolved import batches. No tenant, student,
+  message, or workbook content enters those alerts.
 - `PROJECT_FEEDBACK_WORKER_ENABLED` and
   `PAPER_SIGNUP_NOTIFICATION_WORKER_ENABLED` remain unset until their own
   Development acceptance is complete.
 
 No Production credential is a valid generic Preview fallback.
+
+Before retiring an encryption key, run a count-only database check for values
+whose prefix is not `v2:` in `user_calendar_connections.access_token` and
+`user_calendar_connections.refresh_token`. Both counts must be zero. Do not
+select or log the ciphertext values themselves.
 
 Seed only a confirmed non-Production Supabase branch with the supported synthetic
 fixture wrapper:

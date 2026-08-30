@@ -379,6 +379,32 @@ their named runs only.
 - Google account screens, real student rows, transcripts, receipts, and proof were not captured. Earlier local lifecycle images containing an administrator identity or the chapter inbox are excluded from the curated gallery and must remain uncommitted.
 - The pre-existing dirty worktree was recorded during the historical run; that superseded raw artifact was intentionally removed during repository cleanup.
 
+## Scale-hardening acceptance
+
+The current candidate adds one-minute workbook, import, and communication worker
+schedules. Communication dispatch is limited to 125 attempts per run, five
+concurrent sends, and eight request starts per second. Provider `Retry-After`
+values reach the durable retry ledger. A 1,000-attempt fake-provider test must
+finish within ten minutes with every attempt either accepted or durably queued
+for retry and no repeated provider key.
+
+Webhook verification accepts a versioned retained-key set and records which key
+verified each event. The single webhook secret remains a one-release fallback.
+Replace and prove the Development endpoint before disabling the old endpoint.
+The deployed runtime contains a send-only key and non-secret topic IDs. Provider
+topic creation runs outside the application.
+
+The encryption keyring records the active key ID on new ciphertext. Reads accept
+retained and legacy values, then rewrite them under the active key with an
+equality guard. Remove the legacy key only after count-only checks report zero
+old-format access and refresh tokens.
+
+Local acceptance covers deterministic fake-provider load and the 1,000-member
+database fixture. Hosted Development must still run the 90-member/10-officer
+session mix for 15 minutes, the 1,000-row import, ten Resend test-address sends,
+and browser memory checks. Local evidence does not satisfy those hosted gates.
+Production promotion remains a separate action-time decision.
+
 ## Operating evidence confirmed
 
 An earlier read-only evidence review established the following source shapes without retaining student rows. As of the July 21 amendment, Gmail is connected as `dvhighcsf@gmail.com`, but the Drive connector is using a personal account and the application's own Google connection has not verified the chapter identity. The earlier source-shape evidence therefore does not count as current live OAuth, Picker, or import acceptance:

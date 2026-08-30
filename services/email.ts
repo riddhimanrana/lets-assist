@@ -36,15 +36,6 @@ export function getResendClient(): ResendSetup {
   return getResendClientForKey(process.env.RESEND_API_KEY);
 }
 
-/**
- * Provider-management client used only by explicit operator setup actions.
- * Keeping this credential separate lets the delivery worker retain send-only
- * access while topic provisioning can read and create consent topics.
- */
-export function getResendManagementClient(): ResendSetup {
-  return getResendClientForKey(process.env.RESEND_MANAGEMENT_API_KEY);
-}
-
 export type EmailType = "project_updates" | "general" | "transactional";
 
 export interface EmailAttachment {
@@ -181,6 +172,7 @@ export type SendEmailResult =
       code: string;
       status: number | null;
       error: SendEmailErrorSummary;
+      retryAfterSeconds?: number;
       messageId?: undefined;
       transport?: undefined;
       data?: undefined;
@@ -296,7 +288,7 @@ function providerStatus(value: unknown): number | null {
 export function classifyProviderError(error: {
   name?: unknown;
   statusCode?: unknown;
-}): SendEmailResult & {
+}, headers: Record<string, string> | null = null): SendEmailResult & {
   outcome: "definitive_failure" | "retryable_pre_send" | "unknown_outcome";
 } {
   const code = safeProviderCode(error?.name);
@@ -323,6 +315,7 @@ export function classifyProviderError(error: {
       phase: "provider_response",
       code,
       status,
+      retryAfterSeconds: parseRetryAfterSeconds(headers) ?? 60,
       error: `provider refused the request before acceptance (${code})`,
     };
   }
@@ -336,6 +329,26 @@ export function classifyProviderError(error: {
     status,
     error: `provider outcome could not be determined (${code})`,
   };
+}
+
+/** Parse provider Retry-After seconds or an HTTP date into a bounded delay. */
+export function parseRetryAfterSeconds(
+  headers: Record<string, string> | null | undefined,
+  nowMs: number = Date.now(),
+): number | null {
+  if (!headers) return null;
+  const raw = Object.entries(headers).find(
+    ([name]) => name.toLowerCase() === "retry-after",
+  )?.[1];
+  if (!raw) return null;
+  const trimmed = raw.trim();
+  if (/^[0-9]{1,6}$/u.test(trimmed)) {
+    const seconds = Number.parseInt(trimmed, 10);
+    return seconds <= 86_400 ? seconds : 86_400;
+  }
+  const retryAt = Date.parse(trimmed);
+  if (!Number.isFinite(retryAt)) return null;
+  return Math.min(86_400, Math.max(0, Math.ceil((retryAt - nowMs) / 1_000)));
 }
 
 type EmailLogAttributes = {

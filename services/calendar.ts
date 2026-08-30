@@ -7,7 +7,7 @@ import { createClient } from "@/lib/supabase/server";
 import { getGoogleOAuthConnectionForBinding } from "@/lib/auth/google-oauth-connection-store";
 import type { GoogleOAuthConnectionBindingExpectation } from "@/lib/auth/google-oauth-connection-binding";
 import { hasGoogleCalendarWriteScope } from "@/lib/auth/google-oauth-scopes";
-import { encrypt, decrypt } from "@/lib/encryption";
+import { decryptWithRotation, encrypt } from "@/lib/encryption";
 import { Project, CalendarConnection } from "@/types";
 import {
   classifyGoogleCalendarLookupError,
@@ -209,13 +209,29 @@ export async function getValidAccessToken(
 
   // Check if token is expired
   if (!isTokenExpired(connection.token_expires_at)) {
-    // Token is still valid, decrypt and return
-    return decrypt(connection.access_token);
+    const decrypted = decryptWithRotation(connection.access_token);
+    if (decrypted.reencrypted) {
+      const { error } = await supabase
+        .from("user_calendar_connections")
+        .update({ access_token: decrypted.reencrypted })
+        .eq("id", connection.id)
+        .eq("access_token", connection.access_token);
+      if (error) console.error("Failed to rotate Google access credential");
+    }
+    return decrypted.plaintext;
   }
 
   // Token is expired or about to expire, refresh it
-  const decryptedRefreshToken = decrypt(connection.refresh_token);
-  const refreshed = await refreshAccessToken(decryptedRefreshToken);
+  const decryptedRefresh = decryptWithRotation(connection.refresh_token);
+  if (decryptedRefresh.reencrypted) {
+    const { error } = await supabase
+      .from("user_calendar_connections")
+      .update({ refresh_token: decryptedRefresh.reencrypted })
+      .eq("id", connection.id)
+      .eq("refresh_token", connection.refresh_token);
+    if (error) console.error("Failed to rotate Google refresh credential");
+  }
+  const refreshed = await refreshAccessToken(decryptedRefresh.plaintext);
 
   if (!refreshed) {
     // Failed to refresh, mark connection as inactive

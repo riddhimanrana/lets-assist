@@ -341,7 +341,8 @@ export async function sendEmail({
       ...(idempotencyKey ? { idempotencyKey } : {}),
       ...(signal ? { signal } : {}),
     };
-    const { data, error } = await resend.emails.send(
+    const { data, error, headers: providerResponseHeaders } =
+      await resend.emails.send(
       {
         from: resolvedFrom,
         to,
@@ -368,7 +369,7 @@ export async function sendEmail({
     // that died. Classification decides whether a retry is safe; see
     // PROVIDER_ERROR_CLASSIFICATION.
     if (error) {
-      const classified = classifyProviderError(error);
+      const classified = classifyProviderError(error, providerResponseHeaders);
       if (shouldLog) {
         logError(
           "Failed to send email via Resend",

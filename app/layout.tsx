@@ -1,5 +1,6 @@
 // app/layout.tsx
 import type { Metadata } from "next";
+import { Analytics } from "@vercel/analytics/next";
 import { GeistMono } from "geist/font/mono";
 import { GeistSans } from "geist/font/sans";
 import "./globals.css";
@@ -122,6 +123,7 @@ export default async function RootLayout({
               <QueryMessageToast />
             </Suspense>
             <Footer />
+            {enableSpeedInsights ? <Analytics /> : null}
             {enableSpeedInsights ? <SpeedInsights /> : null}
             <Suspense fallback={null}>
               <CalendarOAuthCallbackHandler />
