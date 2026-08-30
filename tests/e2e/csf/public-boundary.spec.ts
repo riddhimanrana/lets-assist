@@ -104,9 +104,9 @@ test.describe("DVHS CSF public privacy boundary", () => {
     // roster or asks the visitor to choose a class or semester.
     await expect(page.locator("main form")).toHaveCount(1);
     await expect(page.getByLabel("Join code")).toBeVisible();
-    await expect(
-      page.getByRole("button", { name: "Join class" }),
-    ).toHaveCount(0);
+    await expect(page.getByRole("button", { name: "Join class" })).toHaveCount(
+      0,
+    );
     await expect(page.locator("main").getByRole("searchbox")).toHaveCount(0);
   });
 
@@ -124,9 +124,7 @@ test.describe("DVHS CSF public privacy boundary", () => {
     );
     expect(decodeURIComponent(signInHref ?? "")).toContain("tab=csf-profile");
 
-    await expect(
-      page.locator('main form[data-hydrated="true"]'),
-    ).toBeVisible();
+    await expect(page.locator('main form[data-hydrated="true"]')).toBeVisible();
     await page.getByLabel("Join code").fill("HAWK28");
     await expect(page.getByLabel("Join code")).toHaveValue("HAWK28");
     const continueButton = page.getByRole("button", { name: "Continue" });
@@ -150,9 +148,9 @@ test.describe("DVHS CSF public privacy boundary", () => {
       page.getByText("Join a class", { exact: true }).first(),
     ).toBeVisible();
     await expect(page.getByLabel("Join code")).toBeVisible();
-    await expect(
-      page.getByRole("button", { name: "Join class" }),
-    ).toHaveCount(0);
+    await expect(page.getByRole("button", { name: "Join class" })).toHaveCount(
+      0,
+    );
     await expect(page.getByRole("heading", { name: "Stream" })).toHaveCount(0);
     await expect(page.getByRole("heading", { name: "Activities" })).toHaveCount(
       0,

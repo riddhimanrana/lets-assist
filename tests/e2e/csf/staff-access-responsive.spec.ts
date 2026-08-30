@@ -339,16 +339,14 @@ test.describe("DVHS CSF proof submission", () => {
     await dialog
       .getByRole("button", { name: "Proof file", exact: true })
       .setInputFiles({
-      name: "service-proof.png",
-      mimeType: "image/png",
-      buffer: Buffer.from(
-        "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=",
-        "base64",
-      ),
-    });
-    await dialog
-      .getByRole("combobox", { name: /^Activity:/ })
-      .click();
+        name: "service-proof.png",
+        mimeType: "image/png",
+        buffer: Buffer.from(
+          "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=",
+          "base64",
+        ),
+      });
+    await dialog.getByRole("combobox", { name: /^Activity:/ }).click();
     await page.getByRole("option", { name: /Library Peer Tutoring/ }).click();
     await expect(dialog.getByText("Credit 1 non-drive point")).toBeVisible();
     await dialog.getByLabel("Description").fill(description);

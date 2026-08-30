@@ -247,10 +247,10 @@ test.describe("DVHS CSF accessibility acceptance", () => {
     await dialog
       .getByRole("button", { name: "Proof file", exact: true })
       .setInputFiles({
-      name: "service-proof.png",
-      mimeType: "image/png",
-      buffer: Buffer.alloc(2048, 7),
-    });
+        name: "service-proof.png",
+        mimeType: "image/png",
+        buffer: Buffer.alloc(2048, 7),
+      });
     const selection = dialog.locator("#csf-submission-evidence-selection");
     await expect(selection).toContainText("service-proof.png");
 
