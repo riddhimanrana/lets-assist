@@ -117,7 +117,7 @@ T18|x|make class member records spreadsheet-like with selected-semester standing
 T19|x|replace the My CSF application tracker with a semester profile and reduce class joining to safe profile confirmation; verify exact activity, meeting, and point history on desktop and mobile fictional fixtures|V17,V23,V25,V26,V27,V43,I.route,I.service,I.cmd
 T20|x|repair compact and damaged historical identity headers; put club, proof, and appeal evidence in the point queue; open applications by application subject; remove the member calendar connection|V17,V20,V23,V31,V44,I.route,I.service,I.cmd
 T21|x|remove legacy name-only linking; rate-limit join/search; align current onboarding and Class 2030 docs|V5,V17,V23,V27,V43,V45,I.route,I.service,I.db,I.cmd
-T22|.|add class workbook registry, revision leases, changed-version preparation queue, and worker|V14,V17,V20,V22,V24,V46,I.service,I.db,I.cmd
+T22|x|add class workbook registry, revision leases, changed-version preparation queue, and worker|V14,V17,V20,V22,V24,V46,I.service,I.db,I.cmd
 T23|.|add count-only batch approval and idempotent 50-row background import commits|V14,V17,V20,V23,V24,V31,V47,I.service,I.db,I.cmd
 T24|.|group Home/settings reads; page point/appeal queues; bound proof, profile search, and replies|V3,V9,V13,V19,V31,V42,V43,V48,I.service,I.perf,I.cmd
 T25|.|rotate Resend webhook safely; raise bounded dispatch throughput; split runtime secrets and add alerts|V14,V17,V41,V49,V50,I.service,I.cmd

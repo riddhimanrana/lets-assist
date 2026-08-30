@@ -46,6 +46,7 @@ export const CRON_PROBE_ROUTE_IDS = [
   "organization-sheet-sync",
   "data-exports",
   "csf-communications-dispatch",
+  "csf-class-workbook-refresh",
   "csf-scheduled-post-publisher",
   "project-feedback-followups",
   "paper-signup-notifications",
