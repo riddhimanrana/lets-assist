@@ -15,6 +15,10 @@
       "schedule": "* * * * *"
     },
     {
+      "path": "/api/cron/csf-import-commit",
+      "schedule": "* * * * *"
+    },
+    {
       "path": "/api/cron/csf-scheduled-post-publisher",
       "schedule": "7,17,27,37,47,57 * * * *"
     }

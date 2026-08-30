@@ -4,6 +4,7 @@ import { readFileSync } from "node:fs";
 const TARGET_PATHS = new Set([
   "/api/cron/csf-communications-dispatch",
   "/api/cron/csf-class-workbook-refresh",
+  "/api/cron/csf-import-commit",
   "/api/cron/csf-scheduled-post-publisher",
 ]);
 
@@ -46,6 +47,10 @@ describe("CSF hosted-worker cadence acceptance boundary", () => {
       },
       {
         path: "/api/cron/csf-class-workbook-refresh",
+        schedule: "* * * * *",
+      },
+      {
+        path: "/api/cron/csf-import-commit",
         schedule: "* * * * *",
       },
       {
