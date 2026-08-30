@@ -134,6 +134,19 @@ This register separates actionable repository defects from provider/account and 
   semester history, application review, and officer task views. Hosted
   Development linking and acceptance remain pending. No Production resource
   was read or changed.
+- The 2026-08-30 member-profile follow-up removes the application, eligibility,
+  and dues tracker from My CSF. Members now see their profile identity, class,
+  current-semester totals, and one semester history that preserves exact
+  activity names, meeting labels, attendance, service points, and submissions.
+  Class joining no longer renders the five-step progress strip or a separate
+  Let’s Assist account card. An exact verified-account match asks “Is this
+  you?”, shows a bounded recent-activity preview, and offers one confirmation
+  action. Name-only candidates still expose only masked roster context and
+  require officer review. Evidence on private Development merge `3c34b91`
+  includes 14 focused component tests, all 262 plugin test files, TypeScript,
+  zero-warning lint, the optimized child build, and fictional local browser
+  checks at desktop and phone widths with a clean final console. Hosted
+  Development remains a separate gate. Production was not read or changed.
 - Repeated soft navigation between Classes and Applications retained detached
   route trees even though only one panel remained visible. A measured 25-step
   loop grew from 101.7 MB to 827.4 MB, 45,627 to 424,442 DOM nodes, and 12,182
