@@ -93,6 +93,7 @@ V49: communication dispatch → every minute, ≤125 attempts/run, ≤5 concurre
 V50: webhook rotation → versioned secret keyring + legacy single-secret fallback; verified raw-body signature before parse; replacement endpoint settles Development test event before old endpoint disable; raw message body/storage ⊥.
 V51: scale release → 1,000 fictional members + 90 member/10 officer sessions for 15 minutes; read p95 ≤2.5s, p99 ≤5s, mutation p95 ≤3s, total error <0.5%, 5xx <0.1%, LCP <2.5s, INP <200ms, CLS <0.1, renderer crash ⊥, retained heap growth ≤20%; exact root/private SHA gates required.
 V52: initial class workbook link → provider metadata and bounded grids read once, canonical term sources saved from that validated snapshot, exact Drive file generation registered, and one durable preparation job queued before the interactive request returns; populated-tab preview work in the request ⊥; replacement file generation blocks stale worker settlement.
+V53: class-history commit identity → one valid canonical roster key from the same organization, class, and official workbook reuses the previously committed active profile across semester jobs; different workbook, invalid key, conflicting canonical email, or a key already bound to multiple profiles blocks reuse and stays in officer review; reused identity is recorded on the immutable row and in private audit evidence.
 
 §T
 
@@ -124,6 +125,7 @@ T24|x|group Home/settings reads; page point/appeal queues; bound proof, profile 
 T25|x|rotate Resend webhook safely; raise bounded dispatch throughput; split runtime secrets and add alerts|V14,V17,V41,V49,V50,I.service,I.cmd
 T26|~~|add 1,000-member/100-session acceptance, require full CI gates, merge private first, and stage Development|V15,V17,V18,V19,V41,V51,I.perf,I.cmd
 T27|~~|move initial class workbook preparation out of the linking request, prove exact file-generation retries, and reconcile the four official Development workbooks before Production promotion|V14,V17,V20,V46,V47,V52,I.service,I.db,I.cmd
+T28|~~|reuse one source-backed profile across semester commit jobs, deploy the exact Development tree, and complete the count-only officer reconciliation|V14,V17,V20,V23,V47,V53,I.service,I.db,I.cmd
 
 §B
 
@@ -158,3 +160,4 @@ B27|2026-08-30|ten-minute cron + 25 sequential sends required about 6h40m for 1,
 B28|2026-08-30|Production Resend webhook rejected every sampled delivery event because configured secret did not verify provider signatures|V50
 B29|2026-08-30|direct 1,000-row fixture benchmark did not test authenticated route concurrency, browser memory, email, or Drive|V51
 B30|2026-08-30|isolated auth admin and password-login requests repeatedly exceeded 30–60 seconds while database scale checks stayed fast|keep authenticated browser and 100-session acceptance open until the isolated auth runtime or hosted synthetic environment can sustain login
+B31|2026-08-31|prepared class-history previews had valid roster keys but no profile targets, so batch readiness blocked every term and independent term commits would create duplicate profiles|V53
