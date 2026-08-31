@@ -24,7 +24,7 @@ mock.module("@/services/csf-import-commit-worker", () => ({
     return actionResult;
   },
 }));
-const { POST } = await import("./route");
+const { POST, maxDuration } = await import("./route");
 const { NextRequest } = await import("next/server");
 
 const claim = {
@@ -55,6 +55,10 @@ beforeEach(() => {
 });
 
 describe("CSF import commit worker route", () => {
+  test("allows one receipt-backed import attempt to finish", () => {
+    expect(maxDuration).toBe(800);
+  });
+
   test("rejects unauthorized calls before claiming work", async () => {
     expect((await POST(request("wrong"))).status).toBe(401);
     expect(rpcCalls).toHaveLength(0);

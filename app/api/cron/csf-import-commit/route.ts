@@ -12,7 +12,11 @@ import { z } from "zod";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
-export const maxDuration = 60;
+// A 1,000-row import is split into receipt-backed database batches, but the
+// worker still owns one fenced attempt until it can finalize the preview. The
+// Pro function ceiling gives that attempt enough time to finish while each
+// database request remains independently bounded.
+export const maxDuration = 800;
 
 const BEARER_GRAMMAR = /^Bearer ([\x21-\x7E]+)$/;
 const claimSchema = z.discriminatedUnion("claimed", [
