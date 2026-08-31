@@ -619,7 +619,7 @@ Queued is not sent, and sent is not delivered:
 - A queued ledger row is therefore not evidence that an email left the system,
   and never evidence that one arrived. Only a signature-verified provider
   outcome is delivery evidence.
-- The dispatch schedule requests a run every ten minutes but observed hosted
+- The dispatch schedule requests a run every minute but observed hosted
   starts are irregular. Never promise a delivery time.
 
 Before the first real send, verify the sender domain, stored consent topic,

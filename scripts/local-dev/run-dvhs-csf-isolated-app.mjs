@@ -92,6 +92,7 @@ export const DISABLED_WORKER_ENV_KEYS = [
   "CSF_WORKBOOK_WORKER_ENABLED",
   "CSF_IMPORT_WORKER_ENABLED",
   "CSF_SCHEDULED_POST_PUBLISHER_ENABLED",
+  "CSF_OPERATIONAL_ALERTS_ENABLED",
   "PROJECT_FEEDBACK_WORKER_ENABLED",
   "PAPER_SIGNUP_NOTIFICATION_WORKER_ENABLED",
 ];
@@ -229,7 +230,7 @@ export function discoverRepositoryEnvFileKeys(
 // ---------------------------------------------------------------------------
 
 /**
- * One builder for both isolated children: the app runner and the seven-route cron
+ * One builder for both isolated children: the app runner and the eleven-route cron
  * harness. They differ only in what they are allowed to reach, never in how the
  * environment is constructed.
  *

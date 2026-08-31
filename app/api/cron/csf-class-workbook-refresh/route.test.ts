@@ -113,10 +113,7 @@ describe("CSF class workbook refresh route", () => {
       preparedTermCodes: ["2032-fall", "2033-spring"],
       templateTermCodes: ["2033-fall"],
       missingTabTermCodes: [],
-      discoveredTabs: [
-        { tabName: "Fall 2032" },
-        { tabName: "Spring 2033" },
-      ],
+      discoveredTabs: [{ tabName: "Fall 2032" }, { tabName: "Spring 2033" }],
     };
 
     const response = await POST(request());
@@ -146,7 +143,9 @@ describe("CSF class workbook refresh route", () => {
 
   test("fails closed on malformed queue claims", async () => {
     process.env.CSF_WORKBOOK_WORKER_ENABLED = "true";
-    rpcResults = [{ data: { claimed: true, jobId: "not-a-uuid" }, error: null }];
+    rpcResults = [
+      { data: { claimed: true, jobId: "not-a-uuid" }, error: null },
+    ];
     const response = await POST(request());
     expect(response.status).toBe(503);
     expect(actionCalls).toHaveLength(0);

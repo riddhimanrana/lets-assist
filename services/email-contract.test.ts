@@ -405,9 +405,7 @@ describe("shared email transport contract", () => {
 
   test("parses bounded Retry-After seconds and HTTP dates", () => {
     expect(parseRetryAfterSeconds({ "Retry-After": "45" }, 0)).toBe(45);
-    expect(parseRetryAfterSeconds({ "retry-after": "999999" }, 0)).toBe(
-      86_400,
-    );
+    expect(parseRetryAfterSeconds({ "retry-after": "999999" }, 0)).toBe(86_400);
     expect(
       parseRetryAfterSeconds(
         { "retry-after": "Thu, 01 Jan 1970 00:02:00 GMT" },

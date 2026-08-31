@@ -11,6 +11,7 @@ on:
       - reopened
       - ready_for_review
   workflow_dispatch:
+  workflow_call:
 
 concurrency:
   group: pr-quality-${{ github.event_name }}-${{ github.event.pull_request.number || github.ref }}
@@ -114,11 +115,9 @@ jobs:
       # installs global module mocks because Bun's module registry is per-process.
       # This is the same interface developers run.
       - name: Root and plugin tests
-        if: github.event_name != 'pull_request'
         run: bun run test
 
       - name: Production build
-        if: github.event_name != 'pull_request'
         run: bun run build
         env:
           VERCEL_ENV: preview
@@ -132,11 +131,9 @@ jobs:
   db-replay-validation:
     runs-on: ubuntu-latest
     timeout-minutes: 40
-    # Full schema replay is an explicit release/rehearsal gate. Pull requests
-    # stay fast, and merging to development does not repeat work already run
-    # locally. Production schema deployment runs its own exact reset and pgTAP
-    # gate before it can push migrations.
-    if: github.event_name == 'workflow_dispatch'
+    # Non-draft pull requests and the exact reusable Production preflight run
+    # the same isolated database, scale, worker, and browser acceptance gate.
+    if: github.event_name != 'pull_request' || github.event.pull_request.draft == false
     env:
       CSF_ISOLATED_BASE_PORT: "55320"
       CSF_E2E_RUN_ID: ci-${{ github.run_id }}-${{ github.run_attempt }}
@@ -318,12 +315,12 @@ jobs:
         run: bun run csf:test:workflows
 
       - name: Validate CSF scale and cleanup
-        run: bun run csf:test:scale
+        run: |
+          bun run csf:test:scale
+          bun run csf:test:import:scale
 
-      # After seeding and before any browser run: the six selected worker routes
-      # (auto-publish-hours, project-cancellations, organization-calendar-sync,
-      # organization-sheet-sync, data-exports, and csf-scheduled-post-publisher)
-      # must authenticate and return
+      # After seeding and before any browser run, all eleven selected worker
+      # routes must authenticate and return
       # without dispatching on a stack that now has fixture rows in it. Running it
       # before the seed would prove only that empty queues do nothing.
       - name: Validate cron auth/shape on the seeded isolated stack

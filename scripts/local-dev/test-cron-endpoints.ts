@@ -2,19 +2,19 @@
 /**
  * DVHS CSF cron auth/shape smoke.
  *
- * Scope: the ten selected worker routes: auto-publish-hours,
+ * Scope: the eleven selected worker routes: auto-publish-hours,
  * project-cancellations, organization-calendar-sync, organization-sheet-sync,
  * data-exports, csf-communications-dispatch,
  * csf-class-workbook-refresh, csf-import-commit,
  * csf-scheduled-post-publisher, and
- * project-feedback-followups.
+ * project-feedback-followups, and paper-signup-notifications.
  *
  * Six other cron routes exist in this repository and are deliberately outside
  * this harness: ai-moderation, anonymous-cleanup, csf-proof-cleanup,
  * generate-recurring-projects, paper-scan-cleanup, and waiver-cleanup. They are neither probed nor
  * modified here, so nothing below should be read as evidence about them.
  *
- * What this proves: each of the ten selected routes authenticates, reaches its
+ * What this proves: each of the eleven selected routes authenticates, reaches its
  * dispatch boundary, and returns *without dispatching* — and that nothing in the
  * process attempted provider egress while it did so.
  *
@@ -78,7 +78,7 @@ const PROBE_MODE = "auth-shape-v1";
 const PROBE_HEADER = "x-lets-assist-cron-probe";
 
 /**
- * The ten selected worker routes, by stable ID, asserted on the wire so a
+ * The eleven selected worker routes, by stable ID, asserted on the wire so a
  * handler cannot answer under a neighbour's name.
  */
 const ROUTES = [
@@ -106,6 +106,10 @@ const ROUTES = [
   {
     id: "project-feedback-followups",
     path: "/api/cron/project-feedback-followups",
+  },
+  {
+    id: "paper-signup-notifications",
+    path: "/api/cron/paper-signup-notifications",
   },
 ] as const;
 

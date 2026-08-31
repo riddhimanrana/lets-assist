@@ -261,7 +261,7 @@ test.describe("class join code connections", () => {
     await loginAs(page, "outsider", connectPath);
 
     await expect(
-      page.getByRole("heading", { name: "Connect your CSF record" }),
+      page.getByRole("heading", { name: "Find your CSF profile" }),
     ).toBeVisible();
     await expect(
       page.getByRole("button", { name: "Find my record", exact: true }),
@@ -325,7 +325,7 @@ test.describe("class join code connections", () => {
       page.getByRole("main").getByText("Taylor Fixture", { exact: true }),
     ).toBeVisible();
     await expect(
-      page.getByRole("button", { name: "Use this profile" }),
+      page.getByRole("button", { name: "Yes, this is me" }),
     ).toBeVisible();
     await expect(
       page.getByRole("button", { name: "Find my record", exact: true }),
@@ -354,7 +354,7 @@ test.describe("class join code connections", () => {
     const failures = watchBrowserFailures(page);
     await loginAs(page, "outsider", connectPath);
     await expect(
-      page.getByRole("heading", { name: "Connect your CSF record" }),
+      page.getByRole("heading", { name: "Find your CSF profile" }),
     ).toBeVisible();
 
     await submitJoinForm(page, { first: "Rowan", last: reviewLastName });
@@ -577,7 +577,7 @@ test.describe("signed-out CSF connection states", () => {
     await page.goto(connectPath, { waitUntil: "domcontentloaded" });
 
     await expect(
-      page.getByRole("heading", { name: "Connect your CSF record" }),
+      page.getByRole("heading", { name: "Find your CSF profile" }),
     ).toBeVisible();
     const body = await page.locator("body").innerText();
     // Safe class context only: the lasting class, and the reminder that

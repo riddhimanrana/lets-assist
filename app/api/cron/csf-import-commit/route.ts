@@ -33,9 +33,7 @@ function secretsMatch(expected: string, presented: string): boolean {
 }
 
 function isAuthorized(request: NextRequest): boolean {
-  const match = BEARER_GRAMMAR.exec(
-    request.headers.get("authorization") ?? "",
-  );
+  const match = BEARER_GRAMMAR.exec(request.headers.get("authorization") ?? "");
   if (!match) return false;
   return [
     process.env.CSF_IMPORT_WORKER_SECRET_TOKEN,

@@ -274,7 +274,7 @@ test.describe("class-code signup onboarding", () => {
     await test.step("the signed-out code page shows safe class context and preserves the route", async () => {
       await page.goto(connectPath, { waitUntil: "domcontentloaded" });
       await expect(
-        page.getByRole("heading", { name: "Connect your CSF record" }),
+        page.getByRole("heading", { name: "Find your CSF profile" }),
       ).toBeVisible();
       const body = await page.locator("body").innerText();
       expect(body).toContain("Class of 2028");
@@ -369,7 +369,7 @@ test.describe("class-code signup onboarding", () => {
       });
 
       await expect(
-        page.getByRole("heading", { name: "Connect your CSF record" }),
+        page.getByRole("heading", { name: "Find your CSF profile" }),
       ).toBeVisible();
       await expectNoGenericFirstLoginTour(page);
 

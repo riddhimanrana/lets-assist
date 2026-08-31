@@ -49,6 +49,8 @@ const googleAuthCalls: unknown[] = [];
 const reportRowCalls: unknown[] = [];
 const pluginAdminClientCalls: unknown[] = [];
 const scheduledFeedRevalidationCalls: unknown[] = [];
+const workbookRefreshCalls: unknown[] = [];
+const importCommitCalls: unknown[] = [];
 
 function dangerCallTotals() {
   return {
@@ -63,6 +65,8 @@ function dangerCallTotals() {
     organizationReportRows: reportRowCalls.length,
     createPluginAdminClient: pluginAdminClientCalls.length,
     revalidateScheduledPostFeed: scheduledFeedRevalidationCalls.length,
+    linkCsfClassSheetAction: workbookRefreshCalls.length,
+    executeCsfImportCommitClaim: importCommitCalls.length,
   };
 }
 
@@ -78,6 +82,8 @@ const ZERO_DANGER_CALLS = {
   organizationReportRows: 0,
   createPluginAdminClient: 0,
   revalidateScheduledPostFeed: 0,
+  linkCsfClassSheetAction: 0,
+  executeCsfImportCommitClaim: 0,
 };
 
 // `processExpiredSessions()` and `processPendingJobs()` are module-local, so
@@ -179,6 +185,23 @@ mock.module(
     },
   }),
 );
+
+mock.module(
+  "@/lib/plugins/private/plugins/dvhs-csf/server/actions/class-sheet-sync",
+  () => ({
+    linkCsfClassSheetAction: async (...args: unknown[]) => {
+      workbookRefreshCalls.push(args);
+      throw new Error("Workbook refresh must not run under the probe");
+    },
+  }),
+);
+
+mock.module("@/services/csf-import-commit-worker", () => ({
+  executeCsfImportCommitClaim: async (...args: unknown[]) => {
+    importCommitCalls.push(args);
+    throw new Error("Import commit must not run under the probe");
+  },
+}));
 
 mock.module("@/emails/certificate-published", () => ({ default: () => null }));
 mock.module("@/emails/project-cancellation", () => ({ default: () => null }));
@@ -312,6 +335,8 @@ const LOAD_TIME_ENV: Record<string, string> = {
   ORG_CALENDAR_SYNC_WORKER_SECRET_TOKEN: CRON_SECRET,
   ORG_SHEET_SYNC_WORKER_SECRET_TOKEN: CRON_SECRET,
   CSF_COMMUNICATIONS_WORKER_SECRET_TOKEN: CRON_SECRET,
+  CSF_WORKBOOK_WORKER_SECRET_TOKEN: CRON_SECRET,
+  CSF_IMPORT_WORKER_SECRET_TOKEN: CRON_SECRET,
   CSF_SCHEDULED_POST_PUBLISHER_SECRET_TOKEN: CRON_SECRET,
   PROJECT_FEEDBACK_WORKER_SECRET_TOKEN: CRON_SECRET,
   PAPER_SIGNUP_NOTIFICATION_WORKER_SECRET_TOKEN: CRON_SECRET,
@@ -321,6 +346,8 @@ const LOAD_TIME_ENV: Record<string, string> = {
   PROJECT_CANCELLATION_WORKER_ENABLED: "true",
   ORG_SHEET_SYNC_WORKER_ENABLED: "true",
   CSF_COMMUNICATIONS_WORKER_ENABLED: "true",
+  CSF_WORKBOOK_WORKER_ENABLED: "true",
+  CSF_IMPORT_WORKER_ENABLED: "true",
   CSF_SCHEDULED_POST_PUBLISHER_ENABLED: "true",
   PROJECT_FEEDBACK_WORKER_ENABLED: "true",
   PAPER_SIGNUP_NOTIFICATION_WORKER_ENABLED: "true",
@@ -350,6 +377,9 @@ const routeModules = {
   "data-exports": await import("@/app/api/cron/data-exports/route"),
   "csf-communications-dispatch":
     await import("@/app/api/cron/csf-communications-dispatch/route"),
+  "csf-class-workbook-refresh":
+    await import("@/app/api/cron/csf-class-workbook-refresh/route"),
+  "csf-import-commit": await import("@/app/api/cron/csf-import-commit/route"),
   "csf-scheduled-post-publisher":
     await import("@/app/api/cron/csf-scheduled-post-publisher/route"),
   "project-feedback-followups":
@@ -365,6 +395,8 @@ const ROUTE_PATHS = {
   "organization-sheet-sync": "/api/cron/organization-sheet-sync",
   "data-exports": "/api/cron/data-exports",
   "csf-communications-dispatch": "/api/cron/csf-communications-dispatch",
+  "csf-class-workbook-refresh": "/api/cron/csf-class-workbook-refresh",
+  "csf-import-commit": "/api/cron/csf-import-commit",
   "csf-scheduled-post-publisher": "/api/cron/csf-scheduled-post-publisher",
   "project-feedback-followups": "/api/cron/project-feedback-followups",
   "paper-signup-notifications": "/api/cron/paper-signup-notifications",
@@ -396,6 +428,8 @@ function resetCounters() {
     reportRowCalls,
     pluginAdminClientCalls,
     scheduledFeedRevalidationCalls,
+    workbookRefreshCalls,
+    importCommitCalls,
   ]) {
     list.length = 0;
   }
@@ -450,7 +484,7 @@ const EXACT_PROBE_HEADERS = headersWith({
 // ---------------------------------------------------------------------------
 
 describe("cron auth/shape probe helper contract", () => {
-  test("exposes exactly the nine stable route IDs", () => {
+  test("exposes exactly the eleven stable route IDs", () => {
     expect([...CRON_PROBE_ROUTE_IDS]).toEqual([
       "auto-publish-hours",
       "project-cancellations",
@@ -458,6 +492,8 @@ describe("cron auth/shape probe helper contract", () => {
       "organization-sheet-sync",
       "data-exports",
       "csf-communications-dispatch",
+      "csf-class-workbook-refresh",
+      "csf-import-commit",
       "csf-scheduled-post-publisher",
       "project-feedback-followups",
       "paper-signup-notifications",

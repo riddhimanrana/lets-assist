@@ -104,7 +104,9 @@ export function createCsfProviderStartLimiter(
   const startsPerSecond =
     options.startsPerSecond ?? CSF_COMMUNICATION_WORKER_MAX_STARTS_PER_SECOND;
   if (!Number.isInteger(startsPerSecond) || startsPerSecond < 1) {
-    throw new RangeError("Provider starts per second must be a positive integer");
+    throw new RangeError(
+      "Provider starts per second must be a positive integer",
+    );
   }
   const now = options.now ?? Date.now;
   const wait =

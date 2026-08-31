@@ -117,7 +117,9 @@ describe("1,000-message fake provider load", () => {
     const fakeProvider = async (
       payload: Parameters<
         NonNullable<
-          Parameters<typeof worker.runCsfDispatchWorker>[1]["sendProviderRequest"]
+          Parameters<
+            typeof worker.runCsfDispatchWorker
+          >[1]["sendProviderRequest"]
         >
       >[0],
     ): Promise<SendEmailResult> => {

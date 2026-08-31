@@ -193,7 +193,7 @@ The application response does not create the profile, and the application decisi
 Ordinary running is the officer runbook. The first term is worth watching more closely:
 
 - Post from the class Stream with audience `class` (one cohort) or `members` (whole chapter). Pin sparingly.
-- The "also send as email" toggle queues exactly one campaign per post through the durable ledger. Retries are safe; edits after queueing never change the email already sent. Delivery drains every 10 minutes via the `csf-communications-dispatch` workflow.
+- The "also send as email" toggle queues exactly one campaign per post through the durable ledger. Retries are safe; edits after queueing never change the email already sent. The Vercel schedule requests `csf-communications-dispatch` every minute, but queueing is not delivery and hosted starts can vary.
 - Grant posting rights through the `manage_posts` capability. Publicity VP and Web Master templates carry it; org admins and the owner always have it.
 - Recipients opt out through the link in every announcement email. Opt-outs exclude the address from future snapshots automatically — never hand-manage them.
 

@@ -652,7 +652,7 @@ test.describe("signup email PKCE round trip", () => {
         timeout: 60_000,
       });
       await expect(
-        page.getByRole("heading", { name: "Connect your CSF record" }),
+        page.getByRole("heading", { name: "Find your CSF profile" }),
       ).toBeVisible();
       await expect(
         page.getByRole("button", { name: "Find my record", exact: true }),

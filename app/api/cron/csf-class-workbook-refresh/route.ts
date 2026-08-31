@@ -109,7 +109,7 @@ export async function POST(request: NextRequest) {
   const preparedCount = result.preparedTermCodes?.length ?? 0;
   const templateCount = result.templateTermCodes?.length ?? 0;
   const blockedCount = result.success
-    ? result.missingTabTermCodes?.length ?? 0
+    ? (result.missingTabTermCodes?.length ?? 0)
     : 1;
   const { error: finishError } = await plugin.rpc(
     "csf_finish_class_workbook_refresh_job",

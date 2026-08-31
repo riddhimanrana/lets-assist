@@ -20,8 +20,8 @@ mock.module("@/lib/plugins/supabase", () => ({
 }));
 mock.module("@/services/csf-import-commit-worker", () => ({
   executeCsfImportCommitClaim: async (...args: unknown[]) => {
-      actionCalls.push(args);
-      return actionResult;
+    actionCalls.push(args);
+    return actionResult;
   },
 }));
 

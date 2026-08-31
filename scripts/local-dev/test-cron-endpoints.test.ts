@@ -899,15 +899,16 @@ describe("harness source contracts", () => {
     expect(harnessSource).not.toContain('"run", "dev"');
   });
 
-  test("states its exact ten-route scope and names the six routes outside it", () => {
+  test("states its exact eleven-route scope and names the six routes outside it", () => {
     expect(harnessSource).toContain(
-      "the ten selected worker routes: auto-publish-hours,",
+      "the eleven selected worker routes: auto-publish-hours,",
     );
     for (const outside of [
       "ai-moderation",
       "anonymous-cleanup",
       "csf-proof-cleanup",
       "generate-recurring-projects",
+      "paper-scan-cleanup",
       "waiver-cleanup",
     ]) {
       expect(harnessSource, outside).toContain(outside);
@@ -924,7 +925,7 @@ describe("harness source contracts", () => {
     expect(harnessSource).not.toContain("Using existing dev server");
   });
 
-  test("covers all ten stable route IDs on both dispatching methods", () => {
+  test("covers all eleven stable route IDs on both dispatching methods", () => {
     for (const id of [
       "auto-publish-hours",
       "project-cancellations",
@@ -936,6 +937,7 @@ describe("harness source contracts", () => {
       "csf-import-commit",
       "csf-scheduled-post-publisher",
       "project-feedback-followups",
+      "paper-signup-notifications",
     ]) {
       expect(harnessSource).toContain(`id: "${id}"`);
     }

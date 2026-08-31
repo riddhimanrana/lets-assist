@@ -130,7 +130,7 @@ describe("local replay gate is separated from blocked remote readiness", () => {
     for (const omission of [
       "next build",
       "the full private-plugin corpus",
-      "scale (bun run csf:test:scale)",
+      "scale (bun run csf:test:scale and bun run csf:test:import:scale)",
       "the full CSF E2E suite, the action matrix, or screenshots",
       "public route proof, unless CSF_APP_URL was supplied",
       "Production, the preview project, or any provider",
@@ -187,6 +187,23 @@ describe("CI db-replay-validation uses the recovery topology and isolated seed",
     );
   });
 
+  test("runs both fictional scale checks after workflow validation and before browsers", () => {
+    const job = dbReplayJob();
+    const workflows = job.indexOf("run: bun run csf:test:workflows");
+    const memberScale = job.indexOf("bun run csf:test:scale");
+    const importScale = job.indexOf("bun run csf:test:import:scale");
+    const playwrightInstall = job.indexOf(
+      "- name: Install Playwright Chromium",
+    );
+
+    expect(workflows).toBeGreaterThan(-1);
+    expect(memberScale).toBeGreaterThan(workflows);
+    expect(importScale).toBeGreaterThan(memberScale);
+    expect(playwrightInstall).toBeGreaterThan(importScale);
+    expect(job.match(/bun run csf:test:scale/gu)?.length).toBe(1);
+    expect(job.match(/bun run csf:test:import:scale/gu)?.length).toBe(1);
+  });
+
   test("both isolated production browser builds skip only their redundant typecheck", () => {
     const job = dbReplayJob();
     const dvStep = job.slice(
@@ -241,6 +258,9 @@ describe("CI runs mock-sensitive tests through the shared process orchestrator",
     const job = ciJob("quality");
     expect(job).toContain("run: bun run format:check");
     expect(job).toContain("run: bun run test");
+    expect(job).toContain("run: bun run build");
+    expect(job).not.toMatch(/- name: Root and plugin tests\n\s+if:/u);
+    expect(job).not.toMatch(/- name: Production build\n\s+if:/u);
     expect(job).not.toContain("bun test \\");
   });
 
@@ -346,7 +366,7 @@ describe("CI runs mock-sensitive tests through the shared process orchestrator",
   });
 });
 
-describe("CI replays the seven-route cron smoke in the right order", () => {
+describe("CI replays the eleven-route cron smoke in the right order", () => {
   test("dev:test:cron runs after seeding and before Playwright", () => {
     const job = dbReplayJob();
     const seed = job.indexOf("- name: Seed fictional platform and DV fixtures");
@@ -363,16 +383,19 @@ describe("CI replays the seven-route cron smoke in the right order", () => {
     expect(job.match(/bun run dev:test:cron/gu)?.length).toBe(1);
   });
 
-  test("the full DB replay is an explicit manual rehearsal", () => {
+  test("the full DB replay runs for non-draft pull requests and release calls", () => {
     const workflow = ciWorkflowSource();
     const job = dbReplayJob();
 
     expect(workflow).toContain("  workflow_dispatch:");
+    expect(workflow).toContain("  workflow_call:");
     expect(workflow).not.toContain(
       "  push:\n    branches:\n      - development",
     );
     expect(workflow).not.toContain("dorny/paths-filter");
-    expect(job).toContain("if: github.event_name == 'workflow_dispatch'");
+    expect(job).toContain(
+      "if: github.event_name != 'pull_request' || github.event.pull_request.draft == false",
+    );
   });
 
   test("CI still contacts neither Production nor preview", () => {
@@ -587,15 +610,16 @@ describe("runbooks lead with the isolated contract", () => {
     expect(gate).not.toMatch(/^\d+\.\s+`bun run db:audit:remote-readiness`$/mu);
   });
 
-  test("the seven-route cron claim is exact and names what it excludes", () => {
+  test("the eleven-route cron claim is exact and names what it excludes", () => {
     expect(readme).toContain(
-      "the seven selected worker routes:\n  auto-publish-hours, project-cancellations, organization-calendar-sync,\n  organization-sheet-sync, data-exports, csf-communications-dispatch, and\n  csf-scheduled-post-publisher",
+      "the eleven selected worker routes:\n  auto-publish-hours, project-cancellations, organization-calendar-sync,\n  organization-sheet-sync, data-exports, csf-communications-dispatch,\n  csf-class-workbook-refresh, csf-import-commit,\n  csf-scheduled-post-publisher, project-feedback-followups, and\n  paper-signup-notifications",
     );
     for (const outside of [
       "`ai-moderation`",
       "`anonymous-cleanup`",
       "`csf-proof-cleanup`",
       "`generate-recurring-projects`",
+      "`paper-scan-cleanup`",
       "`waiver-cleanup`",
     ]) {
       expect(readme, outside).toContain(outside);
