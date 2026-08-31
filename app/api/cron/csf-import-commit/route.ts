@@ -4,6 +4,7 @@ import { createHash, timingSafeEqual } from "node:crypto";
 
 import { cronAuthShapeProbe } from "@/lib/cron/auth-shape-probe";
 import { createPluginAdminClient } from "@/lib/plugins/supabase";
+import { classifyCsfImportCommitFailure } from "@/lib/plugins/private/plugins/dvhs-csf/services/import-commit-failure-code";
 import type { CsfImportCommitWorkerContext } from "@/lib/plugins/private/plugins/dvhs-csf/services/import-commit-worker-context";
 import { executeCsfImportCommitClaim } from "@/services/csf-import-commit-worker";
 import { NextRequest, NextResponse } from "next/server";
@@ -93,6 +94,9 @@ export async function POST(request: NextRequest) {
     workerContext,
   });
   const status = result.success ? "completed" : "blocked";
+  const errorCode = result.success
+    ? null
+    : classifyCsfImportCommitFailure(result.error ?? "");
   const { error: finishError } = await plugin.rpc(
     "csf_finish_import_commit_queue",
     {
@@ -100,7 +104,7 @@ export async function POST(request: NextRequest) {
       p_lease_token: parsed.data.leaseToken,
       p_status: status,
       p_result_counts: { completed: result.success ? 1 : 0 },
-      p_error_code: result.success ? null : "import_commit_blocked",
+      p_error_code: errorCode,
     },
   );
   if (finishError) {
@@ -111,6 +115,7 @@ export async function POST(request: NextRequest) {
     claimed: 1,
     completed: result.success ? 1 : 0,
     blocked: result.success ? 0 : 1,
+    ...(errorCode ? { errorCode } : {}),
   });
 }
 
