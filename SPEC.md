@@ -95,6 +95,7 @@ V51: scale release → 1,000 fictional members + 90 member/10 officer sessions f
 V52: initial class workbook link → provider metadata and bounded grids read once, canonical term sources saved from that validated snapshot, exact Drive file generation registered, and one durable preparation job queued before the interactive request returns; populated-tab preview work in the request ⊥; replacement file generation blocks stale worker settlement.
 V53: class-history commit identity → one valid canonical roster key from the same organization, class, and official workbook reuses the previously committed active profile across semester jobs; different workbook, invalid key, conflicting canonical email, or a key already bound to multiple profiles blocks reuse and stays in officer review; reused identity is recorded on the immutable row and in private audit evidence.
 V54: background import refusal → queue receipt stores one closed operational code for allowlist, reconnect, missing file, trash, identity, MIME, incomplete evidence, source drift, or retryable source check; raw provider and database text ⊥; worker response may return the same closed code for operator diagnosis.
+V55: timed-out import batch → only a confirmed PostgreSQL statement-timeout rollback with no receipt may split into smaller atomic batches; another missing receipt or a single-row timeout blocks without an automatic repeat; feature-branch Vercel build ⊥ unless the branch is `development` or `main`.
 
 §T
 
@@ -128,6 +129,7 @@ T26|~~|add 1,000-member/100-session acceptance, require full CI gates, merge pri
 T27|~~|move initial class workbook preparation out of the linking request, prove exact file-generation retries, and reconcile the four official Development workbooks before Production promotion|V14,V17,V20,V46,V47,V52,I.service,I.db,I.cmd
 T28|~~|reuse one source-backed profile across semester commit jobs, deploy the exact Development tree, and complete the count-only officer reconciliation|V14,V17,V20,V23,V47,V53,I.service,I.db,I.cmd
 T29|~~|retain privacy-safe background import refusal codes, restore service-only class-history readiness execution, deploy the Development source allowlist, and resolve the official workbook commit blocker before Production promotion|V14,V17,V46,V47,V54,I.service,I.db,I.cmd
+T30|~~|split confirmed timed-out import batches, keep uncertain outcomes non-retryable, suppress ordinary feature-branch Vercel builds, and finish the official Development reconciliation in one release batch|V14,V17,V47,V55,I.service,I.db,I.cmd
 
 §B
 
@@ -167,3 +169,4 @@ B32|2026-08-31|background import receipts collapsed allowlist and live Google so
 B33|2026-08-31|the SECURITY INVOKER class-history readiness projection called two pure source-key helpers after their service-role execution grants had been revoked|grant only service_role access to those helpers in a forward migration; keep anon and authenticated denied
 B34|2026-08-31|three activity-heavy class-history commits reached the hosted database request limit before a 50-row transaction could create its receipt|commit at most ten rows per atomic request while preserving receipt replay and the 25,000-row safety ceiling
 B35|2026-08-31|the first ten-row retry cleared the database request limit but the 60-second web-worker ceiling stopped the fenced semester attempt before finalization|use the reviewed Pro function ceiling for the receipt-backed worker while every database transaction stays capped at ten rows
+B36|2026-08-31|one activity-heavy ten-row Class of 2028 transaction still exceeded the hosted PostgreSQL statement timeout after 150 rows had committed|split only a confirmed statement-timeout rollback into smaller receipt-backed batches; keep every other missing receipt blocked and non-retryable
