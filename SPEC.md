@@ -122,8 +122,8 @@ T22|x|add class workbook registry, revision leases, changed-version preparation 
 T23|x|add count-only batch approval and idempotent 50-row background import commits|V14,V17,V20,V23,V24,V31,V47,I.service,I.db,I.cmd
 T24|x|group Home/settings reads; page point/appeal queues; bound proof, profile search, and replies|V3,V9,V13,V19,V31,V42,V43,V48,I.service,I.perf,I.cmd
 T25|x|rotate Resend webhook safely; raise bounded dispatch throughput; split runtime secrets and add alerts|V14,V17,V41,V49,V50,I.service,I.cmd
-T26|~|add 1,000-member/100-session acceptance, require full CI gates, merge private first, and stage Development|V15,V17,V18,V19,V41,V51,I.perf,I.cmd
-T27|~|move initial class workbook preparation out of the linking request, prove exact file-generation retries, and reconcile the four official Development workbooks before Production promotion|V14,V17,V20,V46,V47,V52,I.service,I.db,I.cmd
+T26|~~|add 1,000-member/100-session acceptance, require full CI gates, merge private first, and stage Development|V15,V17,V18,V19,V41,V51,I.perf,I.cmd
+T27|~~|move initial class workbook preparation out of the linking request, prove exact file-generation retries, and reconcile the four official Development workbooks before Production promotion|V14,V17,V20,V46,V47,V52,I.service,I.db,I.cmd
 
 §B
 
