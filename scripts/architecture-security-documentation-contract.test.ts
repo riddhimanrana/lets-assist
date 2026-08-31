@@ -108,7 +108,7 @@ describe("architecture security documentation contract", () => {
       "The `csf:test:scale` command is a 1,000-profile/600-application smoke test with timings but no thresholds",
     );
     expect(testing).toContain(
-      "The `csf:test:import:scale` command exercises the real 1,000-row import receipt path in twenty 50-row batches",
+      "The `csf:test:import:scale` command exercises the real 1,000-row import receipt path in one hundred 10-row batches",
     );
   });
 });

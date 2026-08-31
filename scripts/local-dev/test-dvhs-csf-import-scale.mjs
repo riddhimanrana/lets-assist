@@ -5,7 +5,7 @@ import { spawnSync } from "node:child_process";
 import { getCsfIsolatedSupabaseEnv } from "./dv-local-env.mjs";
 
 const ROW_COUNT = 1_000;
-const BATCH_SIZE = 50;
+const BATCH_SIZE = 10;
 const MAX_DURATION_MS = 10 * 60 * 1_000;
 
 const { dbUrl } = getCsfIsolatedSupabaseEnv();
@@ -187,15 +187,15 @@ DECLARE
   receipt jsonb;
   replay jsonb;
 BEGIN
-  FOR batch_number IN 0..19 LOOP
+  FOR batch_number IN 0..99 LOOP
     request_id := md5('csf-import-scale-batch-' || batch_number::text)::uuid;
     SELECT array_agg(import_row.id ORDER BY import_row.row_number)
     INTO row_ids
     FROM plugin_data.csf_sheet_import_rows AS import_row
     WHERE import_row.organization_id = 'ce100000-0000-4000-8000-000000000001'
       AND import_row.job_id = 'ce300000-0000-4000-8000-000000000001'
-      AND import_row.row_number BETWEEN batch_number * 50 + 2
-        AND batch_number * 50 + 51;
+      AND import_row.row_number BETWEEN batch_number * 10 + 2
+        AND batch_number * 10 + 11;
 
     receipt := plugin_data.csf_commit_import_row_batch(
       'ce100000-0000-4000-8000-000000000001',
@@ -203,7 +203,7 @@ BEGIN
       request_id,
       row_ids
     );
-    IF (receipt ->> 'succeeded')::integer <> 50
+    IF (receipt ->> 'succeeded')::integer <> 10
       OR (receipt ->> 'failed')::integer <> 0
     THEN
       RAISE EXCEPTION 'Import scale batch % did not settle cleanly.', batch_number;
@@ -238,8 +238,8 @@ SELECT jsonb_build_object(
   'ok', (SELECT value ->> 'status' FROM import_scale_state WHERE key = 'finalize') = 'completed',
   'fictional', true,
   'rows', 1000,
-  'batchSize', 50,
-  'batches', 20,
+  'batchSize', 10,
+  'batches', 100,
   'replayedBatches', (SELECT replayed_batches FROM import_scale_metrics),
   'profilesCreated', (
     SELECT count(*) FROM plugin_data.csf_profiles
