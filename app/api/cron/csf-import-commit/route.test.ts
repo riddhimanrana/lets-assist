@@ -24,7 +24,6 @@ mock.module("@/services/csf-import-commit-worker", () => ({
     return actionResult;
   },
 }));
-
 const { POST } = await import("./route");
 const { NextRequest } = await import("next/server");
 
@@ -102,10 +101,18 @@ describe("CSF import commit worker route", () => {
       { data: claim, error: null },
       { data: { finished: true }, error: null },
     ];
-    actionResult = { success: false, error: "Review required." };
+    actionResult = {
+      success: false,
+      error: "Reconnect Google Drive before importing.",
+    };
     const response = await POST(request());
-    expect(await response.json()).toMatchObject({ blocked: 1, completed: 0 });
+    expect(await response.json()).toMatchObject({
+      blocked: 1,
+      completed: 0,
+      errorCode: "google_reconnect_required",
+    });
     expect(rpcCalls[1]?.args.p_status).toBe("blocked");
+    expect(rpcCalls[1]?.args.p_error_code).toBe("google_reconnect_required");
   });
 
   test("fails closed on malformed claims", async () => {
