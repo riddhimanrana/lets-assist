@@ -2,7 +2,7 @@ BEGIN;
 
 CREATE EXTENSION IF NOT EXISTS pgtap WITH SCHEMA extensions;
 
-SELECT extensions.plan(7);
+SELECT extensions.plan(9);
 
 INSERT INTO public.organizations (id, name, username, type, join_code)
 VALUES (
@@ -76,6 +76,53 @@ SELECT extensions.ok(
   ),
   'only service_role can execute the readiness projection'
 );
+
+SELECT extensions.ok(
+  has_function_privilege(
+    'service_role',
+    'plugin_data.csf_class_history_source_key_value(jsonb)',
+    'EXECUTE'
+  )
+  AND has_function_privilege(
+    'service_role',
+    'plugin_data.csf_class_history_has_stable_source_key(jsonb)',
+    'EXECUTE'
+  )
+  AND NOT has_function_privilege(
+    'anon',
+    'plugin_data.csf_class_history_source_key_value(jsonb)',
+    'EXECUTE'
+  )
+  AND NOT has_function_privilege(
+    'anon',
+    'plugin_data.csf_class_history_has_stable_source_key(jsonb)',
+    'EXECUTE'
+  )
+  AND NOT has_function_privilege(
+    'authenticated',
+    'plugin_data.csf_class_history_source_key_value(jsonb)',
+    'EXECUTE'
+  )
+  AND NOT has_function_privilege(
+    'authenticated',
+    'plugin_data.csf_class_history_has_stable_source_key(jsonb)',
+    'EXECUTE'
+  ),
+  'the readiness projection helpers are executable only by the server role'
+);
+
+SET LOCAL ROLE service_role;
+
+SELECT extensions.is(
+  (plugin_data.csf_import_preview_readiness(
+    'aa510000-0000-4000-8000-000000000001',
+    'aa520000-0000-4000-8000-000000000001'
+  )->>'pendingMissingSourceKey')::integer,
+  1,
+  'service_role can execute class-history readiness through both helpers'
+);
+
+RESET ROLE;
 
 SELECT extensions.is(
   (plugin_data.csf_import_preview_readiness(

@@ -127,7 +127,7 @@ T25|x|rotate Resend webhook safely; raise bounded dispatch throughput; split run
 T26|~~|add 1,000-member/100-session acceptance, require full CI gates, merge private first, and stage Development|V15,V17,V18,V19,V41,V51,I.perf,I.cmd
 T27|~~|move initial class workbook preparation out of the linking request, prove exact file-generation retries, and reconcile the four official Development workbooks before Production promotion|V14,V17,V20,V46,V47,V52,I.service,I.db,I.cmd
 T28|~~|reuse one source-backed profile across semester commit jobs, deploy the exact Development tree, and complete the count-only officer reconciliation|V14,V17,V20,V23,V47,V53,I.service,I.db,I.cmd
-T29|~~|retain privacy-safe background import refusal codes, deploy them with the Development source allowlist, and resolve the official workbook commit blocker before Production promotion|V14,V17,V46,V47,V54,I.service,I.cmd
+T29|~~|retain privacy-safe background import refusal codes, restore service-only class-history readiness execution, deploy the Development source allowlist, and resolve the official workbook commit blocker before Production promotion|V14,V17,V46,V47,V54,I.service,I.db,I.cmd
 
 §B
 
@@ -164,3 +164,4 @@ B29|2026-08-30|direct 1,000-row fixture benchmark did not test authenticated rou
 B30|2026-08-30|isolated auth admin and password-login requests repeatedly exceeded 30–60 seconds while database scale checks stayed fast|keep authenticated browser and 100-session acceptance open until the isolated auth runtime or hosted synthetic environment can sustain login
 B31|2026-08-31|prepared class-history previews had valid roster keys but no profile targets, so batch readiness blocked every term and independent term commits would create duplicate profiles|V53
 B32|2026-08-31|background import receipts collapsed allowlist and live Google source refusals into `import_commit_blocked`, hiding the safe operator action while preserving no diagnostic distinction|V54
+B33|2026-08-31|the SECURITY INVOKER class-history readiness projection called two pure source-key helpers after their service-role execution grants had been revoked|grant only service_role access to those helpers in a forward migration; keep anon and authenticated denied
