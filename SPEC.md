@@ -34,7 +34,7 @@ perf: CSF route response → active route-family component graph only; unrelated
 db: stable class join code → organization + cohort + code digest + lifecycle; direct invitations unchanged
 cmd: `bun run test:plugins`; `bun run typecheck`; `bun run lint`; `bun run db:validate`; `bun run csf:test:import:scale`; focused pgTAP; `bun run build`
 service: class workbook check → leased Drive revision read → unchanged receipt | durable changed-version preparation job
-service: import approval → frozen ready-preview batch receipt → leased 50-row commit batches
+service: import approval → frozen ready-preview batch receipt → leased 10-row commit batches
 service: point/profile queue read → `{items,nextCursor,unresolvedCount}`; proof signed for selected item only
 service: communication worker → 125 attempts/minute max, 5 concurrent sends, 8 request starts/second, durable provider settlement
 perf: acceptance → 1,000 members, 100 concurrent, read p95 ≤2.5s, mutation p95 ≤3s, 5xx <0.1%
@@ -87,7 +87,7 @@ V43: My CSF → profile identity + graduation class + current-semester service-p
 V44: class-history identity columns → standard spaced or compact first/last headers; one damaged identity header may be inferred only from one unclaimed pre-key column in a class-history source; application inference and explicit `not_mapped` override ⊥. Officer point review → canonical activity or club, member description, configured point rule, proof, club review state, sheet reference, and appeal history stay beside the decision; an open appeal can be decided there. Member personal-calendar connection UI and member-route calendar read ⊥.
 V45: class join identity → verified-email auto-link or one officer request; exported legacy name-confirm action, name-only confirmation RPC, non-null `p_confirmed_profile_id`, duplicate request, and name-only activity disclosure ⊥; account + address attempt buckets atomic.
 V46: class workbook → one organization/class registry + exact Drive revision + five-minute check lease; unchanged revision creates no tab read/preview; changed revision creates one durable preparation job; revoked owner or OAuth access blocks.
-V47: workbook approval → one officer batch freezes ready preview ids and count-only evidence; conflicted/stale previews stay blocked; each ready preview commits independently through idempotent leased batches of ≤50 rows; lost response replays receipt, never row write.
+V47: workbook approval → one officer batch freezes ready preview ids and count-only evidence; conflicted/stale previews stay blocked; each ready preview commits independently through idempotent leased batches of ≤10 rows; lost response replays receipt, never row write.
 V48: CSF reads → member Home ≤10 external reads, officer Home ≤8; unresolved point/appeal queues keyset-paged 25, history 50; profile search min 2 chars/max 20; selected proof only; feed reply preview ≤3.
 V49: communication dispatch → every minute, ≤125 attempts/run, ≤5 concurrent sends, ≤8 request starts/second; `Retry-After` preserved; 1,000 fake-provider attempts reach accepted or durable retry within 10 minutes, duplicate send ⊥.
 V50: webhook rotation → versioned secret keyring + legacy single-secret fallback; verified raw-body signature before parse; replacement endpoint settles Development test event before old endpoint disable; raw message body/storage ⊥.
@@ -121,7 +121,7 @@ T19|x|replace the My CSF application tracker with a semester profile and reduce 
 T20|x|repair compact and damaged historical identity headers; put club, proof, and appeal evidence in the point queue; open applications by application subject; remove the member calendar connection|V17,V20,V23,V31,V44,I.route,I.service,I.cmd
 T21|x|remove legacy name-only linking; rate-limit join/search; align current onboarding and Class 2030 docs|V5,V17,V23,V27,V43,V45,I.route,I.service,I.db,I.cmd
 T22|x|add class workbook registry, revision leases, changed-version preparation queue, and worker|V14,V17,V20,V22,V24,V46,I.service,I.db,I.cmd
-T23|x|add count-only batch approval and idempotent 50-row background import commits|V14,V17,V20,V23,V24,V31,V47,I.service,I.db,I.cmd
+T23|x|add count-only batch approval and idempotent 10-row background import commits|V14,V17,V20,V23,V24,V31,V47,I.service,I.db,I.cmd
 T24|x|group Home/settings reads; page point/appeal queues; bound proof, profile search, and replies|V3,V9,V13,V19,V31,V42,V43,V48,I.service,I.perf,I.cmd
 T25|x|rotate Resend webhook safely; raise bounded dispatch throughput; split runtime secrets and add alerts|V14,V17,V41,V49,V50,I.service,I.cmd
 T26|~~|add 1,000-member/100-session acceptance, require full CI gates, merge private first, and stage Development|V15,V17,V18,V19,V41,V51,I.perf,I.cmd
@@ -165,3 +165,4 @@ B30|2026-08-30|isolated auth admin and password-login requests repeatedly exceed
 B31|2026-08-31|prepared class-history previews had valid roster keys but no profile targets, so batch readiness blocked every term and independent term commits would create duplicate profiles|V53
 B32|2026-08-31|background import receipts collapsed allowlist and live Google source refusals into `import_commit_blocked`, hiding the safe operator action while preserving no diagnostic distinction|V54
 B33|2026-08-31|the SECURITY INVOKER class-history readiness projection called two pure source-key helpers after their service-role execution grants had been revoked|grant only service_role access to those helpers in a forward migration; keep anon and authenticated denied
+B34|2026-08-31|three activity-heavy class-history commits reached the hosted database request limit before a 50-row transaction could create its receipt|commit at most ten rows per atomic request while preserving receipt replay and the 25,000-row safety ceiling
