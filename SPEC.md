@@ -92,6 +92,7 @@ V48: CSF reads → member Home ≤10 external reads, officer Home ≤8; unresolv
 V49: communication dispatch → every minute, ≤125 attempts/run, ≤5 concurrent sends, ≤8 request starts/second; `Retry-After` preserved; 1,000 fake-provider attempts reach accepted or durable retry within 10 minutes, duplicate send ⊥.
 V50: webhook rotation → versioned secret keyring + legacy single-secret fallback; verified raw-body signature before parse; replacement endpoint settles Development test event before old endpoint disable; raw message body/storage ⊥.
 V51: scale release → 1,000 fictional members + 90 member/10 officer sessions for 15 minutes; read p95 ≤2.5s, p99 ≤5s, mutation p95 ≤3s, total error <0.5%, 5xx <0.1%, LCP <2.5s, INP <200ms, CLS <0.1, renderer crash ⊥, retained heap growth ≤20%; exact root/private SHA gates required.
+V52: initial class workbook link → canonical term sources saved, exact Drive file generation registered, and one durable preparation job queued before the interactive request returns; populated-tab preview work in the request ⊥; replacement file generation blocks stale worker settlement.
 
 §T
 
@@ -121,7 +122,8 @@ T22|x|add class workbook registry, revision leases, changed-version preparation 
 T23|x|add count-only batch approval and idempotent 50-row background import commits|V14,V17,V20,V23,V24,V31,V47,I.service,I.db,I.cmd
 T24|x|group Home/settings reads; page point/appeal queues; bound proof, profile search, and replies|V3,V9,V13,V19,V31,V42,V43,V48,I.service,I.perf,I.cmd
 T25|x|rotate Resend webhook safely; raise bounded dispatch throughput; split runtime secrets and add alerts|V14,V17,V41,V49,V50,I.service,I.cmd
-T26|~|add 1,000-member/100-session acceptance, require full CI gates, merge private first, and stage Development|V15,V17,V18,V19,V41,V51,I.perf,I.cmd
+T26|~~|add 1,000-member/100-session acceptance, require full CI gates, merge private first, and stage Development|V15,V17,V18,V19,V41,V51,I.perf,I.cmd
+T27|~~|move initial class workbook preparation out of the linking request, prove exact file-generation retries, and reconcile the four official Development workbooks before Production promotion|V14,V17,V20,V46,V47,V52,I.service,I.db,I.cmd
 
 §B
 
