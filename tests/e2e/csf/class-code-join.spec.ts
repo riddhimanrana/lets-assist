@@ -325,7 +325,7 @@ test.describe("class join code connections", () => {
       page.getByRole("main").getByText("Taylor Fixture", { exact: true }),
     ).toBeVisible();
     await expect(
-      page.getByRole("button", { name: "Use this profile" }),
+      page.getByRole("button", { name: "Yes, this is me" }),
     ).toBeVisible();
     await expect(
       page.getByRole("button", { name: "Find my record", exact: true }),
