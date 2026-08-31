@@ -2,9 +2,8 @@ import { describe, expect, mock, test } from "bun:test";
 
 mock.module("server-only", () => ({}));
 
-const { readResendWebhookVerificationKeys } = await import(
-  "./resend-webhook-keyring"
-);
+const { readResendWebhookVerificationKeys } =
+  await import("./resend-webhook-keyring");
 
 describe("Resend webhook keyring", () => {
   test("orders the active key first and retains the legacy migration key", () => {

@@ -158,11 +158,7 @@ export function decryptWithRotation(encryptedData: string): DecryptionResult {
     const versioned = parts[0] === FORMAT_VERSION;
     const keyId = versioned ? parts[1] : "legacy";
     const encryptedParts = versioned ? parts.slice(2) : parts;
-    if (
-      !keyId ||
-      !KEY_ID_PATTERN.test(keyId) ||
-      encryptedParts.length !== 4
-    ) {
+    if (!keyId || !KEY_ID_PATTERN.test(keyId) || encryptedParts.length !== 4) {
       throw new Error("Invalid encrypted data format");
     }
     const secret = keyring.keys.get(keyId);

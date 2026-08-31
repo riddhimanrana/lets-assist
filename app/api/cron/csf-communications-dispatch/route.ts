@@ -511,10 +511,7 @@ export async function POST(request: NextRequest) {
         runCsfDispatchWorker(plugin, {
           organizationId,
           workerId,
-          batchSize: Math.min(
-            MAX_ORGANIZATION_QUANTUM,
-            batchSize - claimed,
-          ),
+          batchSize: Math.min(MAX_ORGANIZATION_QUANTUM, batchSize - claimed),
           leaseSeconds: LEASE_SECONDS,
           providerSignal: providerAbortController.signal,
           concurrency: CSF_COMMUNICATION_WORKER_MAX_CONCURRENCY,

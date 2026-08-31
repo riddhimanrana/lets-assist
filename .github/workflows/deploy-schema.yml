@@ -17,6 +17,11 @@ permissions:
   statuses: write
 
 jobs:
+  csf-release-gates:
+    name: CSF release gates
+    uses: ./.github/workflows/ci.yml
+    secrets: inherit
+
   # Stage 1: Validate migrations locally before connecting to prod
   validate-migrations:
     name: Validate Migrations
@@ -193,7 +198,7 @@ jobs:
   deploy-to-production:
     name: Deploy to Production
     runs-on: ubuntu-latest
-    needs: [validate-migrations, test-local-reset]
+    needs: [csf-release-gates, validate-migrations, test-local-reset]
     if: >-
       github.event_name == 'workflow_dispatch' &&
       github.ref == 'refs/heads/main' &&

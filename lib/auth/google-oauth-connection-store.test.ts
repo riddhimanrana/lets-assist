@@ -123,7 +123,7 @@ describe("Google OAuth credential purpose boundaries", () => {
     );
     const functionSource = service.slice(functionStart);
     const refresh = functionSource.indexOf(
-      "refreshAccessToken(decryptedRefreshToken)",
+      "refreshAccessToken(decryptedRefresh.plaintext)",
     );
     const reauthorization = functionSource.indexOf(
       "const refreshedAuthorization =",

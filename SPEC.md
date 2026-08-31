@@ -32,7 +32,7 @@ service: officer point review → member claim + canonical activity/club + proof
 form: point claim → stable `sourceKind|opportunityId|partnerClubTermId|description|termId|pointType|claimedPoints|activityDate|evidence` FormData contract
 perf: CSF route response → active route-family component graph only; unrelated client references ⊥
 db: stable class join code → organization + cohort + code digest + lifecycle; direct invitations unchanged
-cmd: `bun run test:plugins`; `bun run typecheck`; `bun run lint`; `bun run db:validate`; focused pgTAP; `bun run build`
+cmd: `bun run test:plugins`; `bun run typecheck`; `bun run lint`; `bun run db:validate`; `bun run csf:test:import:scale`; focused pgTAP; `bun run build`
 service: class workbook check → leased Drive revision read → unchanged receipt | durable changed-version preparation job
 service: import approval → frozen ready-preview batch receipt → leased 50-row commit batches
 service: point/profile queue read → `{items,nextCursor,unresolvedCount}`; proof signed for selected item only
@@ -155,3 +155,4 @@ B26|2026-08-30|point queues signed every proof and routine staff selectors loade
 B27|2026-08-30|ten-minute cron + 25 sequential sends required about 6h40m for 1,000 recipients|V49
 B28|2026-08-30|Production Resend webhook rejected every sampled delivery event because configured secret did not verify provider signatures|V50
 B29|2026-08-30|direct 1,000-row fixture benchmark did not test authenticated route concurrency, browser memory, email, or Drive|V51
+B30|2026-08-30|isolated auth admin and password-login requests repeatedly exceeded 30–60 seconds while database scale checks stayed fast|keep authenticated browser and 100-session acceptance open until the isolated auth runtime or hosted synthetic environment can sustain login

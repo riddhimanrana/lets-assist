@@ -285,10 +285,13 @@ function providerStatus(value: unknown): number | null {
  * Reaching this function at all means the API answered, so the request definitely
  * arrived. What remains is whether it was accepted.
  */
-export function classifyProviderError(error: {
-  name?: unknown;
-  statusCode?: unknown;
-}, headers: Record<string, string> | null = null): SendEmailResult & {
+export function classifyProviderError(
+  error: {
+    name?: unknown;
+    statusCode?: unknown;
+  },
+  headers: Record<string, string> | null = null,
+): SendEmailResult & {
   outcome: "definitive_failure" | "retryable_pre_send" | "unknown_outcome";
 } {
   const code = safeProviderCode(error?.name);

@@ -105,7 +105,10 @@ describe("architecture security documentation contract", () => {
       "These are acceptance targets for a release that claims the corresponding scale, not completed evidence",
     );
     expect(testing).toContain(
-      "The current `csf:test:scale` script is a 1,000-profile/600-application smoke test with timings but no thresholds",
+      "The `csf:test:scale` command is a 1,000-profile/600-application smoke test with timings but no thresholds",
+    );
+    expect(testing).toContain(
+      "The `csf:test:import:scale` command exercises the real 1,000-row import receipt path in twenty 50-row batches",
     );
   });
 });

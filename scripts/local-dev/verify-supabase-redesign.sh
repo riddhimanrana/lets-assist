@@ -230,11 +230,10 @@ run_step "Typecheck" bun run typecheck
 run_step "Lint" bun run lint
 run_step "Plugin Login/API Isolation Browser Smoke" bun run plugin:test:isolation
 # The harness owns its own server on its own claimed port and refuses to adopt
-# one, so no base URL is supplied and none may be. Its scope is exactly the six
-# selected worker routes: auto-publish-hours, project-cancellations,
-# organization-calendar-sync, organization-sheet-sync, data-exports, and csf-scheduled-post-publisher.
+# one, so no base URL is supplied and none may be. Its scope is exactly the
+# eleven selected worker routes named by the harness.
 run_step \
-  "Cron Auth/Shape Smoke — six selected worker routes (no dispatch, no egress)" \
+  "Cron Auth/Shape Smoke: eleven selected worker routes (no dispatch, no egress)" \
   bun run dev:test:cron
 
 if [[ "${REQUIRE_REMOTE_READINESS}" == "1" ]]; then
@@ -254,9 +253,9 @@ echo
 echo "This gate does NOT cover:"
 echo "  - next build or any production build output"
 echo "  - the full private-plugin corpus (only the registry, contract, and strict submodule gates run)"
-echo "  - scale (bun run csf:test:scale)"
+echo "  - scale (bun run csf:test:scale and bun run csf:test:import:scale)"
 echo "  - the full CSF E2E suite, the action matrix, or screenshots (bun run csf:test:e2e)"
 echo "  - public route proof, unless CSF_APP_URL was supplied to csf:test:workflows"
-echo "  - the six cron routes outside the six-route harness: ai-moderation, anonymous-cleanup,"
-echo "    csf-communications-dispatch, csf-proof-cleanup, generate-recurring-projects, waiver-cleanup"
+echo "  - the six cron routes outside the eleven-route harness: ai-moderation, anonymous-cleanup,"
+echo "    csf-proof-cleanup, generate-recurring-projects, paper-scan-cleanup, waiver-cleanup"
 echo "  - Production, the preview project, or any provider (Resend, Google, Gmail, Drive, Calendar)"

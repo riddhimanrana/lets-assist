@@ -43,7 +43,7 @@ describe("CSF hosted-worker cadence acceptance boundary", () => {
     expect(configuredTargets).toEqual([
       {
         path: "/api/cron/csf-communications-dispatch",
-        schedule: "*/10 * * * *",
+        schedule: "* * * * *",
       },
       {
         path: "/api/cron/csf-class-workbook-refresh",

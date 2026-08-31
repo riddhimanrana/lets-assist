@@ -1552,6 +1552,7 @@ bun run plugin:test:contracts
 bun run dv:test:db
 bun run csf:test:workflows
 bun run csf:test:scale
+bun run csf:test:import:scale
 bun run csf:test:e2e
 bun run build
 ```

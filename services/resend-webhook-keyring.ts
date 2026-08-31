@@ -28,8 +28,7 @@ export function readResendWebhookVerificationKeys(
     RESEND_WEBHOOK_SECRET_KEYRING?: string;
     RESEND_WEBHOOK_SECRET?: string;
   } = {
-    RESEND_WEBHOOK_SECRET_KEYRING:
-      process.env.RESEND_WEBHOOK_SECRET_KEYRING,
+    RESEND_WEBHOOK_SECRET_KEYRING: process.env.RESEND_WEBHOOK_SECRET_KEYRING,
     RESEND_WEBHOOK_SECRET: process.env.RESEND_WEBHOOK_SECRET,
   },
 ): ResendWebhookVerificationKey[] {

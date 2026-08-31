@@ -341,8 +341,11 @@ export async function sendEmail({
       ...(idempotencyKey ? { idempotencyKey } : {}),
       ...(signal ? { signal } : {}),
     };
-    const { data, error, headers: providerResponseHeaders } =
-      await resend.emails.send(
+    const {
+      data,
+      error,
+      headers: providerResponseHeaders,
+    } = await resend.emails.send(
       {
         from: resolvedFrom,
         to,

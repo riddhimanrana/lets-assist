@@ -37,6 +37,7 @@ The orchestrator keeps safety-sensitive groups explicit, discovers all remaining
 - `bun run dv:test:db`
 - `bun run csf:test:workflows`
 - `bun run csf:test:scale`
+- `bun run csf:test:import:scale`
 - `bun run plugin:submodules:check:strict`
 
 ## Browser gates
@@ -51,7 +52,7 @@ The DV suite requires its explicitly optional fictional DV seed and password mar
 
 ## Synthetic-scale release criteria
 
-These are acceptance targets for a release that claims the corresponding scale, not completed evidence. The current `csf:test:scale` script is a 1,000-profile/600-application smoke test with timings but no thresholds; it does not satisfy any tier below.
+These are acceptance targets for a release that claims the corresponding scale, not completed evidence. The `csf:test:scale` command is a 1,000-profile/600-application smoke test with timings but no thresholds. The `csf:test:import:scale` command exercises the real 1,000-row import receipt path in twenty 50-row batches, replays every request, requires zero duplicate writes and unknown outcomes, and enforces the ten-minute import target. Neither command satisfies any larger tier below.
 
 Measure at least 30 samples after five warmups on documented local or hosted Development hardware, using fictional tenant-isolated data and the production query/route shape.
 
