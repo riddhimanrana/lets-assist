@@ -9,6 +9,7 @@ const OFFICER_ACCOUNT = "csf.officer@local.test";
 const MEMBER_SESSIONS = 90;
 const OFFICER_SESSIONS = 10;
 const DEFAULT_DURATION_MS = 15 * 60 * 1000;
+const RAMP_DURATION_MS = 60_000;
 const REQUEST_INTERVAL_MS = 10_000;
 
 function required(name) {
@@ -157,12 +158,20 @@ async function runRequestSessions({
   let fiveHundreds = 0;
   let requests = 0;
   const endAt = Date.now() + durationMs;
-  let cycle = 0;
-
-  while (Date.now() < endAt) {
-    const cycleStart = Date.now();
-    await Promise.all(
-      sessions.map(async (session) => {
+  await Promise.all(
+    sessions.map(async (session, sessionIndex) => {
+      const rampDelayMs =
+        sessions.length === 1
+          ? 0
+          : Math.floor(
+              (RAMP_DURATION_MS * sessionIndex) / (sessions.length - 1),
+            );
+      if (rampDelayMs > 0) {
+        await new Promise((resolve) => setTimeout(resolve, rampDelayMs));
+      }
+      let cycle = 0;
+      while (Date.now() < endAt) {
+        const cycleStart = Date.now();
         const path =
           session.paths[(cycle + session.index) % session.paths.length];
         const startedAt = performance.now();
@@ -188,14 +197,14 @@ async function runRequestSessions({
           errors += 1;
           timings.push(performance.now() - startedAt);
         }
-      }),
-    );
-    cycle += 1;
-    const remaining = REQUEST_INTERVAL_MS - (Date.now() - cycleStart);
-    if (remaining > 0 && Date.now() + remaining < endAt) {
-      await new Promise((resolve) => setTimeout(resolve, remaining));
-    }
-  }
+        cycle += 1;
+        const remaining = REQUEST_INTERVAL_MS - (Date.now() - cycleStart);
+        if (remaining > 0 && Date.now() + remaining < endAt) {
+          await new Promise((resolve) => setTimeout(resolve, remaining));
+        }
+      }
+    }),
+  );
 
   return { errors, fiveHundreds, requests, timings };
 }
@@ -254,31 +263,45 @@ async function runBrowserAcceptance({ appUrl, memberPage, officerPage }) {
     new URL("/organization/dvhs-csf?tab=csf-overview", appUrl).href,
   );
   for (let index = 0; index < 25; index += 1) {
-    const movingToMember = index % 2 === 0;
     const switchButton = officerPage.getByRole("button", {
-      name: movingToMember ? "View as member" : "Switch to CSF Officer view",
+      name: /^(Switch to CSF Officer view|View as member)$/u,
     });
+    await switchButton.waitFor({ state: "visible", timeout: 60_000 });
+    const switchLabel = (await switchButton.textContent())?.trim();
+    const movingToMember = switchLabel === "View as member";
+    if (!movingToMember && switchLabel !== "Switch to CSF Officer view") {
+      throw new Error("The fictional staff-view control has an unknown state.");
+    }
+    const destinationTab = movingToMember ? "csf-home" : "csf-overview";
     const startedAt = performance.now();
-    const actionResponsePromise = officerPage.waitForResponse((response) => {
-      const request = response.request();
-      return (
-        request.method() === "POST" &&
-        new URL(response.url()).pathname === "/organization/dvhs-csf"
-      );
-    });
-    await switchButton.click();
-    const actionResponse = await actionResponsePromise;
+    const [actionResponse] = await Promise.all([
+      officerPage.waitForResponse(
+        (response) => {
+          const request = response.request();
+          return (
+            request.method() === "POST" &&
+            new URL(response.url()).pathname === "/organization/dvhs-csf"
+          );
+        },
+        { timeout: 60_000 },
+      ),
+      switchButton.click({ timeout: 60_000 }),
+    ]);
     if (!actionResponse.ok()) {
       throw new Error(
         `The fictional staff-view mutation returned ${actionResponse.status()}.`,
       );
     }
     mutationTimings.push(performance.now() - startedAt);
-    await officerPage.waitForURL((url) =>
-      movingToMember
-        ? url.searchParams.get("tab") === "csf-home"
-        : url.searchParams.get("tab") === "csf-overview",
+    await officerPage.waitForURL(
+      (url) => url.searchParams.get("tab") === destinationTab,
+      { timeout: 60_000 },
     );
+    await officerPage
+      .getByRole("button", {
+        name: movingToMember ? "Switch to CSF Officer view" : "View as member",
+      })
+      .waitFor({ state: "visible", timeout: 60_000 });
     if (index === 1) {
       baselineHeap =
         (await collectHeap(memberPage, memberSession)) +
@@ -295,6 +318,7 @@ async function runBrowserAcceptance({ appUrl, memberPage, officerPage }) {
       : null;
 
   return {
+    baselineHeap,
     browserFailures,
     clsP75: percentile(cls, 0.75),
     finalHeap,
@@ -334,16 +358,20 @@ async function main() {
     const memberCookies = cookieHeader(await memberContext.cookies());
     const officerCookies = cookieHeader(await officerContext.cookies());
 
-    const [load, browserResult] = await Promise.all([
-      runRequestSessions({
-        appUrl: target.appUrl,
-        durationMs: target.durationMs,
-        memberCookies,
-        officerCookies,
-        protectionBypass: target.protectionBypass,
-      }),
-      runBrowserAcceptance({ appUrl: target.appUrl, memberPage, officerPage }),
-    ]);
+    const loadPromise = runRequestSessions({
+      appUrl: target.appUrl,
+      durationMs: target.durationMs,
+      memberCookies,
+      officerCookies,
+      protectionBypass: target.protectionBypass,
+    });
+    await new Promise((resolve) => setTimeout(resolve, RAMP_DURATION_MS));
+    const browserResult = await runBrowserAcceptance({
+      appUrl: target.appUrl,
+      memberPage,
+      officerPage,
+    });
+    const load = await loadPromise;
     const result = {
       ok: true,
       environment: "hosted-development",
@@ -363,6 +391,8 @@ async function main() {
         (failure) => failure === "renderer_crash",
       ).length,
       browserErrors: browserResult.browserFailures.length,
+      baselineHeapBytes: browserResult.baselineHeap,
+      finalHeapBytes: browserResult.finalHeap,
       retainedHeapGrowth: browserResult.heapGrowth,
     };
     result.ok =

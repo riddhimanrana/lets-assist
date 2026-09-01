@@ -22,7 +22,12 @@ describe("hosted CSF load acceptance", () => {
     expect(source).toContain("const MEMBER_SESSIONS = 90");
     expect(source).toContain("const OFFICER_SESSIONS = 10");
     expect(source).toContain("const DEFAULT_DURATION_MS = 15 * 60 * 1000");
+    expect(source).toContain("const RAMP_DURATION_MS = 60_000");
     expect(source).toContain("durationMs < DEFAULT_DURATION_MS");
+    expect(source).toContain("RAMP_DURATION_MS * sessionIndex");
+    expect(source).toContain(
+      "await new Promise((resolve) => setTimeout(resolve, RAMP_DURATION_MS))",
+    );
   });
 
   test("enforces route, browser, Web Vitals, and retained-heap limits", () => {
@@ -41,11 +46,18 @@ describe("hosted CSF load acceptance", () => {
       expect(source).toContain(contract);
     }
     expect(source).toContain("for (let index = 0; index < 25; index += 1)");
+    expect(source).toContain(
+      "name: /^(Switch to CSF Officer view|View as member)$/u",
+    );
+    expect(source).toContain("const [actionResponse] = await Promise.all([");
+    expect(source).toContain("const destinationTab = movingToMember");
     expect(source).toContain('request.method() === "POST"');
     expect(source).toContain(
       'new URL(response.url()).pathname === "/organization/dvhs-csf"',
     );
     expect(source).toContain("The fictional staff-view mutation returned");
+    expect(source).toContain("baselineHeapBytes: browserResult.baselineHeap");
+    expect(source).toContain("finalHeapBytes: browserResult.finalHeap");
     expect(source).toContain('required("VERCEL_AUTOMATION_BYPASS_SECRET")');
     expect(source).toContain('"x-vercel-protection-bypass"');
     expect(source).toContain("page.route(`${appUrl.origin}/**`");
