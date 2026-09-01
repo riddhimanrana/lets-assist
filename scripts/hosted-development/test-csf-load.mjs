@@ -211,9 +211,7 @@ async function mintSession({
         `Could not mint a fictional ${account === OFFICER_ACCOUNT ? "officer" : "member"} session.`,
       );
     }
-    await new Promise((resolve) =>
-      setTimeout(resolve, SESSION_MINT_RETRY_MS),
-    );
+    await new Promise((resolve) => setTimeout(resolve, SESSION_MINT_RETRY_MS));
   }
   if (!session) throw new Error("A fictional session was not created.");
   const cookies = [...cookieStore].map(([name, value]) => ({ name, value }));
@@ -471,9 +469,7 @@ async function main() {
     supabasePublishableKey: target.supabasePublishableKey,
     supabaseUrl: target.supabaseUrl,
   });
-  await new Promise((resolve) =>
-    setTimeout(resolve, SESSION_MINT_INTERVAL_MS),
-  );
+  await new Promise((resolve) => setTimeout(resolve, SESSION_MINT_INTERVAL_MS));
   const officerSessions = await mintSessions({
     account: OFFICER_ACCOUNT,
     count: OFFICER_SESSIONS,

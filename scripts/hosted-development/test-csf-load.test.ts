@@ -97,15 +97,9 @@ describe("hosted CSF load acceptance", () => {
     expect(workflow).toContain("VERCEL_TRUSTED_OIDC_TOKEN");
     expect(workflow).toContain("bun run csf:test:hosted:load");
     expect(workflow).toContain("csf-hosted-development-acceptance");
-    expect(workflow).toContain(
-      'commits/${ACCEPTED_SHA}/status',
-    );
-    expect(workflow).toContain(
-      '.context == "Vercel" and .state == "success"',
-    );
-    expect(workflow).not.toContain(
-      'commits/${ACCEPTED_SHA}/check-runs',
-    );
+    expect(workflow).toContain("commits/${ACCEPTED_SHA}/status");
+    expect(workflow).toContain('.context == "Vercel" and .state == "success"');
+    expect(workflow).not.toContain("commits/${ACCEPTED_SHA}/check-runs");
     expect(workflow).toContain('git rev-parse "origin/development"');
     expect(workflow).toContain("state=success");
     expect(workflow).toContain("state=failure");
