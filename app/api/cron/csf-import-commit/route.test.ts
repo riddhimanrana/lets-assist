@@ -93,6 +93,7 @@ describe("CSF import commit worker route", () => {
       "csf_claim_import_commit_queue",
       "csf_finish_import_commit_queue",
     ]);
+    expect(rpcCalls[0]?.args.p_lease_seconds).toBeGreaterThan(maxDuration);
     expect(rpcCalls[1]?.args).toMatchObject({
       p_status: "completed",
       p_result_counts: { completed: 1 },

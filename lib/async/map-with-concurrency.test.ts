@@ -29,6 +29,32 @@ test("mapWithConcurrency rejects invalid limits", async () => {
   );
 });
 
+test("mapWithConcurrency drains every item before rejecting", async () => {
+  const visited: number[] = [];
+  let releaseLast!: () => void;
+  const lastItemFinished = new Promise<void>((resolve) => {
+    releaseLast = resolve;
+  });
+
+  const run = mapWithConcurrency([1, 2, 3], 2, async (value) => {
+    visited.push(value);
+    if (value === 1) throw new Error("synthetic mapper failure");
+    if (value === 3) await lastItemFinished;
+    return value;
+  });
+  let settled = false;
+  void run.catch(() => {
+    settled = true;
+  });
+
+  await new Promise<void>((resolve) => setTimeout(resolve, 0));
+  assert.deepEqual(visited.sort(), [1, 2, 3]);
+  assert.equal(settled, false);
+
+  releaseLast();
+  await assert.rejects(run, /synthetic mapper failure/u);
+});
+
 test("readPositiveInteger falls back for missing and invalid values", () => {
   assert.equal(readPositiveInteger("5", 3), 5);
   assert.equal(readPositiveInteger("500", 3, 10), 10);

@@ -10,6 +10,8 @@ export async function mapWithConcurrency<T, R>(
   if (items.length === 0) return [];
 
   const results = new Array<R>(items.length);
+  const noFailure = Symbol("no failure");
+  const failures = new Array<unknown>(items.length).fill(noFailure);
   let nextIndex = 0;
 
   const worker = async () => {
@@ -18,12 +20,23 @@ export async function mapWithConcurrency<T, R>(
       nextIndex += 1;
       if (index >= items.length) return;
 
-      results[index] = await mapper(items[index], index);
+      try {
+        results[index] = await mapper(items[index], index);
+      } catch (error) {
+        // Keep draining work that the caller already claimed. Returning as soon
+        // as one mapper rejects can leave sibling side effects running after the
+        // caller has torn down its timeout or request-scoped resources.
+        failures[index] = error;
+      }
     }
   };
 
   const workerCount = Math.min(concurrency, items.length);
   await Promise.all(Array.from({ length: workerCount }, () => worker()));
+  const firstFailureIndex = failures.findIndex(
+    (failure) => failure !== noFailure,
+  );
+  if (firstFailureIndex >= 0) throw failures[firstFailureIndex];
   return results;
 }
 
