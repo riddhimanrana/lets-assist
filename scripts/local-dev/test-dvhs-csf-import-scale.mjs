@@ -156,9 +156,144 @@ CREATE TEMP TABLE import_scale_state (
 CREATE TEMP TABLE import_scale_metrics (
   started_at timestamptz NOT NULL,
   finished_at timestamptz,
-  replayed_batches integer NOT NULL DEFAULT 0
+  replayed_batches integer NOT NULL DEFAULT 0,
+  conflict_checks integer NOT NULL DEFAULT 0
 );
 INSERT INTO import_scale_metrics (started_at) VALUES (clock_timestamp());
+
+DO $stale_source_probe$
+DECLARE
+  caught_message text;
+  caught_state text;
+  evidence_token uuid := (
+    plugin_data.csf_issue_uploaded_source_evidence(
+      'ce100000-0000-4000-8000-000000000001',
+      'ce000000-0000-4000-8000-000000000001',
+      'ce200000-0000-4000-8000-000000000001',
+      'ce300000-0000-4000-8000-000000000001'
+    ) ->> 'evidenceToken'
+  )::uuid;
+BEGIN
+  BEGIN
+    UPDATE plugin_data.csf_sheet_sources
+    SET settings = jsonb_set(
+      settings,
+      '{evidenceRevision}',
+      to_jsonb(repeat('6', 64))
+    )
+    WHERE id = 'ce200000-0000-4000-8000-000000000001';
+
+    PERFORM plugin_data.csf_claim_import_commit_attempt(
+      'ce100000-0000-4000-8000-000000000001',
+      'ce300000-0000-4000-8000-000000000001',
+      'ce000000-0000-4000-8000-000000000001',
+      3600,
+      evidence_token
+    );
+    RAISE EXCEPTION 'A stale source evidence token was accepted.';
+  EXCEPTION WHEN OTHERS THEN
+    IF SQLERRM = 'A stale source evidence token was accepted.' THEN
+      RAISE;
+    END IF;
+    GET STACKED DIAGNOSTICS
+      caught_message = MESSAGE_TEXT,
+      caught_state = RETURNED_SQLSTATE;
+    IF caught_state IS DISTINCT FROM '40001'
+      OR caught_message IS DISTINCT FROM
+        'This CSF source changed after it was checked; preview it again before importing.'
+    THEN
+      RAISE EXCEPTION 'Unexpected stale-source refusal [%]: %',
+        caught_state, caught_message;
+    END IF;
+  END;
+  UPDATE import_scale_metrics SET conflict_checks = conflict_checks + 1;
+END
+$stale_source_probe$;
+
+DO $blocked_row_probes$
+DECLARE
+  caught_message text;
+  caught_state text;
+  probe_row_id uuid := md5('csf-import-scale-row-1')::uuid;
+  evidence_token uuid;
+BEGIN
+  BEGIN
+    UPDATE plugin_data.csf_sheet_import_rows
+    SET import_status = 'ambiguous'
+    WHERE id = probe_row_id;
+    evidence_token := (
+      plugin_data.csf_issue_uploaded_source_evidence(
+        'ce100000-0000-4000-8000-000000000001',
+        'ce000000-0000-4000-8000-000000000001',
+        'ce200000-0000-4000-8000-000000000001',
+        'ce300000-0000-4000-8000-000000000001'
+      ) ->> 'evidenceToken'
+    )::uuid;
+    PERFORM plugin_data.csf_claim_import_commit_attempt(
+      'ce100000-0000-4000-8000-000000000001',
+      'ce300000-0000-4000-8000-000000000001',
+      'ce000000-0000-4000-8000-000000000001',
+      3600,
+      evidence_token
+    );
+    RAISE EXCEPTION 'An ambiguous row reached a commit attempt.';
+  EXCEPTION WHEN OTHERS THEN
+    IF SQLERRM = 'An ambiguous row reached a commit attempt.' THEN
+      RAISE;
+    END IF;
+    GET STACKED DIAGNOSTICS
+      caught_message = MESSAGE_TEXT,
+      caught_state = RETURNED_SQLSTATE;
+    IF caught_state IS DISTINCT FROM '23514'
+      OR caught_message IS DISTINCT FROM
+        'Preview is not ready to commit. Reconcile 1 conflicting row(s) before importing.'
+    THEN
+      RAISE EXCEPTION 'Unexpected ambiguous-row refusal [%]: %',
+        caught_state, caught_message;
+    END IF;
+  END;
+
+  BEGIN
+    UPDATE plugin_data.csf_sheet_import_rows
+    SET commit_outcome_state = 'historical_unknown',
+        commit_outcome_unresolved = true,
+        commit_outcome_note = 'Synthetic unresolved-outcome probe.'
+    WHERE id = probe_row_id;
+    evidence_token := (
+      plugin_data.csf_issue_uploaded_source_evidence(
+        'ce100000-0000-4000-8000-000000000001',
+        'ce000000-0000-4000-8000-000000000001',
+        'ce200000-0000-4000-8000-000000000001',
+        'ce300000-0000-4000-8000-000000000001'
+      ) ->> 'evidenceToken'
+    )::uuid;
+    PERFORM plugin_data.csf_claim_import_commit_attempt(
+      'ce100000-0000-4000-8000-000000000001',
+      'ce300000-0000-4000-8000-000000000001',
+      'ce000000-0000-4000-8000-000000000001',
+      3600,
+      evidence_token
+    );
+    RAISE EXCEPTION 'An unknown-outcome row reached a commit attempt.';
+  EXCEPTION WHEN OTHERS THEN
+    IF SQLERRM = 'An unknown-outcome row reached a commit attempt.' THEN
+      RAISE;
+    END IF;
+    GET STACKED DIAGNOSTICS
+      caught_message = MESSAGE_TEXT,
+      caught_state = RETURNED_SQLSTATE;
+    IF caught_state IS DISTINCT FROM '23514'
+      OR caught_message IS DISTINCT FROM
+        'Preview is not ready to commit. 1 row(s) have an unresolved import outcome and must be reconciled first.'
+    THEN
+      RAISE EXCEPTION 'Unexpected unknown-outcome refusal [%]: %',
+        caught_state, caught_message;
+    END IF;
+  END;
+
+  UPDATE import_scale_metrics SET conflict_checks = conflict_checks + 2;
+END
+$blocked_row_probes$;
 
 INSERT INTO import_scale_state (key, value)
 SELECT 'claim', plugin_data.csf_claim_import_commit_attempt(
@@ -173,6 +308,45 @@ SELECT 'claim', plugin_data.csf_claim_import_commit_attempt(
     'ce300000-0000-4000-8000-000000000001'
   ) ->> 'evidenceToken')::uuid
 );
+
+DO $conflict_probes$
+DECLARE
+  caught_message text;
+  caught_state text;
+  attempt_id uuid := (
+    SELECT (value ->> 'attemptId')::uuid
+    FROM import_scale_state
+    WHERE key = 'claim'
+  );
+  probe_row_id uuid := md5('csf-import-scale-row-1')::uuid;
+BEGIN
+  BEGIN
+    PERFORM plugin_data.csf_commit_import_row_batch(
+      'ce100000-0000-4000-8000-000000000001',
+      attempt_id,
+      md5('csf-import-scale-duplicate-probe')::uuid,
+      ARRAY[probe_row_id, probe_row_id]
+    );
+    RAISE EXCEPTION 'A duplicate row batch was accepted.';
+  EXCEPTION WHEN OTHERS THEN
+    IF SQLERRM = 'A duplicate row batch was accepted.' THEN
+      RAISE;
+    END IF;
+    GET STACKED DIAGNOSTICS
+      caught_message = MESSAGE_TEXT,
+      caught_state = RETURNED_SQLSTATE;
+    IF caught_state IS DISTINCT FROM 'P0001'
+      OR caught_message IS DISTINCT FROM
+        'Each import row may appear only once per batch.'
+    THEN
+      RAISE EXCEPTION 'Unexpected duplicate-row refusal [%]: %',
+        caught_state, caught_message;
+    END IF;
+  END;
+
+  UPDATE import_scale_metrics SET conflict_checks = conflict_checks + 1;
+END
+$conflict_probes$;
 
 DO $benchmark$
 DECLARE
@@ -241,6 +415,7 @@ SELECT jsonb_build_object(
   'batchSize', 10,
   'batches', 100,
   'replayedBatches', (SELECT replayed_batches FROM import_scale_metrics),
+  'conflictChecks', (SELECT conflict_checks FROM import_scale_metrics),
   'profilesCreated', (
     SELECT count(*) FROM plugin_data.csf_profiles
     WHERE organization_id = 'ce100000-0000-4000-8000-000000000001'
@@ -292,6 +467,7 @@ if (
   receipt.ok !== true ||
   receipt.rows !== ROW_COUNT ||
   receipt.batchSize !== BATCH_SIZE ||
+  receipt.conflictChecks !== 4 ||
   receipt.profilesCreated !== ROW_COUNT ||
   receipt.unknownOutcomes !== 0 ||
   receipt.duplicateWrites !== 0 ||
