@@ -135,9 +135,10 @@ async function openAuthenticatedPage(
   );
   const page = await context.newPage();
   await page.route(`${appUrl.origin}/**`, async (route) => {
+    const requestHeaders = await route.request().allHeaders();
     await route.continue({
       headers: {
-        ...route.request().headers(),
+        ...requestHeaders,
         ...protectionHeaders,
       },
     });

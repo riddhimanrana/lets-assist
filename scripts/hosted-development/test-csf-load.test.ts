@@ -85,6 +85,8 @@ describe("hosted CSF load acceptance", () => {
     expect(source).toContain('"x-vercel-protection-bypass"');
     expect(source).toContain('"x-vercel-trusted-oidc-idp-token"');
     expect(source).toContain("page.route(`${appUrl.origin}/**`");
+    expect(source).toContain("await route.request().allHeaders()");
+    expect(source).not.toContain("route.request().headers()");
     expect(source).not.toContain("extraHTTPHeaders");
   });
 
