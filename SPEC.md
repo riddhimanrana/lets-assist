@@ -98,6 +98,7 @@ V53: class-history commit identity → one valid canonical roster key from the s
 V54: background import refusal → queue receipt stores one closed operational code for allowlist, reconnect, missing file, trash, identity, MIME, incomplete evidence, source drift, or retryable source check; raw provider and database text ⊥; worker response may return the same closed code for operator diagnosis.
 V55: timed-out import batch → only a confirmed PostgreSQL statement-timeout rollback with no receipt may split into smaller atomic batches; another missing receipt or a single-row timeout blocks without an automatic repeat; feature-branch Vercel build ⊥ unless the branch is `development` or `main`.
 V56: targetless class-history row with a roster key that does not equal normalized FirstLast or LastFirst → ambiguous officer review before commit; officer may match one existing profile or, with both import and profile authority, create one audited unclaimed profile only when the class has no active exact-name profile; immutable workbook evidence changes ⊥.
+V57: background queue settlement → a missing or unauthorized approving actor terminalizes the import queue item, frozen batch item, parent counts, and settlement audit in one transaction; concurrent row-batch deliveries serialize on organization + request id before receipt lookup; a missing Drive owner blocks both refresh job and workbook registry.
 
 §T
 
@@ -133,6 +134,7 @@ T28|~~|reuse one source-backed profile across semester commit jobs, deploy the e
 T29|~~|retain privacy-safe background import refusal codes, restore service-only class-history readiness execution, deploy the Development source allowlist, and resolve the official workbook commit blocker before Production promotion|V14,V17,V46,V47,V54,I.service,I.db,I.cmd
 T30|~~|split confirmed timed-out import batches, keep uncertain outcomes non-retryable, suppress ordinary feature-branch Vercel builds, and finish the official Development reconciliation in one release batch|V14,V17,V47,V55,I.service,I.db,I.cmd
 T31|~~|surface invalid class-history roster keys before readiness, add audited no-match profile creation, and settle the remaining Class of 2027 Development previews|V14,V17,V20,V23,V47,V53,V56,I.service,I.db,I.cmd
+T32|~~|settle claim-time queue refusals, serialize concurrent row-batch receipts, block ownerless workbooks, and complete the hosted load gate|V46,V47,V51,V57,I.db,I.perf,I.cmd
 
 §B
 

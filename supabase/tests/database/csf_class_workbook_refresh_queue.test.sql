@@ -2,7 +2,7 @@ BEGIN;
 
 CREATE EXTENSION IF NOT EXISTS pgtap WITH SCHEMA extensions;
 
-SELECT extensions.plan(23);
+SELECT extensions.plan(27);
 
 INSERT INTO auth.users (
   id, aud, role, email, email_confirmed_at,
@@ -264,6 +264,52 @@ SELECT extensions.throws_ok(
   'P0001',
   'The workbook worker lease is no longer active.',
   'a settled worker receipt cannot be replayed'
+);
+
+UPDATE plugin_data.csf_class_workbooks
+SET drive_owner_user_id = NULL,
+    provider_version = '103',
+    state = 'linked',
+    last_error_code = NULL
+WHERE cohort_id = 'cb200000-0000-4000-8000-000000000001';
+INSERT INTO plugin_data.csf_class_workbook_refresh_jobs (
+  organization_id, workbook_id, drive_file_id, provider_version, status
+)
+SELECT organization_id, id, drive_file_id, '103', 'queued'
+FROM plugin_data.csf_class_workbooks
+WHERE cohort_id = 'cb200000-0000-4000-8000-000000000001';
+
+SELECT extensions.is(
+  plugin_data.csf_claim_class_workbook_refresh_job(120) ->> 'claimed',
+  'false',
+  'a refresh job whose Drive owner disappeared is refused'
+);
+SELECT extensions.is(
+  (
+    SELECT status
+    FROM plugin_data.csf_class_workbook_refresh_jobs
+    WHERE provider_version = '103'
+  ),
+  'blocked',
+  'the missing-owner refresh job becomes terminal'
+);
+SELECT extensions.is(
+  (
+    SELECT state
+    FROM plugin_data.csf_class_workbooks
+    WHERE cohort_id = 'cb200000-0000-4000-8000-000000000001'
+  ),
+  'blocked',
+  'the workbook no longer appears healthy after its owner disappears'
+);
+SELECT extensions.is(
+  (
+    SELECT last_error_code
+    FROM plugin_data.csf_class_workbooks
+    WHERE cohort_id = 'cb200000-0000-4000-8000-000000000001'
+  ),
+  'workbook_owner_missing',
+  'the workbook stores the owner-missing operator reason'
 );
 
 SELECT extensions.is(

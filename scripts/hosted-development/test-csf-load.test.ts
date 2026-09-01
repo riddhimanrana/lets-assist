@@ -41,8 +41,15 @@ describe("hosted CSF load acceptance", () => {
       expect(source).toContain(contract);
     }
     expect(source).toContain("for (let index = 0; index < 25; index += 1)");
-    expect(source).toContain('request.headers()["next-action"]');
+    expect(source).toContain('request.method() === "POST"');
+    expect(source).toContain(
+      'new URL(response.url()).pathname === "/organization/dvhs-csf"',
+    );
     expect(source).toContain("The fictional staff-view mutation returned");
+    expect(source).toContain('required("VERCEL_AUTOMATION_BYPASS_SECRET")');
+    expect(source).toContain('"x-vercel-protection-bypass"');
+    expect(source).toContain("page.route(`${appUrl.origin}/**`");
+    expect(source).not.toContain("extraHTTPHeaders");
   });
 
   test("uses only known fictional accounts and emits count-only output", () => {
