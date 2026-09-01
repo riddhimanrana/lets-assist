@@ -133,6 +133,7 @@ export async function GET(request: NextRequest) {
     const { data: claims } = await supabase.auth.getClaims();
     const sessionDigest = digestGoogleOAuthSessionBinding(
       claims?.claims?.session_id,
+      parsedState?.digestKeyId,
     );
 
     if (authError || !user || !sessionDigest) {
@@ -155,7 +156,10 @@ export async function GET(request: NextRequest) {
     // authority on whether this callback may proceed.
     const claim = await claimGoogleOAuthAttempt({
       stateDigest: parsedState.stateDigest,
-      cookieSecretDigest: digestGoogleOAuthSecret(cookieSecret ?? ""),
+      cookieSecretDigest: digestGoogleOAuthSecret(
+        cookieSecret ?? "",
+        parsedState.digestKeyId,
+      ),
       userId: user.id,
       sessionDigest,
     });
