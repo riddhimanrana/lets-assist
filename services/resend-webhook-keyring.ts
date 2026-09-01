@@ -2,6 +2,7 @@ import "server-only";
 
 const KEY_ID_PATTERN = /^[A-Za-z0-9._-]{1,64}$/u;
 const MAX_WEBHOOK_KEYS = 5;
+const LEGACY_KEY_ID = "legacy";
 
 export type ResendWebhookVerificationKey = {
   id: string;
@@ -66,6 +67,7 @@ export function readResendWebhookVerificationKeys(
     const normalized = entries.map(([id, secret]) => {
       if (
         !KEY_ID_PATTERN.test(id) ||
+        id === LEGACY_KEY_ID ||
         typeof secret !== "string" ||
         secret.trim().length < 16
       ) {
@@ -79,7 +81,7 @@ export function readResendWebhookVerificationKeys(
   }
 
   if (legacy && !keys.some((key) => key.secret === legacy)) {
-    keys.push({ id: "legacy", secret: legacy });
+    keys.push({ id: LEGACY_KEY_ID, secret: legacy });
   }
 
   if (keys.length > MAX_WEBHOOK_KEYS) configurationError();

@@ -1,7 +1,7 @@
 BEGIN;
 
 CREATE EXTENSION IF NOT EXISTS pgtap WITH SCHEMA extensions;
-SELECT extensions.plan(18);
+SELECT extensions.plan(23);
 
 INSERT INTO auth.users (
   id, aud, role, email, email_confirmed_at,
@@ -104,6 +104,12 @@ INSERT INTO plugin_data.csf_sheet_import_jobs (
     'de100000-0000-4000-8000-000000000001',
     'de230000-0000-4000-8000-000000000001',
     'preview', 'completed', 'class_history', 'official-workbook-2028'
+  ),
+  (
+    'de300000-0000-4000-8000-000000000006',
+    'de100000-0000-4000-8000-000000000001',
+    'de230000-0000-4000-8000-000000000001',
+    'preview', 'completed', 'class_history', 'official-workbook-2028'
   );
 
 INSERT INTO plugin_data.csf_profiles (
@@ -187,6 +193,19 @@ INSERT INTO plugin_data.csf_sheet_import_rows (
     repeat('5', 64),
     NULL,
     'pending'
+  ),
+  (
+    'de500000-0000-4000-8000-000000000007',
+    'de100000-0000-4000-8000-000000000001',
+    'de300000-0000-4000-8000-000000000006',
+    'de230000-0000-4000-8000-000000000001',
+    'de200000-0000-4000-8000-000000000001',
+    'de210000-0000-4000-8000-000000000001',
+    'S26', 3,
+    '{"record":{"identity":{"firstName":"Avery","lastName":"Sample","normalizedFirstName":"avery","normalizedLastName":"sample","sourceStudentKey":"sampleavery"}}}'::jsonb,
+    repeat('7', 64),
+    NULL,
+    'pending'
   );
 
 SELECT extensions.has_function(
@@ -245,6 +264,52 @@ SELECT extensions.is(
   NULL::uuid,
   'conflicting canonical email evidence blocks source-key reuse'
 );
+
+SELECT extensions.is(
+  plugin_data.csf_class_history_source_key_target(
+    'de100000-0000-4000-8000-000000000001',
+    'de500000-0000-4000-8000-000000000007'
+  ),
+  NULL::uuid,
+  'a repeated name key without corroborating email cannot reuse a profile'
+);
+
+SELECT extensions.ok(
+  plugin_data.csf_class_history_source_key_requires_review(
+    'de100000-0000-4000-8000-000000000001',
+    'de500000-0000-4000-8000-000000000007'
+  ),
+  'a repeated name key without corroboration requires officer review'
+);
+
+SELECT extensions.is(
+  (plugin_data.csf_import_preview_readiness(
+    'de100000-0000-4000-8000-000000000001',
+    'de300000-0000-4000-8000-000000000006'
+  ) ->> 'pendingMissingMatch')::integer,
+  1,
+  'readiness blocks a later name-only class-history row'
+);
+
+SELECT extensions.is(
+  (plugin_data.csf_import_preview_readiness(
+    'de100000-0000-4000-8000-000000000001',
+    'de300000-0000-4000-8000-000000000006'
+  ) ->> 'pendingMissingSourceKey')::integer,
+  0,
+  'the blocked name-only row keeps its valid source key evidence'
+);
+
+SET LOCAL ROLE service_role;
+SELECT extensions.is(
+  (plugin_data.csf_import_preview_readiness(
+    'de100000-0000-4000-8000-000000000001',
+    'de300000-0000-4000-8000-000000000006'
+  ) ->> 'pendingMissingMatch')::integer,
+  1,
+  'the server role can read the corroboration-aware readiness result'
+);
+RESET ROLE;
 
 SELECT extensions.is(
   (plugin_data.csf_import_preview_readiness(
