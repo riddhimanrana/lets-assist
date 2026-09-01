@@ -1,7 +1,7 @@
 BEGIN;
 
 CREATE EXTENSION IF NOT EXISTS pgtap WITH SCHEMA extensions;
-SELECT extensions.plan(26);
+SELECT extensions.plan(27);
 
 INSERT INTO auth.users (
   id, aud, role, email, email_confirmed_at,
@@ -187,6 +187,19 @@ SELECT extensions.is(
   ) ->> 'accountStatus',
   'pending',
   'a pending linked profile can read its status before organization membership activates'
+);
+SELECT extensions.is(
+  (
+    SELECT array_agg(key ORDER BY key)
+    FROM jsonb_object_keys(
+      plugin_data.csf_member_profile_snapshot(
+        'ce100000-0000-4000-8000-000000000001',
+        'ce000000-0000-4000-8000-000000000004'
+      )
+    ) AS key
+  ),
+  ARRAY['accountStatus', 'currentTermId', 'profile']::text[],
+  'a pending link receives status fields only, without student profile data'
 );
 SELECT extensions.throws_ok(
   $$SELECT plugin_data.csf_member_profile_snapshot(

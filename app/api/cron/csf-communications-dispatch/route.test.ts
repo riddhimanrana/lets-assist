@@ -738,6 +738,121 @@ describe("the bounded CSF dispatch worker route", () => {
     ).toHaveLength(1);
   });
 
+  test("the route waits for a claimed pass to finish settlement after its deadline", async () => {
+    process.env.CSF_COMMUNICATIONS_WORKER_DEADLINE_MS = "40";
+    let scopeCalls = 0;
+    schedulerScopeHandler = () => {
+      scopeCalls += 1;
+      return {
+        data: {
+          organizationCount: scopeCalls === 1 ? 1 : 0,
+          organizationIds: scopeCalls === 1 ? [ORG] : [],
+          reservationId: scopeCalls === 1 ? RESERVATION : null,
+        },
+        error: null,
+      };
+    };
+    claimHandler = () => ({
+      data: {
+        claimedCount: 1,
+        claims: [
+          {
+            attemptId: ATTEMPT,
+            campaignId: CAMPAIGN,
+            deliveryId: "cea00000-0000-4000-8000-000000000001",
+            recipientSnapshotId: "ce800000-0000-4000-8000-000000000001",
+            attemptNumber: 1,
+            providerIdempotencyKey: IDEMPOTENCY_KEY,
+            requestPayloadHash: DIGEST,
+            leaseExpiresAt: "2032-04-01T10:02:00.000Z",
+          },
+        ],
+      },
+      error: null,
+    });
+    let settlementFinished = false;
+    settleHandler = async () => {
+      await new Promise((resolve) => setTimeout(resolve, 60));
+      settlementFinished = true;
+      return { data: { attemptState: "accepted" }, error: null };
+    };
+
+    const response = await POST(authorized());
+    const body = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(body.deadlineReached).toBe(true);
+    expect(settlementFinished).toBe(true);
+    expect(body.claimed).toBe(1);
+    expect(body.outcomes.sent).toBe(1);
+    expect(
+      rpcCalls.filter(
+        (call) => call.fn === "csf_settle_communication_dispatch_attempt",
+      ),
+    ).toHaveLength(1);
+  });
+
+  test("one provider limiter covers consecutive organization passes", async () => {
+    const scopes = [[ORG], [ORG_TWO], []];
+    let scopeCall = 0;
+    schedulerScopeHandler = () => {
+      const organizationIds = scopes[scopeCall] ?? [];
+      scopeCall += 1;
+      return {
+        data: {
+          organizationCount: organizationIds.length,
+          organizationIds,
+          reservationId:
+            organizationIds[0] === ORG
+              ? RESERVATION
+              : organizationIds[0] === ORG_TWO
+                ? RESERVATION_TWO
+                : null,
+        },
+        error: null,
+      };
+    };
+    let claimCalls = 0;
+    claimHandler = () => {
+      claimCalls += 1;
+      const second = claimCalls === 2;
+      return {
+        data: {
+          claimedCount: 1,
+          claims: [
+            {
+              attemptId: second ? ATTEMPT_TWO : ATTEMPT,
+              campaignId: second ? CAMPAIGN_TWO : CAMPAIGN,
+              deliveryId: second
+                ? "cea00000-0000-4000-8000-000000000002"
+                : "cea00000-0000-4000-8000-000000000001",
+              recipientSnapshotId: second
+                ? "ce800000-0000-4000-8000-000000000002"
+                : "ce800000-0000-4000-8000-000000000001",
+              attemptNumber: second ? 2 : 1,
+              providerIdempotencyKey: second
+                ? `csf-att-${"b".repeat(64)}-1`
+                : IDEMPOTENCY_KEY,
+              requestPayloadHash: DIGEST,
+              leaseExpiresAt: "2032-04-01T10:02:00.000Z",
+            },
+          ],
+        },
+        error: null,
+      };
+    };
+
+    const startedAt = performance.now();
+    const response = await POST(authorized());
+    const durationMs = performance.now() - startedAt;
+    const body = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(body.claimed).toBe(2);
+    expect(sendCalls).toHaveLength(2);
+    expect(durationMs).toBeGreaterThanOrEqual(100);
+  });
+
   test("authorized work is bounded and the batch size is clamped", async () => {
     schedulerScopeHandler = () => ({
       data: {

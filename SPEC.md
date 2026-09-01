@@ -100,6 +100,7 @@ V55: timed-out import batch → only a confirmed PostgreSQL statement-timeout ro
 V56: targetless class-history row with a roster key that does not equal normalized FirstLast or LastFirst → ambiguous officer review before commit; officer may match one existing profile or, with both import and profile authority, create one audited unclaimed profile only when the class has no active exact-name profile; immutable workbook evidence changes ⊥.
 V57: background queue settlement → a missing or unauthorized approving actor terminalizes the import queue item, frozen batch item, parent counts, and settlement audit in one transaction; concurrent row-batch deliveries serialize on organization + request id before receipt lookup; a missing Drive owner blocks both refresh job and workbook registry.
 V58: hosted session acceptance → 90 member + 10 officer sessions ramp over 60 seconds, remain active for the rest of the 15-minute run, and exercise review navigation at peak load; member-feed dates render from deterministic Pacific parts in server and browser; staff presentation toggles replace one history entry with one route request; hydration recovery, repeated route snapshots, and burst-only load substitution ⊥.
+V59: member read and dispatch boundary → a pending profile link returns connection status only; classmate counts require current-term membership in the displayed class; activities require membership in their own term; one provider-start limiter covers the full cron invocation; a claimed worker pass is aborted at the deadline and fully settled before the route returns.
 
 §T
 
@@ -137,6 +138,7 @@ T30|~~|split confirmed timed-out import batches, keep uncertain outcomes non-ret
 T31|~~|surface invalid class-history roster keys before readiness, add audited no-match profile creation, and settle the remaining Class of 2027 Development previews|V14,V17,V20,V23,V47,V53,V56,I.service,I.db,I.cmd
 T32|~~|settle claim-time queue refusals, serialize concurrent row-batch receipts, block ownerless workbooks, and complete the hosted load gate|V46,V47,V51,V57,I.db,I.perf,I.cmd
 T33|~~|remove member Home timezone hydration recovery, stop staff-view route snapshot retention, ramp the hosted sessions correctly, and complete the exact Development load gate|V19,V51,V58,I.perf,I.cmd
+T34|~~|close the final profile-read and communications review findings, rerun exact Development acceptance, and promote the accepted tree to Production|V45,V48,V49,V51,V59,I.db,I.service,I.perf,I.cmd
 
 §B
 

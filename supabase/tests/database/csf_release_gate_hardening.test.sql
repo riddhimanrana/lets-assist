@@ -1,7 +1,7 @@
 BEGIN;
 
 CREATE EXTENSION IF NOT EXISTS pgtap WITH SCHEMA extensions;
-SELECT extensions.plan(46);
+SELECT extensions.plan(51);
 
 INSERT INTO auth.users (
   id, aud, role, email, email_confirmed_at,
@@ -725,7 +725,7 @@ SELECT extensions.is(
 SELECT extensions.ok(
   pg_catalog.regexp_count(
     pg_catalog.pg_get_functiondef(
-      'plugin_data.csf_member_profile_snapshot(uuid,uuid)'::regprocedure
+      'plugin_data.csf_member_profile_snapshot_verified_projection(uuid,uuid)'::regprocedure
     ),
     'LIMIT 50'
   ) >= 9,
@@ -744,6 +744,24 @@ SELECT extensions.ok(
     'authenticated', 'plugin_data.csf_member_profile_snapshot(uuid,uuid)', 'EXECUTE'
   ),
   'the corrected member snapshot remains server-only'
+);
+
+SELECT extensions.ok(
+  NOT has_function_privilege(
+    'service_role',
+    'plugin_data.csf_member_profile_snapshot_verified_projection(uuid,uuid)',
+    'EXECUTE'
+  ),
+  'the verified profile projection remains owner-internal'
+);
+
+SELECT extensions.ok(
+  NOT has_function_privilege(
+    'service_role',
+    'plugin_data.csf_member_home_context_snapshot_unscoped(uuid,uuid,timestamptz,timestamptz,date)',
+    'EXECUTE'
+  ),
+  'the unfiltered Home projection remains owner-internal'
 );
 
 SELECT extensions.ok(
@@ -777,6 +795,88 @@ SELECT extensions.is(
   ) -> 'viewer' ->> 'profileId',
   'cf500000-0000-4000-8000-000000000001',
   'the grouped member Home context resolves the verified profile server-side'
+);
+
+SELECT extensions.is(
+  plugin_data.csf_member_home_context_snapshot(
+    'cf100000-0000-4000-8000-000000000001',
+    'cf000000-0000-4000-8000-000000000002',
+    now() - interval '36 hours',
+    now() + interval '16 days',
+    current_date - 2
+  ) ->> 'classmateCount',
+  NULL::text,
+  'classmate counts stay hidden until the viewer has a current-term class membership'
+);
+
+INSERT INTO plugin_data.csf_term_memberships (
+  organization_id, profile_id, term_id, cohort_id, status
+)
+SELECT
+  'cf100000-0000-4000-8000-000000000001',
+  'cf500000-0000-4000-8000-000000000001',
+  'cf200000-0000-4000-8000-000000000001',
+  (
+    plugin_data.csf_member_home_context_snapshot(
+      'cf100000-0000-4000-8000-000000000001',
+      'cf000000-0000-4000-8000-000000000002',
+      now() - interval '36 hours',
+      now() + interval '16 days',
+      current_date - 2
+    ) -> 'viewer' ->> 'cohortId'
+  )::uuid,
+  'active';
+
+INSERT INTO plugin_data.csf_terms (
+  id, organization_id, code, label, school_year, semester, is_current
+) VALUES (
+  'cf200000-0000-4000-8000-000000000002',
+  'cf100000-0000-4000-8000-000000000001',
+  'spring-2027', 'Spring 2027', '2026-2027', 'spring', false
+);
+
+INSERT INTO plugin_data.csf_opportunities (
+  id, organization_id, term_id, title, body, starts_at, status
+) VALUES
+  (
+    'cf570000-0000-4000-8000-000000000002',
+    'cf100000-0000-4000-8000-000000000001',
+    'cf200000-0000-4000-8000-000000000001',
+    'Current term activity', 'Fictional current activity',
+    now() + interval '1 day', 'published'
+  ),
+  (
+    'cf570000-0000-4000-8000-000000000003',
+    'cf100000-0000-4000-8000-000000000001',
+    'cf200000-0000-4000-8000-000000000002',
+    'Other term activity', 'Fictional other activity',
+    now() + interval '1 day', 'published'
+  );
+
+SELECT extensions.is(
+  (
+    plugin_data.csf_member_home_context_snapshot(
+      'cf100000-0000-4000-8000-000000000001',
+      'cf000000-0000-4000-8000-000000000002',
+      now() - interval '36 hours',
+      now() + interval '16 days',
+      current_date - 2
+    ) ->> 'classmateCount'
+  )::integer,
+  1,
+  'a current-term class member receives the scoped classmate count'
+);
+
+SELECT extensions.is(
+  plugin_data.csf_member_home_context_snapshot(
+    'cf100000-0000-4000-8000-000000000001',
+    'cf000000-0000-4000-8000-000000000002',
+    now() - interval '36 hours',
+    now() + interval '16 days',
+    current_date - 2
+  ) -> 'activities' -> 0 ->> 'id',
+  'cf570000-0000-4000-8000-000000000002',
+  'member Home excludes activities from terms without a qualifying membership'
 );
 
 SELECT extensions.is(

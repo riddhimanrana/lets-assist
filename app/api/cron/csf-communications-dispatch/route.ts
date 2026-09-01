@@ -8,6 +8,7 @@ import { readPositiveInteger } from "@/lib/async/map-with-concurrency";
 import { cronAuthShapeProbe } from "@/lib/cron/auth-shape-probe";
 import { logWarn } from "@/lib/logger";
 import {
+  createCsfProviderStartLimiter,
   runCsfDispatchWorker,
   CSF_COMMUNICATION_WORKER_MAX_CONCURRENCY,
   type CsfPluginRpc,
@@ -358,6 +359,7 @@ export async function POST(request: NextRequest) {
   }
 
   const workerId = `csf-dispatch-${startedAt.toString(36)}`;
+  const waitForProviderStart = createCsfProviderStartLimiter();
   const tally = emptyTally();
   let claimed = 0;
   let organizationsProcessed = 0;
@@ -502,22 +504,21 @@ export async function POST(request: NextRequest) {
       () => providerAbortController.abort(),
       providerTimeMs,
     );
+    const workerPromise = runCsfDispatchWorker(plugin, {
+      organizationId,
+      workerId,
+      batchSize: Math.min(MAX_ORGANIZATION_QUANTUM, batchSize - claimed),
+      leaseSeconds: LEASE_SECONDS,
+      providerSignal: providerAbortController.signal,
+      concurrency: CSF_COMMUNICATION_WORKER_MAX_CONCURRENCY,
+      waitForProviderStart,
+    });
 
     try {
       // One claim per pass is what lets the absolute deadline be honest. A
       // malformed RPC that returns more than requested is rejected by the worker
       // before any send; no large leased batch can keep running behind this race.
-      const report = await beforeDeadline(
-        runCsfDispatchWorker(plugin, {
-          organizationId,
-          workerId,
-          batchSize: Math.min(MAX_ORGANIZATION_QUANTUM, batchSize - claimed),
-          leaseSeconds: LEASE_SECONDS,
-          providerSignal: providerAbortController.signal,
-          concurrency: CSF_COMMUNICATION_WORKER_MAX_CONCURRENCY,
-        }),
-        deadlineAt,
-      );
+      const report = await beforeDeadline(workerPromise, deadlineAt);
 
       claimed += report.claimed;
       processedOrganizationIds.add(organizationId);
@@ -535,6 +536,20 @@ export async function POST(request: NextRequest) {
       }
     } catch (error) {
       if (error instanceof RunDeadlineExceeded) {
+        providerAbortController.abort();
+        try {
+          const drainedReport = await workerPromise;
+          claimed += drainedReport.claimed;
+          processedOrganizationIds.add(organizationId);
+          organizationsProcessed = processedOrganizationIds.size;
+          for (const attempt of drainedReport.attempts) {
+            tally[attempt.status] += 1;
+          }
+        } catch {
+          faults += 1;
+          processedOrganizationIds.add(organizationId);
+          organizationsProcessed = processedOrganizationIds.size;
+        }
         deadlineReached = true;
         break;
       }
