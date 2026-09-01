@@ -1,7 +1,7 @@
 BEGIN;
 
 CREATE EXTENSION IF NOT EXISTS pgtap WITH SCHEMA extensions;
-SELECT extensions.plan(31);
+SELECT extensions.plan(40);
 
 INSERT INTO auth.users (
   id, aud, role, email, email_confirmed_at,
@@ -70,6 +70,38 @@ SELECT extensions.ok(
     'plugin_data.csf_commit_import_row_batch(uuid,uuid,uuid,uuid[])'
   ) IS NOT NULL,
   'the bounded row batch RPC exists'
+);
+
+SELECT extensions.matches(
+  pg_catalog.pg_get_functiondef(
+    'plugin_data.csf_commit_import_row_batch(uuid,uuid,uuid,uuid[])'::regprocedure
+  ),
+  'pg_advisory_xact_lock',
+  'row batch receipts serialize the organization and request coordinate'
+);
+
+SELECT extensions.ok(
+  NOT has_function_privilege(
+    'service_role',
+    'plugin_data.csf_commit_import_row_batch_unserialized(uuid,uuid,uuid,uuid[])',
+    'EXECUTE'
+  ),
+  'the unserialized row batch implementation remains owner-internal'
+);
+
+SELECT extensions.is(
+  (
+    SELECT count(*)::integer
+    FROM regexp_matches(
+      pg_catalog.pg_get_functiondef(
+        'plugin_data.csf_claim_import_commit_queue(integer)'::regprocedure
+      ),
+      'csf_block_import_commit_queue',
+      'g'
+    )
+  ),
+  2,
+  'both claim-time refusal paths settle their frozen approval item'
 );
 
 SELECT extensions.matches(
@@ -293,6 +325,95 @@ SELECT extensions.ok(
     'authenticated', 'plugin_data.csf_import_row_batches', 'SELECT'
   ),
   'row batch receipts are not browser-readable'
+);
+
+INSERT INTO plugin_data.csf_sheet_import_jobs (
+  id, organization_id, initiated_by, mode, status, source_type
+) VALUES (
+  'cd200000-0000-4000-8000-000000000004',
+  'cd100000-0000-4000-8000-000000000001',
+  'cd000000-0000-4000-8000-000000000001',
+  'preview', 'completed', 'student_roster'
+);
+INSERT INTO plugin_data.csf_import_approval_batches (
+  id, organization_id, actor_user_id, request_id, status,
+  requested_count, queued_count
+) VALUES (
+  'cd600000-0000-4000-8000-000000000001',
+  'cd100000-0000-4000-8000-000000000001',
+  NULL,
+  'cd600000-0000-4000-8000-000000000002',
+  'queued', 1, 1
+);
+INSERT INTO plugin_data.csf_import_commit_queue (
+  id, organization_id, preview_job_id, actor_user_id, status
+) VALUES (
+  'cd600000-0000-4000-8000-000000000003',
+  'cd100000-0000-4000-8000-000000000001',
+  'cd200000-0000-4000-8000-000000000004',
+  NULL,
+  'queued'
+);
+INSERT INTO plugin_data.csf_import_approval_batch_items (
+  organization_id, batch_id, preview_job_id, queue_id, state
+) VALUES (
+  'cd100000-0000-4000-8000-000000000001',
+  'cd600000-0000-4000-8000-000000000001',
+  'cd200000-0000-4000-8000-000000000004',
+  'cd600000-0000-4000-8000-000000000003',
+  'queued'
+);
+
+SELECT extensions.is(
+  plugin_data.csf_claim_import_commit_queue(300) ->> 'claimed',
+  'false',
+  'a queue item whose approving actor disappeared is refused'
+);
+SELECT extensions.is(
+  (
+    SELECT status
+    FROM plugin_data.csf_import_commit_queue
+    WHERE id = 'cd600000-0000-4000-8000-000000000003'
+  ),
+  'blocked',
+  'claim-time refusal terminalizes the queue item'
+);
+SELECT extensions.is(
+  (
+    SELECT state
+    FROM plugin_data.csf_import_approval_batch_items
+    WHERE queue_id = 'cd600000-0000-4000-8000-000000000003'
+  ),
+  'blocked',
+  'claim-time refusal terminalizes the frozen approval item'
+);
+SELECT extensions.is(
+  (
+    SELECT status
+    FROM plugin_data.csf_import_approval_batches
+    WHERE id = 'cd600000-0000-4000-8000-000000000001'
+  ),
+  'partially_completed',
+  'claim-time refusal settles the parent approval batch'
+);
+SELECT extensions.is(
+  (
+    SELECT blocked_count
+    FROM plugin_data.csf_import_approval_batches
+    WHERE id = 'cd600000-0000-4000-8000-000000000001'
+  ),
+  1,
+  'the settled parent records its blocked item count'
+);
+SELECT extensions.is(
+  (
+    SELECT count(*)::integer
+    FROM plugin_data.csf_admin_audit_events
+    WHERE target_id = 'cd600000-0000-4000-8000-000000000001'
+      AND action = 'sheets.import_batch_settled'
+  ),
+  1,
+  'claim-time refusal writes one settlement audit event'
 );
 
 SELECT * FROM extensions.finish();

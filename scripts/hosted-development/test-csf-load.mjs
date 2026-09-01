@@ -55,7 +55,8 @@ function validateTarget() {
   if (!Number.isFinite(durationMs) || durationMs < DEFAULT_DURATION_MS) {
     throw new Error("Hosted load duration must be at least fifteen minutes.");
   }
-  return { appUrl, durationMs, password, projectRef };
+  const protectionBypass = required("VERCEL_AUTOMATION_BYPASS_SECRET");
+  return { appUrl, durationMs, password, projectRef, protectionBypass };
 }
 
 function installVitalsObserver() {
@@ -85,8 +86,16 @@ function installVitalsObserver() {
   }).observe({ type: "event", buffered: true, durationThreshold: 16 });
 }
 
-async function login(context, appUrl, account, password) {
+async function login(context, appUrl, account, password, protectionBypass) {
   const page = await context.newPage();
+  await page.route(`${appUrl.origin}/**`, async (route) => {
+    await route.continue({
+      headers: {
+        ...route.request().headers(),
+        "x-vercel-protection-bypass": protectionBypass,
+      },
+    });
+  });
   await page.goto(
     new URL("/login?redirect=%2Forganization%2Fdvhs-csf", appUrl).href,
   );
@@ -100,7 +109,10 @@ async function login(context, appUrl, account, password) {
       timeout: 60_000,
       waitUntil: "domcontentloaded",
     }),
-    page.getByRole("button", { name: "Login", exact: true }).click(),
+    page
+      .locator('form[data-hydrated="true"]')
+      .getByRole("button", { name: "Login", exact: true })
+      .click(),
   ]);
   return page;
 }
@@ -114,6 +126,7 @@ async function runRequestSessions({
   durationMs,
   memberCookies,
   officerCookies,
+  protectionBypass,
 }) {
   const memberPaths = [
     "/organization/dvhs-csf",
@@ -159,6 +172,7 @@ async function runRequestSessions({
               accept: "text/html,application/xhtml+xml",
               cookie: session.cookie,
               "user-agent": `lets-assist-csf-hosted-load/${session.role}`,
+              "x-vercel-protection-bypass": protectionBypass,
             },
             redirect: "follow",
             signal: AbortSignal.timeout(15_000),
@@ -248,7 +262,8 @@ async function runBrowserAcceptance({ appUrl, memberPage, officerPage }) {
     const actionResponsePromise = officerPage.waitForResponse((response) => {
       const request = response.request();
       return (
-        request.method() === "POST" && Boolean(request.headers()["next-action"])
+        request.method() === "POST" &&
+        new URL(response.url()).pathname === "/organization/dvhs-csf"
       );
     });
     await switchButton.click();
@@ -307,12 +322,14 @@ async function main() {
       target.appUrl,
       MEMBER_ACCOUNT,
       target.password,
+      target.protectionBypass,
     );
     const officerPage = await login(
       officerContext,
       target.appUrl,
       OFFICER_ACCOUNT,
       target.password,
+      target.protectionBypass,
     );
     const memberCookies = cookieHeader(await memberContext.cookies());
     const officerCookies = cookieHeader(await officerContext.cookies());
@@ -323,6 +340,7 @@ async function main() {
         durationMs: target.durationMs,
         memberCookies,
         officerCookies,
+        protectionBypass: target.protectionBypass,
       }),
       runBrowserAcceptance({ appUrl: target.appUrl, memberPage, officerPage }),
     ]);
