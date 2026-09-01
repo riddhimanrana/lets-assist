@@ -12,6 +12,9 @@ const OFFICER_SESSIONS = 10;
 const DEFAULT_DURATION_MS = 15 * 60 * 1000;
 const RAMP_DURATION_MS = 60_000;
 const REQUEST_INTERVAL_MS = 10_000;
+const SESSION_MINT_INTERVAL_MS = 10_500;
+const SESSION_MINT_RETRY_MS = 10_000;
+const SESSION_MINT_RETRY_LIMIT = 36;
 
 function required(name) {
   const value = process.env[name]?.trim();
@@ -193,15 +196,26 @@ async function mintSession({
       },
     },
   );
-  const { data, error } = await client.auth.signInWithPassword({
-    email: account,
-    password,
-  });
-  if (error || !data.session) {
-    throw new Error(
-      `Could not mint a fictional ${account === OFFICER_ACCOUNT ? "officer" : "member"} session${error?.status === 429 ? ". Raise the hosted Development Auth sign-in limit for this acceptance run" : ""}.`,
+  let session = null;
+  for (let attempt = 0; attempt < SESSION_MINT_RETRY_LIMIT; attempt += 1) {
+    const { data, error } = await client.auth.signInWithPassword({
+      email: account,
+      password,
+    });
+    if (!error && data.session) {
+      session = data.session;
+      break;
+    }
+    if (error?.status !== 429 || attempt + 1 >= SESSION_MINT_RETRY_LIMIT) {
+      throw new Error(
+        `Could not mint a fictional ${account === OFFICER_ACCOUNT ? "officer" : "member"} session.`,
+      );
+    }
+    await new Promise((resolve) =>
+      setTimeout(resolve, SESSION_MINT_RETRY_MS),
     );
   }
+  if (!session) throw new Error("A fictional session was not created.");
   const cookies = [...cookieStore].map(([name, value]) => ({ name, value }));
   if (cookies.length === 0) {
     throw new Error("A minted session did not persist its SSR cookies.");
@@ -209,7 +223,7 @@ async function mintSession({
   return {
     cookie: cookieHeader(cookies),
     cookies,
-    sessionId: sessionIdFromAccessToken(data.session.access_token),
+    sessionId: sessionIdFromAccessToken(session.access_token),
   };
 }
 
@@ -231,7 +245,9 @@ async function mintSessions({
       }),
     );
     if (index + 1 < count) {
-      await new Promise((resolve) => setTimeout(resolve, 125));
+      await new Promise((resolve) =>
+        setTimeout(resolve, SESSION_MINT_INTERVAL_MS),
+      );
     }
   }
   const distinctSessionIds = new Set(
@@ -455,6 +471,9 @@ async function main() {
     supabasePublishableKey: target.supabasePublishableKey,
     supabaseUrl: target.supabaseUrl,
   });
+  await new Promise((resolve) =>
+    setTimeout(resolve, SESSION_MINT_INTERVAL_MS),
+  );
   const officerSessions = await mintSessions({
     account: OFFICER_ACCOUNT,
     count: OFFICER_SESSIONS,

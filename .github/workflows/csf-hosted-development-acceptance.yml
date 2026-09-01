@@ -33,7 +33,7 @@ jobs:
       (github.event_name == 'workflow_dispatch' ||
       contains(github.event.head_commit.message, '[hosted-acceptance]'))
     runs-on: ubuntu-latest
-    timeout-minutes: 40
+    timeout-minutes: 45
     env:
       ACCEPTED_SHA: ${{ github.event_name == 'push' && github.sha || inputs.development_sha }}
       CONFIRMATION: ${{ github.event_name == 'push' && format('load-hosted-development:{0}', vars.CSF_DEVELOPMENT_SUPABASE_PROJECT_REF) || inputs.confirmation }}

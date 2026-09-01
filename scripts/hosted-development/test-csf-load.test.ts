@@ -30,6 +30,8 @@ describe("hosted CSF load acceptance", () => {
     expect(source).toContain("const OFFICER_SESSIONS = 10");
     expect(source).toContain("const DEFAULT_DURATION_MS = 15 * 60 * 1000");
     expect(source).toContain("const RAMP_DURATION_MS = 60_000");
+    expect(source).toContain("const SESSION_MINT_INTERVAL_MS = 10_500");
+    expect(source).toContain("const SESSION_MINT_RETRY_LIMIT = 36");
     expect(source).toContain("durationMs < DEFAULT_DURATION_MS");
     expect(source).toContain("RAMP_DURATION_MS * sessionIndex");
     expect(source).toContain(
@@ -39,6 +41,8 @@ describe("hosted CSF load acceptance", () => {
       'import { createServerClient } from "@supabase/ssr"',
     );
     expect(source).toContain("client.auth.signInWithPassword");
+    expect(source).toContain("error?.status !== 429");
+    expect(source).toContain("SESSION_MINT_RETRY_MS");
     expect(source).toContain("payload.session_id");
     expect(source).toContain("distinctSessionIds.size !== count");
     expect(source).toContain(
