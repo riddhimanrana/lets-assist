@@ -51,6 +51,15 @@ describe("Resend webhook keyring", () => {
         }),
       }),
     ).toThrow(/keyring configuration is invalid/i);
+    expect(() =>
+      readResendWebhookVerificationKeys({
+        RESEND_WEBHOOK_SECRET_KEYRING: JSON.stringify({
+          activeKeyId: "legacy",
+          keys: { legacy: "whsec_synthetic_replacement" },
+        }),
+        RESEND_WEBHOOK_SECRET: "whsec_synthetic_legacy",
+      }),
+    ).toThrow(/keyring configuration is invalid/i);
   });
 
   test("keeps the single secret as a one-release fallback", () => {

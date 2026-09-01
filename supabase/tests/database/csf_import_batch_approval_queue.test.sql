@@ -1,7 +1,7 @@
 BEGIN;
 
 CREATE EXTENSION IF NOT EXISTS pgtap WITH SCHEMA extensions;
-SELECT extensions.plan(29);
+SELECT extensions.plan(31);
 
 INSERT INTO auth.users (
   id, aud, role, email, email_confirmed_at,
@@ -70,6 +70,23 @@ SELECT extensions.ok(
     'plugin_data.csf_commit_import_row_batch(uuid,uuid,uuid,uuid[])'
   ) IS NOT NULL,
   'the bounded row batch RPC exists'
+);
+
+SELECT extensions.matches(
+  pg_catalog.pg_get_functiondef(
+    'plugin_data.csf_queue_import_preview_batch(uuid,uuid,uuid[],uuid)'::regprocedure
+  ),
+  'pg_advisory_xact_lock',
+  'batch receipt creation serializes the organization and request coordinate'
+);
+
+SELECT extensions.ok(
+  NOT has_function_privilege(
+    'service_role',
+    'plugin_data.csf_queue_import_preview_batch_unserialized(uuid,uuid,uuid[],uuid)',
+    'EXECUTE'
+  ),
+  'the unserialized batch implementation remains owner-internal'
 );
 
 CREATE TEMP TABLE batch_state (key text PRIMARY KEY, value jsonb NOT NULL);
