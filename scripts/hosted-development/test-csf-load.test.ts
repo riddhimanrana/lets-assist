@@ -46,16 +46,15 @@ describe("hosted CSF load acceptance", () => {
       expect(source).toContain(contract);
     }
     expect(source).toContain("for (let index = 0; index < 25; index += 1)");
-    expect(source).toContain(
-      "name: /^(Switch to CSF Officer view|View as member)$/u",
-    );
-    expect(source).toContain("const [actionResponse] = await Promise.all([");
+    expect(source).toContain('button[data-csf-view-switch-hydrated="true"]');
     expect(source).toContain("const destinationTab = movingToMember");
-    expect(source).toContain('request.method() === "POST"');
+    expect(source).toContain("const settledTab = new URL(officerPage.url())");
+    expect(source).toContain("settledTab !== destinationTab");
     expect(source).toContain(
-      'new URL(response.url()).pathname === "/organization/dvhs-csf"',
+      "The fictional staff view did not reach its landing tab.",
     );
-    expect(source).toContain("The fictional staff-view mutation returned");
+    expect(source).not.toContain("waitForResponse(");
+    expect(source).not.toContain("actionResponse");
     expect(source).toContain("baselineHeapBytes: browserResult.baselineHeap");
     expect(source).toContain("finalHeapBytes: browserResult.finalHeap");
     expect(source).toContain('required("VERCEL_AUTOMATION_BYPASS_SECRET")');
