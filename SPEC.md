@@ -99,6 +99,7 @@ V54: background import refusal → queue receipt stores one closed operational c
 V55: timed-out import batch → only a confirmed PostgreSQL statement-timeout rollback with no receipt may split into smaller atomic batches; another missing receipt or a single-row timeout blocks without an automatic repeat; feature-branch Vercel build ⊥ unless the branch is `development` or `main`.
 V56: targetless class-history row with a roster key that does not equal normalized FirstLast or LastFirst → ambiguous officer review before commit; officer may match one existing profile or, with both import and profile authority, create one audited unclaimed profile only when the class has no active exact-name profile; immutable workbook evidence changes ⊥.
 V57: background queue settlement → a missing or unauthorized approving actor terminalizes the import queue item, frozen batch item, parent counts, and settlement audit in one transaction; concurrent row-batch deliveries serialize on organization + request id before receipt lookup; a missing Drive owner blocks both refresh job and workbook registry.
+V58: hosted session acceptance → 90 member + 10 officer sessions ramp over 60 seconds, remain active for the rest of the 15-minute run, and exercise review navigation at peak load; member-feed dates render from deterministic Pacific parts in server and browser; staff presentation toggles replace one history entry with one route request; hydration recovery, repeated route snapshots, and burst-only load substitution ⊥.
 
 §T
 
@@ -135,6 +136,7 @@ T29|~~|retain privacy-safe background import refusal codes, restore service-only
 T30|~~|split confirmed timed-out import batches, keep uncertain outcomes non-retryable, suppress ordinary feature-branch Vercel builds, and finish the official Development reconciliation in one release batch|V14,V17,V47,V55,I.service,I.db,I.cmd
 T31|~~|surface invalid class-history roster keys before readiness, add audited no-match profile creation, and settle the remaining Class of 2027 Development previews|V14,V17,V20,V23,V47,V53,V56,I.service,I.db,I.cmd
 T32|~~|settle claim-time queue refusals, serialize concurrent row-batch receipts, block ownerless workbooks, and complete the hosted load gate|V46,V47,V51,V57,I.db,I.perf,I.cmd
+T33|~~|remove member Home timezone hydration recovery, stop staff-view route snapshot retention, ramp the hosted sessions correctly, and complete the exact Development load gate|V19,V51,V58,I.perf,I.cmd
 
 §B
 
