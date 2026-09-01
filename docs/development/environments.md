@@ -66,10 +66,33 @@ Development Resend variables are deliberately additive rather than fallbacks:
 
 No Production credential is a valid generic Preview fallback.
 
-Before retiring an encryption key, run a count-only database check for values
-whose prefix is not `v2:` in `user_calendar_connections.access_token` and
-`user_calendar_connections.refresh_token`. Both counts must be zero. Do not
-select or log the ciphertext values themselves.
+Before retiring an encryption key, replace `<active-key-id>` below with the
+`ENCRYPTION_KEYRING.activeKeyId` value and run this count-only database check.
+It counts both legacy ciphertext and `v2:` ciphertext written under a retained
+key. Both counts must be zero. Do not select or log ciphertext values.
+
+```sql
+WITH active_key AS (
+  SELECT '<active-key-id>'::text AS key_id
+)
+SELECT
+  count(*) FILTER (
+    WHERE access_token IS NOT NULL
+      AND (
+        split_part(access_token, ':', 1) <> 'v2'
+        OR split_part(access_token, ':', 2) <> active_key.key_id
+      )
+  ) AS access_tokens_needing_rotation,
+  count(*) FILTER (
+    WHERE refresh_token IS NOT NULL
+      AND (
+        split_part(refresh_token, ':', 1) <> 'v2'
+        OR split_part(refresh_token, ':', 2) <> active_key.key_id
+      )
+  ) AS refresh_tokens_needing_rotation
+FROM public.user_calendar_connections
+CROSS JOIN active_key;
+```
 
 Seed only a confirmed non-Production Supabase branch with the supported synthetic
 fixture wrapper:

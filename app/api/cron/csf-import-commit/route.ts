@@ -12,11 +12,14 @@ import { z } from "zod";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
+export const maxDuration = 800;
+const importCommitLeaseSeconds = maxDuration + 100;
 // A 1,000-row import is split into receipt-backed database batches, but the
 // worker still owns one fenced attempt until it can finalize the preview. The
 // Pro function ceiling gives that attempt enough time to finish while each
-// database request remains independently bounded.
-export const maxDuration = 800;
+// database request remains independently bounded. The lease covers the full
+// function budget plus settlement time, so the next minute's invocation cannot
+// reclaim a job while its original worker is still allowed to run.
 
 const BEARER_GRAMMAR = /^Bearer ([\x21-\x7E]+)$/;
 const claimSchema = z.discriminatedUnion("claimed", [
@@ -75,7 +78,7 @@ export async function POST(request: NextRequest) {
 
   const plugin = createPluginAdminClient();
   const { data, error } = await plugin.rpc("csf_claim_import_commit_queue", {
-    p_lease_seconds: 300,
+    p_lease_seconds: importCommitLeaseSeconds,
   });
   if (error) return json({ error: "Import queue unavailable" }, 503);
   const parsed = claimSchema.safeParse(data);
