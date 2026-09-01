@@ -57,7 +57,13 @@ function validateTarget() {
   if (!Number.isFinite(durationMs) || durationMs < DEFAULT_DURATION_MS) {
     throw new Error("Hosted load duration must be at least fifteen minutes.");
   }
-  const protectionBypass = required("VERCEL_AUTOMATION_BYPASS_SECRET");
+  const protectionBypass = process.env.VERCEL_AUTOMATION_BYPASS_SECRET?.trim();
+  const trustedOidcToken = process.env.VERCEL_TRUSTED_OIDC_TOKEN?.trim();
+  if (!protectionBypass && !trustedOidcToken) {
+    throw new Error(
+      "A Vercel automation bypass secret or trusted OIDC token is required.",
+    );
+  }
   const supabaseUrl = new URL(required("SUPABASE_URL"));
   if (
     supabaseUrl.origin !== `https://${projectRef}.supabase.co` ||
@@ -74,7 +80,14 @@ function validateTarget() {
     protectionBypass,
     supabasePublishableKey,
     supabaseUrl,
+    trustedOidcToken,
   };
+}
+
+function vercelProtectionHeaders({ protectionBypass, trustedOidcToken }) {
+  return protectionBypass
+    ? { "x-vercel-protection-bypass": protectionBypass }
+    : { "x-vercel-trusted-oidc-idp-token": trustedOidcToken };
 }
 
 function installVitalsObserver() {
@@ -108,7 +121,7 @@ async function openAuthenticatedPage(
   context,
   appUrl,
   cookies,
-  protectionBypass,
+  protectionHeaders,
 ) {
   await context.addCookies(
     cookies.map(({ name, value }) => ({
@@ -122,7 +135,7 @@ async function openAuthenticatedPage(
     await route.continue({
       headers: {
         ...route.request().headers(),
-        "x-vercel-protection-bypass": protectionBypass,
+        ...protectionHeaders,
       },
     });
   });
@@ -237,7 +250,7 @@ async function runRequestSessions({
   durationMs,
   memberSessions,
   officerSessions,
-  protectionBypass,
+  protectionHeaders,
 }) {
   const memberPaths = [
     "/organization/dvhs-csf",
@@ -296,7 +309,7 @@ async function runRequestSessions({
               accept: "text/html,application/xhtml+xml",
               cookie: session.cookie,
               "user-agent": `lets-assist-csf-hosted-load/${session.role}`,
-              "x-vercel-protection-bypass": protectionBypass,
+              ...protectionHeaders,
             },
             redirect: "follow",
             signal: AbortSignal.timeout(15_000),
@@ -434,6 +447,7 @@ async function runBrowserAcceptance({ appUrl, memberPage, officerPage }) {
 
 async function main() {
   const target = validateTarget();
+  const protectionHeaders = vercelProtectionHeaders(target);
   const memberSessions = await mintSessions({
     account: MEMBER_ACCOUNT,
     count: MEMBER_SESSIONS,
@@ -468,13 +482,13 @@ async function main() {
       memberContext,
       target.appUrl,
       memberSessions[0].cookies,
-      target.protectionBypass,
+      protectionHeaders,
     );
     const officerPage = await openAuthenticatedPage(
       officerContext,
       target.appUrl,
       officerSessions[0].cookies,
-      target.protectionBypass,
+      protectionHeaders,
     );
 
     const loadPromise = runRequestSessions({
@@ -482,7 +496,7 @@ async function main() {
       durationMs: target.durationMs,
       memberSessions,
       officerSessions,
-      protectionBypass: target.protectionBypass,
+      protectionHeaders,
     });
     await new Promise((resolve) => setTimeout(resolve, RAMP_DURATION_MS));
     const browserResult = await runBrowserAcceptance({

@@ -1,0 +1,160 @@
+name: CSF hosted Development acceptance
+
+on:
+  push:
+    branches:
+      - development
+  workflow_dispatch:
+    inputs:
+      development_sha:
+        description: "Exact full SHA at the head of development"
+        required: true
+        type: string
+      confirmation:
+        description: "Type load-hosted-development:<Development Supabase project ref>"
+        required: true
+        type: string
+
+concurrency:
+  group: csf-hosted-development-acceptance
+  cancel-in-progress: false
+
+permissions:
+  checks: read
+  contents: read
+  id-token: write
+  statuses: write
+
+jobs:
+  hosted-acceptance:
+    name: Hosted CSF acceptance
+    if: >-
+      github.ref == 'refs/heads/development' &&
+      (github.event_name == 'workflow_dispatch' ||
+      contains(github.event.head_commit.message, '[hosted-acceptance]'))
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    env:
+      ACCEPTED_SHA: ${{ github.event_name == 'push' && github.sha || inputs.development_sha }}
+      CONFIRMATION: ${{ github.event_name == 'push' && format('load-hosted-development:{0}', vars.CSF_DEVELOPMENT_SUPABASE_PROJECT_REF) || inputs.confirmation }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: ${{ env.ACCEPTED_SHA }}
+
+      - name: Verify exact Development head and confirmation
+        id: verify
+        env:
+          DEVELOPMENT_PROJECT_REF: ${{ vars.CSF_DEVELOPMENT_SUPABASE_PROJECT_REF }}
+        run: |
+          set -euo pipefail
+          if [[ ! "${ACCEPTED_SHA}" =~ ^[0-9a-f]{40}$ ]]; then
+            echo "Development SHA must be a full lowercase commit SHA." >&2
+            exit 1
+          fi
+          if [[ ! "${DEVELOPMENT_PROJECT_REF}" =~ ^[a-z0-9]{20}$ ]]; then
+            echo "Development Supabase project ref is missing or malformed." >&2
+            exit 1
+          fi
+          if [[ "${CONFIRMATION}" != "load-hosted-development:${DEVELOPMENT_PROJECT_REF}" ]]; then
+            echo "Hosted Development confirmation does not match the configured project." >&2
+            exit 1
+          fi
+          git fetch --no-tags origin development
+          if [[ "$(git rev-parse HEAD)" != "${ACCEPTED_SHA}" || "$(git rev-parse "origin/development")" != "${ACCEPTED_SHA}" ]]; then
+            echo "The requested SHA is not the current Development head." >&2
+            exit 1
+          fi
+          echo "verified=true" >> "${GITHUB_OUTPUT}"
+
+      - name: Publish pending acceptance status
+        if: steps.verify.outputs.verified == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh api "repos/${GITHUB_REPOSITORY}/statuses/${ACCEPTED_SHA}" \
+            -f state=pending \
+            -f context=csf-hosted-development-acceptance \
+            -f description='Hosted Development acceptance is running' \
+            -f target_url="https://github.com/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
+
+      - name: Require successful Vercel deployment for the SHA
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          for attempt in $(seq 1 60); do
+            if gh api "repos/${GITHUB_REPOSITORY}/commits/${ACCEPTED_SHA}/check-runs" \
+              --jq '.check_runs | any(.name == "Vercel" and .conclusion == "success")' \
+              | grep -qx true; then
+              exit 0
+            fi
+            sleep 10
+          done
+          echo "The exact Development SHA did not receive a successful Vercel check." >&2
+          exit 1
+
+      - name: Setup Node
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version-file: .node-version
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v1
+        with:
+          bun-version: 1.3.14
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Install Playwright Chromium
+        run: bunx playwright install --with-deps chromium
+
+      - name: Mint trusted Vercel OIDC token
+        id: oidc
+        uses: actions/github-script@v8
+        with:
+          script: |
+            const token = await core.getIDToken();
+            core.setSecret(token);
+            core.setOutput('token', token);
+
+      - name: Run hosted CSF acceptance
+        env:
+          CSF_APP_URL: https://dev.lets-assist.com/
+          CSF_HOSTED_LOAD_CONFIRMATION: ${{ env.CONFIRMATION }}
+          CSF_LOCAL_TEST_PASSWORD: ${{ secrets.CSF_HOSTED_LOAD_PASSWORD }}
+          EXPECTED_NON_PRODUCTION_SUPABASE_PROJECT_REF: ${{ vars.CSF_DEVELOPMENT_SUPABASE_PROJECT_REF }}
+          SUPABASE_PUBLISHABLE_KEY: ${{ secrets.CSF_DEVELOPMENT_SUPABASE_PUBLISHABLE_KEY }}
+          SUPABASE_URL: https://${{ vars.CSF_DEVELOPMENT_SUPABASE_PROJECT_REF }}.supabase.co
+          VERCEL_TRUSTED_OIDC_TOKEN: ${{ steps.oidc.outputs.token }}
+        run: bun run csf:test:hosted:load
+
+      - name: Recheck Development head
+        run: |
+          set -euo pipefail
+          git fetch --no-tags origin development
+          test "$(git rev-parse "origin/development")" = "${ACCEPTED_SHA}"
+
+      - name: Publish successful acceptance status
+        if: success() && steps.verify.outputs.verified == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh api "repos/${GITHUB_REPOSITORY}/statuses/${ACCEPTED_SHA}" \
+            -f state=success \
+            -f context=csf-hosted-development-acceptance \
+            -f description='100 distinct sessions passed hosted Development acceptance' \
+            -f target_url="https://github.com/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
+
+      - name: Publish failed acceptance status
+        if: failure() && steps.verify.outputs.verified == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh api "repos/${GITHUB_REPOSITORY}/statuses/${ACCEPTED_SHA}" \
+            -f state=failure \
+            -f context=csf-hosted-development-acceptance \
+            -f description='Hosted Development acceptance failed' \
+            -f target_url="https://github.com/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"

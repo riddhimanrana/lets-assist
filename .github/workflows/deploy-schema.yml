@@ -51,7 +51,7 @@ jobs:
             exit 1
           fi
           gh api "repos/${GITHUB_REPOSITORY}/commits/${ACCEPTED_SHA}/status" \
-            --jq '.statuses | any(.context == "csf-hosted-development-acceptance" and .state == "success")' \
+            --jq '.statuses | any(.context == "csf-hosted-development-acceptance" and .state == "success" and .creator.login == "github-actions[bot]" and (.target_url | startswith("https://github.com/riddhimanrana/lets-assist/actions/runs/")))' \
             | grep -qx true
 
   # Stage 1: Validate migrations locally before connecting to prod

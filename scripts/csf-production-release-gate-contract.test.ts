@@ -54,6 +54,10 @@ describe("CSF Production release preflight", () => {
     expect(acceptance).toContain(
       'csf-hosted-development-acceptance" and .state == "success"',
     );
+    expect(acceptance).toContain('.creator.login == "github-actions[bot]"');
+    expect(acceptance).toContain(
+      "https://github.com/riddhimanrana/lets-assist/actions/runs/",
+    );
   });
 
   test("the reusable preflight includes root, plugin, build, scale, and browser gates", () => {

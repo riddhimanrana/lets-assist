@@ -5,6 +5,13 @@ const source = readFileSync(
   new URL("./test-csf-load.mjs", import.meta.url),
   "utf8",
 );
+const workflow = readFileSync(
+  new URL(
+    "../../.github/workflows/csf-hosted-development-acceptance.yml",
+    import.meta.url,
+  ),
+  "utf8",
+);
 
 describe("hosted CSF load acceptance", () => {
   test("is pinned to the Development app and refuses the Production database", () => {
@@ -68,11 +75,27 @@ describe("hosted CSF load acceptance", () => {
     expect(source).not.toContain("actionResponse");
     expect(source).toContain("baselineHeapBytes: browserResult.baselineHeap");
     expect(source).toContain("finalHeapBytes: browserResult.finalHeap");
-    expect(source).toContain('required("VERCEL_AUTOMATION_BYPASS_SECRET")');
+    expect(source).toContain("VERCEL_AUTOMATION_BYPASS_SECRET?.trim()");
+    expect(source).toContain("VERCEL_TRUSTED_OIDC_TOKEN?.trim()");
     expect(source).toContain('required("SUPABASE_PUBLISHABLE_KEY")');
     expect(source).toContain('"x-vercel-protection-bypass"');
+    expect(source).toContain('"x-vercel-trusted-oidc-idp-token"');
     expect(source).toContain("page.route(`${appUrl.origin}/**`");
     expect(source).not.toContain("extraHTTPHeaders");
+  });
+
+  test("publishes exact-SHA acceptance only from the trusted Development workflow", () => {
+    expect(workflow).toContain("id-token: write");
+    expect(workflow).toContain("statuses: write");
+    expect(workflow).toContain("push:");
+    expect(workflow).toContain("[hosted-acceptance]");
+    expect(workflow).toContain("core.getIDToken()");
+    expect(workflow).toContain("VERCEL_TRUSTED_OIDC_TOKEN");
+    expect(workflow).toContain("bun run csf:test:hosted:load");
+    expect(workflow).toContain("csf-hosted-development-acceptance");
+    expect(workflow).toContain('git rev-parse "origin/development"');
+    expect(workflow).toContain("state=success");
+    expect(workflow).toContain("state=failure");
   });
 
   test("uses only known fictional accounts and emits count-only output", () => {
