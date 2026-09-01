@@ -263,9 +263,9 @@ async function runBrowserAcceptance({ appUrl, memberPage, officerPage }) {
     new URL("/organization/dvhs-csf?tab=csf-overview", appUrl).href,
   );
   for (let index = 0; index < 25; index += 1) {
-    const switchButton = officerPage.getByRole("button", {
-      name: /^(Switch to CSF Officer view|View as member)$/u,
-    });
+    const switchButton = officerPage
+      .locator('button[data-csf-view-switch-hydrated="true"]')
+      .filter({ hasText: /^(Switch to CSF Officer view|View as member)$/u });
     await switchButton.waitFor({ state: "visible", timeout: 60_000 });
     const switchLabel = (await switchButton.textContent())?.trim();
     const movingToMember = switchLabel === "View as member";
@@ -274,34 +274,22 @@ async function runBrowserAcceptance({ appUrl, memberPage, officerPage }) {
     }
     const destinationTab = movingToMember ? "csf-home" : "csf-overview";
     const startedAt = performance.now();
-    const [actionResponse] = await Promise.all([
-      officerPage.waitForResponse(
-        (response) => {
-          const request = response.request();
-          return (
-            request.method() === "POST" &&
-            new URL(response.url()).pathname === "/organization/dvhs-csf"
-          );
-        },
-        { timeout: 60_000 },
-      ),
-      switchButton.click({ timeout: 60_000 }),
-    ]);
-    if (!actionResponse.ok()) {
+    await switchButton.click({ timeout: 60_000 });
+    await officerPage
+      .locator('button[data-csf-view-switch-hydrated="true"]')
+      .filter({
+        hasText: movingToMember
+          ? "Switch to CSF Officer view"
+          : "View as member",
+      })
+      .waitFor({ state: "visible", timeout: 60_000 });
+    const settledTab = new URL(officerPage.url()).searchParams.get("tab");
+    if (settledTab !== destinationTab) {
       throw new Error(
-        `The fictional staff-view mutation returned ${actionResponse.status()}.`,
+        "The fictional staff view did not reach its landing tab.",
       );
     }
     mutationTimings.push(performance.now() - startedAt);
-    await officerPage.waitForURL(
-      (url) => url.searchParams.get("tab") === destinationTab,
-      { timeout: 60_000 },
-    );
-    await officerPage
-      .getByRole("button", {
-        name: movingToMember ? "Switch to CSF Officer view" : "View as member",
-      })
-      .waitFor({ state: "visible", timeout: 60_000 });
     if (index === 1) {
       baselineHeap =
         (await collectHeap(memberPage, memberSession)) +
