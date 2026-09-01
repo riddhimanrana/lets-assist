@@ -96,6 +96,7 @@ V52: initial class workbook link → provider metadata and bounded grids read on
 V53: class-history commit identity → one valid canonical roster key from the same organization, class, and official workbook reuses the previously committed active profile across semester jobs; different workbook, invalid key, conflicting canonical email, or a key already bound to multiple profiles blocks reuse and stays in officer review; reused identity is recorded on the immutable row and in private audit evidence.
 V54: background import refusal → queue receipt stores one closed operational code for allowlist, reconnect, missing file, trash, identity, MIME, incomplete evidence, source drift, or retryable source check; raw provider and database text ⊥; worker response may return the same closed code for operator diagnosis.
 V55: timed-out import batch → only a confirmed PostgreSQL statement-timeout rollback with no receipt may split into smaller atomic batches; another missing receipt or a single-row timeout blocks without an automatic repeat; feature-branch Vercel build ⊥ unless the branch is `development` or `main`.
+V56: targetless class-history row with a roster key that does not equal normalized FirstLast or LastFirst → ambiguous officer review before commit; officer may match one existing profile or, with both import and profile authority, create one audited unclaimed profile only when the class has no active exact-name profile; immutable workbook evidence changes ⊥.
 
 §T
 
@@ -130,6 +131,7 @@ T27|~~|move initial class workbook preparation out of the linking request, prove
 T28|~~|reuse one source-backed profile across semester commit jobs, deploy the exact Development tree, and complete the count-only officer reconciliation|V14,V17,V20,V23,V47,V53,I.service,I.db,I.cmd
 T29|~~|retain privacy-safe background import refusal codes, restore service-only class-history readiness execution, deploy the Development source allowlist, and resolve the official workbook commit blocker before Production promotion|V14,V17,V46,V47,V54,I.service,I.db,I.cmd
 T30|~~|split confirmed timed-out import batches, keep uncertain outcomes non-retryable, suppress ordinary feature-branch Vercel builds, and finish the official Development reconciliation in one release batch|V14,V17,V47,V55,I.service,I.db,I.cmd
+T31|~~|surface invalid class-history roster keys before readiness, add audited no-match profile creation, and settle the remaining Class of 2027 Development previews|V14,V17,V20,V23,V47,V53,V56,I.service,I.db,I.cmd
 
 §B
 
@@ -163,6 +165,7 @@ B26|2026-08-30|point queues signed every proof and routine staff selectors loade
 B27|2026-08-30|ten-minute cron + 25 sequential sends required about 6h40m for 1,000 recipients|V49
 B28|2026-08-30|Production Resend webhook rejected every sampled delivery event because configured secret did not verify provider signatures|V50
 B29|2026-08-30|direct 1,000-row fixture benchmark did not test authenticated route concurrency, browser memory, email, or Drive|V51
+B37|2026-08-31|invalid populated class-history roster keys stayed pending after preview parsing, then failed only at database readiness with no officer row to resolve|V56
 B30|2026-08-30|isolated auth admin and password-login requests repeatedly exceeded 30–60 seconds while database scale checks stayed fast|keep authenticated browser and 100-session acceptance open until the isolated auth runtime or hosted synthetic environment can sustain login
 B31|2026-08-31|prepared class-history previews had valid roster keys but no profile targets, so batch readiness blocked every term and independent term commits would create duplicate profiles|V53
 B32|2026-08-31|background import receipts collapsed allowlist and live Google source refusals into `import_commit_blocked`, hiding the safe operator action while preserving no diagnostic distinction|V54
