@@ -9,6 +9,7 @@ const KEY_LENGTH = 32;
 const ITERATIONS = 100000;
 const FORMAT_VERSION = "v2";
 const KEY_ID_PATTERN = /^[A-Za-z0-9._-]{1,64}$/u;
+const LEGACY_KEY_ID = "legacy";
 const MAX_KEYS = 10;
 
 type EncryptionKeyring = {
@@ -80,7 +81,7 @@ function readEncryptionKeyring(
   }
   const keys = new Map<string, string>();
   for (const [keyId, secret] of entries) {
-    if (!KEY_ID_PATTERN.test(keyId)) {
+    if (!KEY_ID_PATTERN.test(keyId) || keyId === LEGACY_KEY_ID) {
       throw new Error("ENCRYPTION_KEYRING is invalid");
     }
     keys.set(keyId, validateSecret(secret));
@@ -88,14 +89,34 @@ function readEncryptionKeyring(
   if (!keys.has(activeKeyId)) {
     throw new Error("ENCRYPTION_KEYRING active key is missing");
   }
-  if (legacy && !Array.from(keys.values()).includes(legacy)) {
-    keys.set("legacy", validateSecret(legacy));
+  if (legacy) {
+    keys.set(LEGACY_KEY_ID, validateSecret(legacy));
   }
   if (keys.size > MAX_KEYS) {
     throw new Error("ENCRYPTION_KEYRING has too many keys");
   }
 
   return { activeKeyId, keys, versioned: true };
+}
+
+/** Create a domain-separated HMAC under the active or requested key ID. */
+export function createEncryptionKeyedDigest(
+  domain: string,
+  value: string,
+  keyId?: string,
+): { keyId: string; digest: string } {
+  if (!domain) throw new Error("Encryption digest domain is required");
+  const keyring = readEncryptionKeyring();
+  const selectedKeyId = keyId ?? keyring.activeKeyId;
+  const secret = keyring.keys.get(selectedKeyId);
+  if (!secret) throw new Error("Encryption digest key is unavailable");
+  const digest = crypto
+    .createHmac("sha256", secret)
+    .update(domain, "utf8")
+    .update("\0", "utf8")
+    .update(value, "utf8")
+    .digest("base64url");
+  return { keyId: selectedKeyId, digest };
 }
 
 function deriveKey(secret: string, salt: Buffer): Buffer {

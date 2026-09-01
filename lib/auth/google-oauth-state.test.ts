@@ -4,6 +4,7 @@ import test from "node:test";
 
 import {
   createGoogleOAuthAttemptSecrets,
+  digestGoogleOAuthSecret,
   digestGoogleOAuthSessionBinding,
   deriveGoogleOAuthPkceChallenge,
   getGoogleOAuthAttemptCookieName,
@@ -97,25 +98,105 @@ test("issues a bounded, correlation-safe diagnostic code", () => {
 
 test("rejects a malformed, tampered, or foreign-version state", () => {
   const secrets = createGoogleOAuthAttemptSecrets();
-  const [version, attemptRef, stateSecret] = secrets.state.split(".");
+  const [version, attemptRef, digestKeyId, stateSecret] =
+    secrets.state.split(".");
 
   assert.equal(parseGoogleOAuthState(null), null);
   assert.equal(parseGoogleOAuthState(""), null);
   assert.equal(parseGoogleOAuthState("not-a-state"), null);
   assert.equal(parseGoogleOAuthState(`v2.${attemptRef}.${stateSecret}`), null);
   assert.equal(parseGoogleOAuthState(`${version}.${attemptRef}`), null);
-  assert.equal(parseGoogleOAuthState(`${version}.!!!.${stateSecret}`), null);
-  assert.equal(parseGoogleOAuthState(`${version}.${attemptRef}.short`), null);
+  assert.equal(
+    parseGoogleOAuthState(`${version}.!!!.${digestKeyId}.${stateSecret}`),
+    null,
+  );
+  assert.equal(
+    parseGoogleOAuthState(`${version}.${attemptRef}.!.${stateSecret}`),
+    null,
+  );
+  assert.equal(
+    parseGoogleOAuthState(`${version}.${attemptRef}.${digestKeyId}.short`),
+    null,
+  );
 });
 
 test("a tampered state secret yields a different digest, so the ledger cannot match it", () => {
   const secrets = createGoogleOAuthAttemptSecrets();
-  const [version, attemptRef, stateSecret] = secrets.state.split(".");
+  const [version, attemptRef, digestKeyId, stateSecret] =
+    secrets.state.split(".");
   const flipped = `${stateSecret.slice(0, -1)}${stateSecret.endsWith("A") ? "B" : "A"}`;
 
-  const parsed = parseGoogleOAuthState(`${version}.${attemptRef}.${flipped}`);
+  const parsed = parseGoogleOAuthState(
+    `${version}.${attemptRef}.${digestKeyId}.${flipped}`,
+  );
   assert.ok(parsed);
   assert.notEqual(parsed.stateDigest, secrets.stateDigest);
+});
+
+test("keeps an attempt verifiable while its named digest key is retained", () => {
+  const previousKey = process.env.ENCRYPTION_KEY;
+  const previousKeyring = process.env.ENCRYPTION_KEYRING;
+  try {
+    delete process.env.ENCRYPTION_KEY;
+    process.env.ENCRYPTION_KEYRING = JSON.stringify({
+      activeKeyId: "oauth.old",
+      keys: { "oauth.old": "o".repeat(32) },
+    });
+    const secrets = createGoogleOAuthAttemptSecrets();
+    const originalSessionDigest = digestGoogleOAuthSessionBinding(
+      "session-one",
+      secrets.digestKeyId,
+    );
+
+    process.env.ENCRYPTION_KEYRING = JSON.stringify({
+      activeKeyId: "oauth-current",
+      keys: {
+        "oauth-current": "c".repeat(32),
+        "oauth.old": "o".repeat(32),
+      },
+    });
+    const parsed = parseGoogleOAuthState(secrets.state);
+
+    assert.ok(parsed);
+    assert.equal(parsed.digestKeyId, "oauth.old");
+    assert.equal(parsed.stateDigest, secrets.stateDigest);
+    assert.equal(
+      digestGoogleOAuthSessionBinding("session-one", parsed.digestKeyId),
+      originalSessionDigest,
+    );
+  } finally {
+    if (previousKey === undefined) delete process.env.ENCRYPTION_KEY;
+    else process.env.ENCRYPTION_KEY = previousKey;
+    if (previousKeyring === undefined) delete process.env.ENCRYPTION_KEYRING;
+    else process.env.ENCRYPTION_KEYRING = previousKeyring;
+  }
+});
+
+test("accepts an in-flight v3 attempt through the legacy fallback key", () => {
+  const previousKey = process.env.ENCRYPTION_KEY;
+  const previousKeyring = process.env.ENCRYPTION_KEYRING;
+  try {
+    process.env.ENCRYPTION_KEY = "l".repeat(32);
+    process.env.ENCRYPTION_KEYRING = JSON.stringify({
+      activeKeyId: "current",
+      keys: { current: "l".repeat(32) },
+    });
+    const attemptRef = "A".repeat(24);
+    const stateSecret = "B".repeat(43);
+    const parsed = parseGoogleOAuthState(`v3.${attemptRef}.${stateSecret}`);
+
+    assert.ok(parsed);
+    assert.equal(parsed.digestKeyId, "legacy");
+    assert.equal(
+      parsed.stateDigest,
+      digestGoogleOAuthSecret(stateSecret, "legacy"),
+    );
+  } finally {
+    if (previousKey === undefined) delete process.env.ENCRYPTION_KEY;
+    else process.env.ENCRYPTION_KEY = previousKey;
+    if (previousKeyring === undefined) delete process.env.ENCRYPTION_KEYRING;
+    else process.env.ENCRYPTION_KEYRING = previousKeyring;
+  }
 });
 
 test("binds to the stable session claim rather than a rotating token", () => {

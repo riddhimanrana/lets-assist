@@ -7,7 +7,8 @@
  * overwrote it, so the first callback failed and collapsed to `invalid_state`.
  *
  * Here the browser holds two unguessable secrets and nothing else:
- *   * the `state` Google echoes back, `v3.<attemptRef>.<stateSecret>`;
+ *   * the `state` Google echoes back,
+ *     `v4.<attemptRef>.<digestKeyId>.<stateSecret>`;
  *   * an attempt-specific cookie named for that same `attemptRef`.
  *
  * Only SHA-256 digests of both secrets reach the database, so the durable
@@ -19,12 +20,9 @@
  * can be tested without a database or a request.
  */
 
-import {
-  createHash,
-  createHmac,
-  randomBytes,
-  timingSafeEqual,
-} from "node:crypto";
+import { createHash, randomBytes, timingSafeEqual } from "node:crypto";
+
+import { createEncryptionKeyedDigest } from "@/lib/encryption";
 
 import { resolveGoogleOAuthCallbackPath } from "./google-oauth-callback-path";
 
@@ -38,7 +36,8 @@ export const GOOGLE_OAUTH_ATTEMPT_TTL_SECONDS = 10 * 60;
  */
 export const GOOGLE_OAUTH_ATTEMPT_LEASE_SECONDS = 120;
 
-const STATE_VERSION = "v3";
+const STATE_VERSION = "v4";
+const LEGACY_STATE_VERSION = "v3";
 const ATTEMPT_REF_BYTES = 18; // 24 base64url characters
 const SECRET_BYTES = 32; // 43 base64url characters
 const COOKIE_NAME_PREFIX = "la_goauth_";
@@ -54,6 +53,7 @@ export type GoogleOAuthAttemptSecrets = {
   /** Set as the attempt-specific cookie value. Never stored. */
   cookieSecret: string;
   cookieName: string;
+  digestKeyId: string;
   stateDigest: string;
   cookieDigest: string;
   codeVerifier: string;
@@ -65,29 +65,30 @@ function base64Url(value: Buffer): string {
   return value.toString("base64url");
 }
 
+function encodeDigestKeyId(keyId: string): string {
+  return Buffer.from(keyId, "utf8").toString("base64url");
+}
+
+function decodeDigestKeyId(encoded: string): string | null {
+  if (!/^[A-Za-z0-9_-]{2,86}$/u.test(encoded)) return null;
+  const decoded = Buffer.from(encoded, "base64url").toString("utf8");
+  return encodeDigestKeyId(decoded) === encoded ? decoded : null;
+}
+
 /**
  * Keyed SHA-256, base64url. 43 characters, matching the ledger's CHECK.
  *
  * The attempt values already carry 256 bits of entropy, but a keyed digest
  * also prevents an exported ledger from becoming an offline verifier. The
- * environment key is mandatory in every runtime that can start or complete an
- * OAuth attempt.
+ * The state records a non-secret key ID so an in-flight callback can use the
+ * retained key that created its ledger digest after a key rotation.
  */
-export function digestGoogleOAuthSecret(secret: string): string {
-  const digestKey = process.env.ENCRYPTION_KEY;
-  if (!digestKey || digestKey.length < 32) {
-    throw new Error(
-      "ENCRYPTION_KEY must contain at least 32 characters for Google OAuth attempt digests.",
-    );
-  }
-
-  return base64Url(
-    createHmac("sha256", digestKey)
-      .update(SECRET_DIGEST_DOMAIN, "utf8")
-      .update("\0", "utf8")
-      .update(secret, "utf8")
-      .digest(),
-  );
+export function digestGoogleOAuthSecret(
+  secret: string,
+  keyId?: string,
+): string {
+  return createEncryptionKeyedDigest(SECRET_DIGEST_DOMAIN, secret, keyId)
+    .digest;
 }
 
 /**
@@ -155,14 +156,19 @@ export function createGoogleOAuthAttemptSecrets(): GoogleOAuthAttemptSecrets {
   const stateSecret = base64Url(randomBytes(SECRET_BYTES));
   const cookieSecret = base64Url(randomBytes(SECRET_BYTES));
   const { codeVerifier, codeChallenge } = createGoogleOAuthPkcePair();
+  const keyedStateDigest = createEncryptionKeyedDigest(
+    SECRET_DIGEST_DOMAIN,
+    stateSecret,
+  );
 
   return {
     attemptRef,
-    state: `${STATE_VERSION}.${attemptRef}.${stateSecret}`,
+    state: `${STATE_VERSION}.${attemptRef}.${encodeDigestKeyId(keyedStateDigest.keyId)}.${stateSecret}`,
     cookieSecret,
     cookieName: getGoogleOAuthAttemptCookieName(attemptRef),
-    stateDigest: digestGoogleOAuthSecret(stateSecret),
-    cookieDigest: digestGoogleOAuthSecret(cookieSecret),
+    digestKeyId: keyedStateDigest.keyId,
+    stateDigest: keyedStateDigest.digest,
+    cookieDigest: digestGoogleOAuthSecret(cookieSecret, keyedStateDigest.keyId),
     codeVerifier,
     codeChallenge,
     correlationId: createGoogleOAuthCorrelationId(),
@@ -171,11 +177,13 @@ export function createGoogleOAuthAttemptSecrets(): GoogleOAuthAttemptSecrets {
 
 export type ParsedGoogleOAuthState = {
   attemptRef: string;
+  digestKeyId: string;
   stateDigest: string;
   cookieName: string;
 };
 
 const ATTEMPT_REF_PATTERN = /^[A-Za-z0-9_-]{16,64}$/u;
+const KEY_ID_PATTERN = /^[A-Za-z0-9._-]{1,64}$/u;
 const SECRET_PATTERN = /^[A-Za-z0-9_-]{43}$/u;
 
 /**
@@ -189,18 +197,28 @@ export function parseGoogleOAuthState(
   if (!state) return null;
 
   const parts = state.split(".");
-  if (parts.length !== 3) return null;
+  const version = parts[0];
+  const isCurrent = version === STATE_VERSION && parts.length === 4;
+  const isLegacy = version === LEGACY_STATE_VERSION && parts.length === 3;
+  if (!isCurrent && !isLegacy) return null;
 
-  const [version, attemptRef, stateSecret] = parts;
-  if (version !== STATE_VERSION) return null;
+  const attemptRef = parts[1];
+  const digestKeyId = isCurrent ? decodeDigestKeyId(parts[2]) : "legacy";
+  const stateSecret = isCurrent ? parts[3] : parts[2];
   if (!ATTEMPT_REF_PATTERN.test(attemptRef)) return null;
+  if (!digestKeyId || !KEY_ID_PATTERN.test(digestKeyId)) return null;
   if (!SECRET_PATTERN.test(stateSecret)) return null;
 
-  return {
-    attemptRef,
-    stateDigest: digestGoogleOAuthSecret(stateSecret),
-    cookieName: getGoogleOAuthAttemptCookieName(attemptRef),
-  };
+  try {
+    return {
+      attemptRef,
+      digestKeyId,
+      stateDigest: digestGoogleOAuthSecret(stateSecret, digestKeyId),
+      cookieName: getGoogleOAuthAttemptCookieName(attemptRef),
+    };
+  } catch {
+    return null;
+  }
 }
 
 /** Constant-time comparison for equal-length secrets. */
@@ -227,8 +245,9 @@ export function secretsMatch(left: string, right: string): boolean {
  */
 export function digestGoogleOAuthSessionBinding(
   sessionId: string | null | undefined,
+  keyId?: string,
 ): string | null {
   const normalized = sessionId?.trim();
   if (!normalized) return null;
-  return digestGoogleOAuthSecret(`session:${normalized}`);
+  return digestGoogleOAuthSecret(`session:${normalized}`, keyId);
 }

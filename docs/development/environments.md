@@ -57,6 +57,7 @@ Development Resend variables are deliberately additive rather than fallbacks:
 - `ENCRYPTION_KEYRING` is versioned JSON with `activeKeyId` and `keys`. Keep
   `ENCRYPTION_KEY` while legacy OAuth ciphertext remains. Successful Google
   credential reads rewrite legacy or retained-key values under the active key.
+  The key ID `legacy` is reserved and cannot appear in the keyring.
 - `CSF_OPERATIONAL_ALERTS_ENABLED=true` lets the worker emit count-only alerts
   for communication backlog and unresolved import batches. No tenant, student,
   message, or workbook content enters those alerts.
@@ -93,6 +94,12 @@ SELECT
 FROM public.user_calendar_connections
 CROSS JOIN active_key;
 ```
+
+After both counts reach zero, wait at least ten minutes after the release that
+starts issuing `v4` Google OAuth state. This lets every `v3` authorization
+attempt expire before removing `ENCRYPTION_KEY`. New attempt digests use the
+active key ID, and callbacks select that ID from the returned state shape, so
+later key rotations retain only the named key for the attempt TTL.
 
 Seed only a confirmed non-Production Supabase branch with the supported synthetic
 fixture wrapper:
