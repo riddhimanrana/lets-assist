@@ -33,14 +33,27 @@ describe("CSF Production release preflight", () => {
   test("deployment requires the reusable gate and retains action-time confirmation", () => {
     const deployment = jobBlock(deploymentWorkflow, "deploy-to-production");
 
-    expect(deployment).toContain(
-      "needs: [csf-release-gates, validate-migrations, test-local-reset]",
-    );
+    expect(deployment).toContain("hosted-development-acceptance,");
     expect(deployment).toContain("github.ref == 'refs/heads/main'");
     expect(deployment).toContain(
       "inputs.production_confirmation == 'deploy-production:fotdmeakexgrkronxlof'",
     );
     expect(deployment).toContain("environment: production");
+  });
+
+  test("Production requires the exact hosted Development tree and successful status", () => {
+    const acceptance = jobBlock(
+      deploymentWorkflow,
+      "hosted-development-acceptance",
+    );
+
+    expect(deploymentWorkflow).toContain("hosted_development_sha:");
+    expect(acceptance).toContain("git merge-base --is-ancestor");
+    expect(acceptance).toContain('git rev-parse "${ACCEPTED_SHA}^{tree}"');
+    expect(acceptance).toContain("git rev-parse 'HEAD^{tree}'");
+    expect(acceptance).toContain(
+      'csf-hosted-development-acceptance" and .state == "success"',
+    );
   });
 
   test("the reusable preflight includes root, plugin, build, scale, and browser gates", () => {

@@ -28,6 +28,17 @@ describe("hosted CSF load acceptance", () => {
     expect(source).toContain(
       "await new Promise((resolve) => setTimeout(resolve, RAMP_DURATION_MS))",
     );
+    expect(source).toContain(
+      'import { createServerClient } from "@supabase/ssr"',
+    );
+    expect(source).toContain("client.auth.signInWithPassword");
+    expect(source).toContain("payload.session_id");
+    expect(source).toContain("distinctSessionIds.size !== count");
+    expect(source).toContain(
+      "result.distinctAuthSessions === MEMBER_SESSIONS + OFFICER_SESSIONS",
+    );
+    expect(source).not.toContain("cookie: memberCookies");
+    expect(source).not.toContain("cookie: officerCookies");
   });
 
   test("enforces route, browser, Web Vitals, and retained-heap limits", () => {
@@ -58,6 +69,7 @@ describe("hosted CSF load acceptance", () => {
     expect(source).toContain("baselineHeapBytes: browserResult.baselineHeap");
     expect(source).toContain("finalHeapBytes: browserResult.finalHeap");
     expect(source).toContain('required("VERCEL_AUTOMATION_BYPASS_SECRET")');
+    expect(source).toContain('required("SUPABASE_PUBLISHABLE_KEY")');
     expect(source).toContain('"x-vercel-protection-bypass"');
     expect(source).toContain("page.route(`${appUrl.origin}/**`");
     expect(source).not.toContain("extraHTTPHeaders");

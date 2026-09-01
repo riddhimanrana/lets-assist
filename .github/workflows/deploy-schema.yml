@@ -7,6 +7,10 @@ on:
         description: "Type deploy-production:fotdmeakexgrkronxlof to deploy from main"
         required: true
         type: string
+      hosted_development_sha:
+        description: "Exact Development SHA with a successful hosted CSF acceptance status"
+        required: true
+        type: string
 
 concurrency:
   group: production-schema-deployment
@@ -21,6 +25,34 @@ jobs:
     name: CSF release gates
     uses: ./.github/workflows/ci.yml
     secrets: inherit
+
+  hosted-development-acceptance:
+    name: Hosted Development acceptance
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Require accepted Development tree and status
+        env:
+          ACCEPTED_SHA: ${{ inputs.hosted_development_sha }}
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          if [[ ! "${ACCEPTED_SHA}" =~ ^[0-9a-f]{40}$ ]]; then
+            echo "Hosted Development SHA must be a full lowercase commit SHA." >&2
+            exit 1
+          fi
+          git fetch --no-tags origin "${ACCEPTED_SHA}"
+          git merge-base --is-ancestor "${ACCEPTED_SHA}" HEAD
+          if [[ "$(git rev-parse "${ACCEPTED_SHA}^{tree}")" != "$(git rev-parse 'HEAD^{tree}')" ]]; then
+            echo "Production tree differs from the accepted Development tree." >&2
+            exit 1
+          fi
+          gh api "repos/${GITHUB_REPOSITORY}/commits/${ACCEPTED_SHA}/status" \
+            --jq '.statuses | any(.context == "csf-hosted-development-acceptance" and .state == "success")' \
+            | grep -qx true
 
   # Stage 1: Validate migrations locally before connecting to prod
   validate-migrations:
@@ -198,7 +230,13 @@ jobs:
   deploy-to-production:
     name: Deploy to Production
     runs-on: ubuntu-latest
-    needs: [csf-release-gates, validate-migrations, test-local-reset]
+    needs:
+      [
+        csf-release-gates,
+        hosted-development-acceptance,
+        validate-migrations,
+        test-local-reset,
+      ]
     if: >-
       github.event_name == 'workflow_dispatch' &&
       github.ref == 'refs/heads/main' &&

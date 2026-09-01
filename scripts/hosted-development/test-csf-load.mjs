@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 
 import { chromium } from "@playwright/test";
+import { createServerClient } from "@supabase/ssr";
 
 const PRODUCTION_PROJECT_REF = "fotdmeakexgrkronxlof";
 const EXPECTED_ORIGIN = "https://dev.lets-assist.com";
@@ -57,7 +58,23 @@ function validateTarget() {
     throw new Error("Hosted load duration must be at least fifteen minutes.");
   }
   const protectionBypass = required("VERCEL_AUTOMATION_BYPASS_SECRET");
-  return { appUrl, durationMs, password, projectRef, protectionBypass };
+  const supabaseUrl = new URL(required("SUPABASE_URL"));
+  if (
+    supabaseUrl.origin !== `https://${projectRef}.supabase.co` ||
+    supabaseUrl.pathname !== "/"
+  ) {
+    throw new Error("SUPABASE_URL does not match the Development project ref.");
+  }
+  const supabasePublishableKey = required("SUPABASE_PUBLISHABLE_KEY");
+  return {
+    appUrl,
+    durationMs,
+    password,
+    projectRef,
+    protectionBypass,
+    supabasePublishableKey,
+    supabaseUrl,
+  };
 }
 
 function installVitalsObserver() {
@@ -87,7 +104,19 @@ function installVitalsObserver() {
   }).observe({ type: "event", buffered: true, durationThreshold: 16 });
 }
 
-async function login(context, appUrl, account, password, protectionBypass) {
+async function openAuthenticatedPage(
+  context,
+  appUrl,
+  cookies,
+  protectionBypass,
+) {
+  await context.addCookies(
+    cookies.map(({ name, value }) => ({
+      name,
+      value,
+      url: appUrl.origin,
+    })),
+  );
   const page = await context.newPage();
   await page.route(`${appUrl.origin}/**`, async (route) => {
     await route.continue({
@@ -97,24 +126,12 @@ async function login(context, appUrl, account, password, protectionBypass) {
       },
     });
   });
-  await page.goto(
-    new URL("/login?redirect=%2Forganization%2Fdvhs-csf", appUrl).href,
-  );
-  await page
-    .locator('form[data-hydrated="true"]')
-    .waitFor({ state: "visible" });
-  await page.getByRole("textbox", { name: "Email" }).fill(account);
-  await page.getByLabel("Password").fill(password);
-  await Promise.all([
-    page.waitForURL((url) => url.pathname === "/organization/dvhs-csf", {
-      timeout: 60_000,
-      waitUntil: "domcontentloaded",
-    }),
-    page
-      .locator('form[data-hydrated="true"]')
-      .getByRole("button", { name: "Login", exact: true })
-      .click(),
-  ]);
+  await page.goto(new URL("/organization/dvhs-csf", appUrl).href, {
+    waitUntil: "domcontentloaded",
+  });
+  if (new URL(page.url()).pathname === "/login") {
+    throw new Error("A minted fictional session was rejected by the app.");
+  }
   return page;
 }
 
@@ -122,11 +139,104 @@ function cookieHeader(cookies) {
   return cookies.map(({ name, value }) => `${name}=${value}`).join("; ");
 }
 
+function sessionIdFromAccessToken(accessToken) {
+  const [, encodedPayload] = accessToken.split(".");
+  if (!encodedPayload)
+    throw new Error("A minted session returned a malformed JWT.");
+  const payload = JSON.parse(
+    Buffer.from(encodedPayload, "base64url").toString("utf8"),
+  );
+  if (
+    typeof payload.session_id !== "string" ||
+    !/^[0-9a-f-]{36}$/iu.test(payload.session_id)
+  ) {
+    throw new Error(
+      "A minted session did not contain a valid session identity.",
+    );
+  }
+  return payload.session_id;
+}
+
+async function mintSession({
+  account,
+  password,
+  supabasePublishableKey,
+  supabaseUrl,
+}) {
+  const cookieStore = new Map();
+  const client = createServerClient(
+    supabaseUrl.origin,
+    supabasePublishableKey,
+    {
+      cookies: {
+        getAll: () =>
+          [...cookieStore].map(([name, value]) => ({ name, value })),
+        setAll: (cookiesToSet) => {
+          for (const { name, value } of cookiesToSet) {
+            if (value) cookieStore.set(name, value);
+            else cookieStore.delete(name);
+          }
+        },
+      },
+    },
+  );
+  const { data, error } = await client.auth.signInWithPassword({
+    email: account,
+    password,
+  });
+  if (error || !data.session) {
+    throw new Error(
+      `Could not mint a fictional ${account === OFFICER_ACCOUNT ? "officer" : "member"} session${error?.status === 429 ? ". Raise the hosted Development Auth sign-in limit for this acceptance run" : ""}.`,
+    );
+  }
+  const cookies = [...cookieStore].map(([name, value]) => ({ name, value }));
+  if (cookies.length === 0) {
+    throw new Error("A minted session did not persist its SSR cookies.");
+  }
+  return {
+    cookie: cookieHeader(cookies),
+    cookies,
+    sessionId: sessionIdFromAccessToken(data.session.access_token),
+  };
+}
+
+async function mintSessions({
+  account,
+  count,
+  password,
+  supabasePublishableKey,
+  supabaseUrl,
+}) {
+  const sessions = [];
+  for (let index = 0; index < count; index += 1) {
+    sessions.push(
+      await mintSession({
+        account,
+        password,
+        supabasePublishableKey,
+        supabaseUrl,
+      }),
+    );
+    if (index + 1 < count) {
+      await new Promise((resolve) => setTimeout(resolve, 125));
+    }
+  }
+  const distinctSessionIds = new Set(
+    sessions.map(({ sessionId }) => sessionId),
+  );
+  if (distinctSessionIds.size !== count) {
+    throw new Error(
+      "The hosted load did not mint one distinct auth session per user.",
+    );
+  }
+  return sessions;
+}
+
 async function runRequestSessions({
   appUrl,
   durationMs,
-  memberCookies,
-  officerCookies,
+  memberSessions,
+  officerSessions,
   protectionBypass,
 }) {
   const memberPaths = [
@@ -140,19 +250,24 @@ async function runRequestSessions({
     "/organization/dvhs-csf?tab=csf-cohorts",
   ];
   const sessions = [
-    ...Array.from({ length: MEMBER_SESSIONS }, (_, index) => ({
-      cookie: memberCookies,
+    ...memberSessions.map((session, index) => ({
+      cookie: session.cookie,
       index,
       paths: memberPaths,
       role: "member",
     })),
-    ...Array.from({ length: OFFICER_SESSIONS }, (_, index) => ({
-      cookie: officerCookies,
+    ...officerSessions.map((session, index) => ({
+      cookie: session.cookie,
       index,
       paths: officerPaths,
       role: "officer",
     })),
   ];
+  if (sessions.length !== MEMBER_SESSIONS + OFFICER_SESSIONS) {
+    throw new Error(
+      "The hosted load received the wrong authenticated session count.",
+    );
+  }
   const timings = [];
   let errors = 0;
   let fiveHundreds = 0;
@@ -319,6 +434,26 @@ async function runBrowserAcceptance({ appUrl, memberPage, officerPage }) {
 
 async function main() {
   const target = validateTarget();
+  const memberSessions = await mintSessions({
+    account: MEMBER_ACCOUNT,
+    count: MEMBER_SESSIONS,
+    password: target.password,
+    supabasePublishableKey: target.supabasePublishableKey,
+    supabaseUrl: target.supabaseUrl,
+  });
+  const officerSessions = await mintSessions({
+    account: OFFICER_ACCOUNT,
+    count: OFFICER_SESSIONS,
+    password: target.password,
+    supabasePublishableKey: target.supabasePublishableKey,
+    supabaseUrl: target.supabaseUrl,
+  });
+  const allSessionIds = new Set(
+    [...memberSessions, ...officerSessions].map(({ sessionId }) => sessionId),
+  );
+  if (allSessionIds.size !== MEMBER_SESSIONS + OFFICER_SESSIONS) {
+    throw new Error("The hosted load reused an auth session between roles.");
+  }
   const browser = await chromium.launch({ headless: true });
   try {
     const memberContext = await browser.newContext({
@@ -329,28 +464,24 @@ async function main() {
     });
     await memberContext.addInitScript(installVitalsObserver);
     await officerContext.addInitScript(installVitalsObserver);
-    const memberPage = await login(
+    const memberPage = await openAuthenticatedPage(
       memberContext,
       target.appUrl,
-      MEMBER_ACCOUNT,
-      target.password,
+      memberSessions[0].cookies,
       target.protectionBypass,
     );
-    const officerPage = await login(
+    const officerPage = await openAuthenticatedPage(
       officerContext,
       target.appUrl,
-      OFFICER_ACCOUNT,
-      target.password,
+      officerSessions[0].cookies,
       target.protectionBypass,
     );
-    const memberCookies = cookieHeader(await memberContext.cookies());
-    const officerCookies = cookieHeader(await officerContext.cookies());
 
     const loadPromise = runRequestSessions({
       appUrl: target.appUrl,
       durationMs: target.durationMs,
-      memberCookies,
-      officerCookies,
+      memberSessions,
+      officerSessions,
       protectionBypass: target.protectionBypass,
     });
     await new Promise((resolve) => setTimeout(resolve, RAMP_DURATION_MS));
@@ -366,6 +497,7 @@ async function main() {
       fictionalAccounts: true,
       durationMs: target.durationMs,
       sessions: { members: MEMBER_SESSIONS, officers: OFFICER_SESSIONS },
+      distinctAuthSessions: allSessionIds.size,
       requests: load.requests,
       readP95Ms: percentile(load.timings, 0.95),
       readP99Ms: percentile(load.timings, 0.99),
@@ -385,6 +517,7 @@ async function main() {
     };
     result.ok =
       result.requests > 0 &&
+      result.distinctAuthSessions === MEMBER_SESSIONS + OFFICER_SESSIONS &&
       result.readP95Ms <= 2_500 &&
       result.readP99Ms <= 5_000 &&
       result.mutationP95Ms <= 3_000 &&
