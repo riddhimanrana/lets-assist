@@ -1,7 +1,7 @@
 BEGIN;
 
 CREATE EXTENSION IF NOT EXISTS pgtap WITH SCHEMA extensions;
-SELECT extensions.plan(27);
+SELECT extensions.plan(29);
 
 INSERT INTO auth.users (
   id, aud, role, email, email_confirmed_at,
@@ -182,6 +182,16 @@ SELECT extensions.throws_ok(
   'P0001',
   'The import worker lease is no longer active.',
   'a settled queue receipt cannot be replayed'
+);
+SELECT extensions.lives_ok(
+  $$SELECT plugin_data.csf_claim_import_commit_queue(900)$$,
+  'the worker can claim with a lease longer than the route execution budget'
+);
+SELECT extensions.throws_ok(
+  $$SELECT plugin_data.csf_claim_import_commit_queue(1201)$$,
+  'P0001',
+  'Import worker lease must be between 30 and 1200 seconds.',
+  'the claim RPC still rejects excessive lease durations'
 );
 
 SELECT extensions.ok(
