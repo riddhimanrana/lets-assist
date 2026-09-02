@@ -690,25 +690,64 @@ test.describe("CSF identity safety", () => {
       connections.getByText(fixture.classmateName, { exact: false }).first(),
     ).toBeVisible();
 
-    // Ranking is advisory and must say so on the surface.
-    await expect(connections.getByText("Review only").first()).toBeVisible();
-    await expect(connections.getByText("Canonical evidence ready")).toHaveCount(
-      0,
+    const plugin = fixture.admin.schema("plugin_data");
+    const requestUserId = fixture.requestUserId;
+    if (!requestUserId) {
+      throw new Error("The seeded connection request has no auth user");
+    }
+    const { data: unresolvedRequests, error: unresolvedRequestsError } =
+      await plugin
+        .from("csf_profile_link_requests")
+        .select("id, candidate_profile_ids, match_status")
+        .eq("organization_id", fixture.organizationId)
+        .eq("cohort_id", fixture.cohortId)
+        .eq("user_id", requestUserId)
+        .in("match_status", ["pending", "needs_review"]);
+    assertNoSupabaseError(
+      "Could not verify the connection review queue",
+      unresolvedRequestsError,
     );
+    expect(unresolvedRequests).toEqual([
+      {
+        id: fixture.requestId,
+        candidate_profile_ids: fixture.classmateIds,
+        match_status: "needs_review",
+      },
+    ]);
 
-    const unsafeClassmateReviews = connections.getByRole("button", {
-      name: `Review in Resolve ${fixture.classmateName}`,
+    const reviewRequest = connections.getByRole("button", {
+      name: "Review",
+      exact: true,
     });
-    // The fixture deliberately creates two distinct classmates with the exact
-    // same name and equally insufficient evidence. Either candidate must fail
-    // closed; choose the first visible suggestion explicitly instead of making
-    // the locator pretend the accessible names are unique.
-    await expect(unsafeClassmateReviews).toHaveCount(2);
-    await unsafeClassmateReviews.first().click();
+    await expect(reviewRequest).toHaveCount(1);
+    await reviewRequest.click();
 
     const dialog = page.getByRole("dialog", {
       name: "Review account connection",
     });
+    await expect(dialog).toBeVisible();
+
+    // Suggestions load only after the officer opens the request. Ranking stays
+    // advisory, and both same-name candidates must expose the blocked state.
+    // The dialog makes the page body inert, so use the suggestion region's
+    // stable DOM label instead of an accessibility-role ancestor outside it.
+    const advisorySuggestions = page.locator(
+      '[aria-label="Advisory student record suggestions"]',
+    );
+    await expect(advisorySuggestions.getByText("Review only")).toHaveCount(2);
+    await expect(
+      advisorySuggestions.getByText("Canonical evidence ready"),
+    ).toHaveCount(0);
+
+    await page.keyboard.press("Escape");
+    await expect(dialog).toBeHidden();
+
+    const unsafeClassmateReviews = connections.getByRole("button", {
+      name: `Review in Resolve ${fixture.classmateName}`,
+    });
+    await expect(unsafeClassmateReviews).toHaveCount(2);
+    await unsafeClassmateReviews.first().click();
+
     await expect(dialog).toBeVisible();
     await expect(dialog.getByText("Connection unavailable")).toBeVisible();
     await expect(
@@ -743,10 +782,6 @@ test.describe("CSF identity safety", () => {
       })
       .toBe("rejected");
 
-    const requestUserId = fixture.requestUserId;
-    if (!requestUserId) {
-      throw new Error("The seeded connection request has no auth user");
-    }
     const { data: accounts, error: accountsError } = await fixture.admin
       .schema("plugin_data")
       .from("csf_profile_accounts")

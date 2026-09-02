@@ -371,6 +371,7 @@ test.describe("class join code connections", () => {
         member: { role: "member", status: "active" },
         account: { status: "verified", is_primary: true },
         request: {
+          candidate_profile_ids: [profileId],
           match_status: "auto_linked",
           matched_profile_id: profileId,
         },
