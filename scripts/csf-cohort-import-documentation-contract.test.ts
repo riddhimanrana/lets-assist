@@ -73,6 +73,7 @@ describe("CSF cohort import documentation truthfulness guards", () => {
       "Class of 2027",
       "Class of 2028",
       "Class of 2029",
+      "Class of 2030",
     ]);
     expect(sourceOrder).toContain("**Historical records**");
     expect(sourceOrder).toContain(
@@ -107,7 +108,9 @@ describe("CSF cohort import documentation truthfulness guards", () => {
       "Header-only or template tabs are not import targets",
     );
     expect(sourceOrder).toContain("Class of 2026 is out of scope");
-    expect(sourceOrder).toContain("template-only Class of 2030 workbook");
+    expect(sourceOrder).toContain(
+      "Link the template-only Class of 2030 workbook",
+    );
     expect(sourceOrder).toContain("new application cycle");
     expect(sourceOrder).not.toContain("Classes of 2027–2030 sheets");
 
@@ -177,14 +180,14 @@ describe("CSF cohort import documentation truthfulness guards", () => {
     expect(legacyImport).toContain("**Student roster**");
     expect(legacyImport).toContain("**Historical records**");
     expect(legacyImport).toContain(
-      "the only historical student imports are the approved Class of 2027–2029",
+      "link the approved Class of 2027–2030 workbooks",
     );
     expect(legacyImport).toContain("semester-tab discovery");
     expect(legacyImport).toContain("every populated canonical semester tab");
     expect(legacyImport).toContain("separate immutable preview");
     expect(legacyImport).toContain("Class of 2026 is out of scope");
     expect(legacyImport).toContain(
-      "the Class of 2030 workbook has no import job",
+      "the linked workbook has no row-import job and creates no records",
     );
     expect(legacyImport).not.toContain(
       "an application-responses import for the earliest term you are seeding",
@@ -229,9 +232,7 @@ describe("CSF cohort import documentation truthfulness guards", () => {
     expect(class2030).toContain(
       "Approving the application creates or updates term membership; it does not create the profile",
     );
-    expect(class2030).toContain(
-      "Never select, preview, or import the Class of 2030 workbook",
-    );
+    expect(class2030).toContain("Keep the Class of 2030 workbook linked");
 
     const applicationCycle = between(
       newChapterOnboarding,
@@ -245,7 +246,7 @@ describe("CSF cohort import documentation truthfulness guards", () => {
       "the application decision does not create the profile",
     );
     expect(applicationCycle).toContain(
-      "the Class of 2030 workbook remains unimported",
+      "keep the Class of 2030 workbook linked and leave its header-only tabs uncommitted",
     );
     expect(profileWriteMigration).toContain(
       "WHERE action IN ('profile.create', 'profile.edit')",
@@ -316,6 +317,11 @@ describe("CSF cohort import documentation truthfulness guards", () => {
       "Never copy an address from a historical comparison workbook merely to make a match.",
     );
     expect(studentRollout).toContain("**Members → Record connections**");
+    expect(studentRollout).toContain(
+      "An unmatched verified email never creates a profile or class membership.",
+    );
+    expect(studentRollout).not.toContain("creates a new stable profile");
+    expect(studentRollout).not.toContain("Needs attention");
     expect(productContract).toContain(
       "A name entered by the student never creates or links a profile.",
     );

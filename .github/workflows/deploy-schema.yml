@@ -11,6 +11,22 @@ on:
         description: "Exact Development SHA with a successful hosted CSF acceptance status"
         required: true
         type: string
+      external_writers_confirmation:
+        description: "Type external-writers-stopped:<exact main SHA> after stopping every external writer, including Vercel Cron Jobs"
+        required: true
+        type: string
+      application_writes_blocked_confirmation:
+        description: "Type application-writes-blocked:<exact main SHA> after blocking and proving PostgREST writes before the final recovery capture"
+        required: true
+        type: string
+      recovery_capture_sha256:
+        description: "Lowercase SHA-256 of the verified canonical CAPTURE.manifest"
+        required: true
+        type: string
+      recovery_capture_confirmation:
+        description: "Type recovery-capture-verified:<exact main SHA>:<CAPTURE.manifest SHA-256> after encrypted-artifact, database-restore, and storage checks pass"
+        required: true
+        type: string
 
 concurrency:
   group: production-schema-deployment
@@ -197,7 +213,7 @@ jobs:
                   <<<"${source_jobs}")"
                 write_block_step_count="$(jq -r '
                   [.jobs[]? | select(.name == "Deploy to Production") | .steps[]?
-                    | select(.name == "Block Production application writes")]
+                    | select(.name == "Reassert Production application write block")]
                   | length
                 ' <<<"${source_jobs}")"
                 if [[ "${write_block_step_count}" == "0" ]]; then
@@ -209,7 +225,7 @@ jobs:
                 fi
                 write_block_conclusion="$(jq -r '
                   [.jobs[]? | select(.name == "Deploy to Production") | .steps[]?
-                    | select(.name == "Block Production application writes")][0].conclusion // "unknown"
+                    | select(.name == "Reassert Production application write block")][0].conclusion // "unknown"
                 ' <<<"${source_jobs}")"
                 if [[ "${deploy_job_conclusion}" == "skipped" || "${write_block_conclusion}" == "skipped" ]]; then
                   continue
@@ -468,6 +484,35 @@ jobs:
             fi
           done
 
+      - name: Require Production quiescence receipts
+        timeout-minutes: 1
+        env:
+          APPLICATION_WRITES_BLOCKED_CONFIRMATION: ${{ inputs.application_writes_blocked_confirmation }}
+          EXTERNAL_WRITERS_CONFIRMATION: ${{ inputs.external_writers_confirmation }}
+          RECOVERY_CAPTURE_CONFIRMATION: ${{ inputs.recovery_capture_confirmation }}
+          RECOVERY_CAPTURE_SHA256: ${{ inputs.recovery_capture_sha256 }}
+        run: |
+          set -euo pipefail
+          expected_writer_receipt="external-writers-stopped:${GITHUB_SHA}"
+          expected_write_block_receipt="application-writes-blocked:${GITHUB_SHA}"
+          if [[ "${APPLICATION_WRITES_BLOCKED_CONFIRMATION}" != "${expected_write_block_receipt}" ]]; then
+            echo "The pre-capture application write block is not bound to this release SHA." >&2
+            exit 1
+          fi
+          if [[ "${EXTERNAL_WRITERS_CONFIRMATION}" != "${expected_writer_receipt}" ]]; then
+            echo "The external-writer hold is not bound to this release SHA." >&2
+            exit 1
+          fi
+          if ! [[ "${RECOVERY_CAPTURE_SHA256}" =~ ^[0-9a-f]{64}$ ]]; then
+            echo "The post-quiescence recovery manifest digest is invalid." >&2
+            exit 1
+          fi
+          expected_capture_receipt="recovery-capture-verified:${GITHUB_SHA}:${RECOVERY_CAPTURE_SHA256}"
+          if [[ "${RECOVERY_CAPTURE_CONFIRMATION}" != "${expected_capture_receipt}" ]]; then
+            echo "The verified recovery capture is not bound to this release SHA and manifest digest." >&2
+            exit 1
+          fi
+
       - name: Verify Production Vercel project
         env:
           EXPECTED_GITHUB_REPOSITORY_ID: ${{ github.repository_id }}
@@ -698,25 +743,40 @@ jobs:
             .version == $sha
             and .environment == "production"
             and .deep == false
+            and ([.checks[] | select(
+              .name == "workers"
+              and .details.csfWorkbookRefresh == false
+              and .details.csfImportCommit == false
+              and .details.csfCommunications == false
+              and .details.csfScheduledPostPublisher == false
+            )] | length) == 1
           ' <<<"${status_payload}" >/dev/null
 
       - name: Write Production recovery manifest
         timeout-minutes: 1
         env:
+          APPLICATION_WRITES_BLOCKED_CONFIRMATION: ${{ inputs.application_writes_blocked_confirmation }}
           APPLICATION_DEPLOYMENT_ID: ${{ steps.deploy-application.outputs.deployment_id }}
           APPLICATION_DEPLOYMENT_URL: ${{ steps.deploy-application.outputs.deployment_url }}
+          EXTERNAL_WRITERS_CONFIRMATION: ${{ inputs.external_writers_confirmation }}
           MAINTENANCE_DEPLOYMENT_ID: ${{ steps.deploy-maintenance.outputs.deployment_id }}
           MAINTENANCE_DEPLOYMENT_URL: ${{ steps.deploy-maintenance.outputs.deployment_url }}
+          RECOVERY_CAPTURE_CONFIRMATION: ${{ inputs.recovery_capture_confirmation }}
+          RECOVERY_CAPTURE_SHA256: ${{ inputs.recovery_capture_sha256 }}
           SUPABASE_PROJECT_ID: ${{ secrets.SUPABASE_PROJECT_ID }}
           VERCEL_ROOT_PROJECT_ID: ${{ vars.VERCEL_ROOT_PROJECT_ID }}
           VERCEL_TEAM_ID: ${{ vars.VERCEL_TEAM_ID }}
         run: |
           set -euo pipefail
           jq -n \
+            --arg application_writes_blocked_confirmation "${APPLICATION_WRITES_BLOCKED_CONFIRMATION}" \
             --arg application_deployment_id "${APPLICATION_DEPLOYMENT_ID}" \
             --arg application_deployment_url "${APPLICATION_DEPLOYMENT_URL}" \
+            --arg external_writers_confirmation "${EXTERNAL_WRITERS_CONFIRMATION}" \
             --arg maintenance_deployment_id "${MAINTENANCE_DEPLOYMENT_ID}" \
             --arg maintenance_deployment_url "${MAINTENANCE_DEPLOYMENT_URL}" \
+            --arg recovery_capture_confirmation "${RECOVERY_CAPTURE_CONFIRMATION}" \
+            --arg recovery_capture_sha256 "${RECOVERY_CAPTURE_SHA256}" \
             --arg ref "${GITHUB_REF}" \
             --arg repository "${GITHUB_REPOSITORY}" \
             --arg run_attempt "${GITHUB_RUN_ATTEMPT}" \
@@ -727,12 +787,16 @@ jobs:
             --arg vercel_team_id "${VERCEL_TEAM_ID}" \
             '{
               version: 1,
+              applicationWritesBlockedConfirmation: $application_writes_blocked_confirmation,
               applicationDeploymentId: $application_deployment_id,
               applicationDeploymentUrl: $application_deployment_url,
+              externalWritersConfirmation: $external_writers_confirmation,
               maintenanceDeploymentId: $maintenance_deployment_id,
               maintenanceDeploymentUrl: $maintenance_deployment_url,
               ref: $ref,
               repository: $repository,
+              recoveryCaptureConfirmation: $recovery_capture_confirmation,
+              recoveryCaptureSha256: $recovery_capture_sha256,
               runAttempt: $run_attempt,
               runId: $run_id,
               sha: $sha,
@@ -741,11 +805,15 @@ jobs:
               vercelTeamId: $vercel_team_id
             }' > .artifacts/production-release-recovery.json
           jq -e '
-            .version == 1
-            and (.applicationDeploymentId | test("^dpl_[A-Za-z0-9]+$"))
-            and (.maintenanceDeploymentId | test("^dpl_[A-Za-z0-9]+$"))
-            and (.sha | test("^[0-9a-f]{40}$"))
-          ' .artifacts/production-release-recovery.json >/dev/null
+              .version == 1
+              and (.applicationDeploymentId | test("^dpl_[A-Za-z0-9]+$"))
+              and (.maintenanceDeploymentId | test("^dpl_[A-Za-z0-9]+$"))
+              and (.sha | test("^[0-9a-f]{40}$"))
+              and .applicationWritesBlockedConfirmation == ("application-writes-blocked:" + .sha)
+              and .externalWritersConfirmation == ("external-writers-stopped:" + .sha)
+              and (.recoveryCaptureSha256 | test("^[0-9a-f]{64}$"))
+              and .recoveryCaptureConfirmation == ("recovery-capture-verified:" + .sha + ":" + .recoveryCaptureSha256)
+            ' .artifacts/production-release-recovery.json >/dev/null
 
       - name: Retain Production recovery manifest
         timeout-minutes: 2
@@ -755,6 +823,23 @@ jobs:
           path: .artifacts/production-release-recovery.json
           if-no-files-found: error
           retention-days: 90
+
+      - name: Verify Production quiescence receipt and database posture
+        timeout-minutes: 2
+        env:
+          PRODUCTION_READONLY_URL: ${{ secrets.PRODUCTION_READONLY_URL }}
+        run: |
+          set -euo pipefail
+          quiescence_log="$(mktemp)"
+          trap 'rm -f "${quiescence_log}"' EXIT
+          if ! timeout 30s psql -X "${PRODUCTION_READONLY_URL}" \
+            -v ON_ERROR_STOP=1 \
+            -f scripts/production/verify-cutover-quiescence.sql \
+            >"${quiescence_log}" 2>&1; then
+            echo "Production quiescence verification failed. Raw output was suppressed." >&2
+            exit 1
+          fi
+          echo "Production quiescence verified."
 
       - name: Arm Production maintenance recovery
         id: write_block_recovery
@@ -774,7 +859,7 @@ jobs:
           fi
           echo "armed=true" >> "${GITHUB_OUTPUT}"
 
-      - name: Block Production application writes
+      - name: Reassert Production application write block
         id: enable_write_block
         timeout-minutes: 2
         env:
@@ -858,6 +943,23 @@ jobs:
           fi
           echo "Production CSF schema compatibility verified."
 
+      - name: Run full post-push Production cutover preflight
+        timeout-minutes: 6
+        env:
+          PRODUCTION_READONLY_URL: ${{ secrets.PRODUCTION_READONLY_URL }}
+        run: |
+          set -euo pipefail
+          post_push_preflight_log="$(mktemp)"
+          trap 'rm -f "${post_push_preflight_log}"' EXIT
+          if ! timeout 300s psql -X "${PRODUCTION_READONLY_URL}" \
+            -v ON_ERROR_STOP=1 \
+            -f scripts/production-cutover-preflight.sql \
+            >"${post_push_preflight_log}" 2>&1; then
+            echo "Post-push Production cutover preflight failed. Raw output was suppressed." >&2
+            exit 1
+          fi
+          echo "Post-push Production cutover preflight passed."
+
       - name: Smoke the staged Production application
         timeout-minutes: 2
         env:
@@ -882,6 +984,13 @@ jobs:
             and ([.checks[] | select(.name == "environment" and .critical == true and .state == "pass")] | length) == 1
             and ([.checks[] | select(.name == "database" and .critical == true and .state == "pass")] | length) == 1
             and ([.checks[] | select(.name == "tables-deep" and .state == "pass")] | length) == 1
+            and ([.checks[] | select(
+              .name == "workers"
+              and .details.csfWorkbookRefresh == false
+              and .details.csfImportCommit == false
+              and .details.csfCommunications == false
+              and .details.csfScheduledPostPublisher == false
+            )] | length) == 1
           ' <<<"${status_payload}" >/dev/null
 
       - name: Promote the staged application to Production
@@ -924,6 +1033,19 @@ jobs:
           VERCEL_TEAM_ID: ${{ vars.VERCEL_TEAM_ID }}
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
         run: bash scripts/production/verify-vercel-alias.sh
+
+      - name: Verify public Production release postcondition
+        timeout-minutes: 2
+        env:
+          EXPECTED_CSF_WORKER_STAGE: disabled
+          EXPECTED_RELEASE_SHA: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          curl --fail --silent --show-error \
+            --connect-timeout 10 --max-time 30 \
+            --header 'Cache-Control: no-cache' \
+            "https://lets-assist.com/api/status?deep=0&release_gate=${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}" \
+            | node scripts/production/verify-csf-worker-posture.mjs
 
       - name: Open Production application writes
         id: disable_write_block

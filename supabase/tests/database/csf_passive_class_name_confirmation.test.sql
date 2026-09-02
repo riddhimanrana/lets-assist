@@ -1,10 +1,11 @@
--- Passive account-name confirmation can link only one current, unclaimed
--- class record. Typed names always create one officer review request.
+-- A passive account-name confirmation never proves identity. Only a verified
+-- roster email can connect automatically; every name-only path records one
+-- officer request.
 
 BEGIN;
 
 CREATE EXTENSION IF NOT EXISTS pgtap WITH SCHEMA extensions;
-SELECT extensions.plan(43);
+SELECT extensions.plan(58);
 
 SELECT extensions.ok(
   NOT has_function_privilege(
@@ -50,7 +51,8 @@ INSERT INTO auth.users (
   ('d1100000-0000-4000-8000-000000000009', 'authenticated', 'authenticated', 'zero@local.test', now(), '{}', '{"full_name":"No Roster"}', now(), now()),
   ('d1100000-0000-4000-8000-00000000000a', 'authenticated', 'authenticated', 'typed@local.test', now(), '{}', '{"full_name":"Typed Match"}', now(), now()),
   ('d1100000-0000-4000-8000-00000000000b', 'authenticated', 'authenticated', 'revoked-link@local.test', now(), '{}', '{"full_name":"Revoked Link"}', now(), now()),
-  ('d1100000-0000-4000-8000-00000000000c', 'authenticated', 'authenticated', 'manual-revoked@local.test', now(), '{}', '{"full_name":"Manual Revoked"}', now(), now());
+  ('d1100000-0000-4000-8000-00000000000c', 'authenticated', 'authenticated', 'manual-revoked@local.test', now(), '{}', '{"full_name":"Manual Revoked"}', now(), now()),
+  ('d1100000-0000-4000-8000-00000000000d', 'authenticated', 'authenticated', 'name-only@local.test', now(), '{}', '{"full_name":"Name Only"}', now(), now());
 
 UPDATE public.profiles
 SET full_name = CASE id
@@ -66,6 +68,7 @@ SET full_name = CASE id
   WHEN 'd1100000-0000-4000-8000-00000000000a' THEN 'Typed Match'
   WHEN 'd1100000-0000-4000-8000-00000000000b' THEN 'Revoked Link'
   WHEN 'd1100000-0000-4000-8000-00000000000c' THEN 'Manual Revoked'
+  WHEN 'd1100000-0000-4000-8000-00000000000d' THEN 'Name Only'
 END
 WHERE id::text LIKE 'd1100000-0000-4000-8000-0000000000%';
 
@@ -98,6 +101,11 @@ FROM (
   ) AS result
 ) AS created;
 
+CREATE TEMP TABLE passive_replay_results (
+  scenario text PRIMARY KEY,
+  payload jsonb NOT NULL
+);
+
 INSERT INTO plugin_data.csf_profiles (
   id, organization_id, first_name, last_name,
   normalized_first_name, normalized_last_name
@@ -119,6 +127,20 @@ INSERT INTO plugin_data.csf_profiles (
   ('d1400000-0000-4000-8000-000000000009', 'd1200000-0000-4000-8000-000000000001', 'Revoked', 'Link', 'revoked', 'link', NULL, NULL),
   ('d1400000-0000-4000-8000-00000000000a', 'd1200000-0000-4000-8000-000000000001', 'Manual', 'Revoked', 'manual', 'revoked', 'manual-revoked@local.test', 'manual-revoked@local.test');
 
+UPDATE plugin_data.csf_profiles
+SET personal_email = 'unique@local.test',
+    normalized_personal_email = 'unique@local.test'
+WHERE id = 'd1400000-0000-4000-8000-000000000001';
+
+INSERT INTO plugin_data.csf_profiles (
+  id, organization_id, first_name, last_name,
+  normalized_first_name, normalized_last_name
+) VALUES (
+  'd1400000-0000-4000-8000-00000000000b',
+  'd1200000-0000-4000-8000-000000000001',
+  'Name', 'Only', 'name', 'only'
+);
+
 INSERT INTO plugin_data.csf_profile_cohort_memberships (
   organization_id, profile_id, cohort_id, status
 ) VALUES
@@ -132,7 +154,8 @@ INSERT INTO plugin_data.csf_profile_cohort_memberships (
   ('d1200000-0000-4000-8000-000000000001', 'd1400000-0000-4000-8000-000000000007', 'd1300000-0000-4000-8000-000000000001', 'active'),
   ('d1200000-0000-4000-8000-000000000001', 'd1400000-0000-4000-8000-000000000008', 'd1300000-0000-4000-8000-000000000001', 'active'),
   ('d1200000-0000-4000-8000-000000000001', 'd1400000-0000-4000-8000-000000000009', 'd1300000-0000-4000-8000-000000000001', 'active'),
-  ('d1200000-0000-4000-8000-000000000001', 'd1400000-0000-4000-8000-00000000000a', 'd1300000-0000-4000-8000-000000000001', 'active');
+  ('d1200000-0000-4000-8000-000000000001', 'd1400000-0000-4000-8000-00000000000a', 'd1300000-0000-4000-8000-000000000001', 'active'),
+  ('d1200000-0000-4000-8000-000000000001', 'd1400000-0000-4000-8000-00000000000b', 'd1300000-0000-4000-8000-000000000001', 'active');
 
 INSERT INTO plugin_data.csf_profile_accounts (
   organization_id, profile_id, user_id, status, is_primary, linked_by
@@ -158,7 +181,9 @@ SET revoked_at = now()
 WHERE organization_id = 'd1200000-0000-4000-8000-000000000001'
   AND status = 'revoked';
 
-SELECT extensions.is(
+INSERT INTO passive_replay_results (scenario, payload)
+SELECT
+  'initial verified email connection',
   plugin_data.csf_confirm_class_code_account_name_match(
     'd1200000-0000-4000-8000-000000000001',
     'd1400000-0000-4000-8000-000000000001',
@@ -167,9 +192,24 @@ SELECT extensions.is(
     'd1300000-0000-4000-8000-000000000001', 'unique', 'member',
     (SELECT encode(extensions.digest(convert_to(full_name, 'UTF8'), 'sha256'), 'hex')
      FROM public.profiles WHERE id = 'd1100000-0000-4000-8000-000000000002')
-  ) ->> 'connected',
+  );
+SELECT extensions.is(
+  (SELECT payload ->> 'connected' FROM passive_replay_results
+   WHERE scenario = 'initial verified email connection'),
   'true',
-  'one current unclaimed account-name match connects after confirmation'
+  'one exact verified roster email connects after confirmation'
+);
+SELECT extensions.is(
+  (SELECT payload ->> 'connectionBasis' FROM passive_replay_results
+   WHERE scenario = 'initial verified email connection'),
+  'verified_email',
+  'the locked connection receipt states its verified-email basis'
+);
+SELECT extensions.is(
+  (SELECT payload ->> 'verifiedEmailMatch' FROM passive_replay_results
+   WHERE scenario = 'initial verified email connection'),
+  'true',
+  'the locked connection receipt proves the exact verified-email match'
 );
 SELECT extensions.ok(
   EXISTS (
@@ -179,7 +219,49 @@ SELECT extensions.ok(
       AND user_id = 'd1100000-0000-4000-8000-000000000002'
       AND status = 'verified'
   ),
-  'successful confirmation creates the verified account link'
+  'verified-email confirmation creates the account link'
+);
+
+SELECT extensions.is(
+  plugin_data.csf_confirm_class_code_account_name_match(
+    'd1200000-0000-4000-8000-000000000001',
+    'd1400000-0000-4000-8000-00000000000b',
+    'd1100000-0000-4000-8000-00000000000d', 'name-only@local.test',
+    (SELECT id::uuid FROM passive_name_code),
+    'd1300000-0000-4000-8000-000000000001', 'name', 'only',
+    (SELECT encode(extensions.digest(convert_to(full_name, 'UTF8'), 'sha256'), 'hex')
+     FROM public.profiles WHERE id = 'd1100000-0000-4000-8000-00000000000d')
+  ) ->> 'needsReview',
+  'true',
+  'a valid account-name snapshot still requires officer review'
+);
+SELECT extensions.ok(
+  NOT EXISTS (
+    SELECT 1 FROM plugin_data.csf_profile_accounts
+    WHERE organization_id = 'd1200000-0000-4000-8000-000000000001'
+      AND user_id = 'd1100000-0000-4000-8000-00000000000d'
+      AND status = 'verified'
+  ),
+  'a self-editable account name never creates a verified profile link'
+);
+SELECT extensions.is(
+  (SELECT count(*)::integer FROM plugin_data.csf_profile_link_requests
+   WHERE organization_id = 'd1200000-0000-4000-8000-000000000001'
+     AND user_id = 'd1100000-0000-4000-8000-00000000000d'),
+  1,
+  'the name-only confirmation creates exactly one officer request'
+);
+SELECT extensions.ok(
+  'd1400000-0000-4000-8000-00000000000b'::uuid = ANY (
+    coalesce(
+      (SELECT candidate_profile_ids
+       FROM plugin_data.csf_profile_link_requests
+       WHERE organization_id = 'd1200000-0000-4000-8000-000000000001'
+         AND user_id = 'd1100000-0000-4000-8000-00000000000d'),
+      ARRAY[]::uuid[]
+    )
+  ),
+  'the officer request retains the selected name candidate'
 );
 SELECT extensions.is(
   (SELECT count(*)::integer FROM plugin_data.csf_term_memberships
@@ -187,7 +269,9 @@ SELECT extensions.is(
   0,
   'account-name confirmation does not activate a semester membership'
 );
-SELECT extensions.is(
+INSERT INTO passive_replay_results (scenario, payload)
+SELECT
+  'safe passive replay',
   plugin_data.csf_confirm_class_code_account_name_match(
     'd1200000-0000-4000-8000-000000000001',
     'd1400000-0000-4000-8000-000000000001',
@@ -196,7 +280,16 @@ SELECT extensions.is(
     'd1300000-0000-4000-8000-000000000001', 'unique', 'member',
     (SELECT encode(extensions.digest(convert_to(full_name, 'UTF8'), 'sha256'), 'hex')
      FROM public.profiles WHERE id = 'd1100000-0000-4000-8000-000000000002')
-  ) ->> 'replayed',
+  );
+SELECT extensions.is(
+  (SELECT payload ->> 'connected' FROM passive_replay_results
+   WHERE scenario = 'safe passive replay'),
+  'true',
+  'an unchanged passive confirmation remains connected on replay'
+);
+SELECT extensions.is(
+  (SELECT payload ->> 'replayed' FROM passive_replay_results
+   WHERE scenario = 'safe passive replay'),
   'true',
   'repeating a successful confirmation replays its settled result'
 );
@@ -245,6 +338,135 @@ SELECT extensions.is(
      AND user_id = 'd1100000-0000-4000-8000-000000000002'),
   1,
   'reconnection reuses one durable request'
+);
+
+UPDATE plugin_data.csf_profile_accounts
+SET status = 'verified',
+    is_primary = true,
+    linked_by = 'd1100000-0000-4000-8000-000000000002',
+    linked_at = pg_catalog.transaction_timestamp(),
+    revoked_at = NULL,
+    notes = 'Connected by one exact verified-email class match.'
+WHERE organization_id = 'd1200000-0000-4000-8000-000000000001'
+  AND profile_id = 'd1400000-0000-4000-8000-000000000001'
+  AND user_id = 'd1100000-0000-4000-8000-000000000002';
+UPDATE plugin_data.csf_profile_link_requests
+SET match_status = 'auto_linked',
+    resolved_by = user_id,
+    resolved_at = pg_catalog.transaction_timestamp(),
+    resolution_notes =
+      'Connected by one exact verified-email match in the selected class.'
+WHERE organization_id = 'd1200000-0000-4000-8000-000000000001'
+  AND user_id = 'd1100000-0000-4000-8000-000000000002';
+INSERT INTO plugin_data.csf_profile_cohort_memberships (
+  organization_id, profile_id, cohort_id, status
+) VALUES (
+  'd1200000-0000-4000-8000-000000000001',
+  'd1400000-0000-4000-8000-000000000001',
+  'd1300000-0000-4000-8000-000000000002',
+  'active'
+);
+INSERT INTO passive_replay_results (scenario, payload)
+SELECT
+  'passive replay after class drift',
+  plugin_data.csf_confirm_class_code_account_name_match(
+    'd1200000-0000-4000-8000-000000000001',
+    'd1400000-0000-4000-8000-000000000001',
+    'd1100000-0000-4000-8000-000000000002', 'unique@local.test',
+    (SELECT id::uuid FROM passive_name_code),
+    'd1300000-0000-4000-8000-000000000001', 'unique', 'member',
+    (SELECT encode(extensions.digest(convert_to(full_name, 'UTF8'), 'sha256'), 'hex')
+     FROM public.profiles WHERE id = 'd1100000-0000-4000-8000-000000000002')
+  );
+SELECT extensions.is(
+  (SELECT payload ->> 'connected' FROM passive_replay_results
+   WHERE scenario = 'passive replay after class drift'),
+  'false',
+  'a passive confirmation replay fails closed after a second active class appears'
+);
+SELECT extensions.is(
+  (SELECT payload ->> 'needsReview' FROM passive_replay_results
+   WHERE scenario = 'passive replay after class drift'),
+  'true',
+  'passive class drift returns a durable officer-review state'
+);
+SELECT extensions.is(
+  (SELECT match_status FROM plugin_data.csf_profile_link_requests
+   WHERE organization_id = 'd1200000-0000-4000-8000-000000000001'
+     AND user_id = 'd1100000-0000-4000-8000-000000000002'),
+  'needs_review',
+  'passive class drift reopens the exact existing request'
+);
+SELECT extensions.is(
+  (SELECT status FROM plugin_data.csf_profile_accounts
+   WHERE organization_id = 'd1200000-0000-4000-8000-000000000001'
+     AND profile_id = 'd1400000-0000-4000-8000-000000000001'
+     AND user_id = 'd1100000-0000-4000-8000-000000000002'),
+  'revoked',
+  'passive class drift revokes the exact stale verified link'
+);
+SELECT extensions.ok(
+  EXISTS (
+    SELECT 1
+    FROM plugin_data.csf_admin_audit_events AS audit
+    WHERE audit.organization_id = 'd1200000-0000-4000-8000-000000000001'
+      AND audit.actor_user_id = 'd1100000-0000-4000-8000-000000000002'
+      AND audit.actor_profile_id = 'd1400000-0000-4000-8000-000000000001'
+      AND audit.action = 'profile.link_request_revalidation_failed'
+      AND (audit.after_data -> 'blockerCodes') ? 'active_class_changed'
+  ),
+  'passive class drift records its stable blocker code'
+);
+SELECT extensions.ok(
+  NOT EXISTS (
+    SELECT 1
+    FROM plugin_data.csf_admin_audit_events AS audit
+    WHERE audit.organization_id = 'd1200000-0000-4000-8000-000000000001'
+      AND audit.action = 'profile.link_request_revalidation_failed'
+      AND (
+        coalesce(audit.before_data::text, '') || coalesce(audit.after_data::text, '')
+      ) ~* '(unique@local[.]test|unique member)'
+  ),
+  'passive replay-revalidation audits contain no email or student name'
+);
+
+DELETE FROM plugin_data.csf_profile_cohort_memberships
+WHERE organization_id = 'd1200000-0000-4000-8000-000000000001'
+  AND profile_id = 'd1400000-0000-4000-8000-000000000001'
+  AND cohort_id = 'd1300000-0000-4000-8000-000000000002';
+
+UPDATE plugin_data.csf_profile_accounts
+SET status = 'verified',
+    is_primary = true,
+    linked_by = 'd1100000-0000-4000-8000-000000000001',
+    linked_at = pg_catalog.clock_timestamp(),
+    revoked_at = NULL,
+    notes = 'Accepted a direct CSF student invitation.'
+WHERE organization_id = 'd1200000-0000-4000-8000-000000000001'
+  AND profile_id = 'd1400000-0000-4000-8000-000000000001'
+  AND user_id = 'd1100000-0000-4000-8000-000000000002';
+
+SELECT extensions.is(
+  plugin_data.csf_confirm_class_code_account_name_match(
+    'd1200000-0000-4000-8000-000000000001',
+    'd1400000-0000-4000-8000-000000000001',
+    'd1100000-0000-4000-8000-000000000002', 'unique@local.test',
+    (SELECT id::uuid FROM passive_name_code),
+    'd1300000-0000-4000-8000-000000000001', 'unique', 'member',
+    (SELECT encode(extensions.digest(convert_to(full_name, 'UTF8'), 'sha256'), 'hex')
+     FROM public.profiles WHERE id = 'd1100000-0000-4000-8000-000000000002')
+  ) ->> 'connected',
+  'true',
+  'an independently reconnected account remains connected on an old-request replay'
+);
+SELECT extensions.is(
+  (SELECT status || ':' || notes
+   FROM plugin_data.csf_profile_accounts
+   WHERE organization_id = 'd1200000-0000-4000-8000-000000000001'
+     AND profile_id = 'd1400000-0000-4000-8000-000000000001'
+     AND user_id = 'd1100000-0000-4000-8000-000000000002'),
+  'verified:Accepted a direct CSF student invitation.',
+  'old request revalidation never revokes a newer independent profile link'
 );
 
 SELECT extensions.lives_ok(

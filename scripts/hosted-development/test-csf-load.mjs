@@ -5,8 +5,6 @@ import { createServerClient } from "@supabase/ssr";
 
 const PRODUCTION_PROJECT_REF = "fotdmeakexgrkronxlof";
 const EXPECTED_ORIGIN = "https://dev.lets-assist.com";
-const MEMBER_ACCOUNT = "student.2028@local.test";
-const OFFICER_ACCOUNT = "csf.officer@local.test";
 const MEMBER_SESSIONS = 90;
 const OFFICER_SESSIONS = 10;
 const DEFAULT_DURATION_MS = 15 * 60 * 1000;
@@ -19,12 +17,43 @@ const OIDC_REFRESH_BUFFER_MS = 60_000;
 const BROWSER_WARMUP_SAMPLES = 5;
 const BROWSER_MEASURED_SAMPLES = 30;
 const BROWSER_TOTAL_SAMPLES = BROWSER_WARMUP_SAMPLES + BROWSER_MEASURED_SAMPLES;
+const BROWSER_REVIEW_NAVIGATIONS = 25;
 const BROWSER_PAGE_SETTLE_MS = 3_000;
+const BROWSER_INP_SAMPLE_TIMEOUT_MS = 2_000;
 
 function required(name) {
   const value = process.env[name]?.trim();
   if (!value) throw new Error(`${name} is required.`);
   return value;
+}
+
+function requiredFictionalAccountPool(name, minimumSize) {
+  let parsed;
+  try {
+    parsed = JSON.parse(required(name));
+  } catch {
+    throw new Error(`${name} must be a JSON array.`);
+  }
+  if (!Array.isArray(parsed)) {
+    throw new Error(`${name} must be a JSON array.`);
+  }
+  const accounts = parsed.map((account) =>
+    typeof account === "string" ? account.trim().toLowerCase() : "",
+  );
+  if (
+    accounts.length < minimumSize ||
+    accounts.some(
+      (account) =>
+        !/^[^\s@]+@[^\s@]+\.local\.test$/u.test(account) ||
+        /[\r\n]/u.test(account),
+    ) ||
+    new Set(accounts).size !== accounts.length
+  ) {
+    throw new Error(
+      `${name} must contain at least ${minimumSize} distinct fictional accounts.`,
+    );
+  }
+  return accounts.slice(0, minimumSize);
 }
 
 function percentile(values, fraction) {
@@ -85,9 +114,25 @@ function validateTarget() {
     throw new Error("SUPABASE_URL does not match the Development project ref.");
   }
   const supabasePublishableKey = required("SUPABASE_PUBLISHABLE_KEY");
+  const memberAccounts = requiredFictionalAccountPool(
+    "CSF_HOSTED_LOAD_MEMBER_ACCOUNTS_JSON",
+    MEMBER_SESSIONS,
+  );
+  const officerAccounts = requiredFictionalAccountPool(
+    "CSF_HOSTED_LOAD_OFFICER_ACCOUNTS_JSON",
+    OFFICER_SESSIONS,
+  );
+  if (
+    new Set([...memberAccounts, ...officerAccounts]).size !==
+    MEMBER_SESSIONS + OFFICER_SESSIONS
+  ) {
+    throw new Error("Hosted load fixture roles must use distinct accounts.");
+  }
   return {
     appUrl,
     durationMs,
+    memberAccounts,
+    officerAccounts,
     password,
     projectRef,
     oidcRequestToken,
@@ -176,7 +221,9 @@ function createVercelProtectionHeadersProvider({
 }
 
 function installVitalsObserver() {
-  window.__csfLoadVitals = { cls: 0, inp: null, lcp: null };
+  const inpSupported =
+    PerformanceObserver.supportedEntryTypes.includes("event");
+  window.__csfLoadVitals = { cls: 0, inp: null, inpSupported, lcp: null };
   new PerformanceObserver((list) => {
     for (const entry of list.getEntries()) {
       const currentLcp = window.__csfLoadVitals.lcp;
@@ -191,17 +238,19 @@ function installVitalsObserver() {
       if (!entry.hadRecentInput) window.__csfLoadVitals.cls += entry.value;
     }
   }).observe({ type: "layout-shift", buffered: true });
-  new PerformanceObserver((list) => {
-    for (const entry of list.getEntries()) {
-      if (entry.interactionId) {
-        const currentInp = window.__csfLoadVitals.inp;
-        window.__csfLoadVitals.inp =
-          currentInp === null
-            ? entry.duration
-            : Math.max(currentInp, entry.duration);
+  if (inpSupported) {
+    new PerformanceObserver((list) => {
+      for (const entry of list.getEntries()) {
+        if (entry.interactionId) {
+          const currentInp = window.__csfLoadVitals.inp;
+          window.__csfLoadVitals.inp =
+            currentInp === null
+              ? entry.duration
+              : Math.max(currentInp, entry.duration);
+        }
       }
-    }
-  }).observe({ type: "event", buffered: true, durationThreshold: 16 });
+    }).observe({ type: "event", buffered: true, durationThreshold: 16 });
+  }
 }
 
 async function openAuthenticatedPage(
@@ -244,7 +293,7 @@ function cookieHeader(cookies) {
   return cookies.map(({ name, value }) => `${name}=${value}`).join("; ");
 }
 
-function sessionIdFromAccessToken(accessToken) {
+function sessionIdentityFromAccessToken(accessToken) {
   const [, encodedPayload] = accessToken.split(".");
   if (!encodedPayload)
     throw new Error("A minted session returned a malformed JWT.");
@@ -252,19 +301,22 @@ function sessionIdFromAccessToken(accessToken) {
     Buffer.from(encodedPayload, "base64url").toString("utf8"),
   );
   if (
+    typeof payload.sub !== "string" ||
+    !/^[0-9a-f-]{36}$/iu.test(payload.sub) ||
     typeof payload.session_id !== "string" ||
     !/^[0-9a-f-]{36}$/iu.test(payload.session_id)
   ) {
     throw new Error(
-      "A minted session did not contain a valid session identity.",
+      "A minted session did not contain valid user and session identities.",
     );
   }
-  return payload.session_id;
+  return { sessionId: payload.session_id, userId: payload.sub };
 }
 
 async function mintSession({
   account,
   password,
+  role,
   supabasePublishableKey,
   supabaseUrl,
 }) {
@@ -296,9 +348,7 @@ async function mintSession({
       break;
     }
     if (error?.status !== 429 || attempt + 1 >= SESSION_MINT_RETRY_LIMIT) {
-      throw new Error(
-        `Could not mint a fictional ${account === OFFICER_ACCOUNT ? "officer" : "member"} session.`,
-      );
+      throw new Error(`Could not mint a fictional ${role} session.`);
     }
     await new Promise((resolve) => setTimeout(resolve, SESSION_MINT_RETRY_MS));
   }
@@ -307,31 +357,33 @@ async function mintSession({
   if (cookies.length === 0) {
     throw new Error("A minted session did not persist its SSR cookies.");
   }
+  const identity = sessionIdentityFromAccessToken(session.access_token);
   return {
     cookie: cookieHeader(cookies),
     cookies,
-    sessionId: sessionIdFromAccessToken(session.access_token),
+    ...identity,
   };
 }
 
 async function mintSessions({
-  account,
-  count,
+  accounts,
   password,
+  role,
   supabasePublishableKey,
   supabaseUrl,
 }) {
   const sessions = [];
-  for (let index = 0; index < count; index += 1) {
+  for (let index = 0; index < accounts.length; index += 1) {
     sessions.push(
       await mintSession({
-        account,
+        account: accounts[index],
         password,
+        role,
         supabasePublishableKey,
         supabaseUrl,
       }),
     );
-    if (index + 1 < count) {
+    if (index + 1 < accounts.length) {
       await new Promise((resolve) =>
         setTimeout(resolve, SESSION_MINT_INTERVAL_MS),
       );
@@ -340,9 +392,13 @@ async function mintSessions({
   const distinctSessionIds = new Set(
     sessions.map(({ sessionId }) => sessionId),
   );
-  if (distinctSessionIds.size !== count) {
+  const distinctUserIds = new Set(sessions.map(({ userId }) => userId));
+  if (
+    distinctSessionIds.size !== accounts.length ||
+    distinctUserIds.size !== accounts.length
+  ) {
     throw new Error(
-      "The hosted load did not mint one distinct auth session per user.",
+      "The hosted load did not mint one distinct auth identity and session per account.",
     );
   }
   return sessions;
@@ -449,11 +505,31 @@ async function collectHeap(page, session) {
   );
 }
 
+async function selectedReviewDigest(nextButton) {
+  return nextButton.evaluate(async (button) => {
+    const queue = button.closest("[aria-busy]");
+    const panelText = queue?.children.item(1)?.textContent?.trim() ?? "";
+    if (!panelText) return "";
+    const bytes = new TextEncoder().encode(panelText);
+    const digest = await crypto.subtle.digest("SHA-256", bytes);
+    return Array.from(new Uint8Array(digest), (value) =>
+      value.toString(16).padStart(2, "0"),
+    ).join("");
+  });
+}
+
 async function runBrowserAcceptance({ appUrl, memberPage, officerPage }) {
   const browserFailures = [];
   for (const page of [memberPage, officerPage]) {
     page.on("crash", () => browserFailures.push("renderer_crash"));
     page.on("pageerror", () => browserFailures.push("page_error"));
+    page.on("console", (message) => {
+      if (message.type() === "error") browserFailures.push("console_error");
+    });
+    page.on("requestfailed", () => browserFailures.push("request_failed"));
+    page.on("response", (response) => {
+      if (response.status() >= 500) browserFailures.push("http_5xx");
+    });
   }
   const memberSession = await memberPage.context().newCDPSession(memberPage);
   const officerSession = await officerPage.context().newCDPSession(officerPage);
@@ -501,6 +577,9 @@ async function runBrowserAcceptance({ appUrl, memberPage, officerPage }) {
     new URL("/organization/dvhs-csf?tab=csf-overview&csf_tour=officer", appUrl)
       .href,
   );
+  const inpSupported = await officerPage.evaluate(
+    () => window.__csfLoadVitals.inpSupported,
+  );
   const officerTour = officerPage.getByRole("dialog", {
     name: "Officer workspace tour",
   });
@@ -535,13 +614,22 @@ async function runBrowserAcceptance({ appUrl, memberPage, officerPage }) {
           requestAnimationFrame(() => requestAnimationFrame(resolve));
         }),
     );
+    await officerPage
+      .waitForFunction(
+        () =>
+          window.__csfLoadVitals.inp !== null ||
+          window.__csfLoadVitals.inpSupported === false,
+        undefined,
+        { timeout: BROWSER_INP_SAMPLE_TIMEOUT_MS },
+      )
+      .catch(() => null);
     if (index >= BROWSER_WARMUP_SAMPLES) {
-      const interactionInp = await officerPage.evaluate(
-        // Event Timing clamps durationThreshold to 16 ms. No reported entry
-        // after two paints therefore gets the conservative threshold value.
-        () => window.__csfLoadVitals.inp ?? 16,
+      const interactionVitals = await officerPage.evaluate(
+        () => window.__csfLoadVitals,
       );
-      inp.push(interactionInp);
+      if (interactionVitals.inp !== null) {
+        inp.push(interactionVitals.inp);
+      }
     }
   }
 
@@ -578,7 +666,73 @@ async function runBrowserAcceptance({ appUrl, memberPage, officerPage }) {
     if (index >= BROWSER_WARMUP_SAMPLES) {
       mutationTimings.push(performance.now() - startedAt);
     }
-    if (index === BROWSER_WARMUP_SAMPLES - 1) {
+  }
+
+  // End in officer mode, then exercise an actual seeded review queue. The
+  // digest proves the selected subject changed without returning names or
+  // review evidence to the load-test process or its output.
+  const restoreOfficerButton = officerPage
+    .locator('button[data-csf-view-switch-hydrated="true"]')
+    .filter({ hasText: /^Switch to CSF Officer view$/u });
+  if (await restoreOfficerButton.isVisible()) {
+    await restoreOfficerButton.click({ timeout: 60_000 });
+    await officerPage
+      .locator('button[data-csf-view-switch-hydrated="true"]')
+      .filter({ hasText: /^View as member$/u })
+      .waitFor({ state: "visible", timeout: 60_000 });
+  }
+  await officerPage.goto(
+    new URL("/organization/dvhs-csf?tab=csf-applications", appUrl).href,
+    { waitUntil: "domcontentloaded" },
+  );
+  const rosterSearch = officerPage.getByPlaceholder("Search by name");
+  await rosterSearch.waitFor({ state: "visible", timeout: 60_000 });
+  const roster = rosterSearch.locator(
+    "xpath=ancestor::div[contains(concat(' ', normalize-space(@class), ' '), ' space-y-4 ')][1]",
+  );
+  const firstSubject = roster.locator("ul > li button").first();
+  await firstSubject.waitFor({ state: "visible", timeout: 60_000 });
+  await firstSubject.click({ timeout: 60_000 });
+
+  const reviewQueue = officerPage.locator('[aria-busy="false"]').filter({
+    has: officerPage.getByRole("button", { name: "Next subject" }),
+  });
+  await reviewQueue.waitFor({ state: "visible", timeout: 60_000 });
+  const nextSubject = reviewQueue.getByRole("button", {
+    name: "Next subject",
+  });
+  const previousSubject = reviewQueue.getByRole("button", {
+    name: "Previous subject",
+  });
+  if (await nextSubject.isDisabled()) {
+    throw new Error(
+      "The hosted review fixture must contain at least two application subjects.",
+    );
+  }
+
+  let reviewDigest = await selectedReviewDigest(nextSubject);
+  if (!reviewDigest) {
+    throw new Error(
+      "The hosted review queue did not expose a selected subject.",
+    );
+  }
+  for (let index = 0; index < BROWSER_REVIEW_NAVIGATIONS; index += 1) {
+    const control = index % 2 === 0 ? nextSubject : previousSubject;
+    const previousDigest = reviewDigest;
+    await control.click({ timeout: 60_000 });
+    await officerPage.evaluate(
+      () =>
+        new Promise((resolve) => {
+          requestAnimationFrame(() => requestAnimationFrame(resolve));
+        }),
+    );
+    reviewDigest = await selectedReviewDigest(nextSubject);
+    if (!reviewDigest || reviewDigest === previousDigest) {
+      throw new Error(
+        "The hosted review queue did not settle on a different subject.",
+      );
+    }
+    if (index === 1) {
       baselineHeap =
         (await collectHeap(memberPage, memberSession)) +
         (await collectHeap(officerPage, officerSession));
@@ -602,9 +756,11 @@ async function runBrowserAcceptance({ appUrl, memberPage, officerPage }) {
     heapGrowth,
     inpSampleCount: inp.length,
     inpP75: percentile(inp, 0.75),
+    inpSupported,
     lcpSampleCount: lcp.length,
     lcpP75Ms: percentile(lcp, 0.75),
     mutationP95Ms: percentile(mutationTimings, 0.95),
+    reviewNavigationCount: BROWSER_REVIEW_NAVIGATIONS,
   };
 }
 
@@ -612,17 +768,17 @@ async function main() {
   const target = validateTarget();
   const getProtectionHeaders = createVercelProtectionHeadersProvider(target);
   const memberSessions = await mintSessions({
-    account: MEMBER_ACCOUNT,
-    count: MEMBER_SESSIONS,
+    accounts: target.memberAccounts,
     password: target.password,
+    role: "member",
     supabasePublishableKey: target.supabasePublishableKey,
     supabaseUrl: target.supabaseUrl,
   });
   await new Promise((resolve) => setTimeout(resolve, SESSION_MINT_INTERVAL_MS));
   const officerSessions = await mintSessions({
-    account: OFFICER_ACCOUNT,
-    count: OFFICER_SESSIONS,
+    accounts: target.officerAccounts,
     password: target.password,
+    role: "officer",
     supabasePublishableKey: target.supabasePublishableKey,
     supabaseUrl: target.supabaseUrl,
   });
@@ -631,6 +787,12 @@ async function main() {
   );
   if (allSessionIds.size !== MEMBER_SESSIONS + OFFICER_SESSIONS) {
     throw new Error("The hosted load reused an auth session between roles.");
+  }
+  const allUserIds = new Set(
+    [...memberSessions, ...officerSessions].map(({ userId }) => userId),
+  );
+  if (allUserIds.size !== MEMBER_SESSIONS + OFFICER_SESSIONS) {
+    throw new Error("The hosted load reused an auth identity between roles.");
   }
   const browser = await chromium.launch({ headless: true });
   try {
@@ -675,6 +837,7 @@ async function main() {
       fictionalAccounts: true,
       durationMs: target.durationMs,
       sessions: { members: MEMBER_SESSIONS, officers: OFFICER_SESSIONS },
+      distinctAuthIdentities: allUserIds.size,
       distinctAuthSessions: allSessionIds.size,
       requests: load.requests,
       readP95Ms: percentile(load.timings, 0.95),
@@ -686,11 +849,13 @@ async function main() {
       lcpP75Ms: browserResult.lcpP75Ms,
       inpSampleCount: browserResult.inpSampleCount,
       inpP75Ms: browserResult.inpP75,
+      inpSupported: browserResult.inpSupported,
       clsSampleCount: browserResult.clsSampleCount,
       clsP75: browserResult.clsP75,
       rendererCrashes: browserResult.browserFailures.filter(
         (failure) => failure === "renderer_crash",
       ).length,
+      reviewNavigationCount: browserResult.reviewNavigationCount,
       browserErrors: browserResult.browserFailures.length,
       baselineHeapBytes: browserResult.baselineHeap,
       finalHeapBytes: browserResult.finalHeap,
@@ -698,6 +863,7 @@ async function main() {
     };
     result.ok =
       result.requests > 0 &&
+      result.distinctAuthIdentities === MEMBER_SESSIONS + OFFICER_SESSIONS &&
       result.distinctAuthSessions === MEMBER_SESSIONS + OFFICER_SESSIONS &&
       result.readP95Ms <= 2_500 &&
       result.readP99Ms <= 5_000 &&
@@ -706,11 +872,13 @@ async function main() {
       result.fiveHundredRate < 0.001 &&
       result.lcpSampleCount === BROWSER_MEASURED_SAMPLES &&
       result.lcpP75Ms < 2_500 &&
+      result.inpSupported === true &&
       result.inpSampleCount === BROWSER_MEASURED_SAMPLES &&
       result.inpP75Ms < 200 &&
       result.clsSampleCount === BROWSER_MEASURED_SAMPLES &&
       result.clsP75 < 0.1 &&
       result.rendererCrashes === 0 &&
+      result.reviewNavigationCount === BROWSER_REVIEW_NAVIGATIONS &&
       result.browserErrors === 0 &&
       result.retainedHeapGrowth !== null &&
       result.retainedHeapGrowth <= 0.2;

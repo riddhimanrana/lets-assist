@@ -102,12 +102,13 @@ remains:
   account, and submits the **Find my record** details.
   `csf_join_class_by_code` uses the verified account email as the only
   automatic signal: one active same-class email match connects atomically with
-  recorded history; zero matches create a new stable profile from the account
-  identity; a conflicting account or class assignment, or an email shared by
-  several records, creates a review request instead. Joining connects the
-  lasting graduating class only and never activates semester membership.
+  recorded history. An unmatched email never creates a profile or class
+  membership. The page may offer one sole, active, unclaimed exact account-name
+  candidate in the selected class. A typed name, conflicting account or class
+  assignment, shared email, stale candidate, or ambiguous match creates or
+  reuses one review request.
 - **Per-class review.** Unresolved joins wait in that class's Members tab
-  under **Needs attention**, paged by `csf_connect_cursor`. The **Resolve**
+  under **Record connections**, paged by `csf_connect_cursor`. The **Review**
   dialog renders **Connect account** only when the database confirms canonical
   evidence — the confirmed account email matching the roster email, the exact
   name, and exactly one matching active class membership; **Reject request**
@@ -125,7 +126,7 @@ record, this record wins.
 
 ### Amendment 6: Member record matching, directory search, and source identity (v1.6, September 1, 2026)
 
-- **Passive account-name confirmation.** After a verified account enters a class code, the server may offer one exact account-name candidate. The preview shows only the record name and class. **Yes, link this record** connects only after a short-lived signed snapshot and a locked database recheck prove that the candidate is active, unclaimed, belongs only to the selected class, and is still the sole exact match. A changed name, duplicate, claimed record, inactive code, revoked account history, or class conflict creates one officer request instead.
+- **Passive account-name confirmation.** After a verified account enters a class code, the server may offer one exact account-name candidate. The preview shows only the record name and class. **Yes, this is me** submits a short-lived signed snapshot and creates or reuses one officer request. It never links from name evidence. A locked database recheck may connect only when verified email independently proves one active same-class record.
 - **Typed names stay in review.** A name entered by the student never creates or links a profile. One exact verified-email record may still connect. Every other typed-name outcome creates or reuses one class-scoped officer request. The member sees the settled result inline instead of a silent click.
 - **Member directory search.** Search submits to the server after two characters with a 300 ms debounce. Officers may also use the Search button. Clearing the field reloads the directory immediately. Search resets paging and preserves the selected class, semester, standing, account filter, sort, and view.
 - **Chapter application sources.** An application response workbook belongs to the chapter, not one graduating class. Each immutable preview row derives its own configured class and semester. The importer clears stale fixed-class scope and refuses an unconfigured or changed row target.
@@ -884,8 +885,8 @@ Prior-term closure and next-term setup may overlap.
 1. The student redeems the class's permanent join code at `/connect/<code>` with a verified signed-in account.
 2. One active same-class record carrying the verified account email connects atomically.
 3. If email does not match, the server may show one passive **Is this you?** card derived from the account's current full name. The card contains only the record name and class. It appears only for one active, unclaimed exact-name record with exactly one active class membership in the class selected by the code.
-4. **Yes, link this record** submits a short-lived signed snapshot bound to the organization, user, verified email, class code, class, profile, normalized account name, and account-name hash. The database rechecks all evidence under lock. A changed, duplicate, claimed, inactive, multi-class, or conflicting result creates one officer request instead of linking.
-5. If the student types or changes a name, that name never creates or links a profile. The server may still connect one exact verified-email record. Every other result creates or reuses one request in that class's **Needs attention** queue.
+4. **Yes, this is me** submits a short-lived signed snapshot bound to the organization, user, verified email, class code, class, profile, normalized account name, and account-name hash. The database rechecks all evidence under lock and creates or reuses one officer request. It connects only if the verified email independently identifies one active same-class record.
+5. If the student types or changes a name, that name never creates or links a profile. The server may still connect one exact verified-email record. Every other result creates or reuses one request in that class's **Record connections** queue.
 6. Officer review uses the existing corroborating-email and class checks. Linking, unlinking, and merge resolution are audited. Unlinking and merging require a reason.
 
 ### 9.6 Verify dues
@@ -1037,14 +1038,14 @@ The rebuild extends the existing `plugin_data.csf_*` foundation. It does not cre
 
 ### 11.1 Identity and access
 
-| Concept                     | Physical model                                                      | Required behavior                                                                                                                                                     |
-| --------------------------- | ------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Permanent student           | `csf_profiles`                                                      | One durable student record per organization; normalized identity fields; fictional test ID support; no semester status stored here                                    |
-| Platform account connection | `csf_profile_accounts`                                              | Verified account link with actor/source/time; one active unambiguous connection per user/org                                                                          |
-| Link request                | `csf_profile_link_requests`                                         | Limited candidate and resolution history; exact unique confirmed email may offer student confirmation, but does not connect before confirmation; name-only never does |
-| Graduating class            | `csf_cohorts`, `csf_profile_cohort_memberships`                     | Historical membership and class changes remain traceable                                                                                                              |
-| Duplicate merge             | `csf_profile_merge_reviews`                                         | Preview and two-person/adviser review when configured; move references atomically; source becomes merged tombstone rather than disappearing                           |
-| Staff access                | `csf_roles`, `csf_role_permissions`, `csf_staff_positions`, history | Capability-based, effective-dated assignments                                                                                                                         |
+| Concept                     | Physical model                                                      | Required behavior                                                                                                                                                      |
+| --------------------------- | ------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Permanent student           | `csf_profiles`                                                      | One durable student record per organization; normalized identity fields; fictional test ID support; no semester status stored here                                     |
+| Platform account connection | `csf_profile_accounts`                                              | Verified account link with actor/source/time; one active unambiguous connection per user/org                                                                           |
+| Link request                | `csf_profile_link_requests`                                         | Limited candidate and resolution history; one exact verified-email match may connect automatically; every name-only confirmation creates or reuses one officer request |
+| Graduating class            | `csf_cohorts`, `csf_profile_cohort_memberships`                     | Historical membership and class changes remain traceable                                                                                                               |
+| Duplicate merge             | `csf_profile_merge_reviews`                                         | Preview and two-person/adviser review when configured; move references atomically; source becomes merged tombstone rather than disappearing                            |
+| Staff access                | `csf_roles`, `csf_role_permissions`, `csf_staff_positions`, history | Capability-based, effective-dated assignments                                                                                                                          |
 
 ### 11.2 Semester, application, and eligibility
 
@@ -1598,7 +1599,7 @@ These invariants are mandatory across schema, server actions, UI, imports, tests
 5. Policy versions used by decisions and closed terms are immutable.
 6. Point totals, attendance completion, and recognition derive from normalized records through one shared evaluator.
 7. A multi-point activity produces one award with a numeric quantity, not duplicate one-point records.
-8. A manually entered name or imported name never links a student. One passive account-name candidate may link only after the member confirms a signed snapshot and a locked recheck proves one active, unclaimed exact match with one active membership in the selected class.
+8. A manually entered, imported, or passive account name never links a student. Confirming one passive candidate creates or reuses one officer request. Only one exact verified-email match may connect automatically.
 9. Preview precedes import commit; source provenance and raw snapshots are retained.
 10. Reviewed platform records are never silently overwritten by Google data.
 11. Google Forms/Sheets/Drive are intake/evidence channels after cutover, not dual operational authority. This release writes no Google Sheet; reports are local formula-safe ZIP archives.
@@ -1612,7 +1613,7 @@ These invariants are mandatory across schema, server actions, UI, imports, tests
 19. Responsive variants retain the same Let’s Assist product-company branding.
 20. Synthetic fixtures and generated screenshots contain only fictional privacy-safe contacts on reserved test domains.
 21. Every direct proof fixture insert declares a valid complete upload lifecycle tuple; schema defaults never substitute for finalization.
-22. (amended v1.6) A class join code may connect one active same-class profile through an exact verified-email match or one member-confirmed passive account-name match that passes the signed-snapshot and transaction-time uniqueness checks. Every typed-name, changed, ambiguous, claimed, or conflicting result creates or reuses one per-class officer request.
+22. (amended v1.6) A class join code may connect one active same-class profile only through an exact verified-email match. Every passive account-name confirmation and every typed-name, changed, ambiguous, claimed, or conflicting result creates or reuses one per-class officer request.
 23. (amended v1.5) Class-code join and officer connection resolution update organization access, the account link, cohort membership, the request record, and immutable history in one organization-scoped transaction; the join never activates term membership, while resolution may atomically activate an already-accepted application's term membership.
 24. A Google connection is authorized for one signed-in user, organization, plugin, purpose, capability, return route, and short expiry; the callback rechecks current permission before storing a purpose-bound connection.
 25. Historical activity imports never infer a point value. Every imported award must contain an explicit, positive numeric quantity within the accepted import bound.

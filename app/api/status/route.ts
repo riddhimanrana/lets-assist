@@ -127,6 +127,12 @@ async function checkWorkerConfiguration(): Promise<StatusCheck> {
   return runCheck("workers", false, async () => {
     const workerFlags = {
       autoPublishHours: process.env.AUTO_PUBLISH_ENABLED === "true",
+      csfCommunications:
+        process.env.CSF_COMMUNICATIONS_WORKER_ENABLED === "true",
+      csfImportCommit: process.env.CSF_IMPORT_WORKER_ENABLED === "true",
+      csfScheduledPostPublisher:
+        process.env.CSF_SCHEDULED_POST_PUBLISHER_ENABLED === "true",
+      csfWorkbookRefresh: process.env.CSF_WORKBOOK_WORKER_ENABLED === "true",
       organizationCalendarSync:
         process.env.ORG_CALENDAR_SYNC_WORKER_ENABLED !== "false",
       organizationSheetSync:

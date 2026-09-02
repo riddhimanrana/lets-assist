@@ -22,7 +22,13 @@ const importCommitLeaseSeconds = maxDuration + 100;
 // reclaim a job while its original worker is still allowed to run.
 
 const BEARER_GRAMMAR = /^Bearer ([\x21-\x7E]+)$/;
-const claimSchema = z.discriminatedUnion("claimed", [
+const claimSchema = z.union([
+  z.object({
+    claimed: z.literal(false),
+    reconciled: z.literal(true),
+    status: z.enum(["completed", "blocked"]),
+    commitStatus: z.enum(["completed", "partially_completed"]),
+  }),
   z.object({ claimed: z.literal(false) }),
   z.object({
     claimed: z.literal(true),
@@ -33,6 +39,10 @@ const claimSchema = z.discriminatedUnion("claimed", [
     actorUserId: z.string().uuid(),
   }),
 ]);
+const finishSchema = z.object({
+  finished: z.literal(true),
+  status: z.enum(["completed", "blocked", "failed"]),
+});
 
 function secretsMatch(expected: string, presented: string): boolean {
   const expectedDigest = createHash("sha256").update(expected).digest();
@@ -86,6 +96,17 @@ export async function POST(request: NextRequest) {
     return json({ error: "Import queue returned invalid data" }, 503);
   }
   if (!parsed.data.claimed) {
+    if ("reconciled" in parsed.data && parsed.data.reconciled) {
+      const completed = parsed.data.status === "completed" ? 1 : 0;
+      return json({
+        enabled: true,
+        claimed: 0,
+        reconciled: 1,
+        completed,
+        blocked: completed ? 0 : 1,
+        commitStatus: parsed.data.commitStatus,
+      });
+    }
     return json({ enabled: true, claimed: 0, completed: 0, blocked: 0 });
   }
 
@@ -95,33 +116,69 @@ export async function POST(request: NextRequest) {
     actorUserId: parsed.data.actorUserId,
     secret: workerSecret,
   };
-  const result = await executeCsfImportCommitClaim({
-    organizationId: parsed.data.organizationId,
-    previewJobId: parsed.data.previewJobId,
-    workerContext,
-  });
-  const status = result.success ? "completed" : "blocked";
-  const errorCode = result.success
-    ? null
-    : classifyCsfImportCommitFailure(result.error ?? "");
-  const { error: finishError } = await plugin.rpc(
+  let result: Awaited<ReturnType<typeof executeCsfImportCommitClaim>>;
+  try {
+    result = await executeCsfImportCommitClaim({
+      organizationId: parsed.data.organizationId,
+      previewJobId: parsed.data.previewJobId,
+      workerContext,
+    });
+  } catch {
+    // No terminal receipt was returned. Keep the fenced queue lease intact so
+    // its expiry path can recover or reconcile the logical commit.
+    return json({ error: "Import attempt did not return a settlement" }, 503);
+  }
+  const disposition = result.workerDisposition;
+  if (disposition === "retryable" || disposition === "unknown") {
+    // The action already read the row-batch receipt and settled its active
+    // attempt. Leaving this queue lease intact prevents a concurrent retry;
+    // the next claim reconciles any terminal logical commit after expiry.
+    return json(
+      {
+        error:
+          disposition === "retryable"
+            ? "Import attempt will be retried"
+            : "Import outcome needs reconciliation",
+        disposition,
+      },
+      503,
+    );
+  }
+  if (disposition !== "completed" && disposition !== "blocked") {
+    return json({ error: "Import attempt returned invalid data" }, 503);
+  }
+  const status = disposition;
+  const errorCode =
+    disposition === "completed"
+      ? null
+      : result.finalStatus === "partially_completed"
+        ? "import_partially_completed"
+        : classifyCsfImportCommitFailure(result.error ?? "");
+  const { data: finishData, error: finishError } = await plugin.rpc(
     "csf_finish_import_commit_queue",
     {
       p_queue_id: parsed.data.queueId,
       p_lease_token: parsed.data.leaseToken,
       p_status: status,
-      p_result_counts: { completed: result.success ? 1 : 0 },
+      p_result_counts: {
+        completed: status === "completed" ? 1 : 0,
+        blocked: status === "blocked" ? 1 : 0,
+      },
       p_error_code: errorCode,
     },
   );
   if (finishError) {
     return json({ error: "Import result could not be settled" }, 503);
   }
+  const finish = finishSchema.safeParse(finishData);
+  if (!finish.success || finish.data.status !== status) {
+    return json({ error: "Import result could not be settled" }, 503);
+  }
   return json({
     enabled: true,
     claimed: 1,
-    completed: result.success ? 1 : 0,
-    blocked: result.success ? 0 : 1,
+    completed: status === "completed" ? 1 : 0,
+    blocked: status === "blocked" ? 1 : 0,
     ...(errorCode ? { errorCode } : {}),
   });
 }

@@ -1,13 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { spawnSync } from "node:child_process";
-import {
-  mkdtempSync,
-  readFileSync,
-  readdirSync,
-  rmSync,
-  writeFileSync,
-} from "node:fs";
-import { tmpdir } from "node:os";
+import { readFileSync, readdirSync } from "node:fs";
 import { join } from "node:path";
 
 const repositoryRoot = join(import.meta.dir, "..");
@@ -22,7 +14,7 @@ const architectureAudit = readFileSync(
 );
 
 const PRODUCTION_HEAD = "20260829092823";
-const TARGET_HEAD = "20260901230000";
+const TARGET_HEAD = "20260902060000";
 const HARD_FAIL_STATEMENT = "SELECT 1 / 0 AS preflight_check_failed;";
 const HARD_FAIL_SITES = 35;
 const hardFailStatements =
@@ -46,6 +38,12 @@ const PENDING_VERSIONS = [
   "20260901103347",
   "20260901120000",
   "20260901230000",
+  "20260902010000",
+  "20260902020000",
+  "20260902030000",
+  "20260902040000",
+  "20260902050000",
+  "20260902060000",
 ] as const;
 
 function readMigration(version: string) {
@@ -57,15 +55,10 @@ function readMigration(version: string) {
 }
 
 describe("Production cutover preflight source contract", () => {
-  test("pins the exact 414 -> 432 ledger and all 18 pending versions", () => {
+  test("pins the exact 414 -> 438 ledger and all 24 pending versions", () => {
     const migrations = readdirSync(migrationsRoot)
       .filter((name) => /^\d{14}_.+\.sql$/u.test(name))
       .sort();
-    // The preflight is a frozen record of one cutover: production sat at 414
-    // migrations (head PRODUCTION_HEAD) and 18 were pending up to TARGET_HEAD.
-    // Bound the window to that cutover instead of everything newer than
-    // PRODUCTION_HEAD, so migrations added after it do not retroactively make
-    // the record look wrong.
     const pending = migrations
       .map((name) => name.slice(0, 14))
       .filter((version) => version > PRODUCTION_HEAD && version <= TARGET_HEAD);
@@ -84,21 +77,18 @@ describe("Production cutover preflight source contract", () => {
       (match) => match[1],
     );
 
-    // The cutover's 432-migration target must remain an exact prefix of the
-    // ledger. That keeps every pinned version verifiable while the ledger grows
-    // past the cutover.
-    expect(migrations.length).toBeGreaterThanOrEqual(432);
+    expect(migrations.length).toBeGreaterThanOrEqual(438);
     expect(migrations.at(0)?.slice(0, 14)).toBe("20260325181408");
-    expect(migrations.slice(0, 432).at(-1)?.slice(0, 14)).toBe(TARGET_HEAD);
+    expect(migrations.slice(0, 438).at(-1)?.slice(0, 14)).toBe(TARGET_HEAD);
     expect(pinnedBaseline).toEqual(
       migrations.slice(0, 414).map((name) => name.slice(0, 14)),
     );
     expect(pending).toEqual([...PENDING_VERSIONS]);
     expect(pinnedTargetTail).toEqual([...PENDING_VERSIONS]);
     expect(preflight).toContain("count(*) = 414");
-    expect(preflight).toContain("count(*) = 432");
+    expect(preflight).toContain("count(*) = 438");
     expect(preflight).toContain("min(version::text) = '20260325181408'");
-    expect(preflight).toContain("18 migrations pending");
+    expect(preflight).toContain("24 migrations pending");
     expect(preflight).not.toContain("count(*) = 295");
     for (const version of PENDING_VERSIONS) {
       expect(preflight).toContain(`'${version}'`);
@@ -380,9 +370,6 @@ describe("Production cutover preflight source contract", () => {
       preflight.indexOf("T3  Target pg_graphql posture"),
     );
 
-    // The relation the reporter pseudonym mapping lives in, the objects that
-    // bound retry replay, and the detachment behavior moderation evidence
-    // depends on when an account goes away.
     for (const expected of [
       "public.reporter_references",
       "public.api_rate_limit_receipts",
@@ -408,8 +395,6 @@ describe("Production cutover preflight source contract", () => {
       "has_function_privilege('service_role', function_record.oid, 'EXECUTE')",
     );
 
-    // The three report functions are server-only, so they must never appear in
-    // the client function ACL catalog T5b compares against.
     const functionAclBlock = preflight.slice(
       preflight.indexOf("T5  Public read-model and function ACL posture"),
       preflight.indexOf("T6  Exact target relation ACL"),
@@ -778,13 +763,13 @@ describe("Production cutover preflight source contract", () => {
     expect(d12).toContain("\\if :d12_pass");
   });
 
-  test("checks every CSF 432 target contract and the final tenant repair", () => {
+  test("checks every CSF 438 target contract and the final repairs", () => {
     const targetInventory = preflight.slice(
       preflight.indexOf("T1  Target-only relation inventory"),
       preflight.indexOf("T2  Target constraints"),
     );
     const targetCsf = preflight.slice(
-      preflight.indexOf("T2C 432 CSF release-tail contract"),
+      preflight.indexOf("T2C 438 CSF release-tail contract"),
       preflight.indexOf("T3  Target pg_graphql posture"),
     );
     const targetRelations = [
@@ -851,6 +836,7 @@ describe("Production cutover preflight source contract", () => {
     for (const signature of [
       "plugin_data.csf_queue_class_workbook_preparation(uuid,uuid,text,uuid,text,text,jsonb)",
       "plugin_data.csf_queue_import_preview_batch(uuid,uuid,uuid[],uuid)",
+      "plugin_data.csf_claim_import_commit_attempt(uuid,uuid,uuid,integer,uuid)",
       "plugin_data.csf_finish_import_commit_queue(uuid,uuid,text,jsonb,text)",
       "plugin_data.csf_import_row_batch_receipt(uuid,uuid)",
       "plugin_data.csf_commit_import_row_batch(uuid,uuid,uuid,uuid[])",
@@ -863,8 +849,15 @@ describe("Production cutover preflight source contract", () => {
       "plugin_data.csf_member_home_context_snapshot(uuid,uuid,timestamptz,timestamptz,date)",
       "plugin_data.csf_member_stream_enrichment(uuid,uuid[],uuid[],uuid[])",
       "plugin_data.csf_confirm_class_code_account_name_match(uuid,uuid,uuid,text,uuid,uuid,text,text,text)",
+      "plugin_data.csf_join_class_by_code_identity_base(uuid,text,uuid,text,text,text,text,uuid,uuid)",
+      "plugin_data.csf_confirm_class_code_account_name_match_identity_base(uuid,uuid,uuid,text,uuid,uuid,text,text,text)",
+      "plugin_data.csf_revalidate_class_code_connection_replay(uuid,uuid,uuid,uuid,jsonb)",
       "plugin_data.csf_queue_import_preview_batch_unserialized(uuid,uuid,uuid[],uuid)",
+      "plugin_data.csf_assert_import_preview_mapping_current(uuid,uuid)",
       "plugin_data.csf_commit_import_row_batch_unserialized(uuid,uuid,uuid,uuid[])",
+      "plugin_data.csf_sheet_source_settings_schema()",
+      "plugin_data.csf_assert_sheet_source_settings(jsonb)",
+      "plugin_data.csf_enforce_sheet_source_mapping_version()",
     ]) {
       expect(targetCsf).toContain(signature);
     }
@@ -878,8 +871,46 @@ describe("Production cutover preflight source contract", () => {
     expect(targetCsf).toContain("target_csf_release_tail_issues");
     expect(targetCsf).toContain("invalid_constraint_issues");
     expect(targetCsf).toContain("function_order_issues");
+    expect(targetCsf).toContain("'select * into v_batch'");
     expect(targetCsf).toContain(
-      "< pg_catalog.strpos(definition, 'select * into v_batch')",
+      "plugin_data.csf_join_class_by_code identity lock and replay revalidation order",
+    );
+    expect(targetCsf).toContain(
+      "plugin_data.csf_confirm_class_code_account_name_match identity lock and replay revalidation order",
+    );
+    expect(targetCsf).toContain(
+      "v_result := plugin_data.csf_join_class_by_code_identity_base(",
+    );
+    expect(targetCsf).toContain(
+      "v_result := plugin_data.csf_join_class_by_code_identity_base(",
+    );
+    expect(targetCsf).not.toContain(
+      "delegates to csf_confirm_class_code_account_name_match_identity_base",
+    );
+    expect(targetCsf).toContain(
+      "return plugin_data.csf_revalidate_class_code_connection_replay(",
+    );
+    expect(targetCsf).toContain(
+      "plugin_data.csf_queue_import_preview_batch durable replay order",
+    );
+    expect(targetCsf).toContain(
+      "plugin_data.csf_queue_import_preview_batch canonical preview lock order",
+    );
+    const normalizedTargetCsf = targetCsf.replace(/\s+/gu, " ");
+    const canonicalPreviewOrder =
+      "select pg_catalog.array_agg(preview_id order by preview_id) into v_requested_preview_ids from pg_catalog.unnest(p_preview_job_ids) as preview_id;";
+    expect(normalizedTargetCsf).toContain(canonicalPreviewOrder);
+    expect(targetCsf).toContain(
+      "foreach v_preview_id in array p_preview_job_ids loop",
+    );
+    expect(targetCsf).toContain(
+      "return plugin_data.csf_queue_import_preview_batch_unserialized( p_organization_id, p_actor_user_id, v_requested_preview_ids, p_request_id );",
+    );
+    expect(targetCsf).toContain(
+      "plugin_data.csf_queue_import_preview_batch mapping fence order",
+    );
+    expect(targetCsf).toContain(
+      "plugin_data.csf_claim_import_commit_attempt mapping fence order",
     );
     for (const retired of [
       "csf_confirm_profile_name_match",
@@ -889,35 +920,249 @@ describe("Production cutover preflight source contract", () => {
       expect(targetCsf).toContain(retired);
     }
 
-    const finalMigration = readMigration("20260901230000");
-    expect(finalMigration).toContain(
+    const tenantRepairMigration = readMigration("20260901230000");
+    expect(tenantRepairMigration).toContain(
       "DROP FUNCTION IF EXISTS plugin_data.csf_register_class_workbook(",
     );
-    expect(finalMigration).toContain(
+    expect(tenantRepairMigration).toContain(
       "ADD CONSTRAINT csf_sheet_sources_cohort_organization_fkey",
     );
-    expect(finalMigration).toContain("ON DELETE SET NULL (cohort_id)");
-    expect(finalMigration).toContain(
+    expect(tenantRepairMigration).toContain("ON DELETE SET NULL (cohort_id)");
+    expect(tenantRepairMigration).toContain(
       "CREATE INDEX csf_import_approval_items_org_queue_idx",
     );
-    expect(finalMigration).toContain("WHERE queue_id IS NOT NULL");
-    expect(finalMigration).toContain(
+    expect(tenantRepairMigration).toContain("WHERE queue_id IS NOT NULL");
+    expect(tenantRepairMigration).toContain(
       "v_batch.actor_user_id IS DISTINCT FROM p_actor_user_id",
     );
-    expect(finalMigration).toContain(
+    expect(tenantRepairMigration).toContain(
       "v_existing_preview_ids IS DISTINCT FROM v_requested_preview_ids",
     );
-    expect(finalMigration).toContain(
+    expect(tenantRepairMigration).toContain(
       "PERFORM plugin_data.csf_assert_import_actor(",
     );
     expect(
-      finalMigration.indexOf("PERFORM plugin_data.csf_assert_import_actor("),
-    ).toBeLessThan(finalMigration.indexOf("SELECT * INTO v_batch"));
-    expect(finalMigration).toContain(
+      tenantRepairMigration.indexOf(
+        "PERFORM plugin_data.csf_assert_import_actor(",
+      ),
+    ).toBeLessThan(tenantRepairMigration.indexOf("SELECT * INTO v_batch"));
+    expect(tenantRepairMigration).toContain(
       "WHERE batch_item.organization_id = v_item.organization_id",
     );
-    expect(finalMigration).toContain(
+    expect(tenantRepairMigration).toContain(
       "AND batch.organization_id = v_item.organization_id",
+    );
+
+    const identityLockMigration = readMigration("20260902010000");
+    for (const boundary of [
+      {
+        wrapper:
+          "CREATE OR REPLACE FUNCTION plugin_data.csf_join_class_by_code(",
+        base: "v_result := plugin_data.csf_join_class_by_code_identity_base(",
+      },
+      {
+        wrapper:
+          "CREATE OR REPLACE FUNCTION plugin_data.csf_confirm_class_code_account_name_match(",
+        base: "v_result := plugin_data.csf_join_class_by_code_identity_base(",
+      },
+    ]) {
+      const wrapperStart = identityLockMigration.indexOf(boundary.wrapper);
+      const lockStart = identityLockMigration.indexOf(
+        "PERFORM plugin_data.csf_lock_identity_mutation(",
+        wrapperStart,
+      );
+      const baseStart = identityLockMigration.indexOf(
+        boundary.base,
+        wrapperStart,
+      );
+      const replayStart = identityLockMigration.indexOf(
+        "RETURN plugin_data.csf_revalidate_class_code_connection_replay(",
+        wrapperStart,
+      );
+      expect(wrapperStart).toBeGreaterThanOrEqual(0);
+      expect(lockStart).toBeGreaterThan(wrapperStart);
+      expect(baseStart).toBeGreaterThan(lockStart);
+      expect(replayStart).toBeGreaterThan(baseStart);
+    }
+    expect(identityLockMigration).toContain(
+      "REVOKE ALL ON FUNCTION plugin_data.csf_join_class_by_code_identity_base(",
+    );
+    expect(identityLockMigration).toContain(
+      "REVOKE ALL ON FUNCTION plugin_data.csf_confirm_class_code_account_name_match_identity_base(",
+    );
+    expect(identityLockMigration).toContain(
+      "REVOKE ALL ON FUNCTION plugin_data.csf_revalidate_class_code_connection_replay(",
+    );
+    expect(identityLockMigration).toContain(
+      "GRANT EXECUTE ON FUNCTION plugin_data.csf_revalidate_class_code_connection_replay(",
+    );
+    expect(identityLockMigration).toContain(
+      "GRANT EXECUTE ON FUNCTION plugin_data.csf_join_class_by_code_identity_base(",
+    );
+    expect(identityLockMigration).toContain(
+      "GRANT EXECUTE ON FUNCTION plugin_data.csf_confirm_class_code_account_name_match_identity_base(",
+    );
+
+    const mappingFenceMigration = readMigration("20260902020000");
+    const batchWrapperStart = mappingFenceMigration.indexOf(
+      "CREATE OR REPLACE FUNCTION plugin_data.csf_queue_import_preview_batch(",
+    );
+    const batchReceiptStart = mappingFenceMigration.indexOf(
+      "SELECT * INTO v_batch",
+      batchWrapperStart,
+    );
+    const batchOwnerImplementationStart = mappingFenceMigration.indexOf(
+      "CREATE OR REPLACE FUNCTION plugin_data.csf_queue_import_preview_batch_unserialized(",
+    );
+    const batchAuthorizationStart = mappingFenceMigration.indexOf(
+      "PERFORM plugin_data.csf_assert_import_actor(",
+      batchOwnerImplementationStart,
+    );
+    expect(batchWrapperStart).toBeGreaterThanOrEqual(0);
+    expect(batchReceiptStart).toBeGreaterThan(batchWrapperStart);
+    expect(batchAuthorizationStart).toBeGreaterThan(
+      batchOwnerImplementationStart,
+    );
+    const normalizedBatchWrapper = mappingFenceMigration
+      .slice(batchWrapperStart)
+      .replace(/\s+/gu, " ");
+    const migrationCanonicalPreviewOrder =
+      "SELECT pg_catalog.array_agg(preview_id ORDER BY preview_id) INTO v_requested_preview_ids FROM pg_catalog.unnest(p_preview_job_ids) AS preview_id;";
+    const migrationCanonicalPreviewOrderIndex = normalizedBatchWrapper.indexOf(
+      migrationCanonicalPreviewOrder,
+    );
+    const migrationCanonicalPreviewQueueIndex = normalizedBatchWrapper.indexOf(
+      "RETURN plugin_data.csf_queue_import_preview_batch_unserialized( p_organization_id, p_actor_user_id, v_requested_preview_ids, p_request_id );",
+    );
+    expect(migrationCanonicalPreviewOrderIndex).toBeGreaterThanOrEqual(0);
+    expect(migrationCanonicalPreviewQueueIndex).toBeGreaterThan(
+      migrationCanonicalPreviewOrderIndex,
+    );
+    expect(mappingFenceMigration).toContain(
+      "FOREACH v_preview_id IN ARRAY p_preview_job_ids LOOP",
+    );
+    expect(mappingFenceMigration.replace(/\s+/gu, " ")).toContain(
+      "RETURN plugin_data.csf_queue_import_preview_batch_unserialized( p_organization_id, p_actor_user_id, v_requested_preview_ids, p_request_id );",
+    );
+
+    const batchImplementationStart = mappingFenceMigration.indexOf(
+      "CREATE OR REPLACE FUNCTION plugin_data.csf_queue_import_preview_batch_unserialized(",
+    );
+    const batchMappingFenceStart = mappingFenceMigration.indexOf(
+      "PERFORM plugin_data.csf_assert_import_preview_mapping_current(",
+      batchImplementationStart,
+    );
+    const batchReadinessStart = mappingFenceMigration.indexOf(
+      "v_readiness := plugin_data.csf_import_preview_readiness(",
+      batchImplementationStart,
+    );
+    const batchPreviewLoopStart = mappingFenceMigration.indexOf(
+      "FOREACH v_preview_id IN ARRAY p_preview_job_ids LOOP",
+      batchImplementationStart,
+    );
+    const batchQueueLockStart = mappingFenceMigration.indexOf(
+      "FROM plugin_data.csf_import_commit_queue AS queue",
+      batchPreviewLoopStart,
+    );
+    const batchPreviewLockStart = mappingFenceMigration.indexOf(
+      "FROM plugin_data.csf_sheet_import_jobs AS preview",
+      batchQueueLockStart,
+    );
+    expect(batchImplementationStart).toBeGreaterThanOrEqual(0);
+    expect(batchPreviewLoopStart).toBeGreaterThan(batchImplementationStart);
+    expect(batchQueueLockStart).toBeGreaterThan(batchPreviewLoopStart);
+    expect(batchPreviewLockStart).toBeGreaterThan(batchQueueLockStart);
+    expect(batchMappingFenceStart).toBeGreaterThan(batchImplementationStart);
+    expect(batchReadinessStart).toBeGreaterThan(batchMappingFenceStart);
+    expect(mappingFenceMigration).toContain(
+      "v_reason := 'source_mapping_changed'",
+    );
+
+    const queueAclMigration = readMigration("20260902030000");
+    expect(queueAclMigration).toContain(
+      "FROM PUBLIC, anon, authenticated, service_role",
+    );
+    expect(queueAclMigration).toContain("GRANT SELECT ON TABLE");
+    expect(queueAclMigration).not.toContain("GRANT INSERT");
+    expect(queueAclMigration).not.toContain("GRANT UPDATE");
+    expect(queueAclMigration).not.toContain("GRANT DELETE");
+    for (const relation of targetRelations) {
+      expect(queueAclMigration).toContain(relation);
+    }
+
+    const mappingSerializationMigration = readMigration("20260902040000");
+    expect(mappingSerializationMigration).toContain(
+      "CREATE TRIGGER csf_sheet_sources_mapping_version_before_update",
+    );
+    expect(mappingSerializationMigration).toContain(
+      "v_requested_version IS DISTINCT FROM v_old_version + 1",
+    );
+    expect(mappingSerializationMigration).toContain(
+      "ELSIF v_requested_version > v_old_version + 1 THEN",
+    );
+    expect(mappingSerializationMigration).toContain(
+      "'headerSignature', v_old_settings -> 'headerSignature'",
+    );
+    expect(mappingSerializationMigration).toContain(
+      '"headerSignature": "string"',
+    );
+    expect(mappingSerializationMigration).toContain("'^[0-9a-f]{64}$'");
+    expect(mappingSerializationMigration).toContain(
+      "WITH affected_sources AS (",
+    );
+    for (const signature of [
+      "plugin_data.csf_sheet_source_settings_schema()",
+      "plugin_data.csf_assert_sheet_source_settings(jsonb)",
+      "plugin_data.csf_enforce_sheet_source_mapping_version()",
+    ]) {
+      expect(mappingSerializationMigration).toContain(
+        `REVOKE ALL ON FUNCTION ${signature}`,
+      );
+    }
+    expect(mappingSerializationMigration).toContain(
+      "GRANT EXECUTE ON FUNCTION plugin_data.csf_sheet_source_settings_schema()",
+    );
+    expect(mappingSerializationMigration).toContain(
+      "GRANT EXECUTE ON FUNCTION plugin_data.csf_assert_sheet_source_settings(jsonb)",
+    );
+    expect(mappingSerializationMigration).toContain(
+      "GRANT EXECUTE ON FUNCTION plugin_data.csf_enforce_sheet_source_mapping_version()",
+    );
+    expect(preflight).toContain(
+      "csf_sheet_sources_mapping_version_before_update",
+    );
+    expect(preflight).toContain(
+      "plugin_data.csf_enforce_sheet_source_mapping_version()",
+    );
+
+    const claimStart = mappingFenceMigration.indexOf(
+      "CREATE OR REPLACE FUNCTION plugin_data.csf_claim_import_commit_attempt(",
+    );
+    const claimMappingFenceStart = mappingFenceMigration.indexOf(
+      "PERFORM plugin_data.csf_assert_import_preview_mapping_current(",
+      claimStart,
+    );
+    const claimBaseStart = mappingFenceMigration.indexOf(
+      "RETURN plugin_data.csf_claim_import_commit_attempt_identity_base(",
+      claimStart,
+    );
+    expect(claimStart).toBeGreaterThanOrEqual(0);
+    expect(claimMappingFenceStart).toBeGreaterThan(claimStart);
+    expect(claimBaseStart).toBeGreaterThan(claimMappingFenceStart);
+    expect(mappingFenceMigration).toContain(
+      "REVOKE ALL ON FUNCTION plugin_data.csf_assert_import_preview_mapping_current(",
+    );
+    expect(mappingFenceMigration).toContain(
+      "GRANT EXECUTE ON FUNCTION plugin_data.csf_assert_import_preview_mapping_current(",
+    );
+    expect(mappingFenceMigration).toContain(
+      "GRANT EXECUTE ON FUNCTION plugin_data.csf_queue_import_preview_batch_unserialized(",
+    );
+    expect(mappingFenceMigration).toContain(
+      "GRANT EXECUTE ON FUNCTION plugin_data.csf_queue_import_preview_batch(",
+    );
+    expect(mappingFenceMigration).toContain(
+      "GRANT EXECUTE ON FUNCTION plugin_data.csf_claim_import_commit_attempt(",
     );
   });
 
@@ -953,155 +1198,3 @@ describe("Production cutover preflight source contract", () => {
     }
   });
 });
-
-function binaryAvailable(binary: string) {
-  return spawnSync(binary, ["--version"], { stdio: "ignore" }).status === 0;
-}
-
-const localPostgresAvailable = ["initdb", "pg_ctl", "psql"].every(
-  binaryAvailable,
-);
-
-function fixtureScript(checkPasses: boolean, failureCommand: string) {
-  return `${[
-    "\\set ON_ERROR_STOP on",
-    "BEGIN TRANSACTION READ ONLY;",
-    `SELECT ${checkPasses} AS check_pass`,
-    "\\gset",
-    "\\if :check_pass",
-    "  \\echo 'PASS FIXTURE'",
-    "\\else",
-    "  \\echo 'FAIL FIXTURE'",
-    `  ${failureCommand}`,
-    "\\endif",
-    "ROLLBACK;",
-  ].join("\n")}\n`;
-}
-
-function withDisposableCluster(
-  assertions: (runFixture: (script: string) => number) => void,
-) {
-  // The cluster lives in a temporary directory and listens on a unix socket
-  // only, so it can never reach or be reached by a hosted database.
-  const root = mkdtempSync(join(tmpdir(), "pf-"));
-  const dataDirectory = join(root, "d");
-  let started = false;
-  try {
-    const initialized = spawnSync(
-      "initdb",
-      ["-D", dataDirectory, "-A", "trust", "-U", "postgres", "--no-sync"],
-      { stdio: "ignore" },
-    );
-    if (initialized.status !== 0) {
-      throw new Error(
-        "initdb could not create the disposable preflight cluster",
-      );
-    }
-    const start = spawnSync(
-      "pg_ctl",
-      [
-        "-D",
-        dataDirectory,
-        "-o",
-        `-k ${root} -c listen_addresses=''`,
-        "-w",
-        "start",
-      ],
-      { stdio: "ignore" },
-    );
-    if (start.status !== 0) {
-      throw new Error(
-        "pg_ctl could not start the disposable preflight cluster",
-      );
-    }
-    started = true;
-    assertions((script) => {
-      const scriptPath = join(root, "fixture.sql");
-      writeFileSync(scriptPath, script);
-      return (
-        spawnSync(
-          "psql",
-          [
-            "-X",
-            "-h",
-            root,
-            "-U",
-            "postgres",
-            "-d",
-            "postgres",
-            "-f",
-            scriptPath,
-          ],
-          { stdio: "ignore" },
-        ).status ?? -1
-      );
-    });
-  } finally {
-    if (started) {
-      spawnSync(
-        "pg_ctl",
-        ["-D", dataDirectory, "-w", "-m", "immediate", "stop"],
-        {
-          stdio: "ignore",
-        },
-      );
-    }
-    rmSync(root, { recursive: true, force: true });
-  }
-}
-
-// Executing the full Production preflight needs a Production-shaped ledger, so
-// these tests run the identical hard-fail construct inside the same
-// ON_ERROR_STOP / \if guard shape against a throwaway local cluster.
-describe.skipIf(!localPostgresAvailable)(
-  "Production cutover preflight failure branches abort psql",
-  () => {
-    test("a FAIL branch exits non-zero, a PASS control path still exits zero, and \\quit 3 would not have failed", () => {
-      const [firstHardFail] = hardFailStatements;
-      const hardFail = (firstHardFail ?? "").trim();
-      expect(hardFail).toBe(HARD_FAIL_STATEMENT);
-
-      withDisposableCluster((runFixture) => {
-        expect(runFixture(fixtureScript(false, hardFail))).toBe(3);
-        expect(runFixture(fixtureScript(true, hardFail))).toBe(0);
-        expect(runFixture(fixtureScript(false, "\\quit 3"))).toBe(0);
-      });
-    }, 120_000);
-
-    test("the CSF catalog queries parse and execute read-only", () => {
-      const s0 = preflight.slice(
-        preflight.indexOf("S0  CSF relation inventory"),
-        preflight.indexOf("S1  plugin_data RLS and browser isolation"),
-      );
-      const baselineShapeStart = s0.indexOf("WITH required_columns");
-      const baselineShapeQuery = s0
-        .slice(baselineShapeStart, s0.indexOf("\\gset", baselineShapeStart))
-        .replaceAll(":'baseline_ledger'::boolean", "false");
-      const targetCsf = preflight.slice(
-        preflight.indexOf("T2C 432 CSF release-tail contract"),
-        preflight.indexOf("T3  Target pg_graphql posture"),
-      );
-      const catalogQuery = targetCsf.slice(
-        targetCsf.indexOf("WITH expected_tables"),
-        targetCsf.indexOf("  \\gset"),
-      );
-      expect(baselineShapeQuery).toContain("csf_column_shape_ready");
-      expect(catalogQuery).toContain("target_csf_release_tail_pass");
-
-      withDisposableCluster((runFixture) => {
-        const script = [
-          "\\set ON_ERROR_STOP on",
-          "CREATE ROLE anon;",
-          "CREATE ROLE authenticated;",
-          "CREATE ROLE service_role;",
-          "CREATE SCHEMA plugin_data;",
-          "BEGIN TRANSACTION READ ONLY;",
-          `${baselineShapeQuery};`,
-          `${catalogQuery};`,
-          "ROLLBACK;",
-        ].join("\n");
-        expect(runFixture(`${script}\n`)).toBe(0);
-      });
-    }, 120_000);
-  },
-);

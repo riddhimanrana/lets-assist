@@ -126,7 +126,7 @@ jobs:
           ' <<<"${source_jobs}")"
           write_block_conclusion="$(jq -r '
             [.jobs[]? | select(.name == "Deploy to Production") | .steps[]?
-              | select(.name == "Block Production application writes")]
+              | select(.name == "Reassert Production application write block")]
             | if length == 1 then (.[0].conclusion // "unknown") else "unknown" end
           ' <<<"${source_jobs}")"
           write_open_conclusion="$(jq -r '
@@ -278,6 +278,9 @@ jobs:
               and .runAttempt == $run_attempt
               and .runId == $run_id
               and .sha == $sha
+              and .applicationWritesBlockedConfirmation == ("application-writes-blocked:" + $sha)
+              and .externalWritersConfirmation == ("external-writers-stopped:" + $sha)
+              and (.recoveryCaptureSha256 | test("^[0-9a-f]{64}$"))
               and .supabaseProjectId == $supabase_project_id
               and .vercelProjectId == $vercel_project_id
               and .vercelTeamId == $vercel_team_id
@@ -442,10 +445,17 @@ jobs:
 
           request_maintenance_operation() {
             local operation="$1"
+            local operation_exit
+            set +e
             timeout 60s bunx vercel@59.3.0 "${operation}" "${MAINTENANCE_DEPLOYMENT_URL}" \
               --yes \
               --timeout=0s \
               --token="${VERCEL_TOKEN}"
+            operation_exit="$?"
+            set -e
+            if [[ "${operation_exit}" -ne 0 ]]; then
+              echo "Vercel ${operation} returned ${operation_exit}; the exact alias operation and maintenance postcondition will determine recovery." >&2
+            fi
             wait_for_exact_operation "${operation}" "${MAINTENANCE_DEPLOYMENT_ID}"
           }
 

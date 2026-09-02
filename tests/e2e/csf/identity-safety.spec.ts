@@ -383,6 +383,55 @@ test.describe("CSF identity safety", () => {
     if (fixture) await cleanIdentityFixture(fixture);
   });
 
+  test("member search submits from typing, the button, Enter, and clear", async ({
+    page,
+  }) => {
+    const failures = watchBrowserFailures(page);
+    await loginAs(page, "admin");
+    await openMembersTab(page);
+
+    const debouncedQuery = `Halloway-${fixture.suffix}`;
+    await page.getByLabel("Search members").fill(debouncedQuery);
+    await expect(page).toHaveURL(
+      (url) => url.searchParams.get("csf_member_q") === debouncedQuery,
+    );
+    await expect(
+      page.getByText(fixture.mergeSourceName, { exact: false }).first(),
+    ).toBeVisible();
+
+    await page
+      .getByRole("button", { name: "Clear filters", exact: true })
+      .click();
+    await expect(page).toHaveURL(
+      (url) => !url.searchParams.has("csf_member_q"),
+    );
+    await expect(page.getByLabel("Search members")).toHaveValue("");
+
+    const buttonQuery = `Vale-${fixture.suffix}`;
+    await page.getByLabel("Search members").fill(buttonQuery);
+    await page.getByRole("button", { name: "Search", exact: true }).click();
+    await expect(page).toHaveURL(
+      (url) => url.searchParams.get("csf_member_q") === buttonQuery,
+    );
+    await expect(
+      page.getByText(fixture.validMergeSourceName, { exact: false }).first(),
+    ).toBeVisible();
+
+    const enterQuery = `Halloway-${fixture.suffix}`;
+    const enterSearch = page.getByLabel("Search members");
+    await enterSearch.fill(enterQuery);
+    await enterSearch.press("Enter");
+    await expect(page).toHaveURL(
+      (url) => url.searchParams.get("csf_member_q") === enterQuery,
+    );
+
+    await page.getByLabel("Search members").fill("");
+    await expect(page).toHaveURL(
+      (url) => !url.searchParams.has("csf_member_q"),
+    );
+    expectNoBrowserFailures(failures);
+  });
+
   test("a merge with conflicting identity evidence is previewed and refused", async ({
     page,
   }) => {
@@ -391,8 +440,13 @@ test.describe("CSF identity safety", () => {
     await openMembersTab(page);
 
     const search = page.getByLabel("Search members");
-    await search.fill(`Halloway-${fixture.suffix}`);
-    await search.press("Enter");
+    const mergeQuery = `Halloway-${fixture.suffix}`;
+    await search.fill(mergeQuery);
+    // The fixture row can already be present on the first page. Wait for the
+    // debounced search navigation before opening a dialog that it would replace.
+    await expect(page).toHaveURL(
+      (url) => url.searchParams.get("csf_member_q") === mergeQuery,
+    );
     await expect(
       page.getByText(fixture.mergeSourceName, { exact: false }).first(),
     ).toBeVisible();
@@ -626,7 +680,10 @@ test.describe("CSF identity safety", () => {
     await expect(page).toHaveURL(/[?&]csf_cohort_tab=members(?:&|$)/);
 
     const connections = page.locator("section").filter({
-      has: page.getByRole("heading", { name: "Needs attention", exact: true }),
+      has: page.getByRole("heading", {
+        name: "Record connections",
+        exact: true,
+      }),
     });
     await expect(connections).toBeVisible();
     await expect(

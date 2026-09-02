@@ -151,8 +151,8 @@ Before publishing a code, open its `/connect/<code>` URL in a signed-out or
 private browser window and confirm it renders the student's first screen. An
 officer's signed-in session is not the student onboarding journey; never
 complete a connection on a student's behalf. A mistyped, disabled, or replaced
-code renders **That class code didn’t work** with instructions to ask an
-officer for the current code.
+code renders **That class code didn’t work** with instructions to check all six
+characters and try again.
 
 ## What the student does
 
@@ -168,8 +168,12 @@ officer for the current code.
 3. After sign-in, one active record in the code's class carrying the verified
    account email connects with recorded history. If email does not match, the
    page may show **Is this you?** with one record whose name exactly matches the
-   account. Select **Yes, link this record** only when the card is yours. Select
-   **No, change the name** when it is not.
+   account. Select **Yes, this is me** to send that record for officer review.
+   Select **No, search again** when it is not yours. A name match never links
+   the account by itself. A saved request changes to **Your record is awaiting
+   review** and offers **Go to class feed** while an officer checks the match.
+   An exact verified-email connection shows **Your CSF record is linked** and
+   offers **Go to My CSF**.
 4. If no passive match appears, open **Find your CSF record**, enter the
    requested **Student name**, and select **Find my record**. A typed name never
    creates or links a profile. The server creates or reuses one officer request
@@ -200,7 +204,7 @@ make a match.
 1. Open **Classes**, choose the class, then **Members**. Requests wait under
    **Record connections**, one bounded page at a time, paged with **First page**
    and **Next**.
-2. Select **Resolve** on the request, or **Review in Resolve** on one of its
+2. Select **Review** on the request, or **Review in Resolve** on one of its
    ranked suggestions. The dialog is titled **Review account connection**.
    Everything under **Suggestions · advisory only** is a discovery aid: a
    suggestion badged **Canonical evidence ready** still has to be checked, and
@@ -280,9 +284,9 @@ Grant the replacement seat first, confirm it is effective today — a future
 
 ## Import the reviewed Fall 2026 starting records
 
-Import the approved Class of 2027, Class of 2028, and Class of 2029 workbooks
-as **Historical records**, one class at a time. After selecting a workbook, run
-semester-tab discovery. Review every populated canonical semester tab that
+Link the approved Class of 2027, Class of 2028, Class of 2029, and Class of 2030
+workbooks, one class at a time. Treat populated tabs as **Historical records**.
+After selecting a workbook, run semester-tab discovery. Review every populated canonical semester tab that
 discovery returns, confirm its inferred semester and bounded range, and give
 each tab its own immutable preview before commit. Do not assume `S26` is the
 only historical tab. A populated canonical tab is a blocker when its semester
@@ -290,8 +294,10 @@ has not been configured for that class; configure the missing semester, then
 inspect and preview again. Header-only or template tabs are not import targets.
 
 Class of 2026 is out of scope. Do not select, preview, reconcile, or import its
-rows. Skip the template-only Class of 2030 workbook; create Class of 2030
-student records through the new application cycle sequence below instead. Do
+rows. Link the template-only Class of 2030 workbook, but do not preview or
+commit any header-only tab. Those tabs create no profiles, points, meetings,
+attendance, or applications. Create Class of 2030 student records through the
+new application cycle sequence below until reviewed workbook data exists. Do
 not use the Spring 2026 application response workbook as a Fall 2026 roster
 seed.
 
@@ -414,15 +420,16 @@ The historical exact-name comparison currently produces:
 | 2029            |                2 |                0 |            88 |
 
 These differences require historical reconciliation, not automatic identity
-resolution. Class of 2026 remains out of scope, and the Class of 2030 template
-remains unimported.
+resolution. Class of 2026 remains out of scope. The Class of 2030 workbook
+remains linked, with its header-only tabs uncommitted.
 
 ## Create and resolve Class of 2030 from the new application cycle
 
 An application response never creates a student profile, and an application
 decision never creates one. The central application import refuses a row with
-no reviewed profile target. Never select, preview, or import the Class of 2030
-workbook. Use the current application form and this sequence:
+no reviewed profile target. Keep the Class of 2030 workbook linked. Its current
+header-only tabs create no import previews or records. Use the current
+application form and this sequence:
 
 1. Record the reviewed new application form URL in the current term's
    **Application form link** (**Term actions → Edit term**); the public class
@@ -643,14 +650,15 @@ Development result is not Production readiness. Do not copy a Development
 fixture, class join code, import preview, or policy decision into Production,
 and do not treat a Development screenshot as Production evidence.
 
-The current repository candidate has 432 migrations through
-`20260901230000_csf_import_queue_tenant_integrity`. Hosted Development has
-430 through `20260901103347_csf_member_snapshot_scope_hardening`, so two
-candidate migrations remain unapplied. The Development alias still serves
+The current repository candidate has 438 migrations through
+`20260902060000_csf_import_row_batch_error_boundary`. Hosted
+Development has 430 through
+`20260901103347_csf_member_snapshot_scope_hardening`, so eight candidate
+migrations remain unapplied. The Development alias still serves
 root `f49227cb3711043bf0db701e6ca6ed7415c96580` until the one marked release
 deployment runs. Production was verified read-only on 2026-09-01 at 414
 migrations through `20260829092823_publish_dvhs_csf_1_2_24`, an exact prefix
-of this tree with 18 migrations pending.
+of this tree with 24 migrations pending.
 
 ## Historical Development rehearsal snapshot
 

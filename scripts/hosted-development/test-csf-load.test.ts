@@ -36,6 +36,7 @@ describe("hosted CSF load acceptance", () => {
     expect(source).toContain("const RAMP_DURATION_MS = 60_000");
     expect(source).toContain("const BROWSER_WARMUP_SAMPLES = 5");
     expect(source).toContain("const BROWSER_MEASURED_SAMPLES = 30");
+    expect(source).toContain("const BROWSER_REVIEW_NAVIGATIONS = 25");
     expect(source).toContain("const BROWSER_PAGE_SETTLE_MS = 3_000");
     expect(source).toContain("const SESSION_MINT_INTERVAL_MS = 10_500");
     expect(source).toContain("const SESSION_MINT_RETRY_LIMIT = 36");
@@ -53,7 +54,18 @@ describe("hosted CSF load acceptance", () => {
     expect(source).toContain("error?.status !== 429");
     expect(source).toContain("SESSION_MINT_RETRY_MS");
     expect(source).toContain("payload.session_id");
-    expect(source).toContain("distinctSessionIds.size !== count");
+    expect(source).toContain("payload.sub");
+    expect(source).toContain("distinctSessionIds.size !== accounts.length");
+    expect(source).toContain("distinctUserIds.size !== accounts.length");
+    expect(source).toContain(
+      'requiredFictionalAccountPool(\n    "CSF_HOSTED_LOAD_MEMBER_ACCOUNTS_JSON",',
+    );
+    expect(source).toContain(
+      'requiredFictionalAccountPool(\n    "CSF_HOSTED_LOAD_OFFICER_ACCOUNTS_JSON",',
+    );
+    expect(source).toContain(
+      "result.distinctAuthIdentities === MEMBER_SESSIONS + OFFICER_SESSIONS",
+    );
     expect(source).toContain(
       "result.distinctAuthSessions === MEMBER_SESSIONS + OFFICER_SESSIONS",
     );
@@ -75,6 +87,7 @@ describe("hosted CSF load acceptance", () => {
       "result.clsSampleCount === BROWSER_MEASURED_SAMPLES",
       "result.clsP75 < 0.1",
       "result.rendererCrashes === 0",
+      "result.reviewNavigationCount === BROWSER_REVIEW_NAVIGATIONS",
       "result.retainedHeapGrowth <= 0.2",
     ]) {
       expect(source).toContain(contract);
@@ -95,8 +108,12 @@ describe("hosted CSF load acceptance", () => {
     expect(source).toContain("waitForTimeout(BROWSER_PAGE_SETTLE_MS)");
     expect(source).not.toContain("waitForTimeout(750)");
     expect(source).not.toContain('page.keyboard.press("Tab")');
+    expect(source).toContain("const inpSupported =");
     expect(source).toContain(
-      "window.__csfLoadVitals = { cls: 0, inp: null, lcp: null }",
+      'PerformanceObserver.supportedEntryTypes.includes("event")',
+    );
+    expect(source).toContain(
+      "window.__csfLoadVitals = { cls: 0, inp: null, inpSupported, lcp: null }",
     );
     expect(source).toContain("if (vitals.lcp !== null) lcp.push(vitals.lcp)");
     expect(source).toContain("if (index >= BROWSER_WARMUP_SAMPLES)");
@@ -112,10 +129,18 @@ describe("hosted CSF load acceptance", () => {
     expect(source).toContain(
       "requestAnimationFrame(() => requestAnimationFrame(resolve))",
     );
-    expect(source).toContain("window.__csfLoadVitals.inp ?? 16");
-    expect(source).toContain("inp.push(interactionInp)");
+    expect(source).toContain("BROWSER_INP_SAMPLE_TIMEOUT_MS");
+    expect(source).toContain("window.__csfLoadVitals.inp !== null");
+    expect(source).toContain("window.__csfLoadVitals.inpSupported === false");
+    expect(source).toContain("if (interactionVitals.inp !== null)");
+    expect(source).toContain("inp.push(interactionVitals.inp)");
+    expect(source).toContain("inpSupported: browserResult.inpSupported");
+    expect(source).toContain("result.inpSupported === true");
+    expect(source).not.toContain("window.__csfLoadVitals.inp ?? 16");
     const officerTourIndex = source.indexOf("const officerTour =");
-    const interactionSampleIndex = source.indexOf("inp.push(interactionInp)");
+    const interactionSampleIndex = source.indexOf(
+      "inp.push(interactionVitals.inp)",
+    );
     const viewSwitchIndex = source.indexOf("const switchButton =");
     expect(officerTourIndex).toBeGreaterThan(-1);
     expect(interactionSampleIndex).toBeGreaterThan(officerTourIndex);
@@ -138,6 +163,23 @@ describe("hosted CSF load acceptance", () => {
     expect(source).not.toContain("actionResponse");
     expect(source).toContain("baselineHeapBytes: browserResult.baselineHeap");
     expect(source).toContain("finalHeapBytes: browserResult.finalHeap");
+    expect(source).toContain("selectedReviewDigest");
+    expect(source).toContain('page.on("console"');
+    expect(source).toContain('page.on("requestfailed"');
+    expect(source).toContain('page.on("response"');
+    expect(source).toContain('browserFailures.push("console_error")');
+    expect(source).toContain('browserFailures.push("request_failed")');
+    expect(source).toContain('browserFailures.push("http_5xx")');
+    expect(source).toContain('name: "Next subject"');
+    expect(source).toContain('name: "Previous subject"');
+    expect(source).toContain(
+      "for (let index = 0; index < BROWSER_REVIEW_NAVIGATIONS; index += 1)",
+    );
+    expect(source).toContain("reviewDigest === previousDigest");
+    expect(source).toContain("index === 1");
+    expect(source).toContain(
+      "reviewNavigationCount: BROWSER_REVIEW_NAVIGATIONS",
+    );
     expect(source).toContain("VERCEL_AUTOMATION_BYPASS_SECRET?.trim()");
     expect(source).toContain("VERCEL_TRUSTED_OIDC_TOKEN?.trim()");
     expect(source).toContain("ACTIONS_ID_TOKEN_REQUEST_URL?.trim()");
@@ -207,12 +249,10 @@ describe("hosted CSF load acceptance", () => {
   });
 
   test("uses only known fictional accounts and emits count-only output", () => {
-    expect(source).toContain(
-      'const MEMBER_ACCOUNT = "student.2028@local.test"',
-    );
-    expect(source).toContain(
-      'const OFFICER_ACCOUNT = "csf.officer@local.test"',
-    );
+    expect(source).toContain("/^[^\\s@]+@[^\\s@]+\\.local\\.test$/u");
+    expect(source).toContain("new Set(accounts).size !== accounts.length");
+    expect(workflow).toContain("secrets.CSF_HOSTED_LOAD_MEMBER_ACCOUNTS_JSON");
+    expect(workflow).toContain("secrets.CSF_HOSTED_LOAD_OFFICER_ACCOUNTS_JSON");
     expect(source).toContain("fictionalAccounts: true");
     expect(source).not.toContain("console.log(account)");
     expect(source).not.toContain("console.log(password)");

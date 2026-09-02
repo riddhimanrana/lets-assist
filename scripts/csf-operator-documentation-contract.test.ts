@@ -113,6 +113,7 @@ const MEMBER_AND_ACCESS: LabelContract[] = [
       "Record connections",
       "Review accounts waiting to connect to a student record in this class.",
       "First page",
+      "Review",
     ],
   },
   {
@@ -368,11 +369,20 @@ const STUDENT_JOURNEY: LabelContract[] = [
       "New to CSF?",
       "Sign in to continue",
       "Is this you?",
-      "Yes, link this record",
-      "No, change the name",
+      "Yes, this is me",
+      "No, search again",
       "Find your CSF record",
       "Student name",
       "Find my record",
+    ],
+  },
+  {
+    component: "CsfConnectedRecordPanel.tsx",
+    labels: [
+      "Your record is awaiting review",
+      "Go to class feed",
+      "Your CSF record is linked",
+      "Go to My CSF",
     ],
   },
 ];
@@ -457,8 +467,8 @@ describe("CSF operator documentation truthfulness guards", () => {
       "New to CSF?",
       "Sign in to continue",
       "Is this you?",
-      'idleLabel="Yes, link this record"',
-      'triggerLabel="No, change the name"',
+      'idleLabel="Yes, this is me"',
+      'triggerLabel="No, search again"',
       "Find your CSF record",
       'idleLabel="Find my record"',
     ]) {
@@ -474,7 +484,7 @@ describe("CSF operator documentation truthfulness guards", () => {
 
     // The guide walks the one path in operating order: share the code, the
     // student joins at /connect/<code>, unresolved joins land in the per-class
-    // Needs attention queue, and Resolve gates Connect on canonical evidence.
+    // Record connections queue, and Review gates Connect on canonical evidence.
     const codePath = between(
       operatorGuide,
       "## Share the class join code",
@@ -488,10 +498,10 @@ describe("CSF operator documentation truthfulness guards", () => {
       "`/connect/<code>`",
       "**Join code**",
       "**Is this you?**",
-      "**Yes, link this record**",
+      "**Yes, this is me**",
       "**Find my record**",
       "**Record connections**",
-      "**Resolve**",
+      "**Review**",
       "**Connect account**",
       "**Reject request**",
     ]);

@@ -23,7 +23,7 @@ import {
  * submits the join form; `csf_join_class_by_code` matches on the account's
  * verified email only. One exact in-class match auto-connects; conflicting or
  * ambiguous email evidence lands as `needs_review` in that class's Members
- * tab "Needs attention" queue, where an officer resolves it.
+ * tab "Record connections" queue, where an officer resolves it.
  */
 
 const classJoinCode = "HAWK28";
@@ -41,6 +41,7 @@ const cohortMembersPath = (cohortId: string) =>
 
 type JoinFixture = {
   admin: SupabaseClient;
+  accountName: { first: string; full: string; last: string };
   organizationId: string;
   cohortId: string;
   retirementTargetProfileId: string;
@@ -78,6 +79,19 @@ async function loadJoinFixture(): Promise<JoinFixture> {
   );
   if (!user) throw new Error("The local outsider auth fixture is missing.");
 
+  const { data: accountProfile, error: accountProfileError } = await admin
+    .from("profiles")
+    .select("full_name")
+    .eq("id", user.id)
+    .single();
+  const fullName = String(accountProfile?.full_name ?? "").trim();
+  const accountNameParts = fullName.split(/\s+/u).filter(Boolean);
+  if (accountProfileError || accountNameParts.length < 2) {
+    throw new Error(
+      `Could not load the outsider account name: ${accountProfileError?.message ?? "missing fixture"}`,
+    );
+  }
+
   const { data: cohort, error: cohortError } = await admin
     .schema("plugin_data")
     .from("csf_cohorts")
@@ -106,11 +120,56 @@ async function loadJoinFixture(): Promise<JoinFixture> {
 
   return {
     admin,
+    accountName: {
+      first: accountNameParts[0],
+      full: fullName,
+      last: accountNameParts[accountNameParts.length - 1],
+    },
     organizationId: organization.id,
     cohortId: cohort.id,
     retirementTargetProfileId: retirementTarget.id,
     userId: user.id,
   };
+}
+
+async function seedProfileWithoutEmail(
+  fixture: JoinFixture,
+  names: { first: string; last: string },
+) {
+  const plugin = fixture.admin.schema("plugin_data");
+  const profileId = randomUUID();
+
+  const { error: profileError } = await plugin.from("csf_profiles").insert({
+    id: profileId,
+    organization_id: fixture.organizationId,
+    first_name: names.first,
+    last_name: names.last,
+    preferred_name: names.first,
+    normalized_first_name: names.first.trim().toLowerCase(),
+    normalized_last_name: names.last.trim().toLowerCase(),
+    source_summary: { e2eFixture: true },
+  });
+  if (profileError) {
+    throw new Error(
+      `Could not seed the no-email join profile: ${profileError.message}`,
+    );
+  }
+
+  const { error: cohortMembershipError } = await plugin
+    .from("csf_profile_cohort_memberships")
+    .insert({
+      organization_id: fixture.organizationId,
+      profile_id: profileId,
+      cohort_id: fixture.cohortId,
+      status: "active",
+    });
+  if (cohortMembershipError) {
+    throw new Error(
+      `Could not seed the no-email cohort membership: ${cohortMembershipError.message}`,
+    );
+  }
+
+  return profileId;
 }
 
 async function cleanJoinFixture(fixture: JoinFixture) {
@@ -138,14 +197,12 @@ async function cleanJoinFixture(fixture: JoinFixture) {
     );
   }
 
+  // The outsider and every account link created here belong only to this
+  // disposable isolated fixture. Remove those links so a second local run
+  // starts clean instead of exercising the production revoked-link guard.
   const { error: accountError } = await plugin
     .from("csf_profile_accounts")
-    .update({
-      status: "revoked",
-      is_primary: false,
-      revoked_at: new Date().toISOString(),
-      notes: "Retired synthetic browser class-code join fixture.",
-    })
+    .delete()
     .eq("organization_id", fixture.organizationId)
     .eq("user_id", fixture.userId);
   if (accountError)
@@ -261,7 +318,7 @@ test.describe("class join code connections", () => {
     await loginAs(page, "outsider", connectPath);
 
     await expect(
-      page.getByRole("heading", { name: "Find your CSF profile" }),
+      page.getByRole("heading", { name: "Find your CSF record" }),
     ).toBeVisible();
     await expect(
       page.getByRole("button", { name: "Find my record", exact: true }),
@@ -301,7 +358,7 @@ test.describe("class join code connections", () => {
             fixture.admin
               .schema("plugin_data")
               .from("csf_profile_link_requests")
-              .select("match_status,matched_profile_id")
+              .select("match_status,matched_profile_id,candidate_profile_ids")
               .eq("organization_id", fixture.organizationId)
               .eq("user_id", fixture.userId)
               .order("created_at", { ascending: false })
@@ -322,14 +379,106 @@ test.describe("class join code connections", () => {
     // The re-rendered page reports the connected record instead of the form.
     await page.reload({ waitUntil: "domcontentloaded" });
     await expect(
-      page.getByRole("main").getByText("Taylor Fixture", { exact: true }),
+      page
+        .getByRole("main")
+        .getByText("Taylor Fixture's record is ready in My CSF.", {
+          exact: true,
+        }),
     ).toBeVisible();
     await expect(
-      page.getByRole("button", { name: "Yes, this is me" }),
+      page.getByRole("button", { name: "Go to My CSF" }),
     ).toBeVisible();
     await expect(
       page.getByRole("button", { name: "Find my record", exact: true }),
     ).toHaveCount(0);
+
+    expectNoBrowserFailures(failures);
+  });
+
+  test("a sole exact-name record without email creates one officer review request", async ({
+    page,
+  }) => {
+    await cleanJoinFixture(fixture);
+    const noEmailProfileId = await seedProfileWithoutEmail(
+      fixture,
+      fixture.accountName,
+    );
+
+    const failures = watchBrowserFailures(page);
+    await loginAs(page, "outsider", connectPath);
+
+    await expect(
+      page.getByRole("heading", { name: "Is this you?", exact: true }),
+    ).toBeVisible();
+    await expect(
+      page.getByText(fixture.accountName.full, { exact: true }),
+    ).toBeVisible();
+    await expect(
+      page.getByText("Class of 2028", { exact: true }),
+    ).toBeVisible();
+
+    await page
+      .getByRole("button", { name: "Yes, this is me", exact: true })
+      .click();
+    await expect(
+      page.getByText(/Your request is saved\./u).first(),
+    ).toBeVisible();
+
+    await expect
+      .poll(async () => {
+        const [{ data: member }, { data: account }, { data: request }] =
+          await Promise.all([
+            fixture.admin
+              .from("organization_members")
+              .select("role,status")
+              .eq("organization_id", fixture.organizationId)
+              .eq("user_id", fixture.userId)
+              .maybeSingle(),
+            fixture.admin
+              .schema("plugin_data")
+              .from("csf_profile_accounts")
+              .select("status,is_primary")
+              .eq("organization_id", fixture.organizationId)
+              .eq("profile_id", noEmailProfileId)
+              .eq("user_id", fixture.userId)
+              .maybeSingle(),
+            fixture.admin
+              .schema("plugin_data")
+              .from("csf_profile_link_requests")
+              .select("match_status,matched_profile_id")
+              .eq("organization_id", fixture.organizationId)
+              .eq("user_id", fixture.userId)
+              .order("created_at", { ascending: false })
+              .limit(1)
+              .maybeSingle(),
+          ]);
+        return { account, member, request };
+      })
+      .toEqual({
+        account: null,
+        member: null,
+        request: {
+          candidate_profile_ids: [noEmailProfileId],
+          match_status: "needs_review",
+          matched_profile_id: noEmailProfileId,
+        },
+      });
+
+    await page.reload({ waitUntil: "domcontentloaded" });
+    await expect(
+      page.getByRole("heading", {
+        name: "Your record is awaiting review",
+        exact: true,
+      }),
+    ).toBeVisible();
+    await expect(
+      page.getByText(
+        "Your request is saved. You can use the class feed while a CSF officer checks the match.",
+        { exact: true },
+      ),
+    ).toBeVisible();
+    await page.getByRole("link", { name: "Go to class feed" }).click();
+    await expect(page).toHaveURL(/[?&]tab=classes(?:&|$)/u);
 
     expectNoBrowserFailures(failures);
   });
@@ -354,7 +503,7 @@ test.describe("class join code connections", () => {
     const failures = watchBrowserFailures(page);
     await loginAs(page, "outsider", connectPath);
     await expect(
-      page.getByRole("heading", { name: "Find your CSF profile" }),
+      page.getByRole("heading", { name: "Find your CSF record" }),
     ).toBeVisible();
 
     await submitJoinForm(page, { first: "Rowan", last: reviewLastName });
@@ -411,15 +560,20 @@ test.describe("class join code connections", () => {
     await loginAs(page, "admin", cohortMembersPath(fixture.cohortId));
 
     const reviewQueue = page.locator("section").filter({
-      has: page.getByRole("heading", { name: "Needs attention", exact: true }),
+      has: page.getByRole("heading", {
+        name: "Record connections",
+        exact: true,
+      }),
     });
     await expect(reviewQueue).toBeVisible();
     await expect(
-      reviewQueue.getByText("Class-code joins waiting for an officer decision"),
+      reviewQueue.getByText(
+        "Review accounts waiting to connect to a student record in this class.",
+      ),
     ).toBeVisible();
 
     const resolveButton = reviewQueue.getByRole("button", {
-      name: "Resolve",
+      name: "Review",
       exact: true,
     });
     await expect(resolveButton).toBeVisible();
@@ -508,13 +662,10 @@ test.describe("signed-out CSF connection states", () => {
       page.getByRole("button", { name: /Find my record/ }),
     ).toHaveCount(0);
     await expect(
-      page.getByRole("button", { name: /Find my record/ }),
+      page.getByRole("button", { name: /Yes, this is me/ }),
     ).toHaveCount(0);
     await expect(
-      page.getByRole("button", { name: /Use this profile/ }),
-    ).toHaveCount(0);
-    await expect(
-      page.getByRole("button", { name: /Sign in and continue/ }),
+      page.getByRole("heading", { name: "Sign in to continue" }),
     ).toHaveCount(0);
 
     const returnLink = await soleAccessibleAction(page, "Back to the CSF page");
@@ -541,11 +692,10 @@ test.describe("signed-out CSF connection states", () => {
     await page.goto(unusableConnectPath, { waitUntil: "domcontentloaded" });
 
     await expect(
-      page.getByRole("heading", { name: "That class code did not work" }),
+      page.getByRole("heading", { name: "That class code didn’t work" }),
     ).toBeVisible();
     const body = await page.locator("body").innerText();
-    expect(body).toContain("Check the six characters");
-    expect(body).toContain("ask an officer");
+    expect(body).toContain("Check all six characters and try again.");
     expectNoPrivateBoundaryMarkers(body);
 
     // No join form, and no sign-in tied to the unusable code.
@@ -577,18 +727,16 @@ test.describe("signed-out CSF connection states", () => {
     await page.goto(connectPath, { waitUntil: "domcontentloaded" });
 
     await expect(
-      page.getByRole("heading", { name: "Find your CSF profile" }),
+      page.getByRole("heading", { name: "Sign in to continue" }),
     ).toBeVisible();
     const body = await page.locator("body").innerText();
-    // Safe class context only: the lasting class, and the reminder that
-    // semester participation is approved separately.
+    // Safe class context only: the lasting class selected by the code.
     expect(body).toContain("Class of 2028");
-    expect(body).toContain("Approved per semester");
     expectNoPrivateBoundaryMarkers(body);
     // The code itself is never rendered back to the visitor.
     expect(body).not.toContain(classJoinCode);
 
-    const signIn = await soleAccessibleAction(page, "Sign in and continue");
+    const signIn = await soleAccessibleAction(page, "Sign in");
     await expect(signIn).toHaveAttribute(
       "href",
       `/login?redirect=${encodeURIComponent(connectPath)}`,
@@ -601,7 +749,7 @@ test.describe("signed-out CSF connection states", () => {
       page.getByRole("button", { name: /Find my record/ }),
     ).toHaveCount(0);
     await expect(
-      page.getByRole("button", { name: /Use this profile/ }),
+      page.getByRole("button", { name: /Yes, this is me/ }),
     ).toHaveCount(0);
 
     expectNoBrowserFailures(failures);

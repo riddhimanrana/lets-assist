@@ -135,7 +135,7 @@ test.describe("DVHS CSF public privacy boundary", () => {
       { waitUntil: "domcontentloaded" },
     );
     await expect(
-      page.getByRole("heading", { name: "Find your CSF profile" }),
+      page.getByRole("heading", { name: "Sign in to continue" }),
     ).toBeVisible();
     expect(await page.locator("body").innerText()).not.toContain("HAWK28");
   });

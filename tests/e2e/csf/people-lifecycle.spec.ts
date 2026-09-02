@@ -424,19 +424,19 @@ test.describe("CSF visible people lifecycle", () => {
     // page reload picks up the request row seeded above.
     await page.reload({ waitUntil: "domcontentloaded" });
     const connections = page.locator("section").filter({
-      has: page.getByRole("heading", { name: "Needs attention", exact: true }),
+      has: page.getByRole("heading", {
+        name: "Record connections",
+        exact: true,
+      }),
     });
     await expect(connections).toBeVisible();
     const fixtureRequestCard = connections
-      .getByText(
-        `Submitted school address ${fixture.profileEmail} · Account confirmation is checked in Resolve`,
-        { exact: true },
-      )
+      .getByText(`School address: ${fixture.profileEmail}`, { exact: true })
       .locator("..")
       .locator("..");
     await expect(fixtureRequestCard).toHaveCount(1);
     await fixtureRequestCard
-      .getByRole("button", { name: "Resolve", exact: true })
+      .getByRole("button", { name: "Review", exact: true })
       .click();
     const resolveDialog = page.getByRole("dialog", {
       name: "Review account connection",
@@ -514,8 +514,7 @@ test.describe("CSF visible people lifecycle", () => {
     await expect(connections).toHaveCount(0);
     const directorySearch = page.getByLabel("Search members");
     await directorySearch.fill(fixture.profileEmail);
-    // The simplified filter bar has no Apply button; Enter submits the GET
-    // form the same way the removed button did.
+    // Enter submits the same URL-backed GET form as the visible Search button.
     await directorySearch.press("Enter");
     if (!fixture.profileId) {
       throw new Error("The connected CSF profile id is missing.");

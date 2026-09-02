@@ -2,7 +2,7 @@ BEGIN;
 
 CREATE EXTENSION IF NOT EXISTS pgtap WITH SCHEMA extensions;
 
-SELECT extensions.plan(7);
+SELECT extensions.plan(8);
 
 SELECT extensions.ok(
   NOT has_function_privilege(
@@ -48,14 +48,14 @@ INSERT INTO plugin_data.csf_cohorts (
   ('ce300000-0000-4000-8000-000000000002', 'ce100000-0000-4000-8000-000000000002', 2031, 'Class of 2031');
 
 INSERT INTO plugin_data.csf_profiles (
-  id, organization_id, first_name, last_name,
+  id, organization_id, first_name, middle_name, last_name,
   normalized_first_name, normalized_last_name,
   school_email, normalized_school_email
 ) VALUES
-  ('ce400000-0000-4000-8000-000000000001', 'ce100000-0000-4000-8000-000000000001', 'Current', 'Member', 'current', 'member', 'current@students.local.test', 'current@students.local.test'),
-  ('ce400000-0000-4000-8000-000000000002', 'ce100000-0000-4000-8000-000000000001', 'Historical', 'Member', 'historical', 'member', 'historical@students.local.test', 'historical@students.local.test'),
-  ('ce400000-0000-4000-8000-000000000003', 'ce100000-0000-4000-8000-000000000001', 'Stable', 'Only', 'stable', 'only', 'stable@students.local.test', 'stable@students.local.test'),
-  ('ce400000-0000-4000-8000-000000000004', 'ce100000-0000-4000-8000-000000000002', 'Other', 'Tenant', 'other', 'tenant', 'other@students.local.test', 'other@students.local.test');
+  ('ce400000-0000-4000-8000-000000000001', 'ce100000-0000-4000-8000-000000000001', 'Current', 'Display', 'Member', 'current', 'member', 'current@students.local.test', 'current@students.local.test'),
+  ('ce400000-0000-4000-8000-000000000002', 'ce100000-0000-4000-8000-000000000001', 'Current', 'Display', 'Member', 'current', 'member', 'historical@students.local.test', 'historical@students.local.test'),
+  ('ce400000-0000-4000-8000-000000000003', 'ce100000-0000-4000-8000-000000000001', 'Stable', NULL, 'Only', 'stable', 'only', 'stable@students.local.test', 'stable@students.local.test'),
+  ('ce400000-0000-4000-8000-000000000004', 'ce100000-0000-4000-8000-000000000002', 'Current', 'Display', 'Member', 'current', 'member', 'other@students.local.test', 'other@students.local.test');
 
 INSERT INTO plugin_data.csf_profile_cohort_memberships (
   organization_id, profile_id, cohort_id
@@ -114,6 +114,21 @@ SELECT extensions.is(
   ),
   1,
   'stable class-only profiles do not inflate semester member counts'
+);
+
+SELECT extensions.results_eq(
+  $$
+    SELECT profile_id
+    FROM plugin_data.csf_list_class_profiles_page(
+      'ce100000-0000-4000-8000-000000000001',
+      'ce200000-0000-4000-8000-000000000001',
+      'ce300000-0000-4000-8000-000000000001',
+      'Current Display Member', NULL, 'attention', 'name', NULL, NULL, 50
+    )
+    WHERE profile_id IS NOT NULL
+  $$,
+  $$ VALUES ('ce400000-0000-4000-8000-000000000001'::uuid) $$,
+  'class attention search matches the exact displayed middle name without crossing semester or tenant scope'
 );
 
 SELECT extensions.is(

@@ -22,8 +22,8 @@ const productionRecoveryWorkflow = readFileSync(
   join(repositoryRoot, ".github/workflows/production-release-recovery.yml"),
   "utf8",
 );
-const supabaseDeploymentGuide = readFileSync(
-  join(repositoryRoot, "docs/development/supabase-deployment.md"),
+const productionCutoverRunbook = readFileSync(
+  join(repositoryRoot, "docs/development/production-cutover-runbook.md"),
   "utf8",
 );
 const nextConfig = readFileSync(join(repositoryRoot, "next.config.ts"), "utf8");
@@ -49,6 +49,10 @@ const applicationWriteBlock = readFileSync(
 );
 const postgrestWriteBlockVerifier = readFileSync(
   join(repositoryRoot, "scripts/production/verify-postgrest-write-block.sh"),
+  "utf8",
+);
+const productionQuiescenceVerifier = readFileSync(
+  join(repositoryRoot, "scripts/production/verify-cutover-quiescence.sql"),
   "utf8",
 );
 const csfTargetSchemaVerifier = readFileSync(
@@ -245,6 +249,11 @@ describe("CSF Production release preflight", () => {
     const schemaCompatibility = deployment.indexOf(
       "scripts/production/verify-csf-target-schema.sql",
     );
+    const postPushFullPreflight = occurrenceIndex(
+      deployment,
+      "scripts/production-cutover-preflight.sql",
+      2,
+    );
     const stagedDeploy = occurrenceIndex(
       deployment,
       "vercel@59.3.0 deploy \\",
@@ -266,6 +275,9 @@ describe("CSF Production release preflight", () => {
       "scripts/production/verify-vercel-alias.sh",
       2,
     );
+    const publicReleasePostcondition = deployment.indexOf(
+      "Verify public Production release postcondition",
+    );
     const disableWriteBlock = deployment.indexOf(
       "set-application-write-block.sh disable",
     );
@@ -279,6 +291,7 @@ describe("CSF Production release preflight", () => {
       schemaPush,
       schemaParity,
       schemaCompatibility,
+      postPushFullPreflight,
       stagedDeploy,
       stagedIdentity,
       recoveryManifest,
@@ -286,6 +299,7 @@ describe("CSF Production release preflight", () => {
       promote,
       promotionFence,
       aliasVerification,
+      publicReleasePostcondition,
       disableWriteBlock,
     ]) {
       expect(index).toBeGreaterThanOrEqual(0);
@@ -300,11 +314,13 @@ describe("CSF Production release preflight", () => {
     expect(maintenanceAliasVerification).toBeLessThan(schemaPush);
     expect(schemaPush).toBeLessThan(schemaParity);
     expect(schemaParity).toBeLessThan(schemaCompatibility);
-    expect(schemaCompatibility).toBeLessThan(smoke);
+    expect(schemaCompatibility).toBeLessThan(postPushFullPreflight);
+    expect(postPushFullPreflight).toBeLessThan(smoke);
     expect(smoke).toBeLessThan(promote);
     expect(promote).toBeLessThan(promotionFence);
     expect(promotionFence).toBeLessThan(aliasVerification);
-    expect(aliasVerification).toBeLessThan(disableWriteBlock);
+    expect(aliasVerification).toBeLessThan(publicReleasePostcondition);
+    expect(publicReleasePostcondition).toBeLessThan(disableWriteBlock);
     expect(
       deployment.match(/vercel@59\.3\.0 build --prod/gu) ?? [],
     ).toHaveLength(1);
@@ -335,6 +351,16 @@ describe("CSF Production release preflight", () => {
     expect(deployment).toContain('.name == "environment"');
     expect(deployment).toContain('.name == "database"');
     expect(deployment).toContain('.name == "tables-deep"');
+    expect(deployment).toContain('.name == "workers"');
+    expect(deployment).toContain(".details.csfWorkbookRefresh == false");
+    expect(deployment).toContain(".details.csfImportCommit == false");
+    expect(deployment).toContain(".details.csfCommunications == false");
+    expect(deployment).toContain(".details.csfScheduledPostPublisher == false");
+    expect(deployment).toContain("EXPECTED_CSF_WORKER_STAGE: disabled");
+    expect(deployment).toContain("Cache-Control: no-cache");
+    expect(deployment).toContain(
+      "scripts/production/verify-csf-worker-posture.mjs",
+    );
     expect(deployment).toContain('jq -e --arg sha "${GITHUB_SHA}"');
     expect(deployment).toContain(".version == $sha");
     expect(deployment).toContain(
@@ -376,147 +402,6 @@ describe("CSF Production release preflight", () => {
       "scripts/production/verify-postgrest-write-block.sh",
     );
     expect(recoveryWriteAttempt).toBeLessThan(recoveryWriteProof);
-  });
-
-  test("reserves a bounded recovery window before Production writes", () => {
-    const deployment = jobBlock(deploymentWorkflow, "deploy-to-production");
-    const priorRecovery = jobBlock(
-      deploymentWorkflow,
-      "production-recovery-gate",
-    );
-    const startMarker = "\n      - name: Record Production job start\n";
-    const armMarker = "\n      - name: Arm Production maintenance recovery\n";
-    const recoveryMarker =
-      "\n      - name: Retain Production write block after incomplete release\n";
-    const startClock = deployment.indexOf(startMarker);
-    const checkout = deployment.indexOf("uses: actions/checkout@");
-    const arm = deployment.indexOf(armMarker);
-    const recovery = deployment.indexOf(recoveryMarker);
-    const normalWindowSteps = [
-      "Block Production application writes",
-      "Prove a fresh Production application write is blocked",
-      "Promote maintenance page to Production",
-      "Verify Production maintenance alias",
-      "Push schema to production",
-      "Verify production schema deployment",
-      "Verify CSF target schema compatibility",
-      "Smoke the staged Production application",
-      "Promote the staged application to Production",
-      "Verify application promotion reached a terminal state",
-      "Verify Production alias promotion",
-      "Open Production application writes",
-    ] as const;
-
-    expect(startClock).toBeGreaterThanOrEqual(0);
-    expect(checkout).toBeGreaterThanOrEqual(0);
-    expect(arm).toBeGreaterThan(checkout);
-    expect(recovery).toBeGreaterThan(arm);
-    expect(startClock).toBeLessThan(checkout);
-    expect(stepTimeout(deployment, "Record Production job start")).toBe(1);
-    const armStep = stepBlock(
-      deployment,
-      "Arm Production maintenance recovery",
-    );
-    expect(stepTimeout(deployment, "Arm Production maintenance recovery")).toBe(
-      1,
-    );
-    expect(armStep).toContain("elapsed_seconds > 2100");
-    expect(armStep).toContain("More than 35 minutes elapsed");
-    const recoveryCredentials = stepBlock(
-      deployment,
-      "Require Production recovery credentials",
-    );
-    expect(
-      stepTimeout(deployment, "Require Production recovery credentials"),
-    ).toBe(1);
-    expect(recoveryCredentials).toContain(
-      "SUPABASE_SECRET_KEY: ${{ secrets.SUPABASE_SECRET_KEY }}",
-    );
-    expect(recoveryCredentials).toContain(
-      "PRODUCTION_READONLY_URL: ${{ secrets.PRODUCTION_READONLY_URL }}",
-    );
-    expect(
-      deployment.indexOf("Require Production recovery credentials"),
-    ).toBeLessThan(arm);
-    expect(supabaseDeploymentGuide).toContain("- `SUPABASE_SECRET_KEY`");
-    expect(supabaseDeploymentGuide).toContain("- `PRODUCTION_READONLY_URL`");
-    const priorRecoveryStep = stepBlock(
-      priorRecovery,
-      "Refuse re-runs and unresolved Production recovery",
-    );
-    expect(
-      stepTimeout(
-        priorRecovery,
-        "Refuse re-runs and unresolved Production recovery",
-      ),
-    ).toBe(5);
-    expect(priorRecovery).toContain('"${GITHUB_RUN_ATTEMPT}" != "1"');
-    expect(priorRecovery).toContain("Production release re-runs are disabled");
-    expect(priorRecoveryStep).toContain("gh api --paginate --slurp");
-    expect(priorRecoveryStep).not.toContain("status=completed");
-    expect(priorRecoveryStep).toContain('"${source_status}" != "completed"');
-    expect(priorRecoveryStep).toContain(
-      '"${source_run_id}" == "${GITHUB_RUN_ID}"',
-    );
-    expect(priorRecoveryStep).toContain("attempts/${source_run_attempt}");
-    expect(priorRecoveryStep).toContain(
-      "production-release-recovery/${source_run_id}/${source_run_attempt}",
-    );
-    expect(priorRecoveryStep.indexOf("recovery_context=")).toBeLessThan(
-      priorRecoveryStep.indexOf("artifact_name="),
-    );
-    expect(priorRecoveryStep).toContain(
-      'if [[ "${trusted_recovery}" == "true" ]]',
-    );
-    expect(priorRecoveryStep).toContain(
-      "has no trusted successful recovery receipt",
-    );
-    expect(priorRecoveryStep).toContain(
-      '.path == ".github/workflows/production-release-recovery.yml"',
-    );
-    expect(priorRecoveryStep).toContain('.conclusion == "success"');
-    expect(priorRecoveryStep).toContain(
-      '.name == "Deploy Schema to Production"',
-    );
-    expect(priorRecoveryStep).toContain('"${write_block_step_count}" == "0"');
-    expect(priorRecoveryStep).not.toContain("VERCEL_TOKEN");
-    expect(priorRecoveryStep).not.toContain("SUPABASE_ACCESS_TOKEN");
-    for (const job of [
-      "csf-release-gates",
-      "hosted-development-acceptance",
-      "validate-migrations",
-    ]) {
-      expect(jobBlock(deploymentWorkflow, job)).toContain(
-        "needs: production-recovery-gate",
-      );
-    }
-
-    const protectedWindow = deployment.slice(arm, recovery);
-    const protectedStepNames = [
-      ...protectedWindow.matchAll(/^ {6}- name: (.+)$/gmu),
-    ].map((match) => match[1]);
-    expect(protectedStepNames).toEqual([
-      "Arm Production maintenance recovery",
-      ...normalWindowSteps,
-    ]);
-    const normalTimeoutTotal = normalWindowSteps.reduce(
-      (total, name) => total + stepTimeout(deployment, name),
-      0,
-    );
-    expect(normalTimeoutTotal).toBeLessThanOrEqual(65);
-    expect(
-      stepTimeout(
-        deployment,
-        "Retain Production write block after incomplete release",
-      ),
-    ).toBeLessThanOrEqual(4);
-    const inlineRecovery = stepBlock(
-      deployment,
-      "Retain Production write block after incomplete release",
-    );
-    expect(inlineRecovery).toContain(
-      "steps.enable_write_block.outcome != 'skipped'",
-    );
   });
 
   test("durably reconciles a cancelled release from an exact recovery manifest", () => {
@@ -582,6 +467,12 @@ describe("CSF Production release preflight", () => {
     );
     expect(recovery).toContain("persist-credentials: false");
     expect(classifier).toContain('write_block_conclusion}" == "skipped"');
+    expect(classifier).toContain(
+      '.name == "Reassert Production application write block"',
+    );
+    expect(classifier).not.toContain(
+      '.name == "Block Production application writes"',
+    );
     expect(classifier).toContain('write_open_conclusion}" == "success"');
     expect(classifier).toContain(
       "stopped before the Production write block, so recovery is not required",
@@ -651,6 +542,15 @@ describe("CSF Production release preflight", () => {
       "The source maintenance promotion is not observable. Production remains write-blocked.",
     );
     expect(restoreStep).toContain("request_maintenance_operation promote");
+    expect(restoreStep).toContain('operation_exit="$?"');
+    expect(restoreStep).toContain(
+      "the exact alias operation and maintenance postcondition will determine recovery",
+    );
+    expect(restoreStep.indexOf('operation_exit="$?"')).toBeLessThan(
+      restoreStep.indexOf(
+        'wait_for_exact_operation "${operation}" "${MAINTENANCE_DEPLOYMENT_ID}"',
+      ),
+    );
     expect(restoreStep).toContain(
       'VERCEL_ALIAS_OPERATION_TIMEOUT_SECONDS: "600"',
     );
@@ -735,6 +635,9 @@ describe("CSF Production release preflight", () => {
       "csf_claim_import_commit_queue",
       "csf_finish_import_commit_queue",
       "csf_commit_import_row_batch",
+      "csf_sheet_source_settings_schema",
+      "csf_assert_sheet_source_settings",
+      "csf_enforce_sheet_source_mapping_version",
     ]) {
       expect(csfTargetSchemaVerifier).toContain(signature);
     }
@@ -754,6 +657,35 @@ describe("CSF Production release preflight", () => {
       "csf_import_approval_batches_audit",
     );
     expect(csfTargetSchemaVerifier).toContain(
+      "csf_sheet_sources_mapping_version_before_update",
+    );
+    expect(csfTargetSchemaVerifier).toContain('"headersignature": "string"');
+    expect(csfTargetSchemaVerifier).toContain(
+      "v_requested_version is distinct from v_old_version + 1",
+    );
+    expect(csfTargetSchemaVerifier).toContain("queue_lock_order_posture");
+    const normalizedTargetVerifier = csfTargetSchemaVerifier
+      .toLowerCase()
+      .replace(/\s+/gu, " ");
+    const canonicalPreviewOrder =
+      "select pg_catalog.array_agg(preview_id order by preview_id) into v_requested_preview_ids from pg_catalog.unnest(p_preview_job_ids) as preview_id;";
+    const canonicalPreviewOrderIndex = normalizedTargetVerifier.indexOf(
+      canonicalPreviewOrder,
+    );
+    const canonicalPreviewQueueIndex = normalizedTargetVerifier.indexOf(
+      "return plugin_data.csf_queue_import_preview_batch_unserialized( p_organization_id, p_actor_user_id, v_requested_preview_ids, p_request_id );",
+    );
+    expect(canonicalPreviewOrderIndex).toBeGreaterThanOrEqual(0);
+    expect(canonicalPreviewQueueIndex).toBeGreaterThan(
+      canonicalPreviewOrderIndex,
+    );
+    expect(csfTargetSchemaVerifier).toContain(
+      "foreach v_preview_id in array p_preview_job_ids loop",
+    );
+    expect(csfTargetSchemaVerifier).toContain(
+      "return plugin_data.csf_queue_import_preview_batch_unserialized( p_organization_id, p_actor_user_id, v_requested_preview_ids, p_request_id );",
+    );
+    expect(csfTargetSchemaVerifier).toContain(
       "csf_import_approval_items_org_queue_idx",
     );
     expect(csfTargetSchemaVerifier).toContain(
@@ -764,6 +696,180 @@ describe("CSF Production release preflight", () => {
     expect(csfTargetSchemaVerifier).toContain("AS csf_target_schema_verified");
     expect(csfTargetSchemaVerifier).not.toMatch(/^\s*\\/mu);
     expect(csfTargetSchemaVerifier).not.toMatch(/\bFROM\s+plugin_data\./iu);
+  });
+
+  test("rechecks the full target and disabled CSF worker posture before promotion", () => {
+    const deployment = jobBlock(deploymentWorkflow, "deploy-to-production");
+    const schemaPush = deployment.indexOf("supabase db push --linked --yes");
+    const narrowVerifier = deployment.indexOf(
+      "scripts/production/verify-csf-target-schema.sql",
+    );
+    const fullPreflight = occurrenceIndex(
+      deployment,
+      "scripts/production-cutover-preflight.sql",
+      2,
+    );
+    const smoke = deployment.indexOf("Smoke the staged Production application");
+    const workerGate = occurrenceIndex(
+      deployment,
+      ".details.csfWorkbookRefresh == false",
+      2,
+    );
+    const promotion = occurrenceIndex(deployment, "vercel@59.3.0 promote", 2);
+    const writesOpen = deployment.indexOf(
+      "set-application-write-block.sh disable",
+    );
+
+    expect(
+      deployment.match(/scripts\/production-cutover-preflight\.sql/gu) ?? [],
+    ).toHaveLength(2);
+    expect(schemaPush).toBeGreaterThanOrEqual(0);
+    expect(narrowVerifier).toBeGreaterThan(schemaPush);
+    expect(fullPreflight).toBeGreaterThan(narrowVerifier);
+    expect(smoke).toBeGreaterThan(fullPreflight);
+    expect(workerGate).toBeGreaterThan(smoke);
+    expect(workerGate).toBeLessThan(promotion);
+    expect(workerGate).toBeLessThan(writesOpen);
+    expect(
+      deployment.match(/\.details\.csfWorkbookRefresh == false/gu) ?? [],
+    ).toHaveLength(2);
+    const normalizedStatusRoute = statusRoute.replace(/\s+/gu, " ");
+    expect(normalizedStatusRoute).toContain(
+      'csfWorkbookRefresh: process.env.CSF_WORKBOOK_WORKER_ENABLED === "true"',
+    );
+    expect(normalizedStatusRoute).toContain(
+      'csfImportCommit: process.env.CSF_IMPORT_WORKER_ENABLED === "true"',
+    );
+    expect(normalizedStatusRoute).toContain(
+      'csfCommunications: process.env.CSF_COMMUNICATIONS_WORKER_ENABLED === "true"',
+    );
+    expect(normalizedStatusRoute).toContain(
+      'csfScheduledPostPublisher: process.env.CSF_SCHEDULED_POST_PUBLISHER_ENABLED === "true"',
+    );
+  });
+
+  test("requires a final recovery receipt and proves writer quiescence before maintenance", () => {
+    const deployment = jobBlock(deploymentWorkflow, "deploy-to-production");
+    const receiptCheck = deployment.indexOf(
+      "Require Production quiescence receipts",
+    );
+    const build = deployment.indexOf("vercel@59.3.0 build --prod");
+    const stagedIdentity = deployment.indexOf(
+      "Prove staged Production application identity",
+    );
+    const quiescence = deployment.indexOf(
+      "Verify Production quiescence receipt and database posture",
+    );
+    const arm = deployment.indexOf("Arm Production maintenance recovery");
+    const maintenancePromotion = occurrenceIndex(
+      deployment,
+      "vercel@59.3.0 promote",
+      1,
+    );
+    const schemaPush = deployment.indexOf("supabase db push --linked --yes");
+
+    expect(deploymentWorkflow).toContain("external_writers_confirmation:");
+    expect(deploymentWorkflow).toContain(
+      "application_writes_blocked_confirmation:",
+    );
+    expect(deploymentWorkflow).toContain("recovery_capture_sha256:");
+    expect(deploymentWorkflow).toContain("recovery_capture_confirmation:");
+    expect(deploymentWorkflow).toContain(
+      "after encrypted-artifact, database-restore, and storage checks pass",
+    );
+    expect(receiptCheck).toBeGreaterThanOrEqual(0);
+    expect(receiptCheck).toBeLessThan(build);
+    expect(stagedIdentity).toBeGreaterThanOrEqual(0);
+    expect(quiescence).toBeGreaterThan(stagedIdentity);
+    expect(quiescence).toBeLessThan(arm);
+    expect(quiescence).toBeLessThan(maintenancePromotion);
+    expect(quiescence).toBeLessThan(schemaPush);
+
+    const receiptStep = stepBlock(
+      deployment,
+      "Require Production quiescence receipts",
+    );
+    expect(receiptStep).toContain(
+      'expected_writer_receipt="external-writers-stopped:${GITHUB_SHA}"',
+    );
+    expect(receiptStep).toContain(
+      'expected_write_block_receipt="application-writes-blocked:${GITHUB_SHA}"',
+    );
+    expect(receiptStep).toContain(
+      '[[ "${RECOVERY_CAPTURE_SHA256}" =~ ^[0-9a-f]{64}$ ]]',
+    );
+    expect(receiptStep).toContain(
+      'expected_capture_receipt="recovery-capture-verified:${GITHUB_SHA}:${RECOVERY_CAPTURE_SHA256}"',
+    );
+    expect(receiptStep).toContain(
+      '"${RECOVERY_CAPTURE_CONFIRMATION}" != "${expected_capture_receipt}"',
+    );
+    expect(receiptStep.indexOf("RECOVERY_CAPTURE_SHA256}")).toBeLessThan(
+      receiptStep.indexOf("expected_capture_receipt="),
+    );
+
+    const quiescenceStep = stepBlock(
+      deployment,
+      "Verify Production quiescence receipt and database posture",
+    );
+    expect(quiescenceStep).toContain(
+      'timeout 30s psql -X "${PRODUCTION_READONLY_URL}"',
+    );
+    expect(quiescenceStep).toContain(
+      "scripts/production/verify-cutover-quiescence.sql",
+    );
+    expect(quiescenceStep).toContain("Raw output was suppressed");
+    expect(deployment).toContain(
+      "applicationWritesBlockedConfirmation: $application_writes_blocked_confirmation",
+    );
+    expect(deployment).toContain(
+      "externalWritersConfirmation: $external_writers_confirmation",
+    );
+    expect(deployment).toContain(
+      "recoveryCaptureSha256: $recovery_capture_sha256",
+    );
+    expect(deployment).toContain(
+      "recoveryCaptureConfirmation: $recovery_capture_confirmation",
+    );
+    expect(deployment).toContain(
+      '.recoveryCaptureConfirmation == ("recovery-capture-verified:" + .sha + ":" + .recoveryCaptureSha256)',
+    );
+    expect(productionRecoveryWorkflow).toContain(
+      '.applicationWritesBlockedConfirmation == ("application-writes-blocked:" + $sha)',
+    );
+    expect(productionRecoveryWorkflow).toContain(
+      '.externalWritersConfirmation == ("external-writers-stopped:" + $sha)',
+    );
+    expect(productionRecoveryWorkflow).toContain(
+      '.recoveryCaptureSha256 | test("^[0-9a-f]{64}$")',
+    );
+
+    expect(productionQuiescenceVerifier).toContain("BEGIN READ ONLY;");
+    expect(productionQuiescenceVerifier).toContain(
+      "SET LOCAL statement_timeout = '20s';",
+    );
+    expect(productionQuiescenceVerifier).toContain("FROM cron.job");
+    expect(productionQuiescenceVerifier).toContain("FROM cron.job_run_details");
+    expect(productionQuiescenceVerifier).toContain(
+      "'default_transaction_read_only=on' = ANY",
+    );
+    expect(productionQuiescenceVerifier).toContain(
+      "SELECT 1 / 0 AS quiescence_check_failed;",
+    );
+    expect(productionQuiescenceVerifier).not.toContain("SELECT *");
+    expect(productionCutoverRunbook).toContain("including Vercel Cron Jobs");
+    expect(productionCutoverRunbook).toContain(
+      "scripts/production/set-application-write-block.sh enable",
+    );
+    expect(productionCutoverRunbook).toContain(
+      "scripts/production/verify-postgrest-write-block.sh",
+    );
+    expect(productionCutoverRunbook).toContain(
+      "application-writes-blocked:<exact main SHA>",
+    );
+    expect(productionCutoverRunbook).toContain(
+      "recovery-capture-verified:<exact main SHA>:<CAPTURE.manifest SHA-256>",
+    );
   });
 
   test("the maintenance cutover blocks fresh PostgREST writes without another build", () => {

@@ -14,7 +14,7 @@ BEGIN;
 
 CREATE EXTENSION IF NOT EXISTS pgtap WITH SCHEMA extensions;
 
-SELECT extensions.plan(609);
+SELECT extensions.plan(616);
 
 -- ---------------------------------------------------------------------------
 -- Fixtures.
@@ -3822,6 +3822,183 @@ SELECT extensions.lives_ok(
   'a further attempt may be claimed once nothing is unsettled'
 );
 
+-- Exercise the receipt-backed batch's structured constraint boundary against a
+-- real frozen row. Snapshot mutation is normally impossible; disabling only the
+-- row's user triggers lets this fixture inject the exact 23514 drift that the
+-- commit body detects, without weakening any production path.
+ALTER TABLE plugin_data.csf_sheet_import_rows DISABLE TRIGGER USER;
+UPDATE plugin_data.csf_sheet_import_rows
+SET row_hash = repeat('e', 64)
+WHERE id = 'df500000-0000-4000-8000-000000000001';
+ALTER TABLE plugin_data.csf_sheet_import_rows ENABLE TRIGGER USER;
+
+CREATE TEMP TABLE deterministic_batch_state (receipt jsonb NOT NULL);
+INSERT INTO deterministic_batch_state
+SELECT plugin_data.csf_commit_import_row_batch(
+  'df100000-0000-4000-8000-000000000001',
+  (
+    SELECT attempt.id
+    FROM plugin_data.csf_sheet_import_commit_attempts AS attempt
+    JOIN plugin_data.csf_sheet_import_jobs AS commit_job
+      ON commit_job.id = attempt.commit_job_id
+    WHERE commit_job.preview_job_id = 'df300000-0000-4000-8000-000000000001'
+      AND attempt.status = 'running'
+  ),
+  'df700000-0000-4000-8000-000000000001',
+  ARRAY['df500000-0000-4000-8000-000000000001']::uuid[]
+);
+
+SELECT extensions.is(
+  (SELECT receipt #>> '{outcomes,0,status}' FROM deterministic_batch_state),
+  'failed',
+  'a caught row-local 23514 is recorded as a failed batch outcome'
+);
+SELECT extensions.is(
+  (SELECT receipt #>> '{outcomes,0,reasonCode}' FROM deterministic_batch_state),
+  'constraint_refused',
+  'the deterministic batch receipt uses the closed constraint refusal code'
+);
+SELECT extensions.ok(
+  (
+    SELECT import_status = 'error'
+      AND commit_outcome_state = 'failed'
+      AND commit_attempt_id = (
+        SELECT attempt.id
+        FROM plugin_data.csf_sheet_import_commit_attempts AS attempt
+        JOIN plugin_data.csf_sheet_import_jobs AS commit_job
+          ON commit_job.id = attempt.commit_job_id
+        WHERE commit_job.preview_job_id = 'df300000-0000-4000-8000-000000000001'
+          AND attempt.status = 'running'
+      )
+    FROM plugin_data.csf_sheet_import_rows
+    WHERE id = 'df500000-0000-4000-8000-000000000001'
+  ),
+  'the deterministic helper moves the frozen row to error and failed with attempt lineage'
+);
+SELECT extensions.is(
+  (
+    SELECT count(*)::integer
+    FROM plugin_data.csf_sheet_import_rows
+    WHERE id = 'df500000-0000-4000-8000-000000000001'
+      AND import_status = 'pending'
+      AND commit_outcome_state = 'frozen'
+  ),
+  0,
+  'the failed row leaves the worker worklist and cannot loop'
+);
+
+-- Restore the injected digest drift. Keep the row's tested terminal settlement.
+ALTER TABLE plugin_data.csf_sheet_import_rows DISABLE TRIGGER USER;
+UPDATE plugin_data.csf_sheet_import_rows
+SET row_hash = commit_frozen_row_hash
+WHERE id = 'df500000-0000-4000-8000-000000000001';
+ALTER TABLE plugin_data.csf_sheet_import_rows ENABLE TRIGGER USER;
+
+-- A caught 23514 is not enough to declare failure when the row was already
+-- unknown. The deterministic helper returns recorded=false, so the batch must
+-- re-raise the original refusal and roll back its new receipt.
+ALTER TABLE plugin_data.csf_sheet_import_rows DISABLE TRIGGER USER;
+UPDATE plugin_data.csf_sheet_import_rows
+SET import_status = 'pending',
+    errors = '{}'::text[],
+    commit_attempt_id = NULL,
+    commit_outcome_state = 'unknown',
+    commit_outcome_unresolved = true,
+    commit_outcome_code = 'row_transport_unanswered',
+    commit_outcome_note = 'Synthetic unresolved outcome for the row boundary test.',
+    commit_outcome_correlation_id = (
+      SELECT attempt.correlation_id
+      FROM plugin_data.csf_sheet_import_commit_attempts AS attempt
+      JOIN plugin_data.csf_sheet_import_jobs AS commit_job
+        ON commit_job.id = attempt.commit_job_id
+      WHERE commit_job.preview_job_id = 'df300000-0000-4000-8000-000000000001'
+        AND attempt.status = 'running'
+    ),
+    commit_intent_attempt_id = (
+      SELECT attempt.id
+      FROM plugin_data.csf_sheet_import_commit_attempts AS attempt
+      JOIN plugin_data.csf_sheet_import_jobs AS commit_job
+        ON commit_job.id = attempt.commit_job_id
+      WHERE commit_job.preview_job_id = 'df300000-0000-4000-8000-000000000001'
+        AND attempt.status = 'running'
+    ),
+    commit_intent_correlation_id = (
+      SELECT attempt.correlation_id
+      FROM plugin_data.csf_sheet_import_commit_attempts AS attempt
+      JOIN plugin_data.csf_sheet_import_jobs AS commit_job
+        ON commit_job.id = attempt.commit_job_id
+      WHERE commit_job.preview_job_id = 'df300000-0000-4000-8000-000000000001'
+        AND attempt.status = 'running'
+    ),
+    commit_intent_started_at = now(),
+    commit_outcome_resolution = NULL,
+    commit_outcome_resolved_by = NULL,
+    commit_outcome_resolved_at = NULL
+WHERE id = 'df500000-0000-4000-8000-000000000001';
+ALTER TABLE plugin_data.csf_sheet_import_rows ENABLE TRIGGER USER;
+
+SELECT extensions.throws_ok(
+  format(
+    $$SELECT plugin_data.csf_commit_import_row_batch(
+      'df100000-0000-4000-8000-000000000001', %L::uuid,
+      'df700000-0000-4000-8000-000000000002',
+      ARRAY['df500000-0000-4000-8000-000000000001']::uuid[]
+    )$$,
+    (SELECT attempt.id
+     FROM plugin_data.csf_sheet_import_commit_attempts AS attempt
+     JOIN plugin_data.csf_sheet_import_jobs AS commit_job
+       ON commit_job.id = attempt.commit_job_id
+     WHERE commit_job.preview_job_id = 'df300000-0000-4000-8000-000000000001'
+       AND attempt.status = 'running')
+  ),
+  '23514',
+  'This CSF import row has an unresolved outcome and must be reconciled first.',
+  'an already-unknown row re-raises the caught constraint refusal'
+);
+SELECT extensions.is(
+  (
+    SELECT count(*)::integer
+    FROM plugin_data.csf_import_row_batches
+    WHERE request_id = 'df700000-0000-4000-8000-000000000002'
+  ),
+  0,
+  'the unresolved row refusal leaves no false terminal batch receipt'
+);
+SELECT extensions.ok(
+  (
+    SELECT import_status = 'pending'
+      AND commit_outcome_state = 'unknown'
+      AND commit_outcome_unresolved
+    FROM plugin_data.csf_sheet_import_rows
+    WHERE id = 'df500000-0000-4000-8000-000000000001'
+  ),
+  'the unresolved row remains unknown for officer reconciliation'
+);
+
+-- Restore the terminal deterministic state used by the remainder of this test.
+ALTER TABLE plugin_data.csf_sheet_import_rows DISABLE TRIGGER USER;
+UPDATE plugin_data.csf_sheet_import_rows
+SET import_status = 'error',
+    errors = ARRAY['constraint_refused']::text[],
+    commit_attempt_id = (
+      SELECT attempt.id
+      FROM plugin_data.csf_sheet_import_commit_attempts AS attempt
+      JOIN plugin_data.csf_sheet_import_jobs AS commit_job
+        ON commit_job.id = attempt.commit_job_id
+      WHERE commit_job.preview_job_id = 'df300000-0000-4000-8000-000000000001'
+        AND attempt.status = 'running'
+    ),
+    commit_outcome_state = 'failed',
+    commit_outcome_unresolved = false,
+    commit_outcome_code = 'constraint_refused',
+    commit_outcome_note = NULL,
+    commit_outcome_correlation_id = NULL,
+    commit_intent_attempt_id = NULL,
+    commit_intent_correlation_id = NULL,
+    commit_intent_started_at = NULL
+WHERE id = 'df500000-0000-4000-8000-000000000001';
+ALTER TABLE plugin_data.csf_sheet_import_rows ENABLE TRIGGER USER;
+
 SELECT extensions.lives_ok(
   format(
     $$SELECT plugin_data.csf_begin_import_row_for_attempt(
@@ -5540,7 +5717,7 @@ SELECT extensions.lives_ok(
       'df200000-0000-4000-8000-000000000001',
       'student_roster',
       jsonb_build_object('title', 'Reconfigured',
-        'settings', jsonb_build_object('sourceKind', 'student_roster', 'mappingVersion', 4)))$$,
+        'settings', jsonb_build_object('sourceKind', 'student_roster', 'mappingVersion', 2)))$$,
   'a reconfiguration that omits every system-owned key is accepted'
 );
 
@@ -5568,7 +5745,7 @@ SELECT extensions.is(
 SELECT extensions.is(
   (SELECT (settings ->> 'mappingVersion') FROM plugin_data.csf_sheet_sources
    WHERE id = 'df200000-0000-4000-8000-000000000001'),
-  '4',
+  '2',
   'while the caller-owned configuration it did state is replaced'
 );
 

@@ -1,8 +1,8 @@
 # DVHS CSF Officer Operations Runbook
 
 **Audience:** organization administrators, adviser, chapter officers, and Data Management
-**Current status:** the release candidate includes the repaired member directory search, signed passive account-name confirmation, typed-name officer review, mixed-grade application import, and Drive file identity checks. These changes still need the complete local root and private-plugin gates, one exact-tree hosted Development deployment, hosted browser and load acceptance, count-only source reconciliation, and synthetic email settlement. Production remains unchanged until those gates pass.
-**Release ledger:** the current repository candidate carries 432 ordered migrations through `20260901230000_csf_import_queue_tenant_integrity`; the private Development gitlink is `805823b`.
+**Current status:** the release candidate includes the repaired member directory search, signed passive account-name review request, typed-name officer review, mixed-grade application import, and Drive file identity checks. These changes still need the complete local root and private-plugin gates, one exact-tree hosted Development deployment, hosted browser and load acceptance, count-only source reconciliation, and synthetic email settlement. Production remains unchanged until those gates pass.
+**Release ledger:** the current repository candidate carries 438 ordered migrations through `20260902060000_csf_import_row_batch_error_boundary`; the private Development gitlink is `f6099d5`.
 **Authoritative record after review:** Let's Assist
 
 This runbook describes the v1.6 officer workflow. Do not use it for a Production cutover until the current gates in section 12 and [testing and release](testing-and-release.md) pass for the exact integrated tree.
@@ -57,17 +57,17 @@ The class join code is the only student connection path. Each graduating class h
 2. Share only that class code or its `/connect/<code>` URL. Do not distribute a roster export. The public organization and class pages expose no Stream, Activities, membership, or student-derived counts.
 3. The student enters the code at the public `/connect/<code>` route, or types it into **Join code** on **Join a class**, then creates or signs in to a verified Let's Assist account.
 4. One active same-class record carrying the verified account email connects atomically with recorded history.
-5. If email does not match, the server may show **Is this you?** with one exact account-name candidate. The card contains the record name and class only. **Yes, link this record** connects only after a short-lived signed snapshot and a locked recheck prove that this is still the sole active, unclaimed exact-name record and it belongs only to the selected class.
-6. If the candidate changed, is duplicated, is already claimed, belongs to another class, or no longer passes the locked checks, the action creates one officer request. The page reports that result inline.
+5. If email does not match, the server may show **Is this you?** with one exact account-name candidate. The card contains the record name and class only. **Yes, this is me** creates or reuses one officer request. **No, search again** opens the manual search. Name evidence never connects the account.
+6. A locked recheck rejects a changed, duplicated, claimed, cross-class, or stale candidate and preserves one review request when the evidence remains valid. The durable state says **Your record is awaiting review** and offers **Go to class feed** while an officer checks the match.
 7. If the student enters a name manually, the name never creates or links a profile. One exact verified-email record may still connect. Every other typed-name result creates or reuses one request under **Record connections** in that class.
 
 Viewing, copying, regenerating, or disabling a class code does not send an email. The product must not display a sent time or resend count unless an explicit recipient email has entered the durable delivery ledger.
 
-Only the class join code starts this workflow, and the connected profile must belong to the code's graduating class. Officers never connect from a typed name alone. The passive account-name card is a separate member-confirmed path with signed, short-lived evidence and a database recheck.
+Only the class join code starts this workflow, and the connected profile must belong to the code's graduating class. Officers never connect from a name alone. The passive account-name card supplies signed, short-lived review context and does not bypass the officer queue.
 
 ### Officer review
 
-1. Open the class's **Members** tab and work **Record connections**, where the panel says **Review accounts waiting to connect to a student record in this class.** The queue is paged with **First page** and **Next**. **Home** shows a **Connection requests** chip with the total pending count, linking to the classes hub. Open the request with **Resolve**, or a ranked candidate with **Review in Resolve**; both open the **Review account connection** dialog.
+1. Open the class's **Members** tab and work **Record connections**, where the panel says **Review accounts waiting to connect to a student record in this class.** The queue is paged with **First page** and **Next**. **Home** shows a **Connection requests** chip with the total pending count, linking to the classes hub. Open the request with **Review**, or a ranked candidate with **Review in Resolve**; both open the **Review account connection** dialog.
 2. Compare the request with the student's submitted evidence; never match on a typed name alone. Everything under **Suggestions · advisory only** is a discovery aid, including a candidate badged **Canonical evidence ready**. A conflicting cohort, verified email, or existing account is a hard stop.
 3. Choose **Connect account** or **Reject request** and enter a **Decision reason** of at least four characters. **Connect account** is rendered only when the account's current confirmed email still matches the request snapshot, appears on exactly one active student record, and that record also has the exact requested name and one matching active class; otherwise the dialog states **Connection unavailable** with the specific blockers and offers only **Reject request**. A unique name is still name-only and never authorizes a connection. If those checks fail, correct the student record through the audited member-correction workflow first, then have the student join with the class code again.
 4. If the student already has an accepted application for the same cohort and term, the atomic connection may activate that term membership.
@@ -237,8 +237,9 @@ Acceptance: every populated canonical tab discovered in the approved Class of 20
 4. Review the committed application through **Applications → Review queue**. Approval creates or updates term membership atomically with the decision and history; neither the import nor the decision creates the profile. Account connection remains a separate exact-email or reasoned-review action.
 5. Before sharing class join codes, establish a current, unique school or personal email on imported historical profiles when reviewed evidence is available. This remains the strongest automatic match. Never copy an address from a historical comparison workbook merely to make a match.
 6. Confirm each class's permanent join code from **Invite students** (§4) — one per graduating class. These codes replace the Freshman/Sophomore/Junior/Senior Google Classroom codes everywhere the chapter publishes them.
-7. A student whose verified sign-in email uniquely matches one same-class profile connects automatically. If email does not match, the product may show one exact passive account-name candidate with name and class only. The student can confirm it, but the database links it only after the signed snapshot and all uniqueness, claim, and class checks still pass.
+7. A student whose verified sign-in email uniquely matches one same-class profile connects automatically. If email does not match, the product may show one exact passive account-name candidate with name and class only. **Yes, this is me** creates or reuses one officer request; name evidence never links the account.
 8. A manually entered name never creates or links a profile. Ambiguous, stale, claimed, conflicting, or unmatched typed-name results create or reuse one request in **Members → Record connections**. Officers use the reasoned review flow. Never expose a searchable roster to students.
+9. An unmatched verified email never creates a profile or class membership. Create a missing permanent student record only through the audited **Add a student record** workflow and reviewed evidence.
 
 ### 10.4 Posts and announcement email
 
@@ -275,11 +276,11 @@ Acceptance: every populated canonical tab discovered in the approved Class of 20
 Before this runbook is used for the chapter cutover, complete these gates in order:
 
 - [x] Candidate includes server-backed member search with filter preservation and bounded results.
-- [x] Candidate separates passive signed account-name confirmation from typed-name officer review.
+- [x] Candidate routes passive and typed name-only confirmation through one officer-review boundary.
 - [x] Candidate treats the application response workbook as one chapter source and derives class and semester per row.
 - [x] Candidate stores Drive file identity and provider version instead of trusting titles.
 - [x] Ordinary feature branches are disabled. Unmarked Development commits may create an ignored deployment record but do not run dependency installation or the application build.
-- [x] Merge and publish the private plugin first, then advance the root gitlink to private `development` `805823b`.
+- [x] Merge and publish the private plugin first, then advance the root gitlink to private `development` `f6099d5`.
 - [ ] Pass the complete private-plugin tests, root TypeScript, zero-warning lint, database validation and replay, CSF workflows, browser journeys, strict submodule check, scale tests, and Production build on the exact integrated tree.
 - [ ] Create one marked Development deployment after local gates. Record its exact root and private SHAs.
 - [ ] Apply and verify the candidate migrations in hosted Development before browser mutation tests.
