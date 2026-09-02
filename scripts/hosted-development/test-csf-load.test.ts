@@ -81,11 +81,20 @@ describe("hosted CSF load acceptance", () => {
     expect(source).toContain("finalHeapBytes: browserResult.finalHeap");
     expect(source).toContain("VERCEL_AUTOMATION_BYPASS_SECRET?.trim()");
     expect(source).toContain("VERCEL_TRUSTED_OIDC_TOKEN?.trim()");
+    expect(source).toContain("ACTIONS_ID_TOKEN_REQUEST_URL?.trim()");
+    expect(source).toContain("ACTIONS_ID_TOKEN_REQUEST_TOKEN?.trim()");
+    expect(source).toContain("requestGitHubOidcToken");
+    expect(source).toContain("OIDC_REFRESH_BUFFER_MS");
+    expect(source).toContain("if (!refreshPromise)");
     expect(source).toContain('required("SUPABASE_PUBLISHABLE_KEY")');
     expect(source).toContain('"x-vercel-protection-bypass"');
     expect(source).toContain('"x-vercel-trusted-oidc-idp-token"');
     expect(source).toContain("page.route(`${appUrl.origin}/**`");
     expect(source).toContain("await route.request().allHeaders()");
+    expect(source).toContain("settledUrl.origin !== appUrl.origin");
+    expect(source).toContain(
+      "Vercel protection rejected the hosted load request.",
+    );
     expect(source).not.toContain("route.request().headers()");
     expect(source).not.toContain("extraHTTPHeaders");
   });
@@ -95,8 +104,8 @@ describe("hosted CSF load acceptance", () => {
     expect(workflow).toContain("statuses: write");
     expect(workflow).toContain("push:");
     expect(workflow).toContain("[hosted-acceptance]");
-    expect(workflow).toContain("core.getIDToken()");
-    expect(workflow).toContain("VERCEL_TRUSTED_OIDC_TOKEN");
+    expect(workflow).not.toContain("core.getIDToken()");
+    expect(workflow).not.toContain("VERCEL_TRUSTED_OIDC_TOKEN");
     expect(workflow).toContain("bun run csf:test:hosted:load");
     expect(workflow).toContain("csf-hosted-development-acceptance");
     expect(workflow).toContain("commits/${ACCEPTED_SHA}/status");

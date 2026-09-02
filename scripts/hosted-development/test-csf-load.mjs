@@ -15,6 +15,7 @@ const REQUEST_INTERVAL_MS = 10_000;
 const SESSION_MINT_INTERVAL_MS = 10_500;
 const SESSION_MINT_RETRY_MS = 10_000;
 const SESSION_MINT_RETRY_LIMIT = 36;
+const OIDC_REFRESH_BUFFER_MS = 60_000;
 
 function required(name) {
   const value = process.env[name]?.trim();
@@ -62,7 +63,12 @@ function validateTarget() {
   }
   const protectionBypass = process.env.VERCEL_AUTOMATION_BYPASS_SECRET?.trim();
   const trustedOidcToken = process.env.VERCEL_TRUSTED_OIDC_TOKEN?.trim();
-  if (!protectionBypass && !trustedOidcToken) {
+  const oidcRequestUrl = process.env.ACTIONS_ID_TOKEN_REQUEST_URL?.trim();
+  const oidcRequestToken = process.env.ACTIONS_ID_TOKEN_REQUEST_TOKEN?.trim();
+  if (Boolean(oidcRequestUrl) !== Boolean(oidcRequestToken)) {
+    throw new Error("The GitHub OIDC request credentials are incomplete.");
+  }
+  if (!protectionBypass && !trustedOidcToken && !oidcRequestUrl) {
     throw new Error(
       "A Vercel automation bypass secret or trusted OIDC token is required.",
     );
@@ -80,6 +86,8 @@ function validateTarget() {
     durationMs,
     password,
     projectRef,
+    oidcRequestToken,
+    oidcRequestUrl,
     protectionBypass,
     supabasePublishableKey,
     supabaseUrl,
@@ -87,10 +95,80 @@ function validateTarget() {
   };
 }
 
-function vercelProtectionHeaders({ protectionBypass, trustedOidcToken }) {
-  return protectionBypass
-    ? { "x-vercel-protection-bypass": protectionBypass }
-    : { "x-vercel-trusted-oidc-idp-token": trustedOidcToken };
+function jwtExpirationMs(token) {
+  const [, payload] = token.split(".");
+  if (!payload) return 0;
+  try {
+    const parsed = JSON.parse(
+      Buffer.from(payload, "base64url").toString("utf8"),
+    );
+    return Number.isFinite(parsed.exp) ? parsed.exp * 1000 : 0;
+  } catch {
+    return 0;
+  }
+}
+
+async function requestGitHubOidcToken({ requestToken, requestUrl }) {
+  const endpoint = new URL(requestUrl);
+  if (endpoint.protocol !== "https:") {
+    throw new Error("The GitHub OIDC request URL must use HTTPS.");
+  }
+  const response = await fetch(endpoint, {
+    headers: {
+      accept: "application/json",
+      authorization: `Bearer ${requestToken}`,
+    },
+    signal: AbortSignal.timeout(15_000),
+  });
+  if (!response.ok) {
+    throw new Error("GitHub did not issue a fresh OIDC token.");
+  }
+  const body = await response.json();
+  if (typeof body.value !== "string" || body.value.length === 0) {
+    throw new Error("GitHub returned a malformed OIDC token response.");
+  }
+  const expiresAt = jwtExpirationMs(body.value);
+  if (expiresAt <= Date.now()) {
+    throw new Error("GitHub returned an expired OIDC token.");
+  }
+  return { expiresAt, value: body.value };
+}
+
+function createVercelProtectionHeadersProvider({
+  oidcRequestToken,
+  oidcRequestUrl,
+  protectionBypass,
+  trustedOidcToken,
+}) {
+  if (protectionBypass) {
+    return async () => ({ "x-vercel-protection-bypass": protectionBypass });
+  }
+  let cached = trustedOidcToken
+    ? { expiresAt: jwtExpirationMs(trustedOidcToken), value: trustedOidcToken }
+    : null;
+  let refreshPromise = null;
+
+  return async () => {
+    const now = Date.now();
+    if (cached && cached.expiresAt - now > OIDC_REFRESH_BUFFER_MS) {
+      return { "x-vercel-trusted-oidc-idp-token": cached.value };
+    }
+    if (!oidcRequestUrl || !oidcRequestToken) {
+      throw new Error("The trusted Vercel OIDC token expired during the run.");
+    }
+    if (!refreshPromise) {
+      refreshPromise = requestGitHubOidcToken({
+        requestToken: oidcRequestToken,
+        requestUrl: oidcRequestUrl,
+      });
+    }
+    try {
+      cached = await refreshPromise;
+    } finally {
+      refreshPromise = null;
+    }
+    return { "x-vercel-trusted-oidc-idp-token": cached.value };
+  };
 }
 
 function installVitalsObserver() {
@@ -124,7 +202,7 @@ async function openAuthenticatedPage(
   context,
   appUrl,
   cookies,
-  protectionHeaders,
+  getProtectionHeaders,
 ) {
   await context.addCookies(
     cookies.map(({ name, value }) => ({
@@ -139,14 +217,18 @@ async function openAuthenticatedPage(
     await route.continue({
       headers: {
         ...requestHeaders,
-        ...protectionHeaders,
+        ...(await getProtectionHeaders()),
       },
     });
   });
   await page.goto(new URL("/organization/dvhs-csf", appUrl).href, {
     waitUntil: "domcontentloaded",
   });
-  if (new URL(page.url()).pathname === "/login") {
+  const settledUrl = new URL(page.url());
+  if (settledUrl.origin !== appUrl.origin) {
+    throw new Error("Vercel protection rejected the hosted load request.");
+  }
+  if (settledUrl.pathname === "/login") {
     throw new Error("A minted fictional session was rejected by the app.");
   }
   return page;
@@ -265,7 +347,7 @@ async function runRequestSessions({
   durationMs,
   memberSessions,
   officerSessions,
-  protectionHeaders,
+  getProtectionHeaders,
 }) {
   const memberPaths = [
     "/organization/dvhs-csf",
@@ -324,7 +406,7 @@ async function runRequestSessions({
               accept: "text/html,application/xhtml+xml",
               cookie: session.cookie,
               "user-agent": `lets-assist-csf-hosted-load/${session.role}`,
-              ...protectionHeaders,
+              ...(await getProtectionHeaders()),
             },
             redirect: "follow",
             signal: AbortSignal.timeout(15_000),
@@ -462,7 +544,7 @@ async function runBrowserAcceptance({ appUrl, memberPage, officerPage }) {
 
 async function main() {
   const target = validateTarget();
-  const protectionHeaders = vercelProtectionHeaders(target);
+  const getProtectionHeaders = createVercelProtectionHeadersProvider(target);
   const memberSessions = await mintSessions({
     account: MEMBER_ACCOUNT,
     count: MEMBER_SESSIONS,
@@ -498,13 +580,13 @@ async function main() {
       memberContext,
       target.appUrl,
       memberSessions[0].cookies,
-      protectionHeaders,
+      getProtectionHeaders,
     );
     const officerPage = await openAuthenticatedPage(
       officerContext,
       target.appUrl,
       officerSessions[0].cookies,
-      protectionHeaders,
+      getProtectionHeaders,
     );
 
     const loadPromise = runRequestSessions({
@@ -512,7 +594,7 @@ async function main() {
       durationMs: target.durationMs,
       memberSessions,
       officerSessions,
-      protectionHeaders,
+      getProtectionHeaders,
     });
     await new Promise((resolve) => setTimeout(resolve, RAMP_DURATION_MS));
     const browserResult = await runBrowserAcceptance({

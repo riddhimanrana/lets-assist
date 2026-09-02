@@ -111,15 +111,6 @@ jobs:
       - name: Install Playwright Chromium
         run: bunx playwright install --with-deps chromium
 
-      - name: Mint trusted Vercel OIDC token
-        id: oidc
-        uses: actions/github-script@v8
-        with:
-          script: |
-            const token = await core.getIDToken();
-            core.setSecret(token);
-            core.setOutput('token', token);
-
       - name: Run hosted CSF acceptance
         env:
           CSF_APP_URL: https://dev.lets-assist.com/
@@ -128,7 +119,6 @@ jobs:
           EXPECTED_NON_PRODUCTION_SUPABASE_PROJECT_REF: ${{ vars.CSF_DEVELOPMENT_SUPABASE_PROJECT_REF }}
           SUPABASE_PUBLISHABLE_KEY: ${{ secrets.CSF_DEVELOPMENT_SUPABASE_PUBLISHABLE_KEY }}
           SUPABASE_URL: https://${{ vars.CSF_DEVELOPMENT_SUPABASE_PROJECT_REF }}.supabase.co
-          VERCEL_TRUSTED_OIDC_TOKEN: ${{ steps.oidc.outputs.token }}
         run: bun run csf:test:hosted:load
 
       - name: Recheck Development head
