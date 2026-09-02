@@ -110,28 +110,21 @@ SELECT extensions.is(
     'ca200000-0000-4000-8000-000000000001', (SELECT code FROM class_join_test_code),
     'ca100000-0000-4000-8000-000000000003', 'new@local.test',
     'New', 'Student', 'New'
-  ) ->> 'connected',
+  ) ->> 'needsReview',
   'true',
-  'no email match creates a stable class profile from verified account identity'
+  'no email match creates one officer review request'
 );
 SELECT extensions.ok(
-  EXISTS (
-    SELECT 1
-    FROM plugin_data.csf_profiles AS profile
-    JOIN plugin_data.csf_profile_accounts AS account
-      ON account.organization_id = profile.organization_id
-     AND account.profile_id = profile.id
-    JOIN plugin_data.csf_profile_cohort_memberships AS membership
-      ON membership.organization_id = profile.organization_id
-     AND membership.profile_id = profile.id
+  NOT EXISTS (
+    SELECT 1 FROM plugin_data.csf_profiles AS profile
     WHERE profile.organization_id = 'ca200000-0000-4000-8000-000000000001'
       AND profile.normalized_personal_email = 'new@local.test'
+  ) AND NOT EXISTS (
+    SELECT 1 FROM plugin_data.csf_profile_accounts AS account
+    WHERE account.organization_id = 'ca200000-0000-4000-8000-000000000001'
       AND account.user_id = 'ca100000-0000-4000-8000-000000000003'
-      AND account.status = 'verified'
-      AND membership.cohort_id = 'ca300000-0000-4000-8000-000000000001'
-      AND membership.status = 'active'
   ),
-  'the new profile is linked to the account and lasting graduation class'
+  'typed identity creates neither a duplicate profile nor an account link'
 );
 SELECT extensions.is(
   (
