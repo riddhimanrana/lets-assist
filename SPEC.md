@@ -4,7 +4,7 @@ DVHS CSF officer UX → class-first Home → Classes → Applications → More; 
 
 §C
 
-- Integration base root `f49227cb`; private Development gitlink `f6099d5`; Production ⊥.
+- Integration base root `f49227cb`; private Development gitlink `7597fdc`; Production ⊥.
 - UI says `Class`; existing `cohort` schema identifiers stay.
 - Stable profile + graduation class; term application/import alone activates term membership.
 - Public organization page exposes join/claim entry only; class Stream/Activities/membership content requires authenticated authorized class access.
@@ -111,7 +111,7 @@ V56: targetless class-history row with a roster key that does not equal normaliz
 V57: background queue settlement → a missing or unauthorized approving actor terminalizes the import queue item, frozen batch item, parent counts, and settlement audit in one transaction; concurrent row-batch deliveries serialize on organization + request id before receipt lookup; a missing Drive owner blocks both refresh job and workbook registry.
 V58: hosted session acceptance → 90 member + 10 officer sessions ramp over 60 seconds, remain active for the rest of the 15-minute run, and exercise review navigation at peak load; member-feed dates render from deterministic Pacific parts in server and browser; staff presentation toggles replace one history entry with one route request; hydration recovery, repeated route snapshots, and burst-only load substitution ⊥.
 V59: member read and dispatch boundary → a pending profile link returns connection status only; classmate counts require current-term membership in the displayed class; activities require membership in their own term; one provider-start limiter covers the full cron invocation; a claimed worker pass stops provider work at the work deadline, gets one bounded settlement drain, and then stops database transport before the route ceiling. Any unsettled lease remains durable for the next recovery pass and is never blindly resent.
-V60: hosted scale acceptance → each of the 90 member and 10 officer loops owns a distinct Supabase Auth session identity; a Development-only GitHub workflow runs the hosted gate and publishes its exact-SHA status; Production schema deployment resolves that status to a completed successful run with the exact repository, workflow path, Development branch, and SHA, then accepts only a matching descendant tree.
+V60: hosted scale acceptance → a fixed `csf-load-fixture` organization contains 1,000 deterministic fictional profiles and exactly 90 member + 10 officer Supabase Auth identities; provisioning rejects Production, the real DVHS handle, identity reuse, and tenant drift without enumerating the auth directory; each load loop owns one distinct session and stays on the exact fixture route; a Development-only GitHub workflow requires the exact Vercel Preview and Supabase Preview checks, provisions through step-scoped secrets, exchanges the Vercel bypass secret for one Secure HttpOnly cookie without redirect following, runs the hosted gate, and publishes its exact-SHA status; Production schema deployment resolves that status to a completed successful run with the exact repository, workflow path, Development branch, and SHA, then accepts only a matching descendant tree.
 V61: class Members search → controlled query with a 300 ms debounce after two characters + explicit Search + immediate clear; every submission resets paging and preserves class, term, standing, account, sort, and view state; results remain server-filtered inside the selected organization and class and match the exact displayed preferred-or-full name, including middle names.
 V62: mixed-grade application workbook → one chapter source and immutable preview; every row derives its configured class and term from retained source fields; source-level fixed class, stale fixed-class scope, and cross-class overwrite ⊥.
 V63: official Drive source → immutable file id + provider version + selected tab/range; matching a title or filename pattern alone ⊥.
@@ -162,7 +162,7 @@ T36|~~|accept the repaired Members search, passive account-name confirmation, ty
 T37|x|serialize concurrent source mapping saves, persist the bounded attendance header digest, and invalidate previews created before the mapping boundary|V14,V17,V20,V22,V24,V47,V65,I.service,I.db,I.cmd
 T38|x|bind workbook preparation to one Drive generation and prevent stale workers from publishing or settling replacement workbook state|V14,V17,V20,V22,V24,V46,V66,I.service,I.db,I.cmd
 T39|x|preserve retryable and unknown import outcomes, bound retry fairness, and settle only the current approval item|V14,V17,V20,V23,V47,V57,V67,I.service,I.db,I.cmd
-T40|~~|pass exact-tree gates and hosted Development acceptance for the final workbook, import, identity, and member-search fixes before Production promotion|V18,V51,V60,V61,V66,V67,I.perf,I.cmd
+T40|~~|pass exact-tree gates and hosted Development acceptance for the final workbook, import, identity, selected-term member count, and member-search fixes before Production promotion|V3,V14,V15,V18,V51,V53,V60,V61,V66,V67,I.perf,I.cmd
 
 §B
 
@@ -207,6 +207,9 @@ B43|2026-09-02|plugin_data default table privileges left seven workbook and impo
 B44|2026-09-02|two mapping saves could derive the same next version before either registry update locked the source row; meeting attendance kept its header digest only in preview state, so a distinct later header snapshot could share the first preview's version|V65
 B46|2026-09-02|a stale workbook worker could finish after a newer Drive version arrived and overwrite the current prepared version and discovered-tab snapshot|V66
 B47|2026-09-02|the import worker could write a terminal row receipt for an unknown database failure and leave current batch state inconsistent across retry or refusal paths|V67
+B48|2026-09-02|the class header derived its selected semester from the validated current-or-newest fallback while the Members read used only the raw URL term, so a clean class URL could show the selected semester with zero rows|V3,V61
+B49|2026-09-02|the hosted load workflow depended on missing account-pool secrets, targeted the real DVHS route, and injected its Vercel bypass credential into browser requests where redirects could forward it|V15,V51,V60
+B50|2026-09-02|separately prepared semester rows with the same stable no-email workbook key could each create a profile because the resolver did not see the earlier row written in the same bounded batch statement|V14,V23,V47,V53
 B30|2026-08-30|isolated auth admin and password-login requests repeatedly exceeded 30–60 seconds while database scale checks stayed fast|keep authenticated browser and 100-session acceptance open until the isolated auth runtime or hosted synthetic environment can sustain login
 B31|2026-08-31|prepared class-history previews had valid roster keys but no profile targets, so batch readiness blocked every term and independent term commits would create duplicate profiles|V53
 B32|2026-08-31|background import receipts collapsed allowlist and live Google source refusals into `import_commit_blocked`, hiding the safe operator action while preserving no diagnostic distinction|V54

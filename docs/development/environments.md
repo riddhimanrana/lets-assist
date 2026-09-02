@@ -132,6 +132,26 @@ still refuses that Production ref as the seed target, verifies both returned API
 and database hosts against the separate target branch ref, and removes its
 temporary fixture seam in `finally`.
 
+The 1,000-profile hosted load gate uses a separate fixed fixture. Its
+provisioner accepts only the `csf-load-fixture` handle, a matching explicit
+confirmation, and the configured non-Production Supabase project. It creates
+deterministic `.local.test` identities without listing the Auth directory and
+prints counts only:
+
+```sh
+CSF_HOSTED_LOAD_PASSWORD='<run-scoped synthetic password>' \
+CSF_HOSTED_LOAD_PROVISION_CONFIRMATION='provision-hosted-development:<target branch project ref>:csf-load-fixture' \
+EXPECTED_NON_PRODUCTION_SUPABASE_PROJECT_REF='<target branch project ref>' \
+SUPABASE_SERVICE_ROLE_KEY='<Development-only service key>' \
+SUPABASE_URL='https://<target branch project ref>.supabase.co' \
+bun run csf:provision:hosted:load-fixtures
+```
+
+The Development acceptance workflow runs this provisioner only after its
+configuration preflight and exact Vercel Preview and Supabase Preview checks.
+The following browser load stays on `/organization/csf-load-fixture`. It never
+uses the real DVHS organization or real chapter rows.
+
 ## Production
 
 `main`, Production Supabase, Production Vercel aliases, live OAuth configuration, and live provider credentials are outside routine cleanup/refactor work.

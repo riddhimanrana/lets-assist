@@ -20,10 +20,7 @@ concurrency:
   cancel-in-progress: false
 
 permissions:
-  checks: read
   contents: read
-  id-token: write
-  statuses: write
 
 jobs:
   release-selection:
@@ -59,6 +56,11 @@ jobs:
       github.ref == 'refs/heads/development' &&
       needs.release-selection.outputs.should_run == 'true'
     runs-on: ubuntu-latest
+    environment: development
+    permissions:
+      checks: read
+      contents: read
+      statuses: write
     timeout-minutes: 75
     env:
       ACCEPTED_SHA: ${{ github.event_name == 'push' && github.sha || inputs.development_sha }}
@@ -121,6 +123,57 @@ jobs:
           echo "The exact Development SHA did not receive a successful Vercel check." >&2
           exit 1
 
+      - name: Require successful Supabase Development preview for the SHA
+        env:
+          DEVELOPMENT_PROJECT_REF: ${{ vars.CSF_DEVELOPMENT_SUPABASE_PROJECT_REF }}
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          if [[ -z "${DEVELOPMENT_PROJECT_REF:-}" ]]; then
+            echo "The Development Supabase project reference is required." >&2
+            exit 1
+          fi
+          expected_details_url="https://supabase.com/dashboard/project/${DEVELOPMENT_PROJECT_REF}"
+          for attempt in $(seq 1 60); do
+            checks_json="$(
+              gh api \
+                -H "Accept: application/vnd.github+json" \
+                "repos/${GITHUB_REPOSITORY}/commits/${ACCEPTED_SHA}/check-runs?filter=latest&per_page=100"
+            )"
+            check_state="$(
+              jq -r \
+                --arg expected_details_url "${expected_details_url}" \
+                '[
+                  .check_runs[]
+                  | select(
+                      .name == "Supabase Preview"
+                      and .app.slug == "supabase"
+                      and .details_url == $expected_details_url
+                    )
+                ]
+                | if any(.[]; .status == "completed" and .conclusion == "success") then
+                    "success"
+                  elif any(.[]; .status != "completed") then
+                    "pending"
+                  elif length > 0 then
+                    "failure"
+                  else
+                    "pending"
+                  end' \
+                <<< "${checks_json}"
+            )"
+            if [[ "${check_state}" == "success" ]]; then
+              exit 0
+            fi
+            if [[ "${check_state}" == "failure" ]]; then
+              echo "The exact Development SHA received a failed Supabase Preview check for the configured Development project." >&2
+              exit 1
+            fi
+            sleep 10
+          done
+          echo "The exact Development SHA did not receive a successful Supabase Preview check for the configured Development project." >&2
+          exit 1
+
       - name: Bind the Development alias before acceptance
         env:
           EXPECTED_GITHUB_REPOSITORY_ID: ${{ github.repository_id }}
@@ -142,6 +195,30 @@ jobs:
       - name: Install dependencies
         run: bun install --frozen-lockfile
 
+      - name: Preflight hosted acceptance configuration
+        env:
+          HAS_LOAD_PASSWORD: ${{ secrets.CSF_HOSTED_LOAD_PASSWORD != '' }}
+          HAS_PUBLISHABLE_KEY: ${{ secrets.CSF_DEVELOPMENT_SUPABASE_PUBLISHABLE_KEY != '' }}
+          HAS_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY != '' }}
+          HAS_VERCEL_BYPASS: ${{ secrets.VERCEL_AUTOMATION_BYPASS_SECRET != '' }}
+        run: |
+          set -euo pipefail
+          for variable in HAS_LOAD_PASSWORD HAS_PUBLISHABLE_KEY HAS_SERVICE_ROLE_KEY HAS_VERCEL_BYPASS; do
+            if [[ "${!variable}" != "true" ]]; then
+              echo "The Development acceptance configuration is incomplete." >&2
+              exit 1
+            fi
+          done
+
+      - name: Provision the fixed synthetic CSF fixture
+        env:
+          CSF_HOSTED_LOAD_PASSWORD: ${{ secrets.CSF_HOSTED_LOAD_PASSWORD }}
+          CSF_HOSTED_LOAD_PROVISION_CONFIRMATION: provision-hosted-development:${{ vars.CSF_DEVELOPMENT_SUPABASE_PROJECT_REF }}:csf-load-fixture
+          EXPECTED_NON_PRODUCTION_SUPABASE_PROJECT_REF: ${{ vars.CSF_DEVELOPMENT_SUPABASE_PROJECT_REF }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          SUPABASE_URL: https://${{ vars.CSF_DEVELOPMENT_SUPABASE_PROJECT_REF }}.supabase.co
+        run: bun run csf:provision:hosted:load-fixtures
+
       - name: Install Playwright Chromium
         run: bunx playwright install --with-deps chromium
 
@@ -149,13 +226,18 @@ jobs:
         env:
           CSF_APP_URL: https://dev.lets-assist.com/
           CSF_HOSTED_LOAD_CONFIRMATION: ${{ env.CONFIRMATION }}
-          CSF_HOSTED_LOAD_MEMBER_ACCOUNTS_JSON: ${{ secrets.CSF_HOSTED_LOAD_MEMBER_ACCOUNTS_JSON }}
-          CSF_HOSTED_LOAD_OFFICER_ACCOUNTS_JSON: ${{ secrets.CSF_HOSTED_LOAD_OFFICER_ACCOUNTS_JSON }}
-          CSF_LOCAL_TEST_PASSWORD: ${{ secrets.CSF_HOSTED_LOAD_PASSWORD }}
+          CSF_HOSTED_LOAD_PASSWORD: ${{ secrets.CSF_HOSTED_LOAD_PASSWORD }}
           EXPECTED_NON_PRODUCTION_SUPABASE_PROJECT_REF: ${{ vars.CSF_DEVELOPMENT_SUPABASE_PROJECT_REF }}
           SUPABASE_PUBLISHABLE_KEY: ${{ secrets.CSF_DEVELOPMENT_SUPABASE_PUBLISHABLE_KEY }}
           SUPABASE_URL: https://${{ vars.CSF_DEVELOPMENT_SUPABASE_PROJECT_REF }}.supabase.co
-        run: bun run csf:test:hosted:load
+          VERCEL_AUTOMATION_BYPASS_SECRET: ${{ secrets.VERCEL_AUTOMATION_BYPASS_SECRET }}
+        run: |
+          set -euo pipefail
+          if [[ -z "${VERCEL_AUTOMATION_BYPASS_SECRET:-}" ]]; then
+            echo "The Development automation bypass secret is required." >&2
+            exit 1
+          fi
+          bun run csf:test:hosted:load
 
       - name: Rebind the Development alias after acceptance
         env:

@@ -46,7 +46,8 @@ jq -e \
   --arg project "${VERCEL_ROOT_PROJECT_ID}" \
   --arg repository_id "${EXPECTED_GITHUB_REPOSITORY_ID}" \
   --arg sha "${ACCEPTED_SHA}" \
-  '.readyState == "READY"
+  '(.target == "preview" or .target == null)
+   and .readyState == "READY"
    and ((.aliasAssigned == true)
      or ((.aliasAssigned | type) == "number" and .aliasAssigned > 0))
    and ((.projectId // .project.id // "") == $project)

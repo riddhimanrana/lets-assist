@@ -3,17 +3,26 @@
 import { chromium } from "@playwright/test";
 import { createServerClient } from "@supabase/ssr";
 
-const PRODUCTION_PROJECT_REF = "fotdmeakexgrkronxlof";
+import {
+  buildSyntheticAccounts,
+  FIXTURE_ORGANIZATION_HANDLE,
+  FIXTURE_MARKER,
+  fixtureOrganizationPath,
+  MEMBER_SESSION_COUNT,
+  OFFICER_SESSION_COUNT,
+  PRODUCTION_PROJECT_REF,
+} from "./csf-load-fixture.mjs";
+import { requestVercelBypassCookie } from "./vercel-bypass-cookie.mjs";
+
 const EXPECTED_ORIGIN = "https://dev.lets-assist.com";
-const MEMBER_SESSIONS = 90;
-const OFFICER_SESSIONS = 10;
+const MEMBER_SESSIONS = MEMBER_SESSION_COUNT;
+const OFFICER_SESSIONS = OFFICER_SESSION_COUNT;
 const DEFAULT_DURATION_MS = 15 * 60 * 1000;
 const RAMP_DURATION_MS = 60_000;
 const REQUEST_INTERVAL_MS = 10_000;
 const SESSION_MINT_INTERVAL_MS = 10_500;
 const SESSION_MINT_RETRY_MS = 10_000;
 const SESSION_MINT_RETRY_LIMIT = 36;
-const OIDC_REFRESH_BUFFER_MS = 60_000;
 const BROWSER_WARMUP_SAMPLES = 5;
 const BROWSER_MEASURED_SAMPLES = 30;
 const BROWSER_TOTAL_SAMPLES = BROWSER_WARMUP_SAMPLES + BROWSER_MEASURED_SAMPLES;
@@ -25,35 +34,6 @@ function required(name) {
   const value = process.env[name]?.trim();
   if (!value) throw new Error(`${name} is required.`);
   return value;
-}
-
-function requiredFictionalAccountPool(name, minimumSize) {
-  let parsed;
-  try {
-    parsed = JSON.parse(required(name));
-  } catch {
-    throw new Error(`${name} must be a JSON array.`);
-  }
-  if (!Array.isArray(parsed)) {
-    throw new Error(`${name} must be a JSON array.`);
-  }
-  const accounts = parsed.map((account) =>
-    typeof account === "string" ? account.trim().toLowerCase() : "",
-  );
-  if (
-    accounts.length < minimumSize ||
-    accounts.some(
-      (account) =>
-        !/^[^\s@]+@[^\s@]+\.local\.test$/u.test(account) ||
-        /[\r\n]/u.test(account),
-    ) ||
-    new Set(accounts).size !== accounts.length
-  ) {
-    throw new Error(
-      `${name} must contain at least ${minimumSize} distinct fictional accounts.`,
-    );
-  }
-  return accounts.slice(0, minimumSize);
 }
 
 function percentile(values, fraction) {
@@ -84,9 +64,9 @@ function validateTarget() {
   if (appUrl.origin !== EXPECTED_ORIGIN || appUrl.pathname !== "/") {
     throw new Error(`CSF_APP_URL must be exactly ${EXPECTED_ORIGIN}/.`);
   }
-  const password = required("CSF_LOCAL_TEST_PASSWORD");
+  const password = required("CSF_HOSTED_LOAD_PASSWORD");
   if (password.length < 16 || /[\r\n]/u.test(password)) {
-    throw new Error("CSF_LOCAL_TEST_PASSWORD is malformed.");
+    throw new Error("CSF_HOSTED_LOAD_PASSWORD is malformed.");
   }
   const durationMs = Number(
     process.env.CSF_HOSTED_LOAD_DURATION_MS ?? DEFAULT_DURATION_MS,
@@ -95,15 +75,9 @@ function validateTarget() {
     throw new Error("Hosted load duration must be at least fifteen minutes.");
   }
   const protectionBypass = process.env.VERCEL_AUTOMATION_BYPASS_SECRET?.trim();
-  const trustedOidcToken = process.env.VERCEL_TRUSTED_OIDC_TOKEN?.trim();
-  const oidcRequestUrl = process.env.ACTIONS_ID_TOKEN_REQUEST_URL?.trim();
-  const oidcRequestToken = process.env.ACTIONS_ID_TOKEN_REQUEST_TOKEN?.trim();
-  if (Boolean(oidcRequestUrl) !== Boolean(oidcRequestToken)) {
-    throw new Error("The GitHub OIDC request credentials are incomplete.");
-  }
-  if (!protectionBypass && !trustedOidcToken && !oidcRequestUrl) {
+  if (!protectionBypass || /[\r\n]/u.test(protectionBypass)) {
     throw new Error(
-      "A Vercel automation bypass secret or trusted OIDC token is required.",
+      "The Vercel automation bypass secret is missing or malformed.",
     );
   }
   const supabaseUrl = new URL(required("SUPABASE_URL"));
@@ -114,17 +88,22 @@ function validateTarget() {
     throw new Error("SUPABASE_URL does not match the Development project ref.");
   }
   const supabasePublishableKey = required("SUPABASE_PUBLISHABLE_KEY");
-  const memberAccounts = requiredFictionalAccountPool(
-    "CSF_HOSTED_LOAD_MEMBER_ACCOUNTS_JSON",
-    MEMBER_SESSIONS,
-  );
-  const officerAccounts = requiredFictionalAccountPool(
-    "CSF_HOSTED_LOAD_OFFICER_ACCOUNTS_JSON",
-    OFFICER_SESSIONS,
-  );
+  const accounts = buildSyntheticAccounts();
+  const memberAccounts = accounts.members;
+  const officerAccounts = accounts.officers;
   if (
-    new Set([...memberAccounts, ...officerAccounts]).size !==
-    MEMBER_SESSIONS + OFFICER_SESSIONS
+    new Set(
+      [...memberAccounts, ...officerAccounts].map(({ authUserId }) =>
+        authUserId.toLowerCase(),
+      ),
+    ).size !==
+      MEMBER_SESSIONS + OFFICER_SESSIONS ||
+    new Set(
+      [...memberAccounts, ...officerAccounts].map(({ email }) =>
+        email.toLowerCase(),
+      ),
+    ).size !==
+      MEMBER_SESSIONS + OFFICER_SESSIONS
   ) {
     throw new Error("Hosted load fixture roles must use distinct accounts.");
   }
@@ -135,89 +114,24 @@ function validateTarget() {
     officerAccounts,
     password,
     projectRef,
-    oidcRequestToken,
-    oidcRequestUrl,
     protectionBypass,
     supabasePublishableKey,
     supabaseUrl,
-    trustedOidcToken,
   };
 }
 
-function jwtExpirationMs(token) {
-  const [, payload] = token.split(".");
-  if (!payload) return 0;
-  try {
-    const parsed = JSON.parse(
-      Buffer.from(payload, "base64url").toString("utf8"),
-    );
-    return Number.isFinite(parsed.exp) ? parsed.exp * 1000 : 0;
-  } catch {
-    return 0;
+function assertFixtureLocation(value, appUrl) {
+  const location = new URL(value);
+  if (
+    location.origin !== appUrl.origin ||
+    location.pathname !== fixtureOrganizationPath()
+  ) {
+    throw new Error("The hosted load left the synthetic organization route.");
   }
 }
 
-async function requestGitHubOidcToken({ requestToken, requestUrl }) {
-  const endpoint = new URL(requestUrl);
-  if (endpoint.protocol !== "https:") {
-    throw new Error("The GitHub OIDC request URL must use HTTPS.");
-  }
-  const response = await fetch(endpoint, {
-    headers: {
-      accept: "application/json",
-      authorization: `Bearer ${requestToken}`,
-    },
-    signal: AbortSignal.timeout(15_000),
-  });
-  if (!response.ok) {
-    throw new Error("GitHub did not issue a fresh OIDC token.");
-  }
-  const body = await response.json();
-  if (typeof body.value !== "string" || body.value.length === 0) {
-    throw new Error("GitHub returned a malformed OIDC token response.");
-  }
-  const expiresAt = jwtExpirationMs(body.value);
-  if (expiresAt <= Date.now()) {
-    throw new Error("GitHub returned an expired OIDC token.");
-  }
-  return { expiresAt, value: body.value };
-}
-
-function createVercelProtectionHeadersProvider({
-  oidcRequestToken,
-  oidcRequestUrl,
-  protectionBypass,
-  trustedOidcToken,
-}) {
-  if (protectionBypass) {
-    return async () => ({ "x-vercel-protection-bypass": protectionBypass });
-  }
-  let cached = trustedOidcToken
-    ? { expiresAt: jwtExpirationMs(trustedOidcToken), value: trustedOidcToken }
-    : null;
-  let refreshPromise = null;
-
-  return async () => {
-    const now = Date.now();
-    if (cached && cached.expiresAt - now > OIDC_REFRESH_BUFFER_MS) {
-      return { "x-vercel-trusted-oidc-idp-token": cached.value };
-    }
-    if (!oidcRequestUrl || !oidcRequestToken) {
-      throw new Error("The trusted Vercel OIDC token expired during the run.");
-    }
-    if (!refreshPromise) {
-      refreshPromise = requestGitHubOidcToken({
-        requestToken: oidcRequestToken,
-        requestUrl: oidcRequestUrl,
-      });
-    }
-    try {
-      cached = await refreshPromise;
-    } finally {
-      refreshPromise = null;
-    }
-    return { "x-vercel-trusted-oidc-idp-token": cached.value };
-  };
+function createVercelProtectionHeadersProvider({ protectionBypass }) {
+  return async () => ({ "x-vercel-protection-bypass": protectionBypass });
 }
 
 function installVitalsObserver() {
@@ -257,26 +171,38 @@ async function openAuthenticatedPage(
   context,
   appUrl,
   cookies,
-  getProtectionHeaders,
+  protectionBypass,
 ) {
-  await context.addCookies(
-    cookies.map(({ name, value }) => ({
+  const bypassCookie = await requestVercelBypassCookie({
+    appUrl,
+    path: fixtureOrganizationPath(),
+    protectionBypass,
+  });
+  await context.addCookies([
+    ...cookies.map(({ name, value }) => ({
       name,
       value,
       url: appUrl.origin,
     })),
-  );
+    bypassCookie,
+  ]);
   const page = await context.newPage();
-  await page.route(`${appUrl.origin}/**`, async (route) => {
-    const requestHeaders = await route.request().allHeaders();
-    await route.continue({
-      headers: {
-        ...requestHeaders,
-        ...(await getProtectionHeaders()),
-      },
-    });
+  await page.route("**/*", async (route) => {
+    const request = route.request();
+    if (
+      request.isNavigationRequest() &&
+      request.resourceType() === "document"
+    ) {
+      try {
+        assertFixtureLocation(request.url(), appUrl);
+      } catch {
+        await route.abort("blockedbyclient");
+        return;
+      }
+    }
+    await route.continue();
   });
-  await page.goto(new URL("/organization/dvhs-csf", appUrl).href, {
+  await page.goto(new URL(fixtureOrganizationPath(), appUrl).href, {
     waitUntil: "domcontentloaded",
   });
   const settledUrl = new URL(page.url());
@@ -286,6 +212,7 @@ async function openAuthenticatedPage(
   if (settledUrl.pathname === "/login") {
     throw new Error("A minted fictional session was rejected by the app.");
   }
+  assertFixtureLocation(settledUrl, appUrl);
   return page;
 }
 
@@ -293,7 +220,7 @@ function cookieHeader(cookies) {
   return cookies.map(({ name, value }) => `${name}=${value}`).join("; ");
 }
 
-function sessionIdentityFromAccessToken(accessToken) {
+function sessionIdentityFromAccessToken(accessToken, expectedAccount, role) {
   const [, encodedPayload] = accessToken.split(".");
   if (!encodedPayload)
     throw new Error("A minted session returned a malformed JWT.");
@@ -308,6 +235,17 @@ function sessionIdentityFromAccessToken(accessToken) {
   ) {
     throw new Error(
       "A minted session did not contain valid user and session identities.",
+    );
+  }
+  if (
+    payload.sub.toLowerCase() !== expectedAccount.authUserId.toLowerCase() ||
+    payload.app_metadata?.csf_hosted_load_fixture !== true ||
+    payload.app_metadata?.organization_handle !== FIXTURE_ORGANIZATION_HANDLE ||
+    payload.app_metadata?.fixture_role !== role ||
+    payload.app_metadata?.fixture_contract !== FIXTURE_MARKER
+  ) {
+    throw new Error(
+      "A minted session does not belong to the synthetic fixture.",
     );
   }
   return { sessionId: payload.session_id, userId: payload.sub };
@@ -340,7 +278,7 @@ async function mintSession({
   let session = null;
   for (let attempt = 0; attempt < SESSION_MINT_RETRY_LIMIT; attempt += 1) {
     const { data, error } = await client.auth.signInWithPassword({
-      email: account,
+      email: account.email,
       password,
     });
     if (!error && data.session) {
@@ -357,7 +295,11 @@ async function mintSession({
   if (cookies.length === 0) {
     throw new Error("A minted session did not persist its SSR cookies.");
   }
-  const identity = sessionIdentityFromAccessToken(session.access_token);
+  const identity = sessionIdentityFromAccessToken(
+    session.access_token,
+    account,
+    role,
+  );
   return {
     cookie: cookieHeader(cookies),
     cookies,
@@ -412,14 +354,14 @@ async function runRequestSessions({
   getProtectionHeaders,
 }) {
   const memberPaths = [
-    "/organization/dvhs-csf",
-    "/organization/dvhs-csf?tab=csf-profile",
-    "/organization/dvhs-csf?tab=csf-activities",
+    fixtureOrganizationPath(),
+    fixtureOrganizationPath("?tab=csf-profile"),
+    fixtureOrganizationPath("?tab=csf-activities"),
   ];
   const officerPaths = [
-    "/organization/dvhs-csf?tab=csf-overview",
-    "/organization/dvhs-csf?tab=csf-applications",
-    "/organization/dvhs-csf?tab=csf-cohorts",
+    fixtureOrganizationPath("?tab=csf-overview"),
+    fixtureOrganizationPath("?tab=csf-applications"),
+    fixtureOrganizationPath("?tab=csf-cohorts"),
   ];
   const sessions = [
     ...memberSessions.map((session, index) => ({
@@ -470,15 +412,20 @@ async function runRequestSessions({
               "user-agent": `lets-assist-csf-hosted-load/${session.role}`,
               ...(await getProtectionHeaders()),
             },
-            redirect: "follow",
+            redirect: "manual",
             signal: AbortSignal.timeout(15_000),
           });
           await response.arrayBuffer();
+          assertFixtureLocation(response.url, appUrl);
           requests += 1;
           timings.push(performance.now() - startedAt);
           if (response.status >= 500) fiveHundreds += 1;
-          if (!response.ok || new URL(response.url).pathname === "/login")
+          if (
+            !response.ok ||
+            (response.status >= 300 && response.status < 400)
+          ) {
             errors += 1;
+          }
         } catch {
           requests += 1;
           errors += 1;
@@ -537,12 +484,12 @@ async function runBrowserAcceptance({ appUrl, memberPage, officerPage }) {
   await officerSession.send("Performance.enable");
 
   const memberPaths = [
-    "/organization/dvhs-csf",
-    "/organization/dvhs-csf?tab=csf-profile",
+    fixtureOrganizationPath(),
+    fixtureOrganizationPath("?tab=csf-profile"),
   ];
   const officerPaths = [
-    "/organization/dvhs-csf?tab=csf-applications",
-    "/organization/dvhs-csf?tab=csf-cohorts",
+    fixtureOrganizationPath("?tab=csf-applications"),
+    fixtureOrganizationPath("?tab=csf-cohorts"),
   ];
   const lcp = [];
   const inp = [];
@@ -558,6 +505,7 @@ async function runBrowserAcceptance({ appUrl, memberPage, officerPage }) {
         waitUntil: "domcontentloaded",
       },
     );
+    assertFixtureLocation(page.url(), appUrl);
     // User input freezes the browser's LCP candidate set. Wait beyond the
     // acceptance threshold so a late largest render cannot disappear.
     await page.waitForTimeout(BROWSER_PAGE_SETTLE_MS);
@@ -574,9 +522,12 @@ async function runBrowserAcceptance({ appUrl, memberPage, officerPage }) {
   // entry cannot survive the navigation. The officer tour changes local UI
   // state in one document and gives every INP sample a real rendered update.
   await officerPage.goto(
-    new URL("/organization/dvhs-csf?tab=csf-overview&csf_tour=officer", appUrl)
-      .href,
+    new URL(
+      fixtureOrganizationPath("?tab=csf-overview&csf_tour=officer"),
+      appUrl,
+    ).href,
   );
+  assertFixtureLocation(officerPage.url(), appUrl);
   const inpSupported = await officerPage.evaluate(
     () => window.__csfLoadVitals.inpSupported,
   );
@@ -634,8 +585,9 @@ async function runBrowserAcceptance({ appUrl, memberPage, officerPage }) {
   }
 
   await officerPage.goto(
-    new URL("/organization/dvhs-csf?tab=csf-overview", appUrl).href,
+    new URL(fixtureOrganizationPath("?tab=csf-overview"), appUrl).href,
   );
+  assertFixtureLocation(officerPage.url(), appUrl);
   for (let index = 0; index < BROWSER_TOTAL_SAMPLES; index += 1) {
     const switchButton = officerPage
       .locator('button[data-csf-view-switch-hydrated="true"]')
@@ -663,6 +615,7 @@ async function runBrowserAcceptance({ appUrl, memberPage, officerPage }) {
         "The fictional staff view did not reach its landing tab.",
       );
     }
+    assertFixtureLocation(officerPage.url(), appUrl);
     if (index >= BROWSER_WARMUP_SAMPLES) {
       mutationTimings.push(performance.now() - startedAt);
     }
@@ -680,11 +633,13 @@ async function runBrowserAcceptance({ appUrl, memberPage, officerPage }) {
       .locator('button[data-csf-view-switch-hydrated="true"]')
       .filter({ hasText: /^View as member$/u })
       .waitFor({ state: "visible", timeout: 60_000 });
+    assertFixtureLocation(officerPage.url(), appUrl);
   }
   await officerPage.goto(
-    new URL("/organization/dvhs-csf?tab=csf-applications", appUrl).href,
+    new URL(fixtureOrganizationPath("?tab=csf-applications"), appUrl).href,
     { waitUntil: "domcontentloaded" },
   );
+  assertFixtureLocation(officerPage.url(), appUrl);
   const rosterSearch = officerPage.getByPlaceholder("Search by name");
   await rosterSearch.waitFor({ state: "visible", timeout: 60_000 });
   const roster = rosterSearch.locator(
@@ -693,6 +648,7 @@ async function runBrowserAcceptance({ appUrl, memberPage, officerPage }) {
   const firstSubject = roster.locator("ul > li button").first();
   await firstSubject.waitFor({ state: "visible", timeout: 60_000 });
   await firstSubject.click({ timeout: 60_000 });
+  assertFixtureLocation(officerPage.url(), appUrl);
 
   const reviewQueue = officerPage.locator('[aria-busy="false"]').filter({
     has: officerPage.getByRole("button", { name: "Next subject" }),
@@ -808,13 +764,13 @@ async function main() {
       memberContext,
       target.appUrl,
       memberSessions[0].cookies,
-      getProtectionHeaders,
+      target.protectionBypass,
     );
     const officerPage = await openAuthenticatedPage(
       officerContext,
       target.appUrl,
       officerSessions[0].cookies,
-      getProtectionHeaders,
+      target.protectionBypass,
     );
 
     const loadPromise = runRequestSessions({

@@ -650,15 +650,15 @@ Development result is not Production readiness. Do not copy a Development
 fixture, class join code, import preview, or policy decision into Production,
 and do not treat a Development screenshot as Production evidence.
 
-The current repository candidate has 438 migrations through
-`20260902060000_csf_import_row_batch_error_boundary`. Hosted
+The current repository candidate has 440 migrations through
+`20260902201618_csf_selected_term_member_directory_projection`. Hosted
 Development has 430 through
-`20260901103347_csf_member_snapshot_scope_hardening`, so eight candidate
+`20260901103347_csf_member_snapshot_scope_hardening`, so ten candidate
 migrations remain unapplied. The Development alias still serves
 root `f49227cb3711043bf0db701e6ca6ed7415c96580` until the one marked release
 deployment runs. Production was verified read-only on 2026-09-01 at 414
 migrations through `20260829092823_publish_dvhs_csf_1_2_24`, an exact prefix
-of this tree with 24 migrations pending.
+of this tree with 26 migrations pending.
 
 ## Historical Development rehearsal snapshot
 

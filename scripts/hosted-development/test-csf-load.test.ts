@@ -22,16 +22,15 @@ describe("hosted CSF load acceptance", () => {
     expect(source).toContain(
       'const EXPECTED_ORIGIN = "https://dev.lets-assist.com"',
     );
-    expect(source).toContain(
-      'const PRODUCTION_PROJECT_REF = "fotdmeakexgrkronxlof"',
-    );
+    expect(source).toContain("PRODUCTION_PROJECT_REF,");
+    expect(source).toContain('from "./csf-load-fixture.mjs"');
     expect(source).toContain("load-hosted-development:${projectRef}");
     expect(source).toContain("projectRef === PRODUCTION_PROJECT_REF");
   });
 
   test("runs the required session mix for at least fifteen minutes", () => {
-    expect(source).toContain("const MEMBER_SESSIONS = 90");
-    expect(source).toContain("const OFFICER_SESSIONS = 10");
+    expect(source).toContain("const MEMBER_SESSIONS = MEMBER_SESSION_COUNT");
+    expect(source).toContain("const OFFICER_SESSIONS = OFFICER_SESSION_COUNT");
     expect(source).toContain("const DEFAULT_DURATION_MS = 15 * 60 * 1000");
     expect(source).toContain("const RAMP_DURATION_MS = 60_000");
     expect(source).toContain("const BROWSER_WARMUP_SAMPLES = 5");
@@ -57,12 +56,12 @@ describe("hosted CSF load acceptance", () => {
     expect(source).toContain("payload.sub");
     expect(source).toContain("distinctSessionIds.size !== accounts.length");
     expect(source).toContain("distinctUserIds.size !== accounts.length");
-    expect(source).toContain(
-      'requiredFictionalAccountPool(\n    "CSF_HOSTED_LOAD_MEMBER_ACCOUNTS_JSON",',
-    );
-    expect(source).toContain(
-      'requiredFictionalAccountPool(\n    "CSF_HOSTED_LOAD_OFFICER_ACCOUNTS_JSON",',
-    );
+    expect(source).toContain("const accounts = buildSyntheticAccounts()");
+    expect(source).toContain("const memberAccounts = accounts.members");
+    expect(source).toContain("const officerAccounts = accounts.officers");
+    expect(source).toContain("expectedAccount.authUserId.toLowerCase()");
+    expect(source).toContain("payload.app_metadata?.fixture_role !== role");
+    expect(source).not.toContain("_ACCOUNTS_JSON");
     expect(source).toContain(
       "result.distinctAuthIdentities === MEMBER_SESSIONS + OFFICER_SESSIONS",
     );
@@ -120,8 +119,9 @@ describe("hosted CSF load acceptance", () => {
     expect(source).toContain("lcpSampleCount: lcp.length");
     expect(source).toContain("inpSampleCount: inp.length");
     expect(source).toContain(
-      '"/organization/dvhs-csf?tab=csf-overview&csf_tour=officer"',
+      'fixtureOrganizationPath("?tab=csf-overview&csf_tour=officer")',
     );
+    expect(source).not.toContain("/organization/dvhs-csf");
     expect(source).toContain('name: "Officer workspace tour"');
     expect(source).toContain("exact: true");
     expect(source).toContain('name: movingForward ? "Next" : "Back"');
@@ -181,18 +181,31 @@ describe("hosted CSF load acceptance", () => {
       "reviewNavigationCount: BROWSER_REVIEW_NAVIGATIONS",
     );
     expect(source).toContain("VERCEL_AUTOMATION_BYPASS_SECRET?.trim()");
-    expect(source).toContain("VERCEL_TRUSTED_OIDC_TOKEN?.trim()");
-    expect(source).toContain("ACTIONS_ID_TOKEN_REQUEST_URL?.trim()");
-    expect(source).toContain("ACTIONS_ID_TOKEN_REQUEST_TOKEN?.trim()");
-    expect(source).toContain("requestGitHubOidcToken");
-    expect(source).toContain("OIDC_REFRESH_BUFFER_MS");
-    expect(source).toContain("if (!refreshPromise)");
+    expect(source).not.toContain("VERCEL_TRUSTED_OIDC_TOKEN");
+    expect(source).not.toContain("ACTIONS_ID_TOKEN_REQUEST_URL");
+    expect(source).not.toContain("x-vercel-trusted-oidc-idp-token");
     expect(source).toContain('required("SUPABASE_PUBLISHABLE_KEY")');
     expect(source).toContain('"x-vercel-protection-bypass"');
-    expect(source).toContain('"x-vercel-trusted-oidc-idp-token"');
-    expect(source).toContain("page.route(`${appUrl.origin}/**`");
-    expect(source).toContain("await route.request().allHeaders()");
+    expect(source).toContain(
+      'import { requestVercelBypassCookie } from "./vercel-bypass-cookie.mjs"',
+    );
+    expect(source).toContain(
+      "const bypassCookie = await requestVercelBypassCookie",
+    );
+    expect(source).toContain('page.route("**/*"');
+    expect(source).toContain("await route.continue()");
+    expect(source).not.toContain("route.continue({");
     expect(source).toContain("settledUrl.origin !== appUrl.origin");
+    expect(source).toContain('redirect: "manual"');
+    expect(source).toContain("response.status >= 300");
+    expect(source).toContain("assertFixtureLocation(response.url, appUrl)");
+    expect(source).toContain("request.isNavigationRequest()");
+    expect(source).toContain('request.resourceType() === "document"');
+    expect(source).toContain('await route.abort("blockedbyclient")');
+    expect(source).toContain("location.pathname !== fixtureOrganizationPath()");
+    expect(
+      source.match(/assertFixtureLocation\(/gu)?.length ?? 0,
+    ).toBeGreaterThanOrEqual(10);
     expect(source).toContain(
       "Vercel protection rejected the hosted load request.",
     );
@@ -201,18 +214,41 @@ describe("hosted CSF load acceptance", () => {
   });
 
   test("publishes exact-SHA acceptance only from the trusted Development workflow", () => {
-    expect(workflow).toContain("id-token: write");
+    expect(workflow).not.toContain("id-token: write");
     expect(workflow).toContain("statuses: write");
+    const workflowPermissions = workflow.slice(
+      workflow.indexOf("permissions:"),
+      workflow.indexOf("jobs:"),
+    );
+    expect(workflowPermissions).toContain("contents: read");
+    expect(workflowPermissions).not.toContain("checks: read");
+    expect(workflowPermissions).not.toContain("statuses: write");
+    const hostedJob = workflow.slice(workflow.indexOf("  hosted-acceptance:"));
+    expect(hostedJob).toContain("    permissions:\n      checks: read");
+    expect(hostedJob).toContain("      statuses: write");
     expect(workflow).toContain("push:");
     expect(workflow).toContain("isDevelopmentReleaseCommitMessage");
     expect(workflow).toContain("needs: release-selection");
+    expect(workflow).toContain("environment: development");
     expect(workflow).not.toContain("core.getIDToken()");
     expect(workflow).not.toContain("VERCEL_TRUSTED_OIDC_TOKEN");
     expect(workflow).toContain("bun run csf:test:hosted:load");
     expect(workflow).toContain("csf-hosted-development-acceptance");
     expect(workflow).toContain("commits/${ACCEPTED_SHA}/status");
     expect(workflow).toContain('.context == "Vercel" and .state == "success"');
-    expect(workflow).not.toContain("commits/${ACCEPTED_SHA}/check-runs");
+    expect(workflow).toContain(
+      "commits/${ACCEPTED_SHA}/check-runs?filter=latest&per_page=100",
+    );
+    expect(workflow).toContain('.name == "Supabase Preview"');
+    expect(workflow).toContain('.app.slug == "supabase"');
+    expect(workflow).toContain(
+      'expected_details_url="https://supabase.com/dashboard/project/${DEVELOPMENT_PROJECT_REF}"',
+    );
+    expect(workflow).toContain('[[ -z "${DEVELOPMENT_PROJECT_REF:-}" ]]');
+    expect(workflow).toContain(".details_url == $expected_details_url");
+    expect(workflow).toContain(
+      '.status == "completed" and .conclusion == "success"',
+    );
     expect(workflow).toContain("secrets.VERCEL_TOKEN");
     expect(workflow).toContain("vars.VERCEL_TEAM_ID");
     expect(workflow).toContain("vars.VERCEL_ROOT_PROJECT_ID");
@@ -222,6 +258,10 @@ describe("hosted CSF load acceptance", () => {
     expect(aliasVerifier.match(/--connect-timeout 10/gu) ?? []).toHaveLength(2);
     expect(aliasVerifier.match(/--max-time 20/gu) ?? []).toHaveLength(2);
     expect(aliasVerifier).toContain('.readyState == "READY"');
+    expect(aliasVerifier).toContain(
+      '(.target == "preview" or .target == null)',
+    );
+    expect(aliasVerifier).not.toContain('.target == "production"');
     expect(aliasVerifier).toContain(".aliasAssigned == true");
     expect(aliasVerifier).toContain('.aliasAssigned | type) == "number"');
     expect(aliasVerifier).toContain(".projectId // .project.id");
@@ -232,11 +272,18 @@ describe("hosted CSF load acceptance", () => {
     expect(aliasVerifier).toContain(".gitSource.sha");
     expect(aliasVerifier).toContain(".gitSource.ref");
     expect(workflow.match(/verify-vercel-alias\.sh/g) ?? []).toHaveLength(2);
+    const supabaseCheckIndex = workflow.indexOf(
+      "Require successful Supabase Development preview for the SHA",
+    );
     const hostedRunIndex = workflow.indexOf("bun run csf:test:hosted:load");
     const firstAliasCheckIndex = workflow.indexOf("verify-vercel-alias.sh");
     const secondAliasCheckIndex = workflow.lastIndexOf(
       "verify-vercel-alias.sh",
     );
+    expect(supabaseCheckIndex).toBeGreaterThan(
+      workflow.indexOf("Require successful Vercel deployment for the SHA"),
+    );
+    expect(supabaseCheckIndex).toBeLessThan(firstAliasCheckIndex);
     expect(firstAliasCheckIndex).toBeLessThan(hostedRunIndex);
     expect(secondAliasCheckIndex).toBeGreaterThan(hostedRunIndex);
     expect(secondAliasCheckIndex).toBeLessThan(
@@ -246,13 +293,81 @@ describe("hosted CSF load acceptance", () => {
     expect(workflow).toContain("state=success");
     expect(workflow).toContain("state=failure");
     expect(workflow).toContain("timeout-minutes: 75");
+    expect(workflow).not.toContain("CSF_HOSTED_LOAD_MEMBER_ACCOUNTS_JSON");
+    expect(workflow).not.toContain("CSF_HOSTED_LOAD_OFFICER_ACCOUNTS_JSON");
+
+    const provisionStepStart = workflow.indexOf(
+      "- name: Provision the fixed synthetic CSF fixture",
+    );
+    const preflightStepStart = workflow.indexOf(
+      "- name: Preflight hosted acceptance configuration",
+    );
+    const provisionStepEnd = workflow.indexOf(
+      "- name: Install Playwright Chromium",
+      provisionStepStart,
+    );
+    const provisionStep = workflow.slice(provisionStepStart, provisionStepEnd);
+    expect(provisionStepStart).toBeGreaterThan(-1);
+    expect(provisionStep).toContain(
+      "bun run csf:provision:hosted:load-fixtures",
+    );
+    expect(preflightStepStart).toBeGreaterThan(-1);
+    expect(preflightStepStart).toBeLessThan(provisionStepStart);
+    expect(workflow.slice(preflightStepStart, provisionStepStart)).toContain(
+      "HAS_LOAD_PASSWORD",
+    );
+    expect(workflow.slice(preflightStepStart, provisionStepStart)).toContain(
+      "HAS_PUBLISHABLE_KEY",
+    );
+    expect(workflow.slice(preflightStepStart, provisionStepStart)).toContain(
+      "HAS_SERVICE_ROLE_KEY",
+    );
+    expect(workflow.slice(preflightStepStart, provisionStepStart)).toContain(
+      "HAS_VERCEL_BYPASS",
+    );
+    expect(provisionStep).toContain(
+      "SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}",
+    );
+    expect(provisionStep).toContain(
+      "provision-hosted-development:${{ vars.CSF_DEVELOPMENT_SUPABASE_PROJECT_REF }}:csf-load-fixture",
+    );
+
+    const hostedLoadStepStart = workflow.indexOf(
+      "- name: Run hosted CSF acceptance",
+    );
+    const hostedLoadStepEnd = workflow.indexOf(
+      "- name: Rebind the Development alias after acceptance",
+      hostedLoadStepStart,
+    );
+    const hostedLoadStep = workflow.slice(
+      hostedLoadStepStart,
+      hostedLoadStepEnd,
+    );
+    expect(hostedLoadStep).toContain(
+      "VERCEL_AUTOMATION_BYPASS_SECRET: ${{ secrets.VERCEL_AUTOMATION_BYPASS_SECRET }}",
+    );
+    expect(hostedLoadStep).toContain(
+      '[[ -z "${VERCEL_AUTOMATION_BYPASS_SECRET:-}" ]]',
+    );
+    expect(workflow.slice(0, hostedLoadStepStart)).not.toContain(
+      "VERCEL_AUTOMATION_BYPASS_SECRET: ${{ secrets.VERCEL_AUTOMATION_BYPASS_SECRET }}",
+    );
+    expect(workflow.slice(hostedLoadStepEnd)).not.toContain(
+      "VERCEL_AUTOMATION_BYPASS_SECRET",
+    );
+    expect(workflow.slice(0, provisionStepStart)).not.toContain(
+      "SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}",
+    );
+    expect(workflow.slice(provisionStepEnd)).not.toContain(
+      "SUPABASE_SERVICE_ROLE_KEY",
+    );
   });
 
   test("uses only known fictional accounts and emits count-only output", () => {
-    expect(source).toContain("/^[^\\s@]+@[^\\s@]+\\.local\\.test$/u");
-    expect(source).toContain("new Set(accounts).size !== accounts.length");
-    expect(workflow).toContain("secrets.CSF_HOSTED_LOAD_MEMBER_ACCOUNTS_JSON");
-    expect(workflow).toContain("secrets.CSF_HOSTED_LOAD_OFFICER_ACCOUNTS_JSON");
+    expect(source).toContain('from "./csf-load-fixture.mjs"');
+    expect(source).toContain('required("CSF_HOSTED_LOAD_PASSWORD")');
+    expect(source).not.toContain("CSF_HOSTED_LOAD_MEMBER_ACCOUNTS_JSON");
+    expect(source).not.toContain("CSF_HOSTED_LOAD_OFFICER_ACCOUNTS_JSON");
     expect(source).toContain("fictionalAccounts: true");
     expect(source).not.toContain("console.log(account)");
     expect(source).not.toContain("console.log(password)");

@@ -3,9 +3,9 @@
 Production was verified read-only on 2026-09-01 in Supabase project
 `fotdmeakexgrkronxlof` at 414 ordered migrations through
 `20260829092823_publish_dvhs_csf_1_2_24`. The current repository
-release candidate has exactly 438 ordered migrations through
-`20260902060000_csf_import_row_batch_error_boundary`, so the typed
-read-only preflight pins an exact 24-migration tail. This count is a
+release candidate has exactly 440 ordered migrations through
+`20260902201618_csf_selected_term_member_directory_projection`, so the typed
+read-only preflight pins an exact 26-migration tail. This count is a
 repository contract, not proof of live Production state: re-run the read-only
 preflight against the exact Production project immediately before the cutover.
 
@@ -14,7 +14,7 @@ background import, communications, performance, and release-gating work through
 the import mapping-version commit fence, queue-table privilege repair, and
 atomic source-mapping version boundary. Hosted
 Development database parity, exact served SHA, role-bound browser acceptance,
-provider acceptance, and a fresh full 438-migration replay must all be recorded
+provider acceptance, and a fresh full 440-migration replay must all be recorded
 before promotion. Until those gates are green, both the hosted and Production
 release gates remain open.
 
@@ -48,7 +48,7 @@ because the cutover still builds on that baseline. See the
 - **AUD-002** — the `notifications` INSERT policy ends in `OR (auth.uid() IS NULL)`, so anyone holding the public anon key can inject a notification for any user, with an attacker-chosen title, body, and action URL.
 
 The fixing migrations, `20260810220100` and `20260810220200`, are historical
-context rather than part of the current 24-migration pending set.
+context rather than part of the current 26-migration pending set.
 
 ---
 
@@ -82,7 +82,7 @@ psql -X "$PRODUCTION_READONLY_URL" \
 
 Every check is `SELECT` or `SHOW` inside an explicit read-only transaction. The
 script accepts only the exact 414-version Production baseline or exact
-438-version target, exits non-zero on a partial or divergent ledger, and checks
+440-version target, exits non-zero on a partial or divergent ledger, and checks
 relation existence before parsing shape-specific tables. `pipefail` preserves
 that non-zero status through `tee`. Keep the raw log encrypted, access
 controlled, outside the repository, and out of model prompts. Record only a
@@ -107,7 +107,7 @@ sanitized pass/fail summary and redacted blocker counts in the change record.
   different organization before the workbook-registry backfill.
 - **D12** blocks duplicate non-null class-history profile-create request
   receipts before the request-identity constraint is installed.
-- **T1–T10** run only on the 438 shape and prove target relations, expected
+- **T1–T10** run only on the 440 shape and prove target relations, expected
   validated constraints/indexes, the reporter-detachment behavior moderation
   evidence depends on, the server-only posture of the three content report
   functions, lifecycle transaction receipts and ACLs, the atomic AI quota
@@ -128,7 +128,7 @@ reviewed forward migration.
 
 **The Supabase `development` branch is not a rehearsal.** Its current
 hosted ledger proves ordered application against the Development database, but
-it does not prove the repository branch's Production-shaped 414-to-438
+it does not prove the repository branch's Production-shaped 414-to-440
 transition. It does not
 exercise data-dependent DDL, lock behaviour at Production table sizes, or
 Production data.
@@ -140,7 +140,7 @@ Production data.
 3. **Verify it is a clone, not a replay** — `list_migrations` on the new ref.
    - **414 rows, head `20260829092823`** → a genuine current-baseline clone.
      Continue.
-   - **438 rows, head `20260902060000`** → it was built by replaying the
+   - **440 rows, head `20260902201618`** → it was built by replaying the
      repository branch, which is the artifact you already have and proves nothing new.
      Abandon and use the fallback.
 
@@ -152,14 +152,14 @@ Production data.
    ```bash
    set -euo pipefail
    supabase link --project-ref <branch-ref>
-   supabase db push --linked --dry-run      # expect exactly 24 pending
+   supabase db push --linked --dry-run      # expect exactly 26 pending
    time supabase db push --linked --yes 2>&1 | tee rehearsal.log
    ```
 7. Capture: total and per-file wall clock; `SELECT ... FROM pg_index WHERE NOT
 indisvalid` (must be empty); `verify-supabase-migration-parity.mjs`;
    `get_advisors` (the recorded INFO/WARN/ERROR counts came from an older
    Development shape and are comparison evidence, not proof for the current
-   hosted database or 438-migration repository target);
+   hosted database or 440-migration repository target);
    and
    `supabase db diff --linked` — compare that last one against the destructive
    drift recorded in
@@ -477,7 +477,7 @@ values to the workflow log.
 ## The window
 
 **Length:** rehearsal-measured duration × 3, floor 90 minutes. Use the timed
-Production-shaped 414-to-438 rehearsal as the authority; the pending set's
+Production-shaped 414-to-440 rehearsal as the authority; the pending set's
 validated constraints, index builds, ACL convergence, and cancellation-ledger
 work determine this window. Do not reuse timing assumptions from migrations
 already included in the 414 baseline.
@@ -546,7 +546,7 @@ already included in the 414 baseline.
 - `SELECT ... FROM pg_index WHERE NOT indisvalid` — must be empty
 - `get_advisors(type: 'security')` — expect only the known `INFO`/`rls_enabled_no_policy` shape
 - Re-run `production-cutover-preflight.sql`; it must select the exact
-  438-row target path and pass T1–T10
+  440-row target path and pass T1–T10
 - Storage bucket counts against the **E7** baseline
 - Upgrade DV installs to `2.0.0` through the leased control plane **before** enabling DV traffic
 

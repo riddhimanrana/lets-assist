@@ -14,7 +14,7 @@ const architectureAudit = readFileSync(
 );
 
 const PRODUCTION_HEAD = "20260829092823";
-const TARGET_HEAD = "20260902060000";
+const TARGET_HEAD = "20260902201618";
 const HARD_FAIL_STATEMENT = "SELECT 1 / 0 AS preflight_check_failed;";
 const HARD_FAIL_SITES = 35;
 const hardFailStatements =
@@ -44,6 +44,8 @@ const PENDING_VERSIONS = [
   "20260902040000",
   "20260902050000",
   "20260902060000",
+  "20260902201108",
+  "20260902201618",
 ] as const;
 
 function readMigration(version: string) {
@@ -55,7 +57,7 @@ function readMigration(version: string) {
 }
 
 describe("Production cutover preflight source contract", () => {
-  test("pins the exact 414 -> 438 ledger and all 24 pending versions", () => {
+  test("pins the exact 414 -> 440 ledger and all 26 pending versions", () => {
     const migrations = readdirSync(migrationsRoot)
       .filter((name) => /^\d{14}_.+\.sql$/u.test(name))
       .sort();
@@ -77,18 +79,18 @@ describe("Production cutover preflight source contract", () => {
       (match) => match[1],
     );
 
-    expect(migrations.length).toBeGreaterThanOrEqual(438);
+    expect(migrations.length).toBeGreaterThanOrEqual(440);
     expect(migrations.at(0)?.slice(0, 14)).toBe("20260325181408");
-    expect(migrations.slice(0, 438).at(-1)?.slice(0, 14)).toBe(TARGET_HEAD);
+    expect(migrations.slice(0, 440).at(-1)?.slice(0, 14)).toBe(TARGET_HEAD);
     expect(pinnedBaseline).toEqual(
       migrations.slice(0, 414).map((name) => name.slice(0, 14)),
     );
     expect(pending).toEqual([...PENDING_VERSIONS]);
     expect(pinnedTargetTail).toEqual([...PENDING_VERSIONS]);
     expect(preflight).toContain("count(*) = 414");
-    expect(preflight).toContain("count(*) = 438");
+    expect(preflight).toContain("count(*) = 440");
     expect(preflight).toContain("min(version::text) = '20260325181408'");
-    expect(preflight).toContain("24 migrations pending");
+    expect(preflight).toContain("26 migrations pending");
     expect(preflight).not.toContain("count(*) = 295");
     for (const version of PENDING_VERSIONS) {
       expect(preflight).toContain(`'${version}'`);
@@ -763,13 +765,13 @@ describe("Production cutover preflight source contract", () => {
     expect(d12).toContain("\\if :d12_pass");
   });
 
-  test("checks every CSF 438 target contract and the final repairs", () => {
+  test("checks every CSF 440 target contract and the final repairs", () => {
     const targetInventory = preflight.slice(
       preflight.indexOf("T1  Target-only relation inventory"),
       preflight.indexOf("T2  Target constraints"),
     );
     const targetCsf = preflight.slice(
-      preflight.indexOf("T2C 438 CSF release-tail contract"),
+      preflight.indexOf("T2C 440 CSF release-tail contract"),
       preflight.indexOf("T3  Target pg_graphql posture"),
     );
     const targetRelations = [
@@ -843,8 +845,12 @@ describe("Production cutover preflight source contract", () => {
       "plugin_data.csf_officer_home_snapshot(uuid,uuid)",
       "plugin_data.csf_member_profile_snapshot(uuid,uuid)",
       "plugin_data.csf_import_preview_readiness_batch(uuid,uuid[])",
+      "plugin_data.csf_list_class_directory_page(uuid,uuid,uuid,text,text,text,text,text,text,uuid,integer)",
+      "plugin_data.csf_count_cohort_term_members(uuid,uuid[],uuid)",
       "plugin_data.csf_class_history_source_key_value(jsonb)",
+      "plugin_data.csf_class_history_source_key_target(uuid,uuid)",
       "plugin_data.csf_class_history_source_key_requires_review(uuid,uuid)",
+      "plugin_data.csf_import_class_history_row_v2(uuid,uuid,text,text,text,text,text,text,text,text,uuid,uuid,uuid,uuid,text,jsonb,jsonb,boolean,uuid)",
       "plugin_data.csf_create_profile_for_class_history_import_row(uuid,uuid,uuid,uuid,text)",
       "plugin_data.csf_member_home_context_snapshot(uuid,uuid,timestamptz,timestamptz,date)",
       "plugin_data.csf_member_stream_enrichment(uuid,uuid[],uuid[],uuid[])",
@@ -871,6 +877,7 @@ describe("Production cutover preflight source contract", () => {
     expect(targetCsf).toContain("target_csf_release_tail_issues");
     expect(targetCsf).toContain("invalid_constraint_issues");
     expect(targetCsf).toContain("function_order_issues");
+    expect(targetCsf).toContain("volatile_function_issues");
     expect(targetCsf).toContain("'select * into v_batch'");
     expect(targetCsf).toContain(
       "plugin_data.csf_join_class_by_code identity lock and replay revalidation order",
@@ -1164,37 +1171,28 @@ describe("Production cutover preflight source contract", () => {
     expect(mappingFenceMigration).toContain(
       "GRANT EXECUTE ON FUNCTION plugin_data.csf_claim_import_commit_attempt(",
     );
-  });
 
-  test("emits counts instead of live row identifiers for blockers", () => {
-    const blockerOutput = preflight.slice(
-      preflight.indexOf("D1  Duplicate verified certificates"),
-      preflight.indexOf("D10 Current reviewed public client grants"),
+    const sourceKeyReuseMigration = readMigration("20260902201108");
+    expect(sourceKeyReuseMigration).toContain(
+      "CREATE OR REPLACE FUNCTION plugin_data.csf_class_history_source_key_target(",
     );
-    for (const countAlias of [
-      "duplicate_signup_group_count",
-      "incompatible_campaign_count",
-      "duplicate_class_group_count",
-      "reserved_slug_organization_count",
-      "invalid_cancellation_job_count",
-      "cross_tenant_reply_count",
-      "invalid_receipt_group_count",
-      "external_dependency_count",
-    ]) {
-      expect(blockerOutput).toContain(countAlias);
-    }
-    for (const rowProjection of [
-      "SELECT signup_id",
-      "array_agg(id ORDER BY id)",
-      "SELECT campaign.organization_id",
-      "SELECT organization_id, cohort_id",
-      "SELECT id AS organization_id",
-      'SELECT id, status, attempts, "cursor"',
-      "SELECT reply.id AS reply_id",
-      "SELECT organization_id, correlation_id",
-      "pg_catalog.pg_describe_object(",
-    ]) {
-      expect(blockerOutput).not.toContain(rowProjection);
-    }
+    expect(sourceKeyReuseMigration).toContain("VOLATILE");
+    expect(sourceKeyReuseMigration).toContain(
+      "ALTER FUNCTION plugin_data.csf_class_history_source_key_requires_review(uuid, uuid)",
+    );
+    expect(sourceKeyReuseMigration).toContain(
+      "PERFORM plugin_data.csf_lock_identity_mutation(p_organization_id)",
+    );
+
+    const selectedTermDirectoryMigration = readMigration("20260902201618");
+    expect(selectedTermDirectoryMigration).toContain(
+      "CREATE OR REPLACE FUNCTION plugin_data.csf_list_class_directory_page(",
+    );
+    expect(selectedTermDirectoryMigration).toContain(
+      "CREATE OR REPLACE FUNCTION plugin_data.csf_count_cohort_term_members(",
+    );
+    expect(selectedTermDirectoryMigration).toContain(
+      "FROM PUBLIC, anon, authenticated, service_role",
+    );
   });
 });

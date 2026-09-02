@@ -1,4 +1,4 @@
--- Production 414 -> repository target 438 cutover preflight.
+-- Production 414 -> repository target 440 cutover preflight.
 --
 -- Read-only by construction: every check is SELECT or SHOW inside an explicit
 -- READ ONLY transaction. Run this only with the reviewed Production read-only
@@ -10,7 +10,7 @@
 --
 -- The only supported ledgers are:
 --   pre-cutover   414 rows headed by 20260829092823
---   post-cutover  438 rows headed by 20260902060000 with the exact 24-row tail
+--   post-cutover  440 rows headed by 20260902201618 with the exact 26-row tail
 --
 -- Any partial, divergent, later, or wrong-tail ledger exits non-zero before
 -- shape-specific relations are parsed. Relation inventories then fail with a
@@ -44,7 +44,7 @@ SELECT current_setting('transaction_read_only') = 'on' AS read_only_transaction
 \echo ''
 \echo '=============================================================='
 \echo 'L0  Exact migration ledger'
-\echo '    PASS: exactly 414/baseline or exactly 438/target'
+\echo '    PASS: exactly 414/baseline or exactly 440/target'
 \echo '=============================================================='
 SELECT count(*) AS applied_migrations,
        min(version::text) AS first_version,
@@ -200,9 +200,9 @@ SELECT
     AND count(*) FILTER (
       WHERE version::text > '20260829092823'
     ) = 0 AS baseline_ledger,
-  count(*) = 438
+  count(*) = 440
     AND min(version::text) = '20260325181408'
-    AND max(version::text) = '20260902060000'
+    AND max(version::text) = '20260902201618'
     AND :'baseline_versions_exact'::boolean
     AND (
       SELECT array_agg(pending.version ORDER BY pending.version)
@@ -218,7 +218,8 @@ SELECT
       '20260831234952','20260901023000','20260901035129','20260901043613',
       '20260901052000','20260901060000','20260901070000','20260901103347',
       '20260901120000','20260901230000','20260902010000','20260902020000',
-      '20260902030000','20260902040000','20260902050000','20260902060000'
+      '20260902030000','20260902040000','20260902050000','20260902060000',
+      '20260902201108','20260902201618'
       -- END EXACT PRODUCTION TARGET TAIL
     ]::text[] AS target_ledger
 FROM supabase_migrations.schema_migrations
@@ -226,7 +227,7 @@ FROM supabase_migrations.schema_migrations
 
 \if :baseline_ledger
   \set cutover_shape pre
-  \echo 'PASS L0: exact Production baseline; 24 migrations pending.'
+  \echo 'PASS L0: exact Production baseline; 26 migrations pending.'
 \elif :target_ledger
   \set cutover_shape post
   \echo 'PASS L0: exact repository target; zero migrations pending.'
@@ -1603,7 +1604,7 @@ SELECT
       ('private.anonymous_feedback_email_preferences'),
       ('private.google_cap_event_receipts'),
       ('app_private.storage_object_policy_contract'),
-      -- BEGIN 438 CSF TARGET RELATIONS
+      -- BEGIN 440 CSF TARGET RELATIONS
       ('plugin_data.csf_class_workbooks'),
       ('plugin_data.csf_class_workbook_refresh_jobs'),
       ('plugin_data.csf_import_approval_batches'),
@@ -1611,7 +1612,7 @@ SELECT
       ('plugin_data.csf_import_approval_batch_items'),
       ('plugin_data.csf_import_row_batches'),
       ('plugin_data.csf_import_row_batch_outcomes')
-      -- END 438 CSF TARGET RELATIONS
+      -- END 440 CSF TARGET RELATIONS
   ) AS required(relation_name)
   WHERE to_regclass(required.relation_name) IS NULL
   ORDER BY required.relation_name;
@@ -1631,7 +1632,7 @@ SELECT
       ('private.anonymous_feedback_email_preferences'),
       ('private.google_cap_event_receipts'),
       ('app_private.storage_object_policy_contract'),
-      -- BEGIN 438 CSF TARGET RELATIONS
+      -- BEGIN 440 CSF TARGET RELATIONS
       ('plugin_data.csf_class_workbooks'),
       ('plugin_data.csf_class_workbook_refresh_jobs'),
       ('plugin_data.csf_import_approval_batches'),
@@ -1639,7 +1640,7 @@ SELECT
       ('plugin_data.csf_import_approval_batch_items'),
       ('plugin_data.csf_import_row_batches'),
       ('plugin_data.csf_import_row_batch_outcomes')
-      -- END 438 CSF TARGET RELATIONS
+      -- END 440 CSF TARGET RELATIONS
   ) AS required(relation_name)
   \gset
   \if :target_shape_ready
@@ -1952,7 +1953,7 @@ SELECT
 
   \echo ''
   \echo '=============================================================='
-  \echo 'T2C 438 CSF release-tail contract'
+  \echo 'T2C 440 CSF release-tail contract'
   \echo '    PASS: []'
   \echo '=============================================================='
   WITH expected_tables(relation_name, service_privileges) AS (
@@ -2516,6 +2517,10 @@ SELECT
         true, true, 'jsonb', false),
       ('plugin_data.csf_search_profiles(uuid,uuid,text,uuid)',
         true, true, 'record', true),
+      ('plugin_data.csf_list_class_directory_page(uuid,uuid,uuid,text,text,text,text,text,text,uuid,integer)',
+        true, false, 'record', true),
+      ('plugin_data.csf_count_cohort_term_members(uuid,uuid[],uuid)',
+        true, false, 'record', true),
       ('plugin_data.csf_post_reply_previews(uuid,uuid[],integer)',
         true, true, 'record', true),
       ('plugin_data.csf_import_preview_readiness_batch(uuid,uuid[])',
@@ -2646,7 +2651,10 @@ SELECT
       ('plugin_data.csf_guard_stale_import_source_health()'),
       ('plugin_data.csf_commit_import_row_batch_unserialized(uuid,uuid,uuid,uuid[])'),
       ('plugin_data.csf_lock_import_approval_batches_for_queue(uuid,uuid)'),
-      ('plugin_data.csf_block_import_commit_queue(uuid,text)')
+      ('plugin_data.csf_block_import_commit_queue(uuid,text)'),
+      ('plugin_data.csf_class_history_source_key_target(uuid,uuid)'),
+      ('plugin_data.csf_class_history_source_key_requires_review(uuid,uuid)'),
+      ('plugin_data.csf_import_class_history_row_v2(uuid,uuid,text,text,text,text,text,text,text,text,uuid,uuid,uuid,uuid,text,jsonb,jsonb,boolean,uuid)')
   ),
   explicit_postgres_grant_issues AS (
     SELECT 'function_grant'::text AS issue_kind,
@@ -2663,6 +2671,20 @@ SELECT
         WHERE grantee.rolname = 'postgres'
           AND privilege.privilege_type = 'EXECUTE'
       )
+  ),
+  expected_volatile_functions(signature) AS (
+    VALUES
+      ('plugin_data.csf_class_history_source_key_target(uuid,uuid)'),
+      ('plugin_data.csf_class_history_source_key_requires_review(uuid,uuid)')
+  ),
+  volatile_function_issues AS (
+    SELECT 'function_volatility'::text AS issue_kind,
+      expected.signature AS object_name
+    FROM expected_volatile_functions AS expected
+    LEFT JOIN pg_catalog.pg_proc AS function_record
+      ON function_record.oid = to_regprocedure(expected.signature)
+    WHERE function_record.oid IS NULL
+       OR function_record.provolatile <> 'v'
   ),
   retired_functions(function_name) AS (
     VALUES
@@ -3050,6 +3072,7 @@ SELECT
     UNION ALL SELECT * FROM trigger_issues
     UNION ALL SELECT * FROM function_issues
     UNION ALL SELECT * FROM explicit_postgres_grant_issues
+    UNION ALL SELECT * FROM volatile_function_issues
     UNION ALL SELECT * FROM retired_function_issues
     UNION ALL SELECT * FROM function_fragment_issues
     UNION ALL SELECT * FROM function_order_issues
@@ -3070,7 +3093,7 @@ SELECT
   \if :target_csf_release_tail_pass
     \echo 'PASS T2C'
   \else
-    \echo 'FAIL T2C: the 438 CSF release-tail contract has drifted.'
+    \echo 'FAIL T2C: the 440 CSF release-tail contract has drifted.'
     SELECT 1 / 0 AS preflight_check_failed;
   \endif
 

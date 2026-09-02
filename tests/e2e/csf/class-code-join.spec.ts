@@ -415,7 +415,7 @@ test.describe("class join code connections", () => {
       page.getByText(fixture.accountName.full, { exact: true }),
     ).toBeVisible();
     await expect(
-      page.getByText("Class of 2028", { exact: true }),
+      page.getByText("Class of 2028", { exact: true }).first(),
     ).toBeVisible();
 
     await page
@@ -446,7 +446,7 @@ test.describe("class join code connections", () => {
             fixture.admin
               .schema("plugin_data")
               .from("csf_profile_link_requests")
-              .select("match_status,matched_profile_id")
+              .select("match_status,matched_profile_id,candidate_profile_ids")
               .eq("organization_id", fixture.organizationId)
               .eq("user_id", fixture.userId)
               .order("created_at", { ascending: false })
@@ -461,7 +461,7 @@ test.describe("class join code connections", () => {
         request: {
           candidate_profile_ids: [noEmailProfileId],
           match_status: "needs_review",
-          matched_profile_id: noEmailProfileId,
+          matched_profile_id: null,
         },
       });
 
@@ -478,8 +478,12 @@ test.describe("class join code connections", () => {
         { exact: true },
       ),
     ).toBeVisible();
-    await page.getByRole("link", { name: "Go to class feed" }).click();
-    await expect(page).toHaveURL(/[?&]tab=classes(?:&|$)/u);
+    await page.getByRole("button", { name: "Go to class feed" }).click();
+    await expect(page).toHaveURL(
+      (url) =>
+        url.pathname === CSF_PUBLIC_PATH &&
+        url.hash === "#chapter-updates-title",
+    );
 
     expectNoBrowserFailures(failures);
   });
