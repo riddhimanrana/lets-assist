@@ -2,9 +2,12 @@
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "git": {
     "deploymentEnabled": {
-      "codex/plugin-release-*": false
+      "*": false,
+      "development": true,
+      "main": true
     }
   },
+  "ignoreCommand": "node scripts/vercel-build-policy.mjs",
   "crons": [
     {
       "path": "/api/cron/csf-communications-dispatch",

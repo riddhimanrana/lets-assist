@@ -103,7 +103,8 @@ describe("hosted CSF load acceptance", () => {
     expect(workflow).toContain("id-token: write");
     expect(workflow).toContain("statuses: write");
     expect(workflow).toContain("push:");
-    expect(workflow).toContain("[hosted-acceptance]");
+    expect(workflow).toContain("[deploy-development]");
+    expect(workflow).toContain("/codex/csf-integration-");
     expect(workflow).not.toContain("core.getIDToken()");
     expect(workflow).not.toContain("VERCEL_TRUSTED_OIDC_TOKEN");
     expect(workflow).toContain("bun run csf:test:hosted:load");

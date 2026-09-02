@@ -31,7 +31,9 @@ jobs:
     if: >-
       github.ref == 'refs/heads/development' &&
       (github.event_name == 'workflow_dispatch' ||
-      contains(github.event.head_commit.message, '[hosted-acceptance]'))
+      contains(github.event.head_commit.message, '[deploy-development]') ||
+      (startsWith(github.event.head_commit.message, 'Merge pull request #') &&
+      contains(github.event.head_commit.message, '/codex/csf-integration-')))
     runs-on: ubuntu-latest
     timeout-minutes: 45
     env:
