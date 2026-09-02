@@ -48,9 +48,7 @@ type ReturnRouteRule = {
 };
 
 const boundedWorkspaceValue = (value: string) =>
-  value.length > 0 &&
-  value.length <= 512 &&
-  !hasAsciiControlCharacter(value);
+  value.length > 0 && value.length <= 512 && !hasAsciiControlCharacter(value);
 const boundedApplicationSearch = (value: string) =>
   value.length <= 160 && !hasAsciiControlCharacter(value);
 const uuidValue = (value: string) => UUID_PATTERN.test(value);
