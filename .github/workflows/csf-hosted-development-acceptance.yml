@@ -174,7 +174,7 @@ jobs:
           echo "The exact Development SHA did not receive a successful Supabase Preview check for the configured Development project." >&2
           exit 1
 
-      - name: Bind the Development alias before acceptance
+      - name: Verify the Development branch domain before acceptance
         env:
           EXPECTED_GITHUB_REPOSITORY_ID: ${{ github.repository_id }}
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
@@ -239,7 +239,7 @@ jobs:
           fi
           bun run csf:test:hosted:load
 
-      - name: Rebind the Development alias after acceptance
+      - name: Verify the Development branch domain after acceptance
         env:
           EXPECTED_GITHUB_REPOSITORY_ID: ${{ github.repository_id }}
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
