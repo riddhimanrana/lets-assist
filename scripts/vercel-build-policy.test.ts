@@ -3,7 +3,10 @@ import { spawnSync } from "node:child_process";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 
-import { shouldRunVercelBuild } from "./vercel-build-policy.mjs";
+import {
+  isDevelopmentReleaseCommitMessage,
+  shouldRunVercelBuild,
+} from "./vercel-build-policy.mjs";
 
 const repositoryRoot = join(import.meta.dir, "..");
 
@@ -12,10 +15,10 @@ function readRepositoryFile(path: string) {
 }
 
 describe("Vercel build policy", () => {
-  test("builds Production and explicit non-Git deployments", () => {
+  test("holds Production Git pushes and builds explicit non-Git deployments", () => {
     expect(
       shouldRunVercelBuild({ branch: "main", commitMessage: "release" }),
-    ).toBe(true);
+    ).toBe(false);
     expect(
       shouldRunVercelBuild({ branch: undefined, commitMessage: undefined }),
     ).toBe(true);
@@ -57,6 +60,24 @@ describe("Vercel build policy", () => {
           "Merge pull request #445 from riddhimanrana/codex/csf-integration-20260901\n\nCSF release candidate",
       }),
     ).toBe(true);
+  });
+
+  test("uses only the exact first line for Development release selection", () => {
+    expect(
+      isDevelopmentReleaseCommitMessage(
+        "fix(csf): ordinary change\n\n[deploy-development]",
+      ),
+    ).toBe(false);
+    expect(
+      isDevelopmentReleaseCommitMessage(
+        "fix(csf): ordinary change\n\nMerge pull request #445 from riddhimanrana/codex/csf-integration-20260901",
+      ),
+    ).toBe(false);
+    expect(
+      isDevelopmentReleaseCommitMessage(
+        "Merge pull request #445 from riddhimanrana/codex/csf-integration",
+      ),
+    ).toBe(false);
   });
 
   test("does not treat an arbitrary pull request merge as an integration release", () => {
@@ -106,12 +127,11 @@ describe("Vercel build policy", () => {
     expect(vercel.git?.deploymentEnabled).toEqual({
       "*": false,
       development: true,
-      main: true,
+      main: false,
     });
     expect(vercel.ignoreCommand).toBe("node scripts/vercel-build-policy.mjs");
-    expect(acceptance).toContain(
-      "contains(github.event.head_commit.message, '[deploy-development]')",
-    );
+    expect(acceptance).toContain("isDevelopmentReleaseCommitMessage");
+    expect(acceptance).toContain("needs: release-selection");
     expect(deploymentGuide).toMatch(/one\s+integration pull request/u);
     expect(deploymentGuide).toMatch(/one\s+Production pull\s+request/u);
   });

@@ -1,390 +1,147 @@
-# Supabase Schema Deployment Pipeline
+# Supabase schema deployment
 
-Safe, validated CI/CD for Supabase database migrations with comprehensive safety checks.
+Let's Assist keeps database migrations in an append-only ledger and releases
+Production schema and application changes together. A merge alone never changes
+the Production database.
 
-## Overview
+## Local workflow
 
-This pipeline ensures that all schema changes are:
-
-- ✅ **Validated** — migration file naming and formats checked, plus a risky-pattern grep
-- ✅ **Tested** — replayed locally to catch issues early
-- ✅ **Audited** — security and performance advisors run
-- ✅ **Safe** — dry-run before production deployment
-- ✅ **Reversible** — trackable via git commits
-
-## Quick Start
-
-### Local Validation (Before Pushing)
+Start the local stack that matches your task. For CSF work, use the isolated
+stack documented in [local environments](environments.md).
 
 ```bash
-# Comprehensive validation
-# - Checks migration file formats
-# - Verifies timestamps are unique
-# - Tests migrations replay locally
-bun run db:validate
-```
-
-### Dry-Run Check (Before Production Deploy)
-
-```bash
-# See what would be deployed WITHOUT making changes
-# Requires: SUPABASE_ACCESS_TOKEN and SUPABASE_PROJECT_ID
-bun run db:dry-run
-```
-
-### Security & Performance Advisors
-
-```bash
-# Check for security vulnerabilities and performance issues
-# Requires: local Supabase running
-bun run db:advisors
-```
-
-## Workflow
-
-### 1. **Local Development**
-
-Make schema changes in local Supabase Studio:
-
-```bash
-# Start local Supabase
 bun run supabase:start
-
-# Access at: http://localhost:54321
-# Studio: http://localhost:54323
 ```
 
-### 2. **Generate Migrations**
-
-After making changes in Studio, generate a migration file:
+Create a forward migration with a unique timestamp. Do not edit a migration
+that may have run in any shared environment.
 
 ```bash
-# Pull changes and create a new migration
-supabase db pull -d <migration_name>
+supabase migration new <short_description>
 ```
 
-Migration files go in `supabase/migrations/` with format:
+Write the SQL in the generated file. Every new or replaced function must state
+its `REVOKE` and `GRANT` rules. Add client-callable public functions to the
+architecture allowlist in the same change.
 
-```
-YYYYMMDDHHMMSS_migration_name.sql
-```
+Do not run `supabase db pull` in this repository. The redesign audit records
+remote drift that a pull could import into the migration ledger.
 
-### 3. **Validate Locally**
-
-Before committing, validate the migration:
+Run the applicable local gates before opening a pull request.
 
 ```bash
-# This will:
-# ✓ Check file format
-# ✓ Test migration replay
-# ✓ Verify no conflicts
 bun run db:validate
+bun run db:test:redesign
+bun run typecheck
+bun run lint
 ```
 
-### 4. **Commit & Push**
+Use the task-specific database and browser gates listed in
+[testing](testing.md). A filename check or risky-pattern grep does not parse SQL
+and does not replace a full replay.
 
-Once validation passes:
+## Development release
+
+Base the pull request on `development`. The private plugin must merge to its own
+`development` branch before the root repository advances the gitlink.
+
+The accepted root tree must pass local gates, CI, one hosted Development
+deployment, and exact-SHA hosted acceptance. Local results and a successful Git
+push do not prove the hosted environment.
+
+Vercel Git builds are cost-gated. Ordinary commits and pull requests do not
+request a hosted build. The reviewed Development integration commit carries the
+release marker once, which produces one candidate deployment.
+
+## Production release
+
+Production uses the manually dispatched
+`.github/workflows/deploy-schema.yml` workflow from `main`. The workflow requires
+the typed Production confirmation and the exact hosted Development SHA. It also
+requires the `production` GitHub Environment review.
+
+The workflow performs these operations in order:
+
+1. Reject re-runs and unresolved earlier Production attempts.
+2. Run the reusable root, plugin, build, database, scale, and browser gates.
+3. Prove that `main` has the same tree as the accepted Development SHA.
+4. Build the exact application once with Production environment values.
+5. Link and verify the reviewed Supabase project, then show the pending
+   migration set.
+6. Stage both the repository-owned static maintenance artifact and the exact
+   application without moving domains. Prove both artifacts and retain the
+   recovery manifest.
+7. Set `authenticator.default_transaction_read_only=on`, terminate existing
+   authenticator sessions, and prove that a fresh PostgREST mutation returns
+   SQLSTATE `25006`.
+8. Promote and verify the maintenance deployment at the Production alias.
+9. Apply the pending migrations and verify exact migration-ledger parity.
+10. Check the same staged application's deep status endpoint against
+    Production.
+11. Promote the staged application and verify that the Production alias points
+    to its exact deployment ID.
+12. Reset the authenticator write block and terminate its old sessions. This is
+    the last release mutation.
+
+The write block covers application traffic through PostgREST. It does not block
+Supabase Auth, Storage, direct database sessions, or internal provider writers.
+The operator must still stop scheduled workers and confirm database quiescence
+as described in the [Production cutover runbook](production-cutover-runbook.md).
+
+If a step fails after the write block is enabled, the failure path reasserts the
+block. Do not open writes or retry a partial migration push until the migration
+ledger, active alias, and failed step are known.
+
+## Required repository configuration
+
+The Production GitHub Environment supplies the reviewed Supabase, Vercel, and
+protection-bypass values used by the workflow. At minimum, the workflow expects:
+
+- `SUPABASE_PROJECT_ID`
+- `SUPABASE_ACCESS_TOKEN`
+- `SUPABASE_DB_PASSWORD`
+- `SUPABASE_SECRET_KEY`
+- `PRODUCTION_READONLY_URL`
+- `VERCEL_TOKEN`
+- `VERCEL_AUTOMATION_BYPASS_SECRET`
+- `VERCEL_TEAM_ID` as an environment variable
+- `VERCEL_ROOT_PROJECT_ID` as an environment variable
+
+Do not copy these values into a shell history, issue, pull request, workflow
+summary, or repository file.
+
+## Failure handling
+
+Migrations are forward-only. Never force-push `main`, delete a migration, or
+edit a migration that may have run remotely.
+
+- If the push fails partway, inspect the remote ledger and failed migration.
+  Fix forward and repeat the dry run before resuming.
+- If the schema succeeds but the application fails, keep the maintenance alias
+  and PostgREST write block active. Prefer a compatible forward application fix.
+- If data changes are wrong, use the verified logical restore described in the
+  cutover runbook while application writes remain stopped.
+- If an index is invalid, follow the migration-specific recovery plan instead
+  of rerunning the whole tail blindly.
+
+## Operator commands
+
+Use read-only commands for diagnosis:
 
 ```bash
-# Commit to development branch
-git add supabase/migrations/
-git commit -m "Add schema changes: <description>"
-git push origin development
-
-# Create PR: development → main
-# The short PR quality lane runs before merge
-```
-
-### 5. **Manual Production validation and deployment**
-
-> **Merging to `main` does not validate or deploy the Production schema.** After
-> the merge, an authorized operator must manually start
-> `.github/workflows/deploy-schema.yml` from `main`. The workflow accepts only
-> `refs/heads/main` and requires the exact `production_confirmation` input
-> `deploy-production:fotdmeakexgrkronxlof`. One isolated Supabase stack replays
-> the migration ledger, runs pgTAP and the database advisors, then the workflow
-> verifies the target project ref twice, performs a dry run, pushes the pending
-> migrations, and checks migration-ledger parity.
->
-> Record the manual workflow run as the Production database release evidence.
-> A merged PR or successful Vercel deployment is not database release evidence.
-
-The manually dispatched workflow:
-
-1. ✅ **Validates Migrations**
-   - Checks file naming conventions
-   - Verifies no duplicate timestamps
-   - Scans for risky SQL patterns (`SELECT *`, `WHERE 1=1`, `-- UNSAFE`).
-     This is a grep, not a parser — it does not validate SQL syntax.
-
-2. ✅ **Tests Locally**
-   - Runs `supabase db reset` to replay all migrations
-   - Ensures migrations work from scratch
-
-3. ✅ **Runs Advisors**
-   - Security checks (RLS policies, exposed functions, etc.)
-   - Performance analysis (missing indexes, etc.)
-
-4. ✅ **Deploys to Production after the local gates pass**
-   - Links to remote database
-   - Shows pending changes
-   - Dry-run validation
-   - Applies migrations
-   - Verifies success
-
-## Manual Production Deploy
-
-If you need to manually deploy without a PR:
-
-```bash
-# 1. Set credentials (if not already in environment)
-export SUPABASE_ACCESS_TOKEN="sbp_xxxxxxxxxxxxx"
-export SUPABASE_PROJECT_ID="your-project-id"
-
-# 2. Test first with dry-run
-bun run db:dry-run
-
-# 3. Deploy (if dry-run passed)
-supabase link --project-ref $SUPABASE_PROJECT_ID
-supabase db push --linked --yes
-```
-
-## Safety Features
-
-### Validation Checks
-
-| Check                 | Local Validate | CI/CD | Purpose                                                        |
-| --------------------- | -------------- | ----- | -------------------------------------------------------------- |
-| File format check     | ✓              | ✓     | Catch naming errors early                                      |
-| Duplicate timestamps  | ✓              | ✓     | Prevent migration conflicts                                    |
-| Migration replay test | ✓              | ✓     | Ensure migrations work from scratch                            |
-| Risky-pattern grep    | ✗              | ✓     | Flags `SELECT *`, `WHERE 1=1`, `-- UNSAFE`. Not a syntax check |
-| Security advisors     | ✓              | ✓     | Find RLS/exposure issues                                       |
-| Performance advisors  | ✓              | ✓     | Identify missing indexes                                       |
-| Dry-run check         | ✓              | ✓     | Preview prod changes safely                                    |
-
-### Blocking Conditions
-
-The CI/CD pipeline **rejects deployment** if:
-
-```
-❌ Migration file format invalid
-❌ Naming collision or duplicate timestamp
-❌ Migration replay fails locally
-❌ Security advisor critical issues
-❌ Production deployment dry-run fails
-```
-
-### Reversibility
-
-All changes are tracked in git:
-
-```bash
-# Review what changed
-git diff main development -- supabase/migrations/
-
-# See deployment history
-git log --oneline main -- supabase/migrations/
-
-# Revert if needed (creates new migration)
-# Never force-push main with broken migrations
-```
-
-## Environment Setup
-
-### GitHub Secrets (Required for CI/CD)
-
-Set these in GitHub repository settings → Secrets and variables:
-
-```bash
-SUPABASE_PROJECT_ID        # Your Supabase project ID
-SUPABASE_ACCESS_TOKEN      # Personal access token from Supabase
-```
-
-Get the access token:
-
-1. Go to https://app.supabase.com/account/tokens
-2. Click "Create new token"
-3. Copy the token
-4. Add to GitHub as `SUPABASE_ACCESS_TOKEN`
-
-### Local Setup
-
-```bash
-# Create supabase/.env.local with:
-SUPABASE_PROJECT_ID=your-project-id
-```
-
-Or set temporarily:
-
-```bash
-export SUPABASE_PROJECT_ID="your-project-id"
-bun run db:dry-run
-```
-
-## Common Scenarios
-
-### Adding a New Table
-
-```bash
-# 1. Create table in Studio (local)
-# 2. Validate
-bun run db:validate
-
-# 3. If valid, create migration
-supabase db pull -d "add_new_table_name"
-
-# 4. Commit and push
-git add supabase/migrations/
-git commit -m "Add new_table migration"
-git push origin development
-```
-
-### Fixing a Security Issue
-
-```bash
-# 1. Make changes in Studio
-# 2. Test with advisors
-bun run db:advisors
-
-# 3. Fix issues advisors report
-# 4. Validate and commit
-bun run db:validate
-git commit -m "Fix: <security issue>"
-git push origin development
-```
-
-### Emergency Rollback
-
-If production deployment fails:
-
-1. **DO NOT force-push main**
-2. Create a new migration that reverts the bad changes
-3. Submit as normal PR
-4. Merge and deploy
-
-```bash
-# Example: revert a column addition
--- migration: YYYYMMDDHHMMSS_revert_bad_column.sql
-ALTER TABLE public.users DROP COLUMN bad_column;
-```
-
-## Troubleshooting
-
-### `db:validate` fails with migration error
-
-**Problem:** Local migration replay failed
-
-**Solution:**
-
-```bash
-# Reset and try again
-bun run supabase:stop
-bun run supabase:start
-bun run supabase:reset
-
-# Check error in test
-bun run db:validate
-```
-
-### `db:dry-run` says credentials missing
-
-**Problem:** SUPABASE_ACCESS_TOKEN not set
-
-**Solution:**
-
-```bash
-# Set temporarily
-export SUPABASE_ACCESS_TOKEN="sbp_xxxxxxxxxxxxx"
-bun run db:dry-run
-
-# Or add to ~/.bashrc for persistence
-echo 'export SUPABASE_ACCESS_TOKEN="..."' >> ~/.bashrc
-```
-
-### GitHub Actions deployment fails
-
-**Check:**
-
-1. View Actions logs in GitHub UI
-2. Identify the stage that failed (validate, test, deploy)
-3. Read the error message
-4. **Don't force-push** — create a fix migration instead
-
-## Advanced Options
-
-### Skip Workflow Check
-
-For emergency deployments (not recommended):
-
-```bash
-# Manually trigger deployment workflow in GitHub
-# Go to Actions → Deploy Schema to Production → Run workflow
-```
-
-### Monitor Deployment
-
-Live stream the logs:
-
-```bash
-# Get workflow run ID from GitHub
+supabase migration list --linked --output-format json
+supabase db push --linked --dry-run
 gh run view <run_id> --log
-
-# Or watch in UI:
-# https://github.com/<owner>/<repo>/actions/workflows/deploy-schema.yml
 ```
 
-### Generate Diff Before Merging
+Do not run `supabase db push --linked --yes` by hand for a normal or emergency
+Production release. The workflow couples the schema push to the exact
+application bytes, maintenance alias, write guard, health check, and final alias
+proof.
 
-Preview what will be deployed:
+## Related documents
 
-```bash
-# See uncommitted changes
-git diff supabase/migrations/
-
-# See changes in current PR
-git diff main development -- supabase/migrations/
-
-# Actually show what prod would get (requires credentials)
-bun run db:dry-run
-```
-
-## Best Practices
-
-✅ **DO:**
-
-- Run `db:validate` before every commit
-- Keep migrations small and focused
-- Write descriptive migration names: `YYYYMMDDHHMMSS_add_users_rls_policy.sql`
-- Add comments in migrations explaining why (not just what)
-- Test changes locally in Studio first
-- Review migration files before committing
-
-❌ **DON'T:**
-
-- Edit migration files after creation (create new ones instead)
-- Use `SELECT *` in migrations (list columns explicitly)
-- Forget to add RLS policies to public tables
-- Deploy without running `db:dry-run` first
-- Force-push broken migrations to main (use revert migrations)
-
-## Learning Resources
-
-- [Supabase Migrations Guide](https://supabase.com/docs/guides/cli/local-development#database-migrations)
-- [RLS Policy Examples](https://supabase.com/docs/guides/auth/row-level-security)
-- [Security Checklist](https://supabase.com/docs/guides/security/product-security)
-- [Schema Diff & Pull](https://supabase.com/docs/guides/cli/managing-schemas)
-
-## Questions?
-
-```bash
-# Check Supabase CLI help
-supabase --help
-supabase db --help
-
-# Verify your setup
-bun run supabase:status
-
-# See local migrations
-supabase migration list --local
-```
+- [Production cutover runbook](production-cutover-runbook.md)
+- [Deployment boundaries](deployment.md)
+- [Supabase redesign audit](../architecture/supabase-redesign-audit.md)
+- [Testing](testing.md)

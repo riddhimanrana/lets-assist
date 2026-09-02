@@ -2,7 +2,7 @@
 
 **Audience:** organization administrators, adviser, chapter officers, and Data Management
 **Current status:** the release candidate includes the repaired member directory search, signed passive account-name confirmation, typed-name officer review, mixed-grade application import, and Drive file identity checks. These changes still need the complete local root and private-plugin gates, one exact-tree hosted Development deployment, hosted browser and load acceptance, count-only source reconciliation, and synthetic email settlement. Production remains unchanged until those gates pass.
-**Release ledger:** the current repository candidate carries 431 ordered migrations through `20260901120000_csf_passive_class_name_confirmation`; the private Development gitlink is `3961fcc`.
+**Release ledger:** the current repository candidate carries 432 ordered migrations through `20260901230000_csf_import_queue_tenant_integrity`; the private Development gitlink is `805823b`.
 **Authoritative record after review:** Let's Assist
 
 This runbook describes the v1.6 officer workflow. Do not use it for a Production cutover until the current gates in section 12 and [testing and release](testing-and-release.md) pass for the exact integrated tree.
@@ -79,7 +79,13 @@ An existing organization admin or staff role is never downgraded when a profile 
 
 ## 5. Google Drive and Sheets imports
 
-Hosted Development Google acceptance is not complete for this exact candidate. Until it passes, use synthetic local sources for implementation checks. When the Development gate opens, every real import must follow this sequence:
+Hosted Development Google acceptance is not complete for this exact candidate.
+Until it passes, use synthetic local sources for implementation checks.
+
+### Development preview
+
+After the Development gate opens, a real chapter workbook may be inspected only
+through a bounded, protected preview:
 
 1. Confirm the connected Drive identity shown by the product is exactly `dvhighcsf@gmail.com`. Stop if it is not.
 2. Select the native Sheet with Google Picker or upload a local `.xlsx` through the separate upload path. Treat the Drive file id and provider version as source identity. The title is display text only.
@@ -87,8 +93,20 @@ Hosted Development Google acceptance is not complete for this exact candidate. U
 4. Map stable source columns by index/key, not only by display header.
 5. Preview normalized rows and their resolved cohort/term.
 6. Resolve duplicates, missing targets, malformed dates, `#REF!`, ambiguous identities, and inaccessible evidence. **Use match** requires the member plus a 4–500 character explanation of the evidence. **Skip row** requires a 4–500 character explanation of why the row must not be imported. A failed decision keeps the selection/reason; only success clears it.
-7. Commit valid rows explicitly.
-8. Review accepted, skipped, failed, and unresolved counts. Expand run details for the recorded operator, abbreviated digest, reconciliation decisions/reasons, and preview/retry ancestry. **Not recorded** is an honest historical value, not zero. Retry corrected rows from the recorded lineage.
+
+Stop before committing real chapter rows. Record count-only reconciliation with
+no names, email addresses, comments, join codes, source values, or evidence.
+Sanitized synthetic clones may exercise the commit and review steps in hosted
+Development.
+
+### Production commit
+
+Only after exact-tree Development acceptance and separate Production
+authorization:
+
+1. Re-select the exact Drive file, tab, and bounded range. Recheck its provider version, mappings, authorization, reconciliation decisions, and commit blockers.
+2. Freeze and approve the ready previews, then commit valid rows explicitly.
+3. Review accepted, skipped, failed, and unresolved counts. Expand run details for the recorded operator, abbreviated digest, reconciliation decisions/reasons, and preview/retry ancestry. **Not recorded** is an honest historical value, not zero. Retry corrected rows from the recorded lineage.
 
 Operational rules:
 
@@ -261,7 +279,7 @@ Before this runbook is used for the chapter cutover, complete these gates in ord
 - [x] Candidate treats the application response workbook as one chapter source and derives class and semester per row.
 - [x] Candidate stores Drive file identity and provider version instead of trusting titles.
 - [x] Ordinary feature branches are disabled. Unmarked Development commits may create an ignored deployment record but do not run dependency installation or the application build.
-- [x] Merge and publish the private plugin first, then advance the root gitlink to private `development` `3961fcc`.
+- [x] Merge and publish the private plugin first, then advance the root gitlink to private `development` `805823b`.
 - [ ] Pass the complete private-plugin tests, root TypeScript, zero-warning lint, database validation and replay, CSF workflows, browser journeys, strict submodule check, scale tests, and Production build on the exact integrated tree.
 - [ ] Create one marked Development deployment after local gates. Record its exact root and private SHAs.
 - [ ] Apply and verify the candidate migrations in hosted Development before browser mutation tests.
@@ -271,7 +289,7 @@ Before this runbook is used for the chapter cutover, complete these gates in ord
 - [ ] Have one officer approve frozen previews from sanitized synthetic clones in Development. Conflicted, stale, and unresolved previews remain blocked.
 - [ ] Run the 90-member and 10-officer hosted load, route latency, browser memory, and Web Vitals gates against that exact Development tree.
 - [ ] Prove synthetic Development post email queueing, provider acceptance, signed webhook settlement, and recovery without contacting students.
-- [ ] Promote only the exact accepted tree through one Production pull request. Apply migrations first, keep workers disabled during smoke checks, then enable workbook, import, and email workers in that order.
+- [ ] Promote only the exact accepted tree through one Production pull request merged with a merge commit. Do not squash or rebase. Keep `main` Git deployment disabled. The confirmed Production workflow prebuilds the accepted tree, applies and verifies migrations, then explicitly deploys those prebuilt application bytes. Keep workers disabled during smoke checks, then enable workbook, import, and email workers in that order.
 - [ ] Require one final officer batch confirmation in Production before any real application or class workbook changes commit.
 
 Do not record names, email addresses, comments, join codes, source rows, or proof in release logs, reports, screenshots, or recordings. Production stays unchanged until every Development gate above has exact-tree evidence.

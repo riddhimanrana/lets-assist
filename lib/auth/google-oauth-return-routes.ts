@@ -12,7 +12,7 @@
  *   personal_sheets       account/calendar (no initiating surface today)
  *   organization_calendar organization settings, calendar section
  *   organization_sheets   organization settings sheets section, reports tab
- *   csf_import            the canonical CSF imports/meetings/partners tabs
+ *   csf_import            the application importer and meeting/partner tabs
  */
 
 import {
@@ -25,17 +25,47 @@ const UUID_PATTERN =
 
 /** The canonical CSF return tabs. Changing these breaks officer bookmarks. */
 export const CSF_IMPORT_RETURN_TABS = [
-  "csf-imports",
+  "csf-applications",
   "csf-meetings",
   "csf-partners",
 ] as const;
+
+const CSF_SERVICE_IMPORT_RETURN_TABS = [
+  "csf-meetings",
+  "csf-partners",
+] as const;
+
+type ReturnRouteQueryValueRule =
+  readonly string[] | ((value: string) => boolean);
 
 type ReturnRouteRule = {
   /** Path segments; `:org` matches an allowed organization id or slug. */
   path: readonly string[];
   /** Exactly the query keys allowed, each with its allowed values. */
-  query?: Readonly<Record<string, readonly string[]>>;
+  query?: Readonly<Record<string, ReturnRouteQueryValueRule>>;
+  /** Query keys that must be present exactly once. */
+  requiredQuery?: readonly string[];
 };
+
+const boundedWorkspaceValue = (value: string) =>
+  value.length > 0 &&
+  value.length <= 512 &&
+  !hasAsciiControlCharacter(value);
+const boundedApplicationSearch = (value: string) =>
+  value.length <= 160 && !hasAsciiControlCharacter(value);
+const uuidValue = (value: string) => UUID_PATTERN.test(value);
+const assigneeValue = (value: string) =>
+  value === "assigned" || value === "unassigned" || uuidValue(value);
+
+function hasAsciiControlCharacter(value: string) {
+  for (const character of value) {
+    const codePoint = character.codePointAt(0);
+    if (codePoint !== undefined && (codePoint <= 31 || codePoint === 127)) {
+      return true;
+    }
+  }
+  return false;
+}
 
 const RETURN_ROUTE_RULES: Readonly<
   Record<GoogleOAuthConnectionPurpose, readonly ReturnRouteRule[]>
@@ -59,7 +89,63 @@ const RETURN_ROUTE_RULES: Readonly<
     { path: ["organization", ":org"], query: { tab: ["reports"] } },
   ],
   csf_import: [
-    { path: ["organization", ":org"], query: { tab: CSF_IMPORT_RETURN_TABS } },
+    {
+      path: ["organization", ":org"],
+      query: { tab: CSF_SERVICE_IMPORT_RETURN_TABS },
+      requiredQuery: ["tab"],
+    },
+    {
+      path: ["organization", ":org"],
+      query: {
+        tab: ["csf-applications"],
+        csf_import_type: ["application_responses"],
+        csf_review_kind: ["membership_applications"],
+        csf_review_term: uuidValue,
+        csf_review_cohort: uuidValue,
+        csf_application: uuidValue,
+        csf_application_view: ["all"],
+        csf_application_queue: [
+          "mine",
+          "unassigned",
+          "needs_review",
+          "waiting",
+          "completed",
+        ],
+        csf_application_q: boundedApplicationSearch,
+        csf_application_sort: ["newest", "name"],
+        csf_application_submission: [
+          "imported",
+          "missing_information",
+          "ready",
+          "under_review",
+          "decided",
+        ],
+        csf_application_eligibility: [
+          "pending",
+          "eligible",
+          "ineligible",
+          "adviser_override",
+        ],
+        csf_application_dues: [
+          "not_recorded",
+          "receipt_submitted",
+          "verified",
+          "waived",
+          "not_required",
+        ],
+        csf_application_decision: [
+          "pending",
+          "approved",
+          "rejected",
+          "withdrawn",
+        ],
+        csf_application_assignee: assigneeValue,
+        csf_application_cohort: uuidValue,
+        csf_application_term: uuidValue,
+        csf_application_cursor: boundedWorkspaceValue,
+      },
+      requiredQuery: ["tab", "csf_import_type"],
+    },
   ],
 };
 
@@ -79,7 +165,7 @@ export function getGoogleOAuthDefaultReturnRoute(input: {
         : "/account/calendar";
     case "csf_import":
       return input.organizationSegment
-        ? `/organization/${input.organizationSegment}?tab=csf-imports`
+        ? `/organization/${input.organizationSegment}?tab=csf-applications&csf_import_type=application_responses`
         : "/account/calendar";
     default:
       return "/account/calendar";
@@ -122,9 +208,16 @@ function matchesRule(
   for (const [key, value] of url.searchParams) {
     if (seen.has(key)) return false;
     seen.add(key);
-    const allowedValues = allowedQuery[key];
-    if (!allowedValues?.includes(value)) return false;
+    const valueRule = allowedQuery[key];
+    if (!valueRule) return false;
+    const allowed =
+      typeof valueRule === "function"
+        ? valueRule(value)
+        : valueRule.includes(value);
+    if (!allowed) return false;
   }
+
+  if (rule.requiredQuery?.some((key) => !seen.has(key))) return false;
 
   return true;
 }

@@ -643,13 +643,14 @@ Development result is not Production readiness. Do not copy a Development
 fixture, class join code, import preview, or policy decision into Production,
 and do not treat a Development screenshot as Production evidence.
 
-The current repository candidate has 431 migrations through
-`20260901120000_csf_passive_class_name_confirmation`. Hosted Development has
-430 through `20260901103347_csf_member_snapshot_scope_hardening`, so one
-candidate migration remains unapplied. The Development alias still serves
+The current repository candidate has 432 migrations through
+`20260901230000_csf_import_queue_tenant_integrity`. Hosted Development has
+430 through `20260901103347_csf_member_snapshot_scope_hardening`, so two
+candidate migrations remain unapplied. The Development alias still serves
 root `f49227cb3711043bf0db701e6ca6ed7415c96580` until the one marked release
-deployment runs. Production was not read during this verification pass, so
-this guide makes no current Production migration-count claim.
+deployment runs. Production was verified read-only on 2026-09-01 at 414
+migrations through `20260829092823_publish_dvhs_csf_1_2_24`, an exact prefix
+of this tree with 18 migrations pending.
 
 ## Historical Development rehearsal snapshot
 
@@ -785,9 +786,18 @@ Complete these gates before using real chapter credentials or rows:
       shared blocker, and name any cancellation-job transitions for explicit
       review. Rehearse the complete pending transition on a Production-shaped
       clone and verify the backup restore before scheduling the window.
-- [ ] At T-0 enable maintenance mode, stop writers and scheduled workers, take
-      the final snapshots, and pair the schema push with the exact compatible
-      application deployment. A partial or divergent ledger is a stop.
+- [ ] At T-0 stop writers and scheduled workers, take the final snapshots, then
+      merge the exact accepted Production pull request with a merge commit. The
+      `main` push does not deploy the application. Run the confirmed Production
+      workflow. It rejects unresolved earlier attempts, prebuilds the accepted
+      tree once, stages both maintenance and the exact application without
+      moving domains, verifies both artifacts, and retains the recovery
+      manifest. It then blocks writes, promotes and verifies maintenance, pushes
+      the schema, and proves schema parity. Finally, it rechecks the same staged
+      application, promotes it, verifies the exact Production alias, and reopens
+      writes. A partial or divergent ledger is a stop. Inline cleanup keeps the
+      write block active, and the approval-gated recovery workflow restores and
+      proves the exact maintenance deployment.
 - [ ] Replay the ordered migration ledger through the exact approved repository
       head in the
       authorized release gate and prove exact repository/Production ledger parity,

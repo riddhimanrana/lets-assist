@@ -26,21 +26,45 @@ permissions:
   statuses: write
 
 jobs:
+  release-selection:
+    name: Select marked Development release
+    runs-on: ubuntu-latest
+    outputs:
+      should_run: ${{ steps.policy.outputs.should_run }}
+    steps:
+      - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
+        with:
+          fetch-depth: 1
+          ref: ${{ github.event_name == 'push' && github.sha || inputs.development_sha }}
+
+      - name: Apply the shared release predicate
+        id: policy
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+        run: |
+          set -euo pipefail
+          if [[ "${EVENT_NAME}" == "workflow_dispatch" ]]; then
+            echo "should_run=true" >> "${GITHUB_OUTPUT}"
+            exit 0
+          fi
+          commit_message="$(git log -1 --format=%B)"
+          should_run="$(COMMIT_MESSAGE="${commit_message}" node --input-type=module --eval \
+            'import { isDevelopmentReleaseCommitMessage } from "./scripts/vercel-build-policy.mjs"; process.stdout.write(String(isDevelopmentReleaseCommitMessage(process.env.COMMIT_MESSAGE)));')"
+          echo "should_run=${should_run}" >> "${GITHUB_OUTPUT}"
+
   hosted-acceptance:
     name: Hosted CSF acceptance
+    needs: release-selection
     if: >-
       github.ref == 'refs/heads/development' &&
-      (github.event_name == 'workflow_dispatch' ||
-      contains(github.event.head_commit.message, '[deploy-development]') ||
-      (startsWith(github.event.head_commit.message, 'Merge pull request #') &&
-      contains(github.event.head_commit.message, '/codex/csf-integration-')))
+      needs.release-selection.outputs.should_run == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 75
     env:
       ACCEPTED_SHA: ${{ github.event_name == 'push' && github.sha || inputs.development_sha }}
       CONFIRMATION: ${{ github.event_name == 'push' && format('load-hosted-development:{0}', vars.CSF_DEVELOPMENT_SUPABASE_PROJECT_REF) || inputs.confirmation }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
         with:
           fetch-depth: 0
           ref: ${{ env.ACCEPTED_SHA }}
@@ -99,6 +123,7 @@ jobs:
 
       - name: Bind the Development alias before acceptance
         env:
+          EXPECTED_GITHUB_REPOSITORY_ID: ${{ github.repository_id }}
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
           VERCEL_TEAM_ID: ${{ vars.VERCEL_TEAM_ID }}
           VERCEL_ROOT_PROJECT_ID: ${{ vars.VERCEL_ROOT_PROJECT_ID }}
@@ -110,7 +135,7 @@ jobs:
           node-version-file: .node-version
 
       - name: Setup Bun
-        uses: oven-sh/setup-bun@v1
+        uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
         with:
           bun-version: 1.3.14
 
@@ -132,6 +157,7 @@ jobs:
 
       - name: Rebind the Development alias after acceptance
         env:
+          EXPECTED_GITHUB_REPOSITORY_ID: ${{ github.repository_id }}
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
           VERCEL_TEAM_ID: ${{ vars.VERCEL_TEAM_ID }}
           VERCEL_ROOT_PROJECT_ID: ${{ vars.VERCEL_ROOT_PROJECT_ID }}

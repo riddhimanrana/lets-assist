@@ -114,7 +114,6 @@ Read [`AGENTS.md`](../../AGENTS.md) in full before changing anything. The four t
 
 ## Known-stale documentation
 
-Corrected where possible; noted here so you do not act on them:
+Corrected where possible; noted here so you do not act on it:
 
-- **`docs/development/supabase-deployment.md`** claims that merging to `main` automatically deploys the schema to Production. **It does not.** The production job in `.github/workflows/deploy-schema.yml` requires a manual `workflow_dispatch` _and_ an exact confirmation string. The same file claims CI validates SQL syntax; the step only greps for `SELECT *`, `WHERE 1=1`, and `-- UNSAFE`. It also recommends `supabase db pull`, which [the redesign audit](../architecture/supabase-redesign-audit.md) explicitly forbids.
 - **`tests/e2e/csf/README.md`** documents `CSF_E2E_PORT` and `CSF_E2E_BASE_URL` overrides and a fixed port that `playwright.csf.config.ts` no longer supports, plus a stale scenario count.

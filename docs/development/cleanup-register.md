@@ -2,6 +2,10 @@
 
 This register separates actionable repository defects from provider/account and Production-readiness blockers. A finding leaves the active section only when fixed with evidence, disproved with evidence, or moved to the external section with a named dependency.
 
+The authoritative current release status begins at **Repository-owned P0–P2**
+below. Every dated implementation narrative before that heading is historical
+evidence and does not override the current tables or release gates.
+
 `AUD-` identifiers are allocated per branch and can drift while several audit branches are open at once. Current `development` includes the merged #152, #158, #174, #177, #179, and #181 findings, while open #180 can still carry overlapping historical identifiers. This branch retains `AUD-036` and `AUD-037` for its activity/partner authorization work without renumbering or restating the merged meeting findings.
 
 ## Class Sheet import reliability repair, 2026-08-24
@@ -360,9 +364,9 @@ This register separates actionable repository defects from provider/account and 
   check and `csf_onboarding_links_teardown.test.sql` prove the schema surface
   is fully absent.
 
-## Plugin platform foundation candidate — 2026-08-19
+## Historical plugin platform foundation candidate — 2026-08-19
 
-### Current exact-tree refresh — 2026-08-22
+### Historical exact-tree refresh — 2026-08-22
 
 - The signed DVHS CSF application release is `1.2.4`. GitHub run
   `32573363484` deployed its verified application artifact to the Development
@@ -573,7 +577,7 @@ This register separates actionable repository defects from provider/account and 
   traffic, activation, and hosted browser acceptance remain pending. Production
   remains untouched.
 
-## Production release candidate — 2026-08-18
+## Historical Production release candidate — 2026-08-18
 
 - Production review findings `PROD-REV-001` through `PROD-REV-007` are
   repository-closed on the follow-up candidate: feedback unsubscribe GET is
@@ -682,7 +686,7 @@ This register separates actionable repository defects from provider/account and 
   a verified logical backup/restore path instead. Production remains unchanged
   until the root Development and Production promotion gates complete.
 
-## CSF renderer repair candidate — 2026-08-17
+## Historical CSF renderer repair candidate — 2026-08-17
 
 - Repository finding: every CSF response rendered all five dashboard route
   families. Repeated Applications list/detail soft navigation retained the
@@ -713,10 +717,10 @@ This register separates actionable repository defects from provider/account and 
   `origin/development`. Nothing was pushed, deployed, aliased, merged to
   `main`, or run against Production.
 
-## Development hardening candidate — 2026-08-16
+## Historical Development hardening candidate — 2026-08-16
 
-This is the current status section. Later dated sections are retained as
-historical evidence and do not override it.
+This dated snapshot is retained as historical evidence. It does not override
+the authoritative current status under **Repository-owned P0–P2** below.
 
 - Root work is isolated on `codex/development-hardening-20260816` from exact
   Development base `f866bd6`. The user-owned dirty checkout at
@@ -807,7 +811,7 @@ historical evidence and do not override it.
   while application sends continue to render the reviewed React Email source.
   Production promotion is a separately authorized program.
 
-## Exact release-candidate evidence — 2026-08-17
+## Historical exact release-candidate evidence — 2026-08-17
 
 The root release candidate is the clean worktree branch
 `codex/csf-production-readiness` based on root `development` `f14d96c`, with
@@ -859,7 +863,7 @@ repository fixes in the current integration worktree, but remain active P1
 release findings until the exact root tree passes the remaining local and
 hosted Development gates. Production has not changed.
 
-The current root worktree points at private `development` `3961fcc`. That
+The current root worktree points at private `development` `805823b`. That
 private revision is published and reachable from private `origin/development`.
 The exact root release SHA will be recorded only after the gitlink and all root
 changes are committed together.
@@ -867,7 +871,7 @@ changes are committed together.
 | Current rows    | Repository state                                         | Remaining release evidence                                                                                  |
 | --------------- | -------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------- |
 | `AUD-090`       | Closed                                                   | Provider setting verified; no deployment required                                                           |
-| `AUD-091`–`099` | Source-fixed on private `3961fcc` and the root candidate | Exact-tree gates, one hosted Development deployment, browser and load acceptance, then Production promotion |
+| `AUD-091`–`099` | Source-fixed on private `805823b` and the root candidate | Exact-tree gates, one hosted Development deployment, browser and load acceptance, then Production promotion |
 
 The former active rows `CLEAN-004`, `CLEAN-005`, `CLEAN-012`, and
 `AUD-031-MEETING` carry only hosted or external acceptance. The Hosted
@@ -876,7 +880,7 @@ Development apply and acceptance queue below tracks those gates.
 ## Exact-tree completed repository rows
 
 These earlier findings remain repository-complete on the current integration
-worktree, which points at private `development` `3961fcc`. They are not active
+worktree, which points at private `development` `805823b`. They are not active
 implementation work. The concise closure index retains every exact ID and the
 historical subject it closed.
 
@@ -1289,7 +1293,7 @@ hosted Development verification.
 | AUD-087 | P1 | Three activity-heavy Class of 2027 commits exceeded the hosted database's eight-second request limit before their first 50-row transaction could create a receipt. The worker failed closed, wrote no rows for those previews, and retained a retryable audit trail. | CSF import worker | Fixed in private PR #224, merged to private Development at `e7be788`, by reducing each atomic commit page to 10 rows while preserving receipt replay and the 25,000-row loop ceiling. Class Sync also forces a fresh workbook read for legacy previews that lack complete source evidence. Forty-seven focused tests, TypeScript, zero-warning lint, and the full private plugin-quality job pass. The root CI run, exact Development deployment, and count-only retry reconciliation remain open. |
 | AUD-088 | P1 | The first hosted ten-row retry cleared the database request limit, then the import route reached its 60-second function ceiling before the fenced semester attempt could finalize. The database retained receipt-backed progress and did not report completion. | CSF import worker runtime | Fixed in the current root candidate by raising only the import worker to the reviewed 800-second Pro function ceiling. Atomic database batches remain capped at 10 rows, and their receipt replay contract is unchanged. A route test locks the duration. Exact CI, Development deployment, retry settlement, and count-only reconciliation remain open. |
 | AUD-089 | P1 | One activity-heavy Class of 2028 ten-row transaction still reached the hosted PostgreSQL statement timeout after 150 rows had committed. PostgreSQL rolled back that page, no batch receipt existed, no row remained in flight, and 43 rows stayed frozen. | CSF import worker | Fixed in private PR #225, merged to private Development at `05a0ad7`, by splitting only a confirmed PostgreSQL statement-timeout rollback with no receipt into smaller receipt-backed batches. A missing receipt caused by any other error keeps the no-repeat rule, and a single-row timeout blocks. Three focused tests, TypeScript, zero-warning lint, and all 238 private plugin test files pass. Exact root CI, one Development deployment, and settlement of the remaining 43 rows remain open. |
-| AUD-090 | P2 | Every short-lived feature branch started a Vercel build before the repository's Development environment guard refused it, consuming paid build CPU without producing a usable preview. | Vercel project configuration | Resolved for the Let’s Assist project on 2026-08-31. Provider configuration disables ordinary feature-branch deployments, and Speed Insights Plus renewal is canceled. The repository mirrors that boundary in `vercel.json`. An unmarked `development` commit may create an ignored deployment record, but it skips dependency installation and the application build. Only `[deploy-development]` or a merged `codex/csf-integration-*` branch runs that work. `main` still builds after the one Production pull request. Focused contract tests cover feature, ordinary Development, marked Development, integration merge, Production, and explicit non-Git cases. No deployment changed in this repository follow-up. |
+| AUD-090 | P2 | Every short-lived feature branch started a Vercel build before the repository's Development environment guard refused it, consuming paid build CPU without producing a usable preview. | Vercel project configuration | Resolved for the Let’s Assist project on 2026-08-31. Provider configuration disables ordinary feature-branch deployments, and Speed Insights Plus renewal is canceled. The repository mirrors that boundary in `vercel.json`. An unmarked `development` commit may create an ignored deployment record, but it skips dependency installation and the application build. Only `[deploy-development]` or a merged `codex/csf-integration-*` branch runs that work. A `main` merge creates no Vercel deployment. The protected Production workflow builds the exact accepted tree once after its release gates pass. Focused contract tests cover feature, ordinary Development, marked Development, integration merge, Production, and explicit non-Git cases. No deployment changed in this repository follow-up. |
 | AUD-091 | P1 | Six official Class of 2027 rows carried populated roster keys that did not match either normalized FirstLast or LastFirst. Preview parsing marked them pending, but the database readiness gate later blocked them without exposing an officer decision row. | CSF class-history identity review | Fixed in private PR #226, merged to private Development at `4a414c0`, and the current root candidate. Preview parsing now marks each invalid-key targetless row ambiguous and explains the choice. Officers can match an existing profile or disclose a no-match form that creates one unclaimed profile through a permission-checked, request-bound database transaction. The transaction blocks an active exact-name profile in the same class, preserves the immutable workbook snapshot, reconciles the row, and records audited receipts. All 239 private plugin test files, TypeScript, zero-warning lint, 17 focused pgTAP assertions, and the full 423-migration, 6,521-assertion isolated replay pass. The root integration remains open. Hosted Development settlement of the six rows and the two blocked semester previews is still required. Production was not changed. |
 | AUD-092 | P1 | Final release review found unbounded Member Home projections, repeated Member Home enrichment reads, capability-insensitive Officer Home counts, deletable import batch receipts, incomplete workbook tenant foreign keys, and unthrottled officer profile search. The import scale fixture also covered only successful rows. | CSF release gate | Fixed in private PR #228, merged to private Development at `ef083a2`, and the current root candidate. Member Home now uses one grouped context RPC and one grouped stream-enrichment RPC, caps every profile list at 50, and keeps reply previews at three. Officer Home returns each count only when the actor holds its matching permission. Composite tenant foreign keys bind workbook and refresh-job ownership. Approval and settlement append immutable count-only audit events, while service-role deletion of approval, item, and commit receipts is denied. Officer profile search consumes the atomic account and address limiter after authorization. The fictional 1,000-row benchmark now refuses stale, ambiguous, unknown-outcome, and duplicate cases before completing 100 receipt-backed batches in 2.3 seconds with zero repeated writes or unknown outcomes. The fresh local gate passed 268 plugin test files, TypeScript, zero-warning lint, 428 migration replay, 6,557 pgTAP assertions, CSF workflows, the 1,000-member benchmark, and the 1,000-message fake-provider test. Hosted Development session load, renderer heap, and Web Vitals acceptance remain open, so T26 stays in progress. Production was not changed. |
 | AUD-093 | P2 | Claim-time import refusal could close only the worker queue while leaving its frozen approval item open. Concurrent row-batch deliveries could race before receipt insertion, and a refresh whose Drive owner disappeared could leave its workbook marked linked. | CSF background queues | Fixed in the current root candidate through forward migration `20260901070000`. Both import refusal branches settle the queue, batch item, parent counts, and audit together. Row-batch receipt lookup is serialized by organization and request id. Missing Drive owners block the refresh job and workbook registry. Migration replay, 67 focused pgTAP assertions, the architecture audit, plugin-isolation audit, TypeScript, zero-warning lint, and the hosted-load harness contract pass locally. Exact CI, hosted Development load acceptance, and Production promotion remain open. |

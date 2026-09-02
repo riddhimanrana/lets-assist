@@ -1,6 +1,6 @@
 const DEVELOPMENT_RELEASE_MARKER = "[deploy-development]";
 const INTEGRATION_MERGE_PATTERN =
-  /^Merge pull request #[1-9][0-9]* from [A-Za-z0-9_.-]+\/codex\/csf-integration(?:[-/][A-Za-z0-9._/-]+)?$/u;
+  /^Merge pull request #[1-9][0-9]* from [A-Za-z0-9_.-]+\/codex\/csf-integration-[A-Za-z0-9._/-]+$/u;
 
 function normalizeOptional(value) {
   const normalized = value?.trim();
@@ -9,16 +9,20 @@ function normalizeOptional(value) {
 
 export function shouldRunVercelBuild({ branch, commitMessage }) {
   const normalizedBranch = normalizeOptional(branch);
-  const normalizedMessage = normalizeOptional(commitMessage) ?? "";
 
   // A non-Git deployment is an explicit operator action. Do not block it.
   if (!normalizedBranch) return true;
-  if (normalizedBranch === "main") return true;
   if (normalizedBranch !== "development") return false;
 
-  if (normalizedMessage.includes(DEVELOPMENT_RELEASE_MARKER)) return true;
+  return isDevelopmentReleaseCommitMessage(commitMessage);
+}
 
+export function isDevelopmentReleaseCommitMessage(commitMessage) {
+  const normalizedMessage = normalizeOptional(commitMessage) ?? "";
   const firstLine = normalizedMessage.split(/\r?\n/u, 1)[0] ?? "";
+
+  if (firstLine.includes(DEVELOPMENT_RELEASE_MARKER)) return true;
+
   return INTEGRATION_MERGE_PATTERN.test(firstLine);
 }
 

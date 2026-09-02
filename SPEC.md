@@ -4,13 +4,18 @@ DVHS CSF officer UX → class-first Home → Classes → Applications → More; 
 
 §C
 
-- Integration base root `f49227cb`; private Development gitlink `3961fcc`; Production ⊥.
+- Integration base root `f49227cb`; private Development gitlink `805823b`; Production ⊥.
 - UI says `Class`; existing `cohort` schema identifiers stay.
 - Stable profile + graduation class; term application/import alone activates term membership.
 - Public organization page exposes join/claim entry only; class Stream/Activities/membership content requires authenticated authorized class access.
 - Meetings chapter-wide under More; member dashboard visual model preserved.
-- Real student data, attached source rows, secrets, provider sends, hosted mutation ⊥.
-- Synthetic fixtures stay isolated local/CI; hosted fixture leakage ⊥.
+- Real student data, attached source rows, secrets, and provider sends never enter
+  repository artifacts, tests, logs, screenshots, recordings, or model prompts.
+  Confirmed hosted Development may persist only bounded, protected preview
+  evidence from real sources. It may not commit real chapter rows.
+- Synthetic fixtures stay isolated local/CI by default. They may be seeded into
+  an explicitly confirmed non-Production hosted Development branch through the
+  target-fenced wrapper. Synthetic Production fixtures and real-row test data ⊥.
 - Imports keep source identity, explicit tab/range/mapping, immutable preview, reconciliation, auth recheck, atomic commit.
 - Drive file ids and provider versions identify linked sources; titles remain display text and never select an authoritative workbook.
 - Private plugin commits precede root gitlink update.
@@ -61,7 +66,7 @@ V11: Applications → one chapter inbox + current-term default + class/status/as
 V12: contextual import start → Applications, class Members, or Partner clubs; More Import history starts no duplicate generic flow.
 V13: class/public loaders → route-required fields only; public loader never reuses privileged projection.
 V14: new SQL function → explicit revoke/grant + reviewed role allowlist; tenant + actor permission rechecked under lock.
-V15: fixture seed → isolated local/CI target proof; hosted Development/Production target ⊥.
+V15: fixture seed → isolated local/CI target proof by default; hosted Development only through the target-fenced wrapper with explicit non-Production branch confirmation; Production target and real-row fixture ⊥.
 V16: old CSF deep links retain compatible redirect/mapping during migration.
 V17: no real attached row value enters migration, fixture, test, screenshot, log, prompt, or committed artifact.
 V18: private feature implementation may use `codex/*`; strict branch containment runs only after private commit merges to private `development` + root gitlink advances.
@@ -110,7 +115,7 @@ V60: hosted scale acceptance → each of the 90 member and 10 officer loops owns
 V61: class Members search → controlled query with a 300 ms debounce after two characters + explicit Search + immediate clear; every submission resets paging and preserves class, term, standing, account, sort, and view state; results remain server-filtered inside the selected organization and class.
 V62: mixed-grade application workbook → one chapter source and immutable preview; every row derives its configured class and term from retained source fields; source-level fixed class, stale fixed-class scope, and cross-class overwrite ⊥.
 V63: official Drive source → immutable file id + provider version + selected tab/range; matching a title or filename pattern alone ⊥.
-V64: release build policy → ordinary feature branches skip Vercel builds; an unmarked Development commit may create an ignored deployment record but skips install and application build; one marked Development release builds; the approved Production pull request uses a merge commit so its tree equals the accepted Development tree and the accepted SHA remains an ancestor.
+V64: release build policy → ordinary feature branches, unmarked Development commits, and `main` Git pushes skip Vercel application builds; one marked Development release builds; the approved Production pull request uses a merge commit so its tree equals the accepted Development tree and the accepted SHA remains an ancestor; the confirmed Production workflow prebuilds that tree, applies and verifies schema first, then explicitly deploys the prebuilt application to Production.
 
 §T
 
@@ -150,7 +155,7 @@ T32|~~|settle claim-time queue refusals, serialize concurrent row-batch receipts
 T33|~~|remove member Home timezone hydration recovery, stop staff-view route snapshot retention, ramp the hosted sessions correctly, and complete the exact Development load gate|V19,V51,V58,I.perf,I.cmd
 T34|~~|close the final profile-read and communications review findings, rerun exact Development acceptance, and promote the accepted tree to Production|V45,V48,V49,V51,V59,I.db,I.service,I.perf,I.cmd
 T35|~~|mint 100 independent hosted auth sessions, bind Production promotion to the exact accepted Development tree, and complete the gated release|V18,V51,V60,I.perf,I.cmd
-T36|~~|accept the repaired Members search, passive account-name confirmation, typed-name review, mixed-grade application import, and immutable Drive source identity in hosted Development before Production promotion|V5,V17,V26,V27,V43,V45,V55,V61,V62,V63,I.route,I.service,I.db,I.cmd
+T36|~~|accept the repaired Members search, passive account-name confirmation, typed-name review, mixed-grade application import, and immutable Drive source identity in hosted Development before Production promotion|V5,V17,V26,V27,V43,V45,V61,V62,V63,V64,I.route,I.service,I.db,I.cmd
 
 §B
 

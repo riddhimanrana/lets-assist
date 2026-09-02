@@ -250,7 +250,10 @@ export async function GET(request: NextRequest) {
       environment:
         process.env.VERCEL_ENV || process.env.NODE_ENV || "development",
       uptimeSeconds: Math.round(process.uptime()),
-      version: process.env.VERCEL_GIT_COMMIT_SHA || null,
+      version:
+        process.env.LETS_ASSIST_BUILD_SHA ||
+        process.env.VERCEL_GIT_COMMIT_SHA ||
+        null,
       deep,
       checks,
       durationMs: Date.now() - started,

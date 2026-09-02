@@ -55,7 +55,7 @@ describe("deployment environment isolation", () => {
     ).not.toThrow();
   });
 
-  test("allows production and ordinary local builds", () => {
+  test("allows approved production hosts and ordinary local builds", () => {
     expect(() =>
       assertDeploymentEnvironmentIsolation({
         VERCEL_ENV: "production",
@@ -65,9 +65,38 @@ describe("deployment environment isolation", () => {
 
     expect(() =>
       assertDeploymentEnvironmentIsolation({
+        VERCEL_ENV: "production",
+        NEXT_PUBLIC_SUPABASE_URL: "https://fotdmeakexgrkronxlof.supabase.co",
+      }),
+    ).not.toThrow();
+
+    expect(() =>
+      assertDeploymentEnvironmentIsolation({
         NEXT_PUBLIC_SUPABASE_URL: "http://127.0.0.1:54321",
       }),
     ).not.toThrow();
+  });
+
+  test("rejects a missing, insecure, or non-production host in Production", () => {
+    expect(() =>
+      assertDeploymentEnvironmentIsolation({
+        VERCEL_ENV: "production",
+      }),
+    ).toThrow("without NEXT_PUBLIC_SUPABASE_URL");
+
+    expect(() =>
+      assertDeploymentEnvironmentIsolation({
+        VERCEL_ENV: "production",
+        NEXT_PUBLIC_SUPABASE_URL: "http://api.lets-assist.com",
+      }),
+    ).toThrow("without an HTTPS Supabase URL");
+
+    expect(() =>
+      assertDeploymentEnvironmentIsolation({
+        VERCEL_ENV: "production",
+        NEXT_PUBLIC_SUPABASE_URL: "https://abcdefghijklmnopqrst.supabase.co",
+      }),
+    ).toThrow("unapproved Supabase host");
   });
 
   test("rejects a missing or invalid Preview URL", () => {

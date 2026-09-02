@@ -113,8 +113,10 @@ That wait covers the full Google OAuth attempt lifetime, including an attempt
 started immediately before the deployment. Run the count again after the wait.
 Remove a retained key or `ENCRYPTION_KEY` only when all three counts are zero.
 
-Seed only a confirmed non-Production Supabase branch with the supported synthetic
-fixture wrapper:
+Synthetic data stays local or in CI unless hosted Development acceptance needs
+fictional accounts. That exception may seed only a confirmed non-Production
+Supabase branch with the supported synthetic fixture wrapper. It never permits
+real chapter rows or a Production target:
 
 ```sh
 CSF_LOCAL_TEST_PASSWORD='<run-scoped synthetic password>' \

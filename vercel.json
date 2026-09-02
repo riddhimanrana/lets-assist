@@ -4,7 +4,7 @@
     "deploymentEnabled": {
       "*": false,
       "development": true,
-      "main": true
+      "main": false
     }
   },
   "ignoreCommand": "node scripts/vercel-build-policy.mjs",

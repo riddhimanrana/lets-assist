@@ -70,16 +70,24 @@ SELECT extensions.ok(
 );
 
 SELECT extensions.lives_ok(
-  $$SELECT plugin_data.csf_register_class_workbook(
+  $$INSERT INTO plugin_data.csf_class_workbooks (
+    organization_id, cohort_id, drive_file_id, drive_owner_user_id,
+    provider_version, provider_modified_at, discovered_tabs,
+    source_candidates, last_checked_at, last_prepared_version, state
+  ) VALUES (
     'cb100000-0000-4000-8000-000000000001',
     'cb200000-0000-4000-8000-000000000001',
     'synthetic-drive-file-one',
     'cb000000-0000-4000-8000-000000000001',
     '101',
     '2026-08-30T00:00:00Z',
-    '[{"tabName":"Fall 2032"}]'::jsonb
+    '[{"tabName":"Fall 2032"}]'::jsonb,
+    '["synthetic-drive-file-one"]'::jsonb,
+    now(),
+    '101',
+    'linked'
   )$$,
-  'an authorized officer can register one workbook for a class'
+  'a prepared workbook fixture can seed the metadata-check contract'
 );
 
 SELECT extensions.is(
@@ -94,18 +102,22 @@ SELECT extensions.is(
 );
 
 SELECT extensions.throws_ok(
-  $$SELECT plugin_data.csf_register_class_workbook(
+  $$INSERT INTO plugin_data.csf_class_workbooks (
+    organization_id, cohort_id, drive_file_id, drive_owner_user_id,
+    provider_version, discovered_tabs, source_candidates, state
+  ) VALUES (
     'cb100000-0000-4000-8000-000000000002',
     'cb200000-0000-4000-8000-000000000001',
     'cross-tenant-drive-file',
     'cb000000-0000-4000-8000-000000000001',
     '101',
-    '2026-08-30T00:00:00Z',
-    '[]'::jsonb
+    '[]'::jsonb,
+    '["cross-tenant-drive-file"]'::jsonb,
+    'linked'
   )$$,
-  '42501',
-  'This class does not belong to the organization.',
-  'a workbook cannot be registered against another tenant class'
+  '23503',
+  NULL,
+  'the registry constraint rejects another tenant class'
 );
 
 CREATE TEMP TABLE workbook_test_state (

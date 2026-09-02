@@ -31,7 +31,7 @@ separates the repository target, hosted Development ledger, and stale code
 served by the Development alias. Historical counts below remain evidence for
 their named runs only.
 
-## Current hosted Development state
+## Historical hosted Development state, 359-migration candidate
 
 - The sole current CSF implementation/status register is
   `docs/development/cleanup-register.md`; this document is a testing runbook and
