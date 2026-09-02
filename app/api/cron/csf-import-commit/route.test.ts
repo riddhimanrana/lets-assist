@@ -47,7 +47,12 @@ beforeEach(() => {
   rpcCalls.length = 0;
   actionCalls.length = 0;
   rpcResults = [];
-  actionResult = { success: true, message: "Imported." };
+  actionResult = {
+    success: true,
+    message: "Imported.",
+    workerDisposition: "completed",
+    finalStatus: "completed",
+  };
   process.env.CSF_IMPORT_WORKER_SECRET_TOKEN = "synthetic-import-token";
   process.env.CSF_IMPORT_WORKER_ENABLED = "false";
   delete process.env.CRON_TOKEN;
@@ -79,7 +84,7 @@ describe("CSF import commit worker route", () => {
     process.env.CSF_IMPORT_WORKER_ENABLED = "true";
     rpcResults = [
       { data: claim, error: null },
-      { data: { finished: true }, error: null },
+      { data: { finished: true, status: "completed" }, error: null },
     ];
     const response = await POST(request());
     expect(await response.json()).toEqual({
@@ -104,11 +109,12 @@ describe("CSF import commit worker route", () => {
     process.env.CSF_IMPORT_WORKER_ENABLED = "true";
     rpcResults = [
       { data: claim, error: null },
-      { data: { finished: true }, error: null },
+      { data: { finished: true, status: "blocked" }, error: null },
     ];
     actionResult = {
       success: false,
       error: "Reconnect Google Drive before importing.",
+      workerDisposition: "blocked",
     };
     const response = await POST(request());
     expect(await response.json()).toMatchObject({
@@ -126,5 +132,125 @@ describe("CSF import commit worker route", () => {
     const response = await POST(request());
     expect(response.status).toBe(503);
     expect(actionCalls).toHaveLength(0);
+  });
+
+  test("reports a completed logical commit reconciled during claim", async () => {
+    process.env.CSF_IMPORT_WORKER_ENABLED = "true";
+    rpcResults = [
+      {
+        data: {
+          claimed: false,
+          reconciled: true,
+          status: "completed",
+          commitStatus: "completed",
+        },
+        error: null,
+      },
+    ];
+    const response = await POST(request());
+    expect(await response.json()).toEqual({
+      enabled: true,
+      claimed: 0,
+      reconciled: 1,
+      completed: 1,
+      blocked: 0,
+      commitStatus: "completed",
+    });
+    expect(actionCalls).toHaveLength(0);
+    expect(rpcCalls).toHaveLength(1);
+  });
+
+  test("reports a partial logical commit reconciled as blocked", async () => {
+    process.env.CSF_IMPORT_WORKER_ENABLED = "true";
+    rpcResults = [
+      {
+        data: {
+          claimed: false,
+          reconciled: true,
+          status: "blocked",
+          commitStatus: "partially_completed",
+        },
+        error: null,
+      },
+    ];
+    const response = await POST(request());
+    expect(await response.json()).toMatchObject({
+      reconciled: 1,
+      completed: 0,
+      blocked: 1,
+      commitStatus: "partially_completed",
+    });
+    expect(actionCalls).toHaveLength(0);
+    expect(rpcCalls).toHaveLength(1);
+  });
+
+  test.each(["retryable", "unknown"] as const)(
+    "leaves a %s attempt leased for recovery",
+    async (workerDisposition) => {
+      process.env.CSF_IMPORT_WORKER_ENABLED = "true";
+      rpcResults = [{ data: claim, error: null }];
+      actionResult = {
+        success: false,
+        error: "The bounded row batch did not settle.",
+        workerDisposition,
+      };
+      const response = await POST(request());
+      expect(response.status).toBe(503);
+      expect(await response.json()).toMatchObject({
+        disposition: workerDisposition,
+      });
+      expect(rpcCalls.map((call) => call.name)).toEqual([
+        "csf_claim_import_commit_queue",
+      ]);
+    },
+  );
+
+  test("settles a partial logical commit as blocked", async () => {
+    process.env.CSF_IMPORT_WORKER_ENABLED = "true";
+    rpcResults = [
+      { data: claim, error: null },
+      { data: { finished: true, status: "blocked" }, error: null },
+    ];
+    actionResult = {
+      success: true,
+      message: "Some rows need review.",
+      workerDisposition: "blocked",
+      finalStatus: "partially_completed",
+    };
+    const response = await POST(request());
+    expect(await response.json()).toMatchObject({
+      completed: 0,
+      blocked: 1,
+      errorCode: "import_partially_completed",
+    });
+    expect(rpcCalls[1]?.args).toMatchObject({
+      p_status: "blocked",
+      p_result_counts: { completed: 0, blocked: 1 },
+      p_error_code: "import_partially_completed",
+    });
+  });
+
+  test("does not settle an unclassified worker result", async () => {
+    process.env.CSF_IMPORT_WORKER_ENABLED = "true";
+    rpcResults = [{ data: claim, error: null }];
+    actionResult = { success: false, error: "Unclassified failure." };
+    const response = await POST(request());
+    expect(response.status).toBe(503);
+    expect(rpcCalls.map((call) => call.name)).toEqual([
+      "csf_claim_import_commit_queue",
+    ]);
+  });
+
+  test("fails closed when queue settlement returns an unsettled payload", async () => {
+    process.env.CSF_IMPORT_WORKER_ENABLED = "true";
+    rpcResults = [
+      { data: claim, error: null },
+      { data: { finished: false, status: "completed" }, error: null },
+    ];
+    const response = await POST(request());
+    expect(response.status).toBe(503);
+    expect(await response.json()).toEqual({
+      error: "Import result could not be settled",
+    });
   });
 });

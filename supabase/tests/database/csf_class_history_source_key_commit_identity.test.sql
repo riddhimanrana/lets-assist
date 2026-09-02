@@ -270,16 +270,17 @@ SELECT extensions.is(
     'de100000-0000-4000-8000-000000000001',
     'de500000-0000-4000-8000-000000000007'
   ),
-  NULL::uuid,
-  'a repeated name key without corroborating email cannot reuse a profile'
+  'de400000-0000-4000-8000-000000000001'::uuid,
+  'an exact immutable workbook key can reuse a profile without an email'
 );
 
-SELECT extensions.ok(
+SELECT extensions.is(
   plugin_data.csf_class_history_source_key_requires_review(
     'de100000-0000-4000-8000-000000000001',
     'de500000-0000-4000-8000-000000000007'
   ),
-  'a repeated name key without corroboration requires officer review'
+  false,
+  'an exact immutable workbook key does not require review only because email is absent'
 );
 
 SELECT extensions.is(
@@ -287,8 +288,8 @@ SELECT extensions.is(
     'de100000-0000-4000-8000-000000000001',
     'de300000-0000-4000-8000-000000000006'
   ) ->> 'pendingMissingMatch')::integer,
-  1,
-  'readiness blocks a later name-only class-history row'
+  0,
+  'readiness accepts a later exact source-key class-history row'
 );
 
 SELECT extensions.is(
@@ -297,7 +298,7 @@ SELECT extensions.is(
     'de300000-0000-4000-8000-000000000006'
   ) ->> 'pendingMissingSourceKey')::integer,
   0,
-  'the blocked name-only row keeps its valid source key evidence'
+  'the accepted no-email row keeps its valid source key evidence'
 );
 
 SET LOCAL ROLE service_role;
@@ -306,8 +307,8 @@ SELECT extensions.is(
     'de100000-0000-4000-8000-000000000001',
     'de300000-0000-4000-8000-000000000006'
   ) ->> 'pendingMissingMatch')::integer,
-  1,
-  'the server role can read the corroboration-aware readiness result'
+  0,
+  'the server role can read the exact source-key readiness result'
 );
 RESET ROLE;
 

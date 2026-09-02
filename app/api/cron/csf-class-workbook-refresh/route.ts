@@ -11,7 +11,7 @@ import { z } from "zod";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
-export const maxDuration = 60;
+export const maxDuration = 800;
 
 const BEARER_GRAMMAR = /^Bearer ([\x21-\x7E]+)$/;
 const claimSchema = z.discriminatedUnion("claimed", [
@@ -28,6 +28,10 @@ const claimSchema = z.discriminatedUnion("claimed", [
     providerVersion: z.string().regex(/^[1-9][0-9]{0,18}$/u),
   }),
 ]);
+const finishSchema = z.object({
+  finished: z.literal(true),
+  status: z.enum(["completed", "needs_reconnect", "blocked", "failed"]),
+});
 
 function secretsMatch(expected: string, presented: string): boolean {
   const expectedDigest = createHash("sha256").update(expected).digest();
@@ -75,7 +79,7 @@ export async function POST(request: NextRequest) {
   const plugin = createPluginAdminClient();
   const { data, error } = await plugin.rpc(
     "csf_claim_class_workbook_refresh_job",
-    { p_lease_seconds: 120 },
+    { p_lease_seconds: 300 },
   );
   if (error) return json({ error: "Workbook queue unavailable" }, 503);
   const claim = claimSchema.safeParse(data);
@@ -101,17 +105,26 @@ export async function POST(request: NextRequest) {
     formData,
     workerContext,
   );
-  const status = result.success
-    ? "completed"
-    : /reconnect/i.test(result.error ?? "")
-      ? "needs_reconnect"
-      : "blocked";
+  if (
+    result.workerDisposition === "retryable" ||
+    result.workerDisposition === "unknown"
+  ) {
+    return json({ error: "Workbook preparation did not settle" }, 503);
+  }
+  if (
+    result.workerDisposition !== "completed" &&
+    result.workerDisposition !== "needs_reconnect" &&
+    result.workerDisposition !== "blocked"
+  ) {
+    return json({ error: "Workbook preparation returned invalid data" }, 503);
+  }
+  const status = result.workerDisposition;
   const preparedCount = result.preparedTermCodes?.length ?? 0;
   const templateCount = result.templateTermCodes?.length ?? 0;
   const blockedCount = result.success
     ? (result.missingTabTermCodes?.length ?? 0)
     : 1;
-  const { error: finishError } = await plugin.rpc(
+  const { data: finishData, error: finishError } = await plugin.rpc(
     "csf_finish_class_workbook_refresh_job",
     {
       p_job_id: claim.data.jobId,
@@ -121,20 +134,33 @@ export async function POST(request: NextRequest) {
       p_prepared_count: preparedCount,
       p_template_count: templateCount,
       p_blocked_count: blockedCount,
-      p_error_code: result.success ? null : "workbook_preparation_blocked",
+      p_error_code:
+        status === "completed"
+          ? null
+          : status === "needs_reconnect"
+            ? "google_access_missing"
+            : "workbook_preparation_blocked",
     },
   );
   if (finishError) {
     return json({ error: "Workbook result could not be settled" }, 503);
   }
+  const finish = finishSchema.safeParse(finishData);
+  if (!finish.success) {
+    return json({ error: "Workbook result could not be settled" }, 503);
+  }
+
+  const settledStatus = finish.data.status;
+  const settledBlockedCount =
+    settledStatus === "completed" ? blockedCount : Math.max(blockedCount, 1);
 
   return json({
     enabled: true,
     claimed: 1,
-    prepared: preparedCount,
-    templates: templateCount,
-    blocked: blockedCount,
-    status,
+    prepared: settledStatus === "completed" ? preparedCount : 0,
+    templates: settledStatus === "completed" ? templateCount : 0,
+    blocked: settledBlockedCount,
+    status: settledStatus,
   });
 }
 

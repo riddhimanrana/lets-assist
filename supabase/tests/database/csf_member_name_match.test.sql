@@ -12,13 +12,12 @@ SELECT extensions.is(
   NULL,
   'the legacy member name-confirmation RPC is removed'
 );
-SELECT extensions.ok(
-  NOT has_function_privilege(
-    'service_role',
-    'plugin_data.csf_join_class_by_code_pre_identity_guard(uuid,text,uuid,text,text,text,text,uuid,uuid)',
-    'EXECUTE'
+SELECT extensions.is(
+  to_regprocedure(
+    'plugin_data.csf_join_class_by_code_pre_identity_guard(uuid,text,uuid,text,text,text,text,uuid,uuid)'
   ),
-  'the server role cannot bypass the guarded class-code RPC'
+  NULL,
+  'the bypassable legacy class-code implementation is removed'
 );
 SELECT extensions.ok(
   has_function_privilege(

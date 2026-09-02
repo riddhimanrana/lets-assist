@@ -1,8 +1,8 @@
 # DVHS CSF Product and Operational Specification
 
 **Status:** Approved implementation source of truth<br>
-**Version:** 1.4<br>
-**Last updated:** August 17, 2026<br>
+**Version:** 1.6<br>
+**Last updated:** September 1, 2026<br>
 **Product surface:** DVHS CSF private organization plugin inside Let’s Assist
 
 This document defines the product, operating model, information architecture, terminology, data boundaries, workflows, page behavior, and acceptance criteria for the DVHS CSF rebuild. If current code, old mockups, seed data, or earlier labels conflict with this document, this document wins unless it is amended explicitly.
@@ -102,12 +102,13 @@ remains:
   account, and submits the **Find my record** details.
   `csf_join_class_by_code` uses the verified account email as the only
   automatic signal: one active same-class email match connects atomically with
-  recorded history; zero matches create a new stable profile from the account
-  identity; a conflicting account or class assignment, or an email shared by
-  several records, creates a review request instead. Joining connects the
-  lasting graduating class only and never activates semester membership.
+  recorded history. An unmatched email never creates a profile or class
+  membership. The page may offer one sole, active, unclaimed exact account-name
+  candidate in the selected class. A typed name, conflicting account or class
+  assignment, shared email, stale candidate, or ambiguous match creates or
+  reuses one review request.
 - **Per-class review.** Unresolved joins wait in that class's Members tab
-  under **Needs attention**, paged by `csf_connect_cursor`. The **Resolve**
+  under **Record connections**, paged by `csf_connect_cursor`. The **Review**
   dialog renders **Connect account** only when the database confirms canonical
   evidence — the confirmed account email matching the roster email, the exact
   name, and exactly one matching active class membership; **Reject request**
@@ -122,6 +123,17 @@ Clauses about onboarding links, invitations, profile claims, or the account
 connections view in earlier sections (§8.5, §9.5, §19.22–23, §22.1) are
 superseded and annotated in place. Where earlier text conflicts with this
 record, this record wins.
+
+### Amendment 6: Member record matching, directory search, and source identity (v1.6, September 1, 2026)
+
+- **Passive account-name confirmation.** After a verified account enters a class code, the server may offer one exact account-name candidate. The preview shows only the record name and class. **Yes, this is me** submits a short-lived signed snapshot and creates or reuses one officer request. It never links from name evidence. A locked database recheck may connect only when verified email independently proves one active same-class record.
+- **Typed names stay in review.** A name entered by the student never creates or links a profile. One exact verified-email record may still connect. Every other typed-name outcome creates or reuses one class-scoped officer request. The member sees the settled result inline instead of a silent click.
+- **Member directory search.** Search submits to the server after two characters with a 300 ms debounce. Officers may also use the Search button. Clearing the field reloads the directory immediately. Search resets paging and preserves the selected class, semester, standing, account filter, sort, and view.
+- **Chapter application sources.** An application response workbook belongs to the chapter, not one graduating class. Each immutable preview row derives its own configured class and semester. The importer clears stale fixed-class scope and refuses an unconfigured or changed row target.
+- **Drive identity.** Linked workbooks and application sources use the immutable Drive file id and provider version. File names and titles are display text only. Every preview still records the selected tab, bounded range, mapping version, and source digest.
+- **Release builds.** Ordinary feature branches are disabled. Unmarked Development commits may create an ignored deployment record, but skip dependency installation and the application build. The integrated private and root tree passes local gates first, then receives one marked Development deployment. `main` Git pushes do not build the application. Production uses the exact accepted tree through one approved Production pull request merged with a merge commit, then the confirmed workflow applies schema before promoting one staged and health-checked prebuilt deployment.
+
+This amendment supersedes the matching clauses of Amendments 3 and 5 and sections 9.2, 9.5, 9.9, and 19 where they say verified email is the only member-confirmable match or that a chapter application source has one fixed class. It does not permit a manually typed name to link a profile.
 
 ---
 
@@ -590,7 +602,7 @@ Prohibited home content: “At risk,” “Review inbox,” “Semester readines
 **Shows:** Student, graduating class, account connection, current application decision, eligibility, dues, membership outcome/progress, counted points, meetings, and last update. Empty future semesters are never rendered as chips.<br>
 **Primary actions:** Open member; add a missing student; share the class's permanent join code from **Invite students** (see Amendment 5).<br>
 **Secondary actions:** Merge duplicate candidates; export filtered directory. Code actions do not send email or change email-delivery telemetry.<br>
-**Filters/search:** Class, account connection, application decision, eligibility, dues, membership outcome, and search.<br>
+**Filters/search:** Class, account connection, application decision, eligibility, dues, membership outcome, and server search. Search starts after two characters with a 300 ms debounce, also has an explicit Search button, reloads immediately when cleared, resets paging, and preserves the selected semester, filters, sort, and view.<br>
 **Empty states:** No students imported; no filter matches.<br>
 **Permissions:** Application/dues fields are column-filtered by capability; profile managers without payment access see a neutral “Complete/Needs verification” summary only if permitted.<br>
 **Mobile:** Student, class, account, and current status in the list; progress details on record page.<br>
@@ -840,10 +852,10 @@ Prior-term closure and next-term setup may overlap.
 
 ### 9.2 Import semester applications
 
-1. Operator chooses the Drive spreadsheet and application source type.
+1. Operator chooses the chapter's Drive application-response spreadsheet and application source type. The source has no fixed graduating class.
 2. Platform lists available tabs and reads only the selected range after confirmation.
-3. Operator maps identity, class, course, grade, aggregate, transcript, receipt, and relevant source columns.
-4. Platform snapshots the source metadata and rows, computes hashes, normalizes fields, and validates without writing student/application records.
+3. Operator maps identity, class, course, grade, aggregate, transcript, receipt, and relevant source columns. A saved source is reused by its immutable Drive file id, not its title.
+4. Platform snapshots the file id, provider version, tab, range, mapping, and rows. It computes hashes, normalizes fields, derives a configured class and semester for each row, and validates without writing student or application records.
 5. Reconciliation classifies exact matches, candidate matches, duplicates, missing data, and row errors.
 6. Operator resolves ambiguous identity where evidence is sufficient. **Use match** requires the selected member and a visible explanation of the evidence; **Skip row** requires a visible explanation of why the source row must not be imported. Failed actions preserve both fields and reset only after confirmed success.
 7. Commit creates/updates permitted records from the immutable preview. Reviewed platform fields become conflicts instead of being overwritten.
@@ -868,13 +880,14 @@ Prior-term closure and next-term setup may overlap.
 4. Corrected normalized value records actor, time, reason/source, and prior value.
 5. Eligibility checks rerun explicitly and return the application to the appropriate queue.
 
-### 9.5 Connect a Let’s Assist account (amended v1.5)
+### 9.5 Connect a Let's Assist account (amended v1.6)
 
-1. The student redeems the class's permanent join code at `/connect/<code>` with a verified signed-in account. The verified account email is the only automatic matching signal.
-2. One active same-class record carrying that email connects atomically; zero matches create a new stable profile from the account identity; a conflicting account or class assignment, or an email shared by several records, creates a review request in that class's **Needs attention** queue.
-3. Name and graduating class may identify candidates for officer review but never auto-connect an account.
-4. Officer compares limited identity evidence in **Resolve** and connects or rejects. The account's current confirmed email, exact name, and one matching active class must corroborate the selected profile; a candidate ranking or unique name alone is insufficient.
-5. Linking, unlinking, and merge resolution are audited. Unlinking/merging requires a reason.
+1. The student redeems the class's permanent join code at `/connect/<code>` with a verified signed-in account.
+2. One active same-class record carrying the verified account email connects atomically.
+3. If email does not match, the server may show one passive **Is this you?** card derived from the account's current full name. The card contains only the record name and class. It appears only for one active, unclaimed exact-name record with exactly one active class membership in the class selected by the code.
+4. **Yes, this is me** submits a short-lived signed snapshot bound to the organization, user, verified email, class code, class, profile, normalized account name, and account-name hash. The database rechecks all evidence under lock and creates or reuses one officer request. It connects only if the verified email independently identifies one active same-class record.
+5. If the student types or changes a name, that name never creates or links a profile. The server may still connect one exact verified-email record. Every other result creates or reuses one request in that class's **Record connections** queue.
+6. Officer review uses the existing corroborating-email and class checks. Linking, unlinking, and merge resolution are audited. Unlinking and merging require a reason.
 
 ### 9.6 Verify dues
 
@@ -904,7 +917,7 @@ Prior-term closure and next-term setup may overlap.
 
 ### 9.9 Import historical class workbooks
 
-1. Operator selects class workbook and supported term tabs.
+1. Operator links one class workbook by its immutable Drive file id. The title is display text only. The platform records the provider version and discovers every canonical semester tab.
 2. Preview identifies headers, identity rows, repeated activity slots, and meeting columns.
 3. For a student-term row, repeated identical activity labels across `Activity 1…N` collapse into one legacy award whose numeric quantity equals the valid occupied slots, unless a trustworthy explicit quantity exists. Different activities produce different awards.
 4. `#REF!`, malformed dates, uncertain labels, duplicates, and ambiguous names remain unresolved.
@@ -1025,14 +1038,14 @@ The rebuild extends the existing `plugin_data.csf_*` foundation. It does not cre
 
 ### 11.1 Identity and access
 
-| Concept                     | Physical model                                                      | Required behavior                                                                                                                                                     |
-| --------------------------- | ------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Permanent student           | `csf_profiles`                                                      | One durable student record per organization; normalized identity fields; fictional test ID support; no semester status stored here                                    |
-| Platform account connection | `csf_profile_accounts`                                              | Verified account link with actor/source/time; one active unambiguous connection per user/org                                                                          |
-| Link request                | `csf_profile_link_requests`                                         | Limited candidate and resolution history; exact unique confirmed email may offer student confirmation, but does not connect before confirmation; name-only never does |
-| Graduating class            | `csf_cohorts`, `csf_profile_cohort_memberships`                     | Historical membership and class changes remain traceable                                                                                                              |
-| Duplicate merge             | `csf_profile_merge_reviews`                                         | Preview and two-person/adviser review when configured; move references atomically; source becomes merged tombstone rather than disappearing                           |
-| Staff access                | `csf_roles`, `csf_role_permissions`, `csf_staff_positions`, history | Capability-based, effective-dated assignments                                                                                                                         |
+| Concept                     | Physical model                                                      | Required behavior                                                                                                                                                      |
+| --------------------------- | ------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Permanent student           | `csf_profiles`                                                      | One durable student record per organization; normalized identity fields; fictional test ID support; no semester status stored here                                     |
+| Platform account connection | `csf_profile_accounts`                                              | Verified account link with actor/source/time; one active unambiguous connection per user/org                                                                           |
+| Link request                | `csf_profile_link_requests`                                         | Limited candidate and resolution history; one exact verified-email match may connect automatically; every name-only confirmation creates or reuses one officer request |
+| Graduating class            | `csf_cohorts`, `csf_profile_cohort_memberships`                     | Historical membership and class changes remain traceable                                                                                                               |
+| Duplicate merge             | `csf_profile_merge_reviews`                                         | Preview and two-person/adviser review when configured; move references atomically; source becomes merged tombstone rather than disappearing                            |
+| Staff access                | `csf_roles`, `csf_role_permissions`, `csf_staff_positions`, history | Capability-based, effective-dated assignments                                                                                                                          |
 
 ### 11.2 Semester, application, and eligibility
 
@@ -1586,7 +1599,7 @@ These invariants are mandatory across schema, server actions, UI, imports, tests
 5. Policy versions used by decisions and closed terms are immutable.
 6. Point totals, attendance completion, and recognition derive from normalized records through one shared evaluator.
 7. A multi-point activity produces one award with a numeric quantity, not duplicate one-point records.
-8. A name-only import or account claim never auto-links a student.
+8. A manually entered, imported, or passive account name never links a student. Confirming one passive candidate creates or reuses one officer request. Only one exact verified-email match may connect automatically.
 9. Preview precedes import commit; source provenance and raw snapshots are retained.
 10. Reviewed platform records are never silently overwritten by Google data.
 11. Google Forms/Sheets/Drive are intake/evidence channels after cutover, not dual operational authority. This release writes no Google Sheet; reports are local formula-safe ZIP archives.
@@ -1600,7 +1613,7 @@ These invariants are mandatory across schema, server actions, UI, imports, tests
 19. Responsive variants retain the same Let’s Assist product-company branding.
 20. Synthetic fixtures and generated screenshots contain only fictional privacy-safe contacts on reserved test domains.
 21. Every direct proof fixture insert declares a valid complete upload lifecycle tuple; schema defaults never substitute for finalization.
-22. (amended v1.5) A class join code auto-connects only on one active same-class profile carrying the account's verified email; conflicting or shared-email matches enter per-class officer review without roster search.
+22. (amended v1.6) A class join code may connect one active same-class profile only through an exact verified-email match. Every passive account-name confirmation and every typed-name, changed, ambiguous, claimed, or conflicting result creates or reuses one per-class officer request.
 23. (amended v1.5) Class-code join and officer connection resolution update organization access, the account link, cohort membership, the request record, and immutable history in one organization-scoped transaction; the join never activates term membership, while resolution may atomically activate an already-accepted application's term membership.
 24. A Google connection is authorized for one signed-in user, organization, plugin, purpose, capability, return route, and short expiry; the callback rechecks current permission before storing a purpose-bound connection.
 25. Historical activity imports never infer a point value. Every imported award must contain an explicit, positive numeric quantity within the accepted import bound.
@@ -1620,6 +1633,10 @@ These invariants are mandatory across schema, server actions, UI, imports, tests
 39. A stored `scheduled` post is not evidence of publication, feed visibility, or email queueing. Automatic publication is available only where the authorized, retry-safe, audited due-post transition is explicitly enabled and its hosted invocation has been accepted; scheduled posts never queue email.
 40. Point lifecycle mutations reauthorize current actor/ownership, open term, active membership, published policy, source, cap, and finalized-proof conditions at the database boundary as applicable.
 41. Profile merge inventories every current schema reference, moves live ownership atomically, deliberately retains immutable snapshots, and refuses every uniqueness collision in the same canonical preview rechecked under the first organization identity lock; settled successful or terminally skipped import targets remain immutable evidence, while frozen/retryable/in-flight/unknown import targets block until recovery settles them; success proves no unintended live source reference remains.
+42. Member directory search is server-backed, starts after two characters with a 300 ms debounce, supports explicit submit and immediate clear, resets paging, and preserves selected class, semester, filters, sort, and view.
+43. A chapter application source has no fixed graduating class. Every immutable preview row derives its own configured class and semester, and commit rechecks that target.
+44. Drive file ids and provider versions identify official workbooks and application sources. Titles and filename patterns never select an authoritative source.
+45. One integrated private and root tree receives one marked Development deployment after local gates. Production promotion uses the exact hosted-accepted tree through one approved Production pull request merged with a merge commit, so the accepted Development SHA remains an ancestor and the tree stays unchanged. `main` Git pushes do not build the application; the confirmed Production workflow applies and verifies schema before it promotes one staged and health-checked prebuilt deployment.
 
 ---
 

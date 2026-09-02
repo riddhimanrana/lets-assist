@@ -13,6 +13,14 @@ const { dbUrl } = getCsfIsolatedSupabaseEnv();
 const sql = String.raw`
 BEGIN;
 
+CREATE TEMP TABLE import_scale_metrics (
+  started_at timestamptz NOT NULL,
+  finished_at timestamptz,
+  replayed_batches integer NOT NULL DEFAULT 0,
+  conflict_checks integer NOT NULL DEFAULT 0
+);
+INSERT INTO import_scale_metrics (started_at) VALUES (clock_timestamp());
+
 INSERT INTO auth.users (
   id, aud, role, email, email_confirmed_at,
   raw_app_meta_data, raw_user_meta_data, created_at, updated_at
@@ -153,13 +161,6 @@ CREATE TEMP TABLE import_scale_state (
   key text PRIMARY KEY,
   value jsonb NOT NULL
 );
-CREATE TEMP TABLE import_scale_metrics (
-  started_at timestamptz NOT NULL,
-  finished_at timestamptz,
-  replayed_batches integer NOT NULL DEFAULT 0,
-  conflict_checks integer NOT NULL DEFAULT 0
-);
-INSERT INTO import_scale_metrics (started_at) VALUES (clock_timestamp());
 
 DO $stale_source_probe$
 DECLARE

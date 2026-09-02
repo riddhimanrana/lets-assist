@@ -20,25 +20,53 @@ concurrency:
   cancel-in-progress: false
 
 permissions:
-  checks: read
   contents: read
-  id-token: write
-  statuses: write
 
 jobs:
+  release-selection:
+    name: Select marked Development release
+    runs-on: ubuntu-latest
+    outputs:
+      should_run: ${{ steps.policy.outputs.should_run }}
+    steps:
+      - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
+        with:
+          fetch-depth: 1
+          ref: ${{ github.event_name == 'push' && github.sha || inputs.development_sha }}
+
+      - name: Apply the shared release predicate
+        id: policy
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+        run: |
+          set -euo pipefail
+          if [[ "${EVENT_NAME}" == "workflow_dispatch" ]]; then
+            echo "should_run=true" >> "${GITHUB_OUTPUT}"
+            exit 0
+          fi
+          commit_message="$(git log -1 --format=%B)"
+          should_run="$(COMMIT_MESSAGE="${commit_message}" node --input-type=module --eval \
+            'import { isDevelopmentReleaseCommitMessage } from "./scripts/vercel-build-policy.mjs"; process.stdout.write(String(isDevelopmentReleaseCommitMessage(process.env.COMMIT_MESSAGE)));')"
+          echo "should_run=${should_run}" >> "${GITHUB_OUTPUT}"
+
   hosted-acceptance:
     name: Hosted CSF acceptance
+    needs: release-selection
     if: >-
       github.ref == 'refs/heads/development' &&
-      (github.event_name == 'workflow_dispatch' ||
-      contains(github.event.head_commit.message, '[hosted-acceptance]'))
+      needs.release-selection.outputs.should_run == 'true'
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    environment: development
+    permissions:
+      checks: read
+      contents: read
+      statuses: write
+    timeout-minutes: 75
     env:
       ACCEPTED_SHA: ${{ github.event_name == 'push' && github.sha || inputs.development_sha }}
       CONFIRMATION: ${{ github.event_name == 'push' && format('load-hosted-development:{0}', vars.CSF_DEVELOPMENT_SUPABASE_PROJECT_REF) || inputs.confirmation }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
         with:
           fetch-depth: 0
           ref: ${{ env.ACCEPTED_SHA }}
@@ -95,18 +123,101 @@ jobs:
           echo "The exact Development SHA did not receive a successful Vercel check." >&2
           exit 1
 
+      - name: Require successful Supabase Development preview for the SHA
+        env:
+          DEVELOPMENT_PROJECT_REF: ${{ vars.CSF_DEVELOPMENT_SUPABASE_PROJECT_REF }}
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          if [[ -z "${DEVELOPMENT_PROJECT_REF:-}" ]]; then
+            echo "The Development Supabase project reference is required." >&2
+            exit 1
+          fi
+          expected_details_url="https://supabase.com/dashboard/project/${DEVELOPMENT_PROJECT_REF}"
+          for attempt in $(seq 1 60); do
+            checks_json="$(
+              gh api \
+                -H "Accept: application/vnd.github+json" \
+                "repos/${GITHUB_REPOSITORY}/commits/${ACCEPTED_SHA}/check-runs?filter=latest&per_page=100"
+            )"
+            check_state="$(
+              jq -r \
+                --arg expected_details_url "${expected_details_url}" \
+                '[
+                  .check_runs[]
+                  | select(
+                      .name == "Supabase Preview"
+                      and .app.slug == "supabase"
+                      and .details_url == $expected_details_url
+                    )
+                ]
+                | if any(.[]; .status == "completed" and .conclusion == "success") then
+                    "success"
+                  elif any(.[]; .status != "completed") then
+                    "pending"
+                  elif length > 0 then
+                    "failure"
+                  else
+                    "pending"
+                  end' \
+                <<< "${checks_json}"
+            )"
+            if [[ "${check_state}" == "success" ]]; then
+              exit 0
+            fi
+            if [[ "${check_state}" == "failure" ]]; then
+              echo "The exact Development SHA received a failed Supabase Preview check for the configured Development project." >&2
+              exit 1
+            fi
+            sleep 10
+          done
+          echo "The exact Development SHA did not receive a successful Supabase Preview check for the configured Development project." >&2
+          exit 1
+
+      - name: Bind the Development alias before acceptance
+        env:
+          EXPECTED_GITHUB_REPOSITORY_ID: ${{ github.repository_id }}
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_TEAM_ID: ${{ vars.VERCEL_TEAM_ID }}
+          VERCEL_ROOT_PROJECT_ID: ${{ vars.VERCEL_ROOT_PROJECT_ID }}
+        run: bash scripts/hosted-development/verify-vercel-alias.sh
+
       - name: Setup Node
         uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version-file: .node-version
 
       - name: Setup Bun
-        uses: oven-sh/setup-bun@v1
+        uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
         with:
           bun-version: 1.3.14
 
       - name: Install dependencies
         run: bun install --frozen-lockfile
+
+      - name: Preflight hosted acceptance configuration
+        env:
+          HAS_LOAD_PASSWORD: ${{ secrets.CSF_HOSTED_LOAD_PASSWORD != '' }}
+          HAS_PUBLISHABLE_KEY: ${{ secrets.CSF_DEVELOPMENT_SUPABASE_PUBLISHABLE_KEY != '' }}
+          HAS_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY != '' }}
+          HAS_VERCEL_BYPASS: ${{ secrets.VERCEL_AUTOMATION_BYPASS_SECRET != '' }}
+        run: |
+          set -euo pipefail
+          for variable in HAS_LOAD_PASSWORD HAS_PUBLISHABLE_KEY HAS_SERVICE_ROLE_KEY HAS_VERCEL_BYPASS; do
+            if [[ "${!variable}" != "true" ]]; then
+              echo "The Development acceptance configuration is incomplete." >&2
+              exit 1
+            fi
+          done
+
+      - name: Provision the fixed synthetic CSF fixture
+        env:
+          CSF_HOSTED_LOAD_PASSWORD: ${{ secrets.CSF_HOSTED_LOAD_PASSWORD }}
+          CSF_HOSTED_LOAD_PROVISION_CONFIRMATION: provision-hosted-development:${{ vars.CSF_DEVELOPMENT_SUPABASE_PROJECT_REF }}:csf-load-fixture
+          EXPECTED_NON_PRODUCTION_SUPABASE_PROJECT_REF: ${{ vars.CSF_DEVELOPMENT_SUPABASE_PROJECT_REF }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          SUPABASE_URL: https://${{ vars.CSF_DEVELOPMENT_SUPABASE_PROJECT_REF }}.supabase.co
+        run: bun run csf:provision:hosted:load-fixtures
 
       - name: Install Playwright Chromium
         run: bunx playwright install --with-deps chromium
@@ -115,11 +226,26 @@ jobs:
         env:
           CSF_APP_URL: https://dev.lets-assist.com/
           CSF_HOSTED_LOAD_CONFIRMATION: ${{ env.CONFIRMATION }}
-          CSF_LOCAL_TEST_PASSWORD: ${{ secrets.CSF_HOSTED_LOAD_PASSWORD }}
+          CSF_HOSTED_LOAD_PASSWORD: ${{ secrets.CSF_HOSTED_LOAD_PASSWORD }}
           EXPECTED_NON_PRODUCTION_SUPABASE_PROJECT_REF: ${{ vars.CSF_DEVELOPMENT_SUPABASE_PROJECT_REF }}
           SUPABASE_PUBLISHABLE_KEY: ${{ secrets.CSF_DEVELOPMENT_SUPABASE_PUBLISHABLE_KEY }}
           SUPABASE_URL: https://${{ vars.CSF_DEVELOPMENT_SUPABASE_PROJECT_REF }}.supabase.co
-        run: bun run csf:test:hosted:load
+          VERCEL_AUTOMATION_BYPASS_SECRET: ${{ secrets.VERCEL_AUTOMATION_BYPASS_SECRET }}
+        run: |
+          set -euo pipefail
+          if [[ -z "${VERCEL_AUTOMATION_BYPASS_SECRET:-}" ]]; then
+            echo "The Development automation bypass secret is required." >&2
+            exit 1
+          fi
+          bun run csf:test:hosted:load
+
+      - name: Rebind the Development alias after acceptance
+        env:
+          EXPECTED_GITHUB_REPOSITORY_ID: ${{ github.repository_id }}
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_TEAM_ID: ${{ vars.VERCEL_TEAM_ID }}
+          VERCEL_ROOT_PROJECT_ID: ${{ vars.VERCEL_ROOT_PROJECT_ID }}
+        run: bash scripts/hosted-development/verify-vercel-alias.sh
 
       - name: Recheck Development head
         run: |

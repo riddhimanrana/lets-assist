@@ -50,6 +50,7 @@
     "csf:test:scale": "node scripts/local-dev/test-dvhs-csf-scale.mjs",
     "csf:test:import:scale": "node scripts/local-dev/test-dvhs-csf-import-scale.mjs",
     "csf:test:communications:scale": "bun test services/csf-communications-scale.test.ts",
+    "csf:provision:hosted:load-fixtures": "node scripts/hosted-development/provision-csf-load-fixtures.mjs",
     "csf:test:hosted:load": "node scripts/hosted-development/test-csf-load.mjs",
     "csf:dev:isolated": "node scripts/local-dev/bootstrap-dvhs-csf-dev.mjs",
     "csf:test:e2e": "bun run test:e2e:csf",

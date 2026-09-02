@@ -1,4 +1,4 @@
--- Production 333 -> repository target 359 cutover preflight.
+-- Production 414 -> repository target 440 cutover preflight.
 --
 -- Read-only by construction: every check is SELECT or SHOW inside an explicit
 -- READ ONLY transaction. Run this only with the reviewed Production read-only
@@ -9,8 +9,8 @@
 --     -f scripts/production-cutover-preflight.sql
 --
 -- The only supported ledgers are:
---   pre-cutover   333 rows headed by 20260819050728
---   post-cutover  359 rows headed by 20260822234500 with the exact 26-row tail
+--   pre-cutover   414 rows headed by 20260829092823
+--   post-cutover  440 rows headed by 20260902201618 with the exact 26-row tail
 --
 -- Any partial, divergent, later, or wrong-tail ledger exits non-zero before
 -- shape-specific relations are parsed. Relation inventories then fail with a
@@ -26,10 +26,6 @@
 \set ON_ERROR_STOP on
 \timing off
 \pset pager off
-\if :{?accept_state_transitions}
-\else
-  \set accept_state_transitions 0
-\endif
 
 BEGIN TRANSACTION READ ONLY;
 
@@ -48,13 +44,13 @@ SELECT current_setting('transaction_read_only') = 'on' AS read_only_transaction
 \echo ''
 \echo '=============================================================='
 \echo 'L0  Exact migration ledger'
-\echo '    PASS: exactly 333/baseline or exactly 359/target'
+\echo '    PASS: exactly 414/baseline or exactly 440/target'
 \echo '=============================================================='
 SELECT count(*) AS applied_migrations,
        min(version::text) AS first_version,
        max(version::text) AS head_version,
        count(*) FILTER (
-         WHERE version::text > '20260819050728'
+         WHERE version::text > '20260829092823'
        ) AS target_migrations_applied
 FROM supabase_migrations.schema_migrations;
 
@@ -151,14 +147,35 @@ WITH expected_baseline(version) AS (
     '20260818092855','20260818115000','20260818134000',
     '20260818150000','20260818160000','20260818170000',
     '20260818180000','20260818223637','20260818232541',
-    '20260819002500','20260819020000','20260819030000','20260819050728'
+    '20260819002500','20260819020000','20260819030000','20260819050728',
+    '20260820090000','20260820100000','20260820110000','20260820120000',
+    '20260820130000','20260821005258','20260821024024','20260821041738',
+    '20260821044815','20260821052000','20260821232923','20260821233000',
+    '20260822000923','20260822032423','20260822044742','20260822060000',
+    '20260822070000','20260822075815','20260822084356','20260822134710',
+    '20260822151500','20260822154500','20260822224500','20260822231000',
+    '20260822233000','20260822234500','20260823040000','20260823100349',
+    '20260823102458','20260823200804','20260823210000','20260823211000',
+    '20260823214000','20260823220000','20260823221000','20260823222000',
+    '20260824001000','20260824002008','20260824003000','20260824040000',
+    '20260824050000','20260824065333','20260824084735','20260824092128',
+    '20260824123000','20260824123001','20260825023556','20260825041422',
+    '20260825045100','20260825053600','20260825063639','20260825153000',
+    '20260825160000','20260825170000','20260826021508','20260826032500',
+    '20260826033554','20260826055241','20260826061500','20260826074500',
+    '20260826081841','20260827010310','20260827015240','20260827020000',
+    '20260827044256','20260827055807','20260827063258','20260827065000',
+    '20260827073223','20260827082349','20260827233941','20260828070641',
+    '20260828143000','20260828151000','20260828170000','20260828173500',
+    '20260828183000','20260829010000','20260829020011','20260829025224',
+    '20260829092823'
     -- END EXACT PRODUCTION BASELINE VERSIONS
   ]::text[])
 ),
 actual_baseline(version) AS (
   SELECT version::text
   FROM supabase_migrations.schema_migrations
-  WHERE version::text <= '20260819050728'
+  WHERE version::text <= '20260829092823'
 )
 SELECT NOT EXISTS (
   (
@@ -176,34 +193,33 @@ SELECT NOT EXISTS (
 \gset
 
 SELECT
-  count(*) = 333
+  count(*) = 414
     AND min(version::text) = '20260325181408'
-    AND max(version::text) = '20260819050728'
+    AND max(version::text) = '20260829092823'
     AND :'baseline_versions_exact'::boolean
     AND count(*) FILTER (
-      WHERE version::text > '20260819050728'
+      WHERE version::text > '20260829092823'
     ) = 0 AS baseline_ledger,
-  count(*) = 359
+  count(*) = 440
     AND min(version::text) = '20260325181408'
-    AND max(version::text) = '20260822234500'
+    AND max(version::text) = '20260902201618'
     AND :'baseline_versions_exact'::boolean
     AND (
       SELECT array_agg(pending.version ORDER BY pending.version)
       FROM (
         SELECT version::text AS version
         FROM supabase_migrations.schema_migrations
-        WHERE version::text > '20260819050728'
+        WHERE version::text > '20260829092823'
       ) AS pending
     ) = ARRAY[
       -- BEGIN EXACT PRODUCTION TARGET TAIL
-      '20260820090000',
-      '20260820100000','20260820110000','20260820120000','20260820130000',
-      '20260821005258','20260821024024','20260821041738','20260821044815',
-      '20260821052000','20260821232923','20260821233000','20260822000923',
-      '20260822032423','20260822044742','20260822060000','20260822070000',
-      '20260822075815','20260822084356','20260822134710','20260822151500',
-      '20260822154500','20260822224500','20260822231000','20260822233000',
-      '20260822234500'
+      '20260830100000','20260830110000','20260830120000','20260830130000',
+      '20260830140000','20260831000000','20260831010000','20260831122035',
+      '20260831234952','20260901023000','20260901035129','20260901043613',
+      '20260901052000','20260901060000','20260901070000','20260901103347',
+      '20260901120000','20260901230000','20260902010000','20260902020000',
+      '20260902030000','20260902040000','20260902050000','20260902060000',
+      '20260902201108','20260902201618'
       -- END EXACT PRODUCTION TARGET TAIL
     ]::text[] AS target_ledger
 FROM supabase_migrations.schema_migrations
@@ -261,37 +277,349 @@ FROM (
 \echo ''
 \echo '=============================================================='
 \echo 'S0  CSF relation inventory'
-\echo '    PASS: all required CSF relations present'
-\echo '    Missing/partial CSF fails before any CSF table is queried'
+\echo '    PASS: every pre-existing relation and function used by the tail exists'
+\echo '    Missing/partial CSF fails before any dependent object is queried'
 \echo '=============================================================='
-SELECT required.relation_name AS missing_relation
-FROM (
+WITH required_relations(relation_name) AS (
   VALUES
+    -- BEGIN 414 CSF BASELINE RELATIONS
+    ('auth.users'),
+    ('public.organization_members'),
+    ('public.organizations'),
+    ('public.profiles'),
     ('plugin_data.csf_admin_audit_events'),
-    ('plugin_data.csf_announcements'),
+    ('plugin_data.csf_announcement_link_previews'),
     ('plugin_data.csf_announcement_replies'),
+    ('plugin_data.csf_announcements'),
+    ('plugin_data.csf_application_correction_requests'),
+    ('plugin_data.csf_class_join_codes'),
+    ('plugin_data.csf_cohorts'),
     ('plugin_data.csf_communication_campaigns'),
-    ('plugin_data.csf_communication_dispatch_attempts')
-) AS required(relation_name)
+    ('plugin_data.csf_communication_dispatch_attempts'),
+    ('plugin_data.csf_credit_records'),
+    ('plugin_data.csf_dues_records'),
+    ('plugin_data.csf_meeting_attendance'),
+    ('plugin_data.csf_meeting_sessions'),
+    ('plugin_data.csf_meetings'),
+    ('plugin_data.csf_opportunities'),
+    ('plugin_data.csf_opportunity_signups'),
+    ('plugin_data.csf_point_appeals'),
+    ('plugin_data.csf_point_submissions'),
+    ('plugin_data.csf_profile_accounts'),
+    ('plugin_data.csf_profile_activity_events'),
+    ('plugin_data.csf_profile_cohort_memberships'),
+    ('plugin_data.csf_profile_link_requests'),
+    ('plugin_data.csf_profile_merge_reviews'),
+    ('plugin_data.csf_profile_restrictions'),
+    ('plugin_data.csf_profiles'),
+    ('plugin_data.csf_roles'),
+    ('plugin_data.csf_sheet_import_commit_attempts'),
+    ('plugin_data.csf_sheet_import_jobs'),
+    ('plugin_data.csf_sheet_import_rows'),
+    ('plugin_data.csf_sheet_sources'),
+    ('plugin_data.csf_staff_positions'),
+    ('plugin_data.csf_term_applications'),
+    ('plugin_data.csf_term_deadlines'),
+    ('plugin_data.csf_term_meetings'),
+    ('plugin_data.csf_term_memberships'),
+    ('plugin_data.csf_term_point_rules'),
+    ('plugin_data.csf_term_policies'),
+    ('plugin_data.csf_terms')
+    -- END 414 CSF BASELINE RELATIONS
+),
+required_functions(signature, baseline_only) AS (
+  VALUES
+    -- BEGIN 414 CSF BASELINE FUNCTIONS
+    ('extensions.digest(bytea,text)', false),
+    ('plugin_data.csf_actor_has_permission(uuid,uuid,text)', false),
+    ('plugin_data.csf_assert_import_actor(uuid,uuid,text)', false),
+    ('plugin_data.csf_assert_import_actor_for_row(uuid,uuid,uuid)', false),
+    ('plugin_data.csf_begin_import_row_for_attempt(uuid,uuid,uuid)', false),
+    ('plugin_data.csf_chapter_today()', false),
+    ('plugin_data.csf_commit_import_row_for_attempt(uuid,uuid,uuid)', false),
+    ('plugin_data.csf_confirm_profile_name_match(uuid,uuid,uuid,text,uuid,uuid,text,text)', true),
+    ('plugin_data.csf_current_school_year(uuid)', false),
+    ('plugin_data.csf_import_class_history_row_v2(uuid,uuid,text,text,text,text,text,text,text,text,uuid,uuid,uuid,uuid,text,jsonb,jsonb,boolean,uuid)', false),
+    ('plugin_data.csf_import_preview_readiness(uuid,uuid)', false),
+    ('plugin_data.csf_join_class_by_code(uuid,text,uuid,text,text,text,text,uuid,uuid)', false),
+    ('plugin_data.csf_lock_active_import_profiles(uuid,uuid[])', false),
+    ('plugin_data.csf_lock_identity_mutation(uuid)', false),
+    ('plugin_data.csf_normalize_identity_part(text)', false),
+    ('plugin_data.csf_reconcile_sheet_import_row(uuid,uuid,uuid,text,text,uuid,uuid)', false),
+    ('plugin_data.csf_upsert_profile(uuid,uuid,uuid,jsonb)', false)
+    -- END 414 CSF BASELINE FUNCTIONS
+)
+SELECT 'relation'::text AS object_kind,
+       required.relation_name AS missing_object
+FROM required_relations AS required
 WHERE to_regclass(required.relation_name) IS NULL
-ORDER BY required.relation_name;
+UNION ALL
+SELECT 'function', required.signature
+FROM required_functions AS required
+WHERE (NOT required.baseline_only OR :'baseline_ledger'::boolean)
+  AND to_regprocedure(required.signature) IS NULL
+ORDER BY object_kind, missing_object;
 
-SELECT
-  count(*) FILTER (
-    WHERE to_regclass(required.relation_name) IS NOT NULL
-  ) = 5 AS csf_shape_ready,
-  count(*) FILTER (
-    WHERE to_regclass(required.relation_name) IS NOT NULL
-  ) = 0 AS csf_shape_absent
-FROM (
+WITH required_relations(relation_name) AS (
   VALUES
+    -- BEGIN 414 CSF BASELINE RELATIONS
+    ('auth.users'),
+    ('public.organization_members'),
+    ('public.organizations'),
+    ('public.profiles'),
     ('plugin_data.csf_admin_audit_events'),
+    ('plugin_data.csf_announcement_link_previews'),
     ('plugin_data.csf_announcements'),
     ('plugin_data.csf_announcement_replies'),
+    ('plugin_data.csf_application_correction_requests'),
+    ('plugin_data.csf_class_join_codes'),
+    ('plugin_data.csf_cohorts'),
     ('plugin_data.csf_communication_campaigns'),
-    ('plugin_data.csf_communication_dispatch_attempts')
-) AS required(relation_name)
+    ('plugin_data.csf_communication_dispatch_attempts'),
+    ('plugin_data.csf_credit_records'),
+    ('plugin_data.csf_dues_records'),
+    ('plugin_data.csf_meeting_attendance'),
+    ('plugin_data.csf_meeting_sessions'),
+    ('plugin_data.csf_meetings'),
+    ('plugin_data.csf_opportunities'),
+    ('plugin_data.csf_opportunity_signups'),
+    ('plugin_data.csf_point_appeals'),
+    ('plugin_data.csf_point_submissions'),
+    ('plugin_data.csf_profile_accounts'),
+    ('plugin_data.csf_profile_activity_events'),
+    ('plugin_data.csf_profile_cohort_memberships'),
+    ('plugin_data.csf_profile_link_requests'),
+    ('plugin_data.csf_profile_merge_reviews'),
+    ('plugin_data.csf_profile_restrictions'),
+    ('plugin_data.csf_profiles'),
+    ('plugin_data.csf_roles'),
+    ('plugin_data.csf_sheet_import_commit_attempts'),
+    ('plugin_data.csf_sheet_import_jobs'),
+    ('plugin_data.csf_sheet_import_rows'),
+    ('plugin_data.csf_sheet_sources'),
+    ('plugin_data.csf_staff_positions'),
+    ('plugin_data.csf_term_applications'),
+    ('plugin_data.csf_term_deadlines'),
+    ('plugin_data.csf_term_meetings'),
+    ('plugin_data.csf_term_memberships'),
+    ('plugin_data.csf_term_point_rules'),
+    ('plugin_data.csf_term_policies'),
+    ('plugin_data.csf_terms')
+    -- END 414 CSF BASELINE RELATIONS
+),
+required_functions(signature, baseline_only) AS (
+  VALUES
+    -- BEGIN 414 CSF BASELINE FUNCTIONS
+    ('extensions.digest(bytea,text)', false),
+    ('plugin_data.csf_actor_has_permission(uuid,uuid,text)', false),
+    ('plugin_data.csf_assert_import_actor(uuid,uuid,text)', false),
+    ('plugin_data.csf_assert_import_actor_for_row(uuid,uuid,uuid)', false),
+    ('plugin_data.csf_begin_import_row_for_attempt(uuid,uuid,uuid)', false),
+    ('plugin_data.csf_chapter_today()', false),
+    ('plugin_data.csf_commit_import_row_for_attempt(uuid,uuid,uuid)', false),
+    ('plugin_data.csf_confirm_profile_name_match(uuid,uuid,uuid,text,uuid,uuid,text,text)', true),
+    ('plugin_data.csf_current_school_year(uuid)', false),
+    ('plugin_data.csf_import_class_history_row_v2(uuid,uuid,text,text,text,text,text,text,text,text,uuid,uuid,uuid,uuid,text,jsonb,jsonb,boolean,uuid)', false),
+    ('plugin_data.csf_import_preview_readiness(uuid,uuid)', false),
+    ('plugin_data.csf_join_class_by_code(uuid,text,uuid,text,text,text,text,uuid,uuid)', false),
+    ('plugin_data.csf_lock_active_import_profiles(uuid,uuid[])', false),
+    ('plugin_data.csf_lock_identity_mutation(uuid)', false),
+    ('plugin_data.csf_normalize_identity_part(text)', false),
+    ('plugin_data.csf_reconcile_sheet_import_row(uuid,uuid,uuid,text,text,uuid,uuid)', false),
+    ('plugin_data.csf_upsert_profile(uuid,uuid,uuid,jsonb)', false)
+    -- END 414 CSF BASELINE FUNCTIONS
+)
+SELECT
+  NOT EXISTS (
+    SELECT 1
+    FROM required_relations AS required
+    WHERE to_regclass(required.relation_name) IS NULL
+  )
+  AND NOT EXISTS (
+    SELECT 1
+    FROM required_functions AS required
+    WHERE (NOT required.baseline_only OR :'baseline_ledger'::boolean)
+      AND to_regprocedure(required.signature) IS NULL
+  ) AS csf_shape_ready,
+  NOT EXISTS (
+    SELECT 1
+    FROM required_relations AS required
+    WHERE required.relation_name LIKE 'plugin_data.%'
+      AND to_regclass(required.relation_name) IS NOT NULL
+  ) AS csf_shape_absent
 \gset
+
+WITH required_columns(relation_name, column_names) AS (
+  VALUES
+    -- BEGIN 414 CSF BASELINE COLUMN SHAPES
+    ('auth.users', ARRAY['id']::text[]),
+    ('public.organization_members',
+      ARRAY['organization_id','user_id','status','role']::text[]),
+    ('public.organizations', ARRAY['id']::text[]),
+    ('public.profiles', ARRAY['id','full_name','username','avatar_url']::text[]),
+    ('plugin_data.csf_admin_audit_events',
+      ARRAY['id','organization_id','actor_user_id','action','target_type',
+        'target_id','after_data','correlation_id','source_type','source_id',
+        'reason_code','term_id','created_at']::text[]),
+    ('plugin_data.csf_announcement_link_previews',
+      ARRAY['organization_id','announcement_id','url','title','description',
+        'site_name','image_url']::text[]),
+    ('plugin_data.csf_announcement_replies',
+      ARRAY['id','organization_id','announcement_id','created_by','created_at']::text[]),
+    ('plugin_data.csf_announcements',
+      ARRAY['id','organization_id','created_by']::text[]),
+    ('plugin_data.csf_application_correction_requests',
+      ARRAY['id','organization_id']::text[]),
+    ('plugin_data.csf_class_join_codes',
+      ARRAY['id','organization_id','cohort_id','code','status']::text[]),
+    ('plugin_data.csf_cohorts',
+      ARRAY['id','organization_id','label','graduation_year','status',
+        'created_at','updated_at']::text[]),
+    ('plugin_data.csf_communication_campaigns',
+      ARRAY['id','organization_id','status','metadata']::text[]),
+    ('plugin_data.csf_communication_dispatch_attempts',
+      ARRAY['id','organization_id','campaign_id','state','available_at']::text[]),
+    ('plugin_data.csf_credit_records', ARRAY['id','organization_id']::text[]),
+    ('plugin_data.csf_dues_records', ARRAY['id','organization_id']::text[]),
+    ('plugin_data.csf_meeting_attendance',
+      ARRAY['id','organization_id']::text[]),
+    ('plugin_data.csf_meeting_sessions',
+      ARRAY['id','organization_id']::text[]),
+    ('plugin_data.csf_meetings', ARRAY['id','organization_id']::text[]),
+    ('plugin_data.csf_opportunities',
+      ARRAY['id','organization_id','term_id','created_by_user_id']::text[]),
+    ('plugin_data.csf_opportunity_signups',
+      ARRAY['id','organization_id']::text[]),
+    ('plugin_data.csf_point_appeals',
+      ARRAY['id','organization_id','status','created_at']::text[]),
+    ('plugin_data.csf_point_submissions',
+      ARRAY['id','organization_id','status','submitted_at']::text[]),
+    ('plugin_data.csf_profile_accounts',
+      ARRAY['id','organization_id','profile_id','user_id','status','is_primary',
+        'linked_at']::text[]),
+    ('plugin_data.csf_profile_activity_events',
+      ARRAY['id','organization_id']::text[]),
+    ('plugin_data.csf_profile_cohort_memberships',
+      ARRAY['id','organization_id','profile_id','cohort_id','status',
+        'updated_at']::text[]),
+    ('plugin_data.csf_profile_link_requests',
+      ARRAY['id','organization_id']::text[]),
+    ('plugin_data.csf_profile_merge_reviews',
+      ARRAY['id','organization_id']::text[]),
+    ('plugin_data.csf_profile_restrictions',
+      ARRAY['id','organization_id']::text[]),
+    ('plugin_data.csf_profiles',
+      ARRAY['id','organization_id','first_name','last_name',
+        'normalized_first_name','normalized_last_name',
+        'normalized_school_email','normalized_personal_email','record_status',
+        'source_summary']::text[]),
+    ('plugin_data.csf_roles', ARRAY['id','organization_id']::text[]),
+    ('plugin_data.csf_sheet_import_commit_attempts',
+      ARRAY['id','organization_id']::text[]),
+    ('plugin_data.csf_sheet_import_jobs',
+      ARRAY['id','organization_id','mode','source_type','source_file_id']::text[]),
+    ('plugin_data.csf_sheet_import_rows',
+      ARRAY['id','organization_id','job_id','cohort_id','normalized_data',
+        'import_status','matched_profile_id','resolution_status',
+        'correlation_id']::text[]),
+    ('plugin_data.csf_sheet_sources',
+      ARRAY['id','organization_id','cohort_id','provider','spreadsheet_id',
+        'sync_owner_user_id','source_type','settings','sync_mode']::text[]),
+    ('plugin_data.csf_staff_positions',
+      ARRAY['id','organization_id','user_id','status','display_title',
+        'school_year','starts_at','ends_at','created_at']::text[]),
+    ('plugin_data.csf_term_applications',
+      ARRAY['id','organization_id']::text[]),
+    ('plugin_data.csf_term_deadlines',
+      ARRAY['id','organization_id','term_id','title','due_at','status',
+        'audience']::text[]),
+    ('plugin_data.csf_term_meetings',
+      ARRAY['id','organization_id']::text[]),
+    ('plugin_data.csf_term_memberships',
+      ARRAY['id','organization_id','profile_id','term_id','cohort_id','status']::text[]),
+    ('plugin_data.csf_term_point_rules',
+      ARRAY['id','organization_id']::text[]),
+    ('plugin_data.csf_term_policies',
+      ARRAY['id','organization_id']::text[]),
+    ('plugin_data.csf_terms',
+      ARRAY['id','organization_id','is_current','updated_at']::text[])
+    -- END 414 CSF BASELINE COLUMN SHAPES
+),
+required_function_shapes(
+  signature, baseline_only, return_type, returns_set
+) AS (
+  VALUES
+    ('extensions.digest(bytea,text)', false, 'bytea', false),
+    ('plugin_data.csf_actor_has_permission(uuid,uuid,text)',
+      false, 'boolean', false),
+    ('plugin_data.csf_assert_import_actor(uuid,uuid,text)',
+      false, 'jsonb', false),
+    ('plugin_data.csf_assert_import_actor_for_row(uuid,uuid,uuid)',
+      false, 'jsonb', false),
+    ('plugin_data.csf_begin_import_row_for_attempt(uuid,uuid,uuid)',
+      false, 'jsonb', false),
+    ('plugin_data.csf_chapter_today()', false, 'date', false),
+    ('plugin_data.csf_commit_import_row_for_attempt(uuid,uuid,uuid)',
+      false, 'jsonb', false),
+    ('plugin_data.csf_confirm_profile_name_match(uuid,uuid,uuid,text,uuid,uuid,text,text)',
+      true, 'jsonb', false),
+    ('plugin_data.csf_current_school_year(uuid)', false, 'text', false),
+    ('plugin_data.csf_import_class_history_row_v2(uuid,uuid,text,text,text,text,text,text,text,text,uuid,uuid,uuid,uuid,text,jsonb,jsonb,boolean,uuid)',
+      false, 'jsonb', false),
+    ('plugin_data.csf_import_preview_readiness(uuid,uuid)',
+      false, 'jsonb', false),
+    ('plugin_data.csf_join_class_by_code(uuid,text,uuid,text,text,text,text,uuid,uuid)',
+      false, 'jsonb', false),
+    ('plugin_data.csf_lock_active_import_profiles(uuid,uuid[])',
+      false, 'void', false),
+    ('plugin_data.csf_lock_identity_mutation(uuid)', false, 'void', false),
+    ('plugin_data.csf_normalize_identity_part(text)', false, 'text', false),
+    ('plugin_data.csf_reconcile_sheet_import_row(uuid,uuid,uuid,text,text,uuid,uuid)',
+      false, 'jsonb', false),
+    ('plugin_data.csf_upsert_profile(uuid,uuid,uuid,jsonb)',
+      false, 'jsonb', false)
+),
+missing_columns AS (
+  SELECT required.relation_name || '.' || column_name AS column_name
+  FROM required_columns AS required
+  CROSS JOIN LATERAL unnest(required.column_names) AS column_name
+  WHERE NOT EXISTS (
+    SELECT 1
+    FROM pg_catalog.pg_attribute AS attribute_record
+    WHERE attribute_record.attrelid = to_regclass(required.relation_name)
+      AND attribute_record.attname = column_name
+      AND attribute_record.attnum > 0
+      AND NOT attribute_record.attisdropped
+  )
+),
+invalid_function_shapes AS (
+  SELECT required.signature
+  FROM required_function_shapes AS required
+  LEFT JOIN pg_catalog.pg_proc AS function_record
+    ON function_record.oid = to_regprocedure(required.signature)
+  WHERE (NOT required.baseline_only OR :'baseline_ledger'::boolean)
+    AND (
+      function_record.oid IS NULL
+      OR function_record.prorettype::regtype::text
+        IS DISTINCT FROM required.return_type
+      OR function_record.proretset IS DISTINCT FROM required.returns_set
+    )
+),
+shape_issues(issue_name) AS (
+  SELECT 'column:' || missing_columns.column_name
+  FROM missing_columns
+  UNION ALL
+  SELECT 'function:' || invalid_function_shapes.signature
+  FROM invalid_function_shapes
+)
+SELECT count(*) = 0 AS csf_column_shape_ready,
+  coalesce(
+    jsonb_agg(issue_name ORDER BY issue_name),
+    '[]'::jsonb
+  )::text AS csf_missing_columns
+FROM shape_issues
+\gset
+\echo :csf_missing_columns
 
 \if :csf_shape_ready
   \echo 'PASS S0: required CSF relations are present.'
@@ -302,6 +630,13 @@ FROM (
   SELECT 1 / 0 AS preflight_check_failed;
 \else
   \echo 'FAIL S0: the CSF relation set is partial. Stop and reconcile drift.'
+  SELECT 1 / 0 AS preflight_check_failed;
+\endif
+
+\if :csf_column_shape_ready
+  \echo 'PASS S0: required CSF column shapes are present.'
+\else
+  \echo 'FAIL S0: a required CSF column is missing. Stop and reconcile drift.'
   SELECT 1 / 0 AS preflight_check_failed;
 \endif
 
@@ -638,14 +973,16 @@ FROM state
 \echo ''
 \echo '=============================================================='
 \echo 'D1  Duplicate verified certificates per signup — PASS: 0 rows'
-\echo '    Blocks 20260811081506 certificates_verified_signup_unique'
+\echo '    Confirms current verified-certificate uniqueness'
 \echo '=============================================================='
-SELECT signup_id, count(*) AS certificate_count,
-       array_agg(id ORDER BY id) AS certificate_ids
-FROM public.certificates
-WHERE type = 'verified' AND signup_id IS NOT NULL
-GROUP BY signup_id
-HAVING count(*) > 1;
+SELECT count(*) AS duplicate_signup_group_count
+FROM (
+  SELECT 1
+  FROM public.certificates
+  WHERE type = 'verified' AND signup_id IS NOT NULL
+  GROUP BY signup_id
+  HAVING count(*) > 1
+) AS duplicate_groups;
 
 SELECT NOT EXISTS (
   SELECT 1
@@ -665,24 +1002,22 @@ SELECT NOT EXISTS (
 \echo ''
 \echo '=============================================================='
 \echo 'D2  Open CSF communications missing environment — PASS: 0 rows'
-\echo '    Blocks 20260811073000 webhook-environment isolation'
+\echo '    Confirms current webhook-environment isolation'
 \echo '=============================================================='
-SELECT campaign.organization_id, campaign.id AS campaign_id,
-       campaign.status,
-       count(attempt.id) FILTER (
-         WHERE attempt.state IN ('queued', 'processing')
-       ) AS open_attempts
-FROM plugin_data.csf_communication_campaigns AS campaign
-LEFT JOIN plugin_data.csf_communication_dispatch_attempts AS attempt
-  ON attempt.campaign_id = campaign.id
- AND attempt.organization_id = campaign.organization_id
-WHERE (attempt.state IN ('queued', 'processing') OR campaign.status = 'draft')
-  AND (
-    nullif(btrim(coalesce(campaign.metadata->>'csf_environment', '')), '') IS NULL
-    OR campaign.metadata->>'csf_environment' !~ '^[a-z0-9_]{1,64}$'
-  )
-GROUP BY campaign.organization_id, campaign.id, campaign.status
-ORDER BY campaign.organization_id, campaign.id;
+SELECT count(*) AS incompatible_campaign_count
+FROM (
+  SELECT 1
+  FROM plugin_data.csf_communication_campaigns AS campaign
+  LEFT JOIN plugin_data.csf_communication_dispatch_attempts AS attempt
+    ON attempt.campaign_id = campaign.id
+   AND attempt.organization_id = campaign.organization_id
+  WHERE (attempt.state IN ('queued', 'processing') OR campaign.status = 'draft')
+    AND (
+      nullif(btrim(coalesce(campaign.metadata->>'csf_environment', '')), '') IS NULL
+      OR campaign.metadata->>'csf_environment' !~ '^[a-z0-9_]{1,64}$'
+    )
+  GROUP BY campaign.organization_id, campaign.id
+) AS incompatible_campaigns;
 
 SELECT NOT EXISTS (
   SELECT 1
@@ -707,14 +1042,16 @@ SELECT NOT EXISTS (
 \echo ''
 \echo '=============================================================='
 \echo 'D3  Duplicate active class join codes — PASS: 0 rows'
-\echo '    Blocks the one-active-code-per-class index (20260817021000)'
+\echo '    Confirms current one-active-code-per-class uniqueness'
 \echo '=============================================================='
-SELECT organization_id, cohort_id, count(*) AS active_codes,
-       array_agg(id ORDER BY id) AS code_ids
-FROM plugin_data.csf_class_join_codes
-WHERE status = 'active'
-GROUP BY organization_id, cohort_id
-HAVING count(*) > 1;
+SELECT count(*) AS duplicate_class_group_count
+FROM (
+  SELECT 1
+  FROM plugin_data.csf_class_join_codes
+  WHERE status = 'active'
+  GROUP BY organization_id, cohort_id
+  HAVING count(*) > 1
+) AS duplicate_groups;
 
 SELECT NOT EXISTS (
   SELECT 1
@@ -734,9 +1071,9 @@ SELECT NOT EXISTS (
 \echo ''
 \echo '=============================================================='
 \echo 'D4  Existing organization uses reserved route slug — PASS: 0 rows'
-\echo '    Blocks 20260812100000 validated CHECK'
+\echo '    Confirms the current reserved-route constraint'
 \echo '=============================================================='
-SELECT id AS organization_id
+SELECT count(*) AS reserved_slug_organization_count
 FROM public.organizations
 WHERE lower(
   regexp_replace(
@@ -747,8 +1084,7 @@ WHERE lower(
     '',
     'g'
   )
-) = ANY (ARRAY['create', 'join'])
-ORDER BY id;
+  ) = ANY (ARRAY['create', 'join']);
 
 SELECT NOT EXISTS (
   SELECT 1
@@ -774,16 +1110,15 @@ SELECT NOT EXISTS (
 
 \echo ''
 \echo '=============================================================='
-\echo 'D5  Cancellation-job baseline values outside target checks'
+\echo 'D5  Cancellation-job states and attempts remain valid'
 \echo '    PASS: 0 rows'
 \echo '=============================================================='
-SELECT id, status, attempts, "cursor"
+SELECT count(*) AS invalid_cancellation_job_count
 FROM public.project_cancellation_jobs
 WHERE status IS NULL
    OR status NOT IN ('pending', 'processing', 'completed', 'failed', 'needs_review')
    OR attempts IS NULL
-   OR attempts < 0
-ORDER BY id;
+   OR attempts < 0;
 
 SELECT NOT EXISTS (
   SELECT 1
@@ -797,57 +1132,21 @@ SELECT NOT EXISTS (
 \if :d5_pass
   \echo 'PASS D5'
 \else
-  \echo 'FAIL D5: unsupported cancellation state would fail target constraints.'
+  \echo 'FAIL D5: cancellation-job state or attempt bounds have drifted.'
   SELECT 1 / 0 AS preflight_check_failed;
-\endif
-
-\if :baseline_ledger
-  \echo ''
-  \echo '=============================================================='
-  \echo 'D6  Rows deliberately transitioned by pending cancellation migrations'
-  \echo '    PASS: zero, or rerun with -v accept_state_transitions=1'
-  \echo '    only after counts are reviewed and maintenance has stopped workers'
-  \echo '=============================================================='
-  SELECT status, count(*) AS jobs,
-         count(*) FILTER (WHERE "cursor" > 0) AS advanced_cursor_jobs,
-         count(*) FILTER (WHERE status = 'completed') AS completed_to_review,
-         count(*) FILTER (WHERE attempts > 5) AS attempts_to_clamp
-  FROM public.project_cancellation_jobs
-  WHERE status IN ('pending', 'processing', 'completed') OR attempts > 5
-  GROUP BY status
-  ORDER BY status;
-
-  SELECT (
-    NOT EXISTS (
-      SELECT 1
-      FROM public.project_cancellation_jobs
-      WHERE status IN ('pending', 'processing', 'completed') OR attempts > 5
-    )
-    OR :'accept_state_transitions' = '1'
-  ) AS d6_pass
-  \gset
-  \if :d6_pass
-    \echo 'PASS D6: transition inventory is empty or explicitly accepted.'
-  \else
-    \echo 'FAIL D6: capture and adjudicate transition counts, then rerun explicitly.'
-    SELECT 1 / 0 AS preflight_check_failed;
-  \endif
 \endif
 
 \echo ''
 \echo '=============================================================='
 \echo 'D7  Cross-organization CSF post replies — PASS: 0 rows'
-\echo '    Blocks 20260812152300 tenant FK validation'
+\echo '    Confirms the current announcement tenant FK'
 \echo '=============================================================='
-SELECT reply.id AS reply_id, reply.organization_id,
-       reply.announcement_id,
-       announcement.organization_id AS announcement_organization_id
+SELECT count(*) AS cross_tenant_reply_count
 FROM plugin_data.csf_announcement_replies AS reply
 LEFT JOIN plugin_data.csf_announcements AS announcement
   ON announcement.id = reply.announcement_id
 WHERE announcement.id IS NULL
-   OR announcement.organization_id IS DISTINCT FROM reply.organization_id
-ORDER BY reply.id;
+   OR announcement.organization_id IS DISTINCT FROM reply.organization_id;
 
 SELECT NOT EXISTS (
   SELECT 1
@@ -861,21 +1160,24 @@ SELECT NOT EXISTS (
 \if :d7_pass
   \echo 'PASS D7'
 \else
-  \echo 'FAIL D7: target tenant FK validation would fail.'
+  \echo 'FAIL D7: the current announcement tenant FK has drifted.'
   SELECT 1 / 0 AS preflight_check_failed;
 \endif
 
 \echo ''
 \echo '=============================================================='
 \echo 'D8  Duplicate/unkeyed CSF post-reply request receipts'
-\echo '    PASS: 0 rows; blocks 20260812152300 unique index'
+\echo '    PASS: 0 rows; confirms current receipt uniqueness'
 \echo '=============================================================='
-SELECT organization_id, correlation_id, count(*) AS receipts
-FROM plugin_data.csf_admin_audit_events
-WHERE source_type = 'post_reply_mutation_request'
-  AND action IN ('post_reply_added', 'post_reply_deleted')
-GROUP BY organization_id, correlation_id
-HAVING correlation_id IS NULL OR count(*) > 1;
+SELECT count(*) AS invalid_receipt_group_count
+FROM (
+  SELECT 1
+  FROM plugin_data.csf_admin_audit_events
+  WHERE source_type = 'post_reply_mutation_request'
+    AND action IN ('post_reply_added', 'post_reply_deleted')
+  GROUP BY organization_id, correlation_id
+  HAVING correlation_id IS NULL OR count(*) > 1
+) AS invalid_groups;
 
 SELECT NOT EXISTS (
   SELECT 1
@@ -889,14 +1191,14 @@ SELECT NOT EXISTS (
 \if :d8_pass
   \echo 'PASS D8'
 \else
-  \echo 'FAIL D8: target replay-receipt uniqueness would fail.'
+  \echo 'FAIL D8: current replay-receipt uniqueness has drifted.'
   SELECT 1 / 0 AS preflight_check_failed;
 \endif
 
 \echo ''
 \echo '=============================================================='
 \echo 'D9  External dependencies on pg_graphql objects — PASS: 0 rows'
-\echo '    Blocks 20260811132454 DROP EXTENSION ... RESTRICT'
+\echo '    Confirms the removed extension has no dependency drift'
 \echo '=============================================================='
 WITH extension_record AS (
   SELECT oid
@@ -932,19 +1234,8 @@ blockers AS (
       AND dependent_member.objid = dependency.objid
   )
 )
-SELECT
-  pg_catalog.pg_describe_object(
-    blocker.classid,
-    blocker.objid,
-    blocker.objsubid
-  ) AS dependent_object,
-  pg_catalog.pg_describe_object(
-    blocker.refclassid,
-    blocker.refobjid,
-    blocker.refobjsubid
-  ) AS extension_object
-FROM blockers AS blocker
-ORDER BY dependent_object, extension_object;
+SELECT count(*) AS external_dependency_count
+FROM blockers;
 
 WITH extension_record AS (
   SELECT oid
@@ -984,16 +1275,16 @@ SELECT NOT EXISTS (
 \if :d9_pass
   \echo 'PASS D9'
 \else
-  \echo 'FAIL D9: DROP EXTENSION ... RESTRICT would fail.'
+  \echo 'FAIL D9: pg_graphql dependency drift was detected.'
   SELECT 1 / 0 AS preflight_check_failed;
 \endif
 
 \if :baseline_ledger
   \echo ''
   \echo '=============================================================='
-  \echo 'D10 Reviewed public client grants still effective'
+  \echo 'D10 Current reviewed public client grants remain effective'
   \echo '    PASS: 0 missing grants on relations present at this shape'
-  \echo '    Guards 20260812100900 before it revokes and rebuilds ACLs'
+  \echo '    Confirms the reviewed public relation ACL catalog'
   \echo '=============================================================='
   WITH catalog(relation_name, role_name, privilege, columns) AS (
   VALUES
@@ -1220,7 +1511,76 @@ SELECT
   \if :d10_pass
     \echo 'PASS D10'
   \else
-    \echo 'FAIL D10: reviewed grants are missing before ACL convergence.'
+    \echo 'FAIL D10: current reviewed grants have drifted.'
+    SELECT 1 / 0 AS preflight_check_failed;
+  \endif
+\endif
+
+\if :baseline_ledger
+  \echo ''
+  \echo '=============================================================='
+  \echo 'D11 Sheet sources match their graduating-class tenant'
+  \echo '    PASS: 0 rows; guards the pending validated tenant FK'
+  \echo '=============================================================='
+  SELECT count(*) AS incompatible_source_count
+  FROM plugin_data.csf_sheet_sources AS source
+  LEFT JOIN plugin_data.csf_cohorts AS cohort
+    ON cohort.id = source.cohort_id
+  WHERE source.cohort_id IS NOT NULL
+    AND (
+      cohort.id IS NULL
+      OR cohort.organization_id IS DISTINCT FROM source.organization_id
+    );
+
+  SELECT NOT EXISTS (
+    SELECT 1
+    FROM plugin_data.csf_sheet_sources AS source
+    LEFT JOIN plugin_data.csf_cohorts AS cohort
+      ON cohort.id = source.cohort_id
+    WHERE source.cohort_id IS NOT NULL
+      AND (
+        cohort.id IS NULL
+        OR cohort.organization_id IS DISTINCT FROM source.organization_id
+      )
+  ) AS d11_pass
+  \gset
+  \if :d11_pass
+    \echo 'PASS D11'
+  \else
+    \echo 'FAIL D11: a sheet source references a graduating class from another tenant.'
+    SELECT 1 / 0 AS preflight_check_failed;
+  \endif
+\endif
+
+\if :baseline_ledger
+  \echo ''
+  \echo '=============================================================='
+  \echo 'D12 Duplicate class-history profile-create request receipts'
+  \echo '    PASS: 0 groups; guards the pending partial UNIQUE index'
+  \echo '=============================================================='
+  SELECT count(*) AS duplicate_request_group_count
+  FROM (
+    SELECT 1
+    FROM plugin_data.csf_admin_audit_events AS audit
+    WHERE audit.action = 'sheet_import.class_history_profile_create_request'
+      AND audit.correlation_id IS NOT NULL
+    GROUP BY audit.organization_id, audit.correlation_id
+    HAVING count(*) > 1
+  ) AS duplicate_groups;
+
+  SELECT NOT EXISTS (
+    SELECT 1
+    FROM plugin_data.csf_admin_audit_events AS audit
+    WHERE audit.action = 'sheet_import.class_history_profile_create_request'
+      AND audit.correlation_id IS NOT NULL
+    GROUP BY audit.organization_id, audit.correlation_id
+    HAVING count(*) > 1
+  ) AS d12_pass
+  \gset
+  \if :d12_pass
+    \echo 'PASS D12'
+  \else
+    \echo 'FAIL D12: duplicate non-null request IDs would block the pending UNIQUE index.'
     SELECT 1 / 0 AS preflight_check_failed;
   \endif
 \endif
@@ -1243,7 +1603,16 @@ SELECT
       ('private.plugin_data_deletion_requests'),
       ('private.anonymous_feedback_email_preferences'),
       ('private.google_cap_event_receipts'),
-      ('app_private.storage_object_policy_contract')
+      ('app_private.storage_object_policy_contract'),
+      -- BEGIN 440 CSF TARGET RELATIONS
+      ('plugin_data.csf_class_workbooks'),
+      ('plugin_data.csf_class_workbook_refresh_jobs'),
+      ('plugin_data.csf_import_approval_batches'),
+      ('plugin_data.csf_import_commit_queue'),
+      ('plugin_data.csf_import_approval_batch_items'),
+      ('plugin_data.csf_import_row_batches'),
+      ('plugin_data.csf_import_row_batch_outcomes')
+      -- END 440 CSF TARGET RELATIONS
   ) AS required(relation_name)
   WHERE to_regclass(required.relation_name) IS NULL
   ORDER BY required.relation_name;
@@ -1262,7 +1631,16 @@ SELECT
       ('private.plugin_data_deletion_requests'),
       ('private.anonymous_feedback_email_preferences'),
       ('private.google_cap_event_receipts'),
-      ('app_private.storage_object_policy_contract')
+      ('app_private.storage_object_policy_contract'),
+      -- BEGIN 440 CSF TARGET RELATIONS
+      ('plugin_data.csf_class_workbooks'),
+      ('plugin_data.csf_class_workbook_refresh_jobs'),
+      ('plugin_data.csf_import_approval_batches'),
+      ('plugin_data.csf_import_commit_queue'),
+      ('plugin_data.csf_import_approval_batch_items'),
+      ('plugin_data.csf_import_row_batches'),
+      ('plugin_data.csf_import_row_batch_outcomes')
+      -- END 440 CSF TARGET RELATIONS
   ) AS required(relation_name)
   \gset
   \if :target_shape_ready
@@ -1570,6 +1948,1152 @@ SELECT
     \echo 'PASS T2'
   \else
     \echo 'FAIL T2: target ledger claims objects that are missing or invalid.'
+    SELECT 1 / 0 AS preflight_check_failed;
+  \endif
+
+  \echo ''
+  \echo '=============================================================='
+  \echo 'T2C 440 CSF release-tail contract'
+  \echo '    PASS: []'
+  \echo '=============================================================='
+  WITH expected_tables(relation_name, service_privileges) AS (
+    VALUES
+      ('plugin_data.csf_class_workbooks',
+        ARRAY['SELECT']::text[]),
+      ('plugin_data.csf_class_workbook_refresh_jobs',
+        ARRAY['SELECT']::text[]),
+      ('plugin_data.csf_import_approval_batches',
+        ARRAY[]::text[]),
+      ('plugin_data.csf_import_commit_queue',
+        ARRAY['SELECT']::text[]),
+      ('plugin_data.csf_import_approval_batch_items',
+        ARRAY[]::text[]),
+      ('plugin_data.csf_import_row_batches',
+        ARRAY[]::text[]),
+      ('plugin_data.csf_import_row_batch_outcomes',
+        ARRAY[]::text[])
+  ),
+  table_state AS (
+    SELECT expected.relation_name,
+      expected.service_privileges,
+      relation_record.oid,
+      relation_record.relrowsecurity,
+      ARRAY(
+        SELECT privilege
+        FROM unnest(ARRAY[
+          'DELETE','INSERT','REFERENCES','SELECT','TRIGGER','TRUNCATE','UPDATE'
+        ]::text[]) AS privilege
+        WHERE relation_record.oid IS NOT NULL
+          AND has_table_privilege(
+            'service_role', relation_record.oid, privilege
+          )
+        ORDER BY privilege
+      ) AS actual_service_privileges,
+      EXISTS (
+        SELECT 1
+        FROM unnest(ARRAY[
+          'DELETE','INSERT','REFERENCES','SELECT','TRIGGER','TRUNCATE','UPDATE'
+        ]::text[]) AS privilege
+        WHERE relation_record.oid IS NOT NULL
+          AND (
+            has_table_privilege('anon', relation_record.oid, privilege)
+            OR has_table_privilege(
+              'authenticated', relation_record.oid, privilege
+            )
+          )
+      ) AS browser_privilege
+    FROM expected_tables AS expected
+    LEFT JOIN pg_catalog.pg_class AS relation_record
+      ON relation_record.oid = to_regclass(expected.relation_name)
+     AND relation_record.relkind IN ('r', 'p')
+  ),
+  table_issues AS (
+    SELECT 'table'::text AS issue_kind, state.relation_name AS object_name
+    FROM table_state AS state
+    WHERE state.oid IS NULL
+       OR NOT state.relrowsecurity
+       OR state.actual_service_privileges IS DISTINCT FROM state.service_privileges
+       OR state.browser_privilege
+  ),
+  column_issues AS (
+    SELECT 'column'::text AS issue_kind,
+      'plugin_data.csf_class_workbook_refresh_jobs.drive_file_id'::text
+        AS object_name
+    WHERE NOT EXISTS (
+      SELECT 1
+      FROM pg_catalog.pg_attribute AS attribute_record
+      WHERE attribute_record.attrelid =
+          to_regclass('plugin_data.csf_class_workbook_refresh_jobs')
+        AND attribute_record.attname = 'drive_file_id'
+        AND attribute_record.attnum > 0
+        AND NOT attribute_record.attisdropped
+        AND attribute_record.attnotnull
+    )
+    UNION ALL
+    SELECT 'column'::text AS issue_kind,
+      'plugin_data.csf_class_workbook_refresh_jobs.claimed_owner_user_id'::text
+        AS object_name
+    WHERE NOT EXISTS (
+      SELECT 1
+      FROM pg_catalog.pg_attribute AS attribute_record
+      WHERE attribute_record.attrelid =
+          to_regclass('plugin_data.csf_class_workbook_refresh_jobs')
+        AND attribute_record.attname = 'claimed_owner_user_id'
+        AND attribute_record.atttypid = 'uuid'::regtype
+        AND attribute_record.attnum > 0
+        AND NOT attribute_record.attisdropped
+        AND NOT attribute_record.attnotnull
+    )
+  ),
+  expected_constraints(
+    label, relation_name, constraint_name, constraint_type, key_columns,
+    referenced_relation, referenced_columns, delete_action,
+    definition_fragment
+  ) AS (
+    VALUES
+      ('class_workbooks_primary_key',
+        'plugin_data.csf_class_workbooks', NULL::text, 'p',
+        ARRAY['id']::text[], NULL::text, NULL::text[], NULL::text, NULL::text),
+      ('workbook_refresh_jobs_primary_key',
+        'plugin_data.csf_class_workbook_refresh_jobs', NULL, 'p',
+        ARRAY['id']::text[], NULL, NULL::text[], NULL, NULL),
+      ('import_approval_batches_primary_key',
+        'plugin_data.csf_import_approval_batches', NULL, 'p',
+        ARRAY['id']::text[], NULL, NULL::text[], NULL, NULL),
+      ('import_commit_queue_primary_key',
+        'plugin_data.csf_import_commit_queue', NULL, 'p',
+        ARRAY['id']::text[], NULL, NULL::text[], NULL, NULL),
+      ('import_approval_batch_items_primary_key',
+        'plugin_data.csf_import_approval_batch_items', NULL, 'p',
+        ARRAY['id']::text[], NULL, NULL::text[], NULL, NULL),
+      ('import_row_batches_primary_key',
+        'plugin_data.csf_import_row_batches', NULL, 'p',
+        ARRAY['id']::text[], NULL, NULL::text[], NULL, NULL),
+      ('import_row_batch_outcomes_primary_key',
+        'plugin_data.csf_import_row_batch_outcomes', NULL, 'p',
+        ARRAY['id']::text[], NULL, NULL::text[], NULL, NULL),
+      ('workbook_tenant_class_unique',
+        'plugin_data.csf_class_workbooks', NULL::text, 'u',
+        ARRAY['organization_id','cohort_id']::text[],
+        NULL::text, NULL::text[], NULL::text, NULL::text),
+      ('csf_class_workbooks_id_organization_id_key',
+        'plugin_data.csf_class_workbooks',
+        'csf_class_workbooks_id_organization_id_key', 'u',
+        ARRAY['id','organization_id']::text[],
+        NULL, NULL::text[], NULL, NULL),
+      ('csf_class_workbooks_cohort_organization_fk',
+        'plugin_data.csf_class_workbooks',
+        'csf_class_workbooks_cohort_organization_fk', 'f',
+        ARRAY['cohort_id','organization_id']::text[],
+        'plugin_data.csf_cohorts', ARRAY['id','organization_id']::text[],
+        'c', NULL),
+      ('csf_sheet_sources_cohort_organization_fkey',
+        'plugin_data.csf_sheet_sources',
+        'csf_sheet_sources_cohort_organization_fkey', 'f',
+        ARRAY['cohort_id','organization_id']::text[],
+        'plugin_data.csf_cohorts', ARRAY['id','organization_id']::text[],
+        'n', 'ON DELETE SET NULL (cohort_id)'),
+      ('csf_class_workbook_refresh_jobs_source_version_key',
+        'plugin_data.csf_class_workbook_refresh_jobs',
+        'csf_class_workbook_refresh_jobs_source_version_key', 'u',
+        ARRAY['workbook_id','drive_file_id','provider_version']::text[],
+        NULL, NULL::text[], NULL, NULL),
+      ('csf_class_workbook_refresh_jobs_workbook_organization_fk',
+        'plugin_data.csf_class_workbook_refresh_jobs',
+        'csf_class_workbook_refresh_jobs_workbook_organization_fk', 'f',
+        ARRAY['workbook_id','organization_id']::text[],
+        'plugin_data.csf_class_workbooks', ARRAY['id','organization_id']::text[],
+        'c', NULL),
+      ('csf_class_workbook_refresh_jobs_claimed_owner_user_id_fkey',
+        'plugin_data.csf_class_workbook_refresh_jobs',
+        'csf_class_workbook_refresh_jobs_claimed_owner_user_id_fkey', 'f',
+        ARRAY['claimed_owner_user_id']::text[],
+        'auth.users', ARRAY['id']::text[], 'n', NULL),
+      ('approval_batch_request_unique',
+        'plugin_data.csf_import_approval_batches', NULL, 'u',
+        ARRAY['organization_id','request_id']::text[],
+        NULL, NULL::text[], NULL, NULL),
+      ('csf_import_approval_batches_id_organization_key',
+        'plugin_data.csf_import_approval_batches',
+        'csf_import_approval_batches_id_organization_key', 'u',
+        ARRAY['id','organization_id']::text[],
+        NULL, NULL::text[], NULL, NULL),
+      ('commit_queue_preview_unique',
+        'plugin_data.csf_import_commit_queue', NULL, 'u',
+        ARRAY['organization_id','preview_job_id']::text[],
+        NULL, NULL::text[], NULL, NULL),
+      ('commit_queue_preview_tenant_fk',
+        'plugin_data.csf_import_commit_queue', NULL, 'f',
+        ARRAY['preview_job_id','organization_id']::text[],
+        'plugin_data.csf_sheet_import_jobs', ARRAY['id','organization_id']::text[],
+        'c', NULL),
+      ('csf_import_commit_queue_id_organization_key',
+        'plugin_data.csf_import_commit_queue',
+        'csf_import_commit_queue_id_organization_key', 'u',
+        ARRAY['id','organization_id']::text[],
+        NULL, NULL::text[], NULL, NULL),
+      ('approval_item_batch_preview_unique',
+        'plugin_data.csf_import_approval_batch_items', NULL, 'u',
+        ARRAY['batch_id','preview_job_id']::text[],
+        NULL, NULL::text[], NULL, NULL),
+      ('approval_item_preview_tenant_fk',
+        'plugin_data.csf_import_approval_batch_items', NULL, 'f',
+        ARRAY['preview_job_id','organization_id']::text[],
+        'plugin_data.csf_sheet_import_jobs', ARRAY['id','organization_id']::text[],
+        'c', NULL),
+      ('csf_import_approval_items_batch_organization_fkey',
+        'plugin_data.csf_import_approval_batch_items',
+        'csf_import_approval_items_batch_organization_fkey', 'f',
+        ARRAY['batch_id','organization_id']::text[],
+        'plugin_data.csf_import_approval_batches',
+        ARRAY['id','organization_id']::text[], 'c', NULL),
+      ('csf_import_approval_items_queue_organization_fkey',
+        'plugin_data.csf_import_approval_batch_items',
+        'csf_import_approval_items_queue_organization_fkey', 'f',
+        ARRAY['queue_id','organization_id']::text[],
+        'plugin_data.csf_import_commit_queue',
+        ARRAY['id','organization_id']::text[], 'n',
+        'ON DELETE SET NULL (queue_id)'),
+      ('row_batch_request_unique',
+        'plugin_data.csf_import_row_batches', NULL, 'u',
+        ARRAY['organization_id','request_id']::text[],
+        NULL, NULL::text[], NULL, NULL),
+      ('row_batch_attempt_tenant_fk',
+        'plugin_data.csf_import_row_batches', NULL, 'f',
+        ARRAY['attempt_id','organization_id']::text[],
+        'plugin_data.csf_sheet_import_commit_attempts',
+        ARRAY['id','organization_id']::text[], 'c', NULL),
+      ('csf_import_row_batches_id_organization_key',
+        'plugin_data.csf_import_row_batches',
+        'csf_import_row_batches_id_organization_key', 'u',
+        ARRAY['id','organization_id']::text[],
+        NULL, NULL::text[], NULL, NULL),
+      ('row_outcome_batch_row_unique',
+        'plugin_data.csf_import_row_batch_outcomes', NULL, 'u',
+        ARRAY['batch_id','import_row_id']::text[],
+        NULL, NULL::text[], NULL, NULL),
+      ('row_outcome_import_row_tenant_fk',
+        'plugin_data.csf_import_row_batch_outcomes', NULL, 'f',
+        ARRAY['import_row_id','organization_id']::text[],
+        'plugin_data.csf_sheet_import_rows', ARRAY['id','organization_id']::text[],
+        'c', NULL),
+      ('csf_import_row_outcomes_batch_organization_fkey',
+        'plugin_data.csf_import_row_batch_outcomes',
+        'csf_import_row_outcomes_batch_organization_fkey', 'f',
+        ARRAY['batch_id','organization_id']::text[],
+        'plugin_data.csf_import_row_batches',
+        ARRAY['id','organization_id']::text[], 'c', NULL)
+  ),
+  constraint_issues AS (
+    SELECT 'constraint'::text AS issue_kind, expected.label AS object_name
+    FROM expected_constraints AS expected
+    WHERE NOT EXISTS (
+      SELECT 1
+      FROM pg_catalog.pg_constraint AS constraint_record
+      WHERE constraint_record.conrelid = to_regclass(expected.relation_name)
+        AND constraint_record.contype = expected.constraint_type::"char"
+        AND constraint_record.convalidated
+        AND (
+          expected.constraint_name IS NULL
+          OR constraint_record.conname = expected.constraint_name
+        )
+        AND (
+          SELECT array_agg(
+            attribute_record.attname::text ORDER BY key_column.ordinality
+          )
+          FROM unnest(constraint_record.conkey)
+            WITH ORDINALITY AS key_column(attnum, ordinality)
+          JOIN pg_catalog.pg_attribute AS attribute_record
+            ON attribute_record.attrelid = constraint_record.conrelid
+           AND attribute_record.attnum = key_column.attnum
+        ) = expected.key_columns
+        AND (
+          expected.referenced_relation IS NULL
+          OR (
+            constraint_record.confrelid =
+              to_regclass(expected.referenced_relation)
+            AND (
+              SELECT array_agg(
+                attribute_record.attname::text ORDER BY key_column.ordinality
+              )
+              FROM unnest(constraint_record.confkey)
+                WITH ORDINALITY AS key_column(attnum, ordinality)
+              JOIN pg_catalog.pg_attribute AS attribute_record
+                ON attribute_record.attrelid = constraint_record.confrelid
+               AND attribute_record.attnum = key_column.attnum
+            ) = expected.referenced_columns
+          )
+        )
+        AND (
+          expected.delete_action IS NULL
+          OR constraint_record.confdeltype = expected.delete_action::"char"
+        )
+        AND (
+          expected.definition_fragment IS NULL
+          OR pg_catalog.pg_get_constraintdef(constraint_record.oid)
+            LIKE '%' || expected.definition_fragment || '%'
+      )
+    )
+  ),
+  expected_check_constraints(label, relation_name, definition_terms) AS (
+    VALUES
+      ('workbook_discovered_tabs_array', 'plugin_data.csf_class_workbooks',
+        ARRAY['discovered_tabs','jsonb_typeof','array']::text[]),
+      ('workbook_source_candidates_array', 'plugin_data.csf_class_workbooks',
+        ARRAY['source_candidates','jsonb_typeof','array']::text[]),
+      ('workbook_state_domain', 'plugin_data.csf_class_workbooks',
+        ARRAY['state','linked','needs_reconnect','blocked','unlinked']::text[]),
+      ('workbook_drive_link_shape', 'plugin_data.csf_class_workbooks',
+        ARRAY['drive_file_id','state','blocked','unlinked']::text[]),
+      ('workbook_provider_version_shape', 'plugin_data.csf_class_workbooks',
+        ARRAY['provider_version','^[1-9][0-9]{0,18}$']::text[]),
+      ('workbook_prepared_version_shape', 'plugin_data.csf_class_workbooks',
+        ARRAY['last_prepared_version','^[1-9][0-9]{0,18}$']::text[]),
+      ('refresh_provider_version_shape',
+        'plugin_data.csf_class_workbook_refresh_jobs',
+        ARRAY['provider_version','^[1-9][0-9]{0,18}$']::text[]),
+      ('refresh_status_domain', 'plugin_data.csf_class_workbook_refresh_jobs',
+        ARRAY['status','queued','running','completed','needs_reconnect',
+          'blocked','failed']::text[]),
+      ('refresh_attempt_count_nonnegative',
+        'plugin_data.csf_class_workbook_refresh_jobs',
+        ARRAY['attempt_count','>= 0']::text[]),
+      ('refresh_result_counts_object',
+        'plugin_data.csf_class_workbook_refresh_jobs',
+        ARRAY['result_counts','jsonb_typeof','object']::text[]),
+      ('approval_batch_status_domain',
+        'plugin_data.csf_import_approval_batches',
+        ARRAY['status','queued','running','completed',
+          'partially_completed']::text[]),
+      ('approval_requested_count_nonnegative',
+        'plugin_data.csf_import_approval_batches',
+        ARRAY['requested_count','>= 0']::text[]),
+      ('approval_queued_count_nonnegative',
+        'plugin_data.csf_import_approval_batches',
+        ARRAY['queued_count','>= 0']::text[]),
+      ('approval_blocked_count_nonnegative',
+        'plugin_data.csf_import_approval_batches',
+        ARRAY['blocked_count','>= 0']::text[]),
+      ('approval_stale_count_nonnegative',
+        'plugin_data.csf_import_approval_batches',
+        ARRAY['stale_count','>= 0']::text[]),
+      ('approval_completed_count_nonnegative',
+        'plugin_data.csf_import_approval_batches',
+        ARRAY['completed_count','>= 0']::text[]),
+      ('commit_queue_status_domain', 'plugin_data.csf_import_commit_queue',
+        ARRAY['status','queued','running','completed','blocked','failed']::text[]),
+      ('commit_queue_attempt_count_nonnegative',
+        'plugin_data.csf_import_commit_queue',
+        ARRAY['attempt_count','>= 0']::text[]),
+      ('commit_queue_result_counts_object',
+        'plugin_data.csf_import_commit_queue',
+        ARRAY['result_counts','jsonb_typeof','object']::text[]),
+      ('approval_item_state_domain',
+        'plugin_data.csf_import_approval_batch_items',
+        ARRAY['state','queued','blocked','stale','completed']::text[]),
+      ('row_batch_size_bound', 'plugin_data.csf_import_row_batches',
+        ARRAY['cardinality(row_ids)','1','50']::text[]),
+      ('row_batch_status_domain', 'plugin_data.csf_import_row_batches',
+        ARRAY['status','running','completed']::text[]),
+      ('row_batch_succeeded_count_nonnegative',
+        'plugin_data.csf_import_row_batches',
+        ARRAY['succeeded_count','>= 0']::text[]),
+      ('row_batch_failed_count_nonnegative',
+        'plugin_data.csf_import_row_batches',
+        ARRAY['failed_count','>= 0']::text[]),
+      ('row_outcome_domain', 'plugin_data.csf_import_row_batch_outcomes',
+        ARRAY['outcome','created','updated','recovered','failed']::text[]),
+      ('row_outcome_result_object',
+        'plugin_data.csf_import_row_batch_outcomes',
+        ARRAY['result','jsonb_typeof','object']::text[])
+  ),
+  check_constraint_issues AS (
+    SELECT 'check_constraint'::text AS issue_kind,
+      expected.label AS object_name
+    FROM expected_check_constraints AS expected
+    WHERE NOT EXISTS (
+      SELECT 1
+      FROM pg_catalog.pg_constraint AS constraint_record
+      WHERE constraint_record.conrelid = to_regclass(expected.relation_name)
+        AND constraint_record.contype = 'c'
+        AND constraint_record.convalidated
+        AND NOT EXISTS (
+          SELECT 1
+          FROM unnest(expected.definition_terms) AS term
+          WHERE pg_catalog.strpos(
+            pg_catalog.lower(
+              pg_catalog.pg_get_constraintdef(constraint_record.oid)
+            ),
+            term
+          ) = 0
+        )
+    )
+  ),
+  invalid_constraint_issues AS (
+    SELECT 'unvalidated_constraint'::text AS issue_kind,
+      constraint_record.conname::text AS object_name
+    FROM expected_tables AS expected
+    JOIN pg_catalog.pg_constraint AS constraint_record
+      ON constraint_record.conrelid = to_regclass(expected.relation_name)
+    WHERE NOT constraint_record.convalidated
+  ),
+  expected_indexes(relation_name, index_name, unique_index, definition_terms) AS (
+    VALUES
+      ('plugin_data.csf_class_workbook_refresh_jobs',
+        'csf_class_workbook_refresh_jobs_claim_idx', false,
+        ARRAY['created_at','id','status','queued']::text[]),
+      ('plugin_data.csf_class_workbook_refresh_jobs',
+        'csf_class_workbook_refresh_jobs_running_lease_idx', false,
+        ARRAY['lease_expires_at','status','running']::text[]),
+      ('plugin_data.csf_import_commit_queue',
+        'csf_import_commit_queue_claim_idx', false,
+        ARRAY['created_at','id','status','queued']::text[]),
+      ('plugin_data.csf_import_commit_queue',
+        'csf_import_commit_queue_running_lease_idx', false,
+        ARRAY['lease_expires_at','status','running']::text[]),
+      ('plugin_data.csf_point_submissions',
+        'csf_point_submissions_unresolved_queue_idx', false,
+        ARRAY['organization_id','submitted_at desc','id desc','needs_action']::text[]),
+      ('plugin_data.csf_point_appeals',
+        'csf_point_appeals_unresolved_queue_idx', false,
+        ARRAY['organization_id','created_at desc','id desc','under_review']::text[]),
+      ('plugin_data.csf_profiles', 'csf_profiles_name_prefix_idx', false,
+        ARRAY['organization_id','normalized_last_name text_pattern_ops',
+          'normalized_first_name text_pattern_ops','record_status']::text[]),
+      ('plugin_data.csf_profiles', 'csf_profiles_school_email_prefix_idx', false,
+        ARRAY['organization_id','normalized_school_email text_pattern_ops',
+          'record_status']::text[]),
+      ('plugin_data.csf_profiles', 'csf_profiles_personal_email_prefix_idx', false,
+        ARRAY['organization_id','normalized_personal_email text_pattern_ops',
+          'record_status']::text[]),
+      ('plugin_data.csf_class_workbook_refresh_jobs',
+        'csf_workbook_refresh_jobs_tenant_state_idx', false,
+        ARRAY['organization_id','status','created_at','id']::text[]),
+      ('plugin_data.csf_import_approval_batch_items',
+        'csf_import_approval_items_tenant_batch_idx', false,
+        ARRAY['organization_id','batch_id','state','id']::text[]),
+      ('plugin_data.csf_import_approval_batch_items',
+        'csf_import_approval_items_org_queue_idx', false,
+        ARRAY['organization_id','queue_id','queue_id is not null']::text[]),
+      ('plugin_data.csf_import_row_batch_outcomes',
+        'csf_import_row_outcomes_tenant_batch_idx', false,
+        ARRAY['organization_id','batch_id','created_at','id']::text[]),
+      ('plugin_data.csf_admin_audit_events',
+        'csf_class_history_profile_create_request_idx', true,
+        ARRAY['organization_id','correlation_id',
+          'sheet_import.class_history_profile_create_request']::text[])
+  ),
+  index_issues AS (
+    SELECT 'index'::text AS issue_kind, expected.index_name AS object_name
+    FROM expected_indexes AS expected
+    WHERE NOT EXISTS (
+      SELECT 1
+      FROM pg_catalog.pg_class AS index_record
+      JOIN pg_catalog.pg_index AS index_state
+        ON index_state.indexrelid = index_record.oid
+      WHERE index_record.relname = expected.index_name
+        AND index_state.indrelid = to_regclass(expected.relation_name)
+        AND index_state.indisvalid
+        AND index_state.indisready
+        AND index_state.indisunique = expected.unique_index
+        AND NOT EXISTS (
+          SELECT 1
+          FROM unnest(expected.definition_terms) AS term
+          WHERE pg_catalog.strpos(
+            pg_catalog.lower(
+              pg_catalog.pg_get_indexdef(index_state.indexrelid)
+            ),
+            term
+          ) = 0
+        )
+    )
+  ),
+  expected_triggers(relation_name, trigger_name, trigger_type, function_name) AS (
+    VALUES
+      ('plugin_data.csf_sheet_import_rows',
+        'csf_sheet_import_rows_attempt_created_profile_resolution', 19,
+        'plugin_data.csf_set_import_created_profile_resolution()'),
+      ('plugin_data.csf_sheet_import_rows',
+        'csf_sheet_import_rows_attempt_lineage', 23,
+        'plugin_data.csf_enforce_import_row_attempt_lineage()'),
+      ('plugin_data.csf_import_approval_batches',
+        'csf_import_approval_batches_normalize_status', 19,
+        'plugin_data.csf_normalize_import_approval_batch_status()'),
+      ('plugin_data.csf_import_approval_batches',
+        'csf_import_approval_batches_audit', 17,
+        'plugin_data.csf_audit_import_approval_batch()'),
+      ('plugin_data.csf_sheet_sources',
+        'csf_sheet_sources_mapping_version_before_update', 19,
+        'plugin_data.csf_enforce_sheet_source_mapping_version()'),
+      ('plugin_data.csf_sheet_import_jobs',
+        'csf_sheet_import_jobs_workbook_open_guard', 7,
+        'plugin_data.csf_enforce_class_workbook_preview_open()'),
+      ('plugin_data.csf_sheet_import_jobs',
+        'csf_sheet_import_jobs_workbook_seal_guard', 19,
+        'plugin_data.csf_enforce_class_workbook_preview_seal()'),
+      ('plugin_data.csf_sheet_sources',
+        'csf_sheet_sources_stale_import_health_guard', 19,
+        'plugin_data.csf_guard_stale_import_source_health()')
+  ),
+  trigger_issues AS (
+    SELECT 'trigger'::text AS issue_kind, expected.trigger_name AS object_name
+    FROM expected_triggers AS expected
+    WHERE NOT EXISTS (
+      SELECT 1
+      FROM pg_catalog.pg_trigger AS trigger_record
+      WHERE trigger_record.tgrelid = to_regclass(expected.relation_name)
+        AND trigger_record.tgname = expected.trigger_name
+        AND trigger_record.tgtype = expected.trigger_type
+        AND trigger_record.tgfoid = to_regprocedure(expected.function_name)
+        AND NOT trigger_record.tgisinternal
+        AND trigger_record.tgenabled <> 'D'
+    )
+  ),
+  expected_functions(
+    signature, service_execute, security_definer, return_type, returns_set
+  ) AS (
+    VALUES
+      ('plugin_data.csf_join_class_by_code(uuid,text,uuid,text,text,text,text,uuid,uuid)',
+        true, true, 'jsonb', false),
+      ('plugin_data.csf_join_class_by_code_identity_base(uuid,text,uuid,text,text,text,text,uuid,uuid)',
+        false, true, 'jsonb', false),
+      ('plugin_data.csf_revalidate_class_code_connection_replay(uuid,uuid,uuid,uuid,jsonb)',
+        false, true, 'jsonb', false),
+      ('plugin_data.csf_claim_class_workbook_check(uuid,uuid,uuid,integer)',
+        true, true, 'jsonb', false),
+      ('plugin_data.csf_complete_class_workbook_check(uuid,uuid,uuid,uuid,text,text)',
+        true, true, 'jsonb', false),
+      ('plugin_data.csf_unlink_class_workbook(uuid,uuid,uuid)',
+        true, true, 'jsonb', false),
+      ('plugin_data.csf_fail_class_workbook_check(uuid,uuid,uuid,uuid,text,text)',
+        true, true, 'jsonb', false),
+      ('plugin_data.csf_claim_class_workbook_refresh_job(integer)',
+        true, true, 'jsonb', false),
+      ('plugin_data.csf_assert_class_workbook_refresh_generation(uuid,uuid,uuid,uuid,uuid,uuid,text,text)',
+        true, true, 'jsonb', false),
+      ('plugin_data.csf_heartbeat_class_workbook_refresh_generation(uuid,uuid,uuid,uuid,uuid,uuid,text,text,integer)',
+        true, true, 'jsonb', false),
+      ('plugin_data.csf_register_class_workbook_sheet_source(uuid,uuid,uuid,text,jsonb,uuid,uuid,uuid,uuid,text,text)',
+        true, true, 'jsonb', false),
+      ('plugin_data.csf_open_or_reuse_class_workbook_import_preview(uuid,uuid,uuid,text,text,text,text,text,timestamptz,jsonb,jsonb,integer,uuid,text,text,integer,text,uuid,uuid,uuid,uuid,text,text)',
+        true, true, 'jsonb', false),
+      ('plugin_data.csf_fail_class_workbook_import_preview(uuid,uuid,uuid,text,text,uuid,uuid,uuid,uuid,text,text)',
+        true, true, 'jsonb', false),
+      ('plugin_data.csf_seal_class_workbook_import_preview(uuid,uuid,uuid,text,jsonb,uuid,uuid,uuid,uuid,text,text)',
+        true, true, 'jsonb', false),
+      ('plugin_data.csf_finish_class_workbook_refresh_job(uuid,uuid,text,jsonb,integer,integer,integer,text)',
+        true, true, 'jsonb', false),
+      ('plugin_data.csf_queue_class_workbook_preparation(uuid,uuid,text,uuid,text,text,jsonb)',
+        true, true, 'jsonb', false),
+      ('plugin_data.csf_queue_import_preview_batch(uuid,uuid,uuid[],uuid)',
+        true, true, 'jsonb', false),
+      ('plugin_data.csf_claim_import_commit_attempt(uuid,uuid,uuid,integer,uuid)',
+        true, true, 'jsonb', false),
+      ('plugin_data.csf_claim_import_commit_queue(integer)',
+        true, true, 'jsonb', false),
+      ('plugin_data.csf_finish_import_commit_queue(uuid,uuid,text,jsonb,text)',
+        true, true, 'jsonb', false),
+      ('plugin_data.csf_finalize_import_commit_attempt(uuid,uuid,jsonb)',
+        true, true, 'jsonb', false),
+      ('plugin_data.csf_abort_import_commit_attempt(uuid,uuid,text,text)',
+        true, true, 'jsonb', false),
+      ('plugin_data.csf_finalize_import_commit_attempt_generation_base(uuid,uuid,jsonb)',
+        false, true, 'jsonb', false),
+      ('plugin_data.csf_abort_import_commit_attempt_generation_base(uuid,uuid,text,text)',
+        false, true, 'jsonb', false),
+      ('plugin_data.csf_import_commit_source_generation_current(uuid,uuid)',
+        false, true, 'boolean', false),
+      ('plugin_data.csf_guard_stale_import_source_health()',
+        false, true, 'trigger', false),
+      ('plugin_data.csf_import_row_batch_receipt(uuid,uuid)',
+        true, true, 'jsonb', false),
+      ('plugin_data.csf_commit_import_row_batch(uuid,uuid,uuid,uuid[])',
+        true, true, 'jsonb', false),
+      ('plugin_data.csf_assert_dashboard_officer(uuid,uuid)',
+        true, true, 'void', false),
+      ('plugin_data.csf_officer_home_snapshot(uuid,uuid)',
+        true, true, 'jsonb', false),
+      ('plugin_data.csf_member_profile_snapshot(uuid,uuid)',
+        true, true, 'jsonb', false),
+      ('plugin_data.csf_search_profiles(uuid,uuid,text,uuid)',
+        true, true, 'record', true),
+      ('plugin_data.csf_list_class_directory_page(uuid,uuid,uuid,text,text,text,text,text,text,uuid,integer)',
+        true, false, 'record', true),
+      ('plugin_data.csf_count_cohort_term_members(uuid,uuid[],uuid)',
+        true, false, 'record', true),
+      ('plugin_data.csf_post_reply_previews(uuid,uuid[],integer)',
+        true, true, 'record', true),
+      ('plugin_data.csf_import_preview_readiness_batch(uuid,uuid[])',
+        true, true, 'record', true),
+      ('plugin_data.csf_get_worker_alert_snapshot()',
+        true, true, 'jsonb', false),
+      ('plugin_data.csf_class_history_source_key_value(jsonb)',
+        true, false, 'text', false),
+      ('plugin_data.csf_class_history_has_stable_source_key(jsonb)',
+        true, false, 'boolean', false),
+      ('plugin_data.csf_class_history_source_key_requires_review(uuid,uuid)',
+        true, true, 'boolean', false),
+      ('plugin_data.csf_import_preview_readiness(uuid,uuid)',
+        true, false, 'jsonb', false),
+      ('plugin_data.csf_create_profile_for_class_history_import_row(uuid,uuid,uuid,uuid,text)',
+        true, true, 'jsonb', false),
+      ('plugin_data.csf_member_home_context_snapshot(uuid,uuid,timestamptz,timestamptz,date)',
+        true, true, 'jsonb', false),
+      ('plugin_data.csf_member_stream_enrichment(uuid,uuid[],uuid[],uuid[])',
+        true, true, 'jsonb', false),
+      ('plugin_data.csf_confirm_class_code_account_name_match(uuid,uuid,uuid,text,uuid,uuid,text,text,text)',
+        true, true, 'jsonb', false),
+      ('plugin_data.csf_confirm_class_code_account_name_match_identity_base(uuid,uuid,uuid,text,uuid,uuid,text,text,text)',
+        false, true, 'jsonb', false),
+      ('plugin_data.csf_class_history_source_key_target(uuid,uuid)',
+        false, true, 'uuid', false),
+      ('plugin_data.csf_import_class_history_row_v2_source_key_base(uuid,uuid,text,text,text,text,text,text,text,text,uuid,uuid,uuid,uuid,text,jsonb,jsonb,boolean,uuid)',
+        false, true, 'jsonb', false),
+      ('plugin_data.csf_import_class_history_row_v2(uuid,uuid,text,text,text,text,text,text,text,text,uuid,uuid,uuid,uuid,text,jsonb,jsonb,boolean,uuid)',
+        false, true, 'jsonb', false),
+      ('plugin_data.csf_set_import_created_profile_resolution()',
+        false, false, 'trigger', false),
+      ('plugin_data.csf_enforce_import_row_attempt_lineage()',
+        false, false, 'trigger', false),
+      ('plugin_data.csf_queue_import_preview_batch_unserialized(uuid,uuid,uuid[],uuid)',
+        false, true, 'jsonb', false),
+      ('plugin_data.csf_assert_import_preview_mapping_current(uuid,uuid)',
+        false, true, 'void', false),
+      ('plugin_data.csf_audit_import_approval_batch()',
+        false, true, 'trigger', false),
+      ('plugin_data.csf_normalize_import_approval_batch_status()',
+        false, true, 'trigger', false),
+      ('plugin_data.csf_sheet_source_settings_schema()',
+        false, false, 'jsonb', false),
+      ('plugin_data.csf_assert_sheet_source_settings(jsonb)',
+        false, false, 'jsonb', false),
+      ('plugin_data.csf_enforce_sheet_source_mapping_version()',
+        false, true, 'trigger', false),
+      ('plugin_data.csf_sheet_source_attachment_keys()',
+        false, false, 'text[]', false),
+      ('plugin_data.csf_lock_import_commit_coordinate(uuid,uuid,boolean)',
+        false, true, 'void', false),
+      ('plugin_data.csf_assert_import_preview_workbook_generation_current(uuid,uuid)',
+        false, true, 'void', false),
+      ('plugin_data.csf_enforce_class_workbook_preview_seal()',
+        false, true, 'trigger', false),
+      ('plugin_data.csf_enforce_class_workbook_preview_open()',
+        false, true, 'trigger', false),
+      ('plugin_data.csf_block_import_commit_queue(uuid,text)',
+        false, true, 'void', false),
+      ('plugin_data.csf_record_deterministic_import_row_failure(uuid,uuid,uuid,text)',
+        false, true, 'jsonb', false),
+      ('plugin_data.csf_lock_import_approval_batches_for_queue(uuid,uuid)',
+        false, true, 'void', false),
+      ('plugin_data.csf_commit_import_row_batch_unserialized(uuid,uuid,uuid,uuid[])',
+        false, true, 'jsonb', false),
+      ('plugin_data.csf_member_profile_snapshot_verified_projection(uuid,uuid)',
+        false, true, 'jsonb', false),
+      ('plugin_data.csf_member_home_context_snapshot_unscoped(uuid,uuid,timestamptz,timestamptz,date)',
+        false, true, 'jsonb', false)
+  ),
+  function_state AS (
+    SELECT expected.*,
+      function_record.oid,
+      function_record.prosecdef,
+      function_record.proconfig,
+      function_record.prorettype::regtype::text AS actual_return_type,
+      function_record.proretset,
+      has_function_privilege(
+        'service_role', function_record.oid, 'EXECUTE'
+      ) AS actual_service_execute,
+      coalesce(has_function_privilege(
+        'anon', function_record.oid, 'EXECUTE'
+      ), false) OR coalesce(has_function_privilege(
+        'authenticated', function_record.oid, 'EXECUTE'
+      ), false) AS browser_execute,
+      EXISTS (
+        SELECT 1
+        FROM pg_catalog.aclexplode(coalesce(
+          function_record.proacl,
+          pg_catalog.acldefault('f', function_record.proowner)
+        )) AS privilege
+        WHERE privilege.grantee = 0
+          AND privilege.privilege_type = 'EXECUTE'
+      ) AS public_execute
+    FROM expected_functions AS expected
+    LEFT JOIN pg_catalog.pg_proc AS function_record
+      ON function_record.oid = to_regprocedure(expected.signature)
+  ),
+  function_issues AS (
+    SELECT 'function'::text AS issue_kind, state.signature AS object_name
+    FROM function_state AS state
+    WHERE state.oid IS NULL
+       OR state.prosecdef IS DISTINCT FROM state.security_definer
+       OR NOT coalesce(state.proconfig @> ARRAY['search_path=""'], false)
+       OR state.actual_return_type IS DISTINCT FROM state.return_type
+       OR state.proretset IS DISTINCT FROM state.returns_set
+       OR state.actual_service_execute IS DISTINCT FROM state.service_execute
+       OR state.browser_execute
+       OR state.public_execute
+  ),
+  expected_explicit_postgres_grants(signature) AS (
+    VALUES
+      ('plugin_data.csf_revalidate_class_code_connection_replay(uuid,uuid,uuid,uuid,jsonb)'),
+      ('plugin_data.csf_join_class_by_code_identity_base(uuid,text,uuid,text,text,text,text,uuid,uuid)'),
+      ('plugin_data.csf_confirm_class_code_account_name_match_identity_base(uuid,uuid,uuid,text,uuid,uuid,text,text,text)'),
+      ('plugin_data.csf_assert_import_preview_mapping_current(uuid,uuid)'),
+      ('plugin_data.csf_queue_import_preview_batch_unserialized(uuid,uuid,uuid[],uuid)'),
+      ('plugin_data.csf_sheet_source_attachment_keys()'),
+      ('plugin_data.csf_lock_import_commit_coordinate(uuid,uuid,boolean)'),
+      ('plugin_data.csf_assert_import_preview_workbook_generation_current(uuid,uuid)'),
+      ('plugin_data.csf_enforce_class_workbook_preview_seal()'),
+      ('plugin_data.csf_enforce_class_workbook_preview_open()'),
+      ('plugin_data.csf_record_deterministic_import_row_failure(uuid,uuid,uuid,text)'),
+      ('plugin_data.csf_finalize_import_commit_attempt_generation_base(uuid,uuid,jsonb)'),
+      ('plugin_data.csf_abort_import_commit_attempt_generation_base(uuid,uuid,text,text)'),
+      ('plugin_data.csf_import_commit_source_generation_current(uuid,uuid)'),
+      ('plugin_data.csf_guard_stale_import_source_health()'),
+      ('plugin_data.csf_commit_import_row_batch_unserialized(uuid,uuid,uuid,uuid[])'),
+      ('plugin_data.csf_lock_import_approval_batches_for_queue(uuid,uuid)'),
+      ('plugin_data.csf_block_import_commit_queue(uuid,text)'),
+      ('plugin_data.csf_class_history_source_key_target(uuid,uuid)'),
+      ('plugin_data.csf_class_history_source_key_requires_review(uuid,uuid)'),
+      ('plugin_data.csf_import_class_history_row_v2(uuid,uuid,text,text,text,text,text,text,text,text,uuid,uuid,uuid,uuid,text,jsonb,jsonb,boolean,uuid)')
+  ),
+  explicit_postgres_grant_issues AS (
+    SELECT 'function_grant'::text AS issue_kind,
+      expected.signature AS object_name
+    FROM expected_explicit_postgres_grants AS expected
+    LEFT JOIN pg_catalog.pg_proc AS function_record
+      ON function_record.oid = to_regprocedure(expected.signature)
+    WHERE function_record.oid IS NULL
+      OR NOT EXISTS (
+        SELECT 1
+        FROM pg_catalog.aclexplode(function_record.proacl) AS privilege
+        JOIN pg_catalog.pg_roles AS grantee
+          ON grantee.oid = privilege.grantee
+        WHERE grantee.rolname = 'postgres'
+          AND privilege.privilege_type = 'EXECUTE'
+      )
+  ),
+  expected_volatile_functions(signature) AS (
+    VALUES
+      ('plugin_data.csf_class_history_source_key_target(uuid,uuid)'),
+      ('plugin_data.csf_class_history_source_key_requires_review(uuid,uuid)')
+  ),
+  volatile_function_issues AS (
+    SELECT 'function_volatility'::text AS issue_kind,
+      expected.signature AS object_name
+    FROM expected_volatile_functions AS expected
+    LEFT JOIN pg_catalog.pg_proc AS function_record
+      ON function_record.oid = to_regprocedure(expected.signature)
+    WHERE function_record.oid IS NULL
+       OR function_record.provolatile <> 'v'
+  ),
+  retired_functions(function_name) AS (
+    VALUES
+      ('csf_confirm_profile_name_match'),
+      ('csf_join_class_by_code_pre_identity_guard'),
+      ('csf_register_class_workbook')
+  ),
+  retired_function_issues AS (
+    SELECT 'retired_function'::text AS issue_kind,
+      'plugin_data.' || retired.function_name AS object_name
+    FROM retired_functions AS retired
+    WHERE EXISTS (
+      SELECT 1
+      FROM pg_catalog.pg_proc AS function_record
+      JOIN pg_catalog.pg_namespace AS namespace
+        ON namespace.oid = function_record.pronamespace
+      WHERE namespace.nspname = 'plugin_data'
+        AND function_record.proname = retired.function_name
+    )
+  ),
+  expected_function_fragments(signature, definition_fragment) AS (
+    VALUES
+      ('plugin_data.csf_join_class_by_code(uuid,text,uuid,text,text,text,text,uuid,uuid)',
+        'perform plugin_data.csf_lock_identity_mutation('),
+      ('plugin_data.csf_join_class_by_code(uuid,text,uuid,text,text,text,text,uuid,uuid)',
+        'v_result := plugin_data.csf_join_class_by_code_identity_base('),
+      ('plugin_data.csf_join_class_by_code(uuid,text,uuid,text,text,text,text,uuid,uuid)',
+        'return plugin_data.csf_revalidate_class_code_connection_replay('),
+      ('plugin_data.csf_confirm_class_code_account_name_match(uuid,uuid,uuid,text,uuid,uuid,text,text,text)',
+        'perform plugin_data.csf_lock_identity_mutation('),
+      ('plugin_data.csf_confirm_class_code_account_name_match(uuid,uuid,uuid,text,uuid,uuid,text,text,text)',
+        'if v_email is null then'),
+      ('plugin_data.csf_confirm_class_code_account_name_match(uuid,uuid,uuid,text,uuid,uuid,text,text,text)',
+        'v_result := plugin_data.csf_join_class_by_code_identity_base('),
+      ('plugin_data.csf_confirm_class_code_account_name_match(uuid,uuid,uuid,text,uuid,uuid,text,text,text)',
+        'return plugin_data.csf_revalidate_class_code_connection_replay('),
+      ('plugin_data.csf_queue_import_preview_batch(uuid,uuid,uuid[],uuid)',
+        'v_batch.actor_user_id is distinct from p_actor_user_id'),
+      ('plugin_data.csf_queue_import_preview_batch(uuid,uuid,uuid[],uuid)',
+        'v_existing_preview_ids is distinct from v_requested_preview_ids'),
+      ('plugin_data.csf_queue_import_preview_batch_unserialized(uuid,uuid,uuid[],uuid)',
+        'perform plugin_data.csf_assert_import_actor('),
+      ('plugin_data.csf_queue_import_preview_batch_unserialized(uuid,uuid,uuid[],uuid)',
+        'perform plugin_data.csf_assert_import_preview_mapping_current('),
+      ('plugin_data.csf_queue_import_preview_batch_unserialized(uuid,uuid,uuid[],uuid)',
+        'v_reason := ''source_mapping_changed'''),
+      ('plugin_data.csf_claim_import_commit_attempt(uuid,uuid,uuid,integer,uuid)',
+        'perform plugin_data.csf_assert_import_preview_mapping_current('),
+      ('plugin_data.csf_assert_import_preview_mapping_current(uuid,uuid)',
+        'for share'),
+      ('plugin_data.csf_assert_import_preview_mapping_current(uuid,uuid)',
+        'mappingversion'),
+      ('plugin_data.csf_sheet_source_settings_schema()',
+        '"headersignature": "string"'),
+      ('plugin_data.csf_assert_sheet_source_settings(jsonb)',
+        'v_header_signature !~ ''^[0-9a-f]{64}$'''),
+      ('plugin_data.csf_enforce_sheet_source_mapping_version()',
+        'v_old_material is distinct from v_new_material'),
+      ('plugin_data.csf_enforce_sheet_source_mapping_version()',
+        'v_requested_version is distinct from v_old_version + 1'),
+      ('plugin_data.csf_enforce_sheet_source_mapping_version()',
+        'v_requested_version = v_old_version'),
+      ('plugin_data.csf_enforce_sheet_source_mapping_version()',
+        'v_requested_version > v_old_version + 1'),
+      ('plugin_data.csf_enforce_sheet_source_mapping_version()',
+        'v_new_settings -> ''headersignature'''),
+      ('plugin_data.csf_finish_import_commit_queue(uuid,uuid,text,jsonb,text)',
+        'where item.organization_id = v_item.organization_id'),
+      ('plugin_data.csf_finish_import_commit_queue(uuid,uuid,text,jsonb,text)',
+        'and item.state = ''queued'''),
+      ('plugin_data.csf_finish_import_commit_queue(uuid,uuid,text,jsonb,text)',
+        'and item.batch_id = any (v_batch_ids)'),
+      ('plugin_data.csf_finish_import_commit_queue(uuid,uuid,text,jsonb,text)',
+        'and batch.organization_id = v_item.organization_id'),
+      ('plugin_data.csf_block_import_commit_queue(uuid,text)',
+        'and item.state = ''queued'''),
+      ('plugin_data.csf_block_import_commit_queue(uuid,text)',
+        'and item.batch_id = any (v_batch_ids)'),
+      ('plugin_data.csf_unlink_class_workbook(uuid,uuid,uuid)',
+        'set state = ''unlinked'''),
+      ('plugin_data.csf_unlink_class_workbook(uuid,uuid,uuid)',
+        'and job.status in (''queued'', ''running'')'),
+      ('plugin_data.csf_unlink_class_workbook(uuid,uuid,uuid)',
+        'insert into plugin_data.csf_admin_audit_events'),
+      ('plugin_data.csf_fail_class_workbook_check(uuid,uuid,uuid,uuid,text,text)',
+        'v_workbook.check_lease_expires_at <= pg_catalog.now()'),
+      ('plugin_data.csf_fail_class_workbook_check(uuid,uuid,uuid,uuid,text,text)',
+        'p_lease_token is null'),
+      ('plugin_data.csf_complete_class_workbook_check(uuid,uuid,uuid,uuid,text,text)',
+        'p_lease_token is null'),
+      ('plugin_data.csf_claim_class_workbook_check(uuid,uuid,uuid,integer)',
+        'p_lease_seconds is null'),
+      ('plugin_data.csf_complete_class_workbook_check(uuid,uuid,uuid,uuid,text,text)',
+        'v_workbook.check_lease_expires_at is null'),
+      ('plugin_data.csf_finish_class_workbook_refresh_job(uuid,uuid,text,jsonb,integer,integer,integer,text)',
+        'v_job.lease_expires_at is null'),
+      ('plugin_data.csf_claim_class_workbook_refresh_job(integer)',
+        'p_lease_seconds is null'),
+      ('plugin_data.csf_heartbeat_class_workbook_refresh_generation(uuid,uuid,uuid,uuid,uuid,uuid,text,text,integer)',
+        'p_lease_seconds is null'),
+      ('plugin_data.csf_revalidate_class_code_connection_replay(uuid,uuid,uuid,uuid,jsonb)',
+        '''connectionbasis'', ''verified_email'''),
+      ('plugin_data.csf_revalidate_class_code_connection_replay(uuid,uuid,uuid,uuid,jsonb)',
+        '''verifiedemailmatch'', true'),
+      ('plugin_data.csf_open_or_reuse_class_workbook_import_preview(uuid,uuid,uuid,text,text,text,text,text,timestamptz,jsonb,jsonb,integer,uuid,text,text,integer,text,uuid,uuid,uuid,uuid,text,text)',
+        'perform plugin_data.csf_assert_class_workbook_refresh_generation('),
+      ('plugin_data.csf_open_or_reuse_class_workbook_import_preview(uuid,uuid,uuid,text,text,text,text,text,timestamptz,jsonb,jsonb,integer,uuid,text,text,integer,text,uuid,uuid,uuid,uuid,text,text)',
+        'v_receipt := plugin_data.csf_open_import_preview('),
+      ('plugin_data.csf_fail_class_workbook_import_preview(uuid,uuid,uuid,text,text,uuid,uuid,uuid,uuid,text,text)',
+        'perform plugin_data.csf_assert_class_workbook_refresh_generation('),
+      ('plugin_data.csf_fail_class_workbook_import_preview(uuid,uuid,uuid,text,text,uuid,uuid,uuid,uuid,text,text)',
+        'v_receipt := plugin_data.csf_fail_import_preview('),
+      ('plugin_data.csf_claim_import_commit_queue(integer)',
+        'order by case when queue.status = ''running'' then 0 else 1 end'),
+      ('plugin_data.csf_claim_import_commit_queue(integer)',
+        'when queue.status = ''running'' then queue.lease_expires_at'),
+      ('plugin_data.csf_claim_import_commit_queue(integer)',
+        'v_item.attempt_count >= 5'),
+      ('plugin_data.csf_claim_import_commit_queue(integer)',
+        'p_lease_seconds is null'),
+      ('plugin_data.csf_finish_import_commit_queue(uuid,uuid,text,jsonb,text)',
+        'p_lease_token is null'),
+      ('plugin_data.csf_finish_import_commit_queue(uuid,uuid,text,jsonb,text)',
+        'v_item.lease_expires_at is null'),
+      ('plugin_data.csf_import_commit_source_generation_current(uuid,uuid)',
+        'v_preview.mapping_version is distinct from v_source_mapping_version'),
+      ('plugin_data.csf_import_commit_source_generation_current(uuid,uuid)',
+        'v_source.sync_mode = ''disabled'''),
+      ('plugin_data.csf_finalize_import_commit_attempt(uuid,uuid,jsonb)',
+        'plugin_data.csf_import_commit_source_generation_current('),
+      ('plugin_data.csf_finalize_import_commit_attempt(uuid,uuid,jsonb)',
+        'plugin_data.csf_finalize_import_commit_attempt_generation_base('),
+      ('plugin_data.csf_finalize_import_commit_attempt(uuid,uuid,jsonb)',
+        '''sourcesettlementreasoncode'''),
+      ('plugin_data.csf_abort_import_commit_attempt(uuid,uuid,text,text)',
+        'plugin_data.csf_import_commit_source_generation_current('),
+      ('plugin_data.csf_abort_import_commit_attempt(uuid,uuid,text,text)',
+        'plugin_data.csf_abort_import_commit_attempt_generation_base('),
+      ('plugin_data.csf_abort_import_commit_attempt(uuid,uuid,text,text)',
+        '''sourcesettlementreasoncode''')
+  ),
+  function_fragment_issues AS (
+    SELECT 'function_definition'::text AS issue_kind,
+      expected.signature AS object_name
+    FROM expected_function_fragments AS expected
+    LEFT JOIN pg_catalog.pg_proc AS function_record
+      ON function_record.oid = to_regprocedure(expected.signature)
+    WHERE function_record.oid IS NULL
+       OR pg_catalog.strpos(
+         pg_catalog.lower(
+           pg_catalog.pg_get_functiondef(function_record.oid)
+         ),
+         expected.definition_fragment
+       ) = 0
+    GROUP BY expected.signature
+  ),
+  queue_definition AS (
+    SELECT pg_catalog.regexp_replace(
+      pg_catalog.lower(pg_catalog.pg_get_functiondef(function_record.oid)),
+      '[[:space:]]+',
+      ' ',
+      'g'
+    ) AS definition
+    FROM pg_catalog.pg_proc AS function_record
+    WHERE function_record.oid = to_regprocedure(
+      'plugin_data.csf_queue_import_preview_batch(uuid,uuid,uuid[],uuid)'
+    )
+  ),
+  queue_unserialized_definition AS (
+    SELECT pg_catalog.regexp_replace(
+      pg_catalog.lower(pg_catalog.pg_get_functiondef(function_record.oid)),
+      '[[:space:]]+',
+      ' ',
+      'g'
+    ) AS definition
+    FROM pg_catalog.pg_proc AS function_record
+    WHERE function_record.oid = to_regprocedure(
+      'plugin_data.csf_queue_import_preview_batch_unserialized(uuid,uuid,uuid[],uuid)'
+    )
+  ),
+  claim_definition AS (
+    SELECT pg_catalog.lower(
+      pg_catalog.pg_get_functiondef(function_record.oid)
+    ) AS definition
+    FROM pg_catalog.pg_proc AS function_record
+    WHERE function_record.oid = to_regprocedure(
+      'plugin_data.csf_claim_import_commit_attempt(uuid,uuid,uuid,integer,uuid)'
+    )
+  ),
+  class_join_definition AS (
+    SELECT pg_catalog.lower(
+      pg_catalog.pg_get_functiondef(function_record.oid)
+    ) AS definition
+    FROM pg_catalog.pg_proc AS function_record
+    WHERE function_record.oid = to_regprocedure(
+      'plugin_data.csf_join_class_by_code(uuid,text,uuid,text,text,text,text,uuid,uuid)'
+    )
+  ),
+  class_name_confirmation_definition AS (
+    SELECT pg_catalog.lower(
+      pg_catalog.pg_get_functiondef(function_record.oid)
+    ) AS definition
+    FROM pg_catalog.pg_proc AS function_record
+    WHERE function_record.oid = to_regprocedure(
+      'plugin_data.csf_confirm_class_code_account_name_match(uuid,uuid,uuid,text,uuid,uuid,text,text,text)'
+    )
+  ),
+  function_order_issues AS (
+    SELECT 'function_definition'::text AS issue_kind,
+      'plugin_data.csf_queue_import_preview_batch durable replay order'::text
+        AS object_name
+    WHERE NOT EXISTS (
+      SELECT 1
+      FROM queue_definition
+      WHERE pg_catalog.strpos(definition, 'select * into v_batch') > 0
+        AND pg_catalog.strpos(definition, 'select * into v_batch')
+          < pg_catalog.strpos(
+            definition,
+            'return plugin_data.csf_queue_import_preview_batch_unserialized( p_organization_id, p_actor_user_id, v_requested_preview_ids, p_request_id );'
+          )
+    )
+    UNION ALL
+    SELECT 'function_definition'::text AS issue_kind,
+      'plugin_data.csf_queue_import_preview_batch canonical preview lock order'::text
+        AS object_name
+    WHERE NOT EXISTS (
+      SELECT 1
+      FROM queue_definition, queue_unserialized_definition
+      WHERE pg_catalog.strpos(
+          queue_definition.definition,
+          'select pg_catalog.array_agg(preview_id order by preview_id) into v_requested_preview_ids from pg_catalog.unnest(p_preview_job_ids) as preview_id;'
+        ) > 0
+        AND pg_catalog.strpos(
+          queue_definition.definition,
+          'select pg_catalog.array_agg(preview_id order by preview_id) into v_requested_preview_ids from pg_catalog.unnest(p_preview_job_ids) as preview_id;'
+        ) < pg_catalog.strpos(
+          queue_definition.definition,
+          'return plugin_data.csf_queue_import_preview_batch_unserialized( p_organization_id, p_actor_user_id, v_requested_preview_ids, p_request_id );'
+        )
+        AND pg_catalog.strpos(
+          queue_unserialized_definition.definition,
+          'foreach v_preview_id in array p_preview_job_ids loop'
+        ) > 0
+        AND pg_catalog.strpos(
+          queue_unserialized_definition.definition,
+          'foreach v_preview_id in array p_preview_job_ids loop'
+        ) < pg_catalog.strpos(
+          queue_unserialized_definition.definition,
+          'from plugin_data.csf_import_commit_queue as queue'
+        )
+        AND pg_catalog.strpos(
+          queue_unserialized_definition.definition,
+          'from plugin_data.csf_import_commit_queue as queue'
+        ) < pg_catalog.strpos(
+          queue_unserialized_definition.definition,
+          'from plugin_data.csf_sheet_import_jobs as preview'
+        )
+    )
+    UNION ALL
+    SELECT 'function_definition'::text AS issue_kind,
+      'plugin_data.csf_queue_import_preview_batch mapping fence order'::text
+        AS object_name
+    WHERE NOT EXISTS (
+      SELECT 1
+      FROM queue_unserialized_definition
+      WHERE pg_catalog.strpos(
+          definition,
+          'perform plugin_data.csf_assert_import_preview_mapping_current('
+        ) > 0
+        AND pg_catalog.strpos(
+          definition,
+          'v_readiness := plugin_data.csf_import_preview_readiness('
+        ) > 0
+        AND pg_catalog.strpos(
+          definition,
+          'perform plugin_data.csf_assert_import_preview_mapping_current('
+        ) < pg_catalog.strpos(
+          definition,
+          'v_readiness := plugin_data.csf_import_preview_readiness('
+        )
+    )
+    UNION ALL
+    SELECT 'function_definition'::text AS issue_kind,
+      'plugin_data.csf_claim_import_commit_attempt mapping fence order'::text
+        AS object_name
+    WHERE NOT EXISTS (
+      SELECT 1
+      FROM claim_definition
+      WHERE pg_catalog.strpos(
+          definition,
+          'perform plugin_data.csf_assert_import_preview_mapping_current('
+        ) > 0
+        AND pg_catalog.strpos(
+          definition,
+          'return plugin_data.csf_claim_import_commit_attempt_identity_base('
+        ) > 0
+        AND pg_catalog.strpos(
+          definition,
+          'perform plugin_data.csf_assert_import_preview_mapping_current('
+        ) < pg_catalog.strpos(
+          definition,
+          'return plugin_data.csf_claim_import_commit_attempt_identity_base('
+        )
+    )
+    UNION ALL
+    SELECT 'function_definition'::text AS issue_kind,
+      'plugin_data.csf_join_class_by_code identity lock and replay revalidation order'::text
+        AS object_name
+    WHERE NOT EXISTS (
+      SELECT 1
+      FROM class_join_definition
+      WHERE pg_catalog.strpos(
+          definition,
+          'perform plugin_data.csf_lock_identity_mutation('
+        ) > 0
+        AND pg_catalog.strpos(
+          definition,
+          'v_result := plugin_data.csf_join_class_by_code_identity_base('
+        ) > 0
+        AND pg_catalog.strpos(
+          definition,
+          'return plugin_data.csf_revalidate_class_code_connection_replay('
+        ) > 0
+        AND pg_catalog.strpos(
+          definition,
+          'perform plugin_data.csf_lock_identity_mutation('
+        ) < pg_catalog.strpos(
+          definition,
+          'v_result := plugin_data.csf_join_class_by_code_identity_base('
+        )
+        AND pg_catalog.strpos(
+          definition,
+          'v_result := plugin_data.csf_join_class_by_code_identity_base('
+        ) < pg_catalog.strpos(
+          definition,
+          'return plugin_data.csf_revalidate_class_code_connection_replay('
+        )
+    )
+    UNION ALL
+    SELECT 'function_definition'::text AS issue_kind,
+      'plugin_data.csf_confirm_class_code_account_name_match identity lock and replay revalidation order'::text
+        AS object_name
+    WHERE NOT EXISTS (
+      SELECT 1
+      FROM class_name_confirmation_definition
+      WHERE pg_catalog.strpos(
+          definition,
+          'perform plugin_data.csf_lock_identity_mutation('
+        ) > 0
+        AND pg_catalog.strpos(
+          definition,
+          'v_result := plugin_data.csf_join_class_by_code_identity_base('
+        ) > 0
+        AND pg_catalog.strpos(
+          definition,
+          'return plugin_data.csf_revalidate_class_code_connection_replay('
+        ) > 0
+        AND pg_catalog.strpos(
+          definition,
+          'perform plugin_data.csf_lock_identity_mutation('
+        ) < pg_catalog.strpos(
+          definition,
+          'v_result := plugin_data.csf_join_class_by_code_identity_base('
+        )
+        AND pg_catalog.strpos(
+          definition,
+          'v_result := plugin_data.csf_join_class_by_code_identity_base('
+        ) < pg_catalog.strpos(
+          definition,
+          'return plugin_data.csf_revalidate_class_code_connection_replay('
+        )
+        AND pg_catalog.strpos(
+          definition,
+          'v_result := plugin_data.csf_confirm_class_code_account_name_match_identity_base('
+        ) = 0
+    )
+  ),
+  issues AS (
+    SELECT * FROM table_issues
+    UNION ALL SELECT * FROM column_issues
+    UNION ALL SELECT * FROM constraint_issues
+    UNION ALL SELECT * FROM check_constraint_issues
+    UNION ALL SELECT * FROM invalid_constraint_issues
+    UNION ALL SELECT * FROM index_issues
+    UNION ALL SELECT * FROM trigger_issues
+    UNION ALL SELECT * FROM function_issues
+    UNION ALL SELECT * FROM explicit_postgres_grant_issues
+    UNION ALL SELECT * FROM volatile_function_issues
+    UNION ALL SELECT * FROM retired_function_issues
+    UNION ALL SELECT * FROM function_fragment_issues
+    UNION ALL SELECT * FROM function_order_issues
+  )
+  SELECT coalesce(
+      pg_catalog.jsonb_agg(
+        pg_catalog.jsonb_build_object(
+          'kind', issue_kind,
+          'object', object_name
+        ) ORDER BY issue_kind, object_name
+      ),
+      '[]'::jsonb
+    )::text AS target_csf_release_tail_issues,
+    count(*) = 0 AS target_csf_release_tail_pass
+  FROM issues
+  \gset
+  \echo :target_csf_release_tail_issues
+  \if :target_csf_release_tail_pass
+    \echo 'PASS T2C'
+  \else
+    \echo 'FAIL T2C: the 440 CSF release-tail contract has drifted.'
     SELECT 1 / 0 AS preflight_check_failed;
   \endif
 

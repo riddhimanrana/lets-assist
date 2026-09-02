@@ -81,7 +81,8 @@ SELECT extensions.throws_ok(
 SELECT extensions.throws_ok(
   $$
     UPDATE plugin_data.csf_sheet_sources
-    SET source_type = 'class_history'
+    SET source_type = 'class_history',
+        settings = settings || '{"mappingVersion":2}'::jsonb
     WHERE id = 'de200000-0000-4000-8000-000000000002'
   $$,
   '23514',

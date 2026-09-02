@@ -69,8 +69,9 @@ No Production credential is a valid generic Preview fallback.
 
 Before retiring an encryption key, replace `<active-key-id>` below with the
 `ENCRYPTION_KEYRING.activeKeyId` value and run this count-only database check.
-It counts both legacy ciphertext and `v2:` ciphertext written under a retained
-key. Both counts must be zero. Do not select or log ciphertext values.
+It counts legacy ciphertext, `v2:` ciphertext written under a retained key,
+and live Google OAuth attempts that still need a retained key. All three counts
+must be zero. Do not select or log ciphertext values.
 
 ```sql
 WITH active_key AS (
@@ -90,19 +91,32 @@ SELECT
         split_part(refresh_token, ':', 1) <> 'v2'
         OR split_part(refresh_token, ':', 2) <> active_key.key_id
       )
-  ) AS refresh_tokens_needing_rotation
+  ) AS refresh_tokens_needing_rotation,
+  (
+    SELECT count(*)
+    FROM app_private.google_oauth_attempts AS attempt
+    CROSS JOIN active_key AS attempt_active_key
+    WHERE attempt.expires_at > now()
+      AND attempt.status IN ('pending', 'claimed')
+      AND attempt.code_verifier_encrypted <> 'consumed'
+      AND (
+        split_part(attempt.code_verifier_encrypted, ':', 1) <> 'v2'
+        OR split_part(attempt.code_verifier_encrypted, ':', 2) <> attempt_active_key.key_id
+      )
+  ) AS live_oauth_attempts_needing_retained_key
 FROM public.user_calendar_connections
 CROSS JOIN active_key;
 ```
 
-After both counts reach zero, wait at least ten minutes after the release that
-starts issuing `v4` Google OAuth state. This lets every `v3` authorization
-attempt expire before removing `ENCRYPTION_KEY`. New attempt digests use the
-active key ID, and callbacks select that ID from the returned state shape, so
-later key rotations retain only the named key for the attempt TTL.
+After every `activeKeyId` change, keep the previous key for at least ten minutes.
+That wait covers the full Google OAuth attempt lifetime, including an attempt
+started immediately before the deployment. Run the count again after the wait.
+Remove a retained key or `ENCRYPTION_KEY` only when all three counts are zero.
 
-Seed only a confirmed non-Production Supabase branch with the supported synthetic
-fixture wrapper:
+Synthetic data stays local or in CI unless hosted Development acceptance needs
+fictional accounts. That exception may seed only a confirmed non-Production
+Supabase branch with the supported synthetic fixture wrapper. It never permits
+real chapter rows or a Production target:
 
 ```sh
 CSF_LOCAL_TEST_PASSWORD='<run-scoped synthetic password>' \
@@ -117,6 +131,26 @@ branch metadata lookup; it is expected to be `fotdmeakexgrkronxlof`. The wrapper
 still refuses that Production ref as the seed target, verifies both returned API
 and database hosts against the separate target branch ref, and removes its
 temporary fixture seam in `finally`.
+
+The 1,000-profile hosted load gate uses a separate fixed fixture. Its
+provisioner accepts only the `csf-load-fixture` handle, a matching explicit
+confirmation, and the configured non-Production Supabase project. It creates
+deterministic `.local.test` identities without listing the Auth directory and
+prints counts only:
+
+```sh
+CSF_HOSTED_LOAD_PASSWORD='<run-scoped synthetic password>' \
+CSF_HOSTED_LOAD_PROVISION_CONFIRMATION='provision-hosted-development:<target branch project ref>:csf-load-fixture' \
+EXPECTED_NON_PRODUCTION_SUPABASE_PROJECT_REF='<target branch project ref>' \
+SUPABASE_SERVICE_ROLE_KEY='<Development-only service key>' \
+SUPABASE_URL='https://<target branch project ref>.supabase.co' \
+bun run csf:provision:hosted:load-fixtures
+```
+
+The Development acceptance workflow runs this provisioner only after its
+configuration preflight and exact Vercel Preview and Supabase Preview checks.
+The following browser load stays on `/organization/csf-load-fixture`. It never
+uses the real DVHS organization or real chapter rows.
 
 ## Production
 

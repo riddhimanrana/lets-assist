@@ -274,16 +274,15 @@ test.describe("class-code signup onboarding", () => {
     await test.step("the signed-out code page shows safe class context and preserves the route", async () => {
       await page.goto(connectPath, { waitUntil: "domcontentloaded" });
       await expect(
-        page.getByRole("heading", { name: "Find your CSF profile" }),
+        page.getByRole("heading", { name: "Sign in to continue" }),
       ).toBeVisible();
       const body = await page.locator("body").innerText();
       expect(body).toContain("Class of 2028");
-      expect(body).toContain("Approved per semester");
 
       // Sign-in keeps the full connect route, so the account created next can
       // come straight back to this page.
       const signIn = page.getByRole("button", {
-        name: "Sign in and continue",
+        name: "Sign in",
         exact: true,
       });
       await expect(signIn).toHaveAttribute(
@@ -369,7 +368,7 @@ test.describe("class-code signup onboarding", () => {
       });
 
       await expect(
-        page.getByRole("heading", { name: "Find your CSF profile" }),
+        page.getByRole("heading", { name: "Find your CSF record" }),
       ).toBeVisible();
       await expectNoGenericFirstLoginTour(page);
 

@@ -110,9 +110,10 @@ const MEMBER_AND_ACCESS: LabelContract[] = [
   {
     component: "CsfCohortMembersReviewQueue.tsx",
     labels: [
-      "Needs attention",
-      "Class-code joins waiting for an officer decision",
+      "Record connections",
+      "Review accounts waiting to connect to a student record in this class.",
       "First page",
+      "Review",
     ],
   },
   {
@@ -363,14 +364,25 @@ const STUDENT_JOURNEY: LabelContract[] = [
     component: "CsfDashboardContentSection1Connect.tsx",
     labels: [
       "Join a class",
-      "That class code did not work",
+      "That class code didn’t work",
       "Already have a CSF record?",
-      "You are new to CSF",
-      "Find your CSF profile",
-      "Find your record",
+      "New to CSF?",
+      "Sign in to continue",
+      "Is this you?",
+      "Yes, this is me",
+      "No, search again",
       "Find your CSF record",
-      "Student information",
+      "Student name",
       "Find my record",
+    ],
+  },
+  {
+    component: "CsfConnectedRecordPanel.tsx",
+    labels: [
+      "Your record is awaiting review",
+      "Go to class feed",
+      "Your CSF record is linked",
+      "Go to My CSF",
     ],
   },
 ];
@@ -448,13 +460,20 @@ describe("CSF operator documentation truthfulness guards", () => {
     const connectSource = readComponent(
       "CsfDashboardContentSection1Connect.tsx",
     );
-    expectInOrder(connectSource, [
+    for (const label of [
       "Join a class",
-      "That class code did not work",
+      "That class code didn’t work",
       "Already have a CSF record?",
-      "You are new to CSF",
-    ]);
-    expectInOrder(connectSource, ["Find your CSF profile", "Find my record"]);
+      "New to CSF?",
+      "Sign in to continue",
+      "Is this you?",
+      'idleLabel="Yes, this is me"',
+      'triggerLabel="No, search again"',
+      "Find your CSF record",
+      'idleLabel="Find my record"',
+    ]) {
+      expect(connectSource).toContain(label);
+    }
     const codeEntrySource = readComponent("CsfClassCodeEntryForm.tsx");
     expect(codeEntrySource).toContain("Join code");
     // The 6-character alphabet excludes the lookalikes O/I/0/1 by contract.
@@ -465,7 +484,7 @@ describe("CSF operator documentation truthfulness guards", () => {
 
     // The guide walks the one path in operating order: share the code, the
     // student joins at /connect/<code>, unresolved joins land in the per-class
-    // Needs attention queue, and Resolve gates Connect on canonical evidence.
+    // Record connections queue, and Review gates Connect on canonical evidence.
     const codePath = between(
       operatorGuide,
       "## Share the class join code",
@@ -478,10 +497,11 @@ describe("CSF operator documentation truthfulness guards", () => {
       "**Disable code**",
       "`/connect/<code>`",
       "**Join code**",
-      "**Find your record**",
+      "**Is this you?**",
+      "**Yes, this is me**",
       "**Find my record**",
-      "**Needs attention**",
-      "**Resolve**",
+      "**Record connections**",
+      "**Review**",
       "**Connect account**",
       "**Reject request**",
     ]);

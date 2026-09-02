@@ -163,30 +163,38 @@ git push origin development
 
 ### 5. Create PR
 
-Open PR on GitHub: `development` → `main`
+Open one reviewed release pull request from `development` to `main`.
 
-GitHub Actions will automatically:
+The merge does not deploy Production or push the Production schema. After the
+exact hosted Development tree passes acceptance, dispatch the protected
+[`deploy-schema.yml`](../.github/workflows/deploy-schema.yml) workflow from
+`main` with the required Production confirmation and accepted Development SHA.
+Follow the [Production cutover
+runbook](../docs/development/production-cutover-runbook.md) for the action-time
+checks and recovery steps.
 
-- Run all validations again
-- Test migration replay
-- Check security/performance
-- Deploy to production if all checks pass
+The protected workflow rejects unresolved earlier attempts, reruns the release
+gates, stages and proves the exact application, enters verified maintenance,
+pushes and checks the schema, verifies the final Production alias, and reopens
+writes. If a release stops after a write-block attempt, the inline cleanup keeps
+writes blocked. The separate failed-release workflow then requires Production
+Environment approval before it reconciles the exact Vercel operation and
+restores the verified maintenance deployment.
+
+Do not re-run a failed Production workflow. Recovery receipts bind to one run
+attempt, and the workflow rejects later attempts before provider access. Wait
+for recovery to finish, then start a fresh dispatch.
 
 ---
 
-## Manual Production Deploy
+## Production deployment
 
-**⚠️ Only after validation passes**
-
-```bash
-# 1. Dry-run check
-export SUPABASE_ACCESS_TOKEN="sbp_xxxxxxxxxxxxx"
-bun run db:dry-run
-
-# 2. If dry-run passed, deploy
-supabase link --project-ref your-project-id
-supabase db push --linked --yes
-```
+Do not run `supabase db push` against Production from a workstation. A manual
+push skips the exact-tree check, verified maintenance alias, write block,
+post-migration target probe, staged application check, and recovery path. Use
+the protected [`deploy-schema.yml`](../.github/workflows/deploy-schema.yml)
+workflow and the [Production cutover
+runbook](../docs/development/production-cutover-runbook.md).
 
 ---
 
@@ -229,18 +237,25 @@ Common issues:
 
 ---
 
-## CI/CD Pipeline Stages
+## CI/CD pipeline stages
 
-GitHub Actions runs 4 stages when you merge to `main`:
+A `main` merge does not run a Production schema push. An authorized operator
+must dispatch the protected
+[`deploy-schema.yml`](../.github/workflows/deploy-schema.yml) workflow with the
+required confirmation and accepted Development SHA.
 
-| Stage            | Purpose                    | Takes   | Fails If...                    |
-| ---------------- | -------------------------- | ------- | ------------------------------ |
-| **Validate**     | Check file formats, naming | 1-2s    | Bad filename format            |
-| **Test Locally** | Replay migrations locally  | 30-60s  | Migration fails to replay      |
-| **Advisors**     | Security & perf checks     | 15-30s  | Critical security issues found |
-| **Deploy**       | Push to production         | 30-120s | Dry-run fails                  |
+| Stage             | Purpose                                                                                       | Stop condition                                 |
+| ----------------- | --------------------------------------------------------------------------------------------- | ---------------------------------------------- |
+| Recovery gate     | Reject re-runs and unresolved earlier Production attempts before provider access              | Any missing or failed attempt recovery receipt |
+| Release gates     | Recheck the root tree, private plugin, build, database replay, scale tests, and browser tests | Any accepted-tree or test mismatch             |
+| Cutover preflight | Check the Production project, migration baseline, target ledger, and staged artifacts         | Any project, ledger, or preflight mismatch     |
+| Maintenance       | Block application writes, promote maintenance, and verify the Production alias                | An unproved write block or alias               |
+| Schema            | Push through the workflow, verify migration parity, and probe the target schema               | Any push, parity, or target-schema failure     |
+| Application       | Recheck the staged application, promote it, verify the final alias, and reopen writes         | Any health, SHA, alias, or write-reset failure |
 
-If ANY stage fails, deployment is blocked and manual approval is required.
+Do not replace this workflow with a manual `supabase db push`. Follow the
+[Production cutover
+runbook](../docs/development/production-cutover-runbook.md) if any stage stops.
 
 ---
 

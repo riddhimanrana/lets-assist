@@ -28,7 +28,7 @@ mock.module(
   }),
 );
 
-const { GET, POST } = await import("./route");
+const { GET, POST, maxDuration } = await import("./route");
 const { NextRequest } = await import("next/server");
 
 const claim = {
@@ -62,6 +62,10 @@ beforeEach(() => {
 });
 
 describe("CSF class workbook refresh route", () => {
+  test("allows one workbook run to finish within the worker budget", () => {
+    expect(maxDuration).toBe(800);
+  });
+
   test("rejects unauthorized calls before the database or action", async () => {
     expect((await POST(request("wrong-token"))).status).toBe(401);
     expect(rpcCalls).toHaveLength(0);
@@ -106,10 +110,11 @@ describe("CSF class workbook refresh route", () => {
     process.env.CSF_WORKBOOK_WORKER_ENABLED = "true";
     rpcResults = [
       { data: claim, error: null },
-      { data: { finished: true }, error: null },
+      { data: { finished: true, status: "completed" }, error: null },
     ];
     actionResult = {
       success: true,
+      workerDisposition: "completed",
       preparedTermCodes: ["2032-fall", "2033-spring"],
       templateTermCodes: ["2033-fall"],
       missingTabTermCodes: [],
@@ -149,5 +154,86 @@ describe("CSF class workbook refresh route", () => {
     const response = await POST(request());
     expect(response.status).toBe(503);
     expect(actionCalls).toHaveLength(0);
+  });
+
+  test("fails closed when workbook settlement returns an unsettled payload", async () => {
+    process.env.CSF_WORKBOOK_WORKER_ENABLED = "true";
+    rpcResults = [
+      { data: claim, error: null },
+      { data: { finished: false, status: "blocked" }, error: null },
+    ];
+    actionResult = { success: true, workerDisposition: "completed" };
+    const response = await POST(request());
+    expect(response.status).toBe(503);
+    expect(await response.json()).toEqual({
+      error: "Workbook result could not be settled",
+    });
+  });
+
+  test.each(["retryable", "unknown"])(
+    "leaves a %s worker result leased for safe reconciliation",
+    async (workerDisposition) => {
+      process.env.CSF_WORKBOOK_WORKER_ENABLED = "true";
+      rpcResults = [{ data: claim, error: null }];
+      actionResult = { success: false, workerDisposition };
+
+      const response = await POST(request());
+      expect(response.status).toBe(503);
+      expect(await response.json()).toEqual({
+        error: "Workbook preparation did not settle",
+      });
+      expect(rpcCalls.map((call) => call.name)).toEqual([
+        "csf_claim_class_workbook_refresh_job",
+      ]);
+    },
+  );
+
+  test("settles a closed reconnect result without parsing error copy", async () => {
+    process.env.CSF_WORKBOOK_WORKER_ENABLED = "true";
+    rpcResults = [
+      { data: claim, error: null },
+      { data: { finished: true, status: "needs_reconnect" }, error: null },
+    ];
+    actionResult = {
+      success: false,
+      error: "Provider copy may change.",
+      workerDisposition: "needs_reconnect",
+    };
+
+    const response = await POST(request());
+    expect(response.status).toBe(200);
+    expect(await response.json()).toEqual({
+      enabled: true,
+      claimed: 1,
+      prepared: 0,
+      templates: 0,
+      blocked: 1,
+      status: "needs_reconnect",
+    });
+    expect(rpcCalls[1]?.args.p_status).toBe("needs_reconnect");
+  });
+
+  test("reports a database safety downgrade as a settled block", async () => {
+    process.env.CSF_WORKBOOK_WORKER_ENABLED = "true";
+    rpcResults = [
+      { data: claim, error: null },
+      { data: { finished: true, status: "blocked" }, error: null },
+    ];
+    actionResult = {
+      success: true,
+      workerDisposition: "completed",
+      preparedTermCodes: ["2032-fall"],
+    };
+
+    const response = await POST(request());
+    expect(response.status).toBe(200);
+    expect(await response.json()).toEqual({
+      enabled: true,
+      claimed: 1,
+      prepared: 0,
+      templates: 0,
+      blocked: 1,
+      status: "blocked",
+    });
   });
 });
