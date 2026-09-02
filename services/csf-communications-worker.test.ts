@@ -854,6 +854,36 @@ describe("bounded fault codes", () => {
 });
 
 describe("provider pacing", () => {
+  test("waits for the provider slot before final authorization", async () => {
+    const events: string[] = [];
+    resendImpl = async () => {
+      events.push("send");
+      return { data: { id: "resend-message-synthetic-a" }, error: null };
+    };
+    const { plugin } = pluginHarness(
+      defaultHandlers({
+        csf_authorize_communication_dispatch: () => {
+          events.push("authorize");
+          return { data: authorization(), error: null };
+        },
+        csf_settle_communication_dispatch_attempt: () => {
+          events.push("settle");
+          return { data: { attemptState: "accepted" }, error: null };
+        },
+      }),
+    );
+
+    await worker.runCsfDispatchWorker(plugin, {
+      organizationId: ORG,
+      workerId: "worker-paced-authorization",
+      waitForProviderStart: async () => {
+        events.push("provider-slot");
+      },
+    });
+
+    expect(events).toEqual(["provider-slot", "authorize", "send", "settle"]);
+  });
+
   test("spaces request starts to at most eight per second", async () => {
     let now = 1_000;
     const waits: number[] = [];

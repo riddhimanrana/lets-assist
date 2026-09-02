@@ -367,7 +367,13 @@ export async function dispatchClaimedAttempt(
     sendProviderRequest = sendEmail,
   } = input;
 
-  // 1. AUTHORIZE IMMEDIATELY BEFORE SENDING.
+  // 1. WAIT FOR THE PROVIDER START SLOT.
+  //
+  // Authorization must happen after this wait. A recipient can opt out or an
+  // officer can cancel the campaign while concurrent sends are being paced.
+  if (beforeProviderRequest) await beforeProviderRequest();
+
+  // 2. AUTHORIZE IMMEDIATELY BEFORE SENDING.
   //
   // Not at claim time: a lease can last 1800 seconds, and a recipient can opt out or
   // bounce inside that window.
@@ -407,7 +413,7 @@ export async function dispatchClaimedAttempt(
     };
   }
 
-  // 2. EXACTLY ONE SEND, WITH THE PAYLOAD UNCHANGED.
+  // 3. EXACTLY ONE SEND, WITH THE PAYLOAD UNCHANGED.
   //
   // Spread rather than reconstructed: every field -- from, to, replyTo, subject,
   // both bodies, the tag array, headers, topicId, the transport type, and the
@@ -415,7 +421,6 @@ export async function dispatchClaimedAttempt(
   // within its retention window it deduplicates; beyond that window the ledger's own
   // attempt coordinate is what prevents a second send, which is why nothing below
   // ever loops.
-  if (beforeProviderRequest) await beforeProviderRequest();
   const transportResult = await sendProviderRequest({
     ...authorization.providerPayload,
     ...(providerSignal ? { signal: providerSignal } : {}),
@@ -423,7 +428,7 @@ export async function dispatchClaimedAttempt(
 
   const settlement = mapTransportResultToSettlement(transportResult);
 
-  // 3. SETTLE THE EXACT ATTEMPT.
+  // 4. SETTLE THE EXACT ATTEMPT.
   //
   // If this call fails the attempt stays leased and is later reaped as
   // unknown_outcome -- which is correct: we genuinely do not know whether the
