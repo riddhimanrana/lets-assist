@@ -48,6 +48,7 @@ describe("CSF Production release preflight", () => {
     );
 
     expect(deploymentWorkflow).toContain("hosted_development_sha:");
+    expect(deploymentWorkflow).toContain("actions: read");
     expect(acceptance).toContain("git merge-base --is-ancestor");
     expect(acceptance).toContain('git rev-parse "${ACCEPTED_SHA}^{tree}"');
     expect(acceptance).toContain("git rev-parse 'HEAD^{tree}'");
@@ -56,8 +57,18 @@ describe("CSF Production release preflight", () => {
     );
     expect(acceptance).toContain('.creator.login == "github-actions[bot]"');
     expect(acceptance).toContain(
-      "https://github.com/riddhimanrana/lets-assist/actions/runs/",
+      'expected_run_prefix="https://github.com/${GITHUB_REPOSITORY}/actions/runs/"',
     );
+    expect(acceptance).toContain("actions/runs/${run_id}");
+    expect(acceptance).toContain(
+      '.path == ".github/workflows/csf-hosted-development-acceptance.yml"',
+    );
+    expect(acceptance).toContain(".head_sha == $sha");
+    expect(acceptance).toContain('.head_branch == "development"');
+    expect(acceptance).toContain(".repository.full_name == $repository");
+    expect(acceptance).toContain(".head_repository.full_name == $repository");
+    expect(acceptance).toContain('.status == "completed"');
+    expect(acceptance).toContain('.conclusion == "success"');
   });
 
   test("the reusable preflight includes root, plugin, build, scale, and browser gates", () => {

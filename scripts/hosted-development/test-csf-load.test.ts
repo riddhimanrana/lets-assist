@@ -12,6 +12,10 @@ const workflow = readFileSync(
   ),
   "utf8",
 );
+const aliasVerifier = readFileSync(
+  new URL("./verify-vercel-alias.sh", import.meta.url),
+  "utf8",
+);
 
 describe("hosted CSF load acceptance", () => {
   test("is pinned to the Development app and refuses the Production database", () => {
@@ -30,10 +34,15 @@ describe("hosted CSF load acceptance", () => {
     expect(source).toContain("const OFFICER_SESSIONS = 10");
     expect(source).toContain("const DEFAULT_DURATION_MS = 15 * 60 * 1000");
     expect(source).toContain("const RAMP_DURATION_MS = 60_000");
+    expect(source).toContain("const BROWSER_WARMUP_SAMPLES = 5");
+    expect(source).toContain("const BROWSER_MEASURED_SAMPLES = 30");
+    expect(source).toContain("const BROWSER_PAGE_SETTLE_MS = 3_000");
     expect(source).toContain("const SESSION_MINT_INTERVAL_MS = 10_500");
     expect(source).toContain("const SESSION_MINT_RETRY_LIMIT = 36");
     expect(source).toContain("durationMs < DEFAULT_DURATION_MS");
     expect(source).toContain("RAMP_DURATION_MS * sessionIndex");
+    expect(source).toContain("const sessionEndAt = Date.now() + durationMs");
+    expect(source).toContain("while (Date.now() < sessionEndAt)");
     expect(source).toContain(
       "await new Promise((resolve) => setTimeout(resolve, RAMP_DURATION_MS))",
     );
@@ -59,15 +68,65 @@ describe("hosted CSF load acceptance", () => {
       "result.mutationP95Ms <= 3_000",
       "result.errorRate < 0.005",
       "result.fiveHundredRate < 0.001",
+      "result.lcpSampleCount === BROWSER_MEASURED_SAMPLES",
       "result.lcpP75Ms < 2_500",
+      "result.inpSampleCount === BROWSER_MEASURED_SAMPLES",
       "result.inpP75Ms < 200",
+      "result.clsSampleCount === BROWSER_MEASURED_SAMPLES",
       "result.clsP75 < 0.1",
       "result.rendererCrashes === 0",
       "result.retainedHeapGrowth <= 0.2",
     ]) {
       expect(source).toContain(contract);
     }
-    expect(source).toContain("for (let index = 0; index < 25; index += 1)");
+    expect(source).toContain(
+      "for (let index = 0; index < BROWSER_TOTAL_SAMPLES; index += 1)",
+    );
+    expect(source).toContain("const roleSampleIndex = Math.floor(index / 2)");
+    expect(source).toContain("paths[roleSampleIndex % paths.length]");
+    const memberPaths = ["csf-home", "csf-profile"];
+    const officerPaths = ["csf-applications", "csf-cohorts"];
+    const visited = new Set<string>();
+    for (let index = 0; index < 8; index += 1) {
+      const paths = index % 2 === 0 ? memberPaths : officerPaths;
+      visited.add(paths[Math.floor(index / 2) % paths.length]);
+    }
+    expect(visited).toEqual(new Set([...memberPaths, ...officerPaths]));
+    expect(source).toContain("waitForTimeout(BROWSER_PAGE_SETTLE_MS)");
+    expect(source).not.toContain("waitForTimeout(750)");
+    expect(source).not.toContain('page.keyboard.press("Tab")');
+    expect(source).toContain(
+      "window.__csfLoadVitals = { cls: 0, inp: null, lcp: null }",
+    );
+    expect(source).toContain("if (vitals.lcp !== null) lcp.push(vitals.lcp)");
+    expect(source).toContain("if (index >= BROWSER_WARMUP_SAMPLES)");
+    expect(source).toContain("lcpSampleCount: lcp.length");
+    expect(source).toContain("inpSampleCount: inp.length");
+    expect(source).toContain(
+      '"/organization/dvhs-csf?tab=csf-overview&csf_tour=officer"',
+    );
+    expect(source).toContain('name: "Officer workspace tour"');
+    expect(source).toContain("exact: true");
+    expect(source).toContain('name: movingForward ? "Next" : "Back"');
+    expect(source).toContain("window.__csfLoadVitals.inp = null");
+    expect(source).toContain(
+      "requestAnimationFrame(() => requestAnimationFrame(resolve))",
+    );
+    expect(source).toContain("window.__csfLoadVitals.inp ?? 16");
+    expect(source).toContain("inp.push(interactionInp)");
+    const officerTourIndex = source.indexOf("const officerTour =");
+    const interactionSampleIndex = source.indexOf("inp.push(interactionInp)");
+    const viewSwitchIndex = source.indexOf("const switchButton =");
+    expect(officerTourIndex).toBeGreaterThan(-1);
+    expect(interactionSampleIndex).toBeGreaterThan(officerTourIndex);
+    expect(interactionSampleIndex).toBeLessThan(viewSwitchIndex);
+    expect(source.slice(officerTourIndex, viewSwitchIndex)).toContain(
+      "for (let index = 0; index < BROWSER_TOTAL_SAMPLES; index += 1)",
+    );
+    expect(
+      source.slice(viewSwitchIndex, source.indexOf("const finalHeap =")),
+    ).not.toContain("inp.push(");
+    expect(source).toContain("clsSampleCount: cls.length");
     expect(source).toContain('button[data-csf-view-switch-hydrated="true"]');
     expect(source).toContain("const destinationTab = movingToMember");
     expect(source).toContain("const settledTab = new URL(officerPage.url())");
@@ -112,9 +171,34 @@ describe("hosted CSF load acceptance", () => {
     expect(workflow).toContain("commits/${ACCEPTED_SHA}/status");
     expect(workflow).toContain('.context == "Vercel" and .state == "success"');
     expect(workflow).not.toContain("commits/${ACCEPTED_SHA}/check-runs");
+    expect(workflow).toContain("secrets.VERCEL_TOKEN");
+    expect(workflow).toContain("vars.VERCEL_TEAM_ID");
+    expect(workflow).toContain("vars.VERCEL_ROOT_PROJECT_ID");
+    expect(aliasVerifier).toContain("https://api.vercel.com/v4/aliases");
+    expect(aliasVerifier).toContain("https://api.vercel.com/v13/deployments/");
+    expect(aliasVerifier).toContain('.readyState == "READY"');
+    expect(aliasVerifier).toContain(".aliasAssigned == true");
+    expect(aliasVerifier).toContain('.aliasAssigned | type) == "number"');
+    expect(aliasVerifier).toContain(".projectId // .project.id");
+    expect(aliasVerifier).toContain(".meta.githubCommitSha");
+    expect(aliasVerifier).toContain(".gitSource.sha");
+    expect(aliasVerifier).toContain(".meta.githubCommitRef");
+    expect(aliasVerifier).toContain(".gitSource.ref");
+    expect(workflow.match(/verify-vercel-alias\.sh/g) ?? []).toHaveLength(2);
+    const hostedRunIndex = workflow.indexOf("bun run csf:test:hosted:load");
+    const firstAliasCheckIndex = workflow.indexOf("verify-vercel-alias.sh");
+    const secondAliasCheckIndex = workflow.lastIndexOf(
+      "verify-vercel-alias.sh",
+    );
+    expect(firstAliasCheckIndex).toBeLessThan(hostedRunIndex);
+    expect(secondAliasCheckIndex).toBeGreaterThan(hostedRunIndex);
+    expect(secondAliasCheckIndex).toBeLessThan(
+      workflow.indexOf("Recheck Development head"),
+    );
     expect(workflow).toContain('git rev-parse "origin/development"');
     expect(workflow).toContain("state=success");
     expect(workflow).toContain("state=failure");
+    expect(workflow).toContain("timeout-minutes: 75");
   });
 
   test("uses only known fictional accounts and emits count-only output", () => {

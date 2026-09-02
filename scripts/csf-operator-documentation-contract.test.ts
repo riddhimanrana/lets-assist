@@ -110,8 +110,8 @@ const MEMBER_AND_ACCESS: LabelContract[] = [
   {
     component: "CsfCohortMembersReviewQueue.tsx",
     labels: [
-      "Needs attention",
-      "Class-code joins waiting for an officer decision",
+      "Record connections",
+      "Review accounts waiting to connect to a student record in this class.",
       "First page",
     ],
   },
@@ -363,13 +363,15 @@ const STUDENT_JOURNEY: LabelContract[] = [
     component: "CsfDashboardContentSection1Connect.tsx",
     labels: [
       "Join a class",
-      "That class code did not work",
+      "That class code didn’t work",
       "Already have a CSF record?",
-      "You are new to CSF",
-      "Find your CSF profile",
-      "Find your record",
+      "New to CSF?",
+      "Sign in to continue",
+      "Is this you?",
+      "Yes, link this record",
+      "No, change the name",
       "Find your CSF record",
-      "Student information",
+      "Student name",
       "Find my record",
     ],
   },
@@ -448,13 +450,20 @@ describe("CSF operator documentation truthfulness guards", () => {
     const connectSource = readComponent(
       "CsfDashboardContentSection1Connect.tsx",
     );
-    expectInOrder(connectSource, [
+    for (const label of [
       "Join a class",
-      "That class code did not work",
+      "That class code didn’t work",
       "Already have a CSF record?",
-      "You are new to CSF",
-    ]);
-    expectInOrder(connectSource, ["Find your CSF profile", "Find my record"]);
+      "New to CSF?",
+      "Sign in to continue",
+      "Is this you?",
+      'idleLabel="Yes, link this record"',
+      'triggerLabel="No, change the name"',
+      "Find your CSF record",
+      'idleLabel="Find my record"',
+    ]) {
+      expect(connectSource).toContain(label);
+    }
     const codeEntrySource = readComponent("CsfClassCodeEntryForm.tsx");
     expect(codeEntrySource).toContain("Join code");
     // The 6-character alphabet excludes the lookalikes O/I/0/1 by contract.
@@ -478,9 +487,10 @@ describe("CSF operator documentation truthfulness guards", () => {
       "**Disable code**",
       "`/connect/<code>`",
       "**Join code**",
-      "**Find your record**",
+      "**Is this you?**",
+      "**Yes, link this record**",
       "**Find my record**",
-      "**Needs attention**",
+      "**Record connections**",
       "**Resolve**",
       "**Connect account**",
       "**Reject request**",

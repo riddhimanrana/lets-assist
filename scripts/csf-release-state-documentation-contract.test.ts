@@ -211,13 +211,17 @@ describe("CSF release-state documentation truthfulness guards", () => {
   });
 
   test("the officer runbook tracks the exact current cutover ledger", () => {
+    const migrations = readdirSync(join(repositoryRoot, "supabase/migrations"))
+      .filter((name) => /^\d{14}_.+\.sql$/u.test(name))
+      .sort();
+    const currentMigration = migrations.at(-1)?.replace(/\.sql$/u, "");
     expect(officerRunbook).toContain(
-      "this candidate carries 353 ordered migrations through `20260822134710_revalidate_plugin_runtime_admin_authority`",
+      `current repository candidate carries ${migrations.length} ordered migrations through \`${currentMigration}\``,
     );
     expect(officerRunbook).toContain(
-      "exact repository-pinned 20-migration cutover",
+      "private Development gitlink is `3961fcc`",
     );
-    expect(officerRunbook).toContain("ordered ledger through `20260821044815`");
+    expect(officerRunbook).toContain("Production remains unchanged");
     expect(officerRunbook).not.toContain(
       "this repository carries 277 ordered migrations",
     );
@@ -251,7 +255,7 @@ describe("CSF release-state documentation truthfulness guards", () => {
   test("the dated rehearsal record stays internally consistent with itself", () => {
     const rehearsalState = between(
       operatorGuide,
-      "## Development rehearsal state at this guide's verification point",
+      "## Historical Development rehearsal snapshot",
       "## Production cutover checklist",
     );
     expect(rehearsalState).toContain(
@@ -359,14 +363,14 @@ describe("CSF release-state documentation truthfulness guards", () => {
       "## Related references",
     );
     expect(cutover).toContain(
-      "Replay the ordered migration ledger through `20260815110000`",
+      "Replay the ordered migration ledger through the exact approved repository head",
     );
     expect(cutover).toContain(
       "`scripts/production-cutover-preflight.sql` with the reviewed Production read-only URL",
     );
-    expect(cutover).toContain("exact 236-row baseline");
-    expect(cutover).toContain("full 57-migration transition");
-    expect(cutover).toContain("preflight on the 293-row target");
+    expect(cutover).toContain("live Production baseline");
+    expect(cutover).toContain("complete pending transition");
+    expect(cutover).toContain("preflight on the exact repository target");
   });
 
   test("production cutover baseline tracks the exact pending migration range", () => {

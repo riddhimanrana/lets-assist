@@ -122,6 +122,37 @@ BEGIN
       );
     END IF;
 
+    IF v_existing_request_status = 'auto_linked' THEN
+      UPDATE plugin_data.csf_profile_link_requests
+      SET match_status = 'needs_review',
+          resolution_notes =
+            'The previous account connection is no longer verified; officer review is required.',
+          resolved_by = NULL,
+          resolved_at = NULL,
+          updated_at = v_now
+      WHERE id = v_request_id;
+
+      INSERT INTO plugin_data.csf_admin_audit_events (
+        organization_id, actor_user_id, action, target_type, target_id,
+        before_data, after_data, correlation_id, source_type, source_id,
+        reason_code
+      ) VALUES (
+        p_organization_id, p_user_id,
+        'profile.link_request_revalidation_failed',
+        'csf_profile_link_requests', v_request_id,
+        pg_catalog.jsonb_build_object(
+          'matchStatus', v_existing_request_status,
+          'profileId', v_existing_request_profile_id
+        ),
+        pg_catalog.jsonb_build_object('matchStatus', 'needs_review'),
+        v_correlation_id, 'profile_connection_revalidation',
+        v_request_id::text,
+        'profile_connection_revalidation_required'
+      );
+
+      v_existing_request_status := 'needs_review';
+    END IF;
+
     RETURN pg_catalog.jsonb_build_object(
       'connected', false,
       'needsReview', v_existing_request_status IN ('pending', 'needs_review'),

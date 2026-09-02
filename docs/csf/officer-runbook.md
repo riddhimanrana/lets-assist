@@ -1,10 +1,11 @@
 # DVHS CSF Officer Operations Runbook
 
 **Audience:** organization administrators, adviser, chapter officers, and Data Management
-**Current status:** this candidate carries 353 ordered migrations through `20260822134710_revalidate_plugin_runtime_admin_authority`; Production was verified read-only at 333 through `20260819050728`, leaving an exact repository-pinned 20-migration cutover. Hosted Development has the verified 353-migration ledger through `20260822134710`, and Google authentication redirects successfully there. The signed 1.2.7 GitHub release has separate Preview-compatible Development and Production child artifacts; catalog integration and rollout remain pending. Browser and provider acceptance remain release gates. Production email-webhook proof also remains open. Google OAuth and Picker were previously connected for a bounded Spring 2026 application preview that committed zero applications. Production remains unchanged by this release task until the authorized release workflow applies the reviewed cutover.
+**Current status:** the release candidate includes the repaired member directory search, signed passive account-name confirmation, typed-name officer review, mixed-grade application import, and Drive file identity checks. These changes still need the complete local root and private-plugin gates, one exact-tree hosted Development deployment, hosted browser and load acceptance, count-only source reconciliation, and synthetic email settlement. Production remains unchanged until those gates pass.
+**Release ledger:** the current repository candidate carries 431 ordered migrations through `20260901120000_csf_passive_class_name_confirmation`; the private Development gitlink is `3961fcc`.
 **Authoritative record after review:** Let's Assist
 
-This runbook describes the v1.5 officer workflow. Do not use it for a production cutover until the remaining Google, full browser-mutation, accessibility, hosted scheduled-post, Production email/webhook, advisor, and database cutover gates in [testing and release](testing-and-release.md) pass.
+This runbook describes the v1.6 officer workflow. Do not use it for a Production cutover until the current gates in section 12 and [testing and release](testing-and-release.md) pass for the exact integrated tree.
 
 ## 1. Start of each work session
 
@@ -44,26 +45,30 @@ Use **Applications → Review queue** for daily work and **All applications** fo
 
 Application decision, membership creation, decision event, and audit/request receipt are one transaction. If the response is lost or the action fails, reload the application before retrying; an exact stable-request replay succeeds only while the same decision and evidence remain current. Do not create a membership manually to compensate.
 
+Application imports are chapter-wide. In **Applications**, choose the response spreadsheet once. Do not assign a graduating class to the source. The preview derives the class and semester for each row from retained source fields, splits multiline course entries into separate course records, and blocks any unconfigured or changed target. Reusing a source follows its immutable Drive file id even if its title changes.
+
 ## 4. Student joining and account connection
 
 ### Permanent class join code
 
-The class join code is the only student connection path. Each graduating class holds one permanent 6-character code (letters and digits; the characters O, I, 0, and 1 never appear), and connecting through it joins the lasting graduating class only — semester membership still comes from an accepted application or an approved roster import.
+The class join code is the only student connection path. Each graduating class holds one permanent 6-character code. The alphabet omits O, I, 0, and 1. Connecting through it joins the lasting graduating class only. Semester membership still comes from an accepted application or an approved roster import.
 
 1. Open **Classes**, choose the graduating class, and select **Invite students**. **Copy** shares the active code; **Regenerate code** replaces it only when the old code must stop working; **Disable code** withdraws it without a replacement. A class without a code offers **Create code**.
 2. Share only that class code or its `/connect/<code>` URL. Do not distribute a roster export. The public organization and class pages expose no Stream, Activities, membership, or student-derived counts.
 3. The student enters the code at the public `/connect/<code>` route, or types it into **Join code** on **Join a class**, then creates or signs in to a verified Let's Assist account.
-4. The student uses **Find your record** and submits only the requested identity details with **Find my record**. The account's verified email is the only automatic matching signal: one active same-class record carrying that email connects atomically with recorded history, and no matching record creates a new stable profile in that class from the verified account identity. A name-only result shows **We found a CSF record. Is this you?** and creates one officer request regardless of the student's answer.
-5. A conflicting account, conflicting class assignment, or several records sharing the email moves the request to that class's **Needs attention** queue instead of connecting.
+4. One active same-class record carrying the verified account email connects atomically with recorded history.
+5. If email does not match, the server may show **Is this you?** with one exact account-name candidate. The card contains the record name and class only. **Yes, link this record** connects only after a short-lived signed snapshot and a locked recheck prove that this is still the sole active, unclaimed exact-name record and it belongs only to the selected class.
+6. If the candidate changed, is duplicated, is already claimed, belongs to another class, or no longer passes the locked checks, the action creates one officer request. The page reports that result inline.
+7. If the student enters a name manually, the name never creates or links a profile. One exact verified-email record may still connect. Every other typed-name result creates or reuses one request under **Record connections** in that class.
 
 Viewing, copying, regenerating, or disabling a class code does not send an email. The product must not display a sent time or resend count unless an explicit recipient email has entered the durable delivery ledger.
 
-Only the class join code starts this workflow, and the connected profile must belong to the code's graduating class. A name — even a unique one — is review context only and never connects an account automatically.
+Only the class join code starts this workflow, and the connected profile must belong to the code's graduating class. Officers never connect from a typed name alone. The passive account-name card is a separate member-confirmed path with signed, short-lived evidence and a database recheck.
 
 ### Officer review
 
-1. Open the class's **Members** tab and work the **Needs attention** queue (_Class-code joins waiting for an officer decision_), paged with **First page** and **Next**. **Home** shows a **Connection requests** chip with the total pending count, linking to the classes hub. Open the request with **Resolve**, or a ranked candidate with **Review in Resolve**; both open the **Review account connection** dialog.
-2. Compare the request with the student's submitted evidence; never match on name alone. Everything under **Suggestions · advisory only** is a discovery aid, including a candidate badged **Canonical evidence ready**. A conflicting cohort, verified email, or existing account is a hard stop.
+1. Open the class's **Members** tab and work **Record connections**, where the panel says **Review accounts waiting to connect to a student record in this class.** The queue is paged with **First page** and **Next**. **Home** shows a **Connection requests** chip with the total pending count, linking to the classes hub. Open the request with **Resolve**, or a ranked candidate with **Review in Resolve**; both open the **Review account connection** dialog.
+2. Compare the request with the student's submitted evidence; never match on a typed name alone. Everything under **Suggestions · advisory only** is a discovery aid, including a candidate badged **Canonical evidence ready**. A conflicting cohort, verified email, or existing account is a hard stop.
 3. Choose **Connect account** or **Reject request** and enter a **Decision reason** of at least four characters. **Connect account** is rendered only when the account's current confirmed email still matches the request snapshot, appears on exactly one active student record, and that record also has the exact requested name and one matching active class; otherwise the dialog states **Connection unavailable** with the specific blockers and offers only **Reject request**. A unique name is still name-only and never authorizes a connection. If those checks fail, correct the student record through the audited member-correction workflow first, then have the student join with the class code again.
 4. If the student already has an accepted application for the same cohort and term, the atomic connection may activate that term membership.
 5. Use unlink/relink only to correct a documented error and always include a reason.
@@ -74,10 +79,10 @@ An existing organization admin or staff role is never downgraded when a profile 
 
 ## 5. Google Drive and Sheets imports
 
-Live Google acceptance is not complete. Until it is, use only synthetic/local sources. When the gate opens, every real import must follow this sequence:
+Hosted Development Google acceptance is not complete for this exact candidate. Until it passes, use synthetic local sources for implementation checks. When the Development gate opens, every real import must follow this sequence:
 
 1. Confirm the connected Drive identity shown by the product is exactly `dvhighcsf@gmail.com`. Stop if it is not.
-2. Select the native Sheet with Google Picker or upload a local `.xlsx` through the separate upload path.
+2. Select the native Sheet with Google Picker or upload a local `.xlsx` through the separate upload path. Treat the Drive file id and provider version as source identity. The title is display text only.
 3. Choose the exact tab and a bounded range.
 4. Map stable source columns by index/key, not only by display header.
 5. Preview normalized rows and their resolved cohort/term.
@@ -90,12 +95,12 @@ Operational rules:
 - The encrypted Google connection is scoped to the exact organization, CSF plugin, import purpose, and officer capability approved during OAuth. Google user-info must also verify the exact account `dvhighcsf@gmail.com`; a calendar-email label or officer assertion is not identity evidence. Every token use and refresh rechecks the binding.
 - Picker deployment configuration uses a Google OAuth web client and Browser API key from the same Cloud project. The server derives the required numeric Picker app ID from `GOOGLE_CLIENT_ID`; there is no separate public app-ID setting, and file authorization remains limited to `drive.file`.
 - A wrong, missing, or legacy-unverified account shows **Switch or reconnect**. Officers must not work around it with another organization's token.
-- **Import changes** creates a new immutable snapshot; there is no background sync.
+- An application import starts only from an explicit officer action. A linked class workbook uses a leased metadata check. An unchanged provider version reads no tabs. A changed version queues preparation for new or changed canonical tabs, but an officer still approves the frozen previews before commit.
 - Application decisions write back to the source sheet: the imported row turns green (approved) or red (rejected) and any officer comment lands as a note on the row's first cell. This is ledger-recorded, retried via **Sync sheet**, and only active where `CSF_SHEET_WRITEBACK_ENABLED` is set; everywhere else the decisions stay queued.
 - Beyond that decision write-back, Google Sheets are input-only. Reports download locally as a formula-safe ZIP; there is no timestamped compatibility-tab or report-write destination.
 - A second import of the same snapshot must be idempotent.
 - Reviewed Let’s Assist fields are never silently overwritten.
-- A missing, blank, malformed, non-positive, or implausibly large historical point value blocks that activity; it never becomes one point.
+- A repeated activity slot becomes one point only when the saved source mode is `one_per_populated_slot`. A missing, blank, malformed, non-positive, or implausibly large explicit point value blocks that activity.
 - An invalid meeting timestamp blocks commit until corrected with a recorded reason.
 - Partner-club form-response imports are local export uploads, not Drive reads; each previewed row stays immutable until an officer explicitly applies it as a draft club record or skips it.
 - If Drive access is lost, reconnect the source. Do not delete the reviewed platform record.
@@ -105,7 +110,7 @@ Operational rules:
 
 Use **Members** to locate the permanent student identity and current-semester record.
 
-1. Search by student or confirmed account; filter by class, connection, application, eligibility, dues, or membership result.
+1. Search by student or confirmed account; filter by class, connection, application, eligibility, dues, or membership result. Search starts after two characters with a 300 ms debounce. Officers may press **Search** to submit immediately. Clearing the field reloads the directory. Search resets paging and preserves the selected class, semester, filters, sort, and view.
 2. Use **Edit** on the member row for identity, contact, class, or an explicit
    semester application status change. The row uses the semester selected in
    the class header. Leave **Application status** unchanged for detail-only
@@ -200,7 +205,7 @@ This section is the one-time cutover procedure from Google Classroom + spreadshe
 Import in this order through the existing Sheets workspace preview → commit fence; every commit is staff-approved and reversible only forward:
 
 1. **Club registry** — `rosters/Spring 2025 CSF Returning Clubs Responses.xlsx` and `rosters/CSF Club Audit Spring 2026 Responses.xlsx` as partner form-response imports; apply each previewed row as a draft club record (or skip it), then review standing per term. There is no per-club point policy to import; use `rosters/Clubs Points.xlsx` only as manual reference evidence when vetting points at approval time.
-2. **Historical class records** — link each approved Class of 2027–2030 workbook once. The importer discovers every canonical semester tab and records whether it is populated or an empty template. It preserves each bounded range and refuses a populated tab whose class semester has not been configured. Review each populated tab before commit. Numbered activity slots use the source's recorded `one_per_populated_slot` mode: each occupied plain-label slot is one point for that student, while one explicit numeric quantity for the same activity is authoritative. Conflicting, non-positive, malformed, or over-100 quantities block the row. Class of 2026 is out of scope: do not select, preview, or import it. Empty Class of 2030 tabs remain linked but create no profiles, applications, points, meetings, or attendance. These sheets are historical evidence, not account-connection evidence; current canonical email, exact-name, and active-class checks still govern every connection.
+2. **Historical class records.** Link each approved Class of 2027 through Class of 2030 workbook once by its verified Drive file id. The title is not source identity. The importer discovers every canonical semester tab and records whether it is populated or an empty template. It preserves each bounded range and refuses a populated tab whose class semester has not been configured. Review each populated tab before commit. Numbered activity slots use the source's recorded `one_per_populated_slot` mode. Each occupied plain-label slot is one point for that student, while one explicit numeric quantity for the same activity is authoritative. Conflicting, non-positive, malformed, or over-100 quantities block the row. Class of 2026 is out of scope. Do not select, preview, or import it. Empty Class of 2030 tabs remain linked but create no profiles, applications, points, meetings, or attendance. These sheets are historical evidence. The signed account-name confirmation and officer-review rules still govern every connection.
 3. **March 2025 chapter attendance** — `rosters/CSF March Meeting Attendance 2025.xlsx` as `meeting_attendance` for Spring 2025. Name-only rows will land ambiguous/unmatched — resolve what you can; `skipped` is an honest terminal state for departed students.
 4. **Per-club Fall 2025 points** — the immutable partner-audit member-Sheet import was removed by the 2026-08-17 partner-clubs simplification, so per-club point workbooks are no longer imported as a `partner_club_audit` batch. Keep the club workbooks as reference evidence and record any historical awards that are still needed through the reviewed point workflows.
 
@@ -208,14 +213,14 @@ Acceptance: every populated canonical tab discovered in the approved Class of 20
 
 ### 10.3 Student rollout (replaces the four Classroom codes)
 
-1. Record the reviewed new application form URL in Fall 2026's **Application form link** (**Term actions → Edit term**) and keep the linked Class of 2030 template tabs uncommitted while they are empty. The public class page offers the form only while the term is current and inside the application window. After a current response arrives, preview it as **Applications**. A targetless response is held for reconciliation and cannot commit.
+1. Record the reviewed new application form URL in Fall 2026's **Application form link** (**Term actions → Edit term**) and keep the linked Class of 2030 template tabs uncommitted while they are empty. The public class page offers the form only while the term is current and inside the application window. After responses arrive, select the chapter application spreadsheet in **Applications**. The source has no fixed class. Each preview row derives its configured class and semester. A targetless response is held for reconciliation and cannot commit.
 2. From that reviewed response, use **Members → Add member → Add a student record** to create the permanent Class of 2030 profile with its current unique email. This replay-safe staff action records `profile.create` audit history but creates no imported application, term membership, or account connection.
 3. Return to the application preview, select the profile under **Match to member**, enter the required 4–500 character **Match reason**, and select **Use match**. This separate audited reconciliation records the target and source-row reason. Only after every row is resolved or skipped may the officer commit; commit attaches the application to the existing profile but does not decide it.
 4. Review the committed application through **Applications → Review queue**. Approval creates or updates term membership atomically with the decision and history; neither the import nor the decision creates the profile. Account connection remains a separate exact-email or reasoned-review action.
-5. Before sharing class join codes for Classes of 2027–2029, establish a current, unique school or personal email on each imported historical profile that is expected to connect automatically. Use the current approved application cycle or another reviewed current source, then record the change through the audited member-correction workflow. Never copy an address from the historical comparison workbook merely to make a match.
+5. Before sharing class join codes, establish a current, unique school or personal email on imported historical profiles when reviewed evidence is available. This remains the strongest automatic match. Never copy an address from a historical comparison workbook merely to make a match.
 6. Confirm each class's permanent join code from **Invite students** (§4) — one per graduating class. These codes replace the Freshman/Sophomore/Junior/Senior Google Classroom codes everywhere the chapter publishes them.
-7. A student whose verified sign-in email uniquely matches the current email on one same-class profile connects automatically, picks a username in place, and gets the CSF member tour on their **Feed**. The historical class sheet alone can never produce that result.
-8. A returning student whose current email has not been established cannot reach their historical record automatically: the join either creates a separate new profile from the account identity — merge the duplicate afterwards through the audited workflow — or, when the email conflicts with an account or class assignment, lands in the class's **Members → Needs attention** queue. There, **Connect account** remains unavailable until an officer first records current corroborating email evidence through the audited correction workflow. Ranked suggestions only help locate evidence. Never expose roster names to students.
+7. A student whose verified sign-in email uniquely matches one same-class profile connects automatically. If email does not match, the product may show one exact passive account-name candidate with name and class only. The student can confirm it, but the database links it only after the signed snapshot and all uniqueness, claim, and class checks still pass.
+8. A manually entered name never creates or links a profile. Ambiguous, stale, claimed, conflicting, or unmatched typed-name results create or reuse one request in **Members → Record connections**. Officers use the reasoned review flow. Never expose a searchable roster to students.
 
 ### 10.4 Posts and announcement email
 
@@ -228,82 +233,47 @@ Acceptance: every populated canonical tab discovered in the approved Class of 20
 
 ## 11. Troubleshooting and stop rules
 
-| Condition                                                | Officer action                                                                                                                                                                 |
-| -------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| Wrong connected Google identity                          | Stop before file selection; reconnect the approved chapter account.                                                                                                            |
-| Google source says **Reconnect**                         | Reauthorize; keep existing reviewed records.                                                                                                                                   |
-| Google Picker says it is not configured                  | Stop and ask an administrator to verify `GOOGLE_CLIENT_ID`, the Picker API key, and their shared Google Cloud project; do not request a broader Drive scope.                   |
-| Roster email for a connection is absent/shared           | Record the current unique address through an audited member correction first; never type a substitute or connect on name similarity.                                           |
-| Missing or malformed imported point value                | Leave the row unresolved and correct the source mapping/value; never guess.                                                                                                    |
-| Invalid meeting timestamp                                | Correct with a reason before commit.                                                                                                                                           |
-| Import match/skip action fails                           | Keep the visible member/reason, read the inline error, and retry only after correction.                                                                                        |
-| Duplicate or ambiguous profile                           | Send to account-connection review; never search or expose the roster to the student.                                                                                           |
-| Application approval is blocked                          | Complete the mandatory check or have the adviser record a reasoned override.                                                                                                   |
-| Semester evidence changed                                | Refresh preflight and review again.                                                                                                                                            |
-| A mutation partially appears to succeed                  | Stop and inspect Change history before retrying; do not add a compensating manual record.                                                                                      |
-| Post says scheduled                                      | Treat it as unpublished until Feed evidence exists. If the target environment lacks an accepted enabled worker run, use manual publication. Scheduled posts never queue email. |
-| Post saved but email did not queue                       | Keep the post; correct the named email blocker and use the post's email retry action.                                                                                          |
-| Email is queued but dispatch timing is unclear           | Treat it as queued, not delivered. Confirm the hosted worker configuration and invocation evidence; do not promise a fixed delivery time.                                      |
-| Email outcome is unknown or webhook is quarantined       | Use Communications recovery with exact provider evidence; never blindly resend or guess.                                                                                       |
-| Private data appears on a public route or in an artifact | Treat as P0, stop testing, remove the artifact, and notify the platform owner.                                                                                                 |
+| Condition                                                        | Officer action                                                                                                                                                                                          |
+| ---------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Wrong connected Google identity                                  | Stop before file selection; reconnect the approved chapter account.                                                                                                                                     |
+| Google source says **Reconnect**                                 | Reauthorize; keep existing reviewed records.                                                                                                                                                            |
+| Google Picker says it is not configured                          | Stop and ask an administrator to verify `GOOGLE_CLIENT_ID`, the Picker API key, and their shared Google Cloud project; do not request a broader Drive scope.                                            |
+| Roster email for an officer-reviewed connection is absent/shared | Record the current unique address through an audited member correction first. Do not type a substitute or connect from the submitted name. The member-confirmed passive path has its own signed checks. |
+| Missing or malformed imported point value                        | Leave the row unresolved and correct the source mapping/value; never guess.                                                                                                                             |
+| Invalid meeting timestamp                                        | Correct with a reason before commit.                                                                                                                                                                    |
+| Import match/skip action fails                                   | Keep the visible member/reason, read the inline error, and retry only after correction.                                                                                                                 |
+| Duplicate or ambiguous profile                                   | Send to account-connection review; never search or expose the roster to the student.                                                                                                                    |
+| Application approval is blocked                                  | Complete the mandatory check or have the adviser record a reasoned override.                                                                                                                            |
+| Semester evidence changed                                        | Refresh preflight and review again.                                                                                                                                                                     |
+| A mutation partially appears to succeed                          | Stop and inspect Change history before retrying; do not add a compensating manual record.                                                                                                               |
+| Post says scheduled                                              | Treat it as unpublished until Feed evidence exists. If the target environment lacks an accepted enabled worker run, use manual publication. Scheduled posts never queue email.                          |
+| Post saved but email did not queue                               | Keep the post; correct the named email blocker and use the post's email retry action.                                                                                                                   |
+| Email is queued but dispatch timing is unclear                   | Treat it as queued, not delivered. Confirm the hosted worker configuration and invocation evidence; do not promise a fixed delivery time.                                                               |
+| Email outcome is unknown or webhook is quarantined               | Use Communications recovery with exact provider evidence; never blindly resend or guess.                                                                                                                |
+| Private data appears on a public route or in an artifact         | Treat as P0, stop testing, remove the artifact, and notify the platform owner.                                                                                                                          |
 
 ## 12. Current release checklist
 
-Before this runbook is used for the real chapter cutover, all boxes must be checked:
+Before this runbook is used for the chapter cutover, complete these gates in order:
 
-- [x] Atomic exact-email account connection and reasoned officer resolution
-- [x] Signed purpose/capability-bound Google OAuth state and callback reauthorization
-- [x] Strict historical point import; one-point slots only under an explicit saved source mode
-- [x] Transactional semester close with stale-evidence rejection
-- [x] Fictional-only tracked seed enforcement
-- [x] Clean isolated replay through 214 migrations, 82 CSF tables, 63 pgTAP files, and 3,165/3,165 assertions
-- [x] Account-connection concurrency/idempotent retry, validated tenant foreign keys, legacy close revocation, nine evidence-write guards, and real `dblink` two-session close-vs-insert race
-- [x] Final post-hardening production build and root typecheck
-- [x] Lint completed with 0 errors and 0 warnings
-- [x] Private-plugin CSF unit/security suite: 2,337 passed
-- [x] Latest focused hardening gate: 73/73 Bun tests with 761 expectations, clean root typecheck, clean focused ESLint
-- [x] Exact Google organization/plugin/purpose/capability binding with legacy reconnect
-- [x] Connection-request cohort, application-lock, and stale-retry hardening
-- [x] Local ZIP reports with formula-safe CSV and no Google write destination
-- [x] Dedicated CSF stack validation and label-scoped cleanup; no Vela infrastructure access
-- [x] Compiled-runtime CSF Playwright: 40 behavioral scenarios passed, 3 opt-in screenshot captures intentionally skipped, 0 failed
-- [x] Post-hardening private-plugin isolation browser/API smoke using the seeded DV admin and a 30-second cold-compile deadline
-- [x] Targeted role-navigation matrix: 14/14
-- [x] DV Playwright: 3 passed after explicit fictional DV fixture seeding
-- [x] Repeatable fixture reset preserves audit-linked profiles; obsolete project-feed fetches cancel cleanly; denial assertion targets the sole alert
-- [x] Composite-FK PostgREST onboarding/cohort ambiguity fixed in private-plugin commit `7f12388` with explicit constraint embeds and regression coverage
-- [x] Exact account connection and officer review plus navigation/direct-route boundaries for every officer role
-- [x] Login hydration-ready marker and arbitrary-port isolated Supabase environment resolution
-- [x] Final sanitized 22-image curated gallery at [`evidence/20260806-post-cleanup/index.html`](evidence/20260806-post-cleanup/index.html), separate from generated Playwright output
-- [ ] Complete green PR checks; least-privilege `PRIVATE_SUBMODULE_TOKEN`, GitGuardian disposition for the removed local-only fixture password, and authenticated Vercel Preview diagnosis remain open
-- [x] Post-hardening production build and full private-plugin unit-suite rerun
-- [ ] Persistent isolated Supabase development branch after explicit `$0.01344/hour` cost confirmation
-- [x] Deploy the super-admin metadata alignment, then prove branch-scoped non-production Supabase parity against the 322-row ordered ledger through `20260818115000`
-- [x] Deploy the partner-function ACL restatement, then prove hosted Development parity against the 323-row ordered ledger through `20260818134000`
-- [x] Deploy the orphan-cleanup-serialized release candidate, then prove branch-scoped non-production Supabase parity against the 331-row ordered ledger through `20260819020000`
-- [x] Deploy the completed plugin-platform foundation candidate, then prove branch-scoped non-production Supabase parity against the 339-row ordered ledger through `20260821005258`
-- [x] Deploy the signed DVHS CSF 1.2.0 publication, then prove hosted Development Supabase parity against the 340-row ordered ledger through `20260821024024`
-- [x] Integrate signed DVHS CSF 1.2.1 and prove hosted Development parity against the 342-row ordered ledger through `20260821044815`
-- [ ] Apply and verify the signed 1.2.2 publication and private-helper ACL completion through `20260821233000`
-- [x] Deploy the exact signed 1.2.1 application artifact and protect its direct child domain
-- [x] Create the two-project Vercel microfrontend group and approve its $2 per million routed-request fee
-- [ ] Deploy the version-pinned host routing change and complete hosted browser acceptance before activation
-- [x] Authorize local and hosted Development Google origins/callbacks, including `http://localhost:3001` and `https://dev.lets-assist.com`
-- [ ] Complete Google reconnect, revocation, and failure-state verification; the exact chapter identity, Picker selection, and one bounded failed-preview attempt are current Development evidence, not full import acceptance
-- [ ] Complete synthetic visible mutation lifecycle for every actor
-- [ ] Keyboard, focus, and screen-reader acceptance
-- [ ] Three native Google Slides decks created and visually accepted
-- [ ] Re-run merge/connection hard-conflict, application-preflight, post partial-success, and import-readiness acceptance added after the August 9 lifecycle audit
-- [ ] Verify CSF-owned communications configuration and unknown-outcome reconciliation with `manage_settings`, plus reachable post composition for every `manage_posts` template
-- [x] Fresh combined replay/build/static/DV-browser/CSF-browser gates for the exact August 11 root + private-submodule tree
-- [ ] Visible class join code create/regenerate/disable and student connect journeys, including response-loss replay; no fabricated send telemetry
-- [ ] Visible six-value grade-policy edit → publish → recalculation journey with stale-draft refusal
-- [ ] Visible import match/skip failure-preservation and truthful history/lineage journey
-- [x] Accept the authorized, retry-safe scheduled-post publisher through migration, route, pgTAP, central replay, and repository-owned scheduler
-- [x] Prove the visible Development composer schedule/readback/archive lifecycle with synthetic data and no email option
-- [ ] Prove an enabled hosted scheduled-post worker invocation and visible synthetic schedule → Feed transition before relying on it in that environment
-- [x] Configure and repeatedly verify hosted `csf-communications-dispatch`; document that GitHub scheduling is irregular and does not promise fixed-time delivery
+- [x] Candidate includes server-backed member search with filter preservation and bounded results.
+- [x] Candidate separates passive signed account-name confirmation from typed-name officer review.
+- [x] Candidate treats the application response workbook as one chapter source and derives class and semester per row.
+- [x] Candidate stores Drive file identity and provider version instead of trusting titles.
+- [x] Ordinary feature branches are disabled. Unmarked Development commits may create an ignored deployment record but do not run dependency installation or the application build.
+- [x] Merge and publish the private plugin first, then advance the root gitlink to private `development` `3961fcc`.
+- [ ] Pass the complete private-plugin tests, root TypeScript, zero-warning lint, database validation and replay, CSF workflows, browser journeys, strict submodule check, scale tests, and Production build on the exact integrated tree.
+- [ ] Create one marked Development deployment after local gates. Record its exact root and private SHAs.
+- [ ] Apply and verify the candidate migrations in hosted Development before browser mutation tests.
+- [ ] Verify exact-email connection, passive account-name confirmation, typed-name pending review, officer resolution, member search, and pending-state recovery with fictional Development records.
+- [ ] Import a sanitized synthetic clone of the chapter application source in Development. Confirm row-specific class and semester mapping, multiline course parsing, reconciliation, commit, and application review.
+- [ ] Inspect the approved real application and class workbooks in Development only through bounded, protected previews. Verify Drive file identity, discovered canonical tabs, empty future templates, and count-only reconciliation without committing chapter rows.
+- [ ] Have one officer approve frozen previews from sanitized synthetic clones in Development. Conflicted, stale, and unresolved previews remain blocked.
+- [ ] Run the 90-member and 10-officer hosted load, route latency, browser memory, and Web Vitals gates against that exact Development tree.
+- [ ] Prove synthetic Development post email queueing, provider acceptance, signed webhook settlement, and recovery without contacting students.
+- [ ] Promote only the exact accepted tree through one Production pull request. Apply migrations first, keep workers disabled during smoke checks, then enable workbook, import, and email workers in that order.
+- [ ] Require one final officer batch confirmation in Production before any real application or class workbook changes commit.
 
-Live chapter Google OAuth, Picker selection, and one bounded Development preview have been performed; the preview stopped at its failed seal after storing 85 rows and committed zero applications. No chapter import commit or Google write has been performed. Development uses a separate hosted Supabase project and exact 331-row parity plus exact served SHA are established for root merge `5ef6e4ccdf4492206e3e41a0b84afac91551fff0`; the final durable address-level feedback-preference and owner-internal ACL migrations bringing the repository candidate to 333 are not yet deployed there. Production has been inspected read-only but not mutated. Vela was not accessed or mutated. The remaining items are action-time release gates, not completed runbook steps.
+Do not record names, email addresses, comments, join codes, source rows, or proof in release logs, reports, screenshots, or recordings. Production stays unchanged until every Development gate above has exact-tree evidence.
 
 See [testing and release](testing-and-release.md) for current evidence and residual risk. See the [product contract](product-contract.md) for the full product, permission, data, and acceptance contracts.

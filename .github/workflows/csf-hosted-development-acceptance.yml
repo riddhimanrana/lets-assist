@@ -35,7 +35,7 @@ jobs:
       (startsWith(github.event.head_commit.message, 'Merge pull request #') &&
       contains(github.event.head_commit.message, '/codex/csf-integration-')))
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    timeout-minutes: 75
     env:
       ACCEPTED_SHA: ${{ github.event_name == 'push' && github.sha || inputs.development_sha }}
       CONFIRMATION: ${{ github.event_name == 'push' && format('load-hosted-development:{0}', vars.CSF_DEVELOPMENT_SUPABASE_PROJECT_REF) || inputs.confirmation }}
@@ -97,6 +97,13 @@ jobs:
           echo "The exact Development SHA did not receive a successful Vercel check." >&2
           exit 1
 
+      - name: Bind the Development alias before acceptance
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_TEAM_ID: ${{ vars.VERCEL_TEAM_ID }}
+          VERCEL_ROOT_PROJECT_ID: ${{ vars.VERCEL_ROOT_PROJECT_ID }}
+        run: bash scripts/hosted-development/verify-vercel-alias.sh
+
       - name: Setup Node
         uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
@@ -122,6 +129,13 @@ jobs:
           SUPABASE_PUBLISHABLE_KEY: ${{ secrets.CSF_DEVELOPMENT_SUPABASE_PUBLISHABLE_KEY }}
           SUPABASE_URL: https://${{ vars.CSF_DEVELOPMENT_SUPABASE_PROJECT_REF }}.supabase.co
         run: bun run csf:test:hosted:load
+
+      - name: Rebind the Development alias after acceptance
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_TEAM_ID: ${{ vars.VERCEL_TEAM_ID }}
+          VERCEL_ROOT_PROJECT_ID: ${{ vars.VERCEL_ROOT_PROJECT_ID }}
+        run: bash scripts/hosted-development/verify-vercel-alias.sh
 
       - name: Recheck Development head
         run: |

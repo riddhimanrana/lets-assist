@@ -307,19 +307,17 @@ describe("CSF cohort import documentation truthfulness guards", () => {
     );
     expectInOrder(studentRollout, [
       "current, unique school or personal email",
-      "current approved application cycle",
-      "audited member-correction workflow",
-      // The four Classroom-style onboarding links were replaced by one
-      // permanent join code per graduating class, confirmed from Invite
-      // students. The section heading says so outright.
       "permanent join code from **Invite students**",
+      "verified sign-in email uniquely matches",
+      "exact passive account-name candidate",
+      "manually entered name never creates or links",
     ]);
     expect(studentRollout).toContain(
-      "The historical class sheet alone can never produce that result",
+      "Never copy an address from a historical comparison workbook merely to make a match.",
     );
-    expect(studentRollout).toContain("**Connect account** remains unavailable");
+    expect(studentRollout).toContain("**Members → Record connections**");
     expect(productContract).toContain(
-      "A student-specific link may use only a current, unique school or personal email recorded on the selected active profile",
+      "A name entered by the student never creates or links a profile.",
     );
   });
 });

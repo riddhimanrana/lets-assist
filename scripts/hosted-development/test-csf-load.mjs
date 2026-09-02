@@ -16,6 +16,10 @@ const SESSION_MINT_INTERVAL_MS = 10_500;
 const SESSION_MINT_RETRY_MS = 10_000;
 const SESSION_MINT_RETRY_LIMIT = 36;
 const OIDC_REFRESH_BUFFER_MS = 60_000;
+const BROWSER_WARMUP_SAMPLES = 5;
+const BROWSER_MEASURED_SAMPLES = 30;
+const BROWSER_TOTAL_SAMPLES = BROWSER_WARMUP_SAMPLES + BROWSER_MEASURED_SAMPLES;
+const BROWSER_PAGE_SETTLE_MS = 3_000;
 
 function required(name) {
   const value = process.env[name]?.trim();
@@ -172,13 +176,14 @@ function createVercelProtectionHeadersProvider({
 }
 
 function installVitalsObserver() {
-  window.__csfLoadVitals = { cls: 0, inp: 0, lcp: 0 };
+  window.__csfLoadVitals = { cls: 0, inp: null, lcp: null };
   new PerformanceObserver((list) => {
     for (const entry of list.getEntries()) {
-      window.__csfLoadVitals.lcp = Math.max(
-        window.__csfLoadVitals.lcp,
-        entry.startTime,
-      );
+      const currentLcp = window.__csfLoadVitals.lcp;
+      window.__csfLoadVitals.lcp =
+        currentLcp === null
+          ? entry.startTime
+          : Math.max(currentLcp, entry.startTime);
     }
   }).observe({ type: "largest-contentful-paint", buffered: true });
   new PerformanceObserver((list) => {
@@ -189,10 +194,11 @@ function installVitalsObserver() {
   new PerformanceObserver((list) => {
     for (const entry of list.getEntries()) {
       if (entry.interactionId) {
-        window.__csfLoadVitals.inp = Math.max(
-          window.__csfLoadVitals.inp,
-          entry.duration,
-        );
+        const currentInp = window.__csfLoadVitals.inp;
+        window.__csfLoadVitals.inp =
+          currentInp === null
+            ? entry.duration
+            : Math.max(currentInp, entry.duration);
       }
     }
   }).observe({ type: "event", buffered: true, durationThreshold: 16 });
@@ -382,7 +388,6 @@ async function runRequestSessions({
   let errors = 0;
   let fiveHundreds = 0;
   let requests = 0;
-  const endAt = Date.now() + durationMs;
   await Promise.all(
     sessions.map(async (session, sessionIndex) => {
       const rampDelayMs =
@@ -394,8 +399,9 @@ async function runRequestSessions({
       if (rampDelayMs > 0) {
         await new Promise((resolve) => setTimeout(resolve, rampDelayMs));
       }
+      const sessionEndAt = Date.now() + durationMs;
       let cycle = 0;
-      while (Date.now() < endAt) {
+      while (Date.now() < sessionEndAt) {
         const cycleStart = Date.now();
         const path =
           session.paths[(cycle + session.index) % session.paths.length];
@@ -424,7 +430,7 @@ async function runRequestSessions({
         }
         cycle += 1;
         const remaining = REQUEST_INTERVAL_MS - (Date.now() - cycleStart);
-        if (remaining > 0 && Date.now() + remaining < endAt) {
+        if (remaining > 0 && Date.now() + remaining < sessionEndAt) {
           await new Promise((resolve) => setTimeout(resolve, remaining));
         }
       }
@@ -466,28 +472,83 @@ async function runBrowserAcceptance({ appUrl, memberPage, officerPage }) {
   const inp = [];
   const cls = [];
 
-  for (let index = 0; index < 25; index += 1) {
+  for (let index = 0; index < BROWSER_TOTAL_SAMPLES; index += 1) {
     const page = index % 2 === 0 ? memberPage : officerPage;
     const paths = index % 2 === 0 ? memberPaths : officerPaths;
-    await page.goto(new URL(paths[index % paths.length], appUrl).href, {
-      waitUntil: "domcontentloaded",
-    });
-    await page.waitForTimeout(750);
-    await page.keyboard.press("Tab");
-    await page.keyboard.press("Escape");
-    await page.waitForTimeout(100);
+    const roleSampleIndex = Math.floor(index / 2);
+    await page.goto(
+      new URL(paths[roleSampleIndex % paths.length], appUrl).href,
+      {
+        waitUntil: "domcontentloaded",
+      },
+    );
+    // User input freezes the browser's LCP candidate set. Wait beyond the
+    // acceptance threshold so a late largest render cannot disappear.
+    await page.waitForTimeout(BROWSER_PAGE_SETTLE_MS);
     const vitals = await page.evaluate(() => window.__csfLoadVitals);
-    lcp.push(vitals.lcp);
-    inp.push(vitals.inp);
-    cls.push(vitals.cls);
+    if (index >= BROWSER_WARMUP_SAMPLES) {
+      if (vitals.lcp !== null) lcp.push(vitals.lcp);
+      cls.push(vitals.cls);
+    }
   }
 
   const mutationTimings = [];
   let baselineHeap = null;
+  // The staff-view switch below replaces the document, so its Event Timing
+  // entry cannot survive the navigation. The officer tour changes local UI
+  // state in one document and gives every INP sample a real rendered update.
+  await officerPage.goto(
+    new URL("/organization/dvhs-csf?tab=csf-overview&csf_tour=officer", appUrl)
+      .href,
+  );
+  const officerTour = officerPage.getByRole("dialog", {
+    name: "Officer workspace tour",
+  });
+  await officerTour.waitFor({ state: "visible", timeout: 60_000 });
+  const tourStep = officerTour.locator('[aria-label^="Step "]');
+  for (let index = 0; index < BROWSER_TOTAL_SAMPLES; index += 1) {
+    const movingForward = index % 2 === 0;
+    const tourControl = officerTour.getByRole("button", {
+      exact: true,
+      name: movingForward ? "Next" : "Back",
+    });
+    const previousStep = await tourStep.getAttribute("aria-label");
+    if (!previousStep) {
+      throw new Error("The fictional officer tour did not expose its step.");
+    }
+    await officerPage.evaluate(() => {
+      window.__csfLoadVitals.inp = null;
+    });
+    await tourControl.click({ timeout: 60_000 });
+    await officerPage.waitForFunction(
+      (priorStep) =>
+        document
+          .querySelector('[role="dialog"][aria-label="Officer workspace tour"]')
+          ?.querySelector('[aria-label^="Step "]')
+          ?.getAttribute("aria-label") !== priorStep,
+      previousStep,
+      { timeout: 60_000 },
+    );
+    await officerPage.evaluate(
+      () =>
+        new Promise((resolve) => {
+          requestAnimationFrame(() => requestAnimationFrame(resolve));
+        }),
+    );
+    if (index >= BROWSER_WARMUP_SAMPLES) {
+      const interactionInp = await officerPage.evaluate(
+        // Event Timing clamps durationThreshold to 16 ms. No reported entry
+        // after two paints therefore gets the conservative threshold value.
+        () => window.__csfLoadVitals.inp ?? 16,
+      );
+      inp.push(interactionInp);
+    }
+  }
+
   await officerPage.goto(
     new URL("/organization/dvhs-csf?tab=csf-overview", appUrl).href,
   );
-  for (let index = 0; index < 25; index += 1) {
+  for (let index = 0; index < BROWSER_TOTAL_SAMPLES; index += 1) {
     const switchButton = officerPage
       .locator('button[data-csf-view-switch-hydrated="true"]')
       .filter({ hasText: /^(Switch to CSF Officer view|View as member)$/u });
@@ -514,8 +575,10 @@ async function runBrowserAcceptance({ appUrl, memberPage, officerPage }) {
         "The fictional staff view did not reach its landing tab.",
       );
     }
-    mutationTimings.push(performance.now() - startedAt);
-    if (index === 1) {
+    if (index >= BROWSER_WARMUP_SAMPLES) {
+      mutationTimings.push(performance.now() - startedAt);
+    }
+    if (index === BROWSER_WARMUP_SAMPLES - 1) {
       baselineHeap =
         (await collectHeap(memberPage, memberSession)) +
         (await collectHeap(officerPage, officerSession));
@@ -533,10 +596,13 @@ async function runBrowserAcceptance({ appUrl, memberPage, officerPage }) {
   return {
     baselineHeap,
     browserFailures,
+    clsSampleCount: cls.length,
     clsP75: percentile(cls, 0.75),
     finalHeap,
     heapGrowth,
+    inpSampleCount: inp.length,
     inpP75: percentile(inp, 0.75),
+    lcpSampleCount: lcp.length,
     lcpP75Ms: percentile(lcp, 0.75),
     mutationP95Ms: percentile(mutationTimings, 0.95),
   };
@@ -616,8 +682,11 @@ async function main() {
       mutationP95Ms: browserResult.mutationP95Ms,
       errorRate: load.requests ? load.errors / load.requests : 1,
       fiveHundredRate: load.requests ? load.fiveHundreds / load.requests : 1,
+      lcpSampleCount: browserResult.lcpSampleCount,
       lcpP75Ms: browserResult.lcpP75Ms,
+      inpSampleCount: browserResult.inpSampleCount,
       inpP75Ms: browserResult.inpP75,
+      clsSampleCount: browserResult.clsSampleCount,
       clsP75: browserResult.clsP75,
       rendererCrashes: browserResult.browserFailures.filter(
         (failure) => failure === "renderer_crash",
@@ -635,8 +704,11 @@ async function main() {
       result.mutationP95Ms <= 3_000 &&
       result.errorRate < 0.005 &&
       result.fiveHundredRate < 0.001 &&
+      result.lcpSampleCount === BROWSER_MEASURED_SAMPLES &&
       result.lcpP75Ms < 2_500 &&
+      result.inpSampleCount === BROWSER_MEASURED_SAMPLES &&
       result.inpP75Ms < 200 &&
+      result.clsSampleCount === BROWSER_MEASURED_SAMPLES &&
       result.clsP75 < 0.1 &&
       result.rendererCrashes === 0 &&
       result.browserErrors === 0 &&

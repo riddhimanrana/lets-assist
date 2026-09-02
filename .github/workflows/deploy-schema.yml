@@ -17,6 +17,7 @@ concurrency:
   cancel-in-progress: false
 
 permissions:
+  actions: read
   contents: read
   statuses: write
 
@@ -50,9 +51,31 @@ jobs:
             echo "Production tree differs from the accepted Development tree." >&2
             exit 1
           fi
-          gh api "repos/${GITHUB_REPOSITORY}/commits/${ACCEPTED_SHA}/status" \
-            --jq '.statuses | any(.context == "csf-hosted-development-acceptance" and .state == "success" and .creator.login == "github-actions[bot]" and (.target_url | startswith("https://github.com/riddhimanrana/lets-assist/actions/runs/")))' \
-            | grep -qx true
+          status_target_url="$(gh api "repos/${GITHUB_REPOSITORY}/commits/${ACCEPTED_SHA}/status" \
+            --jq '[.statuses[] | select(.context == "csf-hosted-development-acceptance" and .state == "success" and .creator.login == "github-actions[bot]")] | sort_by(.created_at) | last | .target_url // empty')"
+          expected_run_prefix="https://github.com/${GITHUB_REPOSITORY}/actions/runs/"
+          if [[ "${status_target_url}" != "${expected_run_prefix}"* ]]; then
+            echo "Hosted Development acceptance status has no trusted workflow run." >&2
+            exit 1
+          fi
+          run_id="${status_target_url#"${expected_run_prefix}"}"
+          if [[ ! "${run_id}" =~ ^[0-9]+$ ]]; then
+            echo "Hosted Development acceptance status has an invalid workflow run." >&2
+            exit 1
+          fi
+          gh api "repos/${GITHUB_REPOSITORY}/actions/runs/${run_id}" \
+            | jq -e \
+              --arg repository "${GITHUB_REPOSITORY}" \
+              --arg sha "${ACCEPTED_SHA}" \
+              '.path == ".github/workflows/csf-hosted-development-acceptance.yml"
+               and .head_sha == $sha
+               and .head_branch == "development"
+               and .repository.full_name == $repository
+               and .head_repository.full_name == $repository
+               and .status == "completed"
+               and .conclusion == "success"
+               and (.event == "push" or .event == "workflow_dispatch")' \
+              >/dev/null
 
   # Stage 1: Validate migrations locally before connecting to prod
   validate-migrations:

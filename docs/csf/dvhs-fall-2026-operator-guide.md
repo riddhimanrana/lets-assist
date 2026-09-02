@@ -151,7 +151,7 @@ Before publishing a code, open its `/connect/<code>` URL in a signed-out or
 private browser window and confirm it renders the student's first screen. An
 officer's signed-in session is not the student onboarding journey; never
 complete a connection on a student's behalf. A mistyped, disabled, or replaced
-code renders **That class code did not work** with instructions to ask an
+code renders **That class code didn’t work** with instructions to ask an
 officer for the current code.
 
 ## What the student does
@@ -159,24 +159,21 @@ officer for the current code.
 1. Open `/connect/<code>` from the shared code, or open **Join a class** and
    type the code under **Join code**. The field states the format itself: _6 letters and numbers; codes
    never use O, I, 0, or 1_.
-2. Create a Let's Assist account or sign in. The signed-out entry page is
+2. Create a Let's Assist account or sign in. **Sign in to continue** opens the
+   account flow. The signed-out entry page is
    headed **Join a class** and names both audiences: **Already have a
-   CSF record?** for returning members, and **You are new to CSF**, which
+   CSF record?** for returning members, and **New to CSF?**, which
    carries the semester's application button when the current term has an
    **Application form link**.
-3. After signing in, the page is headed **Find your CSF profile**. Use **Find
-   your record**. The dialog is titled **Find your
-   CSF record**: the student enters only the requested identity details under
-   **Student information** and selects **Find my record**. If the page shows
-   **We found a CSF record. Is this you?**, **This is my record** and **Not me,
-   use my name** both send the name-only case to officer review.
-4. The server connects on exactly one automatic signal — the account's
-   verified email. One active record in the code's class carrying that email
-   connects atomically with recorded history; no matching record creates a new
-   stable profile in that class from the verified account identity; a
-   conflicting account, a conflicting class assignment, or several records
-   sharing the email creates a request in that class's **Needs attention**
-   queue and connects nothing.
+3. After sign-in, one active record in the code's class carrying the verified
+   account email connects with recorded history. If email does not match, the
+   page may show **Is this you?** with one record whose name exactly matches the
+   account. Select **Yes, link this record** only when the card is yours. Select
+   **No, change the name** when it is not.
+4. If no passive match appears, open **Find your CSF record**, enter the
+   requested **Student name**, and select **Find my record**. A typed name never
+   creates or links a profile. The server creates or reuses one officer request
+   unless a single verified-email match became available.
 
 The student never chooses a roster record from a list and never assigns their
 own class or officer access. Submitted names are review context for officers;
@@ -184,8 +181,10 @@ they are never an automatic matching signal.
 
 ## Resolve the connection queue
 
-Requests that could not connect automatically wait on the class's own
-**Members** tab, not in an organization-wide view. **Home** shows a
+Requests that could not connect automatically wait under **Record connections**
+on the class's own **Members** tab, not in an organization-wide view. The panel
+says **Review accounts waiting to connect to a student record in this class.**
+**Home** shows a
 **Connection requests** chip with the total pending count; it opens the classes
 hub.
 
@@ -194,14 +193,13 @@ account emails. Establish a current, unique school or personal email from the
 approved current application cycle or another reviewed current source, recorded
 through the audited member-correction workflow, before expecting either an
 automatic email match or officer **Connect account** evidence. Without it, a
-returning student's join cannot find the historical record and creates a
-separate new profile that must later be merged through the audited workflow.
+returning student's typed-name request cannot authorize an officer connection.
 Never backfill an address from the Spring 2026 comparison workbook merely to
 make a match.
 
 1. Open **Classes**, choose the class, then **Members**. Requests wait under
-   **Needs attention** — _Class-code joins waiting for an officer decision_ —
-   one bounded page at a time, paged with **First page** and **Next**.
+   **Record connections**, one bounded page at a time, paged with **First page**
+   and **Next**.
 2. Select **Resolve** on the request, or **Review in Resolve** on one of its
    ranked suggestions. The dialog is titled **Review account connection**.
    Everything under **Suggestions · advisory only** is a discovery aid: a
@@ -217,8 +215,8 @@ make a match.
    confirms canonical evidence for the selected record; if it is absent, that is
    the answer. Otherwise select **Reject request**, or correct the student
    record through the audited member-correction workflow and start again.
-6. Return to the class **Members** tab and confirm the request left **Needs
-   attention** and the student's roster row shows the connected account.
+6. Return to the class **Members** tab and confirm the request left **Record
+   connections** and the student's roster row shows the connected account.
 
 If suggestions cannot be loaded, the request stays open for rejection and
 **Connect account** is withheld until canonical evidence can be read again.
@@ -641,23 +639,23 @@ between them:
 | Codes, tokens, decisions | rehearsal artifacts; never carried forward           | issued fresh                                     |
 
 A Development rehearsal proves the procedure, not the release. A green
-Development result is not Production readiness, and this guide does not claim
-Production readiness for any surface: Production's communications webhook is
-still disabled, no chapter roster has been committed anywhere, and the release
-gates in [testing and release](testing-and-release.md) are open. Do not copy a
-Development fixture, class join code, import preview, or policy decision into
-Production, and do not treat a Development screenshot as Production evidence.
+Development result is not Production readiness. Do not copy a Development
+fixture, class join code, import preview, or policy decision into Production,
+and do not treat a Development screenshot as Production evidence.
 
-At this guide's current evidence point, the repository has 292 migrations
-through `20260815100500`; the Development database remains at 273 through
-`20260812152300`; and Production has 236 through `20260811001500`. The nineteen
-repository-only migrations have not been applied or deployed in hosted Development.
-The Development Vercel alias still serves earlier code built from the
-272-migration tree because the external 100-deployment-per-day project cap
-blocked its refresh. Neither the database nor hosted code gate is current for
-the 292-migration repository tree.
+The current repository candidate has 431 migrations through
+`20260901120000_csf_passive_class_name_confirmation`. Hosted Development has
+430 through `20260901103347_csf_member_snapshot_scope_hardening`, so one
+candidate migration remains unapplied. The Development alias still serves
+root `f49227cb3711043bf0db701e6ca6ed7415c96580` until the one marked release
+deployment runs. Production was not read during this verification pass, so
+this guide makes no current Production migration-count claim.
 
-## Development rehearsal state at this guide's verification point
+## Historical Development rehearsal snapshot
+
+The following August 2026 snapshot is retained only for incident lineage. Its
+SHAs, migration counts, pull requests, provider state, and record counts are
+superseded and must not be used as current release instructions or evidence.
 
 - DVHigh CSF exists at `dev.lets-assist.com`, the DVHS CSF plugin is installed,
   Classes of 2027–2030 exist, and Fall 2026 is current.
@@ -773,7 +771,9 @@ the 292-migration repository tree.
 
 ## Production cutover checklist
 
-Do not use real chapter rows or credentials until every item is checked:
+### Pre-authorization gates
+
+Complete these gates before using real chapter credentials or rows:
 
 - [ ] Obtain separate Production authorization; keep `development` and
       Production databases, links, tokens, previews, and decisions isolated.
@@ -781,18 +781,19 @@ Do not use real chapter rows or credentials until every item is checked:
       remains a clean gitlink at its approved SHA.
 - [ ] Run the read-only
       `scripts/production-cutover-preflight.sql` with the reviewed Production
-      read-only URL. It must select the exact 236-row baseline, pass every
+      read-only URL. It must select the live Production baseline, pass every
       shared blocker, and name any cancellation-job transitions for explicit
-      review. Rehearse the full 57-migration transition on a Production-shaped
+      review. Rehearse the complete pending transition on a Production-shaped
       clone and verify the backup restore before scheduling the window.
 - [ ] At T-0 enable maintenance mode, stop writers and scheduled workers, take
       the final snapshots, and pair the schema push with the exact compatible
       application deployment. A partial or divergent ledger is a stop.
-- [ ] Replay the ordered migration ledger through `20260815110000` in the
+- [ ] Replay the ordered migration ledger through the exact approved repository
+      head in the
       authorized release gate and prove exact repository/Production ledger parity,
       advisors, function ACLs, relation ACLs, storage posture, and active-member
       storage authorization.
-- [ ] Re-run the preflight on the 293-row target and require the shared tenant
+- [ ] Re-run the preflight on the exact repository target and require the shared tenant
       and receipt checks plus the target-only relation, constraint, and index
       and extension-posture checks to pass before reopening writes.
 - [ ] Pass the final combined static, focused source, database, private-plugin,
@@ -800,6 +801,12 @@ Do not use real chapter rows or credentials until every item is checked:
 - [ ] Confirm the super-admin entitlement and organization-admin install,
       Classes of 2027–2030 with eight semesters each, Fall 2026 current, future-term
       setup, officer seats, and published policy.
+
+### Authorized live Production actions
+
+Proceed only after every pre-authorization gate passes and the action-time
+Production authorization is recorded:
+
 - [ ] Complete live `dvhighcsf@gmail.com` OAuth, Picker, preview, reconnect,
       revocation, and failure-state checks without committing during rehearsal.
 - [ ] Test every class join code at its `/connect/<code>` URL while signed out

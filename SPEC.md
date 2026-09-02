@@ -4,7 +4,7 @@ DVHS CSF officer UX → class-first Home → Classes → Applications → More; 
 
 §C
 
-- Base root `bd1b79b9`; private gitlink `3c34b91d`; Production ⊥.
+- Integration base root `f49227cb`; private Development gitlink `3961fcc`; Production ⊥.
 - UI says `Class`; existing `cohort` schema identifiers stay.
 - Stable profile + graduation class; term application/import alone activates term membership.
 - Public organization page exposes join/claim entry only; class Stream/Activities/membership content requires authenticated authorized class access.
@@ -12,12 +12,14 @@ DVHS CSF officer UX → class-first Home → Classes → Applications → More; 
 - Real student data, attached source rows, secrets, provider sends, hosted mutation ⊥.
 - Synthetic fixtures stay isolated local/CI; hosted fixture leakage ⊥.
 - Imports keep source identity, explicit tab/range/mapping, immutable preview, reconciliation, auth recheck, atomic commit.
+- Drive file ids and provider versions identify linked sources; titles remain display text and never select an authoritative workbook.
 - Private plugin commits precede root gitlink update.
 - Guided tours are presentation only; they never approve, link, award, or submit records.
 - Tour progress may live in versioned auth metadata because it controls presentation only; consequential workflow state remains server-owned and audited.
 - Scale acceptance = 1,000 fictional members + 100 concurrent active sessions; real student load fixtures ⊥.
 - Production/provider mutation requires post-Development action-time approval; code rollout never implies workbook commit or email send.
 - Application appeals remain audited officer notes; club audits remain manual point-review evidence.
+- One local gate run precedes one marked Development deployment. Production follows only after exact-tree hosted acceptance and uses one Production pull request merged with a merge commit, preserving the accepted Development SHA as an ancestor and the accepted tree unchanged.
 
 §I
 
@@ -35,6 +37,9 @@ db: stable class join code → organization + cohort + code digest + lifecycle; 
 cmd: `bun run test:plugins`; `bun run typecheck`; `bun run lint`; `bun run db:validate`; `bun run csf:test:import:scale`; focused pgTAP; `bun run build`
 cmd: `bun run csf:test:hosted:load` → exact hosted Development origin + explicit non-Production project confirmation + fictional accounts only
 service: class workbook check → leased Drive revision read → unchanged receipt | durable changed-version preparation job
+service: chapter application source → immutable Drive file id + one preview whose rows resolve their own configured class and term
+service: passive class record match → signed account-name snapshot + one exact active unclaimed same-class candidate → member confirmation | officer review
+service: typed class record search → verified account + submitted name context → exact email link | one officer request
 service: import approval → frozen ready-preview batch receipt → leased 10-row commit batches
 service: point/profile queue read → `{items,nextCursor,unresolvedCount}`; proof signed for selected item only
 service: communication worker → 125 attempts/minute max, 5 concurrent sends, 8 request starts/second, durable provider settlement
@@ -46,7 +51,7 @@ V1: ∀ officer shell → exact top nav Home, Classes, Applications, More; dupli
 V2: ∀ class workspace → exact tabs Stream, Members, Activities, Submissions + explicit URL term; current term default.
 V3: class member count/list → selected term participation only by default; chapter directory total substitution ⊥.
 V4: stable profile + class link survive term change; term membership requires accepted application or committed roster import.
-V5: class code → one active permanent code/class, owner rotate/revoke, no automatic term membership, exact verified-email match only; name-only match ⊥.
+V5: class code → one active permanent code/class, owner rotate/revoke, no automatic term membership; one exact verified-email match may connect; one signed passive account-name candidate may connect only after member confirmation and a locked recheck proves one active unclaimed record with one active membership in that class; typed-name linking ⊥.
 V6: public class payload → safe class identity + join entry only; Stream, Activities, terms, rosters, codes, comments, applications, submissions, proof, points, attendance, account state ⊥.
 V7: class Stream/Activities read → authenticated authorized class member/officer only; draft/archived remain scoped; publication permission rechecked server-side.
 V8: class Activities → class-targeted + chapter-wide records without duplication.
@@ -67,8 +72,8 @@ V22: application analysis → deterministic header-only mapping first; incomplet
 V23: import identity → validated canonical email may auto-match; name-only candidate remains officer decision; one profile reused across distinct term tabs; same-term duplicate writes ⊥.
 V24: import read path → one workbook parse/request, bounded diagnostics text, one authorized readiness RPC/load.
 V25: member entry → accessible six-character class-code control; My CSF duplicate Activities/Submissions actions ⊥; point claim inherits current class semester with no member-facing class/semester control; identity-only review never invokes annotation AI.
-V26: class join journey → code accepted, account confirmed, profile checked, then durable connected or officer-review receipt; loading animation never claims a later state before the server result.
-V27: profile match → exact verified-email record may be confirmed and connected; name-only or ambiguous candidate becomes one officer-review request; automatic name-only link and duplicate request ⊥.
+V26: class join journey → code accepted, account confirmed, profile checked, then durable connected or officer-review receipt; a passive candidate asks "Is this you?" and the button reports its server result; loading animation never claims a later state before that result.
+V27: profile match → exact verified-email record may connect; one server-derived exact account-name candidate may connect after signed confirmation and transaction-time uniqueness checks; a typed name, changed candidate, duplicate, claimed record, or class conflict creates exactly one officer-review request.
 V28: first eligible CSF workspace visit → one versioned, organization-scoped tour for the viewer's effective member or officer role; completion/skip persists through an authenticated server action; role change may offer the other tour; automatic repeat ⊥ and Help replay remains available.
 V29: tour step → stable visible anchor + truthful action-oriented copy + keyboard navigation + focus restoration + viewport-safe placement; missing/unauthorized anchor skips; reduced motion removes animated scrolling and transitions; tour never blocks the underlying workflow after dismissal.
 V30: officer onboarding → Home work queue, Classes, Applications, and point-submission review are explained from real permitted destinations; member onboarding → class feed, meetings/deadlines, point summary, submission entry/status, and My CSF record are explained; unavailable destinations are omitted rather than simulated.
@@ -84,9 +89,9 @@ V39: class activity/announcement compose → empty text entry fields carry no ex
 V40: linked member without accepted current-term membership → class Feed + one truthful review/setup notice; points rail + agenda + member workflow links + first-use tour + their backing reads ⊥; refused/closed states never described as processing.
 V41: post email acceptance → browser publication receipt + frozen positive audience + durable queued campaign + worker dispatch + local mailbox receipt; Development Resend proof uses synthetic `@resend.dev` only; queue ≠ delivery and student provider sends ⊥.
 V42: officer member correction → class Members uses the semester already selected in the class header and exposes identity, account, points, meetings, and semester standing in one compact roster; permitted edits use narrow audited saves and accepted status still runs the application decision transaction; a separate semester-management flow or raw bulk overwrite ⊥.
-V43: My CSF → profile identity + graduation class + current-semester service-point, activity, and attended-meeting totals + semester tabs containing exact activity names, meeting labels, attendance, credits, and submissions; application/eligibility/dues tracker and duplicate application actions ⊥. Exact verified-account join match → “Is this you?” profile preview + bounded recent activity names and points + one confirmation action; five-step progress tracker and account-status card ⊥. Name-only candidate activity disclosure and automatic connection ⊥.
+V43: My CSF → profile identity + graduation class + current-semester service-point, activity, and attended-meeting totals + semester tabs containing exact activity names, meeting labels, attendance, credits, and submissions; application/eligibility/dues tracker and duplicate application actions ⊥. Passive account-name join match → "Is this you?" preview with name and class only + one confirmation action; activity history, roster detail, five-step progress tracker, and account-status card ⊥.
 V44: class-history identity columns → standard spaced or compact first/last headers; one damaged identity header may be inferred only from one unclaimed pre-key column in a class-history source; application inference and explicit `not_mapped` override ⊥. Officer point review → canonical activity or club, member description, configured point rule, proof, club review state, sheet reference, and appeal history stay beside the decision; an open appeal can be decided there. Member personal-calendar connection UI and member-route calendar read ⊥.
-V45: class join identity → verified-email auto-link or one officer request; exported legacy name-confirm action, name-only confirmation RPC, non-null `p_confirmed_profile_id`, duplicate request, and name-only activity disclosure ⊥; account + address attempt buckets atomic.
+V45: class join identity → verified-email auto-link, signed passive account-name confirmation, or one officer request. The passive path binds organization, user, verified email, code, class, profile, normalized account name, account-name hash, and short expiry; the database rechecks all evidence under lock. Manual-name confirmation through `p_confirmed_profile_id`, duplicate request, profile creation from a typed name, and candidate activity disclosure ⊥; account + address attempt buckets atomic.
 V46: class workbook → one organization/class registry + exact Drive revision + five-minute check lease; unchanged revision creates no tab read/preview; changed revision creates one durable preparation job; revoked owner or OAuth access blocks.
 V47: workbook approval → one officer batch freezes ready preview ids and count-only evidence; approval and settlement append immutable count-only audit events; service-role deletion of batch, item, and commit receipts ⊥; conflicted/stale previews stay blocked; each ready preview commits independently through idempotent leased batches of ≤10 rows; lost response replays receipt, never row write.
 V48: CSF reads → member Home grouped context + grouped stream decoration with every profile list ≤50; officer Home fields require their matching permission; member Home ≤10 external reads, officer Home ≤8; unresolved point/appeal queues keyset-paged 25, history 50; profile search min 2 chars/max 20 with atomic account/address limits; selected proof only; feed reply preview ≤3.
@@ -96,12 +101,16 @@ V51: scale release → 1,000 fictional members + 90 member/10 officer sessions f
 V52: initial class workbook link → provider metadata and bounded grids read once, canonical term sources saved from that validated snapshot, exact Drive file generation registered, and one durable preparation job queued before the interactive request returns; populated-tab preview work in the request ⊥; replacement file generation blocks stale worker settlement.
 V53: class-history commit identity → one valid canonical roster key from the same organization, class, and official workbook reuses the previously committed active profile across semester jobs; different workbook, invalid key, conflicting canonical email, or a key already bound to multiple profiles blocks reuse and stays in officer review; reused identity is recorded on the immutable row and in private audit evidence.
 V54: background import refusal → queue receipt stores one closed operational code for allowlist, reconnect, missing file, trash, identity, MIME, incomplete evidence, source drift, or retryable source check; raw provider and database text ⊥; worker response may return the same closed code for operator diagnosis.
-V55: timed-out import batch → only a confirmed PostgreSQL statement-timeout rollback with no receipt may split into smaller atomic batches; another missing receipt or a single-row timeout blocks without an automatic repeat; feature-branch Vercel build ⊥ unless the branch is `development` or `main`.
+V55: timed-out import batch → only a confirmed PostgreSQL statement-timeout rollback with no receipt may split into smaller atomic batches; another missing receipt or a single-row timeout blocks without an automatic repeat.
 V56: targetless class-history row with a roster key that does not equal normalized FirstLast or LastFirst → ambiguous officer review before commit; officer may match one existing profile or, with both import and profile authority, create one audited unclaimed profile only when the class has no active exact-name profile; immutable workbook evidence changes ⊥.
 V57: background queue settlement → a missing or unauthorized approving actor terminalizes the import queue item, frozen batch item, parent counts, and settlement audit in one transaction; concurrent row-batch deliveries serialize on organization + request id before receipt lookup; a missing Drive owner blocks both refresh job and workbook registry.
 V58: hosted session acceptance → 90 member + 10 officer sessions ramp over 60 seconds, remain active for the rest of the 15-minute run, and exercise review navigation at peak load; member-feed dates render from deterministic Pacific parts in server and browser; staff presentation toggles replace one history entry with one route request; hydration recovery, repeated route snapshots, and burst-only load substitution ⊥.
-V59: member read and dispatch boundary → a pending profile link returns connection status only; classmate counts require current-term membership in the displayed class; activities require membership in their own term; one provider-start limiter covers the full cron invocation; a claimed worker pass is aborted at the deadline and fully settled before the route returns.
-V60: hosted scale acceptance → each of the 90 member and 10 officer loops owns a distinct Supabase Auth session identity; a Development-only GitHub workflow runs the hosted gate and publishes its exact-SHA status; Production schema deployment accepts only a matching tree with a successful status created by that trusted workflow.
+V59: member read and dispatch boundary → a pending profile link returns connection status only; classmate counts require current-term membership in the displayed class; activities require membership in their own term; one provider-start limiter covers the full cron invocation; a claimed worker pass stops provider work at the work deadline, gets one bounded settlement drain, and then stops database transport before the route ceiling. Any unsettled lease remains durable for the next recovery pass and is never blindly resent.
+V60: hosted scale acceptance → each of the 90 member and 10 officer loops owns a distinct Supabase Auth session identity; a Development-only GitHub workflow runs the hosted gate and publishes its exact-SHA status; Production schema deployment resolves that status to a completed successful run with the exact repository, workflow path, Development branch, and SHA, then accepts only a matching descendant tree.
+V61: class Members search → controlled query with a 300 ms debounce after two characters + explicit Search + immediate clear; every submission resets paging and preserves class, term, standing, account, sort, and view state; results remain server-filtered inside the selected organization and class.
+V62: mixed-grade application workbook → one chapter source and immutable preview; every row derives its configured class and term from retained source fields; source-level fixed class, stale fixed-class scope, and cross-class overwrite ⊥.
+V63: official Drive source → immutable file id + provider version + selected tab/range; matching a title or filename pattern alone ⊥.
+V64: release build policy → ordinary feature branches skip Vercel builds; an unmarked Development commit may create an ignored deployment record but skips install and application build; one marked Development release builds; the approved Production pull request uses a merge commit so its tree equals the accepted Development tree and the accepted SHA remains an ancestor.
 
 §T
 
@@ -135,12 +144,13 @@ T26|~~|add 1,000-member/100-session acceptance, require full CI gates, merge pri
 T27|~~|move initial class workbook preparation out of the linking request, prove exact file-generation retries, and reconcile the four official Development workbooks before Production promotion|V14,V17,V20,V46,V47,V52,I.service,I.db,I.cmd
 T28|~~|reuse one source-backed profile across semester commit jobs, deploy the exact Development tree, and complete the count-only officer reconciliation|V14,V17,V20,V23,V47,V53,I.service,I.db,I.cmd
 T29|~~|retain privacy-safe background import refusal codes, restore service-only class-history readiness execution, deploy the Development source allowlist, and resolve the official workbook commit blocker before Production promotion|V14,V17,V46,V47,V54,I.service,I.db,I.cmd
-T30|~~|split confirmed timed-out import batches, keep uncertain outcomes non-retryable, suppress ordinary feature-branch Vercel builds, and finish the official Development reconciliation in one release batch|V14,V17,V47,V55,I.service,I.db,I.cmd
+T30|~~|split confirmed timed-out import batches, keep uncertain outcomes non-retryable, suppress ordinary feature-branch Vercel builds, and finish the official Development reconciliation in one release batch|V14,V17,V47,V55,V64,I.service,I.db,I.cmd
 T31|~~|surface invalid class-history roster keys before readiness, add audited no-match profile creation, and settle the remaining Class of 2027 Development previews|V14,V17,V20,V23,V47,V53,V56,I.service,I.db,I.cmd
 T32|~~|settle claim-time queue refusals, serialize concurrent row-batch receipts, block ownerless workbooks, and complete the hosted load gate|V46,V47,V51,V57,I.db,I.perf,I.cmd
 T33|~~|remove member Home timezone hydration recovery, stop staff-view route snapshot retention, ramp the hosted sessions correctly, and complete the exact Development load gate|V19,V51,V58,I.perf,I.cmd
 T34|~~|close the final profile-read and communications review findings, rerun exact Development acceptance, and promote the accepted tree to Production|V45,V48,V49,V51,V59,I.db,I.service,I.perf,I.cmd
 T35|~~|mint 100 independent hosted auth sessions, bind Production promotion to the exact accepted Development tree, and complete the gated release|V18,V51,V60,I.perf,I.cmd
+T36|~~|accept the repaired Members search, passive account-name confirmation, typed-name review, mixed-grade application import, and immutable Drive source identity in hosted Development before Production promotion|V5,V17,V26,V27,V43,V45,V55,V61,V62,V63,I.route,I.service,I.db,I.cmd
 
 §B
 
@@ -175,6 +185,10 @@ B27|2026-08-30|ten-minute cron + 25 sequential sends required about 6h40m for 1,
 B28|2026-08-30|Production Resend webhook rejected every sampled delivery event because configured secret did not verify provider signatures|V50
 B29|2026-08-30|direct 1,000-row fixture benchmark did not test authenticated route concurrency, browser memory, email, or Drive|V51
 B37|2026-08-31|invalid populated class-history roster keys stayed pending after preview parsing, then failed only at database readiness with no officer row to resolve|V56
+B38|2026-09-01|the class Members search field changed only browser input state, so typing never reached the URL-backed server query and dropped surrounding filters when submitted|V61
+B39|2026-09-01|the class join screen displayed a single exact account-name record, but its action produced no visible settled result and the only fallback copy implied every name match required officer approval|V26,V27,V45
+B40|2026-09-01|the application importer retained a fixed class scope for a chapter-wide mixed-grade response workbook, so every valid row entered reconciliation under the wrong source-level assumption|V62
+B41|2026-09-01|source reuse could follow a mutable Drive title instead of the stored file identity and provider version|V63
 B30|2026-08-30|isolated auth admin and password-login requests repeatedly exceeded 30–60 seconds while database scale checks stayed fast|keep authenticated browser and 100-session acceptance open until the isolated auth runtime or hosted synthetic environment can sustain login
 B31|2026-08-31|prepared class-history previews had valid roster keys but no profile targets, so batch readiness blocked every term and independent term commits would create duplicate profiles|V53
 B32|2026-08-31|background import receipts collapsed allowlist and live Google source refusals into `import_commit_blocked`, hiding the safe operator action while preserving no diagnostic distinction|V54

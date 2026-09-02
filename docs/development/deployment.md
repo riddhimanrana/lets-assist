@@ -15,9 +15,12 @@ Supabase changes follow [the deployment workflow](supabase-deployment.md). Priva
 Build and test feature work locally. Keep related fixes on worktrees or local
 branches until one release candidate is ready. The root repository uses one
 integration pull request into `development`, followed by one Production pull
-request from `development` into `main`. If the private plugin changes, merge one
-private integration pull request first and update its exact gitlink in the root
-integration pull request.
+request from `development` into `main`. Merge that Production pull request with
+a merge commit so the hosted-accepted Development SHA remains an ancestor of
+`main` and the resulting tree stays identical. Squash and rebase promotion are
+not supported by the Production schema gate. If the private plugin changes,
+merge one private integration pull request first and update its exact gitlink
+in the root integration pull request.
 
 Vercel Git deployment is disabled for every branch except `development` and
 `main`. The repository-owned ignored-build command applies a second check:
@@ -29,9 +32,10 @@ Vercel Git deployment is disabled for every branch except `development` and
 - Ordinary `development` commits and feature branches skip dependency install
   and application build.
 
-Put `[deploy-development]` in the integration pull request title when using a
-squash or rebase merge. A merge commit from `codex/csf-integration-*` needs no
-extra marker. The hosted CSF acceptance workflow uses the same rule, so one
+Put `[deploy-development]` in the final commit message for either a squash or
+rebase merge. A pull request title alone is not sufficient. A merge commit from
+`codex/csf-integration-*` needs no extra marker. The hosted
+CSF acceptance workflow uses the same rule, so one
 Development build and one acceptance run cover the exact release SHA. Manual
 acceptance dispatches may check a SHA that already has a successful Vercel
 status. They do not create another deployment.

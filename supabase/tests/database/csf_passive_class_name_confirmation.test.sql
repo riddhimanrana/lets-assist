@@ -4,7 +4,7 @@
 BEGIN;
 
 CREATE EXTENSION IF NOT EXISTS pgtap WITH SCHEMA extensions;
-SELECT extensions.plan(39);
+SELECT extensions.plan(43);
 
 SELECT extensions.ok(
   NOT has_function_privilege(
@@ -206,6 +206,45 @@ SELECT extensions.is(
      AND user_id = 'd1100000-0000-4000-8000-000000000002'),
   1,
   'replay keeps one confirmation receipt'
+);
+
+SELECT extensions.is(
+  plugin_data.csf_unlink_profile_account(
+    'd1200000-0000-4000-8000-000000000001',
+    'd1400000-0000-4000-8000-000000000001',
+    (SELECT id FROM plugin_data.csf_profile_accounts
+     WHERE organization_id = 'd1200000-0000-4000-8000-000000000001'
+       AND profile_id = 'd1400000-0000-4000-8000-000000000001'
+       AND user_id = 'd1100000-0000-4000-8000-000000000002'),
+    'Officer removed the incorrect account connection.',
+    'd1100000-0000-4000-8000-000000000001'
+  ) ->> 'status',
+  'revoked',
+  'an officer can revoke the confirmed account connection'
+);
+SELECT extensions.is(
+  plugin_data.csf_join_class_by_code(
+    'd1200000-0000-4000-8000-000000000001',
+    (SELECT code FROM passive_name_code),
+    'd1100000-0000-4000-8000-000000000002', 'unique@local.test',
+    'Unique', 'Member', NULL
+  ) ->> 'needsReview',
+  'true',
+  'joining after an officer unlink returns to officer review'
+);
+SELECT extensions.is(
+  (SELECT match_status FROM plugin_data.csf_profile_link_requests
+   WHERE organization_id = 'd1200000-0000-4000-8000-000000000001'
+     AND user_id = 'd1100000-0000-4000-8000-000000000002'),
+  'needs_review',
+  'the stale auto-linked receipt is reopened for officer review'
+);
+SELECT extensions.is(
+  (SELECT count(*)::integer FROM plugin_data.csf_profile_link_requests
+   WHERE organization_id = 'd1200000-0000-4000-8000-000000000001'
+     AND user_id = 'd1100000-0000-4000-8000-000000000002'),
+  1,
+  'reconnection reuses one durable request'
 );
 
 SELECT extensions.lives_ok(

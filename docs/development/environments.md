@@ -69,8 +69,9 @@ No Production credential is a valid generic Preview fallback.
 
 Before retiring an encryption key, replace `<active-key-id>` below with the
 `ENCRYPTION_KEYRING.activeKeyId` value and run this count-only database check.
-It counts both legacy ciphertext and `v2:` ciphertext written under a retained
-key. Both counts must be zero. Do not select or log ciphertext values.
+It counts legacy ciphertext, `v2:` ciphertext written under a retained key,
+and live Google OAuth attempts that still need a retained key. All three counts
+must be zero. Do not select or log ciphertext values.
 
 ```sql
 WITH active_key AS (
@@ -90,16 +91,27 @@ SELECT
         split_part(refresh_token, ':', 1) <> 'v2'
         OR split_part(refresh_token, ':', 2) <> active_key.key_id
       )
-  ) AS refresh_tokens_needing_rotation
+  ) AS refresh_tokens_needing_rotation,
+  (
+    SELECT count(*)
+    FROM app_private.google_oauth_attempts AS attempt
+    CROSS JOIN active_key AS attempt_active_key
+    WHERE attempt.expires_at > now()
+      AND attempt.status IN ('pending', 'claimed')
+      AND attempt.code_verifier_encrypted <> 'consumed'
+      AND (
+        split_part(attempt.code_verifier_encrypted, ':', 1) <> 'v2'
+        OR split_part(attempt.code_verifier_encrypted, ':', 2) <> attempt_active_key.key_id
+      )
+  ) AS live_oauth_attempts_needing_retained_key
 FROM public.user_calendar_connections
 CROSS JOIN active_key;
 ```
 
-After both counts reach zero, wait at least ten minutes after the release that
-starts issuing `v4` Google OAuth state. This lets every `v3` authorization
-attempt expire before removing `ENCRYPTION_KEY`. New attempt digests use the
-active key ID, and callbacks select that ID from the returned state shape, so
-later key rotations retain only the named key for the attempt TTL.
+After every `activeKeyId` change, keep the previous key for at least ten minutes.
+That wait covers the full Google OAuth attempt lifetime, including an attempt
+started immediately before the deployment. Run the count again after the wait.
+Remove a retained key or `ENCRYPTION_KEY` only when all three counts are zero.
 
 Seed only a confirmed non-Production Supabase branch with the supported synthetic
 fixture wrapper:
