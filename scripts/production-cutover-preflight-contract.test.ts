@@ -1,7 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import { readFileSync, readdirSync } from "node:fs";
 import { join } from "node:path";
-
 const repositoryRoot = join(import.meta.dir, "..");
 const migrationsRoot = join(repositoryRoot, "supabase/migrations");
 const preflight = readFileSync(
@@ -14,7 +13,7 @@ const architectureAudit = readFileSync(
 );
 
 const PRODUCTION_HEAD = "20260829092823";
-const TARGET_HEAD = "20260903033000";
+const TARGET_HEAD = "20260903043000";
 const HARD_FAIL_STATEMENT = "SELECT 1 / 0 AS preflight_check_failed;";
 const HARD_FAIL_SITES = 35;
 const hardFailStatements =
@@ -46,8 +45,9 @@ const PENDING_VERSIONS = [
   "20260902060000",
   "20260902201108",
   "20260902201618",
-  "20260903031727",
-  "20260903033000",
+  "20260903032246",
+  "20260903032631",
+  "20260903043000",
 ] as const;
 
 function readMigration(version: string) {
@@ -59,7 +59,7 @@ function readMigration(version: string) {
 }
 
 describe("Production cutover preflight source contract", () => {
-  test("pins the exact 414 -> 442 ledger and all 28 pending versions", () => {
+  test("pins the exact 414 -> 443 ledger and all 29 pending versions", () => {
     const migrations = readdirSync(migrationsRoot)
       .filter((name) => /^\d{14}_.+\.sql$/u.test(name))
       .sort();
@@ -81,18 +81,18 @@ describe("Production cutover preflight source contract", () => {
       (match) => match[1],
     );
 
-    expect(migrations.length).toBeGreaterThanOrEqual(442);
+    expect(migrations.length).toBeGreaterThanOrEqual(443);
     expect(migrations.at(0)?.slice(0, 14)).toBe("20260325181408");
-    expect(migrations.slice(0, 442).at(-1)?.slice(0, 14)).toBe(TARGET_HEAD);
+    expect(migrations.slice(0, 443).at(-1)?.slice(0, 14)).toBe(TARGET_HEAD);
     expect(pinnedBaseline).toEqual(
       migrations.slice(0, 414).map((name) => name.slice(0, 14)),
     );
     expect(pending).toEqual([...PENDING_VERSIONS]);
     expect(pinnedTargetTail).toEqual([...PENDING_VERSIONS]);
     expect(preflight).toContain("count(*) = 414");
-    expect(preflight).toContain("count(*) = 442");
+    expect(preflight).toContain("count(*) = 443");
     expect(preflight).toContain("min(version::text) = '20260325181408'");
-    expect(preflight).toContain("28 migrations pending");
+    expect(preflight).toContain("29 migrations pending");
     expect(preflight).not.toContain("count(*) = 295");
     for (const version of PENDING_VERSIONS) {
       expect(preflight).toContain(`'${version}'`);
@@ -767,13 +767,13 @@ describe("Production cutover preflight source contract", () => {
     expect(d12).toContain("\\if :d12_pass");
   });
 
-  test("checks every CSF 442 target contract and the final repairs", () => {
+  test("checks every CSF 443 target contract and the final repairs", () => {
     const targetInventory = preflight.slice(
       preflight.indexOf("T1  Target-only relation inventory"),
       preflight.indexOf("T2  Target constraints"),
     );
     const targetCsf = preflight.slice(
-      preflight.indexOf("T2C 442 CSF release-tail contract"),
+      preflight.indexOf("T2C 443 CSF release-tail contract"),
       preflight.indexOf("T3  Target pg_graphql posture"),
     );
     const targetRelations = [

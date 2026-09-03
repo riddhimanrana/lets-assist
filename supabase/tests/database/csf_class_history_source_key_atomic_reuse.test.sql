@@ -1,7 +1,7 @@
 BEGIN;
 
 CREATE EXTENSION IF NOT EXISTS pgtap WITH SCHEMA extensions;
-SELECT extensions.plan(18);
+SELECT extensions.plan(21);
 
 INSERT INTO auth.users (
   id, aud, role, email, email_confirmed_at,
@@ -226,7 +226,7 @@ INSERT INTO plugin_data.csf_sheet_import_rows (
     'f9200000-0000-4000-8000-000000000001',
     'f9300000-0000-4000-8000-000000000001',
     'F40', 2,
-    '{"record":{"identity":{"firstName":"Rowan","lastName":"Sample","normalizedFirstName":"rowan","normalizedLastName":"sample","sourceStudentKey":"SampleRowan"}}}'::jsonb,
+    '{"record":{"identity":{"firstName":"Rowan","lastName":"Sample","normalizedFirstName":"rowan","normalizedLastName":"sample","sourceStudentKey":"SampleRowan"},"contact":{"schoolEmail":"rowan.sample@local.test"}}}'::jsonb,
     repeat('1', 64), NULL, 'pending'
   ),
   (
@@ -237,7 +237,7 @@ INSERT INTO plugin_data.csf_sheet_import_rows (
     'f9200000-0000-4000-8000-000000000001',
     'f9300000-0000-4000-8000-000000000002',
     'S41', 2,
-    '{"record":{"identity":{"firstName":"Rowan","lastName":"Sample","normalizedFirstName":"Ro wan","normalizedLastName":"SAMPLE","sourceStudentKey":"rowansample"}}}'::jsonb,
+    '{"record":{"identity":{"firstName":"Rowan","lastName":"Sample","normalizedFirstName":"Ro wan","normalizedLastName":"SAMPLE","sourceStudentKey":"rowansample"},"contact":{"schoolEmail":"rowan.sample@local.test"}}}'::jsonb,
     repeat('2', 64), NULL, 'pending'
   ),
   (
@@ -338,7 +338,7 @@ SELECT extensions.is(
       AND commit_outcome_state = 'in_flight'
   ),
   2,
-  'both no-email semester previews are separately frozen before either one writes'
+  'both contact-corroborated semester previews are separately frozen before either one writes'
 );
 
 SELECT extensions.is(
@@ -365,8 +365,8 @@ BEGIN
   operation := 'fall';
   result := plugin_data.csf_import_class_history_row_v2(
     'f9100000-0000-4000-8000-000000000001', NULL,
-    'Rowan', 'Sample', NULL, NULL,
-    'rowan', 'sample', NULL, NULL,
+    'Rowan', 'Sample', 'rowan.sample@local.test', NULL,
+    'rowan', 'sample', 'rowan.sample@local.test', NULL,
     'f9200000-0000-4000-8000-000000000001',
     'f9300000-0000-4000-8000-000000000001',
     'f9400000-0000-4000-8000-000000000001',
@@ -379,8 +379,8 @@ BEGIN
   operation := 'spring';
   result := plugin_data.csf_import_class_history_row_v2(
     'f9100000-0000-4000-8000-000000000001', NULL,
-    'Rowan', 'Sample', NULL, NULL,
-    'rowan', 'sample', NULL, NULL,
+    'Rowan', 'Sample', 'rowan.sample@local.test', NULL,
+    'rowan', 'sample', 'rowan.sample@local.test', NULL,
     'f9200000-0000-4000-8000-000000000001',
     'f9300000-0000-4000-8000-000000000002',
     'f9400000-0000-4000-8000-000000000001',
@@ -400,7 +400,7 @@ SELECT extensions.is(
   (SELECT result ->> 'importStatus'
    FROM atomic_source_key_results WHERE operation = 'fall'),
   'created',
-  'the first no-email term creates the profile'
+  'the first contact-corroborated term creates the profile'
 );
 
 SELECT extensions.is(
@@ -413,14 +413,14 @@ SELECT extensions.is(
     FROM plugin_data.csf_sheet_import_rows
     WHERE id = 'f9600000-0000-4000-8000-000000000001'
   ),
-  'the second no-email term resolves through the exact immutable workbook key'
+  'the second term resolves through the source key and matching contact'
 );
 
 SELECT extensions.is(
   (SELECT result ->> 'importStatus'
    FROM atomic_source_key_results WHERE operation = 'spring'),
   'updated',
-  'the later no-email term updates the established profile'
+  'the later contact-corroborated term updates the established profile'
 );
 
 SELECT extensions.is(
@@ -437,7 +437,7 @@ SELECT extensions.is(
     WHERE organization_id = 'f9100000-0000-4000-8000-000000000001'
   ),
   1,
-  'two no-email terms create exactly one profile'
+  'two contact-corroborated terms create exactly one profile'
 );
 
 SELECT extensions.is(
@@ -470,6 +470,40 @@ SELECT extensions.is(
   ),
   2,
   'the one profile keeps both imported term histories'
+);
+
+SELECT extensions.is(
+  plugin_data.csf_class_history_source_key_target(
+    'f9100000-0000-4000-8000-000000000001',
+    'f9600000-0000-4000-8000-000000000006'
+  ),
+  NULL::uuid,
+  'a name-only row cannot reuse the earlier profile without contact corroboration'
+);
+
+SELECT extensions.ok(
+  plugin_data.csf_class_history_source_key_requires_review(
+    'f9100000-0000-4000-8000-000000000001',
+    'f9600000-0000-4000-8000-000000000006'
+  ),
+  'the name-only repeated key is routed to officer review'
+);
+
+SELECT extensions.throws_ok(
+  $$SELECT plugin_data.csf_import_class_history_row_v2(
+    'f9100000-0000-4000-8000-000000000001', NULL,
+    'Rowan', 'Sample', NULL, NULL,
+    'rowan', 'sample', NULL, NULL,
+    'f9200000-0000-4000-8000-000000000001',
+    'f9300000-0000-4000-8000-000000000002',
+    'f9400000-0000-4000-8000-000000000001',
+    'f9600000-0000-4000-8000-000000000006', repeat('6', 64),
+    '[]'::jsonb, '[]'::jsonb, true,
+    'f9000000-0000-4000-8000-000000000001'
+  )$$,
+  '23514',
+  'This workbook key needs officer review before another profile can be created.',
+  'the locked write refuses name-only automatic profile reuse'
 );
 
 SELECT extensions.is(

@@ -270,8 +270,8 @@ SELECT extensions.is(
     'de100000-0000-4000-8000-000000000001',
     'de500000-0000-4000-8000-000000000007'
   ),
-  'de400000-0000-4000-8000-000000000001'::uuid,
-  'an exact immutable workbook key can reuse a profile without an email'
+  NULL::uuid,
+  'an exact immutable workbook key cannot reuse a profile without contact corroboration'
 );
 
 SELECT extensions.is(
@@ -279,8 +279,8 @@ SELECT extensions.is(
     'de100000-0000-4000-8000-000000000001',
     'de500000-0000-4000-8000-000000000007'
   ),
-  false,
-  'an exact immutable workbook key does not require review only because email is absent'
+  true,
+  'an exact immutable workbook key requires review when contact corroboration is absent'
 );
 
 SELECT extensions.is(
@@ -288,8 +288,8 @@ SELECT extensions.is(
     'de100000-0000-4000-8000-000000000001',
     'de300000-0000-4000-8000-000000000006'
   ) ->> 'pendingMissingMatch')::integer,
-  0,
-  'readiness accepts a later exact source-key class-history row'
+  1,
+  'readiness blocks a later source-key row without contact corroboration'
 );
 
 SELECT extensions.is(
@@ -307,8 +307,8 @@ SELECT extensions.is(
     'de100000-0000-4000-8000-000000000001',
     'de300000-0000-4000-8000-000000000006'
   ) ->> 'pendingMissingMatch')::integer,
-  0,
-  'the server role can read the exact source-key readiness result'
+  1,
+  'the server role reads the same contact-corroboration blocker'
 );
 RESET ROLE;
 

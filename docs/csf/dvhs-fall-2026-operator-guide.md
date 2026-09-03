@@ -650,13 +650,14 @@ Development result is not Production readiness. Do not copy a Development
 fixture, class join code, import preview, or policy decision into Production,
 and do not treat a Development screenshot as Production evidence.
 
-The current repository candidate has 442 migrations through
-`20260903033000_csf_class_workbook_source_receipt_contract`. Hosted
-Development has the same 442-migration ledger after the refresh-recovery
-repair. The Development alias still serves the previously accepted root until
-the one marked release deployment runs for this exact candidate. Production
+The current repository candidate has 443 migrations through
+`20260903043000_csf_source_key_contact_corroboration`. Hosted Development must
+have the same 443-migration ledger before Production promotion. Hosted
+Development already contains the refresh-recovery and receipt repairs. The
+Development alias still serves the previously accepted root until the one
+marked release deployment runs for this exact candidate. Production
 was last verified read-only on 2026-09-01 at 414 migrations through
-`20260829092823_publish_dvhs_csf_1_2_24`, an exact prefix of this tree with 28
+`20260829092823_publish_dvhs_csf_1_2_24`, an exact prefix of this tree with 29
 migrations pending.
 
 ## Historical Development rehearsal snapshot

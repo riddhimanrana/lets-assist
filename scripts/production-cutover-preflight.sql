@@ -1,4 +1,4 @@
--- Production 414 -> repository target 442 cutover preflight.
+-- Production 414 -> repository target 443 cutover preflight.
 --
 -- Read-only by construction: every check is SELECT or SHOW inside an explicit
 -- READ ONLY transaction. Run this only with the reviewed Production read-only
@@ -10,7 +10,7 @@
 --
 -- The only supported ledgers are:
 --   pre-cutover   414 rows headed by 20260829092823
---   post-cutover  442 rows headed by 20260903033000 with the exact 28-row tail
+--   post-cutover  443 rows headed by 20260903043000 with the exact 29-row tail
 --
 -- Any partial, divergent, later, or wrong-tail ledger exits non-zero before
 -- shape-specific relations are parsed. Relation inventories then fail with a
@@ -44,7 +44,7 @@ SELECT current_setting('transaction_read_only') = 'on' AS read_only_transaction
 \echo ''
 \echo '=============================================================='
 \echo 'L0  Exact migration ledger'
-\echo '    PASS: exactly 414/baseline or exactly 442/target'
+\echo '    PASS: exactly 414/baseline or exactly 443/target'
 \echo '=============================================================='
 SELECT count(*) AS applied_migrations,
        min(version::text) AS first_version,
@@ -200,9 +200,9 @@ SELECT
     AND count(*) FILTER (
       WHERE version::text > '20260829092823'
     ) = 0 AS baseline_ledger,
-  count(*) = 442
+  count(*) = 443
     AND min(version::text) = '20260325181408'
-    AND max(version::text) = '20260903033000'
+    AND max(version::text) = '20260903043000'
     AND :'baseline_versions_exact'::boolean
     AND (
       SELECT array_agg(pending.version ORDER BY pending.version)
@@ -219,7 +219,8 @@ SELECT
       '20260901052000','20260901060000','20260901070000','20260901103347',
       '20260901120000','20260901230000','20260902010000','20260902020000',
       '20260902030000','20260902040000','20260902050000','20260902060000',
-      '20260902201108','20260902201618','20260903031727','20260903033000'
+      '20260902201108','20260902201618','20260903032246','20260903032631',
+      '20260903043000'
       -- END EXACT PRODUCTION TARGET TAIL
     ]::text[] AS target_ledger
 FROM supabase_migrations.schema_migrations
@@ -227,7 +228,7 @@ FROM supabase_migrations.schema_migrations
 
 \if :baseline_ledger
   \set cutover_shape pre
-  \echo 'PASS L0: exact Production baseline; 28 migrations pending.'
+  \echo 'PASS L0: exact Production baseline; 29 migrations pending.'
 \elif :target_ledger
   \set cutover_shape post
   \echo 'PASS L0: exact repository target; zero migrations pending.'
@@ -1604,7 +1605,7 @@ SELECT
       ('private.anonymous_feedback_email_preferences'),
       ('private.google_cap_event_receipts'),
       ('app_private.storage_object_policy_contract'),
-      -- BEGIN 442 CSF TARGET RELATIONS
+      -- BEGIN 443 CSF TARGET RELATIONS
       ('plugin_data.csf_class_workbooks'),
       ('plugin_data.csf_class_workbook_refresh_jobs'),
       ('plugin_data.csf_import_approval_batches'),
@@ -1612,7 +1613,7 @@ SELECT
       ('plugin_data.csf_import_approval_batch_items'),
       ('plugin_data.csf_import_row_batches'),
       ('plugin_data.csf_import_row_batch_outcomes')
-      -- END 442 CSF TARGET RELATIONS
+      -- END 443 CSF TARGET RELATIONS
   ) AS required(relation_name)
   WHERE to_regclass(required.relation_name) IS NULL
   ORDER BY required.relation_name;
@@ -1632,7 +1633,7 @@ SELECT
       ('private.anonymous_feedback_email_preferences'),
       ('private.google_cap_event_receipts'),
       ('app_private.storage_object_policy_contract'),
-      -- BEGIN 442 CSF TARGET RELATIONS
+      -- BEGIN 443 CSF TARGET RELATIONS
       ('plugin_data.csf_class_workbooks'),
       ('plugin_data.csf_class_workbook_refresh_jobs'),
       ('plugin_data.csf_import_approval_batches'),
@@ -1640,7 +1641,7 @@ SELECT
       ('plugin_data.csf_import_approval_batch_items'),
       ('plugin_data.csf_import_row_batches'),
       ('plugin_data.csf_import_row_batch_outcomes')
-      -- END 442 CSF TARGET RELATIONS
+      -- END 443 CSF TARGET RELATIONS
   ) AS required(relation_name)
   \gset
   \if :target_shape_ready
@@ -1953,7 +1954,7 @@ SELECT
 
   \echo ''
   \echo '=============================================================='
-  \echo 'T2C 442 CSF release-tail contract'
+  \echo 'T2C 443 CSF release-tail contract'
   \echo '    PASS: []'
   \echo '=============================================================='
   WITH expected_tables(relation_name, service_privileges) AS (
@@ -3093,7 +3094,7 @@ SELECT
   \if :target_csf_release_tail_pass
     \echo 'PASS T2C'
   \else
-    \echo 'FAIL T2C: the 442 CSF release-tail contract has drifted.'
+    \echo 'FAIL T2C: the 443 CSF release-tail contract has drifted.'
     SELECT 1 / 0 AS preflight_check_failed;
   \endif
 
