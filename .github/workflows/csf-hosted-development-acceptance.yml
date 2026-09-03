@@ -176,10 +176,7 @@ jobs:
 
       - name: Verify the Development branch domain before acceptance
         env:
-          EXPECTED_GITHUB_REPOSITORY_ID: ${{ github.repository_id }}
-          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
-          VERCEL_TEAM_ID: ${{ vars.VERCEL_TEAM_ID }}
-          VERCEL_ROOT_PROJECT_ID: ${{ vars.VERCEL_ROOT_PROJECT_ID }}
+          VERCEL_AUTOMATION_BYPASS_SECRET: ${{ secrets.VERCEL_AUTOMATION_BYPASS_SECRET }}
         run: bash scripts/hosted-development/verify-vercel-alias.sh
 
       - name: Setup Node
@@ -241,10 +238,7 @@ jobs:
 
       - name: Verify the Development branch domain after acceptance
         env:
-          EXPECTED_GITHUB_REPOSITORY_ID: ${{ github.repository_id }}
-          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
-          VERCEL_TEAM_ID: ${{ vars.VERCEL_TEAM_ID }}
-          VERCEL_ROOT_PROJECT_ID: ${{ vars.VERCEL_ROOT_PROJECT_ID }}
+          VERCEL_AUTOMATION_BYPASS_SECRET: ${{ secrets.VERCEL_AUTOMATION_BYPASS_SECRET }}
         run: bash scripts/hosted-development/verify-vercel-alias.sh
 
       - name: Recheck Development head
