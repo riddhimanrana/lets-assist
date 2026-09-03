@@ -407,10 +407,19 @@ SELECT 'source', plugin_data.csf_register_class_workbook_sheet_source(
 );
 
 SELECT extensions.is(
-  (SELECT value ->> 'workbookGenerationBound'
-   FROM workbook_publication_state WHERE key = 'source'),
-  'true',
-  'active class source registration reports that it bound the generation'
+  (
+    SELECT (
+        SELECT pg_catalog.count(*)
+        FROM pg_catalog.jsonb_object_keys(state.value)
+      )::text || ':' ||
+      coalesce(
+        (state.value ? 'workbookGenerationBound')::text,
+        'false'
+      )
+    FROM workbook_publication_state AS state WHERE state.key = 'source'
+  ),
+  '5:false',
+  'active class source registration returns the closed five-field receipt'
 );
 SELECT extensions.is(
   (
@@ -453,14 +462,18 @@ FROM (
 SELECT extensions.is(
   (
     SELECT pg_catalog.string_agg(
-      value ->> 'workbookGenerationBound',
+      pg_catalog.concat_ws(
+        ':',
+        value ->> 'reconfigured',
+        (value ? 'workbookGenerationBound')::text
+      ),
       ':' ORDER BY key
     )
     FROM workbook_publication_state
     WHERE key IN ('retired_prior_omitted_source', 'retired_prior_duplicate_source')
   ),
-  'false:false',
-  'the replacement generation retires an omitted term and prior duplicate'
+  'true:false:true:false',
+  'retirement returns closed reconfiguration receipts for both prior sources'
 );
 SELECT extensions.is(
   (

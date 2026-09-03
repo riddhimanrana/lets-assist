@@ -1,7 +1,7 @@
 BEGIN;
 
 CREATE EXTENSION IF NOT EXISTS pgtap WITH SCHEMA extensions;
-SELECT extensions.plan(51);
+SELECT extensions.plan(53);
 
 INSERT INTO auth.users (
   id, aud, role, email, email_confirmed_at,
@@ -769,6 +769,22 @@ SELECT extensions.ok(
     'service_role', 'plugin_data.csf_audit_import_approval_batch()', 'EXECUTE'
   ),
   'the batch audit trigger function remains owner-internal'
+);
+
+SELECT extensions.ok(
+  has_function_privilege(
+    'postgres', 'plugin_data.csf_audit_import_approval_batch()', 'EXECUTE'
+  ),
+  'postgres retains the reviewed batch audit trigger execution grant'
+);
+
+SELECT extensions.ok(
+  has_function_privilege(
+    'postgres',
+    'plugin_data.csf_normalize_import_approval_batch_status()',
+    'EXECUTE'
+  ),
+  'postgres retains the reviewed batch normalization trigger execution grant'
 );
 
 SELECT extensions.ok(

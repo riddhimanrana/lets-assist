@@ -1,8 +1,8 @@
 # DVHS CSF Officer Operations Runbook
 
 **Audience:** organization administrators, adviser, chapter officers, and Data Management
-**Current status:** the release candidate includes the repaired member directory search, signed passive account-name review request, typed-name officer review, mixed-grade application import, and Drive file identity checks. The complete local root and private-plugin gates pass. The candidate still needs exact-commit CI, one hosted Development deployment, hosted browser and load acceptance, count-only source reconciliation, and synthetic email settlement. Production remains unchanged until those gates pass.
-**Release ledger:** the current repository candidate carries 440 ordered migrations through `20260902201618_csf_selected_term_member_directory_projection`; the private Development gitlink is `7597fdc`.
+**Current status:** the release candidate includes the repaired member directory search, signed passive account-name review request, typed-name officer review, mixed-grade application import, Drive file identity checks, workbook generation recovery, and the closed source-registration receipt. The complete local root and private-plugin gates pass. Hosted Development has four current workbook registries with eight discovered tabs each and count-only prepared previews. The candidate still needs exact-commit CI, one marked Development deployment, exact-tree hosted browser and load acceptance, and synthetic email settlement. Production remains unchanged until those gates pass.
+**Release ledger:** the current repository candidate carries 442 ordered migrations through `20260903033000_csf_class_workbook_source_receipt_contract`; the private Development gitlink is `982cf8f`.
 **Authoritative record after review:** Let's Assist
 
 This runbook describes the v1.6 officer workflow. Do not use it for a Production cutover until the current gates in section 12 and [testing and release](testing-and-release.md) pass for the exact integrated tree.
@@ -280,7 +280,7 @@ Before this runbook is used for the chapter cutover, complete these gates in ord
 - [x] Candidate treats the application response workbook as one chapter source and derives class and semester per row.
 - [x] Candidate stores Drive file identity and provider version instead of trusting titles.
 - [x] Ordinary feature branches are disabled. Unmarked Development commits may create an ignored deployment record but do not run dependency installation or the application build.
-- [x] Merge and publish the private plugin first, then advance the root gitlink to private `development` `7597fdc`.
+- [x] Merge and publish the private plugin first, then advance the root gitlink to private `development` `982cf8f`.
 - [x] Pass the complete private-plugin tests, root TypeScript, zero-warning lint, database validation and replay, CSF workflows, browser journeys, strict submodule check, scale tests, and Production build on the exact integrated tree.
 - [ ] Create one marked Development deployment after local gates. Record its exact root and private SHAs.
 - [ ] Apply and verify the candidate migrations in hosted Development before browser mutation tests.
