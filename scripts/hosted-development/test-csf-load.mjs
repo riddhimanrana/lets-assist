@@ -465,6 +465,25 @@ async function selectedReviewDigest(nextButton) {
   });
 }
 
+function isExpectedNavigationAbort(request) {
+  return request.failure()?.errorText === "net::ERR_ABORTED";
+}
+
+function countBrowserFailures(failures) {
+  return Object.fromEntries(
+    [
+      "renderer_crash",
+      "page_error",
+      "console_error",
+      "request_failed",
+      "http_5xx",
+    ].map((kind) => [
+      kind,
+      failures.filter((failure) => failure === kind).length,
+    ]),
+  );
+}
+
 async function runBrowserAcceptance({ appUrl, memberPage, officerPage }) {
   const browserFailures = [];
   for (const page of [memberPage, officerPage]) {
@@ -473,7 +492,11 @@ async function runBrowserAcceptance({ appUrl, memberPage, officerPage }) {
     page.on("console", (message) => {
       if (message.type() === "error") browserFailures.push("console_error");
     });
-    page.on("requestfailed", () => browserFailures.push("request_failed"));
+    page.on("requestfailed", (request) => {
+      if (!isExpectedNavigationAbort(request)) {
+        browserFailures.push("request_failed");
+      }
+    });
     page.on("response", (response) => {
       if (response.status() >= 500) browserFailures.push("http_5xx");
     });
@@ -813,6 +836,7 @@ async function main() {
       ).length,
       reviewNavigationCount: browserResult.reviewNavigationCount,
       browserErrors: browserResult.browserFailures.length,
+      browserErrorCounts: countBrowserFailures(browserResult.browserFailures),
       baselineHeapBytes: browserResult.baselineHeap,
       finalHeapBytes: browserResult.finalHeap,
       retainedHeapGrowth: browserResult.heapGrowth,
