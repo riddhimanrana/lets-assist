@@ -2,7 +2,7 @@
 
 **Audience:** organization administrators, adviser, chapter officers, and Data Management
 **Current status:** the release candidate includes the repaired member directory search, signed passive account-name review request, typed-name officer review, mixed-grade application import, Drive file identity checks, workbook generation recovery, and the closed source-registration receipt. The complete local root and private-plugin gates pass. Hosted Development has four current workbook registries with eight discovered tabs each and count-only prepared previews. The candidate still needs exact-commit CI, one marked Development deployment, exact-tree hosted browser and load acceptance, and synthetic email settlement. Production remains unchanged until those gates pass.
-**Release ledger:** the current repository candidate carries 442 ordered migrations through `20260903033000_csf_class_workbook_source_receipt_contract`; the private Development gitlink is `982cf8f`.
+**Release ledger:** the current repository candidate carries 443 ordered migrations through `20260903043000_csf_source_key_contact_corroboration`; the private Development gitlink is `982cf8f`.
 **Authoritative record after review:** Let's Assist
 
 This runbook describes the v1.6 officer workflow. Do not use it for a Production cutover until the current gates in section 12 and [testing and release](testing-and-release.md) pass for the exact integrated tree.
