@@ -137,7 +137,7 @@ describe.skipIf(!localPostgresAvailable)(
         .slice(baselineShapeStart, s0.indexOf("\\gset", baselineShapeStart))
         .replaceAll(":'baseline_ledger'::boolean", "false");
       const targetCsf = preflight.slice(
-        preflight.indexOf("T2C 440 CSF release-tail contract"),
+        preflight.indexOf("T2C 442 CSF release-tail contract"),
         preflight.indexOf("T3  Target pg_graphql posture"),
       );
       const catalogQuery = targetCsf.slice(

@@ -119,6 +119,8 @@ V64: release build policy → ordinary feature branches, unmarked Development co
 V65: source mapping save → existing source computes one material fingerprint over class, source type, target and duplicate policies, columns, tabs, commit targets, population state, and bounded header digest; the database locks the source row and accepts a changed mapping only at current version + 1; exact current-version replay stays stable; stale lower version, skipped version, or a second distinct mapping at the same proposed version fails closed. New sources keep their initial version. Rollout advances any source with unsettled source-backed previews so V47 rejects work created before this boundary.
 V66: workbook refresh worker → claim binds the exact workbook, Drive file, provider version, saved OAuth owner, worker actor, and non-null lease; heartbeat, preview open, publication, failure, and completion recheck that generation; stale worker settlement returns a retryable generation-loss receipt and cannot overwrite the current prepared version or discovered-tab snapshot.
 V67: import row batch → only a closed constraint refusal may write a terminal row receipt; retryable or unknown database errors roll back without a receipt; expired retries receive bounded priority over fresh approvals with a five-attempt cap; queue completion settles only the current frozen approval item and recomputes its parent counts under lock.
+V68: workbook generation recovery → a workbook blocked only for `workbook_generation_reprepare_required` may claim one metadata-check lease and queue its current generation; every other blocked or unlinked workbook remains closed until an officer fixes its cause.
+V69: workbook source registration → the service-facing receipt contains exactly `sourceId`, `created`, `mappingVersion`, `sourceSettlement`, and `sourceGenerationCurrent`; generation-bound implementation detail remains owner-only and cannot widen the worker contract.
 
 §T
 
@@ -163,6 +165,7 @@ T37|x|serialize concurrent source mapping saves, persist the bounded attendance 
 T38|x|bind workbook preparation to one Drive generation and prevent stale workers from publishing or settling replacement workbook state|V14,V17,V20,V22,V24,V46,V66,I.service,I.db,I.cmd
 T39|x|preserve retryable and unknown import outcomes, bound retry fairness, and settle only the current approval item|V14,V17,V20,V23,V47,V57,V67,I.service,I.db,I.cmd
 T40|~~|pass exact-tree gates and hosted Development acceptance for the final workbook, import, identity, selected-term member count, and member-search fixes before Production promotion|V3,V14,V15,V18,V51,V53,V60,V61,V66,V67,I.perf,I.cmd
+T41|x|repair generation reprepare recovery, close the source-registration receipt, validate all four current Development workbooks, and promote the accepted tree through the gated Production workflow|V14,V17,V20,V46,V47,V66,V68,V69,I.service,I.db,I.cmd
 
 §B
 
@@ -210,6 +213,8 @@ B47|2026-09-02|the import worker could write a terminal row receipt for an unkno
 B48|2026-09-02|the class header derived its selected semester from the validated current-or-newest fallback while the Members read used only the raw URL term, so a clean class URL could show the selected semester with zero rows|V3,V61
 B49|2026-09-02|the hosted load workflow depended on missing account-pool secrets, targeted the real DVHS route, and injected its Vercel bypass credential into browser requests where redirects could forward it|V15,V51,V60
 B50|2026-09-02|separately prepared semester rows with the same stable no-email workbook key could each create a profile because the resolver did not see the earlier row written in the same bounded batch statement|V14,V23,V47,V53
+B51|2026-09-03|the generation-fence rollout marked every current workbook blocked for reprepare, while the metadata claim rejected every blocked workbook and could never start that recovery|V68
+B52|2026-09-03|the generation-bound source registration added an implementation field to a closed five-field worker receipt, so successful source writes were reported as unknown outcomes and refresh jobs could not settle|V69
 B30|2026-08-30|isolated auth admin and password-login requests repeatedly exceeded 30–60 seconds while database scale checks stayed fast|keep authenticated browser and 100-session acceptance open until the isolated auth runtime or hosted synthetic environment can sustain login
 B31|2026-08-31|prepared class-history previews had valid roster keys but no profile targets, so batch readiness blocked every term and independent term commits would create duplicate profiles|V53
 B32|2026-08-31|background import receipts collapsed allowlist and live Google source refusals into `import_commit_blocked`, hiding the safe operator action while preserving no diagnostic distinction|V54

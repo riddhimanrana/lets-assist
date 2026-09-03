@@ -2,7 +2,7 @@ BEGIN;
 
 CREATE EXTENSION IF NOT EXISTS pgtap WITH SCHEMA extensions;
 
-SELECT extensions.plan(60);
+SELECT extensions.plan(62);
 
 INSERT INTO auth.users (
   id, aud, role, email, email_confirmed_at,
@@ -944,6 +944,53 @@ SELECT extensions.ok(
     'EXECUTE'
   ),
   'only service role can unlink a class workbook'
+);
+
+INSERT INTO plugin_data.csf_cohorts (
+  id, organization_id, graduation_year, label
+) VALUES (
+  'ce200000-0000-4000-8000-000000000002',
+  'ce100000-0000-4000-8000-000000000001',
+  2036,
+  'Class of 2036'
+);
+INSERT INTO plugin_data.csf_class_workbooks (
+  id, organization_id, cohort_id, drive_file_id, drive_owner_user_id,
+  provider_version, source_candidates, state, last_error_code
+) VALUES (
+  'ce300000-0000-4000-8000-000000000002',
+  'ce100000-0000-4000-8000-000000000001',
+  'ce200000-0000-4000-8000-000000000002',
+  'synthetic-reprepare-file',
+  'ce000000-0000-4000-8000-000000000001',
+  '800',
+  '["synthetic-reprepare-file"]'::jsonb,
+  'blocked',
+  'workbook_generation_reprepare_required'
+);
+INSERT INTO workbook_generation_state
+SELECT 'reprepare_claim', plugin_data.csf_claim_class_workbook_check(
+  'ce100000-0000-4000-8000-000000000001',
+  'ce200000-0000-4000-8000-000000000002',
+  'ce000000-0000-4000-8000-000000000001',
+  300
+);
+SELECT extensions.is(
+  (SELECT value ->> 'status'
+   FROM workbook_generation_state WHERE key = 'reprepare_claim'),
+  'leased',
+  'the generation reprepare state can claim a fresh metadata-check lease'
+);
+SELECT extensions.ok(
+  (
+    SELECT check_lease_token IS NOT NULL
+      AND check_lease_expires_at > now()
+      AND state = 'blocked'
+      AND last_error_code = 'workbook_generation_reprepare_required'
+    FROM plugin_data.csf_class_workbooks
+    WHERE id = 'ce300000-0000-4000-8000-000000000002'
+  ),
+  'the recovery claim keeps the workbook blocked until metadata completion'
 );
 
 SELECT * FROM extensions.finish();
