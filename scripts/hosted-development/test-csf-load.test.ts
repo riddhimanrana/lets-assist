@@ -253,20 +253,25 @@ describe("hosted CSF load acceptance", () => {
     expect(workflow).toContain("vars.VERCEL_TEAM_ID");
     expect(workflow).toContain("vars.VERCEL_ROOT_PROJECT_ID");
     expect(workflow).toContain("github.repository_id");
-    expect(aliasVerifier).toContain("https://api.vercel.com/v4/aliases");
+    expect(aliasVerifier).toContain(
+      "https://api.vercel.com/v9/projects/${VERCEL_ROOT_PROJECT_ID}/domains",
+    );
+    expect(aliasVerifier).toContain("https://api.vercel.com/v7/deployments");
     expect(aliasVerifier).toContain("https://api.vercel.com/v13/deployments/");
-    expect(aliasVerifier.match(/--connect-timeout 10/gu) ?? []).toHaveLength(2);
-    expect(aliasVerifier.match(/--max-time 20/gu) ?? []).toHaveLength(2);
+    expect(aliasVerifier).not.toContain("https://api.vercel.com/v4/aliases");
+    expect(aliasVerifier.match(/--connect-timeout 10/gu) ?? []).toHaveLength(3);
+    expect(aliasVerifier.match(/--max-time 20/gu) ?? []).toHaveLength(3);
+    expect(aliasVerifier).toContain('.gitBranch == "development"');
+    expect(aliasVerifier).toContain(".verified == true");
+    expect(aliasVerifier).toContain(".redirect == null");
     expect(aliasVerifier).toContain('.readyState == "READY"');
     expect(aliasVerifier).toContain(
       '(.target == "preview" or .target == null)',
     );
     expect(aliasVerifier).not.toContain('.target == "production"');
-    expect(aliasVerifier).toContain(".aliasAssigned == true");
-    expect(aliasVerifier).toContain('.aliasAssigned | type) == "number"');
     expect(aliasVerifier).toContain(".projectId // .project.id");
-    expect(aliasVerifier).not.toContain(".meta.githubCommitSha");
-    expect(aliasVerifier).not.toContain(".meta.githubCommitRef");
+    expect(aliasVerifier).toContain(".meta.githubCommitSha");
+    expect(aliasVerifier).toContain(".meta.githubCommitRef");
     expect(aliasVerifier).toContain('.gitSource.type == "github"');
     expect(aliasVerifier).toContain(".gitSource.repoId");
     expect(aliasVerifier).toContain(".gitSource.sha");
@@ -336,7 +341,7 @@ describe("hosted CSF load acceptance", () => {
       "- name: Run hosted CSF acceptance",
     );
     const hostedLoadStepEnd = workflow.indexOf(
-      "- name: Rebind the Development alias after acceptance",
+      "- name: Verify the Development branch domain after acceptance",
       hostedLoadStepStart,
     );
     const hostedLoadStep = workflow.slice(
