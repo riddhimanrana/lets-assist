@@ -170,6 +170,12 @@ describe("hosted CSF load acceptance", () => {
     expect(source).toContain('browserFailures.push("console_error")');
     expect(source).toContain('browserFailures.push("request_failed")');
     expect(source).toContain('browserFailures.push("http_5xx")');
+    expect(source).toContain(
+      'request.failure()?.errorText === "net::ERR_ABORTED"',
+    );
+    expect(source).toContain(
+      "browserErrorCounts: countBrowserFailures(browserResult.browserFailures)",
+    );
     expect(source).toContain('name: "Next subject"');
     expect(source).toContain('name: "Previous subject"');
     expect(source).toContain(
