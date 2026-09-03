@@ -249,33 +249,20 @@ describe("hosted CSF load acceptance", () => {
     expect(workflow).toContain(
       '.status == "completed" and .conclusion == "success"',
     );
-    expect(workflow).toContain("secrets.VERCEL_TOKEN");
-    expect(workflow).toContain("vars.VERCEL_TEAM_ID");
-    expect(workflow).toContain("vars.VERCEL_ROOT_PROJECT_ID");
-    expect(workflow).toContain("github.repository_id");
-    expect(aliasVerifier).toContain(
-      "https://api.vercel.com/v9/projects/${VERCEL_ROOT_PROJECT_ID}/domains",
-    );
-    expect(aliasVerifier).toContain("https://api.vercel.com/v7/deployments");
-    expect(aliasVerifier).toContain("https://api.vercel.com/v13/deployments/");
-    expect(aliasVerifier).not.toContain("https://api.vercel.com/v4/aliases");
-    expect(aliasVerifier.match(/--connect-timeout 10/gu) ?? []).toHaveLength(3);
-    expect(aliasVerifier.match(/--max-time 20/gu) ?? []).toHaveLength(3);
-    expect(aliasVerifier).toContain('.gitBranch == "development"');
-    expect(aliasVerifier).toContain(".verified == true");
-    expect(aliasVerifier).toContain(".redirect == null");
-    expect(aliasVerifier).toContain('.readyState == "READY"');
-    expect(aliasVerifier).toContain(
-      '(.target == "preview" or .target == null)',
-    );
-    expect(aliasVerifier).not.toContain('.target == "production"');
-    expect(aliasVerifier).toContain(".projectId // .project.id");
-    expect(aliasVerifier).toContain(".meta.githubCommitSha");
-    expect(aliasVerifier).toContain(".meta.githubCommitRef");
-    expect(aliasVerifier).toContain('.gitSource.type == "github"');
-    expect(aliasVerifier).toContain(".gitSource.repoId");
-    expect(aliasVerifier).toContain(".gitSource.sha");
-    expect(aliasVerifier).toContain(".gitSource.ref");
+    expect(workflow).not.toContain("secrets.VERCEL_TOKEN");
+    expect(workflow).not.toContain("vars.VERCEL_TEAM_ID");
+    expect(workflow).not.toContain("vars.VERCEL_ROOT_PROJECT_ID");
+    expect(aliasVerifier).toContain("https://dev.lets-assist.com/api/status");
+    expect(aliasVerifier).not.toContain("https://api.vercel.com");
+    expect(aliasVerifier).toContain("--connect-timeout 10");
+    expect(aliasVerifier).toContain("--max-time 30");
+    expect(aliasVerifier).toContain("--max-redirs 0");
+    expect(aliasVerifier).not.toContain("--location");
+    expect(aliasVerifier).toContain("x-vercel-protection-bypass");
+    expect(aliasVerifier).toContain('.environment == "preview"');
+    expect(aliasVerifier).toContain(".version == $sha");
+    expect(aliasVerifier).toContain("select(.critical == true)");
+    expect(aliasVerifier).toContain('all(.state == "pass")');
     expect(workflow.match(/verify-vercel-alias\.sh/g) ?? []).toHaveLength(2);
     const supabaseCheckIndex = workflow.indexOf(
       "Require successful Supabase Development preview for the SHA",
@@ -354,12 +341,12 @@ describe("hosted CSF load acceptance", () => {
     expect(hostedLoadStep).toContain(
       '[[ -z "${VERCEL_AUTOMATION_BYPASS_SECRET:-}" ]]',
     );
-    expect(workflow.slice(0, hostedLoadStepStart)).not.toContain(
-      "VERCEL_AUTOMATION_BYPASS_SECRET: ${{ secrets.VERCEL_AUTOMATION_BYPASS_SECRET }}",
-    );
-    expect(workflow.slice(hostedLoadStepEnd)).not.toContain(
-      "VERCEL_AUTOMATION_BYPASS_SECRET",
-    );
+    expect(
+      workflow.match(
+        /VERCEL_AUTOMATION_BYPASS_SECRET: \$\{\{ secrets\.VERCEL_AUTOMATION_BYPASS_SECRET \}\}/gu,
+      ) ?? [],
+    ).toHaveLength(3);
+    expect(provisionStep).not.toContain("VERCEL_AUTOMATION_BYPASS_SECRET");
     expect(workflow.slice(0, provisionStepStart)).not.toContain(
       "SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}",
     );
