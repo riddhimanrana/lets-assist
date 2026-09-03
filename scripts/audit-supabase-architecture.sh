@@ -808,7 +808,8 @@ unexpected_security_definer_exec="$(
         (pg_catalog.to_regprocedure('public.get_plugin_application_access_context(uuid,text,text)')::oid, 'authenticated'::text),
         (pg_catalog.to_regprocedure('public.get_plugin_application_access_context_by_identifier(text,text,text)')::oid, 'authenticated'::text),
         (pg_catalog.to_regprocedure('public.get_plugin_application_route_target_by_identifier(text,text,text)')::oid, 'authenticated'::text),
-        (pg_catalog.to_regprocedure('public.get_plugin_application_asset_route_target_by_identifier(text,text,text,text)')::oid, 'authenticated'::text)
+        (pg_catalog.to_regprocedure('public.get_plugin_application_asset_route_target_by_identifier(text,text,text,text)')::oid, 'authenticated'::text),
+        (pg_catalog.to_regprocedure('public.set_csf_staff_view_mode(uuid,text)')::oid, 'authenticated'::text)
     ),
     grants as (
       select p.oid as function_oid, n.nspname, p.proname, pg_get_function_identity_arguments(p.oid) as identity_arguments, r.rolname
@@ -853,6 +854,7 @@ public_client_function_acl_drift="$(
         ('public.is_super_admin()', 'authenticated'),
         ('public.is_trusted_member(uuid)', 'authenticated'),
         ('public.reject_project_signup(uuid)', 'authenticated'),
+        ('public.set_csf_staff_view_mode(uuid,text)', 'authenticated'),
         ('public.transition_project_status_transactional(uuid,text)', 'authenticated'),
         ('public.unreject_project_signup_with_capacity(uuid)', 'authenticated')
     ),

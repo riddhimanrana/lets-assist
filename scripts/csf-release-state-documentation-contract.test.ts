@@ -228,7 +228,7 @@ describe("CSF release-state documentation truthfulness guards", () => {
       `current repository candidate carries ${migrations.length} ordered migrations through \`${currentMigration}\``,
     );
     expect(officerRunbook).toContain(
-      "private Development gitlink is `982cf8f`",
+      "private Development gitlink is `2affd09`",
     );
     expect(officerRunbook).toContain("Production remains unchanged");
     expect(officerRunbook).not.toContain(
@@ -387,16 +387,16 @@ describe("CSF release-state documentation truthfulness guards", () => {
       "Production was verified read-only on 2026-09-01 in Supabase project `fotdmeakexgrkronxlof` at 414 ordered migrations through `20260829092823_publish_dvhs_csf_1_2_24`",
     );
     expect(productionCutoverRunbook).toContain(
-      "current repository release candidate has exactly 443 ordered migrations through `20260903043000_csf_source_key_contact_corroboration`",
+      "current repository release candidate has exactly 444 ordered migrations through `20260903050000_csf_staff_view_mode_single_rpc`",
     );
     expect(productionCutoverRunbook).toContain(
-      "read-only preflight pins an exact 29-migration tail",
+      "read-only preflight pins an exact 30-migration tail",
     );
     expect(productionCutoverRunbook).toContain(
       "Hosted Development database parity",
     );
     expect(productionCutoverRunbook).toContain(
-      "fresh full 443-migration replay",
+      "fresh full 444-migration replay",
     );
     expect(productionCutoverRunbook).not.toContain("38 pending migrations");
     expect(productionCutoverRunbook).not.toContain("exactly 38 pending");
@@ -412,9 +412,9 @@ describe("CSF release-state documentation truthfulness guards", () => {
       "## Rehearsal",
     );
     expect(preflightRunbook).toContain(
-      "exact 414-version Production baseline or exact 443-version target",
+      "exact 414-version Production baseline or exact 444-version target",
     );
-    expect(preflightRunbook).toContain("**T1–T10** run only on the 443 shape");
+    expect(preflightRunbook).toContain("**T1–T10** run only on the 444 shape");
     expect(preflightRunbook).not.toContain("437-version target");
     expect(preflightRunbook).not.toContain("437 shape");
     expect(preflightRunbook).toMatch(
@@ -770,7 +770,7 @@ describe("CSF release-state documentation truthfulness guards", () => {
       "repository candidate has 359 ordered migrations through",
     );
     expect(productionCutoverRunbook).toContain(
-      "typed read-only preflight pins an exact 29-migration tail",
+      "typed read-only preflight pins an exact 30-migration tail",
     );
     expect(productionCutoverRunbook).toContain(
       "Executing it requires explicit action-time authorization",
@@ -778,8 +778,8 @@ describe("CSF release-state documentation truthfulness guards", () => {
     const preflight = flow(
       readRepositoryFile("scripts/production-cutover-preflight.sql"),
     );
-    expect(preflight).toContain("repository target 443");
-    expect(preflight).toContain("exact 29-row tail");
+    expect(preflight).toContain("repository target 444");
+    expect(preflight).toContain("exact 30-row tail");
   });
 
   test("testing and release states the exact nine-function and publication scope", () => {

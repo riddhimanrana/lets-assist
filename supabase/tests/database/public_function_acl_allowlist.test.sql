@@ -46,6 +46,7 @@ SELECT extensions.results_eq(
         ('public.is_super_admin()', 'authenticated'),
         ('public.is_trusted_member(uuid)', 'authenticated'),
         ('public.reject_project_signup(uuid)', 'authenticated'),
+        ('public.set_csf_staff_view_mode(uuid,text)', 'authenticated'),
         ('public.transition_project_status_transactional(uuid,text)', 'authenticated'),
         ('public.unreject_project_signup_with_capacity(uuid)', 'authenticated')
     ) AS expected(signature, role_name)

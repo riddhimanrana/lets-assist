@@ -121,6 +121,7 @@ V66: workbook refresh worker → claim binds the exact workbook, Drive file, pro
 V67: import row batch → only a closed constraint refusal may write a terminal row receipt; retryable or unknown database errors roll back without a receipt; expired retries receive bounded priority over fresh approvals with a five-attempt cap; queue completion settles only the current frozen approval item and recomputes its parent counts under lock.
 V68: workbook generation recovery → a workbook blocked only for `workbook_generation_reprepare_required` may claim one metadata-check lease and queue its current generation; every other blocked or unlinked workbook remains closed until an officer fixes its cause.
 V69: workbook source registration → the service-facing receipt contains exactly `sourceId`, `created`, `mappingVersion`, `sourceSettlement`, and `sourceGenerationCurrent`; generation-bound implementation detail remains owner-only and cannot widen the worker contract.
+V70: staff presentation change → one authenticated database call verifies an active organization staff role and updates only that caller's member-or-officer view preference; the preference grants no capability; redundant server authorization reads and route cache invalidation ⊥.
 
 §T
 
@@ -166,6 +167,7 @@ T38|x|bind workbook preparation to one Drive generation and prevent stale worker
 T39|x|preserve retryable and unknown import outcomes, bound retry fairness, and settle only the current approval item|V14,V17,V20,V23,V47,V57,V67,I.service,I.db,I.cmd
 T40|~~|pass exact-tree gates and hosted Development acceptance for the final workbook, import, identity, selected-term member count, and member-search fixes before Production promotion|V3,V14,V15,V18,V51,V53,V60,V61,V66,V67,I.perf,I.cmd
 T41|x|repair generation reprepare recovery, close the source-registration receipt, validate all four current Development workbooks, and promote the accepted tree through the gated Production workflow|V14,V17,V20,V46,V47,V66,V68,V69,I.service,I.db,I.cmd
+T42|~~|reduce the hosted staff view-switch mutation below the three-second p95 limit, rerun exact Development acceptance, and promote only the passing tree|V18,V51,V58,V60,V70,I.perf,I.db,I.cmd
 
 §B
 
