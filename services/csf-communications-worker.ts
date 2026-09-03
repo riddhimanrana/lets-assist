@@ -1,6 +1,7 @@
 import "server-only";
 
-import { sendEmail } from "@/services/email";
+import { mapWithConcurrency } from "@/lib/async/map-with-concurrency";
+import { sendEmail, type SendEmailResult } from "@/services/email";
 import {
   mapTransportResultToSettlement,
   type CsfDispatchCoordinate,
@@ -89,6 +90,49 @@ export type CsfWorkerRunReport = {
   claimed: number;
   attempts: CsfWorkerAttemptReport[];
 };
+
+export const CSF_COMMUNICATION_WORKER_MAX_CONCURRENCY = 5;
+export const CSF_COMMUNICATION_WORKER_MAX_STARTS_PER_SECOND = 8;
+
+export function createCsfProviderStartLimiter(
+  options: {
+    startsPerSecond?: number;
+    now?: () => number;
+    wait?: (milliseconds: number) => Promise<void>;
+  } = {},
+) {
+  const startsPerSecond =
+    options.startsPerSecond ?? CSF_COMMUNICATION_WORKER_MAX_STARTS_PER_SECOND;
+  if (!Number.isInteger(startsPerSecond) || startsPerSecond < 1) {
+    throw new RangeError(
+      "Provider starts per second must be a positive integer",
+    );
+  }
+  const now = options.now ?? Date.now;
+  const wait =
+    options.wait ??
+    ((milliseconds: number) =>
+      new Promise<void>((resolve) => setTimeout(resolve, milliseconds)));
+  const intervalMs = Math.ceil(1_000 / startsPerSecond);
+  let nextStartAt = 0;
+  let queue = Promise.resolve();
+
+  return async () => {
+    let release!: () => void;
+    const previous = queue;
+    queue = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    await previous;
+    try {
+      const delayMs = Math.max(0, nextStartAt - now());
+      if (delayMs > 0) await wait(delayMs);
+      nextStartAt = Math.max(nextStartAt, now()) + intervalMs;
+    } finally {
+      release();
+    }
+  };
+}
 
 /**
  * A bounded RPC failure. Carries a code, never the raw database message.
@@ -307,12 +351,29 @@ export async function dispatchClaimedAttempt(
     correlationId?: string;
     claim: CsfWorkerClaim;
     providerSignal?: AbortSignal;
+    beforeProviderRequest?: () => Promise<void>;
+    sendProviderRequest?: (
+      payload: CsfProviderPayload & { signal?: AbortSignal },
+    ) => Promise<SendEmailResult>;
   },
 ): Promise<CsfWorkerAttemptReport> {
-  const { organizationId, workerId, correlationId, claim, providerSignal } =
-    input;
+  const {
+    organizationId,
+    workerId,
+    correlationId,
+    claim,
+    providerSignal,
+    beforeProviderRequest,
+    sendProviderRequest = sendEmail,
+  } = input;
 
-  // 1. AUTHORIZE IMMEDIATELY BEFORE SENDING.
+  // 1. WAIT FOR THE PROVIDER START SLOT.
+  //
+  // Authorization must happen after this wait. A recipient can opt out or an
+  // officer can cancel the campaign while concurrent sends are being paced.
+  if (beforeProviderRequest) await beforeProviderRequest();
+
+  // 2. AUTHORIZE IMMEDIATELY BEFORE SENDING.
   //
   // Not at claim time: a lease can last 1800 seconds, and a recipient can opt out or
   // bounce inside that window.
@@ -352,7 +413,7 @@ export async function dispatchClaimedAttempt(
     };
   }
 
-  // 2. EXACTLY ONE SEND, WITH THE PAYLOAD UNCHANGED.
+  // 3. EXACTLY ONE SEND, WITH THE PAYLOAD UNCHANGED.
   //
   // Spread rather than reconstructed: every field -- from, to, replyTo, subject,
   // both bodies, the tag array, headers, topicId, the transport type, and the
@@ -360,14 +421,14 @@ export async function dispatchClaimedAttempt(
   // within its retention window it deduplicates; beyond that window the ledger's own
   // attempt coordinate is what prevents a second send, which is why nothing below
   // ever loops.
-  const transportResult = await sendEmail({
+  const transportResult = await sendProviderRequest({
     ...authorization.providerPayload,
     ...(providerSignal ? { signal: providerSignal } : {}),
   });
 
   const settlement = mapTransportResultToSettlement(transportResult);
 
-  // 3. SETTLE THE EXACT ATTEMPT.
+  // 4. SETTLE THE EXACT ATTEMPT.
   //
   // If this call fails the attempt stays leased and is later reaped as
   // unknown_outcome -- which is correct: we genuinely do not know whether the
@@ -385,6 +446,7 @@ export async function dispatchClaimedAttempt(
       p_failure_class: settlement.failureClass,
       p_detail: settlement.detail,
       p_metadata: settlement.metadata,
+      p_retry_after_seconds: settlement.retryAfterSeconds ?? 60,
     },
   );
 
@@ -414,9 +476,9 @@ export async function dispatchClaimedAttempt(
 /**
  * Claim a bounded batch and dispatch each attempt.
  *
- * Sequential on purpose. Concurrency here would buy throughput at the cost of the
- * one property that matters: each attempt's authorization must be the last thing
- * that happens before its own send.
+ * Each attempt reauthorizes before its provider request. Concurrency and request
+ * starts are both bounded so one run can drain a large queue without producing a
+ * provider burst.
  */
 export async function runCsfDispatchWorker(
   plugin: CsfPluginRpc,
@@ -428,6 +490,11 @@ export async function runCsfDispatchWorker(
     leaseSeconds?: number;
     correlationId?: string;
     providerSignal?: AbortSignal;
+    concurrency?: number;
+    waitForProviderStart?: () => Promise<void>;
+    sendProviderRequest?: (
+      payload: CsfProviderPayload & { signal?: AbortSignal },
+    ) => Promise<SendEmailResult>;
   },
 ): Promise<CsfWorkerRunReport> {
   const requestedBatchSize = input.batchSize ?? 25;
@@ -461,19 +528,31 @@ export async function runCsfDispatchWorker(
       "malformed_rpc_response",
     );
   }
-  const attempts: CsfWorkerAttemptReport[] = [];
-
-  for (const claim of claims) {
-    attempts.push(
-      await dispatchClaimedAttempt(plugin, {
+  const requestedConcurrency =
+    input.concurrency ?? CSF_COMMUNICATION_WORKER_MAX_CONCURRENCY;
+  if (!Number.isInteger(requestedConcurrency) || requestedConcurrency < 1) {
+    throw new RangeError("Worker concurrency must be a positive integer");
+  }
+  const concurrency = Math.min(
+    requestedConcurrency,
+    CSF_COMMUNICATION_WORKER_MAX_CONCURRENCY,
+  );
+  const waitForProviderStart =
+    input.waitForProviderStart ?? createCsfProviderStartLimiter();
+  const attempts = await mapWithConcurrency(
+    claims,
+    concurrency,
+    async (claim) =>
+      dispatchClaimedAttempt(plugin, {
         organizationId: input.organizationId,
         workerId: input.workerId,
         correlationId: input.correlationId,
         claim,
         providerSignal: input.providerSignal,
+        beforeProviderRequest: waitForProviderStart,
+        sendProviderRequest: input.sendProviderRequest,
       }),
-    );
-  }
+  );
 
   return {
     organizationId: input.organizationId,

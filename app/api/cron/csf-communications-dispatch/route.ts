@@ -6,8 +6,11 @@ import { createClient } from "@supabase/supabase-js";
 
 import { readPositiveInteger } from "@/lib/async/map-with-concurrency";
 import { cronAuthShapeProbe } from "@/lib/cron/auth-shape-probe";
+import { logWarn } from "@/lib/logger";
 import {
+  createCsfProviderStartLimiter,
   runCsfDispatchWorker,
+  CSF_COMMUNICATION_WORKER_MAX_CONCURRENCY,
   type CsfPluginRpc,
   type CsfWorkerAttemptReport,
 } from "@/services/csf-communications-worker";
@@ -41,11 +44,18 @@ export const maxDuration = 60;
  */
 
 /** Bounded work per invocation. A cron tick is not a place to drain a queue. */
-const MAX_BATCH_SIZE = 50;
+const MAX_BATCH_SIZE = 125;
 const MAX_ORGANIZATIONS_PER_RUN = 10;
 const MAX_MAINTENANCE_CAMPAIGNS_PER_PASS = 50;
-/** Absolute wall-clock ceiling. No awaited scheduler or worker operation may outlive it. */
+/** Normal work ceiling. An already-started worker gets only the bounded drain below. */
 const RUN_DEADLINE_MS = 45_000;
+/**
+ * Supabase transport must stop before the platform's 60 second route ceiling.
+ * The work deadline stays shorter so an already-started authorization or
+ * settlement RPC gets one finite drain window after provider cancellation.
+ */
+const MAX_TRANSPORT_DEADLINE_MS = 50_000;
+const MAX_POST_WORK_DRAIN_MS = 5_000;
 const LEASE_SECONDS = 120;
 /**
  * The smallest provider budget worth starting a pass with.
@@ -86,8 +96,40 @@ function configuredRunDeadlineMs(): number {
   );
 }
 
+function postWorkDrainMs(runDeadlineMs: number): number {
+  return Math.min(
+    MAX_POST_WORK_DRAIN_MS,
+    Math.max(1, Math.floor(runDeadlineMs / 4)),
+  );
+}
+
 /**
- * Bound one already-started operation to the route's single absolute deadline.
+ * Keep Supabase's own per-request signal while adding the route-wide hard stop.
+ * `global.fetch` is used by every request from this client, including PostgREST
+ * RPCs, so authorization and settlement cannot survive the transport ceiling.
+ */
+function createAbortableTransportFetch(
+  hardTransportSignal: AbortSignal,
+): typeof fetch {
+  const nativeFetch = globalThis.fetch;
+
+  return ((input, init) => {
+    const requestSignal = input instanceof Request ? input.signal : undefined;
+    const signals = [
+      hardTransportSignal,
+      requestSignal,
+      init?.signal ?? undefined,
+    ].filter((signal): signal is AbortSignal => signal !== undefined);
+
+    return nativeFetch(input, {
+      ...init,
+      signal: signals.length === 1 ? signals[0] : AbortSignal.any(signals),
+    });
+  }) as typeof fetch;
+}
+
+/**
+ * Bound one already-started operation to the selected wall-clock deadline.
  *
  * A provider request also receives an AbortSignal before this outer race. If a
  * database transport ignores the race, its continuation cannot create a second
@@ -181,7 +223,7 @@ function isAuthorized(request: NextRequest): boolean {
   );
 }
 
-function pluginClient(): CsfPluginRpc {
+function pluginClient(hardTransportSignal: AbortSignal): CsfPluginRpc {
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const secretKey =
     process.env.SUPABASE_SECRET_KEY ?? process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -193,6 +235,7 @@ function pluginClient(): CsfPluginRpc {
   return createClient(supabaseUrl, secretKey, {
     auth: { autoRefreshToken: false, persistSession: false },
     db: { schema: "plugin_data" },
+    global: { fetch: createAbortableTransportFetch(hardTransportSignal) },
   }) as unknown as CsfPluginRpc;
 }
 
@@ -264,6 +307,45 @@ async function maintainCampaigns(plugin: CsfPluginRpc, deadlineAt: number) {
   }
 }
 
+type OperationalAlertSnapshot = {
+  communicationBacklogOlderThanFiveMinutes: number;
+  unresolvedImportBatches: number;
+  blockedImportCommits: number;
+};
+
+async function readOperationalAlerts(
+  plugin: CsfPluginRpc,
+  deadlineAt: number,
+): Promise<OperationalAlertSnapshot | null> {
+  if (process.env.CSF_OPERATIONAL_ALERTS_ENABLED !== "true") return null;
+  try {
+    const result = await beforeDeadline(
+      plugin.rpc("csf_get_worker_alert_snapshot", {}),
+      deadlineAt,
+    );
+    if (result.error || !result.data || typeof result.data !== "object") {
+      return null;
+    }
+    const snapshot = result.data as Record<string, unknown>;
+    return {
+      communicationBacklogOlderThanFiveMinutes: boundedCount(
+        snapshot.communicationBacklogOlderThanFiveMinutes,
+        Number.MAX_SAFE_INTEGER,
+      ),
+      unresolvedImportBatches: boundedCount(
+        snapshot.unresolvedImportBatches,
+        Number.MAX_SAFE_INTEGER,
+      ),
+      blockedImportCommits: boundedCount(
+        snapshot.blockedImportCommits,
+        Number.MAX_SAFE_INTEGER,
+      ),
+    };
+  } catch {
+    return null;
+  }
+}
+
 export async function POST(request: NextRequest) {
   if (!isAuthorized(request)) {
     // NOTHING HAS HAPPENED YET. No client is built, no organization is read, and
@@ -294,10 +376,13 @@ export async function POST(request: NextRequest) {
   const startedAt = Date.now();
   const runDeadlineMs = configuredRunDeadlineMs();
   const deadlineAt = startedAt + runDeadlineMs;
-  const settlementReserveMs = Math.min(
-    5_000,
-    Math.max(1, Math.floor(runDeadlineMs / 4)),
+  const settlementReserveMs = postWorkDrainMs(runDeadlineMs);
+  const transportDeadlineMs = Math.min(
+    MAX_TRANSPORT_DEADLINE_MS,
+    runDeadlineMs + settlementReserveMs,
   );
+  const transportDeadlineAt = startedAt + transportDeadlineMs;
+  const hardTransportSignal = AbortSignal.timeout(transportDeadlineMs);
   const minProviderWindowMs = minimumProviderWindowMs(runDeadlineMs);
   const batchSize = Math.min(
     readPositiveInteger(
@@ -310,12 +395,13 @@ export async function POST(request: NextRequest) {
 
   let plugin: ReturnType<typeof pluginClient>;
   try {
-    plugin = pluginClient();
+    plugin = pluginClient(hardTransportSignal);
   } catch {
     return json({ error: "Worker transport unavailable" }, 503);
   }
 
   const workerId = `csf-dispatch-${startedAt.toString(36)}`;
+  const waitForProviderStart = createCsfProviderStartLimiter();
   const tally = emptyTally();
   let claimed = 0;
   let organizationsProcessed = 0;
@@ -366,6 +452,7 @@ export async function POST(request: NextRequest) {
   // claim-time fault rotates on the next tick without creating a lock inversion.
   while (
     !deadlineReached &&
+    claimed < batchSize &&
     workerPasses < batchSize &&
     processedOrganizationIds.size < MAX_ORGANIZATIONS_PER_RUN
   ) {
@@ -459,21 +546,21 @@ export async function POST(request: NextRequest) {
       () => providerAbortController.abort(),
       providerTimeMs,
     );
+    const workerPromise = runCsfDispatchWorker(plugin, {
+      organizationId,
+      workerId,
+      batchSize: 1,
+      leaseSeconds: LEASE_SECONDS,
+      providerSignal: providerAbortController.signal,
+      concurrency: CSF_COMMUNICATION_WORKER_MAX_CONCURRENCY,
+      waitForProviderStart,
+    });
 
     try {
       // One claim per pass is what lets the absolute deadline be honest. A
       // malformed RPC that returns more than requested is rejected by the worker
       // before any send; no large leased batch can keep running behind this race.
-      const report = await beforeDeadline(
-        runCsfDispatchWorker(plugin, {
-          organizationId,
-          workerId,
-          batchSize: 1,
-          leaseSeconds: LEASE_SECONDS,
-          providerSignal: providerAbortController.signal,
-        }),
-        deadlineAt,
-      );
+      const report = await beforeDeadline(workerPromise, deadlineAt);
 
       claimed += report.claimed;
       processedOrganizationIds.add(organizationId);
@@ -491,6 +578,23 @@ export async function POST(request: NextRequest) {
       }
     } catch (error) {
       if (error instanceof RunDeadlineExceeded) {
+        providerAbortController.abort();
+        try {
+          const drainedReport = await beforeDeadline(
+            workerPromise,
+            transportDeadlineAt,
+          );
+          claimed += drainedReport.claimed;
+          processedOrganizationIds.add(organizationId);
+          organizationsProcessed = processedOrganizationIds.size;
+          for (const attempt of drainedReport.attempts) {
+            tally[attempt.status] += 1;
+          }
+        } catch {
+          faults += 1;
+          processedOrganizationIds.add(organizationId);
+          organizationsProcessed = processedOrganizationIds.size;
+        }
         deadlineReached = true;
         break;
       }
@@ -525,6 +629,17 @@ export async function POST(request: NextRequest) {
     }
   }
 
+  const operationalAlerts = await readOperationalAlerts(plugin, deadlineAt);
+  if (
+    operationalAlerts &&
+    Object.values(operationalAlerts).some((count) => count > 0)
+  ) {
+    logWarn("CSF worker alert threshold reached", {
+      alert_code: "csf_worker_backlog",
+      ...operationalAlerts,
+    });
+  }
+
   // AGGREGATES ONLY. No attempt identity, no campaign identity, no recipient
   // address, no subject, no provider message id, and no provider error text.
   return json({
@@ -539,6 +654,7 @@ export async function POST(request: NextRequest) {
     deadlineReached,
     batchSize,
     durationMs: Date.now() - startedAt,
+    operationalAlerts,
   });
 }
 

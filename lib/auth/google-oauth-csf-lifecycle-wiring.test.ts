@@ -74,7 +74,7 @@ describe("DVHS CSF Google identity lifecycle wiring", () => {
       ...service.matchAll(/googleOAuthConnectionHasVerifiedCsfIdentity\(/gu),
     ];
     const refresh = service.indexOf(
-      "refreshAccessToken(decryptedRefreshToken)",
+      "refreshAccessToken(decryptedRefresh.plaintext)",
     );
     const finalIdentityCheck = service.lastIndexOf(
       "googleOAuthConnectionHasVerifiedCsfIdentity(",

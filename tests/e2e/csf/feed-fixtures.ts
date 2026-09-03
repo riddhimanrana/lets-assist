@@ -16,6 +16,7 @@ export type CsfFeedFixture = {
   admin: SupabaseClient;
   organizationId: string;
   organizationAdminUserId: string;
+  currentTermId: string;
   /** graduation year -> cohort id for the three seeded classes. */
   cohortIdsByYear: Record<number, string>;
 };
@@ -64,6 +65,19 @@ export async function loadCsfFeedFixture(): Promise<CsfFeedFixture> {
     );
   }
 
+  const { data: currentTerms, error: currentTermsError } = await admin
+    .schema("plugin_data")
+    .from("csf_terms")
+    .select("id")
+    .eq("organization_id", organization.id)
+    .eq("is_current", true)
+    .limit(2);
+  if (currentTermsError || currentTerms?.length !== 1) {
+    throw new Error(
+      `Could not load one current fixture term: ${currentTermsError?.message ?? "invalid fixture"}`,
+    );
+  }
+
   const cohortIdsByYear: Record<number, string> = {};
   for (const cohort of cohorts) {
     cohortIdsByYear[Number(cohort.graduation_year)] = String(cohort.id);
@@ -73,6 +87,7 @@ export async function loadCsfFeedFixture(): Promise<CsfFeedFixture> {
     admin,
     organizationId: organization.id,
     organizationAdminUserId: organizationAdmin.user_id,
+    currentTermId: currentTerms[0].id,
     cohortIdsByYear,
   };
 }
@@ -121,6 +136,7 @@ export type SeededFeedActivity = {
   body: string;
   /** ISO timestamp for the activity itself. */
   startsAt: string;
+  termId?: string | null;
   location?: string | null;
   pointValue?: number;
   pointType?: "non_drive" | "drive";
@@ -144,6 +160,7 @@ export async function seedFeedActivities(
     .insert(
       activities.map((activity) => ({
         organization_id: fixture.organizationId,
+        term_id: activity.termId ?? null,
         title: activity.title,
         body: activity.body,
         starts_at: activity.startsAt,

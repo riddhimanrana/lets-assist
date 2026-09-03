@@ -17,6 +17,7 @@ const sendOptions: Array<{ idempotencyKey?: string } | undefined> = [];
 type ResendResponse = {
   data: { id: string } | null;
   error: { name: string; message: string; statusCode?: number | null } | null;
+  headers?: Record<string, string> | null;
 };
 let resendImpl: () => Promise<ResendResponse> = async () => ({
   data: { id: "resend-message-synthetic-a" },
@@ -849,5 +850,107 @@ describe("bounded fault codes", () => {
     expect(worker.boundedRpcFaultCode(undefined, "claim_failed")).toBe(
       "claim_failed",
     );
+  });
+});
+
+describe("provider pacing", () => {
+  test("waits for the provider slot before final authorization", async () => {
+    const events: string[] = [];
+    resendImpl = async () => {
+      events.push("send");
+      return { data: { id: "resend-message-synthetic-a" }, error: null };
+    };
+    const { plugin } = pluginHarness(
+      defaultHandlers({
+        csf_authorize_communication_dispatch: () => {
+          events.push("authorize");
+          return { data: authorization(), error: null };
+        },
+        csf_settle_communication_dispatch_attempt: () => {
+          events.push("settle");
+          return { data: { attemptState: "accepted" }, error: null };
+        },
+      }),
+    );
+
+    await worker.runCsfDispatchWorker(plugin, {
+      organizationId: ORG,
+      workerId: "worker-paced-authorization",
+      waitForProviderStart: async () => {
+        events.push("provider-slot");
+      },
+    });
+
+    expect(events).toEqual(["provider-slot", "authorize", "send", "settle"]);
+  });
+
+  test("spaces request starts to at most eight per second", async () => {
+    let now = 1_000;
+    const waits: number[] = [];
+    const permit = worker.createCsfProviderStartLimiter({
+      startsPerSecond: 8,
+      now: () => now,
+      wait: async (milliseconds) => {
+        waits.push(milliseconds);
+        now += milliseconds;
+      },
+    });
+
+    await Promise.all([permit(), permit(), permit(), permit()]);
+
+    expect(waits).toEqual([125, 125, 125]);
+  });
+
+  test("caps concurrent provider requests at five", async () => {
+    const sixClaims = Array.from({ length: 6 }, () => claim());
+    const { plugin } = pluginHarness(
+      defaultHandlers({
+        csf_claim_communication_dispatch_batch: () => ({
+          data: { claimedCount: sixClaims.length, claims: sixClaims },
+          error: null,
+        }),
+      }),
+    );
+    let active = 0;
+    let maximumActive = 0;
+    resendImpl = async () => {
+      active += 1;
+      maximumActive = Math.max(maximumActive, active);
+      await new Promise<void>((resolve) => setTimeout(resolve, 5));
+      active -= 1;
+      return { data: { id: "resend-message-synthetic-a" }, error: null };
+    };
+
+    const report = await worker.runCsfDispatchWorker(plugin, {
+      organizationId: ORG,
+      workerId: "worker-paced",
+      batchSize: 6,
+      concurrency: 100,
+      waitForProviderStart: async () => undefined,
+    });
+
+    expect(report.claimed).toBe(6);
+    expect(maximumActive).toBe(5);
+  });
+
+  test("passes the provider retry delay to the ledger", async () => {
+    resendImpl = async () => ({
+      data: null,
+      error: {
+        name: "rate_limit_exceeded",
+        message: "Too many requests",
+        statusCode: 429,
+      },
+      headers: { "retry-after": "90" },
+    });
+    const { calls, plugin } = pluginHarness(defaultHandlers());
+
+    await worker.runCsfDispatchWorker(plugin, {
+      organizationId: ORG,
+      workerId: "worker-retry-delay",
+    });
+
+    expect(calls[2].args.p_outcome).toBe("retryable_failure");
+    expect(calls[2].args.p_retry_after_seconds).toBe(90);
   });
 });

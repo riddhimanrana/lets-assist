@@ -525,6 +525,8 @@ describe("the child environment is a positive allowlist", () => {
       "ORG_SHEET_SYNC_WORKER_ENABLED",
       // The one that was missing: the CSF communications worker sends mail.
       "CSF_COMMUNICATIONS_WORKER_ENABLED",
+      "CSF_WORKBOOK_WORKER_ENABLED",
+      "CSF_IMPORT_WORKER_ENABLED",
       "CSF_SCHEDULED_POST_PUBLISHER_ENABLED",
     ]) {
       expect(childEnv[key]).toBe("false");
@@ -897,15 +899,16 @@ describe("harness source contracts", () => {
     expect(harnessSource).not.toContain('"run", "dev"');
   });
 
-  test("states its exact seven-route scope and names the five routes outside it", () => {
+  test("states its exact eleven-route scope and names the six routes outside it", () => {
     expect(harnessSource).toContain(
-      "the seven selected worker routes: auto-publish-hours,",
+      "the eleven selected worker routes: auto-publish-hours,",
     );
     for (const outside of [
       "ai-moderation",
       "anonymous-cleanup",
       "csf-proof-cleanup",
       "generate-recurring-projects",
+      "paper-scan-cleanup",
       "waiver-cleanup",
     ]) {
       expect(harnessSource, outside).toContain(outside);
@@ -922,7 +925,7 @@ describe("harness source contracts", () => {
     expect(harnessSource).not.toContain("Using existing dev server");
   });
 
-  test("covers all seven stable route IDs on both dispatching methods", () => {
+  test("covers all eleven stable route IDs on both dispatching methods", () => {
     for (const id of [
       "auto-publish-hours",
       "project-cancellations",
@@ -930,7 +933,11 @@ describe("harness source contracts", () => {
       "organization-sheet-sync",
       "data-exports",
       "csf-communications-dispatch",
+      "csf-class-workbook-refresh",
+      "csf-import-commit",
       "csf-scheduled-post-publisher",
+      "project-feedback-followups",
+      "paper-signup-notifications",
     ]) {
       expect(harnessSource).toContain(`id: "${id}"`);
     }

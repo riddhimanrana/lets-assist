@@ -27,7 +27,7 @@ for (const viewport of [
       await page.goto(CSF_PUBLIC_PATH);
       await expect(
         page.getByRole("heading", {
-          name: /DVHS CSF|Dougherty Valley High School CSF/,
+          name: /DVHS CSF|Dougherty Valley High School(?: CSF)?/,
         }),
       ).toBeVisible();
       await expectNoHorizontalOverflow(page);

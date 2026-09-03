@@ -164,6 +164,19 @@ function dbReplayJob() {
 }
 
 describe("db-replay-validation CI job contract", () => {
+  test("runs for non-draft pull requests and reusable release preflight calls", () => {
+    const workflow = readFileSync(
+      join(repositoryRoot, ".github/workflows/ci.yml"),
+      "utf8",
+    );
+    const job = dbReplayJob();
+
+    expect(workflow).toContain("  workflow_call:");
+    expect(job).toContain(
+      "if: github.event_name != 'pull_request' || github.event.pull_request.draft == false",
+    );
+  });
+
   test("starts exactly one launcher and never resets or nests a replay", () => {
     const job = dbReplayJob();
 
@@ -224,6 +237,20 @@ describe("db-replay-validation CI job contract", () => {
     expect(job).toContain("- name: Stop isolated Let’s Assist Supabase");
     expect(job).toContain("if: always()");
     expect(job.match(/stop-dvhs-csf-isolated-stack\.sh/gu)?.length).toBe(1);
+  });
+
+  test("runs the bounded member and import scale checks on the seeded stack", () => {
+    const job = dbReplayJob();
+    const workflows = job.indexOf("run: bun run csf:test:workflows");
+    const memberScale = job.indexOf("bun run csf:test:scale");
+    const importScale = job.indexOf("bun run csf:test:import:scale");
+    const cron = job.indexOf("run: bun run dev:test:cron");
+
+    expect(memberScale).toBeGreaterThan(workflows);
+    expect(importScale).toBeGreaterThan(memberScale);
+    expect(cron).toBeGreaterThan(importScale);
+    expect(job.match(/bun run csf:test:scale/gu)?.length).toBe(1);
+    expect(job.match(/bun run csf:test:import:scale/gu)?.length).toBe(1);
   });
 
   test("sensitive credential exports are masked before they reach GITHUB_ENV", () => {

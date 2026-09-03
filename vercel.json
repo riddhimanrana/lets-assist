@@ -2,13 +2,24 @@
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "git": {
     "deploymentEnabled": {
-      "codex/plugin-release-*": false
+      "*": false,
+      "development": true,
+      "main": false
     }
   },
+  "ignoreCommand": "node scripts/vercel-build-policy.mjs",
   "crons": [
     {
       "path": "/api/cron/csf-communications-dispatch",
-      "schedule": "*/10 * * * *"
+      "schedule": "* * * * *"
+    },
+    {
+      "path": "/api/cron/csf-class-workbook-refresh",
+      "schedule": "* * * * *"
+    },
+    {
+      "path": "/api/cron/csf-import-commit",
+      "schedule": "* * * * *"
     },
     {
       "path": "/api/cron/csf-scheduled-post-publisher",

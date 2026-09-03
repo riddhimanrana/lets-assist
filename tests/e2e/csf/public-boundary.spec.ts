@@ -5,7 +5,6 @@ import {
   CSF_PUBLIC_PATH,
   expectNoPrivateBoundaryMarkers,
   responseText,
-  soleAccessibleAction,
 } from "./helpers";
 
 const CSF_CONNECT_PATH = `${CSF_ORGANIZATION_PATH}/plugins/dvhs-csf/connect`;
@@ -47,14 +46,16 @@ test.describe("DVHS CSF public privacy boundary", () => {
 
     await expect(
       page.getByRole("heading", {
-        name: /DVHS CSF|Dougherty Valley High School CSF/,
+        name: /DVHS CSF|Dougherty Valley High School(?: CSF)?/,
       }),
     ).toBeVisible();
     await expect(
-      page.getByRole("heading", { name: /Upcoming activities/ }),
+      page.getByRole("heading", {
+        name: "Meetings, announcements, and deadlines",
+      }),
     ).toBeVisible();
     await expect(
-      page.getByRole("button", { name: /Sign in to My CSF/ }),
+      page.getByRole("main").getByRole("button", { name: "Sign in" }),
     ).toBeVisible();
     await expect(page.getByText("Student records stay private")).toHaveCount(0);
     await expect(page.getByText("Privacy by design")).toHaveCount(0);
@@ -99,13 +100,13 @@ test.describe("DVHS CSF public privacy boundary", () => {
     expect(page.url()).toContain(CSF_PUBLIC_PATH);
     expect(page.context().pages()).toHaveLength(1);
 
-    // Class cards may open the safe join entry, but the organization page does
-    // not render a roster/profile search or accept a code itself.
-    await expect(
-      page.getByRole("button", { name: "Join class" }).first(),
-    ).toBeVisible();
-    await expect(page.locator("main form")).toHaveCount(0);
-    await expect(page.locator("main").getByRole("textbox")).toHaveCount(0);
+    // The public page accepts one general class code. It never exposes a
+    // roster or asks the visitor to choose a class or semester.
+    await expect(page.locator("main form")).toHaveCount(1);
+    await expect(page.getByLabel("Join code")).toBeVisible();
+    await expect(page.getByRole("button", { name: "Join class" })).toHaveCount(
+      0,
+    );
     await expect(page.locator("main").getByRole("searchbox")).toHaveCount(0);
   });
 
@@ -114,34 +115,42 @@ test.describe("DVHS CSF public privacy boundary", () => {
   }) => {
     await page.goto(CSF_PUBLIC_PATH);
 
-    const signIn = await soleAccessibleAction(page, "Sign in to My CSF");
+    const signIn = page
+      .getByRole("main")
+      .getByRole("button", { name: "Sign in", exact: true });
     const signInHref = await signIn.getAttribute("href");
     expect(signInHref).toBe(
       `/login?redirect=${encodeURIComponent(CSF_CANONICAL_PROFILE_PATH)}`,
     );
     expect(decodeURIComponent(signInHref ?? "")).toContain("tab=csf-profile");
 
-    const claim = await soleAccessibleAction(page, "Join or claim profile");
-    await expect(claim).toHaveAttribute("href", CSF_CONNECT_PATH);
-
-    await claim.click();
-    await page.waitForURL((url) => url.pathname === CSF_CONNECT_PATH, {
-      waitUntil: "domcontentloaded",
-    });
-    // The entry point must not carry or invent a class join code.
-    expect(new URL(page.url()).search).toBe("");
-    await expect(page.getByLabel("Class join code")).toBeVisible();
+    await expect(page.locator('main form[data-hydrated="true"]')).toBeVisible();
+    await page.getByLabel("Join code").fill("HAWK28");
+    await expect(page.getByLabel("Join code")).toHaveValue("HAWK28");
+    const continueButton = page.getByRole("button", { name: "Continue" });
+    await expect(continueButton).toBeEnabled();
+    await continueButton.click();
+    await page.waitForURL(
+      (url) => url.pathname === `${CSF_CONNECT_PATH}/HAWK28`,
+      { waitUntil: "domcontentloaded" },
+    );
+    await expect(
+      page.getByRole("heading", { name: "Sign in to continue" }),
+    ).toBeVisible();
+    expect(await page.locator("body").innerText()).not.toContain("HAWK28");
   });
 
-  test("a public class page contains join entry and no stream or activities", async ({
+  test("the public page uses one class join entry and no class workspace", async ({
     page,
   }) => {
     await page.goto(CSF_PUBLIC_PATH);
-    await page.getByRole("button", { name: "Join class" }).first().click();
     await expect(
-      page.getByRole("heading", { name: /^Join Class of/ }),
+      page.getByText("Join a class", { exact: true }).first(),
     ).toBeVisible();
-    await expect(page.getByLabel(/Class of .* join code/)).toBeVisible();
+    await expect(page.getByLabel("Join code")).toBeVisible();
+    await expect(page.getByRole("button", { name: "Join class" })).toHaveCount(
+      0,
+    );
     await expect(page.getByRole("heading", { name: "Stream" })).toHaveCount(0);
     await expect(page.getByRole("heading", { name: "Activities" })).toHaveCount(
       0,

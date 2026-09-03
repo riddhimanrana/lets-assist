@@ -4,6 +4,7 @@ import test from "node:test";
 
 import {
   createGoogleOAuthAttemptSecrets,
+  digestGoogleOAuthSecret,
   digestGoogleOAuthSessionBinding,
   deriveGoogleOAuthPkceChallenge,
   getGoogleOAuthAttemptCookieName,
@@ -97,25 +98,105 @@ test("issues a bounded, correlation-safe diagnostic code", () => {
 
 test("rejects a malformed, tampered, or foreign-version state", () => {
   const secrets = createGoogleOAuthAttemptSecrets();
-  const [version, attemptRef, stateSecret] = secrets.state.split(".");
+  const [version, attemptRef, digestKeyId, stateSecret] =
+    secrets.state.split(".");
 
   assert.equal(parseGoogleOAuthState(null), null);
   assert.equal(parseGoogleOAuthState(""), null);
   assert.equal(parseGoogleOAuthState("not-a-state"), null);
   assert.equal(parseGoogleOAuthState(`v2.${attemptRef}.${stateSecret}`), null);
   assert.equal(parseGoogleOAuthState(`${version}.${attemptRef}`), null);
-  assert.equal(parseGoogleOAuthState(`${version}.!!!.${stateSecret}`), null);
-  assert.equal(parseGoogleOAuthState(`${version}.${attemptRef}.short`), null);
+  assert.equal(
+    parseGoogleOAuthState(`${version}.!!!.${digestKeyId}.${stateSecret}`),
+    null,
+  );
+  assert.equal(
+    parseGoogleOAuthState(`${version}.${attemptRef}.!.${stateSecret}`),
+    null,
+  );
+  assert.equal(
+    parseGoogleOAuthState(`${version}.${attemptRef}.${digestKeyId}.short`),
+    null,
+  );
 });
 
 test("a tampered state secret yields a different digest, so the ledger cannot match it", () => {
   const secrets = createGoogleOAuthAttemptSecrets();
-  const [version, attemptRef, stateSecret] = secrets.state.split(".");
+  const [version, attemptRef, digestKeyId, stateSecret] =
+    secrets.state.split(".");
   const flipped = `${stateSecret.slice(0, -1)}${stateSecret.endsWith("A") ? "B" : "A"}`;
 
-  const parsed = parseGoogleOAuthState(`${version}.${attemptRef}.${flipped}`);
+  const parsed = parseGoogleOAuthState(
+    `${version}.${attemptRef}.${digestKeyId}.${flipped}`,
+  );
   assert.ok(parsed);
   assert.notEqual(parsed.stateDigest, secrets.stateDigest);
+});
+
+test("keeps an attempt verifiable while its named digest key is retained", () => {
+  const previousKey = process.env.ENCRYPTION_KEY;
+  const previousKeyring = process.env.ENCRYPTION_KEYRING;
+  try {
+    delete process.env.ENCRYPTION_KEY;
+    process.env.ENCRYPTION_KEYRING = JSON.stringify({
+      activeKeyId: "oauth.old",
+      keys: { "oauth.old": "o".repeat(32) },
+    });
+    const secrets = createGoogleOAuthAttemptSecrets();
+    const originalSessionDigest = digestGoogleOAuthSessionBinding(
+      "session-one",
+      secrets.digestKeyId,
+    );
+
+    process.env.ENCRYPTION_KEYRING = JSON.stringify({
+      activeKeyId: "oauth-current",
+      keys: {
+        "oauth-current": "c".repeat(32),
+        "oauth.old": "o".repeat(32),
+      },
+    });
+    const parsed = parseGoogleOAuthState(secrets.state);
+
+    assert.ok(parsed);
+    assert.equal(parsed.digestKeyId, "oauth.old");
+    assert.equal(parsed.stateDigest, secrets.stateDigest);
+    assert.equal(
+      digestGoogleOAuthSessionBinding("session-one", parsed.digestKeyId),
+      originalSessionDigest,
+    );
+  } finally {
+    if (previousKey === undefined) delete process.env.ENCRYPTION_KEY;
+    else process.env.ENCRYPTION_KEY = previousKey;
+    if (previousKeyring === undefined) delete process.env.ENCRYPTION_KEYRING;
+    else process.env.ENCRYPTION_KEYRING = previousKeyring;
+  }
+});
+
+test("accepts an in-flight v3 attempt through the legacy fallback key", () => {
+  const previousKey = process.env.ENCRYPTION_KEY;
+  const previousKeyring = process.env.ENCRYPTION_KEYRING;
+  try {
+    process.env.ENCRYPTION_KEY = "l".repeat(32);
+    process.env.ENCRYPTION_KEYRING = JSON.stringify({
+      activeKeyId: "current",
+      keys: { current: "l".repeat(32) },
+    });
+    const attemptRef = "A".repeat(24);
+    const stateSecret = "B".repeat(43);
+    const parsed = parseGoogleOAuthState(`v3.${attemptRef}.${stateSecret}`);
+
+    assert.ok(parsed);
+    assert.equal(parsed.digestKeyId, "legacy");
+    assert.equal(
+      parsed.stateDigest,
+      digestGoogleOAuthSecret(stateSecret, "legacy"),
+    );
+  } finally {
+    if (previousKey === undefined) delete process.env.ENCRYPTION_KEY;
+    else process.env.ENCRYPTION_KEY = previousKey;
+    if (previousKeyring === undefined) delete process.env.ENCRYPTION_KEYRING;
+    else process.env.ENCRYPTION_KEYRING = previousKeyring;
+  }
 });
 
 test("binds to the stable session claim rather than a rotating token", () => {
@@ -155,14 +236,54 @@ test("allows only same-origin relative return paths", () => {
 });
 
 test("preserves the canonical CSF import return route", () => {
+  const returnTo =
+    "/organization/dvhs-csf?tab=csf-applications&csf_import_type=application_responses";
   const resolved = resolveGoogleOAuthReturnRoute({
     purpose: "csf_import",
-    returnTo: "/organization/dvhs-csf?tab=csf-imports",
+    returnTo,
     organizationSegments: [ORGANIZATION_ID, "dvhs-csf"],
   });
 
   assert.equal(resolved.allowlisted, true);
-  assert.equal(resolved.returnTo, "/organization/dvhs-csf?tab=csf-imports");
+  assert.equal(resolved.returnTo, returnTo);
+});
+
+test("preserves bounded application review state through a CSF reconnect", () => {
+  const returnTo =
+    "/organization/dvhs-csf?tab=csf-applications" +
+    "&csf_import_type=application_responses" +
+    "&csf_review_kind=membership_applications" +
+    "&csf_review_term=33333333-3333-4333-8333-333333333333" +
+    "&csf_review_cohort=44444444-4444-4444-8444-444444444444" +
+    "&csf_application_queue=needs_review" +
+    "&csf_application_q=Rana" +
+    "&csf_application_sort=name";
+  const resolved = resolveGoogleOAuthReturnRoute({
+    purpose: "csf_import",
+    returnTo,
+    organizationSegments: ["dvhs-csf"],
+  });
+
+  assert.equal(resolved.allowlisted, true);
+  assert.equal(resolved.returnTo, returnTo);
+});
+
+test("rejects unknown, duplicate, and malformed application import state", () => {
+  const base =
+    "/organization/dvhs-csf?tab=csf-applications&csf_import_type=application_responses";
+  for (const returnTo of [
+    `${base}&unknown=1`,
+    `${base}&csf_application_q=one&csf_application_q=two`,
+    `${base}&csf_review_term=not-a-uuid`,
+    "/organization/dvhs-csf?tab=csf-applications",
+  ]) {
+    const resolved = resolveGoogleOAuthReturnRoute({
+      purpose: "csf_import",
+      returnTo,
+      organizationSegments: ["dvhs-csf"],
+    });
+    assert.equal(resolved.allowlisted, false, returnTo);
+  }
 });
 
 test("preserves the other canonical CSF surfaces that start a connection", () => {
@@ -186,13 +307,17 @@ test("refuses a same-origin path that is not a connect surface for the purpose",
   });
 
   assert.equal(resolved.allowlisted, false);
-  assert.equal(resolved.returnTo, "/organization/dvhs-csf?tab=csf-imports");
+  assert.equal(
+    resolved.returnTo,
+    "/organization/dvhs-csf?tab=csf-applications&csf_import_type=application_responses",
+  );
 });
 
 test("refuses another organization's surface even when the shape matches", () => {
   const resolved = resolveGoogleOAuthReturnRoute({
     purpose: "csf_import",
-    returnTo: "/organization/some-other-chapter?tab=csf-imports",
+    returnTo:
+      "/organization/some-other-chapter?tab=csf-applications&csf_import_type=application_responses",
     organizationSegments: ["dvhs-csf"],
   });
 
@@ -202,7 +327,8 @@ test("refuses another organization's surface even when the shape matches", () =>
 test("does not let one purpose borrow another purpose's return surface", () => {
   const calendarToCsf = resolveGoogleOAuthReturnRoute({
     purpose: "personal_calendar",
-    returnTo: "/organization/dvhs-csf?tab=csf-imports",
+    returnTo:
+      "/organization/dvhs-csf?tab=csf-applications&csf_import_type=application_responses",
     organizationSegments: ["dvhs-csf"],
   });
   assert.equal(calendarToCsf.allowlisted, false);
@@ -266,7 +392,7 @@ test("falls back to each purpose's own surface", () => {
       purpose: "csf_import",
       organizationSegment: "dvhs-csf",
     }),
-    "/organization/dvhs-csf?tab=csf-imports",
+    "/organization/dvhs-csf?tab=csf-applications&csf_import_type=application_responses",
   );
   assert.equal(
     getGoogleOAuthDefaultReturnRoute({

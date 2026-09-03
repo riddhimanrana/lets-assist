@@ -1,5 +1,8 @@
 import { expect, test, type Route } from "@playwright/test";
+import { execFileSync } from "node:child_process";
 import { randomUUID } from "node:crypto";
+
+import { inspectCsfIsolatedWorkDir } from "../../../scripts/local-dev/dv-local-env.mjs";
 
 import {
   cleanFeedPosts,
@@ -36,6 +39,54 @@ const safelyTerminalCampaignStatuses = new Set([
   "completed",
   "failed",
 ]);
+
+type MailpitSummary = {
+  ID?: string;
+  id?: string;
+  Subject?: string;
+  subject?: string;
+};
+
+function mailpitOrigin() {
+  const workDir = process.env.CSF_ISOLATED_WORK_DIR?.trim();
+  if (!workDir) throw new Error("CSF_ISOLATED_WORK_DIR is required.");
+  const isolated = inspectCsfIsolatedWorkDir(workDir);
+  return `http://127.0.0.1:${isolated.mailpitPort}`;
+}
+
+function mailpitMessageId(message: MailpitSummary) {
+  return message.ID ?? message.id ?? null;
+}
+
+function mailpitSubject(message: MailpitSummary) {
+  return message.Subject ?? message.subject ?? "";
+}
+
+async function findMailpitMessagesBySubject(subject: string) {
+  const search = new URL("/api/v1/search", mailpitOrigin());
+  search.searchParams.set("query", `subject:"${subject}"`);
+  search.searchParams.set("limit", "100");
+  const response = await fetch(search);
+  if (!response.ok) {
+    throw new Error(`Mailpit search failed with ${response.status}.`);
+  }
+  const payload = (await response.json()) as { messages?: MailpitSummary[] };
+  return (payload.messages ?? []).filter(
+    (message) => mailpitSubject(message) === subject,
+  );
+}
+
+async function deleteMailpitMessages(ids: string[]) {
+  if (ids.length === 0) return;
+  const response = await fetch(new URL("/api/v1/messages", mailpitOrigin()), {
+    method: "DELETE",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ IDs: ids }),
+  });
+  if (!response.ok) {
+    throw new Error(`Mailpit cleanup failed with ${response.status}.`);
+  }
+}
 
 async function safelyCleanPostPrefix(
   fixture: CsfFeedFixture,
@@ -210,8 +261,9 @@ test.describe("officer post compose in the class Stream", () => {
     await expect(
       dialog.getByRole("heading", { name: "Write a post" }),
     ).toBeVisible();
-    await expect(dialog.getByText("One graduating class")).toBeVisible();
-    await expect(dialog.getByText("Class of 2028")).toBeVisible();
+    await expect(
+      dialog.getByText("This announcement appears in Class of 2028."),
+    ).toBeVisible();
 
     await dialog.getByLabel("Title").fill(composedTitle);
     await dialog.getByLabel("Message").fill(composedBody);
@@ -273,7 +325,7 @@ test.describe("officer post compose in the class Stream", () => {
       await publishClick;
 
       const postPublishedResult = dialog.getByRole("alert").filter({
-        hasText: "The post was saved separately from its email outcome.",
+        hasText: "Post published.",
       });
       await expect(
         postPublishedResult.getByText("Post published.", { exact: true }),
@@ -295,7 +347,7 @@ test.describe("officer post compose in the class Stream", () => {
       }
     }
 
-    await dialog.getByRole("button", { name: "Close result" }).click();
+    await dialog.getByRole("button", { name: "Close" }).click();
     await expect(dialog).toBeHidden();
 
     // The user-visible result is backed by the database receipt and a reloaded
@@ -531,6 +583,7 @@ test.describe("officer post compose in the class Stream", () => {
     let originalConfiguration: StoredPluginConfiguration | null = null;
     let configurationWasSaved = false;
     let queuedCampaignId: string | null = null;
+    let mailpitMessageIds: string[] = [];
     let testFailure: Error | null = null;
     const cleanupFailures: Error[] = [];
     const recordCleanupFailure = (message: string, error?: unknown) => {
@@ -635,7 +688,7 @@ test.describe("officer post compose in the class Stream", () => {
       await dialog.getByRole("button", { name: "Publish post" }).click();
       await expect(dialog).toBeVisible();
       const postPublishedResult = dialog.getByRole("alert").filter({
-        hasText: "The post was saved separately from its email outcome.",
+        hasText: "Post published.",
       });
       await expect(
         postPublishedResult.getByText("Post published.", { exact: true }),
@@ -649,7 +702,7 @@ test.describe("officer post compose in the class Stream", () => {
       await expect(
         dialog.getByRole("button", { name: "Publish post" }),
       ).toHaveCount(0);
-      await dialog.getByRole("button", { name: "Close result" }).click();
+      await dialog.getByRole("button", { name: "Close" }).click();
       await expect(dialog).toBeHidden();
 
       const { data: announcement, error: announcementError } =
@@ -815,6 +868,58 @@ test.describe("officer post compose in the class Stream", () => {
       expect(providerEventsError).toBeNull();
       expect(providerEvents).toEqual([]);
 
+      const dispatchOutput = execFileSync(
+        "bun",
+        [
+          "--conditions=react-server",
+          "run",
+          "scripts/test-csf-post-email-dispatch.ts",
+          fixture.organizationId,
+        ],
+        {
+          cwd: process.cwd(),
+          env: process.env,
+          encoding: "utf8",
+        },
+      );
+      const dispatchLine = dispatchOutput
+        .trim()
+        .split("\n")
+        .findLast((line) => line.startsWith("{"));
+      if (!dispatchLine) {
+        throw new Error("The local CSF mail worker returned no receipt.");
+      }
+      expect(JSON.parse(dispatchLine)).toMatchObject({
+        sent: audienceSize,
+        faults: 0,
+      });
+
+      await expect
+        .poll(async () => {
+          const { data, error } = await fixture.admin
+            .schema("plugin_data")
+            .from("csf_communication_deliveries")
+            .select("status, provider_message_id, sent_at")
+            .eq("organization_id", fixture.organizationId)
+            .eq("campaign_id", queuedCampaignId);
+          if (error) throw error;
+          return data ?? [];
+        })
+        .toEqual(
+          Array.from({ length: audienceSize }, () => ({
+            status: "sent",
+            provider_message_id: expect.any(String),
+            sent_at: expect.any(String),
+          })),
+        );
+
+      const mailboxMessages = await findMailpitMessagesBySubject(queuedTitle);
+      expect(mailboxMessages).toHaveLength(audienceSize);
+      mailpitMessageIds = mailboxMessages
+        .map(mailpitMessageId)
+        .filter((id): id is string => Boolean(id));
+      expect(mailpitMessageIds).toHaveLength(audienceSize);
+
       await page.reload({ waitUntil: "domcontentloaded" });
       const queuedEntry = page
         .getByRole("region", { name: "Class stream" })
@@ -834,6 +939,14 @@ test.describe("officer post compose in the class Stream", () => {
     } catch (error) {
       testFailure = error instanceof Error ? error : new Error(String(error));
     } finally {
+      try {
+        await deleteMailpitMessages(mailpitMessageIds);
+      } catch (error) {
+        recordCleanupFailure(
+          "Could not clean synthetic Mailpit messages",
+          error,
+        );
+      }
       try {
         await safelyCleanPostPrefix(fixture, queuedTitle);
       } catch (error) {

@@ -274,18 +274,15 @@ test.describe("class-code signup onboarding", () => {
     await test.step("the signed-out code page shows safe class context and preserves the route", async () => {
       await page.goto(connectPath, { waitUntil: "domcontentloaded" });
       await expect(
-        page.getByRole("heading", { name: "Connect your CSF record" }),
+        page.getByRole("heading", { name: "Sign in to continue" }),
       ).toBeVisible();
       const body = await page.locator("body").innerText();
       expect(body).toContain("Class of 2028");
-      expect(body).toContain(
-        "Participation is approved separately each semester",
-      );
 
       // Sign-in keeps the full connect route, so the account created next can
       // come straight back to this page.
       const signIn = page.getByRole("button", {
-        name: "Sign in to claim profile",
+        name: "Sign in",
         exact: true,
       });
       await expect(signIn).toHaveAttribute(
@@ -371,12 +368,12 @@ test.describe("class-code signup onboarding", () => {
       });
 
       await expect(
-        page.getByRole("heading", { name: "Connect your CSF record" }),
+        page.getByRole("heading", { name: "Find your CSF record" }),
       ).toBeVisible();
       await expectNoGenericFirstLoginTour(page);
 
       await page
-        .getByRole("button", { name: "Add profile details", exact: true })
+        .getByRole("button", { name: "Find my record", exact: true })
         .click();
       const joinDialog = page.getByRole("dialog", {
         name: "Find your CSF record",
@@ -443,38 +440,21 @@ test.describe("class-code signup onboarding", () => {
       await expectNoGenericFirstLoginTour(page);
     });
 
-    await test.step("member Feed runs the CSF setup tour, never the generic tour", async () => {
+    await test.step("a pending member reaches the feed without an interrupting tour", async () => {
       await page.goto(CSF_ORGANIZATION_PATH, { waitUntil: "domcontentloaded" });
       await expect(
         page.getByRole("tab", { name: "Feed", exact: true }),
       ).toBeVisible();
-
-      const tourCard = page
-        .locator('[data-slot="card"]')
-        .filter({ hasText: "Your class feed" })
-        .first();
-      await expect(tourCard).toBeVisible({ timeout: 20_000 });
-      await tourCard.getByRole("button", { name: "Next", exact: true }).click();
       await expect(
-        page.getByText("Points at a glance", { exact: true }),
+        page.getByText("Your CSF profile is being reviewed", { exact: true }),
       ).toBeVisible();
-      await page
-        .getByRole("button", { name: "Skip tour", exact: true })
-        .click();
-      await expect(page.getByText("Points at a glance")).toHaveCount(0);
+      await expect(
+        page.getByRole("heading", { name: "Class feed", exact: true }),
+      ).toBeVisible();
+      await expect(
+        page.getByRole("dialog", { name: "Member workspace tour" }),
+      ).toHaveCount(0);
       await expectNoGenericFirstLoginTour(page);
-
-      // The tour completes exactly once: metadata records it.
-      await expect
-        .poll(async () => {
-          const user = await findUserIdByEmail(fixture, signupEmail);
-          const metadata = (user?.user_metadata ?? {}) as Record<
-            string,
-            unknown
-          >;
-          return metadata.has_completed_csf_tour ?? null;
-        })
-        .toBe(true);
     });
 
     await test.step("/home never shows the generic FirstLoginTour", async () => {

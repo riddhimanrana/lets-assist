@@ -1,7 +1,7 @@
 BEGIN;
 
 CREATE EXTENSION IF NOT EXISTS pgtap WITH SCHEMA extensions;
-SELECT extensions.plan(13);
+SELECT extensions.plan(29);
 
 SELECT extensions.ok(
   NOT has_function_privilege(
@@ -40,10 +40,15 @@ VALUES (
   'ca100000-0000-4000-8000-000000000001', 'admin', 'active'
 );
 INSERT INTO plugin_data.csf_cohorts (id, organization_id, graduation_year, label)
-VALUES (
-  'ca300000-0000-4000-8000-000000000001',
-  'ca200000-0000-4000-8000-000000000001', 2033, 'Class of 2033'
-);
+VALUES
+  (
+    'ca300000-0000-4000-8000-000000000001',
+    'ca200000-0000-4000-8000-000000000001', 2033, 'Class of 2033'
+  ),
+  (
+    'ca300000-0000-4000-8000-000000000002',
+    'ca200000-0000-4000-8000-000000000001', 2034, 'Class of 2034'
+  );
 
 CREATE TEMP TABLE class_join_test_code AS
 SELECT plugin_data.csf_rotate_class_join_code(
@@ -51,6 +56,11 @@ SELECT plugin_data.csf_rotate_class_join_code(
   'ca300000-0000-4000-8000-000000000001',
   'ca100000-0000-4000-8000-000000000001'
 ) ->> 'code' AS code;
+
+CREATE TEMP TABLE class_join_replay_results (
+  scenario text PRIMARY KEY,
+  payload jsonb NOT NULL
+);
 
 INSERT INTO plugin_data.csf_profiles (
   id, organization_id, first_name, last_name,
@@ -86,12 +96,23 @@ SELECT extensions.ok(
   ),
   'the exact-email connection creates a verified account link'
 );
-SELECT extensions.is(
+INSERT INTO class_join_replay_results (scenario, payload)
+SELECT
+  'safe exact-email replay',
   plugin_data.csf_join_class_by_code(
     'ca200000-0000-4000-8000-000000000001', (SELECT code FROM class_join_test_code),
     'ca100000-0000-4000-8000-000000000002', 'exact@local.test',
     'Exact', 'Member', NULL
-  ) ->> 'replayed',
+  );
+SELECT extensions.is(
+  (SELECT payload ->> 'connected' FROM class_join_replay_results
+   WHERE scenario = 'safe exact-email replay'),
+  'true',
+  'an unchanged exact-email connection remains connected on replay'
+);
+SELECT extensions.is(
+  (SELECT payload ->> 'replayed' FROM class_join_replay_results
+   WHERE scenario = 'safe exact-email replay'),
   'true',
   'repeating a class-code redemption is idempotent'
 );
@@ -105,33 +126,303 @@ SELECT extensions.is(
   'an idempotent redemption does not duplicate its link request'
 );
 
+INSERT INTO plugin_data.csf_profile_cohort_memberships (
+  organization_id, profile_id, cohort_id, status
+) VALUES (
+  'ca200000-0000-4000-8000-000000000001',
+  'ca400000-0000-4000-8000-000000000001',
+  'ca300000-0000-4000-8000-000000000002',
+  'active'
+);
+INSERT INTO class_join_replay_results (scenario, payload)
+SELECT
+  'exact-email replay after class drift',
+  plugin_data.csf_join_class_by_code(
+    'ca200000-0000-4000-8000-000000000001', (SELECT code FROM class_join_test_code),
+    'ca100000-0000-4000-8000-000000000002', 'exact@local.test',
+    'Exact', 'Member', NULL
+  );
+SELECT extensions.is(
+  (SELECT payload ->> 'connected' FROM class_join_replay_results
+   WHERE scenario = 'exact-email replay after class drift'),
+  'false',
+  'an exact-email replay fails closed after a second active class appears'
+);
+SELECT extensions.is(
+  (SELECT payload ->> 'needsReview' FROM class_join_replay_results
+   WHERE scenario = 'exact-email replay after class drift'),
+  'true',
+  'class drift returns a durable officer-review state'
+);
+SELECT extensions.is(
+  (SELECT match_status FROM plugin_data.csf_profile_link_requests
+   WHERE organization_id = 'ca200000-0000-4000-8000-000000000001'
+     AND user_id = 'ca100000-0000-4000-8000-000000000002'),
+  'needs_review',
+  'class drift reopens the exact existing request'
+);
+SELECT extensions.is(
+  (SELECT status FROM plugin_data.csf_profile_accounts
+   WHERE organization_id = 'ca200000-0000-4000-8000-000000000001'
+     AND profile_id = 'ca400000-0000-4000-8000-000000000001'
+     AND user_id = 'ca100000-0000-4000-8000-000000000002'),
+  'revoked',
+  'class drift revokes the exact stale verified link'
+);
+SELECT extensions.ok(
+  EXISTS (
+    SELECT 1
+    FROM plugin_data.csf_admin_audit_events AS audit
+    WHERE audit.organization_id = 'ca200000-0000-4000-8000-000000000001'
+      AND audit.actor_user_id = 'ca100000-0000-4000-8000-000000000002'
+      AND audit.actor_profile_id = 'ca400000-0000-4000-8000-000000000001'
+      AND audit.action = 'profile.link_request_revalidation_failed'
+      AND (audit.after_data -> 'blockerCodes') ? 'active_class_changed'
+  ),
+  'class drift records its stable blocker code'
+);
+SELECT extensions.ok(
+  NOT EXISTS (
+    SELECT 1
+    FROM plugin_data.csf_admin_audit_events AS audit
+    WHERE audit.organization_id = 'ca200000-0000-4000-8000-000000000001'
+      AND audit.action = 'profile.link_request_revalidation_failed'
+      AND (
+        coalesce(audit.before_data::text, '') || coalesce(audit.after_data::text, '')
+      ) ~* '(exact@local[.]test|exact member)'
+  ),
+  'replay-revalidation audits contain no email or student name'
+);
+
+DELETE FROM plugin_data.csf_profile_cohort_memberships
+WHERE organization_id = 'ca200000-0000-4000-8000-000000000001'
+  AND profile_id = 'ca400000-0000-4000-8000-000000000001'
+  AND cohort_id = 'ca300000-0000-4000-8000-000000000002';
+UPDATE plugin_data.csf_profile_accounts
+SET status = 'verified',
+    is_primary = true,
+    linked_by = user_id,
+    revoked_at = NULL,
+    notes = 'Connected by one exact verified-email class match.'
+WHERE organization_id = 'ca200000-0000-4000-8000-000000000001'
+  AND profile_id = 'ca400000-0000-4000-8000-000000000001'
+  AND user_id = 'ca100000-0000-4000-8000-000000000002';
+UPDATE plugin_data.csf_profile_link_requests
+SET match_status = 'auto_linked',
+    resolution_notes = 'Connected by one exact verified-email match in the selected class.',
+    resolved_by = user_id,
+    resolved_at = (
+      SELECT account.linked_at
+      FROM plugin_data.csf_profile_accounts AS account
+      WHERE account.organization_id =
+        plugin_data.csf_profile_link_requests.organization_id
+        AND account.profile_id =
+          plugin_data.csf_profile_link_requests.matched_profile_id
+        AND account.user_id = plugin_data.csf_profile_link_requests.user_id
+    )
+WHERE organization_id = 'ca200000-0000-4000-8000-000000000001'
+  AND user_id = 'ca100000-0000-4000-8000-000000000002';
+UPDATE plugin_data.csf_profiles
+SET record_status = 'merged',
+    merged_into_profile_id = 'ca400000-0000-4000-8000-000000000002',
+    merged_at = now(),
+    merged_by = 'ca100000-0000-4000-8000-000000000001',
+    merge_reason = 'Synthetic replay-state fixture.'
+WHERE id = 'ca400000-0000-4000-8000-000000000001';
+INSERT INTO class_join_replay_results (scenario, payload)
+SELECT
+  'exact-email replay after profile drift',
+  plugin_data.csf_join_class_by_code(
+    'ca200000-0000-4000-8000-000000000001', (SELECT code FROM class_join_test_code),
+    'ca100000-0000-4000-8000-000000000002', 'exact@local.test',
+    'Exact', 'Member', NULL
+  );
+SELECT extensions.is(
+  (SELECT payload ->> 'connected' FROM class_join_replay_results
+   WHERE scenario = 'exact-email replay after profile drift'),
+  'false',
+  'an exact-email replay fails closed after the profile becomes inactive'
+);
+SELECT extensions.ok(
+  (SELECT match_status = 'needs_review'
+   FROM plugin_data.csf_profile_link_requests
+   WHERE organization_id = 'ca200000-0000-4000-8000-000000000001'
+     AND user_id = 'ca100000-0000-4000-8000-000000000002')
+  AND
+  (SELECT status = 'revoked'
+   FROM plugin_data.csf_profile_accounts
+   WHERE organization_id = 'ca200000-0000-4000-8000-000000000001'
+     AND profile_id = 'ca400000-0000-4000-8000-000000000001'
+     AND user_id = 'ca100000-0000-4000-8000-000000000002'),
+  'profile drift reopens the request and revokes the exact link'
+);
+SELECT extensions.ok(
+  EXISTS (
+    SELECT 1 FROM plugin_data.csf_admin_audit_events AS audit
+    WHERE audit.organization_id = 'ca200000-0000-4000-8000-000000000001'
+      AND audit.action = 'profile.link_request_revalidation_failed'
+      AND (audit.after_data -> 'blockerCodes') ? 'profile_not_active'
+  ),
+  'inactive-profile replay records its blocker code'
+);
+
+UPDATE plugin_data.csf_profiles
+SET record_status = 'active', merged_into_profile_id = NULL, merged_at = NULL,
+    merged_by = NULL, merge_reason = NULL
+WHERE id = 'ca400000-0000-4000-8000-000000000001';
+UPDATE plugin_data.csf_profile_accounts
+SET status = 'verified',
+    is_primary = true,
+    linked_by = user_id,
+    revoked_at = NULL,
+    notes = 'Connected by one exact verified-email class match.'
+WHERE organization_id = 'ca200000-0000-4000-8000-000000000001'
+  AND profile_id = 'ca400000-0000-4000-8000-000000000001'
+  AND user_id = 'ca100000-0000-4000-8000-000000000002';
+UPDATE plugin_data.csf_profile_link_requests
+SET match_status = 'auto_linked',
+    resolution_notes = 'Connected by one exact verified-email match in the selected class.',
+    resolved_by = user_id,
+    resolved_at = (
+      SELECT account.linked_at
+      FROM plugin_data.csf_profile_accounts AS account
+      WHERE account.organization_id =
+        plugin_data.csf_profile_link_requests.organization_id
+        AND account.profile_id =
+          plugin_data.csf_profile_link_requests.matched_profile_id
+        AND account.user_id = plugin_data.csf_profile_link_requests.user_id
+    )
+WHERE organization_id = 'ca200000-0000-4000-8000-000000000001'
+  AND user_id = 'ca100000-0000-4000-8000-000000000002';
+UPDATE public.organization_members
+SET status = 'inactive'
+WHERE organization_id = 'ca200000-0000-4000-8000-000000000001'
+  AND user_id = 'ca100000-0000-4000-8000-000000000002';
+INSERT INTO class_join_replay_results (scenario, payload)
+SELECT
+  'exact-email replay after access drift',
+  plugin_data.csf_join_class_by_code(
+    'ca200000-0000-4000-8000-000000000001', (SELECT code FROM class_join_test_code),
+    'ca100000-0000-4000-8000-000000000002', 'exact@local.test',
+    'Exact', 'Member', NULL
+  );
+SELECT extensions.is(
+  (SELECT payload ->> 'connected' FROM class_join_replay_results
+   WHERE scenario = 'exact-email replay after access drift'),
+  'false',
+  'an exact-email replay fails closed after organization access becomes inactive'
+);
+SELECT extensions.ok(
+  (SELECT match_status = 'needs_review'
+   FROM plugin_data.csf_profile_link_requests
+   WHERE organization_id = 'ca200000-0000-4000-8000-000000000001'
+     AND user_id = 'ca100000-0000-4000-8000-000000000002')
+  AND
+  (SELECT status = 'revoked'
+   FROM plugin_data.csf_profile_accounts
+   WHERE organization_id = 'ca200000-0000-4000-8000-000000000001'
+     AND profile_id = 'ca400000-0000-4000-8000-000000000001'
+     AND user_id = 'ca100000-0000-4000-8000-000000000002'),
+  'inactive access reopens the request and revokes the exact link'
+);
+SELECT extensions.ok(
+  EXISTS (
+    SELECT 1 FROM plugin_data.csf_admin_audit_events AS audit
+    WHERE audit.organization_id = 'ca200000-0000-4000-8000-000000000001'
+      AND audit.action = 'profile.link_request_revalidation_failed'
+      AND (audit.after_data -> 'blockerCodes') ? 'organization_membership_not_active'
+  ),
+  'inactive organization access records its blocker code'
+);
+
+UPDATE public.organization_members
+SET status = 'active'
+WHERE organization_id = 'ca200000-0000-4000-8000-000000000001'
+  AND user_id = 'ca100000-0000-4000-8000-000000000002';
+UPDATE plugin_data.csf_profile_accounts
+SET status = 'verified',
+    is_primary = true,
+    linked_by = user_id,
+    revoked_at = NULL,
+    notes = 'Connected by one exact verified-email class match.'
+WHERE organization_id = 'ca200000-0000-4000-8000-000000000001'
+  AND profile_id = 'ca400000-0000-4000-8000-000000000001'
+  AND user_id = 'ca100000-0000-4000-8000-000000000002';
+UPDATE plugin_data.csf_profile_link_requests
+SET match_status = 'auto_linked',
+    resolution_notes = 'Connected by one exact verified-email match in the selected class.',
+    resolved_by = user_id,
+    resolved_at = (
+      SELECT account.linked_at
+      FROM plugin_data.csf_profile_accounts AS account
+      WHERE account.organization_id =
+        plugin_data.csf_profile_link_requests.organization_id
+        AND account.profile_id =
+          plugin_data.csf_profile_link_requests.matched_profile_id
+        AND account.user_id = plugin_data.csf_profile_link_requests.user_id
+    )
+WHERE organization_id = 'ca200000-0000-4000-8000-000000000001'
+  AND user_id = 'ca100000-0000-4000-8000-000000000002';
+DELETE FROM public.organization_members
+WHERE organization_id = 'ca200000-0000-4000-8000-000000000001'
+  AND user_id = 'ca100000-0000-4000-8000-000000000002';
+INSERT INTO class_join_replay_results (scenario, payload)
+SELECT
+  'exact-email replay after membership removal',
+  plugin_data.csf_join_class_by_code(
+    'ca200000-0000-4000-8000-000000000001', (SELECT code FROM class_join_test_code),
+    'ca100000-0000-4000-8000-000000000002', 'exact@local.test',
+    'Exact', 'Member', NULL
+  );
+SELECT extensions.is(
+  (SELECT payload ->> 'connected' FROM class_join_replay_results
+   WHERE scenario = 'exact-email replay after membership removal'),
+  'false',
+  'an exact-email replay fails closed after organization membership is removed'
+);
+SELECT extensions.ok(
+  (SELECT match_status = 'needs_review'
+   FROM plugin_data.csf_profile_link_requests
+   WHERE organization_id = 'ca200000-0000-4000-8000-000000000001'
+     AND user_id = 'ca100000-0000-4000-8000-000000000002')
+  AND
+  (SELECT status = 'revoked'
+   FROM plugin_data.csf_profile_accounts
+   WHERE organization_id = 'ca200000-0000-4000-8000-000000000001'
+     AND profile_id = 'ca400000-0000-4000-8000-000000000001'
+     AND user_id = 'ca100000-0000-4000-8000-000000000002'),
+  'missing membership reopens the request and revokes the exact link'
+);
+SELECT extensions.ok(
+  EXISTS (
+    SELECT 1 FROM plugin_data.csf_admin_audit_events AS audit
+    WHERE audit.organization_id = 'ca200000-0000-4000-8000-000000000001'
+      AND audit.action = 'profile.link_request_revalidation_failed'
+      AND (audit.after_data -> 'blockerCodes') ? 'organization_membership_not_active'
+  ),
+  'missing organization membership records its blocker code'
+);
+
 SELECT extensions.is(
   plugin_data.csf_join_class_by_code(
     'ca200000-0000-4000-8000-000000000001', (SELECT code FROM class_join_test_code),
     'ca100000-0000-4000-8000-000000000003', 'new@local.test',
     'New', 'Student', 'New'
-  ) ->> 'connected',
+  ) ->> 'needsReview',
   'true',
-  'no email match creates a stable class profile from verified account identity'
+  'no email match creates one officer review request'
 );
 SELECT extensions.ok(
-  EXISTS (
-    SELECT 1
-    FROM plugin_data.csf_profiles AS profile
-    JOIN plugin_data.csf_profile_accounts AS account
-      ON account.organization_id = profile.organization_id
-     AND account.profile_id = profile.id
-    JOIN plugin_data.csf_profile_cohort_memberships AS membership
-      ON membership.organization_id = profile.organization_id
-     AND membership.profile_id = profile.id
+  NOT EXISTS (
+    SELECT 1 FROM plugin_data.csf_profiles AS profile
     WHERE profile.organization_id = 'ca200000-0000-4000-8000-000000000001'
       AND profile.normalized_personal_email = 'new@local.test'
+  ) AND NOT EXISTS (
+    SELECT 1 FROM plugin_data.csf_profile_accounts AS account
+    WHERE account.organization_id = 'ca200000-0000-4000-8000-000000000001'
       AND account.user_id = 'ca100000-0000-4000-8000-000000000003'
-      AND account.status = 'verified'
-      AND membership.cohort_id = 'ca300000-0000-4000-8000-000000000001'
-      AND membership.status = 'active'
   ),
-  'the new profile is linked to the account and lasting graduation class'
+  'typed identity creates neither a duplicate profile nor an account link'
 );
 SELECT extensions.is(
   (

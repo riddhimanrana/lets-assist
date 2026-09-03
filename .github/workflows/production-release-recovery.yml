@@ -1,0 +1,566 @@
+name: Reconcile Production Release
+
+on:
+  workflow_run:
+    workflows: ["Deploy Production Release"]
+    types: [completed]
+
+concurrency:
+  group: production-schema-deployment
+  queue: max
+  cancel-in-progress: false
+
+permissions:
+  actions: read
+  contents: read
+  statuses: write
+
+jobs:
+  classify-source:
+    name: Classify failed Production release
+    if: >-
+      github.event.workflow_run.conclusion != 'success' &&
+      github.event.workflow_run.event == 'workflow_dispatch' &&
+      github.event.workflow_run.head_branch == 'main' &&
+      github.event.workflow_run.head_repository.full_name == github.repository &&
+      github.event.workflow_run.repository.full_name == github.repository &&
+      github.event.repository.default_branch == 'main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      application_conclusion: ${{ steps.source.outputs.application_conclusion }}
+      artifact_name: ${{ steps.source.outputs.artifact_name }}
+      maintenance_conclusion: ${{ steps.source.outputs.maintenance_conclusion }}
+      required: ${{ steps.source.outputs.required }}
+    steps:
+      - name: Validate source run and recovery artifact
+        id: source
+        timeout-minutes: 2
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SOURCE_RUN_ATTEMPT: ${{ github.event.workflow_run.run_attempt }}
+          SOURCE_RUN_ID: ${{ github.event.workflow_run.id }}
+          SOURCE_SHA: ${{ github.event.workflow_run.head_sha }}
+        run: |
+          set -euo pipefail
+          if [[ ! "${SOURCE_RUN_ID}" =~ ^[1-9][0-9]*$ ]] || \
+            [[ ! "${SOURCE_RUN_ATTEMPT}" =~ ^[1-9][0-9]*$ ]] || \
+            [[ ! "${SOURCE_SHA}" =~ ^[0-9a-f]{40}$ ]]; then
+            echo "The triggering Production workflow identity is malformed." >&2
+            exit 1
+          fi
+          source_run="$(gh api \
+            "repos/${GITHUB_REPOSITORY}/actions/runs/${SOURCE_RUN_ID}/attempts/${SOURCE_RUN_ATTEMPT}")"
+          jq -e \
+            --arg repository "${GITHUB_REPOSITORY}" \
+            --arg run_attempt "${SOURCE_RUN_ATTEMPT}" \
+            --arg run_id "${SOURCE_RUN_ID}" \
+            --arg sha "${SOURCE_SHA}" \
+            '
+              (.id | tostring) == $run_id
+              and (.run_attempt | tostring) == $run_attempt
+              and .name == "Deploy Production Release"
+              and .path == ".github/workflows/deploy-schema.yml"
+              and .event == "workflow_dispatch"
+              and .head_branch == "main"
+              and .head_sha == $sha
+              and .head_repository.full_name == $repository
+              and .repository.full_name == $repository
+              and .status == "completed"
+              and .conclusion != "success"
+            ' <<<"${source_run}" >/dev/null
+
+          source_jobs="$(gh api \
+            "repos/${GITHUB_REPOSITORY}/actions/runs/${SOURCE_RUN_ID}/attempts/${SOURCE_RUN_ATTEMPT}/jobs?per_page=100")"
+          deploy_job_count="$(jq -r \
+            '[.jobs[]? | select(.name == "Deploy to Production")] | length' \
+            <<<"${source_jobs}")"
+          if [[ "${deploy_job_count}" != "0" && "${deploy_job_count}" != "1" ]]; then
+            echo "The source run has an ambiguous Production deployment job set." >&2
+            exit 1
+          fi
+
+          artifact_name="production-release-recovery-${SOURCE_RUN_ID}-${SOURCE_RUN_ATTEMPT}"
+          artifacts="$(gh api \
+            "repos/${GITHUB_REPOSITORY}/actions/runs/${SOURCE_RUN_ID}/artifacts?name=${artifact_name}")"
+          artifact_count="$(jq -r \
+            --arg name "${artifact_name}" \
+            '[.artifacts[]? | select(.name == $name)] | length' \
+            <<<"${artifacts}")"
+          unexpired_artifact_count="$(jq -r \
+            --arg name "${artifact_name}" \
+            '[.artifacts[]? | select(.name == $name and .expired == false)] | length' \
+            <<<"${artifacts}")"
+
+          if [[ "${deploy_job_count}" == "0" ]]; then
+            if [[ "${artifact_count}" != "0" ]]; then
+              echo "A recovery manifest exists without its Production deployment job." >&2
+              exit 1
+            fi
+            echo "required=false" >> "${GITHUB_OUTPUT}"
+            echo "The source run never created a Production deployment job."
+            exit 0
+          fi
+
+          deploy_job_conclusion="$(jq -r \
+            '[.jobs[]? | select(.name == "Deploy to Production")][0].conclusion // "unknown"' \
+            <<<"${source_jobs}")"
+          if [[ "${deploy_job_conclusion}" == "skipped" ]]; then
+            if [[ "${artifact_count}" != "0" ]]; then
+              echo "A skipped Production deployment job has a recovery manifest." >&2
+              exit 1
+            fi
+            echo "required=false" >> "${GITHUB_OUTPUT}"
+            echo "The source Production deployment job was skipped."
+            exit 0
+          fi
+          application_conclusion="$(jq -r '
+            [.jobs[]? | select(.name == "Deploy to Production") | .steps[]?
+              | select(.name == "Promote the staged application to Production")]
+            | if length == 1 then (.[0].conclusion // "unknown") else "unknown" end
+          ' <<<"${source_jobs}")"
+          maintenance_conclusion="$(jq -r '
+            [.jobs[]? | select(.name == "Deploy to Production") | .steps[]?
+              | select(.name == "Promote maintenance page to Production")]
+            | if length == 1 then (.[0].conclusion // "unknown") else "unknown" end
+          ' <<<"${source_jobs}")"
+          write_block_conclusion="$(jq -r '
+            [.jobs[]? | select(.name == "Deploy to Production") | .steps[]?
+              | select(.name == "Reassert Production application write block")]
+            | if length == 1 then (.[0].conclusion // "unknown") else "unknown" end
+          ' <<<"${source_jobs}")"
+          write_open_conclusion="$(jq -r '
+            [.jobs[]? | select(.name == "Deploy to Production") | .steps[]?
+              | select(.name == "Open Production application writes")]
+            | if length == 1 then (.[0].conclusion // "unknown") else "unknown" end
+          ' <<<"${source_jobs}")"
+          for conclusion in "${application_conclusion}" "${maintenance_conclusion}" "${write_block_conclusion}" "${write_open_conclusion}"; do
+            case "${conclusion}" in
+              success | failure | cancelled | skipped) ;;
+              *)
+                echo "The source run has an unknown alias-step outcome." >&2
+                exit 1
+                ;;
+            esac
+          done
+          if [[ "${write_block_conclusion}" == "skipped" ]]; then
+            if [[ "${application_conclusion}" != "skipped" || \
+              "${maintenance_conclusion}" != "skipped" || \
+              "${write_open_conclusion}" != "skipped" ]]; then
+              echo "The source run step order is inconsistent." >&2
+              exit 1
+            fi
+            echo "required=false" >> "${GITHUB_OUTPUT}"
+            echo "The source run stopped before the Production write block, so recovery is not required."
+            exit 0
+          fi
+          if [[ "${write_open_conclusion}" == "success" ]]; then
+            echo "required=false" >> "${GITHUB_OUTPUT}"
+            echo "The source run opened writes only after proving the final application alias."
+            exit 0
+          fi
+          if [[ "${unexpired_artifact_count}" != "1" || "${artifact_count}" != "1" ]]; then
+            echo "An armed or uncertain Production release requires one unexpired recovery manifest." >&2
+            exit 1
+          fi
+          echo "application_conclusion=${application_conclusion}" >> "${GITHUB_OUTPUT}"
+          echo "artifact_name=${artifact_name}" >> "${GITHUB_OUTPUT}"
+          echo "maintenance_conclusion=${maintenance_conclusion}" >> "${GITHUB_OUTPUT}"
+          echo "required=true" >> "${GITHUB_OUTPUT}"
+
+      - name: Record no-op reconciliation
+        if: steps.source.outputs.required == 'false'
+        timeout-minutes: 1
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SOURCE_RUN_ATTEMPT: ${{ github.event.workflow_run.run_attempt }}
+          SOURCE_RUN_ID: ${{ github.event.workflow_run.id }}
+          SOURCE_SHA: ${{ github.event.workflow_run.head_sha }}
+        run: |
+          set -euo pipefail
+          gh api --method POST \
+            "repos/${GITHUB_REPOSITORY}/statuses/${SOURCE_SHA}" \
+            -f state=success \
+            -f context="production-release-recovery/${SOURCE_RUN_ID}/${SOURCE_RUN_ATTEMPT}" \
+            -f description="No Production mutation required recovery" \
+            -f target_url="https://github.com/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}" \
+            >/dev/null
+
+  reconcile-production:
+    name: Reconcile failed Production release
+    needs: classify-source
+    if: needs.classify-source.outputs.required == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    environment: production
+    steps:
+      - name: Download exact recovery manifest
+        timeout-minutes: 2
+        uses: actions/download-artifact@634f93cb2916e3fdff6788551b99b062d0335ce0 # v5.0.0
+        with:
+          name: ${{ needs.classify-source.outputs.artifact_name }}
+          path: ${{ runner.temp }}/production-release-recovery
+          github-token: ${{ github.token }}
+          repository: ${{ github.repository }}
+          run-id: ${{ github.event.workflow_run.id }}
+
+      - name: Checkout trusted recovery source
+        timeout-minutes: 2
+        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+
+      - name: Verify trusted recovery source
+        timeout-minutes: 1
+        env:
+          RECOVERY_WORKFLOW_SHA: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          [[ "${RECOVERY_WORKFLOW_SHA}" =~ ^[0-9a-f]{40}$ ]]
+          test "$(git rev-parse HEAD)" = "${RECOVERY_WORKFLOW_SHA}"
+
+      - name: Setup Node
+        timeout-minutes: 2
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version-file: .node-version
+
+      - name: Setup Bun
+        timeout-minutes: 2
+        uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+        with:
+          bun-version: 1.3.14
+
+      - name: Setup Supabase CLI
+        timeout-minutes: 2
+        uses: supabase/setup-cli@3c2f5e2ae34c34e428e8e206e2c4d21fa2d20fbf # v2.1.1
+        with:
+          version: 2.111.0
+
+      - name: Validate trusted recovery contract
+        timeout-minutes: 2
+        run: bun test scripts/csf-production-release-gate-contract.test.ts
+
+      - name: Validate immutable recovery manifest
+        id: manifest
+        timeout-minutes: 2
+        env:
+          EXPECTED_SUPABASE_PROJECT_ID: ${{ secrets.SUPABASE_PROJECT_ID }}
+          EXPECTED_VERCEL_PROJECT_ID: ${{ vars.VERCEL_ROOT_PROJECT_ID }}
+          EXPECTED_VERCEL_TEAM_ID: ${{ vars.VERCEL_TEAM_ID }}
+          MANIFEST_PATH: ${{ runner.temp }}/production-release-recovery/production-release-recovery.json
+          SOURCE_RUN_ATTEMPT: ${{ github.event.workflow_run.run_attempt }}
+          SOURCE_RUN_ID: ${{ github.event.workflow_run.id }}
+          SOURCE_SHA: ${{ github.event.workflow_run.head_sha }}
+        run: |
+          set -euo pipefail
+          for variable in EXPECTED_SUPABASE_PROJECT_ID EXPECTED_VERCEL_PROJECT_ID EXPECTED_VERCEL_TEAM_ID; do
+            if [[ -z "${!variable:-}" ]]; then
+              echo "${variable} is required for automatic Production recovery." >&2
+              exit 1
+            fi
+          done
+          test -f "${MANIFEST_PATH}"
+          jq -e \
+            --arg ref "refs/heads/main" \
+            --arg repository "${GITHUB_REPOSITORY}" \
+            --arg run_attempt "${SOURCE_RUN_ATTEMPT}" \
+            --arg run_id "${SOURCE_RUN_ID}" \
+            --arg sha "${SOURCE_SHA}" \
+            --arg supabase_project_id "${EXPECTED_SUPABASE_PROJECT_ID}" \
+            --arg vercel_project_id "${EXPECTED_VERCEL_PROJECT_ID}" \
+            --arg vercel_team_id "${EXPECTED_VERCEL_TEAM_ID}" \
+            '
+              .version == 1
+              and .ref == $ref
+              and .repository == $repository
+              and .runAttempt == $run_attempt
+              and .runId == $run_id
+              and .sha == $sha
+              and .applicationWritesBlockedConfirmation == ("application-writes-blocked:" + $sha)
+              and .externalWritersConfirmation == ("external-writers-stopped:" + $sha)
+              and (.recoveryCaptureSha256 | test("^[0-9a-f]{64}$"))
+              and .supabaseProjectId == $supabase_project_id
+              and .vercelProjectId == $vercel_project_id
+              and .vercelTeamId == $vercel_team_id
+              and (.applicationDeploymentId | test("^dpl_[A-Za-z0-9]+$"))
+              and (.maintenanceDeploymentId | test("^dpl_[A-Za-z0-9]+$"))
+              and (.applicationDeploymentUrl | test("^https://[a-z0-9][a-z0-9.-]*\\.vercel\\.app$"))
+              and (.maintenanceDeploymentUrl | test("^https://[a-z0-9][a-z0-9.-]*\\.vercel\\.app$"))
+            ' "${MANIFEST_PATH}" >/dev/null
+          echo "application_deployment_id=$(jq -er '.applicationDeploymentId' "${MANIFEST_PATH}")" >> "${GITHUB_OUTPUT}"
+          echo "application_deployment_url=$(jq -er '.applicationDeploymentUrl' "${MANIFEST_PATH}")" >> "${GITHUB_OUTPUT}"
+          echo "maintenance_deployment_id=$(jq -er '.maintenanceDeploymentId' "${MANIFEST_PATH}")" >> "${GITHUB_OUTPUT}"
+          echo "maintenance_deployment_url=$(jq -er '.maintenanceDeploymentUrl' "${MANIFEST_PATH}")" >> "${GITHUB_OUTPUT}"
+          echo "supabase_project_id=$(jq -er '.supabaseProjectId' "${MANIFEST_PATH}")" >> "${GITHUB_OUTPUT}"
+
+      - name: Link exact Production database
+        timeout-minutes: 2
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+          SUPABASE_PROJECT_ID: ${{ steps.manifest.outputs.supabase_project_id }}
+        run: |
+          set -euo pipefail
+          supabase link --project-ref "${SUPABASE_PROJECT_ID}"
+          test "$(tr -d '[:space:]' < supabase/.temp/project-ref)" = "${SUPABASE_PROJECT_ID}"
+
+      - name: Reassert Production application write block
+        timeout-minutes: 2
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+        run: bash scripts/production/set-application-write-block.sh enable
+
+      - name: Prove Production application write block
+        timeout-minutes: 1
+        env:
+          EXPECTED_SUPABASE_PROJECT_REF: ${{ steps.manifest.outputs.supabase_project_id }}
+          NEXT_PUBLIC_SUPABASE_URL: https://${{ steps.manifest.outputs.supabase_project_id }}.supabase.co
+          SUPABASE_SECRET_KEY: ${{ secrets.SUPABASE_SECRET_KEY }}
+        run: bash scripts/production/verify-postgrest-write-block.sh
+
+      - name: Revalidate Vercel project and deployment provenance
+        timeout-minutes: 2
+        env:
+          APPLICATION_DEPLOYMENT_ID: ${{ steps.manifest.outputs.application_deployment_id }}
+          APPLICATION_DEPLOYMENT_URL: ${{ steps.manifest.outputs.application_deployment_url }}
+          EXPECTED_GITHUB_REPOSITORY_ID: ${{ github.event.repository.id }}
+          MAINTENANCE_DEPLOYMENT_ID: ${{ steps.manifest.outputs.maintenance_deployment_id }}
+          MAINTENANCE_DEPLOYMENT_URL: ${{ steps.manifest.outputs.maintenance_deployment_url }}
+          SOURCE_SHA: ${{ github.event.workflow_run.head_sha }}
+          VERCEL_ROOT_PROJECT_ID: ${{ vars.VERCEL_ROOT_PROJECT_ID }}
+          VERCEL_TEAM_ID: ${{ vars.VERCEL_TEAM_ID }}
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+        run: |
+          set -euo pipefail
+          bash scripts/production/verify-vercel-project.sh
+          for kind in application maintenance; do
+            if [[ "${kind}" == "application" ]]; then
+              deployment_id="${APPLICATION_DEPLOYMENT_ID}"
+              deployment_url="${APPLICATION_DEPLOYMENT_URL#https://}"
+              metadata_key="productionReleaseSha"
+            else
+              deployment_id="${MAINTENANCE_DEPLOYMENT_ID}"
+              deployment_url="${MAINTENANCE_DEPLOYMENT_URL#https://}"
+              metadata_key="productionMaintenanceForSha"
+            fi
+            deployment_payload="$(curl --fail --silent --show-error \
+              --connect-timeout 10 \
+              --max-time 20 \
+              --header "Authorization: Bearer ${VERCEL_TOKEN}" \
+              "https://api.vercel.com/v13/deployments/${deployment_id}?teamId=${VERCEL_TEAM_ID}")"
+            jq -e \
+              --arg deployment "${deployment_id}" \
+              --arg metadata_key "${metadata_key}" \
+              --arg project "${VERCEL_ROOT_PROJECT_ID}" \
+              --arg sha "${SOURCE_SHA}" \
+              --arg team "${VERCEL_TEAM_ID}" \
+              --arg url "${deployment_url}" \
+              '
+                .id == $deployment
+                and .url == $url
+                and .target == "production"
+                and .readyState == "READY"
+                and ((.projectId // .project.id // "") == $project)
+                and ((.ownerId // .team.id // "") == $team)
+                and (.meta[$metadata_key] // "") == $sha
+              ' <<<"${deployment_payload}" >/dev/null
+          done
+
+      - name: Restore and prove exact Production maintenance deployment
+        timeout-minutes: 31
+        env:
+          APPLICATION_DEPLOYMENT_ID: ${{ steps.manifest.outputs.application_deployment_id }}
+          APPLICATION_PROMOTION_CONCLUSION: ${{ needs.classify-source.outputs.application_conclusion }}
+          MAINTENANCE_DEPLOYMENT_ID: ${{ steps.manifest.outputs.maintenance_deployment_id }}
+          MAINTENANCE_DEPLOYMENT_URL: ${{ steps.manifest.outputs.maintenance_deployment_url }}
+          MAINTENANCE_PROMOTION_CONCLUSION: ${{ needs.classify-source.outputs.maintenance_conclusion }}
+          PRODUCTION_DEPLOYMENT_ID: ${{ steps.manifest.outputs.maintenance_deployment_id }}
+          VERCEL_ALIAS_OPERATION_TIMEOUT_SECONDS: "600"
+          VERCEL_ALIAS_VERIFY_TIMEOUT_SECONDS: "180"
+          VERCEL_ROOT_PROJECT_ID: ${{ vars.VERCEL_ROOT_PROJECT_ID }}
+          VERCEL_TEAM_ID: ${{ vars.VERCEL_TEAM_ID }}
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+        run: |
+          set -euo pipefail
+
+          maintenance_alias_is_current() {
+            local verification_seconds="${1:-5}"
+            VERCEL_ALIAS_VERIFY_TIMEOUT_SECONDS="${verification_seconds}" \
+              timeout "$((verification_seconds + 10))s" \
+              bash scripts/production/verify-vercel-alias.sh
+          }
+
+          read_current_alias_operation() {
+            local project_payload
+            project_payload="$(curl --fail --silent --show-error \
+              --connect-timeout 5 \
+              --max-time 10 \
+              --header "Authorization: Bearer ${VERCEL_TOKEN}" \
+              "https://api.vercel.com/v9/projects/${VERCEL_ROOT_PROJECT_ID}?teamId=${VERCEL_TEAM_ID}")"
+            jq -er \
+              --arg account "${VERCEL_TEAM_ID}" \
+              --arg project "${VERCEL_ROOT_PROJECT_ID}" \
+              '
+                if .id != $project or .accountId != $account then
+                  error("binding-error")
+                else
+                  [
+                    (.lastAliasRequest.type // "missing"),
+                    (.lastAliasRequest.toDeploymentId // "missing"),
+                    (.lastAliasRequest.jobStatus // "missing")
+                  ] | @tsv
+                end
+              ' <<<"${project_payload}"
+          }
+
+          exact_operation_status=""
+          wait_for_exact_operation() {
+            local operation="$1"
+            local deployment_id="$2"
+            local settled_deployment
+            local settled_operation
+            local settled_status
+            EXPECTED_ALIAS_OPERATION="${operation}" \
+              EXPECTED_ALIAS_OPERATION_DEPLOYMENT_ID="${deployment_id}" \
+              timeout 660s bash scripts/production/verify-vercel-alias-operation.sh
+            IFS=$'\t' read -r settled_operation settled_deployment settled_status < <(read_current_alias_operation)
+            if [[ "${settled_operation}" != "${operation}" || \
+              "${settled_deployment}" != "${deployment_id}" ]]; then
+              echo "The exact Vercel alias operation changed after its terminal check." >&2
+              return 1
+            fi
+            case "${settled_status}" in
+              succeeded | failed | skipped)
+                exact_operation_status="${settled_status}"
+                ;;
+              *)
+                echo "The exact Vercel alias operation is no longer terminal." >&2
+                return 1
+                ;;
+            esac
+          }
+
+          request_maintenance_operation() {
+            local operation="$1"
+            local operation_exit
+            set +e
+            timeout 60s bunx vercel@59.3.0 "${operation}" "${MAINTENANCE_DEPLOYMENT_URL}" \
+              --yes \
+              --timeout=0s \
+              --token="${VERCEL_TOKEN}"
+            operation_exit="$?"
+            set -e
+            if [[ "${operation_exit}" -ne 0 ]]; then
+              echo "Vercel ${operation} returned ${operation_exit}; the exact alias operation and maintenance postcondition will determine recovery." >&2
+            fi
+            wait_for_exact_operation "${operation}" "${MAINTENANCE_DEPLOYMENT_ID}"
+          }
+
+          IFS=$'\t' read -r current_operation current_deployment current_status < <(read_current_alias_operation)
+          case "${current_operation}:${current_status}" in
+            promote:pending | promote:in-progress | promote:succeeded | promote:failed | promote:skipped | rollback:pending | rollback:in-progress | rollback:succeeded | rollback:failed | rollback:skipped | missing:missing) ;;
+            *)
+              echo "Vercel returned an unknown alias operation record. Production remains write-blocked." >&2
+              exit 1
+              ;;
+          esac
+
+          if [[ "${current_deployment}" == "${MAINTENANCE_DEPLOYMENT_ID}" && \
+            ( "${current_operation}" == "promote" || "${current_operation}" == "rollback" ) ]]; then
+            if [[ "${APPLICATION_PROMOTION_CONCLUSION}" != "skipped" && \
+              "${current_operation}" == "promote" ]]; then
+              echo "The source application promotion is not observable. Production remains write-blocked." >&2
+              exit 1
+            fi
+            wait_for_exact_operation "${current_operation}" "${MAINTENANCE_DEPLOYMENT_ID}"
+            if [[ "${exact_operation_status}" == "succeeded" ]] && maintenance_alias_is_current 180; then
+              echo "Production already uses the exact maintenance deployment."
+            elif [[ "${exact_operation_status}" != "succeeded" ]] && maintenance_alias_is_current; then
+              echo "Production already uses the exact maintenance deployment."
+            elif [[ "${current_operation}" == "rollback" ]]; then
+              request_maintenance_operation rollback
+            elif [[ "${APPLICATION_PROMOTION_CONCLUSION}" == "skipped" ]]; then
+              request_maintenance_operation promote
+            else
+              echo "The source application promotion is not observable. Production remains write-blocked." >&2
+              exit 1
+            fi
+          elif [[ "${current_deployment}" == "${APPLICATION_DEPLOYMENT_ID}" && \
+            "${current_operation}" == "promote" && \
+            "${APPLICATION_PROMOTION_CONCLUSION}" != "skipped" ]]; then
+            wait_for_exact_operation promote "${APPLICATION_DEPLOYMENT_ID}"
+            if [[ "${exact_operation_status}" == "succeeded" ]]; then
+              request_maintenance_operation rollback
+            elif ! maintenance_alias_is_current 180; then
+              request_maintenance_operation rollback
+            fi
+          elif [[ "${APPLICATION_PROMOTION_CONCLUSION}" != "skipped" ]]; then
+            echo "The source application promotion is not observable. Production remains write-blocked." >&2
+            exit 1
+          else
+            case "${MAINTENANCE_PROMOTION_CONCLUSION}" in
+              success | failure | cancelled)
+                echo "The source maintenance promotion is not observable. Production remains write-blocked." >&2
+                exit 1
+                ;;
+              skipped)
+                if [[ "${current_status}" == "pending" || "${current_status}" == "in-progress" ]]; then
+                  echo "An unrelated Vercel alias operation is still running. Production remains write-blocked." >&2
+                  exit 1
+                fi
+                if maintenance_alias_is_current; then
+                  echo "Production already uses the exact maintenance deployment."
+                else
+                  request_maintenance_operation promote
+                fi
+                ;;
+              *)
+                echo "The maintenance promotion outcome is invalid." >&2
+                exit 1
+                ;;
+            esac
+          fi
+
+          timeout 190s bash scripts/production/verify-vercel-alias.sh
+          echo "Production remains write-blocked on the exact maintenance deployment."
+
+      - name: Record successful Production recovery
+        if: success()
+        timeout-minutes: 1
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SOURCE_RUN_ATTEMPT: ${{ github.event.workflow_run.run_attempt }}
+          SOURCE_RUN_ID: ${{ github.event.workflow_run.id }}
+          SOURCE_SHA: ${{ github.event.workflow_run.head_sha }}
+        run: |
+          set -euo pipefail
+          gh api --method POST \
+            "repos/${GITHUB_REPOSITORY}/statuses/${SOURCE_SHA}" \
+            -f state=success \
+            -f context="production-release-recovery/${SOURCE_RUN_ID}/${SOURCE_RUN_ATTEMPT}" \
+            -f description="Production is guarded on verified maintenance" \
+            -f target_url="https://github.com/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}" \
+            >/dev/null
+
+      - name: Record failed Production recovery
+        if: failure()
+        timeout-minutes: 1
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SOURCE_RUN_ATTEMPT: ${{ github.event.workflow_run.run_attempt }}
+          SOURCE_RUN_ID: ${{ github.event.workflow_run.id }}
+          SOURCE_SHA: ${{ github.event.workflow_run.head_sha }}
+        run: |
+          gh api --method POST \
+            "repos/${GITHUB_REPOSITORY}/statuses/${SOURCE_SHA}" \
+            -f state=failure \
+            -f context="production-release-recovery/${SOURCE_RUN_ID}/${SOURCE_RUN_ATTEMPT}" \
+            -f description="Production recovery needs operator action" \
+            -f target_url="https://github.com/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}" \
+            >/dev/null || true
+          echo "## Production recovery failed closed" >> "${GITHUB_STEP_SUMMARY}"
+          echo "" >> "${GITHUB_STEP_SUMMARY}"
+          echo "Production writes were not reopened. Inspect the exact source run and provider operation before manual recovery." >> "${GITHUB_STEP_SUMMARY}"

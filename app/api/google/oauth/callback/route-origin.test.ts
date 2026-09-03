@@ -36,6 +36,9 @@ mock.module("@/lib/supabase/admin", () => ({
 }));
 
 mock.module("@/lib/encryption", () => ({
+  createEncryptionKeyedDigest: () => {
+    throw new Error("route-origin.test.ts: keyed digests must not be used");
+  },
   encrypt: () => {
     throw new Error("route-origin.test.ts: encryption must not be used");
   },

@@ -26,6 +26,13 @@ const privilegeRepairMigration = readFileSync(
   "utf8",
 );
 const migration = `${identityLockMigration}\n${privilegeRepairMigration}`;
+const classJoinIdentityLockMigration = readFileSync(
+  join(
+    repositoryRoot,
+    "supabase/migrations/20260902010000_csf_class_join_identity_lock_order.sql",
+  ),
+  "utf8",
+);
 const migrationLedger = trackedMigrations
   .map(({ filename, source }) => `-- ${filename}\n${source}`)
   .join("\n");
@@ -33,6 +40,13 @@ const raceTest = readFileSync(
   join(
     repositoryRoot,
     "supabase/tests/database/csf_import_identity_merge_races.test.sql",
+  ),
+  "utf8",
+);
+const classJoinRaceTest = readFileSync(
+  join(
+    repositoryRoot,
+    "supabase/tests/database/csf_class_join_identity_lock_order.test.sql",
   ),
   "utf8",
 );
@@ -71,6 +85,11 @@ const IMPORT_IDENTITY_BOUNDARIES = [
   "csf_import_application_response_row",
 ] as const;
 
+const CLASS_JOIN_IDENTITY_BOUNDARIES = [
+  "csf_join_class_by_code",
+  "csf_confirm_class_code_account_name_match",
+] as const;
+
 function functionBody(name: string) {
   const start = migration.lastIndexOf(
     `CREATE OR REPLACE FUNCTION plugin_data.${name}(`,
@@ -100,6 +119,119 @@ function latestLedgerFunctionBody(name: string) {
 }
 
 describe("CSF import identity lock hierarchy", () => {
+  test("class-code connection wrappers take the shared identity lock before delegating", () => {
+    for (const name of CLASS_JOIN_IDENTITY_BOUNDARIES) {
+      const body = latestLedgerFunctionBody(name);
+      const identity = body.indexOf(
+        "PERFORM plugin_data.csf_lock_identity_mutation(p_organization_id)",
+      );
+      const baseOperation = body.indexOf(
+        name === "csf_confirm_class_code_account_name_match"
+          ? "csf_join_class_by_code_identity_base("
+          : `${name}_identity_base(`,
+      );
+      const replayRevalidation = body.indexOf(
+        "csf_revalidate_class_code_connection_replay(",
+      );
+
+      expect(identity, `${name} has no outer identity lock`).toBeGreaterThan(
+        -1,
+      );
+      expect(
+        baseOperation,
+        `${name} does not delegate after the shared identity lock`,
+      ).toBeGreaterThan(identity);
+      expect(
+        replayRevalidation,
+        `${name} does not revalidate a replay after delegation`,
+      ).toBeGreaterThan(baseOperation);
+
+      for (const laterLock of [
+        "FOR UPDATE",
+        "FOR SHARE",
+        "pg_advisory_xact_lock",
+      ]) {
+        const position = body.indexOf(laterLock);
+        if (position >= 0) {
+          expect(
+            identity,
+            `${name} takes ${laterLock} before the identity lock`,
+          ).toBeLessThan(position);
+        }
+      }
+    }
+
+    const passiveConfirmation = latestLedgerFunctionBody(
+      "csf_confirm_class_code_account_name_match",
+    );
+    expect(passiveConfirmation).not.toContain(
+      "csf_confirm_class_code_account_name_match_identity_base(",
+    );
+    expect(passiveConfirmation).toContain(
+      "csf_join_class_by_code_identity_base(",
+    );
+  });
+
+  test("class-code connection bases and replay checks are owner-only while wrappers are service-only", () => {
+    const compactMigration = classJoinIdentityLockMigration.replace(
+      /\s+/gu,
+      " ",
+    );
+    const boundaries = [
+      {
+        name: "csf_join_class_by_code",
+        signature: "uuid, text, uuid, text, text, text, text, uuid, uuid",
+      },
+      {
+        name: "csf_confirm_class_code_account_name_match",
+        signature: "uuid, uuid, uuid, text, uuid, uuid, text, text, text",
+      },
+    ] as const;
+
+    for (const { name, signature } of boundaries) {
+      expect(compactMigration).toContain(
+        `ALTER FUNCTION plugin_data.${name}( ${signature} ) RENAME TO ${name}_identity_base;`,
+      );
+      expect(compactMigration).toContain(
+        `REVOKE ALL ON FUNCTION plugin_data.${name}_identity_base( ${signature} ) FROM PUBLIC, anon, authenticated, service_role;`,
+      );
+      expect(compactMigration).toContain(
+        `REVOKE ALL ON FUNCTION plugin_data.${name}( ${signature} ) FROM PUBLIC, anon, authenticated, service_role;`,
+      );
+      expect(compactMigration).toContain(
+        `GRANT EXECUTE ON FUNCTION plugin_data.${name}( ${signature} ) TO service_role;`,
+      );
+      expect(compactMigration).toContain(
+        `GRANT EXECUTE ON FUNCTION plugin_data.${name}_identity_base( ${signature} ) TO postgres;`,
+      );
+    }
+
+    expect(compactMigration).toContain(
+      "REVOKE ALL ON FUNCTION plugin_data.csf_revalidate_class_code_connection_replay( uuid, uuid, uuid, uuid, jsonb ) FROM PUBLIC, anon, authenticated, service_role;",
+    );
+    expect(compactMigration).toContain(
+      "GRANT EXECUTE ON FUNCTION plugin_data.csf_revalidate_class_code_connection_replay( uuid, uuid, uuid, uuid, jsonb ) TO postgres;",
+    );
+  });
+
+  test("real-session coverage proves class-code lock scope for both connection paths", () => {
+    expect(classJoinRaceTest).toContain(
+      "CREATE EXTENSION IF NOT EXISTS dblink",
+    );
+    expect(
+      classJoinRaceTest.match(/dblink_send_query/g)?.length ?? 0,
+    ).toBeGreaterThanOrEqual(4);
+    for (const name of CLASS_JOIN_IDENTITY_BOUNDARIES) {
+      expect(classJoinRaceTest).toContain(name);
+    }
+    expect(classJoinRaceTest).toContain(
+      "a same-organization class-code join waits for the identity lock",
+    );
+    expect(classJoinRaceTest).toContain(
+      "a cross-organization passive confirmation remains independent",
+    );
+  });
+
   test("begin and commit share the canonical identity-first outer lock order", () => {
     for (const name of [
       "csf_begin_import_row_for_attempt",

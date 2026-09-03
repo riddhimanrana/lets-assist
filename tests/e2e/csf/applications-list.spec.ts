@@ -42,7 +42,7 @@ test.describe("applications review workspace", () => {
     const failures = watchBrowserFailures(page);
 
     const importButton = page.getByRole("button", {
-      name: "Import",
+      name: "Import responses",
       exact: true,
     });
     await expect(importButton).toBeVisible();

@@ -421,12 +421,12 @@ function privatePluginCommit(root) {
   const pluginPath = resolve(root, "lib/plugins/private");
   const gitlink = execFileSync(
     "git",
-    ["ls-tree", "HEAD", "lib/plugins/private"],
+    ["ls-files", "--stage", "lib/plugins/private"],
     { cwd: root, encoding: "utf8" },
   ).trim();
-  const gitlinkMatch = gitlink.match(/^160000\s+commit\s+([0-9a-f]{40})\s+/u);
+  const gitlinkMatch = gitlink.match(/^160000\s+([0-9a-f]{40})\s+0\s+/u);
   if (!gitlinkMatch) {
-    throw new Error("Private plugin gitlink is missing from the root commit.");
+    throw new Error("Private plugin gitlink is missing from the root index.");
   }
 
   let pluginTopLevel;
@@ -454,7 +454,7 @@ function privatePluginCommit(root) {
   }
   if (pluginHead !== gitlinkMatch[1]) {
     throw new Error(
-      `Private plugin HEAD ${pluginHead} does not match root gitlink ${gitlinkMatch[1]}.`,
+      `Private plugin HEAD ${pluginHead} does not match root index gitlink ${gitlinkMatch[1]}.`,
     );
   }
   return pluginHead;

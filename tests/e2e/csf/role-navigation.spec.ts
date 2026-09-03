@@ -420,11 +420,14 @@ test.describe("DVHS CSF role-aware navigation", () => {
     ).toBeVisible();
     await page.keyboard.press("Escape");
     // The applicant's current-semester state lives in My CSF; Feed is the
-    // landing tab. This fixture has only a historical pending application, so
-    // the current Fall term truth is "Not submitted."
+    // landing tab. The profile summary shows no current-semester record, while
+    // the selected historical semester keeps its officer-review state.
     await page.getByRole("tab", { name: "My CSF", exact: true }).click();
     await expect(
-      page.getByText("Not submitted", { exact: true }).first(),
+      page.getByText("No semester record", { exact: true }),
+    ).toBeVisible();
+    await expect(
+      page.getByText("Under officer review", { exact: true }),
     ).toBeVisible();
     for (const tab of ["Applications", "Members", "Service", "Classes"]) {
       await expect(

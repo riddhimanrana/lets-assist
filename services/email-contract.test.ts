@@ -3,6 +3,7 @@ import { afterAll, beforeEach, describe, expect, mock, test } from "bun:test";
 type MockResendResponse = {
   data: { id: string } | null;
   error: { name: string; message: string; statusCode?: number | null } | null;
+  headers?: Record<string, string> | null;
 };
 
 const resendSend = mock(
@@ -45,8 +46,12 @@ mock.module("react-email", () => ({ render }));
 mock.module("@/lib/logger", () => ({ logError, logInfo, logWarn }));
 mock.module("nodemailer", () => ({ createTransport }));
 
-const { getResendClient, getResendManagementClient, sendEmail } =
-  await import("./email");
+const {
+  classifyProviderError,
+  getResendClient,
+  parseRetryAfterSeconds,
+  sendEmail,
+} = await import("./email");
 
 const originalEnvironment = {
   EMAIL_FROM: process.env.EMAIL_FROM,
@@ -56,7 +61,6 @@ const originalEnvironment = {
   MAILPIT_SMTP_PORT: process.env.MAILPIT_SMTP_PORT,
   NODE_ENV: process.env.NODE_ENV,
   RESEND_API_KEY: process.env.RESEND_API_KEY,
-  RESEND_MANAGEMENT_API_KEY: process.env.RESEND_MANAGEMENT_API_KEY,
 };
 
 function restoreEnvironment() {
@@ -124,24 +128,11 @@ beforeEach(() => {
 afterAll(restoreEnvironment);
 
 describe("shared email transport contract", () => {
-  test("keeps sending and provider-management credentials separate", () => {
+  test("constructs the sending client only from its send credential", () => {
     process.env.RESEND_API_KEY = "synthetic-send-key";
-    process.env.RESEND_MANAGEMENT_API_KEY = "synthetic-management-key";
 
     expect(getResendClient().ok).toBe(true);
-    expect(getResendManagementClient().ok).toBe(true);
-    expect(resendApiKeys).toEqual([
-      "synthetic-send-key",
-      "synthetic-management-key",
-    ]);
-
-    resendApiKeys.length = 0;
-    delete process.env.RESEND_MANAGEMENT_API_KEY;
-    expect(getResendManagementClient()).toEqual({
-      ok: false,
-      configured: false,
-    });
-    expect(resendApiKeys).toEqual([]);
+    expect(resendApiKeys).toEqual(["synthetic-send-key"]);
   });
 
   test("forwards chapter sender, reply-to, text, tags, and idempotency to Resend", async () => {
@@ -392,6 +383,7 @@ describe("shared email transport contract", () => {
         message: "Too many requests",
         statusCode: 429,
       },
+      headers: { "retry-after": "120" },
     }));
 
     const result = await sendEmail({
@@ -407,6 +399,31 @@ describe("shared email transport contract", () => {
       phase: "provider_response",
       code: "rate_limit_exceeded",
       status: 429,
+      retryAfterSeconds: 120,
+    });
+  });
+
+  test("parses bounded Retry-After seconds and HTTP dates", () => {
+    expect(parseRetryAfterSeconds({ "Retry-After": "45" }, 0)).toBe(45);
+    expect(parseRetryAfterSeconds({ "retry-after": "999999" }, 0)).toBe(86_400);
+    expect(
+      parseRetryAfterSeconds(
+        { "retry-after": "Thu, 01 Jan 1970 00:02:00 GMT" },
+        60_001,
+      ),
+    ).toBe(60);
+    expect(parseRetryAfterSeconds({ "retry-after": "later" }, 0)).toBeNull();
+  });
+
+  test("uses a conservative delay when a throttled response omits Retry-After", () => {
+    expect(
+      classifyProviderError({
+        name: "rate_limit_exceeded",
+        statusCode: 429,
+      }),
+    ).toMatchObject({
+      outcome: "retryable_pre_send",
+      retryAfterSeconds: 60,
     });
   });
 

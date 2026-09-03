@@ -2,7 +2,7 @@ BEGIN;
 
 CREATE EXTENSION IF NOT EXISTS pgtap WITH SCHEMA extensions;
 
-SELECT extensions.plan(25);
+SELECT extensions.plan(28);
 
 SELECT extensions.ok(
   NOT has_function_privilege(
@@ -95,14 +95,14 @@ INSERT INTO plugin_data.csf_cohorts (
   ('cd300000-0000-4000-8000-000000000002', 'cd100000-0000-4000-8000-000000000002', 2031, 'Class of 2031');
 
 INSERT INTO plugin_data.csf_profiles (
-  id, organization_id, first_name, last_name,
+  id, organization_id, first_name, middle_name, last_name,
   normalized_first_name, normalized_last_name,
   school_email, normalized_school_email
 ) VALUES
-  ('cd400000-0000-4000-8000-000000000001', 'cd100000-0000-4000-8000-000000000001', 'Aster', 'Able', 'aster', 'able', 'aster@students.local.test', 'aster@students.local.test'),
-  ('cd400000-0000-4000-8000-000000000002', 'cd100000-0000-4000-8000-000000000001', 'Birch', 'Baker', 'birch', 'baker', 'birch@students.local.test', 'birch@students.local.test'),
-  ('cd400000-0000-4000-8000-000000000003', 'cd100000-0000-4000-8000-000000000001', 'Cedar', 'Clark', 'cedar', 'clark', 'cedar@students.local.test', 'cedar@students.local.test'),
-  ('cd400000-0000-4000-8000-000000000004', 'cd100000-0000-4000-8000-000000000002', 'Private', 'Tenant', 'private', 'tenant', 'private@students.local.test', 'private@students.local.test');
+  ('cd400000-0000-4000-8000-000000000001', 'cd100000-0000-4000-8000-000000000001', 'Aster', NULL, 'Able', 'aster', 'able', 'aster@students.local.test', 'aster@students.local.test'),
+  ('cd400000-0000-4000-8000-000000000002', 'cd100000-0000-4000-8000-000000000001', 'Birch', 'Juniper', 'Baker', 'birch', 'baker', 'birch@students.local.test', 'birch@students.local.test'),
+  ('cd400000-0000-4000-8000-000000000003', 'cd100000-0000-4000-8000-000000000001', 'Birch', 'Juniper', 'Baker', 'birch', 'baker', 'cedar@students.local.test', 'cedar@students.local.test'),
+  ('cd400000-0000-4000-8000-000000000004', 'cd100000-0000-4000-8000-000000000002', 'Birch', 'Juniper', 'Baker', 'birch', 'baker', 'private@students.local.test', 'private@students.local.test');
 
 INSERT INTO plugin_data.csf_profile_cohort_memberships (
   organization_id, profile_id, cohort_id
@@ -229,6 +229,44 @@ SELECT extensions.is(
   ),
   1,
   'member search is applied on the server'
+);
+SELECT extensions.is(
+  (
+    SELECT count(*)::integer
+    FROM plugin_data.csf_list_profiles_page(
+      'cd100000-0000-4000-8000-000000000001',
+      'directory', 'Aster Able', 'cd300000-0000-4000-8000-000000000001', NULL, NULL, 'name', NULL, NULL, 50
+    )
+    WHERE profile_id = 'cd400000-0000-4000-8000-000000000001'
+  ),
+  1,
+  'member search accepts a full name inside the selected class'
+);
+SELECT extensions.results_eq(
+  $$
+    SELECT profile_id
+    FROM plugin_data.csf_list_profiles_page(
+      'cd100000-0000-4000-8000-000000000001',
+      'directory', 'Birch Juniper Baker',
+      'cd300000-0000-4000-8000-000000000001',
+      NULL, 'attention', 'name', NULL, NULL, 50
+    )
+    WHERE profile_id IS NOT NULL
+  $$,
+  $$ VALUES ('cd400000-0000-4000-8000-000000000002'::uuid) $$,
+  'directory attention search matches the exact displayed middle name without crossing class or tenant scope'
+);
+SELECT extensions.is(
+  (
+    SELECT count(*)::integer
+    FROM plugin_data.csf_list_profiles_page(
+      'cd100000-0000-4000-8000-000000000001',
+      'directory', 'birch@students.local.test', 'cd300000-0000-4000-8000-000000000001', NULL, NULL, 'name', NULL, NULL, 50
+    )
+    WHERE profile_id = 'cd400000-0000-4000-8000-000000000002'
+  ),
+  1,
+  'member search accepts an email inside the selected class'
 );
 SELECT extensions.is(
   (

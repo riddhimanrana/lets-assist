@@ -2,6 +2,7 @@ import type { NextConfig } from "next";
 import { withMicrofrontends } from "@vercel/microfrontends/next/config";
 
 const requestedDistDir = process.env.NEXT_DIST_DIR?.trim();
+const requestedBuildSha = process.env.VERCEL_GIT_COMMIT_SHA?.trim() ?? "";
 const skipIsolatedBrowserTypecheck =
   process.env.CSF_BROWSER_SKIP_BUILD_TYPECHECK === "1";
 const isolatedDistDirs = new Set([
@@ -22,12 +23,21 @@ if (
     "CSF_BROWSER_SKIP_BUILD_TYPECHECK is restricted to the isolated browser build.",
   );
 }
+if (requestedBuildSha && !/^[0-9a-f]{40}$/u.test(requestedBuildSha)) {
+  throw new Error("VERCEL_GIT_COMMIT_SHA must be a full lowercase commit SHA.");
+}
 
 const nextConfig: NextConfig = {
   // Next 16 locks each development output directory. The CSF runner uses a
   // separate directory so it can coexist with the developer's normal server.
   distDir: requestedDistDir || ".next",
   cacheComponents: false,
+
+  // Freeze the release identity into server output. A prebuilt Vercel deploy
+  // must not depend on a runtime system-variable setting to report its SHA.
+  env: {
+    LETS_ASSIST_BUILD_SHA: requestedBuildSha,
+  },
 
   // The required quality job already runs both `bun run typecheck` and a full
   // production build. The database/browser job compiles the same SHA again

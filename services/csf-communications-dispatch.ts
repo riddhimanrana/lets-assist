@@ -100,6 +100,7 @@ export type CsfDispatchSettlement = {
   failureClass: string | null;
   detail: string | null;
   metadata: Record<string, string | number | boolean>;
+  retryAfterSeconds?: number;
 };
 
 /**
@@ -160,6 +161,7 @@ export function mapTransportResultToSettlement(
         failureClass: result.code,
         detail: String(result.error),
         metadata: { ...metadata, retryable: true },
+        retryAfterSeconds: result.retryAfterSeconds ?? 60,
       };
 
     case "unknown_outcome":

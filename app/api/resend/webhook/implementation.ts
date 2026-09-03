@@ -4,6 +4,10 @@ import { NextRequest, NextResponse } from "next/server";
 import { Resend } from "resend";
 
 import { resolveCsfCommunicationsEnvironment } from "@/services/csf-communications-environment";
+import {
+  readResendWebhookVerificationKeys,
+  ResendWebhookKeyringConfigurationError,
+} from "@/services/resend-webhook-keyring";
 
 /**
  * Resend webhook implementation for DVHS CSF durable communications.
@@ -930,7 +934,20 @@ export async function recordCsfProviderEvent(input: {
 }
 
 export async function POST(req: NextRequest) {
-  const webhookSecret = process.env.RESEND_WEBHOOK_SECRET;
+  let webhookKeys;
+  try {
+    webhookKeys = readResendWebhookVerificationKeys();
+  } catch (error) {
+    if (!(error instanceof ResendWebhookKeyringConfigurationError)) throw error;
+    logWebhook("error", "Resend webhook keyring is invalid.", {
+      alertCode: "resend_webhook_keyring_invalid",
+      variable: "RESEND_WEBHOOK_SECRET_KEYRING",
+    });
+    return NextResponse.json(
+      { error: "Webhook receiver unavailable." },
+      { status: 500 },
+    );
+  }
 
   // VERIFICATION NEEDS THE WEBHOOK SECRET AND NOTHING ELSE.
   //
@@ -949,7 +966,7 @@ export async function POST(req: NextRequest) {
   // A missing WEBHOOK secret is different, and answers 500 below on purpose: that
   // is a real server-side fault, and being retried is exactly what we want, so the
   // event is still deliverable once an operator supplies the secret.
-  if (!webhookSecret) {
+  if (webhookKeys.length === 0) {
     // The BODY is opaque, the log line is not. This is the first statement in the
     // handler -- it runs before the header check and before verification -- so
     // any unauthenticated caller reaches it by POSTing an empty body. Naming the
@@ -958,6 +975,7 @@ export async function POST(req: NextRequest) {
     // reason. The 500 stays: it is a real server fault, and Resend retrying is
     // what keeps the event deliverable once an operator supplies the secret.
     logWebhook("error", "Resend webhook secret is not configured.", {
+      alertCode: "resend_webhook_secret_missing",
       variable: "RESEND_WEBHOOK_SECRET",
     });
     return NextResponse.json(
@@ -1006,24 +1024,31 @@ export async function POST(req: NextRequest) {
   // The constructor throws without a key, and only the local verifier is used
   // below, so a placeholder keeps webhook receipt independent of send credentials.
   // No method on this instance that touches the network is ever called.
-  const resend = new Resend(
-    process.env.RESEND_API_KEY ?? "re_local_verification_only",
-  );
+  const resend = new Resend("re_local_verification_only");
 
   // Step 3: verify. An unverified body is never inspected, hashed for storage,
   // routed, or logged.
   let event: unknown;
-  try {
-    event = resend.webhooks.verify({
-      payload,
-      headers: { id, timestamp, signature },
-      webhookSecret,
-    });
-  } catch {
+  let signatureKeyId: string | null = null;
+  for (const key of webhookKeys) {
+    try {
+      event = resend.webhooks.verify({
+        payload,
+        headers: { id, timestamp, signature },
+        webhookSecret: key.secret,
+      });
+      signatureKeyId = key.id;
+      break;
+    } catch {
+      // Try the next retained key. No request content is inspected yet.
+    }
+  }
+  if (!signatureKeyId) {
     // Deliberately carries neither the error nor any payload fragment nor the raw
     // envelope id: an attacker controls every one of those on a request that fails
     // verification.
     logWebhook("error", "Rejected unverified Resend webhook.", {
+      alertCode: "resend_webhook_signature_failure",
       providerEventDigest,
     });
     return NextResponse.json(
@@ -1314,7 +1339,7 @@ export async function POST(req: NextRequest) {
       providerMessageId: resolveProviderMessageId(event),
       occurredAt: resolveOccurredAt(event),
       rawBodyHash,
-      signatureKeyId: null,
+      signatureKeyId,
       metadata: buildProviderEventMetadata(event, routing),
       attemptId: routing.attemptId,
       campaignId: routing.campaignId,

@@ -65,7 +65,38 @@ function parseExpectedNonProductionHost(env, vercelEnvironment) {
 export function assertDeploymentEnvironmentIsolation(env = process.env) {
   const vercelEnvironment = env.VERCEL_ENV?.trim().toLowerCase();
 
-  if (!vercelEnvironment || vercelEnvironment === "production") {
+  if (!vercelEnvironment) {
+    return;
+  }
+
+  if (vercelEnvironment === "production") {
+    const configuredUrl = env.NEXT_PUBLIC_SUPABASE_URL?.trim();
+    if (!configuredUrl) {
+      throw new Error(
+        "Refusing production deployment without NEXT_PUBLIC_SUPABASE_URL.",
+      );
+    }
+
+    let configuredUrlObject;
+    try {
+      configuredUrlObject = new URL(configuredUrl);
+    } catch {
+      throw new Error(
+        "Refusing production deployment with an invalid NEXT_PUBLIC_SUPABASE_URL.",
+      );
+    }
+
+    const hostname = normalizeHostname(configuredUrlObject.hostname);
+    if (configuredUrlObject.protocol !== "https:") {
+      throw new Error(
+        "Refusing production deployment without an HTTPS Supabase URL.",
+      );
+    }
+    if (!PRODUCTION_SUPABASE_HOSTS.has(hostname)) {
+      throw new Error(
+        `Refusing production deployment configured for unapproved Supabase host ${hostname}.`,
+      );
+    }
     return;
   }
 

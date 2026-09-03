@@ -7,7 +7,7 @@
  *
  *   - `scripts/local-dev/run-dvhs-csf-isolated-app.mjs`, the isolated app runner
  *     on port 3000, and
- *   - `scripts/local-dev/test-cron-endpoints.ts`, the six-route cron auth/shape
+ *   - `scripts/local-dev/test-cron-endpoints.ts`, the eleven-route cron auth/shape
  *     harness (and the harness process itself).
  *
  * In both cases it rejects and records every HTTP(S) request whose host is not

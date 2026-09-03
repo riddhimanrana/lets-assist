@@ -10,7 +10,12 @@ import {
   loginAs,
   watchBrowserFailures,
 } from "./helpers";
-import { loadCsfFeedFixture, type CsfFeedFixture } from "./feed-fixtures";
+import {
+  cleanFeedActivities,
+  loadCsfFeedFixture,
+  seedFeedActivities,
+  type CsfFeedFixture,
+} from "./feed-fixtures";
 
 const STAFF_TAB_URL = `${CSF_ORGANIZATION_PATH}?tab=csf-staff`;
 
@@ -67,7 +72,7 @@ async function withdrawSyntheticSubmission(
   let durable = await loadSyntheticSubmission(fixture, description);
 
   while (!durable && Date.now() < deadline) {
-    const dialog = page.getByRole("dialog");
+    const dialog = page.getByRole("dialog", { name: "Submit points" });
     const actionSettledWithoutWrite =
       (await dialog.isVisible().catch(() => false)) &&
       (await dialog.locator("form").getAttribute("aria-busy")) !== "true" &&
@@ -192,7 +197,7 @@ test.describe("DVHS CSF staff access presentation", () => {
       .first();
     await expect(revoke).toHaveAccessibleName(/^Revoke .+ access$/);
     await revoke.click();
-    const dialog = page.getByRole("dialog");
+    const dialog = page.getByRole("dialog", { name: "Revoke staff access" });
     await expect(
       dialog.getByRole("heading", { name: "Revoke staff access", exact: true }),
     ).toBeVisible();
@@ -258,8 +263,11 @@ test.describe("DVHS CSF proof submission", () => {
     await page
       .getByRole("button", { name: "Submit points", exact: true })
       .click();
-    const dialog = page.getByRole("dialog");
-    const proof = dialog.getByLabel("One proof file");
+    const dialog = page.getByRole("dialog", { name: "Submit points" });
+    const proof = dialog.getByRole("button", {
+      name: "Proof file",
+      exact: true,
+    });
     await expect(proof).toBeVisible();
 
     // The constraints are associated with the input, not merely nearby.
@@ -319,39 +327,54 @@ test.describe("DVHS CSF proof submission", () => {
     const failures = watchBrowserFailures(page);
     const fixture = await loadCsfFeedFixture();
     const description = `Synthetic phone point claim ${randomUUID()}`;
-    await page.setViewportSize({ width: 390, height: 844 });
-    await loginAs(
-      page,
-      "member",
-      `${CSF_ORGANIZATION_PATH}?tab=csf-submissions`,
-    );
-
-    await page
-      .getByRole("button", { name: "Submit points", exact: true })
-      .click();
-    const dialog = page.getByRole("dialog");
-    const form = dialog.locator("form");
-    await expect(form).not.toHaveAttribute("aria-busy", "true");
-
-    await dialog.getByLabel("One proof file").setInputFiles({
-      name: "service-proof.png",
-      mimeType: "image/png",
-      buffer: Buffer.from(
-        "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=",
-        "base64",
-      ),
-    });
-    await dialog
-      .getByRole("combobox", { name: "Activity", exact: true })
-      .click();
-    await page.getByRole("option", { name: /Library Peer Tutoring/ }).click();
-    // Exact, so "Point type" and "Point source" cannot also match.
-    await dialog.getByLabel("Points", { exact: true }).fill("1");
-    await dialog.getByLabel("Description").fill(description);
+    const activityTitle = `Synthetic upload activity ${randomUUID()}`;
+    await seedFeedActivities(fixture, [
+      {
+        title: activityTitle,
+        body: "Fictional activity for the proof-upload browser test.",
+        startsAt: new Date(Date.now() + 7 * 24 * 60 * 60_000).toISOString(),
+        termId: fixture.currentTermId,
+        pointValue: 1,
+        pointType: "non_drive",
+      },
+    ]);
 
     let submissionWithdrawn = false;
+    let submissionStarted = false;
     let testFailure: unknown;
     try {
+      await page.setViewportSize({ width: 390, height: 844 });
+      await loginAs(
+        page,
+        "member",
+        `${CSF_ORGANIZATION_PATH}?tab=csf-submissions`,
+      );
+
+      await page
+        .getByRole("button", { name: "Submit points", exact: true })
+        .click();
+      const dialog = page.getByRole("dialog", { name: "Submit points" });
+      const form = dialog.locator("form");
+      await expect(form).not.toHaveAttribute("aria-busy", "true");
+
+      await dialog
+        .getByRole("button", { name: "Proof file", exact: true })
+        .setInputFiles({
+          name: "service-proof.png",
+          mimeType: "image/png",
+          buffer: Buffer.from(
+            "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=",
+            "base64",
+          ),
+        });
+      await dialog.getByRole("combobox", { name: /^Activity:/ }).click();
+      await page
+        .getByRole("option", { name: activityTitle, exact: true })
+        .click();
+      await expect(dialog.getByText("Credit 1 non-drive point")).toBeVisible();
+      await dialog.getByLabel("Description").fill(description);
+
+      submissionStarted = true;
       await dialog
         .getByRole("button", { name: "Submit for review", exact: true })
         .click();
@@ -404,21 +427,30 @@ test.describe("DVHS CSF proof submission", () => {
       // the shared isolated browser stack. A bounded service-role read observes
       // whether the supported action materialized; cleanup itself still uses
       // the member's audited UI withdrawal and retains immutable history.
-      if (!submissionWithdrawn) {
+      if (submissionStarted && !submissionWithdrawn) {
         await withdrawSyntheticSubmission(page, fixture, description);
       }
     } catch (error) {
       cleanupFailure = error;
     }
 
-    if (testFailure && cleanupFailure) {
+    let activityCleanupFailure: unknown;
+    try {
+      await cleanFeedActivities(fixture, activityTitle);
+    } catch (error) {
+      activityCleanupFailure = error;
+    }
+
+    const errors = [testFailure, cleanupFailure, activityCleanupFailure].filter(
+      (error) => error !== undefined,
+    );
+    if (errors.length > 1) {
       throw new AggregateError(
-        [testFailure, cleanupFailure],
-        "Point submission failed and synthetic cleanup also failed.",
+        errors,
+        "Point submission failed with one or more cleanup failures.",
       );
     }
-    if (testFailure) throw testFailure;
-    if (cleanupFailure) throw cleanupFailure;
+    if (errors.length === 1) throw errors[0];
 
     expectNoBrowserFailures(failures);
   });

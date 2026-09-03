@@ -47,19 +47,23 @@ replace and approve them from the chapter calendar before a Production cutover.
 1. Sign in as `csf.admin@local.test`; open **DVHS CSF → Classes**. Confirm all
    four classes point to Fall 2026, the application window is set, the policy is
    published, and each class has an active join code in **Invite students**.
-2. Open the Class of 2028 class page's **Members** tab and note the **Needs
-   attention** queue before testing a new join. Never expose or export the
+2. Open the Class of 2028 class page's **Members** tab and note the **Record
+   connections** queue before testing a new join. Never expose or export the
    member roster to perform this check.
 3. In a signed-out window, open the Class of 2028 code's `/connect/<code>` URL
-   and sign in as `student.2028@local.test`. Complete **Add profile details →
-   Find my record**; the record whose roster email matches the verified account
+   and sign in as `student.2028@local.test`. Complete **Find your record → Find
+   my record**; the record whose roster email matches the verified account
    email connects automatically. Verify **Home** and **My CSF** show the class,
    current policy, and historical semesters.
-4. Repeat with `csf.applicant@local.test`. An email that matches no class
-   record creates a new stable profile from the account identity; a conflicting
-   or shared email lands the join in **Needs attention** instead. As the
-   Membership VP, resolve any queued request: connect only when the recorded
-   email, name, and class all corroborate; otherwise reject with a reason.
+4. Repeat with `csf.applicant@local.test`. An unmatched verified email never
+   creates a profile or class membership. The page may show one sole, active,
+   unclaimed exact account-name record from the selected class. Confirming that
+   card creates or reuses one request in **Record connections**. A typed name,
+   conflict, shared email, or ambiguous match follows the same officer-review
+   boundary.
+   As the Membership VP, review any queued request: connect only when the
+   recorded email, name, and class all corroborate; otherwise reject with a
+   reason.
 5. Sign in as `platform.outsider@local.test`. The public organization page may
    show public activities, but must not expose roster, applications, evidence,
    attendance, points, or account-connection data.
@@ -154,13 +158,13 @@ Import through the Sheets workspace preview → commit fence. Google and the cha
 
 **Acceptance before moving on:** every imported student identity came from an approved roster/history source; every application row either names an existing reviewed profile or is explicitly skipped; every partner form-response row is applied as a draft or skipped and each retained club's term standing is reviewed; the ambiguous-row queue is triaged to zero or every remaining row is documented.
 
-For DVHS, the only historical student imports are the approved Class of
-2027–2029 workbooks. Run semester-tab discovery for each workbook, then review
-every populated canonical semester tab and its bounded range before creating a
-separate immutable preview. Class of 2026 is out of scope, the Class of 2030
-workbook has no import job, and the Spring 2026 application-response workbook
-is comparison evidence only. DVHS-specific source rules are in
-[officer runbook §10.2](officer-runbook.md).
+For DVHS, link the approved Class of 2027–2030 workbooks and run semester-tab
+discovery for each workbook. Review every populated canonical semester tab and
+its bounded range before creating a separate immutable preview. Class of 2026
+is out of scope. The current Class of 2030 tabs are header-only, so the linked
+workbook has no row-import job and creates no records. The Spring 2026
+application-response workbook is comparison evidence only. DVHS-specific
+source rules are in [officer runbook §10.2](officer-runbook.md).
 
 ## Stage 5 — Communications setup
 
@@ -171,15 +175,15 @@ Before any announcement email, open **Communications settings**, select **Check 
 1. Each graduating class already holds one permanent 6-character join code; read it from the class page's **Invite students** dialog (create one there if the class has none). These codes replace whatever the chapter published before — Classroom codes, a form, a spreadsheet.
 2. Publish each class's code or its `/connect/<code>` URL wherever the chapter reaches students. Record the current term's application form URL in the term's **Application form link** so the public page can offer it during the application window.
 
-What a student experiences: they open `/connect/<code>`, sign in with a verified account, submit **Find my record**, and the record carrying their verified email connects automatically — they pick a username in place and land on their class Home with the CSF member tour. An email on no class record creates a new stable profile in that class instead of a dead end.
+What a student experiences: they open `/connect/<code>`, sign in with a verified account, submit **Find my record**, and the record carrying their verified email connects automatically. If email does not match, the page may show one sole, active, unclaimed exact account-name record from the selected class. **Yes, this is me** creates or reuses one officer request. Name evidence never links the account. The student can continue to the class feed while the request is pending.
 
-A join whose email conflicts with an account or class assignment, or is shared by several records, waits in that class's **Needs attention** queue. Ranked suggestions are advisory only; **Connect account** remains unavailable until the confirmed account email, exact name, and one active class corroborate one current profile. **Roster names are never exposed to students** — the student sees only their own request's state.
+An unmatched verified email never creates a profile or class membership. A typed name, conflicting assignment, shared email, stale candidate, or ambiguous match creates or reuses one request in that class's **Record connections** queue. Ranked suggestions are advisory only; **Connect account** remains unavailable until the confirmed account email, exact name, and one active class corroborate one current profile. **Roster names are never exposed to students**. The student sees only their own request's state.
 
 ### New application cycle when no profile exists (DVHS Class of 2030)
 
 The application response does not create the profile, and the application decision does not create the profile. For a class that begins with an empty cohort shell, use this sequence:
 
-1. Record the reviewed new application form URL in the current term's **Application form link**. For DVHS, the Class of 2030 workbook remains unimported.
+1. Record the reviewed new application form URL in the current term's **Application form link**. For DVHS, keep the Class of 2030 workbook linked and leave its header-only tabs uncommitted.
 2. After a student submits the current form, open **More → Imports**, choose **Applications**, select the exact source tab and bounded range, map it, and select **Preview normalized rows**. Preview records source evidence but creates no profile, application, or membership.
 3. A response with no reviewed profile is held for reconciliation. Open **Members → Add member**, use **Add a student record**, enter the exact reviewed identity and current unique school/personal email, choose **Class** = Class of 2030, and select **Add student record**. Wait for **Student record created.** Do not create a duplicate when a current profile already exists.
 4. This staff action creates the permanent profile and class membership through the replay-safe profile-write transaction and records a separate `profile.create` audit receipt. It does not create the imported application, term membership, or account connection, and its audit receipt does not replace the source-row evidence.
@@ -193,7 +197,7 @@ The application response does not create the profile, and the application decisi
 Ordinary running is the officer runbook. The first term is worth watching more closely:
 
 - Post from the class Stream with audience `class` (one cohort) or `members` (whole chapter). Pin sparingly.
-- The "also send as email" toggle queues exactly one campaign per post through the durable ledger. Retries are safe; edits after queueing never change the email already sent. Delivery drains every 10 minutes via the `csf-communications-dispatch` workflow.
+- The "also send as email" toggle queues exactly one campaign per post through the durable ledger. Retries are safe; edits after queueing never change the email already sent. The Vercel schedule requests `csf-communications-dispatch` every minute, but queueing is not delivery and hosted starts can vary.
 - Grant posting rights through the `manage_posts` capability. Publicity VP and Web Master templates carry it; org admins and the owner always have it.
 - Recipients opt out through the link in every announcement email. Opt-outs exclude the address from future snapshots automatically — never hand-manage them.
 

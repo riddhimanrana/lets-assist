@@ -3,6 +3,8 @@ import { readFileSync } from "node:fs";
 
 const TARGET_PATHS = new Set([
   "/api/cron/csf-communications-dispatch",
+  "/api/cron/csf-class-workbook-refresh",
+  "/api/cron/csf-import-commit",
   "/api/cron/csf-scheduled-post-publisher",
 ]);
 
@@ -33,7 +35,7 @@ function configuredCrons(): VercelCron[] {
 }
 
 describe("CSF hosted-worker cadence acceptance boundary", () => {
-  test("schedules both CSF workers through Vercel cron", () => {
+  test("schedules all CSF workers through Vercel cron", () => {
     const configuredTargets = configuredCrons().filter(
       (cron) => typeof cron.path === "string" && TARGET_PATHS.has(cron.path),
     );
@@ -41,7 +43,15 @@ describe("CSF hosted-worker cadence acceptance boundary", () => {
     expect(configuredTargets).toEqual([
       {
         path: "/api/cron/csf-communications-dispatch",
-        schedule: "*/10 * * * *",
+        schedule: "* * * * *",
+      },
+      {
+        path: "/api/cron/csf-class-workbook-refresh",
+        schedule: "* * * * *",
+      },
+      {
+        path: "/api/cron/csf-import-commit",
+        schedule: "* * * * *",
       },
       {
         path: "/api/cron/csf-scheduled-post-publisher",

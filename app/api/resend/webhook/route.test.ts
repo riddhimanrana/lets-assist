@@ -13,7 +13,11 @@ mock.module("server-only", () => ({}));
  * Every fixture value is synthetic.
  */
 
-type VerifyCall = { payload: string; headers: Record<string, string> };
+type VerifyCall = {
+  payload: string;
+  headers: Record<string, string>;
+  webhookSecret?: string;
+};
 
 const verifyCalls: VerifyCall[] = [];
 const constructedApiKeys: unknown[] = [];
@@ -33,6 +37,7 @@ mock.module("resend", () => ({
         verifyCalls.push({
           payload: call.payload,
           headers: { ...call.headers },
+          webhookSecret: call.webhookSecret,
         });
         return verifyImpl(call);
       },
@@ -149,6 +154,7 @@ beforeEach(() => {
     error: null,
   };
   process.env.RESEND_WEBHOOK_SECRET = "whsec_synthetic";
+  delete process.env.RESEND_WEBHOOK_SECRET_KEYRING;
   process.env.RESEND_API_KEY = "re_synthetic";
   process.env.NEXT_PUBLIC_SUPABASE_URL = `https://${CURRENT_ENVIRONMENT}.supabase.co`;
 
@@ -243,6 +249,36 @@ describe("signature verification happens before the body is interpreted", () => 
     expect(response.status).toBe(200);
     expect(verifyCalls).toHaveLength(1);
     expect(rpcCalls).toHaveLength(1);
+  });
+
+  test("accepts a retained key and records which key verified the event", async () => {
+    process.env.RESEND_WEBHOOK_SECRET_KEYRING = JSON.stringify({
+      activeKeyId: "current",
+      keys: {
+        current: "whsec_current_synthetic",
+        retained: "whsec_retained_synthetic",
+      },
+    });
+    delete process.env.RESEND_WEBHOOK_SECRET;
+    const raw =
+      '{"type":"email.delivered","created_at":"2032-04-01T10:05:00.000Z","data":{"email_id":"synthetic-message-a","tags":' +
+      JSON.stringify(csfTags()) +
+      "}}";
+    verifyImpl = (call) => {
+      if (call.webhookSecret !== "whsec_retained_synthetic") {
+        throw new Error("signature mismatch");
+      }
+      return JSON.parse(raw);
+    };
+
+    const response = await route.POST(makeRequest(raw));
+
+    expect(response.status).toBe(200);
+    expect(verifyCalls.map((call) => call.webhookSecret)).toEqual([
+      "whsec_current_synthetic",
+      "whsec_retained_synthetic",
+    ]);
+    expect(rpcCalls[0].args.p_signature_key_id).toBe("retained");
   });
 
   /**
