@@ -403,3 +403,37 @@ test("app-only workflow cannot execute a migration or import command", () => {
   assert.match(workflow, /ref: \$\{\{ inputs.release_sha \}\}/u);
   assert.doesNotMatch(workflow, /path:.*\.vercel\/output/u);
 });
+
+test("capture and recovery alias filters execute and refuse ambiguous targets", () => {
+  const workflow = readFileSync(
+    resolve(import.meta.dirname, "../../.github/workflows/deploy-app-only.yml"),
+    "utf8",
+  );
+  const filters = [
+    ...workflow.matchAll(/'(\[\.aliases\[\][\s\S]*?end)'/gu),
+  ].map((match) => match[1]);
+  assert.equal(filters.length, 2);
+  const alias = {
+    alias: "lets-assist.com",
+    projectId: "prj_fixture",
+    deploymentId: "dpl_fixture",
+  };
+  for (const filter of filters) {
+    const run = (aliases) =>
+      execFileSync("jq", ["-er", "--arg", "project", "prj_fixture", filter], {
+        input: JSON.stringify({ aliases }),
+        encoding: "utf8",
+        stdio: ["pipe", "pipe", "pipe"],
+      }).trim();
+    assert.equal(run([alias]), "dpl_fixture");
+    for (const aliases of [
+      [],
+      [alias, alias],
+      [{ ...alias, projectId: "prj_other" }],
+      [{ ...alias, alias: "other.example.test" }],
+      [{ ...alias, deploymentId: null }],
+    ]) {
+      assert.throws(() => run(aliases));
+    }
+  }
+});

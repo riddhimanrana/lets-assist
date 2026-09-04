@@ -135,7 +135,7 @@ jobs:
             --data-urlencode "projectId=${VERCEL_ROOT_PROJECT_ID}" \
             --data-urlencode "teamId=${VERCEL_TEAM_ID}" https://api.vercel.com/v4/aliases)"
           id="$(jq -er --arg project "${VERCEL_ROOT_PROJECT_ID}" \
-            '[.aliases[] | select(.alias == "lets-assist.com" and .projectId == $project)] \
+            '[.aliases[] | select(.alias == "lets-assist.com" and .projectId == $project)]
              | if length == 1 then .[0].deploymentId else error("ambiguous alias") end' <<<"${payload}")"
           [[ "${id}" =~ ^dpl_[A-Za-z0-9]+$ ]]
           echo "deployment_id=${id}" >> "${GITHUB_OUTPUT}"
@@ -250,7 +250,7 @@ jobs:
             --data-urlencode "projectId=${VERCEL_ROOT_PROJECT_ID}" \
             --data-urlencode "teamId=${VERCEL_TEAM_ID}" https://api.vercel.com/v4/aliases)"
           current="$(jq -er --arg project "${VERCEL_ROOT_PROJECT_ID}" \
-            '[.aliases[] | select(.alias == "lets-assist.com" and .projectId == $project)] \
+            '[.aliases[] | select(.alias == "lets-assist.com" and .projectId == $project)]
              | if length == 1 then .[0].deploymentId else error("ambiguous alias") end' <<<"${payload}")"
           if [[ "${current}" == "${PREVIOUS}" ]]; then
             bash ../scripts/production/verify-vercel-alias.sh
