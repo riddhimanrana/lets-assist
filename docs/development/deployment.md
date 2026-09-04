@@ -40,6 +40,9 @@ only deployment IDs and commit identities before moving the public alias. A
 failed promotion or public check restores the prior app deployment. No schema
 rollback runs. If cancellation prevents verification, inspect the retained
 `app-only-release-<run ID>` receipt and verify the alias before another dispatch.
+Staged and public-domain machine checks use the existing automation bypass
+header. They do not disable the firewall or prove ordinary browser access;
+signed-in browser acceptance remains a separate check.
 
 This app-only path supersedes the schema-first requirement below only when its
 exact live schema checks pass. Database changes still use the separately

@@ -222,6 +222,7 @@ jobs:
         id: public
         env:
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_AUTOMATION_BYPASS_SECRET: ${{ secrets.VERCEL_AUTOMATION_BYPASS_SECRET }}
           PRODUCTION_DEPLOYMENT_ID: ${{ steps.staged.outputs.deployment_id }}
           EXPECTED_ALIAS_OPERATION: promote
           EXPECTED_ALIAS_OPERATION_DEPLOYMENT_ID: ${{ steps.staged.outputs.deployment_id }}

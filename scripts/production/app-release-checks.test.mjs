@@ -375,6 +375,10 @@ test("app-only workflow cannot execute a migration or import command", () => {
   assert.match(workflow, /deploy --prebuilt --prod --skip-domain/u);
   assert.match(workflow, /group: production-schema-deployment/u);
   assert.match(workflow, /environment: production/u);
+  assert.match(
+    workflow,
+    /name: Verify exact public alias and application[\s\S]*?VERCEL_AUTOMATION_BYPASS_SECRET: \$\{\{ secrets\.VERCEL_AUTOMATION_BYPASS_SECRET \}\}/u,
+  );
   assert.match(workflow, /always\(\).*steps\.promote\.outcome/u);
   assert.ok(
     workflow.indexOf("Retain count-only recovery receipt") <
