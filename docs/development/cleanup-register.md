@@ -871,8 +871,9 @@ official import commit is claimed here.
 
 Production DVHS CSF selects application runtime `1.2.20` at deployment
 `dpl_8tuoA9HEbxBYqYtCzX44kvWQqZaq`, separate from the host. The app-only host
-release does not update that selection. Its screens require separate signed
-application release and organization-selection evidence during follow-up work.
+release does not update that selection. Source routing limits this child to
+`access-proof`; member and officer screens remain host-owned and update with
+the host release. Child runtime selection is not evidence for those screens.
 
 The app-only controller is implemented locally with separate accepted-source
 and controller identities. It uses the Supabase management read-only endpoint,
