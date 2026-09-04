@@ -899,7 +899,18 @@ and recovery. A regression test executes both actual workflow filters against
 synthetic aliases and verifies refusal of missing, duplicate, cross-project,
 wrong-domain, and null-deployment results. All 13 focused release tests pass.
 Controller PR #466 passed full CI `33838769723` and merged to Development.
-Production promotion PR #467 remains subject to its required checks.
+Production promotion PR #467 passed refreshed CI `33839970326` and merged at
+`de7de45e`. App-only run `33840907190` passed source, schema, project, gitlink,
+and alias verification, then failed during `vercel pull`, before compilation
+or staging. The replacement token has host-project scope. Vercel CLI 59.3.0
+also requests the owning team and returns `PROJECT_UNAUTHORIZED` when that
+lookup is forbidden. Upstream issue `vercel/vercel#17506` remains open for
+this exact project-scoped-token failure. No deployment or database write ran.
+The operator must replace the GitHub Production environment `VERCEL_TOKEN`
+with a short-lived token scoped to Let's Assist Team to use this CLI path.
+That scope covers the team's projects, not only the host project. Credential
+creation and submission remain a user handoff. No permissions were expanded
+by the agent, and the workflow was not retried after this diagnosis.
 
 ### Account-name claim follow-up, September 4
 
@@ -917,6 +928,41 @@ lock, legacy-endpoint refusal, connection provenance, replay, and access checks.
 Seven compiled-browser join scenarios pass, including verified-email connection,
 account-name confirmation and reload, ambiguous review, and officer rejection.
 These are local results, not hosted Development or Production acceptance.
+
+Production recheck at `2026-09-04T04:45Z`: the public alias still resolves to
+`dpl_HtRch4K8gor7owGrZva4fiEunkLg` at `b5029aaf`, and the database still has
+444 migrations through `20260903050000`. Root PR #465 at `04317c24` is now
+ready for review. Required CI run `33837849001` passed quality, database replay,
+and browser checks; the earlier draft run skipped quality and database checks.
+The final local run passed all 293
+root test files, TypeScript, zero-warning lint, and changed-file formatting.
+No new Vercel build was started for this recheck.
+
+Count-only Production checks found 4,038 sheet activity records with no blank
+labels, missing or cross-scope catalog links, or repeated per-profile/term
+source references. All 1,208 attendance records have labels and same-scope
+meeting links. There are two verified account links, no current-semester
+memberships, and no term applications. Import history contains 28 completed
+commits, 22 completed previews, one failed preview, and 30 previews needing
+resolution. No workbook refresh jobs, new commit-queue entries, CSF email
+attempts, or CSF provider events exist. These structural checks do not prove
+source completeness, correct point values, or repeat-sync acceptance.
+
+Both Production Resend endpoints remain disabled. No database mutation,
+import decision, email dispatch, or paid service change was made during this
+audit. The later token replacement and CLI limitation are recorded above.
+
+The subsequent Class of 2030 browser check found the same Drive file identity
+already linked in Development with eight discovered tabs. The Production
+picker and link action both read its metadata. The live action then refused
+the empty template with: "No populated canonical semester tab with First and
+Last name columns was found for this class." Readback confirms zero workbook
+registries, sheet sources, and profiles for that class. The deployed private
+gitlink `613ed1a` contains that refusal; the accepted release contains the
+empty-template linking repair. No fake row or direct database registration
+was used. PR #465's original candidate passed the full required CI run.
+The follow-up now includes the reviewed controller merge from Development;
+the integrated candidate must pass its checks before merging.
 
 The read-only Production baseline remains 306, 280, 108, and zero directory
 profiles for classes 2027, 2028, 2029, and 2030 respectively. Current-semester
