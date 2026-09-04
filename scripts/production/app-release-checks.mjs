@@ -5,9 +5,17 @@ import { pathToFileURL } from "node:url";
 
 export const productionRef = "fotdmeakexgrkronxlof";
 const shaPattern = /^[0-9a-f]{40}$/u;
+export class ReleaseCheckError extends Error {}
+
+export function safeFailureMessage(error) {
+  return error instanceof ReleaseCheckError
+    ? error.message
+    : "App-only verification failed. No provider payload or credential was logged.";
+}
 
 export function requireSha(value) {
-  if (!shaPattern.test(value ?? "")) throw new Error("Invalid release SHA.");
+  if (!shaPattern.test(value ?? ""))
+    throw new ReleaseCheckError("Invalid release SHA.");
   return value;
 }
 
@@ -20,15 +28,17 @@ export async function readJson(url, options, fetcher = fetch) {
       signal: AbortSignal.timeout(30_000),
     });
   } catch {
-    throw new Error("Release verification transport failed.");
+    throw new ReleaseCheckError("Release verification transport failed.");
   }
   if (!response.ok) {
-    throw new Error(`Release verification refused: HTTP ${response.status}.`);
+    throw new ReleaseCheckError(
+      `Release verification refused: HTTP ${response.status}.`,
+    );
   }
   try {
     return await response.json();
   } catch {
-    throw new Error("Release verification returned invalid JSON.");
+    throw new ReleaseCheckError("Release verification returned invalid JSON.");
   }
 }
 
@@ -47,7 +57,9 @@ export function verifyAcceptance(status, run, sha, repository) {
     run?.conclusion !== "success" ||
     !["push", "workflow_dispatch"].includes(run?.event)
   )
-    throw new Error("The application has no trusted hosted acceptance.");
+    throw new ReleaseCheckError(
+      "The application has no trusted hosted acceptance.",
+    );
 }
 
 export function verifyQualityRuns(runs) {
@@ -59,7 +71,9 @@ export function verifyQualityRuns(runs) {
       matches[0]?.status !== "completed" ||
       matches[0]?.conclusion !== "success"
     ) {
-      throw new Error(`Required application check is not successful: ${name}.`);
+      throw new ReleaseCheckError(
+        `Required application check is not successful: ${name}.`,
+      );
     }
   }
 }
@@ -71,7 +85,9 @@ export async function verifySource(
   requireSha(releaseSha);
   requireSha(acceptedSha);
   if (!/^[\w.-]+\/[\w.-]+$/u.test(repository ?? "") || !token) {
-    throw new Error("Missing trusted repository verification context.");
+    throw new ReleaseCheckError(
+      "Missing trusted repository verification context.",
+    );
   }
   const git = (...args) =>
     execFileSync("git", args, {
@@ -80,16 +96,18 @@ export async function verifySource(
       stdio: ["ignore", "pipe", "pipe"],
     }).trim();
   if (git("rev-parse", "HEAD") !== releaseSha)
-    throw new Error("Checkout SHA differs from release.");
+    throw new ReleaseCheckError("Checkout SHA differs from release.");
   if (git("status", "--porcelain", "--untracked-files=normal"))
-    throw new Error("Application checkout is not clean.");
+    throw new ReleaseCheckError("Application checkout is not clean.");
   git("merge-base", "--is-ancestor", releaseSha, "origin/main");
   git("merge-base", "--is-ancestor", acceptedSha, releaseSha);
   if (
     git("rev-parse", `${releaseSha}^{tree}`) !==
     git("rev-parse", `${acceptedSha}^{tree}`)
   ) {
-    throw new Error("Application tree differs from hosted acceptance.");
+    throw new ReleaseCheckError(
+      "Application tree differs from hosted acceptance.",
+    );
   }
   const request = (path) =>
     readJson(
@@ -102,8 +120,16 @@ export async function verifySource(
       },
       fetcher,
     );
-  const statusPayload = await request(`commits/${acceptedSha}/status`);
-  const status = (statusPayload.statuses ?? [])
+  // The combined-status projection omits creator. Individual statuses retain
+  // the author required by verifyAcceptance; do not relax that identity check.
+  const statusPayload = await request(
+    `commits/${acceptedSha}/statuses?per_page=100`,
+  );
+  if (!Array.isArray(statusPayload))
+    throw new ReleaseCheckError(
+      "Hosted acceptance status inventory is invalid.",
+    );
+  const status = statusPayload
     .filter((item) => item.context === "csf-hosted-development-acceptance")
     .sort((a, b) => b.id - a.id)[0];
   const prefix = `https://github.com/${repository}/actions/runs/`;
@@ -111,7 +137,7 @@ export async function verifySource(
     ? status.target_url.slice(prefix.length)
     : "";
   if (!/^[0-9]+$/u.test(runId))
-    throw new Error("Hosted acceptance has no trusted run.");
+    throw new ReleaseCheckError("Hosted acceptance has no trusted run.");
   verifyAcceptance(
     status,
     await request(`actions/runs/${runId}`),
@@ -122,7 +148,9 @@ export async function verifySource(
     `commits/${acceptedSha}/check-runs?per_page=100`,
   );
   if (checks.total_count > 100)
-    throw new Error("Application checks exceed the bounded inventory.");
+    throw new ReleaseCheckError(
+      "Application checks exceed the bounded inventory.",
+    );
   verifyQualityRuns(checks.check_runs ?? []);
   const ciRuns = new Set();
   for (const name of ["quality", "db-replay-validation"]) {
@@ -135,7 +163,9 @@ export async function verifySource(
       ? check.details_url.slice(prefix.length).match(/^(\d+)\/job\/\d+$/u)
       : null;
     if (!match)
-      throw new Error("Required CI check has no trusted workflow run.");
+      throw new ReleaseCheckError(
+        "Required CI check has no trusted workflow run.",
+      );
     ciRuns.add(match[1]);
   }
   for (const runId of ciRuns) {
@@ -148,7 +178,7 @@ export async function verifySource(
       run.status !== "completed" ||
       run.conclusion !== "success"
     ) {
-      throw new Error(
+      throw new ReleaseCheckError(
         "Required CI run does not verify the accepted application.",
       );
     }
@@ -162,7 +192,7 @@ export function expectedVersions(cwd) {
     .map((name) => name.slice(0, 14))
     .sort();
   if (!versions.length || new Set(versions).size !== versions.length) {
-    throw new Error("Invalid repository migration inventory.");
+    throw new ReleaseCheckError("Invalid repository migration inventory.");
   }
   return versions;
 }
@@ -170,7 +200,7 @@ export function expectedVersions(cwd) {
 export function verifyLedger(rows, expected) {
   const actual = rows?.map((row) => row.version);
   if (JSON.stringify(actual) !== JSON.stringify(expected)) {
-    throw new Error(
+    throw new ReleaseCheckError(
       "Production migration sequence differs from the accepted application.",
     );
   }
@@ -181,7 +211,7 @@ export async function verifySchema(
   fetcher = fetch,
 ) {
   if (projectRef !== productionRef || !token)
-    throw new Error("Invalid Production database binding.");
+    throw new ReleaseCheckError("Invalid Production database binding.");
   const query = (sql) =>
     readJson(
       `https://api.supabase.com/v1/projects/${projectRef}/database/query/read-only`,
@@ -209,7 +239,7 @@ export async function verifySchema(
     ),
   );
   if (result?.length !== 1 || result[0].csf_target_schema_verified !== 1) {
-    throw new Error("Production CSF catalog verification failed.");
+    throw new ReleaseCheckError("Production CSF catalog verification failed.");
   }
   const preference = await query(`SELECT EXISTS (
     SELECT 1 FROM pg_catalog.pg_proc AS p
@@ -223,13 +253,17 @@ export async function verifySchema(
       AND p.prosrc LIKE '%membership.user_id = v_actor_user_id%'
   ) AS valid;`);
   if (preference?.length !== 1 || preference[0].valid !== true)
-    throw new Error("Production staff preference RPC is incompatible.");
+    throw new ReleaseCheckError(
+      "Production staff preference RPC is incompatible.",
+    );
   const writePosture = await query(`SELECT EXISTS (
     SELECT 1 FROM pg_catalog.pg_roles WHERE rolname = 'authenticator'
       AND NOT ('default_transaction_read_only=on' = ANY(coalesce(rolconfig, ARRAY[]::text[])))
   ) AS valid;`);
   if (writePosture?.length !== 1 || writePosture[0].valid !== true)
-    throw new Error("Production has an unresolved application write block.");
+    throw new ReleaseCheckError(
+      "Production has an unresolved application write block.",
+    );
   return {
     migrations: versions.length,
     head: versions.at(-1),
@@ -258,12 +292,10 @@ if (
         token: process.env.SUPABASE_ACCESS_TOKEN,
         cwd: process.cwd(),
       });
-    else throw new Error("Unknown app-only verification mode.");
+    else throw new ReleaseCheckError("Unknown app-only verification mode.");
     console.log(JSON.stringify(receipt));
-  } catch {
-    console.error(
-      "App-only verification failed. No provider payload or credential was logged.",
-    );
+  } catch (error) {
+    console.error(safeFailureMessage(error));
     process.exitCode = 1;
   }
 }
