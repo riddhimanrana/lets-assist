@@ -110,10 +110,14 @@ export function validateStage(deployment, config, expectedId) {
       "Staged deployment identity does not match the accepted release.",
     );
   }
+  const aliases = deployment.alias ?? [];
   if (
     deployment.aliasAssigned === true ||
     deployment.aliasAssigned === "true" ||
-    deployment.alias?.includes("lets-assist.com")
+    !Array.isArray(aliases) ||
+    aliases.some(
+      (alias) => typeof alias !== "string" || alias === "lets-assist.com",
+    )
   ) {
     throw new ReleaseCheckError(
       "Staged deployment unexpectedly has a Production alias. Stop and reconcile.",
