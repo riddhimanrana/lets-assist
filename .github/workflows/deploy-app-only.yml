@@ -1,0 +1,271 @@
+name: Deploy accepted Production app
+
+on:
+  workflow_dispatch:
+    inputs:
+      release_sha:
+        description: "Full main-reachable application commit to deploy"
+        required: true
+        type: string
+      hosted_development_sha:
+        description: "Full hosted-accepted Development commit with the identical tree"
+        required: true
+        type: string
+      production_confirmation:
+        description: "Type deploy-app-only:<release SHA>"
+        required: true
+        type: string
+
+concurrency:
+  group: production-schema-deployment
+  queue: max
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+  actions: read
+  checks: read
+  statuses: read
+
+jobs:
+  deploy:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    environment: production
+    timeout-minutes: 55
+    defaults:
+      run:
+        working-directory: release
+        shell: bash
+    env:
+      RELEASE_SHA: ${{ inputs.release_sha }}
+      ACCEPTED_SHA: ${{ inputs.hosted_development_sha }}
+      VERCEL_ORG_ID: ${{ vars.VERCEL_TEAM_ID }}
+      VERCEL_PROJECT_ID: ${{ vars.VERCEL_ROOT_PROJECT_ID }}
+      VERCEL_ROOT_PROJECT_ID: ${{ vars.VERCEL_ROOT_PROJECT_ID }}
+      VERCEL_TEAM_ID: ${{ vars.VERCEL_TEAM_ID }}
+      EXPECTED_GITHUB_REPOSITORY_ID: ${{ github.repository_id }}
+    steps:
+      - name: Checkout reviewed release controller
+        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8
+        with:
+          persist-credentials: false
+
+      - name: Validate app-only authorization
+        working-directory: .
+        env:
+          CONFIRMATION: ${{ inputs.production_confirmation }}
+        run: |
+          set -euo pipefail
+          [[ "${GITHUB_RUN_ATTEMPT}" == "1" ]]
+          [[ "${RELEASE_SHA}" =~ ^[0-9a-f]{40}$ ]]
+          [[ "${ACCEPTED_SHA}" =~ ^[0-9a-f]{40}$ ]]
+          [[ "${CONFIRMATION}" == "deploy-app-only:${RELEASE_SHA}" ]]
+
+      - name: Checkout the accepted application
+        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8
+        with:
+          ref: ${{ inputs.release_sha }}
+          path: release
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Resolve accepted private gitlink
+        id: private
+        run: |
+          git submodule init
+          echo "sha=$(git rev-parse HEAD:lib/plugins/private)" >> "${GITHUB_OUTPUT}"
+
+      - name: Checkout accepted private plugin
+        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8
+        with:
+          repository: riddhimanrana/lets-assist-plugins
+          ref: ${{ steps.private.outputs.sha }}
+          path: release/lib/plugins/private
+          fetch-depth: 0
+          ssh-key: ${{ secrets.PRIVATE_SUBMODULE_SSH_KEY }}
+          persist-credentials: false
+
+      - name: Normalize private repository metadata
+        run: |
+          git -C lib/plugins/private remote set-url origin https://github.com/riddhimanrana/lets-assist-plugins.git
+          git submodule absorbgitdirs lib/plugins/private
+
+      - name: Setup Node
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version-file: release/.node-version
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6
+        with:
+          bun-version: 1.3.14
+
+      - name: Verify accepted tree and CI
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: node ../scripts/production/app-release-checks.mjs source
+
+      - name: Verify Production schema without writing
+        env:
+          SUPABASE_PROJECT_ID: ${{ secrets.SUPABASE_PROJECT_ID }}
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+        run: node ../scripts/production/app-release-checks.mjs schema
+
+      - name: Verify Production project binding
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+        run: bash ../scripts/production/verify-vercel-project.sh
+
+      - name: Install accepted dependencies and verify private gitlink
+        run: |
+          bun install --frozen-lockfile
+          bun run plugin:submodules:init
+          bun run plugin:submodules:check:strict
+
+      - name: Capture current Production alias
+        id: previous
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+        run: |
+          set -euo pipefail
+          payload="$(curl --fail --silent --show-error --connect-timeout 10 --max-time 20 --get \
+            --header "Authorization: Bearer ${VERCEL_TOKEN}" \
+            --data-urlencode 'domain=lets-assist.com' \
+            --data-urlencode "projectId=${VERCEL_ROOT_PROJECT_ID}" \
+            --data-urlencode "teamId=${VERCEL_TEAM_ID}" https://api.vercel.com/v4/aliases)"
+          id="$(jq -er --arg project "${VERCEL_ROOT_PROJECT_ID}" \
+            '[.aliases[] | select(.alias == "lets-assist.com" and .projectId == $project)] \
+             | if length == 1 then .[0].deploymentId else error("ambiguous alias") end' <<<"${payload}")"
+          [[ "${id}" =~ ^dpl_[A-Za-z0-9]+$ ]]
+          echo "deployment_id=${id}" >> "${GITHUB_OUTPUT}"
+          PRODUCTION_DEPLOYMENT_ID="${id}" bash ../scripts/production/verify-vercel-alias.sh
+
+      - name: Build the accepted app once for Production
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_ENV: production
+          VERCEL_GIT_COMMIT_SHA: ${{ inputs.release_sha }}
+          LETS_ASSIST_BUILD_SHA: ${{ inputs.release_sha }}
+          CSF_WORKBOOK_WORKER_ENABLED: "false"
+          CSF_IMPORT_WORKER_ENABLED: "false"
+          CSF_COMMUNICATIONS_WORKER_ENABLED: "false"
+          CSF_SCHEDULED_POST_PUBLISHER_ENABLED: "false"
+        run: |
+          set -euo pipefail
+          bunx vercel@59.3.0 pull --yes --environment=production --token="${VERCEL_TOKEN}"
+          bunx vercel@59.3.0 build --prod --standalone --token="${VERCEL_TOKEN}"
+
+      - name: Stage without changing domains
+        id: staged
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+        run: |
+          set -euo pipefail
+          payload="$(bunx vercel@59.3.0 deploy --prebuilt --prod --skip-domain --yes --json \
+            --token="${VERCEL_TOKEN}" \
+            --env "LETS_ASSIST_BUILD_SHA=${RELEASE_SHA}" \
+            --env CSF_WORKBOOK_WORKER_ENABLED=false --env CSF_IMPORT_WORKER_ENABLED=false \
+            --env CSF_COMMUNICATIONS_WORKER_ENABLED=false --env CSF_SCHEDULED_POST_PUBLISHER_ENABLED=false \
+            --meta "appOnlyReleaseSha=${RELEASE_SHA}")"
+          id="$(jq -er '.deployment.id // .id' <<<"${payload}")"
+          host="$(jq -er '.deployment.url // .url' <<<"${payload}")"
+          target="$(jq -er '.deployment.target // .target' <<<"${payload}")"
+          [[ "${id}" =~ ^dpl_[A-Za-z0-9]+$ ]]
+          [[ "${host}" =~ ^[a-z0-9-]+\.vercel\.app$ ]]
+          [[ "${target}" == production ]]
+          echo "deployment_id=${id}" >> "${GITHUB_OUTPUT}"
+          echo "origin=https://${host}" >> "${GITHUB_OUTPUT}"
+
+      - name: Check staged application
+        env:
+          DEPLOYMENT_ORIGIN: ${{ steps.staged.outputs.origin }}
+          VERCEL_AUTOMATION_BYPASS_SECRET: ${{ secrets.VERCEL_AUTOMATION_BYPASS_SECRET }}
+        run: node ../scripts/production/app-release-smoke.mjs
+
+      - name: Record alias recovery targets
+        env:
+          PREVIOUS: ${{ steps.previous.outputs.deployment_id }}
+          STAGED: ${{ steps.staged.outputs.deployment_id }}
+        run: |
+          mkdir -p .artifacts
+          jq -n --arg previous "${PREVIOUS}" --arg staged "${STAGED}" \
+            --arg release "${RELEASE_SHA}" --arg accepted "${ACCEPTED_SHA}" \
+            --arg controller "${GITHUB_SHA}" \
+            '{previous:$previous, staged:$staged, release:$release, accepted:$accepted, controller:$controller}' \
+            > .artifacts/app-only-release.json
+
+      - name: Retain count-only recovery receipt
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: app-only-release-${{ github.run_id }}
+          path: release/.artifacts/app-only-release.json
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Verify alias unchanged before promotion
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          PRODUCTION_DEPLOYMENT_ID: ${{ steps.previous.outputs.deployment_id }}
+        run: bash ../scripts/production/verify-vercel-alias.sh
+
+      - name: Promote staged application
+        id: promote
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          DEPLOYMENT_ORIGIN: ${{ steps.staged.outputs.origin }}
+        run: |
+          set -euo pipefail
+          bunx vercel@59.3.0 promote "${DEPLOYMENT_ORIGIN}" --yes --token="${VERCEL_TOKEN}"
+
+      - name: Verify exact public alias and application
+        id: public
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          PRODUCTION_DEPLOYMENT_ID: ${{ steps.staged.outputs.deployment_id }}
+          EXPECTED_ALIAS_OPERATION: promote
+          EXPECTED_ALIAS_OPERATION_DEPLOYMENT_ID: ${{ steps.staged.outputs.deployment_id }}
+          DEPLOYMENT_ORIGIN: https://lets-assist.com
+        run: |
+          set -euo pipefail
+          bash ../scripts/production/verify-vercel-alias-operation.sh
+          bash ../scripts/production/verify-vercel-alias.sh
+          node ../scripts/production/app-release-smoke.mjs
+
+      - name: Restore prior app if promotion does not settle
+        if: ${{ always() && steps.promote.outcome != 'skipped' && steps.promote.outcome != '' && steps.public.outcome != 'success' }}
+        timeout-minutes: 6
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          PREVIOUS: ${{ steps.previous.outputs.deployment_id }}
+          STAGED: ${{ steps.staged.outputs.deployment_id }}
+          PRODUCTION_DEPLOYMENT_ID: ${{ steps.previous.outputs.deployment_id }}
+        run: |
+          set -euo pipefail
+          EXPECTED_ALIAS_OPERATION=promote EXPECTED_ALIAS_OPERATION_DEPLOYMENT_ID="${STAGED}" \
+            bash ../scripts/production/verify-vercel-alias-operation.sh
+          payload="$(curl --fail --silent --show-error --connect-timeout 10 --max-time 20 --get \
+            --header "Authorization: Bearer ${VERCEL_TOKEN}" --data-urlencode 'domain=lets-assist.com' \
+            --data-urlencode "projectId=${VERCEL_ROOT_PROJECT_ID}" \
+            --data-urlencode "teamId=${VERCEL_TEAM_ID}" https://api.vercel.com/v4/aliases)"
+          current="$(jq -er --arg project "${VERCEL_ROOT_PROJECT_ID}" \
+            '[.aliases[] | select(.alias == "lets-assist.com" and .projectId == $project)] \
+             | if length == 1 then .[0].deploymentId else error("ambiguous alias") end' <<<"${payload}")"
+          if [[ "${current}" == "${PREVIOUS}" ]]; then
+            bash ../scripts/production/verify-vercel-alias.sh
+            exit 0
+          fi
+          [[ "${current}" == "${STAGED}" ]] || {
+            echo 'Production alias moved outside this release. Manual reconciliation required.' >&2
+            exit 1
+          }
+          bunx vercel@59.3.0 promote "${PREVIOUS}" --yes --token="${VERCEL_TOKEN}" || true
+          EXPECTED_ALIAS_OPERATION=promote EXPECTED_ALIAS_OPERATION_DEPLOYMENT_ID="${PREVIOUS}" \
+            bash ../scripts/production/verify-vercel-alias-operation.sh
+          bash ../scripts/production/verify-vercel-alias.sh
+
+      - name: Record public release result
+        if: steps.public.outcome == 'success'
+        run: |
+          printf 'Published accepted application `%s`. Database and import records were not changed.\n' \
+            "${RELEASE_SHA}" >> "${GITHUB_STEP_SUMMARY}"

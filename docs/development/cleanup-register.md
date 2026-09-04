@@ -858,6 +858,32 @@ sources.
 
 ## Repository-owned P0–P2
 
+### Current app-only release continuation
+
+The following facts supersede older candidate and release statements below.
+Root `main` contains `336b5a8c`, whose tree equals hosted-accepted Development
+`06c463f0`; both use private gitlink `2affd09`. Hosted run `33723424303` passed
+100-session acceptance with zero request errors and mutation p95 of 1.83 seconds.
+Production Supabase was checked through read-only queries at 444 migrations
+through `20260903050000`; the existing target-schema catalog check returned 1.
+The last verified public app still serves `b5029aaf`. No new app deployment or
+official import commit is claimed here.
+
+Production DVHS CSF selects application runtime `1.2.20` at deployment
+`dpl_8tuoA9HEbxBYqYtCzX44kvWQqZaq`, separate from the host. The app-only host
+release does not update that selection. Its screens require separate signed
+application release and organization-selection evidence during follow-up work.
+
+The app-only controller is implemented locally with separate accepted-source
+and controller identities. It uses the Supabase management read-only endpoint,
+stages one Production build with CSF workers disabled, verifies authentication
+and health, and restores the previous app alias on failed promotion. All 293
+root test files, TypeScript, zero-warning lint, and strict gitlink checks pass.
+The 11 focused release tests also pass. Controller CI, deployment, and public browser acceptance remain
+open. The rejected external-drive backup setup is not a prerequisite for this
+app-only path; database-cutover recovery has not been bypassed or reported as
+complete. Name-only claiming remains a separate requested product change.
+
 No known P0 remains. `AUD-090` is closed. `AUD-091` through `AUD-109` have
 repository fixes in the current integration worktree, but remain active release
 findings until the exact root commit passes CI and hosted Development gates.

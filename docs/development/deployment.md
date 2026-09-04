@@ -10,6 +10,42 @@ Promotion from `development` to `main` is a separate release operation. It requi
 
 Supabase changes follow [the deployment workflow](supabase-deployment.md). Private-plugin changes follow [the two-repository workflow](private-plugins.md).
 
+## App-only Production release
+
+Use `Deploy accepted Production app` when Production already has the exact
+schema required by a hosted-accepted application. This path does not require an
+external drive, logical export, restore, or a `PRODUCTION_READONLY_URL` secret.
+It does not run migrations, change database write controls, approve imports, or
+enable CSF workers. The database-cutover workflow remains separate.
+
+The dispatch takes full `release_sha` and `hosted_development_sha` values and
+`deploy-app-only:<release SHA>` confirmation. The controller runs from reviewed
+`main`; the application checkout uses the explicit release SHA. That SHA must
+be reachable from `main`, contain the accepted SHA, and have the identical Git
+tree. A workflow-only update does not require another application build in
+Development when these application bytes have already passed acceptance.
+
+Before building, the controller verifies the trusted hosted run, successful
+quality and database checks, exact private gitlink, and Vercel project. The
+existing Supabase management token calls only the read-only query endpoint.
+Checks compare every migration version and verify the CSF tables, functions,
+grants, indexes, constraints, triggers, staff preference RPC, and absence of an
+unresolved application write block. A refused query stops the release without
+falling back to a writable query endpoint.
+
+The job builds once with Production settings, stages the prebuilt output with
+all four CSF workers disabled, and checks the application SHA, environment,
+database, deep table reads, login, and protected route authentication. It saves
+only deployment IDs and commit identities before moving the public alias. A
+failed promotion or public check restores the prior app deployment. No schema
+rollback runs. If cancellation prevents verification, inspect the retained
+`app-only-release-<run ID>` receipt and verify the alias before another dispatch.
+
+This app-only path supersedes the schema-first requirement below only when its
+exact live schema checks pass. Database changes still use the separately
+reviewed schema workflow. A successful app release does not prove officer
+imports or provider delivery.
+
 ## Cost-controlled release path
 
 Build and test feature work locally. Keep related fixes on worktrees or local
