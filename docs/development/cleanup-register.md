@@ -886,12 +886,20 @@ Twelve focused tests cover the correction and private-error suppression.
 The correction merged through PRs #463 and #464 into controller `497d9569`.
 Run `33836580294` passed accepted-source and authenticated read-only Production
 schema verification, then stopped at Vercel project binding with HTTP 404,
-before installing dependencies or building. The Vercel token inventory shows
-the recently used `lets-assist-csf-release-20260821` token scoped to the child
-project `lets-assist-csf`, not the host project `lets-assist`. A host-project
-credential must replace the GitHub Production environment's `VERCEL_TOKEN`.
-No new token was created, no credential was copied, and no public alias moved.
+before installing dependencies or building. The release token was scoped to
+the child project `lets-assist-csf`, not the host project `lets-assist`.
 The local Vercel CLI credential is expired and is not a deployment fallback.
+
+The user replaced the Production release token on September 4. Run
+`33838599165` then passed accepted-source, read-only schema, project binding,
+and private-gitlink checks. It stopped before building because both embedded
+alias-selection expressions contained a literal backslash inside quoted jq
+code. The controller-only correction removes those characters from capture
+and recovery. A regression test executes both actual workflow filters against
+synthetic aliases and verifies refusal of missing, duplicate, cross-project,
+wrong-domain, and null-deployment results. All 13 focused release tests pass.
+Controller PR #466 passed full CI `33838769723` and merged to Development.
+Production promotion PR #467 remains subject to its required checks.
 
 ### Account-name claim follow-up, September 4
 
