@@ -2,7 +2,7 @@ BEGIN;
 
 CREATE EXTENSION IF NOT EXISTS pgtap WITH SCHEMA extensions;
 
-SELECT extensions.plan(33);
+SELECT extensions.plan(34);
 
 -- Structure: the hardened wrapper owns the name and the delegate is unreachable.
 SELECT extensions.ok(
@@ -374,6 +374,14 @@ SELECT extensions.is(
       AND user_id = 'ef000000-0000-4000-8000-000000000004'),
   'verified',
   'the corroborated connection produced the verified account link'
+);
+SELECT extensions.is(
+  (SELECT connection_basis FROM plugin_data.csf_profile_accounts
+    WHERE organization_id = 'ef100000-0000-4000-8000-000000000001'
+      AND profile_id = 'ef300000-0000-4000-8000-000000000004'
+      AND user_id = 'ef000000-0000-4000-8000-000000000004'),
+  'officer_decision',
+  'an officer connection records its decision basis even when email corroborates it'
 );
 SELECT extensions.is(
   (SELECT match_status FROM plugin_data.csf_profile_link_requests

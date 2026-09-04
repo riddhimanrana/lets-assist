@@ -9,6 +9,20 @@ This document defines the product, operating model, information architecture, te
 
 ## Amendment record
 
+### Amendment 7: Self-confirmed account-name claims (approved follow-up, September 3, 2026)
+
+This policy is approved for the follow-up release. It is not part of the accepted September 3 application release.
+
+The server may offer **Is this you?** for one active, unclaimed profile whose full normalized name matches the signed-in account within the resolved class. Middle names participate in the comparison. A claimed duplicate remains a collision. The card shows the name and class, not private semester history before connection.
+
+**Yes, this is me** confirms a short-lived signed token bound to the account, organization, class code, class, candidate, confirmed account email, and account-name snapshot. The database rechecks the evidence under the organization identity lock and records the actual connected or review result. Old review-policy tokens cannot authorize a claim after rollout.
+
+Typed names, duplicate matches, claimed profiles, changed candidates, and conflicting class or contact evidence create or reuse one officer request. No path creates semester membership. Import consolidation still requires proven source lineage, not name equality.
+
+Connections record `verified_email`, `self_confirmed_account_name`, or `officer_decision` as their basis. Existing records with unknown provenance stay unknown. Replay and profile access must preserve a valid name claim without describing it as verified email. Officers can inspect and revoke claims through audited controls.
+
+Account names are editable. This lower-assurance policy carries an impersonation risk even with exact matching and collision checks. It supersedes the passive-name review-only clauses below once the follow-up passes acceptance and deploys. Typed-name review and import identity rules do not change.
+
 ### Amendment 1 — Member posts and chapter email delivery (v1.1, August 6, 2026)
 
 Version 1.0 removed the Communications/Updates surface and treated Google Classroom as the chapter’s announcement channel. The chapter has since decided to retire Google Classroom for CSF and make Let’s Assist the member home. This amendment reinstates a deliberately narrow communications surface:

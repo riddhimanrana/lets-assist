@@ -1,4 +1,5 @@
 import { describe, expect, test } from "bun:test";
+import { execFileSync } from "node:child_process";
 import { readFileSync, readdirSync } from "node:fs";
 import { join } from "node:path";
 
@@ -227,8 +228,18 @@ describe("CSF release-state documentation truthfulness guards", () => {
     expect(officerRunbook).toContain(
       `current repository candidate carries ${migrations.length} ordered migrations through \`${currentMigration}\``,
     );
+    const privateGitlink = execFileSync(
+      "git",
+      ["rev-parse", ":lib/plugins/private"],
+      {
+        cwd: repositoryRoot,
+        encoding: "utf8",
+      },
+    )
+      .trim()
+      .slice(0, 7);
     expect(officerRunbook).toContain(
-      "private Development gitlink is `2affd09`",
+      `private Development gitlink is \`${privateGitlink}\``,
     );
     expect(officerRunbook).toContain("Production remains unchanged");
     expect(officerRunbook).not.toContain(

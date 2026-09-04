@@ -884,6 +884,12 @@ statuses, which retain that field, without relaxing the author check. A live
 read-only source check now confirms the accepted SHAs and identical tree.
 Twelve focused tests cover the correction and private-error suppression.
 The correction merged through PRs #463 and #464 into controller `497d9569`.
+Run `33836580294` passed accepted-source and authenticated read-only Production
+schema verification, then stopped at Vercel project binding with HTTP 404,
+before installing dependencies or building. The release token was scoped to
+the child project `lets-assist-csf`, not the host project `lets-assist`.
+The local Vercel CLI credential is expired and is not a deployment fallback.
+
 The user replaced the Production release token on September 4. Run
 `33838599165` then passed accepted-source, read-only schema, project binding,
 and private-gitlink checks. It stopped before building because both embedded
@@ -892,7 +898,83 @@ code. The controller-only correction removes those characters from capture
 and recovery. A regression test executes both actual workflow filters against
 synthetic aliases and verifies refusal of missing, duplicate, cross-project,
 wrong-domain, and null-deployment results. All 13 focused release tests pass.
-Production still serves the prior app; no new build or database write occurred.
+Controller PR #466 passed full CI `33838769723` and merged to Development.
+Production promotion PR #467 passed refreshed CI `33839970326` and merged at
+`de7de45e`. App-only run `33840907190` passed source, schema, project, gitlink,
+and alias verification, then failed during `vercel pull`, before compilation
+or staging. The replacement token has host-project scope. Vercel CLI 59.3.0
+also requests the owning team and returns `PROJECT_UNAUTHORIZED` when that
+lookup is forbidden. Upstream issue `vercel/vercel#17506` remains open for
+this exact project-scoped-token failure. No deployment or database write ran.
+The operator must replace the GitHub Production environment `VERCEL_TOKEN`
+with a short-lived token scoped to Let's Assist Team to use this CLI path.
+That scope covers the team's projects, not only the host project. Credential
+creation and submission remain a user handoff. No permissions were expanded
+by the agent, and the workflow was not retried after this diagnosis.
+
+### Account-name claim follow-up, September 4
+
+Private PR #243 passed CI and merged to private Development at `70e689e`.
+The root follow-up uses that exact gitlink and forward migration
+`20260904010000`. Version 4 confirmation uses the exact full account name,
+including middle names and multiword surnames. A separate versioned RPC leaves
+old open pages review-only. Officers see the recorded connection basis; prior
+unknown basis is not inferred from names or notes.
+
+Local evidence: 258 private test files, TypeScript, zero-warning lint, and strict
+private gitlink checks pass. A fresh isolated replay applied all 445 migrations
+and passed 7,014 assertions in 238 files, including new cross-session identity
+lock, legacy-endpoint refusal, connection provenance, replay, and access checks.
+Seven compiled-browser join scenarios pass, including verified-email connection,
+account-name confirmation and reload, ambiguous review, and officer rejection.
+These are local results, not hosted Development or Production acceptance.
+
+Production recheck at `2026-09-04T04:45Z`: the public alias still resolves to
+`dpl_HtRch4K8gor7owGrZva4fiEunkLg` at `b5029aaf`, and the database still has
+444 migrations through `20260903050000`. Root PR #465 at `04317c24` is now
+ready for review. Required CI run `33837849001` passed quality, database replay,
+and browser checks; the earlier draft run skipped quality and database checks.
+The final local run passed all 293
+root test files, TypeScript, zero-warning lint, and changed-file formatting.
+No new Vercel build was started for this recheck.
+
+Count-only Production checks found 4,038 sheet activity records with no blank
+labels, missing or cross-scope catalog links, or repeated per-profile/term
+source references. All 1,208 attendance records have labels and same-scope
+meeting links. There are two verified account links, no current-semester
+memberships, and no term applications. Import history contains 28 completed
+commits, 22 completed previews, one failed preview, and 30 previews needing
+resolution. No workbook refresh jobs, new commit-queue entries, CSF email
+attempts, or CSF provider events exist. These structural checks do not prove
+source completeness, correct point values, or repeat-sync acceptance.
+
+Both Production Resend endpoints remain disabled. No database mutation,
+import decision, email dispatch, or paid service change was made during this
+audit. The later token replacement and CLI limitation are recorded above.
+
+The subsequent Class of 2030 browser check found the same Drive file identity
+already linked in Development with eight discovered tabs. The Production
+picker and link action both read its metadata. The live action then refused
+the empty template with: "No populated canonical semester tab with First and
+Last name columns was found for this class." Readback confirms zero workbook
+registries, sheet sources, and profiles for that class. The deployed private
+gitlink `613ed1a` contains that refusal; the accepted release contains the
+empty-template linking repair. No fake row or direct database registration
+was used. PR #465's original candidate passed the full required CI run.
+The follow-up now includes the reviewed controller merge from Development;
+the integrated candidate must pass its checks before merging.
+
+The read-only Production baseline remains 306, 280, 108, and zero directory
+profiles for classes 2027, 2028, 2029, and 2030 respectively. Current-semester
+active membership is zero in each class. Three workbook registries have no
+discovered-tab snapshot; 2030 has no registry. Official Production reconciliation
+and audited batch commits remain open. Do not replace these counts with the
+separate Development preview counts.
+
+Resend's Production webhook endpoints are disabled. The sending domains are
+verified, but neither fact proves dispatch or signed settlement. Keep workers
+disabled until controlled test messages settle. The team billing page confirms
+Speed Insights Plus is unchecked. No paid feature was enabled.
 
 The app-only controller uses separate accepted-source
 and controller identities. It uses the Supabase management read-only endpoint,
