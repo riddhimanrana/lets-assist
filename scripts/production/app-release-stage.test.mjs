@@ -126,6 +126,7 @@ test("stage identity refuses wrong source, tenant, target, run, or public alias"
     { aliasAssigned: true },
     { aliasAssigned: "true" },
     { alias: ["lets-assist.com"] },
+    { alias: "lets-assist.com" },
   ])
     assert.throws(() =>
       validateStage(fixture(overrides), config, "dpl_fixture"),
