@@ -387,8 +387,15 @@ test("app-only workflow cannot execute a migration or import command", () => {
     workflow,
     /supabase db (push|reset|dump)|apply_migration|set-application-write-block|recovery_capture|PRODUCTION_READONLY_URL|csf_queue_import/u,
   );
-  assert.equal((workflow.match(/vercel@59\.3\.0 build /gu) ?? []).length, 1);
-  assert.match(workflow, /deploy --prebuilt --prod --skip-domain/u);
+  assert.equal(
+    (workflow.match(/app-release-stage\.mjs create/gu) ?? []).length,
+    1,
+  );
+  assert.doesNotMatch(workflow, /vercel@[^\s]+ (?:pull|build|deploy) /u);
+  assert.ok(
+    workflow.indexOf("Retain staged build identity") <
+      workflow.indexOf("Wait for the existing staged build"),
+  );
   assert.match(workflow, /group: production-schema-deployment/u);
   assert.match(workflow, /environment: production/u);
   assert.match(
