@@ -875,13 +875,23 @@ release does not update that selection. Source routing limits this child to
 `access-proof`; member and officer screens remain host-owned and update with
 the host release. Child runtime selection is not evidence for those screens.
 
-The app-only controller is implemented locally with separate accepted-source
+The app-only controller merged through PRs #461 and #462. Controller CI
+`33833348458` passed, including database replay and CSF browser workflows.
+The first authorized run, `33834402466`, stopped before schema checks or a
+Vercel build: GitHub's combined commit-status projection omits the creator
+field required by the acceptance guard. The correction reads individual
+statuses, which retain that field, without relaxing the author check. A live
+read-only source check now confirms the accepted SHAs and identical tree.
+Twelve focused tests cover the correction and private-error suppression.
+The correction has not yet been released; Production still serves the prior app.
+
+The app-only controller uses separate accepted-source
 and controller identities. It uses the Supabase management read-only endpoint,
 stages one Production build with CSF workers disabled, verifies authentication
 and health, and restores the previous app alias on failed promotion. All 293
 root test files, TypeScript, zero-warning lint, and strict gitlink checks pass.
-The 11 focused release tests also pass. Controller CI, deployment, and public browser acceptance remain
-open. The rejected external-drive backup setup is not a prerequisite for this
+Deployment and public browser acceptance remain open.
+The rejected external-drive backup setup is not a prerequisite for this
 app-only path; database-cutover recovery has not been bypassed or reported as
 complete. Name-only claiming remains a separate requested product change.
 

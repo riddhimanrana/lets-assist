@@ -9,6 +9,8 @@ import {
   productionRef,
   readJson,
   requireSha,
+  ReleaseCheckError,
+  safeFailureMessage,
   verifyAcceptance,
   verifyLedger,
   verifyQualityRuns,
@@ -18,6 +20,20 @@ import {
 import { smoke, validateStatus } from "./app-release-smoke.mjs";
 
 const sha = "a".repeat(40);
+test("release diagnostics expose only controller-owned failure messages", () => {
+  assert.equal(
+    safeFailureMessage(new ReleaseCheckError("Invalid release SHA.")),
+    "Invalid release SHA.",
+  );
+  assert.doesNotMatch(
+    safeFailureMessage(new Error("private provider payload")),
+    /private provider payload/u,
+  );
+  assert.doesNotMatch(
+    safeFailureMessage({ message: "private token" }),
+    /private token/u,
+  );
+});
 const repository = "example/application";
 const trustedStatus = {
   state: "success",
@@ -158,15 +174,15 @@ test("source verification pins clean Git trees and the required CI workflow", as
   let ciPatch = {};
   const fetcher = async (url) => {
     if (url.endsWith("/status"))
-      return Response.json({
-        statuses: [
-          {
-            ...trustedStatus,
-            id: 1,
-            context: "csf-hosted-development-acceptance",
-          },
-        ],
-      });
+      throw new Error("The combined-status endpoint omits the status creator.");
+    if (url.endsWith("/statuses?per_page=100"))
+      return Response.json([
+        {
+          ...trustedStatus,
+          id: 1,
+          context: "csf-hosted-development-acceptance",
+        },
+      ]);
     if (url.endsWith("/actions/runs/42"))
       return Response.json({ ...trustedRun, head_sha: acceptedSha });
     if (url.endsWith("/check-runs?per_page=100"))
