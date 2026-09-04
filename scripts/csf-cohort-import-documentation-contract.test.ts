@@ -280,7 +280,7 @@ describe("CSF cohort import documentation truthfulness guards", () => {
     );
   });
 
-  test("cohort rollout requires current email evidence before account connection", () => {
+  test("officer review needs current email evidence and signed name claims stay explicit", () => {
     // The guide reorganized this material into "Resolve the connection queue".
     const cohortLink = between(
       operatorGuide,
@@ -310,7 +310,7 @@ describe("CSF cohort import documentation truthfulness guards", () => {
       "current, unique school or personal email",
       "permanent join code from **Invite students**",
       "verified sign-in email uniquely matches",
-      "exact passive account-name candidate",
+      "unique unclaimed full-account-name match",
       "manually entered name never creates or links",
     ]);
     expect(studentRollout).toContain(
@@ -322,6 +322,13 @@ describe("CSF cohort import documentation truthfulness guards", () => {
     );
     expect(studentRollout).not.toContain("creates a new stable profile");
     expect(studentRollout).not.toContain("Needs attention");
+    expect(officerRunbook).toContain(
+      "lower-assurance claim, not verified-email evidence",
+    );
+    expect(officerRunbook).toContain("impersonation risk");
+    expect(officerRunbook).toContain(
+      "Older open pages retain the review-only policy",
+    );
     expect(productContract).toContain(
       "A name entered by the student never creates or links a profile.",
     );

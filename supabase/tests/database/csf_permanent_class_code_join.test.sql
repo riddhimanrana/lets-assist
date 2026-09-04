@@ -1,7 +1,7 @@
 BEGIN;
 
 CREATE EXTENSION IF NOT EXISTS pgtap WITH SCHEMA extensions;
-SELECT extensions.plan(29);
+SELECT extensions.plan(30);
 
 SELECT extensions.ok(
   NOT has_function_privilege(
@@ -95,6 +95,14 @@ SELECT extensions.ok(
       AND status = 'verified'
   ),
   'the exact-email connection creates a verified account link'
+);
+SELECT extensions.is(
+  (SELECT connection_basis FROM plugin_data.csf_profile_accounts
+    WHERE organization_id = 'ca200000-0000-4000-8000-000000000001'
+      AND profile_id = 'ca400000-0000-4000-8000-000000000001'
+      AND user_id = 'ca100000-0000-4000-8000-000000000002'),
+  'verified_email',
+  'the email join records provenance through its exact matching audit'
 );
 INSERT INTO class_join_replay_results (scenario, payload)
 SELECT

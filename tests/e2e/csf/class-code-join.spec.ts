@@ -21,9 +21,9 @@ import {
  *
  * The seeded active code for the Class of 2028 is HAWK28. A signed-in student
  * submits the join form; `csf_join_class_by_code` matches on the account's
- * verified email only. One exact in-class match auto-connects; conflicting or
- * ambiguous email evidence lands as `needs_review` in that class's Members
- * tab "Record connections" queue, where an officer resolves it.
+ * verified email. A unique unclaimed account-name match needs confirmation.
+ * Typed names and conflicting evidence go to the class's Members tab
+ * "Record connections" queue, where an officer resolves them.
  */
 
 const classJoinCode = "HAWK28";
@@ -396,7 +396,7 @@ test.describe("class join code connections", () => {
     expectNoBrowserFailures(failures);
   });
 
-  test("a sole exact-name record without email creates one officer review request", async ({
+  test("a sole exact account-name record connects after confirmation and survives reload", async ({
     page,
   }) => {
     await cleanJoinFixture(fixture);
@@ -422,7 +422,10 @@ test.describe("class join code connections", () => {
       .getByRole("button", { name: "Yes, this is me", exact: true })
       .click();
     await expect(
-      page.getByText(/Your request is saved\./u).first(),
+      page.getByRole("heading", {
+        name: "Your CSF record is linked",
+        exact: true,
+      }),
     ).toBeVisible();
 
     await expect
@@ -438,7 +441,7 @@ test.describe("class join code connections", () => {
             fixture.admin
               .schema("plugin_data")
               .from("csf_profile_accounts")
-              .select("status,is_primary")
+              .select("status,is_primary,connection_basis")
               .eq("organization_id", fixture.organizationId)
               .eq("profile_id", noEmailProfileId)
               .eq("user_id", fixture.userId)
@@ -456,33 +459,31 @@ test.describe("class join code connections", () => {
         return { account, member, request };
       })
       .toEqual({
-        account: null,
-        member: null,
+        account: {
+          status: "verified",
+          is_primary: true,
+          connection_basis: "self_confirmed_account_name",
+        },
+        member: { role: "member", status: "active" },
         request: {
           candidate_profile_ids: [noEmailProfileId],
-          match_status: "needs_review",
-          matched_profile_id: null,
+          match_status: "auto_linked",
+          matched_profile_id: noEmailProfileId,
         },
       });
 
     await page.reload({ waitUntil: "domcontentloaded" });
     await expect(
-      page.getByRole("heading", {
-        name: "Your record is awaiting review",
-        exact: true,
-      }),
+      page.getByRole("button", { name: "Go to My CSF", exact: true }),
     ).toBeVisible();
     await expect(
-      page.getByText(
-        "Your request is saved. You can use the class feed while a CSF officer checks the match.",
-        { exact: true },
-      ),
-    ).toBeVisible();
-    await page.getByRole("button", { name: "Go to class feed" }).click();
+      page.getByRole("button", { name: "Yes, this is me", exact: true }),
+    ).toHaveCount(0);
+    await page.getByRole("button", { name: "Go to My CSF" }).click();
     await expect(page).toHaveURL(
       (url) =>
-        url.pathname === CSF_PUBLIC_PATH &&
-        url.hash === "#chapter-updates-title",
+        url.pathname === CSF_ORGANIZATION_PATH &&
+        url.searchParams.get("tab") === "csf-profile",
     );
 
     expectNoBrowserFailures(failures);

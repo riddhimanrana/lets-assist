@@ -883,7 +883,44 @@ field required by the acceptance guard. The correction reads individual
 statuses, which retain that field, without relaxing the author check. A live
 read-only source check now confirms the accepted SHAs and identical tree.
 Twelve focused tests cover the correction and private-error suppression.
-The correction has not yet been released; Production still serves the prior app.
+The correction merged through PRs #463 and #464 into controller `497d9569`.
+Run `33836580294` passed accepted-source and authenticated read-only Production
+schema verification, then stopped at Vercel project binding with HTTP 404,
+before installing dependencies or building. The Vercel token inventory shows
+the recently used `lets-assist-csf-release-20260821` token scoped to the child
+project `lets-assist-csf`, not the host project `lets-assist`. A host-project
+credential must replace the GitHub Production environment's `VERCEL_TOKEN`.
+No new token was created, no credential was copied, and no public alias moved.
+The local Vercel CLI credential is expired and is not a deployment fallback.
+
+### Account-name claim follow-up, September 4
+
+Private PR #243 passed CI and merged to private Development at `70e689e`.
+The root follow-up uses that exact gitlink and forward migration
+`20260904010000`. Version 4 confirmation uses the exact full account name,
+including middle names and multiword surnames. A separate versioned RPC leaves
+old open pages review-only. Officers see the recorded connection basis; prior
+unknown basis is not inferred from names or notes.
+
+Local evidence: 258 private test files, TypeScript, zero-warning lint, and strict
+private gitlink checks pass. A fresh isolated replay applied all 445 migrations
+and passed 7,014 assertions in 238 files, including new cross-session identity
+lock, legacy-endpoint refusal, connection provenance, replay, and access checks.
+Seven compiled-browser join scenarios pass, including verified-email connection,
+account-name confirmation and reload, ambiguous review, and officer rejection.
+These are local results, not hosted Development or Production acceptance.
+
+The read-only Production baseline remains 306, 280, 108, and zero directory
+profiles for classes 2027, 2028, 2029, and 2030 respectively. Current-semester
+active membership is zero in each class. Three workbook registries have no
+discovered-tab snapshot; 2030 has no registry. Official Production reconciliation
+and audited batch commits remain open. Do not replace these counts with the
+separate Development preview counts.
+
+Resend's Production webhook endpoints are disabled. The sending domains are
+verified, but neither fact proves dispatch or signed settlement. Keep workers
+disabled until controlled test messages settle. The team billing page confirms
+Speed Insights Plus is unchecked. No paid feature was enabled.
 
 The app-only controller uses separate accepted-source
 and controller identities. It uses the Supabase management read-only endpoint,
