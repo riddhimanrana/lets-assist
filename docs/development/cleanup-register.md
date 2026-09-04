@@ -858,6 +858,30 @@ sources.
 
 ## Repository-owned P0–P2
 
+### App-only protected-secret build repair, 2026-09-04
+
+Production release run `33928920544` verified the new team-scoped Vercel
+credential, exact accepted source, read-only schema compatibility, private
+gitlink, and previous public alias. Vercel pulled Production secret variables
+as `[SENSITIVE]`. The environment validator rejected that placeholder as an
+invalid Supabase URL before Next.js compilation or deployment began. This is
+the behavior described in Vercel CLI issue `vercel/vercel#17514`.
+
+The controller repair creates one staged Vercel-side build from the exact
+accepted GitHub commit. Existing secrets stay inside Vercel. The request
+disables automatic domain assignment and all four CSF workers in both build
+and runtime environments. It overrides the ignored-build command for that
+explicit deployment only, without changing the project's automatic-build
+settings. The workflow records the deployment ID before waiting and never
+retries an uncertain creation request. The existing staged smoke, public
+promotion, and alias recovery checks remain required. Eighteen focused tests
+pass. CI, the staged build, and public release are still pending.
+
+This change does not apply migration `20260904010000`, commit imports, approve
+applications, activate workers, or change provider credentials. The name-claim
+follow-up is deployed to Development at `e130f0f0`; its hosted acceptance run
+`33927863265` is still running. Production remains on `b5029aaf`.
+
 ### Current app-only release continuation
 
 The following facts supersede older candidate and release statements below.
