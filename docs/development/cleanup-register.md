@@ -883,7 +883,16 @@ field required by the acceptance guard. The correction reads individual
 statuses, which retain that field, without relaxing the author check. A live
 read-only source check now confirms the accepted SHAs and identical tree.
 Twelve focused tests cover the correction and private-error suppression.
-The correction has not yet been released; Production still serves the prior app.
+The correction merged through PRs #463 and #464 into controller `497d9569`.
+The user replaced the Production release token on September 4. Run
+`33838599165` then passed accepted-source, read-only schema, project binding,
+and private-gitlink checks. It stopped before building because both embedded
+alias-selection expressions contained a literal backslash inside quoted jq
+code. The controller-only correction removes those characters from capture
+and recovery. A regression test executes both actual workflow filters against
+synthetic aliases and verifies refusal of missing, duplicate, cross-project,
+wrong-domain, and null-deployment results. All 13 focused release tests pass.
+Production still serves the prior app; no new build or database write occurred.
 
 The app-only controller uses separate accepted-source
 and controller identities. It uses the Supabase management read-only endpoint,
