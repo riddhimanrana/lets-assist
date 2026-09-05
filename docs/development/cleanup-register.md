@@ -1122,6 +1122,20 @@ trigger returns SQLSTATE P0001; this migration preserves that behavior rather
 than changing its error contract incidentally. Neither new migration has been
 applied to hosted Development or Production yet.
 
+Private PR #246 passed CI run `33954813548` and merged to private Development
+at `1aa3fff02b224d9edd61ca481bf78bd08a76e4ff`. Settings now returns a separate
+read-failure flag and shows a retry link that preserves the selected class and
+semester. It does not show the sheet-link picker after a failed read. Local
+TypeScript, full zero-warning lint, and all 287 plugin test files passed.
+This UI change has not been deployed.
+
+The app-only schema checker now recognizes the exact reviewed 448-migration
+ledger and checks the new function definitions and grants, metadata constraint,
+and valid scoped index. All 26 controller tests passed. The complete generated
+catalog query returned 1 against the fresh isolated 448-migration database;
+that replay also passed all 7,053 assertions. Unknown or partial ledger
+upgrades still fail closed. These checks do not claim hosted acceptance.
+
 ### Release build and worker activation, 2026-09-05
 
 The app-only run `33933383403` stopped at Vercel's ignored build step. Deployment

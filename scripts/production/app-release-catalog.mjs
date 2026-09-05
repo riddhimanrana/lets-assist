@@ -73,6 +73,19 @@ const acceptedDefinitions = [
   ],
 ];
 
+const importReviewDefinitions = [
+  [
+    "plugin_data.csf_reconcile_sheet_import_row_identity_base(uuid,uuid,uuid,text,text,uuid,uuid,jsonb)",
+    "9d5b02f7b4cdb7c948aad0398ed29bdf",
+    false,
+  ],
+  [
+    "plugin_data.csf_commit_meeting_attendance_import_identity_base(uuid,uuid,uuid,text,uuid,uuid,boolean)",
+    "641568ea97cc01fff75298d218a1404d",
+    false,
+  ],
+];
+
 export function acceptedCatalogQuery(source, versions) {
   const ledgerHash = createHash("sha256")
     .update(versions.join("\n"))
@@ -83,11 +96,15 @@ export function acceptedCatalogQuery(source, versions) {
       "34dbbd884882349f8083512cd2fe48b371c3f1242bc62897685267f2a5d0001b"
   )
     return source;
-  if (
-    versions.length !== 446 ||
-    ledgerHash !==
-      "449fbef149b83293d6c4312ee987b050dc9026aef0a24e9b330a518baf48b7d4"
-  )
+  const importReviewUpgrade =
+    versions.length === 448 &&
+    ledgerHash ===
+      "88ed874e0f578d6b64bd8b7368f8e8c2fa8e11737fc2a20c1469f20379ded445";
+  const workerUpgrade =
+    versions.length === 446 &&
+    ledgerHash ===
+      "449fbef149b83293d6c4312ee987b050dc9026aef0a24e9b330a518baf48b7d4";
+  if (!workerUpgrade && !importReviewUpgrade)
     throw new ReleaseCheckError(
       "This claim catalog version needs explicit release review.",
     );
@@ -114,7 +131,10 @@ export function acceptedCatalogQuery(source, versions) {
     throw new ReleaseCheckError(
       "The accepted catalog result contract changed.",
     );
-  const values = acceptedDefinitions
+  const definitions = importReviewUpgrade
+    ? [...acceptedDefinitions, ...importReviewDefinitions]
+    : acceptedDefinitions;
+  const values = definitions
     .map(
       ([signature, digest, service]) =>
         `('${signature}','${digest}',${service})`,
@@ -123,7 +143,7 @@ export function acceptedCatalogQuery(source, versions) {
   const upgrade = `, accepted_worker_relations AS (${workerRelationSnapshotQuery}),
 accepted_upgrade_definitions(signature,digest,service_execute) AS (VALUES ${values}),
 accepted_upgrade_posture AS (
-  SELECT count(*) = 8 AND coalesce(bool_and(
+  SELECT count(*) = ${definitions.length} AND coalesce(bool_and(
     p.oid IS NOT NULL
     AND p.proowner = 'postgres'::regrole
     AND md5(pg_get_functiondef(p.oid)) = expected.digest
@@ -158,7 +178,7 @@ accepted_upgrade_posture AS (
       AND pg_get_expr(d.adbin,d.adrelid) = '''unknown''::text'
       AND k.convalidated AND k.contype='c'
       AND pg_get_constraintdef(k.oid) = $$CHECK ((connection_basis = ANY (ARRAY['unknown'::text, 'verified_email'::text, 'self_confirmed_account_name'::text, 'officer_decision'::text])))$$
-  ) AND (SELECT count(*)=2 AND bool_and(runtime_denied AND digest = CASE relname
+  ) ${importReviewUpgrade ? importReviewPosture : ""} AND (SELECT count(*)=2 AND bool_and(runtime_denied AND digest = CASE relname
     WHEN 'csf_release_worker_controls' THEN 'b186cfbfbb17fee4e0966cde6d3bec9e'
     WHEN 'csf_release_worker_receipts' THEN '94e9bc198f37156522b9aed76bf696a4'
     ELSE '' END) FROM accepted_worker_relations) AS valid
@@ -173,3 +193,23 @@ accepted_upgrade_posture AS (
       "WHEN (SELECT valid FROM accepted_upgrade_posture) AND (SELECT valid FROM table_posture)",
     );
 }
+
+const importReviewPosture = `AND EXISTS (
+  SELECT 1 FROM pg_attribute a
+  JOIN pg_attrdef d ON d.adrelid=a.attrelid AND d.adnum=a.attnum
+  JOIN pg_constraint k ON k.conrelid=a.attrelid
+    AND k.conname='csf_import_rows_resolution_metadata_object'
+  WHERE a.attrelid=to_regclass('plugin_data.csf_sheet_import_rows')
+    AND a.attname='resolution_metadata' AND NOT a.attisdropped
+    AND a.atttypid='jsonb'::regtype AND a.attnotnull
+    AND a.attgenerated='' AND a.attidentity=''
+    AND pg_get_expr(d.adbin,d.adrelid) = '''{}''::jsonb'
+    AND k.convalidated AND k.contype='c'
+    AND pg_get_constraintdef(k.oid) = $$CHECK ((jsonb_typeof(resolution_metadata) = 'object'::text))$$
+) AND EXISTS (
+  SELECT 1 FROM pg_index i
+  WHERE i.indexrelid=to_regclass('plugin_data.csf_import_rows_committed_source_key_idx')
+    AND i.indrelid=to_regclass('plugin_data.csf_sheet_import_rows')
+    AND i.indisvalid AND i.indisready AND i.indislive
+    AND pg_get_indexdef(i.indexrelid) = $$CREATE INDEX csf_import_rows_committed_source_key_idx ON plugin_data.csf_sheet_import_rows USING btree (organization_id, cohort_id, plugin_data.csf_class_history_source_key_value(normalized_data)) WHERE (import_status = ANY (ARRAY['created'::text, 'updated'::text]))$$
+)`;
