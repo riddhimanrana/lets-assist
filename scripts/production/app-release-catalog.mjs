@@ -25,7 +25,7 @@ export const workerRelationSnapshotQuery = `SELECT c.relname, md5(jsonb_build_ob
 NOT EXISTS (SELECT 1 FROM (VALUES ('anon'),('authenticated'),('service_role')) roles(name)
   WHERE has_table_privilege(roles.name,c.oid,'SELECT,INSERT,UPDATE,DELETE,TRUNCATE,REFERENCES,TRIGGER')
     OR has_any_column_privilege(roles.name,c.oid,'SELECT,INSERT,UPDATE,REFERENCES')) AS runtime_denied
-FROM pg_class c WHERE c.oid IN (
+FROM pg_class c WHERE c.relpersistence = 'p' AND c.oid IN (
   to_regclass('app_private.csf_release_worker_controls'),
   to_regclass('app_private.csf_release_worker_receipts'))`;
 
@@ -153,6 +153,7 @@ accepted_upgrade_posture AS (
     WHERE a.attrelid=to_regclass('plugin_data.csf_profile_accounts')
       AND a.attname='connection_basis' AND NOT a.attisdropped
       AND a.atttypid='text'::regtype AND a.attnotnull
+      AND a.attgenerated='' AND a.attidentity=''
       AND pg_get_expr(d.adbin,d.adrelid) = '''unknown''::text'
       AND k.convalidated AND k.contype='c'
       AND pg_get_constraintdef(k.oid) = $$CHECK ((connection_basis = ANY (ARRAY['unknown'::text, 'verified_email'::text, 'self_confirmed_account_name'::text, 'officer_decision'::text])))$$

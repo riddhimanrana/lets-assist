@@ -49,6 +49,8 @@ test("checks old email-only fragments on the renamed helper, not the provenance 
   assert.ok(query.includes("k.convalidated AND k.contype='c'"));
   assert.ok(query.includes("pg_get_constraintdef(k.oid) = $$CHECK"));
   assert.ok(query.includes("has_any_column_privilege"));
+  assert.ok(query.includes("c.relpersistence = 'p'"));
+  assert.ok(query.includes("a.attgenerated='' AND a.attidentity=''"));
   assert.ok(query.includes("FROM accepted_worker_relations"));
 });
 

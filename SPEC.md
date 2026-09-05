@@ -15,6 +15,8 @@ DVHS CSF officer UX → class-first Home → Classes → Applications → More; 
   The legacy path also requires its exact accepted ledger. Verify provenance
   column defaults and constraints, and the complete worker relation contract,
   including effective runtime denial and immutable receipt triggers.
+  Worker tables must be permanent logged relations. Connection provenance must
+  remain a writable ordinary column, not an identity or generated column.
 
 - The reviewed schema-only controller may apply only migrations `20260904010000`
   and `20260905003409`, with their pinned SQL hashes and exact preceding ledger.

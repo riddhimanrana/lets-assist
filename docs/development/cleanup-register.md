@@ -54,6 +54,10 @@ negative queries reject wrong defaults, nullable provenance, invalidated
 constraints, changed worker ACLs, runtime privileges, and disabled receipt
 triggers. These tests changed query expectations, not database objects.
 
+The durability review also requires permanent logged worker tables. An unlogged
+relation no longer enters the accepted two-table posture. The profile provenance
+column must remain ordinary and writable, not generated or identity-backed.
+
 The replacement Production Resend webhook is disabled and its signing key is
 saved as a Sensitive Production keyring. No email was sent. The exposed project
 automation bypass was rotated, its three GitHub and three webhook consumers
