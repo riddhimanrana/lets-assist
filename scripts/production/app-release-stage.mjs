@@ -116,7 +116,8 @@ export function validateStage(deployment, config, expectedId) {
   if (
     !Array.isArray(aliases) ||
     aliases.some(
-      (alias) => typeof alias !== "string" || !/^[a-z0-9-]+\.vercel\.app$/u.test(alias),
+      (alias) =>
+        typeof alias !== "string" || !/^[a-z0-9-]+\.vercel\.app$/u.test(alias),
     )
   ) {
     throw new ReleaseCheckError(

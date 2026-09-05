@@ -1136,6 +1136,17 @@ catalog query returned 1 against the fresh isolated 448-migration database;
 that replay also passed all 7,053 assertions. Unknown or partial ledger
 upgrades still fail closed. These checks do not claim hosted acceptance.
 
+PR #477's first quality run stopped on formatting in the stage controller.
+The local full root suite then caught the stale officer-runbook ledger and the
+previous migration pair in the forward-migration controller. Both now match
+the reviewed 448-migration candidate. The controller requires disabled workers
+before writing, locks their control table during the transaction, and retains
+existing worker receipts. It approves only the exact hashes of the two new
+migration files. All 36 focused controller tests and 13 documentation contracts
+pass. The local production build passed with non-production test variables.
+The feature-branch Vercel deployment was canceled by its ignored-build rule.
+No application build or Production data change resulted from that Git push.
+
 ### Release build and worker activation, 2026-09-05
 
 The app-only run `33933383403` stopped at Vercel's ignored build step. Deployment

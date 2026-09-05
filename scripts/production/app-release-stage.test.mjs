@@ -138,13 +138,23 @@ test("stage identity refuses wrong source, tenant, target, run, or public alias"
 
 test("generated Vercel aliases do not mean the public domain was promoted", () => {
   for (const aliasAssigned of [true, "true"]) {
-    assert.deepEqual(validateStage(fixture({
-      aliasAssigned,
-      alias: ["fixture-team.vercel.app", "fixture-git-release-team.vercel.app"],
-    }), config, "dpl_fixture"), {
-      deployment_id: "dpl_fixture",
-      origin: "https://fixture.vercel.app",
-    });
+    assert.deepEqual(
+      validateStage(
+        fixture({
+          aliasAssigned,
+          alias: [
+            "fixture-team.vercel.app",
+            "fixture-git-release-team.vercel.app",
+          ],
+        }),
+        config,
+        "dpl_fixture",
+      ),
+      {
+        deployment_id: "dpl_fixture",
+        origin: "https://fixture.vercel.app",
+      },
+    );
   }
 });
 
