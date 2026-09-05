@@ -44,6 +44,7 @@ export function transitionConfig(env) {
     requestId,
     actor: `github:${env.GITHUB_ACTOR}`,
     token: env.SUPABASE_ACCESS_TOKEN,
+    bypass: env.VERCEL_AUTOMATION_BYPASS_SECRET,
   };
 }
 
@@ -111,7 +112,12 @@ export async function transitionWorker(
       `https://lets-assist.com/api/status?deep=0&worker_gate=${config.requestId}`,
       {
         method: "GET",
-        headers: { "Cache-Control": "no-cache" },
+        headers: {
+          "Cache-Control": "no-cache",
+          ...(config.bypass
+            ? { "x-vercel-protection-bypass": config.bypass }
+            : {}),
+        },
       },
       fetcher,
     );

@@ -12,6 +12,7 @@ const env = {
   WORKER_ENABLED: "true",
   SUPABASE_PROJECT_ID: "fotdmeakexgrkronxlof",
   SUPABASE_ACCESS_TOKEN: "fixture-token",
+  VERCEL_AUTOMATION_BYPASS_SECRET: "fixture-automation-bypass",
   GITHUB_RUN_ID: "123",
   GITHUB_RUN_ATTEMPT: "1",
   GITHUB_ACTOR: "fixture-operator",
@@ -115,6 +116,18 @@ test("one mutation records prepared, committed and verified receipts without Ver
     0,
   );
   assert.equal(mock.calls[1].headers.Authorization, undefined);
+  for (const call of mock.calls) {
+    const isPublicStatus = new URL(call.url).hostname === "lets-assist.com";
+    assert.equal(
+      call.headers["x-vercel-protection-bypass"],
+      isPublicStatus ? env.VERCEL_AUTOMATION_BYPASS_SECRET : undefined,
+    );
+    assert.equal(call.url.includes(env.VERCEL_AUTOMATION_BYPASS_SECRET), false);
+  }
+  assert.equal(
+    JSON.stringify(receipts).includes(env.VERCEL_AUTOMATION_BYPASS_SECRET),
+    false,
+  );
   assert.match(
     JSON.parse(mock.calls[2].body).query,
     /app_private\.set_csf_release_worker_control/u,
@@ -139,6 +152,41 @@ test("lost mutation response recovers the receipt and never writes twice", async
     JSON.parse(mock.calls[3].body).query,
     /csf_release_worker_receipts/u,
   );
+});
+
+test("unprotected status needs no bypass header and a challenge stops before mutation", async () => {
+  const withoutBypass = transitionConfig({
+    ...env,
+    VERCEL_AUTOMATION_BYPASS_SECRET: "",
+  });
+  const mock = transport([
+    [{ controls: before }],
+    status(before),
+    [{ receipt: after }],
+    [{ controls: after }],
+    status(after),
+  ]);
+  await transitionWorker(withoutBypass, mock.fetcher);
+  assert.equal(mock.calls[1].headers["x-vercel-protection-bypass"], undefined);
+
+  const calls = [];
+  const receipts = [];
+  await assert.rejects(
+    transitionWorker(
+      config,
+      async (url, options) => {
+        calls.push({ url, ...options });
+        assert.equal(options.redirect, "error");
+        return calls.length === 1
+          ? Response.json([{ controls: before }])
+          : new Response("fixture-challenge", { status: 403 });
+      },
+      (receipt) => receipts.push(receipt),
+    ),
+  );
+  assert.equal(calls.length, 2);
+  assert.equal(calls[0].url.endsWith("/database/query/read-only"), true);
+  assert.deepEqual(receipts, []);
 });
 
 test("unresolved or mismatched recovery receipts stop without another mutation", async () => {

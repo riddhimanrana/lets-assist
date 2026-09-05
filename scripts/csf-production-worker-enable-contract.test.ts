@@ -46,6 +46,9 @@ describe("CSF Production worker enablement", () => {
       "scripts/production/runtime-worker-transition.mjs",
     );
     expect(productionWorkerEnableWorkflow).toContain("SUPABASE_ACCESS_TOKEN:");
+    expect(productionWorkerEnableWorkflow).toContain(
+      "VERCEL_AUTOMATION_BYPASS_SECRET: ${{ secrets.VERCEL_AUTOMATION_BYPASS_SECRET }}",
+    );
     expect(productionWorkerEnableWorkflow).toContain("worker-transition.json");
     expect(productionWorkerEnableWorkflow).toContain("enabled:");
     expect(productionWorkerEnableWorkflow).not.toMatch(

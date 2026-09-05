@@ -932,6 +932,14 @@ target and branch. The browser draft was discarded because it selected the
 local Development environment instead. No deployment or worker activation
 occurred for this setting. Production configuration remains unchanged.
 
+The promotion merge now includes `main` through `2c19007f`. Resolving its four
+conflicts kept the candidate tree unchanged at `fad7d255`; release tests,
+TypeScript, and formatting passed. The worker transition also now reuses the
+existing automation bypass secret for fixed-origin public status checks, as the
+app-only smoke already does. Tests require redirect refusal, no credential in
+Supabase requests, URLs, or receipts, and no mutation after a challenged status
+response. This does not disable Vercel protection or create another app build.
+
 ### Promotion safety fixes and cleanup, 2026-09-04
 
 Private PR #245 merged at `aa59be85`. Its GitHub quality run `33931479076`
