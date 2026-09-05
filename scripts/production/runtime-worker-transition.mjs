@@ -17,6 +17,27 @@ const workerFields = {
 };
 const literal = (value) => `'${String(value).replaceAll("'", "''")}'`;
 
+export function workerControlsQuery(sha) {
+  const release = literal(requireSha(sha));
+  // The management read-only role can read tables but cannot execute this RPC.
+  return `SELECT coalesce((
+    SELECT jsonb_build_object(
+      'releaseSha', release_sha, 'revision', revision,
+      'workers', jsonb_build_object(
+        'workbook_refresh', workbook_refresh, 'import_commit', import_commit,
+        'communications', communications,
+        'scheduled_post_publisher', scheduled_post_publisher
+      )
+    ) FROM app_private.csf_release_worker_controls WHERE release_sha = ${release}
+  ), jsonb_build_object(
+    'releaseSha', ${release}, 'revision', 0,
+    'workers', jsonb_build_object(
+      'workbook_refresh', false, 'import_commit', false,
+      'communications', false, 'scheduled_post_publisher', false
+    )
+  )) AS controls`;
+}
+
 export function transitionConfig(env) {
   const sha = requireSha(env.RELEASE_SHA);
   const enabled = env.WORKER_ENABLED === "true";
@@ -123,12 +144,7 @@ export async function transitionWorker(
     );
   const readControls = async () =>
     validateControls(
-      (
-        await query(
-          `SELECT public.read_csf_release_worker_controls(${literal(config.sha)}) AS controls`,
-          true,
-        )
-      ).controls,
+      (await query(workerControlsQuery(config.sha), true)).controls,
       config.sha,
     );
   const before = await readControls();

@@ -4,6 +4,10 @@ DVHS CSF officer UX → class-first Home → Classes → Applications → More; 
 
 §C
 
+- Missing Vercel alias-operation metadata is not a promotion failure by itself.
+  Require two exact READY Production-alias observations before treating it as
+  settled. Never rebuild to recover an operation-status verification failure.
+
 - Release catalog validation follows the versioned claim wrapper and its renamed
   legacy helper. It pins the accepted upgraded function definitions and explicit
   grants; it must not force a name-confirmed claim to report email verification.

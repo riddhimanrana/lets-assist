@@ -3,6 +3,7 @@ import { test } from "node:test";
 import {
   transitionConfig,
   transitionWorker,
+  workerControlsQuery,
 } from "./runtime-worker-transition.mjs";
 
 const sha = "a".repeat(40);
@@ -19,6 +20,18 @@ const env = {
   CONFIRMATION: `enable-csf-worker:workbook_refresh:${sha}`,
 };
 const config = transitionConfig(env);
+
+test("management controls query reads the table without extra RPC grants", () => {
+  const query = workerControlsQuery(sha);
+  assert.match(
+    query,
+    /FROM app_private\.csf_release_worker_controls WHERE release_sha = /u,
+  );
+  assert.doesNotMatch(query, /public\.read_csf_release_worker_controls/u);
+  assert.match(query, /'revision', 0/u);
+  assert.throws(() => workerControlsQuery("main"));
+  assert.throws(() => workerControlsQuery("' OR true --"));
+});
 const off = {
   workbook_refresh: false,
   import_commit: false,
@@ -110,6 +123,10 @@ test("one mutation records prepared, committed and verified receipts without Ver
     mock.calls.filter((r) => r.url.endsWith("/database/query")).length,
     1,
   );
+  for (const call of [mock.calls[0], mock.calls[3]]) {
+    assert.ok(call.url.endsWith("/database/query/read-only"));
+    assert.equal(JSON.parse(call.body).query, workerControlsQuery(sha));
+  }
   assert.equal(
     mock.calls.filter((r) => new URL(r.url).hostname === "api.vercel.com")
       .length,
