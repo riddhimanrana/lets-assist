@@ -1,8 +1,8 @@
 # DVHS CSF Officer Operations Runbook
 
 **Audience:** organization administrators, adviser, chapter officers, and Data Management
-**Current status:** accepted app `336b5a8c` has not replaced the public deployment. Its app-only release passed source and Production schema checks but stopped at Vercel project access before building. The separate account-name claim follow-up passed local database and join-browser checks; hosted acceptance remains open. Use the [cleanup register](../development/cleanup-register.md) for current release and data evidence.
-**Release ledger:** the current repository candidate carries 445 ordered migrations through `20260904010000_csf_self_confirmed_account_name_claims`; the private Development gitlink is `70e689e`. Accepted app `336b5a8c` still uses 444 migrations and private gitlink `2affd09`. The follow-up is not live, and Production remains unchanged.
+**Current status:** accepted app `336b5a8c` has not replaced the public deployment. Its app-only release passed source and Production schema checks but stopped because the local build could not read protected Vercel variables. The release controller now stages the build inside Vercel. The account-name claim follow-up passed hosted acceptance, but the later reply-access and point-recipient fixes still require acceptance on their exact integrated tree. Use the [cleanup register](../development/cleanup-register.md) for current release and data evidence.
+**Release ledger:** the current repository candidate carries 445 ordered migrations through `20260904010000_csf_self_confirmed_account_name_claims`; the private Development gitlink is `aa59be8`. Accepted app `336b5a8c` still uses 444 migrations and private gitlink `2affd09`. The follow-up is not live, and Production remains unchanged.
 **Authoritative record after review:** Let's Assist
 
 This runbook describes the v1.6 officer workflow. Do not use it for a Production cutover until the current gates in section 12 and [testing and release](testing-and-release.md) pass for the exact integrated tree.
