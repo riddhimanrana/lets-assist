@@ -10,6 +10,29 @@ evidence and does not override the current tables or release gates.
 
 ## Release continuation, 2026-09-05
 
+### App-only release and alias reconciliation
+
+Controller PR #473 merged at `0157de6145b39d3404f275c857529c5ab9674af1` after
+CI `33946585521` passed. App-only run `33947492691` built the accepted app once
+as `dpl_858adwbvCDtPEUq2gdhopRMTH1GJ`. Staged smoke checks passed and Vercel
+promoted it. The public verification and rollback guard then both stopped
+because the project API returned `lastAliasRequest: null`; rollback did not run.
+
+Read-only reconciliation confirmed `lets-assist.com` points to that READY
+deployment. Public smoke checks passed on exact SHA
+`dfe7fa586a8c55789cab194d4c7f2fab9cd254c2`, with the Production backend, login,
+protected CSF redirect, and all four workers disabled. Previous deployment
+`dpl_HtRch4K8gor7owGrZva4fiEunkLg` remains the app rollback target. Do not rerun
+the failed release or rebuild this artifact. The workflow remains failed;
+manual alias and runtime evidence establish the current app state, not full
+officer workflow or import completion.
+
+The alias-operation verifier now accepts absent operation metadata only after
+two observations of the exact READY Production alias. It still rejects a wrong
+project, wrong alias, unfinished deployment, or a new pending operation. This
+matches the Vercel CLI's absent-record behavior while retaining independent
+deployment checks. This controller change requires no application deployment.
+
 ### Forward-migration controller follow-up
 
 Hosted acceptance `33941425951` passed on `cd7a806f`: 100 sessions, 9,584

@@ -26,6 +26,7 @@ if [[ ! "${verification_timeout_seconds}" =~ ^[0-9]+$ ]] ||
 fi
 
 verification_deadline=$((SECONDS + verification_timeout_seconds))
+settled_absent_observations=0
 while ((SECONDS < verification_deadline)); do
   project_payload=""
   if project_payload="$(curl --fail --silent --show-error \
@@ -39,7 +40,9 @@ while ((SECONDS < verification_deadline)); do
       --arg operation "${EXPECTED_ALIAS_OPERATION}" \
       --arg project "${VERCEL_ROOT_PROJECT_ID}" \
       'if .id != $project or .accountId != $account then
-         "binding-error"
+       "binding-error"
+       elif .lastAliasRequest == null then
+         "absent"
        elif (.lastAliasRequest.type // "") == $operation
          and (.lastAliasRequest.toDeploymentId // "") == $deployment then
          (.lastAliasRequest.jobStatus // "missing")
@@ -47,7 +50,25 @@ while ((SECONDS < verification_deadline)); do
          "different-operation"
        end' \
       <<<"${project_payload}")"
+    if [[ "${operation_record}" != "absent" ]]; then
+      settled_absent_observations=0
+    fi
     case "${operation_record}" in
+      absent)
+        if PRODUCTION_DEPLOYMENT_ID="${EXPECTED_ALIAS_OPERATION_DEPLOYMENT_ID}" \
+          VERCEL_ALIAS_VERIFY_TIMEOUT_SECONDS=5 \
+          VERCEL_ALIAS_CONNECT_TIMEOUT_SECONDS=2 \
+          VERCEL_ALIAS_HTTP_TIMEOUT_SECONDS=5 \
+          bash "$(dirname "${BASH_SOURCE[0]}")/verify-vercel-alias.sh" >/dev/null 2>&1; then
+          settled_absent_observations=$((settled_absent_observations + 1))
+          if ((settled_absent_observations >= 2)); then
+            echo 'No Vercel alias operation is recorded; the exact Production alias is settled.'
+            exit 0
+          fi
+        else
+          settled_absent_observations=0
+        fi
+        ;;
       succeeded | failed | skipped)
         echo "The expected Vercel ${EXPECTED_ALIAS_OPERATION} operation is terminal."
         exit 0
@@ -63,6 +84,8 @@ while ((SECONDS < verification_deadline)); do
         exit 1
         ;;
     esac
+  else
+    settled_absent_observations=0
   fi
   sleep 2
 done
