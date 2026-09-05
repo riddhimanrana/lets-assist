@@ -554,18 +554,22 @@ already included in the 414 baseline.
     CSF worker flags remain disabled through application promotion and write
     reopening. After the workflow verifies the final alias and opens writes,
     test sign-in, project signup, an organization page, and a CSF workspace.
-13. Dispatch `enable-production-csf-worker.yml` four times from the exact
-    Production `main` SHA. Select `workbook_refresh`, `import_commit`,
-    `communications`, then `scheduled_post_publisher`, in that order. Each
-    dispatch requires its own Production environment approval and confirmation
-    `enable-csf-worker:<worker>:<exact main SHA>`. The workflow rejects a skipped
-    or repeated stage, builds once outside Vercel, checks the staged worker
-    posture, promotes it, and verifies both the Vercel alias record and the
-    uncached public status response. A failed transition restores the prior
-    deployment and disables the selected environment flag. After each success,
-    verify one bounded run. Require import receipts before communications, prove
-    one controlled email path before scheduled publishing, and do not combine
-    these operations.
+13. Dispatch `enable-production-csf-worker.yml` four times from `main`, supplying
+    the exact SHA currently served by Production as `release_sha`. Select
+    `workbook_refresh`, `import_commit`, `communications`, then
+    `scheduled_post_publisher`, in that order. Each dispatch requires Production
+    environment approval and `enable-csf-worker:<worker>:<release SHA>`.
+    The application must use `CSF_WORKER_CONTROL_MODE=database`. The workflow
+    checks the public SHA and switches, writes one operator-only audited
+    transition, and verifies the public result. It does not build, deploy,
+    promote, or change Vercel environment variables. A lost write response reads
+    its receipt without repeating the write. If the public result cannot be
+    verified, inspect the retained receipt before another action. To disable a
+    worker independently, uncheck `enabled` and confirm
+    `disable-csf-worker:<worker>:<release SHA>`. This stops new claims without
+    deleting jobs or reversing receipts. After each enable, verify one bounded
+    run. Require import receipts before communications and a controlled email
+    path before scheduled publishing.
 14. Restore other cron jobs by reconciliation.
 15. Watch advisors and logs for an hour.
 

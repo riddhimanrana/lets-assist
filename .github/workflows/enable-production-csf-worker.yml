@@ -1,10 +1,10 @@
-name: Enable one Production CSF worker
+name: Change one Production CSF worker
 
 on:
   workflow_dispatch:
     inputs:
       worker:
-        description: "Enable the next CSF worker in the fixed release order"
+        description: "Worker to enable or disable"
         required: true
         type: choice
         options:
@@ -12,8 +12,17 @@ on:
           - import_commit
           - communications
           - scheduled_post_publisher
+      enabled:
+        description: "Enable this worker. Uncheck to disable it independently."
+        required: true
+        type: boolean
+        default: true
+      release_sha:
+        description: "Exact SHA currently served by lets-assist.com"
+        required: true
+        type: string
       production_confirmation:
-        description: "Type enable-csf-worker:<worker>:<exact main SHA>"
+        description: "Type enable-csf-worker:<worker>:<SHA> or disable-csf-worker:<worker>:<SHA>"
         required: true
         type: string
 
@@ -26,292 +35,42 @@ permissions:
   contents: read
 
 jobs:
-  enable-worker:
-    name: Enable the next Production CSF worker
+  change-worker:
     if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
-    timeout-minutes: 55
+    timeout-minutes: 5
     environment: production
     steps:
-      - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
+      - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8
         with:
           persist-credentials: false
-
+          fetch-depth: 0
       - name: Setup Node
-        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
         with:
           node-version-file: .node-version
-
-      - name: Setup Bun
-        uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
-        with:
-          bun-version: 1.3.14
-
-      - name: Install dependencies
-        run: bun install --frozen-lockfile
-
-      - name: Verify authorization and select the transition
-        id: transition
+      - name: Verify main contains the public release
         env:
-          CONFIRMATION: ${{ inputs.production_confirmation }}
+          RELEASE_SHA: ${{ inputs.release_sha }}
+        run: |
+          set -euo pipefail
+          [[ "${RELEASE_SHA}" =~ ^[0-9a-f]{40}$ ]]
+          git merge-base --is-ancestor "${RELEASE_SHA}" HEAD
+      - name: Change runtime switch and verify public posture
+        env:
+          RELEASE_SHA: ${{ inputs.release_sha }}
           WORKER: ${{ inputs.worker }}
-        run: |
-          set -euo pipefail
-          if [[ "${CONFIRMATION}" != "enable-csf-worker:${WORKER}:${GITHUB_SHA}" ]]; then
-            echo "The Production worker confirmation does not match this worker and SHA." >&2
-            exit 1
-          fi
-          case "${WORKER}" in
-            workbook_refresh)
-              echo "before=disabled" >> "${GITHUB_OUTPUT}"
-              echo "flag=CSF_WORKBOOK_WORKER_ENABLED" >> "${GITHUB_OUTPUT}"
-              ;;
-            import_commit)
-              echo "before=workbook_refresh" >> "${GITHUB_OUTPUT}"
-              echo "flag=CSF_IMPORT_WORKER_ENABLED" >> "${GITHUB_OUTPUT}"
-              ;;
-            communications)
-              echo "before=import_commit" >> "${GITHUB_OUTPUT}"
-              echo "flag=CSF_COMMUNICATIONS_WORKER_ENABLED" >> "${GITHUB_OUTPUT}"
-              ;;
-            scheduled_post_publisher)
-              echo "before=communications" >> "${GITHUB_OUTPUT}"
-              echo "flag=CSF_SCHEDULED_POST_PUBLISHER_ENABLED" >> "${GITHUB_OUTPUT}"
-              ;;
-            *) exit 1 ;;
-          esac
-
-      - name: Verify Production Vercel project
-        env:
-          EXPECTED_GITHUB_REPOSITORY_ID: ${{ github.repository_id }}
-          VERCEL_ROOT_PROJECT_ID: ${{ vars.VERCEL_ROOT_PROJECT_ID }}
-          VERCEL_TEAM_ID: ${{ vars.VERCEL_TEAM_ID }}
-          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
-        run: bash scripts/production/verify-vercel-project.sh
-
-      - name: Capture the current Production deployment
-        id: previous
-        env:
-          VERCEL_ROOT_PROJECT_ID: ${{ vars.VERCEL_ROOT_PROJECT_ID }}
-          VERCEL_TEAM_ID: ${{ vars.VERCEL_TEAM_ID }}
-          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
-        run: |
-          set -euo pipefail
-          alias_payload="$(curl --fail --silent --show-error \
-            --connect-timeout 10 --max-time 20 --get \
-            --header "Authorization: Bearer ${VERCEL_TOKEN}" \
-            --data-urlencode "domain=lets-assist.com" \
-            --data-urlencode "projectId=${VERCEL_ROOT_PROJECT_ID}" \
-            --data-urlencode "teamId=${VERCEL_TEAM_ID}" \
-            https://api.vercel.com/v4/aliases)"
-          deployment_id="$(jq -er \
-            --arg project "${VERCEL_ROOT_PROJECT_ID}" \
-            '[.aliases[]? | select(.alias == "lets-assist.com" and .projectId == $project)]
-             | if length == 1 then .[0].deploymentId else error("ambiguous Production alias") end' \
-            <<<"${alias_payload}")"
-          [[ "${deployment_id}" =~ ^dpl_[A-Za-z0-9]+$ ]]
-          echo "deployment_id=${deployment_id}" >> "${GITHUB_OUTPUT}"
-
-      - name: Verify the prior public worker posture
-        env:
-          EXPECTED_CSF_WORKER_STAGE: ${{ steps.transition.outputs.before }}
-          EXPECTED_RELEASE_SHA: ${{ github.sha }}
-        run: |
-          set -euo pipefail
-          curl --fail --silent --show-error \
-            --connect-timeout 10 --max-time 30 \
-            --header 'Cache-Control: no-cache' \
-            "https://lets-assist.com/api/status?deep=0&worker_gate=${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}" \
-            | node scripts/production/verify-csf-worker-posture.mjs
-
-      - name: Enable the selected Production environment flag
-        id: enable_config
-        env:
-          FLAG: ${{ steps.transition.outputs.flag }}
-          VERCEL_ROOT_PROJECT_ID: ${{ vars.VERCEL_ROOT_PROJECT_ID }}
-          VERCEL_TEAM_ID: ${{ vars.VERCEL_TEAM_ID }}
-          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
-        run: |
-          set -euo pipefail
-          set +e
-          bunx vercel@59.3.0 env update "${FLAG}" production \
-            --project "${VERCEL_ROOT_PROJECT_ID}" \
-            --scope "${VERCEL_TEAM_ID}" \
-            --value true --yes --token "${VERCEL_TOKEN}"
-          config_exit="$?"
-          set -e
-          echo "cli_exit=${config_exit}" >> "${GITHUB_OUTPUT}"
-          if [[ "${config_exit}" -ne 0 ]]; then
-            echo "The Vercel environment update returned ${config_exit}; staged and public postconditions will determine the transition result." >&2
-          fi
-
-      - name: Build and stage the exact Production application
-        id: deployment
-        env:
-          VERCEL_ENV: production
-          VERCEL_GIT_COMMIT_SHA: ${{ github.sha }}
-          VERCEL_ORG_ID: ${{ vars.VERCEL_TEAM_ID }}
-          VERCEL_PROJECT_ID: ${{ vars.VERCEL_ROOT_PROJECT_ID }}
-          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
-        run: |
-          set -euo pipefail
-          bunx vercel@59.3.0 pull --yes --environment=production --token="${VERCEL_TOKEN}"
-          bunx vercel@59.3.0 build --prod --standalone --token="${VERCEL_TOKEN}"
-          bunx vercel@59.3.0 deploy --prebuilt --prod --skip-domain --yes --json \
-            --token="${VERCEL_TOKEN}" \
-            --meta="productionWorkerStage=${{ inputs.worker }}" \
-            > .vercel-worker-deployment.json
-          deployment_id="$(jq -er '.deployment.id // .id' .vercel-worker-deployment.json)"
-          deployment_url="$(jq -er '.deployment.url // .url' .vercel-worker-deployment.json)"
-          [[ "${deployment_id}" =~ ^dpl_[A-Za-z0-9]+$ ]]
-          deployment_host="${deployment_url#https://}"
-          deployment_host="${deployment_host#http://}"
-          deployment_host="${deployment_host%/}"
-          [[ "${deployment_host}" =~ ^[a-z0-9][a-z0-9.-]*\.vercel\.app$ ]]
-          echo "deployment_id=${deployment_id}" >> "${GITHUB_OUTPUT}"
-          echo "deployment_url=https://${deployment_host}" >> "${GITHUB_OUTPUT}"
-
-      - name: Verify staged worker posture
-        env:
-          DEPLOYMENT_URL: ${{ steps.deployment.outputs.deployment_url }}
-          EXPECTED_CSF_WORKER_STAGE: ${{ inputs.worker }}
-          EXPECTED_RELEASE_SHA: ${{ github.sha }}
+          WORKER_ENABLED: ${{ inputs.enabled }}
+          CONFIRMATION: ${{ inputs.production_confirmation }}
+          SUPABASE_PROJECT_ID: ${{ secrets.SUPABASE_PROJECT_ID }}
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
           VERCEL_AUTOMATION_BYPASS_SECRET: ${{ secrets.VERCEL_AUTOMATION_BYPASS_SECRET }}
-          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
-        run: |
-          set -euo pipefail
-          bunx vercel@59.3.0 curl '/api/status?deep=0' \
-            --deployment="${DEPLOYMENT_URL}" \
-            --protection-bypass="${VERCEL_AUTOMATION_BYPASS_SECRET}" \
-            --yes --token="${VERCEL_TOKEN}" -- \
-            --connect-timeout 10 --max-time 30 \
-            | node scripts/production/verify-csf-worker-posture.mjs
-
-      - name: Promote the staged worker deployment
-        id: promote_worker
-        env:
-          DEPLOYMENT_URL: ${{ steps.deployment.outputs.deployment_url }}
-          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
-        run: |
-          set -euo pipefail
-          set +e
-          bunx vercel@59.3.0 promote "${DEPLOYMENT_URL}" \
-            --yes --timeout=10m --token="${VERCEL_TOKEN}"
-          promote_exit="$?"
-          set -e
-          echo "cli_exit=${promote_exit}" >> "${GITHUB_OUTPUT}"
-          if [[ "${promote_exit}" -ne 0 ]]; then
-            echo "Vercel promote returned ${promote_exit}; exact alias and public postconditions will determine the transition result." >&2
-          fi
-
-      - name: Verify worker promotion reached a terminal state
-        id: promotion_operation
+        run: node scripts/production/runtime-worker-transition.mjs
+      - name: Retain the transition receipt even after an uncertain outcome
         if: ${{ always() }}
-        continue-on-error: true
-        timeout-minutes: 2
-        env:
-          EXPECTED_ALIAS_OPERATION: promote
-          EXPECTED_ALIAS_OPERATION_DEPLOYMENT_ID: ${{ steps.deployment.outputs.deployment_id }}
-          VERCEL_ALIAS_OPERATION_TIMEOUT_SECONDS: "50"
-          VERCEL_ROOT_PROJECT_ID: ${{ vars.VERCEL_ROOT_PROJECT_ID }}
-          VERCEL_TEAM_ID: ${{ vars.VERCEL_TEAM_ID }}
-          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
-        run: timeout 60s bash scripts/production/verify-vercel-alias-operation.sh
-
-      - name: Verify the Production alias
-        id: verify_alias
-        if: ${{ always() }}
-        continue-on-error: true
-        env:
-          PRODUCTION_DEPLOYMENT_ID: ${{ steps.deployment.outputs.deployment_id }}
-          VERCEL_ROOT_PROJECT_ID: ${{ vars.VERCEL_ROOT_PROJECT_ID }}
-          VERCEL_TEAM_ID: ${{ vars.VERCEL_TEAM_ID }}
-          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
-        run: bash scripts/production/verify-vercel-alias.sh
-
-      - name: Verify the public worker postcondition
-        id: verify_public
-        if: ${{ always() }}
-        continue-on-error: true
-        env:
-          EXPECTED_CSF_WORKER_STAGE: ${{ inputs.worker }}
-          EXPECTED_RELEASE_SHA: ${{ github.sha }}
-        run: |
-          set -euo pipefail
-          curl --fail --silent --show-error \
-            --connect-timeout 10 --max-time 30 \
-            --header 'Cache-Control: no-cache' \
-            "https://lets-assist.com/api/status?deep=0&worker_gate=${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}-settled" \
-            | node scripts/production/verify-csf-worker-posture.mjs
-
-      - name: Restore the prior worker deployment after an incomplete transition
-        id: restore_prior
-        if: ${{ always() && steps.enable_config.outcome == 'success' && (steps.enable_config.outputs.cli_exit != '0' || steps.promotion_operation.outcome != 'success' || steps.verify_alias.outcome != 'success' || steps.verify_public.outcome != 'success') }}
-        timeout-minutes: 16
-        env:
-          FLAG: ${{ steps.transition.outputs.flag }}
-          EXPECTED_CSF_WORKER_STAGE: ${{ steps.transition.outputs.before }}
-          EXPECTED_RELEASE_SHA: ${{ github.sha }}
-          PREVIOUS_DEPLOYMENT_ID: ${{ steps.previous.outputs.deployment_id }}
-          PRODUCTION_DEPLOYMENT_ID: ${{ steps.previous.outputs.deployment_id }}
-          VERCEL_ROOT_PROJECT_ID: ${{ vars.VERCEL_ROOT_PROJECT_ID }}
-          VERCEL_TEAM_ID: ${{ vars.VERCEL_TEAM_ID }}
-          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
-        run: |
-          set -euo pipefail
-          set +e
-          bunx vercel@59.3.0 env update "${FLAG}" production \
-            --project "${VERCEL_ROOT_PROJECT_ID}" \
-            --scope "${VERCEL_TEAM_ID}" \
-            --value false --yes --token "${VERCEL_TOKEN}"
-          flag_reset_exit="$?"
-          bunx vercel@59.3.0 promote "${PREVIOUS_DEPLOYMENT_ID}" \
-            --yes --timeout=10m --token="${VERCEL_TOKEN}"
-          rollback_promote_exit="$?"
-          EXPECTED_ALIAS_OPERATION=promote \
-            EXPECTED_ALIAS_OPERATION_DEPLOYMENT_ID="${PREVIOUS_DEPLOYMENT_ID}" \
-            VERCEL_ALIAS_OPERATION_TIMEOUT_SECONDS=50 \
-            timeout 60s bash scripts/production/verify-vercel-alias-operation.sh
-          rollback_operation_exit="$?"
-          bash scripts/production/verify-vercel-alias.sh
-          rollback_alias_exit="$?"
-          curl --fail --silent --show-error \
-            --connect-timeout 10 --max-time 30 \
-            --header 'Cache-Control: no-cache' \
-            "https://lets-assist.com/api/status?deep=0&worker_gate=${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}-restored" \
-            | node scripts/production/verify-csf-worker-posture.mjs
-          rollback_posture_exit="$?"
-          set -e
-          if [[ "${flag_reset_exit}" -ne 0 || \
-            "${rollback_operation_exit}" -ne 0 || \
-            "${rollback_alias_exit}" -ne 0 || \
-            "${rollback_posture_exit}" -ne 0 ]]; then
-            echo "The prior Production worker posture could not be proven after an incomplete transition." >&2
-            exit 1
-          fi
-          if [[ "${rollback_promote_exit}" -ne 0 ]]; then
-            echo "Vercel reported a nonzero rollback promotion result, but the exact operation, alias, and public posture all settled on the prior deployment." >&2
-          fi
-
-      - name: Require a settled worker transition
-        if: ${{ always() }}
-        env:
-          CONFIG_EXIT: ${{ steps.enable_config.outputs.cli_exit }}
-          PROMOTION_OPERATION_OUTCOME: ${{ steps.promotion_operation.outcome }}
-          PUBLIC_POSTCONDITION_OUTCOME: ${{ steps.verify_public.outcome }}
-          PRODUCTION_ALIAS_OUTCOME: ${{ steps.verify_alias.outcome }}
-          RESTORE_OUTCOME: ${{ steps.restore_prior.outcome }}
-        run: |
-          set -euo pipefail
-          if [[ "${CONFIG_EXIT}" == "0" && \
-            "${PROMOTION_OPERATION_OUTCOME}" == "success" && \
-            "${PRODUCTION_ALIAS_OUTCOME}" == "success" && \
-            "${PUBLIC_POSTCONDITION_OUTCOME}" == "success" ]]; then
-            exit 0
-          fi
-          if [[ "${RESTORE_OUTCOME}" != "success" ]]; then
-            echo "The worker transition failed and the prior public posture was not proven." >&2
-            exit 1
-          fi
-          echo "The worker transition did not settle. The prior public posture was restored and verified." >&2
-          exit 1
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: csf-worker-transition-${{ github.run_id }}
+          path: .artifacts/worker-transition.json
+          if-no-files-found: warn
+          retention-days: 30

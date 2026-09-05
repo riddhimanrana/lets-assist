@@ -1,4 +1,5 @@
 import "server-only";
+import { isCsfWorkerEnabled } from "@/lib/cron/csf-worker-controls";
 
 import { createHash, randomUUID, timingSafeEqual } from "node:crypto";
 import { NextRequest, NextResponse } from "next/server";
@@ -114,7 +115,7 @@ export async function POST(request: NextRequest) {
   if (probe) return probe;
 
   // Exact opt-in. Absence, empty, "1", or any other value stays disabled.
-  if (process.env.CSF_SCHEDULED_POST_PUBLISHER_ENABLED !== "true") {
+  if (!(await isCsfWorkerEnabled("scheduled_post_publisher"))) {
     return json({
       enabled: false,
       examined: 0,
