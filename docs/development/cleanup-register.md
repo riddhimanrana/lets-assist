@@ -10,6 +10,24 @@ evidence and does not override the current tables or release gates.
 
 ## Release continuation, 2026-09-05
 
+### Forward-migration controller follow-up
+
+- PR #470 is merged to Development at `cd7a806f1a30161291da7254210e7d90ddc60ded`.
+  Its Vercel deployment is READY. Production PR #471 passed CI run
+  `33941557762`. Hosted acceptance run `33941425951` remains in progress.
+- Production still has 444 migrations through `20260903050000`. The next two
+  migrations have passed the full CI replay but have not run in Production.
+- The old schema workflow requires external-drive recovery inputs that the
+  user excluded. A separate controller now pins the two approved SQL hashes,
+  checks the exact 444-version prefix, and records both forward migrations in
+  one transaction. It uses the existing management credential and retains the
+  Production environment review. No export, restore, app deployment, import,
+  or worker activation runs in this workflow.
+- Nine focused controller tests pass, including lost-response settlement,
+  refusal without retry, byte drift, ledger drift, project isolation, and ACL
+  verification. Zero-warning lint passes. Publication and real migration
+  execution remain pending. This is controller work, not another app candidate.
+
 - Private PR #244 is merged at `31e6bb19`. Private `main` and `development`
   point to that commit. The user-authorized change removed only the private
   `main` last-push approval requirement. Security checks, force-push refusal,
