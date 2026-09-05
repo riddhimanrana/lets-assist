@@ -4,6 +4,30 @@ DVHS CSF officer UX → class-first Home → Classes → Applications → More; 
 
 §C
 
+- Missing Vercel alias-operation metadata is not a promotion failure by itself.
+  Require two exact READY Production-alias observations before treating it as
+  settled. Never rebuild to recover an operation-status verification failure.
+
+- Release catalog validation follows the versioned claim wrapper and its renamed
+  legacy helper. It pins the accepted upgraded function definitions and explicit
+  grants; it must not force a name-confirmed claim to report email verification.
+  The provenance trigger must be attached to audit inserts, enabled for normal
+  writes, and call the accepted function. Missing or repeated final SQL gate
+  anchors stop verification before a provider request.
+  Pin the complete accepted migration sequence, including its length and hash,
+  so inserted, replaced, omitted, or reordered versions require release review.
+  The legacy path also requires its exact accepted ledger. Verify provenance
+  column defaults and constraints, and the complete worker relation contract,
+  including effective runtime denial and immutable receipt triggers.
+  Worker tables must be permanent logged relations. Connection provenance must
+  remain a writable ordinary column, not an identity or generated column.
+
+- The reviewed schema-only controller may apply only migrations `20260904010000`
+  and `20260905003409`, with their pinned SQL hashes and exact preceding ledger.
+  Source acceptance and Production authorization precede one transaction.
+  A lost response permits reads only until ledger and catalog reconciliation.
+  No export, restore, app build, import approval, or worker activation occurs.
+
 - Integration base root `f49227cb`; private Development gitlink `7597fdc`; Production ⊥.
 - UI says `Class`; existing `cohort` schema identifiers stay.
 - Stable profile + graduation class; term application/import alone activates term membership.
