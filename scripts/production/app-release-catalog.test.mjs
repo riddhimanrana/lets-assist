@@ -1,13 +1,17 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
+import { fileURLToPath } from "node:url";
 import { acceptedCatalogQuery } from "./app-release-catalog.mjs";
+import { expectedVersions } from "./app-release-checks.mjs";
 
 const source = readFileSync(
   new URL("./verify-csf-target-schema.sql", import.meta.url),
   "utf8",
 );
-const versions = ["20260904010000", "20260905003409"];
+const versions = expectedVersions(
+  fileURLToPath(new URL("../../", import.meta.url)),
+);
 
 test("legacy release catalogs stay unchanged", () => {
   assert.equal(acceptedCatalogQuery(source, ["20260903050000"]), source);
@@ -58,6 +62,20 @@ test("unknown migration upgrades require review", () => {
     () => acceptedCatalogQuery(source, [...versions, "20260906000000"]),
     /explicit release review/u,
   );
+});
+
+test("a changed ledger cannot reuse the accepted maximum version", () => {
+  for (const changed of [
+    [...versions.slice(0, -1), "20260904020000", versions.at(-1)],
+    versions.slice(1),
+    ["20200101000000", ...versions.slice(1)],
+    [versions[1], versions[0], ...versions.slice(2)],
+  ]) {
+    assert.throws(
+      () => acceptedCatalogQuery(source, changed),
+      /explicit release review/u,
+    );
+  }
 });
 
 test("changed source contract cannot silently remove a check", () => {

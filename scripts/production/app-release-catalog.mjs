@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import { ReleaseCheckError } from "./app-release-checks.mjs";
 
 // Function definitions from the exact hosted-accepted 446-migration catalog.
@@ -46,7 +47,11 @@ const acceptedDefinitions = [
 
 export function acceptedCatalogQuery(source, versions) {
   if (!versions.includes("20260904010000")) return source;
-  if (versions.at(-1) !== "20260905003409")
+  if (
+    versions.length !== 446 ||
+    createHash("sha256").update(versions.join("\n")).digest("hex") !==
+      "449fbef149b83293d6c4312ee987b050dc9026aef0a24e9b330a518baf48b7d4"
+  )
     throw new ReleaseCheckError(
       "This claim catalog version needs explicit release review.",
     );

@@ -10,6 +10,8 @@ DVHS CSF officer UX → class-first Home → Classes → Applications → More; 
   The provenance trigger must be attached to audit inserts, enabled for normal
   writes, and call the accepted function. Missing or repeated final SQL gate
   anchors stop verification before a provider request.
+  Pin the complete accepted migration sequence, including its length and hash,
+  so inserted, replaced, omitted, or reordered versions require release review.
 
 - The reviewed schema-only controller may apply only migrations `20260904010000`
   and `20260905003409`, with their pinned SQL hashes and exact preceding ledger.

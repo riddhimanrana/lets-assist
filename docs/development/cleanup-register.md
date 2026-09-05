@@ -38,6 +38,12 @@ read-only catalog queries pass. Development queries requiring a missing or
 disabled trigger fail closed without changing any database object. Prior CI
 `33943815529` passed before this follow-up; the updated controller needs CI.
 
+The final ledger review also pins the complete 446-version sequence by count
+and SHA-256. A regression test first reproduced acceptance of an inserted
+backdated version, then passed after the fix. It also covers omitted, replaced,
+and reordered versions with the same maximum version. All 24 app-release tests
+pass. This remains a controller-only update in PR #473.
+
 The replacement Production Resend webhook is disabled and its signing key is
 saved as a Sensitive Production keyring. No email was sent. The exposed project
 automation bypass was rotated, its three GitHub and three webhook consumers
