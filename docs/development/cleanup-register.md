@@ -1040,6 +1040,69 @@ sources.
 
 ## Repository-owned P0–P2
 
+### Current Production acceptance, 2026-09-05 09:52 UTC
+
+This entry supersedes older release-state statements below. The release is
+published, but official data and provider acceptance remain incomplete.
+
+Root PR #478 merged to `main` at
+`fda53ee5b06ca74e3f81f98c8d37e06b1f1fa258`, with the same tree as hosted
+Development `383ea476ee2f5bf8b13fab0db3b33ab0f849295d`. Private gitlink
+`88d5b79aa240a11bb41b5618a5c38cb8ea693099` is reachable from private `main`
+and `development`. Root CI `33957447212` passed 7,053 database assertions,
+83 CSF browser journeys, all 300 root and 287 plugin test files, TypeScript,
+zero-warning lint, and the Production build.
+
+Hosted acceptance `33957164531` passed with 100 distinct sessions and 9,130
+requests. Read p95 was 1,401 ms, read p99 2,230 ms, mutation p95 1,809 ms,
+LCP p75 2,052 ms, INP p75 16 ms, and CLS p75 0.00210. Request errors and
+renderer crashes were zero. All 25 review navigations completed; retained
+heap decreased by 11.6 percent. These measurements used fictional accounts.
+
+Production's Supabase check on the main merge applied the two forward
+migrations before explicit migration run `33958842854` reached its preflight.
+That run refused the already-upgraded ledger before writing. It was not
+retried. Independent read-only checks verified the exact 448-version sequence,
+accepted function definitions and grants, metadata constraint, and source-key
+index. The catalog verifier returned 1. The Class of 2027 readiness call then
+evaluated six previews as `service_role` under an eight-second statement limit;
+the complete tool round trip took 897 ms. Visible Settings acceptance is open.
+
+App-only run `33958927462` built and promoted one Production artifact,
+`dpl_DYmJHF9tVtDCuE8WYWnr9o6X1THx`. Staged and public-domain checks passed
+for the exact release SHA, backend, login route, and protected CSF route.
+The previous app is `dpl_8AShFttCMrv41iEq8AMCLikgRFXu`.
+Worker transition `33959098441` enabled only workbook preparation for this
+release at revision 1, receipt `45563bae-f590-411f-88be-3b31524849c9`.
+Import commits, communications, and scheduled publishing remain disabled.
+
+Official workbook approval and repeat-sync reconciliation, application profile
+creation through the deployed UI, controlled provider email settlement, and
+synthetic screenshots/video remain open. The Mac is locked, so officer browser
+actions cannot continue. No official rows were committed by this continuation.
+The completed remote `codex/csf-import-release-followup` branch was deleted
+after its commits were proven to be ancestors of Development. Existing
+worktrees and user changes remain intact.
+
+The post-release count-only audit confirms four workbook registries, 32
+discovered tabs, four current prepared versions, and zero workbook errors.
+The new deployment recorded five HTTP 200 workbook-worker responses after
+activation. Its observed post-promotion log window contained no recorded 5xx.
+These short-window observations are not a claim of long-term availability.
+
+| Class | Linked term sources | Pending preview rows | Ambiguous | Error | Skipped | Pending without a profile match |
+| ----- | ------------------- | -------------------- | --------- | ----- | ------- | ------------------------------- |
+| 2027  | 8                   | 1,104                | 3         | 0     | 1       | 0                               |
+| 2028  | 8                   | 651                  | 0         | 1     | 0       | 1                               |
+| 2029  | 8                   | 150                  | 0         | 0     | 0       | 0                               |
+| 2030  | 8                   | 0                    | 0         | 0     | 0       | 0                               |
+
+All-class readiness completed under the service-role eight-second statement
+limit. Latest previews contain no committed rows and no in-flight or unknown
+outcomes. Pending does not mean ready: preview approval must still revalidate
+sources, permissions, conflicts, and the unmatched Class of 2028 row. Class of
+2030 remains an empty template workbook.
+
 ### Production configuration and workbook worker, 2026-09-05
 
 The accepted application `dfe7fa586a8c55789cab194d4c7f2fab9cd254c2`

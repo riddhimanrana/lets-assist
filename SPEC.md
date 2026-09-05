@@ -22,11 +22,18 @@ DVHS CSF officer UX → class-first Home → Classes → Applications → More; 
   Worker tables must be permanent logged relations. Connection provenance must
   remain a writable ordinary column, not an identity or generated column.
 
-- The reviewed schema-only controller may apply only migrations `20260904010000`
-  and `20260905003409`, with their pinned SQL hashes and exact preceding ledger.
+- The reviewed schema-only controller may apply only migrations `20260905075711`
+  and `20260905080459`, with their pinned SQL hashes and exact preceding ledger.
   Source acceptance and Production authorization precede one transaction.
   A lost response permits reads only until ledger and catalog reconciliation.
   No export, restore, app build, import approval, or worker activation occurs.
+
+- Release evidence, 2026-09-05: Production `fda53ee5` has the identical tree as
+  accepted Development `383ea476`, private gitlink `88d5b79`, and the verified
+  448-migration catalog. CI `33957447212`, hosted acceptance `33957164531`,
+  and public app release `33958927462` passed. Only workbook preparation is
+  enabled. Official data commits, deployed officer workflows, provider email
+  settlement, and synthetic media remain open in the cleanup register.
 
 - Integration base root `f49227cb`; private Development gitlink `7597fdc`; Production ⊥.
 - UI says `Class`; existing `cohort` schema identifiers stay.
