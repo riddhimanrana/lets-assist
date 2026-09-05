@@ -34,6 +34,23 @@ test("checks old email-only fragments on the renamed helper, not the provenance 
   assert.match(query, /csf_confirm_class_code_account_name_match_v4/u);
   assert.match(query, /NOT has_function_privilege\('authenticated'/u);
   assert.match(query, /set_csf_release_worker_control/u);
+  assert.match(query, /csf_record_connection_basis_after_audit/u);
+  assert.match(query, /t\.tgenabled = 'O'/u);
+  assert.match(query, /t\.tgtype = 5/u);
+  assert.match(query, /t\.tgfoid = to_regprocedure/u);
+});
+
+test("missing or repeated final gate anchors fail closed", () => {
+  const anchor = "WHEN (SELECT valid FROM table_posture)";
+  for (const modified of [
+    source.replace(anchor, "WHEN\n(SELECT valid FROM table_posture)"),
+    source + "\n-- " + anchor,
+  ]) {
+    assert.throws(
+      () => acceptedCatalogQuery(modified, versions),
+      /result contract/u,
+    );
+  }
 });
 
 test("unknown migration upgrades require review", () => {

@@ -29,6 +29,15 @@ upgraded functions. Read-only verification passes in both hosted environments.
 Twenty-six focused tests pass. This is controller-only code; keep application
 release `dfe7fa58` and accepted SHA `cd7a806f` without another app acceptance build.
 
+PR #473 review follow-up adds the provenance trigger attachment, enabled state,
+event, target function, and unfiltered row checks. Missing or repeated final
+gate anchors now throw instead of leaving an unused validation CTE. Regression
+tests first failed on both defects and now pass. All 23 app-release tests,
+TypeScript, zero-warning lint, and diff checks pass. Production and Development
+read-only catalog queries pass. Development queries requiring a missing or
+disabled trigger fail closed without changing any database object. Prior CI
+`33943815529` passed before this follow-up; the updated controller needs CI.
+
 The replacement Production Resend webhook is disabled and its signing key is
 saved as a Sensitive Production keyring. No email was sent. The exposed project
 automation bypass was rotated, its three GitHub and three webhook consumers

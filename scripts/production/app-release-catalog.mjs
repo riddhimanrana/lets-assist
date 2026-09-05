@@ -68,7 +68,11 @@ export function acceptedCatalogQuery(source, versions) {
     fragments.replaceAll(signature, legacy) +
     source.slice(end);
   const marker = "SELECT 1 / CASE\n";
-  if (adjusted.split(marker).length !== 2)
+  const gate = "WHEN (SELECT valid FROM table_posture)";
+  if (
+    adjusted.split(marker).length !== 2 ||
+    adjusted.split(gate).length !== 2
+  )
     throw new ReleaseCheckError(
       "The accepted catalog result contract changed.",
     );
@@ -91,7 +95,18 @@ accepted_upgrade_posture AS (
       WHERE a.grantee='postgres'::regrole AND a.privilege_type='EXECUTE')
     AND NOT EXISTS (SELECT 1 FROM aclexplode(p.proacl) a
       WHERE a.grantee NOT IN ('postgres'::regrole,'service_role'::regrole))
-  ),false) AS valid
+  ),false) AND EXISTS (
+    SELECT 1 FROM pg_trigger t
+    WHERE t.tgname = 'csf_record_connection_basis_after_audit'
+      AND t.tgrelid = to_regclass('plugin_data.csf_admin_audit_events')
+      AND t.tgfoid = to_regprocedure('plugin_data.csf_record_connection_basis()')
+      AND t.tgenabled = 'O'
+      AND t.tgtype = 5
+      AND NOT t.tgisinternal
+      AND t.tgconstraint = 0
+      AND t.tgqual IS NULL
+      AND octet_length(t.tgargs) = 0
+  ) AS valid
   FROM accepted_upgrade_definitions expected
   LEFT JOIN pg_proc p ON p.oid=to_regprocedure(expected.signature)
 )
@@ -99,7 +114,7 @@ accepted_upgrade_posture AS (
   return adjusted
     .replace(marker, upgrade + marker)
     .replace(
-      "WHEN (SELECT valid FROM table_posture)",
+      gate,
       "WHEN (SELECT valid FROM accepted_upgrade_posture) AND (SELECT valid FROM table_posture)",
     );
 }
