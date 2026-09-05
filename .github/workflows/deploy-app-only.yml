@@ -141,41 +141,25 @@ jobs:
           echo "deployment_id=${id}" >> "${GITHUB_OUTPUT}"
           PRODUCTION_DEPLOYMENT_ID="${id}" bash ../scripts/production/verify-vercel-alias.sh
 
-      - name: Build the accepted app once for Production
-        env:
-          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
-          VERCEL_ENV: production
-          VERCEL_GIT_COMMIT_SHA: ${{ inputs.release_sha }}
-          LETS_ASSIST_BUILD_SHA: ${{ inputs.release_sha }}
-          CSF_WORKBOOK_WORKER_ENABLED: "false"
-          CSF_IMPORT_WORKER_ENABLED: "false"
-          CSF_COMMUNICATIONS_WORKER_ENABLED: "false"
-          CSF_SCHEDULED_POST_PUBLISHER_ENABLED: "false"
-        run: |
-          set -euo pipefail
-          bunx vercel@59.3.0 pull --yes --environment=production --token="${VERCEL_TOKEN}"
-          bunx vercel@59.3.0 build --prod --standalone --token="${VERCEL_TOKEN}"
-
-      - name: Stage without changing domains
+      - name: Create one Vercel-side Production build without domains
         id: staged
         env:
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
-        run: |
-          set -euo pipefail
-          payload="$(bunx vercel@59.3.0 deploy --prebuilt --prod --skip-domain --yes --json \
-            --token="${VERCEL_TOKEN}" \
-            --env "LETS_ASSIST_BUILD_SHA=${RELEASE_SHA}" \
-            --env CSF_WORKBOOK_WORKER_ENABLED=false --env CSF_IMPORT_WORKER_ENABLED=false \
-            --env CSF_COMMUNICATIONS_WORKER_ENABLED=false --env CSF_SCHEDULED_POST_PUBLISHER_ENABLED=false \
-            --meta "appOnlyReleaseSha=${RELEASE_SHA}")"
-          id="$(jq -er '.deployment.id // .id' <<<"${payload}")"
-          host="$(jq -er '.deployment.url // .url' <<<"${payload}")"
-          target="$(jq -er '.deployment.target // .target' <<<"${payload}")"
-          [[ "${id}" =~ ^dpl_[A-Za-z0-9]+$ ]]
-          [[ "${host}" =~ ^[a-z0-9-]+\.vercel\.app$ ]]
-          [[ "${target}" == production ]]
-          echo "deployment_id=${id}" >> "${GITHUB_OUTPUT}"
-          echo "origin=https://${host}" >> "${GITHUB_OUTPUT}"
+        run: node ../scripts/production/app-release-stage.mjs create
+
+      - name: Retain staged build identity before waiting
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: app-only-stage-${{ github.run_id }}
+          path: release/.artifacts/app-only-stage.json
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Wait for the existing staged build
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          STAGED_DEPLOYMENT_ID: ${{ steps.staged.outputs.deployment_id }}
+        run: node ../scripts/production/app-release-stage.mjs wait
 
       - name: Check staged application
         env:
