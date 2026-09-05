@@ -60,7 +60,6 @@ while ((SECONDS < verification_deadline)); do
         --header "Authorization: Bearer ${VERCEL_TOKEN}" \
         "https://api.vercel.com/v13/deployments/${PRODUCTION_DEPLOYMENT_ID}?teamId=${VERCEL_TEAM_ID}")" && \
       jq -e \
-        --arg alias "${production_alias}" \
         --arg deployment "${PRODUCTION_DEPLOYMENT_ID}" \
         --arg project "${VERCEL_ROOT_PROJECT_ID}" \
         '.id == $deployment
@@ -68,10 +67,31 @@ while ((SECONDS < verification_deadline)); do
          and .target == "production"
          and ((.aliasAssigned == true)
            or ((.aliasAssigned | type) == "number" and .aliasAssigned > 0))
-         and ((.projectId // .project.id // "") == $project)
-         and ((.alias // []) | index($alias) != null)' \
+         and ((.projectId // .project.id // "") == $project)' \
         <<<"${deployment_payload}" >/dev/null; then
-      exit 0
+      if final_alias_payload="$(curl --fail --silent --show-error \
+        --connect-timeout "${connect_timeout_seconds}" \
+        --max-time "${http_timeout_seconds}" \
+        --get \
+        --header "Authorization: Bearer ${VERCEL_TOKEN}" \
+        --data-urlencode "domain=${production_alias}" \
+        --data-urlencode "projectId=${VERCEL_ROOT_PROJECT_ID}" \
+        --data-urlencode "teamId=${VERCEL_TEAM_ID}" \
+        https://api.vercel.com/v4/aliases)" && \
+        jq -e 'type == "object" and (.aliases | type == "array")' \
+          <<<"${final_alias_payload}" >/dev/null 2>&1; then
+        if jq -e \
+          --arg alias "${production_alias}" \
+          --arg project "${VERCEL_ROOT_PROJECT_ID}" \
+          --arg deployment "${PRODUCTION_DEPLOYMENT_ID}" \
+          '[.aliases[]? | select(.alias == $alias and .projectId == $project)]
+           | length == 1 and .[0].deploymentId == $deployment' \
+          <<<"${final_alias_payload}" >/dev/null; then
+          exit 0
+        fi
+        echo "The Production domain changed after deployment validation." >&2
+        exit 1
+      fi
     fi
   fi
   sleep 5

@@ -10,6 +10,153 @@ evidence and does not override the current tables or release gates.
 
 ## Release continuation, 2026-09-05
 
+### Domain assignment projection
+
+Configuration release `33950191490` failed its read-only alias check before
+creating any build or moving the domain. The Vercel domain API maps `lets-assist.com` to READY
+Production deployment `dpl_858adwbvCDtPEUq2gdhopRMTH1GJ`, with alias assignment
+complete, but the deployment response's alias list omits the public
+domain. The verifier now uses the exact unique domain assignment and still
+requires the matching deployment ID, project, Production target, READY state,
+and completed assignment. It no longer treats that list as a second
+authority. Focused tests cover omitted and stale deployment alias lists while
+retaining wrong-domain and unfinished-deployment rejection.
+The verifier also rereads the authoritative domain assignment after validating
+the deployment. A regression reproduced an incorrect success when the domain
+moved between those reads; the final recheck now refuses that race.
+Twenty-six focused tests, TypeScript, and zero-warning lint passed for the race
+fix. Test formatting also passed.
+
+The full CI run `33950851495` passed on `b2957a94`, including the Production
+build and database/browser gates. A later review found that an inconclusive
+final domain read should retry within the existing deadline rather than fail
+immediately. Network-error and malformed-response regressions reproduced the
+failure and now pass. Confirmed domain mismatches still fail immediately.
+The follow-up passes 27 focused tests, TypeScript, and zero-warning lint.
+
+The Production Class of 2030 workbook link now persists through the audited
+Settings action. A read-only database check confirms the intended source and
+owner, with one refresh job queued. Discovered tabs remain zero in the registry
+until the disabled refresh worker runs. No profiles or participation were
+created by linking the empty workbook.
+
+### App-only release and alias reconciliation
+
+Review follow-up rechecks the project operation after each alias observation,
+including the final one, so a concurrent promotion prevents absent-record
+settlement. Recovery now consumes the explicit alias-settled result and fences
+initial missing metadata against the exact maintenance or application alias.
+Thirty-three focused tests passed, including execution of the recovery helper
+with missing, pending, and changed operation records. No recovery was dispatched.
+
+Workbook-worker activation run `33948456893` stopped before preparing a receipt
+or mutating controls. The Management read-only role cannot execute the runtime
+reader RPC, but has schema and table read privileges. The controller now reads
+the same release-scoped controls directly through the read-only endpoint. It
+keeps the RPC's missing-release defaults without expanding any grants. Nine
+focused transition tests pass, including one-write receipts, lost-response
+reconciliation, and the read-only query contract. All Production workers remain
+off at revision zero. Do not retry the failed run.
+
+The count-only encryption audit found 15 access tokens and 15 refresh tokens
+still needing rotation, with zero live OAuth attempts needing the retained key.
+Keep the legacy key until successful credential reads migrate those connections
+and all retirement counts reach zero.
+
+Controller PR #473 merged at `0157de6145b39d3404f275c857529c5ab9674af1` after
+CI `33946585521` passed. App-only run `33947492691` built the accepted app once
+as `dpl_858adwbvCDtPEUq2gdhopRMTH1GJ`. Staged smoke checks passed and Vercel
+promoted it. The public verification and rollback guard then both stopped
+because the project API returned `lastAliasRequest: null`; rollback did not run.
+
+Read-only reconciliation confirmed `lets-assist.com` points to that READY
+deployment. Public smoke checks passed on exact SHA
+`dfe7fa586a8c55789cab194d4c7f2fab9cd254c2`, with the Production backend, login,
+protected CSF redirect, and all four workers disabled. Previous deployment
+`dpl_HtRch4K8gor7owGrZva4fiEunkLg` remains the app rollback target. Do not rerun
+the failed release or rebuild this artifact. The workflow remains failed;
+manual alias and runtime evidence establish the current app state, not full
+officer workflow or import completion.
+
+The alias-operation verifier now accepts absent operation metadata only after
+two observations of the exact READY Production alias. It still rejects a wrong
+project, wrong alias, unfinished deployment, or a new pending operation. This
+matches the Vercel CLI's absent-record behavior while retaining independent
+deployment checks. This controller change requires no application deployment.
+
+### Forward-migration controller follow-up
+
+Hosted acceptance `33941425951` passed on `cd7a806f`: 100 sessions, 9,584
+requests, zero errors, read p95 1,694.8 ms, mutation p95 1,867.4 ms, LCP p75
+1,700 ms, 25 review navigations without errors, and retained heap down 11.4%.
+PR #471 merged at `dfe7fa58` with the same accepted tree. PR #472 merged the
+controller at `7d5d1d1b` after CI `33942643526` passed.
+
+Forward-migration run `33943395092` stopped at its initial ledger check and made
+no write. A fresh Production read found both target migrations already present,
+with stored statement digests and eight function definitions/ACLs identical to
+accepted Development. No migration retry is needed. Worker controls remain off.
+The old catalog verifier still looked for two email-only fragments in the new
+provenance wrapper. The controller now checks those fragments in the renamed
+legacy helper and checks the exact accepted definitions and grants of all eight
+upgraded functions. Read-only verification passes in both hosted environments.
+Twenty-six focused tests pass. This is controller-only code; keep application
+release `dfe7fa58` and accepted SHA `cd7a806f` without another app acceptance build.
+
+PR #473 review follow-up adds the provenance trigger attachment, enabled state,
+event, target function, and unfiltered row checks. Missing or repeated final
+gate anchors now throw instead of leaving an unused validation CTE. Regression
+tests first failed on both defects and now pass. All 23 app-release tests,
+TypeScript, zero-warning lint, and diff checks pass. Production and Development
+read-only catalog queries pass. Development queries requiring a missing or
+disabled trigger fail closed without changing any database object. Prior CI
+`33943815529` passed before this follow-up; the updated controller needs CI.
+
+The final ledger review also pins the complete 446-version sequence by count
+and SHA-256. A regression test first reproduced acceptance of an inserted
+backdated version, then passed after the fix. It also covers omitted, replaced,
+and reordered versions with the same maximum version. All 24 app-release tests
+pass. This remains a controller-only update in PR #473.
+
+The grouped final schema review pins the accepted legacy ledger before taking
+the fallback path. It checks the provenance column type, default, NOT NULL,
+and validated accepted-value constraint. Worker table fingerprints now cover
+owner, RLS, ACLs, columns, defaults, constraints, indexes, receipt trigger, and
+policies; effective runtime table and column privileges must also be denied.
+Both hosted catalogs pass the complete read-only query. Six Development-only
+negative queries reject wrong defaults, nullable provenance, invalidated
+constraints, changed worker ACLs, runtime privileges, and disabled receipt
+triggers. These tests changed query expectations, not database objects.
+
+The durability review also requires permanent logged worker tables. An unlogged
+relation no longer enters the accepted two-table posture. The profile provenance
+column must remain ordinary and writable, not generated or identity-backed.
+
+Function ACL verification also rejects grant options and any grantor other than
+the accepted postgres owner. Runtime execution grants cannot delegate access.
+
+The replacement Production Resend webhook is disabled and its signing key is
+saved as a Sensitive Production keyring. No email was sent. The exposed project
+automation bypass was rotated, its three GitHub and three webhook consumers
+updated, and its old value revoked. Development status returned HTTP 200 with
+the replacement. No build was needed for that rotation.
+
+- PR #470 is merged to Development at `cd7a806f1a30161291da7254210e7d90ddc60ded`.
+  Its Vercel deployment is READY. Production PR #471 passed CI run
+  `33941557762`. Hosted acceptance run `33941425951` remains in progress.
+- Production still has 444 migrations through `20260903050000`. The next two
+  migrations have passed the full CI replay but have not run in Production.
+- The old schema workflow requires external-drive recovery inputs that the
+  user excluded. A separate controller now pins the two approved SQL hashes,
+  checks the exact 444-version prefix, and records both forward migrations in
+  one transaction. It uses the existing management credential and retains the
+  Production environment review. No export, restore, app deployment, import,
+  or worker activation runs in this workflow.
+- Nine focused controller tests pass, including lost-response settlement,
+  refusal without retry, byte drift, ledger drift, project isolation, and ACL
+  verification. Zero-warning lint passes. Publication and real migration
+  execution remain pending. This is controller work, not another app candidate.
+
 - Private PR #244 is merged at `31e6bb19`. Private `main` and `development`
   point to that commit. The user-authorized change removed only the private
   `main` last-push approval requirement. Security checks, force-push refusal,

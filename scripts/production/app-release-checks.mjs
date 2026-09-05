@@ -2,6 +2,7 @@ import { execFileSync } from "node:child_process";
 import { readdirSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { pathToFileURL } from "node:url";
+import { acceptedCatalogQuery } from "./app-release-catalog.mjs";
 
 export const productionRef = "fotdmeakexgrkronxlof";
 const shaPattern = /^[0-9a-f]{40}$/u;
@@ -233,9 +234,12 @@ export async function verifySchema(
     versions,
   );
   const result = await query(
-    readFileSync(
-      resolve(cwd, "scripts/production/verify-csf-target-schema.sql"),
-      "utf8",
+    acceptedCatalogQuery(
+      readFileSync(
+        resolve(cwd, "scripts/production/verify-csf-target-schema.sql"),
+        "utf8",
+      ),
+      versions,
     ),
   );
   if (result?.length !== 1 || result[0].csf_target_schema_verified !== 1) {

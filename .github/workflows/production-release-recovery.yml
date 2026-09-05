@@ -423,10 +423,17 @@ jobs:
             local settled_deployment
             local settled_operation
             local settled_status
-            EXPECTED_ALIAS_OPERATION="${operation}" \
+            local verification_result
+            verification_result="$(EXPECTED_ALIAS_OPERATION="${operation}" \
               EXPECTED_ALIAS_OPERATION_DEPLOYMENT_ID="${deployment_id}" \
-              timeout 660s bash scripts/production/verify-vercel-alias-operation.sh
+              timeout 660s bash scripts/production/verify-vercel-alias-operation.sh)"
+            echo "${verification_result}"
             IFS=$'\t' read -r settled_operation settled_deployment settled_status < <(read_current_alias_operation)
+            if [[ "${settled_operation}:${settled_deployment}:${settled_status}" == "missing:missing:missing" && \
+              "${verification_result}" == *"alias_operation_outcome=alias-settled"* ]]; then
+              exact_operation_status="alias-settled"
+              return 0
+            fi
             if [[ "${settled_operation}" != "${operation}" || \
               "${settled_deployment}" != "${deployment_id}" ]]; then
               echo "The exact Vercel alias operation changed after its terminal check." >&2
@@ -468,7 +475,17 @@ jobs:
               ;;
           esac
 
-          if [[ "${current_deployment}" == "${MAINTENANCE_DEPLOYMENT_ID}" && \
+          if [[ "${current_operation}:${current_deployment}:${current_status}" == "missing:missing:missing" ]]; then
+            if maintenance_alias_is_current; then
+              wait_for_exact_operation rollback "${MAINTENANCE_DEPLOYMENT_ID}"
+            elif [[ "${APPLICATION_PROMOTION_CONCLUSION}" != "skipped" ]]; then
+              wait_for_exact_operation promote "${APPLICATION_DEPLOYMENT_ID}"
+              request_maintenance_operation rollback
+            else
+              echo "No exact recovery alias is observable. Production remains write-blocked." >&2
+              exit 1
+            fi
+          elif [[ "${current_deployment}" == "${MAINTENANCE_DEPLOYMENT_ID}" && \
             ( "${current_operation}" == "promote" || "${current_operation}" == "rollback" ) ]]; then
             if [[ "${APPLICATION_PROMOTION_CONCLUSION}" != "skipped" && \
               "${current_operation}" == "promote" ]]; then

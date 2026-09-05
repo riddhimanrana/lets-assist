@@ -51,6 +51,23 @@ imports or provider delivery.
 
 ## Cost-controlled release path
 
+### Reviewed forward migrations
+
+`Apply accepted forward migrations` is the separate schema-only path for the
+two reviewed migrations `20260904010000` and `20260905003409`. It accepts explicit
+release and hosted-acceptance SHAs, verifies their identical trees and successful
+checks, and uses the Production environment's existing management credential.
+The controller checks both SQL hashes and all 444 preceding ledger versions.
+It applies both migrations and their exact ledger entries in one transaction,
+with a five-second lock timeout. A lost response triggers read-only ledger and
+catalog reconciliation, never another write attempt.
+
+This path does not export or restore data, deploy an app, change approvals,
+commit imports, or enable workers. It does not replace the recovery workflow
+for other schema changes. After its catalog checks pass, use the app-only
+workflow with the already accepted application SHA. Controller-only changes
+do not require another Development application deployment.
+
 Build and test feature work locally. Keep related fixes on worktrees or local
 branches until one release candidate is ready. The root repository uses one
 integration pull request into `development`, followed by one Production pull

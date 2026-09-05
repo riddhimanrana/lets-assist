@@ -1,0 +1,83 @@
+name: Apply accepted forward migrations
+
+on:
+  workflow_dispatch:
+    inputs:
+      release_sha:
+        description: "Full main-reachable accepted application SHA"
+        required: true
+        type: string
+      hosted_development_sha:
+        description: "Full hosted-accepted Development SHA with identical tree"
+        required: true
+        type: string
+      production_confirmation:
+        description: "Type apply-forward-migrations:<release SHA>"
+        required: true
+        type: string
+
+concurrency:
+  group: production-schema-deployment
+  queue: max
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+  actions: read
+  checks: read
+  statuses: read
+
+jobs:
+  migrate:
+    if: github.ref == 'refs/heads/main'
+    environment: production
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      RELEASE_SHA: ${{ inputs.release_sha }}
+      ACCEPTED_SHA: ${{ inputs.hosted_development_sha }}
+    steps:
+      - name: Checkout reviewed controller
+        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8
+      - name: Validate exact authorization
+        env:
+          CONFIRMATION: ${{ inputs.production_confirmation }}
+        run: |
+          set -euo pipefail
+          [[ "${GITHUB_RUN_ATTEMPT}" == "1" ]]
+          [[ "${RELEASE_SHA}" =~ ^[0-9a-f]{40}$ ]]
+          [[ "${ACCEPTED_SHA}" =~ ^[0-9a-f]{40}$ ]]
+          [[ "${CONFIRMATION}" == "apply-forward-migrations:${RELEASE_SHA}" ]]
+      - name: Checkout accepted source
+        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8
+        with:
+          ref: ${{ inputs.release_sha }}
+          path: release
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Setup Node
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version-file: release/.node-version
+      - name: Verify accepted source and CI
+        working-directory: release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: node ../scripts/production/app-release-checks.mjs source
+      - name: Apply the approved migration bytes once
+        working-directory: release
+        env:
+          SUPABASE_PROJECT_ID: ${{ secrets.SUPABASE_PROJECT_ID }}
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+        run: |
+          set -euo pipefail
+          mkdir -p .artifacts
+          node ../scripts/production/forward-migration-release.mjs > .artifacts/forward-migrations.json
+      - name: Retain count-only outcome
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: forward-migrations-${{ github.run_id }}
+          path: release/.artifacts/forward-migrations.json
+          if-no-files-found: ignore
+          retention-days: 30
