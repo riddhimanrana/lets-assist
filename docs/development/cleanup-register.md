@@ -1042,6 +1042,39 @@ sources.
 
 ### Current Production acceptance, 2026-09-05
 
+Hosted run `33994088933` passed at 22:25 UTC on `c0d1f595` with 100 distinct
+sessions and 9,680 requests. Read p95/p99 were 1,660/2,395 ms; mutation p95
+was 1,374 ms. Request errors and 5xx were zero. LCP p75 was 1,624 ms, INP
+p75 48 ms, and CLS p75 0.000816. All 25 review navigations passed with zero
+browser errors or renderer crashes; retained heap fell 7.7 percent.
+Private PR #250 then received a valid review finding: successful batch approval
+did not refresh the class queue. The promotion remains unmerged. The narrow
+follow-up calls the existing success-only router refresh hook. Its regression
+test failed before the fix and passed afterward; eight focused tests, TypeScript,
+and focused zero-warning ESLint pass. It needs private CI and integration.
+Production workbook refresh was disabled through receipt run `33995872470`.
+Restoration run `33995977239` passed and verified the prior enabled state on
+the unchanged public app. Private fix `a73c38b` is in PR #251; its security
+check and plugin CI `33996024686` passed. PR #251 merged to private Development
+at `06a2e568ef74fc3f44a42b7e637cfef1ea5c0868`, with the same tested tree as
+`a73c38b`. Root integration now pins that private commit. The earlier hosted
+acceptance applies to `c0d1f595`, not this updated application tree. No application deployment,
+migration, or officer import was
+performed in this turn. Chrome remains unavailable while the Mac is locked.
+
+Release follow-up at 21:48 UTC: CI `33993371446` passed every job on
+`a56aa0664129c9971e89602bce9fcb1cf73cf46a`. PR #479 merged into Development at
+`c0d1f595cda60625a02cd90ec65c8fd02ef4ac1f`, with an identical tree and the
+private gitlink unchanged at `20bcb47c18a1c27cac46852de113e031009f2425`.
+The marked merge started one Vercel deployment and hosted acceptance run
+`33994088933`. Vercel and the Supabase preview checks passed. Development's
+451-version ledger hash matches `a3b709dea637acd1fdd4a8820f8b2830be3fb8c53e8d8ab9d9975a8164f41148`,
+and the complete read-only release catalog returned 1 against hosted Development.
+The 100-session hosted acceptance step is running. Private promotion PR #250
+and root promotion PR #480 are open without auto-merge so their checks can run
+before release. Neither promotion has merged. Production's application, schema,
+worker flags, and officer imports were not changed by this merge.
+
 PR #479 review follow-up: the workbook reprepare RPC checked the requesting
 officer before waiting for workbook and request locks, without holding the
 staff-access lock or the officer membership row. The class-history authorizer
