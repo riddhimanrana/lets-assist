@@ -12,6 +12,61 @@ evidence and does not override the current tables or release gates.
 
 ### Forward-migration controller follow-up
 
+Hosted acceptance `33941425951` passed on `cd7a806f`: 100 sessions, 9,584
+requests, zero errors, read p95 1,694.8 ms, mutation p95 1,867.4 ms, LCP p75
+1,700 ms, 25 review navigations without errors, and retained heap down 11.4%.
+PR #471 merged at `dfe7fa58` with the same accepted tree. PR #472 merged the
+controller at `7d5d1d1b` after CI `33942643526` passed.
+
+Forward-migration run `33943395092` stopped at its initial ledger check and made
+no write. A fresh Production read found both target migrations already present,
+with stored statement digests and eight function definitions/ACLs identical to
+accepted Development. No migration retry is needed. Worker controls remain off.
+The old catalog verifier still looked for two email-only fragments in the new
+provenance wrapper. The controller now checks those fragments in the renamed
+legacy helper and checks the exact accepted definitions and grants of all eight
+upgraded functions. Read-only verification passes in both hosted environments.
+Twenty-six focused tests pass. This is controller-only code; keep application
+release `dfe7fa58` and accepted SHA `cd7a806f` without another app acceptance build.
+
+PR #473 review follow-up adds the provenance trigger attachment, enabled state,
+event, target function, and unfiltered row checks. Missing or repeated final
+gate anchors now throw instead of leaving an unused validation CTE. Regression
+tests first failed on both defects and now pass. All 23 app-release tests,
+TypeScript, zero-warning lint, and diff checks pass. Production and Development
+read-only catalog queries pass. Development queries requiring a missing or
+disabled trigger fail closed without changing any database object. Prior CI
+`33943815529` passed before this follow-up; the updated controller needs CI.
+
+The final ledger review also pins the complete 446-version sequence by count
+and SHA-256. A regression test first reproduced acceptance of an inserted
+backdated version, then passed after the fix. It also covers omitted, replaced,
+and reordered versions with the same maximum version. All 24 app-release tests
+pass. This remains a controller-only update in PR #473.
+
+The grouped final schema review pins the accepted legacy ledger before taking
+the fallback path. It checks the provenance column type, default, NOT NULL,
+and validated accepted-value constraint. Worker table fingerprints now cover
+owner, RLS, ACLs, columns, defaults, constraints, indexes, receipt trigger, and
+policies; effective runtime table and column privileges must also be denied.
+Both hosted catalogs pass the complete read-only query. Six Development-only
+negative queries reject wrong defaults, nullable provenance, invalidated
+constraints, changed worker ACLs, runtime privileges, and disabled receipt
+triggers. These tests changed query expectations, not database objects.
+
+The durability review also requires permanent logged worker tables. An unlogged
+relation no longer enters the accepted two-table posture. The profile provenance
+column must remain ordinary and writable, not generated or identity-backed.
+
+Function ACL verification also rejects grant options and any grantor other than
+the accepted postgres owner. Runtime execution grants cannot delegate access.
+
+The replacement Production Resend webhook is disabled and its signing key is
+saved as a Sensitive Production keyring. No email was sent. The exposed project
+automation bypass was rotated, its three GitHub and three webhook consumers
+updated, and its old value revoked. Development status returned HTTP 200 with
+the replacement. No build was needed for that rotation.
+
 - PR #470 is merged to Development at `cd7a806f1a30161291da7254210e7d90ddc60ded`.
   Its Vercel deployment is READY. Production PR #471 passed CI run
   `33941557762`. Hosted acceptance run `33941425951` remains in progress.
