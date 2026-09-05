@@ -12,6 +12,20 @@ evidence and does not override the current tables or release gates.
 
 ### App-only release and alias reconciliation
 
+Workbook-worker activation run `33948456893` stopped before preparing a receipt
+or mutating controls. The Management read-only role cannot execute the runtime
+reader RPC, but has schema and table read privileges. The controller now reads
+the same release-scoped controls directly through the read-only endpoint. It
+keeps the RPC's missing-release defaults without expanding any grants. Nine
+focused transition tests pass, including one-write receipts, lost-response
+reconciliation, and the read-only query contract. All Production workers remain
+off at revision zero. Do not retry the failed run.
+
+The count-only encryption audit found 15 access tokens and 15 refresh tokens
+still needing rotation, with zero live OAuth attempts needing the retained key.
+Keep the legacy key until successful credential reads migrate those connections
+and all retirement counts reach zero.
+
 Controller PR #473 merged at `0157de6145b39d3404f275c857529c5ab9674af1` after
 CI `33946585521` passed. App-only run `33947492691` built the accepted app once
 as `dpl_858adwbvCDtPEUq2gdhopRMTH1GJ`. Staged smoke checks passed and Vercel
