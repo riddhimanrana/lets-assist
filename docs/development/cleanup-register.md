@@ -1147,6 +1147,13 @@ pass. The local production build passed with non-production test variables.
 The feature-branch Vercel deployment was canceled by its ignored-build rule.
 No application build or Production data change resulted from that Git push.
 
+Private promotion review #247 found that the Settings fallback also hid class
+rename and archive/restore controls. Private Development `88d5b79` limits the
+fallback to spreadsheet controls and retains the separate class-management
+permission checks. Focused tests, lint, and TypeScript pass. The correction
+advanced Development by a permitted fast-forward and stays in the existing
+promotion PR. It did not change branch protection or deploy an application.
+
 ### Release build and worker activation, 2026-09-05
 
 The app-only run `33933383403` stopped at Vercel's ignored build step. Deployment

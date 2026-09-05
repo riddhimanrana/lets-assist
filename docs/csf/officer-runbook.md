@@ -2,7 +2,7 @@
 
 **Audience:** organization administrators, adviser, chapter officers, and Data Management
 **Current status:** accepted app `dfe7fa586a8c55789cab194d4c7f2fab9cd254c2` serves the public site. All four class workbooks are linked and have prepared their current recorded versions. Preparation does not mean their rows have committed. The import-profile and Settings fixes still require hosted acceptance. Use the [cleanup register](../development/cleanup-register.md) for release and data evidence.
-**Release ledger:** the current repository candidate carries 448 ordered migrations through `20260905080459_csf_import_review_metadata_snapshot`; the private Development gitlink is `1aa3fff`. Production has 446 migrations through `20260905003409_csf_release_worker_runtime_controls`. The two new migrations and Settings UI fix are not live yet.
+**Release ledger:** the current repository candidate carries 448 ordered migrations through `20260905080459_csf_import_review_metadata_snapshot`; the private Development gitlink is `88d5b79`. Production has 446 migrations through `20260905003409_csf_release_worker_runtime_controls`. The two new migrations and Settings UI fix are not live yet.
 **Authoritative record after review:** Let's Assist
 
 This runbook describes the v1.6 officer workflow. Do not use it for a Production cutover until the current gates in section 12 and [testing and release](testing-and-release.md) pass for the exact integrated tree.
