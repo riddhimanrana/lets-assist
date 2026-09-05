@@ -208,6 +208,19 @@ CSF_TABLE_COUNT=$(psql "$DB_URL" \
 
 echo "Isolated replay passed: ${MIGRATION_COUNT} migrations, ${CSF_TABLE_COUNT} CSF tables"
 
+if [[ "${CSF_REPLAY_VERIFY_RELEASE_CATALOG:-0}" == "1" ]]; then
+  node --input-type=module <<'NODE' | psql "$DB_URL" -X -v ON_ERROR_STOP=1 -At
+import { readFileSync } from 'node:fs';
+import { acceptedCatalogQuery } from './scripts/production/app-release-catalog.mjs';
+import { expectedVersions } from './scripts/production/app-release-checks.mjs';
+console.log(acceptedCatalogQuery(
+  readFileSync('./scripts/production/verify-csf-target-schema.sql', 'utf8'),
+  expectedVersions(process.cwd()),
+));
+NODE
+  echo "Accepted release catalog passed against the isolated replay."
+fi
+
 # Run cleanup as part of the successful command, not only through EXIT, so a
 # leaked container/volume/network makes the replay fail instead of being hidden
 # behind a passing pgTAP result.

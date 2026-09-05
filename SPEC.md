@@ -22,11 +22,39 @@ DVHS CSF officer UX → class-first Home → Classes → Applications → More; 
   Worker tables must be permanent logged relations. Connection provenance must
   remain a writable ordinary column, not an identity or generated column.
 
-- The reviewed schema-only controller may apply only migrations `20260904010000`
-  and `20260905003409`, with their pinned SQL hashes and exact preceding ledger.
+- The candidate schema-only controller accepts migrations `20260905202837`,
+  `20260905205847`, and `20260905212822`, with their pinned SQL hashes over the verified
+  448-migration Production prefix. The earlier two-migration release is already
+  applied. The workbook rebuild authorization review must close before release.
   Source acceptance and Production authorization precede one transaction.
   A lost response permits reads only until ledger and catalog reconciliation.
   No export, restore, app build, import approval, or worker activation occurs.
+
+- Release evidence, 2026-09-05: Production `fda53ee5` has the identical tree as
+  accepted Development `383ea476`, private gitlink `88d5b79`, and the verified
+  448-migration catalog. CI `33957447212`, hosted acceptance `33957164531`,
+  and public app release `33958927462` passed. Workbook preparation and import
+  commits are enabled at runtime-control revision 2. The first nine approved
+  previews produced 1,111 committed rows, six completed queue items, and three
+  blocked items. Two fresh Class of 2029 previews completed after a
+  provider-version refresh, updating another 150 rows. Official reconciliation, remaining officer
+  workflows, provider email settlement, and synthetic media remain open in
+  the cleanup register.
+
+- Workbook follow-up `df79bcb4` passed private CI `33989854176` and merged
+  through PR #248 to private Development at `5ad7cfc0`. Local plugin
+  verification and 260 private test files pass.
+  Root integration, hosted acceptance, and Production release remain pending.
+
+- Officer workbook re-preparation uses an intent-bound request UUID and the
+  existing leased worker. It preserves prior snapshots and never commits rows.
+  Its local forward migration passes isolated replay with 7,069 assertions.
+  Production application and schema promotion remain gated on hosted proof.
+
+- Compound-name profile search normalizes both stored full-name orders like
+  the query and keeps organization, active-record, permission, and 20-result
+  limits. The local 450-migration replay passes 7,081 assertions and the exact
+  release catalog check. Publication and hosted acceptance remain pending.
 
 - Integration base root `f49227cb`; private Development gitlink `7597fdc`; Production ⊥.
 - UI says `Class`; existing `cohort` schema identifiers stay.

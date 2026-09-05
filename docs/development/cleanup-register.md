@@ -1040,6 +1040,304 @@ sources.
 
 ## Repository-owned P0–P2
 
+### Current Production acceptance, 2026-09-05
+
+PR #479 review follow-up: the workbook reprepare RPC checked the requesting
+officer before waiting for workbook and request locks, without holding the
+staff-access lock or the officer membership row. The class-history authorizer
+does not acquire those locks. Forward migration `20260905212822` now acquires
+the organization staff-access lock and holds the actor membership row, then
+rechecks authority before returning a receipt or queueing work. It also holds
+the workbook owner's membership row during queue authorization. The signature,
+server-only grant, immutable receipts, and existing source snapshots stay intact.
+Two-session tests prove that a permission-revoked new request and a
+membership-revoked replay fail without restarting the worker or adding a
+receipt. Full isolated replay passes 451 migrations and 7,090 assertions. The
+exact release catalog returns 1 against that database. All 19 controller tests
+and 13 documentation contracts pass. The SPEC and controller now name all
+three candidate migrations over Production's unchanged 448-migration prefix.
+CI `33992278486` passed for the preceding `c8e93e2b` candidate. The lock fix
+still needs its own CI and hosted acceptance. No additional deployment or
+Production schema change occurred during this review.
+
+The refreshed chapter audit after Spring 2024 commit counts 4,427 profile
+activity events and 1,392 attendance records. Every activity event has a title
+and an activity-catalog link in the same organization and term. Every attendance
+record has a label and a meeting link in the same organization and term. These
+relationship checks do not close the pending preview or application imports.
+
+Read-only email audit at 21:25 UTC: all four Resend sending domains are
+verified. The current Production webhook has four successful deliveries of
+provider events, two `email.sent` and two `email.delivered`. These are endpoint
+receipts, not CSF workflow acceptance. The Production CSF ledger has zero
+campaigns, deliveries, dispatch attempts, verified provider events, reduced
+provider events, and unresolved quarantines. The controlled ten-message CSF
+test remains open. No messages were sent or worker flags changed in this audit.
+The provider listing returned an automation-bypass value in endpoint URLs.
+Treat that credential as exposed, rotate it in the coordinated provider and
+environment cutover, and keep endpoint query values out of further output.
+
+Count-only follow-up audit: each official class has eight linked term sources.
+Their current previews contain 1,461 committed rows, 445 pending rows, one
+identity-review row, two error rows, and one redundant skipped row. The skipped
+Fall 2024 row records its retained counterpart; that counterpart contains all
+retained facts and remains pending. The skip is mechanical redundancy, not an
+unrecorded officer decision.
+
+Further protected evidence for the Fall 2024 identity exception shows that the
+raw workbook LastFirst key matches one active class profile, and the historical
+merged record points to that same target. The officer UI match has not been
+submitted because the Mac locked before selection. No profile merge or account
+link was changed. Root CI `33992278486` is still running on `c8e93e2b`.
+
+Initial follow-up: root PR #479 opened at `8d99c29b`. Its quality job failed
+because the officer runbook still named the old migration ledger and gitlink.
+The local runbook and assertion now distinguish the 450-migration candidate
+from Production's verified 448 migrations through `20260905080459`. All 13
+documentation contract tests pass. No app deployment ran; Vercel skipped the
+feature-branch build.
+
+The officer browser resolved one Spring 2024 Class of 2027 row by creating an
+unclaimed source profile after full-name, surname, chapter-name, and source-key
+checks found no existing target. The row is now pending with a profile match,
+resolution metadata, and two row audit events. No application approval, account
+link, or participation commit occurred. The Fall 2024 row remains unresolved:
+its same-normalized-name records include an active profile and a merged record
+whose destination differs. No match was forced.
+
+That review exposed a separate search defect. Queries strip spaces while the
+stored compound surname retains them, so full-name search can hide an existing
+profile. Local forward migration `20260905205847_csf_compound_name_profile_search`
+normalizes both full-name orders consistently and adds scoped active-profile
+prefix indexes. The first fixture incorrectly used an unsupported archived
+profile state; the corrected fixture tests exclusion of merged profiles.
+Isolated replay passes 450 migrations and 7,081 assertions. The new migration
+is not published or applied to Production. The local release allowlist now
+includes both exact migration hashes over the verified 448-version prefix.
+The catalog checks the search function body, argument and result fields,
+permissions, and both scoped prefix indexes. All 19 focused controller tests
+pass. A fresh isolated replay passed 7,081 assertions and returned 1 from the
+complete release catalog query. Its temporary resources were cleaned up.
+The full local runner passed all 300 root and 290 plugin test files.
+TypeScript, zero-warning lint, formatting, and strict gitlink validation pass.
+The changes still need root CI and hosted acceptance.
+
+The officer approved the now-ready Spring 2024 preview once through the app.
+Preview `da61acdf-7d02-4991-9d9b-75f41f47bc1e` completed with 200 committed
+rows: 38 created and 162 updated, with zero error rows and no queue error.
+Class of 2027 now has 347 active directory profiles and zero duplicate
+normalized-name groups. The other class directories remain 280 for 2028,
+108 for 2029, and zero for the empty 2030 templates. These counts are not
+current-semester membership approvals. Remaining identity decisions and the
+Class of 2028 parser-dependent re-preview remain open.
+
+This entry supersedes older release-state statements below. The release is
+published, but official data and provider acceptance remain incomplete.
+
+Root PR #478 merged to `main` at
+`fda53ee5b06ca74e3f81f98c8d37e06b1f1fa258`, with the same tree as hosted
+Development `383ea476ee2f5bf8b13fab0db3b33ab0f849295d`. Private gitlink
+`88d5b79aa240a11bb41b5618a5c38cb8ea693099` is reachable from private `main`
+and `development`. Root CI `33957447212` passed 7,053 database assertions,
+83 CSF browser journeys, all 300 root and 287 plugin test files, TypeScript,
+zero-warning lint, and the Production build.
+
+Hosted acceptance `33957164531` passed with 100 distinct sessions and 9,130
+requests. Read p95 was 1,401 ms, read p99 2,230 ms, mutation p95 1,809 ms,
+LCP p75 2,052 ms, INP p75 16 ms, and CLS p75 0.00210. Request errors and
+renderer crashes were zero. All 25 review navigations completed; retained
+heap decreased by 11.6 percent. These measurements used fictional accounts.
+
+Production's Supabase check on the main merge applied the two forward
+migrations before explicit migration run `33958842854` reached its preflight.
+That run refused the already-upgraded ledger before writing. It was not
+retried. Independent read-only checks verified the exact 448-version sequence,
+accepted function definitions and grants, metadata constraint, and source-key
+index. The catalog verifier returned 1. The Class of 2027 readiness call then
+evaluated six previews as `service_role` under an eight-second statement limit;
+the complete tool round trip took 897 ms. The signed-in Production Settings
+page now shows the workbook, semester review controls, and ready approvals.
+
+App-only run `33958927462` built and promoted one Production artifact,
+`dpl_DYmJHF9tVtDCuE8WYWnr9o6X1THx`. Staged and public-domain checks passed
+for the exact release SHA, backend, login route, and protected CSF route.
+The previous app is `dpl_8AShFttCMrv41iEq8AMCLikgRFXu`.
+Worker transition `33959098441` enabled only workbook preparation for this
+release at revision 1, receipt `45563bae-f590-411f-88be-3b31524849c9`.
+Worker transition `33987211232` then enabled import commits at revision 2,
+receipt `6701ac15-d997-4324-82d7-e4015ae2d16d`. Communications and scheduled
+publishing remain disabled.
+
+The unlocked officer browser approved four Class of 2027 previews, three
+Class of 2028 previews, and two Class of 2029 previews. Six queue items
+completed. One partially completed with 166 updated rows and one deterministic
+identity refusal. Two stopped before creating a commit job. Across these nine
+items, 1,111 rows committed: two created and 1,109 updated. No unknown or
+in-flight row outcomes remained in the three blocked previews.
+
+The Class of 2027 refusal has no frozen profile target. A read-only source-key
+lookup returns no proven target and requires review. Do not remove that check
+or retry the unchanged row. One separate Spring 2024 row was resolved through
+the audited unique-match action; one Spring 2024 row still needs evidence.
+
+The two Class of 2029 previews froze provider version 1295. The current file is
+version 1297 with the same modification timestamp. The Settings relink action
+reconnected the same file and queued the refresh worker. The registry now
+records version 1297 prepared, eight tabs, and no workbook error. Its fresh
+previews contain 62 and 88 rows. The officer approved those exact new previews;
+both queue receipts completed and all 150 rows updated. Earlier blocked
+receipts remain intact. The eleven approved previews now contain 1,261
+committed rows. Class of 2030 stays linked with eight empty templates.
+
+The post-import count-only audit found 4,043 sheet activity events with zero
+missing names, missing activity links, or mismatched linked terms. All 1,208
+sheet attendance records have meeting links. Active class-directory counts are
+308 for 2027, 280 for 2028, 108 for 2029, and zero for the empty 2030 template.
+These directory counts do not imply current-semester eligibility or completion.
+
+Repeat-sync reconciliation, remaining profile decisions, application profile
+creation through the deployed UI, controlled provider email settlement, and
+synthetic screenshots/video remain open.
+The completed remote `codex/csf-import-release-followup` branch was deleted
+after its commits were proven to be ancestors of Development. Existing
+worktrees and user changes remain intact.
+
+#### Follow-up defects found in the officer browser
+
+- P1: per-semester "Sync again" called the legacy direct preview action and
+  failed with the worker-only preview guard. The local private-plugin patch
+  replaces those buttons with one workbook "Check for updates" control using
+  the existing refresh action. Audited batch approval stays separate. Two
+  focused regression tests, 21 related tests, all 259 discovered private-plugin
+  test files, TypeScript, formatting, and zero-warning affected-file lint pass.
+  This patch is not deployed. No build, push, or new pull request ran for it.
+- P2: switching classes retains a semester unavailable in the destination
+  class. The header and URL show the old semester while the selector shows the
+  current semester. The local patch scopes the shared semester selection to
+  the selected class before loading member records and building the header.
+  It reuses the class-term read and leaves chapter-wide application terms
+  unchanged. Empty or unknown classes receive no fallback organization terms.
+  Focused scope tests and TypeScript pass. Hosted verification remains open.
+- P1: the repeated-slot parser treated any parenthetical text containing
+  "point" as a numeric award. A descriptive club-point label therefore
+  blocked one Class of 2028 preview. The local fix preserves descriptive
+  labels and their repeated-slot counts while retaining reconciliation for
+  malformed numeric or written quantities. The regression failed before the
+  fix; all 29 parser tests, TypeScript, and focused zero-warning lint pass.
+  The immutable Production preview remains unchanged until a new preview is
+  prepared under the released parser and approved through the officer action.
+- Local follow-up validation: all 259 discovered private-plugin test files
+  pass with the parser and term-scope patches. After formatting, the 37 focused
+  parser and class-scope tests pass with 115 assertions. TypeScript and
+  affected-file lint pass. No push, deployment, or Production data mutation
+  occurred during this validation.
+- P2: blocked worker receipts use `commit_failed`, concealing whether the
+  source changed or another pre-commit check refused it. The UI still labels
+  those previews ready. The local patch now carries a closed reason from
+  source-evidence refusal through the action to the queue. Database refusals
+  report `source_check_failed`; known provider refusals retain their fixed
+  category. It does not infer a changed source from database error prose.
+  Unrecognized structured codes become `commit_failed`, and provider detail
+  never enters queue evidence. Settings now reads one bounded, tenant-scoped
+  queue projection alongside the grouped readiness call. Queued, running,
+  completed, and refused pre-claim previews cannot appear ready for repeat
+  approval. Reviewed row repairs may resume an existing recoverable commit;
+  unresolved row outcomes still block it. The UI displays queue progress.
+  Hosted verification remains open.
+
+The combined follow-up passes all 259 discovered private-plugin test files,
+17 root worker-route tests, TypeScript, and the full zero-warning lint gate.
+The source-size guard initially rejected two files over 800 lines; focused
+helpers bring both below the limit. A new read-only Production check confirms
+eight completed queue receipts and three blocked receipts. The three remaining
+Class of 2027 identity rows have no proven source-key target; the refused
+Spring 2026 row still requires source-key review. No retry or match was forced.
+Chrome's extension debugger was detached, but native Chrome access to the
+officer review works. No new build or Production mutation ran in this check.
+
+The grouped private follow-up is committed at
+`df79bcb4d195af503b29580f4cbcea0310aa4207` and published in private PR #248
+against Development. The full local `plugin:verify` gate passed, including
+independent application packages and all 260 discovered private-plugin test
+files. TypeScript, source-size checks, full lint, and focused queue tests pass.
+The root worker-route adapter remains local until private integration passes.
+No release tag or Vercel deployment was created by this step.
+
+Private CI `33989854176` passed on `df79bcb4`; GitGuardian also passed.
+PR #248 merged into private Development at
+`5ad7cfc0821e0d27387158b2991b86585b387f17`. The merge tree matches the tested
+head exactly. The root index now pins that merge commit, and the strict
+submodule check passes with a clean detached private checkout. Root publication
+and hosted acceptance remain pending; Production still serves the prior app.
+
+Follow-up re-preview audit: `csf_queue_class_workbook_preparation` and the
+metadata-refresh enqueue path return `unchanged` when the provider version
+already equals `last_prepared_version`. Relinking the same file and version
+preserves that value. Therefore a parser-only app release does not prove that
+the existing Class of 2028 error preview was rebuilt. The generation-bound
+preview opener can preserve the old snapshot and create a different snapshot,
+but the worker first needs an authorized re-preparation request. A supported
+parser-revision or officer re-preview path remains to be verified or added.
+Do not change the Google file merely to manufacture a provider revision, and
+do not modify the old preview rows directly.
+
+The local re-preview path now uses forward migration
+`20260905202837_csf_officer_workbook_reprepare.sql` and the existing refresh
+worker. An explicit officer request binds the class, displayed Drive file,
+actor, and request UUID to one audit receipt. It refuses a changed workbook
+and active processing, preserves snapshots, and clears only the preparation
+marker before queueing the existing generation. Replaying a settled request
+returns its receipt without restarting the worker. The existing revision-check
+path is unchanged. The UI exposes "Rebuild previews" separately from approval.
+
+The new migration is local only. Full isolated replay passed with 449 migrations,
+242 SQL test files, and 7,069 assertions, including request replay, changed intent,
+tenant isolation, revoked authority, active-worker refusal, and explicit grants.
+The pinned CLI ran from its existing package cache; the shared local database
+and machine-wide CLI were unchanged. Disposable replay resources were cleaned
+up. All 261 private-plugin test files, TypeScript, and full lint pass. Hosted
+re-preview, concurrency acceptance, migration rollout, and Production commit
+remain open. Old app versions do not call the new RPC. Rollback disables the
+new UI path without removing its additive function or audit receipts.
+
+Private commit `93de580062e4d7c327b90a1da1807bf449afec50` is published in
+Development PR #249, now merged at `20bcb47c18a1c27cac46852de113e031009f2425`
+after private CI `33991005657` passed. Full `plugin:verify` passed, including all 261 plugin test
+files. Replayed rebuild receipts now say the request was already recorded,
+rather than implying that a finished job was just queued again. The focused
+service suite passes all eight tests. The root index pins the exact private
+merge, whose tree matches the tested head. Strict gitlink validation passes.
+Root publication and hosted acceptance remain pending. No Production build or data change occurred
+during this follow-up.
+
+The follow-up release controller initially refused migration 449 because its
+allowlist still named the preceding two migrations. The local controller now
+allows only the new migration's exact SHA-256 and the complete 448-version
+prefix. Its catalog query checks the new function body, signature, permissions,
+and unique receipt index. All 18 focused controller tests pass. A fresh isolated
+replay passed all 7,069 database assertions and executed the complete release
+catalog query successfully, returning 1. Its temporary resources were cleaned
+up. This is local evidence, not hosted or Production acceptance.
+
+The earlier pre-commit count-only audit confirmed four workbook registries, 32
+discovered tabs, four current prepared versions, and zero workbook errors.
+The new deployment recorded five HTTP 200 workbook-worker responses after
+activation. Its observed post-promotion log window contained no recorded 5xx.
+These short-window observations are not a claim of long-term availability.
+
+| Class | Linked term sources | Pending preview rows | Ambiguous | Error | Skipped | Pending without a profile match |
+| ----- | ------------------- | -------------------- | --------- | ----- | ------- | ------------------------------- |
+| 2027  | 8                   | 1,104                | 3         | 0     | 1       | 0                               |
+| 2028  | 8                   | 651                  | 0         | 1     | 0       | 1                               |
+| 2029  | 8                   | 150                  | 0         | 0     | 0       | 0                               |
+| 2030  | 8                   | 0                    | 0         | 0     | 0       | 0                               |
+
+All-class readiness completed under the service-role eight-second statement
+limit. At that earlier audit, previews contained no committed rows and no in-flight or unknown
+outcomes. Pending does not mean ready: preview approval must still revalidate
+sources, permissions, conflicts, and the unmatched Class of 2028 row. Class of
+2030 remains an empty template workbook.
+
 ### Production configuration and workbook worker, 2026-09-05
 
 The accepted application `dfe7fa586a8c55789cab194d4c7f2fab9cd254c2`
