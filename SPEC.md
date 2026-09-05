@@ -4,6 +4,10 @@ DVHS CSF officer UX → class-first Home → Classes → Applications → More; 
 
 §C
 
+- Release catalog validation follows the versioned claim wrapper and its renamed
+  legacy helper. It pins the accepted upgraded function definitions and explicit
+  grants; it must not force a name-confirmed claim to report email verification.
+
 - The reviewed schema-only controller may apply only migrations `20260904010000`
   and `20260905003409`, with their pinned SQL hashes and exact preceding ledger.
   Source acceptance and Production authorization precede one transaction.
