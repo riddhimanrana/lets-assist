@@ -1042,6 +1042,20 @@ sources.
 
 ### Current Production acceptance, 2026-09-05
 
+Automation credential rotation after PR #481 opened: created a replacement
+Vercel project bypass, updated the Development CI secret and both Production
+CI secret names, and replaced only the endpoint query value on the two enabled
+Resend webhooks. Readback confirmed both event subscription lists and enabled
+states were unchanged. Both app status endpoints returned HTTP 200 with the
+replacement before and after revocation of the exposed value. The provider
+now reports one active default bypass and no old bypass. No app build or test
+email was created. Signing secrets were not changed; CSF message settlement
+still requires its separate controlled test. Root CI `33996238491` passed
+database replay and both browser suites but failed its documentation contract:
+the officer runbook still named the previous private gitlink. Correcting that
+reference to `06a2e56` passes all 13 documentation tests with 305 assertions.
+These provider changes do not prove the remaining officer imports.
+
 Hosted run `33994088933` passed at 22:25 UTC on `c0d1f595` with 100 distinct
 sessions and 9,680 requests. Read p95/p99 were 1,660/2,395 ms; mutation p95
 was 1,374 ms. Request errors and 5xx were zero. LCP p75 was 1,624 ms, INP
