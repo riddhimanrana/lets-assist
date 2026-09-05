@@ -21,7 +21,17 @@ requires the matching deployment ID, project, Production target, READY state,
 and completed assignment. It no longer treats that list as a second
 authority. Focused tests cover omitted and stale deployment alias lists while
 retaining wrong-domain and unfinished-deployment rejection.
-Twenty-five focused tests, formatting, TypeScript, and zero-warning lint passed.
+The verifier also rereads the authoritative domain assignment after validating
+the deployment. A regression reproduced an incorrect success when the domain
+moved between those reads; the final recheck now refuses that race.
+Twenty-six focused tests, TypeScript, and zero-warning lint passed for the race
+fix. Test formatting also passed.
+
+The Production Class of 2030 workbook link now persists through the audited
+Settings action. A read-only database check confirms the intended source and
+owner, with one refresh job queued. Discovered tabs remain zero in the registry
+until the disabled refresh worker runs. No profiles or participation were
+created by linking the empty workbook.
 
 ### App-only release and alias reconciliation
 

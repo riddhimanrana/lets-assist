@@ -18,6 +18,8 @@ async function verify({
   project = "prj_expected",
   operations = [null],
   deploymentAliases = [],
+  aliases = [alias],
+  direct = false,
 } = {}) {
   const dir = mkdtempSync(join(tmpdir(), "csf-alias-operation-"));
   writeFileSync(
@@ -33,7 +35,11 @@ if (url.includes('/v9/projects/')) {
   const operations = JSON.parse(process.env.FAKE_OPERATIONS);
   console.log(JSON.stringify({id:process.env.FAKE_PROJECT,accountId:'team_expected',lastAliasRequest:operations[Math.min(count,operations.length - 1)]}));
 } else if (url.includes('/v4/aliases')) {
-  console.log(JSON.stringify({aliases:[{alias:'lets-assist.com',projectId:'prj_expected',deploymentId:process.env.FAKE_ALIAS}]}));
+  const path = process.env.REQUEST_LOG + '.alias-count';
+  const count = fs.existsSync(path) ? Number(fs.readFileSync(path, 'utf8')) : 0;
+  fs.writeFileSync(path, String(count + 1));
+  const aliases = JSON.parse(process.env.FAKE_ALIASES);
+  console.log(JSON.stringify({aliases:[{alias:'lets-assist.com',projectId:'prj_expected',deploymentId:aliases[Math.min(count,aliases.length - 1)]}]}));
 } else if (url.includes('/v13/deployments/')) {
   console.log(JSON.stringify({id:'dpl_expected',projectId:'prj_expected',target:'production',readyState:process.env.FAKE_READY,aliasAssigned:true,alias:JSON.parse(process.env.FAKE_DEPLOYMENT_ALIASES)}));
 } else process.exit(22);
@@ -50,15 +56,21 @@ if (url.includes('/v9/projects/')) {
       VERCEL_TEAM_ID: "team_expected",
       VERCEL_ROOT_PROJECT_ID: "prj_expected",
       VERCEL_ALIAS_OPERATION_TIMEOUT_SECONDS: "5",
+      VERCEL_ALIAS_VERIFY_TIMEOUT_SECONDS: "5",
+      PRODUCTION_DEPLOYMENT_ID: "dpl_expected",
       REQUEST_LOG: join(dir, "requests"),
-      FAKE_ALIAS: alias,
+      FAKE_ALIASES: JSON.stringify(aliases),
       FAKE_READY: ready,
       FAKE_PROJECT: project,
       FAKE_OPERATIONS: JSON.stringify(operations),
       FAKE_DEPLOYMENT_ALIASES: JSON.stringify(deploymentAliases),
     };
     try {
-      await run("/bin/bash", [verifier], { env, timeout: 15_000 });
+      await run(
+        "/bin/bash",
+        [direct ? verifier.replace("-operation.sh", ".sh") : verifier],
+        { env, timeout: 15_000 },
+      );
       return { success: true, requests: readFileSync(env.REQUEST_LOG, "utf8") };
     } catch (error) {
       assert.equal(
@@ -83,7 +95,7 @@ test(
     const result = await verify();
     assert.equal(result.success, true);
     assert.equal(result.requests.split("/v9/projects/").length - 1, 4);
-    assert.equal(result.requests.split("/v4/aliases").length - 1, 2);
+    assert.equal(result.requests.split("/v4/aliases").length - 1, 4);
     assert.equal(result.requests.split("/v13/deployments/").length - 1, 2);
   },
 );
@@ -94,7 +106,7 @@ test(
   async () => {
     const result = await verify({ deploymentAliases: ["fixture.vercel.app"] });
     assert.equal(result.success, true);
-    assert.equal(result.requests.split("/v4/aliases").length - 1, 2);
+    assert.equal(result.requests.split("/v4/aliases").length - 1, 4);
   },
 );
 
@@ -114,6 +126,14 @@ test("project mismatch cannot use the absent-operation fallback", async () => {
   assert.ok(!result.requests.includes("/v4/aliases"));
 });
 
+test("direct verifier refuses a domain moved during deployment validation", async () => {
+  const result = await verify({
+    direct: true,
+    aliases: ["dpl_expected", "dpl_other"],
+  });
+  assert.equal(result.success, false);
+});
+
 test(
   "a new pending operation interrupts absent-operation confirmation",
   { timeout: 30_000 },
@@ -129,7 +149,7 @@ test(
       ],
     });
     assert.equal(result.success, false);
-    assert.equal(result.requests.split("/v4/aliases").length - 1, 1);
+    assert.equal(result.requests.split("/v4/aliases").length - 1, 2);
   },
 );
 
@@ -150,7 +170,7 @@ test(
       ],
     });
     assert.equal(result.success, false);
-    assert.equal(result.requests.split("/v4/aliases").length - 1, 2);
+    assert.equal(result.requests.split("/v4/aliases").length - 1, 4);
   },
 );
 
