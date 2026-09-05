@@ -44,6 +44,16 @@ backdated version, then passed after the fix. It also covers omitted, replaced,
 and reordered versions with the same maximum version. All 24 app-release tests
 pass. This remains a controller-only update in PR #473.
 
+The grouped final schema review pins the accepted legacy ledger before taking
+the fallback path. It checks the provenance column type, default, NOT NULL,
+and validated accepted-value constraint. Worker table fingerprints now cover
+owner, RLS, ACLs, columns, defaults, constraints, indexes, receipt trigger, and
+policies; effective runtime table and column privileges must also be denied.
+Both hosted catalogs pass the complete read-only query. Six Development-only
+negative queries reject wrong defaults, nullable provenance, invalidated
+constraints, changed worker ACLs, runtime privileges, and disabled receipt
+triggers. These tests changed query expectations, not database objects.
+
 The replacement Production Resend webhook is disabled and its signing key is
 saved as a Sensitive Production keyring. No email was sent. The exposed project
 automation bypass was rotated, its three GitHub and three webhook consumers

@@ -12,6 +12,9 @@ DVHS CSF officer UX → class-first Home → Classes → Applications → More; 
   anchors stop verification before a provider request.
   Pin the complete accepted migration sequence, including its length and hash,
   so inserted, replaced, omitted, or reordered versions require release review.
+  The legacy path also requires its exact accepted ledger. Verify provenance
+  column defaults and constraints, and the complete worker relation contract,
+  including effective runtime denial and immutable receipt triggers.
 
 - The reviewed schema-only controller may apply only migrations `20260904010000`
   and `20260905003409`, with their pinned SQL hashes and exact preceding ledger.

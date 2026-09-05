@@ -14,7 +14,7 @@ const versions = expectedVersions(
 );
 
 test("legacy release catalogs stay unchanged", () => {
-  assert.equal(acceptedCatalogQuery(source, ["20260903050000"]), source);
+  assert.equal(acceptedCatalogQuery(source, versions.slice(0, -2)), source);
 });
 
 test("checks old email-only fragments on the renamed helper, not the provenance wrapper", () => {
@@ -42,6 +42,14 @@ test("checks old email-only fragments on the renamed helper, not the provenance 
   assert.match(query, /t\.tgenabled = 'O'/u);
   assert.match(query, /t\.tgtype = 5/u);
   assert.match(query, /t\.tgfoid = to_regprocedure/u);
+  assert.ok(query.includes("AND a.atttypid='text'::regtype AND a.attnotnull"));
+  assert.ok(
+    query.includes("pg_get_expr(d.adbin,d.adrelid) = '''unknown''::text'"),
+  );
+  assert.ok(query.includes("k.convalidated AND k.contype='c'"));
+  assert.ok(query.includes("pg_get_constraintdef(k.oid) = $$CHECK"));
+  assert.ok(query.includes("has_any_column_privilege"));
+  assert.ok(query.includes("FROM accepted_worker_relations"));
 });
 
 test("missing or repeated final gate anchors fail closed", () => {
@@ -70,6 +78,8 @@ test("a changed ledger cannot reuse the accepted maximum version", () => {
     versions.slice(1),
     ["20200101000000", ...versions.slice(1)],
     [versions[1], versions[0], ...versions.slice(2)],
+    versions.filter((version) => version !== "20260904010000"),
+    versions.slice(0, -2).slice(1),
   ]) {
     assert.throws(
       () => acceptedCatalogQuery(source, changed),
