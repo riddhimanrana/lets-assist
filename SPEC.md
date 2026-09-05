@@ -31,9 +31,18 @@ DVHS CSF officer UX → class-first Home → Classes → Applications → More; 
 - Release evidence, 2026-09-05: Production `fda53ee5` has the identical tree as
   accepted Development `383ea476`, private gitlink `88d5b79`, and the verified
   448-migration catalog. CI `33957447212`, hosted acceptance `33957164531`,
-  and public app release `33958927462` passed. Only workbook preparation is
-  enabled. Official data commits, deployed officer workflows, provider email
-  settlement, and synthetic media remain open in the cleanup register.
+  and public app release `33958927462` passed. Workbook preparation and import
+  commits are enabled at runtime-control revision 2. The first nine approved
+  previews produced 1,111 committed rows, six completed queue items, and three
+  blocked items. Two fresh Class of 2029 previews completed after a
+  provider-version refresh, updating another 150 rows. Official reconciliation, remaining officer
+  workflows, provider email settlement, and synthetic media remain open in
+  the cleanup register.
+
+- Workbook follow-up `df79bcb4` passed private CI `33989854176` and merged
+  through PR #248 to private Development at `5ad7cfc0`. Local plugin
+  verification and 260 private test files pass.
+  Root integration, hosted acceptance, and Production release remain pending.
 
 - Integration base root `f49227cb`; private Development gitlink `7597fdc`; Production ⊥.
 - UI says `Class`; existing `cohort` schema identifiers stay.

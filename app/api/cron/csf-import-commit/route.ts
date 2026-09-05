@@ -5,7 +5,10 @@ import { createHash, timingSafeEqual } from "node:crypto";
 
 import { cronAuthShapeProbe } from "@/lib/cron/auth-shape-probe";
 import { createPluginAdminClient } from "@/lib/plugins/supabase";
-import { classifyCsfImportCommitFailure } from "@/lib/plugins/private/plugins/dvhs-csf/services/import-commit-failure-code";
+import {
+  classifyCsfImportCommitFailure,
+  readCsfImportBlockedReasonCode,
+} from "@/lib/plugins/private/plugins/dvhs-csf/services/import-commit-failure-code";
 import type { CsfImportCommitWorkerContext } from "@/lib/plugins/private/plugins/dvhs-csf/services/import-commit-worker-context";
 import { executeCsfImportCommitClaim } from "@/services/csf-import-commit-worker";
 import { NextRequest, NextResponse } from "next/server";
@@ -154,7 +157,9 @@ export async function POST(request: NextRequest) {
       ? null
       : result.finalStatus === "partially_completed"
         ? "import_partially_completed"
-        : classifyCsfImportCommitFailure(result.error ?? "");
+        : result.reasonCode !== undefined
+          ? readCsfImportBlockedReasonCode(result.reasonCode)
+          : classifyCsfImportCommitFailure(result.error ?? "");
   const { data: finishData, error: finishError } = await plugin.rpc(
     "csf_finish_import_commit_queue",
     {
