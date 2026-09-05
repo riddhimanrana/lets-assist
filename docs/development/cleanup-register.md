@@ -893,6 +893,60 @@ sources.
 
 ## Repository-owned P0–P2
 
+### Production configuration and workbook worker, 2026-09-05
+
+The accepted application `dfe7fa586a8c55789cab194d4c7f2fab9cd254c2`
+now serves `lets-assist.com` from deployment
+`dpl_8AShFttCMrv41iEq8AMCLikgRFXu`. Run `33952787777` built this artifact
+once after its accepted-tree, CI, schema, and project checks passed.
+Its stage checker rejected Vercel-generated aliases because `aliasAssigned`
+was true. The exact custom-domain query proved the public domain was unchanged.
+The operator then verified the staged status, Production backend, disabled
+workers, login HTTP 200, and protected CSF redirect before promoting that
+existing artifact. Public checks passed after promotion. No second build,
+migration, student import, or application approval occurred in this release.
+The previous app rollback target is `dpl_858adwbvCDtPEUq2gdhopRMTH1GJ`.
+Count-only receipts are in `.artifacts/app-only-stage-33952787777/`.
+
+Worker transition `33953257822` passed with receipt
+`e4a0f424-ba77-4496-8698-a3381af1516e`, control revision 3.
+Only workbook preparation is enabled. Import commits, communications, and
+scheduled publishing remain disabled. The actual hosted workbook cron returned
+HTTP 200. All four jobs completed on their first attempt and recorded all
+32 canonical tabs. Class of 2027 prepared six populated tabs and two templates;
+2028 prepared four populated tabs and four templates; 2029 prepared two populated
+tabs and six templates; 2030 recorded eight empty templates. No workbook job
+failed. Individual row conflicts remain for officer review. These are
+preparation results, not import completion.
+
+Open P1: the application-row new-profile action rolls back because the
+eight-argument reconciliation function modifies immutable `normalized_data`.
+The protected UI reproduced the failure on one new application target.
+Preserve the source guard. Add a forward migration and behavioral database
+coverage for reviewed metadata, atomic creation, and retry receipts before
+retrying this action. Meeting-attendance consumers currently read matching
+metadata from the normalized snapshot and must retain provenance when the
+metadata storage changes.
+
+The staging regression is fixed locally, not published. Generated Vercel
+aliases are allowed; custom domains and malformed aliases are refused.
+The separate authoritative public-domain checks remain required. Twenty-one
+focused tests, zero-warning focused lint, strict gitlink, and diff checks pass.
+Group this controller change with the remaining follow-up instead of creating
+another application build for it.
+
+PR #475 merged main into development at
+`94d97335e719b01c2f90190bcb12254bf06dc154` after full CI run
+`33952772826` passed. No application deployment was requested for that sync.
+
+Open P1: Production Class Settings shows the source picker but no linked
+workbook or ready-preview controls, including when Spring 2024 is selected for
+Class of 2027. The eight saved class sources and six preview-readiness results
+exist in the database. The data phase catches any class-settings loader error
+and replaces the entire workspace with null. Diagnose the underlying query
+failure and display an honest recoverable error instead of an unlinked state.
+No ready previews were approved while this UI path was unavailable.
+
 ### Release build and worker activation, 2026-09-05
 
 The app-only run `33933383403` stopped at Vercel's ignored build step. Deployment
