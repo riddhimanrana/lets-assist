@@ -20,6 +20,7 @@ async function verify({
   deploymentAliases = [],
   aliases = [alias],
   direct = false,
+  verificationTimeout = "5",
 } = {}) {
   const dir = mkdtempSync(join(tmpdir(), "csf-alias-operation-"));
   writeFileSync(
@@ -39,7 +40,10 @@ if (url.includes('/v9/projects/')) {
   const count = fs.existsSync(path) ? Number(fs.readFileSync(path, 'utf8')) : 0;
   fs.writeFileSync(path, String(count + 1));
   const aliases = JSON.parse(process.env.FAKE_ALIASES);
-  console.log(JSON.stringify({aliases:[{alias:'lets-assist.com',projectId:'prj_expected',deploymentId:aliases[Math.min(count,aliases.length - 1)]}]}));
+  const alias = aliases[Math.min(count,aliases.length - 1)];
+  if (alias === 'network_error') process.exit(22);
+  if (alias === 'malformed') { console.log('{'); process.exit(0); }
+  console.log(JSON.stringify({aliases:[{alias:'lets-assist.com',projectId:'prj_expected',deploymentId:alias}]}));
 } else if (url.includes('/v13/deployments/')) {
   console.log(JSON.stringify({id:'dpl_expected',projectId:'prj_expected',target:'production',readyState:process.env.FAKE_READY,aliasAssigned:true,alias:JSON.parse(process.env.FAKE_DEPLOYMENT_ALIASES)}));
 } else process.exit(22);
@@ -56,7 +60,7 @@ if (url.includes('/v9/projects/')) {
       VERCEL_TEAM_ID: "team_expected",
       VERCEL_ROOT_PROJECT_ID: "prj_expected",
       VERCEL_ALIAS_OPERATION_TIMEOUT_SECONDS: "5",
-      VERCEL_ALIAS_VERIFY_TIMEOUT_SECONDS: "5",
+      VERCEL_ALIAS_VERIFY_TIMEOUT_SECONDS: verificationTimeout,
       PRODUCTION_DEPLOYMENT_ID: "dpl_expected",
       REQUEST_LOG: join(dir, "requests"),
       FAKE_ALIASES: JSON.stringify(aliases),
@@ -133,6 +137,22 @@ test("direct verifier refuses a domain moved during deployment validation", asyn
   });
   assert.equal(result.success, false);
 });
+
+test(
+  "direct verifier retries inconclusive final domain reads",
+  { timeout: 30_000 },
+  async () => {
+    for (const failure of ["network_error", "malformed"]) {
+      const result = await verify({
+        direct: true,
+        verificationTimeout: "10",
+        aliases: ["dpl_expected", failure, "dpl_expected"],
+      });
+      assert.equal(result.success, true);
+      assert.equal(result.requests.split("/v4/aliases").length - 1, 4);
+    }
+  },
+);
 
 test(
   "a new pending operation interrupts absent-operation confirmation",

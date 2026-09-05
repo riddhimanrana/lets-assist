@@ -78,17 +78,20 @@ while ((SECONDS < verification_deadline)); do
         --data-urlencode "projectId=${VERCEL_ROOT_PROJECT_ID}" \
         --data-urlencode "teamId=${VERCEL_TEAM_ID}" \
         https://api.vercel.com/v4/aliases)" && \
-        jq -e \
+        jq -e 'type == "object" and (.aliases | type == "array")' \
+          <<<"${final_alias_payload}" >/dev/null 2>&1; then
+        if jq -e \
           --arg alias "${production_alias}" \
           --arg project "${VERCEL_ROOT_PROJECT_ID}" \
           --arg deployment "${PRODUCTION_DEPLOYMENT_ID}" \
           '[.aliases[]? | select(.alias == $alias and .projectId == $project)]
            | length == 1 and .[0].deploymentId == $deployment' \
           <<<"${final_alias_payload}" >/dev/null; then
-        exit 0
+          exit 0
+        fi
+        echo "The Production domain changed after deployment validation." >&2
+        exit 1
       fi
-      echo "The Production domain changed or could not be confirmed after deployment validation." >&2
-      exit 1
     fi
   fi
   sleep 5

@@ -27,6 +27,13 @@ moved between those reads; the final recheck now refuses that race.
 Twenty-six focused tests, TypeScript, and zero-warning lint passed for the race
 fix. Test formatting also passed.
 
+The full CI run `33950851495` passed on `b2957a94`, including the Production
+build and database/browser gates. A later review found that an inconclusive
+final domain read should retry within the existing deadline rather than fail
+immediately. Network-error and malformed-response regressions reproduced the
+failure and now pass. Confirmed domain mismatches still fail immediately.
+The follow-up passes 27 focused tests, TypeScript, and zero-warning lint.
+
 The Production Class of 2030 workbook link now persists through the audited
 Settings action. A read-only database check confirms the intended source and
 owner, with one refresh job queued. Discovered tabs remain zero in the registry
