@@ -1094,6 +1094,20 @@ and replaces the entire workspace with null. Diagnose the underlying query
 failure and display an honest recoverable error instead of an unlinked state.
 No ready previews were approved while this UI path was unavailable.
 
+The missing Settings workspace is now reproduced as SQLSTATE 57014 under the
+same eight-second timeout configured for Production's PostgREST role. The
+readiness batch repeatedly calls the source-key conflict resolver, which scans
+committed historical rows and evaluates their JSON identity expression.
+Disabling JIT did not remove the timeout. A forward migration,
+`20260905075711_csf_import_source_key_lookup_index`, adds an organization/class
+expression index only for created or updated import rows. It changes no
+identity rules, grants, or source records. The isolated replay passed 447
+migrations, 240 test files, and 7,036 assertions with this index, then removed
+its disposable database. Production does not yet have this migration. Verify
+the same readiness query and visible Settings controls after release before
+closing the finding. The recoverable UI error and profile-creation fix remain
+open follow-up work.
+
 ### Release build and worker activation, 2026-09-05
 
 The app-only run `33933383403` stopped at Vercel's ignored build step. Deployment
