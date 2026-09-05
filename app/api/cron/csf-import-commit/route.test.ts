@@ -126,12 +126,58 @@ describe("CSF import commit worker route", () => {
     expect(rpcCalls[1]?.args.p_error_code).toBe("google_reconnect_required");
   });
 
+  test.each([
+    "source_check_failed",
+    "source_not_found",
+    "google_reconnect_required",
+  ])(
+    "preserves the structured %s reason without reading error prose",
+    async (reasonCode) => {
+      process.env.CSF_IMPORT_WORKER_ENABLED = "true";
+      rpcResults = [
+        { data: claim, error: null },
+        { data: { finished: true, status: "blocked" }, error: null },
+      ];
+      actionResult = {
+        success: false,
+        workerDisposition: "blocked",
+        reasonCode,
+        error: "private provider detail",
+      };
+      const response = await POST(request());
+      expect(await response.json()).toMatchObject({
+        errorCode: reasonCode,
+        blocked: 1,
+      });
+      expect(rpcCalls[1]?.args.p_error_code).toBe(reasonCode);
+      expect(JSON.stringify(rpcCalls)).not.toContain("private provider detail");
+    },
+  );
+
   test("fails closed on malformed claims", async () => {
     process.env.CSF_IMPORT_WORKER_ENABLED = "true";
     rpcResults = [{ data: { claimed: true }, error: null }];
     const response = await POST(request());
     expect(response.status).toBe(503);
     expect(actionCalls).toHaveLength(0);
+  });
+
+  test("does not persist an unrecognized structured reason", async () => {
+    process.env.CSF_IMPORT_WORKER_ENABLED = "true";
+    rpcResults = [
+      { data: claim, error: null },
+      { data: { finished: true, status: "blocked" }, error: null },
+    ];
+    actionResult = {
+      success: false,
+      workerDisposition: "blocked",
+      reasonCode: "private provider detail",
+      error: "Reconnect Google Drive before importing.",
+    };
+    const response = await POST(request());
+    expect(await response.json()).toMatchObject({ errorCode: "commit_failed" });
+    expect(rpcCalls[1]?.args.p_error_code).toBe("commit_failed");
+    expect(JSON.stringify(rpcCalls)).not.toContain("private provider detail");
   });
 
   test("reports a completed logical commit reconciled during claim", async () => {
