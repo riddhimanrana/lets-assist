@@ -1,4 +1,5 @@
 import "server-only";
+import { isCsfWorkerEnabled } from "@/lib/cron/csf-worker-controls";
 
 import { NextRequest, NextResponse } from "next/server";
 import { timingSafeEqual } from "node:crypto";
@@ -359,7 +360,7 @@ export async function POST(request: NextRequest) {
   // Exact opt-in. A missing flag is disabled just like an empty, malformed, or
   // explicitly false flag. This matters because merely checking for `false`
   // turns an omitted deployment variable into permission to send real email.
-  if (process.env.CSF_COMMUNICATIONS_WORKER_ENABLED !== "true") {
+  if (!(await isCsfWorkerEnabled("communications"))) {
     return json({
       enabled: false,
       organizationsQueued: 0,

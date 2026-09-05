@@ -1,16 +1,15 @@
--- A passive account-name confirmation never proves identity. Only a verified
--- roster email can connect automatically; every name-only path records one
--- officer request.
+-- Exact account-name self-confirmation is a lower-assurance connection basis.
+-- Typed names, changed candidates, and conflicting evidence remain in review.
 
 BEGIN;
 
 CREATE EXTENSION IF NOT EXISTS pgtap WITH SCHEMA extensions;
-SELECT extensions.plan(58);
+SELECT extensions.plan(76);
 
 SELECT extensions.ok(
   NOT has_function_privilege(
     'authenticated',
-    'plugin_data.csf_confirm_class_code_account_name_match(uuid,uuid,uuid,text,uuid,uuid,text,text,text)',
+    'plugin_data.csf_confirm_class_code_account_name_match_v4(uuid,uuid,uuid,text,uuid,uuid,text,text,text)',
     'EXECUTE'
   ),
   'authenticated clients cannot call the passive name-confirmation RPC'
@@ -18,7 +17,7 @@ SELECT extensions.ok(
 SELECT extensions.ok(
   has_function_privilege(
     'service_role',
-    'plugin_data.csf_confirm_class_code_account_name_match(uuid,uuid,uuid,text,uuid,uuid,text,text,text)',
+    'plugin_data.csf_confirm_class_code_account_name_match_v4(uuid,uuid,uuid,text,uuid,uuid,text,text,text)',
     'EXECUTE'
   ),
   'the server role can call the passive name-confirmation RPC'
@@ -26,7 +25,7 @@ SELECT extensions.ok(
 
 SET LOCAL ROLE authenticated;
 SELECT extensions.throws_ok(
-  $$SELECT plugin_data.csf_confirm_class_code_account_name_match(
+  $$SELECT plugin_data.csf_confirm_class_code_account_name_match_v4(
     NULL::uuid, NULL::uuid, NULL::uuid, NULL::text, NULL::uuid,
     NULL::uuid, NULL::text, NULL::text, NULL::text
   )$$,
@@ -181,10 +180,67 @@ SET revoked_at = now()
 WHERE organization_id = 'd1200000-0000-4000-8000-000000000001'
   AND status = 'revoked';
 
+INSERT INTO auth.users (id, aud, role, email, email_confirmed_at,
+  raw_app_meta_data, raw_user_meta_data, created_at, updated_at)
+VALUES ('d1100000-0000-4000-8000-00000000000e', 'authenticated', 'authenticated',
+  'legacy-policy@local.test', now(), '{}', '{"full_name":"Legacy Member"}', now(), now());
+UPDATE public.profiles SET full_name = 'Legacy Member'
+WHERE id = 'd1100000-0000-4000-8000-00000000000e';
+INSERT INTO plugin_data.csf_profiles (id, organization_id, first_name, last_name,
+  normalized_first_name, normalized_last_name)
+VALUES ('d1400000-0000-4000-8000-00000000000c', 'd1200000-0000-4000-8000-000000000001',
+  'Legacy', 'Member', 'legacy', 'member');
+INSERT INTO plugin_data.csf_profile_cohort_memberships (organization_id, profile_id, cohort_id, status)
+VALUES ('d1200000-0000-4000-8000-000000000001', 'd1400000-0000-4000-8000-00000000000c',
+  'd1300000-0000-4000-8000-000000000001', 'active');
+SELECT extensions.is(plugin_data.csf_confirm_class_code_account_name_match(
+  'd1200000-0000-4000-8000-000000000001', 'd1400000-0000-4000-8000-00000000000c',
+  'd1100000-0000-4000-8000-00000000000e', 'legacy-policy@local.test',
+  (SELECT id::uuid FROM passive_name_code), 'd1300000-0000-4000-8000-000000000001',
+  'legacy', 'member', encode(extensions.digest(convert_to('Legacy Member', 'UTF8'), 'sha256'), 'hex'))
+  ->> 'needsReview', 'true', 'the previous policy endpoint remains review-only for old pages');
+SELECT extensions.is((SELECT count(*)::integer FROM plugin_data.csf_profile_accounts
+  WHERE user_id = 'd1100000-0000-4000-8000-00000000000e'), 0,
+  'an old policy request cannot create a name claim after migration');
+
+UPDATE plugin_data.csf_profiles SET middle_name = 'Middle', last_name = 'van Only',
+  normalized_last_name = 'van only'
+WHERE id = 'd1400000-0000-4000-8000-00000000000b';
+UPDATE public.profiles SET full_name = 'Name Middle van Only'
+WHERE id = 'd1100000-0000-4000-8000-00000000000d';
+
+SELECT extensions.is((SELECT count(*)::integer FROM plugin_data.csf_find_account_name_candidate(
+  'd1200000-0000-4000-8000-000000000001', 'd1300000-0000-4000-8000-000000000001',
+  'Name Middle van Only')), 1, 'full names include middle names and multiword surnames');
+SELECT extensions.is((SELECT count(*)::integer FROM plugin_data.csf_find_account_name_candidate(
+  'd1200000-0000-4000-8000-000000000001', 'd1300000-0000-4000-8000-000000000001',
+  'Name Wrong van Only')), 0, 'a different middle name cannot match');
+SELECT extensions.is((SELECT count(*)::integer FROM plugin_data.csf_find_account_name_candidate(
+  'd1200000-0000-4000-8000-000000000001', 'd1300000-0000-4000-8000-000000000001',
+  'Name van Only')), 0, 'omitting the middle name cannot match');
+SELECT extensions.is((SELECT count(*)::integer FROM plugin_data.csf_find_account_name_candidate(
+  'd1200000-0000-4000-8000-000000000001', 'd1300000-0000-4000-8000-000000000001',
+  'Duplicate Member')), 0, 'duplicate names produce no candidate');
+SELECT extensions.is((SELECT count(*)::integer FROM plugin_data.csf_find_account_name_candidate(
+  'd1200000-0000-4000-8000-000000000001', 'd1300000-0000-4000-8000-000000000001',
+  'Claimed Member')), 0, 'claimed profiles produce no candidate');
+SELECT extensions.is((SELECT count(*)::integer FROM plugin_data.csf_find_account_name_candidate(
+  'd1200000-0000-4000-8000-000000000002', 'd1300000-0000-4000-8000-000000000001',
+  'Name Middle van Only')), 0, 'another organization cannot read a candidate');
+SELECT extensions.is((SELECT count(*)::integer FROM plugin_data.csf_find_account_name_candidate(
+  'd1200000-0000-4000-8000-000000000001', 'd1300000-0000-4000-8000-000000000002',
+  'Name Middle van Only')), 0, 'another class cannot read a candidate');
+SELECT extensions.ok(NOT has_function_privilege('authenticated',
+  'plugin_data.csf_find_account_name_candidate(uuid,uuid,text)', 'EXECUTE'),
+  'browser roles cannot search the name-candidate function');
+SELECT extensions.ok(has_function_privilege('service_role',
+  'plugin_data.csf_find_account_name_candidate(uuid,uuid,text)', 'EXECUTE'),
+  'only the server can request a candidate');
+
 INSERT INTO passive_replay_results (scenario, payload)
 SELECT
   'initial verified email connection',
-  plugin_data.csf_confirm_class_code_account_name_match(
+  plugin_data.csf_confirm_class_code_account_name_match_v4(
     'd1200000-0000-4000-8000-000000000001',
     'd1400000-0000-4000-8000-000000000001',
     'd1100000-0000-4000-8000-000000000002', 'unique@local.test',
@@ -223,7 +279,7 @@ SELECT extensions.ok(
 );
 
 SELECT extensions.is(
-  plugin_data.csf_confirm_class_code_account_name_match(
+  plugin_data.csf_confirm_class_code_account_name_match_v4(
     'd1200000-0000-4000-8000-000000000001',
     'd1400000-0000-4000-8000-00000000000b',
     'd1100000-0000-4000-8000-00000000000d', 'name-only@local.test',
@@ -231,25 +287,26 @@ SELECT extensions.is(
     'd1300000-0000-4000-8000-000000000001', 'name', 'only',
     (SELECT encode(extensions.digest(convert_to(full_name, 'UTF8'), 'sha256'), 'hex')
      FROM public.profiles WHERE id = 'd1100000-0000-4000-8000-00000000000d')
-  ) ->> 'needsReview',
+  ) ->> 'connected',
   'true',
-  'a valid account-name snapshot still requires officer review'
+  'one exact unclaimed account-name snapshot connects after confirmation'
 );
 SELECT extensions.ok(
-  NOT EXISTS (
+  EXISTS (
     SELECT 1 FROM plugin_data.csf_profile_accounts
     WHERE organization_id = 'd1200000-0000-4000-8000-000000000001'
       AND user_id = 'd1100000-0000-4000-8000-00000000000d'
       AND status = 'verified'
+      AND connection_basis = 'self_confirmed_account_name'
   ),
-  'a self-editable account name never creates a verified profile link'
+  'the connected link records account-name confirmation rather than email proof'
 );
 SELECT extensions.is(
   (SELECT count(*)::integer FROM plugin_data.csf_profile_link_requests
    WHERE organization_id = 'd1200000-0000-4000-8000-000000000001'
      AND user_id = 'd1100000-0000-4000-8000-00000000000d'),
   1,
-  'the name-only confirmation creates exactly one officer request'
+  'the name confirmation creates exactly one connection receipt'
 );
 SELECT extensions.ok(
   'd1400000-0000-4000-8000-00000000000b'::uuid = ANY (
@@ -261,7 +318,52 @@ SELECT extensions.ok(
       ARRAY[]::uuid[]
     )
   ),
-  'the officer request retains the selected name candidate'
+  'the connection receipt retains the selected name candidate'
+);
+INSERT INTO passive_replay_results (scenario, payload)
+SELECT 'name basis replay', plugin_data.csf_confirm_class_code_account_name_match_v4(
+  'd1200000-0000-4000-8000-000000000001',
+  'd1400000-0000-4000-8000-00000000000b',
+  'd1100000-0000-4000-8000-00000000000d', 'name-only@local.test',
+  (SELECT id::uuid FROM passive_name_code),
+  'd1300000-0000-4000-8000-000000000001', 'name', 'only',
+  (SELECT encode(extensions.digest(convert_to(full_name, 'UTF8'), 'sha256'), 'hex')
+   FROM public.profiles WHERE id = 'd1100000-0000-4000-8000-00000000000d')
+);
+SELECT extensions.is(
+  (SELECT payload ->> 'connectionBasis' FROM passive_replay_results WHERE scenario = 'name basis replay'),
+  'self_confirmed_account_name', 'a retry preserves the lower-assurance connection basis'
+);
+SELECT extensions.is(
+  (SELECT payload ->> 'verifiedEmailMatch' FROM passive_replay_results WHERE scenario = 'name basis replay'),
+  'false', 'name confirmation never becomes email verification on retry'
+);
+SELECT extensions.is(
+  (SELECT payload ->> 'connected' FROM passive_replay_results WHERE scenario = 'name basis replay'),
+  'true', 'name confirmation stays connected through the replay guard'
+);
+SELECT extensions.is(
+  plugin_data.csf_member_profile_snapshot(
+    'd1200000-0000-4000-8000-000000000001',
+    'd1100000-0000-4000-8000-00000000000d'
+  ) #>> '{profile,id}',
+  'd1400000-0000-4000-8000-00000000000b',
+  'the member can read the connected profile without a matching roster email'
+);
+SELECT extensions.is(
+  (SELECT connection_basis FROM plugin_data.csf_profile_accounts
+   WHERE organization_id = 'd1200000-0000-4000-8000-000000000001'
+     AND user_id = 'd1100000-0000-4000-8000-000000000006'),
+  'unknown', 'an unrelated legacy link does not receive guessed provenance'
+);
+SELECT extensions.ok(
+  NOT has_function_privilege('service_role',
+    'plugin_data.csf_revalidate_class_code_connection_replay_legacy(uuid,uuid,uuid,uuid,jsonb)', 'EXECUTE'),
+  'the preserved replay implementation stays owner-only'
+);
+SELECT extensions.ok(
+  NOT has_function_privilege('service_role', 'plugin_data.csf_record_connection_basis()', 'EXECUTE'),
+  'the provenance trigger function stays owner-only'
 );
 SELECT extensions.is(
   (SELECT count(*)::integer FROM plugin_data.csf_term_memberships
@@ -272,7 +374,7 @@ SELECT extensions.is(
 INSERT INTO passive_replay_results (scenario, payload)
 SELECT
   'safe passive replay',
-  plugin_data.csf_confirm_class_code_account_name_match(
+  plugin_data.csf_confirm_class_code_account_name_match_v4(
     'd1200000-0000-4000-8000-000000000001',
     'd1400000-0000-4000-8000-000000000001',
     'd1100000-0000-4000-8000-000000000002', 'unique@local.test',
@@ -369,7 +471,7 @@ INSERT INTO plugin_data.csf_profile_cohort_memberships (
 INSERT INTO passive_replay_results (scenario, payload)
 SELECT
   'passive replay after class drift',
-  plugin_data.csf_confirm_class_code_account_name_match(
+  plugin_data.csf_confirm_class_code_account_name_match_v4(
     'd1200000-0000-4000-8000-000000000001',
     'd1400000-0000-4000-8000-000000000001',
     'd1100000-0000-4000-8000-000000000002', 'unique@local.test',
@@ -447,7 +549,7 @@ WHERE organization_id = 'd1200000-0000-4000-8000-000000000001'
   AND user_id = 'd1100000-0000-4000-8000-000000000002';
 
 SELECT extensions.is(
-  plugin_data.csf_confirm_class_code_account_name_match(
+  plugin_data.csf_confirm_class_code_account_name_match_v4(
     'd1200000-0000-4000-8000-000000000001',
     'd1400000-0000-4000-8000-000000000001',
     'd1100000-0000-4000-8000-000000000002', 'unique@local.test',
@@ -470,7 +572,7 @@ SELECT extensions.is(
 );
 
 SELECT extensions.lives_ok(
-  $$SELECT plugin_data.csf_confirm_class_code_account_name_match(
+  $$SELECT plugin_data.csf_confirm_class_code_account_name_match_v4(
     'd1200000-0000-4000-8000-000000000001',
     'd1400000-0000-4000-8000-000000000002',
     'd1100000-0000-4000-8000-000000000003', 'changed@local.test',
@@ -505,7 +607,7 @@ SELECT extensions.is(
 );
 
 SELECT extensions.is(
-  plugin_data.csf_confirm_class_code_account_name_match(
+  plugin_data.csf_confirm_class_code_account_name_match_v4(
     'd1200000-0000-4000-8000-000000000001',
     'd1400000-0000-4000-8000-000000000003',
     'd1100000-0000-4000-8000-000000000004', 'duplicate@local.test',
@@ -535,7 +637,7 @@ SELECT extensions.ok(
 );
 
 SELECT extensions.is(
-  plugin_data.csf_confirm_class_code_account_name_match(
+  plugin_data.csf_confirm_class_code_account_name_match_v4(
     'd1200000-0000-4000-8000-000000000001',
     'd1400000-0000-4000-8000-000000000005',
     'd1100000-0000-4000-8000-000000000005', 'claimant@local.test',
@@ -571,7 +673,7 @@ SELECT extensions.ok(
 );
 
 SELECT extensions.is(
-  plugin_data.csf_confirm_class_code_account_name_match(
+  plugin_data.csf_confirm_class_code_account_name_match_v4(
     'd1200000-0000-4000-8000-000000000001',
     'd1400000-0000-4000-8000-000000000006',
     'd1100000-0000-4000-8000-000000000007', 'multi@local.test',
@@ -677,7 +779,7 @@ SELECT extensions.is(
 );
 
 SELECT extensions.is(
-  plugin_data.csf_confirm_class_code_account_name_match(
+  plugin_data.csf_confirm_class_code_account_name_match_v4(
     'd1200000-0000-4000-8000-000000000001',
     'd1400000-0000-4000-8000-000000000009',
     'd1100000-0000-4000-8000-00000000000b', 'revoked-link@local.test',
@@ -743,7 +845,7 @@ SELECT plugin_data.csf_revoke_class_join_code(
   'Passive confirmation test complete'
 );
 SELECT extensions.throws_ok(
-  $$SELECT plugin_data.csf_confirm_class_code_account_name_match(
+  $$SELECT plugin_data.csf_confirm_class_code_account_name_match_v4(
     'd1200000-0000-4000-8000-000000000001',
     'd1400000-0000-4000-8000-000000000007',
     'd1100000-0000-4000-8000-000000000008', 'revoked@local.test',

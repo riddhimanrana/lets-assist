@@ -735,16 +735,16 @@ describe("CSF Production release preflight", () => {
     ).toHaveLength(2);
     const normalizedStatusRoute = statusRoute.replace(/\s+/gu, " ");
     expect(normalizedStatusRoute).toContain(
-      'csfWorkbookRefresh: process.env.CSF_WORKBOOK_WORKER_ENABLED === "true"',
+      "csfWorkbookRefresh: csf.workers.workbook_refresh",
     );
     expect(normalizedStatusRoute).toContain(
-      'csfImportCommit: process.env.CSF_IMPORT_WORKER_ENABLED === "true"',
+      "csfImportCommit: csf.workers.import_commit",
     );
     expect(normalizedStatusRoute).toContain(
-      'csfCommunications: process.env.CSF_COMMUNICATIONS_WORKER_ENABLED === "true"',
+      "csfCommunications: csf.workers.communications",
     );
     expect(normalizedStatusRoute).toContain(
-      'csfScheduledPostPublisher: process.env.CSF_SCHEDULED_POST_PUBLISHER_ENABLED === "true"',
+      "csfScheduledPostPublisher: csf.workers.scheduled_post_publisher",
     );
   });
 

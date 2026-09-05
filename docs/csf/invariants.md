@@ -1,5 +1,13 @@
 §G
 
+Approved follow-up policy: root `SPEC.md` V72 and product-contract Amendment 7
+supersede the passive-name review-only clauses in V17, V55, and V85 when the
+account-name confirmation release deploys. One exact active unclaimed full-name
+match in the resolved class may connect only after signed member confirmation
+and a locked recheck. Typed-name evidence without verified-email proof remains
+officer review. Connection basis stays explicit, and name-based import merges
+remain prohibited. This is not evidence that the follow-up is live.
+
 DVSD production workflow: seasonal membership → approval → tournament registration → guardian judge commitment → reviewed assignment → completion credit.
 
 §C

@@ -15,6 +15,24 @@ function readRepositoryFile(path: string) {
 }
 
 describe("Vercel build policy", () => {
+  test("allows only an exact Production release override", () => {
+    const source = {
+      branch: "main",
+      commitMessage: "release",
+      environment: "production",
+      commitSha: "a".repeat(40),
+      explicitReleaseSha: "a".repeat(40),
+    };
+    expect(shouldRunVercelBuild(source)).toBe(true);
+    for (const override of [
+      { environment: "preview" },
+      { explicitReleaseSha: "b".repeat(40) },
+      { explicitReleaseSha: "" },
+      { commitSha: undefined },
+    ]) {
+      expect(shouldRunVercelBuild({ ...source, ...override })).toBe(false);
+    }
+  });
   test("holds Production Git pushes and builds explicit non-Git deployments", () => {
     expect(
       shouldRunVercelBuild({ branch: "main", commitMessage: "release" }),

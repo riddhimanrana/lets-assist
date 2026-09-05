@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getAdminClient } from "@/lib/supabase/admin";
+import { readCsfWorkerControls } from "@/lib/cron/csf-worker-controls";
 import { isLocalSupabaseEndpoint } from "./status-utils";
 
 type CheckState = "pass" | "warn" | "fail";
@@ -125,14 +126,19 @@ async function checkDatabase(): Promise<StatusCheck> {
 
 async function checkWorkerConfiguration(): Promise<StatusCheck> {
   return runCheck("workers", false, async () => {
+    const csf = await readCsfWorkerControls();
+    if (!csf.available) {
+      return {
+        state: "fail",
+        message: "CSF worker configuration unavailable; processing is disabled",
+      };
+    }
     const workerFlags = {
       autoPublishHours: process.env.AUTO_PUBLISH_ENABLED === "true",
-      csfCommunications:
-        process.env.CSF_COMMUNICATIONS_WORKER_ENABLED === "true",
-      csfImportCommit: process.env.CSF_IMPORT_WORKER_ENABLED === "true",
-      csfScheduledPostPublisher:
-        process.env.CSF_SCHEDULED_POST_PUBLISHER_ENABLED === "true",
-      csfWorkbookRefresh: process.env.CSF_WORKBOOK_WORKER_ENABLED === "true",
+      csfCommunications: csf.workers.communications,
+      csfImportCommit: csf.workers.import_commit,
+      csfScheduledPostPublisher: csf.workers.scheduled_post_publisher,
+      csfWorkbookRefresh: csf.workers.workbook_refresh,
       organizationCalendarSync:
         process.env.ORG_CALENDAR_SYNC_WORKER_ENABLED !== "false",
       organizationSheetSync:
@@ -149,14 +155,14 @@ async function checkWorkerConfiguration(): Promise<StatusCheck> {
       return {
         state: "warn",
         message: "All background workers are disabled",
-        details: workerFlags,
+        details: { ...workerFlags, csfControlMode: csf.mode },
       };
     }
 
     return {
       state: "pass",
       message: `${enabledWorkers.length} worker(s) enabled`,
-      details: workerFlags,
+      details: { ...workerFlags, csfControlMode: csf.mode },
     };
   });
 }
