@@ -2,7 +2,7 @@
 
 **Audience:** organization administrators, adviser, chapter officers, and Data Management
 **Current status:** the last verified public app is `fda53ee5b06ca74e3f81f98c8d37e06b1f1fa258`. All four class workbooks are linked. Preparation does not mean their rows have committed. The workbook review and search follow-up still requires hosted acceptance. Use the [cleanup register](../development/cleanup-register.md) for release and data evidence.
-**Release ledger:** the current repository candidate carries 450 ordered migrations through `20260905205847_csf_compound_name_profile_search`; the private Development gitlink is `20bcb47`. The last verified Production ledger has 448 migrations through `20260905080459_csf_import_review_metadata_snapshot`. The workbook rebuild and compound-name search migrations are not live yet.
+**Release ledger:** the current repository candidate carries 451 ordered migrations through `20260905212822_csf_workbook_reprepare_authority_lock`; the private Development gitlink is `20bcb47`. The last verified Production ledger has 448 migrations through `20260905080459_csf_import_review_metadata_snapshot`. The workbook rebuild, compound-name search, and rebuild authority-lock migrations are not live yet.
 **Authoritative record after review:** Let's Assist
 
 This runbook describes the v1.6 officer workflow. Do not use it for a Production cutover until the current gates in section 12 and [testing and release](testing-and-release.md) pass for the exact integrated tree.

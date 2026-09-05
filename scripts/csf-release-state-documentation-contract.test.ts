@@ -245,7 +245,7 @@ describe("CSF release-state documentation truthfulness guards", () => {
       "last verified Production ledger has 448 migrations",
     );
     expect(officerRunbook).toContain(
-      "The workbook rebuild and compound-name search migrations are not live yet",
+      "The workbook rebuild, compound-name search, and rebuild authority-lock migrations are not live yet",
     );
     expect(officerRunbook).toContain(
       "Preparation does not mean their rows have committed",

@@ -36,7 +36,11 @@ test("workbook rebuild release checks the exact body, server-only grants, and re
     query,
     /csf_request_class_workbook_reprepare\(uuid,uuid,uuid,uuid,text\)/u,
   );
-  assert.match(query, /md5\(p.prosrc\)='978fc913e56af1893565d56706941f69'/u);
+  assert.match(query, /md5\(p.prosrc\)='a2ae5e479822c1cb54dd405810b6a909'/u);
+  assert.match(
+    acceptedCatalogQuery(source, versions.slice(0, 450)),
+    /md5\(p.prosrc\)='978fc913e56af1893565d56706941f69'/u,
+  );
   assert.match(query, /p.proconfig=ARRAY\['search_path=""'\]/u);
   assert.match(query, /count\(\*\)=1 AND bool_and\(a.grantee='service_role'/u);
   assert.match(query, /csf_workbook_reprepare_request_idx/u);

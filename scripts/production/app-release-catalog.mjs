@@ -96,10 +96,15 @@ export function acceptedCatalogQuery(source, versions) {
       "34dbbd884882349f8083512cd2fe48b371c3f1242bc62897685267f2a5d0001b"
   )
     return source;
-  const compoundSearchUpgrade =
-    versions.length === 450 &&
+  const reprepareAuthorityUpgrade =
+    versions.length === 451 &&
     ledgerHash ===
-      "3837bdabfb7e3d5c7258f00a484516b252c1f6b56880cb2201ec186f9320ee80";
+      "a3b709dea637acd1fdd4a8820f8b2830be3fb8c53e8d8ab9d9975a8164f41148";
+  const compoundSearchUpgrade =
+    reprepareAuthorityUpgrade ||
+    (versions.length === 450 &&
+      ledgerHash ===
+        "3837bdabfb7e3d5c7258f00a484516b252c1f6b56880cb2201ec186f9320ee80");
   const reprepareUpgrade =
     compoundSearchUpgrade ||
     (versions.length === 449 &&
@@ -188,7 +193,7 @@ accepted_upgrade_posture AS (
       AND pg_get_expr(d.adbin,d.adrelid) = '''unknown''::text'
       AND k.convalidated AND k.contype='c'
       AND pg_get_constraintdef(k.oid) = $$CHECK ((connection_basis = ANY (ARRAY['unknown'::text, 'verified_email'::text, 'self_confirmed_account_name'::text, 'officer_decision'::text])))$$
-  ) ${importReviewUpgrade ? importReviewPosture : ""} ${reprepareUpgrade ? repreparePosture : ""} ${compoundSearchUpgrade ? compoundSearchPosture : ""} AND (SELECT count(*)=2 AND bool_and(runtime_denied AND digest = CASE relname
+  ) ${importReviewUpgrade ? importReviewPosture : ""} ${reprepareUpgrade ? repreparePosture.replace("978fc913e56af1893565d56706941f69", reprepareAuthorityUpgrade ? "a2ae5e479822c1cb54dd405810b6a909" : "978fc913e56af1893565d56706941f69") : ""} ${compoundSearchUpgrade ? compoundSearchPosture : ""} AND (SELECT count(*)=2 AND bool_and(runtime_denied AND digest = CASE relname
     WHEN 'csf_release_worker_controls' THEN 'b186cfbfbb17fee4e0966cde6d3bec9e'
     WHEN 'csf_release_worker_receipts' THEN '94e9bc198f37156522b9aed76bf696a4'
     ELSE '' END) FROM accepted_worker_relations) AS valid

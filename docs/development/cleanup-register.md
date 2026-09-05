@@ -1042,7 +1042,55 @@ sources.
 
 ### Current Production acceptance, 2026-09-05
 
-Latest follow-up: root PR #479 is open at `8d99c29b`. Its quality job failed
+PR #479 review follow-up: the workbook reprepare RPC checked the requesting
+officer before waiting for workbook and request locks, without holding the
+staff-access lock or the officer membership row. The class-history authorizer
+does not acquire those locks. Forward migration `20260905212822` now acquires
+the organization staff-access lock and holds the actor membership row, then
+rechecks authority before returning a receipt or queueing work. It also holds
+the workbook owner's membership row during queue authorization. The signature,
+server-only grant, immutable receipts, and existing source snapshots stay intact.
+Two-session tests prove that a permission-revoked new request and a
+membership-revoked replay fail without restarting the worker or adding a
+receipt. Full isolated replay passes 451 migrations and 7,090 assertions. The
+exact release catalog returns 1 against that database. All 19 controller tests
+and 13 documentation contracts pass. The SPEC and controller now name all
+three candidate migrations over Production's unchanged 448-migration prefix.
+CI `33992278486` passed for the preceding `c8e93e2b` candidate. The lock fix
+still needs its own CI and hosted acceptance. No additional deployment or
+Production schema change occurred during this review.
+
+The refreshed chapter audit after Spring 2024 commit counts 4,427 profile
+activity events and 1,392 attendance records. Every activity event has a title
+and an activity-catalog link in the same organization and term. Every attendance
+record has a label and a meeting link in the same organization and term. These
+relationship checks do not close the pending preview or application imports.
+
+Read-only email audit at 21:25 UTC: all four Resend sending domains are
+verified. The current Production webhook has four successful deliveries of
+provider events, two `email.sent` and two `email.delivered`. These are endpoint
+receipts, not CSF workflow acceptance. The Production CSF ledger has zero
+campaigns, deliveries, dispatch attempts, verified provider events, reduced
+provider events, and unresolved quarantines. The controlled ten-message CSF
+test remains open. No messages were sent or worker flags changed in this audit.
+The provider listing returned an automation-bypass value in endpoint URLs.
+Treat that credential as exposed, rotate it in the coordinated provider and
+environment cutover, and keep endpoint query values out of further output.
+
+Count-only follow-up audit: each official class has eight linked term sources.
+Their current previews contain 1,461 committed rows, 445 pending rows, one
+identity-review row, two error rows, and one redundant skipped row. The skipped
+Fall 2024 row records its retained counterpart; that counterpart contains all
+retained facts and remains pending. The skip is mechanical redundancy, not an
+unrecorded officer decision.
+
+Further protected evidence for the Fall 2024 identity exception shows that the
+raw workbook LastFirst key matches one active class profile, and the historical
+merged record points to that same target. The officer UI match has not been
+submitted because the Mac locked before selection. No profile merge or account
+link was changed. Root CI `33992278486` is still running on `c8e93e2b`.
+
+Initial follow-up: root PR #479 opened at `8d99c29b`. Its quality job failed
 because the officer runbook still named the old migration ledger and gitlink.
 The local runbook and assertion now distinguish the 450-migration candidate
 from Production's verified 448 migrations through `20260905080459`. All 13

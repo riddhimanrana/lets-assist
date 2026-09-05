@@ -22,8 +22,10 @@ DVHS CSF officer UX → class-first Home → Classes → Applications → More; 
   Worker tables must be permanent logged relations. Connection provenance must
   remain a writable ordinary column, not an identity or generated column.
 
-- The reviewed schema-only controller may apply only migrations `20260905075711`
-  and `20260905080459`, with their pinned SQL hashes and exact preceding ledger.
+- The candidate schema-only controller accepts migrations `20260905202837`,
+  `20260905205847`, and `20260905212822`, with their pinned SQL hashes over the verified
+  448-migration Production prefix. The earlier two-migration release is already
+  applied. The workbook rebuild authorization review must close before release.
   Source acceptance and Production authorization precede one transaction.
   A lost response permits reads only until ledger and catalog reconciliation.
   No export, restore, app build, import approval, or worker activation occurs.
