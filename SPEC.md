@@ -4,6 +4,12 @@ DVHS CSF officer UX → class-first Home → Classes → Applications → More; 
 
 §C
 
+- The reviewed schema-only controller may apply only migrations `20260904010000`
+  and `20260905003409`, with their pinned SQL hashes and exact preceding ledger.
+  Source acceptance and Production authorization precede one transaction.
+  A lost response permits reads only until ledger and catalog reconciliation.
+  No export, restore, app build, import approval, or worker activation occurs.
+
 - Integration base root `f49227cb`; private Development gitlink `7597fdc`; Production ⊥.
 - UI says `Class`; existing `cohort` schema identifiers stay.
 - Stable profile + graduation class; term application/import alone activates term membership.
