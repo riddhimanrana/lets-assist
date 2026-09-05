@@ -51,6 +51,9 @@ test("checks old email-only fragments on the renamed helper, not the provenance 
   assert.ok(query.includes("has_any_column_privilege"));
   assert.ok(query.includes("c.relpersistence = 'p'"));
   assert.ok(query.includes("a.attgenerated='' AND a.attidentity=''"));
+  assert.ok(
+    query.includes("OR a.is_grantable OR a.grantor <> 'postgres'::regrole"),
+  );
   assert.ok(query.includes("FROM accepted_worker_relations"));
 });
 

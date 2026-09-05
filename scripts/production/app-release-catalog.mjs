@@ -133,7 +133,8 @@ accepted_upgrade_posture AS (
     AND EXISTS (SELECT 1 FROM aclexplode(p.proacl) a
       WHERE a.grantee='postgres'::regrole AND a.privilege_type='EXECUTE')
     AND NOT EXISTS (SELECT 1 FROM aclexplode(p.proacl) a
-      WHERE a.grantee NOT IN ('postgres'::regrole,'service_role'::regrole))
+      WHERE a.grantee NOT IN ('postgres'::regrole,'service_role'::regrole)
+        OR a.is_grantable OR a.grantor <> 'postgres'::regrole)
   ),false) AND EXISTS (
     SELECT 1 FROM pg_trigger t
     WHERE t.tgname = 'csf_record_connection_basis_after_audit'
