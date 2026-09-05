@@ -111,12 +111,13 @@ export function validateStage(deployment, config, expectedId) {
     );
   }
   const aliases = deployment.alias ?? [];
+  // Vercel also sets aliasAssigned for generated deployment aliases.
+  // The release workflow checks the authoritative custom-domain assignment.
   if (
-    deployment.aliasAssigned === true ||
-    deployment.aliasAssigned === "true" ||
     !Array.isArray(aliases) ||
     aliases.some(
-      (alias) => typeof alias !== "string" || alias === "lets-assist.com",
+      (alias) =>
+        typeof alias !== "string" || !/^[a-z0-9-]+\.vercel\.app$/u.test(alias),
     )
   ) {
     throw new ReleaseCheckError(

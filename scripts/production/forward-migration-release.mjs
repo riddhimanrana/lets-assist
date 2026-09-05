@@ -15,12 +15,12 @@ import {
 // This controller approves only these reviewed, backward-compatible migrations.
 export const approvedMigrations = [
   [
-    "20260904010000_csf_self_confirmed_account_name_claims",
-    "6b11200d648628d0a4b4e419612230022a19414d3e634efff236a64c88133173",
+    "20260905075711_csf_import_source_key_lookup_index",
+    "17a65042db689130523595a12fa16effbb8fa862f4491f15ba50389b827a1e72",
   ],
   [
-    "20260905003409_csf_release_worker_runtime_controls",
-    "d76ad31f6246c8f4fa63a2278e13f220a3e5b4b1dd0b1730af569c9edb3073d5",
+    "20260905080459_csf_import_review_metadata_snapshot",
+    "87b0b5e435b7c5e4b9defc3b8172b33673eaa4f12f12f5d34fa96b82ec89982f",
   ],
 ];
 
@@ -41,8 +41,8 @@ export function prepareMigration(cwd, read = readFileSync) {
     );
     if (createHash("sha256").update(sql).digest("hex") !== hash)
       throw new ReleaseCheckError("Approved migration bytes changed.");
-    // One historical file owns an outer transaction. Keep its body unchanged
-    // inside the transaction that also records both exact ledger versions.
+    // Keep each migration body inside the transaction that also records its
+    // exact ledger version.
     const body = sql.replace(/^BEGIN;\s*/u, "").replace(/\s*COMMIT;\s*$/u, "");
     return `${body}\nINSERT INTO supabase_migrations.schema_migrations(version,name,statements)
       VALUES (${literal(name.slice(0, 14))},${literal(name.slice(15))},ARRAY[${literal(sql)}]);`;
@@ -52,7 +52,12 @@ SET LOCAL lock_timeout = '5s';
 SET LOCAL statement_timeout = '60s';
 SELECT pg_catalog.pg_advisory_xact_lock(592042, 1);
 LOCK TABLE supabase_migrations.schema_migrations IN EXCLUSIVE MODE;
+LOCK TABLE app_private.csf_release_worker_controls IN SHARE MODE;
 DO $release_guard$ BEGIN
+  IF EXISTS (SELECT 1 FROM app_private.csf_release_worker_controls
+    WHERE workbook_refresh OR import_commit OR communications OR scheduled_post_publisher) THEN
+    RAISE EXCEPTION 'Disable CSF workers before applying schema changes';
+  END IF;
   IF (SELECT array_agg(version::text ORDER BY version) FROM supabase_migrations.schema_migrations)
     IS DISTINCT FROM ARRAY[${prefix.map(literal).join(",")}]::text[] THEN
     RAISE EXCEPTION 'Production migration ledger changed';
@@ -84,10 +89,11 @@ export async function applyForwardMigrations(config, fetcher = fetch) {
   const posture = await request(`SELECT NOT EXISTS (
     SELECT 1 FROM pg_catalog.pg_roles WHERE rolname='authenticator'
       AND 'default_transaction_read_only=on'=ANY(coalesce(rolconfig,ARRAY[]::text[]))
-  ) AS valid;`);
+  ) AND NOT EXISTS (SELECT 1 FROM app_private.csf_release_worker_controls
+    WHERE workbook_refresh OR import_commit OR communications OR scheduled_post_publisher) AS valid;`);
   if (posture?.length !== 1 || posture[0].valid !== true)
     throw new ReleaseCheckError(
-      "An earlier Production write block is unresolved.",
+      "Production has an unresolved write block or an enabled CSF worker.",
     );
   let responseLost = false;
   try {
@@ -104,7 +110,8 @@ export async function applyForwardMigrations(config, fetcher = fetch) {
       AND NOT has_function_privilege('authenticated','public.read_csf_release_worker_controls(text)','EXECUTE')
       AND NOT has_function_privilege('anon','public.read_csf_release_worker_controls(text)','EXECUTE')
       AND NOT has_function_privilege('service_role','app_private.set_csf_release_worker_control(text,text,boolean,bigint,uuid,text,text)','EXECUTE')
-      AND NOT EXISTS (SELECT 1 FROM app_private.csf_release_worker_controls)
+      AND NOT EXISTS (SELECT 1 FROM app_private.csf_release_worker_controls
+        WHERE workbook_refresh OR import_commit OR communications OR scheduled_post_publisher)
       AND EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema='plugin_data'
         AND table_name='csf_profile_accounts' AND column_name='connection_basis') AS valid;`);
     if (controls?.length !== 1 || controls[0].valid !== true)

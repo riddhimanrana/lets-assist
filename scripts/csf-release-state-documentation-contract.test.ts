@@ -241,7 +241,13 @@ describe("CSF release-state documentation truthfulness guards", () => {
     expect(officerRunbook).toContain(
       `private Development gitlink is \`${privateGitlink}\``,
     );
-    expect(officerRunbook).toContain("Production remains unchanged");
+    expect(officerRunbook).toContain("Production has 446 migrations");
+    expect(officerRunbook).toContain(
+      "The two new migrations and Settings UI fix are not live yet",
+    );
+    expect(officerRunbook).toContain(
+      "Preparation does not mean their rows have committed",
+    );
     expect(officerRunbook).not.toContain(
       "this repository carries 277 ordered migrations",
     );

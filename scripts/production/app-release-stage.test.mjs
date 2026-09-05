@@ -124,15 +124,38 @@ test("stage identity refuses wrong source, tenant, target, run, or public alias"
     { gitSource: { sha: "d".repeat(40), repoId: "123" } },
     { gitSource: { sha: config.release, repoId: "987" } },
     { meta: { appOnlyReleaseSha: config.release, appOnlyReleaseRun: "987" } },
-    { aliasAssigned: true },
-    { aliasAssigned: "true" },
     { alias: ["lets-assist.com"] },
+    { alias: ["www.lets-assist.com"] },
+    { alias: ["other-custom-domain.test"] },
+    { alias: [null] },
     { alias: "lets-assist.com" },
   ])
     assert.throws(() =>
       validateStage(fixture(overrides), config, "dpl_fixture"),
     );
   assert.throws(() => validateStage(fixture(), config, "dpl_other"));
+});
+
+test("generated Vercel aliases do not mean the public domain was promoted", () => {
+  for (const aliasAssigned of [true, "true"]) {
+    assert.deepEqual(
+      validateStage(
+        fixture({
+          aliasAssigned,
+          alias: [
+            "fixture-team.vercel.app",
+            "fixture-git-release-team.vercel.app",
+          ],
+        }),
+        config,
+        "dpl_fixture",
+      ),
+      {
+        deployment_id: "dpl_fixture",
+        origin: "https://fixture.vercel.app",
+      },
+    );
+  }
 });
 
 test("provider errors never expose response content", async () => {
