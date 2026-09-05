@@ -921,6 +921,17 @@ schema, records, workers, and public app remain unchanged. Exact CI, hosted
 acceptance, deployment, official reconciliation, and provider settlement are
 still open.
 
+CI run `33934734415` passed quality and database/browser replay on `41cfee31`.
+CodeQL flagged a URL substring assertion in the worker-transition
+test. The follow-up uses an exact parsed hostname, with all seven focused
+tests and formatting passing. Its remote scan is pending.
+
+Vercel now stores `CSF_WORKER_CONTROL_MODE=database` only for Preview branch
+`development` in project `lets-assist`. CLI readback confirmed both the Preview
+target and branch. The browser draft was discarded because it selected the
+local Development environment instead. No deployment or worker activation
+occurred for this setting. Production configuration remains unchanged.
+
 ### Promotion safety fixes and cleanup, 2026-09-04
 
 Private PR #245 merged at `aa59be85`. Its GitHub quality run `33931479076`

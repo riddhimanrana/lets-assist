@@ -110,7 +110,8 @@ test("one mutation records prepared, committed and verified receipts without Ver
     1,
   );
   assert.equal(
-    mock.calls.filter((r) => r.url.includes("api.vercel.com")).length,
+    mock.calls.filter((r) => new URL(r.url).hostname === "api.vercel.com")
+      .length,
     0,
   );
   assert.equal(mock.calls[1].headers.Authorization, undefined);
