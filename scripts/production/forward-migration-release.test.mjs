@@ -21,6 +21,7 @@ function transport({
   rollback = false,
   drift = false,
   badAcl = false,
+  enabledWorker = false,
 } = {}) {
   const calls = [];
   let written = false;
@@ -46,7 +47,10 @@ function transport({
         result = [
           {
             valid: !(
-              badAcl && sql.includes("has_function_privilege('service_role'")
+              (badAcl &&
+                sql.includes("has_function_privilege('service_role'")) ||
+              (enabledWorker &&
+                sql.includes("WHERE workbook_refresh OR import_commit"))
             ),
           },
         ];
@@ -57,8 +61,8 @@ function transport({
 }
 
 test("approved bytes and exact versions share one transaction", () => {
-  assert.equal(prepared.prefix.length, 444);
-  assert.equal(prepared.versions.length, 446);
+  assert.equal(prepared.prefix.length, 446);
+  assert.equal(prepared.versions.length, 448);
   assert.match(prepared.query, /^BEGIN;/u);
   assert.match(prepared.query, /COMMIT;$/u);
   assert.match(
@@ -72,11 +76,11 @@ test("approved bytes and exact versions share one transaction", () => {
   );
   assert.match(
     prepared.query,
-    /'20260904010000','csf_self_confirmed_account_name_claims'/u,
+    /'20260905075711','csf_import_source_key_lookup_index'/u,
   );
   assert.match(
     prepared.query,
-    /'20260905003409','csf_release_worker_runtime_controls'/u,
+    /'20260905080459','csf_import_review_metadata_snapshot'/u,
   );
 });
 
@@ -90,7 +94,7 @@ test("refuses modified approved SQL before any provider request", () => {
 test("performs one write and verifies ledger and permissions", async () => {
   const t = transport();
   const result = await applyForwardMigrations(config, t.fetch);
-  assert.equal(result.migrations, 446);
+  assert.equal(result.migrations, 448);
   assert.equal(result.workers, "disabled");
   assert.equal(result.responseLost, false);
   assert.equal(
@@ -134,6 +138,26 @@ test("ledger drift stops before mutation", async () => {
     /sequence differs/u,
   );
   assert.equal(t.calls.length, 1);
+});
+
+test("enabled workers stop before migration and are rechecked under a lock", async () => {
+  const t = transport({ enabledWorker: true });
+  await assert.rejects(
+    applyForwardMigrations(config, t.fetch),
+    /enabled CSF worker/u,
+  );
+  assert.equal(
+    t.calls.filter((call) => call.url.endsWith("/database/query")).length,
+    0,
+  );
+  assert.match(
+    prepared.query,
+    /LOCK TABLE app_private.csf_release_worker_controls IN SHARE MODE/u,
+  );
+  assert.match(
+    prepared.query,
+    /Disable CSF workers before applying schema changes/u,
+  );
 });
 
 test("wrong project refuses all provider access", async () => {

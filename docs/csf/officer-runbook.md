@@ -1,8 +1,8 @@
 # DVHS CSF Officer Operations Runbook
 
 **Audience:** organization administrators, adviser, chapter officers, and Data Management
-**Current status:** accepted app `336b5a8c` has not replaced the public deployment. Its app-only release passed source and Production schema checks but stopped because the local build could not read protected Vercel variables. The release controller now stages the build inside Vercel. The account-name claim follow-up passed hosted acceptance, but the later reply-access and point-recipient fixes still require acceptance on their exact integrated tree. Use the [cleanup register](../development/cleanup-register.md) for current release and data evidence.
-**Release ledger:** the current repository candidate carries 446 ordered migrations through `20260905003409_csf_release_worker_runtime_controls`; the private Development gitlink is `aa59be8`. Accepted app `336b5a8c` still uses 444 migrations and private gitlink `2affd09`. The follow-up is not live, and Production remains unchanged.
+**Current status:** accepted app `dfe7fa586a8c55789cab194d4c7f2fab9cd254c2` serves the public site. All four class workbooks are linked and have prepared their current recorded versions. Preparation does not mean their rows have committed. The import-profile and Settings fixes still require hosted acceptance. Use the [cleanup register](../development/cleanup-register.md) for release and data evidence.
+**Release ledger:** the current repository candidate carries 448 ordered migrations through `20260905080459_csf_import_review_metadata_snapshot`; the private Development gitlink is `88d5b79`. Production has 446 migrations through `20260905003409_csf_release_worker_runtime_controls`. The two new migrations and Settings UI fix are not live yet.
 **Authoritative record after review:** Let's Assist
 
 This runbook describes the v1.6 officer workflow. Do not use it for a Production cutover until the current gates in section 12 and [testing and release](testing-and-release.md) pass for the exact integrated tree.

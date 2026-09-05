@@ -14,7 +14,25 @@ const versions = expectedVersions(
 );
 
 test("legacy release catalogs stay unchanged", () => {
-  assert.equal(acceptedCatalogQuery(source, versions.slice(0, -2)), source);
+  assert.equal(acceptedCatalogQuery(source, versions.slice(0, 444)), source);
+});
+
+test("the reviewed import upgrade verifies metadata, function grants, and the scoped index", () => {
+  const query = acceptedCatalogQuery(source, versions);
+  assert.match(query, /SELECT count\(\*\) = 10 AND/u);
+  assert.match(query, /csf_import_rows_resolution_metadata_object/u);
+  assert.match(query, /a.atttypid='jsonb'::regtype AND a.attnotnull/u);
+  assert.match(query, /csf_import_rows_committed_source_key_idx/u);
+  assert.match(query, /i.indisvalid AND i.indisready AND i.indislive/u);
+  assert.match(query, /9d5b02f7b4cdb7c948aad0398ed29bdf/u);
+  assert.match(query, /641568ea97cc01fff75298d218a1404d/u);
+  const old = acceptedCatalogQuery(source, versions.slice(0, 446));
+  assert.match(old, /SELECT count\(\*\) = 8 AND/u);
+  assert.doesNotMatch(old, /resolution_metadata/u);
+  assert.throws(
+    () => acceptedCatalogQuery(source, versions.slice(0, 447)),
+    /explicit release review/u,
+  );
 });
 
 test("checks old email-only fragments on the renamed helper, not the provenance wrapper", () => {

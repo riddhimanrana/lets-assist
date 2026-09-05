@@ -1040,6 +1040,120 @@ sources.
 
 ## Repository-owned P0–P2
 
+### Production configuration and workbook worker, 2026-09-05
+
+The accepted application `dfe7fa586a8c55789cab194d4c7f2fab9cd254c2`
+now serves `lets-assist.com` from deployment
+`dpl_8AShFttCMrv41iEq8AMCLikgRFXu`. Run `33952787777` built this artifact
+once after its accepted-tree, CI, schema, and project checks passed.
+Its stage checker rejected Vercel-generated aliases because `aliasAssigned`
+was true. The exact custom-domain query proved the public domain was unchanged.
+The operator then verified the staged status, Production backend, disabled
+workers, login HTTP 200, and protected CSF redirect before promoting that
+existing artifact. Public checks passed after promotion. No second build,
+migration, student import, or application approval occurred in this release.
+The previous app rollback target is `dpl_858adwbvCDtPEUq2gdhopRMTH1GJ`.
+Count-only receipts are in `.artifacts/app-only-stage-33952787777/`.
+
+Worker transition `33953257822` passed with receipt
+`e4a0f424-ba77-4496-8698-a3381af1516e`, control revision 3.
+Only workbook preparation is enabled. Import commits, communications, and
+scheduled publishing remain disabled. The actual hosted workbook cron returned
+HTTP 200. All four jobs completed on their first attempt and recorded all
+32 canonical tabs. Class of 2027 prepared six populated tabs and two templates;
+2028 prepared four populated tabs and four templates; 2029 prepared two populated
+tabs and six templates; 2030 recorded eight empty templates. No workbook job
+failed. Individual row conflicts remain for officer review. These are
+preparation results, not import completion.
+
+Open P1: the application-row new-profile action rolls back because the
+eight-argument reconciliation function modifies immutable `normalized_data`.
+The protected UI reproduced the failure on one new application target.
+Preserve the source guard. Add a forward migration and behavioral database
+coverage for reviewed metadata, atomic creation, and retry receipts before
+retrying this action. Meeting-attendance consumers currently read matching
+metadata from the normalized snapshot and must retain provenance when the
+metadata storage changes.
+
+The staging regression is fixed locally, not published. Generated Vercel
+aliases are allowed; custom domains and malformed aliases are refused.
+The separate authoritative public-domain checks remain required. Twenty-one
+focused tests, zero-warning focused lint, strict gitlink, and diff checks pass.
+Group this controller change with the remaining follow-up instead of creating
+another application build for it.
+
+PR #475 merged main into development at
+`94d97335e719b01c2f90190bcb12254bf06dc154` after full CI run
+`33952772826` passed. No application deployment was requested for that sync.
+
+Open P1: Production Class Settings shows the source picker but no linked
+workbook or ready-preview controls, including when Spring 2024 is selected for
+Class of 2027. The eight saved class sources and six preview-readiness results
+exist in the database. The data phase catches any class-settings loader error
+and replaces the entire workspace with null. Diagnose the underlying query
+failure and display an honest recoverable error instead of an unlinked state.
+No ready previews were approved while this UI path was unavailable.
+
+The missing Settings workspace is now reproduced as SQLSTATE 57014 under the
+same eight-second timeout configured for Production's PostgREST role. The
+readiness batch repeatedly calls the source-key conflict resolver, which scans
+committed historical rows and evaluates their JSON identity expression.
+Disabling JIT did not remove the timeout. A forward migration,
+`20260905075711_csf_import_source_key_lookup_index`, adds an organization/class
+expression index only for created or updated import rows. It changes no
+identity rules, grants, or source records. The isolated replay passed 447
+migrations, 240 test files, and 7,036 assertions with this index, then removed
+its disposable database. Production does not yet have this migration. Verify
+the same readiness query and visible Settings controls after release before
+closing the finding. The recoverable UI error and profile-creation fix remain
+open follow-up work.
+
+Application profile creation is fixed locally by forward migration
+`20260905080459_csf_import_review_metadata_snapshot`. Reconciliation stores
+officer metadata in `resolution_metadata`, leaves source snapshots unchanged,
+and preserves the metadata in meeting attendance and resolution audit records.
+Internal function permissions remain restricted to their authorized wrappers.
+The new behavioral test reproduced the rollback before the fix. Afterward,
+the complete isolated replay passed 448 migrations, 241 test files, and 7,053
+assertions. Coverage includes new unclaimed profile creation, unchanged source
+evidence, no canonical email or term approval, request replay, changed-request
+refusal, member denial, and meeting attendance provenance. The existing source
+trigger returns SQLSTATE P0001; this migration preserves that behavior rather
+than changing its error contract incidentally. Neither new migration has been
+applied to hosted Development or Production yet.
+
+Private PR #246 passed CI run `33954813548` and merged to private Development
+at `1aa3fff02b224d9edd61ca481bf78bd08a76e4ff`. Settings now returns a separate
+read-failure flag and shows a retry link that preserves the selected class and
+semester. It does not show the sheet-link picker after a failed read. Local
+TypeScript, full zero-warning lint, and all 287 plugin test files passed.
+This UI change has not been deployed.
+
+The app-only schema checker now recognizes the exact reviewed 448-migration
+ledger and checks the new function definitions and grants, metadata constraint,
+and valid scoped index. All 26 controller tests passed. The complete generated
+catalog query returned 1 against the fresh isolated 448-migration database;
+that replay also passed all 7,053 assertions. Unknown or partial ledger
+upgrades still fail closed. These checks do not claim hosted acceptance.
+
+PR #477's first quality run stopped on formatting in the stage controller.
+The local full root suite then caught the stale officer-runbook ledger and the
+previous migration pair in the forward-migration controller. Both now match
+the reviewed 448-migration candidate. The controller requires disabled workers
+before writing, locks their control table during the transaction, and retains
+existing worker receipts. It approves only the exact hashes of the two new
+migration files. All 36 focused controller tests and 13 documentation contracts
+pass. The local production build passed with non-production test variables.
+The feature-branch Vercel deployment was canceled by its ignored-build rule.
+No application build or Production data change resulted from that Git push.
+
+Private promotion review #247 found that the Settings fallback also hid class
+rename and archive/restore controls. Private Development `88d5b79` limits the
+fallback to spreadsheet controls and retains the separate class-management
+permission checks. Focused tests, lint, and TypeScript pass. The correction
+advanced Development by a permitted fast-forward and stays in the existing
+promotion PR. It did not change branch protection or deploy an application.
+
 ### Release build and worker activation, 2026-09-05
 
 The app-only run `33933383403` stopped at Vercel's ignored build step. Deployment

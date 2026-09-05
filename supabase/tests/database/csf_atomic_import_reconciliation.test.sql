@@ -2,7 +2,7 @@ BEGIN;
 
 CREATE EXTENSION IF NOT EXISTS pgtap WITH SCHEMA extensions;
 
-SELECT extensions.plan(29);
+SELECT extensions.plan(32);
 
 SELECT extensions.ok(
   NOT has_function_privilege(
@@ -254,7 +254,7 @@ INSERT INTO plugin_data.csf_sheet_import_rows (
     'd9200000-0000-4000-8000-000000000001',
     'Responses', 2, '{"Name":"Meeting Success"}',
     '{"meetingId":"d9400000-0000-4000-8000-000000000001","submittedName":"Meeting Success","submittedEmail":"meeting.success@local.test","normalizedEmail":"meeting.success@local.test"}',
-    'meeting-success-hash', 'd9300000-0000-4000-8000-000000000001', 'pending',
+    'meeting-success-hash', NULL, 'ambiguous',
     'd9d00000-0000-4000-8000-000000000001'
   ),
   (
@@ -290,6 +290,22 @@ INSERT INTO plugin_data.csf_sheet_import_rows (
     'partner-skip-hash', NULL, 'conflict',
     'd9d00000-0000-4000-8000-000000000006'
   );
+
+SELECT extensions.lives_ok($$
+  SELECT plugin_data.csf_reconcile_sheet_import_row(
+    'd9100000-0000-4000-8000-000000000001',
+    'd9700000-0000-4000-8000-000000000001',
+    'd9300000-0000-4000-8000-000000000001',
+    'match', 'Officer checked the fictional attendance record.',
+    'd9000000-0000-4000-8000-000000000001',
+    'd9d00000-0000-4000-8000-000000000001',
+    '{"matchMethod":"officer_review","matchConfidence":0.95,"matchDetails":{"reviewed":true}}'::jsonb
+  )
+$$, 'attendance review accepts metadata without rewriting source evidence');
+SELECT extensions.ok((SELECT
+  NOT (normalized_data ? 'matchMethod') AND resolution_metadata->>'matchMethod' = 'officer_review'
+  FROM plugin_data.csf_sheet_import_rows WHERE id = 'd9700000-0000-4000-8000-000000000001'),
+  'attendance review keeps source and resolution evidence separate');
 
 -- The source-evidence receipts the two succeeding or write-reaching commits spend,
 -- written exactly as `csf_refresh_sheet_source_evidence` writes them: the same canonical
@@ -377,6 +393,12 @@ SELECT extensions.is(
   1,
   'meeting commit creates one normalized attendance record'
 );
+SELECT extensions.ok((SELECT match_confidence = 0.95
+  AND match_details->>'matchMethod' = 'officer_review'
+  AND match_details->>'reviewed' = 'true'
+  FROM plugin_data.csf_meeting_attendance
+  WHERE source_row_id = 'd9700000-0000-4000-8000-000000000001'),
+  'attendance commit retains the officer resolution provenance');
 SELECT extensions.is(
   (SELECT import_status FROM plugin_data.csf_sheet_import_rows
    WHERE id = 'd9700000-0000-4000-8000-000000000001'),
