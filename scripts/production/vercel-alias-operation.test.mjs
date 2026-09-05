@@ -80,7 +80,7 @@ test(
   async () => {
     const result = await verify();
     assert.equal(result.success, true);
-    assert.equal(result.requests.split("/v9/projects/").length - 1, 2);
+    assert.equal(result.requests.split("/v9/projects/").length - 1, 4);
     assert.equal(result.requests.split("/v4/aliases").length - 1, 2);
     assert.equal(result.requests.split("/v13/deployments/").length - 1, 2);
   },
@@ -118,6 +118,27 @@ test(
     });
     assert.equal(result.success, false);
     assert.equal(result.requests.split("/v4/aliases").length - 1, 1);
+  },
+);
+
+test(
+  "a promotion starting during the second alias read prevents settlement",
+  { timeout: 30_000 },
+  async () => {
+    const result = await verify({
+      operations: [
+        null,
+        null,
+        null,
+        {
+          type: "promote",
+          toDeploymentId: "dpl_other",
+          jobStatus: "pending",
+        },
+      ],
+    });
+    assert.equal(result.success, false);
+    assert.equal(result.requests.split("/v4/aliases").length - 1, 2);
   },
 );
 

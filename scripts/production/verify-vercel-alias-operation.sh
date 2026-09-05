@@ -59,10 +59,16 @@ while ((SECONDS < verification_deadline)); do
           VERCEL_ALIAS_VERIFY_TIMEOUT_SECONDS=5 \
           VERCEL_ALIAS_CONNECT_TIMEOUT_SECONDS=2 \
           VERCEL_ALIAS_HTTP_TIMEOUT_SECONDS=5 \
-          bash "$(dirname "${BASH_SOURCE[0]}")/verify-vercel-alias.sh" >/dev/null 2>&1; then
+          bash "$(dirname "${BASH_SOURCE[0]}")/verify-vercel-alias.sh" >/dev/null 2>&1 &&
+          curl --fail --silent --show-error --connect-timeout 5 --max-time 8 \
+            --header "Authorization: Bearer ${VERCEL_TOKEN}" \
+            "https://api.vercel.com/v9/projects/${VERCEL_ROOT_PROJECT_ID}?teamId=${VERCEL_TEAM_ID}" |
+            jq -e --arg account "${VERCEL_TEAM_ID}" --arg project "${VERCEL_ROOT_PROJECT_ID}" \
+              '.id == $project and .accountId == $account and .lastAliasRequest == null' >/dev/null; then
           settled_absent_observations=$((settled_absent_observations + 1))
           if ((settled_absent_observations >= 2)); then
             echo 'No Vercel alias operation is recorded; the exact Production alias is settled.'
+            echo 'alias_operation_outcome=alias-settled'
             exit 0
           fi
         else

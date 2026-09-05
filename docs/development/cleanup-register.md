@@ -12,6 +12,13 @@ evidence and does not override the current tables or release gates.
 
 ### App-only release and alias reconciliation
 
+Review follow-up rechecks the project operation after each alias observation,
+including the final one, so a concurrent promotion prevents absent-record
+settlement. Recovery now consumes the explicit alias-settled result and fences
+initial missing metadata against the exact maintenance or application alias.
+Thirty-three focused tests passed, including execution of the recovery helper
+with missing, pending, and changed operation records. No recovery was dispatched.
+
 Workbook-worker activation run `33948456893` stopped before preparing a receipt
 or mutating controls. The Management read-only role cannot execute the runtime
 reader RPC, but has schema and table read privileges. The controller now reads
