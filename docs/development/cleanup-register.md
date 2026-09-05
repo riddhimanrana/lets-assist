@@ -858,6 +858,36 @@ sources.
 
 ## Repository-owned P0–P2
 
+### Promotion safety fixes and cleanup, 2026-09-04
+
+Private PR #245 merged at `aa59be85`. Its GitHub quality run `33931479076`
+passed. This fixes both P1 findings on private promotion PR #244: reply paging
+now requires active organization membership and runtime access before a
+service-role read, and changing member-search result identities resets the
+point recipient selector. Local verification passed 64 focused tests, all 258
+isolated private-plugin test files, TypeScript, and zero-warning focused lint.
+Root integration, hosted acceptance of this exact correction, and Production
+promotion remain required.
+
+Cleanup removed 57 obsolete remote branches and 119 local branches after
+ancestry or patch-equivalence checks. Nineteen retired checkout folders are in
+Trash, with ignored files preserved. Recovery refs remain under
+`refs/archive/cleanup-20260904`. The original private field-mock edit remains
+uncommitted and recoverable from stash `3f69a2898f707b4fad0ec519ea3ab932224a5aae`.
+Active release worktrees remain until both repositories finish promotion.
+
+Hosted acceptance run `33927863265` passed for root `e130f0f0`, private
+`70e689e`, with 100 distinct sessions and 9,566 requests. Read p95 was 1,715 ms,
+mutation p95 was 1,839 ms, and request errors were zero. LCP p75 was 2,336 ms,
+INP p75 was 48 ms, and CLS was 0.0021. The 25-navigation review loop had no
+renderer crash and retained heap decreased by 11.7 percent. This evidence
+predates the two safety fixes and does not certify the updated application.
+
+Live Production still serves root `b5029aaf` on deployment
+`dpl_HtRch4K8gor7owGrZva4fiEunkLg`. Resend sending domains are verified, but
+both Production webhook endpoints remain disabled. No Production app, schema,
+official import, or mail dispatch changed during this verification.
+
 ### App-only protected-secret build repair, 2026-09-04
 
 Production release run `33928920544` verified the new team-scoped Vercel
