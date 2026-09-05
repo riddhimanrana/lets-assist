@@ -8,6 +8,41 @@ evidence and does not override the current tables or release gates.
 
 `AUD-` identifiers are allocated per branch and can drift while several audit branches are open at once. Current `development` includes the merged #152, #158, #174, #177, #179, and #181 findings, while open #180 can still carry overlapping historical identifiers. This branch retains `AUD-036` and `AUD-037` for its activity/partner authorization work without renumbering or restating the merged meeting findings.
 
+## Release continuation, 2026-09-05
+
+- Private PR #244 is merged at `31e6bb19`. Private `main` and `development`
+  point to that commit. The user-authorized change removed only the private
+  `main` last-push approval requirement. Security checks, force-push refusal,
+  and deletion protection remain enabled.
+- Root PR #470 at `3514ef29` passed CI run `33932222279`, including quality,
+  Production build, database replay, and browser workflows. The newer local
+  worker-control edits below have not passed that CI run or hosted acceptance.
+- App-only run `33933383403` verified the accepted source and Production schema,
+  then created `dpl_C4c8YQXnCS9KDKhvxiAbwyoy2jLD`. Vercel canceled it in the
+  ignored build step before dependency installation or the app build. The
+  top-level deployment `ignoreCommand` did not override the source policy.
+  No public promotion, database mutation, worker activation, or import occurred.
+  Do not rerun that same request or treat it as a successful deployment.
+- The follow-up candidate now has a tested, per-deployment exact-SHA Production
+  build-policy override. Automatic `main` and feature-branch builds remain off.
+  This rule requires the new application source, so the old accepted source
+  cannot use it. Group it with the follow-up release before hosted acceptance.
+- Forward migration `20260905003409` and the server worker reader are local
+  work in progress. All 18 focused pgTAP checks passed in an ephemeral,
+  network-isolated Postgres container. Six reader tests, 13 import-worker route
+  tests, 16 build-policy/staging tests, TypeScript, and zero-warning focused
+  ESLint passed. The temporary container was stopped and removed. The shared
+  local stack and hosted databases were not changed.
+- The local runtime transition workflow now makes no Vercel writes or builds.
+  Seven behavioral tests cover configuration, one-write settlement, lost-response
+  receipt recovery, mismatched receipts, public-state refusal, unsettled
+  postconditions, and independent disable. The staging request selects database
+  mode. The complete local isolated gate passed 446 migrations, 7,032 pgTAP
+  assertions, CSF workflows, architecture and plugin-isolation checks, strict
+  gitlink validation, TypeScript, zero-warning lint, browser isolation, and cron
+  probes. It removed its owned stack. The full suite passed 296 root and 287
+  private-plugin test files. Exact CI and hosted acceptance remain open.
+
 ## Class Sheet import reliability repair, 2026-08-24
 
 - The 2026-08-25 continuation expands the reviewed Development policy from a
@@ -857,6 +892,34 @@ finding detail as evidence only and are explicitly superseded as status
 sources.
 
 ## Repository-owned P0–P2
+
+### Release build and worker activation, 2026-09-05
+
+The app-only run `33933383403` stopped at Vercel's ignored build step. Deployment
+`dpl_C4c8YQXnCS9KDKhvxiAbwyoy2jLD` is canceled and never reached application
+build or promotion. The local candidate replaces the ineffective request
+property with an exact-SHA, Production-only build-policy input. Automatic
+feature-branch and `main` builds remain disabled. It needs fresh hosted
+acceptance because the accepted older source lacks this rule.
+
+The same candidate replaces the per-worker Vercel rebuild workflow with an
+operator-only database transition. Forward migration `20260905003409` scopes
+switches to a release SHA and preserves immutable request receipts. The runtime
+may read switches but cannot enable itself. All four worker routes and status
+use one shared reader. Unknown responses recover from receipts rather than
+repeating writes. The workflow supports independent disable without changing
+the app deployment or deleting queued work.
+
+Focused local checks pass, including 18 pgTAP assertions for controls and seven
+behavioral transition tests. The 446-migration replay passed 7,032 pgTAP
+assertions, workflow and architecture checks, then stopped at a checkout-state
+guard: the private checkout was on a stale local `development` branch. Detaching
+at the unchanged, published gitlink `aa59be85` fixed the strict check. A fresh
+full gate then passed, including browser isolation, cron probes, and teardown.
+The full suite also passed 296 root and 287 plugin test files. Production
+schema, records, workers, and public app remain unchanged. Exact CI, hosted
+acceptance, deployment, official reconciliation, and provider settlement are
+still open.
 
 ### Promotion safety fixes and cleanup, 2026-09-04
 

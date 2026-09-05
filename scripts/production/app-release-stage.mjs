@@ -41,6 +41,8 @@ export function stageConfig(env) {
 export function stagePayload(config) {
   const env = Object.fromEntries(workers.map((key) => [key, "false"]));
   env.LETS_ASSIST_BUILD_SHA = config.release;
+  env.LETS_ASSIST_EXPLICIT_RELEASE_SHA = config.release;
+  env.CSF_WORKER_CONTROL_MODE = "database";
   return {
     name: "lets-assist",
     project: config.project,
@@ -53,8 +55,6 @@ export function stagePayload(config) {
       sha: config.release,
     },
     autoAssignCustomDomains: false,
-    // This explicit release does not change the project's automatic-build policy.
-    ignoreCommand: "exit 1",
     env,
     build: { env: { ...env } },
     meta: { appOnlyReleaseSha: config.release, appOnlyReleaseRun: config.run },

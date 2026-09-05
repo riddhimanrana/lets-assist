@@ -1,4 +1,5 @@
 import "server-only";
+import { isCsfWorkerEnabled } from "@/lib/cron/csf-worker-controls";
 
 import { createHash, timingSafeEqual } from "node:crypto";
 
@@ -78,7 +79,7 @@ export async function POST(request: NextRequest) {
   if (!isAuthorized(request)) return json({ error: "Unauthorized" }, 401);
   const probe = cronAuthShapeProbe("csf-import-commit", request);
   if (probe) return probe;
-  if (process.env.CSF_IMPORT_WORKER_ENABLED !== "true") {
+  if (!(await isCsfWorkerEnabled("import_commit"))) {
     return json({ enabled: false, claimed: 0, completed: 0, blocked: 0 });
   }
   const workerSecret = process.env.CSF_IMPORT_WORKER_SECRET_TOKEN;

@@ -43,7 +43,8 @@ test("build stays with Vercel secrets and disables workers in both environments"
     repoId: config.repository,
   });
   assert.equal(payload.target, "production");
-  assert.equal(payload.ignoreCommand, "exit 1");
+  assert.equal(payload.ignoreCommand, undefined);
+  assert.equal(payload.env.LETS_ASSIST_EXPLICIT_RELEASE_SHA, config.release);
   assert.equal(payload.projectSettings, undefined);
   assert.deepEqual(payload.env, payload.build.env);
   assert.equal(

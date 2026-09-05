@@ -7,7 +7,21 @@ function normalizeOptional(value) {
   return normalized ? normalized : undefined;
 }
 
-export function shouldRunVercelBuild({ branch, commitMessage }) {
+/** @param {{ branch?: string, commitMessage?: string, environment?: string, commitSha?: string, explicitReleaseSha?: string }} input */
+export function shouldRunVercelBuild({
+  branch,
+  commitMessage,
+  environment = undefined,
+  commitSha = undefined,
+  explicitReleaseSha = undefined,
+}) {
+  // Only the staged release request supplies this per-deployment override.
+  if (
+    environment === "production" &&
+    /^[0-9a-f]{40}$/u.test(explicitReleaseSha ?? "") &&
+    explicitReleaseSha === commitSha
+  )
+    return true;
   const normalizedBranch = normalizeOptional(branch);
 
   // A non-Git deployment is an explicit operator action. Do not block it.
@@ -30,6 +44,9 @@ if (import.meta.main) {
   const shouldBuild = shouldRunVercelBuild({
     branch: process.env.VERCEL_GIT_COMMIT_REF,
     commitMessage: process.env.VERCEL_GIT_COMMIT_MESSAGE,
+    environment: process.env.VERCEL_ENV,
+    commitSha: process.env.VERCEL_GIT_COMMIT_SHA,
+    explicitReleaseSha: process.env.LETS_ASSIST_EXPLICIT_RELEASE_SHA,
   });
 
   if (shouldBuild) {
