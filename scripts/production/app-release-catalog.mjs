@@ -96,10 +96,15 @@ export function acceptedCatalogQuery(source, versions) {
       "34dbbd884882349f8083512cd2fe48b371c3f1242bc62897685267f2a5d0001b"
   )
     return source;
-  const importReviewUpgrade =
-    versions.length === 448 &&
+  const reprepareUpgrade =
+    versions.length === 449 &&
     ledgerHash ===
-      "88ed874e0f578d6b64bd8b7368f8e8c2fa8e11737fc2a20c1469f20379ded445";
+      "e057e1ab6ba2fb32fa73005d9f6c5ff5ee18e86ecbd72c2e19b93f7c8f5e130d";
+  const importReviewUpgrade =
+    reprepareUpgrade ||
+    (versions.length === 448 &&
+      ledgerHash ===
+        "88ed874e0f578d6b64bd8b7368f8e8c2fa8e11737fc2a20c1469f20379ded445");
   const workerUpgrade =
     versions.length === 446 &&
     ledgerHash ===
@@ -178,7 +183,7 @@ accepted_upgrade_posture AS (
       AND pg_get_expr(d.adbin,d.adrelid) = '''unknown''::text'
       AND k.convalidated AND k.contype='c'
       AND pg_get_constraintdef(k.oid) = $$CHECK ((connection_basis = ANY (ARRAY['unknown'::text, 'verified_email'::text, 'self_confirmed_account_name'::text, 'officer_decision'::text])))$$
-  ) ${importReviewUpgrade ? importReviewPosture : ""} AND (SELECT count(*)=2 AND bool_and(runtime_denied AND digest = CASE relname
+  ) ${importReviewUpgrade ? importReviewPosture : ""} ${reprepareUpgrade ? repreparePosture : ""} AND (SELECT count(*)=2 AND bool_and(runtime_denied AND digest = CASE relname
     WHEN 'csf_release_worker_controls' THEN 'b186cfbfbb17fee4e0966cde6d3bec9e'
     WHEN 'csf_release_worker_receipts' THEN '94e9bc198f37156522b9aed76bf696a4'
     ELSE '' END) FROM accepted_worker_relations) AS valid
@@ -193,6 +198,29 @@ accepted_upgrade_posture AS (
       "WHEN (SELECT valid FROM accepted_upgrade_posture) AND (SELECT valid FROM table_posture)",
     );
 }
+
+const repreparePosture = `AND EXISTS (
+  SELECT 1 FROM pg_proc p JOIN pg_language l ON l.oid=p.prolang
+  WHERE p.oid=to_regprocedure('plugin_data.csf_request_class_workbook_reprepare(uuid,uuid,uuid,uuid,text)')
+    AND p.proowner='postgres'::regrole AND p.prosecdef
+    AND p.prorettype='jsonb'::regtype AND l.lanname='plpgsql'
+    AND p.prokind='f' AND p.provolatile='v' AND p.proparallel='u'
+    AND NOT p.proisstrict AND NOT p.proleakproof AND NOT p.proretset
+    AND p.pronargdefaults=0 AND p.proconfig=ARRAY['search_path=""']
+    AND md5(p.prosrc)='978fc913e56af1893565d56706941f69'
+    AND has_function_privilege('service_role',p.oid,'EXECUTE')
+    AND NOT has_function_privilege('anon',p.oid,'EXECUTE')
+    AND NOT has_function_privilege('authenticated',p.oid,'EXECUTE')
+    AND (SELECT count(*)=1 AND bool_and(a.grantee='service_role'::regrole
+      AND a.privilege_type='EXECUTE' AND NOT a.is_grantable
+      AND a.grantor='postgres'::regrole) FROM aclexplode(p.proacl) a)
+) AND EXISTS (
+  SELECT 1 FROM pg_index i
+  WHERE i.indexrelid=to_regclass('plugin_data.csf_workbook_reprepare_request_idx')
+    AND i.indrelid=to_regclass('plugin_data.csf_admin_audit_events')
+    AND i.indisunique AND i.indisvalid AND i.indisready AND i.indislive
+    AND pg_get_indexdef(i.indexrelid) = $$CREATE UNIQUE INDEX csf_workbook_reprepare_request_idx ON plugin_data.csf_admin_audit_events USING btree (organization_id, correlation_id) WHERE (action = 'sheets.class_workbook_reprepare_requested'::text)$$
+)`;
 
 const importReviewPosture = `AND EXISTS (
   SELECT 1 FROM pg_attribute a

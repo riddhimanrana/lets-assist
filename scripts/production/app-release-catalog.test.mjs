@@ -17,6 +17,26 @@ test("legacy release catalogs stay unchanged", () => {
   assert.equal(acceptedCatalogQuery(source, versions.slice(0, 444)), source);
 });
 
+test("workbook rebuild release checks the exact body, server-only grants, and receipt index", () => {
+  const query = acceptedCatalogQuery(source, versions);
+  assert.match(
+    query,
+    /csf_request_class_workbook_reprepare\(uuid,uuid,uuid,uuid,text\)/u,
+  );
+  assert.match(query, /md5\(p.prosrc\)='978fc913e56af1893565d56706941f69'/u);
+  assert.match(query, /p.proconfig=ARRAY\['search_path=""'\]/u);
+  assert.match(query, /count\(\*\)=1 AND bool_and\(a.grantee='service_role'/u);
+  assert.match(query, /csf_workbook_reprepare_request_idx/u);
+  assert.match(
+    query,
+    /i.indisunique AND i.indisvalid AND i.indisready AND i.indislive/u,
+  );
+  assert.doesNotMatch(
+    acceptedCatalogQuery(source, versions.slice(0, 448)),
+    /csf_request_class_workbook_reprepare/u,
+  );
+});
+
 test("the reviewed import upgrade verifies metadata, function grants, and the scoped index", () => {
   const query = acceptedCatalogQuery(source, versions);
   assert.match(query, /SELECT count\(\*\) = 10 AND/u);

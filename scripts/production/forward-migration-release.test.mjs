@@ -61,8 +61,8 @@ function transport({
 }
 
 test("approved bytes and exact versions share one transaction", () => {
-  assert.equal(prepared.prefix.length, 446);
-  assert.equal(prepared.versions.length, 448);
+  assert.equal(prepared.prefix.length, 448);
+  assert.equal(prepared.versions.length, 449);
   assert.match(prepared.query, /^BEGIN;/u);
   assert.match(prepared.query, /COMMIT;$/u);
   assert.match(
@@ -76,11 +76,7 @@ test("approved bytes and exact versions share one transaction", () => {
   );
   assert.match(
     prepared.query,
-    /'20260905075711','csf_import_source_key_lookup_index'/u,
-  );
-  assert.match(
-    prepared.query,
-    /'20260905080459','csf_import_review_metadata_snapshot'/u,
+    /'20260905202837','csf_officer_workbook_reprepare'/u,
   );
 });
 
@@ -94,7 +90,7 @@ test("refuses modified approved SQL before any provider request", () => {
 test("performs one write and verifies ledger and permissions", async () => {
   const t = transport();
   const result = await applyForwardMigrations(config, t.fetch);
-  assert.equal(result.migrations, 448);
+  assert.equal(result.migrations, 449);
   assert.equal(result.workers, "disabled");
   assert.equal(result.responseLost, false);
   assert.equal(

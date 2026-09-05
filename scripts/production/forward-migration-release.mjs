@@ -15,12 +15,8 @@ import {
 // This controller approves only these reviewed, backward-compatible migrations.
 export const approvedMigrations = [
   [
-    "20260905075711_csf_import_source_key_lookup_index",
-    "17a65042db689130523595a12fa16effbb8fa862f4491f15ba50389b827a1e72",
-  ],
-  [
-    "20260905080459_csf_import_review_metadata_snapshot",
-    "87b0b5e435b7c5e4b9defc3b8172b33673eaa4f12f12f5d34fa96b82ec89982f",
+    "20260905202837_csf_officer_workbook_reprepare",
+    "98a894d0db0b9ea573943ad42063d1d4d4f3cb75525a7b626908a30de11ef418",
   ],
 ];
 
@@ -31,9 +27,9 @@ const ledgerQuery =
 export function prepareMigration(cwd, read = readFileSync) {
   const versions = expectedVersions(cwd);
   const tail = approvedMigrations.map(([name]) => name.slice(0, 14));
-  if (JSON.stringify(versions.slice(-2)) !== JSON.stringify(tail))
+  if (JSON.stringify(versions.slice(-tail.length)) !== JSON.stringify(tail))
     throw new ReleaseCheckError("The accepted migration tail is not approved.");
-  const prefix = versions.slice(0, -2);
+  const prefix = versions.slice(0, -tail.length);
   const statements = approvedMigrations.map(([name, hash]) => {
     const sql = read(
       resolve(cwd, "supabase/migrations", `${name}.sql`),

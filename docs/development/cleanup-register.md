@@ -1212,12 +1212,23 @@ remain open. Old app versions do not call the new RPC. Rollback disables the
 new UI path without removing its additive function or audit receipts.
 
 Private commit `93de580062e4d7c327b90a1da1807bf449afec50` is published in
-Development PR #249. Full `plugin:verify` passed, including all 261 plugin test
+Development PR #249, now merged at `20bcb47c18a1c27cac46852de113e031009f2425`
+after private CI `33991005657` passed. Full `plugin:verify` passed, including all 261 plugin test
 files. Replayed rebuild receipts now say the request was already recorded,
 rather than implying that a finished job was just queued again. The focused
-service suite passes all eight tests. The private PR, root integration, and
-hosted acceptance remain pending. No Production build or data change occurred
+service suite passes all eight tests. The root index pins the exact private
+merge, whose tree matches the tested head. Strict gitlink validation passes.
+Root publication and hosted acceptance remain pending. No Production build or data change occurred
 during this follow-up.
+
+The follow-up release controller initially refused migration 449 because its
+allowlist still named the preceding two migrations. The local controller now
+allows only the new migration's exact SHA-256 and the complete 448-version
+prefix. Its catalog query checks the new function body, signature, permissions,
+and unique receipt index. All 18 focused controller tests pass. A fresh isolated
+replay passed all 7,069 database assertions and executed the complete release
+catalog query successfully, returning 1. Its temporary resources were cleaned
+up. This is local evidence, not hosted or Production acceptance.
 
 The earlier pre-commit count-only audit confirmed four workbook registries, 32
 discovered tabs, four current prepared versions, and zero workbook errors.
