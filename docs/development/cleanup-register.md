@@ -1192,6 +1192,33 @@ parser-revision or officer re-preview path remains to be verified or added.
 Do not change the Google file merely to manufacture a provider revision, and
 do not modify the old preview rows directly.
 
+The local re-preview path now uses forward migration
+`20260905202837_csf_officer_workbook_reprepare.sql` and the existing refresh
+worker. An explicit officer request binds the class, displayed Drive file,
+actor, and request UUID to one audit receipt. It refuses a changed workbook
+and active processing, preserves snapshots, and clears only the preparation
+marker before queueing the existing generation. Replaying a settled request
+returns its receipt without restarting the worker. The existing revision-check
+path is unchanged. The UI exposes "Rebuild previews" separately from approval.
+
+The new migration is local only. Full isolated replay passed with 449 migrations,
+242 SQL test files, and 7,069 assertions, including request replay, changed intent,
+tenant isolation, revoked authority, active-worker refusal, and explicit grants.
+The pinned CLI ran from its existing package cache; the shared local database
+and machine-wide CLI were unchanged. Disposable replay resources were cleaned
+up. All 261 private-plugin test files, TypeScript, and full lint pass. Hosted
+re-preview, concurrency acceptance, migration rollout, and Production commit
+remain open. Old app versions do not call the new RPC. Rollback disables the
+new UI path without removing its additive function or audit receipts.
+
+Private commit `93de580062e4d7c327b90a1da1807bf449afec50` is published in
+Development PR #249. Full `plugin:verify` passed, including all 261 plugin test
+files. Replayed rebuild receipts now say the request was already recorded,
+rather than implying that a finished job was just queued again. The focused
+service suite passes all eight tests. The private PR, root integration, and
+hosted acceptance remain pending. No Production build or data change occurred
+during this follow-up.
+
 The earlier pre-commit count-only audit confirmed four workbook registries, 32
 discovered tabs, four current prepared versions, and zero workbook errors.
 The new deployment recorded five HTTP 200 workbook-worker responses after

@@ -44,6 +44,11 @@ DVHS CSF officer UX → class-first Home → Classes → Applications → More; 
   verification and 260 private test files pass.
   Root integration, hosted acceptance, and Production release remain pending.
 
+- Officer workbook re-preparation uses an intent-bound request UUID and the
+  existing leased worker. It preserves prior snapshots and never commits rows.
+  Its local forward migration passes isolated replay with 7,069 assertions.
+  Production application and schema promotion remain gated on hosted proof.
+
 - Integration base root `f49227cb`; private Development gitlink `7597fdc`; Production ⊥.
 - UI says `Class`; existing `cohort` schema identifiers stay.
 - Stable profile + graduation class; term application/import alone activates term membership.
