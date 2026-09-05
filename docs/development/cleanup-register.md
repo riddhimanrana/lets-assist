@@ -10,6 +10,19 @@ evidence and does not override the current tables or release gates.
 
 ## Release continuation, 2026-09-05
 
+### Domain assignment projection
+
+Configuration release `33950191490` failed its read-only alias check before
+creating any build or moving the domain. The Vercel domain API maps `lets-assist.com` to READY
+Production deployment `dpl_858adwbvCDtPEUq2gdhopRMTH1GJ`, with alias assignment
+complete, but the deployment response's alias list omits the public
+domain. The verifier now uses the exact unique domain assignment and still
+requires the matching deployment ID, project, Production target, READY state,
+and completed assignment. It no longer treats that list as a second
+authority. Focused tests cover omitted and stale deployment alias lists while
+retaining wrong-domain and unfinished-deployment rejection.
+Twenty-five focused tests, formatting, TypeScript, and zero-warning lint passed.
+
 ### App-only release and alias reconciliation
 
 Review follow-up rechecks the project operation after each alias observation,

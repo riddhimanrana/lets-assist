@@ -60,7 +60,6 @@ while ((SECONDS < verification_deadline)); do
         --header "Authorization: Bearer ${VERCEL_TOKEN}" \
         "https://api.vercel.com/v13/deployments/${PRODUCTION_DEPLOYMENT_ID}?teamId=${VERCEL_TEAM_ID}")" && \
       jq -e \
-        --arg alias "${production_alias}" \
         --arg deployment "${PRODUCTION_DEPLOYMENT_ID}" \
         --arg project "${VERCEL_ROOT_PROJECT_ID}" \
         '.id == $deployment
@@ -68,8 +67,7 @@ while ((SECONDS < verification_deadline)); do
          and .target == "production"
          and ((.aliasAssigned == true)
            or ((.aliasAssigned | type) == "number" and .aliasAssigned > 0))
-         and ((.projectId // .project.id // "") == $project)
-         and ((.alias // []) | index($alias) != null)' \
+         and ((.projectId // .project.id // "") == $project)' \
         <<<"${deployment_payload}" >/dev/null; then
       exit 0
     fi

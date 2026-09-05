@@ -17,6 +17,7 @@ async function verify({
   ready = "READY",
   project = "prj_expected",
   operations = [null],
+  deploymentAliases = [],
 } = {}) {
   const dir = mkdtempSync(join(tmpdir(), "csf-alias-operation-"));
   writeFileSync(
@@ -34,7 +35,7 @@ if (url.includes('/v9/projects/')) {
 } else if (url.includes('/v4/aliases')) {
   console.log(JSON.stringify({aliases:[{alias:'lets-assist.com',projectId:'prj_expected',deploymentId:process.env.FAKE_ALIAS}]}));
 } else if (url.includes('/v13/deployments/')) {
-  console.log(JSON.stringify({id:'dpl_expected',projectId:'prj_expected',target:'production',readyState:process.env.FAKE_READY,aliasAssigned:true,alias:['lets-assist.com']}));
+  console.log(JSON.stringify({id:'dpl_expected',projectId:'prj_expected',target:'production',readyState:process.env.FAKE_READY,aliasAssigned:true,alias:JSON.parse(process.env.FAKE_DEPLOYMENT_ALIASES)}));
 } else process.exit(22);
 `,
     { mode: 0o755 },
@@ -54,6 +55,7 @@ if (url.includes('/v9/projects/')) {
       FAKE_READY: ready,
       FAKE_PROJECT: project,
       FAKE_OPERATIONS: JSON.stringify(operations),
+      FAKE_DEPLOYMENT_ALIASES: JSON.stringify(deploymentAliases),
     };
     try {
       await run("/bin/bash", [verifier], { env, timeout: 15_000 });
@@ -83,6 +85,16 @@ test(
     assert.equal(result.requests.split("/v9/projects/").length - 1, 4);
     assert.equal(result.requests.split("/v4/aliases").length - 1, 2);
     assert.equal(result.requests.split("/v13/deployments/").length - 1, 2);
+  },
+);
+
+test(
+  "domain assignment stays authoritative when deployment aliases omit it",
+  { timeout: 30_000 },
+  async () => {
+    const result = await verify({ deploymentAliases: ["fixture.vercel.app"] });
+    assert.equal(result.success, true);
+    assert.equal(result.requests.split("/v4/aliases").length - 1, 2);
   },
 );
 
