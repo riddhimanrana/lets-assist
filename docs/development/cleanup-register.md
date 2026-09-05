@@ -1108,6 +1108,20 @@ the same readiness query and visible Settings controls after release before
 closing the finding. The recoverable UI error and profile-creation fix remain
 open follow-up work.
 
+Application profile creation is fixed locally by forward migration
+`20260905080459_csf_import_review_metadata_snapshot`. Reconciliation stores
+officer metadata in `resolution_metadata`, leaves source snapshots unchanged,
+and preserves the metadata in meeting attendance and resolution audit records.
+Internal function permissions remain restricted to their authorized wrappers.
+The new behavioral test reproduced the rollback before the fix. Afterward,
+the complete isolated replay passed 448 migrations, 241 test files, and 7,053
+assertions. Coverage includes new unclaimed profile creation, unchanged source
+evidence, no canonical email or term approval, request replay, changed-request
+refusal, member denial, and meeting attendance provenance. The existing source
+trigger returns SQLSTATE P0001; this migration preserves that behavior rather
+than changing its error contract incidentally. Neither new migration has been
+applied to hosted Development or Production yet.
+
 ### Release build and worker activation, 2026-09-05
 
 The app-only run `33933383403` stopped at Vercel's ignored build step. Deployment

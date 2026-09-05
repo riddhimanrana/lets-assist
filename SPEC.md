@@ -152,6 +152,7 @@ V72: self-confirmed account-name claim → one active, unclaimed same-class prof
 V73: CSF worker activation uses database-backed switches scoped to the exact public release SHA, without another app build. The runtime can read but cannot change switches. Operator transitions require an expected revision, immutable request receipt, fixed enable order, and public postcondition checks. Missing, malformed, or unavailable controls disable processing. Independent disables preserve queued receipts. A per-deployment exact-SHA Production build override must not enable automatic Git builds.
 
 V74: workbook readiness retains source-key conflict checks within the hosted database request budget. Committed-lineage equality reads use an organization/class/source-key index. A failed Settings read must show a recoverable error, not an unlinked workbook. Raising the global timeout or dropping identity checks does not satisfy this requirement.
+V75: officer import reconciliation stores match metadata separately from immutable raw and normalized source snapshots. Profile creation, row resolution, audit, and request receipts remain atomic. Meeting attendance retains reviewed match provenance without rewriting source evidence. Creating an unclaimed application profile never verifies a form email or approves term membership.
 
 §T
 
