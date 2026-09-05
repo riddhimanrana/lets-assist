@@ -74,10 +74,7 @@ export function acceptedCatalogQuery(source, versions) {
     source.slice(end);
   const marker = "SELECT 1 / CASE\n";
   const gate = "WHEN (SELECT valid FROM table_posture)";
-  if (
-    adjusted.split(marker).length !== 2 ||
-    adjusted.split(gate).length !== 2
-  )
+  if (adjusted.split(marker).length !== 2 || adjusted.split(gate).length !== 2)
     throw new ReleaseCheckError(
       "The accepted catalog result contract changed.",
     );
