@@ -54,11 +54,11 @@ imports or provider delivery.
 ### Reviewed forward migrations
 
 `Apply accepted forward migrations` is the separate schema-only path for the
-reviewed migration `20260905202837`. It accepts explicit
+reviewed migrations `20260905202837` and `20260905205847`. It accepts explicit
 release and hosted-acceptance SHAs, verifies their identical trees and successful
 checks, and uses the Production environment's existing management credential.
-The controller checks its SQL hash and all 448 preceding ledger versions.
-It applies the migration and its exact ledger entry in one transaction,
+The controller checks both SQL hashes and all 448 preceding ledger versions.
+It applies both migrations and their exact ledger entries in one transaction,
 with a five-second lock timeout. A lost response triggers read-only ledger and
 catalog reconciliation, never another write attempt.
 

@@ -96,10 +96,15 @@ export function acceptedCatalogQuery(source, versions) {
       "34dbbd884882349f8083512cd2fe48b371c3f1242bc62897685267f2a5d0001b"
   )
     return source;
-  const reprepareUpgrade =
-    versions.length === 449 &&
+  const compoundSearchUpgrade =
+    versions.length === 450 &&
     ledgerHash ===
-      "e057e1ab6ba2fb32fa73005d9f6c5ff5ee18e86ecbd72c2e19b93f7c8f5e130d";
+      "3837bdabfb7e3d5c7258f00a484516b252c1f6b56880cb2201ec186f9320ee80";
+  const reprepareUpgrade =
+    compoundSearchUpgrade ||
+    (versions.length === 449 &&
+      ledgerHash ===
+        "e057e1ab6ba2fb32fa73005d9f6c5ff5ee18e86ecbd72c2e19b93f7c8f5e130d");
   const importReviewUpgrade =
     reprepareUpgrade ||
     (versions.length === 448 &&
@@ -183,7 +188,7 @@ accepted_upgrade_posture AS (
       AND pg_get_expr(d.adbin,d.adrelid) = '''unknown''::text'
       AND k.convalidated AND k.contype='c'
       AND pg_get_constraintdef(k.oid) = $$CHECK ((connection_basis = ANY (ARRAY['unknown'::text, 'verified_email'::text, 'self_confirmed_account_name'::text, 'officer_decision'::text])))$$
-  ) ${importReviewUpgrade ? importReviewPosture : ""} ${reprepareUpgrade ? repreparePosture : ""} AND (SELECT count(*)=2 AND bool_and(runtime_denied AND digest = CASE relname
+  ) ${importReviewUpgrade ? importReviewPosture : ""} ${reprepareUpgrade ? repreparePosture : ""} ${compoundSearchUpgrade ? compoundSearchPosture : ""} AND (SELECT count(*)=2 AND bool_and(runtime_denied AND digest = CASE relname
     WHEN 'csf_release_worker_controls' THEN 'b186cfbfbb17fee4e0966cde6d3bec9e'
     WHEN 'csf_release_worker_receipts' THEN '94e9bc198f37156522b9aed76bf696a4'
     ELSE '' END) FROM accepted_worker_relations) AS valid
@@ -198,6 +203,47 @@ accepted_upgrade_posture AS (
       "WHEN (SELECT valid FROM accepted_upgrade_posture) AND (SELECT valid FROM table_posture)",
     );
 }
+
+const compoundSearchPosture = `AND EXISTS (
+  SELECT 1 FROM pg_proc p JOIN pg_language l ON l.oid=p.prolang
+  WHERE p.oid=to_regprocedure('plugin_data.csf_search_profiles(uuid,uuid,text,uuid)')
+    AND p.proowner='postgres'::regrole AND p.prosecdef
+    AND p.prorettype='record'::regtype AND l.lanname='plpgsql'
+    AND p.prokind='f' AND p.provolatile='s' AND p.proparallel='u'
+    AND NOT p.proisstrict AND NOT p.proleakproof AND p.proretset
+    AND p.proconfig=ARRAY['search_path=""']
+    AND p.pronargdefaults=1 AND pg_get_expr(p.proargdefaults,0)='NULL::uuid'
+    AND p.proargnames=ARRAY['p_organization_id','p_actor_user_id','p_query','p_selected_profile_id',
+      'id','first_name','preferred_name','last_name','school_email','personal_email']
+    AND p.proargmodes::text[]=ARRAY['i','i','i','i','t','t','t','t','t','t']
+    AND p.proallargtypes=ARRAY['uuid'::regtype,'uuid'::regtype,'text'::regtype,'uuid'::regtype,
+      'uuid'::regtype,'text'::regtype,'text'::regtype,'text'::regtype,'text'::regtype,'text'::regtype]::oid[]
+    AND md5(p.prosrc)='b4ab6f2930a415f7d249e5c133e4d051'
+    AND has_function_privilege('service_role',p.oid,'EXECUTE')
+    AND NOT has_function_privilege('anon',p.oid,'EXECUTE')
+    AND NOT has_function_privilege('authenticated',p.oid,'EXECUTE')
+    AND (SELECT count(*)=2 AND bool_and(a.grantee IN ('service_role'::regrole,'postgres'::regrole)
+      AND a.privilege_type='EXECUTE' AND NOT a.is_grantable
+      AND a.grantor='postgres'::regrole) FROM aclexplode(p.proacl) a)
+) AND (
+  SELECT count(*)=2 AND bool_and(i.indisvalid AND i.indisready AND i.indislive
+    AND NOT i.indisunique AND i.indnkeyatts=2 AND i.indnatts=2
+    AND am.amname='btree' AND op.opcname='text_pattern_ops'
+    AND i.indkey[0]=a.attnum AND i.indkey[1]=0
+    AND pg_get_expr(i.indpred,i.indrelid)=$$(record_status = 'active'::text)$$
+    AND pg_get_expr(i.indexprs,i.indrelid)=expected.expression)
+  FROM (VALUES
+    ('plugin_data.csf_profiles_compact_full_name_prefix_idx',
+      $$regexp_replace((normalized_first_name || normalized_last_name), '[^a-z0-9@._+-]+'::text, ''::text, 'g'::text)$$),
+    ('plugin_data.csf_profiles_compact_reverse_name_prefix_idx',
+      $$regexp_replace((normalized_last_name || normalized_first_name), '[^a-z0-9@._+-]+'::text, ''::text, 'g'::text)$$)
+  ) expected(name,expression)
+  JOIN pg_index i ON i.indexrelid=to_regclass(expected.name)
+    AND i.indrelid=to_regclass('plugin_data.csf_profiles')
+  JOIN pg_class c ON c.oid=i.indexrelid JOIN pg_am am ON am.oid=c.relam
+  JOIN pg_opclass op ON op.oid=i.indclass[1]
+  JOIN pg_attribute a ON a.attrelid=i.indrelid AND a.attname='organization_id' AND NOT a.attisdropped
+)`;
 
 const repreparePosture = `AND EXISTS (
   SELECT 1 FROM pg_proc p JOIN pg_language l ON l.oid=p.prolang

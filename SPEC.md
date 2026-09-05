@@ -49,6 +49,11 @@ DVHS CSF officer UX → class-first Home → Classes → Applications → More; 
   Its local forward migration passes isolated replay with 7,069 assertions.
   Production application and schema promotion remain gated on hosted proof.
 
+- Compound-name profile search normalizes both stored full-name orders like
+  the query and keeps organization, active-record, permission, and 20-result
+  limits. The local 450-migration replay passes 7,081 assertions and the exact
+  release catalog check. Publication and hosted acceptance remain pending.
+
 - Integration base root `f49227cb`; private Development gitlink `7597fdc`; Production ⊥.
 - UI says `Class`; existing `cohort` schema identifiers stay.
 - Stable profile + graduation class; term application/import alone activates term membership.

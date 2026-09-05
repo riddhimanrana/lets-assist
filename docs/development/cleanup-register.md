@@ -1042,6 +1042,47 @@ sources.
 
 ### Current Production acceptance, 2026-09-05
 
+Latest follow-up: root PR #479 is open at `8d99c29b`. Its quality job failed
+because the officer runbook still named the old migration ledger and gitlink.
+The local runbook and assertion now distinguish the 450-migration candidate
+from Production's verified 448 migrations through `20260905080459`. All 13
+documentation contract tests pass. No app deployment ran; Vercel skipped the
+feature-branch build.
+
+The officer browser resolved one Spring 2024 Class of 2027 row by creating an
+unclaimed source profile after full-name, surname, chapter-name, and source-key
+checks found no existing target. The row is now pending with a profile match,
+resolution metadata, and two row audit events. No application approval, account
+link, or participation commit occurred. The Fall 2024 row remains unresolved:
+its same-normalized-name records include an active profile and a merged record
+whose destination differs. No match was forced.
+
+That review exposed a separate search defect. Queries strip spaces while the
+stored compound surname retains them, so full-name search can hide an existing
+profile. Local forward migration `20260905205847_csf_compound_name_profile_search`
+normalizes both full-name orders consistently and adds scoped active-profile
+prefix indexes. The first fixture incorrectly used an unsupported archived
+profile state; the corrected fixture tests exclusion of merged profiles.
+Isolated replay passes 450 migrations and 7,081 assertions. The new migration
+is not published or applied to Production. The local release allowlist now
+includes both exact migration hashes over the verified 448-version prefix.
+The catalog checks the search function body, argument and result fields,
+permissions, and both scoped prefix indexes. All 19 focused controller tests
+pass. A fresh isolated replay passed 7,081 assertions and returned 1 from the
+complete release catalog query. Its temporary resources were cleaned up.
+The full local runner passed all 300 root and 290 plugin test files.
+TypeScript, zero-warning lint, formatting, and strict gitlink validation pass.
+The changes still need root CI and hosted acceptance.
+
+The officer approved the now-ready Spring 2024 preview once through the app.
+Preview `da61acdf-7d02-4991-9d9b-75f41f47bc1e` completed with 200 committed
+rows: 38 created and 162 updated, with zero error rows and no queue error.
+Class of 2027 now has 347 active directory profiles and zero duplicate
+normalized-name groups. The other class directories remain 280 for 2028,
+108 for 2029, and zero for the empty 2030 templates. These counts are not
+current-semester membership approvals. Remaining identity decisions and the
+Class of 2028 parser-dependent re-preview remain open.
+
 This entry supersedes older release-state statements below. The release is
 published, but official data and provider acceptance remain incomplete.
 
