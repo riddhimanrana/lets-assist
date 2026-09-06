@@ -4,6 +4,23 @@ DVHS CSF officer UX → class-first Home → Classes → Applications → More; 
 
 §C
 
+- Workbook preparation must retain the immediate source-scoped preview as retry
+  lineage after a confirmed failure. Unknown and in-flight attempts block
+  preparation. A rebuilt preview still requires an officer commit; preparation
+  must not overwrite an earlier receipt or repeat a row write.
+- Class Settings must use authoritative database identity blockers for both
+  readiness counts and review rows. A valid workbook key does not clear a
+  conflicting prior profile match. Pending identity blockers must expose the
+  existing audited match/create/skip controls without changing source evidence.
+- Preview generation must not send activity text, Sheet notes, or comments to
+  a model, and must not automatically decide annotation-based requirements.
+  Explicit officer notes reviews use a closed outcome vocabulary, a required
+  reason, fresh class-import authority, and an atomic request receipt. A retry
+  reuses that receipt; a changed decision cannot reuse its request identifier.
+  Reviewing notes neither commits the preview nor clears unrelated import errors.
+  Retired interpretation actions fail closed for old clients. Officer review
+  must preserve source evidence and record an explicit decision and reason.
+
 - Missing Vercel alias-operation metadata is not a promotion failure by itself.
   Require two exact READY Production-alias observations before treating it as
   settled. Never rebuild to recover an operation-status verification failure.

@@ -96,10 +96,25 @@ export function acceptedCatalogQuery(source, versions) {
       "34dbbd884882349f8083512cd2fe48b371c3f1242bc62897685267f2a5d0001b"
   )
     return source;
-  const reprepareAuthorityUpgrade =
-    versions.length === 451 &&
+  const pendingIdentityUpgrade =
+    versions.length === 454 &&
     ledgerHash ===
-      "a3b709dea637acd1fdd4a8820f8b2830be3fb8c53e8d8ab9d9975a8164f41148";
+      "548a33c9dde018e92c04bd7209848cddd108bbbf631bc527faf88959eb8dc8a3";
+  const officerAnnotationUpgrade =
+    pendingIdentityUpgrade ||
+    (versions.length === 453 &&
+      ledgerHash ===
+        "315087bff5b40d4dba1c6577adc071f886ad25365c3366f4a49e163afd210e48");
+  const identityReviewUpgrade =
+    officerAnnotationUpgrade ||
+    (versions.length === 452 &&
+      ledgerHash ===
+        "b0d3cef5d332d20877ddcbcee20971a8b3c32b4116ca6269c11bf2325471f3f6");
+  const reprepareAuthorityUpgrade =
+    identityReviewUpgrade ||
+    (versions.length === 451 &&
+      ledgerHash ===
+        "a3b709dea637acd1fdd4a8820f8b2830be3fb8c53e8d8ab9d9975a8164f41148");
   const compoundSearchUpgrade =
     reprepareAuthorityUpgrade ||
     (versions.length === 450 &&
@@ -146,9 +161,16 @@ export function acceptedCatalogQuery(source, versions) {
     throw new ReleaseCheckError(
       "The accepted catalog result contract changed.",
     );
-  const definitions = importReviewUpgrade
+  const baseDefinitions = importReviewUpgrade
     ? [...acceptedDefinitions, ...importReviewDefinitions]
     : acceptedDefinitions;
+  const definitions = pendingIdentityUpgrade
+    ? baseDefinitions.filter(
+        ([signature]) =>
+          signature !==
+          "plugin_data.csf_reconcile_sheet_import_row_identity_base(uuid,uuid,uuid,text,text,uuid,uuid,jsonb)",
+      )
+    : baseDefinitions;
   const values = definitions
     .map(
       ([signature, digest, service]) =>
@@ -196,7 +218,10 @@ accepted_upgrade_posture AS (
   ) ${importReviewUpgrade ? importReviewPosture : ""} ${reprepareUpgrade ? repreparePosture.replace("978fc913e56af1893565d56706941f69", reprepareAuthorityUpgrade ? "a2ae5e479822c1cb54dd405810b6a909" : "978fc913e56af1893565d56706941f69") : ""} ${compoundSearchUpgrade ? compoundSearchPosture : ""} AND (SELECT count(*)=2 AND bool_and(runtime_denied AND digest = CASE relname
     WHEN 'csf_release_worker_controls' THEN 'b186cfbfbb17fee4e0966cde6d3bec9e'
     WHEN 'csf_release_worker_receipts' THEN '94e9bc198f37156522b9aed76bf696a4'
-    ELSE '' END) FROM accepted_worker_relations) AS valid
+    ELSE '' END) FROM accepted_worker_relations)
+  ${identityReviewUpgrade ? identityReviewPosture : ""}
+  ${officerAnnotationUpgrade ? officerAnnotationPosture : ""}
+  ${pendingIdentityUpgrade ? pendingIdentityPosture : ""} AS valid
   FROM accepted_upgrade_definitions expected
   LEFT JOIN pg_proc p ON p.oid=to_regprocedure(expected.signature)
 )
@@ -208,6 +233,80 @@ accepted_upgrade_posture AS (
       "WHEN (SELECT valid FROM accepted_upgrade_posture) AND (SELECT valid FROM table_posture)",
     );
 }
+
+const pendingIdentityPosture = `AND EXISTS (
+  SELECT 1 FROM pg_proc p JOIN pg_language l ON l.oid=p.prolang
+  WHERE p.oid=to_regprocedure('plugin_data.csf_reconcile_sheet_import_row_identity_base(uuid,uuid,uuid,text,text,uuid,uuid,jsonb)')
+    AND p.proowner='postgres'::regrole AND p.prosecdef
+    AND p.prorettype='jsonb'::regtype AND l.lanname='plpgsql'
+    AND p.prokind='f' AND p.provolatile='v' AND p.proparallel='u'
+    AND NOT p.proisstrict AND NOT p.proleakproof AND NOT p.proretset
+    AND p.proconfig=ARRAY['search_path=""'] AND p.pronargdefaults=0
+    AND md5(p.prosrc)='108e1aa1093f02d5d307053cf6f1fd08'
+    AND NOT has_function_privilege('service_role',p.oid,'EXECUTE')
+    AND NOT has_function_privilege('anon',p.oid,'EXECUTE')
+    AND NOT has_function_privilege('authenticated',p.oid,'EXECUTE')
+    AND (SELECT count(*)=1 AND bool_and(a.grantee='postgres'::regrole
+      AND a.privilege_type='EXECUTE' AND NOT a.is_grantable AND a.grantor='postgres'::regrole)
+      FROM aclexplode(p.proacl) a)
+)`;
+
+const officerAnnotationPosture = `AND EXISTS (
+  SELECT 1 FROM pg_proc p JOIN pg_language l ON l.oid=p.prolang
+  WHERE p.oid=to_regprocedure('plugin_data.csf_review_import_annotation(uuid,uuid,uuid,uuid,text,text)')
+    AND p.proowner='postgres'::regrole AND p.prosecdef
+    AND p.prorettype='jsonb'::regtype AND l.lanname='plpgsql'
+    AND p.prokind='f' AND p.provolatile='v' AND p.proparallel='u'
+    AND NOT p.proisstrict AND NOT p.proleakproof AND NOT p.proretset
+    AND p.proconfig=ARRAY['search_path=""'] AND p.pronargdefaults=0
+    AND md5(p.prosrc)='ddc531d82a237eae28a29bff3dacffd8'
+    AND has_function_privilege('service_role',p.oid,'EXECUTE')
+    AND NOT has_function_privilege('anon',p.oid,'EXECUTE')
+    AND NOT has_function_privilege('authenticated',p.oid,'EXECUTE')
+    AND (SELECT count(*)=2 AND bool_and(a.grantee IN ('postgres'::regrole,'service_role'::regrole)
+      AND a.privilege_type='EXECUTE' AND NOT a.is_grantable AND a.grantor='postgres'::regrole)
+      FROM aclexplode(p.proacl) a)
+) AND EXISTS (
+  SELECT 1 FROM pg_proc p
+  WHERE p.oid=to_regprocedure('plugin_data.csf_apply_import_annotation_interpretation(uuid,uuid,text,text,uuid)')
+    AND p.proowner='postgres'::regrole AND md5(p.prosrc)='87eceba9e9a24a0e0dc956bdaa3d7139'
+    AND NOT has_function_privilege('service_role',p.oid,'EXECUTE')
+    AND NOT has_function_privilege('anon',p.oid,'EXECUTE')
+    AND NOT has_function_privilege('authenticated',p.oid,'EXECUTE')
+    AND (SELECT count(*)=1 AND bool_and(a.grantee='postgres'::regrole
+      AND a.privilege_type='EXECUTE' AND NOT a.is_grantable AND a.grantor='postgres'::regrole)
+      FROM aclexplode(p.proacl) a)
+) AND EXISTS (
+  SELECT 1 FROM pg_index i
+  WHERE i.indexrelid=to_regclass('plugin_data.csf_officer_annotation_review_request_idx')
+    AND i.indrelid=to_regclass('plugin_data.csf_admin_audit_events')
+    AND i.indisunique AND i.indisvalid AND i.indisready AND i.indislive
+    AND pg_get_indexdef(i.indexrelid)=$$CREATE UNIQUE INDEX csf_officer_annotation_review_request_idx ON plugin_data.csf_admin_audit_events USING btree (organization_id, correlation_id) WHERE (action = 'sheets.annotation_reviewed'::text)$$
+)`;
+
+const identityReviewPosture = `AND EXISTS (
+  SELECT 1 FROM pg_proc p JOIN pg_language l ON l.oid=p.prolang
+  WHERE p.oid=to_regprocedure('plugin_data.csf_class_import_review_rows(uuid,uuid,integer)')
+    AND p.proowner='postgres'::regrole AND NOT p.prosecdef
+    AND p.prorettype='record'::regtype AND l.lanname='sql'
+    AND p.prokind='f' AND p.provolatile='s' AND p.proparallel='u'
+    AND NOT p.proisstrict AND NOT p.proleakproof AND p.proretset
+    AND p.proconfig=ARRAY['search_path=""']
+    AND p.pronargdefaults=1 AND pg_get_expr(p.proargdefaults,0)='25'
+    AND p.proargnames=ARRAY['p_organization_id','p_job_id','p_limit',
+      'id','sheet_tab_name','row_number','import_status','normalized_data','warnings','errors','review_reason']
+    AND p.proargmodes::text[]=ARRAY['i','i','i','t','t','t','t','t','t','t','t']
+    AND p.proallargtypes=ARRAY['uuid'::regtype,'uuid'::regtype,'integer'::regtype,
+      'uuid'::regtype,'text'::regtype,'integer'::regtype,'text'::regtype,
+      'jsonb'::regtype,'text[]'::regtype,'text[]'::regtype,'text'::regtype]::oid[]
+    AND md5(p.prosrc)='97c62342820cbe42f25b6361725eb630'
+    AND has_function_privilege('service_role',p.oid,'EXECUTE')
+    AND NOT has_function_privilege('anon',p.oid,'EXECUTE')
+    AND NOT has_function_privilege('authenticated',p.oid,'EXECUTE')
+    AND (SELECT count(*)=2 AND bool_and(a.grantee IN ('postgres'::regrole,'service_role'::regrole)
+      AND a.privilege_type='EXECUTE' AND NOT a.is_grantable
+      AND a.grantor='postgres'::regrole) FROM aclexplode(p.proacl) a)
+)`;
 
 const compoundSearchPosture = `AND EXISTS (
   SELECT 1 FROM pg_proc p JOIN pg_language l ON l.oid=p.prolang
