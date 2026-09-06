@@ -203,6 +203,12 @@ V76: class import identity review and annotation review are independent decision
 
 V77: new annotation decisions require a locked preview in completed or needs_resolution state and an unfrozen, not_started row. A stopped worker does not release the officer-approved freeze. Pending, running, failed, and cancelled previews cannot receive new review decisions or audit receipts. An exact existing request receipt remains readable after current authorization is checked.
 
+V78: inline point decisions send the same required request receipt as the standalone review dialog. Identical retries retain the request ID. A changed decision uses a different ID. Concurrent clicks cannot submit the same control twice. An unconfirmed transport outcome blocks further decisions and queue navigation until the officer reloads the saved state.
+
+V79: open point verification freezes student claim contents, not authorized officer decisions. A decision-only update revalidates the reviewer and preserves the claim's organization, profile, term, source, activity, amount, and evidence. Reclassifying a frozen student claim as staff data cannot bypass the freeze.
+
+V80: the runtime server role cannot update point submissions through table or column grants. It must use the existing audited request actions. Canonical approvals and retries remain available. Release verification rejects restored direct-update grants.
+
 §T
 
 id|status|task|cites

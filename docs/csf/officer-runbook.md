@@ -2,7 +2,9 @@
 
 **Audience:** organization administrators, adviser, chapter officers, and Data Management
 **Current status:** the last verified public app is `00ba3b1e54e09127d715bec2cd0bb139747e6a53`. All four class workbooks are linked. Preparation does not mean their rows have committed. Workbook refresh is paused pending the officer notes review fix. Use the [cleanup register](../development/cleanup-register.md) for release and data evidence.
-**Release ledger:** the current repository candidate carries 457 ordered migrations through `20260906053114_csf_annotation_review_state_guards`; the private Development gitlink is `0ca0d7a`. The last verified Production ledger has 451 migrations through `20260905212822_csf_workbook_reprepare_authority_lock`. Annotation review now rejects frozen rows and previews whose preparation has not completed. The combined identity and annotation review fix passes local database tests. Hosted acceptance and Production release remain open. The explicit officer notes review and pending-row reconciliation also await root database and browser acceptance.
+**Release ledger:** the current repository candidate carries 459 ordered migrations through `20260906073357_csf_require_canonical_point_updates`; the private Development gitlink is `e03130c`, merged through private PR #257. The last verified Production ledger has 451 migrations through `20260905212822_csf_workbook_reprepare_authority_lock`. The annotation guards passed hosted Development acceptance at `40733af1`. The point-review follow-up passed local browser approval before the permission change. The current database replay passes 7,145 assertions, including canonical server-role approval and retry. Hosted acceptance and Production release remain open.
+Annotation review now rejects frozen rows and previews whose preparation has not completed.
+
 **Authoritative record after review:** Let's Assist
 
 This runbook describes the v1.6 officer workflow. Do not use it for a Production cutover until the current gates in section 12 and [testing and release](testing-and-release.md) pass for the exact integrated tree.

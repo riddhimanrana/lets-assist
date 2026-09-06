@@ -96,10 +96,20 @@ export function acceptedCatalogQuery(source, versions) {
       "34dbbd884882349f8083512cd2fe48b371c3f1242bc62897685267f2a5d0001b"
   )
     return source;
-  const annotationReviewStateUpgrade =
-    versions.length === 457 &&
+  const canonicalPointUpdateUpgrade =
+    versions.length === 459 &&
     ledgerHash ===
-      "d0bb60abb4c4a7c0984c7f0f777b9515d055acc51cab29aaee36f31737d58fd0";
+      "c7c3c098a7902aefd912130352867529e7f04870ad50a32d90d8d2bd9c0473a3";
+  const pointVerificationUpgrade =
+    canonicalPointUpdateUpgrade ||
+    (versions.length === 458 &&
+      ledgerHash ===
+        "8d617c8fbc841fbd4910e269261846110105ed1a6a7c0905b3749487b17987a5");
+  const annotationReviewStateUpgrade =
+    pointVerificationUpgrade ||
+    (versions.length === 457 &&
+      ledgerHash ===
+        "d0bb60abb4c4a7c0984c7f0f777b9515d055acc51cab29aaee36f31737d58fd0");
   const annotationErrorIdentityUpgrade =
     annotationReviewStateUpgrade ||
     (versions.length === 456 &&
@@ -186,6 +196,12 @@ export function acceptedCatalogQuery(source, versions) {
           "plugin_data.csf_reconcile_sheet_import_row_identity_base(uuid,uuid,uuid,text,text,uuid,uuid,jsonb)",
       )
     : baseDefinitions;
+  if (pointVerificationUpgrade)
+    definitions.push([
+      "plugin_data.csf_enforce_point_submission_freeze()",
+      "932eae452025dfd57e24d644b441aea4",
+      false,
+    ]);
   const values = definitions
     .map(
       ([signature, digest, service]) =>
@@ -265,6 +281,15 @@ accepted_upgrade_posture AS (
           )
         : pendingIdentityPosture
       : ""
+  } ${pointVerificationUpgrade ? pointVerificationTriggerPosture : ""}
+  ${
+    canonicalPointUpdateUpgrade
+      ? `AND NOT EXISTS (
+    SELECT 1 FROM (VALUES ('anon'), ('authenticated'), ('service_role')) roles(name)
+    WHERE has_table_privilege(roles.name, 'plugin_data.csf_point_submissions', 'UPDATE')
+      OR has_any_column_privilege(roles.name, 'plugin_data.csf_point_submissions', 'UPDATE')
+  )`
+      : ""
   } AS valid
   FROM accepted_upgrade_definitions expected
   LEFT JOIN pg_proc p ON p.oid=to_regprocedure(expected.signature)
@@ -277,6 +302,23 @@ accepted_upgrade_posture AS (
       "WHEN (SELECT valid FROM accepted_upgrade_posture) AND (SELECT valid FROM table_posture)",
     );
 }
+
+const pointVerificationTriggerPosture = `AND EXISTS (
+  SELECT 1 FROM pg_trigger t
+  WHERE t.tgname = 'csf_point_submissions_verification_freeze'
+    AND t.tgrelid = to_regclass('plugin_data.csf_point_submissions')
+    AND t.tgfoid = to_regprocedure('plugin_data.csf_enforce_point_submission_freeze()')
+    AND t.tgenabled = 'O'
+    AND t.tgtype = 31
+    AND NOT t.tgisinternal
+    AND t.tgconstraint = 0
+    AND t.tgqual IS NULL
+    AND t.tgnargs = 0
+    AND octet_length(t.tgargs) = 0
+    AND t.tgattr::text = ''
+    AND NOT t.tgdeferrable
+    AND NOT t.tginitdeferred
+)`;
 
 const pendingIdentityPosture = `AND EXISTS (
   SELECT 1 FROM pg_proc p JOIN pg_language l ON l.oid=p.prolang

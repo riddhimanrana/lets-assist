@@ -10,6 +10,144 @@ evidence and does not override the current tables or release gates.
 
 ## Release continuation, 2026-09-05
 
+### Inline point approval, 2026-09-06
+
+PR #485 merged at `40733af1` after CI `34014450823` passed. The exact
+Development deployment is `dpl_HPfUEFWPfMiTntgWZ56btc35vsG6`. Hosted acceptance
+`34015143496` passed. The preceding accepted tree `e6922a7f` passed
+`34013573108` with 100 distinct sessions, 9,523 requests, zero errors, read
+p95 1.69 seconds, mutation p95 1.83 seconds, and 25 crash-free review
+navigations. Those results do not cover the following new fix.
+
+A fictional officer recording proved application approval survives reload.
+The point review path then failed with `Invalid input`: its inline buttons
+omitted the required `requestId`. The standalone review dialog already
+included that field. A local patch now creates stable per-decision IDs,
+prevents concurrent duplicate clicks, preserves server receipt outcomes, and
+locks the queue on an unconfirmed response. Five focused tests pass.
+
+The current-semester browser test then found a separate database defect:
+`csf_enforce_point_submission_freeze` blocked officer decisions when point
+verification was open. Forward migration `20260906062954` permits only
+decision-field changes by a revalidated officer and retains the student claim
+freeze. It also blocks changing a frozen student row's source to evade the
+freeze. The review-period suite passes all 46 assertions.
+
+The fictional 1440-by-900 browser run passes application approval and point
+approval, including reload persistence and point status/reviewer/timestamp
+readback. These local results cover the uncommitted UI and migration fixes,
+not hosted acceptance or Production. The owned stack was removed after the
+run. The full isolated replay passes 458 migrations, 244 test files, 7,143
+assertions, and the exact accepted release catalog. Private PR #257 passed CI
+`34016828013` and merged to private Development at `e03130c`. Root integration
+and exact-tree hosted acceptance remain open. All 266 private-plugin test
+files, TypeScript, and zero-warning lint pass.
+No official rows changed and no new Vercel build was requested.
+
+Root PR #486 contains the point-review fixes. CI `34017021587` passed lint,
+TypeScript, database workflows, and scale checks, but its root test gate found
+one stale catalog assertion: the new trigger raises the definition count from
+nine to ten. The follow-up fixes that assertion and tests the trigger's exact
+definition and internal execution permissions. The previous 457-migration
+catalog must still contain only nine definitions. All 41 focused release
+tests, all 301 root test files, and the strict private gitlink check pass.
+Browser CI remains in progress.
+
+The Production audit found all four class workbooks linked with eight tabs
+each. Drive metadata confirms access to all four files and chapter ownership.
+Those checks do not establish completed imports. Class of 2030 remains linked
+with eight unsynced template tabs. Vercel Billing shows Speed Insights Plus
+disabled. Production remains at 451 migrations with all three recorded worker
+controls disabled. No provider settings or official records changed in this
+check.
+
+### Installed point-freeze trigger verification, 2026-09-06
+
+CI `34017876391` passed for `91312881`, including the production build and
+database/browser job. Final review then found that the release catalog checked
+the repaired function but not its installed trigger. The follow-up verifies
+the trigger's relation, name, function, enabled state, row/event type, and
+absence of arguments, column restrictions, or a conditional predicate.
+
+The new unit regression failed before the fix. All 42 focused release tests,
+all 301 root test files, zero-warning lint, and the strict private gitlink check
+now pass. An owned isolated replay passed 458 migrations and 7,143 assertions.
+The actual release query rejected eight trigger changes: removal, disabling,
+replica-only execution, rename, reduced events, statement-level execution, a
+false predicate, and a different function. Each change rolled back, and the
+unchanged catalog passed again. The owned replay stack was removed. No
+Production trigger or migration changed. Root PR #486 remains open for this
+release-verifier follow-up; its application and private-plugin bytes did not
+change.
+
+Branch cleanup removed 15 local and 15 remote merged branch names after
+ancestry checks against each repository's Development branch. All commits
+remain recoverable from that history. Active worktrees and their untracked
+files were preserved. Stale remote-tracking refs were pruned.
+
+The count-only Production audit found 4,427 imported activity events and
+matching credit records with no missing links or inconsistent identity/term
+scope. All points are positive, and no verified participation group repeats.
+All 1,392 attendance records have labels and both legacy and canonical meeting
+links in the correct semester. These checks do not establish source-by-source
+equality, completed pending imports, or member-browser acceptance.
+
+### Point update permissions and token rotation, 2026-09-06
+
+CI `34019865179` passed quality on `24fb77aa`. Its database job first stopped
+before startup because a runner port was occupied. Retrying only that job on
+the unchanged commit passed startup and database tests, then reproduced a
+fixture seeder defect: point fixture `upsert` required the removed runtime
+UPDATE permission. The seeder already awaits an organization-scoped delete of
+those fictional rows. It now uses INSERT rather than restoring the grant.
+The new regression failed before the change and all 31 seed tests pass after
+it. A fresh isolated seed and reseed each produce the same four point rows
+under the restricted server role. All 44 seed and documentation tests and
+focused zero-warning lint pass. The owned stack was removed after Docker
+confirmed no remaining containers, volume, or network for its project. This
+seeder-only follow-up still needs CI; no application or migration bytes changed.
+
+The Production communication audit found no CSF dispatch attempts, delivery
+rows, or recorded CSF provider events. The generic signed webhook replay is
+not evidence of a CSF queue-to-provider dispatch. The controlled email test
+remains open.
+
+Count-only application inspection found complete class/term targets for all
+517 Spring 2026 and 71 Fall 2026 preview rows. Spring has 430 unique exact
+class-name candidates, 86 without an exact candidate, and one duplicate
+candidate. Of the 86, 85 belong to Class of 2026, outside the four linked
+workbooks. Fall has 38 unique candidates and 33 without an exact candidate,
+including all 14 Class of 2030 applicants. These are review categories, not
+identity proof or committed records. No official row changed.
+
+Review of PR #486 found that direct `service_role` updates could supply an
+officer ID and bypass the canonical approval receipt. The application uses
+RPCs for these updates. Forward migration `20260906073357` removes direct
+runtime UPDATE permission while retaining reads and existing audited actions.
+The release catalog checks table and column permissions. Regression tests
+exercise a refused direct update and approval/retry under the server role.
+The isolated replay passes all 459 migrations and 7,145 assertions across 244
+files. The real catalog refuses ten trigger or permission changes and passes
+again after each transaction rollback. Canonical approval and exact retry
+pass under `service_role`; the direct update is refused. Zero-warning lint,
+37 focused release tests, TypeScript, and the strict private gitlink check pass.
+The root sweep found only a stale runbook ledger count. After correcting it,
+all 13 documentation assertions and the full 301-file root sweep pass.
+CI `34018967853` passed for the preceding trigger check, including its browser
+job, without a restart. The permission follow-up still needs CI and hosted
+acceptance. Production remains at 451 migrations, with direct
+point UPDATE permission still present and all worker controls disabled. No
+Production schema or official records changed.
+
+EXT-007 is resolved. Vercel now holds separate Development and Production
+replacement bypass tokens. GitHub environment secrets and both enabled Resend
+webhook URLs use those replacements. Readback preserved the webhook IDs,
+subscriptions, status, and signing configuration. Replayed signed delivery
+events returned HTTP 200 at `2026-09-06T07:32:59.904Z` in Development and
+`2026-09-06T07:33:00.576Z` in Production. The old token was revoked after those
+checks. No email was sent and no deployment was created. These replays do not
+replace the controlled ten-message queue-to-provider acceptance test.
+
 ### Frozen annotation review guards, 2026-09-06
 
 Root PR #484 merged to Development at `e6922a7f`, with the same application
@@ -2613,8 +2751,21 @@ hosted Development verification.
 | AUD-115 | P1 | Annotation and identity review could each prevent the other from completing because they shared a terminal resolution field. | CSF import review | Forward migration `20260906041507` passes both review orders locally, preserves each decision and immutable source data, and leaves unmatched identities blocked. Hosted integration and Production acceptance remain open. |
 | AUD-116 | P1 | `db:validate` invoked a shared-local reset without an isolated ownership check. An interrupted run left the shared database container and volume absent. | Local tooling | File validation is now non-mutating, with three hermetic regression tests. The owned isolated CSF database is unaffected. Previous shared-local contents and recoverability remain unverified; recovery is open. |
 | AUD-117 | P1 | Annotation review could change frozen import decisions after a stopped worker, and could settle rows before preview preparation completed. | CSF import review | Forward migration `20260906053114` rejects frozen rows and non-reviewable preview states. Nine regression failures now pass within 47 focused assertions. Fresh replay passes 7,139 assertions across 244 files, the exact schema catalog, and error-level advisors. Hosted acceptance and Production rollout remain open. |
+| AUD-118 | P1 | Inline point approval and rejection omit the required request ID and fail with `Invalid input`. | CSF officer review | Private PR #257 adds stable receipts and unknown-outcome handling. Five focused tests, all 266 plugin test files, and the fictional approval/reload journey pass. Private/root integration and release remain open. |
+| AUD-119 | P1 | Opening point verification freezes officer decisions as well as student edits. | CSF point review database | Forward migration `20260906062954` permits authorized decision-only updates and preserves the claim freeze. All 46 review-period assertions and the fictional approval/reload journey pass. Full replay passes 7,143 assertions and the exact release catalog. Hosted acceptance and release remain open. |
+| AUD-120 | P1 | The release catalog verified the point-freeze function but could accept a missing, disabled, or replaced trigger. | Production release verification | The catalog now pins the installed trigger and its execution conditions. The failing unit regression passes, and an isolated replay rejects eight trigger changes before restoring the passing catalog. Integration and release remain open. |
+| AUD-121 | P1 | Direct server table updates could record point decisions without canonical review evidence or a request receipt. | CSF point review database | Forward migration `20260906073357` removes runtime UPDATE grants. Canonical server-role review/retry and direct-write refusal pass within 7,145 replay assertions. The release query refuses restored table or column grants. Integration and Production release remain open. |
+| AUD-122 | P1 | Removing runtime point UPDATE permission breaks the local fixture upsert. | Isolated fixture seeder | CI reproduced the denial. The existing awaited fixture reset now precedes INSERT instead of upsert. The regression and all 31 seed tests pass; fresh seed and reseed retain the same four point rows. CI integration remains open. |
 
 ## External/account blockers
+
+EXT-007: a provider metadata response exposed the shared Vercel automation
+bypass query value in tool output. No value was copied into source or retained
+reports. Resolved on 2026-09-06: separate replacement tokens now serve the
+Development and Production webhook endpoints and CI consumers. Both signed
+replays returned HTTP 200 before the old token was revoked. No application
+build or email send was required. Controlled ten-message acceptance remains
+unproven.
 
 | ID      | Dependency             | Blocker                                                                                                                                                                                                                                                                                                                                                                                                  | Required owner/action                                                                                                                                                                                                                                                                     |
 | ------- | ---------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
