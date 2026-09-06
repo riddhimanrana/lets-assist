@@ -10,6 +10,29 @@ evidence and does not override the current tables or release gates.
 
 ## Release continuation, 2026-09-05
 
+### My CSF selected semester, 2026-09-06
+
+Private PR #255 merged to Development at `0ca0d7a`. Private quality run
+`34011594879` passed for the identical source tree at `f73fd1b`. The root
+candidate now pins the merged commit. My CSF shares one semester selection
+between its profile summary and history. Opening a recorded semester shows
+that semester's points, activities, meetings, and officer status. Selecting an
+empty current semester still shows its actual zero counts.
+
+Integrated TypeScript, zero-warning lint, and the strict gitlink check pass.
+The desktop and mobile browser regression passes, including switching from
+recorded Spring 2026 to empty Fall 2026 and back, activity and meeting labels,
+zero browser failures, and no horizontal overflow. The compiled local run
+produced fictional screenshots and videos. Its first
+run reached the correct Spring 2026 summary but failed because one activity
+label appeared in both participation and point submissions. The test now
+selects the participation occurrence. The following attempt stopped before
+the app started because the first runner left a port reservation after a
+shutdown error. Its recorded owner process was absent and port 3002 was free.
+That reservation was moved aside without deleting it. Port 3000 and shared
+services were not changed. The rerun passed both tests in 49 seconds. Hosted
+acceptance and Production remain open.
+
 ### Combined import review regression, 2026-09-06
 
 Local tooling incident: running `bun run db:validate` reached its implicit
