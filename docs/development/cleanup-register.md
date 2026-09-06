@@ -94,6 +94,32 @@ equality, completed pending imports, or member-browser acceptance.
 
 ### Point update permissions and token rotation, 2026-09-06
 
+CI `34019865179` passed quality on `24fb77aa`. Its database job first stopped
+before startup because a runner port was occupied. Retrying only that job on
+the unchanged commit passed startup and database tests, then reproduced a
+fixture seeder defect: point fixture `upsert` required the removed runtime
+UPDATE permission. The seeder already awaits an organization-scoped delete of
+those fictional rows. It now uses INSERT rather than restoring the grant.
+The new regression failed before the change and all 31 seed tests pass after
+it. A fresh isolated seed and reseed each produce the same four point rows
+under the restricted server role. All 44 seed and documentation tests and
+focused zero-warning lint pass. The owned stack was removed after Docker
+confirmed no remaining containers, volume, or network for its project. This
+seeder-only follow-up still needs CI; no application or migration bytes changed.
+
+The Production communication audit found no CSF dispatch attempts, delivery
+rows, or recorded CSF provider events. The generic signed webhook replay is
+not evidence of a CSF queue-to-provider dispatch. The controlled email test
+remains open.
+
+Count-only application inspection found complete class/term targets for all
+517 Spring 2026 and 71 Fall 2026 preview rows. Spring has 430 unique exact
+class-name candidates, 86 without an exact candidate, and one duplicate
+candidate. Of the 86, 85 belong to Class of 2026, outside the four linked
+workbooks. Fall has 38 unique candidates and 33 without an exact candidate,
+including all 14 Class of 2030 applicants. These are review categories, not
+identity proof or committed records. No official row changed.
+
 Review of PR #486 found that direct `service_role` updates could supply an
 officer ID and bypass the canonical approval receipt. The application uses
 RPCs for these updates. Forward migration `20260906073357` removes direct
@@ -2729,6 +2755,7 @@ hosted Development verification.
 | AUD-119 | P1 | Opening point verification freezes officer decisions as well as student edits. | CSF point review database | Forward migration `20260906062954` permits authorized decision-only updates and preserves the claim freeze. All 46 review-period assertions and the fictional approval/reload journey pass. Full replay passes 7,143 assertions and the exact release catalog. Hosted acceptance and release remain open. |
 | AUD-120 | P1 | The release catalog verified the point-freeze function but could accept a missing, disabled, or replaced trigger. | Production release verification | The catalog now pins the installed trigger and its execution conditions. The failing unit regression passes, and an isolated replay rejects eight trigger changes before restoring the passing catalog. Integration and release remain open. |
 | AUD-121 | P1 | Direct server table updates could record point decisions without canonical review evidence or a request receipt. | CSF point review database | Forward migration `20260906073357` removes runtime UPDATE grants. Canonical server-role review/retry and direct-write refusal pass within 7,145 replay assertions. The release query refuses restored table or column grants. Integration and Production release remain open. |
+| AUD-122 | P1 | Removing runtime point UPDATE permission breaks the local fixture upsert. | Isolated fixture seeder | CI reproduced the denial. The existing awaited fixture reset now precedes INSERT instead of upsert. The regression and all 31 seed tests pass; fresh seed and reseed retain the same four point rows. CI integration remains open. |
 
 ## External/account blockers
 

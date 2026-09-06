@@ -28,6 +28,24 @@ const hostedSeedScript = new URL(
   import.meta.url,
 ).pathname;
 
+test("point fixtures insert after the awaited reset without runtime UPDATE access", () => {
+  const source = readFileSync(
+    new URL("./seed-platform-csf-plan.mjs", import.meta.url),
+    "utf8",
+  );
+  const reset = source.indexOf('"csf_point_submissions",');
+  const awaitedDelete = source.indexOf(
+    'pluginDb.from(table).delete().eq("organization_id", IDS.csfOrg)',
+  );
+  const insert = source.indexOf(
+    'pluginDb.from("csf_point_submissions").insert([',
+  );
+  expect(reset).toBeGreaterThanOrEqual(0);
+  expect(awaitedDelete).toBeGreaterThan(reset);
+  expect(insert).toBeGreaterThan(awaitedDelete);
+  expect(source).not.toContain('from("csf_point_submissions").upsert(');
+});
+
 function sourceSection(startMarker: string, endMarker: string) {
   const start = seedSource.indexOf(startMarker);
   const end = seedSource.indexOf(endMarker, start);
