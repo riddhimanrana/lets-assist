@@ -10,6 +10,34 @@ evidence and does not override the current tables or release gates.
 
 ## Release continuation, 2026-09-05
 
+### Completed-preview identity review, 2026-09-06
+
+Root PR #486 merged at `60825d2d`. CI `34021317555` passed on that merged
+commit, and hosted acceptance `34021315408` passed with 100 distinct sessions,
+9,650 requests, zero request errors, read p95 1.94 seconds, mutation p95 1.91
+seconds, no renderer crashes, and retained heap growth of -12.21 percent.
+Development deployment `dpl_9zJKKuLcQrQyW5riTbZPgfYdXVFW` serves that commit.
+Private PR #258 promoted the same plugin tree to private main at `ab585e5`.
+The merged remote feature branch was removed; its commits remain in Development.
+
+The unresolved review on Production PR #483 exposed a separate identity guard
+gap. An isolated regression reproduced six failures: pending, running, failed,
+and cancelled previews accepted matches and changed rows and audit history.
+Forward migration `20260906085350` locks the preview before the row and rejects
+non-preview or unfinished jobs. Its final full replay passes 460 migrations
+and 7,159 assertions, including skip and cancelled-replay regressions. The exact
+release catalog passes; all ten trigger and permission drift checks refuse
+the change and roll back. Production promotion
+remains paused for this fix. No official records or Production schema changed.
+
+The count-only club-reference audit found nine filenames identifying Fall 2025
+or semester one of academic 2025-2026, despite the folder's Fall 26 label.
+The other twelve remain unassigned. A bounded first-sheet scan found no
+explicit semester labels. No reference or point record was assigned from the
+folder name alone. The Production application importer shows Connected in a
+fresh Riddhiman Chrome tab; the old tab's stalled status is not a completed
+import or a proved application defect.
+
 ### Inline point approval, 2026-09-06
 
 PR #485 merged at `40733af1` after CI `34014450823` passed. The exact
@@ -2748,14 +2776,15 @@ hosted Development verification.
 | AUD-113 | P1 | The two hosted Development repairs were applied through the management API under generated migration versions that differed from their repository filenames. Supabase correctly rejected the exact-tree release because the remote ledger contained versions absent from the repository. | CSF release ledger | Fixed in PR #459 by aligning the two unreleased filenames to the versions already recorded by hosted Development, without changing their SQL. The cutover ledger now includes 443 migrations and the contact-corroboration repair as the 29th Production-pending migration. Local replay, lint, and focused release contracts pass. Hosted exact-tree acceptance and Production remain open. |
 | AUD-114 | P1 | The exact Development load gate completed 9,586 requests with no request or browser errors, but the staff member-or-officer view switch measured 3.84 seconds at p95 against the three-second mutation limit. Its Server Action repeated authentication, membership, plugin access, and permission reads before writing one presentation-only preference, then invalidated a route before the required route replacement. | CSF hosted performance | Fixed in private PR #242, merged to private Development at `2affd09`, and staged in the current root candidate with `public.set_csf_staff_view_mode(uuid,text)`. One authenticated database transaction now checks the active host staff role and updates only the caller's preference. The preference still grants no authority. The action no longer repeats the four authorization reads or invalidates the route cache. Client execution is limited to `authenticated` and is included in the architecture allowlist. Private CI and all 257 discovered plugin test files pass. The clean local replay applied every migration, passed 238 pgTAP files with 6,989 assertions, completed the database workflow, architecture, plugin isolation, registry, runtime, browser-isolation, and cron-shape gates, and removed its owned stack. The production build also passes. Replacement hosted acceptance remains open. |
 
-| AUD-115 | P1 | Annotation and identity review could each prevent the other from completing because they shared a terminal resolution field. | CSF import review | Forward migration `20260906041507` passes both review orders locally, preserves each decision and immutable source data, and leaves unmatched identities blocked. Hosted integration and Production acceptance remain open. |
+| AUD-115 | P1 | Annotation and identity review could each prevent the other from completing because they shared a terminal resolution field. | CSF import review | Forward migration `20260906041507` passes both review orders, preserves each decision and immutable source data, and leaves unmatched identities blocked. Hosted acceptance passed at `60825d2d`. Production remains open. |
 | AUD-116 | P1 | `db:validate` invoked a shared-local reset without an isolated ownership check. An interrupted run left the shared database container and volume absent. | Local tooling | File validation is now non-mutating, with three hermetic regression tests. The owned isolated CSF database is unaffected. Previous shared-local contents and recoverability remain unverified; recovery is open. |
-| AUD-117 | P1 | Annotation review could change frozen import decisions after a stopped worker, and could settle rows before preview preparation completed. | CSF import review | Forward migration `20260906053114` rejects frozen rows and non-reviewable preview states. Nine regression failures now pass within 47 focused assertions. Fresh replay passes 7,139 assertions across 244 files, the exact schema catalog, and error-level advisors. Hosted acceptance and Production rollout remain open. |
-| AUD-118 | P1 | Inline point approval and rejection omit the required request ID and fail with `Invalid input`. | CSF officer review | Private PR #257 adds stable receipts and unknown-outcome handling. Five focused tests, all 266 plugin test files, and the fictional approval/reload journey pass. Private/root integration and release remain open. |
-| AUD-119 | P1 | Opening point verification freezes officer decisions as well as student edits. | CSF point review database | Forward migration `20260906062954` permits authorized decision-only updates and preserves the claim freeze. All 46 review-period assertions and the fictional approval/reload journey pass. Full replay passes 7,143 assertions and the exact release catalog. Hosted acceptance and release remain open. |
-| AUD-120 | P1 | The release catalog verified the point-freeze function but could accept a missing, disabled, or replaced trigger. | Production release verification | The catalog now pins the installed trigger and its execution conditions. The failing unit regression passes, and an isolated replay rejects eight trigger changes before restoring the passing catalog. Integration and release remain open. |
-| AUD-121 | P1 | Direct server table updates could record point decisions without canonical review evidence or a request receipt. | CSF point review database | Forward migration `20260906073357` removes runtime UPDATE grants. Canonical server-role review/retry and direct-write refusal pass within 7,145 replay assertions. The release query refuses restored table or column grants. Integration and Production release remain open. |
-| AUD-122 | P1 | Removing runtime point UPDATE permission breaks the local fixture upsert. | Isolated fixture seeder | CI reproduced the denial. The existing awaited fixture reset now precedes INSERT instead of upsert. The regression and all 31 seed tests pass; fresh seed and reseed retain the same four point rows. CI integration remains open. |
+| AUD-117 | P1 | Annotation review could change frozen import decisions after a stopped worker, and could settle rows before preview preparation completed. | CSF import review | Forward migration `20260906053114` rejects frozen rows and unfinished previews. Nine regression failures now pass within 47 focused assertions. Hosted acceptance passed at `60825d2d`. Production remains open. |
+| AUD-118 | P1 | Inline point approval and rejection omit the required request ID and fail with `Invalid input`. | CSF officer review | Private PR #257 adds stable receipts and unknown-outcome handling. Five focused tests, 266 plugin test files, and the fictional approval/reload journey pass. Root #486 and private promotion #258 merged. Hosted acceptance passed at `60825d2d`; public release remains open. |
+| AUD-119 | P1 | Opening point verification freezes officer decisions as well as student edits. | CSF point review database | Forward migration `20260906062954` permits authorized decision-only updates and preserves the claim freeze. The review-period assertions, fictional approval/reload journey, full replay, and exact release catalog pass. Hosted acceptance passed at `60825d2d`; Production remains open. |
+| AUD-120 | P1 | The release catalog verified the point-freeze function but could accept a missing, disabled, or replaced trigger. | Production release verification | The catalog pins the installed trigger and its execution conditions. The unit regression passes, and isolated replay rejects eight trigger changes. Merged and hosted-accepted at `60825d2d`; Production remains open. |
+| AUD-121 | P1 | Direct server table updates could record point decisions without canonical review evidence or a request receipt. | CSF point review database | Forward migration `20260906073357` removes runtime UPDATE grants. Canonical server-role approval/retry and direct-write refusal pass. The release query rejects restored table or column grants. Merged and hosted-accepted at `60825d2d`; Production remains open. |
+| AUD-122 | P1 | Removing runtime point UPDATE permission breaks the local fixture upsert. | Isolated fixture seeder | The awaited fictional fixture reset now precedes INSERT instead of upsert. All 31 seed tests, fresh seed, and reseed pass with the same four point rows. CI `34021317555` and hosted acceptance `34021315408` passed on merged `60825d2d`. |
+| AUD-123 | P2 | Identity reconciliation accepts rows before preview preparation finishes. | CSF import review | Six failures reproduce matches and audit writes on pending, running, failed, and cancelled previews. Forward migration `20260906085350` adds the locked preview-state check. The final full replay passes 460 migrations and 7,159 assertions, the exact release catalog, and all ten permission/trigger drift refusals. Hosted and Production rollout remain open. |
 
 ## External/account blockers
 

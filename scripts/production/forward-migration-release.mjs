@@ -47,6 +47,10 @@ export const approvedMigrations = [
     "20260906073357_csf_require_canonical_point_updates",
     "ce73e9e4fb2698bdc7471ba2df49cb995a85b57e4e8207f3e93774cfa4a42924",
   ],
+  [
+    "20260906085350_csf_identity_review_preview_state",
+    "98ae09bd748443026bbcc6661b103b642604b6fb71f8ffc0d660efc2605a1848",
+  ],
 ];
 
 const literal = (value) => `'${value.replaceAll("'", "''")}'`;

@@ -96,10 +96,15 @@ export function acceptedCatalogQuery(source, versions) {
       "34dbbd884882349f8083512cd2fe48b371c3f1242bc62897685267f2a5d0001b"
   )
     return source;
-  const canonicalPointUpdateUpgrade =
-    versions.length === 459 &&
+  const identityPreviewStateUpgrade =
+    versions.length === 460 &&
     ledgerHash ===
-      "c7c3c098a7902aefd912130352867529e7f04870ad50a32d90d8d2bd9c0473a3";
+      "e0a6a89e861dcc74b59dfaec28ac35ddccc9fe3faa5e63934d143c8e98d662a8";
+  const canonicalPointUpdateUpgrade =
+    identityPreviewStateUpgrade ||
+    (versions.length === 459 &&
+      ledgerHash ===
+        "c7c3c098a7902aefd912130352867529e7f04870ad50a32d90d8d2bd9c0473a3");
   const pointVerificationUpgrade =
     canonicalPointUpdateUpgrade ||
     (versions.length === 458 &&
@@ -275,9 +280,11 @@ accepted_upgrade_posture AS (
       ? composableReviewUpgrade
         ? pendingIdentityPosture.replace(
             "108e1aa1093f02d5d307053cf6f1fd08",
-            annotationErrorIdentityUpgrade
-              ? "1a753bdc4474fb1f5fcbb93f4d56d4d1"
-              : "edb9f2c1f2d5ef8f9759b4679328876b",
+            identityPreviewStateUpgrade
+              ? "5bc80be3b2524a588bfa6ae920921a7f"
+              : annotationErrorIdentityUpgrade
+                ? "1a753bdc4474fb1f5fcbb93f4d56d4d1"
+                : "edb9f2c1f2d5ef8f9759b4679328876b",
           )
         : pendingIdentityPosture
       : ""

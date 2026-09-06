@@ -1,6 +1,6 @@
 BEGIN;
 CREATE EXTENSION IF NOT EXISTS pgtap;
-SELECT plan(47);
+SELECT plan(61);
 
 -- ACL surface: browser roles must not settle rows.
 SELECT has_function(
@@ -410,5 +410,57 @@ SELECT lives_ok($q$SELECT plugin_data.csf_review_import_annotation(
   md5('annotation-state-row-completed')::uuid,md5('annotation-state-request-completed')::uuid,
   'met','Review after completed preparation.')$q$,
   'completed preview remains reviewable');
+INSERT INTO plugin_data.csf_sheet_import_rows (
+  id,organization_id,job_id,source_id,cohort_id,sheet_tab_name,row_number,
+  raw_data,normalized_data,row_hash,import_status,errors,mapping_version
+) SELECT md5('identity-state-row-'||state)::uuid,
+  'a1a10000-0000-4000-8000-000000000002',md5('annotation-state-job-'||state)::uuid,
+  'a1a10000-0000-4000-8000-000000000003','a1a10000-0000-4000-8000-000000000020',
+  'S26',3,'{}'::jsonb,'{}'::jsonb,repeat('b',64),'pending',ARRAY[]::text[],1
+FROM unnest(ARRAY['pending','running','failed','cancelled','completed']) AS state;
+SELECT throws_like(format($q$SELECT plugin_data.csf_reconcile_sheet_import_row(
+  'a1a10000-0000-4000-8000-000000000002',%L::uuid,
+  'a1a10000-0000-4000-8000-000000000021','match','Reviewed fictional source identity.',
+  'a1a10000-0000-4000-8000-000000000001',NULL,'{}'::jsonb)$q$,
+  md5('identity-state-row-'||state)),
+  '%%completed preview%%',state||' preview refuses identity review')
+FROM unnest(ARRAY['pending','running','failed','cancelled']) AS state;
+SELECT is((SELECT count(*) FROM plugin_data.csf_sheet_import_rows
+  WHERE id IN (SELECT md5('identity-state-row-'||state)::uuid
+    FROM unnest(ARRAY['pending','running','failed','cancelled']) AS state)
+  AND matched_profile_id IS NULL AND resolution_status='pending' AND resolved_at IS NULL),4::bigint,
+  'unprepared identity rows remain unchanged');
+SELECT throws_like(format($q$SELECT plugin_data.csf_reconcile_sheet_import_row(
+  'a1a10000-0000-4000-8000-000000000002',%L::uuid,NULL,'skip',
+  'Cannot skip a row before preparation settles.',
+  'a1a10000-0000-4000-8000-000000000001',NULL,'{}'::jsonb)$q$,
+  md5('identity-state-row-'||state)),
+  '%%completed preview%%',state||' preview refuses skipping')
+FROM unnest(ARRAY['pending','running','failed','cancelled']) AS state;
+SELECT is((SELECT count(*) FROM plugin_data.csf_admin_audit_events
+  WHERE target_id IN (SELECT md5('identity-state-row-'||state)::uuid
+    FROM unnest(ARRAY['pending','running','failed','cancelled']) AS state)),0::bigint,
+  'unprepared identity reviews create no audit events');
+SELECT lives_ok($q$SELECT plugin_data.csf_reconcile_sheet_import_row(
+  'a1a10000-0000-4000-8000-000000000002',md5('identity-state-row-completed')::uuid,
+  'a1a10000-0000-4000-8000-000000000021','match','Reviewed fictional source identity.',
+  'a1a10000-0000-4000-8000-000000000001',NULL,'{}'::jsonb)$q$,
+  'completed preview remains available for identity review');
+SELECT lives_ok($q$SELECT plugin_data.csf_reconcile_sheet_import_row(
+  'a1a10000-0000-4000-8000-000000000002',md5('identity-state-row-completed')::uuid,
+  'a1a10000-0000-4000-8000-000000000021','match','Reviewed fictional source identity.',
+  'a1a10000-0000-4000-8000-000000000001',NULL,'{}'::jsonb)$q$,
+  'completed identity review retains exact replay');
+UPDATE plugin_data.csf_sheet_import_jobs SET status='cancelled'
+WHERE id=md5('annotation-state-job-completed')::uuid;
+SELECT throws_like($q$SELECT plugin_data.csf_reconcile_sheet_import_row(
+  'a1a10000-0000-4000-8000-000000000002',md5('identity-state-row-completed')::uuid,
+  'a1a10000-0000-4000-8000-000000000021','match','Reviewed fictional source identity.',
+  'a1a10000-0000-4000-8000-000000000001',NULL,'{}'::jsonb)$q$,
+  '%completed preview%','identity replay rechecks a cancelled preview');
+SELECT is((SELECT count(*) FROM plugin_data.csf_admin_audit_events
+  WHERE target_id=md5('identity-state-row-completed')::uuid
+    AND action='sheets.row_match_resolved'),1::bigint,
+  'exact and refused replays add no identity audit events');
 SELECT * FROM finish();
 ROLLBACK;

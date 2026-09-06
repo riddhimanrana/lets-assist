@@ -209,6 +209,8 @@ V79: open point verification freezes student claim contents, not authorized offi
 
 V80: the runtime server role cannot update point submissions through table or column grants. It must use the existing audited request actions. Canonical approvals and retries remain available. Release verification rejects restored direct-update grants.
 
+V81: identity reconciliation locks the source preview before its row and requires completed or needs_resolution state. Pending, running, failed, cancelled, and commit-mode jobs cannot receive identity matches or skips. A repeated identity decision rechecks the current preview state before returning its result. Refusal changes neither row state nor audit history.
+
 §T
 
 id|status|task|cites
