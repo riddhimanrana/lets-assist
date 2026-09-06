@@ -96,10 +96,15 @@ export function acceptedCatalogQuery(source, versions) {
       "34dbbd884882349f8083512cd2fe48b371c3f1242bc62897685267f2a5d0001b"
   )
     return source;
-  const pointVerificationUpgrade =
-    versions.length === 458 &&
+  const canonicalPointUpdateUpgrade =
+    versions.length === 459 &&
     ledgerHash ===
-      "8d617c8fbc841fbd4910e269261846110105ed1a6a7c0905b3749487b17987a5";
+      "c7c3c098a7902aefd912130352867529e7f04870ad50a32d90d8d2bd9c0473a3";
+  const pointVerificationUpgrade =
+    canonicalPointUpdateUpgrade ||
+    (versions.length === 458 &&
+      ledgerHash ===
+        "8d617c8fbc841fbd4910e269261846110105ed1a6a7c0905b3749487b17987a5");
   const annotationReviewStateUpgrade =
     pointVerificationUpgrade ||
     (versions.length === 457 &&
@@ -276,7 +281,16 @@ accepted_upgrade_posture AS (
           )
         : pendingIdentityPosture
       : ""
-  } ${pointVerificationUpgrade ? pointVerificationTriggerPosture : ""} AS valid
+  } ${pointVerificationUpgrade ? pointVerificationTriggerPosture : ""}
+  ${
+    canonicalPointUpdateUpgrade
+      ? `AND NOT EXISTS (
+    SELECT 1 FROM (VALUES ('anon'), ('authenticated'), ('service_role')) roles(name)
+    WHERE has_table_privilege(roles.name, 'plugin_data.csf_point_submissions', 'UPDATE')
+      OR has_any_column_privilege(roles.name, 'plugin_data.csf_point_submissions', 'UPDATE')
+  )`
+      : ""
+  } AS valid
   FROM accepted_upgrade_definitions expected
   LEFT JOIN pg_proc p ON p.oid=to_regprocedure(expected.signature)
 )

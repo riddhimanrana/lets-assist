@@ -8,7 +8,7 @@ BEGIN;
 
 CREATE EXTENSION IF NOT EXISTS pgtap WITH SCHEMA extensions;
 
-SELECT extensions.plan(46);
+SELECT extensions.plan(48);
 
 -- ---------------------------------------------------------------------------
 -- A. Execution grants
@@ -328,6 +328,22 @@ SELECT extensions.lives_ok(
 -- ---------------------------------------------------------------------------
 -- F. Decisions
 -- ---------------------------------------------------------------------------
+
+SELECT extensions.ok(
+  NOT has_table_privilege('service_role', 'plugin_data.csf_point_submissions', 'UPDATE')
+  AND NOT has_any_column_privilege('service_role', 'plugin_data.csf_point_submissions', 'UPDATE'),
+  'the server must use canonical point actions instead of direct updates'
+);
+SET LOCAL ROLE service_role;
+SELECT extensions.throws_ok(
+  $$ UPDATE plugin_data.csf_point_submissions
+     SET status = 'approved', reviewed_by = 'ce000000-0000-4000-8000-000000000001',
+         reviewed_at = now()
+     WHERE id = 'ce400000-0000-4000-8000-000000000004' $$,
+  '42501', 'permission denied for table csf_point_submissions',
+  'a direct server update cannot impersonate an officer decision'
+);
+RESET ROLE;
 
 SELECT extensions.throws_ok(
   $$ UPDATE plugin_data.csf_point_submissions SET source = 'staff'

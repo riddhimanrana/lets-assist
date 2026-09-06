@@ -207,6 +207,8 @@ V78: inline point decisions send the same required request receipt as the standa
 
 V79: open point verification freezes student claim contents, not authorized officer decisions. A decision-only update revalidates the reviewer and preserves the claim's organization, profile, term, source, activity, amount, and evidence. Reclassifying a frozen student claim as staff data cannot bypass the freeze.
 
+V80: the runtime server role cannot update point submissions through table or column grants. It must use the existing audited request actions. Canonical approvals and retries remain available. Release verification rejects restored direct-update grants.
+
 §T
 
 id|status|task|cites

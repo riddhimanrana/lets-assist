@@ -92,6 +92,36 @@ All 1,392 attendance records have labels and both legacy and canonical meeting
 links in the correct semester. These checks do not establish source-by-source
 equality, completed pending imports, or member-browser acceptance.
 
+### Point update permissions and token rotation, 2026-09-06
+
+Review of PR #486 found that direct `service_role` updates could supply an
+officer ID and bypass the canonical approval receipt. The application uses
+RPCs for these updates. Forward migration `20260906073357` removes direct
+runtime UPDATE permission while retaining reads and existing audited actions.
+The release catalog checks table and column permissions. Regression tests
+exercise a refused direct update and approval/retry under the server role.
+The isolated replay passes all 459 migrations and 7,145 assertions across 244
+files. The real catalog refuses ten trigger or permission changes and passes
+again after each transaction rollback. Canonical approval and exact retry
+pass under `service_role`; the direct update is refused. Zero-warning lint,
+37 focused release tests, TypeScript, and the strict private gitlink check pass.
+The root sweep found only a stale runbook ledger count. After correcting it,
+all 13 documentation assertions and the full 301-file root sweep pass.
+CI `34018967853` passed for the preceding trigger check, including its browser
+job, without a restart. The permission follow-up still needs CI and hosted
+acceptance. Production remains at 451 migrations, with direct
+point UPDATE permission still present and all worker controls disabled. No
+Production schema or official records changed.
+
+EXT-007 is resolved. Vercel now holds separate Development and Production
+replacement bypass tokens. GitHub environment secrets and both enabled Resend
+webhook URLs use those replacements. Readback preserved the webhook IDs,
+subscriptions, status, and signing configuration. Replayed signed delivery
+events returned HTTP 200 at `2026-09-06T07:32:59.904Z` in Development and
+`2026-09-06T07:33:00.576Z` in Production. The old token was revoked after those
+checks. No email was sent and no deployment was created. These replays do not
+replace the controlled ten-message queue-to-provider acceptance test.
+
 ### Frozen annotation review guards, 2026-09-06
 
 Root PR #484 merged to Development at `e6922a7f`, with the same application
@@ -2698,16 +2728,17 @@ hosted Development verification.
 | AUD-118 | P1 | Inline point approval and rejection omit the required request ID and fail with `Invalid input`. | CSF officer review | Private PR #257 adds stable receipts and unknown-outcome handling. Five focused tests, all 266 plugin test files, and the fictional approval/reload journey pass. Private/root integration and release remain open. |
 | AUD-119 | P1 | Opening point verification freezes officer decisions as well as student edits. | CSF point review database | Forward migration `20260906062954` permits authorized decision-only updates and preserves the claim freeze. All 46 review-period assertions and the fictional approval/reload journey pass. Full replay passes 7,143 assertions and the exact release catalog. Hosted acceptance and release remain open. |
 | AUD-120 | P1 | The release catalog verified the point-freeze function but could accept a missing, disabled, or replaced trigger. | Production release verification | The catalog now pins the installed trigger and its execution conditions. The failing unit regression passes, and an isolated replay rejects eight trigger changes before restoring the passing catalog. Integration and release remain open. |
+| AUD-121 | P1 | Direct server table updates could record point decisions without canonical review evidence or a request receipt. | CSF point review database | Forward migration `20260906073357` removes runtime UPDATE grants. Canonical server-role review/retry and direct-write refusal pass within 7,145 replay assertions. The release query refuses restored table or column grants. Integration and Production release remain open. |
 
 ## External/account blockers
 
 EXT-007: a provider metadata response exposed the shared Vercel automation
 bypass query value in tool output. No value was copied into source or retained
-reports. Rotate the bypass with overlapping validity, update the Development
-and Production webhook endpoints and CI consumers, verify access and delivery,
-then revoke the old value. This provider operation remains open and must not
-require another application build. Four historical Production webhook events
-were successful; the controlled ten-message acceptance remains unproven.
+reports. Resolved on 2026-09-06: separate replacement tokens now serve the
+Development and Production webhook endpoints and CI consumers. Both signed
+replays returned HTTP 200 before the old token was revoked. No application
+build or email send was required. Controlled ten-message acceptance remains
+unproven.
 
 | ID      | Dependency             | Blocker                                                                                                                                                                                                                                                                                                                                                                                                  | Required owner/action                                                                                                                                                                                                                                                                     |
 | ------- | ---------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |

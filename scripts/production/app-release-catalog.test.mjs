@@ -121,6 +121,15 @@ test("the reviewed import upgrade verifies metadata, function grants, and the sc
   );
 });
 
+test("point updates deny direct runtime writes while retaining the preceding catalog", () => {
+  const clause =
+    "has_any_column_privilege(roles.name, 'plugin_data.csf_point_submissions', 'UPDATE')";
+  assert.ok(acceptedCatalogQuery(source, versions).includes(clause));
+  assert.ok(
+    !acceptedCatalogQuery(source, versions.slice(0, 458)).includes(clause),
+  );
+});
+
 test("point verification pins the repaired trigger and keeps its execution internal", () => {
   const definition =
     "('plugin_data.csf_enforce_point_submission_freeze()','932eae452025dfd57e24d644b441aea4',false)";

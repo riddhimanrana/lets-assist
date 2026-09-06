@@ -232,6 +232,8 @@ const drifts = [
   `${triggerPrefix} BEFORE INSERT OR UPDATE OR DELETE ON ${relation} FOR EACH STATEMENT ${functionCall}`,
   `${triggerPrefix} BEFORE INSERT OR UPDATE OR DELETE ON ${relation} FOR EACH ROW WHEN (false) ${functionCall}`,
   `${triggerPrefix} BEFORE INSERT OR UPDATE OR DELETE ON ${relation} FOR EACH ROW EXECUTE FUNCTION plugin_data.csf_record_connection_basis()`,
+  `GRANT UPDATE ON ${relation} TO service_role`,
+  `GRANT UPDATE (status) ON ${relation} TO service_role`,
 ];
 for (const [index, drift] of drifts.entries()) {
   console.log(`DO $csf_drift$ BEGIN
@@ -247,7 +249,7 @@ for (const [index, drift] of drifts.entries()) {
 console.log(catalog);
 NODE
   echo "Accepted release catalog passed against the isolated replay."
-  echo "All eight point-trigger drift checks refused the changed trigger and rolled back."
+  echo "All ten point trigger and permission drift checks refused the change and rolled back."
 fi
 
 # Run cleanup as part of the successful command, not only through EXIT, so a

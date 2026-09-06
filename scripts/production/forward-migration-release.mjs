@@ -14,6 +14,7 @@ import {
 
 // This controller approves only these reviewed, backward-compatible migrations.
 export const approvedMigrations = [
+  // Order follows the append-only migration ledger.
   [
     "20260906013133_csf_class_import_identity_review_rows",
     "aaaaa70214f9f8d8d0c8488b08932c8346f488d398826abeb59e1939a3100cdc",
@@ -41,6 +42,10 @@ export const approvedMigrations = [
   [
     "20260906062954_csf_allow_officer_point_decisions_during_verification",
     "c057ac638b09ad5477a04fe921a27a4dbd15561e4ccbbcea8856176f3b05636b",
+  ],
+  [
+    "20260906073357_csf_require_canonical_point_updates",
+    "ce73e9e4fb2698bdc7471ba2df49cb995a85b57e4e8207f3e93774cfa4a42924",
   ],
 ];
 
