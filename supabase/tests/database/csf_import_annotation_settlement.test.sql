@@ -1,6 +1,6 @@
 BEGIN;
 CREATE EXTENSION IF NOT EXISTS pgtap;
-SELECT plan(13);
+SELECT plan(23);
 
 -- ACL surface: browser roles must not settle rows.
 SELECT has_function(
@@ -25,12 +25,12 @@ SELECT ok(
   'authenticated cannot settle'
 );
 SELECT ok(
-  has_function_privilege(
+  NOT has_function_privilege(
     'service_role',
     'plugin_data.csf_apply_import_annotation_interpretation(uuid, uuid, text, text, uuid)',
     'EXECUTE'
   ),
-  'service_role settles'
+  'service_role cannot bypass officer review through the legacy helper'
 );
 
 -- Fixture: one org, one actor, one source, one job, three rows.
@@ -40,6 +40,8 @@ INSERT INTO public.organizations (id, name, username, type, join_code, created_b
 VALUES ('a1a10000-0000-4000-8000-000000000002', 'Annotation Settlement Org',
         'annotation-settlement-org', 'school', '990001',
         'a1a10000-0000-4000-8000-000000000001');
+INSERT INTO public.organization_members (organization_id,user_id,role,status)
+VALUES ('a1a10000-0000-4000-8000-000000000002','a1a10000-0000-4000-8000-000000000001','admin','active');
 INSERT INTO plugin_data.csf_sheet_sources (
   id, organization_id, title, provider, spreadsheet_id
 ) VALUES (
@@ -111,14 +113,15 @@ INSERT INTO plugin_data.csf_sheet_import_rows (
 
 -- Settling the green row clears its error and records the resolution.
 SELECT is(
-  (plugin_data.csf_apply_import_annotation_interpretation(
+  (plugin_data.csf_review_import_annotation(
     'a1a10000-0000-4000-8000-000000000002',
+    'a1a10000-0000-4000-8000-000000000001',
     'a1a10000-0000-4000-8000-000000000005',
-    'met', 'Whole row filled green; All Reqs Met convention on S26 is a fill.',
-    'a1a10000-0000-4000-8000-000000000001'
+    'a1a10000-0000-4000-8000-000000000010',
+    'met', 'Officer confirmed the fictional semester completion record.'
   )) ->> 'status',
   'settled',
-  'green row settles'
+  'explicit officer decision settles the row'
 );
 SELECT results_eq(
   $q$SELECT import_status, resolution_status, resolution_reason_code,
@@ -206,5 +209,45 @@ SELECT throws_like(
   'cross-organization settlement is refused'
 );
 
+SELECT has_function('plugin_data','csf_review_import_annotation',
+  ARRAY['uuid','uuid','uuid','uuid','text','text'],'audited review RPC exists');
+SELECT ok(has_function_privilege('service_role','plugin_data.csf_review_import_annotation(uuid,uuid,uuid,uuid,text,text)','EXECUTE')
+  AND NOT has_function_privilege('anon','plugin_data.csf_review_import_annotation(uuid,uuid,uuid,uuid,text,text)','EXECUTE')
+  AND NOT has_function_privilege('authenticated','plugin_data.csf_review_import_annotation(uuid,uuid,uuid,uuid,text,text)','EXECUTE'),
+  'only service role can call the officer review boundary');
+SELECT is(plugin_data.csf_review_import_annotation(
+  'a1a10000-0000-4000-8000-000000000002','a1a10000-0000-4000-8000-000000000001',
+  'a1a10000-0000-4000-8000-000000000005','a1a10000-0000-4000-8000-000000000010',
+  'met','Officer confirmed the fictional semester completion record.')->>'replayed','true',
+  'a lost response replays the same receipt');
+SELECT is((SELECT count(*) FROM plugin_data.csf_admin_audit_events
+  WHERE organization_id='a1a10000-0000-4000-8000-000000000002' AND action='sheets.annotation_reviewed'),1::bigint,
+  'retry creates no duplicate audit event');
+SELECT throws_like($q$SELECT plugin_data.csf_review_import_annotation(
+  'a1a10000-0000-4000-8000-000000000002','a1a10000-0000-4000-8000-000000000001',
+  'a1a10000-0000-4000-8000-000000000005','a1a10000-0000-4000-8000-000000000010',
+  'not_met','Officer confirmed the fictional semester completion record.')$q$,
+  '%another decision%','same request cannot overwrite its decision');
+SELECT throws_like($q$SELECT plugin_data.csf_review_import_annotation(
+  'a1a10000-0000-4000-8000-000000000002','a1a10000-0000-4000-8000-000000000001',
+  'a1a10000-0000-4000-8000-000000000005','a1a10000-0000-4000-8000-000000000011',
+  'not_met','A conflicting second review.')$q$,'%already reviewed%',
+  'a second request cannot replace a completed review');
+SELECT throws_like($q$SELECT plugin_data.csf_review_import_annotation(
+  'a1a10000-0000-4000-8000-000000000002','a1a10000-0000-4000-8000-0000000000ff',
+  'a1a10000-0000-4000-8000-000000000006','a1a10000-0000-4000-8000-000000000012',
+  'met','Unknown actor cannot review.')$q$,'%not a known user%','unknown actor refused');
+SELECT throws_like($q$SELECT plugin_data.csf_review_import_annotation(
+  'a1a10000-0000-4000-8000-000000000002','a1a10000-0000-4000-8000-000000000001',
+  'a1a10000-0000-4000-8000-000000000006','a1a10000-0000-4000-8000-000000000012',
+  'met','Other blockers must remain.')$q$,'%non-annotation blocker%','officer cannot clear identity errors');
+SELECT throws_like($q$SELECT plugin_data.csf_review_import_annotation(
+  'a1a10000-0000-4000-8000-0000000000ff','a1a10000-0000-4000-8000-000000000001',
+  'a1a10000-0000-4000-8000-000000000006','a1a10000-0000-4000-8000-000000000012',
+  'met','Wrong organization.')$q$,'%not an active member%','cross-organization review refused');
+SELECT throws_like($q$SELECT plugin_data.csf_review_import_annotation(
+  'a1a10000-0000-4000-8000-000000000002','a1a10000-0000-4000-8000-000000000001',
+  'a1a10000-0000-4000-8000-000000000006','a1a10000-0000-4000-8000-000000000012',
+  NULL,'No outcome selected.')$q$,'%Choose an outcome%','null outcome refused');
 SELECT * FROM finish();
 ROLLBACK;

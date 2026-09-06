@@ -17,6 +17,37 @@ test("legacy release catalogs stay unchanged", () => {
   assert.equal(acceptedCatalogQuery(source, versions.slice(0, 444)), source);
 });
 
+test("identity review upgrade checks exact body, bounded signature, and server-only permissions", () => {
+  const query = acceptedCatalogQuery(source, versions);
+  assert.match(query, /csf_class_import_review_rows\(uuid,uuid,integer\)/u);
+  assert.match(query, /md5\(p.prosrc\)='97c62342820cbe42f25b6361725eb630'/u);
+  assert.match(query, /AND NOT p.prosecdef/u);
+  assert.match(query, /pg_get_expr\(p.proargdefaults,0\)='25'/u);
+  assert.match(query, /'warnings','errors','review_reason'/u);
+  assert.doesNotMatch(
+    acceptedCatalogQuery(source, versions.slice(0, 451)),
+    /csf_class_import_review_rows/u,
+  );
+});
+
+test("officer annotation review checks the receipt index and refuses the legacy runtime entry point", () => {
+  const query = acceptedCatalogQuery(source, versions);
+  assert.match(
+    query,
+    /csf_review_import_annotation\(uuid,uuid,uuid,uuid,text,text\)/u,
+  );
+  assert.match(query, /md5\(p.prosrc\)='ddc531d82a237eae28a29bff3dacffd8'/u);
+  assert.match(query, /csf_officer_annotation_review_request_idx/u);
+  assert.match(
+    query,
+    /csf_apply_import_annotation_interpretation\(uuid,uuid,text,text,uuid\)/u,
+  );
+  assert.doesNotMatch(
+    acceptedCatalogQuery(source, versions.slice(0, 452)),
+    /csf_review_import_annotation/u,
+  );
+});
+
 test("compound-name search checks exact behavior, result fields, grants, and prefix indexes", () => {
   const query = acceptedCatalogQuery(source, versions);
   assert.match(query, /md5\(p.prosrc\)='b4ab6f2930a415f7d249e5c133e4d051'/u);
@@ -56,12 +87,16 @@ test("workbook rebuild release checks the exact body, server-only grants, and re
 
 test("the reviewed import upgrade verifies metadata, function grants, and the scoped index", () => {
   const query = acceptedCatalogQuery(source, versions);
-  assert.match(query, /SELECT count\(\*\) = 10 AND/u);
+  assert.match(query, /SELECT count\(\*\) = 9 AND/u);
   assert.match(query, /csf_import_rows_resolution_metadata_object/u);
   assert.match(query, /a.atttypid='jsonb'::regtype AND a.attnotnull/u);
   assert.match(query, /csf_import_rows_committed_source_key_idx/u);
   assert.match(query, /i.indisvalid AND i.indisready AND i.indislive/u);
-  assert.match(query, /9d5b02f7b4cdb7c948aad0398ed29bdf/u);
+  assert.match(query, /108e1aa1093f02d5d307053cf6f1fd08/u);
+  assert.match(
+    acceptedCatalogQuery(source, versions.slice(0, 453)),
+    /9d5b02f7b4cdb7c948aad0398ed29bdf/u,
+  );
   assert.match(query, /641568ea97cc01fff75298d218a1404d/u);
   const old = acceptedCatalogQuery(source, versions.slice(0, 446));
   assert.match(old, /SELECT count\(\*\) = 8 AND/u);

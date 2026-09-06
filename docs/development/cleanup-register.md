@@ -1042,6 +1042,199 @@ sources.
 
 ### Current Production acceptance, 2026-09-05
 
+Post-release officer review resumed after the Mac unlocked. Full-name search
+returned a different profile from the original workbook key. Four prior
+committed rows from the same class/file corroborated one active target, including
+historical merge lineage. The officer match action saved that target, and a
+read-only query confirmed it. Fall 2024 Class of 2027 then committed 254 updates
+and retained the one reviewed redundant-row skip.
+
+Class of 2028 Fall 2025 reprepare produced 193 pending rows with no parser error.
+Its approval correctly refused with `preview_requires_review`: authoritative
+readiness reports one `pendingMissingMatch` despite zero `pendingMissingSourceKey`.
+P1 follow-up: Settings ignored this blocker and advertised the preview as ready.
+The local private branch `codex/csf-hidden-review-blockers` now counts authoritative
+missing matches and refuses that ready state; the regression failed before the
+patch and passes after it. Local migration `20260906013133` adds a service-only,
+tenant-scoped query for those pending identity blockers. Settings uses that query
+and offers the existing audited match/create controls. Valid new source keys do
+not become false review blockers. The bounded query does not change snapshots.
+
+P1 privacy/decision follow-up: `interpretCsfImportAnnotationsAction` still builds
+activity text and annotations for model interpretation and automatically calls
+the annotation-settlement RPC. The "Review markings" control invokes this action
+rather than opening evidence. The observed call reported zero settled rows, but
+that does not establish zero model transmission. Do not invoke it again. Replace
+this path with protected officer evidence and explicit decisions before closure.
+No academic approval or account connection was intentionally changed in this run.
+
+Audited worker-control run `34004302603` disabled Production workbook refresh
+after this finding. Import processing remains enabled; communications and
+scheduled publishing remain disabled. A count-only query for the preceding two
+hours found zero recorded annotation AI calls and zero annotation resolutions.
+Those counts do not prove that no data left the application. The local patch
+removes the automatic preview call and the misleading markings control. The old
+action now refuses without reading rows, calling a model, or changing decisions.
+An explicit officer evidence/decision path remains unfinished. Do not re-enable
+workbook refresh or describe the follow-up as accepted yet.
+
+Local verification: the corrected isolated replay passed 7,097 pgTAP assertions
+across 244 files, then stopped at the strict gitlink gate because the private
+worktree is on an uncommitted feature branch. Its isolated resources were removed;
+the shared local stack was untouched. Full lint and TypeScript passed. The first
+root test run stopped on stale release-ledger contracts. Updating the exact
+452-migration catalog and current public-release documentation made all 46 focused
+release tests pass. The rerun passed every root stage, then found two private
+source-contract tests that still required the removed automatic interpreter.
+Those tests now require the privacy refusal and pending identity controls.
+The separate plugin rerun passed all 291 discovered files, including isolated
+mock tests. TypeScript and focused release lint passed again. The new catalog guard checks
+the review function's body, result types, defaults, and service-only grants. No
+new remote commit, PR, deployment, or Production migration accompanied these fixes.
+
+A fresh read-only Production check still reports 451 migrations through
+`20260905212822` and confirms workbook refresh off, import processing on, and
+communications/scheduled publishing off for release `00ba3b1e`. The latest
+preview per source, restricted to the currently linked file, reports:
+
+| Class | Committed rows | Pending rows | Error rows | Reviewed skips |
+| ----- | -------------: | -----------: | ---------: | -------------: |
+| 2027  |          1,106 |            0 |          1 |              1 |
+| 2028  |            459 |          193 |          0 |              0 |
+| 2029  |            150 |            0 |          0 |              0 |
+
+These are import-row counts, not unique profile counts or proof of complete term
+coverage. The query returned no Class of 2030 preview; its linked template tabs
+need separate registry verification. Class of 2028's pending total includes the
+authoritative identity blocker described above despite no ambiguous status rows.
+
+The next local patch adds an explicit officer notes review form using the existing
+shadcn controls. It shows up to eight marked cells and 500 characters per note,
+requires an outcome and reason, keeps the request ID across uncertain responses,
+and refreshes only after a confirmed receipt. Source text renders as text, not HTML
+or CSS. Migration `20260906024707` adds the staff-authorized atomic review receipt
+and removes service-role access to the legacy settlement helper. Review and import
+approval remain separate actions. No model handles this evidence.
+
+Private commit `0956a7d` is in PR #252, based on private `development`. All 293
+plugin test files, TypeScript, and full zero-warning lint passed locally. The
+revised isolated replay passed 7,107 pgTAP assertions across 244 files, then stopped
+at the expected branch/gitlink gate. All generated stack resources were removed.
+The exact 453-migration release catalog query also returned its success sentinel
+against that isolated database. Forty-seven focused release tests passed. These
+checks do not replace browser acceptance or authorize claiming the app is deployed.
+
+A separate count-only registry check confirmed all four class workbooks linked,
+each with eight discovered tabs, no recorded registry error, and a prepared version
+equal to the registry's last observed provider version. This does not establish
+that every tab contains rows or that Drive has not changed since the last check.
+
+Private PR #252 merged as `38e4f695eede00dcfd4f067b128008bc5e6cf9b2` after
+`plugin-quality` and GitGuardian passed on `5fb2f86`. The first CI run caught a
+1,201-line authorization test; shortening an existing comment restored the
+1,200-line limit without removing any assertion. No branch protection changed.
+The root gitlink now stages that exact merged private commit, and the strict
+submodule check passes.
+
+The pending-row query exposed another contract gap: the reconciliation RPC
+accepted ambiguous/conflict rows but refused authoritative pending identity
+blockers. Local migration `20260906025852` permits an explicit match only for an
+unattempted, unresolved class-history row with a proven identity blocker and an
+active target in that class. Queued/running previews remain frozen. Five new
+database assertions cover the match, immutable evidence, readiness, replay, and
+refusal for an ordinary pending new-profile row. Officer notes review also refuses
+a source-key conflict until identity is resolved, so a later match cannot replace
+its outcome decision.
+
+The final local isolated gate passed with 454 migrations and 7,112 pgTAP
+assertions across 244 files. Its fictional workflow probes, advisors, architecture
+and plugin isolation checks, strict gitlink check, TypeScript, zero-warning lint,
+plugin login/API isolation smoke, and eleven-route cron auth/shape smoke passed.
+The exact 454-migration release catalog query returned its success sentinel on
+the same isolated database. All generated resources were removed. This does not
+cover a Production build, full CSF browser journeys, hosted acceptance, or providers.
+Forty-seven focused release contract tests passed again.
+
+Remaining P1: Class of 2027's error row has a failed attempt, no matched/frozen
+target, a valid workbook key, and an authoritative identity conflict. Do not
+rewrite its failed attempt or mark it successful. The workbook preparation loop
+calls preview without retry lineage. Manual preparation can reuse the failed
+immutable preview; the background worker already creates a new preview but omits
+the preceding attempt's lineage. The existing generic import UI has Retry corrected rows,
+but that path must not run on the old Production app while automatic annotation
+interpretation remains deployed. Add source-scoped retry preparation to the
+workbook worker before the grouped root release. No Production migration, app
+deployment, email dispatch, or new official commit occurred in this continuation.
+
+The local workbook retry patch now finds the latest preview by organization,
+source, and Drive file. Known failures and parser errors attach that immediate
+preview as retry lineage. Running, in-flight, and unknown outcomes block preparation.
+The helper changes only preview input; it does not edit receipts or commit rows.
+Six focused tests pass with 25 assertions. All 294 plugin test files, TypeScript,
+and zero-warning lint pass. Full plugin verification also passed. Private PR #253
+merged as `c822293ff4c700f3e758929cf692613b044a199d` after CI run `34008344966`
+and GitGuardian passed on `c66a23a`. No protection changed or Vercel build ran.
+The root index now pins that merged commit and passes the strict submodule check.
+Forty integrated inventory and release tests pass with 325 assertions. The first
+full root test run caught the temporary
+private HEAD/root index mismatch, with 1,283 tests passing and that one failure.
+The full root suite passed against the corrected index: 300 root and 294 plugin
+test files, with every mock-sensitive file isolated. The local Production-mode
+build passed with nonfunctional CI backend credentials. Formatting also passed.
+Fresh read-only Production checks still report 451 migrations through
+`20260905212822`. Each official class from 2027 through 2030 points to its expected
+workbook and has eight discovered tabs, its recorded version prepared, and no
+registry error. This does not prove current Drive freshness or completed imports.
+Root publication, hosted acceptance, and Production changes remain open.
+
+Hosted acceptance `33998019303` passed for exact Development
+`a3c8604de7fc84434d63b4273bbc29eacbfbe18f` at 23:48 UTC. Its 100 distinct
+fictional accounts and sessions issued 9,629 requests with zero errors. Read
+p95 was 1,267 ms, read p99 2,089 ms, and mutation p95 1,351 ms. LCP p75 was
+1,456 ms, INP p75 32 ms, and CLS p75 0.00210. All 25 review navigations passed
+without browser errors or crashes. Retained heap fell 22.8 percent.
+Private promotion #250 merged at `93ee53a6d1c867329c8fd554a30987ad8479635d`,
+with the same tree as accepted gitlink `06a2e568ef74fc3f44a42b7e637cfef1ea5c0868`.
+Root promotion #480 merged at `00ba3b1e54e09127d715bec2cd0bb139747e6a53`,
+with the identical accepted Development tree. Audited runs `33999681025` and
+`33999696118` paused workbook refresh and import processing. A read-only query
+confirmed all four worker switches off at revision 6 and zero active refresh
+or import jobs before the root merge. Supabase's Production integration passed
+and advanced the ledger from 448 to 451 migrations through `20260905212822`.
+No second migration runner was started. App-only run `33999835363` passed exact
+schema/catalog, accepted-source, private-gitlink, and Vercel project checks. It
+created one staged Production build, `dpl_GowA9smuAXNxsoifTQcn6qKMo6se`, for
+`00ba3b1e54e09127d715bec2cd0bb139747e6a53`. The run completed successfully:
+staged smoke checks, promotion, exact public alias, and public app checks passed.
+The public domain now serves this release. No rollback ran. The rollback target is
+`dpl_DYmJHF9tVtDCuE8WYWnr9o6X1THx`.
+
+Runtime-only runs `33999990543` and `34000028038` restored workbook refresh
+and import processing on the new public release. Both passed public posture
+verification. A read-only query confirms revision 2, these two workers enabled,
+and communications plus scheduled publishing disabled. Before activation the
+queues contained five completed refresh jobs, nine completed import jobs, and
+three blocked import jobs, with none queued or running. These transitions did
+not override any officer decision. The Mac remains locked, so protected officer
+review, remaining imports, controlled email proof, and synthetic media are not
+complete. Release evidence alone does not close those tasks.
+
+Read-only Production reconciliation after the #481 Development merge confirms
+four linked workbook registries, eight discovered tabs each, and prepared
+provider versions matching each registry's current version. Latest matching-file
+class previews contain 1,461 created/updated rows, 445 pending rows, one ambiguous
+row, two errors, and one skip. By class: 2027 has 852 committed and 253 pending;
+2028 has 459 committed and 192 pending; 2029 has 150 committed; 2030 has no
+preview rows. No officer decisions or import writes accompanied this check.
+
+At 23:12 UTC, PR #481 merged into Development at
+`a3c8604de7fc84434d63b4273bbc29eacbfbe18f`, identical to the tested
+`e5bb1c8d54024c276c899040305419922b896623` tree. CI `33997166619` passed
+quality, the build, database replay, and both browser suites. The marked merge
+started hosted acceptance `33998019303` for the corrected application tree.
+Root Production promotion PR #480 and private promotion PR #250 remain open.
+No Production app or schema promotion is proved by this Development merge.
+
 Automation credential rotation after PR #481 opened: created a replacement
 Vercel project bypass, updated the Development CI secret and both Production
 CI secret names, and replaced only the endpoint query value on the two enabled

@@ -15,16 +15,16 @@ import {
 // This controller approves only these reviewed, backward-compatible migrations.
 export const approvedMigrations = [
   [
-    "20260905202837_csf_officer_workbook_reprepare",
-    "98a894d0db0b9ea573943ad42063d1d4d4f3cb75525a7b626908a30de11ef418",
+    "20260906013133_csf_class_import_identity_review_rows",
+    "aaaaa70214f9f8d8d0c8488b08932c8346f488d398826abeb59e1939a3100cdc",
   ],
   [
-    "20260905205847_csf_compound_name_profile_search",
-    "710023ae31c1adb78841588cb0eda86f5776b15af8a280aa27a55b75db0eece3",
+    "20260906024707_csf_officer_annotation_review",
+    "3bd48f12a0c99a1aa5948a6b647ef16c18a674c8ca7cf506c01019b432022a80",
   ],
   [
-    "20260905212822_csf_workbook_reprepare_authority_lock",
-    "ce04696ba62a0720ad4ca8eac2fb7bb570e70e612f1b87022aee974808d55744",
+    "20260906025852_csf_pending_identity_reconciliation",
+    "bad7e0dd1331ad6e1cae04bc11152553c34218ed189aaa8e159b2994cb9a6542",
   ],
 ];
 
