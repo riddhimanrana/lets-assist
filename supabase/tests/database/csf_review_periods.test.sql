@@ -8,7 +8,7 @@ BEGIN;
 
 CREATE EXTENSION IF NOT EXISTS pgtap WITH SCHEMA extensions;
 
-SELECT extensions.plan(42);
+SELECT extensions.plan(46);
 
 -- ---------------------------------------------------------------------------
 -- A. Execution grants
@@ -142,7 +142,10 @@ INSERT INTO plugin_data.csf_point_submissions (
    'Aguirre student claim', 2, 'non_drive', 'submitted', 'student'),
   ('ce400000-0000-4000-8000-000000000002', 'ce100000-0000-4000-8000-000000000001',
    'ce300000-0000-4000-8000-000000000002', 'ce200000-0000-4000-8000-000000000001',
-   'Bhola student claim', 2, 'non_drive', 'submitted', 'student');
+   'Bhola student claim', 2, 'non_drive', 'submitted', 'student'),
+  ('ce400000-0000-4000-8000-000000000004', 'ce100000-0000-4000-8000-000000000001',
+   'ce300000-0000-4000-8000-000000000001', 'ce200000-0000-4000-8000-000000000001',
+   'Officer review fixture', 1, 'non_drive', 'submitted', 'student');
 
 -- ---------------------------------------------------------------------------
 -- C. Permission gates
@@ -325,6 +328,36 @@ SELECT extensions.lives_ok(
 -- ---------------------------------------------------------------------------
 -- F. Decisions
 -- ---------------------------------------------------------------------------
+
+SELECT extensions.throws_ok(
+  $$ UPDATE plugin_data.csf_point_submissions SET source = 'staff'
+     WHERE id = 'ce400000-0000-4000-8000-000000000004' $$,
+  '23514', 'Point verification is open for this term; this member''s submissions are locked.',
+  'a frozen student claim cannot evade the lock by changing source'
+);
+SELECT extensions.throws_ok(
+  $$ UPDATE plugin_data.csf_point_submissions
+     SET status = 'approved', reviewed_by = 'ce000000-0000-4000-8000-000000000001',
+         reviewed_at = now(), claimed_points = 3
+     WHERE id = 'ce400000-0000-4000-8000-000000000004' $$,
+  '23514', 'Point verification is open for this term; this member''s submissions are locked.',
+  'a review cannot change the frozen claim contents'
+);
+SELECT extensions.throws_ok(
+  $$ UPDATE plugin_data.csf_point_submissions
+     SET status = 'approved', reviewed_by = 'ce000000-0000-4000-8000-000000000002',
+         reviewed_at = now()
+     WHERE id = 'ce400000-0000-4000-8000-000000000004' $$,
+  'P0001', 'Point-action actor does not have the required permission.',
+  'a member cannot be used as the reviewer of a frozen claim'
+);
+SELECT extensions.lives_ok(
+  $$ UPDATE plugin_data.csf_point_submissions
+     SET status = 'approved', reviewed_by = 'ce000000-0000-4000-8000-000000000001',
+         reviewed_at = now(), review_notes = 'Officer checked the activity.'
+     WHERE id = 'ce400000-0000-4000-8000-000000000004' $$,
+  'an authorized officer can record only the decision while verification is open'
+);
 
 SELECT extensions.throws_ok(
   format(

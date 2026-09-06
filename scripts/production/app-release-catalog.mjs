@@ -96,10 +96,15 @@ export function acceptedCatalogQuery(source, versions) {
       "34dbbd884882349f8083512cd2fe48b371c3f1242bc62897685267f2a5d0001b"
   )
     return source;
-  const annotationReviewStateUpgrade =
-    versions.length === 457 &&
+  const pointVerificationUpgrade =
+    versions.length === 458 &&
     ledgerHash ===
-      "d0bb60abb4c4a7c0984c7f0f777b9515d055acc51cab29aaee36f31737d58fd0";
+      "8d617c8fbc841fbd4910e269261846110105ed1a6a7c0905b3749487b17987a5";
+  const annotationReviewStateUpgrade =
+    pointVerificationUpgrade ||
+    (versions.length === 457 &&
+      ledgerHash ===
+        "d0bb60abb4c4a7c0984c7f0f777b9515d055acc51cab29aaee36f31737d58fd0");
   const annotationErrorIdentityUpgrade =
     annotationReviewStateUpgrade ||
     (versions.length === 456 &&
@@ -186,6 +191,12 @@ export function acceptedCatalogQuery(source, versions) {
           "plugin_data.csf_reconcile_sheet_import_row_identity_base(uuid,uuid,uuid,text,text,uuid,uuid,jsonb)",
       )
     : baseDefinitions;
+  if (pointVerificationUpgrade)
+    definitions.push([
+      "plugin_data.csf_enforce_point_submission_freeze()",
+      "932eae452025dfd57e24d644b441aea4",
+      false,
+    ]);
   const values = definitions
     .map(
       ([signature, digest, service]) =>

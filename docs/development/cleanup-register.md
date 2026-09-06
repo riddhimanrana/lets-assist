@@ -10,6 +10,40 @@ evidence and does not override the current tables or release gates.
 
 ## Release continuation, 2026-09-05
 
+### Inline point approval, 2026-09-06
+
+PR #485 merged at `40733af1` after CI `34014450823` passed. The exact
+Development deployment is `dpl_HPfUEFWPfMiTntgWZ56btc35vsG6`. Hosted acceptance
+`34015143496` passed. The preceding accepted tree `e6922a7f` passed
+`34013573108` with 100 distinct sessions, 9,523 requests, zero errors, read
+p95 1.69 seconds, mutation p95 1.83 seconds, and 25 crash-free review
+navigations. Those results do not cover the following new fix.
+
+A fictional officer recording proved application approval survives reload.
+The point review path then failed with `Invalid input`: its inline buttons
+omitted the required `requestId`. The standalone review dialog already
+included that field. A local patch now creates stable per-decision IDs,
+prevents concurrent duplicate clicks, preserves server receipt outcomes, and
+locks the queue on an unconfirmed response. Five focused tests pass.
+
+The current-semester browser test then found a separate database defect:
+`csf_enforce_point_submission_freeze` blocked officer decisions when point
+verification was open. Forward migration `20260906062954` permits only
+decision-field changes by a revalidated officer and retains the student claim
+freeze. It also blocks changing a frozen student row's source to evade the
+freeze. The review-period suite passes all 46 assertions.
+
+The fictional 1440-by-900 browser run passes application approval and point
+approval, including reload persistence and point status/reviewer/timestamp
+readback. These local results cover the uncommitted UI and migration fixes,
+not hosted acceptance or Production. The owned stack was removed after the
+run. The full isolated replay passes 458 migrations, 244 test files, 7,143
+assertions, and the exact accepted release catalog. Private PR #257 passed CI
+`34016828013` and merged to private Development at `e03130c`. Root integration
+and exact-tree hosted acceptance remain open. All 266 private-plugin test
+files, TypeScript, and zero-warning lint pass.
+No official rows changed and no new Vercel build was requested.
+
 ### Frozen annotation review guards, 2026-09-06
 
 Root PR #484 merged to Development at `e6922a7f`, with the same application
@@ -2613,6 +2647,8 @@ hosted Development verification.
 | AUD-115 | P1 | Annotation and identity review could each prevent the other from completing because they shared a terminal resolution field. | CSF import review | Forward migration `20260906041507` passes both review orders locally, preserves each decision and immutable source data, and leaves unmatched identities blocked. Hosted integration and Production acceptance remain open. |
 | AUD-116 | P1 | `db:validate` invoked a shared-local reset without an isolated ownership check. An interrupted run left the shared database container and volume absent. | Local tooling | File validation is now non-mutating, with three hermetic regression tests. The owned isolated CSF database is unaffected. Previous shared-local contents and recoverability remain unverified; recovery is open. |
 | AUD-117 | P1 | Annotation review could change frozen import decisions after a stopped worker, and could settle rows before preview preparation completed. | CSF import review | Forward migration `20260906053114` rejects frozen rows and non-reviewable preview states. Nine regression failures now pass within 47 focused assertions. Fresh replay passes 7,139 assertions across 244 files, the exact schema catalog, and error-level advisors. Hosted acceptance and Production rollout remain open. |
+| AUD-118 | P1 | Inline point approval and rejection omit the required request ID and fail with `Invalid input`. | CSF officer review | Private PR #257 adds stable receipts and unknown-outcome handling. Five focused tests, all 266 plugin test files, and the fictional approval/reload journey pass. Private/root integration and release remain open. |
+| AUD-119 | P1 | Opening point verification freezes officer decisions as well as student edits. | CSF point review database | Forward migration `20260906062954` permits authorized decision-only updates and preserves the claim freeze. All 46 review-period assertions and the fictional approval/reload journey pass. Full replay passes 7,143 assertions and the exact release catalog. Hosted acceptance and release remain open. |
 
 ## External/account blockers
 
