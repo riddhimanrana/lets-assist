@@ -36,8 +36,12 @@ test("officer annotation review checks the receipt index and refuses the legacy 
     query,
     /csf_review_import_annotation\(uuid,uuid,uuid,uuid,text,text\)/u,
   );
-  assert.match(query, /md5\(p.prosrc\)='984eecbf0c4068bd103d0548aa6adffa'/u);
-  assert.match(query, /md5\(p.prosrc\)='8eb7262bd0f4a527ac382fa761f59182'/u);
+  assert.match(query, /md5\(p.prosrc\)='5a3d1acada42ee4fff0206684c4cfd77'/u);
+  assert.match(query, /md5\(p.prosrc\)='a91a1e38692139da856c4e52e94db60c'/u);
+  assert.match(
+    acceptedCatalogQuery(source, versions.slice(0, 456)),
+    /md5\(p.prosrc\)='984eecbf0c4068bd103d0548aa6adffa'/u,
+  );
   assert.match(query, /md5\(p.prosrc\)='1a753bdc4474fb1f5fcbb93f4d56d4d1'/u);
   assert.match(
     acceptedCatalogQuery(source, versions.slice(0, 455)),

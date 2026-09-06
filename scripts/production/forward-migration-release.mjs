@@ -34,6 +34,10 @@ export const approvedMigrations = [
     "20260906044753_csf_annotation_error_identity_review",
     "4a103d06e6393897bb830bea025872ed61c60ccd67abc79c580707fc97df10bc",
   ],
+  [
+    "20260906053114_csf_annotation_review_state_guards",
+    "47be7222eb6ec7275ef738d03f24943ec5beac647b4432d1831829da6ab7ac5a",
+  ],
 ];
 
 const literal = (value) => `'${value.replaceAll("'", "''")}'`;

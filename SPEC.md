@@ -201,6 +201,8 @@ V75: officer import reconciliation stores match metadata separately from immutab
 
 V76: class import identity review and annotation review are independent decisions. Either review order preserves the matched profile, annotation outcome, source snapshot, and separate audit events. Annotation review never clears an unresolved identity from readiness. Replays cannot replace a completed annotation decision or reopen a frozen import.
 
+V77: new annotation decisions require a locked preview in completed or needs_resolution state and an unfrozen, not_started row. A stopped worker does not release the officer-approved freeze. Pending, running, failed, and cancelled previews cannot receive new review decisions or audit receipts. An exact existing request receipt remains readable after current authorization is checked.
+
 §T
 
 id|status|task|cites
