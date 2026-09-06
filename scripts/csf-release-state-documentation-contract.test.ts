@@ -242,10 +242,10 @@ describe("CSF release-state documentation truthfulness guards", () => {
       `private Development gitlink is \`${privateGitlink}\``,
     );
     expect(officerRunbook).toContain(
-      "last verified Production ledger has 448 migrations",
+      "last verified Production ledger has 451 migrations",
     );
     expect(officerRunbook).toContain(
-      "The workbook rebuild, compound-name search, and rebuild authority-lock migrations are not live yet",
+      "Annotation review now rejects frozen rows and previews whose preparation has not completed",
     );
     expect(officerRunbook).toContain(
       "Preparation does not mean their rows have committed",

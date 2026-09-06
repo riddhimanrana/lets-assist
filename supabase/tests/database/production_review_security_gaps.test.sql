@@ -51,12 +51,16 @@ SELECT extensions.ok(
   'authenticated clients cannot settle CSF import annotations'
 );
 SELECT extensions.ok(
-  has_function_privilege(
+  NOT has_function_privilege(
     'service_role',
     'plugin_data.csf_apply_import_annotation_interpretation(uuid,uuid,text,text,uuid)',
     'EXECUTE'
+  ) AND has_function_privilege(
+    'service_role',
+    'plugin_data.csf_review_import_annotation(uuid,uuid,uuid,uuid,text,text)',
+    'EXECUTE'
   ),
-  'the server can settle CSF import annotations'
+  'the server must use the audited officer annotation review boundary'
 );
 
 SELECT extensions.ok(

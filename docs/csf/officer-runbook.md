@@ -1,8 +1,10 @@
 # DVHS CSF Officer Operations Runbook
 
 **Audience:** organization administrators, adviser, chapter officers, and Data Management
-**Current status:** the last verified public app is `fda53ee5b06ca74e3f81f98c8d37e06b1f1fa258`. All four class workbooks are linked. Preparation does not mean their rows have committed. The workbook review and search follow-up still requires hosted acceptance. Use the [cleanup register](../development/cleanup-register.md) for release and data evidence.
-**Release ledger:** the current repository candidate carries 451 ordered migrations through `20260905212822_csf_workbook_reprepare_authority_lock`; the private Development gitlink is `06a2e56`. The last verified Production ledger has 448 migrations through `20260905080459_csf_import_review_metadata_snapshot`. The workbook rebuild, compound-name search, and rebuild authority-lock migrations are not live yet.
+**Current status:** the last verified public app is `00ba3b1e54e09127d715bec2cd0bb139747e6a53`. All four class workbooks are linked. Preparation does not mean their rows have committed. Workbook refresh is paused pending the officer notes review fix. Use the [cleanup register](../development/cleanup-register.md) for release and data evidence.
+**Release ledger:** the current repository candidate carries 460 ordered migrations through `20260906085350_csf_identity_review_preview_state`; the private Development gitlink is `e03130c`, merged through private PR #257 and promoted through #258. The last verified Production ledger has 451 migrations through `20260905212822_csf_workbook_reprepare_authority_lock`. Hosted acceptance passed at `60825d2d` for the preceding 459-migration candidate. The new identity-preview guard passes the full local replay of 7,159 assertions and the release catalog checks. It has not reached hosted Development or Production.
+Annotation review now rejects frozen rows and previews whose preparation has not completed.
+
 **Authoritative record after review:** Let's Assist
 
 This runbook describes the v1.6 officer workflow. Do not use it for a Production cutover until the current gates in section 12 and [testing and release](testing-and-release.md) pass for the exact integrated tree.

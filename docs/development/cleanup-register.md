@@ -10,6 +10,292 @@ evidence and does not override the current tables or release gates.
 
 ## Release continuation, 2026-09-05
 
+### Completed-preview identity review, 2026-09-06
+
+Root PR #486 merged at `60825d2d`. CI `34021317555` passed on that merged
+commit, and hosted acceptance `34021315408` passed with 100 distinct sessions,
+9,650 requests, zero request errors, read p95 1.94 seconds, mutation p95 1.91
+seconds, no renderer crashes, and retained heap growth of -12.21 percent.
+Development deployment `dpl_9zJKKuLcQrQyW5riTbZPgfYdXVFW` serves that commit.
+Private PR #258 promoted the same plugin tree to private main at `ab585e5`.
+The merged remote feature branch was removed; its commits remain in Development.
+
+The unresolved review on Production PR #483 exposed a separate identity guard
+gap. An isolated regression reproduced six failures: pending, running, failed,
+and cancelled previews accepted matches and changed rows and audit history.
+Forward migration `20260906085350` locks the preview before the row and rejects
+non-preview or unfinished jobs. Its final full replay passes 460 migrations
+and 7,159 assertions, including skip and cancelled-replay regressions. The exact
+release catalog passes; all ten trigger and permission drift checks refuse
+the change and roll back. Production promotion
+remains paused for this fix. No official records or Production schema changed.
+
+The count-only club-reference audit found nine filenames identifying Fall 2025
+or semester one of academic 2025-2026, despite the folder's Fall 26 label.
+The other twelve remain unassigned. A bounded first-sheet scan found no
+explicit semester labels. No reference or point record was assigned from the
+folder name alone. The Production application importer shows Connected in a
+fresh Riddhiman Chrome tab; the old tab's stalled status is not a completed
+import or a proved application defect.
+
+### Inline point approval, 2026-09-06
+
+PR #485 merged at `40733af1` after CI `34014450823` passed. The exact
+Development deployment is `dpl_HPfUEFWPfMiTntgWZ56btc35vsG6`. Hosted acceptance
+`34015143496` passed. The preceding accepted tree `e6922a7f` passed
+`34013573108` with 100 distinct sessions, 9,523 requests, zero errors, read
+p95 1.69 seconds, mutation p95 1.83 seconds, and 25 crash-free review
+navigations. Those results do not cover the following new fix.
+
+A fictional officer recording proved application approval survives reload.
+The point review path then failed with `Invalid input`: its inline buttons
+omitted the required `requestId`. The standalone review dialog already
+included that field. A local patch now creates stable per-decision IDs,
+prevents concurrent duplicate clicks, preserves server receipt outcomes, and
+locks the queue on an unconfirmed response. Five focused tests pass.
+
+The current-semester browser test then found a separate database defect:
+`csf_enforce_point_submission_freeze` blocked officer decisions when point
+verification was open. Forward migration `20260906062954` permits only
+decision-field changes by a revalidated officer and retains the student claim
+freeze. It also blocks changing a frozen student row's source to evade the
+freeze. The review-period suite passes all 46 assertions.
+
+The fictional 1440-by-900 browser run passes application approval and point
+approval, including reload persistence and point status/reviewer/timestamp
+readback. These local results cover the uncommitted UI and migration fixes,
+not hosted acceptance or Production. The owned stack was removed after the
+run. The full isolated replay passes 458 migrations, 244 test files, 7,143
+assertions, and the exact accepted release catalog. Private PR #257 passed CI
+`34016828013` and merged to private Development at `e03130c`. Root integration
+and exact-tree hosted acceptance remain open. All 266 private-plugin test
+files, TypeScript, and zero-warning lint pass.
+No official rows changed and no new Vercel build was requested.
+
+Root PR #486 contains the point-review fixes. CI `34017021587` passed lint,
+TypeScript, database workflows, and scale checks, but its root test gate found
+one stale catalog assertion: the new trigger raises the definition count from
+nine to ten. The follow-up fixes that assertion and tests the trigger's exact
+definition and internal execution permissions. The previous 457-migration
+catalog must still contain only nine definitions. All 41 focused release
+tests, all 301 root test files, and the strict private gitlink check pass.
+Browser CI remains in progress.
+
+The Production audit found all four class workbooks linked with eight tabs
+each. Drive metadata confirms access to all four files and chapter ownership.
+Those checks do not establish completed imports. Class of 2030 remains linked
+with eight unsynced template tabs. Vercel Billing shows Speed Insights Plus
+disabled. Production remains at 451 migrations with all three recorded worker
+controls disabled. No provider settings or official records changed in this
+check.
+
+### Installed point-freeze trigger verification, 2026-09-06
+
+CI `34017876391` passed for `91312881`, including the production build and
+database/browser job. Final review then found that the release catalog checked
+the repaired function but not its installed trigger. The follow-up verifies
+the trigger's relation, name, function, enabled state, row/event type, and
+absence of arguments, column restrictions, or a conditional predicate.
+
+The new unit regression failed before the fix. All 42 focused release tests,
+all 301 root test files, zero-warning lint, and the strict private gitlink check
+now pass. An owned isolated replay passed 458 migrations and 7,143 assertions.
+The actual release query rejected eight trigger changes: removal, disabling,
+replica-only execution, rename, reduced events, statement-level execution, a
+false predicate, and a different function. Each change rolled back, and the
+unchanged catalog passed again. The owned replay stack was removed. No
+Production trigger or migration changed. Root PR #486 remains open for this
+release-verifier follow-up; its application and private-plugin bytes did not
+change.
+
+Branch cleanup removed 15 local and 15 remote merged branch names after
+ancestry checks against each repository's Development branch. All commits
+remain recoverable from that history. Active worktrees and their untracked
+files were preserved. Stale remote-tracking refs were pruned.
+
+The count-only Production audit found 4,427 imported activity events and
+matching credit records with no missing links or inconsistent identity/term
+scope. All points are positive, and no verified participation group repeats.
+All 1,392 attendance records have labels and both legacy and canonical meeting
+links in the correct semester. These checks do not establish source-by-source
+equality, completed pending imports, or member-browser acceptance.
+
+### Point update permissions and token rotation, 2026-09-06
+
+CI `34019865179` passed quality on `24fb77aa`. Its database job first stopped
+before startup because a runner port was occupied. Retrying only that job on
+the unchanged commit passed startup and database tests, then reproduced a
+fixture seeder defect: point fixture `upsert` required the removed runtime
+UPDATE permission. The seeder already awaits an organization-scoped delete of
+those fictional rows. It now uses INSERT rather than restoring the grant.
+The new regression failed before the change and all 31 seed tests pass after
+it. A fresh isolated seed and reseed each produce the same four point rows
+under the restricted server role. All 44 seed and documentation tests and
+focused zero-warning lint pass. The owned stack was removed after Docker
+confirmed no remaining containers, volume, or network for its project. This
+seeder-only follow-up still needs CI; no application or migration bytes changed.
+
+The Production communication audit found no CSF dispatch attempts, delivery
+rows, or recorded CSF provider events. The generic signed webhook replay is
+not evidence of a CSF queue-to-provider dispatch. The controlled email test
+remains open.
+
+Count-only application inspection found complete class/term targets for all
+517 Spring 2026 and 71 Fall 2026 preview rows. Spring has 430 unique exact
+class-name candidates, 86 without an exact candidate, and one duplicate
+candidate. Of the 86, 85 belong to Class of 2026, outside the four linked
+workbooks. Fall has 38 unique candidates and 33 without an exact candidate,
+including all 14 Class of 2030 applicants. These are review categories, not
+identity proof or committed records. No official row changed.
+
+Review of PR #486 found that direct `service_role` updates could supply an
+officer ID and bypass the canonical approval receipt. The application uses
+RPCs for these updates. Forward migration `20260906073357` removes direct
+runtime UPDATE permission while retaining reads and existing audited actions.
+The release catalog checks table and column permissions. Regression tests
+exercise a refused direct update and approval/retry under the server role.
+The isolated replay passes all 459 migrations and 7,145 assertions across 244
+files. The real catalog refuses ten trigger or permission changes and passes
+again after each transaction rollback. Canonical approval and exact retry
+pass under `service_role`; the direct update is refused. Zero-warning lint,
+37 focused release tests, TypeScript, and the strict private gitlink check pass.
+The root sweep found only a stale runbook ledger count. After correcting it,
+all 13 documentation assertions and the full 301-file root sweep pass.
+CI `34018967853` passed for the preceding trigger check, including its browser
+job, without a restart. The permission follow-up still needs CI and hosted
+acceptance. Production remains at 451 migrations, with direct
+point UPDATE permission still present and all worker controls disabled. No
+Production schema or official records changed.
+
+EXT-007 is resolved. Vercel now holds separate Development and Production
+replacement bypass tokens. GitHub environment secrets and both enabled Resend
+webhook URLs use those replacements. Readback preserved the webhook IDs,
+subscriptions, status, and signing configuration. Replayed signed delivery
+events returned HTTP 200 at `2026-09-06T07:32:59.904Z` in Development and
+`2026-09-06T07:33:00.576Z` in Production. The old token was revoked after those
+checks. No email was sent and no deployment was created. These replays do not
+replace the controlled ten-message queue-to-provider acceptance test.
+
+### Frozen annotation review guards, 2026-09-06
+
+Root PR #484 merged to Development at `e6922a7f`, with the same application
+tree as tested `a51e31bf`. CI `34012777423` passed, including 7,129 database
+assertions across 244 files and 85 CSF browser tests with four skips. Hosted
+acceptance `34013573108` remains in progress at this check. Production PR #483
+remains open and Production has not advanced.
+
+Two further review findings reproduced nine failures in a 47-assertion local
+test. A frozen row could accept a new annotation decision after its worker
+stopped without beginning a row attempt. Pending, running, failed, and
+cancelled previews could also accept decisions. Forward migration
+`20260906053114` guards both cases. The focused database test passes all 47
+assertions after applying the fix. The 21 release-contract tests, TypeScript,
+and zero-warning lint pass. A fresh isolated replay applied all 457 migrations
+and passed 7,139 assertions across 244 files in 19 seconds. The exact release
+catalog returned `1`, and error-level advisors found no issues. All 19 release
+documentation contracts pass. These local results do not establish hosted or
+Production acceptance.
+
+The previous owned regression stack was removed after validating its resource
+ownership. It contained fictional test data. No hosted or shared-local
+database was changed. Chrome remains unavailable while the Mac is locked.
+
+### My CSF selected semester, 2026-09-06
+
+Private PR #255 merged to Development at `0ca0d7a`. Private quality run
+`34011594879` passed for the identical source tree at `f73fd1b`. The root
+candidate now pins the merged commit. My CSF shares one semester selection
+between its profile summary and history. Opening a recorded semester shows
+that semester's points, activities, meetings, and officer status. Selecting an
+empty current semester still shows its actual zero counts.
+
+Integrated TypeScript, zero-warning lint, and the strict gitlink check pass.
+The desktop and mobile browser regression passes, including switching from
+recorded Spring 2026 to empty Fall 2026 and back, activity and meeting labels,
+zero browser failures, and no horizontal overflow. The compiled local run
+produced fictional screenshots and videos. Its first
+run reached the correct Spring 2026 summary but failed because one activity
+label appeared in both participation and point submissions. The test now
+selects the participation occurrence. The following attempt stopped before
+the app started because the first runner left a port reservation after a
+shutdown error. Its recorded owner process was absent and port 3002 was free.
+That reservation was moved aside without deleting it. Port 3000 and shared
+services were not changed. The rerun passed both tests in 49 seconds. Hosted
+acceptance and Production remain open.
+
+### Combined import review regression, 2026-09-06
+
+PR #484 review found that the original two-order fixture used `pending` rows,
+but real annotation blockers use `error`. Updating the fixture reproduced five
+failures against migration 455. Forward migration `20260906044753` admits
+annotation-only errors to identity review and preserves those errors until
+the separate annotation decision. It also supports confirmation retries in
+that state. Mixed unrelated errors stay blocked. All 37 focused assertions
+pass after the change. The previous migration remains unchanged. A fresh
+isolated database applied all 456 migrations, and the exact read-only release
+catalog returned `1`. Error-level advisors reported no issues. The complete
+pgTAP command did not pass: two files exited before emitting a plan, and a
+targeted retry reported a local connection timeout. The full run reported
+6,978 assertions across 243 files. Do not treat this as a complete replay gate.
+The existing isolated stack remains the retry target.
+
+The scripts guide no longer calls file-only `db:validate` a replay check.
+A regression enforces that distinction. The officer runbook now records the
+current ledger and private gitlink. Twenty-five release and file-validation
+tests, TypeScript, and zero-warning lint pass for this follow-up.
+
+CI run `34011927835` completed with a stale runbook-ledger test failure and
+one outdated applicant browser assertion. The browser suite passed 84 tests,
+including the new desktop and mobile My CSF checks, and skipped four. Its
+fictional applicant output shows Spring 2026 and "Under officer review" in
+both summary and history. The test now checks that shared state, then selects
+Fall 2026 to check "No semester record". Role-access checks remain unchanged.
+The corrected browser test and follow-up migration still need passing CI and
+hosted acceptance. No Production data changed during these fixes.
+
+Local tooling incident: running `bun run db:validate` reached its implicit
+`supabase db reset --local --yes` before it was interrupted. The shared
+`supabase_db_lets-assist` container and volume were absent afterward, while
+other shared services remained. Previous local contents and recoverability
+are unverified. No hosted database was targeted. The owned isolated regression
+stack remained healthy. Do not call this an isolated replay or a passing
+validation run. The command now performs file checks only. Three hermetic
+tests prove it cannot invoke Bun, Supabase, or Docker and still rejects invalid
+names and duplicate versions. Use the separate owned isolated replay gate for
+database proof. Shared-local recovery remains open; no restore was attempted.
+
+Production PR #483 remains open. Review found that annotation settlement and
+identity reconciliation shared a terminal resolution field. A synthetic pgTAP
+regression reproduced five failures: annotation-first prevented matching, and
+identity-first prevented annotation review. The failure also lost the chance
+to retain both audit decisions.
+
+Forward migration `20260906041507_csf_composable_import_reviews.sql` keeps the
+decisions independent without changing historical migrations or source data.
+Matching retains a reviewed annotation outcome. Annotation review accepts a
+matched row and preserves its profile and match metadata. An unresolved
+identity remains a readiness blocker after annotation review, including a
+valid source key with conflicting contact evidence. Repeated annotation
+decisions remain blocked, and the existing request receipt still handles a
+lost response.
+
+Local evidence: the focused database tests passed 71 assertions. The full
+fresh replay applied all 455 migrations and passed 244 files with 7,125
+assertions. Error-level Supabase advisors found no issues. TypeScript,
+zero-warning lint, and the strict private gitlink check passed. The exact
+release catalog returned `csf_target_schema_verified=1` in a
+read-only transaction against that stack. Twenty-one release-controller tests
+passed, including old ledger compatibility and rejection of changed migration
+bytes. The three file-validation tests also passed. The new migration has not
+been applied to either hosted environment.
+
+Hosted Development run `34009457889` passed for root `6f413621` and private
+gitlink `c822293`: 100 distinct sessions, 9,614 requests, zero request errors,
+read p95 1.68 seconds, mutation p95 1.82 seconds, 25 review navigations without
+a crash, and retained heap down 11.67 percent. This proves the previous candidate, not the new combined
+review fix. Production remains at root `00ba3b1e`; no new app build, import
+commit, email send, or Production schema change occurred during this fix.
+
 ### Domain assignment projection
 
 Configuration release `33950191490` failed its read-only alias check before
@@ -1041,6 +1327,299 @@ sources.
 ## Repository-owned P0–P2
 
 ### Current Production acceptance, 2026-09-05
+
+Post-release officer review resumed after the Mac unlocked. Full-name search
+returned a different profile from the original workbook key. Four prior
+committed rows from the same class/file corroborated one active target, including
+historical merge lineage. The officer match action saved that target, and a
+read-only query confirmed it. Fall 2024 Class of 2027 then committed 254 updates
+and retained the one reviewed redundant-row skip.
+
+Class of 2028 Fall 2025 reprepare produced 193 pending rows with no parser error.
+Its approval correctly refused with `preview_requires_review`: authoritative
+readiness reports one `pendingMissingMatch` despite zero `pendingMissingSourceKey`.
+P1 follow-up: Settings ignored this blocker and advertised the preview as ready.
+The local private branch `codex/csf-hidden-review-blockers` now counts authoritative
+missing matches and refuses that ready state; the regression failed before the
+patch and passes after it. Local migration `20260906013133` adds a service-only,
+tenant-scoped query for those pending identity blockers. Settings uses that query
+and offers the existing audited match/create controls. Valid new source keys do
+not become false review blockers. The bounded query does not change snapshots.
+
+P1 privacy/decision follow-up: `interpretCsfImportAnnotationsAction` still builds
+activity text and annotations for model interpretation and automatically calls
+the annotation-settlement RPC. The "Review markings" control invokes this action
+rather than opening evidence. The observed call reported zero settled rows, but
+that does not establish zero model transmission. Do not invoke it again. Replace
+this path with protected officer evidence and explicit decisions before closure.
+No academic approval or account connection was intentionally changed in this run.
+
+Audited worker-control run `34004302603` disabled Production workbook refresh
+after this finding. Import processing remains enabled; communications and
+scheduled publishing remain disabled. A count-only query for the preceding two
+hours found zero recorded annotation AI calls and zero annotation resolutions.
+Those counts do not prove that no data left the application. The local patch
+removes the automatic preview call and the misleading markings control. The old
+action now refuses without reading rows, calling a model, or changing decisions.
+An explicit officer evidence/decision path remains unfinished. Do not re-enable
+workbook refresh or describe the follow-up as accepted yet.
+
+Local verification: the corrected isolated replay passed 7,097 pgTAP assertions
+across 244 files, then stopped at the strict gitlink gate because the private
+worktree is on an uncommitted feature branch. Its isolated resources were removed;
+the shared local stack was untouched. Full lint and TypeScript passed. The first
+root test run stopped on stale release-ledger contracts. Updating the exact
+452-migration catalog and current public-release documentation made all 46 focused
+release tests pass. The rerun passed every root stage, then found two private
+source-contract tests that still required the removed automatic interpreter.
+Those tests now require the privacy refusal and pending identity controls.
+The separate plugin rerun passed all 291 discovered files, including isolated
+mock tests. TypeScript and focused release lint passed again. The new catalog guard checks
+the review function's body, result types, defaults, and service-only grants. No
+new remote commit, PR, deployment, or Production migration accompanied these fixes.
+
+A fresh read-only Production check still reports 451 migrations through
+`20260905212822` and confirms workbook refresh off, import processing on, and
+communications/scheduled publishing off for release `00ba3b1e`. The latest
+preview per source, restricted to the currently linked file, reports:
+
+| Class | Committed rows | Pending rows | Error rows | Reviewed skips |
+| ----- | -------------: | -----------: | ---------: | -------------: |
+| 2027  |          1,106 |            0 |          1 |              1 |
+| 2028  |            459 |          193 |          0 |              0 |
+| 2029  |            150 |            0 |          0 |              0 |
+
+These are import-row counts, not unique profile counts or proof of complete term
+coverage. The query returned no Class of 2030 preview; its linked template tabs
+need separate registry verification. Class of 2028's pending total includes the
+authoritative identity blocker described above despite no ambiguous status rows.
+
+The next local patch adds an explicit officer notes review form using the existing
+shadcn controls. It shows up to eight marked cells and 500 characters per note,
+requires an outcome and reason, keeps the request ID across uncertain responses,
+and refreshes only after a confirmed receipt. Source text renders as text, not HTML
+or CSS. Migration `20260906024707` adds the staff-authorized atomic review receipt
+and removes service-role access to the legacy settlement helper. Review and import
+approval remain separate actions. No model handles this evidence.
+
+Private commit `0956a7d` is in PR #252, based on private `development`. All 293
+plugin test files, TypeScript, and full zero-warning lint passed locally. The
+revised isolated replay passed 7,107 pgTAP assertions across 244 files, then stopped
+at the expected branch/gitlink gate. All generated stack resources were removed.
+The exact 453-migration release catalog query also returned its success sentinel
+against that isolated database. Forty-seven focused release tests passed. These
+checks do not replace browser acceptance or authorize claiming the app is deployed.
+
+A separate count-only registry check confirmed all four class workbooks linked,
+each with eight discovered tabs, no recorded registry error, and a prepared version
+equal to the registry's last observed provider version. This does not establish
+that every tab contains rows or that Drive has not changed since the last check.
+
+Private PR #252 merged as `38e4f695eede00dcfd4f067b128008bc5e6cf9b2` after
+`plugin-quality` and GitGuardian passed on `5fb2f86`. The first CI run caught a
+1,201-line authorization test; shortening an existing comment restored the
+1,200-line limit without removing any assertion. No branch protection changed.
+The root gitlink now stages that exact merged private commit, and the strict
+submodule check passes.
+
+The pending-row query exposed another contract gap: the reconciliation RPC
+accepted ambiguous/conflict rows but refused authoritative pending identity
+blockers. Local migration `20260906025852` permits an explicit match only for an
+unattempted, unresolved class-history row with a proven identity blocker and an
+active target in that class. Queued/running previews remain frozen. Five new
+database assertions cover the match, immutable evidence, readiness, replay, and
+refusal for an ordinary pending new-profile row. Officer notes review also refuses
+a source-key conflict until identity is resolved, so a later match cannot replace
+its outcome decision.
+
+The final local isolated gate passed with 454 migrations and 7,112 pgTAP
+assertions across 244 files. Its fictional workflow probes, advisors, architecture
+and plugin isolation checks, strict gitlink check, TypeScript, zero-warning lint,
+plugin login/API isolation smoke, and eleven-route cron auth/shape smoke passed.
+The exact 454-migration release catalog query returned its success sentinel on
+the same isolated database. All generated resources were removed. This does not
+cover a Production build, full CSF browser journeys, hosted acceptance, or providers.
+Forty-seven focused release contract tests passed again.
+
+Remaining P1: Class of 2027's error row has a failed attempt, no matched/frozen
+target, a valid workbook key, and an authoritative identity conflict. Do not
+rewrite its failed attempt or mark it successful. The workbook preparation loop
+calls preview without retry lineage. Manual preparation can reuse the failed
+immutable preview; the background worker already creates a new preview but omits
+the preceding attempt's lineage. The existing generic import UI has Retry corrected rows,
+but that path must not run on the old Production app while automatic annotation
+interpretation remains deployed. Add source-scoped retry preparation to the
+workbook worker before the grouped root release. No Production migration, app
+deployment, email dispatch, or new official commit occurred in this continuation.
+
+The local workbook retry patch now finds the latest preview by organization,
+source, and Drive file. Known failures and parser errors attach that immediate
+preview as retry lineage. Running, in-flight, and unknown outcomes block preparation.
+The helper changes only preview input; it does not edit receipts or commit rows.
+Six focused tests pass with 25 assertions. All 294 plugin test files, TypeScript,
+and zero-warning lint pass. Full plugin verification also passed. Private PR #253
+merged as `c822293ff4c700f3e758929cf692613b044a199d` after CI run `34008344966`
+and GitGuardian passed on `c66a23a`. No protection changed or Vercel build ran.
+The root index now pins that merged commit and passes the strict submodule check.
+Forty integrated inventory and release tests pass with 325 assertions. The first
+full root test run caught the temporary
+private HEAD/root index mismatch, with 1,283 tests passing and that one failure.
+The full root suite passed against the corrected index: 300 root and 294 plugin
+test files, with every mock-sensitive file isolated. The local Production-mode
+build passed with nonfunctional CI backend credentials. Formatting also passed.
+Fresh read-only Production checks still report 451 migrations through
+`20260905212822`. Each official class from 2027 through 2030 points to its expected
+workbook and has eight discovered tabs, its recorded version prepared, and no
+registry error. This does not prove current Drive freshness or completed imports.
+Root PR #482 passed CI run `34008650409`, including the database/browser job,
+and merged to Development as `6f413621b658225757430e3e129a039285e811bc`.
+CI reports 7,112 pgTAP assertions across 244 files, three DV browser cases,
+and 83 passing CSF browser cases with four skipped. The skipped historical
+import journey does not prove the current workbook commit UI.
+The marked merge started one Development deployment and hosted acceptance run
+`34009457889`. Hosted acceptance and Production changes remain open.
+
+Release continuation on September 6: private promotion PR #254 targets `main`.
+Updating its branch for the existing strict checks produced
+`b924cc55e376e800d42d92684b5362a0857d5a77`, with an identical tree to the accepted
+gitlink `c822293ff4c700f3e758929cf692613b044a199d`. Private CI run `34009813015`
+is pending. Repository auto-merge is unavailable; no protection was changed.
+Read-only Production inspection still reports 451 migrations through
+`20260905212822`. Audited worker transition `34009811550` was dispatched and
+approved to pause import processing on public release `00ba3b1e`. The workflow
+completed successfully. A fresh database check found zero enabled worker-control
+rows. The three pending migrations have not been applied. No new app build,
+schema write, official import commit, or email send occurred during this check.
+
+All 43 focused release-controller tests pass. The fresh strict submodule check
+now refuses the local private checkout because private Development advanced by
+two ancestry-only commits while preparing promotion. Its source tree remains
+identical to the accepted gitlink. Keep the accepted root gitlink unchanged;
+do not report this branch-tip check as passing or rebuild just to move the pointer.
+The local private checkout is now detached at that exact accepted gitlink, as
+the CI release checkout is. The strict check passes in that documented mode.
+Private CI `34009813015` passed and PR #254 merged as
+`db6b5b4c7691cd5b3f837324832bcca00b487ad9`, with the same source tree. Root
+Production PR #483 is open. Its current checks and hosted acceptance remain
+pending. No Production application or schema change has run.
+
+A new isolated capture is running against fictional stack
+`vid0eec8dcbb2` on local port 3002. Its temporary capture script dismisses the
+tour through its visible control, then checks the current Applications,
+class Members, point-review, workbook Settings, and member profile routes.
+That capture reached officer Home, application review/import, and class Members.
+It failed on two temporary capture selectors: the class point queue has no
+`#applications` wrapper, and My CSF contains nested tab panels. Both selectors
+were corrected from the rendered DOM. A replacement capture is running on owned
+fictional stack `vid9cbcb0b8ec`. Neither run changes the accepted application
+source. The first run's owned stack was removed. Its stale port claim was removed
+only after the recorded PID, listener, and owned Docker containers were absent.
+The local shutdown `kill EPERM` remains an open harness finding.
+
+The replacement capture on `vid9cbcb0b8ec` passed both browser journeys with no
+recorded browser failures. It saved seven 1440x900 screenshots and two MP4s for
+officer navigation and the member semester profile. These show navigation and
+rendering, not settled officer decisions or automatic workbook preparation.
+Database teardown passed, but the app again left a stale port claim. The recorded
+PID and port listener were absent before removing that claim. A small diagnostic
+with a normally exited detached Node child returned ESRCH, not EPERM, so the
+shutdown cause remains unproved and no speculative signaling patch was made.
+
+P2 UI follow-up from the synthetic profile capture: the profile header shows
+current Fall 2026 zeros while the selected Spring 2026 history shows two points.
+Keep the legitimate empty current semester, but make the header and selected
+semester context agree in the requested UI patch. Do not infer missing imported
+history from that header alone.
+
+Read-only Resend inventory now shows one enabled Production webhook, one enabled
+Development webhook, and four disabled older endpoints. Production has zero CSF
+campaigns, deliveries, or provider-event rows. No provider send or configuration
+change occurred. The earlier disabled-replacement note is historical; enabled
+configuration still does not prove signed-event settlement.
+The provider event API reports four successful events on the enabled Production
+webhook. The latest delivered-event attempt returned HTTP 200. The CSF provider
+event ledger remains empty, so this proves endpoint delivery only, not a CSF
+campaign receipt or the requested ten-message acceptance run.
+
+Root release CI `34009973580` passed for PR #483 at `6f413621`. Hosted acceptance
+`34009457889` is still live. Its authentication setup deliberately spaces session
+creation by 10.5 seconds before the 15-minute load; the run was not restarted.
+
+The profile UI follow-up is isolated in private branch
+`codex/csf-member-selected-semester`, worktree `csf-member-selected-semester`.
+Local commit `2067cac` is not pushed or deployed. A shared client selection now drives
+the header and semester history. The server passes a rendered avatar rather
+than a raw profile object across the new client boundary. Current-application
+correction controls appear only on the current semester. The redundant header
+instruction is removed. The reproduced empty-current-term regression first
+failed, then passed with four other focused tests and 31 assertions. Selecting
+the empty current semester still shows its truthful zero and empty status. The scoped
+TypeScript check passes. Focused ESLint exits zero but emits the standalone
+worktree's missing-pages-directory notice, so integrated zero-warning lint and
+rendered interaction acceptance remain required. Local `tsconfig.json` and the
+dependency symlink are test setup only and must not be committed.
+
+Local recording follow-up on root `354481a1`: the isolated 1440x900 capture
+produced account-name confirmation and officer rejection clips. This was not a
+fully passing run. The standalone people-lifecycle journey clicked Classes while
+the first-login officer tour appeared and never navigated. The opt-in officer
+gallery still expects the retired "Review queue" label. Treat both as open P2
+browser-harness findings, not evidence that profile approval passed. The full
+onboarding/application/point/import video remains incomplete.
+
+The recording runner also reported `kill EPERM` during local shutdown and left
+its own port-3002 claim. Its recorded PID had exited, no listener remained, and
+the isolated database teardown proved the recording stack absent. The recording
+claim was removed after those checks; the older port-3000 claim and shared local
+database were left untouched. This local shutdown finding remains open.
+
+Hosted acceptance `33998019303` passed for exact Development
+`a3c8604de7fc84434d63b4273bbc29eacbfbe18f` at 23:48 UTC. Its 100 distinct
+fictional accounts and sessions issued 9,629 requests with zero errors. Read
+p95 was 1,267 ms, read p99 2,089 ms, and mutation p95 1,351 ms. LCP p75 was
+1,456 ms, INP p75 32 ms, and CLS p75 0.00210. All 25 review navigations passed
+without browser errors or crashes. Retained heap fell 22.8 percent.
+Private promotion #250 merged at `93ee53a6d1c867329c8fd554a30987ad8479635d`,
+with the same tree as accepted gitlink `06a2e568ef74fc3f44a42b7e637cfef1ea5c0868`.
+Root promotion #480 merged at `00ba3b1e54e09127d715bec2cd0bb139747e6a53`,
+with the identical accepted Development tree. Audited runs `33999681025` and
+`33999696118` paused workbook refresh and import processing. A read-only query
+confirmed all four worker switches off at revision 6 and zero active refresh
+or import jobs before the root merge. Supabase's Production integration passed
+and advanced the ledger from 448 to 451 migrations through `20260905212822`.
+No second migration runner was started. App-only run `33999835363` passed exact
+schema/catalog, accepted-source, private-gitlink, and Vercel project checks. It
+created one staged Production build, `dpl_GowA9smuAXNxsoifTQcn6qKMo6se`, for
+`00ba3b1e54e09127d715bec2cd0bb139747e6a53`. The run completed successfully:
+staged smoke checks, promotion, exact public alias, and public app checks passed.
+The public domain now serves this release. No rollback ran. The rollback target is
+`dpl_DYmJHF9tVtDCuE8WYWnr9o6X1THx`.
+
+Runtime-only runs `33999990543` and `34000028038` restored workbook refresh
+and import processing on the new public release. Both passed public posture
+verification. A read-only query confirms revision 2, these two workers enabled,
+and communications plus scheduled publishing disabled. Before activation the
+queues contained five completed refresh jobs, nine completed import jobs, and
+three blocked import jobs, with none queued or running. These transitions did
+not override any officer decision. The Mac remains locked, so protected officer
+review, remaining imports, controlled email proof, and synthetic media are not
+complete. Release evidence alone does not close those tasks.
+
+Read-only Production reconciliation after the #481 Development merge confirms
+four linked workbook registries, eight discovered tabs each, and prepared
+provider versions matching each registry's current version. Latest matching-file
+class previews contain 1,461 created/updated rows, 445 pending rows, one ambiguous
+row, two errors, and one skip. By class: 2027 has 852 committed and 253 pending;
+2028 has 459 committed and 192 pending; 2029 has 150 committed; 2030 has no
+preview rows. No officer decisions or import writes accompanied this check.
+
+At 23:12 UTC, PR #481 merged into Development at
+`a3c8604de7fc84434d63b4273bbc29eacbfbe18f`, identical to the tested
+`e5bb1c8d54024c276c899040305419922b896623` tree. CI `33997166619` passed
+quality, the build, database replay, and both browser suites. The marked merge
+started hosted acceptance `33998019303` for the corrected application tree.
+Root Production promotion PR #480 and private promotion PR #250 remain open.
+No Production app or schema promotion is proved by this Development merge.
 
 Automation credential rotation after PR #481 opened: created a replacement
 Vercel project bypass, updated the Development CI secret and both Production
@@ -2197,7 +2776,25 @@ hosted Development verification.
 | AUD-113 | P1 | The two hosted Development repairs were applied through the management API under generated migration versions that differed from their repository filenames. Supabase correctly rejected the exact-tree release because the remote ledger contained versions absent from the repository. | CSF release ledger | Fixed in PR #459 by aligning the two unreleased filenames to the versions already recorded by hosted Development, without changing their SQL. The cutover ledger now includes 443 migrations and the contact-corroboration repair as the 29th Production-pending migration. Local replay, lint, and focused release contracts pass. Hosted exact-tree acceptance and Production remain open. |
 | AUD-114 | P1 | The exact Development load gate completed 9,586 requests with no request or browser errors, but the staff member-or-officer view switch measured 3.84 seconds at p95 against the three-second mutation limit. Its Server Action repeated authentication, membership, plugin access, and permission reads before writing one presentation-only preference, then invalidated a route before the required route replacement. | CSF hosted performance | Fixed in private PR #242, merged to private Development at `2affd09`, and staged in the current root candidate with `public.set_csf_staff_view_mode(uuid,text)`. One authenticated database transaction now checks the active host staff role and updates only the caller's preference. The preference still grants no authority. The action no longer repeats the four authorization reads or invalidates the route cache. Client execution is limited to `authenticated` and is included in the architecture allowlist. Private CI and all 257 discovered plugin test files pass. The clean local replay applied every migration, passed 238 pgTAP files with 6,989 assertions, completed the database workflow, architecture, plugin isolation, registry, runtime, browser-isolation, and cron-shape gates, and removed its owned stack. The production build also passes. Replacement hosted acceptance remains open. |
 
+| AUD-115 | P1 | Annotation and identity review could each prevent the other from completing because they shared a terminal resolution field. | CSF import review | Forward migration `20260906041507` passes both review orders, preserves each decision and immutable source data, and leaves unmatched identities blocked. Hosted acceptance passed at `60825d2d`. Production remains open. |
+| AUD-116 | P1 | `db:validate` invoked a shared-local reset without an isolated ownership check. An interrupted run left the shared database container and volume absent. | Local tooling | File validation is now non-mutating, with three hermetic regression tests. The owned isolated CSF database is unaffected. Previous shared-local contents and recoverability remain unverified; recovery is open. |
+| AUD-117 | P1 | Annotation review could change frozen import decisions after a stopped worker, and could settle rows before preview preparation completed. | CSF import review | Forward migration `20260906053114` rejects frozen rows and unfinished previews. Nine regression failures now pass within 47 focused assertions. Hosted acceptance passed at `60825d2d`. Production remains open. |
+| AUD-118 | P1 | Inline point approval and rejection omit the required request ID and fail with `Invalid input`. | CSF officer review | Private PR #257 adds stable receipts and unknown-outcome handling. Five focused tests, 266 plugin test files, and the fictional approval/reload journey pass. Root #486 and private promotion #258 merged. Hosted acceptance passed at `60825d2d`; public release remains open. |
+| AUD-119 | P1 | Opening point verification freezes officer decisions as well as student edits. | CSF point review database | Forward migration `20260906062954` permits authorized decision-only updates and preserves the claim freeze. The review-period assertions, fictional approval/reload journey, full replay, and exact release catalog pass. Hosted acceptance passed at `60825d2d`; Production remains open. |
+| AUD-120 | P1 | The release catalog verified the point-freeze function but could accept a missing, disabled, or replaced trigger. | Production release verification | The catalog pins the installed trigger and its execution conditions. The unit regression passes, and isolated replay rejects eight trigger changes. Merged and hosted-accepted at `60825d2d`; Production remains open. |
+| AUD-121 | P1 | Direct server table updates could record point decisions without canonical review evidence or a request receipt. | CSF point review database | Forward migration `20260906073357` removes runtime UPDATE grants. Canonical server-role approval/retry and direct-write refusal pass. The release query rejects restored table or column grants. Merged and hosted-accepted at `60825d2d`; Production remains open. |
+| AUD-122 | P1 | Removing runtime point UPDATE permission breaks the local fixture upsert. | Isolated fixture seeder | The awaited fictional fixture reset now precedes INSERT instead of upsert. All 31 seed tests, fresh seed, and reseed pass with the same four point rows. CI `34021317555` and hosted acceptance `34021315408` passed on merged `60825d2d`. |
+| AUD-123 | P2 | Identity reconciliation accepts rows before preview preparation finishes. | CSF import review | Six failures reproduce matches and audit writes on pending, running, failed, and cancelled previews. Forward migration `20260906085350` adds the locked preview-state check. The final full replay passes 460 migrations and 7,159 assertions, the exact release catalog, and all ten permission/trigger drift refusals. Hosted and Production rollout remain open. |
+
 ## External/account blockers
+
+EXT-007: a provider metadata response exposed the shared Vercel automation
+bypass query value in tool output. No value was copied into source or retained
+reports. Resolved on 2026-09-06: separate replacement tokens now serve the
+Development and Production webhook endpoints and CI consumers. Both signed
+replays returned HTTP 200 before the old token was revoked. No application
+build or email send was required. Controlled ten-message acceptance remains
+unproven.
 
 | ID      | Dependency             | Blocker                                                                                                                                                                                                                                                                                                                                                                                                  | Required owner/action                                                                                                                                                                                                                                                                     |
 | ------- | ---------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |

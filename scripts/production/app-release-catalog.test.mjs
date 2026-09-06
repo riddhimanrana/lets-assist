@@ -17,6 +17,55 @@ test("legacy release catalogs stay unchanged", () => {
   assert.equal(acceptedCatalogQuery(source, versions.slice(0, 444)), source);
 });
 
+test("identity review upgrade checks exact body, bounded signature, and server-only permissions", () => {
+  const query = acceptedCatalogQuery(source, versions);
+  assert.match(query, /csf_class_import_review_rows\(uuid,uuid,integer\)/u);
+  assert.match(query, /md5\(p.prosrc\)='97c62342820cbe42f25b6361725eb630'/u);
+  assert.match(query, /AND NOT p.prosecdef/u);
+  assert.match(query, /pg_get_expr\(p.proargdefaults,0\)='25'/u);
+  assert.match(query, /'warnings','errors','review_reason'/u);
+  assert.doesNotMatch(
+    acceptedCatalogQuery(source, versions.slice(0, 451)),
+    /csf_class_import_review_rows/u,
+  );
+});
+
+test("officer annotation review checks the receipt index and refuses the legacy runtime entry point", () => {
+  const query = acceptedCatalogQuery(source, versions);
+  assert.match(
+    query,
+    /csf_review_import_annotation\(uuid,uuid,uuid,uuid,text,text\)/u,
+  );
+  assert.match(query, /md5\(p.prosrc\)='5a3d1acada42ee4fff0206684c4cfd77'/u);
+  assert.match(query, /md5\(p.prosrc\)='a91a1e38692139da856c4e52e94db60c'/u);
+  assert.match(
+    acceptedCatalogQuery(source, versions.slice(0, 456)),
+    /md5\(p.prosrc\)='984eecbf0c4068bd103d0548aa6adffa'/u,
+  );
+  assert.match(query, /md5\(p.prosrc\)='5bc80be3b2524a588bfa6ae920921a7f'/u);
+  assert.match(
+    acceptedCatalogQuery(source, versions.slice(0, 459)),
+    /md5\(p.prosrc\)='1a753bdc4474fb1f5fcbb93f4d56d4d1'/u,
+  );
+  assert.match(
+    acceptedCatalogQuery(source, versions.slice(0, 455)),
+    /md5\(p.prosrc\)='edb9f2c1f2d5ef8f9759b4679328876b'/u,
+  );
+  assert.match(
+    acceptedCatalogQuery(source, versions.slice(0, 454)),
+    /md5\(p.prosrc\)='ddc531d82a237eae28a29bff3dacffd8'/u,
+  );
+  assert.match(query, /csf_officer_annotation_review_request_idx/u);
+  assert.match(
+    query,
+    /csf_apply_import_annotation_interpretation\(uuid,uuid,text,text,uuid\)/u,
+  );
+  assert.doesNotMatch(
+    acceptedCatalogQuery(source, versions.slice(0, 452)),
+    /csf_review_import_annotation/u,
+  );
+});
+
 test("compound-name search checks exact behavior, result fields, grants, and prefix indexes", () => {
   const query = acceptedCatalogQuery(source, versions);
   assert.match(query, /md5\(p.prosrc\)='b4ab6f2930a415f7d249e5c133e4d051'/u);
@@ -61,7 +110,11 @@ test("the reviewed import upgrade verifies metadata, function grants, and the sc
   assert.match(query, /a.atttypid='jsonb'::regtype AND a.attnotnull/u);
   assert.match(query, /csf_import_rows_committed_source_key_idx/u);
   assert.match(query, /i.indisvalid AND i.indisready AND i.indislive/u);
-  assert.match(query, /9d5b02f7b4cdb7c948aad0398ed29bdf/u);
+  assert.match(query, /5bc80be3b2524a588bfa6ae920921a7f/u);
+  assert.match(
+    acceptedCatalogQuery(source, versions.slice(0, 453)),
+    /9d5b02f7b4cdb7c948aad0398ed29bdf/u,
+  );
   assert.match(query, /641568ea97cc01fff75298d218a1404d/u);
   const old = acceptedCatalogQuery(source, versions.slice(0, 446));
   assert.match(old, /SELECT count\(\*\) = 8 AND/u);
@@ -69,6 +122,53 @@ test("the reviewed import upgrade verifies metadata, function grants, and the sc
   assert.throws(
     () => acceptedCatalogQuery(source, versions.slice(0, 447)),
     /explicit release review/u,
+  );
+});
+
+test("point updates deny direct runtime writes while retaining the preceding catalog", () => {
+  const clause =
+    "has_any_column_privilege(roles.name, 'plugin_data.csf_point_submissions', 'UPDATE')";
+  assert.ok(acceptedCatalogQuery(source, versions).includes(clause));
+  assert.ok(
+    !acceptedCatalogQuery(source, versions.slice(0, 458)).includes(clause),
+  );
+});
+
+test("point verification pins the repaired trigger and keeps its execution internal", () => {
+  const definition =
+    "('plugin_data.csf_enforce_point_submission_freeze()','932eae452025dfd57e24d644b441aea4',false)";
+  assert.ok(acceptedCatalogQuery(source, versions).includes(definition));
+  const preceding = acceptedCatalogQuery(source, versions.slice(0, 457));
+  assert.ok(!preceding.includes(definition));
+  assert.match(preceding, /SELECT count\(\*\) = 9 AND/u);
+});
+
+test("point verification checks the installed trigger, not only its function", () => {
+  const query = acceptedCatalogQuery(source, versions);
+  const start = query.indexOf(
+    "t.tgname = 'csf_point_submissions_verification_freeze'",
+  );
+  assert.ok(start >= 0);
+  const posture = query.slice(start, query.indexOf(") AS valid", start));
+  for (const clause of [
+    "t.tgrelid = to_regclass('plugin_data.csf_point_submissions')",
+    "t.tgfoid = to_regprocedure('plugin_data.csf_enforce_point_submission_freeze()')",
+    "t.tgenabled = 'O'",
+    "t.tgtype = 31",
+    "NOT t.tgisinternal",
+    "t.tgconstraint = 0",
+    "t.tgqual IS NULL",
+    "t.tgnargs = 0",
+    "octet_length(t.tgargs) = 0",
+    "t.tgattr::text = ''",
+    "NOT t.tgdeferrable",
+    "NOT t.tginitdeferred",
+  ])
+    assert.ok(posture.includes(clause), clause);
+  assert.ok(
+    !acceptedCatalogQuery(source, versions.slice(0, 457)).includes(
+      "t.tgname = 'csf_point_submissions_verification_freeze'",
+    ),
   );
 });
 

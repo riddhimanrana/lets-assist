@@ -298,6 +298,8 @@ SELECT extensions.is(
 
 -- Review response-loss retries are allowed through the request receipt, while
 -- a new review request against the already-reviewed state remains fail closed.
+GRANT SELECT, INSERT ON point_request_results TO service_role;
+SET LOCAL ROLE service_role;
 INSERT INTO point_request_results (label, result)
 SELECT 'approved-review', plugin_data.csf_review_point_submission_request(
   'fb100000-0000-4000-8000-000000000001',
@@ -321,6 +323,7 @@ SELECT extensions.is(
   true,
   'an exact review retry reaches the database receipt after status changed'
 );
+RESET ROLE;
 SELECT extensions.throws_ok(
   $$ SELECT plugin_data.csf_review_point_submission_request(
     'fb100000-0000-4000-8000-000000000001',

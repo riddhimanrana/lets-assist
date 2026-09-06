@@ -4,6 +4,23 @@ DVHS CSF officer UX → class-first Home → Classes → Applications → More; 
 
 §C
 
+- Workbook preparation must retain the immediate source-scoped preview as retry
+  lineage after a confirmed failure. Unknown and in-flight attempts block
+  preparation. A rebuilt preview still requires an officer commit; preparation
+  must not overwrite an earlier receipt or repeat a row write.
+- Class Settings must use authoritative database identity blockers for both
+  readiness counts and review rows. A valid workbook key does not clear a
+  conflicting prior profile match. Pending identity blockers must expose the
+  existing audited match/create/skip controls without changing source evidence.
+- Preview generation must not send activity text, Sheet notes, or comments to
+  a model, and must not automatically decide annotation-based requirements.
+  Explicit officer notes reviews use a closed outcome vocabulary, a required
+  reason, fresh class-import authority, and an atomic request receipt. A retry
+  reuses that receipt; a changed decision cannot reuse its request identifier.
+  Reviewing notes neither commits the preview nor clears unrelated import errors.
+  Retired interpretation actions fail closed for old clients. Officer review
+  must preserve source evidence and record an explicit decision and reason.
+
 - Missing Vercel alias-operation metadata is not a promotion failure by itself.
   Require two exact READY Production-alias observations before treating it as
   settled. Never rebuild to recover an operation-status verification failure.
@@ -181,6 +198,18 @@ V73: CSF worker activation uses database-backed switches scoped to the exact pub
 
 V74: workbook readiness retains source-key conflict checks within the hosted database request budget. Committed-lineage equality reads use an organization/class/source-key index. A failed Settings read must show a recoverable error, not an unlinked workbook. Raising the global timeout or dropping identity checks does not satisfy this requirement.
 V75: officer import reconciliation stores match metadata separately from immutable raw and normalized source snapshots. Profile creation, row resolution, audit, and request receipts remain atomic. Meeting attendance retains reviewed match provenance without rewriting source evidence. Creating an unclaimed application profile never verifies a form email or approves term membership.
+
+V76: class import identity review and annotation review are independent decisions. Either review order preserves the matched profile, annotation outcome, source snapshot, and separate audit events. Annotation review never clears an unresolved identity from readiness. Replays cannot replace a completed annotation decision or reopen a frozen import.
+
+V77: new annotation decisions require a locked preview in completed or needs_resolution state and an unfrozen, not_started row. A stopped worker does not release the officer-approved freeze. Pending, running, failed, and cancelled previews cannot receive new review decisions or audit receipts. An exact existing request receipt remains readable after current authorization is checked.
+
+V78: inline point decisions send the same required request receipt as the standalone review dialog. Identical retries retain the request ID. A changed decision uses a different ID. Concurrent clicks cannot submit the same control twice. An unconfirmed transport outcome blocks further decisions and queue navigation until the officer reloads the saved state.
+
+V79: open point verification freezes student claim contents, not authorized officer decisions. A decision-only update revalidates the reviewer and preserves the claim's organization, profile, term, source, activity, amount, and evidence. Reclassifying a frozen student claim as staff data cannot bypass the freeze.
+
+V80: the runtime server role cannot update point submissions through table or column grants. It must use the existing audited request actions. Canonical approvals and retries remain available. Release verification rejects restored direct-update grants.
+
+V81: identity reconciliation locks the source preview before its row and requires completed or needs_resolution state. Pending, running, failed, cancelled, and commit-mode jobs cannot receive identity matches or skips. A repeated identity decision rechecks the current preview state before returning its result. Refusal changes neither row state nor audit history.
 
 §T
 

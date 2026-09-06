@@ -1,7 +1,7 @@
 BEGIN;
 
 CREATE EXTENSION IF NOT EXISTS pgtap WITH SCHEMA extensions;
-SELECT extensions.plan(23);
+SELECT extensions.plan(38);
 
 INSERT INTO auth.users (
   id, aud, role, email, email_confirmed_at,
@@ -189,7 +189,7 @@ INSERT INTO plugin_data.csf_sheet_import_rows (
     'de200000-0000-4000-8000-000000000001',
     'de210000-0000-4000-8000-000000000001',
     'S26', 2,
-    '{"record":{"identity":{"firstName":"Avery","lastName":"Sample","normalizedFirstName":"avery","normalizedLastName":"sample","sourceStudentKey":"averysample"},"contact":{"schoolEmail":"other.student@students.local.test"}}}'::jsonb,
+    '{"annotations":{"4":{"background":"#b7e1cd"}},"record":{"identity":{"firstName":"Avery","lastName":"Sample","normalizedFirstName":"avery","normalizedLastName":"sample","sourceStudentKey":"averysample"},"contact":{"schoolEmail":"other.student@students.local.test"}}}'::jsonb,
     repeat('5', 64),
     NULL,
     'pending'
@@ -207,6 +207,42 @@ INSERT INTO plugin_data.csf_sheet_import_rows (
     NULL,
     'pending'
   );
+
+SELECT extensions.has_function(
+  'plugin_data', 'csf_class_import_review_rows',
+  ARRAY['uuid', 'uuid', 'integer'], 'class identity review reader exists'
+);
+SELECT extensions.ok(
+  has_function_privilege('service_role', 'plugin_data.csf_class_import_review_rows(uuid,uuid,integer)', 'EXECUTE')
+  AND NOT has_function_privilege('authenticated', 'plugin_data.csf_class_import_review_rows(uuid,uuid,integer)', 'EXECUTE')
+  AND NOT has_function_privilege('anon', 'plugin_data.csf_class_import_review_rows(uuid,uuid,integer)', 'EXECUTE'),
+  'only the backend can read protected review rows'
+);
+SELECT extensions.is(
+  (SELECT count(*) FROM plugin_data.csf_class_import_review_rows(
+    'de100000-0000-4000-8000-000000000001', 'de300000-0000-4000-8000-000000000004', 25)),
+  1::bigint, 'pending invalid source keys appear in officer review'
+);
+SELECT extensions.is(
+  (SELECT review_reason FROM plugin_data.csf_class_import_review_rows(
+    'de100000-0000-4000-8000-000000000001', 'de300000-0000-4000-8000-000000000005', 25)),
+  'identity_review', 'valid source keys with conflicting contact evidence remain reviewable'
+);
+SELECT extensions.is(
+  (SELECT count(*) FROM plugin_data.csf_class_import_review_rows(
+    'de100000-0000-4000-8000-000000000001', 'de300000-0000-4000-8000-000000000003', 25)),
+  0::bigint, 'valid new-workbook identities are not falsely added to review'
+);
+SELECT extensions.is(
+  (SELECT count(*) FROM plugin_data.csf_class_import_review_rows(
+    'de100000-0000-4000-8000-000000000002', 'de300000-0000-4000-8000-000000000004', 25)),
+  0::bigint, 'another organization cannot read this job'
+);
+SELECT extensions.is(
+  (SELECT count(*) FROM plugin_data.csf_class_import_review_rows(
+    'de100000-0000-4000-8000-000000000001', 'de300000-0000-4000-8000-000000000004', 0)),
+  1::bigint, 'the requested limit is clamped to a usable bounded page'
+);
 
 SELECT extensions.has_function(
   'plugin_data',
@@ -425,6 +461,41 @@ SELECT extensions.is(
   'de400000-0000-4000-8000-000000000001'::uuid,
   'the committed semester row records the reused profile'
 );
+
+SELECT extensions.lives_ok($q$SELECT plugin_data.csf_review_import_annotation(
+  'de100000-0000-4000-8000-000000000001','de000000-0000-4000-8000-000000000001',
+  'de500000-0000-4000-8000-000000000005','de600000-0000-4000-8000-000000000001',
+  'exception_met','Officer reviewed the fictional semester annotation.')$q$,
+  'a conflicting valid key permits a separate annotation decision');
+SELECT extensions.is((plugin_data.csf_import_preview_readiness(
+  'de100000-0000-4000-8000-000000000001','de300000-0000-4000-8000-000000000005')->>'pendingMissingMatch')::integer,
+  1,'annotation review does not clear an unresolved identity blocker');
+SELECT extensions.lives_ok($q$SELECT plugin_data.csf_reconcile_sheet_import_row(
+  'de100000-0000-4000-8000-000000000001','de500000-0000-4000-8000-000000000005',
+  'de400000-0000-4000-8000-000000000001','match','Officer checked the stable workbook lineage.',
+  'de000000-0000-4000-8000-000000000001',NULL,NULL)$q$,
+  'an officer can resolve the pending identity blocker shown by Settings');
+SELECT extensions.ok((SELECT matched_profile_id='de400000-0000-4000-8000-000000000001'::uuid
+  AND resolution_status='resolved' AND import_status='pending'
+  AND normalized_data->'record'->'contact'->>'schoolEmail'='other.student@students.local.test'
+  FROM plugin_data.csf_sheet_import_rows WHERE id='de500000-0000-4000-8000-000000000005'),
+  'matching records the decision without rewriting conflicting source evidence');
+SELECT extensions.is((SELECT resolution_reason_code FROM plugin_data.csf_sheet_import_rows
+  WHERE id='de500000-0000-4000-8000-000000000005'),'annotation_exception_met',
+  'matching a conflicting valid key retains its reviewed semester outcome');
+SELECT extensions.is((plugin_data.csf_import_preview_readiness(
+  'de100000-0000-4000-8000-000000000001','de300000-0000-4000-8000-000000000005')->>'pendingMissingMatch')::integer,
+  0,'the resolved blocker clears authoritative readiness');
+SELECT extensions.is(plugin_data.csf_reconcile_sheet_import_row(
+  'de100000-0000-4000-8000-000000000001','de500000-0000-4000-8000-000000000005',
+  'de400000-0000-4000-8000-000000000001','match','Officer checked the stable workbook lineage.',
+  'de000000-0000-4000-8000-000000000001',NULL,NULL)->>'idempotent','true',
+  'retrying the same match does not write another decision');
+SELECT extensions.throws_like($q$SELECT plugin_data.csf_reconcile_sheet_import_row(
+  'de100000-0000-4000-8000-000000000001','de500000-0000-4000-8000-000000000003',
+  'de400000-0000-4000-8000-000000000001','match','This row is not identity blocked.',
+  'de000000-0000-4000-8000-000000000001',NULL,NULL)$q$,
+  '%no longer needs a matching decision%','ordinary new-profile pending rows do not acquire a match override');
 
 INSERT INTO plugin_data.csf_profiles (
   id, organization_id, first_name, last_name,

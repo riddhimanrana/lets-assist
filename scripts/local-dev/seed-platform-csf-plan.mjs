@@ -1906,7 +1906,9 @@ export async function seedDvhsCsfFixtures({ admin, users, must }) {
 
   await must(
     "csf-expanded-submissions",
-    pluginDb.from("csf_point_submissions").upsert([
+    // The awaited reset above removes these fixture rows. INSERT needs no
+    // runtime UPDATE grant; reseeding still starts from an empty fixture set.
+    pluginDb.from("csf_point_submissions").insert([
       {
         id: "10000000-0000-4000-8000-000000000220",
         organization_id: IDS.csfOrg,

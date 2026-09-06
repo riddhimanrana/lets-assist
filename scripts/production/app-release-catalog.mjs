@@ -96,10 +96,55 @@ export function acceptedCatalogQuery(source, versions) {
       "34dbbd884882349f8083512cd2fe48b371c3f1242bc62897685267f2a5d0001b"
   )
     return source;
-  const reprepareAuthorityUpgrade =
-    versions.length === 451 &&
+  const identityPreviewStateUpgrade =
+    versions.length === 460 &&
     ledgerHash ===
-      "a3b709dea637acd1fdd4a8820f8b2830be3fb8c53e8d8ab9d9975a8164f41148";
+      "e0a6a89e861dcc74b59dfaec28ac35ddccc9fe3faa5e63934d143c8e98d662a8";
+  const canonicalPointUpdateUpgrade =
+    identityPreviewStateUpgrade ||
+    (versions.length === 459 &&
+      ledgerHash ===
+        "c7c3c098a7902aefd912130352867529e7f04870ad50a32d90d8d2bd9c0473a3");
+  const pointVerificationUpgrade =
+    canonicalPointUpdateUpgrade ||
+    (versions.length === 458 &&
+      ledgerHash ===
+        "8d617c8fbc841fbd4910e269261846110105ed1a6a7c0905b3749487b17987a5");
+  const annotationReviewStateUpgrade =
+    pointVerificationUpgrade ||
+    (versions.length === 457 &&
+      ledgerHash ===
+        "d0bb60abb4c4a7c0984c7f0f777b9515d055acc51cab29aaee36f31737d58fd0");
+  const annotationErrorIdentityUpgrade =
+    annotationReviewStateUpgrade ||
+    (versions.length === 456 &&
+      ledgerHash ===
+        "0814438288ba61e24d8c3c354d63de123b3a1da4bc300e812a6b236184f330c7");
+  const composableReviewUpgrade =
+    annotationErrorIdentityUpgrade ||
+    (versions.length === 455 &&
+      ledgerHash ===
+        "2dc071e0cd4d8f48b9a42ca8736f9638a159fb7f39f9755386a06e0606cec844");
+  const pendingIdentityUpgrade =
+    composableReviewUpgrade ||
+    (versions.length === 454 &&
+      ledgerHash ===
+        "548a33c9dde018e92c04bd7209848cddd108bbbf631bc527faf88959eb8dc8a3");
+  const officerAnnotationUpgrade =
+    pendingIdentityUpgrade ||
+    (versions.length === 453 &&
+      ledgerHash ===
+        "315087bff5b40d4dba1c6577adc071f886ad25365c3366f4a49e163afd210e48");
+  const identityReviewUpgrade =
+    officerAnnotationUpgrade ||
+    (versions.length === 452 &&
+      ledgerHash ===
+        "b0d3cef5d332d20877ddcbcee20971a8b3c32b4116ca6269c11bf2325471f3f6");
+  const reprepareAuthorityUpgrade =
+    identityReviewUpgrade ||
+    (versions.length === 451 &&
+      ledgerHash ===
+        "a3b709dea637acd1fdd4a8820f8b2830be3fb8c53e8d8ab9d9975a8164f41148");
   const compoundSearchUpgrade =
     reprepareAuthorityUpgrade ||
     (versions.length === 450 &&
@@ -146,9 +191,22 @@ export function acceptedCatalogQuery(source, versions) {
     throw new ReleaseCheckError(
       "The accepted catalog result contract changed.",
     );
-  const definitions = importReviewUpgrade
+  const baseDefinitions = importReviewUpgrade
     ? [...acceptedDefinitions, ...importReviewDefinitions]
     : acceptedDefinitions;
+  const definitions = pendingIdentityUpgrade
+    ? baseDefinitions.filter(
+        ([signature]) =>
+          signature !==
+          "plugin_data.csf_reconcile_sheet_import_row_identity_base(uuid,uuid,uuid,text,text,uuid,uuid,jsonb)",
+      )
+    : baseDefinitions;
+  if (pointVerificationUpgrade)
+    definitions.push([
+      "plugin_data.csf_enforce_point_submission_freeze()",
+      "932eae452025dfd57e24d644b441aea4",
+      false,
+    ]);
   const values = definitions
     .map(
       ([signature, digest, service]) =>
@@ -196,7 +254,50 @@ accepted_upgrade_posture AS (
   ) ${importReviewUpgrade ? importReviewPosture : ""} ${reprepareUpgrade ? repreparePosture.replace("978fc913e56af1893565d56706941f69", reprepareAuthorityUpgrade ? "a2ae5e479822c1cb54dd405810b6a909" : "978fc913e56af1893565d56706941f69") : ""} ${compoundSearchUpgrade ? compoundSearchPosture : ""} AND (SELECT count(*)=2 AND bool_and(runtime_denied AND digest = CASE relname
     WHEN 'csf_release_worker_controls' THEN 'b186cfbfbb17fee4e0966cde6d3bec9e'
     WHEN 'csf_release_worker_receipts' THEN '94e9bc198f37156522b9aed76bf696a4'
-    ELSE '' END) FROM accepted_worker_relations) AS valid
+    ELSE '' END) FROM accepted_worker_relations)
+  ${identityReviewUpgrade ? identityReviewPosture : ""}
+  ${
+    officerAnnotationUpgrade
+      ? composableReviewUpgrade
+        ? officerAnnotationPosture
+            .replace(
+              "ddc531d82a237eae28a29bff3dacffd8",
+              annotationReviewStateUpgrade
+                ? "5a3d1acada42ee4fff0206684c4cfd77"
+                : "984eecbf0c4068bd103d0548aa6adffa",
+            )
+            .replace(
+              "87eceba9e9a24a0e0dc956bdaa3d7139",
+              annotationReviewStateUpgrade
+                ? "a91a1e38692139da856c4e52e94db60c"
+                : "8eb7262bd0f4a527ac382fa761f59182",
+            )
+        : officerAnnotationPosture
+      : ""
+  }
+  ${
+    pendingIdentityUpgrade
+      ? composableReviewUpgrade
+        ? pendingIdentityPosture.replace(
+            "108e1aa1093f02d5d307053cf6f1fd08",
+            identityPreviewStateUpgrade
+              ? "5bc80be3b2524a588bfa6ae920921a7f"
+              : annotationErrorIdentityUpgrade
+                ? "1a753bdc4474fb1f5fcbb93f4d56d4d1"
+                : "edb9f2c1f2d5ef8f9759b4679328876b",
+          )
+        : pendingIdentityPosture
+      : ""
+  } ${pointVerificationUpgrade ? pointVerificationTriggerPosture : ""}
+  ${
+    canonicalPointUpdateUpgrade
+      ? `AND NOT EXISTS (
+    SELECT 1 FROM (VALUES ('anon'), ('authenticated'), ('service_role')) roles(name)
+    WHERE has_table_privilege(roles.name, 'plugin_data.csf_point_submissions', 'UPDATE')
+      OR has_any_column_privilege(roles.name, 'plugin_data.csf_point_submissions', 'UPDATE')
+  )`
+      : ""
+  } AS valid
   FROM accepted_upgrade_definitions expected
   LEFT JOIN pg_proc p ON p.oid=to_regprocedure(expected.signature)
 )
@@ -208,6 +309,97 @@ accepted_upgrade_posture AS (
       "WHEN (SELECT valid FROM accepted_upgrade_posture) AND (SELECT valid FROM table_posture)",
     );
 }
+
+const pointVerificationTriggerPosture = `AND EXISTS (
+  SELECT 1 FROM pg_trigger t
+  WHERE t.tgname = 'csf_point_submissions_verification_freeze'
+    AND t.tgrelid = to_regclass('plugin_data.csf_point_submissions')
+    AND t.tgfoid = to_regprocedure('plugin_data.csf_enforce_point_submission_freeze()')
+    AND t.tgenabled = 'O'
+    AND t.tgtype = 31
+    AND NOT t.tgisinternal
+    AND t.tgconstraint = 0
+    AND t.tgqual IS NULL
+    AND t.tgnargs = 0
+    AND octet_length(t.tgargs) = 0
+    AND t.tgattr::text = ''
+    AND NOT t.tgdeferrable
+    AND NOT t.tginitdeferred
+)`;
+
+const pendingIdentityPosture = `AND EXISTS (
+  SELECT 1 FROM pg_proc p JOIN pg_language l ON l.oid=p.prolang
+  WHERE p.oid=to_regprocedure('plugin_data.csf_reconcile_sheet_import_row_identity_base(uuid,uuid,uuid,text,text,uuid,uuid,jsonb)')
+    AND p.proowner='postgres'::regrole AND p.prosecdef
+    AND p.prorettype='jsonb'::regtype AND l.lanname='plpgsql'
+    AND p.prokind='f' AND p.provolatile='v' AND p.proparallel='u'
+    AND NOT p.proisstrict AND NOT p.proleakproof AND NOT p.proretset
+    AND p.proconfig=ARRAY['search_path=""'] AND p.pronargdefaults=0
+    AND md5(p.prosrc)='108e1aa1093f02d5d307053cf6f1fd08'
+    AND NOT has_function_privilege('service_role',p.oid,'EXECUTE')
+    AND NOT has_function_privilege('anon',p.oid,'EXECUTE')
+    AND NOT has_function_privilege('authenticated',p.oid,'EXECUTE')
+    AND (SELECT count(*)=1 AND bool_and(a.grantee='postgres'::regrole
+      AND a.privilege_type='EXECUTE' AND NOT a.is_grantable AND a.grantor='postgres'::regrole)
+      FROM aclexplode(p.proacl) a)
+)`;
+
+const officerAnnotationPosture = `AND EXISTS (
+  SELECT 1 FROM pg_proc p JOIN pg_language l ON l.oid=p.prolang
+  WHERE p.oid=to_regprocedure('plugin_data.csf_review_import_annotation(uuid,uuid,uuid,uuid,text,text)')
+    AND p.proowner='postgres'::regrole AND p.prosecdef
+    AND p.prorettype='jsonb'::regtype AND l.lanname='plpgsql'
+    AND p.prokind='f' AND p.provolatile='v' AND p.proparallel='u'
+    AND NOT p.proisstrict AND NOT p.proleakproof AND NOT p.proretset
+    AND p.proconfig=ARRAY['search_path=""'] AND p.pronargdefaults=0
+    AND md5(p.prosrc)='ddc531d82a237eae28a29bff3dacffd8'
+    AND has_function_privilege('service_role',p.oid,'EXECUTE')
+    AND NOT has_function_privilege('anon',p.oid,'EXECUTE')
+    AND NOT has_function_privilege('authenticated',p.oid,'EXECUTE')
+    AND (SELECT count(*)=2 AND bool_and(a.grantee IN ('postgres'::regrole,'service_role'::regrole)
+      AND a.privilege_type='EXECUTE' AND NOT a.is_grantable AND a.grantor='postgres'::regrole)
+      FROM aclexplode(p.proacl) a)
+) AND EXISTS (
+  SELECT 1 FROM pg_proc p
+  WHERE p.oid=to_regprocedure('plugin_data.csf_apply_import_annotation_interpretation(uuid,uuid,text,text,uuid)')
+    AND p.proowner='postgres'::regrole AND md5(p.prosrc)='87eceba9e9a24a0e0dc956bdaa3d7139'
+    AND NOT has_function_privilege('service_role',p.oid,'EXECUTE')
+    AND NOT has_function_privilege('anon',p.oid,'EXECUTE')
+    AND NOT has_function_privilege('authenticated',p.oid,'EXECUTE')
+    AND (SELECT count(*)=1 AND bool_and(a.grantee='postgres'::regrole
+      AND a.privilege_type='EXECUTE' AND NOT a.is_grantable AND a.grantor='postgres'::regrole)
+      FROM aclexplode(p.proacl) a)
+) AND EXISTS (
+  SELECT 1 FROM pg_index i
+  WHERE i.indexrelid=to_regclass('plugin_data.csf_officer_annotation_review_request_idx')
+    AND i.indrelid=to_regclass('plugin_data.csf_admin_audit_events')
+    AND i.indisunique AND i.indisvalid AND i.indisready AND i.indislive
+    AND pg_get_indexdef(i.indexrelid)=$$CREATE UNIQUE INDEX csf_officer_annotation_review_request_idx ON plugin_data.csf_admin_audit_events USING btree (organization_id, correlation_id) WHERE (action = 'sheets.annotation_reviewed'::text)$$
+)`;
+
+const identityReviewPosture = `AND EXISTS (
+  SELECT 1 FROM pg_proc p JOIN pg_language l ON l.oid=p.prolang
+  WHERE p.oid=to_regprocedure('plugin_data.csf_class_import_review_rows(uuid,uuid,integer)')
+    AND p.proowner='postgres'::regrole AND NOT p.prosecdef
+    AND p.prorettype='record'::regtype AND l.lanname='sql'
+    AND p.prokind='f' AND p.provolatile='s' AND p.proparallel='u'
+    AND NOT p.proisstrict AND NOT p.proleakproof AND p.proretset
+    AND p.proconfig=ARRAY['search_path=""']
+    AND p.pronargdefaults=1 AND pg_get_expr(p.proargdefaults,0)='25'
+    AND p.proargnames=ARRAY['p_organization_id','p_job_id','p_limit',
+      'id','sheet_tab_name','row_number','import_status','normalized_data','warnings','errors','review_reason']
+    AND p.proargmodes::text[]=ARRAY['i','i','i','t','t','t','t','t','t','t','t']
+    AND p.proallargtypes=ARRAY['uuid'::regtype,'uuid'::regtype,'integer'::regtype,
+      'uuid'::regtype,'text'::regtype,'integer'::regtype,'text'::regtype,
+      'jsonb'::regtype,'text[]'::regtype,'text[]'::regtype,'text'::regtype]::oid[]
+    AND md5(p.prosrc)='97c62342820cbe42f25b6361725eb630'
+    AND has_function_privilege('service_role',p.oid,'EXECUTE')
+    AND NOT has_function_privilege('anon',p.oid,'EXECUTE')
+    AND NOT has_function_privilege('authenticated',p.oid,'EXECUTE')
+    AND (SELECT count(*)=2 AND bool_and(a.grantee IN ('postgres'::regrole,'service_role'::regrole)
+      AND a.privilege_type='EXECUTE' AND NOT a.is_grantable
+      AND a.grantor='postgres'::regrole) FROM aclexplode(p.proacl) a)
+)`;
 
 const compoundSearchPosture = `AND EXISTS (
   SELECT 1 FROM pg_proc p JOIN pg_language l ON l.oid=p.prolang
