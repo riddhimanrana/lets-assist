@@ -130,6 +130,35 @@ test("point verification pins the repaired trigger and keeps its execution inter
   assert.match(preceding, /SELECT count\(\*\) = 9 AND/u);
 });
 
+test("point verification checks the installed trigger, not only its function", () => {
+  const query = acceptedCatalogQuery(source, versions);
+  const start = query.indexOf(
+    "t.tgname = 'csf_point_submissions_verification_freeze'",
+  );
+  assert.ok(start >= 0);
+  const posture = query.slice(start, query.indexOf(") AS valid", start));
+  for (const clause of [
+    "t.tgrelid = to_regclass('plugin_data.csf_point_submissions')",
+    "t.tgfoid = to_regprocedure('plugin_data.csf_enforce_point_submission_freeze()')",
+    "t.tgenabled = 'O'",
+    "t.tgtype = 31",
+    "NOT t.tgisinternal",
+    "t.tgconstraint = 0",
+    "t.tgqual IS NULL",
+    "t.tgnargs = 0",
+    "octet_length(t.tgargs) = 0",
+    "t.tgattr::text = ''",
+    "NOT t.tgdeferrable",
+    "NOT t.tginitdeferred",
+  ])
+    assert.ok(posture.includes(clause), clause);
+  assert.ok(
+    !acceptedCatalogQuery(source, versions.slice(0, 457)).includes(
+      "t.tgname = 'csf_point_submissions_verification_freeze'",
+    ),
+  );
+});
+
 test("checks old email-only fragments on the renamed helper, not the provenance wrapper", () => {
   const query = acceptedCatalogQuery(source, versions);
   const fragments = query.slice(

@@ -61,6 +61,37 @@ disabled. Production remains at 451 migrations with all three recorded worker
 controls disabled. No provider settings or official records changed in this
 check.
 
+### Installed point-freeze trigger verification, 2026-09-06
+
+CI `34017876391` passed for `91312881`, including the production build and
+database/browser job. Final review then found that the release catalog checked
+the repaired function but not its installed trigger. The follow-up verifies
+the trigger's relation, name, function, enabled state, row/event type, and
+absence of arguments, column restrictions, or a conditional predicate.
+
+The new unit regression failed before the fix. All 42 focused release tests,
+all 301 root test files, zero-warning lint, and the strict private gitlink check
+now pass. An owned isolated replay passed 458 migrations and 7,143 assertions.
+The actual release query rejected eight trigger changes: removal, disabling,
+replica-only execution, rename, reduced events, statement-level execution, a
+false predicate, and a different function. Each change rolled back, and the
+unchanged catalog passed again. The owned replay stack was removed. No
+Production trigger or migration changed. Root PR #486 remains open for this
+release-verifier follow-up; its application and private-plugin bytes did not
+change.
+
+Branch cleanup removed 15 local and 15 remote merged branch names after
+ancestry checks against each repository's Development branch. All commits
+remain recoverable from that history. Active worktrees and their untracked
+files were preserved. Stale remote-tracking refs were pruned.
+
+The count-only Production audit found 4,427 imported activity events and
+matching credit records with no missing links or inconsistent identity/term
+scope. All points are positive, and no verified participation group repeats.
+All 1,392 attendance records have labels and both legacy and canonical meeting
+links in the correct semester. These checks do not establish source-by-source
+equality, completed pending imports, or member-browser acceptance.
+
 ### Frozen annotation review guards, 2026-09-06
 
 Root PR #484 merged to Development at `e6922a7f`, with the same application
@@ -2666,8 +2697,17 @@ hosted Development verification.
 | AUD-117 | P1 | Annotation review could change frozen import decisions after a stopped worker, and could settle rows before preview preparation completed. | CSF import review | Forward migration `20260906053114` rejects frozen rows and non-reviewable preview states. Nine regression failures now pass within 47 focused assertions. Fresh replay passes 7,139 assertions across 244 files, the exact schema catalog, and error-level advisors. Hosted acceptance and Production rollout remain open. |
 | AUD-118 | P1 | Inline point approval and rejection omit the required request ID and fail with `Invalid input`. | CSF officer review | Private PR #257 adds stable receipts and unknown-outcome handling. Five focused tests, all 266 plugin test files, and the fictional approval/reload journey pass. Private/root integration and release remain open. |
 | AUD-119 | P1 | Opening point verification freezes officer decisions as well as student edits. | CSF point review database | Forward migration `20260906062954` permits authorized decision-only updates and preserves the claim freeze. All 46 review-period assertions and the fictional approval/reload journey pass. Full replay passes 7,143 assertions and the exact release catalog. Hosted acceptance and release remain open. |
+| AUD-120 | P1 | The release catalog verified the point-freeze function but could accept a missing, disabled, or replaced trigger. | Production release verification | The catalog now pins the installed trigger and its execution conditions. The failing unit regression passes, and an isolated replay rejects eight trigger changes before restoring the passing catalog. Integration and release remain open. |
 
 ## External/account blockers
+
+EXT-007: a provider metadata response exposed the shared Vercel automation
+bypass query value in tool output. No value was copied into source or retained
+reports. Rotate the bypass with overlapping validity, update the Development
+and Production webhook endpoints and CI consumers, verify access and delivery,
+then revoke the old value. This provider operation remains open and must not
+require another application build. Four historical Production webhook events
+were successful; the controlled ten-message acceptance remains unproven.
 
 | ID      | Dependency             | Blocker                                                                                                                                                                                                                                                                                                                                                                                                  | Required owner/action                                                                                                                                                                                                                                                                     |
 | ------- | ---------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |

@@ -276,7 +276,7 @@ accepted_upgrade_posture AS (
           )
         : pendingIdentityPosture
       : ""
-  } AS valid
+  } ${pointVerificationUpgrade ? pointVerificationTriggerPosture : ""} AS valid
   FROM accepted_upgrade_definitions expected
   LEFT JOIN pg_proc p ON p.oid=to_regprocedure(expected.signature)
 )
@@ -288,6 +288,23 @@ accepted_upgrade_posture AS (
       "WHEN (SELECT valid FROM accepted_upgrade_posture) AND (SELECT valid FROM table_posture)",
     );
 }
+
+const pointVerificationTriggerPosture = `AND EXISTS (
+  SELECT 1 FROM pg_trigger t
+  WHERE t.tgname = 'csf_point_submissions_verification_freeze'
+    AND t.tgrelid = to_regclass('plugin_data.csf_point_submissions')
+    AND t.tgfoid = to_regprocedure('plugin_data.csf_enforce_point_submission_freeze()')
+    AND t.tgenabled = 'O'
+    AND t.tgtype = 31
+    AND NOT t.tgisinternal
+    AND t.tgconstraint = 0
+    AND t.tgqual IS NULL
+    AND t.tgnargs = 0
+    AND octet_length(t.tgargs) = 0
+    AND t.tgattr::text = ''
+    AND NOT t.tgdeferrable
+    AND NOT t.tginitdeferred
+)`;
 
 const pendingIdentityPosture = `AND EXISTS (
   SELECT 1 FROM pg_proc p JOIN pg_language l ON l.oid=p.prolang

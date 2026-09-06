@@ -213,12 +213,41 @@ if [[ "${CSF_REPLAY_VERIFY_RELEASE_CATALOG:-0}" == "1" ]]; then
 import { readFileSync } from 'node:fs';
 import { acceptedCatalogQuery } from './scripts/production/app-release-catalog.mjs';
 import { expectedVersions } from './scripts/production/app-release-checks.mjs';
-console.log(acceptedCatalogQuery(
+const catalog = acceptedCatalogQuery(
   readFileSync('./scripts/production/verify-csf-target-schema.sql', 'utf8'),
   expectedVersions(process.cwd()),
-));
+);
+if (catalog.includes('$csf_catalog$')) throw new Error('Unexpected catalog delimiter');
+console.log(catalog);
+const relation = 'plugin_data.csf_point_submissions';
+const trigger = 'csf_point_submissions_verification_freeze';
+const triggerPrefix = `CREATE OR REPLACE TRIGGER ${trigger}`;
+const functionCall = 'EXECUTE FUNCTION plugin_data.csf_enforce_point_submission_freeze()';
+const drifts = [
+  `DROP TRIGGER ${trigger} ON ${relation}`,
+  `ALTER TABLE ${relation} DISABLE TRIGGER ${trigger}`,
+  `ALTER TABLE ${relation} ENABLE REPLICA TRIGGER ${trigger}`,
+  `ALTER TRIGGER ${trigger} ON ${relation} RENAME TO csf_point_freeze_changed`,
+  `${triggerPrefix} BEFORE UPDATE ON ${relation} FOR EACH ROW ${functionCall}`,
+  `${triggerPrefix} BEFORE INSERT OR UPDATE OR DELETE ON ${relation} FOR EACH STATEMENT ${functionCall}`,
+  `${triggerPrefix} BEFORE INSERT OR UPDATE OR DELETE ON ${relation} FOR EACH ROW WHEN (false) ${functionCall}`,
+  `${triggerPrefix} BEFORE INSERT OR UPDATE OR DELETE ON ${relation} FOR EACH ROW EXECUTE FUNCTION plugin_data.csf_record_connection_basis()`,
+];
+for (const [index, drift] of drifts.entries()) {
+  console.log(`DO $csf_drift$ BEGIN
+    BEGIN
+      ${drift};
+      EXECUTE $csf_catalog$${catalog}$csf_catalog$;
+      RAISE EXCEPTION 'Catalog accepted point-trigger drift case ${index + 1}';
+    EXCEPTION WHEN division_by_zero THEN
+      NULL;
+    END;
+  END $csf_drift$;`);
+}
+console.log(catalog);
 NODE
   echo "Accepted release catalog passed against the isolated replay."
+  echo "All eight point-trigger drift checks refused the changed trigger and rolled back."
 fi
 
 # Run cleanup as part of the successful command, not only through EXIT, so a
