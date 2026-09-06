@@ -101,7 +101,7 @@ test("workbook rebuild release checks the exact body, server-only grants, and re
 
 test("the reviewed import upgrade verifies metadata, function grants, and the scoped index", () => {
   const query = acceptedCatalogQuery(source, versions);
-  assert.match(query, /SELECT count\(\*\) = 9 AND/u);
+  assert.match(query, /SELECT count\(\*\) = 10 AND/u);
   assert.match(query, /csf_import_rows_resolution_metadata_object/u);
   assert.match(query, /a.atttypid='jsonb'::regtype AND a.attnotnull/u);
   assert.match(query, /csf_import_rows_committed_source_key_idx/u);
@@ -119,6 +119,15 @@ test("the reviewed import upgrade verifies metadata, function grants, and the sc
     () => acceptedCatalogQuery(source, versions.slice(0, 447)),
     /explicit release review/u,
   );
+});
+
+test("point verification pins the repaired trigger and keeps its execution internal", () => {
+  const definition =
+    "('plugin_data.csf_enforce_point_submission_freeze()','932eae452025dfd57e24d644b441aea4',false)";
+  assert.ok(acceptedCatalogQuery(source, versions).includes(definition));
+  const preceding = acceptedCatalogQuery(source, versions.slice(0, 457));
+  assert.ok(!preceding.includes(definition));
+  assert.match(preceding, /SELECT count\(\*\) = 9 AND/u);
 });
 
 test("checks old email-only fragments on the renamed helper, not the provenance wrapper", () => {

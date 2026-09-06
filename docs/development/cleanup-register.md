@@ -44,6 +44,23 @@ and exact-tree hosted acceptance remain open. All 266 private-plugin test
 files, TypeScript, and zero-warning lint pass.
 No official rows changed and no new Vercel build was requested.
 
+Root PR #486 contains the point-review fixes. CI `34017021587` passed lint,
+TypeScript, database workflows, and scale checks, but its root test gate found
+one stale catalog assertion: the new trigger raises the definition count from
+nine to ten. The follow-up fixes that assertion and tests the trigger's exact
+definition and internal execution permissions. The previous 457-migration
+catalog must still contain only nine definitions. All 41 focused release
+tests, all 301 root test files, and the strict private gitlink check pass.
+Browser CI remains in progress.
+
+The Production audit found all four class workbooks linked with eight tabs
+each. Drive metadata confirms access to all four files and chapter ownership.
+Those checks do not establish completed imports. Class of 2030 remains linked
+with eight unsynced template tabs. Vercel Billing shows Speed Insights Plus
+disabled. Production remains at 451 migrations with all three recorded worker
+controls disabled. No provider settings or official records changed in this
+check.
+
 ### Frozen annotation review guards, 2026-09-06
 
 Root PR #484 merged to Development at `e6922a7f`, with the same application
