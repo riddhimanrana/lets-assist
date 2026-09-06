@@ -1,7 +1,7 @@
 BEGIN;
 
 CREATE EXTENSION IF NOT EXISTS pgtap WITH SCHEMA extensions;
-SELECT extensions.plan(35);
+SELECT extensions.plan(38);
 
 INSERT INTO auth.users (
   id, aud, role, email, email_confirmed_at,
@@ -189,7 +189,7 @@ INSERT INTO plugin_data.csf_sheet_import_rows (
     'de200000-0000-4000-8000-000000000001',
     'de210000-0000-4000-8000-000000000001',
     'S26', 2,
-    '{"record":{"identity":{"firstName":"Avery","lastName":"Sample","normalizedFirstName":"avery","normalizedLastName":"sample","sourceStudentKey":"averysample"},"contact":{"schoolEmail":"other.student@students.local.test"}}}'::jsonb,
+    '{"annotations":{"4":{"background":"#b7e1cd"}},"record":{"identity":{"firstName":"Avery","lastName":"Sample","normalizedFirstName":"avery","normalizedLastName":"sample","sourceStudentKey":"averysample"},"contact":{"schoolEmail":"other.student@students.local.test"}}}'::jsonb,
     repeat('5', 64),
     NULL,
     'pending'
@@ -462,6 +462,14 @@ SELECT extensions.is(
   'the committed semester row records the reused profile'
 );
 
+SELECT extensions.lives_ok($q$SELECT plugin_data.csf_review_import_annotation(
+  'de100000-0000-4000-8000-000000000001','de000000-0000-4000-8000-000000000001',
+  'de500000-0000-4000-8000-000000000005','de600000-0000-4000-8000-000000000001',
+  'exception_met','Officer reviewed the fictional semester annotation.')$q$,
+  'a conflicting valid key permits a separate annotation decision');
+SELECT extensions.is((plugin_data.csf_import_preview_readiness(
+  'de100000-0000-4000-8000-000000000001','de300000-0000-4000-8000-000000000005')->>'pendingMissingMatch')::integer,
+  1,'annotation review does not clear an unresolved identity blocker');
 SELECT extensions.lives_ok($q$SELECT plugin_data.csf_reconcile_sheet_import_row(
   'de100000-0000-4000-8000-000000000001','de500000-0000-4000-8000-000000000005',
   'de400000-0000-4000-8000-000000000001','match','Officer checked the stable workbook lineage.',
@@ -472,6 +480,9 @@ SELECT extensions.ok((SELECT matched_profile_id='de400000-0000-4000-8000-0000000
   AND normalized_data->'record'->'contact'->>'schoolEmail'='other.student@students.local.test'
   FROM plugin_data.csf_sheet_import_rows WHERE id='de500000-0000-4000-8000-000000000005'),
   'matching records the decision without rewriting conflicting source evidence');
+SELECT extensions.is((SELECT resolution_reason_code FROM plugin_data.csf_sheet_import_rows
+  WHERE id='de500000-0000-4000-8000-000000000005'),'annotation_exception_met',
+  'matching a conflicting valid key retains its reviewed semester outcome');
 SELECT extensions.is((plugin_data.csf_import_preview_readiness(
   'de100000-0000-4000-8000-000000000001','de300000-0000-4000-8000-000000000005')->>'pendingMissingMatch')::integer,
   0,'the resolved blocker clears authoritative readiness');

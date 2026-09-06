@@ -36,7 +36,17 @@ test("officer annotation review checks the receipt index and refuses the legacy 
     query,
     /csf_review_import_annotation\(uuid,uuid,uuid,uuid,text,text\)/u,
   );
-  assert.match(query, /md5\(p.prosrc\)='ddc531d82a237eae28a29bff3dacffd8'/u);
+  assert.match(query, /md5\(p.prosrc\)='984eecbf0c4068bd103d0548aa6adffa'/u);
+  assert.match(query, /md5\(p.prosrc\)='8eb7262bd0f4a527ac382fa761f59182'/u);
+  assert.match(query, /md5\(p.prosrc\)='1a753bdc4474fb1f5fcbb93f4d56d4d1'/u);
+  assert.match(
+    acceptedCatalogQuery(source, versions.slice(0, 455)),
+    /md5\(p.prosrc\)='edb9f2c1f2d5ef8f9759b4679328876b'/u,
+  );
+  assert.match(
+    acceptedCatalogQuery(source, versions.slice(0, 454)),
+    /md5\(p.prosrc\)='ddc531d82a237eae28a29bff3dacffd8'/u,
+  );
   assert.match(query, /csf_officer_annotation_review_request_idx/u);
   assert.match(
     query,
@@ -92,7 +102,7 @@ test("the reviewed import upgrade verifies metadata, function grants, and the sc
   assert.match(query, /a.atttypid='jsonb'::regtype AND a.attnotnull/u);
   assert.match(query, /csf_import_rows_committed_source_key_idx/u);
   assert.match(query, /i.indisvalid AND i.indisready AND i.indislive/u);
-  assert.match(query, /108e1aa1093f02d5d307053cf6f1fd08/u);
+  assert.match(query, /1a753bdc4474fb1f5fcbb93f4d56d4d1/u);
   assert.match(
     acceptedCatalogQuery(source, versions.slice(0, 453)),
     /9d5b02f7b4cdb7c948aad0398ed29bdf/u,

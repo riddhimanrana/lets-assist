@@ -37,7 +37,7 @@ Read [local environments](docs/development/environments.md) before running datab
 - `bun run lint` — source-organization guard plus zero-warning ESLint.
 - `bun run typecheck` — TypeScript without emit.
 - `bun run build` — production build and deployment-safety checks.
-- `bun run db:validate` — migration naming and replay validation.
+- `bun run db:validate` — non-mutating migration file validation. Use `db:test:redesign` for an owned isolated replay.
 - `bun run db:test:redesign` — full isolated schema/plugin gate.
 - `bun run dv:test:db` / `bun run dv:test:e2e` — DV database and browser gates.
 - `bun run csf:test:workflows` / `bun run csf:test:e2e` — CSF database workflows and browser journeys.

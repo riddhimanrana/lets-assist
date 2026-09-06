@@ -10,6 +10,102 @@ evidence and does not override the current tables or release gates.
 
 ## Release continuation, 2026-09-05
 
+### My CSF selected semester, 2026-09-06
+
+Private PR #255 merged to Development at `0ca0d7a`. Private quality run
+`34011594879` passed for the identical source tree at `f73fd1b`. The root
+candidate now pins the merged commit. My CSF shares one semester selection
+between its profile summary and history. Opening a recorded semester shows
+that semester's points, activities, meetings, and officer status. Selecting an
+empty current semester still shows its actual zero counts.
+
+Integrated TypeScript, zero-warning lint, and the strict gitlink check pass.
+The desktop and mobile browser regression passes, including switching from
+recorded Spring 2026 to empty Fall 2026 and back, activity and meeting labels,
+zero browser failures, and no horizontal overflow. The compiled local run
+produced fictional screenshots and videos. Its first
+run reached the correct Spring 2026 summary but failed because one activity
+label appeared in both participation and point submissions. The test now
+selects the participation occurrence. The following attempt stopped before
+the app started because the first runner left a port reservation after a
+shutdown error. Its recorded owner process was absent and port 3002 was free.
+That reservation was moved aside without deleting it. Port 3000 and shared
+services were not changed. The rerun passed both tests in 49 seconds. Hosted
+acceptance and Production remain open.
+
+### Combined import review regression, 2026-09-06
+
+PR #484 review found that the original two-order fixture used `pending` rows,
+but real annotation blockers use `error`. Updating the fixture reproduced five
+failures against migration 455. Forward migration `20260906044753` admits
+annotation-only errors to identity review and preserves those errors until
+the separate annotation decision. It also supports confirmation retries in
+that state. Mixed unrelated errors stay blocked. All 37 focused assertions
+pass after the change. The previous migration remains unchanged. A fresh
+isolated database applied all 456 migrations, and the exact read-only release
+catalog returned `1`. Error-level advisors reported no issues. The complete
+pgTAP command did not pass: two files exited before emitting a plan, and a
+targeted retry reported a local connection timeout. The full run reported
+6,978 assertions across 243 files. Do not treat this as a complete replay gate.
+The existing isolated stack remains the retry target.
+
+The scripts guide no longer calls file-only `db:validate` a replay check.
+A regression enforces that distinction. The officer runbook now records the
+current ledger and private gitlink. Twenty-five release and file-validation
+tests, TypeScript, and zero-warning lint pass for this follow-up.
+
+CI run `34011927835` completed with a stale runbook-ledger test failure and
+one outdated applicant browser assertion. The browser suite passed 84 tests,
+including the new desktop and mobile My CSF checks, and skipped four. Its
+fictional applicant output shows Spring 2026 and "Under officer review" in
+both summary and history. The test now checks that shared state, then selects
+Fall 2026 to check "No semester record". Role-access checks remain unchanged.
+The corrected browser test and follow-up migration still need passing CI and
+hosted acceptance. No Production data changed during these fixes.
+
+Local tooling incident: running `bun run db:validate` reached its implicit
+`supabase db reset --local --yes` before it was interrupted. The shared
+`supabase_db_lets-assist` container and volume were absent afterward, while
+other shared services remained. Previous local contents and recoverability
+are unverified. No hosted database was targeted. The owned isolated regression
+stack remained healthy. Do not call this an isolated replay or a passing
+validation run. The command now performs file checks only. Three hermetic
+tests prove it cannot invoke Bun, Supabase, or Docker and still rejects invalid
+names and duplicate versions. Use the separate owned isolated replay gate for
+database proof. Shared-local recovery remains open; no restore was attempted.
+
+Production PR #483 remains open. Review found that annotation settlement and
+identity reconciliation shared a terminal resolution field. A synthetic pgTAP
+regression reproduced five failures: annotation-first prevented matching, and
+identity-first prevented annotation review. The failure also lost the chance
+to retain both audit decisions.
+
+Forward migration `20260906041507_csf_composable_import_reviews.sql` keeps the
+decisions independent without changing historical migrations or source data.
+Matching retains a reviewed annotation outcome. Annotation review accepts a
+matched row and preserves its profile and match metadata. An unresolved
+identity remains a readiness blocker after annotation review, including a
+valid source key with conflicting contact evidence. Repeated annotation
+decisions remain blocked, and the existing request receipt still handles a
+lost response.
+
+Local evidence: the focused database tests passed 71 assertions. The full
+fresh replay applied all 455 migrations and passed 244 files with 7,125
+assertions. Error-level Supabase advisors found no issues. TypeScript,
+zero-warning lint, and the strict private gitlink check passed. The exact
+release catalog returned `csf_target_schema_verified=1` in a
+read-only transaction against that stack. Twenty-one release-controller tests
+passed, including old ledger compatibility and rejection of changed migration
+bytes. The three file-validation tests also passed. The new migration has not
+been applied to either hosted environment.
+
+Hosted Development run `34009457889` passed for root `6f413621` and private
+gitlink `c822293`: 100 distinct sessions, 9,614 requests, zero request errors,
+read p95 1.68 seconds, mutation p95 1.82 seconds, 25 review navigations without
+a crash, and retained heap down 11.67 percent. This proves the previous candidate, not the new combined
+review fix. Production remains at root `00ba3b1e`; no new app build, import
+commit, email send, or Production schema change occurred during this fix.
+
 ### Domain assignment projection
 
 Configuration release `33950191490` failed its read-only alias check before
@@ -1185,7 +1281,107 @@ Fresh read-only Production checks still report 451 migrations through
 `20260905212822`. Each official class from 2027 through 2030 points to its expected
 workbook and has eight discovered tabs, its recorded version prepared, and no
 registry error. This does not prove current Drive freshness or completed imports.
-Root publication, hosted acceptance, and Production changes remain open.
+Root PR #482 passed CI run `34008650409`, including the database/browser job,
+and merged to Development as `6f413621b658225757430e3e129a039285e811bc`.
+CI reports 7,112 pgTAP assertions across 244 files, three DV browser cases,
+and 83 passing CSF browser cases with four skipped. The skipped historical
+import journey does not prove the current workbook commit UI.
+The marked merge started one Development deployment and hosted acceptance run
+`34009457889`. Hosted acceptance and Production changes remain open.
+
+Release continuation on September 6: private promotion PR #254 targets `main`.
+Updating its branch for the existing strict checks produced
+`b924cc55e376e800d42d92684b5362a0857d5a77`, with an identical tree to the accepted
+gitlink `c822293ff4c700f3e758929cf692613b044a199d`. Private CI run `34009813015`
+is pending. Repository auto-merge is unavailable; no protection was changed.
+Read-only Production inspection still reports 451 migrations through
+`20260905212822`. Audited worker transition `34009811550` was dispatched and
+approved to pause import processing on public release `00ba3b1e`. The workflow
+completed successfully. A fresh database check found zero enabled worker-control
+rows. The three pending migrations have not been applied. No new app build,
+schema write, official import commit, or email send occurred during this check.
+
+All 43 focused release-controller tests pass. The fresh strict submodule check
+now refuses the local private checkout because private Development advanced by
+two ancestry-only commits while preparing promotion. Its source tree remains
+identical to the accepted gitlink. Keep the accepted root gitlink unchanged;
+do not report this branch-tip check as passing or rebuild just to move the pointer.
+The local private checkout is now detached at that exact accepted gitlink, as
+the CI release checkout is. The strict check passes in that documented mode.
+Private CI `34009813015` passed and PR #254 merged as
+`db6b5b4c7691cd5b3f837324832bcca00b487ad9`, with the same source tree. Root
+Production PR #483 is open. Its current checks and hosted acceptance remain
+pending. No Production application or schema change has run.
+
+A new isolated capture is running against fictional stack
+`vid0eec8dcbb2` on local port 3002. Its temporary capture script dismisses the
+tour through its visible control, then checks the current Applications,
+class Members, point-review, workbook Settings, and member profile routes.
+That capture reached officer Home, application review/import, and class Members.
+It failed on two temporary capture selectors: the class point queue has no
+`#applications` wrapper, and My CSF contains nested tab panels. Both selectors
+were corrected from the rendered DOM. A replacement capture is running on owned
+fictional stack `vid9cbcb0b8ec`. Neither run changes the accepted application
+source. The first run's owned stack was removed. Its stale port claim was removed
+only after the recorded PID, listener, and owned Docker containers were absent.
+The local shutdown `kill EPERM` remains an open harness finding.
+
+The replacement capture on `vid9cbcb0b8ec` passed both browser journeys with no
+recorded browser failures. It saved seven 1440x900 screenshots and two MP4s for
+officer navigation and the member semester profile. These show navigation and
+rendering, not settled officer decisions or automatic workbook preparation.
+Database teardown passed, but the app again left a stale port claim. The recorded
+PID and port listener were absent before removing that claim. A small diagnostic
+with a normally exited detached Node child returned ESRCH, not EPERM, so the
+shutdown cause remains unproved and no speculative signaling patch was made.
+
+P2 UI follow-up from the synthetic profile capture: the profile header shows
+current Fall 2026 zeros while the selected Spring 2026 history shows two points.
+Keep the legitimate empty current semester, but make the header and selected
+semester context agree in the requested UI patch. Do not infer missing imported
+history from that header alone.
+
+Read-only Resend inventory now shows one enabled Production webhook, one enabled
+Development webhook, and four disabled older endpoints. Production has zero CSF
+campaigns, deliveries, or provider-event rows. No provider send or configuration
+change occurred. The earlier disabled-replacement note is historical; enabled
+configuration still does not prove signed-event settlement.
+The provider event API reports four successful events on the enabled Production
+webhook. The latest delivered-event attempt returned HTTP 200. The CSF provider
+event ledger remains empty, so this proves endpoint delivery only, not a CSF
+campaign receipt or the requested ten-message acceptance run.
+
+Root release CI `34009973580` passed for PR #483 at `6f413621`. Hosted acceptance
+`34009457889` is still live. Its authentication setup deliberately spaces session
+creation by 10.5 seconds before the 15-minute load; the run was not restarted.
+
+The profile UI follow-up is isolated in private branch
+`codex/csf-member-selected-semester`, worktree `csf-member-selected-semester`.
+Local commit `2067cac` is not pushed or deployed. A shared client selection now drives
+the header and semester history. The server passes a rendered avatar rather
+than a raw profile object across the new client boundary. Current-application
+correction controls appear only on the current semester. The redundant header
+instruction is removed. The reproduced empty-current-term regression first
+failed, then passed with four other focused tests and 31 assertions. Selecting
+the empty current semester still shows its truthful zero and empty status. The scoped
+TypeScript check passes. Focused ESLint exits zero but emits the standalone
+worktree's missing-pages-directory notice, so integrated zero-warning lint and
+rendered interaction acceptance remain required. Local `tsconfig.json` and the
+dependency symlink are test setup only and must not be committed.
+
+Local recording follow-up on root `354481a1`: the isolated 1440x900 capture
+produced account-name confirmation and officer rejection clips. This was not a
+fully passing run. The standalone people-lifecycle journey clicked Classes while
+the first-login officer tour appeared and never navigated. The opt-in officer
+gallery still expects the retired "Review queue" label. Treat both as open P2
+browser-harness findings, not evidence that profile approval passed. The full
+onboarding/application/point/import video remains incomplete.
+
+The recording runner also reported `kill EPERM` during local shutdown and left
+its own port-3002 claim. Its recorded PID had exited, no listener remained, and
+the isolated database teardown proved the recording stack absent. The recording
+claim was removed after those checks; the older port-3000 claim and shared local
+database were left untouched. This local shutdown finding remains open.
 
 Hosted acceptance `33998019303` passed for exact Development
 `a3c8604de7fc84434d63b4273bbc29eacbfbe18f` at 23:48 UTC. Its 100 distinct
@@ -2389,6 +2585,9 @@ hosted Development verification.
 | AUD-112 | P1 | Generation-bound source registration returned a sixth implementation field through a closed five-field worker receipt. The database write succeeded, but the worker rejected the response as untrusted and left the refresh outcome unknown. | CSF workbook refresh receipt | Fixed by forward migration `20260903032631_csf_class_workbook_source_receipt_contract.sql`. The generation-aware implementation is owner-only and the service-role wrapper returns the exact five-field receipt. Focused pgTAP proves create and reconfiguration responses remain closed. Hosted Development applied the migration and prepared 12 populated previews from the four current workbooks. The previews contain 1,908 ready rows, one error row, and one skipped row. No real row was committed. The two non-ready rows remain officer work. Production remains unchanged. |
 | AUD-113 | P1 | The two hosted Development repairs were applied through the management API under generated migration versions that differed from their repository filenames. Supabase correctly rejected the exact-tree release because the remote ledger contained versions absent from the repository. | CSF release ledger | Fixed in PR #459 by aligning the two unreleased filenames to the versions already recorded by hosted Development, without changing their SQL. The cutover ledger now includes 443 migrations and the contact-corroboration repair as the 29th Production-pending migration. Local replay, lint, and focused release contracts pass. Hosted exact-tree acceptance and Production remain open. |
 | AUD-114 | P1 | The exact Development load gate completed 9,586 requests with no request or browser errors, but the staff member-or-officer view switch measured 3.84 seconds at p95 against the three-second mutation limit. Its Server Action repeated authentication, membership, plugin access, and permission reads before writing one presentation-only preference, then invalidated a route before the required route replacement. | CSF hosted performance | Fixed in private PR #242, merged to private Development at `2affd09`, and staged in the current root candidate with `public.set_csf_staff_view_mode(uuid,text)`. One authenticated database transaction now checks the active host staff role and updates only the caller's preference. The preference still grants no authority. The action no longer repeats the four authorization reads or invalidates the route cache. Client execution is limited to `authenticated` and is included in the architecture allowlist. Private CI and all 257 discovered plugin test files pass. The clean local replay applied every migration, passed 238 pgTAP files with 6,989 assertions, completed the database workflow, architecture, plugin isolation, registry, runtime, browser-isolation, and cron-shape gates, and removed its owned stack. The production build also passes. Replacement hosted acceptance remains open. |
+
+| AUD-115 | P1 | Annotation and identity review could each prevent the other from completing because they shared a terminal resolution field. | CSF import review | Forward migration `20260906041507` passes both review orders locally, preserves each decision and immutable source data, and leaves unmatched identities blocked. Hosted integration and Production acceptance remain open. |
+| AUD-116 | P1 | `db:validate` invoked a shared-local reset without an isolated ownership check. An interrupted run left the shared database container and volume absent. | Local tooling | File validation is now non-mutating, with three hermetic regression tests. The owned isolated CSF database is unaffected. Previous shared-local contents and recoverability remain unverified; recovery is open. |
 
 ## External/account blockers
 

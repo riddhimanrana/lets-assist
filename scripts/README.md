@@ -16,7 +16,7 @@ This is discovery evidence, not runtime proof. Effective grants, deployed reacha
 
 ### `bun run db:validate`
 
-**Comprehensive local validation before pushing to production.**
+Checks migration filenames without starting or changing a database.
 
 ```bash
 bun run db:validate
@@ -24,27 +24,25 @@ bun run db:validate
 
 **What it does:**
 
-- ✓ Validates migration file naming (YYYYMMDDHHMMSS_description.sql)
-- ✓ Checks for duplicate timestamps
-- ✓ Ensures all migrations have description comments
-- ✓ Tests migration replay with local reset
-- ✓ Provides clear feedback on any issues
+- Validates migration filenames (YYYYMMDDHHMMSS_description.sql).
+- Rejects duplicate timestamps.
+- Warns about missing description comments.
+
+This command does not reset a database, replay migrations, or verify schema
+behavior. Run `bun run db:test:redesign` for the owned isolated replay and
+database tests. A filename check is not release evidence.
 
 **When to use:**
 
 - Before committing migration files
 - After pulling schema changes from Studio
-- To verify migration replay works locally
+- Before running the separate isolated replay gate
 
 **Example output:**
 
 ```
-✓ All migration filenames are valid
-✓ No duplicate timestamps
-✓ All migrations have descriptions
-✓ Migration replay successful
-
-All validations passed!
+Migration file checks passed. No database was changed.
+Replay and security checks were not run. Use bun run db:test:redesign for an owned isolated stack.
 ```
 
 ---
@@ -145,8 +143,11 @@ supabase db pull -d "description_of_changes"
 ### 3. Validate Locally
 
 ```bash
-# Comprehensive validation
+# File checks only
 bun run db:validate
+
+# Owned isolated migration replay and database tests
+bun run db:test:redesign
 
 # (Optional) Check security/performance
 bun run db:advisors
@@ -210,12 +211,11 @@ Check filename format: `YYYYMMDDHHMMSS_description.sql`
 
 ### "Migration replay failed"
 
-Ensure your local Supabase is clean:
+Inspect the failed migration and rerun the owned isolated gate. Do not reset
+the shared local database to troubleshoot a replay failure.
 
 ```bash
-bun run supabase:stop
-bun run supabase:start
-bun run db:validate
+bun run db:test:redesign
 ```
 
 ### "Dry-run failed with credentials error"

@@ -32,13 +32,17 @@ The orchestrator keeps safety-sensitive groups explicit, discovers all remaining
 
 ## Database and plugin gates
 
-- `bun run db:validate`
+- `bun run db:validate` checks migration filenames, duplicate versions, and description comments without accessing a database.
 - `bun run db:test:redesign`
 - `bun run dv:test:db`
 - `bun run csf:test:workflows`
 - `bun run csf:test:scale`
 - `bun run csf:test:import:scale`
 - `bun run plugin:submodules:check:strict`
+
+`db:validate` does not prove migration replay or database security. Run
+`db:test:redesign` for those checks on an owned isolated stack. Validation must
+never reset a developer's shared-local database.
 
 ## Browser gates
 
