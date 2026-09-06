@@ -26,6 +26,10 @@ export const approvedMigrations = [
     "20260906025852_csf_pending_identity_reconciliation",
     "bad7e0dd1331ad6e1cae04bc11152553c34218ed189aaa8e159b2994cb9a6542",
   ],
+  [
+    "20260906041507_csf_composable_import_reviews",
+    "a458ab1dc21cb6c5092d6e65138a89781b1ed83233a6d3ec27f626e247ef47d8",
+  ],
 ];
 
 const literal = (value) => `'${value.replaceAll("'", "''")}'`;

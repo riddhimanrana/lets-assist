@@ -199,6 +199,8 @@ V73: CSF worker activation uses database-backed switches scoped to the exact pub
 V74: workbook readiness retains source-key conflict checks within the hosted database request budget. Committed-lineage equality reads use an organization/class/source-key index. A failed Settings read must show a recoverable error, not an unlinked workbook. Raising the global timeout or dropping identity checks does not satisfy this requirement.
 V75: officer import reconciliation stores match metadata separately from immutable raw and normalized source snapshots. Profile creation, row resolution, audit, and request receipts remain atomic. Meeting attendance retains reviewed match provenance without rewriting source evidence. Creating an unclaimed application profile never verifies a form email or approves term membership.
 
+V76: class import identity review and annotation review are independent decisions. Either review order preserves the matched profile, annotation outcome, source snapshot, and separate audit events. Annotation review never clears an unresolved identity from readiness. Replays cannot replace a completed annotation decision or reopen a frozen import.
+
 §T
 
 id|status|task|cites

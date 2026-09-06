@@ -1,6 +1,6 @@
 BEGIN;
 CREATE EXTENSION IF NOT EXISTS pgtap;
-SELECT plan(23);
+SELECT plan(33);
 
 -- ACL surface: browser roles must not settle rows.
 SELECT has_function(
@@ -249,5 +249,74 @@ SELECT throws_like($q$SELECT plugin_data.csf_review_import_annotation(
   'a1a10000-0000-4000-8000-000000000002','a1a10000-0000-4000-8000-000000000001',
   'a1a10000-0000-4000-8000-000000000006','a1a10000-0000-4000-8000-000000000012',
   NULL,'No outcome selected.')$q$,'%Choose an outcome%','null outcome refused');
+INSERT INTO plugin_data.csf_cohorts (id, organization_id, graduation_year, label)
+VALUES ('a1a10000-0000-4000-8000-000000000020',
+  'a1a10000-0000-4000-8000-000000000002',2036,'Class of 2036');
+INSERT INTO plugin_data.csf_profiles (
+  id, organization_id, first_name, last_name, normalized_first_name, normalized_last_name
+) VALUES ('a1a10000-0000-4000-8000-000000000021',
+  'a1a10000-0000-4000-8000-000000000002','Synthetic','Member','synthetic','member');
+INSERT INTO plugin_data.csf_profile_cohort_memberships (organization_id,profile_id,cohort_id,status)
+VALUES ('a1a10000-0000-4000-8000-000000000002','a1a10000-0000-4000-8000-000000000021',
+  'a1a10000-0000-4000-8000-000000000020','active');
+INSERT INTO plugin_data.csf_sheet_import_rows (
+  id,organization_id,job_id,source_id,cohort_id,sheet_tab_name,row_number,
+  raw_data,normalized_data,row_hash,import_status,errors,mapping_version
+)
+SELECT id,'a1a10000-0000-4000-8000-000000000002',
+  'a1a10000-0000-4000-8000-000000000004','a1a10000-0000-4000-8000-000000000003',
+  'a1a10000-0000-4000-8000-000000000020','S26',row_number,'{}'::jsonb,
+  '{"annotations":{"4":{"background":"#b7e1cd"}},"commitPayload":{"allRequirementsMet":null}}'::jsonb,
+  repeat('d',64),'pending',ARRAY[]::text[],1
+FROM (VALUES ('a1a10000-0000-4000-8000-000000000022'::uuid,5),
+             ('a1a10000-0000-4000-8000-000000000023'::uuid,6)) fixture(id,row_number);
+
+SELECT lives_ok($q$SELECT plugin_data.csf_review_import_annotation(
+  'a1a10000-0000-4000-8000-000000000002','a1a10000-0000-4000-8000-000000000001',
+  'a1a10000-0000-4000-8000-000000000022','a1a10000-0000-4000-8000-000000000024',
+  'exception_met','Reviewed the fictional annotation evidence.')$q$,
+  'annotation review can precede missing-key identity review');
+SELECT lives_ok($q$SELECT plugin_data.csf_reconcile_sheet_import_row(
+  'a1a10000-0000-4000-8000-000000000002','a1a10000-0000-4000-8000-000000000022',
+  'a1a10000-0000-4000-8000-000000000021','match','Officer verified the fictional identity.',
+  'a1a10000-0000-4000-8000-000000000001',NULL,'{"basis":"officer_evidence"}'::jsonb)$q$,
+  'identity review remains available after annotation review');
+SELECT ok((SELECT matched_profile_id='a1a10000-0000-4000-8000-000000000021'::uuid
+  AND resolution_reason_code='annotation_exception_met' AND import_status='pending'
+  FROM plugin_data.csf_sheet_import_rows WHERE id='a1a10000-0000-4000-8000-000000000022'),
+  'identity review preserves the annotation outcome used by commit');
+SELECT lives_ok($q$SELECT plugin_data.csf_reconcile_sheet_import_row(
+  'a1a10000-0000-4000-8000-000000000002','a1a10000-0000-4000-8000-000000000023',
+  'a1a10000-0000-4000-8000-000000000021','match','Officer verified the fictional identity.',
+  'a1a10000-0000-4000-8000-000000000001',NULL,'{"basis":"officer_evidence"}'::jsonb)$q$,
+  'identity review can precede annotation review');
+SELECT lives_ok($q$SELECT plugin_data.csf_review_import_annotation(
+  'a1a10000-0000-4000-8000-000000000002','a1a10000-0000-4000-8000-000000000001',
+  'a1a10000-0000-4000-8000-000000000023','a1a10000-0000-4000-8000-000000000025',
+  'not_met','Reviewed the fictional annotation evidence.')$q$,
+  'annotation review remains available after identity review');
+SELECT ok((SELECT matched_profile_id='a1a10000-0000-4000-8000-000000000021'::uuid
+  AND resolution_reason_code='annotation_not_met' AND resolution_metadata->>'basis'='officer_evidence'
+  FROM plugin_data.csf_sheet_import_rows WHERE id='a1a10000-0000-4000-8000-000000000023'),
+  'annotation review preserves the matched profile and identity evidence');
+SELECT is((SELECT count(*) FROM plugin_data.csf_admin_audit_events
+  WHERE target_id IN ('a1a10000-0000-4000-8000-000000000022','a1a10000-0000-4000-8000-000000000023')
+  AND action IN ('sheets.annotation_reviewed','sheets.row_match_resolved')),4::bigint,
+  'both review orders retain separate audit decisions');
+SELECT ok((SELECT bool_and(normalized_data=
+  '{"annotations":{"4":{"background":"#b7e1cd"}},"commitPayload":{"allRequirementsMet":null}}'::jsonb)
+  FROM plugin_data.csf_sheet_import_rows WHERE id IN
+  ('a1a10000-0000-4000-8000-000000000022','a1a10000-0000-4000-8000-000000000023')),
+  'both review orders preserve immutable source evidence');
+SELECT lives_ok($q$SELECT plugin_data.csf_reconcile_sheet_import_row(
+  'a1a10000-0000-4000-8000-000000000002','a1a10000-0000-4000-8000-000000000023',
+  'a1a10000-0000-4000-8000-000000000021','match','Officer verified the fictional identity.',
+  'a1a10000-0000-4000-8000-000000000001',NULL,'{"basis":"officer_evidence"}'::jsonb)$q$,
+  'identity replay remains available after annotation review');
+SELECT throws_like($q$SELECT plugin_data.csf_review_import_annotation(
+  'a1a10000-0000-4000-8000-000000000002','a1a10000-0000-4000-8000-000000000001',
+  'a1a10000-0000-4000-8000-000000000023','a1a10000-0000-4000-8000-000000000026',
+  'met','Conflicting second annotation review.')$q$,'%already reviewed%',
+  'composable review does not allow annotation replacement');
 SELECT * FROM finish();
 ROLLBACK;
