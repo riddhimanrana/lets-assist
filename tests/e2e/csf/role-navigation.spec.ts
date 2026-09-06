@@ -419,15 +419,18 @@ test.describe("DVHS CSF role-aware navigation", () => {
       page.getByRole("menuitem", { name: "Help", exact: true }),
     ).toBeVisible();
     await page.keyboard.press("Escape");
-    // The applicant's current-semester state lives in My CSF; Feed is the
-    // landing tab. The profile summary shows no current-semester record, while
-    // the selected historical semester keeps its officer-review state.
+    // The profile summary and history show the same selected semester.
     await page.getByRole("tab", { name: "My CSF", exact: true }).click();
+    const profile = page.getByRole("region", { name: "CSF member profile" });
+    const semesters = page.getByRole("tablist", { name: "Member semesters" });
+    await expect(profile).toContainText("Spring 2026");
     await expect(
-      page.getByText("No semester record", { exact: true }),
+      profile.getByText("Under officer review", { exact: true }),
     ).toBeVisible();
+    await semesters.getByRole("tab", { name: /^Fall 2026/ }).click();
+    await expect(profile).toContainText("Fall 2026");
     await expect(
-      page.getByText("Under officer review", { exact: true }),
+      profile.getByText("No semester record", { exact: true }),
     ).toBeVisible();
     for (const tab of ["Applications", "Members", "Service", "Classes"]) {
       await expect(

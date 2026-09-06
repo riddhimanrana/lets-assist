@@ -6,6 +6,7 @@ import {
   writeFileSync,
   rmSync,
   existsSync,
+  readFileSync,
 } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -58,5 +59,17 @@ test("duplicate migration versions fail without database access", () => {
   assert.equal(
     validate(["20260906000000_one.sql", "20260906000000_two.sql"]).status,
     1,
+  );
+});
+test("the scripts guide distinguishes file validation from database replay", () => {
+  const guide = readFileSync(new URL("./README.md", import.meta.url), "utf8");
+  assert.match(
+    guide,
+    /This command does not reset a database, replay migrations/,
+  );
+  assert.match(guide, /bun run db:test:redesign/);
+  assert.doesNotMatch(
+    guide,
+    /Migration replay successful|Tests migration replay with local reset/,
   );
 });

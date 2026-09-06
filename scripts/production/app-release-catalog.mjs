@@ -96,10 +96,15 @@ export function acceptedCatalogQuery(source, versions) {
       "34dbbd884882349f8083512cd2fe48b371c3f1242bc62897685267f2a5d0001b"
   )
     return source;
-  const composableReviewUpgrade =
-    versions.length === 455 &&
+  const annotationErrorIdentityUpgrade =
+    versions.length === 456 &&
     ledgerHash ===
-      "2dc071e0cd4d8f48b9a42ca8736f9638a159fb7f39f9755386a06e0606cec844";
+      "0814438288ba61e24d8c3c354d63de123b3a1da4bc300e812a6b236184f330c7";
+  const composableReviewUpgrade =
+    annotationErrorIdentityUpgrade ||
+    (versions.length === 455 &&
+      ledgerHash ===
+        "2dc071e0cd4d8f48b9a42ca8736f9638a159fb7f39f9755386a06e0606cec844");
   const pendingIdentityUpgrade =
     composableReviewUpgrade ||
     (versions.length === 454 &&
@@ -245,7 +250,9 @@ accepted_upgrade_posture AS (
       ? composableReviewUpgrade
         ? pendingIdentityPosture.replace(
             "108e1aa1093f02d5d307053cf6f1fd08",
-            "edb9f2c1f2d5ef8f9759b4679328876b",
+            annotationErrorIdentityUpgrade
+              ? "1a753bdc4474fb1f5fcbb93f4d56d4d1"
+              : "edb9f2c1f2d5ef8f9759b4679328876b",
           )
         : pendingIdentityPosture
       : ""

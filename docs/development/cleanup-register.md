@@ -35,6 +35,34 @@ acceptance and Production remain open.
 
 ### Combined import review regression, 2026-09-06
 
+PR #484 review found that the original two-order fixture used `pending` rows,
+but real annotation blockers use `error`. Updating the fixture reproduced five
+failures against migration 455. Forward migration `20260906044753` admits
+annotation-only errors to identity review and preserves those errors until
+the separate annotation decision. It also supports confirmation retries in
+that state. Mixed unrelated errors stay blocked. All 37 focused assertions
+pass after the change. The previous migration remains unchanged. A fresh
+isolated database applied all 456 migrations, and the exact read-only release
+catalog returned `1`. Error-level advisors reported no issues. The complete
+pgTAP command did not pass: two files exited before emitting a plan, and a
+targeted retry reported a local connection timeout. The full run reported
+6,978 assertions across 243 files. Do not treat this as a complete replay gate.
+The existing isolated stack remains the retry target.
+
+The scripts guide no longer calls file-only `db:validate` a replay check.
+A regression enforces that distinction. The officer runbook now records the
+current ledger and private gitlink. Twenty-five release and file-validation
+tests, TypeScript, and zero-warning lint pass for this follow-up.
+
+CI run `34011927835` completed with a stale runbook-ledger test failure and
+one outdated applicant browser assertion. The browser suite passed 84 tests,
+including the new desktop and mobile My CSF checks, and skipped four. Its
+fictional applicant output shows Spring 2026 and "Under officer review" in
+both summary and history. The test now checks that shared state, then selects
+Fall 2026 to check "No semester record". Role-access checks remain unchanged.
+The corrected browser test and follow-up migration still need passing CI and
+hosted acceptance. No Production data changed during these fixes.
+
 Local tooling incident: running `bun run db:validate` reached its implicit
 `supabase db reset --local --yes` before it was interrupted. The shared
 `supabase_db_lets-assist` container and volume were absent afterward, while
