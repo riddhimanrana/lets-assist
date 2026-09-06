@@ -245,7 +245,7 @@ describe("CSF release-state documentation truthfulness guards", () => {
       "last verified Production ledger has 451 migrations",
     );
     expect(officerRunbook).toContain(
-      "The pending identity review query is local only",
+      "Annotation review now rejects frozen rows and previews whose preparation has not completed",
     );
     expect(officerRunbook).toContain(
       "Preparation does not mean their rows have committed",

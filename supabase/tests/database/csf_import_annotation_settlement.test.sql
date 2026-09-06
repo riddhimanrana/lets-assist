@@ -1,6 +1,6 @@
 BEGIN;
 CREATE EXTENSION IF NOT EXISTS pgtap;
-SELECT plan(37);
+SELECT plan(47);
 
 -- ACL surface: browser roles must not settle rows.
 SELECT has_function(
@@ -342,5 +342,73 @@ SELECT throws_like($q$SELECT plugin_data.csf_reconcile_sheet_import_row(
 SELECT ok((SELECT matched_profile_id IS NULL AND import_status='error' AND cardinality(errors)=2
   FROM plugin_data.csf_sheet_import_rows WHERE id='a1a10000-0000-4000-8000-000000000027'),
   'refused identity review preserves all blockers');
+-- An approved row stays frozen even when its worker never started an attempt.
+INSERT INTO plugin_data.csf_sheet_import_rows (
+  id,organization_id,job_id,source_id,cohort_id,sheet_tab_name,row_number,
+  raw_data,normalized_data,row_hash,import_status,errors,mapping_version,
+  matched_profile_id,commit_frozen_at,commit_frozen_by_job_id,
+  commit_frozen_row_hash,commit_frozen_source_id,commit_frozen_payload_hash,
+  commit_frozen_actor_snapshot,commit_resolution_snapshot,commit_target_profile_id,
+  commit_outcome_state
+) SELECT fixture.frozen_id,organization_id,job_id,source_id,
+  cohort_id,sheet_tab_name,fixture.frozen_number,raw_data,normalized_data,repeat('f',64),'pending',
+  ARRAY[]::text[],1,'a1a10000-0000-4000-8000-000000000021',now(),job_id,
+  repeat('f',64),source_id,repeat('f',64),'{}'::jsonb,
+  '{"resolutionStatus":"pending"}'::jsonb,
+  'a1a10000-0000-4000-8000-000000000021','frozen'
+FROM plugin_data.csf_sheet_import_rows
+CROSS JOIN (VALUES ('a1a10000-0000-4000-8000-000000000030'::uuid,8),
+  ('a1a10000-0000-4000-8000-000000000032'::uuid,9)) fixture(frozen_id,frozen_number)
+WHERE id='a1a10000-0000-4000-8000-000000000027';
+SELECT throws_like($q$SELECT plugin_data.csf_apply_import_annotation_interpretation(
+  'a1a10000-0000-4000-8000-000000000002','a1a10000-0000-4000-8000-000000000032',
+  'met','A new decision after approval.',
+  'a1a10000-0000-4000-8000-000000000001')$q$,
+  '%no longer settleable%','internal annotation helper refuses a frozen unstarted row');
+SELECT throws_like($q$SELECT plugin_data.csf_review_import_annotation(
+  'a1a10000-0000-4000-8000-000000000002','a1a10000-0000-4000-8000-000000000001',
+  'a1a10000-0000-4000-8000-000000000030','a1a10000-0000-4000-8000-000000000031',
+  'met','A new decision after approval.')$q$,
+  '%already reviewed or approved%','officer review refuses a frozen row without an active queue');
+SELECT ok((SELECT resolution_status='pending' AND resolution_reason_code IS NULL
+  AND commit_attempt_id IS NULL AND commit_outcome_state='frozen'
+  AND commit_resolution_snapshot='{"resolutionStatus":"pending"}'::jsonb
+  FROM plugin_data.csf_sheet_import_rows WHERE id='a1a10000-0000-4000-8000-000000000030'),
+  'frozen resolution and snapshot remain unchanged');
+SELECT is((SELECT count(*) FROM plugin_data.csf_admin_audit_events
+  WHERE target_id='a1a10000-0000-4000-8000-000000000030'),0::bigint,
+  'refused frozen reviews write no audit receipt');
+
+INSERT INTO plugin_data.csf_sheet_import_jobs (
+  id,organization_id,source_id,initiated_by,mode,status,source_type,source_sheet_tab,mapping_version
+) SELECT md5('annotation-state-job-'||state)::uuid,
+  'a1a10000-0000-4000-8000-000000000002','a1a10000-0000-4000-8000-000000000003',
+  'a1a10000-0000-4000-8000-000000000001','preview',state,'class_history','S26',1
+FROM unnest(ARRAY['pending','running','failed','cancelled','completed']) AS state;
+INSERT INTO plugin_data.csf_sheet_import_rows (
+  id,organization_id,job_id,source_id,sheet_tab_name,row_number,
+  raw_data,normalized_data,row_hash,import_status,errors,mapping_version
+) SELECT md5('annotation-state-row-'||state)::uuid,
+  'a1a10000-0000-4000-8000-000000000002',md5('annotation-state-job-'||state)::uuid,
+  'a1a10000-0000-4000-8000-000000000003','S26',2,'{}'::jsonb,
+  '{"annotations":{"4":{"background":"#b7e1cd"}}}'::jsonb,
+  repeat('a',64),'pending',ARRAY[]::text[],1
+FROM unnest(ARRAY['pending','running','failed','cancelled','completed']) AS state;
+SELECT throws_like(format($q$SELECT plugin_data.csf_review_import_annotation(
+  'a1a10000-0000-4000-8000-000000000002','a1a10000-0000-4000-8000-000000000001',
+  %L::uuid,%L::uuid,'met','Review before completed preparation.')$q$,
+  md5('annotation-state-row-'||state),md5('annotation-state-request-'||state)),
+  '%completed class history preview%',state||' preview refuses annotation review')
+FROM unnest(ARRAY['pending','running','failed','cancelled']) AS state;
+SELECT is((SELECT count(*) FROM plugin_data.csf_sheet_import_rows
+  WHERE job_id IN (SELECT md5('annotation-state-job-'||state)::uuid
+    FROM unnest(ARRAY['pending','running','failed','cancelled']) AS state)
+  AND resolution_status='pending' AND resolved_at IS NULL),4::bigint,
+  'unprepared rows retain their unresolved state');
+SELECT lives_ok($q$SELECT plugin_data.csf_review_import_annotation(
+  'a1a10000-0000-4000-8000-000000000002','a1a10000-0000-4000-8000-000000000001',
+  md5('annotation-state-row-completed')::uuid,md5('annotation-state-request-completed')::uuid,
+  'met','Review after completed preparation.')$q$,
+  'completed preview remains reviewable');
 SELECT * FROM finish();
 ROLLBACK;

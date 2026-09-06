@@ -10,6 +10,30 @@ evidence and does not override the current tables or release gates.
 
 ## Release continuation, 2026-09-05
 
+### Frozen annotation review guards, 2026-09-06
+
+Root PR #484 merged to Development at `e6922a7f`, with the same application
+tree as tested `a51e31bf`. CI `34012777423` passed, including 7,129 database
+assertions across 244 files and 85 CSF browser tests with four skips. Hosted
+acceptance `34013573108` remains in progress at this check. Production PR #483
+remains open and Production has not advanced.
+
+Two further review findings reproduced nine failures in a 47-assertion local
+test. A frozen row could accept a new annotation decision after its worker
+stopped without beginning a row attempt. Pending, running, failed, and
+cancelled previews could also accept decisions. Forward migration
+`20260906053114` guards both cases. The focused database test passes all 47
+assertions after applying the fix. The 21 release-contract tests, TypeScript,
+and zero-warning lint pass. A fresh isolated replay applied all 457 migrations
+and passed 7,139 assertions across 244 files in 19 seconds. The exact release
+catalog returned `1`, and error-level advisors found no issues. All 19 release
+documentation contracts pass. These local results do not establish hosted or
+Production acceptance.
+
+The previous owned regression stack was removed after validating its resource
+ownership. It contained fictional test data. No hosted or shared-local
+database was changed. Chrome remains unavailable while the Mac is locked.
+
 ### My CSF selected semester, 2026-09-06
 
 Private PR #255 merged to Development at `0ca0d7a`. Private quality run
@@ -2588,6 +2612,7 @@ hosted Development verification.
 
 | AUD-115 | P1 | Annotation and identity review could each prevent the other from completing because they shared a terminal resolution field. | CSF import review | Forward migration `20260906041507` passes both review orders locally, preserves each decision and immutable source data, and leaves unmatched identities blocked. Hosted integration and Production acceptance remain open. |
 | AUD-116 | P1 | `db:validate` invoked a shared-local reset without an isolated ownership check. An interrupted run left the shared database container and volume absent. | Local tooling | File validation is now non-mutating, with three hermetic regression tests. The owned isolated CSF database is unaffected. Previous shared-local contents and recoverability remain unverified; recovery is open. |
+| AUD-117 | P1 | Annotation review could change frozen import decisions after a stopped worker, and could settle rows before preview preparation completed. | CSF import review | Forward migration `20260906053114` rejects frozen rows and non-reviewable preview states. Nine regression failures now pass within 47 focused assertions. Fresh replay passes 7,139 assertions across 244 files, the exact schema catalog, and error-level advisors. Hosted acceptance and Production rollout remain open. |
 
 ## External/account blockers
 

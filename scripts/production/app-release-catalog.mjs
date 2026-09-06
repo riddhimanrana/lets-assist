@@ -96,10 +96,15 @@ export function acceptedCatalogQuery(source, versions) {
       "34dbbd884882349f8083512cd2fe48b371c3f1242bc62897685267f2a5d0001b"
   )
     return source;
-  const annotationErrorIdentityUpgrade =
-    versions.length === 456 &&
+  const annotationReviewStateUpgrade =
+    versions.length === 457 &&
     ledgerHash ===
-      "0814438288ba61e24d8c3c354d63de123b3a1da4bc300e812a6b236184f330c7";
+      "d0bb60abb4c4a7c0984c7f0f777b9515d055acc51cab29aaee36f31737d58fd0";
+  const annotationErrorIdentityUpgrade =
+    annotationReviewStateUpgrade ||
+    (versions.length === 456 &&
+      ledgerHash ===
+        "0814438288ba61e24d8c3c354d63de123b3a1da4bc300e812a6b236184f330c7");
   const composableReviewUpgrade =
     annotationErrorIdentityUpgrade ||
     (versions.length === 455 &&
@@ -236,11 +241,15 @@ accepted_upgrade_posture AS (
         ? officerAnnotationPosture
             .replace(
               "ddc531d82a237eae28a29bff3dacffd8",
-              "984eecbf0c4068bd103d0548aa6adffa",
+              annotationReviewStateUpgrade
+                ? "5a3d1acada42ee4fff0206684c4cfd77"
+                : "984eecbf0c4068bd103d0548aa6adffa",
             )
             .replace(
               "87eceba9e9a24a0e0dc956bdaa3d7139",
-              "8eb7262bd0f4a527ac382fa761f59182",
+              annotationReviewStateUpgrade
+                ? "a91a1e38692139da856c4e52e94db60c"
+                : "8eb7262bd0f4a527ac382fa761f59182",
             )
         : officerAnnotationPosture
       : ""
