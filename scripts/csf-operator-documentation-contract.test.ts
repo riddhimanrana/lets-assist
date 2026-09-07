@@ -306,7 +306,6 @@ const POSTS: LabelContract[] = [
     labels: [
       "Save as draft",
       "Publish now",
-      "Schedule for later",
       "Also send this as an email",
       "Post saved",
       "Email queued",
@@ -319,7 +318,6 @@ const POSTS: LabelContract[] = [
     labels: [
       "Post saved",
       "Publish post",
-      "Schedule post",
       "Post saved; email not queued",
       "Post saved; email status unknown",
       "Email queued",

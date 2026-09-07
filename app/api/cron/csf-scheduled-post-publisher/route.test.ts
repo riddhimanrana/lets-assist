@@ -7,9 +7,6 @@ const clientCalls: unknown[] = [];
 const probeCalls: unknown[] = [];
 const revalidationCalls: string[] = [];
 
-const ORG_A = "ca100000-0000-4000-8000-000000000001";
-const ORG_B = "ca100000-0000-4000-8000-000000000002";
-
 let probeResponse: Response | null = null;
 let revalidationFailureOrganization: string | null = null;
 let rpcHandler: () => Promise<{ data: unknown; error: unknown }>;
@@ -184,6 +181,7 @@ describe("CSF scheduled-post publisher route", () => {
       expect(response.status, value).toBe(200);
       expect(await response.json()).toEqual({
         enabled: false,
+        retired: true,
         examined: 0,
         published: 0,
         held: 0,
@@ -196,122 +194,20 @@ describe("CSF scheduled-post publisher route", () => {
     expect(revalidationCalls).toHaveLength(0);
   });
 
-  test("an enabled call invokes only the bounded RPC, refreshes changed chapters, and returns aggregate truth", async () => {
+  test("legacy enable flags cannot publish through GET or POST", async () => {
     process.env.CSF_SCHEDULED_POST_PUBLISHER_ENABLED = "true";
-    process.env.CSF_SCHEDULED_POST_PUBLISHER_BATCH_SIZE = "7";
-    rpcHandler = async () => ({
-      data: report({
-        examined: 3,
-        published: 2,
-        held: 1,
-        holds: {
-          pluginUnavailable: 0,
-          actorUnavailable: 1,
-          termUnavailable: 0,
-          cohortUnavailable: 0,
-          expired: 0,
-          scheduledEmailUnsupported: 0,
-        },
-        organizationIds: [ORG_A, ORG_B],
-      }),
-      error: null,
-    });
-
-    const response = await POST(authorized());
-    const body = await response.json();
-
-    expect(response.status).toBe(200);
-    expect(rpcCalls).toHaveLength(1);
-    expect(rpcCalls[0]?.name).toBe("csf_publish_due_posts");
-    expect(rpcCalls[0]?.args.p_limit).toBe(7);
-    expect(String(rpcCalls[0]?.args.p_worker_id)).toMatch(
-      /^csf-scheduled-[a-z0-9]+-[0-9a-f]{8}$/,
-    );
-    expect(revalidationCalls).toEqual([ORG_A, ORG_B]);
-    expect(body).toEqual({
-      enabled: true,
-      examined: 3,
-      published: 2,
-      held: 1,
-      holds: {
-        pluginUnavailable: 0,
-        actorUnavailable: 1,
-        termUnavailable: 0,
-        cohortUnavailable: 0,
-        expired: 0,
-        scheduledEmailUnsupported: 0,
-      },
-      organizationsChanged: 2,
-      cacheRefreshFailures: 0,
-      batchSize: 7,
-    });
-    expect(JSON.stringify(body)).not.toContain(ORG_A);
-    expect(JSON.stringify(body)).not.toContain(ORG_B);
-    expect(JSON.stringify(body).toLowerCase()).not.toContain("emailqueued");
-  });
-
-  test("cache refresh failure is reported separately after durable publication", async () => {
-    process.env.CSF_SCHEDULED_POST_PUBLISHER_ENABLED = "true";
-    revalidationFailureOrganization = ORG_B;
-    rpcHandler = async () => ({
-      data: report({
-        examined: 2,
-        published: 2,
-        organizationIds: [ORG_A, ORG_B],
-      }),
-      error: null,
-    });
-
-    const response = await POST(authorized());
-    expect(response.status).toBe(200);
-    expect(await response.json()).toMatchObject({
-      published: 2,
-      cacheRefreshFailures: 1,
-    });
-    expect(rpcCalls).toHaveLength(1);
-    expect(revalidationCalls).toEqual([ORG_A, ORG_B]);
-  });
-
-  test("RPC errors and malformed or unbalanced reports fail closed without cache work", async () => {
-    process.env.CSF_SCHEDULED_POST_PUBLISHER_ENABLED = "true";
-
-    rpcHandler = async () => ({
-      data: null,
-      error: { message: "sensitive database detail" },
-    });
-    let response = await POST(authorized());
-    expect(response.status).toBe(503);
-    expect(await response.json()).toEqual({
-      error: "Scheduled post publisher unavailable",
-    });
+    for (const handler of [GET, POST]) {
+      const response = await handler(authorized());
+      expect(response.status).toBe(200);
+      expect(await response.json()).toMatchObject({
+        retired: true,
+        enabled: false,
+        published: 0,
+      });
+      expect(response.headers.get("cache-control")).toContain("no-store");
+    }
+    expect(clientCalls).toHaveLength(0);
+    expect(rpcCalls).toHaveLength(0);
     expect(revalidationCalls).toHaveLength(0);
-
-    rpcHandler = async () => ({
-      data: report({ examined: 2, published: 2, held: 1 }),
-      error: null,
-    });
-    response = await POST(authorized());
-    expect(response.status).toBe(503);
-    expect(await response.json()).toEqual({
-      error: "Scheduled post publisher returned invalid data",
-    });
-    expect(revalidationCalls).toHaveLength(0);
-
-    rpcHandler = async () => ({
-      data: report({ organizationIds: [ORG_A] }),
-      error: null,
-    });
-    response = await POST(authorized());
-    expect(response.status).toBe(503);
-    expect(revalidationCalls).toHaveLength(0);
-  });
-
-  test("GET uses the same authenticated, feature-gated implementation", async () => {
-    process.env.CSF_SCHEDULED_POST_PUBLISHER_ENABLED = "true";
-    const response = await GET(authorized("GET"));
-    expect(response.status).toBe(200);
-    expect(rpcCalls).toHaveLength(1);
-    expect(revalidationCalls).toHaveLength(0);
-    expect(response.headers.get("cache-control")).toContain("no-store");
   });
 });

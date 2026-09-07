@@ -4,6 +4,21 @@ DVHS CSF officer UX → class-first Home → Classes → Applications → More; 
 
 §C
 
+- Scheduled publishing is retired. Existing scheduled posts return to drafts
+  with an audit receipt; IDs, content, attachments, and prior receipts survive.
+  New scheduling requests are rejected before writing. Legacy publisher calls
+  return zero work, and runtime controls cannot reactivate publication.
+  Manual publishing and its separately queued email remain supported.
+- Release evidence, 2026-09-06: PR #483 merged accepted Development `b5edca71`
+  to Production `82ab06b6` with identical tree and private gitlink `e03130c`.
+  Hosted acceptance `34024436926` retains the failed 2.568-second LCP attempt
+  and the passing unchanged-deployment retest with 9,619 requests and zero errors.
+  Migration run `34058023928` verified the exact 460-migration catalog.
+  App run `34058086857` used one Production build and verified the public alias.
+  Workbook refresh transition `34058344966` passed without rebuilding.
+  Official import reconciliation, current email settlement, and final live
+  workflow/media acceptance remain open. Release success does not close them.
+
 - Workbook preparation must retain the immediate source-scoped preview as retry
   lineage after a confirmed failure. Unknown and in-flight attempts block
   preparation. A rebuilt preview still requires an officer commit; preparation

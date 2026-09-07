@@ -21,6 +21,26 @@ const env = {
 };
 const config = transitionConfig(env);
 
+test("retired publishing permits shutdown but never activation", () => {
+  const worker = "scheduled_post_publisher";
+  assert.throws(() =>
+    transitionConfig({
+      ...env,
+      WORKER: worker,
+      CONFIRMATION: `enable-csf-worker:${worker}:${sha}`,
+    }),
+  );
+  assert.equal(
+    transitionConfig({
+      ...env,
+      WORKER: worker,
+      WORKER_ENABLED: "false",
+      CONFIRMATION: `disable-csf-worker:${worker}:${sha}`,
+    }).enabled,
+    false,
+  );
+});
+
 test("management controls query reads the table without extra RPC grants", () => {
   const query = workerControlsQuery(sha);
   assert.match(

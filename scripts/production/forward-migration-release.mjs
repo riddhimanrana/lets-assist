@@ -14,42 +14,9 @@ import {
 
 // This controller approves only these reviewed, backward-compatible migrations.
 export const approvedMigrations = [
-  // Order follows the append-only migration ledger.
   [
-    "20260906013133_csf_class_import_identity_review_rows",
-    "aaaaa70214f9f8d8d0c8488b08932c8346f488d398826abeb59e1939a3100cdc",
-  ],
-  [
-    "20260906024707_csf_officer_annotation_review",
-    "3bd48f12a0c99a1aa5948a6b647ef16c18a674c8ca7cf506c01019b432022a80",
-  ],
-  [
-    "20260906025852_csf_pending_identity_reconciliation",
-    "bad7e0dd1331ad6e1cae04bc11152553c34218ed189aaa8e159b2994cb9a6542",
-  ],
-  [
-    "20260906041507_csf_composable_import_reviews",
-    "a458ab1dc21cb6c5092d6e65138a89781b1ed83233a6d3ec27f626e247ef47d8",
-  ],
-  [
-    "20260906044753_csf_annotation_error_identity_review",
-    "4a103d06e6393897bb830bea025872ed61c60ccd67abc79c580707fc97df10bc",
-  ],
-  [
-    "20260906053114_csf_annotation_review_state_guards",
-    "47be7222eb6ec7275ef738d03f24943ec5beac647b4432d1831829da6ab7ac5a",
-  ],
-  [
-    "20260906062954_csf_allow_officer_point_decisions_during_verification",
-    "c057ac638b09ad5477a04fe921a27a4dbd15561e4ccbbcea8856176f3b05636b",
-  ],
-  [
-    "20260906073357_csf_require_canonical_point_updates",
-    "ce73e9e4fb2698bdc7471ba2df49cb995a85b57e4e8207f3e93774cfa4a42924",
-  ],
-  [
-    "20260906085350_csf_identity_review_preview_state",
-    "98ae09bd748443026bbcc6661b103b642604b6fb71f8ffc0d660efc2605a1848",
+    "20260907000344_retire_csf_scheduled_publishing",
+    "249f7baa75fe8fb0677781677ef2f560aaaa0684edf3a8ef1fc85207a8e7f78b",
   ],
 ];
 
@@ -72,7 +39,9 @@ export function prepareMigration(cwd, read = readFileSync) {
       throw new ReleaseCheckError("Approved migration bytes changed.");
     // Keep each migration body inside the transaction that also records its
     // exact ledger version.
-    const body = sql.replace(/^BEGIN;\s*/u, "").replace(/\s*COMMIT;\s*$/u, "");
+    const body = sql
+      .replace(/^BEGIN;[ \t]*\r?\n/mu, "")
+      .replace(/\s*COMMIT;\s*$/u, "");
     return `${body}\nINSERT INTO supabase_migrations.schema_migrations(version,name,statements)
       VALUES (${literal(name.slice(0, 14))},${literal(name.slice(15))},ARRAY[${literal(sql)}]);`;
   });
