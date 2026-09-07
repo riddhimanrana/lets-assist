@@ -17,6 +17,36 @@ test("legacy release catalogs stay unchanged", () => {
   assert.equal(acceptedCatalogQuery(source, versions.slice(0, 444)), source);
 });
 
+test("scheduling retirement pins every replacement and preserves the prior release catalog", () => {
+  const current = acceptedCatalogQuery(source, versions);
+  const preceding = acceptedCatalogQuery(source, versions.slice(0, 460));
+  for (const definition of [
+    "('app_private.retire_csf_scheduled_posts()','6e08e34639831cc8d178d1363c91fa61',false)",
+    "('plugin_data.csf_guard_announcement_schedule_lifecycle()','af351b0c18cd5a9fa1c333dd9502c58d',false)",
+    "('plugin_data.csf_publish_due_posts(integer,text)','bd1c22ec097dab0f168b93ef6d5581a8',true)",
+    "('plugin_data.csf_mutate_post(uuid,text,uuid,jsonb,uuid,uuid)','9dee34bed53f2c27f2b80b7ddafbfcbf',true)",
+    "('app_private.set_csf_release_worker_control(text,text,boolean,bigint,uuid,text,text)','91318f5b00c40c30b9be7a36a08c5109',false)",
+  ]) {
+    assert.ok(current.includes(definition), definition);
+    assert.ok(!preceding.includes(definition), definition);
+  }
+  assert.match(current, /SELECT count\(\*\) = 14 AND/u);
+  assert.match(preceding, /SELECT count\(\*\) = 10 AND/u);
+  assert.ok(
+    current.includes(
+      "has_function_privilege('service_role',p.oid,'EXECUTE') = expected.service_execute",
+    ),
+  );
+  assert.ok(
+    current.includes("AND NOT has_function_privilege('anon',p.oid,'EXECUTE')"),
+  );
+  assert.ok(
+    current.includes(
+      "AND NOT has_function_privilege('authenticated',p.oid,'EXECUTE')",
+    ),
+  );
+});
+
 test("identity review upgrade checks exact body, bounded signature, and server-only permissions", () => {
   const query = acceptedCatalogQuery(source, versions);
   assert.match(query, /csf_class_import_review_rows\(uuid,uuid,integer\)/u);
@@ -105,7 +135,7 @@ test("workbook rebuild release checks the exact body, server-only grants, and re
 
 test("the reviewed import upgrade verifies metadata, function grants, and the scoped index", () => {
   const query = acceptedCatalogQuery(source, versions);
-  assert.match(query, /SELECT count\(\*\) = 10 AND/u);
+  assert.match(query, /SELECT count\(\*\) = 14 AND/u);
   assert.match(query, /csf_import_rows_resolution_metadata_object/u);
   assert.match(query, /a.atttypid='jsonb'::regtype AND a.attnotnull/u);
   assert.match(query, /csf_import_rows_committed_source_key_idx/u);

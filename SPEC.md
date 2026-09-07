@@ -4,6 +4,21 @@ DVHS CSF officer UX → class-first Home → Classes → Applications → More; 
 
 §C
 
+- Scheduled publishing is retired. Existing scheduled posts return to drafts
+  with an audit receipt; IDs, content, attachments, and prior receipts survive.
+  New scheduling requests are rejected before writing. Legacy publisher calls
+  return zero work, and runtime controls cannot reactivate publication.
+  Manual publishing and its separately queued email remain supported.
+- Release evidence, 2026-09-06: PR #483 merged accepted Development `b5edca71`
+  to Production `82ab06b6` with identical tree and private gitlink `e03130c`.
+  Hosted acceptance `34024436926` retains the failed 2.568-second LCP attempt
+  and the passing unchanged-deployment retest with 9,619 requests and zero errors.
+  Migration run `34058023928` verified the exact 460-migration catalog.
+  App run `34058086857` used one Production build and verified the public alias.
+  Workbook refresh transition `34058344966` passed without rebuilding.
+  Official import reconciliation, current email settlement, and final live
+  workflow/media acceptance remain open. Release success does not close them.
+
 - Workbook preparation must retain the immediate source-scoped preview as retry
   lineage after a confirmed failure. Unknown and in-flight attempts block
   preparation. A rebuilt preview still requires an officer commit; preparation
@@ -159,7 +174,7 @@ V35: point claim form → compact mobile-first fields + fixed dialog header/foot
 V36: member point claim context → current term from authorized member class context + hidden stable `termId`; missing current context disables submission; historical-term fallback and member-facing semester selector ⊥; server revalidation remains authoritative.
 V37: class-scoped activity/post compose → class + current class term inherited from class workspace; redundant audience/class/semester selectors ⊥; broad officer compose may keep explicit scope controls when no class context exists.
 V38: linked activity point claim → authorized current-term activity supplies exact configured point value + type; member credit controls ⊥; hidden stable FormData retained; mutation rejects changed or invalid configured credit.
-V39: class activity/announcement compose → empty text entry fields carry no example placeholder copy; unavailable scheduling explainer ⊥; valid scheduling and scheduled-post recovery contracts remain.
+V39: class activity/announcement compose → empty text entry fields carry no example placeholder copy; scheduling controls and activation ⊥; legacy scheduling requests refuse writes; saved drafts and manual publication remain.
 V40: linked member without accepted current-term membership → class Feed + one truthful review/setup notice; points rail + agenda + member workflow links + first-use tour + their backing reads ⊥; refused/closed states never described as processing.
 V41: post email acceptance → browser publication receipt + frozen positive audience + durable queued campaign + worker dispatch + local mailbox receipt; Development Resend proof uses synthetic `@resend.dev` only; queue ≠ delivery and student provider sends ⊥.
 V42: officer member correction → class Members uses the semester already selected in the class header and exposes identity, account, points, meetings, and semester standing in one compact roster; permitted edits use narrow audited saves and accepted status still runs the application decision transaction; a separate semester-management flow or raw bulk overwrite ⊥.

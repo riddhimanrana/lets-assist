@@ -64,6 +64,21 @@ test("database mode ignores stale environment enable flags", async () => {
   process.env.CSF_COMMUNICATIONS_WORKER_ENABLED = "true";
   expect(await isCsfWorkerEnabled("communications")).toBe(false);
 });
+test("retired publishing cannot resume through stored or environment flags", async () => {
+  result = {
+    data: {
+      releaseSha: sha,
+      revision: 2,
+      workers: { ...flags, scheduled_post_publisher: true },
+    },
+    error: null,
+  };
+  expect(await isCsfWorkerEnabled("scheduled_post_publisher")).toBe(false);
+  expect(await isCsfWorkerEnabled("workbook_refresh")).toBe(true);
+  process.env.CSF_WORKER_CONTROL_MODE = "environment";
+  process.env.CSF_SCHEDULED_POST_PUBLISHER_ENABLED = "true";
+  expect(await isCsfWorkerEnabled("scheduled_post_publisher")).toBe(false);
+});
 test("legacy environment mode does not contact the database", async () => {
   delete process.env.CSF_WORKER_CONTROL_MODE;
   process.env.CSF_IMPORT_WORKER_ENABLED = "true";

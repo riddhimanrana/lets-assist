@@ -2786,6 +2786,131 @@ hosted Development verification.
 | AUD-122 | P1 | Removing runtime point UPDATE permission breaks the local fixture upsert. | Isolated fixture seeder | The awaited fictional fixture reset now precedes INSERT instead of upsert. All 31 seed tests, fresh seed, and reseed pass with the same four point rows. CI `34021317555` and hosted acceptance `34021315408` passed on merged `60825d2d`. |
 | AUD-123 | P2 | Identity reconciliation accepts rows before preview preparation finishes. | CSF import review | Six failures reproduce matches and audit writes on pending, running, failed, and cancelled previews. Forward migration `20260906085350` adds the locked preview-state check. The final full replay passes 460 migrations and 7,159 assertions, the exact release catalog, and all ten permission/trigger drift refusals. Hosted and Production rollout remain open. |
 
+## Production release evidence, September 6, 2026
+
+### Follow-up in progress: remove scheduled publishing
+
+The user withdrew scheduled publishing from the release scope. Local changes
+remove the composer schedule choice and date field, reject scheduling inputs
+before a post write, remove the Vercel cron and manual publisher workflow, and
+replace the legacy endpoint with an authenticated no-write retired response.
+Environment and stored flags cannot enable this endpoint. The release tool
+refuses activation but still permits an explicit shutdown. Existing post and
+audit history remains unchanged.
+
+TypeScript, zero-warning root lint, 40 focused scheduling/action tests, and 10
+runtime-transition tests passed. The 1,000-message fake-provider test and focused
+communications worker, dispatch, environment, keyring, and webhook suites passed.
+These are local checks, not hosted or provider acceptance. No deployment or
+Production mutation occurred for this follow-up.
+
+Forward migration `20260907000344_retire_csf_scheduled_publishing` now records
+the return to drafts, preserves content and receipts, replaces the database
+publisher with a no-write compatibility function, and rejects scheduling
+through the mutation wrapper, lifecycle trigger, and runtime control setter.
+The conversion helper is operator-only and idempotent. The isolated 461-ledger
+replay and all 244 pgTAP files passed, with 7,120 assertions. The first replay
+failed on a SQL delimiter error; the corrected fresh replay passed. Neither run
+touched hosted databases.
+
+The plugin suite passed across 295 files after updating two obsolete scheduling
+contracts. The complete plugin verification command, including application
+package checks and build, passed. The first root suite found stale ledger and
+operator-copy contracts; the corrected full rerun passed across 301 root files.
+TypeScript and zero-warning lint passed. The final migration bytes replayed on
+a fresh isolated database, and all 7,120 pgTAP assertions passed again. The exact
+generated release catalog query returned success against that database. A new
+catalog regression pins all five retired/replacement functions and their grants.
+The root application build subsequently passed in the provider-disabled isolated
+environment using Webpack. Compilation reported dynamic-dependency warnings in
+PDF extraction, the cron auth probe, and the AI SDK dependency chain. These are
+build warnings, distinct from the passing zero-warning lint check.
+
+Private PR #259 merged into private `development` as
+`6063cce70ffd05cd940c713a1fe22517b33703aa`. Its first hosted check caught a
+whitespace-sensitive copy assertion after formatting. Test-only correction
+`601e0582f4e110017b788eda1fdfa2a8c953d028` passed 71 focused tests; the hosted
+rerun `34074412216` passed. GitHub merged without waiting for that non-required
+check. Private PR #260 then corrected legacy server-error text and its refusal
+contracts. Its check `34074872970` passed before merge. The root index now pins
+private Development `dbc3a79a8a87b345dc142b1a3c62e779eaa7a0fd`; its strict
+ancestry and cleanliness check passed. Local database advisors reported no issues.
+The first root build was stopped with exit 143 after the default Turbopack build
+stalled. A replacement uses the existing isolated runner's Webpack mode with
+providers disabled. The Webpack build completed with exit 0, including TypeScript,
+static generation, and sitemap generation. The stopped Turbopack attempt remains
+recorded separately.
+No root follow-up has been published.
+
+Development email acceptance setup added the existing fictional admin account
+to the marked load-fixture tenant. The transaction verified all 1,010 profiles
+as synthetic and wrote a `fictional_acceptance_access_prepared` audit event.
+This temporarily added one test organization membership, taking that fixture
+from 100 to 101. Before hosted load acceptance, the membership was removed in
+an audited transaction tied to its original setup receipt. A count query
+confirmed exactly 100 fixture memberships again. The first removal statement
+failed type checking and made no change; the corrected transaction succeeded.
+The browser verified officer access
+and the communications settings page. No campaign or test message was sent.
+Four fictional acceptance topics now exist in Resend. Vercel variable
+`CSF_RESEND_TOPIC_CONFIGURATION` contains only this fictional tenant's mapping,
+scoped to Preview on the `development` branch. No prior configuration existed
+under that key. The next grouped Development deployment must load it before
+the audited settings action can persist the mapping. No Production environment
+variable changed. The bounded ten-recipient audience and delivery proof remain
+open. Official chapter permissions and Production data were not changed.
+
+Root commit `b88da0a0` is published in PR #488 against `development`. Its Vercel
+build was cancelled by the ignored-build policy. CI run `34075522903` passed
+quality but failed during fictional platform seeding: the expanded officer post
+still requested scheduling. A new regression reproduced the defect. The fixture
+now creates a draft with a null scheduling timestamp; scheduled meeting sessions
+remain unchanged. All 32 seed tests, focused zero-warning lint, and the actual
+seed against the owned isolated 461-migration database passed after the fix.
+The next run, `34075979549`, exposed an unrelated test-observation race in
+`csf_post_reply_concurrency.test.sql`. Warming the activity snapshot before
+dispatch reproduced its failed lock-wait assertion locally. Both polling loops
+now clear the statistics snapshot, retaining the warmed-snapshot regression.
+All ten concurrency assertions pass, including authorization recheck and no
+write after revocation. Application code and database functions did not change
+for this correction. The corrected hosted rerun remains open.
+Supabase automatically created a
+nonpersistent, schema-only PR preview
+with `with_data=false`. It was removed immediately through the branch API to
+honor the no-extra-hosted-branches requirement. Persistent Development and
+Production were not removed or reset. This deleted only the temporary PR
+database and its in-progress migration replay, not application records.
+
+Read-only provider checks found the replacement Development and Production
+webhooks enabled and four legacy endpoints disabled. Development has 11 accepted,
+13 delivered, and 11 failed dispatch attempts. Production has no campaigns or
+dispatch attempts. Development has one scheduled post and Production has none.
+These counts are not new delivery proof. No messages were sent or replayed.
+The dedicated Development load tenant contains 1,010 fictional profiles and no
+Resend test-address profiles. Its existing audience is not the requested
+ten-recipient delivery fixture and must not be used for a general send.
+
+Still required: finish the controlled Resend proof and remaining application
+and profile reconciliation, complete browser/media and full root acceptance,
+then run the grouped hosted acceptance and release. Only the private follow-up
+has merged. No follow-up app has deployed, and no hosted migration has applied.
+
+PR #483 merged as `82ab06b6c6354c1d7cefed46b73687f75e58e714` with the identical tree as accepted Development `b5edca7156a0a0d881f5e650cf895b466835dedd` and private gitlink `e03130c5355ad01a0b7a9fde723d2dbc35ee9031`. The fixed AUD-123 review thread was resolved after acceptance. Branch protections were not changed.
+
+Hosted run `34024436926` retains both attempts. Attempt 1 failed LCP at 2.568 seconds. Attempt 2 passed on the unchanged deployment with 9,619 requests, zero errors, read p95 1.854 seconds, mutation p95 2.348 seconds, LCP p75 1.704 seconds, and 25 review navigations without crashes. Retained heap fell 11.6 percent.
+
+Forward-migration run `34058023928` applied exactly nine reviewed migrations, advancing Production from 451 to 460 through `20260906085350`. The exact catalog passed and workers remained disabled. No export, restore, or historical migration edit occurred.
+
+App-only run `34058086857` built Production once, passed staged checks, promoted `lets-assist.com`, and passed exact public alias and application checks. Current deployment is `dpl_8P2hHJAPCLLkyH6NdpxDw2HmPjtF`; prior deployment `dpl_GowA9smuAXNxsoifTQcn6qKMo6se` remains the app rollback target. AUD-115 and AUD-117 through AUD-123 now have Production code/schema release evidence. Official data and live workflow acceptance remain open.
+
+The post-release count-only check found four linked workbooks, 32 discovered tabs, four current prepared versions, no workbook errors, and five completed refresh jobs with no pending refresh backlog. Runtime transition `34058344966` enabled workbook refresh for the exact public SHA. The officer UI rebuilt Class of 2027 Spring 2026 as preview `25d71cf8-3f28-40ec-9b2b-67466780ca98`, preserving 166 settled rows as superseded and preparing one retry row with an existing target and no parser errors. Officer batch approval froze that preview. Runtime transition `34058592610` enabled import processing, and queue receipt `923812f5-bcc4-442d-a672-4c1a15fa50e3` completed. The original failure receipt remains unchanged. Communications and scheduled publishing remain disabled pending their acceptance checks.
+
+The Class of 2028 Fall 2025 row review followed an existing recorded profile merge into an active same-class target with seven committed source rows. The officer action stored `matched_existing_profile` with an evidence reason. Batch queue `14f339c4-6c1b-42d1-baef-532926c61b90` completed all 193 rows, one created and 192 updated. This did not merge the separate same-name account/profile pair, which remains an identity exception.
+
+Fresh 2029 and 2030 Drive revision checks queued and completed workbook preparation. Class of 2030 retains eight tabs and zero source rows. The two fresh 2029 previews matched all 150 prior source values and targets exactly. Both new commit receipts completed without retrying the two obsolete failure receipts. Before and after counts were identical: 1,047 total profile rows including merged history, 1,578 activity definitions, 4,434 participation entries, 1,913 term memberships, and 1,392 attendance records. These are database totals, not active-member counts.
+
+All 4,434 imported activity entries match their immutable source labels and numeric points and have same-organization, same-term catalog links. All 1,392 imported attendance records have valid term-meeting links. The count-only 32-class-term report remains an ignored local artifact, `production-reconciliation-82ab06b6.json`. The one Class of 2027 Fall 2024 skipped source coordinate carries a duplicate warning: the retained same-key row has five activities, the skipped row has none, and their two meeting entries match. There is no separate officer resolution note on those historical skip receipts; preserve that distinction. Applications are still pending import. Form-response emails remain evidence rather than verified canonical profile contacts. Speed Insights Plus was rechecked in Vercel billing and remains disabled.
+
 ## External/account blockers
 
 EXT-007: a provider metadata response exposed the shared Vercel automation

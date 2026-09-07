@@ -27,7 +27,6 @@ describe("CSF Production worker enablement", () => {
       "workbook_refresh",
       "import_commit",
       "communications",
-      "scheduled_post_publisher",
     ]) {
       expect(productionWorkerEnableWorkflow).toContain(`- ${worker}`);
     }
@@ -55,7 +54,7 @@ describe("CSF Production worker enablement", () => {
       /vercel@|VERCEL_TOKEN|--prebuilt|env update|promote \$/u,
     );
     expect(productionCutoverRunbook).toContain(
-      "Dispatch `enable-production-csf-worker.yml` four times",
+      "Dispatch `enable-production-csf-worker.yml` three times",
     );
   });
 

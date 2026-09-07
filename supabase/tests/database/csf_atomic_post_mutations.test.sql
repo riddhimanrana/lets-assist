@@ -149,8 +149,8 @@ SELECT extensions.throws_ok(
     'fa000000-0000-4000-8000-000000000001',
     'fa300000-0000-4000-8000-000000000010'
   ) $$,
-  'P0001',
-  'Choose a valid scheduled post time.',
+  '55000',
+  'Post scheduling has been removed. Publish now or save a draft.',
   'malformed Z timestamps fail with bounded validation copy'
 );
 SELECT extensions.throws_ok(
@@ -160,8 +160,8 @@ SELECT extensions.throws_ok(
     'fa000000-0000-4000-8000-000000000001',
     'fa300000-0000-4000-8000-000000000011'
   ) $$,
-  'P0001',
-  'Choose a valid scheduled post time.',
+  '55000',
+  'Post scheduling has been removed. Publish now or save a draft.',
   'invalid timezone displacement fails with bounded validation copy'
 );
 

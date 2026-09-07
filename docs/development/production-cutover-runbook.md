@@ -554,10 +554,10 @@ already included in the 414 baseline.
     CSF worker flags remain disabled through application promotion and write
     reopening. After the workflow verifies the final alias and opens writes,
     test sign-in, project signup, an organization page, and a CSF workspace.
-13. Dispatch `enable-production-csf-worker.yml` four times from `main`, supplying
+13. Dispatch `enable-production-csf-worker.yml` three times from `main`, supplying
     the exact SHA currently served by Production as `release_sha`. Select
-    `workbook_refresh`, `import_commit`, `communications`, then
-    `scheduled_post_publisher`, in that order. Each dispatch requires Production
+    `workbook_refresh`, `import_commit`, and `communications`,
+    in that order. Scheduled publishing is retired. Each dispatch requires Production
     environment approval and `enable-csf-worker:<worker>:<release SHA>`.
     The application must use `CSF_WORKER_CONTROL_MODE=database`. The workflow
     checks the public SHA and switches, writes one operator-only audited

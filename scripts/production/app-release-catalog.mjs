@@ -96,10 +96,15 @@ export function acceptedCatalogQuery(source, versions) {
       "34dbbd884882349f8083512cd2fe48b371c3f1242bc62897685267f2a5d0001b"
   )
     return source;
-  const identityPreviewStateUpgrade =
-    versions.length === 460 &&
+  const schedulingRetirementUpgrade =
+    versions.length === 461 &&
     ledgerHash ===
-      "e0a6a89e861dcc74b59dfaec28ac35ddccc9fe3faa5e63934d143c8e98d662a8";
+      "a6a6c780914ec9b2bbc8ad461645ea96b8b9d989840f2fbb7aae6e7270e0b8e1";
+  const identityPreviewStateUpgrade =
+    schedulingRetirementUpgrade ||
+    (versions.length === 460 &&
+      ledgerHash ===
+        "e0a6a89e861dcc74b59dfaec28ac35ddccc9fe3faa5e63934d143c8e98d662a8");
   const canonicalPointUpdateUpgrade =
     identityPreviewStateUpgrade ||
     (versions.length === 459 &&
@@ -207,6 +212,39 @@ export function acceptedCatalogQuery(source, versions) {
       "932eae452025dfd57e24d644b441aea4",
       false,
     ]);
+  if (schedulingRetirementUpgrade) {
+    const setter = definitions.find(
+      (item) =>
+        item[0] ===
+        "app_private.set_csf_release_worker_control(text,text,boolean,bigint,uuid,text,text)",
+    );
+    if (!setter)
+      throw new ReleaseCheckError("Worker control catalog entry is missing.");
+    const index = definitions.indexOf(setter);
+    definitions[index] = [setter[0], "91318f5b00c40c30b9be7a36a08c5109", false];
+    definitions.push(
+      [
+        "app_private.retire_csf_scheduled_posts()",
+        "6e08e34639831cc8d178d1363c91fa61",
+        false,
+      ],
+      [
+        "plugin_data.csf_guard_announcement_schedule_lifecycle()",
+        "af351b0c18cd5a9fa1c333dd9502c58d",
+        false,
+      ],
+      [
+        "plugin_data.csf_publish_due_posts(integer,text)",
+        "bd1c22ec097dab0f168b93ef6d5581a8",
+        true,
+      ],
+      [
+        "plugin_data.csf_mutate_post(uuid,text,uuid,jsonb,uuid,uuid)",
+        "9dee34bed53f2c27f2b80b7ddafbfcbf",
+        true,
+      ],
+    );
+  }
   const values = definitions
     .map(
       ([signature, digest, service]) =>

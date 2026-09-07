@@ -37,6 +37,8 @@ export async function readCsfWorkerControls(): Promise<{
     for (const worker of Object.keys(workerEnv) as CsfWorker[]) {
       workers[worker] = process.env[workerEnv[worker]] === "true";
     }
+    // Retain the legacy response field, but never resume retired publishing.
+    workers.scheduled_post_publisher = false;
     return { workers, mode: "environment", available: true };
   }
   const releaseSha = process.env.LETS_ASSIST_BUILD_SHA;
@@ -60,6 +62,7 @@ export async function readCsfWorkerControls(): Promise<{
       if (typeof data.workers[worker] !== "boolean") return closed;
       workers[worker] = data.workers[worker];
     }
+    workers.scheduled_post_publisher = false;
     return { workers, mode: "database", available: true };
   } catch {
     return closed;

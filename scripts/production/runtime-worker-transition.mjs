@@ -42,6 +42,7 @@ export function transitionConfig(env) {
   const sha = requireSha(env.RELEASE_SHA);
   const enabled = env.WORKER_ENABLED === "true";
   if (
+    (enabled && env.WORKER === "scheduled_post_publisher") ||
     !Object.hasOwn(workerFields, env.WORKER ?? "") ||
     !["true", "false"].includes(env.WORKER_ENABLED) ||
     env.SUPABASE_PROJECT_ID !== productionRef ||
