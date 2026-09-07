@@ -13,6 +13,7 @@ import {
   PRODUCTION_PROJECT_REF,
 } from "./csf-load-fixture.mjs";
 import { requestVercelBypassCookie } from "./vercel-bypass-cookie.mjs";
+import { createHostedReadMetrics } from "./csf-load-metrics.mjs";
 
 const EXPECTED_ORIGIN = "https://dev.lets-assist.com";
 const MEMBER_SESSIONS = MEMBER_SESSION_COUNT;
@@ -383,6 +384,7 @@ async function runRequestSessions({
     );
   }
   const timings = [];
+  const readMetrics = createHostedReadMetrics();
   let errors = 0;
   let fiveHundreds = 0;
   let requests = 0;
@@ -401,8 +403,8 @@ async function runRequestSessions({
       let cycle = 0;
       while (Date.now() < sessionEndAt) {
         const cycleStart = Date.now();
-        const path =
-          session.paths[(cycle + session.index) % session.paths.length];
+        const routeIndex = (cycle + session.index) % session.paths.length;
+        const path = session.paths[routeIndex];
         const startedAt = performance.now();
         try {
           const response = await fetch(new URL(path, appUrl), {
@@ -418,7 +420,14 @@ async function runRequestSessions({
           await response.arrayBuffer();
           assertFixtureLocation(response.url, appUrl);
           requests += 1;
-          timings.push(performance.now() - startedAt);
+          const durationMs = performance.now() - startedAt;
+          timings.push(durationMs);
+          readMetrics.record({
+            role: session.role,
+            routeIndex,
+            durationMs,
+            status: response.status,
+          });
           if (response.status >= 500) fiveHundreds += 1;
           if (
             !response.ok ||
@@ -426,10 +435,18 @@ async function runRequestSessions({
           ) {
             errors += 1;
           }
-        } catch {
+        } catch (error) {
           requests += 1;
           errors += 1;
-          timings.push(performance.now() - startedAt);
+          const durationMs = performance.now() - startedAt;
+          timings.push(durationMs);
+          readMetrics.record({
+            role: session.role,
+            routeIndex,
+            durationMs,
+            failure:
+              error?.name === "TimeoutError" ? "timeout" : "request_failure",
+          });
         }
         cycle += 1;
         const remaining = REQUEST_INTERVAL_MS - (Date.now() - cycleStart);
@@ -440,7 +457,13 @@ async function runRequestSessions({
     }),
   );
 
-  return { errors, fiveHundreds, requests, timings };
+  return {
+    errors,
+    fiveHundreds,
+    requests,
+    timings,
+    readBreakdown: readMetrics.summarize(),
+  };
 }
 
 async function collectHeap(page, session) {
@@ -821,6 +844,7 @@ async function main() {
       requests: load.requests,
       readP95Ms: percentile(load.timings, 0.95),
       readP99Ms: percentile(load.timings, 0.99),
+      readBreakdown: load.readBreakdown,
       mutationP95Ms: browserResult.mutationP95Ms,
       errorRate: load.requests ? load.errors / load.requests : 1,
       fiveHundredRate: load.requests ? load.fiveHundreds / load.requests : 1,

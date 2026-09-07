@@ -9,6 +9,31 @@ DVHS CSF officer UX → class-first Home → Classes → Applications → More; 
   New scheduling requests are rejected before writing. Legacy publisher calls
   return zero work, and runtime controls cannot reactivate publication.
   Manual publishing and its separately queued email remain supported.
+- Scheduling retirement is deployed to Development `54c95cf6`, not Production.
+  Development has 461 migrations, one audited draft conversion, and no scheduled
+  posts. Hosted run `34077477140` failed: read p95 3.157 seconds, read p99
+  8.193 seconds, mutation p95 4.830 seconds. Browser vitals, 25 review
+  navigations, and retained heap passed. Keep this failure and the existing
+  thresholds. Local count-only route diagnostics pass ten tests, TypeScript,
+  and targeted lint; they are not a latency fix or hosted acceptance.
+  Ten-recipient audited campaign preparation is complete, but dispatch and
+  current webhook settlement remain unproven. Production promotion stays open.
+- The user approved one additional grouped Development deployment and a
+  Development-only communications worker credential rotation. Vercel's
+  branch-scoped sensitive variable and GitHub's Development secret are updated.
+  The existing deployment does not yet prove the replacement credential works.
+  Private PR #261 groups saved-preview selection and point-lock refusal fixes.
+- Isolated officer connection approval passed after hydration/tour test setup
+  was corrected. The attachment journey remains open: an existing fictional
+  verification period correctly blocked submission, but the app mislabeled
+  that known refusal as an unknown outcome. A local private error-classifier
+  correction passes seven focused tests; it is not deployed. Keep the database
+  submission freeze and retry protections intact.
+- Later isolated acceptance closed the fictional verification period through
+  the officer UI and passed PNG proof upload, fixed-point submission, and
+  audited withdrawal. Beyond-first-page directory search passed with 52 owned
+  fictional profiles and survived reload. All 266 private test files passed.
+  These are local results, not a replacement for hosted latency or email proof.
 - Release evidence, 2026-09-06: PR #483 merged accepted Development `b5edca71`
   to Production `82ab06b6` with identical tree and private gitlink `e03130c`.
   Hosted acceptance `34024436926` retains the failed 2.568-second LCP attempt

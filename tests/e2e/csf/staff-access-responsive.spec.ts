@@ -350,6 +350,10 @@ test.describe("DVHS CSF proof submission", () => {
         `${CSF_ORGANIZATION_PATH}?tab=csf-submissions`,
       );
 
+      await expect(
+        page.locator('[data-organization-tabs-hydrated="true"]'),
+      ).toBeVisible();
+
       await page
         .getByRole("button", { name: "Submit points", exact: true })
         .click();
