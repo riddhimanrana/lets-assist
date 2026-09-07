@@ -4,6 +4,13 @@ DVHS CSF officer UX → class-first Home → Classes → Applications → More; 
 
 §C
 
+- Read acceptance applies to each member/officer route, not only the pooled
+  request distribution. Every expected route needs measured requests, p95 at
+  most 2.5 seconds, and p99 at most 5 seconds. Missing or duplicate route
+  summaries fail acceptance. Run `34085356037` reported success under the old
+  pooled gate, but officer Classes p95 was 3.835 seconds and Applications was
+  2.566 seconds. These remain open performance defects. Local gate coverage
+  prevents pooled member traffic from hiding either failure.
 - Scheduled publishing is retired. Existing scheduled posts return to drafts
   with an audit receipt; IDs, content, attachments, and prior receipts survive.
   New scheduling requests are rejected before writing. Legacy publisher calls

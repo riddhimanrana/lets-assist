@@ -8,6 +8,30 @@ function percentile(values, fraction) {
   return sorted[Math.ceil(sorted.length * fraction) - 1] ?? null;
 }
 
+export function passesHostedReadRouteBudgets(rows) {
+  const expected = new Set(
+    Object.entries(ROUTES).flatMap(([role, routes]) =>
+      routes.map((route) => `${role}:${route}`),
+    ),
+  );
+  if (rows.length !== expected.size) return false;
+  for (const row of rows) {
+    if (
+      !expected.delete(`${row.role}:${row.route}`) ||
+      !Number.isInteger(row.requests) ||
+      row.requests <= 0 ||
+      !Number.isFinite(row.p95Ms) ||
+      row.p95Ms < 0 ||
+      row.p95Ms > 2500 ||
+      !Number.isFinite(row.p99Ms) ||
+      row.p99Ms < 0 ||
+      row.p99Ms > 5000
+    )
+      return false;
+  }
+  return expected.size === 0;
+}
+
 /** Retain only fixed route labels, timings, and bounded outcome categories. */
 export function createHostedReadMetrics() {
   const groups = new Map();

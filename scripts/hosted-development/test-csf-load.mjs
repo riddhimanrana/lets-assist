@@ -13,7 +13,10 @@ import {
   PRODUCTION_PROJECT_REF,
 } from "./csf-load-fixture.mjs";
 import { requestVercelBypassCookie } from "./vercel-bypass-cookie.mjs";
-import { createHostedReadMetrics } from "./csf-load-metrics.mjs";
+import {
+  createHostedReadMetrics,
+  passesHostedReadRouteBudgets,
+} from "./csf-load-metrics.mjs";
 
 const EXPECTED_ORIGIN = "https://dev.lets-assist.com";
 const MEMBER_SESSIONS = MEMBER_SESSION_COUNT;
@@ -871,6 +874,7 @@ async function main() {
       result.distinctAuthSessions === MEMBER_SESSIONS + OFFICER_SESSIONS &&
       result.readP95Ms <= 2_500 &&
       result.readP99Ms <= 5_000 &&
+      passesHostedReadRouteBudgets(result.readBreakdown) &&
       result.mutationP95Ms <= 3_000 &&
       result.errorRate < 0.005 &&
       result.fiveHundredRate < 0.001 &&
