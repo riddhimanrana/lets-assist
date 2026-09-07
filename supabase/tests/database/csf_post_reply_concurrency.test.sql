@@ -127,6 +127,7 @@ DECLARE
   v_deadline timestamptz := pg_catalog.clock_timestamp() + interval '2 seconds';
 BEGIN
   LOOP
+    PERFORM pg_catalog.pg_stat_clear_snapshot();
     SELECT EXISTS (
       SELECT 1
       FROM pg_catalog.pg_stat_activity AS activity
@@ -214,6 +215,12 @@ SELECT pg_catalog.pg_advisory_xact_lock(
     'fc100000-0000-4000-8000-000000000001'
   )
 );
+-- Read activity before dispatch so the waiter must discard an idle snapshot.
+DO $prime_activity_snapshot$
+BEGIN
+  PERFORM 1 FROM pg_catalog.pg_stat_activity;
+END
+$prime_activity_snapshot$;
 SELECT extensions.dblink_send_query(
   'post_reply_revoked_writer',
   $query$
@@ -234,6 +241,7 @@ DECLARE
   v_deadline timestamptz := pg_catalog.clock_timestamp() + interval '2 seconds';
 BEGIN
   LOOP
+    PERFORM pg_catalog.pg_stat_clear_snapshot();
     SELECT EXISTS (
       SELECT 1
       FROM pg_catalog.pg_stat_activity AS activity

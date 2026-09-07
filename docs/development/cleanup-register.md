@@ -2845,8 +2845,12 @@ No root follow-up has been published.
 Development email acceptance setup added the existing fictional admin account
 to the marked load-fixture tenant. The transaction verified all 1,010 profiles
 as synthetic and wrote a `fictional_acceptance_access_prepared` audit event.
-This adds one test organization membership, taking that fixture from 100 to 101;
-load-fixture cleanup must account for it. The browser verified officer access
+This temporarily added one test organization membership, taking that fixture
+from 100 to 101. Before hosted load acceptance, the membership was removed in
+an audited transaction tied to its original setup receipt. A count query
+confirmed exactly 100 fixture memberships again. The first removal statement
+failed type checking and made no change; the corrected transaction succeeded.
+The browser verified officer access
 and the communications settings page. No campaign or test message was sent.
 Four fictional acceptance topics now exist in Resend. Vercel variable
 `CSF_RESEND_TOPIC_CONFIGURATION` contains only this fictional tenant's mapping,
@@ -2863,7 +2867,14 @@ still requested scheduling. A new regression reproduced the defect. The fixture
 now creates a draft with a null scheduling timestamp; scheduled meeting sessions
 remain unchanged. All 32 seed tests, focused zero-warning lint, and the actual
 seed against the owned isolated 461-migration database passed after the fix.
-The corrected hosted rerun remains open. Supabase automatically created a
+The next run, `34075979549`, exposed an unrelated test-observation race in
+`csf_post_reply_concurrency.test.sql`. Warming the activity snapshot before
+dispatch reproduced its failed lock-wait assertion locally. Both polling loops
+now clear the statistics snapshot, retaining the warmed-snapshot regression.
+All ten concurrency assertions pass, including authorization recheck and no
+write after revocation. Application code and database functions did not change
+for this correction. The corrected hosted rerun remains open.
+Supabase automatically created a
 nonpersistent, schema-only PR preview
 with `with_data=false`. It was removed immediately through the branch API to
 honor the no-extra-hosted-branches requirement. Persistent Development and
