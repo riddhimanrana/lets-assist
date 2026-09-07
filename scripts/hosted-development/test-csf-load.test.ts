@@ -25,6 +25,9 @@ describe("hosted CSF load acceptance", () => {
     expect(source).toContain('error?.name === "TimeoutError"');
     expect(source).toContain("readP95Ms: percentile(load.timings, 0.95)");
     expect(source).toContain("readP99Ms: percentile(load.timings, 0.99)");
+    expect(source).toContain(
+      "passesHostedReadRouteBudgets(result.readBreakdown) &&",
+    );
   });
 
   test("is pinned to the Development app and refuses the Production database", () => {

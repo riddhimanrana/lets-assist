@@ -1,6 +1,43 @@
 import { describe, expect, test } from "bun:test";
 
-import { createHostedReadMetrics } from "./csf-load-metrics.mjs";
+import {
+  createHostedReadMetrics,
+  passesHostedReadRouteBudgets,
+} from "./csf-load-metrics.mjs";
+
+describe("per-route acceptance", () => {
+  function completeRoutes() {
+    const metrics = createHostedReadMetrics();
+    for (const role of ["member", "officer"]) {
+      for (let routeIndex = 0; routeIndex < 3; routeIndex += 1) {
+        metrics.record({ role, routeIndex, durationMs: 1000, status: 200 });
+      }
+    }
+    return metrics.summarize();
+  }
+
+  test("requires every role and route to meet the latency budget", () => {
+    const routes = completeRoutes();
+    expect(passesHostedReadRouteBudgets(routes)).toBe(true);
+    routes.find(
+      (row) => row.role === "officer" && row.route === "classes",
+    )!.p95Ms = 3835;
+    expect(passesHostedReadRouteBudgets(routes)).toBe(false);
+  });
+
+  test("rejects missing, duplicated, empty, and invalid measurements", () => {
+    expect(passesHostedReadRouteBudgets([])).toBe(false);
+    expect(passesHostedReadRouteBudgets(completeRoutes().slice(1))).toBe(false);
+    const duplicate = completeRoutes();
+    duplicate[0] = duplicate[1];
+    expect(passesHostedReadRouteBudgets(duplicate)).toBe(false);
+    for (const change of [{ requests: 0 }, { p95Ms: NaN }, { p99Ms: 5001 }]) {
+      const routes = completeRoutes();
+      Object.assign(routes[0], change);
+      expect(passesHostedReadRouteBudgets(routes)).toBe(false);
+    }
+  });
+});
 
 describe("hosted read diagnostics", () => {
   test("keeps role and route latency separate", () => {

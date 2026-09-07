@@ -10,6 +10,105 @@ evidence and does not override the current tables or release gates.
 
 ## Release continuation, 2026-09-05
 
+### Approved Development sender correction, 2026-09-07
+
+Root PR #490 initially failed its release-documentation check because the officer
+runbook still named the preceding private gitlink. The candidate now updates
+that reference to `70f2801`; no application behavior changed. Run `34092764837`
+retains the failure. Remaining jobs were cancelled before updating the same PR.
+
+Private PR #262 passed both checks before merge. Private Development now pins
+`70f28012d98a0fadf0b14b7380ba04b79e93dfbd`, containing the officer read-scope
+fixes in `38ce211de723c53b627cf171cb074c685f02bba5`. Root unit tests recorded
+1,305 passes and one expected gitlink mismatch before integration. After the
+root pointer update, the strict submodule check and all 18 audit-inventory and
+hosted-metrics regression tests pass. No code change hid the original failure.
+The grouped root follow-up still needs CI and hosted Development acceptance.
+
+The user approved the Development sender/key correction and one grouped
+follow-up build. A separate Resend `sending_access` key now matches the
+configured `notifications.lets-assist.com` sender domain. Its identifier is
+`583f0be8-afe9-4629-836c-ca7678e64b6b`. The token passed in memory from the
+provider CLI to Vercel stdin and was not printed or saved locally. Vercel
+stored it as sensitive `RESEND_API_KEY`, Preview target, Git branch
+`development`, project `prj_XUDpEktrouxF4dc2VGMegoL00dlE`. Production credentials
+and existing keys were not changed. The test-recipient guard remains active.
+The ten prior unknown-outcome receipts were not modified or resent. Effective
+runtime use and fresh signed email settlement remain unverified until release.
+
+### Grouped Development follow-up, 2026-09-06
+
+Hosted run `34085356037` finished at 2026-09-07 05:40 UTC with GitHub status
+success. Its 100 distinct sessions made 9,418 read requests with zero errors.
+Pooled read p95 was 1.913 seconds and mutation p95 was 2.354 seconds. Browser
+LCP p75 was 2.216 seconds, INP p75 was 32 ms, and CLS p75 was 0.00210.
+All 25 review navigations finished without crashes or browser errors. Retained
+heap fell 11.0 percent from the measured baseline.
+
+This status does not establish the requested per-route performance acceptance.
+Officer Classes p95 was 3.835 seconds and Applications p95 was 2.566 seconds,
+above the 2.5-second budget. The old gate evaluated only pooled read latency.
+A local regression now requires every expected member/officer route to meet
+the p95 and p99 budgets, rejecting absent, duplicate, or invalid measurements.
+The focused suites pass 12 tests; targeted lint passes. No push, build, new
+load run, credential change, or Production promotion followed this audit.
+
+Update at 2026-09-07 05:35 UTC: CI `34085169784` passed, including 303 root
+and 296 private-plugin test files, 244 pgTAP files with 7,120 assertions,
+87 CSF browser tests, three DV browser tests, TypeScript, zero-warning lint,
+and the Production build. Hosted acceptance `34085356037` remains running.
+No further build or Production change has been started.
+
+The single Development dispatch `34086512406` authenticated and claimed the
+ten approved fictional attempts with zero worker faults. This is not provider
+acceptance. All ten Resend requests returned HTTP 403 because the Development
+send key cannot send from the configured `notifications.lets-assist.com`
+domain. Provider logs confirm the same explicit refusal for all ten requests.
+The database retains ten `unknown_outcome` receipts, no provider message IDs,
+and no verified settlement. The provider omitted its expected error name, so
+the application retained the conservative unknown classification.
+
+The communications control was disabled after this result. Runtime revision 6
+for `db4ae4194141ca15571361ccddc437f163aa9c4e` has every worker disabled,
+confirmed through a read-only query. Disable receipt:
+`164c1f8d-fc0d-4e22-95af-541048515bfd`. Earlier staged activation checks found
+no pending workbook or import jobs, and those workers were disabled before
+the one email dispatch. No attempt has been resent or rewritten, and no
+student received a test message. The browser recovery queue exposes audited
+staff determinations separately from provider evidence. No determination was
+submitted during inspection.
+
+The Development sender/key scope mismatch remains an acceptance blocker.
+Correcting it must preserve environment separation and frozen campaign content.
+The approved credential rotation and additional Development build are complete;
+another credential change or deployment requires separate approval. Do not
+change the frozen sender or retry these receipts to manufacture settlement.
+
+Root PR #489 merged to Development at
+`db4ae4194141ca15571361ccddc437f163aa9c4e`, tree
+`b9fbfd17b65e31b601821ca27e3275e5329916dc`, with private gitlink
+`f1a730d91ea98ca7e17609a73e1081bcdb64c089`. This matches the candidate tree
+at `e85a3415`. The `gh pr merge --auto` invocation merged immediately while
+CI was pending because the branch did not require those checks. This ordering
+was an operator error, not passed acceptance. Production remains unchanged.
+
+The single approved additional Development build is READY as
+`dpl_86RskwCEHmoGa6Kkmsr1TjRYfeft`. Hosted run `34085356037` verified the
+exact Development domain SHA and Supabase binding before starting its load
+test. PR CI `34085169784` passed the quality job, including tests and the
+Production build. Its database/browser job and hosted performance acceptance
+were still running at this checkpoint. Neither a merge nor READY closes them.
+
+Development credential check `34085524692` passed against the new deployment:
+authenticated, communications disabled, zero claimed attempts, zero faults.
+The Production workflow job did not run. A fresh Riddhiman Chrome tab opened
+the fictional delivery tenant. Its existing campaign was queued through the
+application confirmation dialog. The rendered result and database agree on
+ten queued recipients and ten queued attempts. No provider send has run.
+The refreshed queue audit found no pending workbook or import work; existing
+blocked items remain blocked. All runtime controls remain false. The isolated
+email test must retain the staged activation checks and independent rollback.
+
 ### Approved Development credential rotation, 2026-09-06
 
 The user approved rotating the Development communications worker credential and
@@ -1359,6 +1458,84 @@ finding detail as evidence only and are explicitly superseded as status
 sources.
 
 ## Repository-owned P0–P2
+
+### Production acceptance recheck, 2026-09-07
+
+Read-only Production queries confirm 460 migrations through `20260906085350`.
+Retirement migration `20260907000344` is absent. No posts currently have
+scheduled status, but that does not prove scheduling requests are rejected.
+Four workbook registry rows exist. `csf_term_applications` contains zero rows,
+so application import and live application-review acceptance remain open.
+No Production data, migration, approval, deployment, or worker setting changed.
+These checks do not prove workbook row completeness or repeat-sync idempotency.
+
+| Class | Linked workbooks | Configured terms | Distinct directory links, all states | Imported applications |
+| ----- | ---------------- | ---------------- | ------------------------------------ | --------------------- |
+| 2027  | 1                | 8                | 347                                  | 0                     |
+| 2028  | 1                | 8                | 281                                  | 0                     |
+| 2029  | 1                | 8                | 108                                  | 0                     |
+| 2030  | 1                | 8                | 0                                    | 0                     |
+
+Directory links count every membership state and are not active-member counts.
+Empty Class of 2030 templates must not be populated merely to change this zero.
+
+### Open hosted route latency, 2026-09-07
+
+P2: On Development `db4ae419`, run `34085356037` measured officer Classes
+read p95 at 3.835 seconds and Applications at 2.566 seconds. Both exceed the
+2.5-second route budget despite the pooled gate reporting success. The local
+gate correction has regression coverage, but the route latency remains
+unfixed. Close only with measured per-route acceptance after the app fix.
+Do not use this run's green status alone for Production promotion.
+
+Read-path inspection identifies avoidable work, not yet a measured root cause.
+`CsfDashboardCohortPhase.ts` runs the full compose-post loader, reply previews,
+and active class-code reads on the class list. `CsfCohortHubSection.tsx` uses
+only each post's class and publication state for its cards. The compose loader
+also reads authors, class labels, and link previews. Preserve the card counts
+with a narrow read model, and load reply and join-code data only for a selected
+class. Do not drop counts or replace them with zero as a performance fix.
+
+The initial Applications trace through `dashboard-applications.ts` was not
+the rendered route. `CsfDashboardRoutePhase.tsx` loads `review-workspace.ts`
+for ordinary Applications; the later paged projection is already disabled.
+Do not change the unused reader's retry authorization as a latency fix.
+The active review reader loads terms/classes, then campaign/policy/staff,
+then subjects, then related review evidence. That dependency chain needs
+measurement and scoped optimization without removing displayed evidence.
+
+Local private branch `codex/csf-officer-read-scope` now skips join-code and
+reply-preview reads on the class picker. A selected class reads only its own
+join code and replies for its published class posts plus chapter-wide member
+posts. Existing card post/member counts remain unchanged. Unknown classes and
+missing permissions do not enable these reads. Four focused reader tests and
+32 class-workspace contract tests pass; targeted lint passes. The full compose
+post enrichment still runs and remains an optimization candidate. This local
+change has not been pushed or deployed, and no hosted latency gain is claimed.
+
+The class picker also now skips recent activity details and linked-project
+enrichment. Individual class workspaces retain that read. Its regression failed
+before the change and passes afterward; the class-workspace suite now passes
+33 tests. No existing post-count summary RPC was found, so complete post
+enrichment has not yet been replaced with a summary projection.
+
+The active application review reader now omits the point-submission query,
+including nested club and proof metadata, for application campaigns. The
+application panel never renders those service lines. Awarded totals, courses,
+application evidence, decisions, and notes remain loaded. Point campaigns still
+load submissions and appeals. Two executable mock-backed regressions prove
+the read distinction; the application test failed on the prior implementation.
+No authorization check was removed. This remains local evidence, not proof
+that Applications now meets the hosted latency target.
+
+Grouped local verification: the private-plugin runner passed all 268 discovered
+test files with mock-sensitive files isolated. Full zero-warning lint, source
+organization checks, TypeScript, and the host-import boundary passed. The first
+broad run failed one stale source assertion expecting all-class join-code reads;
+the assertion now follows the tested selected-class scope. The 12 root load-gate
+regressions also pass. Local private commit `38ce211` preserves this checkpoint.
+It has not been published, and the root gitlink has not advanced. No Vercel
+deployment or provider mutation occurred during these checks.
 
 ### Current Production acceptance, 2026-09-05
 
