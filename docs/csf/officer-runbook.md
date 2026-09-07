@@ -2,7 +2,7 @@
 
 **Audience:** organization administrators, adviser, chapter officers, and Data Management
 **Current status:** the last verified public app is `82ab06b6c6354c1d7cefed46b73687f75e58e714`. All four class workbooks are linked. Preparation does not mean their rows have committed. Workbook refresh and import processing are enabled; communications remains disabled pending delivery proof. Use the [cleanup register](../development/cleanup-register.md) for release and data evidence.
-**Release ledger:** the current repository candidate carries 461 ordered migrations through `20260907000344_retire_csf_scheduled_publishing`; the private Development gitlink is `f1a730d`. Production last passed the 460-migration release at `82ab06b6`. Scheduling retirement is deployed to Development at `54c95cf6`, but has not been deployed to Production.
+**Release ledger:** the current repository candidate carries 461 ordered migrations through `20260907000344_retire_csf_scheduled_publishing`; the private Development gitlink is `70f2801`. Production last passed the 460-migration release at `82ab06b6`. Scheduling retirement is deployed to Development at `54c95cf6`, but has not been deployed to Production.
 Annotation review now rejects frozen rows and previews whose preparation has not completed.
 
 **Authoritative record after review:** Let's Assist

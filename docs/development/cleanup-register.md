@@ -12,6 +12,11 @@ evidence and does not override the current tables or release gates.
 
 ### Approved Development sender correction, 2026-09-07
 
+Root PR #490 initially failed its release-documentation check because the officer
+runbook still named the preceding private gitlink. The candidate now updates
+that reference to `70f2801`; no application behavior changed. Run `34092764837`
+retains the failure. Remaining jobs were cancelled before updating the same PR.
+
 Private PR #262 passed both checks before merge. Private Development now pins
 `70f28012d98a0fadf0b14b7380ba04b79e93dfbd`, containing the officer read-scope
 fixes in `38ce211de723c53b627cf171cb074c685f02bba5`. Root unit tests recorded
