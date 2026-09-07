@@ -60,6 +60,17 @@ function occurrenceCount(source: string, value: string) {
   return source.split(value).length - 1;
 }
 
+test("post fixtures preserve manual drafts after scheduling retirement", () => {
+  const announcements = sourceSection(
+    '"csf-expanded-announcements",',
+    '"csf-expanded-audit-events",',
+  );
+  expect(announcements).toContain('status: "published"');
+  expect(announcements).toContain('status: "draft"');
+  expect(announcements).not.toContain('status: "scheduled"');
+  expect(announcements).toContain("scheduled_for: null");
+});
+
 describe("local platform seed authorization", () => {
   test("keeps catalog seeds aligned with each serving runtime", () => {
     const catalog = sourceSection(

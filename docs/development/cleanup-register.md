@@ -2848,8 +2848,27 @@ as synthetic and wrote a `fictional_acceptance_access_prepared` audit event.
 This adds one test organization membership, taking that fixture from 100 to 101;
 load-fixture cleanup must account for it. The browser verified officer access
 and the communications settings page. No campaign or test message was sent.
-The tenant still needs provider-topic configuration and a bounded ten-recipient
-audience. Official chapter permissions and Production data were not changed.
+Four fictional acceptance topics now exist in Resend. Vercel variable
+`CSF_RESEND_TOPIC_CONFIGURATION` contains only this fictional tenant's mapping,
+scoped to Preview on the `development` branch. No prior configuration existed
+under that key. The next grouped Development deployment must load it before
+the audited settings action can persist the mapping. No Production environment
+variable changed. The bounded ten-recipient audience and delivery proof remain
+open. Official chapter permissions and Production data were not changed.
+
+Root commit `b88da0a0` is published in PR #488 against `development`. Its Vercel
+build was cancelled by the ignored-build policy. CI run `34075522903` passed
+quality but failed during fictional platform seeding: the expanded officer post
+still requested scheduling. A new regression reproduced the defect. The fixture
+now creates a draft with a null scheduling timestamp; scheduled meeting sessions
+remain unchanged. All 32 seed tests, focused zero-warning lint, and the actual
+seed against the owned isolated 461-migration database passed after the fix.
+The corrected hosted rerun remains open. Supabase automatically created a
+nonpersistent, schema-only PR preview
+with `with_data=false`. It was removed immediately through the branch API to
+honor the no-extra-hosted-branches requirement. Persistent Development and
+Production were not removed or reset. This deleted only the temporary PR
+database and its in-progress migration replay, not application records.
 
 Read-only provider checks found the replacement Development and Production
 webhooks enabled and four legacy endpoints disabled. Development has 11 accepted,
