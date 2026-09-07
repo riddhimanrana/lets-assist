@@ -21,7 +21,26 @@ for (const viewport of [
     await expect(tour).toBeVisible();
     await tour.getByRole("button", { name: "Skip tour", exact: true }).click();
     await expect(tour).toBeHidden();
-    await page.goto(`${CSF_ORGANIZATION_PATH}?tab=csf-profile`);
+    let releaseScripts!: () => void;
+    const scriptsReady = new Promise<void>((resolve) => {
+      releaseScripts = resolve;
+    });
+    await page.route("**/_next/static/**/*.js", async (route) => {
+      await scriptsReady;
+      await route.continue();
+    });
+    try {
+      await page.goto(`${CSF_ORGANIZATION_PATH}?tab=csf-profile`, {
+        waitUntil: "commit",
+      });
+      const spring = page
+        .getByRole("tablist", { name: "Member semesters" })
+        .getByRole("tab", { name: "Spring 2026", exact: true });
+      await expect(spring).toBeVisible();
+      await expect(spring).toBeDisabled();
+    } finally {
+      releaseScripts();
+    }
     await expect(page).toHaveURL(/tab=csf-profile/);
     const profile = page.getByRole("region", { name: "CSF member profile" });
     const semesters = page.getByRole("tablist", { name: "Member semesters" });
@@ -38,6 +57,10 @@ for (const viewport of [
     await expect(
       profile.getByRole("heading", { name: "Aarav Mehta", exact: true }),
     ).toBeVisible();
+    // Existing current-term submissions can make Fall the opening semester.
+    await semesters
+      .getByRole("tab", { name: "Spring 2026", exact: true })
+      .click();
     await expect(profile).toContainText("Spring 2026");
     await expect(
       semesters.getByRole("tab", { name: "Spring 2026", exact: true }),

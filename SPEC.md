@@ -4,6 +4,73 @@ DVHS CSF officer UX → class-first Home → Classes → Applications → More; 
 
 §C
 
+- Private PR #263 passed CI and merged at `8e443de`, with the same tree as
+  `c0fe247`. The full local run passed 86 cases and exposed two profile-history
+  test failures. Explicit semester selection fixed the starting-state
+  assumption; a separate lost early tab click required a client-readiness
+  guard, now committed locally at `234b7f0`. The delayed-script desktop/mobile
+  history rerun passes, as do ten profile tests and all 272 private test files.
+  Root integration, the missing workbook journey, hosted acceptance, and
+  Production data reconciliation remain open. No hosted deployment occurred.
+- The full local browser run found a pre-hydration member-search failure.
+  Search now waits for its client handlers before accepting input. The focused
+  compiled rerun passes all six identity cases, including delayed JavaScript
+  and a record beyond the first directory page. The original 83-pass,
+  one-failure full run remains recorded. Full and hosted acceptance remain open.
+- The local review loader now starts application/point rosters alongside
+  independent review settings after authorization. Two regressions failed
+  before the change; all five read-scope tests pass afterward. A fresh isolated
+  database applied 461 migrations. Seventeen compiled browser journeys,
+  database workflows, and 46 application/scheduling pgTAP assertions pass.
+  Navigation stream errors and a shutdown permission diagnostic remain to be
+  explained. No app process remained after the run. Hosted latency and the
+  full acceptance workflow remain open.
+- Local communications display now distinguishes a historical hold from an
+  outstanding review. Cancelled/completed campaigns with zero unresolved
+  receipts show their terminal state; unresolved receipts remain visible for
+  every status. Five rendered failures pass after the fix. Sender authority,
+  historical receipts, and unknown-outcome retry rules are unchanged. All 271
+  private-plugin test files, all 304 root unit test files, TypeScript, and
+  zero-warning lint pass.
+- The supplied Fall 2026 application export was checked locally through the
+  actual header analyzer and parser: 120 populated responses, 12 blank rows,
+  classes 2027/2028/2029/2030 with 27/33/41/19 rows, and 120 transcript/receipt
+  references. The local parser now omits explicit empty course answers while
+  preserving raw evidence and paired-grade positions. This removes 59 false
+  course entries and exposes 16 responses with missing course data for review.
+  Fictional layout regressions, existing normalization tests, TypeScript, and
+  zero-warning lint pass. No official application was imported or approved.
+- Production workbook recheck on 2026-09-07 completed through the Riddhiman
+  officer session. Classes 2027 and 2028 were unchanged. New provider revisions
+  for 2029 and 2030 prepared successfully; 2030 retained eight empty templates.
+  Officer batch approval committed the two 2029 previews, with 150 existing
+  profile targets and no count increase in profiles, credits, opportunities,
+  meetings, attendance, or memberships. The subsequent 2029 check returned
+  unchanged. All four workbook registries have current prepared revisions.
+  Applications remain incomplete: the canonical Spring/Fall previews contain
+  588 rows, one resolved and 587 pending review, with zero imported applications.
+  Production ignores the saved Spring preview URL and displays Fall instead;
+  the saved-preview fix is in Development and still awaits grouped promotion.
+- Classes no longer computes the Terms-only closure readiness preflight in the
+  local follow-up. The caller regression failed before the change and passes
+  with authorized Terms behavior preserved. Development still serves `7c24b7a3`.
+  A new bounded fictional route diagnostic reproduces burst latency without
+  rebuilding; neither its warm passing run nor this local fix closes hosted
+  performance acceptance. Applications remains under diagnosis.
+- Development email proof passed on `7c24b7a3`: no-send check `34158729752`,
+  single ten-recipient dispatch `34158935320`, ten distinct delivered provider
+  messages, ten matching sent events, and ten matching delivered events. The
+  audited campaign is completed with no duplicate attempts. Prior refused
+  attempts remain as attributed staff failures in a cancelled campaign. Runtime
+  revision 6 leaves every worker disabled. Production proof remains open.
+- Development follow-up `7c24b7a3` is deployed with private `70f2801` after CI
+  `34093192415` passed. No-send worker proof `34095049908` passed. Hosted
+  performance run `34094827987` failed: officer Classes p95 5.355 seconds,
+  p99 6.225 seconds; Applications p95 2.776 seconds. Production email settlement,
+  official application reconciliation, and Production promotion remain open. Production still has
+  zero imported applications; linked workbooks and historical participation
+  counts do not establish completion. Keep this continuation record local
+  until final acceptance evidence is grouped, with no documentation-only build.
 - Read acceptance applies to each member/officer route, not only the pooled
   request distribution. Every expected route needs measured requests, p95 at
   most 2.5 seconds, and p99 at most 5 seconds. Missing or duplicate route

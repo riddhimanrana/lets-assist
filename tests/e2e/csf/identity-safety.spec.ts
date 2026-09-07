@@ -432,6 +432,48 @@ test.describe("CSF identity safety", () => {
     expectNoBrowserFailures(failures);
   });
 
+  test("member search waits for its handlers before accepting input", async ({
+    page,
+  }) => {
+    await loginAs(page, "admin");
+    let releaseScripts!: () => void;
+    const scriptsReady = new Promise<void>((resolve) => {
+      releaseScripts = resolve;
+    });
+    const scriptPattern = "**/_next/static/**/*.js";
+    await page.route(scriptPattern, async (route) => {
+      await scriptsReady;
+      await route.continue();
+    });
+    const params = new URLSearchParams({
+      tab: "csf-cohorts",
+      csf_cohort: fixture.cohortId,
+      csf_cohort_tab: "members",
+    });
+    const search = page.getByLabel("Search members");
+    try {
+      await page.goto(`${CSF_ORGANIZATION_PATH}?${params}`, {
+        waitUntil: "commit",
+      });
+      await expect(search).toBeVisible();
+      await expect(search).toBeDisabled();
+      await expect(
+        page.getByRole("button", { name: "Search", exact: true }),
+      ).toBeDisabled();
+    } finally {
+      releaseScripts();
+    }
+    await expect(search).toBeEnabled();
+    const query = `Halloway-${fixture.suffix}`;
+    await search.fill(query);
+    await expect(page).toHaveURL(
+      (url) => url.searchParams.get("csf_member_q") === query,
+    );
+    await expect(
+      page.getByText(fixture.mergeSourceName, { exact: false }).first(),
+    ).toBeVisible();
+  });
+
   test("member search finds a record beyond the first directory page", async ({
     page,
   }) => {
