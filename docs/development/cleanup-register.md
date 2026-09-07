@@ -33,6 +33,17 @@ Development at `f1a730d91ea98ca7e17609a73e1081bcdb64c089`. The root candidate
 uses that merged gitlink. Full local TypeScript and zero-warning lint pass.
 Hosted acceptance and the replacement credential's runtime check remain open.
 
+The manual communications workflow now has an explicit Development path using
+the Development secret. Its script verifies the deployed SHA and disabled
+runtime controls before an authentication check. Dispatch mode requires a
+separate confirmation, only one queued fictional campaign, the exact ten test
+addresses, and ten untouched first attempts. It refuses other active queues,
+prior attempts, Production endpoints, redirects, and automatic retries. It
+never queues a campaign or changes worker flags. The Production job is confined
+to `main`. Local delivery and documentation checks pass; no live invocation has
+occurred. The local root test rerun found the officer runbook's old private
+gitlink. That ledger text is corrected to `f1a730d`; its focused contract passes.
+
 ### Completed-preview identity review, 2026-09-06
 
 Root PR #486 merged at `60825d2d`. CI `34021317555` passed on that merged
