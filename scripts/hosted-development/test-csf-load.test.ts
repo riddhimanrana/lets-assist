@@ -18,6 +18,15 @@ const aliasVerifier = readFileSync(
 );
 
 describe("hosted CSF load acceptance", () => {
+  test("includes route diagnostics without replacing aggregate acceptance gates", () => {
+    expect(source).toContain('from "./csf-load-metrics.mjs"');
+    expect(source).toContain("readBreakdown: readMetrics.summarize()");
+    expect(source).toContain("readBreakdown: load.readBreakdown");
+    expect(source).toContain('error?.name === "TimeoutError"');
+    expect(source).toContain("readP95Ms: percentile(load.timings, 0.95)");
+    expect(source).toContain("readP99Ms: percentile(load.timings, 0.99)");
+  });
+
   test("is pinned to the Development app and refuses the Production database", () => {
     expect(source).toContain(
       'const EXPECTED_ORIGIN = "https://dev.lets-assist.com"',

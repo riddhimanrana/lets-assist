@@ -290,6 +290,14 @@ async function cleanFixture(fixture: PeopleLifecycleFixture) {
 }
 
 async function openMembers(page: Page) {
+  await expect(
+    page.locator('[data-organization-tabs-hydrated="true"]'),
+  ).toBeVisible();
+  const tour = page.getByRole("dialog", { name: "Officer workspace tour" });
+  if (await tour.isVisible()) {
+    await tour.getByRole("button", { name: "Skip tour", exact: true }).click();
+    await expect(tour).toBeHidden();
+  }
   await page.getByRole("tab", { name: "Classes", exact: true }).click();
   await expect(page).toHaveURL(/[?&]tab=csf-cohorts(?:&|$)/);
   await page.getByRole("link", { name: "Class of 2028", exact: true }).click();

@@ -432,6 +432,85 @@ test.describe("CSF identity safety", () => {
     expectNoBrowserFailures(failures);
   });
 
+  test("member search finds a record beyond the first directory page", async ({
+    page,
+  }) => {
+    const failures = watchBrowserFailures(page);
+    const plugin = fixture.admin.schema("plugin_data");
+    const lastName = `ZzzDirectory-${fixture.suffix}`;
+    const rows = Array.from({ length: 52 }, (_, index) => ({
+      id: randomUUID(),
+      organization_id: fixture.organizationId,
+      first_name: "Directory",
+      normalized_first_name: "directory",
+      last_name:
+        index === 51 ? lastName : `AaaDirectory-${fixture.suffix}-${index}`,
+      normalized_last_name: (index === 51
+        ? lastName
+        : `AaaDirectory-${fixture.suffix}-${index}`
+      ).toLowerCase(),
+      source_summary: { browserFixture: true, purpose: "directory-pagination" },
+    }));
+    const ids = rows.map(({ id }) => id);
+    try {
+      const { error: profileError } = await plugin
+        .from("csf_profiles")
+        .insert(rows);
+      assertNoSupabaseError(
+        "Could not seed directory page fixtures",
+        profileError,
+      );
+      const { error: membershipError } = await plugin
+        .from("csf_profile_cohort_memberships")
+        .insert(
+          ids.map((profileId) => ({
+            organization_id: fixture.organizationId,
+            profile_id: profileId,
+            cohort_id: fixture.cohortId,
+            status: "active",
+          })),
+        );
+      assertNoSupabaseError(
+        "Could not seed directory page memberships",
+        membershipError,
+      );
+      await loginAs(page, "admin");
+      await openMembersTab(page);
+      await expect(
+        page.getByRole("row").filter({ hasText: lastName }),
+      ).toHaveCount(0);
+      await page.getByLabel("Search members").fill(lastName);
+      await expect(page).toHaveURL(
+        (url) => url.searchParams.get("csf_member_q") === lastName,
+      );
+      const target = page.getByRole("row").filter({ hasText: lastName });
+      await expect(target).toHaveCount(1);
+      await expect(target).toBeVisible();
+      await page.reload({ waitUntil: "domcontentloaded" });
+      await expect(target).toBeVisible();
+      expectNoBrowserFailures(failures);
+    } finally {
+      const { error: membershipError } = await plugin
+        .from("csf_profile_cohort_memberships")
+        .delete()
+        .eq("organization_id", fixture.organizationId)
+        .in("profile_id", ids);
+      assertNoSupabaseError(
+        "Could not remove directory page memberships",
+        membershipError,
+      );
+      const { error: profileError } = await plugin
+        .from("csf_profiles")
+        .delete()
+        .eq("organization_id", fixture.organizationId)
+        .in("id", ids);
+      assertNoSupabaseError(
+        "Could not remove directory page fixtures",
+        profileError,
+      );
+    }
+  });
+
   test("a merge with conflicting identity evidence is previewed and refused", async ({
     page,
   }) => {
