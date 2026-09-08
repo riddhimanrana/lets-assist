@@ -2648,6 +2648,28 @@ the setting to disable direct GitHub main-merge Production database deployment,
 so the reviewed forward-migration workflow remains the intended deployment
 path. Its saved state still needs a full-page reload check before any main merge.
 
+Reload verification now confirms both automatic branching and direct main-merge
+Production database deployment are off. Root PR #496 advanced to
+`feb27bfe471a24f3f267f9f941f429f682c414ed`, pinning private merge `d9d227f`.
+Code quality and isolated database run `34284856406` is running for that root
+candidate. Supabase Preview reported `SKIPPED` after the push, consistent with
+the disabled automatic branching setting. No application release or academic
+data write occurred. This evidence-only note does not request another build.
+
+Run `34284856406` finished with two stale contract failures. The root suite had
+one failure because the officer runbook still named ledger 466 and private
+`ce8d607`; it now names ledger 468 and private `d9d227f`, and all 13 focused
+documentation tests pass. Database replay applied the candidate and ran 259
+files with 7,418 assertions, with one failure in the old direct merge-call
+inspection. The corrected test checks the entire workbook-link wrapper to
+private implementation to canonical preview chain, plus the implementation's
+fixed search path and lack of service-role execution. All eight assertions pass
+in a rollback-only Development transaction. An initial probe lacked the pgTAP
+extension and aborted; the corrected probe created it inside the rollback.
+Development still has 462 migrations and no temporary authorization table.
+No application source or migration bytes changed in this correction. Full CI
+must pass before the candidate proceeds to hosted acceptance.
+
 Chrome is unlocked and the Riddhiman profile is accessible. Supabase's expired
 dashboard session refreshed through GitHub and now requires the user's
 two-factor code. This replaces the earlier locked-Mac blocker. Automatic PR
