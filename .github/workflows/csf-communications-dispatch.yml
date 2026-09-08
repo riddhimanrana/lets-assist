@@ -22,6 +22,14 @@ on:
         description: Exact deployed Development SHA, required for Development
         required: false
         type: string
+      worker:
+        description: Development worker to check
+        required: true
+        default: communications
+        type: choice
+        options:
+          - communications
+          - workbook
       mode:
         description: Development check mode
         required: true
@@ -30,6 +38,7 @@ on:
         options:
           - verify-disabled
           - dispatch-test
+          - prepare-test
       confirmation:
         description: "For Development, type <mode>:ocbuygudvarsuxijxhau"
         required: false
@@ -38,13 +47,21 @@ on:
         description: Audited ten-recipient test campaign receipt
         required: false
         type: string
+      workbook_id:
+        description: Linked fictional Development workbook receipt
+        required: false
+        type: string
+      workbook_job_id:
+        description: Untouched fictional Development refresh job receipt
+        required: false
+        type: string
 
 permissions:
   contents: read
 
 jobs:
   development-check:
-    if: github.ref == 'refs/heads/development' && inputs.target == 'development'
+    if: github.ref == 'refs/heads/development' && inputs.target == 'development' && inputs.worker != 'workbook'
     runs-on: ubuntu-latest
     environment: development
     timeout-minutes: 5
@@ -68,8 +85,34 @@ jobs:
           VERCEL_AUTOMATION_BYPASS_SECRET: ${{ secrets.VERCEL_AUTOMATION_BYPASS_SECRET }}
         run: bun scripts/hosted-development/check-csf-delivery-worker.mjs
 
+  development-workbook-check:
+    if: github.ref == 'refs/heads/development' && inputs.target == 'development' && inputs.worker == 'workbook'
+    runs-on: ubuntu-latest
+    environment: development
+    timeout-minutes: 12
+    concurrency:
+      group: csf-development-workbook-check
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6
+        with:
+          bun-version: 1.3.14
+      - name: Check the fictional Development workbook job once
+        env:
+          ACCEPTED_SHA: ${{ inputs.development_sha }}
+          CSF_WORKBOOK_CHECK_MODE: ${{ inputs.mode }}
+          CSF_WORKBOOK_CONFIRMATION: ${{ inputs.confirmation }}
+          CSF_TEST_WORKBOOK_ID: ${{ inputs.workbook_id }}
+          CSF_TEST_WORKBOOK_JOB_ID: ${{ inputs.workbook_job_id }}
+          SUPABASE_URL: https://ocbuygudvarsuxijxhau.supabase.co
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          CSF_WORKBOOK_WORKER_SECRET_TOKEN: ${{ secrets.CSF_WORKBOOK_WORKER_SECRET_TOKEN }}
+          VERCEL_AUTOMATION_BYPASS_SECRET: ${{ secrets.VERCEL_AUTOMATION_BYPASS_SECRET }}
+        run: bun scripts/hosted-development/check-csf-workbook-worker.mjs
+
   dispatch:
-    if: github.repository_owner == 'riddhimanrana' && github.ref == 'refs/heads/main' && inputs.target != 'development'
+    if: github.repository_owner == 'riddhimanrana' && github.ref == 'refs/heads/main' && inputs.target != 'development' && inputs.worker != 'workbook'
     runs-on: ubuntu-latest
     environment: production
     timeout-minutes: 15

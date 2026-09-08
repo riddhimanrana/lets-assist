@@ -10,6 +10,103 @@ evidence and does not override the current tables or release gates.
 
 ## Release continuation, 2026-09-05
 
+### Hosted performance acceptance passed, 2026-09-07
+
+Run `34171163941` completed successfully on exact Development SHA
+`e8e4c63b1e1e090885b91f24fe46e2a7e97aab07`, private pin `ef8cce1`.
+The fifteen-minute load used 90 member and ten officer sessions with 100 distinct
+authentication identities. All 9,737 requests succeeded. Aggregate read p95 was
+1,341.321 ms and p99 1,678.441 ms; mutation p95 was 1,836.776 ms.
+
+| Read route | Requests | p95 ms | p99 ms |
+| --- | ---: | ---: | ---: |
+| Member activities | 2,930 | 1,025.489 | 1,401.613 |
+| Member Home | 2,923 | 1,155.432 | 1,576.706 |
+| Member profile | 2,925 | 1,044.085 | 1,340.062 |
+| Officer applications | 320 | 1,903.888 | 2,351.504 |
+| Officer classes | 319 | 1,577.239 | 1,907.527 |
+| Officer Home | 320 | 1,478.444 | 2,100.110 |
+
+Thirty measured browser samples produced LCP p75 1,400 ms, INP p75 32 ms,
+and CLS p75 0.000816247. All 25 review navigations completed without a crash,
+console error, page error, failed request, or 5xx response. Retained heap changed
+from 40,178,660 to 35,753,592 bytes, a reduction of 11.01%. Keep the previous
+failed route measurements as historical evidence rather than replacing them.
+
+The new Development-only workbook checker uses the dedicated workbook key,
+checks the exact served SHA and disabled unrelated workers, verifies the lone
+fictional source/job before one worker invocation, and reads the saved receipt.
+A lost response never invokes the worker again. A recovered receipt does not
+pass HTTP authentication acceptance. Its eight tests pass, alongside the six
+existing delivery tests and three cadence contracts. TypeScript and focused
+zero-warning lint pass. This tooling remains local and has not processed the
+queued workbook. No Production promotion or official application import occurred.
+
+The tooling follow-up also passes all 305 root test files, full zero-warning
+lint, TypeScript, and strict private gitlink checks. Application modules and
+migrations remain unchanged from the accepted tree. General cron configuration
+now has independent values for hosted Development and local development. The
+existing Production value was retained and its scope narrowed to Production
+only. GitHub's Development environment stores the matching hosted Development
+cron key. No keys were printed or written to local files, and no deployment was
+started during configuration. Runtime isolation still needs verification after
+the next grouped deployment; existing deployments retain their old settings.
+
+### Grouped Development release started, 2026-09-07
+
+Root PR #491 merged as `e8e4c63b1e1e090885b91f24fe46e2a7e97aab07` after
+CI run `34170168311` passed. Its tree `5253447a651beb9fe92e95267b336dec311133df`
+matches tested candidate `c5409f6e`; the private pin remains `ef8cce1`.
+CI reports 88 passing CSF browser tests and four configured skips, plus passing
+database replay, workflow, scale, quality, and build gates. The release marker
+started one Development deployment and hosted acceptance run `34171163941`.
+Neither hosted acceptance nor Production promotion is complete.
+
+All four Production class revision checks returned up to date. A separate
+read-only database check confirms four workbooks, 32 discovered tabs, four
+current prepared versions, and zero application records. These checks do not
+resolve identity exceptions or prove application import completion.
+
+The current link/prepare/review/commit/repeat browser journey remains missing.
+The existing reference workbook contains 652 fictional rows and four empty
+templates. Importing a separate acceptance copy through the Drive connector
+failed before creation because the connector requires `source_file.mime_type`
+but exposes `source_file` as a local-path string. The user then approved the
+Chrome fallback. A native Google Sheet named `CSF synthetic workbook acceptance
+2026-09-07` was created from the existing fictional reference through the Mac
+file picker and Google's conversion command. Bounded reads confirm all eight
+tabs, 652 fictional rows, and four empty templates survived conversion. The app's
+Drive picker linked that copy to the existing `csf-delivery-fixture` class,
+workbook receipt `249409ba-206d-4de6-a163-47e09016efa7`, provider version `9`.
+Google authorization reused existing file-specific access without requesting
+Calendar access. The Development refresh queue contains one pending job, scoped
+to this fictional tenant, and no other queued or processing refresh jobs.
+Preparation, review, commit, and repeat acceptance remain open while workers
+stay disabled. The signed-in status page confirms served SHA `e8e4c63b`.
+No official source or application record was changed.
+
+The one synthetic refresh receipt is `63bfc5fb-6738-4564-8dc4-69c1cf0fe4e5`,
+queued with zero attempts. Development GitHub environment secrets include the
+communications worker credential but no workbook or import worker credential.
+Vercel stores separate sensitive workbook/import credentials for Development
+and Production. Read-only environment metadata also shows one `CRON_SECRET`
+entry targeting local Development, Preview, and Production together. This shared
+fallback remains an environment-isolation exception. Do not describe credential
+separation or hosted workbook-worker acceptance as complete. No secret values
+were exported, rotated, or added to the repository during this check.
+
+The user subsequently confirmed that the Development workbook/import keys were
+not retained and authorized replacements. Both keys now have matching generated
+values stored as sensitive `preview` variables scoped to `development` in Vercel
+and as secrets in GitHub's Development environment. Production key metadata is
+unchanged. No local secret file or build was created. The first workbook update
+with redundant scope/type fields received HTTP 400. A value-only update succeeded
+and its matching GitHub value was saved before proceeding to the import key.
+These replacements are configuration for the next grouped Development deployment,
+not proof that the current deployment uses them. A Development worker runner and
+the remaining queue/commit/repeat checks are still required. The shared general
+cron fallback remains a separate unresolved isolation issue.
+
 ### Grouped private integration, 2026-09-07
 
 Private PR #264 also passed quality run `34168642353` and merged at
@@ -3360,9 +3457,10 @@ hosted Development verification.
 | AUD-122 | P1 | Removing runtime point UPDATE permission breaks the local fixture upsert. | Isolated fixture seeder | The awaited fictional fixture reset now precedes INSERT instead of upsert. All 31 seed tests, fresh seed, and reseed pass with the same four point rows. CI `34021317555` and hosted acceptance `34021315408` passed on merged `60825d2d`. |
 | AUD-123 | P2 | Identity reconciliation accepts rows before preview preparation finishes. | CSF import review | Six failures reproduce matches and audit writes on pending, running, failed, and cancelled previews. Forward migration `20260906085350` adds the locked preview-state check. The final full replay passes 460 migrations and 7,159 assertions, the exact release catalog, and all ten permission/trigger drift refusals. Hosted and Production rollout remain open. |
 | AUD-124 | P2 | The browser suite skips the retired historical roster importer but does not replace it with a full class-workbook prepare, review, and commit journey. | CSF browser acceptance | Run `34093192415` passed 87 tests but skipped this legacy test plus three optional galleries. The replacement test checks only that the retired button is absent and the Linked spreadsheet heading is present. Database import tests remain separate evidence. Add a fictional journey through the current workbook flow; do not re-enable the obsolete roster UI to satisfy the test. Live officer verification remains open while the Mac is locked. |
-| AUD-125 | P2 | Classes computes the Terms-only closure readiness preflight, which averages about 1,094 ms in Development database statistics. | CSF route performance | The actual caller regression fails before restricting the read to `isTermsRoute` and passes afterward. The Terms consumer and its permission, lifecycle, and evidence checks remain intact. This fix is local only. Short hosted bursts reproduce variable latency on unchanged `7c24b7a3`; Applications and full post-fix hosted acceptance remain open. |
+| AUD-125 | P2 | Classes computes the Terms-only closure readiness preflight, which averages about 1,094 ms in Development database statistics. | CSF route performance | Fixed and verified in hosted Development on `e8e4c63b` with private `ef8cce1`. Run `34171163941` reports Classes p95 1,577.239 ms and Applications p95 1,903.888 ms across 100 distinct sessions, with zero errors. Terms authorization and lifecycle checks remain intact. The prior failed measurements remain recorded. Production promotion is still open. |
 | AUD-126 | P2 | A cancelled email campaign still shows a review-blocked notice after every refused attempt received a final officer determination. | CSF communications UI | Fixed locally with a shared display predicate. Six rendered cases preserve unresolved-receipt warnings even for terminal campaigns while removing historical holds from resolved terminal history. Five cases failed before the fix. No receipts, campaign states, or retry controls changed. TypeScript, lint, and all 271 private-plugin test files pass. Hosted verification remains open. |
 | AUD-127 | P2 | Application course parsing treated standalone empty answers as course names, hiding missing course data. | CSF application import | Eight fictional tests failed before the local parser fix. The supplied Fall export contained 59 such course cells; 16 responses now expose missing course data. Raw source evidence and paired-grade positions remain intact. Focused tests, TypeScript, and zero-warning lint pass. Hosted acceptance and grouped Production release remain open. |
+| AUD-128 | P1 | Vercel metadata showed a general `CRON_SECRET` shared across local Development, Preview, and Production, despite separate dedicated CSF worker keys. | Provider environment isolation | Configuration repaired. Hosted Development and local development now have independent cron values; the existing Production value remains scoped only to Production. GitHub Development stores its matching cron and dedicated workbook/import keys. Runtime verification remains open because existing deployments retain their previous environment. No current worker state changed. |
 
 ## Production release evidence, September 6, 2026
 

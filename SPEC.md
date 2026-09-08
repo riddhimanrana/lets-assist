@@ -4,6 +4,18 @@ DVHS CSF officer UX → class-first Home → Classes → Applications → More; 
 
 §C
 
+- Hosted Development acceptance `34171163941` passed on `e8e4c63b` with
+  private pin `ef8cce1`: 100 distinct fictional sessions, 9,737 requests,
+  zero errors, read p95 1.341 seconds, mutation p95 1.837 seconds.
+  Officer Classes p95 is 1.577 seconds and Applications p95 is 1.904 seconds.
+  LCP p75 is 1.400 seconds, INP p75 32 ms, CLS p75 0.000816,
+  25 review navigations completed without crashes, and retained heap fell 11.01%.
+  The earlier failed measurements remain below as historical evidence.
+  The synthetic eight-tab workbook is linked in Development with preparation
+  queued. Its one-time worker checker passes eight focused tests; live worker
+  preparation, commit/repeat, official application reconciliation, and Production
+  release remain open. Replacement Development workbook/import credentials are
+  saved in Vercel and GitHub for the next grouped deployment, not active yet.
 - Private PR #263 passed CI and merged at `8e443de`, with the same tree as
   `c0fe247`. The full local run passed 86 cases and exposed two profile-history
   test failures. Explicit semester selection fixed the starting-state
