@@ -298,8 +298,7 @@ hard-coded Class of 2030 historical-preview ban. Content-based discovery still
 registers header-only tabs as templates and parses no member rows. Populated
 tabs still require configured class terms, source evidence, row reconciliation,
 and officer commit. Twenty focused tests cover discovery, link planning, and
-Development restrictions, including empty and populated inputs for 2027 through
-2031. They pass, as do TypeScript and zero-warning lint. The full private run
+Development restrictions, including empty and populated inputs for 2027 through 2031. They pass, as do TypeScript and zero-warning lint. The full private run
 passed across 276 files before that final change. The combined root/private run
 is still active; do not label it passed yet. Development has 12 completed
 commit-queue jobs and no queued or running jobs at this check. No app deployment
@@ -2232,6 +2231,20 @@ sources.
 ## Repository-owned P0–P2
 
 ### Application Sheet dialog follow-up, 2026-09-07
+
+The corrected combined local suite completed successfully across 306 root and
+306 plugin test files, with mock-sensitive files isolated. Repository-wide
+formatting passes. PR #494's first quality job stopped at formatting in the
+register and operator contract test; both files are corrected locally for the
+same PR. No application source changed in these documentation/formatting fixes.
+Hosted browser and database replay gates remain required before deployment.
+
+Read-only Production reconciliation during PR #494 verified one chapter,
+1,047 profile records, four linked workbooks, and zero application records.
+The database still has 460 migrations through `20260906085350`. These are
+stored-record counts, not active membership or import-completion claims.
+No Production rows or settings changed. Root candidate `3c7f2e47` carries the
+operator-documentation correction; CI run `34187688263` is active.
 
 Root integration PR #494 is open at initial candidate `c5362244`. Its local
 combined run ended with 1,328 passing root tests and two outdated operator

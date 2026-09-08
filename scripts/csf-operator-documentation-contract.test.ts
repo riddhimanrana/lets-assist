@@ -237,11 +237,7 @@ const IMPORTS: LabelContract[] = [
   },
   {
     component: "CsfSheetImportPreview.tsx",
-    labels: [
-      "Normalized snapshot",
-      "Import blocked",
-      "Recovery needed",
-    ],
+    labels: ["Normalized snapshot", "Import blocked", "Recovery needed"],
   },
   {
     component: "CsfApplicationImportCommit.tsx",
@@ -725,7 +721,9 @@ describe("CSF operator documentation truthfulness guards", () => {
   test("the application dialog keeps recorded stages internal", () => {
     const overview = readComponent("CsfSheetImportOverview.tsx");
     expect(overview).not.toContain('aria-label="Import progress"');
-    expect(readComponent("CsfApplicationImportDialog.tsx")).toContain("<DialogTitle>Application Sheet</DialogTitle>");
+    expect(readComponent("CsfApplicationImportDialog.tsx")).toContain(
+      "<DialogTitle>Application Sheet</DialogTitle>",
+    );
     const controller = readComponent("CsfSheetImportWorkspaceController.ts");
     for (const stage of [
       "Source",

@@ -4,6 +4,12 @@ DVHS CSF officer UX → class-first Home → Classes → Applications → More; 
 
 §C
 
+- The corrected combined local suite passes across 306 root and 306 plugin
+  test files. Repository-wide formatting also passes. PR #494 integrates private
+  `fd9f837`; its quality job needs the formatting correction while database and
+  hosted browser acceptance remain open. Production still has 460 migrations,
+  four linked workbooks, 1,047 profile records, and zero applications in the
+  latest count-only check. No Production mutation or app deployment occurred.
 - Private PR #267 passed CI `34187091711` and merged at `fd9f837`.
   The complete private suite passes across 277 files. Its previous failure was
   the old expanded-row layout contract, updated to cover the requested first-row
