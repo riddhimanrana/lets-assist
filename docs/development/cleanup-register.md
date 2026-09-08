@@ -129,8 +129,33 @@ digests, approval payloads, and server-only execution grants remain unchanged.
 The append-RPC pgTAP suite expands from 14 to 30 assertions, including formula
 markers, blank values, literal provenance, rejected fields, tampered digests,
 and unchanged commit payloads. Migration file checks and strict gitlink checks
-pass. Database execution is still unverified: Docker Desktop reports that it
-cannot start. No provider migration or new deployment has run.
+pass. Docker Desktop cannot start, so commit `f08dbf9a` is under the existing
+manual CI workflow `34179939118`. Its isolated database startup and database
+test steps passed; remaining steps are running. Vercel reports "Canceled by
+Ignored Build Step" for this branch push. No provider migration or new
+deployment has run.
+
+Hosted acceptance `34178004263` passed on `8a48f7a1`. It used 100 distinct
+fictional identities and sessions, with 9,775 requests and zero request or
+browser errors. Aggregate reads measured p95 1,436.547 ms and p99 2,186.279 ms.
+Classes measured p95 1,627.064 ms and p99 3,318.274 ms; Applications measured
+p95 2,146.171 ms and p99 3,549.940 ms. Mutation p95 was 1,862.744 ms.
+LCP p75 was 1,532 ms, INP p75 32 ms, and CLS p75 0.000816. All 25 review
+navigations completed without crashes. Retained heap fell from 40,470,488 to
+35,748,056 bytes, or 11.67%. Domain and SHA checks passed before and after
+the run. The failed workbook path and unapplied migration remain separate gates.
+
+CI `34179939118` passed database tests but failed 15 root release-contract
+tests because the new 462-migration ledger was not yet reviewed by the app-only
+catalog verifier and the officer runbook still named 461 migrations. The local
+catalog update now pins the exact ledger digest and append function body,
+signature, owner, configuration, and server-only grants. Previous release
+catalogs remain unchanged; unknown ledgers still fail closed. The full local
+run exposed one additional stale migration-tail pin in the forward-release
+controller. It now approves the exact bytes of both pending migrations, while
+retaining the 460-migration Production baseline and one-write outcome rules.
+All 52 focused release and documentation tests pass after that correction.
+The earlier full local run failed before the correction and is not a green gate.
 
 ### Hosted performance acceptance passed, 2026-09-07
 

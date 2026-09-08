@@ -10,9 +10,17 @@ DVHS CSF officer UX → class-first Home → Classes → Applications → More; 
   Forward migration `20260908020559` extends that closed evidence contract
   with bounded origin, coordinate, value, and purpose fields included in the
   evidence digest. Legacy digests and approval payloads remain unchanged.
-  The real append-RPC suite now has 30 assertions. Database execution remains
-  unverified while local Docker cannot start. All Development workers are
-  disabled at revision 2 for this release. Production is unchanged.
+  The real append-RPC suite now has 30 assertions. CI `34179939118` passed
+  isolated database replay and its database test step on `f08dbf9a`; remaining
+  CI steps are still running. Local Docker cannot start. All Development
+  workers are disabled at revision 2 for this release. Production is unchanged.
+- Hosted acceptance `34178004263` passed on `8a48f7a1`: 100 distinct fictional
+  sessions, 9,775 requests, zero errors, read p95 1.437 seconds and p99 2.186
+  seconds. Classes p95 is 1.627 seconds; Applications p95 is 2.146 seconds.
+  Mutation p95 is 1.863 seconds. LCP p75 is 1.532 seconds, INP p75 is 32 ms,
+  CLS p75 is 0.000816, all 25 review navigations completed without crashes,
+  and retained heap fell 11.67%. This does not close the failed workbook path
+  or prove the unapplied migration in hosted Development.
 - Hosted Development acceptance `34171163941` passed on `e8e4c63b` with
   private pin `ef8cce1`: 100 distinct fictional sessions, 9,737 requests,
   zero errors, read p95 1.341 seconds, mutation p95 1.837 seconds.
