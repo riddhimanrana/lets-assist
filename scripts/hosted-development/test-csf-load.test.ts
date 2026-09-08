@@ -252,10 +252,10 @@ describe("hosted CSF load acceptance", () => {
     expect(workflow).not.toContain("VERCEL_TRUSTED_OIDC_TOKEN");
     expect(workflow).toContain("bun run csf:test:hosted:load");
     expect(workflow).toContain("csf-hosted-development-acceptance");
-    expect(workflow).toContain("commits/${ACCEPTED_SHA}/status");
+    expect(workflow).toContain("commits/${DEPLOYED_APP_SHA}/status");
     expect(workflow).toContain('.context == "Vercel" and .state == "success"');
     expect(workflow).toContain(
-      "commits/${ACCEPTED_SHA}/check-runs?filter=latest&per_page=100",
+      "commits/${DEPLOYED_APP_SHA}/check-runs?filter=all&per_page=100",
     );
     expect(workflow).toContain('.name == "Supabase Preview"');
     expect(workflow).toContain('.app.slug == "supabase"');
