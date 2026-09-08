@@ -1,3 +1,8 @@
+import {
+  matchingTabDefinitions,
+  matchingTabReceiptPosture,
+} from "./matching-tab-catalog.mjs";
+
 export const automaticSheetDefinitions = [
   [
     "plugin_data.csf_dispatch_automatic_class_preview()",
@@ -139,7 +144,8 @@ export const automaticSheetDefinitions = [
   ],
 ];
 
-export const automaticSheetFunctionSnapshotQuery = `SELECT expected.signature, md5(jsonb_build_object(
+function functionSnapshotQuery(definitions) {
+  return `SELECT expected.signature, md5(jsonb_build_object(
  'definition',pg_get_functiondef(p.oid),'owner',pg_get_userbyid(p.proowner),
  'acl',p.proacl::text,'kind',p.prokind,'parallel',p.proparallel,'leakproof',p.proleakproof,
  'support',p.prosupport::regproc::text,'cost',p.procost,'rows',p.prorows
@@ -147,11 +153,29 @@ export const automaticSheetFunctionSnapshotQuery = `SELECT expected.signature, m
 has_function_privilege('service_role',p.oid,'EXECUTE') AS service_execute,
 has_function_privilege('anon',p.oid,'EXECUTE') AS anon_execute,
 has_function_privilege('authenticated',p.oid,'EXECUTE') AS authenticated_execute
-FROM (VALUES ${automaticSheetDefinitions.map(([signature]) => `('${signature}')`).join(",")}) expected(signature)
+FROM (VALUES ${definitions.map(([signature]) => `('${signature}')`).join(",")}) expected(signature)
 LEFT JOIN pg_proc p ON p.oid=to_regprocedure(expected.signature)`;
+}
+export const automaticSheetFunctionSnapshotQuery = functionSnapshotQuery(
+  automaticSheetDefinitions,
+);
 
-export function automaticSheetUpdatesPosture(relationSnapshotQuery) {
-  const functionValues = automaticSheetDefinitions
+export function automaticSheetUpdatesPosture(
+  relationSnapshotQuery,
+  matchingTabs = false,
+) {
+  const definitions = matchingTabs
+    ? [
+        ...automaticSheetDefinitions.filter(
+          ([signature]) =>
+            !matchingTabDefinitions.some(
+              ([replacement]) => replacement === signature,
+            ),
+        ),
+        ...matchingTabDefinitions,
+      ]
+    : automaticSheetDefinitions;
+  const functionValues = definitions
     .map(
       ([signature, digest, bodyDigest, service]) =>
         `('${signature}','${digest}','${bodyDigest}',${service})`,
@@ -170,7 +194,9 @@ export function automaticSheetUpdatesPosture(relationSnapshotQuery) {
     ],
     [
       "csf_sheet_automatic_update_authorizations",
-      "250b2dd36d46a64d7aad9e493e3dfcff",
+      matchingTabs
+        ? "8ea2de3577ed4ae18571aa1a8df986b2"
+        : "250b2dd36d46a64d7aad9e493e3dfcff",
       false,
     ],
   ];
@@ -186,12 +212,12 @@ export function automaticSheetUpdatesPosture(relationSnapshotQuery) {
       ")",
   );
   return `AND (
-    SELECT count(*)=23 AND coalesce(bool_and(
+    SELECT count(*)=${definitions.length} AND coalesce(bool_and(
       actual.signature IS NOT NULL AND actual.digest=expected.digest AND actual.body_digest=expected.body_digest
       AND actual.service_execute=expected.service_execute
       AND NOT actual.anon_execute AND NOT actual.authenticated_execute
     ),false) FROM (VALUES ${functionValues}) expected(signature,digest,body_digest,service_execute)
-    LEFT JOIN (${automaticSheetFunctionSnapshotQuery}) actual ON actual.signature=expected.signature
+    LEFT JOIN (${functionSnapshotQuery(definitions)}) actual ON actual.signature=expected.signature
   ) AND (
     SELECT count(*)=3 AND coalesce(bool_and(actual.relname IS NOT NULL AND actual.digest=expected.digest
       AND actual.runtime_denied=expected.runtime_denied),false)
@@ -201,5 +227,5 @@ export function automaticSheetUpdatesPosture(relationSnapshotQuery) {
     SELECT 1 FROM pg_index i WHERE i.indexrelid=to_regclass('plugin_data.csf_sheet_automatic_update_request_receipt')
       AND i.indisunique AND i.indisvalid AND i.indisready AND i.indislive
       AND pg_get_indexdef(i.indexrelid)=$index$CREATE UNIQUE INDEX csf_sheet_automatic_update_request_receipt ON plugin_data.csf_admin_audit_events USING btree (organization_id, ((after_data ->> 'requestId'::text))) WHERE (action = 'sheets.automatic_update_authorization_changed'::text)$index$
-  )`;
+  ) ${matchingTabs ? matchingTabReceiptPosture : ""}`;
 }

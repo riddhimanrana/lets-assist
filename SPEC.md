@@ -470,9 +470,13 @@ V94: refreshing a paused, blocked, disconnected, or manual class source preserve
 
 V95: known class mapping drift records a source-scoped review notice and blocks only that semester's registration and preview. Preserve its old sources during cleanup. Other terms can finish preparation, and the workbook result lists registered and blocked terms separately. Failed reads, lost authority, or failure to persist the review notice still stop the generation without claiming completion.
 
-V96: the follow-up migration controller accepts only the reviewed six-file tail after the exact 460-version Production prefix. Pin every file's bytes. A matching ledger alone cannot settle a release with a different schema catalog or permissions. Keep workers disabled, submit the transaction once, and resolve a lost response through reads without resending it. Controller test success does not authorize deployment of an unaccepted application candidate.
+V96: the follow-up migration controller accepts only the reviewed eight-file tail after the exact 460-version Production prefix. Pin every file's bytes. A matching ledger alone cannot settle a release with a different schema catalog or permissions. Keep workers disabled, submit the transaction once, and resolve a lost response through reads without resending it. Controller test success does not authorize deployment of an unaccepted application candidate.
 
 V97: class Settings offers approval and row review only for a sealed preview matching the current source file and mapping version. An outdated preview shows a preparation notice and triggers no readiness or queue reads. Keep prior successful commits visible as history. An in-progress preview does not fall back to an older approval candidate.
+
+V98: an authorized profile merge carries active reviewed workbook links to the surviving profile in the same transaction. Preserve the original officer, source key, review row, reason, and request identifier. Retain the full pre-merge link in the protected audit. Revoked links stay attached to the original profile. The existing merge identity checks and request receipt remain authoritative; a reviewed workbook link does not permit a name-only merge.
+
+V99: an officer can explicitly extend a reviewed class layout to matching canonical semester tabs in the same class workbook. Older source consent does not expand. New tabs retain the original officer, Google owner, reviewed header signature, and parent consent generation. Different columns, point rules, classes, workbooks, or owners require review. Parent pause or permission loss invalidates inherited authority before any row write. A separately reviewed child tab can become independently authorized. No source deletion removes student history.
 
 §T
 

@@ -12,6 +12,30 @@ evidence and does not override the current tables or release gates.
 
 ### Historical application acceptance recheck, 2026-09-08
 
+Provider side effect: opening root PR #496 automatically created ephemeral
+Supabase branch `a7208de5-2159-4397-af08-a31b7a5180dc`, project
+`bhrrnsdmecwortrecakr`, with `with_data=false`. This conflicted with the selected
+no-extra-hosted-branches boundary. Deleted that exact temporary branch and
+verified that only main/Production and the existing persistent Development
+branch remain. No Production or Development data was removed. The disposable
+branch has no retained data to recover and is not release evidence. Further
+pushes must wait until automatic branch creation is disabled or otherwise
+prevented. Chrome still reports the Mac locked, blocking that dashboard setting.
+
+Vercel reported `Canceled by Ignored Build Step` for root `2bea7093`, confirming
+the feature-branch application build was skipped. GitHub run `34234185743`
+continues independently; its isolated database started successfully and pgTAP
+was observed running. No acceptance result is claimed before the job settles.
+
+Grouped root integration published as
+`2bea70938d3f6da0217fa323f5f30061921527ba` on the existing
+`codex/csf-scheduling-retirement` branch. Root PR #496 targets Development and
+pins private merge `ce8d607b9f0225ad51121b956c404e98f64c8426`. Code quality run
+`34234185743` was observed queued for that exact root SHA. Its existing jobs
+cover the isolated database and browser prerequisites. No deployment marker
+was added, no Vercel build was requested, and no hosted migration was applied.
+This is a review candidate, not a Production-ready or imported-data claim.
+
 Root build preparation: the first local build compiled and passed TypeScript,
 then failed prerendering because this worktree had no public Supabase client
 key. Repeated with the repository CI URL `https://ci-preview.invalid` and its
@@ -2606,6 +2630,150 @@ finding detail as evidence only and are explicitly superseded as status
 sources.
 
 ## Repository-owned P0–P2
+
+### Production access and count-only recheck, 2026-09-08
+
+Supabase dashboard access recovered. Turned off GitHub automatic branching,
+saved the setting, and confirmed it remained off after reloading the project
+integration page. The persistent Development branch was not removed. Vercel
+credential syncing remained Production-only. The earlier push hold is cleared.
+Published private commit `27245a321a63d2a180251294f2e829637aa0b387` in PR #270.
+Private Plugin Quality run `34284459400` is running; GitGuardian passed.
+No merge, application deployment, migration, or import commit occurred.
+
+That private run has now passed every job. PR #270 merged as
+`d9d227f12cc9a590c2d855cc2351fe4215ce1a9a`, with a tree identical to tested
+`27245a3`. The root candidate now uses that merged checkout. Also submitted
+the setting to disable direct GitHub main-merge Production database deployment,
+so the reviewed forward-migration workflow remains the intended deployment
+path. Its saved state still needs a full-page reload check before any main merge.
+
+Chrome is unlocked and the Riddhiman profile is accessible. Supabase's expired
+dashboard session refreshed through GitHub and now requires the user's
+two-factor code. This replaces the earlier locked-Mac blocker. Automatic PR
+branch creation remains unverified and must be disabled before further pushes.
+The connected database tool confirms only Production and persistent Development
+exist. Production still has 460 migrations through `20260906085350`.
+
+Read-only chapter counts show 347 directory profiles for 2027, 281 for 2028,
+108 for 2029, and zero for 2030. These count active class-directory associations,
+not current-semester membership or proof of complete source reconciliation.
+Each class has one linked workbook with eight discovered tabs and matching
+stored provider/prepared versions. Applications remain zero for every class,
+including alumni 2026. No records, provider settings, or deployments changed.
+A public status request returned HTTP 429, so it provides no current release-SHA
+evidence. Root PR #496 remains open at `2bea7093`, with its earlier database
+replay failure still recorded. The local fixes have not reached hosted CI.
+
+### Open P1: matching semester tabs need explicit workbook consent
+
+The source registration and preview paths currently enable updates per reviewed
+tab. They prepare new tabs but do not carry consent to them. This leaves the
+requested link-once behavior incomplete. Local forward migration
+`20260908141739_csf_workbook_matching_tab_authorization.sql` adds opt-in matching-tab
+scope and parent authorization references without expanding existing consent.
+The old action signature still means one tab. The new scope has retry-bound
+audit receipts, and inherited authority retains the original header signature,
+officer, Google owner, and parent generation.
+
+A Development rollback-only test passed 20 assertions for legacy behavior,
+explicit scope, request replay, inheritance, changed point rules, parent pause,
+independent child review, tenant isolation, and internal permissions. The first
+fixture setup hit the existing mapping-version guard; corrected fixtures now
+insert their reviewed mappings at creation instead of bypassing that guard.
+After rollback, Development retained 462 migrations, no temporary authorization
+table, and zero fixture organizations. No Production change occurred.
+
+The officer control and validated workbook preview worker now use the explicit
+matching-tab scope. Private local commit
+`27245a321a63d2a180251294f2e829637aa0b387` on
+`codex/csf-matching-semester-consent` contains the implementation and regression
+tests. Existing controls still default to one tab; a scope change needs explicit
+mapping confirmation and gets a scope-bound request identifier. Failed inherited
+permission reads stop preparation instead of silently making a manual preview.
+Headers still must match the original reviewed signature before sealing.
+
+Verification now covers 31 matching-tab database assertions and 107 existing
+authorization, workbook-check, class-preview, and class-commit assertions in
+rollback-only Development transactions. The latter include preserved activity
+labels, points, meeting links, and replay receipts. All 56 focused app tests and
+all 303 private-plugin test files passed. Zero-warning lint and TypeScript passed.
+The exact 468-version schema catalog passed; dropping the inherited-authority
+tenant constraint made the catalog fail. The eight-file release controller pins
+the migration at SHA-256
+`c364e525e909d2f4c7213e45a0b18b39a337dcf744b9ceb0995a0fe8265d78d3`.
+All 103 release-tool tests passed. Evidence logs:
+`.artifacts/csf/matching-tab-private-tests.log`,
+`.artifacts/csf/matching-tab-release-tests.log`,
+`.artifacts/csf/matching-tab-lint.log`, and
+`.artifacts/csf/matching-tab-typecheck.log`.
+
+Release access recheck: Chrome again reported the Mac locked. Docker Desktop
+again reported that it could not start. Root PR 496 still points to `2bea7093`;
+its database CI failure is terminal and predates the local fixes. No release
+CI job is running. Supabase lists only main and persistent Development, so the
+deleted automatic PR branch has not returned. The local fix remains preserved
+without another push. Further release work needs the unlocked officer browser
+to disable automatic PR branching and perform the authorized live workflows.
+Do not poll unrelated scheduled platform jobs as release progress.
+
+Still required: publish and merge the private change, advance the root gitlink,
+pass the full database and hosted gates on the final candidate, and verify the
+signed-in officer flow. The root gitlink remains indexed at the previously
+published plugin commit. No push, remote PR, deployment, or new hosted branch
+was created for this follow-up. Do not claim workbook-wide updates are live.
+
+### Open P1: reviewed workbook links need profile-merge ownership rules
+
+Root CI `34234185743`, database job `102087553933`, replayed the candidate
+schema but failed two of 7,375 pgTAP assertions across 257 files. The exact
+profile-reference inventory found 32 columns instead of 31 and identified an
+unclassified reference. The added
+`csf_reviewed_workbook_profile_links.profile_id` needs an explicit canonical
+merge policy. Do not fix this by increasing the expected count alone. An
+audited officer merge must preserve the original review evidence, retain
+revoked history, and keep active workbook lineage attached to the surviving
+profile. Add a forward migration and transaction/replay tests before release.
+
+Local forward migration `20260908135756_csf_reviewed_workbook_link_merge_ownership.sql`
+now implements that ownership policy. Development rollback-only validation
+passed all 12 new merge/link assertions and the 48-assertion reference-completeness
+suite. These cover active ownership, unchanged revoked evidence, later source-key
+reuse, original officer evidence, exact receipt replay, refusal without identity
+evidence, and internal function permissions. The first fixture run correctly
+refused a name-only merge; the test now retains that refusal case and supplies
+matching fictional contact evidence for the successful merge case.
+
+After both suites, Development still had 462 recorded migrations, no temporary
+reviewed-link table, and zero fixture organizations. No Production changes,
+pushes, builds, or new hosted branches occurred. This finding remains open until
+the complete database gate passes on the final candidate. The release catalog
+now pins all four merge/reference helper bodies, signatures, metadata, and
+postgres-only execution. The exact 467-version catalog passed in a rolled-back
+Development transaction. Granting the runtime role access to the internal merge
+helper or changing reference-plan volatility both made the check fail. A final
+read confirmed the original 462-version ledger and absence of the test table.
+The controller pins the seven-file tail after Production's 460-version prefix,
+including SHA-256 `da88367fb65b095f2206718c156ded7e4c40073ebbf410546ff2b2e868b2e342`
+for the new migration. All 31 focused release/catalog tests passed. The broader
+release-tool suite then passed 102 tests across 13 files with 603 assertions.
+Zero-warning lint, TypeScript, migration-file validation, and strict private
+gitlink checks passed. Logs are `.artifacts/csf/merge-link-release-tests.log`,
+`.artifacts/csf/merge-link-lint.log`, `.artifacts/csf/merge-link-typecheck.log`,
+and `.artifacts/csf/merge-link-migration-validation.log`. These checks do not
+replace full isolated database replay or hosted application acceptance.
+The Mac still reports locked, so officer
+actions and disabling automatic Supabase PR branching remain unavailable.
+
+The same run passed the 1,000-row automatic application database test in
+172.366 seconds: 17.290 seconds for applicant preparation and 155.076 seconds
+for commits plus batch replay. Assertions prove 1,000 applications, 1,000
+successful row receipts, 20 batch receipts, zero duplicate row outcomes, zero
+approvals or manufactured semester memberships, two retained uncertain rows,
+and no unresolved write outcomes in the successful case. This is database-only
+scale proof, not Google/browser/worker end-to-end proof. The failure log is
+`.artifacts/csf/root-candidate-database-ci.log`. The failed database gate stops
+the later workflow/browser checks; no passing overall acceptance is claimed.
 
 ### Application Sheet dialog follow-up, 2026-09-07
 

@@ -14,6 +14,29 @@ const versions = expectedVersions(
   fileURLToPath(new URL("../../", import.meta.url)),
 );
 
+test("workbook-link merge pins both wrappers and retains the preceding catalog", () => {
+  const current = acceptedCatalogQuery(source, versions);
+  const preceding = acceptedCatalogQuery(source, versions.slice(0, 466));
+  const migration = readFileSync(
+    new URL(
+      "../../supabase/migrations/20260908135756_csf_reviewed_workbook_link_merge_ownership.sql",
+      import.meta.url,
+    ),
+    "utf8",
+  );
+  for (const body of [migration.split("$$")[1], migration.split("$$")[3]]) {
+    assert.ok(current.includes(createHash("md5").update(body).digest("hex")));
+  }
+  assert.ok(
+    current.includes("csf_profile_merge_reference_plan_workbook_links_base"),
+  );
+  assert.ok(current.includes("csf_merge_profiles_workbook_links_base"));
+  assert.ok(current.includes("p.provolatile::text=expected.volatility"));
+  assert.ok(current.includes("a.grantee='postgres'::regrole"));
+  assert.ok(!preceding.includes("csf_merge_profiles_workbook_links_base"));
+  assert.ok(preceding.includes("csf_set_sheet_automatic_update_authorization"));
+});
+
 test("reviewed workbook links pin functions, permissions, table shape, and request uniqueness", () => {
   const current = acceptedCatalogQuery(source, versions);
   const preceding = acceptedCatalogQuery(source, versions.slice(0, 464));

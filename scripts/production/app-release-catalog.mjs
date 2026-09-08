@@ -2,6 +2,7 @@ import { createHash } from "node:crypto";
 import { ReleaseCheckError } from "./app-release-checks.mjs";
 import { reviewedWorkbookLinksPosture } from "./workbook-profile-link-catalog.mjs";
 import { automaticSheetUpdatesPosture } from "./automatic-sheet-update-catalog.mjs";
+import { workbookLinkMergePosture } from "./workbook-link-merge-catalog.mjs";
 
 export const workerRelationSnapshotQuery = `SELECT c.relname, md5(jsonb_build_object(
   'owner', pg_get_userbyid(c.relowner), 'kind', c.relkind,
@@ -98,10 +99,20 @@ export function acceptedCatalogQuery(source, versions) {
       "34dbbd884882349f8083512cd2fe48b371c3f1242bc62897685267f2a5d0001b"
   )
     return source;
-  const automaticSheetUpdatesUpgrade =
-    versions.length === 466 &&
+  const matchingTabUpgrade =
+    versions.length === 468 &&
     ledgerHash ===
-      "b7935dfecb07b70ca0f07b577af5d218f56a7d54e2c17b4a9385448d6f3b720d";
+      "3a54205a45fb0b4e9f7fd142d6f15126c64b6801ea4a70f775ec98fc93a0c23e";
+  const workbookLinkMergeUpgrade =
+    matchingTabUpgrade ||
+    (versions.length === 467 &&
+      ledgerHash ===
+        "409d6d8593990502fbb657e2b6bda8f0a012c7c240846e14f2482eb621adbaf9");
+  const automaticSheetUpdatesUpgrade =
+    workbookLinkMergeUpgrade ||
+    (versions.length === 466 &&
+      ledgerHash ===
+        "b7935dfecb07b70ca0f07b577af5d218f56a7d54e2c17b4a9385448d6f3b720d");
   const reviewedWorkbookLinksUpgrade =
     automaticSheetUpdatesUpgrade ||
     (versions.length === 465 &&
@@ -366,7 +377,8 @@ accepted_upgrade_posture AS (
   ${workbookRecoveryUpgrade ? workbookRecoveryPosture : ""}
   ${applicationSourceReviewUpgrade ? applicationSourceReviewPosture : ""}
   ${reviewedWorkbookLinksUpgrade ? reviewedWorkbookLinksPosture(workerRelationSnapshotQuery) : ""}
-  ${automaticSheetUpdatesUpgrade ? automaticSheetUpdatesPosture(workerRelationSnapshotQuery) : ""} AS valid
+  ${automaticSheetUpdatesUpgrade ? automaticSheetUpdatesPosture(workerRelationSnapshotQuery, matchingTabUpgrade) : ""}
+  ${workbookLinkMergeUpgrade ? workbookLinkMergePosture : ""} AS valid
   FROM accepted_upgrade_definitions expected
   LEFT JOIN pg_proc p ON p.oid=to_regprocedure(expected.signature)
 )

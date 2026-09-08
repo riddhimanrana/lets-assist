@@ -12,6 +12,7 @@ import {
   automaticSheetDefinitions,
   automaticSheetUpdatesPosture,
 } from "./automatic-sheet-update-catalog.mjs";
+import { matchingTabDefinitions } from "./matching-tab-catalog.mjs";
 
 const root = fileURLToPath(new URL("../../", import.meta.url));
 const source = readFileSync(
@@ -67,14 +68,20 @@ test("automatic update catalog checks missing objects, exact grants, tables, and
     assert.ok(query.includes(clause), clause);
 });
 
-test("only the exact automatic-update ledger receives the new release checks", () => {
+test("reviewed automatic-update and merge ledgers retain automatic-update checks", () => {
   const versions = expectedVersions(root);
-  assert.equal(versions.length, 466);
-  assert.ok(
-    acceptedCatalogQuery(source, versions).includes(
-      "csf_prepare_automatic_application_profiles",
-    ),
-  );
+  assert.equal(versions.length, 468);
+  for (const accepted of [
+    versions.slice(0, 466),
+    versions.slice(0, 467),
+    versions,
+  ]) {
+    assert.ok(
+      acceptedCatalogQuery(source, accepted).includes(
+        "csf_prepare_automatic_application_profiles",
+      ),
+    );
+  }
   assert.ok(
     !acceptedCatalogQuery(source, versions.slice(0, 465)).includes(
       "csf_prepare_automatic_application_profiles",
@@ -82,5 +89,36 @@ test("only the exact automatic-update ledger receives the new release checks", (
   );
   assert.throws(() =>
     acceptedCatalogQuery(source, [...versions.slice(0, -1), "20260908090509"]),
+  );
+});
+
+test("matching-tab upgrade pins new and renamed helpers without changing older catalogs", () => {
+  const sql = readFileSync(
+    new URL(
+      "../../supabase/migrations/20260908141739_csf_workbook_matching_tab_authorization.sql",
+      import.meta.url,
+    ),
+    "utf8",
+  );
+  const bodies = [...sql.matchAll(/AS \$\$([\s\S]*?)\$\$;/gu)];
+  assert.equal(bodies.length, 5);
+  for (const [, body] of bodies) {
+    const digest = createHash("md5").update(body).digest("hex");
+    assert.ok(matchingTabDefinitions.some((entry) => entry[2] === digest));
+  }
+  const query = automaticSheetUpdatesPosture(workerRelationSnapshotQuery, true);
+  assert.ok(query.includes("count(*)=28"));
+  assert.ok(query.includes("8ea2de3577ed4ae18571aa1a8df986b2"));
+  assert.ok(query.includes("csf_workbook_matching_tab_scope_request"));
+  assert.ok(
+    !automaticSheetUpdatesPosture(workerRelationSnapshotQuery).includes(
+      "csf_inherit_matching_class_tab_authorization",
+    ),
+  );
+  assert.ok(
+    !acceptedCatalogQuery(
+      source,
+      expectedVersions(root).slice(0, 467),
+    ).includes("csf_inherit_matching_class_tab_authorization"),
   );
 });
