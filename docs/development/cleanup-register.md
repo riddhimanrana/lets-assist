@@ -157,6 +157,171 @@ retaining the 460-migration Production baseline and one-write outcome rules.
 All 52 focused release and documentation tests pass after that correction.
 The earlier full local run failed before the correction and is not a green gate.
 
+The full local test run after commit `9699f756` exited successfully across
+305 root and 302 plugin test files. CI `34179939118` finished its complete
+database and browser job successfully. Its overall failure retains the earlier
+quality-test failures above. Replacement CI `34181210176` runs on exact SHA
+`9699f756ee3aeeefe02936e16bb7183fa0947aed`. Chrome is accessible again in the
+Riddhiman profile. No Production changes or additional Vercel deployment occurred.
+
+CI `34181210176` hit a runner startup conflict before database replay:
+port 55324 was already in use. No migration or database test ran in that job.
+Its independent quality job passed the root/plugin tests and reached the build.
+GitHub refused an individual database-job rerun while the workflow remained
+active. Preserve the passing database/browser evidence from `34179939118` and
+retry only the failed job after the current workflow finishes.
+
+The refreshed fictional Development class still shows eight linked semester
+tabs. Member search returned the requested fictional profile, an unmatched
+query showed no results, and clearing the filter restored the directory.
+This ten-member check does not prove search beyond the first page. Development
+still has 461 migrations, latest `20260907000344`. The failed workbook job
+remains recorded as running at attempt 1; no retry or commit was triggered.
+
+The quality job on `9699f756` completed successfully, including the Production
+build. After the workflow finished, GitHub accepted a rerun of only database
+job `101920530909` in run `34181210176`. The source SHA is unchanged. This
+rerun does not deploy a Vercel application or repeat the successful quality job.
+
+Development PR #493 groups the two commits on the existing branch. Its required
+CI run `34181764735` is active on the same changes. Once that replacement was
+confirmed running, manual run `34181210176` was cancelled to avoid duplicate
+database/browser runs. Retain its successful quality/build result and initial
+port-conflict receipt. Vercel's PR check reports `Canceled by Ignored Build Step`.
+No application deployment was built for this PR.
+
+The live fictional Applications page opens an organization-wide importer with
+both Choose from Drive and Google Sheet link controls. The page states that one
+workbook can contain every class. This confirms source selection is available,
+not that chapter-wide rows have been imported or reconciled.
+
+A new fictional application workbook was created and uploaded through the
+authorized Riddhiman Chrome session into the signed-in chapter Drive account.
+Native conversion produced Sheet `12yHSQXsMi69SN7qxw2OZ0Km59Kb17IOaUln-bb7-viE`.
+Connector metadata confirms native Google Sheets MIME type and two tabs:
+Fall 2026 Responses and Spring 2026 Responses. Each has four fictional rows
+using the public 17-column form layout. Grade-derived classes cover 2026 through
+2030 across the two semesters. Both native views were checked. Proof fields
+remain intentionally blank to test missing-evidence handling without approving
+applications. No real response values or evidence files were uploaded. The
+application preview, class resolution, reconciliation, and commit are still open.
+
+PR #493 passed CI `34181764735`, including complete database replay and CSF
+browser workflows, and merged to Development at
+`36c3b74ae43ce0da279acdec51fc15ae3c7c660d`. Vercel skipped the unmarked merge.
+Supabase Preview is processing it; the first post-merge read still showed 461
+migrations. No Production changes occurred.
+
+The new application Sheet initially failed pasted-link access. Choosing the
+same file through the connected Drive picker succeeded and deterministic
+analysis mapped the public form headers. Preview submission returned an
+interrupted-response message, but source `f2eabc7f-2056-4864-8ec6-76608746f26a`
+and preview `f6075ab4-7d53-4ef9-9bf0-a7b86e53fd2f` were saved. Reload reopened
+that exact four-row preview without another submission. All four rows retain
+Fall 2026. Three identify missing fictional classes 2027, 2029, and 2030;
+the 2028 row reached identity review. No applications were committed or approved.
+The interrupted response remains an open UI/recovery finding, not a failed
+database write. Configure the missing fictional classes before a fresh preview.
+
+Follow-up verification confirms Development has 462 migrations through
+`20260908020559`. The append function body MD5 is
+`f990db576f8e2c5a1663b2cfeb784677`, with service execution allowed and
+authenticated execution denied. No application rebuild was required.
+
+The normal class Settings check queued version 11 job
+`ec2d8682-0ae9-419c-82f5-c3c1aedd0ce6`. A guarded call to the existing claim
+routine settled the expired version-10 job as `stale_workbook_generation`,
+without claiming the new job or repeating writes. One-shot workbook run
+`34183419825` passed: four prepared tabs, four empty templates, zero blocked,
+one attempt. Enable receipt `615cb9cf-121d-4ea3-8785-80c0d8563da8` and disable
+receipt `e7dad196-7ac6-478f-bdc1-ebe82e6c4137` record the bounded test.
+All workers are disabled at revision 4. Review, commit, and unchanged repeat
+remain unverified. Production remains unchanged.
+
+The fictional officer created Classes of 2026, 2027, 2029, and 2030 and their
+semester sets through the normal class setup form. Reusing the file through
+Start another import retained the original missing-class preview. The saved
+source's Preview action instead created retry
+`4bec2360-4f06-4749-ae59-b6c518eaaee6`, linked to the original receipt.
+Its four rows correctly resolve Fall 2026 and Classes of 2027 through 2030.
+This recovery works, but its location and difference from Start another import
+remain a UI finding. Do not report stale target errors as a source-data defect.
+Each fictional applicant search returned no existing member. Four audited
+new-profile decisions include the fictional source grade and semester in their
+reasons. These are identity decisions, not application approvals. Commit and
+Spring 2026 alumni checks remain open.
+
+After those decisions, live counts show four ready rows and zero needing review,
+and Verify source and commit is enabled. The heading still says Preview needs
+reconciliation and Reconciliation required. Record this stale-summary defect
+alongside the recovery-path issue; it does not change the verified row counts.
+No commit was queued and no application decision was approved during this check.
+
+Local follow-up on private `codex/csf-import-review-feedback` corrects the
+preview heading using the sealed state and current unresolved count. Failed,
+cancelled, and running previews never become ready from a zero count. The
+unresolved-row panel now exposes Recheck preview with the existing source ID,
+retry lineage, pending state, and error feedback. No import authorization or
+receipt behavior changed. Two presentation regressions and the missing recheck
+control assertion failed before the patch. The combined 104 focused checks,
+TypeScript, zero-warning lint, and formatting checks pass. The grouped changes
+remain local and have not triggered a build or deployment.
+
+Private commit `f3396ab40a116c7c3d9fdadd69b126a4aef1163d` contains that grouped
+UI fix and its focused regressions. It is not pushed or integrated into the
+root gitlink yet.
+
+Live Spring verification found automatic analysis ignored the pasted tab GID
+and chose Fall 2026 Responses. The explicit mapping form correctly selected
+Spring 2026 Responses and Spring 2026, with range A1:Q5. Its default List I
+total mapping was absent despite the standard header, so the officer selected
+Total Points - List I explicitly. The resulting four-row preview preserved
+Spring 2026 and correctly resolved Classes of 2029, 2028, 2027, and alumni 2026.
+Identity review and commit remain open. Wrong-tab automatic analysis and the
+manual List I alias remain findings for the grouped follow-up. No approval or
+Production mutation occurred.
+
+Private follow-up `9957d55` preserves the pasted application tab ID through
+selection and all analysis retries. Analysis verifies that ID against provider
+metadata and reads only that tab, even when it falls beyond the usual discovery
+limit. Missing, malformed, or conflicting tab IDs refuse rather than selecting
+another semester. Root metadata now retains sheet IDs in its existing metadata
+request, without another request or cell read. Both manual mapping forms share
+the List I total aliases and exclude combined-list totals. Seven new private
+checks, three root metadata/privacy checks, and 27 neighboring analysis and
+application checks pass. TypeScript and zero-warning lint pass. The root
+metadata change and private commits remain local; hosted verification and the
+grouped integration are still pending.
+
+Private PR #266 groups those fixes at `35b1df6`. The final change removes the
+hard-coded Class of 2030 historical-preview ban. Content-based discovery still
+registers header-only tabs as templates and parses no member rows. Populated
+tabs still require configured class terms, source evidence, row reconciliation,
+and officer commit. Twenty focused tests cover discovery, link planning, and
+Development restrictions, including empty and populated inputs for 2027 through
+2031. They pass, as do TypeScript and zero-warning lint. The full private run
+passed across 276 files before that final change. The combined root/private run
+is still active; do not label it passed yet. Development has 12 completed
+commit-queue jobs and no queued or running jobs at this check. No app deployment
+or Production change occurred.
+
+PR #266 passed private CI `34185452685` and merged at
+`6fb9238592592db8fb9589fd4e70335c846aff54`. The root index now pins that exact
+private Development commit, and the strict submodule check passes. The first
+combined root run stopped on the audit inventory's expected old-gitlink
+mismatch, not a changed callsite. Its targeted six-test rerun passes after
+integration. The complete integrated run is active and remains unconfirmed.
+
+The root follow-up adds a Development-only one-shot import check to the existing
+manual worker workflow. It validates the exact served SHA, runtime controls,
+fictional organization/file identity, one untouched officer queue receipt, and
+bounded expected row count. It calls the worker once, then requires both the
+queue receipt and every row outcome. A lost response reads receipts without
+resending and does not claim HTTP authentication proof. Seventeen import and
+workbook-controller tests, TypeScript, and zero-warning lint pass. The checker
+is local and unexecuted against hosted Development. It never enables workers,
+queues imports, or enters the Production communications job.
+
 ### Hosted performance acceptance passed, 2026-09-07
 
 Run `34171163941` completed successfully on exact Development SHA
@@ -2065,6 +2230,41 @@ finding detail as evidence only and are explicitly superseded as status
 sources.
 
 ## Repository-owned P0–P2
+
+### Application Sheet dialog follow-up, 2026-09-07
+
+Private PR #267 passed CI `34187091711` and merged at
+`fd9f837282a67e4c65b0cb7eeabd7c6417987e71`. The full private suite passes across
+277 files. An old test required the match form outside every disclosure; its
+updated six checks cover the first applicant opening by default, collapsed
+skipping, row identity, evidence, and unchanged action feedback. The grouped
+root suite and hosted UI acceptance are still pending. Docker Desktop reports
+that it cannot start, so local browser acceptance is not claimed.
+
+The Development branch's `CSF_DEVELOPMENT_COMMIT_SOURCE_ALLOWLIST` now retains
+all twelve previous entries and adds nine live-verified fictional source IDs.
+The saved value has 21 entries and remains scoped only to Preview on
+`development`. This config change did not create a deployment, enable workers,
+queue rows, or change Production. It takes effect with the grouped build.
+
+Local changes replace the application import page with a chapter-wide dialog.
+The entry action is "Link Google Sheet". The Sheet determines each row's class
+and source semester; no fixed class is submitted. A missing source semester now
+requires an officer selection instead of using the review page's semester.
+The technical stepper is removed. Column matches, snapshot diagnostics, previous
+checks, and the full row table remain available through disclosures. Proposed
+AI column matches open for review. The first unresolved application opens by
+default, with visible page controls outside the collapsed evidence table.
+The existing audited actions and all whole-preview commit blockers remain.
+The dialog releases its focus trap while Google Picker is open and returns to
+Applications when closed. Live Picker focus and close/reopen checks are pending.
+
+All 45 focused import/dialog/readiness checks pass, as do TypeScript and
+zero-warning lint. The earlier integrated run stopped at 1,329 passes and one
+outdated runbook gitlink assertion. Its corrected documentation suite passes
+13 checks. That does not prove the full grouped suite or this new UI passed
+hosted acceptance. The changes remain local on the existing private branch.
+No deployment, official import, email send, or Production change occurred.
 
 ### Production acceptance recheck, 2026-09-07
 

@@ -4,6 +4,43 @@ DVHS CSF officer UX → class-first Home → Classes → Applications → More; 
 
 §C
 
+- Private PR #267 passed CI `34187091711` and merged at `fd9f837`.
+  The complete private suite passes across 277 files. Its previous failure was
+  the old expanded-row layout contract, updated to cover the requested first-row
+  disclosure while retaining evidence and action checks. The Development-only
+  source allowlist now contains the nine verified fictional sources and all
+  twelve previous entries. The saved setting was verified without a deployment.
+  Docker Desktop cannot start the local browser stack. Hosted UI acceptance and
+  the full grouped root suite remain pending.
+- The application Sheet UI now uses a chapter-wide dialog locally. It removes
+  the technical stepper, folds column matches and source evidence away, and
+  opens the first unresolved application for review. Google Picker temporarily
+  releases the dialog's focus trap. The review-page semester no longer supplies
+  a source default. The Sheet supplies it, or the officer selects it explicitly.
+  Forty-five focused checks, TypeScript, and zero-warning lint pass. Browser
+  acceptance, publication, and Production reconciliation remain open.
+- Private PR #266 groups import feedback, selected-tab analysis, List I aliases,
+  and removal of the fixed Class of 2030 history ban at `35b1df6`. Empty tabs
+  still produce templates with no parsed rows. Populated sources retain term,
+  source, identity, and officer-commit checks. The full private suite passed
+  before the final year-ban removal; its 20 focused checks, TypeScript, and
+  zero-warning lint pass. PR #266 merged at `6fb9238`. The integrated root run
+  reached 1,329 passes and one stale runbook-gitlink failure. The corrected
+  runbook passes all 13 focused documentation checks. The full grouped suite
+  still requires a passing run after the new application dialog change.
+- The grouped private follow-up fixes preview wording after officer decisions
+  and exposes the existing lineage-bound recheck beside unresolved rows.
+  The regression first failed on both stale status cases. All 104 focused
+  presentation, action-feedback, and import-readiness checks now pass, as do
+  TypeScript and zero-warning lint. These changes are local, not deployed.
+- Development migration 462 is applied and its requirement-evidence function
+  body and service-only grants match the accepted catalog. PR #493 passed CI
+  `34181764735` and merged at `36c3b74a` without an application build.
+  Workbook check `34183419825` passed against deployed `8a48f7a1`: version 11
+  completed once with four prepared tabs, four templates, and zero blocked tabs.
+  The stale version-10 job retains its failure history and is blocked.
+  All Development workers are disabled at revision 4. Review, commit, and
+  duplicate-free repeat sync remain open. Production is unchanged.
 - Development `8a48f7a1` includes the calculated-status parser fix, private
   `7daadc1`, and passed root CI `34176893568`. Live workbook rebuild
   `34178593288` failed because the append RPC rejects requirement evidence.
@@ -11,8 +48,10 @@ DVHS CSF officer UX → class-first Home → Classes → Applications → More; 
   with bounded origin, coordinate, value, and purpose fields included in the
   evidence digest. Legacy digests and approval payloads remain unchanged.
   The real append-RPC suite now has 30 assertions. CI `34179939118` passed
-  isolated database replay and its database test step on `f08dbf9a`; remaining
-  CI steps are still running. Local Docker cannot start. All Development
+  the complete database and browser job on `f08dbf9a`; its quality job failed
+  the release checks corrected in `9699f756`. The full local test run now
+  passes across 305 root and 302 plugin test files. CI `34181210176` is running
+  on that correction. Local Docker cannot start. All Development
   workers are disabled at revision 2 for this release. Production is unchanged.
 - Hosted acceptance `34178004263` passed on `8a48f7a1`: 100 distinct fictional
   sessions, 9,775 requests, zero errors, read p95 1.437 seconds and p99 2.186
