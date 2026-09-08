@@ -237,14 +237,11 @@ const IMPORTS: LabelContract[] = [
   },
   {
     component: "CsfSheetImportPreview.tsx",
-    labels: [
-      "Normalized snapshot",
-      "Import blocked",
-      "Recovery needed",
-      "Verify source and commit",
-      "Resume import",
-      "Finish import",
-    ],
+    labels: ["Normalized snapshot", "Import blocked", "Recovery needed"],
+  },
+  {
+    component: "CsfApplicationImportCommit.tsx",
+    labels: ["Add applications", "Resume import", "Finish import"],
   },
   {
     component: "CsfSheetPreviewRows.tsx",
@@ -721,9 +718,12 @@ describe("CSF operator documentation truthfulness guards", () => {
     );
   });
 
-  test("the import progress strip is documented as derived, not navigable", () => {
+  test("the application dialog keeps recorded stages internal", () => {
     const overview = readComponent("CsfSheetImportOverview.tsx");
-    expect(overview).toContain('aria-label="Import progress"');
+    expect(overview).not.toContain('aria-label="Import progress"');
+    expect(readComponent("CsfApplicationImportDialog.tsx")).toContain(
+      "<DialogTitle>Application Sheet</DialogTitle>",
+    );
     const controller = readComponent("CsfSheetImportWorkspaceController.ts");
     for (const stage of [
       "Source",
@@ -740,7 +740,7 @@ describe("CSF operator documentation truthfulness guards", () => {
       "The import workspace is not a step wizard.",
     );
     expect(productContract).not.toContain("### 12.2 Wizard steps");
-    expect(operatorGuide).toContain("It is not a wizard");
+    expect(operatorGuide).toContain("**Application Sheet** dialog");
   });
 
   test("row paging never stands in for whole-preview readiness", () => {

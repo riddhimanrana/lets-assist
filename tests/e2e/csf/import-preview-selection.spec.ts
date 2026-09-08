@@ -76,6 +76,20 @@ test("saved application previews keep their own rows through navigation and relo
     ).toHaveCount(1);
     const skip = page.getByRole("button", { name: "Skip tour", exact: true });
     if (await skip.isVisible()) await skip.click();
+    const dialog = page.getByRole("dialog", { name: "Application Sheet" });
+    await expect(dialog).toBeVisible();
+    await expect(
+      page.getByRole("navigation", { name: "Import progress" }),
+    ).toHaveCount(0);
+    const openPreviousChecks = async () => {
+      const disclosure = dialog.locator("details").filter({
+        has: page.locator("summary", { hasText: /^Previous checks$/ }),
+      });
+      if ((await disclosure.getAttribute("open")) === null) {
+        await disclosure.locator(":scope > summary").click();
+      }
+    };
+    await openPreviousChecks();
     const previews = page.getByRole("navigation", {
       name: "Saved import previews",
     });
@@ -85,17 +99,25 @@ test("saved application previews keep their own rows through navigation and relo
     await previews.getByRole("link", { name: new RegExp(names[0]) }).click();
     await expect(page).toHaveURL(new RegExp(`csf_import_preview=${olderId}`));
     await expect(
-      page.getByRole("heading", { name: "Resolve 51 rows", exact: true }),
+      dialog.getByRole("heading", {
+        name: "51 applications to check",
+        exact: true,
+      }),
     ).toBeVisible();
     await page.getByRole("button", { name: "Next rows", exact: true }).click();
     await expect(page).toHaveURL(new RegExp(`csf_import_preview=${olderId}`));
     await expect(
-      page.getByText("SpringFixture Row51", { exact: true }).first(),
+      dialog
+        .getByRole("region", { name: "51 applications to check", exact: true })
+        .getByText("SpringFixture Row51", { exact: true }),
     ).toBeVisible();
     await page.reload();
     await expect(
-      page.getByText("SpringFixture Row51", { exact: true }).first(),
+      dialog
+        .getByRole("region", { name: "51 applications to check", exact: true })
+        .getByText("SpringFixture Row51", { exact: true }),
     ).toBeVisible();
+    await openPreviousChecks();
     await page
       .getByRole("navigation", { name: "Saved import previews" })
       .getByRole("link", { name: new RegExp(names[1]) })
@@ -105,7 +127,10 @@ test("saved application previews keep their own rows through navigation and relo
       false,
     );
     await expect(
-      page.getByRole("heading", { name: "Resolve 1 row", exact: true }),
+      dialog.getByRole("heading", {
+        name: "1 application to check",
+        exact: true,
+      }),
     ).toBeVisible();
     for (const id of historyIds) {
       sql(`INSERT INTO plugin_data.csf_sheet_import_jobs
@@ -113,6 +138,7 @@ test("saved application previews keep their own rows through navigation and relo
         VALUES ('${id}', '${org.id}', '${sourceId}', 'preview', 'needs_resolution', 'application_responses', 'Fictional history ${marker}', now() + interval '10 seconds');`);
     }
     await page.goto(base);
+    await openPreviousChecks();
     await expect(
       page
         .getByRole("navigation", { name: "Saved import previews" })
@@ -128,11 +154,17 @@ test("saved application previews keep their own rows through navigation and relo
     await page.locator(`a[href*="${olderId}"]`).click();
     await expect(page).toHaveURL(new RegExp(`csf_import_preview=${olderId}`));
     await expect(
-      page.getByRole("heading", { name: "Resolve 51 rows", exact: true }),
+      dialog.getByRole("heading", {
+        name: "51 applications to check",
+        exact: true,
+      }),
     ).toBeVisible();
     await page.reload();
     await expect(
-      page.getByRole("heading", { name: "Resolve 51 rows", exact: true }),
+      dialog.getByRole("heading", {
+        name: "51 applications to check",
+        exact: true,
+      }),
     ).toBeVisible();
     await page.goto(`${base}&csf_import_preview=${randomUUID()}`);
     await expect(
@@ -141,7 +173,7 @@ test("saved application previews keep their own rows through navigation and relo
         .filter({ hasText: "That saved preview is unavailable." }),
     ).toBeVisible();
     await expect(
-      page.getByRole("heading", { name: /^Resolve \d+ rows?$/ }),
+      dialog.getByRole("heading", { name: /^\d+ applications? to check$/ }),
     ).toHaveCount(0);
   } finally {
     sql(`BEGIN;
