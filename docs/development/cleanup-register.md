@@ -2233,6 +2233,14 @@ sources.
 
 ### Application Sheet dialog follow-up, 2026-09-07
 
+Root integration PR #494 is open at initial candidate `c5362244`. Its local
+combined run ended with 1,328 passing root tests and two outdated operator
+documentation contracts. The guide now describes the application dialog and
+the "Add applications" control, and the control contract follows its extracted
+component. All 27 operator/cohort documentation checks pass after correction.
+No application source changed for that correction. The complete integrated
+suite and PR release gates remain pending.
+
 Private PR #267 passed CI `34187091711` and merged at
 `fd9f837282a67e4c65b0cb7eeabd7c6417987e71`. The full private suite passes across
 277 files. An old test required the match form outside every disclosure; its

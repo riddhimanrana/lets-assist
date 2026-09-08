@@ -761,7 +761,7 @@ Clubs keep applying and renewing through the existing Google Form. An officer up
 
 **Purpose:** Safely convert Drive/Sheet source data into normalized records.<br>
 **Primary users:** Import operators and adviser.<br>
-**Shows:** Google Sheets connection state, a derived read-only import progress strip, the latest preview with its counts and normalized snapshot, a paged normalized-row table, the new-import and local-upload source sections, and import history — recent jobs, source, type, operator when recorded, preview/commit status, recorded created/updated/unresolved/error counts, abbreviated integrity digest when recorded, row reconciliation decisions/reasons, and retry or preview ancestry.<br>
+**Shows:** a chapter-wide Application Sheet dialog with source selection, preview counts, and unresolved decisions. Disclosures retain Google account controls, column matches, the normalized snapshot, paged source rows, and import history with recorded outcomes and retry ancestry.<br>
 **Primary actions:** Start import; continue reconciliation; commit valid rows; retry corrected rows.<br>
 **Secondary actions:** Open source; download sanitized error report; compare mapping; open generated records.<br>
 **Filters/search:** Source type, status, operator, date, term.<br>
@@ -1175,11 +1175,11 @@ The same domain evaluator powers member UI, officer tables, reports, exports, an
 
 ### 12.2 Workspace sections and controls
 
-The import workspace is not a step wizard. There is no navigable step sequence, no forward/back control between steps, and no client-held step state. It is a fixed stack of sections — connection, progress, preview, sources, results — whose visibility follows recorded server state.
+The import workspace is not a step wizard. Applications use one chapter-wide Application Sheet dialog. It shows source selection, a short preview, and unresolved decisions. Column matches, source evidence, and previous checks sit behind disclosures. Existing recorded job state controls readiness and recovery.
 
-#### 12.2.1 Import progress strip
+#### 12.2.1 Recorded import stages
 
-- A non-interactive, read-only reflection of recorded job state, rendered only once a preview exists: **Source**, **Scope**, **Map**, **Preview**, **Reconcile**, **Commit**, **Result**.
+- Internal job stages remain **Source**, **Scope**, **Map**, **Preview**, **Reconcile**, **Commit**, and **Result**. The application dialog does not render this technical stepper.
 - Every stage is derived — source file name recorded; tab and range recorded; mapping snapshot at version ≥ 1; sealed snapshot; sealed with zero conflicts; a commit job exists; that job completed. A reload or a second officer sees the same position.
 - It carries no controls and grants no navigation. It must never be described, or implemented, as a step the operator advances.
 
@@ -1238,7 +1238,7 @@ The import workspace is not a step wizard. There is no navigable step sequence, 
 - If provider modified time changed, warn and require a new preview or explicit commit of the captured snapshot.
 - Commit remains blocked until the exact file ID/name, current access, selected tab/range, mapping version, and every pending row’s resolved cohort and semester are present. UI enforces readiness and the server rechecks it before creating the commit job.
 - The server returns the canonical blocker list used by job status, preview summary, and the commit control; a failed or stale job cannot be reinterpreted as ready from row counts alone. The first blocker is surfaced as **Import blocked**.
-- The control names the operation it performs rather than a generic import: **Verify source and commit** on a first commit, **Resume import** when an earlier commit of the same preview did not finish, **Finish import** when nothing remains to write, **Committed** once complete. A concurrent holder is disclosed instead of silently disabling the control.
+- The application control is **Add applications** on a first commit, **Resume import** when an earlier commit of the same preview did not finish, **Finish import** when nothing remains to write, and **Committed** once complete. The first action shows **Verifying source…** while it rechecks the Sheet. A concurrent holder is disclosed instead of silently disabling the control.
 - Valid/resolved rows commit idempotently by source identity/hash. A resumed commit never rewrites an already-committed row.
 - Valid rows may commit while unresolved/invalid rows remain exceptions.
 - Each row records created/updated targets and correlation ID.

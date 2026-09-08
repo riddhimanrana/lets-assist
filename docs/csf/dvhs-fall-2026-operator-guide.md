@@ -331,10 +331,17 @@ account_, and the product refuses to select files until it is corrected.
 
 ### Build and reconcile the preview
 
-The **Import progress** strip (Source → Scope → Map → Preview → Reconcile →
-Commit → Result) is a read-only reflection of recorded state. It is not a wizard
-and has no controls; you cannot click a stage, and a reload or a second officer
-sees the same position. The work happens in these sections:
+For applications, select **Link Google Sheet** to open the **Application Sheet**
+dialog. Choose one chapter-wide response Sheet. Classes come from each row's
+grade and source semester, not the class filter in Applications. Confirm the
+semester found in the Sheet, or select it if it is missing. Select **Continue**
+to prepare the preview. Column matches appear under **Check column matches**;
+AI-proposed matches open for confirmation. The first application needing an
+officer decision opens by default. **Sheet details**, **View applications and
+class assignments**, and **Previous checks** retain the evidence without a
+seven-step strip. Closing the dialog returns to application review.
+
+The manual mapping fallback and class-source tools retain these controls:
 
 1. Open **New Google Sheets import** (titled **Start another import** once a
    preview exists).
@@ -374,7 +381,7 @@ preview is clean because the page you are on looks clean.
 Commit only after an officer confirms the whole preview against both the class
 workbook and the Spring 2026 application responses.
 
-The commit control names what it is about to do: **Verify source and commit** on
+The application control is **Add applications** on
 a first commit, **Resume import** when an earlier commit of this preview stopped
 part-way, **Finish import** when nothing is left to write, and **Committed**
 afterwards. It stays disabled while the preview is not sealed, while rows still
@@ -455,8 +462,8 @@ application form and this sequence:
    reconciliation are two separate audited actions: reconciliation records the
    selected target, actor, reason, and immutable source-row history. Name
    similarity alone is not evidence.
-6. Resolve or explicitly skip every row, then select **Verify source and
-   commit**. A targetless application row cannot be committed. Commit attaches
+6. Resolve or explicitly skip every row, then select **Add applications**.
+   A targetless application row cannot be committed. Commit attaches
    the application to the reviewed profile with source provenance; it does not
    decide the application or create term membership.
 7. Open **Applications → Review queue**, complete the required checks and dues
