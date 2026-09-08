@@ -10,6 +10,70 @@ evidence and does not override the current tables or release gates.
 
 ## Release continuation, 2026-09-05
 
+### Development credential verification, 2026-09-07
+
+Tooling commit `5594572dea3cd2d92a2bd76d1620830e8f4ec519` reached
+`development` without a new PR or deployment marker. Its hosted acceptance job
+correctly skipped. One configuration-only redeployment,
+`dpl_AeV3QCXGTexX5oupuYBMFPHuKSAF`, reached READY and serves
+`dev.lets-assist.com` at accepted application SHA `e8e4c63b`. Production's
+application and database were not changed.
+
+Run `34174136150` proved the replacement Development workbook key authenticates
+with processing disabled. Run `34174172884` invoked preparation once and received
+HTTP 503. Job `63bfc5fb-6738-4564-8dc4-69c1cf0fe4e5` recorded attempt 1 but
+no completion receipt, sources, or previews. Do not invoke it again without
+resolving that outcome. The generation assertion passed while its lease was
+active. The fictional class has only F26 configured, an independent fixture
+gap before the four historical populated tabs can pass acceptance. The exact
+cause of the unfinished worker receipt remains under diagnosis.
+
+Audited control receipts `7dfe3b87-2732-4a52-9501-c494e869f698` and
+`bbeb7e0c-17e7-4c17-95e5-065f148baaf8` enabled and then disabled only workbook
+refresh. Revision 2 leaves every worker disabled. The checker also used the
+wrong active-job label, `processing` instead of `running`; a failing regression
+now passes with the corrected query. All eight focused checker tests pass.
+That correction remains local for the next grouped tooling update.
+
+The app's source recheck subsequently found provider version `10` and queued
+job `94d723d1-d0f7-4c77-839d-b3051473d0ba`. The previous job had frozen
+version `9`. A guarded invocation of the existing queue function settled only
+that expired old generation as `blocked/stale_workbook_generation`, preserving
+attempt 1 and creating no new claim. This establishes stale source evidence,
+although the original 503 did not retain its internal failure stage.
+
+The signed-in fictional officer added the seven missing semester records through
+the app's repair form. Database verification confirms all eight source terms,
+with only F26 current. No profiles, participation, or application decisions were
+created by those setup actions. Run `34174922514` now checks the fresh version-10
+job. It passed: authenticated HTTP response and durable receipt both report
+one claim, four prepared populated tabs, four templates, and zero blocked tabs.
+Control receipt `6ee45649-7ad1-47a0-a93e-5920e75fd83d` returned every worker
+to disabled at revision 4. No new build was needed for these operations.
+
+Browser review then exposed a separate row-level refusal. The F24 source's
+column O is All Reqs Met, calculated with IF/AND from activity slots and meeting
+attendance. It is not a points total. The preview rejects every F24 row because
+that retained status field contains a formula. The other populated previews
+also require row review. Preparation completion does not prove row commit
+readiness. Preserve calculated-status provenance without converting it into an
+application approval; diagnose the rule before rebuilding or committing.
+
+The local formula fix passes 49 focused parser and preview tests, all 273
+private-plugin test files, TypeScript, and zero-warning lint. Recognized
+calculated completion markers are accepted only in a separate class-history
+field. Shared identity/contact/activity/meeting mappings do not get this
+exception. Protected source evidence records the original coordinate and
+whether the value came from a formula. Application formulas and spreadsheet
+errors remain blocked. Chrome access is restored in the Riddhiman profile;
+the deployed preview still has the old refusal. No test rows were committed
+and no Production change was made during this fix.
+
+Private PR #265 passed CI `34176034001` and merged into private Development
+at `7daadc1f2786b39ebaffd58c5bf8ea187ae0f477`, with the tested tree from
+`da1ca26bcac527608d5f3d640e3edbed16e58593`. The local plugin verification gate
+also passed. Root integration and hosted formula acceptance remain open.
+
 ### Hosted performance acceptance passed, 2026-09-07
 
 Run `34171163941` completed successfully on exact Development SHA
@@ -18,14 +82,14 @@ The fifteen-minute load used 90 member and ten officer sessions with 100 distinc
 authentication identities. All 9,737 requests succeeded. Aggregate read p95 was
 1,341.321 ms and p99 1,678.441 ms; mutation p95 was 1,836.776 ms.
 
-| Read route | Requests | p95 ms | p99 ms |
-| --- | ---: | ---: | ---: |
-| Member activities | 2,930 | 1,025.489 | 1,401.613 |
-| Member Home | 2,923 | 1,155.432 | 1,576.706 |
-| Member profile | 2,925 | 1,044.085 | 1,340.062 |
-| Officer applications | 320 | 1,903.888 | 2,351.504 |
-| Officer classes | 319 | 1,577.239 | 1,907.527 |
-| Officer Home | 320 | 1,478.444 | 2,100.110 |
+| Read route           | Requests |    p95 ms |    p99 ms |
+| -------------------- | -------: | --------: | --------: |
+| Member activities    |    2,930 | 1,025.489 | 1,401.613 |
+| Member Home          |    2,923 | 1,155.432 | 1,576.706 |
+| Member profile       |    2,925 | 1,044.085 | 1,340.062 |
+| Officer applications |      320 | 1,903.888 | 2,351.504 |
+| Officer classes      |      319 | 1,577.239 | 1,907.527 |
+| Officer Home         |      320 | 1,478.444 | 2,100.110 |
 
 Thirty measured browser samples produced LCP p75 1,400 ms, INP p75 32 ms,
 and CLS p75 0.000816247. All 25 review navigations completed without a crash,
@@ -3456,11 +3520,12 @@ hosted Development verification.
 | AUD-121 | P1 | Direct server table updates could record point decisions without canonical review evidence or a request receipt. | CSF point review database | Forward migration `20260906073357` removes runtime UPDATE grants. Canonical server-role approval/retry and direct-write refusal pass. The release query rejects restored table or column grants. Merged and hosted-accepted at `60825d2d`; Production remains open. |
 | AUD-122 | P1 | Removing runtime point UPDATE permission breaks the local fixture upsert. | Isolated fixture seeder | The awaited fictional fixture reset now precedes INSERT instead of upsert. All 31 seed tests, fresh seed, and reseed pass with the same four point rows. CI `34021317555` and hosted acceptance `34021315408` passed on merged `60825d2d`. |
 | AUD-123 | P2 | Identity reconciliation accepts rows before preview preparation finishes. | CSF import review | Six failures reproduce matches and audit writes on pending, running, failed, and cancelled previews. Forward migration `20260906085350` adds the locked preview-state check. The final full replay passes 460 migrations and 7,159 assertions, the exact release catalog, and all ten permission/trigger drift refusals. Hosted and Production rollout remain open. |
-| AUD-124 | P2 | The browser suite skips the retired historical roster importer but does not replace it with a full class-workbook prepare, review, and commit journey. | CSF browser acceptance | Run `34093192415` passed 87 tests but skipped this legacy test plus three optional galleries. The replacement test checks only that the retired button is absent and the Linked spreadsheet heading is present. Database import tests remain separate evidence. Add a fictional journey through the current workbook flow; do not re-enable the obsolete roster UI to satisfy the test. Live officer verification remains open while the Mac is locked. |
+| AUD-124 | P2 | The browser suite skips the retired historical roster importer but does not replace it with a full class-workbook prepare, review, and commit journey. | CSF browser acceptance | Run `34093192415` passed 87 tests but skipped this legacy test plus three optional galleries. The replacement test checks only that the retired button is absent and the Linked spreadsheet heading is present. Live Chrome access is restored. The fictional workbook is linked with eight terms and preparation passed in run `34174922514`. Review exposed AUD-129; commit and unchanged repeat-sync remain open. Database tests are separate evidence. |
 | AUD-125 | P2 | Classes computes the Terms-only closure readiness preflight, which averages about 1,094 ms in Development database statistics. | CSF route performance | Fixed and verified in hosted Development on `e8e4c63b` with private `ef8cce1`. Run `34171163941` reports Classes p95 1,577.239 ms and Applications p95 1,903.888 ms across 100 distinct sessions, with zero errors. Terms authorization and lifecycle checks remain intact. The prior failed measurements remain recorded. Production promotion is still open. |
 | AUD-126 | P2 | A cancelled email campaign still shows a review-blocked notice after every refused attempt received a final officer determination. | CSF communications UI | Fixed locally with a shared display predicate. Six rendered cases preserve unresolved-receipt warnings even for terminal campaigns while removing historical holds from resolved terminal history. Five cases failed before the fix. No receipts, campaign states, or retry controls changed. TypeScript, lint, and all 271 private-plugin test files pass. Hosted verification remains open. |
 | AUD-127 | P2 | Application course parsing treated standalone empty answers as course names, hiding missing course data. | CSF application import | Eight fictional tests failed before the local parser fix. The supplied Fall export contained 59 such course cells; 16 responses now expose missing course data. Raw source evidence and paired-grade positions remain intact. Focused tests, TypeScript, and zero-warning lint pass. Hosted acceptance and grouped Production release remain open. |
-| AUD-128 | P1 | Vercel metadata showed a general `CRON_SECRET` shared across local Development, Preview, and Production, despite separate dedicated CSF worker keys. | Provider environment isolation | Configuration repaired. Hosted Development and local development now have independent cron values; the existing Production value remains scoped only to Production. GitHub Development stores its matching cron and dedicated workbook/import keys. Runtime verification remains open because existing deployments retain their previous environment. No current worker state changed. |
+| AUD-128 | P1 | Vercel metadata showed a general `CRON_SECRET` shared across local Development, Preview, and Production, despite separate dedicated CSF worker keys. | Provider environment isolation | Configuration repaired. Development and local development have independent cron values; the existing Production value stays Production-only. GitHub Development stores matching cron and dedicated workbook/import keys. Development deployment `dpl_AeV3QCXGTexX5oupuYBMFPHuKSAF` uses the replacement configuration. Workbook authentication and one fictional preparation passed. Dedicated import authentication and cross-environment cron refusal remain open. Development workers are disabled at revision 4. |
+| AUD-129 | P1 | Computed All Reqs Met cells block complete class-history rows. The live fictional workbook produced 652 error rows despite successful tab preparation. | CSF formula and import review | Fixed locally, hosted verification open. Recognized calculated markers retain coordinate and formula-origin evidence in a separate class-history field. Shared mappings, application formulas, and spreadsheet errors stay blocked. All 273 private test files, TypeScript, and zero-warning lint pass. All four populated tabs and four templates prepared in run `34174922514`; no rows were committed. |
 
 ## Production release evidence, September 6, 2026
 
