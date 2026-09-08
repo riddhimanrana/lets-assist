@@ -132,7 +132,7 @@ export async function checkWorkbookWorker(env, fetchImpl = fetch) {
     );
     const jobs = await readTable(
       "csf_class_workbook_refresh_jobs",
-      "select=id,organization_id,workbook_id,drive_file_id,provider_version,status,attempt_count&status=in.(queued,processing)&limit=2",
+      "select=id,organization_id,workbook_id,drive_file_id,provider_version,status,attempt_count&status=in.(queued,running)&limit=2",
     );
     queue = { workbookId, jobId, workbooks, jobs };
     validateWorkbookQueue(queue);

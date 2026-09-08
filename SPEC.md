@@ -11,11 +11,22 @@ DVHS CSF officer UX → class-first Home → Classes → Applications → More; 
   LCP p75 is 1.400 seconds, INP p75 32 ms, CLS p75 0.000816,
   25 review navigations completed without crashes, and retained heap fell 11.01%.
   The earlier failed measurements remain below as historical evidence.
-  The synthetic eight-tab workbook is linked in Development with preparation
-  queued. Its one-time worker checker passes eight focused tests; live worker
-  preparation, commit/repeat, official application reconciliation, and Production
-  release remain open. Replacement Development workbook/import credentials are
-  saved in Vercel and GitHub for the next grouped deployment, not active yet.
+  Configuration-only Development redeployment `dpl_AeV3QCXGTexX5oupuYBMFPHuKSAF`
+  serves the same accepted SHA with the replacement worker credentials.
+  Disabled-worker authentication passed in run `34174136150`. Preparation run
+  `34174172884` returned 503 after claiming the fictional workbook once. Its
+  version-9 receipt later settled as blocked/stale_workbook_generation after
+  an app recheck found version 10. Seven audited semester repairs completed the
+  fictional class setup. Run `34174922514` then passed preparation of all four
+  populated tabs and four empty templates on version 10, one attempt, no blocked
+  tabs. All workers are disabled at revision 4. Row review exposed calculated
+  All Reqs Met cells blocking otherwise populated rows. The local fix accepts
+  recognized markers only in a separate class-history field, preserves formula
+  provenance, and keeps identity, meeting, and application formulas blocked.
+  All 273 private test files, TypeScript, and zero-warning lint pass.
+  Private PR #265 passed CI `34176034001` and merged at `7daadc1`.
+  Hosted formula verification, commit/repeat, official application
+  reconciliation, and Production remain open.
 - Private PR #263 passed CI and merged at `8e443de`, with the same tree as
   `c0fe247`. The full local run passed 86 cases and exposed two profile-history
   test failures. Explicit semester selection fixed the starting-state

@@ -156,6 +156,7 @@ test("preparation calls the worker once and requires its saved completion receip
   expect(requests.filter((url) => url.includes("/api/cron/"))).toEqual([
     "https://dev.lets-assist.com/api/cron/csf-class-workbook-refresh",
   ]);
+  expect(requests[3]).toContain("status=in.(queued,running)");
 });
 
 test("a lost worker response reads its receipt without calling the worker again", async () => {
@@ -229,7 +230,7 @@ test("stale release or mismatched runtime controls prevent the worker call", asy
 test("missing completion or changed receipt never reports preparation success", async () => {
   for (const mutate of [
     (row: ReturnType<typeof responseFixture>[5][number]) => {
-      row.status = "processing";
+      row.status = "running";
     },
     (row: ReturnType<typeof responseFixture>[5][number]) => {
       row.workbook_id = "other";
