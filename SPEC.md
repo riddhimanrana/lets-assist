@@ -4,6 +4,29 @@ DVHS CSF officer UX → class-first Home → Classes → Applications → More; 
 
 §C
 
+- Source-authorized new-applicant creation is implemented locally through the
+  existing audited profile and row-reconciliation transactions. Calls create up
+  to 50 unclaimed profiles, keep form emails unverified, and make no application
+  decision or semester membership. Existing identities and conflicting contact
+  evidence stay in review. The worker prepares profiles before freezing its
+  commit scope, with bounded work and durable retry receipts. Rollback-only
+  database tests pass for single-row and 51-applicant cases. Production and the
+  complete import/release acceptance remain unfinished.
+- Application repeat sync now preserves a successful same-file profile connection
+  through unchanged receipts, with exact semester/class and identity-evidence
+  checks. It does not treat form email as verified account identity. Provider-file
+  changes invalidate retry scope; target changes prevent an unchanged-row skip.
+  Forty-six focused checks pass. New-profile automation and live Production
+  reconciliation remain unfinished. No deployment or Production mutation ran.
+- Local automatic application updates now run through the existing authenticated
+  workbook route and disable switch. Officers can enable or pause them in the
+  Sheet dialog after reviewing a sealed mapping. Unknown saves require a saved
+  state check before retry; stale responses cannot change the current selection.
+  Thirty-two focused tests, TypeScript, zero-warning lint, and all 290 private
+  plugin test files pass. Historical applications across all available chapter
+  sources, including alumni, still require Production reconciliation. No local
+  result establishes that those applications are imported. Automatic new
+  identities, class-workbook integration, full replay, and release remain open.
 - Root CI `34189124828` passed on `1b530a27` with private `fd9f837`:
   quality, database replay, 87 CSF browser passes, and three DV browser passes.
   Four CSF skips remain, and Communications navigation passed only on retry.
@@ -419,6 +442,42 @@ V80: the runtime server role cannot update point submissions through table or co
 
 V81: identity reconciliation locks the source preview before its row and requires completed or needs_resolution state. Pending, running, failed, cancelled, and commit-mode jobs cannot receive identity matches or skips. A repeated identity decision rechecks the current preview state before returning its result. Refusal changes neither row state nor audit history.
 
+V82: officer workbook recovery stops only queued imports with zero attempts, no start time, and no lease. Running work and unknown outcomes refuse recovery. It preserves source rows, completed and failed receipts, and queue history. One stable request records the stopped queue IDs and fresh preparation receipt. Stopped previews remain frozen and become retry lineage, never editable originals.
+
+V83: an officer may authorize ongoing safe updates for one linked source, mapping version, and explicitly reviewed preview. The scope covers future rows in the selected columns and tabs. Changed headers require mapping review. Every automatic commit claim and row write rechecks the saved consent generation, source revision, and approving officer. An automatic approval records the exact ready row IDs, source and payload hashes, and profile, class, and semester targets. Later-resolved rows require a new approval; they cannot enter an older batch. Pause stops further writes from an already-prepared preview. Existing links keep their prior authorization. Revoked permissions, changed identity evidence, uncertain AI mapping, and conflicting officer corrections block affected rows. Source deletion never deletes member history.
+
+V84: chapter-wide application linking preserves each response's class and source semester, including alumni. The linking action may create a missing review period only with review-period permission. It never reopens a closed period or turns imported responses into approved applications.
+
+V85: saving a workbook-to-profile link requires explicit officer intent, the exact workbook and class, and one consistent prior source identity. Ordinary name matching creates no reusable link. Later semesters may reuse only an active reviewed link with unchanged source identity and no contact conflict. Revocation returns future unresolved rows to review. A retry never reactivates a revoked link.
+
+V86: an active source authorization may create an unclaimed application profile only when its approving officer still has import and profile-management permission. Source evidence must pass the ordinary import checks. Record and commit-payload names must normalize identically, and the class must have the source semester configured. Existing name/contact candidates, duplicate responses, invalid targets, and unknown write outcomes require review. Each profile creation and row match is atomic and audited under the source authorization, without canonical email, application approval, or semester membership. Calls check locked candidates in order, stop after 50 profile creations, and never add targets to an already-frozen approval.
+
+V87: a known blocked semester does not prevent unrelated workbook terms from preparing. The blocked term retains its existing receipts and remains in review. A finished preparation cycle records prepared, template, and blocked counts separately; it does not claim that every row imported. Unknown publication results, retryable provider failures, and expired worker authority still stop the generation without claiming completion.
+
+V88: automatic class workbook metadata checks require explicit current source consent and both the source and workbook leases. Semester links share the workbook's five-minute check interval. The worker uses the Google owner's access while retaining the authorizing officer separately. An unchanged prepared revision creates no refresh job. A changed revision queues existing preparation, not a profile or application write. Pause, permission loss, another organization, and stale leases cannot advance the workbook version. Metadata settlement never advances the prepared-preview checkpoint.
+
+V89: authorized class row growth does not rewrite the saved mapping or its version. Retain the reviewed columns, point rules, and caller settings when the file, owner, class, semester, header position, and column bounds remain unchanged. Expand only the preview's row bounds within the existing cell limit. A changed active mapping or failed consent read stops registration before overwriting the source. New manual sources retain manual behavior.
+
+V90: automatic class approval distinguishes the Google owner who prepared the preview from the officer who authorized updates. Both retain current organization permission. The preview must belong to the completed workbook generation with matching source, owner, provider version, reviewed headers, and consent generation. Advance its prepared checkpoint and queue safe rows in one transaction; a refusal rolls both back. Old manual previews never acquire automatic authority through this entry point, and empty previews create no rows or approval receipt.
+
+V91: the existing workbook worker discovers completed automatic class previews durably, without relying on the original preparation response. It dispatches at most eight previews per run. A saved source checkpoint prevents repeat dispatch. Review-only or explicitly blocked terms do not prevent another term from dispatching. Unknown database outcomes stop the run without repeating the call; future work reads the persisted checkpoint and queue receipts. Worker responses contain counts only and obey the existing disable switch.
+
+V92: a populated automatic class commit retains exact activity labels and points, shares one catalog definition across participating profiles, and links attendance to the named semester meeting. Replaying a saved batch request creates no duplicate profiles, participation, attendance, or row receipts. Finalization reports successful rows beside unresolved siblings as partially completed, without hiding the remaining officer review.
+
+V93: class Settings exposes source consent beside each linked semester using the existing audited enable and pause actions. Enabling requires a sealed preview of that exact source file and current mapping version, plus explicit officer confirmation. A stale or absent preview still permits pausing saved authorization. Closed controls perform no authorization-status reads. Semester consent does not authorize other tabs or change old manual links on page load.
+
+V94: refreshing a paused, blocked, disconnected, or manual class source preserves saved column corrections, point rules, duplicate policy, and caller settings when its file, owner, class, semester, and column layout still match. Only the detected row range and population state change, with the ordinary mapping-version increment. Retaining settings grants no automatic authority. Incompatible layouts require review before registration can replace the saved mapping.
+
+V95: known class mapping drift records a source-scoped review notice and blocks only that semester's registration and preview. Preserve its old sources during cleanup. Other terms can finish preparation, and the workbook result lists registered and blocked terms separately. Failed reads, lost authority, or failure to persist the review notice still stop the generation without claiming completion.
+
+V96: the follow-up migration controller accepts only the reviewed eight-file tail after the exact 460-version Production prefix. Pin every file's bytes. A matching ledger alone cannot settle a release with a different schema catalog or permissions. Keep workers disabled, submit the transaction once, and resolve a lost response through reads without resending it. Controller test success does not authorize deployment of an unaccepted application candidate.
+
+V97: class Settings offers approval and row review only for a sealed preview matching the current source file and mapping version. An outdated preview shows a preparation notice and triggers no readiness or queue reads. Keep prior successful commits visible as history. An in-progress preview does not fall back to an older approval candidate.
+
+V98: an authorized profile merge carries active reviewed workbook links to the surviving profile in the same transaction. Preserve the original officer, source key, review row, reason, and request identifier. Retain the full pre-merge link in the protected audit. Revoked links stay attached to the original profile. The existing merge identity checks and request receipt remain authoritative; a reviewed workbook link does not permit a name-only merge.
+
+V99: an officer can explicitly extend a reviewed class layout to matching canonical semester tabs in the same class workbook. Older source consent does not expand. New tabs retain the original officer, Google owner, reviewed header signature, and parent consent generation. Different columns, point rules, classes, workbooks, or owners require review. Parent pause or permission loss invalidates inherited authority before any row write. A separately reviewed child tab can become independently authorized. No source deletion removes student history.
+
 §T
 
 id|status|task|cites
@@ -468,6 +527,10 @@ T43|~~|add and verify an app-only release controller, publish the already accept
 T44|~~|implement exact full-account-name confirmation, policy-versioned tokens, connection provenance, replay/access checks, officer revocation, and synthetic database/browser acceptance in one follow-up release|V5,V17,V23,V27,V43,V45,V72,I.route,I.service,I.db,I.cmd
 
 T45|~~|replace per-worker rebuilds with audited runtime switches, verify permissions and receipt recovery, and repair the explicit Production build-policy override before the grouped follow-up release|V18,V51,V60,V71,V73,I.cmd,I.db
+T46|~~|recover blocked workbook queues through audited officer intent, prove fresh review and unchanged repeat sync, and preserve every earlier receipt|V47,V67,V77,V82,I.db,I.service,I.cmd
+T47|~~|authorize ongoing source updates explicitly, add bounded due-source processing, and verify pause, revoked permission, changed mappings, and mixed safe/conflicting rows|V47,V65,V66,V83,I.db,I.service,I.cmd
+T48|~~|finish chapter-wide historical and Fall 2026 application reconciliation, missing review-period setup, account linking, and officer access acceptance|V5,V62,V75,V84,I.db,I.service,I.route,I.cmd
+T49|~~|save and revoke reviewed cross-semester workbook profile links, integrate officer controls, and prove identity conflicts and retry behavior before release|V14,V47,V81,V85,I.db,I.service,I.route,I.cmd
 
 §B
 

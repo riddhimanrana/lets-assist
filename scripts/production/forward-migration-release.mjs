@@ -22,6 +22,30 @@ export const approvedMigrations = [
     "20260908020559_csf_requirement_source_evidence",
     "68939485d2ea31b9e65b7853f1918dbecb36e7f6d2ca547da5ee8274a9882464",
   ],
+  [
+    "20260908075029_csf_workbook_import_recovery_request",
+    "c703d28cd0d7d2968944c0bdb3dd623508cefb441cb4ec7ad86813c3d462ad13",
+  ],
+  [
+    "20260908081328_csf_application_source_review_period",
+    "9af9de1529b0bcbc39a1d137e9c7292f7808698adf0ab512d954354b52bfee30",
+  ],
+  [
+    "20260908084338_csf_reviewed_workbook_profile_links",
+    "91946abbb6c305716060bc185bc5516ebb0ae2a590652adb4018831489718e73",
+  ],
+  [
+    "20260908090508_csf_sheet_automatic_update_authorization",
+    "73208262cd29811406d047d4a7dc5a2f040b2baefb7a1a9f531c8ff9bb1f308d",
+  ],
+  [
+    "20260908135756_csf_reviewed_workbook_link_merge_ownership",
+    "da88367fb65b095f2206718c156ded7e4c40073ebbf410546ff2b2e868b2e342",
+  ],
+  [
+    "20260908141739_csf_workbook_matching_tab_authorization",
+    "c364e525e909d2f4c7213e45a0b18b39a337dcf744b9ceb0995a0fe8265d78d3",
+  ],
 ];
 
 const literal = (value) => `'${value.replaceAll("'", "''")}'`;
