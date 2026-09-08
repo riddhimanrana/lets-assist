@@ -1,6 +1,9 @@
 import { expect, test } from "bun:test";
 import { readFileSync } from "node:fs";
-import { checkImportWorker } from "./check-csf-import-worker.mjs";
+import {
+  checkImportWorker,
+  validateImportReceipts,
+} from "./check-csf-import-worker.mjs";
 
 const org = "c5f11000-0000-4000-8000-000000000001";
 const queueId = "00000000-0000-4000-8000-000000000001";
@@ -8,6 +11,15 @@ const previewId = "00000000-0000-4000-8000-000000000002";
 const sourceId = "00000000-0000-4000-8000-000000000003";
 const fileId = "12yHSQXsMi69SN7qxw2OZ0Km59Kb17IOaUln-bb7-viE";
 const sha = "a".repeat(40);
+const batch = [
+  { queueId, previewId, sourceId, rowCount: 4 },
+  {
+    queueId: "00000000-0000-4000-8000-000000000004",
+    previewId: "00000000-0000-4000-8000-000000000005",
+    sourceId: "00000000-0000-4000-8000-000000000006",
+    rowCount: 4,
+  },
+];
 const env = {
   ACCEPTED_SHA: sha,
   CSF_IMPORT_CHECK_MODE: "commit-test",
@@ -33,6 +45,9 @@ function harness(
     unknownRow?: boolean;
     disabled?: boolean;
     wrongSha?: boolean;
+    batch?: boolean;
+    foreignPeer?: boolean;
+    wrongOrder?: boolean;
   } = {},
 ) {
   let sends = 0;
@@ -88,6 +103,29 @@ function harness(
       });
     }
     if (url.includes("/csf_import_commit_queue?")) {
+      if (options.batch) {
+        const records = batch.map((item, index) => ({
+          ...queue,
+          id: item.queueId,
+          preview_job_id: item.previewId,
+          organization_id: options.foreignPeer && index === 1 ? "other" : org,
+        }));
+        if (url.includes("status=in.")) {
+          const active = records.slice(sends);
+          return Response.json(options.wrongOrder ? active.reverse() : active);
+        }
+        const id = new URL(url).searchParams.get("id")?.slice(3);
+        return Response.json(
+          records
+            .filter((row) => row.id === id)
+            .map((row) => ({
+              ...row,
+              status: "completed",
+              attempt_count: 1,
+              error_code: null,
+            })),
+        );
+      }
       if (url.includes("status=in."))
         return Response.json(
           options.duplicate ? [queue, { ...queue, id: previewId }] : [queue],
@@ -97,22 +135,30 @@ function harness(
       ]);
     }
     if (url.includes("/csf_sheet_import_jobs?"))
-      return Response.json([
-        {
-          id: previewId,
-          organization_id: org,
-          source_id: sourceId,
-          source_file_id: fileId,
-          source_type: "application_responses",
-          mode: "preview",
-          status: "needs_resolution",
-          snapshot_row_count: 4,
-        },
-      ]);
+      return Response.json(
+        (options.batch ? batch.slice(sends) : batch.slice(0, 1)).map(
+          (item) => ({
+            id: item.previewId,
+            organization_id: org,
+            source_id: item.sourceId,
+            source_file_id: fileId,
+            source_type: "application_responses",
+            mode: "preview",
+            status: "needs_resolution",
+            snapshot_row_count: 4,
+          }),
+        ),
+      );
     if (url.includes("/csf_sheet_sources?"))
-      return Response.json([
-        { id: sourceId, organization_id: org, drive_file_id: fileId },
-      ]);
+      return Response.json(
+        (options.batch ? batch.slice(sends) : batch.slice(0, 1)).map(
+          (item) => ({
+            id: item.sourceId,
+            organization_id: org,
+            drive_file_id: fileId,
+          }),
+        ),
+      );
     if (url.includes("/csf_sheet_import_rows?"))
       return Response.json(
         Array.from({ length: 4 }, (_, index) => ({
@@ -135,6 +181,56 @@ test("one authorized call requires queue settlement and every row outcome", asyn
     completedRows: 4,
   });
   expect(run.sends()).toBe(1);
+});
+test("a frozen batch verifies each receipt before advancing to the next preview", async () => {
+  const run = harness({ batch: true });
+  expect(
+    await checkImportWorker(
+      { ...env, CSF_TEST_IMPORT_RECEIPT: JSON.stringify(batch) },
+      run.fetcher,
+    ),
+  ).toMatchObject({
+    completedRows: 8,
+    completedPreviews: 2,
+    authenticated: true,
+  });
+  expect(run.sends()).toBe(2);
+});
+test.each(["foreignPeer", "wrongOrder"] as const)(
+  "%s blocks the entire batch before dispatch",
+  async (flag) => {
+    const run = harness({ batch: true, [flag]: true });
+    await expect(
+      checkImportWorker(
+        { ...env, CSF_TEST_IMPORT_RECEIPT: JSON.stringify(batch) },
+        run.fetcher,
+      ),
+    ).rejects.toThrow();
+    expect(run.sends()).toBe(0);
+  },
+);
+test.each(["lost", "unknownRow"] as const)(
+  "%s stops a batch after one call without advancing or retrying",
+  async (flag) => {
+    const run = harness({ batch: true, [flag]: true });
+    await expect(
+      checkImportWorker(
+        { ...env, CSF_TEST_IMPORT_RECEIPT: JSON.stringify(batch) },
+        run.fetcher,
+      ),
+    ).rejects.toThrow();
+    expect(run.sends()).toBe(1);
+  },
+);
+test("rejects empty, duplicate, malformed, and oversized receipt lists", () => {
+  for (const receipts of [
+    [],
+    [batch[0], batch[0]],
+    [{ ...batch[0], rowCount: 1001 }],
+    [{ ...batch[0], sourceId: "other" }],
+  ]) {
+    expect(() => validateImportReceipts(receipts)).toThrow();
+  }
 });
 test.each(["foreign", "duplicate", "attempted", "wrongSha"] as const)(
   "%s preflight never starts a worker",
