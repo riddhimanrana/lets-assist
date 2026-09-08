@@ -2232,6 +2232,105 @@ sources.
 
 ### Application Sheet dialog follow-up, 2026-09-07
 
+The fictional class Settings batch action queued all four ready semester
+previews together: F24 163, S25 129, F25 193, and S26 167 rows. Empty future
+tabs produced no queues. Frozen receipt pairs in claim order are
+`0d9c15ed-7b1f-46ac-86d4-c1817fd2d617` / `20987e0e-69a9-4314-9cf6-2e09782edb87`,
+`43cdfeec-b0ea-44e2-93a3-44b1336def74` / `218c11c0-d6fb-4d0c-8dd8-898311aa303d`,
+`6304f142-7fd0-4977-9b21-f15cb27d9831` / `56cabdc9-9a41-4773-a5aa-808f334ea151`,
+and `982095ef-34be-4521-83ac-8093d9376f22` / `8d8d5e30-a449-4d14-9040-eab1e4a4ec2c`.
+All remain untouched, attempt zero, with workers disabled.
+
+The local Development verifier now accepts a frozen list of up to eight
+fictional receipts and 1,000 total rows. Before each worker call it checks every
+remaining queue, source, preview, and claim order. It advances only after the
+previous HTTP response and every row receipt confirm completion. A lost
+response or unresolved result stops the batch without another call. All 15
+verifier tests pass with 126 assertions; targeted zero-warning lint passes.
+The verifier change is not published yet, so the 652-row live commit remains
+pending. This is test tooling, not a change to the application import worker.
+
+Fictional Spring commit run `34192368538` passed on Development `90cdcbcd`:
+authenticated HTTP response, verified receipt, four completed rows, no response
+recovery. Queue `6f1f1177-90d4-4785-b213-64756869ab58` completed on attempt one
+without an error. Each of Classes 2026, 2027, 2028, and 2029 has one created
+application row in S26. The rendered result survives reload and shows four
+created, zero updated, unresolved, or failed rows. The import worker was disabled
+afterward through receipt `0a824efb-0419-47a7-b9ea-e4c229023148`; revision four
+has every worker disabled. No Production state changed.
+
+The saved source's Preview action then prepared unchanged Spring preview
+`d4d0e844-f65b-4ab3-b408-0f5fd67e3cbb`. All four rows are superseded, with no
+ready rows or new commit. P2: the UI incorrectly presents this successful no-op
+as "Preview ready to verify" and "Import blocked. No ready rows remain in this
+preview", with Existing zero. It should present an already-current state and
+include settled prior rows in its existing count without enabling another
+commit. Keep true identity/source blockers separate from this no-op state.
+The local presentation correction now shows Already up to date only for a
+sealed, nonempty, entirely superseded preview with no commit or recovery work
+and no blocker other than zero pending rows. Existing counts use the whole
+preview's committed plus superseded totals instead of parse-time profile-match
+summaries. Commit blockers and server actions are unchanged; the button remains
+disabled. Eighty-five focused tests pass with 325 assertions, along with
+TypeScript and full zero-warning lint. These edits remain local on the reused
+private review branch; no follow-up deployment was requested.
+
+Root CI `34190860719` passed on
+`af9be274631a332309862bcf9b690a8bd79369f3`: quality, database replay, scale checks,
+88 CSF browser tests, and three DV browser tests. Four documented optional or
+retired cases remain skipped; this run reports no flaky browser result. Existing
+PR #494 merged to Development at `90cdcbcd38ee282f0f127fd170bc38b9cce4e0d1` with
+an identical tree and private gitlink `b2b9339`. The release marker started
+hosted acceptance `34191905027` and Development provider check `34191904207`.
+Neither a READY deployment nor hosted acceptance has been verified for this
+SHA yet. No Production promotion or additional application build was requested.
+
+Development deployment status subsequently passed for `90cdcbcd`; provider
+check `34191904207` passed and hosted acceptance reached its load run. The
+signed-in fictional tenant now renders the Application Sheet modal and the
+saved Spring preview as ready. Disabled import-worker check `34192142018`
+passed with `authenticated: true`, `receiptVerified: false`, and zero completed
+rows. It verified the exact served SHA and all workers disabled.
+
+Clicking Add applications once created audited queue
+`6f1f1177-90d4-4785-b213-64756869ab58` for fictional Spring preview
+`39f20e7a-62a5-4145-b730-a5b543c2a26b`, source
+`f2eabc7f-2056-4864-8ec6-76608746f26a`, four rows. The UI displayed an explicit
+queued receipt. The database reports this as the only active import queue,
+with zero attempts and no error. Worker controls for this SHA remain revision
+zero, all disabled. No applications have been committed by this action and
+the officer approval state has not changed. The one-shot commit check remains
+the next acceptance step.
+
+Production count-only recheck on 2026-09-07: the latest class-history previews
+contain 1,743 successful rows, 166 superseded rows, and one skipped row. Every
+superseded row has a successful receipt matching organization, source, tab,
+row number, and immutable row hash. Thus 1,909 source rows have exact successful
+receipt coverage across Class of 2027 (1,107), 2028 (652), and 2029 (150).
+These counts are source rows, not unique profiles or active memberships. Empty
+Class of 2030 tabs add no rows. This check did not repeat sync or resolve the
+remaining skip, and does not prove unchanged-source idempotency.
+The skipped Class of 2027 Fall 2024 row has no reason code, notes, or officer
+resolution receipt. It remains an explicit exception requiring protected
+source review, not an accepted intentional skip.
+The same read-only audit counts 4,434 activity events, all with nonempty labels
+and catalog links in the same organization and term. No duplicate non-null
+catalog source identity keys exist within an organization and term. This checks
+current relationships, not equality against a fresh Drive snapshot.
+The signed-in Production Class of 2027 Settings page exposes completed term
+counts but no review action for this historical skipped row. The current source
+has an audited `skipCsfSheetImportRowAction` requiring a reason, but Settings
+selects review rows from unresolved/error counts. Do not use duplicate
+consolidation or reimport successful rows to manufacture a skip receipt. The
+officer exception path still needs verification before closing this item.
+
+The latest saved application previews still contain 588 rows: Spring 2026 has
+517 and Fall 2026 has 71. Of these, 585 are ambiguous, two have conflicts, and
+one is pending; none has started a commit. Source semester and class mappings
+remain separate, including 85 Spring alumni rows for Class of 2026. The current
+Drive revision still needs comparison before these saved previews can support
+an officer commit. No Production write occurred during this audit.
+
 The final combined local run passes across 306 root and 307 plugin test files
 with private merge `b2b9339`, including the saved-tab recheck guard. Full lint,
 TypeScript, strict gitlink validation, and all 21 operator documentation checks

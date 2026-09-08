@@ -10,6 +10,31 @@ function requireCondition(value, message) {
   if (!value) throw new Error(message);
 }
 
+export function validateImportReceipts(receipts) {
+  requireCondition(
+    Array.isArray(receipts) &&
+      receipts.length > 0 &&
+      receipts.length <= 8 &&
+      receipts.every(
+        (receipt) =>
+          receipt &&
+          [receipt.queueId, receipt.previewId, receipt.sourceId].every((id) =>
+            UUID.test(id ?? ""),
+          ) &&
+          Number.isSafeInteger(receipt.rowCount) &&
+          receipt.rowCount > 0,
+      ) &&
+      receipts.reduce((total, receipt) => total + receipt.rowCount, 0) <=
+        1000 &&
+      new Set(receipts.map((receipt) => receipt.queueId)).size ===
+        receipts.length &&
+      new Set(receipts.map((receipt) => receipt.previewId)).size ===
+        receipts.length,
+    "A bounded list of distinct fictional import receipts is required.",
+  );
+  return receipts;
+}
+
 export function validateImportQueue({
   queueId,
   previewId,
@@ -79,11 +104,43 @@ export async function checkImportWorker(env, fetchImpl = fetch) {
   const request = commit
     ? JSON.parse(env.CSF_TEST_IMPORT_RECEIPT ?? "null")
     : {};
+  if (commit && Array.isArray(request)) {
+    const receipts = validateImportReceipts(request);
+    let completedRows = 0;
+    for (let index = 0; index < receipts.length; index += 1) {
+      const result = await checkImportWorker(
+        {
+          ...env,
+          CSF_TEST_IMPORT_RECEIPT: JSON.stringify({
+            ...receipts[index],
+            remainingReceipts: receipts.slice(index),
+          }),
+        },
+        fetchImpl,
+      );
+      requireCondition(
+        result.authenticated && result.receiptVerified,
+        "Batch verification stopped. Inspect the saved receipt before another worker call.",
+      );
+      completedRows += result.completedRows;
+    }
+    return {
+      mode,
+      authenticated: true,
+      receiptVerified: true,
+      completedRows,
+      completedPreviews: receipts.length,
+      responseRecovered: false,
+    };
+  }
   requireCondition(
     request && typeof request === "object" && !Array.isArray(request),
     "An import receipt object is required.",
   );
   const { queueId, previewId, sourceId, rowCount: expectedRows } = request;
+  const remaining = commit
+    ? validateImportReceipts(request.remainingReceipts ?? [request])
+    : [];
   if (commit) {
     requireCondition(
       [queueId, previewId, sourceId].every((id) => UUID.test(id ?? "")) &&
@@ -91,6 +148,13 @@ export async function checkImportWorker(env, fetchImpl = fetch) {
         expectedRows > 0 &&
         expectedRows <= 1000,
       "Exact fictional receipts and a bounded row count are required.",
+    );
+    requireCondition(
+      remaining[0].queueId === queueId &&
+        remaining[0].previewId === previewId &&
+        remaining[0].sourceId === sourceId &&
+        remaining[0].rowCount === expectedRows,
+      "The current receipt must be first in the frozen batch.",
     );
   }
   const appHeaders = {
@@ -158,26 +222,31 @@ export async function checkImportWorker(env, fetchImpl = fetch) {
     const [queues, previews, sources] = await Promise.all([
       table(
         "csf_import_commit_queue",
-        "select=id,organization_id,preview_job_id,status,attempt_count,actor_user_id&status=in.(queued,running)&limit=2",
+        `select=id,organization_id,preview_job_id,status,attempt_count,actor_user_id&status=in.(queued,running)&order=created_at.asc,id.asc&limit=${remaining.length + 1}`,
       ),
       table(
         "csf_sheet_import_jobs",
-        `select=id,organization_id,source_id,source_file_id,source_type,mode,status,snapshot_row_count&id=eq.${previewId}&limit=2`,
+        `select=id,organization_id,source_id,source_file_id,source_type,mode,status,snapshot_row_count&id=in.(${remaining.map((item) => item.previewId).join(",")})&limit=${remaining.length + 1}`,
       ),
       table(
         "csf_sheet_sources",
-        `select=id,organization_id,drive_file_id&id=eq.${sourceId}&limit=2`,
+        `select=id,organization_id,drive_file_id&id=in.(${remaining.map((item) => item.sourceId).join(",")})&limit=${remaining.length + 1}`,
       ),
     ]);
-    validateImportQueue({
-      queueId,
-      previewId,
-      sourceId,
-      expectedRows,
-      queues,
-      previews,
-      sources,
-    });
+    requireCondition(
+      queues.length === remaining.length &&
+        queues.every((queue, index) => queue.id === remaining[index].queueId),
+      "Active imports must match the frozen fictional batch in claim order.",
+    );
+    for (const item of remaining) {
+      validateImportQueue({
+        ...item,
+        expectedRows: item.rowCount,
+        queues: queues.filter((queue) => queue.id === item.queueId),
+        previews: previews.filter((preview) => preview.id === item.previewId),
+        sources: sources.filter((source) => source.id === item.sourceId),
+      });
+    }
   }
   let result;
   try {
