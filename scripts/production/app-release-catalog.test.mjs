@@ -14,6 +14,87 @@ const versions = expectedVersions(
   fileURLToPath(new URL("../../", import.meta.url)),
 );
 
+test("reviewed workbook links pin functions, permissions, table shape, and request uniqueness", () => {
+  const current = acceptedCatalogQuery(source, versions);
+  const preceding = acceptedCatalogQuery(source, versions.slice(0, 464));
+  const migration = readFileSync(
+    new URL(
+      "../../supabase/migrations/20260908084338_csf_reviewed_workbook_profile_links.sql",
+      import.meta.url,
+    ),
+    "utf8",
+  );
+  for (const body of [
+    migration.split("$$")[1],
+    migration.split("$$")[3],
+    migration.split("$$")[5],
+  ]) {
+    assert.ok(current.includes(createHash("md5").update(body).digest("hex")));
+  }
+  assert.ok(
+    current.includes("snapshot.digest='4db39e32056870608efc1d18528f2eef'"),
+  );
+  assert.ok(current.includes("p.proargnames=expected.arguments"));
+  assert.ok(
+    current.includes("i.indisvalid AND i.indisready AND i.indisunique"),
+  );
+  assert.ok(current.includes("csf_workbook_profile_link_request_receipt"));
+  assert.ok(!preceding.includes("csf_confirm_workbook_profile_link"));
+});
+
+test("workbook recovery pins its body and server-only permissions", () => {
+  const current = acceptedCatalogQuery(source, versions);
+  const preceding = acceptedCatalogQuery(source, versions.slice(0, 462));
+  const signature =
+    "plugin_data.csf_request_class_workbook_import_recovery(uuid,uuid,uuid,uuid,text)";
+  const migration = readFileSync(
+    new URL(
+      "../../supabase/migrations/20260908075029_csf_workbook_import_recovery_request.sql",
+      import.meta.url,
+    ),
+    "utf8",
+  );
+  const digest = createHash("md5")
+    .update(migration.split("$$")[1])
+    .digest("hex");
+  assert.ok(current.includes(signature));
+  assert.ok(current.includes("md5(p.prosrc)='" + digest + "'"));
+  assert.ok(
+    current.includes(
+      "p.proargnames=ARRAY['p_organization_id','p_cohort_id','p_actor_user_id','p_request_id','p_expected_drive_file_id']",
+    ),
+  );
+  assert.ok(
+    current.includes("count(*)=1 AND bool_and(a.grantee='service_role'"),
+  );
+  assert.ok(!preceding.includes(signature));
+});
+
+test("application source review pins its body and keeps prior releases unchanged", () => {
+  const current = acceptedCatalogQuery(source, versions);
+  const preceding = acceptedCatalogQuery(source, versions.slice(0, 463));
+  const signature =
+    "plugin_data.csf_prepare_application_source_review_periods(uuid,uuid,uuid,integer)";
+  const migration = readFileSync(
+    new URL(
+      "../../supabase/migrations/20260908081328_csf_application_source_review_period.sql",
+      import.meta.url,
+    ),
+    "utf8",
+  );
+  const digest = createHash("md5")
+    .update(migration.split("$function$")[1])
+    .digest("hex");
+  assert.ok(current.includes(signature));
+  assert.ok(current.includes("md5(p.prosrc)='" + digest + "'"));
+  assert.ok(
+    current.includes(
+      "p.proargnames=ARRAY['p_organization_id','p_actor_user_id','p_source_id','p_expected_mapping_version']",
+    ),
+  );
+  assert.ok(!preceding.includes(signature));
+});
+
 test("legacy release catalogs stay unchanged", () => {
   assert.equal(acceptedCatalogQuery(source, versions.slice(0, 444)), source);
 });
