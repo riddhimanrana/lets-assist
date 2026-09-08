@@ -2232,6 +2232,34 @@ sources.
 
 ### Application Sheet dialog follow-up, 2026-09-07
 
+CI `34187885325` ended with 85 browser tests passing, two failures in the old
+application button and collapsed saved-preview selectors, one Communications
+navigation failure that passed on retry, and four skips. The two deterministic
+failures match the corrected browser journeys below. Retain the Communications
+retry as an intermittent failure, not a clean first-pass result. The full
+quality job and database steps passed; browser acceptance remains open.
+
+The browser source still expected the old "Import responses" button and
+"Resolve rows" headings. Updated journeys now exercise "Link Google Sheet",
+dialog close/reopen and Escape, collapsed previous checks, full-preview counts,
+and saved row paging across reloads. TypeScript and targeted zero-warning lint
+pass. These test changes have not passed a browser run yet. The current CI run
+remains active and was not restarted for an observation timeout.
+
+Root candidate `1bfa282089aeaf8d7aed4de575faf8cf6427cab2` passed the quality
+job in CI `34187885325`, including lint, TypeScript, combined tests, and the
+Production build. Database replay, CSF database workflows, scale checks, and
+DV browser checks passed their steps. CSF browser checks are still running.
+No hosted application deployment or Production promotion occurred.
+
+The signed-in officer browser on Development `8a48f7a1` completed the four-row
+fictional Spring application reconciliation. Three audited matches reuse
+profiles created from the Fall fixture. The fourth row creates one unclaimed
+Class of 2026 alumni profile after directory search found no existing target.
+All four rows retain Spring 2026 and now show zero unresolved matches. These
+actions do not commit applications or approve them. The new dialog has not
+been tested live, and the old deployed preview still shows its stale heading.
+
 The corrected combined local suite completed successfully across 306 root and
 306 plugin test files, with mock-sensitive files isolated. Repository-wide
 formatting passes. PR #494's first quality job stopped at formatting in the
