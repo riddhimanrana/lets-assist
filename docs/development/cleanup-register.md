@@ -74,6 +74,17 @@ at `7daadc1f2786b39ebaffd58c5bf8ea187ae0f477`, with the tested tree from
 `da1ca26bcac527608d5f3d640e3edbed16e58593`. The local plugin verification gate
 also passed. Root integration and hosted formula acceptance remain open.
 
+Root PR #492 at `33804924` failed CI `34176279852` before deployment.
+The database job could not start because port 55324 was occupied. The quality
+job found one stale runbook reference to the preceding private commit. The
+runbook now names `7daadc1`; its 13 documentation contract tests pass locally.
+The complete local rerun passes all 305 root and 302 plugin test files.
+The original failed run remains recorded. No migration or hosted build ran.
+Read-only Production verification still reports 1,047 profiles, four linked
+workbooks with eight currently prepared tabs each, and zero applications.
+The two existing application previews contain 585 ambiguous rows, two
+conflicts, and one resolved row. Importing responses remains unfinished.
+
 ### Hosted performance acceptance passed, 2026-09-07
 
 Run `34171163941` completed successfully on exact Development SHA
