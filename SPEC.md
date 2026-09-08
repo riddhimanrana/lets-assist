@@ -4,6 +4,15 @@ DVHS CSF officer UX → class-first Home → Classes → Applications → More; 
 
 §C
 
+- Development `8a48f7a1` includes the calculated-status parser fix, private
+  `7daadc1`, and passed root CI `34176893568`. Live workbook rebuild
+  `34178593288` failed because the append RPC rejects requirement evidence.
+  Forward migration `20260908020559` extends that closed evidence contract
+  with bounded origin, coordinate, value, and purpose fields included in the
+  evidence digest. Legacy digests and approval payloads remain unchanged.
+  The real append-RPC suite now has 30 assertions. Database execution remains
+  unverified while local Docker cannot start. All Development workers are
+  disabled at revision 2 for this release. Production is unchanged.
 - Hosted Development acceptance `34171163941` passed on `e8e4c63b` with
   private pin `ef8cce1`: 100 distinct fictional sessions, 9,737 requests,
   zero errors, read p95 1.341 seconds, mutation p95 1.837 seconds.
