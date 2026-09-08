@@ -96,10 +96,15 @@ export function acceptedCatalogQuery(source, versions) {
       "34dbbd884882349f8083512cd2fe48b371c3f1242bc62897685267f2a5d0001b"
   )
     return source;
-  const schedulingRetirementUpgrade =
-    versions.length === 461 &&
+  const requirementEvidenceUpgrade =
+    versions.length === 462 &&
     ledgerHash ===
-      "a6a6c780914ec9b2bbc8ad461645ea96b8b9d989840f2fbb7aae6e7270e0b8e1";
+      "cae83251fef7fa7611f89ba03ceea809b6f15d105a68415dd72c5a8151a0f997";
+  const schedulingRetirementUpgrade =
+    requirementEvidenceUpgrade ||
+    (versions.length === 461 &&
+      ledgerHash ===
+        "a6a6c780914ec9b2bbc8ad461645ea96b8b9d989840f2fbb7aae6e7270e0b8e1");
   const identityPreviewStateUpgrade =
     schedulingRetirementUpgrade ||
     (versions.length === 460 &&
@@ -335,7 +340,7 @@ accepted_upgrade_posture AS (
       OR has_any_column_privilege(roles.name, 'plugin_data.csf_point_submissions', 'UPDATE')
   )`
       : ""
-  } AS valid
+  } ${requirementEvidenceUpgrade ? requirementEvidencePosture : ""} AS valid
   FROM accepted_upgrade_definitions expected
   LEFT JOIN pg_proc p ON p.oid=to_regprocedure(expected.signature)
 )
@@ -347,6 +352,24 @@ accepted_upgrade_posture AS (
       "WHEN (SELECT valid FROM accepted_upgrade_posture) AND (SELECT valid FROM table_posture)",
     );
 }
+
+const requirementEvidencePosture = `AND EXISTS (
+  SELECT 1 FROM pg_proc p JOIN pg_language l ON l.oid=p.prolang
+  WHERE p.oid=to_regprocedure('plugin_data.csf_append_import_preview_rows(uuid,uuid,uuid,jsonb)')
+    AND p.proowner='postgres'::regrole AND p.prosecdef
+    AND p.prorettype='jsonb'::regtype AND l.lanname='plpgsql'
+    AND p.prokind='f' AND p.provolatile='v' AND p.proparallel='u'
+    AND NOT p.proisstrict AND NOT p.proleakproof AND NOT p.proretset
+    AND p.pronargdefaults=0 AND p.proconfig=ARRAY['search_path=""']
+    AND p.proargnames=ARRAY['p_organization_id','p_actor_user_id','p_preview_job_id','p_rows']
+    AND md5(p.prosrc)='f990db576f8e2c5a1663b2cfeb784677'
+    AND has_function_privilege('service_role',p.oid,'EXECUTE')
+    AND NOT has_function_privilege('anon',p.oid,'EXECUTE')
+    AND NOT has_function_privilege('authenticated',p.oid,'EXECUTE')
+    AND (SELECT count(*)=2 AND bool_and(a.grantee IN ('postgres'::regrole,'service_role'::regrole)
+      AND a.privilege_type='EXECUTE' AND NOT a.is_grantable
+      AND a.grantor='postgres'::regrole) FROM aclexplode(p.proacl) a)
+)`;
 
 const pointVerificationTriggerPosture = `AND EXISTS (
   SELECT 1 FROM pg_trigger t

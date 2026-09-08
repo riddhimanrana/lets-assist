@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
+import { createHash } from "node:crypto";
 import { fileURLToPath } from "node:url";
 import { acceptedCatalogQuery } from "./app-release-catalog.mjs";
 import { expectedVersions } from "./app-release-checks.mjs";
@@ -15,6 +16,36 @@ const versions = expectedVersions(
 
 test("legacy release catalogs stay unchanged", () => {
   assert.equal(acceptedCatalogQuery(source, versions.slice(0, 444)), source);
+});
+
+test("requirement evidence pins the append body and preserves the preceding catalog", () => {
+  const current = acceptedCatalogQuery(source, versions);
+  const preceding = acceptedCatalogQuery(source, versions.slice(0, 461));
+  const signature =
+    "plugin_data.csf_append_import_preview_rows(uuid,uuid,uuid,jsonb)";
+  const migration = readFileSync(
+    new URL(
+      "../../supabase/migrations/20260908020559_csf_requirement_source_evidence.sql",
+      import.meta.url,
+    ),
+    "utf8",
+  );
+  const body = migration.split("$function$")[1];
+  const digest = createHash("md5").update(body).digest("hex");
+  assert.ok(current.includes(signature));
+  assert.ok(current.includes("md5(p.prosrc)='" + digest + "'"));
+  assert.ok(!preceding.includes(signature));
+  assert.ok(current.includes("p.proconfig=ARRAY['search_path=\"\"']"));
+  assert.ok(
+    current.includes(
+      "p.proargnames=ARRAY['p_organization_id','p_actor_user_id','p_preview_job_id','p_rows']",
+    ),
+  );
+  assert.ok(
+    current.includes(
+      "AND NOT has_function_privilege('authenticated',p.oid,'EXECUTE')",
+    ),
+  );
 });
 
 test("scheduling retirement pins every replacement and preserves the prior release catalog", () => {

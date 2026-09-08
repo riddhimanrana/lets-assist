@@ -85,6 +85,78 @@ workbooks with eight currently prepared tabs each, and zero applications.
 The two existing application previews contain 585 ambiguous rows, two
 conflicts, and one resolved row. Importing responses remains unfinished.
 
+### Calculated-status database contract failure, 2026-09-07
+
+Root PR #492 passed CI `34176893568` at `bfc3bddd`, including the database
+replay, 88 CSF browser tests, and three DV browser tests. Four configured CSF
+skips remain separate from acceptance. The merge at
+`8a48f7a1c733b94ec452dd49eb49ee7782ddb081` has the identical tested tree and
+private pin `7daadc1`. Development deployment
+`dpl_Ctx7tj7zpiKzYyr4LqJwzYEEYPNz` is READY on that SHA. Hosted acceptance
+run `34178004263` is still running. Production has not changed.
+
+Chrome confirmed an audited rebuild request for the fictional workbook.
+One-shot worker run `34178593288` authenticated and claimed the version-10
+job, but returned HTTP 503. Preview `7aca77e1-0aea-4f98-83ee-fd39a2251f1e`
+failed while appending F24 rows. Its protected diagnostic identifies the cause:
+the database rejects the new `sourceEvidence.requirement` field as unknown.
+The parser-only fix is incomplete. A forward migration must validate the bounded
+requirement evidence and include it in the source-evidence digest. Add a pgTAP
+case through the actual append RPC, not only a mocked preview writer.
+
+Refresh receipt `94d723d1-d0f7-4c77-839d-b3051473d0ba` retains attempt 1
+without completion. Do not blindly retry it. Control receipts
+`63ea8149-ebf3-47b8-b075-c869e0d9dd11` and
+`d5e836ea-c93e-4fae-adf1-69a8f0b2e6d0` enabled and disabled only workbook
+preparation. Revision 2 leaves every worker disabled. No test rows committed.
+
+Read-only Production counts separate 736 active profiles from 311 merged
+profiles. Directory counts are 347 for 2027, 281 for 2028, and 108 for 2029;
+2026 and 2030 have no active directory profiles. These are not current-semester
+membership counts. Applications remain unimported. Among 585 ambiguous preview
+rows, 465 have one exact name-and-class candidate, 119 have none, and one has
+multiple candidates. These counts guide review; they do not prove identity or
+authorize matching by name alone.
+
+The temporary private branch `codex/csf-calculated-status-evidence` was removed
+locally and remotely after verifying its exact tip and ancestry in private
+Development. Its code remains in merged `7daadc1`. Other worktrees remain intact.
+
+Forward migration `20260908020559_csf_requirement_source_evidence.sql` now
+extends the append RPC's closed contract. It validates the optional requirement
+object and includes it in the evidence digest only when present. Existing
+digests, approval payloads, and server-only execution grants remain unchanged.
+The append-RPC pgTAP suite expands from 14 to 30 assertions, including formula
+markers, blank values, literal provenance, rejected fields, tampered digests,
+and unchanged commit payloads. Migration file checks and strict gitlink checks
+pass. Docker Desktop cannot start, so commit `f08dbf9a` is under the existing
+manual CI workflow `34179939118`. Its isolated database startup and database
+test steps passed; remaining steps are running. Vercel reports "Canceled by
+Ignored Build Step" for this branch push. No provider migration or new
+deployment has run.
+
+Hosted acceptance `34178004263` passed on `8a48f7a1`. It used 100 distinct
+fictional identities and sessions, with 9,775 requests and zero request or
+browser errors. Aggregate reads measured p95 1,436.547 ms and p99 2,186.279 ms.
+Classes measured p95 1,627.064 ms and p99 3,318.274 ms; Applications measured
+p95 2,146.171 ms and p99 3,549.940 ms. Mutation p95 was 1,862.744 ms.
+LCP p75 was 1,532 ms, INP p75 32 ms, and CLS p75 0.000816. All 25 review
+navigations completed without crashes. Retained heap fell from 40,470,488 to
+35,748,056 bytes, or 11.67%. Domain and SHA checks passed before and after
+the run. The failed workbook path and unapplied migration remain separate gates.
+
+CI `34179939118` passed database tests but failed 15 root release-contract
+tests because the new 462-migration ledger was not yet reviewed by the app-only
+catalog verifier and the officer runbook still named 461 migrations. The local
+catalog update now pins the exact ledger digest and append function body,
+signature, owner, configuration, and server-only grants. Previous release
+catalogs remain unchanged; unknown ledgers still fail closed. The full local
+run exposed one additional stale migration-tail pin in the forward-release
+controller. It now approves the exact bytes of both pending migrations, while
+retaining the 460-migration Production baseline and one-write outcome rules.
+All 52 focused release and documentation tests pass after that correction.
+The earlier full local run failed before the correction and is not a green gate.
+
 ### Hosted performance acceptance passed, 2026-09-07
 
 Run `34171163941` completed successfully on exact Development SHA
@@ -3536,7 +3608,7 @@ hosted Development verification.
 | AUD-126 | P2 | A cancelled email campaign still shows a review-blocked notice after every refused attempt received a final officer determination. | CSF communications UI | Fixed locally with a shared display predicate. Six rendered cases preserve unresolved-receipt warnings even for terminal campaigns while removing historical holds from resolved terminal history. Five cases failed before the fix. No receipts, campaign states, or retry controls changed. TypeScript, lint, and all 271 private-plugin test files pass. Hosted verification remains open. |
 | AUD-127 | P2 | Application course parsing treated standalone empty answers as course names, hiding missing course data. | CSF application import | Eight fictional tests failed before the local parser fix. The supplied Fall export contained 59 such course cells; 16 responses now expose missing course data. Raw source evidence and paired-grade positions remain intact. Focused tests, TypeScript, and zero-warning lint pass. Hosted acceptance and grouped Production release remain open. |
 | AUD-128 | P1 | Vercel metadata showed a general `CRON_SECRET` shared across local Development, Preview, and Production, despite separate dedicated CSF worker keys. | Provider environment isolation | Configuration repaired. Development and local development have independent cron values; the existing Production value stays Production-only. GitHub Development stores matching cron and dedicated workbook/import keys. Development deployment `dpl_AeV3QCXGTexX5oupuYBMFPHuKSAF` uses the replacement configuration. Workbook authentication and one fictional preparation passed. Dedicated import authentication and cross-environment cron refusal remain open. Development workers are disabled at revision 4. |
-| AUD-129 | P1 | Computed All Reqs Met cells block complete class-history rows. The live fictional workbook produced 652 error rows despite successful tab preparation. | CSF formula and import review | Fixed locally, hosted verification open. Recognized calculated markers retain coordinate and formula-origin evidence in a separate class-history field. Shared mappings, application formulas, and spreadsheet errors stay blocked. All 273 private test files, TypeScript, and zero-warning lint pass. All four populated tabs and four templates prepared in run `34174922514`; no rows were committed. |
+| AUD-129 | P1 | Computed All Reqs Met cells block complete class-history rows. The parser fix emits requirement evidence that the database append RPC rejects as an unknown field. | CSF formula and import review | Parser fix deployed to Development at `8a48f7a1`, but live rebuild `34178593288` failed at the database evidence contract. Add a reviewed forward migration and real append-RPC regression covering the new bounded field and its digest. Preserve strict identity, activity, meeting, and application formula checks. All workers are disabled; no fictional rows committed. |
 
 ## Production release evidence, September 6, 2026
 
