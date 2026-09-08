@@ -2232,6 +2232,24 @@ sources.
 
 ### Application Sheet dialog follow-up, 2026-09-07
 
+Fresh Development reads confirm the fictional workbook's four corrected
+previews have 652 pending rows and no row errors: F24 163, S25 129, F25 193,
+and S26 167. The four older error previews remain history. Both fictional
+application previews have four resolved rows and four distinct profile targets.
+No application or class row was committed in this read-only check. The nine
+one-shot import verifier tests pass with 66 assertions, including foreign or
+already-attempted queue refusal and lost-response receipt recovery without
+another worker call. Hosted worker authentication and commit proof remain open.
+
+The retained Communications failure screenshot shows the first-login officer
+tour overlay covering the More menu. The navigation test now explicitly opens
+and dismisses that tour before using More, following the existing member tour
+journey pattern. It does not force clicks through overlays or bypass the menu.
+This correction still needs browser execution. The retained application
+screenshot confirms the new dialog rendered in isolated CI on `1bfa2820`,
+not hosted Development or Production. Its deliberately incomplete preview
+correctly keeps Add applications disabled.
+
 CI `34187885325` ended with 85 browser tests passing, two failures in the old
 application button and collapsed saved-preview selectors, one Communications
 navigation failure that passed on retry, and four skips. The two deterministic
@@ -2335,14 +2353,22 @@ These checks do not prove workbook row completeness or repeat-sync idempotency.
 Directory links count every membership state and are not active-member counts.
 Empty Class of 2030 templates must not be populated merely to change this zero.
 
-### Open hosted route latency, 2026-09-07
+### Hosted route latency, Development acceptance verified
 
-P2: On Development `db4ae419`, run `34085356037` measured officer Classes
+Fresh inspection of completed hosted run `34178004263` confirms the route
+budgets passed on Development `8a48f7a1`: Classes p95/p99 1,627/3,318 ms,
+Applications 2,146/3,550 ms, and mutation p95 1,863 ms. All 9,775 requests
+succeeded across 100 distinct sessions. Browser errors and renderer crashes
+were zero over 25 review navigations; retained heap fell 11.67 percent.
+This supersedes the open latency status below for that exact Development
+release. It does not accept the newer Sheet dialog candidate or Production.
+The next grouped app release still requires its own hosted measurements.
+
+Earlier P2 evidence: On Development `db4ae419`, run `34085356037` measured officer Classes
 read p95 at 3.835 seconds and Applications at 2.566 seconds. Both exceed the
-2.5-second route budget despite the pooled gate reporting success. The local
-gate correction has regression coverage, but the route latency remains
-unfixed. Close only with measured per-route acceptance after the app fix.
-Do not use this run's green status alone for Production promotion.
+2.5-second route budget despite the pooled gate reporting success. Preserve
+this failed measurement and never use its pooled green status as acceptance.
+The following implementation notes describe the work before the passing run.
 
 Read-path inspection identifies avoidable work, not yet a measured root cause.
 `CsfDashboardCohortPhase.ts` runs the full compose-post loader, reply previews,
