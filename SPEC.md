@@ -4,10 +4,19 @@ DVHS CSF officer UX → class-first Home → Classes → Applications → More; 
 
 §C
 
-- The corrected combined local suite passes across 306 root and 306 plugin
-  test files. Repository-wide formatting also passes. PR #494 integrates private
-  `fd9f837`; its quality job needs the formatting correction while database and
-  hosted browser acceptance remain open. Production still has 460 migrations,
+- Root CI `34189124828` passed on `1b530a27` with private `fd9f837`:
+  quality, database replay, 87 CSF browser passes, and three DV browser passes.
+  Four CSF skips remain, and Communications navigation passed only on retry.
+  Its retained screenshot shows the officer tour covering the menu; the local
+  test correction explicitly dismisses the tour before navigation.
+  Private PR #268 adds pre-acquisition saved-tab validation for preview retries
+  at `e92f59b`. Sixteen focused tests, TypeScript, zero-warning lint, and all
+  278 private test files pass. Private CI `34190350981` passed and PR #268
+  merged at `b2b9339`, with the tested tree unchanged. The combined local run
+  passes 306 root and 307 plugin test files with this pin. Strict gitlink and
+  operator documentation checks pass. Root CI integration is pending.
+  The grouped dialog release still requires hosted acceptance.
+  Production still has 460 migrations,
   four linked workbooks, 1,047 profile records, and zero applications in the
   latest count-only check. No Production mutation or app deployment occurred.
 - Private PR #267 passed CI `34187091711` and merged at `fd9f837`.
@@ -16,8 +25,8 @@ DVHS CSF officer UX → class-first Home → Classes → Applications → More; 
   disclosure while retaining evidence and action checks. The Development-only
   source allowlist now contains the nine verified fictional sources and all
   twelve previous entries. The saved setting was verified without a deployment.
-  Docker Desktop cannot start the local browser stack. Hosted UI acceptance and
-  the full grouped root suite remain pending.
+  Docker Desktop cannot start the local browser stack. CI supplied the isolated
+  browser proof above. Hosted UI acceptance remains pending for the new dialog.
 - The application Sheet UI now uses a chapter-wide dialog locally. It removes
   the technical stepper, folds column matches and source evidence away, and
   opens the first unresolved application for review. Google Picker temporarily

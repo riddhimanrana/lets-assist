@@ -2232,6 +2232,34 @@ sources.
 
 ### Application Sheet dialog follow-up, 2026-09-07
 
+The final combined local run passes across 306 root and 307 plugin test files
+with private merge `b2b9339`, including the saved-tab recheck guard. Full lint,
+TypeScript, strict gitlink validation, and all 21 operator documentation checks
+pass. The existing root PR will carry this integration and the officer-tour
+navigation test correction together. Hosted acceptance is still pending.
+
+P2, saved-preview recheck scope, local fix awaiting integration: `import-preview.ts` built ranges from
+the saved source's current mapping before loading `retryOfJobId`. That later
+check validates organization, source ID, and preview mode, but not the saved
+preview's tab scope. Switching one application workbook from Fall to Spring
+can therefore make Recheck on its older Fall preview read the Spring tab.
+A new pre-acquisition scope check rejects changed tabs, missing saved scope,
+and unrelated history. Corrections within the same tab remain allowed.
+Sixteen focused retry and targeting tests pass with 51 assertions, as do
+TypeScript, full zero-warning lint, and all 278 private-plugin test files.
+Private commit `e92f59b49e81396a9bfcd2baf45ceecca5579f66` is under PR #268,
+whose CI `34190350981` passed. PR #268 merged to private Development at
+`b2b933917f1b41a5bd90d7fc7c613d9ca26b86bb`, with the tested tree unchanged.
+Root integration and hosted acceptance remain open. No live mismatched retry
+was invoked in this audit.
+
+Root CI `34189124828` passed quality and database/browser acceptance on
+`1b530a27df74f310684cee5bd0bfd39a2fd26c90`. This result covers the dialog
+test corrections but not the later tab-scope guard or pending officer-tour
+test correction. CSF reported 87 passed, four skips, and the same Communications
+menu test passing only on retry; DV reported three passed. No Development
+application build has been requested yet.
+
 Fresh Development reads confirm the fictional workbook's four corrected
 previews have 652 pending rows and no row errors: F24 163, S25 129, F25 193,
 and S26 167. The four older error previews remain history. Both fictional
