@@ -14,42 +14,37 @@ import {
 
 // This controller approves only these reviewed, backward-compatible migrations.
 export const approvedMigrations = [
-  // Order follows the append-only migration ledger.
   [
-    "20260906013133_csf_class_import_identity_review_rows",
-    "aaaaa70214f9f8d8d0c8488b08932c8346f488d398826abeb59e1939a3100cdc",
+    "20260907000344_retire_csf_scheduled_publishing",
+    "249f7baa75fe8fb0677781677ef2f560aaaa0684edf3a8ef1fc85207a8e7f78b",
   ],
   [
-    "20260906024707_csf_officer_annotation_review",
-    "3bd48f12a0c99a1aa5948a6b647ef16c18a674c8ca7cf506c01019b432022a80",
+    "20260908020559_csf_requirement_source_evidence",
+    "68939485d2ea31b9e65b7853f1918dbecb36e7f6d2ca547da5ee8274a9882464",
   ],
   [
-    "20260906025852_csf_pending_identity_reconciliation",
-    "bad7e0dd1331ad6e1cae04bc11152553c34218ed189aaa8e159b2994cb9a6542",
+    "20260908075029_csf_workbook_import_recovery_request",
+    "c703d28cd0d7d2968944c0bdb3dd623508cefb441cb4ec7ad86813c3d462ad13",
   ],
   [
-    "20260906041507_csf_composable_import_reviews",
-    "a458ab1dc21cb6c5092d6e65138a89781b1ed83233a6d3ec27f626e247ef47d8",
+    "20260908081328_csf_application_source_review_period",
+    "9af9de1529b0bcbc39a1d137e9c7292f7808698adf0ab512d954354b52bfee30",
   ],
   [
-    "20260906044753_csf_annotation_error_identity_review",
-    "4a103d06e6393897bb830bea025872ed61c60ccd67abc79c580707fc97df10bc",
+    "20260908084338_csf_reviewed_workbook_profile_links",
+    "91946abbb6c305716060bc185bc5516ebb0ae2a590652adb4018831489718e73",
   ],
   [
-    "20260906053114_csf_annotation_review_state_guards",
-    "47be7222eb6ec7275ef738d03f24943ec5beac647b4432d1831829da6ab7ac5a",
+    "20260908090508_csf_sheet_automatic_update_authorization",
+    "73208262cd29811406d047d4a7dc5a2f040b2baefb7a1a9f531c8ff9bb1f308d",
   ],
   [
-    "20260906062954_csf_allow_officer_point_decisions_during_verification",
-    "c057ac638b09ad5477a04fe921a27a4dbd15561e4ccbbcea8856176f3b05636b",
+    "20260908135756_csf_reviewed_workbook_link_merge_ownership",
+    "da88367fb65b095f2206718c156ded7e4c40073ebbf410546ff2b2e868b2e342",
   ],
   [
-    "20260906073357_csf_require_canonical_point_updates",
-    "ce73e9e4fb2698bdc7471ba2df49cb995a85b57e4e8207f3e93774cfa4a42924",
-  ],
-  [
-    "20260906085350_csf_identity_review_preview_state",
-    "98ae09bd748443026bbcc6661b103b642604b6fb71f8ffc0d660efc2605a1848",
+    "20260908141739_csf_workbook_matching_tab_authorization",
+    "c364e525e909d2f4c7213e45a0b18b39a337dcf744b9ceb0995a0fe8265d78d3",
   ],
 ];
 
@@ -72,7 +67,9 @@ export function prepareMigration(cwd, read = readFileSync) {
       throw new ReleaseCheckError("Approved migration bytes changed.");
     // Keep each migration body inside the transaction that also records its
     // exact ledger version.
-    const body = sql.replace(/^BEGIN;\s*/u, "").replace(/\s*COMMIT;\s*$/u, "");
+    const body = sql
+      .replace(/^BEGIN;[ \t]*\r?\n/mu, "")
+      .replace(/\s*COMMIT;\s*$/u, "");
     return `${body}\nINSERT INTO supabase_migrations.schema_migrations(version,name,statements)
       VALUES (${literal(name.slice(0, 14))},${literal(name.slice(15))},ARRAY[${literal(sql)}]);`;
   });

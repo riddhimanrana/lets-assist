@@ -6,6 +6,42 @@ const rpcCalls: Array<{ name: string; args: Record<string, unknown> }> = [];
 const actionCalls: unknown[][] = [];
 let rpcResults: Array<{ data: unknown; error: unknown }> = [];
 let actionResult: Record<string, unknown>;
+let applicationResult: unknown;
+let applicationCalls = 0;
+let applicationThrows = false;
+let metadataResult: unknown;
+let metadataCalls = 0;
+let dispatchResult: unknown;
+let dispatchCalls = 0;
+mock.module(
+  "@/lib/plugins/private/plugins/dvhs-csf/services/automatic-class-preview-dispatch",
+  () => ({
+    dispatchCsfAutomaticClassPreviews: async () => {
+      dispatchCalls++;
+      return dispatchResult;
+    },
+  }),
+);
+mock.module(
+  "@/lib/plugins/private/plugins/dvhs-csf/services/automatic-class-workbook-check",
+  () => ({
+    checkNextCsfAutomaticClassWorkbook: async () => {
+      metadataCalls++;
+      return metadataResult;
+    },
+  }),
+);
+mock.module(
+  "@/lib/plugins/private/plugins/dvhs-csf/services/automatic-application-sheet-refresh",
+  () => ({
+    prepareNextCsfAutomaticApplicationSheet: async () => {
+      applicationCalls++;
+      if (applicationThrows)
+        throw new Error("fictional private provider detail");
+      return applicationResult;
+    },
+  }),
+);
 
 mock.module("@/lib/cron/auth-shape-probe", () => ({
   cronAuthShapeProbe: () => null,
@@ -55,6 +91,19 @@ beforeEach(() => {
   actionCalls.length = 0;
   rpcResults = [];
   actionResult = { success: true };
+  applicationCalls = 0;
+  applicationThrows = false;
+  applicationResult = { status: "idle", claimed: 0, prepared: 0 };
+  metadataCalls = 0;
+  metadataResult = { status: "idle", claimed: 0, queued: 0 };
+  dispatchCalls = 0;
+  dispatchResult = {
+    checked: 0,
+    queued: 0,
+    needsAttention: 0,
+    blocked: 0,
+    unknown: 0,
+  };
   process.env.CSF_WORKBOOK_WORKER_SECRET_TOKEN = "synthetic-workbook-token";
   process.env.CSF_WORKBOOK_WORKER_ENABLED = "false";
   delete process.env.CRON_TOKEN;
@@ -62,6 +111,59 @@ beforeEach(() => {
 });
 
 describe("CSF class workbook refresh route", () => {
+  test("dispatches completed class previews even without a new workbook job", async () => {
+    process.env.CSF_WORKBOOK_WORKER_ENABLED = "true";
+    rpcResults = [{ data: { claimed: false }, error: null }];
+    dispatchResult = {
+      checked: 3,
+      queued: 2,
+      needsAttention: 1,
+      blocked: 0,
+      unknown: 0,
+    };
+    const response = await POST(request());
+    expect(response.status).toBe(200);
+    expect(await response.json()).toMatchObject({
+      automaticClassImports: dispatchResult,
+      prepared: 0,
+    });
+    expect(dispatchCalls).toBe(1);
+  });
+  test("preserves unknown class queue outcomes without reporting success", async () => {
+    process.env.CSF_WORKBOOK_WORKER_ENABLED = "true";
+    rpcResults = [{ data: { claimed: false }, error: null }];
+    dispatchResult = { privateDetail: "fictional-private-detail" };
+    const response = await POST(request());
+    expect(response.status).toBe(503);
+    expect(await response.json()).toMatchObject({
+      automaticClassImports: { unknown: 1, queued: 0 },
+    });
+  });
+  test("checks due workbook metadata without reporting a prepared import", async () => {
+    process.env.CSF_WORKBOOK_WORKER_ENABLED = "true";
+    rpcResults = [{ data: { claimed: false }, error: null }];
+    metadataResult = { status: "queued", claimed: 1, queued: 1 };
+    const response = await POST(request());
+    expect(response.status).toBe(200);
+    expect(await response.json()).toEqual({
+      enabled: true,
+      claimed: 0,
+      prepared: 0,
+      blocked: 0,
+      workbookChecks: { status: "queued", claimed: 1, queued: 1 },
+    });
+    expect(metadataCalls).toBe(1);
+  });
+  test("an unknown metadata result keeps its own count-only failure", async () => {
+    process.env.CSF_WORKBOOK_WORKER_ENABLED = "true";
+    rpcResults = [{ data: { claimed: false }, error: null }];
+    metadataResult = { privateDetail: "fictional-provider-detail" };
+    const response = await POST(request());
+    expect(response.status).toBe(503);
+    expect(await response.json()).toMatchObject({
+      workbookChecks: { status: "unknown", claimed: 0, queued: 0 },
+    });
+  });
   test("allows one workbook run to finish within the worker budget", () => {
     expect(maxDuration).toBe(800);
   });
@@ -70,6 +172,9 @@ describe("CSF class workbook refresh route", () => {
     expect((await POST(request("wrong-token"))).status).toBe(401);
     expect(rpcCalls).toHaveLength(0);
     expect(actionCalls).toHaveLength(0);
+    expect(applicationCalls).toBe(0);
+    expect(metadataCalls).toBe(0);
+    expect(dispatchCalls).toBe(0);
   });
 
   test("keeps the worker disabled unless the exact flag is true", async () => {
@@ -82,6 +187,9 @@ describe("CSF class workbook refresh route", () => {
       blocked: 0,
     });
     expect(rpcCalls).toHaveLength(0);
+    expect(applicationCalls).toBe(0);
+    expect(metadataCalls).toBe(0);
+    expect(dispatchCalls).toBe(0);
   });
 
   test("allows Vercel GET auth but refuses work without the worker secret", async () => {
@@ -144,6 +252,44 @@ describe("CSF class workbook refresh route", () => {
       p_template_count: 1,
       p_blocked_count: 0,
     });
+  });
+
+  test("settles a finished preparation cycle while retaining per-term review exceptions", async () => {
+    process.env.CSF_WORKBOOK_WORKER_ENABLED = "true";
+    rpcResults = [
+      { data: claim, error: null },
+      { data: { finished: true, status: "completed" }, error: null },
+    ];
+    actionResult = {
+      success: true,
+      workerDisposition: "completed",
+      preparedTermCodes: ["S25", "F25"],
+      templateTermCodes: ["S26"],
+      blockedTermCodes: ["F24"],
+      missingTabTermCodes: ["S24"],
+      discoveredTabs: ["F24", "S25", "F25", "S26"],
+    };
+    const response = await POST(request());
+    expect(await response.json()).toEqual({
+      enabled: true,
+      claimed: 1,
+      prepared: 2,
+      templates: 1,
+      blocked: 2,
+      status: "completed",
+    });
+    expect(rpcCalls[1]?.args).toMatchObject({
+      p_status: "completed",
+      p_prepared_count: 2,
+      p_template_count: 1,
+      p_blocked_count: 2,
+    });
+    expect(rpcCalls[1]?.args.p_discovered_tabs).toEqual([
+      "F24",
+      "S25",
+      "F25",
+      "S26",
+    ]);
   });
 
   test("fails closed on malformed queue claims", async () => {
@@ -235,5 +381,64 @@ describe("CSF class workbook refresh route", () => {
       blocked: 1,
       status: "blocked",
     });
+  });
+  test("checks application sources even when no class workbook is queued", async () => {
+    process.env.CSF_WORKBOOK_WORKER_ENABLED = "true";
+    rpcResults = [{ data: { claimed: false }, error: null }];
+    applicationResult = {
+      status: "prepared",
+      claimed: 1,
+      prepared: 1,
+      privateSource: "fictional-private-sheet",
+    };
+    const response = await POST(request());
+    expect(response.status).toBe(200);
+    expect(await response.json()).toEqual({
+      enabled: true,
+      claimed: 0,
+      prepared: 0,
+      blocked: 0,
+      applications: { status: "prepared", claimed: 1, prepared: 1 },
+    });
+    expect(applicationCalls).toBe(1);
+    expect(response.headers.get("cache-control")).toContain("no-store");
+  });
+  test("a class queue outage does not skip due application work", async () => {
+    process.env.CSF_WORKBOOK_WORKER_ENABLED = "true";
+    rpcResults = [{ data: null, error: { message: "fictional queue outage" } }];
+    applicationResult = { status: "unchanged", claimed: 1, prepared: 0 };
+    const response = await POST(request());
+    expect(response.status).toBe(503);
+    expect((await response.json()).applications.status).toBe("unchanged");
+    expect(applicationCalls).toBe(1);
+  });
+  test.each(["retryable", "unknown"])(
+    "reports unsettled application work as %s without hiding class outcomes",
+    async (status) => {
+      process.env.CSF_WORKBOOK_WORKER_ENABLED = "true";
+      rpcResults = [{ data: { claimed: false }, error: null }];
+      applicationResult = { status, claimed: 1, prepared: 0 };
+      const response = await POST(request());
+      expect(response.status).toBe(503);
+      expect((await response.json()).applications).toEqual({
+        status,
+        claimed: 1,
+        prepared: 0,
+      });
+    },
+  );
+  test("does not expose thrown provider details or malformed application results", async () => {
+    process.env.CSF_WORKBOOK_WORKER_ENABLED = "true";
+    applicationThrows = true;
+    rpcResults = [{ data: { claimed: false }, error: null }];
+    const response = await POST(request());
+    expect(response.status).toBe(503);
+    expect(JSON.stringify(await response.json())).not.toContain(
+      "fictional private provider detail",
+    );
+    applicationThrows = false;
+    applicationResult = { status: "prepared", claimed: -1, prepared: 99 };
+    rpcResults = [{ data: { claimed: false }, error: null }];
+    expect((await POST(request())).status).toBe(503);
   });
 });

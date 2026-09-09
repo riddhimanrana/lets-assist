@@ -1,6 +1,6 @@
 BEGIN;
 
-SELECT plan(14);
+SELECT plan(30);
 
 -- The writer (support-import-preview-rows.ts) records acquisition-time cell
 -- fills and notes into normalized_data.annotations, and the settlement RPC
@@ -246,6 +246,126 @@ SELECT is(
   ) -> 'meetings' -> 0 ->> 'label',
   'November Meeting',
   'the commit payload keeps the source meeting name instead of its normalized key'
+);
+
+CREATE FUNCTION pg_temp.requirement_evidence()
+RETURNS jsonb LANGUAGE sql AS $$
+  SELECT '{"columnNumber":15,"columnLabel":"All Reqs Met","value":"X",
+    "valueOrigin":"formula_result","purpose":"historical_requirement_evidence"}'::jsonb;
+$$;
+
+CREATE FUNCTION pg_temp.append_requirement(p_requirement jsonb, p_number integer DEFAULT 20)
+RETURNS jsonb LANGUAGE sql AS $$
+  SELECT plugin_data.csf_append_import_preview_rows(
+    'a2a20000-0000-4000-8000-000000000002',
+    'a2a20000-0000-4000-8000-000000000001',
+    'a2a20000-0000-4000-8000-000000000004',
+    jsonb_build_array(jsonb_set(
+      pg_temp.envelope_row('{}'::jsonb) || jsonb_build_object('row_number', p_number),
+      '{normalized_data,sourceEvidence}',
+      jsonb_build_object(
+        'version', 'csf-class-history-source/v1',
+        'activityPointMode', 'one_per_populated_slot',
+        'activities', '[]'::jsonb, 'meetings', '[]'::jsonb,
+        'requirement', p_requirement
+      )
+    ))
+  );
+$$;
+
+SELECT lives_ok(
+  $$SELECT pg_temp.append_requirement(pg_temp.requirement_evidence(), 10)$$,
+  'the real append RPC accepts calculated completion evidence'
+);
+SELECT is(
+  (SELECT normalized_data #>> '{sourceEvidence,requirement,valueOrigin}'
+   FROM plugin_data.csf_sheet_import_rows
+   WHERE job_id='a2a20000-0000-4000-8000-000000000004' AND row_number=10),
+  'formula_result', 'the formula origin survives persistence'
+);
+SELECT is(
+  (SELECT normalized_data #>> '{sourceEvidence,sourceEvidenceHash}'
+   FROM plugin_data.csf_sheet_import_rows
+   WHERE job_id='a2a20000-0000-4000-8000-000000000004' AND row_number=10),
+  (SELECT plugin_data.csf_canonical_digest(
+      (normalized_data -> 'sourceEvidence') - 'sourceEvidenceHash')
+   FROM plugin_data.csf_sheet_import_rows
+   WHERE job_id='a2a20000-0000-4000-8000-000000000004' AND row_number=10),
+  'the digest includes requirement evidence'
+);
+SELECT lives_ok(
+  $$SELECT pg_temp.append_requirement(pg_temp.requirement_evidence() || '{"value":""}', 11)$$,
+  'a blank calculated completion marker remains valid evidence'
+);
+SELECT lives_ok(
+  $$SELECT pg_temp.append_requirement(pg_temp.requirement_evidence() || '{"valueOrigin":"literal"}', 12)$$,
+  'literal completion evidence remains compatible'
+);
+SELECT throws_like(
+  $$SELECT pg_temp.append_requirement(pg_temp.requirement_evidence() || '{"email":"hidden@local.test"}')$$,
+  '%invalid field%', 'requirement evidence cannot retain unrelated fields'
+);
+SELECT throws_like(
+  $$SELECT pg_temp.append_requirement(pg_temp.requirement_evidence() || '{"purpose":"application_approval"}')$$,
+  '%invalid field%', 'completion evidence cannot claim application approval'
+);
+SELECT throws_like(
+  $$SELECT pg_temp.append_requirement(pg_temp.requirement_evidence() || '{"value":"=IF(A1,1,0)"}')$$,
+  '%invalid field%', 'formula expressions are never retained as calculated results'
+);
+SELECT throws_like(
+  $$SELECT pg_temp.append_requirement('null'::jsonb)$$,
+  '%bounded object%', 'null evidence is refused'
+);
+SELECT throws_like(
+  $$SELECT pg_temp.append_requirement(pg_temp.requirement_evidence() || '{"columnNumber":1000}')$$,
+  '%invalid field%', 'the source column stays within the existing evidence bound'
+);
+SELECT throws_like(
+  $$SELECT pg_temp.append_requirement(pg_temp.requirement_evidence() - 'value')$$,
+  '%invalid field%', 'missing required fields are refused'
+);
+SELECT throws_like(
+  $$SELECT plugin_data.csf_append_import_preview_rows(
+    'a2a20000-0000-4000-8000-000000000002',
+    'a2a20000-0000-4000-8000-000000000001',
+    'a2a20000-0000-4000-8000-000000000004',
+    jsonb_build_array(jsonb_set(
+      pg_temp.envelope_row('{}') || '{"row_number":21}',
+      '{normalized_data,sourceEvidence}',
+      jsonb_build_object('version','csf-class-history-source/v1',
+        'activityPointMode','explicit_numeric','activities','[]'::jsonb,
+        'meetings','[]'::jsonb,'requirement',pg_temp.requirement_evidence(),
+        'sourceEvidenceHash',repeat('0',64))
+    )))$$,
+  '%hash does not match%', 'a caller cannot forge the requirement evidence hash'
+);
+SELECT is(
+  (SELECT normalized_data #>> '{sourceEvidence,sourceEvidenceHash}'
+   FROM plugin_data.csf_sheet_import_rows
+   WHERE job_id='a2a20000-0000-4000-8000-000000000004' AND row_number=8),
+  (SELECT plugin_data.csf_canonical_digest(
+      (normalized_data -> 'sourceEvidence') - 'sourceEvidenceHash')
+   FROM plugin_data.csf_sheet_import_rows
+   WHERE job_id='a2a20000-0000-4000-8000-000000000004' AND row_number=8),
+  'legacy evidence keeps its digest without an added null requirement'
+);
+SELECT ok(
+  NOT has_function_privilege('authenticated',
+    'plugin_data.csf_append_import_preview_rows(uuid,uuid,uuid,jsonb)', 'EXECUTE'),
+  'browser accounts cannot append evidence directly'
+);
+SELECT ok(
+  has_function_privilege('service_role',
+    'plugin_data.csf_append_import_preview_rows(uuid,uuid,uuid,jsonb)', 'EXECUTE'),
+  'the server role retains its reviewed append permission'
+);
+SELECT is(
+  (SELECT normalized_data -> 'commitPayload'
+   FROM plugin_data.csf_sheet_import_rows
+   WHERE job_id='a2a20000-0000-4000-8000-000000000004' AND row_number=10),
+  plugin_data.csf_derive_row_commit_payload('class_history', pg_temp.envelope_record()),
+  'requirement evidence does not modify the derived commit payload'
 );
 
 SELECT * FROM finish();

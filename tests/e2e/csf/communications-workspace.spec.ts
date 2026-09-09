@@ -263,7 +263,11 @@ test.describe("CSF communications workspace", () => {
     page,
   }) => {
     const failures = watchBrowserFailures(page);
-    await loginAs(page, "admin");
+    await loginAs(page, "admin", `${CSF_ORGANIZATION_PATH}?csf_tour=officer`);
+    const tour = page.getByRole("dialog", { name: "Officer workspace tour" });
+    await expect(tour).toBeVisible();
+    await tour.getByRole("button", { name: "Skip tour", exact: true }).click();
+    await expect(tour).toBeHidden();
     await page.getByRole("button", { name: "More", exact: true }).click();
     await page
       .getByRole("menuitem", { name: "Communications", exact: true })

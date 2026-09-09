@@ -10,6 +10,10 @@ on:
         description: "Exact full SHA at the head of development"
         required: true
         type: string
+      deployed_app_sha:
+        description: "Existing Development build SHA, only for acceptance-tooling-only changes"
+        required: false
+        type: string
       confirmation:
         description: "Type load-hosted-development:<Development Supabase project ref>"
         required: true
@@ -64,6 +68,7 @@ jobs:
     timeout-minutes: 75
     env:
       ACCEPTED_SHA: ${{ github.event_name == 'push' && github.sha || inputs.development_sha }}
+      DEPLOYED_APP_SHA: ${{ inputs.deployed_app_sha || (github.event_name == 'push' && github.sha || inputs.development_sha) }}
       CONFIRMATION: ${{ github.event_name == 'push' && format('load-hosted-development:{0}', vars.CSF_DEVELOPMENT_SUPABASE_PROJECT_REF) || inputs.confirmation }}
     steps:
       - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
@@ -96,6 +101,9 @@ jobs:
           fi
           echo "verified=true" >> "${GITHUB_OUTPUT}"
 
+      - name: Verify unchanged application before build reuse
+        run: node scripts/hosted-development/verify-acceptance-source.mjs
+
       - name: Publish pending acceptance status
         if: steps.verify.outputs.verified == 'true'
         env:
@@ -113,7 +121,7 @@ jobs:
         run: |
           set -euo pipefail
           for attempt in $(seq 1 60); do
-            if gh api "repos/${GITHUB_REPOSITORY}/commits/${ACCEPTED_SHA}/status" \
+            if gh api "repos/${GITHUB_REPOSITORY}/commits/${DEPLOYED_APP_SHA}/status" \
               --jq '.statuses | any(.context == "Vercel" and .state == "success")' \
               | grep -qx true; then
               exit 0
@@ -138,7 +146,7 @@ jobs:
             checks_json="$(
               gh api \
                 -H "Accept: application/vnd.github+json" \
-                "repos/${GITHUB_REPOSITORY}/commits/${ACCEPTED_SHA}/check-runs?filter=latest&per_page=100"
+                "repos/${GITHUB_REPOSITORY}/commits/${DEPLOYED_APP_SHA}/check-runs?filter=all&per_page=100"
             )"
             check_state="$(
               jq -r \
@@ -151,14 +159,13 @@ jobs:
                       and .details_url == $expected_details_url
                     )
                 ]
-                | if any(.[]; .status == "completed" and .conclusion == "success") then
+                | sort_by(.id) | last
+                | if .status == "completed" and .conclusion == "success" then
                     "success"
-                  elif any(.[]; .status != "completed") then
+                  elif . == null or .status != "completed" then
                     "pending"
-                  elif length > 0 then
-                    "failure"
                   else
-                    "pending"
+                    "failure"
                   end' \
                 <<< "${checks_json}"
             )"
@@ -176,6 +183,7 @@ jobs:
 
       - name: Verify the Development branch domain before acceptance
         env:
+          ACCEPTED_SHA: ${{ env.DEPLOYED_APP_SHA }}
           VERCEL_AUTOMATION_BYPASS_SECRET: ${{ secrets.VERCEL_AUTOMATION_BYPASS_SECRET }}
         run: bash scripts/hosted-development/verify-vercel-alias.sh
 
@@ -238,6 +246,7 @@ jobs:
 
       - name: Verify the Development branch domain after acceptance
         env:
+          ACCEPTED_SHA: ${{ env.DEPLOYED_APP_SHA }}
           VERCEL_AUTOMATION_BYPASS_SECRET: ${{ secrets.VERCEL_AUTOMATION_BYPASS_SECRET }}
         run: bash scripts/hosted-development/verify-vercel-alias.sh
 

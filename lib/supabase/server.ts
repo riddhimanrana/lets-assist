@@ -30,8 +30,15 @@
 import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
 import { SUPABASE_DB_OPTIONS } from "./retry-policy";
+import { isInvitationToken } from "@/lib/organization/invitation-utils";
 
-export async function createClient() {
+export async function createClient(options?: { invitationToken?: string }) {
+  if (
+    options?.invitationToken !== undefined &&
+    !isInvitationToken(options.invitationToken)
+  ) {
+    throw new Error("Invalid invitation token");
+  }
   let cookieStore: Awaited<ReturnType<typeof cookies>> | undefined;
   try {
     cookieStore = await cookies();
@@ -44,6 +51,13 @@ export async function createClient() {
     process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!,
     {
       db: SUPABASE_DB_OPTIONS,
+      ...(options?.invitationToken
+        ? {
+            global: {
+              headers: { "x-invitation-token": options.invitationToken },
+            },
+          }
+        : {}),
       cookies: {
         getAll() {
           return cookieStore?.getAll() ?? [];

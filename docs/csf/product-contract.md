@@ -27,7 +27,7 @@ Account names are editable. This lower-assurance policy carries an impersonation
 
 Version 1.0 removed the Communications/Updates surface and treated Google Classroom as the chapter’s announcement channel. The chapter has since decided to retire Google Classroom for CSF and make Let’s Assist the member home. This amendment reinstates a deliberately narrow communications surface:
 
-- **Cohort posts.** Officers publish posts to a member feed scoped to `members`, a single graduating-class cohort (`class`), `officers`, or `public`. Posts support pinning. Scheduling is offered only when the target environment explicitly enables the accepted due-post publisher; a stored due time is not publication evidence, and scheduled posts never queue email. Posts have **no comments** (see Amendment 2: member comments stay excluded; officers may append follow-up replies) and no read-tracking.
+- **Cohort posts.** Officers publish posts to a member feed scoped to `members`, a single graduating-class cohort (`class`), `officers`, or `public`. Posts support pinning, drafts, and manual publication. Scheduling is removed. The retirement migration returns scheduled posts to drafts and preserves their content and audit history. Posts have **no comments** (see Amendment 2: member comments stay excluded; officers may append follow-up replies) and no read-tracking.
 - **Per-post email delivery.** Publishing a post may optionally queue exactly one email campaign through the existing durable communications ledger (audience snapshot, content digest, leased dispatch, provider-event reconciliation). Delivery status is reported from ledger state; there are no simulated delivery claims.
 - **Recipient control.** Broadcast email honors the opt-out ledger and Resend topic one-click unsubscribe, plus a recipient-facing verify-your-address unsubscribe flow. Transactional mail is unaffected.
 - **What stays prohibited:** internal direct messaging, comments, any Google Classroom API or posting simulator, and delivery claims not backed by ledger/provider events.
@@ -761,7 +761,7 @@ Clubs keep applying and renewing through the existing Google Form. An officer up
 
 **Purpose:** Safely convert Drive/Sheet source data into normalized records.<br>
 **Primary users:** Import operators and adviser.<br>
-**Shows:** Google Sheets connection state, a derived read-only import progress strip, the latest preview with its counts and normalized snapshot, a paged normalized-row table, the new-import and local-upload source sections, and import history — recent jobs, source, type, operator when recorded, preview/commit status, recorded created/updated/unresolved/error counts, abbreviated integrity digest when recorded, row reconciliation decisions/reasons, and retry or preview ancestry.<br>
+**Shows:** a chapter-wide Application Sheet dialog with source selection, preview counts, and unresolved decisions. Disclosures retain Google account controls, column matches, the normalized snapshot, paged source rows, and import history with recorded outcomes and retry ancestry.<br>
 **Primary actions:** Start import; continue reconciliation; commit valid rows; retry corrected rows.<br>
 **Secondary actions:** Open source; download sanitized error report; compare mapping; open generated records.<br>
 **Filters/search:** Source type, status, operator, date, term.<br>
@@ -960,7 +960,7 @@ Prior-term closure and next-term setup may overlap.
 2. Publishing commits the post and its immutable audit receipt before any optional email operation. The UI reports **Post published** separately from **Email queued** or **Email not queued**.
 3. For class email, the campaign freezes the post's term, exact class cohort, consent topic, content, and recipient snapshot. Later profile/cohort edits or post edits cannot widen, shrink, or rewrite that campaign.
 4. The communications dispatcher may send only finalized ledger attempts. An unknown outcome is never blindly resent; an authorized settings operator reconciles it from exact provider evidence.
-5. **Schedule post** appears only when the target environment explicitly enables the accepted publisher. A stored `scheduled` row is not itself proof of publication, email, or member-feed visibility; confirm the later Feed state. The publisher revalidates the original actor, plugin, term, class, expiry, and no-email boundary, then publishes and audits atomically. If any check fails, the post stays scheduled with a visible hold reason. Scheduled posts never queue email.
+5. Officers can publish now or save a draft. Scheduling requests from stale clients fail before any post or email write. The retirement migration returns existing scheduled posts to drafts with an audit event, preserving post IDs, content, attachments, and historical receipts. The legacy publisher endpoint remains authenticated and writes nothing. No runtime flag can restore automatic publication.
 
 ---
 
@@ -1175,11 +1175,11 @@ The same domain evaluator powers member UI, officer tables, reports, exports, an
 
 ### 12.2 Workspace sections and controls
 
-The import workspace is not a step wizard. There is no navigable step sequence, no forward/back control between steps, and no client-held step state. It is a fixed stack of sections — connection, progress, preview, sources, results — whose visibility follows recorded server state.
+The import workspace is not a step wizard. Applications use one chapter-wide Application Sheet dialog. It shows source selection, a short preview, and unresolved decisions. Column matches, source evidence, and previous checks sit behind disclosures. Existing recorded job state controls readiness and recovery.
 
-#### 12.2.1 Import progress strip
+#### 12.2.1 Recorded import stages
 
-- A non-interactive, read-only reflection of recorded job state, rendered only once a preview exists: **Source**, **Scope**, **Map**, **Preview**, **Reconcile**, **Commit**, **Result**.
+- Internal job stages remain **Source**, **Scope**, **Map**, **Preview**, **Reconcile**, **Commit**, and **Result**. The application dialog does not render this technical stepper.
 - Every stage is derived — source file name recorded; tab and range recorded; mapping snapshot at version ≥ 1; sealed snapshot; sealed with zero conflicts; a commit job exists; that job completed. A reload or a second officer sees the same position.
 - It carries no controls and grants no navigation. It must never be described, or implemented, as a step the operator advances.
 
@@ -1238,7 +1238,7 @@ The import workspace is not a step wizard. There is no navigable step sequence, 
 - If provider modified time changed, warn and require a new preview or explicit commit of the captured snapshot.
 - Commit remains blocked until the exact file ID/name, current access, selected tab/range, mapping version, and every pending row’s resolved cohort and semester are present. UI enforces readiness and the server rechecks it before creating the commit job.
 - The server returns the canonical blocker list used by job status, preview summary, and the commit control; a failed or stale job cannot be reinterpreted as ready from row counts alone. The first blocker is surfaced as **Import blocked**.
-- The control names the operation it performs rather than a generic import: **Verify source and commit** on a first commit, **Resume import** when an earlier commit of the same preview did not finish, **Finish import** when nothing remains to write, **Committed** once complete. A concurrent holder is disclosed instead of silently disabling the control.
+- The application control is **Add applications** on a first commit, **Resume import** when an earlier commit of the same preview did not finish, **Finish import** when nothing remains to write, and **Committed** once complete. The first action shows **Verifying source…** while it rechecks the Sheet. A concurrent holder is disclosed instead of silently disabling the control.
 - Valid/resolved rows commit idempotently by source identity/hash. A resumed commit never rewrites an already-committed row.
 - Valid rows may commit while unresolved/invalid rows remain exceptions.
 - Each row records created/updated targets and correlation ID.
@@ -1644,7 +1644,7 @@ These invariants are mandatory across schema, server actions, UI, imports, tests
 36. A post-linked email campaign freezes its term, audience, exact class cohort where applicable, recipient snapshot, consent topic, and content; later post/profile/cohort edits cannot rewrite it.
 37. A CSF Google import connection is usable only after Google verifies the exact approved chapter account for the organization/plugin/purpose binding. Disconnect preserves reviewed records and provenance.
 38. Unknown email outcomes are reconciled only from durable provider evidence and are never blindly resent. Quarantine resolution acknowledges triage with immutable history but does not apply or rewrite the provider event.
-39. A stored `scheduled` post is not evidence of publication, feed visibility, or email queueing. Automatic publication is available only where the authorized, retry-safe, audited due-post transition is explicitly enabled and its hosted invocation has been accepted; scheduled posts never queue email.
+39. CSF posts never publish automatically. Scheduling inputs are refused before writes, and the retirement migration returns scheduled posts to audited drafts. Legacy scheduling fields remain readable but cannot authorize publication or queue email.
 40. Point lifecycle mutations reauthorize current actor/ownership, open term, active membership, published policy, source, cap, and finalized-proof conditions at the database boundary as applicable.
 41. Profile merge inventories every current schema reference, moves live ownership atomically, deliberately retains immutable snapshots, and refuses every uniqueness collision in the same canonical preview rechecked under the first organization identity lock; settled successful or terminally skipped import targets remain immutable evidence, while frozen/retryable/in-flight/unknown import targets block until recovery settles them; success proves no unintended live source reference remains.
 42. Member directory search is server-backed, starts after two characters with a 300 ms debounce, supports explicit submit and immediate clear, resets paging, and preserves selected class, semester, filters, sort, and view.

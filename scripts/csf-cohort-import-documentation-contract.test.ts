@@ -216,7 +216,7 @@ describe("CSF cohort import documentation truthfulness guards", () => {
       "**Match to member**",
       "**Match reason**",
       "**Use match**",
-      "**Verify source and commit**",
+      "**Add applications**",
       "**Applications → Review queue**",
       "**Approve application**",
     ]);

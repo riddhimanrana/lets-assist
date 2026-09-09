@@ -114,6 +114,8 @@
     "@/services/google-calendar-event-mutations",
     "@/services/google-drive",
     "@/services/google-sheets",
+    "@/services/google-sheets-csf",
+    "@/services/google-sheets-report",
     "@/types",
     "@/types/plugin"
   ]

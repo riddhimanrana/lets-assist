@@ -1,5 +1,8 @@
 import { createHash } from "node:crypto";
 import { ReleaseCheckError } from "./app-release-checks.mjs";
+import { reviewedWorkbookLinksPosture } from "./workbook-profile-link-catalog.mjs";
+import { automaticSheetUpdatesPosture } from "./automatic-sheet-update-catalog.mjs";
+import { workbookLinkMergePosture } from "./workbook-link-merge-catalog.mjs";
 
 export const workerRelationSnapshotQuery = `SELECT c.relname, md5(jsonb_build_object(
   'owner', pg_get_userbyid(c.relowner), 'kind', c.relkind,
@@ -96,10 +99,50 @@ export function acceptedCatalogQuery(source, versions) {
       "34dbbd884882349f8083512cd2fe48b371c3f1242bc62897685267f2a5d0001b"
   )
     return source;
-  const identityPreviewStateUpgrade =
-    versions.length === 460 &&
+  const matchingTabUpgrade =
+    versions.length === 468 &&
     ledgerHash ===
-      "e0a6a89e861dcc74b59dfaec28ac35ddccc9fe3faa5e63934d143c8e98d662a8";
+      "3a54205a45fb0b4e9f7fd142d6f15126c64b6801ea4a70f775ec98fc93a0c23e";
+  const workbookLinkMergeUpgrade =
+    matchingTabUpgrade ||
+    (versions.length === 467 &&
+      ledgerHash ===
+        "409d6d8593990502fbb657e2b6bda8f0a012c7c240846e14f2482eb621adbaf9");
+  const automaticSheetUpdatesUpgrade =
+    workbookLinkMergeUpgrade ||
+    (versions.length === 466 &&
+      ledgerHash ===
+        "b7935dfecb07b70ca0f07b577af5d218f56a7d54e2c17b4a9385448d6f3b720d");
+  const reviewedWorkbookLinksUpgrade =
+    automaticSheetUpdatesUpgrade ||
+    (versions.length === 465 &&
+      ledgerHash ===
+        "64e937e5df0bf59426a133456c6c4577df89a140a770613d2636710f62443caa");
+  const applicationSourceReviewUpgrade =
+    reviewedWorkbookLinksUpgrade ||
+    (versions.length === 464 &&
+      ledgerHash ===
+        "3ad23ec658d856ded84d8c5a66c8f9f6d326ce2b5cc07df77fb8e41b744be524");
+  const workbookRecoveryUpgrade =
+    applicationSourceReviewUpgrade ||
+    (versions.length === 463 &&
+      ledgerHash ===
+        "ed1c518455ee043feeb78edc6e1c3d567c73d631042699fad5fe0d048f1488d8");
+  const requirementEvidenceUpgrade =
+    workbookRecoveryUpgrade ||
+    (versions.length === 462 &&
+      ledgerHash ===
+        "cae83251fef7fa7611f89ba03ceea809b6f15d105a68415dd72c5a8151a0f997");
+  const schedulingRetirementUpgrade =
+    requirementEvidenceUpgrade ||
+    (versions.length === 461 &&
+      ledgerHash ===
+        "a6a6c780914ec9b2bbc8ad461645ea96b8b9d989840f2fbb7aae6e7270e0b8e1");
+  const identityPreviewStateUpgrade =
+    schedulingRetirementUpgrade ||
+    (versions.length === 460 &&
+      ledgerHash ===
+        "e0a6a89e861dcc74b59dfaec28ac35ddccc9fe3faa5e63934d143c8e98d662a8");
   const canonicalPointUpdateUpgrade =
     identityPreviewStateUpgrade ||
     (versions.length === 459 &&
@@ -207,6 +250,39 @@ export function acceptedCatalogQuery(source, versions) {
       "932eae452025dfd57e24d644b441aea4",
       false,
     ]);
+  if (schedulingRetirementUpgrade) {
+    const setter = definitions.find(
+      (item) =>
+        item[0] ===
+        "app_private.set_csf_release_worker_control(text,text,boolean,bigint,uuid,text,text)",
+    );
+    if (!setter)
+      throw new ReleaseCheckError("Worker control catalog entry is missing.");
+    const index = definitions.indexOf(setter);
+    definitions[index] = [setter[0], "91318f5b00c40c30b9be7a36a08c5109", false];
+    definitions.push(
+      [
+        "app_private.retire_csf_scheduled_posts()",
+        "6e08e34639831cc8d178d1363c91fa61",
+        false,
+      ],
+      [
+        "plugin_data.csf_guard_announcement_schedule_lifecycle()",
+        "af351b0c18cd5a9fa1c333dd9502c58d",
+        false,
+      ],
+      [
+        "plugin_data.csf_publish_due_posts(integer,text)",
+        "bd1c22ec097dab0f168b93ef6d5581a8",
+        true,
+      ],
+      [
+        "plugin_data.csf_mutate_post(uuid,text,uuid,jsonb,uuid,uuid)",
+        "9dee34bed53f2c27f2b80b7ddafbfcbf",
+        true,
+      ],
+    );
+  }
   const values = definitions
     .map(
       ([signature, digest, service]) =>
@@ -297,7 +373,12 @@ accepted_upgrade_posture AS (
       OR has_any_column_privilege(roles.name, 'plugin_data.csf_point_submissions', 'UPDATE')
   )`
       : ""
-  } AS valid
+  } ${requirementEvidenceUpgrade ? requirementEvidencePosture : ""}
+  ${workbookRecoveryUpgrade ? workbookRecoveryPosture : ""}
+  ${applicationSourceReviewUpgrade ? applicationSourceReviewPosture : ""}
+  ${reviewedWorkbookLinksUpgrade ? reviewedWorkbookLinksPosture(workerRelationSnapshotQuery) : ""}
+  ${automaticSheetUpdatesUpgrade ? automaticSheetUpdatesPosture(workerRelationSnapshotQuery, matchingTabUpgrade) : ""}
+  ${workbookLinkMergeUpgrade ? workbookLinkMergePosture : ""} AS valid
   FROM accepted_upgrade_definitions expected
   LEFT JOIN pg_proc p ON p.oid=to_regprocedure(expected.signature)
 )
@@ -309,6 +390,56 @@ accepted_upgrade_posture AS (
       "WHEN (SELECT valid FROM accepted_upgrade_posture) AND (SELECT valid FROM table_posture)",
     );
 }
+
+const workbookRecoveryPosture = `AND EXISTS (
+  SELECT 1 FROM pg_proc p JOIN pg_language l ON l.oid=p.prolang
+  WHERE p.oid=to_regprocedure('plugin_data.csf_request_class_workbook_import_recovery(uuid,uuid,uuid,uuid,text)')
+    AND p.proowner='postgres'::regrole AND p.prosecdef
+    AND p.prorettype='jsonb'::regtype AND l.lanname='plpgsql'
+    AND p.prokind='f' AND p.provolatile='v' AND p.proparallel='u'
+    AND NOT p.proisstrict AND NOT p.proleakproof AND NOT p.proretset
+    AND p.pronargdefaults=0 AND p.proconfig=ARRAY['search_path=""']
+    AND p.proargnames=ARRAY['p_organization_id','p_cohort_id','p_actor_user_id','p_request_id','p_expected_drive_file_id']
+    AND md5(p.prosrc)='6e5fef90b4b8dc49996de1671053d56a'
+    AND has_function_privilege('service_role',p.oid,'EXECUTE')
+    AND NOT has_function_privilege('anon',p.oid,'EXECUTE')
+    AND NOT has_function_privilege('authenticated',p.oid,'EXECUTE')
+    AND (SELECT count(*)=1 AND bool_and(a.grantee='service_role'::regrole
+      AND a.privilege_type='EXECUTE' AND NOT a.is_grantable
+      AND a.grantor='postgres'::regrole) FROM aclexplode(p.proacl) a)
+)`;
+
+const applicationSourceReviewPosture = workbookRecoveryPosture
+  .replace(
+    "csf_request_class_workbook_import_recovery(uuid,uuid,uuid,uuid,text)",
+    "csf_prepare_application_source_review_periods(uuid,uuid,uuid,integer)",
+  )
+  .replace(
+    "ARRAY['p_organization_id','p_cohort_id','p_actor_user_id','p_request_id','p_expected_drive_file_id']",
+    "ARRAY['p_organization_id','p_actor_user_id','p_source_id','p_expected_mapping_version']",
+  )
+  .replace(
+    "6e5fef90b4b8dc49996de1671053d56a",
+    "e6110e07dc1807d4780a0fbe7045cf25",
+  );
+
+const requirementEvidencePosture = `AND EXISTS (
+  SELECT 1 FROM pg_proc p JOIN pg_language l ON l.oid=p.prolang
+  WHERE p.oid=to_regprocedure('plugin_data.csf_append_import_preview_rows(uuid,uuid,uuid,jsonb)')
+    AND p.proowner='postgres'::regrole AND p.prosecdef
+    AND p.prorettype='jsonb'::regtype AND l.lanname='plpgsql'
+    AND p.prokind='f' AND p.provolatile='v' AND p.proparallel='u'
+    AND NOT p.proisstrict AND NOT p.proleakproof AND NOT p.proretset
+    AND p.pronargdefaults=0 AND p.proconfig=ARRAY['search_path=""']
+    AND p.proargnames=ARRAY['p_organization_id','p_actor_user_id','p_preview_job_id','p_rows']
+    AND md5(p.prosrc)='f990db576f8e2c5a1663b2cfeb784677'
+    AND has_function_privilege('service_role',p.oid,'EXECUTE')
+    AND NOT has_function_privilege('anon',p.oid,'EXECUTE')
+    AND NOT has_function_privilege('authenticated',p.oid,'EXECUTE')
+    AND (SELECT count(*)=2 AND bool_and(a.grantee IN ('postgres'::regrole,'service_role'::regrole)
+      AND a.privilege_type='EXECUTE' AND NOT a.is_grantable
+      AND a.grantor='postgres'::regrole) FROM aclexplode(p.proacl) a)
+)`;
 
 const pointVerificationTriggerPosture = `AND EXISTS (
   SELECT 1 FROM pg_trigger t

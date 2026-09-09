@@ -12,7 +12,6 @@ const stages = {
   workbook_refresh: [true, false, false, false],
   import_commit: [true, true, false, false],
   communications: [true, true, true, false],
-  scheduled_post_publisher: [true, true, true, true],
 };
 const expected = stages[expectedStage];
 if (!expected) {

@@ -4,6 +4,7 @@ import { resolve } from "node:path";
 import test from "node:test";
 import {
   applyForwardMigrations,
+  approvedMigrations,
   prepareMigration,
 } from "./forward-migration-release.mjs";
 
@@ -21,6 +22,7 @@ function transport({
   rollback = false,
   drift = false,
   badAcl = false,
+  badCatalog = false,
   enabledWorker = false,
 } = {}) {
   const calls = [];
@@ -42,7 +44,7 @@ function transport({
         );
         if (drift) result.pop();
       } else if (sql.includes("csf_target_schema_verified")) {
-        result = [{ csf_target_schema_verified: 1 }];
+        result = [{ csf_target_schema_verified: badCatalog ? 0 : 1 }];
       } else {
         result = [
           {
@@ -61,8 +63,18 @@ function transport({
 }
 
 test("approved bytes and exact versions share one transaction", () => {
-  assert.equal(prepared.prefix.length, 451);
-  assert.equal(prepared.versions.length, 460);
+  assert.equal(prepared.prefix.length, 460);
+  assert.equal(prepared.versions.length, 468);
+  assert.deepEqual(prepared.versions.slice(460), [
+    "20260907000344",
+    "20260908020559",
+    "20260908075029",
+    "20260908081328",
+    "20260908084338",
+    "20260908090508",
+    "20260908135756",
+    "20260908141739",
+  ]);
   assert.match(prepared.query, /^BEGIN;/u);
   assert.match(prepared.query, /COMMIT;$/u);
   assert.match(
@@ -76,21 +88,36 @@ test("approved bytes and exact versions share one transaction", () => {
   );
   assert.match(
     prepared.query,
-    /'20260906013133','csf_class_import_identity_review_rows'/u,
+    /'20260907000344','retire_csf_scheduled_publishing'/u,
+  );
+  assert.match(
+    prepared.query,
+    /'20260908020559','csf_requirement_source_evidence'/u,
   );
 });
 
 test("refuses modified approved SQL before any provider request", () => {
-  assert.throws(
-    () => prepareMigration(cwd, (path) => `${readFileSync(path, "utf8")}\n`),
-    /bytes changed/u,
-  );
+  for (const [name] of approvedMigrations) {
+    const target = resolve(cwd, "supabase/migrations", `${name}.sql`);
+    assert.throws(
+      () =>
+        prepareMigration(cwd, (path) => {
+          const sql = readFileSync(path, "utf8");
+          return path === target ? `${sql}\n` : sql;
+        }),
+      /bytes changed/u,
+      name,
+    );
+    assert.ok(
+      prepared.query.includes(`'${name.slice(0, 14)}','${name.slice(15)}'`),
+    );
+  }
 });
 
 test("performs one write and verifies ledger and permissions", async () => {
   const t = transport();
   const result = await applyForwardMigrations(config, t.fetch);
-  assert.equal(result.migrations, 460);
+  assert.equal(result.migrations, 468);
   assert.equal(result.workers, "disabled");
   assert.equal(result.responseLost, false);
   assert.equal(
@@ -170,6 +197,18 @@ test("incorrect runtime ACL does not report completion", async () => {
   await assert.rejects(
     applyForwardMigrations(config, t.fetch),
     /reconciliation/u,
+  );
+});
+
+test("a matching ledger cannot hide a changed schema catalog", async () => {
+  const t = transport({ badCatalog: true });
+  await assert.rejects(
+    applyForwardMigrations(config, t.fetch),
+    /reconciliation/u,
+  );
+  assert.equal(
+    t.calls.filter((call) => call.url.endsWith("/database/query")).length,
+    1,
   );
 });
 

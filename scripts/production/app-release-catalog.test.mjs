@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
+import { createHash } from "node:crypto";
 import { fileURLToPath } from "node:url";
 import { acceptedCatalogQuery } from "./app-release-catalog.mjs";
 import { expectedVersions } from "./app-release-checks.mjs";
@@ -13,8 +14,172 @@ const versions = expectedVersions(
   fileURLToPath(new URL("../../", import.meta.url)),
 );
 
+test("workbook-link merge pins both wrappers and retains the preceding catalog", () => {
+  const current = acceptedCatalogQuery(source, versions);
+  const preceding = acceptedCatalogQuery(source, versions.slice(0, 466));
+  const migration = readFileSync(
+    new URL(
+      "../../supabase/migrations/20260908135756_csf_reviewed_workbook_link_merge_ownership.sql",
+      import.meta.url,
+    ),
+    "utf8",
+  );
+  for (const body of [migration.split("$$")[1], migration.split("$$")[3]]) {
+    assert.ok(current.includes(createHash("md5").update(body).digest("hex")));
+  }
+  assert.ok(
+    current.includes("csf_profile_merge_reference_plan_workbook_links_base"),
+  );
+  assert.ok(current.includes("csf_merge_profiles_workbook_links_base"));
+  assert.ok(current.includes("p.provolatile::text=expected.volatility"));
+  assert.ok(current.includes("a.grantee='postgres'::regrole"));
+  assert.ok(!preceding.includes("csf_merge_profiles_workbook_links_base"));
+  assert.ok(preceding.includes("csf_set_sheet_automatic_update_authorization"));
+});
+
+test("reviewed workbook links pin functions, permissions, table shape, and request uniqueness", () => {
+  const current = acceptedCatalogQuery(source, versions);
+  const preceding = acceptedCatalogQuery(source, versions.slice(0, 464));
+  const migration = readFileSync(
+    new URL(
+      "../../supabase/migrations/20260908084338_csf_reviewed_workbook_profile_links.sql",
+      import.meta.url,
+    ),
+    "utf8",
+  );
+  for (const body of [
+    migration.split("$$")[1],
+    migration.split("$$")[3],
+    migration.split("$$")[5],
+  ]) {
+    assert.ok(current.includes(createHash("md5").update(body).digest("hex")));
+  }
+  assert.ok(
+    current.includes("snapshot.digest='4db39e32056870608efc1d18528f2eef'"),
+  );
+  assert.ok(current.includes("p.proargnames=expected.arguments"));
+  assert.ok(
+    current.includes("i.indisvalid AND i.indisready AND i.indisunique"),
+  );
+  assert.ok(current.includes("csf_workbook_profile_link_request_receipt"));
+  assert.ok(!preceding.includes("csf_confirm_workbook_profile_link"));
+});
+
+test("workbook recovery pins its body and server-only permissions", () => {
+  const current = acceptedCatalogQuery(source, versions);
+  const preceding = acceptedCatalogQuery(source, versions.slice(0, 462));
+  const signature =
+    "plugin_data.csf_request_class_workbook_import_recovery(uuid,uuid,uuid,uuid,text)";
+  const migration = readFileSync(
+    new URL(
+      "../../supabase/migrations/20260908075029_csf_workbook_import_recovery_request.sql",
+      import.meta.url,
+    ),
+    "utf8",
+  );
+  const digest = createHash("md5")
+    .update(migration.split("$$")[1])
+    .digest("hex");
+  assert.ok(current.includes(signature));
+  assert.ok(current.includes("md5(p.prosrc)='" + digest + "'"));
+  assert.ok(
+    current.includes(
+      "p.proargnames=ARRAY['p_organization_id','p_cohort_id','p_actor_user_id','p_request_id','p_expected_drive_file_id']",
+    ),
+  );
+  assert.ok(
+    current.includes("count(*)=1 AND bool_and(a.grantee='service_role'"),
+  );
+  assert.ok(!preceding.includes(signature));
+});
+
+test("application source review pins its body and keeps prior releases unchanged", () => {
+  const current = acceptedCatalogQuery(source, versions);
+  const preceding = acceptedCatalogQuery(source, versions.slice(0, 463));
+  const signature =
+    "plugin_data.csf_prepare_application_source_review_periods(uuid,uuid,uuid,integer)";
+  const migration = readFileSync(
+    new URL(
+      "../../supabase/migrations/20260908081328_csf_application_source_review_period.sql",
+      import.meta.url,
+    ),
+    "utf8",
+  );
+  const digest = createHash("md5")
+    .update(migration.split("$function$")[1])
+    .digest("hex");
+  assert.ok(current.includes(signature));
+  assert.ok(current.includes("md5(p.prosrc)='" + digest + "'"));
+  assert.ok(
+    current.includes(
+      "p.proargnames=ARRAY['p_organization_id','p_actor_user_id','p_source_id','p_expected_mapping_version']",
+    ),
+  );
+  assert.ok(!preceding.includes(signature));
+});
+
 test("legacy release catalogs stay unchanged", () => {
   assert.equal(acceptedCatalogQuery(source, versions.slice(0, 444)), source);
+});
+
+test("requirement evidence pins the append body and preserves the preceding catalog", () => {
+  const current = acceptedCatalogQuery(source, versions);
+  const preceding = acceptedCatalogQuery(source, versions.slice(0, 461));
+  const signature =
+    "plugin_data.csf_append_import_preview_rows(uuid,uuid,uuid,jsonb)";
+  const migration = readFileSync(
+    new URL(
+      "../../supabase/migrations/20260908020559_csf_requirement_source_evidence.sql",
+      import.meta.url,
+    ),
+    "utf8",
+  );
+  const body = migration.split("$function$")[1];
+  const digest = createHash("md5").update(body).digest("hex");
+  assert.ok(current.includes(signature));
+  assert.ok(current.includes("md5(p.prosrc)='" + digest + "'"));
+  assert.ok(!preceding.includes(signature));
+  assert.ok(current.includes("p.proconfig=ARRAY['search_path=\"\"']"));
+  assert.ok(
+    current.includes(
+      "p.proargnames=ARRAY['p_organization_id','p_actor_user_id','p_preview_job_id','p_rows']",
+    ),
+  );
+  assert.ok(
+    current.includes(
+      "AND NOT has_function_privilege('authenticated',p.oid,'EXECUTE')",
+    ),
+  );
+});
+
+test("scheduling retirement pins every replacement and preserves the prior release catalog", () => {
+  const current = acceptedCatalogQuery(source, versions);
+  const preceding = acceptedCatalogQuery(source, versions.slice(0, 460));
+  for (const definition of [
+    "('app_private.retire_csf_scheduled_posts()','6e08e34639831cc8d178d1363c91fa61',false)",
+    "('plugin_data.csf_guard_announcement_schedule_lifecycle()','af351b0c18cd5a9fa1c333dd9502c58d',false)",
+    "('plugin_data.csf_publish_due_posts(integer,text)','bd1c22ec097dab0f168b93ef6d5581a8',true)",
+    "('plugin_data.csf_mutate_post(uuid,text,uuid,jsonb,uuid,uuid)','9dee34bed53f2c27f2b80b7ddafbfcbf',true)",
+    "('app_private.set_csf_release_worker_control(text,text,boolean,bigint,uuid,text,text)','91318f5b00c40c30b9be7a36a08c5109',false)",
+  ]) {
+    assert.ok(current.includes(definition), definition);
+    assert.ok(!preceding.includes(definition), definition);
+  }
+  assert.match(current, /SELECT count\(\*\) = 14 AND/u);
+  assert.match(preceding, /SELECT count\(\*\) = 10 AND/u);
+  assert.ok(
+    current.includes(
+      "has_function_privilege('service_role',p.oid,'EXECUTE') = expected.service_execute",
+    ),
+  );
+  assert.ok(
+    current.includes("AND NOT has_function_privilege('anon',p.oid,'EXECUTE')"),
+  );
+  assert.ok(
+    current.includes(
+      "AND NOT has_function_privilege('authenticated',p.oid,'EXECUTE')",
+    ),
+  );
 });
 
 test("identity review upgrade checks exact body, bounded signature, and server-only permissions", () => {
@@ -105,7 +270,7 @@ test("workbook rebuild release checks the exact body, server-only grants, and re
 
 test("the reviewed import upgrade verifies metadata, function grants, and the scoped index", () => {
   const query = acceptedCatalogQuery(source, versions);
-  assert.match(query, /SELECT count\(\*\) = 10 AND/u);
+  assert.match(query, /SELECT count\(\*\) = 14 AND/u);
   assert.match(query, /csf_import_rows_resolution_metadata_object/u);
   assert.match(query, /a.atttypid='jsonb'::regtype AND a.attnotnull/u);
   assert.match(query, /csf_import_rows_committed_source_key_idx/u);

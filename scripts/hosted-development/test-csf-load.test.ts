@@ -18,6 +18,18 @@ const aliasVerifier = readFileSync(
 );
 
 describe("hosted CSF load acceptance", () => {
+  test("includes route diagnostics without replacing aggregate acceptance gates", () => {
+    expect(source).toContain('from "./csf-load-metrics.mjs"');
+    expect(source).toContain("readBreakdown: readMetrics.summarize()");
+    expect(source).toContain("readBreakdown: load.readBreakdown");
+    expect(source).toContain('error?.name === "TimeoutError"');
+    expect(source).toContain("readP95Ms: percentile(load.timings, 0.95)");
+    expect(source).toContain("readP99Ms: percentile(load.timings, 0.99)");
+    expect(source).toContain(
+      "passesHostedReadRouteBudgets(result.readBreakdown) &&",
+    );
+  });
+
   test("is pinned to the Development app and refuses the Production database", () => {
     expect(source).toContain(
       'const EXPECTED_ORIGIN = "https://dev.lets-assist.com"',
@@ -240,10 +252,10 @@ describe("hosted CSF load acceptance", () => {
     expect(workflow).not.toContain("VERCEL_TRUSTED_OIDC_TOKEN");
     expect(workflow).toContain("bun run csf:test:hosted:load");
     expect(workflow).toContain("csf-hosted-development-acceptance");
-    expect(workflow).toContain("commits/${ACCEPTED_SHA}/status");
+    expect(workflow).toContain("commits/${DEPLOYED_APP_SHA}/status");
     expect(workflow).toContain('.context == "Vercel" and .state == "success"');
     expect(workflow).toContain(
-      "commits/${ACCEPTED_SHA}/check-runs?filter=latest&per_page=100",
+      "commits/${DEPLOYED_APP_SHA}/check-runs?filter=all&per_page=100",
     );
     expect(workflow).toContain('.name == "Supabase Preview"');
     expect(workflow).toContain('.app.slug == "supabase"');

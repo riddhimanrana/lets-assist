@@ -1,24 +1,15 @@
 import { describe, expect, test } from "bun:test";
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 
 const TARGET_PATHS = new Set([
   "/api/cron/csf-communications-dispatch",
   "/api/cron/csf-class-workbook-refresh",
   "/api/cron/csf-import-commit",
-  "/api/cron/csf-scheduled-post-publisher",
 ]);
 
 const githubDispatchWorkflow = readFileSync(
   new URL(
     "../.github/workflows/csf-communications-dispatch.yml",
-    import.meta.url,
-  ),
-  "utf8",
-);
-
-const githubScheduledPostWorkflow = readFileSync(
-  new URL(
-    "../.github/workflows/csf-scheduled-post-publisher.yml",
     import.meta.url,
   ),
   "utf8",
@@ -53,10 +44,6 @@ describe("CSF hosted-worker cadence acceptance boundary", () => {
         path: "/api/cron/csf-import-commit",
         schedule: "* * * * *",
       },
-      {
-        path: "/api/cron/csf-scheduled-post-publisher",
-        schedule: "7,17,27,37,47,57 * * * *",
-      },
     ]);
   });
 
@@ -76,23 +63,19 @@ describe("CSF hosted-worker cadence acceptance boundary", () => {
     );
   });
 
-  test("keeps an approval-gated manual scheduled-post fallback", () => {
-    expect(githubScheduledPostWorkflow).toContain("workflow_dispatch:");
-    expect(githubScheduledPostWorkflow).not.toContain("schedule:");
-    expect(githubScheduledPostWorkflow).toContain(
-      "ENDPOINT_PATH: /api/cron/csf-scheduled-post-publisher",
-    );
-    expect(githubScheduledPostWorkflow).toContain("environment: production");
-    expect(githubScheduledPostWorkflow).toContain(
-      "CRON_TOKEN: ${{ secrets.CRON_SECRET }}",
-    );
-    expect(githubScheduledPostWorkflow).toContain("Vercel Cron owns");
-    expect(githubScheduledPostWorkflow).toContain("cancel-in-progress: false");
-    expect(githubScheduledPostWorkflow).toContain(
-      'if [[ "$enabled" != "true" ]]',
-    );
-    expect(githubScheduledPostWorkflow).not.toContain(
-      "/api/cron/csf-communications-dispatch",
-    );
+  test("retired publishing has no scheduler or manual fallback", () => {
+    expect(
+      configuredCrons().some(
+        (cron) => cron.path === "/api/cron/csf-scheduled-post-publisher",
+      ),
+    ).toBe(false);
+    expect(
+      existsSync(
+        new URL(
+          "../.github/workflows/csf-scheduled-post-publisher.yml",
+          import.meta.url,
+        ),
+      ),
+    ).toBe(false);
   });
 });

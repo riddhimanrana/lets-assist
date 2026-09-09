@@ -297,6 +297,7 @@ export async function getSpreadsheetMetadata(
   sheetId: string;
   sheetTitle: string;
   tabs: string[];
+  tabIds: Record<string, number>;
   /** Grid extent per tab title, so callers can build bounded A1 ranges. */
   tabGrids: Record<string, { rowCount: number; columnCount: number }>;
 } | null> {
@@ -304,7 +305,7 @@ export async function getSpreadsheetMetadata(
     const response = await fetch(
       `${GOOGLE_SHEETS_API}/${encodeURIComponent(
         sheetId,
-      )}?fields=spreadsheetId,properties.title,sheets.properties(title,gridProperties(rowCount,columnCount))`,
+      )}?fields=spreadsheetId,properties.title,sheets.properties(sheetId,title,gridProperties(rowCount,columnCount))`,
       {
         headers: {
           Authorization: `Bearer ${accessToken}`,
@@ -327,6 +328,7 @@ export async function getSpreadsheetMetadata(
     type SheetProperties = {
       properties?: {
         title?: string;
+        sheetId?: number;
         gridProperties?: { rowCount?: number; columnCount?: number };
       };
     };
@@ -336,8 +338,18 @@ export async function getSpreadsheetMetadata(
       .filter((title: string | undefined): title is string => Boolean(title));
     const tabGrids: Record<string, { rowCount: number; columnCount: number }> =
       {};
+    const tabIds: Record<string, number> = Object.create(null);
     for (const sheet of sheets) {
       const title = sheet.properties?.title;
+      const tabId = sheet.properties?.sheetId;
+      if (
+        title &&
+        typeof tabId === "number" &&
+        Number.isSafeInteger(tabId) &&
+        tabId >= 0
+      ) {
+        tabIds[title] = tabId;
+      }
       const grid = sheet.properties?.gridProperties;
       if (!title || !grid) continue;
       const rowCount = Number(grid.rowCount);
@@ -356,6 +368,7 @@ export async function getSpreadsheetMetadata(
       sheetId: data.spreadsheetId,
       sheetTitle: data.properties?.title || "Untitled Spreadsheet",
       tabs,
+      tabIds,
       tabGrids,
     };
   } catch {

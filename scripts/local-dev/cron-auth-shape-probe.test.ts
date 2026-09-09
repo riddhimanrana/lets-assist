@@ -51,6 +51,7 @@ const pluginAdminClientCalls: unknown[] = [];
 const scheduledFeedRevalidationCalls: unknown[] = [];
 const workbookRefreshCalls: unknown[] = [];
 const importCommitCalls: unknown[] = [];
+const automaticSheetWorkerCalls: unknown[] = [];
 
 function dangerCallTotals() {
   return {
@@ -67,6 +68,7 @@ function dangerCallTotals() {
     revalidateScheduledPostFeed: scheduledFeedRevalidationCalls.length,
     linkCsfClassSheetAction: workbookRefreshCalls.length,
     executeCsfImportCommitClaim: importCommitCalls.length,
+    automaticSheetWorkers: automaticSheetWorkerCalls.length,
   };
 }
 
@@ -84,6 +86,7 @@ const ZERO_DANGER_CALLS = {
   revalidateScheduledPostFeed: 0,
   linkCsfClassSheetAction: 0,
   executeCsfImportCommitClaim: 0,
+  automaticSheetWorkers: 0,
 };
 
 // `processExpiredSessions()` and `processPendingJobs()` are module-local, so
@@ -202,6 +205,25 @@ mock.module("@/services/csf-import-commit-worker", () => ({
     throw new Error("Import commit must not run under the probe");
   },
 }));
+
+for (const [moduleName, exportName] of [
+  [
+    "automatic-application-sheet-refresh",
+    "prepareNextCsfAutomaticApplicationSheet",
+  ],
+  ["automatic-class-workbook-check", "checkNextCsfAutomaticClassWorkbook"],
+  ["automatic-class-preview-dispatch", "dispatchCsfAutomaticClassPreviews"],
+]) {
+  mock.module(
+    `@/lib/plugins/private/plugins/dvhs-csf/services/${moduleName}`,
+    () => ({
+      [exportName]: async (...args: unknown[]) => {
+        automaticSheetWorkerCalls.push({ exportName, args });
+        throw new Error("Automatic Sheet workers must not run under the probe");
+      },
+    }),
+  );
+}
 
 mock.module("@/emails/certificate-published", () => ({ default: () => null }));
 mock.module("@/emails/project-cancellation", () => ({ default: () => null }));
@@ -430,6 +452,7 @@ function resetCounters() {
     scheduledFeedRevalidationCalls,
     workbookRefreshCalls,
     importCommitCalls,
+    automaticSheetWorkerCalls,
   ]) {
     list.length = 0;
   }

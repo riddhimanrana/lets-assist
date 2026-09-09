@@ -4,6 +4,284 @@ DVHS CSF officer UX → class-first Home → Classes → Applications → More; 
 
 §C
 
+- Hosted Development accepted `d8faa1c13851d26e5782baca048fe4381cb05302`
+  in run `34302357521`: 9,742 requests, zero errors, read p95 1.19 seconds,
+  read p99 1.57 seconds, mutation p95 1.38 seconds, LCP p75 1.35 seconds,
+  INP p75 32 milliseconds, 25 crash-free review navigations, and retained heap
+  11.1 percent below baseline. Run `34302360181` passed quality, database replay,
+  and 89 CSF browser tests. Four skipped tests remain explicit exclusions.
+  Fictional hosted application approval and rejection saved audited decisions;
+  alumni approval kept its source class and Spring 2026 membership.
+  Production still needs the release, chapter account access, official
+  application imports, and controlled email settlement proof.
+- Internal worker checks must inspect effective database-controlled switches
+  before invoking a route. The old `prepare-test` command is retired because
+  the workbook route also processes automatic application and class queues.
+  Refuse that command before any request. This does not disable normal workbook
+  processing or change application bytes. Preserve earlier preparation receipts.
+- Root `72b69030` contains the invitation repair. Its full quality job passes.
+  Browser assertions confirmed wrong-account refusal and recipient staff
+  acceptance, but fixture cleanup failed when deleting the organization before
+  its memberships. The test now removes scoped memberships first. A rolled-back
+  Development database check proves that cleanup order. Hosted acceptance is
+  still required for the grouped release.
+  Read-only Production comparison confirms exact saved labels and points for
+  all 4,434 imported activity entries and labels for 1,392 attendance records.
+  Their source rows exist. Fresh Drive checks, applications, and live workflows
+  remain unfinished. The signed-in Production Google connection recheck passes,
+  and the Class of 2027 workbook revision check reports up to date.
+- Root CI `34298362402` passed quality and database checks but its invitation
+  browser test still failed before sign-in; 88 other browser tests passed.
+  The token-scoped lookup unnecessarily joined the private inviter profile,
+  which anonymous users cannot read. The local fix removes that join without
+  changing grants and identifies the inviting organization in the UI. The
+  recipient and wrong-account journey must pass before the grouped release.
+- Production chapter staff invitations omit the token header required by their
+  existing database read policy. The inviting administrator can open the link,
+  but the invited account cannot. The local repair keeps the token on the
+  request-scoped client for lookup and acceptance, retains invited-email
+  enforcement, and adds isolated recipient and wrong-account browser checks.
+  The chapter account's invitation remains pending until live acceptance.
+- Development app `7ba7f075` passed source and database CI. Hosted run
+  `34288632216` tested it using identical application bytes at tooling revision
+  `3b79895a`. Its 9,405 requests had zero errors, but officer route budgets
+  failed: Classes p95 2.60 seconds, Applications 3.03, and Home 3.02. Mutation
+  p95 was 1.34 seconds; all 25 review navigations passed without a crash.
+  Production promotion remains gated. The current follow-up fixes hidden Sheet
+  update buttons, removes unused import row payloads, reduces new row batches
+  to five, and starts independent Home reads together. These changes still
+  require hosted proof. Original import and acceptance failures remain saved.
+- Source-authorized new-applicant creation is implemented locally through the
+  existing audited profile and row-reconciliation transactions. Calls create up
+  to 50 unclaimed profiles, keep form emails unverified, and make no application
+  decision or semester membership. Existing identities and conflicting contact
+  evidence stay in review. The worker prepares profiles before freezing its
+  commit scope, with bounded work and durable retry receipts. Rollback-only
+  database tests pass for single-row and 51-applicant cases. Production and the
+  complete import/release acceptance remain unfinished.
+- Application repeat sync now preserves a successful same-file profile connection
+  through unchanged receipts, with exact semester/class and identity-evidence
+  checks. It does not treat form email as verified account identity. Provider-file
+  changes invalidate retry scope; target changes prevent an unchanged-row skip.
+  Forty-six focused checks pass. New-profile automation and live Production
+  reconciliation remain unfinished. No deployment or Production mutation ran.
+- Local automatic application updates now run through the existing authenticated
+  workbook route and disable switch. Officers can enable or pause them in the
+  Sheet dialog after reviewing a sealed mapping. Unknown saves require a saved
+  state check before retry; stale responses cannot change the current selection.
+  Thirty-two focused tests, TypeScript, zero-warning lint, and all 290 private
+  plugin test files pass. Historical applications across all available chapter
+  sources, including alumni, still require Production reconciliation. No local
+  result establishes that those applications are imported. Automatic new
+  identities, class-workbook integration, full replay, and release remain open.
+- Root CI `34189124828` passed on `1b530a27` with private `fd9f837`:
+  quality, database replay, 87 CSF browser passes, and three DV browser passes.
+  Four CSF skips remain, and Communications navigation passed only on retry.
+  Its retained screenshot shows the officer tour covering the menu; the local
+  test correction explicitly dismisses the tour before navigation.
+  Private PR #268 adds pre-acquisition saved-tab validation for preview retries
+  at `e92f59b`. Sixteen focused tests, TypeScript, zero-warning lint, and all
+  278 private test files pass. Private CI `34190350981` passed and PR #268
+  merged at `b2b9339`, with the tested tree unchanged. The combined local run
+  passes 306 root and 307 plugin test files with this pin. Strict gitlink and
+  operator documentation checks pass. Root CI integration is pending.
+  The grouped dialog release still requires hosted acceptance.
+  Production still has 460 migrations,
+  four linked workbooks, 1,047 profile records, and zero applications in the
+  latest count-only check. No Production mutation or app deployment occurred.
+- Private PR #267 passed CI `34187091711` and merged at `fd9f837`.
+  The complete private suite passes across 277 files. Its previous failure was
+  the old expanded-row layout contract, updated to cover the requested first-row
+  disclosure while retaining evidence and action checks. The Development-only
+  source allowlist now contains the nine verified fictional sources and all
+  twelve previous entries. The saved setting was verified without a deployment.
+  Docker Desktop cannot start the local browser stack. CI supplied the isolated
+  browser proof above. Hosted UI acceptance remains pending for the new dialog.
+- The application Sheet UI now uses a chapter-wide dialog locally. It removes
+  the technical stepper, folds column matches and source evidence away, and
+  opens the first unresolved application for review. Google Picker temporarily
+  releases the dialog's focus trap. The review-page semester no longer supplies
+  a source default. The Sheet supplies it, or the officer selects it explicitly.
+  Forty-five focused checks, TypeScript, and zero-warning lint pass. Browser
+  acceptance, publication, and Production reconciliation remain open.
+- Private PR #266 groups import feedback, selected-tab analysis, List I aliases,
+  and removal of the fixed Class of 2030 history ban at `35b1df6`. Empty tabs
+  still produce templates with no parsed rows. Populated sources retain term,
+  source, identity, and officer-commit checks. The full private suite passed
+  before the final year-ban removal; its 20 focused checks, TypeScript, and
+  zero-warning lint pass. PR #266 merged at `6fb9238`. The integrated root run
+  reached 1,329 passes and one stale runbook-gitlink failure. The corrected
+  runbook passes all 13 focused documentation checks. The full grouped suite
+  still requires a passing run after the new application dialog change.
+- The grouped private follow-up fixes preview wording after officer decisions
+  and exposes the existing lineage-bound recheck beside unresolved rows.
+  The regression first failed on both stale status cases. All 104 focused
+  presentation, action-feedback, and import-readiness checks now pass, as do
+  TypeScript and zero-warning lint. These changes are local, not deployed.
+- Development migration 462 is applied and its requirement-evidence function
+  body and service-only grants match the accepted catalog. PR #493 passed CI
+  `34181764735` and merged at `36c3b74a` without an application build.
+  Workbook check `34183419825` passed against deployed `8a48f7a1`: version 11
+  completed once with four prepared tabs, four templates, and zero blocked tabs.
+  The stale version-10 job retains its failure history and is blocked.
+  All Development workers are disabled at revision 4. Review, commit, and
+  duplicate-free repeat sync remain open. Production is unchanged.
+- Development `8a48f7a1` includes the calculated-status parser fix, private
+  `7daadc1`, and passed root CI `34176893568`. Live workbook rebuild
+  `34178593288` failed because the append RPC rejects requirement evidence.
+  Forward migration `20260908020559` extends that closed evidence contract
+  with bounded origin, coordinate, value, and purpose fields included in the
+  evidence digest. Legacy digests and approval payloads remain unchanged.
+  The real append-RPC suite now has 30 assertions. CI `34179939118` passed
+  the complete database and browser job on `f08dbf9a`; its quality job failed
+  the release checks corrected in `9699f756`. The full local test run now
+  passes across 305 root and 302 plugin test files. CI `34181210176` is running
+  on that correction. Local Docker cannot start. All Development
+  workers are disabled at revision 2 for this release. Production is unchanged.
+- Hosted acceptance `34178004263` passed on `8a48f7a1`: 100 distinct fictional
+  sessions, 9,775 requests, zero errors, read p95 1.437 seconds and p99 2.186
+  seconds. Classes p95 is 1.627 seconds; Applications p95 is 2.146 seconds.
+  Mutation p95 is 1.863 seconds. LCP p75 is 1.532 seconds, INP p75 is 32 ms,
+  CLS p75 is 0.000816, all 25 review navigations completed without crashes,
+  and retained heap fell 11.67%. This does not close the failed workbook path
+  or prove the unapplied migration in hosted Development.
+- Hosted Development acceptance `34171163941` passed on `e8e4c63b` with
+  private pin `ef8cce1`: 100 distinct fictional sessions, 9,737 requests,
+  zero errors, read p95 1.341 seconds, mutation p95 1.837 seconds.
+  Officer Classes p95 is 1.577 seconds and Applications p95 is 1.904 seconds.
+  LCP p75 is 1.400 seconds, INP p75 32 ms, CLS p75 0.000816,
+  25 review navigations completed without crashes, and retained heap fell 11.01%.
+  The earlier failed measurements remain below as historical evidence.
+  Configuration-only Development redeployment `dpl_AeV3QCXGTexX5oupuYBMFPHuKSAF`
+  serves the same accepted SHA with the replacement worker credentials.
+  Disabled-worker authentication passed in run `34174136150`. Preparation run
+  `34174172884` returned 503 after claiming the fictional workbook once. Its
+  version-9 receipt later settled as blocked/stale_workbook_generation after
+  an app recheck found version 10. Seven audited semester repairs completed the
+  fictional class setup. Run `34174922514` then passed preparation of all four
+  populated tabs and four empty templates on version 10, one attempt, no blocked
+  tabs. All workers are disabled at revision 4. Row review exposed calculated
+  All Reqs Met cells blocking otherwise populated rows. The local fix accepts
+  recognized markers only in a separate class-history field, preserves formula
+  provenance, and keeps identity, meeting, and application formulas blocked.
+  All 273 private test files, TypeScript, and zero-warning lint pass.
+  Private PR #265 passed CI `34176034001` and merged at `7daadc1`.
+  Hosted formula verification, commit/repeat, official application
+  reconciliation, and Production remain open.
+- Private PR #263 passed CI and merged at `8e443de`, with the same tree as
+  `c0fe247`. The full local run passed 86 cases and exposed two profile-history
+  test failures. Explicit semester selection fixed the starting-state
+  assumption; a separate lost early tab click required a client-readiness
+  guard, now committed locally at `234b7f0`. The delayed-script desktop/mobile
+  history rerun passes, as do ten profile tests and all 272 private test files.
+  Root integration, the missing workbook journey, hosted acceptance, and
+  Production data reconciliation remain open. No hosted deployment occurred.
+- The full local browser run found a pre-hydration member-search failure.
+  Search now waits for its client handlers before accepting input. The focused
+  compiled rerun passes all six identity cases, including delayed JavaScript
+  and a record beyond the first directory page. The original 83-pass,
+  one-failure full run remains recorded. Full and hosted acceptance remain open.
+- The local review loader now starts application/point rosters alongside
+  independent review settings after authorization. Two regressions failed
+  before the change; all five read-scope tests pass afterward. A fresh isolated
+  database applied 461 migrations. Seventeen compiled browser journeys,
+  database workflows, and 46 application/scheduling pgTAP assertions pass.
+  Navigation stream errors and a shutdown permission diagnostic remain to be
+  explained. No app process remained after the run. Hosted latency and the
+  full acceptance workflow remain open.
+- Local communications display now distinguishes a historical hold from an
+  outstanding review. Cancelled/completed campaigns with zero unresolved
+  receipts show their terminal state; unresolved receipts remain visible for
+  every status. Five rendered failures pass after the fix. Sender authority,
+  historical receipts, and unknown-outcome retry rules are unchanged. All 271
+  private-plugin test files, all 304 root unit test files, TypeScript, and
+  zero-warning lint pass.
+- The supplied Fall 2026 application export was checked locally through the
+  actual header analyzer and parser: 120 populated responses, 12 blank rows,
+  classes 2027/2028/2029/2030 with 27/33/41/19 rows, and 120 transcript/receipt
+  references. The local parser now omits explicit empty course answers while
+  preserving raw evidence and paired-grade positions. This removes 59 false
+  course entries and exposes 16 responses with missing course data for review.
+  Fictional layout regressions, existing normalization tests, TypeScript, and
+  zero-warning lint pass. No official application was imported or approved.
+- Production workbook recheck on 2026-09-07 completed through the Riddhiman
+  officer session. Classes 2027 and 2028 were unchanged. New provider revisions
+  for 2029 and 2030 prepared successfully; 2030 retained eight empty templates.
+  Officer batch approval committed the two 2029 previews, with 150 existing
+  profile targets and no count increase in profiles, credits, opportunities,
+  meetings, attendance, or memberships. The subsequent 2029 check returned
+  unchanged. All four workbook registries have current prepared revisions.
+  Applications remain incomplete: the canonical Spring/Fall previews contain
+  588 rows, one resolved and 587 pending review, with zero imported applications.
+  Production ignores the saved Spring preview URL and displays Fall instead;
+  the saved-preview fix is in Development and still awaits grouped promotion.
+- Classes no longer computes the Terms-only closure readiness preflight in the
+  local follow-up. The caller regression failed before the change and passes
+  with authorized Terms behavior preserved. Development still serves `7c24b7a3`.
+  A new bounded fictional route diagnostic reproduces burst latency without
+  rebuilding; neither its warm passing run nor this local fix closes hosted
+  performance acceptance. Applications remains under diagnosis.
+- Development email proof passed on `7c24b7a3`: no-send check `34158729752`,
+  single ten-recipient dispatch `34158935320`, ten distinct delivered provider
+  messages, ten matching sent events, and ten matching delivered events. The
+  audited campaign is completed with no duplicate attempts. Prior refused
+  attempts remain as attributed staff failures in a cancelled campaign. Runtime
+  revision 6 leaves every worker disabled. Production proof remains open.
+- Development follow-up `7c24b7a3` is deployed with private `70f2801` after CI
+  `34093192415` passed. No-send worker proof `34095049908` passed. Hosted
+  performance run `34094827987` failed: officer Classes p95 5.355 seconds,
+  p99 6.225 seconds; Applications p95 2.776 seconds. Production email settlement,
+  official application reconciliation, and Production promotion remain open. Production still has
+  zero imported applications; linked workbooks and historical participation
+  counts do not establish completion. Keep this continuation record local
+  until final acceptance evidence is grouped, with no documentation-only build.
+- Read acceptance applies to each member/officer route, not only the pooled
+  request distribution. Every expected route needs measured requests, p95 at
+  most 2.5 seconds, and p99 at most 5 seconds. Missing or duplicate route
+  summaries fail acceptance. Run `34085356037` reported success under the old
+  pooled gate, but officer Classes p95 was 3.835 seconds and Applications was
+  2.566 seconds. These remain open performance defects. Local gate coverage
+  prevents pooled member traffic from hiding either failure.
+- Scheduled publishing is retired. Existing scheduled posts return to drafts
+  with an audit receipt; IDs, content, attachments, and prior receipts survive.
+  New scheduling requests are rejected before writing. Legacy publisher calls
+  return zero work, and runtime controls cannot reactivate publication.
+  Manual publishing and its separately queued email remain supported.
+- Scheduling retirement is deployed to Development `54c95cf6`, not Production.
+  Development has 461 migrations, one audited draft conversion, and no scheduled
+  posts. Hosted run `34077477140` failed: read p95 3.157 seconds, read p99
+  8.193 seconds, mutation p95 4.830 seconds. Browser vitals, 25 review
+  navigations, and retained heap passed. Keep this failure and the existing
+  thresholds. Local count-only route diagnostics pass ten tests, TypeScript,
+  and targeted lint; they are not a latency fix or hosted acceptance.
+  Ten-recipient audited campaign preparation is complete, but dispatch and
+  current webhook settlement remain unproven. Production promotion stays open.
+- The user approved one additional grouped Development deployment and a
+  Development-only communications worker credential rotation. Vercel's
+  branch-scoped sensitive variable and GitHub's Development secret are updated.
+  The existing deployment does not yet prove the replacement credential works.
+  Private PR #261 groups saved-preview selection and point-lock refusal fixes.
+- Isolated officer connection approval passed after hydration/tour test setup
+  was corrected. The attachment journey remains open: an existing fictional
+  verification period correctly blocked submission, but the app mislabeled
+  that known refusal as an unknown outcome. A local private error-classifier
+  correction passes seven focused tests; it is not deployed. Keep the database
+  submission freeze and retry protections intact.
+- Later isolated acceptance closed the fictional verification period through
+  the officer UI and passed PNG proof upload, fixed-point submission, and
+  audited withdrawal. Beyond-first-page directory search passed with 52 owned
+  fictional profiles and survived reload. All 266 private test files passed.
+  These are local results, not a replacement for hosted latency or email proof.
+- Release evidence, 2026-09-06: PR #483 merged accepted Development `b5edca71`
+  to Production `82ab06b6` with identical tree and private gitlink `e03130c`.
+  Hosted acceptance `34024436926` retains the failed 2.568-second LCP attempt
+  and the passing unchanged-deployment retest with 9,619 requests and zero errors.
+  Migration run `34058023928` verified the exact 460-migration catalog.
+  App run `34058086857` used one Production build and verified the public alias.
+  Workbook refresh transition `34058344966` passed without rebuilding.
+  Official import reconciliation, current email settlement, and final live
+  workflow/media acceptance remain open. Release success does not close them.
+
 - Workbook preparation must retain the immediate source-scoped preview as retry
   lineage after a confirmed failure. Unknown and in-flight attempts block
   preparation. A rebuilt preview still requires an officer commit; preparation
@@ -159,7 +437,7 @@ V35: point claim form → compact mobile-first fields + fixed dialog header/foot
 V36: member point claim context → current term from authorized member class context + hidden stable `termId`; missing current context disables submission; historical-term fallback and member-facing semester selector ⊥; server revalidation remains authoritative.
 V37: class-scoped activity/post compose → class + current class term inherited from class workspace; redundant audience/class/semester selectors ⊥; broad officer compose may keep explicit scope controls when no class context exists.
 V38: linked activity point claim → authorized current-term activity supplies exact configured point value + type; member credit controls ⊥; hidden stable FormData retained; mutation rejects changed or invalid configured credit.
-V39: class activity/announcement compose → empty text entry fields carry no example placeholder copy; unavailable scheduling explainer ⊥; valid scheduling and scheduled-post recovery contracts remain.
+V39: class activity/announcement compose → empty text entry fields carry no example placeholder copy; scheduling controls and activation ⊥; legacy scheduling requests refuse writes; saved drafts and manual publication remain.
 V40: linked member without accepted current-term membership → class Feed + one truthful review/setup notice; points rail + agenda + member workflow links + first-use tour + their backing reads ⊥; refused/closed states never described as processing.
 V41: post email acceptance → browser publication receipt + frozen positive audience + durable queued campaign + worker dispatch + local mailbox receipt; Development Resend proof uses synthetic `@resend.dev` only; queue ≠ delivery and student provider sends ⊥.
 V42: officer member correction → class Members uses the semester already selected in the class header and exposes identity, account, points, meetings, and semester standing in one compact roster; permitted edits use narrow audited saves and accepted status still runs the application decision transaction; a separate semester-management flow or raw bulk overwrite ⊥.
@@ -211,6 +489,42 @@ V80: the runtime server role cannot update point submissions through table or co
 
 V81: identity reconciliation locks the source preview before its row and requires completed or needs_resolution state. Pending, running, failed, cancelled, and commit-mode jobs cannot receive identity matches or skips. A repeated identity decision rechecks the current preview state before returning its result. Refusal changes neither row state nor audit history.
 
+V82: officer workbook recovery stops only queued imports with zero attempts, no start time, and no lease. Running work and unknown outcomes refuse recovery. It preserves source rows, completed and failed receipts, and queue history. One stable request records the stopped queue IDs and fresh preparation receipt. Stopped previews remain frozen and become retry lineage, never editable originals.
+
+V83: an officer may authorize ongoing safe updates for one linked source, mapping version, and explicitly reviewed preview. The scope covers future rows in the selected columns and tabs. Changed headers require mapping review. Every automatic commit claim and row write rechecks the saved consent generation, source revision, and approving officer. An automatic approval records the exact ready row IDs, source and payload hashes, and profile, class, and semester targets. Later-resolved rows require a new approval; they cannot enter an older batch. Pause stops further writes from an already-prepared preview. Existing links keep their prior authorization. Revoked permissions, changed identity evidence, uncertain AI mapping, and conflicting officer corrections block affected rows. Source deletion never deletes member history.
+
+V84: chapter-wide application linking preserves each response's class and source semester, including alumni. The linking action may create a missing review period only with review-period permission. It never reopens a closed period or turns imported responses into approved applications.
+
+V85: saving a workbook-to-profile link requires explicit officer intent, the exact workbook and class, and one consistent prior source identity. Ordinary name matching creates no reusable link. Later semesters may reuse only an active reviewed link with unchanged source identity and no contact conflict. Revocation returns future unresolved rows to review. A retry never reactivates a revoked link.
+
+V86: an active source authorization may create an unclaimed application profile only when its approving officer still has import and profile-management permission. Source evidence must pass the ordinary import checks. Record and commit-payload names must normalize identically, and the class must have the source semester configured. Existing name/contact candidates, duplicate responses, invalid targets, and unknown write outcomes require review. Each profile creation and row match is atomic and audited under the source authorization, without canonical email, application approval, or semester membership. Calls check locked candidates in order, stop after 50 profile creations, and never add targets to an already-frozen approval.
+
+V87: a known blocked semester does not prevent unrelated workbook terms from preparing. The blocked term retains its existing receipts and remains in review. A finished preparation cycle records prepared, template, and blocked counts separately; it does not claim that every row imported. Unknown publication results, retryable provider failures, and expired worker authority still stop the generation without claiming completion.
+
+V88: automatic class workbook metadata checks require explicit current source consent and both the source and workbook leases. Semester links share the workbook's five-minute check interval. The worker uses the Google owner's access while retaining the authorizing officer separately. An unchanged prepared revision creates no refresh job. A changed revision queues existing preparation, not a profile or application write. Pause, permission loss, another organization, and stale leases cannot advance the workbook version. Metadata settlement never advances the prepared-preview checkpoint.
+
+V89: authorized class row growth does not rewrite the saved mapping or its version. Retain the reviewed columns, point rules, and caller settings when the file, owner, class, semester, header position, and column bounds remain unchanged. Expand only the preview's row bounds within the existing cell limit. A changed active mapping or failed consent read stops registration before overwriting the source. New manual sources retain manual behavior.
+
+V90: automatic class approval distinguishes the Google owner who prepared the preview from the officer who authorized updates. Both retain current organization permission. The preview must belong to the completed workbook generation with matching source, owner, provider version, reviewed headers, and consent generation. Advance its prepared checkpoint and queue safe rows in one transaction; a refusal rolls both back. Old manual previews never acquire automatic authority through this entry point, and empty previews create no rows or approval receipt.
+
+V91: the existing workbook worker discovers completed automatic class previews durably, without relying on the original preparation response. It dispatches at most eight previews per run. A saved source checkpoint prevents repeat dispatch. Review-only or explicitly blocked terms do not prevent another term from dispatching. Unknown database outcomes stop the run without repeating the call; future work reads the persisted checkpoint and queue receipts. Worker responses contain counts only and obey the existing disable switch.
+
+V92: a populated automatic class commit retains exact activity labels and points, shares one catalog definition across participating profiles, and links attendance to the named semester meeting. Replaying a saved batch request creates no duplicate profiles, participation, attendance, or row receipts. Finalization reports successful rows beside unresolved siblings as partially completed, without hiding the remaining officer review.
+
+V93: class Settings exposes source consent beside each linked semester using the existing audited enable and pause actions. Enabling requires a sealed preview of that exact source file and current mapping version, plus explicit officer confirmation. A stale or absent preview still permits pausing saved authorization. Closed controls perform no authorization-status reads. Semester consent does not authorize other tabs or change old manual links on page load.
+
+V94: refreshing a paused, blocked, disconnected, or manual class source preserves saved column corrections, point rules, duplicate policy, and caller settings when its file, owner, class, semester, and column layout still match. Only the detected row range and population state change, with the ordinary mapping-version increment. Retaining settings grants no automatic authority. Incompatible layouts require review before registration can replace the saved mapping.
+
+V95: known class mapping drift records a source-scoped review notice and blocks only that semester's registration and preview. Preserve its old sources during cleanup. Other terms can finish preparation, and the workbook result lists registered and blocked terms separately. Failed reads, lost authority, or failure to persist the review notice still stop the generation without claiming completion.
+
+V96: the follow-up migration controller accepts only the reviewed eight-file tail after the exact 460-version Production prefix. Pin every file's bytes. A matching ledger alone cannot settle a release with a different schema catalog or permissions. Keep workers disabled, submit the transaction once, and resolve a lost response through reads without resending it. Controller test success does not authorize deployment of an unaccepted application candidate.
+
+V97: class Settings offers approval and row review only for a sealed preview matching the current source file and mapping version. An outdated preview shows a preparation notice and triggers no readiness or queue reads. Keep prior successful commits visible as history. An in-progress preview does not fall back to an older approval candidate.
+
+V98: an authorized profile merge carries active reviewed workbook links to the surviving profile in the same transaction. Preserve the original officer, source key, review row, reason, and request identifier. Retain the full pre-merge link in the protected audit. Revoked links stay attached to the original profile. The existing merge identity checks and request receipt remain authoritative; a reviewed workbook link does not permit a name-only merge.
+
+V99: an officer can explicitly extend a reviewed class layout to matching canonical semester tabs in the same class workbook. Older source consent does not expand. New tabs retain the original officer, Google owner, reviewed header signature, and parent consent generation. Different columns, point rules, classes, workbooks, or owners require review. Parent pause or permission loss invalidates inherited authority before any row write. A separately reviewed child tab can become independently authorized. No source deletion removes student history.
+
 §T
 
 id|status|task|cites
@@ -260,6 +574,10 @@ T43|~~|add and verify an app-only release controller, publish the already accept
 T44|~~|implement exact full-account-name confirmation, policy-versioned tokens, connection provenance, replay/access checks, officer revocation, and synthetic database/browser acceptance in one follow-up release|V5,V17,V23,V27,V43,V45,V72,I.route,I.service,I.db,I.cmd
 
 T45|~~|replace per-worker rebuilds with audited runtime switches, verify permissions and receipt recovery, and repair the explicit Production build-policy override before the grouped follow-up release|V18,V51,V60,V71,V73,I.cmd,I.db
+T46|~~|recover blocked workbook queues through audited officer intent, prove fresh review and unchanged repeat sync, and preserve every earlier receipt|V47,V67,V77,V82,I.db,I.service,I.cmd
+T47|~~|authorize ongoing source updates explicitly, add bounded due-source processing, and verify pause, revoked permission, changed mappings, and mixed safe/conflicting rows|V47,V65,V66,V83,I.db,I.service,I.cmd
+T48|~~|finish chapter-wide historical and Fall 2026 application reconciliation, missing review-period setup, account linking, and officer access acceptance|V5,V62,V75,V84,I.db,I.service,I.route,I.cmd
+T49|~~|save and revoke reviewed cross-semester workbook profile links, integrate officer controls, and prove identity conflicts and retry behavior before release|V14,V47,V81,V85,I.db,I.service,I.route,I.cmd
 
 §B
 

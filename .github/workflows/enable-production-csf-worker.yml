@@ -11,7 +11,6 @@ on:
           - workbook_refresh
           - import_commit
           - communications
-          - scheduled_post_publisher
       enabled:
         description: "Enable this worker. Uncheck to disable it independently."
         required: true

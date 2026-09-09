@@ -18,6 +18,37 @@ afterEach(() => {
 });
 
 describe("Google Sheets metadata failure privacy", () => {
+  test("retains provider tab IDs from the same metadata request without row reads", async () => {
+    const calls: string[] = [];
+    globalThis.fetch = mock(async (input) => {
+      calls.push(String(input));
+      return Response.json({
+        spreadsheetId: "fictional",
+        properties: { title: "Fixture" },
+        sheets: [
+          {
+            properties: {
+              sheetId: 0,
+              title: "Fall",
+              gridProperties: { rowCount: 5, columnCount: 17 },
+            },
+          },
+          {
+            properties: {
+              sheetId: 42,
+              title: "Spring",
+              gridProperties: { rowCount: 5, columnCount: 17 },
+            },
+          },
+        ],
+      });
+    }) as unknown as typeof fetch;
+    const result = await getSpreadsheetMetadata("fixture-token", "fictional");
+    expect(result?.tabIds).toEqual({ Fall: 0, Spring: 42 });
+    expect(calls).toHaveLength(1);
+    expect(calls[0]).toContain("sheets.properties(sheetId,title,");
+    expect(calls[0]).not.toContain("/values");
+  });
   test("classifies provider refusal without reading or logging its body or identifiers", async () => {
     let bodyRead = false;
     globalThis.fetch = mock(async () => {
