@@ -87,3 +87,23 @@ test("public invitation lookup does not join the private inviter profile", () =>
   expect(lookup).not.toContain("inviter:profiles");
   expect(lookup).toContain("organization:organizations!");
 });
+
+test("invitation fixture cleanup removes memberships before their organization", () => {
+  const cleanup = readFileSync(
+    `${process.cwd()}/tests/e2e/csf/chapter-staff-invitation.spec.ts`,
+    "utf8",
+  ).split("} finally {")[1];
+  const memberDelete = cleanup.indexOf('.from("organization_members")');
+  const organizationDelete = cleanup.indexOf('.from("organizations")');
+  expect(memberDelete).toBeGreaterThanOrEqual(0);
+  expect(organizationDelete).toBeGreaterThan(memberDelete);
+  expect(cleanup.slice(memberDelete, organizationDelete)).toContain(
+    '.eq("organization_id", organizationId)',
+  );
+  expect(cleanup.slice(organizationDelete)).toContain(
+    '.eq("id", organizationId)',
+  );
+  expect(cleanup).toContain(
+    '"Remove only the isolated invitation memberships"',
+  );
+});

@@ -2633,6 +2633,47 @@ sources.
 
 ### Current acceptance failures and fixes, 2026-09-08
 
+The invitation repair is pushed at root
+`72b690305cf799496c81bc9cd56fb0bf8948fd4a`, with private gitlink
+`09c36d6750e5ce4685443c33df236111bee20177`. Its quality job in run
+`34300350965` passes full tests, lint, TypeScript, and the build. Database checks
+passed. The browser suite passed 88 tests and skipped four. The invitation
+test reached its success heading and confirmed accepted status plus active
+staff membership, then failed only in fixture cleanup. The retained trace
+confirms that each assertion through line 111 passed. Deleting the parent
+organization first caused its membership-removal trigger to reference the
+deleted parent. The fixture now deletes only its scoped memberships before
+deleting its organization. A focused regression failed before this change;
+12 invitation and fixture-inventory tests pass afterward with 2,432 assertions.
+A rolled-back Development probe confirms that the removal receipt exists while
+the parent exists, then cascades away with the fictional organization. No
+fixture remains from that probe. TypeScript, targeted zero-warning lint, and
+strict private gitlink checks pass. This cleanup-only follow-up changes no
+application bytes or Production database behavior. The hosted acceptance selector skipped
+execution because this commit has no deployment marker. It is not a hosted
+acceptance pass. No application deployment was requested.
+
+Chrome became available again. The signed-in Riddhiman Production officer
+session rechecked the chapter Google connection successfully, then used
+Class of 2027 Settings to check the linked workbook revision. The saved result
+reports "The class workbook is up to date." This is a metadata check, not a
+new import commit or resolution of the remaining undocumented skipped row.
+
+A fresh read-only Production comparison found that all 4,434 imported activity
+entries match their saved commit payload's activity slot, exact label, and raw
+points. All referenced source rows exist and their hashes match. All 1,392
+attendance records retain the saved meeting key and exact label. Duplicate
+groups are zero for profile/term/activity source slots, imported catalog source
+keys, and profile/term/meeting keys. The first activity comparison incorrectly
+looked for slots in the display record rather than the commit payload; the
+corrected query proves the counts above. No data repair followed that diagnostic.
+These checks do not establish fresh Drive-version parity or application imports.
+Only two of the 736 active Production profiles have a nonempty normalized school
+or personal contact email. This limits existing email-based matching and does
+not authorize treating application response emails as verified account identity.
+The count-only evidence is retained in ignored artifact
+`.artifacts/csf/production-source-label-check-20260909.md`.
+
 Root `65442bbb8cd71d5adbbdf10478f1ae0550b25604` passed the quality job in
 `34298362402`, including full tests, lint, TypeScript, and the Production build.
 Database replay and SQL checks passed. The browser suite passed 88 tests and

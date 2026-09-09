@@ -110,6 +110,14 @@ test("a chapter staff invitation is visible to its recipient and refuses another
     expect(membership.error).toBeNull();
     expect(membership.data).toEqual({ role: "staff", status: "active" });
   } finally {
+    const { error: memberError } = await admin
+      .from("organization_members")
+      .delete()
+      .eq("organization_id", organizationId);
+    expect(
+      memberError,
+      "Remove only the isolated invitation memberships",
+    ).toBeNull();
     const { error } = await admin
       .from("organizations")
       .delete()

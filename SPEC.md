@@ -4,6 +4,17 @@ DVHS CSF officer UX → class-first Home → Classes → Applications → More; 
 
 §C
 
+- Root `72b69030` contains the invitation repair. Its full quality job passes.
+  Browser assertions confirmed wrong-account refusal and recipient staff
+  acceptance, but fixture cleanup failed when deleting the organization before
+  its memberships. The test now removes scoped memberships first. A rolled-back
+  Development database check proves that cleanup order. Hosted acceptance is
+  still required for the grouped release.
+  Read-only Production comparison confirms exact saved labels and points for
+  all 4,434 imported activity entries and labels for 1,392 attendance records.
+  Their source rows exist. Fresh Drive checks, applications, and live workflows
+  remain unfinished. The signed-in Production Google connection recheck passes,
+  and the Class of 2027 workbook revision check reports up to date.
 - Root CI `34298362402` passed quality and database checks but its invitation
   browser test still failed before sign-in; 88 other browser tests passed.
   The token-scoped lookup unnecessarily joined the private inviter profile,
