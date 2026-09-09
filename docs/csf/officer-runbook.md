@@ -1,8 +1,8 @@
 # DVHS CSF Officer Operations Runbook
 
 **Audience:** organization administrators, adviser, chapter officers, and Data Management
-**Current status:** the last verified public app is `82ab06b6c6354c1d7cefed46b73687f75e58e714`. All four class workbooks are linked. Preparation does not mean their rows have committed. Workbook refresh and import processing are enabled; communications remains disabled pending delivery proof. Use the [cleanup register](../development/cleanup-register.md) for release and data evidence.
-**Release ledger:** the current repository candidate carries 468 ordered migrations through `20260908141739_csf_workbook_matching_tab_authorization`; the private Development gitlink is `09c36d6`. Development has all 468 migrations and serves app `7ba7f075`. Production last passed the 460-migration release at `82ab06b6`. Scheduling retirement and the later import migrations have not reached Production. The current follow-up still requires hosted acceptance; the latest run failed officer route timing limits.
+**Current status:** the last verified public app is `d8faa1c13851d26e5782baca048fe4381cb05302`. All four class workbooks are linked. Preparation does not mean their rows have committed. Workbook refresh is enabled; import processing and communications remain disabled. Official application commits and Production delivery proof remain unfinished. Use the [cleanup register](../development/cleanup-register.md) for release and data evidence.
+**Release ledger:** the current repository candidate carries 468 ordered migrations through `20260908141739_csf_workbook_matching_tab_authorization`; the private Development gitlink is `fdaec9d`. Development accepted app `d8faa1c1` in hosted run `34302357521`. Production has the exact 468-migration ledger and serves `d8faa1c1` after app-only run `34307944469`. Scheduling retirement and the later import migrations are applied. The source-verification follow-up still requires its own hosted acceptance before deployment.
 Annotation review now rejects frozen rows and previews whose preparation has not completed.
 
 **Authoritative record after review:** Let's Assist

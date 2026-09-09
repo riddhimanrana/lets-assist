@@ -337,7 +337,7 @@ export async function getSpreadsheetMetadata(
       .map((sheet) => sheet.properties?.title)
       .filter((title: string | undefined): title is string => Boolean(title));
     const tabGrids: Record<string, { rowCount: number; columnCount: number }> =
-      {};
+      Object.create(null);
     const tabIds: Record<string, number> = Object.create(null);
     for (const sheet of sheets) {
       const title = sheet.properties?.title;
@@ -368,8 +368,8 @@ export async function getSpreadsheetMetadata(
       sheetId: data.spreadsheetId,
       sheetTitle: data.properties?.title || "Untitled Spreadsheet",
       tabs,
-      tabIds,
-      tabGrids,
+      tabIds: { ...tabIds },
+      tabGrids: { ...tabGrids },
     };
   } catch {
     logError(
