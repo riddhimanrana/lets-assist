@@ -517,3 +517,63 @@ test("optional reported text pins the corrected helper and retains the preceding
   assert.ok(!current.includes("d01d37d7a11be7615b75d95b706089ca"));
   assert.ok(preceding.includes("d01d37d7a11be7615b75d95b706089ca"));
 });
+
+test("staff account connection pins its body and service-only ACL while retaining the preceding catalog", () => {
+  const current = acceptedCatalogQuery(source, versions.slice(0, 475));
+  const preceding = acceptedCatalogQuery(source, versions.slice(0, 474));
+  const migration = readFileSync(
+    new URL(
+      "../../supabase/migrations/20260909193538_csf_staff_account_connection.sql",
+      import.meta.url,
+    ),
+    "utf8",
+  );
+  const digest = createHash("md5")
+    .update(migration.split("$$")[1])
+    .digest("hex");
+  const signature =
+    "plugin_data.csf_staff_connect_profile_account(uuid,uuid,uuid,text,text,uuid)";
+  assert.ok(current.includes(signature));
+  assert.ok(current.includes(`md5(p.prosrc)='${digest}'`));
+  assert.ok(
+    current.includes(
+      "p.proargnames=ARRAY['p_organization_id','p_profile_id','p_actor_user_id','p_account_email','p_reason','p_request_id']",
+    ),
+  );
+  assert.ok(
+    current.includes(
+      "a.grantee IN ('postgres'::regrole,'service_role'::regrole)",
+    ),
+  );
+  assert.ok(current.includes("count(*)=2 AND bool_and("));
+  assert.ok(
+    current.includes(
+      "AND p.pronargdefaults=0 AND p.proconfig=ARRAY['search_path=\"\"']",
+    ),
+  );
+  assert.ok(!preceding.includes(signature));
+  assert.ok(preceding.includes("3c25ee3782d0af261f3c235f6002b8e4"));
+});
+
+test("staff account authority locking pins the new body and retains the original connection catalog", () => {
+  const current = acceptedCatalogQuery(source, versions);
+  const preceding = acceptedCatalogQuery(source, versions.slice(0, 475));
+  const migration = readFileSync(
+    new URL(
+      "../../supabase/migrations/20260909193835_csf_staff_account_connection_authority_lock.sql",
+      import.meta.url,
+    ),
+    "utf8",
+  );
+  const digest = createHash("md5")
+    .update(migration.split("$$")[1])
+    .digest("hex");
+  assert.ok(current.includes(`md5(p.prosrc)='${digest}'`));
+  assert.ok(!preceding.includes(`md5(p.prosrc)='${digest}'`));
+  assert.ok(
+    preceding.includes("md5(p.prosrc)='f0c4e2dcf7bd71c8a771d2bfc7443130'"),
+  );
+  assert.ok(
+    !current.includes("md5(p.prosrc)='f0c4e2dcf7bd71c8a771d2bfc7443130'"),
+  );
+});

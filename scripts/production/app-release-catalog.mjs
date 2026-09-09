@@ -2,6 +2,7 @@ import { createHash } from "node:crypto";
 import { ReleaseCheckError } from "./app-release-checks.mjs";
 import { reviewedWorkbookLinksPosture } from "./workbook-profile-link-catalog.mjs";
 import { automaticSheetUpdatesPosture } from "./automatic-sheet-update-catalog.mjs";
+import { staffAccountConnectionPosture } from "./staff-account-connection-catalog.mjs";
 import { workbookLinkMergePosture } from "./workbook-link-merge-catalog.mjs";
 
 export const workerRelationSnapshotQuery = `SELECT c.relname, md5(jsonb_build_object(
@@ -99,10 +100,20 @@ export function acceptedCatalogQuery(source, versions) {
       "34dbbd884882349f8083512cd2fe48b371c3f1242bc62897685267f2a5d0001b"
   )
     return source;
-  const optionalCourseUpgrade =
-    versions.length === 474 &&
+  const staffAccountAuthorityUpgrade =
+    versions.length === 476 &&
     ledgerHash ===
-      "9bfb026cdad00b52ea2cce2a2d7a8b1a2d189af295cc1a14c6c7eae600f9416a";
+      "cac848eb296d0e0fddf3edc1702655737a7f428b072ae0ccc6bcbddc2aa52b83";
+  const staffAccountConnectionUpgrade =
+    staffAccountAuthorityUpgrade ||
+    (versions.length === 475 &&
+      ledgerHash ===
+        "d5e3c7654e92e5875ccc25b79eaf35a75ee6224d1faddd7a1eb95765d0f33ef5");
+  const optionalCourseUpgrade =
+    staffAccountConnectionUpgrade ||
+    (versions.length === 474 &&
+      ledgerHash ===
+        "9bfb026cdad00b52ea2cce2a2d7a8b1a2d189af295cc1a14c6c7eae600f9416a");
   const reportedCourseUpgrade =
     optionalCourseUpgrade ||
     (versions.length === 473 &&
@@ -436,7 +447,8 @@ accepted_upgrade_posture AS (
   ${applicationSourceReviewUpgrade ? applicationSourceReviewPosture : ""}
   ${reviewedWorkbookLinksUpgrade ? reviewedWorkbookLinksPosture(workerRelationSnapshotQuery) : ""}
   ${automaticSheetUpdatesUpgrade ? automaticSheetUpdatesPosture(workerRelationSnapshotQuery, matchingTabUpgrade) : ""}
-  ${workbookLinkMergeUpgrade ? workbookLinkMergePosture : ""} AS valid
+  ${workbookLinkMergeUpgrade ? workbookLinkMergePosture : ""}
+  ${staffAccountConnectionUpgrade ? staffAccountConnectionPosture(staffAccountAuthorityUpgrade) : ""} AS valid
   FROM accepted_upgrade_definitions expected
   LEFT JOIN pg_proc p ON p.oid=to_regprocedure(expected.signature)
 )
