@@ -22,6 +22,22 @@ export const approvedMigrations = [
     "20260909090944_csf_application_retry_match_recovery",
     "463bf86ea078eb3869a6b044831adde42c3eacbadf0b765790912cac68b552a2",
   ],
+  [
+    "20260909161331_csf_hide_archived_classes_from_directory",
+    "30a84eec143355b5ac6936264dcda50b41a047e0a229a85a715c522080a955cb",
+  ],
+  [
+    "20260909163547_csf_directory_prefers_active_class",
+    "ea50b4be11a5baa8f7cdf122efd31aa617ef8adb7c5523d8a24a4e3af0dfc8a7",
+  ],
+  [
+    "20260909171733_csf_preserve_reported_course_text",
+    "ee0c21e1b4e6e8ad5ba901f01b41e257ee11eab48dfec557c2849582c3fd175c",
+  ],
+  [
+    "20260909173201_csf_optional_reported_course_text",
+    "1b51af8125170da480aff999acb197e38cfb52dd8e35598ad2459c978a2a1f01",
+  ],
 ];
 
 const literal = (value) => `'${value.replaceAll("'", "''")}'`;

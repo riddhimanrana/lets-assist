@@ -99,10 +99,30 @@ export function acceptedCatalogQuery(source, versions) {
       "34dbbd884882349f8083512cd2fe48b371c3f1242bc62897685267f2a5d0001b"
   )
     return source;
-  const applicationRetryUpgrade =
-    versions.length === 470 &&
+  const optionalCourseUpgrade =
+    versions.length === 474 &&
     ledgerHash ===
-      "122e681fa747cc8895a2733a2d83a9842836a4b764f6810dd03e0a9070e03f66";
+      "9bfb026cdad00b52ea2cce2a2d7a8b1a2d189af295cc1a14c6c7eae600f9416a";
+  const reportedCourseUpgrade =
+    optionalCourseUpgrade ||
+    (versions.length === 473 &&
+      ledgerHash ===
+        "f517e5044b57d212e06bd449e88c1bf3be878535a57a6d6bb09ad52719f6848f");
+  const activeDirectoryUpgrade =
+    reportedCourseUpgrade ||
+    (versions.length === 472 &&
+      ledgerHash ===
+        "200e4af50b3765ecb16417eb599b25eda1f7becd40836eec1a5bcc70cb50ba66");
+  const archivedDirectoryUpgrade =
+    activeDirectoryUpgrade ||
+    (versions.length === 471 &&
+      ledgerHash ===
+        "52d6bf9b2b504ed72459d4787016073800cc0c8791c7ec3f80b0d8c2a64a984e");
+  const applicationRetryUpgrade =
+    archivedDirectoryUpgrade ||
+    (versions.length === 470 &&
+      ledgerHash ===
+        "122e681fa747cc8895a2733a2d83a9842836a4b764f6810dd03e0a9070e03f66");
   const matchingTabUpgrade =
     applicationRetryUpgrade ||
     (versions.length === 468 &&
@@ -288,6 +308,29 @@ export function acceptedCatalogQuery(source, versions) {
       ],
     );
   }
+  if (archivedDirectoryUpgrade)
+    definitions.push([
+      "plugin_data.csf_list_profiles_page(uuid,text,text,uuid,text,text,text,text,uuid,integer)",
+      activeDirectoryUpgrade
+        ? "8abb87daa63ef1b5dad124f89bee24d1"
+        : "091f2fb0595f586f7b84ce134d6cdee6",
+      true,
+    ]);
+  if (reportedCourseUpgrade)
+    definitions.push(
+      [
+        "plugin_data.csf_normalized_record_schema(text)",
+        "2565b4aa9e6b2b25885a2bd548e73850",
+        false,
+      ],
+      [
+        "plugin_data.csf_derive_row_commit_payload(text,jsonb)",
+        optionalCourseUpgrade
+          ? "3c25ee3782d0af261f3c235f6002b8e4"
+          : "d01d37d7a11be7615b75d95b706089ca",
+        false,
+      ],
+    );
   const values = definitions
     .map(
       ([signature, digest, service]) =>

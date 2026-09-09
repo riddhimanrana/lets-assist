@@ -2702,6 +2702,59 @@ sources.
 
 ## Repository-owned P0–P2
 
+### Production source and profile repair, September 9, 2026
+
+The owner authorized direct Production repairs, then explicitly requested no
+further work on Development. This entry supersedes the older current-state
+paragraphs below for this repair.
+
+- Fall 2026 now has 170 committed applications. Added contacts to 170 uniquely
+  matched same-class profiles, including 91 school and 128 personal addresses.
+  Contact provenance remains unverified. No login account was linked and no
+  application decision was approved.
+- Restored all 340 current transcript and receipt URLs from matching saved
+  Drive IDs. Restored 680 original course lines for the 151 applications that
+  supplied courses, matching both evidence IDs, course names, and grades to
+  the live source. Officer decisions and operative point values did not change.
+- All 1,910 historical workbook rows are accounted for: 1,908 exact matches
+  and two previously audited profile merges. All 1,117 green workbook rows
+  have completed memberships. Corrected 612 standings with source coordinates,
+  workbook hashes where applicable, explicit overrides, and audit records.
+- Archived Classes 2024 through 2026. The directory migration excludes their
+  543 profiles from default results and counts, leaving 819 visible profiles.
+  The Class of 2026 screenshot example returns no general search results.
+  Explicit archived-class review and retained evidence remain available.
+- Verified profile-repair checkpoint: deployment
+  `dpl_FxaY5uSSwZT4Ak4hAk5HutX2Ujhi` served `08efbe46`.
+  The live alias, full database/environment checks, login, protected-route
+  redirect, removed join date, historical application panel, and officer
+  completion display were verified. Hosted Development was not used as the
+  acceptance gate for the owner-authorized direct Production release.
+- Private PR #280 passed CI and merged to main as `f18d868`. The live account
+  review shortcut reaches the correct class queue and its empty-state guide.
+  Local TypeScript and strict main publication validation pass. The Production
+  release suite passed 106 tests; documentation and integration passed 19 tests.
+- Production has 474 migrations, ending at
+  `20260909173201_csf_optional_reported_course_text`. The full database
+  suite passed 7,466 tests, including eight archived-directory regressions.
+  The exact Production catalog query passes with its pinned function body and
+  execution permissions. A forward correction prioritizes active class
+  membership over newer transferred rows. No current profile had that mismatch.
+  All ten directory assertions passed in a rolled-back Production fixture.
+  Root PR #505 targets main and records the final deployment identity.
+- Course imports now carry bounded reported text through the immutable snapshot
+  into the existing course entry. Legacy snapshots retain the same derived
+  payload, including explicit null course text. Sixteen rolled-back Production
+  checks verify retention, bounds,
+  unchanged point and bonus rules, and internal helper permissions. The adapter
+  suite passed 39 tests and local TypeScript passed.
+- Browser regressions now expect the connection guide to remain visible after
+  a request is resolved or rejected. They still verify the settled request and
+  resulting account state.
+- Remaining: source rows 21 and 143 have the same name but conflicting classes,
+  contacts, and evidence. They remain unresolved. Permanent removal of retained
+  alumni records is separate from archiving.
+
 ### Current Production state, September 9, 2026
 
 Production now serves `1fbf92268b729250f73fa09523673544a7d25b3e`, with private

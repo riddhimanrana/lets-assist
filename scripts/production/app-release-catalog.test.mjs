@@ -209,7 +209,7 @@ test("scheduling retirement pins every replacement and preserves the prior relea
     assert.ok(current.includes(definition), definition);
     assert.ok(!preceding.includes(definition), definition);
   }
-  assert.match(current, /SELECT count\(\*\) = 14 AND/u);
+  assert.match(current, /SELECT count\(\*\) = 17 AND/u);
   assert.match(preceding, /SELECT count\(\*\) = 10 AND/u);
   assert.ok(
     current.includes(
@@ -314,7 +314,7 @@ test("workbook rebuild release checks the exact body, server-only grants, and re
 
 test("the reviewed import upgrade verifies metadata, function grants, and the scoped index", () => {
   const query = acceptedCatalogQuery(source, versions);
-  assert.match(query, /SELECT count\(\*\) = 14 AND/u);
+  assert.match(query, /SELECT count\(\*\) = 17 AND/u);
   assert.match(query, /csf_import_rows_resolution_metadata_object/u);
   assert.match(query, /a.atttypid='jsonb'::regtype AND a.attnotnull/u);
   assert.match(query, /csf_import_rows_committed_source_key_idx/u);
@@ -477,4 +477,43 @@ test("changed source contract cannot silently remove a check", () => {
       ),
     /result contract/u,
   );
+});
+
+test("archived directory release pins the function and preserves the preceding catalog", () => {
+  const current = acceptedCatalogQuery(source, versions.slice(0, 471));
+  const preceding = acceptedCatalogQuery(source, versions.slice(0, 470));
+  assert.ok(
+    current.includes(
+      "('plugin_data.csf_list_profiles_page(uuid,text,text,uuid,text,text,text,text,uuid,integer)','091f2fb0595f586f7b84ce134d6cdee6',true)",
+    ),
+  );
+  assert.ok(!preceding.includes("091f2fb0595f586f7b84ce134d6cdee6"));
+});
+
+test("active membership release pins its replacement and retains the archived directory catalog", () => {
+  const current = acceptedCatalogQuery(source, versions);
+  const preceding = acceptedCatalogQuery(source, versions.slice(0, 471));
+  assert.ok(current.includes("8abb87daa63ef1b5dad124f89bee24d1"));
+  assert.ok(!current.includes("091f2fb0595f586f7b84ce134d6cdee6"));
+  assert.ok(preceding.includes("091f2fb0595f586f7b84ce134d6cdee6"));
+});
+
+test("reported course release pins both internal helpers and retains preceding catalogs", () => {
+  const current = acceptedCatalogQuery(source, versions.slice(0, 473));
+  const preceding = acceptedCatalogQuery(source, versions.slice(0, 472));
+  for (const digest of [
+    "2565b4aa9e6b2b25885a2bd548e73850",
+    "d01d37d7a11be7615b75d95b706089ca",
+  ]) {
+    assert.ok(current.includes(digest));
+    assert.ok(!preceding.includes(digest));
+  }
+});
+
+test("optional reported text pins the corrected helper and retains the preceding release", () => {
+  const current = acceptedCatalogQuery(source, versions);
+  const preceding = acceptedCatalogQuery(source, versions.slice(0, 473));
+  assert.ok(current.includes("3c25ee3782d0af261f3c235f6002b8e4"));
+  assert.ok(!current.includes("d01d37d7a11be7615b75d95b706089ca"));
+  assert.ok(preceding.includes("d01d37d7a11be7615b75d95b706089ca"));
 });
