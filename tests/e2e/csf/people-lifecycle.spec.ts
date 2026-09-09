@@ -516,10 +516,17 @@ test.describe("CSF visible people lifecycle", () => {
         member: { role: "member", status: "active" },
         request: { match_status: "resolved" },
       });
-    // A resolved request leaves the queue; with nothing pending the section
-    // does not render at all, and the roster is already on the same tab.
+    // A resolved request leaves the queue and the connection guide stays visible.
     await page.reload({ waitUntil: "domcontentloaded" });
-    await expect(connections).toHaveCount(0);
+    await expect(
+      connections.getByText(
+        "No accounts are waiting. Students can sign in and use the class join code to request a connection.",
+        { exact: true },
+      ),
+    ).toBeVisible();
+    await expect(
+      connections.getByRole("button", { name: "Reject", exact: true }),
+    ).toHaveCount(0);
     const directorySearch = page.getByLabel("Search members");
     await directorySearch.fill(fixture.profileEmail);
     // Enter submits the same URL-backed GET form as the visible Search button.

@@ -99,10 +99,15 @@ export function acceptedCatalogQuery(source, versions) {
       "34dbbd884882349f8083512cd2fe48b371c3f1242bc62897685267f2a5d0001b"
   )
     return source;
-  const activeDirectoryUpgrade =
-    versions.length === 472 &&
+  const reportedCourseUpgrade =
+    versions.length === 473 &&
     ledgerHash ===
-      "200e4af50b3765ecb16417eb599b25eda1f7becd40836eec1a5bcc70cb50ba66";
+      "f517e5044b57d212e06bd449e88c1bf3be878535a57a6d6bb09ad52719f6848f";
+  const activeDirectoryUpgrade =
+    reportedCourseUpgrade ||
+    (versions.length === 472 &&
+      ledgerHash ===
+        "200e4af50b3765ecb16417eb599b25eda1f7becd40836eec1a5bcc70cb50ba66");
   const archivedDirectoryUpgrade =
     activeDirectoryUpgrade ||
     (versions.length === 471 &&
@@ -306,6 +311,19 @@ export function acceptedCatalogQuery(source, versions) {
         : "091f2fb0595f586f7b84ce134d6cdee6",
       true,
     ]);
+  if (reportedCourseUpgrade)
+    definitions.push(
+      [
+        "plugin_data.csf_normalized_record_schema(text)",
+        "2565b4aa9e6b2b25885a2bd548e73850",
+        false,
+      ],
+      [
+        "plugin_data.csf_derive_row_commit_payload(text,jsonb)",
+        "d01d37d7a11be7615b75d95b706089ca",
+        false,
+      ],
+    );
   const values = definitions
     .map(
       ([signature, digest, service]) =>

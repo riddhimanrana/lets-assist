@@ -30,6 +30,10 @@ export const approvedMigrations = [
     "20260909163547_csf_directory_prefers_active_class",
     "ea50b4be11a5baa8f7cdf122efd31aa617ef8adb7c5523d8a24a4e3af0dfc8a7",
   ],
+  [
+    "20260909171733_csf_preserve_reported_course_text",
+    "ee0c21e1b4e6e8ad5ba901f01b41e257ee11eab48dfec557c2849582c3fd175c",
+  ],
 ];
 
 const literal = (value) => `'${value.replaceAll("'", "''")}'`;

@@ -2724,7 +2724,8 @@ paragraphs below for this repair.
   543 profiles from default results and counts, leaving 819 visible profiles.
   The Class of 2026 screenshot example returns no general search results.
   Explicit archived-class review and retained evidence remain available.
-- Production deployment `dpl_FxaY5uSSwZT4Ak4hAk5HutX2Ujhi` serves `08efbe46`.
+- Verified profile-repair checkpoint: deployment
+  `dpl_FxaY5uSSwZT4Ak4hAk5HutX2Ujhi` served `08efbe46`.
   The live alias, full database/environment checks, login, protected-route
   redirect, removed join date, historical application panel, and officer
   completion display were verified. Hosted Development was not used as the
@@ -2733,19 +2734,25 @@ paragraphs below for this repair.
   review shortcut reaches the correct class queue and its empty-state guide.
   Local TypeScript and strict main publication validation pass. The Production
   release suite passed 106 tests; documentation and integration passed 19 tests.
-- Production has 472 migrations, ending at
-  `20260909163547_csf_directory_prefers_active_class`. The full database
+- Production has 473 migrations, ending at
+  `20260909171733_csf_preserve_reported_course_text`. The full database
   suite passed 7,466 tests, including eight archived-directory regressions.
   The exact Production catalog query passes with its pinned function body and
   execution permissions. A forward correction prioritizes active class
   membership over newer transferred rows. No current profile had that mismatch.
   All ten directory assertions passed in a rolled-back Production fixture.
-  Root PR #505 targets main; final root CI is pending.
+  Root PR #505 targets main and records the final deployment identity.
+- Course imports now carry bounded reported text through the immutable snapshot
+  into the existing course entry. Legacy snapshots retain the same derived
+  payload. Fifteen rolled-back Production checks verify retention, bounds,
+  unchanged point and bonus rules, and internal helper permissions. The adapter
+  suite passed 39 tests and local TypeScript passed.
+- Browser regressions now expect the connection guide to remain visible after
+  a request is resolved or rejected. They still verify the settled request and
+  resulting account state.
 - Remaining: source rows 21 and 143 have the same name but conflicting classes,
   contacts, and evidence. They remain unresolved. Permanent removal of retained
-  alumni records is separate from archiving. The canonical course adapter still
-  omits original raw lines on future changed imports; the current 680 source
-  lines have been restored with audited provenance.
+  alumni records is separate from archiving.
 
 ### Current Production state, September 9, 2026
 

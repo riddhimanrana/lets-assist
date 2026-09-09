@@ -635,11 +635,17 @@ test.describe("class join code connections", () => {
       })
       .toEqual({ matchStatus: "rejected", accounts: [], member: null });
 
-    // A settled request leaves the queue; with nothing pending the section
-    // does not render at all. (The seeded roster records legitimately remain
-    // in the member directory, so the assertion is scoped to the queue.)
+    // A settled request leaves the queue and the connection guide stays visible.
     await page.reload({ waitUntil: "domcontentloaded" });
-    await expect(reviewQueue).toHaveCount(0);
+    await expect(
+      reviewQueue.getByText(
+        "No accounts are waiting. Students can sign in and use the class join code to request a connection.",
+        { exact: true },
+      ),
+    ).toBeVisible();
+    await expect(
+      reviewQueue.getByRole("button", { name: "Reject", exact: true }),
+    ).toHaveCount(0);
 
     expectNoBrowserFailures(failures);
   });
