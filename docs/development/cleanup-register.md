@@ -2704,6 +2704,484 @@ sources.
 
 ### Current Production state, September 9, 2026
 
+Production now serves `1fbf92268b729250f73fa09523673544a7d25b3e`, with private
+gitlink `fdaec9d0c57904ba72aa34db81c8985507346de1`. Deployment
+`dpl_BKmfTGXXyXDTpYY2WZL3pLDqqN8m` passed app-only run `34315876545`, including
+the exact schema and catalog, staged backend and routes, promotion, and public
+alias verification. A separate Vercel lookup of `lets-assist.com` resolves to
+that exact deployment and SHA. Root PR #500 merged as `da1e7a2a`; the previous
+deployment is `dpl_H9JE7aGUueg1PpCwQqcauhbnosrG`. This follow-up used one
+Development deployment and one Production build, with no migration changes.
+
+Hosted acceptance `34313306933` passed 9,807 requests from 100 distinct sessions
+and identities, with zero request errors or 5xx responses. Read p95 was 1.217
+seconds and p99 1.563 seconds. Classes p95 was 1.581 seconds, Applications
+1.904 seconds, and mutation p95 1.357 seconds. LCP p75 was 1.364 seconds, INP
+p75 32 milliseconds, and CLS p75 0.000816. All 25 review navigations passed;
+retained heap was 11.5 percent below baseline. CI `34313484352` passed root and
+plugin tests, lint, TypeScript, build, database replay and scale checks, three DV
+browser tests, and 89 CSF browser tests. Four CSF skips remain exclusions.
+
+`CSF-SHEET-METADATA-SERIALIZATION` is fixed and verified in signed-in Development
+Chrome. The new fictional Sheet selected successfully, detected Fall 2026, and
+assigned all four rows to their own classes. Its automatic-update consent is
+saved. Its background preparation remains untested because Development workers
+are disabled and the existing single-workbook runner cannot fence other queues.
+Do not rotate secrets or weaken that runner to manufacture a passing receipt.
+
+`CSF-AUTO-SOURCE-EVIDENCE` is fixed and now verified by the live Production
+worker after activation `34316453087`. It issued evidence receipts, prepared
+142 unclaimed profiles under the existing officer authorizations, and queued
+84 Spring rows and 58 Fall rows. Read-only checks show approved frozen scope
+and zero source-evidence blockers for both queues. Spring queue
+`7e83ebd0-5af2-4761-858a-57b3b054ffb3` uses preview
+`75fd2b32-be8a-4deb-be21-14cad2f62e33`. Fall queue
+`4ecc7cba-1936-452b-af2f-d770f29d8764` uses preview
+`35363178-273b-4a95-b7de-36bcd0a49b81`, provider version 365 and 169 rows.
+Spring retains 517 rows. The pending rows include 540 ambiguous matches and
+four conflicts. They were not merged by name. Import activation `34316723202`
+passed. Both workbook and import workers are enabled at runtime revision 2.
+Communications remains disabled with no campaign or dispatch backlog. Production
+controlled test-address settlement is still open.
+
+The Spring worker committed 84 applications, including 83 Class of 2026 alumni
+and one Class of 2028 applicant. Fall provider version 365 changed before commit,
+so the original queue retained `source_check_failed` with no application writes.
+Version 367 contained 170 rows. Its new preview
+`a18e6159-6103-4238-a491-21f0cd266861` lost the prior profile-creation matches.
+Read-only comparison proved 58 rows retained the exact source, mapping, row
+coordinate, row hash, full normalized application, class, and semester of their
+audited profile-creation receipts. The existing permission-checked
+`csf_reconcile_sheet_import_row` action recovered those 58 matches with reasons
+and origin-row metadata. No direct table repair or name-only merge occurred.
+The normal worker then committed them through queue
+`7dba6c75-c232-4da9-9516-890c3d3c20ae`.
+
+Current application counts are 142, all pending decisions and all with source
+row and job receipts. Fall counts are Class of 2028: 4, Class of 2029: 32, and
+Class of 2030: 22. Spring counts are Class of 2026: 83 and Class of 2028: 1.
+There are 878 active profile records and 311 retained merged records. Active
+profile records do not imply current-semester membership. The remaining current
+previews contain 545 officer-review rows: 433 Spring and 112 Fall. Their partial
+queue status does not negate the 142 successful application receipts.
+
+`CSF-AUTO-PROFILE-CREATION-LINEAGE` remains an open P1 defect. A provider change
+between profile creation and application commit leaves the new profile durable,
+but the replacement preview accepts only successful application commit lineage.
+It therefore marks the already-created profile ambiguous. The Production repair
+above handles this incident, not future recurrence. Add synthetic coverage for
+this exact sequence and preserve source, mapping, identity, permission, and
+unknown-outcome checks before changing the generic recovery path.
+
+The manual Add applications button also remains disabled when safe rows coexist
+with unresolved rows. The automatic worker successfully committed the safe Fall
+rows independently. This is a remaining manual-flow discrepancy, not evidence
+that uncertain rows were imported.
+
+The generic profile-creation retry repair is now implemented locally. A
+permission-scoped audit lookup verifies the same source, mapping version,
+authorization generation, row, and profile. Only a resolved row whose application
+write has not started can supply `profile_created` lineage. The next preview
+also requires an unchanged normalized row hash, a unique current candidate,
+matching class and semester, and unchanged applicant identity/contact evidence.
+Ambiguous intermediate retries can trace that proof through unchanged source
+rows. Unknown, in-flight, failed, changed, skipped, and conflicting evidence
+remain blocked. The repair does not label profile creation as application success.
+
+Thirty-one focused lineage and audit-proof tests pass with 85 assertions. Two
+additional full preview-path tests pass with eight assertions: an audited profile
+becomes a pending application target, while a name-only candidate or changed
+snapshot remains ambiguous. The loader uses organization-scoped batches of up
+to 200 rows, limits ancestor traversal to 32 steps, and refuses duplicate or
+truncated audit evidence. No database migration, commit receipt rewrite,
+Production data mutation, or hosted deployment was performed for this local
+repair. The grouped acceptance run and live retry remain open.
+
+Historical source setup continued through the signed-in Production UI. The
+Google picker granted access to the exact Fall 2025 and Spring 2025 response
+workbooks. Their detected columns retain timestamp, response email, name,
+preferred contact, grade, returning status, courses, claimed point totals,
+transcript, and receipt separately. Neither form email becomes a verified
+profile email. Both sources have explicit officer automatic-update consent.
+
+Fall 2025 source `fcb39ec0-ee7c-4d79-9248-e824bffd3ba0` prepared provider version
+2070 in preview `cb76abd8-a7e2-49c2-a267-872aca4d0d63`: 601 rows, 52 committed
+and 549 needing identity review. Committed counts are Class of 2026: 44,
+Class of 2027: 2, Class of 2028: 2, and Class of 2029: 4. All decisions remain
+pending. This raises verified imported applications to 194 at this checkpoint.
+
+Spring 2025 source `0c0c7d37-3605-4cdb-9329-a8d36cc8a79b` initially exposed
+111 senior responses without a Class of 2025 target. The ordinary Create class
+and semesters action created that missing alumni class and its eight historical
+semesters. It created no member or application approval. Worker preview
+`a2c68cff-9cf8-40f6-9f5e-899bc3b9a118`, provider version 968, now has 583 rows:
+136 resolved imports and 447 identity-review rows, with no missing-class errors.
+Subsequent readback confirms all 136 committed: Class of 2025: 111, Class of
+2026: 24, and Class of 2027: 1. Production now has 330 imported applications
+across these four semesters, all pending officer decisions and all retaining
+source-row and job receipts. No application was approved by these imports.
+Older application sources, the remaining identity exceptions, and final repeat
+sync reconciliation remain unfinished.
+
+### September 9 grouped import release continuation
+
+Production application counts rechecked at 09:54 UTC. These are imported
+applications, not approvals, active memberships, or completed source
+reconciliation. Each nonzero cell has the same count of distinct profile IDs
+within that class and semester. Zero means no imported application in that
+cell, not that the source contains no responses.
+
+| Class | F23 | S24 | F24 | S25 | F25 | S26 | F26 |
+| ----- | --: | --: | --: | --: | --: | --: | --: |
+| 2024  |   2 |  82 |   0 |   0 |   0 |   0 |   0 |
+| 2025  |   5 |  45 |  55 | 111 |   0 |   0 |   0 |
+| 2026  |   6 |  51 |  35 |  24 |  44 |  83 |   0 |
+| 2027  |   1 |   8 |   2 |   1 |   2 |   0 |   0 |
+| 2028  |   0 |   0 |   4 |   0 |   2 |   1 |   4 |
+| 2029  |   0 |   0 |   0 |   0 |   4 |   0 |  32 |
+| 2030  |   0 |   0 |   0 |   0 |   0 |   0 |  22 |
+
+Run `34335768759` completed both `supabase test db` on its isolated stack and
+the CSF database workflows successfully for candidate `4f36f545`. Worker
+authentication and browser checks are still running. The run's quality job
+remains failed only at formatting, corrected locally but not yet pushed.
+The temporary PostgreSQL process owned by this task was stopped cleanly after
+catalog inspection. Its private temporary files remain; shared Docker data
+was neither reset nor deleted.
+
+Protected diagnostic classification confirms that Production Fall retry
+`460326b9-847b-4d3d-9df8-7b88eafee5ed` hit the same caller-selected application
+target refusal reproduced in Development. Its job error stores only the generic
+`preview_failed` code; the scoped sync diagnostic identifies the append
+boundary. Boolean checks found no mapping, authorization, timeout, or network
+failure in that diagnostic. No student values or raw diagnostic contents were
+returned. PR #503 addresses this path, but live recovery remains unverified.
+
+Root PR #503 pins `4f36f545` and private merge `ba8030f`. The full local root
+rerun passed all 310 discovered files. Run `34335768759` failed formatting in
+two release-catalog modules while database replay continued. Prettier corrected
+those two modules locally; 33 focused catalog/controller tests and the full
+format check pass. Do not interrupt the running database job with a new push.
+
+Production readback still has 468 migrations through `20260908141739`, four
+linked class workbooks, and 626 applications across seven semesters, none
+approved. The chapter communication ledger has zero campaigns, recipients,
+and dispatch attempts. A new Fall 2026 retry receipt
+`460326b9-847b-4d3d-9df8-7b88eafee5ed`, created at 09:35:07 UTC, failed with
+zero preview rows. Its original successful application receipts remain counted
+in the 626 applications. Latest-preview totals alone therefore undercount the
+58 existing Fall applications. This retry still needs protected diagnosis and
+must not be reported as a completed sync. No Production write was made in this
+readback.
+
+The final candidate gitlink is private Development merge `ba8030f`, whose tree
+matches tested private repair `d91e296` exactly. After switching this isolated
+submodule to its Development branch and fast-forwarding, strict submodule checks
+passed. The first strict check correctly refused the earlier feature-branch
+checkout. No unrelated worktree or branch was changed.
+
+Private PR #277 passed run `34335216443` and merged as
+`ba8030f66f6e04d38d045d1e43d762d4f9c52ead`. The root index now pins reviewed
+private commit `d91e29688ca348b09d74af59f9ff5d7a0b7baed4`, confirmed reachable
+from private Development. The root worktree fast-forwarded to `cb3e18d8`
+without changing or discarding its local repair files.
+
+The pending append migration also makes an unproven application superseded
+request ambiguous rather than leaving it pending without a profile. Existing
+source-bound recovery may then restore a proven target; failure to prove the
+identity leaves it for review. Added pgTAP cases exercise that fallback.
+The temporary socket-only PostgreSQL instance accepted the updated function
+definition with body checking disabled and returned body digest
+`13e8ee1bc7b071f00664f808b2cf504a`. This verifies catalog bytes only, not SQL
+execution or Supabase replay. Fifty focused release tests pass. No hosted
+migration or Production deployment occurred.
+
+Private repair `d91e296` is pushed in private PR #277. Its quality run
+`34335216443` is in progress. It has not merged and the root gitlink has not
+advanced. Root TypeScript passed again after the additional retry tests.
+
+The full root run finished with two reported failures and one module error.
+Both reported failures refer to the same stale runbook ledger assertion.
+The module error came from the old eight-migration controller tail. The
+runbook now distinguishes the 470-entry local candidate from 468-entry
+Production. The controller pins only the two pending migration files and
+requires the existing 468-entry prefix, retaining its disabled-worker lock,
+exact file hashes, single submission, and read-only outcome recovery.
+The 24 focused documentation and migration-controller tests pass with 304
+assertions. This is not database replay or permission to deploy untested SQL.
+
+Hosted acceptance `34331389754` completed successfully on Development
+`cb3e18d85271c93716c827ee11e7d0a8d2e0da53`. Its log records 9,829 requests;
+the slowest reported read p95 was 1.125 seconds and mutation p95 was 1.822
+seconds. This run does not cover the uncommitted database retry repair or
+close the observed application-import failure. Production PR #502 remains draft.
+
+The private test runner passed all 311 discovered test files. Four additional
+focused cases now preserve unchanged retry, conflict, error, and skip states
+while removing caller-selected application targets. The focused suite passes
+14 tests with 20 assertions. These are payload-boundary checks, not database
+proof of unchanged sync. Full root tests are running through `test:unit`.
+The attempted `test:root` command was invalid and ran no tests.
+
+Chrome still reports the Mac locked after the latest unlock reply. No staff
+invitation was accepted, no application decision was made, and no Production
+deployment was started during this continuation.
+
+The local retry repair now appends application rows without caller-selected
+profiles, then calls a new service-only database recovery boundary after sealing.
+Migration `20260909090944_csf_application_retry_match_recovery` scans 50 rows per
+keyset page and follows at most 32 source-bound ancestors. It checks organization,
+source file, mapping, coordinate, class, semester, identity/contact/submission
+evidence, prior audited resolution or successful commit, current profile
+candidates, and active/frozen work. Recovery records another audited match,
+not an application approval or account connection. The caller rechecks its
+source lease per page and stops on unknown responses or non-advancing cursors.
+
+Ten focused service tests passed with 16 assertions. Root TypeScript and
+zero-warning lint passed after reducing redundant comments in the 800-line
+preview action. Added database tests cover the actual append/refusal/recovery
+path, preserved profile identity, audit receipts, and repeat recovery. They have
+not run yet. Hostile database cases and the exact release-catalog upgrade remain
+required before committing this repair. Docker Desktop reports `starting`, but
+daemon requests return `unable to start`; do not treat that as a running replay.
+Production PR #502 remains draft, and no new hosted deployment was requested.
+
+Local forward migration `20260909090522_csf_application_grade_preview_evidence`
+adds the mapped-grade envelope with explicit execution grants. It requires a
+numeric grade from 9 through 12 that agrees with the canonical application,
+a bounded positive column, bounded nonempty provider display, and no extra
+fields. New pgTAP coverage calls the actual append RPC for all four grades,
+invalid evidence, and replay. Migration file validation and diff whitespace
+checks passed. Database execution is still unverified: Docker was stopped and
+the Desktop CLI reported that it could not start the daemon. No migration was
+applied to Development or Production. The separate profile-retry repair remains
+unfinished.
+
+Live fictional recheck exposed a release-blocking database contract mismatch.
+The audited officer action created exactly one unclaimed fictional profile and
+resolved one row in preview `c950a53a-1a07-4472-a0c9-ddce6236b304`. Read-only
+Development queries confirmed one profile, zero account links, one resolved
+unstarted row, and three unresolved siblings. Recheck then opened preview
+`309e4bed-5091-459c-8c8d-52ba2497abdf` and failed at
+`csf_append_import_preview_rows`: the RPC rejects an application row that arrives
+with `matched_profile_id`, including the service's recovered audited target.
+The original receipt and profile remain intact. No application was approved.
+
+The same RPC's closed envelope does not include `applicationGradeEvidence`,
+which the new date-formatted-grade parser emits. Code inspection establishes
+that mismatch; a database regression must exercise it before release.
+Do not remove the caller-target restriction. Persist application preview rows
+without caller-selected targets, then restore only database-proven retry lineage
+through an audited, permission-checked boundary. Cover profile creation before
+application commit, prior officer matches, committed updates, ancestor retries,
+changed identity, changed mappings, duplicate candidates, and unknown outcomes.
+Add validated numeric-grade evidence to the database envelope separately.
+
+Production PR #502 was opened from Development to obtain exact-commit CI
+`34332037818`, then returned to draft after the live failure. Do not merge or
+deploy it until these regressions pass. Hosted acceptance `34331389754` is
+still running; even a passing load result will not close this import defect.
+No Production build or data mutation occurred in this continuation.
+
+Network readback recovered. Development deployment
+`dpl_Hf9Xu1ZHTYaJDSJuLpUnQRU9QN3j` is READY for exact merge
+`cb3e18d85271c93716c827ee11e7d0a8d2e0da53`. Hosted acceptance run
+`34331389754` passed the exact deployment, Supabase preview, and Development
+domain checks and started its acceptance tests at 2026-09-09 08:55:05 UTC.
+Acceptance is still running. Chrome is accessible after the user's unlock.
+No additional deployment was dispatched and Production was not promoted.
+
+CI `34329216103` passed both jobs on `27374ca4`, including CSF browser tests,
+isolated health, evidence validation, and cleanup. Root PR #501 merged normally
+into Development at `cb3e18d85271c93716c827ee11e7d0a8d2e0da53` at
+2026-09-09 08:50:58 UTC. No separate release branch or deployment dispatch was
+created. The integration merge is eligible for the existing grouped Development
+deployment and acceptance workflow. Git fetch, GitHub run listing, and the
+Vercel connector then failed with network timeouts. Deployment and acceptance
+start/completion are unverified. Do not restart a build because these readbacks
+failed. Production still has no verified follow-up promotion.
+
+Root PR #501 now carries `27374ca4`; CI `34329216103` passed its quality job,
+including the build. Its database job has reached the CSF browser workflows
+and is still running. The private runtime patch is merged. Current root tests
+previously found stale alumni and gitlink documentation contracts. The corrected
+documentation contracts pass 19 tests and 425 assertions, and the stable-gitlink
+inventory rerun passes six tests. The final complete local runner now passes
+310 root and 339 plugin test files, with isolated processes for mocked modules.
+Evidence is in `.artifacts/csf/grouped-release-final-tests.log`.
+
+Native Chrome controls can reach the fictional Development import even though
+the extension tab handle times out. The new four-row source has no completed
+automatic worker preview and no matching fictional target profiles. Its consent
+is active, but Development runtime workbook and import controls remain disabled.
+The four earlier applications belong to a different source. Do not match these
+new rows to unrelated fixtures. Enable and test the new source only after the
+grouped hosted acceptance passes. Current consent is not proof of processing.
+
+Read-only Production review setup shows six open application review periods:
+Fall 2023, Spring 2024, Fall 2024, Spring 2025, Fall 2025, and Fall 2026.
+Spring 2026 needs its review period configured through the officer action.
+One active officer position has a linked account. Multiple-officer review
+assignment is not yet configured. No transcript or application decision was
+made. Resend sending domains are verified, and separate Development and
+Production webhook endpoints are enabled. These configuration reads do not
+prove application delivery or settlement. Provider webhook responses include
+secret-bearing query strings; future reads must strip URL queries before any
+output. The exposed bypass values require controlled rotation before closure.
+
+Chrome successfully signed in as the chapter account, then timed out twice.
+A native window check confirmed that the Mac had locked again. The existing
+invitation remains unaccepted and the action-time access confirmation remains
+pending. No Production email was sent or worker switch changed.
+
+Root integration PR #501 contains `4276c6f9`. Its first quality run stopped
+because the extended provider test exceeded the 1,200-line test-file limit.
+The numeric evidence test now has its own file. Both provider files pass,
+with 27 tests and 120 assertions, and the source-layout gate passes.
+
+The release audit also found open critical Next.js advisories, including
+`GHSA-2xp9-vwfh-vxw4`, against the pinned 16.3.0 runtime. The official advisory
+lists 16.3.3 as patched. Root Next.js packages and the private CSF application
+now pin 16.3.3 locally. Private PR #276 contains child commit `cd2a0e9`;
+child lint, TypeScript, ten tests, and the optimized build pass. Private CI
+`34328767918` passed and PR #276 merged into private Development at `b6a5c1a`.
+The root candidate pins exact reviewed child commit
+`cd2a0e902046c73410ff1f4e1d03ba7e6fd43f1a`; strict containment passes.
+Root TypeScript and zero-warning lint pass. This patch belongs to the grouped
+release, not a separate deployment. Neither runtime patch is live yet.
+
+The Mac is unlocked and the chapter Google account successfully signed in to
+Production. Its existing staff invitation is open. Action-time confirmation
+was requested before accepting access. Readback still shows no chapter-account
+organization membership. Production campaign, recipient, and dispatch ledgers
+are empty. Communications remains disabled pending controlled delivery proof.
+
+Private PR #275 merged reviewed commit
+`66f2b7e57ce4f0eef2048b361ff8ec76d1a0dc66` into private Development at
+`ba12e73` after CI `34326094307` passed. The root integration retains this exact
+reviewed gitlink. The root provider change preserves numeric evidence for
+date-formatted grades. No schema migration is required by these fixes.
+
+The user confirmed that application decisions belong to officers, including
+transcript review and split review assignments. Importing must not approve
+applications. AI mapping remains limited to headers and redacted shapes;
+uncertain identities remain review items. The user also confirmed chapter
+account setup for `dvhighcsf@gmail.com` and Production communications activation.
+Controlled test delivery and settlement must precede general email activation.
+Chrome currently reports a locked Mac. Unlock was requested once while release
+work continues. No access change or email activation has occurred in this step.
+
+### Historical application continuation, September 9
+
+Production readback now confirms 626 applications, each pending an officer
+decision and retaining source-row and job receipts. By semester: Fall 2023 14,
+Spring 2024 186, Fall 2024 96, Spring 2025 136, Fall 2025 52, Spring 2026 84,
+and Fall 2026 58. The eight current source previews contain 3,404 rows:
+626 created, 2,714 ambiguous, eight conflicts, and 56 errors. This is partial
+reconciliation, not completion. No additional app build or migration was run.
+
+New officer-authorized sources are Fall 2024
+`51b0c3d7-e106-4b5a-90c7-c8267e7dcccc`, Spring 2024
+`819e81e0-74c1-4997-8f78-8ae03cd4ce47`, late Spring 2024
+`c496172b-4177-4026-af1b-5f344bc837d7`, and late Fall 2023
+`a8b0cabc-5c97-4a3d-b79b-09159f33e633`. The normal officer action created
+the missing Class of 2024 and its historical semesters. Late Spring 2024
+mapping version 2 explicitly maps its blank-header timestamp column; all 77
+preview rows retain submission timestamps. Its 40 committed applications are
+included in the Spring 2024 total. The main Fall 2023 response source has not
+been located. Copies and secondary tabs have not been assumed to be new data.
+
+`CSF-DATE-FORMATTED-GRADE` is an open P1. The Spring 2024 source has 56 grade
+cells formatted as dates. A protected read of those cells' unformatted values
+confirmed integers 9 through 12. Acquisition currently discards effective
+numeric values before parsing. Retain bounded numeric and format evidence,
+preserve displayed values and source hashing, and recover only the mapped grade
+field. Do not modify the official Sheet or parse arbitrary dates as grades.
+
+`CSF-MAPPING-EDITOR-SELECTION` is an open P2. Opening column corrections resets
+the selected Sheet, semester, tab, and range. The late Spring mapping was saved
+after re-entering those selections. Preserve them when opening the editor.
+
+The selection repair is now local. Opening column corrections captures the
+current form's semester, tab, range, and header row together with the selected
+file identity. The correction form retains the selected Sheet URL and title,
+uses those defaults only for that same file, and still requires matching range
+inspection before preview. It does not invent a range after failed analysis.
+The manual application path now carries the same review-period preparation
+request as the main application form; server permission checks remain unchanged.
+Fourteen focused scope, dialog, and Google lifecycle tests pass with 92
+assertions. TypeScript and changed-file lint pass after the final copy and
+hidden-field adjustment. Full rendered browser acceptance remains open. This
+change is uncommitted and undeployed.
+
+The grouped local plugin gate now passes all 337 discovered plugin test files,
+with mock-sensitive tests in separate Bun processes. The private CSF application
+also passed its independent lint, TypeScript, tests, production build, route
+inventory, and data-access checks. Root TypeScript and changed-file lint pass.
+These checks include the grade-format, creation-lineage, and correction-scope
+changes. They do not establish hosted acceptance, a root Production build, or
+completion of official application reconciliation. No remote build was started.
+
+The next grouped gate passed 339 plugin test files after the reviewed-row
+continuation fix. Newly resolved applications now retain an officer match only
+when its audit agrees with the row, source, job, actor, correlation, profile,
+mapping version, and unchanged normalized data. The worker can prepare a
+successor preview at an unchanged provider version, but only after every exact
+row in the preceding frozen approval has a successful receipt. It leaves the
+previous approval, imported rows, and receipts intact. Running, cancelled,
+failed, and unknown outcomes do not trigger this continuation. The new preview
+still rechecks source access, mapping, actor permissions, and identity before
+creating its own approval and queue entry.
+
+Private commit `66f2b7e` groups grade-format recovery, profile and officer-match
+retry evidence, reviewed-row continuation, and correction-screen selection
+preservation. Root TypeScript, changed-file zero-warning lint, and diff checks
+pass. The full unit log is in ignored
+`.artifacts/csf/grouped-import-recovery-unit.log`. This commit is not merged or
+deployed. Production remains on `1fbf9226`; no additional hosted app build or
+official-data mutation occurred during this implementation.
+
+The grade-format repair is now implemented locally, not deployed. Google
+acquisition retains numeric values only for DATE or DATE_TIME cells, keyed by
+absolute source coordinates, and includes them in its content hash. Application
+parsing recovers only the mapped grade cell with an underlying integer from 9
+through 12 and matching display evidence. It preserves the original display
+and records `date_formatted_numeric_grade` provenance in protected preview
+metadata. It does not rewrite source cells, reinterpret arbitrary dates, change
+class-history parsing, or replace a readable grade. No identities or application
+decisions were changed by this code work.
+
+Local checks pass: 112 focused tests with 364 assertions across acquisition,
+parsing, normalized adapters, and grade evidence; TypeScript; changed-file
+zero-warning lint; and root/private diff checks. Coverage includes sparse rows,
+non-A ranges, unchanged and changed source hashes, invalid numeric grades,
+mismatched displays, ordinary readable grades, and non-application sources.
+The first new parser test used an invalid synthetic term code; corrected fixture
+codes now use the existing S24 contract. Full preview persistence, live source
+re-preparation, and grouped hosted acceptance remain required. This repair has
+not been pushed and caused no hosted build.
+
+A read-only comparison identified 429 potential cross-semester officer matches
+using both application contact fields, exact normalized names, class, prior
+successful application receipts, and a unique active candidate. No matches were
+applied. These form contacts are not verified account emails. Before reviewing
+them in bulk, verify that newly resolved rows can receive a new commit receipt
+after an earlier partial automatic approval without expanding its frozen scope.
+
+Fresh count-only Production evidence covers 32 class-semester combinations,
+1,913 semester membership records, 4,434 imported activity entries, and 1,392
+attendance records. Every activity label and raw point value matches immutable
+source data with valid catalog links. Every attendance label, key, and original
+cell value matches its source row and has a valid term meeting link. There is
+one same-name group containing two active profiles; this is a review exception,
+not authority to merge. These counts precede the new application commits.
+All four class Drive files are accessible. The report and fresh fictional
+screenshots are in ignored `.artifacts/csf/production-reconciliation-d8faa1c1.json`
+and `.artifacts/csf/browser-1fbf9226/`. No official row values enter those reports.
+
+The paragraphs below retain the preceding release and defect evidence. They are
+superseded as current release status by this checkpoint.
+
 Production now serves `d8faa1c13851d26e5782baca048fe4381cb05302` from deployment
 `dpl_H9JE7aGUueg1PpCwQqcauhbnosrG`. App-only run `34307944469` passed staging,
 backend and route checks, promotion, and public alias verification. Controller

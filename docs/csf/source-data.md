@@ -21,14 +21,19 @@ docs/csf/source-data/
 
 ## Semantics and era mapping
 
-- Grade → cohort at Spring 2026: 9th → Class of 2029, 10th → 2028, 11th → 2027, 12th → Class of 2026 (out of scope; do not import).
+- Grade → cohort at Spring 2026: 9th → Class of 2029, 10th → 2028, 11th → 2027, 12th → Class of 2026. Preserve senior responses as alumni applications. Derive other cohorts from each response's source semester, never the current class filter.
 - School emails look like `2xxxxx@students.srvusd.net` (6-digit student number). Personal emails are free-form. The application workbook carries both; most club sheets carry one or neither.
 - "Points" are CSF service points (typically 1 point per attended club meeting, 2 per non-drive event per the club registry), not volunteer hours.
 - Import targets: partner clubs from the returning-club/audit form responses (each previewed row applied as a draft club record or skipped; per-club point policy is no longer imported); every populated canonical semester tab in the approved Class of 2027–2030 workbooks is a historical record; attendance sheets become term-scoped attendance records with `source='sheet'` provenance, while per-club point workbooks are manual reference evidence for point vetting rather than an import target. Numbered activity columns in those class workbooks use one point per populated slot, so a repeated label earns the number of occupied slots for that student. An explicit numeric quantity for the same normalized label is authoritative and is not added to repeated corroborating slots. The Spring 2026 application workbook is historical comparison evidence for this cutover, not the roster seed or account-connection evidence. The Class of 2030 workbook is linked so its eight canonical tabs can be tracked. Its current header-only tabs create no previews or records. Class of 2030 student records come through the new application cycle until reviewed workbook data exists.
 
 ## rosters/
 
-### CSF Application Spring 2026 Responses.xlsx — historical comparison source
+### CSF Application Spring 2026 Responses.xlsx
+
+The authorized chapter-wide application import now includes this historical
+source and its alumni. Importing a response does not approve it, verify its
+contact addresses, or grant account access. Older comparison-only cutover notes
+do not limit the currently authorized application imports.
 
 One sheet (`Form Responses 1`), 517 data rows, Google Forms export. Columns:
 

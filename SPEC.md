@@ -4,6 +4,48 @@ DVHS CSF officer UX → class-first Home → Classes → Applications → More; 
 
 §C
 
+- Production now serves `1fbf92268b729250f73fa09523673544a7d25b3e`, private
+  `fdaec9d0c57904ba72aa34db81c8985507346de1`, from deployment
+  `dpl_BKmfTGXXyXDTpYY2WZL3pLDqqN8m`. App-only run `34315876545` passed
+  schema, staging, backend, promotion, and public-domain checks. No new migration
+  was needed. Root PR #500 merged as `da1e7a2a895d860acc18c0d01694bc484f7a8fce`.
+- Hosted acceptance `34313306933` passed 9,807 requests with zero errors, read
+  p95 1.22 seconds, read p99 1.56 seconds, mutation p95 1.36 seconds, Classes
+  p95 1.58 seconds, Applications p95 1.90 seconds, and 25 crash-free review
+  navigations. Retained heap was 11.5 percent below baseline. Exact-commit CI
+  `34313484352` passed, including 89 CSF browser tests and four explicit skips.
+- Live Development Sheet selection now succeeds with four fictional mixed-class
+  applications and saved automatic-update consent. Production workbook activation
+  `34316453087` passed. The repaired worker issued source evidence and prepared
+  142 unclaimed profiles. Import activation `34316723202` passed. Production
+  now has 626 applications: 14 Fall 2023, 186 Spring 2024, 96 Fall 2024,
+  136 Spring 2025, 52 Fall 2025, 84 Spring 2026, and 58 Fall 2026. All remain
+  pending officer decisions with source receipts. Eight linked response sources
+  contain 2,714 ambiguous rows, eight conflicts, and 56 grade-format errors.
+  These exceptions are not imported or approved. The 56 grade errors have
+  underlying numeric values 9 through 12 but date-formatted display values.
+  The local repair preserves numeric source evidence, recovers only the mapped
+  grade, and records protected provenance. It passes 112 focused tests,
+  TypeScript, and changed-file lint. It is not deployed; live re-preparation
+  and grouped acceptance remain open. No source Sheet was edited. The local
+  profile-creation retry and column-correction selection fixes also pass the
+  complete 339-file plugin unit gate, independent plugin application build, root
+  TypeScript, and changed-file lint. Private PR #275 merged reviewed commit
+  `66f2b7e57ce4f0eef2048b361ff8ec76d1a0dc66` into private Development after
+  CI `34326094307` passed. The root integration and hosted release remain open.
+  Private PR #276 then merged the Next.js 16.3.3 security patch after CI
+  `34328767918` passed. The grouped root candidate pins private
+  `cd2a0e902046c73410ff1f4e1d03ba7e6fd43f1a`. Both runtimes remain undeployed.
+  The missing Class of 2025 alumni class and its eight semesters were created
+  through the ordinary officer action. Fall source changes stopped the first
+  batch before application writes. The officer reconciliation action recovered
+  58 exact immutable source-to-created-profile links, and the worker committed
+  them without creating more profiles. A later preview must recover this audited
+  profile-creation lineage automatically; that recovery defect remains open.
+  Communications remains disabled. Historical reconciliation, controlled email
+  settlement, the full fictional automatic-worker journey, and video remain open.
+- The dated entries below retain earlier evidence and do not override the
+  current release state above.
 - Production app-only run `34307944469` published accepted `d8faa1c1` using
   controller `c495f3d0`. The public alias, staged backend, and protected routes
   passed workflow checks; Chrome shows the new application modal. All 468
@@ -545,6 +587,8 @@ V97: class Settings offers approval and row review only for a sealed preview mat
 V98: an authorized profile merge carries active reviewed workbook links to the surviving profile in the same transaction. Preserve the original officer, source key, review row, reason, and request identifier. Retain the full pre-merge link in the protected audit. Revoked links stay attached to the original profile. The existing merge identity checks and request receipt remain authoritative; a reviewed workbook link does not permit a name-only merge.
 
 V99: an officer can explicitly extend a reviewed class layout to matching canonical semester tabs in the same class workbook. Older source consent does not expand. New tabs retain the original officer, Google owner, reviewed header signature, and parent consent generation. Different columns, point rules, classes, workbooks, or owners require review. Parent pause or permission loss invalidates inherited authority before any row write. A separately reviewed child tab can become independently authorized. No source deletion removes student history.
+
+V100: application preview append accepts no caller-selected profile. After sealing, retry recovery may restore a target only from a source-bound officer audit or successful prior commit, with current actor permission and unchanged identity, class, semester, and mapping. Conflicts and unknown outcomes remain unresolved. Recovery records a match, never an application approval or account connection. Numeric grade evidence must agree with the canonical grade and stay inside the validated preview envelope.
 
 §T
 
