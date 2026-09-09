@@ -6362,7 +6362,6 @@ unproven.
 - Fixed P2: the import review pager stays available when the current page contains only resolved rows.
 - Production database validation: 25 functional assertions and four authorization-lock and ACL assertions passed in rollback transactions against the exact 476-migration ledger. Private action and rendering regressions cover the new interface; release evidence follows the exact integrated commit.
 
-
 ## Simpler application imports and review, September 9, 2026
 
 - P1 fix prepared: automatic application refresh waits for every outstanding commit from the same source. When an ancestor settles after a child preview was created, one fresh immutable preview can recover its reviewed matches. The database still validates identity and commit state; frozen rows are never rewritten. A known stale automatic-approval refusal settles its queue as blocked rather than retrying forever; unrecognized failures remain retryable. Ordering, recovery, and scope regressions passed 43 tests.
