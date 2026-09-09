@@ -480,7 +480,7 @@ test("changed source contract cannot silently remove a check", () => {
 });
 
 test("archived directory release pins the function and preserves the preceding catalog", () => {
-  const current = acceptedCatalogQuery(source, versions);
+  const current = acceptedCatalogQuery(source, versions.slice(0, 471));
   const preceding = acceptedCatalogQuery(source, versions.slice(0, 470));
   assert.ok(
     current.includes(
@@ -488,4 +488,12 @@ test("archived directory release pins the function and preserves the preceding c
     ),
   );
   assert.ok(!preceding.includes("091f2fb0595f586f7b84ce134d6cdee6"));
+});
+
+test("active membership release pins its replacement and retains the archived directory catalog", () => {
+  const current = acceptedCatalogQuery(source, versions);
+  const preceding = acceptedCatalogQuery(source, versions.slice(0, 471));
+  assert.ok(current.includes("8abb87daa63ef1b5dad124f89bee24d1"));
+  assert.ok(!current.includes("091f2fb0595f586f7b84ce134d6cdee6"));
+  assert.ok(preceding.includes("091f2fb0595f586f7b84ce134d6cdee6"));
 });

@@ -2733,11 +2733,14 @@ paragraphs below for this repair.
   review shortcut reaches the correct class queue and its empty-state guide.
   Local TypeScript and strict main publication validation pass. The Production
   release suite passed 106 tests; documentation and integration passed 19 tests.
-- Production has 471 migrations, ending at
-  `20260909161331_csf_hide_archived_classes_from_directory`. The full database
+- Production has 472 migrations, ending at
+  `20260909163547_csf_directory_prefers_active_class`. The full database
   suite passed 7,466 tests, including eight archived-directory regressions.
   The exact Production catalog query passes with its pinned function body and
-  execution permissions. Root PR #505 targets main; final root CI is pending.
+  execution permissions. A forward correction prioritizes active class
+  membership over newer transferred rows. No current profile had that mismatch.
+  All ten directory assertions passed in a rolled-back Production fixture.
+  Root PR #505 targets main; final root CI is pending.
 - Remaining: source rows 21 and 143 have the same name but conflicting classes,
   contacts, and evidence. They remain unresolved. Permanent removal of retained
   alumni records is separate from archiving. The canonical course adapter still

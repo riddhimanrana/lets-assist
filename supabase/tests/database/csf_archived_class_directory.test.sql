@@ -1,6 +1,6 @@
 BEGIN;
 CREATE EXTENSION IF NOT EXISTS pgtap WITH SCHEMA extensions;
-SELECT extensions.plan(8);
+SELECT extensions.plan(10);
 
 INSERT INTO public.organizations (id, name, username, type, join_code) VALUES
 ('c9100000-0000-4000-8000-000000000001', 'Archived directory fixture', 'archived-directory-fixture', 'school', '976411');
@@ -24,6 +24,12 @@ SELECT extensions.is((SELECT count(profile_id) FROM plugin_data.csf_list_profile
 SELECT extensions.is((SELECT count(profile_id) FROM plugin_data.csf_list_profiles_page('c9100000-0000-4000-8000-000000000001', p_cohort_id => 'c9200000-0000-4000-8000-000000000002')), 1::bigint, 'explicit archived-class review preserves the retained record');
 UPDATE plugin_data.csf_cohorts SET status = 'active' WHERE id = 'c9200000-0000-4000-8000-000000000002';
 SELECT extensions.is((SELECT count(profile_id) FROM plugin_data.csf_list_profiles_page('c9100000-0000-4000-8000-000000000001')), 3::bigint, 'restoring the class restores directory visibility');
+
+UPDATE plugin_data.csf_cohorts SET status = 'archived' WHERE id = 'c9200000-0000-4000-8000-000000000002';
+INSERT INTO plugin_data.csf_profile_cohort_memberships (organization_id, profile_id, cohort_id, status, created_at) VALUES
+('c9100000-0000-4000-8000-000000000001', 'c9300000-0000-4000-8000-000000000001', 'c9200000-0000-4000-8000-000000000002', 'transferred', now() + interval '1 day');
+SELECT extensions.is((SELECT count(profile_id) FROM plugin_data.csf_list_profiles_page('c9100000-0000-4000-8000-000000000001', p_search => 'Active')), 1::bigint, 'a reactivated older membership stays visible after the intermediate class is archived');
+SELECT extensions.is((SELECT count(profile_id) FROM plugin_data.csf_list_profiles_page('c9100000-0000-4000-8000-000000000001', p_search => 'Active', p_cohort_id => 'c9200000-0000-4000-8000-000000000001')), 1::bigint, 'the directory selects the active class instead of the newer transferred membership');
 
 SELECT * FROM extensions.finish();
 ROLLBACK;
