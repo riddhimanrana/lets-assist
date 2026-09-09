@@ -499,7 +499,7 @@ test("active membership release pins its replacement and retains the archived di
 });
 
 test("reported course release pins both internal helpers and retains preceding catalogs", () => {
-  const current = acceptedCatalogQuery(source, versions);
+  const current = acceptedCatalogQuery(source, versions.slice(0, 473));
   const preceding = acceptedCatalogQuery(source, versions.slice(0, 472));
   for (const digest of [
     "2565b4aa9e6b2b25885a2bd548e73850",
@@ -508,4 +508,12 @@ test("reported course release pins both internal helpers and retains preceding c
     assert.ok(current.includes(digest));
     assert.ok(!preceding.includes(digest));
   }
+});
+
+test("optional reported text pins the corrected helper and retains the preceding release", () => {
+  const current = acceptedCatalogQuery(source, versions);
+  const preceding = acceptedCatalogQuery(source, versions.slice(0, 473));
+  assert.ok(current.includes("3c25ee3782d0af261f3c235f6002b8e4"));
+  assert.ok(!current.includes("d01d37d7a11be7615b75d95b706089ca"));
+  assert.ok(preceding.includes("d01d37d7a11be7615b75d95b706089ca"));
 });

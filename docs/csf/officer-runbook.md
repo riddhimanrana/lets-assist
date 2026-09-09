@@ -2,7 +2,7 @@
 
 **Audience:** organization administrators, adviser, chapter officers, and Data Management
 **Current status:** The active classes are 2027 through 2030. Fall 2026 has 170 imported applications with 340 evidence links and 680 original course lines. Two conflicting source identities still need review. All 1,117 green rows from the supplied historical workbooks correspond to completed semesters. Preparation does not mean their rows have committed. Importing responses never approves applications or verifies contact addresses. Use the [cleanup register](../development/cleanup-register.md) for the current audit and release evidence. Root PR #505 records the application deployment identity.
-**Release ledger:** the current repository candidate carries 473 ordered migrations through `20260909171733_csf_preserve_reported_course_text`; the private release gitlink is `b970852`. Production has all 473 migrations. The account-connection shortcut passed private CI and was verified on the live Production deployment.
+**Release ledger:** the current repository candidate carries 474 ordered migrations through `20260909173201_csf_optional_reported_course_text`; the private release gitlink is `b970852`. Production has all 474 migrations. The account-connection shortcut passed private CI and was verified on the live Production deployment.
 **Earlier checkpoint:** the prior release record stated: "Production has the exact 468-migration ledger and serves `1fbf9226` after app-only run `34315876545`." This records the earlier checkpoint, not the current database or application.
 Annotation review now rejects frozen rows and previews whose preparation has not completed.
 

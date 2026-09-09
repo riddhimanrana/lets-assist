@@ -1,6 +1,6 @@
 BEGIN;
 CREATE EXTENSION IF NOT EXISTS pgtap WITH SCHEMA extensions;
-SELECT extensions.plan(15);
+SELECT extensions.plan(16);
 
 SELECT extensions.is(plugin_data.csf_normalized_record_schema('application_responses') #>> '{courses,fields,reportedText}', 'string', 'reported course text is allowlisted only as a string');
 SELECT extensions.lives_ok($$SELECT plugin_data.csf_assert_canonical_record('application_responses', '{"courses":[{"courseList":"I","courseName":"Synthetic","grade":"A","reportedText":"Synthetic, A, 3"}]}')$$, 'the canonical record accepts reported course text');
@@ -17,5 +17,6 @@ SELECT extensions.ok(NOT has_function_privilege('service_role','plugin_data.csf_
 SELECT extensions.ok(NOT has_function_privilege('anon','plugin_data.csf_derive_row_commit_payload(text,jsonb)','EXECUTE'), 'anonymous clients cannot derive payloads');
 SELECT extensions.ok(NOT has_function_privilege('authenticated','plugin_data.csf_derive_row_commit_payload(text,jsonb)','EXECUTE'), 'browser clients cannot derive payloads');
 SELECT extensions.ok(NOT has_function_privilege('service_role','plugin_data.csf_derive_row_commit_payload(text,jsonb)','EXECUTE'), 'payload derivation stays internal');
+SELECT extensions.is(plugin_data.csf_derive_row_commit_payload('application_responses', '{"courses":[{"courseList":"I","courseName":"Synthetic","grade":"A","reportedText":null}]}'), plugin_data.csf_derive_row_commit_payload('application_responses', '{"courses":[{"courseList":"I","courseName":"Synthetic","grade":"A"}]}'), 'an explicit canonical null derives exactly the same payload as absence');
 SELECT * FROM extensions.finish();
 ROLLBACK;

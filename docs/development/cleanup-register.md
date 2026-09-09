@@ -2734,8 +2734,8 @@ paragraphs below for this repair.
   review shortcut reaches the correct class queue and its empty-state guide.
   Local TypeScript and strict main publication validation pass. The Production
   release suite passed 106 tests; documentation and integration passed 19 tests.
-- Production has 473 migrations, ending at
-  `20260909171733_csf_preserve_reported_course_text`. The full database
+- Production has 474 migrations, ending at
+  `20260909173201_csf_optional_reported_course_text`. The full database
   suite passed 7,466 tests, including eight archived-directory regressions.
   The exact Production catalog query passes with its pinned function body and
   execution permissions. A forward correction prioritizes active class
@@ -2744,7 +2744,8 @@ paragraphs below for this repair.
   Root PR #505 targets main and records the final deployment identity.
 - Course imports now carry bounded reported text through the immutable snapshot
   into the existing course entry. Legacy snapshots retain the same derived
-  payload. Fifteen rolled-back Production checks verify retention, bounds,
+  payload, including explicit null course text. Sixteen rolled-back Production
+  checks verify retention, bounds,
   unchanged point and bonus rules, and internal helper permissions. The adapter
   suite passed 39 tests and local TypeScript passed.
 - Browser regressions now expect the connection guide to remain visible after

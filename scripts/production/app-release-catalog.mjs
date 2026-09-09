@@ -99,10 +99,15 @@ export function acceptedCatalogQuery(source, versions) {
       "34dbbd884882349f8083512cd2fe48b371c3f1242bc62897685267f2a5d0001b"
   )
     return source;
-  const reportedCourseUpgrade =
-    versions.length === 473 &&
+  const optionalCourseUpgrade =
+    versions.length === 474 &&
     ledgerHash ===
-      "f517e5044b57d212e06bd449e88c1bf3be878535a57a6d6bb09ad52719f6848f";
+      "9bfb026cdad00b52ea2cce2a2d7a8b1a2d189af295cc1a14c6c7eae600f9416a";
+  const reportedCourseUpgrade =
+    optionalCourseUpgrade ||
+    (versions.length === 473 &&
+      ledgerHash ===
+        "f517e5044b57d212e06bd449e88c1bf3be878535a57a6d6bb09ad52719f6848f");
   const activeDirectoryUpgrade =
     reportedCourseUpgrade ||
     (versions.length === 472 &&
@@ -320,7 +325,9 @@ export function acceptedCatalogQuery(source, versions) {
       ],
       [
         "plugin_data.csf_derive_row_commit_payload(text,jsonb)",
-        "d01d37d7a11be7615b75d95b706089ca",
+        optionalCourseUpgrade
+          ? "3c25ee3782d0af261f3c235f6002b8e4"
+          : "d01d37d7a11be7615b75d95b706089ca",
         false,
       ],
     );
