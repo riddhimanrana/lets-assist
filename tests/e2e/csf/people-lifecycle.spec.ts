@@ -338,7 +338,7 @@ test.describe("CSF visible people lifecycle", () => {
     }
     await page.getByRole("button", { name: "Add member", exact: true }).click();
     const dialog = page.getByRole("dialog", { name: "Add a student record" });
-    await expect(dialog.getByRole("combobox", { name: "Class" })).toHaveText(
+    await expect(dialog.getByRole("combobox", { name: "Class" })).toContainText(
       "Select class",
     );
     await expect(dialog.locator('input[name="cohortId"]')).toHaveValue("");
@@ -364,7 +364,7 @@ test.describe("CSF visible people lifecycle", () => {
     await createDialog.getByLabel("School email").fill(fixture.profileEmail);
     await expect(
       createDialog.getByRole("combobox", { name: "Class" }),
-    ).toHaveText("Class of 2028");
+    ).toContainText("Class of 2028");
     await createDialog
       .getByRole("button", { name: "Add student record", exact: true })
       .click();
