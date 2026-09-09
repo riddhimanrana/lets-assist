@@ -99,10 +99,15 @@ export function acceptedCatalogQuery(source, versions) {
       "34dbbd884882349f8083512cd2fe48b371c3f1242bc62897685267f2a5d0001b"
   )
     return source;
-  const matchingTabUpgrade =
-    versions.length === 468 &&
+  const applicationRetryUpgrade =
+    versions.length === 470 &&
     ledgerHash ===
-      "3a54205a45fb0b4e9f7fd142d6f15126c64b6801ea4a70f775ec98fc93a0c23e";
+      "122e681fa747cc8895a2733a2d83a9842836a4b764f6810dd03e0a9070e03f66";
+  const matchingTabUpgrade =
+    applicationRetryUpgrade ||
+    (versions.length === 468 &&
+      ledgerHash ===
+        "3a54205a45fb0b4e9f7fd142d6f15126c64b6801ea4a70f775ec98fc93a0c23e");
   const workbookLinkMergeUpgrade =
     matchingTabUpgrade ||
     (versions.length === 467 &&
@@ -373,7 +378,17 @@ accepted_upgrade_posture AS (
       OR has_any_column_privilege(roles.name, 'plugin_data.csf_point_submissions', 'UPDATE')
   )`
       : ""
-  } ${requirementEvidenceUpgrade ? requirementEvidencePosture : ""}
+  } ${
+    requirementEvidenceUpgrade
+      ? applicationRetryUpgrade
+        ? requirementEvidencePosture.replace(
+            "f990db576f8e2c5a1663b2cfeb784677",
+            "13e8ee1bc7b071f00664f808b2cf504a",
+          )
+        : requirementEvidencePosture
+      : ""
+  }
+  ${applicationRetryUpgrade ? applicationRetryRecoveryPosture : ""}
   ${workbookRecoveryUpgrade ? workbookRecoveryPosture : ""}
   ${applicationSourceReviewUpgrade ? applicationSourceReviewPosture : ""}
   ${reviewedWorkbookLinksUpgrade ? reviewedWorkbookLinksPosture(workerRelationSnapshotQuery) : ""}
@@ -437,6 +452,25 @@ const requirementEvidencePosture = `AND EXISTS (
     AND NOT has_function_privilege('anon',p.oid,'EXECUTE')
     AND NOT has_function_privilege('authenticated',p.oid,'EXECUTE')
     AND (SELECT count(*)=2 AND bool_and(a.grantee IN ('postgres'::regrole,'service_role'::regrole)
+      AND a.privilege_type='EXECUTE' AND NOT a.is_grantable
+      AND a.grantor='postgres'::regrole) FROM aclexplode(p.proacl) a)
+)`;
+
+const applicationRetryRecoveryPosture = `AND EXISTS (
+  SELECT 1 FROM pg_proc p JOIN pg_language l ON l.oid=p.prolang
+  WHERE p.oid=to_regprocedure('plugin_data.csf_recover_application_retry_matches(uuid,uuid,uuid,uuid)')
+    AND p.proowner='postgres'::regrole AND p.prosecdef
+    AND p.prorettype='jsonb'::regtype AND l.lanname='plpgsql'
+    AND p.prokind='f' AND p.provolatile='v' AND p.proparallel='u'
+    AND NOT p.proisstrict AND NOT p.proleakproof AND NOT p.proretset
+    AND p.pronargdefaults=1 AND pg_get_expr(p.proargdefaults,0)='NULL::uuid'
+    AND p.proconfig=ARRAY['search_path=""']
+    AND p.proargnames=ARRAY['p_organization_id','p_actor_user_id','p_preview_job_id','p_after_row_id']
+    AND md5(p.prosrc)='a931f85d6e45fd85611adc8318c4da4d'
+    AND has_function_privilege('service_role',p.oid,'EXECUTE')
+    AND NOT has_function_privilege('anon',p.oid,'EXECUTE')
+    AND NOT has_function_privilege('authenticated',p.oid,'EXECUTE')
+    AND (SELECT count(*)=1 AND bool_and(a.grantee='service_role'::regrole
       AND a.privilege_type='EXECUTE' AND NOT a.is_grantable
       AND a.grantor='postgres'::regrole) FROM aclexplode(p.proacl) a)
 )`;
