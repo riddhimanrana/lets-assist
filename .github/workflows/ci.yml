@@ -20,6 +20,9 @@ concurrency:
 permissions:
   contents: read
 
+env:
+  PRIVATE_PLUGINS_BRANCH: ${{ (github.base_ref == 'main' || github.ref == 'refs/heads/main') && 'main' || 'development' }}
+
 jobs:
   quality:
     name: ${{ github.event_name == 'pull_request' && 'quality' || 'full-quality' }}

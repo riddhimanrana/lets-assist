@@ -239,7 +239,7 @@ describe("CSF release-state documentation truthfulness guards", () => {
       .trim()
       .slice(0, 7);
     expect(officerRunbook).toContain(
-      `private Development gitlink is \`${privateGitlink}\``,
+      `private release gitlink is \`${privateGitlink}\``,
     );
     expect(officerRunbook).toContain(
       "Production has the exact 468-migration ledger and serves `1fbf9226` after app-only run `34315876545`",

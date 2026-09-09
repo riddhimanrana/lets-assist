@@ -2704,32 +2704,44 @@ sources.
 
 ### Production source and profile repair, September 9, 2026
 
-The chapter owner authorized Production repairs and clarified that green
-historical workbook rows mean completed semesters, including officer exemptions.
-The current corrections preserve activity points and login-account links.
+The owner authorized direct Production repairs, then explicitly requested no
+further work on Development. This entry supersedes the older current-state
+paragraphs below for this repair.
 
-- Restored 166 missing application evidence URLs for Classes 2027–2030 from
-  Drive IDs matching their saved import records. The officer review screen
-  now exposes both transcript and receipt links. File access and application
-  decisions remain unreviewed.
-- Added contact emails to 170 profiles after unique exact same-class name
-  matching and cross-profile email conflict checks. Recorded 91 school and
-  128 personal addresses with unverified source provenance and an audit receipt.
-- Corrected 187 completed semesters from saved green source rows and 425
-  more from the three user-supplied workbooks. All 1,117 green workbook rows
-  match exactly one existing profile and a completed Production membership.
-  Each correction retains source coordinates or a workbook SHA-256 digest,
-  records an audit event, and preserves completion as an explicit override.
-- Archived Classes 2024–2026. Permanent retention cleanup remains open;
-  frozen import references and older operational records are preserved.
-- The fresh automatic Fall application preview has 170 reviewed identity
-  matches queued for import. Two same-name responses have different classes,
-  contacts, and evidence and remain unresolved. No application was approved.
-- Private PR #278 passed CI and merged as 2c0f36d. It adds a Drive-ID
-  fallback, removes the misleading Joined date, hides empty historical
-  application panels, and links unclaimed profiles to account review.
-  TypeScript, zero-warning lint, 13 focused tests, and the strict gitlink check
-  pass locally. Root CI, hosted Development, and Production UI rollout remain open.
+- Fall 2026 now has 170 committed applications. Added contacts to 170 uniquely
+  matched same-class profiles, including 91 school and 128 personal addresses.
+  Contact provenance remains unverified. No login account was linked and no
+  application decision was approved.
+- Restored all 340 current transcript and receipt URLs from matching saved
+  Drive IDs. Restored 680 original course lines for the 151 applications that
+  supplied courses, matching both evidence IDs, course names, and grades to
+  the live source. Officer decisions and operative point values did not change.
+- All 1,910 historical workbook rows are accounted for: 1,908 exact matches
+  and two previously audited profile merges. All 1,117 green workbook rows
+  have completed memberships. Corrected 612 standings with source coordinates,
+  workbook hashes where applicable, explicit overrides, and audit records.
+- Archived Classes 2024 through 2026. The directory migration excludes their
+  543 profiles from default results and counts, leaving 819 visible profiles.
+  The Class of 2026 screenshot example returns no general search results.
+  Explicit archived-class review and retained evidence remain available.
+- Production deployment `dpl_GCGonVZvCiBcEY1afFVFZRv1gQ3c` serves `ca0b2b43`.
+  The live alias, full database/environment checks, login, protected-route
+  redirect, removed join date, historical application panel, and officer
+  completion display were verified. Hosted Development was not used as the
+  acceptance gate for the owner-authorized direct Production release.
+- Private PR #279 passed CI and merged to main as `c7de14b`. Its follow-up
+  points account review to the class queue and retains an empty-state guide.
+  Sixty-five focused UI tests, local TypeScript, and strict main publication
+  validation pass. The final application rollout remains pending.
+- Production has 471 migrations, ending at
+  `20260909161331_csf_hide_archived_classes_from_directory`. Eight pgTAP
+  regression checks cover directory counts, search, archive review, restoration,
+  and server-only permissions; full CI execution remains pending.
+- Remaining: source rows 21 and 143 have the same name but conflicting classes,
+  contacts, and evidence. They remain unresolved. Permanent removal of retained
+  alumni records is separate from archiving. The canonical course adapter still
+  omits original raw lines on future changed imports; the current 680 source
+  lines have been restored with audited provenance.
 
 ### Current Production state, September 9, 2026
 
