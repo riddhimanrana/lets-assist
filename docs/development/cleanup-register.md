@@ -12,6 +12,28 @@ evidence and does not override the current tables or release gates.
 
 ### Grouped acceptance and test-tool review, September 9, 2026
 
+Production PR #497 merged as `456a46e9c1811902788d3c84b82ba8c8aa4d9861`.
+The administrator merge bypassed only the ancestry-based behind status after
+quality passed. A merge-tree check proved the merged tree matches Development.
+The selected application remains the accepted `d8faa1c1`; the later six-file
+change contains test tools and documentation, not application changes.
+
+Migration run `34306190813` refused before writing because the previous release
+still had two workers enabled. Worker transitions `34306332659` and
+`34306334582` disabled imports and workbook refresh and verified public posture.
+Run `34306472878` then applied all eight reviewed migrations, leaving the exact
+468-entry ledger. Its final catalog verification failed, so no migration retry
+was dispatched.
+
+Read-only comparison found equal definitions and permissions, with only index
+array ordering different on two new tables. The snapshot query had used each
+database's default text collation. Added explicit C collation to index-definition
+ordering. The complete catalog query now passes against both Production and
+Development with the original expected digests unchanged. All other catalog
+checks passed before this correction. Forty-five focused release tests and
+targeted zero-warning lint pass. This is a release-controller correction, not a
+schema change, permission relaxation, or new application build.
+
 Accepted Development application: `d8faa1c13851d26e5782baca048fe4381cb05302`.
 Private gitlink: `09c36d6750e5ce4685443c33df236111bee20177`.
 Vercel deployment: `dpl_9eu2dAfrxoxGfDcaLbBNubESbTJj`.
