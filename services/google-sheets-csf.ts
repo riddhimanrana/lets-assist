@@ -45,6 +45,7 @@ export type CsfSheetRowEvidence = {
   /** True when at least one cell in the row resolved to a non-empty value. */
   hasEffectiveValue: boolean;
   values: string[];
+  dateFormattedNumbers?: Record<number, { value: number; display: string }>;
   /**
    * Sparse per-cell presentation evidence keyed by one-based column number.
    * Officers encode decisions as fill colors and cell notes (green = met,
@@ -286,6 +287,7 @@ type SheetsGridResponse = {
           formattedValue?: string;
           note?: string;
           effectiveFormat?: {
+            numberFormat?: { type?: string };
             backgroundColor?: { red?: number; green?: number; blue?: number };
           };
           effectiveValue?: Record<string, unknown>;
@@ -486,7 +488,7 @@ export async function getCsfSheetSourceSnapshot(
     [
       "sheets.properties(sheetId,title)",
       "sheets.basicFilter.range",
-      "sheets.data(startRow,startColumn,rowMetadata(hiddenByUser,hiddenByFilter),rowData.values(formattedValue,effectiveValue,userEnteredValue.formulaValue,note,effectiveFormat.backgroundColor))",
+      "sheets.data(startRow,startColumn,rowMetadata(hiddenByUser,hiddenByFilter),rowData.values(formattedValue,effectiveValue,userEnteredValue.formulaValue,note,effectiveFormat(backgroundColor,numberFormat.type)))",
     ].join(","),
   );
 
@@ -571,7 +573,23 @@ export async function getCsfSheetSourceSnapshot(
           : [],
       );
       const annotations: Record<number, CsfSheetCellAnnotation> = {};
+      const dateFormattedNumbers: NonNullable<
+        CsfSheetRowEvidence["dateFormattedNumbers"]
+      > = {};
       cells.forEach((cell, cellOffset) => {
+        const value = cell.effectiveValue?.numberValue;
+        const format = cell.effectiveFormat?.numberFormat?.type;
+        if (
+          (format === "DATE" || format === "DATE_TIME") &&
+          typeof value === "number" &&
+          Number.isFinite(value) &&
+          typeof cell.formattedValue === "string"
+        ) {
+          dateFormattedNumbers[blockStartColumn + cellOffset] = {
+            value,
+            display: cell.formattedValue,
+          };
+        }
         const background = normalizeSheetBackground(
           cell?.effectiveFormat?.backgroundColor,
         );
@@ -593,6 +611,9 @@ export async function getCsfSheetSourceSnapshot(
         formulaColumns,
         formulaDigests,
         annotations,
+        ...(Object.keys(dateFormattedNumbers).length
+          ? { dateFormattedNumbers }
+          : {}),
         hasEffectiveValue: cells.some(
           (cell) =>
             cell?.effectiveValue !== undefined &&
@@ -629,6 +650,9 @@ export async function getCsfSheetSourceSnapshot(
         hiddenByFilter: structural?.hiddenByFilter === true,
         formulaColumns: structural?.formulaColumns ?? [],
         annotations: structural?.annotations ?? {},
+        ...(structural?.dateFormattedNumbers
+          ? { dateFormattedNumbers: structural.dateFormattedNumbers }
+          : {}),
         hasEffectiveValue: structural?.hasEffectiveValue === true,
         values:
           requestedValues[sourceRowNumber - requestedRange.startRow]?.slice(
