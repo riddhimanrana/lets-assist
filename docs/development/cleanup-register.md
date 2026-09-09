@@ -2702,6 +2702,35 @@ sources.
 
 ## Repository-owned P0–P2
 
+### Production source and profile repair, September 9, 2026
+
+The chapter owner authorized Production repairs and clarified that green
+historical workbook rows mean completed semesters, including officer exemptions.
+The current corrections preserve activity points and login-account links.
+
+- Restored 166 missing application evidence URLs for Classes 2027–2030 from
+  Drive IDs matching their saved import records. The officer review screen
+  now exposes both transcript and receipt links. File access and application
+  decisions remain unreviewed.
+- Added contact emails to 170 profiles after unique exact same-class name
+  matching and cross-profile email conflict checks. Recorded 91 school and
+  128 personal addresses with unverified source provenance and an audit receipt.
+- Corrected 187 completed semesters from saved green source rows and 425
+  more from the three user-supplied workbooks. All 1,117 green workbook rows
+  match exactly one existing profile and a completed Production membership.
+  Each correction retains source coordinates or a workbook SHA-256 digest,
+  records an audit event, and preserves completion as an explicit override.
+- Archived Classes 2024–2026. Permanent retention cleanup remains open;
+  frozen import references and older operational records are preserved.
+- The fresh automatic Fall application preview has 170 reviewed identity
+  matches queued for import. Two same-name responses have different classes,
+  contacts, and evidence and remain unresolved. No application was approved.
+- Private PR #278 passed CI and merged as 2c0f36d. It adds a Drive-ID
+  fallback, removes the misleading Joined date, hides empty historical
+  application panels, and links unclaimed profiles to account review.
+  TypeScript, zero-warning lint, 13 focused tests, and the strict gitlink check
+  pass locally. Root CI, hosted Development, and Production UI rollout remain open.
+
 ### Current Production state, September 9, 2026
 
 Production now serves `1fbf92268b729250f73fa09523673544a7d25b3e`, with private
