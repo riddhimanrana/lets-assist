@@ -18,7 +18,7 @@ export const workerRelationSnapshotQuery = `SELECT c.relname, md5(jsonb_build_ob
     pg_get_constraintdef(k.oid),k.convalidated,k.condeferrable,k.condeferred)
     ORDER BY k.conname) FROM pg_constraint k WHERE k.conrelid=c.oid),
   'indexes', (SELECT jsonb_agg(jsonb_build_array(pg_get_indexdef(i.indexrelid),
-    i.indisvalid,i.indisready) ORDER BY pg_get_indexdef(i.indexrelid))
+    i.indisvalid,i.indisready) ORDER BY pg_get_indexdef(i.indexrelid) COLLATE "C")
     FROM pg_index i WHERE i.indrelid=c.oid),
   'triggers', (SELECT jsonb_agg(jsonb_build_array(pg_get_triggerdef(t.oid),
     t.tgenabled) ORDER BY t.tgname) FROM pg_trigger t

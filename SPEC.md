@@ -4,6 +4,14 @@ DVHS CSF officer UX → class-first Home → Classes → Applications → More; 
 
 §C
 
+- Production PR #497 merged as `456a46e9`. The application selected for release
+  remains hosted-accepted `d8faa1c1`; subsequent changes affect test tools and
+  documentation only. All eight reviewed forward migrations reached Production
+  in run `34306472878`, bringing its ledger to 468. The final catalog check
+  failed because index-name sorting depended on database collation. Explicit
+  C ordering makes the unchanged expected fingerprints pass in both hosted
+  databases. No migration was resent or changed. Worker controls remain off
+  while the Production app release proceeds.
 - Hosted Development accepted `d8faa1c13851d26e5782baca048fe4381cb05302`
   in run `34302357521`: 9,742 requests, zero errors, read p95 1.19 seconds,
   read p99 1.57 seconds, mutation p95 1.38 seconds, LCP p75 1.35 seconds,

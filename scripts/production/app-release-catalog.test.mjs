@@ -14,6 +14,20 @@ const versions = expectedVersions(
   fileURLToPath(new URL("../../", import.meta.url)),
 );
 
+test("relation fingerprints sort index definitions independently of database locale", () => {
+  const query = acceptedCatalogQuery(source, versions);
+  const sorts = query.match(
+    /ORDER BY pg_get_indexdef\(i\.indexrelid\) COLLATE "C"/gu,
+  );
+  assert.ok(sorts && sorts.length >= 3);
+  assert.doesNotMatch(
+    query,
+    /ORDER BY pg_get_indexdef\(i\.indexrelid\)(?! COLLATE "C")/u,
+  );
+  assert.ok(query.includes("4db39e32056870608efc1d18528f2eef"));
+  assert.ok(query.includes("8ea2de3577ed4ae18571aa1a8df986b2"));
+});
+
 test("workbook-link merge pins both wrappers and retains the preceding catalog", () => {
   const current = acceptedCatalogQuery(source, versions);
   const preceding = acceptedCatalogQuery(source, versions.slice(0, 466));
