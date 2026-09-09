@@ -322,6 +322,29 @@ test.describe("CSF visible people lifecycle", () => {
     if (fixture) await cleanFixture(fixture);
   });
 
+  test("the all-students directory requires an explicit class choice", async ({
+    page,
+  }) => {
+    await loginAs(page, "admin", `${CSF_ORGANIZATION_PATH}?tab=csf-members`);
+    await expect(
+      page.locator('[data-organization-tabs-hydrated="true"]'),
+    ).toBeVisible();
+    const tour = page.getByRole("dialog", { name: "Officer workspace tour" });
+    if (await tour.isVisible()) {
+      await tour
+        .getByRole("button", { name: "Skip tour", exact: true })
+        .click();
+      await expect(tour).toBeHidden();
+    }
+    await page.getByRole("button", { name: "Add member", exact: true }).click();
+    const dialog = page.getByRole("dialog", { name: "Add a student record" });
+    await expect(dialog.getByRole("combobox", { name: "Class" })).toHaveText(
+      "Select class",
+    );
+    await expect(dialog.locator('input[name="cohortId"]')).toHaveValue("");
+    await dialog.getByRole("button", { name: "Close", exact: true }).click();
+  });
+
   test("creates and verifies a student while full officer seats fail closed", async ({
     page,
   }) => {
@@ -339,10 +362,9 @@ test.describe("CSF visible people lifecycle", () => {
       .fill(`Lifecycle-${fixture.profileEmail.slice(16, 24)}`);
     await createDialog.getByLabel("Preferred name").fill("Avery");
     await createDialog.getByLabel("School email").fill(fixture.profileEmail);
-    await createDialog.getByRole("combobox", { name: "Class" }).click();
-    await page
-      .getByRole("option", { name: "Class of 2028", exact: true })
-      .click();
+    await expect(
+      createDialog.getByRole("combobox", { name: "Class" }),
+    ).toHaveText("Class of 2028");
     await createDialog
       .getByRole("button", { name: "Add student record", exact: true })
       .click();
