@@ -4,6 +4,21 @@ DVHS CSF officer UX → class-first Home → Classes → Applications → More; 
 
 §C
 
+- Hosted Development accepted `d8faa1c13851d26e5782baca048fe4381cb05302`
+  in run `34302357521`: 9,742 requests, zero errors, read p95 1.19 seconds,
+  read p99 1.57 seconds, mutation p95 1.38 seconds, LCP p75 1.35 seconds,
+  INP p75 32 milliseconds, 25 crash-free review navigations, and retained heap
+  11.1 percent below baseline. Run `34302360181` passed quality, database replay,
+  and 89 CSF browser tests. Four skipped tests remain explicit exclusions.
+  Fictional hosted application approval and rejection saved audited decisions;
+  alumni approval kept its source class and Spring 2026 membership.
+  Production still needs the release, chapter account access, official
+  application imports, and controlled email settlement proof.
+- Internal worker checks must inspect effective database-controlled switches
+  before invoking a route. The old `prepare-test` command is retired because
+  the workbook route also processes automatic application and class queues.
+  Refuse that command before any request. This does not disable normal workbook
+  processing or change application bytes. Preserve earlier preparation receipts.
 - Root `72b69030` contains the invitation repair. Its full quality job passes.
   Browser assertions confirmed wrong-account refusal and recipient staff
   acceptance, but fixture cleanup failed when deleting the organization before

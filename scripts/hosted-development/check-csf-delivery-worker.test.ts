@@ -95,7 +95,23 @@ test("only the exact test audience and ten untouched attempts pass", () => {
 });
 function responses(enabled = false) {
   return [
-    { service: "lets-assist", environment: "preview", version: sha },
+    {
+      service: "lets-assist",
+      environment: "preview",
+      version: sha,
+      checks: [
+        {
+          name: "workers",
+          details: {
+            csfControlMode: "database",
+            csfWorkbookRefresh: false,
+            csfImportCommit: false,
+            csfCommunications: enabled,
+            csfScheduledPostPublisher: false,
+          },
+        },
+      ],
+    },
     {
       releaseSha: sha,
       workers: {
@@ -126,6 +142,7 @@ test("Production and mismatched confirmation fail before any network request", a
 });
 test("a disabled check refuses enabled controls before calling the worker", async () => {
   const payloads = responses(true);
+  payloads[0].checks![0].details.csfCommunications = false;
   let calls = 0;
   await expect(
     checkDeliveryWorker(env, async () => {
@@ -134,6 +151,40 @@ test("a disabled check refuses enabled controls before calling the worker", asyn
     }),
   ).rejects.toThrow("worker controls");
   expect(calls).toBe(2);
+});
+test("effective worker posture must match before reading controls or dispatching", async () => {
+  for (const checks of [
+    undefined,
+    [],
+    [
+      {
+        name: "workers",
+        details: { csfControlMode: "environment", csfCommunications: true },
+      },
+    ],
+    [
+      {
+        name: "workers",
+        details: {
+          csfControlMode: "database",
+          csfWorkbookRefresh: false,
+          csfImportCommit: false,
+          csfCommunications: true,
+          csfScheduledPostPublisher: false,
+        },
+      },
+    ],
+    [...responses()[0].checks!, ...responses()[0].checks!],
+  ]) {
+    let calls = 0;
+    await expect(
+      checkDeliveryWorker(env, async () => {
+        calls++;
+        return Response.json({ ...responses()[0], checks });
+      }),
+    ).rejects.toThrow();
+    expect(calls).toBe(1);
+  }
 });
 test("disabled authentication returns only count fields and never retries", async () => {
   const payloads: unknown[] = [

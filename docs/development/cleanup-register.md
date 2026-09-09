@@ -10,6 +10,55 @@ evidence and does not override the current tables or release gates.
 
 ## Release continuation, 2026-09-05
 
+### Grouped acceptance and test-tool review, September 9, 2026
+
+Accepted Development application: `d8faa1c13851d26e5782baca048fe4381cb05302`.
+Private gitlink: `09c36d6750e5ce4685443c33df236111bee20177`.
+Vercel deployment: `dpl_9eu2dAfrxoxGfDcaLbBNubESbTJj`.
+Quality and database run `34302360181` passed, including 89 CSF browser tests
+and four explicit skips. Hosted acceptance `34302357521` passed 9,742 requests
+with zero errors, read p95 1.19 seconds, read p99 1.57 seconds, mutation p95
+1.38 seconds, LCP p75 1.35 seconds, INP p75 32 milliseconds, 25 crash-free
+review navigations, and retained heap growth of -11.1 percent.
+
+Hosted fictional application approval and rejection passed through the officer
+UI. Approval receipt `e7ef75e1-30f5-4c81-8d7e-c9ee04380f4c` retained the alumni
+class and Spring 2026 accepted membership. Reload preserved Approved and a
+zero pending count. Rejection receipt `d32dd65b-99be-4a83-a554-e625316af79b`
+stored the reason and created no accepted membership. Automatic application
+updates saved On, Paused, and On again in the fictional tenant. No real student
+application decision was made.
+
+Workbook preparation run `34304655449` verified four populated previews and
+four empty templates. Import run `34304844258` completed 193 rows in one
+semester, then stopped with 163 of 167 rows successful in another. Four rows
+have `constraint_refused` receipts, not unknown outcomes. The remaining
+129-row queued semester was not attempted by that run. Do not call the whole
+workbook journey complete or retry failed rows without reviewing their evidence.
+
+PR #497 review follow-up: the current SQL range matcher captures `A1` versus
+`A2`, so changed start rows fail comparison. The existing pgTAP changed-first-row
+case passed in the accepted replay. End-row growth remains permitted under the
+reviewed recurring-sheet policy. No historical SQL was edited.
+
+Two internal test-tool defects were confirmed. The delivery checker now requires
+one effective database-mode worker status with the expected flags before reading
+controls or calling the worker. The legacy single-workbook `prepare-test`
+operation now refuses before any request because the route also processes other
+automatic queues. A preflight of one refresh job cannot fence all concurrent
+automatic work. Normal application workbook processing is unchanged. Focused
+checks passed 14 tests and 74 assertions; TypeScript, targeted zero-warning lint,
+and strict gitlink validation passed. These are tooling-only changes and must
+not trigger another application deployment.
+
+Fresh Production revision checks passed for 2027, 2028, and 2029. Class of 2030
+prepared version 181 as eight empty templates with zero profiles or semester
+memberships. Saved immutable payload comparisons verified 4,434 activity labels
+and points and 1,392 attendance labels. The 2027 skipped row adds no retained
+credit beyond its successful dominant row; the parser recorded that reason.
+These checks do not prove Production application imports or email settlement.
+Production remains on the previous public release until staged promotion passes.
+
 ### Historical application acceptance recheck, 2026-09-08
 
 Provider side effect: opening root PR #496 automatically created ephemeral

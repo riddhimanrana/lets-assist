@@ -106,11 +106,21 @@ export async function checkDeliveryWorker(env, fetchImpl = fetch) {
   const status = await readJson(`${APP_ORIGIN}/api/status?deep=0`, {
     headers: appHeaders,
   });
+  const workerChecks = (status.checks ?? []).filter(
+    (row) => row.name === "workers",
+  );
+  const posture = workerChecks[0]?.details;
   requireCondition(
     status.service === "lets-assist" &&
       status.environment === "preview" &&
-      status.version === sha,
-    "Development is not serving the requested release.",
+      status.version === sha &&
+      workerChecks.length === 1 &&
+      posture?.csfControlMode === "database" &&
+      posture.csfWorkbookRefresh === false &&
+      posture.csfImportCommit === false &&
+      posture.csfScheduledPostPublisher === false &&
+      posture.csfCommunications === (mode === "dispatch-test"),
+    "Development is not serving the requested release and effective worker posture.",
   );
   const controls = await readJson(
     `${DATABASE_ORIGIN}/rest/v1/rpc/read_csf_release_worker_controls`,
