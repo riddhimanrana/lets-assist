@@ -4,6 +4,19 @@ DVHS CSF officer UX → class-first Home → Classes → Applications → More; 
 
 §C
 
+- Production app-only run `34307944469` published accepted `d8faa1c1` using
+  controller `c495f3d0`. The public alias, staged backend, and protected routes
+  passed workflow checks; Chrome shows the new application modal. All 468
+  migration versions and the full catalog match. Workbook refresh is enabled;
+  imports and communications remain disabled. Official application links now
+  have explicit safe-update consent, with fresh previews of 162 Fall 2026 rows
+  and 517 Spring 2026 rows, including 85 alumni responses.
+- Automatic application preparation must issue live source evidence before
+  creating profiles. A saved preview is not that receipt. Production exposed
+  missing evidenceRevision values on both sources. Reuse the existing verifier,
+  preserve the Google owner and approving officer as distinct identities, and
+  stop before profile writes if verification fails. The local regression passes;
+  Development and Production acceptance of this follow-up remain unfinished.
 - Production PR #497 merged as `456a46e9`. The application selected for release
   remains hosted-accepted `d8faa1c1`; subsequent changes affect test tools and
   documentation only. All eight reviewed forward migrations reached Production
