@@ -2731,7 +2731,6 @@ The current corrections preserve activity points and login-account links.
   TypeScript, zero-warning lint, 13 focused tests, and the strict gitlink check
   pass locally. Root CI, hosted Development, and Production UI rollout remain open.
 
-
 ### Current Production state, September 9, 2026
 
 Production now serves `1fbf92268b729250f73fa09523673544a7d25b3e`, with private
