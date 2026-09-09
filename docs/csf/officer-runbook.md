@@ -2,7 +2,7 @@
 
 **Audience:** organization administrators, adviser, chapter officers, and Data Management
 **Current status:** The active classes are 2027 through 2030, and each has an active join code. All 1,117 green rows from the supplied historical workbooks correspond to completed semesters. Fall 2026 applications retain the reported courses and transcript and receipt links for officer review. New responses continue to arrive, so use the live Applications count. Two conflicting source identities still need staff review. Importing a response does not approve it or verify its contact addresses. See the [cleanup register](../development/cleanup-register.md) for dated counts and release evidence.
-**Release ledger:** the current repository candidate carries 477 ordered migrations through `20260909231613_csf_reopen_application_review`; the private release gitlink is `d4e3cdd`. Production has all 477 migrations. Manual account connection is verified on Production release `448203bf`; the simpler Sheet and review controls still require verification on their new deployment.
+**Release ledger:** the current repository candidate carries 477 ordered migrations through `20260909231613_csf_reopen_application_review`; the private release gitlink is `d4e3cdd`. Production has all 477 migrations. Manual account connection was verified on Production release `448203bf`. Deployment receipts identify the served application separately from this database ledger.
 
 **Earlier checkpoint:** The prior release record stated: "Production has the exact 468-migration ledger and serves `1fbf9226` after app-only run `34315876545`." This is a historical checkpoint, not the current database or application.
 
