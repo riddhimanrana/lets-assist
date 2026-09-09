@@ -99,12 +99,15 @@ export function acceptedCatalogQuery(source, versions) {
       "34dbbd884882349f8083512cd2fe48b371c3f1242bc62897685267f2a5d0001b"
   )
     return source;
-  const applicationRetryUpgrade = versions.length === 470 &&
-    ledgerHash === "122e681fa747cc8895a2733a2d83a9842836a4b764f6810dd03e0a9070e03f66";
-  const matchingTabUpgrade = applicationRetryUpgrade || (
-    versions.length === 468 &&
+  const applicationRetryUpgrade =
+    versions.length === 470 &&
     ledgerHash ===
-      "3a54205a45fb0b4e9f7fd142d6f15126c64b6801ea4a70f775ec98fc93a0c23e");
+      "122e681fa747cc8895a2733a2d83a9842836a4b764f6810dd03e0a9070e03f66";
+  const matchingTabUpgrade =
+    applicationRetryUpgrade ||
+    (versions.length === 468 &&
+      ledgerHash ===
+        "3a54205a45fb0b4e9f7fd142d6f15126c64b6801ea4a70f775ec98fc93a0c23e");
   const workbookLinkMergeUpgrade =
     matchingTabUpgrade ||
     (versions.length === 467 &&
@@ -375,9 +378,16 @@ accepted_upgrade_posture AS (
       OR has_any_column_privilege(roles.name, 'plugin_data.csf_point_submissions', 'UPDATE')
   )`
       : ""
-  } ${requirementEvidenceUpgrade ? (applicationRetryUpgrade
-    ? requirementEvidencePosture.replace("f990db576f8e2c5a1663b2cfeb784677", "13e8ee1bc7b071f00664f808b2cf504a")
-    : requirementEvidencePosture) : ""}
+  } ${
+    requirementEvidenceUpgrade
+      ? applicationRetryUpgrade
+        ? requirementEvidencePosture.replace(
+            "f990db576f8e2c5a1663b2cfeb784677",
+            "13e8ee1bc7b071f00664f808b2cf504a",
+          )
+        : requirementEvidencePosture
+      : ""
+  }
   ${applicationRetryUpgrade ? applicationRetryRecoveryPosture : ""}
   ${workbookRecoveryUpgrade ? workbookRecoveryPosture : ""}
   ${applicationSourceReviewUpgrade ? applicationSourceReviewPosture : ""}

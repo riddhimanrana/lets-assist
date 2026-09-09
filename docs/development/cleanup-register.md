@@ -2825,6 +2825,55 @@ sync reconciliation remain unfinished.
 
 ### September 9 grouped import release continuation
 
+Production application counts rechecked at 09:54 UTC. These are imported
+applications, not approvals, active memberships, or completed source
+reconciliation. Each nonzero cell has the same count of distinct profile IDs
+within that class and semester. Zero means no imported application in that
+cell, not that the source contains no responses.
+
+| Class | F23 | S24 | F24 | S25 | F25 | S26 | F26 |
+| ----- | --: | --: | --: | --: | --: | --: | --: |
+| 2024  |   2 |  82 |   0 |   0 |   0 |   0 |   0 |
+| 2025  |   5 |  45 |  55 | 111 |   0 |   0 |   0 |
+| 2026  |   6 |  51 |  35 |  24 |  44 |  83 |   0 |
+| 2027  |   1 |   8 |   2 |   1 |   2 |   0 |   0 |
+| 2028  |   0 |   0 |   4 |   0 |   2 |   1 |   4 |
+| 2029  |   0 |   0 |   0 |   0 |   4 |   0 |  32 |
+| 2030  |   0 |   0 |   0 |   0 |   0 |   0 |  22 |
+
+Run `34335768759` completed both `supabase test db` on its isolated stack and
+the CSF database workflows successfully for candidate `4f36f545`. Worker
+authentication and browser checks are still running. The run's quality job
+remains failed only at formatting, corrected locally but not yet pushed.
+The temporary PostgreSQL process owned by this task was stopped cleanly after
+catalog inspection. Its private temporary files remain; shared Docker data
+was neither reset nor deleted.
+
+Protected diagnostic classification confirms that Production Fall retry
+`460326b9-847b-4d3d-9df8-7b88eafee5ed` hit the same caller-selected application
+target refusal reproduced in Development. Its job error stores only the generic
+`preview_failed` code; the scoped sync diagnostic identifies the append
+boundary. Boolean checks found no mapping, authorization, timeout, or network
+failure in that diagnostic. No student values or raw diagnostic contents were
+returned. PR #503 addresses this path, but live recovery remains unverified.
+
+Root PR #503 pins `4f36f545` and private merge `ba8030f`. The full local root
+rerun passed all 310 discovered files. Run `34335768759` failed formatting in
+two release-catalog modules while database replay continued. Prettier corrected
+those two modules locally; 33 focused catalog/controller tests and the full
+format check pass. Do not interrupt the running database job with a new push.
+
+Production readback still has 468 migrations through `20260908141739`, four
+linked class workbooks, and 626 applications across seven semesters, none
+approved. The chapter communication ledger has zero campaigns, recipients,
+and dispatch attempts. A new Fall 2026 retry receipt
+`460326b9-847b-4d3d-9df8-7b88eafee5ed`, created at 09:35:07 UTC, failed with
+zero preview rows. Its original successful application receipts remain counted
+in the 626 applications. Latest-preview totals alone therefore undercount the
+58 existing Fall applications. This retry still needs protected diagnosis and
+must not be reported as a completed sync. No Production write was made in this
+readback.
+
 The final candidate gitlink is private Development merge `ba8030f`, whose tree
 matches tested private repair `d91e296` exactly. After switching this isolated
 submodule to its Development branch and fast-forwarding, strict submodule checks
