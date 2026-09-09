@@ -242,7 +242,7 @@ describe("CSF release-state documentation truthfulness guards", () => {
       `private Development gitlink is \`${privateGitlink}\``,
     );
     expect(officerRunbook).toContain(
-      "Production has the exact 468-migration ledger and serves `d8faa1c1` after app-only run `34307944469`",
+      "Production has the exact 468-migration ledger and serves `1fbf9226` after app-only run `34315876545`",
     );
     expect(officerRunbook).toContain(
       "Annotation review now rejects frozen rows and previews whose preparation has not completed",

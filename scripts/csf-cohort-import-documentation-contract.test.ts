@@ -150,8 +150,9 @@ describe("CSF cohort import documentation truthfulness guards", () => {
       "header-only future tabs remain linked as empty templates",
     );
     expect(sourceData).toContain(
-      "12th → Class of 2026 (out of scope; do not import)",
+      "12th → Class of 2026. Preserve senior responses as alumni applications.",
     );
+    expect(sourceData).toContain("Importing a response does not approve it");
   });
 
   test("historical imports are not documented as account-connection evidence", () => {
