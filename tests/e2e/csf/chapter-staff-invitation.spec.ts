@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 import { expect, test } from "@playwright/test";
 import { createClient } from "@supabase/supabase-js";
 import { getCsfIsolatedSupabaseEnv } from "../../../scripts/local-dev/dv-local-env.mjs";
+import { fixtureJoinCode } from "../../../scripts/local-dev/seed-platform-fixtures.mjs";
 import { localActors, loginAs } from "./helpers";
 
 test("a chapter staff invitation is visible to its recipient and refuses another account", async ({
@@ -31,7 +32,7 @@ test("a chapter staff invitation is visible to its recipient and refuses another
       name,
       username,
       type: "school",
-      join_code: organizationId.slice(0, 6),
+      join_code: fixtureJoinCode(organizationId),
       created_by: inviter.id,
     });
     expect(orgError).toBeNull();

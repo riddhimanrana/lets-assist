@@ -2633,6 +2633,33 @@ sources.
 
 ### Current acceptance failures and fixes, 2026-09-08
 
+Root `9f35cd4fa0ca3066958d02f0394d1eaeee409dc0` failed quality in run
+`34296657950` because the new fictional invitation browser test was missing
+from the organization-username fixture inventory. The local correction lists
+that writer and validates its generated username through the existing product
+schema. All five inventory tests pass with 2,409 assertions. This changes test
+accounting only; it does not exempt the fixture or change application code.
+The independent database job passed its replay and SQL checks. Its browser
+suite passed 88 tests, including the previously failing Sheet controls, and
+skipped four. The new invitation journey failed before browser actions because
+its fixture used a hexadecimal organization code; the database requires six
+digits. The test now uses the existing `fixtureJoinCode` generator. Recipient
+acceptance remains unverified until that journey passes.
+
+The corrected fixture and seed suites pass 37 tests with 2,743 assertions.
+TypeScript, focused zero-warning lint, formatting, and the strict gitlink check
+pass. The full local launcher stopped at 228 passing tests and six timeouts in
+its existing Docker ownership/lifecycle suite. A read-only process check found
+an unrelated Android emulator process consuming roughly eight CPU cores. That
+process was left untouched; no timeout threshold or required test was relaxed.
+
+Read-only Drive metadata checks on September 9 resolved all four stored class
+workbook IDs. The connector omitted provider versions from its normalized
+response, so this does not establish revision parity or completed imports.
+The Fall 2023 application search and its source-folder listing found the late
+responses Sheet, but not the main responses Sheet. Keep the main source as an
+unresolved exception. No source contents or student identities enter this log.
+
 Root `8e5f597ff09767c2fdc0325638a904f9fa4a0c02` contains the grouped
 import and officer-loading fixes. Its quality job passed, including tests and
 the Production build. Run `34294032753` passed database checks but failed
