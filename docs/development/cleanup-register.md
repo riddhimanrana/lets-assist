@@ -2724,19 +2724,20 @@ paragraphs below for this repair.
   543 profiles from default results and counts, leaving 819 visible profiles.
   The Class of 2026 screenshot example returns no general search results.
   Explicit archived-class review and retained evidence remain available.
-- Production deployment `dpl_GCGonVZvCiBcEY1afFVFZRv1gQ3c` serves `ca0b2b43`.
+- Production deployment `dpl_FxaY5uSSwZT4Ak4hAk5HutX2Ujhi` serves `08efbe46`.
   The live alias, full database/environment checks, login, protected-route
   redirect, removed join date, historical application panel, and officer
   completion display were verified. Hosted Development was not used as the
   acceptance gate for the owner-authorized direct Production release.
-- Private PR #279 passed CI and merged to main as `c7de14b`. Its follow-up
-  points account review to the class queue and retains an empty-state guide.
-  Sixty-five focused UI tests, local TypeScript, and strict main publication
-  validation pass. The final application rollout remains pending.
+- Private PR #280 passed CI and merged to main as `f18d868`. The live account
+  review shortcut reaches the correct class queue and its empty-state guide.
+  Local TypeScript and strict main publication validation pass. The Production
+  release suite passed 106 tests; documentation and integration passed 19 tests.
 - Production has 471 migrations, ending at
-  `20260909161331_csf_hide_archived_classes_from_directory`. Eight pgTAP
-  regression checks cover directory counts, search, archive review, restoration,
-  and server-only permissions; full CI execution remains pending.
+  `20260909161331_csf_hide_archived_classes_from_directory`. The full database
+  suite passed 7,466 tests, including eight archived-directory regressions.
+  The exact Production catalog query passes with its pinned function body and
+  execution permissions. Root PR #505 targets main; final root CI is pending.
 - Remaining: source rows 21 and 143 have the same name but conflicting classes,
   contacts, and evidence. They remain unresolved. Permanent removal of retained
   alumni records is separate from archiving. The canonical course adapter still
