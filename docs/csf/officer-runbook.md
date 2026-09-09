@@ -2,7 +2,7 @@
 
 **Audience:** organization administrators, adviser, chapter officers, and Data Management
 **Current status:** The active classes are 2027 through 2030. Fall 2026 has 170 imported applications with 340 evidence links and 680 original course lines. Two conflicting source identities still need review. All 1,117 green rows from the supplied historical workbooks correspond to completed semesters. Preparation does not mean their rows have committed. Importing responses never approves applications or verifies contact addresses. Use the [cleanup register](../development/cleanup-register.md) for the current audit and release evidence. Root PR #505 records the profile-repair deployment. Root PR #506 tracks the onboarding follow-up. All four active classes have an active join code.
-**Release ledger:** the current repository candidate carries 474 ordered migrations through `20260909173201_csf_optional_reported_course_text`; the private release gitlink is `5258223`. Production has all 474 migrations. The account-connection shortcut passed private CI and was verified on the live Production deployment.
+**Release ledger:** the current repository candidate carries 476 ordered migrations through `20260909193835_csf_staff_account_connection_authority_lock`; the private release gitlink is `00df3cb`. Production has all 476 migrations. The new manual account-connection interface still requires verification on its exact Production deployment.
 **Earlier checkpoint:** the prior release record stated: "Production has the exact 468-migration ledger and serves `1fbf9226` after app-only run `34315876545`." This records the earlier checkpoint, not the current database or application.
 Annotation review now rejects frozen rows and previews whose preparation has not completed.
 
@@ -56,7 +56,7 @@ To add a student, open the class Members tab and choose **Add member**. The form
 
 ### Permanent class join code
 
-The class join code is the only student connection path. Each graduating class holds one permanent 6-character code. The alphabet omits O, I, 0, and 1. Connecting through it joins the lasting graduating class only. Semester membership still comes from an accepted application or an approved roster import.
+The class join code is the student self-service connection path. Staff can connect an existing organization account through the profile workflow below. Each graduating class holds one permanent 6-character code. The alphabet omits O, I, 0, and 1. Connecting through it joins the lasting graduating class only. Semester membership still comes from an accepted application or an approved roster import.
 
 1. Open **Classes**, choose the graduating class, and select **Invite students**. **Copy** shares the active code; **Regenerate code** replaces it only when the old code must stop working; **Disable code** withdraws it without a replacement. A class without a code offers **Create code**.
 2. Share only that class code or its `/connect/<code>` URL. Do not distribute a roster export. The public organization and class pages expose no Stream, Activities, membership, or student-derived counts.
@@ -68,7 +68,17 @@ The class join code is the only student connection path. Each graduating class h
 
 Viewing, copying, regenerating, or disabling a class code does not send an email. The product must not display a sent time or resend count unless an explicit recipient email has entered the durable delivery ledger.
 
-Only the class join code starts this workflow, and the connected profile must belong to the code's graduating class. A member's account-name confirmation is a lower-assurance claim, not verified-email evidence. Account names are editable, so an exact match still carries an impersonation risk. Officers can inspect the connection source in member details and revoke an incorrect connection. Typed-name officer decisions retain their existing corroboration checks.
+Only the class join code starts the student self-service workflow, and the connected profile must belong to the code's graduating class. A member's account-name confirmation is a lower-assurance claim, not verified-email evidence. Account names are editable, so an exact match still carries an impersonation risk. Officers can inspect the connection source in member details and revoke an incorrect connection. Typed-name officer decisions retain their existing corroboration checks.
+
+### Staff connection with a different login email
+
+1. Open the existing student profile and choose **Connect account**. This action requires permission to manage profiles.
+2. Enter the student's **Let's Assist login email**. It can differ from the school or personal email on the imported CSF profile. The account must have a confirmed login email and active membership in this organization.
+3. Confirm the identity with the student, explain how in **How did you verify this student?**, and check the identity confirmation. The explanation must contain 8 to 500 characters.
+4. Choose **Connect account**. The connection keeps the profile's existing history and records the staff decision. It does not change the profile's contact emails, award semester credit, or grant staff access.
+5. To grant a position, use **Officers & access** separately. An existing connection cannot be replaced by this form. Review and unlink the incorrect connection before moving an account.
+
+A pending class-code request is not required for this staff workflow. The server checks that the selected profile has exactly one active class and that exactly one active organization member has the confirmed login email. It locks staff authority and rechecks permission before changing the connection.
 
 ### Officer review
 

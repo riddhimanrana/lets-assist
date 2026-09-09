@@ -39,8 +39,12 @@ export const approvedMigrations = [
     "1b51af8125170da480aff999acb197e38cfb52dd8e35598ad2459c978a2a1f01",
   ],
   [
-    "20260909193400_csf_staff_account_connection",
-    "2be74b974d772653382c02bd8a94f482bdf64dc06f51e7023455e1bd7c712f94",
+    "20260909193538_csf_staff_account_connection",
+    "b32650db6162625ba5ab1984ee0737d25f8694d491cdfd2b2d42a7984e7b5148",
+  ],
+  [
+    "20260909193835_csf_staff_account_connection_authority_lock",
+    "2ae13fff4d2a54ebdedc3868c4784f1500970c9a8f625f9c5b708feb43cb8fd2",
   ],
 ];
 

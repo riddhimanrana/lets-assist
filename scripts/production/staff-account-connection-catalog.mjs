@@ -1,4 +1,4 @@
-export const staffAccountConnectionPosture = `AND EXISTS (
+export const staffAccountConnectionPosture = (authorityLocked) => `AND EXISTS (
   SELECT 1 FROM pg_proc p JOIN pg_language l ON l.oid=p.prolang
   WHERE p.oid=to_regprocedure('plugin_data.csf_staff_connect_profile_account(uuid,uuid,uuid,text,text,uuid)')
     AND p.proowner='postgres'::regrole AND p.prosecdef
@@ -7,7 +7,7 @@ export const staffAccountConnectionPosture = `AND EXISTS (
     AND NOT p.proisstrict AND NOT p.proleakproof AND NOT p.proretset
     AND p.pronargdefaults=0 AND p.proconfig=ARRAY['search_path=""']
     AND p.proargnames=ARRAY['p_organization_id','p_profile_id','p_actor_user_id','p_account_email','p_reason','p_request_id']
-    AND md5(p.prosrc)='d46af3759c34832d1b1a516d3e494de4'
+    AND md5(p.prosrc)='${authorityLocked ? "207ce59e1f029ae5c35cd097f639ad41" : "f0c4e2dcf7bd71c8a771d2bfc7443130"}'
     AND has_function_privilege('service_role',p.oid,'EXECUTE')
     AND NOT has_function_privilege('anon',p.oid,'EXECUTE')
     AND NOT has_function_privilege('authenticated',p.oid,'EXECUTE')
