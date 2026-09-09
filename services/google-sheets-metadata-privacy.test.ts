@@ -45,9 +45,40 @@ describe("Google Sheets metadata failure privacy", () => {
     }) as unknown as typeof fetch;
     const result = await getSpreadsheetMetadata("fixture-token", "fictional");
     expect(result?.tabIds).toEqual({ Fall: 0, Spring: 42 });
+    expect(Object.getPrototypeOf(result?.tabIds)).toBe(Object.prototype);
+    expect(Object.getPrototypeOf(result?.tabGrids)).toBe(Object.prototype);
     expect(calls).toHaveLength(1);
     expect(calls[0]).toContain("sheets.properties(sheetId,title,");
     expect(calls[0]).not.toContain("/values");
+  });
+  test("returns serializable dictionaries without treating tab names as prototype setters", async () => {
+    const titles = ["__proto__", "constructor", "toString"];
+    globalThis.fetch = mock(async () =>
+      Response.json({
+        spreadsheetId: "fictional",
+        properties: { title: "Fixture" },
+        sheets: titles.map((title, sheetId) => ({
+          properties: {
+            title,
+            sheetId,
+            gridProperties: { rowCount: 5, columnCount: 17 },
+          },
+        })),
+      }),
+    ) as unknown as typeof fetch;
+    const result = await getSpreadsheetMetadata("fixture-token", "fictional");
+    expect(result).not.toBeNull();
+    for (const dictionary of [result!.tabIds, result!.tabGrids]) {
+      expect(Object.getPrototypeOf(dictionary)).toBe(Object.prototype);
+      for (const title of titles)
+        expect(Object.hasOwn(dictionary, title)).toBe(true);
+      expect(Object.keys(dictionary)).toEqual(titles);
+    }
+    expect(result!.tabIds["__proto__"]).toBe(0);
+    expect(result!.tabGrids["__proto__"]).toEqual({
+      rowCount: 5,
+      columnCount: 17,
+    });
   });
   test("classifies provider refusal without reading or logging its body or identifiers", async () => {
     let bodyRead = false;

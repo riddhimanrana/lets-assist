@@ -2702,6 +2702,70 @@ sources.
 
 ## Repository-owned P0–P2
 
+### Current Production state, September 9, 2026
+
+Production now serves `d8faa1c13851d26e5782baca048fe4381cb05302` from deployment
+`dpl_H9JE7aGUueg1PpCwQqcauhbnosrG`. App-only run `34307944469` passed staging,
+backend and route checks, promotion, and public alias verification. Controller
+PR #498 merged as `c495f3d0655b8d782315e03b2f0423fd196fad09`. The previous app
+deployment is `dpl_8P2hHJAPCLLkyH6NdpxDw2HmPjtF`. The exact 468-version ledger,
+full catalog, staff preference permissions, and migration postconditions pass
+read-only checks. No migration was resent. A separate unauthenticated terminal
+smoke hit Vercel's bot challenge; the signed-in public browser loads the new
+Application Sheet modal. Do not count that terminal check as a pass.
+
+Vercel's August 2026 advisory confirms hosted apps need no upgrade or redeploy
+for the two reported Next.js vulnerabilities. Its managed image service blocks
+the affected AVIF processing path and its runtime uses Linux. The dependency
+remains 16.3.0, not patched: https://vercel.com/changelog/nextjs-august-2026-security-release.
+
+Workbook refresh was enabled for this release by audited run `34308610986`.
+Imports and communications remain disabled. Official Fall and Spring application
+links now have explicit officer-authorized automatic-update receipts, respectively
+`0a4ab54e-a569-4166-97f5-6c302386f5ca` and
+`70f8f499-6b45-49ba-9eec-31ba4353855e`, both generation 1. Mapping review kept
+Fall 2026 and Spring 2026 separate and retained 85 Spring alumni responses.
+Fresh previews contain 162 Fall rows and 517 Spring rows. Each has two identity
+conflicts. The older Fall preview had only 71 rows. No application is approved
+by linking or importing. Official application commits remain unfinished.
+
+P1 `CSF-AUTO-SOURCE-EVIDENCE`: the automatic application worker saves a fresh
+preview without issuing the live source receipt before new-profile preparation.
+Both Production sources still have evidence generation 0 and no evidenceRevision.
+The database correctly refuses both fresh worker previews with a source-evidence
+blocker. Local regression tests reproduce the missing call and refusal handling.
+The patch reuses the existing purpose-bound source verifier before profile
+preparation, using the checked Google owner while keeping the authorizing actor.
+No direct metadata repair or schema relaxation is allowed. Private PR #274 merged
+as `fdaec9d0c57904ba72aa34db81c8985507346de1`. Private CI `34310167102`, all 304
+local private test files, the complete local plugin gate, TypeScript, and
+zero-warning root lint pass. The private merge has the tested candidate's exact
+tree. Hosted verification and a follow-up release remain required.
+
+P1 `CSF-SHEET-METADATA-SERIALIZATION`: selecting a fresh fictional workbook in
+hosted Development returned React error 441. Vercel logs for the accepted
+deployment identify a null-prototype `tabIds` dictionary in the Server Action
+response, digest `3207679980`. The metadata service now collects both tab
+dictionaries without prototypes and returns ordinary objects through safe
+object spreads. Two regressions fail before the change and all four metadata
+tests pass afterward, including special tab names that must remain own keys.
+The separate fictional workbook has four responses in each of its Fall and
+Spring tabs. Drive Picker granted access, but the serialization failure stopped
+selection before a new source was saved. Live retesting remains required.
+
+Root PR #499 run `34310626588` found a stale private gitlink in the officer
+runbook. The runbook and its release-state assertion now describe the verified
+Production release and current candidate separately; all 13 focused contract
+tests pass. A local full test run also timed out in two unchanged launcher
+ownership tests. Keep these results distinct from the passing private suite.
+The database replay and browser job in that run passed. The metadata fix passes
+TypeScript and targeted zero-warning lint; it still needs integrated CI and live
+verification. No extra hosted deployment ran for the documentation correction.
+
+Resend has one enabled webhook per hosted environment and verified sending
+domains. This is configuration evidence only. Production campaign dispatch and
+signed settlement remain unproven. No test messages were sent to students.
+
 ### Current acceptance failures and fixes, 2026-09-08
 
 The invitation repair is pushed at root
