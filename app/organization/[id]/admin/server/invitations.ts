@@ -16,6 +16,7 @@ import {
   getInvitationExpirationDetails,
   getInvitationBaseUrl,
   normalizeInvitationDuration,
+  isInvitationToken,
   type InvitationDeliveryStatus,
   type InvitationDuration,
 } from "@/lib/organization/invitation-utils";
@@ -566,7 +567,8 @@ export async function getInvitationByToken(
   token: string,
 ): Promise<OrganizationInvitationWithDetails | null> {
   "use server";
-  const supabase = await createClient();
+  if (!isInvitationToken(token)) return null;
+  const supabase = await createClient({ invitationToken: token });
 
   const { data, error } = await supabase
     .from("organization_invitations")

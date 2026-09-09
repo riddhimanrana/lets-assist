@@ -2633,6 +2633,40 @@ sources.
 
 ### Current acceptance failures and fixes, 2026-09-08
 
+Root `8e5f597ff09767c2fdc0325638a904f9fa4a0c02` contains the grouped
+import and officer-loading fixes. Its quality job passed, including tests and
+the Production build. Run `34294032753` passed database checks but failed
+the new Sheet-control browser assertion twice: 87 browser tests passed, one
+failed, and four skipped. The loaded consent checkbox exists, but the adjacent
+action row has no layout box. The grid-only patch did not fix this. Private
+PR #273 moves the actions outside the conditional field group and uses block
+flow for the fieldset. The same browser assertion remains required. This push
+did not request a hosted app build.
+
+Private PR #273 passed quality run `34296252302` and merged as
+`09c36d6750e5ce4685443c33df236111bee20177`, identical to tested candidate
+`d51044ea7a953ecc1d8adebc01aa1ec99ac4e103`. The next root candidate combines
+that layout correction with invitation-header repair and its browser test.
+It still needs root browser and hosted acceptance; private CI is not that proof.
+
+Live Production chapter-account setup reproduced an invitation defect. The
+audited staff invitation was sent once, reached the chapter mailbox, and
+remains pending. Google sign-in as the invited account succeeded, but its
+invitation page returned "Invitation Not Found". The same link rendered for
+the inviting administrator. A read-only transaction confirmed zero visible
+invitation rows without the existing required request header and one with it.
+No membership or position was assigned, and no invitation was resent.
+
+The local repair passes the validated invitation token to a new request-scoped
+client for both lookup and acceptance. Ordinary clients receive no capability;
+cookies and the invited-email acceptance check remain intact. The initial
+regression failed before the patch and passes afterward. An isolated browser
+test covers anonymous lookup, malformed tokens, wrong-account refusal, and
+recipient acceptance. Live acceptance still requires the grouped release.
+Five token-client regressions and two action-boundary tests pass, with 27
+assertions. Root TypeScript and full zero-warning lint pass. The chapter
+invitation remains pending, and the Mac locked before further live work.
+
 Private PR #272 passed CI `34292195862` and merged as
 `43f3c6ba06f2ff60d2d4961415c01045f14291f3`, with the same tree as tested
 `2fcefc588533d527e4326d26ef5c86697f636dd8`. All 303 private test files,

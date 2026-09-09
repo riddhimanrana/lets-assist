@@ -6,12 +6,16 @@ import { createClient } from "@/lib/supabase/server";
 import { getAuthUser } from "@/lib/supabase/auth-helpers";
 import { getAdminClient } from "@/lib/supabase/admin";
 import { applyImportedProfileData } from "./shared";
+import { isInvitationToken } from "@/lib/organization/invitation-utils";
 
 export async function acceptInvitation(
   token: string,
 ): Promise<{ success: boolean; error?: string; redirectUrl?: string }> {
   "use server";
-  const supabase = await createClient();
+  if (!isInvitationToken(token)) {
+    return { success: false, error: "Invitation not found" };
+  }
+  const supabase = await createClient({ invitationToken: token });
   const invitationWriteClient = (() => {
     try {
       return getAdminClient();

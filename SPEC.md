@@ -4,6 +4,12 @@ DVHS CSF officer UX → class-first Home → Classes → Applications → More; 
 
 §C
 
+- Production chapter staff invitations omit the token header required by their
+  existing database read policy. The inviting administrator can open the link,
+  but the invited account cannot. The local repair keeps the token on the
+  request-scoped client for lookup and acceptance, retains invited-email
+  enforcement, and adds isolated recipient and wrong-account browser checks.
+  The chapter account's invitation remains pending until live acceptance.
 - Development app `7ba7f075` passed source and database CI. Hosted run
   `34288632216` tested it using identical application bytes at tooling revision
   `3b79895a`. Its 9,405 requests had zero errors, but officer route budgets
