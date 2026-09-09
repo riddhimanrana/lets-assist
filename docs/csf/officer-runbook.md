@@ -1,10 +1,8 @@
 # DVHS CSF Officer Operations Runbook
 
 **Audience:** organization administrators, adviser, chapter officers, and Data Management
-**Current status:** The active classes are 2027 through 2030. Fall 2026 has 170 imported applications with 340 evidence links and 680 original course lines. Two conflicting source identities still need review. All 1,117 green rows from the supplied historical workbooks correspond to completed semesters. Preparation does not mean their rows have committed. Importing responses never approves applications or verifies contact addresses. Use the [cleanup register](../development/cleanup-register.md) for the current audit and release evidence. Root PR #505 records the profile-repair deployment. Root PR #506 tracks the onboarding follow-up. All four active classes have an active join code.
-**Release ledger:** the current repository candidate carries 476 ordered migrations through `20260909193835_csf_staff_account_connection_authority_lock`; the private release gitlink is `00df3cb`. Production has all 476 migrations. The new manual account-connection interface still requires verification on its exact Production deployment.
-**Earlier checkpoint:** the prior release record stated: "Production has the exact 468-migration ledger and serves `1fbf9226` after app-only run `34315876545`." This records the earlier checkpoint, not the current database or application.
-Annotation review now rejects frozen rows and previews whose preparation has not completed.
+**Current status:** The active classes are 2027 through 2030, and each has an active join code. All 1,117 green rows from the supplied historical workbooks correspond to completed semesters. Fall 2026 applications retain the reported courses and transcript and receipt links for officer review. New responses continue to arrive, so use the live Applications count. Two conflicting source identities still need staff review. Importing a response does not approve it or verify its contact addresses. See the [cleanup register](../development/cleanup-register.md) for dated counts and release evidence.
+**Release ledger:** the current repository candidate carries 477 ordered migrations through `20260909231613_csf_reopen_application_review`; the private release gitlink is `00df3cb`. Production has all 477 migrations. Manual account connection is verified on Production release `448203bf`; the simpler Sheet and review controls still require verification on their new deployment.
 
 **Authoritative record after review:** Let's Assist
 
@@ -37,6 +35,12 @@ Never close a semester whose policy is still a draft.
 ## 3. Applications
 
 Use **Applications → Review queue** for daily work and **All applications** for search or history.
+
+Choose the response Sheet and turn on automatic updates once. The normal import view shows its status and any student matches that need attention. Mapping, manual import controls for connected Google Sheets, previous checks, and recovery tools live under **Advanced import settings**. Uncertain identities remain separate until staff resolve them.
+
+Use **Open review** to let officers approve or reject applications. **Close review** pauses those decisions. **Reopen review** resumes application review while preserving earlier decisions, notes, and assignments. These controls do not open or close the Google Form. Points and club review still follow their separate closeout rules.
+
+The review page scrolls continuously through the application and evidence. Use Left/Right or J/K to move between applications; Up/Down scroll the page.
 
 1. Filter by term, class, submission state, eligibility, dues, assignee, or blocking issue.
 2. Assign the application when ownership is needed.

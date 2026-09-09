@@ -90,14 +90,12 @@ async function createFixture(): Promise<Fixture> {
   try {
     checked(
       (
-        await admin
-          .from("organization_members")
-          .insert({
-            organization_id: organization.id,
-            user_id: account.user.id,
-            role: "member",
-            status: "active",
-          })
+        await admin.from("organization_members").insert({
+          organization_id: organization.id,
+          user_id: account.user.id,
+          role: "member",
+          status: "active",
+        })
       ).error,
     );
     checked(
@@ -124,16 +122,14 @@ async function createFixture(): Promise<Fixture> {
     );
     checked(
       (
-        await plugin
-          .from("csf_profile_cohort_memberships")
-          .insert(
-            profileIds.map((id) => ({
-              organization_id: organization.id,
-              profile_id: id,
-              cohort_id: cohort.id,
-              status: "active",
-            })),
-          )
+        await plugin.from("csf_profile_cohort_memberships").insert(
+          profileIds.map((id) => ({
+            organization_id: organization.id,
+            profile_id: id,
+            cohort_id: cohort.id,
+            status: "active",
+          })),
+        )
       ).error,
     );
     return fixture;
