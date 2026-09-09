@@ -2742,6 +2742,26 @@ local private test files, the complete local plugin gate, TypeScript, and
 zero-warning root lint pass. The private merge has the tested candidate's exact
 tree. Hosted verification and a follow-up release remain required.
 
+P1 `CSF-SHEET-METADATA-SERIALIZATION`: selecting a fresh fictional workbook in
+hosted Development returned React error 441. Vercel logs for the accepted
+deployment identify a null-prototype `tabIds` dictionary in the Server Action
+response, digest `3207679980`. The metadata service now collects both tab
+dictionaries without prototypes and returns ordinary objects through safe
+object spreads. Two regressions fail before the change and all four metadata
+tests pass afterward, including special tab names that must remain own keys.
+The separate fictional workbook has four responses in each of its Fall and
+Spring tabs. Drive Picker granted access, but the serialization failure stopped
+selection before a new source was saved. Live retesting remains required.
+
+Root PR #499 run `34310626588` found a stale private gitlink in the officer
+runbook. The runbook and its release-state assertion now describe the verified
+Production release and current candidate separately; all 13 focused contract
+tests pass. A local full test run also timed out in two unchanged launcher
+ownership tests. Keep these results distinct from the passing private suite.
+The database replay and browser job in that run passed. The metadata fix passes
+TypeScript and targeted zero-warning lint; it still needs integrated CI and live
+verification. No extra hosted deployment ran for the documentation correction.
+
 Resend has one enabled webhook per hosted environment and verified sending
 domains. This is configuration evidence only. Production campaign dispatch and
 signed settlement remain unproven. No test messages were sent to students.
