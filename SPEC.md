@@ -4,6 +4,15 @@ DVHS CSF officer UX → class-first Home → Classes → Applications → More; 
 
 §C
 
+- Development app `7ba7f075` passed source and database CI. Hosted run
+  `34288632216` tested it using identical application bytes at tooling revision
+  `3b79895a`. Its 9,405 requests had zero errors, but officer route budgets
+  failed: Classes p95 2.60 seconds, Applications 3.03, and Home 3.02. Mutation
+  p95 was 1.34 seconds; all 25 review navigations passed without a crash.
+  Production promotion remains gated. The current follow-up fixes hidden Sheet
+  update buttons, removes unused import row payloads, reduces new row batches
+  to five, and starts independent Home reads together. These changes still
+  require hosted proof. Original import and acceptance failures remain saved.
 - Source-authorized new-applicant creation is implemented locally through the
   existing audited profile and row-reconciliation transactions. Calls create up
   to 50 unclaimed profiles, keep form emails unverified, and make no application

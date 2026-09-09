@@ -2631,6 +2631,77 @@ sources.
 
 ## Repository-owned P0–P2
 
+### Current acceptance failures and fixes, 2026-09-08
+
+Private PR #272 passed CI `34292195862` and merged as
+`43f3c6ba06f2ff60d2d4961415c01045f14291f3`, with the same tree as tested
+`2fcefc588533d527e4326d26ef5c86697f636dd8`. All 303 private test files,
+TypeScript, targeted zero-warning lint, and the strict root gitlink check pass.
+The root candidate pins that merge. No follow-up app build has run yet.
+
+Root zero-warning lint and the 40 documentation contract tests pass. The local
+unit launcher reported 229 passing tests and five timeout failures in unchanged
+fake-Docker lifecycle and ownership tests. Their child processes exceeded the
+five- or fifteen-second limits. Docker Desktop also cannot start, so local
+browser replay remains unavailable. These failures remain recorded; fresh CI
+must verify the grouped candidate before release.
+
+After the failed fictional queue lease expired, the existing queue RPC
+reconciled its saved partial commit. A transaction checked the exact queue,
+fictional organization, expired lease, and partial receipt first, and refused
+any other running queue. The RPC returned `claimed=false`, `reconciled=true`,
+and `status=blocked`. Readback still shows exactly 150 succeeded updates and
+43 frozen rows. No member writes were repeated. The original failure remains
+recorded, and all worker switches remain off.
+
+Root PR #496 merged as `7ba7f07591d614a43fd52773cac2cc7d57729ade`,
+pinning private `d9d227f12cc9a590c2d855cc2351fe4215ce1a9a`. Development
+deployment `dpl_9qzEDJTgkLqamaX57UUvNbaASTCF` serves that source against
+`ocbuygudvarsuxijxhau`. Development has 468 reviewed migrations. Production
+remains unchanged at 460 migrations, with zero imported chapter applications
+in the latest read-only check. Production PR #497 remains open.
+
+Root `3b79895a37dd3881511885a50ba71148ee2551c7` changes acceptance tooling
+only. It verifies unchanged application bytes before reusing the Development
+build and selects the latest Supabase check for the exact Development project.
+A later Production integration skip had hidden the earlier Development success.
+The original run `34287702371` was canceled before load began. No additional
+application build was requested for the tooling correction. Code quality and
+database run `34288617524` passed for the corrected root revision.
+
+Hosted acceptance `34288632216` failed its officer route budgets. It made 9,405
+requests with zero errors and zero 5xx responses. Overall read p95/p99 were
+1.73/3.38 seconds. Officer Classes p95/p99 were 2.60/5.68 seconds,
+Applications 3.03/7.02, and Home 3.02/6.64. Mutation p95 was 1.34 seconds.
+LCP p75 was 1.492 seconds, INP p75 32 ms, and CLS p75 0.0061. All 25 review
+navigations passed, with no browser errors and retained heap down 11.6 percent.
+These passing measurements do not cancel the route failures.
+
+The fictional workbook recovery action queued refresh job
+`ec2d8682-0ae9-419c-82f5-c3c1aedd0ce6`. Worker check `34288925560`
+prepared four populated tabs and retained four templates with no blocked tabs.
+The browser then approved three ready semester previews. Import check
+`34291184181` failed after the first preview saved 150 successful row updates.
+Its commit receipt `c96628be-b433-4101-95b1-ee5b8f75c486` records
+`unresolved_outcome`; 43 rows remain frozen and the other two previews remain
+queued. No automatic retry was made. All Development workers were disabled
+again at runtime revision 4, receipt `ca6208a6-1fd6-40ee-90d5-de5368368429`.
+
+The hosted database uses an eight-second statement limit. Recorded ten-row
+batch executions reached 7.92 seconds. The follow-up reduces new batches to
+five and reads only pending row identifiers. Existing unknown outcomes still
+require receipt reconciliation; the smaller size does not authorize replay.
+Officer Home also starts its shared snapshot without delaying independent
+reads. Focused regressions pass, but hosted performance remains unproven.
+
+The live Application Sheet dialog hid its update action row after loading.
+Changing its existing shadcn FieldGroup to grid restored the layout. Private
+PR #271 passed CI `34291274195` and merged as
+`3b14a6d835da98fa28b96e25b80b1fb972463f77`, identical to tested `bbfcc3e`.
+The root browser regression checks action visibility, consent, and reload
+without enabling updates. Local browser replay is unavailable because Docker
+Desktop cannot start; the grouped CI replay must run it before release.
+
 ### Production access and count-only recheck, 2026-09-08
 
 Supabase dashboard access recovered. Turned off GitHub automatic branching,

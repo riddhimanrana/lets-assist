@@ -56,13 +56,13 @@ test("saved application previews keep their own rows through navigation and relo
   const base = `${CSF_ORGANIZATION_PATH}?tab=csf-applications&csf_import_type=application_responses`;
   const sourceTitle = `Fictional application source ${marker}`;
   try {
-    sql(`INSERT INTO plugin_data.csf_sheet_sources (id, organization_id, title, provider, source_type, sync_mode)
-      VALUES ('${sourceId}', '${org.id}', '${sourceTitle}', 'uploaded_xlsx', 'application_responses', 'disabled');`);
+    sql(`INSERT INTO plugin_data.csf_sheet_sources (id, organization_id, title, provider, source_type, sync_mode, spreadsheet_id, drive_mime_type)
+      VALUES ('${sourceId}', '${org.id}', '${sourceTitle}', 'google_sheets', 'application_responses', 'disabled', 'fictional-${marker}', 'application/vnd.google-apps.spreadsheet');`);
     for (const [index, id] of ids.entries()) {
       sql(`BEGIN;
         INSERT INTO plugin_data.csf_sheet_import_jobs
-          (id, organization_id, source_id, mode, status, source_type, source_file_name, source_sheet_tab, source_range, created_at)
-        VALUES ('${id}', '${org.id}', '${sourceId}', 'preview', 'needs_resolution', 'application_responses', '${names[index]}', 'Responses', 'A1:B52', now() + interval '${index} second');
+          (id, organization_id, source_id, mode, status, source_type, source_file_name, source_sheet_tab, source_range, mapping_version, created_at)
+        VALUES ('${id}', '${org.id}', '${sourceId}', 'preview', 'needs_resolution', 'application_responses', '${names[index]}', 'Responses', 'A1:B52', 1, now() + interval '${index} second');
         INSERT INTO plugin_data.csf_sheet_import_rows
           (organization_id, job_id, sheet_tab_name, row_number, import_status, normalized_data)
         SELECT '${org.id}', '${id}', 'Responses', n + 1, 'ambiguous',
@@ -78,6 +78,38 @@ test("saved application previews keep their own rows through navigation and relo
     if (await skip.isVisible()) await skip.click();
     const dialog = page.getByRole("dialog", { name: "Application Sheet" });
     await expect(dialog).toBeVisible();
+    const checkAutomaticControls = async () => {
+      const controls = dialog.getByRole("group", {
+        name: "Automatic updates Off",
+        exact: true,
+      });
+      const enable = controls.getByRole("button", {
+        name: "Enable updates",
+        exact: true,
+      });
+      await expect(enable).toBeVisible();
+      await expect(enable).toBeDisabled();
+      await controls
+        .getByRole("checkbox", {
+          name: "I reviewed the columns and semesters. Keep future responses updated using this mapping.",
+          exact: true,
+        })
+        .check();
+      await expect(enable).toBeEnabled();
+      await expect(
+        controls.getByRole("button", {
+          name: "Check saved setting",
+          exact: true,
+        }),
+      ).toBeVisible();
+      await controls
+        .getByRole("checkbox", {
+          name: "I reviewed the columns and semesters. Keep future responses updated using this mapping.",
+          exact: true,
+        })
+        .uncheck();
+    };
+    await checkAutomaticControls();
     await expect(
       page.getByRole("navigation", { name: "Import progress" }),
     ).toHaveCount(0);
@@ -112,6 +144,7 @@ test("saved application previews keep their own rows through navigation and relo
         .getByText("SpringFixture Row51", { exact: true }),
     ).toBeVisible();
     await page.reload();
+    await checkAutomaticControls();
     await expect(
       dialog
         .getByRole("region", { name: "51 applications to check", exact: true })
