@@ -100,10 +100,15 @@ export function acceptedCatalogQuery(source, versions) {
       "34dbbd884882349f8083512cd2fe48b371c3f1242bc62897685267f2a5d0001b"
   )
     return source;
-  const staffAccountAuthorityUpgrade =
-    versions.length === 476 &&
+  const applicationReviewReopenUpgrade =
+    versions.length === 477 &&
     ledgerHash ===
-      "cac848eb296d0e0fddf3edc1702655737a7f428b072ae0ccc6bcbddc2aa52b83";
+      "a4e0cc4d257d8fdd71ef5c08d44f7a95a2ffaa432ea368608840d5328322053e";
+  const staffAccountAuthorityUpgrade =
+    applicationReviewReopenUpgrade ||
+    (versions.length === 476 &&
+      ledgerHash ===
+        "cac848eb296d0e0fddf3edc1702655737a7f428b072ae0ccc6bcbddc2aa52b83");
   const staffAccountConnectionUpgrade =
     staffAccountAuthorityUpgrade ||
     (versions.length === 475 &&
@@ -342,6 +347,12 @@ export function acceptedCatalogQuery(source, versions) {
         false,
       ],
     );
+  if (applicationReviewReopenUpgrade)
+    definitions.push([
+      "plugin_data.csf_set_review_period(uuid,uuid,uuid,text,text,text,text,timestamptz,timestamptz)",
+      "28793d39c02ebf702a61c26deb7ae2b4",
+      true,
+    ]);
   const values = definitions
     .map(
       ([signature, digest, service]) =>
