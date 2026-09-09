@@ -2,7 +2,7 @@ BEGIN;
 
 CREATE EXTENSION IF NOT EXISTS pgtap WITH SCHEMA extensions;
 
-SELECT extensions.plan(25);
+SELECT extensions.plan(29);
 
 INSERT INTO auth.users(id,aud,role,email,email_confirmed_at,raw_app_meta_data,raw_user_meta_data,created_at,updated_at) VALUES ('fc100000-0000-4000-8000-000000000001','authenticated','authenticated','connect-admin@local.test',now(),'{}','{}',now(),now()),
 ('fc100000-0000-4000-8000-000000000002','authenticated','authenticated','connect-target@local.test',now(),'{}','{}',now(),now()),
@@ -72,6 +72,44 @@ SELECT extensions.throws_ok($q$SELECT plugin_data.csf_staff_connect_profile_acco
 SELECT extensions.throws_ok($q$SELECT plugin_data.csf_staff_connect_profile_account('fc110000-0000-4000-8000-000000000001','fc140000-0000-4000-8000-000000000001','fc100000-0000-4000-8000-000000000001','connect-second@local.test','Confirmed identity with this student.','fc190000-0000-4000-8000-000000000003')$q$, 'P0001', NULL, 'verified profile cannot receive another account');
 
 SELECT extensions.ok(NOT EXISTS(SELECT 1 FROM plugin_data.csf_term_memberships WHERE organization_id='fc110000-0000-4000-8000-000000000001') AND NOT EXISTS(SELECT 1 FROM plugin_data.csf_credit_records WHERE organization_id='fc110000-0000-4000-8000-000000000001'), 'identity linking grants no semester credit');
+
+UPDATE auth.users SET email='connect-renamed@local.test'
+WHERE id='fc100000-0000-4000-8000-000000000002';
+
+SELECT extensions.ok(
+  (plugin_data.csf_staff_connect_profile_account(
+    'fc110000-0000-4000-8000-000000000001','fc140000-0000-4000-8000-000000000001',
+    'fc100000-0000-4000-8000-000000000001','connect-target@local.test',
+    'Confirmed identity with this student.','fc190000-0000-4000-8000-000000000001'
+  )->>'replayed')::boolean,
+  'the original request remains a historical receipt after a login email change'
+);
+SELECT extensions.ok(
+  (SELECT count(*)=1 FROM plugin_data.csf_admin_audit_events
+   WHERE organization_id='fc110000-0000-4000-8000-000000000001'
+     AND action='profile.account_connected_by_staff')
+  AND EXISTS(SELECT 1 FROM plugin_data.csf_profile_accounts
+    WHERE organization_id='fc110000-0000-4000-8000-000000000001'
+      AND profile_id='fc140000-0000-4000-8000-000000000001'
+      AND user_id='fc100000-0000-4000-8000-000000000002' AND status='verified'),
+  'historical replay neither creates another link nor repeats the audit'
+);
+SELECT extensions.throws_ok(
+  $q$SELECT plugin_data.csf_staff_connect_profile_account(
+    'fc110000-0000-4000-8000-000000000001','fc140000-0000-4000-8000-000000000002',
+    'fc100000-0000-4000-8000-000000000001','connect-target@local.test',
+    'Confirmed identity with this student.','fc190000-0000-4000-8000-000000000004')$q$,
+  'P0001','Exactly one active organization member must have that confirmed login email.',
+  'a new request cannot use the stale login email'
+);
+SELECT extensions.throws_ok(
+  $q$SELECT plugin_data.csf_staff_connect_profile_account(
+    'fc110000-0000-4000-8000-000000000001','fc140000-0000-4000-8000-000000000001',
+    'fc100000-0000-4000-8000-000000000001','connect-renamed@local.test',
+    'Confirmed identity with this student.','fc190000-0000-4000-8000-000000000001')$q$,
+  'P0001','This request ID was already used for a different connection.',
+  'a receipt request ID cannot be reused with a changed email'
+);
 
 SELECT * FROM extensions.finish();
 
