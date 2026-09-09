@@ -1,5 +1,6 @@
 import { describe, expect, test } from "bun:test";
-import { readFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { spawnSync } from "node:child_process";
 import { join } from "node:path";
 import fg from "fast-glob";
 import {
@@ -659,5 +660,56 @@ describe("runbooks lead with the isolated contract", () => {
     expect(sequence).not.toContain("--linked");
     expect(sequence).not.toContain("bun run supabase\n");
     expect(sequence).not.toContain("bun run supabase`");
+  });
+});
+
+describe("browser package installation", () => {
+  test("disables only the unused Chrome feed and keeps dependency verification", async () => {
+    const sandbox = await createSandbox("csf-chrome-feed-");
+    const sources = join(sandbox.directory, "sources");
+    mkdirSync(sources);
+    const fixtures = {
+      "google-chrome.list":
+        "deb https://dl.google.com/linux/chrome/deb/ stable main\n",
+      "google-chrome-stable.sources":
+        "Types: deb\nURIs: https://dl.google.com/linux/chrome-stable/deb\nSuites: stable\nComponents: main\n",
+      "ubuntu.sources":
+        "Types: deb\nURIs: http://archive.ubuntu.com/ubuntu\nSuites: noble\nComponents: main\n",
+      "microsoft.list":
+        "deb https://packages.microsoft.com/ubuntu/24.04/prod noble main\n",
+    };
+    for (const [name, content] of Object.entries(fixtures)) {
+      writeFileSync(join(sources, name), content);
+    }
+    const job = dbReplayJob();
+    const start = job.indexOf("      - name: Install Playwright Chromium");
+    const end = job.indexOf("      - name:", start + 1);
+    const step = job.slice(start, end);
+    expect(step).toContain("bunx playwright install --with-deps chromium");
+    expect(step).not.toMatch(
+      /allow-unauthenticated|AllowInsecureRepositories|trusted=yes/u,
+    );
+    const preparation = step
+      .split("run: |\n")[1]
+      .split("bunx playwright install")[0]
+      .replaceAll("/etc/apt/sources.list.d", sources);
+    for (let attempt = 0; attempt < 2; attempt += 1) {
+      const result = spawnSync(
+        "bash",
+        ["-e", "-c", `sudo() { "$@"; }\n${preparation}`],
+        { encoding: "utf8" },
+      );
+      expect(result.status, result.stderr).toBe(0);
+    }
+    for (const [name, content] of Object.entries(fixtures)) {
+      const disabled = name.startsWith("google-chrome");
+      expect(existsSync(join(sources, name))).toBe(!disabled);
+      expect(
+        readFileSync(
+          join(sources, disabled ? `${name}.csf-disabled` : name),
+          "utf8",
+        ),
+      ).toBe(content);
+    }
   });
 });

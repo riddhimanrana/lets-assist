@@ -2751,6 +2751,18 @@ paragraphs below for this repair.
 - Browser regressions now expect the connection guide to remain visible after
   a request is resolved or rejected. They still verify the settled request and
   resulting account state.
+- Onboarding follow-up: created the missing permanent join codes for Classes
+  2027, 2029, and 2030 through the live staff form. Class 2028 kept its code.
+  All four active classes now have one active code; archived classes have none.
+  Production passed 245 rolled-back checks covering profile creation, class-code
+  lifecycle, repeated joins, exact-email connections, account-name confirmation,
+  conflicting identities, and officer connection review. No fixture remained.
+- P2 found during live onboarding checks: Add member in Class 2030 defaulted to
+  Class 2027. Private PR #282 passes the viewed class into the form and requires
+  explicit selection outside a class. Root browser coverage asserts the default
+  and the persisted class membership. The form points officers to Record
+  connections for waiting accounts. Production publication is tracked in the
+  main-targeted onboarding follow-up PR.
 - Remaining: source rows 21 and 143 have the same name but conflicting classes,
   contacts, and evidence. They remain unresolved. Permanent removal of retained
   alumni records is separate from archiving.

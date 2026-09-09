@@ -1,8 +1,8 @@
 # DVHS CSF Officer Operations Runbook
 
 **Audience:** organization administrators, adviser, chapter officers, and Data Management
-**Current status:** The active classes are 2027 through 2030. Fall 2026 has 170 imported applications with 340 evidence links and 680 original course lines. Two conflicting source identities still need review. All 1,117 green rows from the supplied historical workbooks correspond to completed semesters. Preparation does not mean their rows have committed. Importing responses never approves applications or verifies contact addresses. Use the [cleanup register](../development/cleanup-register.md) for the current audit and release evidence. Root PR #505 records the application deployment identity.
-**Release ledger:** the current repository candidate carries 474 ordered migrations through `20260909173201_csf_optional_reported_course_text`; the private release gitlink is `b970852`. Production has all 474 migrations. The account-connection shortcut passed private CI and was verified on the live Production deployment.
+**Current status:** The active classes are 2027 through 2030. Fall 2026 has 170 imported applications with 340 evidence links and 680 original course lines. Two conflicting source identities still need review. All 1,117 green rows from the supplied historical workbooks correspond to completed semesters. Preparation does not mean their rows have committed. Importing responses never approves applications or verifies contact addresses. Use the [cleanup register](../development/cleanup-register.md) for the current audit and release evidence. Root PR #505 records the profile-repair deployment. Root PR #506 tracks the onboarding follow-up. All four active classes have an active join code.
+**Release ledger:** the current repository candidate carries 474 ordered migrations through `20260909173201_csf_optional_reported_course_text`; the private release gitlink is `5258223`. Production has all 474 migrations. The account-connection shortcut passed private CI and was verified on the live Production deployment.
 **Earlier checkpoint:** the prior release record stated: "Production has the exact 468-migration ledger and serves `1fbf9226` after app-only run `34315876545`." This records the earlier checkpoint, not the current database or application.
 Annotation review now rejects frozen rows and previews whose preparation has not completed.
 
@@ -51,6 +51,8 @@ Application decision, membership creation, decision event, and audit/request rec
 Application imports are chapter-wide. In **Applications**, choose the response spreadsheet once. Do not assign a graduating class to the source. The preview derives the class and semester for each row from retained source fields, splits multiline course entries into separate course records, and blocks any unconfigured or changed target. Reusing a source follows its immutable Drive file id even if its title changes.
 
 ## 4. Student joining and account connection
+
+To add a student, open the class Members tab and choose **Add member**. The form starts with that class selected. In the general directory, choose the class explicitly. Save the student record, then share the class code so the student can connect their account.
 
 ### Permanent class join code
 
