@@ -209,7 +209,7 @@ test("scheduling retirement pins every replacement and preserves the prior relea
     assert.ok(current.includes(definition), definition);
     assert.ok(!preceding.includes(definition), definition);
   }
-  assert.match(current, /SELECT count\(\*\) = 14 AND/u);
+  assert.match(current, /SELECT count\(\*\) = 15 AND/u);
   assert.match(preceding, /SELECT count\(\*\) = 10 AND/u);
   assert.ok(
     current.includes(
@@ -314,7 +314,7 @@ test("workbook rebuild release checks the exact body, server-only grants, and re
 
 test("the reviewed import upgrade verifies metadata, function grants, and the scoped index", () => {
   const query = acceptedCatalogQuery(source, versions);
-  assert.match(query, /SELECT count\(\*\) = 14 AND/u);
+  assert.match(query, /SELECT count\(\*\) = 15 AND/u);
   assert.match(query, /csf_import_rows_resolution_metadata_object/u);
   assert.match(query, /a.atttypid='jsonb'::regtype AND a.attnotnull/u);
   assert.match(query, /csf_import_rows_committed_source_key_idx/u);
@@ -477,4 +477,15 @@ test("changed source contract cannot silently remove a check", () => {
       ),
     /result contract/u,
   );
+});
+
+test("archived directory release pins the function and preserves the preceding catalog", () => {
+  const current = acceptedCatalogQuery(source, versions);
+  const preceding = acceptedCatalogQuery(source, versions.slice(0, 470));
+  assert.ok(
+    current.includes(
+      "('plugin_data.csf_list_profiles_page(uuid,text,text,uuid,text,text,text,text,uuid,integer)','091f2fb0595f586f7b84ce134d6cdee6',true)",
+    ),
+  );
+  assert.ok(!preceding.includes("091f2fb0595f586f7b84ce134d6cdee6"));
 });

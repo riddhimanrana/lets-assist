@@ -99,10 +99,15 @@ export function acceptedCatalogQuery(source, versions) {
       "34dbbd884882349f8083512cd2fe48b371c3f1242bc62897685267f2a5d0001b"
   )
     return source;
-  const applicationRetryUpgrade =
-    versions.length === 470 &&
+  const archivedDirectoryUpgrade =
+    versions.length === 471 &&
     ledgerHash ===
-      "122e681fa747cc8895a2733a2d83a9842836a4b764f6810dd03e0a9070e03f66";
+      "52d6bf9b2b504ed72459d4787016073800cc0c8791c7ec3f80b0d8c2a64a984e";
+  const applicationRetryUpgrade =
+    archivedDirectoryUpgrade ||
+    (versions.length === 470 &&
+      ledgerHash ===
+        "122e681fa747cc8895a2733a2d83a9842836a4b764f6810dd03e0a9070e03f66");
   const matchingTabUpgrade =
     applicationRetryUpgrade ||
     (versions.length === 468 &&
@@ -288,6 +293,12 @@ export function acceptedCatalogQuery(source, versions) {
       ],
     );
   }
+  if (archivedDirectoryUpgrade)
+    definitions.push([
+      "plugin_data.csf_list_profiles_page(uuid,text,text,uuid,text,text,text,text,uuid,integer)",
+      "091f2fb0595f586f7b84ce134d6cdee6",
+      true,
+    ]);
   const values = definitions
     .map(
       ([signature, digest, service]) =>

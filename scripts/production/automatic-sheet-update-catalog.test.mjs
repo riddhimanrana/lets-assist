@@ -70,7 +70,7 @@ test("automatic update catalog checks missing objects, exact grants, tables, and
 
 test("reviewed automatic-update and merge ledgers retain automatic-update checks", () => {
   const versions = expectedVersions(root);
-  assert.equal(versions.length, 470);
+  assert.equal(versions.length, 471);
   for (const accepted of [
     versions.slice(0, 466),
     versions.slice(0, 467),
