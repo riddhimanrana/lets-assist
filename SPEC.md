@@ -33,6 +33,9 @@ DVHS CSF officer UX → class-first Home → Classes → Applications → More; 
   TypeScript, and changed-file lint. Private PR #275 merged reviewed commit
   `66f2b7e57ce4f0eef2048b361ff8ec76d1a0dc66` into private Development after
   CI `34326094307` passed. The root integration and hosted release remain open.
+  Private PR #276 then merged the Next.js 16.3.3 security patch after CI
+  `34328767918` passed. The grouped root candidate pins private
+  `cd2a0e902046c73410ff1f4e1d03ba7e6fd43f1a`. Both runtimes remain undeployed.
   The missing Class of 2025 alumni class and its eight semesters were created
   through the ordinary officer action. Fall source changes stopped the first
   batch before application writes. The officer reconciliation action recovered

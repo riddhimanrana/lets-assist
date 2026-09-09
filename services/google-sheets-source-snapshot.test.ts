@@ -246,56 +246,6 @@ describe("CSF Google Sheets bounded range parsing", () => {
 });
 
 describe("CSF Google Sheets acquisition snapshot", () => {
-  test("retains date-formatted numbers at absolute coordinates and hashes their values", async () => {
-    const display = "1/9/1900 0:00:00";
-    const makeGrid = (value: number, format = "DATE_TIME") =>
-      gridResponse({
-        sheets: [
-          {
-            properties: { sheetId: 0, title: "Synthetic tab" },
-            data: [
-              {
-                startRow: 8,
-                startColumn: 3,
-                rowData: [
-                  {
-                    values: [
-                      {
-                        formattedValue: display,
-                        effectiveValue: { numberValue: value },
-                        effectiveFormat: { numberFormat: { type: format } },
-                      },
-                    ],
-                  },
-                ],
-              },
-            ],
-          },
-        ],
-      });
-    const read = async (value: number, format?: string) => {
-      installFetch(okHandler([], makeGrid(value, format)));
-      const result = await getCsfSheetSourceSnapshot(
-        "synthetic-token",
-        SPREADSHEET_ID,
-        REQUESTED_RANGE,
-        "Synthetic tab",
-      );
-      if (result.status !== "ok")
-        throw new Error("Synthetic acquisition failed");
-      return result;
-    };
-    const first = await read(10);
-    expect(
-      first.rows.find((row) => row.sourceRowNumber === 9)?.dateFormattedNumbers,
-    ).toEqual({ 4: { value: 10, display } });
-    expect((await read(10)).contentHash).toBe(first.contentHash);
-    expect((await read(11)).contentHash).not.toBe(first.contentHash);
-    expect(
-      (await read(10, "NUMBER")).rows[0].dateFormattedNumbers,
-    ).toBeUndefined();
-  });
-
   test("reads the populated block, not the grid, and reports acquisition evidence", async () => {
     const calls = installFetch(okHandler());
     const snapshot = await getCsfSheetSourceSnapshot(

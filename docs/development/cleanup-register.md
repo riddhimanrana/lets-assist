@@ -2825,6 +2825,28 @@ sync reconciliation remain unfinished.
 
 ### September 9 grouped import release continuation
 
+Root integration PR #501 contains `4276c6f9`. Its first quality run stopped
+because the extended provider test exceeded the 1,200-line test-file limit.
+The numeric evidence test now has its own file. Both provider files pass,
+with 27 tests and 120 assertions, and the source-layout gate passes.
+
+The release audit also found open critical Next.js advisories, including
+`GHSA-2xp9-vwfh-vxw4`, against the pinned 16.3.0 runtime. The official advisory
+lists 16.3.3 as patched. Root Next.js packages and the private CSF application
+now pin 16.3.3 locally. Private PR #276 contains child commit `cd2a0e9`;
+child lint, TypeScript, ten tests, and the optimized build pass. Private CI
+`34328767918` passed and PR #276 merged into private Development at `b6a5c1a`.
+The root candidate pins exact reviewed child commit
+`cd2a0e902046c73410ff1f4e1d03ba7e6fd43f1a`; strict containment passes.
+Root TypeScript and zero-warning lint pass. This patch belongs to the grouped
+release, not a separate deployment. Neither runtime patch is live yet.
+
+The Mac is unlocked and the chapter Google account successfully signed in to
+Production. Its existing staff invitation is open. Action-time confirmation
+was requested before accepting access. Readback still shows no chapter-account
+organization membership. Production campaign, recipient, and dispatch ledgers
+are empty. Communications remains disabled pending controlled delivery proof.
+
 Private PR #275 merged reviewed commit
 `66f2b7e57ce4f0eef2048b361ff8ec76d1a0dc66` into private Development at
 `ba12e73` after CI `34326094307` passed. The root integration retains this exact
