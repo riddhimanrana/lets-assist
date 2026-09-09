@@ -575,7 +575,6 @@ export async function getInvitationByToken(
     .select(
       `
       *,
-      inviter:profiles!organization_invitations_invited_by_fkey(full_name, email),
       organization:organizations!organization_invitations_organization_id_fkey(name, username, logo_url)
     `,
     )

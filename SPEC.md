@@ -4,6 +4,12 @@ DVHS CSF officer UX → class-first Home → Classes → Applications → More; 
 
 §C
 
+- Root CI `34298362402` passed quality and database checks but its invitation
+  browser test still failed before sign-in; 88 other browser tests passed.
+  The token-scoped lookup unnecessarily joined the private inviter profile,
+  which anonymous users cannot read. The local fix removes that join without
+  changing grants and identifies the inviting organization in the UI. The
+  recipient and wrong-account journey must pass before the grouped release.
 - Production chapter staff invitations omit the token header required by their
   existing database read policy. The inviting administrator can open the link,
   but the invited account cannot. The local repair keeps the token on the

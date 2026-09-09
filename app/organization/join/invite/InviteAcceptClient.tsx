@@ -14,14 +14,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import {
-  Loader2,
-  CheckCircle2,
-  XCircle,
-  Building2,
-  Clock,
-  User,
-} from "lucide-react";
+import { Loader2, CheckCircle2, XCircle, Building2, Clock } from "lucide-react";
 import { acceptInvitation } from "@/app/organization/[id]/admin/actions";
 import type { OrganizationInvitationWithDetails } from "@/types/invitation";
 import { createClient } from "@/lib/supabase/client";
@@ -43,8 +36,6 @@ export default function InviteAcceptClient({
 
   const org = invitation.organization as
     { name: string; username: string; logo_url: string | null } | undefined;
-  const inviter = invitation.inviter as
-    { full_name: string | null; email: string | null } | undefined;
   const invitedEmail = invitation.email?.trim() || "";
 
   const authLinks = useMemo(() => {
@@ -190,8 +181,7 @@ export default function InviteAcceptClient({
           )}
           <CardTitle className="text-2xl">You're Invited!</CardTitle>
           <CardDescription>
-            {inviter?.full_name || inviter?.email || "Someone"} invited you to
-            join <strong>{org?.name}</strong>
+            You're invited to join <strong>{org?.name}</strong>
           </CardDescription>
         </CardHeader>
 
@@ -215,12 +205,6 @@ export default function InviteAcceptClient({
               <Building2 className="h-4 w-4" />
               <span>Organization: {org?.name}</span>
             </div>
-            {inviter && (
-              <div className="flex items-center gap-2 text-muted-foreground">
-                <User className="h-4 w-4" />
-                <span>Invited by: {inviter.full_name || inviter.email}</span>
-              </div>
-            )}
             <div className="flex items-center gap-2 text-muted-foreground">
               <Clock className="h-4 w-4" />
               <span>Expires: {formatDate(invitation.expires_at)}</span>

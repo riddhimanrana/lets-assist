@@ -36,6 +36,15 @@ test("a chapter staff invitation is visible to its recipient and refuses another
       created_by: inviter.id,
     });
     expect(orgError).toBeNull();
+    const { error: ownerError } = await admin
+      .from("organization_members")
+      .insert({
+        organization_id: organizationId,
+        user_id: inviter.id,
+        role: "admin",
+        status: "active",
+      });
+    expect(ownerError).toBeNull();
     const { error: inviteError } = await admin
       .from("organization_invitations")
       .insert({

@@ -78,3 +78,12 @@ test("both invitation lookup and acceptance request the scoped token client", ()
   }
   expect(acceptance).toContain("signedInEmail !== invitedEmail");
 });
+
+test("public invitation lookup does not join the private inviter profile", () => {
+  const lookup = readFileSync(
+    `${process.cwd()}/app/organization/[id]/admin/server/invitations.ts`,
+    "utf8",
+  ).split("export async function getInvitationByToken")[1];
+  expect(lookup).not.toContain("inviter:profiles");
+  expect(lookup).toContain("organization:organizations!");
+});

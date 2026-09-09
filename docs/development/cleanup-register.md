@@ -2633,6 +2633,35 @@ sources.
 
 ### Current acceptance failures and fixes, 2026-09-08
 
+Root `65442bbb8cd71d5adbbdf10478f1ae0550b25604` passed the quality job in
+`34298362402`, including full tests, lint, TypeScript, and the Production build.
+Database replay and SQL checks passed. The browser suite passed 88 tests and
+skipped four, but the invitation journey failed twice before sign-in. Fixture
+creation now succeeds; the lookup still returns "Invitation Not Found".
+
+The lookup joins the inviter's private `profiles` record. Anonymous users have
+no SELECT permission there. A read-only Production transaction confirmed that
+the valid-token invitation and organization are visible without that join.
+The local repair removes the private embed and names only the organization in
+the invitation UI. It changes no database grants. The focused regression failed
+before the repair and passes after it; eight invitation/boundary tests pass
+with 29 assertions. The fixture now includes its administrator membership.
+The full recipient journey and hosted acceptance remain open.
+
+September 9 count-only Production checks found 1,909 latest stored workbook
+rows with exact successful receipts, including 150 pending and 166 superseded
+rows that must not be blindly retried. One Class of 2027 Fall 2024 row is marked
+skipped without an officer, reason, or resolution timestamp; it remains an
+exception to review. Current Drive-version parity and repeat-sync proof remain
+open. The latest stored application previews contain 588 rows with class and
+semester targets, but Production still has zero imported applications.
+Production's 460-version ledger is an exact ordered prefix of the candidate's
+468 versions. Workbook/import workers are enabled on the existing public
+release; communications and scheduled publishing are disabled. No CSF dispatch
+attempts, verified provider events, unresolved webhook quarantine, or scheduled
+posts exist in the Production count snapshot. No write or provider send ran
+during these checks. The Mac remains locked.
+
 Root `9f35cd4fa0ca3066958d02f0394d1eaeee409dc0` failed quality in run
 `34296657950` because the new fictional invitation browser test was missing
 from the organization-username fixture inventory. The local correction lists
