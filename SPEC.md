@@ -588,6 +588,8 @@ V98: an authorized profile merge carries active reviewed workbook links to the s
 
 V99: an officer can explicitly extend a reviewed class layout to matching canonical semester tabs in the same class workbook. Older source consent does not expand. New tabs retain the original officer, Google owner, reviewed header signature, and parent consent generation. Different columns, point rules, classes, workbooks, or owners require review. Parent pause or permission loss invalidates inherited authority before any row write. A separately reviewed child tab can become independently authorized. No source deletion removes student history.
 
+V100: application preview append accepts no caller-selected profile. After sealing, retry recovery may restore a target only from a source-bound officer audit or successful prior commit, with current actor permission and unchanged identity, class, semester, and mapping. Conflicts and unknown outcomes remain unresolved. Recovery records a match, never an application approval or account connection. Numeric grade evidence must agree with the canonical grade and stay inside the validated preview envelope.
+
 §T
 
 id|status|task|cites

@@ -137,7 +137,7 @@ test("legacy release catalogs stay unchanged", () => {
 });
 
 test("requirement evidence pins the append body and preserves the preceding catalog", () => {
-  const current = acceptedCatalogQuery(source, versions);
+  const current = acceptedCatalogQuery(source, versions.slice(0, 468));
   const preceding = acceptedCatalogQuery(source, versions.slice(0, 461));
   const signature =
     "plugin_data.csf_append_import_preview_rows(uuid,uuid,uuid,jsonb)";
@@ -164,6 +164,22 @@ test("requirement evidence pins the append body and preserves the preceding cata
       "AND NOT has_function_privilege('authenticated',p.oid,'EXECUTE')",
     ),
   );
+});
+
+test("application retry upgrade pins the new RPC and grade envelope without changing older catalogs", () => {
+  const current = acceptedCatalogQuery(source, versions);
+  const preceding = acceptedCatalogQuery(source, versions.slice(0, 468));
+  const migration = readFileSync(new URL(
+    "../../supabase/migrations/20260909090944_csf_application_retry_match_recovery.sql", import.meta.url,
+  ), "utf8");
+  const digest = createHash("md5").update(migration.split("$$")[1]).digest("hex");
+  assert.ok(current.includes("csf_recover_application_retry_matches(uuid,uuid,uuid,uuid)"));
+  assert.ok(current.includes(`md5(p.prosrc)='${digest}'`));
+  assert.ok(current.includes("md5(p.prosrc)='13e8ee1bc7b071f00664f808b2cf504a'"));
+  assert.ok(current.includes("pg_get_expr(p.proargdefaults,0)='NULL::uuid'"));
+  assert.ok(!preceding.includes("csf_recover_application_retry_matches"));
+  assert.ok(preceding.includes("md5(p.prosrc)='f990db576f8e2c5a1663b2cfeb784677'"));
+  assert.throws(() => acceptedCatalogQuery(source, versions.slice(0, 469)));
 });
 
 test("scheduling retirement pins every replacement and preserves the prior release catalog", () => {

@@ -63,17 +63,11 @@ function transport({
 }
 
 test("approved bytes and exact versions share one transaction", () => {
-  assert.equal(prepared.prefix.length, 460);
-  assert.equal(prepared.versions.length, 468);
-  assert.deepEqual(prepared.versions.slice(460), [
-    "20260907000344",
-    "20260908020559",
-    "20260908075029",
-    "20260908081328",
-    "20260908084338",
-    "20260908090508",
-    "20260908135756",
-    "20260908141739",
+  assert.equal(prepared.prefix.length, 468);
+  assert.equal(prepared.versions.length, 470);
+  assert.deepEqual(prepared.versions.slice(468), [
+    "20260909090522",
+    "20260909090944",
   ]);
   assert.match(prepared.query, /^BEGIN;/u);
   assert.match(prepared.query, /COMMIT;$/u);
@@ -88,11 +82,11 @@ test("approved bytes and exact versions share one transaction", () => {
   );
   assert.match(
     prepared.query,
-    /'20260907000344','retire_csf_scheduled_publishing'/u,
+    /'20260909090522','csf_application_grade_preview_evidence'/u,
   );
   assert.match(
     prepared.query,
-    /'20260908020559','csf_requirement_source_evidence'/u,
+    /'20260909090944','csf_application_retry_match_recovery'/u,
   );
 });
 
@@ -117,7 +111,7 @@ test("refuses modified approved SQL before any provider request", () => {
 test("performs one write and verifies ledger and permissions", async () => {
   const t = transport();
   const result = await applyForwardMigrations(config, t.fetch);
-  assert.equal(result.migrations, 468);
+  assert.equal(result.migrations, 470);
   assert.equal(result.workers, "disabled");
   assert.equal(result.responseLost, false);
   assert.equal(

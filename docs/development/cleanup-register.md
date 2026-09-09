@@ -2825,6 +2825,166 @@ sync reconciliation remain unfinished.
 
 ### September 9 grouped import release continuation
 
+The final candidate gitlink is private Development merge `ba8030f`, whose tree
+matches tested private repair `d91e296` exactly. After switching this isolated
+submodule to its Development branch and fast-forwarding, strict submodule checks
+passed. The first strict check correctly refused the earlier feature-branch
+checkout. No unrelated worktree or branch was changed.
+
+Private PR #277 passed run `34335216443` and merged as
+`ba8030f66f6e04d38d045d1e43d762d4f9c52ead`. The root index now pins reviewed
+private commit `d91e29688ca348b09d74af59f9ff5d7a0b7baed4`, confirmed reachable
+from private Development. The root worktree fast-forwarded to `cb3e18d8`
+without changing or discarding its local repair files.
+
+The pending append migration also makes an unproven application superseded
+request ambiguous rather than leaving it pending without a profile. Existing
+source-bound recovery may then restore a proven target; failure to prove the
+identity leaves it for review. Added pgTAP cases exercise that fallback.
+The temporary socket-only PostgreSQL instance accepted the updated function
+definition with body checking disabled and returned body digest
+`13e8ee1bc7b071f00664f808b2cf504a`. This verifies catalog bytes only, not SQL
+execution or Supabase replay. Fifty focused release tests pass. No hosted
+migration or Production deployment occurred.
+
+Private repair `d91e296` is pushed in private PR #277. Its quality run
+`34335216443` is in progress. It has not merged and the root gitlink has not
+advanced. Root TypeScript passed again after the additional retry tests.
+
+The full root run finished with two reported failures and one module error.
+Both reported failures refer to the same stale runbook ledger assertion.
+The module error came from the old eight-migration controller tail. The
+runbook now distinguishes the 470-entry local candidate from 468-entry
+Production. The controller pins only the two pending migration files and
+requires the existing 468-entry prefix, retaining its disabled-worker lock,
+exact file hashes, single submission, and read-only outcome recovery.
+The 24 focused documentation and migration-controller tests pass with 304
+assertions. This is not database replay or permission to deploy untested SQL.
+
+Hosted acceptance `34331389754` completed successfully on Development
+`cb3e18d85271c93716c827ee11e7d0a8d2e0da53`. Its log records 9,829 requests;
+the slowest reported read p95 was 1.125 seconds and mutation p95 was 1.822
+seconds. This run does not cover the uncommitted database retry repair or
+close the observed application-import failure. Production PR #502 remains draft.
+
+The private test runner passed all 311 discovered test files. Four additional
+focused cases now preserve unchanged retry, conflict, error, and skip states
+while removing caller-selected application targets. The focused suite passes
+14 tests with 20 assertions. These are payload-boundary checks, not database
+proof of unchanged sync. Full root tests are running through `test:unit`.
+The attempted `test:root` command was invalid and ran no tests.
+
+Chrome still reports the Mac locked after the latest unlock reply. No staff
+invitation was accepted, no application decision was made, and no Production
+deployment was started during this continuation.
+
+The local retry repair now appends application rows without caller-selected
+profiles, then calls a new service-only database recovery boundary after sealing.
+Migration `20260909090944_csf_application_retry_match_recovery` scans 50 rows per
+keyset page and follows at most 32 source-bound ancestors. It checks organization,
+source file, mapping, coordinate, class, semester, identity/contact/submission
+evidence, prior audited resolution or successful commit, current profile
+candidates, and active/frozen work. Recovery records another audited match,
+not an application approval or account connection. The caller rechecks its
+source lease per page and stops on unknown responses or non-advancing cursors.
+
+Ten focused service tests passed with 16 assertions. Root TypeScript and
+zero-warning lint passed after reducing redundant comments in the 800-line
+preview action. Added database tests cover the actual append/refusal/recovery
+path, preserved profile identity, audit receipts, and repeat recovery. They have
+not run yet. Hostile database cases and the exact release-catalog upgrade remain
+required before committing this repair. Docker Desktop reports `starting`, but
+daemon requests return `unable to start`; do not treat that as a running replay.
+Production PR #502 remains draft, and no new hosted deployment was requested.
+
+Local forward migration `20260909090522_csf_application_grade_preview_evidence`
+adds the mapped-grade envelope with explicit execution grants. It requires a
+numeric grade from 9 through 12 that agrees with the canonical application,
+a bounded positive column, bounded nonempty provider display, and no extra
+fields. New pgTAP coverage calls the actual append RPC for all four grades,
+invalid evidence, and replay. Migration file validation and diff whitespace
+checks passed. Database execution is still unverified: Docker was stopped and
+the Desktop CLI reported that it could not start the daemon. No migration was
+applied to Development or Production. The separate profile-retry repair remains
+unfinished.
+
+Live fictional recheck exposed a release-blocking database contract mismatch.
+The audited officer action created exactly one unclaimed fictional profile and
+resolved one row in preview `c950a53a-1a07-4472-a0c9-ddce6236b304`. Read-only
+Development queries confirmed one profile, zero account links, one resolved
+unstarted row, and three unresolved siblings. Recheck then opened preview
+`309e4bed-5091-459c-8c8d-52ba2497abdf` and failed at
+`csf_append_import_preview_rows`: the RPC rejects an application row that arrives
+with `matched_profile_id`, including the service's recovered audited target.
+The original receipt and profile remain intact. No application was approved.
+
+The same RPC's closed envelope does not include `applicationGradeEvidence`,
+which the new date-formatted-grade parser emits. Code inspection establishes
+that mismatch; a database regression must exercise it before release.
+Do not remove the caller-target restriction. Persist application preview rows
+without caller-selected targets, then restore only database-proven retry lineage
+through an audited, permission-checked boundary. Cover profile creation before
+application commit, prior officer matches, committed updates, ancestor retries,
+changed identity, changed mappings, duplicate candidates, and unknown outcomes.
+Add validated numeric-grade evidence to the database envelope separately.
+
+Production PR #502 was opened from Development to obtain exact-commit CI
+`34332037818`, then returned to draft after the live failure. Do not merge or
+deploy it until these regressions pass. Hosted acceptance `34331389754` is
+still running; even a passing load result will not close this import defect.
+No Production build or data mutation occurred in this continuation.
+
+Network readback recovered. Development deployment
+`dpl_Hf9Xu1ZHTYaJDSJuLpUnQRU9QN3j` is READY for exact merge
+`cb3e18d85271c93716c827ee11e7d0a8d2e0da53`. Hosted acceptance run
+`34331389754` passed the exact deployment, Supabase preview, and Development
+domain checks and started its acceptance tests at 2026-09-09 08:55:05 UTC.
+Acceptance is still running. Chrome is accessible after the user's unlock.
+No additional deployment was dispatched and Production was not promoted.
+
+CI `34329216103` passed both jobs on `27374ca4`, including CSF browser tests,
+isolated health, evidence validation, and cleanup. Root PR #501 merged normally
+into Development at `cb3e18d85271c93716c827ee11e7d0a8d2e0da53` at
+2026-09-09 08:50:58 UTC. No separate release branch or deployment dispatch was
+created. The integration merge is eligible for the existing grouped Development
+deployment and acceptance workflow. Git fetch, GitHub run listing, and the
+Vercel connector then failed with network timeouts. Deployment and acceptance
+start/completion are unverified. Do not restart a build because these readbacks
+failed. Production still has no verified follow-up promotion.
+
+Root PR #501 now carries `27374ca4`; CI `34329216103` passed its quality job,
+including the build. Its database job has reached the CSF browser workflows
+and is still running. The private runtime patch is merged. Current root tests
+previously found stale alumni and gitlink documentation contracts. The corrected
+documentation contracts pass 19 tests and 425 assertions, and the stable-gitlink
+inventory rerun passes six tests. The final complete local runner now passes
+310 root and 339 plugin test files, with isolated processes for mocked modules.
+Evidence is in `.artifacts/csf/grouped-release-final-tests.log`.
+
+Native Chrome controls can reach the fictional Development import even though
+the extension tab handle times out. The new four-row source has no completed
+automatic worker preview and no matching fictional target profiles. Its consent
+is active, but Development runtime workbook and import controls remain disabled.
+The four earlier applications belong to a different source. Do not match these
+new rows to unrelated fixtures. Enable and test the new source only after the
+grouped hosted acceptance passes. Current consent is not proof of processing.
+
+Read-only Production review setup shows six open application review periods:
+Fall 2023, Spring 2024, Fall 2024, Spring 2025, Fall 2025, and Fall 2026.
+Spring 2026 needs its review period configured through the officer action.
+One active officer position has a linked account. Multiple-officer review
+assignment is not yet configured. No transcript or application decision was
+made. Resend sending domains are verified, and separate Development and
+Production webhook endpoints are enabled. These configuration reads do not
+prove application delivery or settlement. Provider webhook responses include
+secret-bearing query strings; future reads must strip URL queries before any
+output. The exposed bypass values require controlled rotation before closure.
+
+Chrome successfully signed in as the chapter account, then timed out twice.
+A native window check confirmed that the Mac had locked again. The existing
+invitation remains unaccepted and the action-time access confirmation remains
+pending. No Production email was sent or worker switch changed.
+
 Root integration PR #501 contains `4276c6f9`. Its first quality run stopped
 because the extended provider test exceeded the 1,200-line test-file limit.
 The numeric evidence test now has its own file. Both provider files pass,
