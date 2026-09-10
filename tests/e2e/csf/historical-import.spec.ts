@@ -363,31 +363,40 @@ test.describe("CSF historical workbook import", () => {
       .getByRole("button", { name: "Preview normalized rows", exact: true })
       .click();
 
-    const progress = page.getByRole("navigation", { name: "Import progress" });
-    await expect(progress).toContainText(
-      "SourceScopeMapPreviewReconcileCommitResult",
-    );
-    await expect(progress.getByRole("listitem")).toHaveCount(7);
-    await expect(progress.getByRole("button")).toHaveCount(0);
-    await expect(progress.getByRole("link")).toHaveCount(0);
-    await expect(progress.locator('[aria-current="step"]')).toHaveText(
-      "Reconcile",
-    );
     await expect(
-      page.getByRole("heading", { name: "Preview needs reconciliation" }),
-    ).toBeVisible();
+      page.getByRole("navigation", { name: "Import progress" }),
+    ).toHaveCount(0);
+    const advanced = page.locator("details").filter({
+      has: page.locator(":scope > summary", {
+        hasText: /^Advanced import settings$/,
+      }),
+    });
+    await expect(advanced).toHaveCount(1);
+    if ((await advanced.getAttribute("open")) === null) {
+      await advanced.locator(":scope > summary").click();
+    }
+    const previewRegion = advanced.getByRole("region", {
+      name: "Check student matches",
+      exact: true,
+    });
+    await expect(previewRegion).toBeVisible();
+    await previewRegion
+      .locator("summary", { hasText: /^Sheet details$/ })
+      .click();
     await expect(
       page.getByText(`${fixture.workbookName} · S26 · A1:C2`, {
         exact: true,
       }),
     ).toBeVisible();
     await expect(
-      page.getByText("1 normalized row", { exact: true }),
+      previewRegion.getByText("1 normalized row", { exact: true }),
     ).toBeVisible();
-    await expect(page.getByText("Needs review", { exact: true })).toBeVisible();
+    await expect(
+      previewRegion.getByText("Needs review", { exact: true }),
+    ).toBeVisible();
     await expect(
       page.getByRole("button", {
-        name: "Verify source and commit",
+        name: "Add applications",
         exact: true,
       }),
     ).toBeDisabled();
@@ -465,12 +474,12 @@ test.describe("CSF historical workbook import", () => {
     expect(activityCount).toBe(0);
 
     const resolutionRegion = page.getByRole("region", {
-      name: "Resolve 1 row",
+      name: "1 application to check",
       exact: true,
     });
     await expect(resolutionRegion).toHaveCount(1);
     const resolution = resolutionRegion
-      .locator(":scope > div.divide-y > div")
+      .locator(":scope > div.divide-y > details")
       .filter({
         has: page.getByText("Aarav Mehta", { exact: true }),
       });
@@ -524,12 +533,12 @@ test.describe("CSF historical workbook import", () => {
     await expect
       .poll(() => countWholePreviewBlockers(fixture, preview.id))
       .toBe(0);
-    await expect(progress.locator('[aria-current="step"]')).toHaveText(
-      "Commit",
-    );
+    await expect(
+      page.getByRole("navigation", { name: "Import progress" }),
+    ).toHaveCount(0);
 
     const commit = page.getByRole("button", {
-      name: "Verify source and commit",
+      name: "Add applications",
       exact: true,
     });
     await expect(commit).toBeEnabled();
@@ -659,11 +668,9 @@ test.describe("CSF historical workbook import", () => {
     await expect(sourceHistoryRun).toContainText(
       `Commits preview #${fixture.previewJobId!.slice(0, 8)}`,
     );
-    await page
-      .getByRole("button", { name: "Import history", exact: true })
-      .click();
+    await page.getByRole("button", { name: /^Import history(?:\s|$)/ }).click();
     const importHistory = page
-      .getByRole("button", { name: "Import history", exact: true })
+      .getByRole("button", { name: /^Import history(?:\s|$)/ })
       .locator("..")
       .locator("..");
     const historyRun = importHistory
@@ -715,7 +722,7 @@ test.describe("CSF historical workbook import", () => {
     // authenticated Server Action at the supported browser request boundary.
     await expect(
       page.getByRole("button", {
-        name: /^(Verify source and commit|Resume import|Finish import)$/,
+        name: /^(Add applications|Resume import|Finish import)$/,
       }),
     ).toHaveCount(0);
     const replayResponse = await page

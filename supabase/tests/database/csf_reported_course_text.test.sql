@@ -1,0 +1,22 @@
+BEGIN;
+CREATE EXTENSION IF NOT EXISTS pgtap WITH SCHEMA extensions;
+SELECT extensions.plan(16);
+
+SELECT extensions.is(plugin_data.csf_normalized_record_schema('application_responses') #>> '{courses,fields,reportedText}', 'string', 'reported course text is allowlisted only as a string');
+SELECT extensions.lives_ok($$SELECT plugin_data.csf_assert_canonical_record('application_responses', '{"courses":[{"courseList":"I","courseName":"Synthetic","grade":"A","reportedText":"Synthetic, A, 3"}]}')$$, 'the canonical record accepts reported course text');
+SELECT extensions.is(plugin_data.csf_derive_row_commit_payload('application_responses', '{"courses":[{"courseList":"I","courseName":"Synthetic","grade":"A","reportedText":"Synthetic, A, 3"}]}') #>> '{applicationData,courses,0,rawLine}', 'Synthetic, A, 3', 'the commit payload retains the complete reported line');
+SELECT extensions.is(plugin_data.csf_derive_row_commit_payload('application_responses', '{"courses":[{"courseList":"I","courseName":"Synthetic","grade":"A","reportedText":"Synthetic, A, 3"}]}') #> '{applicationData,courses,0,points}', 'null'::jsonb, 'the reported point claim grants no points');
+SELECT extensions.is(plugin_data.csf_derive_row_commit_payload('application_responses', '{"courses":[{"courseList":"I","courseName":"Synthetic","isBonus":true,"reportedText":"AP Synthetic, A, 3"}]}') #> '{applicationData,courses,0,isBonus}', 'false'::jsonb, 'the source cannot grant bonus credit');
+SELECT extensions.is(plugin_data.csf_derive_row_commit_payload('application_responses', '{"courses":[{"courseList":"I","courseName":"Synthetic","grade":"A"}]}') #> '{applicationData,courses}', '[{"courseList":"I","courseName":"Synthetic","grade":"A","points":null,"isBonus":false}]'::jsonb, 'old snapshots derive the same payload without a new null key');
+SELECT extensions.throws_ok($$SELECT plugin_data.csf_derive_row_commit_payload('application_responses', jsonb_build_object('courses', jsonb_build_array(jsonb_build_object('courseList','I','courseName','Synthetic','reportedText',repeat('x',4097)))))$$, '23514', NULL, 'oversized reported text cannot commit');
+SELECT extensions.throws_ok($$SELECT plugin_data.csf_derive_row_commit_payload('application_responses', '{"courses":[{"courseList":"I","courseName":"Synthetic","reportedText":{"unexpected":"object"}}]}')$$, '23514', NULL, 'structured raw content cannot become course text');
+SELECT extensions.throws_ok($$SELECT plugin_data.csf_assert_canonical_record('application_responses', '{"courses":[{"courseList":"I","courseName":"Synthetic","rawPayload":"unexpected"}]}')$$, '23514', NULL, 'unrelated raw fields remain rejected');
+SELECT extensions.ok(NOT has_function_privilege('anon','plugin_data.csf_normalized_record_schema(text)','EXECUTE'), 'anonymous clients cannot call the schema helper');
+SELECT extensions.ok(NOT has_function_privilege('authenticated','plugin_data.csf_normalized_record_schema(text)','EXECUTE'), 'browser clients cannot call the schema helper');
+SELECT extensions.ok(NOT has_function_privilege('service_role','plugin_data.csf_normalized_record_schema(text)','EXECUTE'), 'the schema helper stays internal');
+SELECT extensions.ok(NOT has_function_privilege('anon','plugin_data.csf_derive_row_commit_payload(text,jsonb)','EXECUTE'), 'anonymous clients cannot derive payloads');
+SELECT extensions.ok(NOT has_function_privilege('authenticated','plugin_data.csf_derive_row_commit_payload(text,jsonb)','EXECUTE'), 'browser clients cannot derive payloads');
+SELECT extensions.ok(NOT has_function_privilege('service_role','plugin_data.csf_derive_row_commit_payload(text,jsonb)','EXECUTE'), 'payload derivation stays internal');
+SELECT extensions.is(plugin_data.csf_derive_row_commit_payload('application_responses', '{"courses":[{"courseList":"I","courseName":"Synthetic","grade":"A","reportedText":null}]}'), plugin_data.csf_derive_row_commit_payload('application_responses', '{"courses":[{"courseList":"I","courseName":"Synthetic","grade":"A"}]}'), 'an explicit canonical null derives exactly the same payload as absence');
+SELECT * FROM extensions.finish();
+ROLLBACK;

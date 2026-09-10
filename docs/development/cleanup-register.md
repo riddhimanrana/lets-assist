@@ -2704,32 +2704,68 @@ sources.
 
 ### Production source and profile repair, September 9, 2026
 
-The chapter owner authorized Production repairs and clarified that green
-historical workbook rows mean completed semesters, including officer exemptions.
-The current corrections preserve activity points and login-account links.
+The owner authorized direct Production repairs, then explicitly requested no
+further work on Development. This entry supersedes the older current-state
+paragraphs below for this repair.
 
-- Restored 166 missing application evidence URLs for Classes 2027–2030 from
-  Drive IDs matching their saved import records. The officer review screen
-  now exposes both transcript and receipt links. File access and application
-  decisions remain unreviewed.
-- Added contact emails to 170 profiles after unique exact same-class name
-  matching and cross-profile email conflict checks. Recorded 91 school and
-  128 personal addresses with unverified source provenance and an audit receipt.
-- Corrected 187 completed semesters from saved green source rows and 425
-  more from the three user-supplied workbooks. All 1,117 green workbook rows
-  match exactly one existing profile and a completed Production membership.
-  Each correction retains source coordinates or a workbook SHA-256 digest,
-  records an audit event, and preserves completion as an explicit override.
-- Archived Classes 2024–2026. Permanent retention cleanup remains open;
-  frozen import references and older operational records are preserved.
-- The fresh automatic Fall application preview has 170 reviewed identity
-  matches queued for import. Two same-name responses have different classes,
-  contacts, and evidence and remain unresolved. No application was approved.
-- Private PR #278 passed CI and merged as 2c0f36d. It adds a Drive-ID
-  fallback, removes the misleading Joined date, hides empty historical
-  application panels, and links unclaimed profiles to account review.
-  TypeScript, zero-warning lint, 13 focused tests, and the strict gitlink check
-  pass locally. Root CI, hosted Development, and Production UI rollout remain open.
+- Fall 2026 now has 170 committed applications. Added contacts to 170 uniquely
+  matched same-class profiles, including 91 school and 128 personal addresses.
+  Contact provenance remains unverified. No login account was linked and no
+  application decision was approved.
+- Restored all 340 current transcript and receipt URLs from matching saved
+  Drive IDs. Restored 680 original course lines for the 151 applications that
+  supplied courses, matching both evidence IDs, course names, and grades to
+  the live source. Officer decisions and operative point values did not change.
+- All 1,910 historical workbook rows are accounted for: 1,908 exact matches
+  and two previously audited profile merges. All 1,117 green workbook rows
+  have completed memberships. Corrected 612 standings with source coordinates,
+  workbook hashes where applicable, explicit overrides, and audit records.
+- Archived Classes 2024 through 2026. The directory migration excludes their
+  543 profiles from default results and counts, leaving 819 visible profiles.
+  The Class of 2026 screenshot example returns no general search results.
+  Explicit archived-class review and retained evidence remain available.
+- Verified profile-repair checkpoint: deployment
+  `dpl_FxaY5uSSwZT4Ak4hAk5HutX2Ujhi` served `08efbe46`.
+  The live alias, full database/environment checks, login, protected-route
+  redirect, removed join date, historical application panel, and officer
+  completion display were verified. Hosted Development was not used as the
+  acceptance gate for the owner-authorized direct Production release.
+- Private PR #280 passed CI and merged to main as `f18d868`. The live account
+  review shortcut reaches the correct class queue and its empty-state guide.
+  Local TypeScript and strict main publication validation pass. The Production
+  release suite passed 106 tests; documentation and integration passed 19 tests.
+- Production has 474 migrations, ending at
+  `20260909173201_csf_optional_reported_course_text`. The full database
+  suite passed 7,466 tests, including eight archived-directory regressions.
+  The exact Production catalog query passes with its pinned function body and
+  execution permissions. A forward correction prioritizes active class
+  membership over newer transferred rows. No current profile had that mismatch.
+  All ten directory assertions passed in a rolled-back Production fixture.
+  Root PR #505 targets main and records the final deployment identity.
+- Course imports now carry bounded reported text through the immutable snapshot
+  into the existing course entry. Legacy snapshots retain the same derived
+  payload, including explicit null course text. Sixteen rolled-back Production
+  checks verify retention, bounds,
+  unchanged point and bonus rules, and internal helper permissions. The adapter
+  suite passed 39 tests and local TypeScript passed.
+- Browser regressions now expect the connection guide to remain visible after
+  a request is resolved or rejected. They still verify the settled request and
+  resulting account state.
+- Onboarding follow-up: created the missing permanent join codes for Classes
+  2027, 2029, and 2030 through the live staff form. Class 2028 kept its code.
+  All four active classes now have one active code; archived classes have none.
+  Production passed 245 rolled-back checks covering profile creation, class-code
+  lifecycle, repeated joins, exact-email connections, account-name confirmation,
+  conflicting identities, and officer connection review. No fixture remained.
+- P2 found during live onboarding checks: Add member in Class 2030 defaulted to
+  Class 2027. Private PR #282 passes the viewed class into the form and requires
+  explicit selection outside a class. Root browser coverage asserts the default
+  and the persisted class membership. The form points officers to Record
+  connections for waiting accounts. Production publication is tracked in the
+  main-targeted onboarding follow-up PR.
+- Remaining: source rows 21 and 143 have the same name but conflicting classes,
+  contacts, and evidence. They remain unresolved. Permanent removal of retained
+  alumni records is separate from archiving.
 
 ### Current Production state, September 9, 2026
 
@@ -6319,3 +6355,193 @@ unproven.
 | Fictional fixture identity          | CSF admin fixtures no longer reuse a real owner name or portrait; seed reruns synchronize the public profile through authenticated self-update RLS, with regression coverage and reviewed screenshots.                                                                                                                                                                                                                         |
 | Isolated teardown                   | Dry-run ownership validation preceded deletion; the exact CSF stack then proved zero residual labeled containers, volumes, or networks and removed its generated work directory and secrets.                                                                                                                                                                                                                                   |
 | Fresh-install dependency graph      | The global Ajv override that broke ESLint after a clean Bun install is removed, and the imported Shadcn Tailwind v4 stylesheet is now declared; both resolutions have regression coverage.                                                                                                                                                                                                                                     |
+
+## Production staff account connection, September 9, 2026
+
+- Fixed P1: staff with profile management access can connect a confirmed active organization account to an unclaimed CSF profile when login and contact emails differ. The operation preserves history, contacts, and staff roles, requires a reason, and records an audit entry. Conflicting existing connections are refused.
+- Fixed P2: the import review pager stays available when the current page contains only resolved rows.
+- Production database validation: 25 functional assertions and four authorization-lock and ACL assertions passed in rollback transactions against the exact 476-migration ledger. Private action and rendering regressions cover the new interface; release evidence follows the exact integrated commit.
+
+## Simpler application imports and review, September 9, 2026
+
+- P1 fix implemented: automatic application refresh waits for every outstanding commit from the same source. When an ancestor settles after a child preview was created, one fresh immutable preview can recover its reviewed matches. The database still validates identity and commit state; frozen rows are never rewritten. A known stale automatic-approval refusal settles its queue as blocked rather than retrying forever; unrecognized failures remain retryable. Ordering, recovery, and scope regressions passed 43 tests.
+- P2 fix implemented: the connected Sheet view puts status and student matches first, with configuration and recovery controls under Advanced. Application and point review use the page scrollbar; Up/Down no longer switch students.
+- Application review can reopen without resetting decisions, notes, or assignments. Points and club closeout remain terminal. The forward migration is `20260909231613_csf_reopen_application_review`; 87 focused local database checks passed. Production passed 24 rollback assertions and the exact 477-migration catalog check.
+- Manual account connection on release `448203bf165984b1b176f249c4303b6db6fdfec6` was verified in the signed-in Production interface. A fictional browser test also connects an account with a different login email, preserves contacts and roles, and refuses a second profile. The corresponding database suite passes 33 assertions. A fresh 477-migration browser run on private `d4e3cdd` passed six scenarios across application review, saved-preview navigation, and account connection, with one previously retired scenario still skipped. Full CI run `34397396284` passed both quality and database replay.
+- Remaining identity decisions stay unresolved. No account or profile merge was inferred from an uncertain owner response. Communications and scheduled publishing remain disabled; this work has sent no messages.
+
+Production acceptance on September 9: release `b1f09bf3f8017e06d1d8330b621787fc58c74f40`
+serves the public alias. Full CI `34418897505` passed quality and database replay,
+including 92 CSF browser scenarios; four previously skipped scenarios remain
+skipped. The signed-in Production view confirms simplified Sheet controls,
+direct evidence links, and the account connection form. Worker transitions
+`34420712651` and `34420772908` verified workbook and import processing enabled
+for that release, with communications and scheduled publishing disabled.
+The stale queues settled without direct queue edits. A fresh automatic preview
+recovered resolved matches, then created six applications and updated 172.
+The repeat audit found 178 distinct applications with courses, both evidence
+links, and matching profile contact information, with no duplicate applications.
+Two conflicting identities remain in review. All 1,117 green historical source
+rows map uniquely to completed semesters.
+
+## Application contact persistence, September 9, 2026
+
+- Fixed P2: automatic profile preparation and application commits now fill blank
+  contact fields from immutable application evidence after identity resolution.
+  Existing values stay unchanged. A contact already held by another profile is
+  skipped and audited; no account link or application approval is created. A
+  preferred personal contact takes precedence over the response address, which
+  stays in the application record. Only an explicit school contact fills the
+  school field.
+- Production migration `20260910004059_csf_import_application_profile_contacts`
+  passed the exact 478-migration catalog check and 32 fictional rollback checks.
+  Local validation passed a fresh replay, 66 focused assertions, and 11 scale
+  assertions. The acceptance fixtures also passed beside unrelated records with
+  matching row numbers and names, leaving that unrelated data unchanged.
+- Fixed P2 in the private plugin: Advanced stays collapsed when an ordinary
+  partially completed import only awaits identity decisions. Actual recovery
+  failures still open it. Private release `82f2751` passed CI `34422241864`;
+  its focused rendering tests passed ten scenarios with 58 assertions. The
+  platform release receipt records hosted acceptance separately.
+
+## Account ownership and reported contacts, September 9, 2026
+
+- Open P1: migration `20260910004059` captures unverified application addresses
+  in canonical identity fields. Existing class-code joins trust those fields,
+  allowing an application contact to claim imported history. The earlier contact
+  persistence entry does not close this access defect. Workbook and import
+  workers are paused. The owner selected independently verified ownership only;
+  all other matches require staff review.
+- Local fixes in progress separate reported contacts from identity fields and
+  enforce that policy across join and member-history reads. No new release has
+  been promoted. Production verification remains required.
+
+Read-only incident review after the owner reported the trust-boundary defect:
+
+- The live ledger still ends at `20260910004059`; neither prepared corrective
+  migration has been deployed. The service-role join wrapper still delegates
+  to the identity base that matches normalized school and personal contacts.
+- The two automatically captured profiles still hold normalized personal
+  contacts and have no account links. No account link was created after the
+  migration timestamp in the fresh audit.
+- An earlier contact-import audit records 170 profiles updated, with 91 school
+  and 128 personal contact values, explicitly marked unverified. Fixing only
+  the two recent captures would therefore leave the broader join defect open.
+- There are two existing verified-status links with unknown recorded connection
+  basis, both predating the contact backfill. One has a staff-resolution audit;
+  the other was created through a class code. Neither finding establishes
+  independent ownership from the available audit alone. No links were changed.
+- Both worker-disable workflows report success. Pausing imports does not disable
+  class-code account claims. The prepared release must not be described as safe
+  or complete until join restrictions and read authorization pass review and
+  Production verification.
+- Automatic safety review stopped all three repair agents with the reason
+  “Potentially unintended activity.” Their local work remains saved and
+  undeployed. No blocked repair action was retried during this read-only review.
+
+Reviewed remediation candidate, September 9, 2026:
+
+- Private PR 286 merged as `b3e41e1`. Both member loaders now discard history
+  unless the connection is verified. Staff see reported application contacts
+  separately. All 319 private test files pass.
+- Forward migrations `20260910043037`, `20260910043106`, and `20260910045040`
+  separate reported contacts, replace contact/name ownership claims, and install
+  an exact-account-set operator hold. The hold preserves login and organization
+  roles and reopens settled connection requests. Installing it does not apply it.
+- A clean isolated replay passed 481 migrations and 7,572 assertions in 270 SQL
+  files. Expanded hold coverage passes 14 assertions. All 310 root test files
+  pass after correcting obsolete operator instructions. Production-configured
+  strict private ancestry, lint, typecheck, and formatting checks pass. Browser
+  tests now require email/name-only claims to remain pending after reload;
+  the integrated CI browser run remains pending.
+- Fresh read-only Production checks still show ledger 478, two legacy links
+  needing review, and zero links since migration `20260910004059`. The guarded
+  contact cleanup preview identifies two personal fields on two profiles.
+- The earlier backfill job contains 172 rows and 170 matched profiles. All
+  91 school and 128 personal values recorded by its aggregate audit match the
+  immutable source contacts, and no later profile audit was found. The audit
+  lacks per-field prior values, so the patch preserves those canonical fields
+  rather than assume they were originally empty. The global join restriction
+  prevents contact-only claims regardless of cleanup.
+- Chrome staff verification reached Officers & access, Assign position, an
+  imported profile, and Connect account without changing assignments or links.
+  The connection form records independent verification and accepts a different
+  login email. Searching organization accounts by name remains a UI follow-up.
+  Fall 2026 currently has 159 needs-review and 21 needs-action applications.
+  A sampled review displays direct transcript and receipt Drive links.
+- Root PR 510 is the release candidate. No Production database or application
+  mutation occurred during these checks. The accepted release workflow requires
+  exact-tree hosted Development acceptance; permission to run that verification
+  is pending because the owner previously requested Production-only work.
+  Workbook/import processing and outbound communications remain paused.
+
+Full rollout audit, September 10, 2026, in progress:
+
+- The owner authorized Development verification and Production release. Earlier
+  notes that permission is pending are superseded. Existing safety blocks still
+  apply; no blocked operation may be rerouted through another tool or agent.
+- Fresh source read contains 205 Fall 2026 responses. Production contains 180
+  applications with unique source coordinates and correct grade/cohort mapping.
+  Rows 21 and 143 remain identity conflicts. Rows 184 through 206 have no current
+  application. All 180 retain source-reported totals and both Drive file IDs.
+  Course-line comparison matches after ignoring ordering and empty-course labels
+  such as N/A. Null operative totals do not mean reported totals are missing.
+- Every one of the 1,910 populated historical workbook rows has a saved import
+  target and a corresponding semester record. Class of 2030 has no populated
+  historical rows. Of 1,120 rows with green identity-cell fills, 1,117 are already
+  completed. Class of 2027 S25 rows 69, 130, and 136 have mixed identity-cell fills,
+  green requirement cells, and seven activities, but remain active. These need a
+  source-backed completion review before any change. No history was changed.
+- Chrome extension verification in the Riddhiman profile shows the officer review
+  with direct Drive links and no nested scrolling container. The other Chrome
+  profile was signed out; that state was not evidence of broken staff access.
+- Private PR 288 adds Copy link and Open join link to Invite students, using the
+  existing class-code route. It merged as b34bccd6b00c21cb87788c5e2e4f11e383cd8b8c
+  after plugin-quality passed. This is not a Production deployment.
+- Expanded the unapplied legacy hold to include old verified_email connections
+  without new-profile ownership provenance. Independently verified staff links
+  and new self-owned profiles are preserved. All 20 focused SQL assertions pass.
+  The prior signup browser test expected contact-only ownership; it now exercises
+  a genuinely new student and checks the created profile's ownership provenance.
+- Production's latest release worker record remains disabled for imports and
+  communications. Three older release records still have import worker flags on;
+  the forward migration controller requires all such flags off before execution.
+- Local TypeScript and lint passed. A fresh isolated stack replayed the updated
+  ledger. The new-student browser journey passed, including direct class-link
+  signup, return navigation, new-profile ownership, and account onboarding. All
+  62 release-controller and catalog unit checks passed. Root CI, hosted Development
+  acceptance, Production correction, scoped ownership holds, and import refresh
+  remain incomplete. Generated source comparisons stay in ignored artifacts.
+
+Follow-up verification for the same audit:
+
+- Source-associated historical activities total 9,282 points and match every
+  populated source row. The stored total is 9,310 points. The additional 28
+  points belong to four older semester records whose source names differ from
+  their corrected profile names. Current imports have separate name variants.
+  Three reversed-name pairs and one expanded-surname group require staff identity
+  review. Preserve their records until that decision; a name similarity alone
+  does not authorize a merge or credit removal.
+- All 558 explicit historical completion markers are completed. No completed
+  source-associated record lacks an explicit completion marker or consistent
+  green identity cells. The three mixed-color rows remain review items. One
+  repeated workbook row resolves to the same profile and semester; the activity
+  comparison still matches. The user's separate historical profile stays apart.
+- Root CI on `900f7b4ed0ea3bfb73b1388ce36600a51b244469` passed the complete database
+  replay and browser job. Quality failed only obsolete operator-documentation
+  assertions for the private pin and regenerated-link labels; those assertions
+  and instructions are corrected in this candidate.
+- Account search now matches confirmed login emails directly, filters confirmed
+  accounts before limiting results, and checks staff manage-profiles permission
+  in the database. It exposes no imported history and grants no ownership.
+  The focused legacy-hold and search SQL suite passes 29 assertions. Both the
+  new-student and different-email staff-connection browser journeys passed.
+  A further browser regression checks that cancellation resets verification.
+- Five audited disable-only transitions retired stale worker flags on three
+  older releases. A fresh Production read confirms zero enabled release records,
+  five transition receipts, and the unchanged 478-migration ledger. The current
+  application and ownership correction remain undeployed at this checkpoint.
+- Existing Fall application contacts still need the corrected reported-contact
+  helper after release. A read-only preview finds 180 valid source-row/profile
+  bindings. Canonical identity fields and account connections must remain
+  unchanged when those reported contacts are populated.

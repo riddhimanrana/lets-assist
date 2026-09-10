@@ -209,7 +209,7 @@ test("scheduling retirement pins every replacement and preserves the prior relea
     assert.ok(current.includes(definition), definition);
     assert.ok(!preceding.includes(definition), definition);
   }
-  assert.match(current, /SELECT count\(\*\) = 14 AND/u);
+  assert.match(current, /SELECT count\(\*\) = 24 AND/u);
   assert.match(preceding, /SELECT count\(\*\) = 10 AND/u);
   assert.ok(
     current.includes(
@@ -314,7 +314,7 @@ test("workbook rebuild release checks the exact body, server-only grants, and re
 
 test("the reviewed import upgrade verifies metadata, function grants, and the scoped index", () => {
   const query = acceptedCatalogQuery(source, versions);
-  assert.match(query, /SELECT count\(\*\) = 14 AND/u);
+  assert.match(query, /SELECT count\(\*\) = 24 AND/u);
   assert.match(query, /csf_import_rows_resolution_metadata_object/u);
   assert.match(query, /a.atttypid='jsonb'::regtype AND a.attnotnull/u);
   assert.match(query, /csf_import_rows_committed_source_key_idx/u);
@@ -476,5 +476,160 @@ test("changed source contract cannot silently remove a check", () => {
         versions,
       ),
     /result contract/u,
+  );
+});
+
+test("archived directory release pins the function and preserves the preceding catalog", () => {
+  const current = acceptedCatalogQuery(source, versions.slice(0, 471));
+  const preceding = acceptedCatalogQuery(source, versions.slice(0, 470));
+  assert.ok(
+    current.includes(
+      "('plugin_data.csf_list_profiles_page(uuid,text,text,uuid,text,text,text,text,uuid,integer)','091f2fb0595f586f7b84ce134d6cdee6',true)",
+    ),
+  );
+  assert.ok(!preceding.includes("091f2fb0595f586f7b84ce134d6cdee6"));
+});
+
+test("active membership release pins its replacement and retains the archived directory catalog", () => {
+  const current = acceptedCatalogQuery(source, versions);
+  const preceding = acceptedCatalogQuery(source, versions.slice(0, 471));
+  assert.ok(current.includes("8abb87daa63ef1b5dad124f89bee24d1"));
+  assert.ok(!current.includes("091f2fb0595f586f7b84ce134d6cdee6"));
+  assert.ok(preceding.includes("091f2fb0595f586f7b84ce134d6cdee6"));
+});
+
+test("reported course release pins both internal helpers and retains preceding catalogs", () => {
+  const current = acceptedCatalogQuery(source, versions.slice(0, 473));
+  const preceding = acceptedCatalogQuery(source, versions.slice(0, 472));
+  for (const digest of [
+    "2565b4aa9e6b2b25885a2bd548e73850",
+    "d01d37d7a11be7615b75d95b706089ca",
+  ]) {
+    assert.ok(current.includes(digest));
+    assert.ok(!preceding.includes(digest));
+  }
+});
+
+test("optional reported text pins the corrected helper and retains the preceding release", () => {
+  const current = acceptedCatalogQuery(source, versions);
+  const preceding = acceptedCatalogQuery(source, versions.slice(0, 473));
+  assert.ok(current.includes("3c25ee3782d0af261f3c235f6002b8e4"));
+  assert.ok(!current.includes("d01d37d7a11be7615b75d95b706089ca"));
+  assert.ok(preceding.includes("d01d37d7a11be7615b75d95b706089ca"));
+});
+
+test("staff account connection pins its body and service-only ACL while retaining the preceding catalog", () => {
+  const current = acceptedCatalogQuery(source, versions.slice(0, 475));
+  const preceding = acceptedCatalogQuery(source, versions.slice(0, 474));
+  const migration = readFileSync(
+    new URL(
+      "../../supabase/migrations/20260909193538_csf_staff_account_connection.sql",
+      import.meta.url,
+    ),
+    "utf8",
+  );
+  const digest = createHash("md5")
+    .update(migration.split("$$")[1])
+    .digest("hex");
+  const signature =
+    "plugin_data.csf_staff_connect_profile_account(uuid,uuid,uuid,text,text,uuid)";
+  assert.ok(current.includes(signature));
+  assert.ok(current.includes(`md5(p.prosrc)='${digest}'`));
+  assert.ok(
+    current.includes(
+      "p.proargnames=ARRAY['p_organization_id','p_profile_id','p_actor_user_id','p_account_email','p_reason','p_request_id']",
+    ),
+  );
+  assert.ok(
+    current.includes(
+      "a.grantee IN ('postgres'::regrole,'service_role'::regrole)",
+    ),
+  );
+  assert.ok(current.includes("count(*)=2 AND bool_and("));
+  assert.ok(
+    current.includes(
+      "AND p.pronargdefaults=0 AND p.proconfig=ARRAY['search_path=\"\"']",
+    ),
+  );
+  assert.ok(!preceding.includes(signature));
+  assert.ok(preceding.includes("3c25ee3782d0af261f3c235f6002b8e4"));
+});
+
+test("staff account authority locking pins the new body and retains the original connection catalog", () => {
+  const current = acceptedCatalogQuery(source, versions.slice(0, 476));
+  const preceding = acceptedCatalogQuery(source, versions.slice(0, 475));
+  const migration = readFileSync(
+    new URL(
+      "../../supabase/migrations/20260909193835_csf_staff_account_connection_authority_lock.sql",
+      import.meta.url,
+    ),
+    "utf8",
+  );
+  const digest = createHash("md5")
+    .update(migration.split("$$")[1])
+    .digest("hex");
+  assert.ok(current.includes(`md5(p.prosrc)='${digest}'`));
+  assert.ok(!preceding.includes(`md5(p.prosrc)='${digest}'`));
+  assert.ok(
+    preceding.includes("md5(p.prosrc)='f0c4e2dcf7bd71c8a771d2bfc7443130'"),
+  );
+  assert.ok(
+    !current.includes("md5(p.prosrc)='f0c4e2dcf7bd71c8a771d2bfc7443130'"),
+  );
+});
+
+test("application review reopening pins the complete function and retains the prior catalog", () => {
+  const current = acceptedCatalogQuery(source, versions.slice(0, 477));
+  const preceding = acceptedCatalogQuery(source, versions.slice(0, 476));
+  const signature =
+    "plugin_data.csf_set_review_period(uuid,uuid,uuid,text,text,text,text,timestamptz,timestamptz)";
+  assert.equal(versions.length, 481);
+  assert.ok(
+    current.includes(
+      `('${signature}','28793d39c02ebf702a61c26deb7ae2b4',true)`,
+    ),
+  );
+  assert.ok(!preceding.includes(signature));
+  assert.match(current, /SELECT count\(\*\) = 18 AND/u);
+  assert.match(preceding, /SELECT count\(\*\) = 17 AND/u);
+  assert.ok(
+    current.includes("md5(pg_get_functiondef(p.oid)) = expected.digest"),
+  );
+  assert.ok(current.includes("p.proowner = 'postgres'::regrole"));
+  assert.ok(
+    current.includes(
+      "has_function_privilege('service_role',p.oid,'EXECUTE') = expected.service_execute",
+    ),
+  );
+  assert.ok(
+    current.includes("NOT has_function_privilege('anon',p.oid,'EXECUTE')"),
+  );
+  assert.ok(
+    current.includes(
+      "NOT has_function_privilege('authenticated',p.oid,'EXECUTE')",
+    ),
+  );
+});
+
+test("staff request audit pins the new body and preserves the older release catalog", () => {
+  const current = acceptedCatalogQuery(source, versions);
+  const preceding = acceptedCatalogQuery(source, versions.slice(0, 478));
+  const migration = readFileSync(
+    new URL(
+      "../../supabase/migrations/20260910043106_csf_verified_account_join_policy.sql",
+      import.meta.url,
+    ),
+    "utf8",
+  );
+  const body = migration
+    .split(
+      "CREATE OR REPLACE FUNCTION plugin_data.csf_staff_connect_profile_account(",
+    )[1]
+    .split("$$")[1];
+  const digest = createHash("md5").update(body).digest("hex");
+  assert.ok(current.includes(`md5(p.prosrc)='${digest}'`));
+  assert.ok(!preceding.includes(`md5(p.prosrc)='${digest}'`));
+  assert.ok(
+    preceding.includes("md5(p.prosrc)='207ce59e1f029ae5c35cd097f639ad41'"),
   );
 });

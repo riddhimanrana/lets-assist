@@ -102,8 +102,8 @@ const MEMBER_AND_ACCESS: LabelContract[] = [
     labels: [
       "Invite students",
       "Create code",
-      "Regenerate code",
-      "Disable code",
+      "Regenerate link and code",
+      "Disable link and code",
       "This class does not have an active code yet.",
     ],
   },
@@ -488,8 +488,8 @@ describe("CSF operator documentation truthfulness guards", () => {
     expectInOrder(codePath, [
       "**Invite students**",
       "**Create code**",
-      "**Regenerate code**",
-      "**Disable code**",
+      "**Regenerate link and code**",
+      "**Disable link and code**",
       "`/connect/<code>`",
       "**Join code**",
       "**Is this you?**",

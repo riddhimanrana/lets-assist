@@ -1,7 +1,12 @@
+import {
+  ownershipDefinitions,
+  reportedContactColumnsPosture,
+} from "./account-ownership-catalog.mjs";
 import { createHash } from "node:crypto";
 import { ReleaseCheckError } from "./app-release-checks.mjs";
 import { reviewedWorkbookLinksPosture } from "./workbook-profile-link-catalog.mjs";
 import { automaticSheetUpdatesPosture } from "./automatic-sheet-update-catalog.mjs";
+import { staffAccountConnectionPosture } from "./staff-account-connection-catalog.mjs";
 import { workbookLinkMergePosture } from "./workbook-link-merge-catalog.mjs";
 
 export const workerRelationSnapshotQuery = `SELECT c.relname, md5(jsonb_build_object(
@@ -99,10 +104,55 @@ export function acceptedCatalogQuery(source, versions) {
       "34dbbd884882349f8083512cd2fe48b371c3f1242bc62897685267f2a5d0001b"
   )
     return source;
-  const applicationRetryUpgrade =
-    versions.length === 470 &&
+  const ownershipUpgrade =
+    versions.length === 481 &&
     ledgerHash ===
-      "122e681fa747cc8895a2733a2d83a9842836a4b764f6810dd03e0a9070e03f66";
+      "1cf2771bccb68d7e47a8821130724f4d15d4ab526eea466ce2eb057b21689de3";
+  const applicationContactsUpgrade =
+    ownershipUpgrade ||
+    (versions.length === 478 &&
+      ledgerHash ===
+        "2e81f6ea74cce432a5fc18aa0ff5605b025e71f4bed237b7c079d670dc00c1f6");
+  const applicationReviewReopenUpgrade =
+    applicationContactsUpgrade ||
+    (versions.length === 477 &&
+      ledgerHash ===
+        "a4e0cc4d257d8fdd71ef5c08d44f7a95a2ffaa432ea368608840d5328322053e");
+  const staffAccountAuthorityUpgrade =
+    applicationReviewReopenUpgrade ||
+    (versions.length === 476 &&
+      ledgerHash ===
+        "cac848eb296d0e0fddf3edc1702655737a7f428b072ae0ccc6bcbddc2aa52b83");
+  const staffAccountConnectionUpgrade =
+    staffAccountAuthorityUpgrade ||
+    (versions.length === 475 &&
+      ledgerHash ===
+        "d5e3c7654e92e5875ccc25b79eaf35a75ee6224d1faddd7a1eb95765d0f33ef5");
+  const optionalCourseUpgrade =
+    staffAccountConnectionUpgrade ||
+    (versions.length === 474 &&
+      ledgerHash ===
+        "9bfb026cdad00b52ea2cce2a2d7a8b1a2d189af295cc1a14c6c7eae600f9416a");
+  const reportedCourseUpgrade =
+    optionalCourseUpgrade ||
+    (versions.length === 473 &&
+      ledgerHash ===
+        "f517e5044b57d212e06bd449e88c1bf3be878535a57a6d6bb09ad52719f6848f");
+  const activeDirectoryUpgrade =
+    reportedCourseUpgrade ||
+    (versions.length === 472 &&
+      ledgerHash ===
+        "200e4af50b3765ecb16417eb599b25eda1f7becd40836eec1a5bcc70cb50ba66");
+  const archivedDirectoryUpgrade =
+    activeDirectoryUpgrade ||
+    (versions.length === 471 &&
+      ledgerHash ===
+        "52d6bf9b2b504ed72459d4787016073800cc0c8791c7ec3f80b0d8c2a64a984e");
+  const applicationRetryUpgrade =
+    archivedDirectoryUpgrade ||
+    (versions.length === 470 &&
+      ledgerHash ===
+        "122e681fa747cc8895a2733a2d83a9842836a4b764f6810dd03e0a9070e03f66");
   const matchingTabUpgrade =
     applicationRetryUpgrade ||
     (versions.length === 468 &&
@@ -229,10 +279,34 @@ export function acceptedCatalogQuery(source, versions) {
     throw new ReleaseCheckError(
       "The accepted catalog fragment contract changed.",
     );
+  let upgradedFragments = fragments.replaceAll(signature, legacy);
+  if (ownershipUpgrade) {
+    const confirmation =
+      "'plugin_data.csf_confirm_class_code_account_name_match(uuid,uuid,uuid,text,uuid,uuid,text,text,text)'";
+    for (const [before, after] of [
+      ["if v_email is null then", "code.cohort_id = p_cohort_id"],
+      [
+        "v_result := plugin_data.csf_join_class_by_code_identity_base(",
+        "return plugin_data.csf_join_class_by_code(",
+      ],
+      [
+        "return plugin_data.csf_revalidate_class_code_connection_replay(",
+        "coalesce(p_profile_id,",
+      ],
+    ]) {
+      const previous = `${confirmation},\n      '${before}'`;
+      if (upgradedFragments.split(previous).length !== 2)
+        throw new ReleaseCheckError(
+          "The confirmation fragment contract changed.",
+        );
+      upgradedFragments = upgradedFragments.replace(
+        previous,
+        `${confirmation},\n      '${after}'`,
+      );
+    }
+  }
   const adjusted =
-    source.slice(0, start) +
-    fragments.replaceAll(signature, legacy) +
-    source.slice(end);
+    source.slice(0, start) + upgradedFragments + source.slice(end);
   const marker = "SELECT 1 / CASE\n";
   const gate = "WHEN (SELECT valid FROM table_posture)";
   if (adjusted.split(marker).length !== 2 || adjusted.split(gate).length !== 2)
@@ -249,6 +323,15 @@ export function acceptedCatalogQuery(source, versions) {
           "plugin_data.csf_reconcile_sheet_import_row_identity_base(uuid,uuid,uuid,text,text,uuid,uuid,jsonb)",
       )
     : baseDefinitions;
+  if (ownershipUpgrade) {
+    for (const definition of ownershipDefinitions) {
+      const index = definitions.findIndex(
+        ([signature]) => signature === definition[0],
+      );
+      if (index === -1) definitions.push(definition);
+      else definitions[index] = definition;
+    }
+  }
   if (pointVerificationUpgrade)
     definitions.push([
       "plugin_data.csf_enforce_point_submission_freeze()",
@@ -288,6 +371,35 @@ export function acceptedCatalogQuery(source, versions) {
       ],
     );
   }
+  if (archivedDirectoryUpgrade)
+    definitions.push([
+      "plugin_data.csf_list_profiles_page(uuid,text,text,uuid,text,text,text,text,uuid,integer)",
+      activeDirectoryUpgrade
+        ? "8abb87daa63ef1b5dad124f89bee24d1"
+        : "091f2fb0595f586f7b84ce134d6cdee6",
+      true,
+    ]);
+  if (reportedCourseUpgrade)
+    definitions.push(
+      [
+        "plugin_data.csf_normalized_record_schema(text)",
+        "2565b4aa9e6b2b25885a2bd548e73850",
+        false,
+      ],
+      [
+        "plugin_data.csf_derive_row_commit_payload(text,jsonb)",
+        optionalCourseUpgrade
+          ? "3c25ee3782d0af261f3c235f6002b8e4"
+          : "d01d37d7a11be7615b75d95b706089ca",
+        false,
+      ],
+    );
+  if (applicationReviewReopenUpgrade)
+    definitions.push([
+      "plugin_data.csf_set_review_period(uuid,uuid,uuid,text,text,text,text,timestamptz,timestamptz)",
+      "28793d39c02ebf702a61c26deb7ae2b4",
+      true,
+    ]);
   const values = definitions
     .map(
       ([signature, digest, service]) =>
@@ -392,8 +504,10 @@ accepted_upgrade_posture AS (
   ${workbookRecoveryUpgrade ? workbookRecoveryPosture : ""}
   ${applicationSourceReviewUpgrade ? applicationSourceReviewPosture : ""}
   ${reviewedWorkbookLinksUpgrade ? reviewedWorkbookLinksPosture(workerRelationSnapshotQuery) : ""}
-  ${automaticSheetUpdatesUpgrade ? automaticSheetUpdatesPosture(workerRelationSnapshotQuery, matchingTabUpgrade) : ""}
-  ${workbookLinkMergeUpgrade ? workbookLinkMergePosture : ""} AS valid
+  ${automaticSheetUpdatesUpgrade ? automaticSheetUpdatesPosture(workerRelationSnapshotQuery, matchingTabUpgrade, applicationContactsUpgrade, ownershipUpgrade) : ""}
+  ${workbookLinkMergeUpgrade ? workbookLinkMergePosture : ""}
+  ${staffAccountConnectionUpgrade ? staffAccountConnectionPosture(staffAccountAuthorityUpgrade, ownershipUpgrade) : ""}
+  ${ownershipUpgrade ? reportedContactColumnsPosture : ""} AS valid
   FROM accepted_upgrade_definitions expected
   LEFT JOIN pg_proc p ON p.oid=to_regprocedure(expected.signature)
 )

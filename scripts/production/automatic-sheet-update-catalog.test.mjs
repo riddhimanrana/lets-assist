@@ -9,6 +9,7 @@ import {
 } from "./app-release-catalog.mjs";
 import { expectedVersions } from "./app-release-checks.mjs";
 import {
+  applicationContactDefinitions,
   automaticSheetDefinitions,
   automaticSheetUpdatesPosture,
 } from "./automatic-sheet-update-catalog.mjs";
@@ -70,7 +71,7 @@ test("automatic update catalog checks missing objects, exact grants, tables, and
 
 test("reviewed automatic-update and merge ledgers retain automatic-update checks", () => {
   const versions = expectedVersions(root);
-  assert.equal(versions.length, 470);
+  assert.equal(versions.length, 481);
   for (const accepted of [
     versions.slice(0, 466),
     versions.slice(0, 467),
@@ -121,5 +122,65 @@ test("matching-tab upgrade pins new and renamed helpers without changing older c
       source,
       expectedVersions(root).slice(0, 467),
     ).includes("csf_inherit_matching_class_tab_authorization"),
+  );
+});
+
+test("application contact capture pins each changed body only for its reviewed ledger", () => {
+  const versions = expectedVersions(root);
+  const current = acceptedCatalogQuery(source, versions.slice(0, 478));
+  const preceding = acceptedCatalogQuery(source, versions.slice(0, 477));
+  const sql = readFileSync(
+    new URL(
+      "../../supabase/migrations/20260910004059_csf_import_application_profile_contacts.sql",
+      import.meta.url,
+    ),
+    "utf8",
+  );
+  const bodies = [
+    ...sql.matchAll(
+      /CREATE (?:OR REPLACE )?FUNCTION plugin_data\.([a-z_]+)\([\s\S]*?AS (\$(?:function)?\$)([\s\S]*?)\2;/gu,
+    ),
+  ];
+  assert.equal(bodies.length, 3);
+  assert.equal(applicationContactDefinitions.length, bodies.length);
+  for (const [, name, , body] of bodies) {
+    const expected = applicationContactDefinitions.find(([signature]) =>
+      signature.startsWith(`plugin_data.${name}(`),
+    );
+    assert.ok(expected, name);
+    assert.equal(
+      expected[2],
+      createHash("md5").update(body).digest("hex"),
+      name,
+    );
+    const [signature, digest, bodyDigest, service] = expected;
+    assert.ok(
+      current.includes(
+        `('${signature}','${digest}','${bodyDigest}',${service})`,
+      ),
+    );
+    assert.ok(!preceding.includes(bodyDigest));
+    const original = automaticSheetDefinitions.find(
+      ([value]) => value === signature,
+    );
+    if (original) {
+      assert.ok(preceding.includes(original[2]));
+      assert.ok(!current.includes(original[2]));
+    } else {
+      assert.equal(service, false);
+      assert.ok(!preceding.includes(signature));
+    }
+  }
+  assert.ok(
+    current.includes("actual.service_execute=expected.service_execute"),
+  );
+  assert.ok(
+    current.includes(
+      "NOT actual.anon_execute AND NOT actual.authenticated_execute",
+    ),
+  );
+  assert.equal(
+    automaticSheetUpdatesPosture(workerRelationSnapshotQuery, true),
+    automaticSheetUpdatesPosture(workerRelationSnapshotQuery, true, false),
   );
 });

@@ -20,8 +20,8 @@ import {
  * remaining connection path after the onboarding-link system was retired.
  *
  * The seeded active code for the Class of 2028 is HAWK28. A signed-in student
- * submits the join form; `csf_join_class_by_code` matches on the account's
- * verified email. A unique unclaimed account-name match needs confirmation.
+ * submits the join form. Application emails and account names suggest records
+ * for staff review; neither establishes ownership.
  * Typed names and conflicting evidence go to the class's Members tab
  * "Record connections" queue, where an officer resolves them.
  */
@@ -283,8 +283,8 @@ async function submitJoinForm(
   const dialog = page.getByRole("dialog", { name: "Find your CSF record" });
   await expect(dialog).toBeVisible();
   // The name fields prefill asynchronously from the signed-in account and
-  // remount when the prefill arrives; the flow does not depend on which value
-  // wins because `csf_join_class_by_code` matches on verified email only.
+  // remount when the prefill arrives. Submitted names are review context and
+  // never establish ownership of an existing record.
   await dialog.getByLabel("First name").fill(names.first);
   await dialog.getByLabel("Last name").fill(names.last);
   await dialog.getByRole("button", { name: "Find my record" }).click();
@@ -305,7 +305,7 @@ test.describe("class join code connections", () => {
     if (fixture) await cleanJoinFixture(fixture);
   });
 
-  test("one exact verified-email match in the class auto-connects", async ({
+  test("a contact-only email match requests review without claiming history", async ({
     page,
   }) => {
     await cleanJoinFixture(fixture);
@@ -332,8 +332,7 @@ test.describe("class join code connections", () => {
     expect(preSubmitHtml).not.toContain(profileId);
     expect(preSubmitHtml).not.toContain(localActors.outsider.email);
 
-    // The student's typed name deliberately mismatches the roster record:
-    // the verified account email is the only automatic matching signal.
+    // Even control of the reported email does not prove ownership of the record.
     await submitJoinForm(page, { first: "Riley", last: "Mismatch" });
 
     await expect
@@ -369,34 +368,32 @@ test.describe("class join code connections", () => {
       })
       .toEqual({
         member: { role: "member", status: "active" },
-        account: { status: "verified", is_primary: true },
+        account: null,
         request: {
           candidate_profile_ids: [profileId],
-          match_status: "auto_linked",
-          matched_profile_id: profileId,
+          match_status: "needs_review",
+          matched_profile_id: null,
         },
       });
 
-    // The re-rendered page reports the connected record instead of the form.
     await page.reload({ waitUntil: "domcontentloaded" });
     await expect(
-      page
-        .getByRole("main")
-        .getByText("Taylor Fixture's record is ready in My CSF.", {
-          exact: true,
-        }),
+      page.getByRole("heading", {
+        name: "Your record is awaiting review",
+        exact: true,
+      }),
     ).toBeVisible();
     await expect(
       page.getByRole("button", { name: "Go to My CSF" }),
-    ).toBeVisible();
-    await expect(
-      page.getByRole("button", { name: "Find my record", exact: true }),
     ).toHaveCount(0);
+    expect(await page.content()).not.toContain(
+      "Taylor Fixture's record is ready",
+    );
 
     expectNoBrowserFailures(failures);
   });
 
-  test("a sole exact account-name record connects after confirmation and survives reload", async ({
+  test("confirming an editable account name creates a pending request that survives reload", async ({
     page,
   }) => {
     await cleanJoinFixture(fixture);
@@ -423,7 +420,7 @@ test.describe("class join code connections", () => {
       .click();
     await expect(
       page.getByRole("heading", {
-        name: "Your CSF record is linked",
+        name: "Your record is awaiting review",
         exact: true,
       }),
     ).toBeVisible();
@@ -459,32 +456,28 @@ test.describe("class join code connections", () => {
         return { account, member, request };
       })
       .toEqual({
-        account: {
-          status: "verified",
-          is_primary: true,
-          connection_basis: "self_confirmed_account_name",
-        },
+        account: null,
         member: { role: "member", status: "active" },
         request: {
           candidate_profile_ids: [noEmailProfileId],
-          match_status: "auto_linked",
-          matched_profile_id: noEmailProfileId,
+          match_status: "needs_review",
+          matched_profile_id: null,
         },
       });
 
     await page.reload({ waitUntil: "domcontentloaded" });
     await expect(
-      page.getByRole("button", { name: "Go to My CSF", exact: true }),
+      page.getByRole("heading", {
+        name: "Your record is awaiting review",
+        exact: true,
+      }),
     ).toBeVisible();
+    await expect(
+      page.getByRole("button", { name: "Go to My CSF", exact: true }),
+    ).toHaveCount(0);
     await expect(
       page.getByRole("button", { name: "Yes, this is me", exact: true }),
     ).toHaveCount(0);
-    await page.getByRole("button", { name: "Go to My CSF" }).click();
-    await expect(page).toHaveURL(
-      (url) =>
-        url.pathname === CSF_ORGANIZATION_PATH &&
-        url.searchParams.get("tab") === "csf-profile",
-    );
 
     expectNoBrowserFailures(failures);
   });
@@ -520,7 +513,7 @@ test.describe("class join code connections", () => {
           await Promise.all([
             fixture.admin
               .from("organization_members")
-              .select("id")
+              .select("role,status")
               .eq("organization_id", fixture.organizationId)
               .eq("user_id", fixture.userId)
               .maybeSingle(),
@@ -546,7 +539,7 @@ test.describe("class join code connections", () => {
         return { member, accounts, request };
       })
       .toEqual({
-        member: null,
+        member: { role: "member", status: "active" },
         accounts: [],
         request: {
           match_status: "needs_review",
@@ -622,7 +615,7 @@ test.describe("class join code connections", () => {
               .eq("status", "verified"),
             fixture.admin
               .from("organization_members")
-              .select("id")
+              .select("role,status")
               .eq("organization_id", fixture.organizationId)
               .eq("user_id", fixture.userId)
               .maybeSingle(),
@@ -633,13 +626,23 @@ test.describe("class join code connections", () => {
           member,
         };
       })
-      .toEqual({ matchStatus: "rejected", accounts: [], member: null });
+      .toEqual({
+        matchStatus: "rejected",
+        accounts: [],
+        member: { role: "member", status: "active" },
+      });
 
-    // A settled request leaves the queue; with nothing pending the section
-    // does not render at all. (The seeded roster records legitimately remain
-    // in the member directory, so the assertion is scoped to the queue.)
+    // A settled request leaves the queue and the connection guide stays visible.
     await page.reload({ waitUntil: "domcontentloaded" });
-    await expect(reviewQueue).toHaveCount(0);
+    await expect(
+      reviewQueue.getByText(
+        "No accounts are waiting. Students can sign in and use the class join code to request a connection.",
+        { exact: true },
+      ),
+    ).toBeVisible();
+    await expect(
+      reviewQueue.getByRole("button", { name: "Reject", exact: true }),
+    ).toHaveCount(0);
 
     expectNoBrowserFailures(failures);
   });

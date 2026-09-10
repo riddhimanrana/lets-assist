@@ -20,6 +20,9 @@ concurrency:
 permissions:
   contents: read
 
+env:
+  PRIVATE_PLUGINS_BRANCH: ${{ (github.base_ref == 'main' || github.ref == 'refs/heads/main') && 'main' || 'development' }}
+
 jobs:
   quality:
     name: ${{ github.event_name == 'pull_request' && 'quality' || 'full-quality' }}
@@ -327,7 +330,15 @@ jobs:
         run: bun run dev:test:cron
 
       - name: Install Playwright Chromium
-        run: bunx playwright install --with-deps chromium
+        run: |
+          # Playwright downloads its own Chromium. The runner's unused Chrome
+          # feed can have inconsistent indexes during Google's package updates.
+          for source in /etc/apt/sources.list.d/*.list /etc/apt/sources.list.d/*.sources; do
+            if [ -f "$source" ] && grep -Eq 'https?://dl\.google\.com/linux/chrome(-stable)?/deb' "$source"; then
+              sudo mv "$source" "$source.csf-disabled"
+            fi
+          done
+          bunx playwright install --with-deps chromium
 
       - name: Validate DV browser workflows
         if: ${{ hashFiles('lib/plugins/private/plugins/dv-speech-debate/plugin.tsx') != '' }}

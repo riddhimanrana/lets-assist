@@ -294,7 +294,7 @@ FROM extensions.dblink_get_result('class_confirm_cross_org', false)
   AS result(payload text);
 SELECT extensions.is(
   (SELECT payload FROM csf_class_join_lock_results WHERE label = 'confirm_cross_org'),
-  'P0001:A verified account email is required.',
+  'P0001:This CSF class code is no longer active.',
   'the cross-organization passive confirmation reaches the preserved body'
 );
 COMMIT;
@@ -309,7 +309,7 @@ FROM extensions.dblink_get_result('class_confirm_same_org', false)
   AS result(payload text);
 SELECT extensions.is(
   (SELECT payload FROM csf_class_join_lock_results WHERE label = 'confirm_same_org'),
-  'P0001:A verified account email is required.',
+  'P0001:This CSF class code is no longer active.',
   'the queued passive confirmation delegates after acquiring the lock'
 );
 
@@ -362,7 +362,7 @@ FROM extensions.dblink_get_result('class_confirm_v4_cross_org', false)
   AS result(payload text);
 SELECT extensions.is(
   (SELECT payload FROM csf_class_join_lock_results WHERE label = 'confirm_v4_cross_org'),
-  'P0001:A verified account email is required.',
+  'P0001:This CSF class code is no longer active.',
   'the cross-organization version 4 confirmation reaches the claim body'
 );
 COMMIT;
@@ -377,7 +377,7 @@ FROM extensions.dblink_get_result('class_confirm_v4_same_org', false)
   AS result(payload text);
 SELECT extensions.is(
   (SELECT payload FROM csf_class_join_lock_results WHERE label = 'confirm_v4_same_org'),
-  'P0001:A verified account email is required.',
+  'P0001:This CSF class code is no longer active.',
   'the queued version 4 confirmation continues after acquiring the lock'
 );
 

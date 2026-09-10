@@ -138,8 +138,8 @@ semester.
 1. Open **Classes**, choose the class, and select **Invite students**. The
    dialog shows the active code with **Copy**.
 2. If the dialog reads _This class does not have an active code yet._, select
-   **Create code**. Use **Regenerate code** only when the old code must stop
-   working — the replaced code is refused immediately — and **Disable code** to
+   **Create code**. Use **Regenerate link and code** only when the old code must stop
+   working — the replaced code is refused immediately — and **Disable link and code** to
    withdraw the code without a replacement.
 3. Share only the code, or its `/connect/<code>` URL on the current
    environment, through an approved chapter channel. Viewing, copying,
@@ -165,19 +165,20 @@ characters and try again.
    CSF record?** for returning members, and **New to CSF?**, which
    carries the semester's application button when the current term has an
    **Application form link**.
-3. After sign-in, one active record in the code's class carrying the verified
-   account email connects with recorded history. If email does not match, the
+3. After sign-in, an independently verified existing account connection opens
+   the correct class and recorded history. For a possible existing record, the
    page may show **Is this you?** with one record whose name exactly matches the
    account. Select **Yes, this is me** to send that record for officer review.
    Select **No, search again** when it is not yours. A name match never links
    the account by itself. A saved request changes to **Your record is awaiting
    review** and offers **Go to class feed** while an officer checks the match.
-   An exact verified-email connection shows **Your CSF record is linked** and
+   An independently verified connection shows **Your CSF record is linked** and
    offers **Go to My CSF**.
 4. If no passive match appears, open **Find your CSF record**, enter the
    requested **Student name**, and select **Find my record**. A typed name never
-   creates or links a profile. The server creates or reuses one officer request
-   unless a single verified-email match became available.
+   claims an existing profile. The server creates or reuses one officer request.
+   A new student with no matching existing record can create a self-owned
+   profile through the class code. This does not create historical credit.
 
 The student never chooses a roster record from a list and never assigns their
 own class or officer access. Submitted names are review context for officers;
@@ -185,45 +186,19 @@ they are never an automatic matching signal.
 
 ## Resolve the connection queue
 
-Requests that could not connect automatically wait under **Record connections**
-on the class's own **Members** tab, not in an organization-wide view. The panel
-says **Review accounts waiting to connect to a student record in this class.**
-**Home** shows a
-**Connection requests** chip with the total pending count; it opens the classes
-hub.
+The historical class sheets do not establish account ownership. Application emails and editable account names are suggestions for staff review, not verification.
 
-For Classes of 2027–2029, the historical class sheets do not supply reliable
-account emails. Establish a current, unique school or personal email from the
-approved current application cycle or another reviewed current source, recorded
-through the audited member-correction workflow, before expecting either an
-automatic email match or officer **Connect account** evidence. Without it, a
-returning student's typed-name request cannot authorize an officer connection.
-Never backfill an address from the Spring 2026 comparison workbook merely to
-make a match.
+1. Open **Members**, select **Record connections**, choose **Review**, and inspect the request and proposed student profile.
+2. Independently verify that the organization account belongs to that student. Do not rely only on a matching name or application email.
+3. Open the profile and choose **Connect account**. Enter the confirmed Let's Assist login email, explain how you verified identity, and check the identity confirmation.
+4. The login email may differ from the application contact. Do not overwrite imported contacts to force a match.
+5. Connect the account only after verification. For an incorrect request, enter a **Decision reason** and select **Reject request**. Pending connections cannot access the student's history. Connecting a record does not approve an application, award points, or grant a staff position.
 
-1. Open **Classes**, choose the class, then **Members**. Requests wait under
-   **Record connections**, one bounded page at a time, paged with **First page**
-   and **Next**.
-2. Select **Review** on the request, or **Review in Resolve** on one of its
-   ranked suggestions. The dialog is titled **Review account connection**.
-   Everything under **Suggestions · advisory only** is a discovery aid: a
-   suggestion badged **Canonical evidence ready** still has to be checked, and
-   one badged **Review only** never authorizes a connection.
-3. Choose the **Student record**. The dialog then states either **Canonical
-   identity evidence** — confirmed account address matches the roster address,
-   exact first and last name, exactly one active membership matching the
-   requested class — or **Connection unavailable** with the specific blockers.
-4. Enter a **Decision reason** naming the exact evidence you checked, or why the
-   request must be rejected. At least 4 characters are required.
-5. Select **Connect account**. This control is rendered only when the database
-   confirms canonical evidence for the selected record; if it is absent, that is
-   the answer. Otherwise select **Reject request**, or correct the student
-   record through the audited member-correction workflow and start again.
-6. Return to the class **Members** tab and confirm the request left **Record
-   connections** and the student's roster row shows the connected account.
+The older review dialog may show **Review only**, **Connection unavailable**, or
+**Canonical identity evidence**. These labels do not establish ownership.
+Use the profile's verification form after checking identity independently.
 
-If suggestions cannot be loaded, the request stays open for rejection and
-**Connect account** is withheld until canonical evidence can be read again.
+Older connections held for review retain login and organization access. Staff can restore the connection through the same verified workflow. Keep the recorded audit history.
 
 ## Make a connected person an officer
 

@@ -9,6 +9,12 @@ This document defines the product, operating model, information architecture, te
 
 ## Amendment record
 
+### Amendment 8: Verified account ownership (September 9, 2026)
+
+The owner has superseded Amendment 7. Existing imported history can auto-connect only through independently verified account ownership. Application contact addresses and editable account names provide matching suggestions, not ownership proof. Other matches create or reuse a staff review request. Staff can connect a verified organization account after reviewing the identity. A pending connection cannot read the candidate's private history. New students with no existing candidate may create their own profile.
+
+Application contact addresses are stored separately from identity email fields and shown as reported contacts. Imports do not grant account access or approve applications.
+
 ### Amendment 7: Self-confirmed account-name claims (approved follow-up, September 3, 2026)
 
 This policy is approved for the follow-up release. It is not part of the accepted September 3 application release.
@@ -108,8 +114,8 @@ remains:
 - **Permanent class join code.** Each graduating class holds one permanent
   6-character code drawn from a 32-letter alphabet that omits 0/O/1/I. The
   class page's **Invite students** dialog shows it with **Copy**, and offers
-  **Create code**, **Regenerate code** (the replaced code stops working
-  immediately), and **Disable code**. Code state carries no send telemetry,
+  **Create code**, **Regenerate link and code** (the replaced code stops working
+  immediately), and **Disable link and code**. Code state carries no send telemetry,
   and no code action emails anyone.
 - **Student journey.** A student opens the public `/connect/<code>` route or
   enters the **Join code** on **Join a class**, signs in with a verified
