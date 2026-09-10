@@ -21,6 +21,7 @@ CREATE TABLE plugin_data.csf_sheet_sync_destinations (
   seed_cursor uuid, seed_completed boolean NOT NULL DEFAULT false,
   next_poll_at timestamptz NOT NULL DEFAULT now(), last_synced_at timestamptz,
   created_at timestamptz NOT NULL DEFAULT now(), updated_at timestamptz NOT NULL DEFAULT now(),
+  FOREIGN KEY(cohort_id,organization_id) REFERENCES plugin_data.csf_cohorts(id,organization_id), FOREIGN KEY(term_id,organization_id) REFERENCES plugin_data.csf_terms(id,organization_id),
   UNIQUE (organization_id,id), UNIQUE(spreadsheet_file_id,sheet_id), CHECK (NOT enabled OR (privacy_verified_at IS NOT NULL AND comment_capability='available'))
 );
 CREATE TABLE plugin_data.csf_sheet_sync_bindings (
@@ -28,7 +29,7 @@ CREATE TABLE plugin_data.csf_sheet_sync_bindings (
   destination_id uuid NOT NULL, record_kind text NOT NULL CHECK(record_kind IN ('application','point_submission','profile')),
   record_id uuid NOT NULL, logical_key text NOT NULL, sheet_id integer NOT NULL CHECK(sheet_id>=0),
   last_export_version text, remote_version text, last_seen_request jsonb NOT NULL DEFAULT '{}'::jsonb, thread_bindings jsonb NOT NULL DEFAULT '{}'::jsonb CHECK(jsonb_typeof(thread_bindings)='object'),
-  UNIQUE(destination_id,record_kind,record_id), UNIQUE(destination_id,logical_key),
+  UNIQUE(destination_id,record_kind,record_id), UNIQUE(destination_id,logical_key), UNIQUE(organization_id,destination_id,id),
   FOREIGN KEY(organization_id,destination_id) REFERENCES plugin_data.csf_sheet_sync_destinations(organization_id,id) ON DELETE CASCADE
 );
 ALTER TABLE plugin_data.csf_sheet_writeback_ledger
@@ -107,10 +108,11 @@ BEGIN
 END $$;
 
 CREATE TABLE plugin_data.csf_sheet_sync_local_messages (
- id uuid PRIMARY KEY DEFAULT gen_random_uuid(),organization_id uuid NOT NULL,destination_id uuid NOT NULL,binding_id uuid NOT NULL REFERENCES plugin_data.csf_sheet_sync_bindings(id),
+ id uuid PRIMARY KEY DEFAULT gen_random_uuid(),organization_id uuid NOT NULL,destination_id uuid NOT NULL,binding_id uuid NOT NULL,
  author_user_id uuid NOT NULL REFERENCES auth.users(id),provider_thread_id text,body text NOT NULL CHECK(length(btrim(body)) BETWEEN 1 AND 10000),resolved boolean,
  created_at timestamptz NOT NULL DEFAULT now(),
- FOREIGN KEY(organization_id,destination_id) REFERENCES plugin_data.csf_sheet_sync_destinations(organization_id,id)
+ FOREIGN KEY(organization_id,destination_id) REFERENCES plugin_data.csf_sheet_sync_destinations(organization_id,id),
+ FOREIGN KEY(organization_id,destination_id,binding_id) REFERENCES plugin_data.csf_sheet_sync_bindings(organization_id,destination_id,id)
 );
 ALTER TABLE plugin_data.csf_sheet_sync_local_messages ENABLE ROW LEVEL SECURITY;
 REVOKE ALL ON plugin_data.csf_sheet_sync_local_messages FROM PUBLIC,anon,authenticated;
@@ -305,13 +307,14 @@ END $$;
 
 CREATE TABLE plugin_data.csf_sheet_sync_comments (
  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),organization_id uuid NOT NULL,destination_id uuid NOT NULL,
- binding_id uuid NOT NULL REFERENCES plugin_data.csf_sheet_sync_bindings(id),
+ binding_id uuid NOT NULL,
  provider_thread_id text NOT NULL,provider_message_id text NOT NULL,provider_version text NOT NULL,
  author jsonb NOT NULL CHECK(jsonb_typeof(author)='object'),body text NOT NULL CHECK(length(body)<=10000),resolved boolean NOT NULL DEFAULT false,deleted boolean NOT NULL DEFAULT false,
  source text NOT NULL DEFAULT 'google_sheets' CHECK(source='google_sheets'),
  created_at timestamptz NOT NULL DEFAULT now(),updated_at timestamptz NOT NULL DEFAULT now(),
  UNIQUE(destination_id,provider_message_id),
- FOREIGN KEY(organization_id,destination_id) REFERENCES plugin_data.csf_sheet_sync_destinations(organization_id,id)
+ FOREIGN KEY(organization_id,destination_id) REFERENCES plugin_data.csf_sheet_sync_destinations(organization_id,id),
+ FOREIGN KEY(organization_id,destination_id,binding_id) REFERENCES plugin_data.csf_sheet_sync_bindings(organization_id,destination_id,id)
 );
 ALTER TABLE plugin_data.csf_sheet_sync_comments ENABLE ROW LEVEL SECURITY;
 REVOKE ALL ON plugin_data.csf_sheet_sync_comments FROM PUBLIC,anon,authenticated;
