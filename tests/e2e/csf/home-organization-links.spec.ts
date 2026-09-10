@@ -14,7 +14,7 @@ test("Home opens an active organization without posts and excludes other members
     return {
       id,
       name: `Fictional ${label} ${id.slice(0, 8)}`,
-      username: `home-${id}`,
+      username: `home-${id.slice(0, 8)}`,
       type: "school",
       join_code: fixtureJoinCode(id),
       created_by: organizationAdminUserId,
