@@ -136,6 +136,8 @@ BEGIN
  ELSE
    SELECT coalesce(jsonb_agg(to_jsonb(x) ORDER BY x.id),'[]'::jsonb) INTO n FROM plugin_data.csf_submission_reviews x WHERE x.organization_id=p_organization_id AND x.submission_id=p_record_id;
  END IF;
+ IF p_record_kind='application' THEN r:=r||jsonb_build_object('files',coalesce((SELECT jsonb_agg(to_jsonb(f) ORDER BY f.id) FROM plugin_data.csf_application_files f WHERE f.organization_id=p_organization_id AND f.application_id=p_record_id),'[]'::jsonb));
+ ELSIF p_record_kind='point_submission' THEN r:=r||jsonb_build_object('files',coalesce((SELECT jsonb_agg(to_jsonb(f) ORDER BY f.id) FROM plugin_data.csf_submission_files f WHERE f.organization_id=p_organization_id AND f.submission_id=p_record_id),'[]'::jsonb),'credits',coalesce((SELECT jsonb_agg(to_jsonb(c) ORDER BY c.id) FROM plugin_data.csf_credit_records c WHERE c.organization_id=p_organization_id AND c.submission_id=p_record_id),'[]'::jsonb)); END IF;
  r:=r||jsonb_build_object('comments',n,'local_messages',coalesce((SELECT jsonb_agg(to_jsonb(m) ORDER BY m.id) FROM plugin_data.csf_sheet_sync_local_messages m JOIN plugin_data.csf_sheet_sync_bindings b ON b.id=m.binding_id WHERE m.organization_id=p_organization_id AND b.record_kind=p_record_kind AND b.record_id=p_record_id),'[]'::jsonb));
  RETURN r;
 END $$;
@@ -372,6 +374,8 @@ LANGUAGE plpgsql SECURITY DEFINER SET search_path='' AS $$
 DECLARE r jsonb:=CASE WHEN TG_OP='DELETE' THEN to_jsonb(OLD) ELSE to_jsonb(NEW) END; k text; rid uuid; d record; profile uuid; target record;
 BEGIN
  IF TG_TABLE_NAME IN ('csf_term_applications','csf_point_submissions') THEN k:=CASE WHEN TG_TABLE_NAME='csf_term_applications' THEN 'application' ELSE 'point_submission' END; rid:=(r->>'id')::uuid;
+ ELSIF TG_TABLE_NAME='csf_application_files' THEN k:='application';rid:=(r->>'application_id')::uuid;
+ ELSIF TG_TABLE_NAME='csf_submission_files' OR (TG_TABLE_NAME='csf_credit_records' AND r->>'submission_id' IS NOT NULL) THEN k:='point_submission';rid:=(r->>'submission_id')::uuid;
  ELSIF TG_TABLE_NAME='csf_review_notes' THEN
   IF r->>'subject_kind' NOT IN ('application','profile') THEN RETURN NEW; END IF;
   k:=r->>'subject_kind'; rid:=(r->>'subject_id')::uuid;
@@ -396,6 +400,8 @@ CREATE TRIGGER csf_sheet_sync_profiles AFTER INSERT OR UPDATE ON plugin_data.csf
 CREATE TRIGGER csf_sheet_sync_accounts AFTER INSERT OR UPDATE OR DELETE ON plugin_data.csf_profile_accounts FOR EACH ROW EXECUTE FUNCTION plugin_data.csf_queue_changed_sheet_sync_record();
 CREATE TRIGGER csf_sheet_sync_memberships AFTER INSERT OR UPDATE ON plugin_data.csf_term_memberships FOR EACH ROW EXECUTE FUNCTION plugin_data.csf_queue_changed_sheet_sync_record();
 CREATE TRIGGER csf_sheet_sync_credits AFTER INSERT OR UPDATE ON plugin_data.csf_credit_records FOR EACH ROW EXECUTE FUNCTION plugin_data.csf_queue_changed_sheet_sync_record();
+CREATE TRIGGER csf_sheet_sync_application_files AFTER INSERT OR UPDATE ON plugin_data.csf_application_files FOR EACH ROW EXECUTE FUNCTION plugin_data.csf_queue_changed_sheet_sync_record();
+CREATE TRIGGER csf_sheet_sync_submission_files AFTER INSERT OR UPDATE ON plugin_data.csf_submission_files FOR EACH ROW EXECUTE FUNCTION plugin_data.csf_queue_changed_sheet_sync_record();
 CREATE TRIGGER csf_sheet_sync_point_reviews AFTER INSERT OR UPDATE ON plugin_data.csf_submission_reviews FOR EACH ROW EXECUTE FUNCTION plugin_data.csf_queue_changed_sheet_sync_record();
 CREATE TRIGGER csf_sheet_sync_notes AFTER INSERT OR UPDATE ON plugin_data.csf_review_notes FOR EACH ROW EXECUTE FUNCTION plugin_data.csf_queue_changed_sheet_sync_record();
 REVOKE ALL ON FUNCTION plugin_data.csf_queue_changed_sheet_sync_record() FROM PUBLIC,anon,authenticated,service_role;
