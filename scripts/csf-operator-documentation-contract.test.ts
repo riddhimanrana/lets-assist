@@ -118,10 +118,7 @@ const MEMBER_AND_ACCESS: LabelContract[] = [
   },
   {
     component: "CsfClassCodeEntryForm.tsx",
-    labels: [
-      "Join code",
-      "6 letters and numbers; codes never use O, I, 0, or 1",
-    ],
+    labels: ["Join code"],
   },
   {
     component: "CsfResolveConnectionDialog.tsx",

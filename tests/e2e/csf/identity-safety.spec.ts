@@ -643,7 +643,7 @@ test.describe("CSF identity safety", () => {
     await expect(dialog.getByText("Ready to merge")).toHaveCount(0);
     await expect(dialog.getByLabel("Reason for merge")).toBeDisabled();
     await expect(
-      dialog.getByRole("button", { name: "Merge into canonical record" }),
+      dialog.getByRole("button", { name: "Merge into selected record" }),
     ).toBeDisabled();
 
     // Nothing consequential may have happened.
@@ -729,7 +729,7 @@ test.describe("CSF identity safety", () => {
       .getByLabel("Reason for merge")
       .fill("Exact name, email, and class confirm one synthetic student.");
     await dialog
-      .getByRole("button", { name: "Merge into canonical record" })
+      .getByRole("button", { name: "Merge into selected record" })
       .click();
 
     await expect(dialog).toBeHidden();
