@@ -66,5 +66,30 @@ SELECT extensions.is((SELECT status FROM plugin_data.csf_profile_accounts WHERE 
 SELECT extensions.is((SELECT status FROM plugin_data.csf_profile_accounts WHERE profile_id='fc140000-0000-4000-8000-000000000003'),'verified','a new self-owned profile retains access');
 SELECT extensions.is((SELECT status FROM plugin_data.csf_profile_accounts WHERE profile_id='fc140000-0000-4000-8000-000000000005'),'verified','independent staff verification retains access');
 SELECT extensions.is(plugin_data.csf_hold_unproven_account_connections('fc110000-0000-4000-8000-000000000001',ARRAY[]::uuid[]),0,'a fresh empty preview makes retries harmless');
+-- Search uses confirmed auth emails, even when profile contact email differs.
+INSERT INTO public.profiles(id,full_name,email) VALUES
+('fc100000-0000-4000-8000-000000000002','Search Fixture','stale-profile@local.test')
+ON CONFLICT(id) DO UPDATE SET full_name=excluded.full_name,email=excluded.email;
+SELECT extensions.is(jsonb_array_length(plugin_data.csf_search_organization_accounts(
+ 'fc110000-0000-4000-8000-000000000001','fc100000-0000-4000-8000-000000000001','connect-target@local.test')),1,'search finds the actual login email despite stale profile email');
+SELECT extensions.is(plugin_data.csf_search_organization_accounts(
+ 'fc110000-0000-4000-8000-000000000001','fc100000-0000-4000-8000-000000000001','Search Fixture')->0->>'email','connect-target@local.test','name search returns the confirmed login email');
+SELECT extensions.is(jsonb_array_length(plugin_data.csf_search_organization_accounts(
+ 'fc110000-0000-4000-8000-000000000001','fc100000-0000-4000-8000-000000000001','connect-outsider')),0,'accounts outside the organization are excluded');
+SELECT extensions.is(jsonb_array_length(plugin_data.csf_search_organization_accounts(
+ 'fc110000-0000-4000-8000-000000000001','fc100000-0000-4000-8000-000000000001','connect-inactive')),0,'inactive organization accounts are excluded');
+SELECT extensions.is(jsonb_array_length(plugin_data.csf_search_organization_accounts(
+ 'fc110000-0000-4000-8000-000000000001','fc100000-0000-4000-8000-000000000001','connect-unconfirmed')),0,'unconfirmed login emails are excluded');
+SELECT extensions.throws_ok($q$SELECT plugin_data.csf_search_organization_accounts(
+ 'fc110000-0000-4000-8000-000000000001','fc100000-0000-4000-8000-000000000002','Search')$q$,'42501',NULL,'members cannot search other accounts');
+SELECT extensions.ok(NOT has_function_privilege('authenticated','plugin_data.csf_search_organization_accounts(uuid,uuid,text)','EXECUTE'),'browser callers cannot search the auth directory');
+SELECT extensions.ok(has_function_privilege('service_role','plugin_data.csf_search_organization_accounts(uuid,uuid,text)','EXECUTE'),'the authorized server can invoke account search');
+INSERT INTO auth.users(id,aud,role,email,raw_app_meta_data,raw_user_meta_data,created_at,updated_at)
+SELECT ('fc200000-0000-4000-8000-'||lpad(i::text,12,'0'))::uuid,'authenticated','authenticated','aaa-search-limit-'||i||'@local.test','{}','{}',now(),now() FROM generate_series(1,12) i;
+INSERT INTO public.organization_members(organization_id,user_id,role,status)
+SELECT 'fc110000-0000-4000-8000-000000000001',id,'member','active' FROM auth.users WHERE email LIKE 'aaa-search-limit-%';
+UPDATE auth.users SET email='zzz-search-limit-confirmed@local.test' WHERE id='fc100000-0000-4000-8000-000000000006';
+SELECT extensions.is(jsonb_array_length(plugin_data.csf_search_organization_accounts(
+ 'fc110000-0000-4000-8000-000000000001','fc100000-0000-4000-8000-000000000001','search-limit')),1,'unconfirmed matches cannot crowd confirmed accounts out of the result limit');
 SELECT * FROM extensions.finish();
 ROLLBACK;

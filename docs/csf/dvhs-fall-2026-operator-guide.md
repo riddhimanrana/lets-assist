@@ -138,8 +138,8 @@ semester.
 1. Open **Classes**, choose the class, and select **Invite students**. The
    dialog shows the active code with **Copy**.
 2. If the dialog reads _This class does not have an active code yet._, select
-   **Create code**. Use **Regenerate code** only when the old code must stop
-   working — the replaced code is refused immediately — and **Disable code** to
+   **Create code**. Use **Regenerate link and code** only when the old code must stop
+   working — the replaced code is refused immediately — and **Disable link and code** to
    withdraw the code without a replacement.
 3. Share only the code, or its `/connect/<code>` URL on the current
    environment, through an approved chapter channel. Viewing, copying,

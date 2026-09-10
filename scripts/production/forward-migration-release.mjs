@@ -60,7 +60,7 @@ export const approvedMigrations = [
   ],
   [
     "20260910043106_csf_verified_account_join_policy",
-    "fe8a3dcde579c6ecb1c5014f23617e48c2e1b61162515fa34d6fca1aa5f02de2",
+    "d1aeaf5526b990e873575ba0b9d1c46f689da4219ef5cc5c855b6d3f46903e54",
   ],
   [
     "20260910045040_csf_legacy_ownership_review",

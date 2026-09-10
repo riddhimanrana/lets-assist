@@ -114,8 +114,8 @@ remains:
 - **Permanent class join code.** Each graduating class holds one permanent
   6-character code drawn from a 32-letter alphabet that omits 0/O/1/I. The
   class page's **Invite students** dialog shows it with **Copy**, and offers
-  **Create code**, **Regenerate code** (the replaced code stops working
-  immediately), and **Disable code**. Code state carries no send telemetry,
+  **Create code**, **Regenerate link and code** (the replaced code stops working
+  immediately), and **Disable link and code**. Code state carries no send telemetry,
   and no code action emails anyone.
 - **Student journey.** A student opens the public `/connect/<code>` route or
   enters the **Join code** on **Join a class**, signs in with a verified

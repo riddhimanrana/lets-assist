@@ -6512,3 +6512,36 @@ Full rollout audit, September 10, 2026, in progress:
   62 release-controller and catalog unit checks passed. Root CI, hosted Development
   acceptance, Production correction, scoped ownership holds, and import refresh
   remain incomplete. Generated source comparisons stay in ignored artifacts.
+
+Follow-up verification for the same audit:
+
+- Source-associated historical activities total 9,282 points and match every
+  populated source row. The stored total is 9,310 points. The additional 28
+  points belong to four older semester records whose source names differ from
+  their corrected profile names. Current imports have separate name variants.
+  Three reversed-name pairs and one expanded-surname group require staff identity
+  review. Preserve their records until that decision; a name similarity alone
+  does not authorize a merge or credit removal.
+- All 558 explicit historical completion markers are completed. No completed
+  source-associated record lacks an explicit completion marker or consistent
+  green identity cells. The three mixed-color rows remain review items. One
+  repeated workbook row resolves to the same profile and semester; the activity
+  comparison still matches. The user's separate historical profile stays apart.
+- Root CI on `900f7b4ed0ea3bfb73b1388ce36600a51b244469` passed the complete database
+  replay and browser job. Quality failed only obsolete operator-documentation
+  assertions for the private pin and regenerated-link labels; those assertions
+  and instructions are corrected in this candidate.
+- Account search now matches confirmed login emails directly, filters confirmed
+  accounts before limiting results, and checks staff manage-profiles permission
+  in the database. It exposes no imported history and grants no ownership.
+  The focused legacy-hold and search SQL suite passes 29 assertions. Both the
+  new-student and different-email staff-connection browser journeys passed.
+  A further browser regression checks that cancellation resets verification.
+- Five audited disable-only transitions retired stale worker flags on three
+  older releases. A fresh Production read confirms zero enabled release records,
+  five transition receipts, and the unchanged 478-migration ledger. The current
+  application and ownership correction remain undeployed at this checkpoint.
+- Existing Fall application contacts still need the corrected reported-contact
+  helper after release. A read-only preview finds 180 valid source-row/profile
+  bindings. Canonical identity fields and account connections must remain
+  unchanged when those reported contacts are populated.

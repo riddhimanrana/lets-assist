@@ -1,5 +1,10 @@
 export const ownershipDefinitions = [
   [
+    "plugin_data.csf_search_organization_accounts(uuid,uuid,text)",
+    "0b249714f8fcdc01cf7d820ec8d2e9b5",
+    true,
+  ],
+  [
     "plugin_data.csf_join_class_by_code_identity_base(uuid,text,uuid,text,text,text,text,uuid,uuid)",
     "7bed352f081542f0a3f6313c8a07e77e",
     false,

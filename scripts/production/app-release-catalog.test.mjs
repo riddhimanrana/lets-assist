@@ -209,7 +209,7 @@ test("scheduling retirement pins every replacement and preserves the prior relea
     assert.ok(current.includes(definition), definition);
     assert.ok(!preceding.includes(definition), definition);
   }
-  assert.match(current, /SELECT count\(\*\) = 23 AND/u);
+  assert.match(current, /SELECT count\(\*\) = 24 AND/u);
   assert.match(preceding, /SELECT count\(\*\) = 10 AND/u);
   assert.ok(
     current.includes(
@@ -314,7 +314,7 @@ test("workbook rebuild release checks the exact body, server-only grants, and re
 
 test("the reviewed import upgrade verifies metadata, function grants, and the scoped index", () => {
   const query = acceptedCatalogQuery(source, versions);
-  assert.match(query, /SELECT count\(\*\) = 23 AND/u);
+  assert.match(query, /SELECT count\(\*\) = 24 AND/u);
   assert.match(query, /csf_import_rows_resolution_metadata_object/u);
   assert.match(query, /a.atttypid='jsonb'::regtype AND a.attnotnull/u);
   assert.match(query, /csf_import_rows_committed_source_key_idx/u);
@@ -556,7 +556,7 @@ test("staff account connection pins its body and service-only ACL while retainin
 });
 
 test("staff account authority locking pins the new body and retains the original connection catalog", () => {
-  const current = acceptedCatalogQuery(source, versions);
+  const current = acceptedCatalogQuery(source, versions.slice(0, 476));
   const preceding = acceptedCatalogQuery(source, versions.slice(0, 475));
   const migration = readFileSync(
     new URL(
@@ -608,5 +608,28 @@ test("application review reopening pins the complete function and retains the pr
     current.includes(
       "NOT has_function_privilege('authenticated',p.oid,'EXECUTE')",
     ),
+  );
+});
+
+test("staff request audit pins the new body and preserves the older release catalog", () => {
+  const current = acceptedCatalogQuery(source, versions);
+  const preceding = acceptedCatalogQuery(source, versions.slice(0, 478));
+  const migration = readFileSync(
+    new URL(
+      "../../supabase/migrations/20260910043106_csf_verified_account_join_policy.sql",
+      import.meta.url,
+    ),
+    "utf8",
+  );
+  const body = migration
+    .split(
+      "CREATE OR REPLACE FUNCTION plugin_data.csf_staff_connect_profile_account(",
+    )[1]
+    .split("$$")[1];
+  const digest = createHash("md5").update(body).digest("hex");
+  assert.ok(current.includes(`md5(p.prosrc)='${digest}'`));
+  assert.ok(!preceding.includes(`md5(p.prosrc)='${digest}'`));
+  assert.ok(
+    preceding.includes("md5(p.prosrc)='207ce59e1f029ae5c35cd097f639ad41'"),
   );
 });

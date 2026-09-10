@@ -2,7 +2,7 @@ BEGIN;
 
 CREATE EXTENSION IF NOT EXISTS pgtap WITH SCHEMA extensions;
 
-SELECT extensions.plan(29);
+SELECT extensions.plan(33);
 
 INSERT INTO auth.users(id,aud,role,email,email_confirmed_at,raw_app_meta_data,raw_user_meta_data,created_at,updated_at) VALUES ('fc100000-0000-4000-8000-000000000001','authenticated','authenticated','connect-admin@local.test',now(),'{}','{}',now(),now()),
 ('fc100000-0000-4000-8000-000000000002','authenticated','authenticated','connect-target@local.test',now(),'{}','{}',now(),now()),
@@ -48,6 +48,9 @@ SELECT extensions.throws_ok($q$SELECT plugin_data.csf_staff_connect_profile_acco
 SELECT extensions.throws_ok($q$SELECT plugin_data.csf_staff_connect_profile_account('fc110000-0000-4000-8000-000000000001','fc140000-0000-4000-8000-000000000001','fc100000-0000-4000-8000-000000000001','connect-unconfirmed@local.test','Confirmed identity with this student.','fc190000-0000-4000-8000-000000000001')$q$, 'P0001', NULL, 'unconfirmed login email is rejected');
 
 SELECT extensions.throws_ok($q$SELECT plugin_data.csf_staff_connect_profile_account('fc110000-0000-4000-8000-000000000001','fc140000-0000-4000-8000-000000000001','fc100000-0000-4000-8000-000000000001','missing@local.test','Confirmed identity with this student.','fc190000-0000-4000-8000-000000000001')$q$, 'P0001', NULL, 'unknown login email is rejected');
+
+INSERT INTO plugin_data.csf_profile_link_requests(id,organization_id,cohort_id,user_id,first_name,last_name,normalized_first_name,normalized_last_name,match_status)
+SELECT ('fc180000-0000-4000-8000-00000000000'||i)::uuid,'fc110000-0000-4000-8000-000000000001','fc130000-0000-4000-8000-000000000001','fc100000-0000-4000-8000-000000000002','Fictional','Student1','fictional','student1',CASE WHEN i=1 THEN 'pending' ELSE 'needs_review' END FROM generate_series(1,2) i;
 
 SELECT extensions.lives_ok($q$SELECT plugin_data.csf_staff_connect_profile_account('fc110000-0000-4000-8000-000000000001','fc140000-0000-4000-8000-000000000001','fc100000-0000-4000-8000-000000000001',' CONNECT-TARGET@LOCAL.TEST ','Confirmed identity with this student.','fc190000-0000-4000-8000-000000000001')$q$, 'staff can connect a confirmed organization member whose roster email differs');
 
@@ -110,6 +113,14 @@ SELECT extensions.throws_ok(
   'P0001','This request ID was already used for a different connection.',
   'a receipt request ID cannot be reused with a changed email'
 );
+
+SELECT extensions.is((SELECT count(*)::integer FROM plugin_data.csf_admin_audit_events
+ WHERE action='profile.link_request_resolved_by_staff' AND correlation_id='fc190000-0000-4000-8000-000000000001'),2,'each resolved request has exactly one audit after retries');
+SELECT extensions.ok((SELECT bool_and(before_data->>'match_status'=CASE WHEN target_id='fc180000-0000-4000-8000-000000000001' THEN 'pending' ELSE 'needs_review' END)
+ FROM plugin_data.csf_admin_audit_events WHERE action='profile.link_request_resolved_by_staff' AND correlation_id='fc190000-0000-4000-8000-000000000001'),'request audits preserve each original state');
+SELECT extensions.ok((SELECT bool_and(after_data->>'match_status'='resolved' AND after_data->>'matched_profile_id'='fc140000-0000-4000-8000-000000000001' AND after_data->>'resolved_by'='fc100000-0000-4000-8000-000000000001' AND after_data->>'id'=target_id::text)
+ FROM plugin_data.csf_admin_audit_events WHERE action='profile.link_request_resolved_by_staff' AND correlation_id='fc190000-0000-4000-8000-000000000001'),'request audits record the staff decision and exact target');
+SELECT extensions.is((SELECT count(*)::integer FROM plugin_data.csf_profile_link_requests WHERE organization_id='fc110000-0000-4000-8000-000000000001' AND match_status='resolved'),2,'both waiting requests are resolved atomically');
 
 SELECT * FROM extensions.finish();
 
