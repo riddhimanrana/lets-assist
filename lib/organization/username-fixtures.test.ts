@@ -33,6 +33,7 @@ const JAVASCRIPT_ORGANIZATION_WRITERS = [
   "scripts/local-dev/seed-platform.mjs",
   "scripts/local-dev/test-dvhs-csf-scale.mjs",
   "tests/e2e/csf/chapter-staff-invitation.spec.ts",
+  "tests/e2e/csf/home-organization-links.spec.ts",
 ];
 
 function maskSqlComments(source: string): string {
@@ -447,6 +448,19 @@ function javascriptOrganizationUsernameFixtures(): UsernameFixture[] {
     value: "invitation-fixture-abcdef09",
   });
 
+  const homeFile = "tests/e2e/csf/home-organization-links.spec.ts";
+  const homeSource = readFileSync(homeFile, "utf8");
+  expect(homeSource).toContain("const id = randomUUID();");
+  expect(homeSource).toContain("join_code: fixtureJoinCode(id)");
+  const homeExpression = "username: `home-${id.slice(0, 8)}`";
+  expect(homeSource).toContain(homeExpression);
+  fixtures.push({
+    expression: homeExpression,
+    file: homeFile,
+    line: lineNumber(homeSource, homeSource.indexOf(homeExpression)),
+    value: "home-abcdef09",
+  });
+
   return fixtures;
 }
 
@@ -507,7 +521,7 @@ describe("organization username fixture inventory", () => {
 
   test("every JavaScript seed and scale write satisfies the shared product schema", () => {
     const fixtures = javascriptOrganizationUsernameFixtures();
-    expect(fixtures).toHaveLength(9);
+    expect(fixtures).toHaveLength(10);
 
     const invalid = fixtures.filter(
       ({ value }) =>

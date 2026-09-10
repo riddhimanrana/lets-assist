@@ -157,8 +157,7 @@ characters and try again.
 ## What the student does
 
 1. Open `/connect/<code>` from the shared code, or open **Join a class** and
-   type the code under **Join code**. The field states the format itself: _6 letters and numbers; codes
-   never use O, I, 0, or 1_.
+   type the code under **Join code**.
 2. Create a Let's Assist account or sign in. **Sign in to continue** opens the
    account flow. The signed-out entry page is
    headed **Join a class** and names both audiences: **Already have a
