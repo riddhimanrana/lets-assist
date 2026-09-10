@@ -50,7 +50,10 @@ test.describe("applications review workspace", () => {
     await expect(page).toHaveURL(/csf_import_type=application_responses/);
     const dialog = page.getByRole("dialog", { name: "Application Sheet" });
     await expect(dialog).toBeVisible();
-    await expect(dialog).toContainText("One Sheet for every class.");
+    await expect(dialog).toContainText("Connect the response Sheet once.");
+    await expect(dialog).toContainText(
+      "Importing never approves an application.",
+    );
     await expect(
       page.getByRole("navigation", { name: "Import progress" }),
     ).toHaveCount(0);

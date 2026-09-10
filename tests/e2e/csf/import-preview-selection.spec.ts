@@ -114,7 +114,16 @@ test("saved application previews keep their own rows through navigation and relo
       page.getByRole("navigation", { name: "Import progress" }),
     ).toHaveCount(0);
     const openPreviousChecks = async () => {
-      const disclosure = dialog.locator("details").filter({
+      const advanced = dialog.locator("details").filter({
+        has: page.locator(":scope > summary", {
+          hasText: /^Advanced import settings$/,
+        }),
+      });
+      await expect(advanced).toHaveCount(1);
+      if ((await advanced.getAttribute("open")) === null) {
+        await advanced.locator(":scope > summary").click();
+      }
+      const disclosure = advanced.locator("details").filter({
         has: page.locator("summary", { hasText: /^Previous checks$/ }),
       });
       if ((await disclosure.getAttribute("open")) === null) {
