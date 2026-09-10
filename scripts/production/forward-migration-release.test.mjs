@@ -24,6 +24,7 @@ function transport({
   badAcl = false,
   badCatalog = false,
   enabledWorker = false,
+  initialVersions = prepared.prefix,
 } = {}) {
   const calls = [];
   let written = false;
@@ -40,7 +41,7 @@ function transport({
         result = [];
       } else if (sql.startsWith("SELECT version::text")) {
         result = rows(
-          written && !rollback ? prepared.versions : prepared.prefix,
+          written && !rollback ? prepared.versions : initialVersions,
         );
         if (drift) result.pop();
       } else if (sql.includes("csf_target_schema_verified")) {
@@ -227,4 +228,77 @@ test("schema-only workflow has no build, import, backup, or worker mutation", ()
     workflow,
     /bun run build|vercel.*deploy|db (push|dump|reset)|csf_queue_import|set_csf_release_worker_control/u,
   );
+});
+
+test("a reviewed partially applied tail writes only the remaining migration", async () => {
+  const initialVersions = prepared.versions.slice(0, 477);
+  const t = transport({ initialVersions });
+  const result = await applyForwardMigrations(config, t.fetch);
+  assert.deepEqual(result.applied, ["20260910004059"]);
+  const writes = t.calls.filter((call) => call.url.endsWith("/database/query"));
+  assert.equal(writes.length, 1);
+  assert.ok(
+    writes[0].sql.includes(
+      "'20260910004059','csf_import_application_profile_contacts'",
+    ),
+  );
+  assert.ok(
+    !writes[0].sql.includes(
+      "CREATE OR REPLACE FUNCTION plugin_data.csf_set_review_period",
+    ),
+  );
+  assert.ok(
+    writes[0].sql.includes(
+      `ARRAY[${initialVersions.map((version) => `'${version}'`).join(",")}]::text[]`,
+    ),
+  );
+  assert.equal(
+    (
+      writes[0].sql.match(
+        /INSERT INTO supabase_migrations.schema_migrations/g,
+      ) ?? []
+    ).length,
+    1,
+  );
+});
+
+test("an already applied tail verifies the catalog without resending SQL", async () => {
+  const t = transport({ initialVersions: prepared.versions });
+  const result = await applyForwardMigrations(config, t.fetch);
+  assert.deepEqual(result.applied, []);
+  assert.equal(result.responseLost, false);
+  assert.equal(result.catalog, "verified");
+  assert.ok(
+    t.calls.some((call) => call.sql.includes("csf_target_schema_verified")),
+  );
+  assert.ok(t.calls.every((call) => call.url.endsWith("/read-only")));
+});
+
+test("an already applied tail still refuses catalog drift", async () => {
+  const t = transport({ initialVersions: prepared.versions, badCatalog: true });
+  await assert.rejects(
+    applyForwardMigrations(config, t.fetch),
+    /reconciliation/u,
+  );
+  assert.ok(t.calls.every((call) => call.url.endsWith("/read-only")));
+});
+
+test("only exact reviewed prefixes may skip approved migrations", async () => {
+  for (const initialVersions of [
+    [...prepared.versions, "20990101000000"],
+    prepared.versions.slice(0, 467),
+    [...prepared.versions.slice(0, 476), "20990101000000"],
+    [
+      ...prepared.versions.slice(0, 475),
+      prepared.versions[476],
+      prepared.versions[475],
+    ],
+  ]) {
+    const t = transport({ initialVersions });
+    await assert.rejects(
+      applyForwardMigrations(config, t.fetch),
+      /sequence differs/u,
+    );
+    assert.equal(t.calls.length, 1);
+  }
 });
