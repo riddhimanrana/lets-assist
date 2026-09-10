@@ -343,8 +343,8 @@ export const ProjectsInfiniteScroll: React.FC = () => {
             <h3 className="text-xl font-medium mb-2">No projects found</h3>
             <p className="text-muted-foreground text-center max-w-md mb-8">
               {activeFilterCount > 0
-                ? "We couldn't find any projects matching your current filters. Try adjusting your search criteria or browse all projects."
-                : "There are currently no volunteer projects available in our database. Be the first to create a project and start making a difference!"}
+                ? "Try changing or clearing your filters."
+                : "No projects are available yet."}
             </p>
 
             <div className="flex gap-4 flex-wrap justify-center">
