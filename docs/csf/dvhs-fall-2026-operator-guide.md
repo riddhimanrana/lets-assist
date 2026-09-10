@@ -165,19 +165,20 @@ characters and try again.
    CSF record?** for returning members, and **New to CSF?**, which
    carries the semester's application button when the current term has an
    **Application form link**.
-3. After sign-in, one active record in the code's class carrying the verified
-   account email connects with recorded history. If email does not match, the
+3. After sign-in, an independently verified existing account connection opens
+   the correct class and recorded history. For a possible existing record, the
    page may show **Is this you?** with one record whose name exactly matches the
    account. Select **Yes, this is me** to send that record for officer review.
    Select **No, search again** when it is not yours. A name match never links
    the account by itself. A saved request changes to **Your record is awaiting
    review** and offers **Go to class feed** while an officer checks the match.
-   An exact verified-email connection shows **Your CSF record is linked** and
+   An independently verified connection shows **Your CSF record is linked** and
    offers **Go to My CSF**.
 4. If no passive match appears, open **Find your CSF record**, enter the
    requested **Student name**, and select **Find my record**. A typed name never
-   creates or links a profile. The server creates or reuses one officer request
-   unless a single verified-email match became available.
+   claims an existing profile. The server creates or reuses one officer request.
+   A new student with no matching existing record can create a self-owned
+   profile through the class code. This does not create historical credit.
 
 The student never chooses a roster record from a list and never assigns their
 own class or officer access. Submitted names are review context for officers;
@@ -187,11 +188,15 @@ they are never an automatic matching signal.
 
 The historical class sheets do not establish account ownership. Application emails and editable account names are suggestions for staff review, not verification.
 
-1. Open **Members → Record connections** and inspect the request and proposed student profile.
+1. Open **Members**, select **Record connections**, choose **Review**, and inspect the request and proposed student profile.
 2. Independently verify that the organization account belongs to that student. Do not rely only on a matching name or application email.
 3. Open the profile and choose **Connect account**. Enter the confirmed Let's Assist login email, explain how you verified identity, and check the identity confirmation.
 4. The login email may differ from the application contact. Do not overwrite imported contacts to force a match.
-5. Connect the account only after verification, or reject an incorrect request. Pending connections cannot access the student's history. Connecting a record does not approve an application, award points, or grant a staff position.
+5. Connect the account only after verification. For an incorrect request, enter a **Decision reason** and select **Reject request**. Pending connections cannot access the student's history. Connecting a record does not approve an application, award points, or grant a staff position.
+
+The older review dialog may show **Review only**, **Connection unavailable**, or
+**Canonical identity evidence**. These labels do not establish ownership.
+Use the profile's verification form after checking identity independently.
 
 Older connections held for review retain login and organization access. Staff can restore the connection through the same verified workflow. Keep the recorded audit history.
 
