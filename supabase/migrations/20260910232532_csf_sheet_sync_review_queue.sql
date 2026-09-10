@@ -80,6 +80,7 @@ BEGIN
  IF NOT plugin_data.csf_actor_has_permission(p_organization_id,p_actor_user_id,'manage_sheet_sync') THEN RAISE EXCEPTION 'Not authorized.'; END IF;
  IF NOT EXISTS(SELECT 1 FROM plugin_data.csf_terms WHERE id=p_term_id AND organization_id=p_organization_id) OR (p_cohort_id IS NOT NULL AND NOT EXISTS(SELECT 1 FROM plugin_data.csf_cohorts WHERE id=p_cohort_id AND organization_id=p_organization_id)) THEN RAISE EXCEPTION 'Semester or class does not belong to this organization.'; END IF;
  IF p_is_test IS DISTINCT FROM EXISTS(SELECT 1 FROM plugin_data.csf_sheet_sync_test_workspaces WHERE organization_id=p_organization_id) THEN RAISE EXCEPTION 'Test destinations require an isolated test workspace.'; END IF;
+ PERFORM pg_advisory_xact_lock(hashtextextended('csf-sheet-destination:'||p_spreadsheet_file_id,0));
  IF EXISTS(SELECT 1 FROM plugin_data.csf_sheet_sync_destinations WHERE spreadsheet_file_id=p_spreadsheet_file_id AND organization_id<>p_organization_id) THEN RAISE EXCEPTION 'This spreadsheet belongs to another workspace.'; END IF;
  SELECT * INTO d FROM plugin_data.csf_sheet_sync_destinations WHERE spreadsheet_file_id=p_spreadsheet_file_id AND sheet_id=p_sheet_id;
  IF FOUND THEN
@@ -352,6 +353,7 @@ BEGIN
  SELECT * INTO d FROM plugin_data.csf_sheet_sync_destinations WHERE id=b.destination_id AND organization_id=p_organization_id;
  IF NOT d.enabled THEN RAISE EXCEPTION 'Sync destination is disabled.'; END IF;
  IF p_thread_id IS NOT NULL AND NOT EXISTS(SELECT 1 FROM plugin_data.csf_sheet_sync_comments WHERE binding_id=b.id AND provider_thread_id=p_thread_id) AND NOT EXISTS(SELECT 1 FROM jsonb_each(b.thread_bindings) WHERE value->>'threadId'=p_thread_id) THEN RAISE EXCEPTION 'Thread does not belong to this record.'; END IF;
+ PERFORM pg_advisory_xact_lock(hashtextextended('csf-sheet-message:'||p_request_id::text,0));
  SELECT * INTO m FROM plugin_data.csf_sheet_sync_local_messages WHERE id=p_request_id;
  IF FOUND THEN
   IF m.organization_id<>p_organization_id OR m.binding_id<>b.id OR m.author_user_id<>p_actor_user_id OR m.body<>p_body OR m.provider_thread_id IS DISTINCT FROM p_thread_id OR m.resolved IS DISTINCT FROM p_resolved THEN RAISE EXCEPTION 'Message request conflicts with its previous use.'; END IF;
