@@ -6438,3 +6438,39 @@ Read-only incident review after the owner reported the trust-boundary defect:
 - Automatic safety review stopped all three repair agents with the reason
   “Potentially unintended activity.” Their local work remains saved and
   undeployed. No blocked repair action was retried during this read-only review.
+
+Reviewed remediation candidate, September 9, 2026:
+
+- Private PR 286 merged as `b3e41e1`. Both member loaders now discard history
+  unless the connection is verified. Staff see reported application contacts
+  separately. All 319 private test files pass.
+- Forward migrations `20260910043037`, `20260910043106`, and `20260910045040`
+  separate reported contacts, replace contact/name ownership claims, and install
+  an exact-account-set operator hold. The hold preserves login and organization
+  roles and reopens settled connection requests. Installing it does not apply it.
+- A clean isolated replay passed 481 migrations and 7,572 assertions in 270 SQL
+  files. Expanded hold coverage passes 14 assertions. All 310 root test files
+  pass after correcting obsolete operator instructions. Production-configured
+  strict private ancestry, lint, typecheck, and formatting checks pass. Browser
+  tests now require email/name-only claims to remain pending after reload;
+  the integrated CI browser run remains pending.
+- Fresh read-only Production checks still show ledger 478, two legacy links
+  needing review, and zero links since migration `20260910004059`. The guarded
+  contact cleanup preview identifies two personal fields on two profiles.
+- The earlier backfill job contains 172 rows and 170 matched profiles. All
+  91 school and 128 personal values recorded by its aggregate audit match the
+  immutable source contacts, and no later profile audit was found. The audit
+  lacks per-field prior values, so the patch preserves those canonical fields
+  rather than assume they were originally empty. The global join restriction
+  prevents contact-only claims regardless of cleanup.
+- Chrome staff verification reached Officers & access, Assign position, an
+  imported profile, and Connect account without changing assignments or links.
+  The connection form records independent verification and accepts a different
+  login email. Searching organization accounts by name remains a UI follow-up.
+  Fall 2026 currently has 159 needs-review and 21 needs-action applications.
+  A sampled review displays direct transcript and receipt Drive links.
+- Root PR 510 is the release candidate. No Production database or application
+  mutation occurred during these checks. The accepted release workflow requires
+  exact-tree hosted Development acceptance; permission to run that verification
+  is pending because the owner previously requested Production-only work.
+  Workbook/import processing and outbound communications remain paused.
