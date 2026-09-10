@@ -1,6 +1,6 @@
 BEGIN;
 CREATE EXTENSION IF NOT EXISTS pgtap WITH SCHEMA extensions;
-SELECT extensions.plan(29);
+SELECT extensions.plan(33);
 INSERT INTO auth.users(id,aud,role,email,raw_app_meta_data,raw_user_meta_data) VALUES
 ('ea000000-0000-4000-8000-000000000001','authenticated','authenticated','sheet-admin@local.test','{}','{}'),
 ('ea000000-0000-4000-8000-000000000002','authenticated','authenticated','sheet-outsider@local.test','{}','{}');
@@ -28,6 +28,9 @@ SELECT plugin_data.csf_set_sheet_sync_destination_state('ea100000-0000-4000-8000
 INSERT INTO sync_fixture VALUES('export',plugin_data.csf_queue_sheet_sync_record('ea100000-0000-4000-8000-000000000001','ea000000-0000-4000-8000-000000000001',(SELECT (value->>'id')::uuid FROM sync_fixture WHERE name='destination'),'application','ea600000-0000-4000-8000-000000000001'));
 SELECT plugin_data.csf_queue_sheet_sync_record('ea100000-0000-4000-8000-000000000001','ea000000-0000-4000-8000-000000000001',(SELECT (value->>'id')::uuid FROM sync_fixture WHERE name='destination'),'application','ea600000-0000-4000-8000-000000000001');
 SELECT extensions.is((SELECT count(*) FROM plugin_data.csf_sheet_writeback_ledger WHERE organization_id='ea100000-0000-4000-8000-000000000001'),1::bigint,'repeat snapshot creates one export');
+SELECT extensions.is(plugin_data.csf_seed_sheet_sync_destination('ea100000-0000-4000-8000-000000000001','ea000000-0000-4000-8000-000000000001',(SELECT (value->>'id')::uuid FROM sync_fixture WHERE name='destination'),NULL,1)->>'count','1','seed processes a bounded page');
+SELECT extensions.is(plugin_data.csf_seed_sheet_sync_destination('ea100000-0000-4000-8000-000000000001','ea000000-0000-4000-8000-000000000001',(SELECT (value->>'id')::uuid FROM sync_fixture WHERE name='destination'),NULL,1)->>'completed','true','a repeated seed call resumes the stored cursor');
+SELECT extensions.is(plugin_data.csf_seed_sheet_sync_destination('ea100000-0000-4000-8000-000000000001','ea000000-0000-4000-8000-000000000001',(SELECT (value->>'id')::uuid FROM sync_fixture WHERE name='destination'),NULL,1)->>'count','0','completed seed does not restart on the next poll');
 SELECT extensions.throws_ok($$SELECT plugin_data.csf_sheet_sync_snapshot('ea100000-0000-4000-8000-000000000001','profile','ea300000-0000-4000-8000-000000000002')$$,'P0001','Record not found.','snapshot excludes another organization');
 INSERT INTO sync_fixture VALUES('lease',plugin_data.csf_claim_sheet_sync_destination('ea100000-0000-4000-8000-000000000001',(SELECT (value->>'id')::uuid FROM sync_fixture WHERE name='destination'),true));
 SELECT extensions.ok(plugin_data.csf_claim_sheet_sync_destination('ea100000-0000-4000-8000-000000000001',(SELECT (value->>'id')::uuid FROM sync_fixture WHERE name='destination'),true) IS NULL,'manual and cron cannot share a destination lease');
@@ -72,6 +75,7 @@ SELECT plugin_data.csf_bind_sheet_sync_thread('ea100000-0000-4000-8000-000000000
 SELECT extensions.is((SELECT thread_bindings->'ea800000-0000-4000-8000-000000000001'->>'postId' FROM plugin_data.csf_sheet_sync_bindings WHERE id=(SELECT (value->>'id')::uuid FROM sync_fixture WHERE name='binding')),'post-app-1','message receipt retains the native post identity');
 UPDATE public.organization_members SET status='inactive' WHERE organization_id='ea100000-0000-4000-8000-000000000001' AND user_id='ea000000-0000-4000-8000-000000000001';
 SELECT extensions.throws_ok($$SELECT plugin_data.csf_assert_sheet_sync_destination_lease('ea100000-0000-4000-8000-000000000001',(SELECT (value->>'id')::uuid FROM sync_fixture WHERE name='destination'),(SELECT (value->>'poll_lease_token')::uuid FROM sync_fixture WHERE name='lease'))$$,'P0001','Sync lease expired or access changed.','revoked configurator invalidates active worker authority');
+SELECT extensions.lives_ok($$UPDATE plugin_data.csf_term_applications SET updated_at=now()+interval '3 seconds' WHERE id='ea600000-0000-4000-8000-000000000001'$$,'revoked sync actor does not block ordinary application changes');
 UPDATE public.organization_members SET status='active' WHERE organization_id='ea100000-0000-4000-8000-000000000001' AND user_id='ea000000-0000-4000-8000-000000000001';
 SELECT plugin_data.csf_set_sheet_sync_destination_state('ea100000-0000-4000-8000-000000000001','ea000000-0000-4000-8000-000000000001',(SELECT (value->>'id')::uuid FROM sync_fixture WHERE name='destination'),false,true,'available');
 SELECT extensions.throws_ok($$SELECT plugin_data.csf_assert_sheet_sync_destination_lease('ea100000-0000-4000-8000-000000000001',(SELECT (value->>'id')::uuid FROM sync_fixture WHERE name='destination'),(SELECT (value->>'poll_lease_token')::uuid FROM sync_fixture WHERE name='lease'))$$,'P0001','Sync lease expired or access changed.','disabling sync invalidates existing lease');

@@ -18,6 +18,7 @@ CREATE TABLE plugin_data.csf_sheet_sync_destinations (
   owned_start_column integer NOT NULL DEFAULT 0 CHECK(owned_start_column>=0),
   managed_headers jsonb NOT NULL DEFAULT '[]'::jsonb CHECK(jsonb_typeof(managed_headers)='array'),
   poll_lease_token uuid, poll_lease_expires_at timestamptz,
+  seed_cursor uuid, seed_completed boolean NOT NULL DEFAULT false,
   next_poll_at timestamptz NOT NULL DEFAULT now(), last_synced_at timestamptz,
   created_at timestamptz NOT NULL DEFAULT now(), updated_at timestamptz NOT NULL DEFAULT now(),
   UNIQUE (organization_id,id), UNIQUE(spreadsheet_file_id,sheet_id), CHECK (NOT enabled OR (privacy_verified_at IS NOT NULL AND comment_capability='available'))
@@ -77,7 +78,7 @@ CREATE FUNCTION plugin_data.csf_configure_sheet_sync_destination(p_organization_
 LANGUAGE plpgsql SECURITY DEFINER SET search_path='' AS $$
 DECLARE d plugin_data.csf_sheet_sync_destinations%ROWTYPE;
 BEGIN
- IF NOT plugin_data.csf_actor_has_permission(p_organization_id,p_actor_user_id,'manage_sheet_sync') THEN RAISE EXCEPTION 'Not authorized.'; END IF;
+ IF NOT (plugin_data.csf_actor_has_permission(p_organization_id,p_actor_user_id,'manage_sheet_sync') AND plugin_data.csf_actor_has_permission(p_organization_id,p_actor_user_id,'export_sensitive_reports')) THEN RAISE EXCEPTION 'Not authorized.'; END IF;
  IF NOT EXISTS(SELECT 1 FROM plugin_data.csf_terms WHERE id=p_term_id AND organization_id=p_organization_id) OR (p_cohort_id IS NOT NULL AND NOT EXISTS(SELECT 1 FROM plugin_data.csf_cohorts WHERE id=p_cohort_id AND organization_id=p_organization_id)) THEN RAISE EXCEPTION 'Semester or class does not belong to this organization.'; END IF;
  IF p_is_test IS DISTINCT FROM EXISTS(SELECT 1 FROM plugin_data.csf_sheet_sync_test_workspaces WHERE organization_id=p_organization_id) THEN RAISE EXCEPTION 'Test destinations require an isolated test workspace.'; END IF;
  PERFORM pg_advisory_xact_lock(hashtextextended('csf-sheet-destination:'||p_spreadsheet_file_id,0));
@@ -97,8 +98,8 @@ CREATE FUNCTION plugin_data.csf_set_sheet_sync_destination_state(p_organization_
 LANGUAGE plpgsql SECURITY DEFINER SET search_path='' AS $$
 DECLARE d plugin_data.csf_sheet_sync_destinations%ROWTYPE;
 BEGIN
- IF NOT plugin_data.csf_actor_has_permission(p_organization_id,p_actor_user_id,'manage_sheet_sync') THEN RAISE EXCEPTION 'Not authorized.'; END IF;
- UPDATE plugin_data.csf_sheet_sync_destinations SET poll_lease_token=NULL,poll_lease_expires_at=NULL,enabled=p_enabled,privacy_verified_at=CASE WHEN p_privacy_verified THEN now() END,comment_capability=p_comment_capability,configured_by=p_actor_user_id,updated_at=now()
+ IF NOT (plugin_data.csf_actor_has_permission(p_organization_id,p_actor_user_id,'manage_sheet_sync') AND plugin_data.csf_actor_has_permission(p_organization_id,p_actor_user_id,'export_sensitive_reports')) THEN RAISE EXCEPTION 'Not authorized.'; END IF;
+ UPDATE plugin_data.csf_sheet_sync_destinations SET seed_cursor=CASE WHEN p_enabled AND NOT enabled THEN NULL ELSE seed_cursor END,seed_completed=CASE WHEN p_enabled AND NOT enabled THEN false ELSE seed_completed END,poll_lease_token=NULL,poll_lease_expires_at=NULL,enabled=p_enabled,privacy_verified_at=CASE WHEN p_privacy_verified THEN now() END,comment_capability=p_comment_capability,configured_by=p_actor_user_id,updated_at=now()
  WHERE organization_id=p_organization_id AND id=p_destination_id RETURNING * INTO d;
  IF NOT FOUND THEN RAISE EXCEPTION 'Destination not found.'; END IF;
  INSERT INTO plugin_data.csf_admin_audit_events(organization_id,actor_user_id,action,target_type,target_id,after_data) VALUES(p_organization_id,p_actor_user_id,'sheet_sync.destination_state','sheet_sync_destination',d.id,to_jsonb(d));
@@ -146,7 +147,7 @@ CREATE FUNCTION plugin_data.csf_queue_sheet_sync_record(p_organization_id uuid,p
 LANGUAGE plpgsql SECURITY DEFINER SET search_path='' AS $$
 DECLARE d plugin_data.csf_sheet_sync_destinations%ROWTYPE; r jsonb; v text; l plugin_data.csf_sheet_writeback_ledger%ROWTYPE; profile uuid;
 BEGIN
- IF NOT plugin_data.csf_actor_has_permission(p_organization_id,p_actor_user_id,'manage_sheet_sync') THEN RAISE EXCEPTION 'Not authorized.'; END IF;
+ IF NOT (plugin_data.csf_actor_has_permission(p_organization_id,p_actor_user_id,'manage_sheet_sync') AND plugin_data.csf_actor_has_permission(p_organization_id,p_actor_user_id,'export_sensitive_reports')) THEN RAISE EXCEPTION 'Not authorized.'; END IF;
  SELECT * INTO d FROM plugin_data.csf_sheet_sync_destinations WHERE id=p_destination_id AND organization_id=p_organization_id FOR UPDATE;
  IF NOT FOUND OR NOT d.enabled THEN RAISE EXCEPTION 'Sync destination is disabled.'; END IF;
  r:=plugin_data.csf_sheet_sync_snapshot(p_organization_id,p_record_kind,p_record_id);
@@ -166,7 +167,7 @@ LANGUAGE plpgsql SECURITY DEFINER SET search_path='' AS $$
 DECLARE d plugin_data.csf_sheet_sync_destinations%ROWTYPE;
 BEGIN
  SELECT * INTO d FROM plugin_data.csf_sheet_sync_destinations WHERE organization_id=p_organization_id AND id=p_destination_id FOR UPDATE;
- IF NOT FOUND OR NOT d.enabled OR d.poll_lease_token IS DISTINCT FROM p_destination_lease_token OR p_destination_lease_token IS NULL OR d.poll_lease_expires_at<now() OR NOT plugin_data.csf_actor_has_permission(p_organization_id,d.configured_by,'manage_sheet_sync') THEN RETURN; END IF;
+ IF NOT FOUND OR NOT d.enabled OR d.poll_lease_token IS DISTINCT FROM p_destination_lease_token OR p_destination_lease_token IS NULL OR d.poll_lease_expires_at<now() OR NOT (plugin_data.csf_actor_has_permission(p_organization_id,d.configured_by,'manage_sheet_sync') AND plugin_data.csf_actor_has_permission(p_organization_id,d.configured_by,'export_sensitive_reports')) THEN RETURN; END IF;
  UPDATE plugin_data.csf_sheet_writeback_ledger SET status='unknown_outcome',last_error='The write lease expired. Reconcile the destination before retrying.' WHERE destination_id=d.id AND status='exporting' AND lease_expires_at<now();
  UPDATE plugin_data.csf_sheet_writeback_ledger SET status='superseded' WHERE destination_id=d.id AND status IN ('pending_export','retry_export') AND source_version<>md5(plugin_data.csf_sheet_sync_snapshot(organization_id,record_kind,record_id)::text);
  RETURN QUERY WITH candidates AS (
@@ -198,7 +199,7 @@ LANGUAGE plpgsql SECURITY DEFINER SET search_path='' AS $$
 DECLARE c plugin_data.csf_sheet_sync_changes%ROWTYPE; d plugin_data.csf_sheet_sync_destinations%ROWTYPE; b plugin_data.csf_sheet_sync_bindings%ROWTYPE; request jsonb;
 BEGIN
  SELECT * INTO d FROM plugin_data.csf_sheet_sync_destinations WHERE organization_id=p_organization_id AND id=p_destination_id;
- IF NOT FOUND OR NOT d.enabled OR NOT plugin_data.csf_actor_has_permission(p_organization_id,d.configured_by,'manage_sheet_sync') THEN RAISE EXCEPTION 'Sync destination is disabled.'; END IF;
+ IF NOT FOUND OR NOT d.enabled OR NOT (plugin_data.csf_actor_has_permission(p_organization_id,d.configured_by,'manage_sheet_sync') AND plugin_data.csf_actor_has_permission(p_organization_id,d.configured_by,'export_sensitive_reports')) THEN RAISE EXCEPTION 'Sync destination is disabled.'; END IF;
  SELECT * INTO b FROM plugin_data.csf_sheet_sync_bindings WHERE destination_id=d.id AND record_kind=p_record_kind AND record_id=p_record_id AND last_export_version=p_source_version FOR UPDATE;
  IF NOT FOUND THEN RAISE EXCEPTION 'Unrecognized record version.'; END IF;
  request:=p_payload-ARRAY['author_display_name','author_provider_id'];
@@ -246,21 +247,23 @@ CREATE FUNCTION plugin_data.csf_seed_sheet_sync_destination(p_organization_id uu
 LANGUAGE plpgsql SECURITY DEFINER SET search_path='' AS $$
 DECLARE d plugin_data.csf_sheet_sync_destinations%ROWTYPE; r record; n integer:=0; last_id uuid; k text;
 BEGIN
- IF NOT plugin_data.csf_actor_has_permission(p_organization_id,p_actor_user_id,'manage_sheet_sync') THEN RAISE EXCEPTION 'Not authorized.'; END IF;
- SELECT * INTO d FROM plugin_data.csf_sheet_sync_destinations WHERE organization_id=p_organization_id AND id=p_destination_id AND enabled;
+ IF NOT (plugin_data.csf_actor_has_permission(p_organization_id,p_actor_user_id,'manage_sheet_sync') AND plugin_data.csf_actor_has_permission(p_organization_id,p_actor_user_id,'export_sensitive_reports')) THEN RAISE EXCEPTION 'Not authorized.'; END IF;
+ SELECT * INTO d FROM plugin_data.csf_sheet_sync_destinations WHERE organization_id=p_organization_id AND id=p_destination_id AND enabled FOR UPDATE;
  IF NOT FOUND THEN RAISE EXCEPTION 'Sync destination is disabled.'; END IF;
+ IF d.seed_completed THEN RETURN jsonb_build_object('count',0,'next_cursor',NULL,'completed',true); END IF;
  k:=CASE d.kind WHEN 'applications' THEN 'application' WHEN 'point_submissions' THEN 'point_submission' ELSE 'profile' END;
  FOR r IN
   SELECT candidate.id FROM (
    SELECT a.id,a.profile_id FROM plugin_data.csf_term_applications a WHERE d.kind='applications' AND a.organization_id=p_organization_id AND a.term_id=d.term_id AND (d.cohort_id IS NULL OR a.cohort_id=d.cohort_id)
    UNION ALL SELECT p.id,p.profile_id FROM plugin_data.csf_point_submissions p WHERE d.kind='point_submissions' AND p.organization_id=p_organization_id AND p.term_id=d.term_id
    UNION ALL SELECT f.id,f.id FROM plugin_data.csf_profiles f WHERE d.kind='class' AND f.organization_id=p_organization_id
-  ) candidate WHERE (p_cursor IS NULL OR candidate.id>p_cursor) AND (d.cohort_id IS NULL OR EXISTS(SELECT 1 FROM plugin_data.csf_profile_cohort_memberships WHERE organization_id=p_organization_id AND profile_id=candidate.profile_id AND cohort_id=d.cohort_id AND status='active'))
+  ) candidate WHERE (d.seed_cursor IS NULL OR candidate.id>d.seed_cursor) AND (d.cohort_id IS NULL OR EXISTS(SELECT 1 FROM plugin_data.csf_profile_cohort_memberships WHERE organization_id=p_organization_id AND profile_id=candidate.profile_id AND cohort_id=d.cohort_id AND status='active'))
   ORDER BY candidate.id LIMIT greatest(1,least(p_limit,200))
  LOOP
   PERFORM plugin_data.csf_queue_sheet_sync_record(p_organization_id,p_actor_user_id,d.id,k,r.id); n:=n+1;last_id:=r.id;
  END LOOP;
- RETURN jsonb_build_object('count',n,'next_cursor',CASE WHEN n=greatest(1,least(p_limit,200)) THEN last_id ELSE NULL END);
+ UPDATE plugin_data.csf_sheet_sync_destinations SET seed_cursor=coalesce(last_id,seed_cursor),seed_completed=n<greatest(1,least(p_limit,200)) WHERE id=d.id;
+ RETURN jsonb_build_object('count',n,'next_cursor',CASE WHEN n=greatest(1,least(p_limit,200)) THEN last_id ELSE NULL END,'completed',n<greatest(1,least(p_limit,200)));
 END $$;
 REVOKE ALL ON FUNCTION plugin_data.csf_seed_sheet_sync_destination(uuid,uuid,uuid,uuid,integer) FROM PUBLIC,anon,authenticated;
 GRANT EXECUTE ON FUNCTION plugin_data.csf_seed_sheet_sync_destination(uuid,uuid,uuid,uuid,integer) TO service_role;
@@ -270,14 +273,14 @@ LANGUAGE plpgsql SECURITY DEFINER SET search_path='' AS $$
 DECLARE d plugin_data.csf_sheet_sync_destinations%ROWTYPE;
 BEGIN
  UPDATE plugin_data.csf_sheet_sync_destinations SET poll_lease_token=gen_random_uuid(),poll_lease_expires_at=now()+interval '2 minutes',next_poll_at=now()+interval '2 minutes'
- WHERE organization_id=p_organization_id AND id=p_destination_id AND enabled AND (p_force OR next_poll_at<=now()) AND (poll_lease_expires_at IS NULL OR poll_lease_expires_at<now()) AND plugin_data.csf_actor_has_permission(organization_id,configured_by,'manage_sheet_sync') RETURNING * INTO d;
+ WHERE organization_id=p_organization_id AND id=p_destination_id AND enabled AND (p_force OR next_poll_at<=now()) AND (poll_lease_expires_at IS NULL OR poll_lease_expires_at<now()) AND plugin_data.csf_actor_has_permission(organization_id,configured_by,'manage_sheet_sync') AND plugin_data.csf_actor_has_permission(organization_id,configured_by,'export_sensitive_reports') RETURNING * INTO d;
  RETURN CASE WHEN d.id IS NULL THEN NULL ELSE to_jsonb(d) END;
 END $$;
 CREATE FUNCTION plugin_data.csf_assert_sheet_sync_destination_lease(p_organization_id uuid,p_destination_id uuid,p_lease_token uuid) RETURNS jsonb
 LANGUAGE plpgsql SECURITY DEFINER SET search_path='' AS $$
 DECLARE d plugin_data.csf_sheet_sync_destinations%ROWTYPE;
 BEGIN
- SELECT * INTO d FROM plugin_data.csf_sheet_sync_destinations WHERE organization_id=p_organization_id AND id=p_destination_id AND enabled AND poll_lease_token=p_lease_token AND poll_lease_expires_at>now() AND plugin_data.csf_actor_has_permission(organization_id,configured_by,'manage_sheet_sync');
+ SELECT * INTO d FROM plugin_data.csf_sheet_sync_destinations WHERE organization_id=p_organization_id AND id=p_destination_id AND enabled AND poll_lease_token=p_lease_token AND poll_lease_expires_at>now() AND plugin_data.csf_actor_has_permission(organization_id,configured_by,'manage_sheet_sync') AND plugin_data.csf_actor_has_permission(organization_id,configured_by,'export_sensitive_reports');
  IF NOT FOUND THEN RAISE EXCEPTION 'Sync lease expired or access changed.'; END IF;
  RETURN to_jsonb(d);
 END $$;
@@ -290,7 +293,7 @@ CREATE FUNCTION plugin_data.csf_reconcile_sheet_sync_export(p_organization_id uu
 LANGUAGE plpgsql SECURITY DEFINER SET search_path='' AS $$
 DECLARE l plugin_data.csf_sheet_writeback_ledger%ROWTYPE;
 BEGIN
- IF NOT plugin_data.csf_actor_has_permission(p_organization_id,p_actor_user_id,'manage_sheet_sync') THEN RAISE EXCEPTION 'Not authorized.'; END IF;
+ IF NOT (plugin_data.csf_actor_has_permission(p_organization_id,p_actor_user_id,'manage_sheet_sync') AND plugin_data.csf_actor_has_permission(p_organization_id,p_actor_user_id,'export_sensitive_reports')) THEN RAISE EXCEPTION 'Not authorized.'; END IF;
  IF nullif(btrim(p_reason),'') IS NULL THEN RAISE EXCEPTION 'Record the destination reconciliation result.'; END IF;
  SELECT * INTO l FROM plugin_data.csf_sheet_writeback_ledger WHERE id=p_ledger_id AND organization_id=p_organization_id AND destination_id IS NOT NULL FOR UPDATE;
  IF NOT FOUND OR l.status<>'unknown_outcome' THEN RAISE EXCEPTION 'Export is not awaiting reconciliation.'; END IF;
@@ -362,7 +365,7 @@ BEGIN
   RETURN to_jsonb(m);
  END IF;
  INSERT INTO plugin_data.csf_sheet_sync_local_messages(id,organization_id,destination_id,binding_id,author_user_id,provider_thread_id,body,resolved) VALUES(p_request_id,p_organization_id,b.destination_id,b.id,p_actor_user_id,p_thread_id,p_body,p_resolved) RETURNING * INTO m;
- PERFORM plugin_data.csf_queue_sheet_sync_record(p_organization_id,d.configured_by,d.id,b.record_kind,b.record_id);
+ IF plugin_data.csf_actor_has_permission(p_organization_id,d.configured_by,'manage_sheet_sync') AND plugin_data.csf_actor_has_permission(p_organization_id,d.configured_by,'export_sensitive_reports') THEN PERFORM plugin_data.csf_queue_sheet_sync_record(p_organization_id,d.configured_by,d.id,b.record_kind,b.record_id); END IF;
  INSERT INTO plugin_data.csf_admin_audit_events(organization_id,actor_user_id,action,target_type,target_id,after_data) VALUES(p_organization_id,p_actor_user_id,'sheet_sync.message_added','sheet_sync_local_message',m.id,to_jsonb(m));
  RETURN to_jsonb(m);
 END $$;
@@ -384,7 +387,7 @@ BEGIN
  profile:=CASE WHEN k='profile' THEN rid ELSE (r->>'profile_id')::uuid END;
  FOR target IN SELECT k AS kind,rid AS id UNION SELECT 'profile',profile WHERE profile IS NOT NULL AND k<>'profile' LOOP
  FOR d IN SELECT * FROM plugin_data.csf_sheet_sync_destinations WHERE organization_id=(r->>'organization_id')::uuid AND enabled LOOP
-  IF plugin_data.csf_actor_has_permission(d.organization_id,d.configured_by,'manage_sheet_sync')
+  IF plugin_data.csf_actor_has_permission(d.organization_id,d.configured_by,'manage_sheet_sync') AND plugin_data.csf_actor_has_permission(d.organization_id,d.configured_by,'export_sensitive_reports')
     AND ((target.kind='application' AND d.kind='applications') OR (target.kind='point_submission' AND d.kind='point_submissions') OR (target.kind='profile' AND d.kind='class'))
     AND (d.cohort_id IS NULL OR EXISTS(SELECT 1 FROM plugin_data.csf_profile_cohort_memberships WHERE organization_id=d.organization_id AND profile_id=coalesce(profile,(SELECT profile_id FROM plugin_data.csf_term_applications WHERE id=rid AND organization_id=d.organization_id),(SELECT profile_id FROM plugin_data.csf_point_submissions WHERE id=rid AND organization_id=d.organization_id)) AND cohort_id=d.cohort_id AND status='active'))
     AND (target.kind='profile' OR d.term_id=coalesce((r->>'term_id')::uuid,(SELECT term_id FROM plugin_data.csf_term_applications WHERE id=rid AND organization_id=d.organization_id),(SELECT term_id FROM plugin_data.csf_point_submissions WHERE id=rid AND organization_id=d.organization_id))) THEN
