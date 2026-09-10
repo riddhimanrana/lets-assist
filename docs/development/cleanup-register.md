@@ -6369,3 +6369,37 @@ unproven.
 - Application review can reopen without resetting decisions, notes, or assignments. Points and club closeout remain terminal. The forward migration is `20260909231613_csf_reopen_application_review`; 87 focused local database checks passed. Production passed 24 rollback assertions and the exact 477-migration catalog check.
 - Manual account connection on release `448203bf165984b1b176f249c4303b6db6fdfec6` was verified in the signed-in Production interface. A fictional browser test also connects an account with a different login email, preserves contacts and roles, and refuses a second profile. The corresponding database suite passes 33 assertions. A fresh 477-migration browser run on private `d4e3cdd` passed six scenarios across application review, saved-preview navigation, and account connection, with one previously retired scenario still skipped. Full CI run `34397396284` passed both quality and database replay.
 - Remaining identity decisions stay unresolved. No account or profile merge was inferred from an uncertain owner response. Communications and scheduled publishing remain disabled; this work has sent no messages.
+
+Production acceptance on September 9: release `b1f09bf3f8017e06d1d8330b621787fc58c74f40`
+serves the public alias. Full CI `34418897505` passed quality and database replay,
+including 92 CSF browser scenarios; four previously skipped scenarios remain
+skipped. The signed-in Production view confirms simplified Sheet controls,
+direct evidence links, and the account connection form. Worker transitions
+`34420712651` and `34420772908` verified workbook and import processing enabled
+for that release, with communications and scheduled publishing disabled.
+The stale queues settled without direct queue edits. A fresh automatic preview
+recovered resolved matches, then created six applications and updated 172.
+The repeat audit found 178 distinct applications with courses, both evidence
+links, and matching profile contact information, with no duplicate applications.
+Two conflicting identities remain in review. All 1,117 green historical source
+rows map uniquely to completed semesters.
+
+## Application contact persistence, September 9, 2026
+
+- Fixed P2: automatic profile preparation and application commits now fill blank
+  contact fields from immutable application evidence after identity resolution.
+  Existing values stay unchanged. A contact already held by another profile is
+  skipped and audited; no account link or application approval is created. A
+  preferred personal contact takes precedence over the response address, which
+  stays in the application record. Only an explicit school contact fills the
+  school field.
+- Production migration `20260910004059_csf_import_application_profile_contacts`
+  passed the exact 478-migration catalog check and 32 fictional rollback checks.
+  Local validation passed a fresh replay, 66 focused assertions, and 11 scale
+  assertions. The acceptance fixtures also passed beside unrelated records with
+  matching row numbers and names, leaving that unrelated data unchanged.
+- Fixed P2 in the private plugin: Advanced stays collapsed when an ordinary
+  partially completed import only awaits identity decisions. Actual recovery
+  failures still open it. Private release `82f2751` passed CI `34422241864`;
+  its focused rendering tests passed ten scenarios with 58 assertions. The
+  platform release receipt records hosted acceptance separately.
