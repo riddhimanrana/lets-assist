@@ -100,10 +100,15 @@ export function acceptedCatalogQuery(source, versions) {
       "34dbbd884882349f8083512cd2fe48b371c3f1242bc62897685267f2a5d0001b"
   )
     return source;
-  const applicationReviewReopenUpgrade =
-    versions.length === 477 &&
+  const applicationContactsUpgrade =
+    versions.length === 478 &&
     ledgerHash ===
-      "a4e0cc4d257d8fdd71ef5c08d44f7a95a2ffaa432ea368608840d5328322053e";
+      "089bdfcaeed0bff241dd278d76a10ed6050067a00d6d7216f293ccc6feeb16f5";
+  const applicationReviewReopenUpgrade =
+    applicationContactsUpgrade ||
+    (versions.length === 477 &&
+      ledgerHash ===
+        "a4e0cc4d257d8fdd71ef5c08d44f7a95a2ffaa432ea368608840d5328322053e");
   const staffAccountAuthorityUpgrade =
     applicationReviewReopenUpgrade ||
     (versions.length === 476 &&
@@ -457,7 +462,7 @@ accepted_upgrade_posture AS (
   ${workbookRecoveryUpgrade ? workbookRecoveryPosture : ""}
   ${applicationSourceReviewUpgrade ? applicationSourceReviewPosture : ""}
   ${reviewedWorkbookLinksUpgrade ? reviewedWorkbookLinksPosture(workerRelationSnapshotQuery) : ""}
-  ${automaticSheetUpdatesUpgrade ? automaticSheetUpdatesPosture(workerRelationSnapshotQuery, matchingTabUpgrade) : ""}
+  ${automaticSheetUpdatesUpgrade ? automaticSheetUpdatesPosture(workerRelationSnapshotQuery, matchingTabUpgrade, applicationContactsUpgrade) : ""}
   ${workbookLinkMergeUpgrade ? workbookLinkMergePosture : ""}
   ${staffAccountConnectionUpgrade ? staffAccountConnectionPosture(staffAccountAuthorityUpgrade) : ""} AS valid
   FROM accepted_upgrade_definitions expected

@@ -160,9 +160,31 @@ export const automaticSheetFunctionSnapshotQuery = functionSnapshotQuery(
   automaticSheetDefinitions,
 );
 
+export const applicationContactDefinitions = [
+  [
+    "plugin_data.csf_commit_import_row_for_attempt(uuid,uuid,uuid)",
+    "fba9ac6f8eccea05641b8e41bc7bb28d",
+    "c378e9a82db789678c07a5c055b2eb0f",
+    true,
+  ],
+  [
+    "plugin_data.csf_fill_application_profile_contacts(uuid,uuid,uuid,uuid)",
+    "a2388e1d2b9e15ce5e3245079f384416",
+    "ffa8219f2c490d35c2c9e2e2c1d27c3d",
+    false,
+  ],
+  [
+    "plugin_data.csf_prepare_automatic_application_profiles(uuid,uuid)",
+    "7e32da9744e781b3de7b34b6e128b1c8",
+    "617dbeb1799a58c148c3f8fd74184cf7",
+    true,
+  ],
+];
+
 export function automaticSheetUpdatesPosture(
   relationSnapshotQuery,
   matchingTabs = false,
+  applicationContacts = false,
 ) {
   const definitions = matchingTabs
     ? [
@@ -175,7 +197,18 @@ export function automaticSheetUpdatesPosture(
         ...matchingTabDefinitions,
       ]
     : automaticSheetDefinitions;
-  const functionValues = definitions
+  const reviewedDefinitions = applicationContacts
+    ? [
+        ...definitions.filter(
+          ([signature]) =>
+            !applicationContactDefinitions.some(
+              ([replacement]) => replacement === signature,
+            ),
+        ),
+        ...applicationContactDefinitions,
+      ]
+    : definitions;
+  const functionValues = reviewedDefinitions
     .map(
       ([signature, digest, bodyDigest, service]) =>
         `('${signature}','${digest}','${bodyDigest}',${service})`,
@@ -212,12 +245,12 @@ export function automaticSheetUpdatesPosture(
       ")",
   );
   return `AND (
-    SELECT count(*)=${definitions.length} AND coalesce(bool_and(
+    SELECT count(*)=${reviewedDefinitions.length} AND coalesce(bool_and(
       actual.signature IS NOT NULL AND actual.digest=expected.digest AND actual.body_digest=expected.body_digest
       AND actual.service_execute=expected.service_execute
       AND NOT actual.anon_execute AND NOT actual.authenticated_execute
     ),false) FROM (VALUES ${functionValues}) expected(signature,digest,body_digest,service_execute)
-    LEFT JOIN (${functionSnapshotQuery(definitions)}) actual ON actual.signature=expected.signature
+    LEFT JOIN (${functionSnapshotQuery(reviewedDefinitions)}) actual ON actual.signature=expected.signature
   ) AND (
     SELECT count(*)=3 AND coalesce(bool_and(actual.relname IS NOT NULL AND actual.digest=expected.digest
       AND actual.runtime_denied=expected.runtime_denied),false)
