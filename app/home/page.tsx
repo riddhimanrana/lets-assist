@@ -12,6 +12,7 @@ import { NoAvatar } from "@/components/shared/NoAvatar";
 import { Metadata } from "next";
 import { ProjectsInfiniteScroll } from "@/components/projects/ProjectsInfiniteScroll";
 import { PluginFeedSection } from "@/components/plugins/PluginFeedSection";
+import { HomeOrganizationLinks } from "@/components/home/HomeOrganizationLinks";
 import { checkSuperAdmin } from "@/app/admin/actions";
 import { withRetryableSupabaseQuery } from "@/lib/supabase/retry-query";
 
@@ -126,6 +127,10 @@ export default async function Home({ searchParams }: HomePageProps) {
             </Link>
           </div>
         </div>
+
+        <Suspense fallback={null}>
+          <HomeOrganizationLinks userId={user.id} />
+        </Suspense>
 
         <Suspense fallback={null}>
           <PluginFeedSection userId={user.id} />
