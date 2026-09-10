@@ -2,11 +2,8 @@ import { beforeEach, expect, mock, test } from "bun:test";
 import { renderToStaticMarkup } from "react-dom/server";
 
 let source = "local";
-let remoteAvailable = true;
-let mappedUserId: string | null = "remote-member";
 let queryError = false;
 const calls: Array<{ source: string; field: string; value: string }> = [];
-const mappingCalls: Array<string | null | undefined> = [];
 
 function client(label: string) {
   return {
@@ -45,17 +42,17 @@ function client(label: string) {
   };
 }
 
-mock.module("@/lib/supabase/server", () => ({
-  createClient: async () => client("local"),
-}));
+const createClient = mock(async () => client("local"));
+mock.module("@/lib/supabase/server", () => ({ createClient }));
 mock.module("@/lib/supabase/preview-source.server", () => ({
   getServerPreviewSource: async () => source,
 }));
 mock.module("@/lib/supabase/preview-source", () => ({
-  createRemoteReadonlyClient: () => (remoteAvailable ? client("remote") : null),
-  getRemoteUserIdForLocalUser: (email: string | null | undefined) => {
-    mappingCalls.push(email);
-    return mappedUserId;
+  createRemoteReadonlyClient: () => {
+    throw new Error("Anonymous preview must not query private memberships");
+  },
+  getRemoteUserIdForLocalUser: () => {
+    throw new Error("A local email map does not authorize remote membership");
   },
 }));
 
@@ -63,64 +60,37 @@ const { HomeOrganizationLinks } = await import("./HomeOrganizationLinks");
 
 beforeEach(() => {
   source = "local";
-  remoteAvailable = true;
-  mappedUserId = "remote-member";
   queryError = false;
   calls.length = 0;
-  mappingCalls.length = 0;
+  createClient.mockClear();
 });
 
 async function renderLinks() {
   return renderToStaticMarkup(
     await HomeOrganizationLinks({
       userId: "local-member",
-      userEmail: "fictional@example.test",
     }),
   );
 }
 
 test("local mode uses the signed-in local account and active memberships", async () => {
   expect(await renderLinks()).toContain('href="/organization/local-chapter"');
-  expect(mappingCalls).toEqual([]);
+  expect(createClient).toHaveBeenCalledTimes(1);
   expect(calls).toEqual([
     { source: "local", field: "user_id", value: "local-member" },
     { source: "local", field: "status", value: "active" },
   ]);
 });
 
-test("remote preview uses the configured remote identity and destination", async () => {
+test("anonymous remote preview offers the directory without reading memberships", async () => {
   source = "remote";
   const html = await renderLinks();
-  expect(html).toContain('href="/organization/remote-chapter"');
+  expect(html).toContain('href="/organization"');
+  expect(html).toContain("Open organizations");
   expect(html).not.toContain("local-chapter");
-  expect(mappingCalls).toEqual(["fictional@example.test"]);
-  expect(calls).toEqual([
-    { source: "remote", field: "user_id", value: "remote-member" },
-    { source: "remote", field: "status", value: "active" },
-  ]);
-});
-
-test("remote preview without a mapping uses the same ID fallback as Organizations", async () => {
-  source = "remote";
-  mappedUserId = null;
-  await renderLinks();
-  expect(calls[0]).toEqual({
-    source: "remote",
-    field: "user_id",
-    value: "local-member",
-  });
-});
-
-test("unavailable remote configuration keeps the local source and identity together", async () => {
-  source = "remote";
-  remoteAvailable = false;
-  expect(await renderLinks()).toContain('href="/organization/local-chapter"');
-  expect(mappingCalls).toEqual([]);
-  expect(calls[0]).toEqual({
-    source: "local",
-    field: "user_id",
-    value: "local-member",
-  });
+  expect(html).not.toContain("Your organizations");
+  expect(createClient).not.toHaveBeenCalled();
+  expect(calls).toEqual([]);
 });
 
 test("a membership read error renders no organization links", async () => {
