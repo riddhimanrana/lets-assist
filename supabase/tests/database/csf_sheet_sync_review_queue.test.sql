@@ -1,6 +1,6 @@
 BEGIN;
 CREATE EXTENSION IF NOT EXISTS pgtap WITH SCHEMA extensions;
-SELECT extensions.plan(33);
+SELECT extensions.plan(35);
 INSERT INTO auth.users(id,aud,role,email,raw_app_meta_data,raw_user_meta_data) VALUES
 ('ea000000-0000-4000-8000-000000000001','authenticated','authenticated','sheet-admin@local.test','{}','{}'),
 ('ea000000-0000-4000-8000-000000000002','authenticated','authenticated','sheet-outsider@local.test','{}','{}');
@@ -19,6 +19,11 @@ INSERT INTO plugin_data.csf_term_applications(id,organization_id,profile_id,coho
 CREATE TEMP TABLE sync_fixture(name text PRIMARY KEY,value jsonb);
 INSERT INTO sync_fixture VALUES('destination',plugin_data.csf_configure_sheet_sync_destination('ea100000-0000-4000-8000-000000000001','ea000000-0000-4000-8000-000000000001','fixture-sheet-copy',0,'applications','ea500000-0000-4000-8000-000000000001','ea200000-0000-4000-8000-000000000001',true,23,'["Record ID","Status"]'));
 SELECT extensions.is((SELECT value->>'enabled' FROM sync_fixture WHERE name='destination'),'false','destinations start disabled');
+SELECT extensions.throws_ok($$INSERT INTO plugin_data.csf_sheet_sync_destinations(organization_id,spreadsheet_file_id,sheet_id,kind,term_id,is_test,configured_by) VALUES('ea100000-0000-4000-8000-000000000002','fixture-cross-tenant',0,'class','ea200000-0000-4000-8000-000000000001',false,'ea000000-0000-4000-8000-000000000001')$$,'23503',NULL,'database rejects cross-organization semester bindings');
+INSERT INTO plugin_data.csf_terms(id,organization_id,code,label,school_year,semester) VALUES('ea200000-0000-4000-8000-000000000002','ea100000-0000-4000-8000-000000000002','F30','Fall 2030','2030-2031','fall');
+INSERT INTO plugin_data.csf_sheet_sync_destinations(id,organization_id,spreadsheet_file_id,sheet_id,kind,term_id,is_test,configured_by) VALUES('ea700000-0000-4000-8000-000000000002','ea100000-0000-4000-8000-000000000002','fixture-other-org',0,'class','ea200000-0000-4000-8000-000000000002',false,'ea000000-0000-4000-8000-000000000001');
+INSERT INTO plugin_data.csf_sheet_sync_bindings(id,organization_id,destination_id,record_kind,record_id,logical_key,sheet_id) VALUES('ea710000-0000-4000-8000-000000000002','ea100000-0000-4000-8000-000000000002','ea700000-0000-4000-8000-000000000002','profile','ea300000-0000-4000-8000-000000000002','profile:other',0);
+SELECT extensions.throws_ok($$INSERT INTO plugin_data.csf_sheet_sync_comments(organization_id,destination_id,binding_id,provider_thread_id,provider_message_id,provider_version,author,body) VALUES('ea100000-0000-4000-8000-000000000001',(SELECT (value->>'id')::uuid FROM sync_fixture WHERE name='destination'),'ea710000-0000-4000-8000-000000000002','foreign-thread','foreign-post','v1','{}','Wrong record')$$,'23503',NULL,'database rejects cross-organization comment bindings');
 SELECT extensions.ok(NOT has_table_privilege('authenticated','plugin_data.csf_sheet_sync_changes','SELECT'),'browser cannot read inbound changes');
 SELECT extensions.ok(NOT has_function_privilege('authenticated','plugin_data.csf_review_sheet_sync_change(uuid,uuid,uuid,boolean,text)','EXECUTE'),'browser cannot invoke privileged reviews');
 SELECT extensions.throws_ok($$SELECT plugin_data.csf_configure_sheet_sync_destination('ea100000-0000-4000-8000-000000000001','ea000000-0000-4000-8000-000000000002','fixture-untrusted',0,'applications',NULL,'ea200000-0000-4000-8000-000000000001',true)$$,'P0001','Not authorized.','outsider cannot configure');
