@@ -104,10 +104,15 @@ export function acceptedCatalogQuery(source, versions) {
       "34dbbd884882349f8083512cd2fe48b371c3f1242bc62897685267f2a5d0001b"
   )
     return source;
-  const ownershipUpgrade =
-    versions.length === 481 &&
+  const revokedHistoryUpgrade =
+    versions.length === 482 &&
     ledgerHash ===
-      "1cf2771bccb68d7e47a8821130724f4d15d4ab526eea466ce2eb057b21689de3";
+      "67fc11a98fd055dae9620a1424e549c68a476c9ea3b72976adac2884edda9858";
+  const ownershipUpgrade =
+    revokedHistoryUpgrade ||
+    (versions.length === 481 &&
+      ledgerHash ===
+        "1cf2771bccb68d7e47a8821130724f4d15d4ab526eea466ce2eb057b21689de3");
   const applicationContactsUpgrade =
     ownershipUpgrade ||
     (versions.length === 478 &&
@@ -324,7 +329,14 @@ export function acceptedCatalogQuery(source, versions) {
       )
     : baseDefinitions;
   if (ownershipUpgrade) {
-    for (const definition of ownershipDefinitions) {
+    for (const originalDefinition of ownershipDefinitions) {
+      const definition = [...originalDefinition];
+      if (
+        revokedHistoryUpgrade &&
+        definition[0] ===
+          "plugin_data.csf_join_class_by_code_identity_base(uuid,text,uuid,text,text,text,text,uuid,uuid)"
+      )
+        definition[1] = "2c3ed2e24bee1d590dfedd62c27bb75c";
       const index = definitions.findIndex(
         ([signature]) => signature === definition[0],
       );

@@ -66,6 +66,10 @@ export const approvedMigrations = [
     "20260910045040_csf_legacy_ownership_review",
     "1242c71a53826a74b84e33f5e5dc9a61dc707ec4f7b75f262f26cf062c57983b",
   ],
+  [
+    "20260910090800_csf_returning_account_revoked_history",
+    "d142eabfcd2ffdcd6e9c665b336d8475f5c8e44e2981ec60a2570d18cc5eb5cd",
+  ],
 ];
 
 const literal = (value) => `'${value.replaceAll("'", "''")}'`;

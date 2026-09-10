@@ -583,7 +583,7 @@ test("application review reopening pins the complete function and retains the pr
   const preceding = acceptedCatalogQuery(source, versions.slice(0, 476));
   const signature =
     "plugin_data.csf_set_review_period(uuid,uuid,uuid,text,text,text,text,timestamptz,timestamptz)";
-  assert.equal(versions.length, 481);
+  assert.equal(versions.length, 482);
   assert.ok(
     current.includes(
       `('${signature}','28793d39c02ebf702a61c26deb7ae2b4',true)`,
@@ -632,4 +632,22 @@ test("staff request audit pins the new body and preserves the older release cata
   assert.ok(
     preceding.includes("md5(p.prosrc)='207ce59e1f029ae5c35cd097f639ad41'"),
   );
+});
+
+test("returning-account correction pins its definition without changing the prior catalog", () => {
+  const current = acceptedCatalogQuery(source, versions);
+  const preceding = acceptedCatalogQuery(source, versions.slice(0, 481));
+  const signature =
+    "plugin_data.csf_join_class_by_code_identity_base(uuid,text,uuid,text,text,text,text,uuid,uuid)";
+  assert.ok(
+    current.includes(
+      `('${signature}','2c3ed2e24bee1d590dfedd62c27bb75c',false)`,
+    ),
+  );
+  assert.ok(
+    preceding.includes(
+      `('${signature}','7bed352f081542f0a3f6313c8a07e77e',false)`,
+    ),
+  );
+  assert.ok(!current.includes("'7bed352f081542f0a3f6313c8a07e77e'"));
 });

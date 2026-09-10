@@ -6490,7 +6490,7 @@ Full rollout audit, September 10, 2026, in progress:
   target and a corresponding semester record. Class of 2030 has no populated
   historical rows. Of 1,120 rows with green identity-cell fills, 1,117 are already
   completed. Class of 2027 S25 rows 69, 130, and 136 have mixed identity-cell fills,
-  green requirement cells, and seven activities, but remain active. These need a
+  green requirement cells, and seven activity points, but remain active. These need a
   source-backed completion review before any change. No history was changed.
 - Chrome extension verification in the Riddhiman profile shows the officer review
   with direct Drive links and no nested scrolling container. The other Chrome
@@ -6545,3 +6545,24 @@ Follow-up verification for the same audit:
   helper after release. A read-only preview finds 180 valid source-row/profile
   bindings. Canonical identity fields and account connections must remain
   unchanged when those reported contacts are populated.
+
+Further audit evidence, September 10, 2026:
+
+- Root candidate `87de0da26c24fd05d7de12c916d1287514568346` passed both full CI jobs in run `34453204690`. PR 510 merged to Development as `6189b75aff8d1916ddbe8ddcac841dbb4d1767d1`. Both commits have tree `b68104d5a9c6bd96eadf7650358342f0524a8c5a`.
+- Private PR 290 passed `plugin-quality` in run `34455363478` and merged to main as `fa10ab6eadec30790c0d1010ac7b697263f77632`. The root still pins reviewed private commit `364335c41614b9532a3e0e0298cd5a1ee3cdab18`, which is contained in private main. The root release CI initially failed that containment check before the private promotion. It is rerunning on the same Development SHA after the dependency was merged, without changing the gate.
+- Development Vercel deployment `dpl_HnEDKcm1YjXMtEDDfUt2J7bNeyWx` serves the exact Development SHA on `dev.lets-assist.com`. The matching Supabase Preview check succeeded. Hosted acceptance run `34455314877` is separate evidence and must succeed before Production release.
+- The expanded identity audit identified 11 possible identity groups. Twenty-six officer notes on 26 profiles cover 23 profiles in those groups and the three mixed-color completion rows. Notes use the existing authorized staff action and preserve all account links, application decisions, activity points, and completion records. No names or source data belong in this public register.
+- All 180 current Fall applications have pending officer decisions: 159 have ready submission status and 21 have missing-information submission status. None was approved or rejected by this audit.
+- A fresh complete account table audit contains only two connections, both verified with unknown basis. The scoped hold remains prepared for those exact two IDs. The two later contact captures have no intervening profile audit changes or account history, so their source-proven reclassification scope remains intact.
+- Live Chrome verification confirms Daniel Wu's Spring 2026 officer completion with zero recorded points, no import-time Joined date, and no historical missing-application warning. The application details expose direct Drive evidence links and use continuous page scrolling. Staff permissions resolve through explicit user-ID positions, independently from profile account connections.
+- The audit-owned local stack `lets-assist-csf-browser-audit0910c` was stopped through the repository teardown. It has zero remaining owned containers, volumes, or networks; other worktrees and stacks were preserved.
+
+Pending: exact Development CI completion, hosted acceptance, root PR 511 promotion, Production migration and app release, scoped account holds, reported-contact repair, fresh application sync, repeat-run reconciliation, and live post-release verification.
+
+Exact Development verification completed: CI run `34455342973`, attempt 2, passed both jobs on `6189b75aff8d1916ddbe8ddcac841dbb4d1767d1`. Database results: 270 files and 7,594 assertions passed. Browser results: 92 CSF tests and 3 DV tests passed. Four CSF cases were skipped: three optional screenshot galleries and the retired roster-upload journey, whose replacement checks that the retired entry point stays absent. The read-only release catalog also returned `csf_target_schema_verified=1` on the live Development database. Hosted acceptance and Production operations are still pending.
+
+Returning-account review correction:
+
+- Hosted Development acceptance run `34455314877` passed on `6189b75aff8d1916ddbe8ddcac841dbb4d1767d1`. Root PR 511 remains unmerged because its unresolved review identified a returning-account defect. A revoked old connection was treated as a live conflict even after staff verified the correct profile. The branch policy was not bypassed.
+- Forward migration `20260910090800_csf_returning_account_revoked_history.sql` changes only that conflict predicate. Revoked history remains recorded, and pending conflicts still require review. The already applied Development migrations remain unchanged. A 12-assertion fictional SQL regression exercises the actual staff unlink/connect path, first return, retry, regenerated link, revoked rows on the account and profile, and a live pending conflict. Five assertions fail against the prior definition; all 12 pass with the correction.
+- Production remains at migration 478 with workers off. The updated candidate needs exact-tree CI and hosted acceptance before Production release. The release catalog retains the prior 481-migration definition and pins the new 482-migration definition separately.
