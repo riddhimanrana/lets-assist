@@ -129,7 +129,7 @@ export default async function Home({ searchParams }: HomePageProps) {
         </div>
 
         <Suspense fallback={null}>
-          <HomeOrganizationLinks userId={user.id} />
+          <HomeOrganizationLinks userId={user.id} userEmail={user.email} />
         </Suspense>
 
         <Suspense fallback={null}>

@@ -3,13 +3,31 @@ import { ArrowRight } from "lucide-react";
 
 import { buttonVariants } from "@/components/ui/button-variants";
 import { createClient } from "@/lib/supabase/server";
+import {
+  createRemoteReadonlyClient,
+  getRemoteUserIdForLocalUser,
+} from "@/lib/supabase/preview-source";
+import { getServerPreviewSource } from "@/lib/supabase/preview-source.server";
 
-export async function HomeOrganizationLinks({ userId }: { userId: string }) {
+export async function HomeOrganizationLinks({
+  userId,
+  userEmail,
+}: {
+  userId: string;
+  userEmail?: string | null;
+}) {
   const supabase = await createClient();
-  const { data, error } = await supabase
+  const previewSource = await getServerPreviewSource();
+  const remoteReadonly =
+    previewSource === "remote" ? createRemoteReadonlyClient() : null;
+  const readClient = remoteReadonly ?? supabase;
+  const effectiveUserId = remoteReadonly
+    ? getRemoteUserIdForLocalUser(userEmail) || userId
+    : userId;
+  const { data, error } = await readClient
     .from("organization_members")
     .select("organization_id, organization:organizations(id, name, username)")
-    .eq("user_id", userId)
+    .eq("user_id", effectiveUserId)
     .eq("status", "active");
 
   if (error || !data?.length) return null;
