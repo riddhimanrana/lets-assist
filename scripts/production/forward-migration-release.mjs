@@ -68,7 +68,7 @@ export const approvedMigrations = [
   ],
   [
     "20260910090800_csf_returning_account_revoked_history",
-    "bca43bf6f6f478c86b3265a70b04120dcd348492e4667d8e0cec38db9477f826",
+    "d142eabfcd2ffdcd6e9c665b336d8475f5c8e44e2981ec60a2570d18cc5eb5cd",
   ],
 ];
 
