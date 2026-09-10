@@ -12,14 +12,28 @@ BEGIN
   PERFORM plugin_data.csf_lock_identity_mutation(p_organization_id);
   SELECT count(*), coalesce(array_agg(id ORDER BY id), ARRAY[]::uuid[]) INTO v_count,v_actual_ids FROM plugin_data.csf_profile_accounts
     WHERE organization_id=p_organization_id AND status='verified'
-      AND connection_basis IN ('unknown','self_confirmed_account_name');
+      AND NOT (connection_basis = 'officer_decision'
+        OR (connection_basis = 'verified_email' AND EXISTS (
+          SELECT 1 FROM plugin_data.csf_profiles owned
+          WHERE owned.organization_id=csf_profile_accounts.organization_id
+            AND owned.id=csf_profile_accounts.profile_id
+            AND owned.source_summary->>'createdBy'='permanent_class_code'
+            AND owned.source_summary->>'accountOwnerUserId'=csf_profile_accounts.user_id::text
+        )));
   IF p_expected_account_ids IS NULL OR v_actual_ids IS DISTINCT FROM
     ARRAY(SELECT id FROM unnest(p_expected_account_ids) AS id ORDER BY id) THEN
     RAISE EXCEPTION 'Account review scope changed; inspect the preview before applying the hold.';
   END IF;
   FOR v_account IN SELECT * FROM plugin_data.csf_profile_accounts
     WHERE organization_id=p_organization_id AND status='verified'
-      AND connection_basis IN ('unknown','self_confirmed_account_name')
+      AND NOT (connection_basis = 'officer_decision'
+        OR (connection_basis = 'verified_email' AND EXISTS (
+          SELECT 1 FROM plugin_data.csf_profiles owned
+          WHERE owned.organization_id=csf_profile_accounts.organization_id
+            AND owned.id=csf_profile_accounts.profile_id
+            AND owned.source_summary->>'createdBy'='permanent_class_code'
+            AND owned.source_summary->>'accountOwnerUserId'=csf_profile_accounts.user_id::text
+        )))
     ORDER BY id FOR UPDATE
   LOOP
     UPDATE plugin_data.csf_profile_accounts SET status='pending'

@@ -26,7 +26,7 @@ export const ownershipDefinitions = [
   ],
   [
     "plugin_data.csf_hold_unproven_account_connections(uuid,uuid[])",
-    "481cb284be5acac16448871a30d4ba88",
+    "73996422d583aa8144f87b04cb68d6a1",
     false,
   ],
 ];

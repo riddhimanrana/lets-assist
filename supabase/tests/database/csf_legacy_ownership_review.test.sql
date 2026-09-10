@@ -48,5 +48,23 @@ SELECT extensions.lives_ok($q$SELECT plugin_data.csf_staff_connect_profile_accou
 SELECT extensions.is((SELECT connection_basis FROM plugin_data.csf_profile_accounts WHERE profile_id='fc140000-0000-4000-8000-000000000001'),'officer_decision','restored connection records independent staff verification');
 SELECT extensions.is((SELECT personal_email FROM plugin_data.csf_profiles WHERE id='fc140000-0000-4000-8000-000000000001'),'source1@local.test','staff verification does not overwrite source contact');
 SELECT extensions.ok(NOT has_function_privilege('service_role','plugin_data.csf_hold_unproven_account_connections(uuid,uuid[])','EXECUTE'),'application service cannot run the operator hold');
+-- A historical email match is not ownership proof, even if an older join
+-- recorded its basis as verified_email. New self-owned and staff links survive.
+INSERT INTO plugin_data.csf_profile_accounts(organization_id,profile_id,user_id,status,is_primary,connection_basis)
+VALUES
+('fc110000-0000-4000-8000-000000000001','fc140000-0000-4000-8000-000000000002','fc100000-0000-4000-8000-000000000003','verified',true,'verified_email'),
+('fc110000-0000-4000-8000-000000000001','fc140000-0000-4000-8000-000000000003','fc100000-0000-4000-8000-000000000004','verified',true,'verified_email'),
+('fc110000-0000-4000-8000-000000000001','fc140000-0000-4000-8000-000000000005','fc100000-0000-4000-8000-000000000006','verified',true,'officer_decision');
+UPDATE plugin_data.csf_profiles SET source_summary=jsonb_build_object(
+  'createdBy','permanent_class_code','accountOwnerUserId','fc100000-0000-4000-8000-000000000004')
+WHERE id='fc140000-0000-4000-8000-000000000003';
+SELECT extensions.throws_ok($q$SELECT plugin_data.csf_hold_unproven_account_connections('fc110000-0000-4000-8000-000000000001',ARRAY[]::uuid[])$q$,'P0001',NULL,'the preview includes legacy verified-email matches');
+SELECT extensions.is(plugin_data.csf_hold_unproven_account_connections('fc110000-0000-4000-8000-000000000001',ARRAY(
+  SELECT id FROM plugin_data.csf_profile_accounts WHERE profile_id='fc140000-0000-4000-8000-000000000002'
+)),1,'the legacy contact-only connection is held');
+SELECT extensions.is((SELECT status FROM plugin_data.csf_profile_accounts WHERE profile_id='fc140000-0000-4000-8000-000000000002'),'pending','legacy verified-email labels do not grant history ownership');
+SELECT extensions.is((SELECT status FROM plugin_data.csf_profile_accounts WHERE profile_id='fc140000-0000-4000-8000-000000000003'),'verified','a new self-owned profile retains access');
+SELECT extensions.is((SELECT status FROM plugin_data.csf_profile_accounts WHERE profile_id='fc140000-0000-4000-8000-000000000005'),'verified','independent staff verification retains access');
+SELECT extensions.is(plugin_data.csf_hold_unproven_account_connections('fc110000-0000-4000-8000-000000000001',ARRAY[]::uuid[]),0,'a fresh empty preview makes retries harmless');
 SELECT * FROM extensions.finish();
 ROLLBACK;

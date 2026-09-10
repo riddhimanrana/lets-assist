@@ -1,5 +1,3 @@
-import { randomUUID } from "node:crypto";
-
 import { expect, test, type Page } from "@playwright/test";
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 
@@ -11,7 +9,7 @@ import { CSF_ORGANIZATION_PATH } from "./helpers";
  * the permanent class join code page -> account signup (metadata seam) ->
  * admin email confirmation (the local stack requires confirmed email, and the
  * browser suite never reads real mail) -> login back into the join code
- * route -> the join form -> the verified-email auto-connect ->
+ * route -> the join form -> a new self-owned profile ->
  * `?connected=1` -> the CSF-variant username modal on the connect route ->
  * the member Home CSF setup tour. The generic 8-step FirstLoginTour must
  * never render for this account.
@@ -118,48 +116,6 @@ async function findUserIdByEmail(fixture: SignupFixture, email: string) {
   );
 }
 
-/**
- * The roster record the join form's verified-email match auto-connects: it
- * carries the synthetic account's email and an active Class of 2028
- * membership, so `csf_join_class_by_code` finds exactly one candidate.
- */
-async function seedJoinProfile(fixture: SignupFixture) {
-  const plugin = fixture.admin.schema("plugin_data");
-  const profileId = randomUUID();
-
-  const { error: profileError } = await plugin.from("csf_profiles").insert({
-    id: profileId,
-    organization_id: fixture.organizationId,
-    first_name: "Casey",
-    last_name: "Signup",
-    preferred_name: "Casey",
-    personal_email: signupEmail,
-    normalized_first_name: "casey",
-    normalized_last_name: "signup",
-    normalized_personal_email: signupEmail,
-    source_summary: { e2eSignupFixture: true },
-  });
-  if (profileError) {
-    throw new Error(`Could not seed the join profile: ${profileError.message}`);
-  }
-
-  const { error: membershipError } = await plugin
-    .from("csf_profile_cohort_memberships")
-    .insert({
-      organization_id: fixture.organizationId,
-      profile_id: profileId,
-      cohort_id: fixture.cohortId,
-      status: "active",
-    });
-  if (membershipError) {
-    throw new Error(
-      `Could not seed the cohort membership: ${membershipError.message}`,
-    );
-  }
-
-  return profileId;
-}
-
 async function cleanSignupFixture(
   fixture: SignupFixture,
   userId: string | null,
@@ -224,7 +180,7 @@ async function cleanSignupFixture(
     })
     .eq("organization_id", fixture.organizationId)
     .eq("record_status", "active")
-    .contains("source_summary", { e2eSignupFixture: true });
+    .contains("source_summary", { accountOwnerUserId: userId });
   if (profileError) {
     throw new Error(
       `Could not retire the join profile: ${profileError.message}`,
@@ -254,7 +210,6 @@ test.describe("class-code signup onboarding", () => {
 
   let fixture: SignupFixture;
   let createdUserId: string | null = null;
-  let seededProfileId: string | null = null;
 
   test.beforeAll(async () => {
     fixture = await loadSignupFixture();
@@ -346,8 +301,6 @@ test.describe("class-code signup onboarding", () => {
       if (error) {
         throw new Error(`Could not confirm the signup email: ${error.message}`);
       }
-
-      seededProfileId = await seedJoinProfile(fixture);
     });
 
     await test.step("log in back into the code page and submit the join form", async () => {
@@ -379,10 +332,7 @@ test.describe("class-code signup onboarding", () => {
         name: "Find your CSF record",
       });
       await expect(joinDialog).toBeVisible();
-      // The name fields prefill asynchronously from the account's full name
-      // and remount when the prefill arrives; the auto-connect decision rests
-      // on the verified account email, not on the typed name, so the flow is
-      // deterministic either way.
+      // This student has no imported record. Joining creates a self-owned profile.
       await joinDialog.getByLabel("First name").fill("Casey");
       await joinDialog.getByLabel("Last name").fill("Signup");
       await joinDialog.getByRole("button", { name: "Find my record" }).click();
@@ -401,7 +351,20 @@ test.describe("class-code signup onboarding", () => {
             ? { status: data.status, profileId: data.profile_id }
             : null;
         })
-        .toEqual({ status: "verified", profileId: seededProfileId });
+        .toEqual({ status: "verified", profileId: expect.any(String) });
+
+      const { data: ownedProfile, error: profileError } = await fixture.admin
+        .schema("plugin_data")
+        .from("csf_profiles")
+        .select("source_summary")
+        .eq("organization_id", fixture.organizationId)
+        .contains("source_summary", { accountOwnerUserId: createdUserId })
+        .single();
+      expect(profileError).toBeNull();
+      expect(ownedProfile?.source_summary).toMatchObject({
+        createdBy: "permanent_class_code",
+        accountOwnerUserId: createdUserId,
+      });
     });
 
     await test.step("the connect route gains ?connected=1 and the CSF username modal", async () => {

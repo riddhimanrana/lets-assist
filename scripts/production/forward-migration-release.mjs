@@ -64,7 +64,7 @@ export const approvedMigrations = [
   ],
   [
     "20260910045040_csf_legacy_ownership_review",
-    "ac59d9b17174adda3d6a090878cfe150d00e5634b764716c8cddb44aea732281",
+    "1242c71a53826a74b84e33f5e5dc9a61dc707ec4f7b75f262f26cf062c57983b",
   ],
 ];
 

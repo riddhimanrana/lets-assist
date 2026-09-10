@@ -6474,3 +6474,41 @@ Reviewed remediation candidate, September 9, 2026:
   exact-tree hosted Development acceptance; permission to run that verification
   is pending because the owner previously requested Production-only work.
   Workbook/import processing and outbound communications remain paused.
+
+Full rollout audit, September 10, 2026, in progress:
+
+- The owner authorized Development verification and Production release. Earlier
+  notes that permission is pending are superseded. Existing safety blocks still
+  apply; no blocked operation may be rerouted through another tool or agent.
+- Fresh source read contains 205 Fall 2026 responses. Production contains 180
+  applications with unique source coordinates and correct grade/cohort mapping.
+  Rows 21 and 143 remain identity conflicts. Rows 184 through 206 have no current
+  application. All 180 retain source-reported totals and both Drive file IDs.
+  Course-line comparison matches after ignoring ordering and empty-course labels
+  such as N/A. Null operative totals do not mean reported totals are missing.
+- Every one of the 1,910 populated historical workbook rows has a saved import
+  target and a corresponding semester record. Class of 2030 has no populated
+  historical rows. Of 1,120 rows with green identity-cell fills, 1,117 are already
+  completed. Class of 2027 S25 rows 69, 130, and 136 have mixed identity-cell fills,
+  green requirement cells, and seven activities, but remain active. These need a
+  source-backed completion review before any change. No history was changed.
+- Chrome extension verification in the Riddhiman profile shows the officer review
+  with direct Drive links and no nested scrolling container. The other Chrome
+  profile was signed out; that state was not evidence of broken staff access.
+- Private PR 288 adds Copy link and Open join link to Invite students, using the
+  existing class-code route. It merged as b34bccd6b00c21cb87788c5e2e4f11e383cd8b8c
+  after plugin-quality passed. This is not a Production deployment.
+- Expanded the unapplied legacy hold to include old verified_email connections
+  without new-profile ownership provenance. Independently verified staff links
+  and new self-owned profiles are preserved. All 20 focused SQL assertions pass.
+  The prior signup browser test expected contact-only ownership; it now exercises
+  a genuinely new student and checks the created profile's ownership provenance.
+- Production's latest release worker record remains disabled for imports and
+  communications. Three older release records still have import worker flags on;
+  the forward migration controller requires all such flags off before execution.
+- Local TypeScript and lint passed. A fresh isolated stack replayed the updated
+  ledger. The new-student browser journey passed, including direct class-link
+  signup, return navigation, new-profile ownership, and account onboarding. All
+  62 release-controller and catalog unit checks passed. Root CI, hosted Development
+  acceptance, Production correction, scoped ownership holds, and import refresh
+  remain incomplete. Generated source comparisons stay in ignored artifacts.
