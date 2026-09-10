@@ -103,7 +103,7 @@ export function acceptedCatalogQuery(source, versions) {
   const applicationContactsUpgrade =
     versions.length === 478 &&
     ledgerHash ===
-      "089bdfcaeed0bff241dd278d76a10ed6050067a00d6d7216f293ccc6feeb16f5";
+      "2e81f6ea74cce432a5fc18aa0ff5605b025e71f4bed237b7c079d670dc00c1f6";
   const applicationReviewReopenUpgrade =
     applicationContactsUpgrade ||
     (versions.length === 477 &&

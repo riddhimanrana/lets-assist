@@ -131,7 +131,7 @@ test("application contact capture pins each changed body only for its reviewed l
   const preceding = acceptedCatalogQuery(source, versions.slice(0, 477));
   const sql = readFileSync(
     new URL(
-      "../../supabase/migrations/20260910003056_csf_import_application_profile_contacts.sql",
+      "../../supabase/migrations/20260910004059_csf_import_application_profile_contacts.sql",
       import.meta.url,
     ),
     "utf8",

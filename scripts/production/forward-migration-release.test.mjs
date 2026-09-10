@@ -75,7 +75,7 @@ test("approved bytes and exact versions share one transaction", () => {
     "20260909193538",
     "20260909193835",
     "20260909231613",
-    "20260910003056",
+    "20260910004059",
   ]);
   assert.match(prepared.query, /^BEGIN;/u);
   assert.match(prepared.query, /COMMIT;$/u);
