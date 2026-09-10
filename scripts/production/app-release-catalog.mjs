@@ -1,3 +1,7 @@
+import {
+  ownershipDefinitions,
+  reportedContactColumnsPosture,
+} from "./account-ownership-catalog.mjs";
 import { createHash } from "node:crypto";
 import { ReleaseCheckError } from "./app-release-checks.mjs";
 import { reviewedWorkbookLinksPosture } from "./workbook-profile-link-catalog.mjs";
@@ -100,10 +104,25 @@ export function acceptedCatalogQuery(source, versions) {
       "34dbbd884882349f8083512cd2fe48b371c3f1242bc62897685267f2a5d0001b"
   )
     return source;
-  const applicationReviewReopenUpgrade =
-    versions.length === 477 &&
+  const revokedHistoryUpgrade =
+    versions.length === 482 &&
     ledgerHash ===
-      "a4e0cc4d257d8fdd71ef5c08d44f7a95a2ffaa432ea368608840d5328322053e";
+      "67fc11a98fd055dae9620a1424e549c68a476c9ea3b72976adac2884edda9858";
+  const ownershipUpgrade =
+    revokedHistoryUpgrade ||
+    (versions.length === 481 &&
+      ledgerHash ===
+        "1cf2771bccb68d7e47a8821130724f4d15d4ab526eea466ce2eb057b21689de3");
+  const applicationContactsUpgrade =
+    ownershipUpgrade ||
+    (versions.length === 478 &&
+      ledgerHash ===
+        "2e81f6ea74cce432a5fc18aa0ff5605b025e71f4bed237b7c079d670dc00c1f6");
+  const applicationReviewReopenUpgrade =
+    applicationContactsUpgrade ||
+    (versions.length === 477 &&
+      ledgerHash ===
+        "a4e0cc4d257d8fdd71ef5c08d44f7a95a2ffaa432ea368608840d5328322053e");
   const staffAccountAuthorityUpgrade =
     applicationReviewReopenUpgrade ||
     (versions.length === 476 &&
@@ -265,10 +284,34 @@ export function acceptedCatalogQuery(source, versions) {
     throw new ReleaseCheckError(
       "The accepted catalog fragment contract changed.",
     );
+  let upgradedFragments = fragments.replaceAll(signature, legacy);
+  if (ownershipUpgrade) {
+    const confirmation =
+      "'plugin_data.csf_confirm_class_code_account_name_match(uuid,uuid,uuid,text,uuid,uuid,text,text,text)'";
+    for (const [before, after] of [
+      ["if v_email is null then", "code.cohort_id = p_cohort_id"],
+      [
+        "v_result := plugin_data.csf_join_class_by_code_identity_base(",
+        "return plugin_data.csf_join_class_by_code(",
+      ],
+      [
+        "return plugin_data.csf_revalidate_class_code_connection_replay(",
+        "coalesce(p_profile_id,",
+      ],
+    ]) {
+      const previous = `${confirmation},\n      '${before}'`;
+      if (upgradedFragments.split(previous).length !== 2)
+        throw new ReleaseCheckError(
+          "The confirmation fragment contract changed.",
+        );
+      upgradedFragments = upgradedFragments.replace(
+        previous,
+        `${confirmation},\n      '${after}'`,
+      );
+    }
+  }
   const adjusted =
-    source.slice(0, start) +
-    fragments.replaceAll(signature, legacy) +
-    source.slice(end);
+    source.slice(0, start) + upgradedFragments + source.slice(end);
   const marker = "SELECT 1 / CASE\n";
   const gate = "WHEN (SELECT valid FROM table_posture)";
   if (adjusted.split(marker).length !== 2 || adjusted.split(gate).length !== 2)
@@ -285,6 +328,22 @@ export function acceptedCatalogQuery(source, versions) {
           "plugin_data.csf_reconcile_sheet_import_row_identity_base(uuid,uuid,uuid,text,text,uuid,uuid,jsonb)",
       )
     : baseDefinitions;
+  if (ownershipUpgrade) {
+    for (const originalDefinition of ownershipDefinitions) {
+      const definition = [...originalDefinition];
+      if (
+        revokedHistoryUpgrade &&
+        definition[0] ===
+          "plugin_data.csf_join_class_by_code_identity_base(uuid,text,uuid,text,text,text,text,uuid,uuid)"
+      )
+        definition[1] = "2c3ed2e24bee1d590dfedd62c27bb75c";
+      const index = definitions.findIndex(
+        ([signature]) => signature === definition[0],
+      );
+      if (index === -1) definitions.push(definition);
+      else definitions[index] = definition;
+    }
+  }
   if (pointVerificationUpgrade)
     definitions.push([
       "plugin_data.csf_enforce_point_submission_freeze()",
@@ -457,9 +516,10 @@ accepted_upgrade_posture AS (
   ${workbookRecoveryUpgrade ? workbookRecoveryPosture : ""}
   ${applicationSourceReviewUpgrade ? applicationSourceReviewPosture : ""}
   ${reviewedWorkbookLinksUpgrade ? reviewedWorkbookLinksPosture(workerRelationSnapshotQuery) : ""}
-  ${automaticSheetUpdatesUpgrade ? automaticSheetUpdatesPosture(workerRelationSnapshotQuery, matchingTabUpgrade) : ""}
+  ${automaticSheetUpdatesUpgrade ? automaticSheetUpdatesPosture(workerRelationSnapshotQuery, matchingTabUpgrade, applicationContactsUpgrade, ownershipUpgrade) : ""}
   ${workbookLinkMergeUpgrade ? workbookLinkMergePosture : ""}
-  ${staffAccountConnectionUpgrade ? staffAccountConnectionPosture(staffAccountAuthorityUpgrade) : ""} AS valid
+  ${staffAccountConnectionUpgrade ? staffAccountConnectionPosture(staffAccountAuthorityUpgrade, ownershipUpgrade) : ""}
+  ${ownershipUpgrade ? reportedContactColumnsPosture : ""} AS valid
   FROM accepted_upgrade_definitions expected
   LEFT JOIN pg_proc p ON p.oid=to_regprocedure(expected.signature)
 )

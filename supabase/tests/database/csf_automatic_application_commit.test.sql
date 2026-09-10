@@ -60,24 +60,30 @@ SELECT plugin_data.csf_finish_sheet_automatic_update_check('cfc10000-0000-4000-8
 
 
 SELECT plugin_data.csf_prepare_automatic_application_profiles('cfc10000-0000-4000-8000-000000000001','cfc60000-0000-4000-8000-000000000002');
+UPDATE plugin_data.csf_profiles SET reported_application_personal_email=NULL WHERE organization_id='cfc10000-0000-4000-8000-000000000001' AND last_name='Newapplicant';
 SELECT plugin_data.csf_queue_automatic_import_preview('cfc10000-0000-4000-8000-000000000001','cfc60000-0000-4000-8000-000000000002');
 CREATE TEMP TABLE automatic_claim AS SELECT plugin_data.csf_claim_import_commit_attempt('cfc10000-0000-4000-8000-000000000001','cfc60000-0000-4000-8000-000000000002','cfc00000-0000-4000-8000-000000000001',300,
  (plugin_data.csf_refresh_sheet_source_evidence('cfc10000-0000-4000-8000-000000000001','cfc00000-0000-4000-8000-000000000001','cfc50000-0000-4000-8000-000000000001','cfc60000-0000-4000-8000-000000000002',
- (SELECT evidence_generation FROM plugin_data.csf_sheet_sources WHERE id='cfc50000-0000-4000-8000-000000000001'),
+ (SELECT evidence_generation FROM plugin_data.csf_sheet_sources WHERE organization_id='cfc10000-0000-4000-8000-000000000001' AND id='cfc50000-0000-4000-8000-000000000001'),
  'fictional-safe-source','application/vnd.google-apps.spreadsheet','2039-09-01T00:00:00Z','4',false,'accessible','Fictional applications')->>'evidenceToken')::uuid) AS receipt;
 CREATE TEMP TABLE automatic_batch AS SELECT plugin_data.csf_commit_import_row_batch('cfc10000-0000-4000-8000-000000000001',
  (SELECT (receipt->>'attemptId')::uuid FROM automatic_claim),'cfc90000-0000-4000-8000-000000000001',ARRAY['cfc80000-0000-4000-8000-000000000001'::uuid]) AS receipt;
+SELECT extensions.is((SELECT reported_application_personal_email FROM plugin_data.csf_profiles WHERE organization_id='cfc10000-0000-4000-8000-000000000001' AND last_name='Newapplicant'),'new-applicant@local.test','application commit fills the existing resolved profile blank contact');
 SELECT extensions.is((SELECT count(*)::integer FROM plugin_data.csf_term_applications WHERE organization_id='cfc10000-0000-4000-8000-000000000001'),1,'the queued applicant becomes one imported application');
-SELECT extensions.is((SELECT commit_outcome_state FROM plugin_data.csf_sheet_import_rows WHERE id='cfc80000-0000-4000-8000-000000000001'),'succeeded','the application row has a confirmed success receipt');
+SELECT extensions.is((SELECT commit_outcome_state FROM plugin_data.csf_sheet_import_rows WHERE organization_id='cfc10000-0000-4000-8000-000000000001' AND id='cfc80000-0000-4000-8000-000000000001'),'succeeded','the application row has a confirmed success receipt');
 SELECT extensions.is((SELECT count(*)::integer FROM plugin_data.csf_term_applications WHERE organization_id='cfc10000-0000-4000-8000-000000000001' AND decision_status='approved'),0,'importing does not approve the application');
 SELECT extensions.is((SELECT count(*)::integer FROM plugin_data.csf_term_memberships WHERE organization_id='cfc10000-0000-4000-8000-000000000001'),0,'importing does not approve semester membership');
 SELECT extensions.is((SELECT count(*)::integer FROM plugin_data.csf_profiles WHERE organization_id='cfc10000-0000-4000-8000-000000000001'),2,'the commit reuses the prepared applicant rather than creating another profile');
 SELECT extensions.is((SELECT count(*)::integer FROM plugin_data.csf_sheet_import_rows WHERE organization_id='cfc10000-0000-4000-8000-000000000001' AND import_status IN ('ambiguous','conflict')),2,'uncertain siblings remain untouched by the commit');
+CREATE TEMP TABLE captured_contacts AS SELECT count(*) AS total FROM plugin_data.csf_admin_audit_events WHERE organization_id='cfc10000-0000-4000-8000-000000000001' AND action='profile.reported_application_contacts_captured';
+UPDATE plugin_data.csf_profiles SET personal_email='officer-updated@local.test',normalized_personal_email='officer-updated@local.test' WHERE organization_id='cfc10000-0000-4000-8000-000000000001' AND last_name='Newapplicant';
 SELECT plugin_data.csf_commit_import_row_batch('cfc10000-0000-4000-8000-000000000001',(SELECT (receipt->>'attemptId')::uuid FROM automatic_claim),
  'cfc90000-0000-4000-8000-000000000001',ARRAY['cfc80000-0000-4000-8000-000000000001'::uuid]);
 SELECT extensions.is((SELECT count(*)::integer FROM plugin_data.csf_term_applications WHERE organization_id='cfc10000-0000-4000-8000-000000000001'),1,'replaying a lost batch response creates no duplicate application');
 SELECT extensions.is((SELECT count(*)::integer FROM plugin_data.csf_import_row_batches WHERE organization_id='cfc10000-0000-4000-8000-000000000001'),1,'the retry retains one batch receipt');
 SELECT extensions.is((SELECT count(*)::integer FROM plugin_data.csf_import_row_batch_outcomes WHERE organization_id='cfc10000-0000-4000-8000-000000000001'),1,'the retry retains one row outcome');
+SELECT extensions.is((SELECT personal_email FROM plugin_data.csf_profiles WHERE organization_id='cfc10000-0000-4000-8000-000000000001' AND last_name='Newapplicant'),'officer-updated@local.test','a replay preserves the later officer contact correction');
+SELECT extensions.is((SELECT count(*) FROM plugin_data.csf_admin_audit_events WHERE organization_id='cfc10000-0000-4000-8000-000000000001' AND action='profile.reported_application_contacts_captured'),(SELECT total FROM captured_contacts),'commit replay adds no duplicate contact audit');
 CREATE TEMP TABLE automatic_finalization AS SELECT plugin_data.csf_finalize_import_commit_attempt(
  'cfc10000-0000-4000-8000-000000000001',(SELECT (receipt->>'attemptId')::uuid FROM automatic_claim),'{}'::jsonb) AS receipt;
 SELECT extensions.is((SELECT receipt->>'committed' FROM automatic_finalization),'1','finalization retains the successful application beside review exceptions');

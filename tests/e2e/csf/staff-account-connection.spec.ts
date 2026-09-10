@@ -208,7 +208,57 @@ async function submitConnection(page: Page, fixture: Fixture, index: number) {
   const dialog = page.getByRole("dialog", {
     name: `Connect account to ${fixture.names[index]}`,
   });
-  await dialog.getByLabel("Let's Assist login email").fill(fixture.loginEmail);
+  if (index === 0) {
+    await dialog
+      .getByLabel("Find an organization account")
+      .fill(fixture.names[0]!);
+    await dialog
+      .getByRole("button", { name: "Find account", exact: true })
+      .click();
+    await dialog
+      .getByRole("button", {
+        name: `${fixture.names[0]} · ${fixture.loginEmail}`,
+        exact: true,
+      })
+      .click();
+    await expect(dialog.getByLabel("Let's Assist login email")).toHaveValue(
+      fixture.loginEmail,
+    );
+    await expect(dialog.getByRole("checkbox")).not.toBeChecked();
+    const before = await fixture.admin
+      .schema("plugin_data")
+      .from("csf_profile_accounts")
+      .select("id")
+      .eq("organization_id", fixture.organizationId)
+      .eq("user_id", fixture.userId)
+      .eq("status", "verified");
+    checked(before.error);
+    expect(before.data).toHaveLength(0);
+    await dialog.getByRole("checkbox").check();
+    await dialog
+      .getByLabel("How did you verify this student?")
+      .fill("Cancelled verification must not carry over.");
+    await page.keyboard.press("Escape");
+    await expect(dialog).toBeHidden();
+    await page
+      .getByRole("button", { name: "Connect account", exact: true })
+      .click();
+    await expect(dialog.getByRole("checkbox")).not.toBeChecked();
+    await expect(dialog.getByLabel("Let's Assist login email")).toHaveValue("");
+    await expect(
+      dialog.getByLabel("How did you verify this student?"),
+    ).toHaveValue("");
+    await expect(dialog.getByLabel("Find an organization account")).toHaveValue(
+      "",
+    );
+    await dialog
+      .getByLabel("Let's Assist login email")
+      .fill(fixture.loginEmail);
+  } else {
+    await dialog
+      .getByLabel("Let's Assist login email")
+      .fill(fixture.loginEmail);
+  }
   await dialog
     .getByLabel("How did you verify this student?")
     .fill("Confirmed the fictional student identity in person.");

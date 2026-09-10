@@ -105,19 +105,12 @@ SELECT extensions.is(
   'the first attempt creates one review request'
 );
 
-SELECT extensions.throws_ok(
-  format(
-    $$SELECT plugin_data.csf_join_class_by_code(
-      'cb200000-0000-4000-8000-000000000001', %L,
-      'cb100000-0000-4000-8000-000000000002', 'member@local.test',
-      'Member', 'Match', NULL,
-      'cb400000-0000-4000-8000-000000000001', NULL
-    )$$,
-    (SELECT code FROM name_match_code)
-  ),
-  'P0001',
-  'Name-only profile confirmation is no longer supported.',
-  'the compatibility argument cannot confirm a name-only match'
+SELECT extensions.is(
+  plugin_data.csf_join_class_by_code(
+    'cb200000-0000-4000-8000-000000000001',(SELECT code FROM name_match_code),
+    'cb100000-0000-4000-8000-000000000002','member@local.test','Member','Match',NULL,
+    'cb400000-0000-4000-8000-000000000001',NULL)->>'needsReview',
+  'true','the compatibility argument preserves staff review for a name-only match'
 );
 SELECT extensions.is(
   plugin_data.csf_join_class_by_code(

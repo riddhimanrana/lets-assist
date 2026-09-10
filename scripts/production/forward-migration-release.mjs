@@ -50,18 +50,47 @@ export const approvedMigrations = [
     "20260909231613_csf_reopen_application_review",
     "d7cf8d0dfb95a7a45a5047334dc0ada2a0766c920405412a74dd2d0e9d378a63",
   ],
+  [
+    "20260910004059_csf_import_application_profile_contacts",
+    "0f8db9dd0b49e754282f4791779a92a362326c2e5f23da74999ed7de724e3a68",
+  ],
+  [
+    "20260910043037_csf_reported_application_contacts",
+    "d9b1861e2a6968f679989827edf8474258b551cc996606e95e07a437e886a9ed",
+  ],
+  [
+    "20260910043106_csf_verified_account_join_policy",
+    "d1aeaf5526b990e873575ba0b9d1c46f689da4219ef5cc5c855b6d3f46903e54",
+  ],
+  [
+    "20260910045040_csf_legacy_ownership_review",
+    "1242c71a53826a74b84e33f5e5dc9a61dc707ec4f7b75f262f26cf062c57983b",
+  ],
+  [
+    "20260910090800_csf_returning_account_revoked_history",
+    "d142eabfcd2ffdcd6e9c665b336d8475f5c8e44e2981ec60a2570d18cc5eb5cd",
+  ],
 ];
 
 const literal = (value) => `'${value.replaceAll("'", "''")}'`;
 const ledgerQuery =
   "SELECT version::text FROM supabase_migrations.schema_migrations ORDER BY version;";
 
-export function prepareMigration(cwd, read = readFileSync) {
+export function prepareMigration(cwd, read = readFileSync, appliedVersions) {
   const versions = expectedVersions(cwd);
   const tail = approvedMigrations.map(([name]) => name.slice(0, 14));
   if (JSON.stringify(versions.slice(-tail.length)) !== JSON.stringify(tail))
     throw new ReleaseCheckError("The accepted migration tail is not approved.");
-  const prefix = versions.slice(0, -tail.length);
+  const minimumPrefix = versions.slice(0, -tail.length);
+  const prefix = appliedVersions ?? minimumPrefix;
+  if (prefix.length < minimumPrefix.length || prefix.length > versions.length)
+    throw new ReleaseCheckError(
+      "Production migration sequence differs from the reviewed tail.",
+    );
+  verifyLedger(
+    prefix.map((version) => ({ version })),
+    versions.slice(0, prefix.length),
+  );
   const statements = approvedMigrations.map(([name, hash]) => {
     const sql = read(
       resolve(cwd, "supabase/migrations", `${name}.sql`),
@@ -93,7 +122,7 @@ DO $release_guard$ BEGIN
     RAISE EXCEPTION 'Production migration ledger changed';
   END IF;
 END $release_guard$;
-${statements.join("\n")}
+${statements.slice(prefix.length - minimumPrefix.length).join("\n")}
 COMMIT;`;
   return { versions, prefix, query };
 }
@@ -101,7 +130,7 @@ COMMIT;`;
 export async function applyForwardMigrations(config, fetcher = fetch) {
   if (config.projectRef !== productionRef || !config.token)
     throw new ReleaseCheckError("Invalid Production database binding.");
-  const prepared = prepareMigration(config.cwd);
+  let prepared = prepareMigration(config.cwd);
   const request = (sql, writable = false) =>
     readJson(
       `https://api.supabase.com/v1/projects/${productionRef}/database/query${writable ? "" : "/read-only"}`,
@@ -115,7 +144,16 @@ export async function applyForwardMigrations(config, fetcher = fetch) {
       },
       fetcher,
     );
-  verifyLedger(await request(ledgerQuery), prepared.prefix);
+  const observedLedger = await request(ledgerQuery);
+  if (!Array.isArray(observedLedger))
+    throw new ReleaseCheckError(
+      "Production migration sequence differs from the reviewed tail.",
+    );
+  prepared = prepareMigration(
+    config.cwd,
+    readFileSync,
+    observedLedger.map((row) => row.version),
+  );
   const posture = await request(`SELECT NOT EXISTS (
     SELECT 1 FROM pg_catalog.pg_roles WHERE rolname='authenticator'
       AND 'default_transaction_read_only=on'=ANY(coalesce(rolconfig,ARRAY[]::text[]))
@@ -127,7 +165,8 @@ export async function applyForwardMigrations(config, fetcher = fetch) {
     );
   let responseLost = false;
   try {
-    await request(prepared.query, true);
+    if (prepared.prefix.length < prepared.versions.length)
+      await request(prepared.query, true);
   } catch {
     // Never resend a mutation. The exact ledger settles a lost response.
     responseLost = true;
@@ -156,7 +195,7 @@ export async function applyForwardMigrations(config, fetcher = fetch) {
   return {
     migrations: prepared.versions.length,
     head: prepared.versions.at(-1),
-    applied: approvedMigrations.map(([name]) => name.slice(0, 14)),
+    applied: prepared.versions.slice(prepared.prefix.length),
     responseLost,
     catalog: "verified",
     workers: "disabled",
