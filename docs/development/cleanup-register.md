@@ -6403,3 +6403,38 @@ rows map uniquely to completed semesters.
   failures still open it. Private release `82f2751` passed CI `34422241864`;
   its focused rendering tests passed ten scenarios with 58 assertions. The
   platform release receipt records hosted acceptance separately.
+
+## Account ownership and reported contacts, September 9, 2026
+
+- Open P1: migration `20260910004059` captures unverified application addresses
+  in canonical identity fields. Existing class-code joins trust those fields,
+  allowing an application contact to claim imported history. The earlier contact
+  persistence entry does not close this access defect. Workbook and import
+  workers are paused. The owner selected independently verified ownership only;
+  all other matches require staff review.
+- Local fixes in progress separate reported contacts from identity fields and
+  enforce that policy across join and member-history reads. No new release has
+  been promoted. Production verification remains required.
+
+Read-only incident review after the owner reported the trust-boundary defect:
+
+- The live ledger still ends at `20260910004059`; neither prepared corrective
+  migration has been deployed. The service-role join wrapper still delegates
+  to the identity base that matches normalized school and personal contacts.
+- The two automatically captured profiles still hold normalized personal
+  contacts and have no account links. No account link was created after the
+  migration timestamp in the fresh audit.
+- An earlier contact-import audit records 170 profiles updated, with 91 school
+  and 128 personal contact values, explicitly marked unverified. Fixing only
+  the two recent captures would therefore leave the broader join defect open.
+- There are two existing verified-status links with unknown recorded connection
+  basis, both predating the contact backfill. One has a staff-resolution audit;
+  the other was created through a class code. Neither finding establishes
+  independent ownership from the available audit alone. No links were changed.
+- Both worker-disable workflows report success. Pausing imports does not disable
+  class-code account claims. The prepared release must not be described as safe
+  or complete until join restrictions and read authorization pass review and
+  Production verification.
+- Automatic safety review stopped all three repair agents with the reason
+  “Potentially unintended activity.” Their local work remains saved and
+  undeployed. No blocked repair action was retried during this read-only review.

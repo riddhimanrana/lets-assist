@@ -209,7 +209,7 @@ test("scheduling retirement pins every replacement and preserves the prior relea
     assert.ok(current.includes(definition), definition);
     assert.ok(!preceding.includes(definition), definition);
   }
-  assert.match(current, /SELECT count\(\*\) = 18 AND/u);
+  assert.match(current, /SELECT count\(\*\) = 23 AND/u);
   assert.match(preceding, /SELECT count\(\*\) = 10 AND/u);
   assert.ok(
     current.includes(
@@ -314,7 +314,7 @@ test("workbook rebuild release checks the exact body, server-only grants, and re
 
 test("the reviewed import upgrade verifies metadata, function grants, and the scoped index", () => {
   const query = acceptedCatalogQuery(source, versions);
-  assert.match(query, /SELECT count\(\*\) = 18 AND/u);
+  assert.match(query, /SELECT count\(\*\) = 23 AND/u);
   assert.match(query, /csf_import_rows_resolution_metadata_object/u);
   assert.match(query, /a.atttypid='jsonb'::regtype AND a.attnotnull/u);
   assert.match(query, /csf_import_rows_committed_source_key_idx/u);
@@ -583,7 +583,7 @@ test("application review reopening pins the complete function and retains the pr
   const preceding = acceptedCatalogQuery(source, versions.slice(0, 476));
   const signature =
     "plugin_data.csf_set_review_period(uuid,uuid,uuid,text,text,text,text,timestamptz,timestamptz)";
-  assert.equal(versions.length, 478);
+  assert.equal(versions.length, 481);
   assert.ok(
     current.includes(
       `('${signature}','28793d39c02ebf702a61c26deb7ae2b4',true)`,

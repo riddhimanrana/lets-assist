@@ -185,6 +185,7 @@ export function automaticSheetUpdatesPosture(
   relationSnapshotQuery,
   matchingTabs = false,
   applicationContacts = false,
+  ownershipReview = false,
 ) {
   const definitions = matchingTabs
     ? [
@@ -209,6 +210,18 @@ export function automaticSheetUpdatesPosture(
       ]
     : definitions;
   const functionValues = reviewedDefinitions
+    .map((entry) =>
+      ownershipReview &&
+      entry[0] ===
+        "plugin_data.csf_fill_application_profile_contacts(uuid,uuid,uuid,uuid)"
+        ? [
+            entry[0],
+            "b66649b6d991fdf80fb6abcff58c3378",
+            "9b01b31ab5411765f0406ab521bc49fe",
+            false,
+          ]
+        : entry,
+    )
     .map(
       ([signature, digest, bodyDigest, service]) =>
         `('${signature}','${digest}','${bodyDigest}',${service})`,

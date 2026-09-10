@@ -65,7 +65,7 @@ function transport({
 
 test("approved bytes and exact versions share one transaction", () => {
   assert.equal(prepared.prefix.length, 468);
-  assert.equal(prepared.versions.length, 478);
+  assert.equal(prepared.versions.length, 481);
   assert.deepEqual(prepared.versions.slice(468), [
     "20260909090522",
     "20260909090944",
@@ -77,6 +77,9 @@ test("approved bytes and exact versions share one transaction", () => {
     "20260909193835",
     "20260909231613",
     "20260910004059",
+    "20260910043037",
+    "20260910043106",
+    "20260910045040",
   ]);
   assert.match(prepared.query, /^BEGIN;/u);
   assert.match(prepared.query, /COMMIT;$/u);
@@ -120,7 +123,7 @@ test("refuses modified approved SQL before any provider request", () => {
 test("performs one write and verifies ledger and permissions", async () => {
   const t = transport();
   const result = await applyForwardMigrations(config, t.fetch);
-  assert.equal(result.migrations, 478);
+  assert.equal(result.migrations, 481);
   assert.equal(result.workers, "disabled");
   assert.equal(result.responseLost, false);
   assert.equal(
@@ -230,16 +233,20 @@ test("schema-only workflow has no build, import, backup, or worker mutation", ()
   );
 });
 
-test("a reviewed partially applied tail writes only the remaining migration", async () => {
-  const initialVersions = prepared.versions.slice(0, 477);
+test("a reviewed partially applied tail writes only the remaining migrations", async () => {
+  const initialVersions = prepared.versions.slice(0, 478);
   const t = transport({ initialVersions });
   const result = await applyForwardMigrations(config, t.fetch);
-  assert.deepEqual(result.applied, ["20260910004059"]);
+  assert.deepEqual(result.applied, [
+    "20260910043037",
+    "20260910043106",
+    "20260910045040",
+  ]);
   const writes = t.calls.filter((call) => call.url.endsWith("/database/query"));
   assert.equal(writes.length, 1);
   assert.ok(
     writes[0].sql.includes(
-      "'20260910004059','csf_import_application_profile_contacts'",
+      "'20260910043037','csf_reported_application_contacts'",
     ),
   );
   assert.ok(
@@ -258,7 +265,7 @@ test("a reviewed partially applied tail writes only the remaining migration", as
         /INSERT INTO supabase_migrations.schema_migrations/g,
       ) ?? []
     ).length,
-    1,
+    3,
   );
 });
 

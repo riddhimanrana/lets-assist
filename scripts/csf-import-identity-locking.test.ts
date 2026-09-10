@@ -127,7 +127,7 @@ describe("CSF import identity lock hierarchy", () => {
       );
       const baseOperation = body.indexOf(
         name === "csf_confirm_class_code_account_name_match"
-          ? "csf_join_class_by_code_identity_base("
+          ? "csf_join_class_by_code("
           : `${name}_identity_base(`,
       );
       const replayRevalidation = body.indexOf(
@@ -141,10 +141,19 @@ describe("CSF import identity lock hierarchy", () => {
         baseOperation,
         `${name} does not delegate after the shared identity lock`,
       ).toBeGreaterThan(identity);
-      expect(
-        replayRevalidation,
-        `${name} does not revalidate a replay after delegation`,
-      ).toBeGreaterThan(baseOperation);
+      if (name === "csf_confirm_class_code_account_name_match") {
+        const join = latestLedgerFunctionBody("csf_join_class_by_code");
+        expect(
+          join.indexOf("csf_revalidate_class_code_connection_replay("),
+        ).toBeGreaterThan(
+          join.indexOf("csf_join_class_by_code_identity_base("),
+        );
+      } else {
+        expect(
+          replayRevalidation,
+          `${name} does not revalidate a replay after delegation`,
+        ).toBeGreaterThan(baseOperation);
+      }
 
       for (const laterLock of [
         "FOR UPDATE",
@@ -167,9 +176,7 @@ describe("CSF import identity lock hierarchy", () => {
     expect(passiveConfirmation).not.toContain(
       "csf_confirm_class_code_account_name_match_identity_base(",
     );
-    expect(passiveConfirmation).toContain(
-      "csf_join_class_by_code_identity_base(",
-    );
+    expect(passiveConfirmation).toContain("csf_join_class_by_code(");
   });
 
   test("class-code connection bases and replay checks are owner-only while wrappers are service-only", () => {

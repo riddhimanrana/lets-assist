@@ -143,8 +143,11 @@ GRANT EXECUTE ON FUNCTION plugin_data.csf_reclassify_captured_application_contac
 DO $migration$
 DECLARE v_organization_id uuid;
 BEGIN
-  FOR v_organization_id IN SELECT DISTINCT organization_id FROM plugin_data.csf_admin_audit_events
-    WHERE action='profile.application_contacts_captured' ORDER BY organization_id
+  FOR v_organization_id IN
+    SELECT DISTINCT audit.organization_id FROM plugin_data.csf_admin_audit_events audit
+    JOIN public.organizations organization ON organization.id=audit.organization_id
+    WHERE organization.username='dvhighcsf' AND audit.action='profile.application_contacts_captured'
+    ORDER BY audit.organization_id
   LOOP
     PERFORM plugin_data.csf_reclassify_captured_application_contacts(v_organization_id);
   END LOOP;

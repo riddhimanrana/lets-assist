@@ -54,6 +54,18 @@ export const approvedMigrations = [
     "20260910004059_csf_import_application_profile_contacts",
     "0f8db9dd0b49e754282f4791779a92a362326c2e5f23da74999ed7de724e3a68",
   ],
+  [
+    "20260910043037_csf_reported_application_contacts",
+    "d9b1861e2a6968f679989827edf8474258b551cc996606e95e07a437e886a9ed",
+  ],
+  [
+    "20260910043106_csf_verified_account_join_policy",
+    "fe8a3dcde579c6ecb1c5014f23617e48c2e1b61162515fa34d6fca1aa5f02de2",
+  ],
+  [
+    "20260910045040_csf_legacy_ownership_review",
+    "ac59d9b17174adda3d6a090878cfe150d00e5634b764716c8cddb44aea732281",
+  ],
 ];
 
 const literal = (value) => `'${value.replaceAll("'", "''")}'`;

@@ -281,57 +281,36 @@ describe("CSF cohort import documentation truthfulness guards", () => {
     );
   });
 
-  test("officer review needs current email evidence and signed name claims stay explicit", () => {
-    // The guide reorganized this material into "Resolve the connection queue".
+  test("officer review separates reported contacts from independently verified ownership", () => {
     const cohortLink = between(
       operatorGuide,
       "## Resolve the connection queue",
       "## Make a connected person an officer",
     );
+    expect(cohortLink).toContain("Independently verify");
     expect(cohortLink).toContain(
-      "the historical class sheets do not supply reliable account emails",
+      "Do not overwrite imported contacts to force a match",
     );
     expect(cohortLink).toContain(
-      "approved current application cycle or another reviewed current source",
+      "Pending connections cannot access the student's history",
     );
-    expect(cohortLink).toContain("audited member-correction workflow");
-    expect(cohortLink).toContain(
-      "Never backfill an address from the Spring 2026 comparison workbook",
-    );
-    expect(cohortLink).toContain(
-      "**Connect account** is withheld until canonical evidence can be read again",
-    );
-
     const studentRollout = between(
       officerRunbook,
       "### 10.3 Student rollout",
       "### 10.4 Posts and announcement email",
     );
-    expectInOrder(studentRollout, [
-      "current, unique school or personal email",
-      "permanent join code from **Invite students**",
-      "verified sign-in email uniquely matches",
-      "unique unclaimed full-account-name match",
-      "manually entered name never creates or links",
-    ]);
     expect(studentRollout).toContain(
-      "Never copy an address from a historical comparison workbook merely to make a match.",
+      "Existing imported records require independently verified ownership",
     );
     expect(studentRollout).toContain("**Members → Record connections**");
     expect(studentRollout).toContain(
-      "An unmatched verified email never creates a profile or class membership.",
+      "A new student with no existing record candidate can create a self-owned profile",
     );
-    expect(studentRollout).not.toContain("creates a new stable profile");
-    expect(studentRollout).not.toContain("Needs attention");
-    expect(officerRunbook).toContain(
-      "lower-assurance claim, not verified-email evidence",
-    );
-    expect(officerRunbook).toContain("impersonation risk");
-    expect(officerRunbook).toContain(
-      "Older open pages retain the review-only policy",
+    expect(studentRollout).not.toContain(
+      "verified sign-in email uniquely matches one same-class profile connects automatically",
     );
     expect(productContract).toContain(
-      "A name entered by the student never creates or links a profile.",
+      "Amendment 8: Verified account ownership",
     );
   });
 });

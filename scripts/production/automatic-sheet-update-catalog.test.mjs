@@ -71,7 +71,7 @@ test("automatic update catalog checks missing objects, exact grants, tables, and
 
 test("reviewed automatic-update and merge ledgers retain automatic-update checks", () => {
   const versions = expectedVersions(root);
-  assert.equal(versions.length, 478);
+  assert.equal(versions.length, 481);
   for (const accepted of [
     versions.slice(0, 466),
     versions.slice(0, 467),
@@ -127,7 +127,7 @@ test("matching-tab upgrade pins new and renamed helpers without changing older c
 
 test("application contact capture pins each changed body only for its reviewed ledger", () => {
   const versions = expectedVersions(root);
-  const current = acceptedCatalogQuery(source, versions);
+  const current = acceptedCatalogQuery(source, versions.slice(0, 478));
   const preceding = acceptedCatalogQuery(source, versions.slice(0, 477));
   const sql = readFileSync(
     new URL(
