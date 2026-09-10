@@ -2,7 +2,7 @@
 
 **Audience:** organization administrators, adviser, chapter officers, and Data Management
 **Current status:** The active classes are 2027 through 2030, and each has an active join code. The audit confirms 1,117 green historical rows as completed; three mixed-color Spring 2025 rows still need completion review. Fall 2026 applications retain the reported courses and transcript and receipt links for officer review. New responses continue to arrive, so use the live Applications count. Two conflicting source identities still need staff review. Importing a response does not approve it or verify its contact addresses. See the [cleanup register](../development/cleanup-register.md) for dated counts and release evidence.
-**Release ledger:** the current repository candidate carries 481 ordered migrations through `20260910045040_csf_legacy_ownership_review`; the private release gitlink is `b34bccd`. Production has all 478 migrations. Manual account connection and simplified application review were verified on Production release `b1f09bf3`. Deployment receipts identify the served application separately from this database ledger.
+**Release ledger:** the current repository candidate carries 481 ordered migrations through `20260910045040_csf_legacy_ownership_review`; the private release gitlink is `364335c`. Production has all 478 migrations. Manual account connection and simplified application review were verified on Production release `b1f09bf3`. Deployment receipts identify the served application separately from this database ledger.
 
 **Ownership correction pending:** The candidate separates reported contacts and requires independently verified ownership. Production still needs this correction. Imports remain paused until release verification passes.
 
