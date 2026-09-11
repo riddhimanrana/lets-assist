@@ -763,7 +763,9 @@ export function integratePrivateRelease({
   verifyPublishedEmbeddedTrees(
     privateRoot,
     registry,
-    manifest.sourceCommit,
+    manifest.runtimeProfile === "application"
+      ? servingPrivateCommit
+      : manifest.sourceCommit,
     manifest.pluginKey,
     servingPrivateCommit,
     manifest.runtimeProfile === "application"
