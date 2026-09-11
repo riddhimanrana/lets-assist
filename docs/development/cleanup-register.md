@@ -7046,3 +7046,40 @@ an installation directly. Development's existing embedded 1.1.0 fixture is
 compatible and accessible. The functional run tests the integrated host; final
 Production browser checks must separately verify the selected 1.2.29 child.
 The nine focused fixture tests passed.
+
+### Sheet observation guard, September 11
+
+PR 519 review found that invalid replacement input could leave an older Sheet
+proposal available to staff. Forward migration `20260911203901` adds a leased
+observation state. Polling holds acceptance until the full inbound read succeeds.
+Invalid observations retire pending proposals and reset their request baseline.
+Failed notifications leave incomplete observations blocked after lease expiry.
+Applied migrations 489 and 490 remain unchanged.
+
+Private candidate `74770de` prepares application 1.2.30 with this schema
+requirement. The engine passed 33 tests and 174 assertions. Seven application
+contract tests and child typecheck passed. Private PR 349 is pending release.
+Production still serves root `84087a03` and application 1.2.24 with 482 migrations;
+new sync remains disabled.
+
+A read-only Google comparison at 20:35:38 UTC found 235 populated source rows,
+one more than the persisted 234-row snapshot. All existing canonical records
+were unchanged after timestamp normalization. Production still has 200 pending
+applications and 37 identity-review rows. The new coordinate requires a normal
+snapshot refresh and reconciliation after release.
+
+Development candidate `dddb23e6` passed hosted functional run `34644480869`.
+Its quality job passed; full CI remains separate from the new observation fix.
+
+Private promotion review found that a failure after successful inbound reading
+could incorrectly invalidate that observation. Candidate `6b73d09`, version
+1.2.31, limits invalidation to the inbound phase. Its regression confirms that
+export failures preserve valid observations and pending proposals. The engine
+passed 34 tests and 179 assertions; child contracts and typecheck passed.
+Independent review found no blocker.
+
+The 1.2.30 tag was pushed before the private merge succeeded because the command
+sequence did not stop on failure. Publication run `34646596339` was canceled,
+and GitHub reports no release for that tag. The tag remains unchanged. No
+Production deployment or database change occurred. Private PR 351 carries the
+corrected candidate; promotion PR 350 remains held until it includes the fix.
