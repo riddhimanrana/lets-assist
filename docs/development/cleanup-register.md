@@ -7071,3 +7071,17 @@ snapshot refresh and reconciliation after release.
 
 Development candidate `dddb23e6` passed hosted functional run `34644480869`.
 Its quality job passed; full CI remains separate from the new observation fix.
+
+
+Private promotion review found that a failure after successful inbound reading
+could incorrectly invalidate that observation. Candidate `6b73d09`, version
+1.2.31, limits invalidation to the inbound phase. Its regression confirms that
+export failures preserve valid observations and pending proposals. The engine
+passed 34 tests and 179 assertions; child contracts and typecheck passed.
+Independent review found no blocker.
+
+The 1.2.30 tag was pushed before the private merge succeeded because the command
+sequence did not stop on failure. Publication run `34646596339` was canceled,
+and GitHub reports no release for that tag. The tag remains unchanged. No
+Production deployment or database change occurred. Private PR 351 carries the
+corrected candidate; promotion PR 350 remains held until it includes the fix.
