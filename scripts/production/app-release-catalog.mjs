@@ -118,9 +118,12 @@ export function acceptedCatalogQuery(source, versions) {
   )
     return source;
   const sheetObservationUpgrade =
-    versions.length === 491 &&
-    ledgerHash ===
-      "4b6c08631b3358bdd6aeeafd2e2c1f2552bd22dd8bafdb09f8cd3f5ed751f6ce";
+    (versions.length === 491 &&
+      ledgerHash ===
+        "4b6c08631b3358bdd6aeeafd2e2c1f2552bd22dd8bafdb09f8cd3f5ed751f6ce") ||
+    (versions.length === 492 &&
+      ledgerHash ===
+        "724a563d57619b24d8d696cb021b98bab2bbef4ed018df863c571c7c1a7065a0");
   const sheetRecoveryUpgrade =
     sheetObservationUpgrade ||
     (versions.length === 489 &&

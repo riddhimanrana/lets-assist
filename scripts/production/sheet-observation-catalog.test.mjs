@@ -14,7 +14,7 @@ const source = readFileSync(
   "utf8",
 );
 test("491 pins complete observation functions and holds the destination state", () => {
-  assert.equal(versions.length, 491);
+  assert.equal(versions.length, 492);
   const current = acceptedCatalogQuery(source, versions);
   for (const [signature, digest, body] of sheetObservationDefinitions) {
     assert.ok(current.includes(signature));
@@ -35,7 +35,7 @@ test("491 pins complete observation functions and holds the destination state", 
     acceptedCatalogQuery(source, versions.slice(0, 489)),
   );
 });
-test("490 advances only through the reviewed observation migration", () => {
+test("490 advances through the observation guard and signed publication", () => {
   const result = prepareMigration(
     process.cwd(),
     undefined,
@@ -47,9 +47,34 @@ test("490 advances only through the reviewed observation migration", () => {
         /INSERT INTO supabase_migrations.schema_migrations/gu,
       ) ?? []
     ).length,
-    1,
+    2,
   );
   assert.ok(result.query.includes("ADD COLUMN observation_state"));
   assert.ok(!result.query.includes("ADD COLUMN observation_generation"));
-  assert.ok(!result.query.includes("INSERT INTO public.plugin_versions"));
+  assert.ok(result.query.includes("AND version = '1.2.31'"));
+});
+
+test("492 preserves the observation catalog and appends only signed publication", () => {
+  assert.equal(
+    acceptedCatalogQuery(source, versions),
+    acceptedCatalogQuery(source, versions.slice(0, 491)),
+  );
+  const result = prepareMigration(
+    process.cwd(),
+    undefined,
+    versions.slice(0, 491),
+  );
+  assert.equal(
+    (
+      result.query.match(
+        /INSERT INTO supabase_migrations.schema_migrations/gu,
+      ) ?? []
+    ).length,
+    1,
+  );
+  assert.ok(result.query.includes("AND version = '1.2.31'"));
+  assert.ok(!result.query.includes("ADD COLUMN observation_state"));
+  assert.ok(
+    !result.query.includes("UPDATE public.organization_plugin_installs"),
+  );
 });
