@@ -321,21 +321,19 @@ test.describe("class-code signup onboarding", () => {
       });
 
       await expect(
-        page.getByRole("heading", { name: "Find your CSF record" }),
+        page.getByRole("heading", { name: "Join your class" }),
       ).toBeVisible();
       await expectNoGenericFirstLoginTour(page);
 
-      await page
-        .getByRole("button", { name: "Find my record", exact: true })
-        .click();
+      await page.getByRole("button", { name: "Continue", exact: true }).click();
       const joinDialog = page.getByRole("dialog", {
-        name: "Find your CSF record",
+        name: "Join your class",
       });
       await expect(joinDialog).toBeVisible();
       // This student has no imported record. Joining creates a self-owned profile.
       await joinDialog.getByLabel("First name").fill("Casey");
       await joinDialog.getByLabel("Last name").fill("Signup");
-      await joinDialog.getByRole("button", { name: "Find my record" }).click();
+      await joinDialog.getByRole("button", { name: "Continue" }).click();
 
       await expect
         .poll(async () => {

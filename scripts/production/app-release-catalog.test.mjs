@@ -24,8 +24,8 @@ test("relation fingerprints sort index definitions independently of database loc
     query,
     /ORDER BY pg_get_indexdef\(i\.indexrelid\)(?! COLLATE "C")/u,
   );
-  assert.ok(query.includes("4db39e32056870608efc1d18528f2eef"));
-  assert.ok(query.includes("8ea2de3577ed4ae18571aa1a8df986b2"));
+  assert.ok(query.includes("26e1961c0e127c76250c5a81f689c758"));
+  assert.ok(query.includes("2c961c05d3cc45d84c06d55aac736946"));
 });
 
 test("workbook-link merge pins both wrappers and retains the preceding catalog", () => {
@@ -69,7 +69,7 @@ test("reviewed workbook links pin functions, permissions, table shape, and reque
     assert.ok(current.includes(createHash("md5").update(body).digest("hex")));
   }
   assert.ok(
-    current.includes("snapshot.digest='4db39e32056870608efc1d18528f2eef'"),
+    current.includes("snapshot.digest='26e1961c0e127c76250c5a81f689c758'"),
   );
   assert.ok(current.includes("p.proargnames=expected.arguments"));
   assert.ok(
@@ -583,7 +583,7 @@ test("application review reopening pins the complete function and retains the pr
   const preceding = acceptedCatalogQuery(source, versions.slice(0, 476));
   const signature =
     "plugin_data.csf_set_review_period(uuid,uuid,uuid,text,text,text,text,timestamptz,timestamptz)";
-  assert.equal(versions.length, 482);
+  assert.equal(versions.length, 483);
   assert.ok(
     current.includes(
       `('${signature}','28793d39c02ebf702a61c26deb7ae2b4',true)`,

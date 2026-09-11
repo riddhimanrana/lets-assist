@@ -2,6 +2,21 @@ import { beforeEach, describe, expect, mock, test } from "bun:test";
 
 mock.module("server-only", () => ({}));
 
+let syncCalls = 0;
+let syncResult: { status: string; exported: number; changes: number } = {
+  status: "idle",
+  exported: 0,
+  changes: 0,
+};
+mock.module(
+  "@/lib/plugins/private/plugins/dvhs-csf/services/sheet-sync-engine",
+  () => ({
+    runNextCsfSheetSync: async () => {
+      syncCalls++;
+      return syncResult;
+    },
+  }),
+);
 const rpcCalls: Array<{ name: string; args: Record<string, unknown> }> = [];
 const actionCalls: unknown[][] = [];
 let rpcResults: Array<{ data: unknown; error: unknown }> = [];
@@ -87,6 +102,8 @@ function request(token = "synthetic-workbook-token", method = "POST") {
 }
 
 beforeEach(() => {
+  syncCalls = 0;
+  syncResult = { status: "idle", exported: 0, changes: 0 };
   rpcCalls.length = 0;
   actionCalls.length = 0;
   rpcResults = [];
@@ -441,4 +458,19 @@ describe("CSF class workbook refresh route", () => {
     rpcResults = [{ data: { claimed: false }, error: null }];
     expect((await POST(request())).status).toBe(503);
   });
+});
+
+test("sheet export failures remain visible to the scheduler", async () => {
+  process.env.CSF_WORKBOOK_WORKER_ENABLED = "true";
+  rpcResults = [{ data: { claimed: false }, error: null }];
+  syncResult = { status: "blocked", exported: 1, changes: 0 };
+  const response = await POST(request());
+  expect(syncCalls).toBe(1);
+  expect(response.status).toBe(503);
+  expect((await response.json()).sheetSync).toEqual(syncResult);
+});
+
+test("unauthorized requests cannot run sheet exports", async () => {
+  await POST(request("incorrect"));
+  expect(syncCalls).toBe(0);
 });

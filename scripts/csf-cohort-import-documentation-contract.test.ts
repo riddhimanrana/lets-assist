@@ -201,7 +201,7 @@ describe("CSF cohort import documentation truthfulness guards", () => {
     );
   });
 
-  test("Class of 2030 documents audited profile creation before application resolution", () => {
+  test("Class of 2030 preserves template safety and a manual profile-resolution fallback", () => {
     const class2030 = between(
       operatorGuide,
       "## Create and resolve Class of 2030 from the new application cycle",
@@ -222,7 +222,7 @@ describe("CSF cohort import documentation truthfulness guards", () => {
       "**Approve application**",
     ]);
     expect(class2030).toContain(
-      "An application response never creates a student profile",
+      "Approved automatic imports can create profiles",
     );
     expect(class2030).toContain(
       "Profile creation and import-row reconciliation are two separate audited actions",
@@ -237,14 +237,14 @@ describe("CSF cohort import documentation truthfulness guards", () => {
 
     const applicationCycle = between(
       newChapterOnboarding,
-      "### New application cycle when no profile exists",
+      "### Resolve a new application without a profile",
       "## Stage 7 — First-term operation",
     );
     expect(applicationCycle).toContain(
-      "The application response does not create the profile",
+      "Approved automatic imports can create profiles",
     );
     expect(applicationCycle).toContain(
-      "the application decision does not create the profile",
+      "Imports never establish account ownership or approve applications",
     );
     expect(applicationCycle).toContain(
       "keep the Class of 2030 workbook linked and leave its header-only tabs uncommitted",

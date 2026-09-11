@@ -70,6 +70,10 @@ export const approvedMigrations = [
     "20260910090800_csf_returning_account_revoked_history",
     "d142eabfcd2ffdcd6e9c665b336d8475f5c8e44e2981ec60a2570d18cc5eb5cd",
   ],
+  [
+    "20260910232532_csf_sheet_sync_review_queue",
+    "7c5d9bf9fe47d17ee27f2bf0a862492218d5f9b0eaa98a7b83f185ad97ffb89d",
+  ],
 ];
 
 const literal = (value) => `'${value.replaceAll("'", "''")}'`;

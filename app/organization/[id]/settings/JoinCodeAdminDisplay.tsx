@@ -50,6 +50,14 @@ export default function JoinCodeAdminDisplay({
     }
   };
 
+  const handleCopyLink = async () => {
+    const link = new URL("/organization/join", window.location.origin);
+    link.searchParams.set("code", displayedJoinCode);
+    const success = await copyToClipboard(link.toString());
+    if (success) toast.success("Invitation link copied");
+    else toast.error("Failed to copy invitation link");
+  };
+
   // Regenerate join code
   const handleRegenerateJoinCode = async () => {
     setIsRegenerating(true);
@@ -87,6 +95,7 @@ export default function JoinCodeAdminDisplay({
             type="button"
             size="icon"
             variant="outline"
+            aria-label="Copy join code"
             onClick={handleCopyCode}
             className="shrink-0"
           >
@@ -98,6 +107,15 @@ export default function JoinCodeAdminDisplay({
           </Button>
         </div>
       </div>
+
+      <Button type="button" variant="outline" onClick={handleCopyLink}>
+        <Copy className="mr-2 h-4 w-4" aria-hidden="true" />
+        Copy invitation link
+      </Button>
+      <p className="text-sm text-muted-foreground">
+        This link adds an organization member. Assign staff access separately
+        after they join.
+      </p>
 
       <div>
         <AlertDialog

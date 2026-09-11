@@ -161,7 +161,7 @@ describe("CI db-replay-validation uses the recovery topology and isolated seed",
   test("pins the recovery base port and the isolated seed script", () => {
     const job = dbReplayJob();
 
-    expect(job).toMatch(/CSF_ISOLATED_BASE_PORT:\s*["']55320["']/u);
+    expect(job).toMatch(/CSF_ISOLATED_BASE_PORT:\s*["']25320["']/u);
     expect(job).not.toContain("56350");
     expect(job).toContain("bun run csf:seed:platform:isolated");
     expect(job).not.toContain("bun run supabase:seed:local-dev");

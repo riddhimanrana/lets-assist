@@ -1,4 +1,5 @@
 import { Metadata } from "next";
+import { normalizeRedirectPath } from "@/app/signup/redirect-utils";
 import EmailExpiredClient from "./EmailExpiredClient";
 
 export const metadata: Metadata = {
@@ -7,12 +8,17 @@ export const metadata: Metadata = {
 };
 
 interface EmailExpiredPageProps {
-  searchParams: Promise<{ email?: string }>;
+  searchParams: Promise<{ email?: string; redirectAfterAuth?: string }>;
 }
 
 export default async function EmailExpiredPage({
   searchParams,
 }: EmailExpiredPageProps) {
-  const { email } = await searchParams;
-  return <EmailExpiredClient email={email ?? ""} />;
+  const { email, redirectAfterAuth } = await searchParams;
+  return (
+    <EmailExpiredClient
+      email={email ?? ""}
+      redirectAfterAuth={normalizeRedirectPath(redirectAfterAuth)}
+    />
+  );
 }

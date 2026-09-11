@@ -1,3 +1,4 @@
+import { sheetSyncPosture } from "./sheet-sync-catalog.mjs";
 import {
   ownershipDefinitions,
   reportedContactColumnsPosture,
@@ -104,10 +105,15 @@ export function acceptedCatalogQuery(source, versions) {
       "34dbbd884882349f8083512cd2fe48b371c3f1242bc62897685267f2a5d0001b"
   )
     return source;
-  const revokedHistoryUpgrade =
-    versions.length === 482 &&
+  const sheetSyncUpgrade =
+    versions.length === 483 &&
     ledgerHash ===
-      "67fc11a98fd055dae9620a1424e549c68a476c9ea3b72976adac2884edda9858";
+      "4cba941c6304329ccbf4c2ccbd6371d41d235e8e943124d4b73a7b9ab1dfb144";
+  const revokedHistoryUpgrade =
+    sheetSyncUpgrade ||
+    (versions.length === 482 &&
+      ledgerHash ===
+        "67fc11a98fd055dae9620a1424e549c68a476c9ea3b72976adac2884edda9858");
   const ownershipUpgrade =
     revokedHistoryUpgrade ||
     (versions.length === 481 &&
@@ -515,11 +521,11 @@ accepted_upgrade_posture AS (
   ${applicationRetryUpgrade ? applicationRetryRecoveryPosture : ""}
   ${workbookRecoveryUpgrade ? workbookRecoveryPosture : ""}
   ${applicationSourceReviewUpgrade ? applicationSourceReviewPosture : ""}
-  ${reviewedWorkbookLinksUpgrade ? reviewedWorkbookLinksPosture(workerRelationSnapshotQuery) : ""}
-  ${automaticSheetUpdatesUpgrade ? automaticSheetUpdatesPosture(workerRelationSnapshotQuery, matchingTabUpgrade, applicationContactsUpgrade, ownershipUpgrade) : ""}
+  ${reviewedWorkbookLinksUpgrade ? reviewedWorkbookLinksPosture(workerRelationSnapshotQuery, sheetSyncUpgrade) : ""}
+  ${automaticSheetUpdatesUpgrade ? automaticSheetUpdatesPosture(workerRelationSnapshotQuery, matchingTabUpgrade, applicationContactsUpgrade, ownershipUpgrade, sheetSyncUpgrade) : ""}
   ${workbookLinkMergeUpgrade ? workbookLinkMergePosture : ""}
   ${staffAccountConnectionUpgrade ? staffAccountConnectionPosture(staffAccountAuthorityUpgrade, ownershipUpgrade) : ""}
-  ${ownershipUpgrade ? reportedContactColumnsPosture : ""} AS valid
+  ${ownershipUpgrade ? reportedContactColumnsPosture : ""}${sheetSyncUpgrade ? `\n  ${sheetSyncPosture(workerRelationSnapshotQuery)}` : ""} AS valid
   FROM accepted_upgrade_definitions expected
   LEFT JOIN pg_proc p ON p.oid=to_regprocedure(expected.signature)
 )

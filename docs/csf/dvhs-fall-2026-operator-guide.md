@@ -159,29 +159,27 @@ characters and try again.
 1. Open `/connect/<code>` from the shared code, or open **Join a class** and
    type the code under **Join code**.
 2. Create a Let's Assist account or sign in. **Sign in to continue** opens the
-   account flow. The signed-out entry page is
-   headed **Join a class** and names both audiences: **Already have a
-   CSF record?** for returning members, and **New to CSF?**, which
-   carries the semester's application button when the current term has an
-   **Application form link**.
+   account flow. A direct class link shows **Sign in to continue**. The general
+   **Join a class** page, before a code is selected, shows **Already have a
+   CSF record?** and **New to CSF?**. The latter includes the application
+   button when the current term has an **Application form link**.
 3. After sign-in, an independently verified existing account connection opens
    the correct class and recorded history. For a possible existing record, the
    page may show **Is this you?** with one record whose name exactly matches the
    account. Select **Yes, this is me** to send that record for officer review.
    Select **No, search again** when it is not yours. A name match never links
-   the account by itself. A saved request changes to **Your record is awaiting
-   review** and offers **Go to class feed** while an officer checks the match.
+   the account by itself. A saved request changes to **Awaiting staff review** and offers **Go to class feed** while an officer checks the match.
    An independently verified connection shows **Your CSF record is linked** and
    offers **Go to My CSF**.
-4. If no passive match appears, open **Find your CSF record**, enter the
-   requested **Student name**, and select **Find my record**. A typed name never
+4. If no passive match appears, select **Continue**, enter **Student name**
+   in the **Join your class** dialog, then select **Continue**. A typed name never
    claims an existing profile. The server creates or reuses one officer request.
    A new student with no matching existing record can create a self-owned
    profile through the class code. This does not create historical credit.
 
 The student never chooses a roster record from a list and never assigns their
 own class or officer access. Submitted names are review context for officers;
-they are never an automatic matching signal.
+they never prove ownership.
 
 ## Resolve the connection queue
 
@@ -194,7 +192,7 @@ The historical class sheets do not establish account ownership. Application emai
 5. Connect the account only after verification. For an incorrect request, enter a **Decision reason** and select **Reject request**. Pending connections cannot access the student's history. Connecting a record does not approve an application, award points, or grant a staff position.
 
 The older review dialog may show **Review only**, **Connection unavailable**, or
-**Canonical identity evidence**. These labels do not establish ownership.
+**Identity checks**. These labels do not establish ownership.
 Use the profile's verification form after checking identity independently.
 
 Older connections held for review retain login and organization access. Staff can restore the connection through the same verified workflow. Keep the recorded audit history.
@@ -406,11 +404,11 @@ remains linked, with its header-only tabs uncommitted.
 
 ## Create and resolve Class of 2030 from the new application cycle
 
-An application response never creates a student profile, and an application
-decision never creates one. The central application import refuses a row with
-no reviewed profile target. Keep the Class of 2030 workbook linked. Its current
-header-only tabs create no import previews or records. Use the current
-application form and this sequence:
+Approved automatic imports can create profiles before attaching applications.
+An application decision does not create the profile. Keep the Class of 2030
+workbook linked. Its current header-only tabs create no historical records.
+Use this manual workflow only for an application row that still needs a
+reviewed profile target:
 
 1. Record the reviewed new application form URL in the current term's
    **Application form link** (**Term actions → Edit term**); the public class
@@ -422,7 +420,8 @@ application form and this sequence:
    profile, application, term membership, or account connection.
 3. A row without a reviewed profile is held for reconciliation. Open **Members
    → Add member**, use **Add a student record**, enter the exact reviewed name
-   and current unique school/personal email, choose **Class** = Class of 2030,
+   without treating application contacts as verified identity fields. Choose
+   **Class** = Class of 2030,
    and select **Add student record**. Wait for **Student record created.** If a
    current profile already exists, review it instead of creating a duplicate.
 4. The staff profile action records a replay-safe `profile.create` audit receipt
