@@ -106,9 +106,12 @@ export function acceptedCatalogQuery(source, versions) {
   )
     return source;
   const sheetSyncUpgrade =
-    versions.length === 483 &&
-    ledgerHash ===
-      "4cba941c6304329ccbf4c2ccbd6371d41d235e8e943124d4b73a7b9ab1dfb144";
+    (versions.length === 483 &&
+      ledgerHash ===
+        "4cba941c6304329ccbf4c2ccbd6371d41d235e8e943124d4b73a7b9ab1dfb144") ||
+    (versions.length === 484 &&
+      ledgerHash ===
+        "c54a7e57d7f32caa8757f8defc106df7637984d99943835ee6cb4030fbdf00d8");
   const revokedHistoryUpgrade =
     sheetSyncUpgrade ||
     (versions.length === 482 &&
