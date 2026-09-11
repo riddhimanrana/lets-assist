@@ -40,7 +40,7 @@ CREATE TABLE plugin_data.csf_sheet_sync_bindings (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(), organization_id uuid NOT NULL,
   destination_id uuid NOT NULL, record_kind text NOT NULL CHECK(record_kind IN ('application','point_submission','profile')),
   record_id uuid NOT NULL, profile_id uuid, scope_revision bigint NOT NULL DEFAULT 0 CHECK(scope_revision>=0), logical_key text NOT NULL, sheet_id integer NOT NULL CHECK(sheet_id>=0),
-  last_export_version text, remote_version text, last_seen_request jsonb NOT NULL DEFAULT '{}'::jsonb, thread_bindings jsonb NOT NULL DEFAULT '{}'::jsonb CHECK(jsonb_typeof(thread_bindings)='object'),
+  last_export_version text, remote_version text, last_seen_request jsonb NOT NULL DEFAULT '{}'::jsonb, last_seen_request_source_version text, thread_bindings jsonb NOT NULL DEFAULT '{}'::jsonb CHECK(jsonb_typeof(thread_bindings)='object'),
   UNIQUE(destination_id,record_kind,record_id), UNIQUE(destination_id,logical_key), UNIQUE(organization_id,destination_id,id),
   FOREIGN KEY(organization_id,destination_id) REFERENCES plugin_data.csf_sheet_sync_destinations(organization_id,id) ON DELETE CASCADE
 );
@@ -83,7 +83,7 @@ CREATE TABLE plugin_data.csf_sheet_sync_changes (
   status text NOT NULL DEFAULT 'pending' CHECK(status IN ('pending','accepted','discarded','stale')),
   reviewed_by uuid REFERENCES auth.users(id) ON DELETE SET NULL, review_reason text, reviewed_at timestamptz,
   created_at timestamptz NOT NULL DEFAULT now(),
-  UNIQUE(destination_id,record_kind,record_id,remote_version),
+  UNIQUE(destination_id,record_kind,record_id,remote_version,source_version),
   FOREIGN KEY(organization_id,destination_id) REFERENCES plugin_data.csf_sheet_sync_destinations(organization_id,id) ON DELETE CASCADE
 );
 
@@ -180,6 +180,7 @@ BEGIN
   IF p_outcome<>'completed' OR r.copied_file_id IS DISTINCT FROM p_copied_file_id THEN RAISE EXCEPTION 'Completed copy has a different outcome.'; END IF;
   RETURN to_jsonb(r);
  END IF;
+ IF r.observed_copied_file_id IS NOT NULL AND p_copied_file_id IS NOT NULL AND r.observed_copied_file_id IS DISTINCT FROM p_copied_file_id THEN RAISE EXCEPTION 'Copy receipt conflicts with the previously observed file.'; END IF;
  IF p_outcome='completed' THEN PERFORM plugin_data.csf_register_sheet_sync_test_file(p_organization_id,p_actor_user_id,p_copied_file_id,r.source_file_id);
  END IF;
  UPDATE plugin_data.csf_sheet_sync_test_copy_requests SET state=p_outcome,copied_file_id=CASE WHEN p_outcome='completed' THEN p_copied_file_id END,observed_copied_file_id=coalesce(p_copied_file_id,observed_copied_file_id),last_error=left(p_error,1000),updated_at=now() WHERE request_id=r.request_id RETURNING * INTO r;
@@ -263,6 +264,9 @@ DECLARE d plugin_data.csf_sheet_sync_destinations%ROWTYPE;
 BEGIN
  PERFORM pg_advisory_xact_lock(plugin_data.csf_staff_access_lock_key(p_organization_id));
  IF NOT (plugin_data.csf_actor_has_permission(p_organization_id,p_actor_user_id,'manage_sheet_sync') AND plugin_data.csf_actor_has_permission(p_organization_id,p_actor_user_id,'export_sensitive_reports')) THEN RAISE EXCEPTION 'Not authorized.'; END IF;
+ SELECT * INTO d FROM plugin_data.csf_sheet_sync_destinations WHERE organization_id=p_organization_id AND id=p_destination_id FOR NO KEY UPDATE;
+ IF NOT FOUND THEN RAISE EXCEPTION 'Destination not found.'; END IF;
+ IF p_enabled AND NOT d.is_test AND NOT EXISTS(SELECT 1 FROM plugin_data.csf_sheet_sync_acceptances a WHERE a.organization_id=p_organization_id AND a.destination_id=d.id AND a.reviewed_by IS NOT NULL AND a.configuration=jsonb_build_object('protocol','csf-sheet-sync-v1','file',d.spreadsheet_file_id,'sheet',d.sheet_id,'kind',d.kind,'cohort',d.cohort_id,'term',d.term_id,'start',d.owned_start_column,'headers',d.managed_headers) AND NOT EXISTS(SELECT 1 FROM jsonb_each(a.evidence->'test_configurations') cfg WHERE NOT EXISTS(SELECT 1 FROM plugin_data.csf_sheet_sync_destinations t WHERE t.id::text=cfg.key AND t.organization_id=a.test_organization_id AND cfg.value=jsonb_build_object('file',t.spreadsheet_file_id,'sheet',t.sheet_id,'kind',t.kind,'cohort',t.cohort_id,'term',t.term_id,'start',t.owned_start_column,'headers',t.managed_headers)))) THEN RAISE EXCEPTION 'Review a complete copied-workbook test journey before enabling live sync.'; END IF;
  UPDATE plugin_data.csf_sheet_sync_destinations SET seed_cursor=CASE WHEN p_enabled AND NOT enabled THEN NULL ELSE seed_cursor END,seed_completed=CASE WHEN p_enabled AND NOT enabled THEN false ELSE seed_completed END,poll_lease_token=NULL,poll_lease_expires_at=NULL,enabled=p_enabled,privacy_verified_at=CASE WHEN p_privacy_verified THEN now() END,comment_capability=p_comment_capability,configured_by=p_actor_user_id,updated_at=now()
  WHERE organization_id=p_organization_id AND id=p_destination_id RETURNING * INTO d;
  IF NOT FOUND THEN RAISE EXCEPTION 'Destination not found.'; END IF;
@@ -322,6 +326,9 @@ BEGIN
   r:=plugin_data.csf_sheet_sync_snapshot(p_organization_id,p_record_kind,p_record_id);
   profile:=CASE WHEN p_record_kind='profile' THEN p_record_id ELSE (r->>'profile_id')::uuid END;
   IF NOT ((p_record_kind='application' AND d.cohort_id IS NOT NULL AND (r->>'cohort_id')::uuid IS DISTINCT FROM d.cohort_id) OR (p_record_kind<>'profile' AND (r->>'term_id')::uuid IS DISTINCT FROM d.term_id) OR (d.cohort_id IS NOT NULL AND NOT EXISTS(SELECT 1 FROM plugin_data.csf_profile_cohort_memberships WHERE organization_id=p_organization_id AND profile_id=profile AND cohort_id=d.cohort_id AND status='active'))) THEN
+   IF p_record_kind='profile' THEN
+    r:=r||jsonb_build_object('applications',coalesce((SELECT jsonb_agg(x ORDER BY x->>'id') FROM jsonb_array_elements(r->'applications') x WHERE x->>'term_id'=d.term_id::text),'[]'::jsonb),'credits',coalesce((SELECT jsonb_agg(x ORDER BY x->>'id') FROM jsonb_array_elements(r->'credits') x WHERE x->>'term_id'=d.term_id::text),'[]'::jsonb),'memberships',coalesce((SELECT jsonb_agg(x ORDER BY x->>'id') FROM jsonb_array_elements(r->'memberships') x WHERE x->>'term_id'=d.term_id::text),'[]'::jsonb));
+   END IF;
    RETURN r||jsonb_build_object('scope_revision',coalesce(b.scope_revision,0),
     'local_messages',coalesce((SELECT jsonb_agg(to_jsonb(m) ORDER BY m.id) FROM plugin_data.csf_sheet_sync_local_messages m WHERE m.organization_id=p_organization_id AND m.destination_id=d.id AND m.binding_id=b.id),'[]'::jsonb),
     'projection_profile',(SELECT jsonb_build_object('first_name',p.first_name,'last_name',p.last_name) FROM plugin_data.csf_profiles p WHERE p.organization_id=p_organization_id AND p.id=profile),
@@ -423,17 +430,17 @@ BEGIN
  IF p_destination_lease_token IS NULL OR d.poll_lease_token IS DISTINCT FROM p_destination_lease_token OR d.poll_lease_expires_at IS NULL OR d.poll_lease_expires_at<=clock_timestamp() THEN RAISE EXCEPTION 'Sync lease expired or access changed.'; END IF;
  IF coalesce((plugin_data.csf_sheet_sync_destination_snapshot(p_organization_id,p_destination_id,p_record_kind,p_record_id)->>'out_of_scope')::boolean,false) THEN RETURN jsonb_build_object('status','out_of_scope'); END IF;
  request:=p_payload-ARRAY['author_display_name','author_provider_id'];
- IF request='{}'::jsonb THEN UPDATE plugin_data.csf_sheet_sync_bindings SET last_seen_request='{}'::jsonb WHERE id=b.id; RETURN jsonb_build_object('status','unchanged'); END IF;
- IF request=b.last_seen_request THEN RETURN jsonb_build_object('status','unchanged'); END IF;
+ IF request='{}'::jsonb THEN UPDATE plugin_data.csf_sheet_sync_bindings SET last_seen_request='{}'::jsonb,last_seen_request_source_version=NULL WHERE id=b.id; RETURN jsonb_build_object('status','unchanged'); END IF;
+ IF request=b.last_seen_request AND (b.last_seen_request_source_version IS NOT DISTINCT FROM p_source_version OR NOT EXISTS(SELECT 1 FROM plugin_data.csf_sheet_sync_changes old WHERE old.destination_id=d.id AND old.record_kind=p_record_kind AND old.record_id=p_record_id AND old.source_version=b.last_seen_request_source_version AND old.status='stale' AND old.payload-ARRAY['author_display_name','author_provider_id']=request)) THEN RETURN jsonb_build_object('status','unchanged'); END IF;
  IF p_record_kind NOT IN ('application','point_submission') OR p_payload->>'action' NOT IN ('approved','rejected','needs_action','duplicate') OR p_payload->>'action' IS NULL OR (p_record_kind='application' AND p_payload->>'action'='duplicate') OR p_payload - ARRAY['action','review_notes','awarded_points','author_display_name','author_provider_id'] <> '{}'::jsonb THEN RAISE EXCEPTION 'Unsupported Sheet change.'; END IF;
  IF length(p_remote_version)>500 OR length(p_payload::text)>10000 THEN RAISE EXCEPTION 'Sheet change exceeds the size limit.'; END IF;
  INSERT INTO plugin_data.csf_sheet_sync_changes(organization_id,destination_id,record_kind,record_id,source_version,remote_version,payload) VALUES(p_organization_id,d.id,p_record_kind,p_record_id,p_source_version,p_remote_version,p_payload)
- ON CONFLICT(destination_id,record_kind,record_id,remote_version) DO NOTHING RETURNING * INTO c;
+ ON CONFLICT(destination_id,record_kind,record_id,remote_version,source_version) DO NOTHING RETURNING * INTO c;
  IF c.id IS NULL THEN
- SELECT * INTO c FROM plugin_data.csf_sheet_sync_changes WHERE destination_id=d.id AND record_kind=p_record_kind AND record_id=p_record_id AND remote_version=p_remote_version;
+ SELECT * INTO c FROM plugin_data.csf_sheet_sync_changes WHERE destination_id=d.id AND record_kind=p_record_kind AND record_id=p_record_id AND remote_version=p_remote_version AND source_version=p_source_version;
  IF c.payload<>p_payload OR c.source_version<>p_source_version THEN RAISE EXCEPTION 'Conflicting change uses an existing remote version.'; END IF;
  END IF;
- UPDATE plugin_data.csf_sheet_sync_bindings SET last_seen_request=request WHERE id=b.id;
+ UPDATE plugin_data.csf_sheet_sync_bindings SET last_seen_request=request,last_seen_request_source_version=p_source_version WHERE id=b.id;
  RETURN to_jsonb(c);
 END $$;
 
@@ -559,6 +566,59 @@ CREATE TABLE plugin_data.csf_sheet_sync_comments (
 ALTER TABLE plugin_data.csf_sheet_sync_comments ENABLE ROW LEVEL SECURITY;
 REVOKE ALL ON plugin_data.csf_sheet_sync_comments FROM PUBLIC,anon,authenticated,service_role;
 GRANT SELECT ON plugin_data.csf_sheet_sync_comments TO service_role;
+CREATE TABLE plugin_data.csf_sheet_sync_acceptances (
+ id uuid PRIMARY KEY DEFAULT gen_random_uuid(),organization_id uuid NOT NULL,destination_id uuid NOT NULL,
+ test_organization_id uuid NOT NULL REFERENCES plugin_data.csf_sheet_sync_test_workspaces(organization_id) ON DELETE CASCADE,
+ reviewed_by uuid REFERENCES auth.users(id) ON DELETE SET NULL,configuration jsonb NOT NULL,evidence jsonb NOT NULL,reason text NOT NULL,
+ created_at timestamptz NOT NULL DEFAULT now(),
+ FOREIGN KEY(organization_id,destination_id) REFERENCES plugin_data.csf_sheet_sync_destinations(organization_id,id) ON DELETE CASCADE,
+ configuration_hash text GENERATED ALWAYS AS (md5(configuration::text)) STORED, evidence_hash text GENERATED ALWAYS AS (md5(evidence::text)) STORED,
+ UNIQUE(destination_id,configuration_hash,evidence_hash)
+);
+ALTER TABLE plugin_data.csf_sheet_sync_acceptances ENABLE ROW LEVEL SECURITY;
+REVOKE ALL ON plugin_data.csf_sheet_sync_acceptances FROM PUBLIC,anon,authenticated,service_role;
+GRANT SELECT ON plugin_data.csf_sheet_sync_acceptances TO service_role;
+CREATE FUNCTION plugin_data.csf_record_sheet_sync_acceptance(p_organization_id uuid,p_actor_user_id uuid,p_destination_id uuid,p_test_destination_ids uuid[],p_evidence jsonb,p_reason text) RETURNS jsonb
+LANGUAGE plpgsql SECURITY DEFINER SET search_path='' AS $$
+DECLARE d plugin_data.csf_sheet_sync_destinations%ROWTYPE; td plugin_data.csf_sheet_sync_destinations%ROWTYPE; test_org uuid; a plugin_data.csf_sheet_sync_acceptances%ROWTYPE; config_snapshot jsonb; x uuid; kinds text[]; export_ids uuid[]; change_ids uuid[]; comment_ids uuid[]; test_configurations jsonb; saved_evidence jsonb;
+BEGIN
+ IF cardinality(p_test_destination_ids) IS DISTINCT FROM 3 OR (SELECT count(DISTINCT v) FROM unnest(p_test_destination_ids) v)<>3 THEN RAISE EXCEPTION 'Choose the three copied-workbook test destinations.'; END IF;
+ SELECT organization_id INTO test_org FROM plugin_data.csf_sheet_sync_destinations WHERE id=p_test_destination_ids[1] AND is_test;
+ IF test_org IS NULL OR test_org=p_organization_id THEN RAISE EXCEPTION 'Choose an isolated copied-workbook test workspace.'; END IF;
+ PERFORM pg_advisory_xact_lock(k) FROM (SELECT DISTINCT plugin_data.csf_staff_access_lock_key(v) k FROM unnest(ARRAY[p_organization_id,test_org]) v ORDER BY k) locks;
+ FOREACH x IN ARRAY ARRAY[p_organization_id,test_org] LOOP
+  IF NOT (plugin_data.csf_actor_has_permission(x,p_actor_user_id,'manage_settings') AND plugin_data.csf_actor_has_permission(x,p_actor_user_id,'manage_sheet_sync') AND plugin_data.csf_actor_has_permission(x,p_actor_user_id,'export_sensitive_reports')) THEN RAISE EXCEPTION 'Not authorized.'; END IF;
+ END LOOP;
+ PERFORM 1 FROM plugin_data.csf_sheet_sync_destinations WHERE id=ANY(p_test_destination_ids||p_destination_id) ORDER BY id FOR NO KEY UPDATE;
+ SELECT * INTO d FROM plugin_data.csf_sheet_sync_destinations WHERE organization_id=p_organization_id AND id=p_destination_id;
+ IF NOT FOUND OR d.is_test OR d.enabled THEN RAISE EXCEPTION 'Turn off the live destination before recording test acceptance.'; END IF;
+ IF length(btrim(p_reason)) NOT BETWEEN 1 AND 4000 OR p_reason IS NULL OR jsonb_typeof(p_evidence) IS DISTINCT FROM 'object' OR length(p_evidence->>'observations') NOT BETWEEN 20 AND 10000 OR p_evidence->>'observations' IS NULL OR jsonb_typeof(p_evidence->'provider_versions') IS DISTINCT FROM 'object' THEN RAISE EXCEPTION 'Record the inspected test evidence and review reason.'; END IF;
+ IF jsonb_typeof(p_evidence->'export_ids') IS DISTINCT FROM 'array' OR jsonb_typeof(p_evidence->'change_ids') IS DISTINCT FROM 'array' OR jsonb_typeof(p_evidence->'comment_ids') IS DISTINCT FROM 'array' THEN RAISE EXCEPTION 'Supply persisted export, decision and comment receipt IDs.'; END IF;
+ SELECT array_agg(v::uuid) INTO export_ids FROM jsonb_array_elements_text(p_evidence->'export_ids') v;
+ SELECT array_agg(v::uuid) INTO change_ids FROM jsonb_array_elements_text(p_evidence->'change_ids') v;
+ SELECT array_agg(v::uuid) INTO comment_ids FROM jsonb_array_elements_text(p_evidence->'comment_ids') v;
+ IF coalesce(cardinality(export_ids),0)<3 OR coalesce(cardinality(change_ids),0)<6 OR coalesce(cardinality(comment_ids),0)<2 THEN RAISE EXCEPTION 'The copied-workbook journey is incomplete.'; END IF;
+ FOR td IN SELECT * FROM plugin_data.csf_sheet_sync_destinations WHERE id=ANY(p_test_destination_ids) ORDER BY id LOOP
+  kinds:=array_append(kinds,td.kind);
+  IF td.organization_id<>test_org OR NOT td.is_test OR td.comment_capability<>'available' OR td.privacy_verified_at IS NULL OR td.last_synced_at IS NULL OR nullif(p_evidence->'provider_versions'->>td.id::text,'') IS NULL OR NOT EXISTS(SELECT 1 FROM plugin_data.csf_sheet_sync_test_copy_requests r WHERE r.organization_id=test_org AND r.source_organization_id=p_organization_id AND r.copied_file_id=td.spreadsheet_file_id AND r.state='completed' AND r.provider_subject IS NOT NULL) THEN RAISE EXCEPTION 'Test destinations need verified copied-file lineage and native comment access.'; END IF;
+  IF NOT EXISTS(SELECT 1 FROM plugin_data.csf_sheet_writeback_ledger l JOIN plugin_data.csf_sheet_sync_bindings b ON b.destination_id=l.destination_id AND b.record_kind=l.record_kind AND b.record_id=l.record_id WHERE l.id=ANY(export_ids) AND l.destination_id=td.id AND l.status='exported' AND l.source_version=b.last_export_version AND l.source_version=md5(plugin_data.csf_sheet_sync_destination_snapshot(test_org,td.id,l.record_kind,l.record_id)::text)) THEN RAISE EXCEPTION 'Each test destination needs a current exported receiptd.'; END IF;
+  IF EXISTS(SELECT 1 FROM plugin_data.csf_sheet_writeback_ledger WHERE destination_id=td.id AND status IN ('unknown_outcome','exporting','pending_export','retry_export')) OR EXISTS(SELECT 1 FROM plugin_data.csf_sheet_sync_changes WHERE destination_id=td.id AND status='pending') THEN RAISE EXCEPTION 'Resolve outstanding copied-workbook changes before acceptance.'; END IF;
+ END LOOP;
+ IF NOT kinds @> ARRAY['applications','point_submissions','class'] OR NOT EXISTS(SELECT 1 FROM plugin_data.csf_sheet_sync_test_copy_requests r JOIN plugin_data.csf_sheet_sync_destinations t ON t.spreadsheet_file_id=r.copied_file_id AND t.id=ANY(p_test_destination_ids) WHERE r.organization_id=test_org AND r.source_organization_id=p_organization_id AND r.source_file_id=d.spreadsheet_file_id AND r.state='completed' AND t.kind=d.kind) THEN RAISE EXCEPTION 'The test copies do not cover this live destination.'; END IF;
+ IF EXISTS(SELECT 1 FROM unnest(export_ids) v WHERE NOT EXISTS(SELECT 1 FROM plugin_data.csf_sheet_writeback_ledger l WHERE l.id=v AND l.organization_id=test_org AND l.destination_id=ANY(p_test_destination_ids) AND l.status='exported')) OR NOT EXISTS(SELECT 1 FROM plugin_data.csf_sheet_writeback_ledger l WHERE l.id=ANY(export_ids) GROUP BY l.destination_id,l.record_kind,l.record_id HAVING count(DISTINCT source_version)>=2) THEN RAISE EXCEPTION 'Repeated sync needs distinct retained export versions.'; END IF;
+ IF EXISTS(SELECT 1 FROM unnest(change_ids) v WHERE NOT EXISTS(SELECT 1 FROM plugin_data.csf_sheet_sync_changes c WHERE c.id=v AND c.organization_id=test_org AND c.destination_id=ANY(p_test_destination_ids) AND c.status='accepted' AND c.reviewed_by IS NOT NULL)) OR EXISTS(SELECT 1 FROM unnest(ARRAY['application','point_submission']) k CROSS JOIN unnest(ARRAY['approved','rejected','needs_action']) actions(requested_action) WHERE NOT EXISTS(SELECT 1 FROM plugin_data.csf_sheet_sync_changes c WHERE c.id=ANY(change_ids) AND c.record_kind=k AND c.payload->>'action'=actions.requested_action AND c.status='accepted')) THEN RAISE EXCEPTION 'Approval, rejection and correction need reviewed application and point receipts.'; END IF;
+ IF EXISTS(SELECT 1 FROM unnest(comment_ids) v WHERE NOT EXISTS(SELECT 1 FROM plugin_data.csf_sheet_sync_comments c WHERE c.id=v AND c.organization_id=test_org AND c.destination_id=ANY(p_test_destination_ids) AND NOT c.deleted)) OR NOT EXISTS(SELECT 1 FROM plugin_data.csf_sheet_sync_comments c WHERE c.id=ANY(comment_ids) GROUP BY c.destination_id,c.provider_thread_id HAVING count(DISTINCT c.provider_message_id)>=2 AND bool_or(c.resolved)) OR jsonb_typeof(p_evidence->'native_receipts') IS DISTINCT FROM 'array' OR jsonb_array_length(p_evidence->'native_receipts')=0 OR EXISTS(SELECT 1 FROM jsonb_array_elements(p_evidence->'native_receipts') receipt WHERE NOT EXISTS(SELECT 1 FROM plugin_data.csf_sheet_sync_bindings b WHERE b.id=(receipt->>'binding_id')::uuid AND b.organization_id=test_org AND b.destination_id=ANY(p_test_destination_ids) AND b.thread_bindings->(receipt->>'local_message_id')=jsonb_build_object('threadId',receipt->>'thread_id','postId',receipt->>'post_id','localVersion',receipt->>'local_version') AND EXISTS(SELECT 1 FROM plugin_data.csf_sheet_writeback_ledger l WHERE l.id=ANY(export_ids) AND l.destination_id=b.destination_id AND l.record_kind=b.record_kind AND l.record_id=b.record_id AND l.status='exported' AND l.source_version=b.last_export_version AND l.source_version=md5(plugin_data.csf_sheet_sync_destination_snapshot(test_org,b.destination_id,b.record_kind,b.record_id)::text)))) THEN RAISE EXCEPTION 'Native comments need exported messages, imported replies and resolution receipts.'; END IF;
+ SELECT jsonb_object_agg(t.id::text,jsonb_build_object('file',t.spreadsheet_file_id,'sheet',t.sheet_id,'kind',t.kind,'cohort',t.cohort_id,'term',t.term_id,'start',t.owned_start_column,'headers',t.managed_headers)) INTO test_configurations FROM plugin_data.csf_sheet_sync_destinations t WHERE t.id=ANY(p_test_destination_ids);
+ saved_evidence:=p_evidence||jsonb_build_object('test_configurations',test_configurations);
+ config_snapshot:=jsonb_build_object('protocol','csf-sheet-sync-v1','file',d.spreadsheet_file_id,'sheet',d.sheet_id,'kind',d.kind,'cohort',d.cohort_id,'term',d.term_id,'start',d.owned_start_column,'headers',d.managed_headers);
+ INSERT INTO plugin_data.csf_sheet_sync_acceptances(organization_id,destination_id,test_organization_id,reviewed_by,configuration,evidence,reason) VALUES(p_organization_id,d.id,test_org,p_actor_user_id,config_snapshot,saved_evidence,p_reason) ON CONFLICT(destination_id,configuration_hash,evidence_hash) DO NOTHING RETURNING * INTO a;
+ IF a.id IS NULL THEN SELECT * INTO a FROM plugin_data.csf_sheet_sync_acceptances WHERE destination_id=d.id AND configuration=config_snapshot AND evidence=saved_evidence; ELSE
+ INSERT INTO plugin_data.csf_admin_audit_events(organization_id,actor_user_id,action,target_type,target_id,after_data) VALUES(p_organization_id,p_actor_user_id,'sheet_sync.test_journey_accepted','sheet_sync_acceptance',a.id,to_jsonb(a)); END IF;
+ RETURN to_jsonb(a);
+END $$;
+REVOKE ALL ON FUNCTION plugin_data.csf_record_sheet_sync_acceptance(uuid,uuid,uuid,uuid[],jsonb,text) FROM PUBLIC,anon,authenticated;
+GRANT EXECUTE ON FUNCTION plugin_data.csf_record_sheet_sync_acceptance(uuid,uuid,uuid,uuid[],jsonb,text) TO service_role;
+
 CREATE FUNCTION plugin_data.csf_record_sheet_sync_comment(p_organization_id uuid,p_destination_id uuid,p_lease_token uuid,p_binding_id uuid,p_thread_id text,p_message_id text,p_provider_version text,p_author jsonb,p_body text,p_resolved boolean,p_deleted boolean) RETURNS jsonb
 LANGUAGE plpgsql SECURITY DEFINER SET search_path='' AS $$
 DECLARE c plugin_data.csf_sheet_sync_comments%ROWTYPE;

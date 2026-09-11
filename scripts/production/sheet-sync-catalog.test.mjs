@@ -36,7 +36,7 @@ test("the sync catalog pins every new function body and execution role", () => {
       /CREATE FUNCTION plugin_data\.([a-z_]+)\([\s\S]*?AS \$\$([\s\S]*?)\$\$;/gu,
     ),
   ];
-  assert.equal(bodies.length, 28);
+  assert.equal(bodies.length, 29);
   assert.equal(sheetSyncDefinitions.length, bodies.length);
   for (const [, name, body] of bodies) {
     const entry = sheetSyncDefinitions.find(([signature]) =>
@@ -104,7 +104,7 @@ test("483 adds the sync posture without changing the preceding accepted catalog"
   const current = acceptedCatalogQuery(source, versions);
   for (const [signature] of sheetSyncDefinitions)
     assert.ok(current.includes(signature), signature);
-  assert.ok(current.includes("SELECT count(*)=9"));
+  assert.ok(current.includes("SELECT count(*)=10"));
   assert.ok(current.includes("SELECT count(*)=26"));
   assert.throws(
     () =>
