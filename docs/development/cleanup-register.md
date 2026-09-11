@@ -7083,3 +7083,39 @@ sequence did not stop on failure. Publication run `34646596339` was canceled,
 and GitHub reports no release for that tag. The tag remains unchanged. No
 Production deployment or database change occurred. Private PR 351 carries the
 corrected candidate; promotion PR 350 remains held until it includes the fix.
+
+Private PR 351 passed `34646842756`; promotion PR 350 passed `34647101056`
+and merged as `8331567`. Ancestry return PR 352 passed `34647376799` and merged.
+Signed release `dvhs-csf/v1.2.31` points to
+`6b73d0901fe58e5eada93026b085a9cc472566d7`, verified on both private branches.
+Publication run `34647401670` succeeded.
+
+Root PR 531 merged as `3decd057` after the local replay, focused tests and
+independent review. The formatting failure in its first CI attempt was repaired.
+Final integrated CI is still required before Production. Integration run
+`34647499354` first refused the missing root schema dependency; its retry after
+PR 531 merged succeeded and generated PR 532. The publication migration is
+`20260911210549_publish_dvhs_csf_1_2_31`. It changes no installation or application
+selection. Production remains on the previously recorded host, child and ledger.
+
+The 492-migration publication candidate passed 282 database files and 8,018
+assertions, 71 focused catalog tests, and all ten negative catalog probes.
+Publication SHA-256 is
+`ad0963ff59bbca881b26574d3d8c0344539037d9c4244c91de93ecbeb14a35a8`.
+
+PR 519 also identified profile review notes crossing semester boundaries in
+class Sheet snapshots. The user deferred profile-note syncing. The forward correction
+`20260911211201_csf_defer_profile_note_export` omits profile review notes from
+class exports for this release. The existing
+publication remains unchanged. Production sync remains disabled while the fix
+and final integrated release checks are completed.
+
+The final 493-migration candidate passed 283 database files and 8,023 assertions,
+including five checks that profile notes stay in the app while class exports
+retain completion, applications and verified points. All 73 focused catalog
+tests and ten negative probes passed. Independent review confirmed that the
+snapshot's only behavior change is omitting profile review notes.
+Migration 493 SHA-256 is
+`ec7176f9da2b965598fd1f8883c3b8982e66763df569cdf68bfdcb8c3c402da7`.
+The 493-migration ledger SHA-256 is
+`a412156a94951d6a3995011f2f5b27bc336f9ffef0fdff913daf78ac1316f915`.
