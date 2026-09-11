@@ -50,6 +50,7 @@
     "@/components/ui/avatar",
     "@/components/ui/badge",
     "@/components/ui/button",
+    "@/components/ui/button-variants",
     "@/components/ui/card",
     "@/components/ui/checkbox",
     "@/components/ui/command",
