@@ -6871,3 +6871,14 @@ Production PR 519 remains unmerged. No Production release, migration,
 application selection, compute change or worker resumption followed this
 failed acceptance. Database measurements from the actual load interval
 and the remaining query fanout are under review before another run.
+
+Private PR 341 prepares application 1.2.27 at
+`5176919d3a34977be57596b40837ff18064cb757`. Officer Home no longer fetches
+detailed point-submission records that it does not render. Its pending
+count still comes from the authorized Home snapshot. Submission, points
+and profile routes retain their record reads and permission checks.
+Independent behavior review, 12 focused/scale tests, six application access
+tests, 18 release-tooling tests, TypeScript, lint and formatting passed.
+Private quality run `34607981707` is pending. No latency improvement is
+claimed until measured. This change does not authorize the proposed paid
+Development compute upgrade.
