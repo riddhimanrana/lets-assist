@@ -411,6 +411,7 @@ LANGUAGE plpgsql SECURITY DEFINER SET search_path='' AS $$
 DECLARE l plugin_data.csf_sheet_writeback_ledger%ROWTYPE;
 BEGIN
  IF p_outcome IS NULL OR p_outcome NOT IN ('exported','retry_export','unknown_outcome') THEN RAISE EXCEPTION 'Invalid export outcome.'; END IF;
+ IF p_outcome='exported' AND nullif(btrim(p_remote_version),'') IS NULL THEN RAISE EXCEPTION 'A successful export requires its provider version.'; END IF;
  SELECT * INTO l FROM plugin_data.csf_sheet_writeback_ledger WHERE organization_id=p_organization_id AND id=p_ledger_id AND destination_id IS NOT NULL;
  IF NOT FOUND THEN RAISE EXCEPTION 'Export attempt not found.'; END IF;
  PERFORM 1 FROM plugin_data.csf_sheet_sync_destinations WHERE organization_id=p_organization_id AND id=l.destination_id FOR NO KEY UPDATE;

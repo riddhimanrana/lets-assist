@@ -43,8 +43,8 @@ export const sheetSyncDefinitions = [
   ],
   [
     "plugin_data.csf_finish_sheet_sync_export(uuid,uuid,uuid,text,text,text)",
-    "0074e52a0d29d1a5eda7507a9a38fad7",
-    "4deec8cf0cd37552b2af54f692139dcc",
+    "c141257c51b1843bf612ea7029e5720a",
+    "4b508eeec7a08247fe86669a46adcaa7",
     true,
   ],
   [

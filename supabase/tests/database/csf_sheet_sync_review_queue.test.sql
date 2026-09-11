@@ -1,6 +1,6 @@
 BEGIN;
 CREATE EXTENSION IF NOT EXISTS pgtap WITH SCHEMA extensions;
-SELECT extensions.plan(214);
+SELECT extensions.plan(216);
 INSERT INTO auth.users(id,aud,role,email,raw_app_meta_data,raw_user_meta_data) VALUES
 ('ea000000-0000-4000-8000-000000000001','authenticated','authenticated','sheet-admin@local.test','{}','{}'),
 ('ea000000-0000-4000-8000-000000000002','authenticated','authenticated','sheet-outsider@local.test','{}','{}');
@@ -65,6 +65,8 @@ SELECT extensions.ok(plugin_data.csf_claim_sheet_sync_destination('ea100000-0000
 INSERT INTO sync_fixture SELECT 'claimed',to_jsonb(l) FROM plugin_data.csf_claim_sheet_sync_exports('ea100000-0000-4000-8000-000000000001',(SELECT (value->>'id')::uuid FROM sync_fixture WHERE name='destination'),(SELECT (value->>'poll_lease_token')::uuid FROM sync_fixture WHERE name='lease'),25) l;
 SELECT extensions.is((SELECT status FROM plugin_data.csf_sheet_writeback_ledger WHERE id='eafc0000-0000-4000-8000-000000000001'),'superseded','claim rejects a forged payload even with its matching hash');
 DELETE FROM plugin_data.csf_sheet_writeback_ledger WHERE id='eafc0000-0000-4000-8000-000000000001';
+SELECT extensions.throws_ok($$SELECT plugin_data.csf_finish_sheet_sync_export('ea100000-0000-4000-8000-000000000001',(SELECT (value->>'id')::uuid FROM sync_fixture WHERE name='claimed'),(SELECT (value->>'lease_token')::uuid FROM sync_fixture WHERE name='claimed'),'exported',NULL,NULL)$$,'P0001','A successful export requires its provider version.','successful export rejects missing provider version');
+SELECT extensions.throws_ok($$SELECT plugin_data.csf_finish_sheet_sync_export('ea100000-0000-4000-8000-000000000001',(SELECT (value->>'id')::uuid FROM sync_fixture WHERE name='claimed'),(SELECT (value->>'lease_token')::uuid FROM sync_fixture WHERE name='claimed'),'exported','   ',NULL)$$,'P0001','A successful export requires its provider version.','successful export rejects missing provider version');
 SELECT plugin_data.csf_finish_sheet_sync_export('ea100000-0000-4000-8000-000000000001',(SELECT (value->>'id')::uuid FROM sync_fixture WHERE name='claimed'),(SELECT (value->>'lease_token')::uuid FROM sync_fixture WHERE name='claimed'),'exported','remote-v1',NULL);
 SELECT extensions.lives_ok($$SELECT plugin_data.csf_finish_sheet_sync_export('ea100000-0000-4000-8000-000000000001',(SELECT (value->>'id')::uuid FROM sync_fixture WHERE name='claimed'),(SELECT (value->>'lease_token')::uuid FROM sync_fixture WHERE name='claimed'),'exported','remote-v1',NULL)$$,'exact exported receipt retry succeeds');
 SELECT extensions.throws_ok($$SELECT plugin_data.csf_finish_sheet_sync_export('ea100000-0000-4000-8000-000000000001',(SELECT (value->>'id')::uuid FROM sync_fixture WHERE name='claimed'),(SELECT (value->>'lease_token')::uuid FROM sync_fixture WHERE name='claimed'),'exported','different-remote',NULL)$$,'P0001','Export receipt conflicts with this attempt result.','changed remote version cannot replay a completed attempt');
