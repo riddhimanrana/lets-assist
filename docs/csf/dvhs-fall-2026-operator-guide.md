@@ -173,15 +173,15 @@ characters and try again.
    review** and offers **Go to class feed** while an officer checks the match.
    An independently verified connection shows **Your CSF record is linked** and
    offers **Go to My CSF**.
-4. If no passive match appears, open **Find your CSF record**, enter the
-   requested **Student name**, and select **Find my record**. A typed name never
+4. If no passive match appears, select **Continue**, enter **Student name**
+   in the **Join your class** dialog, then select **Continue**. A typed name never
    claims an existing profile. The server creates or reuses one officer request.
    A new student with no matching existing record can create a self-owned
    profile through the class code. This does not create historical credit.
 
 The student never chooses a roster record from a list and never assigns their
 own class or officer access. Submitted names are review context for officers;
-they are never an automatic matching signal.
+they never prove ownership.
 
 ## Resolve the connection queue
 

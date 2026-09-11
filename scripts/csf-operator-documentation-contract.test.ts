@@ -363,9 +363,9 @@ const STUDENT_JOURNEY: LabelContract[] = [
       "Is this you?",
       "Yes, this is me",
       "No, search again",
-      "Find your CSF record",
+      "Join your class",
       "Student name",
-      "Find my record",
+      "Continue",
     ],
   },
   {
@@ -461,8 +461,8 @@ describe("CSF operator documentation truthfulness guards", () => {
       "Is this you?",
       'idleLabel="Yes, this is me"',
       'triggerLabel="No, search again"',
-      "Find your CSF record",
-      'idleLabel="Find my record"',
+      "Join your class",
+      'idleLabel="Continue"',
     ]) {
       expect(connectSource).toContain(label);
     }
@@ -491,7 +491,7 @@ describe("CSF operator documentation truthfulness guards", () => {
       "**Join code**",
       "**Is this you?**",
       "**Yes, this is me**",
-      "**Find my record**",
+      "**Continue**",
       "**Record connections**",
       "**Review**",
       "**Connect account**",

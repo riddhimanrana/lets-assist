@@ -2,7 +2,7 @@
 
 **Status:** Approved implementation source of truth<br>
 **Version:** 1.6<br>
-**Last updated:** September 1, 2026<br>
+**Last updated:** September 10, 2026<br>
 **Product surface:** DVHS CSF private organization plugin inside Let’s Assist
 
 This document defines the product, operating model, information architecture, terminology, data boundaries, workflows, page behavior, and acceptance criteria for the DVHS CSF rebuild. If current code, old mockups, seed data, or earlier labels conflict with this document, this document wins unless it is amended explicitly.
@@ -17,7 +17,7 @@ Application contact addresses are stored separately from identity email fields a
 
 ### Amendment 7: Self-confirmed account-name claims (approved follow-up, September 3, 2026)
 
-This policy is approved for the follow-up release. It is not part of the accepted September 3 application release.
+This historical policy is superseded by Amendment 8. It must not authorize current account connections.
 
 The server may offer **Is this you?** for one active, unclaimed profile whose full normalized name matches the signed-in account within the resolved class. Middle names participate in the comparison. A claimed duplicate remains a collision. The card shows the name and class, not private semester history before connection.
 
@@ -118,22 +118,18 @@ remains:
   immediately), and **Disable link and code**. Code state carries no send telemetry,
   and no code action emails anyone.
 - **Student journey.** A student opens the public `/connect/<code>` route or
-  enters the **Join code** on **Join a class**, signs in with a verified
-  account, and submits the **Find my record** details.
-  `csf_join_class_by_code` uses the verified account email as the only
-  automatic signal: one active same-class email match connects atomically with
-  recorded history. An unmatched email never creates a profile or class
-  membership. The page may offer one sole, active, unclaimed exact account-name
-  candidate in the selected class. A typed name, conflicting account or class
-  assignment, shared email, stale candidate, or ambiguous match creates or
-  reuses one review request.
-- **Per-class review.** Unresolved joins wait in that class's Members tab
-  under **Record connections**, paged by `csf_connect_cursor`. The **Review**
-  dialog renders **Connect account** only when the database confirms canonical
-  evidence — the confirmed account email matching the roster email, the exact
-  name, and exactly one matching active class membership; **Reject request**
-  is always available, with a required decision reason. Officer Home shows a
-  **Connection requests** chip with the total pending count.
+  enters the **Join code** on **Join a class**, signs in, enters their name in
+  **Join your class**, and selects **Continue**. An independently verified
+  existing connection opens the correct class. A student with no existing
+  candidate may create a self-owned profile. Names and application contact
+  emails can suggest a candidate but never establish ownership. Other matches
+  create or reuse a staff review request without exposing candidate history.
+- **Per-class review.** Unresolved joins wait in the class's **Record
+  connections** queue. Authorized staff use **Review** and **Connect account**
+  after verifying identity and recording their decision. Application and login
+  emails may differ. **Reject request** requires a reason. Connecting an account
+  does not approve an application, award points, or grant a staff position.
+  Officer Home shows the pending **Connection requests** count.
 - **Application form link.** The public apply call to action comes from the
   per-term `application_form_url`, edited in the term dialog's **Application
   form link** field and rendered only while that term is current and inside
@@ -851,7 +847,7 @@ The import workspace is specified in Section 12.
 **Actions:** Open the official site, sign in to My CSF, or open a class join page and enter that class's permanent join code.<br>
 **Empty state:** Retain the chapter identity, official links, sign-in, and class-code guidance without inventing public content.<br>
 **Privacy:** Public organization and class routes never expose Stream posts, Activities, semesters, rosters, codes, student-derived counts, applications, dues, eligibility, meeting attendance, points, proofs, notes, or account state. Class Stream and Activities require a signed-in, server-authorized class connection.<br>
-**Identity:** The verified account email is the only automatic connection signal (see Amendment 5). Conflicting or shared-email evidence moves to per-class officer review, and names never auto-connect.<br>
+**Identity:** Amendment 8 requires independently verified ownership for existing history. Application contact emails and editable names never prove ownership. Other matches await staff review; a student with no existing candidate may create a self-owned profile.<br>
 **Mobile:** Same Let’s Assist public shell with a responsive join/sign-in flow.
 
 ---
