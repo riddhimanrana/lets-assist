@@ -1,6 +1,6 @@
 BEGIN;
 CREATE EXTENSION IF NOT EXISTS pgtap WITH SCHEMA extensions;
-SELECT extensions.plan(177);
+SELECT extensions.plan(179);
 INSERT INTO auth.users(id,aud,role,email,raw_app_meta_data,raw_user_meta_data) VALUES
 ('ea000000-0000-4000-8000-000000000001','authenticated','authenticated','sheet-admin@local.test','{}','{}'),
 ('ea000000-0000-4000-8000-000000000002','authenticated','authenticated','sheet-outsider@local.test','{}','{}');
@@ -172,6 +172,10 @@ SELECT extensions.throws_ok($$UPDATE plugin_data.csf_sheet_writeback_ledger SET 
 SELECT extensions.throws_ok($$UPDATE plugin_data.csf_sheet_sync_destinations SET spreadsheet_file_id='fixture-sheet-copy' WHERE id='ea700000-0000-4000-8000-000000000002'$$,'P0001','Test copies cannot be used by live workspaces.','live destinations reject test files');
 SELECT extensions.ok(NOT has_table_privilege('authenticated','plugin_data.csf_sheet_sync_test_copy_requests','SELECT'),'copy receipts are not browser readable');
 SELECT extensions.ok(NOT has_table_privilege('service_role','plugin_data.csf_sheet_sync_test_files','INSERT'),'copy registration requires its checked action');
+INSERT INTO plugin_data.csf_sheet_sources(organization_id,title,spreadsheet_id) VALUES('ea100000-0000-4000-8000-000000000002','Fictional registered source','fixture-source-sheet');
+SELECT extensions.throws_ok($$SELECT plugin_data.csf_claim_sheet_sync_test_copy('ea100000-0000-4000-8000-000000000001','ea000000-0000-4000-8000-000000000001','ea100000-0000-4000-8000-000000000002','unknown-output-file','ea900000-0000-4000-8000-000000000099','fixture-google-subject')$$,'P0001','Choose a registered source or configured live workbook in the source organization.','unknown source file cannot start a provider copy');
+SELECT extensions.is(plugin_data.csf_claim_sheet_sync_test_copy('ea100000-0000-4000-8000-000000000001','ea000000-0000-4000-8000-000000000001','ea100000-0000-4000-8000-000000000002','fixture-other-org','ea900000-0000-4000-8000-000000000099','fixture-google-subject')->>'state','claimed','configured output-only workbook can enter copied tests');
+DELETE FROM plugin_data.csf_sheet_sync_test_copy_requests WHERE request_id='ea900000-0000-4000-8000-000000000099';
 SELECT extensions.is(plugin_data.csf_claim_sheet_sync_test_copy('ea100000-0000-4000-8000-000000000001','ea000000-0000-4000-8000-000000000001','ea100000-0000-4000-8000-000000000002','fixture-source-sheet','ea900000-0000-4000-8000-000000000001','fixture-google-subject')->>'state','claimed','first copy request claims one provider attempt');
 SELECT extensions.is(plugin_data.csf_claim_sheet_sync_test_copy('ea100000-0000-4000-8000-000000000001','ea000000-0000-4000-8000-000000000001','ea100000-0000-4000-8000-000000000002','fixture-source-sheet','ea900000-0000-4000-8000-000000000001','fixture-google-subject')->>'state','unknown','retry cannot repeat an in-flight provider copy');
 SELECT extensions.is(plugin_data.csf_claim_sheet_sync_test_copy('ea100000-0000-4000-8000-000000000001','ea000000-0000-4000-8000-000000000001','ea100000-0000-4000-8000-000000000002','fixture-source-sheet','ea900000-0000-4000-8000-000000000002','fixture-google-subject')->>'request_id','ea900000-0000-4000-8000-000000000001','new request ID cannot bypass an unresolved copy');

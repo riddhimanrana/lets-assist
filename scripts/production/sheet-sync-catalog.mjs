@@ -31,8 +31,8 @@ export const sheetSyncDefinitions = [
   ],
   [
     "plugin_data.csf_claim_sheet_sync_test_copy(uuid,uuid,uuid,text,uuid,text)",
-    "f856b3ae5f2725a9d26b2d02956b0909",
-    "2be7422f7323cf4e480cebe5988ba8e0",
+    "98fe107a46e464ea6663372504743db9",
+    "e6b56d34849323e19059e49898ae4b9d",
     true,
   ],
   [
