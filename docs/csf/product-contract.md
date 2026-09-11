@@ -1954,3 +1954,17 @@ This amendment records the repository implementation associated with v1.3. It do
 - No Development/Preview or Production deployment, live Google read/write, Resend send, real student source, or officer-maintained Sheet mutation is authorized by this amendment.
 - Scheduled post persistence is not publication evidence. The publisher implementation and repository scheduler are accepted, but officers use the manual path in any environment that lacks exact opt-in, successful hosted invocation, and visible schedule → Feed evidence. No queued email may be attributed to a future schedule.
 - CLEAN-016 is closed by the Production Vercel Pro recurrence, repeated runtime starts, an authenticated `enabled: true` dispatcher response, and an unchanged empty delivery ledger. This proves the bounded communications worker is invoked without proving provider delivery or a fixed delivery time. The separate scheduled-post publisher remains disabled in Production, so scheduled publication stays open under CLEAN-015 and officers continue to use the manual path.
+
+## Sheet sync amendment, September 10, 2026
+
+This amendment replaces the input-only restrictions above for explicitly configured, permission-checked destinations. It does not make Sheets authoritative.
+
+Staff may connect a restricted Sheet tab for applications, point submissions, or a named class and semester. Each exported row uses a stable internal record ID. Names are display labels. Account connection, application status, enrollment, verified points, and semester completion remain separate fields. Yellow marks only an unverified account connection cell; historical completion stays intact.
+
+The app exports confirmed state and preserves separate requested-decision columns. Sheet proposals enter a review queue and require the existing authorized application or point-submission action. A comment never changes an approval, credit, or account connection. Pending points never increase verified totals.
+
+Native cell-attached comments retain provider author attribution, replies, and resolution. A missing native-comment capability blocks sync. Notes and unanchored Drive comments do not substitute for discussion threads. Staff-only conversations require a destination restricted to verified staff accounts.
+
+Each destination starts disabled. The worker rechecks organization access, export permission, destination privacy, and its lease before writes. Stable IDs, source versions, and immutable snapshots fence retries. An ambiguous provider write waits for reconciliation. Deleted or conflicting Sheet rows do not delete app records or authorize recreation.
+
+Staff see Last synced, Sync now, and Changes to review. Destination mappings and enablement remain under Advanced. Enabled destinations are checked every two minutes. New release acceptance starts with restricted workbook copies and separate test records. Live destinations remain off until copied-workbook journeys pass. Email delivery and scheduled publishing remain outside this rollout.
