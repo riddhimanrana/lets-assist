@@ -6960,3 +6960,65 @@ of that cost after waiving the load test. Chrome verified Development returned
 to t3a.micro on September 11 after the provider resize completed. Production
 compute was not changed. Small usage before the downgrade may still be billed
 for its actual duration.
+
+### September 11 release review and fresh data audit
+
+Root PRs 526 and 527 merged. Development is at
+`4d5631d8031b4fb0ce2af7674232f2da2ff912a7` with 488 migrations. Signed
+application 1.2.28 deployed successfully in workflow `34640126277`.
+Production remains at 482 migrations with all twelve worker controls disabled.
+The signed application and root integration are not Production acceptance.
+
+Production PR 519 has six confirmed findings under repair:
+
+- P1: changed or withdrawn Sheet requests leave older proposals reviewable.
+- P1: confirmed native-write recovery does not update the sync timestamp.
+- P2: an unchanged record cannot repair managed cells after a completed export.
+- P2: application discussions require unrelated point-review permission.
+- P1: confirmed column writes cannot recover their saved Comments baseline.
+- P1: the performance waiver also skips hosted deployment and browser checks.
+
+Applied migrations remain unchanged. The correction uses a forward migration,
+record-specific discussion permissions, verified write receipts, and a separate
+functional hosted check. Production promotion remains paused until the fixes
+and final candidate checks pass.
+
+A read-only audit at 19:32:43 UTC found 234 stored source rows, 200 pending
+applications and 37 identity-review rows, including three with applications.
+There were no duplicate application coordinates or invalid targets. Both
+legacy account connections remain restricted. The source snapshot is from
+07:58:11 UTC; this audit did not refresh Google Sheets.
+
+At 19:40:14 UTC, all four supplied cohort workbooks were reparsed and compared
+with Production. All 1,910 populated historical rows have matching profiles
+and semesters. All 1,117 consistently green rows and 558 explicit completion
+markers remain completed. Three mixed-color rows still require staff review.
+Class of 2030 contains no populated historical rows. The 35 future S28 preview
+coordinates have no committed member history. Count-only evidence remains in
+ignored artifacts.
+
+Chrome verified all four live class links while signed out. An existing
+alternate account returned to the test class link after Google sign-in and
+could not open the staff application queue. The administrator session was
+restored. No profile, membership or account connection was created in that
+check. Full member and staff journeys on the final deployment remain pending.
+
+The existing Google guide now describes the ordinary Comments column. Eight
+targeted replacements retained its eleven images and existing release-status
+labels. No copied-workbook or live-sync acceptance claim was added.
+
+The six release findings are fixed in the new candidate. Forward migration
+`20260911195446_csf_sheet_sync_review_recovery` preserves separate observations
+when a Sheet request is withdrawn and reentered. Identical retries reuse the
+same request, and prior staff decisions remain unchanged. The migration also
+restores manual export repair, record-specific discussion permissions, and
+complete Comments receipts for confirmed write recovery. Its SHA-256 is
+`2decd1a72195303164c6db1aa4d104261627275e0ef72692ec467e87e5b92137`.
+
+The final migration passed 49 focused assertions, the existing queue suite,
+exact catalog validation, ten negative catalog probes, and 67 Node tests.
+Independent review found no remaining blocker. The private recovery code passed
+34 focused tests and child typecheck. Application 1.2.29 manifest and access
+checks passed seven tests. The performance waiver now requires an authenticated
+hosted functional run, without the waived 100-session load test. Its focused
+contract tests passed. Production remains unchanged pending final release checks.
