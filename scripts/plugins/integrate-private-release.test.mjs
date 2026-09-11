@@ -458,6 +458,16 @@ test("application implementation may change while the embedded tree stays served
   });
 
   assert.doesNotThrow(() => integrate(input));
+  assert.equal(
+    runGit(input.privateRoot, "rev-parse", "HEAD"),
+    input.servingPrivateCommit,
+  );
+});
+
+test("application integration requires an explicit serving private commit", () => {
+  const input = fixture({ application: true, multiEnvironment: true });
+  input.servingPrivateCommit = undefined;
+  assert.throws(() => integrate(input), /require the serving private commit/u);
 });
 
 test("application integration refuses to serve its changed embedded tree", () => {
