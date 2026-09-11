@@ -95,7 +95,7 @@ test("the sync catalog covers each table and exact source-change trigger", () =>
 });
 
 test("483 adds the sync posture without changing the preceding accepted catalog", () => {
-  assert.equal(versions.length, 496);
+  assert.equal(versions.length, 497);
   const previous = acceptedCatalogQuery(source, versions.slice(0, 482));
   assert.equal(
     createHash("sha256").update(previous).digest("hex"),
@@ -128,7 +128,7 @@ test("an existing 482 migration release applies sync and signed publications", (
         /INSERT INTO supabase_migrations.schema_migrations/gu,
       ) ?? []
     ).length,
-    14,
+    15,
   );
   assert.ok(
     prepared.query.includes(
@@ -180,7 +180,7 @@ test("an existing 483 release applies signed publications and the discussion ext
         /INSERT INTO supabase_migrations.schema_migrations/gu,
       ) ?? []
     ).length,
-    13,
+    14,
   );
 });
 
@@ -206,7 +206,7 @@ test("an existing 484 release applies new signed publications and the discussion
         /INSERT INTO supabase_migrations.schema_migrations/gu,
       ) ?? []
     ).length,
-    12,
+    13,
   );
 });
 
@@ -233,6 +233,6 @@ test("an existing 485 release applies the remaining signed publications and disc
         /INSERT INTO supabase_migrations.schema_migrations/gu,
       ) ?? []
     ).length,
-    11,
+    12,
   );
 });
