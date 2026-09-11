@@ -6879,6 +6879,9 @@ count still comes from the authorized Home snapshot. Submission, points
 and profile routes retain their record reads and permission checks.
 Independent behavior review, 12 focused/scale tests, six application access
 tests, 18 release-tooling tests, TypeScript, lint and formatting passed.
-Private quality run `34607981707` is pending. No latency improvement is
+Private quality run `34607981707` passed. PR 341 merged as
+`1af9b2208f761bf02e935142b52686fce7bf2f40`; the root gitlink now uses that
+exact commit and passes the strict submodule check. Private PR 342 prepares
+publication promotion. No latency improvement is
 claimed until measured. This change does not authorize the proposed paid
 Development compute upgrade.
