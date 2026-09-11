@@ -6793,6 +6793,16 @@ reason before a provider write. They must not be truncated or reported as
 an access failure. These fixes must use a new signed release; the published
 1.2.25 tag remains immutable.
 
+Private PR 339 prepares these fixes as application 1.2.26 at
+`66fc21811137cc49988cd7143cf0fead0fb8641a`. It also retains staff without
+student profiles in the reviewer directory and reports failed review-period
+or policy reads. All 354 private test files pass, with mock-sensitive suites
+isolated; host TypeScript, changed-file lint, full private formatting and ten
+child application tests pass. Fictional tests retain 1,101 review subjects
+and 13,212 related records. Independent review found no actionable P0-P2
+issues. Private quality run `34598455585` is in progress. This is prepared
+code, not a deployed Production fix.
+
 Workbook refresh and import processing remain paused. Email delivery and
 scheduled publishing remain disabled. Copied-workbook native-thread
 acceptance, the final Production student and staff journeys, live sync
