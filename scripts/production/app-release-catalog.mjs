@@ -110,9 +110,12 @@ export function acceptedCatalogQuery(source, versions) {
   )
     return source;
   const sheetDiscussionUpgrade =
-    versions.length === 487 &&
-    ledgerHash ===
-      "80f95ab50c493a2759eeb23e17398b992b0b4f2aac6556947f874cb0d616b059";
+    (versions.length === 487 &&
+      ledgerHash ===
+        "80f95ab50c493a2759eeb23e17398b992b0b4f2aac6556947f874cb0d616b059") ||
+    (versions.length === 488 &&
+      ledgerHash ===
+        "0d78f8f25b496da867238a8324a19e6cc4dec615337e988660bd9b0e8bf56e16");
   const sheetSyncUpgrade =
     sheetDiscussionUpgrade ||
     (versions.length === 483 &&
