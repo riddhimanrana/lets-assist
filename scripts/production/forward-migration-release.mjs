@@ -78,6 +78,10 @@ export const approvedMigrations = [
     "20260911101007_publish_dvhs_csf_1_2_25",
     "32cb2d89eca6ce9ac87defdd856973cffc5153cf3c87d8d5d89f513d27a684eb",
   ],
+  [
+    "20260911130443_publish_dvhs_csf_1_2_26",
+    "e1df91aa3e43d85d1fd0553c3a698a5df506bd032fb804249848395f21b2b9b7",
+  ],
 ];
 
 const literal = (value) => `'${value.replaceAll("'", "''")}'`;
