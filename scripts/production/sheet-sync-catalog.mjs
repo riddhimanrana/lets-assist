@@ -12,9 +12,9 @@ export const sheetSyncDefinitions = [
     true,
   ],
   [
-    "plugin_data.csf_bind_sheet_sync_thread(uuid,uuid,uuid,uuid,uuid,text,text,text)",
-    "a3350b9c70b3cdc83e45a38fdc1a34bf",
-    "f273618b0339613f4b10a2c2fd6f5679",
+    "plugin_data.csf_bind_sheet_sync_thread(uuid,uuid,uuid,uuid,uuid,text,text,text,text)",
+    "d77cce32cf480dafbfc64ad98a8a0ba2",
+    "7696c30741eaa346ba13448c679b7367",
     true,
   ],
   [
@@ -61,8 +61,8 @@ export const sheetSyncDefinitions = [
   ],
   [
     "plugin_data.csf_queue_changed_sheet_sync_record()",
-    "5bb0aab80f771ee13c57be652789e120",
-    "b2d3dbdcb46e127baf2f1d2c5151e8dd",
+    "902e86a443c8607ca7591f8d10145b13",
+    "fdf24254dab16670eb86eac3b0709ca3",
     false,
   ],
   [
@@ -145,14 +145,14 @@ export const sheetSyncDefinitions = [
   ],
   [
     "plugin_data.csf_sheet_sync_destination_snapshot(uuid,uuid,text,uuid)",
-    "5cac90cfc3e8c894801bb75d369cf0b1",
-    "c56398ba01bd4a3c4512461abb4af807",
+    "fc234bc06902a90b7f0a1d765dbc23ba",
+    "0e2b75b3b35d3d26c5dc5f812d22a4d3",
     true,
   ],
   [
     "plugin_data.csf_sheet_sync_snapshot(uuid,text,uuid)",
-    "6f1bf6a0c28d7cb7e7f6aff22c29aa27",
-    "e1a25952718bf9ccfec2d775ab684650",
+    "d5700a120400cd85760db450c4788bc2",
+    "29f33c1ead8ac2e562516238c6b3c30a",
     true,
   ],
 ];
