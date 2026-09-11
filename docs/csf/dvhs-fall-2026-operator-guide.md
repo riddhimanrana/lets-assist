@@ -406,11 +406,11 @@ remains linked, with its header-only tabs uncommitted.
 
 ## Create and resolve Class of 2030 from the new application cycle
 
-An application response never creates a student profile, and an application
-decision never creates one. The central application import refuses a row with
-no reviewed profile target. Keep the Class of 2030 workbook linked. Its current
-header-only tabs create no import previews or records. Use the current
-application form and this sequence:
+Approved automatic imports can create profiles before attaching applications.
+An application decision does not create the profile. Keep the Class of 2030
+workbook linked. Its current header-only tabs create no historical records.
+Use this manual workflow only for an application row that still needs a
+reviewed profile target:
 
 1. Record the reviewed new application form URL in the current term's
    **Application form link** (**Term actions → Edit term**); the public class
@@ -422,7 +422,8 @@ application form and this sequence:
    profile, application, term membership, or account connection.
 3. A row without a reviewed profile is held for reconciliation. Open **Members
    → Add member**, use **Add a student record**, enter the exact reviewed name
-   and current unique school/personal email, choose **Class** = Class of 2030,
+   without treating application contacts as verified identity fields. Choose
+   **Class** = Class of 2030,
    and select **Add student record**. Wait for **Student record created.** If a
    current profile already exists, review it instead of creating a duplicate.
 4. The staff profile action records a replay-safe `profile.create` audit receipt
