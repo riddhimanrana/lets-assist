@@ -7149,3 +7149,9 @@ without a class or CSF profile. Before position assignment it had no CSF role.
 An administrator assigned the existing Vice President Membership position;
 the capacity guard rejected a second assignment. The temporary invitation was
 revoked. These checks changed no real chapter membership or positions.
+
+## CSF 1.2.32 private copy source integration
+
+Private release `dvhs-csf/v1.2.32` at `a9f528ee4b49bb7619e3488a8dfa98dcadc5ef35` passed private quality runs `34653077425`, `34653401753`, and `34653707837`. Release run `34653986645` published signed artifacts after normal Development, Main, and return merges. The copy action uses the My Drive root alias and retains post-copy privacy and unknown-outcome checks.
+
+Automatic root integration `34654065898` refused the changed embedded source against the prior serving gitlink. This reviewed source-only pin advances that baseline without changing the guard or publication registry. Rerun signed release integration after merge to generate the publication migration. Production copy verification remains pending.
