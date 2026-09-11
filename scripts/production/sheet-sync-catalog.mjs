@@ -37,8 +37,8 @@ export const sheetSyncDefinitions = [
   ],
   [
     "plugin_data.csf_configure_sheet_sync_destination(uuid,uuid,text,integer,text,uuid,uuid,boolean,integer,jsonb)",
-    "7b7eb3ce160ad6e0617dedee4bd171ee",
-    "48a0e9b4bdaef63c8aba2a58651555ec",
+    "9b0940929305a2fe98642cc42fcb6132",
+    "f15d2da426ea04304ded58ebecbbef0a",
     true,
   ],
   [
@@ -160,8 +160,8 @@ export const sheetSyncTables = [
   ["csf_sheet_writeback_ledger", "7f533e933b817a613e00257ebb6a3fbb", false],
   ["csf_sheet_sync_test_workspaces", "687f12674bf6c706124714d95d7b53fb", false],
   ["csf_sheet_sync_test_files", "ae45abad052eeb78153d320c06ecea37", false],
-  ["csf_sheet_sync_destinations", "cdfc7cdc32f22270bf2b26b26d6858f5", false],
-  ["csf_sheet_sync_bindings", "d287cd51b739fc5d41ac4496935b965e", false],
+  ["csf_sheet_sync_destinations", "edc41278f049cd80b6d26073ddf422d2", false],
+  ["csf_sheet_sync_bindings", "567cc1659b8ff878568d87fbd13580d4", false],
   ["csf_sheet_sync_changes", "6aa70e5f974062411d7bab926536d7cc", false],
   [
     "csf_sheet_sync_test_copy_requests",

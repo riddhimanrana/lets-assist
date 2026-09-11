@@ -23,6 +23,7 @@ CREATE TABLE plugin_data.csf_sheet_sync_destinations (
   sheet_id integer NOT NULL CHECK (sheet_id >= 0),
   kind text NOT NULL CHECK (kind IN ('applications','class','point_submissions')),
   cohort_id uuid REFERENCES plugin_data.csf_cohorts(id), term_id uuid NOT NULL REFERENCES plugin_data.csf_terms(id),
+  CONSTRAINT csf_sheet_sync_class_requires_cohort CHECK(kind<>'class' OR cohort_id IS NOT NULL),
   is_test boolean NOT NULL, enabled boolean NOT NULL DEFAULT false,
   configured_by uuid NOT NULL REFERENCES auth.users(id),
   privacy_verified_at timestamptz, comment_capability text NOT NULL DEFAULT 'pending' CHECK (comment_capability IN ('pending','available','blocked')),
@@ -43,6 +44,8 @@ CREATE TABLE plugin_data.csf_sheet_sync_bindings (
   UNIQUE(destination_id,record_kind,record_id), UNIQUE(destination_id,logical_key), UNIQUE(organization_id,destination_id,id),
   FOREIGN KEY(organization_id,destination_id) REFERENCES plugin_data.csf_sheet_sync_destinations(organization_id,id) ON DELETE CASCADE
 );
+CREATE INDEX csf_sheet_sync_bindings_org_profile ON plugin_data.csf_sheet_sync_bindings(organization_id,profile_id);
+CREATE INDEX csf_sheet_sync_bindings_org_record ON plugin_data.csf_sheet_sync_bindings(organization_id,record_kind,record_id);
 ALTER TABLE plugin_data.csf_sheet_writeback_ledger
   ALTER COLUMN application_id DROP NOT NULL, ALTER COLUMN row_number DROP NOT NULL, ALTER COLUMN decision DROP NOT NULL,
   DROP CONSTRAINT csf_sheet_writeback_ledger_status_check,
@@ -193,6 +196,7 @@ DECLARE d plugin_data.csf_sheet_sync_destinations%ROWTYPE;
 BEGIN
  PERFORM pg_advisory_xact_lock(plugin_data.csf_staff_access_lock_key(p_organization_id));
  IF NOT (plugin_data.csf_actor_has_permission(p_organization_id,p_actor_user_id,'manage_sheet_sync') AND plugin_data.csf_actor_has_permission(p_organization_id,p_actor_user_id,'export_sensitive_reports')) THEN RAISE EXCEPTION 'Not authorized.'; END IF;
+ IF p_kind='class' AND p_cohort_id IS NULL THEN RAISE EXCEPTION 'Choose a class for this workbook.'; END IF;
  IF NOT EXISTS(SELECT 1 FROM plugin_data.csf_terms WHERE id=p_term_id AND organization_id=p_organization_id) OR (p_cohort_id IS NOT NULL AND NOT EXISTS(SELECT 1 FROM plugin_data.csf_cohorts WHERE id=p_cohort_id AND organization_id=p_organization_id)) THEN RAISE EXCEPTION 'Semester or class does not belong to this organization.'; END IF;
  IF p_is_test IS DISTINCT FROM EXISTS(SELECT 1 FROM plugin_data.csf_sheet_sync_test_workspaces WHERE organization_id=p_organization_id) THEN RAISE EXCEPTION 'Test destinations require an isolated test workspace.'; END IF;
  PERFORM pg_advisory_xact_lock(hashtextextended('csf-sheet-destination:'||p_spreadsheet_file_id,0));
