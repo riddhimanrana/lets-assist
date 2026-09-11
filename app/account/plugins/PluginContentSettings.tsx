@@ -160,11 +160,6 @@ export function PluginContentSettings({
                           >
                             {source.name}
                           </Label>
-                          {source.description && (
-                            <p className="text-sm text-muted-foreground">
-                              {source.description}
-                            </p>
-                          )}
                           {sourceLine && (
                             <p className="text-sm text-muted-foreground">
                               From {sourceLine}
