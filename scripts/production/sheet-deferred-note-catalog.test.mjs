@@ -12,7 +12,7 @@ const source = readFileSync(
   "utf8",
 );
 test("493 changes only the profile snapshot function fingerprint", () => {
-  assert.equal(versions.length, 494);
+  assert.equal(versions.length, 496);
   const changed = sheetDeferredNoteDefinitions.filter(
     (row, i) =>
       JSON.stringify(row) !== JSON.stringify(sheetObservationDefinitions[i]),
@@ -38,7 +38,7 @@ test("493 changes only the profile snapshot function fingerprint", () => {
     acceptedCatalogQuery(source, versions.slice(0, 491)),
   );
 });
-test("492 advances only through profile note export deferral", () => {
+test("492 advances through profile note export deferral and the current release tail", () => {
   const result = prepareMigration(
     process.cwd(),
     undefined,
@@ -50,11 +50,11 @@ test("492 advances only through profile note export deferral", () => {
         /INSERT INTO supabase_migrations.schema_migrations/gu,
       ) ?? []
     ).length,
-    2,
+    4,
   );
   assert.ok(
     result.query.includes("jsonb_build_object('comments','[]'::jsonb)"),
   );
   assert.ok(!result.query.includes("CREATE TRIGGER"));
-  assert.ok(!result.query.includes("INSERT INTO public.plugin_versions"));
+  assert.ok(result.query.includes("AND version = '1.2.32'"));
 });
