@@ -114,7 +114,10 @@ export function acceptedCatalogQuery(source, versions) {
         "c54a7e57d7f32caa8757f8defc106df7637984d99943835ee6cb4030fbdf00d8") ||
     (versions.length === 485 &&
       ledgerHash ===
-        "8d650ea3d0d0148d14f9e57e1d52b1bd2bd8e8d61a71f4241dc1d59009adfd31");
+        "8d650ea3d0d0148d14f9e57e1d52b1bd2bd8e8d61a71f4241dc1d59009adfd31") ||
+    (versions.length === 486 &&
+      ledgerHash ===
+        "01316a49d8af843cd146181f8b48d34b0bb68adda381314a90ce8e862c52ff41");
   const revokedHistoryUpgrade =
     sheetSyncUpgrade ||
     (versions.length === 482 &&

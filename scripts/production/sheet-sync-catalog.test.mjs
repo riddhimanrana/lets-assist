@@ -95,7 +95,7 @@ test("the sync catalog covers each table and exact source-change trigger", () =>
 });
 
 test("483 adds the sync posture without changing the preceding accepted catalog", () => {
-  assert.equal(versions.length, 485);
+  assert.equal(versions.length, 486);
   const previous = acceptedCatalogQuery(source, versions.slice(0, 482));
   assert.equal(
     createHash("sha256").update(previous).digest("hex"),
@@ -128,7 +128,7 @@ test("an existing 482 migration release applies sync and signed publications", (
         /INSERT INTO supabase_migrations.schema_migrations/gu,
       ) ?? []
     ).length,
-    3,
+    4,
   );
   assert.ok(
     prepared.query.includes(
@@ -180,20 +180,47 @@ test("an existing 483 release applies only signed publications", () => {
         /INSERT INTO supabase_migrations.schema_migrations/gu,
       ) ?? []
     ).length,
-    2,
+    3,
   );
 });
 
 test("485 publication preserves the preceding sync schema posture", () => {
   assert.equal(
-    acceptedCatalogQuery(source, versions),
+    acceptedCatalogQuery(source, versions.slice(0, 485)),
     acceptedCatalogQuery(source, versions.slice(0, 484)),
   );
 });
 
-test("an existing 484 release applies only the new signed publication", () => {
+test("an existing 484 release applies only the new signed publications", () => {
   const prepared = prepareMigration(cwd, undefined, versions.slice(0, 484));
   assert.ok(prepared.query.includes("20260911130443"));
+  assert.ok(!prepared.query.includes("AND version = '1.2.25'"));
+  assert.ok(
+    !prepared.query.includes(
+      "CREATE TABLE plugin_data.csf_sheet_sync_destinations",
+    ),
+  );
+  assert.equal(
+    (
+      prepared.query.match(
+        /INSERT INTO supabase_migrations.schema_migrations/gu,
+      ) ?? []
+    ).length,
+    2,
+  );
+});
+
+test("486 publication preserves the preceding sync schema posture", () => {
+  assert.equal(
+    acceptedCatalogQuery(source, versions),
+    acceptedCatalogQuery(source, versions.slice(0, 485)),
+  );
+});
+
+test("an existing 485 release applies only the 1.2.27 publication", () => {
+  const prepared = prepareMigration(cwd, undefined, versions.slice(0, 485));
+  assert.ok(prepared.query.includes("20260911143923"));
+  assert.ok(!prepared.query.includes("AND version = '1.2.26'"));
   assert.ok(!prepared.query.includes("AND version = '1.2.25'"));
   assert.ok(
     !prepared.query.includes(

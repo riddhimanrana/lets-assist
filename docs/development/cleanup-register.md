@@ -6885,3 +6885,26 @@ exact commit and passes the strict submodule check. Private PR 342 prepares
 publication promotion. No latency improvement is
 claimed until measured. This change does not authorize the proposed paid
 Development compute upgrade.
+
+### Signed application 1.2.27 publication candidate
+
+Root PR 524 passed CI `34609010934` on
+`f300147f4d157170131d305194d911be75480fb9`, including 7,915 database
+assertions and 93 CSF browser tests with four optional skips. The initial
+run failed only because the officer runbook still named the prior private
+gitlink. That reference was corrected and its documentation checks passed.
+PR 524 merged as `cddf2112bce194cd787a13b9b9caf7b0f771eecd` with the same
+tree. Private PR 342 and CI `34608392171` passed, and signed release run
+`34608835291` published source `1af9b2208f761bf02e935142b52686fce7bf2f40`.
+Integration `34611386535` passed on the updated root and opened PR 525.
+
+Generated migration `20260911143923_publish_dvhs_csf_1_2_27` has SHA256
+`8a50c4b036700502129824041acb2a1b68625d66b5fe36c744ec9daf0a34a9a5`.
+The 486-version ledger hash is
+`01316a49d8af843cd146181f8b48d34b0bb68adda381314a90ce8e862c52ff41`.
+Independent migration and catalog review passed. The exact publication
+bytes are appended to the forward allowlist; prior migrations and accepted
+483/484/485 catalog fingerprints remain intact. Sixty-two catalog tests
+and 13 documentation tests passed. Publication does not select the runtime
+for organizations. Final integrated CI, hosted acceptance and Production
+activation remain pending. No compute upgrade or worker resumption occurred.
