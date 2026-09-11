@@ -186,6 +186,7 @@ export function automaticSheetUpdatesPosture(
   matchingTabs = false,
   applicationContacts = false,
   ownershipReview = false,
+  sheetSync = false,
 ) {
   const definitions = matchingTabs
     ? [
@@ -240,9 +241,11 @@ export function automaticSheetUpdatesPosture(
     ],
     [
       "csf_sheet_automatic_update_authorizations",
-      matchingTabs
-        ? "8ea2de3577ed4ae18571aa1a8df986b2"
-        : "250b2dd36d46a64d7aad9e493e3dfcff",
+      sheetSync
+        ? "2c961c05d3cc45d84c06d55aac736946"
+        : matchingTabs
+          ? "8ea2de3577ed4ae18571aa1a8df986b2"
+          : "250b2dd36d46a64d7aad9e493e3dfcff",
       false,
     ],
   ];

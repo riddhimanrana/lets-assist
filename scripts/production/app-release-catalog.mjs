@@ -521,8 +521,8 @@ accepted_upgrade_posture AS (
   ${applicationRetryUpgrade ? applicationRetryRecoveryPosture : ""}
   ${workbookRecoveryUpgrade ? workbookRecoveryPosture : ""}
   ${applicationSourceReviewUpgrade ? applicationSourceReviewPosture : ""}
-  ${reviewedWorkbookLinksUpgrade ? reviewedWorkbookLinksPosture(workerRelationSnapshotQuery) : ""}
-  ${automaticSheetUpdatesUpgrade ? automaticSheetUpdatesPosture(workerRelationSnapshotQuery, matchingTabUpgrade, applicationContactsUpgrade, ownershipUpgrade) : ""}
+  ${reviewedWorkbookLinksUpgrade ? reviewedWorkbookLinksPosture(workerRelationSnapshotQuery, sheetSyncUpgrade) : ""}
+  ${automaticSheetUpdatesUpgrade ? automaticSheetUpdatesPosture(workerRelationSnapshotQuery, matchingTabUpgrade, applicationContactsUpgrade, ownershipUpgrade, sheetSyncUpgrade) : ""}
   ${workbookLinkMergeUpgrade ? workbookLinkMergePosture : ""}
   ${staffAccountConnectionUpgrade ? staffAccountConnectionPosture(staffAccountAuthorityUpgrade, ownershipUpgrade) : ""}
   ${ownershipUpgrade ? reportedContactColumnsPosture : ""}${sheetSyncUpgrade ? `\n  ${sheetSyncPosture(workerRelationSnapshotQuery)}` : ""} AS valid

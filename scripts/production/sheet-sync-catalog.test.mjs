@@ -141,3 +141,20 @@ test("an existing 482 migration release applies only the approved sync migration
     ),
   );
 });
+
+test("new workbook guards use new table fingerprints only for the sync ledger", () => {
+  const before = acceptedCatalogQuery(source, versions.slice(0, 482));
+  const current = acceptedCatalogQuery(source, versions);
+  for (const hash of [
+    "4db39e32056870608efc1d18528f2eef",
+    "8ea2de3577ed4ae18571aa1a8df986b2",
+  ])
+    assert.ok(before.includes(hash));
+  for (const hash of [
+    "26e1961c0e127c76250c5a81f689c758",
+    "2c961c05d3cc45d84c06d55aac736946",
+  ]) {
+    assert.ok(current.includes(hash));
+    assert.ok(!before.includes(hash));
+  }
+});
