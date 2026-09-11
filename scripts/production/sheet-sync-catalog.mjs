@@ -164,18 +164,18 @@ export const sheetSyncDefinitions = [
 ];
 export const sheetSyncTables = [
   ["csf_sheet_writeback_ledger", "da34980f9a92021d6fa6c8d1d0d1fb38", false],
-  ["csf_sheet_sync_test_workspaces", "687f12674bf6c706124714d95d7b53fb", false],
+  ["csf_sheet_sync_test_workspaces", "8f46627bdc10aafb7f332d4a377c5369", false],
   ["csf_sheet_sync_test_files", "ae45abad052eeb78153d320c06ecea37", false],
-  ["csf_sheet_sync_destinations", "edc41278f049cd80b6d26073ddf422d2", false],
-  ["csf_sheet_sync_bindings", "567cc1659b8ff878568d87fbd13580d4", false],
-  ["csf_sheet_sync_changes", "6aa70e5f974062411d7bab926536d7cc", false],
+  ["csf_sheet_sync_destinations", "c6c5259760731f1c7a2d71417fff351e", false],
+  ["csf_sheet_sync_bindings", "29b2ab703bac066b8b812f6eaaeb2e63", false],
+  ["csf_sheet_sync_changes", "f2a642139518c8f53034801311dd161c", false],
   [
     "csf_sheet_sync_test_copy_requests",
     "e8d797f1d751abc4d1ce18fb0183a5af",
     false,
   ],
-  ["csf_sheet_sync_local_messages", "167d8947ed5c2978f44d746770769eda", false],
-  ["csf_sheet_sync_comments", "8439d2a366122e596c8afb0313c216db", false],
+  ["csf_sheet_sync_local_messages", "8e09081a68e9c305bc5ee927034acc1e", false],
+  ["csf_sheet_sync_comments", "2bb6c09e580ba19ccb557ee7d40ba725", false],
 ];
 export const sheetSyncTriggers = [
   [

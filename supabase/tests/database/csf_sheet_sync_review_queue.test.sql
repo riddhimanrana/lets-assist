@@ -1,6 +1,6 @@
 BEGIN;
 CREATE EXTENSION IF NOT EXISTS pgtap WITH SCHEMA extensions;
-SELECT extensions.plan(156);
+SELECT extensions.plan(158);
 INSERT INTO auth.users(id,aud,role,email,raw_app_meta_data,raw_user_meta_data) VALUES
 ('ea000000-0000-4000-8000-000000000001','authenticated','authenticated','sheet-admin@local.test','{}','{}'),
 ('ea000000-0000-4000-8000-000000000002','authenticated','authenticated','sheet-outsider@local.test','{}','{}');
@@ -133,7 +133,9 @@ SELECT 'eafa0000-0000-4000-8000-000000000001',organization_id,spreadsheet_file_i
 SELECT plugin_data.csf_queue_sheet_sync_record_internal('ea100000-0000-4000-8000-000000000001','eafa0000-0000-4000-8000-000000000001','application','ea600000-0000-4000-8000-000000000001');
 INSERT INTO sync_fixture VALUES('sibling_before',plugin_data.csf_sheet_sync_destination_snapshot('ea100000-0000-4000-8000-000000000001','eafa0000-0000-4000-8000-000000000001','application','ea600000-0000-4000-8000-000000000001'));
 INSERT INTO sync_fixture SELECT 'sibling_queue_count',to_jsonb(count(*)) FROM plugin_data.csf_sheet_writeback_ledger WHERE destination_id='eafa0000-0000-4000-8000-000000000001';
+SET LOCAL ROLE service_role;
 SELECT plugin_data.csf_add_sheet_sync_local_message('ea100000-0000-4000-8000-000000000001','ea000000-0000-4000-8000-000000000001',(SELECT (value->>'id')::uuid FROM sync_fixture WHERE name='binding'),'ea800000-0000-4000-8000-000000000001','thread-1','Checked the transcript.',true);
+RESET ROLE;
 SELECT plugin_data.csf_add_sheet_sync_local_message('ea100000-0000-4000-8000-000000000001','ea000000-0000-4000-8000-000000000001',(SELECT (value->>'id')::uuid FROM sync_fixture WHERE name='binding'),'ea800000-0000-4000-8000-000000000001','thread-1','Checked the transcript.',true);
 SELECT extensions.is(jsonb_array_length(plugin_data.csf_sheet_sync_destination_snapshot('ea100000-0000-4000-8000-000000000001',(SELECT (value->>'id')::uuid FROM sync_fixture WHERE name='destination'),'application','ea600000-0000-4000-8000-000000000001')->'local_messages'),1,'destination snapshot contains its own reply');
 SELECT extensions.is(plugin_data.csf_sheet_sync_destination_snapshot('ea100000-0000-4000-8000-000000000001','eafa0000-0000-4000-8000-000000000001','application','ea600000-0000-4000-8000-000000000001'),(SELECT value FROM sync_fixture WHERE name='sibling_before'),'sibling destination snapshot and revision exclude private replies');
@@ -329,5 +331,9 @@ SELECT extensions.ok((SELECT to_jsonb(scope_revision)>(SELECT value FROM sync_fi
 SELECT plugin_data.csf_set_sheet_sync_destination_state('ea100000-0000-4000-8000-000000000001','ea000000-0000-4000-8000-000000000001','eaf20000-0000-4000-8000-000000000001',true,true,'available');
 SELECT plugin_data.csf_seed_sheet_sync_destination('ea100000-0000-4000-8000-000000000001','ea000000-0000-4000-8000-000000000001','eaf20000-0000-4000-8000-000000000001',NULL,100);
 SELECT extensions.ok(pg_temp.current_sync_queued('profile','ea300000-0000-4000-8000-000000000001') AND pg_temp.current_sync_queued('profile','ea300000-0000-4000-8000-000000000004'),'reenabling after pair edits seeds active profiles and old bindings');
+SELECT extensions.ok(NOT EXISTS(SELECT 1 FROM unnest(ARRAY['csf_sheet_sync_test_workspaces','csf_sheet_sync_test_files','csf_sheet_sync_destinations','csf_sheet_sync_bindings','csf_sheet_sync_changes','csf_sheet_sync_test_copy_requests','csf_sheet_sync_local_messages','csf_sheet_sync_comments']) relation WHERE has_table_privilege('service_role','plugin_data.'||relation,'INSERT,UPDATE,DELETE,TRUNCATE,REFERENCES,TRIGGER') OR NOT has_table_privilege('service_role','plugin_data.'||relation,'SELECT')),'new sync tables expose service reads without direct mutation privileges');
+SET LOCAL ROLE service_role;
+SELECT extensions.throws_ok($$UPDATE plugin_data.csf_sheet_sync_destinations SET term_id='eafb0000-0000-4000-8000-000000000001' WHERE id='eaf20000-0000-4000-8000-000000000001'$$,'42501',NULL,'direct service mutation cannot bypass destination configuration');
+RESET ROLE;
 SELECT * FROM extensions.finish();
 ROLLBACK;

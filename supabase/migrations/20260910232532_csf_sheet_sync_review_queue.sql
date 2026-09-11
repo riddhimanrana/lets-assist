@@ -90,8 +90,8 @@ CREATE TABLE plugin_data.csf_sheet_sync_changes (
 DO $$ DECLARE t text; BEGIN
   FOREACH t IN ARRAY ARRAY['csf_sheet_sync_test_workspaces','csf_sheet_sync_destinations','csf_sheet_sync_bindings','csf_sheet_sync_changes'] LOOP
     EXECUTE format('ALTER TABLE plugin_data.%I ENABLE ROW LEVEL SECURITY',t);
-    EXECUTE format('REVOKE ALL ON plugin_data.%I FROM PUBLIC,anon,authenticated',t);
-    EXECUTE format('GRANT ALL ON plugin_data.%I TO service_role',t);
+    EXECUTE format('REVOKE ALL ON plugin_data.%I FROM PUBLIC,anon,authenticated,service_role',t);
+    EXECUTE format('GRANT SELECT ON plugin_data.%I TO service_role',t);
   END LOOP;
 END $$;
 
@@ -249,8 +249,8 @@ CREATE TABLE plugin_data.csf_sheet_sync_local_messages (
  FOREIGN KEY(organization_id,destination_id,binding_id) REFERENCES plugin_data.csf_sheet_sync_bindings(organization_id,destination_id,id)
 );
 ALTER TABLE plugin_data.csf_sheet_sync_local_messages ENABLE ROW LEVEL SECURITY;
-REVOKE ALL ON plugin_data.csf_sheet_sync_local_messages FROM PUBLIC,anon,authenticated;
-GRANT SELECT,INSERT ON plugin_data.csf_sheet_sync_local_messages TO service_role;
+REVOKE ALL ON plugin_data.csf_sheet_sync_local_messages FROM PUBLIC,anon,authenticated,service_role;
+GRANT SELECT ON plugin_data.csf_sheet_sync_local_messages TO service_role;
 
 CREATE FUNCTION plugin_data.csf_sheet_sync_snapshot(p_organization_id uuid,p_record_kind text,p_record_id uuid) RETURNS jsonb
 LANGUAGE plpgsql SECURITY DEFINER SET search_path='' AS $$
@@ -527,8 +527,8 @@ CREATE TABLE plugin_data.csf_sheet_sync_comments (
  FOREIGN KEY(organization_id,destination_id,binding_id) REFERENCES plugin_data.csf_sheet_sync_bindings(organization_id,destination_id,id)
 );
 ALTER TABLE plugin_data.csf_sheet_sync_comments ENABLE ROW LEVEL SECURITY;
-REVOKE ALL ON plugin_data.csf_sheet_sync_comments FROM PUBLIC,anon,authenticated;
-GRANT ALL ON plugin_data.csf_sheet_sync_comments TO service_role;
+REVOKE ALL ON plugin_data.csf_sheet_sync_comments FROM PUBLIC,anon,authenticated,service_role;
+GRANT SELECT ON plugin_data.csf_sheet_sync_comments TO service_role;
 CREATE FUNCTION plugin_data.csf_record_sheet_sync_comment(p_organization_id uuid,p_destination_id uuid,p_lease_token uuid,p_binding_id uuid,p_thread_id text,p_message_id text,p_provider_version text,p_author jsonb,p_body text,p_resolved boolean,p_deleted boolean) RETURNS jsonb
 LANGUAGE plpgsql SECURITY DEFINER SET search_path='' AS $$
 DECLARE c plugin_data.csf_sheet_sync_comments%ROWTYPE;
