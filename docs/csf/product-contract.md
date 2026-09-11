@@ -1054,14 +1054,14 @@ The rebuild extends the existing `plugin_data.csf_*` foundation. It does not cre
 
 ### 11.1 Identity and access
 
-| Concept                     | Physical model                                                      | Required behavior                                                                                                                                                      |
-| --------------------------- | ------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Permanent student           | `csf_profiles`                                                      | One durable student record per organization; normalized identity fields; fictional test ID support; no semester status stored here                                     |
-| Platform account connection | `csf_profile_accounts`                                              | Verified account link with actor/source/time; one active unambiguous connection per user/org                                                                           |
+| Concept                     | Physical model                                                      | Required behavior                                                                                                                                                               |
+| --------------------------- | ------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Permanent student           | `csf_profiles`                                                      | One durable student record per organization; normalized identity fields; fictional test ID support; no semester status stored here                                              |
+| Platform account connection | `csf_profile_accounts`                                              | Verified account link with actor/source/time; one active unambiguous connection per user/org                                                                                    |
 | Link request                | `csf_profile_link_requests`                                         | Limited candidate and resolution history; independently verified ownership is required for automatic connection; contact and name matches create or reuse staff-review requests |
-| Graduating class            | `csf_cohorts`, `csf_profile_cohort_memberships`                     | Historical membership and class changes remain traceable                                                                                                               |
-| Duplicate merge             | `csf_profile_merge_reviews`                                         | Preview and two-person/adviser review when configured; move references atomically; source becomes merged tombstone rather than disappearing                            |
-| Staff access                | `csf_roles`, `csf_role_permissions`, `csf_staff_positions`, history | Capability-based, effective-dated assignments                                                                                                                          |
+| Graduating class            | `csf_cohorts`, `csf_profile_cohort_memberships`                     | Historical membership and class changes remain traceable                                                                                                                        |
+| Duplicate merge             | `csf_profile_merge_reviews`                                         | Preview and two-person/adviser review when configured; move references atomically; source becomes merged tombstone rather than disappearing                                     |
+| Staff access                | `csf_roles`, `csf_role_permissions`, `csf_staff_positions`, history | Capability-based, effective-dated assignments                                                                                                                                   |
 
 ### 11.2 Semester, application, and eligibility
 
