@@ -138,7 +138,8 @@ jobs:
     # the same isolated database, scale, worker, and browser acceptance gate.
     if: github.event_name != 'pull_request' || github.event.pull_request.draft == false
     env:
-      CSF_ISOLATED_BASE_PORT: "55320"
+      # Keep listening ports below Linux's usual ephemeral port range.
+      CSF_ISOLATED_BASE_PORT: "25320"
       CSF_E2E_RUN_ID: ci-${{ github.run_id }}-${{ github.run_attempt }}
     steps:
       - name: Require private submodule access
