@@ -1,3 +1,4 @@
+import { sheetDeferredNoteDefinitions } from "./sheet-deferred-note-catalog.mjs";
 import {
   sheetObservationDefinitions,
   sheetObservationTables,
@@ -117,7 +118,12 @@ export function acceptedCatalogQuery(source, versions) {
       "34dbbd884882349f8083512cd2fe48b371c3f1242bc62897685267f2a5d0001b"
   )
     return source;
+  const sheetDeferredNoteUpgrade =
+    versions.length === 493 &&
+    ledgerHash ===
+      "a412156a94951d6a3995011f2f5b27bc336f9ffef0fdff913daf78ac1316f915";
   const sheetObservationUpgrade =
+    sheetDeferredNoteUpgrade ||
     (versions.length === 491 &&
       ledgerHash ===
         "4b6c08631b3358bdd6aeeafd2e2c1f2552bd22dd8bafdb09f8cd3f5ed751f6ce") ||
@@ -570,7 +576,7 @@ accepted_upgrade_posture AS (
   ${automaticSheetUpdatesUpgrade ? automaticSheetUpdatesPosture(workerRelationSnapshotQuery, matchingTabUpgrade, applicationContactsUpgrade, ownershipUpgrade, sheetSyncUpgrade) : ""}
   ${workbookLinkMergeUpgrade ? workbookLinkMergePosture : ""}
   ${staffAccountConnectionUpgrade ? staffAccountConnectionPosture(staffAccountAuthorityUpgrade, ownershipUpgrade) : ""}
-  ${ownershipUpgrade ? reportedContactColumnsPosture : ""}${sheetSyncUpgrade ? `\n  ${sheetSyncPosture(workerRelationSnapshotQuery, sheetObservationUpgrade ? sheetObservationDefinitions : sheetRecoveryUpgrade ? sheetRecoveryDefinitions : sheetDiscussionUpgrade ? sheetDiscussionDefinitions : undefined, sheetObservationUpgrade ? sheetObservationTables : sheetRecoveryUpgrade ? sheetRecoveryTables : sheetDiscussionUpgrade ? sheetDiscussionTables : undefined)}` : ""} AS valid
+  ${ownershipUpgrade ? reportedContactColumnsPosture : ""}${sheetSyncUpgrade ? `\n  ${sheetSyncPosture(workerRelationSnapshotQuery, sheetDeferredNoteUpgrade ? sheetDeferredNoteDefinitions : sheetObservationUpgrade ? sheetObservationDefinitions : sheetRecoveryUpgrade ? sheetRecoveryDefinitions : sheetDiscussionUpgrade ? sheetDiscussionDefinitions : undefined, sheetObservationUpgrade ? sheetObservationTables : sheetRecoveryUpgrade ? sheetRecoveryTables : sheetDiscussionUpgrade ? sheetDiscussionTables : undefined)}` : ""} AS valid
   FROM accepted_upgrade_definitions expected
   LEFT JOIN pg_proc p ON p.oid=to_regprocedure(expected.signature)
 )

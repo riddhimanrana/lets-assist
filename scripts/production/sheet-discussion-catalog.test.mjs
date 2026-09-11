@@ -19,7 +19,7 @@ const source = readFileSync(
   "utf8",
 );
 test("column extension pins reviewed definitions while preserving the prior catalog", () => {
-  assert.equal(versions.length, 492);
+  assert.equal(versions.length, 493);
   const current = acceptedCatalogQuery(source, versions.slice(0, 488));
   const previous = acceptedCatalogQuery(source, versions.slice(0, 486));
   assert.ok(!previous.includes("csf_configure_sheet_discussion_transport"));
@@ -42,7 +42,7 @@ test("486 requires the discussion extension, publication, and reviewed recovery"
         /INSERT INTO supabase_migrations.schema_migrations/gu,
       ) ?? []
     ).length,
-    6,
+    7,
   );
   assert.ok(prepared.query.includes("last_export_comments"));
   assert.ok(!prepared.query.includes("AND version = '1.2.27'"));
@@ -67,7 +67,7 @@ test("488 publication preserves 487 schema fingerprints before the recovery upgr
         /INSERT INTO supabase_migrations.schema_migrations/gu,
       ) ?? []
     ).length,
-    5,
+    6,
   );
   assert.ok(prepared.query.includes("AND version = '1.2.28'"));
   assert.ok(!prepared.query.includes("ADD COLUMN discussion_transport"));
