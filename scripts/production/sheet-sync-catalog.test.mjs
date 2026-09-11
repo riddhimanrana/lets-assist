@@ -36,7 +36,7 @@ test("the sync catalog pins every new function body and execution role", () => {
       /CREATE FUNCTION plugin_data\.([a-z_]+)\([\s\S]*?AS \$\$([\s\S]*?)\$\$;/gu,
     ),
   ];
-  assert.equal(bodies.length, 29);
+  assert.equal(bodies.length, 30);
   assert.equal(sheetSyncDefinitions.length, bodies.length);
   for (const [, name, body] of bodies) {
     const entry = sheetSyncDefinitions.find(([signature]) =>
@@ -50,6 +50,7 @@ test("the sync catalog pins every new function body and execution role", () => {
         "csf_queue_changed_sheet_sync_record",
         "csf_guard_sheet_sync_test_file",
         "csf_guard_sheet_sync_export_snapshot",
+        "csf_sheet_file_has_other_workspace",
         "csf_queue_cohort_sheet_sync_records",
         "csf_queue_sheet_sync_record_internal",
         "csf_queue_term_sheet_sync_records",
@@ -70,7 +71,7 @@ test("the sync catalog covers each table and exact source-change trigger", () =>
       /CREATE TRIGGER ([a-z_]+) (?:AFTER|BEFORE)[^;]+? ON plugin_data\.([a-z_]+)/gu,
     ),
   ].map((m) => `${m[2]}.${m[1]}`);
-  assert.equal(triggers.length, 26);
+  assert.equal(triggers.length, 29);
   assert.deepEqual(
     sheetSyncTriggers.map(([table, name]) => `${table}.${name}`).sort(),
     triggers.sort(),
@@ -105,7 +106,7 @@ test("483 adds the sync posture without changing the preceding accepted catalog"
   for (const [signature] of sheetSyncDefinitions)
     assert.ok(current.includes(signature), signature);
   assert.ok(current.includes("SELECT count(*)=10"));
-  assert.ok(current.includes("SELECT count(*)=26"));
+  assert.ok(current.includes("SELECT count(*)=29"));
   assert.throws(
     () =>
       acceptedCatalogQuery(source, [

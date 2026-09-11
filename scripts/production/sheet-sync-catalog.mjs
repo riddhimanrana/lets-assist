@@ -37,8 +37,8 @@ export const sheetSyncDefinitions = [
   ],
   [
     "plugin_data.csf_configure_sheet_sync_destination(uuid,uuid,text,integer,text,uuid,uuid,boolean,integer,jsonb)",
-    "a4be7fbe3fd2b003132b6790d45e30ac",
-    "4d73857007b2e6c94dec693eb82fdff5",
+    "002e4d0c37fdf29529617955d2950e6b",
+    "f969ac611c590f1f3db7db05cc852b7b",
     true,
   ],
   [
@@ -61,8 +61,8 @@ export const sheetSyncDefinitions = [
   ],
   [
     "plugin_data.csf_guard_sheet_sync_test_file()",
-    "c17223756fbaccc569c5d6c958a5a67e",
-    "b6d90b3920faff1e16ffaeaea30cf80b",
+    "9f1caccd77df145f5badb48d02c59588",
+    "a617e661be99eb22ca81fe81054999e7",
     false,
   ],
   [
@@ -127,8 +127,8 @@ export const sheetSyncDefinitions = [
   ],
   [
     "plugin_data.csf_register_sheet_sync_test_file(uuid,uuid,text,text)",
-    "aa7d9e558f1ef85cee964679a9cc75ba",
-    "350742dc49d951dd1bf1868af8a5eaa6",
+    "986943ca98b888e759e96c3e1779c88d",
+    "1ded4a5e9fed7f8cd0c4358d0be234bc",
     true,
   ],
   [
@@ -162,6 +162,12 @@ export const sheetSyncDefinitions = [
     true,
   ],
   [
+    "plugin_data.csf_sheet_file_has_other_workspace(uuid,text)",
+    "fccdcbef807f72a52c22c95c7c08a399",
+    "c59a0ca8898870de74e86c757c031667",
+    false,
+  ],
+  [
     "plugin_data.csf_sheet_sync_destination_snapshot(uuid,uuid,text,uuid)",
     "0e28d8b9e84c07534cf29f87d95a8772",
     "58ae5a058c526d98db647804b4c53991",
@@ -188,7 +194,7 @@ export const sheetSyncTables = [
   ],
   ["csf_sheet_sync_local_messages", "302f36e8b1ffbcf21f115b9f2efa88e8", false],
   ["csf_sheet_sync_comments", "01adfda8618a778be7ecf1384e0b384f", false],
-  ["csf_sheet_sync_acceptances", "00dfe9dd51b0651e5e5d3d9db22f15ff", false],
+  ["csf_sheet_sync_acceptances", "b75ec8fda9386a5cd930708904fa6482", false],
 ];
 export const sheetSyncTriggers = [
   [
@@ -204,6 +210,13 @@ export const sheetSyncTriggers = [
     "d6c7d4da7e3484eda78bc4d1bf9a12cb",
     29,
     "plugin_data.csf_queue_changed_sheet_sync_record()",
+  ],
+  [
+    "csf_class_workbook_refresh_jobs",
+    "csf_sheet_test_refresh_jobs",
+    "c881cbb2efff414b580cbca65fcf5d73",
+    23,
+    "plugin_data.csf_guard_sheet_sync_test_file()",
   ],
   [
     "csf_class_workbooks",
@@ -281,6 +294,20 @@ export const sheetSyncTriggers = [
     "2631f8ad074678f7a708adc3177a7801",
     29,
     "plugin_data.csf_queue_changed_sheet_sync_record()",
+  ],
+  [
+    "csf_reviewed_workbook_profile_links",
+    "csf_sheet_test_reviewed_links",
+    "2b9a4501c4d7283e1fa0e9177c97ac39",
+    23,
+    "plugin_data.csf_guard_sheet_sync_test_file()",
+  ],
+  [
+    "csf_sheet_automatic_update_authorizations",
+    "csf_sheet_test_automatic_updates",
+    "6eb4d19d8b101b02eb8ea12741c1f243",
+    23,
+    "plugin_data.csf_guard_sheet_sync_test_file()",
   ],
   [
     "csf_sheet_import_jobs",

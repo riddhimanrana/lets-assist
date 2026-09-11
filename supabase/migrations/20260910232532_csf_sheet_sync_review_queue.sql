@@ -95,6 +95,12 @@ DO $$ DECLARE t text; BEGIN
   END LOOP;
 END $$;
 
+CREATE FUNCTION plugin_data.csf_sheet_file_has_other_workspace(p_organization_id uuid,p_file_id text) RETURNS boolean
+LANGUAGE sql SECURITY DEFINER SET search_path='' AS $$
+ SELECT EXISTS(SELECT 1 FROM plugin_data.csf_sheet_sources r WHERE r.organization_id<>p_organization_id AND (r.spreadsheet_id=p_file_id OR r.drive_file_id=p_file_id)) OR EXISTS(SELECT 1 FROM plugin_data.csf_class_workbooks r WHERE r.organization_id<>p_organization_id AND r.drive_file_id=p_file_id) OR EXISTS(SELECT 1 FROM plugin_data.csf_sheet_import_jobs r WHERE r.organization_id<>p_organization_id AND r.source_file_id=p_file_id) OR EXISTS(SELECT 1 FROM plugin_data.csf_term_applications r WHERE r.organization_id<>p_organization_id AND r.source_file_id=p_file_id) OR EXISTS(SELECT 1 FROM plugin_data.csf_sheet_writeback_ledger r WHERE r.organization_id<>p_organization_id AND r.spreadsheet_file_id=p_file_id) OR EXISTS(SELECT 1 FROM plugin_data.csf_sheet_sync_destinations r WHERE r.organization_id<>p_organization_id AND r.spreadsheet_file_id=p_file_id) OR EXISTS(SELECT 1 FROM plugin_data.csf_class_workbook_refresh_jobs r WHERE r.organization_id<>p_organization_id AND r.drive_file_id=p_file_id) OR EXISTS(SELECT 1 FROM plugin_data.csf_sheet_automatic_update_authorizations r WHERE r.organization_id<>p_organization_id AND r.source_file_id=p_file_id) OR EXISTS(SELECT 1 FROM plugin_data.csf_reviewed_workbook_profile_links r WHERE r.organization_id<>p_organization_id AND r.source_file_id=p_file_id);
+$$;
+REVOKE ALL ON FUNCTION plugin_data.csf_sheet_file_has_other_workspace(uuid,text) FROM PUBLIC,anon,authenticated,service_role;
+
 CREATE FUNCTION plugin_data.csf_register_sheet_sync_test_workspace(p_organization_id uuid,p_actor_user_id uuid) RETURNS void
 LANGUAGE plpgsql SECURITY DEFINER SET search_path='' AS $$
 BEGIN
@@ -120,12 +126,7 @@ BEGIN
   IF f.organization_id<>p_organization_id OR f.source_file_id<>p_source_file_id THEN RAISE EXCEPTION 'The copied file is already registered to another source or workspace.'; END IF;
   RETURN to_jsonb(f);
  END IF;
- IF EXISTS(SELECT 1 FROM plugin_data.csf_sheet_sources r WHERE (r.drive_file_id=p_copied_file_id OR r.spreadsheet_id=p_copied_file_id) AND NOT EXISTS(SELECT 1 FROM plugin_data.csf_sheet_sync_test_workspaces t WHERE t.organization_id=r.organization_id))
- OR EXISTS(SELECT 1 FROM plugin_data.csf_class_workbooks r WHERE r.drive_file_id=p_copied_file_id AND NOT EXISTS(SELECT 1 FROM plugin_data.csf_sheet_sync_test_workspaces t WHERE t.organization_id=r.organization_id))
- OR EXISTS(SELECT 1 FROM plugin_data.csf_sheet_import_jobs r WHERE r.source_file_id=p_copied_file_id AND NOT EXISTS(SELECT 1 FROM plugin_data.csf_sheet_sync_test_workspaces t WHERE t.organization_id=r.organization_id))
- OR EXISTS(SELECT 1 FROM plugin_data.csf_term_applications r WHERE r.source_file_id=p_copied_file_id AND NOT EXISTS(SELECT 1 FROM plugin_data.csf_sheet_sync_test_workspaces t WHERE t.organization_id=r.organization_id))
- OR EXISTS(SELECT 1 FROM plugin_data.csf_sheet_sync_destinations r WHERE r.spreadsheet_file_id=p_copied_file_id AND NOT r.is_test)
- THEN RAISE EXCEPTION 'This file is already used by a live workspace.'; END IF;
+ IF plugin_data.csf_sheet_file_has_other_workspace(p_organization_id,p_copied_file_id) THEN RAISE EXCEPTION 'This file is already used by a live workspace.'; END IF;
  INSERT INTO plugin_data.csf_sheet_sync_test_files(copied_file_id,organization_id,source_file_id,registered_by) VALUES(p_copied_file_id,p_organization_id,p_source_file_id,p_actor_user_id) RETURNING * INTO f;
  INSERT INTO plugin_data.csf_admin_audit_events(organization_id,actor_user_id,action,target_type,after_data) VALUES(p_organization_id,p_actor_user_id,'sheet_sync.test_copy_registered','sheet_sync_test_file',to_jsonb(f));
  RETURN to_jsonb(f);
@@ -225,6 +226,7 @@ BEGIN
   PERFORM pg_advisory_xact_lock(hashtextextended('csf-sheet-destination:'||file_id,0));
   IF is_test AND NOT EXISTS(SELECT 1 FROM plugin_data.csf_sheet_sync_test_files WHERE organization_id=org AND copied_file_id=file_id) THEN RAISE EXCEPTION 'Test workspaces can use only registered copied files.'; END IF;
   IF NOT is_test AND EXISTS(SELECT 1 FROM plugin_data.csf_sheet_sync_test_files WHERE copied_file_id=file_id) THEN RAISE EXCEPTION 'Test copies cannot be used by live workspaces.'; END IF;
+  IF EXISTS(SELECT 1 FROM plugin_data.csf_sheet_sync_destinations WHERE organization_id<>org AND spreadsheet_file_id=file_id) THEN RAISE EXCEPTION 'This spreadsheet belongs to another workspace.'; END IF;
  END LOOP;
  RETURN NEW;
 END $$;
@@ -234,6 +236,9 @@ CREATE TRIGGER csf_sheet_test_workbooks BEFORE INSERT OR UPDATE OF drive_file_id
 CREATE TRIGGER csf_sheet_test_imports BEFORE INSERT OR UPDATE OF source_file_id,organization_id ON plugin_data.csf_sheet_import_jobs FOR EACH ROW EXECUTE FUNCTION plugin_data.csf_guard_sheet_sync_test_file('source_file_id');
 CREATE TRIGGER csf_sheet_test_applications BEFORE INSERT OR UPDATE OF source_file_id,organization_id ON plugin_data.csf_term_applications FOR EACH ROW EXECUTE FUNCTION plugin_data.csf_guard_sheet_sync_test_file('source_file_id');
 CREATE TRIGGER csf_sheet_test_writeback BEFORE INSERT OR UPDATE OF spreadsheet_file_id,organization_id ON plugin_data.csf_sheet_writeback_ledger FOR EACH ROW EXECUTE FUNCTION plugin_data.csf_guard_sheet_sync_test_file('spreadsheet_file_id');
+CREATE TRIGGER csf_sheet_test_refresh_jobs BEFORE INSERT OR UPDATE OF drive_file_id,organization_id ON plugin_data.csf_class_workbook_refresh_jobs FOR EACH ROW EXECUTE FUNCTION plugin_data.csf_guard_sheet_sync_test_file('drive_file_id');
+CREATE TRIGGER csf_sheet_test_automatic_updates BEFORE INSERT OR UPDATE OF source_file_id,organization_id ON plugin_data.csf_sheet_automatic_update_authorizations FOR EACH ROW EXECUTE FUNCTION plugin_data.csf_guard_sheet_sync_test_file('source_file_id');
+CREATE TRIGGER csf_sheet_test_reviewed_links BEFORE INSERT OR UPDATE OF source_file_id,organization_id ON plugin_data.csf_reviewed_workbook_profile_links FOR EACH ROW EXECUTE FUNCTION plugin_data.csf_guard_sheet_sync_test_file('source_file_id');
 CREATE TRIGGER csf_sheet_test_destinations BEFORE INSERT OR UPDATE OF spreadsheet_file_id,organization_id ON plugin_data.csf_sheet_sync_destinations FOR EACH ROW EXECUTE FUNCTION plugin_data.csf_guard_sheet_sync_test_file('spreadsheet_file_id');
 
 CREATE FUNCTION plugin_data.csf_configure_sheet_sync_destination(p_organization_id uuid,p_actor_user_id uuid,p_spreadsheet_file_id text,p_sheet_id integer,p_kind text,p_cohort_id uuid,p_term_id uuid,p_is_test boolean,p_owned_start_column integer DEFAULT 0,p_managed_headers jsonb DEFAULT '[]'::jsonb) RETURNS jsonb
@@ -248,6 +253,7 @@ BEGIN
  IF p_is_test IS DISTINCT FROM EXISTS(SELECT 1 FROM plugin_data.csf_sheet_sync_test_workspaces WHERE organization_id=p_organization_id) THEN RAISE EXCEPTION 'Test destinations require an isolated test workspace.'; END IF;
  PERFORM pg_advisory_xact_lock(hashtextextended('csf-sheet-destination:'||p_spreadsheet_file_id,0));
  IF EXISTS(SELECT 1 FROM plugin_data.csf_sheet_sync_destinations WHERE spreadsheet_file_id=p_spreadsheet_file_id AND organization_id<>p_organization_id) THEN RAISE EXCEPTION 'This spreadsheet belongs to another workspace.'; END IF;
+ IF NOT p_is_test AND plugin_data.csf_sheet_file_has_other_workspace(p_organization_id,p_spreadsheet_file_id) THEN RAISE EXCEPTION 'This spreadsheet belongs to another workspace.'; END IF;
  SELECT * INTO d FROM plugin_data.csf_sheet_sync_destinations WHERE spreadsheet_file_id=p_spreadsheet_file_id AND sheet_id=p_sheet_id;
  IF FOUND THEN
    IF d.organization_id<>p_organization_id OR d.sheet_id<>p_sheet_id OR d.kind<>p_kind OR d.cohort_id IS DISTINCT FROM p_cohort_id OR d.term_id<>p_term_id OR d.is_test<>p_is_test OR d.owned_start_column<>p_owned_start_column OR d.managed_headers<>p_managed_headers THEN RAISE EXCEPTION 'This spreadsheet is already bound to a different destination.'; END IF;
@@ -569,7 +575,8 @@ REVOKE ALL ON plugin_data.csf_sheet_sync_comments FROM PUBLIC,anon,authenticated
 GRANT SELECT ON plugin_data.csf_sheet_sync_comments TO service_role;
 CREATE TABLE plugin_data.csf_sheet_sync_acceptances (
  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),organization_id uuid NOT NULL,destination_id uuid NOT NULL,
- test_organization_id uuid NOT NULL REFERENCES plugin_data.csf_sheet_sync_test_workspaces(organization_id) ON DELETE CASCADE,
+ -- Retain the reviewed test-workspace identity after its disposable fixture organization is removed.
+ test_organization_id uuid NOT NULL,
  reviewed_by uuid REFERENCES auth.users(id) ON DELETE SET NULL,configuration jsonb NOT NULL,evidence jsonb NOT NULL,reason text NOT NULL,
  created_at timestamptz NOT NULL DEFAULT now(),
  FOREIGN KEY(organization_id,destination_id) REFERENCES plugin_data.csf_sheet_sync_destinations(organization_id,id) ON DELETE CASCADE,
