@@ -194,7 +194,7 @@ The historical class sheets do not establish account ownership. Application emai
 5. Connect the account only after verification. For an incorrect request, enter a **Decision reason** and select **Reject request**. Pending connections cannot access the student's history. Connecting a record does not approve an application, award points, or grant a staff position.
 
 The older review dialog may show **Review only**, **Connection unavailable**, or
-**Canonical identity evidence**. These labels do not establish ownership.
+**Identity checks**. These labels do not establish ownership.
 Use the profile's verification form after checking identity independently.
 
 Older connections held for review retain login and organization access. Staff can restore the connection through the same verified workflow. Keep the recorded audit history.

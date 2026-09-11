@@ -132,7 +132,7 @@ const MEMBER_AND_ACCESS: LabelContract[] = [
       "Reject request",
       "Connect account",
       "Connection unavailable",
-      "Canonical identity evidence",
+      "Identity checks",
     ],
   },
 ];
