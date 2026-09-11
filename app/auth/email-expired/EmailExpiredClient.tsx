@@ -12,15 +12,19 @@ import {
 } from "@/components/ui/card";
 import { AlertCircle, Mail, RotateCcw } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { normalizeRedirectPath } from "@/app/signup/redirect-utils";
 import { resendVerificationEmail } from "@/app/signup/actions";
 import { toast } from "sonner";
 import { BotVerificationDialog } from "@/components/shared/BotVerificationDialog";
 
 interface EmailExpiredClientProps {
   email: string;
+  redirectAfterAuth?: string | null;
 }
 
-export default function EmailExpiredClient({ email }: EmailExpiredClientProps) {
+export default function EmailExpiredClient({ email, redirectAfterAuth }: EmailExpiredClientProps) {
+  const continuation = normalizeRedirectPath(redirectAfterAuth);
+  const continuationQuery = continuation ? `?redirect=${encodeURIComponent(continuation)}` : "";
   const [isResending, setIsResending] = useState(false);
   const [hasResent, setHasResent] = useState(false);
   const [isCaptchaOpen, setIsCaptchaOpen] = useState(false);
@@ -33,7 +37,7 @@ export default function EmailExpiredClient({ email }: EmailExpiredClientProps) {
 
     setIsResending(true);
     try {
-      const result = await resendVerificationEmail(email, token);
+      const result = await resendVerificationEmail(email, token, continuation);
 
       if (result.success) {
         setHasResent(true);
@@ -74,9 +78,7 @@ export default function EmailExpiredClient({ email }: EmailExpiredClientProps) {
             Verification Link Expired
           </CardTitle>
           <CardDescription className="text-center">
-            Your email verification link has expired. The confirmation token is
-            valid for only 15 minutes (900 seconds), so please request a new
-            link if it times out.
+            Your verification link has expired. Request a new link to continue.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
@@ -160,12 +162,12 @@ export default function EmailExpiredClient({ email }: EmailExpiredClientProps) {
           </div>
 
           <div className="space-y-3">
-            <Link href="/login" className="block">
+            <Link href={`/login${continuationQuery}`} className="block">
               <Button variant="outline" className="w-full">
                 Go to Login
               </Button>
             </Link>
-            <Link href="/signup" className="block">
+            <Link href={`/signup${continuationQuery}`} className="block">
               <Button variant="ghost" className="w-full">
                 Create New Account
               </Button>
