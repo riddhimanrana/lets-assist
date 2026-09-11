@@ -6825,3 +6825,25 @@ counts are dated evidence, not a claim that sources stopped changing.
 Root PR 517 merged as `d87f37ed`. Private release workflow `34587750048` and root integration workflow `34587840744` passed for signed application source `fa78eeb753ab0af537490fc2b0b62e7b3bf67a3e`. Generated PR 518 starts at `660976ad` and adds `20260911101007_publish_dvhs_csf_1_2_25`, SHA256 `32cb2d89eca6ce9ac87defdd856973cffc5153cf3c87d8d5d89f513d27a684eb`. The application registry records that signed source; the serving private gitlink remains `f03e5a06d3c451bb721e90529b890d6199e60148`. Publication leaves organization installs and rollout selection unchanged.
 
 The 484-migration catalog preserves the accepted 483 schema fingerprints. The forward release allowlist includes the exact publication bytes and supports a deployment starting from either 482 or 483. The sync catalog still covers 30 functions, ten relations, and 29 triggers. Verification passed 58 catalog and forward-release tests, 13 documentation tests, 21 release-integration tests, the registry gate, strict gitlink checks, and migration validation. Full isolated replay passed 484 migrations, 107 CSF tables, 275 files, and 7,907 assertions in 105 seconds. The accepted catalog and all ten negative probes passed; owned test resources were removed. These checks do not establish a hosted deployment or a completed copied-workbook journey. Production remains at the last verified 482-migration checkpoint.
+
+
+### Signed application 1.2.26 publication candidate
+
+Root PR 522 passed CI `34600061603`, including 7,907 database assertions,
+93 CSF browser tests and three shared DV browser tests. It merged as
+`77ab2bdd95deb0c29f294f0cd2ec8bd1b0d93686`; the merged tree matches the
+reviewed `6aa584eb` candidate. Signed integration `34602252681` then passed
+on that updated Development tree and opened PR 523 at `d7255a72`.
+
+The generated forward migration is
+`20260911130443_publish_dvhs_csf_1_2_26`, SHA256
+`e1df91aa3e43d85d1fd0553c3a698a5df506bd032fb804249848395f21b2b9b7`.
+It publishes signed source `bb819ef` with rollout zero and does not change
+organization installations. Independent review passed for the migration
+and its catalog integration. The 485-version ledger hash is
+`8d650ea3d0d0148d14f9e57e1d52b1bd2bd8e8d61a71f4241dc1d59009adfd31`.
+Earlier migration bytes and the accepted 483/484 schema fingerprints remain
+unchanged. Sixty catalog and forward-release tests, 13 documentation tests,
+the registry gate and strict gitlink checks passed. The final integrated
+CI and hosted acceptance remain pending. No Production migration or
+application activation occurred in this step.

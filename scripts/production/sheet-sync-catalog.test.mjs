@@ -95,7 +95,7 @@ test("the sync catalog covers each table and exact source-change trigger", () =>
 });
 
 test("483 adds the sync posture without changing the preceding accepted catalog", () => {
-  assert.equal(versions.length, 484);
+  assert.equal(versions.length, 485);
   const previous = acceptedCatalogQuery(source, versions.slice(0, 482));
   assert.equal(
     createHash("sha256").update(previous).digest("hex"),
@@ -117,7 +117,7 @@ test("483 adds the sync posture without changing the preceding accepted catalog"
   );
 });
 
-test("an existing 482 migration release applies sync and signed publication", () => {
+test("an existing 482 migration release applies sync and signed publications", () => {
   const approved = approvedMigrations.find(([name]) => name === migrationName);
   assert.ok(approved);
   assert.equal(approved[1], createHash("sha256").update(sql).digest("hex"));
@@ -128,7 +128,7 @@ test("an existing 482 migration release applies sync and signed publication", ()
         /INSERT INTO supabase_migrations.schema_migrations/gu,
       ) ?? []
     ).length,
-    2,
+    3,
   );
   assert.ok(
     prepared.query.includes(
@@ -161,14 +161,40 @@ test("new workbook guards use new table fingerprints only for the sync ledger", 
 
 test("484 publication preserves the reviewed sync schema posture", () => {
   assert.equal(
-    acceptedCatalogQuery(source, versions),
+    acceptedCatalogQuery(source, versions.slice(0, 484)),
     acceptedCatalogQuery(source, versions.slice(0, 483)),
   );
 });
 
-test("an existing 483 release applies only signed publication", () => {
+test("an existing 483 release applies only signed publications", () => {
   const prepared = prepareMigration(cwd, undefined, versions.slice(0, 483));
   assert.ok(prepared.query.includes("20260911101007"));
+  assert.ok(
+    !prepared.query.includes(
+      "CREATE TABLE plugin_data.csf_sheet_sync_destinations",
+    ),
+  );
+  assert.equal(
+    (
+      prepared.query.match(
+        /INSERT INTO supabase_migrations.schema_migrations/gu,
+      ) ?? []
+    ).length,
+    2,
+  );
+});
+
+test("485 publication preserves the preceding sync schema posture", () => {
+  assert.equal(
+    acceptedCatalogQuery(source, versions),
+    acceptedCatalogQuery(source, versions.slice(0, 484)),
+  );
+});
+
+test("an existing 484 release applies only the new signed publication", () => {
+  const prepared = prepareMigration(cwd, undefined, versions.slice(0, 484));
+  assert.ok(prepared.query.includes("20260911130443"));
+  assert.ok(!prepared.query.includes("AND version = '1.2.25'"));
   assert.ok(
     !prepared.query.includes(
       "CREATE TABLE plugin_data.csf_sheet_sync_destinations",
