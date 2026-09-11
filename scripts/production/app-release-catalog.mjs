@@ -119,10 +119,18 @@ export function acceptedCatalogQuery(source, versions) {
       "34dbbd884882349f8083512cd2fe48b371c3f1242bc62897685267f2a5d0001b"
   )
     return source;
-  const sheetToggleUpgrade =
-    versions.length === 494 &&
+  const applicationRangeUpgrade =
+    versions.length === 496 &&
     ledgerHash ===
-      "e359a42486e32924eb5856a55e770ec42faa09601d71f10b32c35cb209b62518";
+      "51549a21b6fb7abad784b889c7c29813f5c568c6fa0011bde52a2dbad37b2258";
+  const sheetToggleUpgrade =
+    applicationRangeUpgrade ||
+    (versions.length === 495 &&
+      ledgerHash ===
+        "38a1c11bc645983e7ea896499043c81890ee50aa92d1706c42baa0b921851bad") ||
+    (versions.length === 494 &&
+      ledgerHash ===
+        "e359a42486e32924eb5856a55e770ec42faa09601d71f10b32c35cb209b62518");
   const sheetDeferredNoteUpgrade =
     sheetToggleUpgrade ||
     (versions.length === 493 &&
@@ -575,7 +583,7 @@ accepted_upgrade_posture AS (
         : requirementEvidencePosture
       : ""
   }
-  ${applicationRetryUpgrade ? applicationRetryRecoveryPosture : ""}
+  ${applicationRetryUpgrade ? (applicationRangeUpgrade ? applicationRetryRecoveryPosture.replace("a931f85d6e45fd85611adc8318c4da4d", "d5e26c21ffe78f617f4b34ee82a7eb41") : applicationRetryRecoveryPosture) : ""}
   ${workbookRecoveryUpgrade ? workbookRecoveryPosture : ""}
   ${applicationSourceReviewUpgrade ? applicationSourceReviewPosture : ""}
   ${reviewedWorkbookLinksUpgrade ? reviewedWorkbookLinksPosture(workerRelationSnapshotQuery, sheetSyncUpgrade) : ""}
