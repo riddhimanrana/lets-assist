@@ -1,3 +1,4 @@
+import { sheetToggleDefinitions } from "./sheet-toggle-catalog.mjs";
 import { sheetDeferredNoteDefinitions } from "./sheet-deferred-note-catalog.mjs";
 import {
   sheetObservationDefinitions,
@@ -118,10 +119,15 @@ export function acceptedCatalogQuery(source, versions) {
       "34dbbd884882349f8083512cd2fe48b371c3f1242bc62897685267f2a5d0001b"
   )
     return source;
-  const sheetDeferredNoteUpgrade =
-    versions.length === 493 &&
+  const sheetToggleUpgrade =
+    versions.length === 494 &&
     ledgerHash ===
-      "a412156a94951d6a3995011f2f5b27bc336f9ffef0fdff913daf78ac1316f915";
+      "e359a42486e32924eb5856a55e770ec42faa09601d71f10b32c35cb209b62518";
+  const sheetDeferredNoteUpgrade =
+    sheetToggleUpgrade ||
+    (versions.length === 493 &&
+      ledgerHash ===
+        "a412156a94951d6a3995011f2f5b27bc336f9ffef0fdff913daf78ac1316f915");
   const sheetObservationUpgrade =
     sheetDeferredNoteUpgrade ||
     (versions.length === 491 &&
@@ -576,7 +582,7 @@ accepted_upgrade_posture AS (
   ${automaticSheetUpdatesUpgrade ? automaticSheetUpdatesPosture(workerRelationSnapshotQuery, matchingTabUpgrade, applicationContactsUpgrade, ownershipUpgrade, sheetSyncUpgrade) : ""}
   ${workbookLinkMergeUpgrade ? workbookLinkMergePosture : ""}
   ${staffAccountConnectionUpgrade ? staffAccountConnectionPosture(staffAccountAuthorityUpgrade, ownershipUpgrade) : ""}
-  ${ownershipUpgrade ? reportedContactColumnsPosture : ""}${sheetSyncUpgrade ? `\n  ${sheetSyncPosture(workerRelationSnapshotQuery, sheetDeferredNoteUpgrade ? sheetDeferredNoteDefinitions : sheetObservationUpgrade ? sheetObservationDefinitions : sheetRecoveryUpgrade ? sheetRecoveryDefinitions : sheetDiscussionUpgrade ? sheetDiscussionDefinitions : undefined, sheetObservationUpgrade ? sheetObservationTables : sheetRecoveryUpgrade ? sheetRecoveryTables : sheetDiscussionUpgrade ? sheetDiscussionTables : undefined)}` : ""} AS valid
+  ${ownershipUpgrade ? reportedContactColumnsPosture : ""}${sheetSyncUpgrade ? `\n  ${sheetSyncPosture(workerRelationSnapshotQuery, sheetToggleUpgrade ? sheetToggleDefinitions : sheetDeferredNoteUpgrade ? sheetDeferredNoteDefinitions : sheetObservationUpgrade ? sheetObservationDefinitions : sheetRecoveryUpgrade ? sheetRecoveryDefinitions : sheetDiscussionUpgrade ? sheetDiscussionDefinitions : undefined, sheetObservationUpgrade ? sheetObservationTables : sheetRecoveryUpgrade ? sheetRecoveryTables : sheetDiscussionUpgrade ? sheetDiscussionTables : undefined)}` : ""} AS valid
   FROM accepted_upgrade_definitions expected
   LEFT JOIN pg_proc p ON p.oid=to_regprocedure(expected.signature)
 )

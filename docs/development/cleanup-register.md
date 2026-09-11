@@ -7119,3 +7119,33 @@ Migration 493 SHA-256 is
 `ec7176f9da2b965598fd1f8883c3b8982e66763df569cdf68bfdcb8c3c402da7`.
 The 493-migration ledger SHA-256 is
 `a412156a94951d6a3995011f2f5b27bc336f9ffef0fdff913daf78ac1316f915`.
+
+### Final sync toggle and hosted selection corrections
+
+Forward migration `20260911212627_csf_sheet_sync_toggle_observation` invalidates
+observations and retires pending Sheet proposals when enablement changes.
+Same-state retries preserve a completed observation. Staff cannot accept a
+proposal while its destination is disabled. The 494-migration candidate passed
+284 database files and 8,038 assertions, including 15 new assertions. All 75
+focused Node tests and ten negative catalog probes passed. Independent review
+found no blocker. Migration SHA-256 is
+`c94df97321a8bf77b1a1a9dbbd563e00781f9531f4840ea84150a3f117d715fc`;
+ledger SHA-256 is
+`e359a42486e32924eb5856a55e770ec42faa09601d71f10b32c35cb209b62518`.
+
+The hosted fixture helper now requires a selected application to match the
+checkout release and its healthy Development deployment. Embedded fixtures
+remain supported. Three helper tests passed locally and independently.
+
+Profile-note trigger optimization and cleanup of earlier test exports remain
+deferred under the user's instruction to stop comment-sync work. Migration 493
+prevents profile review notes from entering new class snapshots. It does not
+claim to scrub old external exports. Production remains at migration 482 with
+no new-sync destinations, so no earlier Production export requires that cleanup.
+
+Production staff preflight on host `84087a03`, application 1.2.24, verified an
+authorized alternate account redeeming a test-organization staff invitation
+without a class or CSF profile. Before position assignment it had no CSF role.
+An administrator assigned the existing Vice President Membership position;
+the capacity guard rejected a second assignment. The temporary invitation was
+revoked. These checks changed no real chapter membership or positions.

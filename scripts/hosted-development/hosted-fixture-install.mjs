@@ -28,7 +28,7 @@ export async function assertHostedFixtureInstall(publicDb) {
     (row) =>
       row.pluginKey === "dvhs-csf" &&
       row.runtimeProfile ===
-        (install.data?.desired_version ? "application" : "embedded"),
+        (install.data?.desired_version != null ? "application" : "embedded"),
   );
   const version = install.data?.installed_version;
   if (
@@ -50,5 +50,37 @@ export async function assertHostedFixtureInstall(publicDb) {
     throw new Error(
       "Set up or update CSF for the hosted fixture through Organization access before provisioning. An enabled, accessible, compatible existing install is required; the fixture provisioner does not install or upgrade plugins.",
     );
+  }
+  if (install.data.desired_version != null) {
+    if (install.data.desired_version !== release.version)
+      throw new Error(
+        "Select the checkout's signed CSF application release through Organization access before provisioning the hosted fixture.",
+      );
+    const { data: runtime, error } = await publicDb.rpc(
+      "get_plugin_application_runtime_admin_status",
+      {
+        p_organization_id: FIXTURE_ORGANIZATION_ID,
+        p_plugin_key: "dvhs-csf",
+        p_environment: "development",
+      },
+    );
+    if (
+      error ||
+      runtime?.pluginKey !== "dvhs-csf" ||
+      runtime.environment !== "development" ||
+      runtime.installEnabled !== true ||
+      runtime.pluginAccessible !== true ||
+      runtime.installedVersion !== version ||
+      runtime.desiredVersion !== release.version ||
+      runtime.selectedApplicationVersion !== release.version ||
+      runtime.applicationEnabled !== true ||
+      runtime.selectedDeploymentHealthy !== true ||
+      typeof runtime.selectedDeploymentId !== "string" ||
+      !runtime.selectedDeploymentId
+    ) {
+      throw new Error(
+        "The hosted fixture needs its exact signed CSF application selected with a healthy Development deployment. Use Organization access; provisioning does not change runtime selections.",
+      );
+    }
   }
 }
