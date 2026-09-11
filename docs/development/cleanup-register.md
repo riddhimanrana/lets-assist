@@ -6800,7 +6800,10 @@ or policy reads. All 354 private test files pass, with mock-sensitive suites
 isolated; host TypeScript, changed-file lint, full private formatting and ten
 child application tests pass. Fictional tests retain 1,101 review subjects
 and 13,212 related records. Independent review found no actionable P0-P2
-issues. Private quality run `34598455585` is in progress. This is prepared
+issues. Private quality run `34598455585` passed, and PR 339 merged at
+`bb819efce4f4c8c9597b3598f3665a3538243d53`. Private PR 340 prepares signed
+publication; its quality run is `34598777650`. The root candidate now uses
+the merged gitlink and passes the strict submodule check. This is prepared
 code, not a deployed Production fix.
 
 Workbook refresh and import processing remain paused. Email delivery and
