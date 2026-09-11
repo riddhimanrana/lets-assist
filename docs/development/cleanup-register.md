@@ -2722,7 +2722,6 @@ Production remains at `840` with 482 migrations and application 1.2.24.
 Imports are paused at revision 4, verified by runs `34589218794` and
 `34589285371`. This correction changes no provider state or private gitlink.
 
-
 ### Production source and profile repair, September 9, 2026
 
 The owner authorized direct Production repairs, then explicitly requested no
