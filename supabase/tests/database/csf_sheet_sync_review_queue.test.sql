@@ -1,6 +1,6 @@
 BEGIN;
 CREATE EXTENSION IF NOT EXISTS pgtap WITH SCHEMA extensions;
-SELECT extensions.plan(132);
+SELECT extensions.plan(138);
 INSERT INTO auth.users(id,aud,role,email,raw_app_meta_data,raw_user_meta_data) VALUES
 ('ea000000-0000-4000-8000-000000000001','authenticated','authenticated','sheet-admin@local.test','{}','{}'),
 ('ea000000-0000-4000-8000-000000000002','authenticated','authenticated','sheet-outsider@local.test','{}','{}');
@@ -162,6 +162,7 @@ INSERT INTO plugin_data.csf_role_permissions(organization_id,role_id,permission_
 INSERT INTO plugin_data.csf_staff_positions(organization_id,user_id,role_id,school_year,display_title,status,starts_at,ends_at) VALUES('ea100000-0000-4000-8000-000000000001','ea000000-0000-4000-8000-000000000002','eaf00000-0000-4000-8000-000000000001','2030-2031','Clubs officer test','active',current_date-1,current_date+30);
 SELECT extensions.ok(plugin_data.csf_actor_has_permission('ea100000-0000-4000-8000-000000000001','ea000000-0000-4000-8000-000000000002','verify_submissions'),'limited clubs officer has point review permission');
 SELECT extensions.throws_ok($$SELECT plugin_data.csf_add_sheet_sync_local_message('ea100000-0000-4000-8000-000000000001','ea000000-0000-4000-8000-000000000002',(SELECT (value->>'id')::uuid FROM sync_fixture WHERE name='binding'),'eaf10000-0000-4000-8000-000000000001',NULL,'Unauthorized application message',NULL)$$,'P0001','Not authorized to view this discussion.','point review permission cannot post to application discussions');
+INSERT INTO plugin_data.csf_cohort_terms(organization_id,cohort_id,term_id) VALUES('ea100000-0000-4000-8000-000000000001','ea500000-0000-4000-8000-000000000001','ea200000-0000-4000-8000-000000000001');
 INSERT INTO plugin_data.csf_sheet_sync_destinations(id,organization_id,spreadsheet_file_id,sheet_id,kind,cohort_id,term_id,is_test,configured_by) VALUES('eaf20000-0000-4000-8000-000000000001','ea100000-0000-4000-8000-000000000001','fixture-sheet-copy',2,'class','ea500000-0000-4000-8000-000000000001','ea200000-0000-4000-8000-000000000001',true,'ea000000-0000-4000-8000-000000000001');
 INSERT INTO plugin_data.csf_sheet_sync_bindings(id,organization_id,destination_id,record_kind,record_id,logical_key,sheet_id) VALUES('eaf30000-0000-4000-8000-000000000001','ea100000-0000-4000-8000-000000000001','eaf20000-0000-4000-8000-000000000001','profile','ea300000-0000-4000-8000-000000000001','profile:limited-clubs',2);
 SELECT extensions.throws_ok($$SELECT plugin_data.csf_add_sheet_sync_local_message('ea100000-0000-4000-8000-000000000001','ea000000-0000-4000-8000-000000000002','eaf30000-0000-4000-8000-000000000001','eaf10000-0000-4000-8000-000000000002',NULL,'Unauthorized profile message',NULL)$$,'P0001','Not authorized to view this discussion.','point review permission cannot post to profile discussions');
@@ -276,5 +277,15 @@ SELECT extensions.throws_ok($$SELECT plugin_data.csf_configure_sheet_sync_destin
 SELECT extensions.throws_ok($$INSERT INTO plugin_data.csf_sheet_sync_destinations(organization_id,spreadsheet_file_id,sheet_id,kind,term_id,is_test,configured_by) VALUES('ea100000-0000-4000-8000-000000000001','fixture-sheet-copy',78,'class','ea200000-0000-4000-8000-000000000001',true,'ea000000-0000-4000-8000-000000000001')$$,'23514',NULL,'table constraint blocks direct class exports without a cohort');
 SELECT extensions.ok(EXISTS(SELECT 1 FROM pg_indexes WHERE schemaname='plugin_data' AND tablename='csf_sheet_sync_bindings' AND indexdef LIKE '%(organization_id, profile_id)%'),'profile changes have an organization-scoped binding index');
 SELECT extensions.ok(EXISTS(SELECT 1 FROM pg_indexes WHERE schemaname='plugin_data' AND tablename='csf_sheet_sync_bindings' AND indexdef LIKE '%(organization_id, record_kind, record_id)%'),'record changes have an organization-scoped binding index');
+DELETE FROM plugin_data.csf_cohort_terms WHERE organization_id='ea100000-0000-4000-8000-000000000001';
+SELECT extensions.ok((plugin_data.csf_sheet_sync_destination_snapshot('ea100000-0000-4000-8000-000000000001','eaf20000-0000-4000-8000-000000000001','profile','ea300000-0000-4000-8000-000000000001')->>'out_of_scope')::boolean,'removing a configured pair returns only a bound tombstone');
+UPDATE plugin_data.csf_sheet_sync_destinations SET enabled=true,poll_lease_token='eaff0000-0000-4000-8000-000000000001',poll_lease_expires_at=clock_timestamp()+interval '2 minutes' WHERE id='eaf20000-0000-4000-8000-000000000001';
+SELECT extensions.lives_ok($$UPDATE plugin_data.csf_profiles SET first_name='After pair removal' WHERE id='ea300000-0000-4000-8000-000000000001'$$,'invalid class pair does not block a bound source edit');
+SELECT extensions.lives_ok($$INSERT INTO plugin_data.csf_profiles(id,organization_id,first_name,last_name,normalized_first_name,normalized_last_name) VALUES('eaff1000-0000-4000-8000-000000000001','ea100000-0000-4000-8000-000000000001','Unbound','Student','unbound','student')$$,'invalid class pair does not block an unbound source insert');
+SELECT extensions.throws_ok($$SELECT plugin_data.csf_assert_sheet_sync_destination_lease('ea100000-0000-4000-8000-000000000001','eaf20000-0000-4000-8000-000000000001','eaff0000-0000-4000-8000-000000000001')$$,'P0001','This semester is not configured for this class.','provider access fails closed after pair removal');
+
+SELECT extensions.throws_ok($$SELECT plugin_data.csf_configure_sheet_sync_destination('ea100000-0000-4000-8000-000000000001','ea000000-0000-4000-8000-000000000001','fixture-sheet-copy',79,'class','ea500000-0000-4000-8000-000000000001','ea200000-0000-4000-8000-000000000001',true)$$,'P0001','This semester is not configured for this class.','same-organization class and semester require a configured pair');
+INSERT INTO plugin_data.csf_cohort_terms(organization_id,cohort_id,term_id) VALUES('ea100000-0000-4000-8000-000000000001','ea500000-0000-4000-8000-000000000001','ea200000-0000-4000-8000-000000000001');
+SELECT extensions.lives_ok($$SELECT plugin_data.csf_configure_sheet_sync_destination('ea100000-0000-4000-8000-000000000001','ea000000-0000-4000-8000-000000000001','fixture-sheet-copy',79,'class','ea500000-0000-4000-8000-000000000001','ea200000-0000-4000-8000-000000000001',true)$$,'configured class and semester pair can create a destination');
 SELECT * FROM extensions.finish();
 ROLLBACK;

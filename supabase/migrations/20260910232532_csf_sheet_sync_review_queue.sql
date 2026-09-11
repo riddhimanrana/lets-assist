@@ -197,6 +197,7 @@ BEGIN
  PERFORM pg_advisory_xact_lock(plugin_data.csf_staff_access_lock_key(p_organization_id));
  IF NOT (plugin_data.csf_actor_has_permission(p_organization_id,p_actor_user_id,'manage_sheet_sync') AND plugin_data.csf_actor_has_permission(p_organization_id,p_actor_user_id,'export_sensitive_reports')) THEN RAISE EXCEPTION 'Not authorized.'; END IF;
  IF p_kind='class' AND p_cohort_id IS NULL THEN RAISE EXCEPTION 'Choose a class for this workbook.'; END IF;
+ IF p_kind='class' AND NOT EXISTS(SELECT 1 FROM plugin_data.csf_cohort_terms WHERE organization_id=p_organization_id AND cohort_id=p_cohort_id AND term_id=p_term_id) THEN RAISE EXCEPTION 'This semester is not configured for this class.'; END IF;
  IF NOT EXISTS(SELECT 1 FROM plugin_data.csf_terms WHERE id=p_term_id AND organization_id=p_organization_id) OR (p_cohort_id IS NOT NULL AND NOT EXISTS(SELECT 1 FROM plugin_data.csf_cohorts WHERE id=p_cohort_id AND organization_id=p_organization_id)) THEN RAISE EXCEPTION 'Semester or class does not belong to this organization.'; END IF;
  IF p_is_test IS DISTINCT FROM EXISTS(SELECT 1 FROM plugin_data.csf_sheet_sync_test_workspaces WHERE organization_id=p_organization_id) THEN RAISE EXCEPTION 'Test destinations require an isolated test workspace.'; END IF;
  PERFORM pg_advisory_xact_lock(hashtextextended('csf-sheet-destination:'||p_spreadsheet_file_id,0));
@@ -273,7 +274,7 @@ BEGIN
  IF (d.kind='applications' AND p_record_kind<>'application') OR (d.kind='point_submissions' AND p_record_kind<>'point_submission') OR (d.kind='class' AND p_record_kind<>'profile') THEN RAISE EXCEPTION 'Record kind does not match this destination.'; END IF;
  SELECT * INTO b FROM plugin_data.csf_sheet_sync_bindings WHERE organization_id=p_organization_id AND destination_id=d.id AND record_kind=p_record_kind AND record_id=p_record_id;
  exists_record:=CASE p_record_kind WHEN 'profile' THEN EXISTS(SELECT 1 FROM plugin_data.csf_profiles WHERE organization_id=p_organization_id AND id=p_record_id) WHEN 'application' THEN EXISTS(SELECT 1 FROM plugin_data.csf_term_applications WHERE organization_id=p_organization_id AND id=p_record_id) ELSE EXISTS(SELECT 1 FROM plugin_data.csf_point_submissions WHERE organization_id=p_organization_id AND id=p_record_id) END;
- IF exists_record THEN
+ IF exists_record AND (d.kind<>'class' OR EXISTS(SELECT 1 FROM plugin_data.csf_cohort_terms WHERE organization_id=p_organization_id AND cohort_id=d.cohort_id AND term_id=d.term_id)) THEN
   r:=plugin_data.csf_sheet_sync_snapshot(p_organization_id,p_record_kind,p_record_id);
   profile:=CASE WHEN p_record_kind='profile' THEN p_record_id ELSE (r->>'profile_id')::uuid END;
   IF NOT ((p_record_kind='application' AND d.cohort_id IS NOT NULL AND (r->>'cohort_id')::uuid IS DISTINCT FROM d.cohort_id) OR (p_record_kind<>'profile' AND (r->>'term_id')::uuid IS DISTINCT FROM d.term_id) OR (d.cohort_id IS NOT NULL AND NOT EXISTS(SELECT 1 FROM plugin_data.csf_profile_cohort_memberships WHERE organization_id=p_organization_id AND profile_id=profile AND cohort_id=d.cohort_id AND status='active'))) THEN
@@ -357,7 +358,7 @@ BEGIN
  SELECT e.* INTO l FROM plugin_data.csf_sheet_writeback_ledger e WHERE e.organization_id=p_organization_id AND e.id=p_ledger_id AND e.destination_id=l.destination_id AND e.record_kind=l.record_kind AND e.record_id=l.record_id FOR UPDATE;
  IF NOT FOUND OR l.lease_token IS DISTINCT FROM p_lease_token OR p_lease_token IS NULL THEN RAISE EXCEPTION 'Export lease no longer belongs to this attempt.'; END IF;
  IF l.status=p_outcome THEN RETURN to_jsonb(l); END IF;
- IF l.status<>'exporting' OR l.lease_expires_at<now() THEN RAISE EXCEPTION 'Export lease expired. Reconcile before retrying.'; END IF;
+ IF l.status<>'exporting' OR l.lease_expires_at IS NULL OR l.lease_expires_at<=clock_timestamp() THEN RAISE EXCEPTION 'Export lease expired. Reconcile before retrying.'; END IF;
  UPDATE plugin_data.csf_sheet_writeback_ledger SET status=p_outcome,last_error=left(p_error,1000),updated_at=now(),sent_at=CASE WHEN p_outcome='exported' THEN now() END WHERE id=l.id RETURNING * INTO l;
  IF p_outcome='exported' THEN
    UPDATE plugin_data.csf_sheet_sync_bindings SET last_export_version=CASE WHEN coalesce((l.payload->>'out_of_scope')::boolean,false) AND last_export_version IS NULL THEN NULL ELSE l.source_version END,remote_version=p_remote_version WHERE destination_id=l.destination_id AND record_kind=l.record_kind AND record_id=l.record_id;
@@ -464,6 +465,7 @@ BEGIN
  PERFORM pg_advisory_xact_lock(plugin_data.csf_staff_access_lock_key(p_organization_id));
  SELECT * INTO d FROM plugin_data.csf_sheet_sync_destinations WHERE organization_id=p_organization_id AND id=p_destination_id AND enabled AND poll_lease_token=p_lease_token AND poll_lease_expires_at>clock_timestamp() AND plugin_data.csf_actor_has_permission(organization_id,configured_by,'manage_sheet_sync') AND plugin_data.csf_actor_has_permission(organization_id,configured_by,'export_sensitive_reports') FOR NO KEY UPDATE;
  IF NOT FOUND THEN RAISE EXCEPTION 'Sync lease expired or access changed.'; END IF;
+ IF d.kind='class' AND NOT EXISTS(SELECT 1 FROM plugin_data.csf_cohort_terms WHERE organization_id=p_organization_id AND cohort_id=d.cohort_id AND term_id=d.term_id) THEN RAISE EXCEPTION 'This semester is not configured for this class.'; END IF;
  IF (p_record_kind IS NOT NULL OR p_record_id IS NOT NULL OR p_source_version IS NOT NULL) THEN
   IF p_record_kind IS NULL OR p_record_id IS NULL OR p_source_version IS NULL THEN RAISE EXCEPTION 'Provide the complete export record identity.'; END IF;
   PERFORM 1 FROM plugin_data.csf_sheet_sync_bindings WHERE organization_id=p_organization_id AND destination_id=p_destination_id AND record_kind=p_record_kind AND record_id=p_record_id FOR UPDATE;
@@ -525,6 +527,7 @@ BEGIN
   IF c.author<>p_author OR c.body<>p_body OR c.resolved<>p_resolved OR c.deleted<>p_deleted THEN RAISE EXCEPTION 'Conflicting comment version.'; END IF;
   RETURN to_jsonb(c);
  END IF;
+ PERFORM plugin_data.csf_assert_sheet_sync_destination_lease(p_organization_id,p_destination_id,p_lease_token);
  INSERT INTO plugin_data.csf_sheet_sync_comments(organization_id,destination_id,binding_id,provider_thread_id,provider_message_id,provider_version,author,body,resolved,deleted)
  VALUES(p_organization_id,p_destination_id,p_binding_id,p_thread_id,p_message_id,p_provider_version,p_author,p_body,p_resolved,p_deleted)
  ON CONFLICT(destination_id,provider_message_id) DO UPDATE SET provider_version=EXCLUDED.provider_version,author=EXCLUDED.author,body=EXCLUDED.body,resolved=EXCLUDED.resolved,deleted=EXCLUDED.deleted,updated_at=now() RETURNING * INTO c;
@@ -543,6 +546,7 @@ BEGIN
   IF p_expected_local_version IS NULL OR b.thread_bindings->p_local_message_id::text->>'threadId' IS DISTINCT FROM p_provider_thread_id OR b.thread_bindings->p_local_message_id::text->>'postId' IS DISTINCT FROM p_provider_post_id OR b.thread_bindings->p_local_message_id::text->>'localVersion' IS DISTINCT FROM p_expected_local_version THEN RAISE EXCEPTION 'Comment receipt conflicts with the recorded provider result.'; END IF;
  ELSIF p_expected_local_version IS NOT NULL THEN RAISE EXCEPTION 'Comment receipt conflicts with the recorded provider result.';
  END IF;
+ PERFORM plugin_data.csf_assert_sheet_sync_destination_lease(p_organization_id,p_destination_id,p_lease_token);
  UPDATE plugin_data.csf_sheet_sync_bindings SET thread_bindings=thread_bindings||jsonb_build_object(p_local_message_id::text,jsonb_build_object('threadId',p_provider_thread_id,'postId',p_provider_post_id,'localVersion',p_local_version)) WHERE id=b.id RETURNING * INTO b;
  RETURN to_jsonb(b);
 END $$;

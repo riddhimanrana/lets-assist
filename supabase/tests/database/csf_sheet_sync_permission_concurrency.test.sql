@@ -1,7 +1,7 @@
 -- Separate sessions prove that queued Sheet actions observe permission revocation.
 CREATE EXTENSION IF NOT EXISTS pgtap WITH SCHEMA extensions;
 CREATE EXTENSION IF NOT EXISTS dblink WITH SCHEMA extensions;
-SELECT extensions.plan(28);
+SELECT extensions.plan(38);
 INSERT INTO auth.users(id,aud,role,email,raw_app_meta_data,raw_user_meta_data) VALUES('f7000000-0000-4000-8000-000000000001','authenticated','authenticated','sheet-race@local.test','{}','{}');
 INSERT INTO public.organizations(id,name,username,type,join_code) VALUES('f7100000-0000-4000-8000-000000000001','Sheet permission race','sheet-permission-race','school','985271');
 INSERT INTO public.organization_members(organization_id,user_id,role,status) VALUES('f7100000-0000-4000-8000-000000000001','f7000000-0000-4000-8000-000000000001','member','active');
@@ -215,6 +215,80 @@ COMMIT;
 INSERT INTO worker_race_results SELECT 'finish',payload FROM extensions.dblink_get_result('worker_finish',false) AS result(payload text);
 SELECT extensions.is((SELECT payload FROM worker_race_results WHERE key='finish'),'exported','receipt completes without a binding-ledger deadlock');
 SELECT extensions.dblink_disconnect('worker_finish');
+CREATE TEMP TABLE expiry_finish_attempt AS SELECT to_jsonb(l) value FROM plugin_data.csf_claim_sheet_sync_exports('f7100000-0000-4000-8000-000000000001','f7700000-0000-4000-8000-000000000001','f7b00000-0000-4000-8000-000000000001',10) l;
+SELECT extensions.is((SELECT count(*) FROM expiry_finish_attempt),1::bigint,'expiry fixture has one leased export');
+UPDATE plugin_data.csf_sheet_writeback_ledger SET lease_expires_at=clock_timestamp()+interval '1 second' WHERE id=(SELECT (value->>'id')::uuid FROM expiry_finish_attempt);
+SELECT extensions.dblink_connect('expiry_finish','hostaddr='||coalesce(host(inet_server_addr()),'127.0.0.1')||' port='||current_setting('port')||' dbname='||current_database()||' user='||current_user||' password='||current_user||' sslmode=disable');
+CREATE TEMP TABLE expiry_finish_pid AS SELECT pid FROM extensions.dblink('expiry_finish','SELECT pg_backend_pid()') AS result(pid integer);
+BEGIN;
+SELECT id FROM plugin_data.csf_sheet_sync_bindings WHERE id='f7800000-0000-4000-8000-000000000001' FOR UPDATE;
+SELECT extensions.dblink_send_query('expiry_finish',format($query$SELECT plugin_data.csf_finish_sheet_sync_export('f7100000-0000-4000-8000-000000000001',%L::uuid,%L::uuid,'exported','expired-finish',NULL)::text$query$,(SELECT value->>'id' FROM expiry_finish_attempt),(SELECT value->>'lease_token' FROM expiry_finish_attempt)));
+DO $wait$
+DECLARE waiting boolean:=false; deadline timestamptz:=clock_timestamp()+interval '15 seconds';
+BEGIN
+ LOOP
+  SELECT EXISTS(SELECT 1 FROM pg_locks WHERE pid=(SELECT pid FROM expiry_finish_pid) AND NOT granted) INTO waiting;
+  EXIT WHEN waiting OR clock_timestamp()>=deadline;
+  PERFORM pg_sleep(0.01);
+ END LOOP;
+ INSERT INTO sheet_race_waits VALUES('expiry_finish',waiting);
+END $wait$;
+SELECT extensions.ok((SELECT observed FROM sheet_race_waits WHERE key='expiry_finish'),'finish waits before the lease expiry recheck');
+SELECT pg_sleep(1.1);
+COMMIT;
+SELECT * FROM extensions.dblink_get_result('expiry_finish',false) AS result(payload text);
+SELECT extensions.ok(position('Export lease expired. Reconcile before retrying.' IN extensions.dblink_error_message('expiry_finish'))>0,'finish rejects a lease that expired while waiting');
+SELECT extensions.is((SELECT status FROM plugin_data.csf_sheet_writeback_ledger WHERE id=(SELECT (value->>'id')::uuid FROM expiry_finish_attempt)),'exporting','expired finish preserves the unresolved attempt for reconciliation');
+SELECT extensions.dblink_disconnect('expiry_finish');
+INSERT INTO plugin_data.csf_sheet_sync_comments(organization_id,destination_id,binding_id,provider_thread_id,provider_message_id,provider_version,author,body) VALUES('f7100000-0000-4000-8000-000000000001','f7700000-0000-4000-8000-000000000001','f7800000-0000-4000-8000-000000000001','expiry-thread','expiry-post','v1','{}','Original');
+INSERT INTO plugin_data.csf_sheet_sync_local_messages(id,organization_id,destination_id,binding_id,author_user_id,body) VALUES('f7e00000-0000-4000-8000-000000000001','f7100000-0000-4000-8000-000000000001','f7700000-0000-4000-8000-000000000001','f7800000-0000-4000-8000-000000000001','f7000000-0000-4000-8000-000000000001','Local expiry fixture');
+UPDATE plugin_data.csf_sheet_sync_destinations SET poll_lease_expires_at=clock_timestamp()+interval '1 second' WHERE id='f7700000-0000-4000-8000-000000000001';
+SELECT extensions.dblink_connect('expiry_comment','hostaddr='||coalesce(host(inet_server_addr()),'127.0.0.1')||' port='||current_setting('port')||' dbname='||current_database()||' user='||current_user||' password='||current_user||' sslmode=disable');
+CREATE TEMP TABLE expiry_comment_pid AS SELECT pid FROM extensions.dblink('expiry_comment','SELECT pg_backend_pid()') AS result(pid integer);
+BEGIN;
+SELECT id FROM plugin_data.csf_sheet_sync_comments WHERE provider_message_id='expiry-post' FOR UPDATE;
+SELECT extensions.dblink_send_query('expiry_comment',$query$SELECT plugin_data.csf_record_sheet_sync_comment('f7100000-0000-4000-8000-000000000001','f7700000-0000-4000-8000-000000000001','f7b00000-0000-4000-8000-000000000001','f7800000-0000-4000-8000-000000000001','expiry-thread','expiry-post','v2','{}','Expired edit',false,false)::text$query$);
+DO $wait$
+DECLARE waiting boolean:=false; deadline timestamptz:=clock_timestamp()+interval '15 seconds';
+BEGIN
+ LOOP
+  SELECT EXISTS(SELECT 1 FROM pg_locks WHERE pid=(SELECT pid FROM expiry_comment_pid) AND NOT granted) INTO waiting;
+  EXIT WHEN waiting OR clock_timestamp()>=deadline;
+  PERFORM pg_sleep(0.01);
+ END LOOP;
+ INSERT INTO sheet_race_waits VALUES('expiry_comment',waiting);
+END $wait$;
+SELECT extensions.ok((SELECT observed FROM sheet_race_waits WHERE key='expiry_comment'),'comment mutation waits on its target lock');
+SELECT pg_sleep(1.1);
+COMMIT;
+SELECT * FROM extensions.dblink_get_result('expiry_comment',false) AS result(payload text);
+SELECT extensions.ok(position('Sync lease expired or access changed' IN extensions.dblink_error_message('expiry_comment'))>0,'comment mutation rechecks expiry after waiting');
+SELECT extensions.ok((SELECT body='Original' FROM plugin_data.csf_sheet_sync_comments WHERE provider_message_id='expiry-post'),'expired comment mutation preserves existing state');
+SELECT extensions.dblink_disconnect('expiry_comment');
+UPDATE plugin_data.csf_sheet_sync_destinations SET poll_lease_expires_at=clock_timestamp()+interval '1 second' WHERE id='f7700000-0000-4000-8000-000000000001';
+SELECT extensions.dblink_connect('expiry_binding','hostaddr='||coalesce(host(inet_server_addr()),'127.0.0.1')||' port='||current_setting('port')||' dbname='||current_database()||' user='||current_user||' password='||current_user||' sslmode=disable');
+CREATE TEMP TABLE expiry_binding_pid AS SELECT pid FROM extensions.dblink('expiry_binding','SELECT pg_backend_pid()') AS result(pid integer);
+BEGIN;
+SELECT id FROM plugin_data.csf_sheet_sync_bindings WHERE id='f7800000-0000-4000-8000-000000000001' FOR UPDATE;
+SELECT extensions.dblink_send_query('expiry_binding',$query$SELECT plugin_data.csf_bind_sheet_sync_thread('f7100000-0000-4000-8000-000000000001','f7700000-0000-4000-8000-000000000001','f7b00000-0000-4000-8000-000000000001','f7800000-0000-4000-8000-000000000001','f7e00000-0000-4000-8000-000000000001','expiry-thread','local-post','v1')::text$query$);
+DO $wait$
+DECLARE waiting boolean:=false; deadline timestamptz:=clock_timestamp()+interval '15 seconds';
+BEGIN
+ LOOP
+  SELECT EXISTS(SELECT 1 FROM pg_locks WHERE pid=(SELECT pid FROM expiry_binding_pid) AND NOT granted) INTO waiting;
+  EXIT WHEN waiting OR clock_timestamp()>=deadline;
+  PERFORM pg_sleep(0.01);
+ END LOOP;
+ INSERT INTO sheet_race_waits VALUES('expiry_binding',waiting);
+END $wait$;
+SELECT extensions.ok((SELECT observed FROM sheet_race_waits WHERE key='expiry_binding'),'binding mutation waits on its target lock');
+SELECT pg_sleep(1.1);
+COMMIT;
+SELECT * FROM extensions.dblink_get_result('expiry_binding',false) AS result(payload text);
+SELECT extensions.ok(position('Sync lease expired or access changed' IN extensions.dblink_error_message('expiry_binding'))>0,'binding mutation rechecks expiry after waiting');
+SELECT extensions.ok((SELECT NOT thread_bindings ? 'f7e00000-0000-4000-8000-000000000001' FROM plugin_data.csf_sheet_sync_bindings WHERE id='f7800000-0000-4000-8000-000000000001'),'expired binding mutation preserves existing state');
+SELECT extensions.dblink_disconnect('expiry_binding');
+DELETE FROM plugin_data.csf_sheet_sync_comments WHERE organization_id='f7100000-0000-4000-8000-000000000001';
 DELETE FROM plugin_data.csf_sheet_sync_changes WHERE organization_id='f7100000-0000-4000-8000-000000000001';
 DELETE FROM plugin_data.csf_sheet_sync_local_messages WHERE organization_id='f7100000-0000-4000-8000-000000000001';
 DELETE FROM plugin_data.csf_sheet_writeback_ledger WHERE organization_id='f7100000-0000-4000-8000-000000000001';
