@@ -58,6 +58,21 @@ ALTER TABLE plugin_data.csf_sheet_writeback_ledger
     (destination_id IS NULL AND application_id IS NOT NULL AND row_number IS NOT NULL AND decision IS NOT NULL AND record_kind IS NULL AND status IN ('queued','sent','failed'))
     OR (destination_id IS NOT NULL AND application_id IS NULL AND record_kind IS NOT NULL AND record_id IS NOT NULL AND source_version IS NOT NULL AND payload IS NOT NULL AND status IN ('pending_export','exporting','exported','retry_export','unknown_outcome','superseded'))),
   ADD CONSTRAINT csf_sheet_writeback_destination_org_fk FOREIGN KEY(organization_id,destination_id) REFERENCES plugin_data.csf_sheet_sync_destinations(organization_id,id);
+ALTER TABLE plugin_data.csf_sheet_writeback_ledger ADD CONSTRAINT csf_sheet_export_payload_version CHECK(destination_id IS NULL OR source_version=md5(payload::text));
+CREATE FUNCTION plugin_data.csf_guard_sheet_sync_export_snapshot() RETURNS trigger
+LANGUAGE plpgsql SECURITY DEFINER SET search_path='' AS $$
+BEGIN
+ IF (OLD.destination_id IS NOT NULL OR NEW.destination_id IS NOT NULL) AND
+  (to_jsonb(NEW)-ARRAY['status','attempts','last_error','sent_at','updated_at','lease_token','lease_expires_at']) IS DISTINCT FROM
+  (to_jsonb(OLD)-ARRAY['status','attempts','last_error','sent_at','updated_at','lease_token','lease_expires_at']) THEN
+  RAISE EXCEPTION 'Queued export identity and snapshot are immutable.' USING ERRCODE='23514';
+ END IF;
+ RETURN NEW;
+END $$;
+REVOKE ALL ON FUNCTION plugin_data.csf_guard_sheet_sync_export_snapshot() FROM PUBLIC,anon,authenticated,service_role;
+CREATE TRIGGER csf_sheet_export_snapshot_immutable BEFORE UPDATE ON plugin_data.csf_sheet_writeback_ledger FOR EACH ROW EXECUTE FUNCTION plugin_data.csf_guard_sheet_sync_export_snapshot();
+REVOKE ALL ON plugin_data.csf_sheet_writeback_ledger FROM service_role;
+GRANT SELECT ON plugin_data.csf_sheet_writeback_ledger TO service_role;
 CREATE UNIQUE INDEX csf_sheet_export_version_unique ON plugin_data.csf_sheet_writeback_ledger(destination_id,record_kind,record_id,source_version) WHERE destination_id IS NOT NULL;
 CREATE INDEX csf_sheet_export_pending ON plugin_data.csf_sheet_writeback_ledger(destination_id,created_at) WHERE status IN ('pending_export','retry_export','exporting','unknown_outcome');
 CREATE TABLE plugin_data.csf_sheet_sync_changes (
@@ -337,7 +352,7 @@ BEGIN
  SELECT * INTO d FROM plugin_data.csf_sheet_sync_destinations WHERE organization_id=p_organization_id AND id=p_destination_id FOR NO KEY UPDATE;
  IF NOT FOUND OR NOT d.enabled OR d.poll_lease_token IS DISTINCT FROM p_destination_lease_token OR p_destination_lease_token IS NULL OR d.poll_lease_expires_at<clock_timestamp() OR NOT (plugin_data.csf_actor_has_permission(p_organization_id,d.configured_by,'manage_sheet_sync') AND plugin_data.csf_actor_has_permission(p_organization_id,d.configured_by,'export_sensitive_reports')) THEN RETURN; END IF;
  UPDATE plugin_data.csf_sheet_writeback_ledger SET status='unknown_outcome',last_error='The write lease expired. Reconcile the destination before retrying.' WHERE destination_id=d.id AND status='exporting' AND lease_expires_at<clock_timestamp();
- UPDATE plugin_data.csf_sheet_writeback_ledger SET status='superseded' WHERE destination_id=d.id AND status IN ('pending_export','retry_export') AND source_version<>md5(plugin_data.csf_sheet_sync_destination_snapshot(organization_id,destination_id,record_kind,record_id)::text);
+ UPDATE plugin_data.csf_sheet_writeback_ledger SET status='superseded' WHERE destination_id=d.id AND status IN ('pending_export','retry_export') AND (payload IS DISTINCT FROM plugin_data.csf_sheet_sync_destination_snapshot(organization_id,destination_id,record_kind,record_id) OR source_version<>md5(payload::text));
  IF NOT (plugin_data.csf_actor_has_permission(p_organization_id,d.configured_by,'manage_sheet_sync') AND plugin_data.csf_actor_has_permission(p_organization_id,d.configured_by,'export_sensitive_reports')) THEN RETURN; END IF;
  RETURN QUERY WITH candidates AS (
    SELECT l.id FROM plugin_data.csf_sheet_writeback_ledger l WHERE l.destination_id=d.id AND l.status IN ('pending_export','retry_export')
