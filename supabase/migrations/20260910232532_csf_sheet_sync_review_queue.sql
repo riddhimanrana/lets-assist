@@ -335,14 +335,16 @@ BEGIN
  IF NOT plugin_data.csf_actor_has_permission(p_organization_id,p_actor_user_id,CASE WHEN c.record_kind='application' THEN 'decide_applications' ELSE 'verify_submissions' END) THEN RAISE EXCEPTION 'Not authorized to review this record.'; END IF;
  IF c.status<>'pending' THEN RETURN to_jsonb(c); END IF;
  IF p_accept IS NULL THEN RAISE EXCEPTION 'Choose accept or discard.'; END IF;
+ p_reason:=nullif(btrim(p_reason),'');
+ IF p_reason IS NULL OR length(p_reason)>4000 THEN RAISE EXCEPTION 'Enter a review note of 1 to 4000 characters.'; END IF;
  IF p_accept THEN
    IF c.record_kind='application' THEN PERFORM 1 FROM plugin_data.csf_term_applications WHERE organization_id=p_organization_id AND id=c.record_id FOR UPDATE;
    ELSE PERFORM 1 FROM plugin_data.csf_point_submissions WHERE organization_id=p_organization_id AND id=c.record_id FOR UPDATE; END IF;
    r:=plugin_data.csf_sheet_sync_snapshot(p_organization_id,c.record_kind,c.record_id);
    IF md5(r::text)<>c.source_version THEN c.status:='stale';
    ELSE
-     IF c.record_kind='application' THEN PERFORM plugin_data.csf_decide_term_application(p_organization_id,c.record_id,CASE WHEN c.payload->>'action'='approved' THEN 'accepted' ELSE c.payload->>'action' END,c.payload->>'review_notes',p_actor_user_id,c.id);
-     ELSE PERFORM plugin_data.csf_review_point_submission_request(p_organization_id,c.record_id,c.payload->>'action',(c.payload->>'awarded_points')::numeric,c.payload->>'review_notes',p_actor_user_id,c.id); END IF;
+     IF c.record_kind='application' THEN PERFORM plugin_data.csf_decide_term_application(p_organization_id,c.record_id,CASE WHEN c.payload->>'action'='approved' THEN 'accepted' ELSE c.payload->>'action' END,p_reason,p_actor_user_id,c.id);
+     ELSE PERFORM plugin_data.csf_review_point_submission_request(p_organization_id,c.record_id,c.payload->>'action',(c.payload->>'awarded_points')::numeric,p_reason,p_actor_user_id,c.id); END IF;
      c.status:='accepted';
    END IF;
  ELSE c.status:='discarded'; END IF;

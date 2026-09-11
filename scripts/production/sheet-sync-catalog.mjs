@@ -109,8 +109,8 @@ export const sheetSyncDefinitions = [
   ],
   [
     "plugin_data.csf_review_sheet_sync_change(uuid,uuid,uuid,boolean,text)",
-    "6841a192d30eae8a975a364f02e355e2",
-    "824acd93c95d7af85807025282bc9ce8",
+    "90be5c7a8d4f184c4dde5eaf05d8939e",
+    "e51c03bf8a45d85556aa087b18c2a6ad",
     true,
   ],
   [
