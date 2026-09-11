@@ -6,9 +6,9 @@ export const sheetSyncDefinitions = [
     true,
   ],
   [
-    "plugin_data.csf_assert_sheet_sync_destination_lease(uuid,uuid,uuid)",
-    "71a427322140542d8f19feca0485615a",
-    "52a03dc0c9d91c4361058a46c75575a9",
+    "plugin_data.csf_assert_sheet_sync_destination_lease(uuid,uuid,uuid,text,uuid,text)",
+    "b6c1234cdf6fce0781f1833961c7074b",
+    "b62830780cbd9f8145772079702ef8bc",
     true,
   ],
   [
@@ -19,14 +19,14 @@ export const sheetSyncDefinitions = [
   ],
   [
     "plugin_data.csf_claim_sheet_sync_destination(uuid,uuid,boolean)",
-    "bea52f3ae957b75de51f092ddb01fc6f",
-    "ef97bf75c34abe3ff050f303d004aa19",
+    "8f224f0cc0eea34a317e97af834fb96f",
+    "b7cbf881cb51606583994987a0119ddd",
     true,
   ],
   [
     "plugin_data.csf_claim_sheet_sync_exports(uuid,uuid,uuid,integer)",
-    "abd7d0eabcbc92389e69a5f83b0e6b11",
-    "af3b2247b34a774520672a6fe0c39341",
+    "8af39234ad3a4df644c2b8fd04053137",
+    "ab67233d3e35e3f560f91c98adbc0813",
     true,
   ],
   [
@@ -43,8 +43,8 @@ export const sheetSyncDefinitions = [
   ],
   [
     "plugin_data.csf_finish_sheet_sync_export(uuid,uuid,uuid,text,text,text)",
-    "3f603a216ae5398e8bfcce1879352bcd",
-    "7a2d066112b914ce781dc6e80e9840bc",
+    "8c5e2fffdee7938c4db8f1c82477430b",
+    "9766dc7a13252d680b54d764da389fa0",
     true,
   ],
   [
@@ -73,20 +73,20 @@ export const sheetSyncDefinitions = [
   ],
   [
     "plugin_data.csf_queue_sheet_sync_record(uuid,uuid,uuid,text,uuid)",
-    "b76f47cd0c36654b1d0552494ac08fce",
-    "f5c24c32545b4196a079054b7a2ed8ea",
+    "ce3fd4856913102a7ed8c6c600793ce2",
+    "a5de7e6fed8867b5b8e65727a0571173",
     true,
   ],
   [
     "plugin_data.csf_reconcile_sheet_sync_export(uuid,uuid,uuid,boolean,text,text)",
-    "d73a3762b1af5ec7c7f09463c1caca22",
-    "77b0bb6bc71c9268d348992c510248a4",
+    "f1810a17d2355d4513401c691a6c3208",
+    "fb7fc4799b637b4ebbe6b52245af6ac9",
     true,
   ],
   [
     "plugin_data.csf_record_sheet_sync_change(uuid,uuid,text,uuid,text,text,jsonb)",
-    "141a4c4300813aec10ee81c829056eb7",
-    "6160b1f3bb102dd121a073296f5cb3f3",
+    "d604f6432c65c826da11c5ebd44c272f",
+    "498b1939020b98e8b5585d3055512729",
     true,
   ],
   [

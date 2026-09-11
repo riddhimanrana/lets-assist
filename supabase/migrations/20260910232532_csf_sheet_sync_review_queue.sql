@@ -291,7 +291,8 @@ BEGIN
  IF r IS NULL THEN RAISE EXCEPTION 'Record is outside this destination.'; END IF;
  profile:=CASE WHEN p_record_kind='profile' THEN p_record_id ELSE (r->>'profile_id')::uuid END;
  v:=md5(r::text);
- INSERT INTO plugin_data.csf_sheet_sync_bindings(organization_id,destination_id,record_kind,record_id,profile_id,logical_key,sheet_id) VALUES(p_organization_id,d.id,p_record_kind,p_record_id,profile,p_record_kind||':'||p_record_id::text,d.sheet_id) ON CONFLICT(destination_id,record_kind,record_id) DO UPDATE SET profile_id=coalesce(EXCLUDED.profile_id,plugin_data.csf_sheet_sync_bindings.profile_id);
+ INSERT INTO plugin_data.csf_sheet_sync_bindings(organization_id,destination_id,record_kind,record_id,profile_id,logical_key,sheet_id) VALUES(p_organization_id,d.id,p_record_kind,p_record_id,profile,p_record_kind||':'||p_record_id::text,d.sheet_id) ON CONFLICT(destination_id,record_kind,record_id) DO NOTHING;
+ UPDATE plugin_data.csf_sheet_sync_bindings SET profile_id=profile WHERE organization_id=p_organization_id AND destination_id=d.id AND record_kind=p_record_kind AND record_id=p_record_id AND profile IS NOT NULL AND profile_id IS DISTINCT FROM profile;
  IF NOT (plugin_data.csf_actor_has_permission(p_organization_id,p_actor_user_id,'manage_sheet_sync') AND plugin_data.csf_actor_has_permission(p_organization_id,p_actor_user_id,'export_sensitive_reports')) THEN RETURN NULL; END IF;
  INSERT INTO plugin_data.csf_sheet_writeback_ledger(organization_id,spreadsheet_file_id,sheet_tab,status,destination_id,record_kind,record_id,source_version,payload)
  VALUES(p_organization_id,d.spreadsheet_file_id,NULL,'pending_export',d.id,p_record_kind,p_record_id,v,r)
@@ -304,15 +305,17 @@ CREATE FUNCTION plugin_data.csf_claim_sheet_sync_exports(p_organization_id uuid,
 LANGUAGE plpgsql SECURITY DEFINER SET search_path='' AS $$
 DECLARE d plugin_data.csf_sheet_sync_destinations%ROWTYPE;
 BEGIN
+ PERFORM pg_advisory_xact_lock(plugin_data.csf_staff_access_lock_key(p_organization_id));
  SELECT * INTO d FROM plugin_data.csf_sheet_sync_destinations WHERE organization_id=p_organization_id AND id=p_destination_id FOR UPDATE;
- IF NOT FOUND OR NOT d.enabled OR d.poll_lease_token IS DISTINCT FROM p_destination_lease_token OR p_destination_lease_token IS NULL OR d.poll_lease_expires_at<now() OR NOT (plugin_data.csf_actor_has_permission(p_organization_id,d.configured_by,'manage_sheet_sync') AND plugin_data.csf_actor_has_permission(p_organization_id,d.configured_by,'export_sensitive_reports')) THEN RETURN; END IF;
- UPDATE plugin_data.csf_sheet_writeback_ledger SET status='unknown_outcome',last_error='The write lease expired. Reconcile the destination before retrying.' WHERE destination_id=d.id AND status='exporting' AND lease_expires_at<now();
+ IF NOT FOUND OR NOT d.enabled OR d.poll_lease_token IS DISTINCT FROM p_destination_lease_token OR p_destination_lease_token IS NULL OR d.poll_lease_expires_at<clock_timestamp() OR NOT (plugin_data.csf_actor_has_permission(p_organization_id,d.configured_by,'manage_sheet_sync') AND plugin_data.csf_actor_has_permission(p_organization_id,d.configured_by,'export_sensitive_reports')) THEN RETURN; END IF;
+ UPDATE plugin_data.csf_sheet_writeback_ledger SET status='unknown_outcome',last_error='The write lease expired. Reconcile the destination before retrying.' WHERE destination_id=d.id AND status='exporting' AND lease_expires_at<clock_timestamp();
  UPDATE plugin_data.csf_sheet_writeback_ledger SET status='superseded' WHERE destination_id=d.id AND status IN ('pending_export','retry_export') AND source_version<>md5(plugin_data.csf_sheet_sync_destination_snapshot(organization_id,destination_id,record_kind,record_id)::text);
+ IF NOT (plugin_data.csf_actor_has_permission(p_organization_id,d.configured_by,'manage_sheet_sync') AND plugin_data.csf_actor_has_permission(p_organization_id,d.configured_by,'export_sensitive_reports')) THEN RETURN; END IF;
  RETURN QUERY WITH candidates AS (
    SELECT l.id FROM plugin_data.csf_sheet_writeback_ledger l WHERE l.destination_id=d.id AND l.status IN ('pending_export','retry_export')
    AND NOT EXISTS(SELECT 1 FROM plugin_data.csf_sheet_writeback_ledger b WHERE b.destination_id=l.destination_id AND b.record_kind=l.record_kind AND b.record_id=l.record_id AND b.status IN ('exporting','unknown_outcome'))
    ORDER BY l.created_at,l.id LIMIT greatest(1,least(p_limit,100)) FOR UPDATE SKIP LOCKED
- ) UPDATE plugin_data.csf_sheet_writeback_ledger l SET status='exporting',lease_token=gen_random_uuid(),lease_expires_at=now()+interval '2 minutes',attempts=attempts+1,updated_at=now() FROM candidates c WHERE l.id=c.id RETURNING l.*;
+ ) UPDATE plugin_data.csf_sheet_writeback_ledger l SET status='exporting',lease_token=gen_random_uuid(),lease_expires_at=clock_timestamp()+interval '2 minutes',attempts=attempts+1,updated_at=clock_timestamp() FROM candidates c WHERE l.id=c.id RETURNING l.*;
 END $$;
 
 CREATE FUNCTION plugin_data.csf_finish_sheet_sync_export(p_organization_id uuid,p_ledger_id uuid,p_lease_token uuid,p_outcome text,p_remote_version text,p_error text DEFAULT NULL) RETURNS jsonb
@@ -320,7 +323,11 @@ LANGUAGE plpgsql SECURITY DEFINER SET search_path='' AS $$
 DECLARE l plugin_data.csf_sheet_writeback_ledger%ROWTYPE;
 BEGIN
  IF p_outcome NOT IN ('exported','retry_export','unknown_outcome') THEN RAISE EXCEPTION 'Invalid export outcome.'; END IF;
- SELECT * INTO l FROM plugin_data.csf_sheet_writeback_ledger WHERE organization_id=p_organization_id AND id=p_ledger_id AND destination_id IS NOT NULL FOR UPDATE;
+ SELECT * INTO l FROM plugin_data.csf_sheet_writeback_ledger WHERE organization_id=p_organization_id AND id=p_ledger_id AND destination_id IS NOT NULL;
+ IF NOT FOUND THEN RAISE EXCEPTION 'Export attempt not found.'; END IF;
+ PERFORM 1 FROM plugin_data.csf_sheet_sync_destinations WHERE organization_id=p_organization_id AND id=l.destination_id FOR UPDATE;
+ PERFORM 1 FROM plugin_data.csf_sheet_sync_bindings WHERE organization_id=p_organization_id AND destination_id=l.destination_id AND record_kind=l.record_kind AND record_id=l.record_id FOR UPDATE;
+ SELECT e.* INTO l FROM plugin_data.csf_sheet_writeback_ledger e WHERE e.organization_id=p_organization_id AND e.id=p_ledger_id AND e.destination_id=l.destination_id AND e.record_kind=l.record_kind AND e.record_id=l.record_id FOR UPDATE;
  IF NOT FOUND OR l.lease_token IS DISTINCT FROM p_lease_token OR p_lease_token IS NULL THEN RAISE EXCEPTION 'Export lease no longer belongs to this attempt.'; END IF;
  IF l.status=p_outcome THEN RETURN to_jsonb(l); END IF;
  IF l.status<>'exporting' OR l.lease_expires_at<now() THEN RAISE EXCEPTION 'Export lease expired. Reconcile before retrying.'; END IF;
@@ -336,6 +343,7 @@ CREATE FUNCTION plugin_data.csf_record_sheet_sync_change(p_organization_id uuid,
 LANGUAGE plpgsql SECURITY DEFINER SET search_path='' AS $$
 DECLARE c plugin_data.csf_sheet_sync_changes%ROWTYPE; d plugin_data.csf_sheet_sync_destinations%ROWTYPE; b plugin_data.csf_sheet_sync_bindings%ROWTYPE; request jsonb;
 BEGIN
+ PERFORM pg_advisory_xact_lock(plugin_data.csf_staff_access_lock_key(p_organization_id));
  SELECT * INTO d FROM plugin_data.csf_sheet_sync_destinations WHERE organization_id=p_organization_id AND id=p_destination_id;
  IF NOT FOUND OR NOT d.enabled OR NOT (plugin_data.csf_actor_has_permission(p_organization_id,d.configured_by,'manage_sheet_sync') AND plugin_data.csf_actor_has_permission(p_organization_id,d.configured_by,'export_sensitive_reports')) THEN RAISE EXCEPTION 'Sync destination is disabled.'; END IF;
  SELECT * INTO b FROM plugin_data.csf_sheet_sync_bindings WHERE destination_id=d.id AND record_kind=p_record_kind AND record_id=p_record_id AND last_export_version=p_source_version FOR UPDATE;
@@ -416,16 +424,24 @@ CREATE FUNCTION plugin_data.csf_claim_sheet_sync_destination(p_organization_id u
 LANGUAGE plpgsql SECURITY DEFINER SET search_path='' AS $$
 DECLARE d plugin_data.csf_sheet_sync_destinations%ROWTYPE;
 BEGIN
- UPDATE plugin_data.csf_sheet_sync_destinations SET poll_lease_token=gen_random_uuid(),poll_lease_expires_at=now()+interval '2 minutes',next_poll_at=now()+interval '2 minutes'
- WHERE organization_id=p_organization_id AND id=p_destination_id AND enabled AND (p_force OR next_poll_at<=now()) AND (poll_lease_expires_at IS NULL OR poll_lease_expires_at<now()) AND plugin_data.csf_actor_has_permission(organization_id,configured_by,'manage_sheet_sync') AND plugin_data.csf_actor_has_permission(organization_id,configured_by,'export_sensitive_reports') RETURNING * INTO d;
+ PERFORM pg_advisory_xact_lock(plugin_data.csf_staff_access_lock_key(p_organization_id));
+ UPDATE plugin_data.csf_sheet_sync_destinations SET poll_lease_token=gen_random_uuid(),poll_lease_expires_at=clock_timestamp()+interval '2 minutes',next_poll_at=clock_timestamp()+interval '2 minutes'
+ WHERE organization_id=p_organization_id AND id=p_destination_id AND enabled AND (p_force OR next_poll_at<=clock_timestamp()) AND (poll_lease_expires_at IS NULL OR poll_lease_expires_at<clock_timestamp()) AND plugin_data.csf_actor_has_permission(organization_id,configured_by,'manage_sheet_sync') AND plugin_data.csf_actor_has_permission(organization_id,configured_by,'export_sensitive_reports') RETURNING * INTO d;
  RETURN CASE WHEN d.id IS NULL THEN NULL ELSE to_jsonb(d) END;
 END $$;
-CREATE FUNCTION plugin_data.csf_assert_sheet_sync_destination_lease(p_organization_id uuid,p_destination_id uuid,p_lease_token uuid) RETURNS jsonb
+CREATE FUNCTION plugin_data.csf_assert_sheet_sync_destination_lease(p_organization_id uuid,p_destination_id uuid,p_lease_token uuid,p_record_kind text DEFAULT NULL,p_record_id uuid DEFAULT NULL,p_source_version text DEFAULT NULL) RETURNS jsonb
 LANGUAGE plpgsql SECURITY DEFINER SET search_path='' AS $$
 DECLARE d plugin_data.csf_sheet_sync_destinations%ROWTYPE;
 BEGIN
- SELECT * INTO d FROM plugin_data.csf_sheet_sync_destinations WHERE organization_id=p_organization_id AND id=p_destination_id AND enabled AND poll_lease_token=p_lease_token AND poll_lease_expires_at>now() AND plugin_data.csf_actor_has_permission(organization_id,configured_by,'manage_sheet_sync') AND plugin_data.csf_actor_has_permission(organization_id,configured_by,'export_sensitive_reports');
+ PERFORM pg_advisory_xact_lock(plugin_data.csf_staff_access_lock_key(p_organization_id));
+ SELECT * INTO d FROM plugin_data.csf_sheet_sync_destinations WHERE organization_id=p_organization_id AND id=p_destination_id AND enabled AND poll_lease_token=p_lease_token AND poll_lease_expires_at>clock_timestamp() AND plugin_data.csf_actor_has_permission(organization_id,configured_by,'manage_sheet_sync') AND plugin_data.csf_actor_has_permission(organization_id,configured_by,'export_sensitive_reports') FOR UPDATE;
  IF NOT FOUND THEN RAISE EXCEPTION 'Sync lease expired or access changed.'; END IF;
+ IF (p_record_kind IS NOT NULL OR p_record_id IS NOT NULL OR p_source_version IS NOT NULL) THEN
+  IF p_record_kind IS NULL OR p_record_id IS NULL OR p_source_version IS NULL THEN RAISE EXCEPTION 'Provide the complete export record identity.'; END IF;
+  PERFORM 1 FROM plugin_data.csf_sheet_sync_bindings WHERE organization_id=p_organization_id AND destination_id=p_destination_id AND record_kind=p_record_kind AND record_id=p_record_id FOR UPDATE;
+  IF NOT FOUND OR md5(plugin_data.csf_sheet_sync_destination_snapshot(p_organization_id,p_destination_id,p_record_kind,p_record_id)::text) IS DISTINCT FROM p_source_version THEN RAISE EXCEPTION 'Sheet record changed. Reload before exporting.'; END IF;
+ END IF;
+ IF d.poll_lease_expires_at<=clock_timestamp() THEN RAISE EXCEPTION 'Sync lease expired or access changed.'; END IF;
  RETURN to_jsonb(d);
 END $$;
 CREATE FUNCTION plugin_data.csf_release_sheet_sync_destination(p_organization_id uuid,p_destination_id uuid,p_lease_token uuid) RETURNS void
@@ -440,7 +456,11 @@ BEGIN
  PERFORM pg_advisory_xact_lock(plugin_data.csf_staff_access_lock_key(p_organization_id));
  IF NOT (plugin_data.csf_actor_has_permission(p_organization_id,p_actor_user_id,'manage_sheet_sync') AND plugin_data.csf_actor_has_permission(p_organization_id,p_actor_user_id,'export_sensitive_reports')) THEN RAISE EXCEPTION 'Not authorized.'; END IF;
  IF nullif(btrim(p_reason),'') IS NULL THEN RAISE EXCEPTION 'Record the destination reconciliation result.'; END IF;
- SELECT * INTO l FROM plugin_data.csf_sheet_writeback_ledger WHERE id=p_ledger_id AND organization_id=p_organization_id AND destination_id IS NOT NULL FOR UPDATE;
+ SELECT * INTO l FROM plugin_data.csf_sheet_writeback_ledger WHERE id=p_ledger_id AND organization_id=p_organization_id AND destination_id IS NOT NULL;
+ IF NOT FOUND THEN RAISE EXCEPTION 'Export attempt not found.'; END IF;
+ PERFORM 1 FROM plugin_data.csf_sheet_sync_destinations WHERE organization_id=p_organization_id AND id=l.destination_id FOR UPDATE;
+ PERFORM 1 FROM plugin_data.csf_sheet_sync_bindings WHERE organization_id=p_organization_id AND destination_id=l.destination_id AND record_kind=l.record_kind AND record_id=l.record_id FOR UPDATE;
+ SELECT e.* INTO l FROM plugin_data.csf_sheet_writeback_ledger e WHERE e.organization_id=p_organization_id AND e.id=p_ledger_id AND e.destination_id=l.destination_id AND e.record_kind=l.record_kind AND e.record_id=l.record_id FOR UPDATE;
  IF NOT FOUND OR l.status<>'unknown_outcome' THEN RAISE EXCEPTION 'Export is not awaiting reconciliation.'; END IF;
  UPDATE plugin_data.csf_sheet_writeback_ledger SET status=CASE WHEN p_was_written THEN 'exported' ELSE 'retry_export' END,lease_token=NULL,lease_expires_at=NULL,last_error=NULL,updated_at=now() WHERE id=l.id RETURNING * INTO l;
  IF p_was_written THEN UPDATE plugin_data.csf_sheet_sync_bindings SET last_export_version=l.source_version,remote_version=p_remote_version WHERE destination_id=l.destination_id AND record_kind=l.record_kind AND record_id=l.record_id; END IF;
@@ -579,8 +599,8 @@ CREATE TRIGGER csf_sheet_sync_application_reviews AFTER INSERT OR UPDATE ON plug
 CREATE TRIGGER csf_sheet_sync_point_reviews AFTER INSERT OR UPDATE ON plugin_data.csf_submission_reviews FOR EACH ROW EXECUTE FUNCTION plugin_data.csf_queue_changed_sheet_sync_record();
 CREATE TRIGGER csf_sheet_sync_notes AFTER INSERT OR UPDATE ON plugin_data.csf_review_notes FOR EACH ROW EXECUTE FUNCTION plugin_data.csf_queue_changed_sheet_sync_record();
 REVOKE ALL ON FUNCTION plugin_data.csf_queue_changed_sheet_sync_record() FROM PUBLIC,anon,authenticated,service_role;
-REVOKE ALL ON FUNCTION plugin_data.csf_claim_sheet_sync_destination(uuid,uuid,boolean),plugin_data.csf_assert_sheet_sync_destination_lease(uuid,uuid,uuid),plugin_data.csf_release_sheet_sync_destination(uuid,uuid,uuid),plugin_data.csf_reconcile_sheet_sync_export(uuid,uuid,uuid,boolean,text,text),plugin_data.csf_record_sheet_sync_comment(uuid,uuid,uuid,uuid,text,text,text,jsonb,text,boolean,boolean),plugin_data.csf_bind_sheet_sync_thread(uuid,uuid,uuid,uuid,uuid,text,text,text) FROM PUBLIC,anon,authenticated;
-GRANT EXECUTE ON FUNCTION plugin_data.csf_claim_sheet_sync_destination(uuid,uuid,boolean),plugin_data.csf_assert_sheet_sync_destination_lease(uuid,uuid,uuid),plugin_data.csf_release_sheet_sync_destination(uuid,uuid,uuid),plugin_data.csf_reconcile_sheet_sync_export(uuid,uuid,uuid,boolean,text,text),plugin_data.csf_record_sheet_sync_comment(uuid,uuid,uuid,uuid,text,text,text,jsonb,text,boolean,boolean),plugin_data.csf_bind_sheet_sync_thread(uuid,uuid,uuid,uuid,uuid,text,text,text) TO service_role;
+REVOKE ALL ON FUNCTION plugin_data.csf_claim_sheet_sync_destination(uuid,uuid,boolean),plugin_data.csf_assert_sheet_sync_destination_lease(uuid,uuid,uuid,text,uuid,text),plugin_data.csf_release_sheet_sync_destination(uuid,uuid,uuid),plugin_data.csf_reconcile_sheet_sync_export(uuid,uuid,uuid,boolean,text,text),plugin_data.csf_record_sheet_sync_comment(uuid,uuid,uuid,uuid,text,text,text,jsonb,text,boolean,boolean),plugin_data.csf_bind_sheet_sync_thread(uuid,uuid,uuid,uuid,uuid,text,text,text) FROM PUBLIC,anon,authenticated;
+GRANT EXECUTE ON FUNCTION plugin_data.csf_claim_sheet_sync_destination(uuid,uuid,boolean),plugin_data.csf_assert_sheet_sync_destination_lease(uuid,uuid,uuid,text,uuid,text),plugin_data.csf_release_sheet_sync_destination(uuid,uuid,uuid),plugin_data.csf_reconcile_sheet_sync_export(uuid,uuid,uuid,boolean,text,text),plugin_data.csf_record_sheet_sync_comment(uuid,uuid,uuid,uuid,text,text,text,jsonb,text,boolean,boolean),plugin_data.csf_bind_sheet_sync_thread(uuid,uuid,uuid,uuid,uuid,text,text,text) TO service_role;
 
 REVOKE ALL ON FUNCTION plugin_data.csf_register_sheet_sync_test_workspace(uuid,uuid),plugin_data.csf_configure_sheet_sync_destination(uuid,uuid,text,integer,text,uuid,uuid,boolean,integer,jsonb),plugin_data.csf_set_sheet_sync_destination_state(uuid,uuid,uuid,boolean,boolean,text),plugin_data.csf_sheet_sync_snapshot(uuid,text,uuid),plugin_data.csf_queue_sheet_sync_record(uuid,uuid,uuid,text,uuid),plugin_data.csf_claim_sheet_sync_exports(uuid,uuid,uuid,integer),plugin_data.csf_finish_sheet_sync_export(uuid,uuid,uuid,text,text,text),plugin_data.csf_record_sheet_sync_change(uuid,uuid,text,uuid,text,text,jsonb),plugin_data.csf_review_sheet_sync_change(uuid,uuid,uuid,boolean,text) FROM PUBLIC,anon,authenticated;
 GRANT EXECUTE ON FUNCTION plugin_data.csf_register_sheet_sync_test_workspace(uuid,uuid),plugin_data.csf_configure_sheet_sync_destination(uuid,uuid,text,integer,text,uuid,uuid,boolean,integer,jsonb),plugin_data.csf_set_sheet_sync_destination_state(uuid,uuid,uuid,boolean,boolean,text),plugin_data.csf_sheet_sync_snapshot(uuid,text,uuid),plugin_data.csf_queue_sheet_sync_record(uuid,uuid,uuid,text,uuid),plugin_data.csf_claim_sheet_sync_exports(uuid,uuid,uuid,integer),plugin_data.csf_finish_sheet_sync_export(uuid,uuid,uuid,text,text,text),plugin_data.csf_record_sheet_sync_change(uuid,uuid,text,uuid,text,text,jsonb),plugin_data.csf_review_sheet_sync_change(uuid,uuid,uuid,boolean,text) TO service_role;
