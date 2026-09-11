@@ -6826,7 +6826,6 @@ Root PR 517 merged as `d87f37ed`. Private release workflow `34587750048` and roo
 
 The 484-migration catalog preserves the accepted 483 schema fingerprints. The forward release allowlist includes the exact publication bytes and supports a deployment starting from either 482 or 483. The sync catalog still covers 30 functions, ten relations, and 29 triggers. Verification passed 58 catalog and forward-release tests, 13 documentation tests, 21 release-integration tests, the registry gate, strict gitlink checks, and migration validation. Full isolated replay passed 484 migrations, 107 CSF tables, 275 files, and 7,907 assertions in 105 seconds. The accepted catalog and all ten negative probes passed; owned test resources were removed. These checks do not establish a hosted deployment or a completed copied-workbook journey. Production remains at the last verified 482-migration checkpoint.
 
-
 ### Signed application 1.2.26 publication candidate
 
 Root PR 522 passed CI `34600061603`, including 7,907 database assertions,
