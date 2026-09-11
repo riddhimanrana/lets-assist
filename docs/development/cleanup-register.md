@@ -2702,6 +2702,27 @@ sources.
 
 ## Repository-owned P0–P2
 
+### Organization read latency, September 11, 2026
+
+`bcc1455b` passed CI run `34589118187`: 484 migrations, 275 SQL files,
+7,907 assertions and 93 CSF browser tests (four optional skips). Hosted run
+`34588559651` failed the read latency gate: p95 3,355.81 ms and p99
+8,602.77 ms. Mutation p95 1,344.52 ms, LCP 1,324 ms and INP 48 ms passed.
+The run recorded two timeouts and no HTTP 5xx responses.
+
+The organization page loaded platform report totals and overview extensions
+for CSF even though CSF hides the platform Overview tab. Metadata and page
+rendering also queried the same public organization separately. The bounded
+root correction skips hidden overview reads and shares the public projection
+within one React server render. Authorization remains fresh. Local source and
+regression evidence does not establish a hosted latency improvement; the
+read gate remains open until measured on the integrated candidate.
+
+Production remains at `840` with 482 migrations and application 1.2.24.
+Imports are paused at revision 4, verified by runs `34589218794` and
+`34589285371`. This correction changes no provider state or private gitlink.
+
+
 ### Production source and profile repair, September 9, 2026
 
 The owner authorized direct Production repairs, then explicitly requested no
