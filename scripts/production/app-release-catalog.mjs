@@ -120,10 +120,14 @@ export function acceptedCatalogQuery(source, versions) {
   )
     return source;
   const applicationCanonicalRangeUpgrade =
-    versions.length === 497 && ledgerHash === "3030f0e5b182aaa582577bb54bd27b6f2acada984d8a19e66ca1cd7e5ed84de0";
-  const applicationRangeUpgrade = applicationCanonicalRangeUpgrade || (
-    versions.length === 496 && ledgerHash ===
-      "51549a21b6fb7abad784b889c7c29813f5c568c6fa0011bde52a2dbad37b2258");
+    versions.length === 497 &&
+    ledgerHash ===
+      "3030f0e5b182aaa582577bb54bd27b6f2acada984d8a19e66ca1cd7e5ed84de0";
+  const applicationRangeUpgrade =
+    applicationCanonicalRangeUpgrade ||
+    (versions.length === 496 &&
+      ledgerHash ===
+        "51549a21b6fb7abad784b889c7c29813f5c568c6fa0011bde52a2dbad37b2258");
   const sheetToggleUpgrade =
     applicationRangeUpgrade ||
     (versions.length === 495 &&

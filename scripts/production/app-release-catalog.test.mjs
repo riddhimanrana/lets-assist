@@ -653,7 +653,7 @@ test("returning-account correction pins its definition without changing the prio
 });
 
 test("range expansion pins only the new retry body and preserves the published predecessor", () => {
-  const current = acceptedCatalogQuery(source, versions.slice(0,496));
+  const current = acceptedCatalogQuery(source, versions.slice(0, 496));
   const preceding = acceptedCatalogQuery(source, versions.slice(0, 495));
   assert.ok(
     current.includes("md5(p.prosrc)='d5e26c21ffe78f617f4b34ee82a7eb41'"),
@@ -666,8 +666,20 @@ test("range expansion pins only the new retry body and preserves the published p
   );
 });
 
- test("canonical range recovery preserves the preceding function fingerprint", () => {
-  assert.ok(acceptedCatalogQuery(source, versions).includes("b18cf72ece0df071e4f2ee7d93616d06"));
-  assert.ok(acceptedCatalogQuery(source, versions.slice(0,496)).includes("d5e26c21ffe78f617f4b34ee82a7eb41"));
-  assert.ok(!acceptedCatalogQuery(source, versions.slice(0,496)).includes("b18cf72ece0df071e4f2ee7d93616d06"));
+test("canonical range recovery preserves the preceding function fingerprint", () => {
+  assert.ok(
+    acceptedCatalogQuery(source, versions).includes(
+      "b18cf72ece0df071e4f2ee7d93616d06",
+    ),
+  );
+  assert.ok(
+    acceptedCatalogQuery(source, versions.slice(0, 496)).includes(
+      "d5e26c21ffe78f617f4b34ee82a7eb41",
+    ),
+  );
+  assert.ok(
+    !acceptedCatalogQuery(source, versions.slice(0, 496)).includes(
+      "b18cf72ece0df071e4f2ee7d93616d06",
+    ),
+  );
 });
