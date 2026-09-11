@@ -1,14 +1,14 @@
 export const sheetSyncDefinitions = [
   [
     "plugin_data.csf_add_sheet_sync_local_message(uuid,uuid,uuid,uuid,text,text,boolean)",
-    "7bffe46ef22b0708ba8a75627ce19935",
-    "bf373eb3587d58f590682eb03dddf61e",
+    "a0045ece92f7791887cb17e8aa9e7eb1",
+    "acc60b16fb91f33195c36b303e4e8d08",
     true,
   ],
   [
     "plugin_data.csf_assert_sheet_sync_destination_lease(uuid,uuid,uuid,text,uuid,text)",
-    "b6c1234cdf6fce0781f1833961c7074b",
-    "b62830780cbd9f8145772079702ef8bc",
+    "8adc3c38593f658157b8dffa725dac92",
+    "8e4abc7ff3153201e0f52d4174ad5bbe",
     true,
   ],
   [
@@ -25,8 +25,8 @@ export const sheetSyncDefinitions = [
   ],
   [
     "plugin_data.csf_claim_sheet_sync_exports(uuid,uuid,uuid,integer)",
-    "8af39234ad3a4df644c2b8fd04053137",
-    "ab67233d3e35e3f560f91c98adbc0813",
+    "bec6e2a6b8e6cee294ef325e4d3604f8",
+    "7c9fbffad89b91f743dd7f154113ef9b",
     true,
   ],
   [
@@ -43,8 +43,8 @@ export const sheetSyncDefinitions = [
   ],
   [
     "plugin_data.csf_finish_sheet_sync_export(uuid,uuid,uuid,text,text,text)",
-    "8c5e2fffdee7938c4db8f1c82477430b",
-    "9766dc7a13252d680b54d764da389fa0",
+    "2567340c8c6fb9af11f253f9787ce79d",
+    "f1c79101d9d53de938ea9eace1a540b3",
     true,
   ],
   [
@@ -61,26 +61,32 @@ export const sheetSyncDefinitions = [
   ],
   [
     "plugin_data.csf_queue_changed_sheet_sync_record()",
-    "876a08b06b58746ab8a61889c60a8340",
-    "ac00412fab8b0e085a85a49938c41484",
+    "6b063757ef9b0b566fa17e799ed94a3c",
+    "8caa87252b128a9232363f9c2725dbb5",
     false,
   ],
   [
     "plugin_data.csf_queue_cohort_sheet_sync_records()",
-    "c3e16eb1b5dafa2e3f2dc3efe6abf31f",
-    "ca1b60885f44750e46d9011499e15247",
+    "d9ac8029d16f6100d47dbedf9fe522d8",
+    "a435473baea7d015cd9e64496a424041",
     false,
   ],
   [
     "plugin_data.csf_queue_sheet_sync_record(uuid,uuid,uuid,text,uuid)",
-    "ce3fd4856913102a7ed8c6c600793ce2",
-    "a5de7e6fed8867b5b8e65727a0571173",
+    "a8b7a3f85409e8537d75be010f910467",
+    "0e8440756009c3c5b843638836cefe76",
     true,
   ],
   [
+    "plugin_data.csf_queue_sheet_sync_record_internal(uuid,uuid,text,uuid)",
+    "bf2521b2501facf4e61ba63bfdbc8756",
+    "464e4f6bf51b396b354a29ece82c66e7",
+    false,
+  ],
+  [
     "plugin_data.csf_reconcile_sheet_sync_export(uuid,uuid,uuid,boolean,text,text)",
-    "f1810a17d2355d4513401c691a6c3208",
-    "fb7fc4799b637b4ebbe6b52245af6ac9",
+    "ee5e55041ade30e0cee69fc545413ce5",
+    "f99b600d7181cefad6ab8c5b6e8273af",
     true,
   ],
   [
@@ -121,8 +127,8 @@ export const sheetSyncDefinitions = [
   ],
   [
     "plugin_data.csf_seed_sheet_sync_destination(uuid,uuid,uuid,uuid,integer)",
-    "7cda62425dfeb4331bec9cd7679fd1c9",
-    "9c4009583adc94126b5671abc3f5facc",
+    "1bec83b3bd2f2b4e09d636a8eebbeaa4",
+    "8aa236ed3aad568bb1361d0e4446e133",
     true,
   ],
   [
@@ -156,22 +162,22 @@ export const sheetSyncTables = [
     "e8d797f1d751abc4d1ce18fb0183a5af",
     false,
   ],
-  ["csf_sheet_sync_local_messages", "afa7aaf1008067189fd21b317636cc4a", false],
+  ["csf_sheet_sync_local_messages", "167d8947ed5c2978f44d746770769eda", false],
   ["csf_sheet_sync_comments", "8439d2a366122e596c8afb0313c216db", false],
 ];
 export const sheetSyncTriggers = [
   [
     "csf_application_files",
     "csf_sheet_sync_application_files",
-    "c2bd83eb3eec4278af9ed6a2578b0c1c",
-    21,
+    "a5b1b136017376b005517d33abf42f3f",
+    29,
     "plugin_data.csf_queue_changed_sheet_sync_record()",
   ],
   [
     "csf_application_status_events",
     "csf_sheet_sync_application_reviews",
-    "a031c2cd39314e852e2c78b64643a4e1",
-    21,
+    "d6c7d4da7e3484eda78bc4d1bf9a12cb",
+    29,
     "plugin_data.csf_queue_changed_sheet_sync_record()",
   ],
   [
@@ -184,15 +190,15 @@ export const sheetSyncTriggers = [
   [
     "csf_credit_records",
     "csf_sheet_sync_credits",
-    "3c3a09e95c82548efdf9d7a89658171b",
-    21,
+    "c448b421016ea883831cb09bc82e4cf0",
+    29,
     "plugin_data.csf_queue_changed_sheet_sync_record()",
   ],
   [
     "csf_point_submissions",
     "csf_sheet_sync_points",
-    "3f7a0ee0f5f8ddc00fd4ae66ce0e4136",
-    21,
+    "18b9e797022afd35a6475418eb17460a",
+    29,
     "plugin_data.csf_queue_changed_sheet_sync_record()",
   ],
   [
@@ -212,15 +218,15 @@ export const sheetSyncTriggers = [
   [
     "csf_profiles",
     "csf_sheet_sync_profiles",
-    "d1913bb48fb050369c82c28732d38443",
-    21,
+    "39a10164b8bdfb4d1e9725e2e14a6b61",
+    29,
     "plugin_data.csf_queue_changed_sheet_sync_record()",
   ],
   [
     "csf_review_notes",
     "csf_sheet_sync_notes",
-    "843a8e1c8b21c28f2066879fdaedde39",
-    21,
+    "2631f8ad074678f7a708adc3177a7801",
+    29,
     "plugin_data.csf_queue_changed_sheet_sync_record()",
   ],
   [
@@ -245,6 +251,13 @@ export const sheetSyncTriggers = [
     "plugin_data.csf_guard_sheet_sync_test_file()",
   ],
   [
+    "csf_sheet_sync_local_messages",
+    "csf_sheet_sync_local_messages",
+    "ad0f580468a0d5334264e3ef02fbaf3c",
+    29,
+    "plugin_data.csf_queue_changed_sheet_sync_record()",
+  ],
+  [
     "csf_sheet_writeback_ledger",
     "csf_sheet_test_writeback",
     "1cf7d9a68ef206d04a32eec11fb7aa96",
@@ -254,22 +267,22 @@ export const sheetSyncTriggers = [
   [
     "csf_submission_files",
     "csf_sheet_sync_submission_files",
-    "dfd501f4de04a4981ce392d8ebe387be",
-    21,
+    "1e691a0170fd520321f7d8d74282fa6b",
+    29,
     "plugin_data.csf_queue_changed_sheet_sync_record()",
   ],
   [
     "csf_submission_reviews",
     "csf_sheet_sync_point_reviews",
-    "a31f4e115f66db0c9d44554346f2f7f0",
-    21,
+    "4352032f32f553f86019647c1280add2",
+    29,
     "plugin_data.csf_queue_changed_sheet_sync_record()",
   ],
   [
     "csf_term_applications",
     "csf_sheet_sync_application",
-    "f71937f70b1d6df97a9cc3c22368dc38",
-    21,
+    "97a0cff9fa4a42d03320d1a365bc5de9",
+    29,
     "plugin_data.csf_queue_changed_sheet_sync_record()",
   ],
   [
@@ -282,8 +295,8 @@ export const sheetSyncTriggers = [
   [
     "csf_term_memberships",
     "csf_sheet_sync_memberships",
-    "4a786f26309198634e56efac8a047964",
-    21,
+    "ad82a10a1a6a9d8698e039e6f6a953ee",
+    29,
     "plugin_data.csf_queue_changed_sheet_sync_record()",
   ],
 ];

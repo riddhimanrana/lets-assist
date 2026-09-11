@@ -1,7 +1,7 @@
 -- Separate sessions prove that queued Sheet actions observe permission revocation.
 CREATE EXTENSION IF NOT EXISTS pgtap WITH SCHEMA extensions;
 CREATE EXTENSION IF NOT EXISTS dblink WITH SCHEMA extensions;
-SELECT extensions.plan(25);
+SELECT extensions.plan(26);
 INSERT INTO auth.users(id,aud,role,email,raw_app_meta_data,raw_user_meta_data) VALUES('f7000000-0000-4000-8000-000000000001','authenticated','authenticated','sheet-race@local.test','{}','{}');
 INSERT INTO public.organizations(id,name,username,type,join_code) VALUES('f7100000-0000-4000-8000-000000000001','Sheet permission race','sheet-permission-race','school','985271');
 INSERT INTO public.organization_members(organization_id,user_id,role,status) VALUES('f7100000-0000-4000-8000-000000000001','f7000000-0000-4000-8000-000000000001','member','active');
@@ -185,6 +185,7 @@ END $wait$;
 SELECT extensions.ok((SELECT observed FROM sheet_race_waits WHERE key='finish'),'receipt finish waits for the binding before locking its ledger row');
 SET LOCAL lock_timeout='2s';
 SELECT extensions.lives_ok($query$SELECT plugin_data.csf_queue_sheet_sync_record('f7100000-0000-4000-8000-000000000001','f7000000-0000-4000-8000-000000000001','f7700000-0000-4000-8000-000000000001','application','f7600000-0000-4000-8000-000000000001')$query$,'same-version queue retry can finish while receipt waits on its binding');
+SELECT extensions.lives_ok($query$UPDATE plugin_data.csf_term_applications SET review_notes='Concurrent source edit' WHERE id='f7600000-0000-4000-8000-000000000001'$query$,'new source version can queue while worker holds destination and waits for binding');
 COMMIT;
 INSERT INTO worker_race_results SELECT 'finish',payload FROM extensions.dblink_get_result('worker_finish',false) AS result(payload text);
 SELECT extensions.is((SELECT payload FROM worker_race_results WHERE key='finish'),'exported','receipt completes without a binding-ledger deadlock');

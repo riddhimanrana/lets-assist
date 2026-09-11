@@ -280,11 +280,10 @@ END $$;
 REVOKE ALL ON FUNCTION plugin_data.csf_sheet_sync_destination_snapshot(uuid,uuid,text,uuid) FROM PUBLIC,anon,authenticated;
 GRANT EXECUTE ON FUNCTION plugin_data.csf_sheet_sync_destination_snapshot(uuid,uuid,text,uuid) TO service_role;
 
-CREATE FUNCTION plugin_data.csf_queue_sheet_sync_record(p_organization_id uuid,p_actor_user_id uuid,p_destination_id uuid,p_record_kind text,p_record_id uuid) RETURNS jsonb
+CREATE FUNCTION plugin_data.csf_queue_sheet_sync_record_internal(p_organization_id uuid,p_destination_id uuid,p_record_kind text,p_record_id uuid) RETURNS jsonb
 LANGUAGE plpgsql SECURITY DEFINER SET search_path='' AS $$
 DECLARE d plugin_data.csf_sheet_sync_destinations%ROWTYPE; r jsonb; v text; l plugin_data.csf_sheet_writeback_ledger%ROWTYPE; profile uuid;
 BEGIN
- IF NOT (plugin_data.csf_actor_has_permission(p_organization_id,p_actor_user_id,'manage_sheet_sync') AND plugin_data.csf_actor_has_permission(p_organization_id,p_actor_user_id,'export_sensitive_reports')) THEN RAISE EXCEPTION 'Not authorized.'; END IF;
  SELECT * INTO d FROM plugin_data.csf_sheet_sync_destinations WHERE id=p_destination_id AND organization_id=p_organization_id;
  IF NOT FOUND OR NOT d.enabled THEN RAISE EXCEPTION 'Sync destination is disabled.'; END IF;
  r:=plugin_data.csf_sheet_sync_destination_snapshot(p_organization_id,p_destination_id,p_record_kind,p_record_id);
@@ -293,7 +292,6 @@ BEGIN
  v:=md5(r::text);
  INSERT INTO plugin_data.csf_sheet_sync_bindings(organization_id,destination_id,record_kind,record_id,profile_id,logical_key,sheet_id) VALUES(p_organization_id,d.id,p_record_kind,p_record_id,profile,p_record_kind||':'||p_record_id::text,d.sheet_id) ON CONFLICT(destination_id,record_kind,record_id) DO NOTHING;
  UPDATE plugin_data.csf_sheet_sync_bindings SET profile_id=profile WHERE organization_id=p_organization_id AND destination_id=d.id AND record_kind=p_record_kind AND record_id=p_record_id AND profile IS NOT NULL AND profile_id IS DISTINCT FROM profile;
- IF NOT (plugin_data.csf_actor_has_permission(p_organization_id,p_actor_user_id,'manage_sheet_sync') AND plugin_data.csf_actor_has_permission(p_organization_id,p_actor_user_id,'export_sensitive_reports')) THEN RETURN NULL; END IF;
  INSERT INTO plugin_data.csf_sheet_writeback_ledger(organization_id,spreadsheet_file_id,sheet_tab,status,destination_id,record_kind,record_id,source_version,payload)
  VALUES(p_organization_id,d.spreadsheet_file_id,NULL,'pending_export',d.id,p_record_kind,p_record_id,v,r)
  ON CONFLICT(destination_id,record_kind,record_id,source_version) WHERE destination_id IS NOT NULL DO NOTHING RETURNING * INTO l;
@@ -301,12 +299,24 @@ BEGIN
  RETURN to_jsonb(l);
 END $$;
 
+REVOKE ALL ON FUNCTION plugin_data.csf_queue_sheet_sync_record_internal(uuid,uuid,text,uuid) FROM PUBLIC,anon,authenticated,service_role;
+
+CREATE FUNCTION plugin_data.csf_queue_sheet_sync_record(p_organization_id uuid,p_actor_user_id uuid,p_destination_id uuid,p_record_kind text,p_record_id uuid) RETURNS jsonb
+LANGUAGE plpgsql SECURITY DEFINER SET search_path='' AS $$
+DECLARE result jsonb;
+BEGIN
+ IF NOT (plugin_data.csf_actor_has_permission(p_organization_id,p_actor_user_id,'manage_sheet_sync') AND plugin_data.csf_actor_has_permission(p_organization_id,p_actor_user_id,'export_sensitive_reports')) THEN RAISE EXCEPTION 'Not authorized.'; END IF;
+ result:=plugin_data.csf_queue_sheet_sync_record_internal(p_organization_id,p_destination_id,p_record_kind,p_record_id);
+ IF NOT (plugin_data.csf_actor_has_permission(p_organization_id,p_actor_user_id,'manage_sheet_sync') AND plugin_data.csf_actor_has_permission(p_organization_id,p_actor_user_id,'export_sensitive_reports')) THEN RAISE EXCEPTION 'Not authorized.'; END IF;
+ RETURN result;
+END $$;
+
 CREATE FUNCTION plugin_data.csf_claim_sheet_sync_exports(p_organization_id uuid,p_destination_id uuid,p_destination_lease_token uuid,p_limit integer DEFAULT 25) RETURNS SETOF plugin_data.csf_sheet_writeback_ledger
 LANGUAGE plpgsql SECURITY DEFINER SET search_path='' AS $$
 DECLARE d plugin_data.csf_sheet_sync_destinations%ROWTYPE;
 BEGIN
  PERFORM pg_advisory_xact_lock(plugin_data.csf_staff_access_lock_key(p_organization_id));
- SELECT * INTO d FROM plugin_data.csf_sheet_sync_destinations WHERE organization_id=p_organization_id AND id=p_destination_id FOR UPDATE;
+ SELECT * INTO d FROM plugin_data.csf_sheet_sync_destinations WHERE organization_id=p_organization_id AND id=p_destination_id FOR NO KEY UPDATE;
  IF NOT FOUND OR NOT d.enabled OR d.poll_lease_token IS DISTINCT FROM p_destination_lease_token OR p_destination_lease_token IS NULL OR d.poll_lease_expires_at<clock_timestamp() OR NOT (plugin_data.csf_actor_has_permission(p_organization_id,d.configured_by,'manage_sheet_sync') AND plugin_data.csf_actor_has_permission(p_organization_id,d.configured_by,'export_sensitive_reports')) THEN RETURN; END IF;
  UPDATE plugin_data.csf_sheet_writeback_ledger SET status='unknown_outcome',last_error='The write lease expired. Reconcile the destination before retrying.' WHERE destination_id=d.id AND status='exporting' AND lease_expires_at<clock_timestamp();
  UPDATE plugin_data.csf_sheet_writeback_ledger SET status='superseded' WHERE destination_id=d.id AND status IN ('pending_export','retry_export') AND source_version<>md5(plugin_data.csf_sheet_sync_destination_snapshot(organization_id,destination_id,record_kind,record_id)::text);
@@ -325,7 +335,7 @@ BEGIN
  IF p_outcome NOT IN ('exported','retry_export','unknown_outcome') THEN RAISE EXCEPTION 'Invalid export outcome.'; END IF;
  SELECT * INTO l FROM plugin_data.csf_sheet_writeback_ledger WHERE organization_id=p_organization_id AND id=p_ledger_id AND destination_id IS NOT NULL;
  IF NOT FOUND THEN RAISE EXCEPTION 'Export attempt not found.'; END IF;
- PERFORM 1 FROM plugin_data.csf_sheet_sync_destinations WHERE organization_id=p_organization_id AND id=l.destination_id FOR UPDATE;
+ PERFORM 1 FROM plugin_data.csf_sheet_sync_destinations WHERE organization_id=p_organization_id AND id=l.destination_id FOR NO KEY UPDATE;
  PERFORM 1 FROM plugin_data.csf_sheet_sync_bindings WHERE organization_id=p_organization_id AND destination_id=l.destination_id AND record_kind=l.record_kind AND record_id=l.record_id FOR UPDATE;
  SELECT e.* INTO l FROM plugin_data.csf_sheet_writeback_ledger e WHERE e.organization_id=p_organization_id AND e.id=p_ledger_id AND e.destination_id=l.destination_id AND e.record_kind=l.record_kind AND e.record_id=l.record_id FOR UPDATE;
  IF NOT FOUND OR l.lease_token IS DISTINCT FROM p_lease_token OR p_lease_token IS NULL THEN RAISE EXCEPTION 'Export lease no longer belongs to this attempt.'; END IF;
@@ -399,7 +409,7 @@ DECLARE d plugin_data.csf_sheet_sync_destinations%ROWTYPE; r record; n integer:=
 BEGIN
  PERFORM pg_advisory_xact_lock(plugin_data.csf_staff_access_lock_key(p_organization_id));
  IF NOT (plugin_data.csf_actor_has_permission(p_organization_id,p_actor_user_id,'manage_sheet_sync') AND plugin_data.csf_actor_has_permission(p_organization_id,p_actor_user_id,'export_sensitive_reports')) THEN RAISE EXCEPTION 'Not authorized.'; END IF;
- SELECT * INTO d FROM plugin_data.csf_sheet_sync_destinations WHERE organization_id=p_organization_id AND id=p_destination_id AND enabled FOR UPDATE;
+ SELECT * INTO d FROM plugin_data.csf_sheet_sync_destinations WHERE organization_id=p_organization_id AND id=p_destination_id AND enabled FOR NO KEY UPDATE;
  IF NOT FOUND THEN RAISE EXCEPTION 'Sync destination is disabled.'; END IF;
  IF d.seed_completed THEN RETURN jsonb_build_object('count',0,'next_cursor',NULL,'completed',true); END IF;
  k:=CASE d.kind WHEN 'applications' THEN 'application' WHEN 'point_submissions' THEN 'point_submission' ELSE 'profile' END;
@@ -434,7 +444,7 @@ LANGUAGE plpgsql SECURITY DEFINER SET search_path='' AS $$
 DECLARE d plugin_data.csf_sheet_sync_destinations%ROWTYPE;
 BEGIN
  PERFORM pg_advisory_xact_lock(plugin_data.csf_staff_access_lock_key(p_organization_id));
- SELECT * INTO d FROM plugin_data.csf_sheet_sync_destinations WHERE organization_id=p_organization_id AND id=p_destination_id AND enabled AND poll_lease_token=p_lease_token AND poll_lease_expires_at>clock_timestamp() AND plugin_data.csf_actor_has_permission(organization_id,configured_by,'manage_sheet_sync') AND plugin_data.csf_actor_has_permission(organization_id,configured_by,'export_sensitive_reports') FOR UPDATE;
+ SELECT * INTO d FROM plugin_data.csf_sheet_sync_destinations WHERE organization_id=p_organization_id AND id=p_destination_id AND enabled AND poll_lease_token=p_lease_token AND poll_lease_expires_at>clock_timestamp() AND plugin_data.csf_actor_has_permission(organization_id,configured_by,'manage_sheet_sync') AND plugin_data.csf_actor_has_permission(organization_id,configured_by,'export_sensitive_reports') FOR NO KEY UPDATE;
  IF NOT FOUND THEN RAISE EXCEPTION 'Sync lease expired or access changed.'; END IF;
  IF (p_record_kind IS NOT NULL OR p_record_id IS NOT NULL OR p_source_version IS NOT NULL) THEN
   IF p_record_kind IS NULL OR p_record_id IS NULL OR p_source_version IS NULL THEN RAISE EXCEPTION 'Provide the complete export record identity.'; END IF;
@@ -458,7 +468,9 @@ BEGIN
  IF nullif(btrim(p_reason),'') IS NULL THEN RAISE EXCEPTION 'Record the destination reconciliation result.'; END IF;
  SELECT * INTO l FROM plugin_data.csf_sheet_writeback_ledger WHERE id=p_ledger_id AND organization_id=p_organization_id AND destination_id IS NOT NULL;
  IF NOT FOUND THEN RAISE EXCEPTION 'Export attempt not found.'; END IF;
- PERFORM 1 FROM plugin_data.csf_sheet_sync_destinations WHERE organization_id=p_organization_id AND id=l.destination_id FOR UPDATE;
+ PERFORM 1 FROM plugin_data.csf_sheet_sync_destinations WHERE organization_id=p_organization_id AND id=l.destination_id FOR NO KEY UPDATE;
+ IF EXISTS(SELECT 1 FROM plugin_data.csf_sheet_sync_destinations WHERE organization_id=p_organization_id AND id=l.destination_id AND enabled) THEN RAISE EXCEPTION 'Turn off syncing before reconciling this write.'; END IF;
+ IF EXISTS(SELECT 1 FROM plugin_data.csf_sheet_writeback_ledger WHERE organization_id=p_organization_id AND destination_id=l.destination_id AND status='exporting' AND lease_expires_at>clock_timestamp()) THEN RAISE EXCEPTION 'Wait for active export attempts before reconciling this write.'; END IF;
  PERFORM 1 FROM plugin_data.csf_sheet_sync_bindings WHERE organization_id=p_organization_id AND destination_id=l.destination_id AND record_kind=l.record_kind AND record_id=l.record_id FOR UPDATE;
  SELECT e.* INTO l FROM plugin_data.csf_sheet_writeback_ledger e WHERE e.organization_id=p_organization_id AND e.id=p_ledger_id AND e.destination_id=l.destination_id AND e.record_kind=l.record_kind AND e.record_id=l.record_id FOR UPDATE;
  IF NOT FOUND OR l.status<>'unknown_outcome' THEN RAISE EXCEPTION 'Export is not awaiting reconciliation.'; END IF;
@@ -533,7 +545,6 @@ BEGIN
   RETURN to_jsonb(m);
  END IF;
  INSERT INTO plugin_data.csf_sheet_sync_local_messages(id,organization_id,destination_id,binding_id,author_user_id,provider_thread_id,body,resolved) VALUES(p_request_id,p_organization_id,b.destination_id,b.id,p_actor_user_id,p_thread_id,p_body,p_resolved) RETURNING * INTO m;
- IF plugin_data.csf_actor_has_permission(p_organization_id,d.configured_by,'manage_sheet_sync') AND plugin_data.csf_actor_has_permission(p_organization_id,d.configured_by,'export_sensitive_reports') THEN PERFORM plugin_data.csf_queue_sheet_sync_record(p_organization_id,d.configured_by,d.id,b.record_kind,b.record_id); END IF;
  INSERT INTO plugin_data.csf_admin_audit_events(organization_id,actor_user_id,action,target_type,target_id,after_data) VALUES(p_organization_id,p_actor_user_id,'sheet_sync.message_added','sheet_sync_local_message',m.id,to_jsonb(m));
  RETURN to_jsonb(m);
 END $$;
@@ -542,26 +553,30 @@ GRANT EXECUTE ON FUNCTION plugin_data.csf_add_sheet_sync_local_message(uuid,uuid
 
 CREATE FUNCTION plugin_data.csf_queue_changed_sheet_sync_record() RETURNS trigger
 LANGUAGE plpgsql SECURITY DEFINER SET search_path='' AS $$
-DECLARE r jsonb:=CASE WHEN TG_OP='DELETE' THEN to_jsonb(OLD) ELSE to_jsonb(NEW) END; k text; rid uuid; d record; profile uuid; target record;
+DECLARE old_row jsonb:=CASE WHEN TG_OP<>'INSERT' THEN to_jsonb(OLD) END; new_row jsonb:=CASE WHEN TG_OP<>'DELETE' THEN to_jsonb(NEW) END; r jsonb; targets jsonb:='[]'; k text; rid uuid; org uuid; profile uuid; target record; d record;
 BEGIN
- IF TG_TABLE_NAME IN ('csf_term_applications','csf_point_submissions') THEN k:=CASE WHEN TG_TABLE_NAME='csf_term_applications' THEN 'application' ELSE 'point_submission' END; rid:=(r->>'id')::uuid;
- ELSIF TG_TABLE_NAME IN ('csf_application_files','csf_application_status_events') THEN k:='application';rid:=(r->>'application_id')::uuid;
- ELSIF TG_TABLE_NAME='csf_submission_files' OR (TG_TABLE_NAME='csf_credit_records' AND r->>'submission_id' IS NOT NULL) THEN k:='point_submission';rid:=(r->>'submission_id')::uuid;
- ELSIF TG_TABLE_NAME='csf_review_notes' THEN
-  IF r->>'subject_kind' NOT IN ('application','profile') THEN RETURN NEW; END IF;
-  k:=r->>'subject_kind'; rid:=(r->>'subject_id')::uuid;
- ELSIF TG_TABLE_NAME='csf_submission_reviews' THEN k:='point_submission';rid:=(r->>'submission_id')::uuid;
- ELSE k:='profile'; rid:=CASE WHEN TG_TABLE_NAME='csf_profiles' THEN (r->>'id')::uuid ELSE (r->>'profile_id')::uuid END; END IF;
- profile:=CASE WHEN k='profile' THEN rid ELSE (r->>'profile_id')::uuid END;
- FOR target IN SELECT k AS kind,rid AS id UNION SELECT 'profile',profile WHERE profile IS NOT NULL AND k<>'profile' LOOP
- FOR d IN SELECT * FROM plugin_data.csf_sheet_sync_destinations WHERE organization_id=(r->>'organization_id')::uuid AND enabled LOOP
-  IF plugin_data.csf_actor_has_permission(d.organization_id,d.configured_by,'manage_sheet_sync') AND plugin_data.csf_actor_has_permission(d.organization_id,d.configured_by,'export_sensitive_reports')
-    AND ((target.kind='application' AND d.kind='applications') OR (target.kind='point_submission' AND d.kind='point_submissions') OR (target.kind='profile' AND d.kind='class'))
-    AND (d.cohort_id IS NULL OR EXISTS(SELECT 1 FROM plugin_data.csf_profile_cohort_memberships WHERE organization_id=d.organization_id AND profile_id=coalesce(profile,(SELECT profile_id FROM plugin_data.csf_term_applications WHERE id=rid AND organization_id=d.organization_id),(SELECT profile_id FROM plugin_data.csf_point_submissions WHERE id=rid AND organization_id=d.organization_id)) AND cohort_id=d.cohort_id AND status='active'))
-    AND (target.kind='profile' OR d.term_id=coalesce((r->>'term_id')::uuid,(SELECT term_id FROM plugin_data.csf_term_applications WHERE id=rid AND organization_id=d.organization_id),(SELECT term_id FROM plugin_data.csf_point_submissions WHERE id=rid AND organization_id=d.organization_id))) THEN
-    PERFORM plugin_data.csf_queue_sheet_sync_record(d.organization_id,d.configured_by,d.id,target.kind,target.id);
-  END IF;
+ FOR r IN SELECT DISTINCT x FROM unnest(ARRAY[old_row,new_row]) x WHERE x IS NOT NULL LOOP
+  org:=(r->>'organization_id')::uuid; profile:=NULL; k:=NULL; rid:=NULL;
+  IF TG_TABLE_NAME IN ('csf_term_applications','csf_point_submissions') THEN k:=CASE WHEN TG_TABLE_NAME='csf_term_applications' THEN 'application' ELSE 'point_submission' END; rid:=(r->>'id')::uuid;
+  ELSIF TG_TABLE_NAME IN ('csf_application_files','csf_application_status_events') THEN k:='application';rid:=(r->>'application_id')::uuid;
+  ELSIF TG_TABLE_NAME IN ('csf_submission_files','csf_submission_reviews') OR (TG_TABLE_NAME='csf_credit_records' AND r->>'submission_id' IS NOT NULL) THEN k:='point_submission';rid:=(r->>'submission_id')::uuid;
+  ELSIF TG_TABLE_NAME='csf_review_notes' THEN
+   IF r->>'subject_kind' NOT IN ('application','profile') THEN CONTINUE; END IF;
+   k:=r->>'subject_kind';rid:=(r->>'subject_id')::uuid;
+  ELSIF TG_TABLE_NAME='csf_sheet_sync_local_messages' THEN
+   SELECT record_kind,record_id INTO k,rid FROM plugin_data.csf_sheet_sync_bindings WHERE organization_id=org AND id=(r->>'binding_id')::uuid;
+  ELSE k:='profile';rid:=CASE WHEN TG_TABLE_NAME='csf_profiles' THEN (r->>'id')::uuid ELSE (r->>'profile_id')::uuid END; END IF;
+  profile:=CASE WHEN k='profile' THEN rid ELSE (r->>'profile_id')::uuid END;
+  IF k IS NOT NULL AND rid IS NOT NULL THEN targets:=targets||jsonb_build_array(jsonb_build_object('org',org,'kind',k,'id',rid)); END IF;
+  IF profile IS NOT NULL AND k<>'profile' THEN targets:=targets||jsonb_build_array(jsonb_build_object('org',org,'kind','profile','id',profile)); END IF;
  END LOOP;
+ FOR target IN SELECT DISTINCT (x->>'org')::uuid org,x->>'kind' kind,(x->>'id')::uuid id FROM jsonb_array_elements(targets) x LOOP
+  UPDATE plugin_data.csf_sheet_sync_bindings SET scope_revision=scope_revision+1 WHERE organization_id=target.org AND record_kind=target.kind AND record_id=target.id;
+  FOR d IN SELECT * FROM plugin_data.csf_sheet_sync_destinations WHERE organization_id=target.org AND enabled AND ((target.kind='application' AND kind='applications') OR (target.kind='point_submission' AND kind='point_submissions') OR (target.kind='profile' AND kind='class')) LOOP
+   IF plugin_data.csf_sheet_sync_destination_snapshot(target.org,d.id,target.kind,target.id) IS NOT NULL THEN
+    PERFORM plugin_data.csf_queue_sheet_sync_record_internal(target.org,d.id,target.kind,target.id);
+   END IF;
+  END LOOP;
  END LOOP;
  RETURN CASE WHEN TG_OP='DELETE' THEN OLD ELSE NEW END;
 END $$;
@@ -572,14 +587,13 @@ BEGIN
  FOR member IN SELECT DISTINCT (r->>'organization_id')::uuid org,(r->>'profile_id')::uuid profile FROM unnest(ARRAY[old_row,new_row]) r WHERE r IS NOT NULL LOOP
   UPDATE plugin_data.csf_sheet_sync_bindings SET scope_revision=scope_revision+1 WHERE organization_id=member.org AND (profile_id=member.profile OR (record_kind='profile' AND record_id=member.profile));
   FOR d IN SELECT * FROM plugin_data.csf_sheet_sync_destinations WHERE organization_id=member.org AND enabled LOOP
-   IF NOT (plugin_data.csf_actor_has_permission(member.org,d.configured_by,'manage_sheet_sync') AND plugin_data.csf_actor_has_permission(member.org,d.configured_by,'export_sensitive_reports')) THEN CONTINUE; END IF;
    FOR target IN
     SELECT 'profile' kind,member.profile id WHERE d.kind='class'
     UNION SELECT 'application',a.id FROM plugin_data.csf_term_applications a WHERE d.kind='applications' AND a.organization_id=member.org AND a.profile_id=member.profile AND a.term_id=d.term_id
     UNION SELECT 'point_submission',p.id FROM plugin_data.csf_point_submissions p WHERE d.kind='point_submissions' AND p.organization_id=member.org AND p.profile_id=member.profile AND p.term_id=d.term_id
     UNION SELECT b.record_kind,b.record_id FROM plugin_data.csf_sheet_sync_bindings b WHERE b.organization_id=member.org AND b.destination_id=d.id AND (b.profile_id=member.profile OR (b.record_kind='profile' AND b.record_id=member.profile))
    LOOP
-    IF plugin_data.csf_sheet_sync_destination_snapshot(member.org,d.id,target.kind,target.id) IS NOT NULL THEN PERFORM plugin_data.csf_queue_sheet_sync_record(member.org,d.configured_by,d.id,target.kind,target.id); END IF;
+    IF plugin_data.csf_sheet_sync_destination_snapshot(member.org,d.id,target.kind,target.id) IS NOT NULL THEN PERFORM plugin_data.csf_queue_sheet_sync_record_internal(member.org,d.id,target.kind,target.id); END IF;
    END LOOP;
   END LOOP;
  END LOOP;
@@ -587,17 +601,18 @@ BEGIN
 END $$;
 REVOKE ALL ON FUNCTION plugin_data.csf_queue_cohort_sheet_sync_records() FROM PUBLIC,anon,authenticated,service_role;
 CREATE TRIGGER csf_sheet_sync_cohort_memberships AFTER INSERT OR UPDATE OR DELETE ON plugin_data.csf_profile_cohort_memberships FOR EACH ROW EXECUTE FUNCTION plugin_data.csf_queue_cohort_sheet_sync_records();
-CREATE TRIGGER csf_sheet_sync_application AFTER INSERT OR UPDATE ON plugin_data.csf_term_applications FOR EACH ROW EXECUTE FUNCTION plugin_data.csf_queue_changed_sheet_sync_record();
-CREATE TRIGGER csf_sheet_sync_points AFTER INSERT OR UPDATE ON plugin_data.csf_point_submissions FOR EACH ROW EXECUTE FUNCTION plugin_data.csf_queue_changed_sheet_sync_record();
-CREATE TRIGGER csf_sheet_sync_profiles AFTER INSERT OR UPDATE ON plugin_data.csf_profiles FOR EACH ROW EXECUTE FUNCTION plugin_data.csf_queue_changed_sheet_sync_record();
+CREATE TRIGGER csf_sheet_sync_application AFTER INSERT OR UPDATE OR DELETE ON plugin_data.csf_term_applications FOR EACH ROW EXECUTE FUNCTION plugin_data.csf_queue_changed_sheet_sync_record();
+CREATE TRIGGER csf_sheet_sync_points AFTER INSERT OR UPDATE OR DELETE ON plugin_data.csf_point_submissions FOR EACH ROW EXECUTE FUNCTION plugin_data.csf_queue_changed_sheet_sync_record();
+CREATE TRIGGER csf_sheet_sync_profiles AFTER INSERT OR UPDATE OR DELETE ON plugin_data.csf_profiles FOR EACH ROW EXECUTE FUNCTION plugin_data.csf_queue_changed_sheet_sync_record();
 CREATE TRIGGER csf_sheet_sync_accounts AFTER INSERT OR UPDATE OR DELETE ON plugin_data.csf_profile_accounts FOR EACH ROW EXECUTE FUNCTION plugin_data.csf_queue_changed_sheet_sync_record();
-CREATE TRIGGER csf_sheet_sync_memberships AFTER INSERT OR UPDATE ON plugin_data.csf_term_memberships FOR EACH ROW EXECUTE FUNCTION plugin_data.csf_queue_changed_sheet_sync_record();
-CREATE TRIGGER csf_sheet_sync_credits AFTER INSERT OR UPDATE ON plugin_data.csf_credit_records FOR EACH ROW EXECUTE FUNCTION plugin_data.csf_queue_changed_sheet_sync_record();
-CREATE TRIGGER csf_sheet_sync_application_files AFTER INSERT OR UPDATE ON plugin_data.csf_application_files FOR EACH ROW EXECUTE FUNCTION plugin_data.csf_queue_changed_sheet_sync_record();
-CREATE TRIGGER csf_sheet_sync_submission_files AFTER INSERT OR UPDATE ON plugin_data.csf_submission_files FOR EACH ROW EXECUTE FUNCTION plugin_data.csf_queue_changed_sheet_sync_record();
-CREATE TRIGGER csf_sheet_sync_application_reviews AFTER INSERT OR UPDATE ON plugin_data.csf_application_status_events FOR EACH ROW EXECUTE FUNCTION plugin_data.csf_queue_changed_sheet_sync_record();
-CREATE TRIGGER csf_sheet_sync_point_reviews AFTER INSERT OR UPDATE ON plugin_data.csf_submission_reviews FOR EACH ROW EXECUTE FUNCTION plugin_data.csf_queue_changed_sheet_sync_record();
-CREATE TRIGGER csf_sheet_sync_notes AFTER INSERT OR UPDATE ON plugin_data.csf_review_notes FOR EACH ROW EXECUTE FUNCTION plugin_data.csf_queue_changed_sheet_sync_record();
+CREATE TRIGGER csf_sheet_sync_memberships AFTER INSERT OR UPDATE OR DELETE ON plugin_data.csf_term_memberships FOR EACH ROW EXECUTE FUNCTION plugin_data.csf_queue_changed_sheet_sync_record();
+CREATE TRIGGER csf_sheet_sync_credits AFTER INSERT OR UPDATE OR DELETE ON plugin_data.csf_credit_records FOR EACH ROW EXECUTE FUNCTION plugin_data.csf_queue_changed_sheet_sync_record();
+CREATE TRIGGER csf_sheet_sync_application_files AFTER INSERT OR UPDATE OR DELETE ON plugin_data.csf_application_files FOR EACH ROW EXECUTE FUNCTION plugin_data.csf_queue_changed_sheet_sync_record();
+CREATE TRIGGER csf_sheet_sync_submission_files AFTER INSERT OR UPDATE OR DELETE ON plugin_data.csf_submission_files FOR EACH ROW EXECUTE FUNCTION plugin_data.csf_queue_changed_sheet_sync_record();
+CREATE TRIGGER csf_sheet_sync_application_reviews AFTER INSERT OR UPDATE OR DELETE ON plugin_data.csf_application_status_events FOR EACH ROW EXECUTE FUNCTION plugin_data.csf_queue_changed_sheet_sync_record();
+CREATE TRIGGER csf_sheet_sync_point_reviews AFTER INSERT OR UPDATE OR DELETE ON plugin_data.csf_submission_reviews FOR EACH ROW EXECUTE FUNCTION plugin_data.csf_queue_changed_sheet_sync_record();
+CREATE TRIGGER csf_sheet_sync_notes AFTER INSERT OR UPDATE OR DELETE ON plugin_data.csf_review_notes FOR EACH ROW EXECUTE FUNCTION plugin_data.csf_queue_changed_sheet_sync_record();
+CREATE TRIGGER csf_sheet_sync_local_messages AFTER INSERT OR UPDATE OR DELETE ON plugin_data.csf_sheet_sync_local_messages FOR EACH ROW EXECUTE FUNCTION plugin_data.csf_queue_changed_sheet_sync_record();
 REVOKE ALL ON FUNCTION plugin_data.csf_queue_changed_sheet_sync_record() FROM PUBLIC,anon,authenticated,service_role;
 REVOKE ALL ON FUNCTION plugin_data.csf_claim_sheet_sync_destination(uuid,uuid,boolean),plugin_data.csf_assert_sheet_sync_destination_lease(uuid,uuid,uuid,text,uuid,text),plugin_data.csf_release_sheet_sync_destination(uuid,uuid,uuid),plugin_data.csf_reconcile_sheet_sync_export(uuid,uuid,uuid,boolean,text,text),plugin_data.csf_record_sheet_sync_comment(uuid,uuid,uuid,uuid,text,text,text,jsonb,text,boolean,boolean),plugin_data.csf_bind_sheet_sync_thread(uuid,uuid,uuid,uuid,uuid,text,text,text) FROM PUBLIC,anon,authenticated;
 GRANT EXECUTE ON FUNCTION plugin_data.csf_claim_sheet_sync_destination(uuid,uuid,boolean),plugin_data.csf_assert_sheet_sync_destination_lease(uuid,uuid,uuid,text,uuid,text),plugin_data.csf_release_sheet_sync_destination(uuid,uuid,uuid),plugin_data.csf_reconcile_sheet_sync_export(uuid,uuid,uuid,boolean,text,text),plugin_data.csf_record_sheet_sync_comment(uuid,uuid,uuid,uuid,text,text,text,jsonb,text,boolean,boolean),plugin_data.csf_bind_sheet_sync_thread(uuid,uuid,uuid,uuid,uuid,text,text,text) TO service_role;

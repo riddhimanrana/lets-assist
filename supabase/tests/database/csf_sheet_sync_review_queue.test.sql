@@ -1,6 +1,6 @@
 BEGIN;
 CREATE EXTENSION IF NOT EXISTS pgtap WITH SCHEMA extensions;
-SELECT extensions.plan(79);
+SELECT extensions.plan(102);
 INSERT INTO auth.users(id,aud,role,email,raw_app_meta_data,raw_user_meta_data) VALUES
 ('ea000000-0000-4000-8000-000000000001','authenticated','authenticated','sheet-admin@local.test','{}','{}'),
 ('ea000000-0000-4000-8000-000000000002','authenticated','authenticated','sheet-outsider@local.test','{}','{}');
@@ -57,7 +57,14 @@ SELECT extensions.is((SELECT count(*) FROM plugin_data.csf_sheet_writeback_ledge
 SELECT plugin_data.csf_finish_sheet_sync_export('ea100000-0000-4000-8000-000000000001',(SELECT (value->>'id')::uuid FROM sync_fixture WHERE name='latest'),(SELECT (value->>'lease_token')::uuid FROM sync_fixture WHERE name='latest'),'unknown_outcome',NULL,'Response lost');
 SELECT extensions.is((SELECT count(*) FROM plugin_data.csf_claim_sheet_sync_exports('ea100000-0000-4000-8000-000000000001',(SELECT (value->>'id')::uuid FROM sync_fixture WHERE name='destination'),(SELECT (value->>'poll_lease_token')::uuid FROM sync_fixture WHERE name='lease'),25)),0::bigint,'ambiguous provider writes never retry automatically');
 SELECT extensions.throws_ok($$SELECT plugin_data.csf_reconcile_sheet_sync_export('ea100000-0000-4000-8000-000000000001','ea000000-0000-4000-8000-000000000002',(SELECT (value->>'id')::uuid FROM sync_fixture WHERE name='latest'),false,NULL,'Not written')$$,'P0001','Not authorized.','outsider cannot release an unknown write');
+SELECT extensions.throws_ok($$SELECT plugin_data.csf_reconcile_sheet_sync_export('ea100000-0000-4000-8000-000000000001','ea000000-0000-4000-8000-000000000001',(SELECT (value->>'id')::uuid FROM sync_fixture WHERE name='latest'),false,NULL,'Verified copied destination has no write')$$,'P0001','Turn off syncing before reconciling this write.','running sync cannot be reconciled behind an active worker');
+UPDATE plugin_data.csf_sheet_sync_destinations SET enabled=false WHERE id=(SELECT (value->>'id')::uuid FROM sync_fixture WHERE name='destination');
+CREATE TEMP TABLE active_other_attempt AS SELECT id,status,lease_token,lease_expires_at FROM plugin_data.csf_sheet_writeback_ledger WHERE destination_id=(SELECT (value->>'id')::uuid FROM sync_fixture WHERE name='destination') AND status='superseded' LIMIT 1;
+UPDATE plugin_data.csf_sheet_writeback_ledger SET status='exporting',lease_token=gen_random_uuid(),lease_expires_at=clock_timestamp()+interval '2 minutes' WHERE id=(SELECT id FROM active_other_attempt);
+SELECT extensions.throws_ok($$SELECT plugin_data.csf_reconcile_sheet_sync_export('ea100000-0000-4000-8000-000000000001','ea000000-0000-4000-8000-000000000001',(SELECT (value->>'id')::uuid FROM sync_fixture WHERE name='latest'),false,NULL,'Verified copied destination has no write')$$,'P0001','Wait for active export attempts before reconciling this write.','disabled destination still waits for in-flight exports');
+UPDATE plugin_data.csf_sheet_writeback_ledger l SET status=a.status,lease_token=a.lease_token,lease_expires_at=a.lease_expires_at FROM active_other_attempt a WHERE l.id=a.id;
 SELECT plugin_data.csf_reconcile_sheet_sync_export('ea100000-0000-4000-8000-000000000001','ea000000-0000-4000-8000-000000000001',(SELECT (value->>'id')::uuid FROM sync_fixture WHERE name='latest'),false,NULL,'Verified copied destination has no write');
+UPDATE plugin_data.csf_sheet_sync_destinations SET enabled=true WHERE id=(SELECT (value->>'id')::uuid FROM sync_fixture WHERE name='destination');
 INSERT INTO sync_fixture SELECT 'retry',to_jsonb(l) FROM plugin_data.csf_claim_sheet_sync_exports('ea100000-0000-4000-8000-000000000001',(SELECT (value->>'id')::uuid FROM sync_fixture WHERE name='destination'),(SELECT (value->>'poll_lease_token')::uuid FROM sync_fixture WHERE name='lease'),25) l;
 SELECT extensions.ok((SELECT value->>'lease_token' FROM sync_fixture WHERE name='retry')<>(SELECT value->>'lease_token' FROM sync_fixture WHERE name='latest'),'reconciled retry gets a new attempt identity');
 SELECT plugin_data.csf_finish_sheet_sync_export('ea100000-0000-4000-8000-000000000001',(SELECT (value->>'id')::uuid FROM sync_fixture WHERE name='retry'),(SELECT (value->>'lease_token')::uuid FROM sync_fixture WHERE name='retry'),'exported','remote-v4',NULL);
@@ -171,5 +178,52 @@ SELECT extensions.is(plugin_data.csf_sheet_sync_destination_snapshot('ea100000-0
 INSERT INTO sync_fixture VALUES('class_lease',plugin_data.csf_claim_sheet_sync_destination('ea100000-0000-4000-8000-000000000001','eaf20000-0000-4000-8000-000000000001',true));
 DO $$ DECLARE l record; BEGIN FOR l IN SELECT * FROM plugin_data.csf_claim_sheet_sync_exports('ea100000-0000-4000-8000-000000000001','eaf20000-0000-4000-8000-000000000001',(SELECT (value->>'poll_lease_token')::uuid FROM sync_fixture WHERE name='class_lease'),100) LOOP PERFORM plugin_data.csf_finish_sheet_sync_export('ea100000-0000-4000-8000-000000000001',l.id,l.lease_token,'exported','cleanup-observed',NULL); END LOOP; END $$;
 SELECT extensions.ok((SELECT last_export_version IS NULL FROM plugin_data.csf_sheet_sync_bindings WHERE destination_id='eaf20000-0000-4000-8000-000000000001' AND record_id='ea300000-0000-4000-8000-000000000004'),'never-exported tombstone acknowledgment does not invent a Sheet row');
+
+CREATE FUNCTION pg_temp.current_sync_queued(kind text,rid uuid) RETURNS boolean LANGUAGE sql AS $$
+ SELECT EXISTS(SELECT 1 FROM plugin_data.csf_sheet_sync_destinations d JOIN plugin_data.csf_sheet_writeback_ledger l ON l.destination_id=d.id WHERE d.organization_id='ea100000-0000-4000-8000-000000000001' AND l.record_kind=$1 AND l.record_id=$2 AND l.status='pending_export' AND l.source_version=md5(plugin_data.csf_sheet_sync_destination_snapshot(d.organization_id,d.id,$1,$2)::text));
+$$;
+SELECT extensions.ok(NOT has_function_privilege('service_role','plugin_data.csf_queue_sheet_sync_record_internal(uuid,uuid,text,uuid)','EXECUTE') AND NOT has_function_privilege('authenticated','plugin_data.csf_queue_sheet_sync_record_internal(uuid,uuid,text,uuid)','EXECUTE'),'only owner-trigger execution reaches internal bookkeeping');
+UPDATE plugin_data.csf_profile_cohort_memberships SET status='active' WHERE profile_id='ea300000-0000-4000-8000-000000000001';
+UPDATE public.organization_members SET status='inactive' WHERE organization_id='ea100000-0000-4000-8000-000000000001' AND user_id='ea000000-0000-4000-8000-000000000001';
+SELECT extensions.ok(NOT plugin_data.csf_actor_has_permission('ea100000-0000-4000-8000-000000000001','ea000000-0000-4000-8000-000000000001','export_sensitive_reports'),'configured actor has lost export authority');
+UPDATE plugin_data.csf_profiles SET first_name='Changed while suspended' WHERE id='ea300000-0000-4000-8000-000000000001';
+SELECT extensions.ok(pg_temp.current_sync_queued('profile','ea300000-0000-4000-8000-000000000001'),'profile change remains queued while actor is suspended');
+UPDATE plugin_data.csf_term_applications SET review_notes='Changed while suspended' WHERE id='ea600000-0000-4000-8000-000000000001';
+SELECT extensions.ok(pg_temp.current_sync_queued('application','ea600000-0000-4000-8000-000000000001'),'application change remains queued while actor is suspended');
+SELECT extensions.is((SELECT count(*) FROM plugin_data.csf_claim_sheet_sync_exports('ea100000-0000-4000-8000-000000000001',(SELECT (value->>'id')::uuid FROM sync_fixture WHERE name='destination'),(SELECT (value->>'poll_lease_token')::uuid FROM sync_fixture WHERE name='lease'),100)),0::bigint,'durable bookkeeping does not authorize suspended exports');
+SELECT extensions.throws_ok($$SELECT plugin_data.csf_queue_sheet_sync_record('ea100000-0000-4000-8000-000000000001','ea000000-0000-4000-8000-000000000001',(SELECT (value->>'id')::uuid FROM sync_fixture WHERE name='destination'),'application','ea600000-0000-4000-8000-000000000001')$$,'P0001','Not authorized.','service queue retains actor permission checks');
+INSERT INTO plugin_data.csf_application_files(id,organization_id,application_id,profile_id,term_id,file_type,object_path) VALUES('eaf40000-0000-4000-8000-000000000001','ea100000-0000-4000-8000-000000000001','ea600000-0000-4000-8000-000000000001','ea300000-0000-4000-8000-000000000001','ea200000-0000-4000-8000-000000000001','transcript','fictional-transcript');
+DELETE FROM plugin_data.csf_application_files WHERE id='eaf40000-0000-4000-8000-000000000001';
+SELECT extensions.ok(pg_temp.current_sync_queued('application','ea600000-0000-4000-8000-000000000001'),'deleted transcript queues a fresh application without the file');
+INSERT INTO plugin_data.csf_submission_files(id,organization_id,submission_id,profile_id,term_id,object_path,finalized_at) VALUES('eaf40000-0000-4000-8000-000000000002','ea100000-0000-4000-8000-000000000001','ead00000-0000-4000-8000-000000000001','ea300000-0000-4000-8000-000000000001','ea200000-0000-4000-8000-000000000001','fictional-evidence',now());
+UPDATE plugin_data.csf_submission_files SET submission_id='ead00000-0000-4000-8000-000000000002' WHERE id='eaf40000-0000-4000-8000-000000000002';
+SELECT extensions.ok(pg_temp.current_sync_queued('point_submission','ead00000-0000-4000-8000-000000000001') AND pg_temp.current_sync_queued('point_submission','ead00000-0000-4000-8000-000000000002'),'moved evidence queues both old and new submissions');
+DELETE FROM plugin_data.csf_submission_files WHERE id='eaf40000-0000-4000-8000-000000000002';
+SELECT extensions.ok(pg_temp.current_sync_queued('point_submission','ead00000-0000-4000-8000-000000000002'),'deleted submission evidence queues its removal');
+INSERT INTO plugin_data.csf_credit_records(id,organization_id,profile_id,term_id,submission_id,source,points,status) VALUES('eaf40000-0000-4000-8000-000000000003','ea100000-0000-4000-8000-000000000001','ea300000-0000-4000-8000-000000000001','ea200000-0000-4000-8000-000000000001','ead00000-0000-4000-8000-000000000001','manual',2,'verified');
+DELETE FROM plugin_data.csf_credit_records WHERE id='eaf40000-0000-4000-8000-000000000003';
+SELECT extensions.ok(pg_temp.current_sync_queued('point_submission','ead00000-0000-4000-8000-000000000001'),'deleted credit queues corrected submission totals');
+SELECT extensions.ok(pg_temp.current_sync_queued('profile','ea300000-0000-4000-8000-000000000001'),'deleted credit queues corrected class totals');
+DELETE FROM plugin_data.csf_application_status_events WHERE application_id='ea600000-0000-4000-8000-000000000001';
+SELECT extensions.ok(pg_temp.current_sync_queued('application','ea600000-0000-4000-8000-000000000001'),'deleted application review history queues current snapshot');
+DELETE FROM plugin_data.csf_submission_reviews WHERE submission_id='ead00000-0000-4000-8000-000000000001';
+SELECT extensions.ok(pg_temp.current_sync_queued('point_submission','ead00000-0000-4000-8000-000000000001'),'deleted point review history queues current snapshot');
+DELETE FROM plugin_data.csf_term_memberships WHERE profile_id='ea300000-0000-4000-8000-000000000001';
+SELECT extensions.ok(pg_temp.current_sync_queued('profile','ea300000-0000-4000-8000-000000000001'),'deleted enrollment queues current class snapshot');
+INSERT INTO plugin_data.csf_sheet_sync_local_messages(id,organization_id,destination_id,binding_id,author_user_id,body) SELECT 'eaf40000-0000-4000-8000-000000000004',organization_id,destination_id,id,'ea000000-0000-4000-8000-000000000002','Staff conversation while exporter suspended' FROM plugin_data.csf_sheet_sync_bindings WHERE destination_id=(SELECT (value->>'id')::uuid FROM sync_fixture WHERE name='destination') AND record_id='ea600000-0000-4000-8000-000000000001';
+SELECT extensions.ok(pg_temp.current_sync_queued('application','ea600000-0000-4000-8000-000000000001'),'local message persists in export queue during suspension');
+DELETE FROM plugin_data.csf_sheet_sync_local_messages WHERE id='eaf40000-0000-4000-8000-000000000004';
+SELECT extensions.ok(pg_temp.current_sync_queued('application','ea600000-0000-4000-8000-000000000001'),'deleted local message invalidates the previous snapshot');
+UPDATE plugin_data.csf_profile_cohort_memberships SET status='archived' WHERE profile_id='ea300000-0000-4000-8000-000000000001';
+SELECT extensions.ok(pg_temp.current_sync_queued('application','ea600000-0000-4000-8000-000000000001') AND pg_temp.current_sync_queued('profile','ea300000-0000-4000-8000-000000000001'),'cohort removal queues cleanup while exporter suspended');
+UPDATE plugin_data.csf_profile_cohort_memberships SET status='active' WHERE profile_id='ea300000-0000-4000-8000-000000000001';
+UPDATE public.organization_members SET status='active' WHERE organization_id='ea100000-0000-4000-8000-000000000001' AND user_id='ea000000-0000-4000-8000-000000000001';
+SELECT extensions.ok(pg_temp.current_sync_queued('application','ea600000-0000-4000-8000-000000000001'),'restored actor sees queued changes without another source edit');
+DELETE FROM plugin_data.csf_term_applications WHERE id='ea600000-0000-4000-8000-000000000001';
+SELECT extensions.ok(pg_temp.current_sync_queued('application','ea600000-0000-4000-8000-000000000001'),'deleted application leaves queued bound tombstone');
+SELECT extensions.ok(pg_temp.current_sync_queued('profile','ea300000-0000-4000-8000-000000000001'),'deleted application updates its class profile projection');
+DELETE FROM plugin_data.csf_point_submissions WHERE id='ead00000-0000-4000-8000-000000000002';
+SELECT extensions.ok(pg_temp.current_sync_queued('point_submission','ead00000-0000-4000-8000-000000000002'),'deleted submission leaves queued bound tombstone');
+
 SELECT * FROM extensions.finish();
 ROLLBACK;
