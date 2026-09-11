@@ -277,17 +277,15 @@ async function submitJoinForm(
   page: Page,
   names: { first: string; last: string },
 ) {
-  await page
-    .getByRole("button", { name: "Find my record", exact: true })
-    .click();
-  const dialog = page.getByRole("dialog", { name: "Find your CSF record" });
+  await page.getByRole("button", { name: "Continue", exact: true }).click();
+  const dialog = page.getByRole("dialog", { name: "Join your class" });
   await expect(dialog).toBeVisible();
   // The name fields prefill asynchronously from the signed-in account and
   // remount when the prefill arrives. Submitted names are review context and
   // never establish ownership of an existing record.
   await dialog.getByLabel("First name").fill(names.first);
   await dialog.getByLabel("Last name").fill(names.last);
-  await dialog.getByRole("button", { name: "Find my record" }).click();
+  await dialog.getByRole("button", { name: "Continue" }).click();
 }
 
 test.describe("class join code connections", () => {
@@ -318,10 +316,10 @@ test.describe("class join code connections", () => {
     await loginAs(page, "outsider", connectPath);
 
     await expect(
-      page.getByRole("heading", { name: "Find your CSF record" }),
+      page.getByRole("heading", { name: "Join your class" }),
     ).toBeVisible();
     await expect(
-      page.getByRole("button", { name: "Find my record", exact: true }),
+      page.getByRole("button", { name: "Continue", exact: true }),
     ).toBeVisible();
 
     // Nothing about the roster record is previewed before the student
@@ -502,7 +500,7 @@ test.describe("class join code connections", () => {
     const failures = watchBrowserFailures(page);
     await loginAs(page, "outsider", connectPath);
     await expect(
-      page.getByRole("heading", { name: "Find your CSF record" }),
+      page.getByRole("heading", { name: "Join your class" }),
     ).toBeVisible();
 
     await submitJoinForm(page, { first: "Rowan", last: reviewLastName });
@@ -668,7 +666,7 @@ test.describe("signed-out CSF connection states", () => {
     await expect(page.getByLabel("Join code")).toBeVisible();
     await expect(page.getByRole("button", { name: "Continue" })).toBeVisible();
     await expect(
-      page.getByRole("button", { name: /Find my record/ }),
+      page.getByRole("dialog", { name: "Join your class", exact: true }),
     ).toHaveCount(0);
     await expect(
       page.getByRole("button", { name: /Yes, this is me/ }),
@@ -755,7 +753,7 @@ test.describe("signed-out CSF connection states", () => {
     // affordances.
     await expect(page.locator("main form")).toHaveCount(0);
     await expect(
-      page.getByRole("button", { name: /Find my record/ }),
+      page.getByRole("dialog", { name: "Join your class", exact: true }),
     ).toHaveCount(0);
     await expect(
       page.getByRole("button", { name: /Yes, this is me/ }),
