@@ -43,8 +43,8 @@ export const sheetSyncDefinitions = [
   ],
   [
     "plugin_data.csf_finish_sheet_sync_export(uuid,uuid,uuid,text,text,text)",
-    "52c0d7c093a66740b4c8f33de5783120",
-    "06993016e9b21e32d888f282f85de1c6",
+    "0074e52a0d29d1a5eda7507a9a38fad7",
+    "4deec8cf0cd37552b2af54f692139dcc",
     true,
   ],
   [
@@ -55,8 +55,8 @@ export const sheetSyncDefinitions = [
   ],
   [
     "plugin_data.csf_guard_sheet_sync_export_snapshot()",
-    "cd66e3ee2a37c37c93f9b07bab2c2dcc",
-    "6c7536de568f78bea9d4315d2f6e5448",
+    "f1020144ec334e53165b2bc87212a4cb",
+    "c9fd9896cc9812c4393026e8c8ad1cb8",
     false,
   ],
   [
@@ -103,8 +103,8 @@ export const sheetSyncDefinitions = [
   ],
   [
     "plugin_data.csf_reconcile_sheet_sync_test_copy_no_write(uuid,uuid,uuid,text,jsonb,text)",
-    "ae6ca2ecdfc9eb6b6bbdc8c92f58cac2",
-    "c603c9a34fe771c10836b9e50b93d6f5",
+    "7db27e9464f867288705a791c8c39737",
+    "2fda1caf167ae128ebe4487fc0b7f1f5",
     true,
   ],
   [
@@ -181,7 +181,7 @@ export const sheetSyncDefinitions = [
   ],
 ];
 export const sheetSyncTables = [
-  ["csf_sheet_writeback_ledger", "800b1a322ad0576e66fcef10bb8b8b85", false],
+  ["csf_sheet_writeback_ledger", "071bf14bd83e3a8fc8c9fa467bce2035", false],
   ["csf_sheet_sync_test_workspaces", "d114eb1acf4802bc110bad2359ce1184", false],
   ["csf_sheet_sync_test_files", "f78c5554d9278fd42e5be5eddf8e2388", false],
   ["csf_sheet_sync_destinations", "62386ba6e4750c682ae1c6490e32ec04", false],

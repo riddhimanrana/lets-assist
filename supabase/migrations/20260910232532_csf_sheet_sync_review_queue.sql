@@ -53,6 +53,7 @@ ALTER TABLE plugin_data.csf_sheet_writeback_ledger
   ADD COLUMN record_kind text CHECK(record_kind IN ('application','point_submission','profile')),
   ADD COLUMN record_id uuid, ADD COLUMN source_version text, ADD COLUMN payload jsonb,
   ADD COLUMN lease_token uuid, ADD COLUMN lease_expires_at timestamptz,
+  ADD COLUMN attempt_receipts jsonb NOT NULL DEFAULT '{}'::jsonb CHECK(jsonb_typeof(attempt_receipts)='object'),
   ADD CONSTRAINT csf_sheet_writeback_ledger_status_check CHECK(status IN ('queued','sent','failed','pending_export','exporting','exported','retry_export','unknown_outcome','superseded')),
   ADD CONSTRAINT csf_sheet_writeback_shape CHECK(
     (destination_id IS NULL AND application_id IS NOT NULL AND row_number IS NOT NULL AND decision IS NOT NULL AND record_kind IS NULL AND status IN ('queued','sent','failed'))
@@ -63,10 +64,11 @@ CREATE FUNCTION plugin_data.csf_guard_sheet_sync_export_snapshot() RETURNS trigg
 LANGUAGE plpgsql SECURITY DEFINER SET search_path='' AS $$
 BEGIN
  IF (OLD.destination_id IS NOT NULL OR NEW.destination_id IS NOT NULL) AND
-  (to_jsonb(NEW)-ARRAY['status','attempts','last_error','sent_at','updated_at','lease_token','lease_expires_at']) IS DISTINCT FROM
-  (to_jsonb(OLD)-ARRAY['status','attempts','last_error','sent_at','updated_at','lease_token','lease_expires_at']) THEN
+  (to_jsonb(NEW)-ARRAY['status','attempts','last_error','sent_at','updated_at','lease_token','lease_expires_at','attempt_receipts']) IS DISTINCT FROM
+  (to_jsonb(OLD)-ARRAY['status','attempts','last_error','sent_at','updated_at','lease_token','lease_expires_at','attempt_receipts']) THEN
   RAISE EXCEPTION 'Queued export identity and snapshot are immutable.' USING ERRCODE='23514';
  END IF;
+ IF NEW.attempt_receipts IS DISTINCT FROM OLD.attempt_receipts AND (OLD.destination_id IS NULL OR OLD.status<>'exporting' OR OLD.lease_token IS NULL OR NEW.lease_token IS DISTINCT FROM OLD.lease_token OR OLD.attempt_receipts ? OLD.lease_token::text OR NEW.attempt_receipts-OLD.lease_token::text IS DISTINCT FROM OLD.attempt_receipts OR NEW.attempt_receipts->OLD.lease_token::text IS DISTINCT FROM jsonb_build_object('outcome',NEW.status,'remote_version',NEW.attempt_receipts->OLD.lease_token::text->'remote_version')) THEN RAISE EXCEPTION 'Export attempt receipts are immutable.' USING ERRCODE='23514'; END IF;
  RETURN NEW;
 END $$;
 REVOKE ALL ON FUNCTION plugin_data.csf_guard_sheet_sync_export_snapshot() FROM PUBLIC,anon,authenticated,service_role;
@@ -203,7 +205,7 @@ BEGIN
  PERFORM pg_advisory_xact_lock(hashtextextended('csf-test-copy:'||p_organization_id::text||':'||r.source_organization_id::text||':'||r.source_file_id,0));
  SELECT * INTO r FROM plugin_data.csf_sheet_sync_test_copy_requests WHERE organization_id=p_organization_id AND request_id=p_request_id FOR UPDATE;
  IF NOT FOUND THEN RAISE EXCEPTION 'Copy request not found.'; END IF;
- IF r.actor_user_id IS DISTINCT FROM p_actor_user_id OR p_provider_subject IS NULL OR r.provider_subject IS NULL OR r.provider_subject IS DISTINCT FROM p_provider_subject THEN RAISE EXCEPTION 'Google account does not match the original copy request. Keep this attempt on hold.'; END IF;
+ IF p_provider_subject IS NULL OR r.provider_subject IS NULL OR r.provider_subject IS DISTINCT FROM p_provider_subject THEN RAISE EXCEPTION 'Google account does not match the original copy request. Keep this attempt on hold.'; END IF;
  IF p_reason IS NULL OR length(btrim(p_reason)) NOT BETWEEN 1 AND 4000 OR jsonb_typeof(p_evidence) IS DISTINCT FROM 'object' OR p_evidence->'provider_request_ended' IS DISTINCT FROM 'true'::jsonb OR p_evidence->'no_file_created' IS DISTINCT FROM 'true'::jsonb OR p_evidence->>'request_id' IS DISTINCT FROM p_request_id::text OR p_evidence->'matching_file_count' IS DISTINCT FROM '0'::jsonb THEN RAISE EXCEPTION 'Record the completed provider inspection and why no file was created.'; END IF;
  IF r.state='not_created' THEN RETURN to_jsonb(r); END IF;
  IF (r.state<>'unknown' AND NOT (r.state='claimed' AND r.created_at<=clock_timestamp()-interval '10 minutes')) OR r.copied_file_id IS NOT NULL OR r.observed_copied_file_id IS NOT NULL THEN RAISE EXCEPTION 'Only an unresolved attempt without a known file can be closed.'; END IF;
@@ -408,16 +410,19 @@ CREATE FUNCTION plugin_data.csf_finish_sheet_sync_export(p_organization_id uuid,
 LANGUAGE plpgsql SECURITY DEFINER SET search_path='' AS $$
 DECLARE l plugin_data.csf_sheet_writeback_ledger%ROWTYPE;
 BEGIN
- IF p_outcome NOT IN ('exported','retry_export','unknown_outcome') THEN RAISE EXCEPTION 'Invalid export outcome.'; END IF;
+ IF p_outcome IS NULL OR p_outcome NOT IN ('exported','retry_export','unknown_outcome') THEN RAISE EXCEPTION 'Invalid export outcome.'; END IF;
  SELECT * INTO l FROM plugin_data.csf_sheet_writeback_ledger WHERE organization_id=p_organization_id AND id=p_ledger_id AND destination_id IS NOT NULL;
  IF NOT FOUND THEN RAISE EXCEPTION 'Export attempt not found.'; END IF;
  PERFORM 1 FROM plugin_data.csf_sheet_sync_destinations WHERE organization_id=p_organization_id AND id=l.destination_id FOR NO KEY UPDATE;
  PERFORM 1 FROM plugin_data.csf_sheet_sync_bindings WHERE organization_id=p_organization_id AND destination_id=l.destination_id AND record_kind=l.record_kind AND record_id=l.record_id FOR UPDATE;
  SELECT e.* INTO l FROM plugin_data.csf_sheet_writeback_ledger e WHERE e.organization_id=p_organization_id AND e.id=p_ledger_id AND e.destination_id=l.destination_id AND e.record_kind=l.record_kind AND e.record_id=l.record_id FOR UPDATE;
  IF NOT FOUND OR l.lease_token IS DISTINCT FROM p_lease_token OR p_lease_token IS NULL THEN RAISE EXCEPTION 'Export lease no longer belongs to this attempt.'; END IF;
- IF l.status=p_outcome THEN RETURN to_jsonb(l); END IF;
+ IF l.attempt_receipts ? p_lease_token::text THEN
+  IF l.attempt_receipts->p_lease_token::text IS DISTINCT FROM jsonb_build_object('outcome',p_outcome,'remote_version',p_remote_version) THEN RAISE EXCEPTION 'Export receipt conflicts with this attempt result.'; END IF;
+  RETURN to_jsonb(l);
+ END IF;
  IF l.status<>'exporting' OR l.lease_expires_at IS NULL OR l.lease_expires_at<=clock_timestamp() THEN RAISE EXCEPTION 'Export lease expired. Reconcile before retrying.'; END IF;
- UPDATE plugin_data.csf_sheet_writeback_ledger SET status=p_outcome,last_error=left(p_error,1000),updated_at=now(),sent_at=CASE WHEN p_outcome='exported' THEN now() END WHERE id=l.id RETURNING * INTO l;
+ UPDATE plugin_data.csf_sheet_writeback_ledger SET status=p_outcome,attempt_receipts=attempt_receipts||jsonb_build_object(p_lease_token::text,jsonb_build_object('outcome',p_outcome,'remote_version',p_remote_version)),last_error=left(p_error,1000),updated_at=now(),sent_at=CASE WHEN p_outcome='exported' THEN now() END WHERE id=l.id RETURNING * INTO l;
  IF p_outcome='exported' THEN
    UPDATE plugin_data.csf_sheet_sync_bindings SET last_export_version=CASE WHEN coalesce((l.payload->>'out_of_scope')::boolean,false) AND last_export_version IS NULL THEN NULL ELSE l.source_version END,remote_version=p_remote_version WHERE destination_id=l.destination_id AND record_kind=l.record_kind AND record_id=l.record_id;
    UPDATE plugin_data.csf_sheet_sync_destinations SET last_synced_at=now() WHERE id=l.destination_id;
