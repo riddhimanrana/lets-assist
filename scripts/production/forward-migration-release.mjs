@@ -72,7 +72,7 @@ export const approvedMigrations = [
   ],
   [
     "20260910232532_csf_sheet_sync_review_queue",
-    "bd4c6ad566c17099f70c4b464d08349554351bd80974775de20c8aea428a528b",
+    "11e4b5ec268fc16782c15be16f694a2ff3c255745cbdd3e30477bb9d4d8ffb5c",
   ],
 ];
 

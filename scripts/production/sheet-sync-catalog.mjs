@@ -109,8 +109,8 @@ export const sheetSyncDefinitions = [
   ],
   [
     "plugin_data.csf_record_sheet_sync_acceptance(uuid,uuid,uuid,uuid[],jsonb,text)",
-    "81701a66a00205048cba14cddbb85a30",
-    "b60aedd19143caebfda2fb0577214d98",
+    "977467ad7822f52c724752ad61a99f76",
+    "90360ee40d1079111fb9d4b115633db7",
     true,
   ],
   [
@@ -157,8 +157,8 @@ export const sheetSyncDefinitions = [
   ],
   [
     "plugin_data.csf_set_sheet_sync_destination_state(uuid,uuid,uuid,boolean,boolean,text)",
-    "a41a764dcb96ef6e15f736d752894a9d",
-    "bfd915777affadd0976a2c681e533e05",
+    "4380baea3a447ce59438be5ca754744b",
+    "ff13b6bb9af4bd8db39479ebe912a2b6",
     true,
   ],
   [
