@@ -35,7 +35,7 @@ workflow actor and run ID as `waived, not passed` in the retained
 `source-verification-<run ID>` artifact. It does not publish a successful hosted
 acceptance status.
 
-The waiver changes only the hosted performance gate. The accepted commit must
+The waiver changes only the hosted performance gate. Run hosted Development acceptance in `functional` mode for the exact accepted SHA first. For an automatic marked release push, include both `[deploy-development]` and `[csf-functional-only]` in the commit message; the latter selects functional checks without starting the load test. Unmarked releases keep full acceptance. Its separate trusted `csf-hosted-development-functional` receipt remains mandatory. That run verifies the deployed application and alias, fictional member and officer sessions, persisted staff-view changes, review navigation and browser errors. It skips the 100-session load and performance thresholds. The accepted commit must
 remain Development-reachable, and the release must have the identical tree.
 Trusted successful quality and database replay CI remain required, including
 the CSF browser journeys in the database replay job. Schema bytes, catalog

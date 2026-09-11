@@ -94,6 +94,10 @@ export const approvedMigrations = [
     "20260911192954_publish_dvhs_csf_1_2_28",
     "29a67a486fce45a0dd2e309674505cbb340ff788bbd9d59e12481beaabf38210",
   ],
+  [
+    "20260911195446_csf_sheet_sync_review_recovery",
+    "2decd1a72195303164c6db1aa4d104261627275e0ef72692ec467e87e5b92137",
+  ],
 ];
 
 const literal = (value) => `'${value.replaceAll("'", "''")}'`;

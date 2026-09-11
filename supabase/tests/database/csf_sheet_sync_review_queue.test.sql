@@ -1,6 +1,6 @@
 BEGIN;
 CREATE EXTENSION IF NOT EXISTS pgtap WITH SCHEMA extensions;
-SELECT extensions.plan(222);
+SELECT extensions.plan(223);
 INSERT INTO auth.users(id,aud,role,email,raw_app_meta_data,raw_user_meta_data) VALUES
 ('ea000000-0000-4000-8000-000000000001','authenticated','authenticated','sheet-admin@local.test','{}','{}'),
 ('ea000000-0000-4000-8000-000000000002','authenticated','authenticated','sheet-outsider@local.test','{}','{}');
@@ -100,7 +100,9 @@ SELECT extensions.throws_ok($$SELECT plugin_data.csf_reconcile_sheet_sync_export
 SELECT extensions.is((SELECT status FROM plugin_data.csf_sheet_writeback_ledger WHERE id=(SELECT (value->>'id')::uuid FROM sync_fixture WHERE name='latest')),'unknown_outcome','NULL outcome preserves hold');
 SELECT extensions.throws_ok($$SELECT plugin_data.csf_reconcile_sheet_sync_export('ea100000-0000-4000-8000-000000000001','ea000000-0000-4000-8000-000000000001',(SELECT (value->>'id')::uuid FROM sync_fixture WHERE name='latest'),true,NULL,'Verified copied destination has no write')$$,'P0001','A confirmed export requires its provider version.','confirmed written recovery rejects missing provider version');
 SELECT extensions.throws_ok($$SELECT plugin_data.csf_reconcile_sheet_sync_export('ea100000-0000-4000-8000-000000000001','ea000000-0000-4000-8000-000000000001',(SELECT (value->>'id')::uuid FROM sync_fixture WHERE name='latest'),true,'   ','Verified copied destination has no write')$$,'P0001','A confirmed export requires its provider version.','confirmed written recovery rejects missing provider version');
+UPDATE plugin_data.csf_sheet_sync_destinations SET last_synced_at=NULL WHERE id=(SELECT (value->>'id')::uuid FROM sync_fixture WHERE name='destination');
 SELECT extensions.lives_ok($$SELECT plugin_data.csf_reconcile_sheet_sync_export('ea100000-0000-4000-8000-000000000001','ea000000-0000-4000-8000-000000000001',(SELECT (value->>'id')::uuid FROM sync_fixture WHERE name='latest'),true,'inspected-remote-v3','Verified copied destination contains the complete write')$$,'confirmed written recovery records inspected provider version');
+SELECT extensions.ok((SELECT last_synced_at IS NOT NULL FROM plugin_data.csf_sheet_sync_destinations WHERE id=(SELECT (value->>'id')::uuid FROM sync_fixture WHERE name='destination')),'native confirmed recovery marks destination synced');
 SELECT extensions.ok(EXISTS(SELECT 1 FROM plugin_data.csf_admin_audit_events WHERE action='sheet_sync.export_reconciled' AND target_id=(SELECT (value->>'id')::uuid FROM sync_fixture WHERE name='latest') AND before_data->>'lease_token'=(SELECT value->>'lease_token' FROM sync_fixture WHERE name='latest') AND after_data->>'source_version'=(SELECT value->>'source_version' FROM sync_fixture WHERE name='latest') AND after_data->>'remote_version'='inspected-remote-v3'),'immutable reconciliation audit preserves attempt source and provider receipt');
 UPDATE plugin_data.csf_sheet_writeback_ledger SET status='unknown_outcome' WHERE id=(SELECT (value->>'id')::uuid FROM sync_fixture WHERE name='latest');
 SELECT plugin_data.csf_reconcile_sheet_sync_export('ea100000-0000-4000-8000-000000000001','ea000000-0000-4000-8000-000000000001',(SELECT (value->>'id')::uuid FROM sync_fixture WHERE name='latest'),false,NULL,'Verified copied destination has no write');

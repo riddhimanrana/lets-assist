@@ -217,9 +217,40 @@ test("source verification pins clean Git trees and the required CI workflow", as
     runId: "12345",
   };
   const waiverFetcher = async (url) => {
-    assert.ok(!url.includes("/statuses?") && !url.endsWith("/actions/runs/42"));
+    if (url.endsWith("/statuses?per_page=100"))
+      return Response.json([
+        {
+          ...trustedStatus,
+          id: 1,
+          context: "csf-hosted-development-functional",
+        },
+      ]);
     return fetcher(url);
   };
+  await assert.rejects(
+    verifySource({ ...config, waiver }, fetcher),
+    /trusted run/,
+  );
+  for (const patch of [
+    { state: "failure" },
+    { creator: { login: "someone" } },
+  ]) {
+    await assert.rejects(
+      verifySource({ ...config, waiver }, async (url) => {
+        if (url.endsWith("/statuses?per_page=100"))
+          return Response.json([
+            {
+              ...trustedStatus,
+              id: 1,
+              context: "csf-hosted-development-functional",
+              ...patch,
+            },
+          ]);
+        return waiverFetcher(url);
+      }),
+      /trusted hosted acceptance/,
+    );
+  }
   const waived = await verifySource({ ...config, waiver }, waiverFetcher);
   assert.equal(waived.performanceWaiver.hostedAcceptance, "waived, not passed");
   assert.equal(waived.performanceWaiver.reason, waiver.reason);
