@@ -468,10 +468,7 @@ test("application integration refuses to serve its changed embedded tree", () =>
   });
   const registry = JSON.parse(readFileSync(input.registryPath, "utf8"));
   registry[0].signer = { identity: "signed embedded release" };
-  writeFileSync(
-    input.registryPath,
-    `${JSON.stringify(registry, null, 2)}\n`,
-  );
+  writeFileSync(input.registryPath, `${JSON.stringify(registry, null, 2)}\n`);
   input.servingPrivateCommit = input.manifest.sourceCommit;
 
   assert.throws(
