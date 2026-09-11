@@ -7220,3 +7220,10 @@ Open P2: the neutral registration error hides the actionable test-copy prerequis
 Open P2: staff-only post authoring is unreachable in normal embedded navigation. `plugin-behavior.tsx` registers `csf-home` only for the member presentation, which passes `userRole="member"`; `CsfMemberHome` therefore hides the unlocked staff composer. Officer mode redirects that tab to Overview. The reachable class-stream composer locks its audience to that class. Add an authorized officer entry point without changing member-view access rules.
 
 Still unverified in Production: fresh signup with verification email and expired-email recovery; pending identity with populated candidate history; application correction/resubmission and officer decision in the test workspace; the positive point submission/correction/resubmission cycle and verified totals; staff-only post audience; full copied-workbook and comments-column acceptance. Existing staff invitation/position and different-email manual connection evidence remains valid for the unchanged deployed actions, but no fresh populated-history connection test was claimed. The requested signup test address remains pending. Live two-way sync remains disabled.
+
+
+### September 11 release correction follow-up
+
+Root candidate now includes the serving-tree integration correction in `c390d81e` and migration-tail test updates in `f57602ce`. Application publication validates the preserved embedded serving commit while retaining signed application source, build, and ancestry checks. The focused integration suite passed 23 tests. All 119 Production contract tests passed with `node --test scripts/production/*.test.mjs`. An earlier combined Bun invocation was invalid for these Node test modules and is not release evidence. No Production mutation occurred.
+
+Private candidate `b879cb7590e436bb36b469088f38f5e991ba6e3b` adds the authorized officer Home post composer. Its 39 focused tests passed. The class composer remains locked to its class. This fix is not deployed, so staff-only post acceptance remains open. Copied-workbook acceptance and live two-way sync remain held.
