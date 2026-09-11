@@ -6806,6 +6806,14 @@ publication; its quality run is `34598777650`. The root candidate now uses
 the merged gitlink and passes the strict submodule check. This is prepared
 code, not a deployed Production fix.
 
+Private PR 340 and quality run `34598777650` passed. Signed release
+`dvhs-csf/v1.2.26` uses source `bb819efce4f4c8c9597b3598f3665a3538243d53`;
+publication run `34599102604` passed. Root integration run `34599200218`
+stopped because root Development still used `f03e5a0` and the release changes
+embedded code. The reviewed root gitlink update must land before retrying
+the normal integration workflow. No guard, signature check or published
+migration was changed to work around that refusal.
+
 Workbook refresh and import processing remain paused. Email delivery and
 scheduled publishing remain disabled. Copied-workbook native-thread
 acceptance, the final Production student and staff journeys, live sync
