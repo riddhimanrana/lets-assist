@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { Loader2 } from "lucide-react";
 import { joinOrganization } from "../actions";
+import { joinedOrganizationPath } from "./join-result";
 
 interface JoinLoaderProps {
   organizationId: string;
@@ -20,14 +21,22 @@ export default function JoinLoader({ code }: JoinLoaderProps) {
       try {
         const result = await joinOrganization(code);
 
+        const destination = joinedOrganizationPath(result);
+        if (destination) {
+          if (result.success)
+            toast.success("Successfully joined the organization!");
+          router.push(destination);
+          return;
+        }
+
         if (result.error) {
           toast.error(result.error);
           router.push("/organization");
           return;
         }
 
-        toast.success("Successfully joined the organization!");
-        router.push(`/organization/${result.organizationUsername}`);
+        toast.error("Could not open the organization. Try again.");
+        router.push("/organization");
       } catch (error) {
         console.error("Error joining:", error);
         toast.error("Failed to join organization");
