@@ -583,7 +583,7 @@ test("application review reopening pins the complete function and retains the pr
   const preceding = acceptedCatalogQuery(source, versions.slice(0, 476));
   const signature =
     "plugin_data.csf_set_review_period(uuid,uuid,uuid,text,text,text,text,timestamptz,timestamptz)";
-  assert.equal(versions.length, 496);
+  assert.equal(versions.length, 497);
   assert.ok(
     current.includes(
       `('${signature}','28793d39c02ebf702a61c26deb7ae2b4',true)`,
@@ -653,7 +653,7 @@ test("returning-account correction pins its definition without changing the prio
 });
 
 test("range expansion pins only the new retry body and preserves the published predecessor", () => {
-  const current = acceptedCatalogQuery(source, versions);
+  const current = acceptedCatalogQuery(source, versions.slice(0,496));
   const preceding = acceptedCatalogQuery(source, versions.slice(0, 495));
   assert.ok(
     current.includes("md5(p.prosrc)='d5e26c21ffe78f617f4b34ee82a7eb41'"),
@@ -664,4 +664,10 @@ test("range expansion pins only the new retry body and preserves the published p
   assert.ok(
     preceding.includes("md5(p.prosrc)='a931f85d6e45fd85611adc8318c4da4d'"),
   );
+});
+
+ test("canonical range recovery preserves the preceding function fingerprint", () => {
+  assert.ok(acceptedCatalogQuery(source, versions).includes("b18cf72ece0df071e4f2ee7d93616d06"));
+  assert.ok(acceptedCatalogQuery(source, versions.slice(0,496)).includes("d5e26c21ffe78f617f4b34ee82a7eb41"));
+  assert.ok(!acceptedCatalogQuery(source, versions.slice(0,496)).includes("b18cf72ece0df071e4f2ee7d93616d06"));
 });
