@@ -140,7 +140,7 @@ export default async function OrganizationSettingsPage({ params }: Props) {
           <EditOrganizationForm organization={organization} userId={user.id} />
 
           {/* Join Code Management */}
-          <Card id="join-code">
+          <Card>
             <CardHeader>
               <CardTitle>Join Code Management</CardTitle>
               <CardDescription>
