@@ -65,7 +65,7 @@ function transport({
 
 test("approved bytes and exact versions share one transaction", () => {
   assert.equal(prepared.prefix.length, 468);
-  assert.equal(prepared.versions.length, 485);
+  assert.equal(prepared.versions.length, 486);
   assert.deepEqual(prepared.versions.slice(468), [
     "20260909090522",
     "20260909090944",
@@ -84,6 +84,7 @@ test("approved bytes and exact versions share one transaction", () => {
     "20260910232532",
     "20260911101007",
     "20260911130443",
+    "20260911143923",
   ]);
   assert.match(prepared.query, /^BEGIN;/u);
   assert.match(prepared.query, /COMMIT;$/u);
@@ -127,7 +128,7 @@ test("refuses modified approved SQL before any provider request", () => {
 test("performs one write and verifies ledger and permissions", async () => {
   const t = transport();
   const result = await applyForwardMigrations(config, t.fetch);
-  assert.equal(result.migrations, 485);
+  assert.equal(result.migrations, 486);
   assert.equal(result.workers, "disabled");
   assert.equal(result.responseLost, false);
   assert.equal(
@@ -249,6 +250,7 @@ test("a reviewed partially applied tail writes only the remaining migrations", a
     "20260910232532",
     "20260911101007",
     "20260911130443",
+    "20260911143923",
   ]);
   const writes = t.calls.filter((call) => call.url.endsWith("/database/query"));
   assert.equal(writes.length, 1);
@@ -273,7 +275,7 @@ test("a reviewed partially applied tail writes only the remaining migrations", a
         /INSERT INTO supabase_migrations.schema_migrations/g,
       ) ?? []
     ).length,
-    7,
+    8,
   );
 });
 
