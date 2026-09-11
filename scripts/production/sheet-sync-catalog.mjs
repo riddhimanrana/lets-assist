@@ -1,8 +1,8 @@
 export const sheetSyncDefinitions = [
   [
     "plugin_data.csf_add_sheet_sync_local_message(uuid,uuid,uuid,uuid,text,text,boolean)",
-    "5b61c7514ba4532498ee0d8bc4828ac1",
-    "e2bf0455e3848f04c8498ea8716382ef",
+    "7bffe46ef22b0708ba8a75627ce19935",
+    "bf373eb3587d58f590682eb03dddf61e",
     true,
   ],
   [
@@ -25,32 +25,32 @@ export const sheetSyncDefinitions = [
   ],
   [
     "plugin_data.csf_claim_sheet_sync_exports(uuid,uuid,uuid,integer)",
-    "49ed3cfc7925f3505df61eebca9c8c21",
-    "07f9ea483b3b0b28862db0fea7cd3bcd",
+    "abd7d0eabcbc92389e69a5f83b0e6b11",
+    "af3b2247b34a774520672a6fe0c39341",
     true,
   ],
   [
     "plugin_data.csf_claim_sheet_sync_test_copy(uuid,uuid,uuid,text,uuid)",
-    "c661087efd6246081e484c4104fe53c1",
-    "d5b87b019d3fadcc87c77d91587507e6",
+    "c2d871c6f939159b925e60643f45d707",
+    "22585248fe8400d6771afb7459e13fa7",
     true,
   ],
   [
     "plugin_data.csf_configure_sheet_sync_destination(uuid,uuid,text,integer,text,uuid,uuid,boolean,integer,jsonb)",
-    "ba3de75df0b79433bfb39a2ae59b4930",
-    "9dfcad7109b46964298b4272796d7bab",
+    "7b7eb3ce160ad6e0617dedee4bd171ee",
+    "48a0e9b4bdaef63c8aba2a58651555ec",
     true,
   ],
   [
     "plugin_data.csf_finish_sheet_sync_export(uuid,uuid,uuid,text,text,text)",
-    "aa47ccacd88385ae876babbba55ddb9a",
-    "3f95c411104ae557265a972c86b09c32",
+    "3f603a216ae5398e8bfcce1879352bcd",
+    "7a2d066112b914ce781dc6e80e9840bc",
     true,
   ],
   [
     "plugin_data.csf_finish_sheet_sync_test_copy(uuid,uuid,uuid,text,text,text)",
-    "1b7be02904c647f4887ca71cd660519c",
-    "a652c171b750f77580d2a658e8d5ae02",
+    "75ab636b6891cd782a1629214d1b1b75",
+    "2a2cf64524176d190009127e092fca27",
     true,
   ],
   [
@@ -66,21 +66,27 @@ export const sheetSyncDefinitions = [
     false,
   ],
   [
+    "plugin_data.csf_queue_cohort_sheet_sync_records()",
+    "c3e16eb1b5dafa2e3f2dc3efe6abf31f",
+    "ca1b60885f44750e46d9011499e15247",
+    false,
+  ],
+  [
     "plugin_data.csf_queue_sheet_sync_record(uuid,uuid,uuid,text,uuid)",
-    "abca33052ee57795360953a202e718bc",
-    "c37bb6ff62a81632aec7cd704fc0861a",
+    "b76f47cd0c36654b1d0552494ac08fce",
+    "f5c24c32545b4196a079054b7a2ed8ea",
     true,
   ],
   [
     "plugin_data.csf_reconcile_sheet_sync_export(uuid,uuid,uuid,boolean,text,text)",
-    "51919fcdad76150c6ba100bdb73c740c",
-    "dd4b320b24b6651dccb77477c05dc3da",
+    "d73a3762b1af5ec7c7f09463c1caca22",
+    "77b0bb6bc71c9268d348992c510248a4",
     true,
   ],
   [
     "plugin_data.csf_record_sheet_sync_change(uuid,uuid,text,uuid,text,text,jsonb)",
-    "996c84a9fec1495ee6e92017b50b58cb",
-    "b3ec527ad2ed21e5f2c5d0df2ad39962",
+    "141a4c4300813aec10ee81c829056eb7",
+    "6160b1f3bb102dd121a073296f5cb3f3",
     true,
   ],
   [
@@ -91,14 +97,14 @@ export const sheetSyncDefinitions = [
   ],
   [
     "plugin_data.csf_register_sheet_sync_test_file(uuid,uuid,text,text)",
-    "6803260fc7fbfb075eec1f0992570c0f",
-    "9ab53e460e86e20c108c3611b7436c24",
+    "aa7d9e558f1ef85cee964679a9cc75ba",
+    "350742dc49d951dd1bf1868af8a5eaa6",
     true,
   ],
   [
     "plugin_data.csf_register_sheet_sync_test_workspace(uuid,uuid)",
-    "6bb6a07e09c37d70faf97f6e8b5e795f",
-    "34e9b039047c6e4cdb92b260bdb0ac55",
+    "26574abd02ac7124455e041714c3c9d5",
+    "93aba3007f3e663e05c4d4145c02b40c",
     true,
   ],
   [
@@ -109,20 +115,26 @@ export const sheetSyncDefinitions = [
   ],
   [
     "plugin_data.csf_review_sheet_sync_change(uuid,uuid,uuid,boolean,text)",
-    "90be5c7a8d4f184c4dde5eaf05d8939e",
-    "e51c03bf8a45d85556aa087b18c2a6ad",
+    "072f6bd204b8382083b63800eff39133",
+    "ce42541a673f512b4bd6784555697439",
     true,
   ],
   [
     "plugin_data.csf_seed_sheet_sync_destination(uuid,uuid,uuid,uuid,integer)",
-    "fbbd100283694ec74c8a5e4eb5ed959d",
-    "5ca2fdd63fc8ccd7f9b502f6b3969d71",
+    "7cda62425dfeb4331bec9cd7679fd1c9",
+    "9c4009583adc94126b5671abc3f5facc",
     true,
   ],
   [
     "plugin_data.csf_set_sheet_sync_destination_state(uuid,uuid,uuid,boolean,boolean,text)",
-    "6e2370ed63ab70e60b2665f3678b9175",
-    "a2416949492ab25547d6b04413e8a544",
+    "edf1986a1958fbd20d9acb01d1386387",
+    "c220f03f42c64b380e8a16d214522fa8",
+    true,
+  ],
+  [
+    "plugin_data.csf_sheet_sync_destination_snapshot(uuid,uuid,text,uuid)",
+    "4183cc2216f69323a77013c7923483c1",
+    "f0a0bb9dc605da2b76262be6caf2d775",
     true,
   ],
   [
@@ -137,7 +149,7 @@ export const sheetSyncTables = [
   ["csf_sheet_sync_test_workspaces", "687f12674bf6c706124714d95d7b53fb", false],
   ["csf_sheet_sync_test_files", "ae45abad052eeb78153d320c06ecea37", false],
   ["csf_sheet_sync_destinations", "cdfc7cdc32f22270bf2b26b26d6858f5", false],
-  ["csf_sheet_sync_bindings", "3eb8d9c78d97cd87de29cdef4b89c278", false],
+  ["csf_sheet_sync_bindings", "d287cd51b739fc5d41ac4496935b965e", false],
   ["csf_sheet_sync_changes", "6aa70e5f974062411d7bab926536d7cc", false],
   [
     "csf_sheet_sync_test_copy_requests",
@@ -189,6 +201,13 @@ export const sheetSyncTriggers = [
     "84d1fc777450ee345d8cbdabde24f88d",
     29,
     "plugin_data.csf_queue_changed_sheet_sync_record()",
+  ],
+  [
+    "csf_profile_cohort_memberships",
+    "csf_sheet_sync_cohort_memberships",
+    "b8cbcd40eb02119b5a909cafb1b4132f",
+    29,
+    "plugin_data.csf_queue_cohort_sheet_sync_records()",
   ],
   [
     "csf_profiles",
