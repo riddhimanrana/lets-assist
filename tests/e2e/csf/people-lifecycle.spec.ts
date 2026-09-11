@@ -478,7 +478,7 @@ test.describe("CSF visible people lifecycle", () => {
       .getByRole("option", { name: new RegExp(fixture.profileEmail) })
       .click();
     await expect(
-      resolveDialog.getByText("Canonical identity evidence"),
+      resolveDialog.getByText("Identity checks"),
     ).toBeVisible();
     const emailSeparator = fixture.profileEmail.indexOf("@");
     const emailLocalPart = fixture.profileEmail.slice(0, emailSeparator);
