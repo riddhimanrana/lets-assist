@@ -13,8 +13,8 @@ export const sheetSyncDefinitions = [
   ],
   [
     "plugin_data.csf_bind_sheet_sync_thread(uuid,uuid,uuid,uuid,uuid,text,text,text,text)",
-    "0de9246efbd40d3ffc410113dd777c9f",
-    "f1f2aaca21c2720f05acbb5f9b07e863",
+    "2e151fb2838e37bacd89288ec98283ce",
+    "95b655b20820019a8cfce54a98cf6a30",
     true,
   ],
   [
@@ -67,8 +67,8 @@ export const sheetSyncDefinitions = [
   ],
   [
     "plugin_data.csf_queue_changed_sheet_sync_record()",
-    "902e86a443c8607ca7591f8d10145b13",
-    "fdf24254dab16670eb86eac3b0709ca3",
+    "a99464b7848e192e39bef8c56f3d5b5f",
+    "d501686af144c6682853decc0c3c248f",
     false,
   ],
   [
@@ -109,8 +109,8 @@ export const sheetSyncDefinitions = [
   ],
   [
     "plugin_data.csf_record_sheet_sync_acceptance(uuid,uuid,uuid,uuid[],jsonb,text)",
-    "977467ad7822f52c724752ad61a99f76",
-    "90360ee40d1079111fb9d4b115633db7",
+    "82c002e2fb141be5137adb68d0dbfb57",
+    "ce5631ea00e805f19d6f9dadb5f31600",
     true,
   ],
   [
