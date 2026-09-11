@@ -379,7 +379,7 @@ test.describe("class join code connections", () => {
     await page.reload({ waitUntil: "domcontentloaded" });
     await expect(
       page.getByRole("heading", {
-        name: "Your record is awaiting review",
+        name: "Awaiting staff review",
         exact: true,
       }),
     ).toBeVisible();
@@ -420,7 +420,7 @@ test.describe("class join code connections", () => {
       .click();
     await expect(
       page.getByRole("heading", {
-        name: "Your record is awaiting review",
+        name: "Awaiting staff review",
         exact: true,
       }),
     ).toBeVisible();
@@ -468,7 +468,7 @@ test.describe("class join code connections", () => {
     await page.reload({ waitUntil: "domcontentloaded" });
     await expect(
       page.getByRole("heading", {
-        name: "Your record is awaiting review",
+        name: "Awaiting staff review",
         exact: true,
       }),
     ).toBeVisible();
