@@ -6765,6 +6765,61 @@ Sheet sync rollout in progress, September 10, 2026:
 - Root `d7d78151`, from independently reviewed SQL `9b64aa56`, requires a provider version for confirmed-write recovery and retains the prior ledger and reconciliation evidence in the audit. Cohort membership changes update only affected cohort destinations. Full replay passed 483 migrations, 107 CSF tables, 274 files, and 7,899 assertions. The accepted catalog and all ten negative probes passed; owned stacks were removed. Migration SHA256: `7c5d9bf9fe47d17ee27f2bf0a862492218d5f9b0eaa98a7b83f185ad97ffb89d`. Integrated release checks remain pending. Production is unchanged.
 - Private promotion PR 336 passed CI `34586102695` and merged as `fa78eeb753ab0af537490fc2b0b62e7b3bf67a3e`. Return PR 338 passed CI `34586446612` and merged as `ae6b7c49178da626a805b90bfcc00ffe8972f974`. The promoted source matches the reviewed root gitlink `f03e5a06`. Application 1.2.25 remains unpublished until root migration 483 merges.
 
+### September 11 release follow-up: queue reads and capacity
+
+Root `2560ae7213aa0cee2b207986016a8477612f6e02` passed quality run
+`34593409227`, including 7,907 database assertions and 93 CSF browser tests.
+Hosted acceptance `34593404576` failed with 177 timeouts in 9,161 requests
+from 100 distinct concurrent sessions. Read p95 was 5,686.73 ms. This is not
+Production acceptance. Production promotion PR 519 remains open.
+
+The Development Supabase dashboard showed Micro compute, CPU pressure and
+swap during the failed run. Provider-side API logs independently recorded
+responses above five seconds. A Small compute change is proposed for a
+controlled repeat on the same candidate, but recurring-cost approval remains
+pending. No compute or billing change has been made.
+
+The same run recorded 308 HTTP 400 responses each for application courses,
+application files and credit records. The review workspace sends unbounded
+ID filters and discards these query errors. A page can therefore return HTTP
+200 while missing review data. The exact provider rejection message was not
+available in the logs. Bounded, paginated relation reads and visible failure
+handling are required before release.
+
+Native Sheets comment content also needs a bounded fix: Google's limit is
+2,048 UTF-8 bytes, including the exported attribution. Oversized messages
+must remain intact in Let's Assist and hold the export with an accurate
+reason before a provider write. They must not be truncated or reported as
+an access failure. These fixes must use a new signed release; the published
+1.2.25 tag remains immutable.
+
+Private PR 339 prepares these fixes as application 1.2.26 at
+`66fc21811137cc49988cd7143cf0fead0fb8641a`. It also retains staff without
+student profiles in the reviewer directory and reports failed review-period
+or policy reads. All 354 private test files pass, with mock-sensitive suites
+isolated; host TypeScript, changed-file lint, full private formatting and ten
+child application tests pass. Fictional tests retain 1,101 review subjects
+and 13,212 related records. Independent review found no actionable P0-P2
+issues. Private quality run `34598455585` passed, and PR 339 merged at
+`bb819efce4f4c8c9597b3598f3665a3538243d53`. Private PR 340 prepares signed
+publication; its quality run is `34598777650`. The root candidate now uses
+the merged gitlink and passes the strict submodule check. This is prepared
+code, not a deployed Production fix.
+
+Private PR 340 and quality run `34598777650` passed. Signed release
+`dvhs-csf/v1.2.26` uses source `bb819efce4f4c8c9597b3598f3665a3538243d53`;
+publication run `34599102604` passed. Root integration run `34599200218`
+stopped because root Development still used `f03e5a0` and the release changes
+embedded code. The reviewed root gitlink update must land before retrying
+the normal integration workflow. No guard, signature check or published
+migration was changed to work around that refusal.
+
+Workbook refresh and import processing remain paused. Email delivery and
+scheduled publishing remain disabled. Copied-workbook native-thread
+acceptance, the final Production student and staff journeys, live sync
+enablement, and import resumption remain open. The earlier reconciliation
+counts are dated evidence, not a claim that sources stopped changing.
+
 ### Signed application 1.2.25 publication candidate
 
 Root PR 517 merged as `d87f37ed`. Private release workflow `34587750048` and root integration workflow `34587840744` passed for signed application source `fa78eeb753ab0af537490fc2b0b62e7b3bf67a3e`. Generated PR 518 starts at `660976ad` and adds `20260911101007_publish_dvhs_csf_1_2_25`, SHA256 `32cb2d89eca6ce9ac87defdd856973cffc5153cf3c87d8d5d89f513d27a684eb`. The application registry records that signed source; the serving private gitlink remains `f03e5a06d3c451bb721e90529b890d6199e60148`. Publication leaves organization installs and rollout selection unchanged.
