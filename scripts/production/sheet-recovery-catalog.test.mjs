@@ -19,7 +19,7 @@ const source = readFileSync(
   "utf8",
 );
 test("489 pins recovery definitions without changing the applied column catalog", () => {
-  assert.equal(versions.length, 489);
+  assert.equal(versions.length, 490);
   const current = acceptedCatalogQuery(source, versions);
   for (const [signature, digest, body] of sheetRecoveryDefinitions) {
     assert.ok(current.includes(signature));
@@ -40,8 +40,34 @@ test("489 pins recovery definitions without changing the applied column catalog"
     ),
   );
 });
-test("488 upgrades only through the reviewed recovery migration", () => {
+test("488 requires reviewed recovery and the signed application publication", () => {
   const result = prepareMigration(cwd, undefined, versions.slice(0, 488));
+  assert.equal(
+    (
+      result.query.match(
+        /INSERT INTO supabase_migrations.schema_migrations/gu,
+      ) ?? []
+    ).length,
+    2,
+  );
+  assert.ok(result.query.includes("20260911195446"));
+  assert.ok(!result.query.includes("AND version = '1.2.28'"));
+  assert.ok(result.query.includes("AND version = '1.2.29'"));
+  const [name, digest] = approvedMigrations.at(-1);
+  assert.equal(
+    digest,
+    createHash("sha256")
+      .update(readFileSync(`supabase/migrations/${name}.sql`))
+      .digest("hex"),
+  );
+});
+
+test("490 publication preserves 489 fingerprints and appends only signed publication bytes", () => {
+  assert.equal(
+    acceptedCatalogQuery(source, versions),
+    acceptedCatalogQuery(source, versions.slice(0, 489)),
+  );
+  const result = prepareMigration(cwd, undefined, versions.slice(0, 489));
   assert.equal(
     (
       result.query.match(
@@ -50,13 +76,7 @@ test("488 upgrades only through the reviewed recovery migration", () => {
     ).length,
     1,
   );
-  assert.ok(result.query.includes("20260911195446"));
+  assert.ok(result.query.includes("AND version = '1.2.29'"));
+  assert.ok(!result.query.includes("ADD COLUMN observation_generation"));
   assert.ok(!result.query.includes("AND version = '1.2.28'"));
-  const [name, digest] = approvedMigrations.at(-1);
-  assert.equal(
-    digest,
-    createHash("sha256")
-      .update(readFileSync(`supabase/migrations/${name}.sql`))
-      .digest("hex"),
-  );
 });
