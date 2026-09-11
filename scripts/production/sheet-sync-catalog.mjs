@@ -97,8 +97,8 @@ export const sheetSyncDefinitions = [
   ],
   [
     "plugin_data.csf_register_sheet_sync_test_workspace(uuid,uuid)",
-    "d07f43469686f746a98588a228d5f4ff",
-    "980259f0024b5fbce89ff8f1ddbfc22c",
+    "6bb6a07e09c37d70faf97f6e8b5e795f",
+    "34e9b039047c6e4cdb92b260bdb0ac55",
     true,
   ],
   [

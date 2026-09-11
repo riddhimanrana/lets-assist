@@ -1,6 +1,6 @@
 BEGIN;
 CREATE EXTENSION IF NOT EXISTS pgtap WITH SCHEMA extensions;
-SELECT extensions.plan(51);
+SELECT extensions.plan(52);
 INSERT INTO auth.users(id,aud,role,email,raw_app_meta_data,raw_user_meta_data) VALUES
 ('ea000000-0000-4000-8000-000000000001','authenticated','authenticated','sheet-admin@local.test','{}','{}'),
 ('ea000000-0000-4000-8000-000000000002','authenticated','authenticated','sheet-outsider@local.test','{}','{}');
@@ -104,5 +104,9 @@ SELECT extensions.is(plugin_data.csf_finish_sheet_sync_test_copy('ea100000-0000-
 SELECT extensions.is(plugin_data.csf_claim_sheet_sync_test_copy('ea100000-0000-4000-8000-000000000001','ea000000-0000-4000-8000-000000000001','ea100000-0000-4000-8000-000000000002','fixture-source-sheet','ea900000-0000-4000-8000-000000000001')->>'copied_file_id','fixture-observed-copy','completed retries return the existing copy');
 UPDATE public.organization_members SET status='inactive' WHERE organization_id='ea100000-0000-4000-8000-000000000002' AND user_id='ea000000-0000-4000-8000-000000000001';
 SELECT extensions.throws_ok($$SELECT plugin_data.csf_claim_sheet_sync_test_copy('ea100000-0000-4000-8000-000000000001','ea000000-0000-4000-8000-000000000001','ea100000-0000-4000-8000-000000000002','another-source-sheet','ea900000-0000-4000-8000-000000000003')$$,'P0001','Not authorized.','source organization authority is required for copying');
+INSERT INTO public.organizations(id,name,username,type,join_code) VALUES('ea100000-0000-4000-8000-000000000003','Existing source fixture','existing-source-fixture','school','739286');
+INSERT INTO public.organization_members(organization_id,user_id,role,status) VALUES('ea100000-0000-4000-8000-000000000003','ea000000-0000-4000-8000-000000000001','admin','active');
+INSERT INTO plugin_data.csf_sheet_sources(organization_id,title,spreadsheet_id) VALUES('ea100000-0000-4000-8000-000000000003','Existing live source','existing-live-source');
+SELECT extensions.throws_ok($$SELECT plugin_data.csf_register_sheet_sync_test_workspace('ea100000-0000-4000-8000-000000000003','ea000000-0000-4000-8000-000000000001')$$,'P0001','Register an empty test workspace before copying records.','existing workspace cannot be reclassified as a test workspace');
 SELECT * FROM extensions.finish();
 ROLLBACK;

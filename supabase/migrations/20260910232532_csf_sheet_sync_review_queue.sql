@@ -82,7 +82,7 @@ LANGUAGE plpgsql SECURITY DEFINER SET search_path='' AS $$
 BEGIN
  IF NOT plugin_data.csf_actor_has_permission(p_organization_id,p_actor_user_id,'manage_settings') THEN RAISE EXCEPTION 'Not authorized.'; END IF;
  IF EXISTS(SELECT 1 FROM plugin_data.csf_sheet_sync_test_workspaces WHERE organization_id=p_organization_id) THEN RETURN; END IF;
- IF EXISTS(SELECT 1 FROM plugin_data.csf_profiles WHERE organization_id=p_organization_id) OR EXISTS(SELECT 1 FROM plugin_data.csf_sheet_sync_destinations WHERE organization_id=p_organization_id) THEN RAISE EXCEPTION 'Register an empty test workspace before copying records.'; END IF;
+ IF EXISTS(SELECT 1 FROM plugin_data.csf_profiles WHERE organization_id=p_organization_id) OR EXISTS(SELECT 1 FROM plugin_data.csf_sheet_sync_destinations WHERE organization_id=p_organization_id) OR EXISTS(SELECT 1 FROM plugin_data.csf_sheet_sources WHERE organization_id=p_organization_id) OR EXISTS(SELECT 1 FROM plugin_data.csf_class_workbooks WHERE organization_id=p_organization_id) OR EXISTS(SELECT 1 FROM plugin_data.csf_sheet_import_jobs WHERE organization_id=p_organization_id) OR EXISTS(SELECT 1 FROM plugin_data.csf_sheet_writeback_ledger WHERE organization_id=p_organization_id) THEN RAISE EXCEPTION 'Register an empty test workspace before copying records.'; END IF;
  INSERT INTO plugin_data.csf_sheet_sync_test_workspaces VALUES(p_organization_id,p_actor_user_id,now());
 END $$;
 
