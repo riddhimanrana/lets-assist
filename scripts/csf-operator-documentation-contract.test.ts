@@ -371,7 +371,7 @@ const STUDENT_JOURNEY: LabelContract[] = [
   {
     component: "CsfConnectedRecordPanel.tsx",
     labels: [
-      "Your record is awaiting review",
+      "Awaiting staff review",
       "Go to class feed",
       "Your CSF record is linked",
       "Go to My CSF",

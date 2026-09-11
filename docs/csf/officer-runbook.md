@@ -46,6 +46,8 @@ Choose the response Sheet and turn on automatic updates once. The normal import 
 
 Use **Open review** to let officers approve or reject applications. **Close review** pauses those decisions. **Reopen review** resumes application review while preserving earlier decisions, notes, and assignments. These controls do not open or close the Google Form. Points and club review still follow their separate closeout rules.
 
+Students can submit corrections from My CSF for staff review. The application review panel does not need an unlock step.
+
 The review page scrolls continuously through the application and evidence. Use Left/Right or J/K to move between applications; Up/Down scroll the page.
 
 1. Filter by term, class, submission state, eligibility, dues, assignee, or blocking issue.
@@ -66,13 +68,13 @@ To add a student, open the class Members tab and choose **Add member**. The form
 
 ### Permanent class join code
 
-The class join code is the student self-service connection path. Staff can connect an existing organization account through the profile workflow below. Each graduating class holds one permanent 6-character code. The alphabet omits O, I, 0, and 1. Connecting through it joins the lasting graduating class only. Semester membership still comes from an accepted application or an approved roster import.
+The class join code is the student self-service connection path. Staff can connect an existing organization account through the profile workflow below. Each graduating class has a join link and code. The candidate release also shows a QR code for the same link. Connecting through it joins the lasting graduating class only. Semester membership still comes from an accepted application or an approved roster import.
 
 1. Open **Classes**, choose the graduating class, and select **Invite students**. **Copy link** shares a direct sign-in and class-joining link. **Copy code** shares the code; **Regenerate link and code** replaces it only when the old code must stop working; **Disable link and code** withdraws it without a replacement. A class without a code offers **Create code**.
 2. Share only that class code or its `/connect/<code>` URL. Do not distribute a roster export. The public organization and class pages expose no Stream, Activities, membership, or student-derived counts.
 3. The student enters the code at the public `/connect/<code>` route, or types it into **Join code** on **Join a class**, then creates or signs in to a verified Let's Assist account.
 4. An independently verified account connection opens the matching class. A contact email or account name alone cannot claim an imported record.
-5. A suggested existing record enters staff review. Confirming **Is this you?** saves a request; it does not grant access to history. Repeated attempts reuse the request.
+5. A suggested existing record enters staff review. The student sees **Awaiting staff review** until staff verifies the connection. Confirming **Is this you?** saves a request; it does not grant access to history. Repeated attempts reuse the request.
 6. A new student with no existing candidate can create a self-owned profile. This grants class access, not semester completion or application approval.
 7. Inactive or removed organization access requires administrator review. A class code cannot restore it automatically.
 

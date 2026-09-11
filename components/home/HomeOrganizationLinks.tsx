@@ -61,7 +61,7 @@ export async function HomeOrganizationLinks({ userId }: { userId: string }) {
             <div className="min-w-0">
               <h2 className="text-base font-semibold">{organization.name}</h2>
               <p className="text-sm text-muted-foreground">
-                View updates and manage your membership.
+                Open your organization for its activities and member tools. Browse Let&apos;s Assist volunteer projects below.
               </p>
             </div>
           </div>
