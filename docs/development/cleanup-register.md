@@ -7170,7 +7170,6 @@ Signed integration workflow `34654360664` generated publication `20260911223137_
 
 The guide received verified staff and sign-in status updates and a Production test-workspace invitation screenshot. Its class links and existing QR cards remain. Sheets destinations, copied-workbook acceptance, application correction and the complete point submission journey remain unfinished. Email delivery and scheduled publishing stay disabled.
 
-
 ### September 11 final release verification, 23:03 UTC
 
 Development candidate `65e491e1e97010f239d3e492f835899506701f2f` includes signed application 1.2.32, publication migration `20260911223137`, and retry-range migration `20260911223138`. Root full-quality and hosted functional checks passed. The integrated database/browser job remains in progress. PR 536 is waiting for its required check before the normal Production merge. Production remains on root `f742c18df694e4c9e77ea68e2ea9eddc96556c01`, migration 494, and selected application 1.2.31 at this checkpoint.
@@ -7184,7 +7183,6 @@ The normal Chrome staff connection flow passed in the isolated Production test o
 The guide now contains the verified invitation and manual-connection screenshots. Its 13-page PDF rendering was inspected, including the updated connection page. Sheets sync remains described as disabled.
 
 Open P2: Home counts older previews separately when a configured source range changes. The private deduplication key incorrectly includes the mutable range. Reviewed private commit `597ea98` fixes the key to use source ID, source type, and tab, while preserving the range fallback for unconfigured file previews. Seven focused tests passed. That commit is prepared only, not pushed, published, or deployed.
-
 
 ### September 11 final review hold, 23:18 UTC
 
@@ -7201,7 +7199,6 @@ The screenshot guide now includes the successful fictional manual account connec
 The preserved correction passed independent bounded review, `git diff --check`, strict private-submodule validation, and plugin registry gates. These checks do not replace final integrated acceptance for migration 497.
 
 At 23:19 UTC, catalog integration was preserved in `04a41b9f` from worker commit `ee6404b3`. Its 48 focused catalog and forward-release tests passed and retained migration 496 fingerprints. Full candidate CI, remaining count expectations, and release review still need verification. This supersedes the earlier catalog-integration pending status only.
-
 
 ### September 11 focused Production verification follow-up
 
@@ -7220,7 +7217,6 @@ Open P2: the neutral registration error hides the actionable test-copy prerequis
 Open P2: staff-only post authoring is unreachable in normal embedded navigation. `plugin-behavior.tsx` registers `csf-home` only for the member presentation, which passes `userRole="member"`; `CsfMemberHome` therefore hides the unlocked staff composer. Officer mode redirects that tab to Overview. The reachable class-stream composer locks its audience to that class. Add an authorized officer entry point without changing member-view access rules.
 
 Still unverified in Production: fresh signup with verification email and expired-email recovery; pending identity with populated candidate history; application correction/resubmission and officer decision in the test workspace; the positive point submission/correction/resubmission cycle and verified totals; staff-only post audience; full copied-workbook and comments-column acceptance. Existing staff invitation/position and different-email manual connection evidence remains valid for the unchanged deployed actions, but no fresh populated-history connection test was claimed. The requested signup test address remains pending. Live two-way sync remains disabled.
-
 
 ### September 11 release correction follow-up
 
