@@ -61,14 +61,14 @@ export const sheetSyncDefinitions = [
   ],
   [
     "plugin_data.csf_queue_changed_sheet_sync_record()",
-    "6b063757ef9b0b566fa17e799ed94a3c",
-    "8caa87252b128a9232363f9c2725dbb5",
+    "5bb0aab80f771ee13c57be652789e120",
+    "b2d3dbdcb46e127baf2f1d2c5151e8dd",
     false,
   ],
   [
     "plugin_data.csf_queue_cohort_sheet_sync_records()",
-    "d9ac8029d16f6100d47dbedf9fe522d8",
-    "a435473baea7d015cd9e64496a424041",
+    "109763a98a4f70c9f9e6f288fedb8a95",
+    "0d34b1927eb04cb3acff9209bcd97106",
     false,
   ],
   [
@@ -84,15 +84,21 @@ export const sheetSyncDefinitions = [
     false,
   ],
   [
+    "plugin_data.csf_queue_term_sheet_sync_records()",
+    "f02c80e3e0773a96c0ed3f7e9ffef708",
+    "ac85860a435eb384887a71d2a5b814ad",
+    false,
+  ],
+  [
     "plugin_data.csf_reconcile_sheet_sync_export(uuid,uuid,uuid,boolean,text,text)",
     "ee5e55041ade30e0cee69fc545413ce5",
     "f99b600d7181cefad6ab8c5b6e8273af",
     true,
   ],
   [
-    "plugin_data.csf_record_sheet_sync_change(uuid,uuid,text,uuid,text,text,jsonb)",
-    "d604f6432c65c826da11c5ebd44c272f",
-    "498b1939020b98e8b5585d3055512729",
+    "plugin_data.csf_record_sheet_sync_change(uuid,uuid,text,uuid,text,text,jsonb,uuid)",
+    "88a173f4fbc0ea798b20e66ff59ae561",
+    "cc6b13f9b7a669b63e342fc08cef54a2",
     true,
   ],
   [
@@ -139,8 +145,8 @@ export const sheetSyncDefinitions = [
   ],
   [
     "plugin_data.csf_sheet_sync_destination_snapshot(uuid,uuid,text,uuid)",
-    "4183cc2216f69323a77013c7923483c1",
-    "f0a0bb9dc605da2b76262be6caf2d775",
+    "5cac90cfc3e8c894801bb75d369cf0b1",
+    "c56398ba01bd4a3c4512461abb4af807",
     true,
   ],
   [
@@ -193,6 +199,27 @@ export const sheetSyncTriggers = [
     "c448b421016ea883831cb09bc82e4cf0",
     29,
     "plugin_data.csf_queue_changed_sheet_sync_record()",
+  ],
+  [
+    "csf_meeting_attendance",
+    "csf_sheet_sync_attendance",
+    "62fd433e95b76b1b54c7748c8fc2d192",
+    29,
+    "plugin_data.csf_queue_changed_sheet_sync_record()",
+  ],
+  [
+    "csf_meeting_sessions",
+    "csf_sheet_sync_sessions",
+    "3e1a8c42cdd4b0dc44d20e94aa94994e",
+    29,
+    "plugin_data.csf_queue_term_sheet_sync_records()",
+  ],
+  [
+    "csf_meetings",
+    "csf_sheet_sync_meetings",
+    "d4abd001cfff05955f9643de9a0364a8",
+    29,
+    "plugin_data.csf_queue_term_sheet_sync_records()",
   ],
   [
     "csf_point_submissions",
@@ -293,11 +320,25 @@ export const sheetSyncTriggers = [
     "plugin_data.csf_guard_sheet_sync_test_file()",
   ],
   [
+    "csf_term_meetings",
+    "csf_sheet_sync_legacy_meetings",
+    "7b0f3cd2ded88c0dbdce9fc414353f8c",
+    29,
+    "plugin_data.csf_queue_term_sheet_sync_records()",
+  ],
+  [
     "csf_term_memberships",
     "csf_sheet_sync_memberships",
     "ad82a10a1a6a9d8698e039e6f6a953ee",
     29,
     "plugin_data.csf_queue_changed_sheet_sync_record()",
+  ],
+  [
+    "csf_term_policies",
+    "csf_sheet_sync_policy",
+    "e767cf57e90d7b088873c53aa7d06069",
+    29,
+    "plugin_data.csf_queue_term_sheet_sync_records()",
   ],
 ];
 export const sheetSyncFunctionSnapshotQuery = `SELECT expected.signature, md5(jsonb_build_object(

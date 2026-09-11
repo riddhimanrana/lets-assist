@@ -1,7 +1,7 @@
 -- Separate sessions prove that queued Sheet actions observe permission revocation.
 CREATE EXTENSION IF NOT EXISTS pgtap WITH SCHEMA extensions;
 CREATE EXTENSION IF NOT EXISTS dblink WITH SCHEMA extensions;
-SELECT extensions.plan(26);
+SELECT extensions.plan(28);
 INSERT INTO auth.users(id,aud,role,email,raw_app_meta_data,raw_user_meta_data) VALUES('f7000000-0000-4000-8000-000000000001','authenticated','authenticated','sheet-race@local.test','{}','{}');
 INSERT INTO public.organizations(id,name,username,type,join_code) VALUES('f7100000-0000-4000-8000-000000000001','Sheet permission race','sheet-permission-race','school','985271');
 INSERT INTO public.organization_members(organization_id,user_id,role,status) VALUES('f7100000-0000-4000-8000-000000000001','f7000000-0000-4000-8000-000000000001','member','active');
@@ -160,6 +160,31 @@ COMMIT;
 SELECT * FROM extensions.dblink_get_result('worker_scope',false) AS result(payload text);
 SELECT extensions.ok(position('Sheet record changed' IN extensions.dblink_error_message('worker_scope'))>0,'class move during the last guard wait prevents the stale provider write');
 SELECT extensions.dblink_disconnect('worker_scope');
+
+UPDATE plugin_data.csf_sheet_sync_bindings SET last_export_version='inbound-known-version' WHERE id='f7800000-0000-4000-8000-000000000001';
+UPDATE plugin_data.csf_sheet_sync_destinations SET poll_lease_expires_at=clock_timestamp()+interval '1 second' WHERE id='f7700000-0000-4000-8000-000000000001';
+SELECT extensions.dblink_connect('inbound_expiry','hostaddr='||coalesce(host(inet_server_addr()),'127.0.0.1')||' port='||current_setting('port')||' dbname='||current_database()||' user='||current_user||' password='||current_user||' sslmode=disable');
+CREATE TEMP TABLE inbound_expiry_pid AS SELECT pid FROM extensions.dblink('inbound_expiry','SELECT pg_backend_pid()') AS result(pid integer);
+BEGIN;
+SELECT id FROM plugin_data.csf_sheet_sync_bindings WHERE id='f7800000-0000-4000-8000-000000000001' FOR UPDATE;
+SELECT extensions.dblink_send_query('inbound_expiry',$query$SELECT plugin_data.csf_record_sheet_sync_change('f7100000-0000-4000-8000-000000000001','f7700000-0000-4000-8000-000000000001','application','f7600000-0000-4000-8000-000000000001','inbound-known-version','expired-observation','{}','f7b00000-0000-4000-8000-000000000001')::text$query$);
+DO $wait$
+DECLARE waiting boolean:=false; deadline timestamptz:=clock_timestamp()+interval '3 seconds';
+BEGIN
+ LOOP
+  SELECT EXISTS(SELECT 1 FROM pg_locks WHERE pid=(SELECT pid FROM inbound_expiry_pid) AND NOT granted) INTO waiting;
+  EXIT WHEN waiting OR clock_timestamp()>=deadline;
+  PERFORM pg_sleep(0.01);
+ END LOOP;
+ INSERT INTO sheet_race_waits VALUES('inbound_expiry',waiting);
+END $wait$;
+SELECT extensions.ok((SELECT observed FROM sheet_race_waits WHERE key='inbound_expiry'),'inbound worker waits on the record binding');
+SELECT pg_sleep(1.1);
+COMMIT;
+SELECT * FROM extensions.dblink_get_result('inbound_expiry',false) AS result(payload text);
+SELECT extensions.ok(position('Sync lease expired or access changed' IN extensions.dblink_error_message('inbound_expiry'))>0,'inbound lease expiration during binding wait rejects stale observation');
+SELECT extensions.dblink_disconnect('inbound_expiry');
+UPDATE plugin_data.csf_sheet_sync_destinations SET poll_lease_expires_at=clock_timestamp()+interval '2 minutes' WHERE id='f7700000-0000-4000-8000-000000000001';
 CREATE TEMP TABLE known_worker_outcome AS SELECT to_jsonb(l) value FROM plugin_data.csf_claim_sheet_sync_exports('f7100000-0000-4000-8000-000000000001','f7700000-0000-4000-8000-000000000001','f7b00000-0000-4000-8000-000000000001',10) l;
 UPDATE plugin_data.csf_role_permissions SET enabled=false WHERE organization_id='f7100000-0000-4000-8000-000000000001' AND role_id='f7200000-0000-4000-8000-000000000001' AND permission_key='export_sensitive_reports';
 SELECT extensions.is((SELECT count(*) FROM known_worker_outcome),1::bigint,'one authorized cleanup was leased before access changed');
