@@ -545,11 +545,12 @@ BEGIN
 END $$;
 CREATE FUNCTION plugin_data.csf_reconcile_sheet_sync_export(p_organization_id uuid,p_actor_user_id uuid,p_ledger_id uuid,p_was_written boolean,p_remote_version text,p_reason text) RETURNS jsonb
 LANGUAGE plpgsql SECURITY DEFINER SET search_path='' AS $$
-DECLARE l plugin_data.csf_sheet_writeback_ledger%ROWTYPE;
+DECLARE l plugin_data.csf_sheet_writeback_ledger%ROWTYPE; before_row jsonb;
 BEGIN
  PERFORM pg_advisory_xact_lock(plugin_data.csf_staff_access_lock_key(p_organization_id));
  IF NOT (plugin_data.csf_actor_has_permission(p_organization_id,p_actor_user_id,'manage_sheet_sync') AND plugin_data.csf_actor_has_permission(p_organization_id,p_actor_user_id,'export_sensitive_reports')) THEN RAISE EXCEPTION 'Not authorized.'; END IF;
  IF p_was_written IS NULL THEN RAISE EXCEPTION 'Confirm whether the provider write occurred. Keep uncertain writes on hold.'; END IF;
+ IF p_was_written AND nullif(btrim(p_remote_version),'') IS NULL THEN RAISE EXCEPTION 'A confirmed export requires its provider version.'; END IF;
  IF nullif(btrim(p_reason),'') IS NULL THEN RAISE EXCEPTION 'Record the destination reconciliation result.'; END IF;
  SELECT * INTO l FROM plugin_data.csf_sheet_writeback_ledger WHERE id=p_ledger_id AND organization_id=p_organization_id AND destination_id IS NOT NULL;
  IF NOT FOUND THEN RAISE EXCEPTION 'Export attempt not found.'; END IF;
@@ -559,9 +560,10 @@ BEGIN
  PERFORM 1 FROM plugin_data.csf_sheet_sync_bindings WHERE organization_id=p_organization_id AND destination_id=l.destination_id AND record_kind=l.record_kind AND record_id=l.record_id FOR UPDATE;
  SELECT e.* INTO l FROM plugin_data.csf_sheet_writeback_ledger e WHERE e.organization_id=p_organization_id AND e.id=p_ledger_id AND e.destination_id=l.destination_id AND e.record_kind=l.record_kind AND e.record_id=l.record_id FOR UPDATE;
  IF NOT FOUND OR l.status<>'unknown_outcome' THEN RAISE EXCEPTION 'Export is not awaiting reconciliation.'; END IF;
+ before_row:=to_jsonb(l);
  UPDATE plugin_data.csf_sheet_writeback_ledger SET status=CASE WHEN p_was_written THEN 'exported' ELSE 'retry_export' END,lease_token=NULL,lease_expires_at=NULL,last_error=NULL,updated_at=now() WHERE id=l.id RETURNING * INTO l;
  IF p_was_written THEN UPDATE plugin_data.csf_sheet_sync_bindings SET last_export_version=l.source_version,remote_version=p_remote_version WHERE destination_id=l.destination_id AND record_kind=l.record_kind AND record_id=l.record_id; END IF;
- INSERT INTO plugin_data.csf_admin_audit_events(organization_id,actor_user_id,action,target_type,target_id,after_data) VALUES(p_organization_id,p_actor_user_id,'sheet_sync.export_reconciled','sheet_writeback_ledger',l.id,jsonb_build_object('was_written',p_was_written,'reason',p_reason));
+ INSERT INTO plugin_data.csf_admin_audit_events(organization_id,actor_user_id,action,target_type,target_id,before_data,after_data) VALUES(p_organization_id,p_actor_user_id,'sheet_sync.export_reconciled','sheet_writeback_ledger',l.id,before_row,to_jsonb(l)||jsonb_build_object('was_written',p_was_written,'remote_version',p_remote_version,'reason',p_reason));
  RETURN to_jsonb(l);
 END $$;
 
@@ -750,10 +752,10 @@ CREATE FUNCTION plugin_data.csf_queue_cohort_sheet_sync_records() RETURNS trigge
 LANGUAGE plpgsql SECURITY DEFINER SET search_path='' AS $$
 DECLARE old_row jsonb:=CASE WHEN TG_OP<>'INSERT' THEN to_jsonb(OLD) END; new_row jsonb:=CASE WHEN TG_OP<>'DELETE' THEN to_jsonb(NEW) END; member record; target record; d record;
 BEGIN
- PERFORM b.id FROM plugin_data.csf_sheet_sync_bindings b WHERE EXISTS(SELECT 1 FROM unnest(ARRAY[old_row,new_row]) r WHERE r IS NOT NULL AND b.organization_id=(r->>'organization_id')::uuid AND (b.profile_id=(r->>'profile_id')::uuid OR (b.record_kind='profile' AND b.record_id=(r->>'profile_id')::uuid))) ORDER BY b.id FOR NO KEY UPDATE;
- FOR member IN SELECT DISTINCT (r->>'organization_id')::uuid org,(r->>'profile_id')::uuid profile FROM unnest(ARRAY[old_row,new_row]) r WHERE r IS NOT NULL LOOP
-  UPDATE plugin_data.csf_sheet_sync_bindings SET scope_revision=scope_revision+1 WHERE organization_id=member.org AND (profile_id=member.profile OR (record_kind='profile' AND record_id=member.profile));
-  FOR d IN SELECT * FROM plugin_data.csf_sheet_sync_destinations WHERE organization_id=member.org AND enabled LOOP
+ PERFORM b.id FROM plugin_data.csf_sheet_sync_bindings b WHERE EXISTS(SELECT 1 FROM unnest(ARRAY[old_row,new_row]) r WHERE r IS NOT NULL AND b.organization_id=(r->>'organization_id')::uuid AND EXISTS(SELECT 1 FROM plugin_data.csf_sheet_sync_destinations dest WHERE dest.id=b.destination_id AND dest.cohort_id=(r->>'cohort_id')::uuid) AND (b.profile_id=(r->>'profile_id')::uuid OR (b.record_kind='profile' AND b.record_id=(r->>'profile_id')::uuid))) ORDER BY b.id FOR NO KEY UPDATE;
+ FOR member IN SELECT DISTINCT (r->>'organization_id')::uuid org,(r->>'profile_id')::uuid profile,(r->>'cohort_id')::uuid cohort FROM unnest(ARRAY[old_row,new_row]) r WHERE r IS NOT NULL ORDER BY org,profile,cohort LOOP
+  UPDATE plugin_data.csf_sheet_sync_bindings SET scope_revision=scope_revision+1 WHERE organization_id=member.org AND EXISTS(SELECT 1 FROM plugin_data.csf_sheet_sync_destinations dest WHERE dest.id=destination_id AND dest.cohort_id=member.cohort) AND (profile_id=member.profile OR (record_kind='profile' AND record_id=member.profile));
+  FOR d IN SELECT * FROM plugin_data.csf_sheet_sync_destinations WHERE organization_id=member.org AND cohort_id=member.cohort AND enabled LOOP
    FOR target IN
     SELECT 'profile' kind,member.profile id WHERE d.kind='class'
     UNION SELECT 'application',a.id FROM plugin_data.csf_term_applications a WHERE d.kind='applications' AND a.organization_id=member.org AND a.profile_id=member.profile AND a.term_id=d.term_id

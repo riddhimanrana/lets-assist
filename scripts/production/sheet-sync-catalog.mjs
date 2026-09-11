@@ -73,8 +73,8 @@ export const sheetSyncDefinitions = [
   ],
   [
     "plugin_data.csf_queue_cohort_sheet_sync_records()",
-    "109763a98a4f70c9f9e6f288fedb8a95",
-    "0d34b1927eb04cb3acff9209bcd97106",
+    "f9358c9f2e4fd25e8ce89c3ba44b405b",
+    "c9896be2914f2b50b4a40ff1a103ebe2",
     false,
   ],
   [
@@ -97,8 +97,8 @@ export const sheetSyncDefinitions = [
   ],
   [
     "plugin_data.csf_reconcile_sheet_sync_export(uuid,uuid,uuid,boolean,text,text)",
-    "5be781927f4afee5ffe1075ca0cbdde8",
-    "e5d8ac76555614a81e8076f96dec07fa",
+    "ecec61a66cfdb0ba74e9f701ae1ccce2",
+    "216d8f8b6044a5da3ff3ba5dcd3e44a6",
     true,
   ],
   [
