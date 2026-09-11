@@ -7199,3 +7199,5 @@ Production remains host `f742c18df694e4c9e77ea68e2ea9eddc96556c01`, database 494
 The screenshot guide now includes the successful fictional manual account connection with different contact and login emails. This test preserved contact fields and created no application, points, or staff privilege. The guide remains explicit that full Sheets sync is not live.
 
 The preserved correction passed independent bounded review, `git diff --check`, strict private-submodule validation, and plugin registry gates. These checks do not replace final integrated acceptance for migration 497.
+
+At 23:19 UTC, catalog integration was preserved in `04a41b9f` from worker commit `ee6404b3`. Its 48 focused catalog and forward-release tests passed and retained migration 496 fingerprints. Full candidate CI, remaining count expectations, and release review still need verification. This supersedes the earlier catalog-integration pending status only.
