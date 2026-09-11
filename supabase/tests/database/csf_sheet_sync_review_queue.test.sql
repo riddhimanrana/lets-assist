@@ -1,6 +1,6 @@
 BEGIN;
 CREATE EXTENSION IF NOT EXISTS pgtap WITH SCHEMA extensions;
-SELECT extensions.plan(35);
+SELECT extensions.plan(51);
 INSERT INTO auth.users(id,aud,role,email,raw_app_meta_data,raw_user_meta_data) VALUES
 ('ea000000-0000-4000-8000-000000000001','authenticated','authenticated','sheet-admin@local.test','{}','{}'),
 ('ea000000-0000-4000-8000-000000000002','authenticated','authenticated','sheet-outsider@local.test','{}','{}');
@@ -11,6 +11,7 @@ INSERT INTO public.organization_members(organization_id,user_id,role,status) VAL
 INSERT INTO plugin_data.csf_terms(id,organization_id,code,label,school_year,semester) VALUES('ea200000-0000-4000-8000-000000000001','ea100000-0000-4000-8000-000000000001','F30','Fall 2030','2030-2031','fall');
 INSERT INTO plugin_data.csf_cohorts(id,organization_id,graduation_year,label) VALUES('ea500000-0000-4000-8000-000000000001','ea100000-0000-4000-8000-000000000001',2033,'Class of 2033');
 SELECT plugin_data.csf_register_sheet_sync_test_workspace('ea100000-0000-4000-8000-000000000001','ea000000-0000-4000-8000-000000000001');
+SELECT plugin_data.csf_register_sheet_sync_test_file('ea100000-0000-4000-8000-000000000001','ea000000-0000-4000-8000-000000000001','fixture-sheet-copy','fixture-source-sheet');
 INSERT INTO plugin_data.csf_profiles(id,organization_id,first_name,last_name,normalized_first_name,normalized_last_name) VALUES
 ('ea300000-0000-4000-8000-000000000001','ea100000-0000-4000-8000-000000000001','Test','Student','test','student'),
 ('ea300000-0000-4000-8000-000000000002','ea100000-0000-4000-8000-000000000002','Other','Student','other','student');
@@ -84,5 +85,24 @@ SELECT extensions.lives_ok($$UPDATE plugin_data.csf_term_applications SET update
 UPDATE public.organization_members SET status='active' WHERE organization_id='ea100000-0000-4000-8000-000000000001' AND user_id='ea000000-0000-4000-8000-000000000001';
 SELECT plugin_data.csf_set_sheet_sync_destination_state('ea100000-0000-4000-8000-000000000001','ea000000-0000-4000-8000-000000000001',(SELECT (value->>'id')::uuid FROM sync_fixture WHERE name='destination'),false,true,'available');
 SELECT extensions.throws_ok($$SELECT plugin_data.csf_assert_sheet_sync_destination_lease('ea100000-0000-4000-8000-000000000001',(SELECT (value->>'id')::uuid FROM sync_fixture WHERE name='destination'),(SELECT (value->>'poll_lease_token')::uuid FROM sync_fixture WHERE name='lease'))$$,'P0001','Sync lease expired or access changed.','disabling sync invalidates existing lease');
+
+INSERT INTO public.organization_members(organization_id,user_id,role,status) VALUES('ea100000-0000-4000-8000-000000000002','ea000000-0000-4000-8000-000000000001','admin','active');
+SELECT extensions.throws_ok($$SELECT plugin_data.csf_register_sheet_sync_test_file('ea100000-0000-4000-8000-000000000001','ea000000-0000-4000-8000-000000000001','same-file','same-file')$$,'P0001',NULL,'source file cannot register as its own copy');
+SELECT extensions.throws_ok($$SELECT plugin_data.csf_configure_sheet_sync_destination('ea100000-0000-4000-8000-000000000001','ea000000-0000-4000-8000-000000000001','unregistered-live-file',0,'applications',NULL,'ea200000-0000-4000-8000-000000000001',true)$$,'P0001','Test workspaces can use only registered copied files.','test destination rejects an original file');
+SELECT extensions.throws_ok($$SELECT plugin_data.csf_register_sheet_sync_test_file('ea100000-0000-4000-8000-000000000001','ea000000-0000-4000-8000-000000000001','fixture-other-org','fixture-source-sheet')$$,'P0001','This file is already used by a live workspace.','registered live destination cannot become a test copy');
+SELECT extensions.throws_ok($$UPDATE plugin_data.csf_term_applications SET source_file_id='unregistered-live-file' WHERE id='ea600000-0000-4000-8000-000000000001'$$,'P0001','Test workspaces can use only registered copied files.','legacy application source cannot point at a real file');
+SELECT extensions.throws_ok($$UPDATE plugin_data.csf_sheet_writeback_ledger SET spreadsheet_file_id='unregistered-live-file' WHERE organization_id='ea100000-0000-4000-8000-000000000001'$$,'P0001','Test workspaces can use only registered copied files.','legacy writeback cannot leave the copied destination');
+SELECT extensions.throws_ok($$UPDATE plugin_data.csf_sheet_sync_destinations SET spreadsheet_file_id='fixture-sheet-copy' WHERE id='ea700000-0000-4000-8000-000000000002'$$,'P0001','Test copies cannot be used by live workspaces.','live destinations reject test files');
+SELECT extensions.ok(NOT has_table_privilege('authenticated','plugin_data.csf_sheet_sync_test_copy_requests','SELECT'),'copy receipts are not browser readable');
+SELECT extensions.ok(NOT has_table_privilege('service_role','plugin_data.csf_sheet_sync_test_files','INSERT'),'copy registration requires its checked action');
+SELECT extensions.is(plugin_data.csf_claim_sheet_sync_test_copy('ea100000-0000-4000-8000-000000000001','ea000000-0000-4000-8000-000000000001','ea100000-0000-4000-8000-000000000002','fixture-source-sheet','ea900000-0000-4000-8000-000000000001')->>'state','claimed','first copy request claims one provider attempt');
+SELECT extensions.is(plugin_data.csf_claim_sheet_sync_test_copy('ea100000-0000-4000-8000-000000000001','ea000000-0000-4000-8000-000000000001','ea100000-0000-4000-8000-000000000002','fixture-source-sheet','ea900000-0000-4000-8000-000000000001')->>'state','unknown','retry cannot repeat an in-flight provider copy');
+SELECT extensions.is(plugin_data.csf_claim_sheet_sync_test_copy('ea100000-0000-4000-8000-000000000001','ea000000-0000-4000-8000-000000000001','ea100000-0000-4000-8000-000000000002','fixture-source-sheet','ea900000-0000-4000-8000-000000000002')->>'request_id','ea900000-0000-4000-8000-000000000001','new request ID cannot bypass an unresolved copy');
+SELECT extensions.is(plugin_data.csf_finish_sheet_sync_test_copy('ea100000-0000-4000-8000-000000000001','ea000000-0000-4000-8000-000000000001','ea900000-0000-4000-8000-000000000001','fixture-observed-copy','unknown','Access verification incomplete')->>'copied_file_id',NULL::text,'unknown outcome cannot register an unverified copy');
+SELECT extensions.is((SELECT count(*) FROM plugin_data.csf_sheet_sync_test_files WHERE copied_file_id='fixture-observed-copy'),0::bigint,'observed file remains outside the copy allowlist');
+SELECT extensions.is(plugin_data.csf_finish_sheet_sync_test_copy('ea100000-0000-4000-8000-000000000001','ea000000-0000-4000-8000-000000000001','ea900000-0000-4000-8000-000000000001','fixture-observed-copy','completed',NULL)->>'state','completed','verified copy receipt registers atomically');
+SELECT extensions.is(plugin_data.csf_claim_sheet_sync_test_copy('ea100000-0000-4000-8000-000000000001','ea000000-0000-4000-8000-000000000001','ea100000-0000-4000-8000-000000000002','fixture-source-sheet','ea900000-0000-4000-8000-000000000001')->>'copied_file_id','fixture-observed-copy','completed retries return the existing copy');
+UPDATE public.organization_members SET status='inactive' WHERE organization_id='ea100000-0000-4000-8000-000000000002' AND user_id='ea000000-0000-4000-8000-000000000001';
+SELECT extensions.throws_ok($$SELECT plugin_data.csf_claim_sheet_sync_test_copy('ea100000-0000-4000-8000-000000000001','ea000000-0000-4000-8000-000000000001','ea100000-0000-4000-8000-000000000002','another-source-sheet','ea900000-0000-4000-8000-000000000003')$$,'P0001','Not authorized.','source organization authority is required for copying');
 SELECT * FROM extensions.finish();
 ROLLBACK;
