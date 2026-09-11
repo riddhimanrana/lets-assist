@@ -1,5 +1,6 @@
 import { expect, mock, test } from "bun:test";
 import type { NextRequest } from "next/server";
+mock.module("server-only", () => ({}));
 let captured = "";
 mock.module("next/navigation", () => ({
   redirect: (url: string) => {
