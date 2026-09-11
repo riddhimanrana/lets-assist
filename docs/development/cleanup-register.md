@@ -6846,3 +6846,28 @@ unchanged. Sixty catalog and forward-release tests, 13 documentation tests,
 the registry gate and strict gitlink checks passed. The final integrated
 CI and hosted acceptance remain pending. No Production migration or
 application activation occurred in this step.
+
+### September 11 hosted result for application 1.2.26
+
+PR 523 merged as `2f12eba7e31c3e38fced4cd3d1c73b69ec121f08`.
+Both candidate CI `34602815136` and merged-tree CI `34603600211` passed,
+including 7,915 database assertions, 93 CSF browser tests and three shared
+DV browser tests. Four optional CSF tests were skipped. Development serves
+host deployment `dpl_6D4SrrRSriTzXHbcvsVemBVYc7cP` and the signed 1.2.26
+application. The fictional delivery organization selected that application
+through the normal organization controls.
+
+Hosted acceptance `34603595116` finished with failure at 13:55 UTC. Its
+100 distinct authenticated identities made 9,184 requests, with 43 timeouts
+and no HTTP 500 responses. Overall read p95 was 5,020.76 ms and p99 was
+13,040.48 ms. The officer application route had p95 11,671.80 ms. These
+exceed the existing read budgets. Mutations, browser vitals, 25 review
+navigations and retained heap passed; the browser recorded zero errors.
+The 0.4682 percent request error rate passed its threshold. Host runtime
+logs for 13:39–13:56 UTC contained no error or fatal entries, but that does
+not explain the slow reads or establish database capacity.
+
+Production PR 519 remains unmerged. No Production release, migration,
+application selection, compute change or worker resumption followed this
+failed acceptance. Database measurements from the actual load interval
+and the remaining query fanout are under review before another run.
