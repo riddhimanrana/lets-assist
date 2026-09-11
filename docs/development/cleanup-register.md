@@ -7022,3 +7022,20 @@ Independent review found no remaining blocker. The private recovery code passed
 checks passed seven tests. The performance waiver now requires an authenticated
 hosted functional run, without the waived 100-session load test. Its focused
 contract tests passed. Production remains unchanged pending final release checks.
+
+Private PRs 346 and 347 passed quality checks and merged the reviewed recovery
+source. Signed publication run `34643210275` published application 1.2.29 from
+`98c08ab2b3f63e313b915df5c7110413c013431a`. Root integration run `34643311817`
+generated publication migration `20260911201640_publish_dvhs_csf_1_2_29` in
+PR 529. It changes no organization installation or application selection.
+The publication SHA-256 is
+`fb41e61e145e657e2127522e8b4642c1bf4c63b373b3de20dcde4aad74c8278c`.
+
+The six PR 519 review threads were resolved after their corrections and focused
+regressions passed. The first root 489 CI run stopped because it fetched private
+main before the release merge reached that branch. Private main now contains
+the exact source. Final integrated CI remains required; the earlier failed run
+is not acceptance evidence.
+
+Chrome confirmed the test organization's Google connection to the chapter
+account. No spreadsheet destination or automatic sync was enabled.
