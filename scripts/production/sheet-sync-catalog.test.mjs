@@ -95,7 +95,7 @@ test("the sync catalog covers each table and exact source-change trigger", () =>
 });
 
 test("483 adds the sync posture without changing the preceding accepted catalog", () => {
-  assert.equal(versions.length, 486);
+  assert.equal(versions.length, 487);
   const previous = acceptedCatalogQuery(source, versions.slice(0, 482));
   assert.equal(
     createHash("sha256").update(previous).digest("hex"),
@@ -128,7 +128,7 @@ test("an existing 482 migration release applies sync and signed publications", (
         /INSERT INTO supabase_migrations.schema_migrations/gu,
       ) ?? []
     ).length,
-    4,
+    5,
   );
   assert.ok(
     prepared.query.includes(
@@ -166,9 +166,35 @@ test("484 publication preserves the reviewed sync schema posture", () => {
   );
 });
 
-test("an existing 483 release applies only signed publications", () => {
+test("an existing 483 release applies signed publications and the discussion extension", () => {
   const prepared = prepareMigration(cwd, undefined, versions.slice(0, 483));
   assert.ok(prepared.query.includes("20260911101007"));
+  assert.ok(
+    !prepared.query.includes(
+      "CREATE TABLE plugin_data.csf_sheet_sync_destinations",
+    ),
+  );
+  assert.equal(
+    (
+      prepared.query.match(
+        /INSERT INTO supabase_migrations.schema_migrations/gu,
+      ) ?? []
+    ).length,
+    4,
+  );
+});
+
+test("485 publication preserves the preceding sync schema posture", () => {
+  assert.equal(
+    acceptedCatalogQuery(source, versions.slice(0, 485)),
+    acceptedCatalogQuery(source, versions.slice(0, 484)),
+  );
+});
+
+test("an existing 484 release applies new signed publications and the discussion extension", () => {
+  const prepared = prepareMigration(cwd, undefined, versions.slice(0, 484));
+  assert.ok(prepared.query.includes("20260911130443"));
+  assert.ok(!prepared.query.includes("AND version = '1.2.25'"));
   assert.ok(
     !prepared.query.includes(
       "CREATE TABLE plugin_data.csf_sheet_sync_destinations",
@@ -184,40 +210,14 @@ test("an existing 483 release applies only signed publications", () => {
   );
 });
 
-test("485 publication preserves the preceding sync schema posture", () => {
-  assert.equal(
-    acceptedCatalogQuery(source, versions.slice(0, 485)),
-    acceptedCatalogQuery(source, versions.slice(0, 484)),
-  );
-});
-
-test("an existing 484 release applies only the new signed publications", () => {
-  const prepared = prepareMigration(cwd, undefined, versions.slice(0, 484));
-  assert.ok(prepared.query.includes("20260911130443"));
-  assert.ok(!prepared.query.includes("AND version = '1.2.25'"));
-  assert.ok(
-    !prepared.query.includes(
-      "CREATE TABLE plugin_data.csf_sheet_sync_destinations",
-    ),
-  );
-  assert.equal(
-    (
-      prepared.query.match(
-        /INSERT INTO supabase_migrations.schema_migrations/gu,
-      ) ?? []
-    ).length,
-    2,
-  );
-});
-
 test("486 publication preserves the preceding sync schema posture", () => {
   assert.equal(
-    acceptedCatalogQuery(source, versions),
+    acceptedCatalogQuery(source, versions.slice(0, 486)),
     acceptedCatalogQuery(source, versions.slice(0, 485)),
   );
 });
 
-test("an existing 485 release applies only the 1.2.27 publication", () => {
+test("an existing 485 release applies the 1.2.27 publication and discussion extension", () => {
   const prepared = prepareMigration(cwd, undefined, versions.slice(0, 485));
   assert.ok(prepared.query.includes("20260911143923"));
   assert.ok(!prepared.query.includes("AND version = '1.2.26'"));
@@ -233,6 +233,6 @@ test("an existing 485 release applies only the 1.2.27 publication", () => {
         /INSERT INTO supabase_migrations.schema_migrations/gu,
       ) ?? []
     ).length,
-    1,
+    2,
   );
 });

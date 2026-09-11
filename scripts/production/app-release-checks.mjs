@@ -79,12 +79,41 @@ export function verifyQualityRuns(runs) {
   }
 }
 
+export function performanceWaiver(
+  { confirmation, reason, actor, runId },
+  releaseSha,
+  acceptedSha,
+) {
+  if (!confirmation && !reason) return null;
+  if (
+    confirmation !== `waive-csf-performance:${releaseSha}:${acceptedSha}` ||
+    typeof reason !== "string" ||
+    reason.trim().length < 20 ||
+    reason.length > 1000 ||
+    !/^[a-zA-Z0-9_-]+$/.test(actor ?? "") ||
+    !/^[0-9]+$/.test(runId ?? "")
+  )
+    throw new ReleaseCheckError(
+      "Performance waiver needs exact release and Development SHAs, an audit reason, and workflow identity.",
+    );
+  return {
+    scope: "hosted-performance-only",
+    releaseSha,
+    acceptedSha,
+    reason: reason.trim(),
+    actor,
+    runId,
+    hostedAcceptance: "waived, not passed",
+  };
+}
+
 export async function verifySource(
-  { releaseSha, acceptedSha, repository, token, cwd },
+  { releaseSha, acceptedSha, repository, token, cwd, waiver = {} },
   fetcher = fetch,
 ) {
   requireSha(releaseSha);
   requireSha(acceptedSha);
+  const waivedPerformance = performanceWaiver(waiver, releaseSha, acceptedSha);
   if (!/^[\w.-]+\/[\w.-]+$/u.test(repository ?? "") || !token) {
     throw new ReleaseCheckError(
       "Missing trusted repository verification context.",
@@ -102,6 +131,8 @@ export async function verifySource(
     throw new ReleaseCheckError("Application checkout is not clean.");
   git("merge-base", "--is-ancestor", releaseSha, "origin/main");
   git("merge-base", "--is-ancestor", acceptedSha, releaseSha);
+  if (waivedPerformance)
+    git("merge-base", "--is-ancestor", acceptedSha, "origin/development");
   if (
     git("rev-parse", `${releaseSha}^{tree}`) !==
     git("rev-parse", `${acceptedSha}^{tree}`)
@@ -121,30 +152,32 @@ export async function verifySource(
       },
       fetcher,
     );
-  // The combined-status projection omits creator. Individual statuses retain
-  // the author required by verifyAcceptance; do not relax that identity check.
-  const statusPayload = await request(
-    `commits/${acceptedSha}/statuses?per_page=100`,
-  );
-  if (!Array.isArray(statusPayload))
-    throw new ReleaseCheckError(
-      "Hosted acceptance status inventory is invalid.",
-    );
-  const status = statusPayload
-    .filter((item) => item.context === "csf-hosted-development-acceptance")
-    .sort((a, b) => b.id - a.id)[0];
   const prefix = `https://github.com/${repository}/actions/runs/`;
-  const runId = status?.target_url?.startsWith(prefix)
-    ? status.target_url.slice(prefix.length)
-    : "";
-  if (!/^[0-9]+$/u.test(runId))
-    throw new ReleaseCheckError("Hosted acceptance has no trusted run.");
-  verifyAcceptance(
-    status,
-    await request(`actions/runs/${runId}`),
-    acceptedSha,
-    repository,
-  );
+  if (!waivedPerformance) {
+    // The combined-status projection omits creator. Individual statuses retain
+    // the author required by verifyAcceptance; do not relax that identity check.
+    const statusPayload = await request(
+      `commits/${acceptedSha}/statuses?per_page=100`,
+    );
+    if (!Array.isArray(statusPayload))
+      throw new ReleaseCheckError(
+        "Hosted acceptance status inventory is invalid.",
+      );
+    const status = statusPayload
+      .filter((item) => item.context === "csf-hosted-development-acceptance")
+      .sort((a, b) => b.id - a.id)[0];
+    const runId = status?.target_url?.startsWith(prefix)
+      ? status.target_url.slice(prefix.length)
+      : "";
+    if (!/^[0-9]+$/u.test(runId))
+      throw new ReleaseCheckError("Hosted acceptance has no trusted run.");
+    verifyAcceptance(
+      status,
+      await request(`actions/runs/${runId}`),
+      acceptedSha,
+      repository,
+    );
+  }
   const checks = await request(
     `commits/${acceptedSha}/check-runs?per_page=100`,
   );
@@ -184,7 +217,12 @@ export async function verifySource(
       );
     }
   }
-  return { releaseSha, acceptedSha, tree: git("rev-parse", "HEAD^{tree}") };
+  return {
+    releaseSha,
+    acceptedSha,
+    tree: git("rev-parse", "HEAD^{tree}"),
+    performanceWaiver: waivedPerformance,
+  };
 }
 
 export function expectedVersions(cwd) {
@@ -289,6 +327,12 @@ if (
         repository: process.env.GITHUB_REPOSITORY,
         token: process.env.GH_TOKEN,
         cwd: process.cwd(),
+        waiver: {
+          confirmation: process.env.PERFORMANCE_WAIVER_CONFIRMATION,
+          reason: process.env.PERFORMANCE_WAIVER_REASON,
+          actor: process.env.GITHUB_ACTOR,
+          runId: process.env.GITHUB_RUN_ID,
+        },
       });
     else if (mode === "schema")
       receipt = await verifySchema({

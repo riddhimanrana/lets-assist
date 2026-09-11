@@ -6908,3 +6908,55 @@ bytes are appended to the forward allowlist; prior migrations and accepted
 and 13 documentation tests passed. Publication does not select the runtime
 for organizations. Final integrated CI, hosted acceptance and Production
 activation remain pending. No compute upgrade or worker resumption occurred.
+
+### Application 1.2.27 Development deployment and merged verification
+
+Publication PR 525 merged as `235da49e1d638df5ca07ef3506c3908dad92cdc5`.
+Its tree matches reviewed candidate `c03156011e536b9b42e6a64918577169551ddb2b`.
+Candidate CI `34611871332` and merged-commit CI `34613805286` both passed
+7,923 database assertions across 277 files, 93 CSF browser tests with four
+optional skips, and three shared DV browser tests. The merged browser suite
+finished in 10.3 minutes. These are isolated CI results, not hosted acceptance.
+
+Development has 486 migrations through `20260911143923`. Signed application
+deployment `34613951283` passed for application 1.2.27 at source `1af9b220`.
+Deployment `dpl_2SEnUGaYCKCwJqFcroYzzqXzLGwN` is healthy. Chrome verified
+that the fictional delivery organization selected 1.2.27 through its normal
+Update application control. No organization installation table was edited.
+The host release and full hosted load acceptance for this candidate remain
+pending. The proposed paid Development Micro-to-Small upgrade is not approved.
+
+A read-only Production check at 15:10:16 UTC found 234 persisted snapshot rows,
+200 applications with pending decisions, and 37 identity-review rows. Three
+review rows have applications and 34 do not. There are zero duplicate
+application coordinates or invalid targets. Profile counts for Classes of
+2027, 2028, 2029 and 2030 remain 361, 293, 155 and 31. Class of 2030 has no
+historical memberships. Both held legacy connections remain pending.
+Production still has 482 migrations and all worker controls remain disabled.
+This check did not refresh the Google source; the persisted snapshot was
+created at 07:58:11 UTC. Count-only evidence is saved outside tracked source.
+
+Production PR 519 remains open. Hosted performance acceptance, the separate
+Production student sign-in, staff journeys, native cell-thread copied-workbook
+acceptance, live sync and source refresh remain unfinished. Email delivery and
+scheduled publishing stay disabled. No Production changes occurred in this step.
+
+### Comments column and performance scope update
+
+The user replaced native cell-thread acceptance with an ordinary Comments
+column and waived hosted performance acceptance. New destinations use that
+column; existing native destinations retain their format. Reviewed Sheet
+edits append attributed local history and cannot apply a decision or points.
+Private PR 343 contains the combined application 1.2.28 candidate. Its exact
+Production deployment and copied-workbook acceptance remain pending.
+
+The release workflow now supports an explicit waiver bound to the release and
+Development SHAs. It records the actor and reason as "waived, not passed" while
+retaining source, migration, authorization and CI checks. This does not mark a
+load test successful.
+
+The user briefly approved Development Small compute, then requested removal
+of that cost after waiving the load test. Chrome verified Development returned
+to t3a.micro on September 11 after the provider resize completed. Production
+compute was not changed. Small usage before the downgrade may still be billed
+for its actual duration.

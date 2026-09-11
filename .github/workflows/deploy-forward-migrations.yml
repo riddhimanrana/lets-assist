@@ -11,6 +11,14 @@ on:
         description: "Full hosted-accepted Development SHA with identical tree"
         required: true
         type: string
+      performance_waiver_confirmation:
+        description: "Optional: waive-csf-performance:<release SHA>:<Development SHA>"
+        required: false
+        type: string
+      performance_waiver_reason:
+        description: "Required with waiver: explain why hosted performance acceptance is waived (20-1000 characters)"
+        required: false
+        type: string
       production_confirmation:
         description: "Type apply-forward-migrations:<release SHA>"
         required: true
@@ -36,6 +44,8 @@ jobs:
     env:
       RELEASE_SHA: ${{ inputs.release_sha }}
       ACCEPTED_SHA: ${{ inputs.hosted_development_sha }}
+      PERFORMANCE_WAIVER_CONFIRMATION: ${{ inputs.performance_waiver_confirmation }}
+      PERFORMANCE_WAIVER_REASON: ${{ inputs.performance_waiver_reason }}
     steps:
       - name: Checkout reviewed controller
         uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8
@@ -63,7 +73,18 @@ jobs:
         working-directory: release
         env:
           GH_TOKEN: ${{ github.token }}
-        run: node ../scripts/production/app-release-checks.mjs source
+        run: |
+          set -euo pipefail
+          mkdir -p .artifacts
+          node ../scripts/production/app-release-checks.mjs source | tee .artifacts/source-verification.json
+      - name: Retain source verification and any performance waiver
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: source-verification-${{ github.run_id }}
+          path: release/.artifacts/source-verification.json
+          if-no-files-found: ignore
+          retention-days: 30
       - name: Apply the approved migration bytes once
         working-directory: release
         env:
