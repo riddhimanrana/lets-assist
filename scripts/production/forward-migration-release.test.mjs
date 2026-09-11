@@ -65,7 +65,7 @@ function transport({
 
 test("approved bytes and exact versions share one transaction", () => {
   assert.equal(prepared.prefix.length, 468);
-  assert.equal(prepared.versions.length, 482);
+  assert.equal(prepared.versions.length, 494);
   assert.deepEqual(prepared.versions.slice(468), [
     "20260909090522",
     "20260909090944",
@@ -81,6 +81,18 @@ test("approved bytes and exact versions share one transaction", () => {
     "20260910043106",
     "20260910045040",
     "20260910090800",
+    "20260910232532",
+    "20260911101007",
+    "20260911130443",
+    "20260911143923",
+    "20260911184253",
+    "20260911192954",
+    "20260911195446",
+    "20260911201640",
+    "20260911203901",
+    "20260911210549",
+    "20260911211201",
+    "20260911212627",
   ]);
   assert.match(prepared.query, /^BEGIN;/u);
   assert.match(prepared.query, /COMMIT;$/u);
@@ -124,7 +136,7 @@ test("refuses modified approved SQL before any provider request", () => {
 test("performs one write and verifies ledger and permissions", async () => {
   const t = transport();
   const result = await applyForwardMigrations(config, t.fetch);
-  assert.equal(result.migrations, 482);
+  assert.equal(result.migrations, 494);
   assert.equal(result.workers, "disabled");
   assert.equal(result.responseLost, false);
   assert.equal(
@@ -243,6 +255,18 @@ test("a reviewed partially applied tail writes only the remaining migrations", a
     "20260910043106",
     "20260910045040",
     "20260910090800",
+    "20260910232532",
+    "20260911101007",
+    "20260911130443",
+    "20260911143923",
+    "20260911184253",
+    "20260911192954",
+    "20260911195446",
+    "20260911201640",
+    "20260911203901",
+    "20260911210549",
+    "20260911211201",
+    "20260911212627",
   ]);
   const writes = t.calls.filter((call) => call.url.endsWith("/database/query"));
   assert.equal(writes.length, 1);
@@ -267,7 +291,7 @@ test("a reviewed partially applied tail writes only the remaining migrations", a
         /INSERT INTO supabase_migrations.schema_migrations/g,
       ) ?? []
     ).length,
-    4,
+    16,
   );
 });
 

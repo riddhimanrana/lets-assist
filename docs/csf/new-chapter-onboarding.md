@@ -50,20 +50,16 @@ replace and approve them from the chapter calendar before a Production cutover.
 2. Open the Class of 2028 class page's **Members** tab and note the **Record
    connections** queue before testing a new join. Never expose or export the
    member roster to perform this check.
-3. In a signed-out window, open the Class of 2028 code's `/connect/<code>` URL
-   and sign in as `student.2028@local.test`. Complete **Find your record → Find
-   my record**; the record whose roster email matches the verified account
-   email connects automatically. Verify **Home** and **My CSF** show the class,
-   current policy, and historical semesters.
-4. Repeat with `csf.applicant@local.test`. An unmatched verified email never
-   creates a profile or class membership. The page may show one sole, active,
-   unclaimed exact account-name record from the selected class. Confirming that
-   card creates or reuses one request in **Record connections**. A typed name,
-   conflict, shared email, or ambiguous match follows the same officer-review
-   boundary.
-   As the Membership VP, review any queued request: connect only when the
-   recorded email, name, and class all corroborate; otherwise reject with a
-   reason.
+3. In a signed-out window, open the Class of 2028 `/connect/<code>` URL and
+   sign in with a fictional account whose existing connection has independent
+   ownership evidence. Confirm **Home** and **My CSF** show the correct class
+   and history. An email match to an application is not ownership evidence.
+4. Test both an unconnected fictional applicant and a new student. Enter the
+   **Student name** in **Join your class**, then select **Continue**. An existing
+   candidate creates or reuses one **Record connections** request and remains
+   inaccessible until staff verifies identity. A new student with no candidate
+   can create a self-owned profile with no imported history. Staff must record
+   their identity-verification decision before connecting an existing profile.
 5. Sign in as `platform.outsider@local.test`. The public organization page may
    show public activities, but must not expose roster, applications, evidence,
    attendance, points, or account-connection data.
@@ -175,26 +171,34 @@ Before any announcement email, open **Communications settings**, select **Check 
 1. Each graduating class already holds one permanent 6-character join code; read it from the class page's **Invite students** dialog (create one there if the class has none). These codes replace whatever the chapter published before — Classroom codes, a form, a spreadsheet.
 2. Publish each class's code or its `/connect/<code>` URL wherever the chapter reaches students. Record the current term's application form URL in the term's **Application form link** so the public page can offer it during the application window.
 
-What a student experiences: they open `/connect/<code>`, sign in with a verified account, submit **Find my record**, and the record carrying their verified email connects automatically. If email does not match, the page may show one sole, active, unclaimed exact account-name record from the selected class. **Yes, this is me** creates or reuses one officer request. Name evidence never links the account. The student can continue to the class feed while the request is pending.
+Students open the class link, sign in, enter their name under **Join your class**,
+and select **Continue**. An independently verified existing connection opens the
+correct class. A possible match goes to staff review. **Yes, this is me** can send
+or reuse a review request; it cannot prove ownership.
 
-An unmatched verified email never creates a profile or class membership. A typed name, conflicting assignment, shared email, stale candidate, or ambiguous match creates or reuses one request in that class's **Record connections** queue. Ranked suggestions are advisory only; **Connect account** remains unavailable until the confirmed account email, exact name, and one active class corroborate one current profile. **Roster names are never exposed to students**. The student sees only their own request's state.
+Students without an existing candidate can create a self-owned profile. Other
+matches remain in **Record connections** until authorized staff verifies identity
+and records a decision. Application and login emails may differ. Pending students
+can see their request status but cannot read the candidate's private history.
 
-### New application cycle when no profile exists (DVHS Class of 2030)
+### Resolve a new application without a profile
 
-The application response does not create the profile, and the application decision does not create the profile. For a class that begins with an empty cohort shell, use this sequence:
+Approved automatic imports can create profiles from the current application source. Imports never establish account ownership or approve applications. Empty Class of 2030 workbook templates create no historical records. Use the following manual workflow only for a row that still needs a reviewed profile:
 
 1. Record the reviewed new application form URL in the current term's **Application form link**. For DVHS, keep the Class of 2030 workbook linked and leave its header-only tabs uncommitted.
 2. After a student submits the current form, open **More → Imports**, choose **Applications**, select the exact source tab and bounded range, map it, and select **Preview normalized rows**. Preview records source evidence but creates no profile, application, or membership.
-3. A response with no reviewed profile is held for reconciliation. Open **Members → Add member**, use **Add a student record**, enter the exact reviewed identity and current unique school/personal email, choose **Class** = Class of 2030, and select **Add student record**. Wait for **Student record created.** Do not create a duplicate when a current profile already exists.
+3. A response with no reviewed profile is held for reconciliation. Open **Members → Add member**, use **Add a student record**, enter the reviewed identity without treating application contact emails as verified identity fields, choose **Class** = Class of 2030, and select **Add student record**. Wait for **Student record created.** Do not create a duplicate when a current profile already exists.
 4. This staff action creates the permanent profile and class membership through the replay-safe profile-write transaction and records a separate `profile.create` audit receipt. It does not create the imported application, term membership, or account connection, and its audit receipt does not replace the source-row evidence.
 5. Return to the application preview. Select the profile under **Match to member**, enter a 4–500 character **Match reason** that names the corroborating current evidence, and select **Use match**. That separate reconciliation writes the selected target, actor, reason, and source-row audit history. Name similarity alone is not evidence.
 6. When every row is resolved or explicitly skipped, select **Add applications**. A targetless application row cannot be committed. The action verifies the source again, attaches the application to the reviewed profile, and preserves source provenance. It does not approve the application or create term membership.
 7. Open **Applications → Review queue**, complete the required checks and dues review, then use **Record decision**. **Approve application** creates or updates term membership atomically with the decision and history; it does not create the profile.
-8. Connect the student's account separately through the class join code's exact verified-email match or the reasoned officer-review path. No application or profile action silently connects an account.
+8. Connect the student's account separately through an independently verified existing connection or the reasoned staff-review path. No application or profile action silently connects an account.
 
 ## Stage 7 — First-term operation
 
-Ordinary running is the officer runbook. The first term is worth watching more closely:
+Use the officer runbook for daily work. Email delivery and scheduled publishing remain disabled for this rollout. Use in-app posts while email checks cover readiness only.
+
+The first term is worth watching more closely:
 
 - Post from the class Stream with audience `class` (one cohort) or `members` (whole chapter). Pin sparingly.
 - The "also send as email" toggle queues exactly one campaign per post through the durable ledger. Retries are safe; edits after queueing never change the email already sent. The Vercel schedule requests `csf-communications-dispatch` every minute, but queueing is not delivery and hosted starts can vary.

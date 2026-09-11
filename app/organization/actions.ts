@@ -35,6 +35,26 @@ export async function joinOrganization(joinCode: string) {
     return { error: "Invalid join code. Please check and try again." };
   }
 
+  const { data: membership, error: membershipError } = await admin
+    .from("organization_members")
+    .select("status")
+    .eq("organization_id", joinResult.organization_id)
+    .eq("user_id", user.id)
+    .maybeSingle();
+  if (membershipError || !membership) {
+    return {
+      error: "Your organization membership could not be verified. Try again.",
+    };
+  }
+  if (membership.status !== "active") {
+    return {
+      error:
+        membership.status === "pending"
+          ? "Your organization membership is awaiting approval. Contact an organization administrator."
+          : "Your organization membership is not active. Contact an organization administrator.",
+    };
+  }
+
   if (joinResult.join_status === "already_member") {
     return {
       error: "You are already a member of this organization",

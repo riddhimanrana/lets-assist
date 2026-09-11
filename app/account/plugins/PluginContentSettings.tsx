@@ -48,7 +48,9 @@ export function PluginContentSettings({
         toast.error(result.error);
         return;
       }
-      toast.success(next ? "Plugin content is on" : "Plugin content is off");
+      toast.success(
+        next ? "Organization content is on" : "Organization content is off",
+      );
     });
   };
 
@@ -78,34 +80,26 @@ export function PluginContentSettings({
       <div className="max-w-6xl">
         <div className="mb-6">
           <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">
-            Plugin content
+            Organization content
           </h1>
           <p className="text-muted-foreground mt-1">
-            Choose whether content from your organizations&apos; plugins appears
-            on your home page and dashboard
+            Choose which organization updates appear on your home and dashboard.
           </p>
         </div>
 
         <Card className="border shadow-xs">
           <CardHeader>
-            <CardTitle className="text-xl">
-              Where plugin content shows
-            </CardTitle>
+            <CardTitle className="text-xl">Home and dashboard</CardTitle>
             <CardDescription>
-              This only changes what you see. It never changes your membership
-              or what your organizations can do.
+              These settings do not change your membership or access.
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-6">
             <div className="flex items-start justify-between gap-4 rounded-md border p-4">
               <div className="min-w-0 space-y-0.5">
                 <Label htmlFor="show-plugin-content" className="text-base">
-                  Show plugin content on your home and dashboard
+                  Show organization content on your home and dashboard
                 </Label>
-                <p className="text-sm text-muted-foreground">
-                  Turn this off and neither surface shows anything from a
-                  plugin.
-                </p>
               </div>
               <Switch
                 id="show-plugin-content"
@@ -119,13 +113,15 @@ export function PluginContentSettings({
 
             <div className="space-y-3">
               <div>
-                <h2 className="text-sm font-medium">Plugins you can see</h2>
+                <h2 className="text-sm font-medium">
+                  Your organization sections
+                </h2>
                 <p
                   id="plugin-content-consequence"
                   className="text-sm text-muted-foreground"
                 >
                   {showAll
-                    ? "Hide a single plugin to keep the rest."
+                    ? "Choose which sections appear."
                     : "These stay hidden while the setting above is off."}
                 </p>
               </div>
@@ -138,8 +134,7 @@ export function PluginContentSettings({
                   />
                   <p className="text-sm font-medium">Nothing to manage yet</p>
                   <p className="max-w-sm text-sm text-muted-foreground">
-                    None of your organizations use a plugin that adds content to
-                    your home page or dashboard.
+                    Your organizations have no home or dashboard sections yet.
                   </p>
                 </div>
               ) : (
@@ -165,11 +160,6 @@ export function PluginContentSettings({
                           >
                             {source.name}
                           </Label>
-                          {source.description && (
-                            <p className="text-sm text-muted-foreground">
-                              {source.description}
-                            </p>
-                          )}
                           {sourceLine && (
                             <p className="text-sm text-muted-foreground">
                               From {sourceLine}
@@ -194,8 +184,7 @@ export function PluginContentSettings({
 
             <Separator />
             <p className="text-sm text-muted-foreground">
-              Changes save on their own and apply the next time your home page
-              or dashboard loads.
+              Changes save automatically and apply when you reload those pages.
             </p>
           </CardContent>
         </Card>

@@ -1,5 +1,10 @@
 #!/usr/bin/env node
 
+import {
+  hostedAcceptanceMode,
+  passesHostedFunctionalAcceptance,
+} from "./csf-functional-acceptance.mjs";
+
 import { chromium } from "@playwright/test";
 import { createServerClient } from "@supabase/ssr";
 
@@ -764,6 +769,7 @@ async function runBrowserAcceptance({ appUrl, memberPage, officerPage }) {
     inpSupported,
     lcpSampleCount: lcp.length,
     lcpP75Ms: percentile(lcp, 0.75),
+    mutationCount: mutationTimings.length,
     mutationP95Ms: percentile(mutationTimings, 0.95),
     reviewNavigationCount: BROWSER_REVIEW_NAVIGATIONS,
   };
@@ -771,9 +777,15 @@ async function runBrowserAcceptance({ appUrl, memberPage, officerPage }) {
 
 async function main() {
   const target = validateTarget();
+  const functional =
+    hostedAcceptanceMode(process.env.CSF_HOSTED_ACCEPTANCE_MODE) ===
+    "functional";
+  const expectedSessions = functional ? 2 : MEMBER_SESSIONS + OFFICER_SESSIONS;
   const getProtectionHeaders = createVercelProtectionHeadersProvider(target);
   const memberSessions = await mintSessions({
-    accounts: target.memberAccounts,
+    accounts: functional
+      ? target.memberAccounts.slice(0, 1)
+      : target.memberAccounts,
     password: target.password,
     role: "member",
     supabasePublishableKey: target.supabasePublishableKey,
@@ -781,7 +793,9 @@ async function main() {
   });
   await new Promise((resolve) => setTimeout(resolve, SESSION_MINT_INTERVAL_MS));
   const officerSessions = await mintSessions({
-    accounts: target.officerAccounts,
+    accounts: functional
+      ? target.officerAccounts.slice(0, 1)
+      : target.officerAccounts,
     password: target.password,
     role: "officer",
     supabasePublishableKey: target.supabasePublishableKey,
@@ -790,13 +804,13 @@ async function main() {
   const allSessionIds = new Set(
     [...memberSessions, ...officerSessions].map(({ sessionId }) => sessionId),
   );
-  if (allSessionIds.size !== MEMBER_SESSIONS + OFFICER_SESSIONS) {
+  if (allSessionIds.size !== expectedSessions) {
     throw new Error("The hosted load reused an auth session between roles.");
   }
   const allUserIds = new Set(
     [...memberSessions, ...officerSessions].map(({ userId }) => userId),
   );
-  if (allUserIds.size !== MEMBER_SESSIONS + OFFICER_SESSIONS) {
+  if (allUserIds.size !== expectedSessions) {
     throw new Error("The hosted load reused an auth identity between roles.");
   }
   const browser = await chromium.launch({ headless: true });
@@ -822,19 +836,39 @@ async function main() {
       target.protectionBypass,
     );
 
-    const loadPromise = runRequestSessions({
-      appUrl: target.appUrl,
-      durationMs: target.durationMs,
-      memberSessions,
-      officerSessions,
-      getProtectionHeaders,
-    });
-    await new Promise((resolve) => setTimeout(resolve, RAMP_DURATION_MS));
+    const loadPromise = functional
+      ? null
+      : runRequestSessions({
+          appUrl: target.appUrl,
+          durationMs: target.durationMs,
+          memberSessions,
+          officerSessions,
+          getProtectionHeaders,
+        });
+    if (!functional)
+      await new Promise((resolve) => setTimeout(resolve, RAMP_DURATION_MS));
     const browserResult = await runBrowserAcceptance({
       appUrl: target.appUrl,
       memberPage,
       officerPage,
     });
+    if (functional) {
+      const result = {
+        environment: "hosted-development",
+        mode: "functional",
+        performance: "not run",
+        fictionalAccounts: true,
+        distinctAuthIdentities: allUserIds.size,
+        distinctAuthSessions: allSessionIds.size,
+        reviewNavigationCount: browserResult.reviewNavigationCount,
+        browserErrors: browserResult.browserFailures.length,
+        mutationCount: browserResult.mutationCount,
+      };
+      result.ok = passesHostedFunctionalAcceptance(result);
+      console.log(JSON.stringify(result, null, 2));
+      if (!result.ok) process.exitCode = 1;
+      return;
+    }
     const load = await loadPromise;
     const result = {
       ok: true,

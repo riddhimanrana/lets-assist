@@ -25,7 +25,27 @@ be reachable from `main`, contain the accepted SHA, and have the identical Git
 tree. A workflow-only update does not require another application build in
 Development when these application bytes have already passed acceptance.
 
-Before building, the controller verifies the trusted hosted run, successful
+Both `deploy-app-only.yml` and `deploy-forward-migrations.yml` allow an explicit
+release-owner waiver of hosted performance acceptance. Leave the waiver inputs
+empty for the normal gate. For a waiver, enter
+`waive-csf-performance:<release SHA>:<Development SHA>` in
+`performance_waiver_confirmation` and a 20–1000 character explanation in
+`performance_waiver_reason`. The controller records the exact SHAs, reason,
+workflow actor and run ID as `waived, not passed` in the retained
+`source-verification-<run ID>` artifact. It does not publish a successful hosted
+acceptance status.
+
+The waiver changes only the hosted performance gate. Run hosted Development acceptance in `functional` mode for the exact accepted SHA first. For an automatic marked release push, include both `[deploy-development]` and `[csf-functional-only]` in the commit message; the latter selects functional checks without starting the load test. Unmarked releases keep full acceptance. Its separate trusted `csf-hosted-development-functional` receipt remains mandatory. That run verifies the deployed application and alias, fictional member and officer sessions, persisted staff-view changes, review navigation and browser errors. It skips the 100-session load and performance thresholds. The accepted commit must
+remain Development-reachable, and the release must have the identical tree.
+Trusted successful quality and database replay CI remain required, including
+the CSF browser journeys in the database replay job. Schema bytes, catalog
+verification, private release verification, organization activation, access
+checks and worker leases remain required. A partial or malformed waiver fails
+before provider release work. The receipt remains available if a later release
+step fails.
+
+Before building, the controller verifies the trusted hosted run or explicit
+performance waiver, successful
 quality and database checks, exact private gitlink, and Vercel project. The
 existing Supabase management token calls only the read-only query endpoint.
 Checks compare every migration version and verify the CSF tables, functions,

@@ -53,9 +53,11 @@ export async function GET(request: Request) {
     console.error("OAuth error:", error, error_description);
     // Check if the error is due to existing email-password account
     if (error_description?.includes("email already exists")) {
-      return NextResponse.redirect(
-        `${authOrigin}/login?error=email-password-exists`,
-      );
+      const loginUrl = new URL("/login", authOrigin);
+      loginUrl.searchParams.set("error", "email-password-exists");
+      const continuation = normalizeRedirectPath(redirectAfterAuth);
+      if (continuation) loginUrl.searchParams.set("redirect", continuation);
+      return NextResponse.redirect(loginUrl.toString());
     }
     const errorUrl = new URL(`${authOrigin}/error`);
     if (error_description) {
@@ -232,6 +234,8 @@ export async function GET(request: Request) {
 
           const loginUrl = new URL(`${authOrigin}/login`);
           loginUrl.searchParams.set("error", "google-signin-disabled");
+          const continuation = normalizeRedirectPath(redirectAfterAuth);
+          if (continuation) loginUrl.searchParams.set("redirect", continuation);
 
           if (googleCapRestriction.reason) {
             loginUrl.searchParams.set("reason", googleCapRestriction.reason);

@@ -55,7 +55,7 @@ const sidebarItems = [
     icon: Calendar,
   },
   {
-    title: "Plugin content",
+    title: "Organization content",
     description: "Home & dashboard sections",
     href: "/account/plugins",
     icon: Blocks,

@@ -12,9 +12,9 @@ import { createClient } from "@/lib/supabase/server";
 import { PluginContentSettings } from "./PluginContentSettings";
 
 export const metadata: Metadata = {
-  title: "Plugin Content",
+  title: "Organization content",
   description:
-    "Choose whether plugin content from your organizations appears on your home page and dashboard",
+    "Choose whether organization content from your organizations appears on your home page and dashboard",
 };
 
 export default async function PluginContentPage() {

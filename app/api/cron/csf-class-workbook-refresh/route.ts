@@ -1,4 +1,5 @@
 import "server-only";
+import { runNextCsfSheetSync } from "@/lib/plugins/private/plugins/dvhs-csf/services/sheet-sync-engine";
 import { isCsfWorkerEnabled } from "@/lib/cron/csf-worker-controls";
 
 import { createHash, timingSafeEqual } from "node:crypto";
@@ -115,12 +116,18 @@ export async function POST(request: NextRequest) {
     return json({ error: "Workbook worker secret unavailable" }, 503);
   }
 
-  const [workbook, application, metadata, dispatch] = await Promise.allSettled([
-    refreshClassWorkbook(workerSecret),
-    prepareNextCsfAutomaticApplicationSheet(),
-    checkNextCsfAutomaticClassWorkbook(),
-    dispatchCsfAutomaticClassPreviews(),
-  ]);
+  const [workbook, application, metadata, dispatch, sheetSync] =
+    await Promise.allSettled([
+      refreshClassWorkbook(workerSecret),
+      prepareNextCsfAutomaticApplicationSheet(),
+      checkNextCsfAutomaticClassWorkbook(),
+      dispatchCsfAutomaticClassPreviews(),
+      runNextCsfSheetSync(),
+    ]);
+  const syncSummary =
+    sheetSync.status === "fulfilled"
+      ? sheetSync.value
+      : { status: "blocked", exported: 0, changes: 0 };
   const workbookResponse =
     workbook.status === "fulfilled"
       ? workbook.value
@@ -148,7 +155,8 @@ export async function POST(request: NextRequest) {
     applications.data.status === "idle" &&
     checks?.success &&
     checks.data.status === "idle" &&
-    dispatchIdle
+    dispatchIdle &&
+    syncSummary.status === "idle"
   )
     return workbookResponse;
   const applicationSummary = applications?.success
@@ -162,10 +170,12 @@ export async function POST(request: NextRequest) {
     applicationSummary.status === "retryable" ||
     metadataSummary.status === "unknown" ||
     metadataSummary.status === "retryable" ||
-    dispatchSummary.unknown > 0;
+    dispatchSummary.unknown > 0 ||
+    syncSummary.status === "blocked";
   return json(
     {
       ...(await workbookResponse.json()),
+      ...(syncSummary.status === "idle" ? {} : { sheetSync: syncSummary }),
       ...(applicationSummary.status === "idle"
         ? {}
         : { applications: applicationSummary }),

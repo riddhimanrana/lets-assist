@@ -1,4 +1,7 @@
-export function reviewedWorkbookLinksPosture(relationSnapshotQuery) {
+export function reviewedWorkbookLinksPosture(
+  relationSnapshotQuery,
+  sheetSync = false,
+) {
   const tableQuery = relationSnapshotQuery
     .replaceAll(
       "app_private.csf_release_worker_controls",
@@ -37,7 +40,7 @@ export function reviewedWorkbookLinksPosture(relationSnapshotQuery) {
   ) AND EXISTS (
     SELECT 1 FROM (${tableQuery}) snapshot
     WHERE snapshot.relname='csf_reviewed_workbook_profile_links'
-      AND snapshot.digest='4db39e32056870608efc1d18528f2eef'
+      AND snapshot.digest='${sheetSync ? "26e1961c0e127c76250c5a81f689c758" : "4db39e32056870608efc1d18528f2eef"}'
   ) AND EXISTS (
     SELECT 1 FROM pg_index i WHERE i.indexrelid=to_regclass('plugin_data.csf_workbook_profile_link_request_receipt')
       AND i.indisvalid AND i.indisready AND i.indisunique

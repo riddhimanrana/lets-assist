@@ -70,6 +70,54 @@ export const approvedMigrations = [
     "20260910090800_csf_returning_account_revoked_history",
     "d142eabfcd2ffdcd6e9c665b336d8475f5c8e44e2981ec60a2570d18cc5eb5cd",
   ],
+  [
+    "20260910232532_csf_sheet_sync_review_queue",
+    "7c5d9bf9fe47d17ee27f2bf0a862492218d5f9b0eaa98a7b83f185ad97ffb89d",
+  ],
+  [
+    "20260911101007_publish_dvhs_csf_1_2_25",
+    "32cb2d89eca6ce9ac87defdd856973cffc5153cf3c87d8d5d89f513d27a684eb",
+  ],
+  [
+    "20260911130443_publish_dvhs_csf_1_2_26",
+    "e1df91aa3e43d85d1fd0553c3a698a5df506bd032fb804249848395f21b2b9b7",
+  ],
+  [
+    "20260911143923_publish_dvhs_csf_1_2_27",
+    "8a50c4b036700502129824041acb2a1b68625d66b5fe36c744ec9daf0a34a9a5",
+  ],
+  [
+    "20260911184253_csf_sheet_discussion_transport",
+    "e2336fcc15947fa723d4748273708434416cfa0ed07531a3abecfcb8165090d7",
+  ],
+  [
+    "20260911192954_publish_dvhs_csf_1_2_28",
+    "29a67a486fce45a0dd2e309674505cbb340ff788bbd9d59e12481beaabf38210",
+  ],
+  [
+    "20260911195446_csf_sheet_sync_review_recovery",
+    "2decd1a72195303164c6db1aa4d104261627275e0ef72692ec467e87e5b92137",
+  ],
+  [
+    "20260911201640_publish_dvhs_csf_1_2_29",
+    "fb41e61e145e657e2127522e8b4642c1bf4c63b373b3de20dcde4aad74c8278c",
+  ],
+  [
+    "20260911203901_csf_sheet_sync_observation_guard",
+    "7c6d30a31b65fa7664577a4038bc45e40d3b3b07cb673065edef980561d66b80",
+  ],
+  [
+    "20260911210549_publish_dvhs_csf_1_2_31",
+    "ad0963ff59bbca881b26574d3d8c0344539037d9c4244c91de93ecbeb14a35a8",
+  ],
+  [
+    "20260911211201_csf_defer_profile_note_export",
+    "ec7176f9da2b965598fd1f8883c3b8982e66763df569cdf68bfdcb8c3c402da7",
+  ],
+  [
+    "20260911212627_csf_sheet_sync_toggle_observation",
+    "c94df97321a8bf77b1a1a9dbbd563e00781f9531f4840ea84150a3f117d715fc",
+  ],
 ];
 
 const literal = (value) => `'${value.replaceAll("'", "''")}'`;

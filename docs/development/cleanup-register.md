@@ -2702,6 +2702,26 @@ sources.
 
 ## Repository-owned P0–P2
 
+### Organization read latency, September 11, 2026
+
+`bcc1455b` passed CI run `34589118187`: 484 migrations, 275 SQL files,
+7,907 assertions and 93 CSF browser tests (four optional skips). Hosted run
+`34588559651` failed the read latency gate: p95 3,355.81 ms and p99
+8,602.77 ms. Mutation p95 1,344.52 ms, LCP 1,324 ms and INP 48 ms passed.
+The run recorded two timeouts and no HTTP 5xx responses.
+
+The organization page loaded platform report totals and overview extensions
+for CSF even though CSF hides the platform Overview tab. Metadata and page
+rendering also queried the same public organization separately. The bounded
+root correction skips hidden overview reads and shares the public projection
+within one React server render. Authorization remains fresh. Local source and
+regression evidence does not establish a hosted latency improvement; the
+read gate remains open until measured on the integrated candidate.
+
+Production remains at `840` with 482 migrations and application 1.2.24.
+Imports are paused at revision 4, verified by runs `34589218794` and
+`34589285371`. This correction changes no provider state or private gitlink.
+
 ### Production source and profile repair, September 9, 2026
 
 The owner authorized direct Production repairs, then explicitly requested no
@@ -6591,3 +6611,541 @@ Submission and Home usability follow-up:
 - The new isolated Home browser regression passed for an organization without posts, its destination, inactive membership exclusion, and non-member exclusion. The full local test command then passed across 310 root and 351 plugin test files. Review found that the shortcut ignored the selected local read-only preview source. The component now follows the Organizations page's source and configured identity selection; five rendered regressions cover local, remote, missing mapping, missing configuration, and read-error behavior. Exact integrated CI and hosted verification of this follow-up remain pending.
 
 - Production review of PR 515 found that the preview source has only an anonymous remote client. An email-to-ID map cannot authorize private remote membership reads. Home now uses authenticated memberships for normal local and live sessions, and offers the public organization directory in anonymous remote preview without querying memberships or using the identity map. No RLS policy or remote credentials changed. Rendered tests enforce that boundary. CI 34471321840 passed 7,606 database assertions and 90 CSF browser tests; its outdated merge-button locators were corrected in PR 514. The release still requires full integrated CI and hosted acceptance after this preview correction.
+
+Production usability release verified, September 10, 2026:
+
+- Root PR 515 deployed Production commit `84087a03c61d9d42f3a2dc796c1454b7caefac1a`, matching accepted Development `8ab9dcd8c7d268a6eadcf25bb34e31fb149f4681` and tree `0391ca64210ceb04391e3ff9d6f29bd7a294cfe8`. The private gitlink is `01a188a61d0b8422935be7278c1ef717a62ada90`, contained in private main. No migrations changed in this UI release; the ownership correction remains at the verified 482-migration catalog.
+- Integrated CI `34474704920` passed on attempt 2. The first attempt stopped before database tests because an isolated runner port was occupied. The ordinary failed-job rerun passed 271 database files with 7,606 assertions, three DV browser tests, and 93 CSF browser tests with four expected skips. Quality passed 311 root and 351 private-plugin test files. Hosted acceptance `34474700668` passed with 100 distinct sessions and 9,678 requests on the exact accepted Development commit.
+- App release `34478504810` passed staged verification and Production alias promotion. Vercel deployment `dpl_5X2YzZix9GG1EstjvL7Cd5N1eGHP` is Ready for the exact Production commit. Chrome verified the direct Home organization button on lets-assist.com and followed it into CSF. Home shows the shorter empty-project message. A separate local command-line status probe returned HTTP 429; it is not counted as successful acceptance.
+- Workbook refresh enable `34479003557` and import processing enable `34479472025` passed for the new release. A direct Production read confirms both enabled, with communications and scheduled publishing disabled.
+- The latest source count is 208 responses. The latest 208-row preview reports 190 committed rows and 18 identity-review rows, with zero duplicates, errors, or unknown outcomes. The dashboard has 191 Fall 2026 applications, all with reported contacts and transcript and webstore evidence links. One unresolved source row already has an older application. The only two account connections remain pending with unknown ownership basis. Staff must resolve the identities; this release does not approve applications or connect those accounts.
+- Open P2: CSF Home still projects import tasks from the original job summary. Chrome shows 206 imported rows needing attention even though persisted current readiness reports 18. Its unresolved-import list repeats preview and commit records and labels missing summary totals as zero rows. The Application Sheet review queue correctly shows 18. Correct Home to use current persisted readiness for the actual preview, show its snapshot row count, and avoid duplicate preview/commit task entries. This display defect is not fixed by the usability release. Historical identity groups and mixed-color completion rows remain queued for staff as described above.
+
+Sheet sync rollout in progress, September 10, 2026:
+
+- The new candidate uses persisted Home readiness and deduplicates preview/commit entries. It adds disabled-by-default Sheet destinations, stable record bindings, a versioned export ledger, and a staff review queue for Sheet decision proposals. Account ownership never comes from Sheet values.
+- Native cell comments are supported by the connected Google account on a private test copy. Chrome confirmed the test thread is attached to cell A1. This does not prove the application's OAuth connection has the same access. The app capability check and copied-workbook journeys remain required.
+- The final migration passed a fresh focused replay with 52 assertions and the 55 release-catalog tests. The combined candidate passed lint, type checking, and all 336 private-plugin test files. The full integrated replay passed all 483 migrations, 272 database files, and 7,658 assertions. Root tests caught stale release documentation and an unpinned candidate gitlink. The plugin gate caught a changed published embedded manifest; these release mismatches are being corrected. Hosted and Production acceptance remain pending.
+- Two private test workbooks exist. Chrome verified a separate test organization with public member visibility disabled and CSF installed through the normal controls. It contains no student records. The new worker requires its own server-created, recorded copies before binding destinations. Workbook identifiers and actual responses stay out of source control. No live destination enablement or new Production release is claimed.
+- The worker now uses fresh database authorization for organization administrators and staff before writes. Test registration rejects existing Sheet activity, and file guards separate copied test destinations from live imports and exports. Applications use a separate, initially empty export tab with stable record IDs. Final independent review and authenticated copied-workbook journeys remain release gates.
+- Open P2: complete copied-workbook Chrome journeys, full integrated gates, reviewed migration catalog updates, and Production acceptance. Historical identity-review items stay unresolved until staff decides them. Email delivery and scheduled publishing remain disabled.
+
+- Release review preserves the published embedded 1.1.0 manifest byte-for-byte. Application 1.2.25 uses host server actions and does not gain direct table access. Open P2: publish a separately versioned embedded host inventory for the nine new server-only sync relations. SQL permissions and the exact migration catalog already cover those relations; editing the old manifest would invalidate its published hash.
+
+- Private PR 297 merged into Development after its quality check passed. Subsequent line-review findings remain open before root integration: require sensitive-export authority for every workbook recipient, export into used rows instead of the allocated grid end, and reconcile deleted Google posts. The full private gate passed after restoring the embedded manifest and refreshing the host import inventory. No Production sync release is claimed.
+
+- Private PR 298 fixes recipient export authority, row placement including computed formula results, and deleted reply reconciliation. Root tests passed 312 files, private tests passed 336 files, and focused formula tests passed 13 cases. The staff-note correction passed the full 483-migration replay with 272 files and 7,667 assertions plus all ten negative catalog checks. Browser acceptance is in progress. Application status-event export remains open before release so decision history retains its original author and date.
+
+- Private PR 299 adds native application review-history export with original authors and dates, human-readable Sheet decision inputs, and record-specific discussion permissions. The account connection Review button waits for hydration. Independent review found no new consequential blockers. Private quality passed on `6a4d36f`; private Development now contains the same source at `5b1c4ee` after restoring main ancestry.
+- The final schema replay on root `d6738af4` passed 483 migrations, 272 database files, and 7,673 assertions. All ten negative permission and trigger checks rejected the altered catalogs and rolled back. The migration digest is `70ce2faa4b1ed30f3268ab4b7716ebf5813ed03d6aba824a029ef5761ca48564`. Candidate lint and type checking passed, and all 337 private-plugin test files passed. The full browser rerun remains in progress; native application OAuth access and copied-workbook Production journeys are still unverified.
+
+- The integrated local browser rerun passed 93 tests with four expected skips. It exercised the final private source from `6a4d36f`, now contained unchanged in `5b1c4ee`, and root candidate `0da5a5db`. The previously failing account-review journey passed, along with different-email staff linking, point evidence review, application open/close controls, and staff access. These are fictional local tests, not copied-workbook Production acceptance. Root PR 517 is ready for CI and database preview; private promotion PR 300 is awaiting its required checks.
+
+- Root CI on `11c8f793` passed quality, including 312 root and 366 plugin test files and the Production build. The local full root run hit a five-second inventory-test timeout; all six inventory cases passed on the focused rerun. Neither result replaces the pending final release gates.
+- Open P1 from PR 517: cohort membership changes do not queue removal from an existing class destination. The correction must version class scope, export a non-personal removal marker only for an existing binding, and suppress stale inbound decisions and comments. Open P1 from the same review: Sheet review authority can become stale while waiting for a row lock. The same pattern also affects other new sync mutations. The correction must use the existing organization staff-access lock before authorization and record locks.
+- Fresh provider reads confirm Development and Production both remain at 482 migrations through `20260910090800`; the candidate migration is unapplied. PR 517 is back in draft while these findings are fixed. Its schema preview adds empty sync relations and ledger metadata, not a student-record backfill. Production has zero legacy writeback rows and zero rows incompatible with the new ledger constraint. The separate test workspace now has a verified Google purpose connection. Both original workbooks are owner-only. No new sync destination is enabled.
+- The P1 corrections passed independent SQL and transport review. Root `acb25fb2` adds cohort-scope revisions and removal snapshots, locks staff mutations before permission checks, and proves permission revocation with two concurrent database sessions. Its isolated replay passed 483 migrations, 273 database test files, and 7,695 assertions. The accepted catalog passed, and all ten negative permission and trigger probes refused the changes and rolled back. The unapplied migration digest is `c3f656b315ce20beaa53ceb6cd6e0006122c3f08c264a9685796d9f392d30f1d`.
+- The 1,000-application fixture passed its ten-minute bound in 358.283 seconds, slower than the previous candidate. A focused local comparison remains pending. Private PR 304 contains the matching worker fix at `ccede1c`: bounded scope reads, immediate scope checks before writes, stale-input suppression, and cleared managed values for removed records. Its 42 focused tests, type checking, and targeted lint passed. Release stays pending until the integrated candidate and copied-workbook journeys pass.
+- Both root CI jobs passed on `11c8f793`, including the database and browser job. That result predates the P1 corrections and does not establish final candidate acceptance.
+
+- Worker follow-up: PR 517 identified an additional claim/permission race. Root `add319ca` serializes worker claims and intake with staff access, checks lease expiry against wall-clock time after waits, and validates the record version in the final lease guard. Receipt and reconciliation writes use destination, binding, then ledger lock order. Real concurrent-session tests reproduced six failures before the fix; all 104 focused database assertions passed afterward, plus 55 catalog checks. Independent review found no remaining blocker in this scope. The unapplied migration digest is now `a8e8da4c320c5da8f2d30b0f13c586e97fad4ad70e3f5219a26a863dd6a004a7`.
+- Private PR 307 passed CI and merged at `df41078`. Its final Google dispatch guard checks permission and the expected record version after metadata and comment-anchor reads. Rejected checks report blocked without sending a request; uncertain results remain reserved for possible provider writes. Its 67 focused tests, type checking, and lint passed. Private PR 306 also removed repeated Settings descriptions and shortened Google connection and report guidance.
+- The local import timing comparison passed both runs: 181.732 seconds with the new cohort trigger enabled and 259.695 seconds with it disabled. This comparison does not support attributing the earlier slowdown to that trigger. The fictional records rolled back, the trigger was restored, and both owned test stacks were removed. Final integrated release checks and copied-workbook Google journeys remain pending.
+- Final worker candidate `70fa18c1` passed a fresh isolated replay: 483 migrations, 106 CSF tables, 273 database files, and 7,710 assertions in 277 seconds. The exact catalog and all ten negative permission/trigger probes passed. The owned test stack was removed. Root CI also completed successfully on the earlier `740b60f6`, including 93 CSF browser tests and four expected skips. The latest worker candidate still needs its own integrated CI and hosted acceptance; native application OAuth comment access and copied-workbook journeys remain unverified.
+
+- The September 10, 7:33 PM Pacific read-only reconciliation matched all 1,910 supplied historical rows to persisted source coordinates, identity hashes, profiles, and semester memberships. Coverage was 1,108 Class of 2027 rows, 652 Class of 2028 rows, and 150 Class of 2029 rows. All 1,117 consistently green rows and 558 explicit completion markers remain completed. Three previously identified mixed-color rows remain open for staff review. Class of 2030 has no historical memberships; Classes of 2024 through 2026 remain archived.
+- The fresh Fall 2026 source contains 220 responses, compared with 120 in the attached workbook. Production contains 194 applications with distinct source rows, all in Fall 2026 and all with pending officer decisions. Of these, 168 are ready and 26 need information. The latest import refreshed 191 rows and retained 29 identity-review rows. Three review rows already have applications, so 26 source rows have no application yet. Two existing applications retain older course or total values pending identity resolution. All 194 applications retain matching transcript and receipt Drive IDs. All 52 applications from the Fall 2025 source map to Fall 2025. This verifies persisted data, not Drive access or browser rendering.
+- Chrome staff navigation separately confirmed all 194 pending Fall 2026 applications across the four class filters: 49 for Class of 2027, 53 for Class of 2028, 64 for Class of 2029, and 28 for Class of 2030. The test workspace still shows its connected Google account. Native comment capability for the new application worker remains untested until that worker is deployed.
+- Open P1: source DELETE operations do not consistently queue updated snapshots, and source changes can be lost while a destination's configured staff member temporarily lacks export authority. PR 517 is back in draft. The correction must preserve internal pending work while keeping every actual export permission-checked, and cover all snapshot dependencies, old/new scope changes, and deleted parent records.
+- Open P1: a fictional transport experiment sorted two rows during the final dispatch check. The positional write overwrote the other row's managed cells and returned success because it checked only the written row. The next full read detected duplicate IDs. The correction must verify the complete managed ID set after writing and hold uncertain results for reconciliation. This does not make positional Google writes atomic with concurrent sorting. No provider records, application decisions, or points changed in the experiment.
+- CI `34554258583` passed both jobs on `3eab2a09`, including 273 database files with 7,710 assertions, three DV browser tests, and 92 CSF browser tests with four skips. This result predates the source-deletion, permission-suspension, and positional-write follow-up corrections. Those changes still require a fresh integrated run before release.
+- Root `ac46d11f` integrates the reviewed source-queue correction. All snapshot sources now handle deletions and old/new associations, and an owner-only helper retains pending exports during staff access suspension. Real concurrent sessions reproduced a foreign-key lock deadlock; destination `FOR NO KEY UPDATE` locks remove that conflict while retaining lease serialization. Reconciliation requires disabled syncing and no active export attempts. The focused suite passed 128 database assertions and 55 catalog tests. The unapplied migration digest is `cf0c10d5a3e49ae9353e2508097e3086d02b145e650803922061d1b0c55b6bf9`. Final integrated replay remains pending.
+- Private PR 310 passed its full quality job and merged as `9edb9101`. Class Settings uses a shorter spreadsheet description and places imported-profile consolidation under Advanced. This change is not yet deployed.
+- Private PR 311 passed its full quality check and merged as `52bceb2`. Complete managed-row verification now holds displaced or missing IDs rather than reporting a successful export. Staff can inspect held exports under Advanced and request a checked retry with a reason. The server requires private access, intact row identities, and matching native comment receipts. Missing receipts stay held for operator repair. Positional Google writes remain non-atomic with concurrent sorting. The focused patch passed 69 tests with 298 assertions, lint, type checking, and independent review. No copied-workbook Production journey has passed yet.
+- Exact integrated candidate `38b29693`, with private `52bceb2`, passed a fresh isolated replay of 483 migrations and 106 CSF tables. All 273 database files and 7,734 assertions passed in 117 seconds. The accepted catalog passed, and all ten permission/trigger drift probes refused the changes and rolled back. Root TypeScript checking and 40 documentation checks also passed. The owned test stack was removed and the source tree remained clean. Integrated CI, hosted acceptance, and copied-workbook Production verification remain pending.
+- Open P1: class and point exports omit policy changes from their source version and refresh triggers. The class worker also omits attendance from completion evaluation. The correction must version every projected policy, attendance, credit, evidence, and profile-name input, use the existing policy mapper and completion rules, and refresh affected destinations after source changes. Application and point labels also need refresh after profile renames. PR 517 remains in draft until these dependencies are fixed and reviewed.
+- CI `34556589443` stopped before database replay because port 55322 was already in use. The candidate moves the CI-only isolated bundle to base 25320, below the usual Linux ephemeral range, while preserving the same ownership and occupied-port checks. Local launcher defaults are unchanged. All 36 CI topology contract tests passed; the next hosted runner must verify startup. This environment failure does not invalidate the separate local 7,734-assertion result or establish CI database acceptance.
+
+- Root `87548e23` passed the SQL replay for the versioned Sheet projection and inbound lease correction: 483 migrations, 106 CSF tables, 273 files, and 7,751 assertions. The accepted catalog and all ten negative permission/trigger probes passed. The migration digest is `09ab3e97b3383e4526b55f2e3c10ea523e52c128d0a92e26dcdb6d749c887775`. The owned stack was removed. This is SQL evidence only; final private integration and hosted acceptance remain pending.
+- Private PR 314 contains reviewed projection consumption, inbound lease forwarding, class QR sharing, verified application status, pending-record privacy, and removal of the misleading application unlock control. Root Home now distinguishes organization tools from platform projects. The latest integrated Home and documentation checks passed 50 tests with 660 assertions. Full private CI and Chrome journeys remain pending.
+
+- Private PR 316 passed full CI `34559286156` and merged as `9e6076e`. Candidate connection responses now require staff verification or exact self-owned provenance, and pending status requires a saved review request. Root `df579dd0` preserves class links through password fallback and expired verification recovery. Independent reviews passed; 17 private ownership tests and 86 focused authentication tests passed.
+- The local root runner stopped on two five-second infrastructure test timeouts during concurrent Docker/browser work. Both passed unchanged when rerun individually; this does not establish a complete root test run. The three new authentication test files passed with the standard preload. Integrated CI remains required.
+- Local Chrome verified the Home organization shortcut and class invitation QR on root `24eb9e4f` with private `07930d2`. The QR decoded to the exact visible class link. Member/correction screenshots remain unverified after local browser timeouts. These are fictional local checks, not hosted or Production acceptance.
+
+- Integrated CI `34559594894` reached database tests but its quality job stopped on formatting in nine UI/test files. The repository formatter corrected those files without behavior changes. Private promotion PR 315 passed CI and merged as `1194f80`; its ancestry return is PR 317. Root CI must pass on the formatted candidate before release.
+
+- Open candidate P1: PR 517 review found that a class Sheet destination could omit its cohort and select organization-wide profiles. The unapplied migration must reject that configuration and enforce a table constraint. Open P2: add indexes for profile and record binding lookups used by row triggers. No new sync destination exists in Production before this migration. The standalone confirmation test now mocks the server-only marker; it already passed under the canonical preloaded CI runner.
+
+- The class-destination P1 and binding-index P2 are fixed in reviewed root `671c671f`. Class exports require a cohort in both the configuration function and table constraint. Organization-scoped profile and record indexes cover trigger lookups. The affected tables are new in unapplied migration 483, so this patch changes no existing student rows. The focused database suite passed 149 assertions and the catalog suite passed 55 checks. The new migration digest is `1b7116f4b370db50230b2f9ecdd4fd4357c4da404570d529d1dfc49dab7537d1`; full replay remains pending.
+- A fresh read-only Production reconciliation at 8:52 PM Pacific accounts for all 221 source responses: 195 distinct Fall 2026 applications and 26 unresolved rows without an application. Of the applications, 169 are ready and 26 need information; every officer decision remains pending. The class counts are 49, 53, 65, and 28 for Classes of 2027 through 2030. The latest 29-row identity queue includes three rows with existing applications. The two legacy connections remain restricted pending staff review, and no verified connection lacks accepted ownership provenance.
+- Root `08e2c0bd` removes the technical plugin description from account visibility settings. Names, organization attribution, and visibility controls remain. The integrated formatter and 19 migration/catalog tests passed on `671c671f`. CI quality passed on the preceding `eaf414eb`; its browser job and the final candidate's integrated checks remain required.
+
+- Open candidate P1: PR 517 found that workbook-local replies enter the record-wide snapshot for other destinations bound to the same record. Independent transport review confirms the existing worker filters by binding ID, so no cross-destination provider disclosure was demonstrated. Narrow the snapshot to its destination and test two workbooks with separate discussions. Open P2: thread-binding retries currently compare only the thread ID and can replace a different post/version receipt. Preserve the exact stored receipt and reject conflicting retries. PR 517 is in draft again; migration 483 and the new sync release remain unapplied.
+
+- The destination snapshot and receipt findings are fixed in root `7a88f763` with private PR 318, merged as `d9e9b3e`. Local replies affect only their binding and destination revision. Exact receipt retries are idempotent; intentional edits require the previous stored version and unchanged provider IDs. Conflicts remain held after an uncertain provider write. Private CI `34562331825` passed.
+- SQL root `43ccc57a` passed a fresh replay of 483 migrations, 106 CSF tables, 273 files, and 7,766 assertions in 99 seconds. The accepted catalog returned one, and all ten permission/trigger probes refused altered catalogs and rolled back. The migration digest is `906c4b4d55360adabd306906b973e5bf76160f438087cf87ba3fac7130d7af42`. The owned stack was removed. Public actions are unchanged; the service-only receipt function accepts an optional expected prior version.
+- Fictional Chrome login and member Home were verified on root `69449173` and private `9e6076`. Opening the organization timed out again, so member application, point, and profileless-staff screenshots remain unverified. The ignored guide records those gaps. The owned tab, server, and stack were removed, with other worktrees and stacks preserved.
+
+- CI `34561369707` passed both jobs on root `69449173`, including its full browser suite. This result covers the Home, joining, ownership, and class-scope candidate before the final comment receipt/snapshot correction. That correction passed its separate SQL and private gates and still requires final integrated CI.
+
+- Open candidate P2: class destinations validate organization ownership of the class and semester separately, without requiring the configured cohort-term pair. Open candidate P2: export completion compares lease expiry with transaction-start time after waiting for locks. Related comment and receipt paths also need expiry checks after their row-lock waits. These findings affect the unapplied sync migration; PR 517 is in draft while the corrections and lock-wait regressions are completed.
+
+- Root `197bcb02` closes the configured class/semester and lock-wait expiry findings. Class exports require the configured pair; removed pairs expose no new data and do not block bound or unbound source edits. Export completion and comment/receipt mutations recheck expiry after waiting for locks. Exact recorded retries remain idempotent. Independent review passed with no private caller change.
+- SQL root `8c4c9a6c` passed 176 focused assertions, 55 catalog checks, and a fresh full replay: 483 migrations, 106 CSF tables, 273 files, and 7,782 assertions in 162 seconds. The accepted catalog returned one; all ten negative permission/trigger probes refused the changes and rolled back. Migration digest: `f0b7e294094376890352ef6e6bae83c199646f24864b9257ef102d0cfb7292f2`. The owned stack was removed. Integrated formatting and 53 documentation/catalog tests also passed.
+- Private promotion PR 319 passed CI `34562606616` and merged as `b434a5a`. Return PR 320 passed CI `34562831190` and merged as `548cc0c`. Both branches contain the exact release source, which matches the root's reviewed `d9e9b3e` gitlink. The 1.2.25 tag remains unpublished until root migration 483 is merged.
+
+- CI `34562972641` passed both jobs on root `17b3031d`, including the full database and browser job. This verifies the destination-discussion and receipt-CAS integration before the final class-pair/lease-wait correction. Chrome also opened the restricted Production test workspace and navigated to Settings; this confirms navigation, not native comment access or new-version acceptance.
+
+- A fresh read-only reconciliation at 10:18 PM Pacific accounts for 227 source rows: 196 Fall 2026 applications and 31 rows without an application, all awaiting identity review. Three other review rows already have applications. No Fall 2026 application has a recorded officer review. Production remains at 482 migrations.
+- Open candidate P1: managed export ledger payloads can be updated independently of their source version through the existing service-role table grant. The worker already compares the payload with a fresh snapshot and rejects mismatches, so no forged provider export was demonstrated. Add database immutability for managed export identity, version, and payload while preserving legacy writeback and lease/status changes. PR 517 is in draft; the new sync migration remains unapplied.
+- Private PR 321 passed CI `34565096350` and merged as `a7eb1b96`. Help now describes assigning staff access to an active organization account without requiring a student class. The unpublished 1.2.25 version is unchanged. The ignored DOCX and PDF guide contains three fictional screenshots and marks the remaining hosted journeys as unverified.
+- The help-only promotion PR 322 passed CI `34565408165` and merged as `c152f567`. Return PR 323 passed CI `34565688686` and merged as `db689628`. The unpublished application tag target is `c152f567`; the root serving gitlink remains `d9e9b3e`. Application publication records the signed source separately and preserves the serving gitlink.
+- Root `cada3b9b` closes the managed ledger mutation finding. Service-role access is read-only; reviewed database functions retain writes. A trigger freezes managed export identity and payload, a constraint binds the payload hash, and claims compare the queued payload with a fresh snapshot. Legacy writeback and checked retry transitions remain covered. Independent review, 186 focused database assertions, 55 catalog checks, and 34 integrated release-contract tests passed. Full replay is in progress.
+- CI `34564524919` passed on `f584ec6a`: 273 database files with 7,782 assertions, three DV browser tests, and 93 CSF browser tests with four expected skips. This covers the class/semester and lock-wait correction before the new ledger immutability patch. The latter still requires its integrated run.
+- CI `34566144878` passed both jobs on `924243de`, covering the ledger immutability correction. A subsequent review found that restoring a removed class/semester pair did not queue fresh exports. Root `810aa98a` adds that missing source trigger, including prior bindings and disabled recovery. Root `a3bb8255` also restricts the eight new sync tables to service-role reads; reviewed database functions retain mutations. Existing historical sync-log writes are unchanged.
+- Final SQL root `39216bba` passed 196 focused assertions, 55 catalog tests, and a fresh full replay of 483 migrations, 106 CSF tables, 273 files, and 7,802 assertions in 100 seconds. The accepted catalog returned one, and all ten negative probes refused the altered catalogs and rolled back. The migration digest is `addb4359a2cdd0e56b6ba29486840df66f11cc359e080cf53bf8a5fd32eff693`. Independent review passed; all owned test resources were removed.
+- Private PR 324 passed CI `34567119689` and merged as `9cee450`. Organization administrators can reach ordinary membership invitations from Officers & access. Root `253d7919` adds Copy invitation link to the existing protected settings control. The existing input provides the hash target; a duplicate card ID was removed during integration. Joining grants ordinary organization membership, without a CSF position or history connection. The combined root candidate pins `9cee450`; publication and hosted verification remain pending.
+
+- Open candidate P1: PR 517 review found that test-copy request foreign keys can block deletion of the isolated workspace or source organization. Related new sync child dependencies also need deletion coverage. The correction must retain the existing authorized organization deletion path and avoid deleting another organization or its business records.
+- Open candidate P2: an unknown test-copy outcome has no explicit no-write recovery action. Recovery must require an authorized staff decision with provider evidence, retain the audit trail, and fence late receipts with a new attempt identity. Unknown outcomes must never trigger an automatic duplicate copy.
+- Class of 2028 export setup requires unlinking its current class-workbook import connection before enabling F26 export. Disabling only the F26 source is insufficient because parent refresh can rediscover and expand it. The normal Classes, Class of 2028, Settings, class spreadsheet, Unlink action stops parent refresh and disables its sources while preserving imported history and physical tabs. Do not relink that same workbook as an import source while exports are enabled. No live connection changed during this read-only audit.
+- CI `34567566933` passed quality, database replay, and DV browser checks on `66be813b`, then failed the three CSF admin accessibility journeys. The new invitation card called a client-exported styling function during server rendering, so the staff route failed before its heading appeared. Six CSF tests passed and 88 did not run. The correction must use the existing server-safe styling module and retain the browser assertions.
+- Root `dab21e95` corrects ordinary organization invitation reentry. An account that is already an active member now reaches the invited organization, while other errors remain errors. Two focused tests passed. This changes navigation only and grants no additional permissions.
+- Separate existing P2: the organization auto-join removal trigger in `20260712013200_respect_organization_autojoin_removals.sql` can raise foreign-key error `23503` during organization deletion. It tries to insert a suppression after the organization has been deleted. This predates Sheet sync. The new dependency tests isolate it with fictional memberships removed first; they do not establish that the normal organization deletion journey passes. Existing CSF audit-retention restrictions remain intentional and unchanged. No live organization deletion is part of this release.
+- Root `8afe754c`, from reviewed SQL `e335eaeb`, removes new sync dependency blockers from otherwise-permitted organization deletion and adds explicit no-file copy reconciliation. Old request IDs remain closed, late receipts are refused, and a new copy requires a fresh ID. Claimed attempts require a ten-minute minimum plus independent evidence that the provider request ended; age or an empty Drive search alone never permits recovery. The complete replay passed 483 migrations, 106 CSF tables, 274 test files, and 7,821 assertions in 100 seconds. The accepted catalog returned one and all ten negative probes refused drift and rolled back. Catalog scope is 28 functions, nine relations, and 26 triggers. The migration digest is `874986c27150405145568a15cc7e90e26fd607b2d77f0a9c6ee1ed1662727cc3`. Owned test resources were removed. Integrated CI and hosted verification remain pending.
+- Private PR 327 passed full CI `34569406061` on `522cb3dd` and merged as `c6c93b7`. It adds explicit copy recovery under Advanced, clarifies joining without a prior record, and uses the server-safe invitation styling module. The first private run stopped on filenames containing the word copy; the files were renamed without changing the global source-layout guard. Root now pins `c6c93b7`. No application tag, hosted migration, or Production deployment has run for this candidate.
+- Root `23c46541` registers the existing server-safe button styling module in the generated host import contract. The module already exists on root main. The boundary check now passes without weakening its rules. The preceding `156096f4` quality job stopped on that missing contract entry; its database job was superseded by the corrected candidate.
+- Open candidate P1: private promotion PR 328 review found that copy recovery could search a newly connected Google account instead of the original copy account. An empty search is then misleading even with staff inspection. The copy request must retain the original provider subject, and recovery must compare the current token subject before searching. Missing or mismatched identity must remain held. Normal promotion was refused by branch policy with this review unresolved; no administrator bypass, tag, publication, or Production mutation followed.
+- The 11:25 PM Pacific read-only Production reconciliation accounts for 232 Fall 2026 source rows: 199 distinct applications and 33 unresolved rows without applications. Three other review rows retain an existing application, for 36 review rows in total. No source coordinate has duplicate applications, and no officer decision has been recorded. The two legacy account connections remain pending with unknown ownership evidence. This checkpoint uses completed preview `1b5240bd-8d91-4d89-9332-82843cc0a1ba`; new responses may change these counts.
+- Root `73fe040b`, from reviewed SQL `4c375f0b`, pins the original Google subject on copy requests and checks it again during recovery. Missing or changed provenance remains held. Private PR 329 passed full CI `34570548890` and merged as `05e0202`; its caller reads the subject from the same token used for the Drive operation. The full schema replay passed 483 migrations, 106 CSF tables, 274 files, and 7,827 assertions in 106 seconds. The accepted catalog and all ten negative probes passed, with 28 functions, nine relations, and 26 triggers. Migration digest: `00940c788b2702b99f5fbf57314cab57f171d2cb0864e3eda6e7d636258bfafe`. Owned resources were removed.
+- The preceding root CI quality job stopped on two guide-label contracts after the joining text changed to Join your class and Continue. The guide and its contracts now match those controls. A separate read-only review confirmed the amended ownership instructions match current actions and SQL. All 21 guide-contract tests passed. Stale email-only ownership instructions were corrected, and historical Amendment 7 is explicitly superseded. Integrated root CI and hosted checks remain pending for the new candidate.
+
+- Private promotion PR 328 passed CI `34570830052` after the original-Google-account correction and merged as `1ce051d`. Return PR 330 passed CI `34571126274` and merged as `424d766`; the unsigned application tag target is `1ce051d`. Root CI `34570882905` stopped its quality job on one stale Class of 2030 documentation contract. The guide now distinguishes approved automatic imports from the manual unresolved-row fallback and keeps reported contacts out of identity fields. All 40 documentation contracts passed, followed by the complete local test suite across 317 root and 377 private-plugin test files. Hosted checks and publication remain pending.
+
+- Root `e3eda023` requires a fresh active organization membership before returning an invitation destination. Pending, inactive, missing, and failed membership reads return a clear error without a destination or status change. Four focused integrated tests passed. A bounded read-only review found no additional code blocker in class continuation, pending-history protection, different-email staff connections, or staff authorization without a student class. This is source evidence, not hosted acceptance. The product contract and operator guide now remove the remaining superseded email-only connection wording and match the current pending-status and signed-out entry labels; all 40 documentation contracts passed.
+
+- Root `1fd84e4b`, from independently reviewed SQL `709b8890`, closes the null reconciliation, test registration audit, and retained actor deletion findings. The full replay passed 483 migrations, 106 CSF tables, 274 files, and 7,839 assertions in 108 seconds. All 195 focused assertions, 55 catalog tests, and ten negative probes passed. Catalog scope remains 28 functions, nine relations, and 26 triggers. Draft migration SHA256: `2b8b62d0bbfea1aef45e08924afe8ff1c04aac9c369ce9a4e31b3b61f1901727`. Owned resources were removed. CI quality stopped on Markdown table formatting in the updated product contract; formatting was corrected without behavior changes. The migration remains unapplied in Production.
+
+- Open candidate P1: live destination enablement checks privacy and native comment access but does not enforce a persisted copied-workbook acceptance decision. Add a reviewed receipt bound to the source organization and actual test destinations, with server-checked sync evidence. Test-copy creation alone is insufficient. Live exports remain disabled pending this correction and the real copied-workbook journey.
+- Open candidate sync consistency findings: a stale proposal can suppress the same requested cells after the source version changes; class snapshots include unrelated semester records; and an unknown copy receipt can be completed with a different observed file ID. These need bounded regression coverage before release. Production remains unchanged.
+
+- Root `c09d2086`, from SQL `436da228`, closes the four sync findings. Live enabling requires an audited acceptance receipt bound to the live configuration, tested copies, and current stored export, review, and native-message evidence. The private caller independently reads the managed cells and native posts before recording acceptance. Stale requests can requeue once per new source version; class snapshots exclude unrelated semesters; conflicting observed copy IDs are rejected. Both independent reviews passed. Full replay passed 483 migrations, 107 CSF tables, 274 files, and 7,852 assertions in 110 seconds. All 177 focused assertions, 55 catalog tests, and ten negative probes passed. Catalog scope is 29 functions, ten relations, and 26 triggers. Draft migration SHA256: `53f1bcce1e2adff42b80ef165b8ed2c440232ea7b5160549d1efdff596a078ff`. Owned resources were removed.
+- CI `34572462399` passed quality and build. Its browser job passed 79 CSF journeys, then stopped after three stale selector failures for the renamed joining controls. The root tests now use Join your class and Continue, preserving the identity assertions and checking that signed-out visitors have no student-details dialog. Targeted lint passed; the full corrected browser run remains required. No new Production migration or release has occurred.
+
+- Private PR 331 passed CI `34574352776` on `9a6e962` and merged as `521a68a`. Its Advanced control loads stored test receipts and verifies current managed rows, native posts, and file access before the reviewed database acceptance action. Root now pins `521a68a`. Both independent reviews passed. The application version remains the unpublished 1.2.25; no tag or Production activation has run.
+
+- Root `503206f1`, from independently reviewed SQL `d043dfd0`, permits test copies of a same-organization configured live output workbook as well as a registered import source. Unknown file IDs remain rejected. Full replay passed 483 migrations, 107 CSF tables, 274 files, and 7,854 assertions in 163 seconds. All 210 focused assertions, 55 catalog tests, and ten negative probes passed. Catalog scope remains 29 functions, ten relations, and 26 triggers. Draft migration SHA256: `9070babb106ca996b3b8771611d8a73f452b6d9da9ad9cfdfa3c4c9348d8c024`. Owned test resources were removed. The migration remains unapplied in Production.
+- Four printable class join cards and a link list were generated from the active Production codes without rotating them. Each QR decoded to its exact class URL. The files remain in ignored artifacts; signup and signed-out browser journeys are still unverified. Chrome confirmed that the restricted Production test workspace has the chapter Google account connected. This does not establish native comment access or copied-workbook acceptance.
+- Private promotion PR 332 remains pending after review found ambiguous test-destination selection and an output-only workbook copy failure. PR 333 fixes those paths. A subsequent review found that mixed-kind output workbooks can select an arbitrary Google capability; that correction remains in progress. No administrator bypass or Production release followed the branch-policy refusal.
+
+- Private PR 333 passed CI `34576245635` on `abebcea` and merged as `63eabab`. Staff select one application, point-submission, and class test destination for acceptance. Output-only workbooks can enter the copy flow, and mixed-purpose workbooks use an available authorized connection without arbitrary UUID selection. Both independent reviews passed. Root pins this exact merge. Production remains at 482 migrations with 199 Fall 2026 applications and zero officer reviews in the 12:48 AM Pacific read-only check.
+
+- Private promotion PR 332 passed CI `34576525388` and merged as `5572841`. Return PR 334 passed CI `34576816501` and merged as `783adff`. The root gitlink and promoted source trees match. The 1.2.25 tag remains unpublished pending root release checks.
+- Open candidate P1: live destination configuration checks other sync destinations but not every other-organization relation that can register the same workbook. Reject conflicting file ownership under the existing file lock before exporting. Open P2: deleting a test workspace can remove an acceptance receipt without disabling its live destination. Preserve acceptance or disable the dependent destination atomically. Both affect unapplied migration 483. Production remains unchanged, and release is held for correction and regression coverage.
+
+- CI `34576597425` passed both jobs on root `848bd935`: quality and build, 7,854 database assertions, 93 CSF browser journeys, and three DV browser journeys. Four CSF tests were intentionally skipped: the external workbook import and three optional screenshot-gallery tests. This establishes the integrated onboarding and UI candidate before the two later workbook-isolation and acceptance-retention corrections. Those corrections remain release-pending until their catalog and exact-candidate checks pass.
+
+- Root `8127cb7c` and `d6004400`, from reviewed SQL `1ce182a8` and catalog correction `216c9bd5`, close the workbook-isolation and acceptance-retention findings. Live configuration and reverse registration share the file lock and cover nine operational workbook-ID relations. Accepted evidence retains the original test-workspace UUID after fixture deletion; re-enabling still requires a valid test setup. All 224 focused assertions passed. The full SQL run passed 7,868 assertions, then the catalog detected changed trigger fingerprints on two older tables. Version-scoped overrides now preserve the 482 fingerprints and accept the 483 catalog. The final exact replay passed 483 migrations, 107 CSF tables, 274 files, and 7,868 assertions in 161 seconds. The accepted catalog and all ten negative probes passed; owned stacks were removed. Integrated CI remains pending. Catalog scope is 30 functions, ten relations, and 29 triggers. Draft migration SHA256: `bd4c6ad566c17099f70c4b464d08349554351bd80974775de20c8aea428a528b`.
+- Chrome inspected the live application queue, a course/evidence detail, staff assignment, class invitation, and class stream without changing decisions, access, posts, or codes. The queue now shows 200 applications. Staff assignment accepts an active organization account without a CSF profile. The class invitation already offers a link and code. Sanitized screenshots remain in ignored guide artifacts. Full copied-workbook sync and student sign-in acceptance are still pending.
+
+- the copied-test scope finding is fixed in root `615402fc`, from independently reviewed SQL `6ebb54a3`. acceptance now checks headers, start column, graduation year, semester, and school year while retaining independent test ids. it archives the mapping and rechecks it on enable. exact replay passed 483 migrations, 107 csf tables, 274 files, and 7,874 assertions. the accepted catalog and all ten negative probes passed. owned stacks were removed. draft migration sha256: `11e4b5ec268fc16782c15be16f694a2ff3c255745cbdd3e30477bb9d4d8ffb5c`. integrated release checks remain pending; production is unchanged.
+- A private native Google Doc guide is complete with lowercase prose, seven screenshots, and four active class QR cards. Its 13-page native PDF, permissions, images, and application-points clarification were checked. Screenshots distinguish Production from fictional test views. The guide marks unreleased sync and incomplete hosted outcomes, and explains that the post editor's email checkbox must be turned off for an in-app-only post. No sharing, email, or chapter publication occurred.
+
+- the 1:46 am pacific read-only production audit accounts for all 234 rows in the latest completed fall 2026 snapshot: 200 pending applications, 34 rows without applications, and zero duplicate application coordinates. 37 rows need identity review, including three with applications: 35 ambiguous matches and two duplicate conflicts. all have valid class/semester targets; none established a safe automatic identity resolution. all 1,910 historical source coordinates still resolve to profiles and semester records. the three mixed-color completion cases remain for staff review. the earlier hash/color audit is the value-comparison baseline; this check did not reparse the workbooks.
+- root `fed0aef7`, from independently reviewed sql `895fd243`, rejects incomplete native thread receipts before binding or acceptance. semester-specific mutations now restrict revision bumps and queued exports to the affected term; global profile changes retain their broader scope. the private caller already validates native results, so no private change was needed. focused coverage passed 209 assertions and 41 catalog tests. full replay passed 483 migrations, 107 csf tables, 274 files, and 7,884 assertions in 102 seconds. the accepted catalog and all ten negative probes passed. owned test stacks were removed. integrated ci remains pending. draft migration sha256: `43b358ebdd3fa4548a90fb92e165c51f6ddbe0a08404dffca0339dbe301dad4f`. production remains unchanged.
+
+- the fresh historical workbook reparse matches all 1,910 populated rows to saved source coordinates and identity hashes, with profiles and correct-semester memberships. all 1,117 consistently green rows and 558 explicit completion markers remain completed. two current profile-name differences are explained by approved merge snapshots preserving the original identities. zero unexplained identity differences remain. the three mixed-color cases stay active for staff review; class of 2030 has no historical rows. count and coordinate evidence remains in ignored artifacts. no production writes occurred.
+- root `b3196377` and `ca708917`, from independently reviewed sql `d73dcfd5` and `653768af`, permit currently authorized successors to reconcile abandoned copies using original google-account evidence, without changing normal claim/finish ownership. export attempts now retain immutable outcome/version receipts and reject conflicting retries; successful exports require a nonempty version. the full exact replay passed 483 migrations, 107 csf tables, 274 files, and 7,893 assertions in 104 seconds. the accepted catalog and all ten negative probes passed, and owned test stacks were removed. draft migration sha256: `e945fa809141ad516e0725d824586d3a720fca39d3a50f7b3cac9fb382876ece`. the private recovery loader correction and integrated release checks remain pending.
+- review of deleted-test acceptance confirmed the existing policy: acceptance remains as audit evidence and an enabled destination continues, but fresh enabling requires a current verifiable test configuration. deleting test fixtures requires a new acceptance before re-enabling. the gate and its regression remain unchanged.
+- integrated ci `34582581001` passed both jobs on root `71d82428`: quality/build, 7,884 database assertions, 93 csf browser journeys, and three shared dv journeys. four optional csf tests were skipped. this precedes the successor-recovery and immutable export-receipt corrections; final integrated checks remain required.
+- private pr 335 passed ci `34584737617` on `969aa474` and merged as `ed1a96b2`. recovery listing now pages past inaccessible sources, preserves source/target authorization, and lets authorized successors inspect eligible requests. source and action tests, ui checks, typecheck, lint, and independent review passed. root pins the exact private merge; production remains at 482 migrations and application 1.2.24.
+- private pr 337 passed ci `34585740976` on `a5317caf` and merged as `f03e5a06`. the recovery loader rechecks every returned source after pagination, removes revoked access, then rechecks the target. fourteen focused tests and independent review passed. root pins this exact correction; migration 483 and its 7,893-assertion replay are unchanged. final integrated checks and production deployment remain pending.
+
+- Root `d7d78151`, from independently reviewed SQL `9b64aa56`, requires a provider version for confirmed-write recovery and retains the prior ledger and reconciliation evidence in the audit. Cohort membership changes update only affected cohort destinations. Full replay passed 483 migrations, 107 CSF tables, 274 files, and 7,899 assertions. The accepted catalog and all ten negative probes passed; owned stacks were removed. Migration SHA256: `7c5d9bf9fe47d17ee27f2bf0a862492218d5f9b0eaa98a7b83f185ad97ffb89d`. Integrated release checks remain pending. Production is unchanged.
+- Private promotion PR 336 passed CI `34586102695` and merged as `fa78eeb753ab0af537490fc2b0b62e7b3bf67a3e`. Return PR 338 passed CI `34586446612` and merged as `ae6b7c49178da626a805b90bfcc00ffe8972f974`. The promoted source matches the reviewed root gitlink `f03e5a06`. Application 1.2.25 remains unpublished until root migration 483 merges.
+
+### September 11 release follow-up: queue reads and capacity
+
+Root `2560ae7213aa0cee2b207986016a8477612f6e02` passed quality run
+`34593409227`, including 7,907 database assertions and 93 CSF browser tests.
+Hosted acceptance `34593404576` failed with 177 timeouts in 9,161 requests
+from 100 distinct concurrent sessions. Read p95 was 5,686.73 ms. This is not
+Production acceptance. Production promotion PR 519 remains open.
+
+The Development Supabase dashboard showed Micro compute, CPU pressure and
+swap during the failed run. Provider-side API logs independently recorded
+responses above five seconds. A Small compute change is proposed for a
+controlled repeat on the same candidate, but recurring-cost approval remains
+pending. No compute or billing change has been made.
+
+The same run recorded 308 HTTP 400 responses each for application courses,
+application files and credit records. The review workspace sends unbounded
+ID filters and discards these query errors. A page can therefore return HTTP
+200 while missing review data. The exact provider rejection message was not
+available in the logs. Bounded, paginated relation reads and visible failure
+handling are required before release.
+
+Native Sheets comment content also needs a bounded fix: Google's limit is
+2,048 UTF-8 bytes, including the exported attribution. Oversized messages
+must remain intact in Let's Assist and hold the export with an accurate
+reason before a provider write. They must not be truncated or reported as
+an access failure. These fixes must use a new signed release; the published
+1.2.25 tag remains immutable.
+
+Private PR 339 prepares these fixes as application 1.2.26 at
+`66fc21811137cc49988cd7143cf0fead0fb8641a`. It also retains staff without
+student profiles in the reviewer directory and reports failed review-period
+or policy reads. All 354 private test files pass, with mock-sensitive suites
+isolated; host TypeScript, changed-file lint, full private formatting and ten
+child application tests pass. Fictional tests retain 1,101 review subjects
+and 13,212 related records. Independent review found no actionable P0-P2
+issues. Private quality run `34598455585` passed, and PR 339 merged at
+`bb819efce4f4c8c9597b3598f3665a3538243d53`. Private PR 340 prepares signed
+publication; its quality run is `34598777650`. The root candidate now uses
+the merged gitlink and passes the strict submodule check. This is prepared
+code, not a deployed Production fix.
+
+Private PR 340 and quality run `34598777650` passed. Signed release
+`dvhs-csf/v1.2.26` uses source `bb819efce4f4c8c9597b3598f3665a3538243d53`;
+publication run `34599102604` passed. Root integration run `34599200218`
+stopped because root Development still used `f03e5a0` and the release changes
+embedded code. The reviewed root gitlink update must land before retrying
+the normal integration workflow. No guard, signature check or published
+migration was changed to work around that refusal.
+
+Workbook refresh and import processing remain paused. Email delivery and
+scheduled publishing remain disabled. Copied-workbook native-thread
+acceptance, the final Production student and staff journeys, live sync
+enablement, and import resumption remain open. The earlier reconciliation
+counts are dated evidence, not a claim that sources stopped changing.
+
+### Signed application 1.2.25 publication candidate
+
+Root PR 517 merged as `d87f37ed`. Private release workflow `34587750048` and root integration workflow `34587840744` passed for signed application source `fa78eeb753ab0af537490fc2b0b62e7b3bf67a3e`. Generated PR 518 starts at `660976ad` and adds `20260911101007_publish_dvhs_csf_1_2_25`, SHA256 `32cb2d89eca6ce9ac87defdd856973cffc5153cf3c87d8d5d89f513d27a684eb`. The application registry records that signed source; the serving private gitlink remains `f03e5a06d3c451bb721e90529b890d6199e60148`. Publication leaves organization installs and rollout selection unchanged.
+
+The 484-migration catalog preserves the accepted 483 schema fingerprints. The forward release allowlist includes the exact publication bytes and supports a deployment starting from either 482 or 483. The sync catalog still covers 30 functions, ten relations, and 29 triggers. Verification passed 58 catalog and forward-release tests, 13 documentation tests, 21 release-integration tests, the registry gate, strict gitlink checks, and migration validation. Full isolated replay passed 484 migrations, 107 CSF tables, 275 files, and 7,907 assertions in 105 seconds. The accepted catalog and all ten negative probes passed; owned test resources were removed. These checks do not establish a hosted deployment or a completed copied-workbook journey. Production remains at the last verified 482-migration checkpoint.
+
+### Signed application 1.2.26 publication candidate
+
+Root PR 522 passed CI `34600061603`, including 7,907 database assertions,
+93 CSF browser tests and three shared DV browser tests. It merged as
+`77ab2bdd95deb0c29f294f0cd2ec8bd1b0d93686`; the merged tree matches the
+reviewed `6aa584eb` candidate. Signed integration `34602252681` then passed
+on that updated Development tree and opened PR 523 at `d7255a72`.
+
+The generated forward migration is
+`20260911130443_publish_dvhs_csf_1_2_26`, SHA256
+`e1df91aa3e43d85d1fd0553c3a698a5df506bd032fb804249848395f21b2b9b7`.
+It publishes signed source `bb819ef` with rollout zero and does not change
+organization installations. Independent review passed for the migration
+and its catalog integration. The 485-version ledger hash is
+`8d650ea3d0d0148d14f9e57e1d52b1bd2bd8e8d61a71f4241dc1d59009adfd31`.
+Earlier migration bytes and the accepted 483/484 schema fingerprints remain
+unchanged. Sixty catalog and forward-release tests, 13 documentation tests,
+the registry gate and strict gitlink checks passed. The final integrated
+CI and hosted acceptance remain pending. No Production migration or
+application activation occurred in this step.
+
+### September 11 hosted result for application 1.2.26
+
+PR 523 merged as `2f12eba7e31c3e38fced4cd3d1c73b69ec121f08`.
+Both candidate CI `34602815136` and merged-tree CI `34603600211` passed,
+including 7,915 database assertions, 93 CSF browser tests and three shared
+DV browser tests. Four optional CSF tests were skipped. Development serves
+host deployment `dpl_6D4SrrRSriTzXHbcvsVemBVYc7cP` and the signed 1.2.26
+application. The fictional delivery organization selected that application
+through the normal organization controls.
+
+Hosted acceptance `34603595116` finished with failure at 13:55 UTC. Its
+100 distinct authenticated identities made 9,184 requests, with 43 timeouts
+and no HTTP 500 responses. Overall read p95 was 5,020.76 ms and p99 was
+13,040.48 ms. The officer application route had p95 11,671.80 ms. These
+exceed the existing read budgets. Mutations, browser vitals, 25 review
+navigations and retained heap passed; the browser recorded zero errors.
+The 0.4682 percent request error rate passed its threshold. Host runtime
+logs for 13:39–13:56 UTC contained no error or fatal entries, but that does
+not explain the slow reads or establish database capacity.
+
+Production PR 519 remains unmerged. No Production release, migration,
+application selection, compute change or worker resumption followed this
+failed acceptance. Database measurements from the actual load interval
+and the remaining query fanout are under review before another run.
+
+Private PR 341 prepares application 1.2.27 at
+`5176919d3a34977be57596b40837ff18064cb757`. Officer Home no longer fetches
+detailed point-submission records that it does not render. Its pending
+count still comes from the authorized Home snapshot. Submission, points
+and profile routes retain their record reads and permission checks.
+Independent behavior review, 12 focused/scale tests, six application access
+tests, 18 release-tooling tests, TypeScript, lint and formatting passed.
+Private quality run `34607981707` passed. PR 341 merged as
+`1af9b2208f761bf02e935142b52686fce7bf2f40`; the root gitlink now uses that
+exact commit and passes the strict submodule check. Private PR 342 prepares
+publication promotion. No latency improvement is
+claimed until measured. This change does not authorize the proposed paid
+Development compute upgrade.
+
+### Signed application 1.2.27 publication candidate
+
+Root PR 524 passed CI `34609010934` on
+`f300147f4d157170131d305194d911be75480fb9`, including 7,915 database
+assertions and 93 CSF browser tests with four optional skips. The initial
+run failed only because the officer runbook still named the prior private
+gitlink. That reference was corrected and its documentation checks passed.
+PR 524 merged as `cddf2112bce194cd787a13b9b9caf7b0f771eecd` with the same
+tree. Private PR 342 and CI `34608392171` passed, and signed release run
+`34608835291` published source `1af9b2208f761bf02e935142b52686fce7bf2f40`.
+Integration `34611386535` passed on the updated root and opened PR 525.
+
+Generated migration `20260911143923_publish_dvhs_csf_1_2_27` has SHA256
+`8a50c4b036700502129824041acb2a1b68625d66b5fe36c744ec9daf0a34a9a5`.
+The 486-version ledger hash is
+`01316a49d8af843cd146181f8b48d34b0bb68adda381314a90ce8e862c52ff41`.
+Independent migration and catalog review passed. The exact publication
+bytes are appended to the forward allowlist; prior migrations and accepted
+483/484/485 catalog fingerprints remain intact. Sixty-two catalog tests
+and 13 documentation tests passed. Publication does not select the runtime
+for organizations. Final integrated CI, hosted acceptance and Production
+activation remain pending. No compute upgrade or worker resumption occurred.
+
+### Application 1.2.27 Development deployment and merged verification
+
+Publication PR 525 merged as `235da49e1d638df5ca07ef3506c3908dad92cdc5`.
+Its tree matches reviewed candidate `c03156011e536b9b42e6a64918577169551ddb2b`.
+Candidate CI `34611871332` and merged-commit CI `34613805286` both passed
+7,923 database assertions across 277 files, 93 CSF browser tests with four
+optional skips, and three shared DV browser tests. The merged browser suite
+finished in 10.3 minutes. These are isolated CI results, not hosted acceptance.
+
+Development has 486 migrations through `20260911143923`. Signed application
+deployment `34613951283` passed for application 1.2.27 at source `1af9b220`.
+Deployment `dpl_2SEnUGaYCKCwJqFcroYzzqXzLGwN` is healthy. Chrome verified
+that the fictional delivery organization selected 1.2.27 through its normal
+Update application control. No organization installation table was edited.
+The host release and full hosted load acceptance for this candidate remain
+pending. The proposed paid Development Micro-to-Small upgrade is not approved.
+
+A read-only Production check at 15:10:16 UTC found 234 persisted snapshot rows,
+200 applications with pending decisions, and 37 identity-review rows. Three
+review rows have applications and 34 do not. There are zero duplicate
+application coordinates or invalid targets. Profile counts for Classes of
+2027, 2028, 2029 and 2030 remain 361, 293, 155 and 31. Class of 2030 has no
+historical memberships. Both held legacy connections remain pending.
+Production still has 482 migrations and all worker controls remain disabled.
+This check did not refresh the Google source; the persisted snapshot was
+created at 07:58:11 UTC. Count-only evidence is saved outside tracked source.
+
+Production PR 519 remains open. Hosted performance acceptance, the separate
+Production student sign-in, staff journeys, native cell-thread copied-workbook
+acceptance, live sync and source refresh remain unfinished. Email delivery and
+scheduled publishing stay disabled. No Production changes occurred in this step.
+
+### Comments column and performance scope update
+
+The user replaced native cell-thread acceptance with an ordinary Comments
+column and waived hosted performance acceptance. New destinations use that
+column; existing native destinations retain their format. Reviewed Sheet
+edits append attributed local history and cannot apply a decision or points.
+Private PR 343 contains the combined application 1.2.28 candidate. Its exact
+Production deployment and copied-workbook acceptance remain pending.
+
+The release workflow now supports an explicit waiver bound to the release and
+Development SHAs. It records the actor and reason as "waived, not passed" while
+retaining source, migration, authorization and CI checks. This does not mark a
+load test successful.
+
+The user briefly approved Development Small compute, then requested removal
+of that cost after waiving the load test. Chrome verified Development returned
+to t3a.micro on September 11 after the provider resize completed. Production
+compute was not changed. Small usage before the downgrade may still be billed
+for its actual duration.
+
+### September 11 release review and fresh data audit
+
+Root PRs 526 and 527 merged. Development is at
+`4d5631d8031b4fb0ce2af7674232f2da2ff912a7` with 488 migrations. Signed
+application 1.2.28 deployed successfully in workflow `34640126277`.
+Production remains at 482 migrations with all twelve worker controls disabled.
+The signed application and root integration are not Production acceptance.
+
+Production PR 519 has six confirmed findings under repair:
+
+- P1: changed or withdrawn Sheet requests leave older proposals reviewable.
+- P1: confirmed native-write recovery does not update the sync timestamp.
+- P2: an unchanged record cannot repair managed cells after a completed export.
+- P2: application discussions require unrelated point-review permission.
+- P1: confirmed column writes cannot recover their saved Comments baseline.
+- P1: the performance waiver also skips hosted deployment and browser checks.
+
+Applied migrations remain unchanged. The correction uses a forward migration,
+record-specific discussion permissions, verified write receipts, and a separate
+functional hosted check. Production promotion remains paused until the fixes
+and final candidate checks pass.
+
+A read-only audit at 19:32:43 UTC found 234 stored source rows, 200 pending
+applications and 37 identity-review rows, including three with applications.
+There were no duplicate application coordinates or invalid targets. Both
+legacy account connections remain restricted. The source snapshot is from
+07:58:11 UTC; this audit did not refresh Google Sheets.
+
+At 19:40:14 UTC, all four supplied cohort workbooks were reparsed and compared
+with Production. All 1,910 populated historical rows have matching profiles
+and semesters. All 1,117 consistently green rows and 558 explicit completion
+markers remain completed. Three mixed-color rows still require staff review.
+Class of 2030 contains no populated historical rows. The 35 future S28 preview
+coordinates have no committed member history. Count-only evidence remains in
+ignored artifacts.
+
+Chrome verified all four live class links while signed out. An existing
+alternate account returned to the test class link after Google sign-in and
+could not open the staff application queue. The administrator session was
+restored. No profile, membership or account connection was created in that
+check. Full member and staff journeys on the final deployment remain pending.
+
+The existing Google guide now describes the ordinary Comments column. Eight
+targeted replacements retained its eleven images and existing release-status
+labels. No copied-workbook or live-sync acceptance claim was added.
+
+The six release findings are fixed in the new candidate. Forward migration
+`20260911195446_csf_sheet_sync_review_recovery` preserves separate observations
+when a Sheet request is withdrawn and reentered. Identical retries reuse the
+same request, and prior staff decisions remain unchanged. The migration also
+restores manual export repair, record-specific discussion permissions, and
+complete Comments receipts for confirmed write recovery. Its SHA-256 is
+`2decd1a72195303164c6db1aa4d104261627275e0ef72692ec467e87e5b92137`.
+
+The final migration passed 49 focused assertions, the existing queue suite,
+exact catalog validation, ten negative catalog probes, and 67 Node tests.
+Independent review found no remaining blocker. The private recovery code passed
+34 focused tests and child typecheck. Application 1.2.29 manifest and access
+checks passed seven tests. The performance waiver now requires an authenticated
+hosted functional run, without the waived 100-session load test. Its focused
+contract tests passed. Production remains unchanged pending final release checks.
+
+Private PRs 346 and 347 passed quality checks and merged the reviewed recovery
+source. Signed publication run `34643210275` published application 1.2.29 from
+`98c08ab2b3f63e313b915df5c7110413c013431a`. Root integration run `34643311817`
+generated publication migration `20260911201640_publish_dvhs_csf_1_2_29` in
+PR 529. It changes no organization installation or application selection.
+The publication SHA-256 is
+`fb41e61e145e657e2127522e8b4642c1bf4c63b373b3de20dcde4aad74c8278c`.
+
+The six PR 519 review threads were resolved after their corrections and focused
+regressions passed. The first root 489 CI run stopped because it fetched private
+main before the release merge reached that branch. Private main now contains
+the exact source. Final integrated CI remains required; the earlier failed run
+is not acceptance evidence.
+
+Chrome confirmed the test organization's Google connection to the chapter
+account. No spreadsheet destination or automatic sync was enabled.
+
+Hosted fixture provisioning now checks and preserves its existing compatible
+installation and entitlement before making fixture writes. It does not advance
+an installation directly. Development's existing embedded 1.1.0 fixture is
+compatible and accessible. The functional run tests the integrated host; final
+Production browser checks must separately verify the selected 1.2.29 child.
+The nine focused fixture tests passed.
+
+### Sheet observation guard, September 11
+
+PR 519 review found that invalid replacement input could leave an older Sheet
+proposal available to staff. Forward migration `20260911203901` adds a leased
+observation state. Polling holds acceptance until the full inbound read succeeds.
+Invalid observations retire pending proposals and reset their request baseline.
+Failed notifications leave incomplete observations blocked after lease expiry.
+Applied migrations 489 and 490 remain unchanged.
+
+Private candidate `74770de` prepares application 1.2.30 with this schema
+requirement. The engine passed 33 tests and 174 assertions. Seven application
+contract tests and child typecheck passed. Private PR 349 is pending release.
+Production still serves root `84087a03` and application 1.2.24 with 482 migrations;
+new sync remains disabled.
+
+A read-only Google comparison at 20:35:38 UTC found 235 populated source rows,
+one more than the persisted 234-row snapshot. All existing canonical records
+were unchanged after timestamp normalization. Production still has 200 pending
+applications and 37 identity-review rows. The new coordinate requires a normal
+snapshot refresh and reconciliation after release.
+
+Development candidate `dddb23e6` passed hosted functional run `34644480869`.
+Its quality job passed; full CI remains separate from the new observation fix.
+
+Private promotion review found that a failure after successful inbound reading
+could incorrectly invalidate that observation. Candidate `6b73d09`, version
+1.2.31, limits invalidation to the inbound phase. Its regression confirms that
+export failures preserve valid observations and pending proposals. The engine
+passed 34 tests and 179 assertions; child contracts and typecheck passed.
+Independent review found no blocker.
+
+The 1.2.30 tag was pushed before the private merge succeeded because the command
+sequence did not stop on failure. Publication run `34646596339` was canceled,
+and GitHub reports no release for that tag. The tag remains unchanged. No
+Production deployment or database change occurred. Private PR 351 carries the
+corrected candidate; promotion PR 350 remains held until it includes the fix.
+
+Private PR 351 passed `34646842756`; promotion PR 350 passed `34647101056`
+and merged as `8331567`. Ancestry return PR 352 passed `34647376799` and merged.
+Signed release `dvhs-csf/v1.2.31` points to
+`6b73d0901fe58e5eada93026b085a9cc472566d7`, verified on both private branches.
+Publication run `34647401670` succeeded.
+
+Root PR 531 merged as `3decd057` after the local replay, focused tests and
+independent review. The formatting failure in its first CI attempt was repaired.
+Final integrated CI is still required before Production. Integration run
+`34647499354` first refused the missing root schema dependency; its retry after
+PR 531 merged succeeded and generated PR 532. The publication migration is
+`20260911210549_publish_dvhs_csf_1_2_31`. It changes no installation or application
+selection. Production remains on the previously recorded host, child and ledger.
+
+The 492-migration publication candidate passed 282 database files and 8,018
+assertions, 71 focused catalog tests, and all ten negative catalog probes.
+Publication SHA-256 is
+`ad0963ff59bbca881b26574d3d8c0344539037d9c4244c91de93ecbeb14a35a8`.
+
+PR 519 also identified profile review notes crossing semester boundaries in
+class Sheet snapshots. The user deferred profile-note syncing. The forward correction
+`20260911211201_csf_defer_profile_note_export` omits profile review notes from
+class exports for this release. The existing
+publication remains unchanged. Production sync remains disabled while the fix
+and final integrated release checks are completed.
+
+The final 493-migration candidate passed 283 database files and 8,023 assertions,
+including five checks that profile notes stay in the app while class exports
+retain completion, applications and verified points. All 73 focused catalog
+tests and ten negative probes passed. Independent review confirmed that the
+snapshot's only behavior change is omitting profile review notes.
+Migration 493 SHA-256 is
+`ec7176f9da2b965598fd1f8883c3b8982e66763df569cdf68bfdcb8c3c402da7`.
+The 493-migration ledger SHA-256 is
+`a412156a94951d6a3995011f2f5b27bc336f9ffef0fdff913daf78ac1316f915`.
+
+### Final sync toggle and hosted selection corrections
+
+Forward migration `20260911212627_csf_sheet_sync_toggle_observation` invalidates
+observations and retires pending Sheet proposals when enablement changes.
+Same-state retries preserve a completed observation. Staff cannot accept a
+proposal while its destination is disabled. The 494-migration candidate passed
+284 database files and 8,038 assertions, including 15 new assertions. All 75
+focused Node tests and ten negative catalog probes passed. Independent review
+found no blocker. Migration SHA-256 is
+`c94df97321a8bf77b1a1a9dbbd563e00781f9531f4840ea84150a3f117d715fc`;
+ledger SHA-256 is
+`e359a42486e32924eb5856a55e770ec42faa09601d71f10b32c35cb209b62518`.
+
+The hosted fixture helper now requires a selected application to match the
+checkout release and its healthy Development deployment. Embedded fixtures
+remain supported. Three helper tests passed locally and independently.
+
+Profile-note trigger optimization and cleanup of earlier test exports remain
+deferred under the user's instruction to stop comment-sync work. Migration 493
+prevents profile review notes from entering new class snapshots. It does not
+claim to scrub old external exports. Production remains at migration 482 with
+no new-sync destinations, so no earlier Production export requires that cleanup.
+
+Production staff preflight on host `84087a03`, application 1.2.24, verified an
+authorized alternate account redeeming a test-organization staff invitation
+without a class or CSF profile. Before position assignment it had no CSF role.
+An administrator assigned the existing Vice President Membership position;
+the capacity guard rejected a second assignment. The temporary invitation was
+revoked. These checks changed no real chapter membership or positions.

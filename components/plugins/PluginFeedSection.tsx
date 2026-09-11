@@ -52,14 +52,14 @@ export async function PluginFeedSection({ userId }: { userId: string }) {
             {/* Quiet route to the switch that turns this section off. */}
             <Link
               href="/account/plugins"
-              title="Plugin content settings"
+              title="Organization content settings"
               className={cn(
                 buttonVariants({ variant: "ghost", size: "icon" }),
                 "text-muted-foreground",
               )}
             >
               <SlidersHorizontal className="h-4 w-4" aria-hidden="true" />
-              <span className="sr-only">Plugin content settings</span>
+              <span className="sr-only">Organization content settings</span>
             </Link>
           </div>
         </div>

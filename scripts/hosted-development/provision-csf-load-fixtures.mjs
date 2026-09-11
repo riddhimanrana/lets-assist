@@ -1,5 +1,7 @@
 #!/usr/bin/env node
 
+import { assertHostedFixtureInstall } from "./hosted-fixture-install.mjs";
+
 import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -542,6 +544,8 @@ export async function provisionDatabase(target) {
   const pluginDb = admin.schema("plugin_data");
   await assertRemoteOrganizationBoundary(publicDb);
   await assertRemoteFixtureIdentityBoundary(pluginDb);
+  if (target.environmentKind === "hosted-development")
+    await assertHostedFixtureInstall(publicDb);
 
   const usersByKey = await upsertAuthAccounts(admin, target.password);
   const rows = buildFixtureRows(usersByKey);
@@ -577,48 +581,50 @@ export async function provisionDatabase(target) {
     "organization_id,user_id",
   );
 
-  const plugin = await must(
-    "Reading the CSF plugin catalog",
-    publicDb
-      .from("plugins")
-      .select("key, latest_version")
-      .eq("key", "dvhs-csf")
-      .eq("is_active", true)
-      .single(),
-  );
-  if (!plugin?.latest_version) fail("The CSF plugin catalog is unavailable.");
-  await upsertRows(
-    publicDb,
-    "organization_plugin_entitlements",
-    [
-      {
-        organization_id: FIXTURE_ORGANIZATION_ID,
-        plugin_key: "dvhs-csf",
-        status: "active",
-        is_forced: false,
-        created_by: officerId,
-      },
-    ],
-    "organization_id,plugin_key",
-  );
-  await upsertRows(
-    publicDb,
-    "organization_plugin_installs",
-    [
-      {
-        organization_id: FIXTURE_ORGANIZATION_ID,
-        plugin_key: "dvhs-csf",
-        enabled: true,
-        installed_version: plugin.latest_version,
-        installed_by: officerId,
-        configuration: {
-          fixtureContract: FIXTURE_MARKER,
-          serverOnlyDataAccess: true,
+  if (target.environmentKind === "isolated-local") {
+    const plugin = await must(
+      "Reading the CSF plugin catalog",
+      publicDb
+        .from("plugins")
+        .select("key, latest_version")
+        .eq("key", "dvhs-csf")
+        .eq("is_active", true)
+        .single(),
+    );
+    if (!plugin?.latest_version) fail("The CSF plugin catalog is unavailable.");
+    await upsertRows(
+      publicDb,
+      "organization_plugin_entitlements",
+      [
+        {
+          organization_id: FIXTURE_ORGANIZATION_ID,
+          plugin_key: "dvhs-csf",
+          status: "active",
+          is_forced: false,
+          created_by: officerId,
         },
-      },
-    ],
-    "organization_id,plugin_key",
-  );
+      ],
+      "organization_id,plugin_key",
+    );
+    await upsertRows(
+      publicDb,
+      "organization_plugin_installs",
+      [
+        {
+          organization_id: FIXTURE_ORGANIZATION_ID,
+          plugin_key: "dvhs-csf",
+          enabled: true,
+          installed_version: plugin.latest_version,
+          installed_by: officerId,
+          configuration: {
+            fixtureContract: FIXTURE_MARKER,
+            serverOnlyDataAccess: true,
+          },
+        },
+      ],
+      "organization_id,plugin_key",
+    );
+  }
 
   await upsertRows(
     pluginDb,

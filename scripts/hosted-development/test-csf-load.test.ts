@@ -383,3 +383,35 @@ describe("hosted CSF load acceptance", () => {
     expect(source).not.toContain("console.log(password)");
   });
 });
+
+test("functional release mode keeps deployment fences and uses a separate receipt", () => {
+  expect(workflow).toContain("options: [full, functional]");
+  expect(workflow).toContain("default: full");
+  expect(workflow).toContain(
+    "contains(github.event.head_commit.message, '[csf-functional-only]')",
+  );
+  expect(workflow).toContain(
+    "'csf-hosted-development-functional' || 'csf-hosted-development-acceptance'",
+  );
+  expect(
+    workflow.match(/-f context="\$\{ACCEPTANCE_CONTEXT\}"/gu)?.length,
+  ).toBe(3);
+  expect(workflow).toContain(
+    "Require successful Vercel deployment for the SHA",
+  );
+  expect(workflow).toContain(
+    "Verify the Development branch domain after acceptance",
+  );
+  expect(workflow).toContain("Recheck Development head");
+  expect(source).toMatch(
+    /functional\s*\? target\.memberAccounts\.slice\(0, 1\)/u,
+  );
+  expect(source).toMatch(
+    /functional\s*\? target\.officerAccounts\.slice\(0, 1\)/u,
+  );
+  expect(source).toContain("const loadPromise = functional");
+  expect(source).toContain('performance: "not run"');
+  expect(source).toContain(
+    "result.ok = passesHostedFunctionalAcceptance(result)",
+  );
+});

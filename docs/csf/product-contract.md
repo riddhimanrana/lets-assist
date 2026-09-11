@@ -2,7 +2,7 @@
 
 **Status:** Approved implementation source of truth<br>
 **Version:** 1.6<br>
-**Last updated:** September 1, 2026<br>
+**Last updated:** September 10, 2026<br>
 **Product surface:** DVHS CSF private organization plugin inside Let’s Assist
 
 This document defines the product, operating model, information architecture, terminology, data boundaries, workflows, page behavior, and acceptance criteria for the DVHS CSF rebuild. If current code, old mockups, seed data, or earlier labels conflict with this document, this document wins unless it is amended explicitly.
@@ -17,7 +17,7 @@ Application contact addresses are stored separately from identity email fields a
 
 ### Amendment 7: Self-confirmed account-name claims (approved follow-up, September 3, 2026)
 
-This policy is approved for the follow-up release. It is not part of the accepted September 3 application release.
+This historical policy is superseded by Amendment 8. It must not authorize current account connections.
 
 The server may offer **Is this you?** for one active, unclaimed profile whose full normalized name matches the signed-in account within the resolved class. Middle names participate in the comparison. A claimed duplicate remains a collision. The card shows the name and class, not private semester history before connection.
 
@@ -118,22 +118,18 @@ remains:
   immediately), and **Disable link and code**. Code state carries no send telemetry,
   and no code action emails anyone.
 - **Student journey.** A student opens the public `/connect/<code>` route or
-  enters the **Join code** on **Join a class**, signs in with a verified
-  account, and submits the **Find my record** details.
-  `csf_join_class_by_code` uses the verified account email as the only
-  automatic signal: one active same-class email match connects atomically with
-  recorded history. An unmatched email never creates a profile or class
-  membership. The page may offer one sole, active, unclaimed exact account-name
-  candidate in the selected class. A typed name, conflicting account or class
-  assignment, shared email, stale candidate, or ambiguous match creates or
-  reuses one review request.
-- **Per-class review.** Unresolved joins wait in that class's Members tab
-  under **Record connections**, paged by `csf_connect_cursor`. The **Review**
-  dialog renders **Connect account** only when the database confirms canonical
-  evidence — the confirmed account email matching the roster email, the exact
-  name, and exactly one matching active class membership; **Reject request**
-  is always available, with a required decision reason. Officer Home shows a
-  **Connection requests** chip with the total pending count.
+  enters the **Join code** on **Join a class**, signs in, enters their name in
+  **Join your class**, and selects **Continue**. An independently verified
+  existing connection opens the correct class. A student with no existing
+  candidate may create a self-owned profile. Names and application contact
+  emails can suggest a candidate but never establish ownership. Other matches
+  create or reuse a staff review request without exposing candidate history.
+- **Per-class review.** Unresolved joins wait in the class's **Record
+  connections** queue. Authorized staff use **Review** and **Connect account**
+  after verifying identity and recording their decision. Application and login
+  emails may differ. **Reject request** requires a reason. Connecting an account
+  does not approve an application, award points, or grant a staff position.
+  Officer Home shows the pending **Connection requests** count.
 - **Application form link.** The public apply call to action comes from the
   per-term `application_form_url`, edited in the term dialog's **Application
   form link** field and rendered only while that term is current and inside
@@ -851,7 +847,7 @@ The import workspace is specified in Section 12.
 **Actions:** Open the official site, sign in to My CSF, or open a class join page and enter that class's permanent join code.<br>
 **Empty state:** Retain the chapter identity, official links, sign-in, and class-code guidance without inventing public content.<br>
 **Privacy:** Public organization and class routes never expose Stream posts, Activities, semesters, rosters, codes, student-derived counts, applications, dues, eligibility, meeting attendance, points, proofs, notes, or account state. Class Stream and Activities require a signed-in, server-authorized class connection.<br>
-**Identity:** The verified account email is the only automatic connection signal (see Amendment 5). Conflicting or shared-email evidence moves to per-class officer review, and names never auto-connect.<br>
+**Identity:** Amendment 8 requires independently verified ownership for existing history. Application contact emails and editable names never prove ownership. Other matches await staff review; a student with no existing candidate may create a self-owned profile.<br>
 **Mobile:** Same Let’s Assist public shell with a responsive join/sign-in flow.
 
 ---
@@ -1058,14 +1054,14 @@ The rebuild extends the existing `plugin_data.csf_*` foundation. It does not cre
 
 ### 11.1 Identity and access
 
-| Concept                     | Physical model                                                      | Required behavior                                                                                                                                                      |
-| --------------------------- | ------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Permanent student           | `csf_profiles`                                                      | One durable student record per organization; normalized identity fields; fictional test ID support; no semester status stored here                                     |
-| Platform account connection | `csf_profile_accounts`                                              | Verified account link with actor/source/time; one active unambiguous connection per user/org                                                                           |
-| Link request                | `csf_profile_link_requests`                                         | Limited candidate and resolution history; one exact verified-email match may connect automatically; every name-only confirmation creates or reuses one officer request |
-| Graduating class            | `csf_cohorts`, `csf_profile_cohort_memberships`                     | Historical membership and class changes remain traceable                                                                                                               |
-| Duplicate merge             | `csf_profile_merge_reviews`                                         | Preview and two-person/adviser review when configured; move references atomically; source becomes merged tombstone rather than disappearing                            |
-| Staff access                | `csf_roles`, `csf_role_permissions`, `csf_staff_positions`, history | Capability-based, effective-dated assignments                                                                                                                          |
+| Concept                     | Physical model                                                      | Required behavior                                                                                                                                                               |
+| --------------------------- | ------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Permanent student           | `csf_profiles`                                                      | One durable student record per organization; normalized identity fields; fictional test ID support; no semester status stored here                                              |
+| Platform account connection | `csf_profile_accounts`                                              | Verified account link with actor/source/time; one active unambiguous connection per user/org                                                                                    |
+| Link request                | `csf_profile_link_requests`                                         | Limited candidate and resolution history; independently verified ownership is required for automatic connection; contact and name matches create or reuse staff-review requests |
+| Graduating class            | `csf_cohorts`, `csf_profile_cohort_memberships`                     | Historical membership and class changes remain traceable                                                                                                                        |
+| Duplicate merge             | `csf_profile_merge_reviews`                                         | Preview and two-person/adviser review when configured; move references atomically; source becomes merged tombstone rather than disappearing                                     |
+| Staff access                | `csf_roles`, `csf_role_permissions`, `csf_staff_positions`, history | Capability-based, effective-dated assignments                                                                                                                                   |
 
 ### 11.2 Semester, application, and eligibility
 
@@ -1619,10 +1615,10 @@ These invariants are mandatory across schema, server actions, UI, imports, tests
 5. Policy versions used by decisions and closed terms are immutable.
 6. Point totals, attendance completion, and recognition derive from normalized records through one shared evaluator.
 7. A multi-point activity produces one award with a numeric quantity, not duplicate one-point records.
-8. A manually entered, imported, or passive account name never links a student. Confirming one passive candidate creates or reuses one officer request. Only one exact verified-email match may connect automatically.
+8. A manually entered, imported, or passive account name never links a student. Confirming one passive candidate creates or reuses one officer request. Automatic connection requires independently verified ownership. Matching a login email to an application contact is insufficient.
 9. Preview precedes import commit; source provenance and raw snapshots are retained.
 10. Reviewed platform records are never silently overwritten by Google data.
-11. Google Forms/Sheets/Drive are intake/evidence channels after cutover, not dual operational authority. This release writes no Google Sheet; reports are local formula-safe ZIP archives.
+11. Google Forms/Sheets/Drive provide intake, evidence, and exports. Let's Assist remains authoritative. The sync candidate exports to restricted test copies first; inbound decisions await staff approval. Local formula-safe ZIP reports remain available.
 12. Google Classroom remains retired, unintegrated, and untracked.
 13. Every consequential mutation is server-authorized, organization-scoped, reasoned where required, correlated, and immutable in history.
 14. Every private file remains private and is opened only through a current scoped authorization check.
@@ -1954,3 +1950,17 @@ This amendment records the repository implementation associated with v1.3. It do
 - No Development/Preview or Production deployment, live Google read/write, Resend send, real student source, or officer-maintained Sheet mutation is authorized by this amendment.
 - Scheduled post persistence is not publication evidence. The publisher implementation and repository scheduler are accepted, but officers use the manual path in any environment that lacks exact opt-in, successful hosted invocation, and visible schedule → Feed evidence. No queued email may be attributed to a future schedule.
 - CLEAN-016 is closed by the Production Vercel Pro recurrence, repeated runtime starts, an authenticated `enabled: true` dispatcher response, and an unchanged empty delivery ledger. This proves the bounded communications worker is invoked without proving provider delivery or a fixed delivery time. The separate scheduled-post publisher remains disabled in Production, so scheduled publication stays open under CLEAN-015 and officers continue to use the manual path.
+
+## Sheet sync amendment, September 10, 2026
+
+This amendment replaces the input-only restrictions above for explicitly configured, permission-checked destinations. It does not make Sheets authoritative.
+
+Staff may connect a restricted Sheet tab for applications, point submissions, or a named class and semester. Each exported row uses a stable internal record ID. Names are display labels. Account connection, application status, enrollment, verified points, and semester completion remain separate fields. Yellow marks only an unverified account connection cell; historical completion stays intact.
+
+The app exports confirmed state and preserves separate requested-decision columns. Sheet proposals enter a review queue and require the existing authorized application or point-submission action. A comment never changes an approval, credit, or account connection. Pending points never increase verified totals.
+
+Existing native cell-attached comments retain provider author attribution, replies, and resolution. As authorized on September 11, new destinations may instead use a regular Comments column without native-comment API access. The column displays the complete recorded discussion. A changed cell becomes a staff-review request with its previous exported text and proposed text; acceptance appends a labeled Google Sheets note and preserves the original history. A saved exported-cell baseline, record version and lease prevent stale writes. Oversized edits stay held with an actionable error and are never truncated. The copied-workbook acceptance receipt must match the selected transport and columns and prove exported-cell readback plus reviewed comment edits. Staff-only conversations still require a destination restricted to verified staff accounts.
+
+Each destination starts disabled. The worker rechecks organization access, export permission, destination privacy, and its lease before writes. Stable IDs, source versions, and immutable snapshots fence retries. An ambiguous provider write waits for reconciliation. Deleted or conflicting Sheet rows do not delete app records or authorize recreation.
+
+Staff see Last synced, Sync now, and Changes to review. Destination mappings and enablement remain under Advanced. Enabled destinations are checked every two minutes. New release acceptance starts with restricted workbook copies and separate test records. Live destinations remain off until copied-workbook journeys pass. Email delivery and scheduled publishing remain outside this rollout.

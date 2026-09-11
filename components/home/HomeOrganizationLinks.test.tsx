@@ -3,6 +3,9 @@ import { renderToStaticMarkup } from "react-dom/server";
 
 let source = "local";
 let queryError = false;
+let isMember = true;
+let useSlug = true;
+let hasLogo = true;
 const calls: Array<{ source: string; field: string; value: string }> = [];
 
 function client(label: string) {
@@ -12,7 +15,7 @@ function client(label: string) {
       return {
         select(columns: string) {
           expect(columns).toBe(
-            "organization_id, organization:organizations(id, name, username)",
+            "organization_id, organization:organizations(id, name, username, logo_url)",
           );
           const query = {
             eq(field: string, value: string) {
@@ -22,16 +25,21 @@ function client(label: string) {
             then(resolve: (value: unknown) => unknown) {
               return Promise.resolve({
                 error: queryError ? { message: "Unavailable" } : null,
-                data: [
-                  {
-                    organization_id: `${label}-org`,
-                    organization: {
-                      id: `${label}-org`,
-                      name: `${label} chapter`,
-                      username: `${label}-chapter`,
-                    },
-                  },
-                ],
+                data: isMember
+                  ? [
+                      {
+                        organization_id: `${label}-org`,
+                        organization: {
+                          id: `${label}-org`,
+                          name: `${label} chapter`,
+                          username: useSlug ? `${label}-chapter` : null,
+                          logo_url: hasLogo
+                            ? "https://example.com/chapter-logo.png"
+                            : null,
+                        },
+                      },
+                    ]
+                  : [],
               }).then(resolve);
             },
           };
@@ -61,6 +69,9 @@ const { HomeOrganizationLinks } = await import("./HomeOrganizationLinks");
 beforeEach(() => {
   source = "local";
   queryError = false;
+  isMember = true;
+  useSlug = true;
+  hasLogo = true;
   calls.length = 0;
   createClient.mockClear();
 });
@@ -96,4 +107,28 @@ test("anonymous remote preview offers the directory without reading memberships"
 test("a membership read error renders no organization links", async () => {
   queryError = true;
   expect(await renderLinks()).toBe("");
+});
+
+test("organization card shows its name and logo with one direct navigation link", async () => {
+  const html = await renderLinks();
+  expect(html).toContain('src="https://example.com/chapter-logo.png"');
+  expect(html).toContain(
+    '<h2 class="text-base font-semibold">local chapter</h2>',
+  );
+  expect(html.match(/href="\/organization\/local-chapter"/g)).toHaveLength(1);
+  expect(html).toContain("Open local chapter");
+});
+
+test("accounts without active organization memberships receive no card", async () => {
+  isMember = false;
+  expect(await renderLinks()).toBe("");
+});
+
+test("organization without a logo or slug retains accessible direct navigation", async () => {
+  useSlug = false;
+  hasLogo = false;
+  const html = await renderLinks();
+  expect(html).toContain('href="/organization/local-org"');
+  expect(html).toContain("Open local chapter");
+  expect(html).not.toContain("chapter-logo.png");
 });

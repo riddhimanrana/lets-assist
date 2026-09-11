@@ -7,6 +7,7 @@ import { test } from "node:test";
 import {
   expectedVersions,
   productionRef,
+  performanceWaiver,
   readJson,
   requireSha,
   ReleaseCheckError,
@@ -164,6 +165,7 @@ test("source verification pins clean Git trees and the required CI workflow", as
   git("commit", "--allow-empty", "-m", "Release fixture");
   const releaseSha = git("rev-parse", "HEAD");
   git("update-ref", "refs/remotes/origin/main", releaseSha);
+  git("update-ref", "refs/remotes/origin/development", acceptedSha);
   const config = {
     cwd,
     releaseSha,
@@ -208,6 +210,53 @@ test("source verification pins clean Git trees and the required CI workflow", as
     throw new Error("Unexpected request");
   };
   assert.equal((await verifySource(config, fetcher)).releaseSha, releaseSha);
+  const waiver = {
+    confirmation: `waive-csf-performance:${releaseSha}:${acceptedSha}`,
+    reason: "Release owner accepts the measured hosted performance risk.",
+    actor: "release-owner",
+    runId: "12345",
+  };
+  const waiverFetcher = async (url) => {
+    if (url.endsWith("/statuses?per_page=100"))
+      return Response.json([
+        {
+          ...trustedStatus,
+          id: 1,
+          context: "csf-hosted-development-functional",
+        },
+      ]);
+    return fetcher(url);
+  };
+  await assert.rejects(
+    verifySource({ ...config, waiver }, fetcher),
+    /trusted run/,
+  );
+  for (const patch of [
+    { state: "failure" },
+    { creator: { login: "someone" } },
+  ]) {
+    await assert.rejects(
+      verifySource({ ...config, waiver }, async (url) => {
+        if (url.endsWith("/statuses?per_page=100"))
+          return Response.json([
+            {
+              ...trustedStatus,
+              id: 1,
+              context: "csf-hosted-development-functional",
+              ...patch,
+            },
+          ]);
+        return waiverFetcher(url);
+      }),
+      /trusted hosted acceptance/,
+    );
+  }
+  const waived = await verifySource({ ...config, waiver }, waiverFetcher);
+  assert.equal(waived.performanceWaiver.hostedAcceptance, "waived, not passed");
+  assert.equal(waived.performanceWaiver.reason, waiver.reason);
+  assert.equal(waived.performanceWaiver.actor, waiver.actor);
+  assert.equal(waived.performanceWaiver.runId, waiver.runId);
+
   for (const patch of [
     { path: ".github/workflows/untrusted.yml" },
     { head_sha: releaseSha },
@@ -216,10 +265,19 @@ test("source verification pins clean Git trees and the required CI workflow", as
   ]) {
     ciPatch = patch;
     await assert.rejects(verifySource(config, fetcher));
+    await assert.rejects(verifySource({ ...config, waiver }, waiverFetcher));
   }
   ciPatch = {};
+  git("update-ref", "refs/remotes/origin/development", releaseSha);
+  git("update-ref", "-d", "refs/remotes/origin/development");
+  await assert.rejects(verifySource({ ...config, waiver }, waiverFetcher));
+  git("update-ref", "refs/remotes/origin/development", acceptedSha);
   writeFileSync(resolve(cwd, "fixture.txt"), "fictional fixture");
   await assert.rejects(verifySource(config, fetcher), /not clean/u);
+  await assert.rejects(
+    verifySource({ ...config, waiver }, waiverFetcher),
+    /not clean/u,
+  );
   git("add", "fixture.txt");
   git("commit", "-m", "Changed application fixture");
   const changedSha = git("rev-parse", "HEAD");
@@ -443,4 +501,27 @@ test("capture and recovery alias filters execute and refuse ambiguous targets", 
       assert.throws(() => run(aliases));
     }
   }
+});
+
+test("performance waiver is optional, exact and auditable", () => {
+  const acceptedSha = "b".repeat(40);
+  const valid = {
+    confirmation: `waive-csf-performance:${sha}:${acceptedSha}`,
+    reason: "Explicit release owner performance risk acceptance.",
+    actor: "release-owner",
+    runId: "12345",
+  };
+  assert.equal(performanceWaiver({}, sha, acceptedSha), null);
+  for (const patch of [
+    { confirmation: "" },
+    { reason: "" },
+    { reason: "short" },
+    { reason: "x".repeat(1001) },
+    { confirmation: `waive-csf-performance:${acceptedSha}:${sha}` },
+    { actor: "" },
+    { runId: "" },
+  ])
+    assert.throws(() =>
+      performanceWaiver({ ...valid, ...patch }, sha, acceptedSha),
+    );
 });

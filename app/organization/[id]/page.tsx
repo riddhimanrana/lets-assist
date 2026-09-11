@@ -1,3 +1,5 @@
+import { getPublicOrganizationForRender } from "./server/public-organization-read";
+import { loadVisibleOrganizationReport } from "./server/overview-report-read";
 import { notFound, redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { getAuthUser } from "@/lib/supabase/auth-helpers";
@@ -44,20 +46,6 @@ type OrganizationMemberRecord = {
   status: string | null;
 };
 
-type OrganizationReadModelRow = {
-  id: string;
-  username: string | null;
-  name: string;
-  description: string | null;
-  website: string | null;
-  logo_url: string | null;
-  type: string;
-  verified: boolean | null;
-  created_at: string | null;
-  show_members_publicly: boolean | null;
-  public_member_count: number | null;
-};
-
 type OrganizationMemberRow = {
   id: string;
   role: "admin" | "staff" | "member";
@@ -79,31 +67,9 @@ type FormattedOrganizationMember = OrganizationMemberRow & {
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { id } = await params;
-  const supabase = await createClient();
   const previewSource = await getServerPreviewSource();
-  const readClient =
-    previewSource === "remote"
-      ? (createRemoteReadonlyClient() ?? supabase)
-      : supabase;
+  const org = await getPublicOrganizationForRender(id, previewSource);
   const baseUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "https://lets-assist.com";
-
-  // Try to fetch by username first through the public-safe read model.
-  const { data: orgByUsername } = await readClient
-    .from("organization_public_read_model")
-    .select("id, name, description, username, logo_url")
-    .eq("username", id)
-    .single();
-
-  // If not found by username, try by ID
-  const { data: orgById } = !orgByUsername
-    ? await readClient
-        .from("organization_public_read_model")
-        .select("id, name, description, username, logo_url")
-        .eq("id", id)
-        .single()
-    : { data: null };
-
-  const org = orgByUsername || orgById;
 
   if (!org) {
     return {
@@ -161,31 +127,12 @@ export default async function OrganizationPage({
     previewSource === "remote"
       ? (createRemoteReadonlyClient() ?? supabase)
       : supabase;
-  // Get current user using getClaims() for better performance
-  const { user } = await getAuthUser();
-
-  // Check if ID is a username or UUID
+  const [{ user }, organization] = await Promise.all([
+    getAuthUser(),
+    getPublicOrganizationForRender(id, previewSource),
+  ]);
   const isUUID =
     /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id);
-
-  // Fetch public-safe organization data. Sensitive base fields such as join
-  // codes, staff tokens, domains, and creator internals stay off this page.
-  const { data: organization } = (
-    isUUID
-      ? await readClient
-          .from("organization_public_read_model")
-          .select("*")
-          .eq("id", id)
-          .single()
-      : await readClient
-          .from("organization_public_read_model")
-          .select("*")
-          .eq("username", id)
-          .single()
-  ) as {
-    data: OrganizationReadModelRow | null;
-    error: { message?: string } | null;
-  };
 
   if (!organization) {
     notFound();
@@ -355,37 +302,9 @@ export default async function OrganizationPage({
           .eq("organization_id", organization.id)
           .order("created_at", { ascending: false });
 
-  let reportSummary: { totalHours: number } | null = null;
-
-  if (userRole === "admin" || userRole === "staff") {
-    const reportResult = await getOrganizationReportData(organization.id);
-    if (reportResult.data?.metrics) {
-      reportSummary = {
-        totalHours: reportResult.data.metrics.totalHours,
-      };
-    }
-  }
-
-  if (!reportSummary) {
-    reportSummary = await getPublicOrganizationReportSummary(organization.id);
-  }
-
   const organizationCreatedLabel = formatUtcCalendarDateLabel(
     organization.created_at,
   );
-
-  const pluginOverviewExtensions = pluginRole
-    ? await resolveOrganizationPluginSurfaces({
-        organizationId: organization.id,
-        surface: "organization.overview.cards",
-        viewerRole: pluginRole,
-        viewerUserId: pluginViewerUserId,
-        target: {
-          userId: user?.id ?? null,
-        },
-        useAdminClient: true,
-      })
-    : [];
   const navOverridesContributions = pluginRole
     ? await resolveOrganizationPluginBehaviorHook({
         organizationId: organization.id,
@@ -414,6 +333,33 @@ export default async function OrganizationPage({
       }),
       {},
     );
+  const [reportSummary, pluginOverviewExtensions, allResolvedPlugins] =
+    await Promise.all([
+      loadVisibleOrganizationReport({
+        hidden: navOverrides.hideOverviewTab === true,
+        userRole,
+        getStaffReport: () => getOrganizationReportData(organization.id),
+        getPublicSummary: () =>
+          getPublicOrganizationReportSummary(organization.id),
+      }),
+      pluginRole && !navOverrides.hideOverviewTab
+        ? resolveOrganizationPluginSurfaces({
+            organizationId: organization.id,
+            surface: "organization.overview.cards",
+            viewerRole: pluginRole,
+            viewerUserId: pluginViewerUserId,
+            target: { userId: user?.id ?? null },
+            useAdminClient: true,
+          })
+        : Promise.resolve([]),
+      pluginRole
+        ? resolveOrganizationPlugins({
+            organizationId: organization.id,
+            userRole: pluginRole,
+            viewerUserId: pluginViewerUserId,
+          })
+        : Promise.resolve([]),
+    ]);
   const allowedPluginSurfaces = navOverrides.pluginSurfaceAllowlist;
   const isAllowedPluginSurface = (pluginKey: string) =>
     !allowedPluginSurfaces?.length || allowedPluginSurfaces.includes(pluginKey);
@@ -461,15 +407,9 @@ export default async function OrganizationPage({
     created_at?: string | null;
   };
 
-  const resolvedPlugins = pluginRole
-    ? (
-        await resolveOrganizationPlugins({
-          organizationId: organization.id,
-          userRole: pluginRole,
-          viewerUserId: pluginViewerUserId,
-        })
-      ).filter((plugin) => isAllowedPluginSurface(plugin.key))
-    : [];
+  const resolvedPlugins = allResolvedPlugins.filter((plugin) =>
+    isAllowedPluginSurface(plugin.key),
+  );
   const pluginRouteTabs: OrganizationPluginRouteTabLink[] =
     resolvedPlugins.flatMap((plugin) => {
       const definition = getRegisteredPlugin(plugin.key);

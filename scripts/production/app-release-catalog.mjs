@@ -1,3 +1,18 @@
+import { sheetToggleDefinitions } from "./sheet-toggle-catalog.mjs";
+import { sheetDeferredNoteDefinitions } from "./sheet-deferred-note-catalog.mjs";
+import {
+  sheetObservationDefinitions,
+  sheetObservationTables,
+} from "./sheet-observation-catalog.mjs";
+import {
+  sheetRecoveryDefinitions,
+  sheetRecoveryTables,
+} from "./sheet-recovery-catalog.mjs";
+import {
+  sheetDiscussionDefinitions,
+  sheetDiscussionTables,
+} from "./sheet-discussion-catalog.mjs";
+import { sheetSyncPosture } from "./sheet-sync-catalog.mjs";
 import {
   ownershipDefinitions,
   reportedContactColumnsPosture,
@@ -104,10 +119,58 @@ export function acceptedCatalogQuery(source, versions) {
       "34dbbd884882349f8083512cd2fe48b371c3f1242bc62897685267f2a5d0001b"
   )
     return source;
-  const revokedHistoryUpgrade =
-    versions.length === 482 &&
+  const sheetToggleUpgrade =
+    versions.length === 494 &&
     ledgerHash ===
-      "67fc11a98fd055dae9620a1424e549c68a476c9ea3b72976adac2884edda9858";
+      "e359a42486e32924eb5856a55e770ec42faa09601d71f10b32c35cb209b62518";
+  const sheetDeferredNoteUpgrade =
+    sheetToggleUpgrade ||
+    (versions.length === 493 &&
+      ledgerHash ===
+        "a412156a94951d6a3995011f2f5b27bc336f9ffef0fdff913daf78ac1316f915");
+  const sheetObservationUpgrade =
+    sheetDeferredNoteUpgrade ||
+    (versions.length === 491 &&
+      ledgerHash ===
+        "4b6c08631b3358bdd6aeeafd2e2c1f2552bd22dd8bafdb09f8cd3f5ed751f6ce") ||
+    (versions.length === 492 &&
+      ledgerHash ===
+        "724a563d57619b24d8d696cb021b98bab2bbef4ed018df863c571c7c1a7065a0");
+  const sheetRecoveryUpgrade =
+    sheetObservationUpgrade ||
+    (versions.length === 489 &&
+      ledgerHash ===
+        "db08f289c2f648d955c2238108fb8b20b8e71b0a03eec7c5226f741ba05031c6") ||
+    (versions.length === 490 &&
+      ledgerHash ===
+        "8c974cfcfc5c9a7550b2b5ee0926f107cb7af524fd8b4225f87edd945a71c5dc");
+  const sheetDiscussionUpgrade =
+    sheetRecoveryUpgrade ||
+    (versions.length === 487 &&
+      ledgerHash ===
+        "80f95ab50c493a2759eeb23e17398b992b0b4f2aac6556947f874cb0d616b059") ||
+    (versions.length === 488 &&
+      ledgerHash ===
+        "0d78f8f25b496da867238a8324a19e6cc4dec615337e988660bd9b0e8bf56e16");
+  const sheetSyncUpgrade =
+    sheetDiscussionUpgrade ||
+    (versions.length === 483 &&
+      ledgerHash ===
+        "4cba941c6304329ccbf4c2ccbd6371d41d235e8e943124d4b73a7b9ab1dfb144") ||
+    (versions.length === 484 &&
+      ledgerHash ===
+        "c54a7e57d7f32caa8757f8defc106df7637984d99943835ee6cb4030fbdf00d8") ||
+    (versions.length === 485 &&
+      ledgerHash ===
+        "8d650ea3d0d0148d14f9e57e1d52b1bd2bd8e8d61a71f4241dc1d59009adfd31") ||
+    (versions.length === 486 &&
+      ledgerHash ===
+        "01316a49d8af843cd146181f8b48d34b0bb68adda381314a90ce8e862c52ff41");
+  const revokedHistoryUpgrade =
+    sheetSyncUpgrade ||
+    (versions.length === 482 &&
+      ledgerHash ===
+        "67fc11a98fd055dae9620a1424e549c68a476c9ea3b72976adac2884edda9858");
   const ownershipUpgrade =
     revokedHistoryUpgrade ||
     (versions.length === 481 &&
@@ -515,11 +578,11 @@ accepted_upgrade_posture AS (
   ${applicationRetryUpgrade ? applicationRetryRecoveryPosture : ""}
   ${workbookRecoveryUpgrade ? workbookRecoveryPosture : ""}
   ${applicationSourceReviewUpgrade ? applicationSourceReviewPosture : ""}
-  ${reviewedWorkbookLinksUpgrade ? reviewedWorkbookLinksPosture(workerRelationSnapshotQuery) : ""}
-  ${automaticSheetUpdatesUpgrade ? automaticSheetUpdatesPosture(workerRelationSnapshotQuery, matchingTabUpgrade, applicationContactsUpgrade, ownershipUpgrade) : ""}
+  ${reviewedWorkbookLinksUpgrade ? reviewedWorkbookLinksPosture(workerRelationSnapshotQuery, sheetSyncUpgrade) : ""}
+  ${automaticSheetUpdatesUpgrade ? automaticSheetUpdatesPosture(workerRelationSnapshotQuery, matchingTabUpgrade, applicationContactsUpgrade, ownershipUpgrade, sheetSyncUpgrade) : ""}
   ${workbookLinkMergeUpgrade ? workbookLinkMergePosture : ""}
   ${staffAccountConnectionUpgrade ? staffAccountConnectionPosture(staffAccountAuthorityUpgrade, ownershipUpgrade) : ""}
-  ${ownershipUpgrade ? reportedContactColumnsPosture : ""} AS valid
+  ${ownershipUpgrade ? reportedContactColumnsPosture : ""}${sheetSyncUpgrade ? `\n  ${sheetSyncPosture(workerRelationSnapshotQuery, sheetToggleUpgrade ? sheetToggleDefinitions : sheetDeferredNoteUpgrade ? sheetDeferredNoteDefinitions : sheetObservationUpgrade ? sheetObservationDefinitions : sheetRecoveryUpgrade ? sheetRecoveryDefinitions : sheetDiscussionUpgrade ? sheetDiscussionDefinitions : undefined, sheetObservationUpgrade ? sheetObservationTables : sheetRecoveryUpgrade ? sheetRecoveryTables : sheetDiscussionUpgrade ? sheetDiscussionTables : undefined)}` : ""} AS valid
   FROM accepted_upgrade_definitions expected
   LEFT JOIN pg_proc p ON p.oid=to_regprocedure(expected.signature)
 )
