@@ -7197,3 +7197,5 @@ P2: migration 496 rejects supported unqualified and lowercase A1 ranges. It is a
 Production remains host `f742c18df694e4c9e77ea68e2ea9eddc96556c01`, database 494, application 1.2.31. Imports remain paused and there are zero configured new Sheet sync destinations. The refreshed 235-row source is preserved but awaiting the recovery correction; the existing 200 applications remain intact. The prepared Home count correction `597ea98` is not published or deployed. Do not enable live syncing before restricted copied-workbook acceptance.
 
 The screenshot guide now includes the successful fictional manual account connection with different contact and login emails. This test preserved contact fields and created no application, points, or staff privilege. The guide remains explicit that full Sheets sync is not live.
+
+The preserved correction passed independent bounded review, `git diff --check`, strict private-submodule validation, and plugin registry gates. These checks do not replace final integrated acceptance for migration 497.
