@@ -1,8 +1,8 @@
 export const sheetSyncDefinitions = [
   [
     "plugin_data.csf_add_sheet_sync_local_message(uuid,uuid,uuid,uuid,text,text,boolean)",
-    "e7ea84968f401951dc39e65e1326fa11",
-    "1f1f311304ef49975cd9017446419854",
+    "5b61c7514ba4532498ee0d8bc4828ac1",
+    "e2bf0455e3848f04c8498ea8716382ef",
     true,
   ],
   [
@@ -13,8 +13,8 @@ export const sheetSyncDefinitions = [
   ],
   [
     "plugin_data.csf_bind_sheet_sync_thread(uuid,uuid,uuid,uuid,uuid,text,text,text)",
-    "2fa0ad0d61c184f4efad37f92e118e04",
-    "af088bb73993dc85790533bfa0865de7",
+    "a3350b9c70b3cdc83e45a38fdc1a34bf",
+    "f273618b0339613f4b10a2c2fd6f5679",
     true,
   ],
   [
@@ -61,8 +61,8 @@ export const sheetSyncDefinitions = [
   ],
   [
     "plugin_data.csf_queue_changed_sheet_sync_record()",
-    "f4b5cc87c2ff87db4ef95435e21cc5d9",
-    "18b4fc170483d1ca2b31d282430cf5bb",
+    "876a08b06b58746ab8a61889c60a8340",
+    "ac00412fab8b0e085a85a49938c41484",
     false,
   ],
   [
@@ -127,8 +127,8 @@ export const sheetSyncDefinitions = [
   ],
   [
     "plugin_data.csf_sheet_sync_snapshot(uuid,text,uuid)",
-    "92b7cbf04d0a8cce519d3b5a1e55284c",
-    "8ecfd6652fa03cda7ad95e94bd3a8f15",
+    "6f1bf6a0c28d7cb7e7f6aff22c29aa27",
+    "e1a25952718bf9ccfec2d775ab684650",
     true,
   ],
 ];
@@ -152,6 +152,13 @@ export const sheetSyncTriggers = [
     "csf_application_files",
     "csf_sheet_sync_application_files",
     "c2bd83eb3eec4278af9ed6a2578b0c1c",
+    21,
+    "plugin_data.csf_queue_changed_sheet_sync_record()",
+  ],
+  [
+    "csf_application_status_events",
+    "csf_sheet_sync_application_reviews",
+    "a031c2cd39314e852e2c78b64643a4e1",
     21,
     "plugin_data.csf_queue_changed_sheet_sync_record()",
   ],

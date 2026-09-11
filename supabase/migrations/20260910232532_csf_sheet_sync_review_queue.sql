@@ -237,6 +237,7 @@ BEGIN
    FROM plugin_data.csf_profiles p WHERE id=p_record_id AND organization_id=p_organization_id;
  ELSE RAISE EXCEPTION 'Unsupported sync record.'; END IF;
  IF r IS NULL THEN RAISE EXCEPTION 'Record not found.'; END IF;
+ IF p_record_kind='application' THEN r:=r||jsonb_build_object('application_reviews',coalesce((SELECT jsonb_agg(jsonb_build_object('id',e.id,'application_id',e.application_id,'actor_user_id',e.actor_user_id,'previous_status',e.previous_status,'next_status',e.next_status,'reason',e.reason,'created_at',e.created_at) ORDER BY e.created_at,e.id) FROM plugin_data.csf_application_status_events e WHERE e.organization_id=p_organization_id AND e.application_id=p_record_id),'[]'::jsonb)); END IF;
  IF p_record_kind='profile' THEN
  r:=r||jsonb_build_object('applications',coalesce((SELECT jsonb_agg(to_jsonb(a) ORDER BY a.id) FROM plugin_data.csf_term_applications a WHERE a.organization_id=p_organization_id AND a.profile_id=p_record_id),'[]'::jsonb),'credits',coalesce((SELECT jsonb_agg(to_jsonb(c) ORDER BY c.id) FROM plugin_data.csf_credit_records c WHERE c.organization_id=p_organization_id AND c.profile_id=p_record_id),'[]'::jsonb));
  END IF;
@@ -452,7 +453,7 @@ DECLARE b plugin_data.csf_sheet_sync_bindings%ROWTYPE;
 BEGIN
  PERFORM plugin_data.csf_assert_sheet_sync_destination_lease(p_organization_id,p_destination_id,p_lease_token);
  SELECT * INTO b FROM plugin_data.csf_sheet_sync_bindings WHERE id=p_binding_id AND organization_id=p_organization_id AND destination_id=p_destination_id FOR UPDATE;
- IF NOT FOUND OR NOT (EXISTS(SELECT 1 FROM plugin_data.csf_review_notes WHERE organization_id=p_organization_id AND id=p_local_message_id AND subject_id=b.record_id AND subject_kind::text=b.record_kind) OR (b.record_kind='point_submission' AND EXISTS(SELECT 1 FROM plugin_data.csf_submission_reviews WHERE organization_id=p_organization_id AND id=p_local_message_id AND submission_id=b.record_id)) OR EXISTS(SELECT 1 FROM plugin_data.csf_sheet_sync_local_messages WHERE organization_id=p_organization_id AND id=p_local_message_id AND binding_id=b.id)) THEN RAISE EXCEPTION 'Local comment binding not found.'; END IF;
+ IF NOT FOUND OR NOT (EXISTS(SELECT 1 FROM plugin_data.csf_review_notes WHERE organization_id=p_organization_id AND id=p_local_message_id AND subject_id=b.record_id AND subject_kind::text=b.record_kind) OR (b.record_kind='application' AND EXISTS(SELECT 1 FROM plugin_data.csf_application_status_events WHERE organization_id=p_organization_id AND id=p_local_message_id AND application_id=b.record_id)) OR (b.record_kind='point_submission' AND EXISTS(SELECT 1 FROM plugin_data.csf_submission_reviews WHERE organization_id=p_organization_id AND id=p_local_message_id AND submission_id=b.record_id)) OR EXISTS(SELECT 1 FROM plugin_data.csf_sheet_sync_local_messages WHERE organization_id=p_organization_id AND id=p_local_message_id AND binding_id=b.id)) THEN RAISE EXCEPTION 'Local comment binding not found.'; END IF;
  IF b.thread_bindings ? p_local_message_id::text AND b.thread_bindings->p_local_message_id::text->>'threadId'<>p_provider_thread_id THEN RAISE EXCEPTION 'Comment already has a different provider thread.'; END IF;
  UPDATE plugin_data.csf_sheet_sync_bindings SET thread_bindings=thread_bindings||jsonb_build_object(p_local_message_id::text,jsonb_build_object('threadId',p_provider_thread_id,'postId',p_provider_post_id,'localVersion',p_local_version)) WHERE id=b.id RETURNING * INTO b;
  RETURN to_jsonb(b);
@@ -466,6 +467,7 @@ BEGIN
  IF p_request_id IS NULL THEN RAISE EXCEPTION 'A stable message request identifier is required.'; END IF;
  SELECT * INTO b FROM plugin_data.csf_sheet_sync_bindings WHERE organization_id=p_organization_id AND id=p_binding_id;
  IF NOT FOUND THEN RAISE EXCEPTION 'Comment binding not found.'; END IF;
+ IF (b.record_kind='application' AND NOT plugin_data.csf_actor_has_permission(p_organization_id,p_actor_user_id,'view_applications')) OR (b.record_kind='profile' AND NOT plugin_data.csf_actor_has_permission(p_organization_id,p_actor_user_id,'manage_profiles')) THEN RAISE EXCEPTION 'Not authorized to view this discussion.'; END IF;
  SELECT * INTO d FROM plugin_data.csf_sheet_sync_destinations WHERE id=b.destination_id AND organization_id=p_organization_id;
  IF NOT d.enabled THEN RAISE EXCEPTION 'Sync destination is disabled.'; END IF;
  IF p_thread_id IS NOT NULL AND NOT EXISTS(SELECT 1 FROM plugin_data.csf_sheet_sync_comments WHERE binding_id=b.id AND provider_thread_id=p_thread_id) AND NOT EXISTS(SELECT 1 FROM jsonb_each(b.thread_bindings) WHERE value->>'threadId'=p_thread_id) THEN RAISE EXCEPTION 'Thread does not belong to this record.'; END IF;
@@ -488,7 +490,7 @@ LANGUAGE plpgsql SECURITY DEFINER SET search_path='' AS $$
 DECLARE r jsonb:=CASE WHEN TG_OP='DELETE' THEN to_jsonb(OLD) ELSE to_jsonb(NEW) END; k text; rid uuid; d record; profile uuid; target record;
 BEGIN
  IF TG_TABLE_NAME IN ('csf_term_applications','csf_point_submissions') THEN k:=CASE WHEN TG_TABLE_NAME='csf_term_applications' THEN 'application' ELSE 'point_submission' END; rid:=(r->>'id')::uuid;
- ELSIF TG_TABLE_NAME='csf_application_files' THEN k:='application';rid:=(r->>'application_id')::uuid;
+ ELSIF TG_TABLE_NAME IN ('csf_application_files','csf_application_status_events') THEN k:='application';rid:=(r->>'application_id')::uuid;
  ELSIF TG_TABLE_NAME='csf_submission_files' OR (TG_TABLE_NAME='csf_credit_records' AND r->>'submission_id' IS NOT NULL) THEN k:='point_submission';rid:=(r->>'submission_id')::uuid;
  ELSIF TG_TABLE_NAME='csf_review_notes' THEN
   IF r->>'subject_kind' NOT IN ('application','profile') THEN RETURN NEW; END IF;
@@ -516,6 +518,7 @@ CREATE TRIGGER csf_sheet_sync_memberships AFTER INSERT OR UPDATE ON plugin_data.
 CREATE TRIGGER csf_sheet_sync_credits AFTER INSERT OR UPDATE ON plugin_data.csf_credit_records FOR EACH ROW EXECUTE FUNCTION plugin_data.csf_queue_changed_sheet_sync_record();
 CREATE TRIGGER csf_sheet_sync_application_files AFTER INSERT OR UPDATE ON plugin_data.csf_application_files FOR EACH ROW EXECUTE FUNCTION plugin_data.csf_queue_changed_sheet_sync_record();
 CREATE TRIGGER csf_sheet_sync_submission_files AFTER INSERT OR UPDATE ON plugin_data.csf_submission_files FOR EACH ROW EXECUTE FUNCTION plugin_data.csf_queue_changed_sheet_sync_record();
+CREATE TRIGGER csf_sheet_sync_application_reviews AFTER INSERT OR UPDATE ON plugin_data.csf_application_status_events FOR EACH ROW EXECUTE FUNCTION plugin_data.csf_queue_changed_sheet_sync_record();
 CREATE TRIGGER csf_sheet_sync_point_reviews AFTER INSERT OR UPDATE ON plugin_data.csf_submission_reviews FOR EACH ROW EXECUTE FUNCTION plugin_data.csf_queue_changed_sheet_sync_record();
 CREATE TRIGGER csf_sheet_sync_notes AFTER INSERT OR UPDATE ON plugin_data.csf_review_notes FOR EACH ROW EXECUTE FUNCTION plugin_data.csf_queue_changed_sheet_sync_record();
 REVOKE ALL ON FUNCTION plugin_data.csf_queue_changed_sheet_sync_record() FROM PUBLIC,anon,authenticated,service_role;
