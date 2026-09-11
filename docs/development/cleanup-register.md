@@ -7047,7 +7047,6 @@ compatible and accessible. The functional run tests the integrated host; final
 Production browser checks must separately verify the selected 1.2.29 child.
 The nine focused fixture tests passed.
 
-
 ### Sheet observation guard, September 11
 
 PR 519 review found that invalid replacement input could leave an older Sheet
@@ -7071,7 +7070,6 @@ snapshot refresh and reconciliation after release.
 
 Development candidate `dddb23e6` passed hosted functional run `34644480869`.
 Its quality job passed; full CI remains separate from the new observation fix.
-
 
 Private promotion review found that a failure after successful inbound reading
 could incorrectly invalidate that observation. Candidate `6b73d09`, version
