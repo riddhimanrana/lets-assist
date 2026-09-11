@@ -19,7 +19,7 @@ const source = readFileSync(
   "utf8",
 );
 test("column extension pins reviewed definitions while preserving the prior catalog", () => {
-  assert.equal(versions.length, 487);
+  assert.equal(versions.length, 488);
   const current = acceptedCatalogQuery(source, versions);
   const previous = acceptedCatalogQuery(source, versions.slice(0, 486));
   assert.ok(!previous.includes("csf_configure_sheet_discussion_transport"));
@@ -34,7 +34,7 @@ test("column extension pins reviewed definitions while preserving the prior cata
   }
   assert.equal(acceptedCatalogQuery(source, versions.slice(0, 483)), previous);
 });
-test("486 requires only the new forward discussion migration", () => {
+test("486 requires the discussion extension and signed publication", () => {
   const prepared = prepareMigration(cwd, undefined, versions.slice(0, 486));
   assert.equal(
     (
@@ -42,7 +42,7 @@ test("486 requires only the new forward discussion migration", () => {
         /INSERT INTO supabase_migrations.schema_migrations/gu,
       ) ?? []
     ).length,
-    1,
+    2,
   );
   assert.ok(prepared.query.includes("last_export_comments"));
   assert.ok(!prepared.query.includes("AND version = '1.2.27'"));
@@ -53,4 +53,23 @@ test("486 requires only the new forward discussion migration", () => {
       .update(readFileSync(`supabase/migrations/${name}.sql`))
       .digest("hex"),
   );
+});
+
+test("488 publication preserves 487 schema fingerprints and requires only its own bytes", () => {
+  assert.equal(
+    acceptedCatalogQuery(source, versions),
+    acceptedCatalogQuery(source, versions.slice(0, 487)),
+  );
+  const prepared = prepareMigration(cwd, undefined, versions.slice(0, 487));
+  assert.equal(
+    (
+      prepared.query.match(
+        /INSERT INTO supabase_migrations.schema_migrations/gu,
+      ) ?? []
+    ).length,
+    1,
+  );
+  assert.ok(prepared.query.includes("AND version = '1.2.28'"));
+  assert.ok(!prepared.query.includes("ADD COLUMN discussion_transport"));
+  assert.ok(!prepared.query.includes("AND version = '1.2.27'"));
 });
