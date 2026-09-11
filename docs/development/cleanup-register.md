@@ -7109,3 +7109,13 @@ class Sheet snapshots. The user deferred profile-note syncing. The forward corre
 class exports for this release. The existing
 publication remains unchanged. Production sync remains disabled while the fix
 and final integrated release checks are completed.
+
+The final 493-migration candidate passed 283 database files and 8,023 assertions,
+including five checks that profile notes stay in the app while class exports
+retain completion, applications and verified points. All 73 focused catalog
+tests and ten negative probes passed. Independent review confirmed that the
+snapshot's only behavior change is omitting profile review notes.
+Migration 493 SHA-256 is
+`ec7176f9da2b965598fd1f8883c3b8982e66763df569cdf68bfdcb8c3c402da7`.
+The 493-migration ledger SHA-256 is
+`a412156a94951d6a3995011f2f5b27bc336f9ffef0fdff913daf78ac1316f915`.
