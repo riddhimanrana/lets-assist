@@ -30,9 +30,9 @@ export const sheetSyncDefinitions = [
     true,
   ],
   [
-    "plugin_data.csf_claim_sheet_sync_test_copy(uuid,uuid,uuid,text,uuid)",
-    "8521bb35e4ef87e14183b2dd51c79376",
-    "899a6c251ad7abbe3c49cfbca681e34b",
+    "plugin_data.csf_claim_sheet_sync_test_copy(uuid,uuid,uuid,text,uuid,text)",
+    "a39f0181af00e0ceffb27ba4046b2912",
+    "f6229c956765c290d16424039c22a18e",
     true,
   ],
   [
@@ -102,9 +102,9 @@ export const sheetSyncDefinitions = [
     true,
   ],
   [
-    "plugin_data.csf_reconcile_sheet_sync_test_copy_no_write(uuid,uuid,uuid,text,jsonb)",
-    "cdd08fdf7d505f9df0ccde874c0998c9",
-    "31377b1aab0ce1d0c1bdfe1627b750b5",
+    "plugin_data.csf_reconcile_sheet_sync_test_copy_no_write(uuid,uuid,uuid,text,jsonb,text)",
+    "7db27e9464f867288705a791c8c39737",
+    "2fda1caf167ae128ebe4487fc0b7f1f5",
     true,
   ],
   [
@@ -177,7 +177,7 @@ export const sheetSyncTables = [
   ["csf_sheet_sync_changes", "126af210159c3f7c6f2fa8bf9e568221", false],
   [
     "csf_sheet_sync_test_copy_requests",
-    "583a3acdf47c95bc74106b90bb8e3b3a",
+    "8b0153f781f0c1476eb9e4701bde4e35",
     false,
   ],
   ["csf_sheet_sync_local_messages", "8be9338469bf78f20e53a74d7f29975d", false],

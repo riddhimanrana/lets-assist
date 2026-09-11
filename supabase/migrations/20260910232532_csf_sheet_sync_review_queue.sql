@@ -134,7 +134,7 @@ GRANT EXECUTE ON FUNCTION plugin_data.csf_register_sheet_sync_test_file(uuid,uui
 CREATE TABLE plugin_data.csf_sheet_sync_test_copy_requests (
  request_id uuid PRIMARY KEY, organization_id uuid NOT NULL REFERENCES plugin_data.csf_sheet_sync_test_workspaces(organization_id) ON DELETE CASCADE,
  source_organization_id uuid NOT NULL REFERENCES public.organizations(id) ON DELETE CASCADE,source_file_id text NOT NULL CHECK(length(source_file_id) BETWEEN 8 AND 200),
- actor_user_id uuid NOT NULL REFERENCES auth.users(id),state text NOT NULL CHECK(state IN ('claimed','completed','unknown','not_created')),
+ actor_user_id uuid NOT NULL REFERENCES auth.users(id),provider_subject text CHECK(provider_subject IS NULL OR length(btrim(provider_subject)) BETWEEN 1 AND 255),state text NOT NULL CHECK(state IN ('claimed','completed','unknown','not_created')),
  copied_file_id text REFERENCES plugin_data.csf_sheet_sync_test_files(copied_file_id) ON DELETE CASCADE,observed_copied_file_id text CHECK(length(observed_copied_file_id) BETWEEN 8 AND 200),last_error text,
  created_at timestamptz NOT NULL DEFAULT now(),updated_at timestamptz NOT NULL DEFAULT now(),
  CHECK(organization_id<>source_organization_id),CHECK((state='completed')=(copied_file_id IS NOT NULL))
@@ -143,7 +143,7 @@ CREATE UNIQUE INDEX csf_sheet_copy_active_source ON plugin_data.csf_sheet_sync_t
 ALTER TABLE plugin_data.csf_sheet_sync_test_copy_requests ENABLE ROW LEVEL SECURITY;
 REVOKE ALL ON plugin_data.csf_sheet_sync_test_copy_requests FROM PUBLIC,anon,authenticated,service_role;
 GRANT SELECT ON plugin_data.csf_sheet_sync_test_copy_requests TO service_role;
-CREATE FUNCTION plugin_data.csf_claim_sheet_sync_test_copy(p_organization_id uuid,p_actor_user_id uuid,p_source_organization_id uuid,p_source_file_id text,p_request_id uuid) RETURNS jsonb
+CREATE FUNCTION plugin_data.csf_claim_sheet_sync_test_copy(p_organization_id uuid,p_actor_user_id uuid,p_source_organization_id uuid,p_source_file_id text,p_request_id uuid,p_provider_subject text DEFAULT NULL) RETURNS jsonb
 LANGUAGE plpgsql SECURITY DEFINER SET search_path='' AS $$
 DECLARE r plugin_data.csf_sheet_sync_test_copy_requests%ROWTYPE;
 BEGIN
@@ -151,12 +151,15 @@ BEGIN
  IF p_request_id IS NULL OR p_organization_id=p_source_organization_id OR NOT EXISTS(SELECT 1 FROM plugin_data.csf_sheet_sync_test_workspaces WHERE organization_id=p_organization_id) THEN RAISE EXCEPTION 'Choose an isolated test workspace and a stable copy request.'; END IF;
  IF NOT (plugin_data.csf_actor_has_permission(p_organization_id,p_actor_user_id,'manage_sheet_sync') AND plugin_data.csf_actor_has_permission(p_organization_id,p_actor_user_id,'export_sensitive_reports') AND plugin_data.csf_actor_has_permission(p_source_organization_id,p_actor_user_id,'manage_sheet_sync') AND plugin_data.csf_actor_has_permission(p_source_organization_id,p_actor_user_id,'export_sensitive_reports')) THEN RAISE EXCEPTION 'Not authorized.'; END IF;
  PERFORM pg_advisory_xact_lock(hashtextextended('csf-test-copy:'||p_organization_id::text||':'||p_source_organization_id::text||':'||p_source_file_id,0));
+ IF p_provider_subject IS NULL OR length(btrim(p_provider_subject)) NOT BETWEEN 1 AND 255 THEN RAISE EXCEPTION 'Verify the original Google account before copying.'; END IF;
  SELECT * INTO r FROM plugin_data.csf_sheet_sync_test_copy_requests WHERE request_id=p_request_id;
  IF FOUND AND (r.organization_id<>p_organization_id OR r.source_organization_id<>p_source_organization_id OR r.source_file_id<>p_source_file_id OR r.actor_user_id<>p_actor_user_id) THEN RAISE EXCEPTION 'Copy request conflicts with its previous use.'; END IF;
+ IF FOUND AND (r.provider_subject IS NULL OR r.provider_subject IS DISTINCT FROM p_provider_subject) THEN RAISE EXCEPTION 'Google account does not match the original copy request. Keep this attempt on hold.'; END IF;
  IF FOUND AND r.state='not_created' THEN RETURN to_jsonb(r); END IF;
  SELECT * INTO r FROM plugin_data.csf_sheet_sync_test_copy_requests WHERE organization_id=p_organization_id AND source_organization_id=p_source_organization_id AND source_file_id=p_source_file_id AND state<>'not_created' FOR UPDATE;
+ IF FOUND AND (r.provider_subject IS NULL OR r.provider_subject IS DISTINCT FROM p_provider_subject) THEN RAISE EXCEPTION 'Google account does not match the original copy request. Keep this attempt on hold.'; END IF;
  IF FOUND THEN RETURN jsonb_build_object('state',CASE WHEN r.state='completed' THEN 'completed' ELSE 'unknown' END,'request_id',r.request_id,'copied_file_id',r.copied_file_id); END IF;
- INSERT INTO plugin_data.csf_sheet_sync_test_copy_requests(request_id,organization_id,source_organization_id,source_file_id,actor_user_id,state) VALUES(p_request_id,p_organization_id,p_source_organization_id,p_source_file_id,p_actor_user_id,'claimed') RETURNING * INTO r;
+ INSERT INTO plugin_data.csf_sheet_sync_test_copy_requests(request_id,organization_id,source_organization_id,source_file_id,actor_user_id,provider_subject,state) VALUES(p_request_id,p_organization_id,p_source_organization_id,p_source_file_id,p_actor_user_id,p_provider_subject,'claimed') RETURNING * INTO r;
  INSERT INTO plugin_data.csf_admin_audit_events(organization_id,actor_user_id,action,target_type,target_id,after_data) VALUES(p_organization_id,p_actor_user_id,'sheet_sync.test_copy_claimed','sheet_sync_test_copy',r.request_id,to_jsonb(r));
  RETURN jsonb_build_object('state','claimed','request_id',r.request_id,'copied_file_id',NULL);
 END $$;
@@ -182,10 +185,10 @@ BEGIN
  INSERT INTO plugin_data.csf_admin_audit_events(organization_id,actor_user_id,action,target_type,target_id,after_data) VALUES(p_organization_id,p_actor_user_id,'sheet_sync.test_copy_finished','sheet_sync_test_copy',r.request_id,to_jsonb(r));
  RETURN to_jsonb(r);
 END $$;
-REVOKE ALL ON FUNCTION plugin_data.csf_claim_sheet_sync_test_copy(uuid,uuid,uuid,text,uuid),plugin_data.csf_finish_sheet_sync_test_copy(uuid,uuid,uuid,text,text,text) FROM PUBLIC,anon,authenticated;
-GRANT EXECUTE ON FUNCTION plugin_data.csf_claim_sheet_sync_test_copy(uuid,uuid,uuid,text,uuid),plugin_data.csf_finish_sheet_sync_test_copy(uuid,uuid,uuid,text,text,text) TO service_role;
+REVOKE ALL ON FUNCTION plugin_data.csf_claim_sheet_sync_test_copy(uuid,uuid,uuid,text,uuid,text),plugin_data.csf_finish_sheet_sync_test_copy(uuid,uuid,uuid,text,text,text) FROM PUBLIC,anon,authenticated;
+GRANT EXECUTE ON FUNCTION plugin_data.csf_claim_sheet_sync_test_copy(uuid,uuid,uuid,text,uuid,text),plugin_data.csf_finish_sheet_sync_test_copy(uuid,uuid,uuid,text,text,text) TO service_role;
 
-CREATE FUNCTION plugin_data.csf_reconcile_sheet_sync_test_copy_no_write(p_organization_id uuid,p_actor_user_id uuid,p_request_id uuid,p_reason text,p_evidence jsonb) RETURNS jsonb
+CREATE FUNCTION plugin_data.csf_reconcile_sheet_sync_test_copy_no_write(p_organization_id uuid,p_actor_user_id uuid,p_request_id uuid,p_reason text,p_evidence jsonb,p_provider_subject text DEFAULT NULL) RETURNS jsonb
 LANGUAGE plpgsql SECURITY DEFINER SET search_path='' AS $$
 DECLARE r plugin_data.csf_sheet_sync_test_copy_requests%ROWTYPE; before_row jsonb;
 BEGIN
@@ -196,6 +199,7 @@ BEGIN
  PERFORM pg_advisory_xact_lock(hashtextextended('csf-test-copy:'||p_organization_id::text||':'||r.source_organization_id::text||':'||r.source_file_id,0));
  SELECT * INTO r FROM plugin_data.csf_sheet_sync_test_copy_requests WHERE organization_id=p_organization_id AND request_id=p_request_id FOR UPDATE;
  IF NOT FOUND THEN RAISE EXCEPTION 'Copy request not found.'; END IF;
+ IF p_provider_subject IS NULL OR r.provider_subject IS NULL OR r.provider_subject IS DISTINCT FROM p_provider_subject THEN RAISE EXCEPTION 'Google account does not match the original copy request. Keep this attempt on hold.'; END IF;
  IF p_reason IS NULL OR length(btrim(p_reason)) NOT BETWEEN 1 AND 4000 OR jsonb_typeof(p_evidence) IS DISTINCT FROM 'object' OR p_evidence->'provider_request_ended' IS DISTINCT FROM 'true'::jsonb OR p_evidence->'no_file_created' IS DISTINCT FROM 'true'::jsonb OR p_evidence->>'request_id' IS DISTINCT FROM p_request_id::text OR p_evidence->'matching_file_count' IS DISTINCT FROM '0'::jsonb THEN RAISE EXCEPTION 'Record the completed provider inspection and why no file was created.'; END IF;
  IF r.state='not_created' THEN RETURN to_jsonb(r); END IF;
  IF (r.state<>'unknown' AND NOT (r.state='claimed' AND r.created_at<=clock_timestamp()-interval '10 minutes')) OR r.copied_file_id IS NOT NULL OR r.observed_copied_file_id IS NOT NULL THEN RAISE EXCEPTION 'Only an unresolved attempt without a known file can be closed.'; END IF;
@@ -204,8 +208,8 @@ BEGIN
  INSERT INTO plugin_data.csf_admin_audit_events(organization_id,actor_user_id,action,target_type,target_id,before_data,after_data,reason_code) VALUES(p_organization_id,p_actor_user_id,'sheet_sync.test_copy_not_created','sheet_sync_test_copy',r.request_id,before_row,to_jsonb(r)||jsonb_build_object('inspection',p_evidence),p_reason);
  RETURN to_jsonb(r);
 END $$;
-REVOKE ALL ON FUNCTION plugin_data.csf_reconcile_sheet_sync_test_copy_no_write(uuid,uuid,uuid,text,jsonb) FROM PUBLIC,anon,authenticated;
-GRANT EXECUTE ON FUNCTION plugin_data.csf_reconcile_sheet_sync_test_copy_no_write(uuid,uuid,uuid,text,jsonb) TO service_role;
+REVOKE ALL ON FUNCTION plugin_data.csf_reconcile_sheet_sync_test_copy_no_write(uuid,uuid,uuid,text,jsonb,text) FROM PUBLIC,anon,authenticated;
+GRANT EXECUTE ON FUNCTION plugin_data.csf_reconcile_sheet_sync_test_copy_no_write(uuid,uuid,uuid,text,jsonb,text) TO service_role;
 
 CREATE FUNCTION plugin_data.csf_guard_sheet_sync_test_file() RETURNS trigger
 LANGUAGE plpgsql SECURITY DEFINER SET search_path='' AS $$
