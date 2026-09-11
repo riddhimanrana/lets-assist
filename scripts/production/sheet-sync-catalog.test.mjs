@@ -70,7 +70,7 @@ test("the sync catalog covers each table and exact source-change trigger", () =>
       /CREATE TRIGGER ([a-z_]+) (?:AFTER|BEFORE)[^;]+? ON plugin_data\.([a-z_]+)/gu,
     ),
   ].map((m) => `${m[2]}.${m[1]}`);
-  assert.equal(triggers.length, 25);
+  assert.equal(triggers.length, 26);
   assert.deepEqual(
     sheetSyncTriggers.map(([table, name]) => `${table}.${name}`).sort(),
     triggers.sort(),
@@ -105,7 +105,7 @@ test("483 adds the sync posture without changing the preceding accepted catalog"
   for (const [signature] of sheetSyncDefinitions)
     assert.ok(current.includes(signature), signature);
   assert.ok(current.includes("SELECT count(*)=9"));
-  assert.ok(current.includes("SELECT count(*)=25"));
+  assert.ok(current.includes("SELECT count(*)=26"));
   assert.throws(
     () =>
       acceptedCatalogQuery(source, [

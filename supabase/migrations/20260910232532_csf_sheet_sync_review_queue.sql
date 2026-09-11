@@ -679,6 +679,7 @@ BEGIN
  RETURN CASE WHEN TG_OP='DELETE' THEN OLD ELSE NEW END;
 END $$;
 REVOKE ALL ON FUNCTION plugin_data.csf_queue_term_sheet_sync_records() FROM PUBLIC,anon,authenticated,service_role;
+CREATE TRIGGER csf_sheet_sync_cohort_terms AFTER INSERT OR UPDATE OR DELETE ON plugin_data.csf_cohort_terms FOR EACH ROW EXECUTE FUNCTION plugin_data.csf_queue_term_sheet_sync_records();
 CREATE TRIGGER csf_sheet_sync_policy AFTER INSERT OR UPDATE OR DELETE ON plugin_data.csf_term_policies FOR EACH ROW EXECUTE FUNCTION plugin_data.csf_queue_term_sheet_sync_records();
 CREATE TRIGGER csf_sheet_sync_meetings AFTER INSERT OR UPDATE OR DELETE ON plugin_data.csf_meetings FOR EACH ROW EXECUTE FUNCTION plugin_data.csf_queue_term_sheet_sync_records();
 CREATE TRIGGER csf_sheet_sync_legacy_meetings AFTER INSERT OR UPDATE OR DELETE ON plugin_data.csf_term_meetings FOR EACH ROW EXECUTE FUNCTION plugin_data.csf_queue_term_sheet_sync_records();

@@ -200,6 +200,13 @@ export const sheetSyncTriggers = [
     "plugin_data.csf_guard_sheet_sync_test_file()",
   ],
   [
+    "csf_cohort_terms",
+    "csf_sheet_sync_cohort_terms",
+    "b42d620286dfbe2bdcf71cc512896afa",
+    29,
+    "plugin_data.csf_queue_term_sheet_sync_records()",
+  ],
+  [
     "csf_credit_records",
     "csf_sheet_sync_credits",
     "c448b421016ea883831cb09bc82e4cf0",

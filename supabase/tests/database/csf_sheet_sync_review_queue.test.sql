@@ -1,6 +1,6 @@
 BEGIN;
 CREATE EXTENSION IF NOT EXISTS pgtap WITH SCHEMA extensions;
-SELECT extensions.plan(148);
+SELECT extensions.plan(156);
 INSERT INTO auth.users(id,aud,role,email,raw_app_meta_data,raw_user_meta_data) VALUES
 ('ea000000-0000-4000-8000-000000000001','authenticated','authenticated','sheet-admin@local.test','{}','{}'),
 ('ea000000-0000-4000-8000-000000000002','authenticated','authenticated','sheet-outsider@local.test','{}','{}');
@@ -301,14 +301,33 @@ SELECT extensions.throws_ok($$INSERT INTO plugin_data.csf_sheet_sync_destination
 SELECT extensions.ok(EXISTS(SELECT 1 FROM pg_indexes WHERE schemaname='plugin_data' AND tablename='csf_sheet_sync_bindings' AND indexdef LIKE '%(organization_id, profile_id)%'),'profile changes have an organization-scoped binding index');
 SELECT extensions.ok(EXISTS(SELECT 1 FROM pg_indexes WHERE schemaname='plugin_data' AND tablename='csf_sheet_sync_bindings' AND indexdef LIKE '%(organization_id, record_kind, record_id)%'),'record changes have an organization-scoped binding index');
 DELETE FROM plugin_data.csf_cohort_terms WHERE organization_id='ea100000-0000-4000-8000-000000000001';
+SELECT extensions.ok(pg_temp.current_sync_queued('profile','ea300000-0000-4000-8000-000000000001'),'pair removal queues current tombstones without another source edit');
 SELECT extensions.ok((plugin_data.csf_sheet_sync_destination_snapshot('ea100000-0000-4000-8000-000000000001','eaf20000-0000-4000-8000-000000000001','profile','ea300000-0000-4000-8000-000000000001')->>'out_of_scope')::boolean,'removing a configured pair returns only a bound tombstone');
 UPDATE plugin_data.csf_sheet_sync_destinations SET enabled=true,poll_lease_token='eaff0000-0000-4000-8000-000000000001',poll_lease_expires_at=clock_timestamp()+interval '2 minutes' WHERE id='eaf20000-0000-4000-8000-000000000001';
 SELECT extensions.lives_ok($$UPDATE plugin_data.csf_profiles SET first_name='After pair removal' WHERE id='ea300000-0000-4000-8000-000000000001'$$,'invalid class pair does not block a bound source edit');
 SELECT extensions.lives_ok($$INSERT INTO plugin_data.csf_profiles(id,organization_id,first_name,last_name,normalized_first_name,normalized_last_name) VALUES('eaff1000-0000-4000-8000-000000000001','ea100000-0000-4000-8000-000000000001','Unbound','Student','unbound','student')$$,'invalid class pair does not block an unbound source insert');
 SELECT extensions.throws_ok($$SELECT plugin_data.csf_assert_sheet_sync_destination_lease('ea100000-0000-4000-8000-000000000001','eaf20000-0000-4000-8000-000000000001','eaff0000-0000-4000-8000-000000000001')$$,'P0001','This semester is not configured for this class.','provider access fails closed after pair removal');
 
+INSERT INTO plugin_data.csf_profile_cohort_memberships(organization_id,profile_id,cohort_id) VALUES('ea100000-0000-4000-8000-000000000001','eaff1000-0000-4000-8000-000000000001','ea500000-0000-4000-8000-000000000001');
+UPDATE plugin_data.csf_profile_cohort_memberships SET status='archived' WHERE profile_id='ea300000-0000-4000-8000-000000000004';
 SELECT extensions.throws_ok($$SELECT plugin_data.csf_configure_sheet_sync_destination('ea100000-0000-4000-8000-000000000001','ea000000-0000-4000-8000-000000000001','fixture-sheet-copy',79,'class','ea500000-0000-4000-8000-000000000001','ea200000-0000-4000-8000-000000000001',true)$$,'P0001','This semester is not configured for this class.','same-organization class and semester require a configured pair');
 INSERT INTO plugin_data.csf_cohort_terms(organization_id,cohort_id,term_id) VALUES('ea100000-0000-4000-8000-000000000001','ea500000-0000-4000-8000-000000000001','ea200000-0000-4000-8000-000000000001');
 SELECT extensions.lives_ok($$SELECT plugin_data.csf_configure_sheet_sync_destination('ea100000-0000-4000-8000-000000000001','ea000000-0000-4000-8000-000000000001','fixture-sheet-copy',79,'class','ea500000-0000-4000-8000-000000000001','ea200000-0000-4000-8000-000000000001',true)$$,'configured class and semester pair can create a destination');
+SELECT extensions.ok(pg_temp.current_sync_queued('profile','ea300000-0000-4000-8000-000000000001'),'pair restoration queues the edited existing profile');
+SELECT extensions.ok(pg_temp.current_sync_queued('profile','eaff1000-0000-4000-8000-000000000001'),'pair restoration discovers newly enrolled unbound profiles');
+SELECT extensions.ok(pg_temp.current_sync_queued('profile','ea300000-0000-4000-8000-000000000004') AND (plugin_data.csf_sheet_sync_destination_snapshot('ea100000-0000-4000-8000-000000000001','eaf20000-0000-4000-8000-000000000001','profile','ea300000-0000-4000-8000-000000000004')->>'out_of_scope')::boolean,'pair restoration retains cleanup for students removed while absent');
+INSERT INTO plugin_data.csf_terms(id,organization_id,code,label,school_year,semester) VALUES('eafb0000-0000-4000-8000-000000000001','ea100000-0000-4000-8000-000000000001','S50','Spring 2050','2049-2050','spring');
+UPDATE plugin_data.csf_cohort_terms SET term_id='eafb0000-0000-4000-8000-000000000001' WHERE organization_id='ea100000-0000-4000-8000-000000000001';
+SELECT extensions.ok(pg_temp.current_sync_queued('profile','ea300000-0000-4000-8000-000000000001'),'moving a configured pair refreshes the old term destination');
+UPDATE plugin_data.csf_cohort_terms SET term_id='ea200000-0000-4000-8000-000000000001' WHERE organization_id='ea100000-0000-4000-8000-000000000001';
+SELECT extensions.ok(pg_temp.current_sync_queued('profile','eaff1000-0000-4000-8000-000000000001'),'moving the pair back refreshes the new term destination');
+SELECT plugin_data.csf_set_sheet_sync_destination_state('ea100000-0000-4000-8000-000000000001','ea000000-0000-4000-8000-000000000001','eaf20000-0000-4000-8000-000000000001',false,true,'available');
+INSERT INTO sync_fixture SELECT 'pair_disabled_revision',to_jsonb(scope_revision) FROM plugin_data.csf_sheet_sync_bindings WHERE destination_id='eaf20000-0000-4000-8000-000000000001' AND record_id='ea300000-0000-4000-8000-000000000001';
+DELETE FROM plugin_data.csf_cohort_terms WHERE organization_id='ea100000-0000-4000-8000-000000000001';
+INSERT INTO plugin_data.csf_cohort_terms(organization_id,cohort_id,term_id) VALUES('ea100000-0000-4000-8000-000000000001','ea500000-0000-4000-8000-000000000001','ea200000-0000-4000-8000-000000000001');
+SELECT extensions.ok((SELECT to_jsonb(scope_revision)>(SELECT value FROM sync_fixture WHERE name='pair_disabled_revision') FROM plugin_data.csf_sheet_sync_bindings WHERE destination_id='eaf20000-0000-4000-8000-000000000001' AND record_id='ea300000-0000-4000-8000-000000000001'),'pair edits advance disabled destination revisions');
+SELECT plugin_data.csf_set_sheet_sync_destination_state('ea100000-0000-4000-8000-000000000001','ea000000-0000-4000-8000-000000000001','eaf20000-0000-4000-8000-000000000001',true,true,'available');
+SELECT plugin_data.csf_seed_sheet_sync_destination('ea100000-0000-4000-8000-000000000001','ea000000-0000-4000-8000-000000000001','eaf20000-0000-4000-8000-000000000001',NULL,100);
+SELECT extensions.ok(pg_temp.current_sync_queued('profile','ea300000-0000-4000-8000-000000000001') AND pg_temp.current_sync_queued('profile','ea300000-0000-4000-8000-000000000004'),'reenabling after pair edits seeds active profiles and old bindings');
 SELECT * FROM extensions.finish();
 ROLLBACK;
