@@ -261,3 +261,25 @@ describe("hosted CSF load fixture contract", () => {
     expect(runnerSource).not.toContain("_ACCOUNTS_JSON");
   });
 });
+
+test("hosted provisioning checks the preserved install before writes; only local setup installs", () => {
+  const body = provisionerSource.slice(
+    provisionerSource.indexOf("export async function provisionDatabase"),
+  );
+  expect(
+    body.indexOf("await assertHostedFixtureInstall(publicDb)"),
+  ).toBeLessThan(body.indexOf("await upsertAuthAccounts"));
+  const localStart = body.indexOf(
+    'if (target.environmentKind === "isolated-local")',
+  );
+  const rolesStart = body.indexOf('"csf_roles"');
+  expect(localStart).toBeGreaterThan(0);
+  for (const relation of [
+    "organization_plugin_installs",
+    "organization_plugin_entitlements",
+  ]) {
+    const position = body.indexOf(`"${relation}"`);
+    expect(position).toBeGreaterThan(localStart);
+    expect(position).toBeLessThan(rolesStart);
+  }
+});

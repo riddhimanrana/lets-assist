@@ -114,9 +114,12 @@ export function acceptedCatalogQuery(source, versions) {
   )
     return source;
   const sheetRecoveryUpgrade =
-    versions.length === 489 &&
-    ledgerHash ===
-      "db08f289c2f648d955c2238108fb8b20b8e71b0a03eec7c5226f741ba05031c6";
+    (versions.length === 489 &&
+      ledgerHash ===
+        "db08f289c2f648d955c2238108fb8b20b8e71b0a03eec7c5226f741ba05031c6") ||
+    (versions.length === 490 &&
+      ledgerHash ===
+        "8c974cfcfc5c9a7550b2b5ee0926f107cb7af524fd8b4225f87edd945a71c5dc");
   const sheetDiscussionUpgrade =
     sheetRecoveryUpgrade ||
     (versions.length === 487 &&
