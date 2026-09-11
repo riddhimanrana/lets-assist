@@ -1,3 +1,7 @@
+import {
+  sheetDiscussionDefinitions,
+  sheetDiscussionTables,
+} from "./sheet-discussion-catalog.mjs";
 import { sheetSyncPosture } from "./sheet-sync-catalog.mjs";
 import {
   ownershipDefinitions,
@@ -105,7 +109,12 @@ export function acceptedCatalogQuery(source, versions) {
       "34dbbd884882349f8083512cd2fe48b371c3f1242bc62897685267f2a5d0001b"
   )
     return source;
+  const sheetDiscussionUpgrade =
+    versions.length === 487 &&
+    ledgerHash ===
+      "80f95ab50c493a2759eeb23e17398b992b0b4f2aac6556947f874cb0d616b059";
   const sheetSyncUpgrade =
+    sheetDiscussionUpgrade ||
     (versions.length === 483 &&
       ledgerHash ===
         "4cba941c6304329ccbf4c2ccbd6371d41d235e8e943124d4b73a7b9ab1dfb144") ||
@@ -534,7 +543,7 @@ accepted_upgrade_posture AS (
   ${automaticSheetUpdatesUpgrade ? automaticSheetUpdatesPosture(workerRelationSnapshotQuery, matchingTabUpgrade, applicationContactsUpgrade, ownershipUpgrade, sheetSyncUpgrade) : ""}
   ${workbookLinkMergeUpgrade ? workbookLinkMergePosture : ""}
   ${staffAccountConnectionUpgrade ? staffAccountConnectionPosture(staffAccountAuthorityUpgrade, ownershipUpgrade) : ""}
-  ${ownershipUpgrade ? reportedContactColumnsPosture : ""}${sheetSyncUpgrade ? `\n  ${sheetSyncPosture(workerRelationSnapshotQuery)}` : ""} AS valid
+  ${ownershipUpgrade ? reportedContactColumnsPosture : ""}${sheetSyncUpgrade ? `\n  ${sheetSyncPosture(workerRelationSnapshotQuery, sheetDiscussionUpgrade ? sheetDiscussionDefinitions : undefined, sheetDiscussionUpgrade ? sheetDiscussionTables : undefined)}` : ""} AS valid
   FROM accepted_upgrade_definitions expected
   LEFT JOIN pg_proc p ON p.oid=to_regprocedure(expected.signature)
 )

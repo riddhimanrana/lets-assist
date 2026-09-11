@@ -412,20 +412,28 @@ has_function_privilege('authenticated',p.oid,'EXECUTE') AS authenticated_execute
 FROM (VALUES ${sheetSyncDefinitions.map(([signature]) => `('${signature}')`).join(",")}) expected(signature)
 LEFT JOIN pg_proc p ON p.oid=to_regprocedure(expected.signature)`;
 
-export function sheetSyncPosture(relationSnapshotQuery) {
-  const functions = sheetSyncDefinitions
+export function sheetSyncPosture(
+  relationSnapshotQuery,
+  definitions = sheetSyncDefinitions,
+  relations = sheetSyncTables,
+) {
+  const functionSnapshot = sheetSyncFunctionSnapshotQuery.replace(
+    sheetSyncDefinitions.map(([signature]) => `('${signature}')`).join(","),
+    definitions.map(([signature]) => `('${signature}')`).join(","),
+  );
+  const functions = definitions
     .map(
       ([signature, digest, body, service]) =>
         `('${signature}','${digest}','${body}',${service})`,
     )
     .join(",");
-  const tables = sheetSyncTables
+  const tables = relations
     .map(([name, digest, denied]) => `('${name}','${digest}',${denied})`)
     .join(",");
   const tableQuery = relationSnapshotQuery.replace(
     /FROM pg_class c WHERE[\s\S]*$/u,
     "FROM pg_class c WHERE c.relpersistence='p' AND c.oid IN (" +
-      sheetSyncTables
+      relations
         .map(([name]) => `to_regclass('plugin_data.${name}')`)
         .join(",") +
       ")",
@@ -437,13 +445,13 @@ export function sheetSyncPosture(relationSnapshotQuery) {
     )
     .join(",");
   return `AND (
-    SELECT count(*)=${sheetSyncDefinitions.length} AND coalesce(bool_and(
+    SELECT count(*)=${definitions.length} AND coalesce(bool_and(
       actual.signature IS NOT NULL AND actual.digest=expected.digest AND actual.body_digest=expected.body_digest
       AND actual.service_execute=expected.service_execute AND NOT actual.anon_execute AND NOT actual.authenticated_execute
     ),false) FROM (VALUES ${functions}) expected(signature,digest,body_digest,service_execute)
-    LEFT JOIN (${sheetSyncFunctionSnapshotQuery}) actual ON actual.signature=expected.signature
+    LEFT JOIN (${functionSnapshot}) actual ON actual.signature=expected.signature
   ) AND (
-    SELECT count(*)=${sheetSyncTables.length} AND coalesce(bool_and(actual.relname IS NOT NULL AND actual.digest=expected.digest
+    SELECT count(*)=${relations.length} AND coalesce(bool_and(actual.relname IS NOT NULL AND actual.digest=expected.digest
       AND actual.runtime_denied=expected.runtime_denied),false)
     FROM (VALUES ${tables}) expected(relname,digest,runtime_denied)
     LEFT JOIN (${tableQuery}) actual ON actual.relname=expected.relname
@@ -455,7 +463,7 @@ export function sheetSyncPosture(relationSnapshotQuery) {
     ),false) FROM (VALUES ${triggers}) expected(relname,name,digest,kind,helper)
     LEFT JOIN pg_trigger t ON t.tgrelid=to_regclass('plugin_data.'||expected.relname) AND t.tgname=expected.name
   ) AND NOT EXISTS (
-    SELECT 1 FROM (VALUES ${sheetSyncTables.map(([name]) => `('plugin_data.${name}')`).join(",")}) expected(name)
+    SELECT 1 FROM (VALUES ${relations.map(([name]) => `('plugin_data.${name}')`).join(",")}) expected(name)
     CROSS JOIN (VALUES ('anon'),('authenticated')) roles(name)
     WHERE has_table_privilege(roles.name,to_regclass(expected.name),'SELECT,INSERT,UPDATE,DELETE,TRUNCATE,REFERENCES,TRIGGER')
       OR has_any_column_privilege(roles.name,to_regclass(expected.name),'SELECT,INSERT,UPDATE,REFERENCES')
