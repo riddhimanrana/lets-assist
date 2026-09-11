@@ -36,7 +36,7 @@ test("the sync catalog pins every new function body and execution role", () => {
       /CREATE FUNCTION plugin_data\.([a-z_]+)\([\s\S]*?AS \$\$([\s\S]*?)\$\$;/gu,
     ),
   ];
-  assert.equal(bodies.length, 27);
+  assert.equal(bodies.length, 28);
   assert.equal(sheetSyncDefinitions.length, bodies.length);
   for (const [, name, body] of bodies) {
     const entry = sheetSyncDefinitions.find(([signature]) =>

@@ -7,7 +7,7 @@ CREATE TABLE plugin_data.csf_sheet_sync_test_workspaces (
 );
 CREATE TABLE plugin_data.csf_sheet_sync_test_files (
  copied_file_id text PRIMARY KEY CHECK(length(copied_file_id) BETWEEN 8 AND 200),
- organization_id uuid NOT NULL REFERENCES plugin_data.csf_sheet_sync_test_workspaces(organization_id),
+ organization_id uuid NOT NULL REFERENCES plugin_data.csf_sheet_sync_test_workspaces(organization_id) ON DELETE CASCADE,
  source_file_id text NOT NULL CHECK(length(source_file_id) BETWEEN 8 AND 200),
  registered_by uuid NOT NULL REFERENCES auth.users(id),registered_at timestamptz NOT NULL DEFAULT now(),
  CHECK(copied_file_id<>source_file_id), UNIQUE(organization_id,copied_file_id)
@@ -49,7 +49,7 @@ CREATE INDEX csf_sheet_sync_bindings_org_record ON plugin_data.csf_sheet_sync_bi
 ALTER TABLE plugin_data.csf_sheet_writeback_ledger
   ALTER COLUMN application_id DROP NOT NULL, ALTER COLUMN row_number DROP NOT NULL, ALTER COLUMN decision DROP NOT NULL,
   DROP CONSTRAINT csf_sheet_writeback_ledger_status_check,
-  ADD COLUMN destination_id uuid REFERENCES plugin_data.csf_sheet_sync_destinations(id),
+  ADD COLUMN destination_id uuid REFERENCES plugin_data.csf_sheet_sync_destinations(id) ON DELETE CASCADE,
   ADD COLUMN record_kind text CHECK(record_kind IN ('application','point_submission','profile')),
   ADD COLUMN record_id uuid, ADD COLUMN source_version text, ADD COLUMN payload jsonb,
   ADD COLUMN lease_token uuid, ADD COLUMN lease_expires_at timestamptz,
@@ -57,7 +57,7 @@ ALTER TABLE plugin_data.csf_sheet_writeback_ledger
   ADD CONSTRAINT csf_sheet_writeback_shape CHECK(
     (destination_id IS NULL AND application_id IS NOT NULL AND row_number IS NOT NULL AND decision IS NOT NULL AND record_kind IS NULL AND status IN ('queued','sent','failed'))
     OR (destination_id IS NOT NULL AND application_id IS NULL AND record_kind IS NOT NULL AND record_id IS NOT NULL AND source_version IS NOT NULL AND payload IS NOT NULL AND status IN ('pending_export','exporting','exported','retry_export','unknown_outcome','superseded'))),
-  ADD CONSTRAINT csf_sheet_writeback_destination_org_fk FOREIGN KEY(organization_id,destination_id) REFERENCES plugin_data.csf_sheet_sync_destinations(organization_id,id);
+  ADD CONSTRAINT csf_sheet_writeback_destination_org_fk FOREIGN KEY(organization_id,destination_id) REFERENCES plugin_data.csf_sheet_sync_destinations(organization_id,id) ON DELETE CASCADE;
 ALTER TABLE plugin_data.csf_sheet_writeback_ledger ADD CONSTRAINT csf_sheet_export_payload_version CHECK(destination_id IS NULL OR source_version=md5(payload::text));
 CREATE FUNCTION plugin_data.csf_guard_sheet_sync_export_snapshot() RETURNS trigger
 LANGUAGE plpgsql SECURITY DEFINER SET search_path='' AS $$
@@ -84,7 +84,7 @@ CREATE TABLE plugin_data.csf_sheet_sync_changes (
   reviewed_by uuid REFERENCES auth.users(id), review_reason text, reviewed_at timestamptz,
   created_at timestamptz NOT NULL DEFAULT now(),
   UNIQUE(destination_id,record_kind,record_id,remote_version),
-  FOREIGN KEY(organization_id,destination_id) REFERENCES plugin_data.csf_sheet_sync_destinations(organization_id,id)
+  FOREIGN KEY(organization_id,destination_id) REFERENCES plugin_data.csf_sheet_sync_destinations(organization_id,id) ON DELETE CASCADE
 );
 
 DO $$ DECLARE t text; BEGIN
@@ -132,14 +132,14 @@ END $$;
 REVOKE ALL ON FUNCTION plugin_data.csf_register_sheet_sync_test_file(uuid,uuid,text,text) FROM PUBLIC,anon,authenticated;
 GRANT EXECUTE ON FUNCTION plugin_data.csf_register_sheet_sync_test_file(uuid,uuid,text,text) TO service_role;
 CREATE TABLE plugin_data.csf_sheet_sync_test_copy_requests (
- request_id uuid PRIMARY KEY, organization_id uuid NOT NULL REFERENCES plugin_data.csf_sheet_sync_test_workspaces(organization_id),
- source_organization_id uuid NOT NULL REFERENCES public.organizations(id),source_file_id text NOT NULL CHECK(length(source_file_id) BETWEEN 8 AND 200),
- actor_user_id uuid NOT NULL REFERENCES auth.users(id),state text NOT NULL CHECK(state IN ('claimed','completed','unknown')),
- copied_file_id text REFERENCES plugin_data.csf_sheet_sync_test_files(copied_file_id),observed_copied_file_id text CHECK(length(observed_copied_file_id) BETWEEN 8 AND 200),last_error text,
+ request_id uuid PRIMARY KEY, organization_id uuid NOT NULL REFERENCES plugin_data.csf_sheet_sync_test_workspaces(organization_id) ON DELETE CASCADE,
+ source_organization_id uuid NOT NULL REFERENCES public.organizations(id) ON DELETE CASCADE,source_file_id text NOT NULL CHECK(length(source_file_id) BETWEEN 8 AND 200),
+ actor_user_id uuid NOT NULL REFERENCES auth.users(id),state text NOT NULL CHECK(state IN ('claimed','completed','unknown','not_created')),
+ copied_file_id text REFERENCES plugin_data.csf_sheet_sync_test_files(copied_file_id) ON DELETE CASCADE,observed_copied_file_id text CHECK(length(observed_copied_file_id) BETWEEN 8 AND 200),last_error text,
  created_at timestamptz NOT NULL DEFAULT now(),updated_at timestamptz NOT NULL DEFAULT now(),
- CHECK(organization_id<>source_organization_id),CHECK((state='completed')=(copied_file_id IS NOT NULL)),
- UNIQUE(organization_id,source_organization_id,source_file_id)
+ CHECK(organization_id<>source_organization_id),CHECK((state='completed')=(copied_file_id IS NOT NULL))
 );
+CREATE UNIQUE INDEX csf_sheet_copy_active_source ON plugin_data.csf_sheet_sync_test_copy_requests(organization_id,source_organization_id,source_file_id) WHERE state<>'not_created';
 ALTER TABLE plugin_data.csf_sheet_sync_test_copy_requests ENABLE ROW LEVEL SECURITY;
 REVOKE ALL ON plugin_data.csf_sheet_sync_test_copy_requests FROM PUBLIC,anon,authenticated,service_role;
 GRANT SELECT ON plugin_data.csf_sheet_sync_test_copy_requests TO service_role;
@@ -153,7 +153,8 @@ BEGIN
  PERFORM pg_advisory_xact_lock(hashtextextended('csf-test-copy:'||p_organization_id::text||':'||p_source_organization_id::text||':'||p_source_file_id,0));
  SELECT * INTO r FROM plugin_data.csf_sheet_sync_test_copy_requests WHERE request_id=p_request_id;
  IF FOUND AND (r.organization_id<>p_organization_id OR r.source_organization_id<>p_source_organization_id OR r.source_file_id<>p_source_file_id OR r.actor_user_id<>p_actor_user_id) THEN RAISE EXCEPTION 'Copy request conflicts with its previous use.'; END IF;
- SELECT * INTO r FROM plugin_data.csf_sheet_sync_test_copy_requests WHERE organization_id=p_organization_id AND source_organization_id=p_source_organization_id AND source_file_id=p_source_file_id FOR UPDATE;
+ IF FOUND AND r.state='not_created' THEN RETURN to_jsonb(r); END IF;
+ SELECT * INTO r FROM plugin_data.csf_sheet_sync_test_copy_requests WHERE organization_id=p_organization_id AND source_organization_id=p_source_organization_id AND source_file_id=p_source_file_id AND state<>'not_created' FOR UPDATE;
  IF FOUND THEN RETURN jsonb_build_object('state',CASE WHEN r.state='completed' THEN 'completed' ELSE 'unknown' END,'request_id',r.request_id,'copied_file_id',r.copied_file_id); END IF;
  INSERT INTO plugin_data.csf_sheet_sync_test_copy_requests(request_id,organization_id,source_organization_id,source_file_id,actor_user_id,state) VALUES(p_request_id,p_organization_id,p_source_organization_id,p_source_file_id,p_actor_user_id,'claimed') RETURNING * INTO r;
  INSERT INTO plugin_data.csf_admin_audit_events(organization_id,actor_user_id,action,target_type,target_id,after_data) VALUES(p_organization_id,p_actor_user_id,'sheet_sync.test_copy_claimed','sheet_sync_test_copy',r.request_id,to_jsonb(r));
@@ -170,6 +171,7 @@ BEGIN
  SELECT * INTO r FROM plugin_data.csf_sheet_sync_test_copy_requests WHERE request_id=p_request_id AND organization_id=p_organization_id AND actor_user_id=p_actor_user_id FOR UPDATE;
  IF NOT FOUND THEN RAISE EXCEPTION 'Copy request not found.'; END IF;
  IF NOT (plugin_data.csf_actor_has_permission(p_organization_id,p_actor_user_id,'manage_sheet_sync') AND plugin_data.csf_actor_has_permission(p_organization_id,p_actor_user_id,'export_sensitive_reports') AND plugin_data.csf_actor_has_permission(r.source_organization_id,p_actor_user_id,'manage_sheet_sync') AND plugin_data.csf_actor_has_permission(r.source_organization_id,p_actor_user_id,'export_sensitive_reports')) THEN RAISE EXCEPTION 'Not authorized.'; END IF;
+ IF r.state='not_created' THEN RAISE EXCEPTION 'This copy attempt was closed after staff review.'; END IF;
  IF r.state='completed' THEN
   IF p_outcome<>'completed' OR r.copied_file_id IS DISTINCT FROM p_copied_file_id THEN RAISE EXCEPTION 'Completed copy has a different outcome.'; END IF;
   RETURN to_jsonb(r);
@@ -182,6 +184,28 @@ BEGIN
 END $$;
 REVOKE ALL ON FUNCTION plugin_data.csf_claim_sheet_sync_test_copy(uuid,uuid,uuid,text,uuid),plugin_data.csf_finish_sheet_sync_test_copy(uuid,uuid,uuid,text,text,text) FROM PUBLIC,anon,authenticated;
 GRANT EXECUTE ON FUNCTION plugin_data.csf_claim_sheet_sync_test_copy(uuid,uuid,uuid,text,uuid),plugin_data.csf_finish_sheet_sync_test_copy(uuid,uuid,uuid,text,text,text) TO service_role;
+
+CREATE FUNCTION plugin_data.csf_reconcile_sheet_sync_test_copy_no_write(p_organization_id uuid,p_actor_user_id uuid,p_request_id uuid,p_reason text,p_evidence jsonb) RETURNS jsonb
+LANGUAGE plpgsql SECURITY DEFINER SET search_path='' AS $$
+DECLARE r plugin_data.csf_sheet_sync_test_copy_requests%ROWTYPE; before_row jsonb;
+BEGIN
+ SELECT * INTO r FROM plugin_data.csf_sheet_sync_test_copy_requests WHERE organization_id=p_organization_id AND request_id=p_request_id;
+ IF NOT FOUND THEN RAISE EXCEPTION 'Copy request not found.'; END IF;
+ PERFORM pg_advisory_xact_lock(k) FROM (SELECT DISTINCT plugin_data.csf_staff_access_lock_key(x) k FROM unnest(ARRAY[p_organization_id,r.source_organization_id]) x ORDER BY k) locks;
+ IF NOT (plugin_data.csf_actor_has_permission(p_organization_id,p_actor_user_id,'manage_settings') AND plugin_data.csf_actor_has_permission(p_organization_id,p_actor_user_id,'manage_sheet_sync') AND plugin_data.csf_actor_has_permission(p_organization_id,p_actor_user_id,'export_sensitive_reports') AND plugin_data.csf_actor_has_permission(r.source_organization_id,p_actor_user_id,'manage_sheet_sync') AND plugin_data.csf_actor_has_permission(r.source_organization_id,p_actor_user_id,'export_sensitive_reports')) THEN RAISE EXCEPTION 'Not authorized.'; END IF;
+ PERFORM pg_advisory_xact_lock(hashtextextended('csf-test-copy:'||p_organization_id::text||':'||r.source_organization_id::text||':'||r.source_file_id,0));
+ SELECT * INTO r FROM plugin_data.csf_sheet_sync_test_copy_requests WHERE organization_id=p_organization_id AND request_id=p_request_id FOR UPDATE;
+ IF NOT FOUND THEN RAISE EXCEPTION 'Copy request not found.'; END IF;
+ IF p_reason IS NULL OR length(btrim(p_reason)) NOT BETWEEN 1 AND 4000 OR jsonb_typeof(p_evidence) IS DISTINCT FROM 'object' OR p_evidence->'provider_request_ended' IS DISTINCT FROM 'true'::jsonb OR p_evidence->'no_file_created' IS DISTINCT FROM 'true'::jsonb OR p_evidence->>'request_id' IS DISTINCT FROM p_request_id::text OR p_evidence->'matching_file_count' IS DISTINCT FROM '0'::jsonb THEN RAISE EXCEPTION 'Record the completed provider inspection and why no file was created.'; END IF;
+ IF r.state='not_created' THEN RETURN to_jsonb(r); END IF;
+ IF (r.state<>'unknown' AND NOT (r.state='claimed' AND r.created_at<=clock_timestamp()-interval '10 minutes')) OR r.copied_file_id IS NOT NULL OR r.observed_copied_file_id IS NOT NULL THEN RAISE EXCEPTION 'Only an unresolved attempt without a known file can be closed.'; END IF;
+ before_row:=to_jsonb(r);
+ UPDATE plugin_data.csf_sheet_sync_test_copy_requests SET state='not_created',updated_at=now() WHERE request_id=r.request_id RETURNING * INTO r;
+ INSERT INTO plugin_data.csf_admin_audit_events(organization_id,actor_user_id,action,target_type,target_id,before_data,after_data,reason_code) VALUES(p_organization_id,p_actor_user_id,'sheet_sync.test_copy_not_created','sheet_sync_test_copy',r.request_id,before_row,to_jsonb(r)||jsonb_build_object('inspection',p_evidence),p_reason);
+ RETURN to_jsonb(r);
+END $$;
+REVOKE ALL ON FUNCTION plugin_data.csf_reconcile_sheet_sync_test_copy_no_write(uuid,uuid,uuid,text,jsonb) FROM PUBLIC,anon,authenticated;
+GRANT EXECUTE ON FUNCTION plugin_data.csf_reconcile_sheet_sync_test_copy_no_write(uuid,uuid,uuid,text,jsonb) TO service_role;
 
 CREATE FUNCTION plugin_data.csf_guard_sheet_sync_test_file() RETURNS trigger
 LANGUAGE plpgsql SECURITY DEFINER SET search_path='' AS $$
@@ -245,8 +269,8 @@ CREATE TABLE plugin_data.csf_sheet_sync_local_messages (
  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),organization_id uuid NOT NULL,destination_id uuid NOT NULL,binding_id uuid NOT NULL,
  author_user_id uuid NOT NULL REFERENCES auth.users(id),provider_thread_id text,body text NOT NULL CHECK(length(btrim(body)) BETWEEN 1 AND 10000),resolved boolean,
  created_at timestamptz NOT NULL DEFAULT now(),
- FOREIGN KEY(organization_id,destination_id) REFERENCES plugin_data.csf_sheet_sync_destinations(organization_id,id),
- FOREIGN KEY(organization_id,destination_id,binding_id) REFERENCES plugin_data.csf_sheet_sync_bindings(organization_id,destination_id,id)
+ FOREIGN KEY(organization_id,destination_id) REFERENCES plugin_data.csf_sheet_sync_destinations(organization_id,id) ON DELETE CASCADE,
+ FOREIGN KEY(organization_id,destination_id,binding_id) REFERENCES plugin_data.csf_sheet_sync_bindings(organization_id,destination_id,id) ON DELETE CASCADE
 );
 ALTER TABLE plugin_data.csf_sheet_sync_local_messages ENABLE ROW LEVEL SECURITY;
 REVOKE ALL ON plugin_data.csf_sheet_sync_local_messages FROM PUBLIC,anon,authenticated,service_role;
@@ -523,8 +547,8 @@ CREATE TABLE plugin_data.csf_sheet_sync_comments (
  source text NOT NULL DEFAULT 'google_sheets' CHECK(source='google_sheets'),
  created_at timestamptz NOT NULL DEFAULT now(),updated_at timestamptz NOT NULL DEFAULT now(),
  UNIQUE(destination_id,provider_message_id),
- FOREIGN KEY(organization_id,destination_id) REFERENCES plugin_data.csf_sheet_sync_destinations(organization_id,id),
- FOREIGN KEY(organization_id,destination_id,binding_id) REFERENCES plugin_data.csf_sheet_sync_bindings(organization_id,destination_id,id)
+ FOREIGN KEY(organization_id,destination_id) REFERENCES plugin_data.csf_sheet_sync_destinations(organization_id,id) ON DELETE CASCADE,
+ FOREIGN KEY(organization_id,destination_id,binding_id) REFERENCES plugin_data.csf_sheet_sync_bindings(organization_id,destination_id,id) ON DELETE CASCADE
 );
 ALTER TABLE plugin_data.csf_sheet_sync_comments ENABLE ROW LEVEL SECURITY;
 REVOKE ALL ON plugin_data.csf_sheet_sync_comments FROM PUBLIC,anon,authenticated,service_role;
