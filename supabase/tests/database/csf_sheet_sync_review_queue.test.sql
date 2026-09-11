@@ -1,6 +1,6 @@
 BEGIN;
 CREATE EXTENSION IF NOT EXISTS pgtap WITH SCHEMA extensions;
-SELECT extensions.plan(158);
+SELECT extensions.plan(164);
 INSERT INTO auth.users(id,aud,role,email,raw_app_meta_data,raw_user_meta_data) VALUES
 ('ea000000-0000-4000-8000-000000000001','authenticated','authenticated','sheet-admin@local.test','{}','{}'),
 ('ea000000-0000-4000-8000-000000000002','authenticated','authenticated','sheet-outsider@local.test','{}','{}');
@@ -89,6 +89,8 @@ CREATE TEMP TABLE active_other_attempt AS SELECT id,status,lease_token,lease_exp
 UPDATE plugin_data.csf_sheet_writeback_ledger SET status='exporting',lease_token=gen_random_uuid(),lease_expires_at=clock_timestamp()+interval '2 minutes' WHERE id=(SELECT id FROM active_other_attempt);
 SELECT extensions.throws_ok($$SELECT plugin_data.csf_reconcile_sheet_sync_export('ea100000-0000-4000-8000-000000000001','ea000000-0000-4000-8000-000000000001',(SELECT (value->>'id')::uuid FROM sync_fixture WHERE name='latest'),false,NULL,'Verified copied destination has no write')$$,'P0001','Wait for active export attempts before reconciling this write.','disabled destination still waits for in-flight exports');
 UPDATE plugin_data.csf_sheet_writeback_ledger l SET status=a.status,lease_token=a.lease_token,lease_expires_at=a.lease_expires_at FROM active_other_attempt a WHERE l.id=a.id;
+SELECT extensions.throws_ok($$SELECT plugin_data.csf_reconcile_sheet_sync_export('ea100000-0000-4000-8000-000000000001','ea000000-0000-4000-8000-000000000001',(SELECT (value->>'id')::uuid FROM sync_fixture WHERE name='latest'),NULL,NULL,'Unknown provider result')$$,'P0001','Confirm whether the provider write occurred. Keep uncertain writes on hold.','NULL outcome cannot release an uncertain write');
+SELECT extensions.is((SELECT status FROM plugin_data.csf_sheet_writeback_ledger WHERE id=(SELECT (value->>'id')::uuid FROM sync_fixture WHERE name='latest')),'unknown_outcome','NULL outcome preserves hold');
 SELECT plugin_data.csf_reconcile_sheet_sync_export('ea100000-0000-4000-8000-000000000001','ea000000-0000-4000-8000-000000000001',(SELECT (value->>'id')::uuid FROM sync_fixture WHERE name='latest'),false,NULL,'Verified copied destination has no write');
 UPDATE plugin_data.csf_sheet_sync_destinations SET enabled=true WHERE id=(SELECT (value->>'id')::uuid FROM sync_fixture WHERE name='destination');
 INSERT INTO sync_fixture SELECT 'retry',to_jsonb(l) FROM plugin_data.csf_claim_sheet_sync_exports('ea100000-0000-4000-8000-000000000001',(SELECT (value->>'id')::uuid FROM sync_fixture WHERE name='destination'),(SELECT (value->>'poll_lease_token')::uuid FROM sync_fixture WHERE name='lease'),25) l;
@@ -335,5 +337,14 @@ SELECT extensions.ok(NOT EXISTS(SELECT 1 FROM unnest(ARRAY['csf_sheet_sync_test_
 SET LOCAL ROLE service_role;
 SELECT extensions.throws_ok($$UPDATE plugin_data.csf_sheet_sync_destinations SET term_id='eafb0000-0000-4000-8000-000000000001' WHERE id='eaf20000-0000-4000-8000-000000000001'$$,'42501',NULL,'direct service mutation cannot bypass destination configuration');
 RESET ROLE;
+SELECT extensions.is((SELECT count(*) FROM pg_constraint WHERE contype='f' AND confrelid='auth.users'::regclass AND conrelid IN ('plugin_data.csf_sheet_sync_test_workspaces'::regclass,'plugin_data.csf_sheet_sync_test_files'::regclass,'plugin_data.csf_sheet_sync_destinations'::regclass,'plugin_data.csf_sheet_sync_changes'::regclass,'plugin_data.csf_sheet_sync_test_copy_requests'::regclass,'plugin_data.csf_sheet_sync_local_messages'::regclass) AND confdeltype='n'),6::bigint,'all retained sync actor references null on account deletion');
+INSERT INTO auth.users(id,aud,role,email,raw_app_meta_data,raw_user_meta_data) VALUES('ea000000-0000-4000-8000-000000000099','authenticated','authenticated','sync-deleted-actor@local.test','{}','{}');
+UPDATE plugin_data.csf_sheet_sync_destinations SET configured_by='ea000000-0000-4000-8000-000000000099';
+UPDATE plugin_data.csf_sheet_sync_changes SET reviewed_by='ea000000-0000-4000-8000-000000000099';
+UPDATE plugin_data.csf_sheet_sync_local_messages SET author_user_id='ea000000-0000-4000-8000-000000000099';
+SELECT extensions.lives_ok($$DELETE FROM auth.users WHERE id='ea000000-0000-4000-8000-000000000099'$$,'auth deletion retains destination, review and message history');
+SELECT extensions.ok(NOT EXISTS(SELECT 1 FROM plugin_data.csf_sheet_sync_destinations WHERE configured_by IS NOT NULL) AND NOT EXISTS(SELECT 1 FROM plugin_data.csf_sheet_sync_changes WHERE reviewed_by IS NOT NULL) AND NOT EXISTS(SELECT 1 FROM plugin_data.csf_sheet_sync_local_messages WHERE author_user_id IS NOT NULL),'deleted actor references become null without removing retained records');
+UPDATE plugin_data.csf_sheet_sync_destinations SET poll_lease_token=NULL,poll_lease_expires_at=NULL;
+SELECT extensions.is(plugin_data.csf_claim_sheet_sync_destination('ea100000-0000-4000-8000-000000000001',(SELECT (value->>'id')::uuid FROM sync_fixture WHERE name='destination'),true),NULL::jsonb,'deleted configured actor cannot acquire a new export lease');
 SELECT * FROM extensions.finish();
 ROLLBACK;

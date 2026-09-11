@@ -1,8 +1,8 @@
 export const sheetSyncDefinitions = [
   [
     "plugin_data.csf_add_sheet_sync_local_message(uuid,uuid,uuid,uuid,text,text,boolean)",
-    "a0045ece92f7791887cb17e8aa9e7eb1",
-    "acc60b16fb91f33195c36b303e4e8d08",
+    "24fb6f78967ad27877032ee326a3e03f",
+    "cecf16b5f6086aeebca1cd7e997ecd93",
     true,
   ],
   [
@@ -31,8 +31,8 @@ export const sheetSyncDefinitions = [
   ],
   [
     "plugin_data.csf_claim_sheet_sync_test_copy(uuid,uuid,uuid,text,uuid,text)",
-    "a39f0181af00e0ceffb27ba4046b2912",
-    "f6229c956765c290d16424039c22a18e",
+    "f856b3ae5f2725a9d26b2d02956b0909",
+    "2be7422f7323cf4e480cebe5988ba8e0",
     true,
   ],
   [
@@ -97,14 +97,14 @@ export const sheetSyncDefinitions = [
   ],
   [
     "plugin_data.csf_reconcile_sheet_sync_export(uuid,uuid,uuid,boolean,text,text)",
-    "ee5e55041ade30e0cee69fc545413ce5",
-    "f99b600d7181cefad6ab8c5b6e8273af",
+    "5be781927f4afee5ffe1075ca0cbdde8",
+    "e5d8ac76555614a81e8076f96dec07fa",
     true,
   ],
   [
     "plugin_data.csf_reconcile_sheet_sync_test_copy_no_write(uuid,uuid,uuid,text,jsonb,text)",
-    "7db27e9464f867288705a791c8c39737",
-    "2fda1caf167ae128ebe4487fc0b7f1f5",
+    "ae6ca2ecdfc9eb6b6bbdc8c92f58cac2",
+    "c603c9a34fe771c10836b9e50b93d6f5",
     true,
   ],
   [
@@ -127,8 +127,8 @@ export const sheetSyncDefinitions = [
   ],
   [
     "plugin_data.csf_register_sheet_sync_test_workspace(uuid,uuid)",
-    "26574abd02ac7124455e041714c3c9d5",
-    "93aba3007f3e663e05c4d4145c02b40c",
+    "8288b2e923f3b738bfdf2be360fc0afb",
+    "ced4f3a9087f4c4dc1d6de96482071b8",
     true,
   ],
   [
@@ -170,17 +170,17 @@ export const sheetSyncDefinitions = [
 ];
 export const sheetSyncTables = [
   ["csf_sheet_writeback_ledger", "800b1a322ad0576e66fcef10bb8b8b85", false],
-  ["csf_sheet_sync_test_workspaces", "8f46627bdc10aafb7f332d4a377c5369", false],
-  ["csf_sheet_sync_test_files", "2a690388e24ce5da1ed801718d7ea7dd", false],
-  ["csf_sheet_sync_destinations", "c6c5259760731f1c7a2d71417fff351e", false],
+  ["csf_sheet_sync_test_workspaces", "d114eb1acf4802bc110bad2359ce1184", false],
+  ["csf_sheet_sync_test_files", "f78c5554d9278fd42e5be5eddf8e2388", false],
+  ["csf_sheet_sync_destinations", "62386ba6e4750c682ae1c6490e32ec04", false],
   ["csf_sheet_sync_bindings", "29b2ab703bac066b8b812f6eaaeb2e63", false],
-  ["csf_sheet_sync_changes", "126af210159c3f7c6f2fa8bf9e568221", false],
+  ["csf_sheet_sync_changes", "3223aa91159ec6f95934f5d0915813e8", false],
   [
     "csf_sheet_sync_test_copy_requests",
-    "8b0153f781f0c1476eb9e4701bde4e35",
+    "ad0c76f6fcf249543556446a5c5cdbcc",
     false,
   ],
-  ["csf_sheet_sync_local_messages", "8be9338469bf78f20e53a74d7f29975d", false],
+  ["csf_sheet_sync_local_messages", "302f36e8b1ffbcf21f115b9f2efa88e8", false],
   ["csf_sheet_sync_comments", "01adfda8618a778be7ecf1384e0b384f", false],
 ];
 export const sheetSyncTriggers = [
