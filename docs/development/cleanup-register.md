@@ -7097,3 +7097,15 @@ Final integrated CI is still required before Production. Integration run
 PR 531 merged succeeded and generated PR 532. The publication migration is
 `20260911210549_publish_dvhs_csf_1_2_31`. It changes no installation or application
 selection. Production remains on the previously recorded host, child and ledger.
+
+The 492-migration publication candidate passed 282 database files and 8,018
+assertions, 71 focused catalog tests, and all ten negative catalog probes.
+Publication SHA-256 is
+`ad0963ff59bbca881b26574d3d8c0344539037d9c4244c91de93ecbeb14a35a8`.
+
+PR 519 also identified profile review notes crossing semester boundaries in
+class Sheet snapshots. The user deferred profile-note syncing. The forward correction
+`20260911211201_csf_defer_profile_note_export` omits profile review notes from
+class exports for this release. The existing
+publication remains unchanged. Production sync remains disabled while the fix
+and final integrated release checks are completed.
