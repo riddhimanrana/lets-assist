@@ -1058,7 +1058,7 @@ The rebuild extends the existing `plugin_data.csf_*` foundation. It does not cre
 | --------------------------- | ------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Permanent student           | `csf_profiles`                                                      | One durable student record per organization; normalized identity fields; fictional test ID support; no semester status stored here                                     |
 | Platform account connection | `csf_profile_accounts`                                              | Verified account link with actor/source/time; one active unambiguous connection per user/org                                                                           |
-| Link request                | `csf_profile_link_requests`                                         | Limited candidate and resolution history; one exact verified-email match may connect automatically; every name-only confirmation creates or reuses one officer request |
+| Link request                | `csf_profile_link_requests`                                         | Limited candidate and resolution history; independently verified ownership is required for automatic connection; contact and name matches create or reuse staff-review requests |
 | Graduating class            | `csf_cohorts`, `csf_profile_cohort_memberships`                     | Historical membership and class changes remain traceable                                                                                                               |
 | Duplicate merge             | `csf_profile_merge_reviews`                                         | Preview and two-person/adviser review when configured; move references atomically; source becomes merged tombstone rather than disappearing                            |
 | Staff access                | `csf_roles`, `csf_role_permissions`, `csf_staff_positions`, history | Capability-based, effective-dated assignments                                                                                                                          |
@@ -1615,10 +1615,10 @@ These invariants are mandatory across schema, server actions, UI, imports, tests
 5. Policy versions used by decisions and closed terms are immutable.
 6. Point totals, attendance completion, and recognition derive from normalized records through one shared evaluator.
 7. A multi-point activity produces one award with a numeric quantity, not duplicate one-point records.
-8. A manually entered, imported, or passive account name never links a student. Confirming one passive candidate creates or reuses one officer request. Only one exact verified-email match may connect automatically.
+8. A manually entered, imported, or passive account name never links a student. Confirming one passive candidate creates or reuses one officer request. Automatic connection requires independently verified ownership. Matching a login email to an application contact is insufficient.
 9. Preview precedes import commit; source provenance and raw snapshots are retained.
 10. Reviewed platform records are never silently overwritten by Google data.
-11. Google Forms/Sheets/Drive are intake/evidence channels after cutover, not dual operational authority. This release writes no Google Sheet; reports are local formula-safe ZIP archives.
+11. Google Forms/Sheets/Drive provide intake, evidence, and exports. Let's Assist remains authoritative. The sync candidate exports to restricted test copies first; inbound decisions await staff approval. Local formula-safe ZIP reports remain available.
 12. Google Classroom remains retired, unintegrated, and untracked.
 13. Every consequential mutation is server-authorized, organization-scoped, reasoned where required, correlated, and immutable in history.
 14. Every private file remains private and is opened only through a current scoped authorization check.

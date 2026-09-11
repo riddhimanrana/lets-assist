@@ -159,18 +159,16 @@ characters and try again.
 1. Open `/connect/<code>` from the shared code, or open **Join a class** and
    type the code under **Join code**.
 2. Create a Let's Assist account or sign in. **Sign in to continue** opens the
-   account flow. The signed-out entry page is
-   headed **Join a class** and names both audiences: **Already have a
-   CSF record?** for returning members, and **New to CSF?**, which
-   carries the semester's application button when the current term has an
-   **Application form link**.
+   account flow. A direct class link shows **Sign in to continue**. The general
+   **Join a class** page, before a code is selected, shows **Already have a
+   CSF record?** and **New to CSF?**. The latter includes the application
+   button when the current term has an **Application form link**.
 3. After sign-in, an independently verified existing account connection opens
    the correct class and recorded history. For a possible existing record, the
    page may show **Is this you?** with one record whose name exactly matches the
    account. Select **Yes, this is me** to send that record for officer review.
    Select **No, search again** when it is not yours. A name match never links
-   the account by itself. A saved request changes to **Your record is awaiting
-   review** and offers **Go to class feed** while an officer checks the match.
+   the account by itself. A saved request changes to **Awaiting staff review** and offers **Go to class feed** while an officer checks the match.
    An independently verified connection shows **Your CSF record is linked** and
    offers **Go to My CSF**.
 4. If no passive match appears, select **Continue**, enter **Student name**
