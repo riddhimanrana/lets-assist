@@ -15,5 +15,10 @@ export default async function EmailExpiredPage({
   searchParams,
 }: EmailExpiredPageProps) {
   const { email, redirectAfterAuth } = await searchParams;
-  return <EmailExpiredClient email={email ?? ""} redirectAfterAuth={normalizeRedirectPath(redirectAfterAuth)} />;
+  return (
+    <EmailExpiredClient
+      email={email ?? ""}
+      redirectAfterAuth={normalizeRedirectPath(redirectAfterAuth)}
+    />
+  );
 }

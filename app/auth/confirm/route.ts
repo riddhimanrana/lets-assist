@@ -61,7 +61,8 @@ export async function GET(request: NextRequest) {
 
   const redirectToExpiredLink = () => {
     const url = new URL("/auth/email-expired", authOrigin);
-    if (redirectAfterAuth) url.searchParams.set("redirectAfterAuth", redirectAfterAuth);
+    if (redirectAfterAuth)
+      url.searchParams.set("redirectAfterAuth", redirectAfterAuth);
     if (email) {
       url.searchParams.set("email", email);
     }

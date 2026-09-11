@@ -48,7 +48,9 @@ export function PluginContentSettings({
         toast.error(result.error);
         return;
       }
-      toast.success(next ? "Organization content is on" : "Organization content is off");
+      toast.success(
+        next ? "Organization content is on" : "Organization content is off",
+      );
     });
   };
 
@@ -87,9 +89,7 @@ export function PluginContentSettings({
 
         <Card className="border shadow-xs">
           <CardHeader>
-            <CardTitle className="text-xl">
-              Home and dashboard
-            </CardTitle>
+            <CardTitle className="text-xl">Home and dashboard</CardTitle>
             <CardDescription>
               These settings do not change your membership or access.
             </CardDescription>
@@ -113,7 +113,9 @@ export function PluginContentSettings({
 
             <div className="space-y-3">
               <div>
-                <h2 className="text-sm font-medium">Your organization sections</h2>
+                <h2 className="text-sm font-medium">
+                  Your organization sections
+                </h2>
                 <p
                   id="plugin-content-consequence"
                   className="text-sm text-muted-foreground"

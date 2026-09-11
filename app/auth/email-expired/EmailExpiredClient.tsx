@@ -22,9 +22,14 @@ interface EmailExpiredClientProps {
   redirectAfterAuth?: string | null;
 }
 
-export default function EmailExpiredClient({ email, redirectAfterAuth }: EmailExpiredClientProps) {
+export default function EmailExpiredClient({
+  email,
+  redirectAfterAuth,
+}: EmailExpiredClientProps) {
   const continuation = normalizeRedirectPath(redirectAfterAuth);
-  const continuationQuery = continuation ? `?redirect=${encodeURIComponent(continuation)}` : "";
+  const continuationQuery = continuation
+    ? `?redirect=${encodeURIComponent(continuation)}`
+    : "";
   const [isResending, setIsResending] = useState(false);
   const [hasResent, setHasResent] = useState(false);
   const [isCaptchaOpen, setIsCaptchaOpen] = useState(false);

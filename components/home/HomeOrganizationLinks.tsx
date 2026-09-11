@@ -22,7 +22,9 @@ export async function HomeOrganizationLinks({ userId }: { userId: string }) {
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("organization_members")
-    .select("organization_id, organization:organizations(id, name, username, logo_url)")
+    .select(
+      "organization_id, organization:organizations(id, name, username, logo_url)",
+    )
     .eq("user_id", userId)
     .eq("status", "active");
 
@@ -55,20 +57,25 @@ export async function HomeOrganizationLinks({ userId }: { userId: string }) {
               />
             ) : (
               <div className="flex size-12 shrink-0 items-center justify-center rounded-full bg-muted">
-                <Building2 aria-hidden="true" className="size-6 text-muted-foreground" />
+                <Building2
+                  aria-hidden="true"
+                  className="size-6 text-muted-foreground"
+                />
               </div>
             )}
             <div className="min-w-0">
               <h2 className="text-base font-semibold">{organization.name}</h2>
               <p className="text-sm text-muted-foreground">
-                Open your organization for its activities and member tools. Browse Let&apos;s Assist volunteer projects below.
+                Open your organization for its activities and member tools.
+                Browse Let&apos;s Assist volunteer projects below.
               </p>
             </div>
           </div>
           <Link
             href={`/organization/${encodeURIComponent(organization.username || organization.id)}`}
             className={buttonVariants({
-              className: "h-auto max-w-full shrink-0 whitespace-normal py-2 text-left",
+              className:
+                "h-auto max-w-full shrink-0 whitespace-normal py-2 text-left",
             })}
           >
             Open {organization.name}

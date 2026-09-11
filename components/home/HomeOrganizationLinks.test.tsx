@@ -25,17 +25,21 @@ function client(label: string) {
             then(resolve: (value: unknown) => unknown) {
               return Promise.resolve({
                 error: queryError ? { message: "Unavailable" } : null,
-                data: isMember ? [
-                  {
-                    organization_id: `${label}-org`,
-                    organization: {
-                      id: `${label}-org`,
-                      name: `${label} chapter`,
-                      username: useSlug ? `${label}-chapter` : null,
-                      logo_url: hasLogo ? "https://example.com/chapter-logo.png" : null,
-                    },
-                  },
-                ] : [],
+                data: isMember
+                  ? [
+                      {
+                        organization_id: `${label}-org`,
+                        organization: {
+                          id: `${label}-org`,
+                          name: `${label} chapter`,
+                          username: useSlug ? `${label}-chapter` : null,
+                          logo_url: hasLogo
+                            ? "https://example.com/chapter-logo.png"
+                            : null,
+                        },
+                      },
+                    ]
+                  : [],
               }).then(resolve);
             },
           };
@@ -105,11 +109,12 @@ test("a membership read error renders no organization links", async () => {
   expect(await renderLinks()).toBe("");
 });
 
-
 test("organization card shows its name and logo with one direct navigation link", async () => {
   const html = await renderLinks();
   expect(html).toContain('src="https://example.com/chapter-logo.png"');
-  expect(html).toContain('<h2 class="text-base font-semibold">local chapter</h2>');
+  expect(html).toContain(
+    '<h2 class="text-base font-semibold">local chapter</h2>',
+  );
   expect(html.match(/href="\/organization\/local-chapter"/g)).toHaveLength(1);
   expect(html).toContain("Open local chapter");
 });
