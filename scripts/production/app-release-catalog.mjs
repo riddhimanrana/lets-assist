@@ -1,4 +1,7 @@
-import { sheetRecoveryDefinitions } from "./sheet-recovery-catalog.mjs";
+import {
+  sheetRecoveryDefinitions,
+  sheetRecoveryTables,
+} from "./sheet-recovery-catalog.mjs";
 import {
   sheetDiscussionDefinitions,
   sheetDiscussionTables,
@@ -552,7 +555,7 @@ accepted_upgrade_posture AS (
   ${automaticSheetUpdatesUpgrade ? automaticSheetUpdatesPosture(workerRelationSnapshotQuery, matchingTabUpgrade, applicationContactsUpgrade, ownershipUpgrade, sheetSyncUpgrade) : ""}
   ${workbookLinkMergeUpgrade ? workbookLinkMergePosture : ""}
   ${staffAccountConnectionUpgrade ? staffAccountConnectionPosture(staffAccountAuthorityUpgrade, ownershipUpgrade) : ""}
-  ${ownershipUpgrade ? reportedContactColumnsPosture : ""}${sheetSyncUpgrade ? `\n  ${sheetSyncPosture(workerRelationSnapshotQuery, sheetRecoveryUpgrade ? sheetRecoveryDefinitions : sheetDiscussionUpgrade ? sheetDiscussionDefinitions : undefined, sheetDiscussionUpgrade ? sheetDiscussionTables : undefined)}` : ""} AS valid
+  ${ownershipUpgrade ? reportedContactColumnsPosture : ""}${sheetSyncUpgrade ? `\n  ${sheetSyncPosture(workerRelationSnapshotQuery, sheetRecoveryUpgrade ? sheetRecoveryDefinitions : sheetDiscussionUpgrade ? sheetDiscussionDefinitions : undefined, sheetRecoveryUpgrade ? sheetRecoveryTables : sheetDiscussionUpgrade ? sheetDiscussionTables : undefined)}` : ""} AS valid
   FROM accepted_upgrade_definitions expected
   LEFT JOIN pg_proc p ON p.oid=to_regprocedure(expected.signature)
 )

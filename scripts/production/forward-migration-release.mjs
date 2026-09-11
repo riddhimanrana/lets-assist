@@ -96,7 +96,7 @@ export const approvedMigrations = [
   ],
   [
     "20260911195446_csf_sheet_sync_review_recovery",
-    "ef66d42f348042c45be88a6e0a30ee7cc148996c57eaf4380d7aa755490dbc23",
+    "2decd1a72195303164c6db1aa4d104261627275e0ef72692ec467e87e5b92137",
   ],
 ];
 

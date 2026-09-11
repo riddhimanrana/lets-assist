@@ -4,7 +4,10 @@ import { readFileSync } from "node:fs";
 import { createHash } from "node:crypto";
 import { expectedVersions } from "./app-release-checks.mjs";
 import { acceptedCatalogQuery } from "./app-release-catalog.mjs";
-import { sheetRecoveryDefinitions } from "./sheet-recovery-catalog.mjs";
+import {
+  sheetRecoveryDefinitions,
+  sheetRecoveryTables,
+} from "./sheet-recovery-catalog.mjs";
 import {
   prepareMigration,
   approvedMigrations,
@@ -22,6 +25,10 @@ test("489 pins recovery definitions without changing the applied column catalog"
     assert.ok(current.includes(signature));
     assert.ok(current.includes(digest));
     assert.ok(current.includes(body));
+  }
+  for (const [name, digest] of sheetRecoveryTables) {
+    assert.ok(current.includes(name));
+    assert.ok(current.includes(digest));
   }
   assert.equal(
     acceptedCatalogQuery(source, versions.slice(0, 488)),

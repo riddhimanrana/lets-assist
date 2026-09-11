@@ -1,4 +1,7 @@
-import { sheetDiscussionDefinitions } from "./sheet-discussion-catalog.mjs";
+import {
+  sheetDiscussionDefinitions,
+  sheetDiscussionTables,
+} from "./sheet-discussion-catalog.mjs";
 const overrides = [
   [
     "plugin_data.csf_add_sheet_sync_local_message(uuid,uuid,uuid,uuid,text,text,boolean)",
@@ -32,8 +35,8 @@ const overrides = [
   ],
   [
     "plugin_data.csf_record_sheet_sync_change(uuid,uuid,text,uuid,text,text,jsonb,uuid)",
-    "2039b749678fc27e42fbb2126d03ab40",
-    "cb2842a55f028a80d9ef7f49eed7adb7",
+    "05d560adcc4990475fe6b7f6720a312c",
+    "7c9caa02ca0c0abce536a282a5dc0cde",
     true,
   ],
   [
@@ -43,9 +46,16 @@ const overrides = [
     true,
   ],
 ];
+const relationOverrides = [
+  ["csf_sheet_sync_bindings", "f5c52d7bc0a2c8b3112419bad8a38cce", false],
+  ["csf_sheet_sync_changes", "a323872898237ee87ab96933c6bf73cf", false],
+];
 export const sheetRecoveryDefinitions = [
   ...sheetDiscussionDefinitions.filter(
     ([name]) => !overrides.some(([signature]) => signature === name),
   ),
   ...overrides,
 ];
+export const sheetRecoveryTables = sheetDiscussionTables.map(
+  (row) => relationOverrides.find(([name]) => name === row[0]) ?? row,
+);

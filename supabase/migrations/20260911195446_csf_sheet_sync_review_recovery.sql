@@ -1,5 +1,13 @@
 -- Preserve observed request intent and audited recovery across repeat syncs.
 
+ALTER TABLE plugin_data.csf_sheet_sync_bindings ADD COLUMN observation_generation bigint NOT NULL DEFAULT 0 CHECK(observation_generation>=0);
+ALTER TABLE plugin_data.csf_sheet_sync_changes ADD COLUMN observation_generation bigint NOT NULL DEFAULT 0 CHECK(observation_generation>=0);
+DO $$ DECLARE constraint_name text; BEGIN
+ SELECT conname INTO STRICT constraint_name FROM pg_constraint WHERE conrelid='plugin_data.csf_sheet_sync_changes'::regclass AND contype='u' AND pg_get_constraintdef(oid)='UNIQUE (destination_id, record_kind, record_id, remote_version, source_version)';
+ EXECUTE format('ALTER TABLE plugin_data.csf_sheet_sync_changes DROP CONSTRAINT %I',constraint_name);
+END $$;
+ALTER TABLE plugin_data.csf_sheet_sync_changes ADD CONSTRAINT csf_sheet_sync_change_observation_key UNIQUE(destination_id,record_kind,record_id,remote_version,source_version,observation_generation);
+
 CREATE OR REPLACE FUNCTION plugin_data.csf_record_sheet_sync_change(p_organization_id uuid,p_destination_id uuid,p_record_kind text,p_record_id uuid,p_source_version text,p_remote_version text,p_payload jsonb,p_destination_lease_token uuid DEFAULT NULL) RETURNS jsonb
 LANGUAGE plpgsql SECURITY DEFINER SET search_path='' AS $$
 DECLARE c plugin_data.csf_sheet_sync_changes%ROWTYPE; d plugin_data.csf_sheet_sync_destinations%ROWTYPE; b plugin_data.csf_sheet_sync_bindings%ROWTYPE; request jsonb;
@@ -12,6 +20,7 @@ BEGIN
  IF p_destination_lease_token IS NULL OR d.poll_lease_token IS DISTINCT FROM p_destination_lease_token OR d.poll_lease_expires_at IS NULL OR d.poll_lease_expires_at<=clock_timestamp() THEN RAISE EXCEPTION 'Sync lease expired or access changed.'; END IF;
  IF coalesce((plugin_data.csf_sheet_sync_destination_snapshot(p_organization_id,p_destination_id,p_record_kind,p_record_id)->>'out_of_scope')::boolean,false) THEN RETURN jsonb_build_object('status','out_of_scope'); END IF;
  request:=p_payload-ARRAY['author_display_name','author_provider_id'];
+ IF request IS DISTINCT FROM b.last_seen_request THEN UPDATE plugin_data.csf_sheet_sync_bindings SET observation_generation=observation_generation+1 WHERE id=b.id RETURNING observation_generation INTO b.observation_generation; END IF;
  UPDATE plugin_data.csf_sheet_sync_changes SET status='stale' WHERE organization_id=p_organization_id AND destination_id=d.id AND record_kind=p_record_kind AND record_id=p_record_id AND status='pending' AND (payload-ARRAY['author_display_name','author_provider_id']) IS DISTINCT FROM request;
  IF request='{}'::jsonb THEN UPDATE plugin_data.csf_sheet_sync_bindings SET last_seen_request='{}'::jsonb,last_seen_request_source_version=NULL WHERE id=b.id; RETURN jsonb_build_object('status','unchanged'); END IF;
  IF request=b.last_seen_request AND (b.last_seen_request_source_version IS NOT DISTINCT FROM p_source_version OR NOT EXISTS(SELECT 1 FROM plugin_data.csf_sheet_sync_changes old WHERE old.destination_id=d.id AND old.record_kind=p_record_kind AND old.record_id=p_record_id AND old.source_version=b.last_seen_request_source_version AND old.status='stale' AND old.payload-ARRAY['author_display_name','author_provider_id']=request)) THEN
@@ -28,10 +37,10 @@ BEGIN
  IF p_record_kind NOT IN ('application','point_submission') OR p_payload->>'action' NOT IN ('approved','rejected','needs_action','duplicate') OR p_payload->>'action' IS NULL OR (p_record_kind='application' AND p_payload->>'action'='duplicate') OR p_payload - ARRAY['action','review_notes','awarded_points','author_display_name','author_provider_id'] <> '{}'::jsonb THEN RAISE EXCEPTION 'Unsupported Sheet change.'; END IF;
  END IF;
  IF length(p_remote_version)>500 OR length(p_payload::text)>10000 THEN RAISE EXCEPTION 'Sheet change exceeds the size limit.'; END IF;
- INSERT INTO plugin_data.csf_sheet_sync_changes(organization_id,destination_id,record_kind,record_id,source_version,remote_version,payload) VALUES(p_organization_id,d.id,p_record_kind,p_record_id,p_source_version,p_remote_version,p_payload)
- ON CONFLICT(destination_id,record_kind,record_id,remote_version,source_version) DO NOTHING RETURNING * INTO c;
+ INSERT INTO plugin_data.csf_sheet_sync_changes(organization_id,destination_id,record_kind,record_id,source_version,remote_version,payload,observation_generation) VALUES(p_organization_id,d.id,p_record_kind,p_record_id,p_source_version,p_remote_version,p_payload,b.observation_generation)
+ ON CONFLICT(destination_id,record_kind,record_id,remote_version,source_version,observation_generation) DO NOTHING RETURNING * INTO c;
  IF c.id IS NULL THEN
- SELECT * INTO c FROM plugin_data.csf_sheet_sync_changes WHERE destination_id=d.id AND record_kind=p_record_kind AND record_id=p_record_id AND remote_version=p_remote_version AND source_version=p_source_version;
+ SELECT * INTO c FROM plugin_data.csf_sheet_sync_changes WHERE destination_id=d.id AND record_kind=p_record_kind AND record_id=p_record_id AND remote_version=p_remote_version AND source_version=p_source_version AND observation_generation=b.observation_generation;
  IF c.payload<>p_payload OR c.source_version<>p_source_version THEN RAISE EXCEPTION 'Conflicting change uses an existing remote version.'; END IF;
  END IF;
  UPDATE plugin_data.csf_sheet_sync_bindings SET last_seen_request=request,last_seen_request_source_version=p_source_version WHERE id=b.id;
