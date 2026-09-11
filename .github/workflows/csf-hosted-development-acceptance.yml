@@ -14,6 +14,12 @@ on:
         description: "Existing Development build SHA, only for acceptance-tooling-only changes"
         required: false
         type: string
+      mode:
+        description: "Functional browser checks only, or full performance acceptance"
+        type: choice
+        options: [full, functional]
+        default: full
+        required: true
       confirmation:
         description: "Type load-hosted-development:<Development Supabase project ref>"
         required: true
@@ -67,6 +73,8 @@ jobs:
       statuses: write
     timeout-minutes: 75
     env:
+      ACCEPTANCE_MODE: ${{ inputs.mode || (github.event_name == 'push' && contains(github.event.head_commit.message, '[csf-functional-only]') && 'functional' || 'full') }}
+      ACCEPTANCE_CONTEXT: ${{ (inputs.mode == 'functional' || (github.event_name == 'push' && contains(github.event.head_commit.message, '[csf-functional-only]'))) && 'csf-hosted-development-functional' || 'csf-hosted-development-acceptance' }}
       ACCEPTED_SHA: ${{ github.event_name == 'push' && github.sha || inputs.development_sha }}
       DEPLOYED_APP_SHA: ${{ inputs.deployed_app_sha || (github.event_name == 'push' && github.sha || inputs.development_sha) }}
       CONFIRMATION: ${{ github.event_name == 'push' && format('load-hosted-development:{0}', vars.CSF_DEVELOPMENT_SUPABASE_PROJECT_REF) || inputs.confirmation }}
@@ -111,7 +119,7 @@ jobs:
         run: |
           gh api "repos/${GITHUB_REPOSITORY}/statuses/${ACCEPTED_SHA}" \
             -f state=pending \
-            -f context=csf-hosted-development-acceptance \
+            -f context="${ACCEPTANCE_CONTEXT}" \
             -f description='Hosted Development acceptance is running' \
             -f target_url="https://github.com/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
 
@@ -229,6 +237,7 @@ jobs:
 
       - name: Run hosted CSF acceptance
         env:
+          CSF_HOSTED_ACCEPTANCE_MODE: ${{ env.ACCEPTANCE_MODE }}
           CSF_APP_URL: https://dev.lets-assist.com/
           CSF_HOSTED_LOAD_CONFIRMATION: ${{ env.CONFIRMATION }}
           CSF_HOSTED_LOAD_PASSWORD: ${{ secrets.CSF_HOSTED_LOAD_PASSWORD }}
@@ -263,8 +272,8 @@ jobs:
         run: |
           gh api "repos/${GITHUB_REPOSITORY}/statuses/${ACCEPTED_SHA}" \
             -f state=success \
-            -f context=csf-hosted-development-acceptance \
-            -f description='100 distinct sessions passed hosted Development acceptance' \
+            -f context="${ACCEPTANCE_CONTEXT}" \
+            -f description="Hosted Development ${ACCEPTANCE_MODE} acceptance passed" \
             -f target_url="https://github.com/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
 
       - name: Publish failed acceptance status
@@ -274,6 +283,6 @@ jobs:
         run: |
           gh api "repos/${GITHUB_REPOSITORY}/statuses/${ACCEPTED_SHA}" \
             -f state=failure \
-            -f context=csf-hosted-development-acceptance \
+            -f context="${ACCEPTANCE_CONTEXT}" \
             -f description='Hosted Development acceptance failed' \
             -f target_url="https://github.com/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"

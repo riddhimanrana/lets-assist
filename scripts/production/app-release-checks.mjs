@@ -153,7 +153,7 @@ export async function verifySource(
       fetcher,
     );
   const prefix = `https://github.com/${repository}/actions/runs/`;
-  if (!waivedPerformance) {
+  {
     // The combined-status projection omits creator. Individual statuses retain
     // the author required by verifyAcceptance; do not relax that identity check.
     const statusPayload = await request(
@@ -164,7 +164,13 @@ export async function verifySource(
         "Hosted acceptance status inventory is invalid.",
       );
     const status = statusPayload
-      .filter((item) => item.context === "csf-hosted-development-acceptance")
+      .filter(
+        (item) =>
+          item.context ===
+          (waivedPerformance
+            ? "csf-hosted-development-functional"
+            : "csf-hosted-development-acceptance"),
+      )
       .sort((a, b) => b.id - a.id)[0];
     const runId = status?.target_url?.startsWith(prefix)
       ? status.target_url.slice(prefix.length)
