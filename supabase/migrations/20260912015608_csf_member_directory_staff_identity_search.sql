@@ -68,7 +68,7 @@ AS $$
       profile.reported_application_personal_email,
       login_profile.full_name AS login_name,
       login_profile.username AS login_username,
-      login_profile.email AS login_email,
+      login_profile.login_email,
       profile.created_at,
       profile.updated_at,
       lower(concat_ws(' ', profile.last_name, profile.first_name, profile.preferred_name, profile.id::text)) AS name_sort,
@@ -119,9 +119,15 @@ AS $$
       LIMIT 1
     ) account ON true
     LEFT JOIN LATERAL (
-      SELECT platform_profile.full_name, platform_profile.username, platform_profile.email
+      SELECT
+        platform_profile.full_name,
+        platform_profile.username,
+        login_user.email AS login_email
       FROM plugin_data.csf_profile_accounts AS linked_account
-      JOIN public.profiles AS platform_profile
+      JOIN auth.users AS login_user
+        ON login_user.id = linked_account.user_id
+       AND login_user.email_confirmed_at IS NOT NULL
+      LEFT JOIN public.profiles AS platform_profile
         ON platform_profile.id = linked_account.user_id
       WHERE linked_account.organization_id = p_organization_id
         AND linked_account.profile_id = profile.id
@@ -437,7 +443,7 @@ AS $$
       profile.reported_application_personal_email,
       login_profile.full_name AS login_name,
       login_profile.username AS login_username,
-      login_profile.email AS login_email,
+      login_profile.login_email,
       profile.created_at,
       profile.updated_at,
       lower(concat_ws(
@@ -492,9 +498,15 @@ AS $$
       LIMIT 1
     ) AS account ON true
     LEFT JOIN LATERAL (
-      SELECT platform_profile.full_name, platform_profile.username, platform_profile.email
+      SELECT
+        platform_profile.full_name,
+        platform_profile.username,
+        login_user.email AS login_email
       FROM plugin_data.csf_profile_accounts AS linked_account
-      JOIN public.profiles AS platform_profile
+      JOIN auth.users AS login_user
+        ON login_user.id = linked_account.user_id
+       AND login_user.email_confirmed_at IS NOT NULL
+      LEFT JOIN public.profiles AS platform_profile
         ON platform_profile.id = linked_account.user_id
       WHERE linked_account.organization_id = p_organization_id
         AND linked_account.profile_id = profile.id

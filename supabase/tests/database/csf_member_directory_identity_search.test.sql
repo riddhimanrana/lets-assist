@@ -4,13 +4,15 @@ CREATE EXTENSION IF NOT EXISTS pgtap WITH SCHEMA extensions;
 
 SELECT extensions.plan(7);
 
-INSERT INTO auth.users (id, email)
+INSERT INTO auth.users (id, email, email_confirmed_at)
 VALUES
-  ('de100000-0000-4000-8000-000000000001', 'verified-login@local.test'),
-  ('de100000-0000-4000-8000-000000000002', 'pending-login@local.test');
+  ('de100000-0000-4000-8000-000000000001', 'verified-login@local.test', now()),
+  ('de100000-0000-4000-8000-000000000002', 'pending-login@local.test', now());
 
 UPDATE public.profiles
-SET full_name = 'Verified Login Name', username = 'verified-login'
+SET full_name = 'Verified Login Name',
+    username = 'verified-login',
+    email = 'stale-profile-email@local.test'
 WHERE id = 'de100000-0000-4000-8000-000000000001';
 
 UPDATE public.profiles
