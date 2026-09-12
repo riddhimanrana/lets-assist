@@ -39,6 +39,11 @@ async function loginOwnedMember(page: Page, email: string) {
   );
 }
 
+async function clearViewerSession(page: Page) {
+  await page.goto("about:blank");
+  await page.context().clearCookies();
+}
+
 test("assigning and revoking a staff position changes post access while officer posts stay out of member feeds", async ({
   page,
   browser,
@@ -281,7 +286,7 @@ test("assigning and revoking a staff position changes post access while officer 
     expect(await actor.content()).not.toContain(staffTitle);
     expect(await actor.content()).not.toContain(otherClassTitle);
     for (const memberActor of ["member", "applicant"] as const) {
-      await viewerContext.clearCookies();
+      await clearViewerSession(viewer);
       await loginAs(viewer, memberActor, homePath);
       await expect(
         viewer.getByText(memberTitle, { exact: true }),
