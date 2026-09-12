@@ -7361,3 +7361,15 @@ Root CI `34679502301` passed on `2e3da6bf1ae1b864f8d93d39803292a3edb71f8e`. It p
 GitGuardian separately flagged a generated local recovery-test password template in commit `d1732f64`, incident `37207668`. The value is created per run for a fictional `local.test` account in the isolated database; it is not a stored Production credential. The forward correction uses `randomUUID()` directly instead of the timestamp-based template. Keep the scanner enabled and PR 549 unmerged until its normal security check passes or an authorized operator resolves the finding. Do not rewrite history or bypass the check. The Vercel project-access denial remains a separate Production release blocker.
 
 Both compiled expired-email browser journeys passed after the random-password correction (`final-recovery-random-secret`, 41.6 seconds). Formatting and diff checks passed. No application behavior changed after the full CI run.
+
+### September 12 updated credential and Home follow-up
+
+The user updated the Production Vercel token. Read-only diagnostic `34709213981` passed against the project and deployment controls, replacing the earlier HTTP 403 result. No Production deployment or migration ran during this check.
+
+The full CI rerun `34680944167` passed on `757dfc63`. GitGuardian incident `37207668` still flags the historical generated fixture template; the provider shows zero current files requiring a code fix. The incident decision remains pending explicit user confirmation. Do not bypass the security check.
+
+Root `bae78169` limits Home organization cards to active memberships with accessible DVHS CSF installs. It honors both the global and plugin-specific display preferences. Eleven focused tests, type checking, lint, formatting and the strict gitlink check passed. Other organizations no longer qualify for these cards.
+
+A fresh Production administrator sign-in from chapter settings reproduced a redirect to a nonexistent `/edit` page. The prepared host fix returns to the encoded `/settings` path instead. The new compiled browser journey `settings-auth-return-sept12-retry` passed, including the signup continuation link and administrator sign-in. This fix is not deployed. Its first local attempt stopped before tests because a changed frontend port did not match the owned environment; the successful run used the configured port.
+
+The requested seven-officer setup is being prepared. The existing Vice President roles have different portfolios; a later request for universal access is awaiting clarification between named officers and ordinary students. No staff permissions, account ownership links, application decisions or points were changed. Reported contacts and names remain matching hints, not ownership proof. Member and officer guide updates must distinguish tested code from deployed behavior and keep live sync acceptance unfinished until it actually passes.
