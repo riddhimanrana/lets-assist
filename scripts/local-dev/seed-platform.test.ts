@@ -20,6 +20,10 @@ const seedSource = [
 ]
   .map((path) => readFileSync(new URL(path, import.meta.url), "utf8"))
   .join("\n");
+const localOnlySeed = readFileSync(
+  new URL("../../supabase/seeds/local-only.sql", import.meta.url),
+  "utf8",
+);
 const actorHelperSource = readFileSync(
   new URL("../../tests/e2e/csf/helpers.ts", import.meta.url),
   "utf8",
@@ -105,6 +109,17 @@ describe("local platform seed authorization", () => {
     expect(seedSource).toContain(
       "const installedVersion = seededPluginCatalogRows.find",
     );
+  });
+
+  test("local SQL catalog seeds preserve migration-owned versions", () => {
+    expect(
+      occurrenceCount(localOnlySeed, "ON CONFLICT (key) DO UPDATE SET"),
+    ).toBe(2);
+    expect(localOnlySeed).not.toContain(
+      "latest_version = EXCLUDED.latest_version",
+    );
+    expect(localOnlySeed).toContain("'2.0.2'");
+    expect(localOnlySeed).toContain("'1.1.0'");
   });
 
   test("keeps the isolated CSF administrator fictional and portrait-free", () => {
