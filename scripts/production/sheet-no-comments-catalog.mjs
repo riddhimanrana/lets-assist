@@ -9,8 +9,8 @@ const overrides = [
   ],
   [
     "plugin_data.csf_queue_changed_sheet_sync_record()",
-    "86f6589ecdb2806fd9cf0f02978c7078",
-    "d69f0a4413f80550c35439b9e0507724",
+    "49185542b46d06ce6fa6162344375c38",
+    "e1ef35a5e743988fe97f844a26821ff7",
     false,
   ],
   [

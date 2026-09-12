@@ -22,7 +22,7 @@ test("499 pins the no-comments transport function definitions and ACLs", () => {
   }
   for (const digest of [
     "9b853e618876d9cb5c9b48b70457e0a0",
-    "86f6589ecdb2806fd9cf0f02978c7078",
+    "49185542b46d06ce6fa6162344375c38",
     "e0b23b6940ffb13848fbb86a6802517e",
     "2d8b14c04e326df51e23ce2be331abd4",
   ])
