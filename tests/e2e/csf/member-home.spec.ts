@@ -205,7 +205,7 @@ test.describe("member Home class feed", () => {
     expectNoBrowserFailures(failures);
   });
 
-  test("an unlinked member sees the connect call to action instead of a class label", async ({
+  test("an unlinked member sees the account connection call to action instead of a class label", async ({
     page,
   }) => {
     // Promote the outsider fixture to a plain organization member with no
@@ -261,12 +261,12 @@ test.describe("member Home class feed", () => {
 
       const connectCard = page
         .locator('[data-slot="card"]')
-        .filter({ hasText: "Join a class" })
+        .filter({ hasText: "Connect your account" })
         .first();
       await expect(connectCard).toBeVisible();
       await expect(
         connectCard.getByText(
-          "Enter the six-character code an officer shared with you.",
+          "Enter your class code to connect this login to your CSF record.",
         ),
       ).toBeVisible();
 
