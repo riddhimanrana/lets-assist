@@ -203,7 +203,8 @@ describe("CSF Production release preflight", () => {
     expect(productionProjectVerifier).toContain(
       "/rolling-release?teamId=${VERCEL_TEAM_ID}",
     );
-    expect(productionProjectVerifier).toContain("'.rollingRelease == null'");
+    expect(productionProjectVerifier).toContain('has("rollingRelease")');
+    expect(productionProjectVerifier).toContain(".rollingRelease == null");
     expect(productionProjectVerifier).toContain(
       '.rollingRelease.state == "ABORTED"',
     );
