@@ -30,7 +30,8 @@ DECLARE
 BEGIN
   EXECUTE $query$
     EXPLAIN (FORMAT JSON)
-    SELECT id
+    SELECT organization_id, cohort_id,
+      plugin_data.csf_class_history_source_key_value(normalized_data) AS source_key
     FROM plugin_data.csf_sheet_import_rows
     WHERE organization_id = '7f39bb32-ab12-44ac-b304-797685c12801'::uuid
       AND cohort_id = '7f39bb32-ab12-44ac-b304-797685c12802'::uuid

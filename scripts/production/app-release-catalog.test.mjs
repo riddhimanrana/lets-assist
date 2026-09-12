@@ -209,7 +209,7 @@ test("scheduling retirement pins every replacement and preserves the prior relea
     assert.ok(current.includes(definition), definition);
     assert.ok(!preceding.includes(definition), definition);
   }
-  assert.match(current, /SELECT count\(\*\) = 24 AND/u);
+  assert.match(current, /SELECT count\(\*\) = 26 AND/u);
   assert.match(preceding, /SELECT count\(\*\) = 10 AND/u);
   assert.ok(
     current.includes(
@@ -314,7 +314,7 @@ test("workbook rebuild release checks the exact body, server-only grants, and re
 
 test("the reviewed import upgrade verifies metadata, function grants, and the scoped index", () => {
   const query = acceptedCatalogQuery(source, versions);
-  assert.match(query, /SELECT count\(\*\) = 24 AND/u);
+  assert.match(query, /SELECT count\(\*\) = 26 AND/u);
   assert.match(query, /csf_import_rows_resolution_metadata_object/u);
   assert.match(query, /a.atttypid='jsonb'::regtype AND a.attnotnull/u);
   assert.match(query, /csf_import_rows_committed_source_key_idx/u);
@@ -491,7 +491,7 @@ test("archived directory release pins the function and preserves the preceding c
 });
 
 test("active membership release pins its replacement and retains the archived directory catalog", () => {
-  const current = acceptedCatalogQuery(source, versions);
+  const current = acceptedCatalogQuery(source, versions.slice(0, 472));
   const preceding = acceptedCatalogQuery(source, versions.slice(0, 471));
   assert.ok(current.includes("8abb87daa63ef1b5dad124f89bee24d1"));
   assert.ok(!current.includes("091f2fb0595f586f7b84ce134d6cdee6"));
@@ -583,7 +583,7 @@ test("application review reopening pins the complete function and retains the pr
   const preceding = acceptedCatalogQuery(source, versions.slice(0, 476));
   const signature =
     "plugin_data.csf_set_review_period(uuid,uuid,uuid,text,text,text,text,timestamptz,timestamptz)";
-  assert.equal(versions.length, 498);
+  assert.equal(versions.length, 500);
   assert.ok(
     current.includes(
       `('${signature}','28793d39c02ebf702a61c26deb7ae2b4',true)`,
@@ -686,7 +686,39 @@ test("canonical range recovery preserves the preceding function fingerprint", ()
 
 test("embedded publication 498 preserves the reviewed 497 schema", () => {
   assert.equal(
-    acceptedCatalogQuery(source, versions),
+    acceptedCatalogQuery(source, versions.slice(0, 498)),
     acceptedCatalogQuery(source, versions.slice(0, 497)),
   );
+});
+
+test("no-comments transport and member search pin the current function catalogs", () => {
+  const current = acceptedCatalogQuery(source, versions);
+  const noComments = acceptedCatalogQuery(source, versions.slice(0, 499));
+  const preceding = acceptedCatalogQuery(source, versions.slice(0, 498));
+  for (const digest of [
+    "06266c48d39c43f57bf10b560d3f62c9",
+    "745fbb6ec18093cecb445dd5be6273f1",
+    "55c423adec03f617d38e2f6ad2d6b243",
+  ]) {
+    assert.ok(noComments.includes(digest));
+    assert.ok(!preceding.includes(digest));
+  }
+  for (const [signature, digest] of [
+    [
+      "app_private.csf_verified_profile_login_identity(uuid,uuid)",
+      "bb732f084499e445c11ae2b324f99f59",
+    ],
+    [
+      "plugin_data.csf_list_profiles_page(uuid,text,text,uuid,text,text,text,text,uuid,integer)",
+      "69a3d086915e57c9871ed3fa1cec1893",
+    ],
+    [
+      "plugin_data.csf_list_class_directory_page(uuid,uuid,uuid,text,text,text,text,text,text,uuid,integer)",
+      "e37e17e30c806043c4c85585a571a106",
+    ],
+  ]) {
+    assert.ok(current.includes(`('${signature}','${digest}',true)`));
+    assert.ok(!noComments.includes(digest));
+  }
+  assert.match(current, /SELECT count\(\*\) = 26 AND/u);
 });
