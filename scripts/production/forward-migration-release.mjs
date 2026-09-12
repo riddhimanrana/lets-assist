@@ -136,11 +136,11 @@ export const approvedMigrations = [
   ],
   [
     "20260912015112_csf_sheet_no_comments_transport",
-    "2156277616620f660ab020d7fe4eb8843431a8415c13e4e6b505fd07ebbe72fa",
+    "280c633bb0d41895b707e48e72bb43aaea6791d1baaf45c02cf23cfbd073472a",
   ],
   [
     "20260912015608_csf_member_directory_staff_identity_search",
-    "3c721efa9c45a17b9f102f8a3661c5dcf55f488b54006dbb35059a37ff0fc171",
+    "d0699b6cc9c0c05ba2c11122d106d3153ae6dc6efbe71a3ce720ff8217466788",
   ],
 ];
 

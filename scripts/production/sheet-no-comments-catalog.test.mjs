@@ -3,7 +3,10 @@ import { test } from "node:test";
 import { readFileSync } from "node:fs";
 import { expectedVersions } from "./app-release-checks.mjs";
 import { acceptedCatalogQuery } from "./app-release-catalog.mjs";
-import { sheetNoCommentsDefinitions } from "./sheet-no-comments-catalog.mjs";
+import {
+  sheetNoCommentsDefinitions,
+  sheetNoCommentsTables,
+} from "./sheet-no-comments-catalog.mjs";
 
 const versions = expectedVersions(process.cwd());
 const source = readFileSync(
@@ -20,11 +23,12 @@ test("499 pins the no-comments transport function definitions and ACLs", () => {
       current.includes(`('${signature}','${digest}','${body}',${service})`),
     );
   }
+  for (const [name, digest, denied] of sheetNoCommentsTables)
+    assert.ok(current.includes(`('${name}','${digest}',${denied})`));
   for (const digest of [
-    "9b853e618876d9cb5c9b48b70457e0a0",
-    "49185542b46d06ce6fa6162344375c38",
-    "e0b23b6940ffb13848fbb86a6802517e",
-    "2d8b14c04e326df51e23ce2be331abd4",
+    "06266c48d39c43f57bf10b560d3f62c9",
+    "745fbb6ec18093cecb445dd5be6273f1",
+    "55c423adec03f617d38e2f6ad2d6b243",
   ])
     assert.ok(!preceding.includes(digest));
 });

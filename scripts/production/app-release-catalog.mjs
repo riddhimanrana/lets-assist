@@ -1,5 +1,8 @@
 import { sheetToggleDefinitions } from "./sheet-toggle-catalog.mjs";
-import { sheetNoCommentsDefinitions } from "./sheet-no-comments-catalog.mjs";
+import {
+  sheetNoCommentsDefinitions,
+  sheetNoCommentsTables,
+} from "./sheet-no-comments-catalog.mjs";
 import { sheetDeferredNoteDefinitions } from "./sheet-deferred-note-catalog.mjs";
 import {
   sheetObservationDefinitions,
@@ -477,7 +480,7 @@ export function acceptedCatalogQuery(source, versions) {
     definitions.push([
       "plugin_data.csf_list_profiles_page(uuid,text,text,uuid,text,text,text,text,uuid,integer)",
       memberDirectorySearchUpgrade
-        ? "e2832656ce686c7728b5799abadf2083"
+        ? "69a3d086915e57c9871ed3fa1cec1893"
         : activeDirectoryUpgrade
           ? "8abb87daa63ef1b5dad124f89bee24d1"
           : "091f2fb0595f586f7b84ce134d6cdee6",
@@ -504,12 +507,18 @@ export function acceptedCatalogQuery(source, versions) {
       "28793d39c02ebf702a61c26deb7ae2b4",
       true,
     ]);
-  if (memberDirectorySearchUpgrade)
+  if (memberDirectorySearchUpgrade) {
     definitions.push([
-      "plugin_data.csf_list_class_directory_page(uuid,uuid,uuid,text,text,text,text,text,text,uuid,integer)",
-      "81cdb47311900e28ba585784b36dba47",
+      "app_private.csf_verified_profile_login_identity(uuid,uuid)",
+      "bb732f084499e445c11ae2b324f99f59",
       true,
     ]);
+    definitions.push([
+      "plugin_data.csf_list_class_directory_page(uuid,uuid,uuid,text,text,text,text,text,text,uuid,integer)",
+      "e37e17e30c806043c4c85585a571a106",
+      true,
+    ]);
+  }
   const values = definitions
     .map(
       ([signature, digest, service]) =>
@@ -617,7 +626,7 @@ accepted_upgrade_posture AS (
   ${automaticSheetUpdatesUpgrade ? automaticSheetUpdatesPosture(workerRelationSnapshotQuery, matchingTabUpgrade, applicationContactsUpgrade, ownershipUpgrade, sheetSyncUpgrade) : ""}
   ${workbookLinkMergeUpgrade ? workbookLinkMergePosture : ""}
   ${staffAccountConnectionUpgrade ? staffAccountConnectionPosture(staffAccountAuthorityUpgrade, ownershipUpgrade) : ""}
-  ${ownershipUpgrade ? reportedContactColumnsPosture : ""}${sheetSyncUpgrade ? `\n  ${sheetSyncPosture(workerRelationSnapshotQuery, sheetNoCommentsUpgrade ? sheetNoCommentsDefinitions : sheetToggleUpgrade ? sheetToggleDefinitions : sheetDeferredNoteUpgrade ? sheetDeferredNoteDefinitions : sheetObservationUpgrade ? sheetObservationDefinitions : sheetRecoveryUpgrade ? sheetRecoveryDefinitions : sheetDiscussionUpgrade ? sheetDiscussionDefinitions : undefined, sheetObservationUpgrade ? sheetObservationTables : sheetRecoveryUpgrade ? sheetRecoveryTables : sheetDiscussionUpgrade ? sheetDiscussionTables : undefined)}` : ""} AS valid
+  ${ownershipUpgrade ? reportedContactColumnsPosture : ""}${sheetSyncUpgrade ? `\n  ${sheetSyncPosture(workerRelationSnapshotQuery, sheetNoCommentsUpgrade ? sheetNoCommentsDefinitions : sheetToggleUpgrade ? sheetToggleDefinitions : sheetDeferredNoteUpgrade ? sheetDeferredNoteDefinitions : sheetObservationUpgrade ? sheetObservationDefinitions : sheetRecoveryUpgrade ? sheetRecoveryDefinitions : sheetDiscussionUpgrade ? sheetDiscussionDefinitions : undefined, sheetNoCommentsUpgrade ? sheetNoCommentsTables : sheetObservationUpgrade ? sheetObservationTables : sheetRecoveryUpgrade ? sheetRecoveryTables : sheetDiscussionUpgrade ? sheetDiscussionTables : undefined)}` : ""} AS valid
   FROM accepted_upgrade_definitions expected
   LEFT JOIN pg_proc p ON p.oid=to_regprocedure(expected.signature)
 )

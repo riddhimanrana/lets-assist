@@ -209,7 +209,7 @@ test("scheduling retirement pins every replacement and preserves the prior relea
     assert.ok(current.includes(definition), definition);
     assert.ok(!preceding.includes(definition), definition);
   }
-  assert.match(current, /SELECT count\(\*\) = 25 AND/u);
+  assert.match(current, /SELECT count\(\*\) = 26 AND/u);
   assert.match(preceding, /SELECT count\(\*\) = 10 AND/u);
   assert.ok(
     current.includes(
@@ -314,7 +314,7 @@ test("workbook rebuild release checks the exact body, server-only grants, and re
 
 test("the reviewed import upgrade verifies metadata, function grants, and the scoped index", () => {
   const query = acceptedCatalogQuery(source, versions);
-  assert.match(query, /SELECT count\(\*\) = 25 AND/u);
+  assert.match(query, /SELECT count\(\*\) = 26 AND/u);
   assert.match(query, /csf_import_rows_resolution_metadata_object/u);
   assert.match(query, /a.atttypid='jsonb'::regtype AND a.attnotnull/u);
   assert.match(query, /csf_import_rows_committed_source_key_idx/u);
@@ -696,26 +696,29 @@ test("no-comments transport and member search pin the current function catalogs"
   const noComments = acceptedCatalogQuery(source, versions.slice(0, 499));
   const preceding = acceptedCatalogQuery(source, versions.slice(0, 498));
   for (const digest of [
-    "9b853e618876d9cb5c9b48b70457e0a0",
-    "49185542b46d06ce6fa6162344375c38",
-    "e0b23b6940ffb13848fbb86a6802517e",
-    "2d8b14c04e326df51e23ce2be331abd4",
+    "06266c48d39c43f57bf10b560d3f62c9",
+    "745fbb6ec18093cecb445dd5be6273f1",
+    "55c423adec03f617d38e2f6ad2d6b243",
   ]) {
     assert.ok(noComments.includes(digest));
     assert.ok(!preceding.includes(digest));
   }
   for (const [signature, digest] of [
     [
+      "app_private.csf_verified_profile_login_identity(uuid,uuid)",
+      "bb732f084499e445c11ae2b324f99f59",
+    ],
+    [
       "plugin_data.csf_list_profiles_page(uuid,text,text,uuid,text,text,text,text,uuid,integer)",
-      "e2832656ce686c7728b5799abadf2083",
+      "69a3d086915e57c9871ed3fa1cec1893",
     ],
     [
       "plugin_data.csf_list_class_directory_page(uuid,uuid,uuid,text,text,text,text,text,text,uuid,integer)",
-      "81cdb47311900e28ba585784b36dba47",
+      "e37e17e30c806043c4c85585a571a106",
     ],
   ]) {
     assert.ok(current.includes(`('${signature}','${digest}',true)`));
     assert.ok(!noComments.includes(digest));
   }
-  assert.match(current, /SELECT count\(\*\) = 25 AND/u);
+  assert.match(current, /SELECT count\(\*\) = 26 AND/u);
 });
