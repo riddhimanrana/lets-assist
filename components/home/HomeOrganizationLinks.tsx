@@ -3,8 +3,15 @@ import Image from "next/image";
 import { ArrowRight, Building2 } from "lucide-react";
 
 import { buttonVariants } from "@/components/ui/button-variants";
+import {
+  isPluginHidden,
+  loadPluginDisplayPreferences,
+} from "@/lib/plugins/plugin-display-preferences";
+import { resolveOrganizationPluginExperiences } from "@/lib/plugins/resolve-org-plugins";
 import { createClient } from "@/lib/supabase/server";
 import { getServerPreviewSource } from "@/lib/supabase/preview-source.server";
+
+const CSF_PLUGIN_KEY = "dvhs-csf";
 
 export async function HomeOrganizationLinks({ userId }: { userId: string }) {
   const previewSource = await getServerPreviewSource();
@@ -20,6 +27,14 @@ export async function HomeOrganizationLinks({ userId }: { userId: string }) {
   }
 
   const supabase = await createClient();
+  const preferences = await loadPluginDisplayPreferences(supabase, userId);
+  if (
+    !preferences.showPluginContent ||
+    isPluginHidden(preferences, CSF_PLUGIN_KEY)
+  ) {
+    return null;
+  }
+
   const { data, error } = await supabase
     .from("organization_members")
     .select(
@@ -38,9 +53,23 @@ export async function HomeOrganizationLinks({ userId }: { userId: string }) {
   });
   if (!organizations.length) return null;
 
+  const csfOrganizationIds = new Set(
+    (
+      await resolveOrganizationPluginExperiences(
+        organizations.map(({ id }) => id),
+      )
+    )
+      .filter(({ pluginKey }) => pluginKey === CSF_PLUGIN_KEY)
+      .map(({ organizationId }) => organizationId),
+  );
+  const csfOrganizations = organizations.filter(({ id }) =>
+    csfOrganizationIds.has(id),
+  );
+  if (!csfOrganizations.length) return null;
+
   return (
     <nav aria-label="Your organizations" className="mb-6 grid gap-3">
-      {organizations.map((organization) => (
+      {csfOrganizations.map((organization) => (
         <div
           key={organization.id}
           className="flex flex-col gap-4 rounded-xl border bg-card p-4 sm:flex-row sm:items-center sm:justify-between sm:p-5"
@@ -66,8 +95,7 @@ export async function HomeOrganizationLinks({ userId }: { userId: string }) {
             <div className="min-w-0">
               <h2 className="text-base font-semibold">{organization.name}</h2>
               <p className="text-sm text-muted-foreground">
-                Open your organization for its activities and member tools.
-                Browse Let&apos;s Assist volunteer projects below.
+                Open your chapter&apos;s CSF activities and member tools.
               </p>
             </div>
           </div>

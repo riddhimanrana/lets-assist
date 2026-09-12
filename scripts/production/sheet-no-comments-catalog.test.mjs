@@ -15,7 +15,7 @@ const source = readFileSync(
 );
 
 test("499 pins the no-comments transport function definitions and ACLs", () => {
-  assert.equal(versions.length, 501);
+  assert.equal(versions.length, 502);
   const current = acceptedCatalogQuery(source, versions.slice(0, 499));
   const preceding = acceptedCatalogQuery(source, versions.slice(0, 498));
   for (const [signature, digest, body, service] of sheetNoCommentsDefinitions) {
