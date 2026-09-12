@@ -8,7 +8,7 @@ permissions:
 
 jobs:
   diagnose:
-    if: github.ref == 'refs/heads/development'
+    if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     environment: production
     timeout-minutes: 2

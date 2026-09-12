@@ -203,6 +203,8 @@ describe("Production Vercel project verifier", () => {
   test("manual diagnostic workflow is read only and reuses Production credentials", () => {
     const workflow = readFileSync(workflowPath, "utf8");
     expect(workflow).toContain("workflow_dispatch:");
+    expect(workflow).toContain("if: github.ref == 'refs/heads/main'");
+    expect(workflow).not.toContain("refs/heads/development");
     expect(workflow).toContain("environment: production");
     expect(workflow).toContain("permissions:\n  contents: read");
     expect(workflow).toContain("secrets.VERCEL_TOKEN");
