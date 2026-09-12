@@ -670,7 +670,7 @@ test.describe("signup email PKCE round trip", () => {
 
 test.describe("expired email verification recovery", () => {
   const recoveryEmail = `csf.e2e.recovery.${runToken}@local.test`;
-  const recoveryPassword = `E2eRecovery7${runToken}B`;
+  const recoveryPassword = randomUUID();
   let fixture: PkceFixture;
   let recoveryUserId: string | null = null;
 
