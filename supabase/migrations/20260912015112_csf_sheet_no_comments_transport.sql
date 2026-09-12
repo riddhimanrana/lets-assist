@@ -100,6 +100,8 @@ BEGIN
  END LOOP;
  RETURN CASE WHEN TG_OP='DELETE' THEN OLD ELSE NEW END;
 END $$;
+REVOKE ALL ON FUNCTION plugin_data.csf_queue_changed_sheet_sync_record() FROM PUBLIC,anon,authenticated,service_role;
+GRANT EXECUTE ON FUNCTION plugin_data.csf_queue_changed_sheet_sync_record() TO postgres;
 
 CREATE OR REPLACE FUNCTION plugin_data.csf_record_sheet_sync_acceptance(p_organization_id uuid,p_actor_user_id uuid,p_destination_id uuid,p_test_destination_ids uuid[],p_evidence jsonb,p_reason text) RETURNS jsonb
 LANGUAGE plpgsql SECURITY DEFINER SET search_path='' AS $$
