@@ -7333,3 +7333,13 @@ The latest Production audit and Chrome checks do not replace the remaining relea
 The review relation suite now checks correction rows as well as credits, courses and evidence across a 1,101-profile fixture. All ten tests and 25 assertions passed, including failure of a later correction page. The full private quality run includes formatting, lint, type checking and all private tests. Signed publication and host integration of 1.2.36 remain pending.
 
 A new local expired-email browser journey exposed repeated resend calls from verification callbacks. Multiple requests can invalidate the first email link's PKCE verifier. A focused host fix and regression are in progress. This is a local reproduction; no Production email was sent. Additional local coverage is being added for successful position assignment/removal and staff-only post exclusion from member view.
+
+### September 12 completed local workflow checks
+
+Root integration PR 547 passed full CI `34677324122` at `62e011de`: root quality, 291 database files with 8,163 tests, and 93 CSF browser tests. Four browser cases were skipped as documented above. It merged into Development as `0ab3c773fe557cb272cca9dc00345a7ed76ec1d5`. This is repository integration evidence, not hosted Development or Production acceptance.
+
+Root `d1732f64` fixes resend reentry on the expired-email page. Each explicit click permits one challenge callback; pending, completed and canceled callbacks cannot create another request. A transport failure permits a new explicit click. Six unit tests and two compiled local Mailpit browser journeys passed, including failed transport, deliberate retry, successful email verification and class-preserving login. No-email recovery retains usable auth links without offering a resend challenge. The combined root checkout passed type checking. This P2 fix is prepared, not deployed.
+
+Root `5e4a9459` adds the successful position and audience journey. Assignment granted an owned fictional account its intended staff access; revocation removed it and retained both history events. An officer-only post remained absent from member, applicant and staff-member-view HTML. The compiled browser test passed, and owned test logins and posts were removed. No outbound email or Production mutation occurred.
+
+Six new browser journeys are being run together on the combined host and private fixes before the final local handoff. Production still awaits the host release, restricted copied-workbook acceptance and fresh source reconciliation. The new root tests require the private 1.2.36 behavior; keep them draft until its signed publication updates the root gitlink through the normal integration workflow.
