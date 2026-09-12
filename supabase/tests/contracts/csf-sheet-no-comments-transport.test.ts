@@ -44,3 +44,15 @@ test("none removes discussions from destination versions without changing legacy
     "REVOKE ALL ON FUNCTION plugin_data.csf_sheet_sync_destination_snapshot_with_discussions(uuid,uuid,text,uuid) FROM PUBLIC,anon,authenticated,service_role;",
   );
 });
+
+test("destination setup chooses discussion transport atomically", () => {
+  expect(migration).toContain(
+    "CREATE FUNCTION plugin_data.csf_configure_sheet_sync_destination_atomic",
+  );
+  expect(migration).toContain(
+    "resolved_transport:=coalesce(p_discussion_transport,existing_transport,'none')",
+  );
+  expect(migration).toContain(
+    "GRANT EXECUTE ON FUNCTION plugin_data.csf_configure_sheet_sync_destination_atomic",
+  );
+});

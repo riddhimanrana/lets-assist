@@ -1,6 +1,6 @@
 BEGIN;
 CREATE EXTENSION IF NOT EXISTS pgtap WITH SCHEMA extensions;
-SELECT extensions.plan(30);
+SELECT extensions.plan(37);
 
 INSERT INTO auth.users(id,aud,role,email,raw_app_meta_data,raw_user_meta_data) VALUES
 ('fa000000-0000-4000-8000-000000000001','authenticated','authenticated','no-comments-admin@local.test','{}','{}');
@@ -44,6 +44,13 @@ SELECT extensions.ok(NOT has_function_privilege('anon','plugin_data.csf_queue_ch
 SELECT extensions.ok(NOT has_function_privilege('authenticated','plugin_data.csf_queue_changed_sheet_sync_record()','EXECUTE'),'authenticated cannot execute the Sheet sync change trigger');
 SELECT extensions.ok(NOT has_function_privilege('service_role','plugin_data.csf_queue_changed_sheet_sync_record()','EXECUTE'),'service role cannot execute the Sheet sync change trigger');
 SELECT extensions.ok(has_function_privilege('postgres','plugin_data.csf_queue_changed_sheet_sync_record()','EXECUTE'),'postgres retains reviewed trigger execution');
+SELECT extensions.is((plugin_data.csf_configure_sheet_sync_destination_atomic('fa100000-0000-4000-8000-000000000001','fa000000-0000-4000-8000-000000000001','fictional-no-comments',0,'applications',NULL,'fa200000-0000-4000-8000-000000000001',false,0,'["Record ID","Source version","Requested decision","Requested points"]'::jsonb,NULL)->>'discussion_transport'),'native','atomic recheck preserves an existing native destination when intent is omitted');
+SELECT extensions.is((plugin_data.csf_configure_sheet_sync_destination_atomic('fa100000-0000-4000-8000-000000000001','fa000000-0000-4000-8000-000000000001','fictional-atomic-none',4,'applications',NULL,'fa200000-0000-4000-8000-000000000001',false,0,'["Record ID","Source version","Requested decision","Requested points"]'::jsonb,NULL)->>'discussion_transport'),'none','atomic setup defaults a new destination to none');
+SELECT extensions.throws_ok($$SELECT plugin_data.csf_configure_sheet_sync_destination_atomic('fa100000-0000-4000-8000-000000000001','fa000000-0000-4000-8000-000000000001','fictional-atomic-rollback',5,'applications',NULL,'fa200000-0000-4000-8000-000000000001',false,0,'["Record ID","Source version"]'::jsonb,'column')$$,'P0001','The discussion mode does not match the managed Comments columns.','transport failure aborts atomic setup');
+SELECT extensions.is((SELECT count(*)::integer FROM plugin_data.csf_sheet_sync_destinations WHERE spreadsheet_file_id='fictional-atomic-rollback'),0,'failed atomic setup leaves no native-default destination');
+SELECT extensions.ok(has_function_privilege('service_role','plugin_data.csf_configure_sheet_sync_destination_atomic(uuid,uuid,text,integer,text,uuid,uuid,boolean,integer,jsonb,text)','EXECUTE'),'service role can call atomic setup');
+SELECT extensions.ok(NOT has_function_privilege('anon','plugin_data.csf_configure_sheet_sync_destination_atomic(uuid,uuid,text,integer,text,uuid,uuid,boolean,integer,jsonb,text)','EXECUTE'),'anon cannot call atomic setup');
+SELECT extensions.ok(NOT has_function_privilege('authenticated','plugin_data.csf_configure_sheet_sync_destination_atomic(uuid,uuid,text,integer,text,uuid,uuid,boolean,integer,jsonb,text)','EXECUTE'),'authenticated cannot call atomic setup');
 SELECT extensions.has_index('plugin_data','csf_sheet_sync_acceptances','csf_sheet_sync_acceptances_organization_idx','acceptance maintenance has a leading tenant index');
 SELECT extensions.has_index('plugin_data','csf_sheet_sync_changes','csf_sheet_sync_changes_organization_idx','change maintenance has a leading tenant index');
 SELECT extensions.has_index('plugin_data','csf_sheet_sync_comments','csf_sheet_sync_comments_organization_idx','comment maintenance has a leading tenant index');

@@ -36,6 +36,26 @@ END $$;
 REVOKE ALL ON FUNCTION plugin_data.csf_configure_sheet_discussion_transport(uuid,uuid,uuid,text) FROM PUBLIC,anon,authenticated;
 GRANT EXECUTE ON FUNCTION plugin_data.csf_configure_sheet_discussion_transport(uuid,uuid,uuid,text) TO service_role;
 
+CREATE FUNCTION plugin_data.csf_configure_sheet_sync_destination_atomic(
+ p_organization_id uuid,p_actor_user_id uuid,p_spreadsheet_file_id text,p_sheet_id integer,p_kind text,p_cohort_id uuid,p_term_id uuid,p_is_test boolean,p_owned_start_column integer,p_managed_headers jsonb,p_discussion_transport text DEFAULT NULL
+) RETURNS jsonb
+LANGUAGE plpgsql SECURITY DEFINER SET search_path='' AS $$
+DECLARE configured jsonb; existing_transport text; resolved_transport text;
+BEGIN
+ PERFORM pg_advisory_xact_lock(plugin_data.csf_staff_access_lock_key(p_organization_id));
+ PERFORM pg_advisory_xact_lock(hashtextextended('csf-sheet-destination:'||p_spreadsheet_file_id,0));
+ SELECT discussion_transport INTO existing_transport FROM plugin_data.csf_sheet_sync_destinations
+  WHERE organization_id=p_organization_id AND spreadsheet_file_id=p_spreadsheet_file_id AND sheet_id=p_sheet_id;
+ resolved_transport:=coalesce(p_discussion_transport,existing_transport,'none');
+ configured:=plugin_data.csf_configure_sheet_sync_destination(p_organization_id,p_actor_user_id,p_spreadsheet_file_id,p_sheet_id,p_kind,p_cohort_id,p_term_id,p_is_test,p_owned_start_column,p_managed_headers);
+ IF configured->>'discussion_transport' IS DISTINCT FROM resolved_transport THEN
+  configured:=plugin_data.csf_configure_sheet_discussion_transport(p_organization_id,p_actor_user_id,(configured->>'id')::uuid,resolved_transport);
+ END IF;
+ RETURN configured;
+END $$;
+REVOKE ALL ON FUNCTION plugin_data.csf_configure_sheet_sync_destination_atomic(uuid,uuid,text,integer,text,uuid,uuid,boolean,integer,jsonb,text) FROM PUBLIC,anon,authenticated;
+GRANT EXECUTE ON FUNCTION plugin_data.csf_configure_sheet_sync_destination_atomic(uuid,uuid,text,integer,text,uuid,uuid,boolean,integer,jsonb,text) TO service_role;
+
 ALTER FUNCTION plugin_data.csf_sheet_sync_destination_snapshot(uuid,uuid,text,uuid)
  RENAME TO csf_sheet_sync_destination_snapshot_with_discussions;
 REVOKE ALL ON FUNCTION plugin_data.csf_sheet_sync_destination_snapshot_with_discussions(uuid,uuid,text,uuid) FROM PUBLIC,anon,authenticated,service_role;
