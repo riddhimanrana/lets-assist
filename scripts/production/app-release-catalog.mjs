@@ -124,9 +124,12 @@ export function acceptedCatalogQuery(source, versions) {
   )
     return source;
   const memberDirectorySearchUpgrade =
-    versions.length === 500 &&
-    ledgerHash ===
-      "ed3947a73f9ae0c2b72b612d03464c699555fd2edc869d01d40f3d7e05a8ada2";
+    (versions.length === 501 &&
+      ledgerHash ===
+        "8bcbd4f9b3f227a586147e978b01e099e3a7eedbaca28e32e45795768f03da6a") ||
+    (versions.length === 500 &&
+      ledgerHash ===
+        "ed3947a73f9ae0c2b72b612d03464c699555fd2edc869d01d40f3d7e05a8ada2");
   const sheetNoCommentsUpgrade =
     memberDirectorySearchUpgrade ||
     (versions.length === 499 &&
