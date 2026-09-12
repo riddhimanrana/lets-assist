@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import {
@@ -30,25 +30,50 @@ export default function EmailExpiredClient({
   const continuationQuery = continuation
     ? `?redirect=${encodeURIComponent(continuation)}`
     : "";
-  const [isResending, setIsResending] = useState(false);
-  const [hasResent, setHasResent] = useState(false);
+  type ResendAttempt = { scope: string; status: "pending" | "sent" | "idle" };
+  const resendScope = JSON.stringify([email, continuation]);
+  const attemptRef = useRef<ResendAttempt | null>(null);
+  const [attemptState, setAttemptState] = useState<ResendAttempt | null>(null);
+  const isCurrentAttempt = attemptState?.scope === resendScope;
+  const isResending = isCurrentAttempt && attemptState?.status === "pending";
+  const hasResent = isCurrentAttempt && attemptState?.status === "sent";
   const [isCaptchaOpen, setIsCaptchaOpen] = useState(false);
+  const challengeArmed = useRef<string | null>(null);
 
   const handleVerified = async (token: string) => {
+    if (challengeArmed.current !== resendScope) return;
+    challengeArmed.current = null;
     if (!email) {
       toast.error("Email address not found. Please sign up again.");
       return;
     }
 
-    setIsResending(true);
+    // Repeated challenge callbacks must not replace the verifier for the email just sent.
+    if (
+      attemptRef.current?.scope === resendScope &&
+      attemptRef.current.status !== "idle"
+    )
+      return;
+
+    const attempt: ResendAttempt = { scope: resendScope, status: "pending" };
+    attemptRef.current = attempt;
+    setAttemptState(attempt);
+    const finish = (status: ResendAttempt["status"]) => {
+      if (attemptRef.current !== attempt) return false;
+      const settled = { ...attempt, status };
+      attemptRef.current = settled;
+      setAttemptState(settled);
+      return true;
+    };
     try {
       const result = await resendVerificationEmail(email, token, continuation);
 
       if (result.success) {
-        setHasResent(true);
+        if (!finish("sent")) return;
         toast.success(result.message || "Verification email resent!");
         setIsCaptchaOpen(false);
       } else {
+        if (!finish("idle")) return;
         if ("code" in result) {
           if (result.code === "link_expired") {
             toast.error(
@@ -66,9 +91,8 @@ export default function EmailExpiredClient({
         }
       }
     } catch {
+      if (!finish("idle")) return;
       toast.error("An unexpected error occurred. Please try again.");
-    } finally {
-      setIsResending(false);
     }
   };
 
@@ -80,10 +104,12 @@ export default function EmailExpiredClient({
             <AlertCircle className="h-12 w-12 text-amber-600" />
           </div>
           <CardTitle className="text-2xl text-center">
-            Verification Link Expired
+            Verification link expired
           </CardTitle>
           <CardDescription className="text-center">
-            Your verification link has expired. Request a new link to continue.
+            {email
+              ? "Request a new verification link to continue."
+              : "This link no longer works. Sign in to continue."}
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
@@ -101,70 +127,78 @@ export default function EmailExpiredClient({
             />
             <AlertDescription>
               {email
-                ? `We can resend a new verification link to ${email}`
-                : "We can send you a new verification link."}
+                ? `We can send a new verification link to ${email}.`
+                : "The link does not include an email address. Sign in with the account you used to join."}
             </AlertDescription>
           </Alert>
 
-          <div className="space-y-3">
-            {hasResent ? (
-              <div
-                className="flex items-center gap-2 p-3 rounded-md border"
-                style={{
-                  backgroundColor: "var(--primary)",
-                  borderColor: "var(--border)",
-                  color: "var(--primary-foreground)",
+          {email ? (
+            <div className="space-y-3">
+              {hasResent ? (
+                <div
+                  className="flex items-center gap-2 p-3 rounded-md border"
+                  style={{
+                    backgroundColor: "var(--primary)",
+                    borderColor: "var(--border)",
+                    color: "var(--primary-foreground)",
+                  }}
+                >
+                  <Mail
+                    className="h-5 w-5"
+                    style={{ color: "var(--primary-foreground)" }}
+                  />
+                  <p className="text-sm">
+                    Email resent! Check your inbox and junk folder.
+                  </p>
+                </div>
+              ) : null}
+
+              <p className="text-sm text-center text-muted-foreground">
+                Complete a quick verification step before we resend another
+                link.
+              </p>
+
+              <Button
+                onClick={() => {
+                  challengeArmed.current = resendScope;
+                  setIsCaptchaOpen(true);
                 }}
+                disabled={isResending || hasResent}
+                className="w-full"
+                size="lg"
               >
-                <Mail
-                  className="h-5 w-5"
-                  style={{ color: "var(--primary-foreground)" }}
-                />
-                <p className="text-sm">
-                  Email resent! Check your inbox and junk folder.
-                </p>
+                {isResending ? (
+                  <>
+                    <RotateCcw className="mr-2 h-4 w-4 animate-spin" />
+                    Sending...
+                  </>
+                ) : hasResent ? (
+                  <>
+                    <Mail className="mr-2 h-4 w-4" />
+                    Verification Email Resent
+                  </>
+                ) : (
+                  <>
+                    <Mail className="mr-2 h-4 w-4" />
+                    Resend Verification Email
+                  </>
+                )}
+              </Button>
+            </div>
+          ) : null}
+
+          {email ? (
+            <div className="relative">
+              <div className="absolute inset-0 flex items-center">
+                <span className="w-full border-t" />
               </div>
-            ) : null}
-
-            <p className="text-sm text-center text-muted-foreground">
-              Complete a quick verification step before we resend another link.
-            </p>
-
-            <Button
-              onClick={() => setIsCaptchaOpen(true)}
-              disabled={isResending || hasResent}
-              className="w-full"
-              size="lg"
-            >
-              {isResending ? (
-                <>
-                  <RotateCcw className="mr-2 h-4 w-4 animate-spin" />
-                  Sending...
-                </>
-              ) : hasResent ? (
-                <>
-                  <Mail className="mr-2 h-4 w-4" />
-                  Verification Email Resent
-                </>
-              ) : (
-                <>
-                  <Mail className="mr-2 h-4 w-4" />
-                  Resend Verification Email
-                </>
-              )}
-            </Button>
-          </div>
-
-          <div className="relative">
-            <div className="absolute inset-0 flex items-center">
-              <span className="w-full border-t" />
+              <div className="relative flex justify-center text-xs uppercase">
+                <span className="bg-card px-2 text-muted-foreground">
+                  Other options
+                </span>
+              </div>
             </div>
-            <div className="relative flex justify-center text-xs uppercase">
-              <span className="bg-card px-2 text-muted-foreground">
-                Or try another option
-              </span>
-            </div>
-          </div>
+          ) : null}
 
           <div className="space-y-3">
             <Link href={`/login${continuationQuery}`} className="block">
@@ -188,16 +222,21 @@ export default function EmailExpiredClient({
         </CardContent>
       </Card>
 
-      <BotVerificationDialog
-        isOpen={isCaptchaOpen}
-        onClose={() => setIsCaptchaOpen(false)}
-        onVerified={handleVerified}
-        title="Verify before resending"
-        description="Complete this security challenge to resend your verification email."
-        submitLabel="Resend Email"
-        isLoading={isResending}
-        isSingleStep={true}
-      />
+      {email ? (
+        <BotVerificationDialog
+          isOpen={isCaptchaOpen}
+          onClose={() => {
+            challengeArmed.current = null;
+            setIsCaptchaOpen(false);
+          }}
+          onVerified={handleVerified}
+          title="Verify before resending"
+          description="Complete this security challenge to resend your verification email."
+          submitLabel="Resend Email"
+          isLoading={isResending}
+          isSingleStep={true}
+        />
+      ) : null}
     </div>
   );
 }

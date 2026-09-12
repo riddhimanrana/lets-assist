@@ -1,4 +1,8 @@
 import { sheetToggleDefinitions } from "./sheet-toggle-catalog.mjs";
+import {
+  sheetNoCommentsDefinitions,
+  sheetNoCommentsTables,
+} from "./sheet-no-comments-catalog.mjs";
 import { sheetDeferredNoteDefinitions } from "./sheet-deferred-note-catalog.mjs";
 import {
   sheetObservationDefinitions,
@@ -119,7 +123,23 @@ export function acceptedCatalogQuery(source, versions) {
       "34dbbd884882349f8083512cd2fe48b371c3f1242bc62897685267f2a5d0001b"
   )
     return source;
+  const memberDirectorySearchUpgrade =
+    (versions.length === 502 &&
+      ledgerHash ===
+        "8a58d84f5ea6a470e35ae52e151ed0b221f5a09bfe72c1e53f94cf42f01ac971") ||
+    (versions.length === 501 &&
+      ledgerHash ===
+        "8bcbd4f9b3f227a586147e978b01e099e3a7eedbaca28e32e45795768f03da6a") ||
+    (versions.length === 500 &&
+      ledgerHash ===
+        "ed3947a73f9ae0c2b72b612d03464c699555fd2edc869d01d40f3d7e05a8ada2");
+  const sheetNoCommentsUpgrade =
+    memberDirectorySearchUpgrade ||
+    (versions.length === 499 &&
+      ledgerHash ===
+        "aa839d1ce9db1d525f66381afc4bfccc37732a2b226c972a088a5d565f800d30");
   const applicationCanonicalRangeUpgrade =
+    sheetNoCommentsUpgrade ||
     (versions.length === 498 &&
       ledgerHash ===
         "26dfd00d401675d971d1c0abce0355b9f703091fac77cdb5440341bd9ee1baa2") ||
@@ -465,9 +485,11 @@ export function acceptedCatalogQuery(source, versions) {
   if (archivedDirectoryUpgrade)
     definitions.push([
       "plugin_data.csf_list_profiles_page(uuid,text,text,uuid,text,text,text,text,uuid,integer)",
-      activeDirectoryUpgrade
-        ? "8abb87daa63ef1b5dad124f89bee24d1"
-        : "091f2fb0595f586f7b84ce134d6cdee6",
+      memberDirectorySearchUpgrade
+        ? "69a3d086915e57c9871ed3fa1cec1893"
+        : activeDirectoryUpgrade
+          ? "8abb87daa63ef1b5dad124f89bee24d1"
+          : "091f2fb0595f586f7b84ce134d6cdee6",
       true,
     ]);
   if (reportedCourseUpgrade)
@@ -491,6 +513,18 @@ export function acceptedCatalogQuery(source, versions) {
       "28793d39c02ebf702a61c26deb7ae2b4",
       true,
     ]);
+  if (memberDirectorySearchUpgrade) {
+    definitions.push([
+      "app_private.csf_verified_profile_login_identity(uuid,uuid)",
+      "bb732f084499e445c11ae2b324f99f59",
+      true,
+    ]);
+    definitions.push([
+      "plugin_data.csf_list_class_directory_page(uuid,uuid,uuid,text,text,text,text,text,text,uuid,integer)",
+      "e37e17e30c806043c4c85585a571a106",
+      true,
+    ]);
+  }
   const values = definitions
     .map(
       ([signature, digest, service]) =>
@@ -598,7 +632,7 @@ accepted_upgrade_posture AS (
   ${automaticSheetUpdatesUpgrade ? automaticSheetUpdatesPosture(workerRelationSnapshotQuery, matchingTabUpgrade, applicationContactsUpgrade, ownershipUpgrade, sheetSyncUpgrade) : ""}
   ${workbookLinkMergeUpgrade ? workbookLinkMergePosture : ""}
   ${staffAccountConnectionUpgrade ? staffAccountConnectionPosture(staffAccountAuthorityUpgrade, ownershipUpgrade) : ""}
-  ${ownershipUpgrade ? reportedContactColumnsPosture : ""}${sheetSyncUpgrade ? `\n  ${sheetSyncPosture(workerRelationSnapshotQuery, sheetToggleUpgrade ? sheetToggleDefinitions : sheetDeferredNoteUpgrade ? sheetDeferredNoteDefinitions : sheetObservationUpgrade ? sheetObservationDefinitions : sheetRecoveryUpgrade ? sheetRecoveryDefinitions : sheetDiscussionUpgrade ? sheetDiscussionDefinitions : undefined, sheetObservationUpgrade ? sheetObservationTables : sheetRecoveryUpgrade ? sheetRecoveryTables : sheetDiscussionUpgrade ? sheetDiscussionTables : undefined)}` : ""} AS valid
+  ${ownershipUpgrade ? reportedContactColumnsPosture : ""}${sheetSyncUpgrade ? `\n  ${sheetSyncPosture(workerRelationSnapshotQuery, sheetNoCommentsUpgrade ? sheetNoCommentsDefinitions : sheetToggleUpgrade ? sheetToggleDefinitions : sheetDeferredNoteUpgrade ? sheetDeferredNoteDefinitions : sheetObservationUpgrade ? sheetObservationDefinitions : sheetRecoveryUpgrade ? sheetRecoveryDefinitions : sheetDiscussionUpgrade ? sheetDiscussionDefinitions : undefined, sheetNoCommentsUpgrade ? sheetNoCommentsTables : sheetObservationUpgrade ? sheetObservationTables : sheetRecoveryUpgrade ? sheetRecoveryTables : sheetDiscussionUpgrade ? sheetDiscussionTables : undefined)}` : ""} AS valid
   FROM accepted_upgrade_definitions expected
   LEFT JOIN pg_proc p ON p.oid=to_regprocedure(expected.signature)
 )

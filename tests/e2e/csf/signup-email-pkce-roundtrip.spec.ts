@@ -33,6 +33,9 @@ import { CSF_ORGANIZATION_PATH } from "./helpers";
  * assertion message.
  */
 
+// Confirmation navigation carries a single-use credential.
+test.use({ trace: "off", video: "off" });
+
 const classJoinCode = "HAWK28";
 const connectPath = `${CSF_ORGANIZATION_PATH}/plugins/dvhs-csf/connect/${classJoinCode}`;
 
@@ -662,5 +665,249 @@ test.describe("signup email PKCE round trip", () => {
         visited.filter((pathname) => pathname === "/auth/email-expired"),
       ).toEqual([]);
     });
+  });
+});
+
+test.describe("expired email verification recovery", () => {
+  const recoveryEmail = `csf.e2e.recovery.${runToken}@local.test`;
+  const recoveryPassword = randomUUID();
+  let fixture: PkceFixture;
+  let recoveryUserId: string | null = null;
+
+  test.beforeAll(async () => {
+    fixture = await loadPkceFixture();
+    const { data, error } = await fixture.admin.auth.admin.createUser({
+      email: recoveryEmail,
+      password: recoveryPassword,
+      email_confirm: false,
+      user_metadata: { full_name: "Expired Link Fixture" },
+    });
+    if (error || !data.user) {
+      throw new Error(
+        "Could not create the local unconfirmed recovery account.",
+      );
+    }
+    recoveryUserId = data.user.id;
+  });
+
+  test.afterAll(async () => {
+    if (!fixture) return;
+    let cleanupError: Error | undefined;
+    try {
+      const summaries = await findConfirmationSummaries(fixture, recoveryEmail);
+      const ids = summaries.flatMap((summary) => {
+        const id = mailpitMessageId(summary);
+        return id ? [id] : [];
+      });
+      await deleteMailpitMessages(fixture, ids);
+    } catch {
+      cleanupError = new Error("Could not remove the local recovery emails.");
+    }
+    if (recoveryUserId) {
+      const { error } =
+        await fixture.admin.auth.admin.deleteUser(recoveryUserId);
+      if (error)
+        cleanupError = new Error(
+          "Could not remove the local recovery account.",
+        );
+    }
+    if (cleanupError) throw cleanupError;
+  });
+
+  test("invalid and missing-verifier links recover through resend and retain the class destination", async ({
+    page,
+  }) => {
+    test.setTimeout(120_000);
+    const appOrigin = `http://127.0.0.1:${CSF_ISOLATED_APP_PORT}`;
+    const visited = watchNavigationPathnames(page);
+    const failures: number[] = [];
+    let resendRequests = 0;
+    page.on("request", (request) => {
+      if (
+        request.method() === "POST" &&
+        new URL(request.url()).pathname === "/auth/email-expired"
+      )
+        resendRequests += 1;
+    });
+    page.on("response", (response) => {
+      if (response.status() >= 500) failures.push(response.status());
+    });
+
+    for (const credential of [
+      { token_hash: "invalid-local-fixture-token" },
+      { code: "missing-verifier-local-fixture-code" },
+    ]) {
+      const confirmation = new URL("/auth/confirm", appOrigin);
+      for (const [key, value] of Object.entries(credential))
+        confirmation.searchParams.set(key, value);
+      confirmation.searchParams.set("type", "signup");
+      confirmation.searchParams.set("email", recoveryEmail);
+      confirmation.searchParams.set("redirectAfterAuth", connectPath);
+      await page.goto(confirmation.toString());
+      await page.waitForURL((url) => url.pathname === "/auth/email-expired");
+      const expired = new URL(page.url());
+      expect(expired.origin).toBe(appOrigin);
+      expect(expired.searchParams.get("email")).toBe(recoveryEmail);
+      expect(expired.searchParams.get("redirectAfterAuth")).toBe(connectPath);
+      await expect(
+        page.getByText("Verification link expired", { exact: true }),
+      ).toHaveCount(1);
+      await expect(
+        page.getByText("Verification link expired", { exact: true }),
+      ).toBeVisible();
+      await expect(
+        page.getByRole("button", {
+          name: "Resend Verification Email",
+          exact: true,
+        }),
+      ).toBeEnabled();
+      expect(
+        Boolean(
+          (await findUserByEmail(fixture, recoveryEmail))?.email_confirmed_at,
+        ),
+      ).toBe(false);
+    }
+
+    // Abort before dispatch to prove a failed request needs another user click.
+    let failNextResend = true;
+    await page.route("**/auth/email-expired*", async (route) => {
+      if (route.request().method() === "POST" && failNextResend) {
+        failNextResend = false;
+        await route.abort();
+      } else {
+        await route.continue();
+      }
+    });
+    const resend = page.getByRole("button", {
+      name: "Resend Verification Email",
+      exact: true,
+    });
+    await resend.click();
+    await expect(
+      page.getByText("An unexpected error occurred. Please try again.", {
+        exact: true,
+      }),
+    ).toBeVisible();
+    await expect(
+      page.getByRole("dialog", { name: "Verify before resending" }),
+    ).toBeHidden();
+    await expect(resend).toBeEnabled();
+    expect(resendRequests).toBe(1);
+    await resend.click();
+    await expect(
+      page.getByText("Email resent! Check your inbox and junk folder.", {
+        exact: true,
+      }),
+    ).toBeVisible();
+    await expect(
+      page.getByRole("button", {
+        name: "Verification Email Resent",
+        exact: true,
+      }),
+    ).toBeDisabled();
+    let messageId: string | undefined;
+    await expect
+      .poll(
+        async () => {
+          const summaries = await findConfirmationSummaries(
+            fixture,
+            recoveryEmail,
+          );
+          messageId =
+            summaries.length === 1 ? mailpitMessageId(summaries[0]) : undefined;
+          return summaries.length;
+        },
+        { timeout: 30_000, intervals: [500, 1_000, 2_000] },
+      )
+      .toBe(1);
+    if (!messageId)
+      throw new Error("The local recovery confirmation has no identifier.");
+    const verificationLink = await readVerificationLink(fixture, messageId);
+    const isolated = inspectCsfIsolatedWorkDir(
+      process.env.CSF_ISOLATED_WORK_DIR,
+    );
+    expect(verificationLink.origin).toBe(
+      `http://127.0.0.1:${isolated.apiPort}`,
+    );
+    const confirmationTarget = new URL(
+      verificationLink.searchParams.get("redirect_to")!,
+    );
+    expect(confirmationTarget.origin).toBe(appOrigin);
+    expect(confirmationTarget.pathname).toBe("/auth/confirm");
+    expect(confirmationTarget.searchParams.get("redirectAfterAuth")).toBe(
+      connectPath,
+    );
+    await page.goto(verificationLink.toString());
+    await page.waitForURL(
+      (url) => url.pathname === "/auth/verification-success",
+    );
+    await expect(
+      page.getByRole("heading", { name: "Email Verified Successfully!" }),
+    ).toBeVisible();
+    expect(new URL(page.url()).searchParams.get("redirectAfterAuth")).toBe(
+      connectPath,
+    );
+    expect(
+      Boolean(
+        (await findUserByEmail(fixture, recoveryEmail))?.email_confirmed_at,
+      ),
+    ).toBe(true);
+    await page.getByRole("link", { name: "Go to Login", exact: true }).click();
+    await page.waitForURL((url) => url.pathname === "/login");
+    expect(new URL(page.url()).searchParams.get("redirect")).toBe(connectPath);
+    const main = page.getByRole("main");
+    await expect(main.locator('form[data-hydrated="true"]')).toBeVisible();
+    await expect(
+      main.getByText("Secure check ready", { exact: true }),
+    ).toBeVisible();
+    await main.getByRole("textbox", { name: "Email" }).fill(recoveryEmail);
+    await main.getByLabel("Password").fill(recoveryPassword);
+    await main.getByRole("button", { name: "Login", exact: true }).click();
+    await page.waitForURL((url) => url.pathname === connectPath);
+    await expect(
+      page.getByRole("heading", { name: "Join your class", exact: true }),
+    ).toBeVisible();
+    expect(visited.filter((pathname) => pathname === "/error")).toEqual([]);
+    expect(failures).toEqual([]);
+    expect(resendRequests).toBe(2);
+  });
+
+  test("missing-email recovery keeps usable auth links and offers no resend challenge", async ({
+    page,
+  }) => {
+    const expiredPath = `/auth/email-expired?redirectAfterAuth=${encodeURIComponent(connectPath)}`;
+    await page.goto(
+      `/auth/confirm?code=missing-email-local-fixture-code&type=signup&redirectAfterAuth=${encodeURIComponent(connectPath)}`,
+    );
+    await page.waitForURL((url) => url.pathname === "/auth/email-expired");
+    await expect(
+      page.getByText("Verification link expired", { exact: true }),
+    ).toHaveCount(1);
+    await expect(
+      page.getByText("Verification link expired", { exact: true }),
+    ).toBeVisible();
+    await expect(
+      page.getByText(
+        "The link does not include an email address. Sign in with the account you used to join.",
+        { exact: true },
+      ),
+    ).toBeVisible();
+    await expect(page.getByRole("button", { name: /Resend/i })).toHaveCount(0);
+    await expect(
+      page.getByRole("dialog", { name: "Verify before resending" }),
+    ).toHaveCount(0);
+    await page.getByRole("link", { name: "Go to Login", exact: true }).click();
+    await page.waitForURL((url) => url.pathname === "/login");
+    expect(new URL(page.url()).searchParams.get("redirect")).toBe(connectPath);
+    await expect(
+      page.getByRole("main").locator('form[data-hydrated="true"]'),
+    ).toBeVisible();
+    await page.goto(expiredPath);
+    await page
+      .getByRole("link", { name: "Create New Account", exact: true })
+      .click();
+    await page.waitForURL((url) => url.pathname === "/signup");
+    expect(new URL(page.url()).searchParams.get("redirect")).toBe(connectPath);
+    await expect(page.locator("#fullName")).toBeVisible();
   });
 });

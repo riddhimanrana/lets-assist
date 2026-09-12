@@ -229,6 +229,45 @@ CREATE TEMPORARY TABLE point_request_results (
   result jsonb NOT NULL
 );
 
+-- A pending connection for the same user and profile is not ownership proof.
+UPDATE plugin_data.csf_profile_accounts
+SET status = 'pending'
+WHERE organization_id = 'fb100000-0000-4000-8000-000000000001'
+  AND profile_id = 'fb400000-0000-4000-8000-000000000001'
+  AND user_id = 'fb000000-0000-4000-8000-000000000001';
+SELECT extensions.throws_ok(
+  $$ SELECT plugin_data.csf_begin_point_submission_request(
+    'fb100000-0000-4000-8000-000000000001',
+    'fb400000-0000-4000-8000-000000000001',
+    'fb300000-0000-4000-8000-000000000001',
+    'fb500000-0000-4000-8000-000000000001',
+    NULL, 'student', 'pending-account-submit-must-not-write', 2,
+    'non_drive', '2099-08-31',
+    'fb000000-0000-4000-8000-000000000001',
+    NULL, NULL, NULL, NULL,
+    'fb600000-0000-4000-8000-000000000010'
+  ) $$,
+  'P0001',
+  'Only the connected member may submit this point claim.',
+  'a pending connection cannot submit points for its same user and profile'
+);
+SELECT extensions.is(
+  (SELECT count(*)::integer FROM plugin_data.csf_point_submissions),
+  0,
+  'the refused pending-account submission writes no claim'
+);
+SELECT extensions.is(
+  (SELECT count(*)::integer FROM plugin_data.csf_admin_audit_events
+   WHERE correlation_id = 'fb600000-0000-4000-8000-000000000010'),
+  0,
+  'the refused pending-account submission writes no request receipt'
+);
+UPDATE plugin_data.csf_profile_accounts
+SET status = 'verified'
+WHERE organization_id = 'fb100000-0000-4000-8000-000000000001'
+  AND profile_id = 'fb400000-0000-4000-8000-000000000001'
+  AND user_id = 'fb000000-0000-4000-8000-000000000001';
+
 -- A proofless structured claim commits once and replays the same receipt.
 INSERT INTO point_request_results (label, result)
 SELECT 'review-begin', plugin_data.csf_begin_point_submission_request(
@@ -576,6 +615,41 @@ SELECT 'needs-action-review', plugin_data.csf_review_point_submission_request(
   'fb000000-0000-4000-8000-000000000002',
   'fb700000-0000-4000-8000-000000000004'
 );
+UPDATE plugin_data.csf_profile_accounts
+SET status = 'pending'
+WHERE organization_id = 'fb100000-0000-4000-8000-000000000001'
+  AND profile_id = 'fb400000-0000-4000-8000-000000000001'
+  AND user_id = 'fb000000-0000-4000-8000-000000000001';
+SELECT extensions.throws_ok(
+  $$ SELECT plugin_data.csf_resubmit_point_submission_request(
+    'fb100000-0000-4000-8000-000000000001',
+    (SELECT (result ->> 'submissionId')::uuid FROM point_request_results WHERE label = 'resubmit-begin'),
+    2, 'non_drive', '2099-09-06',
+    'pending-account-resubmit-must-not-write',
+    'fb000000-0000-4000-8000-000000000001',
+    'fb700000-0000-4000-8000-000000000010'
+  ) $$,
+  'P0001',
+  'Only the connected member may correct and resubmit this point submission.',
+  'a pending connection cannot resubmit its same user and profile claim'
+);
+SELECT extensions.is(
+  (SELECT status FROM plugin_data.csf_point_submissions
+   WHERE id = (SELECT (result ->> 'submissionId')::uuid FROM point_request_results WHERE label = 'resubmit-begin')),
+  'needs_action',
+  'the refused pending-account resubmission leaves the claim unchanged'
+);
+SELECT extensions.is(
+  (SELECT count(*)::integer FROM plugin_data.csf_admin_audit_events
+   WHERE correlation_id = 'fb700000-0000-4000-8000-000000000010'),
+  0,
+  'the refused pending-account resubmission writes no request receipt'
+);
+UPDATE plugin_data.csf_profile_accounts
+SET status = 'verified'
+WHERE organization_id = 'fb100000-0000-4000-8000-000000000001'
+  AND profile_id = 'fb400000-0000-4000-8000-000000000001'
+  AND user_id = 'fb000000-0000-4000-8000-000000000001';
 INSERT INTO point_request_results (label, result)
 SELECT 'resubmit', plugin_data.csf_resubmit_point_submission_request(
   'fb100000-0000-4000-8000-000000000001',

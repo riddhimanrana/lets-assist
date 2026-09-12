@@ -384,6 +384,58 @@ test("integrates an independently reconstructed signed release", () => {
   assert.match(migrationTest, /1\.2\.3/u);
 });
 
+test("consecutive embedded releases refresh historical serving expectations", () => {
+  const input = fixture();
+  const testsDir = join(input.root, "tests/database");
+  const historical = `BEGIN;
+SELECT extensions.is(
+  (SELECT status::text FROM public.plugin_versions WHERE plugin_key = 'example-plugin' AND version = '1.2.1'),
+  'published',
+  'historical identity stays immutable'
+);
+SELECT extensions.is(
+  (SELECT latest_version FROM public.plugins WHERE key = 'example-plugin'),
+  '1.2.2',
+  'plugin catalog keeps the serving embedded release truthful'
+);
+SELECT extensions.is(
+  (SELECT code_reference FROM public.plugins WHERE key = 'example-plugin'),
+  '${input.servingPrivateCommit}',
+  'plugin catalog keeps the serving embedded source truthful'
+);
+ROLLBACK;
+`;
+  const historicalPath = join(
+    testsDir,
+    "plugin_release_example_plugin_1_2_1.test.sql",
+  );
+  writeFileSync(historicalPath, historical);
+
+  const malformedPath = join(
+    testsDir,
+    "plugin_release_example_plugin_malformed.test.sql",
+  );
+  writeFileSync(
+    malformedPath,
+    "SELECT latest_version FROM public.plugins WHERE key = 'example-plugin';\n",
+  );
+  assert.throws(
+    () => integrate(input),
+    /must contain one latest_version serving catalog expectation/u,
+  );
+  assert.equal(readFileSync(historicalPath, "utf8"), historical);
+  rmSync(malformedPath);
+
+  integrate(input);
+
+  const updated = readFileSync(historicalPath, "utf8");
+  assert.match(updated, /version = '1\.2\.1'/u);
+  assert.match(updated, /historical identity stays immutable/u);
+  assert.match(updated, /\n {2}'1\.2\.3',\n {2}'plugin catalog keeps/u);
+  assert.match(updated, new RegExp(input.manifest.sourceCommit, "u"));
+  assert.doesNotMatch(updated, /\n {2}'1\.2\.2',\n {2}'plugin catalog keeps/u);
+});
+
 test("refuses prerelease and build versions in the stable integration lane", () => {
   for (const version of ["1.2.3-beta.2", "1.2.3+build.1"]) {
     const input = fixture();

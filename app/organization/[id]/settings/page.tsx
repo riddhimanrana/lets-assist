@@ -67,7 +67,8 @@ export default async function OrganizationSettingsPage({ params }: Props) {
   // Check if user is authenticated using getClaims() for better performance
   const { user } = await getAuthUser();
   if (!user) {
-    redirect(`/login?redirect=/organization/${id}/edit`);
+    const returnPath = `/organization/${encodeURIComponent(id)}/settings`;
+    redirect(`/login?redirect=${encodeURIComponent(returnPath)}`);
   }
 
   // Check if ID is a username or UUID

@@ -33,7 +33,7 @@ function fixture(overrides = {}) {
   };
 }
 
-test("build stays with Vercel secrets and disables workers in both environments", () => {
+test("build keeps secrets at Vercel and disables workers and legacy Sheet writeback", () => {
   const payload = stagePayload(config);
   assert.equal(payload.autoAssignCustomDomains, false);
   assert.deepEqual(payload.gitSource, {
@@ -51,8 +51,10 @@ test("build stays with Vercel secrets and disables workers in both environments"
     Object.entries(payload.env).filter(
       ([key, value]) => key.startsWith("CSF_") && value === "false",
     ).length,
-    4,
+    5,
   );
+  assert.equal(payload.env.CSF_SHEET_WRITEBACK_ENABLED, "false");
+  assert.equal(payload.build.env.CSF_SHEET_WRITEBACK_ENABLED, "false");
   assert.equal(payload.env.LETS_ASSIST_BUILD_SHA, config.release);
   assert.doesNotMatch(
     JSON.stringify(payload),

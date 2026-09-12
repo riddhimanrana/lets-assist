@@ -19,7 +19,7 @@ const source = readFileSync(
   "utf8",
 );
 test("489 pins recovery definitions without changing the applied column catalog", () => {
-  assert.equal(versions.length, 498);
+  assert.equal(versions.length, 502);
   const current = acceptedCatalogQuery(source, versions.slice(0, 490));
   for (const [signature, digest, body] of sheetRecoveryDefinitions) {
     assert.ok(current.includes(signature));
@@ -48,7 +48,7 @@ test("488 requires reviewed recovery and the signed application publication", ()
         /INSERT INTO supabase_migrations.schema_migrations/gu,
       ) ?? []
     ).length,
-    10,
+    14,
   );
   assert.ok(result.query.includes("20260911195446"));
   assert.ok(!result.query.includes("AND version = '1.2.28'"));
@@ -74,7 +74,7 @@ test("490 publication preserves 489 fingerprints and appends only signed publica
         /INSERT INTO supabase_migrations.schema_migrations/gu,
       ) ?? []
     ).length,
-    9,
+    13,
   );
   assert.ok(result.query.includes("AND version = '1.2.29'"));
   assert.ok(!result.query.includes("ADD COLUMN observation_generation"));
