@@ -55,3 +55,16 @@ test("unsafe continuations are stripped before resending or linking", async () =
     null,
   ]);
 });
+
+test("a missing email offers class-preserving auth links without an unusable resend challenge", () => {
+  const path = "/organization/chapter/plugins/dvhs-csf/connect/ABC234";
+  const html = renderToStaticMarkup(
+    <EmailExpiredClient email="" redirectAfterAuth={path} />,
+  );
+  expect(html).toContain(`/login?redirect=${encodeURIComponent(path)}`);
+  expect(html).toContain(`/signup?redirect=${encodeURIComponent(path)}`);
+  expect(html).toContain("Sign in with the account you used to join.");
+  expect(html).not.toContain("Resend Verification Email");
+  expect(verified).toBeUndefined();
+  expect(resendArgs).toEqual([]);
+});
