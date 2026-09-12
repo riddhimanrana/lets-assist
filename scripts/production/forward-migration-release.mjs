@@ -118,6 +118,22 @@ export const approvedMigrations = [
     "20260911212627_csf_sheet_sync_toggle_observation",
     "c94df97321a8bf77b1a1a9dbbd563e00781f9531f4840ea84150a3f117d715fc",
   ],
+  [
+    "20260911223137_publish_dvhs_csf_1_2_32",
+    "ae4317408bdd9feedba053e0d86e1818a2505087407ffc9ec2ad111a3bbe0874",
+  ],
+  [
+    "20260911223138_csf_application_retry_range_expansion",
+    "f9b39f6ab92664d1c6396e8c486a5078d31469a351e96ac739cd123740b6dc0e",
+  ],
+  [
+    "20260911231213_csf_application_retry_canonical_ranges",
+    "e0a478c58565c8566a0cc4d0b135e10b7765490280269ef0d4b9cf83ee16caeb",
+  ],
+  [
+    "20260912002546_publish_dvhs_csf_1_2_34",
+    "369ef5ec515317b8354bc15f56a2c4050829e73f0d3c92bf390f7b838a334e40",
+  ],
 ];
 
 const literal = (value) => `'${value.replaceAll("'", "''")}'`;

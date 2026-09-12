@@ -119,10 +119,26 @@ export function acceptedCatalogQuery(source, versions) {
       "34dbbd884882349f8083512cd2fe48b371c3f1242bc62897685267f2a5d0001b"
   )
     return source;
+  const applicationCanonicalRangeUpgrade =
+    (versions.length === 498 &&
+      ledgerHash ===
+        "26dfd00d401675d971d1c0abce0355b9f703091fac77cdb5440341bd9ee1baa2") ||
+    (versions.length === 497 &&
+      ledgerHash ===
+        "3030f0e5b182aaa582577bb54bd27b6f2acada984d8a19e66ca1cd7e5ed84de0");
+  const applicationRangeUpgrade =
+    applicationCanonicalRangeUpgrade ||
+    (versions.length === 496 &&
+      ledgerHash ===
+        "51549a21b6fb7abad784b889c7c29813f5c568c6fa0011bde52a2dbad37b2258");
   const sheetToggleUpgrade =
-    versions.length === 494 &&
-    ledgerHash ===
-      "e359a42486e32924eb5856a55e770ec42faa09601d71f10b32c35cb209b62518";
+    applicationRangeUpgrade ||
+    (versions.length === 495 &&
+      ledgerHash ===
+        "38a1c11bc645983e7ea896499043c81890ee50aa92d1706c42baa0b921851bad") ||
+    (versions.length === 494 &&
+      ledgerHash ===
+        "e359a42486e32924eb5856a55e770ec42faa09601d71f10b32c35cb209b62518");
   const sheetDeferredNoteUpgrade =
     sheetToggleUpgrade ||
     (versions.length === 493 &&
@@ -575,7 +591,7 @@ accepted_upgrade_posture AS (
         : requirementEvidencePosture
       : ""
   }
-  ${applicationRetryUpgrade ? applicationRetryRecoveryPosture : ""}
+  ${applicationRetryUpgrade ? (applicationRangeUpgrade ? applicationRetryRecoveryPosture.replace("a931f85d6e45fd85611adc8318c4da4d", applicationCanonicalRangeUpgrade ? "b18cf72ece0df071e4f2ee7d93616d06" : "d5e26c21ffe78f617f4b34ee82a7eb41") : applicationRetryRecoveryPosture) : ""}
   ${workbookRecoveryUpgrade ? workbookRecoveryPosture : ""}
   ${applicationSourceReviewUpgrade ? applicationSourceReviewPosture : ""}
   ${reviewedWorkbookLinksUpgrade ? reviewedWorkbookLinksPosture(workerRelationSnapshotQuery, sheetSyncUpgrade) : ""}

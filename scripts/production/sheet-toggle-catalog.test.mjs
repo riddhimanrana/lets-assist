@@ -12,7 +12,7 @@ const source = readFileSync(
   "utf8",
 );
 test("494 pins only state transition and review function changes", () => {
-  assert.equal(versions.length, 494);
+  assert.equal(versions.length, 498);
   const changed = sheetToggleDefinitions.filter(
     (row, i) =>
       JSON.stringify(row) !== JSON.stringify(sheetDeferredNoteDefinitions[i]),
@@ -29,7 +29,7 @@ test("494 pins only state transition and review function changes", () => {
       !acceptedCatalogQuery(source, versions.slice(0, 493)).includes(row[1]),
     );
 });
-test("493 advances only through reviewed observation invalidation", () => {
+test("493 advances through observation invalidation and the current release tail", () => {
   const result = prepareMigration(
     process.cwd(),
     undefined,
@@ -41,10 +41,10 @@ test("493 advances only through reviewed observation invalidation", () => {
         /INSERT INTO supabase_migrations.schema_migrations/gu,
       ) ?? []
     ).length,
-    1,
+    5,
   );
   assert.ok(result.query.includes("enabled IS DISTINCT FROM p_enabled"));
   assert.ok(result.query.includes("IF NOT d.enabled OR d.observation_state"));
   assert.ok(!result.query.includes("CREATE TRIGGER"));
-  assert.ok(!result.query.includes("INSERT INTO public.plugin_versions"));
+  assert.ok(result.query.includes("AND version = '1.2.32'"));
 });

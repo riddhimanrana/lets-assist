@@ -743,6 +743,9 @@ export function integratePrivateRelease({
   if (servingPrivateCommit && !GIT_SHA.test(servingPrivateCommit)) {
     fail("serving private commit must be a full Git SHA");
   }
+  if (manifest.runtimeProfile === "application" && !servingPrivateCommit) {
+    fail("application releases require the serving private commit");
+  }
   const pluginReleases = registry.filter(
     (entry) => entry.pluginKey === manifest.pluginKey,
   );
@@ -763,7 +766,9 @@ export function integratePrivateRelease({
   verifyPublishedEmbeddedTrees(
     privateRoot,
     registry,
-    manifest.sourceCommit,
+    manifest.runtimeProfile === "application"
+      ? servingPrivateCommit
+      : manifest.sourceCommit,
     manifest.pluginKey,
     servingPrivateCommit,
     manifest.runtimeProfile === "application"
@@ -862,7 +867,13 @@ export function integratePrivateRelease({
     migrationTestPath,
     buildMigrationTest(manifest, catalogRelease),
   );
-  git(privateRoot, ["checkout", "--detach", manifest.sourceCommit]);
+  git(privateRoot, [
+    "checkout",
+    "--detach",
+    manifest.runtimeProfile === "application"
+      ? servingPrivateCommit
+      : manifest.sourceCommit,
+  ]);
 
   return {
     pluginKey: manifest.pluginKey,

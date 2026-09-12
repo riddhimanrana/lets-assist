@@ -16,6 +16,7 @@ import {
   buildSeedFixtureSets,
   fixtureJoinCode,
   IDS,
+  preserveMigratedPluginVersions,
   resolveFixturePassword,
 } from "./seed-platform-fixtures.mjs";
 
@@ -575,9 +576,21 @@ async function main() {
       .upsert(membershipRows, { onConflict: "organization_id,user_id" }),
   );
 
+  const migratedPluginCatalogRows = await must(
+    "migrated plugin catalog",
+    admin
+      .from("plugins")
+      .select("key,latest_version")
+      .in("key", seededPluginKeys),
+  );
+  const resolvedPluginCatalogRows = preserveMigratedPluginVersions(
+    seededPluginCatalogRows,
+    migratedPluginCatalogRows,
+  );
+
   await must(
     "plugin catalog",
-    admin.from("plugins").upsert(seededPluginCatalogRows, {
+    admin.from("plugins").upsert(resolvedPluginCatalogRows, {
       onConflict: "key",
     }),
   );

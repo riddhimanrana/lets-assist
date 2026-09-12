@@ -45,6 +45,7 @@ function digest(bytes) {
 
 function fixture({
   application = false,
+  applicationImplementationChange = false,
   priorApplication = false,
   multiEnvironment = false,
 } = {}) {
@@ -89,6 +90,19 @@ function fixture({
   runGit(privateRoot, "config", "user.email", "integration@local.test");
   runGit(privateRoot, "add", ".");
   runGit(privateRoot, "commit", "-m", "release");
+  const servingPrivateCommit = runGit(privateRoot, "rev-parse", "HEAD");
+  if (applicationImplementationChange) {
+    writeFileSync(
+      join(pluginRoot, "feature.ts"),
+      'export const value = "application implementation";\n',
+    );
+    writeFileSync(
+      join(applicationRoot, "lib/implementation.ts"),
+      'export const implementation = "released";\n',
+    );
+    runGit(privateRoot, "add", ".");
+    runGit(privateRoot, "commit", "-m", "change application implementation");
+  }
   const sourceCommit = runGit(privateRoot, "rev-parse", "HEAD");
   const sourceTree = runGit(
     privateRoot,
@@ -248,7 +262,7 @@ function fixture({
           version: "1.2.2",
           manifestFile: "plugins/example-plugin/plugin.ts",
           manifestHash: "a".repeat(64),
-          sourceCommit,
+          sourceCommit: servingPrivateCommit,
           automaticUpdate: false,
           rolloutPercentage: 0,
           runtimeProfile: "embedded",
@@ -312,6 +326,7 @@ function fixture({
     buildPath,
     buildPaths,
     manifest,
+    servingPrivateCommit,
   };
 }
 
@@ -328,6 +343,7 @@ function integrate(input) {
     migrationVersion: "20260820150000",
     attestationRef:
       "github-release:example-plugin/v1.2.3/release-manifest.sigstore.json",
+    servingPrivateCommit: input.servingPrivateCommit,
   });
 }
 
@@ -431,6 +447,43 @@ test("integrates separately hashed Development and Production builds", () => {
   assert.notEqual(
     registry[1].buildArtifact.artifacts.development.digest,
     registry[1].buildArtifact.artifacts.production.digest,
+  );
+});
+
+test("application implementation may change while the embedded tree stays served", () => {
+  const input = fixture({
+    application: true,
+    applicationImplementationChange: true,
+    multiEnvironment: true,
+  });
+
+  assert.doesNotThrow(() => integrate(input));
+  assert.equal(
+    runGit(input.privateRoot, "rev-parse", "HEAD"),
+    input.servingPrivateCommit,
+  );
+});
+
+test("application integration requires an explicit serving private commit", () => {
+  const input = fixture({ application: true, multiEnvironment: true });
+  input.servingPrivateCommit = undefined;
+  assert.throws(() => integrate(input), /require the serving private commit/u);
+});
+
+test("application integration refuses to serve its changed embedded tree", () => {
+  const input = fixture({
+    application: true,
+    applicationImplementationChange: true,
+    multiEnvironment: true,
+  });
+  const registry = JSON.parse(readFileSync(input.registryPath, "utf8"));
+  registry[0].signer = { identity: "signed embedded release" };
+  writeFileSync(input.registryPath, `${JSON.stringify(registry, null, 2)}\n`);
+  input.servingPrivateCommit = input.manifest.sourceCommit;
+
+  assert.throws(
+    () => integrate(input),
+    /release changes published embedded code/u,
   );
 });
 
