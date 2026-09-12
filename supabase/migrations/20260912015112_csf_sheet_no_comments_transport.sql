@@ -14,6 +14,7 @@ LANGUAGE sql STABLE SECURITY DEFINER SET search_path='' AS $$
  FROM plugin_data.csf_sheet_sync_destinations WHERE id=p_destination_id
 $$;
 REVOKE ALL ON FUNCTION plugin_data.csf_sheet_discussion_configuration(uuid) FROM PUBLIC,anon,authenticated,service_role;
+GRANT EXECUTE ON FUNCTION plugin_data.csf_sheet_discussion_configuration(uuid) TO postgres;
 
 CREATE OR REPLACE FUNCTION plugin_data.csf_configure_sheet_discussion_transport(p_organization_id uuid,p_actor_user_id uuid,p_destination_id uuid,p_transport text) RETURNS jsonb
 LANGUAGE plpgsql SECURITY DEFINER SET search_path='' AS $$
@@ -59,6 +60,7 @@ GRANT EXECUTE ON FUNCTION plugin_data.csf_configure_sheet_sync_destination_atomi
 ALTER FUNCTION plugin_data.csf_sheet_sync_destination_snapshot(uuid,uuid,text,uuid)
  RENAME TO csf_sheet_sync_destination_snapshot_with_discussions;
 REVOKE ALL ON FUNCTION plugin_data.csf_sheet_sync_destination_snapshot_with_discussions(uuid,uuid,text,uuid) FROM PUBLIC,anon,authenticated,service_role;
+GRANT EXECUTE ON FUNCTION plugin_data.csf_sheet_sync_destination_snapshot_with_discussions(uuid,uuid,text,uuid) TO postgres;
 
 CREATE FUNCTION plugin_data.csf_sheet_sync_destination_snapshot(p_organization_id uuid,p_destination_id uuid,p_record_kind text,p_record_id uuid) RETURNS jsonb
 LANGUAGE plpgsql SECURITY DEFINER SET search_path='' AS $$

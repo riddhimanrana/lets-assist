@@ -38,6 +38,12 @@ const overrides = [
     "6c24ad54b2cc483f2a5692060982cf8a",
     true,
   ],
+  [
+    "plugin_data.csf_sheet_sync_destination_snapshot_with_discussions(uuid,uuid,text,uuid)",
+    "2f4d6ca07905946fae100d8e4b4a4ec7",
+    "fa78bc95b754c5e202fe5da5dd137e20",
+    false,
+  ],
 ];
 
 export const sheetNoCommentsDefinitions = [
