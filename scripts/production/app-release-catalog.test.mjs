@@ -583,7 +583,7 @@ test("application review reopening pins the complete function and retains the pr
   const preceding = acceptedCatalogQuery(source, versions.slice(0, 476));
   const signature =
     "plugin_data.csf_set_review_period(uuid,uuid,uuid,text,text,text,text,timestamptz,timestamptz)";
-  assert.equal(versions.length, 501);
+  assert.equal(versions.length, 502);
   assert.ok(
     current.includes(
       `('${signature}','28793d39c02ebf702a61c26deb7ae2b4',true)`,
@@ -693,7 +693,7 @@ test("embedded publication 498 preserves the reviewed 497 schema", () => {
 
 test("embedded publication 501 preserves the reviewed 500 schema", () => {
   assert.equal(
-    acceptedCatalogQuery(source, versions),
+    acceptedCatalogQuery(source, versions.slice(0, 501)),
     acceptedCatalogQuery(source, versions.slice(0, 500)),
   );
 });
@@ -728,4 +728,11 @@ test("no-comments transport and member search pin the current function catalogs"
     assert.ok(!noComments.includes(digest));
   }
   assert.match(current, /SELECT count\(\*\) = 26 AND/u);
+});
+
+test("embedded publication 502 preserves the reviewed 501 schema", () => {
+  assert.equal(
+    acceptedCatalogQuery(source, versions),
+    acceptedCatalogQuery(source, versions.slice(0, 501)),
+  );
 });
