@@ -3,6 +3,7 @@ import { execFileSync } from "node:child_process";
 import { existsSync, readFileSync, readdirSync, writeFileSync } from "node:fs";
 import { basename, join, posix, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import { updateEmbeddedServingExpectations } from "./release-serving-contracts.mjs";
 
 const PLUGIN_KEY = /^[a-z0-9]+(?:-[a-z0-9]+)*$/u;
 // The automatic integration lane accepts stable releases only. Supporting
@@ -857,6 +858,14 @@ export function integratePrivateRelease({
   );
   if (existsSync(migrationTestPath)) {
     fail(`migration test already exists: ${basename(migrationTestPath)}`);
+  }
+  if (manifest.runtimeProfile === "embedded") {
+    updateEmbeddedServingExpectations(
+      resolve(migrationsDir, "../tests/database"),
+      manifest.pluginKey,
+      manifest.version,
+      manifest.sourceCommit,
+    );
   }
   writeFileSync(registryPath, `${JSON.stringify(registry, null, 2)}\n`);
   writeFileSync(
