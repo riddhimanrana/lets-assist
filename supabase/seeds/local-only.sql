@@ -25,7 +25,6 @@ ON CONFLICT (key) DO UPDATE SET
   description = EXCLUDED.description,
   visibility = EXCLUDED.visibility,
   is_active = EXCLUDED.is_active,
-  latest_version = EXCLUDED.latest_version,
   private_codebase = EXCLUDED.private_codebase,
   updated_at = now();
 
@@ -54,7 +53,6 @@ ON CONFLICT (key) DO UPDATE SET
   description = EXCLUDED.description,
   visibility = EXCLUDED.visibility,
   is_active = EXCLUDED.is_active,
-  latest_version = EXCLUDED.latest_version,
   private_codebase = EXCLUDED.private_codebase,
   metadata = public.plugins.metadata || EXCLUDED.metadata,
   updated_at = now();
