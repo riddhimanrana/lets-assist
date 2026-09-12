@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import {
@@ -30,25 +30,50 @@ export default function EmailExpiredClient({
   const continuationQuery = continuation
     ? `?redirect=${encodeURIComponent(continuation)}`
     : "";
-  const [isResending, setIsResending] = useState(false);
-  const [hasResent, setHasResent] = useState(false);
+  type ResendAttempt = { scope: string; status: "pending" | "sent" | "idle" };
+  const resendScope = JSON.stringify([email, continuation]);
+  const attemptRef = useRef<ResendAttempt | null>(null);
+  const [attemptState, setAttemptState] = useState<ResendAttempt | null>(null);
+  const isCurrentAttempt = attemptState?.scope === resendScope;
+  const isResending = isCurrentAttempt && attemptState?.status === "pending";
+  const hasResent = isCurrentAttempt && attemptState?.status === "sent";
   const [isCaptchaOpen, setIsCaptchaOpen] = useState(false);
+  const challengeArmed = useRef<string | null>(null);
 
   const handleVerified = async (token: string) => {
+    if (challengeArmed.current !== resendScope) return;
+    challengeArmed.current = null;
     if (!email) {
       toast.error("Email address not found. Please sign up again.");
       return;
     }
 
-    setIsResending(true);
+    // Repeated challenge callbacks must not replace the verifier for the email just sent.
+    if (
+      attemptRef.current?.scope === resendScope &&
+      attemptRef.current.status !== "idle"
+    )
+      return;
+
+    const attempt: ResendAttempt = { scope: resendScope, status: "pending" };
+    attemptRef.current = attempt;
+    setAttemptState(attempt);
+    const finish = (status: ResendAttempt["status"]) => {
+      if (attemptRef.current !== attempt) return false;
+      const settled = { ...attempt, status };
+      attemptRef.current = settled;
+      setAttemptState(settled);
+      return true;
+    };
     try {
       const result = await resendVerificationEmail(email, token, continuation);
 
       if (result.success) {
-        setHasResent(true);
+        if (!finish("sent")) return;
         toast.success(result.message || "Verification email resent!");
         setIsCaptchaOpen(false);
       } else {
+        if (!finish("idle")) return;
         if ("code" in result) {
           if (result.code === "link_expired") {
             toast.error(
@@ -66,9 +91,8 @@ export default function EmailExpiredClient({
         }
       }
     } catch {
+      if (!finish("idle")) return;
       toast.error("An unexpected error occurred. Please try again.");
-    } finally {
-      setIsResending(false);
     }
   };
 
@@ -135,7 +159,10 @@ export default function EmailExpiredClient({
               </p>
 
               <Button
-                onClick={() => setIsCaptchaOpen(true)}
+                onClick={() => {
+                  challengeArmed.current = resendScope;
+                  setIsCaptchaOpen(true);
+                }}
                 disabled={isResending || hasResent}
                 className="w-full"
                 size="lg"
@@ -198,7 +225,10 @@ export default function EmailExpiredClient({
       {email ? (
         <BotVerificationDialog
           isOpen={isCaptchaOpen}
-          onClose={() => setIsCaptchaOpen(false)}
+          onClose={() => {
+            challengeArmed.current = null;
+            setIsCaptchaOpen(false);
+          }}
           onVerified={handleVerified}
           title="Verify before resending"
           description="Complete this security challenge to resend your verification email."
