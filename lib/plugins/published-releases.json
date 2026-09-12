@@ -31,33 +31,6 @@
   },
   {
     "pluginKey": "dvhs-csf",
-    "version": "1.1.0",
-    "manifestFile": "plugins/dvhs-csf/plugin-manifest.ts",
-    "manifestHash": "0cb20fc117267b861779a05f10bb73fecedf9a03bba1ac4bfbb3d1a2f8491735",
-    "sourceCommit": "4d1001e9d3269b8bd28de93c071c6b4b216824fd",
-    "automaticUpdate": false,
-    "rolloutPercentage": 0,
-    "runtimeProfile": "embedded",
-    "sourceTree": null,
-    "contentDigest": null,
-    "releaseInputs": null,
-    "buildDigest": null,
-    "buildArtifact": null,
-    "sbomDigest": null,
-    "signer": null,
-    "hostApiRange": {
-      "minimum": "1.0.0",
-      "maximum": "1.0.0"
-    },
-    "pluginDataSchemaVersion": 1,
-    "requiredPlatformSchemaVersion": "legacy",
-    "supportedInstallContracts": {
-      "minimum": "1.1.0",
-      "maximum": "1.1.0"
-    }
-  },
-  {
-    "pluginKey": "dvhs-csf",
     "version": "1.2.32",
     "manifestFile": "apps/csf/lib/manifest.ts",
     "manifestHash": "909fa720dab454723adc8d6effcc28c282403d8d14f65b2e6d818dc19343176f",
@@ -101,6 +74,37 @@
     "supportedInstallContracts": {
       "minimum": "1.1.0",
       "maximum": "1.2.32"
+    }
+  },
+  {
+    "pluginKey": "dvhs-csf",
+    "version": "1.2.34",
+    "manifestFile": "plugins/dvhs-csf/plugin-manifest.ts",
+    "manifestHash": "1de7e9bedc1208feffe56a999d4866d7a507a748e9a0752ecb37f24888fd5068",
+    "sourceCommit": "bb7029dda2fafaa107eaad1f55003fce2ac19cab",
+    "automaticUpdate": false,
+    "rolloutPercentage": 0,
+    "runtimeProfile": "embedded",
+    "sourceTree": "c06d2a5626063873d8cbffe33514f134bfcb8e79",
+    "contentDigest": "sha256:2a44c7bc291c4c7cb2b9130dd1893c6d3e019c09018d5185c3833b3e4dba4439",
+    "releaseInputs": ["plugins/dvhs-csf"],
+    "buildDigest": null,
+    "buildArtifact": null,
+    "sbomDigest": "sha256:161cf81255e5e9f3b3a9de38ee185fb905fa70c304c039dfb1951b338277694f",
+    "signer": {
+      "identity": "https://github.com/riddhimanrana/lets-assist-plugins/.github/workflows/plugin-release.yml@refs/tags/dvhs-csf/v1.2.34",
+      "issuer": "https://token.actions.githubusercontent.com",
+      "attestationRef": "github-release:dvhs-csf/v1.2.34/release-manifest.sigstore.json"
+    },
+    "hostApiRange": {
+      "minimum": "1.0.0",
+      "maximum": "1.0.0"
+    },
+    "pluginDataSchemaVersion": 1,
+    "requiredPlatformSchemaVersion": "20260911203901",
+    "supportedInstallContracts": {
+      "minimum": "1.1.0",
+      "maximum": "1.2.34"
     }
   }
 ]
