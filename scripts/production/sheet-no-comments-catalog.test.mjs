@@ -16,7 +16,9 @@ test("499 pins the no-comments transport function definitions and ACLs", () => {
   const current = acceptedCatalogQuery(source, versions.slice(0, 499));
   const preceding = acceptedCatalogQuery(source, versions.slice(0, 498));
   for (const [signature, digest, body, service] of sheetNoCommentsDefinitions) {
-    assert.ok(current.includes(`('${signature}','${digest}','${body}',${service})`));
+    assert.ok(
+      current.includes(`('${signature}','${digest}','${body}',${service})`),
+    );
   }
   for (const digest of [
     "9b853e618876d9cb5c9b48b70457e0a0",

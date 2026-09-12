@@ -7252,7 +7252,6 @@ The prior host remains the last deployed application. Authenticated Chrome still
 
 The next test sequence preserves original tabs in supported private copies, adds a fictional input tab plus separate application/point export tabs, and uses the copied class destination. Test records must have independent IDs. Saved copied-workbook and comments-column acceptance remains required before enabling live two-way sync. No real chapter application decision, point award, post, or outbound email was made in this pass.
 
-
 ### September 12 no-comments sync and member verification
 
 The owner deferred all Sheet comment syncing while retaining application, point-submission, and class exports. Private PR 363 prepares embedded 1.2.35 with an explicit no-comments mode, clearer account and review controls, reported contacts in the directory, and configured-source Home deduplication. Forward schema changes preserve legacy transports and service-only search permissions. These changes are prepared, not deployed.

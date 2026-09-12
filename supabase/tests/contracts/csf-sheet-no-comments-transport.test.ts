@@ -10,7 +10,9 @@ const migration = readFileSync(
 );
 
 test("none joins the legacy transports without changing the SQL default", () => {
-  expect(migration).not.toContain("ALTER COLUMN discussion_transport SET DEFAULT");
+  expect(migration).not.toContain(
+    "ALTER COLUMN discussion_transport SET DEFAULT",
+  );
   expect(migration).toContain(
     "discussion_transport IN ('none','native','column')",
   );

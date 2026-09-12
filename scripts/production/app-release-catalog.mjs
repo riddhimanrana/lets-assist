@@ -479,8 +479,8 @@ export function acceptedCatalogQuery(source, versions) {
       memberDirectorySearchUpgrade
         ? "e2832656ce686c7728b5799abadf2083"
         : activeDirectoryUpgrade
-        ? "8abb87daa63ef1b5dad124f89bee24d1"
-        : "091f2fb0595f586f7b84ce134d6cdee6",
+          ? "8abb87daa63ef1b5dad124f89bee24d1"
+          : "091f2fb0595f586f7b84ce134d6cdee6",
       true,
     ]);
   if (reportedCourseUpgrade)
