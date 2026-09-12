@@ -1,5 +1,50 @@
--- Expand staff-only member directory search without changing profile ownership.
+-- Keep Auth identity lookup behind one tenant-scoped, service-only owner boundary.
 BEGIN;
+
+CREATE FUNCTION app_private.csf_verified_profile_login_identity(
+  p_organization_id uuid,
+  p_profile_id uuid
+)
+RETURNS TABLE (
+  full_name text,
+  username text,
+  login_email text
+)
+LANGUAGE sql
+STABLE
+SECURITY DEFINER
+SET search_path = ''
+AS $$
+  SELECT
+    platform_profile.full_name,
+    platform_profile.username,
+    login_user.email AS login_email
+  FROM plugin_data.csf_profiles AS profile
+  JOIN plugin_data.csf_profile_accounts AS linked_account
+    ON linked_account.organization_id = profile.organization_id
+   AND linked_account.profile_id = profile.id
+   AND linked_account.status = 'verified'
+  JOIN auth.users AS login_user
+    ON login_user.id = linked_account.user_id
+   AND login_user.email_confirmed_at IS NOT NULL
+  LEFT JOIN public.profiles AS platform_profile
+    ON platform_profile.id = linked_account.user_id
+  WHERE profile.organization_id = p_organization_id
+    AND profile.id = p_profile_id
+  ORDER BY
+    linked_account.is_primary DESC,
+    linked_account.linked_at DESC NULLS LAST,
+    linked_account.id DESC
+  LIMIT 1;
+$$;
+
+REVOKE ALL ON FUNCTION app_private.csf_verified_profile_login_identity(uuid, uuid)
+  FROM PUBLIC, anon, authenticated, service_role;
+GRANT EXECUTE ON FUNCTION app_private.csf_verified_profile_login_identity(uuid, uuid)
+  TO service_role;
+
+COMMENT ON FUNCTION app_private.csf_verified_profile_login_identity(uuid, uuid)
+  IS 'Returns confirmed login identity only for a verified profile account in the exact organization. Service-only directory RPCs use this owner boundary because service_role cannot read auth.users.';
 
 CREATE OR REPLACE FUNCTION plugin_data.csf_list_profiles_page(
   p_organization_id uuid,
@@ -118,25 +163,9 @@ AS $$
         profile_account.id DESC
       LIMIT 1
     ) account ON true
-    LEFT JOIN LATERAL (
-      SELECT
-        platform_profile.full_name,
-        platform_profile.username,
-        login_user.email AS login_email
-      FROM plugin_data.csf_profile_accounts AS linked_account
-      JOIN auth.users AS login_user
-        ON login_user.id = linked_account.user_id
-       AND login_user.email_confirmed_at IS NOT NULL
-      LEFT JOIN public.profiles AS platform_profile
-        ON platform_profile.id = linked_account.user_id
-      WHERE linked_account.organization_id = p_organization_id
-        AND linked_account.profile_id = profile.id
-        AND linked_account.status = 'verified'
-      ORDER BY
-        linked_account.is_primary DESC,
-        linked_account.linked_at DESC NULLS LAST,
-        linked_account.id DESC
-      LIMIT 1
+    LEFT JOIN LATERAL app_private.csf_verified_profile_login_identity(
+      p_organization_id,
+      profile.id
     ) AS login_profile ON true
     LEFT JOIN LATERAL (
       SELECT
@@ -497,25 +526,9 @@ AS $$
         profile_account.id DESC
       LIMIT 1
     ) AS account ON true
-    LEFT JOIN LATERAL (
-      SELECT
-        platform_profile.full_name,
-        platform_profile.username,
-        login_user.email AS login_email
-      FROM plugin_data.csf_profile_accounts AS linked_account
-      JOIN auth.users AS login_user
-        ON login_user.id = linked_account.user_id
-       AND login_user.email_confirmed_at IS NOT NULL
-      LEFT JOIN public.profiles AS platform_profile
-        ON platform_profile.id = linked_account.user_id
-      WHERE linked_account.organization_id = p_organization_id
-        AND linked_account.profile_id = profile.id
-        AND linked_account.status = 'verified'
-      ORDER BY
-        linked_account.is_primary DESC,
-        linked_account.linked_at DESC NULLS LAST,
-        linked_account.id DESC
-      LIMIT 1
+    LEFT JOIN LATERAL app_private.csf_verified_profile_login_identity(
+      p_organization_id,
+      profile.id
     ) AS login_profile ON true
     LEFT JOIN LATERAL (
       SELECT
