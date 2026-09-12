@@ -191,6 +191,9 @@ test("assigning and revoking a staff position changes post access while officer 
     ).toHaveCount(0);
 
     await loginAs(page, "admin", staffPath);
+    await expect(
+      page.locator('[data-organization-tabs-hydrated="true"]'),
+    ).toBeVisible();
     await page
       .getByRole("button", { name: "Assign position", exact: true })
       .click();
@@ -299,6 +302,9 @@ test("assigning and revoking a staff position changes post access while officer 
     }
 
     await page.goto(staffPath, { waitUntil: "domcontentloaded" });
+    await expect(
+      page.locator('[data-organization-tabs-hydrated="true"]'),
+    ).toBeVisible();
     const assignmentRow = page
       .getByRole("row")
       .filter({ hasText: roleTitle })
