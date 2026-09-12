@@ -58,6 +58,12 @@ WHERE id='a9c90000-0000-4000-8000-000000000003';
 CREATE TEMP TABLE expansion_cases AS
 SELECT name,md5('csf-range-retry-'||name)::uuid id,
   CASE name
+  WHEN 'unqualified' THEN jsonb_set(value,'{tabs,0,range}','"A1:W30"')
+  WHEN 'lowercase' THEN jsonb_set(value,'{tabs,0,range}','"Responses!a1:w30"')
+  WHEN 'eight-digit-row' THEN jsonb_set(value,'{tabs,0,range}','"A1:W10000000"')
+  WHEN 'wrong-qualifier' THEN jsonb_set(value,'{tabs,0,range}','"Other!A1:W30"')
+  WHEN 'out-of-bounds' THEN jsonb_set(value,'{tabs,0,range}','"A1:W10000001"')
+  WHEN 'reversed-columns' THEN jsonb_set(value,'{tabs,0,range}','"W1:A30"')
   WHEN 'changed-column' THEN jsonb_set(value,'{columns,firstName}','"column:5"')
   WHEN 'changed-header' THEN jsonb_set(value,'{headerSignature}',to_jsonb(repeat('e',64)))
   WHEN 'changed-term' THEN jsonb_set(value,'{tabs,0,termCode}','"S40"')
@@ -71,7 +77,7 @@ SELECT name,md5('csf-range-retry-'||name)::uuid id,
     '{normalized_data,record,identity,normalizedFirstName}','"different"')
   ELSE (SELECT value FROM retry_payload) END ||
     '{"retry_of_row_id":"a9c90000-0000-4000-8000-000000000009"}'::jsonb payload
-FROM range_mapping CROSS JOIN (VALUES('expanded-range'),('changed-column'),('changed-header'),
+FROM range_mapping CROSS JOIN (VALUES('expanded-range'),('unqualified'),('lowercase'),('eight-digit-row'),('wrong-qualifier'),('out-of-bounds'),('reversed-columns'),('changed-column'),('changed-header'),
 ('changed-term'),('changed-strategy'),('changed-start'),('changed-width'),('shrunk-range'),
 ('malformed-range'),('changed-identity')) cases(name);
 INSERT INTO plugin_data.csf_sheet_import_jobs
@@ -103,12 +109,12 @@ name||' starts unbound through the append boundary') FROM expansion_cases;
 UPDATE plugin_data.csf_sheet_import_jobs SET status='needs_resolution' WHERE id IN(SELECT id FROM expansion_cases);
 SELECT is(plugin_data.csf_recover_application_retry_matches(
 'a9c90000-0000-4000-8000-000000000002','a9c90000-0000-4000-8000-000000000001',id)->>'restored',
-CASE WHEN name='expanded-range' THEN '1' ELSE '0' END,name||' obeys committed mapping evidence') FROM expansion_cases;
+CASE WHEN name IN('expanded-range','unqualified','lowercase','eight-digit-row') THEN '1' ELSE '0' END,name||' obeys committed mapping evidence') FROM expansion_cases;
 SELECT is(plugin_data.csf_recover_application_retry_matches(
 'a9c90000-0000-4000-8000-000000000002','a9c90000-0000-4000-8000-000000000001',
 (SELECT id FROM expansion_cases WHERE name='expanded-range'))->>'restored','0','repeating successful recovery is idempotent');
 SELECT is((SELECT count(*)::integer FROM plugin_data.csf_admin_audit_events WHERE organization_id='a9c90000-0000-4000-8000-000000000002'
-AND action='sheets.row_match_resolved'),2,'only the proven expansion records a new audited match');
+AND action='sheets.row_match_resolved'),5,'only proven canonical expansions record new audited matches');
 SELECT is((SELECT count(*)::integer FROM plugin_data.csf_term_applications WHERE organization_id='a9c90000-0000-4000-8000-000000000002'),0,
 'recovering a binding does not create or approve an application');
 SELECT ok(NOT has_function_privilege('authenticated','plugin_data.csf_recover_application_retry_matches(uuid,uuid,uuid,uuid)','EXECUTE'),

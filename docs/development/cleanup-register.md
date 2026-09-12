@@ -7169,3 +7169,57 @@ Forward migration `20260911223138_csf_application_retry_range_expansion` permits
 Signed integration workflow `34654360664` generated publication `20260911223137_publish_dvhs_csf_1_2_32` after source-pin PR 534 merged normally. The final 496-migration candidate still requires integrated checks and Production deployment. No installation record was updated directly.
 
 The guide received verified staff and sign-in status updates and a Production test-workspace invitation screenshot. Its class links and existing QR cards remain. Sheets destinations, copied-workbook acceptance, application correction and the complete point submission journey remain unfinished. Email delivery and scheduled publishing stay disabled.
+
+### September 11 final release verification, 23:03 UTC
+
+Development candidate `65e491e1e97010f239d3e492f835899506701f2f` includes signed application 1.2.32, publication migration `20260911223137`, and retry-range migration `20260911223138`. Root full-quality and hosted functional checks passed. The integrated database/browser job remains in progress. PR 536 is waiting for its required check before the normal Production merge. Production remains on root `f742c18df694e4c9e77ea68e2ea9eddc96556c01`, migration 494, and selected application 1.2.31 at this checkpoint.
+
+The older catalog tests initially expected 494 migrations. Commit `8202d137` updates the remaining-count expectations for 495 and 496 without changing historical fingerprint comparisons. All 76 catalog/forward tests passed with Bun. Both forward migrations received independent review; migration 496 changes only the existing service-only retry-recovery function and does not write student records during migration execution.
+
+A fresh count-only Production audit compared every one of the 200 Fall 2026 applications with its committed source snapshot. It found zero missing bindings, coordinate mismatches, reported-total mismatches, or transcript/receipt Drive ID mismatches. All 768 course entries and all 400 evidence mappings matched. The review UI constructs Drive links from the stored file IDs. This audit does not prove that the officer's Google account can open each file. Evidence lives in the ignored `csf-final-catalog-expectations/.artifacts/csf-application-evidence-audit/` JSON and SQL pair.
+
+The normal Chrome staff connection flow passed in the isolated Production test organization with a second fictional profile and the previously authorized test account. The login and profile-contact emails differed. The profile contact remained unchanged; the saved connection is verified with `officer_decision` provenance, and no application or points were added. This did not connect any real student record. The chapter's two older connections remain pending with unknown ownership provenance.
+
+The guide now contains the verified invitation and manual-connection screenshots. Its 13-page PDF rendering was inspected, including the updated connection page. Sheets sync remains described as disabled.
+
+Open P2: Home counts older previews separately when a configured source range changes. The private deduplication key incorrectly includes the mutable range. Reviewed private commit `597ea98` fixes the key to use source ID, source type, and tab, while preserving the range fallback for unconfigured file previews. Seven focused tests passed. That commit is prepared only, not pushed, published, or deployed.
+
+### September 11 final review hold, 23:18 UTC
+
+Development candidate `65e491e1e97010f239d3e492f835899506701f2f` passed full CI `34655493258`, PR CI `34655496558`, and hosted functional acceptance `34655494156`. PR 536 remains blocked by actionable review findings. No new Production release was applied.
+
+P1: the application source pin also advanced the embedded serving gitlink without an embedded publication. The correction restores `6b73d0901fe58e5eada93026b085a9cc472566d7` while preserving signed application 1.2.32 and immutable publication 495 at source `a9f528ee4b49bb7619e3488a8dfa98dcadc5ef35`. Review thread: https://github.com/riddhimanrana/lets-assist/pull/536#discussion_r3993971771.
+
+P2: migration 496 rejects supported unqualified and lowercase A1 ranges. It is already applied in Development and remains immutable. Forward migration 497, `20260911231213_csf_application_retry_canonical_ranges.sql`, is prepared in commit `c5250e01` from reviewed worker commit `59b3b3a3`. Its 60 focused pgTAP assertions passed. Migration SHA256 is `e0a478c58565c8566a0cc4d0b135e10b7765490280269ef0d4b9cf83ee16caeb`; function body MD5 is `b18cf72ece0df071e4f2ee7d93616d06`. Release catalog integration, exact final candidate checks, and review remain outstanding. Review thread: https://github.com/riddhimanrana/lets-assist/pull/536#discussion_r3994005263.
+
+Production remains host `f742c18df694e4c9e77ea68e2ea9eddc96556c01`, database 494, application 1.2.31. Imports remain paused and there are zero configured new Sheet sync destinations. The refreshed 235-row source is preserved but awaiting the recovery correction; the existing 200 applications remain intact. The prepared Home count correction `597ea98` is not published or deployed. Do not enable live syncing before restricted copied-workbook acceptance.
+
+The screenshot guide now includes the successful fictional manual account connection with different contact and login emails. This test preserved contact fields and created no application, points, or staff privilege. The guide remains explicit that full Sheets sync is not live.
+
+The preserved correction passed independent bounded review, `git diff --check`, strict private-submodule validation, and plugin registry gates. These checks do not replace final integrated acceptance for migration 497.
+
+At 23:19 UTC, catalog integration was preserved in `04a41b9f` from worker commit `ee6404b3`. Its 48 focused catalog and forward-release tests passed and retained migration 496 fingerprints. Full candidate CI, remaining count expectations, and release review still need verification. This supersedes the earlier catalog-integration pending status only.
+
+### September 11 focused Production verification follow-up
+
+This pass tested the existing Production release, not the unshipped correction candidate. Two bounded diagnostics used Sol at the user's request; integration and access decisions stayed with the parent agent.
+
+Passed in Chrome: a signed-out test class invitation retained its intended class through Login and Sign up navigation. Google sign-in returned the independently verified fictional member to the same profile and My CSF. The point submission form has no semester selector. A fictional Class of 2028 post published in the test organization with email explicitly unchecked; the result confirmed `Email not queued because no email was requested.` The intended member saw that post. An attempted Class of 2027 staff-workspace URL redirected the member to their own Class of 2028 feed. No real chapter post, decision, points, or outbound email was created.
+
+Read-only application review also passed for one existing application: its transcript and receipt opened in Google Drive viewers. The detail page had one document scroll and no nested vertical scrolling container; keyboard navigation reached the bottom decision controls without invoking a decision. This is a representative access/layout check, not a new audit of every evidence file.
+
+Local verification on exact deployed root `f742c18df694e4c9e77ea68e2ea9eddc96556c01` and private `6b73d0901fe58e5eada93026b085a9cc472566d7` passed 76 auth, invitation, ownership, and pending-history tests plus 31 application correction, point resubmission, authorization, and audience tests. Total: 107 passed, zero failed. These are mocked/source tests, not proof of the remaining deployed journeys. Logs: `/tmp/csf-deployed-auth-tests.log` and `/tmp/csf-deployed-lifecycle-tests.log`.
+
+Blocked: the supported test-copy action returned `The Google file could not be checked.` A separate private one-row fictional fixture was prepared for lifecycle testing. Pasting its URL initially failed access; selecting it through Google Picker resolved access and recognized its columns. Connecting it then failed with a neutral source-registration error. Read-only Production diagnosis proved that this marked test workspace permits only files in `csf_sheet_sync_test_files`; the newly authored fixture is not a registered copy. Trigger `csf_sheet_test_sources` rejected the insert. The actual administrator was authorized and no source row persisted. Do not register this native fixture as a copy or bypass the trigger. Copied-workbook and comments-column acceptance remain blocked until the supported copy flow succeeds.
+
+Open P2: the neutral registration error hides the actionable test-copy prerequisite. Add a permission-checked preflight that explains which supported copy step is needed, while preserving the database guard.
+
+Open P2: staff-only post authoring is unreachable in normal embedded navigation. `plugin-behavior.tsx` registers `csf-home` only for the member presentation, which passes `userRole="member"`; `CsfMemberHome` therefore hides the unlocked staff composer. Officer mode redirects that tab to Overview. The reachable class-stream composer locks its audience to that class. Add an authorized officer entry point without changing member-view access rules.
+
+Still unverified in Production: fresh signup with verification email and expired-email recovery; pending identity with populated candidate history; application correction/resubmission and officer decision in the test workspace; the positive point submission/correction/resubmission cycle and verified totals; staff-only post audience; full copied-workbook and comments-column acceptance. Existing staff invitation/position and different-email manual connection evidence remains valid for the unchanged deployed actions, but no fresh populated-history connection test was claimed. The requested signup test address remains pending. Live two-way sync remains disabled.
+
+### September 11 release correction follow-up
+
+Root candidate now includes the serving-tree integration correction in `c390d81e` and migration-tail test updates in `f57602ce`. Application publication validates the preserved embedded serving commit while retaining signed application source, build, and ancestry checks. The focused integration suite passed 23 tests. All 119 Production contract tests passed with `node --test scripts/production/*.test.mjs`. An earlier combined Bun invocation was invalid for these Node test modules and is not release evidence. No Production mutation occurred.
+
+Private candidate `b879cb7590e436bb36b469088f38f5e991ba6e3b` adds the authorized officer Home post composer. Its 39 focused tests passed. The class composer remains locked to its class. This fix is not deployed, so staff-only post acceptance remains open. Copied-workbook acceptance and live two-way sync remain held.
