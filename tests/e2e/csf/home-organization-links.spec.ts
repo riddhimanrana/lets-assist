@@ -20,7 +20,7 @@ test("Home opens the CSF chapter and excludes ordinary organizations even with a
       created_by: organizationAdminUserId,
     };
   });
-  const [active, inactive, unrelated] = organizations;
+  const [active, inactive] = organizations;
   const ids = organizations.map(({ id }) => id);
   const member = await admin
     .from("profiles")
