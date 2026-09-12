@@ -149,3 +149,15 @@ BEGIN
 END $$;
 REVOKE ALL ON FUNCTION plugin_data.csf_record_sheet_sync_acceptance(uuid,uuid,uuid,uuid[],jsonb,text) FROM PUBLIC,anon,authenticated;
 GRANT EXECUTE ON FUNCTION plugin_data.csf_record_sheet_sync_acceptance(uuid,uuid,uuid,uuid[],jsonb,text) TO service_role;
+
+-- These high-volume Sheet sync tables predate the tenant-index architecture
+-- gate. Lead with organization_id so tenant-scoped maintenance does not scan
+-- across chapters.
+CREATE INDEX IF NOT EXISTS csf_sheet_sync_acceptances_organization_idx
+ ON plugin_data.csf_sheet_sync_acceptances(organization_id);
+CREATE INDEX IF NOT EXISTS csf_sheet_sync_changes_organization_idx
+ ON plugin_data.csf_sheet_sync_changes(organization_id);
+CREATE INDEX IF NOT EXISTS csf_sheet_sync_comments_organization_idx
+ ON plugin_data.csf_sheet_sync_comments(organization_id);
+CREATE INDEX IF NOT EXISTS csf_sheet_sync_local_messages_organization_idx
+ ON plugin_data.csf_sheet_sync_local_messages(organization_id);

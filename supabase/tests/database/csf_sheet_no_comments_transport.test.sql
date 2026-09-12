@@ -1,6 +1,6 @@
 BEGIN;
 CREATE EXTENSION IF NOT EXISTS pgtap WITH SCHEMA extensions;
-SELECT extensions.plan(17);
+SELECT extensions.plan(21);
 
 INSERT INTO auth.users(id,aud,role,email,raw_app_meta_data,raw_user_meta_data) VALUES
 ('fa000000-0000-4000-8000-000000000001','authenticated','authenticated','no-comments-admin@local.test','{}','{}');
@@ -39,6 +39,10 @@ SELECT extensions.ok(position('Repeated sync needs distinct retained export vers
 SELECT extensions.ok(position('snapshot-ARRAY[''comments'',''local_messages'']' in pg_get_functiondef('plugin_data.csf_sheet_sync_destination_snapshot(uuid,uuid,text,uuid)'::regprocedure))>0,'none versions omit app and Sheet discussion history');
 SELECT extensions.ok(position($needle$TG_TABLE_NAME<>'csf_review_notes' OR discussion_transport<>'none'$needle$ in pg_get_functiondef('plugin_data.csf_queue_changed_sheet_sync_record()'::regprocedure))>0,'private notes do not queue no-comments destinations');
 SELECT extensions.ok(NOT has_function_privilege('service_role','plugin_data.csf_sheet_sync_destination_snapshot_with_discussions(uuid,uuid,text,uuid)','EXECUTE'),'the delegated full snapshot stays owner-only');
+SELECT extensions.has_index('plugin_data','csf_sheet_sync_acceptances','csf_sheet_sync_acceptances_organization_idx','acceptance maintenance has a leading tenant index');
+SELECT extensions.has_index('plugin_data','csf_sheet_sync_changes','csf_sheet_sync_changes_organization_idx','change maintenance has a leading tenant index');
+SELECT extensions.has_index('plugin_data','csf_sheet_sync_comments','csf_sheet_sync_comments_organization_idx','comment maintenance has a leading tenant index');
+SELECT extensions.has_index('plugin_data','csf_sheet_sync_local_messages','csf_sheet_sync_local_messages_organization_idx','local-message maintenance has a leading tenant index');
 
 INSERT INTO plugin_data.csf_sheet_sync_destinations(id,organization_id,spreadsheet_file_id,sheet_id,kind,term_id,is_test,configured_by,managed_headers,discussion_transport) VALUES
 ('fa300000-0000-4000-8000-000000000003','fa100000-0000-4000-8000-000000000001','fictional-none-version',0,'applications','fa200000-0000-4000-8000-000000000001',false,'fa000000-0000-4000-8000-000000000001','["Record ID","Source version","Requested decision","Requested points"]','none');
