@@ -11,6 +11,7 @@ import {
 } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { preserveMigratedPluginVersions } from "./seed-platform-fixtures.mjs";
 
 const seedSource = [
   "./seed-platform.mjs",
@@ -85,6 +86,25 @@ describe("local platform seed authorization", () => {
       /key: "dvhs-csf",[\s\S]*?latest_version: "1\.1\.0"/u,
     );
     expect(catalog).not.toContain('latest_version: "1.2.8"');
+  });
+
+  test("preserves the signed catalog version produced by migration replay", () => {
+    expect(
+      preserveMigratedPluginVersions(
+        [
+          { key: "dvhs-csf", latest_version: "1.1.0" },
+          { key: "missing-plugin", latest_version: "1.0.0" },
+        ],
+        [{ key: "dvhs-csf", latest_version: "1.2.34" }],
+      ),
+    ).toEqual([
+      { key: "dvhs-csf", latest_version: "1.2.34" },
+      { key: "missing-plugin", latest_version: "1.0.0" },
+    ]);
+    expect(seedSource).toContain("resolvedPluginCatalogRows");
+    expect(seedSource).toContain(
+      "const installedVersion = seededPluginCatalogRows.find",
+    );
   });
 
   test("keeps the isolated CSF administrator fictional and portrait-free", () => {

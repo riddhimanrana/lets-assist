@@ -276,3 +276,13 @@ export function buildSeedFixtureSets(seedsDvhsCsf) {
   );
   return { seededAccounts, seededPluginKeys, seededPluginCatalogRows };
 }
+
+export function preserveMigratedPluginVersions(seedRows, migratedRows) {
+  const migratedVersions = new Map(
+    migratedRows.map(({ key, latest_version: version }) => [key, version]),
+  );
+  return seedRows.map((row) => ({
+    ...row,
+    latest_version: migratedVersions.get(row.key) ?? row.latest_version,
+  }));
+}
