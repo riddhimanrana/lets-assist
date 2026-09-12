@@ -6,6 +6,11 @@ let queryError = false;
 let isMember = true;
 let useSlug = true;
 let hasLogo = true;
+let showPluginContent = true;
+let hiddenPluginKeys: string[] = [];
+let accessibleOrganizationIds = ["local-org"];
+let accessiblePluginKey = "dvhs-csf";
+let extraOrganization = false;
 const calls: Array<{ source: string; field: string; value: string }> = [];
 
 function client(label: string) {
@@ -38,6 +43,19 @@ function client(label: string) {
                             : null,
                         },
                       },
+                      ...(extraOrganization
+                        ? [
+                            {
+                              organization_id: "other-org",
+                              organization: {
+                                id: "other-org",
+                                name: "Other group",
+                                username: "other-group",
+                                logo_url: null,
+                              },
+                            },
+                          ]
+                        : []),
                     ]
                   : [],
               }).then(resolve);
@@ -51,7 +69,33 @@ function client(label: string) {
 }
 
 const createClient = mock(async () => client("local"));
+const loadPluginDisplayPreferences = mock(async () => ({
+  showPluginContent,
+  hiddenPluginKeys,
+}));
+const resolveOrganizationPluginExperiences = mock(
+  async (organizationIds: string[]) =>
+    organizationIds
+      .filter((organizationId) =>
+        accessibleOrganizationIds.includes(organizationId),
+      )
+      .map((organizationId) => ({
+        organizationId,
+        pluginKey: accessiblePluginKey,
+        experience: {},
+      })),
+);
 mock.module("@/lib/supabase/server", () => ({ createClient }));
+mock.module("@/lib/plugins/plugin-display-preferences", () => ({
+  loadPluginDisplayPreferences,
+  isPluginHidden: (
+    preferences: { hiddenPluginKeys: string[] },
+    pluginKey: string,
+  ) => preferences.hiddenPluginKeys.includes(pluginKey),
+}));
+mock.module("@/lib/plugins/resolve-org-plugins", () => ({
+  resolveOrganizationPluginExperiences,
+}));
 mock.module("@/lib/supabase/preview-source.server", () => ({
   getServerPreviewSource: async () => source,
 }));
@@ -72,8 +116,15 @@ beforeEach(() => {
   isMember = true;
   useSlug = true;
   hasLogo = true;
+  showPluginContent = true;
+  hiddenPluginKeys = [];
+  accessibleOrganizationIds = ["local-org"];
+  accessiblePluginKey = "dvhs-csf";
+  extraOrganization = false;
   calls.length = 0;
   createClient.mockClear();
+  loadPluginDisplayPreferences.mockClear();
+  resolveOrganizationPluginExperiences.mockClear();
 });
 
 async function renderLinks() {
@@ -122,6 +173,41 @@ test("organization card shows its name and logo with one direct navigation link"
 test("accounts without active organization memberships receive no card", async () => {
   isMember = false;
   expect(await renderLinks()).toBe("");
+});
+
+test("only organizations with accessible DVHS CSF installs receive a shortcut", async () => {
+  extraOrganization = true;
+  const html = await renderLinks();
+  expect(html).toContain("local chapter");
+  expect(html).not.toContain("Other group");
+  expect(resolveOrganizationPluginExperiences).toHaveBeenCalledWith([
+    "local-org",
+    "other-org",
+  ]);
+});
+
+test("accounts without an accessible DVHS CSF install receive no shortcut", async () => {
+  accessibleOrganizationIds = [];
+  expect(await renderLinks()).toBe("");
+});
+
+test("access to another plugin does not create an organization shortcut", async () => {
+  accessiblePluginKey = "other-plugin";
+  expect(await renderLinks()).toBe("");
+});
+
+test("the global plugin content setting hides the CSF shortcut", async () => {
+  showPluginContent = false;
+  expect(await renderLinks()).toBe("");
+  expect(resolveOrganizationPluginExperiences).not.toHaveBeenCalled();
+  expect(calls).toEqual([]);
+});
+
+test("the DVHS CSF content setting hides the CSF shortcut", async () => {
+  hiddenPluginKeys = ["dvhs-csf"];
+  expect(await renderLinks()).toBe("");
+  expect(resolveOrganizationPluginExperiences).not.toHaveBeenCalled();
+  expect(calls).toEqual([]);
 });
 
 test("organization without a logo or slug retains accessible direct navigation", async () => {
