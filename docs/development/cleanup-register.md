@@ -7223,3 +7223,11 @@ Still unverified in Production: fresh signup with verification email and expired
 Root candidate now includes the serving-tree integration correction in `c390d81e` and migration-tail test updates in `f57602ce`. Application publication validates the preserved embedded serving commit while retaining signed application source, build, and ancestry checks. The focused integration suite passed 23 tests. All 119 Production contract tests passed with `node --test scripts/production/*.test.mjs`. An earlier combined Bun invocation was invalid for these Node test modules and is not release evidence. No Production mutation occurred.
 
 Private candidate `b879cb7590e436bb36b469088f38f5e991ba6e3b` adds the authorized officer Home post composer. Its 39 focused tests passed. The class composer remains locked to its class. This fix is not deployed, so staff-only post acceptance remains open. Copied-workbook acceptance and live two-way sync remain held.
+
+### September 11 embedded delivery correction
+
+Root PR 538 merged as `a337d5631fb8e098047705486e8119e656092e21`. Its candidate run `34659969740` passed quality, database replay, authorization checks, and CSF browser workflows. The final focused integration suite passed 24 tests; all 119 Production contract tests and 13 release-documentation tests also passed.
+
+A route audit found that the independent CSF application serves only `/access-proof` and health. The normal organization dashboard and workbook-copy action execute from the host's embedded private gitlink. Publishing application 1.2.33 while preserving `6b73d09` would therefore not deliver the composer or copy fix. No 1.2.33 tag was published. Its untagged preparation commits remain intact.
+
+The correct candidate is embedded 1.2.34 at private main `bb7029dda2fafaa107eaad1f55003fce2ac19cab`. Its release manifest covers only `plugins/dvhs-csf`, uses `plugin-manifest.ts`, and has no independent build artifact. Private PRs 360 and 361 passed and merged; the return merge and signed publication are pending at this checkpoint. This publication must advance the host gitlink through the normal signed integration. Published application 1.2.32 and all applied migrations remain immutable. Production still serves root `f742c18d` and private `6b73d09`; copied-workbook acceptance and live sync remain held.
