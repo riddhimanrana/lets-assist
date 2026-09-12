@@ -583,7 +583,7 @@ test("application review reopening pins the complete function and retains the pr
   const preceding = acceptedCatalogQuery(source, versions.slice(0, 476));
   const signature =
     "plugin_data.csf_set_review_period(uuid,uuid,uuid,text,text,text,text,timestamptz,timestamptz)";
-  assert.equal(versions.length, 497);
+  assert.equal(versions.length, 498);
   assert.ok(
     current.includes(
       `('${signature}','28793d39c02ebf702a61c26deb7ae2b4',true)`,
@@ -681,5 +681,12 @@ test("canonical range recovery preserves the preceding function fingerprint", ()
     !acceptedCatalogQuery(source, versions.slice(0, 496)).includes(
       "b18cf72ece0df071e4f2ee7d93616d06",
     ),
+  );
+});
+
+test("embedded publication 498 preserves the reviewed 497 schema", () => {
+  assert.equal(
+    acceptedCatalogQuery(source, versions),
+    acceptedCatalogQuery(source, versions.slice(0, 497)),
   );
 });

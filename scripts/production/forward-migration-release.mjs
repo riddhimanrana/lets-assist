@@ -130,6 +130,10 @@ export const approvedMigrations = [
     "20260911231213_csf_application_retry_canonical_ranges",
     "e0a478c58565c8566a0cc4d0b135e10b7765490280269ef0d4b9cf83ee16caeb",
   ],
+  [
+    "20260912002546_publish_dvhs_csf_1_2_34",
+    "369ef5ec515317b8354bc15f56a2c4050829e73f0d3c92bf390f7b838a334e40",
+  ],
 ];
 
 const literal = (value) => `'${value.replaceAll("'", "''")}'`;
