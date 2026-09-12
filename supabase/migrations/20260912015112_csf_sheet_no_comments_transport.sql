@@ -59,7 +59,7 @@ LANGUAGE plpgsql SECURITY DEFINER SET search_path='' AS $$
 DECLARE old_row jsonb:=CASE WHEN TG_OP<>'INSERT' THEN to_jsonb(OLD) END; new_row jsonb:=CASE WHEN TG_OP<>'DELETE' THEN to_jsonb(NEW) END; r jsonb; targets jsonb:='[]'; k text; rid uuid; org uuid; profile uuid; changed_term uuid; target record; d record;
 BEGIN
  IF TG_TABLE_NAME='csf_sheet_sync_local_messages' THEN
-  FOR target IN SELECT b.* FROM plugin_data.csf_sheet_sync_bindings b WHERE EXISTS(SELECT 1 FROM unnest(ARRAY[old_row,new_row]) x WHERE x IS NOT NULL AND b.organization_id=(x->>'organization_id')::uuid AND b.id=(x->>'binding_id')::uuid) ORDER BY b.id FOR NO KEY UPDATE LOOP
+  FOR target IN SELECT b.* FROM plugin_data.csf_sheet_sync_bindings b WHERE EXISTS(SELECT 1 FROM unnest(ARRAY[old_row,new_row]) x WHERE x IS NOT NULL AND b.organization_id=(x->>'organization_id')::uuid AND b.id=(x->>'binding_id')::uuid) AND EXISTS(SELECT 1 FROM plugin_data.csf_sheet_sync_destinations sd WHERE sd.organization_id=b.organization_id AND sd.id=b.destination_id AND sd.discussion_transport<>'none') ORDER BY b.id FOR NO KEY UPDATE LOOP
    UPDATE plugin_data.csf_sheet_sync_bindings SET scope_revision=scope_revision+1 WHERE id=target.id;
    IF EXISTS(SELECT 1 FROM plugin_data.csf_sheet_sync_destinations WHERE id=target.destination_id AND organization_id=target.organization_id AND enabled AND discussion_transport<>'none') THEN
     PERFORM plugin_data.csf_queue_sheet_sync_record_internal(target.organization_id,target.destination_id,target.record_kind,target.record_id);

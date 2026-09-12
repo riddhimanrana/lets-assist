@@ -1,6 +1,6 @@
 BEGIN;
 CREATE EXTENSION IF NOT EXISTS pgtap WITH SCHEMA extensions;
-SELECT extensions.plan(21);
+SELECT extensions.plan(25);
 
 INSERT INTO auth.users(id,aud,role,email,raw_app_meta_data,raw_user_meta_data) VALUES
 ('fa000000-0000-4000-8000-000000000001','authenticated','authenticated','no-comments-admin@local.test','{}','{}');
@@ -52,6 +52,13 @@ CREATE TEMP TABLE no_comment_versions AS SELECT md5(plugin_data.csf_sheet_sync_d
 INSERT INTO plugin_data.csf_review_notes(organization_id,period_id,subject_kind,subject_id,body,author_user_id) VALUES
 ('fa100000-0000-4000-8000-000000000001','fa240000-0000-4000-8000-000000000001','application','fa230000-0000-4000-8000-000000000001','Private note retained only in the app','fa000000-0000-4000-8000-000000000001');
 SELECT extensions.is(md5(plugin_data.csf_sheet_sync_destination_snapshot('fa100000-0000-4000-8000-000000000001','fa300000-0000-4000-8000-000000000003','application','fa230000-0000-4000-8000-000000000001')::text),(SELECT before_note FROM no_comment_versions),'none source version stays stable across a private note');
+CREATE TEMP TABLE no_comment_message_state AS
+SELECT md5(plugin_data.csf_sheet_sync_destination_snapshot('fa100000-0000-4000-8000-000000000001','fa300000-0000-4000-8000-000000000003','application','fa230000-0000-4000-8000-000000000001')::text) source_version, scope_revision
+FROM plugin_data.csf_sheet_sync_bindings WHERE destination_id='fa300000-0000-4000-8000-000000000003';
+INSERT INTO plugin_data.csf_sheet_sync_local_messages(organization_id,destination_id,binding_id,author_user_id,body)
+SELECT organization_id,destination_id,id,'fa000000-0000-4000-8000-000000000001','Private local note retained only in the app' FROM plugin_data.csf_sheet_sync_bindings WHERE destination_id='fa300000-0000-4000-8000-000000000003';
+SELECT extensions.is(md5(plugin_data.csf_sheet_sync_destination_snapshot('fa100000-0000-4000-8000-000000000001','fa300000-0000-4000-8000-000000000003','application','fa230000-0000-4000-8000-000000000001')::text),(SELECT source_version FROM no_comment_message_state),'none source version stays stable across a local-message insert');
+SELECT extensions.is((SELECT scope_revision FROM plugin_data.csf_sheet_sync_bindings WHERE destination_id='fa300000-0000-4000-8000-000000000003'),(SELECT scope_revision FROM no_comment_message_state),'none local-message inserts do not advance scope revision');
 
 INSERT INTO plugin_data.csf_sheet_sync_destinations(id,organization_id,spreadsheet_file_id,sheet_id,kind,term_id,is_test,configured_by,managed_headers,discussion_transport) VALUES
 ('fa300000-0000-4000-8000-000000000002','fa100000-0000-4000-8000-000000000001','fictional-native-comments',0,'applications','fa200000-0000-4000-8000-000000000001',false,'fa000000-0000-4000-8000-000000000001','["Record ID","Source version","Requested decision","Requested points"]','native');
@@ -61,6 +68,13 @@ CREATE TEMP TABLE native_versions AS SELECT md5(plugin_data.csf_sheet_sync_desti
 INSERT INTO plugin_data.csf_review_notes(organization_id,period_id,subject_kind,subject_id,body,author_user_id) VALUES
 ('fa100000-0000-4000-8000-000000000001','fa240000-0000-4000-8000-000000000001','application','fa230000-0000-4000-8000-000000000001','Second private note for native version','fa000000-0000-4000-8000-000000000001');
 SELECT extensions.isnt(md5(plugin_data.csf_sheet_sync_destination_snapshot('fa100000-0000-4000-8000-000000000001','fa300000-0000-4000-8000-000000000002','application','fa230000-0000-4000-8000-000000000001')::text),(SELECT before_note FROM native_versions),'native source version retains discussion changes');
+CREATE TEMP TABLE native_message_state AS
+SELECT md5(plugin_data.csf_sheet_sync_destination_snapshot('fa100000-0000-4000-8000-000000000001','fa300000-0000-4000-8000-000000000002','application','fa230000-0000-4000-8000-000000000001')::text) source_version, scope_revision
+FROM plugin_data.csf_sheet_sync_bindings WHERE destination_id='fa300000-0000-4000-8000-000000000002';
+INSERT INTO plugin_data.csf_sheet_sync_local_messages(organization_id,destination_id,binding_id,author_user_id,body)
+SELECT organization_id,destination_id,id,'fa000000-0000-4000-8000-000000000001','Native local note remains exportable' FROM plugin_data.csf_sheet_sync_bindings WHERE destination_id='fa300000-0000-4000-8000-000000000002';
+SELECT extensions.isnt(md5(plugin_data.csf_sheet_sync_destination_snapshot('fa100000-0000-4000-8000-000000000001','fa300000-0000-4000-8000-000000000002','application','fa230000-0000-4000-8000-000000000001')::text),(SELECT source_version FROM native_message_state),'native source version retains local-message changes');
+SELECT extensions.is((SELECT scope_revision FROM plugin_data.csf_sheet_sync_bindings WHERE destination_id='fa300000-0000-4000-8000-000000000002'),(SELECT scope_revision+1 FROM native_message_state),'native local-message inserts advance scope revision');
 
 SELECT * FROM extensions.finish();
 ROLLBACK;
