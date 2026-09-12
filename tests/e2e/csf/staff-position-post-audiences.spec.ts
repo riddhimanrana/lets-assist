@@ -77,86 +77,74 @@ test("assigning and revoking a staff position changes post access while officer 
   try {
     checked(
       (
-        await fixture.admin
-          .from("organization_members")
-          .insert({
-            organization_id: fixture.organizationId,
-            user_id: userId,
-            role: "member",
-            status: "active",
-          })
+        await fixture.admin.from("organization_members").insert({
+          organization_id: fixture.organizationId,
+          user_id: userId,
+          role: "member",
+          status: "active",
+        })
       ).error,
     );
     checked(
       (
-        await plugin
-          .from("csf_profiles")
-          .insert({
-            id: profileId,
-            organization_id: fixture.organizationId,
-            first_name: "Casey",
-            last_name: `Editor-${suffix}`,
-            normalized_first_name: "casey",
-            normalized_last_name: `editor-${suffix}`,
-            school_email: email,
-            normalized_school_email: email,
-          })
+        await plugin.from("csf_profiles").insert({
+          id: profileId,
+          organization_id: fixture.organizationId,
+          first_name: "Casey",
+          last_name: `Editor-${suffix}`,
+          normalized_first_name: "casey",
+          normalized_last_name: `editor-${suffix}`,
+          school_email: email,
+          normalized_school_email: email,
+        })
       ).error,
     );
     checked(
       (
-        await plugin
-          .from("csf_profile_accounts")
-          .insert({
-            organization_id: fixture.organizationId,
-            profile_id: profileId,
-            user_id: userId,
-            status: "verified",
-            is_primary: true,
-            connection_basis: "officer_decision",
-            linked_by: fixture.organizationAdminUserId,
-          })
+        await plugin.from("csf_profile_accounts").insert({
+          organization_id: fixture.organizationId,
+          profile_id: profileId,
+          user_id: userId,
+          status: "verified",
+          is_primary: true,
+          connection_basis: "officer_decision",
+          linked_by: fixture.organizationAdminUserId,
+        })
       ).error,
     );
     checked(
       (
-        await plugin
-          .from("csf_profile_cohort_memberships")
-          .insert({
-            organization_id: fixture.organizationId,
-            profile_id: profileId,
-            cohort_id: fixture.cohortIdsByYear[2028],
-            status: "active",
-          })
+        await plugin.from("csf_profile_cohort_memberships").insert({
+          organization_id: fixture.organizationId,
+          profile_id: profileId,
+          cohort_id: fixture.cohortIdsByYear[2028],
+          status: "active",
+        })
       ).error,
     );
     // A separate fixture position leaves every established position and seat
     // limit unchanged. Only this run's account can occupy its single seat.
     checked(
       (
-        await plugin
-          .from("csf_roles")
-          .insert({
-            id: roleId,
-            organization_id: fixture.organizationId,
-            key: `fixture_editor_${suffix}`,
-            display_name: roleTitle,
-            public_title: roleTitle,
-            role_type: "custom",
-            max_active_seats: 1,
-          })
+        await plugin.from("csf_roles").insert({
+          id: roleId,
+          organization_id: fixture.organizationId,
+          key: `fixture_editor_${suffix}`,
+          display_name: roleTitle,
+          public_title: roleTitle,
+          role_type: "custom",
+          max_active_seats: 1,
+        })
       ).error,
     );
     checked(
       (
-        await plugin
-          .from("csf_role_permissions")
-          .insert({
-            organization_id: fixture.organizationId,
-            role_id: roleId,
-            permission_key: "manage_posts",
-            enabled: true,
-          })
+        await plugin.from("csf_role_permissions").insert({
+          organization_id: fixture.organizationId,
+          role_id: roleId,
+          permission_key: "manage_posts",
+          enabled: true,
+        })
       ).error,
     );
     await seedFeedPosts(fixture, [
