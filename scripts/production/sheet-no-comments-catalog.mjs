@@ -45,7 +45,8 @@ export const sheetNoCommentsDefinitions = [
     (row) => overrides.find(([name]) => name === row[0]) ?? row,
   ),
   ...overrides.filter(
-    ([name]) => !sheetToggleDefinitions.some(([signature]) => signature === name),
+    ([name]) =>
+      !sheetToggleDefinitions.some(([signature]) => signature === name),
   ),
 ];
 
