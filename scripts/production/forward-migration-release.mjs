@@ -134,6 +134,14 @@ export const approvedMigrations = [
     "20260912002546_publish_dvhs_csf_1_2_34",
     "369ef5ec515317b8354bc15f56a2c4050829e73f0d3c92bf390f7b838a334e40",
   ],
+  [
+    "20260912015112_csf_sheet_no_comments_transport",
+    "3a02dbff30185cbdc737918268a608a9df949b8a3542236bff15108af8bcb72c",
+  ],
+  [
+    "20260912015608_csf_member_directory_staff_identity_search",
+    "3c721efa9c45a17b9f102f8a3661c5dcf55f488b54006dbb35059a37ff0fc171",
+  ],
 ];
 
 const literal = (value) => `'${value.replaceAll("'", "''")}'`;

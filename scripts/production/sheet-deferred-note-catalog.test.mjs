@@ -12,7 +12,7 @@ const source = readFileSync(
   "utf8",
 );
 test("493 changes only the profile snapshot function fingerprint", () => {
-  assert.equal(versions.length, 498);
+  assert.equal(versions.length, 500);
   const changed = sheetDeferredNoteDefinitions.filter(
     (row, i) =>
       JSON.stringify(row) !== JSON.stringify(sheetObservationDefinitions[i]),
@@ -50,7 +50,7 @@ test("492 advances through profile note export deferral and the current release 
         /INSERT INTO supabase_migrations.schema_migrations/gu,
       ) ?? []
     ).length,
-    6,
+    8,
   );
   assert.ok(
     result.query.includes("jsonb_build_object('comments','[]'::jsonb)"),
