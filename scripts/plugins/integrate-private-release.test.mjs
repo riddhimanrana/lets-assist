@@ -431,9 +431,9 @@ ROLLBACK;
   const updated = readFileSync(historicalPath, "utf8");
   assert.match(updated, /version = '1\.2\.1'/u);
   assert.match(updated, /historical identity stays immutable/u);
-  assert.match(updated, /\n  '1\.2\.3',\n  'plugin catalog keeps/u);
+  assert.match(updated, /\n {2}'1\.2\.3',\n {2}'plugin catalog keeps/u);
   assert.match(updated, new RegExp(input.manifest.sourceCommit, "u"));
-  assert.doesNotMatch(updated, /\n  '1\.2\.2',\n  'plugin catalog keeps/u);
+  assert.doesNotMatch(updated, /\n {2}'1\.2\.2',\n {2}'plugin catalog keeps/u);
 });
 
 test("refuses prerelease and build versions in the stable integration lane", () => {
