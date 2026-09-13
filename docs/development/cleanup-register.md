@@ -7469,3 +7469,9 @@ Generated publication `20260913191541_publish_dvhs_csf_1_2_41.sql` brings the re
 Production still serves root `e18d363ed309d6b11d55d6079f8138dcc345e76f`, embedded CSF 1.2.39, and the 508-migration ledger. Publications 509 and 510 have not been applied there. Neither 1.2.40 nor 1.2.41 is deployed or selected in Production. The accepted Development checks for the earlier candidate remain dated evidence; the final 1.2.41 root candidate still needs its own integrated CI, hosted functional acceptance and normal Production release before organization updates.
 
 The copied-sheet acceptance and paused, drained worker state recorded in the preceding checkpoint remain the latest operational evidence. This integration enables no worker, live destination, email delivery or scheduled publishing. Copied acceptance does not establish completed live export population. Recheck the deployed release and operational controls before resuming work.
+
+### P1: Sheet discussion writes accepted by a destination with comments disabled
+
+The local Sheet discussion RPC rejects disabled destinations but accepted messages when an enabled destination used discussion mode `none`. Those messages could be stored without export. Forward migration `20260913200500_csf_sheet_discussion_write_guard.sql` adds the missing transport check before thread handling and idempotent replay. It preserves organization permissions, stable request conflicts, audits and service-only execution. Existing history remains unchanged. Private 1.2.42 adds matching reader and action guards with this migration as its schema floor.
+
+The regression covers blocked messages, replies, resolution and replay, enabled native and column behavior, immutable request conflicts, audit counts and execution permissions. This entry records a prepared repair, not a Production deployment. Existing Production non-comment exports remain separate from this discussion fix.
