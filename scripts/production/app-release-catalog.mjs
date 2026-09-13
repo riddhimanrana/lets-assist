@@ -127,6 +127,9 @@ export function acceptedCatalogQuery(source, versions) {
   )
     return source;
   const activityUndatedLifecycleUpgrade =
+    (versions.length === 509 &&
+      ledgerHash ===
+        "2f268f391f1de5a1475ab6fbac1bf0b7cb24dac8bae8c7de5033c5f2730c3509") ||
     (versions.length === 508 &&
       ledgerHash ===
         "d4b1d37e9109c93732bfb8052250e96441312435eb672f3a7b2d61ab7cb7ac98") ||
