@@ -47,6 +47,7 @@ export default async function MembersPage({ params }: Props) {
         organizationId={id}
         members={members}
         userRole={memberData.role}
+        currentUserId={user.id}
       />
     </div>
   );

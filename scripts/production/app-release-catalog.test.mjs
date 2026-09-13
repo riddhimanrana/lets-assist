@@ -583,7 +583,7 @@ test("application review reopening pins the complete function and retains the pr
   const preceding = acceptedCatalogQuery(source, versions.slice(0, 476));
   const signature =
     "plugin_data.csf_set_review_period(uuid,uuid,uuid,text,text,text,text,timestamptz,timestamptz)";
-  assert.equal(versions.length, 502);
+  assert.equal(versions.length, 504);
   assert.ok(
     current.includes(
       `('${signature}','28793d39c02ebf702a61c26deb7ae2b4',true)`,
@@ -730,9 +730,34 @@ test("no-comments transport and member search pin the current function catalogs"
   assert.match(current, /SELECT count\(\*\) = 26 AND/u);
 });
 
-test("embedded publication 502 preserves the reviewed 501 schema", () => {
+test("publications 502 and 503 preserve schema while 504 pins merged lineage", () => {
   assert.equal(
-    acceptedCatalogQuery(source, versions),
+    acceptedCatalogQuery(source, versions.slice(0, 503)),
     acceptedCatalogQuery(source, versions.slice(0, 501)),
   );
+  assert.equal(
+    acceptedCatalogQuery(source, versions.slice(0, 502)),
+    acceptedCatalogQuery(source, versions.slice(0, 501)),
+  );
+  const current = acceptedCatalogQuery(source, versions);
+  const publication = acceptedCatalogQuery(source, versions.slice(0, 503));
+  for (const digest of [
+    "c40dbff4e32221d3ab4cb13b9c3ec868",
+    "127302af8cacf84c00e687d5273a0430",
+    "4647427ee2e77e1fdb936d5f771afa0c",
+  ]) {
+    assert.ok(current.includes(digest));
+    assert.ok(!publication.includes(digest));
+  }
+  assert.ok(
+    current.includes(
+      "'plugin_data.csf_class_history_source_key_requires_review(uuid,uuid)',\n      '4647427ee2e77e1fdb936d5f771afa0c','boolean','v',true,2",
+    ),
+  );
+  assert.ok(
+    current.includes(
+      "has_function_privilege('service_role',p.oid,'EXECUTE')=expected.service_execute",
+    ),
+  );
+  assert.ok(current.includes("p.provolatile::text=expected.volatility"));
 });
