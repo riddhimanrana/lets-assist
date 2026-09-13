@@ -1,3 +1,4 @@
+import { sheetDiscussionWriteDefinitions } from "./sheet-discussion-write-catalog.mjs";
 import { sheetToggleDefinitions } from "./sheet-toggle-catalog.mjs";
 import {
   sheetNoCommentsDefinitions,
@@ -126,7 +127,15 @@ export function acceptedCatalogQuery(source, versions) {
       "34dbbd884882349f8083512cd2fe48b371c3f1242bc62897685267f2a5d0001b"
   )
     return source;
+  const sheetDiscussionWriteUpgrade =
+    (versions.length === 512 &&
+      ledgerHash ===
+        "8879a1ccdd7b952fdb4cf80539d22dbebc65e9c55e557d2dd636ce846d315007") ||
+    (versions.length === 511 &&
+      ledgerHash ===
+        "6db6ffb66313b404bb77363ac09177be3bf6b72578390d9db6b0b99b5f1f253e");
   const activityUndatedLifecycleUpgrade =
+    sheetDiscussionWriteUpgrade ||
     (versions.length === 510 &&
       ledgerHash ===
         "01fff3ace553725d2794248c62f02c282da0cc95937e10380188169f014a5310") ||
@@ -684,7 +693,7 @@ accepted_upgrade_posture AS (
   ${automaticSheetUpdatesUpgrade ? automaticSheetUpdatesPosture(workerRelationSnapshotQuery, matchingTabUpgrade, applicationContactsUpgrade, ownershipUpgrade, sheetSyncUpgrade) : ""}
   ${workbookLinkMergeUpgrade ? workbookLinkMergePosture : ""}
   ${staffAccountConnectionUpgrade ? staffAccountConnectionPosture(staffAccountAuthorityUpgrade, ownershipUpgrade) : ""}
-  ${ownershipUpgrade ? reportedContactColumnsPosture : ""}${sheetSyncUpgrade ? `\n  ${sheetSyncPosture(workerRelationSnapshotQuery, sheetNoCommentsUpgrade ? sheetNoCommentsDefinitions : sheetToggleUpgrade ? sheetToggleDefinitions : sheetDeferredNoteUpgrade ? sheetDeferredNoteDefinitions : sheetObservationUpgrade ? sheetObservationDefinitions : sheetRecoveryUpgrade ? sheetRecoveryDefinitions : sheetDiscussionUpgrade ? sheetDiscussionDefinitions : undefined, sheetNoCommentsUpgrade ? sheetNoCommentsTables : sheetObservationUpgrade ? sheetObservationTables : sheetRecoveryUpgrade ? sheetRecoveryTables : sheetDiscussionUpgrade ? sheetDiscussionTables : undefined)}` : ""} AS valid
+  ${ownershipUpgrade ? reportedContactColumnsPosture : ""}${sheetSyncUpgrade ? `\n  ${sheetSyncPosture(workerRelationSnapshotQuery, sheetDiscussionWriteUpgrade ? sheetDiscussionWriteDefinitions : sheetNoCommentsUpgrade ? sheetNoCommentsDefinitions : sheetToggleUpgrade ? sheetToggleDefinitions : sheetDeferredNoteUpgrade ? sheetDeferredNoteDefinitions : sheetObservationUpgrade ? sheetObservationDefinitions : sheetRecoveryUpgrade ? sheetRecoveryDefinitions : sheetDiscussionUpgrade ? sheetDiscussionDefinitions : undefined, sheetNoCommentsUpgrade ? sheetNoCommentsTables : sheetObservationUpgrade ? sheetObservationTables : sheetRecoveryUpgrade ? sheetRecoveryTables : sheetDiscussionUpgrade ? sheetDiscussionTables : undefined)}` : ""} AS valid
   FROM accepted_upgrade_definitions expected
   LEFT JOIN pg_proc p ON p.oid=to_regprocedure(expected.signature)
 )
