@@ -23,7 +23,10 @@ import {
 } from "./account-ownership-catalog.mjs";
 import { createHash } from "node:crypto";
 import { ReleaseCheckError } from "./app-release-checks.mjs";
-import { reviewedWorkbookLinksPosture } from "./workbook-profile-link-catalog.mjs";
+import {
+  mergedSourceLineagePosture,
+  reviewedWorkbookLinksPosture,
+} from "./workbook-profile-link-catalog.mjs";
 import { automaticSheetUpdatesPosture } from "./automatic-sheet-update-catalog.mjs";
 import { staffAccountConnectionPosture } from "./staff-account-connection-catalog.mjs";
 import { workbookLinkMergePosture } from "./workbook-link-merge-catalog.mjs";
@@ -123,7 +126,12 @@ export function acceptedCatalogQuery(source, versions) {
       "34dbbd884882349f8083512cd2fe48b371c3f1242bc62897685267f2a5d0001b"
   )
     return source;
+  const mergedSourceLineageUpgrade =
+    versions.length === 504 &&
+    ledgerHash ===
+      "c8cae9edc23dc1677ad2febd452834d1cf812b9cca07de7d0dbb0604cd49b655";
   const memberDirectorySearchUpgrade =
+    mergedSourceLineageUpgrade ||
     (versions.length === 503 &&
       ledgerHash ===
         "23077b82cbccecb8e9687470696a558f5174c22e33319d922c053744e3b2138a") ||
@@ -631,7 +639,7 @@ accepted_upgrade_posture AS (
   ${applicationRetryUpgrade ? (applicationRangeUpgrade ? applicationRetryRecoveryPosture.replace("a931f85d6e45fd85611adc8318c4da4d", applicationCanonicalRangeUpgrade ? "b18cf72ece0df071e4f2ee7d93616d06" : "d5e26c21ffe78f617f4b34ee82a7eb41") : applicationRetryRecoveryPosture) : ""}
   ${workbookRecoveryUpgrade ? workbookRecoveryPosture : ""}
   ${applicationSourceReviewUpgrade ? applicationSourceReviewPosture : ""}
-  ${reviewedWorkbookLinksUpgrade ? reviewedWorkbookLinksPosture(workerRelationSnapshotQuery, sheetSyncUpgrade) : ""}
+  ${reviewedWorkbookLinksUpgrade ? reviewedWorkbookLinksPosture(workerRelationSnapshotQuery, sheetSyncUpgrade) : ""}${mergedSourceLineageUpgrade ? `\n  ${mergedSourceLineagePosture}` : ""}
   ${automaticSheetUpdatesUpgrade ? automaticSheetUpdatesPosture(workerRelationSnapshotQuery, matchingTabUpgrade, applicationContactsUpgrade, ownershipUpgrade, sheetSyncUpgrade) : ""}
   ${workbookLinkMergeUpgrade ? workbookLinkMergePosture : ""}
   ${staffAccountConnectionUpgrade ? staffAccountConnectionPosture(staffAccountAuthorityUpgrade, ownershipUpgrade) : ""}
