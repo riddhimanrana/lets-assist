@@ -141,7 +141,7 @@ test("saved application previews keep their own rows through navigation and relo
     await expect(page).toHaveURL(new RegExp(`csf_import_preview=${olderId}`));
     await expect(
       dialog.getByRole("heading", {
-        name: "51 applications to check",
+        name: "51 rows to check",
         exact: true,
       }),
     ).toBeVisible();
@@ -149,14 +149,14 @@ test("saved application previews keep their own rows through navigation and relo
     await expect(page).toHaveURL(new RegExp(`csf_import_preview=${olderId}`));
     await expect(
       dialog
-        .getByRole("region", { name: "51 applications to check", exact: true })
+        .getByRole("region", { name: "51 rows to check", exact: true })
         .getByText("SpringFixture Row51", { exact: true }),
     ).toBeVisible();
     await page.reload();
     await checkAutomaticControls();
     await expect(
       dialog
-        .getByRole("region", { name: "51 applications to check", exact: true })
+        .getByRole("region", { name: "51 rows to check", exact: true })
         .getByText("SpringFixture Row51", { exact: true }),
     ).toBeVisible();
     await openPreviousChecks();
@@ -197,14 +197,14 @@ test("saved application previews keep their own rows through navigation and relo
     await expect(page).toHaveURL(new RegExp(`csf_import_preview=${olderId}`));
     await expect(
       dialog.getByRole("heading", {
-        name: "51 applications to check",
+        name: "51 rows to check",
         exact: true,
       }),
     ).toBeVisible();
     await page.reload();
     await expect(
       dialog.getByRole("heading", {
-        name: "51 applications to check",
+        name: "51 rows to check",
         exact: true,
       }),
     ).toBeVisible();
