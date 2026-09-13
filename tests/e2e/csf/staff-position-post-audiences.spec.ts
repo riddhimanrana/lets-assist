@@ -281,10 +281,19 @@ test("assigning and revoking a staff position changes post access while officer 
     await actor
       .getByRole("button", { name: "View as member", exact: true })
       .click();
+    await expect(actor).toHaveURL(/[?&]tab=csf-home(?:&|$)/);
+    await expect(
+      actor.getByRole("button", {
+        name: "Switch to CSF Officer view",
+        exact: true,
+      }),
+    ).toBeVisible();
     await expect(actor.getByText(classTitle, { exact: true })).toBeVisible();
     await expect(actor.getByText(memberTitle, { exact: true })).toBeVisible();
-    expect(await actor.content()).not.toContain(staffTitle);
-    expect(await actor.content()).not.toContain(otherClassTitle);
+    await expect(actor.getByText(staffTitle, { exact: true })).toHaveCount(0);
+    await expect(actor.getByText(otherClassTitle, { exact: true })).toHaveCount(
+      0,
+    );
     for (const memberActor of ["member", "applicant"] as const) {
       await clearViewerSession(viewer);
       await loginAs(viewer, memberActor, homePath);
