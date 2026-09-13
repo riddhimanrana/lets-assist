@@ -6,7 +6,14 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Search, Download } from "lucide-react";
+import {
+  Search,
+  Download,
+  MoreHorizontal,
+  UserRound,
+  UserRoundCog,
+} from "lucide-react";
+import { toast } from "sonner";
 import {
   Select,
   SelectContent,
@@ -15,6 +22,14 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { updateMemberRole } from "../actions";
+import { availableMemberRoleChanges } from "./member-role-controls";
 
 interface MembersClientProps {
   organizationId: string;
@@ -31,18 +46,46 @@ interface MembersClientProps {
     canVerifyHours: boolean;
   }>;
   userRole: string;
+  currentUserId: string;
 }
 
 export default function MembersClient({
-  organizationId: _organizationId,
-  members,
+  organizationId,
+  members: initialMembers,
   userRole,
+  currentUserId,
 }: MembersClientProps) {
+  const [members, setMembers] = useState(initialMembers);
   const [searchTerm, setSearchTerm] = useState("");
   const [roleFilter, setRoleFilter] = useState<string>("all");
   const [statusFilter, setStatusFilter] = useState<string>("active");
+  const [updatingMemberId, setUpdatingMemberId] = useState<string | null>(null);
 
   const isAdmin = userRole === "admin";
+
+  const changeRole = async (
+    member: MembersClientProps["members"][number],
+    role: "staff" | "member",
+  ) => {
+    setUpdatingMemberId(member.id);
+    try {
+      const result = await updateMemberRole(organizationId, member.id, role);
+      if (result.error) {
+        toast.error(result.error);
+        return;
+      }
+      setMembers((current) =>
+        current.map((candidate) =>
+          candidate.id === member.id ? { ...candidate, role } : candidate,
+        ),
+      );
+      toast.success(`${member.name || "Member"}'s role updated to ${role}`);
+    } catch {
+      toast.error("Failed to update member role");
+    } finally {
+      setUpdatingMemberId(null);
+    }
+  };
 
   // Filter members
   const filteredMembers = members.filter((member) => {
@@ -172,63 +215,115 @@ export default function MembersClient({
                   </tr>
                 </thead>
                 <tbody>
-                  {filteredMembers.map((member) => (
-                    <tr key={member.id} className="border-b hover:bg-muted/50">
-                      <td className="py-3 px-4">
-                        <div className="flex items-center gap-3">
-                          <Avatar className="h-8 w-8">
-                            <AvatarImage src={member.avatar || undefined} />
-                            <AvatarFallback>
-                              {member.name?.charAt(0)}
-                            </AvatarFallback>
-                          </Avatar>
-                          <span className="font-medium">{member.name}</span>
-                        </div>
-                      </td>
-                      <td className="py-3 px-4 text-muted-foreground">
-                        {member.email}
-                      </td>
-                      <td className="py-3 px-4">
-                        <Badge
-                          variant={
-                            member.role === "admin" ? "default" : "secondary"
-                          }
-                          className="capitalize"
-                        >
-                          {member.role}
-                        </Badge>
-                      </td>
-                      <td className="py-3 px-4">
-                        <Badge
-                          variant={
-                            member.status === "active" ? "secondary" : "outline"
-                          }
-                          className={cn(
-                            "capitalize",
-                            member.status === "inactive" &&
-                              "text-muted-foreground",
-                          )}
-                        >
-                          {member.status}
-                        </Badge>
-                      </td>
-                      <td className="py-3 px-4 text-muted-foreground">
-                        {formatDate(member.joinedAt)}
-                      </td>
-                      <td className="py-3 px-4 text-muted-foreground">
-                        {member.lastActivityAt
-                          ? formatDate(member.lastActivityAt)
-                          : "—"}
-                      </td>
-                      {isAdmin && (
+                  {filteredMembers.map((member) => {
+                    const roleChanges = availableMemberRoleChanges({
+                      actorRole: userRole,
+                      actorUserId: currentUserId,
+                      memberUserId: member.userId,
+                      memberRole: member.role,
+                    });
+                    return (
+                      <tr
+                        key={member.id}
+                        className="border-b hover:bg-muted/50"
+                      >
                         <td className="py-3 px-4">
-                          <Button variant="ghost" size="sm">
-                            Manage
-                          </Button>
+                          <div className="flex items-center gap-3">
+                            <Avatar className="h-8 w-8">
+                              <AvatarImage src={member.avatar || undefined} />
+                              <AvatarFallback>
+                                {member.name?.charAt(0)}
+                              </AvatarFallback>
+                            </Avatar>
+                            <span className="font-medium">{member.name}</span>
+                          </div>
                         </td>
-                      )}
-                    </tr>
-                  ))}
+                        <td className="py-3 px-4 text-muted-foreground">
+                          {member.email}
+                        </td>
+                        <td className="py-3 px-4">
+                          <Badge
+                            variant={
+                              member.role === "admin" ? "default" : "secondary"
+                            }
+                            className="capitalize"
+                          >
+                            {member.role}
+                          </Badge>
+                        </td>
+                        <td className="py-3 px-4">
+                          <Badge
+                            variant={
+                              member.status === "active"
+                                ? "secondary"
+                                : "outline"
+                            }
+                            className={cn(
+                              "capitalize",
+                              member.status === "inactive" &&
+                                "text-muted-foreground",
+                            )}
+                          >
+                            {member.status}
+                          </Badge>
+                        </td>
+                        <td className="py-3 px-4 text-muted-foreground">
+                          {formatDate(member.joinedAt)}
+                        </td>
+                        <td className="py-3 px-4 text-muted-foreground">
+                          {member.lastActivityAt
+                            ? formatDate(member.lastActivityAt)
+                            : "—"}
+                        </td>
+                        {isAdmin && (
+                          <td className="py-3 px-4">
+                            {roleChanges.length > 0 ? (
+                              <DropdownMenu>
+                                <DropdownMenuTrigger
+                                  render={
+                                    <Button
+                                      variant="ghost"
+                                      size="sm"
+                                      disabled={updatingMemberId === member.id}
+                                    >
+                                      <MoreHorizontal className="mr-2 h-4 w-4" />
+                                      Manage
+                                    </Button>
+                                  }
+                                />
+                                <DropdownMenuContent align="end">
+                                  {roleChanges.includes("staff") ? (
+                                    <DropdownMenuItem
+                                      onClick={() =>
+                                        changeRole(member, "staff")
+                                      }
+                                    >
+                                      <UserRoundCog className="h-4 w-4" />
+                                      Make Staff
+                                    </DropdownMenuItem>
+                                  ) : null}
+                                  {roleChanges.includes("member") ? (
+                                    <DropdownMenuItem
+                                      onClick={() =>
+                                        changeRole(member, "member")
+                                      }
+                                    >
+                                      <UserRound className="h-4 w-4" />
+                                      Make Member
+                                    </DropdownMenuItem>
+                                  ) : null}
+                                </DropdownMenuContent>
+                              </DropdownMenu>
+                            ) : (
+                              <span className="text-xs text-muted-foreground">
+                                Current account
+                              </span>
+                            )}
+                          </td>
+                        )}
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             </div>
