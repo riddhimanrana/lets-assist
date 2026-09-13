@@ -322,7 +322,7 @@ test("member correction stays attached until officer review and a separate appli
       .getByRole("textbox", { name: "Review note" })
       .fill(reviewReason);
     await reviewDialog
-      .getByRole("button", { name: "Mark reviewed", exact: true })
+      .getByRole("button", { name: "Acknowledge correction", exact: true })
       .click();
     await expect(reviewDialog).toBeHidden();
     await expect(
