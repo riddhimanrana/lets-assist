@@ -474,7 +474,7 @@ test.describe("CSF historical workbook import", () => {
     expect(activityCount).toBe(0);
 
     const resolutionRegion = page.getByRole("region", {
-      name: "1 application to check",
+      name: "1 row to check",
       exact: true,
     });
     await expect(resolutionRegion).toHaveCount(1);
