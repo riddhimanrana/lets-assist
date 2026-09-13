@@ -170,7 +170,7 @@ test("saved application previews keep their own rows through navigation and relo
     );
     await expect(
       dialog.getByRole("heading", {
-        name: "1 application to check",
+        name: "1 row to check",
         exact: true,
       }),
     ).toBeVisible();
@@ -215,7 +215,7 @@ test("saved application previews keep their own rows through navigation and relo
         .filter({ hasText: "That saved preview is unavailable." }),
     ).toBeVisible();
     await expect(
-      dialog.getByRole("heading", { name: /^\d+ applications? to check$/ }),
+      dialog.getByRole("heading", { name: /^\d+ rows? to check$/ }),
     ).toHaveCount(0);
   } finally {
     sql(`BEGIN;
