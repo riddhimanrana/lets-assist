@@ -1,3 +1,4 @@
+import { normalizeRedirectPath } from "@/app/signup/redirect-utils";
 import { Metadata } from "next";
 import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
@@ -9,7 +10,11 @@ export const metadata: Metadata = {
 };
 
 type Props = {
-  searchParams: Promise<{ token?: string; error?: string }>;
+  searchParams: Promise<{
+    token?: string;
+    error?: string;
+    redirect?: string | string[];
+  }>;
 };
 
 export default async function ResetPasswordPage({ searchParams }: Props) {
@@ -25,5 +30,12 @@ export default async function ResetPasswordPage({ searchParams }: Props) {
   const search = await searchParams;
   const error = search.error;
 
-  return <ResetPasswordClient error={error} />;
+  return (
+    <ResetPasswordClient
+      error={error}
+      redirectPath={normalizeRedirectPath(
+        typeof search.redirect === "string" ? search.redirect : null,
+      )}
+    />
+  );
 }

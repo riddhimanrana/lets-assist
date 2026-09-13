@@ -230,6 +230,30 @@ describe("GET /auth/callback (runtime)", () => {
     }
   });
 
+  test("recovery retains a safe class destination and rejects external continuation", async () => {
+    try {
+      for (const continuation of [
+        "/organization/fictional/plugins/dvhs-csf/connect/ABC234",
+        "https://evil.example/path",
+        "//evil.example/path",
+      ]) {
+        const query = new URLSearchParams({
+          code: "abc123",
+          type: "recovery",
+          redirectAfterAuth: continuation,
+        });
+        const response = await GET(request(`/auth/callback?${query}`));
+        const url = location(response);
+        expect(url.pathname).toBe("/reset-password/abc123");
+        expect(url.searchParams.get("redirect")).toBe(
+          continuation.startsWith("/organization/") ? continuation : null,
+        );
+      }
+    } finally {
+      restoreEnv();
+    }
+  });
+
   test("OAuth error: redirects to /error on the trusted origin with the message preserved", async () => {
     try {
       const response = await GET(
