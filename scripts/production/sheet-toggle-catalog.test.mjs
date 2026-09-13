@@ -12,7 +12,7 @@ const source = readFileSync(
   "utf8",
 );
 test("494 pins only state transition and review function changes", () => {
-  assert.equal(versions.length, 502);
+  assert.equal(versions.length, 503);
   const changed = sheetToggleDefinitions.filter(
     (row, i) =>
       JSON.stringify(row) !== JSON.stringify(sheetDeferredNoteDefinitions[i]),
@@ -41,7 +41,7 @@ test("493 advances through observation invalidation and the current release tail
         /INSERT INTO supabase_migrations.schema_migrations/gu,
       ) ?? []
     ).length,
-    9,
+    10,
   );
   assert.ok(result.query.includes("enabled IS DISTINCT FROM p_enabled"));
   assert.ok(result.query.includes("IF NOT d.enabled OR d.observation_state"));

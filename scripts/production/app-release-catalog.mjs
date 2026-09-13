@@ -124,6 +124,9 @@ export function acceptedCatalogQuery(source, versions) {
   )
     return source;
   const memberDirectorySearchUpgrade =
+    (versions.length === 503 &&
+      ledgerHash ===
+        "23077b82cbccecb8e9687470696a558f5174c22e33319d922c053744e3b2138a") ||
     (versions.length === 502 &&
       ledgerHash ===
         "8a58d84f5ea6a470e35ae52e151ed0b221f5a09bfe72c1e53f94cf42f01ac971") ||

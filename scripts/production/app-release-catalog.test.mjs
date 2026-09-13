@@ -583,7 +583,7 @@ test("application review reopening pins the complete function and retains the pr
   const preceding = acceptedCatalogQuery(source, versions.slice(0, 476));
   const signature =
     "plugin_data.csf_set_review_period(uuid,uuid,uuid,text,text,text,text,timestamptz,timestamptz)";
-  assert.equal(versions.length, 502);
+  assert.equal(versions.length, 503);
   assert.ok(
     current.includes(
       `('${signature}','28793d39c02ebf702a61c26deb7ae2b4',true)`,
@@ -730,9 +730,13 @@ test("no-comments transport and member search pin the current function catalogs"
   assert.match(current, /SELECT count\(\*\) = 26 AND/u);
 });
 
-test("embedded publication 502 preserves the reviewed 501 schema", () => {
+test("embedded publications 502 and 503 preserve the reviewed 501 schema", () => {
   assert.equal(
     acceptedCatalogQuery(source, versions),
+    acceptedCatalogQuery(source, versions.slice(0, 501)),
+  );
+  assert.equal(
+    acceptedCatalogQuery(source, versions.slice(0, 502)),
     acceptedCatalogQuery(source, versions.slice(0, 501)),
   );
 });
