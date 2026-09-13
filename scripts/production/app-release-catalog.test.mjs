@@ -583,7 +583,7 @@ test("application review reopening pins the complete function and retains the pr
   const preceding = acceptedCatalogQuery(source, versions.slice(0, 476));
   const signature =
     "plugin_data.csf_set_review_period(uuid,uuid,uuid,text,text,text,text,timestamptz,timestamptz)";
-  assert.equal(versions.length, 507);
+  assert.equal(versions.length, 508);
   assert.ok(
     current.includes(
       `('${signature}','28793d39c02ebf702a61c26deb7ae2b4',true)`,
@@ -785,7 +785,7 @@ test("506 publication preserves the reviewed 505 schema", () => {
 });
 
 test("507 pins owner-only undated activity update and publication implementations", () => {
-  const current = acceptedCatalogQuery(source, versions);
+  const current = acceptedCatalogQuery(source, versions.slice(0, 507));
   const preceding = acceptedCatalogQuery(source, versions.slice(0, 506));
   for (const [signature, digest] of [
     [
@@ -802,4 +802,12 @@ test("507 pins owner-only undated activity update and publication implementation
   }
   assert.match(current, /SELECT count\(\*\) = 29 AND/u);
   assert.match(preceding, /SELECT count\(\*\) = 27 AND/u);
+});
+
+test("508 publication preserves the reviewed 507 schema", () => {
+  assert.equal(versions.length, 508);
+  assert.equal(
+    acceptedCatalogQuery(source, versions),
+    acceptedCatalogQuery(source, versions.slice(0, 507)),
+  );
 });
