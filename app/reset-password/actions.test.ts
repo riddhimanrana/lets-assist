@@ -139,3 +139,44 @@ describe("requestPasswordReset origin resolution is above the enumeration try/ca
     );
   });
 });
+
+describe("password reset class continuation", () => {
+  const destination = "/organization/fictional/plugins/dvhs-csf/connect/ABC234";
+  test("carries the class destination into the emailed recovery callback", async () => {
+    await requestPasswordReset(
+      makeFormData({ email: "user@example.com", redirect: destination }),
+    );
+    const callback = new URL(capturedResetOptions!.redirectTo);
+    expect(callback.searchParams.get("type")).toBe("recovery");
+    expect(callback.searchParams.get("redirectAfterAuth")).toBe(destination);
+  });
+  test("preserves the continuation when canonicalizing a stale host", async () => {
+    process.env.NEXT_PUBLIC_SITE_URL = "https://lets-assist.com";
+    requestHost = "stale.example";
+    await expect(
+      requestPasswordReset(
+        makeFormData({ email: "user@example.com", redirect: destination }),
+      ),
+    ).rejects.toBeInstanceOf(RedirectSignal);
+    expect(new URL(redirects[0]).searchParams.get("redirect")).toBe(
+      destination,
+    );
+    expect(capturedResetEmail).toBeUndefined();
+  });
+  for (const redirect of [
+    "https://evil.example/path",
+    "//evil.example/path",
+    "/\\evil.example/path",
+  ]) {
+    test(`discards an unsafe recovery continuation: ${redirect}`, async () => {
+      await requestPasswordReset(
+        makeFormData({ email: "user@example.com", redirect }),
+      );
+      expect(
+        new URL(capturedResetOptions!.redirectTo).searchParams.has(
+          "redirectAfterAuth",
+        ),
+      ).toBe(false);
+    });
+  }
+});

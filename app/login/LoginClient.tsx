@@ -1,5 +1,7 @@
 "use client";
 
+import { passwordRecoveryPath } from "@/app/reset-password/continuation";
+
 import Link from "next/link";
 import Image from "next/image";
 import { useEffect, useRef, useState } from "react";
@@ -383,7 +385,10 @@ export default function LoginClient({
                         Password
                       </FieldLabel>
                       <Link
-                        href="/reset-password"
+                        href={passwordRecoveryPath(
+                          "/reset-password",
+                          redirectPath,
+                        )}
                         className="text-xs font-semibold text-muted-foreground transition-colors hover:text-primary"
                       >
                         Forgot your password?

@@ -44,8 +44,13 @@ export async function GET(request: Request) {
 
   // For password reset flow
   if (code && type === "recovery") {
-    // Simply redirect to the reset password page with the code (token)
-    return NextResponse.redirect(`${authOrigin}/reset-password/${code}`);
+    const resetUrl = new URL(
+      `/reset-password/${encodeURIComponent(code)}`,
+      authOrigin,
+    );
+    const continuation = normalizeRedirectPath(redirectAfterAuth);
+    if (continuation) resetUrl.searchParams.set("redirect", continuation);
+    return NextResponse.redirect(resetUrl.toString());
   }
 
   // Handle errors for all flows
