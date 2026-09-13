@@ -126,10 +126,15 @@ export function acceptedCatalogQuery(source, versions) {
       "34dbbd884882349f8083512cd2fe48b371c3f1242bc62897685267f2a5d0001b"
   )
     return source;
-  const mergedSourceLineageUpgrade =
-    versions.length === 504 &&
+  const activityOptionalStartUpgrade =
+    versions.length === 505 &&
     ledgerHash ===
-      "c8cae9edc23dc1677ad2febd452834d1cf812b9cca07de7d0dbb0604cd49b655";
+      "8eae73e44b1689395484f184250c107d4e04cfc710264b59242301deca8e64d5";
+  const mergedSourceLineageUpgrade =
+    activityOptionalStartUpgrade ||
+    (versions.length === 504 &&
+      ledgerHash ===
+        "c8cae9edc23dc1677ad2febd452834d1cf812b9cca07de7d0dbb0604cd49b655");
   const memberDirectorySearchUpgrade =
     mergedSourceLineageUpgrade ||
     (versions.length === 503 &&
@@ -536,6 +541,12 @@ export function acceptedCatalogQuery(source, versions) {
       true,
     ]);
   }
+  if (activityOptionalStartUpgrade)
+    definitions.push([
+      "plugin_data.csf_create_activity_locked_impl(uuid,uuid,uuid,jsonb,uuid,uuid)",
+      "87408505f6c4d7bd125c0a5eb3914eb7",
+      false,
+    ]);
   const values = definitions
     .map(
       ([signature, digest, service]) =>

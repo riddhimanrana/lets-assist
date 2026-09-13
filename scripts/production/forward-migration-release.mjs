@@ -158,6 +158,10 @@ export const approvedMigrations = [
     "20260913015059_csf_merged_class_history_source_lineage",
     "0228fb574352fd9c4b88dc980aca68241a7a228c832b94ae22277f162302ba94",
   ],
+  [
+    "20260913031445_allow_published_csf_activity_without_start_date",
+    "435e4a59c90ff78928c936b4b5ec67a315565f49e3cfb639ec34f832be8311ba",
+  ],
 ];
 
 const literal = (value) => `'${value.replaceAll("'", "''")}'`;
