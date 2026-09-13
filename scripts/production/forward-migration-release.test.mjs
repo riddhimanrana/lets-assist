@@ -65,7 +65,7 @@ function transport({
 
 test("approved bytes and exact versions share one transaction", () => {
   assert.equal(prepared.prefix.length, 468);
-  assert.equal(prepared.versions.length, 509);
+  assert.equal(prepared.versions.length, 510);
   assert.deepEqual(prepared.versions.slice(468), [
     "20260909090522",
     "20260909090944",
@@ -108,6 +108,7 @@ test("approved bytes and exact versions share one transaction", () => {
     "20260913061610",
     "20260913070513",
     "20260913175928",
+    "20260913191541",
   ]);
   assert.match(prepared.query, /^BEGIN;/u);
   assert.match(prepared.query, /COMMIT;$/u);
@@ -151,7 +152,7 @@ test("refuses modified approved SQL before any provider request", () => {
 test("performs one write and verifies ledger and permissions", async () => {
   const t = transport();
   const result = await applyForwardMigrations(config, t.fetch);
-  assert.equal(result.migrations, 509);
+  assert.equal(result.migrations, 510);
   assert.equal(result.workers, "disabled");
   assert.equal(result.responseLost, false);
   assert.equal(
@@ -297,6 +298,7 @@ test("a reviewed partially applied tail writes only the remaining migrations", a
     "20260913061610",
     "20260913070513",
     "20260913175928",
+    "20260913191541",
   ]);
   const writes = t.calls.filter((call) => call.url.endsWith("/database/query"));
   assert.equal(writes.length, 1);
@@ -321,7 +323,7 @@ test("a reviewed partially applied tail writes only the remaining migrations", a
         /INSERT INTO supabase_migrations.schema_migrations/g,
       ) ?? []
     ).length,
-    31,
+    32,
   );
 });
 
@@ -366,13 +368,35 @@ test("only exact reviewed prefixes may skip approved migrations", async () => {
   }
 });
 
-test("an applied 508 ledger adds only the signed 1.2.40 publication", () => {
+test("an applied 508 ledger adds only the signed 1.2.40 and 1.2.41 publications", () => {
   const publication = prepareMigration(
     cwd,
     readFileSync,
     prepared.versions.slice(0, 508),
   );
-  assert.equal(publication.versions.length, 509);
+  assert.equal(publication.versions.length, 510);
+  assert.equal(
+    (
+      publication.query.match(
+        /INSERT INTO supabase_migrations.schema_migrations/gu,
+      ) ?? []
+    ).length,
+    2,
+  );
+  assert.ok(
+    publication.query.includes("'20260913175928','publish_dvhs_csf_1_2_40'"),
+  );
+  assert.ok(publication.query.includes("AND latest_version = '1.2.39'"));
+  assert.doesNotMatch(publication.query, /CREATE(?: OR REPLACE)? FUNCTION/u);
+});
+
+test("an applied 509 ledger adds only the signed 1.2.41 publication", () => {
+  const publication = prepareMigration(
+    cwd,
+    readFileSync,
+    prepared.versions.slice(0, 509),
+  );
+  assert.equal(publication.versions.length, 510);
   assert.equal(
     (
       publication.query.match(
@@ -382,8 +406,8 @@ test("an applied 508 ledger adds only the signed 1.2.40 publication", () => {
     1,
   );
   assert.ok(
-    publication.query.includes("'20260913175928','publish_dvhs_csf_1_2_40'"),
+    publication.query.includes("'20260913191541','publish_dvhs_csf_1_2_41'"),
   );
-  assert.ok(publication.query.includes("AND latest_version = '1.2.39'"));
+  assert.ok(publication.query.includes("AND latest_version = '1.2.40'"));
   assert.doesNotMatch(publication.query, /CREATE(?: OR REPLACE)? FUNCTION/u);
 });
