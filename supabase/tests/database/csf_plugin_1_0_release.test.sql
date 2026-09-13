@@ -41,12 +41,12 @@ SELECT is(
 );
 SELECT is(
   (SELECT latest_version FROM public.plugins WHERE key = 'dvhs-csf'),
-  '1.2.36',
+  '1.2.37',
   'catalog advertises the current signed embedded release'
 );
 SELECT is(
   (SELECT code_reference FROM public.plugins WHERE key = 'dvhs-csf'),
-  '20141fb766409d3b9b493128a8cc6c4a6710a20d',
+  '18427766939ab0248d4597eaf00f17f51fe1242e',
   'catalog points to the exact latest private source commit'
 );
 
