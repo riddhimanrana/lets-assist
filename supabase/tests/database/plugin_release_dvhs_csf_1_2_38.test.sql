@@ -1,0 +1,55 @@
+BEGIN;
+
+CREATE EXTENSION IF NOT EXISTS pgtap WITH SCHEMA extensions;
+SELECT extensions.plan(8);
+
+SELECT extensions.is(
+  (SELECT status::text FROM public.plugin_versions WHERE plugin_key = 'dvhs-csf' AND version = '1.2.38'),
+  'published',
+  'signed plugin release is published'
+);
+
+SELECT extensions.is(
+  (SELECT commit_sha FROM public.plugin_versions WHERE plugin_key = 'dvhs-csf' AND version = '1.2.38'),
+  '3fbabfba4fb275a38c13d18558de94f15f1213cd',
+  'signed source commit is recorded'
+);
+
+SELECT extensions.is(
+  (SELECT manifest_hash FROM public.plugin_versions WHERE plugin_key = 'dvhs-csf' AND version = '1.2.38'),
+  'f6b7726ff1dba5d1709ba7f33bafc7ebecfa53063ca4ab456633dd3bd8b4c8fe',
+  'signed manifest hash is recorded'
+);
+
+SELECT extensions.is(
+  (SELECT source_tree FROM public.plugin_versions WHERE plugin_key = 'dvhs-csf' AND version = '1.2.38'),
+  '1a27e7103dd19861698011fc14e779af4787deb0',
+  'signed source tree is recorded'
+);
+
+SELECT extensions.is(
+  (SELECT content_digest FROM public.plugin_versions WHERE plugin_key = 'dvhs-csf' AND version = '1.2.38'),
+  'sha256:f2efc6b78d8f2b7f97e07ba680edfc189b1e09e17d926c9c3a3851513d848196',
+  'signed content digest is recorded'
+);
+
+SELECT extensions.is(
+  (SELECT supported_install_contracts FROM public.plugin_versions WHERE plugin_key = 'dvhs-csf' AND version = '1.2.38'),
+  '{"minimum":"1.1.0","maximum":"1.2.38"}'::jsonb,
+  'install compatibility range is recorded'
+);
+
+SELECT extensions.is(
+  (SELECT latest_version FROM public.plugins WHERE key = 'dvhs-csf'),
+  '1.2.38',
+  'plugin catalog keeps the serving embedded release truthful'
+);
+
+SELECT extensions.is(
+  (SELECT code_reference FROM public.plugins WHERE key = 'dvhs-csf'),
+  '3fbabfba4fb275a38c13d18558de94f15f1213cd',
+  'plugin catalog keeps the serving embedded source truthful'
+);
+
+SELECT * FROM extensions.finish();
+ROLLBACK;
