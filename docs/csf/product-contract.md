@@ -666,10 +666,12 @@ Prohibited home content: “At risk,” “Review inbox,” “Semester readines
 **Secondary actions:** Duplicate for another term; cancel; archive; copy a plain-text summary for an external use. Copying text creates no communications record.<br>
 **Filters/search:** Term, status, point type, audience, date, search.<br>
 **Empty states:** No activities exist; no published activities; no filter matches.<br>
-**Validation:** A published activity requires term, date, title, member-facing details, point rule, signup behavior, and evidence behavior. Cancellation requires a reason.<br>
+**Validation:** A published activity requires term, title, member-facing details, point rule, signup behavior, and evidence behavior. Dates are optional when creating, editing, or publishing an activity. An end requires a start and must be at or after it. Cancellation requires a reason.<br>
 **Permissions:** Members see only published/open eligible activities and never officer notes.<br>
 **Mobile:** Activity list cards are acceptable here because each is a distinct opportunity; editor is full-screen.<br>
 **Links:** Activity detail, point submissions, partner club if applicable.
+
+Published undated activities appear in the member feed. Only dated activities appear in the calendar agenda.
 
 Activity lifecycle: `draft`, `published`, `closed`, `cancelled`, `archived`.
 
