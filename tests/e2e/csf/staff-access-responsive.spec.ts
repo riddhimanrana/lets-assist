@@ -332,7 +332,7 @@ test.describe("DVHS CSF proof submission", () => {
       {
         title: activityTitle,
         body: "Fictional activity for the proof-upload browser test.",
-        startsAt: new Date(Date.now() + 7 * 24 * 60 * 60_000).toISOString(),
+        startsAt: new Date(Date.now() - 7 * 24 * 60 * 60_000).toISOString(),
         termId: fixture.currentTermId,
         pointValue: 1,
         pointType: "non_drive",
