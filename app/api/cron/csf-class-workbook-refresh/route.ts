@@ -104,6 +104,47 @@ function json(body: unknown, status = 200) {
   });
 }
 
+type WorkbookFailureCode =
+  | "worker_context_unavailable"
+  | "workbook_metadata_unavailable"
+  | "semester_tabs_unavailable"
+  | "prepublication_failure"
+  | "publication_outcome_unknown"
+  | "unclassified_failure"
+  | "workbook_exception";
+
+const workbookFailureCodes: ReadonlyMap<string, WorkbookFailureCode> = new Map([
+  ["Unauthorized.", "worker_context_unavailable"],
+  [
+    "The class workbook could not be checked right now.",
+    "workbook_metadata_unavailable",
+  ],
+  [
+    "The semester tabs could not be read right now.",
+    "semester_tabs_unavailable",
+  ],
+  [
+    "The workbook refresh could not be completed right now.",
+    "prepublication_failure",
+  ],
+  [
+    "The workbook refresh outcome could not be confirmed.",
+    "publication_outcome_unknown",
+  ],
+]);
+
+function logWorkbookFailure(
+  failureCode: WorkbookFailureCode,
+  disposition: "retryable" | "unknown",
+  startedAt: number,
+) {
+  console.warn("CSF workbook refresh unsettled", {
+    failureCode,
+    disposition,
+    elapsedMs: Math.max(0, Date.now() - startedAt),
+  });
+}
+
 export async function POST(request: NextRequest) {
   if (!isAuthorized(request)) return json({ error: "Unauthorized" }, 401);
   const probe = cronAuthShapeProbe("csf-class-workbook-refresh", request);
@@ -116,9 +157,13 @@ export async function POST(request: NextRequest) {
     return json({ error: "Workbook worker secret unavailable" }, 503);
   }
 
+  const workbookStartedAt = Date.now();
   const [workbook, application, metadata, dispatch, sheetSync] =
     await Promise.allSettled([
-      refreshClassWorkbook(workerSecret),
+      refreshClassWorkbook(workerSecret, workbookStartedAt).catch((error) => {
+        logWorkbookFailure("workbook_exception", "unknown", workbookStartedAt);
+        throw error;
+      }),
       prepareNextCsfAutomaticApplicationSheet(),
       checkNextCsfAutomaticClassWorkbook(),
       dispatchCsfAutomaticClassPreviews(),
@@ -188,7 +233,7 @@ export async function POST(request: NextRequest) {
   );
 }
 
-async function refreshClassWorkbook(workerSecret: string) {
+async function refreshClassWorkbook(workerSecret: string, startedAt: number) {
   const plugin = createPluginAdminClient();
   const { data, error } = await plugin.rpc(
     "csf_claim_class_workbook_refresh_job",
@@ -222,6 +267,11 @@ async function refreshClassWorkbook(workerSecret: string) {
     result.workerDisposition === "retryable" ||
     result.workerDisposition === "unknown"
   ) {
+    const failureCode =
+      typeof result.error === "string"
+        ? (workbookFailureCodes.get(result.error) ?? "unclassified_failure")
+        : "unclassified_failure";
+    logWorkbookFailure(failureCode, result.workerDisposition, startedAt);
     return json({ error: "Workbook preparation did not settle" }, 503);
   }
   if (
