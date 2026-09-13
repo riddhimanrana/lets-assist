@@ -4,7 +4,9 @@ DVHS CSF is an organization-scoped private plugin for scholarship-federation ope
 
 ## Source of truth
 
-Platform records are authoritative after import. Google Forms and Sheets are controlled read/import evidence channels, while Drive retains the private source files selected for review. This release does not write reports or compatibility exports to Google Sheets; officers download a permission-checked local ZIP containing formula-safe CSV files and a manifest. Google Classroom is retired for CSF; the member feed, cohort posts, and ledger-backed announcement email are the active broadcast workflow. Imports require explicit source identity, tab/range, mapping, preview, reconciliation, authorization recheck, and atomic commit.
+Let's Assist is authoritative after import. Google Forms and Sheets supply application responses and historical evidence. Approved, restricted Sheet destinations can receive application, point-submission, and class exports under the [Sheet sync amendment](product-contract.md#sheet-sync-amendment-september-10-2026). Sheet decisions enter staff review before they can change a record. Comments stay in Let's Assist by default. Each live destination requires its own copied-workbook acceptance before it is enabled.
+
+Drive retains the private evidence files. Officers can also download permission-checked reports. Google Classroom is retired; class posts and announcement email use the app's audience and delivery controls. Imports require explicit source identity, tab/range, mapping, preview, reconciliation, authorization recheck, and atomic commit. The [cleanup register](../development/cleanup-register.md) records deployed versions and current worker settings.
 
 ## Product shape
 
