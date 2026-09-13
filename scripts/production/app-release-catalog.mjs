@@ -127,9 +127,12 @@ export function acceptedCatalogQuery(source, versions) {
   )
     return source;
   const activityUndatedLifecycleUpgrade =
-    versions.length === 507 &&
-    ledgerHash ===
-      "74c3fd6418f4d8e3ed8b888ffa14916d0c7696cacd0b186ee09d6ded4b3a00bd";
+    (versions.length === 508 &&
+      ledgerHash ===
+        "d4b1d37e9109c93732bfb8052250e96441312435eb672f3a7b2d61ab7cb7ac98") ||
+    (versions.length === 507 &&
+      ledgerHash ===
+        "74c3fd6418f4d8e3ed8b888ffa14916d0c7696cacd0b186ee09d6ded4b3a00bd");
   const activityOptionalStartUpgrade =
     activityUndatedLifecycleUpgrade ||
     (versions.length === 506 &&
