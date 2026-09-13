@@ -126,7 +126,12 @@ export function acceptedCatalogQuery(source, versions) {
       "34dbbd884882349f8083512cd2fe48b371c3f1242bc62897685267f2a5d0001b"
   )
     return source;
+  const activityUndatedLifecycleUpgrade =
+    versions.length === 507 &&
+    ledgerHash ===
+      "74c3fd6418f4d8e3ed8b888ffa14916d0c7696cacd0b186ee09d6ded4b3a00bd";
   const activityOptionalStartUpgrade =
+    activityUndatedLifecycleUpgrade ||
     (versions.length === 506 &&
       ledgerHash ===
         "3615b1944d718c514af06bc1f581dc5e20ba18eddb8b520274af8346d4fb5fe5") ||
@@ -550,6 +555,19 @@ export function acceptedCatalogQuery(source, versions) {
       "87408505f6c4d7bd125c0a5eb3914eb7",
       false,
     ]);
+  if (activityUndatedLifecycleUpgrade)
+    definitions.push(
+      [
+        "plugin_data.csf_update_activity_locked_impl(uuid,uuid,uuid,uuid,jsonb,uuid,uuid)",
+        "9f79790781878bbe3d8cf49677b422d3",
+        false,
+      ],
+      [
+        "plugin_data.csf_set_activity_status_locked_impl(uuid,uuid,text,text,uuid,uuid)",
+        "325749231832d34fc16e7f935e814281",
+        false,
+      ],
+    );
   const values = definitions
     .map(
       ([signature, digest, service]) =>
