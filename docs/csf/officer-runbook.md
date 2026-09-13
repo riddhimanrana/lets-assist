@@ -1,18 +1,15 @@
-# DVHS CSF Officer Operations Runbook
+# DVHS CSF officer operations runbook
 
 **Audience:** organization administrators, adviser, chapter officers, and Data Management
-**Current status:** Class join codes are available. Application identity review and historical source reconciliation remain open. Importing a response does not approve it or verify its contact addresses. Keep chapter counts and source-review results in protected operational records. See the [cleanup register](../development/cleanup-register.md) for release evidence.
-**Release ledger:** the current repository candidate carries 508 ordered migrations through `20260913070513_publish_dvhs_csf_1_2_39`. Its committed private release gitlink is `ddd6a93`, the signed embedded 1.2.39 source. Publication 508 preserves the reviewed 507 schema and requires that schema before activation. Publication 506 preserves the reviewed 505 schema. Migration 507 applies the same optional-date rules to activity edits and draft publication. Migration 504 follows reviewed profile-merge lineage when reusing settled class-history source keys; migration 505 allows a published activity to omit all dates while retaining the date-order rules. The 1.2.39 candidate still needs release verification and copied-workbook acceptance. See the cleanup register for deployed versions, worker controls and dated checks.
+**Release status:** Use the [cleanup register](../development/cleanup-register.md) for deployed versions, migration evidence, worker settings, and remaining acceptance checks. Keep chapter counts and source-review results in protected operational records. Importing a response does not approve it or verify its contact addresses.
 
-**Ownership correction deployed:** Production separates reported contacts from ownership evidence and requires independently verified account connections. Legacy connections await staff review. Workbook refresh and import processing are paused for the current release; outbound email and scheduled publishing remain disabled. See the cleanup register for exact release evidence and reconciliation status.
-
-**Earlier checkpoint:** The prior release record stated: "Production has the exact 468-migration ledger and serves `1fbf9226` after app-only run `34315876545`." This is a historical checkpoint, not the current database or application.
+**Account ownership:** Reported contacts are separate from ownership evidence. Existing imported history requires an independently verified account connection. Legacy connections held for review cannot expose that history. Check the cleanup register for current worker settings and unresolved review items; do not infer whether imports or delivery are enabled from this guide.
 
 Annotation review now rejects frozen rows and previews whose preparation has not completed. Preparation does not mean their rows have committed.
 
 **Authoritative record after review:** Let's Assist
 
-This runbook describes the v1.6 officer workflow. Do not use it for a Production cutover until the current gates in section 12 and [testing and release](testing-and-release.md) pass for the exact integrated tree.
+This runbook describes the officer workflow. Do not use it for a Production cutover until the current gates in section 12 and [testing and release](testing-and-release.md) pass for the exact integrated tree.
 
 ## 1. Start of each work session
 
@@ -22,7 +19,7 @@ This runbook describes the v1.6 officer workflow. Do not use it for a Production
 4. Open the task row itself; counts must lead to the corresponding filtered list.
 5. If a task is outside your role, ask an admin or adviser to reassign it. Do not use an admin account to bypass ordinary officer-role testing.
 
-Organization admins can operate every CSF area. Adviser-only responsibilities include academic overrides and reopen. Position-specific access remains narrow: Treasurer handles dues, VP Membership handles applications and members, Secretary handles meetings and attendance, VP Clubs handles partner clubs, VP Publicity and Web Master handle public activity content, Activity Coordinators manage activities and participation, and Data Management handles imports and reconciliation.
+Organization admins can operate every CSF area. An officer's access follows the permissions configured for their assigned position, not the position title alone. Review those permissions in **Officers & access**. Joining a student class or connecting a student record does not grant officer permissions.
 
 ## 2. Semester setup
 
@@ -68,7 +65,7 @@ To add a student, open the class Members tab and choose **Add member**. The form
 
 ### Permanent class join code
 
-The class join code is the student self-service connection path. Staff can connect an existing organization account through the profile workflow below. Each graduating class has a join link and code. The candidate release also shows a QR code for the same link. Connecting through it joins the lasting graduating class only. Semester membership still comes from an accepted application or an approved roster import.
+Each graduating class has a join link, code, and QR code for the same destination. A student can open the link or scan the QR code without typing the code. Staff can connect an existing organization account through the profile workflow below. Connecting joins the lasting graduating class only. Semester membership still comes from an accepted application or an approved roster import.
 
 1. Open **Classes**, choose the graduating class, and select **Invite students**. **Copy link** shares a direct sign-in and class-joining link. **Copy code** shares the code; **Regenerate link and code** replaces it only when the old code must stop working; **Disable link and code** withdraws it without a replacement. A class without a code offers **Create code**.
 2. Share only that class code or its `/connect/<code>` URL. Do not distribute a roster export. The public organization and class pages expose no Stream, Activities, membership, or student-derived counts.
@@ -80,7 +77,7 @@ The class join code is the student self-service connection path. Staff can conne
 
 Viewing, copying, regenerating, or disabling a class code does not send an email. The product must not display a sent time or resend count unless an explicit recipient email has entered the durable delivery ledger.
 
-Only the class join code starts the student self-service workflow. Staff can inspect and resolve account connections through the separate workflow below. Reported application emails and name suggestions are context for review, never proof of ownership.
+The class link, QR code, and typed code all start the same student workflow. Staff can inspect and resolve account connections through the separate workflow below. Reported application emails and name suggestions are context for review, never proof of ownership.
 
 ### Staff connection with a different login email
 
