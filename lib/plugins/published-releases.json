@@ -78,23 +78,23 @@
   },
   {
     "pluginKey": "dvhs-csf",
-    "version": "1.2.39",
+    "version": "1.2.40",
     "manifestFile": "plugins/dvhs-csf/plugin-manifest.ts",
-    "manifestHash": "302fcde1fca8256215bca05edd2056808797ed7e9e8fe936c30693477bd5ec04",
-    "sourceCommit": "ddd6a931fc56f8dd92d953da5782e2e7cf77d5f0",
+    "manifestHash": "65e39e1ea6f18694e24d77557ddab4846aee6154f6e338db3ac33fc3930dc03d",
+    "sourceCommit": "925d5ca047d7c21f03ea74d258873372c0d4fd14",
     "automaticUpdate": false,
     "rolloutPercentage": 0,
     "runtimeProfile": "embedded",
-    "sourceTree": "90e2929c9d4b54b560a8ecd340b8ce7443ae9e7d",
-    "contentDigest": "sha256:f4fbbbbecdb9d511faa37f9301161b5459b8c60ce47f46141985e54e15695179",
+    "sourceTree": "088c3b48be0b4ffdaa8237aefafa489b26cf9d44",
+    "contentDigest": "sha256:f1c13215428a8f81ea3dc0cb602bdd2e6f49f31f9ac60a03795b4184320bbe02",
     "releaseInputs": ["plugins/dvhs-csf"],
     "buildDigest": null,
     "buildArtifact": null,
-    "sbomDigest": "sha256:35114ba2bc8f9d845eefc61d2690e5ebfe45c0b27d4511396e54ab0f90b98c69",
+    "sbomDigest": "sha256:56c4f5fb7ca9925458c48be1ecb21367e0773ff7e7e00f794ae79d4fe87506dd",
     "signer": {
-      "identity": "https://github.com/riddhimanrana/lets-assist-plugins/.github/workflows/plugin-release.yml@refs/tags/dvhs-csf/v1.2.39",
+      "identity": "https://github.com/riddhimanrana/lets-assist-plugins/.github/workflows/plugin-release.yml@refs/tags/dvhs-csf/v1.2.40",
       "issuer": "https://token.actions.githubusercontent.com",
-      "attestationRef": "github-release:dvhs-csf/v1.2.39/release-manifest.sigstore.json"
+      "attestationRef": "github-release:dvhs-csf/v1.2.40/release-manifest.sigstore.json"
     },
     "hostApiRange": {
       "minimum": "1.0.0",
@@ -104,7 +104,7 @@
     "requiredPlatformSchemaVersion": "20260913061610",
     "supportedInstallContracts": {
       "minimum": "1.1.0",
-      "maximum": "1.2.39"
+      "maximum": "1.2.40"
     }
   }
 ]
