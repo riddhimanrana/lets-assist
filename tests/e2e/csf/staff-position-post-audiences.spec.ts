@@ -290,10 +290,8 @@ test("assigning and revoking a staff position changes post access while officer 
     ).toBeVisible();
     await expect(actor.getByText(classTitle, { exact: true })).toBeVisible();
     await expect(actor.getByText(memberTitle, { exact: true })).toBeVisible();
-    await expect(actor.getByText(staffTitle, { exact: true })).toHaveCount(0);
-    await expect(actor.getByText(otherClassTitle, { exact: true })).toHaveCount(
-      0,
-    );
+    expect(await actor.content()).not.toContain(staffTitle);
+    expect(await actor.content()).not.toContain(otherClassTitle);
     for (const memberActor of ["member", "applicant"] as const) {
       await clearViewerSession(viewer);
       await loginAs(viewer, memberActor, homePath);
