@@ -92,7 +92,7 @@ test("point proof correction earns one verified credit only after officer approv
     {
       title: activityTitle,
       body: "Fictional activity for point correction acceptance.",
-      startsAt: new Date(Date.now() + 7 * 24 * 60 * 60_000).toISOString(),
+      startsAt: new Date(Date.now() - 7 * 24 * 60 * 60_000).toISOString(),
       termId: fixture.currentTermId,
       pointValue: 1,
       pointType: "non_drive",
