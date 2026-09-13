@@ -209,7 +209,7 @@ test("scheduling retirement pins every replacement and preserves the prior relea
     assert.ok(current.includes(definition), definition);
     assert.ok(!preceding.includes(definition), definition);
   }
-  assert.match(current, /SELECT count\(\*\) = 26 AND/u);
+  assert.match(current, /SELECT count\(\*\) = 29 AND/u);
   assert.match(preceding, /SELECT count\(\*\) = 10 AND/u);
   assert.ok(
     current.includes(
@@ -314,7 +314,7 @@ test("workbook rebuild release checks the exact body, server-only grants, and re
 
 test("the reviewed import upgrade verifies metadata, function grants, and the scoped index", () => {
   const query = acceptedCatalogQuery(source, versions);
-  assert.match(query, /SELECT count\(\*\) = 26 AND/u);
+  assert.match(query, /SELECT count\(\*\) = 29 AND/u);
   assert.match(query, /csf_import_rows_resolution_metadata_object/u);
   assert.match(query, /a.atttypid='jsonb'::regtype AND a.attnotnull/u);
   assert.match(query, /csf_import_rows_committed_source_key_idx/u);
@@ -583,7 +583,7 @@ test("application review reopening pins the complete function and retains the pr
   const preceding = acceptedCatalogQuery(source, versions.slice(0, 476));
   const signature =
     "plugin_data.csf_set_review_period(uuid,uuid,uuid,text,text,text,text,timestamptz,timestamptz)";
-  assert.equal(versions.length, 504);
+  assert.equal(versions.length, 508);
   assert.ok(
     current.includes(
       `('${signature}','28793d39c02ebf702a61c26deb7ae2b4',true)`,
@@ -727,7 +727,7 @@ test("no-comments transport and member search pin the current function catalogs"
     assert.ok(current.includes(`('${signature}','${digest}',true)`));
     assert.ok(!noComments.includes(digest));
   }
-  assert.match(current, /SELECT count\(\*\) = 26 AND/u);
+  assert.match(current, /SELECT count\(\*\) = 29 AND/u);
 });
 
 test("publications 502 and 503 preserve schema while 504 pins merged lineage", () => {
@@ -760,4 +760,54 @@ test("publications 502 and 503 preserve schema while 504 pins merged lineage", (
     ),
   );
   assert.ok(current.includes("p.provolatile::text=expected.volatility"));
+});
+
+test("505 pins only the owner-only activity implementation change", () => {
+  const current = acceptedCatalogQuery(source, versions.slice(0, 505));
+  const preceding = acceptedCatalogQuery(source, versions.slice(0, 504));
+  const signature =
+    "plugin_data.csf_create_activity_locked_impl(uuid,uuid,uuid,jsonb,uuid,uuid)";
+  assert.ok(
+    current.includes(
+      `('${signature}','87408505f6c4d7bd125c0a5eb3914eb7',false)`,
+    ),
+  );
+  assert.ok(!preceding.includes("87408505f6c4d7bd125c0a5eb3914eb7"));
+  assert.match(current, /SELECT count\(\*\) = 27 AND/u);
+  assert.match(preceding, /SELECT count\(\*\) = 26 AND/u);
+});
+
+test("506 publication preserves the reviewed 505 schema", () => {
+  assert.equal(
+    acceptedCatalogQuery(source, versions.slice(0, 506)),
+    acceptedCatalogQuery(source, versions.slice(0, 505)),
+  );
+});
+
+test("507 pins owner-only undated activity update and publication implementations", () => {
+  const current = acceptedCatalogQuery(source, versions.slice(0, 507));
+  const preceding = acceptedCatalogQuery(source, versions.slice(0, 506));
+  for (const [signature, digest] of [
+    [
+      "plugin_data.csf_update_activity_locked_impl(uuid,uuid,uuid,uuid,jsonb,uuid,uuid)",
+      "9f79790781878bbe3d8cf49677b422d3",
+    ],
+    [
+      "plugin_data.csf_set_activity_status_locked_impl(uuid,uuid,text,text,uuid,uuid)",
+      "325749231832d34fc16e7f935e814281",
+    ],
+  ]) {
+    assert.ok(current.includes(`('${signature}','${digest}',false)`));
+    assert.ok(!preceding.includes(digest));
+  }
+  assert.match(current, /SELECT count\(\*\) = 29 AND/u);
+  assert.match(preceding, /SELECT count\(\*\) = 27 AND/u);
+});
+
+test("508 publication preserves the reviewed 507 schema", () => {
+  assert.equal(versions.length, 508);
+  assert.equal(
+    acceptedCatalogQuery(source, versions),
+    acceptedCatalogQuery(source, versions.slice(0, 507)),
+  );
 });
