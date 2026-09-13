@@ -1,5 +1,4 @@
 import { describe, expect, test } from "bun:test";
-import { execFileSync } from "node:child_process";
 import { readFileSync, readdirSync } from "node:fs";
 import { join } from "node:path";
 
@@ -220,29 +219,12 @@ describe("CSF release-state documentation truthfulness guards", () => {
     );
   });
 
-  test("the officer runbook tracks the exact current cutover ledger", () => {
-    const migrations = readdirSync(join(repositoryRoot, "supabase/migrations"))
-      .filter((name) => /^\d{14}_.+\.sql$/u.test(name))
-      .sort();
-    const currentMigration = migrations.at(-1)?.replace(/\.sql$/u, "");
+  test("the officer runbook delegates current release status to the cleanup register", () => {
     expect(officerRunbook).toContain(
-      `current repository candidate carries ${migrations.length} ordered migrations through \`${currentMigration}\``,
-    );
-    const privateGitlink = execFileSync(
-      "git",
-      ["rev-parse", ":lib/plugins/private"],
-      {
-        cwd: repositoryRoot,
-        encoding: "utf8",
-      },
-    )
-      .trim()
-      .slice(0, 7);
-    expect(officerRunbook).toContain(
-      `private release gitlink is \`${privateGitlink}\``,
+      "[cleanup register](../development/cleanup-register.md) for deployed versions, migration evidence, worker settings, and remaining acceptance checks",
     );
     expect(officerRunbook).toContain(
-      "Production has the exact 468-migration ledger and serves `1fbf9226` after app-only run `34315876545`",
+      "do not infer whether imports or delivery are enabled from this guide",
     );
     expect(officerRunbook).toContain(
       "Annotation review now rejects frozen rows and previews whose preparation has not completed",
