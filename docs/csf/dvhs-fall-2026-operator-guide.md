@@ -167,7 +167,7 @@ characters and try again.
    the correct class and recorded history. For a possible existing record, the
    page may show **Is this you?** with one record whose name exactly matches the
    account. Select **Yes, this is me** to send that record for officer review.
-   Select **No, search again** when it is not yours. A name match never links
+   Select **Use a different name** when it is not yours. A name match never links
    the account by itself. A saved request changes to **Awaiting staff review** and offers **Go to class feed** while an officer checks the match.
    An independently verified connection shows **Your CSF record is linked** and
    offers **Go to My CSF**.

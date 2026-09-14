@@ -864,7 +864,7 @@ test.describe("CSF identity safety", () => {
     await expect(dialog).toBeHidden();
 
     const unsafeClassmateReviews = connections.getByRole("button", {
-      name: `Review in Resolve ${fixture.classmateName}`,
+      name: `Review match ${fixture.classmateName}`,
     });
     await expect(unsafeClassmateReviews).toHaveCount(2);
     await unsafeClassmateReviews.first().click();

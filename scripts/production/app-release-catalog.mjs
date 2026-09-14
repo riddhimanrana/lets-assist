@@ -128,6 +128,9 @@ export function acceptedCatalogQuery(source, versions) {
   )
     return source;
   const sheetDiscussionWriteUpgrade =
+    (versions.length === 513 &&
+      ledgerHash ===
+        "0c6a00172f433c965ae4d8e5bc267dad72f3b88292e74479b95df16b6eedef7b") ||
     (versions.length === 512 &&
       ledgerHash ===
         "8879a1ccdd7b952fdb4cf80539d22dbebc65e9c55e557d2dd636ce846d315007") ||
