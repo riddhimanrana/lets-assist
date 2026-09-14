@@ -528,6 +528,7 @@ describe("the child environment is a positive allowlist", () => {
       "CSF_WORKBOOK_WORKER_ENABLED",
       "CSF_IMPORT_WORKER_ENABLED",
       "CSF_SCHEDULED_POST_PUBLISHER_ENABLED",
+      "CSF_PUBLICATION_NOTIFICATIONS_ENABLED",
     ]) {
       expect(childEnv[key]).toBe("false");
     }
@@ -899,9 +900,9 @@ describe("harness source contracts", () => {
     expect(harnessSource).not.toContain('"run", "dev"');
   });
 
-  test("states its exact eleven-route scope and names the six routes outside it", () => {
+  test("states its exact twelve-route scope and names the six routes outside it", () => {
     expect(harnessSource).toContain(
-      "the eleven selected worker routes: auto-publish-hours,",
+      "the twelve selected worker routes: auto-publish-hours,",
     );
     for (const outside of [
       "ai-moderation",
@@ -925,7 +926,7 @@ describe("harness source contracts", () => {
     expect(harnessSource).not.toContain("Using existing dev server");
   });
 
-  test("covers all eleven stable route IDs on both dispatching methods", () => {
+  test("covers all twelve stable route IDs on both dispatching methods", () => {
     for (const id of [
       "auto-publish-hours",
       "project-cancellations",
@@ -938,6 +939,7 @@ describe("harness source contracts", () => {
       "csf-scheduled-post-publisher",
       "project-feedback-followups",
       "paper-signup-notifications",
+      "csf-publication-notifications",
     ]) {
       expect(harnessSource).toContain(`id: "${id}"`);
     }

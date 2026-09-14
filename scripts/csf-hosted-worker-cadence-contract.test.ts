@@ -5,6 +5,7 @@ const TARGET_PATHS = new Set([
   "/api/cron/csf-communications-dispatch",
   "/api/cron/csf-class-workbook-refresh",
   "/api/cron/csf-import-commit",
+  "/api/cron/csf-publication-notifications",
 ]);
 
 const githubDispatchWorkflow = readFileSync(
@@ -42,6 +43,10 @@ describe("CSF hosted-worker cadence acceptance boundary", () => {
       },
       {
         path: "/api/cron/csf-import-commit",
+        schedule: "* * * * *",
+      },
+      {
+        path: "/api/cron/csf-publication-notifications",
         schedule: "* * * * *",
       },
     ]);

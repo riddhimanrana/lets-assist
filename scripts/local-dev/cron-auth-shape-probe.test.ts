@@ -52,6 +52,7 @@ const scheduledFeedRevalidationCalls: unknown[] = [];
 const workbookRefreshCalls: unknown[] = [];
 const importCommitCalls: unknown[] = [];
 const automaticSheetWorkerCalls: unknown[] = [];
+const publicationNotificationCalls: unknown[] = [];
 
 function dangerCallTotals() {
   return {
@@ -69,6 +70,7 @@ function dangerCallTotals() {
     linkCsfClassSheetAction: workbookRefreshCalls.length,
     executeCsfImportCommitClaim: importCommitCalls.length,
     automaticSheetWorkers: automaticSheetWorkerCalls.length,
+    publicationNotifications: publicationNotificationCalls.length,
   };
 }
 
@@ -87,6 +89,7 @@ const ZERO_DANGER_CALLS = {
   linkCsfClassSheetAction: 0,
   executeCsfImportCommitClaim: 0,
   automaticSheetWorkers: 0,
+  publicationNotifications: 0,
 };
 
 // `processExpiredSessions()` and `processPendingJobs()` are module-local, so
@@ -225,6 +228,16 @@ for (const [moduleName, exportName] of [
   );
 }
 
+mock.module(
+  "@/lib/plugins/private/plugins/dvhs-csf/services/publication-notifications",
+  () => ({
+    runCsfPublicationNotificationWorker: async (...args: unknown[]) => {
+      publicationNotificationCalls.push(args);
+      throw new Error("Publication notifications must not run under the probe");
+    },
+  }),
+);
+
 mock.module("@/emails/certificate-published", () => ({ default: () => null }));
 mock.module("@/emails/project-cancellation", () => ({ default: () => null }));
 
@@ -362,6 +375,7 @@ const LOAD_TIME_ENV: Record<string, string> = {
   CSF_SCHEDULED_POST_PUBLISHER_SECRET_TOKEN: CRON_SECRET,
   PROJECT_FEEDBACK_WORKER_SECRET_TOKEN: CRON_SECRET,
   PAPER_SIGNUP_NOTIFICATION_WORKER_SECRET_TOKEN: CRON_SECRET,
+  CSF_PUBLICATION_NOTIFICATIONS_SECRET_TOKEN: CRON_SECRET,
   // Deliberately enabled: a route that only looked safe because its worker was
   // switched off would prove nothing about the probe.
   AUTO_PUBLISH_ENABLED: "true",
@@ -373,6 +387,7 @@ const LOAD_TIME_ENV: Record<string, string> = {
   CSF_SCHEDULED_POST_PUBLISHER_ENABLED: "true",
   PROJECT_FEEDBACK_WORKER_ENABLED: "true",
   PAPER_SIGNUP_NOTIFICATION_WORKER_ENABLED: "true",
+  CSF_PUBLICATION_NOTIFICATIONS_ENABLED: "true",
 };
 for (const [key, value] of Object.entries(LOAD_TIME_ENV))
   process.env[key] = value;
@@ -408,6 +423,8 @@ const routeModules = {
     await import("@/app/api/cron/project-feedback-followups/route"),
   "paper-signup-notifications":
     await import("@/app/api/cron/paper-signup-notifications/route"),
+  "csf-publication-notifications":
+    await import("@/app/api/cron/csf-publication-notifications/route"),
 } as const;
 
 const ROUTE_PATHS = {
@@ -422,6 +439,7 @@ const ROUTE_PATHS = {
   "csf-scheduled-post-publisher": "/api/cron/csf-scheduled-post-publisher",
   "project-feedback-followups": "/api/cron/project-feedback-followups",
   "paper-signup-notifications": "/api/cron/paper-signup-notifications",
+  "csf-publication-notifications": "/api/cron/csf-publication-notifications",
 } as const;
 
 type RouteId = keyof typeof routeModules;
@@ -507,7 +525,7 @@ const EXACT_PROBE_HEADERS = headersWith({
 // ---------------------------------------------------------------------------
 
 describe("cron auth/shape probe helper contract", () => {
-  test("exposes exactly the eleven stable route IDs", () => {
+  test("exposes exactly the twelve stable route IDs", () => {
     expect([...CRON_PROBE_ROUTE_IDS]).toEqual([
       "auto-publish-hours",
       "project-cancellations",
@@ -520,6 +538,7 @@ describe("cron auth/shape probe helper contract", () => {
       "csf-scheduled-post-publisher",
       "project-feedback-followups",
       "paper-signup-notifications",
+      "csf-publication-notifications",
     ]);
     expect(CRON_AUTH_SHAPE_PROBE_ENV).toBe("CRON_AUTH_SHAPE_PROBE_ONLY");
     expect(CRON_AUTH_SHAPE_PROBE_MODE).toBe("auth-shape-v1");

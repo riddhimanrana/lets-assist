@@ -250,6 +250,9 @@ describe("the isolated app child environment is built, not inherited", () => {
     expect(DISABLED_WORKER_ENV_KEYS).toContain(
       "CSF_SCHEDULED_POST_PUBLISHER_ENABLED",
     );
+    expect(DISABLED_WORKER_ENV_KEYS).toContain(
+      "CSF_PUBLICATION_NOTIFICATIONS_ENABLED",
+    );
     for (const key of DISABLED_WORKER_ENV_KEYS) {
       expect(childEnv[key], key).toBe("false");
     }
