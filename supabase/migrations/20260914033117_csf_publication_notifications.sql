@@ -262,13 +262,13 @@ BEGIN
       FROM plugin_data.csf_announcements WHERE organization_id=p_organization_id AND id=v_source_id
       AND status='published' AND (expires_at IS NULL OR expires_at>now());
     IF NOT FOUND OR v_source_audience='public' OR c.audience_kind IS DISTINCT FROM
-      CASE v_source_audience WHEN 'members' THEN 'term_members' WHEN 'class' THEN 'cohort_members' WHEN 'officers' THEN 'staff' END
+      (CASE v_source_audience WHEN 'members' THEN 'term_members' WHEN 'class' THEN 'cohort_members' WHEN 'officers' THEN 'staff' END)
       THEN RETURN false; END IF;
   ELSE
     SELECT term_id,cohort_id INTO v_source_term,v_source_cohort FROM plugin_data.csf_opportunities
       WHERE organization_id=p_organization_id AND id=v_source_id AND status='published';
     IF NOT FOUND OR c.audience_kind IS DISTINCT FROM
-      CASE WHEN v_source_cohort IS NULL THEN 'term_members' ELSE 'cohort_members' END THEN RETURN false; END IF;
+      (CASE WHEN v_source_cohort IS NULL THEN 'term_members' ELSE 'cohort_members' END) THEN RETURN false; END IF;
   END IF;
   IF ((v_source_kind='activity' OR v_source_term IS NOT NULL) AND c.term_id IS DISTINCT FROM v_source_term)
     OR c.audience_cohort_id IS DISTINCT FROM v_source_cohort THEN RETURN false; END IF;
