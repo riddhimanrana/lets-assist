@@ -68,8 +68,8 @@ DECLARE
   v_cohort_id uuid;
   v_role text;
 BEGIN
-  IF NOT EXISTS (SELECT 1 FROM public.organization_plugin_installs WHERE organization_id=p_organization_id
-    AND plugin_key='dvhs-csf' AND enabled) THEN RETURN false; END IF;
+  IF NOT EXISTS (SELECT 1 FROM public.organization_plugin_access WHERE organization_id=p_organization_id
+    AND plugin_key='dvhs-csf' AND enabled AND is_accessible) THEN RETURN false; END IF;
   SELECT role INTO v_role FROM public.organization_members
     WHERE organization_id=p_organization_id AND user_id=p_user_id AND status='active';
   IF NOT FOUND THEN RETURN false; END IF;
@@ -272,8 +272,8 @@ BEGIN
   END IF;
   IF ((v_source_kind='activity' OR v_source_term IS NOT NULL) AND c.term_id IS DISTINCT FROM v_source_term)
     OR c.audience_cohort_id IS DISTINCT FROM v_source_cohort THEN RETURN false; END IF;
-  IF NOT EXISTS (SELECT 1 FROM public.organization_plugin_installs WHERE organization_id=p_organization_id
-    AND plugin_key='dvhs-csf' AND enabled) THEN RETURN false; END IF;
+  IF NOT EXISTS (SELECT 1 FROM public.organization_plugin_access WHERE organization_id=p_organization_id
+    AND plugin_key='dvhs-csf' AND enabled AND is_accessible) THEN RETURN false; END IF;
   v_user_id := s.user_id;
   IF s.profile_id IS NOT NULL THEN
     SELECT * INTO p FROM plugin_data.csf_profiles WHERE organization_id=p_organization_id

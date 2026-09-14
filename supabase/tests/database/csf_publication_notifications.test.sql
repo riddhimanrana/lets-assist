@@ -1,7 +1,7 @@
 -- Synthetic publication and lease behavior. No provider calls.
 BEGIN;
 CREATE EXTENSION IF NOT EXISTS pgtap WITH SCHEMA extensions;
-SELECT extensions.plan(35);
+SELECT extensions.plan(37);
 -- Emit schema-only receipts before fixtures, including when a later test fails.
 DO $receipt$
 DECLARE v_receipt jsonb;
@@ -89,6 +89,8 @@ INSERT INTO public.organization_members(organization_id,user_id,role,status) VAL
 ('ec100000-0000-4000-8000-000000000001','ec200000-0000-4000-8000-000000000003','member','active'),('ec100000-0000-4000-8000-000000000001','ec200000-0000-4000-8000-000000000004','member','active'),('ec100000-0000-4000-8000-000000000001','ec200000-0000-4000-8000-000000000005','member','active');
 INSERT INTO public.organization_plugin_installs(organization_id,plugin_key,installed_version,configuration,installed_by)
 VALUES('ec100000-0000-4000-8000-000000000001','dvhs-csf','0.1.0','{"communications":{"broadcastTopics":{"term_members":{"topicKey":"announcements","resendTopicId":"resend_topic_publication_fixture"}}}}','ec200000-0000-4000-8000-000000000001');
+INSERT INTO public.organization_plugin_entitlements(organization_id,plugin_key,status,created_by)
+VALUES('ec100000-0000-4000-8000-000000000001','dvhs-csf','active','ec200000-0000-4000-8000-000000000001');
 INSERT INTO plugin_data.csf_terms(id,organization_id,code,label,school_year,semester,lifecycle_status,is_current)
 VALUES('ec500000-0000-4000-8000-000000000001','ec100000-0000-4000-8000-000000000001','F40','Fall 2040','2040-2041','fall','open',true);
 INSERT INTO plugin_data.csf_cohorts(id,organization_id,graduation_year,label) VALUES
@@ -137,6 +139,11 @@ CREATE TEMP TABLE publication_claim AS SELECT plugin_data.csf_claim_publication_
 SELECT extensions.is((SELECT count(*)::integer FROM plugin_data.csf_publication_notification_deliveries WHERE status='processing'),1,'claim leases only the requested row');
 SELECT extensions.throws_ok($q$SELECT plugin_data.csf_authorize_publication_notification('ec100000-0000-4000-8000-000000000001',(SELECT (value->>'id')::uuid FROM publication_claim),'ec800000-0000-4000-8000-000000000001')$q$,'40001','Notification lease is not current.','an incorrect lease token cannot authorize');
 SELECT extensions.throws_ok($q$SELECT plugin_data.csf_authorize_publication_notification('ec100000-0000-4000-8000-000000000002',(SELECT (value->>'id')::uuid FROM publication_claim),(SELECT (value->>'leaseToken')::uuid FROM publication_claim))$q$,'40001','Notification lease is not current.','the lease is organization-scoped');
+UPDATE public.organization_plugin_entitlements SET status='revoked' WHERE organization_id='ec100000-0000-4000-8000-000000000001' AND plugin_key='dvhs-csf';
+SELECT extensions.ok(NOT plugin_data.csf_publication_recipient_allowed('ec100000-0000-4000-8000-000000000001','post','ec700000-0000-4000-8000-000000000001','ec200000-0000-4000-8000-000000000002'),'revoked plugin entitlement suppresses queued publication delivery');
+UPDATE public.organization_plugin_entitlements SET status='active',starts_at=now()-interval '2 days',ends_at=now()-interval '1 day' WHERE organization_id='ec100000-0000-4000-8000-000000000001' AND plugin_key='dvhs-csf';
+SELECT extensions.ok(NOT plugin_data.csf_publication_recipient_allowed('ec100000-0000-4000-8000-000000000001','post','ec700000-0000-4000-8000-000000000001','ec200000-0000-4000-8000-000000000002'),'expired plugin entitlement suppresses queued publication delivery');
+UPDATE public.organization_plugin_entitlements SET ends_at=NULL WHERE organization_id='ec100000-0000-4000-8000-000000000001' AND plugin_key='dvhs-csf';
 CREATE TEMP TABLE publication_notice AS SELECT plugin_data.csf_authorize_publication_notification('ec100000-0000-4000-8000-000000000001',(SELECT (value->>'id')::uuid FROM publication_claim),(SELECT (value->>'leaseToken')::uuid FROM publication_claim)) AS value;
 SELECT extensions.is((SELECT value->>'authorized' FROM publication_notice),'true','current verified recipient is authorized');
 SELECT extensions.ok((SELECT value->>'actionUrl'='/organization/ec100000-0000-4000-8000-000000000001?tab=csf-home' AND NOT(value ? 'title') AND NOT(value ? 'body') AND NOT(value ? 'email') FROM publication_notice),'authorization exposes only a checked route and identifiers');
