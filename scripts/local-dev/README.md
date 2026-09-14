@@ -188,12 +188,12 @@ case, so a proven-clean failure never leaves a stale claim behind.
 - `bun run db:test:redesign` to run the full sequential Supabase/plugin redesign merge gate
 - `bun run dv:test:db` to verify local RLS and schema behavior
 - `bun run dv:test:e2e` to run the Playwright DV browser checks
-- `bun run dev:test:cron` to prove the eleven selected worker routes:
+- `bun run dev:test:cron` to prove the twelve selected worker routes:
   auto-publish-hours, project-cancellations, organization-calendar-sync,
   organization-sheet-sync, data-exports, csf-communications-dispatch,
   csf-class-workbook-refresh, csf-import-commit,
-  csf-scheduled-post-publisher, project-feedback-followups, and
-  paper-signup-notifications
+  csf-scheduled-post-publisher, project-feedback-followups, paper-signup-notifications, and
+  csf-publication-notifications
   authenticate and return without
   dispatching. It requires a validated `CSF_ISOLATED_WORK_DIR`, starts and owns
   its own loopback server (refusing an occupied port rather than adopting one),
@@ -292,3 +292,9 @@ Production, the preview project, and any provider.
 - Teardown failure is never swallowed. A gate failure keeps its own status while
   cleanup evidence is still printed; a clean gate with a failing marker-bounded
   stop exits nonzero.
+
+### Publication notification worker
+
+`/api/cron/csf-publication-notifications` uses the same authenticated, non-dispatching local probe. Production bell delivery uses the release-bound `publication_notifications` control, which defaults to false. Local runners use `CSF_PUBLICATION_NOTIFICATIONS_ENABLED` and always force it false. The existing Vercel configuration schedules an authenticated check each minute. Delivery stays off until the gate is explicitly enabled after release acceptance. This changes no provider settings. Minute scheduling requires the same Pro or Enterprise plan as the other configured workers ([Vercel cron limits](https://vercel.com/docs/cron-jobs/usage-and-pricing)). The worker calls the host notification service with generic text and a permission-checked organization link. It does not send email.
+
+Class-post notices stay scoped to verified members of that class. An officer's ability to inspect other classes does not subscribe them to those class posts. Officers-only post notices include authorized staff who have no student profile. Email keeps the existing publication option, chapter topic consent, and current account email and organization-update preferences.

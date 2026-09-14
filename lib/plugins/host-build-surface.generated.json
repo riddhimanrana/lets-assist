@@ -120,6 +120,7 @@
     "@/services/google-sheets",
     "@/services/google-sheets-csf",
     "@/services/google-sheets-report",
+    "@/services/notifications-server",
     "@/types",
     "@/types/plugin"
   ]

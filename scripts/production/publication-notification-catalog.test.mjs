@@ -15,7 +15,7 @@ const versions = expectedVersions(
 );
 
 test("514 pins every publication function and preserves the preceding catalog", () => {
-  assert.equal(versions.length, 515);
+  assert.equal(versions.length, 516);
   const current = acceptedCatalogQuery(source, versions.slice(0, 514));
   const preceding = acceptedCatalogQuery(source, versions.slice(0, 513));
   assert.equal(publicationNotificationDefinitions.length, 8);

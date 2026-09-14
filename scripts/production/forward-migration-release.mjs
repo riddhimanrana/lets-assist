@@ -202,6 +202,10 @@ export const approvedMigrations = [
     "20260914044610_add_publication_notification_worker_control",
     "c3f2890be21fadee2ed79bf11d2312875259e4e42dd12e583d1750025510fcad",
   ],
+  [
+    "20260914062207_publish_dvhs_csf_1_2_44",
+    "8873a2c1278baae57f2b7e4f030f88977cc52ceb095430b51e2f15d3d3f07e1c",
+  ],
 ];
 
 const literal = (value) => `'${value.replaceAll("'", "''")}'`;
