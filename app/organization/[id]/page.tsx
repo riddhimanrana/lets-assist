@@ -21,6 +21,7 @@ import {
 } from "@/lib/plugins/resolve-org-plugins";
 import { getOrganizationReportData } from "./reports/actions";
 import { getPublicOrganizationReportSummary } from "@/lib/organization/report-service";
+import { organizationCanonicalUrl } from "@/lib/organization/canonical-url";
 import type { Organization, OrganizationNavigationBehavior } from "@/types";
 import {
   createRemoteReadonlyClient,
@@ -140,7 +141,9 @@ export default async function OrganizationPage({
 
   // If accessed by ID but has username, redirect to the username URL for better SEO
   if (isUUID && organization.username) {
-    redirect(`/organization/${organization.username}`);
+    redirect(
+      organizationCanonicalUrl(organization.username, resolvedSearchParams),
+    );
   }
 
   // Determine the user's role in this organization
