@@ -13,6 +13,7 @@ export type {
 interface NotificationPreferences {
   email_notifications: boolean;
   project_updates: boolean;
+  organization_updates?: boolean;
   general?: boolean;
   [key: string]: boolean | undefined;
 }
