@@ -1,3 +1,7 @@
+import {
+  publicationNotificationDefinitions,
+  publicationNotificationPosture,
+} from "./publication-notification-catalog.mjs";
 import { sheetDiscussionWriteDefinitions } from "./sheet-discussion-write-catalog.mjs";
 import { sheetToggleDefinitions } from "./sheet-toggle-catalog.mjs";
 import {
@@ -127,7 +131,26 @@ export function acceptedCatalogQuery(source, versions) {
       "34dbbd884882349f8083512cd2fe48b371c3f1242bc62897685267f2a5d0001b"
   )
     return source;
+  const publicationWorkerControlUpgrade =
+    (versions.length === 518 &&
+      ledgerHash ===
+        "5d28518bb641b71b1e4842783183fbf48905143ae11254443466809ecabeefcd") ||
+    (versions.length === 517 &&
+      ledgerHash ===
+        "3db94e138a5ef8978ab54bf52553890cb0049d66b9d3626919e3d417f9de9802") ||
+    (versions.length === 516 &&
+      ledgerHash ===
+        "dc7187711012f9086d906fdb29cce727962e70b2b1ae83db9a4833db469bb8c4") ||
+    (versions.length === 515 &&
+      ledgerHash ===
+        "c98dd3faf7a10c9ac190da27a1612db73635b493a9b8eb16f0d40a2905104eba");
+  const publicationNotificationsUpgrade =
+    publicationWorkerControlUpgrade ||
+    (versions.length === 514 &&
+      ledgerHash ===
+        "16ef394ea1f8e7cafc7a9c0adb6c15beea62345ccbdd5948b965a53d88017cb4");
   const sheetDiscussionWriteUpgrade =
+    publicationNotificationsUpgrade ||
     (versions.length === 513 &&
       ledgerHash ===
         "0c6a00172f433c965ae4d8e5bc267dad72f3b88292e74479b95df16b6eedef7b") ||
@@ -589,6 +612,27 @@ export function acceptedCatalogQuery(source, versions) {
         false,
       ],
     );
+  if (publicationNotificationsUpgrade)
+    definitions.push(...publicationNotificationDefinitions);
+  if (publicationWorkerControlUpgrade) {
+    const setter = definitions.findIndex(
+      ([signature]) =>
+        signature ===
+        "app_private.set_csf_release_worker_control(text,text,boolean,bigint,uuid,text,text)",
+    );
+    if (setter < 0)
+      throw new ReleaseCheckError("Worker control catalog entry is missing.");
+    definitions[setter] = [
+      definitions[setter][0],
+      "428c972f30cac132f0b93a74072fda41",
+      false,
+    ];
+    definitions.push([
+      "public.read_csf_release_worker_controls_v2(text)",
+      "0205a3e8b6a9f00535fe63f88b2318d9",
+      true,
+    ]);
+  }
   const values = definitions
     .map(
       ([signature, digest, service]) =>
@@ -634,10 +678,10 @@ accepted_upgrade_posture AS (
       AND k.convalidated AND k.contype='c'
       AND pg_get_constraintdef(k.oid) = $$CHECK ((connection_basis = ANY (ARRAY['unknown'::text, 'verified_email'::text, 'self_confirmed_account_name'::text, 'officer_decision'::text])))$$
   ) ${importReviewUpgrade ? importReviewPosture : ""} ${reprepareUpgrade ? repreparePosture.replace("978fc913e56af1893565d56706941f69", reprepareAuthorityUpgrade ? "a2ae5e479822c1cb54dd405810b6a909" : "978fc913e56af1893565d56706941f69") : ""} ${compoundSearchUpgrade ? compoundSearchPosture : ""} AND (SELECT count(*)=2 AND bool_and(runtime_denied AND digest = CASE relname
-    WHEN 'csf_release_worker_controls' THEN 'b186cfbfbb17fee4e0966cde6d3bec9e'
+    WHEN 'csf_release_worker_controls' THEN '${publicationWorkerControlUpgrade ? "efccf167accba776d136bae856a58a8f" : "b186cfbfbb17fee4e0966cde6d3bec9e"}'
     WHEN 'csf_release_worker_receipts' THEN '94e9bc198f37156522b9aed76bf696a4'
     ELSE '' END) FROM accepted_worker_relations)
-  ${identityReviewUpgrade ? identityReviewPosture : ""}
+  ${publicationNotificationsUpgrade ? publicationNotificationPosture(workerRelationSnapshotQuery) + "\n  " : ""}${identityReviewUpgrade ? identityReviewPosture : ""}
   ${
     officerAnnotationUpgrade
       ? composableReviewUpgrade

@@ -67,6 +67,7 @@ const statusBody = () => ({
         csfImportCommit: false,
         csfCommunications: false,
         csfScheduledPostPublisher: false,
+        csfPublicationNotifications: false,
       },
     },
   ],

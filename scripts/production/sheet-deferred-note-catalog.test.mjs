@@ -12,7 +12,7 @@ const source = readFileSync(
   "utf8",
 );
 test("493 changes only the profile snapshot function fingerprint", () => {
-  assert.equal(versions.length, 513);
+  assert.equal(versions.length, 518);
   const changed = sheetDeferredNoteDefinitions.filter(
     (row, i) =>
       JSON.stringify(row) !== JSON.stringify(sheetObservationDefinitions[i]),
@@ -50,11 +50,24 @@ test("492 advances through profile note export deferral and the current release 
         /INSERT INTO supabase_migrations.schema_migrations/gu,
       ) ?? []
     ).length,
-    21,
+    26,
   );
   assert.ok(
     result.query.includes("jsonb_build_object('comments','[]'::jsonb)"),
   );
-  assert.ok(!result.query.includes("CREATE TRIGGER"));
+  assert.deepEqual(
+    Array.from(
+      new Set(
+        Array.from(
+          result.query.matchAll(/CREATE TRIGGER ([a-z_]+)/gu),
+          (match) => match[1],
+        ),
+      ),
+    ),
+    [
+      "csf_announcements_publication_notifications",
+      "csf_activities_publication_notifications",
+    ],
+  );
   assert.ok(result.query.includes("AND version = '1.2.32'"));
 });

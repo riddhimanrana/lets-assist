@@ -32,6 +32,7 @@ export const NotificationService = {
 
     try {
       if (
+        notification.type === "organization_updates" ||
         notification.type === "project_updates" ||
         notification.type === "email_notifications" ||
         notification.type === "general"

@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, mock, test } from "bun:test";
 type InsertedRow = Record<string, unknown>;
 
 let attemptedRows: InsertedRow[] = [];
+let organizationUpdates = true;
 let notificationSelects = 0;
 let usernameCheck = false;
 let notificationFilters: Array<[string, unknown]> = [];
@@ -30,8 +31,8 @@ mock.module("@/lib/supabase/client", () => ({
           select: () => ({
             eq: () => ({
               single: async () => ({
-                data: null,
-                error: { code: "PGRST116" },
+                data: { organization_updates: organizationUpdates },
+                error: null,
               }),
             }),
           }),
@@ -90,6 +91,7 @@ const USER = "11111111-1111-4111-8111-111111111111";
 
 beforeEach(() => {
   attemptedRows = [];
+  organizationUpdates = true;
   notificationSelects = 0;
   usernameCheck = false;
   notificationFilters = [];
@@ -184,4 +186,19 @@ describe("NotificationService.createNotification", () => {
     );
     expect(attemptedRows[0]?.dedupe_key).toBe("account:set-custom-username");
   });
+});
+
+test("organization update opt-out applies at the browser service boundary too", async () => {
+  organizationUpdates = false;
+  expect(
+    await NotificationService.createNotification(
+      {
+        title: "Organization update",
+        body: "A new post is available.",
+        type: "organization_updates",
+      },
+      USER,
+    ),
+  ).toEqual({ success: false, skipped: true });
+  expect(attemptedRows).toHaveLength(0);
 });

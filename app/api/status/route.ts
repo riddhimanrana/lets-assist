@@ -137,6 +137,7 @@ async function checkWorkerConfiguration(): Promise<StatusCheck> {
       autoPublishHours: process.env.AUTO_PUBLISH_ENABLED === "true",
       csfCommunications: csf.workers.communications,
       csfImportCommit: csf.workers.import_commit,
+      csfPublicationNotifications: csf.workers.publication_notifications,
       csfScheduledPostPublisher: csf.workers.scheduled_post_publisher,
       csfWorkbookRefresh: csf.workers.workbook_refresh,
       organizationCalendarSync:

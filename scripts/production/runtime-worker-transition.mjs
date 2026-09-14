@@ -14,6 +14,7 @@ const workerFields = {
   import_commit: "csfImportCommit",
   communications: "csfCommunications",
   scheduled_post_publisher: "csfScheduledPostPublisher",
+  publication_notifications: "csfPublicationNotifications",
 };
 const literal = (value) => `'${String(value).replaceAll("'", "''")}'`;
 
@@ -26,14 +27,16 @@ export function workerControlsQuery(sha) {
       'workers', jsonb_build_object(
         'workbook_refresh', workbook_refresh, 'import_commit', import_commit,
         'communications', communications,
-        'scheduled_post_publisher', scheduled_post_publisher
+        'scheduled_post_publisher', scheduled_post_publisher,
+        'publication_notifications', coalesce((to_jsonb(csf_release_worker_controls)->>'publication_notifications')::boolean,false)
       )
     ) FROM app_private.csf_release_worker_controls WHERE release_sha = ${release}
   ), jsonb_build_object(
     'releaseSha', ${release}, 'revision', 0,
     'workers', jsonb_build_object(
       'workbook_refresh', false, 'import_commit', false,
-      'communications', false, 'scheduled_post_publisher', false
+      'communications', false, 'scheduled_post_publisher', false,
+      'publication_notifications', false
     )
   )) AS controls`;
 }
@@ -76,12 +79,40 @@ export function validateControls(data, sha) {
     !Number.isSafeInteger(data?.revision) ||
     data.revision < 0 ||
     !data.workers ||
-    Object.keys(data.workers).length !== 4 ||
+    Object.keys(data.workers).length !== 5 ||
     Object.keys(workerFields).some(
       (worker) => typeof data.workers[worker] !== "boolean",
     )
   ) {
     throw new ReleaseCheckError("Worker controls returned invalid data.");
+  }
+  return data;
+}
+
+function validateTransitionReceipt(data, config, before) {
+  const receiptWorkers =
+    config.worker === "publication_notifications"
+      ? Object.keys(workerFields)
+      : Object.keys(workerFields).filter(
+          (worker) => worker !== "publication_notifications",
+        );
+  if (
+    data?.releaseSha !== config.sha ||
+    !Number.isSafeInteger(data?.revision) ||
+    data.revision !== before.revision + 1 ||
+    data.requestId !== config.requestId ||
+    !data.workers ||
+    Object.keys(data.workers).length !== receiptWorkers.length ||
+    receiptWorkers.some(
+      (worker) =>
+        typeof data.workers[worker] !== "boolean" ||
+        data.workers[worker] !==
+          (worker === config.worker ? config.enabled : before.workers[worker]),
+    )
+  ) {
+    throw new ReleaseCheckError(
+      "Worker receipt does not match the frozen transition.",
+    );
   }
   return data;
 }
@@ -97,9 +128,14 @@ export function validatePublicPosture(payload, config, controls) {
     payload?.deep !== false ||
     !["pass", "warn"].includes(checks[0]?.state) ||
     details?.csfControlMode !== "database" ||
-    Object.entries(workerFields).some(
-      ([worker, field]) => details?.[field] !== controls.workers[worker],
-    )
+    Object.entries(workerFields).some(([worker, field]) => {
+      if (
+        worker === "publication_notifications" &&
+        details?.[field] === undefined
+      )
+        return config.worker === worker || controls.workers[worker] !== false;
+      return details?.[field] !== controls.workers[worker];
+    })
   ) {
     throw new ReleaseCheckError(
       "Public release and runtime switches do not match. No new transition is safe.",
@@ -183,27 +219,21 @@ export async function transitionWorker(
       );
     receipt = recovered.receipt;
   }
-  validateControls(receipt, config.sha);
-  if (
-    receipt.requestId !== config.requestId ||
-    receipt.revision !== before.revision + 1 ||
-    Object.keys(workerFields).some(
-      (worker) =>
-        receipt.workers[worker] !==
-        (worker === config.worker ? config.enabled : before.workers[worker]),
-    )
-  ) {
-    throw new ReleaseCheckError(
-      "Worker receipt does not match the frozen transition.",
-    );
-  }
+  validateTransitionReceipt(receipt, config, before);
   record({ requestId: config.requestId, request, receipt, state: "committed" });
   const current = await readControls();
-  if (current.revision !== receipt.revision)
+  if (
+    current.revision !== receipt.revision ||
+    Object.keys(workerFields).some(
+      (worker) =>
+        current.workers[worker] !==
+        (worker === config.worker ? config.enabled : before.workers[worker]),
+    )
+  )
     throw new ReleaseCheckError(
       "Worker controls changed after the transition.",
     );
-  validatePublicPosture(await publicStatus(), config, receipt);
+  validatePublicPosture(await publicStatus(), config, current);
   record({ requestId: config.requestId, request, receipt, state: "verified" });
   return receipt;
 }

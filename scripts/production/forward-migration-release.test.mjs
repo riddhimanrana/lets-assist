@@ -65,7 +65,7 @@ function transport({
 
 test("approved bytes and exact versions share one transaction", () => {
   assert.equal(prepared.prefix.length, 468);
-  assert.equal(prepared.versions.length, 513);
+  assert.equal(prepared.versions.length, 518);
   assert.deepEqual(prepared.versions.slice(468), [
     "20260909090522",
     "20260909090944",
@@ -112,6 +112,11 @@ test("approved bytes and exact versions share one transaction", () => {
     "20260913200500",
     "20260913202237",
     "20260914030902",
+    "20260914033117",
+    "20260914044610",
+    "20260914062207",
+    "20260914072729",
+    "20260914080000",
   ]);
   assert.match(prepared.query, /^BEGIN;/u);
   assert.match(prepared.query, /COMMIT;$/u);
@@ -155,7 +160,7 @@ test("refuses modified approved SQL before any provider request", () => {
 test("performs one write and verifies ledger and permissions", async () => {
   const t = transport();
   const result = await applyForwardMigrations(config, t.fetch);
-  assert.equal(result.migrations, 513);
+  assert.equal(result.migrations, 518);
   assert.equal(result.workers, "disabled");
   assert.equal(result.responseLost, false);
   assert.equal(
@@ -219,6 +224,34 @@ test("enabled workers stop before migration and are rechecked under a lock", asy
     prepared.query,
     /Disable CSF workers before applying schema changes/u,
   );
+});
+
+test("publication drain guards respect the applied schema boundary", () => {
+  for (const count of [468, 513, 514, 515, 516, 517, 518]) {
+    const migration = prepareMigration(
+      cwd,
+      readFileSync,
+      prepared.versions.slice(0, count),
+    );
+    const guard = migration.query.slice(
+      0,
+      migration.query.indexOf("END $release_guard$;"),
+    );
+    assert.match(
+      guard,
+      /coalesce\(\(to_jsonb\(csf_release_worker_controls\)->>'publication_notifications'\)::boolean,false\)/u,
+    );
+    if (count < 514) {
+      assert.doesNotMatch(guard, /csf_publication_notification_deliveries/u);
+    } else {
+      assert.match(
+        guard,
+        /LOCK TABLE plugin_data.csf_publication_notification_deliveries IN SHARE MODE/u,
+      );
+      assert.match(guard, /status='processing' AND lease_expires_at>now\(\)/u);
+      assert.match(guard, /Wait for publication notification leases to drain/u);
+    }
+  }
 });
 
 test("wrong project refuses all provider access", async () => {
@@ -305,6 +338,11 @@ test("a reviewed partially applied tail writes only the remaining migrations", a
     "20260913200500",
     "20260913202237",
     "20260914030902",
+    "20260914033117",
+    "20260914044610",
+    "20260914062207",
+    "20260914072729",
+    "20260914080000",
   ]);
   const writes = t.calls.filter((call) => call.url.endsWith("/database/query"));
   assert.equal(writes.length, 1);
@@ -329,7 +367,7 @@ test("a reviewed partially applied tail writes only the remaining migrations", a
         /INSERT INTO supabase_migrations.schema_migrations/g,
       ) ?? []
     ).length,
-    35,
+    40,
   );
 });
 
@@ -380,14 +418,14 @@ test("an applied 508 ledger adds the signed publications and discussion write gu
     readFileSync,
     prepared.versions.slice(0, 508),
   );
-  assert.equal(publication.versions.length, 513);
+  assert.equal(publication.versions.length, 518);
   assert.equal(
     (
       publication.query.match(
         /INSERT INTO supabase_migrations.schema_migrations/gu,
       ) ?? []
     ).length,
-    5,
+    10,
   );
   assert.ok(
     publication.query.includes("'20260913175928','publish_dvhs_csf_1_2_40'"),
@@ -405,14 +443,14 @@ test("an applied 509 ledger adds the signed publications and discussion write gu
     readFileSync,
     prepared.versions.slice(0, 509),
   );
-  assert.equal(publication.versions.length, 513);
+  assert.equal(publication.versions.length, 518);
   assert.equal(
     (
       publication.query.match(
         /INSERT INTO supabase_migrations.schema_migrations/gu,
       ) ?? []
     ).length,
-    4,
+    9,
   );
   assert.ok(
     publication.query.includes("'20260913191541','publish_dvhs_csf_1_2_41'"),
@@ -430,14 +468,14 @@ test("an applied 510 ledger adds the discussion writer guard and signed publicat
     readFileSync,
     prepared.versions.slice(0, 510),
   );
-  assert.equal(migration.versions.length, 513);
+  assert.equal(migration.versions.length, 518);
   assert.equal(
     (
       migration.query.match(
         /INSERT INTO supabase_migrations.schema_migrations/gu,
       ) ?? []
     ).length,
-    3,
+    8,
   );
   assert.ok(
     migration.query.includes(
@@ -455,13 +493,137 @@ test("an applied 510 ledger adds the discussion writer guard and signed publicat
   assert.ok(migration.query.includes("AND latest_version = '1.2.41'"));
 });
 
-test("an applied 511 ledger adds only the signed publications", () => {
+test("an applied 511 ledger adds the signed publications and notification delivery", () => {
   const publication = prepareMigration(
     cwd,
     readFileSync,
     prepared.versions.slice(0, 511),
   );
-  assert.equal(publication.versions.length, 513);
+  assert.equal(publication.versions.length, 518);
+  assert.equal(
+    (
+      publication.query.match(
+        /INSERT INTO supabase_migrations.schema_migrations/gu,
+      ) ?? []
+    ).length,
+    7,
+  );
+  assert.ok(
+    publication.query.includes("'20260913202237','publish_dvhs_csf_1_2_42'"),
+  );
+  assert.ok(publication.query.includes("AND latest_version = '1.2.41'"));
+  assert.match(
+    publication.query,
+    /CREATE FUNCTION plugin_data.csf_record_publication_notifications/u,
+  );
+});
+
+test("an applied 512 ledger adds the signed 1.2.43 publication and notification delivery", () => {
+  const publication = prepareMigration(
+    cwd,
+    readFileSync,
+    prepared.versions.slice(0, 512),
+  );
+  assert.equal(publication.versions.length, 518);
+  assert.equal(
+    (
+      publication.query.match(
+        /INSERT INTO supabase_migrations.schema_migrations/gu,
+      ) ?? []
+    ).length,
+    6,
+  );
+  assert.ok(
+    publication.query.includes("'20260914030902','publish_dvhs_csf_1_2_43'"),
+  );
+  assert.ok(publication.query.includes("AND latest_version = '1.2.42'"));
+  assert.ok(publication.query.includes("'20260913200500'"));
+  assert.match(
+    publication.query,
+    /CREATE FUNCTION plugin_data.csf_record_publication_notifications/u,
+  );
+  assert.doesNotMatch(
+    publication.query.replace(/\$\$[\s\S]*?\$\$/gu, ""),
+    /(?:INSERT INTO|UPDATE|DELETE FROM) (?:public.organization_plugin_installs|plugin_data\.)/u,
+  );
+});
+
+test("an applied 513 ledger adds only gated publication delivery and generic preferences", () => {
+  const notification = prepareMigration(
+    cwd,
+    readFileSync,
+    prepared.versions.slice(0, 513),
+  );
+  assert.equal(notification.versions.length, 518);
+  assert.equal(
+    (
+      notification.query.match(
+        /INSERT INTO supabase_migrations.schema_migrations/gu,
+      ) ?? []
+    ).length,
+    5,
+  );
+  assert.ok(
+    notification.query.includes(
+      "'20260914033117','csf_publication_notifications'",
+    ),
+  );
+  assert.match(notification.query, /organization_plugin_access/u);
+  assert.match(
+    notification.query,
+    /CREATE FUNCTION plugin_data.csf_record_publication_notifications/u,
+  );
+  assert.doesNotMatch(
+    notification.query.replace(/\$\$[\s\S]*?\$\$/gu, ""),
+    /(?:INSERT INTO|UPDATE|DELETE FROM) (?:public.organization_plugin_installs|plugin_data\.)/u,
+  );
+});
+
+test("an applied 515 ledger adds signed publications and the dispatch grant reset", () => {
+  const publication = prepareMigration(
+    cwd,
+    readFileSync,
+    prepared.versions.slice(0, 515),
+  );
+  assert.equal(
+    (
+      publication.query.match(
+        /INSERT INTO supabase_migrations.schema_migrations/gu,
+      ) ?? []
+    ).length,
+    3,
+  );
+  assert.ok(
+    publication.query.includes("'20260914062207','publish_dvhs_csf_1_2_44'"),
+  );
+  assert.ok(publication.query.includes("AND latest_version = '1.2.43'"));
+  assert.ok(
+    publication.query.includes("c2cfe6bee781c5d94c4fab0c05b62d0134e5f8ae"),
+  );
+  assert.ok(
+    publication.query.includes(
+      "required_platform_schema_version IS DISTINCT FROM '20260914033117'",
+    ),
+  );
+  assert.ok(
+    publication.query.includes("runtime_profile IS DISTINCT FROM 'embedded'"),
+  );
+  assert.doesNotMatch(
+    publication.query,
+    /CREATE (?:OR REPLACE )?FUNCTION|ALTER TABLE/u,
+  );
+  assert.doesNotMatch(
+    publication.query,
+    /(?:INSERT INTO|UPDATE|DELETE FROM) (?:public.organization_plugin_installs|plugin_data\.)/u,
+  );
+});
+
+test("an applied 516 ledger adds the signed 1.2.45 publication and dispatch grant reset", () => {
+  const publication = prepareMigration(
+    cwd,
+    readFileSync,
+    prepared.versions.slice(0, 516),
+  );
   assert.equal(
     (
       publication.query.match(
@@ -471,35 +633,48 @@ test("an applied 511 ledger adds only the signed publications", () => {
     2,
   );
   assert.ok(
-    publication.query.includes("'20260913202237','publish_dvhs_csf_1_2_42'"),
+    publication.query.includes("'20260914072729','publish_dvhs_csf_1_2_45'"),
   );
-  assert.ok(publication.query.includes("AND latest_version = '1.2.41'"));
-  assert.doesNotMatch(publication.query, /CREATE(?: OR REPLACE)? FUNCTION/u);
+  assert.ok(publication.query.includes("AND latest_version = '1.2.44'"));
+  assert.ok(
+    publication.query.includes("135bfa3a3c1bc7b2d1608fec215c517631380c49"),
+  );
+  assert.ok(
+    publication.query.includes(
+      "required_platform_schema_version IS DISTINCT FROM '20260914033117'",
+    ),
+  );
+  assert.ok(
+    publication.query.includes("runtime_profile IS DISTINCT FROM 'embedded'"),
+  );
+  assert.doesNotMatch(
+    publication.query,
+    /CREATE (?:OR REPLACE )?FUNCTION|ALTER TABLE/u,
+  );
+  assert.doesNotMatch(
+    publication.query,
+    /(?:INSERT INTO|UPDATE|DELETE FROM) (?:public.organization_plugin_installs|plugin_data\.)/u,
+  );
 });
 
-test("an applied 512 ledger adds only the signed 1.2.43 publication", () => {
-  const publication = prepareMigration(
+test("an applied 517 ledger only resets dispatch grants", () => {
+  const migration = prepareMigration(
     cwd,
     readFileSync,
-    prepared.versions.slice(0, 512),
+    prepared.versions.slice(0, 517),
   );
-  assert.equal(publication.versions.length, 513);
   assert.equal(
     (
-      publication.query.match(
+      migration.query.match(
         /INSERT INTO supabase_migrations.schema_migrations/gu,
       ) ?? []
     ).length,
     1,
   );
-  assert.ok(
-    publication.query.includes("'20260914030902','publish_dvhs_csf_1_2_43'"),
+  assert.match(
+    migration.query,
+    /FROM PUBLIC, anon, authenticated, service_role/u,
   );
-  assert.ok(publication.query.includes("AND latest_version = '1.2.42'"));
-  assert.ok(publication.query.includes("'20260913200500'"));
-  assert.doesNotMatch(publication.query, /CREATE(?: OR REPLACE)? FUNCTION/u);
-  assert.doesNotMatch(
-    publication.query,
-    /(?:INSERT INTO|UPDATE|DELETE FROM) (?:public.organization_plugin_installs|plugin_data\.)/u,
-  );
+  assert.match(migration.query, /TO postgres, service_role/u);
+  assert.ok(!migration.query.includes("CREATE OR REPLACE FUNCTION"));
 });

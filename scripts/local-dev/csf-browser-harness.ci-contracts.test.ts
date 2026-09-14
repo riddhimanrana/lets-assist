@@ -367,7 +367,7 @@ describe("CI runs mock-sensitive tests through the shared process orchestrator",
   });
 });
 
-describe("CI replays the eleven-route cron smoke in the right order", () => {
+describe("CI replays the twelve-route cron smoke in the right order", () => {
   test("dev:test:cron runs after seeding and before Playwright", () => {
     const job = dbReplayJob();
     const seed = job.indexOf("- name: Seed fictional platform and DV fixtures");
@@ -611,9 +611,9 @@ describe("runbooks lead with the isolated contract", () => {
     expect(gate).not.toMatch(/^\d+\.\s+`bun run db:audit:remote-readiness`$/mu);
   });
 
-  test("the eleven-route cron claim is exact and names what it excludes", () => {
+  test("the twelve-route cron claim is exact and names what it excludes", () => {
     expect(readme).toContain(
-      "the eleven selected worker routes:\n  auto-publish-hours, project-cancellations, organization-calendar-sync,\n  organization-sheet-sync, data-exports, csf-communications-dispatch,\n  csf-class-workbook-refresh, csf-import-commit,\n  csf-scheduled-post-publisher, project-feedback-followups, and\n  paper-signup-notifications",
+      "the twelve selected worker routes:\n  auto-publish-hours, project-cancellations, organization-calendar-sync,\n  organization-sheet-sync, data-exports, csf-communications-dispatch,\n  csf-class-workbook-refresh, csf-import-commit,\n  csf-scheduled-post-publisher, project-feedback-followups, paper-signup-notifications, and\n  csf-publication-notifications",
     );
     for (const outside of [
       "`ai-moderation`",
