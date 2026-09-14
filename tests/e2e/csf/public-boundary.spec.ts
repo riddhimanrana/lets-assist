@@ -55,7 +55,7 @@ test.describe("DVHS CSF public privacy boundary", () => {
       }),
     ).toBeVisible();
     await expect(
-      page.getByRole("main").getByRole("button", { name: "Sign in" }),
+      page.getByRole("main").getByRole("button", { name: "Open My CSF" }),
     ).toBeVisible();
     await expect(page.getByText("Student records stay private")).toHaveCount(0);
     await expect(page.getByText("Privacy by design")).toHaveCount(0);
@@ -117,7 +117,7 @@ test.describe("DVHS CSF public privacy boundary", () => {
 
     const signIn = page
       .getByRole("main")
-      .getByRole("button", { name: "Sign in", exact: true });
+      .getByRole("button", { name: "Open My CSF", exact: true });
     const signInHref = await signIn.getAttribute("href");
     expect(signInHref).toBe(
       `/login?redirect=${encodeURIComponent(CSF_CANONICAL_PROFILE_PATH)}`,

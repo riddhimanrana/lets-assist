@@ -124,7 +124,7 @@ const MEMBER_AND_ACCESS: LabelContract[] = [
     component: "CsfResolveConnectionDialog.tsx",
     labels: [
       "Review account connection",
-      "Review in Resolve",
+      "Review match",
       "Suggestions · advisory only",
       "Canonical evidence ready",
       "Review only",
@@ -362,7 +362,7 @@ const STUDENT_JOURNEY: LabelContract[] = [
       "Sign in to continue",
       "Is this you?",
       "Yes, this is me",
-      "No, search again",
+      "Use a different name",
       "Join your class",
       "Student name",
       "Continue",
@@ -460,7 +460,7 @@ describe("CSF operator documentation truthfulness guards", () => {
       "Sign in to continue",
       "Is this you?",
       'idleLabel="Yes, this is me"',
-      'triggerLabel="No, search again"',
+      'triggerLabel="Use a different name"',
       "Join your class",
       'idleLabel="Continue"',
     ]) {

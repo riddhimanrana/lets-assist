@@ -91,7 +91,7 @@ A pending class-code request is not required for this staff workflow. The server
 
 ### Officer review
 
-1. Open the class's **Members** tab and work **Record connections**, where the panel says **Review accounts waiting to connect to a student record in this class.** The queue is paged with **First page** and **Next**. **Home** shows a **Connection requests** chip with the total pending count, linking to the classes hub. Open the request with **Review**, or a ranked candidate with **Review in Resolve**; both open the **Review account connection** dialog.
+1. Open the class's **Members** tab and work **Record connections**, where the panel says **Review accounts waiting to connect to a student record in this class.** The queue is paged with **First page** and **Next**. **Home** shows a **Connection requests** chip with the total pending count, linking to the classes hub. Open the request with **Review**, or a ranked candidate with **Review match**; both open the **Review account connection** dialog.
 2. Compare the request with the student's submitted evidence; never match on a typed name alone. Everything under **Suggestions · advisory only** is a discovery aid, including a candidate badged **Canonical evidence ready**. A conflicting cohort, verified email, or existing account is a hard stop.
 3. After independently verifying the student's identity, open their profile and use **Connect account** with the confirmed login email and a verification reason. Do not overwrite imported contacts to force an email match. Use **Reject request** when the request is incorrect.
 4. Account connections do not award semester credit. Review applications separately.
