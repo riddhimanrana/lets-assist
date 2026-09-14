@@ -15,8 +15,8 @@ const versions = expectedVersions(
 );
 
 test("514 pins every publication function and preserves the preceding catalog", () => {
-  assert.equal(versions.length, 514);
-  const current = acceptedCatalogQuery(source, versions);
+  assert.equal(versions.length, 515);
+  const current = acceptedCatalogQuery(source, versions.slice(0, 514));
   const preceding = acceptedCatalogQuery(source, versions.slice(0, 513));
   assert.equal(publicationNotificationDefinitions.length, 8);
   for (const [
@@ -42,7 +42,7 @@ test("514 pins every publication function and preserves the preceding catalog", 
 });
 
 test("514 requires exact private outbox relations and installed publication triggers", () => {
-  const current = acceptedCatalogQuery(source, versions);
+  const current = acceptedCatalogQuery(source, versions.slice(0, 514));
   for (const fragment of [
     "count(*)=2 AND bool_and(runtime_denied AND digest=CASE relname",
     "bb442786fe77c77ce3adae4aa0e84ac8",

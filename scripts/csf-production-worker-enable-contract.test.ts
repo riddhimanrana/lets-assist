@@ -27,6 +27,7 @@ describe("CSF Production worker enablement", () => {
       "workbook_refresh",
       "import_commit",
       "communications",
+      "publication_notifications",
     ]) {
       expect(productionWorkerEnableWorkflow).toContain(`- ${worker}`);
     }
@@ -56,6 +57,57 @@ describe("CSF Production worker enablement", () => {
     expect(productionCutoverRunbook).toContain(
       "Dispatch `enable-production-csf-worker.yml` three times",
     );
+  });
+
+  test("bell posture is explicit while older hosts can report only legacy workers", () => {
+    for (const [actual, expected, allowed] of [
+      [undefined, undefined, true],
+      [false, undefined, true],
+      [true, undefined, false],
+      [null, undefined, false],
+      ["false", undefined, false],
+      [undefined, "false", false],
+      [false, "false", true],
+      [undefined, "true", false],
+      [false, "true", false],
+      [true, "true", true],
+      [true, "yes", false],
+    ] as const) {
+      const env = { ...process.env };
+      delete env.EXPECTED_CSF_PUBLICATION_NOTIFICATIONS_ENABLED;
+      if (expected !== undefined)
+        env.EXPECTED_CSF_PUBLICATION_NOTIFICATIONS_ENABLED = expected;
+      const result = spawnSync(
+        process.execPath,
+        [productionWorkerPostureVerifierPath],
+        {
+          env: {
+            ...env,
+            EXPECTED_CSF_WORKER_STAGE: "disabled",
+            EXPECTED_RELEASE_SHA: "a".repeat(40),
+          },
+          input: JSON.stringify({
+            version: "a".repeat(40),
+            environment: "production",
+            deep: false,
+            checks: [
+              {
+                name: "workers",
+                details: {
+                  csfWorkbookRefresh: false,
+                  csfImportCommit: false,
+                  csfCommunications: false,
+                  csfScheduledPostPublisher: false,
+                  csfPublicationNotifications: actual,
+                },
+              },
+            ],
+          }),
+          encoding: "utf8",
+        },
+      );
+      expect(result.status === 0).toBe(allowed);
+    }
   });
 
   test("the posture verifier accepts one exact stage and rejects a skipped stage", () => {

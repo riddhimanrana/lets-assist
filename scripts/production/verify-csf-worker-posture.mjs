@@ -2,6 +2,15 @@
 
 const expectedSha = process.env.EXPECTED_RELEASE_SHA?.trim() ?? "";
 const expectedStage = process.env.EXPECTED_CSF_WORKER_STAGE?.trim() ?? "";
+const expectedPublication =
+  process.env.EXPECTED_CSF_PUBLICATION_NOTIFICATIONS_ENABLED?.trim();
+
+if (
+  expectedPublication !== undefined &&
+  !["true", "false"].includes(expectedPublication)
+) {
+  throw new Error("EXPECTED_CSF_PUBLICATION_NOTIFICATIONS_ENABLED is invalid.");
+}
 
 if (!/^[0-9a-f]{40}$/u.test(expectedSha)) {
   throw new Error("EXPECTED_RELEASE_SHA must be a full lowercase commit SHA.");
@@ -43,6 +52,10 @@ if (
   payload?.version !== expectedSha ||
   payload?.environment !== "production" ||
   payload?.deep !== false ||
+  (details?.csfPublicationNotifications === undefined
+    ? expectedPublication !== undefined
+    : details.csfPublicationNotifications !==
+      (expectedPublication === "true")) ||
   actual.some((value, index) => value !== expected[index])
 ) {
   throw new Error(
