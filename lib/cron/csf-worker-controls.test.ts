@@ -27,6 +27,7 @@ const flags = {
   import_commit: false,
   communications: false,
   scheduled_post_publisher: false,
+  publication_notifications: false,
 };
 beforeEach(() => {
   calls.length = 0;
@@ -55,7 +56,7 @@ test("reads release-bound switches on each request without caching", async () =>
   expect(await isCsfWorkerEnabled("workbook_refresh")).toBe(false);
   expect(calls).toEqual(
     Array(2).fill({
-      name: "read_csf_release_worker_controls",
+      name: "read_csf_release_worker_controls_v2",
       args: { p_release_sha: sha },
     }),
   );
@@ -63,6 +64,18 @@ test("reads release-bound switches on each request without caching", async () =>
 test("database mode ignores stale environment enable flags", async () => {
   process.env.CSF_COMMUNICATIONS_WORKER_ENABLED = "true";
   expect(await isCsfWorkerEnabled("communications")).toBe(false);
+});
+test("publication notifications are independent and default off", async () => {
+  expect(await isCsfWorkerEnabled("publication_notifications")).toBe(false);
+  result = {
+    data: {
+      releaseSha: sha,
+      revision: 2,
+      workers: { ...flags, publication_notifications: true },
+    },
+    error: null,
+  };
+  expect(await isCsfWorkerEnabled("publication_notifications")).toBe(true);
 });
 test("retired publishing cannot resume through stored or environment flags", async () => {
   result = {

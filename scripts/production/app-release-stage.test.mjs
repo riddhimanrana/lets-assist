@@ -51,7 +51,7 @@ test("build keeps secrets at Vercel and disables workers and legacy Sheet writeb
     Object.entries(payload.env).filter(
       ([key, value]) => key.startsWith("CSF_") && value === "false",
     ).length,
-    5,
+    6,
   );
   assert.equal(payload.env.CSF_SHEET_WRITEBACK_ENABLED, "false");
   assert.equal(payload.build.env.CSF_SHEET_WRITEBACK_ENABLED, "false");

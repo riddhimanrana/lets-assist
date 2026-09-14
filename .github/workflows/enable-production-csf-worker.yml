@@ -11,6 +11,7 @@ on:
           - workbook_refresh
           - import_commit
           - communications
+          - publication_notifications
       enabled:
         description: "Enable this worker. Uncheck to disable it independently."
         required: true

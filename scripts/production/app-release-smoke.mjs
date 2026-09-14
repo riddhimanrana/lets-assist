@@ -27,6 +27,7 @@ export function validateStatus(payload, expectedSha) {
       "csfWorkbookRefresh",
       "csfImportCommit",
       "csfCommunications",
+      "csfPublicationNotifications",
       "csfScheduledPostPublisher",
     ].some((flag) => details?.[flag] !== false)
   ) {

@@ -7,6 +7,7 @@ const workerEnv = {
   import_commit: "CSF_IMPORT_WORKER_ENABLED",
   communications: "CSF_COMMUNICATIONS_WORKER_ENABLED",
   scheduled_post_publisher: "CSF_SCHEDULED_POST_PUBLISHER_ENABLED",
+  publication_notifications: "CSF_PUBLICATION_NOTIFICATIONS_ENABLED",
 } as const;
 
 export type CsfWorker = keyof typeof workerEnv;
@@ -17,6 +18,7 @@ const disabled = (): CsfWorkerFlags => ({
   import_commit: false,
   communications: false,
   scheduled_post_publisher: false,
+  publication_notifications: false,
 });
 
 export async function readCsfWorkerControls(): Promise<{
@@ -45,7 +47,7 @@ export async function readCsfWorkerControls(): Promise<{
   if (!releaseSha || !/^[0-9a-f]{40}$/u.test(releaseSha)) return closed;
   try {
     const { data, error } = await getAdminClient()
-      .rpc("read_csf_release_worker_controls", { p_release_sha: releaseSha })
+      .rpc("read_csf_release_worker_controls_v2", { p_release_sha: releaseSha })
       .abortSignal(AbortSignal.timeout(5_000));
     if (
       error ||
@@ -54,7 +56,7 @@ export async function readCsfWorkerControls(): Promise<{
       data.revision < 0 ||
       !data.workers ||
       Array.isArray(data.workers) ||
-      Object.keys(data.workers).length !== 4
+      Object.keys(data.workers).length !== 5
     )
       return closed;
     const workers = disabled();
