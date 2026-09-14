@@ -209,7 +209,7 @@ test("scheduling retirement pins every replacement and preserves the prior relea
     assert.ok(current.includes(definition), definition);
     assert.ok(!preceding.includes(definition), definition);
   }
-  assert.match(current, /SELECT count\(\*\) = 29 AND/u);
+  assert.match(current, /SELECT count\(\*\) = 37 AND/u);
   assert.match(preceding, /SELECT count\(\*\) = 10 AND/u);
   assert.ok(
     current.includes(
@@ -314,7 +314,7 @@ test("workbook rebuild release checks the exact body, server-only grants, and re
 
 test("the reviewed import upgrade verifies metadata, function grants, and the scoped index", () => {
   const query = acceptedCatalogQuery(source, versions);
-  assert.match(query, /SELECT count\(\*\) = 29 AND/u);
+  assert.match(query, /SELECT count\(\*\) = 37 AND/u);
   assert.match(query, /csf_import_rows_resolution_metadata_object/u);
   assert.match(query, /a.atttypid='jsonb'::regtype AND a.attnotnull/u);
   assert.match(query, /csf_import_rows_committed_source_key_idx/u);
@@ -583,7 +583,7 @@ test("application review reopening pins the complete function and retains the pr
   const preceding = acceptedCatalogQuery(source, versions.slice(0, 476));
   const signature =
     "plugin_data.csf_set_review_period(uuid,uuid,uuid,text,text,text,text,timestamptz,timestamptz)";
-  assert.equal(versions.length, 513);
+  assert.equal(versions.length, 514);
   assert.ok(
     current.includes(
       `('${signature}','28793d39c02ebf702a61c26deb7ae2b4',true)`,
@@ -727,7 +727,7 @@ test("no-comments transport and member search pin the current function catalogs"
     assert.ok(current.includes(`('${signature}','${digest}',true)`));
     assert.ok(!noComments.includes(digest));
   }
-  assert.match(current, /SELECT count\(\*\) = 29 AND/u);
+  assert.match(current, /SELECT count\(\*\) = 37 AND/u);
 });
 
 test("publications 502 and 503 preserve schema while 504 pins merged lineage", () => {
@@ -819,7 +819,7 @@ test("509 publication preserves the reviewed 508 schema", () => {
 });
 
 test("510 publication preserves the reviewed 509 schema", () => {
-  assert.equal(versions.length, 513);
+  assert.equal(versions.length, 514);
   assert.equal(
     acceptedCatalogQuery(source, versions.slice(0, 510)),
     acceptedCatalogQuery(source, versions.slice(0, 509)),
@@ -829,7 +829,7 @@ test("510 publication preserves the reviewed 509 schema", () => {
 test("511 changes only the local discussion writer fingerprint", () => {
   const current = acceptedCatalogQuery(source, versions.slice(0, 511));
   const preceding = acceptedCatalogQuery(source, versions.slice(0, 510));
-  assert.equal(versions.length, 513);
+  assert.equal(versions.length, 514);
   assert.equal(
     current,
     preceding
@@ -858,7 +858,7 @@ test("511 changes only the local discussion writer fingerprint", () => {
 });
 
 test("512 publication preserves the reviewed 511 schema", () => {
-  assert.equal(versions.length, 513);
+  assert.equal(versions.length, 514);
   assert.equal(
     acceptedCatalogQuery(source, versions.slice(0, 512)),
     acceptedCatalogQuery(source, versions.slice(0, 511)),
@@ -866,9 +866,9 @@ test("512 publication preserves the reviewed 511 schema", () => {
 });
 
 test("513 publication preserves the reviewed 512 schema", () => {
-  assert.equal(versions.length, 513);
+  assert.equal(versions.length, 514);
   assert.equal(
-    acceptedCatalogQuery(source, versions),
+    acceptedCatalogQuery(source, versions.slice(0, 513)),
     acceptedCatalogQuery(source, versions.slice(0, 512)),
   );
 });

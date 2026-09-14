@@ -49,7 +49,7 @@ SELECT plugin_data.csf_snapshot_communication_recipients('ec100000-0000-4000-800
 {"email":"publication-unlinked@local.test","provenance":"preferred_contact","profileId":"ec300000-0000-4000-8000-000000000004"}]');
 CREATE TEMP VIEW email_snapshots AS SELECT id,profile_id FROM plugin_data.csf_communication_recipient_snapshots WHERE campaign_id=(SELECT id FROM email_campaign);
 SELECT extensions.ok(plugin_data.csf_publication_email_recipient_allowed('ec100000-0000-4000-8000-000000000001',(SELECT id FROM email_snapshots WHERE profile_id='ec300000-0000-4000-8000-000000000001')),'accepted member with reviewed account and enabled preferences is eligible');
-UPDATE public.organization_plugin_entitlements SET status='revoked' WHERE organization_id='ec100000-0000-4000-8000-000000000001' AND plugin_key='dvhs-csf';
+UPDATE public.organization_plugin_entitlements SET status='inactive' WHERE organization_id='ec100000-0000-4000-8000-000000000001' AND plugin_key='dvhs-csf';
 SELECT extensions.ok(NOT plugin_data.csf_publication_email_recipient_allowed('ec100000-0000-4000-8000-000000000001',(SELECT id FROM email_snapshots WHERE profile_id='ec300000-0000-4000-8000-000000000001')),'revoked plugin entitlement suppresses queued publication delivery');
 UPDATE public.organization_plugin_entitlements SET status='active',starts_at=now()-interval '2 days',ends_at=now()-interval '1 day' WHERE organization_id='ec100000-0000-4000-8000-000000000001' AND plugin_key='dvhs-csf';
 SELECT extensions.ok(NOT plugin_data.csf_publication_email_recipient_allowed('ec100000-0000-4000-8000-000000000001',(SELECT id FROM email_snapshots WHERE profile_id='ec300000-0000-4000-8000-000000000001')),'expired plugin entitlement suppresses queued publication delivery');

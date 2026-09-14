@@ -1,3 +1,7 @@
+import {
+  publicationNotificationDefinitions,
+  publicationNotificationPosture,
+} from "./publication-notification-catalog.mjs";
 import { sheetDiscussionWriteDefinitions } from "./sheet-discussion-write-catalog.mjs";
 import { sheetToggleDefinitions } from "./sheet-toggle-catalog.mjs";
 import {
@@ -127,7 +131,12 @@ export function acceptedCatalogQuery(source, versions) {
       "34dbbd884882349f8083512cd2fe48b371c3f1242bc62897685267f2a5d0001b"
   )
     return source;
+  const publicationNotificationsUpgrade =
+    versions.length === 514 &&
+    ledgerHash ===
+      "16ef394ea1f8e7cafc7a9c0adb6c15beea62345ccbdd5948b965a53d88017cb4";
   const sheetDiscussionWriteUpgrade =
+    publicationNotificationsUpgrade ||
     (versions.length === 513 &&
       ledgerHash ===
         "0c6a00172f433c965ae4d8e5bc267dad72f3b88292e74479b95df16b6eedef7b") ||
@@ -589,6 +598,8 @@ export function acceptedCatalogQuery(source, versions) {
         false,
       ],
     );
+  if (publicationNotificationsUpgrade)
+    definitions.push(...publicationNotificationDefinitions);
   const values = definitions
     .map(
       ([signature, digest, service]) =>
@@ -637,7 +648,7 @@ accepted_upgrade_posture AS (
     WHEN 'csf_release_worker_controls' THEN 'b186cfbfbb17fee4e0966cde6d3bec9e'
     WHEN 'csf_release_worker_receipts' THEN '94e9bc198f37156522b9aed76bf696a4'
     ELSE '' END) FROM accepted_worker_relations)
-  ${identityReviewUpgrade ? identityReviewPosture : ""}
+  ${publicationNotificationsUpgrade ? publicationNotificationPosture(workerRelationSnapshotQuery) + "\n  " : ""}${identityReviewUpgrade ? identityReviewPosture : ""}
   ${
     officerAnnotationUpgrade
       ? composableReviewUpgrade
