@@ -132,9 +132,12 @@ export function acceptedCatalogQuery(source, versions) {
   )
     return source;
   const publicationWorkerControlUpgrade =
-    versions.length === 515 &&
-    ledgerHash ===
-      "c98dd3faf7a10c9ac190da27a1612db73635b493a9b8eb16f0d40a2905104eba";
+    (versions.length === 516 &&
+      ledgerHash ===
+        "dc7187711012f9086d906fdb29cce727962e70b2b1ae83db9a4833db469bb8c4") ||
+    (versions.length === 515 &&
+      ledgerHash ===
+        "c98dd3faf7a10c9ac190da27a1612db73635b493a9b8eb16f0d40a2905104eba");
   const publicationNotificationsUpgrade =
     publicationWorkerControlUpgrade ||
     (versions.length === 514 &&
