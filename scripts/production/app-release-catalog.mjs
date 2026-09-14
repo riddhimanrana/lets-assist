@@ -132,6 +132,9 @@ export function acceptedCatalogQuery(source, versions) {
   )
     return source;
   const publicationWorkerControlUpgrade =
+    (versions.length === 517 &&
+      ledgerHash ===
+        "3db94e138a5ef8978ab54bf52553890cb0049d66b9d3626919e3d417f9de9802") ||
     (versions.length === 516 &&
       ledgerHash ===
         "dc7187711012f9086d906fdb29cce727962e70b2b1ae83db9a4833db469bb8c4") ||

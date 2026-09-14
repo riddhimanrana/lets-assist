@@ -15,7 +15,7 @@ const versions = expectedVersions(
 );
 
 test("515 pins the v2 reader, owner-only setter and changed control relation", () => {
-  assert.equal(versions.length, 516);
+  assert.equal(versions.length, 517);
   const current = acceptedCatalogQuery(source, versions);
   for (const fragment of [
     "('public.read_csf_release_worker_controls_v2(text)','0205a3e8b6a9f00535fe63f88b2318d9',true)",
@@ -53,11 +53,24 @@ test("an altered 515 ledger cannot select the worker control catalog", () => {
 
 test("516 signed publication preserves the exact accepted 515 schema", () => {
   assert.equal(
-    acceptedCatalogQuery(source, versions),
+    acceptedCatalogQuery(source, versions.slice(0, 516)),
     acceptedCatalogQuery(source, versions.slice(0, 515)),
   );
   const altered = [...versions];
   altered[515] = "20260914062208";
+  assert.throws(
+    () => acceptedCatalogQuery(source, altered),
+    /explicit release review/u,
+  );
+});
+
+test("517 signed publication preserves the exact accepted 516 schema", () => {
+  assert.equal(
+    acceptedCatalogQuery(source, versions),
+    acceptedCatalogQuery(source, versions.slice(0, 516)),
+  );
+  const altered = [...versions];
+  altered[516] = "20260914072730";
   assert.throws(
     () => acceptedCatalogQuery(source, altered),
     /explicit release review/u,
