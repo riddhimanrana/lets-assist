@@ -82,9 +82,9 @@ for (const [method, handler] of [
     },
   );
   test(`${method} remains off while its release control is disabled`, async () => {
-      const response = await handler(request("Bearer fictional-cron-token"));
-      expect(await response.json()).toEqual({ enabled: false });
-      expect(workerCalls).toBe(0);
+    const response = await handler(request("Bearer fictional-cron-token"));
+    expect(await response.json()).toEqual({ enabled: false });
+    expect(workerCalls).toBe(0);
   });
   test(`${method} returns the isolated probe before entering an enabled worker`, async () => {
     enabled = true;
