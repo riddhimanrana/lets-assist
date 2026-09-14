@@ -1,4 +1,12 @@
-import { beforeEach, describe, expect, mock, test } from "bun:test";
+import {
+  afterEach,
+  beforeEach,
+  describe,
+  expect,
+  mock,
+  spyOn,
+  test,
+} from "bun:test";
 
 mock.module("server-only", () => ({}));
 
@@ -21,6 +29,9 @@ const rpcCalls: Array<{ name: string; args: Record<string, unknown> }> = [];
 const actionCalls: unknown[][] = [];
 let rpcResults: Array<{ data: unknown; error: unknown }> = [];
 let actionResult: Record<string, unknown>;
+let actionFailure: unknown;
+let warnings: unknown[][] = [];
+let restoreWarnings = () => {};
 let applicationResult: unknown;
 let applicationCalls = 0;
 let applicationThrows = false;
@@ -74,6 +85,7 @@ mock.module(
   () => ({
     linkCsfClassSheetAction: async (...args: unknown[]) => {
       actionCalls.push(args);
+      if (actionFailure) throw actionFailure;
       return actionResult;
     },
   }),
@@ -101,7 +113,17 @@ function request(token = "synthetic-workbook-token", method = "POST") {
   );
 }
 
+afterEach(() => restoreWarnings());
+
 beforeEach(() => {
+  warnings = [];
+  const warningSpy = spyOn(console, "warn").mockImplementation(
+    (...args: unknown[]) => {
+      warnings.push(args);
+    },
+  );
+  restoreWarnings = () => warningSpy.mockRestore();
+  actionFailure = null;
   syncCalls = 0;
   syncResult = { status: "idle", exported: 0, changes: 0 };
   rpcCalls.length = 0;
@@ -473,4 +495,150 @@ test("sheet export failures remain visible to the scheduler", async () => {
 test("unauthorized requests cannot run sheet exports", async () => {
   await POST(request("incorrect"));
   expect(syncCalls).toBe(0);
+});
+
+const fixedWorkerFailures = [
+  ["Unauthorized.", "worker_context_unavailable"],
+  [
+    "The class workbook could not be checked right now.",
+    "workbook_metadata_unavailable",
+  ],
+  [
+    "The semester tabs could not be read right now.",
+    "semester_tabs_unavailable",
+  ],
+  [
+    "The workbook refresh could not be completed right now.",
+    "prepublication_failure",
+  ],
+  [
+    "The workbook refresh outcome could not be confirmed.",
+    "publication_outcome_unknown",
+  ],
+] as const;
+
+for (const [error, failureCode] of fixedWorkerFailures) {
+  for (const workerDisposition of ["retryable", "unknown"] as const) {
+    test(`records ${failureCode} for ${workerDisposition} without changing the lease`, async () => {
+      process.env.CSF_WORKBOOK_WORKER_ENABLED = "true";
+      rpcResults = [{ data: claim, error: null }];
+      actionResult = { success: false, workerDisposition, error };
+      const response = await POST(request());
+      expect(response.status).toBe(503);
+      expect(await response.json()).toEqual({
+        error: "Workbook preparation did not settle",
+      });
+      expect(rpcCalls.map((call) => call.name)).toEqual([
+        "csf_claim_class_workbook_refresh_job",
+      ]);
+      expect(warnings).toEqual([
+        [
+          "CSF workbook refresh unsettled",
+          {
+            failureCode,
+            disposition: workerDisposition,
+            elapsedMs: expect.any(Number),
+          },
+        ],
+      ]);
+      const details = warnings[0]![1] as { elapsedMs: number };
+      expect(details.elapsedMs).toBeGreaterThanOrEqual(0);
+    });
+  }
+}
+
+test("unknown action errors log only the closed fallback code", async () => {
+  process.env.CSF_WORKBOOK_WORKER_ENABLED = "true";
+  rpcResults = [{ data: claim, error: null }];
+  const secretDetail = `Unauthorized. credential=synthetic-workbook-token source=${claim.driveFileId} job=${claim.jobId} fictional@example.test`;
+  actionResult = {
+    success: false,
+    workerDisposition: "unknown",
+    error: secretDetail,
+  };
+  const response = await POST(request());
+  expect(response.status).toBe(503);
+  expect(await response.json()).toEqual({
+    error: "Workbook preparation did not settle",
+  });
+  expect(warnings).toEqual([
+    [
+      "CSF workbook refresh unsettled",
+      {
+        failureCode: "unclassified_failure",
+        disposition: "unknown",
+        elapsedMs: expect.any(Number),
+      },
+    ],
+  ]);
+  for (const forbidden of [
+    secretDetail,
+    "synthetic-workbook-token",
+    claim.driveFileId,
+    claim.jobId,
+    "fictional@example.test",
+  ])
+    expect(JSON.stringify(warnings)).not.toContain(forbidden);
+  expect(rpcCalls.map((call) => call.name)).toEqual([
+    "csf_claim_class_workbook_refresh_job",
+  ]);
+});
+
+test("a rejected workbook promise logs no raw exception and stays unsettled", async () => {
+  process.env.CSF_WORKBOOK_WORKER_ENABLED = "true";
+  rpcResults = [{ data: claim, error: null }];
+  actionFailure = new Error(
+    `synthetic-workbook-token ${claim.driveFileId} ${claim.jobId} fictional@example.test`,
+  );
+  const response = await POST(request());
+  expect(response.status).toBe(503);
+  expect(await response.json()).toEqual({
+    error: "Workbook preparation did not settle",
+  });
+  expect(warnings).toEqual([
+    [
+      "CSF workbook refresh unsettled",
+      {
+        failureCode: "workbook_exception",
+        disposition: "unknown",
+        elapsedMs: expect.any(Number),
+      },
+    ],
+  ]);
+  for (const forbidden of [
+    "synthetic-workbook-token",
+    claim.driveFileId,
+    claim.jobId,
+    "fictional@example.test",
+    "Error:",
+  ])
+    expect(JSON.stringify(warnings)).not.toContain(forbidden);
+  expect(rpcCalls.map((call) => call.name)).toEqual([
+    "csf_claim_class_workbook_refresh_job",
+  ]);
+});
+
+test("successful empty-template preparation emits no failure diagnostic", async () => {
+  process.env.CSF_WORKBOOK_WORKER_ENABLED = "true";
+  rpcResults = [
+    { data: claim, error: null },
+    { data: { finished: true, status: "completed" }, error: null },
+  ];
+  actionResult = {
+    success: true,
+    workerDisposition: "completed",
+    templateTermCodes: ["F26", "S27", "F27", "S28", "F28", "S29", "F29", "S30"],
+  };
+  const response = await POST(request());
+  expect(response.status).toBe(200);
+  expect(await response.json()).toMatchObject({
+    prepared: 0,
+    templates: 8,
+    status: "completed",
+  });
+  expect(warnings).toEqual([]);
+  expect(rpcCalls.map((call) => call.name)).toEqual([
+    "csf_claim_class_workbook_refresh_job",
+    "csf_finish_class_workbook_refresh_job",
+  ]);
 });

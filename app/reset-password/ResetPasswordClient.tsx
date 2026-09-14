@@ -4,6 +4,8 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { requestPasswordReset } from "./actions";
+import { normalizeRedirectPath } from "@/app/signup/redirect-utils";
+import { passwordRecoveryPath } from "./continuation";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -34,11 +36,15 @@ type ResetPasswordValues = z.infer<typeof resetPasswordSchema>;
 
 interface ResetPasswordClientProps {
   error?: string;
+  redirectPath?: string | null;
 }
 
 export default function ResetPasswordClient({
   error,
+  redirectPath,
 }: ResetPasswordClientProps) {
+  const continuation = normalizeRedirectPath(redirectPath);
+  const loginPath = passwordRecoveryPath("/login", continuation);
   const [isLoading, setIsLoading] = useState(false);
   const [emailSent, setEmailSent] = useState(false);
   const verification = useBotVerification({
@@ -60,6 +66,7 @@ export default function ResetPasswordClient({
     setIsLoading(true);
     const formData = new FormData();
     formData.append("email", data.email);
+    if (continuation) formData.append("redirect", continuation);
 
     if (turnstileToken) {
       formData.append("turnstileToken", turnstileToken);
@@ -110,7 +117,7 @@ export default function ResetPasswordClient({
               >
                 Try another email
               </Button>
-              <Link href="/login">
+              <Link href={loginPath}>
                 <Button variant="link" className="w-full">
                   Back to login
                 </Button>
@@ -180,7 +187,7 @@ export default function ResetPasswordClient({
             </Button>
             <div className="text-center text-sm">
               Remember your password?{" "}
-              <Link href="/login" className="underline">
+              <Link href={loginPath} className="underline">
                 Sign in
               </Link>
             </div>

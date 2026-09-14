@@ -6,6 +6,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { passwordSchema } from "@/lib/auth/password-policy";
 import { updatePassword } from "./actions";
+import { passwordRecoveryPath } from "../continuation";
 import { AlertTriangle, CheckCircle2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -39,9 +40,13 @@ type ResetPasswordValues = z.infer<typeof resetPasswordSchema>;
 
 interface ResetPasswordFormProps {
   token: string;
+  redirectPath?: string | null;
 }
 
-export default function ResetPasswordForm({ token }: ResetPasswordFormProps) {
+export default function ResetPasswordForm({
+  token,
+  redirectPath,
+}: ResetPasswordFormProps) {
   const [isLoading, setIsLoading] = useState(false);
   const router = useRouter();
 
@@ -78,7 +83,7 @@ export default function ResetPasswordForm({ token }: ResetPasswordFormProps) {
           "Your password has been reset successfully. Please log in with your new password.",
           { duration: 5000 },
         );
-        router.push("/login");
+        router.push(passwordRecoveryPath("/login", redirectPath));
       }
     } catch {
       toast.error("An unexpected error occurred. Please try again.");

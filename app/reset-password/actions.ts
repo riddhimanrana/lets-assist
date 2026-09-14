@@ -1,5 +1,7 @@
 "use server";
 
+import { normalizeRedirectPath } from "@/app/signup/redirect-utils";
+import { passwordRecoveryPath } from "./continuation";
 import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
 import { runOnCanonicalAuthOrigin } from "@/app/signup/canonical-auth-request";
@@ -33,35 +35,46 @@ export async function requestPasswordReset(
     };
   }
 
-  return runOnCanonicalAuthOrigin("/reset-password", async (origin) => {
-    const supabase = await createClient();
+  const requestedRedirect = formData.get("redirect");
+  const continuation = normalizeRedirectPath(
+    typeof requestedRedirect === "string" ? requestedRedirect : null,
+  );
+  return runOnCanonicalAuthOrigin(
+    passwordRecoveryPath("/reset-password", continuation),
+    async (origin) => {
+      const supabase = await createClient();
 
-    try {
-      const resetOptions: { redirectTo: string; captchaToken?: string } = {
-        redirectTo: `${origin}/auth/callback?type=recovery`,
-      };
+      try {
+        const callback = new URL("/auth/callback", origin);
+        callback.searchParams.set("type", "recovery");
+        if (continuation)
+          callback.searchParams.set("redirectAfterAuth", continuation);
+        const resetOptions: { redirectTo: string; captchaToken?: string } = {
+          redirectTo: callback.toString(),
+        };
 
-      if (turnstileToken) {
-        resetOptions.captchaToken = turnstileToken;
-      }
+        if (turnstileToken) {
+          resetOptions.captchaToken = turnstileToken;
+        }
 
-      // Send password reset email. Provider and user-existence errors are
-      // intentionally swallowed here to prevent email enumeration.
-      const { error } = await supabase.auth.resetPasswordForEmail(
-        validatedFields.data.email,
-        resetOptions,
-      );
+        // Send password reset email. Provider and user-existence errors are
+        // intentionally swallowed here to prevent email enumeration.
+        const { error } = await supabase.auth.resetPasswordForEmail(
+          validatedFields.data.email,
+          resetOptions,
+        );
 
-      if (error) {
+        if (error) {
+          console.error("Password reset error:", error);
+        }
+
+        return { success: true };
+      } catch (error) {
+        // Network or unexpected runtime errors: still return success to avoid
+        // leaking whether the email address exists, but log the real cause.
         console.error("Password reset error:", error);
+        return { success: true };
       }
-
-      return { success: true };
-    } catch (error) {
-      // Network or unexpected runtime errors: still return success to avoid
-      // leaking whether the email address exists, but log the real cause.
-      console.error("Password reset error:", error);
-      return { success: true };
-    }
-  });
+    },
+  );
 }

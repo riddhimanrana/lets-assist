@@ -191,6 +191,10 @@ describe("hosted CSF load acceptance", () => {
     expect(source).toContain('name: "Next subject"');
     expect(source).toContain('name: "Previous subject"');
     expect(source).toContain(
+      'getByPlaceholder("Search by name", {\n    exact: true,\n  })',
+    );
+    expect(source).not.toContain('getByPlaceholder("Search by name").first()');
+    expect(source).toContain(
       "for (let index = 0; index < BROWSER_REVIEW_NAVIGATIONS; index += 1)",
     );
     expect(source).toContain("reviewDigest === previousDigest");
