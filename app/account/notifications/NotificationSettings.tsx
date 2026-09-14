@@ -17,17 +17,19 @@ import { motion } from "motion/react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useAuth } from "@/hooks/useAuth";
 
-type NotificationSettings = {
-  email_notifications: boolean;
-  project_updates: boolean;
-  general: boolean;
-};
+import {
+  notificationPreferencesChanged,
+  readNotificationPreferences,
+  type NotificationPreferences,
+} from "./preferences";
 
 export function NotificationSettings() {
   const { user } = useAuth(); // Use cached auth instead of getUser() calls
-  const [settings, setSettings] = useState<NotificationSettings | null>(null);
+  const [settings, setSettings] = useState<NotificationPreferences | null>(
+    null,
+  );
   const [originalSettings, setOriginalSettings] =
-    useState<NotificationSettings | null>(null);
+    useState<NotificationPreferences | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const supabase = createClient();
@@ -45,7 +47,7 @@ export function NotificationSettings() {
           .from("notification_settings")
           .select("*")
           .eq("user_id", userId)) as {
-          data: NotificationSettings[] | null;
+          data: Record<string, unknown>[] | null;
           error: { message?: string } | null;
         };
 
@@ -54,7 +56,9 @@ export function NotificationSettings() {
           return;
         }
 
-        const firstSetting = data?.[0] ?? null;
+        const firstSetting = data?.[0]
+          ? readNotificationPreferences(data[0])
+          : null;
         setSettings(firstSetting);
         setOriginalSettings(firstSetting);
       } catch (error) {
@@ -67,7 +71,10 @@ export function NotificationSettings() {
     loadSettings();
   }, [user?.id]); // Re-run when user changes
 
-  const handleChange = (field: keyof NotificationSettings, value: boolean) => {
+  const handleChange = (
+    field: keyof NotificationPreferences,
+    value: boolean,
+  ) => {
     if (!settings) return;
     setSettings({ ...settings, [field]: value });
   };
@@ -88,7 +95,7 @@ export function NotificationSettings() {
         return;
       }
 
-      toast.success("Notification settings saved successfully");
+      toast.success("Notification settings saved");
       setOriginalSettings(settings);
     } catch (error) {
       toast.error("Failed to save notification settings");
@@ -98,12 +105,7 @@ export function NotificationSettings() {
     }
   };
 
-  // Check if settings have changed compared to the original
-  const hasChanges =
-    originalSettings &&
-    settings &&
-    (settings.email_notifications !== originalSettings.email_notifications ||
-      settings.project_updates !== originalSettings.project_updates);
+  const hasChanges = notificationPreferencesChanged(originalSettings, settings);
 
   return (
     <motion.div
@@ -117,16 +119,16 @@ export function NotificationSettings() {
             Notifications
           </h1>
           <p className="text-muted-foreground mt-1">
-            Manage your notification preferences and control how you receive
-            alerts
+            Choose which updates you receive.
           </p>
         </div>
 
         <Card className="border shadow-xs">
           <CardHeader>
-            <CardTitle className="text-xl">Notification Preferences</CardTitle>
+            <CardTitle className="text-xl">Notification preferences</CardTitle>
             <CardDescription>
-              Choose which notifications you&apos;d like to receive
+              Email settings apply to optional updates. Required account emails
+              still arrive.
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -149,11 +151,10 @@ export function NotificationSettings() {
                         htmlFor="email-notifications"
                         className="text-base"
                       >
-                        Email Notifications
+                        Email updates
                       </Label>
                       <p className="text-sm text-muted-foreground">
-                        Receive notifications via email when important updates
-                        occur
+                        Receive email for the update types enabled below.
                       </p>
                     </div>
                     <Switch
@@ -168,11 +169,10 @@ export function NotificationSettings() {
                   <div className="flex items-center justify-between border p-4 rounded-md">
                     <div className="space-y-0.5">
                       <Label htmlFor="project-updates" className="text-base">
-                        Project Updates
+                        Project updates
                       </Label>
                       <p className="text-sm text-muted-foreground">
-                        Receive helpful notifications about project updates and
-                        changes (may also send over email)
+                        Changes to your volunteer projects.
                       </p>
                     </div>
                     <Switch
@@ -186,12 +186,32 @@ export function NotificationSettings() {
 
                   <div className="flex items-center justify-between border p-4 rounded-md">
                     <div className="space-y-0.5">
+                      <Label
+                        htmlFor="organization-updates"
+                        className="text-base"
+                      >
+                        Organization updates
+                      </Label>
+                      <p className="text-sm text-muted-foreground">
+                        Posts and activities from your organizations.
+                      </p>
+                    </div>
+                    <Switch
+                      id="organization-updates"
+                      checked={settings.organization_updates}
+                      onCheckedChange={(checked) =>
+                        handleChange("organization_updates", checked)
+                      }
+                    />
+                  </div>
+
+                  <div className="flex items-center justify-between border p-4 rounded-md">
+                    <div className="space-y-0.5">
                       <Label htmlFor="general" className="text-base">
                         General
                       </Label>
                       <p className="text-sm text-muted-foreground">
-                        General system notifications about login items and other
-                        such stuff.
+                        Other platform updates.
                       </p>
                     </div>
                     <Switch
@@ -210,7 +230,7 @@ export function NotificationSettings() {
                     disabled={saving || !hasChanges}
                     className="w-full sm:w-auto"
                   >
-                    {saving ? "Saving Changes..." : "Save Changes"}
+                    {saving ? "Saving..." : "Save changes"}
                   </Button>
                 </div>
               </div>

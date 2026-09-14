@@ -194,6 +194,14 @@ export const approvedMigrations = [
     "20260914030902_publish_dvhs_csf_1_2_43",
     "5a07c6077146f60c98493fe15b229681dfd6584197293e150209265d2dbe5600",
   ],
+  [
+    "20260914033117_csf_publication_notifications",
+    "7816de9de5bdbb5e3b8f6dc6ab237bfbbeebae4b84ad9f73fe385b54ab46182e",
+  ],
+  [
+    "20260914044610_add_publication_notification_worker_control",
+    "c3f2890be21fadee2ed79bf11d2312875259e4e42dd12e583d1750025510fcad",
+  ],
 ];
 
 const literal = (value) => `'${value.replaceAll("'", "''")}'`;
@@ -236,9 +244,18 @@ SET LOCAL statement_timeout = '60s';
 SELECT pg_catalog.pg_advisory_xact_lock(592042, 1);
 LOCK TABLE supabase_migrations.schema_migrations IN EXCLUSIVE MODE;
 LOCK TABLE app_private.csf_release_worker_controls IN SHARE MODE;
+${prefix.includes("20260914033117") ? "LOCK TABLE plugin_data.csf_publication_notification_deliveries IN SHARE MODE;" : ""}
 DO $release_guard$ BEGIN
+  ${
+    prefix.includes("20260914033117")
+      ? `IF EXISTS (SELECT 1 FROM plugin_data.csf_publication_notification_deliveries WHERE status='processing' AND lease_expires_at>now()) THEN
+    RAISE EXCEPTION 'Wait for publication notification leases to drain';
+  END IF;`
+      : ""
+  }
   IF EXISTS (SELECT 1 FROM app_private.csf_release_worker_controls
-    WHERE workbook_refresh OR import_commit OR communications OR scheduled_post_publisher) THEN
+    WHERE workbook_refresh OR import_commit OR communications OR scheduled_post_publisher
+      OR coalesce((to_jsonb(csf_release_worker_controls)->>'publication_notifications')::boolean,false)) THEN
     RAISE EXCEPTION 'Disable CSF workers before applying schema changes';
   END IF;
   IF (SELECT array_agg(version::text ORDER BY version) FROM supabase_migrations.schema_migrations)
@@ -282,7 +299,8 @@ export async function applyForwardMigrations(config, fetcher = fetch) {
     SELECT 1 FROM pg_catalog.pg_roles WHERE rolname='authenticator'
       AND 'default_transaction_read_only=on'=ANY(coalesce(rolconfig,ARRAY[]::text[]))
   ) AND NOT EXISTS (SELECT 1 FROM app_private.csf_release_worker_controls
-    WHERE workbook_refresh OR import_commit OR communications OR scheduled_post_publisher) AS valid;`);
+    WHERE workbook_refresh OR import_commit OR communications OR scheduled_post_publisher
+      OR coalesce((to_jsonb(csf_release_worker_controls)->>'publication_notifications')::boolean,false)) AS valid;`);
   if (posture?.length !== 1 || posture[0].valid !== true)
     throw new ReleaseCheckError(
       "Production has an unresolved write block or an enabled CSF worker.",
@@ -304,7 +322,8 @@ export async function applyForwardMigrations(config, fetcher = fetch) {
       AND NOT has_function_privilege('anon','public.read_csf_release_worker_controls(text)','EXECUTE')
       AND NOT has_function_privilege('service_role','app_private.set_csf_release_worker_control(text,text,boolean,bigint,uuid,text,text)','EXECUTE')
       AND NOT EXISTS (SELECT 1 FROM app_private.csf_release_worker_controls
-        WHERE workbook_refresh OR import_commit OR communications OR scheduled_post_publisher)
+        WHERE workbook_refresh OR import_commit OR communications OR scheduled_post_publisher
+      OR coalesce((to_jsonb(csf_release_worker_controls)->>'publication_notifications')::boolean,false))
       AND EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema='plugin_data'
         AND table_name='csf_profile_accounts' AND column_name='connection_basis') AS valid;`);
     if (controls?.length !== 1 || controls[0].valid !== true)

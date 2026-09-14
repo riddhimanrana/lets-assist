@@ -12,7 +12,7 @@ const source = readFileSync(
   "utf8",
 );
 test("494 pins only state transition and review function changes", () => {
-  assert.equal(versions.length, 513);
+  assert.equal(versions.length, 515);
   const changed = sheetToggleDefinitions.filter(
     (row, i) =>
       JSON.stringify(row) !== JSON.stringify(sheetDeferredNoteDefinitions[i]),
@@ -41,10 +41,23 @@ test("493 advances through observation invalidation and the current release tail
         /INSERT INTO supabase_migrations.schema_migrations/gu,
       ) ?? []
     ).length,
-    20,
+    22,
   );
   assert.ok(result.query.includes("enabled IS DISTINCT FROM p_enabled"));
   assert.ok(result.query.includes("IF NOT d.enabled OR d.observation_state"));
-  assert.ok(!result.query.includes("CREATE TRIGGER"));
+  assert.deepEqual(
+    Array.from(
+      new Set(
+        Array.from(
+          result.query.matchAll(/CREATE TRIGGER ([a-z_]+)/gu),
+          (match) => match[1],
+        ),
+      ),
+    ),
+    [
+      "csf_announcements_publication_notifications",
+      "csf_activities_publication_notifications",
+    ],
+  );
   assert.ok(result.query.includes("AND version = '1.2.32'"));
 });

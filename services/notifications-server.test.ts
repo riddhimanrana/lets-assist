@@ -286,3 +286,51 @@ describe("server notification callers", () => {
     expect(source).not.toMatch(/from\s+["']@\/lib\/supabase\/client["']/u);
   });
 });
+
+describe("organization update preferences", () => {
+  test("organization opt-out skips a durable notice without consulting browser context", async () => {
+    preferenceRow = { organization_updates: false, email_notifications: true };
+    const result = await createNotificationForUser(
+      {
+        title: "Organization update",
+        body: "A new post is available.",
+        type: "organization_updates",
+        dedupeKey: "publication:fixture",
+      },
+      USER,
+    );
+    expect(result).toEqual({ success: false, skipped: true });
+    expect(insertedRows).toHaveLength(0);
+    expect(browserClientCalls).toBe(0);
+  });
+
+  test("global email opt-out does not suppress an enabled bell category", async () => {
+    preferenceRow = { organization_updates: true, email_notifications: false };
+    expect(
+      await createNotificationForUser(
+        {
+          title: "Organization update",
+          body: "A new activity is available.",
+          type: "organization_updates",
+        },
+        USER,
+      ),
+    ).toEqual({ success: true });
+    expect(insertedRows[0]?.type).toBe("organization_updates");
+  });
+
+  test("a failed recipient preference read does not insert a notice", async () => {
+    preferenceError = { code: "42501" };
+    expect(
+      await createNotificationForUser(
+        {
+          title: "Organization update",
+          body: "A new post is available.",
+          type: "organization_updates",
+        },
+        USER,
+      ),
+    ).toEqual({ error: preferenceError });
+    expect(insertedRows).toHaveLength(0);
+  });
+});

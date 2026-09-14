@@ -277,6 +277,7 @@ export async function seedDvhsCsfFixtures({ admin, users, must }) {
         profile_id: IDS.csfProfileMember,
         user_id: users.csfMember.id,
         status: "verified",
+        connection_basis: "officer_decision",
         is_primary: true,
         linked_by: users.developer.id,
       },

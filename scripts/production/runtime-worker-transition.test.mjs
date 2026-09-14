@@ -80,6 +80,8 @@ function status(controls) {
           csfImportCommit: controls.workers.import_commit,
           csfCommunications: controls.workers.communications,
           csfScheduledPostPublisher: controls.workers.scheduled_post_publisher,
+          csfPublicationNotifications:
+            controls.workers.publication_notifications ?? false,
         },
       },
     ],
@@ -103,7 +105,24 @@ function transport(responses) {
       const response = responses.shift();
       if (response instanceof Error) throw response;
       assert.notEqual(response, undefined, "unexpected extra request");
-      return Response.json(response);
+      return Response.json(
+        Array.isArray(response)
+          ? response.map((row) =>
+              row.controls
+                ? {
+                    ...row,
+                    controls: {
+                      ...row.controls,
+                      workers: {
+                        publication_notifications: false,
+                        ...row.controls.workers,
+                      },
+                    },
+                  }
+                : row,
+            )
+          : response,
+      );
     },
   };
 }
@@ -215,7 +234,14 @@ test("unprotected status needs no bypass header and a challenge stops before mut
         calls.push({ url, ...options });
         assert.equal(options.redirect, "error");
         return calls.length === 1
-          ? Response.json([{ controls: before }])
+          ? Response.json([
+              {
+                controls: {
+                  ...before,
+                  workers: { ...off, publication_notifications: false },
+                },
+              },
+            ])
           : new Response("fixture-challenge", { status: 403 });
       },
       (receipt) => receipts.push(receipt),
@@ -308,5 +334,68 @@ test("independent disable preserves unrelated worker flags", async () => {
   assert.equal(
     (await transitionWorker(disable, mock.fetcher)).workers.import_commit,
     true,
+  );
+});
+
+test("bell activation is independent of email and import workers", async () => {
+  const bell = transitionConfig({
+    ...env,
+    WORKER: "publication_notifications",
+    CONFIRMATION: `enable-csf-worker:publication_notifications:${sha}`,
+  });
+  const enabled = {
+    ...after,
+    workers: { ...off, publication_notifications: true },
+  };
+  const mock = transport([
+    [{ controls: before }],
+    status(before),
+    [{ receipt: enabled }],
+    [{ controls: enabled }],
+    status(enabled),
+  ]);
+  const result = await transitionWorker(bell, mock.fetcher);
+  assert.equal(result.workers.publication_notifications, true);
+  assert.equal(result.workers.communications, false);
+  assert.equal(result.workers.workbook_refresh, false);
+});
+
+test("old host status supports legacy controls but cannot activate bell delivery", async () => {
+  const legacyStatus = status(before);
+  delete legacyStatus.checks[0].details.csfPublicationNotifications;
+  const legacyAfter = status(after);
+  delete legacyAfter.checks[0].details.csfPublicationNotifications;
+  const compatible = transport([
+    [{ controls: before }],
+    legacyStatus,
+    [{ receipt: after }],
+    [{ controls: after }],
+    legacyAfter,
+  ]);
+  assert.deepEqual(await transitionWorker(config, compatible.fetcher), after);
+  const bell = transitionConfig({
+    ...env,
+    WORKER: "publication_notifications",
+    CONFIRMATION: `enable-csf-worker:publication_notifications:${sha}`,
+  });
+  const refused = transport([[{ controls: before }], legacyStatus]);
+  await assert.rejects(transitionWorker(bell, refused.fetcher));
+  assert.equal(refused.calls.length, 2);
+});
+
+test("a legacy receipt cannot hide a concurrent change to bell delivery", async () => {
+  const drifted = {
+    ...after,
+    workers: { ...after.workers, publication_notifications: true },
+  };
+  const mock = transport([
+    [{ controls: before }],
+    status(before),
+    [{ receipt: after }],
+    [{ controls: drifted }],
+  ]);
+  await assert.rejects(
+    transitionWorker(config, mock.fetcher),
+    /changed after the transition/,
   );
 });
