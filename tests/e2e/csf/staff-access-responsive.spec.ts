@@ -220,18 +220,26 @@ test.describe("DVHS CSF staff access presentation", () => {
     const unlinkedProfileCard = page
       .getByRole("region", { name: "Officer roster" })
       .getByRole("button", {
-        name: "Revoke No CSF profile linked's Adviser — Chapter oversight access",
+        name: "Revoke Dr. Elena Park's Adviser — Chapter oversight access",
         exact: true,
       })
       .locator("xpath=ancestor::div[@data-slot='item'][1]");
     await expect(unlinkedProfileCard).toBeVisible();
     await expect(
-      unlinkedProfileCard.getByText("No CSF profile linked", { exact: true }),
+      unlinkedProfileCard.getByText("From the Let's Assist account", {
+        exact: true,
+      }),
     ).toBeVisible();
     await expect(
       unlinkedProfileCard.getByText("Let's Assist account", { exact: true }),
     ).toBeVisible();
     await expect(unlinkedProfileCard).toContainText("Dr. Elena Park");
+    await expect(
+      unlinkedProfileCard.getByRole("link", {
+        name: "Connect a record",
+        exact: true,
+      }),
+    ).toBeVisible();
     await expect(unlinkedProfileCard).not.toContainText(
       "No Let's Assist account",
     );
