@@ -230,6 +230,10 @@ export const approvedMigrations = [
     "20260914160000_csf_notification_delivery_organization_index",
     "0d7cacc28995d243663ad0b4260dbd583ecc0b7987b3f09b83ea49e5c4e35ef1",
   ],
+  [
+    "20260914170000_csf_application_import_noop_guard",
+    "7191b49cdcb96f59c75246428bbf6eebd68a1b5eebb20d9db5a4c4382101484b",
+  ],
 ];
 
 const literal = (value) => `'${value.replaceAll("'", "''")}'`;

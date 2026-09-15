@@ -101,6 +101,14 @@ export const csfOneTwoFortySixDefinitions = [
   ],
 ];
 
+export const csfApplicationImportNoopDefinitions = [
+  [
+    "plugin_data.csf_import_application_response_row_identity_base(uuid,uuid,text,text,text,text,text,text,text,text,uuid,uuid,uuid,uuid,text,jsonb,uuid)",
+    "63278df55e7ae69cbb5a19e11849226f",
+    false,
+  ],
+];
+
 const relationFingerprints = [
   ["plugin_data.csf_opportunities", "9b1b4a82e52bf0b006bb4962fb64554d", false],
   [

@@ -5,7 +5,10 @@ import test from "node:test";
 import { fileURLToPath } from "node:url";
 import { acceptedCatalogQuery } from "./app-release-catalog.mjs";
 import { expectedVersions } from "./app-release-checks.mjs";
-import { csfOneTwoFortySixDefinitions } from "./csf-1-2-46-catalog.mjs";
+import {
+  csfApplicationImportNoopDefinitions,
+  csfOneTwoFortySixDefinitions,
+} from "./csf-1-2-46-catalog.mjs";
 
 const source = readFileSync(
   new URL("./verify-csf-target-schema.sql", import.meta.url),
@@ -16,8 +19,8 @@ const versions = expectedVersions(
 );
 
 test("522 pins every changed function body and execution ACL", () => {
-  assert.equal(versions.length, 522);
-  const current = acceptedCatalogQuery(source, versions);
+  assert.equal(versions.length, 523);
+  const current = acceptedCatalogQuery(source, versions.slice(0, 522));
   assert.equal(csfOneTwoFortySixDefinitions.length, 20);
   for (const [signature, digest, service] of csfOneTwoFortySixDefinitions)
     assert.ok(current.includes(`('${signature}','${digest}',${service})`));
@@ -25,7 +28,7 @@ test("522 pins every changed function body and execution ACL", () => {
 });
 
 test("522 pins the exact six changed relation shapes", () => {
-  const current = acceptedCatalogQuery(source, versions);
+  const current = acceptedCatalogQuery(source, versions.slice(0, 522));
   for (const fragment of [
     "('csf_opportunities','9b1b4a82e52bf0b006bb4962fb64554d',false)",
     "('csf_point_submissions','9c89b53001230c25776267a5990e1175',false)",
@@ -47,9 +50,31 @@ test("522 preserves the accepted 518 catalog byte for byte", () => {
   );
 });
 
+test("523 adds only the reviewed import no-op function definition", () => {
+  assert.equal(versions.length, 523);
+  const previous = acceptedCatalogQuery(source, versions.slice(0, 522));
+  assert.equal(
+    createHash("sha256").update(previous).digest("hex"),
+    "086ec6cea32101216fcaea3e70894cb030b6c028391e8bced596eeb00f2e26c0",
+  );
+  const current = acceptedCatalogQuery(source, versions);
+  for (const [signature, digest, service] of csfApplicationImportNoopDefinitions)
+    assert.ok(current.includes(`('${signature}','${digest}',${service})`));
+  assert.ok(current.includes("SELECT count(*) = 57 AND"));
+});
+
 test("an altered 522 ledger cannot select the candidate catalog", () => {
-  const altered = [...versions];
+  const altered = versions.slice(0, 522);
   altered[521] = "20260914160001";
+  assert.throws(
+    () => acceptedCatalogQuery(source, altered),
+    /explicit release review/u,
+  );
+});
+
+test("an altered 523 ledger cannot select the candidate catalog", () => {
+  const altered = [...versions];
+  altered[522] = "20260914170001";
   assert.throws(
     () => acceptedCatalogQuery(source, altered),
     /explicit release review/u,
