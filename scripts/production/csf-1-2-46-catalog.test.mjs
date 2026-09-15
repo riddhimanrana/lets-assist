@@ -20,7 +20,7 @@ const versions = expectedVersions(
 );
 
 test("522 pins every changed function body and execution ACL", () => {
-  assert.equal(versions.length, 524);
+  assert.equal(versions.length, 525);
   const current = acceptedCatalogQuery(source, versions.slice(0, 522));
   assert.equal(csfOneTwoFortySixDefinitions.length, 20);
   for (const [signature, digest, service] of csfOneTwoFortySixDefinitions)
@@ -52,7 +52,7 @@ test("522 preserves the accepted 518 catalog byte for byte", () => {
 });
 
 test("523 adds only the reviewed import no-op function definition", () => {
-  assert.equal(versions.length, 524);
+  assert.equal(versions.length, 525);
   const previous = acceptedCatalogQuery(source, versions.slice(0, 522));
   assert.equal(
     createHash("sha256").update(previous).digest("hex"),
@@ -69,7 +69,7 @@ test("523 adds only the reviewed import no-op function definition", () => {
 });
 
 test("524 adds only the mixed-category resubmission definition", () => {
-  const current = acceptedCatalogQuery(source, versions);
+  const current = acceptedCatalogQuery(source, versions.slice(0, 524));
   for (const [
     signature,
     digest,
@@ -98,8 +98,23 @@ test("an altered 523 ledger cannot select the candidate catalog", () => {
 });
 
 test("an altered 524 ledger cannot select the candidate catalog", () => {
-  const altered = [...versions];
+  const altered = versions.slice(0, 524);
   altered[523] = "20260915015214";
+  assert.throws(
+    () => acceptedCatalogQuery(source, altered),
+    /explicit release review/u,
+  );
+});
+
+test("525 publishes 1.2.46 without changing the accepted function catalog", () => {
+  const previous = acceptedCatalogQuery(source, versions.slice(0, 524));
+  const current = acceptedCatalogQuery(source, versions);
+  assert.equal(current, previous);
+});
+
+test("an altered 525 ledger cannot select the candidate catalog", () => {
+  const altered = [...versions];
+  altered[524] = "20260915032758";
   assert.throws(
     () => acceptedCatalogQuery(source, altered),
     /explicit release review/u,
