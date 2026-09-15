@@ -27,7 +27,7 @@ let oauthCalls = 0;
 const verifierCookieHosts: string[] = [];
 let signUpResult: {
   data: { user: { identities?: unknown[] } | null };
-  error: { message: string } | null;
+  error: { message: string; code?: string; reasons?: unknown } | null;
 };
 let resendError: { message: string; status?: number } | null = null;
 let oauthError: { message: string } | null = null;
@@ -142,6 +142,112 @@ describe("signup enumeration resistance", () => {
 
     const result = await signup(signupForm());
     expect(JSON.stringify(result)).not.toContain("secret-provider-detail");
+    expect(result).toEqual({
+      error: {
+        server: [
+          "Unable to complete registration. Please try again or contact support.",
+        ],
+      },
+    });
+  });
+});
+
+describe("signup weak password feedback", () => {
+  const RAW_PROVIDER_MESSAGE =
+    "Password should contain at least one character of each: abc, 123. raw-provider-detail";
+
+  function rejectPassword(reasons: unknown, code = "weak_password") {
+    signUpResult = {
+      data: { user: null },
+      error: { message: RAW_PROVIDER_MESSAGE, code, reasons },
+    };
+  }
+
+  function passwordMessage(result: Awaited<ReturnType<typeof signup>>) {
+    expect(result.success).toBeUndefined();
+    expect(result.error?.server).toBeUndefined();
+    expect(result.error?.password).toHaveLength(1);
+    return result.error?.password?.[0] ?? "";
+  }
+
+  test("length reason asks for a longer password", async () => {
+    rejectPassword(["length"]);
+    expect(passwordMessage(await signup(signupForm()))).toBe(
+      "Use a longer password.",
+    );
+  });
+
+  test("characters reason asks for more character types", async () => {
+    rejectPassword(["characters"]);
+    expect(passwordMessage(await signup(signupForm()))).toBe(
+      "Include uppercase and lowercase letters, numbers, and symbols.",
+    );
+  });
+
+  test("pwned reason names a commonly used or compromised password", async () => {
+    rejectPassword(["pwned"]);
+    expect(passwordMessage(await signup(signupForm()))).toBe(
+      "This password is commonly used or compromised. Choose a different one.",
+    );
+  });
+
+  test("reuse reason asks for a password not used before", async () => {
+    rejectPassword(["reuse"]);
+    expect(passwordMessage(await signup(signupForm()))).toBe(
+      "Choose a password you have not used before.",
+    );
+  });
+
+  test("combined reasons produce one message in a fixed order", async () => {
+    rejectPassword(["pwned", "length", "characters"]);
+    expect(passwordMessage(await signup(signupForm()))).toBe(
+      "Use a longer password. Include uppercase and lowercase letters, numbers, and symbols. This password is commonly used or compromised. Choose a different one.",
+    );
+  });
+
+  test("known reasons are kept when mixed with unknown ones", async () => {
+    rejectPassword(["future_reason", "pwned"]);
+    expect(passwordMessage(await signup(signupForm()))).toBe(
+      "This password is commonly used or compromised. Choose a different one.",
+    );
+  });
+
+  test("weak_password with unknown or missing reasons asks for a stronger password", async () => {
+    rejectPassword(["future_reason"]);
+    expect(passwordMessage(await signup(signupForm()))).toBe(
+      "Choose a stronger password.",
+    );
+
+    rejectPassword(undefined);
+    expect(passwordMessage(await signup(signupForm()))).toBe(
+      "Choose a stronger password.",
+    );
+
+    rejectPassword("length");
+    expect(passwordMessage(await signup(signupForm()))).toBe(
+      "Choose a stronger password.",
+    );
+  });
+
+  test("same_password is not classified because it would reveal an existing account", async () => {
+    rejectPassword(["same_password"]);
+    const message = passwordMessage(await signup(signupForm()));
+    expect(message).toBe("Choose a stronger password.");
+    expect(message).not.toContain("used before");
+  });
+
+  test("raw provider text never reaches the caller", async () => {
+    rejectPassword(["length", "pwned"]);
+    const result = await signup(signupForm());
+    expect(JSON.stringify(result)).not.toContain("raw-provider-detail");
+    expect(JSON.stringify(result)).not.toContain("abc, 123");
+  });
+
+  test("an unrelated coded error stays a generic server error", async () => {
+    rejectPassword(["length"], "signup_disabled");
+    const result = await signup(signupForm());
+    expect(result.error?.password).toBeUndefined();
+    expect(JSON.stringify(result)).not.toContain("raw-provider-detail");
     expect(result).toEqual({
       error: {
         server: [

@@ -6,10 +6,7 @@ const USERNAME_MAX_LENGTH = 32;
 /**
  * Username candidates derived from a person's name.
  *
- * The onboarding modal opened with an empty username box, which asks a student
- * to invent an identifier before they have any idea what the field is for.
- * Most pick something they later regret or stall entirely, and the modal says
- * it "will keep showing up until filled out".
+ * A suggestion lets students finish setup without inventing a handle first.
  *
  * Candidates are ordered most-natural first and only ever SUGGESTED: the caller
  * checks availability and the student can replace whatever is filled in. Order

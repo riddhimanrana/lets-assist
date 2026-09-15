@@ -5,12 +5,7 @@ import {
   usernameCandidatesFromIdentity,
 } from "./username-suggestions";
 
-/**
- * The onboarding modal opened with an empty username box and told students it
- * "will keep showing up until filled out". Suggesting a handle from the name
- * they already gave removes that stall. Suggestions are never authoritative --
- * availability decides, and the student can always type their own.
- */
+/** Suggestions use the entered name. Availability decides, and students can edit them. */
 
 describe("usernameCandidatesFromIdentity", () => {
   test("offers the natural handles first, most-natural first", () => {

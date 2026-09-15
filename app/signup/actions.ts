@@ -30,6 +30,39 @@ const GENERIC_RESEND_MESSAGE =
 
 type SignupActionError = Record<string, string[] | undefined>;
 
+// Show only known structured weak-password reasons, never provider message text.
+const WEAK_PASSWORD_REASON_MESSAGES: ReadonlyArray<readonly [string, string]> =
+  [
+    ["length", "Use a longer password."],
+    [
+      "characters",
+      "Include uppercase and lowercase letters, numbers, and symbols.",
+    ],
+    [
+      "pwned",
+      "This password is commonly used or compromised. Choose a different one.",
+    ],
+    ["reuse", "Choose a password you have not used before."],
+  ];
+const GENERIC_WEAK_PASSWORD_MESSAGE = "Choose a stronger password.";
+
+function weakPasswordReasons(error: unknown): string[] | null {
+  if (!error || typeof error !== "object") return null;
+  const { code, reasons } = error as { code?: unknown; reasons?: unknown };
+  if (code !== "weak_password") return null;
+  return Array.isArray(reasons)
+    ? reasons.filter((reason): reason is string => typeof reason === "string")
+    : [];
+}
+
+function weakPasswordMessage(reasons: string[]): string {
+  const known = new Set(reasons);
+  const parts = WEAK_PASSWORD_REASON_MESSAGES.filter(([reason]) =>
+    known.has(reason),
+  ).map(([, message]) => message);
+  return parts.length > 0 ? parts.join(" ") : GENERIC_WEAK_PASSWORD_MESSAGE;
+}
+
 type SignupActionResult =
   | {
       success: true;
@@ -189,6 +222,10 @@ export async function signup(formData: FormData): Promise<SignupActionResult> {
       if (authError) {
         if (authError.message.includes("User already registered")) {
           return signupSuccess(validatedFields.data.email);
+        }
+        const reasons = weakPasswordReasons(authError);
+        if (reasons) {
+          return { error: { password: [weakPasswordMessage(reasons)] } };
         }
         throw authError;
       }
