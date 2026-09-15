@@ -7651,3 +7651,7 @@ The latest source preview retains 253 resolved rows and 236 rows needing staff r
 The signed 1.2.49 source is `deb220b48422507f6a406c0911433577a0c08391`; private publication run `34992979252` and root signature integration run `34993018538` passed. Root PR 601 adds publication migration `20260915161001` and advances the embedded gitlink through the signed workflow. Its exact 534-migration catalog passes 151 focused tests. The generated publication does not alter organization installations.
 
 Local browser isolation and cron smoke completed after correcting a dependency symlink in the disposable test setup. The cron tests passed 633 assertions with no dispatch or external requests. Together with the prior full database, workflow, authorization, TypeScript, and lint results, all local gate stages passed. Final hosted acceptance and Production deployment are still pending.
+
+### Resolved class request recovery, September 15, 2026
+
+PR #600 review identified that a resolved cohort request could return no actionable outcome after its verified account link was revoked or moved. Forward migration `20260915161554_csf_resolved_class_request_recovery.sql` reopens that stale request for staff review after the current-link checks fail. It retains rejections, the original request ID, and the current account link. The new regression suite reproduced five failed assertions before the fix and passes all 16 afterward. The five focused identity/class suites pass 75 assertions locally. This migration performs no backfill or hosted writes.
