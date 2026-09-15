@@ -166,16 +166,7 @@ export default function InitialOnboardingModal({
     }
   }
 
-  /*
-    Suggest a username instead of opening on an empty box.
-
-    The modal tells students it "will keep showing up until filled out", so an
-    empty field is a stall in front of the one thing standing between them and
-    their connected CSF record. The name they already typed is enough to offer
-    a handle; availability still decides, and the value is only a default --
-    they can replace it, and `suggestedUsernameRef` makes sure we never
-    overwrite anything they have started typing.
-  */
+  // Suggest a username from the entered name, but never overwrite a typed value.
   const suggestedUsernameRef = useRef(false);
   useEffect(() => {
     if (suggestedUsernameRef.current) return;
@@ -386,13 +377,9 @@ export default function InitialOnboardingModal({
                     <div className="space-y-1">
                       <DialogDescription className="text-sm">
                         {variant === "csf"
-                          ? "Your CSF record is connected — choose a username to finish"
+                          ? "Choose a username to finish setup and continue to CSF."
                           : "Let's set up your profile"}
                       </DialogDescription>
-                      <p className="text-xs text-muted-foreground/80">
-                        This will keep showing up until filled out and then go
-                        away forever.
-                      </p>
                     </div>
                   </div>
                 </motion.div>

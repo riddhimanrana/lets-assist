@@ -194,6 +194,39 @@ describe("GET /auth/confirm (runtime)", () => {
     }
   });
 
+  test("a consumed signup link keeps a nested class continuation without carrying provider errors", async () => {
+    try {
+      const path = "/organization/dvhighcsf/plugins/dvhs-csf/connect/CNLVVP";
+      const destination = await redirectedTo(
+        `/auth/confirm?redirectAfterAuth=${encodeURIComponent(path)}#error=access_denied&error_code=otp_expired&error_description=raw-provider-detail`,
+        { host: EVIL_HOST },
+      );
+      const url = new URL(destination);
+      expect(url.origin).toBe(HOSTED);
+      expect(url.pathname).toBe("/auth/email-expired");
+      expect(url.searchParams.get("redirectAfterAuth")).toBe(path);
+      expect(destination).toEndWith("#");
+      expect(destination).not.toContain("otp_expired");
+      expect(destination).not.toContain("raw-provider-detail");
+    } finally {
+      restoreEnv();
+    }
+  });
+
+  test("a credential-free signup strips an unsafe continuation", async () => {
+    try {
+      const destination = await redirectedTo(
+        "/auth/confirm?redirectAfterAuth=https%3A%2F%2Fother.test%2Fsteal",
+      );
+      const url = new URL(destination);
+      expect(url.pathname).toBe("/auth/email-expired");
+      expect(url.searchParams.get("redirectAfterAuth")).toBeNull();
+      expect(destination).not.toContain("other.test");
+    } finally {
+      restoreEnv();
+    }
+  });
+
   test("every negative branch redirects to an absolute URL on the trusted origin", async () => {
     try {
       const cases: Array<{
@@ -219,7 +252,7 @@ describe("GET /auth/confirm (runtime)", () => {
           },
         },
         {
-          path: "/auth/confirm",
+          path: "/auth/confirm?type=email_change",
           arrange: () => {},
         },
         {

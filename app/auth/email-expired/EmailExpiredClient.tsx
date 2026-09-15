@@ -104,12 +104,12 @@ export default function EmailExpiredClient({
             <AlertCircle className="h-12 w-12 text-amber-600" />
           </div>
           <CardTitle className="text-2xl text-center">
-            Verification link expired
+            Verification link no longer works
           </CardTitle>
           <CardDescription className="text-center">
             {email
               ? "Request a new verification link to continue."
-              : "This link no longer works. Sign in to continue."}
+              : "This link may have been used or expired. Sign in to continue."}
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
