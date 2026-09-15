@@ -72,9 +72,9 @@ page under **More**. The Classes tab keeps only the class picker and **Add a
 class**. This amendment supersedes the Classes-embedded semester views in
 §6.1, §6.3, §6.4, and §8.14–8.16 as follows:
 
-- **One page, one term.** Terms shows a term selector (the chapter's history is
-  the selector — closed terms are ordinary entries marked archived), the
-  selected term's dates and application window, its deadlines, and its meeting
+- **One page, one term.** Terms shows a term selector. The chapter's history is
+  the selector, and closed terms are ordinary entries marked archived. The
+  page shows the selected term's dates, application intake switch, deadlines, and meeting
   schedule. There is no Schedule/Policy/Previous-semesters sub-navigation.
 - **Lifecycle actions.** **Start next term** derives the next operating period
   from the current term (Fall 2026 → Spring 2027): if the next term record
@@ -132,8 +132,9 @@ remains:
   Officer Home shows the pending **Connection requests** count.
 - **Application form link.** The public apply call to action comes from the
   per-term `application_form_url`, edited in the term dialog's **Application
-  form link** field and rendered only while that term is current and inside
-  its application window.
+  form link** field and rendered only while that term is current and **Accept
+  new applications** is on. Legacy application dates remain readable but do
+  not control intake.
 
 Clauses about onboarding links, invitations, profile claims, or the account
 connections view in earlier sections (§8.5, §9.5, §19.22–23, §22.1) are
@@ -183,7 +184,7 @@ Observed operating evidence includes:
 - A semester application response sheet with identity, verified-contact, grade level, returning/new status, course-list entries, academic point totals, transcript evidence, dues receipt evidence, and other application confirmations.
 - Per-graduating-class workbooks with one tab per semester and repeated activity columns, meeting-attendance columns, and a final requirement result.
 - Returning-club and club-audit forms that collect point-allocation rules, recordkeeping method, activities, drives, membership, communications, spreadsheet proof, and verification consent.
-- A yearly timeline with separate fall and spring application windows, monthly full-chapter meetings, officer meetings, point deadlines, and merchandise/regalia operations.
+- A yearly timeline with separate fall and spring application intake periods, monthly full-chapter meetings, officer meetings, point deadlines, and merchandise/regalia operations.
 - Officer responsibility documents covering application review, appeals, point processing, attendance, club audits, large events, email and Classroom reminders, dues/fundraising, merchandise/regalia, public information, and activity discovery.
 - Current chapter guidance published at [dvhighcsf.org/membership](https://www.dvhighcsf.org/membership) and [dvhighcsf.org/seniors](https://www.dvhighcsf.org/seniors).
 
@@ -731,12 +732,12 @@ Clubs keep applying and renewing through the existing Google Form. An officer up
 
 **Purpose:** Define the real operating calendar and owners for one semester.<br>
 **Primary users:** Presidents, secretary, adviser.<br>
-**Shows:** Term lifecycle, application open/close, transcript/dues cutoff, meetings, point deadline, review completion target, term-close date, owner, and status.<br>
+**Shows:** Term lifecycle, the manual application intake switch, transcript/dues cutoff, meetings, point deadline, review completion target, term-close date, owner, and status.<br>
 **Primary actions:** Create planned semester; edit future deadlines; assign owner; open term-close preflight.<br>
 **Secondary actions:** Duplicate the prior semester as a draft; add meeting; view previous term.<br>
 **Filters:** Selected semester; historical terms appear in Previous semesters.<br>
 **Empty state:** No semester configured; guided setup begins with name/dates, then policy, then imports.<br>
-**Validation:** Opening a term requires an application window and published policy version. Closing requires preflight.<br>
+**Validation:** Opening a term requires a published policy version. The separate **Accept new applications** switch controls public intake for the current term. Closing requires preflight.<br>
 **Permissions:** Policy/closure capabilities are separate from ordinary meeting editing.<br>
 **Mobile:** Chronological list with status and owner; editor is full-screen.
 
@@ -859,11 +860,11 @@ The import workspace is specified in Section 12.
 ### 9.1 Create and open a semester
 
 1. Adviser opens **Classes**, creates a `planned` semester, or copies the immediately prior semester into a draft.
-2. Adviser verifies name, school year, application window, deadlines, and owners.
+2. Adviser verifies name, school year, deadlines, owners, and the application form link.
 3. Adviser reviews and publishes a new immutable policy version.
 4. Secretary configures logical meetings and sessions.
 5. Import operator connects the application response source.
-6. Preflight lists missing policy/window/source configuration.
+6. Preflight lists missing policy and source configuration.
 7. Adviser opens the semester. Opening creates one audit event with the policy version.
 
 Prior-term closure and next-term setup may overlap.
@@ -1306,7 +1307,7 @@ The import workspace is not a step wizard. Applications use one chapter-wide App
 
 ### 13.3 Google Forms
 
-Forms are represented through their linked response Sheets and source metadata. The platform does not edit form structure or responses. A configured application link may appear in My CSF while the window is open.
+Forms are represented through their linked response Sheets and source metadata. The platform does not edit form structure or responses. A configured application link may appear in My CSF while the term is current and **Accept new applications** is on.
 
 ### 13.4 Google Classroom (amended v1.1)
 

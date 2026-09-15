@@ -411,8 +411,9 @@ reviewed profile target:
 
 1. Record the reviewed new application form URL in the current term's
    **Application form link** (**Term actions → Edit term**); the public class
-   page then offers it while the application window is open. A student submits
-   that current form before an officer creates or resolves platform records.
+   page then offers it while **Accept new applications** is on for that current
+   term. A student submits that current form before an officer creates or
+   resolves platform records.
 2. Open **More → Imports**, choose **Applications**, select the exact current
    response file, tab, and bounded range, complete the mapping, and select
    **Preview normalized rows**. Preview persists source evidence but creates no
@@ -458,9 +459,10 @@ in this guide, in the public site, or in a prior semester authorizes a value.
    schedule**; **Start next term** and **Close term** are the lifecycle
    actions, and closing shows the **Semester close preflight** inside its
    own dialog.
-2. Add the real application window, deadlines, and required meetings. Enter both
-   application dates or leave both blank; before a semester opens both are
-   required and the closing date must follow the opening date.
+2. Add the real deadlines and required meetings. Set **Application form link**
+   to the reviewed Google Form, then use **Accept new applications** to control
+   whether the public class page offers it. Legacy application dates do not
+   open or close intake.
 3. Expand **Chapter rules** and enter the reviewed academic/dues/service rules
    under **Edit chapter rules**. A draft
    saved by an officer governs nothing — the surface says _Draft saved; awaiting
@@ -740,7 +742,7 @@ superseded and must not be used as current release instructions or evidence.
   correction. The target is published and contained, and the strict submodule
   publication gate passes. The stale Ready Development SHA above does not
   include this gitlink.
-- Fall 2026 application dates, deadlines, meetings, and published policy are
+- Fall 2026 application intake, deadlines, meetings, and published policy are
   not yet recorded. No staff position has been assigned.
 - Three controlled Development test messages produced three signature-verified
   `sent` events and three signature-verified `delivered` events with no webhook

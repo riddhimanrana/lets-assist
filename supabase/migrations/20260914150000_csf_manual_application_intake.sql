@@ -3,10 +3,10 @@
 BEGIN;
 
 ALTER TABLE plugin_data.csf_terms
-  ADD COLUMN accepts_new_applications boolean NOT NULL DEFAULT true;
+  ADD COLUMN accepts_new_applications boolean NOT NULL DEFAULT false;
 
 COMMENT ON COLUMN plugin_data.csf_terms.accepts_new_applications IS
-  'Controls new native website applications for this term. It does not control an external Google Form, imports, corrections, or staff review.';
+  'Controls new native website applications for this term. Terms start closed until authorized staff explicitly opens intake. It does not control an external Google Form, imports, corrections, or staff review.';
 
 CREATE OR REPLACE FUNCTION plugin_data.csf_set_application_intake(
   p_organization_id uuid,

@@ -1,6 +1,6 @@
 BEGIN;
 CREATE EXTENSION IF NOT EXISTS pgtap WITH SCHEMA extensions;
-SELECT extensions.plan(15);
+SELECT extensions.plan(16);
 
 INSERT INTO auth.users(id,aud,role,email,email_confirmed_at,raw_app_meta_data,raw_user_meta_data,created_at,updated_at) VALUES
 ('af000000-0000-4000-8000-000000000001','authenticated','authenticated','intake-admin@local.test',now(),'{}','{}',now(),now()),
@@ -13,6 +13,21 @@ INSERT INTO public.organization_members(organization_id,user_id,role,status) VAL
 INSERT INTO plugin_data.csf_terms(id,organization_id,code,label,school_year,semester) VALUES
 ('af200000-0000-4000-8000-000000000001','af100000-0000-4000-8000-000000000001','F28','Fall 2028','2028-2029','fall'),
 ('af200000-0000-4000-8000-000000000002','af100000-0000-4000-8000-000000000001','S29','Spring 2029','2028-2029','spring');
+SELECT extensions.ok(
+  NOT EXISTS (
+    SELECT 1
+    FROM plugin_data.csf_terms
+    WHERE organization_id = 'af100000-0000-4000-8000-000000000001'
+      AND accepts_new_applications
+  ),
+  'existing and newly created terms fail closed until authorized staff opens intake'
+);
+SELECT plugin_data.csf_set_application_intake(
+  'af100000-0000-4000-8000-000000000001','af200000-0000-4000-8000-000000000001',true,'af000000-0000-4000-8000-000000000001'
+);
+SELECT plugin_data.csf_set_application_intake(
+  'af100000-0000-4000-8000-000000000001','af200000-0000-4000-8000-000000000002',true,'af000000-0000-4000-8000-000000000001'
+);
 INSERT INTO plugin_data.csf_cohorts(id,organization_id,graduation_year,label) VALUES
 ('af500000-0000-4000-8000-000000000001','af100000-0000-4000-8000-000000000001',2029,'Class of 2029');
 INSERT INTO plugin_data.csf_profiles(id,organization_id,first_name,last_name,normalized_first_name,normalized_last_name) VALUES
