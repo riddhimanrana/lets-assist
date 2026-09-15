@@ -191,7 +191,10 @@ describe("hosted CSF load acceptance", () => {
     expect(source).toContain('name: "Next subject"');
     expect(source).toContain('name: "Previous subject"');
     expect(source).toContain(
-      'getByPlaceholder("Search by name", {\n    exact: true,\n  })',
+      '.locator("#applications")\n    .getByPlaceholder("Search by name", {\n      exact: true,\n    })',
+    );
+    expect(source).not.toContain(
+      'officerPage.getByPlaceholder("Search by name",',
     );
     expect(source).not.toContain('getByPlaceholder("Search by name").first()');
     expect(source).toContain(
