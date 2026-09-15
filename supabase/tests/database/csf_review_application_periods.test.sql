@@ -73,11 +73,14 @@ VALUES (
 INSERT INTO public.organization_members (organization_id, user_id, role, status)
 VALUES ('cf100000-0000-4000-8000-000000000001', 'cf000000-0000-4000-8000-000000000001', 'admin', 'active');
 
-INSERT INTO plugin_data.csf_terms (id, organization_id, code, label, school_year, semester)
+INSERT INTO plugin_data.csf_terms (
+  id, organization_id, code, label, school_year, semester,
+  accepts_new_applications
+)
 VALUES (
   'cf200000-0000-4000-8000-000000000001',
   'cf100000-0000-4000-8000-000000000001',
-  'F28', 'Fall 2028', '2028-2029', 'fall'
+  'F28', 'Fall 2028', '2028-2029', 'fall', true
 );
 
 INSERT INTO plugin_data.csf_cohorts (id, organization_id, graduation_year, label, status)

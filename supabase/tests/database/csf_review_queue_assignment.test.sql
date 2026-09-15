@@ -92,12 +92,15 @@ VALUES
   ('cf910000-0000-4000-8000-000000000001', 'cf900000-0000-4000-8000-000000000002', 'member', 'active'),
   ('cf910000-0000-4000-8000-000000000001', 'cf900000-0000-4000-8000-000000000003', 'admin', 'active');
 
-INSERT INTO plugin_data.csf_terms (id, organization_id, code, label, school_year, semester)
+INSERT INTO plugin_data.csf_terms (
+  id, organization_id, code, label, school_year, semester,
+  accepts_new_applications
+)
 VALUES
   ('cf920000-0000-4000-8000-000000000001', 'cf910000-0000-4000-8000-000000000001',
-   'F28', 'Fall 2028', '2028-2029', 'fall'),
+   'F28', 'Fall 2028', '2028-2029', 'fall', true),
   ('cf920000-0000-4000-8000-000000000002', 'cf910000-0000-4000-8000-000000000001',
-   'S29', 'Spring 2029', '2028-2029', 'spring');
+   'S29', 'Spring 2029', '2028-2029', 'spring', true);
 
 INSERT INTO plugin_data.csf_cohorts (id, organization_id, graduation_year, label, status)
 VALUES
