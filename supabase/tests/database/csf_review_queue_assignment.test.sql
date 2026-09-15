@@ -92,15 +92,18 @@ VALUES
   ('cf910000-0000-4000-8000-000000000001', 'cf900000-0000-4000-8000-000000000002', 'member', 'active'),
   ('cf910000-0000-4000-8000-000000000001', 'cf900000-0000-4000-8000-000000000003', 'admin', 'active');
 
+-- Native applications only insert into the current open semester, and an
+-- organization has exactly one current term, so the reviewed semester is
+-- current and the other semester is not.
 INSERT INTO plugin_data.csf_terms (
   id, organization_id, code, label, school_year, semester,
-  accepts_new_applications
+  is_current, lifecycle_status, accepts_new_applications
 )
 VALUES
   ('cf920000-0000-4000-8000-000000000001', 'cf910000-0000-4000-8000-000000000001',
-   'F28', 'Fall 2028', '2028-2029', 'fall', true),
+   'F28', 'Fall 2028', '2028-2029', 'fall', true, 'open', true),
   ('cf920000-0000-4000-8000-000000000002', 'cf910000-0000-4000-8000-000000000001',
-   'S29', 'Spring 2029', '2028-2029', 'spring', true);
+   'S29', 'Spring 2029', '2028-2029', 'spring', false, 'open', true);
 
 INSERT INTO plugin_data.csf_cohorts (id, organization_id, graduation_year, label, status)
 VALUES
@@ -140,10 +143,11 @@ INSERT INTO plugin_data.csf_term_applications (
   ('cf940000-0000-4000-8000-000000000004', 'cf910000-0000-4000-8000-000000000001',
    'cf930000-0000-4000-8000-000000000004', 'cf950000-0000-4000-8000-000000000001',
    'cf920000-0000-4000-8000-000000000001', 'native', 'submitted'),
-  -- A5: another semester, counted only
+  -- A5: another semester, counted only. That semester is not current, so the
+  -- native intake guard would refuse it; it arrives as an import instead.
   ('cf940000-0000-4000-8000-000000000005', 'cf910000-0000-4000-8000-000000000001',
    'cf930000-0000-4000-8000-000000000001', 'cf950000-0000-4000-8000-000000000001',
-   'cf920000-0000-4000-8000-000000000002', 'native', 'submitted');
+   'cf920000-0000-4000-8000-000000000002', 'legacy_import', 'submitted');
 
 SELECT plugin_data.csf_set_review_period(
   'cf910000-0000-4000-8000-000000000001',
