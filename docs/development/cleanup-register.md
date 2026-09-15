@@ -7557,3 +7557,17 @@ Candidate `d6a469ae` passed full CI `34932370460` and hosted functional acceptan
 Signed private commit `d0d19e3bf451f83debe6524e916cbbb14991c4fd` requires platform schema `20260915054936`. Private quality `34935412160`, signing `34935646315`, and root integration `34935678250` passed. This closes the minimum-schema finding on PR #588 without changing UI behavior.
 
 Generated publication `20260915060928_publish_dvhs_csf_1_2_48.sql` remains unchanged, SHA256 `40ceb108b957f2c4872a63532e3d832a626f633b09144b2b68225a61fab25cbc`. The 530 ledger SHA256 is `35918aca6fdc7ed30bb7798dedf31c94b03347b01e6ff63317fb14cb6f66a378`. All 104 controller/catalog tests passed, and the complete 530 schema catalog returned verified in a rollback-only local transaction. Production remains on 1.2.45 pending final integrated acceptance and release.
+
+### CSF 1.2.48 Production release, September 14, 2026
+
+Root PR #588 merged as `77b56dd093aad785cb515d9b13ea699baa7307e4`, with an identical tree to accepted Development `a3901a741b102336d875173493cbf3b473313f02`. Full CI `34935860149` and hosted functional acceptance `34935857381` passed. The hosted performance waiver remains a waiver, not a concurrency test.
+
+Production migration run `34937533829` applied 12 forward migrations, reached ledger 530 at `20260915060928`, and verified the schema catalog with workers disabled. No response was lost. Host release `34937637465` promoted deployment `dpl_7XK7g4f68yuRaTVGvMkrvmKVtdV3`. Chrome organization controls then updated the existing embedded installation from 1.2.45 to 1.2.48 and displayed the installed version. No installation records were changed directly.
+
+The canonical queue-assignment action assigned 72 pending applications to three verified existing reviewers using literal source Sheet rows. The resulting queues contain 32, 16, and 24 applications. Readback confirmed no application decisions changed. Other requested reviewers still need verified organization accounts. The officer guide now records the literal row ranges and directs assigned officers to Review my queue.
+
+Chrome verification on the deployed release confirmed the All classes application queue, assigned review navigation, original course text and evidence links, and the updated correction guidance. A separate authenticated test member reached only its own Class of 2028 record and opened the point-submission form with Fall 2026 selected automatically. Staff activity drafts expose fixed, quantity, per-item, shift, and assessment modes, with separate point and volunteer limits. Post drafts expose class and officer audiences. No test post, application decision, point award, or email was submitted.
+
+Fresh source preview contains 489 rows: 253 resolved and 236 awaiting matching decisions. This is not a completed import of every response. Uncertain identities remain restricted. Worker transition `34938144257` resumed the existing workbook/export worker on the deployed SHA. Automatic import commits, communications, publication notifications, and scheduled publishing remain disabled; comments remain off.
+
+Initial post-release readback found all 301 bound Class of 2028 profile exports current and 192 of 257 application exports current. The application backlog was progressing but not settled at this checkpoint. A final repeated-sync receipt and complete source reconciliation remain outstanding. The existing officer guide retains its screenshots; this checkpoint does not claim a new full screenshot or fresh signup/email-verification journey.
