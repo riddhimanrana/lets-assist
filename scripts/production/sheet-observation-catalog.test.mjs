@@ -47,7 +47,7 @@ test("490 advances through the observation guard and signed publication", () => 
         /INSERT INTO supabase_migrations.schema_migrations/gu,
       ) ?? []
     ).length,
-    34,
+    35,
   );
   assert.ok(result.query.includes("ADD COLUMN observation_state"));
   assert.ok(!result.query.includes("ADD COLUMN observation_generation"));
@@ -70,7 +70,7 @@ test("492 preserves the observation catalog and appends only signed publication"
         /INSERT INTO supabase_migrations.schema_migrations/gu,
       ) ?? []
     ).length,
-    33,
+    34,
   );
   assert.ok(result.query.includes("AND version = '1.2.31'"));
   assert.ok(!result.query.includes("ADD COLUMN observation_state"));

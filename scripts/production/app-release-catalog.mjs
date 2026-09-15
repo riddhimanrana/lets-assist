@@ -138,6 +138,9 @@ export function acceptedCatalogQuery(source, versions) {
   )
     return source;
   const publicationWorkerControlUpgrade =
+    (versions.length === 525 &&
+      ledgerHash ===
+        "a74aba1e81d9263b1261e64617b2d5b263294f3a4f1b6d1afacaa51be5d53f01") ||
     (versions.length === 524 &&
       ledgerHash ===
         "87b0f51676909c779ecf7a39dcae3e0086abb150fe688f3f02716091ce8af921") ||
@@ -651,7 +654,8 @@ export function acceptedCatalogQuery(source, versions) {
   const csfOneTwoFortySixUpgrade =
     versions.length === 522 ||
     versions.length === 523 ||
-    versions.length === 524;
+    versions.length === 524 ||
+    versions.length === 525;
   if (csfOneTwoFortySixUpgrade) {
     for (const definition of csfOneTwoFortySixDefinitions) {
       const existing = definitions.findIndex(
@@ -663,7 +667,7 @@ export function acceptedCatalogQuery(source, versions) {
   }
   if (versions.length === 523)
     definitions.push(...csfApplicationImportNoopDefinitions);
-  if (versions.length === 524) {
+  if (versions.length === 524 || versions.length === 525) {
     definitions.push(...csfApplicationImportNoopDefinitions);
     definitions.push(...csfMixedCategoryResubmissionDefinitions);
   }
