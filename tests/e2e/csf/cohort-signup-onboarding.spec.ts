@@ -380,7 +380,7 @@ test.describe("class-code signup onboarding", () => {
       ).toBeVisible();
       await expect(
         modal.getByText(
-          "Your CSF record is connected — choose a username to finish",
+          "Choose a username to finish setup and continue to CSF.",
         ),
       ).toBeVisible();
 

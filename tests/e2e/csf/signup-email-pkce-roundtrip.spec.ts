@@ -750,10 +750,10 @@ test.describe("expired email verification recovery", () => {
       expect(expired.searchParams.get("email")).toBe(recoveryEmail);
       expect(expired.searchParams.get("redirectAfterAuth")).toBe(connectPath);
       await expect(
-        page.getByText("Verification link expired", { exact: true }),
+        page.getByText("Verification link no longer works", { exact: true }),
       ).toHaveCount(1);
       await expect(
-        page.getByText("Verification link expired", { exact: true }),
+        page.getByText("Verification link no longer works", { exact: true }),
       ).toBeVisible();
       await expect(
         page.getByRole("button", {
@@ -881,10 +881,10 @@ test.describe("expired email verification recovery", () => {
     );
     await page.waitForURL((url) => url.pathname === "/auth/email-expired");
     await expect(
-      page.getByText("Verification link expired", { exact: true }),
+      page.getByText("Verification link no longer works", { exact: true }),
     ).toHaveCount(1);
     await expect(
-      page.getByText("Verification link expired", { exact: true }),
+      page.getByText("Verification link no longer works", { exact: true }),
     ).toBeVisible();
     await expect(
       page.getByText(
