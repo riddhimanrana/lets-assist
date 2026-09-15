@@ -470,11 +470,13 @@ describe("CSF operator documentation truthfulness guards", () => {
     }
     const codeEntrySource = readComponent("CsfClassCodeEntryForm.tsx");
     expect(codeEntrySource).toContain("Join code");
-    // The 6-character alphabet excludes the lookalikes O/I/0/1 by contract.
+    // The alphabet excludes lookalikes while allowing valid partial typing.
     expect(codeEntrySource).toContain(
-      'const CSF_CLASS_CODE_PATTERN = "[A-HJ-NP-Za-hj-np-z2-9]{6}"',
+      'const CSF_CLASS_CODE_PATTERN = "^[A-HJ-NP-Za-hj-np-z2-9]+$"',
     );
     expect(codeEntrySource).toContain("pattern={CSF_CLASS_CODE_PATTERN}");
+    expect(codeEntrySource).toContain("maxLength={6}");
+    expect(codeEntrySource).toContain("if (submittedCode.length !== 6) return");
 
     // The guide walks the one path in operating order: share the code, the
     // student joins at /connect/<code>, unresolved joins land in the per-class

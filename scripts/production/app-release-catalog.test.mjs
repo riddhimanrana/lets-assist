@@ -14,18 +14,22 @@ const versions = expectedVersions(
   fileURLToPath(new URL("../../", import.meta.url)),
 ).slice(0, 518);
 
-test("exact 536 release publication preserves the accepted 535 schema", () => {
+test("exact 537 release publication preserves the accepted 536 schema", () => {
   const fullLedger = expectedVersions(
     fileURLToPath(new URL("../../", import.meta.url)),
   );
-  assert.equal(fullLedger.length, 536);
-  assert.equal(fullLedger.at(-1), "20260915183410");
+  assert.equal(fullLedger.length, 537);
+  assert.equal(fullLedger.at(-1), "20260915195501");
   assert.equal(
     acceptedCatalogQuery(source, fullLedger),
+    acceptedCatalogQuery(source, fullLedger.slice(0, 536)),
+  );
+  assert.equal(
+    acceptedCatalogQuery(source, fullLedger.slice(0, 536)),
     acceptedCatalogQuery(source, fullLedger.slice(0, 535)),
   );
   const alteredLedger = [...fullLedger];
-  alteredLedger[535] = "20990101000000";
+  alteredLedger[536] = "20990101000000";
   assert.throws(
     () => acceptedCatalogQuery(source, alteredLedger),
     /explicit release review/u,

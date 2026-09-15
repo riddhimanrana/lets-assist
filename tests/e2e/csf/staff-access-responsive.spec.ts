@@ -302,6 +302,20 @@ test.describe("DVHS CSF proof submission", () => {
     await expect(selection).toContainText("service-proof.png");
     await expect(selection).toContainText("2.0 KB");
 
+    await proof.setInputFiles([
+      {
+        name: "first.png",
+        mimeType: "image/png",
+        buffer: Buffer.alloc(1024, 1),
+      },
+      {
+        name: "second.png",
+        mimeType: "image/png",
+        buffer: Buffer.alloc(1024, 2),
+      },
+    ]);
+    await expect(selection).toContainText("2 images selected");
+
     // An oversized file is rejected before any submission, with retryable text.
     await proof.setInputFiles({
       name: "oversized-proof.pdf",
