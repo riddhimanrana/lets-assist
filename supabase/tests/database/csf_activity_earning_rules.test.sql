@@ -1011,5 +1011,11 @@ SELECT extensions.is(
   'separate shift submissions total exactly the per-person maximum'
 );
 
+SELECT extensions.throws_ok($$ UPDATE plugin_data.csf_opportunities SET point_value=3, point_cap=1, earning_rules='{"version": 1, "mode": "fixed", "components": [{"key": "work", "label": "Work", "category": "non_drive", "kind": "fixed", "points": 3}]}'::jsonb WHERE id=(SELECT (result ->> 'activityId')::uuid FROM earning_results WHERE label='quantity-activity') $$, '23514', NULL, 'fixed award cannot exceed its per-person cap');
+
+SELECT extensions.throws_ok($$ UPDATE plugin_data.csf_opportunities SET point_value=3, point_cap=1, earning_rules='{"version": 1, "mode": "assessment", "components": [{"key": "work", "label": "Work", "category": "non_drive", "kind": "assessment", "maxPoints": 3}]}'::jsonb WHERE id=(SELECT (result ->> 'activityId')::uuid FROM earning_results WHERE label='quantity-activity') $$, '23514', NULL, 'assessed ceiling cannot exceed its per-person cap');
+
+SELECT extensions.lives_ok($$ UPDATE plugin_data.csf_opportunities SET point_value=3, point_cap=1, earning_rules='{"version": 1, "mode": "quantity", "components": [{"key": "work", "label": "Work", "category": "non_drive", "kind": "quantity", "unitLabel": "items", "unitsPerPoint": 2, "maxPoints": 3}]}'::jsonb WHERE id=(SELECT (result ->> 'activityId')::uuid FROM earning_results WHERE label='quantity-activity') $$, 'quantity ceiling permits a lower cap for smaller selections');
+
 SELECT extensions.finish();
 ROLLBACK;
