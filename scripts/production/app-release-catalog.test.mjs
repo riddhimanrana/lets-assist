@@ -14,6 +14,24 @@ const versions = expectedVersions(
   fileURLToPath(new URL("../../", import.meta.url)),
 ).slice(0, 518);
 
+test("exact 536 release publication preserves the accepted 535 schema", () => {
+  const fullLedger = expectedVersions(
+    fileURLToPath(new URL("../../", import.meta.url)),
+  );
+  assert.equal(fullLedger.length, 536);
+  assert.equal(fullLedger.at(-1), "20260915183410");
+  assert.equal(
+    acceptedCatalogQuery(source, fullLedger),
+    acceptedCatalogQuery(source, fullLedger.slice(0, 535)),
+  );
+  const alteredLedger = [...fullLedger];
+  alteredLedger[535] = "20990101000000";
+  assert.throws(
+    () => acceptedCatalogQuery(source, alteredLedger),
+    /explicit release review/u,
+  );
+});
+
 test("relation fingerprints sort index definitions independently of database locale", () => {
   const query = acceptedCatalogQuery(source, versions);
   const sorts = query.match(
