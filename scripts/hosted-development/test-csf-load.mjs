@@ -694,9 +694,11 @@ async function runBrowserAcceptance({ appUrl, memberPage, officerPage }) {
     { waitUntil: "domcontentloaded" },
   );
   assertFixtureLocation(officerPage.url(), appUrl);
-  const rosterSearch = officerPage.getByPlaceholder("Search by name", {
-    exact: true,
-  });
+  const rosterSearch = officerPage
+    .locator("#applications")
+    .getByPlaceholder("Search by name", {
+      exact: true,
+    });
   await rosterSearch.waitFor({ state: "visible", timeout: 60_000 });
   const roster = rosterSearch.locator(
     "xpath=ancestor::div[contains(concat(' ', normalize-space(@class), ' '), ' space-y-4 ')][1]",
