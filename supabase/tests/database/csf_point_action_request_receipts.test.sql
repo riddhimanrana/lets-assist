@@ -248,7 +248,7 @@ SELECT extensions.throws_ok(
     'fb600000-0000-4000-8000-000000000010'
   ) $$,
   'P0001',
-  'Only the connected member may submit this point claim.',
+  'Only the connected member may submit this point submission.',
   'a pending connection cannot submit points for its same user and profile'
 );
 SELECT extensions.is(

@@ -7514,3 +7514,11 @@ Isolated CI run `34809869892` passed 8,368 database assertions across 306 files,
 - Forward migration `20260914080000` explicitly resets the dispatch function's service-role grant before restoring the reviewed postgres/service-role permissions. The existing publication migration remains unchanged. The function body and effective access stay unchanged.
 - Added canonical URL regressions, pgTAP role checks, exact migration-byte approval, and the 518-version catalog fingerprint. The private gitlink remains `135bfa3a3c1bc7b2d1608fec215c517631380c49`.
 - Production remains on 1.2.43 until this follow-up passes the release process. Workbook refresh and import commit workers are paused. This entry does not claim Production deployment or database replay.
+
+### CSF 1.2.46 implementation candidate
+
+The candidate integrates private Development `0420c13`, containing PRs 414 through 418, and four forward migrations through `20260914160000`. It adds flexible activity earning rules, explicit application assignment, manual application intake, and an organization index for notification deliveries. It preserves account-ownership checks and historical completion.
+
+The 522 ledger hash is `672bb586c1684a49c5f3eee9fb908592243d207e427a0d6bde05aa768b8a1c90`. Its catalog query passed against an owned isolated replay. The 518 catalog remains byte-identical. Focused catalog tests, root typecheck/lint, private tests, and the bounded independent authorization review passed. The final signed publication and integrated release checks remain pending. No claim of Production deployment applies to this candidate.
+
+Production 1.2.45 was deployed by run `34911107886` at root `47bcca89`, then selected through organization controls. The fresh application source snapshot and remaining identity decisions are tracked in the operator reconciliation evidence. Comments and chapter broadcasts remain disabled.

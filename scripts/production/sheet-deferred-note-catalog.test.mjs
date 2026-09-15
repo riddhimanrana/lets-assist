@@ -6,7 +6,7 @@ import { acceptedCatalogQuery } from "./app-release-catalog.mjs";
 import { sheetObservationDefinitions } from "./sheet-observation-catalog.mjs";
 import { sheetDeferredNoteDefinitions } from "./sheet-deferred-note-catalog.mjs";
 import { prepareMigration } from "./forward-migration-release.mjs";
-const versions = expectedVersions(process.cwd());
+const versions = expectedVersions(process.cwd()).slice(0, 518);
 const source = readFileSync(
   "scripts/production/verify-csf-target-schema.sql",
   "utf8",
@@ -50,7 +50,7 @@ test("492 advances through profile note export deferral and the current release 
         /INSERT INTO supabase_migrations.schema_migrations/gu,
       ) ?? []
     ).length,
-    26,
+    30,
   );
   assert.ok(
     result.query.includes("jsonb_build_object('comments','[]'::jsonb)"),
@@ -67,6 +67,7 @@ test("492 advances through profile note export deferral and the current release 
     [
       "csf_announcements_publication_notifications",
       "csf_activities_publication_notifications",
+      "csf_term_applications_new_intake_guard",
     ],
   );
   assert.ok(result.query.includes("AND version = '1.2.32'"));

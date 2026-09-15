@@ -28,7 +28,7 @@ const source = readFileSync(
   new URL("./verify-csf-target-schema.sql", import.meta.url),
   "utf8",
 );
-const versions = expectedVersions(cwd);
+const versions = expectedVersions(cwd).slice(0, 518);
 
 test("the sync catalog pins every new function body and execution role", () => {
   const bodies = [
@@ -128,7 +128,7 @@ test("an existing 482 migration release applies sync and signed publications", (
         /INSERT INTO supabase_migrations.schema_migrations/gu,
       ) ?? []
     ).length,
-    36,
+    40,
   );
   assert.ok(
     prepared.query.includes(
@@ -180,7 +180,7 @@ test("an existing 483 release applies signed publications and the discussion ext
         /INSERT INTO supabase_migrations.schema_migrations/gu,
       ) ?? []
     ).length,
-    35,
+    39,
   );
 });
 
@@ -206,7 +206,7 @@ test("an existing 484 release applies new signed publications and the discussion
         /INSERT INTO supabase_migrations.schema_migrations/gu,
       ) ?? []
     ).length,
-    34,
+    38,
   );
 });
 
@@ -233,6 +233,6 @@ test("an existing 485 release applies the remaining signed publications and disc
         /INSERT INTO supabase_migrations.schema_migrations/gu,
       ) ?? []
     ).length,
-    33,
+    37,
   );
 });

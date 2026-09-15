@@ -41,7 +41,10 @@ export const publicationNotificationDefinitions = [
   ],
 ];
 
-export function publicationNotificationPosture(relationQuery) {
+export function publicationNotificationPosture(
+  relationQuery,
+  deliveryDigest = "31fbae5b2e33bf8be6fa203c76489430",
+) {
   const relations = relationQuery
     .replace(
       "app_private.csf_release_worker_controls",
@@ -53,7 +56,7 @@ export function publicationNotificationPosture(relationQuery) {
     );
   return `AND (SELECT count(*)=2 AND bool_and(runtime_denied AND digest=CASE relname
     WHEN 'csf_publication_events' THEN 'bb442786fe77c77ce3adae4aa0e84ac8'
-    WHEN 'csf_publication_notification_deliveries' THEN '31fbae5b2e33bf8be6fa203c76489430'
+    WHEN 'csf_publication_notification_deliveries' THEN '${deliveryDigest}'
     ELSE '' END) FROM (${relations}) publication_relations)
   AND (SELECT count(*)=2 AND bool_and(
     t.tgfoid=to_regprocedure('plugin_data.csf_record_publication_notifications()')
