@@ -7677,3 +7677,11 @@ After the authorized stale-flag retirement, Production migration run `3500524369
 Chrome verified that an invalid fixed-award cap displays the required minimum and that correcting it saves one fictional draft and closes the activity dialog. Reopening that draft exposed another defect: the editor displayed All current members although the saved list showed a selected graduating class. The editor was closed without saving; audience repair remains under investigation. No activity was published and no email was queued for this check.
 
 The four normal worker restoration runs `35006712719`, `35006715396`, `35006717807`, and `35006720336` passed for the new served SHA. Individual paused source authorizations remain unchanged. Export readback still shows 257 application bindings and 302 Class of 2028 bindings with equal exported/remote versions and no duplicate record IDs. All four existing campaigns remain completed and both publication deliveries delivered. Staff identity decisions and historical discrepancies remain unresolved where evidence is insufficient.
+
+### Activity editor class audience follow-up
+
+Live 1.2.49 verification found a P1 audience preservation defect. Activities loads classes with terms but omits the separate cohort list. Edit and Duplicate resolved only the latter, defaulting a selected class to all members. Saving Edit could pass a null cohort to the update action. No affected form was saved during verification.
+
+Private PR 439, commit `6e5dbac1d1c27950fc001cfae03ed135214890b0`, prepares CSF 1.2.50. Both editors resolve the stored class from either dataset and omit the form if that class is unavailable. Five focused regressions and independent authorization review pass. Full private CI and release remain pending. Production remains on 1.2.49 until the normal signed release completes.
+
+Final 1.2.49 readback confirms worker revision 4 with workbook refresh, import commits, communications, and publication notifications enabled. Scheduled publishing remains disabled. Chrome confirmed the staff account-review dialog exposes request-specific member search and a verification decision without automatically linking the held account.
