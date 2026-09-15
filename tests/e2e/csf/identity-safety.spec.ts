@@ -408,8 +408,13 @@ test.describe("CSF identity safety", () => {
     await expect(page.getByLabel("Search members")).toHaveValue("");
 
     const buttonQuery = `Vale-${fixture.suffix}`;
-    await page.getByLabel("Search members").fill(buttonQuery);
-    await page.getByRole("button", { name: "Search", exact: true }).click();
+    const memberSearch = page.getByLabel("Search members");
+    await memberSearch.fill(buttonQuery);
+    await page
+      .locator("form")
+      .filter({ has: memberSearch })
+      .getByRole("button", { name: "Search", exact: true })
+      .click();
     await expect(page).toHaveURL(
       (url) => url.searchParams.get("csf_member_q") === buttonQuery,
     );
@@ -451,15 +456,17 @@ test.describe("CSF identity safety", () => {
       csf_cohort_tab: "members",
     });
     const search = page.getByLabel("Search members");
+    const searchButton = page
+      .locator("form")
+      .filter({ has: search })
+      .getByRole("button", { name: "Search", exact: true });
     try {
       await page.goto(`${CSF_ORGANIZATION_PATH}?${params}`, {
         waitUntil: "commit",
       });
       await expect(search).toBeVisible();
       await expect(search).toBeDisabled();
-      await expect(
-        page.getByRole("button", { name: "Search", exact: true }),
-      ).toBeDisabled();
+      await expect(searchButton).toBeDisabled();
     } finally {
       releaseScripts();
     }

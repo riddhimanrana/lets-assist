@@ -12,7 +12,7 @@ const source = readFileSync(
 );
 const versions = expectedVersions(
   fileURLToPath(new URL("../../", import.meta.url)),
-);
+).slice(0, 518);
 
 test("relation fingerprints sort index definitions independently of database locale", () => {
   const query = acceptedCatalogQuery(source, versions);

@@ -214,6 +214,54 @@ export const approvedMigrations = [
     "20260914080000_csf_publication_dispatch_acl",
     "661ae934dda627cc39177aed3fccfa6e60ee893d3c1d864b0ef3e4495a0eec19",
   ],
+  [
+    "20260914120000_csf_flexible_activity_earning_rules",
+    "a722096ea175c765750879d1419d3ca4c77566f46f593bfd7eaaace774eeb90f",
+  ],
+  [
+    "20260914130000_csf_review_queue_assignment",
+    "b5351cdbd2e9d00d67a67a2511ce71f979d9792f815160c99d2e663cb875ba1e",
+  ],
+  [
+    "20260914150000_csf_manual_application_intake",
+    "3e53ea36f97fda8689e96f325d040d435886458420f162dccbcd2a22a75591e0",
+  ],
+  [
+    "20260914160000_csf_notification_delivery_organization_index",
+    "0d7cacc28995d243663ad0b4260dbd583ecc0b7987b3f09b83ea49e5c4e35ef1",
+  ],
+  [
+    "20260914170000_csf_application_import_noop_guard",
+    "7191b49cdcb96f59c75246428bbf6eebd68a1b5eebb20d9db5a4c4382101484b",
+  ],
+  [
+    "20260915015213_csf_mixed_category_point_resubmission",
+    "2978a3a4b303f666a7555a885831cb2e18b10ba8691ce1c1b12c0d437efc9a59",
+  ],
+  [
+    "20260915032757_publish_dvhs_csf_1_2_46",
+    "e7cc3a2423fd4a0a623818966ab3db33ca42932f988c25f5a3995419130c4dc3",
+  ],
+  [
+    "20260915050000_csf_earning_ceiling_and_intake_guards",
+    "57a28115b92ee554016d4a28a741fb8c72236d118f20e3c1d9b81668633693bd",
+  ],
+  [
+    "20260915051000_csf_native_intake_term_guard",
+    "baf56f74593dcca3188894bda55ff720fe457f0493b753a208fb096e372eb1f3",
+  ],
+  [
+    "20260915051713_publish_dvhs_csf_1_2_47",
+    "0302c574d2b8cdfa5eb5a62be357a4d24249098e5c56e3514fed97fd5b82d8c7",
+  ],
+  [
+    "20260915054936_csf_fixed_activity_submission_uniqueness",
+    "ca0616fa8514351447e652a1a9caf70a6092e5958d9be1cdfa6c98f9552113af",
+  ],
+  [
+    "20260915060928_publish_dvhs_csf_1_2_48",
+    "40ceb108b957f2c4872a63532e3d832a626f633b09144b2b68225a61fab25cbc",
+  ],
 ];
 
 const literal = (value) => `'${value.replaceAll("'", "''")}'`;

@@ -66,11 +66,12 @@ INSERT INTO auth.users (
   );
 
 INSERT INTO plugin_data.csf_terms (
-  id, organization_id, code, label, school_year, semester, is_current
+  id, organization_id, code, label, school_year, semester, is_current,
+  accepts_new_applications
 ) VALUES (
   'cf200000-0000-4000-8000-000000000001',
   'cf100000-0000-4000-8000-000000000001',
-  'fall-2026', 'Fall 2026', '2026-2027', 'fall', true
+  'fall-2026', 'Fall 2026', '2026-2027', 'fall', true, true
 );
 
 INSERT INTO plugin_data.csf_roles (

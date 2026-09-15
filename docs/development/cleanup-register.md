@@ -7514,3 +7514,46 @@ Isolated CI run `34809869892` passed 8,368 database assertions across 306 files,
 - Forward migration `20260914080000` explicitly resets the dispatch function's service-role grant before restoring the reviewed postgres/service-role permissions. The existing publication migration remains unchanged. The function body and effective access stay unchanged.
 - Added canonical URL regressions, pgTAP role checks, exact migration-byte approval, and the 518-version catalog fingerprint. The private gitlink remains `135bfa3a3c1bc7b2d1608fec215c517631380c49`.
 - Production remains on 1.2.43 until this follow-up passes the release process. Workbook refresh and import commit workers are paused. This entry does not claim Production deployment or database replay.
+
+### CSF 1.2.46 implementation candidate
+
+The candidate integrates private Development `0420c13`, containing PRs 414 through 418, and six forward migrations through `20260915015213`. It adds flexible activity earning rules, explicit application assignment, manual application intake, an organization index for notification deliveries, unchanged-row application import protection, and mixed-category point resubmission. It preserves account-ownership checks and historical completion.
+
+Migration `20260914170000_csf_application_import_noop_guard` prevents an unchanged Sheet row from rewriting its canonical application or clearing an officer decision while retaining import and audit provenance. Migration `20260915015213_csf_mixed_category_point_resubmission` lets a rules-based activity resubmit the category calculated from its selected earning component. Fixed-category activities retain the strict category check.
+
+The 524 ledger hash is `87b0f51676909c779ecf7a39dcae3e0086abb150fe688f3f02716091ce8af921`. The 523 ledger hash remains `7ecc52d357c6bebbddb7dbf2f6cf888aa51623777ad6c1e46d3d38984fb0ee7b`, and the 522 catalog remains byte-identical. The 524 catalog pins the replacement function digest and reviewed migration bytes. The mixed-category and legacy resubmission suites passed 73 assertions; the release and catalog suites passed 59 tests. Root candidate `72bd232c` still requires its exact integrated CI run, signed private publication, and Production release. No claim of Production deployment applies to this candidate.
+
+Production 1.2.45 was deployed by run `34911107886` at root `47bcca89`, then selected through organization controls. The fresh application source snapshot and remaining identity decisions are tracked in the operator reconciliation evidence. Comments and chapter broadcasts remain disabled.
+
+## CSF 1.2.46 release checkpoint, September 14
+
+Private release `dvhs-csf/v1.2.46` pins `38fb682e6ac208fe122e3f3b90d6a916c9b0c7da`. Root implementation PR #584 merged at `44819fab`, test repair PR #585 at `ce14d448`, and signed integration PR #586 at `c98f3e7a`. The exact CI run `34925697283` passed quality and database replay. Forward publication migration `20260915032757_publish_dvhs_csf_1_2_46.sql` remains unapplied in Production. The manual hosted acceptance for `c98f3e7a` stopped because `dev.lets-assist.com` did not serve that SHA. Production still serves CSF 1.2.45 and its 518-migration ledger. Recheck the live source and export counts after release rather than carrying forward earlier snapshots. No student identity or application decision was changed by this checkpoint.
+
+### CSF 1.2.47 final review correction, September 14, 2026
+
+- PR588 review found a selected-component points ceiling defect and a future-term intake gap. Forward migration `20260915050000` fixes both and gives the intake trigger its explicit owner grant. Historical migration bytes remain unchanged.
+- Focused local verification passed 41 new award/review/appeal/intake/ACL checks, 47 existing earning checks, and 16 existing intake checks. The older intake fixtures now mark a term current before opening intake.
+- Fresh local replay reached 526 migrations. The complete release catalog query returned `csf_target_schema_verified = 1`. The previous candidate had a stale terms-relation fingerprint; the corrected value is derived from the fresh schema. Controller tests passed 39/39.
+- Private 1.2.47 requires platform schema `20260915050000`. Production remains on 1.2.45 with workers paused until the reviewed release finishes. This checkpoint is local evidence, not Production completion.
+- Follow-up review adds `20260915051000`: native inserts require the current open term under a row lock even if an older intake flag remains set. The service-role ACL is revoked before restoring its reviewed grant. Intake regression coverage passes 20/20 and controller/catalog tests pass 125/125. The signed release must require this newer migration.
+
+### CSF 1.2.47 final release candidate, September 14, 2026
+
+- Signed private release: `dvhs-csf/v1.2.47`, commit `6627d7a4ed30c32fdd687e5fb3738a83d52067f5`. Publication requires platform schema `20260915051000`; runtime remains embedded.
+- Generated publication `20260915051713_publish_dvhs_csf_1_2_47.sql` remains unchanged. SHA256: `0302c574d2b8cdfa5eb5a62be357a4d24249098e5c56e3514fed97fd5b82d8c7`. Exact 528-version ledger SHA256: `f3355102be80853a9bbe0af414d96c2d6a8bec18a7709a69387e8bba21a96cb6`.
+- Claude Fable updated the release catalog and two stale application-review fixtures. Coordinator reviewed the diff, independently ran all 127 controller/catalog tests, and ran the 16 application-review and 36 queue-assignment SQL assertions against the final intake trigger in rollback-only local transactions. All passed.
+- The prior full CI run passed source quality and build, but stopped on those two fixtures. Final integrated CI and hosted functional acceptance are still required. Production remains on 1.2.45 with workers paused until the reviewed release completes.
+
+### Fixed activity duplicate-credit correction, September 14, 2026
+
+Final review of PR #588 found that approved fixed-mode submissions left the activity uniqueness index. A higher per-person cap then allowed the same fixed award again. Forward migration `20260915054936` keeps approved fixed, legacy, missing-mode, and unknown-mode submissions in that index. Known repeatable modes retain their existing behavior. Conflicting existing rows stop the migration for staff review without changing awards.
+
+Claude Fable wrote the migration and fictional regression fixtures. Coordinator reviewed the predicate, generated the migration filename through the Supabase CLI, corrected the duplicate-shift test order, and verified all 12 SQL assertions in a rollback-only local transaction. The controller and catalog suites passed 89 tests. The 529 ledger hash is `9cc45cfaa4eaed830bedae091038c426c4aa844791fc14da536723c9966a27db`; the new submissions relation fingerprint is `db32b25e5818c2067614aebe169f4cb9`. The signed private gitlink remains `6627d7a4ed30c32fdd687e5fb3738a83d52067f5`.
+
+Candidate `d6a469ae` passed full CI `34932370460` and hosted functional acceptance `34932367408`. This follow-up still needs integrated acceptance. Production remains on CSF 1.2.45 with workers paused. No Production academic decisions or points changed.
+
+### CSF 1.2.48 signed release contract, September 14, 2026
+
+Signed private commit `d0d19e3bf451f83debe6524e916cbbb14991c4fd` requires platform schema `20260915054936`. Private quality `34935412160`, signing `34935646315`, and root integration `34935678250` passed. This closes the minimum-schema finding on PR #588 without changing UI behavior.
+
+Generated publication `20260915060928_publish_dvhs_csf_1_2_48.sql` remains unchanged, SHA256 `40ceb108b957f2c4872a63532e3d832a626f633b09144b2b68225a61fab25cbc`. The 530 ledger SHA256 is `35918aca6fdc7ed30bb7798dedf31c94b03347b01e6ff63317fb14cb6f66a378`. All 104 controller/catalog tests passed, and the complete 530 schema catalog returned verified in a rollback-only local transaction. Production remains on 1.2.45 pending final integrated acceptance and release.

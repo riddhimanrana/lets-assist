@@ -8,7 +8,7 @@ import {
   sheetObservationTables,
 } from "./sheet-observation-catalog.mjs";
 import { prepareMigration } from "./forward-migration-release.mjs";
-const versions = expectedVersions(process.cwd());
+const versions = expectedVersions(process.cwd()).slice(0, 518);
 const source = readFileSync(
   "scripts/production/verify-csf-target-schema.sql",
   "utf8",
@@ -47,7 +47,7 @@ test("490 advances through the observation guard and signed publication", () => 
         /INSERT INTO supabase_migrations.schema_migrations/gu,
       ) ?? []
     ).length,
-    28,
+    expectedVersions(process.cwd()).length - 490,
   );
   assert.ok(result.query.includes("ADD COLUMN observation_state"));
   assert.ok(!result.query.includes("ADD COLUMN observation_generation"));
@@ -70,7 +70,7 @@ test("492 preserves the observation catalog and appends only signed publication"
         /INSERT INTO supabase_migrations.schema_migrations/gu,
       ) ?? []
     ).length,
-    27,
+    expectedVersions(process.cwd()).length - 491,
   );
   assert.ok(result.query.includes("AND version = '1.2.31'"));
   assert.ok(!result.query.includes("ADD COLUMN observation_state"));

@@ -85,16 +85,15 @@ procedure; this is the DVHS path through them.
    2027** (`S27`) for Classes of 2027–2030 and **Fall 2027** (`F27`) for Classes
    of 2028–2030. On each applicable row, open **Term actions → Edit term**.
    Enter only approved values in **Term label**, **Start date**, **End date**,
-   **Applications open**, **Applications close**, **Application form link**,
-   **Sheet tab**, and **Status**, then select **Save term**. Application dates
-   must be both entered or both blank. **Application form link** holds the
-   semester's reviewed Google Forms application URL; the public class page shows
-   it as the apply button only while that semester is current and inside its
-   application window, and a blank value hides the button. The dates,
-   application window, and form link are shared semester values; the Sheet tab
-   and status belong to that class-semester row. Preparation does not
-   make the future term current: do not select **Set as current** for `S27` or
-   `F27` during Fall 2026 setup.
+   **Application form link**, **Sheet tab**, and **Status**, then select **Save
+   term**. **Application form link** holds the semester's reviewed Google Forms
+   application URL. Once that semester is current, use **Accept new
+   applications** on Terms to open or close intake. The public class page shows
+   the apply button only while intake is open, and a blank form link hides the
+   button. The dates and form link are shared semester values; the Sheet tab and
+   status belong to that class-semester row. Preparation does not make the
+   future term current: do not select **Set as current** for `S27` or `F27`
+   during Fall 2026 setup.
 
 Steps 4 and 5 are prerequisites, not preferences:
 
@@ -412,8 +411,9 @@ reviewed profile target:
 
 1. Record the reviewed new application form URL in the current term's
    **Application form link** (**Term actions → Edit term**); the public class
-   page then offers it while the application window is open. A student submits
-   that current form before an officer creates or resolves platform records.
+   page then offers it while **Accept new applications** is on for that current
+   term. A student submits that current form before an officer creates or
+   resolves platform records.
 2. Open **More → Imports**, choose **Applications**, select the exact current
    response file, tab, and bounded range, complete the mapping, and select
    **Preview normalized rows**. Preview persists source evidence but creates no
@@ -459,9 +459,10 @@ in this guide, in the public site, or in a prior semester authorizes a value.
    schedule**; **Start next term** and **Close term** are the lifecycle
    actions, and closing shows the **Semester close preflight** inside its
    own dialog.
-2. Add the real application window, deadlines, and required meetings. Enter both
-   application dates or leave both blank; before a semester opens both are
-   required and the closing date must follow the opening date.
+2. Add the real deadlines and required meetings. Set **Application form link**
+   to the reviewed Google Form, then use **Accept new applications** to control
+   whether the public class page offers it. Legacy application dates do not
+   open or close intake.
 3. Expand **Chapter rules** and enter the reviewed academic/dues/service rules
    under **Edit chapter rules**. A draft
    saved by an officer governs nothing — the surface says _Draft saved; awaiting
@@ -741,7 +742,7 @@ superseded and must not be used as current release instructions or evidence.
   correction. The target is published and contained, and the strict submodule
   publication gate passes. The stale Ready Development SHA above does not
   include this gitlink.
-- Fall 2026 application dates, deadlines, meetings, and published policy are
+- Fall 2026 application intake, deadlines, meetings, and published policy are
   not yet recorded. No staff position has been assigned.
 - Three controlled Development test messages produced three signature-verified
   `sent` events and three signature-verified `delivered` events with no webhook

@@ -8,7 +8,7 @@ import {
   sheetNoCommentsTables,
 } from "./sheet-no-comments-catalog.mjs";
 
-const versions = expectedVersions(process.cwd());
+const versions = expectedVersions(process.cwd()).slice(0, 518);
 const source = readFileSync(
   "scripts/production/verify-csf-target-schema.sql",
   "utf8",

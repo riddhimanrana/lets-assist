@@ -13,7 +13,7 @@ import {
   approvedMigrations,
 } from "./forward-migration-release.mjs";
 const cwd = process.cwd();
-const versions = expectedVersions(cwd);
+const versions = expectedVersions(cwd).slice(0, 518);
 const source = readFileSync(
   "scripts/production/verify-csf-target-schema.sql",
   "utf8",
@@ -48,7 +48,7 @@ test("488 requires reviewed recovery and the signed application publication", ()
         /INSERT INTO supabase_migrations.schema_migrations/gu,
       ) ?? []
     ).length,
-    30,
+    expectedVersions(process.cwd()).length - 488,
   );
   assert.ok(result.query.includes("20260911195446"));
   assert.ok(!result.query.includes("AND version = '1.2.28'"));
@@ -74,7 +74,7 @@ test("490 publication preserves 489 fingerprints and appends only signed publica
         /INSERT INTO supabase_migrations.schema_migrations/gu,
       ) ?? []
     ).length,
-    29,
+    expectedVersions(process.cwd()).length - 489,
   );
   assert.ok(result.query.includes("AND version = '1.2.29'"));
   assert.ok(!result.query.includes("ADD COLUMN observation_generation"));
