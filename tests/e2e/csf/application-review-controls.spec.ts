@@ -169,12 +169,29 @@ test("application review opens and recovers a legacy closed period without reset
   await expect(
     page.getByRole("button", { name: "Close review", exact: true }),
   ).toHaveCount(0);
+  const { data: openPeriod, error: openPeriodError } = await admin
+    .schema("plugin_data")
+    .from("csf_review_periods")
+    .select("opened_by")
+    .eq("organization_id", organizationId)
+    .eq("term_id", termId)
+    .eq("kind", "membership_applications")
+    .single();
+  checked(openPeriodError);
+  const openedBy = openPeriod?.opened_by;
+  if (!openedBy) {
+    throw new Error("The open review period has no opening actor.");
+  }
   checked(
     (
       await admin
         .schema("plugin_data")
         .from("csf_review_periods")
-        .update({ status: "closed", closed_at: new Date().toISOString() })
+        .update({
+          status: "closed",
+          closed_at: new Date().toISOString(),
+          closed_by: openedBy,
+        })
         .eq("organization_id", organizationId)
         .eq("term_id", termId)
         .eq("kind", "membership_applications")

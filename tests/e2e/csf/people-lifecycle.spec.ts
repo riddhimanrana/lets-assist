@@ -461,7 +461,7 @@ test.describe("CSF visible people lifecycle", () => {
     });
     await expect(connections).toBeVisible();
     const fixtureRequestCard = connections
-      .getByText(`School address: ${fixture.profileEmail}`, { exact: true })
+      .getByText(`Login account: ${fixture.profileEmail}`, { exact: true })
       .locator("..")
       .locator("..");
     await expect(fixtureRequestCard).toHaveCount(1);

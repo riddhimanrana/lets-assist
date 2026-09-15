@@ -456,15 +456,17 @@ test.describe("CSF identity safety", () => {
       csf_cohort_tab: "members",
     });
     const search = page.getByLabel("Search members");
+    const searchButton = page
+      .locator("form")
+      .filter({ has: search })
+      .getByRole("button", { name: "Search", exact: true });
     try {
       await page.goto(`${CSF_ORGANIZATION_PATH}?${params}`, {
         waitUntil: "commit",
       });
       await expect(search).toBeVisible();
       await expect(search).toBeDisabled();
-      await expect(
-        page.getByRole("button", { name: "Search", exact: true }),
-      ).toBeDisabled();
+      await expect(searchButton).toBeDisabled();
     } finally {
       releaseScripts();
     }
