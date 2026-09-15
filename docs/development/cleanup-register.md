@@ -7581,3 +7581,15 @@ The 236 unresolved source rows have no identical row hash with an earlier resolv
 Chrome confirmed the deployed All classes filter, Review my queue, and current 489-row Home summary. Production Auth settings allow signup, require email confirmation, and enable Google and email providers. Custom SMTP is enabled with Resend on port 465. The chapter campaign, delivery, and dispatch-attempt tables contain no rows for the real DVHS organization at this checkpoint. This does not replace the separate earlier test-workspace delivery receipt or prove fresh signup delivery. Chapter communications remain disabled.
 
 Fresh password signup and inbox verification still require the user's credential-entry handoff. Fourteen local canonical-origin and confirmation-route checks passed; the signup-action test could not load because this cleaned worktree has no zod dependency installed. No code change followed, and the previously passed exact-release CI remains the release evidence.
+
+### CSF launch acceptance progress, September 15, 2026
+
+Chrome inbox inspection confirmed the single requested CSF test message in the owner's Inbox, dated September 12 at 5:57 PM Pacific. This closes inbox placement for that message, not fresh signup or new post/activity notification delivery.
+
+The returning test account followed the real Class of 2028 link into its own My CSF page. After signing out, the same link preserved its destination through Login and Sign up. The fresh alias signup is prepared with a fictional test name and awaits user password entry. No historical profile was connected and no new account was created by this checkpoint.
+
+The persisted copied-workbook acceptance receipts cover staff-confirmed application and point decisions, correction/resubmission, row sorting, duplicate and missing managed IDs, held-write recovery, stable retry IDs, and separate account/completion status. Comments remain disabled. Fresh export counts reached 242 of 257 applications and 301 of 301 profiles current; the remaining 15 had no attempted or unknown write outcome.
+
+All eight automatic source authorizations remain paused with no active leases. The four historical duplicate coordinates represent three profile pairs. Earlier approved merges do not authorize merging the later-created profiles in those pairs. They require new staff identity decisions through supported controls. No historical credit or profile was reassigned.
+
+Future post/activity email enablement is authorized after isolated inbox and audience acceptance. Communications and bell-notification workers remain disabled until that test passes. Scheduled publishing remains disabled, and no old queued campaign is authorized for release.
