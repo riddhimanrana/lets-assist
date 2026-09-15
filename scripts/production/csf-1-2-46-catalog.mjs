@@ -142,7 +142,10 @@ const relationFingerprints = [
   ],
 ];
 
-export function csfOneTwoFortySixPosture(relationQuery) {
+export function csfOneTwoFortySixPosture(
+  relationQuery,
+  fixedSubmissionGuard = false,
+) {
   const snapshots = relationFingerprints.map(([relation]) =>
     relationQuery
       .replaceAll("app_private.csf_release_worker_controls", relation)
@@ -151,7 +154,7 @@ export function csfOneTwoFortySixPosture(relationQuery) {
   const expected = relationFingerprints
     .map(
       ([relation, digest, runtimeDenied]) =>
-        `('${relation.slice(relation.indexOf(".") + 1)}','${digest}',${runtimeDenied})`,
+        `('${relation.slice(relation.indexOf(".") + 1)}','${fixedSubmissionGuard && relation === "plugin_data.csf_point_submissions" ? "db32b25e5818c2067614aebe169f4cb9" : digest}',${runtimeDenied})`,
     )
     .join(",");
   return `AND NOT EXISTS (

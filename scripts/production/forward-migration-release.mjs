@@ -254,6 +254,10 @@ export const approvedMigrations = [
     "20260915051713_publish_dvhs_csf_1_2_47",
     "0302c574d2b8cdfa5eb5a62be357a4d24249098e5c56e3514fed97fd5b82d8c7",
   ],
+  [
+    "20260915054936_csf_fixed_activity_submission_uniqueness",
+    "ca0616fa8514351447e652a1a9caf70a6092e5958d9be1cdfa6c98f9552113af",
+  ],
 ];
 
 const literal = (value) => `'${value.replaceAll("'", "''")}'`;

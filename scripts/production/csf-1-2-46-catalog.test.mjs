@@ -20,7 +20,7 @@ const versions = expectedVersions(
 );
 
 test("522 pins every changed function body and execution ACL", () => {
-  assert.equal(versions.length, 528);
+  assert.equal(versions.length, 529);
   const current = acceptedCatalogQuery(source, versions.slice(0, 522));
   assert.equal(csfOneTwoFortySixDefinitions.length, 20);
   for (const [signature, digest, service] of csfOneTwoFortySixDefinitions)
@@ -52,7 +52,7 @@ test("522 preserves the accepted 518 catalog byte for byte", () => {
 });
 
 test("523 adds only the reviewed import no-op function definition", () => {
-  assert.equal(versions.length, 528);
+  assert.equal(versions.length, 529);
   const previous = acceptedCatalogQuery(source, versions.slice(0, 522));
   assert.equal(
     createHash("sha256").update(previous).digest("hex"),
@@ -148,13 +148,33 @@ test("527 checks current and open term on native inserts", () => {
 
 test("528 publishes 1.2.47 without changing the accepted function catalog", () => {
   const previous = acceptedCatalogQuery(source, versions.slice(0, 527));
-  const current = acceptedCatalogQuery(source, versions);
+  const current = acceptedCatalogQuery(source, versions.slice(0, 528));
   assert.equal(current, previous);
 });
 
 test("an altered 528 ledger cannot select the candidate catalog", () => {
   const altered = [...versions];
   altered[527] = "20260915051714";
+  assert.throws(
+    () => acceptedCatalogQuery(source, altered),
+    /explicit release review/u,
+  );
+});
+
+test("529 pins fixed-submission uniqueness without changing earlier catalogs", () => {
+  const previous = acceptedCatalogQuery(source, versions.slice(0, 528));
+  const current = acceptedCatalogQuery(source, versions);
+  assert.ok(previous.includes("9c89b53001230c25776267a5990e1175"));
+  assert.ok(current.includes("db32b25e5818c2067614aebe169f4cb9"));
+  assert.equal(
+    current.replaceAll(
+      "db32b25e5818c2067614aebe169f4cb9",
+      "9c89b53001230c25776267a5990e1175",
+    ),
+    previous,
+  );
+  const altered = [...versions];
+  altered[528] = "20260915054937";
   assert.throws(
     () => acceptedCatalogQuery(source, altered),
     /explicit release review/u,
