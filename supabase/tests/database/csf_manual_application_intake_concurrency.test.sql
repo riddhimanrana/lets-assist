@@ -10,6 +10,8 @@ INSERT INTO public.organization_members(organization_id,user_id,role,status) VAL
 ('ed910000-0000-4000-8000-000000000001','ed900000-0000-4000-8000-000000000001','admin','active');
 INSERT INTO plugin_data.csf_terms(id,organization_id,code,label,school_year,semester) VALUES
 ('ed920000-0000-4000-8000-000000000001','ed910000-0000-4000-8000-000000000001','F29','Fall 2029','2029-2030','fall');
+UPDATE plugin_data.csf_terms SET is_current = true, lifecycle_status = 'open'
+WHERE id = 'ed920000-0000-4000-8000-000000000001';
 SELECT plugin_data.csf_set_application_intake(
   'ed910000-0000-4000-8000-000000000001',
   'ed920000-0000-4000-8000-000000000001',

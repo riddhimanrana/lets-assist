@@ -7528,3 +7528,11 @@ Production 1.2.45 was deployed by run `34911107886` at root `47bcca89`, then sel
 ## CSF 1.2.46 release checkpoint, September 14
 
 Private release `dvhs-csf/v1.2.46` pins `38fb682e6ac208fe122e3f3b90d6a916c9b0c7da`. Root implementation PR #584 merged at `44819fab`, test repair PR #585 at `ce14d448`, and signed integration PR #586 at `c98f3e7a`. The exact CI run `34925697283` passed quality and database replay. Forward publication migration `20260915032757_publish_dvhs_csf_1_2_46.sql` remains unapplied in Production. The manual hosted acceptance for `c98f3e7a` stopped because `dev.lets-assist.com` did not serve that SHA. Production still serves CSF 1.2.45 and its 518-migration ledger. Recheck the live source and export counts after release rather than carrying forward earlier snapshots. No student identity or application decision was changed by this checkpoint.
+
+### CSF 1.2.47 final review correction, September 14, 2026
+
+- PR588 review found a selected-component points ceiling defect and a future-term intake gap. Forward migration `20260915050000` fixes both and gives the intake trigger its explicit owner grant. Historical migration bytes remain unchanged.
+- Focused local verification passed 41 new award/review/appeal/intake/ACL checks, 47 existing earning checks, and 16 existing intake checks. The older intake fixtures now mark a term current before opening intake.
+- Fresh local replay reached 526 migrations. The complete release catalog query returned `csf_target_schema_verified = 1`. The previous candidate had a stale terms-relation fingerprint; the corrected value is derived from the fresh schema. Controller tests passed 39/39.
+- Private 1.2.47 requires platform schema `20260915050000`. Production remains on 1.2.45 with workers paused until the reviewed release finishes. This checkpoint is local evidence, not Production completion.
+- Follow-up review adds `20260915051000`: native inserts require the current open term under a row lock even if an older intake flag remains set. The service-role ACL is revoked before restoring its reviewed grant. Intake regression coverage passes 20/20 and controller/catalog tests pass 125/125. The signed release must require this newer migration.

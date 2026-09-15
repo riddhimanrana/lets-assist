@@ -41,7 +41,7 @@ test("493 advances through observation invalidation and the current release tail
         /INSERT INTO supabase_migrations.schema_migrations/gu,
       ) ?? []
     ).length,
-    32,
+    expectedVersions(process.cwd()).length - 493,
   );
   assert.ok(result.query.includes("enabled IS DISTINCT FROM p_enabled"));
   assert.ok(result.query.includes("IF NOT d.enabled OR d.observation_state"));

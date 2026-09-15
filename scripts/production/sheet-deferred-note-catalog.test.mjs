@@ -50,7 +50,7 @@ test("492 advances through profile note export deferral and the current release 
         /INSERT INTO supabase_migrations.schema_migrations/gu,
       ) ?? []
     ).length,
-    33,
+    expectedVersions(process.cwd()).length - 492,
   );
   assert.ok(
     result.query.includes("jsonb_build_object('comments','[]'::jsonb)"),
