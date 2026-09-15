@@ -20,7 +20,7 @@ const versions = expectedVersions(
 );
 
 test("522 pins every changed function body and execution ACL", () => {
-  assert.equal(versions.length, 526);
+  assert.equal(versions.length, 527);
   const current = acceptedCatalogQuery(source, versions.slice(0, 522));
   assert.equal(csfOneTwoFortySixDefinitions.length, 20);
   for (const [signature, digest, service] of csfOneTwoFortySixDefinitions)
@@ -52,7 +52,7 @@ test("522 preserves the accepted 518 catalog byte for byte", () => {
 });
 
 test("523 adds only the reviewed import no-op function definition", () => {
-  assert.equal(versions.length, 526);
+  assert.equal(versions.length, 527);
   const previous = acceptedCatalogQuery(source, versions.slice(0, 522));
   assert.equal(
     createHash("sha256").update(previous).digest("hex"),
@@ -122,12 +122,24 @@ test("an altered 525 ledger cannot select the candidate catalog", () => {
 });
 
 test("526 selects corrected point and intake definitions", () => {
-  const query = acceptedCatalogQuery(source, versions);
+  const query = acceptedCatalogQuery(source, versions.slice(0, 526));
   assert.ok(query.includes("25933deb284ee95856ef2f6cb187973f"));
   assert.ok(query.includes("85998c4bd13e82c3349c4055a5488814"));
   assert.ok(!query.includes("2213eb3174097e1a28ec49552380ab64"));
-  const altered = [...versions];
+  const altered = versions.slice(0, 526);
   altered[525] = "20260915050001";
+  assert.throws(
+    () => acceptedCatalogQuery(source, altered),
+    /explicit release review/u,
+  );
+});
+
+test("527 checks current and open term on native inserts", () => {
+  const query = acceptedCatalogQuery(source, versions);
+  assert.ok(query.includes("384b099495c0b987bc1bee3ebcf61c24"));
+  assert.ok(!query.includes("32b6748383385c7e4d38885da5851f8e"));
+  const altered = [...versions];
+  altered[526] = "20260915051001";
   assert.throws(
     () => acceptedCatalogQuery(source, altered),
     /explicit release review/u,

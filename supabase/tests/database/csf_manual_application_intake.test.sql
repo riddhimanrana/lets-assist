@@ -1,6 +1,6 @@
 BEGIN;
 CREATE EXTENSION IF NOT EXISTS pgtap WITH SCHEMA extensions;
-SELECT extensions.plan(16);
+SELECT extensions.plan(20);
 
 INSERT INTO auth.users(id,aud,role,email,email_confirmed_at,raw_app_meta_data,raw_user_meta_data,created_at,updated_at) VALUES
 ('af000000-0000-4000-8000-000000000001','authenticated','authenticated','intake-admin@local.test',now(),'{}','{}',now(),now()),
@@ -27,13 +27,6 @@ WHERE id = 'af200000-0000-4000-8000-000000000001';
 SELECT plugin_data.csf_set_application_intake(
   'af100000-0000-4000-8000-000000000001','af200000-0000-4000-8000-000000000001',true,'af000000-0000-4000-8000-000000000001'
 );
-UPDATE plugin_data.csf_terms SET is_current = false
-WHERE id = 'af200000-0000-4000-8000-000000000001';
-UPDATE plugin_data.csf_terms SET is_current = true, lifecycle_status = 'open'
-WHERE id = 'af200000-0000-4000-8000-000000000002';
-SELECT plugin_data.csf_set_application_intake(
-  'af100000-0000-4000-8000-000000000001','af200000-0000-4000-8000-000000000002',true,'af000000-0000-4000-8000-000000000001'
-);
 INSERT INTO plugin_data.csf_cohorts(id,organization_id,graduation_year,label) VALUES
 ('af500000-0000-4000-8000-000000000001','af100000-0000-4000-8000-000000000001',2029,'Class of 2029');
 INSERT INTO plugin_data.csf_profiles(id,organization_id,first_name,last_name,normalized_first_name,normalized_last_name) VALUES
@@ -45,6 +38,13 @@ INSERT INTO plugin_data.csf_profile_accounts(organization_id,profile_id,user_id,
 ('af100000-0000-4000-8000-000000000001','af300000-0000-4000-8000-000000000001','af000000-0000-4000-8000-000000000002','verified',true,now());
 INSERT INTO plugin_data.csf_term_applications(id,organization_id,profile_id,cohort_id,term_id,source,status) VALUES
 ('af400000-0000-4000-8000-000000000001','af100000-0000-4000-8000-000000000001','af300000-0000-4000-8000-000000000001','af500000-0000-4000-8000-000000000001','af200000-0000-4000-8000-000000000001','native','submitted');
+UPDATE plugin_data.csf_terms SET is_current = false
+WHERE id = 'af200000-0000-4000-8000-000000000001';
+UPDATE plugin_data.csf_terms SET is_current = true, lifecycle_status = 'open'
+WHERE id = 'af200000-0000-4000-8000-000000000002';
+SELECT plugin_data.csf_set_application_intake(
+  'af100000-0000-4000-8000-000000000001','af200000-0000-4000-8000-000000000002',true,'af000000-0000-4000-8000-000000000001'
+);
 SELECT plugin_data.csf_set_review_period(
   'af100000-0000-4000-8000-000000000001','af000000-0000-4000-8000-000000000001',
   'af200000-0000-4000-8000-000000000001','membership_applications','open','Fall application review'
@@ -77,6 +77,18 @@ SELECT extensions.throws_ok(
   $$SELECT plugin_data.csf_set_application_intake('af100000-0000-4000-8000-000000000001','af200000-0000-4000-8000-000000000001',false,'af000000-0000-4000-8000-000000000002')$$,
   '42501','Not authorized to manage CSF application intake.','a member cannot close intake'
 );
+SELECT extensions.throws_ok(
+  $$INSERT INTO plugin_data.csf_term_applications(organization_id,profile_id,cohort_id,term_id,source,status) VALUES('af100000-0000-4000-8000-000000000001','af300000-0000-4000-8000-000000000002','af500000-0000-4000-8000-000000000001','af200000-0000-4000-8000-000000000001','native','submitted')$$,
+  '23514','New applications are closed for this semester.','a non-current term rejects native intake despite its retained open flag'
+);
+SELECT extensions.is((SELECT count(*)::integer FROM plugin_data.csf_term_applications WHERE profile_id='af300000-0000-4000-8000-000000000002'),0,'stale intake creates no application');
+SELECT extensions.ok(NOT EXISTS(SELECT 1 FROM pg_catalog.aclexplode((SELECT proacl FROM pg_catalog.pg_proc WHERE oid='plugin_data.csf_set_application_intake(uuid,uuid,boolean,uuid)'::regprocedure)) acl WHERE acl.grantee='service_role'::regrole AND acl.is_grantable),'service role cannot delegate intake execution');
+UPDATE plugin_data.csf_terms SET lifecycle_status='planned' WHERE id='af200000-0000-4000-8000-000000000002';
+SELECT extensions.throws_ok(
+  $$INSERT INTO plugin_data.csf_term_applications(organization_id,profile_id,cohort_id,term_id,source,status) VALUES('af100000-0000-4000-8000-000000000001','af300000-0000-4000-8000-000000000002','af500000-0000-4000-8000-000000000001','af200000-0000-4000-8000-000000000002','native','submitted')$$,
+  '23514','New applications are closed for this semester.','a planned current term rejects native intake despite its retained open flag'
+);
+UPDATE plugin_data.csf_terms SET lifecycle_status='open' WHERE id='af200000-0000-4000-8000-000000000002';
 SELECT extensions.lives_ok(
   $$SELECT plugin_data.csf_set_application_intake('af100000-0000-4000-8000-000000000001','af200000-0000-4000-8000-000000000001',false,'af000000-0000-4000-8000-000000000001')$$,
   'authorized staff can close intake'

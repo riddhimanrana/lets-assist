@@ -246,6 +246,10 @@ export const approvedMigrations = [
     "20260915050000_csf_earning_ceiling_and_intake_guards",
     "57a28115b92ee554016d4a28a741fb8c72236d118f20e3c1d9b81668633693bd",
   ],
+  [
+    "20260915051000_csf_native_intake_term_guard",
+    "baf56f74593dcca3188894bda55ff720fe457f0493b753a208fb096e372eb1f3",
+  ],
 ];
 
 const literal = (value) => `'${value.replaceAll("'", "''")}'`;
