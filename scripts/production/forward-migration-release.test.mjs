@@ -927,7 +927,10 @@ test("an applied 535 ledger writes the signed 1.2.50 and 1.2.51 publications", (
     readFileSync,
     prepared.versions.slice(0, 535),
   );
-  assert.deepEqual(publication.versions.slice(535), ["20260915183410", "20260915195501"]);
+  assert.deepEqual(publication.versions.slice(535), [
+    "20260915183410",
+    "20260915195501",
+  ]);
   assert.equal(
     (
       publication.query.match(
