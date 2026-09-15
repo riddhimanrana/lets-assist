@@ -40,6 +40,16 @@ BEGIN
       USING ERRCODE = 'insufficient_privilege';
   END IF;
 
+  -- Serialize the decision with the native-application insert guard. The
+  -- staff-access lock stays first so permission changes keep their established
+  -- ordering before any term-scoped intake work.
+  PERFORM pg_catalog.pg_advisory_xact_lock(
+    pg_catalog.hashtextextended(
+      p_organization_id::text || ':' || p_term_id::text,
+      0
+    )
+  );
+
   SELECT term.* INTO v_before
   FROM plugin_data.csf_terms AS term
   WHERE term.organization_id = p_organization_id
@@ -123,6 +133,15 @@ BEGIN
   IF NEW.source <> 'native' THEN
     RETURN NEW;
   END IF;
+
+  -- A close that wins this lock commits before this insert checks the flag. An
+  -- insert that wins it keeps the intake state stable through its statement.
+  PERFORM pg_catalog.pg_advisory_xact_lock(
+    pg_catalog.hashtextextended(
+      NEW.organization_id::text || ':' || NEW.term_id::text,
+      0
+    )
+  );
 
   SELECT term.accepts_new_applications
   INTO v_accepts_new_applications

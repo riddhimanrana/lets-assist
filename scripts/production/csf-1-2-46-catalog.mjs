@@ -51,7 +51,7 @@ export const csfOneTwoFortySixDefinitions = [
   ],
   [
     "plugin_data.csf_enforce_new_application_intake()",
-    "bf8747a93f124a2994bbb7a2e3d4ff4c",
+    "32b6748383385c7e4d38885da5851f8e",
     false,
   ],
   [
@@ -91,7 +91,7 @@ export const csfOneTwoFortySixDefinitions = [
   ],
   [
     "plugin_data.csf_set_application_intake(uuid,uuid,boolean,uuid)",
-    "32e9ee2b30d57c4c4f6c7d140708882b",
+    "c34b102508d0740bf38b9726e9ea097a",
     true,
   ],
   [

@@ -1,6 +1,6 @@
 BEGIN;
 CREATE EXTENSION IF NOT EXISTS pgtap WITH SCHEMA extensions;
-SELECT extensions.plan(13);
+SELECT extensions.plan(15);
 
 INSERT INTO auth.users(id,aud,role,email,email_confirmed_at,raw_app_meta_data,raw_user_meta_data,created_at,updated_at) VALUES
 ('af000000-0000-4000-8000-000000000001','authenticated','authenticated','intake-admin@local.test',now(),'{}','{}',now(),now()),
@@ -40,6 +40,18 @@ SELECT plugin_data.csf_set_review_period(
 SELECT extensions.ok(NOT has_function_privilege('anon','plugin_data.csf_set_application_intake(uuid,uuid,boolean,uuid)','EXECUTE'),'anonymous execution is denied');
 SELECT extensions.ok(NOT has_function_privilege('authenticated','plugin_data.csf_set_application_intake(uuid,uuid,boolean,uuid)','EXECUTE'),'browser execution is denied');
 SELECT extensions.ok(has_function_privilege('service_role','plugin_data.csf_set_application_intake(uuid,uuid,boolean,uuid)','EXECUTE'),'the server role may use the checked RPC');
+SELECT extensions.ok(
+  position('pg_advisory_xact_lock' IN pg_catalog.pg_get_functiondef('plugin_data.csf_set_application_intake(uuid,uuid,boolean,uuid)'::regprocedure)) > 0
+    AND position('p_organization_id::text' IN pg_catalog.pg_get_functiondef('plugin_data.csf_set_application_intake(uuid,uuid,boolean,uuid)'::regprocedure)) > 0
+    AND position('p_term_id::text' IN pg_catalog.pg_get_functiondef('plugin_data.csf_set_application_intake(uuid,uuid,boolean,uuid)'::regprocedure)) > 0,
+  'the staff switch takes the canonical organization and term lock'
+);
+SELECT extensions.ok(
+  position('pg_advisory_xact_lock' IN pg_catalog.pg_get_functiondef('plugin_data.csf_enforce_new_application_intake()'::regprocedure)) > 0
+    AND position('NEW.organization_id::text' IN pg_catalog.pg_get_functiondef('plugin_data.csf_enforce_new_application_intake()'::regprocedure)) > 0
+    AND position('NEW.term_id::text' IN pg_catalog.pg_get_functiondef('plugin_data.csf_enforce_new_application_intake()'::regprocedure)) > 0,
+  'the native insert guard takes the same canonical organization and term lock'
+);
 SELECT extensions.throws_ok(
   $$SELECT plugin_data.csf_set_application_intake('af100000-0000-4000-8000-000000000001','af200000-0000-4000-8000-000000000001',false,'af000000-0000-4000-8000-000000000002')$$,
   '42501','Not authorized to manage CSF application intake.','a member cannot close intake'
