@@ -35,6 +35,12 @@ import {
 import { automaticSheetUpdatesPosture } from "./automatic-sheet-update-catalog.mjs";
 import { staffAccountConnectionPosture } from "./staff-account-connection-catalog.mjs";
 import { workbookLinkMergePosture } from "./workbook-link-merge-catalog.mjs";
+import {
+  csfApplicationImportNoopDefinitions,
+  csfMixedCategoryResubmissionDefinitions,
+  csfOneTwoFortySixDefinitions,
+  csfOneTwoFortySixPosture,
+} from "./csf-1-2-46-catalog.mjs";
 
 export const workerRelationSnapshotQuery = `SELECT c.relname, md5(jsonb_build_object(
   'owner', pg_get_userbyid(c.relowner), 'kind', c.relkind,
@@ -132,6 +138,15 @@ export function acceptedCatalogQuery(source, versions) {
   )
     return source;
   const publicationWorkerControlUpgrade =
+    (versions.length === 524 &&
+      ledgerHash ===
+        "87b0f51676909c779ecf7a39dcae3e0086abb150fe688f3f02716091ce8af921") ||
+    (versions.length === 523 &&
+      ledgerHash ===
+        "7ecc52d357c6bebbddb7dbf2f6cf888aa51623777ad6c1e46d3d38984fb0ee7b") ||
+    (versions.length === 522 &&
+      ledgerHash ===
+        "672bb586c1684a49c5f3eee9fb908592243d207e427a0d6bde05aa768b8a1c90") ||
     (versions.length === 518 &&
       ledgerHash ===
         "5d28518bb641b71b1e4842783183fbf48905143ae11254443466809ecabeefcd") ||
@@ -633,6 +648,25 @@ export function acceptedCatalogQuery(source, versions) {
       true,
     ]);
   }
+  const csfOneTwoFortySixUpgrade =
+    versions.length === 522 ||
+    versions.length === 523 ||
+    versions.length === 524;
+  if (csfOneTwoFortySixUpgrade) {
+    for (const definition of csfOneTwoFortySixDefinitions) {
+      const existing = definitions.findIndex(
+        ([signature]) => signature === definition[0],
+      );
+      if (existing === -1) definitions.push(definition);
+      else definitions[existing] = definition;
+    }
+  }
+  if (versions.length === 523)
+    definitions.push(...csfApplicationImportNoopDefinitions);
+  if (versions.length === 524) {
+    definitions.push(...csfApplicationImportNoopDefinitions);
+    definitions.push(...csfMixedCategoryResubmissionDefinitions);
+  }
   const values = definitions
     .map(
       ([signature, digest, service]) =>
@@ -681,7 +715,7 @@ accepted_upgrade_posture AS (
     WHEN 'csf_release_worker_controls' THEN '${publicationWorkerControlUpgrade ? "efccf167accba776d136bae856a58a8f" : "b186cfbfbb17fee4e0966cde6d3bec9e"}'
     WHEN 'csf_release_worker_receipts' THEN '94e9bc198f37156522b9aed76bf696a4'
     ELSE '' END) FROM accepted_worker_relations)
-  ${publicationNotificationsUpgrade ? publicationNotificationPosture(workerRelationSnapshotQuery) + "\n  " : ""}${identityReviewUpgrade ? identityReviewPosture : ""}
+  ${publicationNotificationsUpgrade ? publicationNotificationPosture(workerRelationSnapshotQuery, csfOneTwoFortySixUpgrade ? "9615c8ab9d7f7ce4edc4c4bec52811e3" : undefined) + "\n  " : ""}${csfOneTwoFortySixUpgrade ? csfOneTwoFortySixPosture(workerRelationSnapshotQuery) + "\n  " : ""}${identityReviewUpgrade ? identityReviewPosture : ""}
   ${
     officerAnnotationUpgrade
       ? composableReviewUpgrade

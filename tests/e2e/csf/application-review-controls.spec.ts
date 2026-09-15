@@ -129,7 +129,7 @@ test.afterAll(async () => {
   }
 });
 
-test("application review opens, closes and reopens without resetting decisions, with one page scroll", async ({
+test("application review opens and recovers a legacy closed period without resetting decisions, with one page scroll", async ({
   page,
 }) => {
   await page.setViewportSize({ width: 1280, height: 800 });
@@ -164,9 +164,23 @@ test("application review opens, closes and reopens without resetting decisions, 
       .click();
   }
   await expect(
-    page.getByRole("button", { name: "Close review", exact: true }),
+    page.getByRole("button", { name: "Split for review", exact: true }),
   ).toBeVisible();
-  await page.getByRole("button", { name: "Close review", exact: true }).click();
+  await expect(
+    page.getByRole("button", { name: "Close review", exact: true }),
+  ).toHaveCount(0);
+  checked(
+    (
+      await admin
+        .schema("plugin_data")
+        .from("csf_review_periods")
+        .update({ status: "closed", closed_at: new Date().toISOString() })
+        .eq("organization_id", organizationId)
+        .eq("term_id", termId)
+        .eq("kind", "membership_applications")
+    ).error,
+  );
+  await page.reload();
   await expect(
     page.getByRole("button", { name: "Reopen review", exact: true }),
   ).toBeVisible();
@@ -180,8 +194,11 @@ test("application review opens, closes and reopens without resetting decisions, 
     .getByRole("button", { name: "Reopen review", exact: true })
     .click();
   await expect(
-    page.getByRole("button", { name: "Close review", exact: true }),
+    page.getByRole("button", { name: "Split for review", exact: true }),
   ).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: "Close review", exact: true }),
+  ).toHaveCount(0);
   expect(await readApplications()).toEqual(applicationSnapshot);
   const { count, error } = await admin
     .schema("plugin_data")

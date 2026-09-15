@@ -41,9 +41,11 @@ SELECT ok(
       AND proc.proname = ANY (ARRAY[
         'csf_begin_point_submission_authority_base_20260810',
         'csf_begin_point_submission_request',
+        'csf_begin_point_submission_request_v2',
         'csf_finalize_point_submission_proof',
         'csf_open_staging_object',
         'csf_resubmit_point_submission_request',
+        'csf_resubmit_point_submission_request_v2',
         'csf_review_point_appeal',
         'csf_review_point_submission_v2',
         'csf_release_staging_claim'
@@ -62,7 +64,7 @@ SELECT ok(
 
 SELECT ok(
   pg_get_functiondef(
-    'plugin_data.csf_begin_point_submission_request(uuid,uuid,uuid,uuid,uuid,text,text,numeric,text,date,uuid,text,text,bigint,text,uuid)'::regprocedure
+    'plugin_data.csf_begin_point_submission_request_v2(uuid,uuid,uuid,uuid,uuid,text,text,numeric,text,date,uuid,text,text,bigint,text,uuid,jsonb)'::regprocedure
   ) LIKE '%''/dvhs-csf''%''/profiles/''%',
   'point proof coordinates use the organization/plugin namespace'
 );

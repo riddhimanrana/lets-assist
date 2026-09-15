@@ -7514,3 +7514,13 @@ Isolated CI run `34809869892` passed 8,368 database assertions across 306 files,
 - Forward migration `20260914080000` explicitly resets the dispatch function's service-role grant before restoring the reviewed postgres/service-role permissions. The existing publication migration remains unchanged. The function body and effective access stay unchanged.
 - Added canonical URL regressions, pgTAP role checks, exact migration-byte approval, and the 518-version catalog fingerprint. The private gitlink remains `135bfa3a3c1bc7b2d1608fec215c517631380c49`.
 - Production remains on 1.2.43 until this follow-up passes the release process. Workbook refresh and import commit workers are paused. This entry does not claim Production deployment or database replay.
+
+### CSF 1.2.46 implementation candidate
+
+The candidate integrates private Development `0420c13`, containing PRs 414 through 418, and six forward migrations through `20260915015213`. It adds flexible activity earning rules, explicit application assignment, manual application intake, an organization index for notification deliveries, unchanged-row application import protection, and mixed-category point resubmission. It preserves account-ownership checks and historical completion.
+
+Migration `20260914170000_csf_application_import_noop_guard` prevents an unchanged Sheet row from rewriting its canonical application or clearing an officer decision while retaining import and audit provenance. Migration `20260915015213_csf_mixed_category_point_resubmission` lets a rules-based activity resubmit the category calculated from its selected earning component. Fixed-category activities retain the strict category check.
+
+The 524 ledger hash is `87b0f51676909c779ecf7a39dcae3e0086abb150fe688f3f02716091ce8af921`. The 523 ledger hash remains `7ecc52d357c6bebbddb7dbf2f6cf888aa51623777ad6c1e46d3d38984fb0ee7b`, and the 522 catalog remains byte-identical. The 524 catalog pins the replacement function digest and reviewed migration bytes. The mixed-category and legacy resubmission suites passed 73 assertions; the release and catalog suites passed 59 tests. Root candidate `72bd232c` still requires its exact integrated CI run, signed private publication, and Production release. No claim of Production deployment applies to this candidate.
+
+Production 1.2.45 was deployed by run `34911107886` at root `47bcca89`, then selected through organization controls. The fresh application source snapshot and remaining identity decisions are tracked in the operator reconciliation evidence. Comments and chapter broadcasts remain disabled.

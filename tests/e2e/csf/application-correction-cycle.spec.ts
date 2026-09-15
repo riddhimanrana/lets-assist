@@ -301,7 +301,7 @@ test("member correction stays attached until officer review and a separate appli
       if (await open.isVisible()) await open.click();
     }
     await expect(
-      officer.getByRole("button", { name: "Close review", exact: true }),
+      officer.getByRole("button", { name: "Split for review", exact: true }),
     ).toBeVisible();
     await officer
       .getByRole("button", { name: "Chen, Evan", exact: true })
