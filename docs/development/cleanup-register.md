@@ -7543,3 +7543,11 @@ Private release `dvhs-csf/v1.2.46` pins `38fb682e6ac208fe122e3f3b90d6a916c9b0c7d
 - Generated publication `20260915051713_publish_dvhs_csf_1_2_47.sql` remains unchanged. SHA256: `0302c574d2b8cdfa5eb5a62be357a4d24249098e5c56e3514fed97fd5b82d8c7`. Exact 528-version ledger SHA256: `f3355102be80853a9bbe0af414d96c2d6a8bec18a7709a69387e8bba21a96cb6`.
 - Claude Fable updated the release catalog and two stale application-review fixtures. Coordinator reviewed the diff, independently ran all 127 controller/catalog tests, and ran the 16 application-review and 36 queue-assignment SQL assertions against the final intake trigger in rollback-only local transactions. All passed.
 - The prior full CI run passed source quality and build, but stopped on those two fixtures. Final integrated CI and hosted functional acceptance are still required. Production remains on 1.2.45 with workers paused until the reviewed release completes.
+
+### Fixed activity duplicate-credit correction, September 14, 2026
+
+Final review of PR #588 found that approved fixed-mode submissions left the activity uniqueness index. A higher per-person cap then allowed the same fixed award again. Forward migration `20260915054936` keeps approved fixed, legacy, missing-mode, and unknown-mode submissions in that index. Known repeatable modes retain their existing behavior. Conflicting existing rows stop the migration for staff review without changing awards.
+
+Claude Fable wrote the migration and fictional regression fixtures. Coordinator reviewed the predicate, generated the migration filename through the Supabase CLI, corrected the duplicate-shift test order, and verified all 12 SQL assertions in a rollback-only local transaction. The controller and catalog suites passed 89 tests. The 529 ledger hash is `9cc45cfaa4eaed830bedae091038c426c4aa844791fc14da536723c9966a27db`; the new submissions relation fingerprint is `db32b25e5818c2067614aebe169f4cb9`. The signed private gitlink remains `6627d7a4ed30c32fdd687e5fb3738a83d52067f5`.
+
+Candidate `d6a469ae` passed full CI `34932370460` and hosted functional acceptance `34932367408`. This follow-up still needs integrated acceptance. Production remains on CSF 1.2.45 with workers paused. No Production academic decisions or points changed.
