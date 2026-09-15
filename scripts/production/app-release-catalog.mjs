@@ -139,6 +139,9 @@ export function acceptedCatalogQuery(source, versions) {
   )
     return source;
   const publicationWorkerControlUpgrade =
+    (versions.length === 530 &&
+      ledgerHash ===
+        "35918aca6fdc7ed30bb7798dedf31c94b03347b01e6ff63317fb14cb6f66a378") ||
     (versions.length === 529 &&
       ledgerHash ===
         "9cc45cfaa4eaed830bedae091038c426c4aa844791fc14da536723c9966a27db") ||
@@ -672,7 +675,8 @@ export function acceptedCatalogQuery(source, versions) {
     versions.length === 526 ||
     versions.length === 527 ||
     versions.length === 528 ||
-    versions.length === 529;
+    versions.length === 529 ||
+    versions.length === 530;
   if (csfOneTwoFortySixUpgrade) {
     for (const definition of csfOneTwoFortySixDefinitions) {
       const existing = definitions.findIndex(
@@ -690,7 +694,8 @@ export function acceptedCatalogQuery(source, versions) {
     versions.length === 526 ||
     versions.length === 527 ||
     versions.length === 528 ||
-    versions.length === 529
+    versions.length === 529 ||
+    versions.length === 530
   ) {
     definitions.push(...csfApplicationImportNoopDefinitions);
     definitions.push(...csfMixedCategoryResubmissionDefinitions);
@@ -699,7 +704,8 @@ export function acceptedCatalogQuery(source, versions) {
     versions.length === 526 ||
     versions.length === 527 ||
     versions.length === 528 ||
-    versions.length === 529
+    versions.length === 529 ||
+    versions.length === 530
   ) {
     for (const definition of csfFinalGuardDefinitions) {
       const index = definitions.findIndex(
@@ -713,7 +719,8 @@ export function acceptedCatalogQuery(source, versions) {
   if (
     versions.length === 527 ||
     versions.length === 528 ||
-    versions.length === 529
+    versions.length === 529 ||
+    versions.length === 530
   ) {
     const index = definitions.findIndex(
       ([signature]) =>
@@ -775,7 +782,7 @@ accepted_upgrade_posture AS (
     WHEN 'csf_release_worker_controls' THEN '${publicationWorkerControlUpgrade ? "efccf167accba776d136bae856a58a8f" : "b186cfbfbb17fee4e0966cde6d3bec9e"}'
     WHEN 'csf_release_worker_receipts' THEN '94e9bc198f37156522b9aed76bf696a4'
     ELSE '' END) FROM accepted_worker_relations)
-  ${publicationNotificationsUpgrade ? publicationNotificationPosture(workerRelationSnapshotQuery, csfOneTwoFortySixUpgrade ? "9615c8ab9d7f7ce4edc4c4bec52811e3" : undefined) + "\n  " : ""}${csfOneTwoFortySixUpgrade ? csfOneTwoFortySixPosture(workerRelationSnapshotQuery, versions.length === 529) + "\n  " : ""}${identityReviewUpgrade ? identityReviewPosture : ""}
+  ${publicationNotificationsUpgrade ? publicationNotificationPosture(workerRelationSnapshotQuery, csfOneTwoFortySixUpgrade ? "9615c8ab9d7f7ce4edc4c4bec52811e3" : undefined) + "\n  " : ""}${csfOneTwoFortySixUpgrade ? csfOneTwoFortySixPosture(workerRelationSnapshotQuery, versions.length === 529 || versions.length === 530) + "\n  " : ""}${identityReviewUpgrade ? identityReviewPosture : ""}
   ${
     officerAnnotationUpgrade
       ? composableReviewUpgrade

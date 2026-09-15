@@ -7551,3 +7551,9 @@ Final review of PR #588 found that approved fixed-mode submissions left the acti
 Claude Fable wrote the migration and fictional regression fixtures. Coordinator reviewed the predicate, generated the migration filename through the Supabase CLI, corrected the duplicate-shift test order, and verified all 12 SQL assertions in a rollback-only local transaction. The controller and catalog suites passed 89 tests. The 529 ledger hash is `9cc45cfaa4eaed830bedae091038c426c4aa844791fc14da536723c9966a27db`; the new submissions relation fingerprint is `db32b25e5818c2067614aebe169f4cb9`. The signed private gitlink remains `6627d7a4ed30c32fdd687e5fb3738a83d52067f5`.
 
 Candidate `d6a469ae` passed full CI `34932370460` and hosted functional acceptance `34932367408`. This follow-up still needs integrated acceptance. Production remains on CSF 1.2.45 with workers paused. No Production academic decisions or points changed.
+
+### CSF 1.2.48 signed release contract, September 14, 2026
+
+Signed private commit `d0d19e3bf451f83debe6524e916cbbb14991c4fd` requires platform schema `20260915054936`. Private quality `34935412160`, signing `34935646315`, and root integration `34935678250` passed. This closes the minimum-schema finding on PR #588 without changing UI behavior.
+
+Generated publication `20260915060928_publish_dvhs_csf_1_2_48.sql` remains unchanged, SHA256 `40ceb108b957f2c4872a63532e3d832a626f633b09144b2b68225a61fab25cbc`. The 530 ledger SHA256 is `35918aca6fdc7ed30bb7798dedf31c94b03347b01e6ff63317fb14cb6f66a378`. All 104 controller/catalog tests passed, and the complete 530 schema catalog returned verified in a rollback-only local transaction. Production remains on 1.2.45 pending final integrated acceptance and release.

@@ -20,7 +20,7 @@ const versions = expectedVersions(
 );
 
 test("522 pins every changed function body and execution ACL", () => {
-  assert.equal(versions.length, 529);
+  assert.equal(versions.length, 530);
   const current = acceptedCatalogQuery(source, versions.slice(0, 522));
   assert.equal(csfOneTwoFortySixDefinitions.length, 20);
   for (const [signature, digest, service] of csfOneTwoFortySixDefinitions)
@@ -52,7 +52,7 @@ test("522 preserves the accepted 518 catalog byte for byte", () => {
 });
 
 test("523 adds only the reviewed import no-op function definition", () => {
-  assert.equal(versions.length, 529);
+  assert.equal(versions.length, 530);
   const previous = acceptedCatalogQuery(source, versions.slice(0, 522));
   assert.equal(
     createHash("sha256").update(previous).digest("hex"),
@@ -178,5 +178,12 @@ test("529 pins fixed-submission uniqueness without changing earlier catalogs", (
   assert.throws(
     () => acceptedCatalogQuery(source, altered),
     /explicit release review/u,
+  );
+});
+
+test("530 publishes 1.2.48 with the fixed-award schema unchanged", () => {
+  assert.equal(
+    acceptedCatalogQuery(source, versions),
+    acceptedCatalogQuery(source, versions.slice(0, 529)),
   );
 });
