@@ -7557,3 +7557,39 @@ Candidate `d6a469ae` passed full CI `34932370460` and hosted functional acceptan
 Signed private commit `d0d19e3bf451f83debe6524e916cbbb14991c4fd` requires platform schema `20260915054936`. Private quality `34935412160`, signing `34935646315`, and root integration `34935678250` passed. This closes the minimum-schema finding on PR #588 without changing UI behavior.
 
 Generated publication `20260915060928_publish_dvhs_csf_1_2_48.sql` remains unchanged, SHA256 `40ceb108b957f2c4872a63532e3d832a626f633b09144b2b68225a61fab25cbc`. The 530 ledger SHA256 is `35918aca6fdc7ed30bb7798dedf31c94b03347b01e6ff63317fb14cb6f66a378`. All 104 controller/catalog tests passed, and the complete 530 schema catalog returned verified in a rollback-only local transaction. Production remains on 1.2.45 pending final integrated acceptance and release.
+
+### CSF 1.2.48 Production release, September 14, 2026
+
+Root PR #588 merged as `77b56dd093aad785cb515d9b13ea699baa7307e4`, with an identical tree to accepted Development `a3901a741b102336d875173493cbf3b473313f02`. Full CI `34935860149` and hosted functional acceptance `34935857381` passed. The hosted performance waiver remains a waiver, not a concurrency test.
+
+Production migration run `34937533829` applied 12 forward migrations, reached ledger 530 at `20260915060928`, and verified the schema catalog with workers disabled. No response was lost. Host release `34937637465` promoted deployment `dpl_7XK7g4f68yuRaTVGvMkrvmKVtdV3`. Chrome organization controls then updated the existing embedded installation from 1.2.45 to 1.2.48 and displayed the installed version. No installation records were changed directly.
+
+The canonical queue-assignment action assigned 72 pending applications to three verified existing reviewers using literal source Sheet rows. The resulting queues contain 32, 16, and 24 applications. Readback confirmed no application decisions changed. Other requested reviewers still need verified organization accounts. The officer guide now records the literal row ranges and directs assigned officers to Review my queue.
+
+Chrome verification on the deployed release confirmed the All classes application queue, assigned review navigation, original course text and evidence links, and the updated correction guidance. A separate authenticated test member reached only its own Class of 2028 record and opened the point-submission form with Fall 2026 selected automatically. Staff activity drafts expose fixed, quantity, per-item, shift, and assessment modes, with separate point and volunteer limits. Post drafts expose class and officer audiences. No test post, application decision, point award, or email was submitted.
+
+Fresh source preview contains 489 rows: 253 resolved and 236 awaiting matching decisions. This is not a completed import of every response. Uncertain identities remain restricted. Worker transition `34938144257` resumed the existing workbook/export worker on the deployed SHA. Automatic import commits, communications, publication notifications, and scheduled publishing remain disabled; comments remain off.
+
+Initial post-release readback found all 301 bound Class of 2028 profile exports current and 192 of 257 application exports current. The application backlog was progressing but not settled at this checkpoint. A final repeated-sync receipt and complete source reconciliation remain outstanding. The existing officer guide retains its screenshots; this checkpoint does not claim a new full screenshot or fresh signup/email-verification journey.
+
+### CSF post-release verification follow-up, September 15, 2026 UTC
+
+Production exports advanced from 207 to 212 current application bindings out of 257 during this check. All 301 profile bindings remain current. The earlier 50 pending current-version exports had zero attempts and no held or unknown outcomes. The existing five-record poll limit explains the drain; no concurrency or force-sync change was made.
+
+The 236 unresolved source rows have no identical row hash with an earlier resolved row from the same source, even when comparing other coordinates. Four reused coordinates have changed hashes. They cannot inherit an identity decision from position alone. Contact-address differences remain informational and do not establish account ownership. Automatic import commits remain paused.
+
+Chrome confirmed the deployed All classes filter, Review my queue, and current 489-row Home summary. Production Auth settings allow signup, require email confirmation, and enable Google and email providers. Custom SMTP is enabled with Resend on port 465. The chapter campaign, delivery, and dispatch-attempt tables contain no rows for the real DVHS organization at this checkpoint. This does not replace the separate earlier test-workspace delivery receipt or prove fresh signup delivery. Chapter communications remain disabled.
+
+Fresh password signup and inbox verification still require the user's credential-entry handoff. Fourteen local canonical-origin and confirmation-route checks passed; the signup-action test could not load because this cleaned worktree has no zod dependency installed. No code change followed, and the previously passed exact-release CI remains the release evidence.
+
+### CSF launch acceptance progress, September 15, 2026
+
+Chrome inbox inspection confirmed the single requested CSF test message in the owner's Inbox, dated September 12 at 5:57 PM Pacific. This closes inbox placement for that message, not fresh signup or new post/activity notification delivery.
+
+The returning test account followed the real Class of 2028 link into its own My CSF page. After signing out, the same link preserved its destination through Login and Sign up. The fresh alias signup is prepared with a fictional test name and awaits user password entry. No historical profile was connected and no new account was created by this checkpoint.
+
+The persisted copied-workbook acceptance receipts cover staff-confirmed application and point decisions, correction/resubmission, row sorting, duplicate and missing managed IDs, held-write recovery, stable retry IDs, and separate account/completion status. Comments remain disabled. Fresh export counts reached 242 of 257 applications and 301 of 301 profiles current; the remaining 15 had no attempted or unknown write outcome.
+
+All eight automatic source authorizations remain paused with no active leases. The four historical duplicate coordinates represent three profile pairs. Earlier approved merges do not authorize merging the later-created profiles in those pairs. They require new staff identity decisions through supported controls. No historical credit or profile was reassigned.
+
+Future post/activity email enablement is authorized after isolated inbox and audience acceptance. Communications and bell-notification workers remain disabled until that test passes. Scheduled publishing remains disabled, and no old queued campaign is authorized for release.
