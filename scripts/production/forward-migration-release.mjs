@@ -262,6 +262,26 @@ export const approvedMigrations = [
     "20260915060928_publish_dvhs_csf_1_2_48",
     "40ceb108b957f2c4872a63532e3d832a626f633b09144b2b68225a61fab25cbc",
   ],
+  [
+    "20260915152825_csf_history_import_review_guards",
+    "43aebb5c25f7de98096959bb3e0ea294e63224a77c28408fa1e5b54b6d5c70e6",
+  ],
+  [
+    "20260915153055_csf_connection_request_identity_guards",
+    "82c53d30b804e11b4615dc6e7f071d5a2cf06d2e56b14df9464536e76d59ec78",
+  ],
+  [
+    "20260915161000_csf_fixed_activity_cap_guard",
+    "24fb7a766e0f74a138300e9ff3903833f17bdf99e1ea3cc18c0eb57a90ed2191",
+  ],
+  [
+    "20260915161001_publish_dvhs_csf_1_2_49",
+    "02eaa178cb565927667196a177a05b385b145bd52f45f3b15148dae4b8df5fde",
+  ],
+  [
+    "20260915161554_csf_resolved_class_request_recovery",
+    "12ed82455022245df6360a6db0c7c6cd4b3c95b6eafdeb6545c90d9476949733",
+  ],
 ];
 
 const literal = (value) => `'${value.replaceAll("'", "''")}'`;

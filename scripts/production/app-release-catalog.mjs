@@ -1,4 +1,9 @@
 import {
+  historyIdentityLedgers,
+  historyIdentityCatalog,
+  resolvedClassRecoveryCatalog,
+} from "./history-identity-catalog.mjs";
+import {
   publicationNotificationDefinitions,
   publicationNotificationPosture,
 } from "./publication-notification-catalog.mjs";
@@ -132,6 +137,18 @@ export function acceptedCatalogQuery(source, versions) {
   const ledgerHash = createHash("sha256")
     .update(versions.join("\n"))
     .digest("hex");
+  if (
+    versions.length === 535 &&
+    ledgerHash ===
+      "dcf923637e5b2e3a17c367ae6fe07970cd5abb346837fea27e3b17b79e58dc88"
+  )
+    return resolvedClassRecoveryCatalog(
+      acceptedCatalogQuery(source, versions.slice(0, 534)),
+    );
+  if (historyIdentityLedgers.get(versions.length) === ledgerHash)
+    return historyIdentityCatalog(
+      acceptedCatalogQuery(source, versions.slice(0, 530)),
+    );
   if (
     versions.length === 444 &&
     ledgerHash ===
