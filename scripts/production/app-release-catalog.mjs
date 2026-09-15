@@ -138,6 +138,12 @@ export function acceptedCatalogQuery(source, versions) {
     .update(versions.join("\n"))
     .digest("hex");
   if (
+    versions.length === 536 &&
+    ledgerHash ===
+      "5756a8f9d315f6c39b2769e713b70acb96a0194e2418da800586651f35d95456"
+  )
+    return acceptedCatalogQuery(source, versions.slice(0, 535));
+  if (
     versions.length === 535 &&
     ledgerHash ===
       "dcf923637e5b2e3a17c367ae6fe07970cd5abb346837fea27e3b17b79e58dc88"
