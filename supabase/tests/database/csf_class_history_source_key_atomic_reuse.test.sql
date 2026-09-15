@@ -1,7 +1,7 @@
 BEGIN;
 
 CREATE EXTENSION IF NOT EXISTS pgtap WITH SCHEMA extensions;
-SELECT extensions.plan(21);
+SELECT extensions.plan(34);
 
 INSERT INTO auth.users (
   id, aud, role, email, email_confirmed_at,
@@ -285,6 +285,26 @@ INSERT INTO plugin_data.csf_sheet_import_rows (
     repeat('6', 64), NULL, 'pending'
   );
 
+-- The annotation reviewer is deliberately different from the commit actor.
+INSERT INTO auth.users (
+  id, aud, role, email, email_confirmed_at,
+  raw_app_meta_data, raw_user_meta_data, created_at, updated_at
+) VALUES (
+  'f9000000-0000-4000-8000-000000000002',
+  'authenticated', 'authenticated', 'annotation-reviewer@local.test',
+  now(), '{}', '{}', now(), now()
+);
+UPDATE plugin_data.csf_sheet_import_rows
+SET resolution_status = 'resolved', resolution_reason_code = 'annotation_met',
+    resolution_notes = 'Officer confirmed the historical completion evidence.',
+    resolved_by = 'f9000000-0000-4000-8000-000000000002',
+    resolved_at = '2040-08-01T12:00:00Z'
+WHERE id = 'f9600000-0000-4000-8000-000000000002';
+CREATE TEMP TABLE annotation_decision_before AS
+SELECT id, resolution_reason_code, resolution_notes, resolved_by, resolved_at
+FROM plugin_data.csf_sheet_import_rows
+WHERE id = 'f9600000-0000-4000-8000-000000000002';
+
 UPDATE plugin_data.csf_sheet_import_rows AS import_row
 SET commit_frozen_at = now(),
     commit_frozen_by_job_id = CASE import_row.id
@@ -357,6 +377,27 @@ CREATE TEMP TABLE atomic_source_key_results (
 
 -- One SQL statement mirrors the worker's row-batch loop. The resolver must be
 -- volatile so the second call sees the first call's newly committed profile.
+CREATE TEMP TABLE annotation_binding_guards (case_name text PRIMARY KEY, refused boolean);
+CREATE FUNCTION pg_temp.try_changed_annotation_binding(p_case text, p_target uuid)
+RETURNS boolean LANGUAGE plpgsql AS $$
+BEGIN
+  UPDATE plugin_data.csf_sheet_import_rows
+  SET matched_profile_id = CASE WHEN p_case = 'wrong_target'
+        THEN 'f9700000-0000-4000-8000-000000000099'::uuid ELSE p_target END,
+      resolution_notes = CASE WHEN p_case = 'notes' THEN 'Changed decision.' ELSE resolution_notes END,
+      resolution_reason_code = CASE WHEN p_case = 'reason'
+        THEN 'commit_reused_source_key' ELSE resolution_reason_code END,
+      resolved_by = CASE WHEN p_case IN ('reason', 'actor')
+        THEN 'f9000000-0000-4000-8000-000000000001'::uuid ELSE resolved_by END
+  WHERE id = 'f9600000-0000-4000-8000-000000000002';
+  -- Roll back the attempted binding even if the guard incorrectly accepts it.
+  RAISE EXCEPTION 'Binding was accepted.' USING ERRCODE = 'P0002';
+EXCEPTION
+  WHEN SQLSTATE '55000' THEN RETURN true;
+  WHEN SQLSTATE 'P0002' THEN RETURN false;
+END;
+$$;
+
 CREATE FUNCTION pg_temp.commit_atomic_source_key_terms()
 RETURNS TABLE (operation text, result jsonb)
 LANGUAGE plpgsql
@@ -371,10 +412,15 @@ BEGIN
     'f9300000-0000-4000-8000-000000000001',
     'f9400000-0000-4000-8000-000000000001',
     'f9600000-0000-4000-8000-000000000001', repeat('1', 64),
-    '[]'::jsonb, '[]'::jsonb, true,
+    '[{"slot":"activity_1","value":"Synthetic service","points":2}]'::jsonb,
+    '[{"key":"meeting_1","value":"Present","status":"attended"}]'::jsonb, true,
     'f9000000-0000-4000-8000-000000000001'
   );
   RETURN NEXT;
+
+  INSERT INTO annotation_binding_guards
+  SELECT scenario, pg_temp.try_changed_annotation_binding(scenario, (result ->> 'profileId')::uuid)
+  FROM unnest(ARRAY['notes', 'reason', 'actor', 'wrong_target']) AS cases(scenario);
 
   operation := 'spring';
   result := plugin_data.csf_import_class_history_row_v2(
@@ -635,5 +681,128 @@ SELECT extensions.ok(
   'the source-key resolver runs only after the organization identity lock'
 );
 
+SELECT extensions.is(
+  (SELECT count(*)::integer FROM annotation_binding_guards WHERE refused), 4,
+  'frozen binding refuses changed annotation notes, reason, actor, and wrong target');
+SELECT extensions.is(
+  (SELECT jsonb_build_array(r.resolution_reason_code, r.resolution_notes, r.resolved_by, r.resolved_at)
+   FROM plugin_data.csf_sheet_import_rows r JOIN annotation_decision_before b USING (id)),
+  (SELECT jsonb_build_array(resolution_reason_code, resolution_notes, resolved_by, resolved_at)
+   FROM annotation_decision_before),
+  'frozen source-key reuse preserves the other officer annotation decision exactly'
+);
+SELECT extensions.is(
+  (SELECT commit_resolution_snapshot FROM plugin_data.csf_sheet_import_rows
+   WHERE id = 'f9600000-0000-4000-8000-000000000002'),
+  '{}'::jsonb,
+  'source-key binding does not rewrite the frozen resolution snapshot'
+);
+SELECT extensions.is(
+  (SELECT status FROM plugin_data.csf_term_memberships
+   WHERE organization_id = 'f9100000-0000-4000-8000-000000000001'
+     AND term_id = 'f9300000-0000-4000-8000-000000000002'),
+  'completed', 'annotation outcome survives identity binding into membership'
+);
+
+INSERT INTO plugin_data.csf_sheet_import_rows (
+  id, organization_id, job_id, source_id, cohort_id, term_id,
+  sheet_tab_name, row_number, normalized_data, row_hash,
+  matched_profile_id, import_status
+)
+SELECT 'f9600000-0000-4000-8000-000000000008', organization_id,
+  'f9500000-0000-4000-8000-000000000005', source_id, cohort_id, term_id,
+  sheet_tab_name, row_number, normalized_data, repeat('8', 64),
+  matched_profile_id, 'pending'
+FROM plugin_data.csf_sheet_import_rows
+WHERE id = 'f9600000-0000-4000-8000-000000000001';
+
+CREATE FUNCTION pg_temp.reimport_recorded_history(p_completion boolean)
+RETURNS jsonb LANGUAGE sql AS $$
+  SELECT plugin_data.csf_import_class_history_row_v2(
+    r.organization_id, r.matched_profile_id,
+    'Rowan', 'Sample', 'rowan.sample@local.test', NULL,
+    'rowan', 'sample', 'rowan.sample@local.test', NULL,
+    r.cohort_id, r.term_id, r.source_id, r.id, r.row_hash,
+    '[]'::jsonb, '[]'::jsonb, p_completion,
+    'f9000000-0000-4000-8000-000000000001'
+  ) FROM plugin_data.csf_sheet_import_rows r
+  WHERE r.id = 'f9600000-0000-4000-8000-000000000008'
+$$;
+CREATE FUNCTION pg_temp.recorded_history_evidence()
+RETURNS jsonb LANGUAGE sql AS $$
+  SELECT jsonb_build_object(
+    'credits', (SELECT jsonb_agg(to_jsonb(c) ORDER BY c.id) FROM plugin_data.csf_credit_records c
+      WHERE c.organization_id = 'f9100000-0000-4000-8000-000000000001'),
+    'attendance', (SELECT jsonb_agg(to_jsonb(a) ORDER BY a.id) FROM plugin_data.csf_meeting_attendance a
+      WHERE a.organization_id = 'f9100000-0000-4000-8000-000000000001'),
+    'events', (SELECT jsonb_agg(to_jsonb(e) ORDER BY e.id) FROM plugin_data.csf_profile_activity_events e
+      WHERE e.organization_id = 'f9100000-0000-4000-8000-000000000001')
+  )
+$$;
+CREATE TEMP TABLE recorded_evidence_before AS SELECT pg_temp.recorded_history_evidence() AS evidence;
+CREATE TEMP TABLE recorded_history_before AS
+SELECT to_jsonb(m) AS membership FROM plugin_data.csf_term_memberships m
+WHERE organization_id = 'f9100000-0000-4000-8000-000000000001'
+  AND term_id = 'f9300000-0000-4000-8000-000000000001';
+
+SELECT extensions.throws_ok(
+  $$SELECT pg_temp.reimport_recorded_history(NULL)$$, '23514',
+  'This semester already has a recorded outcome or application. Review it before replacing historical evidence.',
+  'a changed-hash preview without completion cannot demote recorded history'
+);
+SELECT extensions.throws_ok(
+  $$SELECT pg_temp.reimport_recorded_history(false)$$, '23514',
+  'This semester already has a recorded outcome or application. Review it before replacing historical evidence.',
+  'an explicit negative result cannot replace recorded completion'
+);
+SELECT extensions.throws_ok(
+  $$SELECT pg_temp.reimport_recorded_history(true)$$, '23514',
+  'This semester already has a recorded outcome or application. Review it before replacing historical evidence.',
+  'an equal outcome cannot silently rewrite the recorded completion evidence'
+);
+SELECT extensions.is(
+  (SELECT to_jsonb(m) FROM plugin_data.csf_term_memberships m
+   WHERE organization_id = 'f9100000-0000-4000-8000-000000000001'
+     AND term_id = 'f9300000-0000-4000-8000-000000000001'),
+  (SELECT membership FROM recorded_history_before),
+  'refused retries preserve the full membership including provenance and completion time'
+);
+SELECT extensions.is(
+  (SELECT import_status FROM plugin_data.csf_sheet_import_rows
+   WHERE id = 'f9600000-0000-4000-8000-000000000008'),
+  'pending', 'refused retry does not record a successful row write'
+);
+SELECT extensions.is(pg_temp.recorded_history_evidence(),
+  (SELECT evidence FROM recorded_evidence_before),
+  'refused retries preserve imported credits, attendance, and activity evidence');
+UPDATE plugin_data.csf_term_memberships SET status = 'not_completed', completed_at = NULL
+WHERE organization_id = 'f9100000-0000-4000-8000-000000000001'
+  AND term_id = 'f9300000-0000-4000-8000-000000000001';
+SELECT extensions.throws_ok(
+  $$SELECT pg_temp.reimport_recorded_history(true)$$, '23514',
+  'This semester already has a recorded outcome or application. Review it before replacing historical evidence.',
+  'an import cannot silently reverse recorded non-completion'
+);
+UPDATE plugin_data.csf_term_memberships
+SET status = 'active', override_status = 'completed',
+    override_reason = 'Reviewed synthetic override.',
+    overridden_by = 'f9000000-0000-4000-8000-000000000001', overridden_at = now()
+WHERE organization_id = 'f9100000-0000-4000-8000-000000000001'
+  AND term_id = 'f9300000-0000-4000-8000-000000000001';
+SELECT extensions.throws_ok(
+  $$SELECT pg_temp.reimport_recorded_history(NULL)$$, '23514',
+  'This semester already has a recorded outcome or application. Review it before replacing historical evidence.',
+  'an officer override protects its evidence even when the base status is active'
+);
+
+UPDATE plugin_data.csf_term_memberships
+SET status = 'active', override_status = NULL, override_reason = NULL,
+    overridden_by = NULL, overridden_at = NULL
+WHERE organization_id = 'f9100000-0000-4000-8000-000000000001'
+  AND term_id = 'f9300000-0000-4000-8000-000000000001';
+SELECT extensions.lives_ok(
+  $$SELECT pg_temp.reimport_recorded_history(NULL)$$,
+  'unreviewed active history remains writable through the approved import path'
+);
 SELECT * FROM extensions.finish();
 ROLLBACK;
