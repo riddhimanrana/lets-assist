@@ -665,6 +665,14 @@ test.describe("signed-out CSF connection states", () => {
     await expect(page.locator("main form")).toHaveCount(1);
     await expect(page.getByLabel("Join code")).toBeVisible();
     await expect(page.getByRole("button", { name: "Continue" })).toBeVisible();
+    const joinCode = page.getByLabel("Join code");
+    await expect(joinCode).toHaveAttribute("inputmode", "text");
+    await joinCode.pressSequentially("A");
+    await expect(joinCode).toHaveValue("A");
+    await expect(page.getByRole("button", { name: "Continue" })).toBeDisabled();
+    await joinCode.pressSequentially("2B3C4");
+    await expect(joinCode).toHaveValue("A2B3C4");
+    await expect(page.getByRole("button", { name: "Continue" })).toBeEnabled();
     await expect(
       page.getByRole("dialog", { name: "Join your class", exact: true }),
     ).toHaveCount(0);

@@ -257,6 +257,14 @@ Grant the replacement seat first, confirm it is effective today — a future
 
 Link the approved Class of 2027, Class of 2028, Class of 2029, and Class of 2030
 workbooks, one class at a time. Treat populated tabs as **Historical records**.
+Choose the original `c/o 2027`, `c/o 2028`, `c/o 2029`, and `c/o 2030`
+workbooks in `CSF 2026-2027 / CLASS SPREADSHEETS`. Confirm their source
+identity in the staff picker before linking them.
+
+The separate `- let's assist` sheets are export copies. The Class of 2028
+copy's `S26` tab lacks official row 18 as checked on September 15, 2026. The
+151 rows after it use different row numbers in the copy and original. Check the
+source identity in the picker before linking or preparing a historical import.
 After selecting a workbook, run semester-tab discovery. Review every populated canonical semester tab that
 discovery returns, confirm its inferred semester and bounded range, and give
 each tab its own immutable preview before commit. Do not assume `S26` is the
@@ -373,7 +381,7 @@ reviewed for each approved workbook.
 | Graduating class | Historical source  | Exact bounded range | Rows after header |
 | ---------------- | ------------------ | ------------------- | ----------------: |
 | 2027             | `c/o 2027` → `S26` | `A1:O168`           |               167 |
-| 2028             | `c/o 2028` → `S26` | `A1:O168`           |               167 |
+| 2028             | `c/o 2028` → `S26` | `A1:O169`           |               168 |
 | 2029             | `c/o 2029` → `S26` | `A1:N89`            |                88 |
 
 The three non-empty class sheets contain 422 unique names with no exact
