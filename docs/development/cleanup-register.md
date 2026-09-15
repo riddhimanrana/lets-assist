@@ -7655,3 +7655,33 @@ Local browser isolation and cron smoke completed after correcting a dependency s
 ### Resolved class request recovery, September 15, 2026
 
 PR #600 review identified that a resolved cohort request could return no actionable outcome after its verified account link was revoked or moved. Forward migration `20260915161554_csf_resolved_class_request_recovery.sql` reopens that stale request for staff review after the current-link checks fail. It retains rejections, the original request ID, and the current account link. The new regression suite reproduced five failed assertions before the fix and passes all 16 afterward. The five focused identity/class suites pass 75 assertions locally. This migration performs no backfill or hosted writes.
+
+### CSF 1.2.49 accepted release and Production preflight, September 15, 2026
+
+Private embedded release 1.2.49 is signed at `deb220b48422507f6a406c0911433577a0c08391`. Root PR 601 merged as `0087a3b5b7954790fc3b43aaa14dbaf980df1ced`. Final CI `34997701806` passed quality and database/browser validation. Hosted functional acceptance `35000329445` passed on that exact Development commit. Promotion PR 602 checks `35000373452` passed, and Main merge `eb98342f9085e7640485fa245320bef7bb5bf611` has the same tree `12bd4afb83860be485cc4d5880db0fb5717e1f2a`.
+
+All 340 root test files passed locally; all 396 private test files passed in integration. Two obsolete root expectations were corrected: activity publication retains its request ID after an uncertain outcome, and profileless staff display their account name with a separate record connection link. No product code changed for those test corrections. Independent review verified the signed content/manifest identities, exact 535-migration catalog, and request-recovery migration.
+
+Production migration run `35003036024` passed source/CI verification but refused before sending migration SQL: a superseded release `77b56dd093aad785cb515d9b13ea699baa7307e4` retains `workbook_refresh=true`. The normal worker workflow targets only the currently served SHA, so it cannot retire that old flag. No guard was weakened or alternate write path used. Separate authorization was requested for a disable-only transition through the existing audited worker-control function. Readback confirms 530 migrations through `20260915060928`, no authenticator write block, and the current release's four workers paused successfully. Production still serves host `fe5b1181b47bef4fa947786696105c08ec600078` and CSF 1.2.48. The five forward migrations and host deployment remain unapplied.
+
+Fresh export readback retains 257 enabled application bindings and 302 Class of 2028 bindings with matching exported/remote versions and no duplicate record IDs. Discussions remain disabled. Communication campaigns are all completed and publication deliveries all delivered, with no pending delivery work. Historical revision conflicts, duplicate coordinates, and uncertain identities remain restricted for staff decisions. No real academic decision or historical completion was changed during this release attempt.
+
+Recovery restored the four previously enabled workers on served release `fe5b1181` through normal workflows `35003567592`, `35003571236`, `35003574503`, and `35003577287`, all successful. Final readback confirms workbook refresh, import commits, communications, and publication notifications enabled; scheduled publishing disabled; migration count still 530. Individual paused source authorizations were not changed. The superseded flag remains untouched pending separate authorization. The activity-dialog fix and other 1.2.49 UI changes are accepted and merged, but are not yet live.
+
+The user authorized the stale-flag retirement in the next turn. Audited request `a01b4a8c-32c6-4c41-a379-a8344a2e0cb4` disabled only `77b56dd0` workbook refresh at expected revision 1. Readback confirms revision 2, one receipt, and every other flag unchanged and disabled. No migration guard was changed.
+
+### CSF 1.2.49 deployed, September 15, 2026
+
+After the authorized stale-flag retirement, Production migration run `35005243696` and host deployment run `35005362838` passed. Production now has 535 migrations through `20260915161554`. Host `eb98342f9085e7640485fa245320bef7bb5bf611` deployed as `dpl_8oc3rZ2ob45Z5ncMHvJsxiYZsXNm`; the previous deployment was `dpl_HhDsxtU86DT3ydhDNu4LGt5hUdgZ`. Normal marketplace updates visibly confirmed installed CSF 1.2.49 in both the isolated test workspace and DVHS. No installation records were updated directly.
+
+Chrome verified that an invalid fixed-award cap displays the required minimum and that correcting it saves one fictional draft and closes the activity dialog. Reopening that draft exposed another defect: the editor displayed All current members although the saved list showed a selected graduating class. The editor was closed without saving; audience repair remains under investigation. No activity was published and no email was queued for this check.
+
+The four normal worker restoration runs `35006712719`, `35006715396`, `35006717807`, and `35006720336` passed for the new served SHA. Individual paused source authorizations remain unchanged. Export readback still shows 257 application bindings and 302 Class of 2028 bindings with equal exported/remote versions and no duplicate record IDs. All four existing campaigns remain completed and both publication deliveries delivered. Staff identity decisions and historical discrepancies remain unresolved where evidence is insufficient.
+
+### Activity editor class audience follow-up
+
+Live 1.2.49 verification found a P1 audience preservation defect. Activities loads classes with terms but omits the separate cohort list. Edit and Duplicate resolved only the latter, defaulting a selected class to all members. Saving Edit could pass a null cohort to the update action. No affected form was saved during verification.
+
+Private PR 439, commit `6e5dbac1d1c27950fc001cfae03ed135214890b0`, prepares CSF 1.2.50. Both editors resolve the stored class from either dataset and omit the form if that class is unavailable. Five focused regressions and independent authorization review pass. Full private CI and release remain pending. Production remains on 1.2.49 until the normal signed release completes.
+
+Final 1.2.49 readback confirms worker revision 4 with workbook refresh, import commits, communications, and publication notifications enabled. Scheduled publishing remains disabled. Chrome confirmed the staff account-review dialog exposes request-specific member search and a verification decision without automatically linking the held account.
