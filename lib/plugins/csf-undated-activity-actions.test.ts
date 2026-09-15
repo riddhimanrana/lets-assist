@@ -139,7 +139,9 @@ test.each(["edit", "publish"])(
     expect(result).toEqual({
       success: false,
       error: unknownOutcome,
-      ...(operation === "edit" ? { reloadRequired: true } : {}),
+      ...(operation === "edit"
+        ? { reloadRequired: true }
+        : { retrySameRequest: true }),
     });
     expect(calls).toHaveLength(1);
     expect(revalidate).not.toHaveBeenCalled();
