@@ -95,5 +95,11 @@ SELECT plugin_data.csf_staff_connect_profile_account('ca200000-0000-4000-8000-00
 UPDATE class_join_test_code SET code=plugin_data.csf_rotate_class_join_code('ca200000-0000-4000-8000-000000000001','ca300000-0000-4000-8000-000000000001','ca100000-0000-4000-8000-000000000001')->>'code';
 SELECT extensions.is(plugin_data.csf_join_class_by_code('ca200000-0000-4000-8000-000000000001',(SELECT code FROM class_join_test_code),'ca100000-0000-4000-8000-000000000002','exact@local.test','Exact','Member',NULL)->>'connected','true','rotation preserves a staff-verified returning connection');
 SELECT extensions.is(plugin_data.csf_join_class_by_code('ca200000-0000-4000-8000-000000000001',(SELECT code FROM class_join_test_code),'ca100000-0000-4000-8000-000000000002','exact@local.test','Exact','Member',NULL)->>'connectionBasis','officer_decision','rotation retains the positive ownership receipt');
+
+INSERT INTO plugin_data.csf_profile_accounts(organization_id,profile_id,user_id,status,is_primary,connection_basis)
+VALUES('ca200000-0000-4000-8000-000000000001','ca400000-0000-4000-8000-000000000001','ca100000-0000-4000-8000-000000000003','pending',false,'unknown');
+SELECT extensions.is(plugin_data.csf_join_class_by_code('ca200000-0000-4000-8000-000000000001',(SELECT code FROM class_join_test_code),'ca100000-0000-4000-8000-000000000002','exact@local.test','Exact','Member',NULL)->>'needsReview','true','a resolved cohort request reopens for a later competing ownership hold');
+SELECT extensions.is((SELECT status FROM plugin_data.csf_profile_accounts WHERE organization_id='ca200000-0000-4000-8000-000000000001' AND user_id='ca100000-0000-4000-8000-000000000002'),'verified','request review does not revoke the established account connection');
+
 SELECT * FROM extensions.finish();
 ROLLBACK;

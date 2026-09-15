@@ -547,6 +547,7 @@ DECLARE
   v_request_id uuid;
   v_existing_request_status text;
   v_existing_request_profile_id uuid;
+  v_pending_connection_conflict boolean;
   v_match_status text;
   v_resolution_notes text;
   v_correlation_id uuid := pg_catalog.gen_random_uuid();
@@ -630,7 +631,13 @@ BEGIN
     WHERE request.organization_id=p_organization_id AND request.id=v_request_id;
 
   IF v_request_id IS NOT NULL THEN
+    SELECT EXISTS (SELECT 1 FROM plugin_data.csf_profile_accounts account
+      WHERE account.organization_id=p_organization_id AND account.status='pending'
+        AND (account.user_id=p_user_id
+          OR account.profile_id=coalesce(v_existing_profile_id,v_existing_request_profile_id)))
+      INTO v_pending_connection_conflict;
     IF v_existing_request_status <> 'rejected' AND v_existing_profile_id IS NOT NULL
+      AND NOT v_pending_connection_conflict
       AND v_existing_request_profile_id = v_existing_profile_id
       AND EXISTS (SELECT 1 FROM plugin_data.csf_profiles p
         WHERE p.organization_id = p_organization_id AND p.id = v_existing_profile_id
@@ -657,11 +664,12 @@ BEGIN
       );
     END IF;
 
-    IF v_existing_request_status = 'auto_linked' THEN
+    IF v_existing_request_status = 'auto_linked'
+      OR (v_existing_request_status = 'resolved' AND v_pending_connection_conflict) THEN
       UPDATE plugin_data.csf_profile_link_requests
       SET match_status = 'needs_review',
           resolution_notes =
-            'The previous account connection is no longer verified; officer review is required.',
+            'The previous account connection requires renewed ownership review.',
           resolved_by = NULL,
           resolved_at = NULL,
           updated_at = v_now
