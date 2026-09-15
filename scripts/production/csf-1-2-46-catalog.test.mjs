@@ -20,7 +20,7 @@ const versions = expectedVersions(
 );
 
 test("522 pins every changed function body and execution ACL", () => {
-  assert.equal(versions.length, 525);
+  assert.equal(versions.length, 526);
   const current = acceptedCatalogQuery(source, versions.slice(0, 522));
   assert.equal(csfOneTwoFortySixDefinitions.length, 20);
   for (const [signature, digest, service] of csfOneTwoFortySixDefinitions)
@@ -34,7 +34,7 @@ test("522 pins the exact six changed relation shapes", () => {
     "('csf_opportunities','9b1b4a82e52bf0b006bb4962fb64554d',false)",
     "('csf_point_submissions','9c89b53001230c25776267a5990e1175',false)",
     "('csf_admin_audit_events','d1dc57a4ba8b99f76f7f004ce6ba5bbf',false)",
-    "('csf_terms','187a2d5a6edd2503074c1591fd5d757d',false)",
+    "('csf_terms','7d5a926c181e90f73751bbc49ace1109',false)",
     "('csf_term_applications','9be38d4860e44a5696c75358d3707efc',false)",
     "('csf_publication_notification_deliveries','9615c8ab9d7f7ce4edc4c4bec52811e3',true)",
   ])
@@ -52,11 +52,11 @@ test("522 preserves the accepted 518 catalog byte for byte", () => {
 });
 
 test("523 adds only the reviewed import no-op function definition", () => {
-  assert.equal(versions.length, 525);
+  assert.equal(versions.length, 526);
   const previous = acceptedCatalogQuery(source, versions.slice(0, 522));
   assert.equal(
     createHash("sha256").update(previous).digest("hex"),
-    "086ec6cea32101216fcaea3e70894cb030b6c028391e8bced596eeb00f2e26c0",
+    "9d0831344edda82e9a7639b07f0257b1261f4a036c08ba1b5389368bfba76752",
   );
   const current = acceptedCatalogQuery(source, versions.slice(0, 523));
   for (const [
@@ -108,13 +108,26 @@ test("an altered 524 ledger cannot select the candidate catalog", () => {
 
 test("525 publishes 1.2.46 without changing the accepted function catalog", () => {
   const previous = acceptedCatalogQuery(source, versions.slice(0, 524));
-  const current = acceptedCatalogQuery(source, versions);
+  const current = acceptedCatalogQuery(source, versions.slice(0, 525));
   assert.equal(current, previous);
 });
 
 test("an altered 525 ledger cannot select the candidate catalog", () => {
-  const altered = [...versions];
+  const altered = versions.slice(0, 525);
   altered[524] = "20260915032758";
+  assert.throws(
+    () => acceptedCatalogQuery(source, altered),
+    /explicit release review/u,
+  );
+});
+
+test("526 selects corrected point and intake definitions", () => {
+  const query = acceptedCatalogQuery(source, versions);
+  assert.ok(query.includes("25933deb284ee95856ef2f6cb187973f"));
+  assert.ok(query.includes("85998c4bd13e82c3349c4055a5488814"));
+  assert.ok(!query.includes("2213eb3174097e1a28ec49552380ab64"));
+  const altered = [...versions];
+  altered[525] = "20260915050001";
   assert.throws(
     () => acceptedCatalogQuery(source, altered),
     /explicit release review/u,

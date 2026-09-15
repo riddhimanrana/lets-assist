@@ -22,9 +22,15 @@ SELECT extensions.ok(
   ),
   'existing and newly created terms fail closed until authorized staff opens intake'
 );
+UPDATE plugin_data.csf_terms SET is_current = true, lifecycle_status = 'open'
+WHERE id = 'af200000-0000-4000-8000-000000000001';
 SELECT plugin_data.csf_set_application_intake(
   'af100000-0000-4000-8000-000000000001','af200000-0000-4000-8000-000000000001',true,'af000000-0000-4000-8000-000000000001'
 );
+UPDATE plugin_data.csf_terms SET is_current = false
+WHERE id = 'af200000-0000-4000-8000-000000000001';
+UPDATE plugin_data.csf_terms SET is_current = true, lifecycle_status = 'open'
+WHERE id = 'af200000-0000-4000-8000-000000000002';
 SELECT plugin_data.csf_set_application_intake(
   'af100000-0000-4000-8000-000000000001','af200000-0000-4000-8000-000000000002',true,'af000000-0000-4000-8000-000000000001'
 );

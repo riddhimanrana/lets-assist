@@ -36,6 +36,7 @@ import { automaticSheetUpdatesPosture } from "./automatic-sheet-update-catalog.m
 import { staffAccountConnectionPosture } from "./staff-account-connection-catalog.mjs";
 import { workbookLinkMergePosture } from "./workbook-link-merge-catalog.mjs";
 import {
+  csfFinalGuardDefinitions,
   csfApplicationImportNoopDefinitions,
   csfMixedCategoryResubmissionDefinitions,
   csfOneTwoFortySixDefinitions,
@@ -138,6 +139,9 @@ export function acceptedCatalogQuery(source, versions) {
   )
     return source;
   const publicationWorkerControlUpgrade =
+    (versions.length === 526 &&
+      ledgerHash ===
+        "850a49d424accb447337d5581f43b413632d2a52ec5fa2b7405be716ed997dd5") ||
     (versions.length === 525 &&
       ledgerHash ===
         "a74aba1e81d9263b1261e64617b2d5b263294f3a4f1b6d1afacaa51be5d53f01") ||
@@ -655,7 +659,8 @@ export function acceptedCatalogQuery(source, versions) {
     versions.length === 522 ||
     versions.length === 523 ||
     versions.length === 524 ||
-    versions.length === 525;
+    versions.length === 525 ||
+    versions.length === 526;
   if (csfOneTwoFortySixUpgrade) {
     for (const definition of csfOneTwoFortySixDefinitions) {
       const existing = definitions.findIndex(
@@ -667,9 +672,23 @@ export function acceptedCatalogQuery(source, versions) {
   }
   if (versions.length === 523)
     definitions.push(...csfApplicationImportNoopDefinitions);
-  if (versions.length === 524 || versions.length === 525) {
+  if (
+    versions.length === 524 ||
+    versions.length === 525 ||
+    versions.length === 526
+  ) {
     definitions.push(...csfApplicationImportNoopDefinitions);
     definitions.push(...csfMixedCategoryResubmissionDefinitions);
+  }
+  if (versions.length === 526) {
+    for (const definition of csfFinalGuardDefinitions) {
+      const index = definitions.findIndex(
+        ([signature]) => signature === definition[0],
+      );
+      if (index < 0)
+        throw new ReleaseCheckError("CSF guard definition is missing.");
+      definitions[index] = definition;
+    }
   }
   const values = definitions
     .map(

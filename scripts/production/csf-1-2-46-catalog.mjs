@@ -129,7 +129,7 @@ const relationFingerprints = [
     "d1dc57a4ba8b99f76f7f004ce6ba5bbf",
     false,
   ],
-  ["plugin_data.csf_terms", "187a2d5a6edd2503074c1591fd5d757d", false],
+  ["plugin_data.csf_terms", "7d5a926c181e90f73751bbc49ace1109", false],
   [
     "plugin_data.csf_term_applications",
     "9be38d4860e44a5696c75358d3707efc",
@@ -162,3 +162,16 @@ export function csfOneTwoFortySixPosture(relationQuery) {
       OR actual.runtime_denied IS DISTINCT FROM expected.runtime_denied
   )`;
 }
+
+export const csfFinalGuardDefinitions = [
+  [
+    "plugin_data.csf_assert_activity_earning_award(uuid,uuid,uuid,uuid,numeric,jsonb,jsonb)",
+    "25933deb284ee95856ef2f6cb187973f",
+    false,
+  ],
+  [
+    "plugin_data.csf_set_application_intake(uuid,uuid,boolean,uuid)",
+    "85998c4bd13e82c3349c4055a5488814",
+    true,
+  ],
+];
