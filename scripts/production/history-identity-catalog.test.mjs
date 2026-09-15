@@ -96,3 +96,25 @@ test("new catalog construction fails closed if an inherited fingerprint is missi
     /catalog.*contract changed/u,
   );
 });
+
+test("exact 534 publication preserves the reviewed 533 schema checks byte for byte", () => {
+  const publication = versions.slice(0, 534);
+  assert.equal(publication.length, 534);
+  assert.equal(publication.at(-1), "20260915161001");
+  assert.equal(
+    acceptedCatalogQuery(source, publication),
+    acceptedCatalogQuery(source, reviewed),
+  );
+  for (const index of [0, 529, 530, 531, 532, 533]) {
+    const altered = [...publication];
+    altered[index] = "20990101000000";
+    assert.throws(
+      () => acceptedCatalogQuery(source, altered),
+      /explicit release review/u,
+    );
+  }
+  assert.throws(
+    () => acceptedCatalogQuery(source, [...publication, "20990101000000"]),
+    /explicit release review/u,
+  );
+});
