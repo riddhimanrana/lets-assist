@@ -152,3 +152,12 @@ export function historyIdentityCatalog(query) {
     "WHEN (SELECT valid FROM reviewed_history_identity_posture) AND (SELECT valid FROM accepted_upgrade_posture)",
   );
 }
+
+export function resolvedClassRecoveryCatalog(query) {
+  const previous = "1d733dd2e7a24eb3345b989dd7c149b1";
+  if (query.split(previous).length !== 3)
+    throw new ReleaseCheckError(
+      "The reviewed class recovery catalog contract changed.",
+    );
+  return query.replaceAll(previous, "0c9f17d6f6b50b484ae8758b26d5858b");
+}

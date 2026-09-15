@@ -5,7 +5,10 @@ import test from "node:test";
 import { fileURLToPath } from "node:url";
 import { acceptedCatalogQuery } from "./app-release-catalog.mjs";
 import { expectedVersions } from "./app-release-checks.mjs";
-import { historyIdentityDefinitions } from "./history-identity-catalog.mjs";
+import {
+  historyIdentityDefinitions,
+  resolvedClassRecoveryCatalog,
+} from "./history-identity-catalog.mjs";
 
 const source = readFileSync(
   new URL("./verify-csf-target-schema.sql", import.meta.url),
@@ -117,4 +120,46 @@ test("exact 534 publication preserves the reviewed 533 schema checks byte for by
     () => acceptedCatalogQuery(source, [...publication, "20990101000000"]),
     /explicit release review/u,
   );
+});
+
+test("exact 535 changes only both join definition checks and rejects unknown ledgers", () => {
+  const recovery = versions.slice(0, 535);
+  assert.equal(recovery.length, 535);
+  assert.equal(recovery.at(-1), "20260915161554");
+  const previous = acceptedCatalogQuery(source, versions.slice(0, 534));
+  const current = acceptedCatalogQuery(source, recovery);
+  assert.equal(previous.split("1d733dd2e7a24eb3345b989dd7c149b1").length, 3);
+  assert.equal(
+    current,
+    previous.replaceAll(
+      "1d733dd2e7a24eb3345b989dd7c149b1",
+      "0c9f17d6f6b50b484ae8758b26d5858b",
+    ),
+  );
+  assert.ok(!current.includes("1d733dd2e7a24eb3345b989dd7c149b1"));
+  for (const index of [0, 529, 530, 531, 532, 533, 534]) {
+    const altered = [...recovery];
+    altered[index] = "20990101000000";
+    assert.throws(
+      () => acceptedCatalogQuery(source, altered),
+      /explicit release review/u,
+    );
+  }
+  assert.throws(
+    () => acceptedCatalogQuery(source, [...recovery, "20990101000000"]),
+    /explicit release review/u,
+  );
+});
+
+test("class recovery refuses a missing or duplicated inherited definition check", () => {
+  const previous = acceptedCatalogQuery(source, versions.slice(0, 534));
+  const digest = "1d733dd2e7a24eb3345b989dd7c149b1";
+  for (const altered of [
+    previous.replace(digest, "missing"),
+    previous + digest,
+  ])
+    assert.throws(
+      () => resolvedClassRecoveryCatalog(altered),
+      /class recovery catalog contract changed/u,
+    );
 });
