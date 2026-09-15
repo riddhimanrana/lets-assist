@@ -7571,3 +7571,13 @@ Chrome verification on the deployed release confirmed the All classes applicatio
 Fresh source preview contains 489 rows: 253 resolved and 236 awaiting matching decisions. This is not a completed import of every response. Uncertain identities remain restricted. Worker transition `34938144257` resumed the existing workbook/export worker on the deployed SHA. Automatic import commits, communications, publication notifications, and scheduled publishing remain disabled; comments remain off.
 
 Initial post-release readback found all 301 bound Class of 2028 profile exports current and 192 of 257 application exports current. The application backlog was progressing but not settled at this checkpoint. A final repeated-sync receipt and complete source reconciliation remain outstanding. The existing officer guide retains its screenshots; this checkpoint does not claim a new full screenshot or fresh signup/email-verification journey.
+
+### CSF post-release verification follow-up, September 15, 2026 UTC
+
+Production exports advanced from 207 to 212 current application bindings out of 257 during this check. All 301 profile bindings remain current. The earlier 50 pending current-version exports had zero attempts and no held or unknown outcomes. The existing five-record poll limit explains the drain; no concurrency or force-sync change was made.
+
+The 236 unresolved source rows have no identical row hash with an earlier resolved row from the same source, even when comparing other coordinates. Four reused coordinates have changed hashes. They cannot inherit an identity decision from position alone. Contact-address differences remain informational and do not establish account ownership. Automatic import commits remain paused.
+
+Chrome confirmed the deployed All classes filter, Review my queue, and current 489-row Home summary. Production Auth settings allow signup, require email confirmation, and enable Google and email providers. Custom SMTP is enabled with Resend on port 465. The chapter campaign, delivery, and dispatch-attempt tables contain no rows for the real DVHS organization at this checkpoint. This does not replace the separate earlier test-workspace delivery receipt or prove fresh signup delivery. Chapter communications remain disabled.
+
+Fresh password signup and inbox verification still require the user's credential-entry handoff. Fourteen local canonical-origin and confirmation-route checks passed; the signup-action test could not load because this cleaned worktree has no zod dependency installed. No code change followed, and the previously passed exact-release CI remains the release evidence.
