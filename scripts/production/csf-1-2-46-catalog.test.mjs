@@ -58,7 +58,11 @@ test("523 adds only the reviewed import no-op function definition", () => {
     "086ec6cea32101216fcaea3e70894cb030b6c028391e8bced596eeb00f2e26c0",
   );
   const current = acceptedCatalogQuery(source, versions);
-  for (const [signature, digest, service] of csfApplicationImportNoopDefinitions)
+  for (const [
+    signature,
+    digest,
+    service,
+  ] of csfApplicationImportNoopDefinitions)
     assert.ok(current.includes(`('${signature}','${digest}',${service})`));
   assert.ok(current.includes("SELECT count(*) = 57 AND"));
 });
