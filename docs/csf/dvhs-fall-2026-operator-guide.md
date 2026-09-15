@@ -85,16 +85,15 @@ procedure; this is the DVHS path through them.
    2027** (`S27`) for Classes of 2027–2030 and **Fall 2027** (`F27`) for Classes
    of 2028–2030. On each applicable row, open **Term actions → Edit term**.
    Enter only approved values in **Term label**, **Start date**, **End date**,
-   **Applications open**, **Applications close**, **Application form link**,
-   **Sheet tab**, and **Status**, then select **Save term**. Application dates
-   must be both entered or both blank. **Application form link** holds the
-   semester's reviewed Google Forms application URL; the public class page shows
-   it as the apply button only while that semester is current and inside its
-   application window, and a blank value hides the button. The dates,
-   application window, and form link are shared semester values; the Sheet tab
-   and status belong to that class-semester row. Preparation does not
-   make the future term current: do not select **Set as current** for `S27` or
-   `F27` during Fall 2026 setup.
+   **Application form link**, **Sheet tab**, and **Status**, then select **Save
+   term**. **Application form link** holds the semester's reviewed Google Forms
+   application URL. Once that semester is current, use **Accept new
+   applications** on Terms to open or close intake. The public class page shows
+   the apply button only while intake is open, and a blank form link hides the
+   button. The dates and form link are shared semester values; the Sheet tab and
+   status belong to that class-semester row. Preparation does not make the
+   future term current: do not select **Set as current** for `S27` or `F27`
+   during Fall 2026 setup.
 
 Steps 4 and 5 are prerequisites, not preferences:
 

@@ -205,12 +205,14 @@ const IMPORTS: LabelContract[] = [
     component: "CsfGoogleSheetsConnectionPanel.tsx",
     labels: [
       "Google Drive connection",
-      "Reconnect required",
-      "Not connected",
       "Switch or reconnect",
       "Switch account",
       "Recheck",
     ],
+  },
+  {
+    component: "CsfGoogleConnectionNotices.ts",
+    labels: ["Reconnect required", "Not connected"],
   },
   {
     component: "CsfSheetGoogleSource.tsx",
@@ -651,6 +653,7 @@ describe("CSF operator documentation truthfulness guards", () => {
     const createDialogs = readComponent("CsfClassTermCreateDialogs.tsx");
     const terms = readComponent("CsfClassTerms.tsx");
     const actions = readComponent("CsfClassTermActionsMenu.tsx");
+    const intake = readComponent("CsfApplicationIntakeControl.tsx");
     expect(flow(createDialogs)).toContain(
       "create its eight semester records automatically",
     );
@@ -661,8 +664,7 @@ describe("CSF operator documentation truthfulness guards", () => {
       "Term label",
       "Start date",
       "End date",
-      "Applications open",
-      "Applications close",
+      "Application form link",
       "Sheet tab",
       "Status",
       "Save term",
@@ -670,6 +672,7 @@ describe("CSF operator documentation truthfulness guards", () => {
     ]) {
       expect(actions).toContain(label);
     }
+    expect(intake).toContain("Accept new applications");
 
     const futurePath = between(
       operatorGuide,
@@ -684,8 +687,7 @@ describe("CSF operator documentation truthfulness guards", () => {
       "**Term label**",
       "**Start date**",
       "**End date**",
-      "**Applications open**",
-      "**Applications close**",
+      "**Application form link**",
       "**Sheet tab**",
       "**Status**",
       "**Save term**",
