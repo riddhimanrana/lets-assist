@@ -250,6 +250,10 @@ export const approvedMigrations = [
     "20260915051000_csf_native_intake_term_guard",
     "baf56f74593dcca3188894bda55ff720fe457f0493b753a208fb096e372eb1f3",
   ],
+  [
+    "20260915051713_publish_dvhs_csf_1_2_47",
+    "0302c574d2b8cdfa5eb5a62be357a4d24249098e5c56e3514fed97fd5b82d8c7",
+  ],
 ];
 
 const literal = (value) => `'${value.replaceAll("'", "''")}'`;

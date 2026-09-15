@@ -139,6 +139,9 @@ export function acceptedCatalogQuery(source, versions) {
   )
     return source;
   const publicationWorkerControlUpgrade =
+    (versions.length === 528 &&
+      ledgerHash ===
+        "f3355102be80853a9bbe0af414d96c2d6a8bec18a7709a69387e8bba21a96cb6") ||
     (versions.length === 527 &&
       ledgerHash ===
         "9d4c66b1b2fdc294f42c974e057220e61b86c4c5bb3a912528b2c502a24b69bf") ||
@@ -664,7 +667,8 @@ export function acceptedCatalogQuery(source, versions) {
     versions.length === 524 ||
     versions.length === 525 ||
     versions.length === 526 ||
-    versions.length === 527;
+    versions.length === 527 ||
+    versions.length === 528;
   if (csfOneTwoFortySixUpgrade) {
     for (const definition of csfOneTwoFortySixDefinitions) {
       const existing = definitions.findIndex(
@@ -680,12 +684,17 @@ export function acceptedCatalogQuery(source, versions) {
     versions.length === 524 ||
     versions.length === 525 ||
     versions.length === 526 ||
-    versions.length === 527
+    versions.length === 527 ||
+    versions.length === 528
   ) {
     definitions.push(...csfApplicationImportNoopDefinitions);
     definitions.push(...csfMixedCategoryResubmissionDefinitions);
   }
-  if (versions.length === 526 || versions.length === 527) {
+  if (
+    versions.length === 526 ||
+    versions.length === 527 ||
+    versions.length === 528
+  ) {
     for (const definition of csfFinalGuardDefinitions) {
       const index = definitions.findIndex(
         ([signature]) => signature === definition[0],
@@ -695,7 +704,7 @@ export function acceptedCatalogQuery(source, versions) {
       definitions[index] = definition;
     }
   }
-  if (versions.length === 527) {
+  if (versions.length === 527 || versions.length === 528) {
     const index = definitions.findIndex(
       ([signature]) =>
         signature === "plugin_data.csf_enforce_new_application_intake()",

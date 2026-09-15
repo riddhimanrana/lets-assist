@@ -7536,3 +7536,10 @@ Private release `dvhs-csf/v1.2.46` pins `38fb682e6ac208fe122e3f3b90d6a916c9b0c7d
 - Fresh local replay reached 526 migrations. The complete release catalog query returned `csf_target_schema_verified = 1`. The previous candidate had a stale terms-relation fingerprint; the corrected value is derived from the fresh schema. Controller tests passed 39/39.
 - Private 1.2.47 requires platform schema `20260915050000`. Production remains on 1.2.45 with workers paused until the reviewed release finishes. This checkpoint is local evidence, not Production completion.
 - Follow-up review adds `20260915051000`: native inserts require the current open term under a row lock even if an older intake flag remains set. The service-role ACL is revoked before restoring its reviewed grant. Intake regression coverage passes 20/20 and controller/catalog tests pass 125/125. The signed release must require this newer migration.
+
+### CSF 1.2.47 final release candidate, September 14, 2026
+
+- Signed private release: `dvhs-csf/v1.2.47`, commit `6627d7a4ed30c32fdd687e5fb3738a83d52067f5`. Publication requires platform schema `20260915051000`; runtime remains embedded.
+- Generated publication `20260915051713_publish_dvhs_csf_1_2_47.sql` remains unchanged. SHA256: `0302c574d2b8cdfa5eb5a62be357a4d24249098e5c56e3514fed97fd5b82d8c7`. Exact 528-version ledger SHA256: `f3355102be80853a9bbe0af414d96c2d6a8bec18a7709a69387e8bba21a96cb6`.
+- Claude Fable updated the release catalog and two stale application-review fixtures. Coordinator reviewed the diff, independently ran all 127 controller/catalog tests, and ran the 16 application-review and 36 queue-assignment SQL assertions against the final intake trigger in rollback-only local transactions. All passed.
+- The prior full CI run passed source quality and build, but stopped on those two fixtures. Final integrated CI and hosted functional acceptance are still required. Production remains on 1.2.45 with workers paused until the reviewed release completes.
