@@ -7,6 +7,7 @@ import { acceptedCatalogQuery } from "./app-release-catalog.mjs";
 import { expectedVersions } from "./app-release-checks.mjs";
 import {
   csfApplicationImportNoopDefinitions,
+  csfMixedCategoryResubmissionDefinitions,
   csfOneTwoFortySixDefinitions,
 } from "./csf-1-2-46-catalog.mjs";
 
@@ -19,7 +20,7 @@ const versions = expectedVersions(
 );
 
 test("522 pins every changed function body and execution ACL", () => {
-  assert.equal(versions.length, 523);
+  assert.equal(versions.length, 524);
   const current = acceptedCatalogQuery(source, versions.slice(0, 522));
   assert.equal(csfOneTwoFortySixDefinitions.length, 20);
   for (const [signature, digest, service] of csfOneTwoFortySixDefinitions)
@@ -51,13 +52,13 @@ test("522 preserves the accepted 518 catalog byte for byte", () => {
 });
 
 test("523 adds only the reviewed import no-op function definition", () => {
-  assert.equal(versions.length, 523);
+  assert.equal(versions.length, 524);
   const previous = acceptedCatalogQuery(source, versions.slice(0, 522));
   assert.equal(
     createHash("sha256").update(previous).digest("hex"),
     "086ec6cea32101216fcaea3e70894cb030b6c028391e8bced596eeb00f2e26c0",
   );
-  const current = acceptedCatalogQuery(source, versions);
+  const current = acceptedCatalogQuery(source, versions.slice(0, 523));
   for (const [
     signature,
     digest,
@@ -65,6 +66,17 @@ test("523 adds only the reviewed import no-op function definition", () => {
   ] of csfApplicationImportNoopDefinitions)
     assert.ok(current.includes(`('${signature}','${digest}',${service})`));
   assert.ok(current.includes("SELECT count(*) = 57 AND"));
+});
+
+test("524 adds only the mixed-category resubmission definition", () => {
+  const current = acceptedCatalogQuery(source, versions);
+  for (const [
+    signature,
+    digest,
+    service,
+  ] of csfMixedCategoryResubmissionDefinitions)
+    assert.ok(current.includes(`('${signature}','${digest}',${service})`));
+  assert.ok(current.includes("SELECT count(*) = 58 AND"));
 });
 
 test("an altered 522 ledger cannot select the candidate catalog", () => {
@@ -77,8 +89,17 @@ test("an altered 522 ledger cannot select the candidate catalog", () => {
 });
 
 test("an altered 523 ledger cannot select the candidate catalog", () => {
-  const altered = [...versions];
+  const altered = versions.slice(0, 523);
   altered[522] = "20260914170001";
+  assert.throws(
+    () => acceptedCatalogQuery(source, altered),
+    /explicit release review/u,
+  );
+});
+
+test("an altered 524 ledger cannot select the candidate catalog", () => {
+  const altered = [...versions];
+  altered[523] = "20260915015214";
   assert.throws(
     () => acceptedCatalogQuery(source, altered),
     /explicit release review/u,

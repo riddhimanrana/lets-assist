@@ -109,6 +109,14 @@ export const csfApplicationImportNoopDefinitions = [
   ],
 ];
 
+export const csfMixedCategoryResubmissionDefinitions = [
+  [
+    "plugin_data.csf_resubmit_point_submission(uuid,uuid,numeric,text,date,text,uuid,uuid)",
+    "2bd31149f3375a00cfce47049fc14e4c",
+    false,
+  ],
+];
+
 const relationFingerprints = [
   ["plugin_data.csf_opportunities", "9b1b4a82e52bf0b006bb4962fb64554d", false],
   [

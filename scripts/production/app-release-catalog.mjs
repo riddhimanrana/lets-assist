@@ -37,6 +37,7 @@ import { staffAccountConnectionPosture } from "./staff-account-connection-catalo
 import { workbookLinkMergePosture } from "./workbook-link-merge-catalog.mjs";
 import {
   csfApplicationImportNoopDefinitions,
+  csfMixedCategoryResubmissionDefinitions,
   csfOneTwoFortySixDefinitions,
   csfOneTwoFortySixPosture,
 } from "./csf-1-2-46-catalog.mjs";
@@ -137,6 +138,9 @@ export function acceptedCatalogQuery(source, versions) {
   )
     return source;
   const publicationWorkerControlUpgrade =
+    (versions.length === 524 &&
+      ledgerHash ===
+        "87b0f51676909c779ecf7a39dcae3e0086abb150fe688f3f02716091ce8af921") ||
     (versions.length === 523 &&
       ledgerHash ===
         "7ecc52d357c6bebbddb7dbf2f6cf888aa51623777ad6c1e46d3d38984fb0ee7b") ||
@@ -645,7 +649,9 @@ export function acceptedCatalogQuery(source, versions) {
     ]);
   }
   const csfOneTwoFortySixUpgrade =
-    versions.length === 522 || versions.length === 523;
+    versions.length === 522 ||
+    versions.length === 523 ||
+    versions.length === 524;
   if (csfOneTwoFortySixUpgrade) {
     for (const definition of csfOneTwoFortySixDefinitions) {
       const existing = definitions.findIndex(
@@ -657,6 +663,10 @@ export function acceptedCatalogQuery(source, versions) {
   }
   if (versions.length === 523)
     definitions.push(...csfApplicationImportNoopDefinitions);
+  if (versions.length === 524) {
+    definitions.push(...csfApplicationImportNoopDefinitions);
+    definitions.push(...csfMixedCategoryResubmissionDefinitions);
+  }
   const values = definitions
     .map(
       ([signature, digest, service]) =>

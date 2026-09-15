@@ -933,6 +933,39 @@ SELECT extensions.is(
   'an exact resubmission retry replays its receipt'
 );
 
+SELECT plugin_data.csf_review_point_submission_request(
+  'fc100000-0000-4000-8000-000000000001',
+  (SELECT (result ->> 'submissionId')::uuid FROM earning_results WHERE label = 'per-item-begin'),
+  'needs_action', NULL, 'Please correct this to the drive item you completed.',
+  'fc000000-0000-4000-8000-000000000002',
+  'fc700000-0000-4000-8000-000000000011'
+);
+
+SELECT extensions.lives_ok(
+  $$ SELECT plugin_data.csf_resubmit_point_submission_request_v2(
+    'fc100000-0000-4000-8000-000000000001',
+    (SELECT (result ->> 'submissionId')::uuid FROM earning_results WHERE label = 'per-item-begin'),
+    1, 'drive', '2099-10-03', 'Two cards completed.',
+    'fc000000-0000-4000-8000-000000000001',
+    'fc700000-0000-4000-8000-000000000012',
+    '{"version":1,"items":[{"key":"cards","quantity":2}]}'::jsonb
+  ) $$,
+  'a corrected mixed-category submission can use a non-lead component category'
+);
+
+SELECT extensions.ok(
+  (
+    SELECT submission.status = 'submitted'
+      AND submission.claimed_points = 1
+      AND submission.suggested_points = 1
+      AND submission.point_type = 'drive'
+      AND submission.earning_selection -> 'items' -> 0 ->> 'key' = 'cards'
+    FROM plugin_data.csf_point_submissions AS submission
+    WHERE submission.id = (SELECT (result ->> 'submissionId')::uuid FROM earning_results WHERE label = 'per-item-begin')
+  ),
+  'the corrected submission stores the selected drive category and calculation'
+);
+
 SELECT extensions.throws_ok(
   $$ SELECT plugin_data.csf_resubmit_point_submission_request_v2(
     'fc100000-0000-4000-8000-000000000001',

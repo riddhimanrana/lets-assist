@@ -42,7 +42,7 @@ test("486 requires the discussion extension, publication, and reviewed recovery"
         /INSERT INTO supabase_migrations.schema_migrations/gu,
       ) ?? []
     ).length,
-    37,
+    38,
   );
   assert.ok(prepared.query.includes("last_export_comments"));
   assert.ok(!prepared.query.includes("AND version = '1.2.27'"));
@@ -67,7 +67,7 @@ test("488 publication preserves 487 schema fingerprints before the recovery upgr
         /INSERT INTO supabase_migrations.schema_migrations/gu,
       ) ?? []
     ).length,
-    36,
+    37,
   );
   assert.ok(prepared.query.includes("AND version = '1.2.28'"));
   assert.ok(!prepared.query.includes("ADD COLUMN discussion_transport"));
