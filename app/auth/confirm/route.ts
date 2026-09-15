@@ -66,6 +66,9 @@ export async function GET(request: NextRequest) {
     if (email) {
       url.searchParams.set("email", email);
     }
+    // An explicit empty fragment stops the browser inheriting provider errors
+    // from the original confirmation URL across the redirect.
+    url.hash = "#";
     redirect(url.toString());
   };
 
@@ -93,6 +96,11 @@ export async function GET(request: NextRequest) {
 
     return user;
   };
+
+  if (!token_hash && !token && !code) {
+    if (type === "signup") return redirectToExpiredLink();
+    return redirectToError(authOrigin, "Missing verification credential");
+  }
 
   const supabase = await createClient();
 
@@ -138,11 +146,6 @@ export async function GET(request: NextRequest) {
       type === "email_change" ? "email_change" : "signup",
       redirectAfterAuth,
     );
-  }
-
-  if (!token_hash && !token && !code) {
-    console.warn("Confirmation hit without a verification credential");
-    return redirectToError(authOrigin, "Missing verification credential");
   }
 
   const tokenValue = token_hash ?? token;
