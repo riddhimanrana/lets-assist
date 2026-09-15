@@ -98,6 +98,7 @@ test("a missing email offers class-preserving auth links without an unusable res
   expect(html).toContain(`/login?redirect=${encodeURIComponent(path)}`);
   expect(html).toContain(`/signup?redirect=${encodeURIComponent(path)}`);
   expect(html).toContain("Sign in with the account you used to join.");
+  expect(html).toContain("This link may have been used or expired.");
   expect(html).not.toContain("Resend Verification Email");
   expect(verified).toBeUndefined();
   expect(resendArgs).toEqual([]);

@@ -22,6 +22,7 @@ import {
   createHostedReadMetrics,
   passesHostedReadRouteBudgets,
 } from "./csf-load-metrics.mjs";
+import { applicationsRosterSearch } from "./csf-load-applications-roster.mjs";
 
 const EXPECTED_ORIGIN = "https://dev.lets-assist.com";
 const MEMBER_SESSIONS = MEMBER_SESSION_COUNT;
@@ -694,9 +695,7 @@ async function runBrowserAcceptance({ appUrl, memberPage, officerPage }) {
     { waitUntil: "domcontentloaded" },
   );
   assertFixtureLocation(officerPage.url(), appUrl);
-  const rosterSearch = officerPage.getByPlaceholder("Search by name", {
-    exact: true,
-  });
+  const rosterSearch = applicationsRosterSearch(officerPage);
   await rosterSearch.waitFor({ state: "visible", timeout: 60_000 });
   const roster = rosterSearch.locator(
     "xpath=ancestor::div[contains(concat(' ', normalize-space(@class), ' '), ' space-y-4 ')][1]",
