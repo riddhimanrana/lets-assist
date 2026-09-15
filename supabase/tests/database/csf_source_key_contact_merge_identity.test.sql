@@ -2,7 +2,7 @@ BEGIN;
 
 CREATE EXTENSION IF NOT EXISTS pgtap WITH SCHEMA extensions;
 
-SELECT extensions.plan(8);
+SELECT extensions.plan(12);
 
 SELECT extensions.ok(
   NOT has_function_privilege(
@@ -189,5 +189,57 @@ SELECT extensions.ok(
   'the exact roster key retains the concrete school-email conflict'
 );
 
+-- A valid cross-tab pair must not conceal contradictory shared-tab rows.
+INSERT INTO plugin_data.csf_sheet_import_rows (
+  id, organization_id, job_id, sheet_tab_name, row_number,
+  normalized_data, import_status, matched_profile_id
+) VALUES
+  (
+    'ba400000-0000-4000-8000-000000000005',
+    'ba100000-0000-4000-8000-000000000001',
+    'ba300000-0000-4000-8000-000000000001', 'S25', 12,
+    '{"identity":{"firstName":"Sample","lastName":"Member","sourceStudentKey":"SampleMember"}}',
+    'created', 'ba500000-0000-4000-8000-000000000001'
+  ),
+  (
+    'ba400000-0000-4000-8000-000000000006',
+    'ba100000-0000-4000-8000-000000000001',
+    'ba300000-0000-4000-8000-000000000001', 'F24', 13,
+    '{"identity":{"firstName":"Sample","lastName":"Member","sourceStudentKey":"SampleMember"}}',
+    'created', 'ba500000-0000-4000-8000-000000000002'
+  );
+SELECT extensions.ok(
+  NOT plugin_data.csf_profiles_share_class_source_key(
+    'ba100000-0000-4000-8000-000000000001',
+    'ba500000-0000-4000-8000-000000000002',
+    'ba500000-0000-4000-8000-000000000001'
+  ), 'different rows on shared tabs veto the otherwise qualifying cross-tab key pair'
+);
+SELECT extensions.ok(
+  NOT (plugin_data.csf_profile_merge_preview(
+    'ba100000-0000-4000-8000-000000000001',
+    'ba500000-0000-4000-8000-000000000002',
+    'ba500000-0000-4000-8000-000000000001'
+  )->>'canMerge')::boolean,
+  'the merge preview refuses conflicting same-tab identities'
+);
+SELECT extensions.ok(
+  plugin_data.csf_profile_merge_preview(
+    'ba100000-0000-4000-8000-000000000001',
+    'ba500000-0000-4000-8000-000000000002',
+    'ba500000-0000-4000-8000-000000000001'
+  )->'conflicts' @> '[{"type":"class_source_coordinate_conflict"}]'::jsonb,
+  'cross-tab evidence cannot waive the explicit source coordinate conflict'
+);
+SELECT extensions.throws_ok(
+  $$SELECT plugin_data.csf_merge_profiles(
+    'ba100000-0000-4000-8000-000000000001',
+    'ba500000-0000-4000-8000-000000000002',
+    'ba500000-0000-4000-8000-000000000001',
+    'Synthetic duplicate review.', NULL
+  )$$, 'P0001',
+  'These CSF student records have conflicts that must be resolved before merging.',
+  'the locked merge refuses the conflicting source coordinates before consolidation'
+);
 SELECT * FROM extensions.finish();
 ROLLBACK;

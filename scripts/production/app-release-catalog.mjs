@@ -1,4 +1,8 @@
 import {
+  historyIdentityLedgers,
+  historyIdentityCatalog,
+} from "./history-identity-catalog.mjs";
+import {
   publicationNotificationDefinitions,
   publicationNotificationPosture,
 } from "./publication-notification-catalog.mjs";
@@ -132,6 +136,10 @@ export function acceptedCatalogQuery(source, versions) {
   const ledgerHash = createHash("sha256")
     .update(versions.join("\n"))
     .digest("hex");
+  if (historyIdentityLedgers.get(versions.length) === ledgerHash)
+    return historyIdentityCatalog(
+      acceptedCatalogQuery(source, versions.slice(0, 530)),
+    );
   if (
     versions.length === 444 &&
     ledgerHash ===
