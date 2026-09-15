@@ -78,33 +78,33 @@
   },
   {
     "pluginKey": "dvhs-csf",
-    "version": "1.2.45",
+    "version": "1.2.46",
     "manifestFile": "plugins/dvhs-csf/plugin-manifest.ts",
-    "manifestHash": "c5f96d7dbfd92a0459be94d8cde2989eff6cdd33f4f56a942e3265630008eaeb",
-    "sourceCommit": "135bfa3a3c1bc7b2d1608fec215c517631380c49",
+    "manifestHash": "4a3b40a6dfff8cb96beebbb1268b69084853f3f993463f1d09c055f96a02be85",
+    "sourceCommit": "38fb682e6ac208fe122e3f3b90d6a916c9b0c7da",
     "automaticUpdate": false,
     "rolloutPercentage": 0,
     "runtimeProfile": "embedded",
-    "sourceTree": "b2f6884790e1405dd40515ea4e5a95f6501a70eb",
-    "contentDigest": "sha256:6d079418a19a5e3c5730b21718043a95192f975a86b16c5e0aea06ed6926fce6",
+    "sourceTree": "40f664f3651e0dff2e6a964cb77faacebc9da18f",
+    "contentDigest": "sha256:53b38218bd8396dee4f4a25191f5eee1c2003c41eb0312b8c2f88756650819e2",
     "releaseInputs": ["plugins/dvhs-csf"],
     "buildDigest": null,
     "buildArtifact": null,
-    "sbomDigest": "sha256:82cbf6dd751b535971d79abb6deb7536f3b3e57faa3d3dfcc015cb0866d65ca7",
+    "sbomDigest": "sha256:e116f5645b9e45d7ce170db0250e47a1a0b7f784f0fa416dae95c28e1e9340d2",
     "signer": {
-      "identity": "https://github.com/riddhimanrana/lets-assist-plugins/.github/workflows/plugin-release.yml@refs/tags/dvhs-csf/v1.2.45",
+      "identity": "https://github.com/riddhimanrana/lets-assist-plugins/.github/workflows/plugin-release.yml@refs/tags/dvhs-csf/v1.2.46",
       "issuer": "https://token.actions.githubusercontent.com",
-      "attestationRef": "github-release:dvhs-csf/v1.2.45/release-manifest.sigstore.json"
+      "attestationRef": "github-release:dvhs-csf/v1.2.46/release-manifest.sigstore.json"
     },
     "hostApiRange": {
       "minimum": "1.0.0",
       "maximum": "1.0.0"
     },
     "pluginDataSchemaVersion": 1,
-    "requiredPlatformSchemaVersion": "20260914033117",
+    "requiredPlatformSchemaVersion": "20260914160000",
     "supportedInstallContracts": {
       "minimum": "1.1.0",
-      "maximum": "1.2.45"
+      "maximum": "1.2.46"
     }
   }
 ]
