@@ -3,17 +3,17 @@ CREATE EXTENSION IF NOT EXISTS dblink WITH SCHEMA extensions;
 SELECT extensions.plan(4);
 
 INSERT INTO auth.users(id,aud,role,email,email_confirmed_at,raw_app_meta_data,raw_user_meta_data,created_at,updated_at) VALUES
-('ac000000-0000-4000-8000-000000000001','authenticated','authenticated','intake-race-admin@local.test',now(),'{}','{}',now(),now());
+('ed900000-0000-4000-8000-000000000001','authenticated','authenticated','intake-race-admin@local.test',now(),'{}','{}',now(),now());
 INSERT INTO public.organizations(id,name,username,type,join_code) VALUES
-('ac100000-0000-4000-8000-000000000001','Application intake race fixture','csf-intake-race-fixture','school','850002');
+('ed910000-0000-4000-8000-000000000001','Application intake race fixture','csf-intake-race-fixture','school','850002');
 INSERT INTO public.organization_members(organization_id,user_id,role,status) VALUES
-('ac100000-0000-4000-8000-000000000001','ac000000-0000-4000-8000-000000000001','admin','active');
+('ed910000-0000-4000-8000-000000000001','ed900000-0000-4000-8000-000000000001','admin','active');
 INSERT INTO plugin_data.csf_terms(id,organization_id,code,label,school_year,semester) VALUES
-('ac200000-0000-4000-8000-000000000001','ac100000-0000-4000-8000-000000000001','F29','Fall 2029','2029-2030','fall');
+('ed920000-0000-4000-8000-000000000001','ed910000-0000-4000-8000-000000000001','F29','Fall 2029','2029-2030','fall');
 INSERT INTO plugin_data.csf_cohorts(id,organization_id,graduation_year,label) VALUES
-('ac500000-0000-4000-8000-000000000001','ac100000-0000-4000-8000-000000000001',2030,'Class of 2030');
+('ed950000-0000-4000-8000-000000000001','ed910000-0000-4000-8000-000000000001',2030,'Class of 2030');
 INSERT INTO plugin_data.csf_profiles(id,organization_id,first_name,last_name,normalized_first_name,normalized_last_name) VALUES
-('ac300000-0000-4000-8000-000000000001','ac100000-0000-4000-8000-000000000001','Concurrent','Applicant','concurrent','applicant');
+('ed930000-0000-4000-8000-000000000001','ed910000-0000-4000-8000-000000000001','Concurrent','Applicant','concurrent','applicant');
 
 SELECT extensions.dblink_connect('intake_closer','hostaddr='||coalesce(host(inet_server_addr()),'127.0.0.1')||' port='||current_setting('port')||' dbname='||current_database()||' user='||current_user||' password='||current_user||' sslmode=disable');
 SELECT extensions.dblink_connect('intake_applicant','hostaddr='||coalesce(host(inet_server_addr()),'127.0.0.1')||' port='||current_setting('port')||' dbname='||current_database()||' user='||current_user||' password='||current_user||' sslmode=disable');
@@ -23,7 +23,7 @@ CREATE TEMP TABLE intake_applicant_pid AS
 SELECT pid FROM extensions.dblink('intake_applicant','SELECT pg_backend_pid()') AS result(pid integer);
 CREATE TEMP TABLE intake_lock_key AS
 SELECT pg_catalog.hashtextextended(
-  'ac100000-0000-4000-8000-000000000001:ac200000-0000-4000-8000-000000000001',
+  'ed910000-0000-4000-8000-000000000001:ed920000-0000-4000-8000-000000000001',
   0
 ) AS value;
 
@@ -32,10 +32,10 @@ SELECT extensions.dblink_send_query(
   $query$
     WITH closed AS MATERIALIZED (
       SELECT plugin_data.csf_set_application_intake(
-        'ac100000-0000-4000-8000-000000000001',
-        'ac200000-0000-4000-8000-000000000001',
+        'ed910000-0000-4000-8000-000000000001',
+        'ed920000-0000-4000-8000-000000000001',
         false,
-        'ac000000-0000-4000-8000-000000000001'
+        'ed900000-0000-4000-8000-000000000001'
       ) AS result
     )
     SELECT closed.result::text
@@ -81,10 +81,10 @@ SELECT extensions.dblink_send_query(
     INSERT INTO plugin_data.csf_term_applications(
       organization_id,profile_id,cohort_id,term_id,source,status
     ) VALUES (
-      'ac100000-0000-4000-8000-000000000001',
-      'ac300000-0000-4000-8000-000000000001',
-      'ac500000-0000-4000-8000-000000000001',
-      'ac200000-0000-4000-8000-000000000001',
+      'ed910000-0000-4000-8000-000000000001',
+      'ed930000-0000-4000-8000-000000000001',
+      'ed950000-0000-4000-8000-000000000001',
+      'ed920000-0000-4000-8000-000000000001',
       'native','submitted'
     )
   $query$
@@ -128,7 +128,7 @@ SELECT extensions.ok(
   'a native insert queued behind a concurrent close observes the closed state'
 );
 SELECT extensions.is(
-  (SELECT count(*)::integer FROM plugin_data.csf_term_applications WHERE organization_id='ac100000-0000-4000-8000-000000000001'),
+  (SELECT count(*)::integer FROM plugin_data.csf_term_applications WHERE organization_id='ed910000-0000-4000-8000-000000000001'),
   0,
   'the losing concurrent insert creates no application'
 );
