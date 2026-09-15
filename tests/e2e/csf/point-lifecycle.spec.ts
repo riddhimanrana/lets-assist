@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 
 import { expect, test, type Page } from "@playwright/test";
+import { PDFDocument } from "pdf-lib";
 
 import {
   loadCsfFeedFixture,
@@ -141,14 +142,16 @@ test("point proof correction earns one verified credit only after officer approv
     );
     await dialog
       .getByRole("button", { name: "Proof file", exact: true })
-      .setInputFiles({
-        name: "fictional-service-proof.png",
-        mimeType: "image/png",
-        buffer: Buffer.from(
-          "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=",
-          "base64",
-        ),
-      });
+      .setInputFiles(
+        ["first", "second"].map((name) => ({
+          name: `${name}-fictional-service-proof.png`,
+          mimeType: "image/png",
+          buffer: Buffer.from(
+            "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=",
+            "base64",
+          ),
+        })),
+      );
     await dialog.getByRole("combobox", { name: /^Activity:/ }).click();
     await page
       .getByRole("option", { name: activityTitle, exact: true })
@@ -168,7 +171,7 @@ test("point proof correction earns one verified credit only after officer approv
     const { data: proofBefore, error: proofError } = await fixture.admin
       .schema("plugin_data")
       .from("csf_submission_files")
-      .select("id, object_path, original_filename")
+      .select("id, bucket, object_path, original_filename, mime_type")
       .eq("organization_id", fixture.organizationId)
       .eq("submission_id", submitted.id);
     if (proofError)
@@ -176,9 +179,17 @@ test("point proof correction earns one verified credit only after officer approv
         `Could not read the fictional proof: ${proofError.message}`,
       );
     expect(proofBefore).toHaveLength(1);
-    expect(proofBefore![0].original_filename).toBe(
-      "fictional-service-proof.png",
-    );
+    expect(proofBefore![0].original_filename).toBe("proof-images.pdf");
+    expect(proofBefore![0].mime_type).toBe("application/pdf");
+    const { data: storedProof, error: storedProofError } =
+      await fixture.admin.storage
+        .from(proofBefore![0].bucket)
+        .download(proofBefore![0].object_path);
+    if (storedProofError || !storedProof)
+      throw new Error("Could not read combined fictional proof.");
+    expect(
+      (await PDFDocument.load(await storedProof.arrayBuffer())).getPageCount(),
+    ).toBe(2);
 
     await loginAs(officer, "admin", officerPath);
     await reviewSubmission(
@@ -282,7 +293,7 @@ test("point proof correction earns one verified credit only after officer approv
     const { data: proofAfter, error: retainedProofError } = await fixture.admin
       .schema("plugin_data")
       .from("csf_submission_files")
-      .select("id, object_path, original_filename")
+      .select("id, bucket, object_path, original_filename, mime_type")
       .eq("organization_id", fixture.organizationId)
       .eq("submission_id", submitted.id);
     if (retainedProofError)
