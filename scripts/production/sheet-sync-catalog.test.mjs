@@ -128,7 +128,7 @@ test("an existing 482 migration release applies sync and signed publications", (
         /INSERT INTO supabase_migrations.schema_migrations/gu,
       ) ?? []
     ).length,
-    40,
+    41,
   );
   assert.ok(
     prepared.query.includes(
@@ -180,7 +180,7 @@ test("an existing 483 release applies signed publications and the discussion ext
         /INSERT INTO supabase_migrations.schema_migrations/gu,
       ) ?? []
     ).length,
-    39,
+    40,
   );
 });
 
@@ -206,7 +206,7 @@ test("an existing 484 release applies new signed publications and the discussion
         /INSERT INTO supabase_migrations.schema_migrations/gu,
       ) ?? []
     ).length,
-    38,
+    39,
   );
 });
 
@@ -233,6 +233,6 @@ test("an existing 485 release applies the remaining signed publications and disc
         /INSERT INTO supabase_migrations.schema_migrations/gu,
       ) ?? []
     ).length,
-    37,
+    38,
   );
 });
