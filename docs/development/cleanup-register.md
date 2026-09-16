@@ -8206,3 +8206,11 @@ passed 25 local assertions. Release controller/catalog tests passed 90/90 for
 the 568-migration candidate. Private PR 462 carries the UI integration, with
 61 focused tests and typecheck passing. Hosted validation and Production
 deployment remain pending. No retention run or student source import occurred.
+
+The final member UI adds a My CSF notice that historical meeting attendance
+and point submissions may be inaccurate during officer verification. Imported
+credits marked with an unknown legacy category now display "Category not
+recorded" and remain outside the non-drive subtotal. Total points and explicit
+source categories stay unchanged. The 27 focused member tests passed. Private
+PR 462 integrates this with the bulk matching work; Production is not yet
+verified.
