@@ -37,6 +37,33 @@ process.env.SUPABASE_SECRET_KEY = local.serviceRoleKey;
 // app this stack is running, never to a hosted environment.
 process.env.NEXT_PUBLIC_SITE_URL = `http://127.0.0.1:${isolated.basePort}`;
 
+// `server-only` throws unless the react-server condition is set, and this
+// script deliberately does not set it: see the note above the import below.
+// Neutralising it here is the same thing the Next.js server build does for a
+// route handler, which is the runtime this worker actually runs in.
+Bun.plugin({
+  name: "csf-notice-worker-server-only",
+  setup(build) {
+    build.module("server-only", () => ({ exports: {}, loader: "object" }));
+  },
+});
+
+/**
+ * Imported after the plugin above is registered, and deliberately WITHOUT
+ * `--conditions=react-server`.
+ *
+ * The hand-off renders the notice email with @react-email/render, which needs
+ * `react-dom/server`. React refuses that module under the react-server
+ * condition: "react-dom/server is not supported in React Server Components."
+ * Running this script with that condition therefore made every hand-off throw,
+ * the worker recorded it as an unconfirmed enqueue, and the delivery went back
+ * to the queue with a growing backoff having sent nothing.
+ *
+ * The product is not affected. In the app this worker runs from a route
+ * handler, where Next.js resolves `react-dom/server` normally, which is why the
+ * broadcast path renders the same way and delivers. The condition was copied
+ * from the mail dispatch script, which never renders anything.
+ */
 const { runCsfPublicationNotificationWorker } =
   await import("../lib/plugins/private/plugins/dvhs-csf/services/publication-notifications");
 

@@ -160,11 +160,10 @@ async function deleteMailpitMessages(ids: string[]) {
 function runNoticeWorker() {
   const output = execFileSync(
     "bun",
-    [
-      "--conditions=react-server",
-      "run",
-      "scripts/test-csf-publication-notice-worker.ts",
-    ],
+    // No react-server condition here, unlike the mail dispatch script below.
+    // This worker renders the notice email, and react-dom/server is refused
+    // under that condition; the script neutralises `server-only` itself.
+    ["run", "scripts/test-csf-publication-notice-worker.ts"],
     { cwd: process.cwd(), env: process.env, encoding: "utf8" },
   );
   const line = output
