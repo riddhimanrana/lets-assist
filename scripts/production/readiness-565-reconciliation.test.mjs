@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+import { readdirSync, readFileSync } from "node:fs";
+import { createHash } from "node:crypto";
 import test from "node:test";
 import { fileURLToPath } from "node:url";
 import {
@@ -67,19 +68,11 @@ test("each fingerprint the extensions move is measured, or named as unmeasured",
       );
   }
 
-  // Both of these moved on a replayed database. Neither was reported, and
-  // neither can be derived from the migration text: one is
-  // md5(pg_get_functiondef(oid)), the other the relation digest the catalog
-  // builds from columns, constraints, indexes and triggers.
+  // Every mover is measured now: the final capture supplied the two the T
+  // replay missed and the two relation digests the systematic diff found.
   assert.deepEqual(
-    acceptedFingerprints565
-      .filter((entry) => !entry.after)
-      .map((e) => e.object),
-    [
-      "plugin_data.csf_record_publication_notifications()",
-      "plugin_data.csf_publication_events (relation)",
-      "plugin_data.csf_term_applications (relation)",
-    ],
+    acceptedFingerprints565.filter((entry) => !entry.after || !entry.before),
+    [],
   );
 });
 
@@ -187,4 +180,35 @@ test("a write cannot hide inside a dollar-quoted block", () => {
       .length,
     1,
   );
+});
+
+test("the shipped migration bytes are the bytes the final capture measured", () => {
+  const capture = new Map(
+    readFileSync(
+      "/private/tmp/csf-readiness-coordination-20260916/final-y-migration-sha256.txt",
+      "utf8",
+    )
+      .trim()
+      .split("\n")
+      .map((line) => line.trim().split(/\s+/u))
+      .map(([digest, name]) => [name, digest]),
+  );
+  const drifted = [];
+  for (const version of ledger) {
+    const name = readdirSync(`${cwd}supabase/migrations`).find((entry) =>
+      entry.startsWith(`${version}_`),
+    );
+    const actual = createHash("sha256")
+      .update(readFileSync(`${cwd}supabase/migrations/${name}`, "utf8"))
+      .digest("hex");
+    if (capture.get(name) !== actual) drifted.push(name);
+  }
+  // 1400 is still being revised by the communications lane. Its final bytes are
+  // the ones the capture measured; this tree has the earlier revision, so its
+  // entry in the approved tail has to be repinned when the final file lands.
+  // Nothing else may drift: the catalog digests were read off a stack built
+  // from exactly these files.
+  assert.deepEqual(drifted, [
+    "20260917140000_csf_import_personal_notice_suppression.sql",
+  ]);
 });

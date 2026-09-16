@@ -929,7 +929,10 @@ test("the readiness release moves exactly the fingerprints measured on a replaye
     fileURLToPath(new URL("../../", import.meta.url)),
   );
   const baseline = acceptedCatalogQuery(source, fullLedger.slice(0, 540));
-  const current = acceptedCatalogQuery(source, fullLedger);
+  // The decisions baseline, not the full ledger. Two of the relation digests
+  // below are moved again by the 565 extensions, so they are unique only up to
+  // 557; the extension swaps are checked separately against the full ledger.
+  const current = acceptedCatalogQuery(source, fullLedger.slice(0, 557));
 
   // An earlier version of this file asserted the 554 catalog was byte
   // identical to the 540 one, on the strength of grepping the migrations for
@@ -956,8 +959,6 @@ test("the readiness release moves exactly the fingerprints measured on a replaye
     // check 39, the write-back ledger relation
     ["071bf14bd83e3a8fc8c9fa467bce2035", "49593d70560fb48930e243133820990b"],
     // The 561 extension set, measured the same way. Taken from the release
-    // table rather than copied, so the two cannot drift apart.
-    ...acceptedFingerprints565.map(({ before, after }) => [before, after]),
   ];
 
   for (const [before, after] of measured) {
@@ -984,6 +985,27 @@ test("the readiness release moves exactly the fingerprints measured on a replaye
   // Each swap is a digest for a digest, so nothing else can have moved.
   assert.equal(current.length, baseline.length);
   assert.notEqual(current, baseline);
+
+  // The extension set, measured the same way, against the full ledger.
+  const decisions = acceptedCatalogQuery(source, fullLedger.slice(0, 557));
+  const released = acceptedCatalogQuery(source, fullLedger);
+  for (const entry of acceptedFingerprints565) {
+    assert.equal(
+      decisions.split(entry.before).length - 1,
+      entry.occurrences,
+      `${entry.object} must be pinned before the release`,
+    );
+    assert.ok(
+      !released.includes(entry.before),
+      `${entry.object} must not survive the release`,
+    );
+    assert.equal(
+      released.split(entry.after).length - 1,
+      entry.occurrences,
+      `${entry.object} must be swapped everywhere`,
+    );
+  }
+  assert.equal(released.length, decisions.length);
 });
 
 test("each measured fingerprint is applied at the migration that produces it", () => {

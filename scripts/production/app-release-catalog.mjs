@@ -186,31 +186,42 @@ export const acceptedFingerprints565 = [
     occurrences: 1,
   },
   {
-    // 0800 adds event_key to the INSERT and to the ON CONFLICT target, so the
-    // body moved. Replay T did not report this function.
     object: "plugin_data.csf_record_publication_notifications()",
     migration: "20260917080000",
     before: "396db81ca1f3953148782858f9185223",
-    after: null,
+    after: "9900f3e2f5181fdce4329ce958e1b2c3",
     occurrences: 1,
   },
   {
-    // 0800 drops two constraints and adds three on this table. The relation
-    // digest covers conname and pg_get_constraintdef, so it moved. Replay T
-    // reported function digests only.
+    // 0800 rewrites its constraints.
     object: "plugin_data.csf_publication_events (relation)",
     migration: "20260917080000",
     before: "bb442786fe77c77ce3adae4aa0e84ac8",
-    after: null,
+    after: "73d189ff60d9248b33faaf010a5aa1cd",
     occurrences: 1,
   },
   {
-    // 1300 adds courses_corrected_at and courses_corrected_by. The relation
-    // digest hashes the column list, so it moved. Neither side was measured.
+    // 1300 adds courses_corrected_at and courses_corrected_by.
     object: "plugin_data.csf_term_applications (relation)",
     migration: "20260917130000",
-    before: null,
-    after: null,
+    before: "9be38d4860e44a5696c75358d3707efc",
+    after: "80588947c1e1b304dc388ec9bd4e48d6",
+    occurrences: 1,
+  },
+  {
+    // 1100 indexes the attendance-correction request.
+    object: "plugin_data.csf_admin_audit_events (relation)",
+    migration: "20260917110000",
+    before: "f4cccde4b50d4e96dac5937200b95ea1",
+    after: "317cf813aa3f7dfdedaa8a21ac872343",
+    occurrences: 1,
+  },
+  {
+    // 1400 adds the personal-notification trigger to this table.
+    object: "plugin_data.csf_point_submissions (relation)",
+    migration: "20260917140000",
+    before: "db32b25e5818c2067614aebe169f4cb9",
+    after: "edb4d3ebac961c453ddc975fac463612",
     occurrences: 1,
   },
 ];
