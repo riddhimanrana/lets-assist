@@ -142,6 +142,14 @@ export function acceptedCatalogQuery(source, versions) {
   // the officer identity work may land before or after it. Either way this is
   // the previous ledger plus one tail entry.
   if (
+    versions.length === 554 &&
+    ledgerHash ===
+      "45644bd99f53b503cda4d5b8acefcc04d1134be7617abe07fb7fc16c5662a31c"
+  )
+    // Provenance null safety: a forward replacement of the decisions
+    // lane's own functions. No reviewed definition moves.
+    return acceptedCatalogQuery(source, versions.slice(0, 553));
+  if (
     versions.length === 553 &&
     ledgerHash ===
       "a407752136d1ae818048862d6b9630914036c17009df93fe90aa9c2b77781cd0"

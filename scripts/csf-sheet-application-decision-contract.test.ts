@@ -94,26 +94,90 @@ const NEW_TABLES = [
 /** Every function the migrations create, with its exact argument type list. */
 const FUNCTIONS: Array<{ name: string; args: string; callable: boolean }> = [
   { name: "csf_term_is_sheet_review", args: "uuid, uuid", callable: false },
-  { name: "csf_guard_application_decision_evidence", args: "", callable: false },
-  { name: "csf_queue_application_sheet_writeback", args: "uuid, uuid, text, text", callable: false },
+  {
+    name: "csf_guard_application_decision_evidence",
+    args: "",
+    callable: false,
+  },
+  {
+    name: "csf_queue_application_sheet_writeback",
+    args: "uuid, uuid, text, text",
+    callable: false,
+  },
   { name: "csf_guard_sheet_writeback_review_mode", args: "", callable: false },
-  { name: "csf_assert_sheet_decision_authority", args: "uuid, uuid, text, text", callable: false },
-  { name: "csf_sheet_decision_term_lock_key", args: "uuid, uuid", callable: false },
-  { name: "csf_set_term_application_review_source", args: "uuid, uuid, uuid, text, uuid", callable: true },
+  {
+    name: "csf_assert_sheet_decision_authority",
+    args: "uuid, uuid, text, text",
+    callable: false,
+  },
+  {
+    name: "csf_sheet_decision_term_lock_key",
+    args: "uuid, uuid",
+    callable: false,
+  },
+  {
+    name: "csf_set_term_application_review_source",
+    args: "uuid, uuid, uuid, text, uuid",
+    callable: true,
+  },
   // The six-argument first cut is dropped by 20260917020100; the mapping is
   // saved as one document with a version to check against.
-  { name: "csf_set_application_decision_mapping", args: "uuid, uuid, uuid, jsonb, integer", callable: true },
-  { name: "csf_list_application_decision_mappings", args: "uuid, uuid", callable: true },
-  { name: "csf_guard_decision_stage_profile_matches_application", args: "", callable: false },
-  { name: "csf_publish_sheet_application_decision", args: "uuid, uuid, text, text, uuid, jsonb", callable: false },
-  { name: "csf_stage_sheet_application_decisions", args: "uuid, uuid, uuid, uuid, jsonb, jsonb", callable: true },
-  { name: "csf_sheet_application_decision_run_receipt", args: "uuid, uuid", callable: false },
-  { name: "csf_record_sheet_decision_sync_failure", args: "uuid, uuid, uuid, uuid, jsonb, text", callable: true },
-  { name: "csf_release_sheet_application_decisions", args: "uuid, uuid, uuid, uuid, uuid[]", callable: true },
-  { name: "csf_list_sheet_application_decisions", args: "uuid, uuid, uuid, text, text, text, integer, text", callable: true },
-  { name: "csf_sheet_application_decision_term_state", args: "uuid, uuid, uuid", callable: true },
+  {
+    name: "csf_set_application_decision_mapping",
+    args: "uuid, uuid, uuid, jsonb, integer",
+    callable: true,
+  },
+  {
+    name: "csf_list_application_decision_mappings",
+    args: "uuid, uuid",
+    callable: true,
+  },
+  {
+    name: "csf_guard_decision_stage_profile_matches_application",
+    args: "",
+    callable: false,
+  },
+  {
+    name: "csf_publish_sheet_application_decision",
+    args: "uuid, uuid, text, text, uuid, jsonb",
+    callable: false,
+  },
+  {
+    name: "csf_stage_sheet_application_decisions",
+    args: "uuid, uuid, uuid, uuid, jsonb, jsonb",
+    callable: true,
+  },
+  {
+    name: "csf_sheet_application_decision_run_receipt",
+    args: "uuid, uuid",
+    callable: false,
+  },
+  {
+    name: "csf_record_sheet_decision_sync_failure",
+    args: "uuid, uuid, uuid, uuid, jsonb, text",
+    callable: true,
+  },
+  {
+    name: "csf_release_sheet_application_decisions",
+    args: "uuid, uuid, uuid, uuid, uuid[]",
+    callable: true,
+  },
+  {
+    name: "csf_list_sheet_application_decisions",
+    args: "uuid, uuid, uuid, text, text, text, integer, text",
+    callable: true,
+  },
+  {
+    name: "csf_sheet_application_decision_term_state",
+    args: "uuid, uuid, uuid",
+    callable: true,
+  },
   { name: "csf_member_term_review_state", args: "uuid, uuid", callable: true },
-  { name: "csf_reject_native_decision_in_sheet_review", args: "uuid, uuid", callable: false },
+  {
+    name: "csf_reject_native_decision_in_sheet_review",
+    args: "uuid, uuid",
+    callable: false,
+  },
 ];
 
 describe("Sheets application decision schema", () => {
@@ -124,10 +188,14 @@ describe("Sheets application decision schema", () => {
     expect(staging).toContain(
       "REVOKE ALL ON TABLE plugin_data.%I FROM PUBLIC, anon, authenticated, service_role",
     );
-    expect(staging).toContain("GRANT SELECT ON TABLE plugin_data.%I TO service_role");
+    expect(staging).toContain(
+      "GRANT SELECT ON TABLE plugin_data.%I TO service_role",
+    );
     expect(staging).toContain("ENABLE ROW LEVEL SECURITY");
     // A blanket write grant would let a PostgREST call stage a decision.
-    expect(staging).not.toContain("GRANT ALL ON TABLE plugin_data.csf_application_decision");
+    expect(staging).not.toContain(
+      "GRANT ALL ON TABLE plugin_data.csf_application_decision",
+    );
   });
 
   test("every table is tenant-scoped through a composite foreign key", () => {
@@ -162,7 +230,9 @@ describe("Sheets application decision schema", () => {
 
   test("the staged decision table cannot be read as a published one", () => {
     // A stage is only 'released' when it carries what was published.
-    expect(staging).toContain("csf_application_decision_stages_released_is_complete");
+    expect(staging).toContain(
+      "csf_application_decision_stages_released_is_complete",
+    );
     expect(staging).toContain("released_decision IS NOT NULL");
   });
 });
@@ -259,7 +329,9 @@ describe("the release gate cannot be bypassed", () => {
     expect(staging).toContain("application.sheet_writeback_suppressed");
     expect(staging).toContain("CSF_SHEET_REVIEW_MODE=write_back_disabled");
     // Scoped to the legacy application rows so export destinations keep working.
-    expect(staging).toContain("IF NEW.destination_id IS NOT NULL OR NEW.application_id IS NULL THEN");
+    expect(staging).toContain(
+      "IF NEW.destination_id IS NOT NULL OR NEW.application_id IS NULL THEN",
+    );
   });
 });
 
@@ -274,9 +346,15 @@ describe("provenance is verified, not claimed", () => {
   });
 
   test("a claimed application must be tied to the workbook that was read", () => {
-    expect(sync).toContain("import_row.sheet_tab_name = source_plan.sheet_tab_name");
-    expect(sync).toContain("import_job.source_file_id = source_plan.spreadsheet_file_id");
-    expect(sync).toContain("import_row.matched_application_id = application.id");
+    expect(sync).toContain(
+      "import_row.sheet_tab_name = source_plan.sheet_tab_name",
+    );
+    expect(sync).toContain(
+      "import_job.source_file_id = source_plan.spreadsheet_file_id",
+    );
+    expect(sync).toContain(
+      "import_row.matched_application_id = application.id",
+    );
     expect(sync).toContain("application.source_import_row_id = import_row.id");
     expect(sync).toContain("source.source_type = 'application_responses'");
   });
@@ -306,10 +384,14 @@ describe("provenance is verified, not claimed", () => {
   });
 
   test("a mapping edited after the read cannot apply obsolete column semantics", () => {
-    expect(sync).toContain("mapping.mapping_version::text = (entry.value ->> 'mappingVersion')");
+    expect(sync).toContain(
+      "mapping.mapping_version::text = (entry.value ->> 'mappingVersion')",
+    );
     expect(sync).toContain("'mapping_version_stale'");
     // Staleness outranks every other blocker: the columns themselves moved.
-    const outcome = sync.slice(sync.indexOf("WHEN row_plan.match_basis = 'unmatched' THEN 'unmatched'"));
+    const outcome = sync.slice(
+      sync.indexOf("WHEN row_plan.match_basis = 'unmatched' THEN 'unmatched'"),
+    );
     expect(outcome.indexOf("NOT row_plan.mapping_current")).toBeLessThan(
       outcome.indexOf("NOT row_plan.provenance_verified"),
     );
@@ -318,9 +400,7 @@ describe("provenance is verified, not claimed", () => {
   test("the decision mapping is versioned behind a permission recheck", () => {
     expect(mappingFields).toContain("csf_set_application_decision_mapping");
     expect(mappingFields).toContain("'manage_sheet_sync'");
-    expect(mappingFields).toContain(
-      "+ CASE WHEN v_changed THEN 1 ELSE 0 END",
-    );
+    expect(mappingFields).toContain("+ CASE WHEN v_changed THEN 1 ELSE 0 END");
   });
 
   test("a concurrent mapping save is refused under the row lock", () => {
@@ -346,8 +426,12 @@ describe("provenance is verified, not claimed", () => {
   test("a reused request id is bound to its term and payload", () => {
     for (const source of [sync, release]) {
       expect(source).toContain("term_id IS DISTINCT FROM p_term_id");
-      expect(source).toContain("request_fingerprint IS DISTINCT FROM v_fingerprint");
-      expect(source).toContain("CSF_COMMITTED_REQUEST_OUTCOME=request_conflict");
+      expect(source).toContain(
+        "request_fingerprint IS DISTINCT FROM v_fingerprint",
+      );
+      expect(source).toContain(
+        "CSF_COMMITTED_REQUEST_OUTCOME=request_conflict",
+      );
     }
     expect(staging).toContain("request_fingerprint text NOT NULL");
   });
@@ -384,9 +468,15 @@ describe("publication semantics", () => {
   });
 
   test("an officer's Sheet decision is recorded as external review, not computed eligibility", () => {
-    expect(staging).toContain("ADD VALUE IF NOT EXISTS 'approved_sheet_review'");
-    expect(staging).toContain("ADD VALUE IF NOT EXISTS 'rejected_sheet_review'");
-    expect(publish).toContain("'decisionBasis', 'officer_external_sheet_review'");
+    expect(staging).toContain(
+      "ADD VALUE IF NOT EXISTS 'approved_sheet_review'",
+    );
+    expect(staging).toContain(
+      "ADD VALUE IF NOT EXISTS 'rejected_sheet_review'",
+    );
+    expect(publish).toContain(
+      "'decisionBasis', 'officer_external_sheet_review'",
+    );
     expect(publish).toContain("'academicPreflightEvaluated', false");
     // The base's own code is fine to describe; stamping it here would not be.
     expect(withoutComments(publish)).not.toContain("approved_standard");
@@ -405,9 +495,10 @@ describe("publication semantics", () => {
     );
     expect(finalizedGuard).not.toContain("IF p_decision <> 'accepted'");
     // The release planner holds every terminal verdict, not only a rejection.
-    const heldBranches = finalizedGuard.split(
-      "IN ('accepted', 'rejected', 'rejected_with_explanation')",
-    ).length - 1;
+    const heldBranches =
+      finalizedGuard.split(
+        "IN ('accepted', 'rejected', 'rejected_with_explanation')",
+      ).length - 1;
     expect(heldBranches).toBe(2);
   });
 
