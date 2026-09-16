@@ -7992,3 +7992,19 @@ follow-up prompts preserve every concrete failure for the resumed agents.
 | CSF-READINESS-09 | P1       | Proposed graduated-cohort retirement does not yet safely bind fresh scope and replay intent, erase all intended identifiers, or distinguish moved source rows. Its migration currently fails replay. | Reviewed concrete preview, foreign-key coverage, drift/replay tests, source fingerprint checks and complete isolated replay. No live operation is accepted.    |
 | CSF-READINESS-10 | P2       | Spring 2025 imports produced both `feb_meeting` and `february_meeting` as required active meetings. A historical profile displays attended February Meeting beside Feb Meeting with no record.       | Compare official source headers and cohort provenance, then correct aliases or expected-meeting scope without inventing attendance or merging distinct events. |
 | CSF-READINESS-11 | P2       | A newly connected application source inherited another source's last-import totals and retry control.                                                                                                | Source-switch and stale-response tests pass in private PR 457; hosted and Production readback remain outstanding.                                              |
+
+#### Manual onboarding walkthrough Q
+
+On root `48595d37`, private `f062b1b` and isolated schema 558, the class QR
+visibly includes the Let's Assist logo. Signed-out wrong-class recovery returns
+to code entry, and Back returns to the public CSF page. Sign-in preserves the
+class invitation. A fictional unmatched returning applicant reaches Awaiting
+staff review. The adviser queue preserves the returning-member intent and
+requires identity checks before linking. The limited activity role cannot see
+that linking queue.
+
+Two P2 usability defects remain under CSF-READINESS-06. A zero-result name
+search has no edit-name control, and closing then reopening preserves the same
+result. Open My CSF sends the unmatched applicant to the general home page
+instead of a pending-review page. The onboarding agent has both reproductions.
+No real account, profile, admission decision or attendance changed in this run.
