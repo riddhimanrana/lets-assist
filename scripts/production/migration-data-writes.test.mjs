@@ -61,3 +61,10 @@ test("reviewed statement hashes stay exact", () => {
       ),
     );
 });
+
+test("statement boundaries ignore semicolons in literals and comments before DO bodies", () => {
+  const sql = `SELECT ';'; /* ; */ DO $body$ BEGIN UPDATE public.organization_plugin_installs SET status='active'; END $body$; CREATE FUNCTION fixture() RETURNS void AS $fn$ BEGIN UPDATE public.organization_plugin_installs SET status='active'; END $fn$ LANGUAGE plpgsql;`;
+  const writes = prohibitedDataWrites(sql);
+  assert.equal(writes.length, 1);
+  assert.equal(writes[0].table, "public.organization_plugin_installs");
+});

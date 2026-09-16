@@ -74,6 +74,7 @@ export const prohibitedMigrationWriteTargets = [
 // are definitions, not top-level data writes, so dollar-quoted bodies are masked.
 function maskSql(sql) {
   const chars = sql.split("");
+  let statementStart = 0;
   const blank = (start, end) => {
     for (let index = start; index < end; index += 1) {
       if (sql[index] !== "\n") chars[index] = " ";
@@ -125,7 +126,7 @@ function maskSql(sql) {
       if (delimiter) {
         const end = sql.indexOf(delimiter, index + delimiter.length);
         index = end < 0 ? sql.length : end + delimiter.length;
-        const prefix = chars.slice(0, start).join("").split(";").at(-1).trim();
+        const prefix = chars.slice(statementStart, start).join("").trim();
         if (/^DO\b/iu.test(prefix) && end >= 0) {
           blank(start, start + delimiter.length);
           const body = maskSql(sql.slice(start + delimiter.length, end));
@@ -133,7 +134,10 @@ function maskSql(sql) {
             chars[start + delimiter.length + offset] = body[offset];
           blank(end, index);
         } else blank(start, index);
-      } else index += 1;
+      } else {
+        if (sql[index] === ";") statementStart = index + 1;
+        index += 1;
+      }
     }
   }
   return chars.join("");
