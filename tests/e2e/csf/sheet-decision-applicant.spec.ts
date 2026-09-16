@@ -117,6 +117,14 @@ const AUDIT_NOTE = "Rejected in the chapter application review Sheet.";
 const REASON_HEADING = "Why this application was not approved";
 
 /**
+ * The words an officer writes when correcting an already published row. Kept
+ * distinct from `EXPLAINED_REASON` so a correction cannot pass on the reason
+ * some other applicant was given.
+ */
+const CORRECTION_REASON =
+  "Fictional synthetic correction: the transcript was re-read after release.";
+
+/**
  * The two regions that state a member's semester status, both from
  * `memberSemesterStatus`, so every status label renders twice on this page.
  * Positive assertions name the region they mean; negative ones stay page-wide.
@@ -596,20 +604,73 @@ test.describe("stale access after a later sync", () => {
 
     await loginWithEmail(page, applicants.byRole.accepted.email);
     await page.goto(PROFILE, { waitUntil: "domcontentloaded" });
-    // The page must stop calling them approved the moment the ledger does.
+    // The page must stop calling them approved the moment the ledger does, and
+    // say what happened instead. A revocation that only took access away
+    // reports the application's own outcome rather than a failed semester.
     await expect(page.getByText("Approved by CSF officers")).toHaveCount(0);
-    // No status wording is claimed here yet. Today `memberSemesterStatus`
-    // answers from the revoked standing before it reads the decision, and the
-    // member-view lane is changing that so a revoked current term reports the
-    // application's own outcome instead. Until that label is settled, this
-    // journey holds the ledger state, the absence of any approval, and that no
-    // reason was invented for the correction.
+    await expect(
+      profileSummary(page).getByText("Application not approved"),
+    ).toBeVisible();
+    await expect(
+      selectedSemester(page).getByText("Application not approved"),
+    ).toBeVisible();
+    // Nobody wrote a reason for this correction, so none is shown.
     expect(
       await publishedDecisionReason(applicants.byRole.accepted),
     ).toBeNull();
     const html = await page.content();
     expect(html).not.toContain(REASON_HEADING);
     expect(html).not.toContain(AUDIT_NOTE);
+
+    expectNoBrowserFailures(failures);
+  });
+
+  test("a published acceptance turned yellow carries the new words", async ({
+    page,
+  }) => {
+    const failures = watchBrowserFailures(page);
+    await stageTheOutcomes();
+    await releaseDecisions(fixture);
+    expect(
+      (await publishedState(fixture, applicants.byRole.accepted))
+        .membershipStatus,
+    ).toBe("accepted");
+
+    // The officer recoloured a published acceptance yellow and wrote why. The
+    // membership goes, and unlike the red correction this one owes the student
+    // an explanation: the officer's own, not the earlier applicant's.
+    await stageDecisions(fixture, [
+      {
+        applicant: applicants.byRole.accepted,
+        status: "rejected_with_explanation",
+        observedColor: "#fff2cc",
+        reason: CORRECTION_REASON,
+      },
+    ]);
+
+    const corrected = await publishedState(fixture, applicants.byRole.accepted);
+    expect(corrected.applicationStatus).toBe("rejected");
+    expect(corrected.membershipStatus).toBe("revoked");
+    expect(await publishedDecisionReason(applicants.byRole.accepted)).toBe(
+      CORRECTION_REASON,
+    );
+
+    await loginWithEmail(page, applicants.byRole.accepted.email);
+    await page.goto(PROFILE, { waitUntil: "domcontentloaded" });
+    await expect(page.getByText("Approved by CSF officers")).toHaveCount(0);
+    await expect(
+      profileSummary(page).getByText("Application not approved"),
+    ).toBeVisible();
+    await expect(
+      selectedSemester(page).getByText(REASON_HEADING),
+    ).toBeVisible();
+    await expect(
+      selectedSemester(page).getByText(CORRECTION_REASON, { exact: true }),
+    ).toBeVisible();
+    const html = await page.content();
+    expect(html).not.toContain(AUDIT_NOTE);
+    // The yellow applicant's words are still their own.
+    expect(html).not.toContain(EXPLAINED_REASON);
 
     expectNoBrowserFailures(failures);
   });
@@ -638,9 +699,15 @@ test.describe("stale access after a later sync", () => {
     await loginWithEmail(page, applicants.byRole.accepted.email);
     await page.goto(PROFILE, { waitUntil: "domcontentloaded" });
     await expect(page.getByText("Approved by CSF officers")).toHaveCount(0);
-    // A retraction clears the decision and its reason together, so there is
-    // nothing left to explain. The label a retracted semester should read is
-    // the member-view lane's call, so this journey claims none.
+    // A retraction returns the application to the officers, so the semester
+    // reads as under review again rather than as one the member failed.
+    await expect(
+      profileSummary(page).getByText("Under officer review"),
+    ).toBeVisible();
+    await expect(
+      selectedSemester(page).getByText("Under officer review"),
+    ).toBeVisible();
+    // The decision and its reason are cleared together.
     expect(
       await publishedDecisionReason(applicants.byRole.accepted),
     ).toBeNull();
