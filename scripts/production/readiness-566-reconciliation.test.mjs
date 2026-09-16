@@ -36,12 +36,14 @@ const EXTENSIONS = [
   "20260917140000_csf_import_personal_notice_suppression",
   "20260917150000_csf_course_retention_coverage",
   "20260917160000_csf_notice_campaign_dispatch_identity",
+  "20260917170000_csf_retention_and_attendance_release_guards",
+  "20260917180000_csf_unreconcile_sheet_import_row",
 ];
 
-test("the release is the 557 decisions baseline plus the nine integrated extensions", () => {
-  assert.equal(ledger.length, 566);
+test("the release is the 557 decisions baseline plus the eleven integrated extensions", () => {
+  assert.equal(ledger.length, 568);
   assert.deepEqual(
-    ledger.slice(-9),
+    ledger.slice(-11),
     EXTENSIONS.map((name) => name.slice(0, 14)),
   );
   // 1200 header provenance is still with the source lane and must not appear.

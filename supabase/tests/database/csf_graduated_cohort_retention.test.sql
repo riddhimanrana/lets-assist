@@ -1,7 +1,7 @@
 BEGIN;
 
 CREATE EXTENSION IF NOT EXISTS pgtap WITH SCHEMA extensions;
-SELECT extensions.plan(49);
+SELECT extensions.plan(53);
 
 -- ---------------------------------------------------------------------------
 -- Shape and boundaries
@@ -318,6 +318,24 @@ VALUES ('bd900000-0000-4000-8000-000000000001', 'bd100000-0000-4000-8000-0000000
         'fingerprint-retiring-student', 'bd300000-0000-4000-8000-000000000001',
         'bd600000-0000-4000-8000-000000000001', 'created');
 
+-- One retiring profile belongs to both selected classes. Neither class may
+-- reopen after its memberships have been removed.
+INSERT INTO plugin_data.csf_cohorts (id, organization_id, graduation_year, label)
+VALUES ('bd200000-0000-4000-8000-000000000003', 'bd100000-0000-4000-8000-000000000001', 2025, 'Class of 2025');
+INSERT INTO plugin_data.csf_profile_cohort_memberships (organization_id, profile_id, cohort_id)
+VALUES ('bd100000-0000-4000-8000-000000000001', 'bd300000-0000-4000-8000-000000000001',
+        'bd200000-0000-4000-8000-000000000003');
+
+-- This immutable row identifies its student only through the application.
+INSERT INTO plugin_data.csf_sheet_import_rows (
+  id, organization_id, job_id, source_id, cohort_id, sheet_tab_name, row_number,
+  row_hash, matched_application_id, import_status
+)
+VALUES ('bd900000-0000-4000-8000-000000000002', 'bd100000-0000-4000-8000-000000000001',
+        'bd800000-0000-4000-8000-000000000001', 'bd700000-0000-4000-8000-000000000001',
+        'bd200000-0000-4000-8000-000000000001', 'Roster', 43,
+        'fingerprint-application-only', 'bd600000-0000-4000-8000-000000000001', 'created');
+
 -- ---------------------------------------------------------------------------
 -- Preview
 -- ---------------------------------------------------------------------------
@@ -327,7 +345,7 @@ SELECT extensions.lives_ok(
       'bd100000-0000-4000-8000-000000000001',
       'bd000000-0000-4000-8000-000000000001',
       'bd400000-0000-4000-8000-000000000001',
-      ARRAY[2024],
+      ARRAY[2024, 2025],
       'Chapter retention decision for the graduated class of 2024.'
     )$$,
   'an authorized officer can seal a retention preview'
@@ -338,7 +356,7 @@ SELECT extensions.throws_ok(
       'bd100000-0000-4000-8000-000000000001',
       'bd000000-0000-4000-8000-000000000003',
       'bd400000-0000-4000-8000-0000000000f1',
-      ARRAY[2024],
+      ARRAY[2024, 2025],
       'An ordinary member should not be able to preview a retention run.'
     )$$,
   '42501',
@@ -393,7 +411,7 @@ SELECT extensions.throws_ok(
         'bd100000-0000-4000-8000-000000000001',
         'bd000000-0000-4000-8000-000000000001',
         'bd400000-0000-4000-8000-000000000002',
-        %L, %L, ARRAY[2024],
+        %L, %L, ARRAY[2024, 2025],
         ARRAY['bd300000-0000-4000-8000-000000000002']::uuid[])$$,
     (SELECT id FROM plugin_data.csf_retention_runs WHERE request_id = 'bd400000-0000-4000-8000-000000000001'),
     (SELECT profile_digest FROM plugin_data.csf_retention_runs WHERE request_id = 'bd400000-0000-4000-8000-000000000001')
@@ -411,7 +429,7 @@ SELECT extensions.throws_ok(
         'bd400000-0000-4000-8000-000000000003',
         %L,
         '0000000000000000000000000000000000000000000000000000000000000000',
-        ARRAY[2024],
+        ARRAY[2024, 2025],
         ARRAY['bd300000-0000-4000-8000-000000000001']::uuid[])$$,
     (SELECT id FROM plugin_data.csf_retention_runs WHERE request_id = 'bd400000-0000-4000-8000-000000000001')
   ),
@@ -426,7 +444,7 @@ SELECT extensions.throws_ok(
         'bd100000-0000-4000-8000-000000000001',
         'bd000000-0000-4000-8000-000000000001',
         'bd400000-0000-4000-8000-000000000004',
-        %L, %L, ARRAY[2024, 2025],
+        %L, %L, ARRAY[2024, 2025, 2026],
         ARRAY['bd300000-0000-4000-8000-000000000001']::uuid[])$$,
     (SELECT id FROM plugin_data.csf_retention_runs WHERE request_id = 'bd400000-0000-4000-8000-000000000001'),
     (SELECT profile_digest FROM plugin_data.csf_retention_runs WHERE request_id = 'bd400000-0000-4000-8000-000000000001')
@@ -442,7 +460,7 @@ SELECT extensions.throws_ok(
         'bd100000-0000-4000-8000-000000000001',
         'bd000000-0000-4000-8000-000000000003',
         'bd400000-0000-4000-8000-0000000000f2',
-        %L, %L, ARRAY[2024],
+        %L, %L, ARRAY[2024, 2025],
         ARRAY['bd300000-0000-4000-8000-000000000001']::uuid[])$$,
     (SELECT id FROM plugin_data.csf_retention_runs WHERE request_id = 'bd400000-0000-4000-8000-000000000001'),
     (SELECT profile_digest FROM plugin_data.csf_retention_runs WHERE request_id = 'bd400000-0000-4000-8000-000000000001')
@@ -458,7 +476,7 @@ SELECT extensions.lives_ok(
         'bd100000-0000-4000-8000-000000000001',
         'bd000000-0000-4000-8000-000000000001',
         'bd400000-0000-4000-8000-000000000005',
-        %L, %L, ARRAY[2024],
+        %L, %L, ARRAY[2024, 2025],
         ARRAY['bd300000-0000-4000-8000-000000000001']::uuid[])$$,
     (SELECT id FROM plugin_data.csf_retention_runs WHERE request_id = 'bd400000-0000-4000-8000-000000000001'),
     (SELECT profile_digest FROM plugin_data.csf_retention_runs WHERE request_id = 'bd400000-0000-4000-8000-000000000001')
@@ -473,7 +491,7 @@ SELECT extensions.lives_ok(
         'bd100000-0000-4000-8000-000000000001',
         'bd000000-0000-4000-8000-000000000001',
         'bd400000-0000-4000-8000-000000000005',
-        %L, %L, ARRAY[2024],
+        %L, %L, ARRAY[2024, 2025],
         ARRAY['bd300000-0000-4000-8000-000000000001']::uuid[])$$,
     (SELECT id FROM plugin_data.csf_retention_runs WHERE request_id = 'bd400000-0000-4000-8000-000000000001'),
     (SELECT profile_digest FROM plugin_data.csf_retention_runs WHERE request_id = 'bd400000-0000-4000-8000-000000000001')
@@ -487,7 +505,7 @@ SELECT extensions.throws_ok(
         'bd100000-0000-4000-8000-000000000001',
         'bd000000-0000-4000-8000-000000000002',
         'bd400000-0000-4000-8000-000000000005',
-        %L, %L, ARRAY[2024],
+        %L, %L, ARRAY[2024, 2025],
         ARRAY['bd300000-0000-4000-8000-000000000001']::uuid[])$$,
     (SELECT id FROM plugin_data.csf_retention_runs WHERE request_id = 'bd400000-0000-4000-8000-000000000001'),
     (SELECT profile_digest FROM plugin_data.csf_retention_runs WHERE request_id = 'bd400000-0000-4000-8000-000000000001')
@@ -688,6 +706,37 @@ SELECT extensions.lives_ok(
             'bd300000-0000-4000-8000-000000000003',
             'bd200000-0000-4000-8000-000000000002')$$,
   'a new student with the same name still joins a current class'
+);
+
+SELECT extensions.is(
+  (SELECT count(*)::integer FROM plugin_data.csf_retention_retired_cohorts
+   WHERE organization_id = 'bd100000-0000-4000-8000-000000000001'),
+  2,
+  'every selected class represented by the retired profile is guarded'
+);
+SELECT extensions.throws_ok(
+  $$INSERT INTO plugin_data.csf_profile_cohort_memberships (organization_id, profile_id, cohort_id)
+    VALUES ('bd100000-0000-4000-8000-000000000001',
+            'bd300000-0000-4000-8000-000000000003',
+            'bd200000-0000-4000-8000-000000000003')$$,
+  '55000', NULL, 'the second retired class cannot take a new member'
+);
+SELECT extensions.is(
+  (SELECT count(*)::integer FROM plugin_data.csf_retention_source_tombstones
+   WHERE row_hash = 'fingerprint-application-only'),
+  1,
+  'an application-only source reference receives a tombstone'
+);
+SELECT extensions.throws_ok(
+  $$INSERT INTO plugin_data.csf_sheet_import_rows (
+      organization_id, job_id, source_id, cohort_id, sheet_tab_name, row_number,
+      row_hash, import_status
+    ) VALUES ('bd100000-0000-4000-8000-000000000001',
+              'bd800000-0000-4000-8000-000000000004',
+              'bd700000-0000-4000-8000-000000000001',
+              'bd200000-0000-4000-8000-000000000003', 'Roster', 99,
+              'fingerprint-application-only', 'created')$$,
+  '55000', NULL, 'application-only content cannot return through another retired class or row'
 );
 
 SELECT * FROM extensions.finish();
