@@ -460,8 +460,8 @@ SELECT extensions.is(
       current_date - 2
     ) -> 'meetingSessions'
   ),
-  0,
-  'a pending application does not expose the semester meeting agenda'
+  1,
+  'a pending application can view the published meeting reminder'
 );
 
 SELECT extensions.is(
