@@ -2739,6 +2739,26 @@ pressure. It is not counted as passed. Claude terminal agents also exhausted
 their weekly quota after preserving their work. Hosted Development and
 Production acceptance were not run.
 
+#### September meeting and account reconciliation follow-up
+
+Read-only Production inspection found the Fall 2026 September Meeting and its
+configured response Sheet, but no attendance rows for that meeting. The Sheet
+and supplied Excel export each contain 481 responses. A source-to-Production
+comparison using hashed identity fields found 136 rows that corroborate one
+active profile by exact email, first and last name, and class. Four repeat a
+profile already in that group, leaving 132 distinct proposed credits. Seven
+rows have an email/name conflict, 294 have only a name candidate, and 44 have
+no candidate. These are preview counts, not attendance corrections. The source
+also contains one malformed email. No Production attendance or account link
+was changed.
+
+The local attendance patch prevents an email-only mismatch or AI name proposal
+from automatically awarding attendance. The officer connection queue now
+shows source-reported contact matches and already-connected collisions as
+review-only context, without widening its connect authorization. Local private
+branch integration and focused tests passed; a full isolated database replay,
+hosted Development acceptance, officer review, and Production release remain.
+
 ### Urgent member workflow release, September 16, 2026
 
 The owner explicitly authorized Production deployment with focused local checks

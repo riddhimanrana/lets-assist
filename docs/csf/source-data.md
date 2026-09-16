@@ -157,3 +157,18 @@ A row's completion fill does not establish attendance at each meeting.
 The accessible Drive search returned original Class of 2029 and Class of 2030
 workbooks, but no separate "Let's Assist" copies. Treat these as destination
 setup gaps. Never substitute an original workbook automatically.
+
+## September 2026 meeting responses
+
+The configured Production September Meeting session points to the chapter's
+Google Form response Sheet. Its `Form Responses 1` tab had 481 populated
+responses on September 16, matching the separately supplied Excel export.
+Attendance identity columns are A (timestamp), C (email), D (first name),
+E (last name), and F (grade). Column L is a form quiz field labeled
+`Password`; attendance reconciliation does not read or store it.
+
+The source has 15 repeated-email groups, one malformed email, and one name
+used with multiple emails. A response is not a unique student. Match only
+against a unique active profile with corroborating email, full name, and
+cohort. Duplicate responses produce one proposed attendance credit; name-only
+and conflicting rows stay in officer review.
