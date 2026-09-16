@@ -2,7 +2,7 @@
 
 BEGIN;
 CREATE EXTENSION IF NOT EXISTS pgtap WITH SCHEMA extensions;
-SELECT extensions.plan(17);
+SELECT extensions.plan(21);
 
 SELECT extensions.ok(NOT has_table_privilege('authenticated', 'plugin_data.csf_member_reports', 'SELECT'),
   'browser roles cannot read member reports');
@@ -42,10 +42,18 @@ SELECT extensions.throws_ok($q$SELECT plugin_data.csf_submit_member_report(
   'f3200000-0000-4000-8000-000000000001', 'f3100000-0000-4000-8000-000000000002', 'weather', 'My points are wrong.')$q$,
   'Choose what is wrong.', 'a report needs a known category');
 
+INSERT INTO public.organizations(id,name,username,type,join_code) VALUES ('f3200000-0000-4000-8000-000000000002','Other report chapter','other-report-chapter','school','984013');
+INSERT INTO plugin_data.csf_terms(id,organization_id,code,label,school_year,semester) VALUES
+('f3500000-0000-4000-8000-000000000001','f3200000-0000-4000-8000-000000000001','F31','Own term','2031-2032','fall'),
+('f3500000-0000-4000-8000-000000000002','f3200000-0000-4000-8000-000000000002','F31','Other term','2031-2032','fall');
+SELECT extensions.throws_ok($q$SELECT plugin_data.csf_submit_member_report('f3200000-0000-4000-8000-000000000001','f3100000-0000-4000-8000-000000000002','points','My point total looks wrong.','f3500000-0000-4000-8000-000000000002')$q$,'23514','CSF semester not found for this organization.','foreign term refused');
+SELECT extensions.throws_ok($q$SELECT plugin_data.csf_submit_member_report('f3200000-0000-4000-8000-000000000001','f3100000-0000-4000-8000-000000000002','points','My point total looks wrong.','f3500000-0000-4000-8000-000000000003')$q$,'23514','CSF semester not found for this organization.','missing term refused');
+SELECT extensions.is((SELECT count(*)::int FROM plugin_data.csf_member_reports WHERE organization_id='f3200000-0000-4000-8000-000000000001'),0,'rejected terms create no report');
 CREATE TEMP TABLE report_results (scenario text PRIMARY KEY, payload jsonb);
 INSERT INTO report_results VALUES ('first', plugin_data.csf_submit_member_report(
   'f3200000-0000-4000-8000-000000000001', 'f3100000-0000-4000-8000-000000000002', 'attendance',
-  'The October meeting shows me absent but I signed in at the door.'));
+  'The October meeting shows me absent but I signed in at the door.', 'f3500000-0000-4000-8000-000000000001'));
+SELECT extensions.is((SELECT term_id FROM plugin_data.csf_member_reports WHERE id=(SELECT (payload->>'reportId')::uuid FROM report_results WHERE scenario='first')),'f3500000-0000-4000-8000-000000000001'::uuid,'own term accepted and retained');
 SELECT extensions.is((SELECT payload->>'profileId' FROM report_results WHERE scenario='first'),
   'f3400000-0000-4000-8000-000000000001', 'the report attaches to the member''s own connected record');
 SELECT extensions.is((SELECT status FROM plugin_data.csf_member_reports

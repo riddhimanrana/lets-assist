@@ -16,9 +16,7 @@ import {
   unreviewedDataWrites,
 } from "./migration-data-writes.mjs";
 
-// The 566 extension set is prepared here but not yet pinnable. These checks
-// hold the two open blockers still so neither is lost, and they keep working
-// unchanged once the blockers clear.
+// Pin the integrated extensions separately from the original fingerprint swaps.
 
 const cwd = fileURLToPath(new URL("../../", import.meta.url));
 const source = readFileSync(
@@ -38,12 +36,15 @@ const EXTENSIONS = [
   "20260917160000_csf_notice_campaign_dispatch_identity",
   "20260917170000_csf_retention_and_attendance_release_guards",
   "20260917180000_csf_unreconcile_sheet_import_row",
+  "20260917190000_csf_member_reminder_visibility",
+  "20260917200000_csf_unreconcile_retry_receipt",
+  "20260917210000_csf_member_report_term_scope",
 ];
 
-test("the release is the 557 decisions baseline plus the eleven integrated extensions", () => {
-  assert.equal(ledger.length, 568);
+test("the release is the 557 decisions baseline plus the reviewed integrated extensions", () => {
+  assert.equal(ledger.length, 557 + EXTENSIONS.length);
   assert.deepEqual(
-    ledger.slice(-11),
+    ledger.slice(557),
     EXTENSIONS.map((name) => name.slice(0, 14)),
   );
   // 1200 header provenance is still with the source lane and must not appear.
@@ -93,7 +94,7 @@ test("the 565 catalog refuses to pin what was never measured", () => {
     return;
   }
   // Once every value is supplied the swap has to be complete and exact.
-  const current = acceptedCatalogQuery(source, ledger);
+  const current = acceptedCatalogQuery(source, ledger.slice(0, 568));
   const baseline = acceptedCatalogQuery(source, ledger.slice(0, 557));
   for (const entry of acceptedFingerprints565) {
     assert.ok(!current.includes(entry.before), `${entry.object} survived`);
