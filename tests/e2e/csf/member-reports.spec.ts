@@ -93,8 +93,16 @@ test.describe("member reports", () => {
     const failures = watchBrowserFailures(page);
     await loginAs(page, "admin", `${CSF_ORGANIZATION_PATH}?tab=csf-members`);
 
-    const queue = page.locator("#member-reports");
+    // The workspace keeps an inactive tab's markup mounted, so this id matches
+    // the open panel's card and a retained copy. The queue is taken from the
+    // tabpanel the officer is actually looking at, and the count below states
+    // the rest of the claim: exactly one of these cards is on screen. Two
+    // visible copies would be a defect this must report rather than absorb.
+    const queue = page.getByRole("tabpanel").locator("#member-reports");
     await expect(queue).toBeVisible();
+    await expect(
+      page.locator("#member-reports").filter({ visible: true }),
+    ).toHaveCount(1);
     await expect(queue.getByText(/Reports from members/)).toBeVisible();
     const row = queue.locator("li").filter({ hasText: reportMessage });
     await expect(row).toBeVisible();
