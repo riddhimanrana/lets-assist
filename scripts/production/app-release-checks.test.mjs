@@ -8,6 +8,7 @@ import {
   expectedVersions,
   productionRef,
   performanceWaiver,
+  localValidationOverride,
   readJson,
   requireSha,
   ReleaseCheckError,
@@ -174,6 +175,69 @@ test("source verification pins clean Git trees and the required CI workflow", as
     repository,
     token: "fictional-token",
   };
+  const localValidation = {
+    confirmation: `deploy-with-local-validation:${releaseSha}:${acceptedSha}`,
+    reason:
+      "Release owner reviewed focused local regression results and waives hosted checks.",
+    actor: "release-owner",
+    runId: "12345",
+  };
+  const localFetcher = async (url) => {
+    assert.ok(url.endsWith("/collaborators/release-owner/permission"));
+    return Response.json({ permission: "write" });
+  };
+  const localReceipt = await verifySource(
+    { ...config, localValidation },
+    localFetcher,
+  );
+  assert.equal(
+    localReceipt.localValidationOverride.hostedAcceptance,
+    "waived, not passed",
+  );
+  assert.equal(
+    localReceipt.localValidationOverride.remoteQuality,
+    "waived, not passed",
+  );
+  assert.equal(
+    localReceipt.localValidationOverride.remoteDatabaseReplay,
+    "waived, not passed",
+  );
+  assert.equal(localReceipt.localValidationOverride.actor, "release-owner");
+  assert.equal(localReceipt.localValidationOverride.runId, "12345");
+  await assert.rejects(
+    verifySource({ ...config, localValidation }, async () =>
+      Response.json({ permission: "read" }),
+    ),
+    /write permission/,
+  );
+  await assert.rejects(
+    verifySource({ ...config, token: "", localValidation }, localFetcher),
+    /repository verification/,
+  );
+  await assert.rejects(
+    verifySource(
+      {
+        ...config,
+        releaseSha: "b".repeat(40),
+        localValidation: {
+          ...localValidation,
+          confirmation: `deploy-with-local-validation:${"b".repeat(40)}:${acceptedSha}`,
+        },
+      },
+      localFetcher,
+    ),
+    /Checkout SHA/,
+  );
+  git("update-ref", "refs/remotes/origin/main", acceptedSha);
+  await assert.rejects(
+    verifySource({ ...config, localValidation }, localFetcher),
+  );
+  git("update-ref", "refs/remotes/origin/main", releaseSha);
+  git("update-ref", "-d", "refs/remotes/origin/development");
+  await assert.rejects(
+    verifySource({ ...config, localValidation }, localFetcher),
+  );
+  git("update-ref", "refs/remotes/origin/development", acceptedSha);
   let ciPatch = {};
   const fetcher = async (url) => {
     if (url.endsWith("/status"))
@@ -217,6 +281,10 @@ test("source verification pins clean Git trees and the required CI workflow", as
     actor: "release-owner",
     runId: "12345",
   };
+  await assert.rejects(
+    verifySource({ ...config, localValidation, waiver }, localFetcher),
+    /one release waiver/,
+  );
   const waiverFetcher = async (url) => {
     if (url.endsWith("/statuses?per_page=100"))
       return Response.json([
@@ -276,6 +344,10 @@ test("source verification pins clean Git trees and the required CI workflow", as
   writeFileSync(resolve(cwd, "fixture.txt"), "fictional fixture");
   await assert.rejects(verifySource(config, fetcher), /not clean/u);
   await assert.rejects(
+    verifySource({ ...config, localValidation }, localFetcher),
+    /not clean/u,
+  );
+  await assert.rejects(
     verifySource({ ...config, waiver }, waiverFetcher),
     /not clean/u,
   );
@@ -283,6 +355,21 @@ test("source verification pins clean Git trees and the required CI workflow", as
   git("commit", "-m", "Changed application fixture");
   const changedSha = git("rev-parse", "HEAD");
   git("update-ref", "refs/remotes/origin/main", changedSha);
+  await assert.rejects(
+    verifySource(
+      {
+        ...config,
+        releaseSha: changedSha,
+        localValidation: {
+          ...localValidation,
+          confirmation: `deploy-with-local-validation:${changedSha}:${acceptedSha}`,
+        },
+      },
+      localFetcher,
+    ),
+    /tree differs/u,
+  );
+
   await assert.rejects(
     verifySource({ ...config, releaseSha: changedSha }, fetcher),
     /tree differs/u,
@@ -525,4 +612,48 @@ test("performance waiver is optional, exact and auditable", () => {
     assert.throws(() =>
       performanceWaiver({ ...valid, ...patch }, sha, acceptedSha),
     );
+});
+
+test("local validation override is opt-in, exact and auditable", () => {
+  const acceptedSha = "b".repeat(40);
+  const valid = {
+    confirmation: `deploy-with-local-validation:${sha}:${acceptedSha}`,
+    reason: "Release owner reviewed focused local regression evidence.",
+    actor: "release-owner",
+    runId: "12345",
+  };
+  assert.equal(localValidationOverride({}, sha, acceptedSha), null);
+  for (const patch of [
+    { confirmation: "" },
+    { reason: "" },
+    { reason: "short" },
+    { reason: "x".repeat(1001) },
+    { confirmation: `deploy-with-local-validation:${acceptedSha}:${sha}` },
+    { actor: "" },
+    { actor: "../owner" },
+    { runId: "" },
+    { runId: "run" },
+  ])
+    assert.throws(() =>
+      localValidationOverride({ ...valid, ...patch }, sha, acceptedSha),
+    );
+  for (const file of ["deploy-app-only.yml", "deploy-forward-migrations.yml"]) {
+    const workflow = readFileSync(
+      resolve(import.meta.dirname, "../../.github/workflows", file),
+      "utf8",
+    );
+    assert.match(
+      workflow,
+      /LOCAL_VALIDATION_CONFIRMATION: \$\{\{ inputs.local_validation_confirmation \}\}/u,
+    );
+    assert.match(
+      workflow,
+      /LOCAL_VALIDATION_REASON: \$\{\{ inputs.local_validation_reason \}\}/u,
+    );
+    assert.match(
+      workflow,
+      /path: release\/\.artifacts\/source-verification.json/u,
+    );
+    assert.match(workflow, /environment: production/u);
+  }
 });

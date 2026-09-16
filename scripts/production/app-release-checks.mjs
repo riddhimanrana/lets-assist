@@ -107,13 +107,60 @@ export function performanceWaiver(
   };
 }
 
+export function localValidationOverride(
+  { confirmation, reason, actor, runId },
+  releaseSha,
+  acceptedSha,
+) {
+  if (!confirmation && !reason) return null;
+  if (
+    confirmation !==
+      `deploy-with-local-validation:${releaseSha}:${acceptedSha}` ||
+    typeof reason !== "string" ||
+    reason.trim().length < 20 ||
+    reason.length > 1000 ||
+    !/^[a-zA-Z0-9_-]+$/.test(actor ?? "") ||
+    !/^[0-9]+$/.test(runId ?? "")
+  )
+    throw new ReleaseCheckError(
+      "Local validation override needs exact release and Development SHAs, an audit reason, and workflow identity.",
+    );
+  return {
+    scope: "hosted-acceptance-and-remote-ci-only",
+    releaseSha,
+    acceptedSha,
+    reason: reason.trim(),
+    actor,
+    runId,
+    hostedAcceptance: "waived, not passed",
+    remoteQuality: "waived, not passed",
+    remoteDatabaseReplay: "waived, not passed",
+    localValidation: "operator-attested; see audit reason",
+  };
+}
+
 export async function verifySource(
-  { releaseSha, acceptedSha, repository, token, cwd, waiver = {} },
+  {
+    releaseSha,
+    acceptedSha,
+    repository,
+    token,
+    cwd,
+    waiver = {},
+    localValidation = {},
+  },
   fetcher = fetch,
 ) {
   requireSha(releaseSha);
   requireSha(acceptedSha);
   const waivedPerformance = performanceWaiver(waiver, releaseSha, acceptedSha);
+  const localOverride = localValidationOverride(
+    localValidation,
+    releaseSha,
+    acceptedSha,
+  );
+  if (waivedPerformance && localOverride)
+    throw new ReleaseCheckError("Choose one release waiver mode.");
   if (!/^[\w.-]+\/[\w.-]+$/u.test(repository ?? "") || !token) {
     throw new ReleaseCheckError(
       "Missing trusted repository verification context.",
@@ -131,8 +178,7 @@ export async function verifySource(
     throw new ReleaseCheckError("Application checkout is not clean.");
   git("merge-base", "--is-ancestor", releaseSha, "origin/main");
   git("merge-base", "--is-ancestor", acceptedSha, releaseSha);
-  if (waivedPerformance)
-    git("merge-base", "--is-ancestor", acceptedSha, "origin/development");
+  git("merge-base", "--is-ancestor", acceptedSha, "origin/development");
   if (
     git("rev-parse", `${releaseSha}^{tree}`) !==
     git("rev-parse", `${acceptedSha}^{tree}`)
@@ -152,75 +198,85 @@ export async function verifySource(
       },
       fetcher,
     );
-  const prefix = `https://github.com/${repository}/actions/runs/`;
-  {
-    // The combined-status projection omits creator. Individual statuses retain
-    // the author required by verifyAcceptance; do not relax that identity check.
-    const statusPayload = await request(
-      `commits/${acceptedSha}/statuses?per_page=100`,
+  if (localOverride) {
+    const permission = await request(
+      `collaborators/${localOverride.actor}/permission`,
     );
-    if (!Array.isArray(statusPayload))
+    if (!["admin", "maintain", "write"].includes(permission?.permission))
       throw new ReleaseCheckError(
-        "Hosted acceptance status inventory is invalid.",
+        "Local validation override requires repository write permission.",
       );
-    const status = statusPayload
-      .filter(
-        (item) =>
-          item.context ===
-          (waivedPerformance
-            ? "csf-hosted-development-functional"
-            : "csf-hosted-development-acceptance"),
-      )
-      .sort((a, b) => b.id - a.id)[0];
-    const runId = status?.target_url?.startsWith(prefix)
-      ? status.target_url.slice(prefix.length)
-      : "";
-    if (!/^[0-9]+$/u.test(runId))
-      throw new ReleaseCheckError("Hosted acceptance has no trusted run.");
-    verifyAcceptance(
-      status,
-      await request(`actions/runs/${runId}`),
-      acceptedSha,
-      repository,
+  } else {
+    const prefix = `https://github.com/${repository}/actions/runs/`;
+    {
+      // The combined-status projection omits creator. Individual statuses retain
+      // the author required by verifyAcceptance; do not relax that identity check.
+      const statusPayload = await request(
+        `commits/${acceptedSha}/statuses?per_page=100`,
+      );
+      if (!Array.isArray(statusPayload))
+        throw new ReleaseCheckError(
+          "Hosted acceptance status inventory is invalid.",
+        );
+      const status = statusPayload
+        .filter(
+          (item) =>
+            item.context ===
+            (waivedPerformance
+              ? "csf-hosted-development-functional"
+              : "csf-hosted-development-acceptance"),
+        )
+        .sort((a, b) => b.id - a.id)[0];
+      const runId = status?.target_url?.startsWith(prefix)
+        ? status.target_url.slice(prefix.length)
+        : "";
+      if (!/^[0-9]+$/u.test(runId))
+        throw new ReleaseCheckError("Hosted acceptance has no trusted run.");
+      verifyAcceptance(
+        status,
+        await request(`actions/runs/${runId}`),
+        acceptedSha,
+        repository,
+      );
+    }
+    const checks = await request(
+      `commits/${acceptedSha}/check-runs?per_page=100`,
     );
-  }
-  const checks = await request(
-    `commits/${acceptedSha}/check-runs?per_page=100`,
-  );
-  if (checks.total_count > 100)
-    throw new ReleaseCheckError(
-      "Application checks exceed the bounded inventory.",
-    );
-  verifyQualityRuns(checks.check_runs ?? []);
-  const ciRuns = new Set();
-  for (const name of ["quality", "db-replay-validation"]) {
-    const check = checks.check_runs
-      .filter(
-        (item) => item.name === name && item.app?.slug === "github-actions",
-      )
-      .sort((a, b) => b.id - a.id)[0];
-    const match = check.details_url?.startsWith(prefix)
-      ? check.details_url.slice(prefix.length).match(/^(\d+)\/job\/\d+$/u)
-      : null;
-    if (!match)
+    if (checks.total_count > 100)
       throw new ReleaseCheckError(
-        "Required CI check has no trusted workflow run.",
+        "Application checks exceed the bounded inventory.",
       );
-    ciRuns.add(match[1]);
-  }
-  for (const runId of ciRuns) {
-    const run = await request(`actions/runs/${runId}`);
-    if (
-      run.path !== ".github/workflows/ci.yml" ||
-      run.head_sha !== acceptedSha ||
-      run.repository?.full_name !== repository ||
-      run.head_repository?.full_name !== repository ||
-      run.status !== "completed" ||
-      run.conclusion !== "success"
-    ) {
-      throw new ReleaseCheckError(
-        "Required CI run does not verify the accepted application.",
-      );
+    verifyQualityRuns(checks.check_runs ?? []);
+    const ciRuns = new Set();
+    for (const name of ["quality", "db-replay-validation"]) {
+      const check = checks.check_runs
+        .filter(
+          (item) => item.name === name && item.app?.slug === "github-actions",
+        )
+        .sort((a, b) => b.id - a.id)[0];
+      const match = check.details_url?.startsWith(prefix)
+        ? check.details_url.slice(prefix.length).match(/^(\d+)\/job\/\d+$/u)
+        : null;
+      if (!match)
+        throw new ReleaseCheckError(
+          "Required CI check has no trusted workflow run.",
+        );
+      ciRuns.add(match[1]);
+    }
+    for (const runId of ciRuns) {
+      const run = await request(`actions/runs/${runId}`);
+      if (
+        run.path !== ".github/workflows/ci.yml" ||
+        run.head_sha !== acceptedSha ||
+        run.repository?.full_name !== repository ||
+        run.head_repository?.full_name !== repository ||
+        run.status !== "completed" ||
+        run.conclusion !== "success"
+      ) {
+        throw new ReleaseCheckError(
+          "Required CI run does not verify the accepted application.",
+        );
+      }
     }
   }
   return {
@@ -228,6 +284,7 @@ export async function verifySource(
     acceptedSha,
     tree: git("rev-parse", "HEAD^{tree}"),
     performanceWaiver: waivedPerformance,
+    localValidationOverride: localOverride,
   };
 }
 
@@ -333,6 +390,12 @@ if (
         repository: process.env.GITHUB_REPOSITORY,
         token: process.env.GH_TOKEN,
         cwd: process.cwd(),
+        localValidation: {
+          confirmation: process.env.LOCAL_VALIDATION_CONFIRMATION,
+          reason: process.env.LOCAL_VALIDATION_REASON,
+          actor: process.env.GITHUB_ACTOR,
+          runId: process.env.GITHUB_RUN_ID,
+        },
         waiver: {
           confirmation: process.env.PERFORMANCE_WAIVER_CONFIRMATION,
           reason: process.env.PERFORMANCE_WAIVER_REASON,
