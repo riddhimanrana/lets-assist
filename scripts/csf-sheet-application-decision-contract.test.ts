@@ -53,6 +53,14 @@ const finalizedGuard = readFileSync(
   "utf8",
 );
 
+const provenanceNullSafety = readFileSync(
+  new URL(
+    "../supabase/migrations/20260917030100_csf_provenance_null_safety.sql",
+    import.meta.url,
+  ),
+  "utf8",
+);
+
 const all = [
   staging,
   publish,
@@ -61,6 +69,7 @@ const all = [
   mergeOwnership,
   mappingFields,
   finalizedGuard,
+  provenanceNullSafety,
 ].join("\n");
 
 /** Executable SQL only. Prose about a review campaign is not a mail send. */
@@ -346,6 +355,20 @@ describe("provenance is verified, not claimed", () => {
   test("two sources disagreeing is a conflict, never last-source-wins", () => {
     expect(sync).toContain("'cross_source_conflict'");
     expect(sync).toContain("row_plan.previous_source_id <> row_plan.source_id");
+  });
+
+  test("a provenance check that cannot be evaluated fails closed", () => {
+    // Comparing a NULL column yields NULL, and `NOT NULL` is NULL, so an
+    // unknown verification used to skip the fail-closed branch entirely.
+    expect(provenanceNullSafety).toContain("coalesce(CASE");
+    expect(provenanceNullSafety).toContain("END, false),");
+    const verification = provenanceNullSafety.slice(
+      provenanceNullSafety.indexOf("coalesce(CASE"),
+    );
+    const guarded = verification.slice(0, verification.indexOf("END, false),"));
+    expect(guarded).toContain(
+      "import_row.matched_application_id = application.id",
+    );
   });
 
   test("two rows claiming one application are both ambiguous", () => {

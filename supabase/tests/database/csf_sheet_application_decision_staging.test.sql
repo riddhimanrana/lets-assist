@@ -22,7 +22,7 @@ BEGIN;
 
 CREATE EXTENSION IF NOT EXISTS pgtap WITH SCHEMA extensions;
 
-SELECT extensions.plan(51);
+SELECT extensions.plan(54);
 
 -- ---------------------------------------------------------------------------
 -- A. Privilege boundaries
@@ -245,16 +245,31 @@ INSERT INTO plugin_data.csf_sheet_import_rows (
    'de200000-0000-4000-8000-000000000001', 'Form Responses 1', 14,
    'hash-uncolored', 'de600000-0000-4000-8000-000000000004', 'created');
 
--- The applications carry NO completed academic checks: the six-check evaluation
--- is exactly the in-app evidence the chapter is not using this term.
-SELECT extensions.ok(
-  NOT EXISTS (
-    SELECT 1 FROM plugin_data.csf_application_checks
+-- The academic evaluation is genuinely incomplete. The insert trigger passes
+-- `identity` on its own, which says nothing about coursework; what matters is
+-- that every academic check is still unevaluated and the stored eligibility is
+-- `pending`. That is the state the chapter is deciding from this term.
+SELECT extensions.is(
+  (
+    SELECT pg_catalog.count(*)::integer
+    FROM plugin_data.csf_application_checks
     WHERE organization_id = 'de100000-0000-4000-8000-000000000001'
       AND application_id = 'de600000-0000-4000-8000-000000000001'
+      AND check_type IN ('academic_eligibility', 'course_data', 'transcript')
       AND status = 'passed'
   ),
-  'the accepted applicant has no passing in-app academic check to lean on'
+  0,
+  'the accepted applicant has no passing academic check to lean on'
+);
+
+SELECT extensions.is(
+  (
+    SELECT eligibility_status::text
+    FROM plugin_data.csf_term_applications
+    WHERE id = 'de600000-0000-4000-8000-000000000001'
+  ),
+  'pending',
+  'and the stored eligibility was never calculated'
 );
 
 -- ---------------------------------------------------------------------------
@@ -747,7 +762,7 @@ SELECT extensions.lives_ok(
          "importRowId":"de800000-0000-4000-8000-000000000001","status":"accepted",
          "observedColor":"#d9ead3","identityDigest":"id-x1","decisionDigest":"dec-x1"},
         {"sourceId":"de400000-0000-4000-8000-000000000001","sheetTabName":"Form Responses 1",
-         "observedRowNumber":22,"applicationId":"de600000-0000-4000-8000-000000000002",
+         "observedRowNumber":22,"applicationId":"de600000-0000-4000-8000-000000000003",
          "responseId":"response-uncolored","status":"accepted",
          "observedColor":"#d9ead3","identityDigest":"id-x2","decisionDigest":"dec-x2"},
         {"sourceId":"de400000-0000-4000-8000-000000000001","sheetTabName":"Form Responses 1",
@@ -786,7 +801,7 @@ SELECT extensions.is(
       AND observed_row_number = 22
   ),
   'provenance_unverified',
-  'a response id from the same workbook but a different applicant is refused'
+  'a response id belonging to another applicant in the same workbook is refused'
 );
 
 SELECT extensions.is(
@@ -803,6 +818,52 @@ SELECT extensions.is(
   'the application''s own recorded response id and timestamp do resolve it'
 );
 
+-- Two rows claiming one application, on their own, so the ambiguity is proved
+-- rather than inferred from a row that was also failing provenance.
+SELECT extensions.lives_ok(
+  $$
+    SELECT plugin_data.csf_stage_sheet_application_decisions(
+      'de100000-0000-4000-8000-000000000001',
+      'de000000-0000-4000-8000-000000000001',
+      'de200000-0000-4000-8000-000000000001',
+      'deb00000-0000-4000-8000-000000000006',
+      $evidence$[
+        {"sourceId":"de400000-0000-4000-8000-000000000001",
+         "sheetTabName":"Form Responses 1","readStatus":"read",
+         "spreadsheetFileId":"de-regular-workbook","providerVersion":"12",
+         "requestedRange":"A1:Z100","contentHash":"content-hash-6",
+         "mappingVersion":"1"}
+      ]$evidence$::jsonb,
+      $rows$[
+        {"sourceId":"de400000-0000-4000-8000-000000000001","sheetTabName":"Form Responses 1",
+         "observedRowNumber":31,"applicationId":"de600000-0000-4000-8000-000000000004",
+         "importRowId":"de800000-0000-4000-8000-000000000004","status":"accepted",
+         "observedColor":"#d9ead3","identityDigest":"id-d1","decisionDigest":"dec-d1"},
+        {"sourceId":"de400000-0000-4000-8000-000000000001","sheetTabName":"Form Responses 1",
+         "observedRowNumber":32,"applicationId":"de600000-0000-4000-8000-000000000004",
+         "importRowId":"de800000-0000-4000-8000-000000000004","status":"rejected",
+         "observedColor":"#f4cccc","identityDigest":"id-d2","decisionDigest":"dec-d2"}
+      ]$rows$::jsonb
+    )
+  $$,
+  'a run where two rows claim one application completes'
+);
+
+SELECT extensions.is(
+  (
+    SELECT pg_catalog.count(*)::integer
+    FROM plugin_data.csf_application_decision_sync_rows
+    WHERE run_id = (
+      SELECT id FROM plugin_data.csf_application_decision_sync_runs
+      WHERE request_id = 'deb00000-0000-4000-8000-000000000006'
+    )
+      AND outcome = 'conflict'
+      AND block_reason = 'ambiguous_match'
+  ),
+  2,
+  'both claims are ambiguous; neither wins the application'
+);
+
 -- ---------------------------------------------------------------------------
 -- J. A mapping edited after the read cannot apply obsolete column semantics
 -- ---------------------------------------------------------------------------
@@ -811,7 +872,8 @@ SELECT plugin_data.csf_set_application_decision_mapping(
   'de100000-0000-4000-8000-000000000001',
   'de000000-0000-4000-8000-000000000001',
   'de400000-0000-4000-8000-000000000001',
-  ARRAY[9], ARRAY[10], false
+  '{"decisionColumns":[9],"reasonColumns":[10],"readsCellNote":false}'::jsonb,
+  1
 );
 
 SELECT extensions.is(
