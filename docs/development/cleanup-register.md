@@ -8319,3 +8319,46 @@ profile details. Both are fixed: batch writes refresh the first pending page, pa
 load their target directly, and officer details receive scoped category flags. The
 member-only enrichment is already covered by scoped projection, privacy, and
 current-term access tests. The Production release has not completed.
+
+#### September 16, source reconciliation and combined local candidate
+
+The September meeting response workbook and its configured Google Sheet have
+481 nonempty responses. A read-only comparison to Production found 132 distinct
+profiles with exact email, full-name, and active-class corroboration. Four
+additional responses repeat those profiles. The remaining responses need
+officer review: 294 name-only candidates, seven email conflicts, and 44 with no
+candidate. The private, access-restricted review CSV is outside Git at
+`/private/tmp/csf-attendance-followup-20260916/.artifacts/csf/september-2026-attendance-officer-review-20260916T234131Z.csv`.
+The September meeting exists in Production, but has zero attendance rows. No
+attendance was written from this comparison. The importer now holds invalid
+emails, conflicting names, and wrong-class grades for review.
+
+A separate read-only account-connection audit covers all 110 open requests.
+Three have a unique canonical-email and exact-name match that the live evidence
+check would allow an officer to connect after fresh review. Four have canonical
+email/name conflicts, 12 match only an application-reported email, 79 are
+name-only, and 12 have no active-class candidate. Two requests point to
+different profiles depending on email versus name. The private report and
+candidate CSV are at `/private/tmp/csf-profile-review-20260916/`. No account
+link or profile edit was applied.
+
+The isolated combined candidate adds officer-reviewed semester ledger mapping,
+preview, write receipts, and a bounded Google Sheets writer for separate class
+workbooks. It does not yet expose those actions in the staff UI or accept any
+real destination mapping. Root typecheck and zero-warning lint passed; nine
+focused ledger tests passed. An isolated replay applied the new migration and
+ran 355 pgTAP files and 9,406 assertions. Its new ledger receipt file passed,
+but the complete replay failed in `csf_course_retention_coverage`,
+`csf_graduated_cohort_retention`, and
+`csf_profile_merge_reference_completeness`. The new tables need classification
+in retention and merge catalogs before this candidate is accepted. No hosted
+Development or Production release has run for this combined candidate.
+
+Chrome's signed-out public CSF page currently displays no meeting or deadline
+updates, even though a read-only Production query confirms an active scheduled
+September 16 meeting. The public projection selected an unordered first 12 of
+20 open or planned terms, omitting Fall 2026. Private commit `433fc42` limits
+the term query to terms that have not ended and orders them by start date.
+The existing public-boundary test and root typecheck passed locally. This has
+not been deployed or checked on the hosted page; the Chrome observation remains
+the Production baseline.
