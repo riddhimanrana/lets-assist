@@ -66,7 +66,11 @@ for (const viewport of [
       semesters.getByRole("tab", { name: "Spring 2026", exact: true }),
     ).toHaveAttribute("aria-selected", "true");
     await expect(points).toHaveText(/2\s*Service points/);
-    await expect(activities).toHaveText(/2\s*Activities/);
+    // One activity and one meeting. The points sheet writes genuine meeting
+    // rows into the activity events table, and `CsfMemberProfileSummary` stopped
+    // counting those as activities so the tiles cannot report the same row
+    // twice. Both rows stay in the ledger, which the two titles below assert.
+    await expect(activities).toHaveText(/1\s*Activities/);
     await expect(meetings).toHaveText(/1\s*Meetings/);
     await expect(
       page.getByRole("heading", { name: "Spring 2026", exact: true }),

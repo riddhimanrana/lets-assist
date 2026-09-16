@@ -72,7 +72,10 @@ test.describe("sanitized DVHS CSF screenshot gallery", () => {
       [
         "41-applications-list",
         `${CSF_ORGANIZATION_PATH}?tab=csf-applications`,
-        "Review queue",
+        // "Review queue" retired with the queue UI. The import entry point is
+        // the stable landmark for this officer: it renders in both review
+        // modes, where the panel's own copy does not.
+        "Link Google Sheet",
       ],
       [
         "43-members-directory",
@@ -174,8 +177,9 @@ test.describe("sanitized DVHS CSF screenshot gallery", () => {
       if (name === "41-applications-list") {
         // The tab now mounts the review campaign workspace; a per-application
         // review screen only exists once an officer enters the queue, so the
-        // gallery keeps the roster capture.
-        await expect(page.locator("#applications")).toBeVisible();
+        // gallery keeps the roster capture. Scoped to the open tab: an inactive
+        // tab keeps its markup mounted, so the id matches more than one node.
+        await expect(tabpanel.locator("#applications")).toBeVisible();
       }
     }
   });

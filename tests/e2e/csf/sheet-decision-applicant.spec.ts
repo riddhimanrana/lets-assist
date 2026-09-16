@@ -1,4 +1,4 @@
-import { expect, test, type Page } from "@playwright/test";
+import { expect, test, type Locator, type Page } from "@playwright/test";
 
 import {
   EXPLAINED_REASON,
@@ -132,6 +132,21 @@ const CORRECTION_REASON =
 const profileSummary = (page: Page) => page.getByLabel("CSF member profile");
 const selectedSemester = (page: Page) =>
   page.getByLabel("Selected semester status and progress");
+
+/**
+ * A settled semester states its status twice inside the panel, and both are
+ * meant: the badge names the outcome, and the record's headline value repeats
+ * it because there is no points figure to show in that slot. Asserted as two
+ * nodes rather than taken with `.first()`.
+ */
+async function expectSettledSemesterStatus(root: Locator, label: string) {
+  const badge = root.locator('[data-slot="badge"]', { hasText: label });
+  await expect(badge).toHaveCount(1);
+  await expect(badge).toBeVisible();
+  const record = root.getByRole("paragraph").filter({ hasText: label });
+  await expect(record).toHaveCount(1);
+  await expect(record).toBeVisible();
+}
 
 /**
  * The label a semester's tab and panel heading carry.
@@ -446,20 +461,8 @@ test.describe("before any release", () => {
       priorPanel.getByRole("heading", { name: priorSemester }),
     ).toBeVisible();
     // Withholding this semester's decision must not withhold last semester's
-    // completed record. The panel says so twice, and both are meant: the status
-    // badge names the outcome and the semester record's headline value repeats
-    // it, because a settled semester has no points figure to show instead. Each
-    // node is asserted on its own, rather than taking whichever came first.
-    const completedBadge = priorPanel.locator('[data-slot="badge"]', {
-      hasText: "Semester completed",
-    });
-    await expect(completedBadge).toHaveCount(1);
-    await expect(completedBadge).toBeVisible();
-    const completedRecord = priorPanel
-      .getByRole("paragraph")
-      .filter({ hasText: "Semester completed" });
-    await expect(completedRecord).toHaveCount(1);
-    await expect(completedRecord).toBeVisible();
+    // completed record.
+    await expectSettledSemesterStatus(priorPanel, "Semester completed");
 
     expectNoBrowserFailures(failures);
   });
@@ -611,9 +614,12 @@ test.describe("stale access after a later sync", () => {
     await expect(
       profileSummary(page).getByText("Application not approved"),
     ).toBeVisible();
-    await expect(
-      selectedSemester(page).getByText("Application not approved"),
-    ).toBeVisible();
+    // The semester is settled by the revocation, so its panel states the
+    // outcome in both slots.
+    await expectSettledSemesterStatus(
+      selectedSemester(page),
+      "Application not approved",
+    );
     // Nobody wrote a reason for this correction, so none is shown.
     expect(
       await publishedDecisionReason(applicants.byRole.accepted),
@@ -661,6 +667,10 @@ test.describe("stale access after a later sync", () => {
     await expect(
       profileSummary(page).getByText("Application not approved"),
     ).toBeVisible();
+    await expectSettledSemesterStatus(
+      selectedSemester(page),
+      "Application not approved",
+    );
     await expect(
       selectedSemester(page).getByText(REASON_HEADING),
     ).toBeVisible();
@@ -704,9 +714,10 @@ test.describe("stale access after a later sync", () => {
     await expect(
       profileSummary(page).getByText("Under officer review"),
     ).toBeVisible();
-    await expect(
-      selectedSemester(page).getByText("Under officer review"),
-    ).toBeVisible();
+    await expectSettledSemesterStatus(
+      selectedSemester(page),
+      "Under officer review",
+    );
     // The decision and its reason are cleared together.
     expect(
       await publishedDecisionReason(applicants.byRole.accepted),

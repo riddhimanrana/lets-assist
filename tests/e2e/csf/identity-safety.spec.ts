@@ -815,10 +815,21 @@ test.describe("CSF identity safety", () => {
       hasText: "Confirm this yourself before merging",
     });
     await expect(attestation).toBeVisible();
+    // The alert lists the preview's attestable conflicts, in the RPC's own
+    // words. The identity evidence list states the same fact in the projection's
+    // words, which is where that sentence lives; both are asserted, in the place
+    // each renders.
     await expect(
       attestation.getByText(
-        "No exact school or personal email is shared by both records.",
+        "The records do not share an exact verified school or personal email.",
       ),
+    ).toBeVisible();
+    await expect(
+      dialog
+        .getByRole("list", { name: "Merge identity evidence" })
+        .getByText(
+          "No exact school or personal email is shared by both records.",
+        ),
     ).toBeVisible();
 
     const confirm = dialog.getByRole("checkbox", {
