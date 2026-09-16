@@ -6,6 +6,7 @@ import {
   readFileSync,
   writeFileSync,
 } from "node:fs";
+import { createHash, randomUUID } from "node:crypto";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 
@@ -519,6 +520,51 @@ describe("the script's own shape", () => {
     expect(source).toContain(
       "The isolated stack resolver did not return a JSON result.",
     );
+  });
+
+  test("the join code satisfies the product contract", () => {
+    // organizations_join_code_format_check is `^[0-9]{6}$` and the product
+    // generator is customAlphabet("0123456789", 6). The fixture used the first
+    // six characters of the lowercase-hex run suffix, so `5179b5` rolled the
+    // whole transaction back on the first run that reached SQL.
+    expect(source).not.toContain('join_code="${RUN_SUFFIX:0:6}"');
+    // Derived from the organization id, the way csf_term_close_serialization
+    // derives its own, which keeps it in range and unique per run.
+    expect(source).toContain(
+      "('x' || substr(md5(organization_id::text), 1, 8))::bit(32)::bigint",
+    );
+    expect(source).toContain("100000");
+    expect(source).toContain("% 900000");
+  });
+
+  test("the derivation cannot produce a code the constraint rejects", () => {
+    // The shell cannot run the SQL here, so the arithmetic is reproduced and
+    // checked against the real pattern over many minted identifiers. A
+    // derivation that could fall outside six digits fails here rather than
+    // rolling back a fixture on the coordinator's stack.
+    const JOIN_CODE = /^[0-9]{6}$/;
+    const derive = (organizationId: string) => {
+      const digest = createHash("md5")
+        .update(organizationId)
+        .digest("hex")
+        .slice(0, 8);
+      return String(100000 + (parseInt(digest, 16) % 900000));
+    };
+
+    const codes = new Set<string>();
+    for (let index = 0; index < 5000; index += 1) {
+      const suffix = randomUUID().replace(/-/g, "").slice(0, 12);
+      const code = derive(`fc100000-0000-4000-8000-${suffix}`);
+      expect(code).toMatch(JOIN_CODE);
+      codes.add(code);
+    }
+    // Run-scoped, so two runs do not collide on the unique index. Some
+    // collisions are expected in 5,000 draws from 900,000; a constant would
+    // show up as a handful of distinct values.
+    expect(codes.size).toBeGreaterThan(4900);
+
+    // The value the real run actually rejected.
+    expect("5179b5").not.toMatch(JOIN_CODE);
   });
 
   test("output carries no decorative symbols", () => {

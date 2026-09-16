@@ -351,7 +351,7 @@ psql_quiet \
   -v org_id="${ORG_ID}" -v actor_id="${ACTOR_ID}" -v term_id="${TERM_ID}" \
   -v profile_id="${PROFILE_ID}" -v source_id="${SOURCE_ID}" \
   -v cohort_id="${COHORT_ID}" -v application_id="${APPLICATION_ID}" \
-  -v actor_email="${ACTOR_EMAIL}" -v join_code="${RUN_SUFFIX:0:6}" \
+  -v actor_email="${ACTOR_EMAIL}" \
   -v workbook_file_id="${WORKBOOK_FILE_ID}" -v response_id="${RESPONSE_ID}" <<'SQL'
 BEGIN;
 INSERT INTO auth.users (id, aud, role, email, email_confirmed_at,
@@ -363,13 +363,25 @@ VALUES (:'actor_id'::uuid, 'authenticated', 'authenticated',
 -- discriminator and the fixed version and variant nibbles, so `left` would have
 -- produced the same username on every run and the second run would collide.
 -- lib/organization/username-fixtures.test.ts resolves both ends.
+-- The join code is six digits and nothing else: organizations_join_code_format_check
+-- is `^[0-9]{6}$`, and the product generator is customAlphabet("0123456789", 6).
+-- The first six characters of the run suffix are lowercase hex, so `5179b5`
+-- failed the check and rolled the whole fixture back. This derives the code from
+-- the organization id the way csf_term_close_serialization does, which keeps it
+-- inside 100000..999999, unique per run, and deterministic for teardown.
 INSERT INTO public.organizations (id, name, username, type, join_code)
 SELECT
   organization_id,
   'CSF Decision Concurrency',
   'csf-decision-conc-' || right(replace(organization_id::text, '-', ''), 12),
   'school',
-  :'join_code'
+  (
+    100000
+    + (
+      ('x' || substr(md5(organization_id::text), 1, 8))::bit(32)::bigint
+      % 900000
+    )
+  )::text
 FROM (SELECT :'org_id'::uuid AS organization_id) AS fixture;
 INSERT INTO public.organization_members (organization_id, user_id, role, status)
 VALUES (:'org_id'::uuid, :'actor_id'::uuid, 'admin', 'active');
