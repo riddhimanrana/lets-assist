@@ -1,4 +1,5 @@
 import { createHash } from "node:crypto";
+import { reviewedCatalogDataWrites } from "./reviewed-catalog-data-writes.mjs";
 
 // A migration may carry data, but only data someone reviewed. The old contract
 // was a regex refusing every `plugin_data.` write in the forward-migration SQL,
@@ -198,7 +199,7 @@ export function topLevelDataWrites(sql) {
 export function unreviewedDataWrites(sql) {
   return topLevelDataWrites(sql).filter(
     (write) =>
-      !reviewedMigrationDataWrites.some(
+      ![...reviewedMigrationDataWrites, ...reviewedCatalogDataWrites].some(
         (entry) =>
           entry.table === write.table &&
           entry.operation === write.operation &&
@@ -220,6 +221,15 @@ export function unreviewedWriteTables(sql) {
   return [
     ...new Set(
       topLevelDataWrites(sql)
+        .filter(
+          (write) =>
+            !reviewedCatalogDataWrites.some(
+              (entry) =>
+                entry.table === write.table &&
+                entry.operation === write.operation &&
+                entry.statement === write.statement,
+            ),
+        )
         .map((write) => write.table)
         .filter((table) => !reviewedDataWriteTables.includes(table)),
     ),
