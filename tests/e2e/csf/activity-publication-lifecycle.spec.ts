@@ -251,7 +251,12 @@ test.describe("CSF activity publication lifecycle", () => {
     await page
       .getByRole("menuitem", { name: "Close signups", exact: true })
       .click();
-    await expect(page.getByText(/Activity marked closed\./)).toBeVisible();
+
+    // The persistent status, not the toast. "Activity marked closed." is a
+    // transient success message that can expire before this line runs, which
+    // failed the test on a change the page had already made. What an officer
+    // has to be able to come back to is the status on the activity itself.
+    await expect(page.getByText("Signups closed")).toBeVisible();
     expect((await storedActivity(fixture, activity.id)).status).toBe("closed");
 
     expectNoBrowserFailures(failures);
