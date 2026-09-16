@@ -7939,3 +7939,47 @@ Production forward migration run `35027128145` passed with a count-only receipt:
 Normal restoration runs `35027695366`, `35027746705`, `35027808986`, and `35027876684` passed with verified receipts through revision 4 on the new served release. Authenticated public status readback reports the exact main SHA, passing environment and database checks, workbook refresh, import commits, communications, and publication notifications enabled, and scheduled publishing disabled. Production Chrome typed a fictional class code one character at a time: the field retained `Z`, then `ZZ`, then all six characters and enabled Continue only at six. The value was cleared without submission. The isolated browser approval journey and hosted Development functional acceptance covered two-image proof bundling; no Production member proof was uploaded for this release.
 
 Fresh marketplace cards in both DVHS and the synthetic test workspace read DVHS CSF Enabled and installed 1.2.51. The settings summaries agree: one installed, one enabled, and zero updates pending. The source-selection P1 and officer-reviewed import, attendance, and identity decisions above remain open. This code release did not link class workbooks, commit imports, connect profiles, change source authorizations, or send email.
+
+#### September 16 overnight extension checkpoint
+
+Private PR 457 passed its exact-head quality checks and merged as `d86c676`.
+Root `845b81ce` records that gitlink. Its changes constrain long staff names on
+phones and bind import results, retries and history responses to the selected
+Sheet source. The combined local private suite passes 430 files. The focused
+staff-access browser run passes all five checks, including width and focus.
+
+Full local browser run M, built from root `3cf73bbe` with private `c620dc9`,
+passes 150 checks, fails four, and intentionally skips one. Two failures expect
+zero Fall points on a reused fictional account that has two valid awards from
+prior runs. The gallery still expects the retired "Current membership" label.
+The phone release-control check loses its bounding box during hydration and
+needs an interactive-state recheck. This is not a fully accepted browser run.
+
+A separate extension audit branch replays the new onboarding, communications,
+officer editing and historical correction migrations. The retention migration
+fails to apply because it calls an invalid schema-qualified multi-array
+`unnest`. Without retention, 341 pgTAP files execute 9,026 assertions but fail:
+the onboarding fixture uses an invalid profile lifecycle; the officer editor
+fixture inserts a closed term without its closure record; the pending snapshot
+shape changed; notification catalog/link assertions fail; historical attendance
+correction calls invalid `pg_catalog.nullif`. No extension is accepted for
+Production. Review also requires verified authentication addresses for personal
+email, permission-revocation locking for profile notes, and stronger retirement
+scope, identity erasure and retry binding.
+
+The pending typed-name connection function is absent from Production's current
+537-migration ledger. It enters through a pending migration and must not ship
+without the reviewed verified-contact restriction. The 557 core alone is not
+an acceptable Production candidate.
+
+Production source setup now includes a separate late-application source and an
+immutable 21-row preview. The regular preview has 475 rows. Neither preview was
+committed; current Fall decisions remain pending. Historical terms S24, F24,
+S25, F25 and S26 are open, and no imported attendance row lacks a canonical
+meeting reference. Earlier assumptions that closed terms block all historical
+corrections were incorrect. Colour-only and unexplained punctuation proposals
+remain held for source semantics rather than becoming invented credit.
+
+Claude terminal agents reached their account session limit, with a reported
+04:50 Pacific reset. Reviews, source verification and isolated tests continue;
+follow-up prompts preserve every concrete failure for the resumed agents.
