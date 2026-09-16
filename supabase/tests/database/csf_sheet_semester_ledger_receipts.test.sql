@@ -1,6 +1,6 @@
 BEGIN;
 CREATE EXTENSION IF NOT EXISTS pgtap WITH SCHEMA extensions;
-SELECT extensions.plan(10);
+SELECT extensions.plan(12);
 
 SELECT extensions.ok(
   EXISTS (SELECT 1 FROM pg_catalog.pg_class c JOIN pg_catalog.pg_namespace n ON n.oid=c.relnamespace
@@ -50,6 +50,17 @@ SELECT extensions.ok(
   EXISTS (SELECT 1 FROM pg_catalog.pg_trigger t WHERE t.tgname='csf_sheet_semester_write_immutable'
     AND NOT t.tgisinternal),
   'write identity and receipt have an immutable trigger');
+SELECT extensions.is(
+  (SELECT count(*)::integer FROM plugin_data.csf_retention_reference_coverage_gaps()),
+  0,'semester receipts are classified for graduated-class retention');
+SELECT extensions.ok(
+  EXISTS (SELECT 1 FROM jsonb_array_elements(
+    plugin_data.csf_profile_merge_reference_plan(
+      '00000000-0000-0000-0000-000000000001',
+      '00000000-0000-0000-0000-000000000002')->'immutableHistoryRetentions'
+    ) AS entry(value)
+    WHERE entry.value->>'reference'='plugin_data.csf_sheet_semester_ledger_writes.profile_id'),
+  'profile merges retain prior provider attempt evidence as history');
 
 SELECT * FROM extensions.finish();
 ROLLBACK;
