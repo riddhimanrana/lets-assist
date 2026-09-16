@@ -159,11 +159,21 @@ SELECT extensions.is(
   (SELECT count(*) FROM plugin_data.csf_admin_audit_events
    WHERE organization_id='cf200000-0000-4000-8000-000000000001' AND action='class.join_code.member_intent_declared'),
   2::bigint,'each real change is audited exactly once');
+-- Both audit rows are written inside this one transaction, so `created_at` is
+-- the same transaction timestamp for both and `id` is a random uuid: there is
+-- no "latest" to order by. Each row is identified by the declaration it
+-- records instead, which also proves the chain rather than just its last link.
 SELECT extensions.is(
   (SELECT before_data->>'memberIntent' FROM plugin_data.csf_admin_audit_events
    WHERE organization_id='cf200000-0000-4000-8000-000000000001'
      AND action='class.join_code.member_intent_declared'
-   ORDER BY created_at DESC, id DESC LIMIT 1),
+     AND after_data->>'memberIntent'='new'),
+  'unknown','the first declaration records the undeclared state it replaced');
+SELECT extensions.is(
+  (SELECT before_data->>'memberIntent' FROM plugin_data.csf_admin_audit_events
+   WHERE organization_id='cf200000-0000-4000-8000-000000000001'
+     AND action='class.join_code.member_intent_declared'
+     AND after_data->>'memberIntent'='returning'),
   'new','the correction records what it changed from');
 
 -- A settled request is closed to this: staff own the outcome from there.
