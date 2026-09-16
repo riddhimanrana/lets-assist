@@ -140,16 +140,44 @@ AS $$
   ]::text[];
 $$;
 
--- Grant the new capability to the existing system roles that already decide or
--- review applications, and to nobody else. A custom role gains it only when an
--- officer with `manage_roles` enables it through Staff access, so this backfill
--- cannot quietly widen a role a chapter narrowed on purpose.
+-- The catalog keeps the ACL it was given in 20260801223711: it is an internal
+-- helper for the role RPCs, so no role reaches it, not even service_role.
+ALTER FUNCTION plugin_data.csf_role_permission_catalog() OWNER TO postgres;
+REVOKE ALL ON FUNCTION plugin_data.csf_role_permission_catalog()
+  FROM PUBLIC, anon, authenticated, service_role;
+GRANT EXECUTE ON FUNCTION plugin_data.csf_role_permission_catalog() TO postgres;
+
+-- Backfill the new capability from what a role can already do, not from its
+-- name.
+--
+-- A chapter that narrowed a system role on purpose must stay narrowed. The
+-- template name is only what a role started as; `csf_update_role` lets an
+-- officer with `manage_roles` disable any capability on it afterwards, so
+-- keying the backfill on `role.key` would re-widen exactly the roles a chapter
+-- had deliberately cut back.
+--
+-- The qualifying condition is the authority this capability extends: a role
+-- that can already decide an application, or already review its checks, is a
+-- role that is already trusted to act on the record. `review_applications`
+-- alone is deliberately not enough; it is the legacy queue-visibility
+-- capability and grants no authority over the record itself. A role with
+-- neither gains nothing here and an officer must enable it explicitly.
+--
+-- `enabled = false` rows are treated as absent on both sides: a disabled
+-- decision capability does not qualify, and an existing disabled
+-- `edit_application_records` row is left disabled rather than switched on.
 INSERT INTO plugin_data.csf_role_permissions (organization_id, role_id, permission_key, enabled)
 SELECT role.organization_id, role.id, 'edit_application_records', true
 FROM plugin_data.csf_roles AS role
-WHERE role.is_system = true
-  AND role.archived_at IS NULL
-  AND role.key IN ('owner', 'advisor', 'co-president', 'vice-president-membership')
+WHERE role.archived_at IS NULL
+  AND EXISTS (
+    SELECT 1
+    FROM plugin_data.csf_role_permissions AS existing
+    WHERE existing.organization_id = role.organization_id
+      AND existing.role_id = role.id
+      AND existing.enabled = true
+      AND existing.permission_key IN ('decide_applications', 'review_application_checks')
+  )
 ON CONFLICT (role_id, permission_key) DO NOTHING;
 
 -- ===========================================================================
@@ -671,12 +699,40 @@ SET search_path = ''
 AS $$
 DECLARE
   v_row plugin_data.csf_profile_notes%ROWTYPE;
+  v_actor_membership_user_id uuid;
   v_body text := nullif(pg_catalog.btrim(coalesce(p_body, '')), '');
   v_tag text := nullif(pg_catalog.btrim(coalesce(p_tag, '')), '');
   v_visibility text := pg_catalog.lower(
     nullif(pg_catalog.btrim(coalesce(p_visibility, '')), '')
   );
 BEGIN
+  IF NOT (
+    plugin_data.csf_actor_has_permission(p_organization_id, p_actor_user_id, 'manage_profiles')
+    OR plugin_data.csf_actor_has_permission(p_organization_id, p_actor_user_id, 'verify_submissions')
+  ) THEN
+    RAISE EXCEPTION 'Not authorized to write CSF member notes.' USING ERRCODE = 'insufficient_privilege';
+  END IF;
+
+  -- Serialize against every staff-access mutation in this organization before
+  -- touching a row, then hold the actor's own host membership and recheck the
+  -- capability under that lock. Without this a note write that queued behind a
+  -- row lock could commit after a role edit, staff-position revocation, or
+  -- membership deactivation had already removed the authority it checked.
+  PERFORM pg_catalog.pg_advisory_xact_lock(
+    plugin_data.csf_staff_access_lock_key(p_organization_id)
+  );
+
+  SELECT member.user_id
+  INTO v_actor_membership_user_id
+  FROM public.organization_members AS member
+  WHERE member.organization_id = p_organization_id
+    AND member.user_id = p_actor_user_id
+    AND member.status = 'active'
+  FOR SHARE;
+  IF NOT FOUND OR v_actor_membership_user_id IS NULL THEN
+    RAISE EXCEPTION 'Not authorized to write CSF member notes.' USING ERRCODE = 'insufficient_privilege';
+  END IF;
+
   IF NOT (
     plugin_data.csf_actor_has_permission(p_organization_id, p_actor_user_id, 'manage_profiles')
     OR plugin_data.csf_actor_has_permission(p_organization_id, p_actor_user_id, 'verify_submissions')
@@ -778,6 +834,7 @@ SET search_path = ''
 AS $$
 DECLARE
   v_row plugin_data.csf_profile_notes%ROWTYPE;
+  v_actor_membership_user_id uuid;
   v_reason text := nullif(pg_catalog.btrim(coalesce(p_reason, '')), '');
 BEGIN
   IF NOT (
@@ -786,6 +843,34 @@ BEGIN
   ) THEN
     RAISE EXCEPTION 'Not authorized to change CSF member notes.' USING ERRCODE = 'insufficient_privilege';
   END IF;
+
+  -- Serialize against every staff-access mutation in this organization before
+  -- touching a row, then hold the actor's own host membership and recheck the
+  -- capability under that lock. Without this a note write that queued behind a
+  -- row lock could commit after a role edit, staff-position revocation, or
+  -- membership deactivation had already removed the authority it checked.
+  PERFORM pg_catalog.pg_advisory_xact_lock(
+    plugin_data.csf_staff_access_lock_key(p_organization_id)
+  );
+
+  SELECT member.user_id
+  INTO v_actor_membership_user_id
+  FROM public.organization_members AS member
+  WHERE member.organization_id = p_organization_id
+    AND member.user_id = p_actor_user_id
+    AND member.status = 'active'
+  FOR SHARE;
+  IF NOT FOUND OR v_actor_membership_user_id IS NULL THEN
+    RAISE EXCEPTION 'Not authorized to change CSF member notes.' USING ERRCODE = 'insufficient_privilege';
+  END IF;
+
+  IF NOT (
+    plugin_data.csf_actor_has_permission(p_organization_id, p_actor_user_id, 'manage_profiles')
+    OR plugin_data.csf_actor_has_permission(p_organization_id, p_actor_user_id, 'verify_submissions')
+  ) THEN
+    RAISE EXCEPTION 'Not authorized to change CSF member notes.' USING ERRCODE = 'insufficient_privilege';
+  END IF;
+
   IF v_reason IS NULL OR pg_catalog.length(v_reason) < 8 THEN
     RAISE EXCEPTION 'Explain in at least 8 characters why this note is being withdrawn from the member.';
   END IF;
@@ -864,12 +949,46 @@ STABLE
 SECURITY DEFINER
 SET search_path = ''
 AS $$
+  WITH current_term AS (
+    -- The same deterministic pick csf_member_profile_snapshot makes, so the
+    -- note filter and the rest of the payload agree on which semester is
+    -- current even while more than one row carries the flag.
+    SELECT term.id
+    FROM plugin_data.csf_terms AS term
+    WHERE term.organization_id = p_organization_id
+      AND term.is_current = true
+    ORDER BY term.updated_at DESC, term.id DESC
+    LIMIT 1
+  ),
+  tools_open AS (
+    -- The published outcome, read exactly as csf_member_tools_are_open reads
+    -- it on the TypeScript side: accepted or active, and nothing else.
+    SELECT EXISTS (
+      SELECT 1
+      FROM plugin_data.csf_term_memberships AS membership
+      JOIN current_term ON current_term.id = membership.term_id
+      WHERE membership.organization_id = p_organization_id
+        AND membership.profile_id = p_profile_id
+        AND membership.status IN ('accepted', 'active')
+    ) AS released
+  )
   SELECT note.id, note.term_id, note.tag, note.body, note.created_at
   FROM plugin_data.csf_profile_notes AS note
+  CROSS JOIN tools_open
   WHERE note.organization_id = p_organization_id
     AND note.profile_id = p_profile_id
     AND note.visibility = 'member'
     AND note.redacted_at IS NULL
+    -- The current semester is not the student's until the chapter publishes an
+    -- outcome. A comment attached to that semester could otherwise announce a
+    -- decision, or contradict one, before the release. Notes on past semesters
+    -- are the student's own history and stay visible; a note with no semester
+    -- is not term-scoped and is not gated here.
+    AND (
+      note.term_id IS NULL
+      OR note.term_id IS DISTINCT FROM (SELECT id FROM current_term)
+      OR tools_open.released
+    )
   ORDER BY note.created_at DESC
   -- LEAST/GREATEST are SQL syntax, not schema-qualifiable functions.
   LIMIT least(greatest(coalesce(p_limit, 50), 1), 100);
@@ -883,17 +1002,19 @@ GRANT EXECUTE ON FUNCTION plugin_data.csf_member_visible_profile_notes(uuid, uui
   TO service_role;
 
 COMMENT ON FUNCTION plugin_data.csf_member_visible_profile_notes(uuid, uuid, integer) IS
-  'The only allowlisted member-facing projection of CSF profile notes: member-visible, unredacted rows, and never the author, redaction, or visibility columns.';
+  'The only allowlisted member-facing projection of CSF profile notes: member-visible, unredacted rows whose semester outcome is released, and never the author, redaction, or visibility columns.';
 
 -- ---------------------------------------------------------------------------
 -- B5. Carrying the comments on the member snapshot
 --
 -- The member profile is one grouped read; adding a second round trip for
 -- comments would break that bounded-read contract. The pending-account branch
--- and the verified projection from 20260901103347 are restated unchanged, with
--- one key merged on afterwards. The comments still come from the allowlisting
--- function above, so the snapshot cannot carry an officer note even though it
--- now carries notes.
+-- and the verified projection from 20260901103347 are restated unchanged, and
+-- the one new key is merged onto the verified result only. The pending branch
+-- keeps its exact three-key shape, which is a privacy contract in its own
+-- right. The comments still come from the allowlisting function above, so the
+-- snapshot cannot carry an officer note, nor a note on an unreleased semester,
+-- even though it now carries notes.
 -- ---------------------------------------------------------------------------
 
 CREATE OR REPLACE FUNCTION plugin_data.csf_member_profile_snapshot(
@@ -930,11 +1051,14 @@ BEGIN
     ORDER BY term.updated_at DESC, term.id DESC
     LIMIT 1;
 
+    -- Status fields only, exactly as 20260901103347 left it. A pending link
+    -- has no profile to carry comments for, and the key set itself is the
+    -- privacy contract csf_dashboard_scale_reads pins: adding even an empty
+    -- `notes` here would widen what a pending link is told exists.
     RETURN pg_catalog.jsonb_build_object(
       'profile', NULL,
       'accountStatus', 'pending',
-      'currentTermId', v_current_term_id,
-      'notes', '[]'::jsonb
+      'currentTermId', v_current_term_id
     );
   END IF;
 
