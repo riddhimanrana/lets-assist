@@ -2755,8 +2755,24 @@ The test runner also leaves a port ownership claim after its process exits.
 The coordinator preserved two exact dead-owner claims before restarting the
 owned local runner. Fixing signal cleanup remains a P2 tooling defect.
 
-The existing CSF browser regression suite is running serially against fictional
-local data. Hosted Development run `35057125551` passed for baseline `1f91d3b1`;
+The existing CSF browser regression suite completed with 102 passed, one failed,
+four skipped and two not run after a serial failure. The failed identity test
+expects two hard merge blockers, while the reviewed attestation flow shows one
+hard email conflict and a separate corroboration requirement. The merge remains
+disabled. The expectation and remaining serial journeys still need verification.
+Three optional screenshot journeys and one historical import journey are skipped.
+
+Manual desktop and phone walkthroughs verify that a fictional historical activity
+creation and point edit produce matching officer and member totals. An attendance
+correction appears in both views without changing points. Removing the synthetic
+activity restores the officer total, and an explicit unknown mark restores the
+meeting to unknown attendance. These operations affect only the owned local
+fixtures. The same walkthrough exposes a P2 calendar-date defect: an activity
+entered as March 15 displays March 14 in both views in Pacific time, although the
+editor retains March 15. The date display fix and regression remain open under
+CSF-READINESS-02.
+
+Hosted Development run `35057125551` passed for baseline `1f91d3b1`;
 it does not verify this readiness candidate. No candidate has been published,
 no Production schema or data has changed, and no real email has been sent.
 
