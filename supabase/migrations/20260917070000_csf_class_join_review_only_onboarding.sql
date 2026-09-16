@@ -30,7 +30,10 @@
 --      request the officer reviews, so the queue shows intent, class, and
 --      account together. It writes only `submitted_returning_status`, only on
 --      an unresolved request owned by that account, so it can neither edit
---      someone else's row nor reopen a settled decision.
+--      someone else's row nor reopen a settled decision. It locks the row
+--      before rechecking that scope, and an unchanged resubmission is a replay:
+--      no write, no second audit row. A student who genuinely changes their
+--      answer gets exactly one audit, carrying what it changed from.
 --
 -- The verified-email and officer-decision connection paths are untouched: a
 -- returning member whose account email is already on their record still
@@ -707,34 +710,61 @@ AS $$
 DECLARE
   v_intent text := pg_catalog.lower(nullif(pg_catalog.btrim(coalesce(p_intent, '')), ''));
   v_request plugin_data.csf_profile_link_requests%ROWTYPE;
+  v_previous text;
 BEGIN
   IF v_intent IS NULL OR v_intent NOT IN ('new', 'returning') THEN
     RAISE EXCEPTION 'Choose whether you are a new or returning member.';
   END IF;
 
+  -- Take the row first, then decide. Locking before the scope recheck means a
+  -- concurrent officer resolution cannot settle the request between the two,
+  -- and it lets an unchanged resubmission be answered without writing.
+  SELECT request.*
+  INTO v_request
+  FROM plugin_data.csf_profile_link_requests AS request
+  WHERE request.organization_id = p_organization_id
+    AND request.id = p_request_id
+    AND request.user_id = p_user_id
+  FOR UPDATE;
+
   -- Scoped to the account that filed the request and to an unresolved one, so
   -- this can neither touch another student's row nor reopen a settled
   -- decision. A miss is reported, not raised: the request itself already
   -- reached the queue and the intent is a hint on top of it.
+  IF NOT FOUND OR v_request.match_status NOT IN ('pending', 'needs_review') THEN
+    RETURN pg_catalog.jsonb_build_object('recorded', false);
+  END IF;
+
+  v_previous := v_request.submitted_returning_status;
+
+  -- A double-click, a retry, or a resubmitted form is the same declaration.
+  -- Answer it the same way without touching `updated_at`, which officers read
+  -- as "something changed", and without a second audit row that says nothing
+  -- happened twice.
+  IF v_previous IS NOT DISTINCT FROM v_intent THEN
+    RETURN pg_catalog.jsonb_build_object(
+      'recorded', true,
+      'replayed', true,
+      'requestId', v_request.id,
+      'memberIntent', v_intent
+    );
+  END IF;
+
   UPDATE plugin_data.csf_profile_link_requests AS request
   SET submitted_returning_status = v_intent,
       updated_at = pg_catalog.now()
   WHERE request.organization_id = p_organization_id
-    AND request.id = p_request_id
-    AND request.user_id = p_user_id
-    AND request.match_status IN ('pending', 'needs_review')
-  RETURNING request.* INTO v_request;
+    AND request.id = v_request.id;
 
-  IF NOT FOUND THEN
-    RETURN pg_catalog.jsonb_build_object('recorded', false);
-  END IF;
-
+  -- One audit per actual change, carrying what it changed from so a student
+  -- who corrects themselves is legible rather than just overwritten.
   INSERT INTO plugin_data.csf_admin_audit_events (
     organization_id, actor_user_id, action, target_type, target_id,
-    after_data, correlation_id, source_type, source_id, reason_code
+    before_data, after_data, correlation_id, source_type, source_id, reason_code
   ) VALUES (
     p_organization_id, p_user_id, 'class.join_code.member_intent_declared',
     'csf_profile_link_requests', v_request.id,
+    pg_catalog.jsonb_build_object('memberIntent', v_previous),
     pg_catalog.jsonb_build_object(
       'cohortId', v_request.cohort_id,
       'classCodeId', v_request.class_join_code_id,
@@ -747,6 +777,7 @@ BEGIN
 
   RETURN pg_catalog.jsonb_build_object(
     'recorded', true,
+    'replayed', false,
     'requestId', v_request.id,
     'memberIntent', v_intent
   );
@@ -759,6 +790,6 @@ GRANT EXECUTE ON FUNCTION plugin_data.csf_record_class_join_member_intent(uuid,u
   TO service_role;
 
 COMMENT ON FUNCTION plugin_data.csf_record_class_join_member_intent(uuid,uuid,uuid,text) IS
-  'Service-only. Records the member''s declared new/returning intent on their own unresolved class-code connection request. Never links, creates, or resolves a record.';
+  'Service-only. Records the member''s declared new/returning intent on their own unresolved class-code connection request, locking the row before rechecking scope. Idempotent: an unchanged resubmission writes nothing and audits nothing. Never links, creates, or resolves a record.';
 
 COMMIT;

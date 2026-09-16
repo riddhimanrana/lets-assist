@@ -117,6 +117,35 @@ SELECT extensions.is(
   (SELECT submitted_returning_status FROM plugin_data.csf_profile_link_requests
    WHERE organization_id='cf200000-0000-4000-8000-000000000001' AND user_id='cf100000-0000-4000-8000-000000000002'),
   'returning','the correction replaces the earlier declaration');
+-- A double-click, a retry, or a resubmitted form says the same thing. It must
+-- be answered, not rewritten: officers read `updated_at` as "something
+-- changed", and a second audit row would claim a decision that never happened.
+CREATE TEMP TABLE intent_replay_state AS
+SELECT updated_at FROM plugin_data.csf_profile_link_requests
+WHERE organization_id='cf200000-0000-4000-8000-000000000001'
+  AND user_id='cf100000-0000-4000-8000-000000000002';
+SELECT extensions.is(
+  plugin_data.csf_record_class_join_member_intent(
+    'cf200000-0000-4000-8000-000000000001',
+    (SELECT (payload->>'requestId')::uuid FROM review_only_results WHERE scenario='unmatched'),
+    'cf100000-0000-4000-8000-000000000002','returning')->>'replayed',
+  'true','declaring the same intent again is a replay');
+SELECT extensions.is(
+  plugin_data.csf_record_class_join_member_intent(
+    'cf200000-0000-4000-8000-000000000001',
+    (SELECT (payload->>'requestId')::uuid FROM review_only_results WHERE scenario='unmatched'),
+    'cf100000-0000-4000-8000-000000000002','returning')->>'recorded',
+  'true','and still reports the declaration as held');
+SELECT extensions.is(
+  (SELECT updated_at FROM plugin_data.csf_profile_link_requests
+   WHERE organization_id='cf200000-0000-4000-8000-000000000001' AND user_id='cf100000-0000-4000-8000-000000000002'),
+  (SELECT updated_at FROM intent_replay_state),
+  'an unchanged declaration does not touch the request');
+SELECT extensions.is(
+  (SELECT count(*) FROM plugin_data.csf_admin_audit_events
+   WHERE organization_id='cf200000-0000-4000-8000-000000000001' AND action='class.join_code.member_intent_declared'),
+  2::bigint,'and writes no second audit row');
+
 SELECT extensions.is(
   plugin_data.csf_record_class_join_member_intent(
     'cf200000-0000-4000-8000-000000000001',
@@ -129,7 +158,31 @@ SELECT extensions.throws_ok(
 SELECT extensions.is(
   (SELECT count(*) FROM plugin_data.csf_admin_audit_events
    WHERE organization_id='cf200000-0000-4000-8000-000000000001' AND action='class.join_code.member_intent_declared'),
-  2::bigint,'each accepted declaration is audited exactly once');
+  2::bigint,'each real change is audited exactly once');
+SELECT extensions.is(
+  (SELECT before_data->>'memberIntent' FROM plugin_data.csf_admin_audit_events
+   WHERE organization_id='cf200000-0000-4000-8000-000000000001'
+     AND action='class.join_code.member_intent_declared'
+   ORDER BY created_at DESC, id DESC LIMIT 1),
+  'new','the correction records what it changed from');
+
+-- A settled request is closed to this: staff own the outcome from there.
+UPDATE plugin_data.csf_profile_link_requests SET match_status='resolved'
+  WHERE organization_id='cf200000-0000-4000-8000-000000000001'
+    AND user_id='cf100000-0000-4000-8000-000000000002';
+SELECT extensions.is(
+  plugin_data.csf_record_class_join_member_intent(
+    'cf200000-0000-4000-8000-000000000001',
+    (SELECT (payload->>'requestId')::uuid FROM review_only_results WHERE scenario='unmatched'),
+    'cf100000-0000-4000-8000-000000000002','new')->>'recorded',
+  'false','a resolved request no longer accepts a declaration');
+SELECT extensions.is(
+  (SELECT submitted_returning_status FROM plugin_data.csf_profile_link_requests
+   WHERE organization_id='cf200000-0000-4000-8000-000000000001' AND user_id='cf100000-0000-4000-8000-000000000002'),
+  'returning','and the settled declaration is left as staff found it');
+UPDATE plugin_data.csf_profile_link_requests SET match_status='needs_review'
+  WHERE organization_id='cf200000-0000-4000-8000-000000000001'
+    AND user_id='cf100000-0000-4000-8000-000000000002';
 
 -- 3. A name is never ownership. Not a prefix, and not an exact match either:
 --    the attacker case is a classmate who knows a name and has the same code.
@@ -228,7 +281,46 @@ SELECT extensions.is(
    WHERE organization_id='cf200000-0000-4000-8000-000000000001' AND profile_id='cf400000-0000-4000-8000-000000000003'),
   'verified_email','the only surviving automatic basis is the verified email');
 
--- 4b. A curated contact is necessary, not sufficient. Any account history on
+-- 4b. The settled-request replay guard, exercised through the public wrapper.
+--     Revoking the link leaves the request saying 'auto_linked', so the
+--     confirmation body's replay branch answers "connected" from that alone.
+--     Only csf_revalidate_class_code_connection_replay, which the wrapper runs
+--     after the body, notices the link is gone. This is that path -- the
+--     student's own settled request, not an unrelated record that happens to
+--     carry a revoked account.
+SELECT extensions.is(
+  (SELECT match_status FROM plugin_data.csf_profile_link_requests
+   WHERE organization_id='cf200000-0000-4000-8000-000000000001' AND user_id='cf100000-0000-4000-8000-000000000007'),
+  'auto_linked','the connection settled its request');
+UPDATE plugin_data.csf_profile_accounts SET status='revoked'
+  WHERE organization_id='cf200000-0000-4000-8000-000000000001'
+    AND profile_id='cf400000-0000-4000-8000-000000000003'
+    AND user_id='cf100000-0000-4000-8000-000000000007';
+CREATE TEMP TABLE revoked_settled_replay AS
+SELECT plugin_data.csf_confirm_class_code_typed_name_match(
+  'cf200000-0000-4000-8000-000000000001','cf400000-0000-4000-8000-000000000003',
+  'cf100000-0000-4000-8000-000000000007','curated@local.test',
+  (SELECT id FROM review_only_code_id),'cf300000-0000-4000-8000-000000000001',
+  'Curated Contact',
+  encode(extensions.digest(convert_to('Curated Contact','UTF8'),'sha256'),'hex')) AS payload;
+SELECT extensions.is(
+  (SELECT payload->>'connected' FROM revoked_settled_replay),
+  'false','a revoked link cannot replay as a connection');
+SELECT extensions.is(
+  (SELECT payload->>'connectionBasis' FROM revoked_settled_replay),
+  NULL,'and the receipt claims no basis');
+SELECT extensions.is(
+  (SELECT match_status FROM plugin_data.csf_profile_link_requests
+   WHERE organization_id='cf200000-0000-4000-8000-000000000001' AND user_id='cf100000-0000-4000-8000-000000000007'),
+  'needs_review','the settled request is reopened for an officer');
+SELECT extensions.is(
+  (SELECT count(*) FROM plugin_data.csf_profile_accounts
+   WHERE organization_id='cf200000-0000-4000-8000-000000000001'
+     AND profile_id='cf400000-0000-4000-8000-000000000003'
+     AND status='verified'),
+  0::bigint,'and the revoked link is not quietly restored');
+
+-- 4c. A curated contact is necessary, not sufficient. Any account history on
 --     the record means an officer has already had reason to look at it, so a
 --     pending or revoked link keeps the record out of reach.
 INSERT INTO plugin_data.csf_profiles (
