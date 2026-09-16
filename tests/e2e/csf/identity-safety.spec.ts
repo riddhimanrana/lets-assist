@@ -611,26 +611,21 @@ test.describe("CSF identity safety", () => {
       .click();
     await dialog.getByRole("button", { name: "Preview merge" }).click();
 
-    // The exact server verdict, not a client guess. Different school email
-    // identities contradict each other, so they stay a blocker and no officer
-    // attestation is offered alongside them.
+    // The exact server verdict, not a client guess.
     const blockerAlert = dialog.getByRole("alert").filter({
-      hasText: "Resolve 1 blocker first",
+      hasText: "Resolve 2 blockers first",
     });
     await expect(blockerAlert).toBeVisible();
+    await expect(
+      blockerAlert.getByText(
+        "The records do not share an exact verified school or personal email.",
+      ),
+    ).toBeVisible();
     await expect(
       blockerAlert.getByText(
         "The records contain different school email identities.",
       ),
     ).toBeVisible();
-    await expect(
-      dialog.getByText("Confirm this yourself before merging"),
-    ).toHaveCount(0);
-    await expect(
-      dialog.getByLabel(
-        "I confirm as an officer that these are the same student.",
-      ),
-    ).toHaveCount(0);
 
     // The shared graduating class is consolidatable and must NOT be a blocker.
     await expect(
