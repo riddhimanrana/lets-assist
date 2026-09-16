@@ -380,11 +380,29 @@ async function runApp(workDir) {
     },
     stdio: "inherit",
   });
+  // `on`, not `once`. Playwright signals this whole process group, so the
+  // runner has usually already been told; forwarding again is what covers a
+  // direct signal to this process alone. A one-shot disposition would hand the
+  // second signal back to Node's default and kill this bootstrap while the
+  // runner was still giving its port claim back — and Playwright waits on this
+  // process, so it would then SIGKILL the group and strand the claim.
   const signalHandlers = new Map();
   for (const signal of ["SIGINT", "SIGTERM", "SIGHUP"]) {
-    const handler = () => child.kill(signal);
+    const handler = () => {
+      try {
+        child.kill(signal);
+      } catch (error) {
+        // A runner that has already exited is the normal case, not a failure,
+        // and a throw here would be an uncaught exception in a signal handler.
+        console.error(
+          `Could not forward ${signal} to the isolated app runner: ${
+            error instanceof Error ? error.message : String(error)
+          }`,
+        );
+      }
+    };
     signalHandlers.set(signal, handler);
-    process.once(signal, handler);
+    process.on(signal, handler);
   }
   const result = await new Promise((resolve, reject) => {
     child.once("error", reject);
