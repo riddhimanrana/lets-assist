@@ -139,6 +139,14 @@ export function acceptedCatalogQuery(source, versions) {
     .update(versions.join("\n"))
     .digest("hex");
   if (
+    versions.length === 541 &&
+    ledgerHash ===
+      "f60cfebd893b0fe0d32979592cdc8e55f7656a9d15a27387d0f49b50a7029d25"
+  )
+    // csf_meeting_attendance_value is owner-internal and carries no
+    // reviewed fingerprint, so this release leaves the catalog untouched.
+    return acceptedCatalogQuery(source, versions.slice(0, 540));
+  if (
     versions.length === 540 &&
     ledgerHash ===
       "7cbbdeea1274e00b99f18c281fac657585bb634574565046c88d8cdc131dac44"

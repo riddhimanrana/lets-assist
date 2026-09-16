@@ -18,9 +18,18 @@ test("the 540 officer identity authority release moves exactly three fingerprint
   const fullLedger = expectedVersions(
     fileURLToPath(new URL("../../", import.meta.url)),
   );
-  assert.equal(fullLedger.length, 540);
-  assert.equal(fullLedger.at(-1), "20260916040000");
-  const current = acceptedCatalogQuery(source, fullLedger);
+  assert.equal(fullLedger.length, 541);
+  assert.equal(fullLedger.at(-1), "20260916050000");
+  // The attendance mirror is owner-internal and carries no reviewed
+  // fingerprint, so 541 leaves the catalog where 540 left it.
+  assert.equal(
+    acceptedCatalogQuery(
+      source,
+      expectedVersions(fileURLToPath(new URL("../../", import.meta.url))),
+    ),
+    acceptedCatalogQuery(source, fullLedger.slice(0, 540)),
+  );
+  const current = acceptedCatalogQuery(source, fullLedger.slice(0, 540));
   const preceding = acceptedCatalogQuery(source, fullLedger.slice(0, 539));
   // The migration replaces three reviewed definitions in place. Nothing else
   // in the accepted catalog may move with them.
