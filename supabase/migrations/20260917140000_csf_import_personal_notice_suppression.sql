@@ -33,6 +33,11 @@
 -- of that import. No parameter privilege, no body rewrite, no ordering
 -- assumption, and no role gains anything.
 --
+-- The match is schema-qualified to plugin_data and nothing else. A bare-name
+-- match would let a function in any reachable schema, named like a lane,
+-- silence notices for its own call; a similarly named function elsewhere is
+-- recognised as not being a lane, which is the behaviour the test asserts.
+--
 -- The explicit switch is unchanged and still authoritative: a lane that sets it
 -- is suppressed whether or not it appears below. This only adds a second way to
 -- be suppressed, never a way to stop being.
@@ -85,13 +90,21 @@ BEGIN
   GET DIAGNOSTICS v_stack = PG_CONTEXT;
   IF v_stack IS NULL THEN RETURN false; END IF;
   FOREACH v_lane IN ARRAY c_lanes LOOP
-    -- Anchored to the phrase PL/pgSQL writes for a frame, so a name appearing
-    -- in some other text cannot match. Both spellings are checked because the
-    -- frame signature is rendered with format_procedure, which qualifies the
-    -- schema only when it is outside the search path at compile time.
-    IF pg_catalog.strpos(v_stack, 'function plugin_data.' || v_lane) > 0
-      OR pg_catalog.strpos(v_stack, 'function ' || v_lane) > 0
-    THEN
+    -- Schema-qualified, and only schema-qualified.
+    --
+    -- A bare-name match would be a spoof: any function in any schema that a
+    -- caller can get into its own search path, named like a lane, would
+    -- silence notices for that call. Requiring the plugin_data prefix means the
+    -- only things that can match are the reviewed lanes themselves.
+    --
+    -- That the prefix is always present is not luck. Every lane is SECURITY
+    -- DEFINER with SET search_path = '', PL/pgSQL renders a frame signature
+    -- with format_procedure when it compiles the function, and compilation
+    -- happens inside the call with that empty search path already applied. With
+    -- nothing in scope, format_procedure always qualifies. The companion test
+    -- pins that empty search path on every lane, because it is the assumption
+    -- this match rests on.
+    IF pg_catalog.strpos(v_stack, 'function plugin_data.' || v_lane) > 0 THEN
       RETURN true;
     END IF;
   END LOOP;

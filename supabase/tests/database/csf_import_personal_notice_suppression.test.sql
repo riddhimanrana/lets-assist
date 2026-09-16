@@ -6,7 +6,7 @@
 -- matters more than the half that says an import does not.
 BEGIN;
 CREATE EXTENSION IF NOT EXISTS pgtap WITH SCHEMA extensions;
-SELECT extensions.plan(23);
+SELECT extensions.plan(26);
 
 -- ---------------------------------------------------------------------------
 -- No parameter privilege was taken, and none is needed.
@@ -128,58 +128,115 @@ SELECT extensions.ok(
 );
 
 -- ---------------------------------------------------------------------------
+-- The empty search path the match depends on.
+-- ---------------------------------------------------------------------------
+-- The recogniser matches a schema-qualified frame. That the frame is qualified
+-- follows from every lane running with SET search_path = '', because PL/pgSQL
+-- renders the signature with format_procedure at compile time and compilation
+-- happens inside the call. If a lane ever loses that setting, its frame could
+-- render bare and stop matching, so the assumption is pinned here rather than
+-- left in a comment.
+SELECT extensions.ok(
+  (SELECT count(*) > 0 AND bool_and(
+     p.prosecdef AND p.proconfig @> ARRAY['search_path=""']::text[])
+   FROM pg_proc AS p
+   JOIN pg_namespace AS n ON n.oid = p.pronamespace
+   WHERE n.nspname = 'plugin_data'
+     AND (p.proname IN (
+       'csf_commit_import_row_for_attempt',
+       'csf_commit_import_row_for_attempt_identity_base',
+       'csf_fill_application_profile_contacts',
+       'csf_prepare_automatic_application_profiles',
+       'csf_import_class_history_row_identity_base')
+       OR p.proname LIKE 'csf\_import\_class\_history\_row\_v%')),
+  'every real lane is a definer with an empty search path, so its frame is qualified'
+);
+
+-- ---------------------------------------------------------------------------
 -- The call stack recognises a bulk lane, and only a bulk lane.
 -- ---------------------------------------------------------------------------
--- Fixtures would need a whole import to drive the real lanes, so the mechanism
--- is exercised through functions named exactly as those lanes are. What is
--- under test is the recogniser, not the import.
-CREATE FUNCTION pg_temp.csf_import_class_history_row_v99()
-RETURNS boolean LANGUAGE plpgsql AS $$
+-- Driving a real import would need a whole fixture, so the recogniser is
+-- exercised with probes that sit exactly where a lane sits: in plugin_data,
+-- definer, empty search path. They are created inside this transaction and go
+-- away with the ROLLBACK, and each carries a v99 suffix no real lane uses.
+CREATE FUNCTION plugin_data.csf_import_class_history_row_v99_probe()
+RETURNS boolean LANGUAGE plpgsql SECURITY DEFINER SET search_path = '' AS $probe$
 BEGIN
   RETURN plugin_data.csf_publication_notices_suppressed();
 END;
-$$;
+$probe$;
 
-CREATE FUNCTION pg_temp.csf_commit_import_row_for_attempt_identity_base()
-RETURNS boolean LANGUAGE plpgsql AS $$
+CREATE FUNCTION plugin_data.csf_commit_import_row_for_attempt_v99_probe()
+RETURNS boolean LANGUAGE plpgsql SECURITY DEFINER SET search_path = '' AS $probe$
 BEGIN
   RETURN plugin_data.csf_publication_notices_suppressed();
 END;
-$$;
+$probe$;
 
-CREATE FUNCTION pg_temp.csf_review_point_submission_request()
-RETURNS boolean LANGUAGE plpgsql AS $$
+CREATE FUNCTION plugin_data.csf_review_point_submission_request_v99_probe()
+RETURNS boolean LANGUAGE plpgsql SECURITY DEFINER SET search_path = '' AS $probe$
 BEGIN
   RETURN plugin_data.csf_publication_notices_suppressed();
 END;
-$$;
+$probe$;
 
-CREATE FUNCTION pg_temp.csf_release_application_decisions()
-RETURNS boolean LANGUAGE plpgsql AS $$
+CREATE FUNCTION plugin_data.csf_release_application_decisions_v99_probe()
+RETURNS boolean LANGUAGE plpgsql SECURITY DEFINER SET search_path = '' AS $probe$
 BEGIN
   RETURN plugin_data.csf_publication_notices_suppressed();
 END;
-$$;
+$probe$;
 
 SELECT extensions.ok(
-  pg_temp.csf_import_class_history_row_v99(),
+  plugin_data.csf_import_class_history_row_v99_probe(),
   'a class-history import lane on the stack suppresses, including a later version'
 );
 
 SELECT extensions.ok(
-  pg_temp.csf_commit_import_row_for_attempt_identity_base(),
+  plugin_data.csf_commit_import_row_for_attempt_v99_probe(),
   'the application import commit lane and its identity base suppress'
 );
 
 -- The half that fails quietly if it is wrong.
 SELECT extensions.ok(
-  NOT pg_temp.csf_review_point_submission_request(),
+  NOT plugin_data.csf_review_point_submission_request_v99_probe(),
   'an officer reviewing a submission still announces to the member'
 );
 
 SELECT extensions.ok(
-  NOT pg_temp.csf_release_application_decisions(),
+  NOT plugin_data.csf_release_application_decisions_v99_probe(),
   'a decision release still announces nothing and suppresses nothing'
+);
+
+-- ---------------------------------------------------------------------------
+-- A look-alike in another schema is not a lane.
+-- ---------------------------------------------------------------------------
+-- This is the spoof the schema-qualified match exists to refuse. A function
+-- named exactly like a bulk lane, but living somewhere a caller can reach,
+-- must not be able to silence a member's notice. Two schemas are tried: the
+-- temporary one, which any session can write to, and public.
+CREATE FUNCTION pg_temp.csf_import_class_history_row_v99_probe()
+RETURNS boolean LANGUAGE plpgsql AS $probe$
+BEGIN
+  RETURN plugin_data.csf_publication_notices_suppressed();
+END;
+$probe$;
+
+CREATE FUNCTION public.csf_import_class_history_row_v99_probe()
+RETURNS boolean LANGUAGE plpgsql AS $probe$
+BEGIN
+  RETURN plugin_data.csf_publication_notices_suppressed();
+END;
+$probe$;
+
+SELECT extensions.ok(
+  NOT pg_temp.csf_import_class_history_row_v99_probe(),
+  'a lane-named function in the temporary schema cannot suppress'
+);
+
+SELECT extensions.ok(
+  NOT public.csf_import_class_history_row_v99_probe(),
+  'a lane-named function in public cannot suppress'
 );
 
 -- A bare SQL caller is not a lane either, so nothing is suppressed by default.
@@ -200,9 +257,11 @@ SELECT extensions.ok(
      'csf_fill_application_profile_contacts',
      'csf_prepare_automatic_application_profiles',
      'csf_import_class_history_row',
-     'PG_CONTEXT'
+     'PG_CONTEXT',
+     -- The qualification is the whole defence against a look-alike elsewhere.
+     'function plugin_data.'
    ]) AS needle),
-  'the recogniser covers every bulk lane this migration claims'
+  'the recogniser covers every bulk lane this migration claims, schema-qualified'
 );
 
 SELECT extensions.ok(
