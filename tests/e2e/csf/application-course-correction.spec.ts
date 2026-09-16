@@ -109,6 +109,30 @@ async function openSeededApplication(page: Parameters<typeof loginAs>[0]) {
   ).toBeVisible();
 }
 
+/**
+ * Choose a value from one of the editor's dropdowns.
+ *
+ * These are Base UI comboboxes, not native selects: the trigger is a button and
+ * the options render in a portal outside the dialog. So the trigger is clicked,
+ * the option is taken from the page, and the trigger's displayed value is read
+ * back before moving on, which also settles the close animation.
+ */
+async function chooseCourseOption(
+  page: Parameters<typeof loginAs>[0],
+  dialog: ReturnType<Parameters<typeof loginAs>[0]["getByRole"]>,
+  label: "List" | "Grade",
+  row: "first" | "last",
+  optionLabel: string,
+) {
+  const triggers = dialog.getByRole("combobox", { name: label, exact: true });
+  const trigger = row === "first" ? triggers.first() : triggers.last();
+  await trigger.click();
+  await page.getByRole("option", { name: optionLabel, exact: true }).click();
+  await expect(trigger.locator('[data-slot="select-value"]')).toHaveText(
+    optionLabel,
+  );
+}
+
 test.beforeAll(async () => {
   const local = getCsfIsolatedSupabaseEnv();
   admin = createClient(local.url, local.serviceRoleKey, {
@@ -347,7 +371,7 @@ test("an officer corrects, removes, and adds a course line, then restores the im
 
   // Update: the transcript names the honors section, at a different grade.
   await dialog.getByLabel("Course").first().fill("Fictional Seminar Honors");
-  await dialog.getByLabel("Grade").first().selectOption("B");
+  await chooseCourseOption(page, dialog, "Grade", "first", "B");
 
   // Remove: the second line is not on the transcript at all.
   await dialog.getByRole("button", { name: "Remove Applied Fiction" }).click();
@@ -357,7 +381,8 @@ test("an officer corrects, removes, and adds a course line, then restores the im
     .getByRole("button", { name: "Add a course line", exact: true })
     .click();
   await dialog.getByLabel("Course").last().fill("Civic Lab");
-  await dialog.getByLabel("Grade").last().selectOption("P");
+  await chooseCourseOption(page, dialog, "List", "last", "List III");
+  await chooseCourseOption(page, dialog, "Grade", "last", "P");
   await dialog.getByLabel("Reported points").last().fill("1");
 
   // A correction without an explanation cannot be submitted.
