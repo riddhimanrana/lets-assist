@@ -8133,8 +8133,7 @@ Formatting, lint and typecheck passed. Root CI `35103764213` passed quality;
 its database/browser job was still running at this checkpoint.
 
 The notice delivery journey AG passed both tests against isolated Mailpit.
-The behavioral notice identity regression passed all 28 assertions against
-566. A separate rollback-only legacy cancellation proof passed: the missing
+The behavioral notice identity regression passed all 28 assertions against 566. A separate rollback-only legacy cancellation proof passed: the missing
 source draft remained cancelled on repeated replay, content stayed unchanged,
 and no delivery, dispatch attempt or provider event was created. The earlier
 legacy recovery script aborted its fixture precondition because browser AF
@@ -8164,3 +8163,26 @@ This covers the migrations at `987dd140`; that root differs from `a6d3c716`
 only by the focused report test repair and register entries. Root PR 619 was
 returned to draft because full browser acceptance remains incomplete. The
 owned replay stack cleaned up after completion. This is local evidence only.
+
+#### September 16, Production owner account correction
+
+The owner explicitly requested consolidating his empty class-code duplicate
+into his historical Class of 2028 profile and connecting his existing account.
+A fresh confirmed-email and cohort check preceded the operation. The historical
+record had no contact email. Production's profile editor rejected a contact-only
+edit because another active record shared its normalized name. Track that
+editor defect under CSF-READINESS-06; this failure made no change.
+
+The scoped manual repair recorded the owner-attested contact correction in the
+admin audit, used the existing audited merge RPC, then used the explicit staff
+account-connection RPC. A rollback trial preserved four historical memberships,
+13 credits and two attendance records. The committed transaction had the same
+result. Production readback showed one directory record and a verified account
+connection. No application decision or attendance credit was changed. Private
+operation evidence is retained outside Git.
+
+The user subsequently authorized promoting the integrated readiness candidate
+to Production and accepted remaining officer UI defects as non-blocking. Root
+PR 619 merged to Development as `982731da`. Hosted acceptance and the release
+pipeline are still running; this entry does not claim a Production deployment.
+The requested existing-account Production video awaits personal-account login.
