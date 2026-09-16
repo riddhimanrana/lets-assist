@@ -1,6 +1,19 @@
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 
 import { getCsfIsolatedSupabaseEnv } from "../../../scripts/local-dev/dv-local-env.mjs";
+import {
+  LINKED_ROLES,
+  SHEET_FIXTURE_DRIVE_FILE_ID,
+  SHEET_FIXTURE_PREFIX,
+  SHEET_FIXTURE_RANGE,
+  SHEET_FIXTURE_SPREADSHEET_ID,
+  SHEET_FIXTURE_TAB,
+  allocateSheetApplicants,
+  seedSheetApplicants,
+  type LinkedApplicantRole,
+  type SheetApplicant,
+  type SheetApplicants,
+} from "./sheet-decision-applicants";
 
 /**
  * Fixture plumbing for the Sheets application-review journeys.
@@ -25,40 +38,25 @@ import { getCsfIsolatedSupabaseEnv } from "../../../scripts/local-dev/dv-local-e
  * independent of whichever one ran last.
  */
 
-/** Recognisable in the roster and unique to this spec. */
-export const SHEET_FIXTURE_PREFIX = "E2E Sheet Review";
+export {
+  APPLICANT_ROLES,
+  EXPLAINED_REASON,
+  LINKED_ROLES,
+  SHEET_FIXTURE_DRIVE_FILE_ID,
+  SHEET_FIXTURE_PREFIX,
+  SHEET_FIXTURE_RANGE,
+  SHEET_FIXTURE_SPREADSHEET_ID,
+  SHEET_FIXTURE_TAB,
+  matchBasisFor,
+  type ApplicantRole,
+  type LinkedApplicantRole,
+  type SheetApplicant,
+  type SheetApplicants,
+} from "./sheet-decision-applicants";
 
-/** The tab and range every mapping, evidence entry, and staged row agrees on. */
-export const SHEET_FIXTURE_TAB = "Form Responses 1";
-export const SHEET_FIXTURE_RANGE = "A1:AZ600";
-
-/**
- * Fictional provider coordinates, and this spec's own handle on its source.
- * Nothing fetches them; the Sync button failing against them is part of the
- * test. The Drive id is how a repeat run finds the source it registered before.
- */
-export const SHEET_FIXTURE_SPREADSHEET_ID = "e2e-fictional-spreadsheet-id";
-export const SHEET_FIXTURE_DRIVE_FILE_ID = "e2e-fictional-drive-file-id";
-
-const ID = (suffix: string) => `e2e5ee70-0000-4000-8000-0000000000${suffix}`;
-
-export const SHEET_FIXTURE_IDS = {
-  priorTerm: ID("02"),
-  acceptedProfile: ID("10"),
-  rejectedProfile: ID("11"),
-  explainedProfile: ID("12"),
-  unreviewedProfile: ID("13"),
-  blockedProfile: ID("14"),
-  acceptedApplication: ID("20"),
-  rejectedApplication: ID("21"),
-  explainedApplication: ID("22"),
-  unreviewedApplication: ID("23"),
-  blockedApplication: ID("24"),
-} as const;
-
-/** The reason text an officer typed in the workbook for the yellow row. */
-export const EXPLAINED_REASON =
-  "Fictional synthetic reason: transcript page two was unreadable.";
+/** The one identifier this spec still pins: its own synthetic prior semester. */
+export const SHEET_FIXTURE_PRIOR_TERM_ID =
+  "e2e5ee70-0000-4000-8000-000000000002";
 
 export type SheetDecisionFixture = {
   admin: SupabaseClient;
@@ -75,65 +73,6 @@ export type SheetDecisionFixture = {
    * until `resetSheetDecisionFixture` has run.
    */
   sourceId: string | null;
-};
-
-type Applicant = {
-  key: keyof typeof SHEET_FIXTURE_IDS;
-  profileId: string;
-  applicationId: string;
-  lastName: string;
-  responseId: string;
-  rowNumber: number;
-};
-
-/**
- * One applicant per outcome the roster has to render differently. Row numbers
- * are workbook coordinates and never identity; matching runs on `responseId`.
- */
-export const APPLICANTS: Record<
-  "accepted" | "rejected" | "explained" | "unreviewed" | "blocked",
-  Applicant
-> = {
-  accepted: {
-    key: "acceptedApplication",
-    profileId: SHEET_FIXTURE_IDS.acceptedProfile,
-    applicationId: SHEET_FIXTURE_IDS.acceptedApplication,
-    lastName: `${SHEET_FIXTURE_PREFIX} Green`,
-    responseId: "e2e-sheet-response-green",
-    rowNumber: 11,
-  },
-  rejected: {
-    key: "rejectedApplication",
-    profileId: SHEET_FIXTURE_IDS.rejectedProfile,
-    applicationId: SHEET_FIXTURE_IDS.rejectedApplication,
-    lastName: `${SHEET_FIXTURE_PREFIX} Red`,
-    responseId: "e2e-sheet-response-red",
-    rowNumber: 12,
-  },
-  explained: {
-    key: "explainedApplication",
-    profileId: SHEET_FIXTURE_IDS.explainedProfile,
-    applicationId: SHEET_FIXTURE_IDS.explainedApplication,
-    lastName: `${SHEET_FIXTURE_PREFIX} Yellow`,
-    responseId: "e2e-sheet-response-yellow",
-    rowNumber: 13,
-  },
-  unreviewed: {
-    key: "unreviewedApplication",
-    profileId: SHEET_FIXTURE_IDS.unreviewedProfile,
-    applicationId: SHEET_FIXTURE_IDS.unreviewedApplication,
-    lastName: `${SHEET_FIXTURE_PREFIX} Uncolored`,
-    responseId: "e2e-sheet-response-uncolored",
-    rowNumber: 14,
-  },
-  blocked: {
-    key: "blockedApplication",
-    profileId: SHEET_FIXTURE_IDS.blockedProfile,
-    applicationId: SHEET_FIXTURE_IDS.blockedApplication,
-    lastName: `${SHEET_FIXTURE_PREFIX} YellowNoReason`,
-    responseId: "e2e-sheet-response-yellow-blank",
-    rowNumber: 15,
-  },
 };
 
 function checked<T>(result: { data: T; error: { message: string } | null }) {
@@ -415,85 +354,21 @@ async function withIntakeOpen<T>(
   }
 }
 
-async function upsertApplicants(fixture: SheetDecisionFixture) {
-  const plugin = fixture.admin.schema("plugin_data");
-  const applicants = Object.values(APPLICANTS);
-
-  checked(
-    await plugin.from("csf_profiles").upsert(
-      applicants.map((applicant) => ({
-        id: applicant.profileId,
-        organization_id: fixture.organizationId,
-        first_name: "Fictional",
-        last_name: applicant.lastName,
-        // Both normalized columns are NOT NULL with no default, and the atomic
-        // write RPCs are what usually fill them. A direct fixture insert has to
-        // supply them, the same way the seed plan does.
-        normalized_first_name: "fictional",
-        normalized_last_name: applicant.lastName.toLowerCase(),
-        record_status: "active",
-        personal_email: `${applicant.responseId}@example.test`,
-        normalized_personal_email: `${applicant.responseId}@example.test`,
-      })),
-      { onConflict: "id" },
-    ),
-  );
-
-  // The Applications roster is scoped by class, so a profile with no cohort
-  // membership never appears in it however its application is filtered.
-  checked(
-    await plugin.from("csf_profile_cohort_memberships").upsert(
-      applicants.map((applicant) => ({
-        organization_id: fixture.organizationId,
-        profile_id: applicant.profileId,
-        cohort_id: fixture.cohortId,
-        status: "active",
-      })),
-      { onConflict: "profile_id,cohort_id" },
-    ),
-  );
-
-  await withIntakeOpen(fixture, async () =>
-    checked(
-      await plugin.from("csf_term_applications").upsert(
-        applicants.map((applicant) => ({
-          id: applicant.applicationId,
-          organization_id: fixture.organizationId,
-          profile_id: applicant.profileId,
-          cohort_id: fixture.cohortId,
-          term_id: fixture.termId,
-          source: "google_form_sheet",
-          // Every run starts undecided. Release is the only thing that moves this.
-          status: "submitted",
-          current_grade_level: 10,
-          returning_status: "new",
-          most_checked_email: `${applicant.responseId}@example.test`,
-          google_form_response_id: applicant.responseId,
-          list_i_points: 5,
-          list_i_ii_points: 3,
-          grand_total_points: 8,
-          submitted_at: "2026-01-09T18:00:00-08:00",
-          reviewed_by: null,
-          reviewed_at: null,
-          review_notes: null,
-        })),
-        { onConflict: "id" },
-      ),
-    ),
-  );
-
-  // Membership is the access fact the release journey watches. Clear it so a
-  // repeat run cannot inherit the previous run's published outcome.
-  checked(
-    await plugin
-      .from("csf_term_memberships")
-      .delete()
-      .eq("organization_id", fixture.organizationId)
-      .eq("term_id", fixture.termId)
-      .in(
-        "profile_id",
-        applicants.map((applicant) => applicant.profileId),
-      ),
+/** Seed one scenario's applicants, with intake reopened only for the insert. */
+async function seedApplicants(
+  fixture: SheetDecisionFixture,
+  applicants: SheetApplicants,
+) {
+  await seedSheetApplicants(
+    {
+      admin: fixture.admin,
+      organizationId: fixture.organizationId,
+      termId: fixture.termId,
+      cohortId: fixture.cohortId,
+      sourceId: requireSourceId(fixture),
+    },
+    applicants,
+    (work) => withIntakeOpen(fixture, work),
   );
 }
 
@@ -505,18 +380,12 @@ type StageStatus =
   | "conflict";
 
 export type StageRow = {
-  applicant: Applicant;
+  applicant: SheetApplicant;
   status: StageStatus;
   observedColor: string | null;
   reason?: string | null;
 };
 
-/**
- * Stage decisions exactly as a completed Sheet read would. The evidence entry
- * is a synthetic but complete receipt: the database records what was read, and
- * the officer surface reports from those rows rather than from anything the
- * caller claims.
- */
 export async function stageDecisions(
   fixture: SheetDecisionFixture,
   rows: StageRow[],
@@ -535,7 +404,7 @@ export async function stageDecisions(
           sheetTabName: SHEET_FIXTURE_TAB,
           readStatus: "read",
           message: null,
-          spreadsheetFileId: "e2e-fictional-drive-file-id",
+          spreadsheetFileId: SHEET_FIXTURE_DRIVE_FILE_ID,
           spreadsheetTitle: `${SHEET_FIXTURE_PREFIX} responses`,
           providerVersion: `e2e-${readAt}`,
           sheetTabId: 1234567,
@@ -552,9 +421,15 @@ export async function stageDecisions(
         sheetTabName: SHEET_FIXTURE_TAB,
         observedRowNumber: row.applicant.rowNumber,
         applicationId: row.applicant.applicationId,
-        importRowId: null,
+        // The product always sends the recorded import row, and the database
+        // re-checks its tab, its job's file id, and the application it matched.
+        // One applicant deliberately has none, so the response-id fallback and
+        // its submitted-at comparison are exercised too.
+        importRowId: row.applicant.importRowId,
         responseId: row.applicant.responseId,
-        responseSubmittedAt: null,
+        responseSubmittedAt: row.applicant.importRowId
+          ? null
+          : row.applicant.submittedAt,
         status: row.status,
         observedColor: row.observedColor,
         reason: row.reason ?? null,
@@ -600,7 +475,7 @@ export async function releaseDecisions(fixture: SheetDecisionFixture) {
 /** The published application status and term membership for one applicant. */
 export async function publishedState(
   fixture: SheetDecisionFixture,
-  applicant: Applicant,
+  applicant: SheetApplicant,
 ) {
   const plugin = fixture.admin.schema("plugin_data");
   const application = checked(
@@ -651,14 +526,6 @@ export async function termState(fixture: SheetDecisionFixture) {
  * a validated isolated stack. There is no path here that could reach a real
  * account.
  */
-export const APPLICANT_ACCOUNTS = {
-  accepted: "e2e.sheet.green@local.test",
-  rejected: "e2e.sheet.red@local.test",
-  explained: "e2e.sheet.yellow@local.test",
-} as const;
-
-export type LinkedApplicantKey = keyof typeof APPLICANT_ACCOUNTS;
-
 async function findUserByEmail(fixture: SheetDecisionFixture, email: string) {
   const { data, error } = await fixture.admin.auth.admin.listUsers({
     page: 1,
@@ -669,28 +536,33 @@ async function findUserByEmail(fixture: SheetDecisionFixture, email: string) {
 }
 
 /**
- * Create or refresh one fictional applicant account and link it to that
- * applicant's CSF profile as a verified connection, which is what makes the
- * member surfaces resolve to this person rather than to nobody.
+ * One fictional account, linked to one scenario's profile as a verified
+ * connection, which is what makes the member surfaces resolve to that person.
+ *
+ * The address carries the scenario token, so no two scenarios claim the same
+ * account and nothing relinks a seeded member who belongs to the chapter
+ * fixture. Every address is under `@local.test`, the password is the run-scoped
+ * isolated one, and `loadSheetDecisionFixture` refuses to run without a
+ * validated isolated stack.
  */
 async function upsertApplicantAccount(
   fixture: SheetDecisionFixture,
-  key: LinkedApplicantKey,
+  applicant: SheetApplicant,
   password: string,
 ) {
-  const email = APPLICANT_ACCOUNTS[key];
-  const applicant = APPLICANTS[key];
-  const existing = await findUserByEmail(fixture, email);
+  const existing = await findUserByEmail(fixture, applicant.email);
   const payload = {
     password,
     email_confirm: true,
     user_metadata: { full_name: `Fictional ${applicant.lastName}` },
   };
 
-  const user = existing
-    ? (() => fixture.admin.auth.admin.updateUserById(existing.id, payload))()
-    : (() => fixture.admin.auth.admin.createUser({ email, ...payload }))();
-  const { data, error } = await user;
+  const { data, error } = await (existing
+    ? fixture.admin.auth.admin.updateUserById(existing.id, payload)
+    : fixture.admin.auth.admin.createUser({
+        email: applicant.email,
+        ...payload,
+      }));
   if (error) throw new Error(error.message);
   const userId = data.user!.id;
 
@@ -727,31 +599,36 @@ async function upsertApplicantAccount(
       ),
   );
 
-  return { email, userId };
-}
-
-export async function linkApplicantAccounts(
-  fixture: SheetDecisionFixture,
-  password: string,
-) {
-  const linked: Record<string, { email: string; userId: string }> = {};
-  for (const key of Object.keys(APPLICANT_ACCOUNTS) as LinkedApplicantKey[]) {
-    linked[key] = await upsertApplicantAccount(fixture, key, password);
-  }
-  return linked as Record<
-    LinkedApplicantKey,
-    { email: string; userId: string }
-  >;
+  return { email: applicant.email, userId };
 }
 
 /**
- * A permitted historical record for one applicant: a completed prior semester.
- * The chapter's rule is that history stays readable while the current term is
- * still unreleased, so the member journeys need something to read.
+ * Accounts for the roles whose own view matters. `unreviewed` is deliberately
+ * left unlinked: an applicant with no account is a real case the product has to
+ * behave for.
  */
+export async function linkApplicantAccounts(
+  fixture: SheetDecisionFixture,
+  applicants: SheetApplicants,
+  password: string,
+) {
+  const linked = {} as Record<
+    LinkedApplicantRole,
+    { email: string; userId: string }
+  >;
+  for (const role of LINKED_ROLES) {
+    linked[role] = await upsertApplicantAccount(
+      fixture,
+      applicants.byRole[role],
+      password,
+    );
+  }
+  return linked;
+}
+
 export async function seedPriorSemesterRecord(
   fixture: SheetDecisionFixture,
-  key: LinkedApplicantKey,
+  applicant: SheetApplicant,
 ) {
   const priorTermId = await ensurePriorTerm(fixture);
   checked(
@@ -762,7 +639,7 @@ export async function seedPriorSemesterRecord(
         {
           organization_id: fixture.organizationId,
           term_id: priorTermId,
-          profile_id: APPLICANTS[key].profileId,
+          profile_id: applicant.profileId,
           cohort_id: fixture.cohortId,
           // A completed outcome is never revoked by a later sync, which is the
           // invariant this record also guards.
@@ -815,7 +692,7 @@ async function ensurePriorTerm(fixture: SheetDecisionFixture) {
   checked(
     await plugin.from("csf_terms").upsert(
       {
-        id: SHEET_FIXTURE_IDS.priorTerm,
+        id: SHEET_FIXTURE_PRIOR_TERM_ID,
         organization_id: fixture.organizationId,
         code: "E2EP1",
         label: `${SHEET_FIXTURE_PREFIX} prior semester`,
@@ -828,7 +705,7 @@ async function ensurePriorTerm(fixture: SheetDecisionFixture) {
       { onConflict: "id" },
     ),
   );
-  return SHEET_FIXTURE_IDS.priorTerm;
+  return SHEET_FIXTURE_PRIOR_TERM_ID;
 }
 
 /**
@@ -838,13 +715,17 @@ async function ensurePriorTerm(fixture: SheetDecisionFixture) {
  * `stageDecisions` call, and the immutable evidence from that run stays as
  * history, which is what the schema intends.
  */
-export async function resetSheetDecisionFixture(fixture: SheetDecisionFixture) {
+export async function resetSheetDecisionFixture(
+  fixture: SheetDecisionFixture,
+  scenario: string,
+): Promise<SheetApplicants> {
   await setReviewSource(fixture, "sheet");
   await upsertSource(fixture);
-  await upsertApplicants(fixture);
+  const applicants = allocateSheetApplicants(scenario);
+  await seedApplicants(fixture, applicants);
+  return applicants;
 }
 
-/** Hand the semester back to in-app review so other specs see the seed state. */
 export async function restoreAppReview(fixture: SheetDecisionFixture) {
   await setReviewSource(fixture, "app");
 }

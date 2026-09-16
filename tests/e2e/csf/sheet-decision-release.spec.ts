@@ -1,7 +1,6 @@
 import { expect, test, type Page } from "@playwright/test";
 
 import {
-  APPLICANTS,
   EXPLAINED_REASON,
   SHEET_FIXTURE_PREFIX,
   loadSheetDecisionFixture,
@@ -11,6 +10,7 @@ import {
   restoreAppReview,
   stageDecisions,
   termState,
+  type SheetApplicants,
   type SheetDecisionFixture,
 } from "./sheet-decision-fixtures";
 import {
@@ -46,6 +46,12 @@ const DESKTOP = { width: 1280, height: 900 };
 const MOBILE = { width: 390, height: 844 };
 
 let fixture: SheetDecisionFixture;
+/**
+ * Allocated per test. Staged decisions are keyed on their application and
+ * cannot be deleted by a fixture, so reusing application ids would inherit the
+ * previous test's released state and its roster rows.
+ */
+let applicants: SheetApplicants;
 
 function panel(page: Page) {
   return page.getByRole("region", { name: /^Sheet review for / });
@@ -67,30 +73,30 @@ async function openApplications(page: Page) {
 async function stageTheFiveOutcomes() {
   return stageDecisions(fixture, [
     {
-      applicant: APPLICANTS.accepted,
+      applicant: applicants.byRole.accepted,
       status: "accepted",
       observedColor: "#d9ead3",
     },
     {
-      applicant: APPLICANTS.rejected,
+      applicant: applicants.byRole.rejected,
       status: "rejected",
       observedColor: "#f4cccc",
     },
     {
-      applicant: APPLICANTS.explained,
+      applicant: applicants.byRole.explained,
       status: "rejected_with_explanation",
       observedColor: "#fff2cc",
       reason: EXPLAINED_REASON,
     },
     {
-      applicant: APPLICANTS.unreviewed,
+      applicant: applicants.byRole.unreviewed,
       status: "unreviewed",
       observedColor: null,
     },
     {
       // Yellow with no reason. The chapter's rule is that this row cannot be
       // released until somebody writes the explanation in the workbook.
-      applicant: APPLICANTS.blocked,
+      applicant: applicants.byRole.blocked,
       status: "rejected_with_explanation",
       observedColor: "#fff2cc",
       reason: null,
@@ -108,8 +114,8 @@ test.afterAll(async () => {
   await restoreAppReview(fixture);
 });
 
-test.beforeEach(async () => {
-  await resetSheetDecisionFixture(fixture);
+test.beforeEach(async (_fixtures, testInfo) => {
+  applicants = await resetSheetDecisionFixture(fixture, testInfo.title);
 });
 
 test.describe("staged decisions before any release", () => {
@@ -133,25 +139,25 @@ test.describe("staged decisions before any release", () => {
     );
 
     // Every staged verdict names itself and says it is not published.
-    await expect(rosterRow(page, APPLICANTS.accepted.lastName)).toContainText(
-      "Accepted in the Sheet · not published yet",
-    );
-    await expect(rosterRow(page, APPLICANTS.rejected.lastName)).toContainText(
-      "Rejected in the Sheet · not published yet",
-    );
-    await expect(rosterRow(page, APPLICANTS.explained.lastName)).toContainText(
-      "Rejected with a reason · not published yet",
-    );
+    await expect(
+      rosterRow(page, applicants.byRole.accepted.lastName),
+    ).toContainText("Accepted in the Sheet · not published yet");
+    await expect(
+      rosterRow(page, applicants.byRole.rejected.lastName),
+    ).toContainText("Rejected in the Sheet · not published yet");
+    await expect(
+      rosterRow(page, applicants.byRole.explained.lastName),
+    ).toContainText("Rejected with a reason · not published yet");
     // An uncoloured row is not a rejection and must never read as one.
-    const unreviewed = rosterRow(page, APPLICANTS.unreviewed.lastName);
+    const unreviewed = rosterRow(page, applicants.byRole.unreviewed.lastName);
     await expect(unreviewed).toContainText("Not reviewed in the Sheet");
     await expect(unreviewed).not.toContainText("Rejected");
     await expect(unreviewed).not.toContainText("published");
 
     // The yellow row with no reason states the officer's next action.
-    await expect(rosterRow(page, APPLICANTS.blocked.lastName)).toContainText(
-      "Add the reason in the Sheet before releasing",
-    );
+    await expect(
+      rosterRow(page, applicants.byRole.blocked.lastName),
+    ).toContainText("Add the reason in the Sheet before releasing");
 
     expectNoBrowserFailures(failures);
   });
@@ -159,16 +165,20 @@ test.describe("staged decisions before any release", () => {
   test("staging grants no membership and decides no application", async () => {
     await stageTheFiveOutcomes();
 
-    for (const applicant of Object.values(APPLICANTS)) {
+    for (const applicant of applicants.all) {
       const state = await publishedState(fixture, applicant);
       expect(state.applicationStatus).toBe("submitted");
       expect(state.membershipStatus).toBeNull();
     }
 
+    // `releaseCount` and `counts.released` are term-wide and monotonic: the
+    // release RPC advances them and nothing resets them, so an absolute zero
+    // would only hold until some other test in this semester released. What
+    // this test means is that *these* applicants are unpublished, which the
+    // per-applicant loop above already proves. The term-level claim that still
+    // holds is that the unexplained yellow row is blocked rather than
+    // releasable.
     const state = await termState(fixture);
-    expect(state.releaseCount).toBe(0);
-    expect(state.counts.released).toBe(0);
-    // The yellow row with no reason is counted as blocked, not as releasable.
     expect(state.counts.blocked).toBeGreaterThanOrEqual(1);
   });
 
@@ -225,30 +235,52 @@ test.describe("the Done and decision filters", () => {
 
     // Done is the terminal verdicts. Unreviewed is not one of them.
     await choose("Done");
-    await expect(rosterRow(page, APPLICANTS.accepted.lastName)).toBeVisible();
-    await expect(rosterRow(page, APPLICANTS.rejected.lastName)).toBeVisible();
-    await expect(rosterRow(page, APPLICANTS.unreviewed.lastName)).toHaveCount(
-      0,
-    );
+    await expect(
+      rosterRow(page, applicants.byRole.accepted.lastName),
+    ).toBeVisible();
+    await expect(
+      rosterRow(page, applicants.byRole.rejected.lastName),
+    ).toBeVisible();
+    await expect(
+      rosterRow(page, applicants.byRole.unreviewed.lastName),
+    ).toHaveCount(0);
 
     await choose("Not done");
-    await expect(rosterRow(page, APPLICANTS.unreviewed.lastName)).toBeVisible();
-    await expect(rosterRow(page, APPLICANTS.accepted.lastName)).toHaveCount(0);
+    await expect(
+      rosterRow(page, applicants.byRole.unreviewed.lastName),
+    ).toBeVisible();
+    await expect(
+      rosterRow(page, applicants.byRole.accepted.lastName),
+    ).toHaveCount(0);
 
     await choose("Accepted");
-    await expect(rosterRow(page, APPLICANTS.accepted.lastName)).toBeVisible();
-    await expect(rosterRow(page, APPLICANTS.rejected.lastName)).toHaveCount(0);
-    await expect(rosterRow(page, APPLICANTS.explained.lastName)).toHaveCount(0);
+    await expect(
+      rosterRow(page, applicants.byRole.accepted.lastName),
+    ).toBeVisible();
+    await expect(
+      rosterRow(page, applicants.byRole.rejected.lastName),
+    ).toHaveCount(0);
+    await expect(
+      rosterRow(page, applicants.byRole.explained.lastName),
+    ).toHaveCount(0);
 
     // The two rejections are separate filters, because they are separate
     // outcomes to the chapter.
     await choose("Rejected with reason");
-    await expect(rosterRow(page, APPLICANTS.explained.lastName)).toBeVisible();
-    await expect(rosterRow(page, APPLICANTS.rejected.lastName)).toHaveCount(0);
+    await expect(
+      rosterRow(page, applicants.byRole.explained.lastName),
+    ).toBeVisible();
+    await expect(
+      rosterRow(page, applicants.byRole.rejected.lastName),
+    ).toHaveCount(0);
 
     await choose("Rejected");
-    await expect(rosterRow(page, APPLICANTS.rejected.lastName)).toBeVisible();
-    await expect(rosterRow(page, APPLICANTS.explained.lastName)).toHaveCount(0);
+    await expect(
+      rosterRow(page, applicants.byRole.rejected.lastName),
+    ).toBeVisible();
+    await expect(
+      rosterRow(page, applicants.byRole.explained.lastName),
+    ).toHaveCount(0);
 
     expectNoBrowserFailures(failures);
   });
@@ -351,25 +383,28 @@ test.describe("release, then a later sync that takes it back", () => {
     await expect(panel(page)).not.toContainText(
       "Nothing has been published for this semester yet.",
     );
-    await expect(rosterRow(page, APPLICANTS.accepted.lastName)).toContainText(
-      "Accepted in the Sheet · published",
-    );
+    await expect(
+      rosterRow(page, applicants.byRole.accepted.lastName),
+    ).toContainText("Accepted in the Sheet · published");
 
-    const accepted = await publishedState(fixture, APPLICANTS.accepted);
+    const accepted = await publishedState(fixture, applicants.byRole.accepted);
     expect(accepted.applicationStatus).toBe("accepted");
     expect(accepted.membershipStatus).toBe("active");
 
-    const rejected = await publishedState(fixture, APPLICANTS.rejected);
+    const rejected = await publishedState(fixture, applicants.byRole.rejected);
     expect(rejected.applicationStatus).toBe("rejected");
     expect(rejected.membershipStatus).not.toBe("active");
 
     // An uncoloured row is not a verdict, so release leaves it alone.
-    const unreviewed = await publishedState(fixture, APPLICANTS.unreviewed);
+    const unreviewed = await publishedState(
+      fixture,
+      applicants.byRole.unreviewed,
+    );
     expect(unreviewed.applicationStatus).toBe("submitted");
     expect(unreviewed.membershipStatus).toBeNull();
 
     // The yellow row with no reason is held back rather than published.
-    const blocked = await publishedState(fixture, APPLICANTS.blocked);
+    const blocked = await publishedState(fixture, applicants.byRole.blocked);
     expect(blocked.applicationStatus).toBe("submitted");
 
     expectNoBrowserFailures(failures);
@@ -400,29 +435,35 @@ test.describe("release, then a later sync that takes it back", () => {
     const firstRelease = await releaseDecisions(fixture);
     expect(firstRelease.accepted).toBeGreaterThanOrEqual(1);
 
-    const beforeCorrection = await publishedState(fixture, APPLICANTS.accepted);
+    const beforeCorrection = await publishedState(
+      fixture,
+      applicants.byRole.accepted,
+    );
     expect(beforeCorrection.membershipStatus).toBe("active");
 
     // The officer recoloured the row red. A released row is corrected straight
     // away, without waiting for another release.
     await stageDecisions(fixture, [
       {
-        applicant: APPLICANTS.accepted,
+        applicant: applicants.byRole.accepted,
         status: "rejected",
         observedColor: "#f4cccc",
       },
     ]);
 
-    const afterCorrection = await publishedState(fixture, APPLICANTS.accepted);
+    const afterCorrection = await publishedState(
+      fixture,
+      applicants.byRole.accepted,
+    );
     expect(afterCorrection.applicationStatus).toBe("rejected");
     expect(afterCorrection.membershipStatus).not.toBe("active");
 
     await page.setViewportSize(DESKTOP);
     await loginAs(page, "adviser");
     await openApplications(page);
-    await expect(rosterRow(page, APPLICANTS.accepted.lastName)).toContainText(
-      "Rejected in the Sheet · published",
-    );
+    await expect(
+      rosterRow(page, applicants.byRole.accepted.lastName),
+    ).toContainText("Rejected in the Sheet · published");
 
     expectNoBrowserFailures(failures);
   });
@@ -431,20 +472,21 @@ test.describe("release, then a later sync that takes it back", () => {
     await stageTheFiveOutcomes();
     await releaseDecisions(fixture);
     expect(
-      (await publishedState(fixture, APPLICANTS.accepted)).membershipStatus,
+      (await publishedState(fixture, applicants.byRole.accepted))
+        .membershipStatus,
     ).toBe("active");
 
     // The officer cleared the fill. The chapter's instruction is that this
     // retracts the published outcome rather than leaving a stale acceptance.
     await stageDecisions(fixture, [
       {
-        applicant: APPLICANTS.accepted,
+        applicant: applicants.byRole.accepted,
         status: "unreviewed",
         observedColor: null,
       },
     ]);
 
-    const retracted = await publishedState(fixture, APPLICANTS.accepted);
+    const retracted = await publishedState(fixture, applicants.byRole.accepted);
     expect(retracted.membershipStatus).not.toBe("active");
   });
 });
@@ -504,9 +546,9 @@ test.describe("mobile", () => {
     expect(box!.x).toBeGreaterThanOrEqual(0);
     expect(box!.x + box!.width).toBeLessThanOrEqual(MOBILE.width);
 
-    await expect(rosterRow(page, APPLICANTS.accepted.lastName)).toContainText(
-      "Accepted in the Sheet · not published yet",
-    );
+    await expect(
+      rosterRow(page, applicants.byRole.accepted.lastName),
+    ).toContainText("Accepted in the Sheet · not published yet");
 
     // The staged reason is no more visible on a phone than on a desktop.
     expect(await page.content()).not.toContain(EXPLAINED_REASON);
@@ -527,12 +569,13 @@ test.describe("mobile", () => {
       .getByRole("button", { name: /^Release \d+ decision/ })
       .click();
     await expect(panel(page)).toContainText(/Released \d+ time/);
-    await expect(rosterRow(page, APPLICANTS.accepted.lastName)).toContainText(
-      "Accepted in the Sheet · published",
-    );
+    await expect(
+      rosterRow(page, applicants.byRole.accepted.lastName),
+    ).toContainText("Accepted in the Sheet · published");
 
     expect(
-      (await publishedState(fixture, APPLICANTS.accepted)).membershipStatus,
+      (await publishedState(fixture, applicants.byRole.accepted))
+        .membershipStatus,
     ).toBe("active");
 
     expectNoBrowserFailures(failures);

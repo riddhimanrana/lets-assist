@@ -1,8 +1,6 @@
 import { expect, test, type Page } from "@playwright/test";
 
 import {
-  APPLICANTS,
-  APPLICANT_ACCOUNTS,
   EXPLAINED_REASON,
   SHEET_FIXTURE_PREFIX,
   linkApplicantAccounts,
@@ -13,6 +11,7 @@ import {
   restoreAppReview,
   seedPriorSemesterRecord,
   stageDecisions,
+  type SheetApplicants,
   type SheetDecisionFixture,
 } from "./sheet-decision-fixtures";
 import {
@@ -49,27 +48,34 @@ const MEMBER_TABS = [HOME, PROFILE, SUBMISSIONS];
 
 let fixture: SheetDecisionFixture;
 let password: string;
+/**
+ * Allocated per test. A staged decision is keyed on its application and cannot
+ * be deleted, so a test that reused an application id would inherit whatever
+ * the last one released. Fresh identities are the only clean start available
+ * without weakening the table's ACL.
+ */
+let applicants: SheetApplicants;
 
 async function stageTheOutcomes() {
   return stageDecisions(fixture, [
     {
-      applicant: APPLICANTS.accepted,
+      applicant: applicants.byRole.accepted,
       status: "accepted",
       observedColor: "#d9ead3",
     },
     {
-      applicant: APPLICANTS.rejected,
+      applicant: applicants.byRole.rejected,
       status: "rejected",
       observedColor: "#f4cccc",
     },
     {
-      applicant: APPLICANTS.explained,
+      applicant: applicants.byRole.explained,
       status: "rejected_with_explanation",
       observedColor: "#fff2cc",
       reason: EXPLAINED_REASON,
     },
     {
-      applicant: APPLICANTS.unreviewed,
+      applicant: applicants.byRole.unreviewed,
       status: "unreviewed",
       observedColor: null,
     },
@@ -103,9 +109,9 @@ test.afterAll(async () => {
   await restoreAppReview(fixture);
 });
 
-test.beforeEach(async () => {
-  await resetSheetDecisionFixture(fixture);
-  await linkApplicantAccounts(fixture, password);
+test.beforeEach(async (_fixtures, testInfo) => {
+  applicants = await resetSheetDecisionFixture(fixture, testInfo.title);
+  await linkApplicantAccounts(fixture, applicants, password);
 });
 
 test.describe("before any release", () => {
@@ -117,16 +123,16 @@ test.describe("before any release", () => {
 
     // The uncoloured applicant has no account at all. Signing in as a linked
     // applicant must not surface them, and the public surface must not either.
-    await loginWithEmail(page, APPLICANT_ACCOUNTS.accepted);
+    await loginWithEmail(page, applicants.byRole.accepted.email);
     for (const path of MEMBER_TABS) {
       await page.goto(path, { waitUntil: "domcontentloaded" });
       expect(await page.content()).not.toContain(
-        APPLICANTS.unreviewed.lastName,
+        applicants.byRole.unreviewed.lastName,
       );
     }
 
     // Staging touched nothing about them in the database either.
-    const state = await publishedState(fixture, APPLICANTS.unreviewed);
+    const state = await publishedState(fixture, applicants.byRole.unreviewed);
     expect(state.applicationStatus).toBe("submitted");
     expect(state.membershipStatus).toBeNull();
 
@@ -138,7 +144,7 @@ test.describe("before any release", () => {
   }) => {
     const failures = watchBrowserFailures(page);
     await stageTheOutcomes();
-    await loginWithEmail(page, APPLICANT_ACCOUNTS.accepted);
+    await loginWithEmail(page, applicants.byRole.accepted.email);
 
     await page.goto(PROFILE, { waitUntil: "domcontentloaded" });
     // A staged acceptance grants nothing, so the semester still reads as under
@@ -147,7 +153,8 @@ test.describe("before any release", () => {
     await expectNoStagedLeak(page);
 
     expect(
-      (await publishedState(fixture, APPLICANTS.accepted)).membershipStatus,
+      (await publishedState(fixture, applicants.byRole.accepted))
+        .membershipStatus,
     ).toBeNull();
 
     expectNoBrowserFailures(failures);
@@ -158,7 +165,7 @@ test.describe("before any release", () => {
   }) => {
     const failures = watchBrowserFailures(page);
     await stageTheOutcomes();
-    await loginWithEmail(page, APPLICANT_ACCOUNTS.rejected);
+    await loginWithEmail(page, applicants.byRole.rejected.email);
 
     await page.goto(PROFILE, { waitUntil: "domcontentloaded" });
     const html = await page.content();
@@ -174,7 +181,7 @@ test.describe("before any release", () => {
   }) => {
     const failures = watchBrowserFailures(page);
     await stageTheOutcomes();
-    await loginWithEmail(page, APPLICANT_ACCOUNTS.explained);
+    await loginWithEmail(page, applicants.byRole.explained.email);
 
     // This is the sharpest case. The officer wrote a reason next to this
     // person's row, and it is the officer's private note until release.
@@ -187,9 +194,9 @@ test.describe("before any release", () => {
     page,
   }) => {
     const failures = watchBrowserFailures(page);
-    await seedPriorSemesterRecord(fixture, "explained");
+    await seedPriorSemesterRecord(fixture, applicants.byRole.explained);
     await stageTheOutcomes();
-    await loginWithEmail(page, APPLICANT_ACCOUNTS.explained);
+    await loginWithEmail(page, applicants.byRole.explained.email);
 
     await page.goto(PROFILE, { waitUntil: "domcontentloaded" });
     // Withholding this semester's decision must not withhold last semester's
@@ -208,11 +215,11 @@ test.describe("after release", () => {
     await stageTheOutcomes();
     await releaseDecisions(fixture);
 
-    const state = await publishedState(fixture, APPLICANTS.accepted);
+    const state = await publishedState(fixture, applicants.byRole.accepted);
     expect(state.applicationStatus).toBe("accepted");
     expect(state.membershipStatus).toBe("active");
 
-    await loginWithEmail(page, APPLICANT_ACCOUNTS.accepted);
+    await loginWithEmail(page, applicants.byRole.accepted.email);
     await page.goto(PROFILE, { waitUntil: "domcontentloaded" });
     await expect(page.getByText("Approved by CSF officers")).toBeVisible();
 
@@ -231,11 +238,11 @@ test.describe("after release", () => {
     await stageTheOutcomes();
     await releaseDecisions(fixture);
 
-    const state = await publishedState(fixture, APPLICANTS.rejected);
+    const state = await publishedState(fixture, applicants.byRole.rejected);
     expect(state.applicationStatus).toBe("rejected");
     expect(state.membershipStatus).not.toBe("active");
 
-    await loginWithEmail(page, APPLICANT_ACCOUNTS.rejected);
+    await loginWithEmail(page, applicants.byRole.rejected.email);
     await page.goto(PROFILE, { waitUntil: "domcontentloaded" });
     await expect(page.getByText("Approved by CSF officers")).toHaveCount(0);
 
@@ -249,7 +256,7 @@ test.describe("after release", () => {
     await stageTheOutcomes();
     await releaseDecisions(fixture);
 
-    await loginWithEmail(page, APPLICANT_ACCOUNTS.rejected);
+    await loginWithEmail(page, applicants.byRole.rejected.email);
     await page.goto(PROFILE, { waitUntil: "domcontentloaded" });
     // The yellow applicant's reason belongs to the yellow applicant.
     expect(await page.content()).not.toContain(EXPLAINED_REASON);
@@ -262,13 +269,15 @@ test.describe("after release", () => {
     await stageTheOutcomes();
     await releaseDecisions(fixture);
 
-    const state = await publishedState(fixture, APPLICANTS.unreviewed);
+    const state = await publishedState(fixture, applicants.byRole.unreviewed);
     expect(state.applicationStatus).toBe("submitted");
     expect(state.membershipStatus).toBeNull();
 
-    await loginWithEmail(page, APPLICANT_ACCOUNTS.accepted);
+    await loginWithEmail(page, applicants.byRole.accepted.email);
     await page.goto(HOME, { waitUntil: "domcontentloaded" });
-    expect(await page.content()).not.toContain(APPLICANTS.unreviewed.lastName);
+    expect(await page.content()).not.toContain(
+      applicants.byRole.unreviewed.lastName,
+    );
 
     expectNoBrowserFailures(failures);
   });
@@ -282,24 +291,25 @@ test.describe("stale access after a later sync", () => {
     await stageTheOutcomes();
     await releaseDecisions(fixture);
     expect(
-      (await publishedState(fixture, APPLICANTS.accepted)).membershipStatus,
+      (await publishedState(fixture, applicants.byRole.accepted))
+        .membershipStatus,
     ).toBe("active");
 
     // The officer recoloured the row red. A released row is corrected straight
     // away, with no second release.
     await stageDecisions(fixture, [
       {
-        applicant: APPLICANTS.accepted,
+        applicant: applicants.byRole.accepted,
         status: "rejected",
         observedColor: "#f4cccc",
       },
     ]);
 
-    const corrected = await publishedState(fixture, APPLICANTS.accepted);
+    const corrected = await publishedState(fixture, applicants.byRole.accepted);
     expect(corrected.applicationStatus).toBe("rejected");
     expect(corrected.membershipStatus).not.toBe("active");
 
-    await loginWithEmail(page, APPLICANT_ACCOUNTS.accepted);
+    await loginWithEmail(page, applicants.byRole.accepted.email);
     await page.goto(PROFILE, { waitUntil: "domcontentloaded" });
     // The page must stop calling them approved the moment the ledger does.
     await expect(page.getByText("Approved by CSF officers")).toHaveCount(0);
@@ -316,17 +326,18 @@ test.describe("stale access after a later sync", () => {
 
     await stageDecisions(fixture, [
       {
-        applicant: APPLICANTS.accepted,
+        applicant: applicants.byRole.accepted,
         status: "unreviewed",
         observedColor: null,
       },
     ]);
 
     expect(
-      (await publishedState(fixture, APPLICANTS.accepted)).membershipStatus,
+      (await publishedState(fixture, applicants.byRole.accepted))
+        .membershipStatus,
     ).not.toBe("active");
 
-    await loginWithEmail(page, APPLICANT_ACCOUNTS.accepted);
+    await loginWithEmail(page, applicants.byRole.accepted.email);
     await page.goto(PROFILE, { waitUntil: "domcontentloaded" });
     await expect(page.getByText("Approved by CSF officers")).toHaveCount(0);
 
@@ -334,12 +345,15 @@ test.describe("stale access after a later sync", () => {
   });
 
   test("a completed prior semester survives a current-term revocation", async () => {
-    const priorTermId = await seedPriorSemesterRecord(fixture, "accepted");
+    const priorTermId = await seedPriorSemesterRecord(
+      fixture,
+      applicants.byRole.accepted,
+    );
     await stageTheOutcomes();
     await releaseDecisions(fixture);
     await stageDecisions(fixture, [
       {
-        applicant: APPLICANTS.accepted,
+        applicant: applicants.byRole.accepted,
         status: "rejected",
         observedColor: "#f4cccc",
       },
@@ -351,7 +365,7 @@ test.describe("stale access after a later sync", () => {
       .select("status")
       .eq("organization_id", fixture.organizationId)
       .eq("term_id", priorTermId)
-      .eq("profile_id", APPLICANTS.accepted.profileId)
+      .eq("profile_id", applicants.byRole.accepted.profileId)
       .maybeSingle();
     if (prior.error) throw new Error(prior.error.message);
     // A completed outcome is history. Nothing in this term revokes it.
@@ -377,7 +391,7 @@ test.describe("member guards", () => {
     await stageTheOutcomes();
     await releaseDecisions(fixture);
 
-    await loginWithEmail(page, APPLICANT_ACCOUNTS.explained);
+    await loginWithEmail(page, applicants.byRole.explained.email);
     await page.goto(PROFILE, { waitUntil: "domcontentloaded" });
 
     // A yellow mark is a rejection *with* an explanation. Once the chapter
@@ -395,7 +409,7 @@ test.describe("member guards", () => {
     await stageTheOutcomes();
     await releaseDecisions(fixture);
 
-    await loginWithEmail(page, APPLICANT_ACCOUNTS.rejected);
+    await loginWithEmail(page, applicants.byRole.rejected.email);
     await page.goto(PROFILE, { waitUntil: "domcontentloaded" });
 
     await expect(page.getByText("Application not approved")).toBeVisible();
@@ -408,7 +422,7 @@ test.describe("member guards", () => {
   test("member tools refuse before the term is released", async ({ page }) => {
     const failures = watchBrowserFailures(page);
     await stageTheOutcomes();
-    await loginWithEmail(page, APPLICANT_ACCOUNTS.accepted);
+    await loginWithEmail(page, applicants.byRole.accepted.email);
 
     await page.goto(SUBMISSIONS, { waitUntil: "domcontentloaded" });
     await expect(
@@ -431,7 +445,7 @@ test.describe("member guards", () => {
     await stageTheOutcomes();
     await releaseDecisions(fixture);
 
-    await loginWithEmail(page, APPLICANT_ACCOUNTS.accepted);
+    await loginWithEmail(page, applicants.byRole.accepted.email);
     await page.goto(SUBMISSIONS, { waitUntil: "domcontentloaded" });
     // Released and accepted: the refusal copy is absent, so the transition
     // below is what this test is actually watching.
@@ -445,13 +459,14 @@ test.describe("member guards", () => {
     // red. The sync applies it to the already-published row immediately.
     await stageDecisions(fixture, [
       {
-        applicant: APPLICANTS.accepted,
+        applicant: applicants.byRole.accepted,
         status: "rejected",
         observedColor: "#f4cccc",
       },
     ]);
     expect(
-      (await publishedState(fixture, APPLICANTS.accepted)).membershipStatus,
+      (await publishedState(fixture, applicants.byRole.accepted))
+        .membershipStatus,
     ).toBe("revoked");
 
     // Whatever the stale page still shows, the next thing the member asks the
