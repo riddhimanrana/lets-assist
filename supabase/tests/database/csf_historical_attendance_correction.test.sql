@@ -9,7 +9,7 @@
 BEGIN;
 
 CREATE EXTENSION IF NOT EXISTS pgtap WITH SCHEMA extensions;
-SELECT extensions.plan(28);
+SELECT extensions.plan(33);
 
 -- ---------------------------------------------------------------------------
 -- Both signatures exist, and only the reviewed role reaches either.
@@ -43,6 +43,10 @@ SELECT extensions.ok(
   NOT has_function_privilege('service_role', 'plugin_data.csf_correct_meeting_attendance_permission_base(uuid,uuid,uuid,text,text,text,uuid,uuid,boolean,jsonb)', 'EXECUTE'),
   'even the server role cannot call the base directly, so the lock cannot be skipped'
 );
+SELECT extensions.ok(
+  has_function_privilege('postgres', 'plugin_data.csf_correct_meeting_attendance_permission_base(uuid,uuid,uuid,text,text,text,uuid,uuid,boolean,jsonb)', 'EXECUTE'),
+  'the owner role holds the base grant explicitly rather than by default'
+);
 
 -- ---------------------------------------------------------------------------
 -- Fixtures. Two semesters in one chapter: one open, one closed.
@@ -69,11 +73,41 @@ INSERT INTO plugin_data.csf_terms (
   ('e1200000-0000-4000-8000-000000000001', 'e1100000-0000-4000-8000-000000000001', 'F30', 'Fall 2030', '2030-2031', 'fall', true),
   ('e1200000-0000-4000-8000-000000000002', 'e1100000-0000-4000-8000-000000000001', 'S25', 'Spring 2025', '2024-2025', 'spring', false);
 
+-- The closed semester is closed through the audited close operation further
+-- down, which needs a policy at the version it is closed at, a cohort, and at
+-- least one active membership to snapshot. A direct UPDATE of lifecycle_status
+-- is refused, and rightly so.
+INSERT INTO plugin_data.csf_term_policies (
+  organization_id, term_id, policy_version, dues_required,
+  total_points_required, required_meetings
+) VALUES (
+  'e1100000-0000-4000-8000-000000000001',
+  'e1200000-0000-4000-8000-000000000002',
+  4, false, 7, 1
+);
+
+INSERT INTO plugin_data.csf_cohorts (id, organization_id, graduation_year, label)
+VALUES (
+  'e1600000-0000-4000-8000-000000000001',
+  'e1100000-0000-4000-8000-000000000001',
+  2028, 'Class of 2028'
+);
+
 INSERT INTO plugin_data.csf_profiles (
   id, organization_id, first_name, last_name, normalized_first_name, normalized_last_name
 ) VALUES
   ('e1300000-0000-4000-8000-000000000001', 'e1100000-0000-4000-8000-000000000001', 'History', 'One', 'history', 'one'),
   ('e1300000-0000-4000-8000-000000000002', 'e1100000-0000-4000-8000-000000000001', 'History', 'Two', 'history', 'two');
+
+INSERT INTO plugin_data.csf_term_memberships (
+  id, organization_id, profile_id, term_id, cohort_id, status,
+  status_reason, eligibility_snapshot
+) VALUES (
+  'e1700000-0000-4000-8000-000000000001', 'e1100000-0000-4000-8000-000000000001',
+  'e1300000-0000-4000-8000-000000000001', 'e1200000-0000-4000-8000-000000000002',
+  'e1600000-0000-4000-8000-000000000001', 'active', 'Current member.',
+  '{"before":"active"}'::jsonb
+);
 
 INSERT INTO plugin_data.csf_term_meetings (
   id, organization_id, term_id, meeting_key, label, meeting_date, settings
@@ -202,9 +236,31 @@ SELECT extensions.lives_ok(
 -- Closed-semester scope.
 -- ---------------------------------------------------------------------------
 
-UPDATE plugin_data.csf_terms
-SET lifecycle_status = 'closed'
-WHERE id = 'e1200000-0000-4000-8000-000000000002';
+-- Closed the way the product closes a semester. Setting lifecycle_status
+-- directly is refused by the close guard, and a fixture that disabled the
+-- trigger would be testing a database this product never runs.
+SELECT extensions.lives_ok(
+  $$
+    SELECT plugin_data.csf_close_term_v2(
+      'e1100000-0000-4000-8000-000000000001',
+      'e1200000-0000-4000-8000-000000000002',
+      4,
+      plugin_data.csf_term_closure_readiness(
+        'e1100000-0000-4000-8000-000000000001',
+        'e1200000-0000-4000-8000-000000000002'
+      )->>'evidenceHash',
+      'e1000000-0000-4000-8000-000000000001'
+    )
+  $$,
+  'the semester closes through the audited close operation'
+);
+
+SELECT extensions.is(
+  (SELECT lifecycle_status FROM plugin_data.csf_terms
+   WHERE id = 'e1200000-0000-4000-8000-000000000002'),
+  'closed',
+  'the fixture semester really is closed before the guard is exercised'
+);
 
 SELECT extensions.throws_ok(
   $$ SELECT plugin_data.csf_correct_meeting_attendance(
@@ -284,6 +340,35 @@ SELECT extensions.throws_ok(
   'P0001',
   'Attendance correction source evidence must be a JSON object.',
   'source evidence that is not an object is refused rather than stored'
+);
+
+-- Evidence has a shape. An open jsonb column becomes free text, and free text
+-- beside a decision starts being read as the reason for it.
+SELECT extensions.throws_ok(
+  $$ SELECT plugin_data.csf_correct_meeting_attendance(
+    'e1100000-0000-4000-8000-000000000001', 'e1400000-0000-4000-8000-000000000001',
+    'e1300000-0000-4000-8000-000000000002', 'set', 'attended',
+    'Workbook row says attended.',
+    'e1000000-0000-4000-8000-000000000001', 'e1500000-0000-4000-8000-000000000022',
+    false, '{"tabName":"S25","sheetRow":141}'::jsonb
+  ) $$,
+  'P0001',
+  'Attendance correction source evidence must name its sourceId.',
+  'source evidence that cannot name its workbook is refused'
+);
+
+SELECT extensions.throws_ok(
+  $$ SELECT plugin_data.csf_correct_meeting_attendance(
+    'e1100000-0000-4000-8000-000000000001', 'e1400000-0000-4000-8000-000000000001',
+    'e1300000-0000-4000-8000-000000000002', 'set', 'attended',
+    'Workbook row says attended.',
+    'e1000000-0000-4000-8000-000000000001', 'e1500000-0000-4000-8000-000000000023',
+    false,
+    '{"sourceId":"0c6863ab-4577-4836-9a48-a6fb9387885b","officerNote":"looks fine to me"}'::jsonb
+  ) $$,
+  'P0001',
+  'Attendance correction source evidence may only name sourceId, tabName, sheetId, sheetRow and columnNumber.',
+  'source evidence cannot smuggle a free-text note alongside the coordinate'
 );
 
 SELECT extensions.lives_ok(

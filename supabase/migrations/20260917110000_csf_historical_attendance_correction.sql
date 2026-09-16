@@ -17,9 +17,11 @@
 --      entrypoint after an explicit acknowledgement, and wired it into
 --      csf_officer_save_profile_activity. csf_correct_meeting_attendance was
 --      last replaced in 20260812220000, before the flag existed, so it never
---      sets it. Every historical semester is therefore uncorrectable except by
---      reopening and reclosing it, which is the workaround 20260916055000 was
---      written to remove.
+--      sets it. A read-only audit on 2026-09-16 found S24, F24, S25, F25 and
+--      S26 all open, so nothing is blocked today. This is the trap being
+--      removed before anyone falls into it: the moment one of them closes, the
+--      only route left is reopening and reclosing the whole semester, which is
+--      the workaround 20260916055000 was written to remove.
 --
 --   2. The correlation id defaulted to gen_random_uuid() and the caller passed
 --      null, so there was no replay key at all. A double-click or a retried
@@ -105,6 +107,24 @@ BEGIN
   IF p_source_ref IS NOT NULL AND v_source_ref IS NULL THEN
     RAISE EXCEPTION 'Attendance correction source evidence must be a JSON object.';
   END IF;
+  -- Evidence, with a shape. An open jsonb column becomes free text, and free
+  -- text next to a decision starts getting read as the reason for it. These
+  -- five keys say where the officer looked and nothing else; a source ref that
+  -- cannot name its workbook is not evidence.
+  IF v_source_ref IS NOT NULL THEN
+    IF NOT (v_source_ref ? 'sourceId') THEN
+      RAISE EXCEPTION 'Attendance correction source evidence must name its sourceId.';
+    END IF;
+    IF EXISTS (
+      SELECT 1
+      FROM pg_catalog.jsonb_object_keys(v_source_ref) AS evidence_key
+      WHERE evidence_key <> ALL (
+        ARRAY['sourceId', 'tabName', 'sheetId', 'sheetRow', 'columnNumber']
+      )
+    ) THEN
+      RAISE EXCEPTION 'Attendance correction source evidence may only name sourceId, tabName, sheetId, sheetRow and columnNumber.';
+    END IF;
+  END IF;
 
   -- A source reconciliation is the chapter fixing its own records against a
   -- workbook, one row at a time but hundreds of rows in an afternoon. Telling
@@ -142,6 +162,17 @@ BEGIN
   );
 
   IF p_correlation_id IS NOT NULL THEN
+    -- Serialize same-request callers before the lookup, not after the write.
+    -- Two retries arriving together would both miss the receipt, both proceed,
+    -- and the second would block on the unique index and then fail rather than
+    -- replay. The loser of this lock sees the winner's receipt below and
+    -- returns it, which is what a retry is supposed to get.
+    PERFORM pg_catalog.pg_advisory_xact_lock(
+      pg_catalog.hashtextextended(
+        p_organization_id::text || ':' || p_correlation_id::text,
+        0
+      )
+    );
     SELECT audit.* INTO v_receipt
     FROM plugin_data.csf_admin_audit_events AS audit
     WHERE audit.organization_id = p_organization_id
@@ -448,6 +479,12 @@ $$;
 REVOKE ALL ON FUNCTION plugin_data.csf_correct_meeting_attendance_permission_base(
   uuid, uuid, uuid, text, text, text, uuid, uuid, boolean, jsonb
 ) FROM PUBLIC, anon, authenticated, service_role;
+-- Owner-internal. The wrapper is SECURITY DEFINER and runs as the owner, so
+-- this is the only role that needs it, and it is stated rather than left to the
+-- default the way the neighbouring officer entrypoints state theirs.
+GRANT EXECUTE ON FUNCTION plugin_data.csf_correct_meeting_attendance_permission_base(
+  uuid, uuid, uuid, text, text, text, uuid, uuid, boolean, jsonb
+) TO postgres;
 
 REVOKE ALL ON FUNCTION plugin_data.csf_correct_meeting_attendance(
   uuid, uuid, uuid, text, text, text, uuid, uuid, boolean, jsonb
