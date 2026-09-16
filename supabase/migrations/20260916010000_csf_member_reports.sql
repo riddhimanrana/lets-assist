@@ -249,16 +249,18 @@ BEGIN
 END;
 $$;
 
+-- The merge functions stay postgres-only: they are reached through the
+-- reviewed wrappers, never called directly by the application role.
 REVOKE ALL ON FUNCTION plugin_data.csf_profile_merge_reference_plan(uuid, uuid)
-  FROM PUBLIC, anon, authenticated;
+  FROM PUBLIC, anon, authenticated, service_role;
 GRANT EXECUTE ON FUNCTION plugin_data.csf_profile_merge_reference_plan(uuid, uuid)
-  TO service_role;
+  TO postgres;
 REVOKE ALL ON FUNCTION
   plugin_data.csf_profile_merge_reference_plan_member_report_base(uuid, uuid)
-  FROM PUBLIC, anon, authenticated;
+  FROM PUBLIC, anon, authenticated, service_role;
 GRANT EXECUTE ON FUNCTION
   plugin_data.csf_profile_merge_reference_plan_member_report_base(uuid, uuid)
-  TO service_role;
+  TO postgres;
 
 ALTER FUNCTION plugin_data.csf_merge_profiles_account_order_base(
   uuid, uuid, uuid, text, uuid
@@ -295,13 +297,13 @@ $$;
 
 REVOKE ALL ON FUNCTION plugin_data.csf_merge_profiles_account_order_base(
   uuid, uuid, uuid, text, uuid
-) FROM PUBLIC, anon, authenticated;
+) FROM PUBLIC, anon, authenticated, service_role;
 GRANT EXECUTE ON FUNCTION plugin_data.csf_merge_profiles_account_order_base(
   uuid, uuid, uuid, text, uuid
-) TO service_role;
+) TO postgres;
 REVOKE ALL ON FUNCTION plugin_data.csf_merge_profiles_member_report_base(
   uuid, uuid, uuid, text, uuid
-) FROM PUBLIC, anon, authenticated;
+) FROM PUBLIC, anon, authenticated, service_role;
 GRANT EXECUTE ON FUNCTION plugin_data.csf_merge_profiles_member_report_base(
   uuid, uuid, uuid, text, uuid
-) TO service_role;
+) TO postgres;
