@@ -721,18 +721,15 @@ async function cleanUp(
     sql.exec(`DELETE FROM public.notifications WHERE dedupe_key IN (${keys});`);
   });
 
-  // The publication queue rows this spec created. Removed through the owner for
-  // the same reason they are read through it, and keyed to this submission so
-  // nothing else in the queue is touched.
-  await attempt("notice queue", async () => {
-    const organizationId = assertUuid(fixture.organizationId, "organization");
-    const submissionId = assertUuid(seeded.submissionId, "submission");
-    sql.exec(
-      `DELETE FROM plugin_data.csf_publication_events
-       WHERE organization_id = '${organizationId}'
-         AND source_id = '${submissionId}';`,
-    );
-  });
+  // The publication event is deliberately left in place.
+  //
+  // A notice campaign references it with ON DELETE RESTRICT, which is the
+  // durable relation between a queued message and the notice that caused it.
+  // Deleting the event would either fail, as it did, or would require dropping
+  // the campaign first, and the campaign is send history that is not a test's
+  // to erase. The event and its settled delivery are queue history; they are
+  // harmless to leave, and every later run seeds a new submission and so a new
+  // event coordinate.
   await attempt("submission", async () => {
     const { error } = await fixture.admin
       .schema("plugin_data")
