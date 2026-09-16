@@ -8214,3 +8214,19 @@ recorded" and remain outside the non-drive subtotal. Total points and explicit
 source categories stay unchanged. The 27 focused member tests passed. Private
 PR 462 integrates this with the bulk matching work; Production is not yet
 verified.
+
+#### September 16, final bulk-review integration
+
+The integrated bulk proposal work exposed four officer defects during review.
+CSF-READINESS-BULK-01 allowed duplicate response conflicts into bulk confirmation;
+CSF-READINESS-BULK-02 retained selections and undo state when switching previews.
+Both are fixed by restricting proposals to identity-ambiguous rows and remounting
+the review per preview job. The exact private revision passed all 452 discovered
+test files and root typecheck.
+
+CSF-READINESS-BULK-03 tracks offset pagination after confirmed rows leave the
+pending set. CSF-READINESS-HISTORY-01 tracks missing category evidence in officer
+profile details. Both are fixed: batch writes refresh the first pending page, pagination buttons
+load their target directly, and officer details receive scoped category flags. The
+member-only enrichment is already covered by scoped projection, privacy, and
+current-term access tests. The Production release has not completed.
