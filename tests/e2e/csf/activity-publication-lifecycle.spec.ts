@@ -15,34 +15,26 @@ import {
 } from "./helpers";
 
 /**
- * Activity operational lifecycle, end to end in the browser: an officer takes a
- * draft to published with an email request, a member sees the published
- * activity, the officer closes signups, and a member never gets the officer
- * controls.
- *
- * WHAT THIS SPEC IS FOR
+ * Activity lifecycle in the browser. An officer takes a draft to published with
+ * an email request, a member sees the published activity, the officer closes
+ * signups, and a member never gets the officer controls.
  *
  * Amendment 3 makes "queue is not delivery" a release boundary. The publish
- * dialog's own copy promises a QUEUE ("Queue one announcement email after
- * publication"), and the result banner must keep that promise: it may say the
- * email was queued or say plainly that it was not, and it may never claim the
- * message arrived. The assertions below check the officer-visible outcome
- * string, not an internal flag, because the officer-visible string is the thing
- * the contract constrains.
+ * dialog promises a queue ("Queue one announcement email after publication"),
+ * and the result banner has to keep that promise. It may say the email was
+ * queued or say plainly that it was not. It may never claim the message
+ * arrived. The assertions check the officer-visible string rather than an
+ * internal flag, since the string is what the contract constrains.
  *
- * WHAT THIS SPEC DELIBERATELY DOES NOT COVER
- *
- * The bounded refusal classifier (an argument-only refusal reported as
- * definitive, every state refusal kept as an unknown outcome that holds its
- * request id) is NOT driven from here. Reproducing it needs a committed attempt
- * whose response was lost, followed by a state change before the retry — a race
- * that cannot be staged reliably in a browser, and a racy acceptance spec is
- * worse than none. That boundary is covered deterministically by
+ * The refusal classifier is not driven from here. Reproducing it needs a
+ * committed attempt whose response was lost, followed by a state change before
+ * the retry. That race cannot be staged reliably in a browser, and a flaky
+ * acceptance spec is worse than none. That boundary is covered by
  * `lib/plugins/private/plugins/dvhs-csf/services/activity-action-refusals.test.ts`
  * and `.../server/actions/activity-definitive-refusal.test.ts`.
  *
  * Every row is fictional, carries this spec's own title prefix, and is removed
- * afterwards. Nothing here reaches a real provider: the isolated runner keeps
+ * afterwards. Nothing reaches a real provider. The isolated runner keeps
  * outbound workers disabled, so a queued campaign stays queued.
  */
 
@@ -179,9 +171,9 @@ test.describe("CSF activity publication lifecycle", () => {
     const banner = page.getByText(/Activity published\./);
     await expect(banner).toBeVisible();
     const outcome = await banner.innerText();
-    // Either truthful answer is acceptable here: the isolated stack may or may
-    // not have a consent topic configured. What is NOT acceptable is silence
-    // about the email, or a claim that it arrived.
+    // Either truthful answer is fine, since the isolated stack may or may not
+    // have a consent topic configured. Silence about the email, or a claim that
+    // it arrived, is not.
     expect(outcome).toMatch(/Email (queued for|not queued:)/u);
     expect(outcome).not.toMatch(DELIVERY_CLAIMS);
 
@@ -189,8 +181,8 @@ test.describe("CSF activity publication lifecycle", () => {
     expect(stored.status).toBe("published");
     expect(stored.published_at).not.toBeNull();
 
-    // Whatever the banner said, it must agree with the ledger: a queued claim
-    // means a durable campaign row exists, and a "not queued" claim means none.
+    // Whatever the banner said has to agree with the ledger. A queued claim
+    // means a durable campaign row exists. A "not queued" claim means none.
     const campaigns = await campaignFor(fixture, activity.id);
     expect(campaigns.length).toBe(outcome.includes("Email queued for") ? 1 : 0);
 

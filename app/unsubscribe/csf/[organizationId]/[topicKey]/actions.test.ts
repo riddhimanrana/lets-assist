@@ -3,23 +3,24 @@ import { beforeEach, describe, expect, mock, test } from "bun:test";
 mock.module("server-only", () => ({}));
 
 /**
- * Step one of the verify-the-address unsubscribe loop.
+ * Step one of the verify-the-address unsubscribe loop. Two properties are under
+ * test and they pull in opposite directions.
  *
- * Two properties are under test and they pull in opposite directions:
+ * The response is constant. A member's address, a stranger's, a rate-limited
+ * repeat, and an internal failure all produce the same state, so the form does
+ * not report who receives chapter mail.
  *
- *  1. THE RESPONSE IS CONSTANT. A member's address, a stranger's, a rate-limited
- *     repeat, and an internal failure all produce the same state, so the form is
- *     not an oracle for who receives chapter mail.
- *  2. THE SEND IS NOT. A confirmation email leaves only when the typed address
- *     has actually appeared in this chapter's recipient snapshots, so the
- *     chapter's sender identity cannot be aimed at arbitrary mailboxes.
+ * The send is not constant. A confirmation email leaves only when the typed
+ * address has appeared in this chapter's recipient snapshots, so the chapter's
+ * sender identity cannot be aimed at arbitrary mailboxes.
  *
- * Because (1) hides everything, (2) can only be observed through the transport.
- * The snapshot stub below therefore implements real predicate semantics -- `eq`
- * is exact and `ilike` is LIKE with `%`/`_` wildcards -- rather than recording
- * which builder method was called. A membership check written with `ilike`
- * passes a typed `jo_hn@…` against a stored `john@…` and mails a stranger; that
- * is the regression the wildcard cases below pin down.
+ * Since the first property hides everything, the second is observable only
+ * through the transport. So the snapshot stub implements real predicate
+ * semantics, `eq` exact and `ilike` as LIKE with `%` and `_` wildcards, rather
+ * than recording which builder method was called. A membership check written
+ * with `ilike` passes a typed `m_mber@example.test` against a stored
+ * `member@example.test` and mails a stranger. The wildcard cases below pin that
+ * down.
  *
  * Every fixture is synthetic and uses reserved .test addresses. No database is
  * reached and no provider is called.

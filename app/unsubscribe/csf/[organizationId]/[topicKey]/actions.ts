@@ -63,13 +63,16 @@ async function consumeBucket(key: string, limit: number): Promise<boolean> {
 /**
  * Has this exact address appeared in one of the chapter's recipient snapshots?
  *
- * EXACT, not `ilike`. `_` and `%` are LIKE metacharacters, and `_` is a legal
- * local-part character that this form's own validator accepts, so `jo_hn@…`
- * matched a stored `john@…` and the gate reported a stranger's address as one
- * of ours — which is the single thing it exists to prevent. The comparison runs
- * against the stored generated column `normalized_recipient_email`
- * (`lower(btrim(recipient_email))`); the parsed input is already trimmed and
- * lowercased, so the two normalizations agree, and the lookup lands on
+ * Exact, not `ilike`. `_` and `%` are LIKE metacharacters, and `_` is a legal
+ * local-part character that this form's validator accepts, so a typed
+ * `m_mber@example.test` matched a stored `member@example.test` and the gate
+ * reported a stranger's address as one of ours. That is the single thing it
+ * exists to prevent.
+ *
+ * The comparison runs against the stored generated column
+ * `normalized_recipient_email`, which is `lower(btrim(recipient_email))`. The
+ * parsed input above is already trimmed and lowercased, so both sides normalize
+ * the same way, and the lookup lands on
  * `csf_communication_recipient_snapshots_email_lookup_idx` instead of scanning.
  */
 async function isKnownRecipient(

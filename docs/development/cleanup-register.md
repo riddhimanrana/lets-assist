@@ -2730,51 +2730,65 @@ passed for baseline `1f91d3b1`; it does not verify this readiness candidate.
 
 ### Operational workflow audit, September 15, 2026
 
-Three findings from the posts/email/activity/point/meeting lane. The first two
-are fixed on this branch with regression coverage verified in both directions
-(the new test fails against the old code and passes against the new); the third
-is open.
+Four findings from the posts/email/activity/point/meeting lane. Three are fixed
+on this branch, each with a regression test verified in both directions: the
+test fails against the old code and passes against the new. One is open.
 
-**Fixed — opt-out identity gate matched on LIKE wildcards.** The CSF unsubscribe
+**Fixed, opt-out identity gate matched on LIKE wildcards.** The CSF unsubscribe
 request step gated its confirmation send with
 `.ilike("recipient_email", email)`. `ilike` is LIKE, so `_` and `%` are
 metacharacters, and `_` is a legal local-part character that zod v4 `.email()`
-accepts. A typed `m_mber@…` therefore matched a stored `member@…`, and the
-chapter's sender identity mailed an address that had never appeared in any
-recipient snapshot — the one thing that gate exists to prevent. The lookup also
-could not use `csf_communication_recipient_snapshots_email_lookup_idx`. Now
+accepts. A typed `m_mber@example.test` matched a stored `member@example.test`,
+and the chapter's sender identity mailed an address that had never appeared in
+any recipient snapshot. That is the one thing the gate exists to prevent. The
+lookup also could not use
+`csf_communication_recipient_snapshots_email_lookup_idx`. Now
 `.eq("normalized_recipient_email", email)` against the stored generated column
-`lower(btrim(recipient_email))`; the parsed input is already trimmed and
-lowercased, so both sides normalize identically. No schema or ACL change.
+`lower(btrim(recipient_email))`. The parsed input is already trimmed and
+lowercased, so both sides normalize the same way. No schema or ACL change.
 
-**Fixed — compose promised delivery.** The Communications compose dialog
-labelled the transactional option "Required notice — always delivered".
-Amendment 3 makes "queue is not delivery" a release boundary and nothing at
-compose time observes a provider outcome; what separates the two message kinds
-is consent. Now "Required notice — unsubscribes do not apply", pinned by a
-wording contract test that also records the one legitimate use of "Delivered"
-(the recovery surface, which is provider-evidence-backed).
+**Fixed, compose promised delivery.** The Communications compose dialog labelled
+the transactional option "always delivered". Amendment 3 makes "queue is not
+delivery" a release boundary, and nothing at compose time observes a provider
+outcome. What separates the two message kinds is consent, so the label now says
+unsubscribes do not apply. A wording contract test pins it and records the one
+legitimate use of "Delivered", on the recovery surface, where the provider has
+already reported.
 
-**Fixed — activity refusals reported as unknown outcomes.** The three activity
+**Fixed, activity refusals reported as unknown outcomes.** The three activity
 Server Actions collapsed every RPC error into "the outcome may be unknown,
-reload Activities before trying again", so a deterministic validation refusal
-told the officer their chapter's state was uncertain. The RPCs are a single
-transaction with no exception handler, so a `P0001` RAISE is always a full
-rollback. A bounded classifier now treats `P0001` as definitively not written
-and maps it through an allowlist derived from the migrations; everything else
-(`40001`, `57014`, constraint violations, a response that never arrived) still
-reports the unknown outcome and holds the request id.
+reload Activities before trying again", so an invalid form told the officer
+their chapter's state was uncertain.
 
-**Open (P2) — no executable legacy source-reconciliation tooling.**
+The fix is deliberately narrow, because SQLSTATE answers the wrong question.
+`P0001` proves the attempt that raised it rolled back. It says nothing about an
+earlier attempt under the same request id whose response was lost, and these
+RPCs recheck authorization and row state before they look for the receipt. A
+first version of this fix treated any `P0001` as "nothing was saved", which
+would have retired a request id whose work was durable and let the next
+submission create a duplicate. Raise position cannot rescue it either:
+`csf_set_activity_status_locked_impl` raises `'CSF activity was not found in
+this organization.'` both before and after the receipt lookup, so the client
+cannot tell the sites apart.
+
+Only request-invariant refusals are definitive now, meaning those decided from
+the RPC arguments with no table read. Authorization, row and term state, and any
+untriaged message keep the unknown outcome and `retrySameRequest`. A structural
+test rejects an invariant entry whose raise site sits below the first `SELECT`
+in its function, which is how the two activity date refusals were caught: they
+validate arguments in create and update but check the stored row in the status
+RPC.
+
+**Open (P2), no executable legacy source-reconciliation tooling.**
 `docs/csf/source-data.md` described `CSF_SOURCE_DATA_DIR` and
 `.artifacts/legacy-csf/` as if tooling read them. A repo-wide search finds no
-consumer of either: the env var appears only in the sentence defining it, and
+consumer of either. The env var appears only in the sentence defining it, and
 `legacy-csf` only there plus two unrelated pgTAP literals. Nothing compares a
 source roster with stored records, and the UI import preview is not a write-free
 substitute because it persists immutable preview rows by design. The doc now
-states the gap and records the manual write-free route (pure `uploaded-workbook`
-parsing for the source side, a `BEGIN READ ONLY` query for the stored side,
-salted-digest comparison reported as counts). Building the tool is not scheduled.
+states the gap and records the manual write-free route: pure `uploaded-workbook`
+parsing for the source side, a `BEGIN READ ONLY` query for the stored side, and
+salted-digest comparison reported as counts. Building the tool is not scheduled.
 
 ### Organization read latency, September 11, 2026
 

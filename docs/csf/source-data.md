@@ -6,21 +6,21 @@
 
 - Files under `docs/csf/source-data/` are never committed, and workbook/mail formats (`.xlsx`, `.xls`, `.csv`, `.eml`, `.pdf`) under `docs/csf/` are only ever tracked inside `docs/csf/evidence/` or `docs/csf/reference/` (curated, synthetic).
 - Agents may read these files locally for context and to run import tooling. Real values (names, emails, IDs) must never be copied into code, fixtures, tests, docs, migrations, seeds, or commit messages. Fixtures stay fictional.
-- Any tooling that reads the directory must take its path from the `CSF_SOURCE_DATA_DIR` env var, defaulting to `docs/csf/source-data`, and must write generated output (normalized workbooks, inspection reports, mapping drafts) to `.artifacts/legacy-csf/`, never back into this directory. **This is the convention for tooling that gets written, not a description of tooling that exists — see [Reconciliation route](#reconciliation-route) below.**
+- Any tooling that reads the directory must take its path from the `CSF_SOURCE_DATA_DIR` env var, defaulting to `docs/csf/source-data`, and must write generated output (normalized workbooks, inspection reports, mapping drafts) to `.artifacts/legacy-csf/`, never back into this directory. This is the convention for tooling somebody writes, not a description of tooling that exists. See [Reconciliation route](#reconciliation-route) below.
 
 If the directory is missing locally, ask the chapter web master (repo owner) for the files; nothing in CI depends on them.
 
 ## Reconciliation route
 
-**There is no executable legacy source-reconciliation tool in this repository.** Verified 2026-09-15 by a repo-wide search: `CSF_SOURCE_DATA_DIR` appears only in the bullet above that defines it, and `legacy-csf` appears only there plus two unrelated pgTAP string literals. Nothing reads `docs/csf/source-data/`, and no command compares a source roster with stored records.
+**There is no executable legacy source-reconciliation tool in this repository.** Verified 2026-09-15 by a repo-wide search. `CSF_SOURCE_DATA_DIR` appears only in the bullet above that defines it, and `legacy-csf` appears only there plus two unrelated pgTAP string literals. Nothing reads `docs/csf/source-data/`, and no command compares a source roster with stored records.
 
 Do not read the bullet above as a pointer to a script. Until something is built, the route to reconcile a source roster against stored data is:
 
-1. **Source side, offline and write-free.** `lib/plugins/private/plugins/dvhs-csf/services/uploaded-workbook.ts` is a pure module — no `server-only`, no database, no network. `openCsfUploadedWorkbook`, `inspectCsfUploadedWorkbook`, and `readCsfUploadedWorkbookRanges` parse a local `.xlsx` or `.csv` under the same size, zip, and cell bounds the product's upload path enforces. Drive it from a throwaway `bun` script against `CSF_SOURCE_DATA_DIR`. Emit counts and salted digests only; a name, an email, or a student number must never reach the terminal, a log, `.artifacts/`, or a commit.
+1. **Source side, offline and write-free.** `lib/plugins/private/plugins/dvhs-csf/services/uploaded-workbook.ts` is a pure module with no `server-only`, no database, and no network. `openCsfUploadedWorkbook`, `inspectCsfUploadedWorkbook`, and `readCsfUploadedWorkbookRanges` parse a local `.xlsx` or `.csv` under the same size, zip, and cell bounds the product's upload path enforces. Drive it from a throwaway `bun` script against `CSF_SOURCE_DATA_DIR`. Emit counts and salted digests only. A name, an email, or a student number must never reach the terminal, a log, `.artifacts/`, or a commit.
 2. **Stored side, read-only.** Query the target database directly with a `BEGIN READ ONLY` block, following the shape of `scripts/production/verify-cutover-quiescence.sql`. Select counts and the same salted digest expression, never the underlying columns.
-3. **Compare digests, report counts.** The comparison is set arithmetic over digests: matched, source-only, stored-only. Report the four numbers. A digest salt that changes per run keeps the output non-reversible if it is ever pasted somewhere it should not be.
+3. **Compare digests, report counts.** The comparison is set arithmetic over digests, giving matched, source-only, and stored-only. Report the numbers. A digest salt that changes per run keeps the output non-reversible if it is ever pasted somewhere it should not be.
 
-The UI import preview is **not** a write-free substitute: it persists immutable preview rows and job provenance by design. Use it for the officer workflow in [the runbook](officer-runbook.md#development-preview), not as an inspection tool.
+The UI import preview is not a write-free substitute. It persists immutable preview rows and job provenance by design. Use it for the officer workflow in [the runbook](officer-runbook.md#development-preview), not as an inspection tool.
 
 ## Directory layout
 
