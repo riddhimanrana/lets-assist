@@ -138,6 +138,18 @@ export function acceptedCatalogQuery(source, versions) {
     .update(versions.join("\n"))
     .digest("hex");
   if (
+    versions.length === 539 &&
+    ledgerHash ===
+      "8d32e6a3d05883f41394d0960b847dbf8cfa53228b175733320436e16e04c4f2"
+  )
+    return acceptedCatalogQuery(source, versions.slice(0, 538));
+  if (
+    versions.length === 538 &&
+    ledgerHash ===
+      "341af96093ff350a31d62a9b51a7c43255bd98796f6efe19fbc6a837740addf7"
+  )
+    return acceptedCatalogQuery(source, versions.slice(0, 537));
+  if (
     versions.length === 537 &&
     ledgerHash ===
       "31520d05057979697730967024dc28fec3611efa511bb31975b8935a21bb4ede"

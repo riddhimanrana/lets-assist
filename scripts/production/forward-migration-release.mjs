@@ -290,6 +290,14 @@ export const approvedMigrations = [
     "20260915195501_publish_dvhs_csf_1_2_51",
     "78db818f4a65c3b945f826bfb2c8f928fbcf5a6cba4908cd7f6f896ca5b25bce",
   ],
+  [
+    "20260916000000_csf_typed_name_self_link",
+    "5eaa8ee7ec12abe3facb4b6681f60b3c84fcf4aaca00dec080572d7173aaa0f2",
+  ],
+  [
+    "20260916010000_csf_member_reports",
+    "50b12757df94b4bfe515becba6312525a4b6b9aa5a286bb1d4a35c54c5d8131b",
+  ],
 ];
 
 const literal = (value) => `'${value.replaceAll("'", "''")}'`;

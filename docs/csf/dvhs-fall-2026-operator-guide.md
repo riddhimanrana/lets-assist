@@ -157,24 +157,29 @@ characters and try again.
 
 1. Open `/connect/<code>` from the shared code, or open **Join a class** and
    type the code under **Join code**.
-2. Create a Let's Assist account or sign in. **Sign in to continue** opens the
-   account flow. A direct class link shows **Sign in to continue**. The general
-   **Join a class** page, before a code is selected, shows **Already have a
-   CSF record?** and **New to CSF?**. The latter includes the application
-   button when the current term has an **Application form link**.
-3. After sign-in, an independently verified existing account connection opens
-   the correct class and recorded history. For a possible existing record, the
-   page may show **Is this you?** with one record whose name exactly matches the
-   account. Select **Yes, this is me** to send that record for officer review.
-   Select **Use a different name** when it is not yours. A name match never links
-   the account by itself. A saved request changes to **Awaiting staff review** and offers **Go to class feed** while an officer checks the match.
-   An independently verified connection shows **Your CSF record is linked** and
-   offers **Go to My CSF**.
-4. If no passive match appears, select **Continue**, enter **Student name**
-   in the **Join your class** dialog, then select **Continue**. A typed name never
-   claims an existing profile. The server creates or reuses one officer request.
-   A new student with no matching existing record can create a self-owned
-   profile through the class code. This does not create historical credit.
+2. Create a Let's Assist account or sign in. **Sign up or sign in to continue**
+   opens the account flow. The general **Join a class** page, before a code is
+   selected, shows **Already have a CSF record?** and **New to CSF?**. The
+   latter includes the application button when the current term has an
+   **Application form link**.
+3. After sign-in the page looks for a record in that class that matches the name
+   on the account. Exactly one unclaimed match shows **Is this you?**, and
+   **Yes, this is me** connects it: the page changes to **Your CSF record is
+   linked** and offers **Go to My CSF**. Two or more matches are listed instead,
+   and the student's pick goes to an officer, showing **Awaiting staff review**
+   with **Go to class feed**. Select **That's not me, search a different name**
+   to look again under a different spelling.
+4. In **Join your class** the student types their **Full name** as written on
+   their CSF application, including any middle name, then selects **Find my
+   record**. The search tolerates a shortened first name, so Sai finds
+   Saisampath, and a recorded nickname. A single unclaimed match is offered for
+   confirmation. When nothing matches, **Continue with this name** creates a
+   record for a genuinely new student, and files an officer request instead when
+   the typed name is close to records that already exist.
+
+Connecting is the student's own claim on one unambiguous record, audited as
+`profile.typed_name_connected`. Anything ambiguous, already claimed, or merely
+similar stays with an officer.
 
 The student never chooses a roster record from a list and never assigns their
 own class or officer access. Submitted names are review context for officers;
