@@ -6,7 +6,7 @@ BEGIN;
 
 CREATE EXTENSION IF NOT EXISTS pgtap WITH SCHEMA extensions;
 
-SELECT extensions.plan(40);
+SELECT extensions.plan(42);
 
 -- ---------------------------------------------------------------------------
 -- A. Execution grants
@@ -139,7 +139,24 @@ INSERT INTO plugin_data.csf_profiles (
   id, organization_id, first_name, last_name, normalized_first_name, normalized_last_name
 ) VALUES
   ('ea300000-0000-4000-8000-000000000001', 'ea100000-0000-4000-8000-000000000001',
-   'Ari', 'Editor', 'ari', 'editor');
+   'Ari', 'Editor', 'ari', 'editor'),
+  ('ea300000-0000-4000-8000-000000000002', 'ea100000-0000-4000-8000-000000000001',
+   'Robin', 'Priorterm', 'robin', 'priorterm');
+
+-- csf_close_term_v2 refuses a semester with nothing to close, so the finished
+-- semester carries a real accepted member. The close finalizes this membership
+-- honestly: the policy asks for 5 points and 1 meeting, this member recorded
+-- neither, and the canonical close records `not_completed`. That is an ordinary
+-- outcome of a real close, so no guard is relaxed and no evidence is invented.
+INSERT INTO plugin_data.csf_term_memberships (
+  organization_id, profile_id, term_id, cohort_id, status, status_reason
+) VALUES (
+  'ea100000-0000-4000-8000-000000000001',
+  'ea300000-0000-4000-8000-000000000002',
+  'ea200000-0000-4000-8000-000000000002',
+  'ea400000-0000-4000-8000-000000000001',
+  'accepted', 'Accepted for Spring 2026.'
+);
 
 INSERT INTO plugin_data.csf_term_applications (
   id, organization_id, profile_id, cohort_id, term_id, source, status,
@@ -186,6 +203,23 @@ SELECT extensions.is(
    WHERE id = 'ea200000-0000-4000-8000-000000000002'),
   'closed',
   'the closed-semester fixture carries a real closure pointer'
+);
+
+SELECT extensions.ok(
+  (SELECT term.active_closure_id IS NOT NULL
+     AND term.active_closure_id = term.latest_closure_id
+     AND term.closure_revision = 1
+   FROM plugin_data.csf_terms AS term
+   WHERE term.id = 'ea200000-0000-4000-8000-000000000002'),
+  'the closure snapshot and revision pointer came from the close operation'
+);
+
+SELECT extensions.is(
+  (SELECT status FROM plugin_data.csf_term_memberships
+   WHERE term_id = 'ea200000-0000-4000-8000-000000000002'
+     AND profile_id = 'ea300000-0000-4000-8000-000000000002'),
+  'not_completed',
+  'the close finalized its member against the policy rather than being waved through'
 );
 
 -- ---------------------------------------------------------------------------
