@@ -941,8 +941,10 @@ test("the readiness release moves exactly the fingerprints measured on a replaye
     // check 34, merge ownership
     ["2f521e9b85f90793c1c0c7197ce3f241", "48a500ad4960c56dffca1cf1a823d3ad"],
     ["0124ee53995263c7a2e839d20d5e8efe", "fedd02270e8f15a687659a01742a860d"],
-    // check 35, the officer connection's second move in this release
+    // check 35 pins the officer connection twice, by full definition and by
+    // md5(p.prosrc). Both move together and both must be swapped.
     ["3f0ee9027a1a89b94e395cd320ae2abb", "56dcc95953b9fae01a5aa41c29383750"],
+    ["5f47bdc9f3dd79de9262c81e6714d42c", "11e91c2070c51ea3bdc029c1c17d7246"],
     // check 38, sheet acceptance definitions and bodies
     ["55c423adec03f617d38e2f6ad2d6b243", "97d5d255ac21dafa1e5856005a3e52e6"],
     ["4c8c8dd465f70c036e79e68ff506a738", "068d23af9577932b35421cab0218bcf8"],
@@ -1002,6 +1004,11 @@ test("each measured fingerprint is applied at the migration that produces it", (
       546,
       "56dcc95953b9fae01a5aa41c29383750",
       "20260916090000 rewires the officer connection",
+    ],
+    [
+      546,
+      "11e91c2070c51ea3bdc029c1c17d7246",
+      "20260916090000 moves that function's body with its definition",
     ],
     [
       547,

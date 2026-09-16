@@ -1,16 +1,12 @@
 import { ReleaseCheckError } from "./app-release-checks.mjs";
 
 /**
- * Fingerprints the CSF readiness release actually moves.
+ * Fingerprints the CSF readiness release moves, measured on a replayed
+ * isolated database.
  *
- * These were measured on a replayed isolated database, not derived from
- * reading the migrations. An earlier pass claimed this release changed no
- * reviewed definition, on the strength of grepping the migrations for
- * `CREATE OR REPLACE FUNCTION` against the pinned function list. That was
- * wrong twice over: the accepted catalog also fingerprints RELATIONS, which no
- * function grep can see, and a function replaced twice in one release only
- * shows its LAST body to the database while the grep happily matches the
- * first. Check 35 failed for exactly that reason.
+ * The accepted catalog fingerprints relations as well as functions, and pins a
+ * function by both its full definition and its body, so a release can move any
+ * of the three independently. Every value below is read from the replay.
  *
  * Each entry is applied at the first migration in this release that changes
  * the object, so the delegation chain never claims a fingerprint before the
@@ -74,13 +70,16 @@ export function classBlockAcceptanceCatalog(query) {
 
 /**
  * 20260916090000 rewires csf_staff_connect_profile_account onto the shared
- * supersede helper. 20260916040000 had already replaced that function, and its
- * post-040000 fingerprint is what officerIdentityAuthorityCatalog pins, so
- * this is the second move of the same body in one release. Check 35.
+ * supersede helper. Check 35 pins that function twice, by full definition and
+ * by md5(p.prosrc), and both move together. Its ACL and guard predicates are
+ * unchanged and are left alone.
  */
 export const DECISION_SUPERSEDE_FINGERPRINTS = [
   // plugin_data.csf_staff_connect_profile_account(uuid,uuid,uuid,text,text,uuid)
+  // Full definition.
   ["3f0ee9027a1a89b94e395cd320ae2abb", "56dcc95953b9fae01a5aa41c29383750"],
+  // Body, md5(p.prosrc).
+  ["5f47bdc9f3dd79de9262c81e6714d42c", "11e91c2070c51ea3bdc029c1c17d7246"],
 ];
 
 export function decisionSupersedeCatalog(query) {
