@@ -38,6 +38,9 @@ type IdentityFixture = {
   validMergeTargetId: string;
   validMergeSourceName: string;
   validMergeTargetName: string;
+  attestSourceId: string;
+  attestTargetId: string;
+  attestSourceName: string;
   classmateIds: string[];
   classmateName: string;
   requestId: string;
@@ -91,12 +94,15 @@ async function seedIdentityFixture(): Promise<IdentityFixture> {
   const mergeTargetId = randomUUID();
   const validMergeSourceId = randomUUID();
   const validMergeTargetId = randomUUID();
+  const attestSourceId = randomUUID();
+  const attestTargetId = randomUUID();
   const classmateIds = [randomUUID(), randomUUID()];
   const requestId = randomUUID();
   const mergeSourceName = `Wren Halloway-${suffix}`;
   const mergeTargetName = `Wren Halloway-${suffix}`;
   const validMergeSourceName = `Legacy-${suffix} Vale-${suffix}`;
   const validMergeTargetName = `Canonical-${suffix} Vale-${suffix}`;
+  const attestSourceName = `Rowan Ashgrove-${suffix}`;
   const classmateName = `Marlowe Ashby-${suffix}`;
   const requestEmail = `identity.safety.${suffix}@local.test`;
 
@@ -113,6 +119,9 @@ async function seedIdentityFixture(): Promise<IdentityFixture> {
     validMergeTargetId,
     validMergeSourceName,
     validMergeTargetName,
+    attestSourceId,
+    attestTargetId,
+    attestSourceName,
     classmateIds,
     classmateName,
     requestId,
@@ -190,6 +199,42 @@ async function seedIdentityFixture(): Promise<IdentityFixture> {
       validMergeProfilesError,
     );
 
+    // Attestation pair: the same student name, and only ONE side carries a
+    // school address. That is missing corroboration, not a contradiction: there
+    // is no second identity to disagree with. 20260916040000 made exactly this
+    // finding attestable, so the dialog must offer the officer the confirmation
+    // rather than dead-ending the way it used to.
+    const { error: attestProfilesError } = await plugin
+      .from("csf_profiles")
+      .insert([
+        {
+          id: attestSourceId,
+          organization_id: organization.id,
+          first_name: "Rowan",
+          preferred_name: `Imported-${suffix}`,
+          last_name: `Ashgrove-${suffix}`,
+          normalized_first_name: "rowan",
+          normalized_last_name: `ashgrove-${suffix}`,
+          source_summary: { browserFixture: true, source: "roster-import" },
+        },
+        {
+          id: attestTargetId,
+          organization_id: organization.id,
+          first_name: "Rowan",
+          preferred_name: `Canonical-${suffix}`,
+          last_name: `Ashgrove-${suffix}`,
+          school_email: `rowan.${suffix}@students.local.test`,
+          normalized_first_name: "rowan",
+          normalized_last_name: `ashgrove-${suffix}`,
+          normalized_school_email: `rowan.${suffix}@students.local.test`,
+          source_summary: { browserFixture: true, source: "current" },
+        },
+      ]);
+    assertNoSupabaseError(
+      "Could not seed the attestation merge fixture",
+      attestProfilesError,
+    );
+
     // Connection pair: two genuine classmates who share a name exactly. Neither
     // carries the requesting account's confirmed address.
     const { error: classmateError } = await plugin.from("csf_profiles").insert([
@@ -228,6 +273,8 @@ async function seedIdentityFixture(): Promise<IdentityFixture> {
           mergeSourceId,
           mergeTargetId,
           validMergeSourceId,
+          attestSourceId,
+          attestTargetId,
           validMergeTargetId,
           ...classmateIds,
         ].map((profileId) => ({
@@ -322,6 +369,8 @@ async function cleanIdentityFixture(current: IdentityFixture) {
       current.mergeTargetId,
       current.validMergeSourceId,
       current.validMergeTargetId,
+      current.attestSourceId,
+      current.attestTargetId,
       ...current.classmateIds,
     ]);
   assertNoSupabaseError("Could not clean cohort memberships", membershipError);
@@ -332,9 +381,9 @@ async function cleanIdentityFixture(current: IdentityFixture) {
     .from("csf_profiles")
     .delete()
     .eq("organization_id", current.organizationId)
-    .eq("id", current.validMergeSourceId);
+    .in("id", [current.validMergeSourceId, current.attestSourceId]);
   assertNoSupabaseError(
-    "Could not clean the merged source profile",
+    "Could not clean the merged source profiles",
     mergedSourceError,
   );
 
@@ -346,6 +395,7 @@ async function cleanIdentityFixture(current: IdentityFixture) {
       current.mergeSourceId,
       current.mergeTargetId,
       current.validMergeTargetId,
+      current.attestTargetId,
       ...current.classmateIds,
     ]);
   assertNoSupabaseError("Could not clean synthetic profiles", profileError);
@@ -612,20 +662,40 @@ test.describe("CSF identity safety", () => {
     await dialog.getByRole("button", { name: "Preview merge" }).click();
 
     // The exact server verdict, not a client guess.
+    //
+    // One blocker, not two. `20260916040000_csf_officer_identity_authority`
+    // split the findings: a missing shared email is absent corroboration, which
+    // an officer may attest past, while two different school email identities
+    // contradict each other and no attestation clears them. The preview returns
+    // the attestable findings separately and the dialog renders only the
+    // blocking ones here.
     const blockerAlert = dialog.getByRole("alert").filter({
-      hasText: "Resolve 2 blockers first",
+      hasText: "Resolve 1 blocker first",
     });
     await expect(blockerAlert).toBeVisible();
-    await expect(
-      blockerAlert.getByText(
-        "The records do not share an exact verified school or personal email.",
-      ),
-    ).toBeVisible();
     await expect(
       blockerAlert.getByText(
         "The records contain different school email identities.",
       ),
     ).toBeVisible();
+    // The attestable finding is reported, but never as a blocker.
+    await expect(
+      blockerAlert.getByText(
+        "No exact school or personal email is shared by both records.",
+      ),
+    ).toHaveCount(0);
+
+    // A hard contradiction must not offer the attestation at all. This is the
+    // refusal that matters: an officer cannot confirm their way past records
+    // that disagree about who they are.
+    await expect(
+      dialog.getByText("Confirm this yourself before merging"),
+    ).toHaveCount(0);
+    await expect(
+      dialog.getByRole("checkbox", {
+        name: "I confirm as an officer that these are the same student.",
+      }),
+    ).toHaveCount(0);
 
     // The shared graduating class is consolidatable and must NOT be a blocker.
     await expect(
@@ -682,6 +752,124 @@ test.describe("CSF identity safety", () => {
       sourceProfileError,
     );
     expect(sourceProfile?.record_status).toBe("active");
+
+    expectNoBrowserFailures(failures);
+  });
+
+  test("an officer attests past missing corroboration and the merge completes", async ({
+    page,
+  }) => {
+    // The journey `20260916040000_csf_officer_identity_authority` opened. Before
+    // it, a duplicate with no shared email dead-ended on "The records do not
+    // share an exact verified school or personal email" and an officer who knew
+    // the student had nothing they could do. Most imported roster rows carry no
+    // address at all, so that was the common case, not the rare one.
+    const failures = watchBrowserFailures(page);
+    await loginAs(page, "admin");
+    await openMembersTab(page);
+
+    const search = page.getByLabel("Search members");
+    const attestQuery = `Ashgrove-${fixture.suffix}`;
+    await search.fill(attestQuery);
+    await expect(page).toHaveURL(
+      (url) => url.searchParams.get("csf_member_q") === attestQuery,
+    );
+    const sourceRow = page.getByRole("row").filter({
+      hasText: `Imported-${fixture.suffix}`,
+    });
+    await expect(sourceRow).toBeVisible();
+    const sourceRowActions = sourceRow.getByRole("button", {
+      name: new RegExp(`^Actions for .*Ashgrove-${fixture.suffix}`),
+    });
+    await expect(sourceRowActions).toHaveAttribute("aria-expanded", "false");
+    await sourceRowActions.click();
+    const mergeMenuItem = page.getByRole("menuitem", {
+      name: "Merge duplicate record",
+      exact: true,
+    });
+    await expect(mergeMenuItem).toBeVisible();
+    await mergeMenuItem.click();
+
+    const dialog = page.getByRole("dialog", {
+      name: "Merge a duplicate student record",
+    });
+    await expect(dialog).toBeVisible();
+
+    await dialog
+      .getByRole("combobox", { name: "Canonical record to keep" })
+      .click();
+    await page
+      .getByRole("option", { name: new RegExp(`Canonical-${fixture.suffix}`) })
+      .first()
+      .click();
+    await dialog.getByRole("button", { name: "Preview merge" }).click();
+
+    // Nothing contradicts, so nothing blocks. The database could simply not
+    // corroborate the identity on its own.
+    await expect(
+      dialog.getByRole("alert").filter({ hasText: /Resolve \d+ blockers? first/ }),
+    ).toHaveCount(0);
+    const attestation = dialog.getByRole("alert").filter({
+      hasText: "Confirm this yourself before merging",
+    });
+    await expect(attestation).toBeVisible();
+    await expect(
+      attestation.getByText(
+        "No exact school or personal email is shared by both records.",
+      ),
+    ).toBeVisible();
+
+    const confirm = dialog.getByRole("checkbox", {
+      name: "I confirm as an officer that these are the same student.",
+    });
+    const mergeButton = dialog.getByRole("button", {
+      name: "Merge into selected record",
+    });
+
+    // Until the officer confirms, this is still refused.
+    await expect(mergeButton).toBeDisabled();
+    await expect(dialog.getByLabel("Reason for merge")).toBeDisabled();
+
+    await confirm.check();
+    await expect(dialog.getByLabel("Reason for merge")).toBeEnabled();
+    await dialog
+      .getByLabel("Reason for merge")
+      .fill("Confirmed with the student in person during a chapter meeting.");
+    await expect(mergeButton).toBeEnabled();
+    await mergeButton.click();
+
+    await expect(dialog).toBeHidden();
+
+    // The merge really happened, and the attestation is on the record.
+    const plugin = fixture.admin.schema("plugin_data");
+    const { data: sourceProfile, error: sourceProfileError } = await plugin
+      .from("csf_profiles")
+      .select("record_status, merged_into_profile_id")
+      .eq("id", fixture.attestSourceId)
+      .single();
+    assertNoSupabaseError(
+      "Could not verify the attested merge source",
+      sourceProfileError,
+    );
+    expect(sourceProfile?.record_status).toBe("merged");
+    expect(sourceProfile?.merged_into_profile_id).toBe(fixture.attestTargetId);
+
+    const { data: attestAudits, error: attestAuditsError } = await plugin
+      .from("csf_admin_audit_events")
+      .select("reason_code, after_data")
+      .eq("organization_id", fixture.organizationId)
+      .eq("action", "profile.merge_identity_attested")
+      .eq("target_id", fixture.attestTargetId);
+    assertNoSupabaseError(
+      "Could not verify the attestation receipt",
+      attestAuditsError,
+    );
+    expect(attestAudits ?? []).toHaveLength(1);
+    expect(attestAudits?.[0]?.reason_code).toBe("officer_attested_identity");
+    expect(
+      (attestAudits?.[0]?.after_data as { attestedConflicts?: string[] })
+        ?.attestedConflicts,
+    ).toEqual(["identity_email_missing"]);
 
     expectNoBrowserFailures(failures);
   });
