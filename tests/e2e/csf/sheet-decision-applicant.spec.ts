@@ -2,7 +2,6 @@ import { expect, test, type Page } from "@playwright/test";
 
 import {
   EXPLAINED_REASON,
-  SHEET_FIXTURE_PREFIX,
   linkApplicantAccounts,
   loadSheetDecisionFixture,
   publishedState,
@@ -11,6 +10,7 @@ import {
   restoreAppReview,
   seedPriorSemesterRecord,
   stageDecisions,
+  type SheetApplicant,
   type SheetApplicants,
   type SheetDecisionFixture,
 } from "./sheet-decision-fixtures";
@@ -82,8 +82,29 @@ async function stageTheOutcomes() {
   ]);
 }
 
-/** Everything an applicant must not be able to read before release. */
-async function expectNoStagedLeak(page: Page) {
+/**
+ * The identities this viewer must not be shown: every scenario applicant except
+ * themselves.
+ *
+ * Checking the fixture prefix instead would be wrong, and was. Every applicant's
+ * `lastName` is built as `${SHEET_FIXTURE_PREFIX} ${role} ${token}`, so the
+ * prefix appears in the signed-in applicant's OWN name and legitimately renders
+ * on their own profile. Asserting the page never contains it either fails on a
+ * correct page or, worse, passes only because the viewer's own name was missing
+ * from a page that should have shown it.
+ */
+function otherApplicantIdentities(viewer: SheetApplicant) {
+  return applicants.all
+    .filter((applicant) => applicant.role !== viewer.role)
+    .flatMap((applicant) => [applicant.lastName, applicant.email]);
+}
+
+/**
+ * Everything an applicant must not be able to read before release, checked on
+ * every member tab while signed in as `viewer`.
+ */
+async function expectNoStagedLeak(page: Page, viewer: SheetApplicant) {
+  const strangers = otherApplicantIdentities(viewer);
   for (const path of MEMBER_TABS) {
     await page.goto(path, { waitUntil: "domcontentloaded" });
     const html = await page.content();
@@ -95,9 +116,73 @@ async function expectNoStagedLeak(page: Page) {
     // The officer's staged vocabulary must not reach the applicant either.
     expect(html).not.toContain("in the Sheet");
     expect(html).not.toContain("not published yet");
-    // Nor should one applicant learn about another.
-    expect(html).not.toContain(SHEET_FIXTURE_PREFIX);
+    // Nor should one applicant learn about another. Their own name may appear;
+    // this is their own profile.
+    for (const stranger of strangers) {
+      expect(html).not.toContain(stranger);
+    }
   }
+}
+
+/**
+ * An organization member with no CSF profile link at all.
+ *
+ * `linkApplicantAccounts` deliberately gives the `unreviewed` applicant no
+ * account, so there was no way to sign in as an unlinked person. This builds one
+ * locally, following the same conventions the fixture uses: a `@local.test`
+ * address carrying the scenario token, the run-scoped isolated password, and an
+ * `active` organization membership so the CSF tabs are reachable at all.
+ *
+ * The one thing it deliberately does NOT create is the verified
+ * `csf_profile_accounts` row. That absence is the whole point: this session
+ * reaches the member surfaces and resolves to no CSF profile, which is exactly
+ * the state an applicant is in before an officer connects them.
+ */
+async function createUnlinkedAccount(
+  applicant: SheetApplicant,
+): Promise<string> {
+  const email = `e2e.sheet.unlinked.${applicants.token}@local.test`;
+  const payload = {
+    password,
+    email_confirm: true,
+    user_metadata: { full_name: `Fictional unlinked ${applicant.role}` },
+  };
+
+  const { data: existingUsers, error: listError } =
+    await fixture.admin.auth.admin.listUsers({ page: 1, perPage: 200 });
+  if (listError) throw new Error(listError.message);
+  const existing = existingUsers.users.find((user) => user.email === email);
+
+  const { data, error } = await (existing
+    ? fixture.admin.auth.admin.updateUserById(existing.id, payload)
+    : fixture.admin.auth.admin.createUser({ email, ...payload }));
+  if (error) throw new Error(error.message);
+  const userId = data.user!.id;
+
+  const membership = await fixture.admin.from("organization_members").upsert(
+    {
+      organization_id: fixture.organizationId,
+      user_id: userId,
+      role: "member",
+      status: "active",
+    },
+    { onConflict: "organization_id,user_id" },
+  );
+  if (membership.error) throw new Error(membership.error.message);
+
+  // Proving the absence rather than assuming it: if anything ever links this
+  // account, the journey below stops being an unlinked one and the test would
+  // silently change meaning.
+  const links = await fixture.admin
+    .schema("plugin_data")
+    .from("csf_profile_accounts")
+    .select("id")
+    .eq("organization_id", fixture.organizationId)
+    .eq("user_id", userId);
+  if (links.error) throw new Error(links.error.message);
+  expect(links.data ?? []).toEqual([]);
+
+  return email;
 }
 
 test.beforeAll(async () => {
@@ -115,23 +200,65 @@ test.beforeEach(async (_fixtures, testInfo) => {
 });
 
 test.describe("before any release", () => {
-  test("an unlinked applicant is never told a decision exists", async ({
+  test("an account with no CSF profile link is told nothing at all", async ({
     page,
   }) => {
     const failures = watchBrowserFailures(page);
     await stageTheOutcomes();
 
-    // The uncoloured applicant has no account at all. Signing in as a linked
-    // applicant must not surface them, and the public surface must not either.
+    // A real unlinked session, not a linked one standing in for it. This
+    // account is an organization member and reaches the CSF tabs; what it has
+    // no claim to is any CSF profile, so no applicant's record is its own.
+    const unlinkedEmail = await createUnlinkedAccount(
+      applicants.byRole.unreviewed,
+    );
+    await loginWithEmail(page, unlinkedEmail);
+
+    for (const path of MEMBER_TABS) {
+      await page.goto(path, { waitUntil: "domcontentloaded" });
+      const html = await page.content();
+      // No applicant's identity, including the one whose email this borrows a
+      // naming convention from.
+      for (const applicant of applicants.all) {
+        expect(html).not.toContain(applicant.lastName);
+        expect(html).not.toContain(applicant.email);
+      }
+      // And none of the staged vocabulary or evidence.
+      expect(html).not.toContain(EXPLAINED_REASON);
+      expect(html).not.toContain("#d9ead3");
+      expect(html).not.toContain("#f4cccc");
+      expect(html).not.toContain("#fff2cc");
+      expect(html).not.toContain("in the Sheet");
+      expect(html).not.toContain("not published yet");
+      // Nothing resolves to a decision for a session with no profile.
+      expect(html).not.toContain("Approved by CSF officers");
+      expect(html).not.toContain("Application not approved");
+    }
+
+    expectNoBrowserFailures(failures);
+  });
+
+  test("one applicant is never shown another applicant's record", async ({
+    page,
+  }) => {
+    const failures = watchBrowserFailures(page);
+    await stageTheOutcomes();
+
+    // The privacy half the unlinked journey above used to stand in for, kept
+    // separate because it proves a different thing: a legitimately signed-in
+    // applicant still sees only themselves.
     await loginWithEmail(page, applicants.byRole.accepted.email);
     for (const path of MEMBER_TABS) {
       await page.goto(path, { waitUntil: "domcontentloaded" });
-      expect(await page.content()).not.toContain(
-        applicants.byRole.unreviewed.lastName,
-      );
+      const html = await page.content();
+      for (const stranger of otherApplicantIdentities(
+        applicants.byRole.accepted,
+      )) {
+        expect(html).not.toContain(stranger);
+      }
     }
 
-    // Staging touched nothing about them in the database either.
+    // The uncoloured applicant was untouched by staging in the database too.
     const state = await publishedState(fixture, applicants.byRole.unreviewed);
     expect(state.applicationStatus).toBe("submitted");
     expect(state.membershipStatus).toBeNull();
@@ -150,7 +277,7 @@ test.describe("before any release", () => {
     // A staged acceptance grants nothing, so the semester still reads as under
     // review rather than approved.
     await expect(page.getByText("Approved by CSF officers")).toHaveCount(0);
-    await expectNoStagedLeak(page);
+    await expectNoStagedLeak(page, applicants.byRole.accepted);
 
     expect(
       (await publishedState(fixture, applicants.byRole.accepted))
@@ -169,9 +296,15 @@ test.describe("before any release", () => {
 
     await page.goto(PROFILE, { waitUntil: "domcontentloaded" });
     const html = await page.content();
+    // The copy a published rejection actually renders, from `decisionCopy` in
+    // `CsfMemberWorkspaceModel`. A staged rejection must not reach it, and this
+    // is the string that would appear if it did.
+    expect(html).not.toContain("Application not approved");
+    // Two phrases the member surfaces do not render today, kept as guards
+    // against a future rejection label taking either shape.
     expect(html).not.toContain("Rejected");
     expect(html).not.toContain("Not accepted");
-    await expectNoStagedLeak(page);
+    await expectNoStagedLeak(page, applicants.byRole.rejected);
 
     expectNoBrowserFailures(failures);
   });
@@ -185,7 +318,7 @@ test.describe("before any release", () => {
 
     // This is the sharpest case. The officer wrote a reason next to this
     // person's row, and it is the officer's private note until release.
-    await expectNoStagedLeak(page);
+    await expectNoStagedLeak(page, applicants.byRole.explained);
 
     expectNoBrowserFailures(failures);
   });
@@ -217,7 +350,11 @@ test.describe("after release", () => {
 
     const state = await publishedState(fixture, applicants.byRole.accepted);
     expect(state.applicationStatus).toBe("accepted");
-    expect(state.membershipStatus).toBe("active");
+    // `csf_decide_term_application_policy_base` inserts the membership as
+    // 'accepted'. Nothing in the release path promotes it to 'active', and the
+    // member gate in `CsfMemberSubmissionsView` accepts either, so 'accepted'
+    // is the published state this journey actually produces.
+    expect(state.membershipStatus).toBe("accepted");
 
     await loginWithEmail(page, applicants.byRole.accepted.email);
     await page.goto(PROFILE, { waitUntil: "domcontentloaded" });
@@ -240,7 +377,9 @@ test.describe("after release", () => {
 
     const state = await publishedState(fixture, applicants.byRole.rejected);
     expect(state.applicationStatus).toBe("rejected");
-    expect(state.membershipStatus).not.toBe("active");
+    // A rejection moves a 'pending' or 'accepted' membership to 'revoked'.
+    // Naming the value keeps this from passing on any non-active status.
+    expect(state.membershipStatus).toBe("revoked");
 
     await loginWithEmail(page, applicants.byRole.rejected.email);
     await page.goto(PROFILE, { waitUntil: "domcontentloaded" });
@@ -275,9 +414,12 @@ test.describe("after release", () => {
 
     await loginWithEmail(page, applicants.byRole.accepted.email);
     await page.goto(HOME, { waitUntil: "domcontentloaded" });
-    expect(await page.content()).not.toContain(
-      applicants.byRole.unreviewed.lastName,
-    );
+    const html = await page.content();
+    for (const stranger of otherApplicantIdentities(
+      applicants.byRole.accepted,
+    )) {
+      expect(html).not.toContain(stranger);
+    }
 
     expectNoBrowserFailures(failures);
   });
@@ -293,7 +435,7 @@ test.describe("stale access after a later sync", () => {
     expect(
       (await publishedState(fixture, applicants.byRole.accepted))
         .membershipStatus,
-    ).toBe("active");
+    ).toBe("accepted");
 
     // The officer recoloured the row red. A released row is corrected straight
     // away, with no second release.
@@ -307,7 +449,7 @@ test.describe("stale access after a later sync", () => {
 
     const corrected = await publishedState(fixture, applicants.byRole.accepted);
     expect(corrected.applicationStatus).toBe("rejected");
-    expect(corrected.membershipStatus).not.toBe("active");
+    expect(corrected.membershipStatus).toBe("revoked");
 
     await loginWithEmail(page, applicants.byRole.accepted.email);
     await page.goto(PROFILE, { waitUntil: "domcontentloaded" });
@@ -332,10 +474,11 @@ test.describe("stale access after a later sync", () => {
       },
     ]);
 
+    // Withdrawing a published decision revokes the membership it granted.
     expect(
       (await publishedState(fixture, applicants.byRole.accepted))
         .membershipStatus,
-    ).not.toBe("active");
+    ).toBe("revoked");
 
     await loginWithEmail(page, applicants.byRole.accepted.email);
     await page.goto(PROFILE, { waitUntil: "domcontentloaded" });
