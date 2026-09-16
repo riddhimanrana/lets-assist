@@ -2764,25 +2764,32 @@ the transitive blocking chain and final state, then confirms that its sessions
 ended. Its synthetic audit and release receipts remain on the disposable stack
 until stack cleanup; the script does not bypass immutability to delete them.
 
-The focused applicant/activity run completed with nine passed, three failed
-and 23 not run after the failure limit. All four activity journeys passed.
-The failures exposed test assertions that did not select the historical tab,
-matched two legitimate approval badges, or expected a revoked membership for
-an applicant who had never been accepted. The officer run completed all 14
-journeys with 12 passed and two failed. The remaining assertions incorrectly
-expected Applications access for a treasurer and prohibited an officer from
-seeing a staged explanation. Repairs and the complete rerun remain open.
+The next focused browser run completed all 36 journeys: 35 passed and one
+failed. The remaining history assertion matches both a legitimate completion
+badge and a completion summary inside the selected historical semester.
+Privacy, release, immediate access revocation, officer permissions, source
+failure handling, mobile officer controls and the four activity journeys pass.
+The assertion is being narrowed, and phone applicant coverage is being added.
 
 The actual Applications route now renders the Sheets workspace and binds its
 actions. Officer browser checks pass staging, filters, release permissions,
 publication, held explanations, immediate revocation, source failure preservation
 and mobile release. Each control follows its own action permission.
 
-Review also found a member-facing defect: the active My CSF profile omitted
-published rejection labels and explanations. A terminal agent is repairing the
-projection and rendered status. An older-host compatibility check found absent
-Sheet formatting metadata; the plugin must refuse that read instead of inventing
-blank attendance or classifications. Both fixes require integrated acceptance.
+The active My CSF profile now displays published rejection labels and
+explanations, with regressions for pending redaction and unknown decision values.
+The private suite passes 427 files after the source-format compatibility guard;
+TypeScript, lint, formatting and the independent application gates pass.
+Missing explicit Sheet formatting metadata now refuses fill-based attendance
+imports. Uploaded workbook and written-letter export contracts are preserved.
+
+Further review found two decision explanation defects. The publication helper
+copies its generic audit sentence into the member-facing reason when a red row
+has no explanation. The sync also skips reason-only changes when the normalized
+outcome remains rejected, including yellow-to-red removal. A forward migration
+and public-RPC regressions are in progress. The profile also needs to distinguish
+a revoked current-term membership from a finalized historical non-completion.
+These remain open under CSF-READINESS-01.
 
 The runner signal cleanup repair passes its regression and actual manual-server
 SIGTERM teardown. Its child processes end and its port ownership claim is removed.
