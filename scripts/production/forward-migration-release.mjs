@@ -306,6 +306,10 @@ export const approvedMigrations = [
     "20260916050000_csf_unrecognised_attendance_mark_is_unknown",
     "620411bf69a6e13d40067c2e44ffd321cc77540d26b51ae78fe44698eec9b356",
   ],
+  [
+    "20260916060000_csf_officer_profile_activity_editing",
+    "c7dc1fd04aa5d436491a3293adb562c3e3adfc160ac40c46d1a23a60ef57be27",
+  ],
 ];
 
 const literal = (value) => `'${value.replaceAll("'", "''")}'`;

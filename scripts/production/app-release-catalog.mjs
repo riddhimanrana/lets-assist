@@ -139,6 +139,14 @@ export function acceptedCatalogQuery(source, versions) {
     .update(versions.join("\n"))
     .digest("hex");
   if (
+    versions.length === 542 &&
+    ledgerHash ===
+      "9981878bd9a1ab2598cc7f0d9dd1a1f3c848a6a67e0863ea23cf7d2d7e8d1fe3"
+  )
+    // The officer record editor adds two new owner-internal entrypoints
+    // and changes no reviewed definition, so the catalog is unchanged.
+    return acceptedCatalogQuery(source, versions.slice(0, 541));
+  if (
     versions.length === 541 &&
     ledgerHash ===
       "f60cfebd893b0fe0d32979592cdc8e55f7656a9d15a27387d0f49b50a7029d25"
