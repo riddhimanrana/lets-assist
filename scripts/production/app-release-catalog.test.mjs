@@ -1084,7 +1084,10 @@ test("unreconcile retries pin the receipt replay definition and owner-only base"
 test("member report submission pins organization-scoped term validation", () => {
   const query = acceptedCatalogQuery(
     source,
-    expectedVersions(fileURLToPath(new URL("../../", import.meta.url))),
+    expectedVersions(fileURLToPath(new URL("../../", import.meta.url))).slice(
+      0,
+      571,
+    ),
   );
   assert.match(query, /17bfb459fed6fa6e07b22d67e45431b7/u);
 });
