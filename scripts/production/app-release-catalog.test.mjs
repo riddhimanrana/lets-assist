@@ -20,15 +20,6 @@ test("the 540 officer identity authority release moves exactly three fingerprint
   );
   assert.equal(fullLedger.length, 554);
   assert.equal(fullLedger.at(-1), "20260917030100");
-  // The attendance mirror is owner-internal and carries no reviewed
-  // fingerprint, so 541 leaves the catalog where 540 left it.
-  assert.equal(
-    acceptedCatalogQuery(
-      source,
-      expectedVersions(fileURLToPath(new URL("../../", import.meta.url))),
-    ),
-    acceptedCatalogQuery(source, fullLedger.slice(0, 540)),
-  );
   const current = acceptedCatalogQuery(source, fullLedger.slice(0, 540));
   const preceding = acceptedCatalogQuery(source, fullLedger.slice(0, 539));
   // The migration replaces three reviewed definitions in place. Nothing else
@@ -928,4 +919,105 @@ test("513 publication preserves the reviewed 512 schema", () => {
     acceptedCatalogQuery(source, versions.slice(0, 513)),
     acceptedCatalogQuery(source, versions.slice(0, 512)),
   );
+});
+
+test("the readiness release moves exactly the fingerprints measured on a replayed database", () => {
+  const fullLedger = expectedVersions(
+    fileURLToPath(new URL("../../", import.meta.url)),
+  );
+  const baseline = acceptedCatalogQuery(source, fullLedger.slice(0, 540));
+  const current = acceptedCatalogQuery(source, fullLedger);
+
+  // An earlier version of this file asserted the 554 catalog was byte
+  // identical to the 540 one, on the strength of grepping the migrations for
+  // replaced functions. A replayed database disproved it: the catalog also
+  // fingerprints RELATIONS, which no function grep sees, and a function
+  // replaced twice in one release only shows its last body. These are the
+  // measured values, one per drift the replay reported.
+  const measured = [
+    // check 14, relations
+    ["d1dc57a4ba8b99f76f7f004ce6ba5bbf", "f4cccde4b50d4e96dac5937200b95ea1"],
+    ["7d5a926c181e90f73751bbc49ace1109", "e7258ed743fa52f1470ca1b7c5e71d55"],
+    // check 34, merge ownership
+    ["2f521e9b85f90793c1c0c7197ce3f241", "48a500ad4960c56dffca1cf1a823d3ad"],
+    ["0124ee53995263c7a2e839d20d5e8efe", "fedd02270e8f15a687659a01742a860d"],
+    // check 35, the officer connection's second move in this release
+    ["3f0ee9027a1a89b94e395cd320ae2abb", "56dcc95953b9fae01a5aa41c29383750"],
+    // check 38, sheet acceptance definitions and bodies
+    ["55c423adec03f617d38e2f6ad2d6b243", "97d5d255ac21dafa1e5856005a3e52e6"],
+    ["4c8c8dd465f70c036e79e68ff506a738", "068d23af9577932b35421cab0218bcf8"],
+    ["6f3a4de65784cd0aee352da1dc47fd5e", "abcd599c61c6ffe7b7ef6aa97520f869"],
+    ["f6d62983671d65cb184738ae5837782c", "20a36622839502449852fa30b41ab8b9"],
+    // check 39, the write-back ledger relation
+    ["071bf14bd83e3a8fc8c9fa467bce2035", "49593d70560fb48930e243133820990b"],
+  ];
+
+  for (const [before, after] of measured) {
+    assert.equal(
+      baseline.split(before).length,
+      2,
+      `${before} must be uniquely present before the release`,
+    );
+    assert.ok(
+      !baseline.includes(after),
+      `${after} must not predate its migration`,
+    );
+    assert.ok(
+      !current.includes(before),
+      `${before} must not survive the release`,
+    );
+    assert.equal(
+      current.split(after).length,
+      2,
+      `${after} must be uniquely present after the release`,
+    );
+  }
+
+  // Each swap is a digest for a digest, so nothing else can have moved.
+  assert.equal(current.length, baseline.length);
+  assert.notEqual(current, baseline);
+});
+
+test("each measured fingerprint is applied at the migration that produces it", () => {
+  const fullLedger = expectedVersions(
+    fileURLToPath(new URL("../../", import.meta.url)),
+  );
+  const at = (n) => acceptedCatalogQuery(source, fullLedger.slice(0, n));
+
+  // The delegation chain must not claim a fingerprint before the migration
+  // that changes the object, or a partially applied ledger verifies against a
+  // schema it does not have.
+  for (const [length, digest, why] of [
+    [
+      543,
+      "f4cccde4b50d4e96dac5937200b95ea1",
+      "20260916060000 indexes csf_admin_audit_events",
+    ],
+    [
+      544,
+      "97d5d255ac21dafa1e5856005a3e52e6",
+      "20260916070000 rewrites sheet acceptance",
+    ],
+    [
+      546,
+      "56dcc95953b9fae01a5aa41c29383750",
+      "20260916090000 rewires the officer connection",
+    ],
+    [
+      547,
+      "e7258ed743fa52f1470ca1b7c5e71d55",
+      "20260917010000 stages decisions on csf_terms",
+    ],
+    [
+      551,
+      "fedd02270e8f15a687659a01742a860d",
+      "20260917020000 re-layers the five-argument merge",
+    ],
+  ]) {
+    assert.ok(
+      !at(length - 1).includes(digest),
+      `${why}: too early at ${length - 1}`,
+    );
+    assert.ok(at(length).includes(digest), `${why}: missing at ${length}`);
+  }
 });

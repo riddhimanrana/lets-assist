@@ -35,6 +35,13 @@ import { createHash } from "node:crypto";
 import { ReleaseCheckError } from "./app-release-checks.mjs";
 import { officerIdentityAuthorityCatalog } from "./officer-identity-authority-catalog.mjs";
 import {
+  classBlockAcceptanceCatalog,
+  decisionMergeOwnershipCatalog,
+  decisionStagingRelationCatalog,
+  decisionSupersedeCatalog,
+  officerActivityRelationCatalog,
+} from "./readiness-catalog-drift.mjs";
+import {
   mergedSourceLineagePosture,
   reviewedWorkbookLinksPosture,
 } from "./workbook-profile-link-catalog.mjs";
@@ -170,9 +177,10 @@ export function acceptedCatalogQuery(source, versions) {
     ledgerHash ===
       "c407d682c92005ee9706436350e8f5e09ccdbb6adc22a1bbf35fe0b9504f2cf1"
   )
-    // decision stage merge ownership: new relations, guards and entrypoints of their own.
-    // No reviewed definition moves, so the catalog passes through.
-    return acceptedCatalogQuery(source, versions.slice(0, 550));
+    // 20260917020000 re-layers the five-argument merge and its plan.
+    return decisionMergeOwnershipCatalog(
+      acceptedCatalogQuery(source, versions.slice(0, 550)),
+    );
   if (
     versions.length === 550 &&
     ledgerHash ===
@@ -202,17 +210,20 @@ export function acceptedCatalogQuery(source, versions) {
     ledgerHash ===
       "97eac1a6fda372015990d3207e8b739700e4cde5f91fb4b252f8bb910b38bf28"
   )
-    // term decision staging: new relations, guards and entrypoints of their own.
-    // No reviewed definition moves, so the catalog passes through.
-    return acceptedCatalogQuery(source, versions.slice(0, 546));
+    // 20260917010000 moves csf_terms and csf_sheet_writeback_ledger.
+    return decisionStagingRelationCatalog(
+      acceptedCatalogQuery(source, versions.slice(0, 546)),
+    );
   if (
     versions.length === 546 &&
     ledgerHash ===
       "6460ad835f21b27ce24e28cdb5cc93654503ca3462fc961c74cfa0390412673b"
   )
-    // officer decision replay and supersede: new relations, guards and entrypoints of their own.
-    // No reviewed definition moves, so the catalog passes through.
-    return acceptedCatalogQuery(source, versions.slice(0, 545));
+    // 20260916090000 rewires the officer connection onto the shared
+    // supersede, moving that body a second time in this release.
+    return decisionSupersedeCatalog(
+      acceptedCatalogQuery(source, versions.slice(0, 545)),
+    );
   if (
     versions.length === 545 &&
     ledgerHash ===
@@ -226,19 +237,20 @@ export function acceptedCatalogQuery(source, versions) {
     ledgerHash ===
       "1b2639267c001a61f9c13d964323e2abb3383ce77785fda854418fe58d406575"
   )
-    // class block acceptance headers: new relations, guards and entrypoints of their own.
-    // No reviewed definition moves, so the catalog passes through.
-    return acceptedCatalogQuery(source, versions.slice(0, 543));
+    // 20260916070000 moves both sheet acceptance definitions and bodies.
+    return classBlockAcceptanceCatalog(
+      acceptedCatalogQuery(source, versions.slice(0, 543)),
+    );
   if (
     versions.length === 543 &&
     ledgerHash ===
       "53eb05c8b70ec491e20007b6815cde84e6bce056a668bea94fe6e9b3ecf4a64a"
   )
-    // The officer record editor adds two service-role entrypoints of its
-    // own. They are not part of the import-recovery inventory the accepted
-    // catalog tracks and they change no reviewed definition, so the catalog
-    // passes through unchanged.
-    return acceptedCatalogQuery(source, versions.slice(0, 542));
+    // 20260916060000 indexes csf_admin_audit_events, moving its relation
+    // digest. Measured, not inferred.
+    return officerActivityRelationCatalog(
+      acceptedCatalogQuery(source, versions.slice(0, 542)),
+    );
   if (
     versions.length === 542 &&
     ledgerHash ===
