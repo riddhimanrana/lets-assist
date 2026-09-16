@@ -63,7 +63,8 @@ const DELIVERY_CLAIMS = /\b(delivered|arrived|received by|inbox)\b/iu;
  * No credential is passed or printed: psql connects as postgres inside the
  * isolated container.
  */
-const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu;
+const UUID =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu;
 
 function assertUuid(value: string, what: string) {
   if (!UUID.test(value)) throw new Error(`Refusing a non-identifier ${what}.`);
@@ -159,7 +160,11 @@ async function deleteMailpitMessages(ids: string[]) {
 function runNoticeWorker() {
   const output = execFileSync(
     "bun",
-    ["--conditions=react-server", "run", "scripts/test-csf-publication-notice-worker.ts"],
+    [
+      "--conditions=react-server",
+      "run",
+      "scripts/test-csf-publication-notice-worker.ts",
+    ],
     { cwd: process.cwd(), env: process.env, encoding: "utf8" },
   );
   const line = output
@@ -198,14 +203,19 @@ async function memberProfile(fixture: CsfFeedFixture) {
     .eq("organization_id", fixture.organizationId)
     .eq("status", "verified")
     .limit(200);
-  if (error) throw new Error(`Could not read fixture accounts: ${error.message}`);
+  if (error)
+    throw new Error(`Could not read fixture accounts: ${error.message}`);
 
   const { data: users, error: usersError } = await fixture.admin
     .schema("public")
     .from("profiles")
     .select("id, email")
-    .in("id", (account ?? []).map((row) => String(row.user_id)));
-  if (usersError) throw new Error(`Could not read fixture users: ${usersError.message}`);
+    .in(
+      "id",
+      (account ?? []).map((row) => String(row.user_id)),
+    );
+  if (usersError)
+    throw new Error(`Could not read fixture users: ${usersError.message}`);
 
   const member = (users ?? []).find(
     (row) => String(row.email).toLowerCase() === MEMBER.email,
@@ -276,10 +286,17 @@ async function seedSubmission(
       `Could not seed the fictional submission: ${submissionError?.message ?? "no row"}`,
     );
   }
-  return { activityId: String(activity.id), submissionId: String(submission.id) };
+  return {
+    activityId: String(activity.id),
+    submissionId: String(submission.id),
+  };
 }
 
-function noticeEventsFor(sql: OwnerSql, organizationId: string, sourceId: string) {
+function noticeEventsFor(
+  sql: OwnerSql,
+  organizationId: string,
+  sourceId: string,
+) {
   return sql.rows<{ id: string; source_kind: string; event_key: string }>(
     `SELECT id::text, source_kind, event_key
      FROM plugin_data.csf_publication_events
@@ -288,7 +305,11 @@ function noticeEventsFor(sql: OwnerSql, organizationId: string, sourceId: string
   );
 }
 
-function deliveriesFor(sql: OwnerSql, organizationId: string, eventIds: string[]) {
+function deliveriesFor(
+  sql: OwnerSql,
+  organizationId: string,
+  eventIds: string[],
+) {
   if (eventIds.length === 0) return [];
   return sql.rows<{ id: string; user_id: string; status: string }>(
     `SELECT id::text, user_id::text, status
@@ -298,13 +319,20 @@ function deliveriesFor(sql: OwnerSql, organizationId: string, eventIds: string[]
   );
 }
 
-async function notificationsFor(fixture: CsfFeedFixture, userId: string, eventIds: string[]) {
+async function notificationsFor(
+  fixture: CsfFeedFixture,
+  userId: string,
+  eventIds: string[],
+) {
   const { data, error } = await fixture.admin
     .schema("public")
     .from("notifications")
     .select("id, title, body, action_url, dedupe_key, type")
     .eq("user_id", userId)
-    .in("dedupe_key", eventIds.map((id) => `csf-publication:${id}`));
+    .in(
+      "dedupe_key",
+      eventIds.map((id) => `csf-publication:${id}`),
+    );
   if (error) throw new Error(`Could not read notifications: ${error.message}`);
   return data ?? [];
 }
@@ -317,7 +345,8 @@ async function noticeCampaigns(fixture: CsfFeedFixture, eventIds: string[]) {
     .select("id, status, campaign_kind, source_publication_event_id")
     .eq("organization_id", fixture.organizationId)
     .in("source_publication_event_id", eventIds);
-  if (error) throw new Error(`Could not read notice campaigns: ${error.message}`);
+  if (error)
+    throw new Error(`Could not read notice campaigns: ${error.message}`);
   return data ?? [];
 }
 
@@ -382,7 +411,11 @@ test.describe("personal notice lifecycle", () => {
       // One event, for this submission, and exactly one delivery: the member.
       // The queue is read through the database owner, not the service role: the
       // publication tables revoke everything from it, which is the point.
-      const events = noticeEventsFor(sql, fixture.organizationId, seeded.submissionId);
+      const events = noticeEventsFor(
+        sql,
+        fixture.organizationId,
+        seeded.submissionId,
+      );
       expect(events).toHaveLength(1);
       expect(events[0].source_kind).toBe("point_submission");
       expect(String(events[0].event_key)).toContain("approved");
@@ -427,7 +460,9 @@ test.describe("personal notice lifecycle", () => {
         .select("status")
         .eq("organization_id", fixture.organizationId)
         .in("campaign_id", campaignIds);
-      expect((beforeSend ?? []).every((row) => row.status === "queued")).toBe(true);
+      expect((beforeSend ?? []).every((row) => row.status === "queued")).toBe(
+        true,
+      );
       expect(await mailpitMessagesFor(String(notice.title))).toHaveLength(0);
 
       // Now the mail worker, and the loopback mailbox.
@@ -445,9 +480,7 @@ test.describe("personal notice lifecycle", () => {
             .in("campaign_id", campaignIds);
           return data ?? [];
         })
-        .toEqual([
-          { status: "sent", provider_message_id: expect.any(String) },
-        ]);
+        .toEqual([{ status: "sent", provider_message_id: expect.any(String) }]);
 
       const mailbox = await mailpitMessagesFor(String(notice.title));
       expect(mailbox).toHaveLength(1);
@@ -459,7 +492,9 @@ test.describe("personal notice lifecycle", () => {
       // and the campaign is keyed to the notice, so a replay converges.
       runNoticeWorker();
       runMailWorker(fixture.organizationId);
-      expect(await notificationsFor(fixture, member.userId, eventIds)).toHaveLength(1);
+      expect(
+        await notificationsFor(fixture, member.userId, eventIds),
+      ).toHaveLength(1);
       expect(await noticeCampaigns(fixture, eventIds)).toHaveLength(1);
       expect(await mailpitMessagesFor(String(notice.title))).toHaveLength(1);
 
@@ -531,7 +566,11 @@ test.describe("personal notice lifecycle", () => {
       await approveSubmissionInUi(page, title);
 
       await expect
-        .poll(() => noticeEventsFor(sql, fixture.organizationId, seeded.submissionId).length)
+        .poll(
+          () =>
+            noticeEventsFor(sql, fixture.organizationId, seeded.submissionId)
+              .length,
+        )
         .toBe(1);
       const eventIds = noticeEventsFor(
         sql,
@@ -546,7 +585,9 @@ test.describe("personal notice lifecycle", () => {
       expect(report.skipped).toBeGreaterThanOrEqual(1);
       expect(report.emailQueued).toBe(0);
 
-      expect(await notificationsFor(fixture, member.userId, eventIds)).toEqual([]);
+      expect(await notificationsFor(fixture, member.userId, eventIds)).toEqual(
+        [],
+      );
       expect(await noticeCampaigns(fixture, eventIds)).toEqual([]);
 
       const settled = deliveriesFor(sql, fixture.organizationId, eventIds);
@@ -589,7 +630,9 @@ async function cleanUp(
     try {
       await run();
     } catch (error) {
-      problems.push(`${what}: ${error instanceof Error ? error.message : error}`);
+      problems.push(
+        `${what}: ${error instanceof Error ? error.message : error}`,
+      );
     }
   };
 
@@ -610,7 +653,11 @@ async function cleanUp(
     });
   }
   await attempt("notifications", async () => {
-    const events = noticeEventsFor(sql, fixture.organizationId, seeded.submissionId);
+    const events = noticeEventsFor(
+      sql,
+      fixture.organizationId,
+      seeded.submissionId,
+    );
     if (events.length === 0) return;
     const keys = events
       .map((event) => `'csf-publication:${assertUuid(event.id, "event")}'`)
@@ -650,6 +697,8 @@ async function cleanUp(
   });
 
   if (problems.length > 0) {
-    console.warn(`Personal notice spec cleanup left rows behind: ${problems.join("; ")}`);
+    console.warn(
+      `Personal notice spec cleanup left rows behind: ${problems.join("; ")}`,
+    );
   }
 }

@@ -37,9 +37,8 @@ process.env.SUPABASE_SECRET_KEY = local.serviceRoleKey;
 // app this stack is running, never to a hosted environment.
 process.env.NEXT_PUBLIC_SITE_URL = `http://127.0.0.1:${isolated.basePort}`;
 
-const { runCsfPublicationNotificationWorker } = await import(
-  "../lib/plugins/private/plugins/dvhs-csf/services/publication-notifications"
-);
+const { runCsfPublicationNotificationWorker } =
+  await import("../lib/plugins/private/plugins/dvhs-csf/services/publication-notifications");
 
 const plugin = createClient(local.url, local.serviceRoleKey, {
   auth: { autoRefreshToken: false, persistSession: false },
