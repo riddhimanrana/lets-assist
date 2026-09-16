@@ -2,7 +2,7 @@ BEGIN;
 
 CREATE EXTENSION IF NOT EXISTS pgtap WITH SCHEMA extensions;
 
-SELECT extensions.plan(25);
+SELECT extensions.plan(26);
 
 -- Reach. Reversal is an identity mutation, so it lives behind the same wall as
 -- reconciliation: the server role only, and the unguarded base not even that.
@@ -354,9 +354,9 @@ SELECT extensions.is(
     'e1000000-0000-4000-8000-000000000001',
     'Replaying the same reversal.',
     'e1f00000-0000-4000-8000-000000000001'
-  )->>'reason'),
-  'not_resolved',
-  'replaying a reversal is a no-op rather than an error'
+  )->>'reverted'),
+  'true',
+  'replaying a reversal returns the successful receipt'
 );
 
 SELECT extensions.is(
@@ -377,6 +377,16 @@ SELECT extensions.is(
   )->>'reverted'),
   'false',
   'a row that was never reconciled reverses to nothing'
+);
+
+SELECT extensions.is(
+  plugin_data.csf_unreconcile_sheet_import_row(
+    'e1100000-0000-4000-8000-000000000001',
+    'e1700000-0000-4000-8000-000000000001',
+    'e1000000-0000-4000-8000-000000000001',
+    'A different batch must not claim this reversal.',
+    'e1f00000-0000-4000-8000-000000000002'
+  )->>'reverted', 'false', 'another batch cannot replay this receipt'
 );
 
 -- The point of the undo: the row is genuinely back in play, not merely blanked.
