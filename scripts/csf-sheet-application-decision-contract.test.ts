@@ -30,7 +30,29 @@ const release = readFileSync(
   "utf8",
 );
 
-const all = [staging, publish, sync, release].join("\n");
+const mergeOwnership = readFileSync(
+  new URL(
+    "../supabase/migrations/20260917020000_csf_decision_stage_merge_ownership.sql",
+    import.meta.url,
+  ),
+  "utf8",
+);
+const mappingFields = readFileSync(
+  new URL(
+    "../supabase/migrations/20260917020100_csf_application_decision_mapping_fields.sql",
+    import.meta.url,
+  ),
+  "utf8",
+);
+
+const all = [
+  staging,
+  publish,
+  sync,
+  release,
+  mergeOwnership,
+  mappingFields,
+].join("\n");
 
 /** Executable SQL only. Prose about a review campaign is not a mail send. */
 function withoutComments(sql: string): string {
@@ -60,8 +82,11 @@ const FUNCTIONS: Array<{ name: string; args: string; callable: boolean }> = [
   { name: "csf_assert_sheet_decision_authority", args: "uuid, uuid, text, text", callable: false },
   { name: "csf_sheet_decision_term_lock_key", args: "uuid, uuid", callable: false },
   { name: "csf_set_term_application_review_source", args: "uuid, uuid, uuid, text, uuid", callable: true },
-  { name: "csf_set_application_decision_mapping", args: "uuid, uuid, uuid, integer[], integer[], boolean", callable: true },
+  // The six-argument first cut is dropped by 20260917020100; the mapping is
+  // saved as one document with a version to check against.
+  { name: "csf_set_application_decision_mapping", args: "uuid, uuid, uuid, jsonb, integer", callable: true },
   { name: "csf_list_application_decision_mappings", args: "uuid, uuid", callable: true },
+  { name: "csf_guard_decision_stage_profile_matches_application", args: "", callable: false },
   { name: "csf_publish_sheet_application_decision", args: "uuid, uuid, text, text, uuid, jsonb", callable: false },
   { name: "csf_stage_sheet_application_decisions", args: "uuid, uuid, uuid, uuid, jsonb, jsonb", callable: true },
   { name: "csf_sheet_application_decision_run_receipt", args: "uuid, uuid", callable: false },
@@ -155,6 +180,9 @@ describe("function ACLs", () => {
       // Replaced, not created here; their ACLs are asserted separately.
       "csf_decide_term_application",
       "csf_record_review_decision",
+      // Wrapped by 20260917020000 so a staged decision follows the merge.
+      "csf_profile_merge_reference_plan",
+      "csf_merge_profiles",
     ]);
     for (const name of created) {
       expect(reviewed.has(name)).toBe(true);
@@ -270,11 +298,31 @@ describe("provenance is verified, not claimed", () => {
   });
 
   test("the decision mapping is versioned behind a permission recheck", () => {
-    expect(publish).toContain("csf_set_application_decision_mapping");
-    expect(publish).toContain("'manage_sheet_sync'");
-    expect(publish).toContain(
-      "mapping_version = mapping.mapping_version + CASE WHEN v_changed THEN 1 ELSE 0 END",
+    expect(mappingFields).toContain("csf_set_application_decision_mapping");
+    expect(mappingFields).toContain("'manage_sheet_sync'");
+    expect(mappingFields).toContain(
+      "+ CASE WHEN v_changed THEN 1 ELSE 0 END",
     );
+  });
+
+  test("a concurrent mapping save is refused under the row lock", () => {
+    // The stored row is read FOR UPDATE before the version is compared, so the
+    // loser of a race is rejected rather than merged over.
+    const body = mappingFields.slice(
+      mappingFields.indexOf("SELECT * INTO v_existing"),
+    );
+    expect(body.indexOf("FOR UPDATE")).toBeLessThan(
+      body.indexOf("p_expected_version <> v_existing.mapping_version"),
+    );
+    expect(mappingFields).toContain("CSF_DECISION_MAPPING_VERSION=");
+  });
+
+  test("the mapping carries identity, scope, and colour configuration", () => {
+    for (const column of ["identity_columns", "scope", "colors"]) {
+      expect(mappingFields).toContain(`ADD COLUMN ${column} jsonb`);
+    }
+    // Banding is configuration, not a guess in the reader.
+    expect(mappingFields).toContain("ignoredFills");
   });
 
   test("a reused request id is bound to its term and payload", () => {
@@ -327,6 +375,29 @@ describe("publication semantics", () => {
     expect(release).toContain("'held'");
     expect(release).toContain("'pending'");
     expect(release).toContain("held_count");
+  });
+
+  test("the new profile reference has a merge policy, not just a column", () => {
+    expect(mergeOwnership).toContain(
+      "'plugin_data.csf_application_decision_stages.profile_id'",
+    );
+    expect(mergeOwnership).toContain("sameTransactionRewrites");
+    // The merge fails closed if any stage ends up on the wrong student.
+    expect(mergeOwnership).toContain(
+      "stage.profile_id IS DISTINCT FROM application.profile_id",
+    );
+    expect(mergeOwnership).toContain(
+      "profile_merge.decision_stages_reassigned",
+    );
+    // Both renamed bases stay owner-only.
+    for (const base of [
+      "csf_profile_merge_reference_plan_decision_stages_base(uuid, uuid)",
+      "csf_merge_profiles_decision_stages_base(uuid, uuid, uuid, text, uuid)",
+    ]) {
+      expect(mergeOwnership).toContain(
+        `REVOKE ALL ON FUNCTION plugin_data.${base}\n  FROM PUBLIC, anon, authenticated, service_role, postgres;`,
+      );
+    }
   });
 
   test("nothing in this change sends or enqueues a message", () => {
