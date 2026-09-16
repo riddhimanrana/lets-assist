@@ -99,6 +99,12 @@ export type CsfSheetSourceSnapshot = {
   /** Null when the requested range holds no populated cell at all. */
   populatedRange: CsfSheetBounds | null;
   rows: CsfSheetRowEvidence[];
+  /**
+   * True when this read asked the provider for user-entered fills. A consumer
+   * that must tell an officer's mark from a rendered one refuses to classify a
+   * snapshot without it rather than reading every row as unmarked.
+   */
+  userEnteredFillsRead: boolean;
   contentHash: string;
   hasBasicFilter: boolean;
   threadedCommentsByRow: Record<
@@ -733,6 +739,7 @@ export async function getCsfSheetSourceSnapshot(
     requestedRange,
     populatedRange,
     rows,
+    userEnteredFillsRead: true,
     contentHash,
     hasBasicFilter: Boolean(selectedSheet.basicFilter),
     threadedCommentsByRow,
