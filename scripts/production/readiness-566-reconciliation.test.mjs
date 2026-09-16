@@ -178,8 +178,11 @@ test("the allowlist refuses a write it did not review", () => {
 test("a write cannot hide inside a dollar-quoted block", () => {
   const hidden =
     "DO $guard$ BEGIN INSERT INTO plugin_data.csf_profiles VALUES (1); END $guard$;";
-  assert.deepEqual(topLevelDataWrites(hidden), []);
-  // ... but the same statement at the top level is still caught.
+  assert.deepEqual(
+    prohibitedDataWrites(hidden).map((write) => write.table),
+    ["plugin_data.csf_profiles"],
+  );
+  // The same statement at the top level is also caught.
   assert.equal(
     topLevelDataWrites("INSERT INTO plugin_data.csf_profiles VALUES (1);")
       .length,
