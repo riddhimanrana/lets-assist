@@ -9,7 +9,7 @@ BEGIN;
 
 CREATE EXTENSION IF NOT EXISTS pgtap WITH SCHEMA extensions;
 
-SELECT extensions.plan(47);
+SELECT extensions.plan(48);
 
 -- ---------------------------------------------------------------------------
 -- A. Execution grants
@@ -499,7 +499,24 @@ SELECT extensions.throws_ok(
 
 -- ---------------------------------------------------------------------------
 -- D. The correction itself
+--
+-- The revision is captured before the correction rather than recomputed inside
+-- each statement, because the request fingerprint covers it. A replay that
+-- recomputes the revision after the rows have moved is a different intent, and
+-- the editor is right to refuse it; proving idempotency needs the caller to
+-- present the same evidence it presented the first time.
 -- ---------------------------------------------------------------------------
+
+CREATE TEMP TABLE csf_course_edit_revisions (
+  label text PRIMARY KEY,
+  revision text NOT NULL
+);
+
+INSERT INTO csf_course_edit_revisions (label, revision)
+SELECT 'before_first_correction', plugin_data.csf_application_course_revision(
+  'eb100000-0000-4000-8000-000000000001',
+  'eb500000-0000-4000-8000-000000000001'
+);
 
 SELECT extensions.lives_ok(
   $$
@@ -509,10 +526,8 @@ SELECT extensions.lives_ok(
       '[{"op":"update","courseEntryId":"eb700000-0000-4000-8000-000000000001","values":{"courseName":"Synthetic Seminar Honors","grade":"B"}},
         {"op":"remove","courseEntryId":"eb700000-0000-4000-8000-000000000002"},
         {"op":"add","values":{"courseList":"III","courseName":"Civic Lab","grade":"P","points":"1","isBonus":true}}]'::jsonb,
-      plugin_data.csf_application_course_revision(
-        'eb100000-0000-4000-8000-000000000001',
-        'eb500000-0000-4000-8000-000000000001'
-      ),
+      (SELECT revision FROM csf_course_edit_revisions
+        WHERE label = 'before_first_correction'),
       'The transcript names the honors section and drops the elective.',
       'eb000000-0000-4000-8000-000000000001',
       'eb600000-0000-4000-8000-000000000010'
@@ -655,7 +670,8 @@ SELECT extensions.ok(
       '[{"op":"update","courseEntryId":"eb700000-0000-4000-8000-000000000001","values":{"courseName":"Synthetic Seminar Honors","grade":"B"}},
         {"op":"remove","courseEntryId":"eb700000-0000-4000-8000-000000000002"},
         {"op":"add","values":{"courseList":"III","courseName":"Civic Lab","grade":"P","points":"1","isBonus":true}}]'::jsonb,
-      'the-same-revision-is-not-re-read-on-a-replay',
+      (SELECT revision FROM csf_course_edit_revisions
+        WHERE label = 'before_first_correction'),
       'The transcript names the honors section and drops the elective.',
       'eb000000-0000-4000-8000-000000000001',
       'eb600000-0000-4000-8000-000000000010'
@@ -669,6 +685,31 @@ SELECT extensions.is(
    WHERE correlation_id = 'eb600000-0000-4000-8000-000000000010'),
   3,
   'the replay wrote no second set of receipts'
+);
+
+-- The evidence is part of the intent. Same actor, same target, same operations,
+-- same reason, same request id: only the revision differs, and that is enough
+-- to make it a different change rather than a retry of the committed one.
+SELECT extensions.throws_ok(
+  $$
+    SELECT plugin_data.csf_edit_application_courses(
+      'eb100000-0000-4000-8000-000000000001',
+      'eb500000-0000-4000-8000-000000000001',
+      '[{"op":"update","courseEntryId":"eb700000-0000-4000-8000-000000000001","values":{"courseName":"Synthetic Seminar Honors","grade":"B"}},
+        {"op":"remove","courseEntryId":"eb700000-0000-4000-8000-000000000002"},
+        {"op":"add","values":{"courseList":"III","courseName":"Civic Lab","grade":"P","points":"1","isBonus":true}}]'::jsonb,
+      plugin_data.csf_application_course_revision(
+        'eb100000-0000-4000-8000-000000000001',
+        'eb500000-0000-4000-8000-000000000001'
+      ),
+      'The transcript names the honors section and drops the elective.',
+      'eb000000-0000-4000-8000-000000000001',
+      'eb600000-0000-4000-8000-000000000010'
+    )
+  $$,
+  NULL,
+  'That course correction request identifier is already bound to a different change.',
+  'the same request replayed against different course evidence is refused'
 );
 
 SELECT extensions.throws_ok(
