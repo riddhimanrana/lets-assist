@@ -138,21 +138,88 @@ export function acceptedCatalogQuery(source, versions) {
   const ledgerHash = createHash("sha256")
     .update(versions.join("\n"))
     .digest("hex");
+  // Two reachable appends for the class-block acceptance migration, because
+  // the officer identity work may land before or after it. Either way this is
+  // the previous ledger plus one tail entry.
+  if (
+    versions.length === 553 &&
+    ledgerHash ===
+      "a407752136d1ae818048862d6b9630914036c17009df93fe90aa9c2b77781cd0"
+  )
+    // finalized outcome guard: new relations, guards and entrypoints of their own.
+    // No reviewed definition moves, so the catalog passes through.
+    return acceptedCatalogQuery(source, versions.slice(0, 552));
+  if (
+    versions.length === 552 &&
+    ledgerHash ===
+      "3f991eb00f76eaa872018e2e5c1dbff8822e8f60c8ded255facf559db4cfc95f"
+  )
+    // application decision mapping fields: new relations, guards and entrypoints of their own.
+    // No reviewed definition moves, so the catalog passes through.
+    return acceptedCatalogQuery(source, versions.slice(0, 551));
+  if (
+    versions.length === 551 &&
+    ledgerHash ===
+      "c407d682c92005ee9706436350e8f5e09ccdbb6adc22a1bbf35fe0b9504f2cf1"
+  )
+    // decision stage merge ownership: new relations, guards and entrypoints of their own.
+    // No reviewed definition moves, so the catalog passes through.
+    return acceptedCatalogQuery(source, versions.slice(0, 550));
+  if (
+    versions.length === 550 &&
+    ledgerHash ===
+      "a8db68bd95b10cbeb4631db003f783a90398d224bade8cdc91ecb3d45995a4ad"
+  )
+    // sheet application decision release: new relations, guards and entrypoints of their own.
+    // No reviewed definition moves, so the catalog passes through.
+    return acceptedCatalogQuery(source, versions.slice(0, 549));
+  if (
+    versions.length === 549 &&
+    ledgerHash ===
+      "00b48e8de6ecd58568200dad0415b4eb9a259ba3592ef6fd6fc0a440d09660e3"
+  )
+    // sheet application decision sync: new relations, guards and entrypoints of their own.
+    // No reviewed definition moves, so the catalog passes through.
+    return acceptedCatalogQuery(source, versions.slice(0, 548));
+  if (
+    versions.length === 548 &&
+    ledgerHash ===
+      "26a71fa57c752ea0255592d1d23fcef46412570c59d3822a41225a4121005fa3"
+  )
+    // sheet application decision RPCs: new relations, guards and entrypoints of their own.
+    // No reviewed definition moves, so the catalog passes through.
+    return acceptedCatalogQuery(source, versions.slice(0, 547));
+  if (
+    versions.length === 547 &&
+    ledgerHash ===
+      "97eac1a6fda372015990d3207e8b739700e4cde5f91fb4b252f8bb910b38bf28"
+  )
+    // term decision staging: new relations, guards and entrypoints of their own.
+    // No reviewed definition moves, so the catalog passes through.
+    return acceptedCatalogQuery(source, versions.slice(0, 546));
+  if (
+    versions.length === 546 &&
+    ledgerHash ===
+      "6460ad835f21b27ce24e28cdb5cc93654503ca3462fc961c74cfa0390412673b"
+  )
+    // officer decision replay and supersede: new relations, guards and entrypoints of their own.
+    // No reviewed definition moves, so the catalog passes through.
+    return acceptedCatalogQuery(source, versions.slice(0, 545));
   if (
     versions.length === 545 &&
     ledgerHash ===
-      "d3d92d95d7dfff7b1c76451fdf675989f9dbad8f4d838dd9c19e01aab6402d99"
+      "9758bd44e5d741e993fd92498df6bca69e511b2e762b1766894b78ee2de5d4d6"
   )
-    // The decision replay and supersede follow-ups replace four functions
-    // of this stack's own and touch no reviewed definition.
+    // officer edit review fixes: new relations, guards and entrypoints of their own.
+    // No reviewed definition moves, so the catalog passes through.
     return acceptedCatalogQuery(source, versions.slice(0, 544));
   if (
     versions.length === 544 &&
     ledgerHash ===
-      "09bec47840b48bdcc9bb927073b6c1efe8652c4d096413d01f55e7e29db7b78f"
+      "1b2639267c001a61f9c13d964323e2abb3383ce77785fda854418fe58d406575"
   )
-    // The review fixes replace four owner-internal and service-role
-    // functions of this stack's own and touch no reviewed definition.
+    // class block acceptance headers: new relations, guards and entrypoints of their own.
+    // No reviewed definition moves, so the catalog passes through.
     return acceptedCatalogQuery(source, versions.slice(0, 543));
   if (
     versions.length === 543 &&
