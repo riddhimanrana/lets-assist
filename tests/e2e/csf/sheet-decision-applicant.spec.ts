@@ -100,6 +100,19 @@ function otherApplicantIdentities(viewer: SheetApplicant) {
 }
 
 /**
+ * The audit sentence the decision RPCs write when a rejected row carries no
+ * explanation of its own. It is provenance, not the officer's words, so no
+ * member surface may ever print it. Migration 557 normalizes a published
+ * `decision_reason` to the workbook's own reason or NULL, and these journeys
+ * are what holds that: if the generic note is stored again, the member page
+ * shows it and the assertions below fail.
+ */
+const AUDIT_NOTE = "Rejected in the chapter application review Sheet.";
+
+/** The heading `ApplicationDecisionReason` renders above a published reason. */
+const REASON_HEADING = "Why this application was not approved";
+
+/**
  * The two regions that state a member's semester status, both from
  * `memberSemesterStatus`, so every status label renders twice on this page.
  * Positive assertions name the region they mean; negative ones stay page-wide.
@@ -129,6 +142,26 @@ async function semesterLabel(termId: string) {
   const label = (row.label ?? row.code ?? "").trim();
   if (!label) throw new Error(`Term ${termId} has neither a label nor a code.`);
   return label;
+}
+
+/**
+ * The stored explanation on an applicant's own application row.
+ *
+ * `csfPublishedRejectionReason` shows whatever this column holds on a released
+ * rejection, so the journeys below assert the column and the rendered page
+ * together: the member surface can only be as private as the value behind it.
+ */
+async function publishedDecisionReason(applicant: SheetApplicant) {
+  const application = await fixture.admin
+    .schema("plugin_data")
+    .from("csf_term_applications")
+    .select("decision_reason")
+    .eq("organization_id", fixture.organizationId)
+    .eq("id", applicant.applicationId)
+    .single();
+  if (application.error) throw new Error(application.error.message);
+  return (application.data as { decision_reason: string | null })
+    .decision_reason;
 }
 
 /**
@@ -545,6 +578,17 @@ test.describe("stale access after a later sync", () => {
     await page.goto(PROFILE, { waitUntil: "domcontentloaded" });
     // The page must stop calling them approved the moment the ledger does.
     await expect(page.getByText("Approved by CSF officers")).toHaveCount(0);
+    // The status label here is the revoked membership's, not the application's:
+    // `memberSemesterStatus` answers from a blocked standing before it reads
+    // the decision. The rejection wording is asserted in the member guards,
+    // where the applicant never held a membership. What this correction owes
+    // the student is that no reason was invented for it.
+    expect(
+      await publishedDecisionReason(applicants.byRole.accepted),
+    ).toBeNull();
+    const html = await page.content();
+    expect(html).not.toContain(REASON_HEADING);
+    expect(html).not.toContain(AUDIT_NOTE);
 
     expectNoBrowserFailures(failures);
   });
@@ -573,6 +617,13 @@ test.describe("stale access after a later sync", () => {
     await loginWithEmail(page, applicants.byRole.accepted.email);
     await page.goto(PROFILE, { waitUntil: "domcontentloaded" });
     await expect(page.getByText("Approved by CSF officers")).toHaveCount(0);
+    // A retraction clears the decision and its reason together, so there is
+    // nothing left to explain. The badge still follows the revoked membership
+    // rather than the application, which is why no status label is claimed here.
+    expect(
+      await publishedDecisionReason(applicants.byRole.accepted),
+    ).toBeNull();
+    expect(await page.content()).not.toContain(REASON_HEADING);
 
     expectNoBrowserFailures(failures);
   });
@@ -628,7 +679,10 @@ test.describe("member guards", () => {
 
     // A yellow mark is a rejection *with* an explanation. Once the chapter
     // publishes it, the student is owed those words, in the semester they
-    // belong to.
+    // belong to, and exactly as the workbook carried them.
+    expect(await publishedDecisionReason(applicants.byRole.explained)).toBe(
+      EXPLAINED_REASON,
+    );
     await expect(
       profileSummary(page).getByText("Application not approved"),
     ).toBeVisible();
@@ -636,11 +690,15 @@ test.describe("member guards", () => {
       selectedSemester(page).getByText("Application not approved"),
     ).toBeVisible();
     await expect(
-      selectedSemester(page).getByText("Why this application was not approved"),
+      selectedSemester(page).getByText(REASON_HEADING),
     ).toBeVisible();
+    // `exact` because the published reason is the officer's sentence and
+    // nothing else: a substring match would pass on the audit note appended to
+    // it, or on the sentence truncated.
     await expect(
-      selectedSemester(page).getByText(EXPLAINED_REASON),
+      selectedSemester(page).getByText(EXPLAINED_REASON, { exact: true }),
     ).toBeVisible();
+    expect(await page.content()).not.toContain(AUDIT_NOTE);
 
     expectNoBrowserFailures(failures);
   });
@@ -652,14 +710,71 @@ test.describe("member guards", () => {
     await stageTheOutcomes();
     await releaseDecisions(fixture);
 
+    // A plain red mark is a rejection nobody wrote a reason for, so the column
+    // behind the member page holds nothing to show.
+    expect(
+      await publishedDecisionReason(applicants.byRole.rejected),
+    ).toBeNull();
+
     await loginWithEmail(page, applicants.byRole.rejected.email);
     await page.goto(PROFILE, { waitUntil: "domcontentloaded" });
 
     await expect(
       profileSummary(page).getByText("Application not approved"),
     ).toBeVisible();
+    // No explanation panel at all. An empty one, or one filled with the
+    // release's own audit note, would read to the student as officer words
+    // about their application.
+    await expect(selectedSemester(page).getByText(REASON_HEADING)).toHaveCount(
+      0,
+    );
+    const html = await page.content();
+    expect(html).not.toContain(REASON_HEADING);
+    expect(html).not.toContain(AUDIT_NOTE);
     // The yellow applicant's words belong to the yellow applicant.
-    expect(await page.content()).not.toContain(EXPLAINED_REASON);
+    expect(html).not.toContain(EXPLAINED_REASON);
+
+    expectNoBrowserFailures(failures);
+  });
+
+  test("correcting a published yellow row to red takes the explanation back", async ({
+    page,
+  }) => {
+    const failures = watchBrowserFailures(page);
+    await stageTheOutcomes();
+    await releaseDecisions(fixture);
+    expect(await publishedDecisionReason(applicants.byRole.explained)).toBe(
+      EXPLAINED_REASON,
+    );
+
+    // The officer recoloured the published yellow row plain red. The
+    // explanation is no longer part of the decision, so it stops being the
+    // student's to read, without waiting for another release.
+    await stageDecisions(fixture, [
+      {
+        applicant: applicants.byRole.explained,
+        status: "rejected",
+        observedColor: "#f4cccc",
+      },
+    ]);
+    expect(
+      await publishedDecisionReason(applicants.byRole.explained),
+    ).toBeNull();
+
+    await loginWithEmail(page, applicants.byRole.explained.email);
+    await page.goto(PROFILE, { waitUntil: "domcontentloaded" });
+
+    // Still a published rejection, now with nothing said about why.
+    await expect(
+      profileSummary(page).getByText("Application not approved"),
+    ).toBeVisible();
+    await expect(selectedSemester(page).getByText(REASON_HEADING)).toHaveCount(
+      0,
+    );
+    const html = await page.content();
+    expect(html).not.toContain(REASON_HEADING);
+    expect(html).not.toContain(EXPLAINED_REASON);
+    expect(html).not.toContain(AUDIT_NOTE);
 
     expectNoBrowserFailures(failures);
   });
