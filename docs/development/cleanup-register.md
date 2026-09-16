@@ -2740,6 +2740,18 @@ point-trigger and permission drift controls refuse their changes and roll back.
 The replay owns and removes its stack. This is local schema evidence, not hosted
 Development evidence.
 
+A later service-role API preflight found a P1 that direct SQL did not exercise:
+the request safe-update guard rejects unrestricted DELETE statements on the
+sync and release functions' temporary plan tables. A forward migration will
+reset those exact session-local tables without weakening the request policy.
+The 554-migration pass does not close this runtime defect.
+
+The direct concurrent-session suite now passes meaningful sync/release races,
+permission revocation during a wait, and competing mapping saves. It verifies
+the transitive blocking chain and final state, then confirms that its sessions
+ended. Its synthetic audit and release receipts remain on the disposable stack
+until stack cleanup; the script does not bypass immutability to delete them.
+
 The next focused browser run passes all four activity publication journeys.
 Decision journeys still stop during setup: the fixture passed a nonexistent
 source ID to a registration RPC that treats supplied IDs as updates. The fixture
