@@ -21,8 +21,8 @@ test("the 540 officer identity authority release moves exactly three fingerprint
   const fullLedger = expectedVersions(
     fileURLToPath(new URL("../../", import.meta.url)),
   );
-  assert.equal(fullLedger.length, 571);
-  assert.equal(fullLedger.at(-1), "20260917210000");
+  assert.equal(fullLedger.length, 572);
+  assert.equal(fullLedger.at(-1), "20260917220000");
   const current = acceptedCatalogQuery(source, fullLedger.slice(0, 540));
   const preceding = acceptedCatalogQuery(source, fullLedger.slice(0, 539));
   // The migration replaces three reviewed definitions in place. Nothing else
@@ -1087,4 +1087,23 @@ test("member report submission pins organization-scoped term validation", () => 
     expectedVersions(fileURLToPath(new URL("../../", import.meta.url))),
   );
   assert.match(query, /17bfb459fed6fa6e07b22d67e45431b7/u);
+});
+
+test("the 572 quota guard replaces only the reviewed report function fingerprint", () => {
+  const ledger = expectedVersions(
+    fileURLToPath(new URL("../../", import.meta.url)),
+  );
+  const previous = acceptedCatalogQuery(source, ledger.slice(0, 571));
+  const current = acceptedCatalogQuery(source, ledger);
+  assert.equal(
+    previous.split("17bfb459fed6fa6e07b22d67e45431b7").length - 1,
+    1,
+  );
+  assert.equal(
+    current,
+    previous.replace(
+      "17bfb459fed6fa6e07b22d67e45431b7",
+      "7a6a48303831cd8a94d32f9cb3216631",
+    ),
+  );
 });
