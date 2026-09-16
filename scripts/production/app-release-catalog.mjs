@@ -257,6 +257,17 @@ export function acceptedCatalogQuery(source, versions) {
     .update(versions.join("\n"))
     .digest("hex");
   if (
+    versions.length === 566 &&
+    ledgerHash ===
+      "d1f8a71f2bc95078691f6ff7f3ce56c764c7f13a01160c462f3f9ba9cdd1db95"
+  )
+    // 1600 gives a personal notice campaign a valid dispatch identity and
+    // repairs a legacy draft when its RPC next runs. It restates two functions
+    // of the notices lane's own, both verified absent from the generated
+    // accepted catalog, and adds no relation, index or trigger. No reviewed
+    // fingerprint moves, so the release passes through.
+    return acceptedCatalogQuery(source, versions.slice(0, 565));
+  if (
     versions.length === 565 &&
     ledgerHash ===
       "d692b51d050b7b2b354fd2720ab2416585985931a08a7f27163ae85c3da8e075"

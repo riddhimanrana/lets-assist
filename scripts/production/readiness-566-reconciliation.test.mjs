@@ -16,7 +16,7 @@ import {
   unreviewedDataWrites,
 } from "./migration-data-writes.mjs";
 
-// The 565 extension set is prepared here but not yet pinnable. These checks
+// The 566 extension set is prepared here but not yet pinnable. These checks
 // hold the two open blockers still so neither is lost, and they keep working
 // unchanged once the blockers clear.
 
@@ -35,12 +35,13 @@ const EXTENSIONS = [
   "20260917130000_csf_officer_course_corrections",
   "20260917140000_csf_import_personal_notice_suppression",
   "20260917150000_csf_course_retention_coverage",
+  "20260917160000_csf_notice_campaign_dispatch_identity",
 ];
 
-test("the release is the 557 decisions baseline plus the four integrated extensions", () => {
-  assert.equal(ledger.length, 565);
+test("the release is the 557 decisions baseline plus the nine integrated extensions", () => {
+  assert.equal(ledger.length, 566);
   assert.deepEqual(
-    ledger.slice(-8),
+    ledger.slice(-9),
     EXTENSIONS.map((name) => name.slice(0, 14)),
   );
   // 1200 header provenance is still with the source lane and must not appear.

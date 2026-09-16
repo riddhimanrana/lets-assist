@@ -5,6 +5,10 @@
 //
 // Regenerate only alongside a replay. A digest that changes without one means
 // the catalog pins describe a schema nobody replayed.
+//
+// The 565 entries were cross-checked against the replay that produced the
+// accepted catalog digests. 20260917160000 is the committed file's bytes; the
+// replay covering it has not run yet.
 export const migrationDigests = {
   "20260325181408_20260325_initial_baseline_schema.sql":
     "2fa74c624f95bec628a74102cffd6fd12ab2e8cf77312a799468b2cfd7c61a4c",
@@ -1136,4 +1140,6 @@ export const migrationDigests = {
     "c9167f3e815b81e849d183e3e3ffb768fc02ff3581ed10a7a703d81fdec7cf9f",
   "20260917150000_csf_course_retention_coverage.sql":
     "94eb448b69291abe979d0cf97f1f7afd10a0e2c62bbabf1339bdcfd654ac9651",
+  "20260917160000_csf_notice_campaign_dispatch_identity.sql":
+    "d91916900df5d7dc5d48dac3a9356cae542e63122e807f4d57214e5e4e1ed00a",
 };

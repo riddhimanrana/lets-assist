@@ -112,6 +112,7 @@ const APPROVED_TAIL = [
   "20260917130000",
   "20260917140000",
   "20260917150000",
+  "20260917160000",
 ];
 
 const cwd = resolve(import.meta.dirname, "../..");
@@ -171,7 +172,7 @@ function transport({
 
 test("approved bytes and exact versions share one transaction", () => {
   assert.equal(prepared.prefix.length, 468);
-  assert.equal(prepared.versions.length, 565);
+  assert.equal(prepared.versions.length, 566);
   assert.deepEqual(prepared.versions.slice(468), [...APPROVED_TAIL]);
   assert.match(prepared.query, /^BEGIN;/u);
   assert.match(prepared.query, /COMMIT;$/u);
@@ -215,7 +216,7 @@ test("refuses modified approved SQL before any provider request", () => {
 test("performs one write and verifies ledger and permissions", async () => {
   const t = transport();
   const result = await applyForwardMigrations(config, t.fetch);
-  assert.equal(result.migrations, 565);
+  assert.equal(result.migrations, 566);
   assert.equal(result.workers, "disabled");
   assert.equal(result.responseLost, false);
   assert.equal(
@@ -357,7 +358,7 @@ test("a reviewed partially applied tail writes only the remaining migrations", a
   const initialVersions = prepared.versions.slice(0, 478);
   const t = transport({ initialVersions });
   const result = await applyForwardMigrations(config, t.fetch);
-  assert.deepEqual(result.applied, [...APPROVED_TAIL.slice(-87)]);
+  assert.deepEqual(result.applied, [...APPROVED_TAIL.slice(-88)]);
   const writes = t.calls.filter((call) => call.url.endsWith("/database/query"));
   assert.equal(writes.length, 1);
   assert.ok(
@@ -381,7 +382,7 @@ test("a reviewed partially applied tail writes only the remaining migrations", a
         /INSERT INTO supabase_migrations.schema_migrations/g,
       ) ?? []
     ).length,
-    87,
+    88,
   );
 });
 
@@ -400,7 +401,7 @@ test("an already applied tail verifies the catalog without resending SQL", async
 test("an applied 522 ledger sends the reviewed schema and publication tail", async () => {
   const t = transport({ initialVersions: prepared.versions.slice(0, 522) });
   const result = await applyForwardMigrations(config, t.fetch);
-  assert.deepEqual(result.applied, [...APPROVED_TAIL.slice(-43)]);
+  assert.deepEqual(result.applied, [...APPROVED_TAIL.slice(-44)]);
   const writes = t.calls.filter((call) => call.url.endsWith("/database/query"));
   assert.equal(writes.length, 1);
   assert.match(
@@ -413,14 +414,14 @@ test("an applied 522 ledger sends the reviewed schema and publication tail", asy
         /INSERT INTO supabase_migrations.schema_migrations/gu,
       ) ?? []
     ).length,
-    43,
+    44,
   );
 });
 
 test("an applied 523 ledger sends the mixed-category fix and publication", async () => {
   const t = transport({ initialVersions: prepared.versions.slice(0, 523) });
   const result = await applyForwardMigrations(config, t.fetch);
-  assert.deepEqual(result.applied, [...APPROVED_TAIL.slice(-42)]);
+  assert.deepEqual(result.applied, [...APPROVED_TAIL.slice(-43)]);
   const writes = t.calls.filter((call) => call.url.endsWith("/database/query"));
   assert.equal(writes.length, 1);
   assert.match(
@@ -433,14 +434,14 @@ test("an applied 523 ledger sends the mixed-category fix and publication", async
         /INSERT INTO supabase_migrations.schema_migrations/gu,
       ) ?? []
     ).length,
-    42,
+    43,
   );
 });
 
 test("an applied 524 ledger sends the signed publication and reviewed guards", async () => {
   const t = transport({ initialVersions: prepared.versions.slice(0, 524) });
   const result = await applyForwardMigrations(config, t.fetch);
-  assert.deepEqual(result.applied, [...APPROVED_TAIL.slice(-41)]);
+  assert.deepEqual(result.applied, [...APPROVED_TAIL.slice(-42)]);
   const writes = t.calls.filter((call) => call.url.endsWith("/database/query"));
   assert.equal(writes.length, 1);
   assert.match(writes[0].sql, /'20260915032757','publish_dvhs_csf_1_2_46'/u);
@@ -450,7 +451,7 @@ test("an applied 524 ledger sends the signed publication and reviewed guards", a
         /INSERT INTO supabase_migrations.schema_migrations/gu,
       ) ?? []
     ).length,
-    41,
+    42,
   );
   assert.doesNotMatch(
     writes[0].sql,
@@ -493,14 +494,14 @@ test("an applied 508 ledger adds the signed publications and discussion write gu
     readFileSync,
     prepared.versions.slice(0, 508),
   );
-  assert.equal(publication.versions.length, 565);
+  assert.equal(publication.versions.length, 566);
   assert.equal(
     (
       publication.query.match(
         /INSERT INTO supabase_migrations.schema_migrations/gu,
       ) ?? []
     ).length,
-    57,
+    58,
   );
   assert.ok(
     publication.query.includes("'20260913175928','publish_dvhs_csf_1_2_40'"),
@@ -518,14 +519,14 @@ test("an applied 509 ledger adds the signed publications and discussion write gu
     readFileSync,
     prepared.versions.slice(0, 509),
   );
-  assert.equal(publication.versions.length, 565);
+  assert.equal(publication.versions.length, 566);
   assert.equal(
     (
       publication.query.match(
         /INSERT INTO supabase_migrations.schema_migrations/gu,
       ) ?? []
     ).length,
-    56,
+    57,
   );
   assert.ok(
     publication.query.includes("'20260913191541','publish_dvhs_csf_1_2_41'"),
@@ -543,14 +544,14 @@ test("an applied 510 ledger adds the discussion writer guard and signed publicat
     readFileSync,
     prepared.versions.slice(0, 510),
   );
-  assert.equal(migration.versions.length, 565);
+  assert.equal(migration.versions.length, 566);
   assert.equal(
     (
       migration.query.match(
         /INSERT INTO supabase_migrations.schema_migrations/gu,
       ) ?? []
     ).length,
-    55,
+    56,
   );
   assert.ok(
     migration.query.includes(
@@ -574,14 +575,14 @@ test("an applied 511 ledger adds the signed publications and notification delive
     readFileSync,
     prepared.versions.slice(0, 511),
   );
-  assert.equal(publication.versions.length, 565);
+  assert.equal(publication.versions.length, 566);
   assert.equal(
     (
       publication.query.match(
         /INSERT INTO supabase_migrations.schema_migrations/gu,
       ) ?? []
     ).length,
-    54,
+    55,
   );
   assert.ok(
     publication.query.includes("'20260913202237','publish_dvhs_csf_1_2_42'"),
@@ -599,14 +600,14 @@ test("an applied 512 ledger adds the signed 1.2.43 publication and notification 
     readFileSync,
     prepared.versions.slice(0, 512),
   );
-  assert.equal(publication.versions.length, 565);
+  assert.equal(publication.versions.length, 566);
   assert.equal(
     (
       publication.query.match(
         /INSERT INTO supabase_migrations.schema_migrations/gu,
       ) ?? []
     ).length,
-    53,
+    54,
   );
   assert.ok(
     publication.query.includes("'20260914030902','publish_dvhs_csf_1_2_43'"),
@@ -627,14 +628,14 @@ test("an applied 513 ledger adds only gated publication delivery and generic pre
     readFileSync,
     prepared.versions.slice(0, 513),
   );
-  assert.equal(notification.versions.length, 565);
+  assert.equal(notification.versions.length, 566);
   assert.equal(
     (
       notification.query.match(
         /INSERT INTO supabase_migrations.schema_migrations/gu,
       ) ?? []
     ).length,
-    52,
+    53,
   );
   assert.ok(
     notification.query.includes(
@@ -662,7 +663,7 @@ test("an applied 515 ledger adds the reviewed release tail", () => {
         /INSERT INTO supabase_migrations.schema_migrations/gu,
       ) ?? []
     ).length,
-    50,
+    51,
   );
   assert.ok(
     publication.query.includes("'20260914062207','publish_dvhs_csf_1_2_44'"),
@@ -698,7 +699,7 @@ test("an applied 516 ledger adds the signed publication and reviewed schema tail
         /INSERT INTO supabase_migrations.schema_migrations/gu,
       ) ?? []
     ).length,
-    49,
+    50,
   );
   assert.ok(
     publication.query.includes("'20260914072729','publish_dvhs_csf_1_2_45'"),
@@ -734,7 +735,7 @@ test("an applied 517 ledger applies the grant reset and reviewed schema tail", (
         /INSERT INTO supabase_migrations.schema_migrations/gu,
       ) ?? []
     ).length,
-    48,
+    49,
   );
   assert.match(
     migration.query,
@@ -754,7 +755,7 @@ test("an applied 530 ledger writes the reviewed audit migrations and signed publ
     prepared.versions.slice(0, 530),
   );
   assert.deepEqual(migration.versions.slice(530), [
-    ...APPROVED_TAIL.slice(-35),
+    ...APPROVED_TAIL.slice(-36),
   ]);
   assert.equal(
     (
@@ -762,7 +763,7 @@ test("an applied 530 ledger writes the reviewed audit migrations and signed publ
         /INSERT INTO supabase_migrations.schema_migrations/gu,
       ) ?? []
     ).length,
-    35,
+    36,
   );
   assert.ok(migration.query.includes("csf_history_import_review_guards"));
   assert.ok(migration.query.includes("csf_connection_request_identity_guards"));
@@ -776,7 +777,7 @@ test("an applied 533 ledger writes the signed publication and recovery guard", (
     prepared.versions.slice(0, 533),
   );
   assert.deepEqual(publication.versions.slice(533), [
-    ...APPROVED_TAIL.slice(-32),
+    ...APPROVED_TAIL.slice(-33),
   ]);
   assert.equal(
     (
@@ -784,7 +785,7 @@ test("an applied 533 ledger writes the signed publication and recovery guard", (
         /INSERT INTO supabase_migrations.schema_migrations/gu,
       ) ?? []
     ).length,
-    32,
+    33,
   );
   assert.ok(
     publication.query.includes("'20260915161001','publish_dvhs_csf_1_2_49'"),
@@ -809,14 +810,14 @@ test("an applied 534 ledger writes the reviewed recovery and publication", () =>
     readFileSync,
     prepared.versions.slice(0, 534),
   );
-  assert.deepEqual(recovery.versions.slice(534), [...APPROVED_TAIL.slice(-31)]);
+  assert.deepEqual(recovery.versions.slice(534), [...APPROVED_TAIL.slice(-32)]);
   assert.equal(
     (
       recovery.query.match(
         /INSERT INTO supabase_migrations.schema_migrations/gu,
       ) ?? []
     ).length,
-    31,
+    32,
   );
   assert.ok(
     recovery.query.includes(
@@ -842,7 +843,7 @@ test("an applied 535 ledger writes the signed publications and the typed-name an
     prepared.versions.slice(0, 535),
   );
   assert.deepEqual(publication.versions.slice(535), [
-    ...APPROVED_TAIL.slice(-30),
+    ...APPROVED_TAIL.slice(-31),
   ]);
   assert.equal(
     (
@@ -850,7 +851,7 @@ test("an applied 535 ledger writes the signed publications and the typed-name an
         /INSERT INTO supabase_migrations.schema_migrations/gu,
       ) ?? []
     ).length,
-    30,
+    31,
   );
   assert.ok(
     publication.query.includes("'20260915183410','publish_dvhs_csf_1_2_50'"),
@@ -872,7 +873,7 @@ test("an applied 536 ledger writes the signed 1.2.51 publication and the typed-n
     prepared.versions.slice(0, 536),
   );
   assert.deepEqual(publication.versions.slice(536), [
-    ...APPROVED_TAIL.slice(-29),
+    ...APPROVED_TAIL.slice(-30),
   ]);
   assert.equal(
     (
@@ -880,7 +881,7 @@ test("an applied 536 ledger writes the signed 1.2.51 publication and the typed-n
         /INSERT INTO supabase_migrations.schema_migrations/gu,
       ) ?? []
     ).length,
-    29,
+    30,
   );
   assert.ok(
     publication.query.includes("'20260915195501','publish_dvhs_csf_1_2_51'"),

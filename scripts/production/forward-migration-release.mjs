@@ -402,6 +402,11 @@ export const approvedMigrations = [
     "20260917150000_csf_course_retention_coverage",
     "94eb448b69291abe979d0cf97f1f7afd10a0e2c62bbabf1339bdcfd654ac9651",
   ],
+
+  [
+    "20260917160000_csf_notice_campaign_dispatch_identity",
+    "d91916900df5d7dc5d48dac3a9356cae542e63122e807f4d57214e5e4e1ed00a",
+  ],
 ];
 
 const literal = (value) => `'${value.replaceAll("'", "''")}'`;
