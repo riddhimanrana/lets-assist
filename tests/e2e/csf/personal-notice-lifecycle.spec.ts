@@ -175,6 +175,49 @@ function runNoticeWorker() {
   return JSON.parse(line) as Record<string, number>;
 }
 
+/**
+ * Run the notice worker until this spec's own deliveries are settled.
+ *
+ * The worker drains the whole queue, not one organization's, and it claims at
+ * most twenty-five rows per pass. The fixture database is not empty: every
+ * seeded post and activity enqueues one delivery per eligible member, and the
+ * sixty-odd specs that run before this one add more. A single pass therefore
+ * settles twenty-five rows that have nothing to do with this test, which is
+ * why asserting on the run's own counters was meaningless here. It described
+ * whichever rows it happened to reach.
+ *
+ * So the queue is drained until the deliveries for these events reach a
+ * terminal state, and every assertion afterwards reads those rows rather than
+ * a counter. Bounded, so a queue that never settles fails the test instead of
+ * running forever.
+ */
+function drainNoticeWorkerFor(
+  sql: OwnerSql,
+  organizationId: string,
+  eventIds: string[],
+  maxPasses = 40,
+) {
+  const settled = (rows: { status: string }[]) =>
+    rows.length > 0 &&
+    rows.every((row) => row.status === "delivered" || row.status === "skipped");
+
+  for (let pass = 0; pass < maxPasses; pass += 1) {
+    if (settled(deliveriesFor(sql, organizationId, eventIds))) break;
+    const report = runNoticeWorker();
+    // Nothing left to claim anywhere. Another pass cannot change this.
+    if (report.claimed === 0) break;
+  }
+  const rows = deliveriesFor(sql, organizationId, eventIds);
+  if (!settled(rows)) {
+    throw new Error(
+      `The notice queue did not settle this spec's deliveries: ${rows
+        .map((row) => row.status)
+        .join(", ")}`,
+    );
+  }
+  return rows;
+}
+
 /** One bounded pass of the mail worker, out of band. */
 function runMailWorker(organizationId: string) {
   const output = execFileSync(
@@ -425,10 +468,16 @@ test.describe("personal notice lifecycle", () => {
       expect(deliveries).toHaveLength(1);
       expect(String(deliveries[0].user_id)).toBe(member.userId);
 
-      // The worker turns it into a notification and hands the mail to the ledger.
-      const firstRun = runNoticeWorker();
-      expect(firstRun.delivered).toBeGreaterThanOrEqual(1);
-      expect(firstRun.emailQueued).toBeGreaterThanOrEqual(1);
+      // The worker turns it into a notification and hands the mail to the
+      // ledger. Drained until this spec's row settles, and then judged on that
+      // row rather than on a run counter the rest of the queue also moves.
+      const settledRows = drainNoticeWorkerFor(
+        sql,
+        fixture.organizationId,
+        eventIds,
+      );
+      expect(settledRows).toHaveLength(1);
+      expect(settledRows[0].status).toBe("delivered");
 
       const notices = await notificationsFor(fixture, member.userId, eventIds);
       expect(notices).toHaveLength(1);
@@ -490,6 +539,11 @@ test.describe("personal notice lifecycle", () => {
 
       // Retrying the whole chain adds nothing. The notification is dedupe-keyed
       // and the campaign is keyed to the notice, so a replay converges.
+      // A real second pass of each worker, not a drain: the drain would see
+      // this row already settled and do nothing, which would prove nothing.
+      // The delivery is terminal, so the notice worker cannot re-claim it, and
+      // the campaign is keyed to the event, so the mail worker finds no new
+      // attempt. That is the convergence being asserted below.
       runNoticeWorker();
       runMailWorker(fixture.organizationId);
       expect(
@@ -581,17 +635,20 @@ test.describe("personal notice lifecycle", () => {
       // The row is queued, then refused when the lease re-checks preferences.
       // Suppression happens at authorization, not at enqueue, which is what
       // makes an opt-out recorded after queueing still take effect.
-      const report = runNoticeWorker();
-      expect(report.skipped).toBeGreaterThanOrEqual(1);
-      expect(report.emailQueued).toBe(0);
+      const settled = drainNoticeWorkerFor(
+        sql,
+        fixture.organizationId,
+        eventIds,
+      );
+      expect(settled).toHaveLength(1);
+      expect(settled[0].status).toBe("skipped");
 
+      // Nothing was written for the member, and nothing was handed to the
+      // ledger, which is what "never queued" has to mean.
       expect(await notificationsFor(fixture, member.userId, eventIds)).toEqual(
         [],
       );
       expect(await noticeCampaigns(fixture, eventIds)).toEqual([]);
-
-      const settled = deliveriesFor(sql, fixture.organizationId, eventIds);
-      expect(settled.every((row) => row.status === "skipped")).toBe(true);
       expectNoBrowserFailures(failures);
     } catch (error) {
       testFailure = error instanceof Error ? error : new Error(String(error));
