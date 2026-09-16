@@ -141,10 +141,108 @@ const importReviewDefinitions = [
   ],
 ];
 
+// The 561 release is the first extension set since the decisions lane, and it
+// is the first in a while that moves reviewed fingerprints rather than passing
+// through. 0900 and 1100 touch nothing the accepted catalog pins. 0700 restates
+// one pinned function, and 0800 restates three pinned functions, one pinned
+// trigger function, and the shape of one pinned relation.
+//
+// Each `after` is md5(pg_get_functiondef(oid)) or, for a relation, the
+// jsonb_build_object digest the catalog computes. Neither can be derived from
+// the migration text, so every value here has to be read off a database that
+// has the migration applied. The four that are filled came from the owned
+// replay T. The two that are null moved but were not measured, and the release
+// cannot be pinned until they are.
+export const acceptedFingerprints561 = [
+  {
+    object:
+      "plugin_data.csf_join_class_by_code_identity_base(uuid,text,uuid,text,text,text,text,uuid,uuid)",
+    migration: "20260917070000",
+    before: "0c9f17d6f6b50b484ae8758b26d5858b",
+    after: "abe1520dabf116c9ce2b7adb0a9f0156",
+    occurrences: 2,
+  },
+  {
+    object:
+      "plugin_data.csf_authorize_publication_notification(uuid,uuid,uuid)",
+    migration: "20260917080000",
+    before: "45955f667a0dc934e86b2980a695d683",
+    after: "f494ecf0746444bbb55bf2605123ab2a",
+    occurrences: 1,
+  },
+  {
+    object: "plugin_data.csf_publication_email_recipient_allowed(uuid,uuid)",
+    migration: "20260917080000",
+    before: "d611bc91327412cad303c1e17123794f",
+    after: "57c41026b33ca412f0b73645d520b795",
+    occurrences: 1,
+  },
+  {
+    object:
+      "plugin_data.csf_publication_recipient_allowed(uuid,text,uuid,uuid)",
+    migration: "20260917080000",
+    before: "410dfba2b96511bae6548134e51539c4",
+    after: "1737ebf7d2e061b504c2721e4e113dde",
+    occurrences: 1,
+  },
+  {
+    // 0800 adds event_key to the INSERT and to the ON CONFLICT target, so the
+    // body moved. Replay T did not report this function.
+    object: "plugin_data.csf_record_publication_notifications()",
+    migration: "20260917080000",
+    before: "396db81ca1f3953148782858f9185223",
+    after: null,
+    occurrences: 1,
+  },
+  {
+    // 0800 drops two constraints and adds three on this table. The relation
+    // digest covers conname and pg_get_constraintdef, so it moved. Replay T
+    // reported function digests only.
+    object: "plugin_data.csf_publication_events (relation)",
+    migration: "20260917080000",
+    before: "bb442786fe77c77ce3adae4aa0e84ac8",
+    after: null,
+    occurrences: 1,
+  },
+];
+
+function swapAcceptedFingerprints(catalog, replacements) {
+  const unmeasured = replacements.filter((entry) => !entry.after);
+  if (unmeasured.length)
+    throw new ReleaseCheckError(
+      `Accepted fingerprints moved but were never measured: ${unmeasured
+        .map((entry) => `${entry.object} (${entry.migration})`)
+        .join("; ")}. Read them from a database with the migration applied.`,
+    );
+  let swapped = catalog;
+  for (const entry of replacements) {
+    const found = swapped.split(entry.before).length - 1;
+    if (found !== entry.occurrences)
+      throw new ReleaseCheckError(
+        `Expected ${entry.occurrences} pinned fingerprint(s) for ${entry.object}, found ${found}.`,
+      );
+    if (swapped.includes(entry.after))
+      throw new ReleaseCheckError(
+        `The replacement fingerprint for ${entry.object} is already in the catalog.`,
+      );
+    swapped = swapped.replaceAll(entry.before, entry.after);
+  }
+  return swapped;
+}
+
 export function acceptedCatalogQuery(source, versions) {
   const ledgerHash = createHash("sha256")
     .update(versions.join("\n"))
     .digest("hex");
+  if (
+    versions.length === 561 &&
+    ledgerHash ===
+      "e5cec607b056143b844beda898beb83a07d93ac8dab4cf19c454910f237fb6de"
+  )
+    return swapAcceptedFingerprints(
+      acceptedCatalogQuery(source, versions.slice(0, 557)),
+      acceptedFingerprints561,
+    );
   if (
     versions.length === 557 &&
     ledgerHash ===

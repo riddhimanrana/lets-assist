@@ -370,6 +370,22 @@ export const approvedMigrations = [
     "20260917060000_csf_published_decision_reason",
     "d199c0ce03fb29c837ce8fe7f3346e3224abed2c2812f2009502966a83df6a76",
   ],
+  [
+    "20260917070000_csf_class_join_review_only_onboarding",
+    "1e1d158c83835bc64b107811ff46690e27d461bd1af577f2ec3064e424e09078",
+  ],
+  [
+    "20260917080000_csf_detailed_publication_notices",
+    "08d2f383837a7f6c3a528d21fba8bbd3a1d535f6db0e55739976a485e3a9b363",
+  ],
+  [
+    "20260917090000_csf_officer_application_editor_and_note_visibility",
+    "6824ed729ceebaa850f958534367e8ba5b63e0b3d5040638031c70fd2da7bc51",
+  ],
+  [
+    "20260917110000_csf_historical_attendance_correction",
+    "41e6571cc069a317249a1d1e0f669d5ad61dda837965f6f83f39aba0c9b15b7e",
+  ],
 ];
 
 const literal = (value) => `'${value.replaceAll("'", "''")}'`;

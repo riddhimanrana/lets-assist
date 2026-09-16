@@ -74,6 +74,9 @@ test("492 advances through profile note export deferral and the current release 
       "csf_application_decision_releases_immutable",
       "csf_sheet_writeback_review_mode_guard",
       "csf_decision_stage_profile_matches_application",
+      "csf_point_submissions_personal_notifications",
+      "csf_profiles_personal_notifications",
+      "csf_communication_campaigns_notice_scope_guard",
     ],
   );
   assert.ok(result.query.includes("AND version = '1.2.32'"));

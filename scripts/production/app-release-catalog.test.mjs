@@ -3,7 +3,10 @@ import { readFileSync } from "node:fs";
 import test from "node:test";
 import { createHash } from "node:crypto";
 import { fileURLToPath } from "node:url";
-import { acceptedCatalogQuery } from "./app-release-catalog.mjs";
+import {
+  acceptedCatalogQuery,
+  acceptedFingerprints561,
+} from "./app-release-catalog.mjs";
 import { expectedVersions } from "./app-release-checks.mjs";
 
 const source = readFileSync(
@@ -18,8 +21,8 @@ test("the 540 officer identity authority release moves exactly three fingerprint
   const fullLedger = expectedVersions(
     fileURLToPath(new URL("../../", import.meta.url)),
   );
-  assert.equal(fullLedger.length, 557);
-  assert.equal(fullLedger.at(-1), "20260917060000");
+  assert.equal(fullLedger.length, 561);
+  assert.equal(fullLedger.at(-1), "20260917110000");
   const current = acceptedCatalogQuery(source, fullLedger.slice(0, 540));
   const preceding = acceptedCatalogQuery(source, fullLedger.slice(0, 539));
   // The migration replaces three reviewed definitions in place. Nothing else
@@ -952,6 +955,9 @@ test("the readiness release moves exactly the fingerprints measured on a replaye
     ["f6d62983671d65cb184738ae5837782c", "20a36622839502449852fa30b41ab8b9"],
     // check 39, the write-back ledger relation
     ["071bf14bd83e3a8fc8c9fa467bce2035", "49593d70560fb48930e243133820990b"],
+    // The 561 extension set, measured the same way. Taken from the release
+    // table rather than copied, so the two cannot drift apart.
+    ...acceptedFingerprints561.map(({ before, after }) => [before, after]),
   ];
 
   for (const [before, after] of measured) {
