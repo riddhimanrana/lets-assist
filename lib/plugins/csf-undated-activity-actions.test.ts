@@ -139,9 +139,14 @@ test.each(["edit", "publish"])(
     expect(result).toEqual({
       success: false,
       error: unknownOutcome,
-      ...(operation === "edit"
-        ? { reloadRequired: true }
-        : { retrySameRequest: true }),
+      // Both replay under the request id they already sent. Each RPC carries
+      // its own receipt, so minting a fresh id could run a change that did
+      // commit a second time.
+      retrySameRequest: true,
+      // Only the edit asks for a reload. It may already have written before the
+      // outcome stopped being provable, so the page the officer is looking at
+      // can be stale; the status action has nothing local left to reconcile.
+      ...(operation === "edit" ? { reloadRequired: true } : {}),
     });
     expect(calls).toHaveLength(1);
     expect(revalidate).not.toHaveBeenCalled();
