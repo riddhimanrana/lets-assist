@@ -309,6 +309,10 @@ type SheetsGridResponse = {
           };
           userEnteredFormat?: {
             backgroundColor?: { red?: number; green?: number; blue?: number };
+            backgroundColorStyle?: {
+              rgbColor?: { red?: number; green?: number; blue?: number };
+              themeColor?: string;
+            };
           };
           effectiveValue?: Record<string, unknown>;
           userEnteredValue?: { formulaValue?: string };
@@ -508,7 +512,7 @@ export async function getCsfSheetSourceSnapshot(
     [
       "sheets.properties(sheetId,title)",
       "sheets.basicFilter.range",
-      "sheets.data(startRow,startColumn,rowMetadata(hiddenByUser,hiddenByFilter),rowData.values(formattedValue,effectiveValue,userEnteredValue.formulaValue,note,effectiveFormat(backgroundColor,numberFormat.type),userEnteredFormat.backgroundColor))",
+      "sheets.data(startRow,startColumn,rowMetadata(hiddenByUser,hiddenByFilter),rowData.values(formattedValue,effectiveValue,userEnteredValue.formulaValue,note,effectiveFormat(backgroundColor,numberFormat.type),userEnteredFormat(backgroundColor,backgroundColorStyle)))",
     ].join(","),
   );
 
@@ -571,6 +575,32 @@ export async function getCsfSheetSourceSnapshot(
   const rowMetadata = block?.rowMetadata ?? [];
   const rowData = block?.rowData ?? [];
 
+  // ColorStyle takes precedence over the legacy RGB field. A theme needs its
+  // workbook palette; without that evidence the whole read stays unavailable.
+  // Never turn an unresolved explicit fill into an unreviewed decision.
+  const unresolvedFill = rowData.some((row) =>
+    (row.values ?? []).some((cell) => {
+      const style = cell.userEnteredFormat?.backgroundColorStyle;
+      if (!style) return false;
+      if (style.themeColor !== undefined || !style.rgbColor) return true;
+      return Object.values(style.rgbColor).some(
+        (value) =>
+          typeof value !== "number" ||
+          !Number.isFinite(value) ||
+          value < 0 ||
+          value > 1,
+      );
+    }),
+  );
+  if (unresolvedFill) {
+    return {
+      status: "unavailable",
+      reason: "unavailable",
+      message:
+        "The Sheet contains an unresolved user-entered fill (theme or invalid RGB color). No decision changes were read; use an explicit RGB fill before syncing.",
+    };
+  }
+
   const structuralRows = Array.from(
     { length: Math.max(rowMetadata.length, rowData.length) },
     (_unused, offset) => {
@@ -617,7 +647,9 @@ export async function getCsfSheetSourceSnapshot(
         // formatting reach `effectiveFormat` but never `userEnteredFormat`, and
         // decision reading needs to tell an officer's mark from a stripe.
         const userEnteredBackground = normalizeSheetBackground(
-          cell?.userEnteredFormat?.backgroundColor,
+          cell?.userEnteredFormat?.backgroundColorStyle
+            ? cell.userEnteredFormat.backgroundColorStyle.rgbColor
+            : cell?.userEnteredFormat?.backgroundColor,
         );
         const note =
           typeof cell?.note === "string" && cell.note.trim() !== ""
