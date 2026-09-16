@@ -316,7 +316,7 @@ export const approvedMigrations = [
   ],
   [
     "20260916080000_csf_officer_edit_review_fixes",
-    "5f0cfa7c857e7488c2c2f614caef7f95263012823ac3443aac99f4f284e52051",
+    "c17f17261dd932be120caa64e38b8a63ab0d2709229e10767978775997f0d47e",
   ],
 ];
 
