@@ -80,7 +80,9 @@ test.describe("sanitized DVHS CSF screenshot gallery", () => {
       [
         "43-members-directory",
         `${CSF_ORGANIZATION_PATH}?tab=csf-members`,
-        "Current membership",
+        // "Current membership" retired with the old summary. The Member views
+        // switch is the stable landmark for this route.
+        "Directory",
       ],
       [
         "44-service-activities",

@@ -589,12 +589,28 @@ test.describe("mobile", () => {
       name: /^Release \d+ decision/,
     });
     await expect(release).toBeVisible();
+    // The panel renders on the server before its client request id exists, so
+    // the control is painted inert first and the hydrating re-render replaces
+    // it. Waiting for it to be enabled is waiting for that to finish; measuring
+    // before it reads a node that has already been detached, which is what
+    // returned a null box.
+    await expect(release).toBeEnabled();
 
     // A control that is present but off-screen is not reachable on a phone.
-    const box = await release.boundingBox();
-    expect(box).not.toBeNull();
-    expect(box!.x).toBeGreaterThanOrEqual(0);
-    expect(box!.x + box!.width).toBeLessThanOrEqual(MOBILE.width);
+    // Polled rather than sampled once, so a later re-render cannot turn the
+    // measurement into a null instead of a verdict.
+    await expect
+      .poll(
+        async () => {
+          const box = await release.boundingBox();
+          if (!box) return null;
+          return box.x >= 0 && box.x + box.width <= MOBILE.width;
+        },
+        {
+          message: "Release must sit fully inside the phone viewport",
+        },
+      )
+      .toBe(true);
 
     await expect(
       rosterRow(page, applicants.byRole.accepted.lastName),

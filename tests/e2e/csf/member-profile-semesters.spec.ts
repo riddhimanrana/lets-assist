@@ -1,11 +1,87 @@
 import { expect, test } from "@playwright/test";
+import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 
+import { getCsfIsolatedSupabaseEnv } from "../../../scripts/local-dev/dv-local-env.mjs";
 import {
   CSF_ORGANIZATION_PATH,
   expectNoBrowserFailures,
   loginAs,
+  localActors,
   watchBrowserFailures,
 } from "./helpers";
+
+/**
+ * The current semester's verified point total for the fixture member, read from
+ * the ledger instead of assumed.
+ *
+ * The seed gives this student no current-semester points, but the browser stack
+ * is reused across suite runs and earlier point journeys leave real verified
+ * awards on the current term. Those are evidence, not noise: the expectation is
+ * derived exactly rather than pinned to the seed's zero or loosened to a bound.
+ * Last semester stays hardcoded, because nothing writes to a past term.
+ */
+let currentTermPoints: number;
+
+test.beforeAll(async () => {
+  const local = getCsfIsolatedSupabaseEnv();
+  const admin: SupabaseClient = createClient(local.url, local.serviceRoleKey, {
+    auth: { autoRefreshToken: false, persistSession: false },
+  });
+  const checked = <T>(result: {
+    data: T;
+    error: { message: string } | null;
+  }) => {
+    if (result.error) throw new Error(result.error.message);
+    return result.data;
+  };
+
+  const organization = checked(
+    await admin
+      .from("organizations")
+      .select("id")
+      .eq("username", "dvhs-csf")
+      .single(),
+  ) as { id: string };
+  const plugin = admin.schema("plugin_data");
+  // The canonical fixture student, found the way the seed identifies them.
+  const profile = checked(
+    await plugin
+      .from("csf_profiles")
+      .select("id")
+      .eq("organization_id", organization.id)
+      .eq("normalized_personal_email", localActors.member.email)
+      .single(),
+  ) as { id: string };
+  const currentTerm = checked(
+    await plugin
+      .from("csf_terms")
+      .select("id")
+      .eq("organization_id", organization.id)
+      .eq("is_current", true)
+      .single(),
+  ) as { id: string };
+  const credits = (checked(
+    await plugin
+      .from("csf_credit_records")
+      .select("points, point_type")
+      .eq("organization_id", organization.id)
+      .eq("profile_id", profile.id)
+      .eq("term_id", currentTerm.id)
+      .eq("status", "verified"),
+  ) ?? []) as Array<{ points: number | string | null; point_type: string }>;
+
+  // The counted total applies a drive cap that the profile model owns. A drive
+  // credit would make this plain sum wrong, so the derivation refuses that case
+  // rather than quietly reimplementing the cap here.
+  expect(
+    credits.filter((credit) => credit.point_type === "drive"),
+    "Deriving the tile from a plain sum requires no drive credits on the current term",
+  ).toHaveLength(0);
+  currentTermPoints = credits.reduce(
+    (total, credit) => total + Math.max(0, Number(credit.points) || 0),
+    0,
+  );
+});
 
 for (const viewport of [
   { name: "desktop", width: 1440, height: 900 },
@@ -87,9 +163,13 @@ for (const viewport of [
 
     await semesters.getByRole("tab", { name: /^Fall 2026/ }).click();
     await expect(profile).toContainText("Fall 2026");
-    await expect(points).toHaveText(/0\s*Service points/);
-    await expect(activities).toHaveText(/0\s*Activities/);
-    await expect(meetings).toHaveText(/0\s*Meetings/);
+    // Exactly the current semester's own ledger, so last semester's 2 points
+    // cannot satisfy it and a real award cannot be mistaken for a leak.
+    await expect(points).toHaveText(
+      new RegExp(`^${currentTermPoints}\\s*Service points$`),
+    );
+    await expect(activities).toHaveText(/^0\s*Activities$/);
+    await expect(meetings).toHaveText(/^0\s*Meetings$/);
     await expect(
       page.getByRole("heading", { name: "Fall 2026", exact: true }),
     ).toBeVisible();
