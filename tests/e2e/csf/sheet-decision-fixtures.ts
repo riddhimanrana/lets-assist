@@ -64,6 +64,9 @@ export type SheetDecisionFixture = {
   admin: SupabaseClient;
   organizationId: string;
   termId: string;
+  /** Whichever semester the seed marks current and open, read at load time. */
+  termCode: string;
+  termStartsAt: string | null;
   cohortId: string;
   /** An actor holding every CSF permission, used for the seeding RPCs. */
   adviserUserId: string;
@@ -154,22 +157,64 @@ export async function loadSheetDecisionFixture(): Promise<SheetDecisionFixture> 
   );
   const organizationId = String(organization!.id);
 
-  const term = checked(
+  // The semester by policy, not by name. A hardcoded code pinned this spec to
+  // Spring 2026, which the seed has since moved past: `csf_set_application_intake`
+  // refuses any term but the current open one, so intake failed before the
+  // browser ever started. The product's own rule is the one condition that
+  // cannot go stale.
+  const terms = checked(
     await plugin
       .from("csf_terms")
-      .select("id")
+      .select("id, code, starts_at")
       .eq("organization_id", organizationId)
-      .eq("code", "S26")
-      .single(),
-  );
-  const cohort = checked(
+      .eq("is_current", true)
+      .eq("lifecycle_status", "open"),
+  ) as Array<{ id: string; code: string; starts_at: string | null }>;
+  if (terms.length !== 1) {
+    throw new Error(
+      `Expected exactly one current open CSF semester, found ${terms.length}. ` +
+        "The isolated seed decides which semester is current; this spec does not promote one.",
+    );
+  }
+  const term = terms[0];
+
+  // A class that is actually enrolled in that semester. The roster is scoped by
+  // class, so a cohort with no `csf_cohort_terms` row for this term would leave
+  // every applicant invisible however the list is filtered.
+  const enrolled = checked(
+    await plugin
+      .from("csf_cohort_terms")
+      .select("cohort_id")
+      .eq("organization_id", organizationId)
+      .eq("term_id", term.id)
+      .eq("status", "active"),
+  ) as Array<{ cohort_id: string }>;
+  if (enrolled.length === 0) {
+    throw new Error(
+      `The current CSF semester ${term.code} has no active class, so applicants would not appear on any roster.`,
+    );
+  }
+  // The youngest enrolled class, which is where new applicants belong. Picked by
+  // graduation year rather than by whichever row came back first, so the roster
+  // these applicants land in is the same one on every run.
+  const cohortRows = checked(
     await plugin
       .from("csf_cohorts")
-      .select("id")
+      .select("id, graduation_year")
       .eq("organization_id", organizationId)
-      .eq("graduation_year", 2028)
-      .single(),
-  );
+      .in(
+        "id",
+        enrolled.map((row) => row.cohort_id),
+      )
+      .order("graduation_year", { ascending: false })
+      .limit(1),
+  ) as Array<{ id: string; graduation_year: number }>;
+  const cohort = cohortRows[0];
+  if (!cohort) {
+    throw new Error(
+      `The classes enrolled in ${term.code} could not be read, so applicants have no roster to appear in.`,
+    );
+  }
   const adviser = checked(
     await admin
       .from("profiles")
@@ -181,8 +226,10 @@ export async function loadSheetDecisionFixture(): Promise<SheetDecisionFixture> 
   return {
     admin,
     organizationId,
-    termId: String(term!.id),
-    cohortId: String(cohort!.id),
+    termId: String(term.id),
+    termCode: String(term.code),
+    termStartsAt: term.starts_at ? String(term.starts_at) : null,
+    cohortId: String(cohort.id),
     adviserUserId: String(adviser!.id),
     sourceId: null,
   };
@@ -747,16 +794,7 @@ async function ensurePriorTerm(fixture: SheetDecisionFixture) {
   // semesters running out to Spring 2028, and the newest non-current one is in
   // the future. A completed record on a semester that has not started yet is
   // not history, so the term has to actually begin before the current one.
-  const current = checked(
-    await plugin
-      .from("csf_terms")
-      .select("starts_at")
-      .eq("organization_id", fixture.organizationId)
-      .eq("id", fixture.termId)
-      .single(),
-  ) as { starts_at: string | null };
-
-  const seeded = current.starts_at
+  const seeded = fixture.termStartsAt
     ? ((checked(
         await plugin
           .from("csf_terms")
@@ -764,7 +802,7 @@ async function ensurePriorTerm(fixture: SheetDecisionFixture) {
           .eq("organization_id", fixture.organizationId)
           .eq("is_current", false)
           .neq("id", fixture.termId)
-          .lt("starts_at", current.starts_at)
+          .lt("starts_at", fixture.termStartsAt)
           .order("starts_at", { ascending: false, nullsFirst: false })
           .limit(1)
           .maybeSingle(),
