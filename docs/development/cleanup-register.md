@@ -2728,13 +2728,37 @@ No data correction is authorized by this report. The late application workbook
 exists but lacks an app source registration. A current source read found 493
 regular responses and 3 late responses, with two green regular rows.
 
-Local integration verification so far: TypeScript and migration filename checks
-pass. The first database run replayed the migrations and ran 8,793 assertions
-across 332 files. It failed on two incomplete fixtures and the new staging
-table's missing merge-reference policy. Private tests found two retry-result
-expectations needing updates, and lint found an 814-line service after merging.
-These gates and browser acceptance remain open. Hosted Development run `35057125551`
-passed for baseline `1f91d3b1`; it does not verify this readiness candidate.
+Local integration `2960940b`, private `53b80d0`, passes 342 root test files,
+419 private test files, lint, TypeScript and formatting. The private application
+package passes its independent lint, types, tests, build, data boundary and route
+inventory gates. These results do not close browser acceptance.
+
+The third fresh database replay applies all 554 migrations and runs 8,884
+assertions across 335 files. One merge-delegation test fails because its function
+lookup compares named identity arguments to an unnamed signature. The 54-case
+staging suite passes, including the new null-safe provenance fix. Earlier
+fixtures and the missing merge-reference policy are repaired. A separate
+read-only accepted-catalog check fails on changed function and relation hashes.
+The release-script tests did not catch that drift, so the catalog remains open.
+
+The first focused browser run passes three activity journeys and fails one
+transient-toast assertion even though the page shows "Signups closed". Twenty-six
+decision journeys stop during fixture setup because the fixture attempts direct
+writes to protected tables. Three applicant journeys remain disabled. Those
+results provide no decision-release browser acceptance.
+
+Manual Chrome inspection of the fictional adviser's Applications page finds no
+Sheets controls. The production parent never supplies the new `sheetReview`
+property to the workspace, so the panel and actions are unreachable. This is an
+open P1 under CSF-READINESS-01, even though the isolated component tests pass.
+The test runner also leaves a port ownership claim after its process exits.
+The coordinator preserved two exact dead-owner claims before restarting the
+owned local runner. Fixing signal cleanup remains a P2 tooling defect.
+
+The existing CSF browser regression suite is running serially against fictional
+local data. Hosted Development run `35057125551` passed for baseline `1f91d3b1`;
+it does not verify this readiness candidate. No candidate has been published,
+no Production schema or data has changed, and no real email has been sent.
 
 ### Operational workflow audit, September 15, 2026
 
