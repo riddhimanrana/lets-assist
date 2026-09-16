@@ -32,10 +32,11 @@ import {
  *
  * WHAT THIS SPEC DELIBERATELY DOES NOT COVER
  *
- * The bounded refusal classifier (a `P0001` RAISE reported as a definitive
- * refusal rather than an unknown outcome) is NOT driven from here. Inducing a
- * database refusal through the browser needs a concurrent mutation landing
- * between render and submit, which is a race, and a racy acceptance spec is
+ * The bounded refusal classifier (an argument-only refusal reported as
+ * definitive, every state refusal kept as an unknown outcome that holds its
+ * request id) is NOT driven from here. Reproducing it needs a committed attempt
+ * whose response was lost, followed by a state change before the retry — a race
+ * that cannot be staged reliably in a browser, and a racy acceptance spec is
  * worse than none. That boundary is covered deterministically by
  * `lib/plugins/private/plugins/dvhs-csf/services/activity-action-refusals.test.ts`
  * and `.../server/actions/activity-definitive-refusal.test.ts`.
