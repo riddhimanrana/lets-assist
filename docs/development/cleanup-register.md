@@ -2818,8 +2818,11 @@ the removed activity. Legacy timestamps remain
 unchanged; this does not resolve uncertain historical source dates.
 
 Hosted Development run `35057125551` passed for baseline `1f91d3b1`;
-it does not verify this readiness candidate. No candidate has been published,
-no Production schema or data has changed, and no real email has been sent.
+it does not verify this readiness candidate. Private plugin PR `456` passed
+CI run `35074532332` against the existing Development host and merged as
+`3e776387`. The root pins that exact merged commit and passes the strict
+submodule check. The root candidate is not yet published or deployed.
+No Production schema or data has changed, and no real email has been sent.
 
 ### Operational workflow audit, September 15, 2026
 
