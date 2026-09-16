@@ -2702,6 +2702,32 @@ sources.
 
 ## Repository-owned P0–P2
 
+### Semester readiness review, September 16, 2026
+
+This work is in progress on an isolated Development integration branch.
+Production records, decisions, source workbooks and email delivery remain unchanged.
+
+| ID | Priority | Finding | Required closure evidence |
+| --- | --- | --- | --- |
+| CSF-READINESS-01 | P1 | Sheets decisions need private staging, immutable source evidence, explicit term release and immediate corrections after publication. Email-only and workbook-only matches do not prove response identity. | Source matching regressions, pgTAP release and concurrency checks, member privacy and access tests, desktop/mobile role journeys. |
+| CSF-READINESS-02 | P1 | The pending officer activity editor does not bind its actions into the dashboard. Its correction APIs need payload-bound retries, both-term closure checks, credit ownership checks and protection for meeting/submission/shared-credit references. | Rendered officer controls, save/delete retry and reference-integrity regressions, historical member/officer readback. |
+| CSF-READINESS-03 | P1 | The pending merge attestation checks the changed preview before replaying a completed request. The separate claims-resolution path does not supersede competing pending claims. | Repeated attested merge and both connection entrypoints tested against the database. |
+| CSF-READINESS-04 | P1 | The pending attendance fill parser ignores a non-A range origin and cannot distinguish effective display formatting from an officer-entered fill. | Offset and formatting-provenance regressions, SQL/TypeScript mark parity, export round-trip checks. |
+| CSF-READINESS-05 | P2 | The officer-format export changes need a stable acceptance hash when meetings append, plus source/destination separation. | Header append acceptance, source overwrite refusal and separate output destination walkthrough. |
+
+The read-only source audit covers 897 active roster profiles and 1,910 available
+semester source rows. Its private report retains source references and proposed
+corrections outside Git. Attendance fill deltas, unsupported credited marks,
+original/copy drift and ambiguous identities remain separate unresolved categories.
+No data correction is authorized by this report. The late application workbook
+exists but lacks an app source registration. A current source read found 493
+regular responses and 3 late responses, with two green regular rows.
+
+Local integration verification so far: 8 unsubscribe action tests and 17 activity
+action tests pass, including lost-response retries. The integrated database and
+browser gates are pending. Hosted Development acceptance run `35057125551`
+passed for baseline `1f91d3b1`; it does not verify this readiness candidate.
+
 ### Operational workflow audit, September 15, 2026
 
 Three findings from the posts/email/activity/point/meeting lane. The first two
