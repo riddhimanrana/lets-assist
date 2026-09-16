@@ -26,6 +26,10 @@ let organizationId: string;
 let termId: string;
 let cohortId: string;
 let applicationId: string;
+let applicantRosterName: string;
+let originalCourseRows: Record<string, unknown>[] = [];
+let originalApplicationData: unknown;
+let originalPeriod: Record<string, unknown> | null | undefined;
 const seededCourseIds = [randomUUID(), randomUUID()];
 
 function checked(error: { message: string } | null) {
@@ -77,6 +81,34 @@ async function openApplicationsTab(
   }
 }
 
+/**
+ * Open the seeded applicant's record the way an officer does: from the roster.
+ *
+ * The Applications tab lands on the list, so a control that lives inside one
+ * application's evidence is not on screen until a row is chosen. The officer
+ * opens review first, because that is the state a chapter reviews in.
+ */
+async function openSeededApplication(page: Parameters<typeof loginAs>[0]) {
+  for (const label of ["Reopen review", "Open review"]) {
+    const open = page.getByRole("button", { name: label, exact: true });
+    if (await open.isVisible()) await open.click();
+  }
+  await expect(
+    page.getByRole("button", { name: "Split for review", exact: true }),
+  ).toBeVisible();
+
+  await page
+    .getByRole("button", { name: applicantRosterName, exact: true })
+    .click();
+  await expect(
+    page.getByRole("button", { name: "Back to roster", exact: true }),
+  ).toBeVisible();
+  // The imported lines this correction is about, rendered from the record.
+  await expect(
+    page.getByText("Fictional Seminar, A, 3", { exact: true }),
+  ).toBeVisible();
+}
+
 test.beforeAll(async () => {
   const local = getCsfIsolatedSupabaseEnv();
   admin = createClient(local.url, local.serviceRoleKey, {
@@ -110,15 +142,48 @@ test.beforeAll(async () => {
   checked(cohortError);
   cohortId = cohort!.id;
 
+  const { data: period, error: periodError } = await plugin
+    .from("csf_review_periods")
+    .select("*")
+    .eq("organization_id", organizationId)
+    .eq("term_id", termId)
+    .eq("kind", "membership_applications")
+    .maybeSingle();
+  checked(periodError);
+  originalPeriod = period;
+
   const { data: application, error: applicationError } = await plugin
     .from("csf_term_applications")
-    .select("id, application_data")
+    .select("id, profile_id, application_data")
     .eq("organization_id", organizationId)
     .eq("term_id", termId)
     .eq("most_checked_email", "evan.chen@example.test")
     .single();
   checked(applicationError);
   applicationId = application!.id;
+  originalApplicationData = application!.application_data;
+
+  // The roster labels a record "Last, First"; read the names rather than
+  // hard-coding them, so a fixture rename fails loudly instead of silently
+  // skipping the journey.
+  const { data: profile, error: profileError } = await plugin
+    .from("csf_profiles")
+    .select("first_name, last_name")
+    .eq("organization_id", organizationId)
+    .eq("id", application!.profile_id as string)
+    .single();
+  checked(profileError);
+  applicantRosterName = `${profile!.last_name}, ${profile!.first_name}`;
+
+  // Everything below replaces fixture state. Keep the originals so afterAll
+  // hands the chapter back exactly what it had.
+  const { data: existingCourses, error: existingCoursesError } = await plugin
+    .from("csf_application_course_entries")
+    .select("*")
+    .eq("organization_id", organizationId)
+    .eq("application_id", applicationId);
+  checked(existingCoursesError);
+  originalCourseRows = existingCourses ?? [];
 
   // Two imported lines and the matching immutable snapshot on the application,
   // so the restore has an original to read back. Written as the import commit
@@ -168,9 +233,9 @@ test.beforeAll(async () => {
           courses_corrected_at: null,
           courses_corrected_by: null,
           application_data: {
-            ...(application!.application_data as Record<string, unknown>),
+            ...(originalApplicationData as Record<string, unknown>),
             normalizedImport: {
-              ...((application!.application_data as Record<string, unknown>)
+              ...((originalApplicationData as Record<string, unknown>)
                 ?.normalizedImport as Record<string, unknown>),
               courses: [
                 {
@@ -199,11 +264,73 @@ test.beforeAll(async () => {
   );
 });
 
+test.afterAll(async () => {
+  if (!admin || !organizationId || !applicationId) return;
+  const plugin = admin.schema("plugin_data");
+
+  // The correction marker has to go first: while it stands, the overwrite
+  // guard refuses exactly this delete, which is the contract under test.
+  checked(
+    (
+      await plugin
+        .from("csf_term_applications")
+        .update({
+          courses_corrected_at: null,
+          courses_corrected_by: null,
+          application_data: originalApplicationData,
+        })
+        .eq("organization_id", organizationId)
+        .eq("id", applicationId)
+    ).error,
+  );
+  checked(
+    (
+      await plugin
+        .from("csf_application_course_entries")
+        .delete()
+        .eq("organization_id", organizationId)
+        .eq("application_id", applicationId)
+    ).error,
+  );
+  if (originalCourseRows.length > 0) {
+    checked(
+      (
+        await plugin
+          .from("csf_application_course_entries")
+          .insert(originalCourseRows)
+      ).error,
+    );
+  }
+  if (originalPeriod) {
+    checked(
+      (
+        await plugin
+          .from("csf_review_periods")
+          .update(originalPeriod)
+          .eq("organization_id", organizationId)
+          .eq("id", String(originalPeriod.id))
+      ).error,
+    );
+  } else if (originalPeriod === null) {
+    checked(
+      (
+        await plugin
+          .from("csf_review_periods")
+          .delete()
+          .eq("organization_id", organizationId)
+          .eq("term_id", termId)
+          .eq("kind", "membership_applications")
+      ).error,
+    );
+  }
+});
+
 test("an officer corrects, removes, and adds a course line, then restores the imported ones", async ({
   page,
 }) => {
   const failures = watchBrowserFailures(page);
   await openApplicationsTab(page, "admin");
+  await openSeededApplication(page);
 
   await page
     .getByRole("button", { name: "Correct course lines", exact: true })
@@ -293,7 +420,10 @@ test("an officer corrects, removes, and adds a course line, then restores the im
     "the source cannot overwrite them",
   );
 
+  // Reloading returns to the roster, so the record is opened again rather
+  // than assuming the panel survived.
   await page.reload();
+  await openSeededApplication(page);
   await page
     .getByRole("button", { name: "Restore imported lines", exact: true })
     .click();
@@ -321,22 +451,41 @@ test("an officer corrects, removes, and adds a course line, then restores the im
   expectNoBrowserFailures(failures);
 });
 
-test("a member never reaches the course editor", async ({ page }) => {
+test("a member cannot reach the application review workflow at all", async ({
+  page,
+}) => {
   const failures = watchBrowserFailures(page);
   await page.setViewportSize({ width: 1440, height: 900 });
   await loginAs(
     page,
     "member",
-    `${CSF_ORGANIZATION_PATH}?tab=csf-applications&csf_review_term=${termId}`,
+    `${CSF_ORGANIZATION_PATH}?tab=csf-applications&csf_review_term=${termId}&csf_review_cohort=${cohortId}`,
   );
   await expect(
     page.locator('[data-organization-tabs-hydrated="true"]'),
   ).toBeVisible();
+
+  // Not "the editor is closed" — the workflow itself is not reachable. The
+  // officer tab is absent, so the roster that opens a record never renders,
+  // and neither does any applicant's name or imported course line.
+  await expect(page.getByRole("tab", { name: "Applications" })).toHaveCount(0);
+  await expect(
+    page.getByRole("button", { name: applicantRosterName, exact: true }),
+  ).toHaveCount(0);
+  await expect(
+    page.getByRole("button", { name: "Split for review", exact: true }),
+  ).toHaveCount(0);
+  await expect(
+    page.getByText("Fictional Seminar, A, 3", { exact: true }),
+  ).toHaveCount(0);
+
+  // And the controls this branch adds, for the same reason.
   await expect(
     page.getByRole("button", { name: "Correct course lines", exact: true }),
   ).toHaveCount(0);
   await expect(
     page.getByRole("button", { name: "Restore imported lines", exact: true }),
   ).toHaveCount(0);
+
   expectNoBrowserFailures(failures);
 });
