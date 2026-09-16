@@ -33,6 +33,7 @@ import {
 } from "./account-ownership-catalog.mjs";
 import { createHash } from "node:crypto";
 import { ReleaseCheckError } from "./app-release-checks.mjs";
+import { officerIdentityAuthorityCatalog } from "./officer-identity-authority-catalog.mjs";
 import {
   mergedSourceLineagePosture,
   reviewedWorkbookLinksPosture,
@@ -137,6 +138,48 @@ export function acceptedCatalogQuery(source, versions) {
   const ledgerHash = createHash("sha256")
     .update(versions.join("\n"))
     .digest("hex");
+  if (
+    versions.length === 544 &&
+    ledgerHash ===
+      "09bec47840b48bdcc9bb927073b6c1efe8652c4d096413d01f55e7e29db7b78f"
+  )
+    // The review fixes replace four owner-internal and service-role
+    // functions of this stack's own and touch no reviewed definition.
+    return acceptedCatalogQuery(source, versions.slice(0, 543));
+  if (
+    versions.length === 543 &&
+    ledgerHash ===
+      "53eb05c8b70ec491e20007b6815cde84e6bce056a668bea94fe6e9b3ecf4a64a"
+  )
+    // The officer record editor adds two service-role entrypoints of its
+    // own. They are not part of the import-recovery inventory the accepted
+    // catalog tracks and they change no reviewed definition, so the catalog
+    // passes through unchanged.
+    return acceptedCatalogQuery(source, versions.slice(0, 542));
+  if (
+    versions.length === 542 &&
+    ledgerHash ===
+      "8c9cb7fcf678bf07c08d5123dd7607f620319ebabff0cc69cd330f768e91cf8e"
+  )
+    // The closed-evidence guard keeps its reviewed shape and carries no
+    // reviewed fingerprint of its own, so the catalog is unchanged.
+    return acceptedCatalogQuery(source, versions.slice(0, 541));
+  if (
+    versions.length === 541 &&
+    ledgerHash ===
+      "f60cfebd893b0fe0d32979592cdc8e55f7656a9d15a27387d0f49b50a7029d25"
+  )
+    // csf_meeting_attendance_value is owner-internal and carries no
+    // reviewed fingerprint, so this release leaves the catalog untouched.
+    return acceptedCatalogQuery(source, versions.slice(0, 540));
+  if (
+    versions.length === 540 &&
+    ledgerHash ===
+      "7cbbdeea1274e00b99f18c281fac657585bb634574565046c88d8cdc131dac44"
+  )
+    return officerIdentityAuthorityCatalog(
+      acceptedCatalogQuery(source, versions.slice(0, 539)),
+    );
   if (
     versions.length === 539 &&
     ledgerHash ===
