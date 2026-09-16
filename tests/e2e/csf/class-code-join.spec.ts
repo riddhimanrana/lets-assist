@@ -325,12 +325,36 @@ async function declareMemberIntent(page: Page, intent: "new" | "returning") {
 }
 
 /**
+ * How many roster records a class code has ever minted in this organization.
+ *
+ * The local database carries fictional profiles created by earlier runs, back
+ * when a class code did create a record. Those are real history and are left
+ * alone, so this is a baseline to compare against rather than a number that
+ * should be zero.
+ */
+async function countClassCodeCreatedProfiles(fixture: JoinFixture) {
+  const { count } = await fixture.admin
+    .schema("plugin_data")
+    .from("csf_profiles")
+    .select("id", { count: "exact", head: true })
+    .eq("organization_id", fixture.organizationId)
+    .eq("source_summary->>createdBy", "permanent_class_code");
+  return count ?? 0;
+}
+
+/**
  * Every outcome of the join flow is a staff decision. Asserts the student got
  * a queued request and no self-made record, whichever branch they took.
+ *
+ * Pass `baselineClassCodeProfiles` from before the operation: the claim is
+ * that this student created nothing, not that nobody ever did.
  */
 async function expectQueuedForStaff(
   fixture: JoinFixture,
-  expected: { memberIntent?: "new" | "returning" } = {},
+  expected: {
+    memberIntent?: "new" | "returning";
+    baselineClassCodeProfiles?: number;
+  } = {},
 ) {
   await expect
     .poll(async () => {
@@ -365,14 +389,23 @@ async function expectQueuedForStaff(
       accountRows: 0,
     });
 
-  // The decisive one: a class code never mints a roster record.
-  const { count } = await fixture.admin
+  // The decisive one, and it is scoped to this actor: a record this student
+  // minted for themselves would carry their own user id as its owner. Exact,
+  // and unaffected by whatever earlier runs left behind.
+  const { count: selfMade } = await fixture.admin
     .schema("plugin_data")
     .from("csf_profiles")
     .select("id", { count: "exact", head: true })
     .eq("organization_id", fixture.organizationId)
-    .eq("source_summary->>createdBy", "permanent_class_code");
-  expect(count ?? 0).toBe(0);
+    .eq("source_summary->>accountOwnerUserId", fixture.userId);
+  expect(selfMade ?? 0).toBe(0);
+
+  // And nothing new appeared under any actor while this ran.
+  if (expected.baselineClassCodeProfiles !== undefined) {
+    expect(await countClassCodeCreatedProfiles(fixture)).toBe(
+      expected.baselineClassCodeProfiles,
+    );
+  }
 }
 
 test.describe("class join code connections", () => {
@@ -712,6 +745,10 @@ test.describe("class join code connections", () => {
       first: "Riddhiman",
       last: realLastName,
     });
+    // Fictional profiles from earlier runs, made when a class code still
+    // created one, stay exactly where they are. The claim is a delta.
+    const classCodeProfilesBefore =
+      await countClassCodeCreatedProfiles(fixture);
 
     const failures = watchBrowserFailures(page);
     await loginAs(page, "outsider", connectPath);
@@ -776,7 +813,10 @@ test.describe("class join code connections", () => {
 
     // The declared intent, the class, and the account reach the staff queue,
     // and nothing was created on the student's say-so.
-    await expectQueuedForStaff(fixture, { memberIntent: "new" });
+    await expectQueuedForStaff(fixture, {
+      memberIntent: "new",
+      baselineClassCodeProfiles: classCodeProfilesBefore,
+    });
 
     await expect(
       page.getByRole("heading", { name: "Awaiting staff review", exact: true }),

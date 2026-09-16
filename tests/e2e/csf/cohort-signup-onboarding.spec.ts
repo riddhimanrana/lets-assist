@@ -331,8 +331,8 @@ test.describe("class-code signup onboarding", () => {
         name: "Join your class",
       });
       await expect(joinDialog).toBeVisible();
-      // This student has no imported record. Searching finds nothing, and
-      // continuing under the typed name creates a self-owned profile.
+      // This student has no imported record. Searching finds nothing, and the
+      // typed name only reaches an officer: a class code never creates one.
       const fullName = joinDialog.getByRole("textbox", { name: "Full name" });
       await expect(fullName).toBeVisible();
       await fullName.fill("Casey Signup");
@@ -401,13 +401,8 @@ test.describe("class-code signup onboarding", () => {
           url.searchParams.get("review") === "1",
         { timeout: 30_000 },
       );
-      await expect(
-        page.getByRole("heading", {
-          name: "Awaiting staff review",
-          exact: true,
-        }),
-      ).toBeVisible();
-
+      // The heading is behind the setup modal's aria-hidden backdrop while the
+      // modal is open, so it is asserted once setup finishes, below.
       const modal = page.getByRole("dialog");
       await expect(
         modal.getByText("Finish setting up your Let's Assist account"),
@@ -432,6 +427,14 @@ test.describe("class-code signup onboarding", () => {
         { timeout: 60_000 },
       );
       await expect(page.getByRole("dialog")).toHaveCount(0);
+      // Account setup is done, the backdrop is gone, and what is left is the
+      // status the student actually has: waiting on an officer.
+      await expect(
+        page.getByRole("heading", {
+          name: "Awaiting staff review",
+          exact: true,
+        }),
+      ).toBeVisible();
       await expectNoGenericFirstLoginTour(page);
     });
 
