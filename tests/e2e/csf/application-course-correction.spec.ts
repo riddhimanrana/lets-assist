@@ -122,11 +122,16 @@ async function openSeededApplication(page: Parameters<typeof loginAs>[0]) {
  * one, and it is only unique while it stays unnamed.
  */
 function courseRow(
+  page: Parameters<typeof loginAs>[0],
   dialog: ReturnType<Parameters<typeof loginAs>[0]["getByRole"]>,
   courseName: string,
 ) {
   return dialog.getByRole("listitem").filter({
-    has: dialog.getByRole("button", {
+    // `has` is resolved against the candidate list item, so its locator must
+    // start unanchored. Rooting it at the dialog asks for a button that is
+    // both inside the row and inside an ancestor of the row, which nothing
+    // can satisfy.
+    has: page.getByRole("button", {
       name: `Remove ${courseName}`,
       exact: true,
     }),
@@ -134,9 +139,10 @@ function courseRow(
 }
 
 function newCourseRow(
+  page: Parameters<typeof loginAs>[0],
   dialog: ReturnType<Parameters<typeof loginAs>[0]["getByRole"]>,
 ) {
-  return courseRow(dialog, "this course line");
+  return courseRow(page, dialog, "this course line");
 }
 
 /**
@@ -422,12 +428,12 @@ test("an officer corrects, removes, and adds a course line, then restores the im
   await expect(
     dialog.getByRole("textbox", { name: "Course", exact: true }),
   ).toHaveCount(2);
-  const seminarRow = courseRow(dialog, "Fictional Seminar");
+  const seminarRow = courseRow(page, dialog, "Fictional Seminar");
   await expect(courseField(seminarRow, "Course")).toHaveValue(
     "Fictional Seminar",
   );
   await expect(
-    courseField(courseRow(dialog, "Applied Fiction"), "Course"),
+    courseField(courseRow(page, dialog, "Applied Fiction"), "Course"),
   ).toHaveValue("Applied Fiction");
 
   // Update: the transcript names the honors section, at a different grade.
@@ -436,7 +442,7 @@ test("an officer corrects, removes, and adds a course line, then restores the im
   await courseField(seminarRow, "Course").fill("Fictional Seminar Honors");
 
   // Remove: the second line is not on the transcript at all.
-  await courseRow(dialog, "Applied Fiction")
+  await courseRow(page, dialog, "Applied Fiction")
     .getByRole("button", { name: "Remove Applied Fiction", exact: true })
     .click();
   await expect(
@@ -448,8 +454,8 @@ test("an officer corrects, removes, and adds a course line, then restores the im
   await dialog
     .getByRole("button", { name: "Add a course line", exact: true })
     .click();
-  await courseField(newCourseRow(dialog), "Course").fill("Civic Lab");
-  const civicRow = courseRow(dialog, "Civic Lab");
+  await courseField(newCourseRow(page, dialog), "Course").fill("Civic Lab");
+  const civicRow = courseRow(page, dialog, "Civic Lab");
   await chooseCourseOption(page, civicRow, "List", "List III");
   await chooseCourseOption(page, civicRow, "Grade", "P");
   await courseField(civicRow, "Reported points").fill("1");
