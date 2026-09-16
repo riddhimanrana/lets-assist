@@ -2728,12 +2728,12 @@ No data correction is authorized by this report. The late application workbook
 exists but lacks an app source registration. A current source read found 493
 regular responses and 3 late responses, with two green regular rows.
 
-Local integration `1e4e1bc7`, private `6e982bf4`, passes 344 root test files,
+Local integration through `9c9a776e`, private `6e982bf4`, passes 345 root test files,
 425 private test files, lint, TypeScript and formatting. The private application
 package passes its independent lint, types, tests, build, data boundary and route
 inventory gates. These results do not close browser acceptance.
 
-The fifth fresh database replay passes all 555 migrations and 8,890 assertions
+The sixth fresh database replay passes all 556 migrations and 8,890 assertions
 across 336 files. The merge-delegation test now resolves its entry by function
 identity. The accepted catalog passes against the replayed schema, and all ten
 point-trigger and permission drift controls refuse their changes and roll back.
@@ -2752,25 +2752,11 @@ PostgREST preflight now passes two independent scenarios: private staging,
 publication, and immediate acceptance reversal with revoked membership. It
 also confirms distinct identities and preserved prior scenario outcomes.
 
-The same guard rejects one further statement in that lane, which the DELETE fix
-did not reach. `csf_stage_sheet_application_decisions` computes `will_apply` and
-`will_retract` with an UPDATE of its temporary row plan that carries no WHERE
-clause, so the RPC still fails under the request policy after 20260917040000.
-Migration 20260917050000 restates that one function with a single added
-predicate, `WHERE ordinal IS NOT NULL`. Every plan row is inserted with a WITH
-ORDINALITY ordinal, and the preceding UPDATE already joins on it, so the
-predicate matches the whole table and no row's verdict changes. The release
-function is not restated: both of its writes already carry a WHERE clause.
-Function ACLs are restated unchanged and no session setting is altered. The
-accepted catalog delegates ledger 556 to the reviewed 555 catalog, because the
-staged-decision function is absent from the generated accepted catalog and no
-reviewed fingerprint moves.
-
-The migration's source checks verify that removing the predicate reproduces the
-555 body, every plan write is qualified, the TRUNCATE resets remain, and the
-release catalog pins the shipped bytes. The actual service-role PostgREST
-preflight then verifies the request-policy fix through staging, release and
-correction. The full fresh 556-migration replay remains pending.
+Migration 20260917050000 adds `WHERE ordinal IS NOT NULL` to the temporary
+plan UPDATE. Every plan row has a WITH ORDINALITY ordinal, so this changes
+request-policy compatibility without changing decisions. Source checks verify
+the qualified writes and unchanged ACLs. The full 556-migration replay and
+actual API preflight both pass.
 
 The direct concurrent-session suite now passes meaningful sync/release races,
 permission revocation during a wait, and competing mapping saves. It verifies
@@ -2778,24 +2764,28 @@ the transitive blocking chain and final state, then confirms that its sessions
 ended. Its synthetic audit and release receipts remain on the disposable stack
 until stack cleanup; the script does not bypass immutability to delete them.
 
-The next focused browser run passes all four activity publication journeys.
-Decision journeys still stop during setup: the fixture passed a nonexistent
-source ID to a registration RPC that treats supplied IDs as updates. The fixture
-now creates a source through that RPC and reuses its returned identity. Applicant
-journeys are enabled, but their browser acceptance remains open until rerun.
+The focused applicant/activity run completed with nine passed, three failed
+and 23 not run after the failure limit. All four activity journeys passed.
+The failures exposed test assertions that did not select the historical tab,
+matched two legitimate approval badges, or expected a revoked membership for
+an applicant who had never been accepted. The officer run completed all 14
+journeys with 12 passed and two failed. The remaining assertions incorrectly
+expected Applications access for a treasurer and prohibited an officer from
+seeing a staged explanation. Repairs and the complete rerun remain open.
 
-Manual Chrome inspection found the Sheets controls missing from the fictional
-adviser's Applications page. The production parent now loads and passes the
-workspace and binds its actions. A real route-loader regression covers staff
-loading and excludes applicants and denied routes. Each control now follows its
-own action permission. This fixes the wiring defect under CSF-READINESS-01;
-rendered browser acceptance remains open.
+The actual Applications route now renders the Sheets workspace and binds its
+actions. Officer browser checks pass staging, filters, release permissions,
+publication, held explanations, immediate revocation, source failure preservation
+and mobile release. Each control follows its own action permission.
 
-The test runner also leaves a port ownership claim after its process exits.
-The coordinator preserves only exact claims whose owners have exited and whose
-ports have no listener. A terminal agent is repairing signal cleanup with a
-child-process regression. This remains a P2 tooling defect pending the next
-real browser teardown.
+Review also found a member-facing defect: the active My CSF profile omitted
+published rejection labels and explanations. A terminal agent is repairing the
+projection and rendered status. An older-host compatibility check found absent
+Sheet formatting metadata; the plugin must refuse that read instead of inventing
+blank attendance or classifications. Both fixes require integrated acceptance.
+
+The runner signal cleanup repair passes its regression and actual manual-server
+SIGTERM teardown. Its child processes end and its port ownership claim is removed.
 
 The existing CSF browser regression suite completed with 102 passed, one failed,
 four skipped and two not run after a serial failure. The failed identity test
@@ -2814,8 +2804,10 @@ entered as March 15 displays March 14 in both views in Pacific time, although th
 editor retains March 15. New date-only corrections normalize to noon UTC and pass focused calendar
 and editor regressions. The updated officer browser shows March 15 for a new
 March 15 activity, then preserves that date when a blank-date point edit changes
-the total from 3/7 to 4/7. Member parity and removal readback remain pending.
-The synthetic activity is retained for that check. Legacy timestamps remain
+the total from 3/7 to 4/7. The member view shows the same March 15 date and
+4/7 total. Removing the synthetic activity through the officer UI keeps its
+change history and restores both views to 2/7; the member view no longer lists
+the removed activity. Legacy timestamps remain
 unchanged; this does not resolve uncertain historical source dates.
 
 Hosted Development run `35057125551` passed for baseline `1f91d3b1`;
