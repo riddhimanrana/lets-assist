@@ -316,7 +316,11 @@ export const approvedMigrations = [
   ],
   [
     "20260916080000_csf_officer_edit_review_fixes",
-    "c17f17261dd932be120caa64e38b8a63ab0d2709229e10767978775997f0d47e",
+    "5f0cfa7c857e7488c2c2f614caef7f95263012823ac3443aac99f4f284e52051",
+  ],
+  [
+    "20260916090000_csf_officer_decision_replay_and_supersede",
+    "9ee43c89e583123bb264b81932fc9f3afe5144816e8b877325c7dea2a469290a",
   ],
 ];
 

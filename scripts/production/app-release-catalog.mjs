@@ -139,6 +139,14 @@ export function acceptedCatalogQuery(source, versions) {
     .update(versions.join("\n"))
     .digest("hex");
   if (
+    versions.length === 545 &&
+    ledgerHash ===
+      "d3d92d95d7dfff7b1c76451fdf675989f9dbad8f4d838dd9c19e01aab6402d99"
+  )
+    // The decision replay and supersede follow-ups replace four functions
+    // of this stack's own and touch no reviewed definition.
+    return acceptedCatalogQuery(source, versions.slice(0, 544));
+  if (
     versions.length === 544 &&
     ledgerHash ===
       "09bec47840b48bdcc9bb927073b6c1efe8652c4d096413d01f55e7e29db7b78f"
