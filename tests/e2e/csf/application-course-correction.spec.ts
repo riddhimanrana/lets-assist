@@ -110,6 +110,23 @@ async function openSeededApplication(page: Parameters<typeof loginAs>[0]) {
 }
 
 /**
+ * A row's text fields, by role and exact accessible name.
+ *
+ * Matching on label text alone is not safe here: it matches substrings, and an
+ * unnamed new row's remove button is labelled "Remove this course line", which
+ * contains the word Course. Asking for a textbox with that exact name cannot
+ * resolve to a button at all.
+ */
+function courseField(
+  dialog: ReturnType<Parameters<typeof loginAs>[0]["getByRole"]>,
+  name: "Course" | "Reported points",
+  row: "first" | "last",
+) {
+  const fields = dialog.getByRole("textbox", { name, exact: true });
+  return row === "first" ? fields.first() : fields.last();
+}
+
+/**
  * Choose a value from one of the editor's dropdowns.
  *
  * These are Base UI comboboxes, not native selects: the trigger is a button and
@@ -365,32 +382,41 @@ test("an officer corrects, removes, and adds a course line, then restores the im
   await expect(dialog).toBeVisible();
   // The editor reads its own lines when it opens, so the revision it submits
   // belongs to the rows on screen.
-  await expect(dialog.getByLabel("Course").first()).toHaveValue(
+  await expect(courseField(dialog, "Course", "first")).toHaveValue(
     "Fictional Seminar",
   );
 
   // Update: the transcript names the honors section, at a different grade.
-  await dialog.getByLabel("Course").first().fill("Fictional Seminar Honors");
+  await courseField(dialog, "Course", "first").fill("Fictional Seminar Honors");
   await chooseCourseOption(page, dialog, "Grade", "first", "B");
 
   // Remove: the second line is not on the transcript at all.
-  await dialog.getByRole("button", { name: "Remove Applied Fiction" }).click();
+  await dialog
+    .getByRole("button", { name: "Remove Applied Fiction", exact: true })
+    .click();
 
   // Add: a line the form row missed.
   await dialog
     .getByRole("button", { name: "Add a course line", exact: true })
     .click();
-  await dialog.getByLabel("Course").last().fill("Civic Lab");
+  // Two rows now: the corrected import line and the empty one just added.
+  await expect(
+    dialog.getByRole("textbox", { name: "Course", exact: true }),
+  ).toHaveCount(2);
+  await courseField(dialog, "Course", "last").fill("Civic Lab");
   await chooseCourseOption(page, dialog, "List", "last", "List III");
   await chooseCourseOption(page, dialog, "Grade", "last", "P");
-  await dialog.getByLabel("Reported points").last().fill("1");
+  await courseField(dialog, "Reported points", "last").fill("1");
 
   // A correction without an explanation cannot be submitted.
   await expect(
     dialog.getByRole("button", { name: /^Save \d+ course change/u }),
   ).toBeDisabled();
   await dialog
-    .getByLabel("Why these lines are being corrected")
+    .getByRole("textbox", {
+      name: "Why these lines are being corrected",
+      exact: true,
+    })
     .fill("Transcript lists the honors section and no Applied Fiction.");
 
   await dialog
@@ -457,7 +483,10 @@ test("an officer corrects, removes, and adds a course line, then restores the im
   });
   await expect(restoreDialog).toBeVisible();
   await restoreDialog
-    .getByLabel("Why the corrections are being withdrawn")
+    .getByRole("textbox", {
+      name: "Why the corrections are being withdrawn",
+      exact: true,
+    })
     .fill("Registrar confirmed the imported lines were right.");
   await restoreDialog
     .getByRole("button", { name: "Restore imported lines", exact: true })
@@ -493,7 +522,9 @@ test("a member cannot reach the application review workflow at all", async ({
   // Not "the editor is closed" — the workflow itself is not reachable. The
   // officer tab is absent, so the roster that opens a record never renders,
   // and neither does any applicant's name or imported course line.
-  await expect(page.getByRole("tab", { name: "Applications" })).toHaveCount(0);
+  await expect(
+    page.getByRole("tab", { name: "Applications", exact: true }),
+  ).toHaveCount(0);
   await expect(
     page.getByRole("button", { name: applicantRosterName, exact: true }),
   ).toHaveCount(0);
