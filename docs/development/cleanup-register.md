@@ -2733,27 +2733,31 @@ Local integration `2960940b`, private `53b80d0`, passes 342 root test files,
 package passes its independent lint, types, tests, build, data boundary and route
 inventory gates. These results do not close browser acceptance.
 
-The third fresh database replay applies all 554 migrations and runs 8,884
-assertions across 335 files. One merge-delegation test fails because its function
-lookup compares named identity arguments to an unnamed signature. The 54-case
-staging suite passes, including the new null-safe provenance fix. Earlier
-fixtures and the missing merge-reference policy are repaired. A separate
-read-only accepted-catalog check fails on changed function and relation hashes.
-The release-script tests did not catch that drift, so the catalog remains open.
+The fourth fresh database replay passes all 554 migrations and 8,885 assertions
+across 335 files. The merge-delegation test now resolves its entry by function
+identity. The accepted catalog passes against the replayed schema, and all ten
+point-trigger and permission drift controls refuse their changes and roll back.
+The replay owns and removes its stack. This is local schema evidence, not hosted
+Development evidence.
 
-The first focused browser run passes three activity journeys and fails one
-transient-toast assertion even though the page shows "Signups closed". Twenty-six
-decision journeys stop during fixture setup because the fixture attempts direct
-writes to protected tables. Three applicant journeys remain disabled. Those
-results provide no decision-release browser acceptance.
+The next focused browser run passes all four activity publication journeys.
+Decision journeys still stop during setup: the fixture passed a nonexistent
+source ID to a registration RPC that treats supplied IDs as updates. The fixture
+now creates a source through that RPC and reuses its returned identity. Applicant
+journeys are enabled, but their browser acceptance remains open until rerun.
 
-Manual Chrome inspection of the fictional adviser's Applications page finds no
-Sheets controls. The production parent never supplies the new `sheetReview`
-property to the workspace, so the panel and actions are unreachable. This is an
-open P1 under CSF-READINESS-01, even though the isolated component tests pass.
+Manual Chrome inspection found the Sheets controls missing from the fictional
+adviser's Applications page. The production parent now loads and passes the
+workspace and binds its actions. A real route-loader regression covers staff
+loading and excludes applicants and denied routes. Each control now follows its
+own action permission. This fixes the wiring defect under CSF-READINESS-01;
+rendered browser acceptance remains open.
+
 The test runner also leaves a port ownership claim after its process exits.
-The coordinator preserved two exact dead-owner claims before restarting the
-owned local runner. Fixing signal cleanup remains a P2 tooling defect.
+The coordinator preserves only exact claims whose owners have exited and whose
+ports have no listener. A terminal agent is repairing signal cleanup with a
+child-process regression. This remains a P2 tooling defect pending the next
+real browser teardown.
 
 The existing CSF browser regression suite completed with 102 passed, one failed,
 four skipped and two not run after a serial failure. The failed identity test
@@ -2765,7 +2769,7 @@ Three optional screenshot journeys and one historical import journey are skipped
 Manual desktop and phone walkthroughs verify that a fictional historical activity
 creation and point edit produce matching officer and member totals. An attendance
 correction appears in both views without changing points. Removing the synthetic
-activity restores the officer total, and an explicit unknown mark restores the
+activity restores both views to the original total, and an explicit unknown mark restores the
 meeting to unknown attendance. These operations affect only the owned local
 fixtures. The same walkthrough exposes a P2 calendar-date defect: an activity
 entered as March 15 displays March 14 in both views in Pacific time, although the
