@@ -284,17 +284,76 @@ describe("the script's own shape", () => {
     expect(source).toMatch(/:'expected_version'::integer/);
   });
 
-  test("mapping saves send the whole current mapping", () => {
-    // The contract takes one jsonb value. Sending decisionColumns alone drops
-    // the identity columns, the scope, and the colour overrides.
+  test("mapping saves match the parser's shape, not the SQL's tolerance", () => {
+    // `csf_set_application_decision_mapping` only checks that identityColumns,
+    // scope, and colors are objects, so a malformed mapping is stored without
+    // complaint. `parseCsfSheetDecisionMapping` is the real contract, and a
+    // fixture that satisfied only the SQL would be testing against a document
+    // no reader accepts.
     for (const key of [
+      "'decisionColumns'",
+      "'reasonColumns'",
+      "'readsCellNote'",
       "'identityColumns'",
       "'scope'",
       "'colors'",
-      "'reasonColumns'",
-      "'readsCellNote'",
     ]) {
       expect(source).toContain(key);
+    }
+    // scope is the sheet coordinate, not a decision mode.
+    expect(source).toContain("'sheetTabName', 'Form Responses 1'");
+    expect(source).toContain("'rangeA1', 'A1:W600'");
+    expect(source).toContain("'headerRow', 1");
+    expect(source).not.toContain("'scope', jsonb_build_object('decision'");
+    // identityColumns carries all three the parser reads.
+    expect(source).toMatch(/'email', 2, 'submittedAt', 1, 'responseId', 3/);
+    // colors carries explicit fill lists, including the fills that mean nothing.
+    for (const fillKey of [
+      "'accepted'",
+      "'rejected'",
+      "'rejectedWithExplanation'",
+      "'ignoredFills'",
+    ]) {
+      expect(source).toContain(fillKey);
+    }
+    expect(source).not.toContain("'colors', jsonb_build_object()");
+    // Both the seed and the racing savers send it, not just one of them.
+    expect(source.split("'ignoredFills'").length - 1).toBe(2);
+  });
+
+  test("the fixture username varies per run", () => {
+    // `left` of the flattened uuid is the discriminator plus the fixed version
+    // and variant nibbles, so it was the same string on every run and the second
+    // run collided on the unique username. The run suffix lives at the other end.
+    expect(source).toContain(
+      "right(replace(organization_id::text, '-', ''), 12)",
+    );
+    expect(source).not.toContain(
+      "left(replace(organization_id::text, '-', ''), 12)",
+    );
+  });
+
+  test("every connection is bounded", () => {
+    // Including the probes and the teardown. A holder sleeps at most 120s, so
+    // the statement ceiling sits above that and still ends a stuck session.
+    expect(source).toMatch(/export PGOPTIONS=.*statement_timeout=180000/);
+    expect(source).toMatch(/export PGOPTIONS=.*lock_timeout=150000/);
+    expect(source).toMatch(
+      /export PGOPTIONS=.*idle_in_transaction_session_timeout=180000/,
+    );
+  });
+
+  test("holders are released even when a barrier fails and exits early", () => {
+    // A failed barrier exits before the holder's own release, and a holder left
+    // running would keep its lock while teardown deleted the rows underneath it.
+    expect(source).toContain("HELD_SESSIONS=()");
+    expect(source).toContain("release_all_holders");
+    // Released before teardown, not after it.
+    expect(source).toMatch(
+      /on_exit\(\) \{\n {2}local exit_code=\$\?\n {2}release_all_holders/,
+    );
+    for (const holder of ["TERM_HOLDER", "STAFF_HOLDER", "MAPPING_HOLDER"]) {
+      expect(source).toContain(`HELD_SESSIONS+=("\${${holder}}`);
     }
   });
 

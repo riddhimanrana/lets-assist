@@ -97,6 +97,12 @@ if ! command -v psql >/dev/null 2>&1; then
   exit 2
 fi
 
+# Every connection this script opens is bounded, including the probes and the
+# teardown. A holder sleeps for at most 120 seconds, so the statement ceiling
+# sits above that and still ends a session nothing releases. The lock ceiling is
+# well above the time a barrier needs, so it only fires when something is stuck.
+export PGOPTIONS='-c statement_timeout=180000 -c lock_timeout=150000 -c idle_in_transaction_session_timeout=180000'
+
 # ---------------------------------------------------------------------------
 # Run-scoped synthetic identities
 #
@@ -140,6 +146,11 @@ done
 WORK_DIR="$(mktemp -d)"
 KEEP_EVIDENCE=false
 failures=0
+
+# Sessions that hold a lock on purpose. A barrier that fails exits early, and a
+# holder left running would keep its lock while teardown tried to delete the
+# rows underneath it, so the trap releases every registered holder first.
+HELD_SESSIONS=()
 
 report() {
   local outcome="$1" title="$2"
@@ -188,8 +199,19 @@ SQL
   return "${status}"
 }
 
+release_all_holders() {
+  local entry app_name shell_pid
+  for entry in "${HELD_SESSIONS[@]+"${HELD_SESSIONS[@]}"}"; do
+    app_name="${entry%%:*}"
+    shell_pid="${entry##*:}"
+    release_holder "${app_name}" "${shell_pid}" >/dev/null 2>&1 || true
+  done
+  HELD_SESSIONS=()
+}
+
 on_exit() {
   local exit_code=$?
+  release_all_holders
   if ! teardown; then
     echo "FAIL: the fixture could not be torn down cleanly." >&2
     KEEP_EVIDENCE=true
@@ -284,6 +306,11 @@ release_holder() {
     sleep 0.05
   done
   wait "${shell_pid}" 2>/dev/null || true
+  local remaining=() entry
+  for entry in "${HELD_SESSIONS[@]+"${HELD_SESSIONS[@]}"}"; do
+    [[ "${entry}" == "${app_name}:${shell_pid}" ]] || remaining+=("${entry}")
+  done
+  HELD_SESSIONS=("${remaining[@]+"${remaining[@]}"}")
   [[ "${still}" == "0" ]]
 }
 
@@ -305,14 +332,16 @@ INSERT INTO auth.users (id, aud, role, email, email_confirmed_at,
   raw_app_meta_data, raw_user_meta_data, created_at, updated_at)
 VALUES (:'actor_id'::uuid, 'authenticated', 'authenticated',
   :'actor_email', now(), '{}', '{}', now(), now());
--- The username is derived from the organization id the way
--- csf_term_close_serialization derives its own, so it is unique per run and
--- still a form lib/organization/username-fixtures.test.ts can resolve.
+-- The username takes the last twelve characters of the flattened organization
+-- id, which is where the minted run suffix lives. The leading twelve are the
+-- discriminator and the fixed version and variant nibbles, so `left` would have
+-- produced the same username on every run and the second run would collide.
+-- lib/organization/username-fixtures.test.ts resolves both ends.
 INSERT INTO public.organizations (id, name, username, type, join_code)
 SELECT
   organization_id,
   'CSF Decision Concurrency',
-  'csf-decision-conc-' || left(replace(organization_id::text, '-', ''), 12),
+  'csf-decision-conc-' || right(replace(organization_id::text, '-', ''), 12),
   'school',
   :'join_code'
 FROM (SELECT :'org_id'::uuid AS organization_id) AS fixture;
@@ -345,9 +374,15 @@ VALUES (:'application_id'::uuid, :'org_id'::uuid, :'profile_id'::uuid,
 COMMIT;
 SQL
 
-# The full mapping the current contract takes: one jsonb value carrying the
-# decision and reason columns, the identity columns, the scope, and the colour
-# overrides, plus the version the caller believes it is replacing.
+# The mapping shape the private parser actually reads, not the shape the root
+# SQL happens to tolerate. `csf_set_application_decision_mapping` only checks
+# that identityColumns, scope, and colors are objects, so a malformed mapping is
+# stored without complaint and only fails later when a reader wants a field that
+# is not there. `parseCsfSheetDecisionMapping` in
+# services/sheet-decision-colors.ts is the contract: scope carries sheetTabName,
+# rangeA1, and headerRow; identityColumns carries email, submittedAt, and
+# responseId; colors carries the four explicit fill lists including the fills
+# that mean nothing. The version the caller believes it is replacing goes last.
 psql_quiet -v org_id="${ORG_ID}" -v actor_id="${ACTOR_ID}" -v source_id="${SOURCE_ID}" <<'SQL'
 SELECT plugin_data.csf_set_application_decision_mapping(
   :'org_id'::uuid, :'actor_id'::uuid, :'source_id'::uuid,
@@ -355,9 +390,20 @@ SELECT plugin_data.csf_set_application_decision_mapping(
     'decisionColumns', jsonb_build_array(7),
     'reasonColumns', jsonb_build_array(8),
     'readsCellNote', true,
-    'identityColumns', jsonb_build_object('email', 2, 'submittedAt', 1),
-    'scope', jsonb_build_object('decision', 'row'),
-    'colors', jsonb_build_object()
+    'identityColumns', jsonb_build_object(
+      'email', 2, 'submittedAt', 1, 'responseId', 3
+    ),
+    'scope', jsonb_build_object(
+      'sheetTabName', 'Form Responses 1',
+      'rangeA1', 'A1:W600',
+      'headerRow', 1
+    ),
+    'colors', jsonb_build_object(
+      'accepted', jsonb_build_array('#d9ead3', '#b6d7a8'),
+      'rejected', jsonb_build_array('#f4cccc', '#ea9999'),
+      'rejectedWithExplanation', jsonb_build_array('#fff2cc', '#ffe599'),
+      'ignoredFills', jsonb_build_array('#ffffff', '#f8f9fa', '#f3f3f3')
+    )
   ),
   NULL
 );
@@ -481,6 +527,7 @@ COMMIT;
 SQL
 ) >"${WORK_DIR}/holder.out" 2>"${WORK_DIR}/holder.err" &
 HOLDER_PID=$!
+HELD_SESSIONS+=("${TERM_HOLDER}:${HOLDER_PID}")
 
 if ! await_all_waiting 1 "'Timeout'" "'PgSleep'" "${TERM_HOLDER}"; then
   echo "The term-lock holder never reached its hold point." >&2
@@ -591,6 +638,7 @@ COMMIT;
 SQL
 ) >"${WORK_DIR}/staff-holder.out" 2>"${WORK_DIR}/staff-holder.err" &
 STAFF_HOLDER_PID=$!
+HELD_SESSIONS+=("${STAFF_HOLDER}:${STAFF_HOLDER_PID}")
 
 if ! await_all_waiting 1 "'Timeout'" "'PgSleep'" "${STAFF_HOLDER}"; then
   echo "The staff-access lock holder never reached its hold point." >&2
@@ -681,6 +729,7 @@ COMMIT;
 SQL
 ) >"${WORK_DIR}/mapping-holder.out" 2>"${WORK_DIR}/mapping-holder.err" &
 MAPPING_HOLDER_PID=$!
+HELD_SESSIONS+=("${MAPPING_HOLDER}:${MAPPING_HOLDER_PID}")
 
 if ! await_all_waiting 1 "'Timeout'" "'PgSleep'" "${MAPPING_HOLDER}"; then
   echo "The mapping row holder never reached its hold point." >&2
@@ -696,9 +745,20 @@ SELECT plugin_data.csf_set_application_decision_mapping(
     'decisionColumns', jsonb_build_array(:'column_number'::integer),
     'reasonColumns', jsonb_build_array(8),
     'readsCellNote', true,
-    'identityColumns', jsonb_build_object('email', 2, 'submittedAt', 1),
-    'scope', jsonb_build_object('decision', 'row'),
-    'colors', jsonb_build_object()
+    'identityColumns', jsonb_build_object(
+      'email', 2, 'submittedAt', 1, 'responseId', 3
+    ),
+    'scope', jsonb_build_object(
+      'sheetTabName', 'Form Responses 1',
+      'rangeA1', 'A1:W600',
+      'headerRow', 1
+    ),
+    'colors', jsonb_build_object(
+      'accepted', jsonb_build_array('#d9ead3', '#b6d7a8'),
+      'rejected', jsonb_build_array('#f4cccc', '#ea9999'),
+      'rejectedWithExplanation', jsonb_build_array('#fff2cc', '#ffe599'),
+      'ignoredFills', jsonb_build_array('#ffffff', '#f8f9fa', '#f3f3f3')
+    )
   ),
   :'expected_version'::integer
 );
