@@ -1,10 +1,7 @@
 import assert from "node:assert/strict";
-import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
 import test from "node:test";
 import { fileURLToPath } from "node:url";
-
-import { approvedMigrations } from "./forward-migration-release.mjs";
 
 /**
  * Source checks for 20260917110000.
@@ -31,11 +28,10 @@ const pgtap = read(
   "supabase/tests/database/csf_historical_attendance_correction.test.sql",
 );
 
-test("the shipped bytes are the bytes the release pins", () => {
-  const entry = approvedMigrations.find(([name]) => name === NAME);
-  assert.ok(entry, `${NAME} is not in the approved migration list.`);
-  assert.equal(createHash("sha256").update(current).digest("hex"), entry[1]);
-});
+// The release pin for this migration is deliberately not asserted here. Several
+// lanes are open, the ledger length and the approved-migration tail both move as
+// they land, and the coordinator owns the final catalog. Pinning it from this
+// branch would only guarantee a stale number.
 
 test("NULLIF is written as syntax, never as a qualified function", () => {
   // A replay found pg_catalog.nullif(text, unknown) does not exist. plpgsql
@@ -51,9 +47,12 @@ test("every other qualified call names a real pg_catalog function", () => {
     "convert_to",
     "encode",
     "gen_random_uuid",
+    "hashtextextended",
     "jsonb_build_object",
+    "jsonb_object_keys",
     "jsonb_typeof",
     "now",
+    "pg_advisory_xact_lock",
     "set_config",
     "sha256",
   ]);
@@ -250,4 +249,81 @@ test("no earlier migration was edited", () => {
   assert.ok(previous.includes("CREATE OR REPLACE FUNCTION"));
   assert.equal(previous.includes("p_acknowledge_closed_semester"), false);
   assert.equal(previous.includes("requestDigest"), false);
+});
+
+test("the base grant is stated for the owner role", () => {
+  // AGENTS requires an explicit REVOKE and GRANT for every new or replaced SQL
+  // function. The base is owner-internal, so postgres is its reviewed role and
+  // the grant says so rather than relying on a default.
+  const tenArg =
+    "uuid, uuid, uuid, text, text, text, uuid, uuid, boolean, jsonb";
+  assert.ok(
+    current.includes(
+      `GRANT EXECUTE ON FUNCTION plugin_data.csf_correct_meeting_attendance_permission_base(\n  ${tenArg}\n) TO postgres;`,
+    ),
+  );
+});
+
+test("same-request callers serialize before the receipt lookup", () => {
+  // Two retries arriving together would both miss the receipt, both proceed,
+  // and the second would block on the unique index and fail rather than replay.
+  // The lock has to be taken before the lookup for the loser to see the winner's
+  // receipt.
+  const guard = current.indexOf("IF p_correlation_id IS NOT NULL THEN");
+  const lock = current.indexOf("pg_advisory_xact_lock");
+  const lookup = current.indexOf("SELECT audit.* INTO v_receipt");
+  assert.ok(guard >= 0 && lock >= 0 && lookup >= 0);
+  assert.ok(guard < lock, "the lock is only taken when there is a replay key");
+  assert.ok(lock < lookup, "the lock must precede the receipt lookup");
+  // Scoped to the organization and the request, not to the table.
+  assert.ok(
+    current.includes("p_organization_id::text || ':' || p_correlation_id::text"),
+  );
+});
+
+test("source evidence is scoped to officer coordinates", () => {
+  assert.ok(
+    current.includes(
+      "'Attendance correction source evidence must name its sourceId.'",
+    ),
+  );
+  assert.ok(
+    current.includes(
+      "ARRAY['sourceId', 'tabName', 'sheetId', 'sheetRow', 'columnNumber']",
+    ),
+  );
+  // No free-text key. A note beside a decision gets read as the reason for it.
+  for (const smuggled of ["'note'", "'comment'", "'reason'"]) {
+    assert.equal(
+      current.includes(
+        `ARRAY['sourceId', 'tabName', 'sheetId', 'sheetRow', 'columnNumber', ${smuggled}]`,
+      ),
+      false,
+    );
+  }
+});
+
+test("the header does not claim the historical semesters are closed", () => {
+  const header = current.slice(0, current.indexOf("BEGIN;"));
+  assert.equal(header.includes("Every historical semester is therefore"), false);
+  assert.ok(header.includes("all open"));
+});
+
+test("the notice marker sits on after_data itself, not only in the receipt", () => {
+  // An isolated replay found after_data->>'noticesSuppressed' NULL: the marker
+  // was written inside `result` only, so the two assertions reading it at the
+  // top level got nothing. Whether the member was told is a fact about the
+  // correction and belongs beside the acknowledgement.
+  const audit = current.slice(
+    current.indexOf("coalesce(v_after,"),
+    current.indexOf("'result', pg_catalog.jsonb_build_object("),
+  );
+  assert.ok(audit.includes("'closedSemesterAcknowledged', v_closed"));
+  assert.ok(audit.includes("'noticesSuppressed', v_source_ref IS NOT NULL"));
+  // Three places now: after_data, the replay receipt, and the return value.
+  assert.equal(
+    (current.match(/'noticesSuppressed', v_source_ref IS NOT NULL/gu) ?? [])
+      .length,
+    3,
+  );
 });

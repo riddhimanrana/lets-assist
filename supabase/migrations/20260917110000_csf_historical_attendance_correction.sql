@@ -378,6 +378,11 @@ BEGIN
     coalesce(v_after, pg_catalog.jsonb_build_object('removed', true))
     || pg_catalog.jsonb_build_object(
       'closedSemesterAcknowledged', v_closed,
+      -- Beside the acknowledgement, not only inside the replay receipt. Whether
+      -- the member was told is a fact about this correction, and an auditor
+      -- reading after_data should not have to know that `result` exists to find
+      -- it.
+      'noticesSuppressed', v_source_ref IS NOT NULL,
       'sourceRef', v_source_ref,
       -- The replay receipt. `result` is returned verbatim to a repeat call, so
       -- a retry cannot observe a different answer than the first call gave.
