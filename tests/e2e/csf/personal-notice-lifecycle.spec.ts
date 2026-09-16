@@ -42,6 +42,16 @@ import {
  */
 
 const PREFIX = "E2E Personal Notice";
+
+/**
+ * Campaign states the ledger treats as settled. A campaign that reached one of
+ * these has nothing left to withdraw, and its record is send history.
+ */
+const TERMINAL_CAMPAIGN_STATUSES = new Set([
+  "completed",
+  "failed",
+  "cancelled",
+]);
 const MEMBER = localActors.member;
 
 /** Copy that would claim an outcome the app has not observed. */
@@ -131,17 +141,63 @@ function mailpitSubject(message: MailpitSummary) {
   return typeof subject === "string" ? subject : "";
 }
 
-async function mailpitMessagesFor(subject: string) {
+/** The rendered message, which is where a notice says what it is about. */
+async function mailpitMessage(id: string) {
+  const response = await fetch(
+    new URL(`/api/v1/message/${id}`, mailpitOrigin()),
+  );
+  if (!response.ok) {
+    throw new Error(`Mailpit message read failed with ${response.status}.`);
+  }
+  return (await response.json()) as {
+    Subject?: string;
+    Text?: string;
+    HTML?: string;
+  };
+}
+
+type NoticeMail = {
+  /** The shared headline every point-submission notice carries. */
+  subject: string;
+  /** This spec's own activity title, minted per run. */
+  activityTitle: string;
+  /** This spec's own submission, which the action link names. */
+  submissionId: string;
+};
+
+/**
+ * The messages this journey is entitled to count.
+ *
+ * Every point-submission notice carries the same subject, so matching on it
+ * also returns mail other journeys sent to the same fixture student on the same
+ * reused mailbox: the failing run counted three, two of them another spec's.
+ * Identity comes from the rendered message instead, the activity title this run
+ * minted and the deep link to its own submission, read from the body rather
+ * than the summary snippet, which Mailpit truncates. Nothing this spec did not
+ * send is ever counted, and so nothing else is ever deleted.
+ */
+async function mailpitMessagesFor(mail: NoticeMail) {
   const search = new URL("/api/v1/search", mailpitOrigin());
-  search.searchParams.set("query", subject);
+  search.searchParams.set("query", mail.activityTitle);
   const response = await fetch(search);
   if (!response.ok) {
     throw new Error(`Mailpit search failed with ${response.status}.`);
   }
   const payload = (await response.json()) as { messages?: MailpitSummary[] };
-  return (payload.messages ?? []).filter(
-    (message) => mailpitSubject(message) === subject,
-  );
+  const owned: MailpitSummary[] = [];
+  for (const message of payload.messages ?? []) {
+    const id = mailpitId(message);
+    if (!id || mailpitSubject(message) !== mail.subject) continue;
+    const body = await mailpitMessage(id);
+    const rendered = `${body.Text ?? ""}\n${body.HTML ?? ""}`;
+    if (
+      rendered.includes(mail.activityTitle) &&
+      rendered.includes(mail.submissionId)
+    ) {
+      owned.push(message);
+    }
+  }
+  return owned;
 }
 
 async function deleteMailpitMessages(ids: string[]) {
@@ -495,6 +551,13 @@ test.describe("personal notice lifecycle", () => {
       expect(actionUrl).toContain("tab=csf-submissions");
       expect(actionUrl).toContain(`csf_submission=${seeded.submissionId}`);
 
+      // What makes a message in the shared mailbox this journey's own.
+      const noticeMail = {
+        subject: String(notice.title),
+        activityTitle: title,
+        submissionId: seeded.submissionId,
+      };
+
       const campaigns = await noticeCampaigns(fixture, eventIds);
       expect(campaigns).toHaveLength(1);
       campaignIds = campaigns.map((campaign) => String(campaign.id));
@@ -511,7 +574,7 @@ test.describe("personal notice lifecycle", () => {
       expect((beforeSend ?? []).every((row) => row.status === "queued")).toBe(
         true,
       );
-      expect(await mailpitMessagesFor(String(notice.title))).toHaveLength(0);
+      expect(await mailpitMessagesFor(noticeMail)).toHaveLength(0);
 
       // Now the mail worker, and the loopback mailbox.
       const dispatch = runMailWorker(fixture.organizationId);
@@ -530,7 +593,7 @@ test.describe("personal notice lifecycle", () => {
         })
         .toEqual([{ status: "sent", provider_message_id: expect.any(String) }]);
 
-      const mailbox = await mailpitMessagesFor(String(notice.title));
+      const mailbox = await mailpitMessagesFor(noticeMail);
       expect(mailbox).toHaveLength(1);
       mailpitIds = mailbox
         .map(mailpitId)
@@ -549,7 +612,7 @@ test.describe("personal notice lifecycle", () => {
         await notificationsFor(fixture, member.userId, eventIds),
       ).toHaveLength(1);
       expect(await noticeCampaigns(fixture, eventIds)).toHaveLength(1);
-      expect(await mailpitMessagesFor(String(notice.title))).toHaveLength(1);
+      expect(await mailpitMessagesFor(noticeMail)).toHaveLength(1);
 
       // The member opens the link and lands on their own submission.
       const memberContext = await browser.newContext();
@@ -670,8 +733,9 @@ test.describe("personal notice lifecycle", () => {
  *
  * The communications ledger is append-only on purpose: an attempt and its
  * provider event are the record that something was sent, so they are not
- * deleted here. The campaign is cancelled instead, which is the operator
- * disposition the ledger already models, and the notice rows this spec created
+ * deleted here. A campaign that already settled is kept for the same reason;
+ * one still live is withdrawn through the reviewed cancellation RPC, which is
+ * the operator disposition the ledger models. The notice rows this spec created
  * are removed by their own coordinate.
  */
 async function cleanUp(
@@ -695,17 +759,34 @@ async function cleanUp(
   await attempt("mailpit", () => deleteMailpitMessages(mailpitIds));
   if (campaignIds.length > 0) {
     await attempt("campaign", async () => {
-      // Cancelled, never deleted. The communications ledger is append-only on
-      // purpose: an attempt and its provider event are the record that
-      // something was sent, and a send receipt is not a spec's to erase.
-      // Cancellation is the disposition the ledger already models.
-      const organizationId = assertUuid(fixture.organizationId, "organization");
-      sql.exec(
-        `UPDATE plugin_data.csf_communication_campaigns
-         SET status = 'cancelled'
-         WHERE organization_id = '${organizationId}'
-           AND id IN (${uuidList(campaignIds, "campaign")});`,
-      );
+      // Never deleted, and never cancelled by column write. A bare status
+      // update is refused by `csf_enforce_campaign_terminalization`, correctly:
+      // it would stop the campaign on screen while leaving its queued attempts
+      // claimable, with no actor and no reason on the record.
+      //
+      // A campaign that already reached a terminal state is send history and is
+      // retained exactly as its attempts and provider events are. Only one that
+      // is still live is withdrawn, through the reviewed RPC, which settles the
+      // outstanding work and records this fixture's staff actor and a reason.
+      const { data, error } = await fixture.admin
+        .schema("plugin_data")
+        .from("csf_communication_campaigns")
+        .select("id, status")
+        .eq("organization_id", fixture.organizationId)
+        .in("id", campaignIds);
+      if (error) throw new Error(error.message);
+      for (const campaign of data ?? []) {
+        if (TERMINAL_CAMPAIGN_STATUSES.has(String(campaign.status))) continue;
+        const { error: cancelError } = await fixture.admin
+          .schema("plugin_data")
+          .rpc("csf_cancel_communication_campaign", {
+            p_organization_id: fixture.organizationId,
+            p_campaign_id: String(campaign.id),
+            p_reason: "Personal notice end-to-end fixture cleanup.",
+            p_actor_user_id: fixture.organizationAdminUserId,
+          });
+        if (cancelError) throw new Error(cancelError.message);
+      }
     });
   }
   await attempt("notifications", async () => {
