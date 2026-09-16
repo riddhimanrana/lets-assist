@@ -1,7 +1,7 @@
 BEGIN;
 
 CREATE EXTENSION IF NOT EXISTS pgtap WITH SCHEMA extensions;
-SELECT extensions.plan(22);
+SELECT extensions.plan(24);
 
 -- ---------------------------------------------------------------------------
 -- What this proves, and why it is separate
@@ -32,12 +32,6 @@ DECLARE
   v_c5 uuid;
   v_hash text;
 BEGIN
-  IF pg_catalog.to_regprocedure(
-    'plugin_data.csf_create_personal_notice_campaign_draft(uuid,uuid,text,text,text,jsonb,text)'
-  ) IS NULL THEN
-    RETURN;
-  END IF;
-
   -- -------------------------------------------------------------------------
   -- Fixtures: two fictional chapters, a member, four point claims and a
   -- profile correction. The claims deliberately sit in a semester that is NOT
@@ -48,7 +42,12 @@ BEGIN
     raw_app_meta_data, raw_user_meta_data, created_at, updated_at)
   VALUES
     ('da000000-0000-4000-8000-000000000001'::uuid, 'authenticated', 'authenticated',
-     'notice.member@example.test', now(), '{}', '{}', now(), now());
+     'notice.member@example.test', now(), '{}', '{}', now(), now()),
+    -- Withdrawing a send is a staff decision, and the cancellation RPC checks
+    -- the capability rather than taking the caller's word for it. An
+    -- organization admin holds it.
+    ('da000000-0000-4000-8000-000000000002'::uuid, 'authenticated', 'authenticated',
+     'notice.officer@example.test', now(), '{}', '{}', now(), now());
 
   INSERT INTO public.organizations (id, name, username, type, join_code)
   VALUES
@@ -58,8 +57,11 @@ BEGIN
      'notice-chapter-two', 'school', '886002');
 
   INSERT INTO public.organization_members (organization_id, user_id, role, status)
-  VALUES ('da100000-0000-4000-8000-000000000001'::uuid,
-          'da000000-0000-4000-8000-000000000001'::uuid, 'member', 'active');
+  VALUES
+    ('da100000-0000-4000-8000-000000000001'::uuid,
+     'da000000-0000-4000-8000-000000000001'::uuid, 'member', 'active'),
+    ('da100000-0000-4000-8000-000000000001'::uuid,
+     'da000000-0000-4000-8000-000000000002'::uuid, 'admin', 'active');
 
   INSERT INTO plugin_data.csf_terms (id, organization_id, code, label, school_year, semester, is_current)
   VALUES
@@ -233,9 +235,35 @@ BEGIN
     'Your claim for 1 point was approved.');
   v_c2 := (v_result ->> 'campaignId')::uuid;
 
-  UPDATE plugin_data.csf_communication_campaigns
-  SET status = 'cancelled', cancelled_at = now(), cancellation_reason = 'Operator withdrew it.'
-  WHERE id = v_c2;
+  -- The ledger refuses a bare status write, and it is right to: it would stop
+  -- the campaign on screen while leaving its queued attempts claimable, with no
+  -- actor and no reason. Asserting the refusal keeps that rule from quietly
+  -- eroding, and is why the cancellation below goes through the RPC.
+  BEGIN
+    UPDATE plugin_data.csf_communication_campaigns
+    SET status = 'cancelled', cancelled_at = now(), cancellation_reason = 'Operator withdrew it.'
+    WHERE id = v_c2;
+    INSERT INTO notice_behavior (key, value) VALUES ('bareCancel.sqlstate', 'no exception');
+  EXCEPTION WHEN OTHERS THEN
+    INSERT INTO notice_behavior (key, value) VALUES ('bareCancel.sqlstate', SQLSTATE);
+  END;
+
+  -- The reviewed withdrawal: it settles outstanding work and records the staff
+  -- account and the reason.
+  v_result := plugin_data.csf_cancel_communication_campaign(
+    'da100000-0000-4000-8000-000000000001'::uuid,
+    v_c2,
+    'Operator withdrew this notice before it was sent.',
+    'da000000-0000-4000-8000-000000000002'::uuid,
+    'notice-behavior-cancel-1');
+
+  INSERT INTO notice_behavior (key, value)
+  SELECT 'c2.cancellationAudited',
+         (campaign.status = 'cancelled'
+          AND campaign.cancelled_at IS NOT NULL
+          AND campaign.cancelled_by_identity = 'notice.officer@example.test'
+          AND campaign.cancellation_reason = 'Operator withdrew this notice before it was sent.')::text
+  FROM plugin_data.csf_communication_campaigns AS campaign WHERE campaign.id = v_c2;
 
   -- The claim the notice was about is removed afterwards, so the term this
   -- function would derive no longer exists to derive.
@@ -267,6 +295,14 @@ BEGIN
     'da500000-0000-4000-8000-000000000004'::uuid,
     'Your point claim was approved', 'Your claim was approved.');
   v_c4 := (v_result ->> 'campaignId')::uuid;
+  -- There is no reviewed path from draft to failed. The terminalizer only acts
+  -- on a queued or sending campaign, which needs a finalized audience and real
+  -- delivery rows behind it; a draft that never dispatched has nothing to
+  -- terminalize. So this is a direct write, and it is still vetted: the
+  -- terminalization trigger is the rule that governs the transition, and it
+  -- admits this one only because there are no attempts, no unknown outcomes and
+  -- no undispatched deliveries. It stands in for a notice whose send failed
+  -- before it began.
   UPDATE plugin_data.csf_communication_campaigns SET status = 'failed' WHERE id = v_c4;
   v_result := plugin_data.csf_create_personal_notice_campaign_draft(
     'da100000-0000-4000-8000-000000000001'::uuid,
@@ -280,7 +316,15 @@ BEGIN
     'da500000-0000-4000-8000-000000000005'::uuid,
     'Your point claim was approved', 'Your claim was approved.');
   v_c5 := (v_result ->> 'campaignId')::uuid;
-  UPDATE plugin_data.csf_communication_campaigns SET review_blocked_at = now() WHERE id = v_c5;
+  -- A review block is not an operator action either: the dispatch-recovery
+  -- paths raise it when a provider outcome is unknown, always paired with a
+  -- reason, and no RPC exposes it on its own. Writing the pair directly honours
+  -- csf_comm_campaign_review_block_check and leaves the campaign nonterminal,
+  -- which is exactly the condition the draft entry point has to recognize.
+  UPDATE plugin_data.csf_communication_campaigns
+  SET review_blocked_at = now(),
+      review_blocked_reason = 'A provider outcome for this notice is unresolved.'
+  WHERE id = v_c5;
   v_result := plugin_data.csf_create_personal_notice_campaign_draft(
     'da100000-0000-4000-8000-000000000001'::uuid,
     'da500000-0000-4000-8000-000000000005'::uuid,
@@ -370,12 +414,6 @@ BEGIN
 END
 $do$;
 
-SELECT extensions.skip(
-  '20260917160000 is not in this tree, so no notice RPC was exercised', 22
-) WHERE pg_catalog.to_regprocedure(
-  'plugin_data.csf_create_personal_notice_campaign_draft(uuid,uuid,text,text,text,jsonb,text)'
-) IS NULL;
-
 -- ---------------------------------------------------------------------------
 -- Derived identity
 -- ---------------------------------------------------------------------------
@@ -383,22 +421,22 @@ SELECT extensions.skip(
 SELECT extensions.is(
   (SELECT value FROM notice_behavior WHERE key = 'c1.termIsClaimTerm'), 'true',
   'a point-submission notice is attributed to the semester the claim was made in, not the current one'
-) WHERE (SELECT count(*) FROM notice_behavior) > 0;
+);
 
 SELECT extensions.is(
   (SELECT value FROM notice_behavior WHERE key = 'c1.audience'), 'custom_list/null/transactional',
   'a notice campaign names a custom list, no class audience, and stays transactional'
-) WHERE (SELECT count(*) FROM notice_behavior) > 0;
+);
 
 SELECT extensions.is(
   (SELECT value FROM notice_behavior WHERE key = 'c1.firstCallWasNew'), 'false',
   'the first call on a notice creates the campaign rather than reporting a replay'
-) WHERE (SELECT count(*) FROM notice_behavior) > 0;
+);
 
 SELECT extensions.is(
   (SELECT value FROM notice_behavior WHERE key = 'c3.termIsCurrentTerm'), 'true',
   'a profile-correction notice is attributed to the chapter''s current semester'
-) WHERE (SELECT count(*) FROM notice_behavior) > 0;
+);
 
 -- ---------------------------------------------------------------------------
 -- Finalization against the real ledger constraint
@@ -407,22 +445,22 @@ SELECT extensions.is(
 SELECT extensions.is(
   (SELECT value FROM notice_behavior WHERE key = 'c1.finalizeSqlstate'), 'ok',
   'finalizing a notice no longer trips the campaign dispatch identity check'
-) WHERE (SELECT count(*) FROM notice_behavior) > 0;
+);
 
 SELECT extensions.is(
   (SELECT value FROM notice_behavior WHERE key = 'c1.frozen'), 'true',
   'finalization records a content hash and a body digest, so the notice is dispatch-ready'
-) WHERE (SELECT count(*) FROM notice_behavior) > 0;
+);
 
 SELECT extensions.is(
   (SELECT value FROM notice_behavior WHERE key = 'c1.finalizeReplay'), 'true',
   'finalizing twice reports a replay'
-) WHERE (SELECT count(*) FROM notice_behavior) > 0;
+);
 
 SELECT extensions.is(
   (SELECT value FROM notice_behavior WHERE key = 'c1.finalizeReplayHash'), 'true',
   'the replay returns the digest the first finalization froze'
-) WHERE (SELECT count(*) FROM notice_behavior) > 0;
+);
 
 -- ---------------------------------------------------------------------------
 -- One campaign per notice, and frozen content stays frozen
@@ -431,56 +469,66 @@ SELECT extensions.is(
 SELECT extensions.is(
   (SELECT value FROM notice_behavior WHERE key = 'c1.retrySameCampaign'), 'true',
   'an unchanged retry returns the campaign that already exists'
-) WHERE (SELECT count(*) FROM notice_behavior) > 0;
+);
 
 SELECT extensions.is(
   (SELECT value FROM notice_behavior WHERE key = 'c1.retryReportsReplay'), 'true',
   'an unchanged retry says so'
-) WHERE (SELECT count(*) FROM notice_behavior) > 0;
+);
 
 SELECT extensions.is(
   (SELECT value FROM notice_behavior WHERE key = 'c1.retryDisposition'), 'open',
   'a finalized notice is still open, not held'
-) WHERE (SELECT count(*) FROM notice_behavior) > 0;
+);
 
 SELECT extensions.is(
   (SELECT value FROM notice_behavior WHERE key = 'c1.contentUnchanged'), 'true',
   'a retry carrying different copy cannot rewrite frozen content, subject or term'
-) WHERE (SELECT count(*) FROM notice_behavior) > 0;
+);
 
 SELECT extensions.is(
   (SELECT value FROM notice_behavior WHERE key = 'c1.oneCampaign'), '1',
   'a retry creates no second campaign for the same notice'
-) WHERE (SELECT count(*) FROM notice_behavior) > 0;
+);
 
 -- ---------------------------------------------------------------------------
 -- Withdrawn, failed and held notices are final
 -- ---------------------------------------------------------------------------
 
 SELECT extensions.is(
+  (SELECT value FROM notice_behavior WHERE key = 'bareCancel.sqlstate'), '23514',
+  'a bare status write cannot cancel a campaign; the ledger requires the cancellation RPC'
+);
+
+SELECT extensions.is(
+  (SELECT value FROM notice_behavior WHERE key = 'c2.cancellationAudited'), 'true',
+  'the withdrawal records the staff account that decided it and the reason they gave'
+);
+
+SELECT extensions.is(
   (SELECT value FROM notice_behavior WHERE key = 'c2.disposition'), 'held',
   'a cancelled notice replays as held even though its point claim no longer exists'
-) WHERE (SELECT count(*) FROM notice_behavior) > 0;
+);
 
 SELECT extensions.is(
   (SELECT value FROM notice_behavior WHERE key = 'c2.sameCampaign'), 'true',
   'the held reply names the campaign the operator withdrew'
-) WHERE (SELECT count(*) FROM notice_behavior) > 0;
+);
 
 SELECT extensions.is(
   (SELECT value FROM notice_behavior WHERE key = 'c2.liveCampaigns'), '0',
   'no live campaign is resurrected for a withdrawn notice'
-) WHERE (SELECT count(*) FROM notice_behavior) > 0;
+);
 
 SELECT extensions.is(
   (SELECT value FROM notice_behavior WHERE key = 'c4.disposition'), 'held',
   'a failed notice replays as held rather than being retried'
-) WHERE (SELECT count(*) FROM notice_behavior) > 0;
+);
 
 SELECT extensions.is(
   (SELECT value FROM notice_behavior WHERE key = 'c5.disposition'), 'held',
   'a notice held for review replays as held'
-) WHERE (SELECT count(*) FROM notice_behavior) > 0;
+);
 
 -- ---------------------------------------------------------------------------
 -- Refusals
@@ -489,24 +537,24 @@ SELECT extensions.is(
 SELECT extensions.is(
   (SELECT value FROM notice_behavior WHERE key = 'wrongOrg.sqlstate'), '23503',
   'a notice belonging to another chapter is refused'
-) WHERE (SELECT count(*) FROM notice_behavior) > 0;
+);
 
 SELECT extensions.is(
   (SELECT value FROM notice_behavior WHERE key = 'unknownSource.sqlstate'), '23503',
   'a notice id that names nothing is refused'
-) WHERE (SELECT count(*) FROM notice_behavior) > 0;
+);
 
 SELECT extensions.is(
   (SELECT value FROM notice_behavior WHERE key = 'wrongKind.sqlstate'), '42501',
   'a post is not a personal notice and cannot be emailed through this path'
-) WHERE (SELECT count(*) FROM notice_behavior) > 0;
+);
 
 SELECT extensions.is(
   (SELECT string_agg(value, ',' ORDER BY key) FROM notice_behavior
    WHERE key IN ('guardNoTerm.sqlstate', 'guardTopic.sqlstate', 'guardWrongKind.sqlstate')),
   '23514,23514,23514',
   'the guard refuses a termless notice, a notice with a broadcast topic, and a notice on a post'
-) WHERE (SELECT count(*) FROM notice_behavior) > 0;
+);
 
 SELECT * FROM extensions.finish();
 
