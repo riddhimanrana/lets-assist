@@ -7984,14 +7984,14 @@ Claude terminal agents reached their account session limit, with a reported
 04:50 Pacific reset. Reviews, source verification and isolated tests continue;
 follow-up prompts preserve every concrete failure for the resumed agents.
 
-| ID               | Priority | Finding                                                                                                                                                                                              | Required closure evidence                                                                                                                                      |
-| ---------------- | -------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| CSF-READINESS-06 | P1       | The pending typed-name join can claim a record without ownership proof. The replacement requires a unique verified curated contact and routes unmatched students to staff.                           | Attacker, collision, revoked-link and returning/new-member database and browser journeys on the final migration tree.                                          |
-| CSF-READINESS-07 | P1       | New personal notification emails need verified authentication addresses at enqueue and dispatch, durable send outcomes and permission/opt-out rechecks.                                              | Unknown-outcome, retry, changed-address, unconfirmed-address and audience regressions with Mailpit readback.                                                   |
-| CSF-READINESS-08 | P1       | New member-visible profile notes need permission-revocation serialization and a database projection that cannot disclose unreleased term decisions.                                                  | Database ACL, revocation and member response tests, with existing private notes preserved.                                                                     |
-| CSF-READINESS-09 | P1       | Proposed graduated-cohort retirement does not yet safely bind fresh scope and replay intent, erase all intended identifiers, or distinguish moved source rows. Its migration currently fails replay. | Reviewed concrete preview, foreign-key coverage, drift/replay tests, source fingerprint checks and complete isolated replay. No live operation is accepted.    |
-| CSF-READINESS-10 | P2       | Spring 2025 imports produced both `feb_meeting` and `february_meeting` as required active meetings. A historical profile displays attended February Meeting beside Feb Meeting with no record.       | Compare official source headers and cohort provenance, then correct aliases or expected-meeting scope without inventing attendance or merging distinct events. |
-| CSF-READINESS-11 | P2       | A newly connected application source inherited another source's last-import totals and retry control.                                                                                                | Source-switch and stale-response tests pass in private PR 457; hosted and Production readback remain outstanding.                                              |
+| ID               | Priority | Finding                                                                                                                                                                                              | Required closure evidence                                                                                                                                                                                                                                                                                                  |
+| ---------------- | -------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| CSF-READINESS-06 | P1       | The pending typed-name join can claim a record without ownership proof. The replacement requires a unique verified curated contact and routes unmatched students to staff.                           | Attacker, collision, revoked-link and returning/new-member database and browser journeys on the final migration tree.                                                                                                                                                                                                      |
+| CSF-READINESS-07 | P1       | New personal notification emails need verified authentication addresses at enqueue and dispatch, durable send outcomes and permission/opt-out rechecks.                                              | Candidate fixed and locally verified in the 565 replay. Two personal-notice checks still fail in browser run AA; hosted Development and Production readback remain open.                                                                                                                                                   |
+| CSF-READINESS-08 | P1       | New member-visible profile notes need permission-revocation serialization and a database projection that cannot disclose unreleased term decisions.                                                  | Candidate fixed and locally verified: ACL, revocation-serialization and member-projection tests pass in the 565 replay. Hosted Development and Production readback remain open.                                                                                                                                            |
+| CSF-READINESS-09 | P1       | Proposed graduated-cohort retirement does not yet safely bind fresh scope and replay intent, erase all intended identifiers, or distinguish moved source rows. Its migration currently fails replay. | Candidate fixed and locally verified: the migration applies in the 565 replay and coverage for migrations ending in `100000` and `150000` passes. No live preview or commit has run, and immutable import and audit provenance is retained, so no total erasure is claimed. Hosted Development and Production remain open. |
+| CSF-READINESS-10 | P2       | Spring 2025 imports produced both `feb_meeting` and `february_meeting` as required active meetings. A historical profile displays attended February Meeting beside Feb Meeting with no record.       | Compare official source headers and cohort provenance, then correct aliases or expected-meeting scope without inventing attendance or merging distinct events.                                                                                                                                                             |
+| CSF-READINESS-11 | P2       | A newly connected application source inherited another source's last-import totals and retry control.                                                                                                | Source-switch and stale-response tests pass in private PR 457; hosted and Production readback remain outstanding.                                                                                                                                                                                                          |
 
 #### Manual onboarding walkthrough Q
 
@@ -8008,3 +8008,60 @@ search has no edit-name control, and closing then reopening preserves the same
 result. Open My CSF sends the unmatched applicant to the general home page
 instead of a pending-review page. The onboarding agent has both reproductions.
 No real account, profile, admission decision or attendance changed in this run.
+
+#### September 16, 06:05 Pacific candidate checkpoint
+
+Candidate 565 covers the core work and the extensions. It **excludes** the
+meeting header declaration and its projection, migration 20260917120000, which
+is held as unsafe and incomplete rather than shipped partial.
+
+Private PR 459 merged as `40bf9d9`, whose tree is identical to `fb87`. The
+paired private CI run `35098609086` passed against private `fb87` and root
+`15eb0ead`. Root PR 619 is open for review.
+
+Replay Z is clean: 565 migrations, 124 tables, 347 pgTAP files and 9,280
+assertions, plus the accepted catalog and all ten negative controls. The log is
+`coordination/db-final-z.log`. This supersedes the overnight extension audit
+above, where the retention migration failed to apply and five fixtures and the
+historical correction failed. Each of those is fixed and verified locally.
+
+Root unit tests pass 348 files. Lint, formatting and database filename
+validation pass.
+
+The full browser run AA finished with 152 passes, four failures and four skips.
+The failures cover course dropdown interaction, two personal-notice worker
+checks and the phone staff-revocation dialog. Each is under repair. This is not
+a full acceptance claim.
+
+The two manual walkthrough Q defects are addressed by the onboarding
+pending-feed and change-name tests, which pass in browser run AA.
+
+Production is unchanged: 537 migrations, DVHS CSF installed at 1.2.51, 257 Fall
+applications all pending, and zero members. No import commit, retirement,
+decision release or email has run against it.
+
+Two things stay open and are not part of this candidate. The historical
+`feb_meeting` and `february_meeting` alias under CSF-READINESS-10 is unresolved.
+The source-only proposal derived from 22 ignored workbook snapshots and 53
+declared columns has not been applied and is review input, not a change.
+
+Two corrections from this branch are carried forward so they are not lost
+against the integration copy.
+
+The 28 unknown marks and the 2,470 colour-derived proposals are both
+`csf_meeting_attendance` rows, not `csf_profile_activity_events`. An earlier
+note read them as activity events, which was wrong and would have pointed any
+correction at the wrong table.
+
+A read-only Production audit at 02:23 Pacific found zero imported attendance
+rows without a `term_meeting_id`, and found S24, F24, S25, F25 and S26 all open.
+Every one of those rows is therefore reachable by the existing correction path,
+and the closed-semester acknowledgement added in 20260917110000 is hardening
+before those semesters close rather than an unblocking fix.
+
+The read-only source audit aggregates are unchanged and are restated here
+without any record detail: 897 roster profiles; 1,910 semester source rows, of
+which 1,904 were compared and six held; 2,470 colour-derived attendance
+proposals across 638 profiles; and 28 unknown marks across 26 profiles, all
+held. Unresolved identity means no blind merge, and none of these proposals is
+authorized by this checkpoint.
