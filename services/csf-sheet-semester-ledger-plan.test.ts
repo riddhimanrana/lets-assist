@@ -9,7 +9,8 @@ import {
 const base: SemesterLedgerPlanInput = {
   destinationFileId: "separate-lets-assist-workbook",
   originalSourceFileId: "original-class-workbook",
-  destinationCopiedFromFileId: "original-class-workbook",
+  acceptedDestinationFileId: "separate-lets-assist-workbook",
+  acceptedOriginalSourceFileId: "original-class-workbook",
   profileId: "profile-1",
   reviewedLinkProfileId: "profile-1",
   reviewedLinkSourceKey: "reviewed-row-key",
@@ -65,9 +66,9 @@ describe("semester ledger planning", () => {
     })).toEqual({ rowIndex: 9, changes: [] });
   });
 
-  test("refuses an original workbook or unverified copy", () => {
+  test("refuses an original workbook or unaccepted destination", () => {
     expect(() => planSemesterLedgerRow({ ...base, destinationFileId: base.originalSourceFileId })).toThrow();
-    expect(() => planSemesterLedgerRow({ ...base, destinationCopiedFromFileId: "other-source" })).toThrow();
+    expect(() => planSemesterLedgerRow({ ...base, acceptedDestinationFileId: "other-destination" })).toThrow();
   });
 
   test("refuses unreviewed profiles, ambiguous rows, and existing historical values", () => {

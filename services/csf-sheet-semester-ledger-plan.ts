@@ -83,7 +83,8 @@ export type SemesterLedgerRow = {
 export type SemesterLedgerPlanInput = {
   destinationFileId: string;
   originalSourceFileId: string;
-  destinationCopiedFromFileId: string;
+  acceptedDestinationFileId: string;
+  acceptedOriginalSourceFileId: string;
   profileId: string;
   reviewedLinkProfileId: string;
   reviewedLinkSourceKey: string;
@@ -107,16 +108,17 @@ export type SemesterLedgerPlan = {
   changes: SemesterLedgerCellChange[];
 };
 
-// The caller must hold a reviewed source-row link and verify a copied destination.
+// The caller must hold a reviewed source-row link and accepted destination mapping.
 // It must re-read every expected cell before sending this plan to Google Sheets.
 export function planSemesterLedgerRow(input: SemesterLedgerPlanInput): SemesterLedgerPlan {
   if (
     !input.destinationFileId ||
     !input.originalSourceFileId ||
     input.destinationFileId === input.originalSourceFileId ||
-    input.destinationCopiedFromFileId !== input.originalSourceFileId
+    input.acceptedDestinationFileId !== input.destinationFileId ||
+    input.acceptedOriginalSourceFileId !== input.originalSourceFileId
   ) {
-    throw new Error("Choose a verified, separate Let's Assist destination workbook.");
+    throw new Error("Choose an accepted, separate Let's Assist destination workbook.");
   }
   if (
     !input.profileId ||
