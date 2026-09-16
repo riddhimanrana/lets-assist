@@ -296,7 +296,7 @@ export const approvedMigrations = [
   ],
   [
     "20260916010000_csf_member_reports",
-    "1a0dbb0f8ecaafaabd3091738a8a2985814d6b55be12bcbb0b435fe8e46a0954",
+    "7cfccd344c352740972285d854e8e1478f2dd804e48b08f245d546373d4d773f",
   ],
 ];
 

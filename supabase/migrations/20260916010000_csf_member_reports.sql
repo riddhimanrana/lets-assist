@@ -204,3 +204,104 @@ GRANT EXECUTE ON FUNCTION plugin_data.csf_resolve_member_report(uuid,uuid,uuid,t
   TO service_role;
 
 COMMIT;
+
+-- csf_member_reports.profile_id is a new FK into csf_profiles, so the merge
+-- machinery has to know about it: a report follows its member to the surviving
+-- record. Both functions follow the established base/wrapper convention rather
+-- than restating the whole body.
+ALTER FUNCTION plugin_data.csf_profile_merge_reference_plan(uuid, uuid)
+  RENAME TO csf_profile_merge_reference_plan_member_report_base;
+
+CREATE OR REPLACE FUNCTION plugin_data.csf_profile_merge_reference_plan(
+  p_organization_id uuid,
+  p_source_profile_id uuid
+)
+RETURNS jsonb
+LANGUAGE plpgsql
+SECURITY DEFINER
+STABLE
+SET search_path = ''
+AS $$
+DECLARE
+  v_plan jsonb;
+BEGIN
+  v_plan := plugin_data.csf_profile_merge_reference_plan_member_report_base(
+    p_organization_id, p_source_profile_id
+  );
+  RETURN pg_catalog.jsonb_set(
+    v_plan,
+    '{sameTransactionRewrites}',
+    COALESCE(v_plan -> 'sameTransactionRewrites', '[]'::jsonb)
+      || pg_catalog.jsonb_build_array(
+        pg_catalog.jsonb_build_object(
+          'reference', 'plugin_data.csf_member_reports.profile_id',
+          'scope', 'all member-filed record reports',
+          'sourceCount', (
+            SELECT pg_catalog.count(*)
+            FROM plugin_data.csf_member_reports AS referenced_row
+            WHERE referenced_row.organization_id = p_organization_id
+              AND referenced_row.profile_id = p_source_profile_id
+          )
+        )
+      ),
+    true
+  );
+END;
+$$;
+
+REVOKE ALL ON FUNCTION plugin_data.csf_profile_merge_reference_plan(uuid, uuid)
+  FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION plugin_data.csf_profile_merge_reference_plan(uuid, uuid)
+  TO service_role;
+REVOKE ALL ON FUNCTION
+  plugin_data.csf_profile_merge_reference_plan_member_report_base(uuid, uuid)
+  FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION
+  plugin_data.csf_profile_merge_reference_plan_member_report_base(uuid, uuid)
+  TO service_role;
+
+ALTER FUNCTION plugin_data.csf_merge_profiles_account_order_base(
+  uuid, uuid, uuid, text, uuid
+) RENAME TO csf_merge_profiles_member_report_base;
+
+CREATE OR REPLACE FUNCTION plugin_data.csf_merge_profiles_account_order_base(
+  p_organization_id uuid,
+  p_source_profile_id uuid,
+  p_target_profile_id uuid,
+  p_reason text,
+  p_actor_user_id uuid
+)
+RETURNS jsonb
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = ''
+AS $$
+DECLARE
+  v_moved integer := 0;
+BEGIN
+  -- Move the reports before the base runs, so its zero-live-reference
+  -- postconditions and the profile delete both see a clean source record.
+  UPDATE plugin_data.csf_member_reports SET profile_id = p_target_profile_id
+  WHERE organization_id = p_organization_id
+    AND profile_id = p_source_profile_id;
+  GET DIAGNOSTICS v_moved = ROW_COUNT;
+
+  RETURN plugin_data.csf_merge_profiles_member_report_base(
+    p_organization_id, p_source_profile_id, p_target_profile_id,
+    p_reason, p_actor_user_id
+  );
+END;
+$$;
+
+REVOKE ALL ON FUNCTION plugin_data.csf_merge_profiles_account_order_base(
+  uuid, uuid, uuid, text, uuid
+) FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION plugin_data.csf_merge_profiles_account_order_base(
+  uuid, uuid, uuid, text, uuid
+) TO service_role;
+REVOKE ALL ON FUNCTION plugin_data.csf_merge_profiles_member_report_base(
+  uuid, uuid, uuid, text, uuid
+) FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION plugin_data.csf_merge_profiles_member_report_base(
+  uuid, uuid, uuid, text, uuid
+) TO service_role;
