@@ -1,4 +1,4 @@
-import { randomUUID } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 
 import type { SupabaseClient } from "@supabase/supabase-js";
 
@@ -99,6 +99,15 @@ export function matchBasisFor(role: ApplicantRole) {
   return role === "explained"
     ? "recorded_response_id"
     : "import_row_provenance";
+}
+
+/**
+ * `csf_open_import_preview` requires both digests to match `^[0-9a-f]{64}$`,
+ * and the append replay check compares a row's digest byte for byte, so these
+ * are real hashes of synthetic content rather than decorative strings.
+ */
+function sha256(value: string) {
+  return createHash("sha256").update(value).digest("hex");
 }
 
 function shortToken() {
@@ -208,8 +217,8 @@ async function seedImportLineage(
       },
       p_mapping_version: 1,
       p_retry_of_job_id: null,
-      p_source_content_hash: `e2e-content-${applicants.token}`,
-      p_snapshot_hash: `e2e-snapshot-${applicants.token}`,
+      p_source_content_hash: sha256(`e2e-content-${applicants.token}`),
+      p_snapshot_hash: sha256(`e2e-snapshot-${applicants.token}`),
       p_snapshot_row_count: imported.length,
       p_snapshot_contract_version: "e2e-1",
     }),
@@ -221,20 +230,34 @@ async function seedImportLineage(
       p_organization_id: context.organizationId,
       p_actor_user_id: context.actorUserId,
       p_preview_job_id: previewJobId,
+      // `source_id` and `mapping_version` are no longer accepted row keys; the
+      // function takes the source from the locked job, which is the point.
       p_rows: imported.map((applicant) => ({
-        source_id: context.sourceId,
         cohort_id: context.cohortId,
         term_id: context.termId,
         sheet_tab_name: SHEET_FIXTURE_TAB,
         row_number: applicant.rowNumber,
         source_range: SHEET_FIXTURE_RANGE,
-        row_hash: `e2e-row-hash-${applicant.responseId}`,
-        matched_profile_id: applicant.profileId,
+        // No caller-stated digest: the function computes one from the record
+        // the row carries and refuses a digest that disagrees with it.
+        //
+        // No `matched_profile_id` either. An application preview row may never
+        // arrive already bound to a member, because only an officer resolution
+        // binds one; naming a profile here would be the unresolved-application
+        // boundary bypassed. `matched_application_id` is allowed and is checked
+        // against this tenant.
         matched_application_id: applicant.applicationId,
         import_status: "pending",
-        raw_data: { responseId: applicant.responseId },
-        normalized_data: { responseId: applicant.responseId },
-        mapping_version: 1,
+        // A central source type accepts only the enumerated envelope keys in
+        // `normalized_data`; anything else is refused rather than merged, and
+        // `commitPayload` is derived rather than stated.
+        // `raw_data` stays empty: a central row may hold the accepted canonical
+        // record or nothing, never a second wider copy of the source.
+        normalized_data: {
+          contractVersion: "csf-normalized-import/v1",
+          sourceType: "application_responses",
+          matchBasis: "recorded_response_id",
+        },
       })),
     }),
   );
