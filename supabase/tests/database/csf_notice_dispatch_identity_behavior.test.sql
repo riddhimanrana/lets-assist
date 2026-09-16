@@ -1,7 +1,7 @@
 BEGIN;
 
 CREATE EXTENSION IF NOT EXISTS pgtap WITH SCHEMA extensions;
-SELECT extensions.plan(24);
+SELECT extensions.plan(28);
 
 -- ---------------------------------------------------------------------------
 -- What this proves, and why it is separate
@@ -290,47 +290,85 @@ BEGIN
   -- -------------------------------------------------------------------------
   -- A failed notice and a review-held notice are receipts too
   -- -------------------------------------------------------------------------
-  v_result := plugin_data.csf_create_personal_notice_campaign_draft(
-    'da100000-0000-4000-8000-000000000001'::uuid,
+  -- What is under test here is the replay: the draft entry point must report a
+  -- settled or held notice rather than opening a second one. Reaching those
+  -- states by mutating a draft is not how a campaign gets there --
+  -- csf_enforce_campaign_lifecycle only admits draft to queued or cancelled,
+  -- queued or sending to completed, failed or cancelled -- and forcing it would
+  -- have been inventing an illegal transition to reach a legal state.
+  --
+  -- So both are seeded as the settled receipts they represent. A campaign is
+  -- inserted in its terminal condition, which no lifecycle rule governs because
+  -- nothing transitioned, and every other rule still binds: the notice scope
+  -- guard requires the custom-list identity and the term, the content trigger
+  -- derives the digests from the body, and the dispatch identity check then
+  -- holds the row to the full DVHS sending identity. Both rows carry a
+  -- finalized content tuple and a queue timestamp, so they read as notices that
+  -- were written, frozen and handed to the queue.
+  v_c4 := pg_catalog.gen_random_uuid();
+  INSERT INTO plugin_data.csf_communication_campaigns (
+    id, organization_id, campaign_kind, status, channel, sender_name, sender_email,
+    reply_to_email, subject, body_text, source_publication_event_id, term_id,
+    audience_kind, created_by_identity, content_finalized_at,
+    content_finalized_by_identity, queued_at, audience_snapshot_version,
+    provider_idempotency_key)
+  VALUES (v_c4, 'da100000-0000-4000-8000-000000000001'::uuid, 'transactional', 'failed',
+    'email', 'DVHS CSF', 'csf@notifications.lets-assist.com', 'dvhighcsf@gmail.com',
+    'Your point claim was approved', 'Your claim was approved.',
     'da500000-0000-4000-8000-000000000004'::uuid,
-    'Your point claim was approved', 'Your claim was approved.');
-  v_c4 := (v_result ->> 'campaignId')::uuid;
-  -- There is no reviewed path from draft to failed. The terminalizer only acts
-  -- on a queued or sending campaign, which needs a finalized audience and real
-  -- delivery rows behind it; a draft that never dispatched has nothing to
-  -- terminalize. So this is a direct write, and it is still vetted: the
-  -- terminalization trigger is the rule that governs the transition, and it
-  -- admits this one only because there are no attempts, no unknown outcomes and
-  -- no undispatched deliveries. It stands in for a notice whose send failed
-  -- before it began.
-  UPDATE plugin_data.csf_communication_campaigns SET status = 'failed' WHERE id = v_c4;
+    'da200000-0000-4000-8000-000000000002'::uuid, 'custom_list', 'system:csf-notice',
+    now(), 'system:csf-notice', now(), 1, 'csf-campaign-seeded-failed');
+
+  INSERT INTO notice_behavior (key, value)
+  SELECT 'c4.seededState',
+         (campaign.status = 'failed' AND campaign.content_hash IS NOT NULL)::text
+  FROM plugin_data.csf_communication_campaigns AS campaign WHERE campaign.id = v_c4;
+
   v_result := plugin_data.csf_create_personal_notice_campaign_draft(
     'da100000-0000-4000-8000-000000000001'::uuid,
     'da500000-0000-4000-8000-000000000004'::uuid,
     'Your point claim was approved', 'Your claim was approved.');
   INSERT INTO notice_behavior (key, value)
-  VALUES ('c4.disposition', (v_result ->> 'disposition'));
+  VALUES ('c4.disposition', (v_result ->> 'disposition')),
+         ('c4.sameCampaign', ((v_result ->> 'campaignId')::uuid = v_c4)::text);
+
+  -- A review block is not an operator action at all: the dispatch-recovery
+  -- paths raise it when a provider outcome is unknown, always paired with a
+  -- reason, and no RPC exposes it on its own. The seeded row is a notice whose
+  -- dispatch is underway with one outcome unresolved, which is the only shape
+  -- that condition actually occurs in -- and it is deliberately not
+  -- 'completed', which csf_comm_campaign_review_block_nonterminal_check
+  -- forbids.
+  v_c5 := pg_catalog.gen_random_uuid();
+  INSERT INTO plugin_data.csf_communication_campaigns (
+    id, organization_id, campaign_kind, status, channel, sender_name, sender_email,
+    reply_to_email, subject, body_text, source_publication_event_id, term_id,
+    audience_kind, created_by_identity, content_finalized_at,
+    content_finalized_by_identity, queued_at, review_blocked_at, review_blocked_reason,
+    audience_snapshot_version, provider_idempotency_key)
+  VALUES (v_c5, 'da100000-0000-4000-8000-000000000001'::uuid, 'transactional', 'sending',
+    'email', 'DVHS CSF', 'csf@notifications.lets-assist.com', 'dvhighcsf@gmail.com',
+    'Your point claim was approved', 'Your claim was approved.',
+    'da500000-0000-4000-8000-000000000005'::uuid,
+    'da200000-0000-4000-8000-000000000002'::uuid, 'custom_list', 'system:csf-notice',
+    now(), 'system:csf-notice', now(), now(),
+    'A provider outcome for this notice is unresolved.', 1,
+    'csf-campaign-seeded-review-blocked');
+
+  INSERT INTO notice_behavior (key, value)
+  SELECT 'c5.seededState',
+         (campaign.status = 'sending'
+          AND campaign.review_blocked_at IS NOT NULL
+          AND campaign.review_blocked_reason IS NOT NULL)::text
+  FROM plugin_data.csf_communication_campaigns AS campaign WHERE campaign.id = v_c5;
 
   v_result := plugin_data.csf_create_personal_notice_campaign_draft(
     'da100000-0000-4000-8000-000000000001'::uuid,
     'da500000-0000-4000-8000-000000000005'::uuid,
     'Your point claim was approved', 'Your claim was approved.');
-  v_c5 := (v_result ->> 'campaignId')::uuid;
-  -- A review block is not an operator action either: the dispatch-recovery
-  -- paths raise it when a provider outcome is unknown, always paired with a
-  -- reason, and no RPC exposes it on its own. Writing the pair directly honours
-  -- csf_comm_campaign_review_block_check and leaves the campaign nonterminal,
-  -- which is exactly the condition the draft entry point has to recognize.
-  UPDATE plugin_data.csf_communication_campaigns
-  SET review_blocked_at = now(),
-      review_blocked_reason = 'A provider outcome for this notice is unresolved.'
-  WHERE id = v_c5;
-  v_result := plugin_data.csf_create_personal_notice_campaign_draft(
-    'da100000-0000-4000-8000-000000000001'::uuid,
-    'da500000-0000-4000-8000-000000000005'::uuid,
-    'Your point claim was approved', 'Your claim was approved.');
   INSERT INTO notice_behavior (key, value)
-  VALUES ('c5.disposition', (v_result ->> 'disposition'));
+  VALUES ('c5.disposition', (v_result ->> 'disposition')),
+         ('c5.sameCampaign', ((v_result ->> 'campaignId')::uuid = v_c5)::text);
 
   -- -------------------------------------------------------------------------
   -- Refusals
@@ -521,13 +559,33 @@ SELECT extensions.is(
 );
 
 SELECT extensions.is(
+  (SELECT value FROM notice_behavior WHERE key = 'c4.seededState'), 'true',
+  'the failed notice really is a settled campaign with frozen content, not a draft wearing a label'
+);
+
+SELECT extensions.is(
   (SELECT value FROM notice_behavior WHERE key = 'c4.disposition'), 'held',
   'a failed notice replays as held rather than being retried'
 );
 
 SELECT extensions.is(
+  (SELECT value FROM notice_behavior WHERE key = 'c4.sameCampaign'), 'true',
+  'the held reply names the campaign that failed'
+);
+
+SELECT extensions.is(
+  (SELECT value FROM notice_behavior WHERE key = 'c5.seededState'), 'true',
+  'the held notice really is mid-dispatch with an unresolved outcome and a recorded reason'
+);
+
+SELECT extensions.is(
   (SELECT value FROM notice_behavior WHERE key = 'c5.disposition'), 'held',
   'a notice held for review replays as held'
+);
+
+SELECT extensions.is(
+  (SELECT value FROM notice_behavior WHERE key = 'c5.sameCampaign'), 'true',
+  'the held reply names the campaign under review'
 );
 
 -- ---------------------------------------------------------------------------
