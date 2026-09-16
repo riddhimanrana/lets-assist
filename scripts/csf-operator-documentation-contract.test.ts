@@ -366,13 +366,23 @@ const STUDENT_JOURNEY: LabelContract[] = [
       "Yes, this is me",
       "That's not me, search a different name",
       "Join your class",
+      "Wrong class? Enter a different code",
     ],
   },
   {
     // The name search moved into its own dialog when the single full-name box
-    // replaced the split fields.
+    // replaced the split fields. "Continue with this name" was retired with
+    // self-service record creation: a student declares which of the two they
+    // are and an officer sets the record up.
     component: "CsfClassCodeJoinDialog.tsx",
-    labels: ["Find my record", "Continue with this name"],
+    labels: [
+      "Find my record",
+      "None of these is me",
+      "We couldn\u2019t find your profile",
+      "I\u2019m a new member",
+      "I\u2019m a returning member",
+      "Check the spelling and search again",
+    ],
   },
   {
     component: "CsfRecordSearchNameFields.tsx",
@@ -476,9 +486,20 @@ describe("CSF operator documentation truthfulness guards", () => {
       expect(connectSource).toContain(label);
     }
     const joinDialogSource = readComponent("CsfClassCodeJoinDialog.tsx");
-    for (const label of ["Find my record", "Continue with this name"]) {
+    for (const label of [
+      "Find my record",
+      "None of these is me",
+      "We couldn\u2019t find your profile",
+      "I\u2019m a new member",
+      "I\u2019m a returning member",
+      "Check the spelling and search again",
+    ]) {
       expect(joinDialogSource).toContain(label);
     }
+    // The dialog must not promise a link it cannot deliver: whether confirming
+    // connects depends on the record's curated contact, not on the name.
+    expect(joinDialogSource).not.toContain("Continue with this name");
+    expect(joinDialogSource).not.toContain("and you are connected");
     expect(readComponent("CsfRecordSearchNameFields.tsx")).toContain(
       'label="Full name"',
     );
@@ -510,7 +531,11 @@ describe("CSF operator documentation truthfulness guards", () => {
       "**Is this you?**",
       "**Yes, this is me**",
       "**Find my record**",
-      "**Continue with this name**",
+      "**None of these is me**",
+      "**We couldn\u2019t find your profile**",
+      "**I\u2019m a new member**",
+      "**I\u2019m a returning member**",
+      "**Check the spelling and search again**",
       "**Record connections**",
       "**Review**",
       "**Connect account**",

@@ -9,6 +9,42 @@ This document defines the product, operating model, information architecture, te
 
 ## Amendment record
 
+### Amendment 9: A class code selects a record, it never grants one (September 16, 2026)
+
+The owner has closed the two remaining ways a student could settle their own
+identity. Amendments 7 and 8 below are the record of what was decided before
+and stay readable as history; this clause governs current behavior.
+
+A class join code no longer creates a roster record. Amendment 8 allowed a
+student with no existing candidate to create their own profile; that is
+withdrawn. Every unmatched join files one officer review request, and staff
+either create the profile or link the returning record.
+
+A typed name no longer connects an account. Amendment 7's
+`self_confirmed_account_name` basis is retired: a name and a class code are
+both things a classmate knows, and an exact name is no safer than a tolerant
+one because an attacker types the exact name deliberately. A name may select a
+record for confirmation; the only automatic connection is a verified
+signed-in address matching a contact staff curated onto that record, and onto
+no other active record in the chapter. Addresses a student reported on their
+own application are explicitly excluded, matching the stored contract on those
+columns. Any account row on the record, of any status including revoked, and
+any address shared with a second record, send the decision to an officer.
+
+No path mints `self_confirmed_account_name` any more. Connections that already
+carry it were granted under the rule of their day and are not revoked, hidden,
+or downgraded; withdrawing one is a deliberate staff decision.
+
+When no record can be matched, the student is asked the one thing they can
+answer about themselves, new member or returning member. That answer is
+recorded on the officer's request as context beside the class and the account.
+It is not a decision and not evidence, and resubmitting the same answer changes
+nothing and audits nothing.
+
+Waiting students are organization members so the class feed stays open, and
+nothing more. A pending connection cannot read the candidate's private history,
+and no member tool appears before staff release a decision.
+
 ### Amendment 8: Verified account ownership (September 9, 2026)
 
 The owner has superseded Amendment 7. Existing imported history can auto-connect only through independently verified account ownership. Application contact addresses and editable account names provide matching suggestions, not ownership proof. Other matches create or reuse a staff review request. Staff can connect a verified organization account after reviewing the identity. A pending connection cannot read the candidate's private history. New students with no existing candidate may create their own profile.
@@ -120,10 +156,12 @@ remains:
 - **Student journey.** A student opens the public `/connect/<code>` route or
   enters the **Join code** on **Join a class**, signs in, enters their name in
   **Join your class**, and selects **Continue**. An independently verified
-  existing connection opens the correct class. A student with no existing
-  candidate may create a self-owned profile. Names and application contact
-  emails can suggest a candidate but never establish ownership. Other matches
-  create or reuse a staff review request without exposing candidate history.
+  existing connection opens the correct class. Names and application contact
+  emails can suggest a candidate but never establish ownership, and a student
+  with no match never creates a profile: they declare **I’m a new member**
+  or **I’m a returning member** and staff set the record up. Every other
+  outcome creates or reuses a staff review request without exposing candidate
+  history (Amendment 9).
 - **Per-class review.** Unresolved joins wait in the class's **Record
   connections** queue. Authorized staff use **Review** and **Connect account**
   after verifying identity and recording their decision. Application and login
@@ -861,7 +899,7 @@ The import workspace is specified in Section 12.
 **Actions:** Open the official site, sign in to My CSF, or open a class join page and enter that class's permanent join code.<br>
 **Empty state:** Retain the chapter identity, official links, sign-in, and class-code guidance without inventing public content.<br>
 **Privacy:** Public organization and class routes never expose Stream posts, Activities, semesters, rosters, codes, student-derived counts, applications, dues, eligibility, meeting attendance, points, proofs, notes, or account state. Class Stream and Activities require a signed-in, server-authorized class connection.<br>
-**Identity:** Amendment 8 requires independently verified ownership for existing history. Application contact emails and editable names never prove ownership. Other matches await staff review; a student with no existing candidate may create a self-owned profile.<br>
+**Identity:** Amendment 8 requires independently verified ownership for existing history. Application contact emails and editable names never prove ownership. Amendment 9 withdrew self-service profile creation and typed-name connection: other matches await staff review, and a student with no candidate declares new or returning for staff to act on.<br>
 **Mobile:** Same Let’s Assist public shell with a responsive join/sign-in flow.
 
 ---
