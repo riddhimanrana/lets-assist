@@ -94,3 +94,17 @@ test("control-flow text in function bodies and DO strings remains excluded", () 
   const sql = `CREATE FUNCTION fixture() RETURNS void AS $fn$ BEGIN PERFORM 1; IF true THEN INSERT INTO ${table} VALUES (1); END IF; END $fn$ LANGUAGE plpgsql; DO $body$ BEGIN PERFORM 1; RAISE NOTICE 'IF true THEN INSERT INTO ${table} VALUES (1)'; END $body$;`;
   assert.deepEqual(topLevelDataWrites(sql), []);
 });
+
+for (const wrapper of [
+  "EXPLAIN ANALYZE",
+  "explain (analyze true, verbose true)",
+  "EXPLAIN (ANALYZE, FORMAT JSON)",
+  "EXPLAIN",
+])
+  test(`conservatively reviews writes behind ${wrapper}`, () => {
+    const sql = `${wrapper} INSERT INTO ${table} VALUES (1);`;
+    assert.equal(topLevelDataWrites(sql).length, 1);
+    assert.equal(unreviewedDataWrites(sql).length, 1);
+    assert.equal(prohibitedDataWrites(sql).length, 1);
+    assert.deepEqual(topLevelDataWrites(`${wrapper} SELECT 1;`), []);
+  });

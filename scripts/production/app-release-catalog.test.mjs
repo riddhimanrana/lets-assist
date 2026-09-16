@@ -21,8 +21,8 @@ test("the 540 officer identity authority release moves exactly three fingerprint
   const fullLedger = expectedVersions(
     fileURLToPath(new URL("../../", import.meta.url)),
   );
-  assert.equal(fullLedger.length, 572);
-  assert.equal(fullLedger.at(-1), "20260917220000");
+  assert.equal(fullLedger.length, 573);
+  assert.equal(fullLedger.at(-1), "20260917230000");
   const current = acceptedCatalogQuery(source, fullLedger.slice(0, 540));
   const preceding = acceptedCatalogQuery(source, fullLedger.slice(0, 539));
   // The migration replaces three reviewed definitions in place. Nothing else
@@ -1097,7 +1097,7 @@ test("the 572 quota guard replaces only the reviewed report function fingerprint
     fileURLToPath(new URL("../../", import.meta.url)),
   );
   const previous = acceptedCatalogQuery(source, ledger.slice(0, 571));
-  const current = acceptedCatalogQuery(source, ledger);
+  const current = acceptedCatalogQuery(source, ledger.slice(0, 572));
   assert.equal(
     previous.split("17bfb459fed6fa6e07b22d67e45431b7").length - 1,
     1,
@@ -1108,5 +1108,24 @@ test("the 572 quota guard replaces only the reviewed report function fingerprint
       "17bfb459fed6fa6e07b22d67e45431b7",
       "7a6a48303831cd8a94d32f9cb3216631",
     ),
+  );
+});
+
+test("the 573 activity guards pin both definitions and reviewed roles", () => {
+  const ledger = expectedVersions(
+    fileURLToPath(new URL("../../", import.meta.url)),
+  );
+  const previous = acceptedCatalogQuery(source, ledger.slice(0, 572));
+  const current = acceptedCatalogQuery(source, ledger);
+  for (const fingerprint of [
+    "f4e9f791a741a384b600da27d75a692a",
+    "15c473243b63716af2e192246526c4e4",
+  ]) {
+    assert.ok(!previous.includes(fingerprint));
+    assert.ok(current.includes(fingerprint));
+  }
+  assert.match(
+    current,
+    /has_function_privilege\('service_role', p.oid, 'EXECUTE'\)/u,
   );
 });

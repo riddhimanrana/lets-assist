@@ -175,7 +175,7 @@ export function topLevelDataWrites(sql) {
       (executableBodies.some(
         ([start, end]) => offset + first >= start && offset + first < end,
       ) ||
-        /^(?:WITH|DO|INSERT|UPDATE|DELETE|MERGE|TRUNCATE)\b/iu.test(
+        /^(?:WITH|DO|EXPLAIN|INSERT|UPDATE|DELETE|MERGE|TRUNCATE)\b/iu.test(
           segment.slice(first),
         ))
     ) {
