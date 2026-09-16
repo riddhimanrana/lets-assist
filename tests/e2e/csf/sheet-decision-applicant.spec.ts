@@ -17,8 +17,10 @@ import {
 import {
   CSF_ORGANIZATION_PATH,
   expectNoBrowserFailures,
+  expectNoHorizontalOverflow,
   localTestPassword,
   loginWithEmail,
+  soleAccessibleAction,
   watchBrowserFailures,
 } from "./helpers";
 
@@ -45,6 +47,8 @@ const HOME = `${CSF_ORGANIZATION_PATH}?tab=csf-home`;
 const PROFILE = `${CSF_ORGANIZATION_PATH}?tab=csf-profile`;
 const SUBMISSIONS = `${CSF_ORGANIZATION_PATH}?tab=csf-submissions`;
 const MEMBER_TABS = [HOME, PROFILE, SUBMISSIONS];
+/** The same phone width the officer suite uses, so one reading covers both. */
+const PHONE = { width: 390, height: 844 };
 
 let fixture: SheetDecisionFixture;
 let password: string;
@@ -162,6 +166,26 @@ async function publishedDecisionReason(applicant: SheetApplicant) {
   if (application.error) throw new Error(application.error.message);
   return (application.data as { decision_reason: string | null })
     .decision_reason;
+}
+
+/**
+ * Everything a session with no CSF profile is owed none of: any applicant's
+ * identity, the staged vocabulary and evidence, and any decision at all. Shared
+ * by the desktop and phone unlinked journeys so both mean the same thing.
+ */
+function expectNothingForAnUnlinkedSession(html: string) {
+  for (const applicant of applicants.all) {
+    expect(html).not.toContain(applicant.lastName);
+    expect(html).not.toContain(applicant.email);
+  }
+  expect(html).not.toContain(EXPLAINED_REASON);
+  expect(html).not.toContain("#d9ead3");
+  expect(html).not.toContain("#f4cccc");
+  expect(html).not.toContain("#fff2cc");
+  expect(html).not.toContain("in the Sheet");
+  expect(html).not.toContain("not published yet");
+  expect(html).not.toContain("Approved by CSF officers");
+  expect(html).not.toContain("Application not approved");
 }
 
 /**
@@ -286,23 +310,7 @@ test.describe("before any release", () => {
 
     for (const path of MEMBER_TABS) {
       await page.goto(path, { waitUntil: "domcontentloaded" });
-      const html = await page.content();
-      // No applicant's identity, including the one whose email this borrows a
-      // naming convention from.
-      for (const applicant of applicants.all) {
-        expect(html).not.toContain(applicant.lastName);
-        expect(html).not.toContain(applicant.email);
-      }
-      // And none of the staged vocabulary or evidence.
-      expect(html).not.toContain(EXPLAINED_REASON);
-      expect(html).not.toContain("#d9ead3");
-      expect(html).not.toContain("#f4cccc");
-      expect(html).not.toContain("#fff2cc");
-      expect(html).not.toContain("in the Sheet");
-      expect(html).not.toContain("not published yet");
-      // Nothing resolves to a decision for a session with no profile.
-      expect(html).not.toContain("Approved by CSF officers");
-      expect(html).not.toContain("Application not approved");
+      expectNothingForAnUnlinkedSession(await page.content());
     }
 
     expectNoBrowserFailures(failures);
@@ -430,8 +438,20 @@ test.describe("before any release", () => {
       priorPanel.getByRole("heading", { name: priorSemester }),
     ).toBeVisible();
     // Withholding this semester's decision must not withhold last semester's
-    // completed record.
-    await expect(priorPanel.getByText("Semester completed")).toBeVisible();
+    // completed record. The panel says so twice, and both are meant: the status
+    // badge names the outcome and the semester record's headline value repeats
+    // it, because a settled semester has no points figure to show instead. Each
+    // node is asserted on its own, rather than taking whichever came first.
+    const completedBadge = priorPanel.locator('[data-slot="badge"]', {
+      hasText: "Semester completed",
+    });
+    await expect(completedBadge).toHaveCount(1);
+    await expect(completedBadge).toBeVisible();
+    const completedRecord = priorPanel
+      .getByRole("paragraph")
+      .filter({ hasText: "Semester completed" });
+    await expect(completedRecord).toHaveCount(1);
+    await expect(completedRecord).toBeVisible();
 
     expectNoBrowserFailures(failures);
   });
@@ -578,11 +598,12 @@ test.describe("stale access after a later sync", () => {
     await page.goto(PROFILE, { waitUntil: "domcontentloaded" });
     // The page must stop calling them approved the moment the ledger does.
     await expect(page.getByText("Approved by CSF officers")).toHaveCount(0);
-    // The status label here is the revoked membership's, not the application's:
-    // `memberSemesterStatus` answers from a blocked standing before it reads
-    // the decision. The rejection wording is asserted in the member guards,
-    // where the applicant never held a membership. What this correction owes
-    // the student is that no reason was invented for it.
+    // No status wording is claimed here yet. Today `memberSemesterStatus`
+    // answers from the revoked standing before it reads the decision, and the
+    // member-view lane is changing that so a revoked current term reports the
+    // application's own outcome instead. Until that label is settled, this
+    // journey holds the ledger state, the absence of any approval, and that no
+    // reason was invented for the correction.
     expect(
       await publishedDecisionReason(applicants.byRole.accepted),
     ).toBeNull();
@@ -618,8 +639,8 @@ test.describe("stale access after a later sync", () => {
     await page.goto(PROFILE, { waitUntil: "domcontentloaded" });
     await expect(page.getByText("Approved by CSF officers")).toHaveCount(0);
     // A retraction clears the decision and its reason together, so there is
-    // nothing left to explain. The badge still follows the revoked membership
-    // rather than the application, which is why no status label is claimed here.
+    // nothing left to explain. The label a retracted semester should read is
+    // the member-view lane's call, so this journey claims none.
     expect(
       await publishedDecisionReason(applicants.byRole.accepted),
     ).toBeNull();
@@ -842,6 +863,139 @@ test.describe("member guards", () => {
     await expect(
       page.getByRole("button", { name: "Submit points" }),
     ).toHaveCount(0);
+
+    expectNoBrowserFailures(failures);
+  });
+});
+
+/**
+ * The same journeys at phone width, which is how most students read this page.
+ *
+ * Acceptance is explicitly desktop and phone, so these are not smoke checks:
+ * each one asserts the outcome its desktop twin asserts, in the same regions,
+ * and adds what only a phone can get wrong. `expectNoHorizontalOverflow`
+ * catches a page the reader has to scroll sideways; the visibility assertions
+ * catch content that renders but is pushed off the viewport.
+ */
+test.describe("phone", () => {
+  test("an unlinked account is told nothing on a phone either", async ({
+    page,
+  }) => {
+    const failures = watchBrowserFailures(page);
+    await stageTheOutcomes();
+    const unlinkedEmail = await createUnlinkedAccount(
+      applicants.byRole.unreviewed,
+    );
+
+    await page.setViewportSize(PHONE);
+    await loginWithEmail(page, unlinkedEmail);
+    for (const path of MEMBER_TABS) {
+      await page.goto(path, { waitUntil: "domcontentloaded" });
+      expectNothingForAnUnlinkedSession(await page.content());
+      await expectNoHorizontalOverflow(page);
+    }
+
+    expectNoBrowserFailures(failures);
+  });
+
+  test("a staged decision stays private on a phone", async ({ page }) => {
+    const failures = watchBrowserFailures(page);
+    await stageTheOutcomes();
+
+    await page.setViewportSize(PHONE);
+    await loginWithEmail(page, applicants.byRole.explained.email);
+    // The sharpest case on the smallest screen: this applicant's row carries an
+    // officer's explanation that is not theirs to read until release.
+    await expectNoStagedLeak(page, applicants.byRole.explained);
+
+    await page.goto(PROFILE, { waitUntil: "domcontentloaded" });
+    await expect(
+      profileSummary(page).getByText("Under officer review"),
+    ).toBeVisible();
+    await expectNoHorizontalOverflow(page);
+
+    expectNoBrowserFailures(failures);
+  });
+
+  test("a published acceptance reads as approved and opens the tools", async ({
+    page,
+  }) => {
+    const failures = watchBrowserFailures(page);
+    await stageTheOutcomes();
+    await releaseDecisions(fixture);
+
+    await page.setViewportSize(PHONE);
+    await loginWithEmail(page, applicants.byRole.accepted.email);
+    await page.goto(PROFILE, { waitUntil: "domcontentloaded" });
+    await expect(
+      profileSummary(page).getByText("Approved by CSF officers"),
+    ).toBeVisible();
+    await expect(
+      selectedSemester(page).getByText("Approved by CSF officers"),
+    ).toBeVisible();
+    await expectNoHorizontalOverflow(page);
+
+    // A membership the phone cannot act on is not a membership. The refusal
+    // copy is gone and the one submit action is reachable.
+    await page.goto(SUBMISSIONS, { waitUntil: "domcontentloaded" });
+    await expect(
+      page.getByText(
+        "Your current semester membership must be approved before you can submit points.",
+      ),
+    ).toHaveCount(0);
+    await soleAccessibleAction(page, "Submit points");
+    await expectNoHorizontalOverflow(page);
+
+    expectNoBrowserFailures(failures);
+  });
+
+  test("a published red rejection reads as not approved, with nothing to explain", async ({
+    page,
+  }) => {
+    const failures = watchBrowserFailures(page);
+    await stageTheOutcomes();
+    await releaseDecisions(fixture);
+
+    await page.setViewportSize(PHONE);
+    await loginWithEmail(page, applicants.byRole.rejected.email);
+    await page.goto(PROFILE, { waitUntil: "domcontentloaded" });
+    await expect(
+      profileSummary(page).getByText("Application not approved"),
+    ).toBeVisible();
+    await expect(selectedSemester(page).getByText(REASON_HEADING)).toHaveCount(
+      0,
+    );
+    const html = await page.content();
+    expect(html).not.toContain(REASON_HEADING);
+    expect(html).not.toContain(AUDIT_NOTE);
+    expect(html).not.toContain(EXPLAINED_REASON);
+    await expectNoHorizontalOverflow(page);
+
+    expectNoBrowserFailures(failures);
+  });
+
+  test("a published yellow rejection carries the officer's exact words", async ({
+    page,
+  }) => {
+    const failures = watchBrowserFailures(page);
+    await stageTheOutcomes();
+    await releaseDecisions(fixture);
+
+    await page.setViewportSize(PHONE);
+    await loginWithEmail(page, applicants.byRole.explained.email);
+    await page.goto(PROFILE, { waitUntil: "domcontentloaded" });
+    await expect(
+      profileSummary(page).getByText("Application not approved"),
+    ).toBeVisible();
+    // The explanation is the point of a yellow mark, so on a phone it has to be
+    // on screen and whole, not truncated into a different sentence.
+    await expect(
+      selectedSemester(page).getByText(REASON_HEADING),
+    ).toBeVisible();
+    await expect(
+      selectedSemester(page).getByText(EXPLAINED_REASON, { exact: true }),
+    ).toBeVisible();
+    await expectNoHorizontalOverflow(page);
 
     expectNoBrowserFailures(failures);
   });

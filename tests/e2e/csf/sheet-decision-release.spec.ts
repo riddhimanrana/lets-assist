@@ -16,6 +16,7 @@ import {
 import {
   CSF_ORGANIZATION_PATH,
   expectNoBrowserFailures,
+  expectNoHorizontalOverflow,
   loginAs,
   watchBrowserFailures,
 } from "./helpers";
@@ -632,6 +633,54 @@ test.describe("mobile", () => {
       (await publishedState(fixture, applicants.byRole.accepted))
         .membershipStatus,
     ).toBe("accepted");
+
+    expectNoBrowserFailures(failures);
+  });
+
+  test("a phone shows the panel without the Release it cannot use", async ({
+    page,
+  }) => {
+    const failures = watchBrowserFailures(page);
+    await stageTheFiveOutcomes();
+    await page.setViewportSize(MOBILE);
+    // The permission journeys above are all desktop, and a phone lays the
+    // toolbar out differently, so a control hidden by permission and one hidden
+    // by width look the same until this is asserted at both sizes.
+    await loginAs(page, "dataManagement");
+    await openApplications(page);
+
+    await expect(panel(page)).toContainText(
+      "Applications are reviewed in the Sheet",
+    );
+    await expect(
+      panel(page).getByRole("button", { name: /^Release/ }),
+    ).toHaveCount(0);
+    await expect(
+      panel(page).getByRole("button", { name: "Configure" }),
+    ).toHaveCount(0);
+    await expectNoHorizontalOverflow(page);
+
+    expectNoBrowserFailures(failures);
+  });
+
+  test("a phone refuses the Applications route the same way", async ({
+    page,
+  }) => {
+    const failures = watchBrowserFailures(page);
+    await stageTheFiveOutcomes();
+    await page.setViewportSize(MOBILE);
+    await loginAs(page, "treasurer");
+    await page.goto(
+      `${APPLICATIONS_PATH}&csf_review_term=${fixture.termId}&csf_review_cohort=${fixture.cohortId}`,
+      { waitUntil: "domcontentloaded" },
+    );
+
+    await expect(page.getByRole("tab", { name: "Applications" })).toHaveCount(
+      0,
+    );
+    await expect(panel(page)).toHaveCount(0);
+    await expect(page.getByRole("button", { name: /^Release/ })).toHaveCount(0);
+    await expectNoHorizontalOverflow(page);
 
     expectNoBrowserFailures(failures);
   });
