@@ -8186,3 +8186,23 @@ to Production and accepted remaining officer UI defects as non-blocking. Root
 PR 619 merged to Development as `982731da`. Hosted acceptance and the release
 pipeline are still running; this entry does not claim a Production deployment.
 The requested existing-account Production video awaits personal-account login.
+
+#### September 16, release review corrections
+
+PR 621 review found three database defects. CSF-READINESS-RETENTION-01
+missed immutable import rows linked only through an application;
+CSF-READINESS-RETENTION-02 retained only one retired class for a profile in
+multiple selected classes. CSF-READINESS-ATTENDANCE-01 omitted the closed-term
+acknowledgement from the correction retry digest. Forward migration 170000
+fixes these without editing the existing ledger. The new regressions first
+failed against the prior schema and then passed after the repair: retention
+53 assertions and acknowledgement retries 10 assertions. Existing attendance
+and course-retention suites also passed on the owned local database.
+
+The remaining bulk proposal and undo work from root PR 612 and private PR 448
+is integrated with an extra batch ownership check under the row lock. A stale
+undo cannot clear a later officer resolution. The forward 180000 migration
+passed 25 local assertions. Release controller/catalog tests passed 90/90 for
+the 568-migration candidate. Private PR 462 carries the UI integration, with
+61 focused tests and typecheck passing. Hosted validation and Production
+deployment remain pending. No retention run or student source import occurred.

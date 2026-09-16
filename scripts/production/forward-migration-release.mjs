@@ -407,6 +407,14 @@ export const approvedMigrations = [
     "20260917160000_csf_notice_campaign_dispatch_identity",
     "d91916900df5d7dc5d48dac3a9356cae542e63122e807f4d57214e5e4e1ed00a",
   ],
+  [
+    "20260917170000_csf_retention_and_attendance_release_guards",
+    "4afc77d4be41014518c4996e7a8e3acfcb2fdd1134e9f2f4113aa5bd6d9d7c75",
+  ],
+  [
+    "20260917180000_csf_unreconcile_sheet_import_row",
+    "e0c7242d85a47d0e6667219070e6f657452ca9ca78b51d089d1e877b756a9fc0",
+  ],
 ];
 
 const literal = (value) => `'${value.replaceAll("'", "''")}'`;
