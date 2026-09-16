@@ -7,9 +7,9 @@ SELECT extensions.plan(2);
 -- The exact table normalizeCsfMeetingAttendanceValue produces, kept beside the
 -- identical table in domain.test.ts. The import writes the SQL side, so a
 -- disagreement between the two is a silently wrong attendance record.
-CREATE TEMP TABLE csf_meeting_attendance_parity(input text, expected text) AS
-VALUES
-  (NULL, 'unknown'),
+CREATE TEMP TABLE csf_meeting_attendance_parity AS
+SELECT * FROM (VALUES
+  (NULL::text, 'unknown'::text),
   ('', 'unknown'),
   ('   ', 'unknown'),
   ('x', 'attended'),
@@ -35,7 +35,8 @@ VALUES
   ('.', 'unknown'),
   ('Beach cleanup', 'unknown'),
   ('11/12 November meeting', 'unknown'),
-  ('?', 'unknown');
+  ('?', 'unknown')
+) AS parity(input, expected);
 
 SELECT extensions.is(
   (SELECT count(*)::integer FROM csf_meeting_attendance_parity AS parity
