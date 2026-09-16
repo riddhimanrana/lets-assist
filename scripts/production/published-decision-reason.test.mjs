@@ -237,7 +237,10 @@ test("each pgTAP file plans the number of assertions it makes", () => {
 });
 
 test("the shipped bytes are the bytes the release pins", () => {
-  const [name, hash] = approvedMigrations.at(-1);
-  assert.equal(name, CURRENT);
-  assert.equal(createHash("sha256").update(current).digest("hex"), hash);
+  // Looked up by name rather than taken from the end of the list. Several lanes
+  // add a migration at once, so being last is not this migration's property and
+  // asserting it made an unrelated lane's append fail this test.
+  const entry = approvedMigrations.find(([name]) => name === CURRENT);
+  assert.ok(entry, `${CURRENT} is not in the approved migration list.`);
+  assert.equal(createHash("sha256").update(current).digest("hex"), entry[1]);
 });
