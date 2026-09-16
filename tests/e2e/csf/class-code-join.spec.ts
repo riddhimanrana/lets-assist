@@ -273,13 +273,8 @@ async function seedProfileWithOutsiderEmail(
   return profileId;
 }
 
-/**
- * Opens the join dialog, types one full name, and searches. When the class
- * has records that match, the first "Yes, this is me" is confirmed (a unique
- * match connects, a shared one goes to review); when nothing matches, the
- * typed name is filed as the ordinary join request.
- */
-async function submitJoinForm(
+/** Opens the join dialog and searches one typed full name. */
+async function searchJoinName(
   page: Page,
   names: { first: string; last: string },
 ) {
@@ -292,20 +287,92 @@ async function submitJoinForm(
   await expect(fullName).toBeVisible();
   await fullName.fill(`${names.first} ${names.last}`);
   await dialog.getByRole("button", { name: "Find my record" }).click();
+  return dialog;
+}
+
+/**
+ * Searches, then takes whichever branch the class actually offers: confirming
+ * a matched record, or -- when nothing matches -- declaring new or returning
+ * on the "We couldn't find your profile" screen. Both branches end with staff
+ * owning the outcome; neither creates a record for the student.
+ */
+async function submitJoinForm(
+  page: Page,
+  names: { first: string; last: string },
+  intent: "new" | "returning" = "returning",
+) {
+  await searchJoinName(page, names);
 
   const confirm = page
     .getByRole("button", { name: "Yes, this is me", exact: true })
     .first();
-  const fallback = page.getByRole("button", {
-    name: "Continue with this name",
-    exact: true,
+  const noProfile = page.getByRole("heading", {
+    name: "We couldn’t find your profile",
   });
-  await expect(confirm.or(fallback)).toBeVisible();
+  await expect(confirm.or(noProfile)).toBeVisible();
   if (await confirm.isVisible()) {
     await confirm.click();
-  } else {
-    await fallback.click();
+    return;
   }
+  await declareMemberIntent(page, intent);
+}
+
+/** Clicks one of the two choices on "We couldn't find your profile". */
+async function declareMemberIntent(page: Page, intent: "new" | "returning") {
+  const label =
+    intent === "new" ? "I’m a new member" : "I’m a returning member";
+  await page.getByRole("button", { name: label, exact: true }).click();
+}
+
+/**
+ * Every outcome of the join flow is a staff decision. Asserts the student got
+ * a queued request and no self-made record, whichever branch they took.
+ */
+async function expectQueuedForStaff(
+  fixture: JoinFixture,
+  expected: { memberIntent?: "new" | "returning" } = {},
+) {
+  await expect
+    .poll(async () => {
+      const [{ data: request }, { data: accounts }] = await Promise.all([
+        fixture.admin
+          .schema("plugin_data")
+          .from("csf_profile_link_requests")
+          .select("match_status,matched_profile_id,submitted_returning_status")
+          .eq("organization_id", fixture.organizationId)
+          .eq("user_id", fixture.userId)
+          .order("created_at", { ascending: false })
+          .limit(1)
+          .maybeSingle(),
+        fixture.admin
+          .schema("plugin_data")
+          .from("csf_profile_accounts")
+          .select("id")
+          .eq("organization_id", fixture.organizationId)
+          .eq("user_id", fixture.userId),
+      ]);
+      return {
+        matchStatus: request?.match_status ?? null,
+        matchedProfileId: request?.matched_profile_id ?? null,
+        memberIntent: request?.submitted_returning_status ?? null,
+        accountRows: accounts?.length ?? 0,
+      };
+    })
+    .toEqual({
+      matchStatus: "needs_review",
+      matchedProfileId: null,
+      memberIntent: expected.memberIntent ?? "returning",
+      accountRows: 0,
+    });
+
+  // The decisive one: a class code never mints a roster record.
+  const { count } = await fixture.admin
+    .schema("plugin_data")
+    .from("csf_profiles")
+    .select("id", { count: "exact", head: true })
+    .eq("organization_id", fixture.organizationId)
+    .eq("source_summary->>createdBy", "permanent_class_code");
+  expect(count ?? 0).toBe(0);
 }
 
 test.describe("class join code connections", () => {
@@ -632,6 +699,95 @@ test.describe("class join code connections", () => {
           cohort_id: fixture.cohortId,
         },
       });
+
+    expectNoBrowserFailures(failures);
+  });
+
+  test("a mistyped name can be corrected, and an unmatched student declares new or returning", async ({
+    page,
+  }) => {
+    await cleanJoinFixture(fixture);
+    const realLastName = `Rana-${runToken}`;
+    await seedProfileWithoutEmail(fixture, {
+      first: "Riddhiman",
+      last: realLastName,
+    });
+
+    const failures = watchBrowserFailures(page);
+    await loginAs(page, "outsider", connectPath);
+    await expect(
+      page.getByRole("heading", { name: "Join your class" }),
+    ).toBeVisible();
+
+    // A typo finds nothing. This is the trap: before the fix there was no
+    // control back to the field, and closing the dialog kept the dead answer.
+    await searchJoinName(page, {
+      first: "Riddhiman",
+      last: `${realLastName}-typo`,
+    });
+    await expect(
+      page.getByRole("heading", { name: "We couldn’t find your profile" }),
+    ).toBeVisible();
+
+    // Closing and reopening must not replay the stale result.
+    await page.keyboard.press("Escape");
+    await expect(page.getByRole("dialog")).toHaveCount(0);
+    await page.getByRole("button", { name: "Continue", exact: true }).click();
+    await expect(
+      page.getByRole("dialog", { name: "Join your class" }),
+    ).toBeVisible();
+    await expect(
+      page.getByRole("heading", { name: "We couldn’t find your profile" }),
+    ).toHaveCount(0);
+    await page.keyboard.press("Escape");
+
+    // And the in-place correction reaches a real match.
+    await searchJoinName(page, {
+      first: "Riddhiman",
+      last: `${realLastName}-typo`,
+    });
+    await page
+      .getByRole("button", {
+        name: "Check the spelling and search again",
+        exact: true,
+      })
+      .click();
+    const retryField = page
+      .getByRole("dialog", { name: "Join your class" })
+      .getByRole("textbox", { name: "Full name" });
+    await expect(retryField).toBeVisible();
+    await retryField.fill(`Riddhiman ${realLastName}`);
+    await page.getByRole("button", { name: "Find my record" }).click();
+    await expect(
+      page.getByRole("heading", { name: "Is this you?", exact: true }),
+    ).toBeVisible();
+    await expect(
+      page.getByText(`Riddhiman ${realLastName}`, { exact: true }),
+    ).toBeVisible();
+
+    // The student says none of these is them, and declares they are new.
+    await page
+      .getByRole("button", { name: "None of these is me", exact: true })
+      .click();
+    await expect(
+      page.getByRole("heading", { name: "We couldn’t find your profile" }),
+    ).toBeVisible();
+    await declareMemberIntent(page, "new");
+
+    // The declared intent, the class, and the account reach the staff queue,
+    // and nothing was created on the student's say-so.
+    await expectQueuedForStaff(fixture, { memberIntent: "new" });
+
+    await expect(
+      page.getByRole("heading", { name: "Awaiting staff review", exact: true }),
+    ).toBeVisible();
+
+    // The status survives arriving without the code in the URL, which is the
+    // path "Open My CSF" and a bookmark both take.
+    await page.goto(noCodeConnectPath, { waitUntil: "domcontentloaded" });
+    await expect(
+      page.getByRole("heading", { name: "Awaiting staff review", exact: true }),
+    ).toBeVisible();
 
     expectNoBrowserFailures(failures);
   });

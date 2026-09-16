@@ -205,7 +205,12 @@ SELECT extensions.is(
     'Curated Contact',
     encode(extensions.digest(convert_to('Curated Contact','UTF8'),'sha256'),'hex'))->>'needsReview',
   'true','an address shared with another active record goes to an officer');
-UPDATE plugin_data.csf_profiles SET record_status='inactive' WHERE id='cf400000-0000-4000-8000-000000000004';
+-- Clear the shared address rather than retiring the record: `record_status`
+-- only admits 'active' or 'merged', and merging would need a whole merge
+-- state. Dropping the contact is the narrower change and is what an officer
+-- correcting a mistyped sibling address would actually do.
+UPDATE plugin_data.csf_profiles SET reported_application_personal_email=NULL
+  WHERE id='cf400000-0000-4000-8000-000000000004';
 -- The blocked attempt left a needs_review request; clear it so the retry is a
 -- fresh decision rather than the replay branch.
 DELETE FROM plugin_data.csf_profile_link_requests
@@ -222,6 +227,52 @@ SELECT extensions.is(
   (SELECT connection_basis FROM plugin_data.csf_profile_accounts
    WHERE organization_id='cf200000-0000-4000-8000-000000000001' AND profile_id='cf400000-0000-4000-8000-000000000003'),
   'verified_email','the only surviving automatic basis is the verified email');
+
+-- 4b. A curated contact is necessary, not sufficient. Any account history on
+--     the record means an officer has already had reason to look at it, so a
+--     pending or revoked link keeps the record out of reach.
+INSERT INTO plugin_data.csf_profiles (
+  id, organization_id, first_name, last_name,
+  normalized_first_name, normalized_last_name, school_email, normalized_school_email
+) VALUES
+  ('cf400000-0000-4000-8000-000000000006','cf200000-0000-4000-8000-000000000001',
+   'Pending','Hold','pending','hold','pending-hold@local.test','pending-hold@local.test'),
+  ('cf400000-0000-4000-8000-000000000007','cf200000-0000-4000-8000-000000000001',
+   'Revoked','Hold','revoked','hold','revoked-hold@local.test','revoked-hold@local.test');
+INSERT INTO plugin_data.csf_profile_cohort_memberships (organization_id, profile_id, cohort_id, status)
+VALUES
+  ('cf200000-0000-4000-8000-000000000001','cf400000-0000-4000-8000-000000000006','cf300000-0000-4000-8000-000000000001','active'),
+  ('cf200000-0000-4000-8000-000000000001','cf400000-0000-4000-8000-000000000007','cf300000-0000-4000-8000-000000000001','active');
+INSERT INTO auth.users (id, aud, role, email, email_confirmed_at, raw_app_meta_data, raw_user_meta_data, created_at, updated_at)
+VALUES
+  ('cf100000-0000-4000-8000-000000000008','authenticated','authenticated','pending-hold@local.test',now(),'{}','{}',now(),now()),
+  ('cf100000-0000-4000-8000-000000000009','authenticated','authenticated','revoked-hold@local.test',now(),'{}','{}',now(),now());
+-- Somebody else's unsettled claim, and somebody else's withdrawn one.
+INSERT INTO plugin_data.csf_profile_accounts (organization_id, profile_id, user_id, status, is_primary, connection_basis)
+VALUES
+  ('cf200000-0000-4000-8000-000000000001','cf400000-0000-4000-8000-000000000006','cf100000-0000-4000-8000-000000000002','pending',false,'unknown'),
+  ('cf200000-0000-4000-8000-000000000001','cf400000-0000-4000-8000-000000000007','cf100000-0000-4000-8000-000000000003','revoked',false,'unknown');
+SELECT extensions.is(
+  plugin_data.csf_confirm_class_code_typed_name_match(
+    'cf200000-0000-4000-8000-000000000001','cf400000-0000-4000-8000-000000000006',
+    'cf100000-0000-4000-8000-000000000008','pending-hold@local.test',
+    (SELECT id FROM review_only_code_id),'cf300000-0000-4000-8000-000000000001',
+    'Pending Hold',
+    encode(extensions.digest(convert_to('Pending Hold','UTF8'),'sha256'),'hex'))->>'needsReview',
+  'true','a record with a pending claim is not handed to a matching address');
+SELECT extensions.is(
+  plugin_data.csf_confirm_class_code_typed_name_match(
+    'cf200000-0000-4000-8000-000000000001','cf400000-0000-4000-8000-000000000007',
+    'cf100000-0000-4000-8000-000000000009','revoked-hold@local.test',
+    (SELECT id FROM review_only_code_id),'cf300000-0000-4000-8000-000000000001',
+    'Revoked Hold',
+    encode(extensions.digest(convert_to('Revoked Hold','UTF8'),'sha256'),'hex'))->>'needsReview',
+  'true','a revoked link is history an officer must read, not a clean slate');
+SELECT extensions.is(
+  (SELECT count(*) FROM plugin_data.csf_profile_accounts
+   WHERE organization_id='cf200000-0000-4000-8000-000000000001'
+     AND user_id IN ('cf100000-0000-4000-8000-000000000008','cf100000-0000-4000-8000-000000000009')),
+  0::bigint,'neither held record gains an account row');
 
 -- 5. An officer-authorized link is untouched by any of this.
 INSERT INTO plugin_data.csf_profiles (

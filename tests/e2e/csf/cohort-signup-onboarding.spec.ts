@@ -9,8 +9,9 @@ import { CSF_ORGANIZATION_PATH } from "./helpers";
  * the permanent class join code page -> account signup (metadata seam) ->
  * admin email confirmation (the local stack requires confirmed email, and the
  * browser suite never reads real mail) -> login back into the join code
- * route -> the join form -> a new self-owned profile ->
- * `?connected=1` -> the CSF-variant username modal on the connect route ->
+ * route -> the join form -> "I'm a new member", which queues the request for
+ * staff rather than creating a record -> `?review=1` -> the CSF-variant
+ * username modal on the connect route ->
  * the member Home CSF setup tour. The generic 8-step FirstLoginTour must
  * never render for this account.
  */
@@ -336,48 +337,76 @@ test.describe("class-code signup onboarding", () => {
       await expect(fullName).toBeVisible();
       await fullName.fill("Casey Signup");
       await joinDialog.getByRole("button", { name: "Find my record" }).click();
+      // Nothing in this class matches, so the student is asked the one thing
+      // they can answer for themselves.
+      await expect(
+        page.getByRole("heading", { name: "We couldn’t find your profile" }),
+      ).toBeVisible();
       await page
-        .getByRole("button", { name: "Continue with this name", exact: true })
+        .getByRole("button", { name: "I’m a new member", exact: true })
         .click();
 
+      // A class code never connects an account or creates a record. The
+      // student's declared intent reaches the staff queue instead.
       await expect
         .poll(async () => {
-          const { data } = await fixture.admin
-            .schema("plugin_data")
-            .from("csf_profile_accounts")
-            .select("status,profile_id")
-            .eq("organization_id", fixture.organizationId)
-            .eq("user_id", createdUserId as string)
-            .eq("status", "verified")
-            .maybeSingle();
-          return data
-            ? { status: data.status, profileId: data.profile_id }
-            : null;
+          const [{ data: request }, { data: accounts }] = await Promise.all([
+            fixture.admin
+              .schema("plugin_data")
+              .from("csf_profile_link_requests")
+              .select(
+                "match_status,matched_profile_id,submitted_returning_status",
+              )
+              .eq("organization_id", fixture.organizationId)
+              .eq("user_id", createdUserId as string)
+              .maybeSingle(),
+            fixture.admin
+              .schema("plugin_data")
+              .from("csf_profile_accounts")
+              .select("id")
+              .eq("organization_id", fixture.organizationId)
+              .eq("user_id", createdUserId as string),
+          ]);
+          return {
+            matchStatus: request?.match_status ?? null,
+            matchedProfileId: request?.matched_profile_id ?? null,
+            memberIntent: request?.submitted_returning_status ?? null,
+            accountRows: accounts?.length ?? 0,
+          };
         })
-        .toEqual({ status: "verified", profileId: expect.any(String) });
+        .toEqual({
+          matchStatus: "needs_review",
+          matchedProfileId: null,
+          memberIntent: "new",
+          accountRows: 0,
+        });
 
-      const { data: ownedProfile, error: profileError } = await fixture.admin
+      const { count: selfMadeProfiles } = await fixture.admin
         .schema("plugin_data")
         .from("csf_profiles")
-        .select("source_summary")
+        .select("id", { count: "exact", head: true })
         .eq("organization_id", fixture.organizationId)
-        .contains("source_summary", { accountOwnerUserId: createdUserId })
-        .single();
-      expect(profileError).toBeNull();
-      expect(ownedProfile?.source_summary).toMatchObject({
-        createdBy: "permanent_class_code",
-        accountOwnerUserId: createdUserId,
-      });
+        .contains("source_summary", { accountOwnerUserId: createdUserId });
+      expect(selfMadeProfiles ?? 0).toBe(0);
     });
 
-    await test.step("the connect route gains ?connected=1 and the CSF username modal", async () => {
+    await test.step("the connect route gains ?review=1 and the CSF username modal", async () => {
       await page.reload({ waitUntil: "domcontentloaded" });
+      // Waiting on staff is a settled CSF step, so account setup still
+      // finishes here rather than stranding a brand new account without a
+      // username on a page that never offers one.
       await page.waitForURL(
         (url) =>
           url.pathname === connectPath &&
-          url.searchParams.get("connected") === "1",
+          url.searchParams.get("review") === "1",
         { timeout: 30_000 },
       );
+      await expect(
+        page.getByRole("heading", {
+          name: "Awaiting staff review",
+          exact: true,
+        }),
+      ).toBeVisible();
 
       const modal = page.getByRole("dialog");
       await expect(
