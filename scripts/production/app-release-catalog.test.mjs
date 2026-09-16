@@ -18,7 +18,7 @@ test("the 540 officer identity authority release moves exactly three fingerprint
   const fullLedger = expectedVersions(
     fileURLToPath(new URL("../../", import.meta.url)),
   );
-  assert.equal(fullLedger.length, 542);
+  assert.equal(fullLedger.length, 543);
   assert.equal(fullLedger.at(-1), "20260916060000");
   // The attendance mirror is owner-internal and carries no reviewed
   // fingerprint, so 541 leaves the catalog where 540 left it.

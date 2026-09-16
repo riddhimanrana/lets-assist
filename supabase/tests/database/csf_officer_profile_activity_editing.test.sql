@@ -7,7 +7,7 @@ SELECT extensions.no_plan();
 SELECT extensions.ok(
   NOT has_function_privilege(
     'authenticated',
-    'plugin_data.csf_officer_save_profile_activity(uuid,uuid,uuid,uuid,text,text,numeric,timestamptz,text,uuid,uuid)',
+    'plugin_data.csf_officer_save_profile_activity(uuid,uuid,uuid,uuid,text,text,numeric,timestamptz,text,uuid,uuid,boolean)',
     'EXECUTE'
   ),
   'the activity editor is never reachable from a browser role'
@@ -15,7 +15,7 @@ SELECT extensions.ok(
 SELECT extensions.ok(
   has_function_privilege(
     'service_role',
-    'plugin_data.csf_officer_delete_profile_activity(uuid,uuid,uuid,text,uuid,uuid)',
+    'plugin_data.csf_officer_delete_profile_activity(uuid,uuid,uuid,text,uuid,uuid,boolean)',
     'EXECUTE'
   ),
   'the reviewed server can remove an activity row'
@@ -81,7 +81,7 @@ SELECT extensions.throws_ok(
     NULL, 'Beach cleanup', 'non_drive', 2, now(),
     'Confirmed from the sign-in sheet.',
     'fa000000-0000-4000-8000-000000000002',
-    'fa900000-0000-4000-8000-000000000001'
+    'fa900000-0000-4000-8000-000000000001', false
   ) $$,
   '42501',
   'Not authorized to edit CSF member records.',
@@ -94,7 +94,7 @@ SELECT extensions.throws_ok(
     'fa200000-0000-4000-8000-000000000001',
     NULL, 'Beach cleanup', 'non_drive', 2, now(), 'short',
     'fa000000-0000-4000-8000-000000000001',
-    'fa900000-0000-4000-8000-000000000002'
+    'fa900000-0000-4000-8000-000000000002', false
   ) $$,
   'P0001',
   'Explain the correction in 8 to 500 characters.',
@@ -108,7 +108,7 @@ SELECT extensions.throws_ok(
     NULL, 'Beach cleanup', 'meeting', 2, now(),
     'Confirmed from the sign-in sheet.',
     'fa000000-0000-4000-8000-000000000001',
-    'fa900000-0000-4000-8000-000000000003'
+    'fa900000-0000-4000-8000-000000000003', false
   ) $$,
   'P0001',
   'Choose whether these are drive or non-drive points.',
@@ -123,7 +123,7 @@ SELECT extensions.ok(
     NULL, 'Beach cleanup', 'non_drive', 2, now(),
     'Confirmed from the sign-in sheet.',
     'fa000000-0000-4000-8000-000000000001',
-    'fa900000-0000-4000-8000-000000000004'
+    'fa900000-0000-4000-8000-000000000004', false
   ) ->> 'created')::boolean,
   'an officer can add an activity a semester was missing'
 );
@@ -159,7 +159,7 @@ SELECT extensions.is(
     NULL, 'Beach cleanup', 'non_drive', 2, now(),
     'Confirmed from the sign-in sheet.',
     'fa000000-0000-4000-8000-000000000001',
-    'fa900000-0000-4000-8000-000000000004'
+    'fa900000-0000-4000-8000-000000000004', false
   ) ->> 'activityEventId'),
   (SELECT id::text FROM plugin_data.csf_profile_activity_events
    WHERE title = 'Beach cleanup'),
@@ -182,7 +182,7 @@ SELECT extensions.ok(
     'Beach cleanup (corrected)', 'drive', 3.5, now(),
     'Officer recount of the sign-in sheet.',
     'fa000000-0000-4000-8000-000000000001',
-    'fa900000-0000-4000-8000-000000000005'
+    'fa900000-0000-4000-8000-000000000005', false
   ) ->> 'created')::boolean,
   'editing an existing row is not a create'
 );
@@ -236,7 +236,7 @@ SELECT extensions.throws_ok(
     'Food bank shift', 'non_drive', 9, now(),
     'Trying to rewrite a reviewed award.',
     'fa000000-0000-4000-8000-000000000001',
-    'fa900000-0000-4000-8000-000000000006'
+    'fa900000-0000-4000-8000-000000000006', false
   ) $$,
   'P0001',
   'These points came from a point submission. Correct them in the submission review.',
@@ -249,14 +249,14 @@ SELECT extensions.throws_ok(
     'fa600000-0000-4000-8000-000000000001',
     'Trying to remove a reviewed award.',
     'fa000000-0000-4000-8000-000000000001',
-    'fa900000-0000-4000-8000-000000000007'
+    'fa900000-0000-4000-8000-000000000007', false
   ) $$,
   'P0001',
   'These points came from a point submission. Correct them in the submission review.',
   'and never removes one either'
 );
 
--- Closed semester evidence stays immutable; reopening is still the one way in.
+-- A closed semester is editable, but only deliberately.
 SELECT extensions.throws_ok(
   $$ SELECT plugin_data.csf_officer_save_profile_activity(
     'fa100000-0000-4000-8000-000000000001',
@@ -265,11 +265,53 @@ SELECT extensions.throws_ok(
     NULL, 'Late correction', 'non_drive', 1, now(),
     'Trying to edit a closed semester.',
     'fa000000-0000-4000-8000-000000000001',
-    'fa900000-0000-4000-8000-000000000008'
+    'fa900000-0000-4000-8000-000000000008', false
+  ) $$,
+  'P0001',
+  'This semester is closed. Confirm that you are correcting closed evidence before saving.',
+  'a closed semester is not edited by accident'
+);
+SELECT extensions.is(
+  (SELECT count(*)::integer FROM plugin_data.csf_profile_activity_events
+   WHERE title = 'Late correction'),
+  0,
+  'the refused edit wrote nothing'
+);
+SELECT extensions.ok(
+  (plugin_data.csf_officer_save_profile_activity(
+    'fa100000-0000-4000-8000-000000000001',
+    'fa300000-0000-4000-8000-000000000001',
+    'fa200000-0000-4000-8000-000000000002',
+    NULL, 'Late correction', 'non_drive', 1, now(),
+    'Confirmed with the adviser after the semester closed.',
+    'fa000000-0000-4000-8000-000000000001',
+    'fa900000-0000-4000-8000-000000000010', true
+  ) ->> 'created')::boolean,
+  'an officer who says so can correct a closed semester'
+);
+SELECT extensions.ok(
+  (SELECT (after_data ->> 'closedSemesterAcknowledged')::boolean
+   FROM plugin_data.csf_admin_audit_events
+   WHERE correlation_id = 'fa900000-0000-4000-8000-000000000010'
+     AND action = 'profile.activity_saved'),
+  'the receipt records that closed evidence was corrected'
+);
+SELECT extensions.ok(
+  NOT plugin_data.csf_closed_term_edit_attested(),
+  'the acknowledgement does not outlive the statement that carried it'
+);
+SELECT extensions.throws_ok(
+  $$ INSERT INTO plugin_data.csf_credit_records (
+    organization_id, profile_id, term_id, source, points, point_type, status
+  ) VALUES (
+    'fa100000-0000-4000-8000-000000000001',
+    'fa300000-0000-4000-8000-000000000001',
+    'fa200000-0000-4000-8000-000000000002',
+    'manual', 1, 'non_drive', 'verified'
   ) $$,
   'P0001',
   'Closed CSF semester evidence is immutable; reopen the semester before making changes.',
-  'the editor does not reach past the closed-semester guard'
+  'and a direct write to closed evidence is refused exactly as before'
 );
 
 SELECT extensions.lives_ok(
@@ -280,7 +322,7 @@ SELECT extensions.lives_ok(
      WHERE title = 'Beach cleanup (corrected)'),
     'Recorded against the wrong student.',
     'fa000000-0000-4000-8000-000000000001',
-    'fa900000-0000-4000-8000-000000000009'
+    'fa900000-0000-4000-8000-000000000009', false
   ) $$,
   'an officer can remove a row they own'
 );
@@ -293,7 +335,8 @@ SELECT extensions.is(
 SELECT extensions.is(
   (SELECT count(*)::integer FROM plugin_data.csf_credit_records
    WHERE source = 'manual'
-     AND profile_id = 'fa300000-0000-4000-8000-000000000001'),
+     AND profile_id = 'fa300000-0000-4000-8000-000000000001'
+     AND term_id = 'fa200000-0000-4000-8000-000000000001'),
   0,
   'and so are the points it carried'
 );

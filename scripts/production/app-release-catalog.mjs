@@ -139,12 +139,20 @@ export function acceptedCatalogQuery(source, versions) {
     .update(versions.join("\n"))
     .digest("hex");
   if (
-    versions.length === 542 &&
+    versions.length === 543 &&
     ledgerHash ===
-      "9981878bd9a1ab2598cc7f0d9dd1a1f3c848a6a67e0863ea23cf7d2d7e8d1fe3"
+      "53eb05c8b70ec491e20007b6815cde84e6bce056a668bea94fe6e9b3ecf4a64a"
   )
     // The officer record editor adds two new owner-internal entrypoints
     // and changes no reviewed definition, so the catalog is unchanged.
+    return acceptedCatalogQuery(source, versions.slice(0, 542));
+  if (
+    versions.length === 542 &&
+    ledgerHash ===
+      "8c9cb7fcf678bf07c08d5123dd7607f620319ebabff0cc69cd330f768e91cf8e"
+  )
+    // The closed-evidence guard keeps its reviewed shape and carries no
+    // reviewed fingerprint of its own, so the catalog is unchanged.
     return acceptedCatalogQuery(source, versions.slice(0, 541));
   if (
     versions.length === 541 &&
