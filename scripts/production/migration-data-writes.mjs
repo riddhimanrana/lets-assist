@@ -69,29 +69,128 @@ export const prohibitedMigrationWriteTargets = [
   "plugin_data.csf_application_decision_stages",
 ];
 
-// Tag-matched, so a write cannot hide inside a DO block or a function body that
-// happens to use a named dollar tag.
-const stripDollarQuoted = (sql) =>
-  sql.replace(/\$([A-Za-z_]\w*)?\$[\s\S]*?\$\1?\$/gu, "");
+// Mask literals and comments without moving statement offsets. Function bodies
+// are definitions, not top-level data writes, so dollar-quoted bodies are masked.
+function maskSql(sql) {
+  const chars = sql.split("");
+  const blank = (start, end) => {
+    for (let index = start; index < end; index += 1) {
+      if (sql[index] !== "\n") chars[index] = " ";
+    }
+  };
+  for (let index = 0; index < sql.length;) {
+    const start = index;
+    if (sql.startsWith("--", index)) {
+      index = sql.indexOf("\n", index);
+      if (index < 0) index = sql.length;
+      blank(start, index);
+    } else if (sql.startsWith("/*", index)) {
+      index += 2;
+      let depth = 1;
+      while (index < sql.length && depth) {
+        if (sql.startsWith("/*", index)) {
+          depth += 1;
+          index += 2;
+        } else if (sql.startsWith("*/", index)) {
+          depth -= 1;
+          index += 2;
+        } else index += 1;
+      }
+      blank(start, index);
+    } else if (sql[index] === "'") {
+      const escaped = index > 0 && /[eE]/u.test(sql[index - 1]);
+      index += 1;
+      while (index < sql.length) {
+        if (escaped && sql[index] === "\\") {
+          index += 2;
+          continue;
+        }
+        if (sql[index++] === "'") {
+          if (sql[index] === "'") index += 1;
+          else break;
+        }
+      }
+      blank(start, index);
+    } else if (sql[index] === '"') {
+      index += 1;
+      while (index < sql.length) {
+        if (sql[index++] === '"') {
+          if (sql[index] === '"') index += 1;
+          else break;
+        }
+      }
+    } else {
+      const delimiter = /^\$(?:[A-Za-z_]\w*)?\$/u.exec(sql.slice(index))?.[0];
+      if (delimiter) {
+        const end = sql.indexOf(delimiter, index + delimiter.length);
+        index = end < 0 ? sql.length : end + delimiter.length;
+        const prefix = chars.slice(0, start).join("").split(";").at(-1).trim();
+        if (/^DO\b/iu.test(prefix) && end >= 0) {
+          blank(start, start + delimiter.length);
+          const body = maskSql(sql.slice(start + delimiter.length, end));
+          for (let offset = 0; offset < body.length; offset += 1)
+            chars[start + delimiter.length + offset] = body[offset];
+          blank(end, index);
+        } else blank(start, index);
+      } else index += 1;
+    }
+  }
+  return chars.join("");
+}
 
-// The controller's own ledger write is what it exists to do; it is not
-// migration data.
 const LEDGER_TABLE = "supabase_migrations.schema_migrations";
+const IDENTIFIER = String.raw`(?:"(?:""|[^"])+"|[A-Za-z_][A-Za-z0-9_$]*)`;
+const TARGET = `${IDENTIFIER}(?:\\s*\\.\\s*${IDENTIFIER})?`;
+const WRITE = new RegExp(
+  `\\b(INSERT\\s+INTO|UPDATE|DELETE\\s+FROM|MERGE\\s+INTO|TRUNCATE(?:\\s+TABLE)?)\\s+(?:ONLY\\s+)?(${TARGET})`,
+  "giu",
+);
+
+function normalizedIdentifier(table) {
+  return table
+    .match(new RegExp(IDENTIFIER, "gu"))
+    .map((part) =>
+      part.startsWith('"')
+        ? part.slice(1, -1).replaceAll('""', '"')
+        : part.toLowerCase(),
+    )
+    .join(".");
+}
 
 export function topLevelDataWrites(sql) {
-  return [
-    ...stripDollarQuoted(sql).matchAll(
-      /^[ \t]*(INSERT INTO|UPDATE|DELETE FROM)\s+([\w.]+)[\s\S]*?;$/gmu,
-    ),
-  ]
-    .map((match) => ({
-      operation: match[1].split(" ")[0],
-      table: match[2],
-      statement: createHash("sha256")
-        .update(match[0].replace(/\s+/gu, " ").trim())
-        .digest("hex"),
-    }))
-    .filter((write) => write.table !== LEDGER_TABLE);
+  const masked = maskSql(sql);
+  const writes = [];
+  let offset = 0;
+  for (const segment of masked.split(";")) {
+    const first = segment.search(/\S/u);
+    if (
+      first >= 0 &&
+      /^(?:WITH|DO|INSERT|UPDATE|DELETE|MERGE|TRUNCATE)\b/iu.test(
+        segment.slice(first),
+      )
+    ) {
+      const statement = sql.slice(
+        offset + first,
+        offset +
+          segment.length +
+          (offset + segment.length < sql.length ? 1 : 0),
+      );
+      const digest = createHash("sha256")
+        .update(statement.replace(/\s+/gu, " ").trim())
+        .digest("hex");
+      for (const match of segment.matchAll(WRITE)) {
+        const table = normalizedIdentifier(match[2]);
+        if (table !== LEDGER_TABLE)
+          writes.push({
+            operation: match[1].split(/\s/u)[0].toUpperCase(),
+            table,
+            statement: digest,
+          });
+      }
+    }
+    offset += segment.length + 1;
+  }
+  return writes;
 }
 
 // Returns the writes that are not reviewed. Empty means the SQL carries only
