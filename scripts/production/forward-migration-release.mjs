@@ -431,6 +431,10 @@ export const approvedMigrations = [
     "20260917220000_csf_member_report_quota_serialization",
     "b1fa707dca02456321240dc608b09b7add3b8cd555d7bf1921dbeac888cfaad3",
   ],
+  [
+    "20260917230000_csf_profile_activity_authority_retry_guards",
+    "7eb6b25cbffd326ff16728344b596e434fd576e469878baacba939a1171fcd9d",
+  ],
 ];
 
 const literal = (value) => `'${value.replaceAll("'", "''")}'`;

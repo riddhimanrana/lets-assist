@@ -257,6 +257,28 @@ export function acceptedCatalogQuery(source, versions) {
     .update(versions.join("\n"))
     .digest("hex");
   if (
+    versions.length === 573 &&
+    ledgerHash ===
+      "5a734a0d4bc920b96f3d6c479499383fe3da6e2a79315e26c9c82cf74bc93bf7"
+  ) {
+    const preceding = acceptedCatalogQuery(source, versions.slice(0, 572))
+      .trim()
+      .replace(/;$/u, "");
+    return `SELECT CASE WHEN (${preceding}) = 1 AND NOT EXISTS (
+      SELECT 1 FROM (VALUES
+        ('plugin_data.csf_officer_save_profile_activity(uuid,uuid,uuid,uuid,text,text,numeric,timestamptz,text,uuid,uuid,boolean)', 'f4e9f791a741a384b600da27d75a692a'),
+        ('plugin_data.csf_officer_delete_profile_activity(uuid,uuid,uuid,text,uuid,uuid,boolean)', '15c473243b63716af2e192246526c4e4')
+      ) AS expected(signature, definition_hash)
+      LEFT JOIN pg_catalog.pg_proc AS p ON p.oid = pg_catalog.to_regprocedure(expected.signature)
+      WHERE p.oid IS NULL OR md5(pg_catalog.pg_get_functiondef(p.oid)) IS DISTINCT FROM expected.definition_hash
+        OR NOT p.prosecdef OR p.proowner <> 'postgres'::regrole
+        OR has_function_privilege('anon', p.oid, 'EXECUTE')
+        OR has_function_privilege('authenticated', p.oid, 'EXECUTE')
+        OR NOT has_function_privilege('service_role', p.oid, 'EXECUTE')
+        OR NOT has_function_privilege('postgres', p.oid, 'EXECUTE')
+    ) THEN 1 ELSE 0 END AS csf_target_schema_verified;`;
+  }
+  if (
     versions.length === 572 &&
     ledgerHash ===
       "0fdd58d9380c7b5cc9a1ef99285774b16fc1e158c644a3635ff6e240a01ae5bc"

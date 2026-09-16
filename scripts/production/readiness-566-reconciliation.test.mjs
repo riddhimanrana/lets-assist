@@ -40,6 +40,7 @@ const EXTENSIONS = [
   "20260917200000_csf_unreconcile_retry_receipt",
   "20260917210000_csf_member_report_term_scope",
   "20260917220000_csf_member_report_quota_serialization",
+  "20260917230000_csf_profile_activity_authority_retry_guards",
 ];
 
 test("the release is the 557 decisions baseline plus the reviewed integrated extensions", () => {
