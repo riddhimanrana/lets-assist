@@ -135,10 +135,21 @@ SELECT extensions.is(plugin_data.csf_confirm_class_code_account_name_match_v4('e
 SELECT extensions.is(plugin_data.csf_confirm_class_code_account_name_match_identity_base('e9200000-0000-4000-8000-000000000001','e9400000-0000-4000-8000-00000000000b','e9100000-0000-4000-8000-00000000000d','name-only@local.test',(SELECT id::uuid FROM passive_name_code),'e9300000-0000-4000-8000-000000000001','Name','Only','arbitrary')->>'needsReview','true','csf_confirm_class_code_account_name_match_identity_base does not treat names as ownership');
 SELECT extensions.is((SELECT count(*) FROM plugin_data.csf_profile_accounts WHERE organization_id='e9200000-0000-4000-8000-000000000001'),0::bigint,'every confirmation path leaves historical ownership unchanged');
 INSERT INTO ownership_results VALUES ('new',plugin_data.csf_join_class_by_code('e9200000-0000-4000-8000-000000000001',(SELECT code FROM passive_name_code),'e9100000-0000-4000-8000-000000000009','zero@local.test','No','Roster'));
-SELECT extensions.is((SELECT result->>'connected' FROM ownership_results WHERE scenario='new'),'true','new verified account creates its own new profile');
-SELECT extensions.is((SELECT count(*) FROM plugin_data.csf_profile_accounts WHERE organization_id='e9200000-0000-4000-8000-000000000001' AND user_id='e9100000-0000-4000-8000-000000000009' AND status='verified'),1::bigint,'new profile has one verified account link');
+SELECT extensions.is((SELECT result->>'needsReview' FROM ownership_results WHERE scenario='new'),'true','an unmatched student waits for staff rather than creating a profile');
+SELECT extensions.is((SELECT result->>'profileId' FROM ownership_results WHERE scenario='new'),NULL,'an unmatched join names no record');
+SELECT extensions.is((SELECT count(*) FROM plugin_data.csf_profiles WHERE organization_id='e9200000-0000-4000-8000-000000000001' AND source_summary->>'createdBy'='permanent_class_code'),0::bigint,'a class code never creates a profile');
+SELECT extensions.is((SELECT count(*) FROM plugin_data.csf_profile_accounts WHERE organization_id='e9200000-0000-4000-8000-000000000001' AND user_id='e9100000-0000-4000-8000-000000000009'),0::bigint,'an unmatched join creates no account link');
 SELECT extensions.is((SELECT count(*) FROM plugin_data.csf_term_memberships WHERE organization_id='e9200000-0000-4000-8000-000000000001'),0::bigint,'joining does not award semester credit');
-UPDATE plugin_data.csf_profiles SET personal_email='different@local.test',normalized_personal_email='different@local.test' WHERE id=(SELECT (result->>'profileId')::uuid FROM ownership_results WHERE scenario='new');
+-- Staff settle that request the way the queue does: create the record, connect
+-- it. Only then does a returning account exist for the retry below.
+INSERT INTO plugin_data.csf_profiles(id,organization_id,first_name,last_name,personal_email,normalized_first_name,normalized_last_name,normalized_personal_email)
+  VALUES('e9400000-0000-4000-8000-0000000000f1','e9200000-0000-4000-8000-000000000001','No','Roster','different@local.test','no','roster','different@local.test');
+INSERT INTO plugin_data.csf_profile_cohort_memberships(organization_id,profile_id,cohort_id,status)
+  VALUES('e9200000-0000-4000-8000-000000000001','e9400000-0000-4000-8000-0000000000f1','e9300000-0000-4000-8000-000000000001','active');
+INSERT INTO plugin_data.csf_profile_accounts(organization_id,profile_id,user_id,status,is_primary,connection_basis)
+  VALUES('e9200000-0000-4000-8000-000000000001','e9400000-0000-4000-8000-0000000000f1','e9100000-0000-4000-8000-000000000009','verified',true,'officer_decision');
+UPDATE plugin_data.csf_profile_link_requests SET match_status='resolved',matched_profile_id='e9400000-0000-4000-8000-0000000000f1'
+  WHERE organization_id='e9200000-0000-4000-8000-000000000001' AND user_id='e9100000-0000-4000-8000-000000000009';
 INSERT INTO ownership_results VALUES ('existing',plugin_data.csf_join_class_by_code('e9200000-0000-4000-8000-000000000001',(SELECT code FROM passive_name_code),'e9100000-0000-4000-8000-000000000009','zero@local.test','No','Roster'));
 SELECT extensions.is((SELECT result->>'connected' FROM ownership_results WHERE scenario='existing'),'true','existing verified account retains ownership when contact emails differ');
 SELECT extensions.is((SELECT count(*) FROM plugin_data.csf_profile_accounts WHERE organization_id='e9200000-0000-4000-8000-000000000001'),1::bigint,'retries never add duplicate account links');

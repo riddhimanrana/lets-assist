@@ -71,11 +71,13 @@ function GlobalNotificationProviderInner({
   );
 
   // CSF cohort-link signups finish account setup on the plugin connect route
-  // once their student record is connected. This never affects the intro tour
-  // and is false for every non-CSF signup, keeping /home behavior unchanged.
+  // once their CSF step is settled -- connected, or waiting on staff. This
+  // never affects the intro tour and is false for every non-CSF signup,
+  // keeping /home behavior unchanged.
   const isCsfConnectContext = isCsfConnectOnboardingContext({
     pathname,
     connectedParam: searchParams.get("connected"),
+    reviewParam: searchParams.get("review"),
     signupFlow: user?.user_metadata?.signup_flow,
   });
 

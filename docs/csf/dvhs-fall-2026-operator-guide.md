@@ -162,28 +162,54 @@ characters and try again.
    selected, shows **Already have a CSF record?** and **New to CSF?**. The
    latter includes the application button when the current term has an
    **Application form link**.
+   Before signing in the student can leave without guessing: **Wrong class?
+   Enter a different code** returns to code entry, and **Back to the CSF page**
+   leaves entirely. Scanning the wrong class QR happens before there is an
+   account to carry a redirect, so both ways out are on this screen.
 3. After sign-in the page looks for a record in that class that matches the name
-   on the account. Exactly one unclaimed match shows **Is this you?**, and
-   **Yes, this is me** connects it: the page changes to **Your CSF record is
-   linked** and offers **Go to My CSF**. Two or more matches are listed instead,
-   and the student's pick goes to an officer, showing **Awaiting staff review**
-   with **Go to class feed**. Select **That's not me, search a different name**
-   to look again under a different spelling.
+   on the account and shows it under **Is this you?**. A name selects a record;
+   it never proves the record is the student's. **Yes, this is me** connects
+   automatically only when the verified email on the signed-in account is
+   already a contact an officer curated onto that record, and onto no other
+   record in the chapter. That connection shows **Your CSF record is linked**
+   with **Go to My CSF**. Every other outcome, including an exact name on a
+   record that carries no such contact, becomes an officer request and shows
+   **Awaiting staff review** with **Go to class feed**. Select **That's not me,
+   search a different name** to look again under a different spelling.
 4. In **Join your class** the student types their **Full name** as written on
    their CSF application, including any middle name, then selects **Find my
    record**. The search tolerates a shortened first name, so Sai finds
-   Saisampath, and a recorded nickname. A single unclaimed match is offered for
-   confirmation. When nothing matches, **Continue with this name** creates a
-   record for a genuinely new student, and files an officer request instead when
-   the typed name is close to records that already exist.
+   Saisampath, and a recorded nickname. Matches are listed for confirmation
+   under the same rule as step 3.
+5. When nothing matches, or the student selects **None of these is me**, the
+   dialog says **We couldn’t find your profile**. It then asks the one
+   question the student can answer about themselves:
+   **I’m a new member** or **I’m a returning member**.
+   Both file the same officer request, carrying that declared answer alongside
+   the class and the account, and neither creates a record. A misspelling is
+   the likeliest reason nothing matched, so
+   **Check the spelling and search again** returns to the name box; closing the
+   dialog discards the search rather than replaying the same dead answer.
+6. A student waiting on staff sees **Awaiting staff review** whenever they
+   return to the connect page, with or without the class code in the address,
+   and the chapter page offers **Check your request** in place of **Open My
+   CSF**.
 
-Connecting is the student's own claim on one unambiguous record, audited as
-`profile.typed_name_connected`. Anything ambiguous, already claimed, or merely
-similar stays with an officer.
+A class join code never creates a roster record and never grants access to one.
+The only automatic connection is a verified account email matching a curated
+contact, audited as `profile.typed_name_connected` with a `verified_email`
+basis. A typed name, a shortened name, a recorded nickname, an address the
+student reported on their own application, a record another account has already
+claimed or has had revoked, and an address shared with a second record all stay
+with an officer.
 
 The student never chooses a roster record from a list and never assigns their
-own class or officer access. Submitted names are review context for officers;
-they never prove ownership.
+own class or officer access. Submitted names and declared new-or-returning
+answers are review context for officers; they never prove ownership.
+
+Waiting students are members of the organization so the class feed stays open
+to them, and nothing more: a pending connection cannot read the student's
+history, and no member tool appears before staff release a decision.
 
 ## Resolve the connection queue
 

@@ -1,4 +1,4 @@
-import { expect, test } from "@playwright/test";
+import { expect, test, type Page } from "@playwright/test";
 
 import {
   CSF_ORGANIZATION_PATH,
@@ -8,6 +8,25 @@ import {
 } from "./helpers";
 
 const applicationsPath = `${CSF_ORGANIZATION_PATH}?tab=csf-applications`;
+
+/**
+ * The applications section inside the tab that is actually open.
+ *
+ * The workspace keeps an inactive tab's markup mounted and inert, so `#applications`
+ * can match a cached copy as well as the live one. The accessible tabpanel is the
+ * open tab by definition, and the count check below keeps this from hiding a second
+ * copy that really is on screen.
+ */
+function applicationsPanel(page: Page) {
+  return page.getByRole("tabpanel").locator("#applications");
+}
+
+async function expectOneVisibleApplicationsPanel(page: Page) {
+  await expect(applicationsPanel(page)).toBeVisible();
+  await expect(
+    page.locator("#applications").filter({ visible: true }),
+  ).toHaveCount(1);
+}
 
 test.describe("applications review workspace", () => {
   test.beforeEach(async ({ page }) => {
@@ -23,7 +42,7 @@ test.describe("applications review workspace", () => {
     // review chrome renders (period bar + roster scaffolding), and the
     // Points/Applications campaign toggle stays hidden because the route
     // pins the kind.
-    await expect(page.locator("#applications")).toBeVisible();
+    await expectOneVisibleApplicationsPanel(page);
     await expect(
       page.getByRole("button", { name: "Points", exact: true }),
     ).toBeHidden();
@@ -60,12 +79,12 @@ test.describe("applications review workspace", () => {
     await dialog.getByRole("button", { name: "Close", exact: true }).click();
     await expect(dialog).toHaveCount(0);
     await expect(page).not.toHaveURL(/csf_import_type=/);
-    await expect(page.locator("#applications")).toBeVisible();
+    await expectOneVisibleApplicationsPanel(page);
     await importButton.click();
     await expect(dialog).toBeVisible();
     await page.keyboard.press("Escape");
     await expect(dialog).toHaveCount(0);
-    await expect(page.locator("#applications")).toBeVisible();
+    await expectOneVisibleApplicationsPanel(page);
 
     expectNoBrowserFailures(failures);
   });

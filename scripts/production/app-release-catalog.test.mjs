@@ -3,7 +3,10 @@ import { readFileSync } from "node:fs";
 import test from "node:test";
 import { createHash } from "node:crypto";
 import { fileURLToPath } from "node:url";
-import { acceptedCatalogQuery } from "./app-release-catalog.mjs";
+import {
+  acceptedCatalogQuery,
+  acceptedFingerprints565,
+} from "./app-release-catalog.mjs";
 import { expectedVersions } from "./app-release-checks.mjs";
 
 const source = readFileSync(
@@ -14,14 +17,36 @@ const versions = expectedVersions(
   fileURLToPath(new URL("../../", import.meta.url)),
 ).slice(0, 518);
 
-test("exact 539 release publication preserves the accepted 538 schema", () => {
+test("the 540 officer identity authority release moves exactly three fingerprints", () => {
   const fullLedger = expectedVersions(
     fileURLToPath(new URL("../../", import.meta.url)),
   );
-  assert.equal(fullLedger.length, 539);
-  assert.equal(fullLedger.at(-1), "20260916010000");
+  assert.equal(fullLedger.length, 566);
+  assert.equal(fullLedger.at(-1), "20260917160000");
+  const current = acceptedCatalogQuery(source, fullLedger.slice(0, 540));
+  const preceding = acceptedCatalogQuery(source, fullLedger.slice(0, 539));
+  // The migration replaces three reviewed definitions in place. Nothing else
+  // in the accepted catalog may move with them.
+  for (const [before, after] of [
+    ["abda3e08cd11a412fbb919906c95fe74", "eabcc76e3e61eea9bcd91a6487b10c20"],
+    ["524766459ce161c31250d01b691ca7c9", "f0aaa289ceda518c32ef0ea8468493ba"],
+    ["f55544457947c753af0a8f527d7d25d6", "3f0ee9027a1a89b94e395cd320ae2abb"],
+  ]) {
+    assert.ok(preceding.includes(before));
+    assert.ok(!preceding.includes(after));
+    assert.ok(!current.includes(before));
+    assert.ok(current.includes(after));
+    assert.equal(preceding.split(before).length, 2);
+    assert.equal(current.split(after).length, 2);
+  }
   assert.equal(
-    acceptedCatalogQuery(source, fullLedger),
+    current.length,
+    preceding.length,
+    "an in-place fingerprint swap cannot change the catalog's size",
+  );
+
+  assert.equal(
+    acceptedCatalogQuery(source, fullLedger.slice(0, 539)),
     acceptedCatalogQuery(source, fullLedger.slice(0, 538)),
   );
   assert.equal(
@@ -29,7 +54,7 @@ test("exact 539 release publication preserves the accepted 538 schema", () => {
     acceptedCatalogQuery(source, fullLedger.slice(0, 535)),
   );
   const alteredLedger = [...fullLedger];
-  alteredLedger[538] = "20990101000000";
+  alteredLedger[539] = "20990101000000";
   assert.throws(
     () => acceptedCatalogQuery(source, alteredLedger),
     /explicit release review/u,
@@ -897,4 +922,137 @@ test("513 publication preserves the reviewed 512 schema", () => {
     acceptedCatalogQuery(source, versions.slice(0, 513)),
     acceptedCatalogQuery(source, versions.slice(0, 512)),
   );
+});
+
+test("the readiness release moves exactly the fingerprints measured on a replayed database", () => {
+  const fullLedger = expectedVersions(
+    fileURLToPath(new URL("../../", import.meta.url)),
+  );
+  const baseline = acceptedCatalogQuery(source, fullLedger.slice(0, 540));
+  // The decisions baseline, not the full ledger. Two of the relation digests
+  // below are moved again by the 565 extensions, so they are unique only up to
+  // 557; the extension swaps are checked separately against the full ledger.
+  const current = acceptedCatalogQuery(source, fullLedger.slice(0, 557));
+
+  // An earlier version of this file asserted the 554 catalog was byte
+  // identical to the 540 one, on the strength of grepping the migrations for
+  // replaced functions. A replayed database disproved it: the catalog also
+  // fingerprints RELATIONS, which no function grep sees, and a function
+  // replaced twice in one release only shows its last body. These are the
+  // measured values, one per drift the replay reported.
+  const measured = [
+    // check 14, relations
+    ["d1dc57a4ba8b99f76f7f004ce6ba5bbf", "f4cccde4b50d4e96dac5937200b95ea1"],
+    ["7d5a926c181e90f73751bbc49ace1109", "e7258ed743fa52f1470ca1b7c5e71d55"],
+    // check 34, merge ownership
+    ["2f521e9b85f90793c1c0c7197ce3f241", "48a500ad4960c56dffca1cf1a823d3ad"],
+    ["0124ee53995263c7a2e839d20d5e8efe", "fedd02270e8f15a687659a01742a860d"],
+    // check 35 pins the officer connection twice, by full definition and by
+    // md5(p.prosrc). Both move together and both must be swapped.
+    ["3f0ee9027a1a89b94e395cd320ae2abb", "56dcc95953b9fae01a5aa41c29383750"],
+    ["5f47bdc9f3dd79de9262c81e6714d42c", "11e91c2070c51ea3bdc029c1c17d7246"],
+    // check 38, sheet acceptance definitions and bodies
+    ["55c423adec03f617d38e2f6ad2d6b243", "97d5d255ac21dafa1e5856005a3e52e6"],
+    ["4c8c8dd465f70c036e79e68ff506a738", "068d23af9577932b35421cab0218bcf8"],
+    ["6f3a4de65784cd0aee352da1dc47fd5e", "abcd599c61c6ffe7b7ef6aa97520f869"],
+    ["f6d62983671d65cb184738ae5837782c", "20a36622839502449852fa30b41ab8b9"],
+    // check 39, the write-back ledger relation
+    ["071bf14bd83e3a8fc8c9fa467bce2035", "49593d70560fb48930e243133820990b"],
+    // The 561 extension set, measured the same way. Taken from the release
+  ];
+
+  for (const [before, after] of measured) {
+    assert.equal(
+      baseline.split(before).length,
+      2,
+      `${before} must be uniquely present before the release`,
+    );
+    assert.ok(
+      !baseline.includes(after),
+      `${after} must not predate its migration`,
+    );
+    assert.ok(
+      !current.includes(before),
+      `${before} must not survive the release`,
+    );
+    assert.equal(
+      current.split(after).length,
+      2,
+      `${after} must be uniquely present after the release`,
+    );
+  }
+
+  // Each swap is a digest for a digest, so nothing else can have moved.
+  assert.equal(current.length, baseline.length);
+  assert.notEqual(current, baseline);
+
+  // The extension set, measured the same way, against the full ledger.
+  const decisions = acceptedCatalogQuery(source, fullLedger.slice(0, 557));
+  const released = acceptedCatalogQuery(source, fullLedger);
+  for (const entry of acceptedFingerprints565) {
+    assert.equal(
+      decisions.split(entry.before).length - 1,
+      entry.occurrences,
+      `${entry.object} must be pinned before the release`,
+    );
+    assert.ok(
+      !released.includes(entry.before),
+      `${entry.object} must not survive the release`,
+    );
+    assert.equal(
+      released.split(entry.after).length - 1,
+      entry.occurrences,
+      `${entry.object} must be swapped everywhere`,
+    );
+  }
+  assert.equal(released.length, decisions.length);
+});
+
+test("each measured fingerprint is applied at the migration that produces it", () => {
+  const fullLedger = expectedVersions(
+    fileURLToPath(new URL("../../", import.meta.url)),
+  );
+  const at = (n) => acceptedCatalogQuery(source, fullLedger.slice(0, n));
+
+  // The delegation chain must not claim a fingerprint before the migration
+  // that changes the object, or a partially applied ledger verifies against a
+  // schema it does not have.
+  for (const [length, digest, why] of [
+    [
+      543,
+      "f4cccde4b50d4e96dac5937200b95ea1",
+      "20260916060000 indexes csf_admin_audit_events",
+    ],
+    [
+      544,
+      "97d5d255ac21dafa1e5856005a3e52e6",
+      "20260916070000 rewrites sheet acceptance",
+    ],
+    [
+      546,
+      "56dcc95953b9fae01a5aa41c29383750",
+      "20260916090000 rewires the officer connection",
+    ],
+    [
+      546,
+      "11e91c2070c51ea3bdc029c1c17d7246",
+      "20260916090000 moves that function's body with its definition",
+    ],
+    [
+      547,
+      "e7258ed743fa52f1470ca1b7c5e71d55",
+      "20260917010000 stages decisions on csf_terms",
+    ],
+    [
+      551,
+      "fedd02270e8f15a687659a01742a860d",
+      "20260917020000 re-layers the five-argument merge",
+    ],
+  ]) {
+    assert.ok(
+      !at(length - 1).includes(digest),
+      `${why}: too early at ${length - 1}`,
+    );
+    assert.ok(at(length).includes(digest), `${why}: missing at ${length}`);
+  }
 });

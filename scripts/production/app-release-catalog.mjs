@@ -33,6 +33,14 @@ import {
 } from "./account-ownership-catalog.mjs";
 import { createHash } from "node:crypto";
 import { ReleaseCheckError } from "./app-release-checks.mjs";
+import { officerIdentityAuthorityCatalog } from "./officer-identity-authority-catalog.mjs";
+import {
+  classBlockAcceptanceCatalog,
+  decisionMergeOwnershipCatalog,
+  decisionStagingRelationCatalog,
+  decisionSupersedeCatalog,
+  officerActivityRelationCatalog,
+} from "./readiness-catalog-drift.mjs";
 import {
   mergedSourceLineagePosture,
   reviewedWorkbookLinksPosture,
@@ -133,10 +141,298 @@ const importReviewDefinitions = [
   ],
 ];
 
+// The 561 release is the first extension set since the decisions lane, and it
+// is the first in a while that moves reviewed fingerprints rather than passing
+// through. 0900 and 1100 touch nothing the accepted catalog pins. 0700 restates
+// one pinned function, and 0800 restates three pinned functions, one pinned
+// trigger function, and the shape of one pinned relation.
+//
+// Each `after` is md5(pg_get_functiondef(oid)) or, for a relation, the
+// jsonb_build_object digest the catalog computes. Neither can be derived from
+// the migration text, so every value here has to be read off a database that
+// has the migration applied. The four that are filled came from the owned
+// replay T. The two that are null moved but were not measured, and the release
+// cannot be pinned until they are.
+export const acceptedFingerprints565 = [
+  {
+    object:
+      "plugin_data.csf_join_class_by_code_identity_base(uuid,text,uuid,text,text,text,text,uuid,uuid)",
+    migration: "20260917070000",
+    before: "0c9f17d6f6b50b484ae8758b26d5858b",
+    after: "abe1520dabf116c9ce2b7adb0a9f0156",
+    occurrences: 2,
+  },
+  {
+    object:
+      "plugin_data.csf_authorize_publication_notification(uuid,uuid,uuid)",
+    migration: "20260917080000",
+    before: "45955f667a0dc934e86b2980a695d683",
+    after: "f494ecf0746444bbb55bf2605123ab2a",
+    occurrences: 1,
+  },
+  {
+    object: "plugin_data.csf_publication_email_recipient_allowed(uuid,uuid)",
+    migration: "20260917080000",
+    before: "d611bc91327412cad303c1e17123794f",
+    after: "57c41026b33ca412f0b73645d520b795",
+    occurrences: 1,
+  },
+  {
+    object:
+      "plugin_data.csf_publication_recipient_allowed(uuid,text,uuid,uuid)",
+    migration: "20260917080000",
+    before: "410dfba2b96511bae6548134e51539c4",
+    after: "1737ebf7d2e061b504c2721e4e113dde",
+    occurrences: 1,
+  },
+  {
+    object: "plugin_data.csf_record_publication_notifications()",
+    migration: "20260917080000",
+    before: "396db81ca1f3953148782858f9185223",
+    after: "9900f3e2f5181fdce4329ce958e1b2c3",
+    occurrences: 1,
+  },
+  {
+    // 0800 rewrites its constraints.
+    object: "plugin_data.csf_publication_events (relation)",
+    migration: "20260917080000",
+    before: "bb442786fe77c77ce3adae4aa0e84ac8",
+    after: "73d189ff60d9248b33faaf010a5aa1cd",
+    occurrences: 1,
+  },
+  {
+    // 1300 adds courses_corrected_at and courses_corrected_by.
+    object: "plugin_data.csf_term_applications (relation)",
+    migration: "20260917130000",
+    before: "9be38d4860e44a5696c75358d3707efc",
+    after: "80588947c1e1b304dc388ec9bd4e48d6",
+    occurrences: 1,
+  },
+  {
+    // 1100 indexes the attendance-correction request.
+    object: "plugin_data.csf_admin_audit_events (relation)",
+    migration: "20260917110000",
+    before: "f4cccde4b50d4e96dac5937200b95ea1",
+    after: "317cf813aa3f7dfdedaa8a21ac872343",
+    occurrences: 1,
+  },
+  {
+    // 1400 adds the personal-notification trigger to this table.
+    object: "plugin_data.csf_point_submissions (relation)",
+    migration: "20260917140000",
+    before: "db32b25e5818c2067614aebe169f4cb9",
+    after: "edb4d3ebac961c453ddc975fac463612",
+    occurrences: 1,
+  },
+];
+
+function swapAcceptedFingerprints(catalog, replacements) {
+  const unmeasured = replacements.filter(
+    (entry) => !entry.after || !entry.before,
+  );
+  if (unmeasured.length)
+    throw new ReleaseCheckError(
+      `Accepted fingerprints moved but were never measured: ${unmeasured
+        .map((entry) => `${entry.object} (${entry.migration})`)
+        .join("; ")}. Read them from a database with the migration applied.`,
+    );
+  let swapped = catalog;
+  for (const entry of replacements) {
+    const found = swapped.split(entry.before).length - 1;
+    if (found !== entry.occurrences)
+      throw new ReleaseCheckError(
+        `Expected ${entry.occurrences} pinned fingerprint(s) for ${entry.object}, found ${found}.`,
+      );
+    if (swapped.includes(entry.after))
+      throw new ReleaseCheckError(
+        `The replacement fingerprint for ${entry.object} is already in the catalog.`,
+      );
+    swapped = swapped.replaceAll(entry.before, entry.after);
+  }
+  return swapped;
+}
+
 export function acceptedCatalogQuery(source, versions) {
   const ledgerHash = createHash("sha256")
     .update(versions.join("\n"))
     .digest("hex");
+  if (
+    versions.length === 566 &&
+    ledgerHash ===
+      "d1f8a71f2bc95078691f6ff7f3ce56c764c7f13a01160c462f3f9ba9cdd1db95"
+  )
+    // 1600 gives a personal notice campaign a valid dispatch identity and
+    // repairs a legacy draft when its RPC next runs. It restates two functions
+    // of the notices lane's own, both verified absent from the generated
+    // accepted catalog, and adds no relation, index or trigger. No reviewed
+    // fingerprint moves, so the release passes through.
+    return acceptedCatalogQuery(source, versions.slice(0, 565));
+  if (
+    versions.length === 565 &&
+    ledgerHash ===
+      "d692b51d050b7b2b354fd2720ab2416585985931a08a7f27163ae85c3da8e075"
+  )
+    return swapAcceptedFingerprints(
+      acceptedCatalogQuery(source, versions.slice(0, 557)),
+      acceptedFingerprints565,
+    );
+  if (
+    versions.length === 557 &&
+    ledgerHash ===
+      "512cb507d345054714c396b086a710ede75187d26ec8e60256bea6674ad8575b"
+  )
+    // The published decision reason restates one RPC of the decisions lane's
+    // own so a red mark stops inventing an explanation. It was verified absent
+    // from the generated accepted catalog, so no reviewed fingerprint moves.
+    return acceptedCatalogQuery(source, versions.slice(0, 556));
+  if (
+    versions.length === 556 &&
+    ledgerHash ===
+      "eeb3306cd09682d97c1cff06ea170e3b1f82620847ba974c096a3530717313e5"
+  )
+    // The ordinal predicate restates one RPC of the decisions lane's own with a
+    // safe-update-compatible UPDATE. It was verified absent from the generated
+    // accepted catalog, so no reviewed fingerprint moves.
+    return acceptedCatalogQuery(source, versions.slice(0, 555));
+  if (
+    versions.length === 555 &&
+    ledgerHash ===
+      "b6716c1e6fe25011a6b697b5799b15d531effbd66dc8e15e934ba798cb175cde"
+  )
+    // The decision plan reset restates two RPCs of the decisions lane's own
+    // with a safe-update-compatible clear. Both were verified absent from the
+    // generated accepted catalog, so no reviewed fingerprint moves.
+    return acceptedCatalogQuery(source, versions.slice(0, 554));
+  // Two reachable appends for the class-block acceptance migration, because
+  // the officer identity work may land before or after it. Either way this is
+  // the previous ledger plus one tail entry.
+  if (
+    versions.length === 554 &&
+    ledgerHash ===
+      "45644bd99f53b503cda4d5b8acefcc04d1134be7617abe07fb7fc16c5662a31c"
+  )
+    // Provenance null safety: a forward replacement of the decisions
+    // lane's own functions. No reviewed definition moves.
+    return acceptedCatalogQuery(source, versions.slice(0, 553));
+  if (
+    versions.length === 553 &&
+    ledgerHash ===
+      "a407752136d1ae818048862d6b9630914036c17009df93fe90aa9c2b77781cd0"
+  )
+    // finalized outcome guard: new relations, guards and entrypoints of their own.
+    // No reviewed definition moves, so the catalog passes through.
+    return acceptedCatalogQuery(source, versions.slice(0, 552));
+  if (
+    versions.length === 552 &&
+    ledgerHash ===
+      "3f991eb00f76eaa872018e2e5c1dbff8822e8f60c8ded255facf559db4cfc95f"
+  )
+    // application decision mapping fields: new relations, guards and entrypoints of their own.
+    // No reviewed definition moves, so the catalog passes through.
+    return acceptedCatalogQuery(source, versions.slice(0, 551));
+  if (
+    versions.length === 551 &&
+    ledgerHash ===
+      "c407d682c92005ee9706436350e8f5e09ccdbb6adc22a1bbf35fe0b9504f2cf1"
+  )
+    // 20260917020000 re-layers the five-argument merge and its plan.
+    return decisionMergeOwnershipCatalog(
+      acceptedCatalogQuery(source, versions.slice(0, 550)),
+    );
+  if (
+    versions.length === 550 &&
+    ledgerHash ===
+      "a8db68bd95b10cbeb4631db003f783a90398d224bade8cdc91ecb3d45995a4ad"
+  )
+    // sheet application decision release: new relations, guards and entrypoints of their own.
+    // No reviewed definition moves, so the catalog passes through.
+    return acceptedCatalogQuery(source, versions.slice(0, 549));
+  if (
+    versions.length === 549 &&
+    ledgerHash ===
+      "00b48e8de6ecd58568200dad0415b4eb9a259ba3592ef6fd6fc0a440d09660e3"
+  )
+    // sheet application decision sync: new relations, guards and entrypoints of their own.
+    // No reviewed definition moves, so the catalog passes through.
+    return acceptedCatalogQuery(source, versions.slice(0, 548));
+  if (
+    versions.length === 548 &&
+    ledgerHash ===
+      "26a71fa57c752ea0255592d1d23fcef46412570c59d3822a41225a4121005fa3"
+  )
+    // sheet application decision RPCs: new relations, guards and entrypoints of their own.
+    // No reviewed definition moves, so the catalog passes through.
+    return acceptedCatalogQuery(source, versions.slice(0, 547));
+  if (
+    versions.length === 547 &&
+    ledgerHash ===
+      "97eac1a6fda372015990d3207e8b739700e4cde5f91fb4b252f8bb910b38bf28"
+  )
+    // 20260917010000 moves csf_terms and csf_sheet_writeback_ledger.
+    return decisionStagingRelationCatalog(
+      acceptedCatalogQuery(source, versions.slice(0, 546)),
+    );
+  if (
+    versions.length === 546 &&
+    ledgerHash ===
+      "6460ad835f21b27ce24e28cdb5cc93654503ca3462fc961c74cfa0390412673b"
+  )
+    // 20260916090000 rewires the officer connection onto the shared
+    // supersede, moving that body a second time in this release.
+    return decisionSupersedeCatalog(
+      acceptedCatalogQuery(source, versions.slice(0, 545)),
+    );
+  if (
+    versions.length === 545 &&
+    ledgerHash ===
+      "9758bd44e5d741e993fd92498df6bca69e511b2e762b1766894b78ee2de5d4d6"
+  )
+    // officer edit review fixes: new relations, guards and entrypoints of their own.
+    // No reviewed definition moves, so the catalog passes through.
+    return acceptedCatalogQuery(source, versions.slice(0, 544));
+  if (
+    versions.length === 544 &&
+    ledgerHash ===
+      "1b2639267c001a61f9c13d964323e2abb3383ce77785fda854418fe58d406575"
+  )
+    // 20260916070000 moves both sheet acceptance definitions and bodies.
+    return classBlockAcceptanceCatalog(
+      acceptedCatalogQuery(source, versions.slice(0, 543)),
+    );
+  if (
+    versions.length === 543 &&
+    ledgerHash ===
+      "53eb05c8b70ec491e20007b6815cde84e6bce056a668bea94fe6e9b3ecf4a64a"
+  )
+    // 20260916060000 indexes csf_admin_audit_events, moving its relation
+    // digest. Measured, not inferred.
+    return officerActivityRelationCatalog(
+      acceptedCatalogQuery(source, versions.slice(0, 542)),
+    );
+  if (
+    versions.length === 542 &&
+    ledgerHash ===
+      "8c9cb7fcf678bf07c08d5123dd7607f620319ebabff0cc69cd330f768e91cf8e"
+  )
+    // The closed-evidence guard keeps its reviewed shape and carries no
+    // reviewed fingerprint of its own, so the catalog is unchanged.
+    return acceptedCatalogQuery(source, versions.slice(0, 541));
+  if (
+    versions.length === 541 &&
+    ledgerHash ===
+      "f60cfebd893b0fe0d32979592cdc8e55f7656a9d15a27387d0f49b50a7029d25"
+  )
+    // csf_meeting_attendance_value is owner-internal and carries no
+    // reviewed fingerprint, so this release leaves the catalog untouched.
+    return acceptedCatalogQuery(source, versions.slice(0, 540));
+  if (
+    versions.length === 540 &&
+    ledgerHash ===
+      "7cbbdeea1274e00b99f18c281fac657585bb634574565046c88d8cdc131dac44"
+  )
+    return officerIdentityAuthorityCatalog(
+      acceptedCatalogQuery(source, versions.slice(0, 539)),
+    );
   if (
     versions.length === 539 &&
     ledgerHash ===

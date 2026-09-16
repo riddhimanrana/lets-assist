@@ -668,42 +668,47 @@ describe("the fixed app port is owned through one atomic claim", () => {
   });
 
   test("occupation after the claim starts no child and releases only that claim", () => {
-    // The source shape that makes this true: the second free check sits between
-    // the claim and the spawn, and its failure path releases before throwing.
+    // The source shape that makes this true: the supervisor that owns the
+    // release is created with the claim rather than with the children, the
+    // second free check sits between that and the first spawn, and the block
+    // holding all of it releases on every path out.
     const claimIndex = runnerSource.indexOf("const claim = claimAppPort();");
-    const secondCheck = runnerSource.indexOf(
-      "assertPortFree(APP_PORT),",
+    const supervisorIndex = runnerSource.indexOf(
+      "const supervisor = createOwnedChildSupervisor({",
       claimIndex,
     );
-    const releaseOnFailure = runnerSource.indexOf(
-      "release();\n    throw error;",
+    const secondCheck = runnerSource.indexOf(
+      "assertPortFree(APP_PORT),",
+      supervisorIndex,
     );
-    const spawnIndex = runnerSource.indexOf("const spawnOwnedChild =");
+    const spawnIndex = runnerSource.indexOf(
+      "supervisor.spawnOwnedChild(",
+      secondCheck,
+    );
+    const releaseOnEveryPath = runnerSource.indexOf(
+      "} finally {\n    supervisor.stop();\n  }",
+      spawnIndex,
+    );
 
     expect(claimIndex).toBeGreaterThan(-1);
-    expect(secondCheck).toBeGreaterThan(claimIndex);
-    expect(releaseOnFailure).toBeGreaterThan(secondCheck);
-    expect(spawnIndex).toBeGreaterThan(releaseOnFailure);
+    expect(supervisorIndex).toBeGreaterThan(claimIndex);
+    expect(secondCheck).toBeGreaterThan(supervisorIndex);
+    expect(spawnIndex).toBeGreaterThan(secondCheck);
+    expect(releaseOnEveryPath).toBeGreaterThan(spawnIndex);
   });
 
-  test("termination reaches both child process groups and the claim is released after exit", () => {
+  test("termination reaches both child process groups", () => {
     expect(runnerSource).toContain("detached: true");
-    expect(runnerSource).toContain("process.kill(-child.pid, signal)");
+    expect(runnerSource).toContain("process.kill(-pid, signal)");
     expect(runnerSource).toContain('forward("SIGKILL")');
-    expect(runnerSource).toContain(
-      "process.removeListener(registeredSignal, handler)",
-    );
+    expect(runnerSource).toContain("process.removeListener(signal, handler)");
     for (const signal of ["SIGINT", "SIGTERM", "SIGHUP"]) {
       expect(runnerSource).toContain(signal);
     }
-    // Awaiting the group's exit before releasing is what stops a peer from
-    // taking a port this runner is still vacating.
-    const awaitExit = runnerSource.indexOf(
-      "const firstExit = await Promise.race(exits);",
-    );
-    const releaseAfter = runnerSource.indexOf("release();", awaitExit);
-    expect(awaitExit).toBeGreaterThan(-1);
-    expect(releaseAfter).toBeGreaterThan(awaitExit);
+    // Both long-running children are owned by one supervisor, so one signal
+    // reaches both groups. What that ownership holds to across a real teardown
+    // is covered in run-dvhs-csf-isolated-app.teardown.test.ts.
+    expect(runnerSource.split("supervisor.spawnOwnedChild(")).toHaveLength(3);
   });
 });
 
@@ -843,7 +848,7 @@ describe("the runner starts Next directly through Node", () => {
   test("starts both application runtimes directly through Node", () => {
     // Dependency bootstrap may invoke Bun install once. The long-running app
     // processes still bypass package scripts and ambient Bun runtime loading.
-    expect(runnerSource).toContain("const child = spawn(command, args, {");
+    expect(runnerSource).toContain("const child = spawnChild(command, args, {");
     expect(runnerSource).not.toMatch(/spawn(Sync)?\(\s*"bun"/u);
     expect(runnerSource).not.toMatch(/"run",\s*"dev"/u);
     expect(runnerSource).not.toMatch(/shell:\s*true/u);

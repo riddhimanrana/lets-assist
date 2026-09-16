@@ -56,8 +56,19 @@ export type CsfSheetRowEvidence = {
 };
 
 export type CsfSheetCellAnnotation = {
-  /** Lowercase #rrggbb fill, absent for the default white/transparent fill. */
+  /**
+   * The rendered fill as lowercase #rrggbb, absent for the default
+   * white/transparent fill. This is what the cell *looks* like, so it includes
+   * alternating-row banding and conditional formatting.
+   */
   background?: string;
+  /**
+   * The fill an officer actually applied to the cell, when the provider
+   * reported one. Banding and theme fills are not user-entered, so a reader
+   * that must tell "an officer marked this row" from "this is the stripe
+   * color" uses this and not `background`.
+   */
+  userEnteredBackground?: string;
   /** The cell note verbatim, trimmed. */
   note?: string;
 };
@@ -88,6 +99,12 @@ export type CsfSheetSourceSnapshot = {
   /** Null when the requested range holds no populated cell at all. */
   populatedRange: CsfSheetBounds | null;
   rows: CsfSheetRowEvidence[];
+  /**
+   * True when this read asked the provider for user-entered fills. A consumer
+   * that must tell an officer's mark from a rendered one refuses to classify a
+   * snapshot without it rather than reading every row as unmarked.
+   */
+  userEnteredFillsRead: boolean;
   contentHash: string;
   hasBasicFilter: boolean;
   threadedCommentsByRow: Record<
@@ -290,6 +307,9 @@ type SheetsGridResponse = {
             numberFormat?: { type?: string };
             backgroundColor?: { red?: number; green?: number; blue?: number };
           };
+          userEnteredFormat?: {
+            backgroundColor?: { red?: number; green?: number; blue?: number };
+          };
           effectiveValue?: Record<string, unknown>;
           userEnteredValue?: { formulaValue?: string };
         }>;
@@ -488,7 +508,7 @@ export async function getCsfSheetSourceSnapshot(
     [
       "sheets.properties(sheetId,title)",
       "sheets.basicFilter.range",
-      "sheets.data(startRow,startColumn,rowMetadata(hiddenByUser,hiddenByFilter),rowData.values(formattedValue,effectiveValue,userEnteredValue.formulaValue,note,effectiveFormat(backgroundColor,numberFormat.type)))",
+      "sheets.data(startRow,startColumn,rowMetadata(hiddenByUser,hiddenByFilter),rowData.values(formattedValue,effectiveValue,userEnteredValue.formulaValue,note,effectiveFormat(backgroundColor,numberFormat.type),userEnteredFormat.backgroundColor))",
     ].join(","),
   );
 
@@ -593,13 +613,20 @@ export async function getCsfSheetSourceSnapshot(
         const background = normalizeSheetBackground(
           cell?.effectiveFormat?.backgroundColor,
         );
+        // Recorded separately from the rendered fill: banding and conditional
+        // formatting reach `effectiveFormat` but never `userEnteredFormat`, and
+        // decision reading needs to tell an officer's mark from a stripe.
+        const userEnteredBackground = normalizeSheetBackground(
+          cell?.userEnteredFormat?.backgroundColor,
+        );
         const note =
           typeof cell?.note === "string" && cell.note.trim() !== ""
             ? cell.note.trim()
             : undefined;
-        if (background || note) {
+        if (background || userEnteredBackground || note) {
           annotations[blockStartColumn + cellOffset] = {
             ...(background ? { background } : {}),
+            ...(userEnteredBackground ? { userEnteredBackground } : {}),
             ...(note ? { note } : {}),
           };
         }
@@ -712,6 +739,7 @@ export async function getCsfSheetSourceSnapshot(
     requestedRange,
     populatedRange,
     rows,
+    userEnteredFillsRead: true,
     contentHash,
     hasBasicFilter: Boolean(selectedSheet.basicFilter),
     threadedCommentsByRow,

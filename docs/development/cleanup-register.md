@@ -2702,6 +2702,222 @@ sources.
 
 ## Repository-owned P0–P2
 
+### Semester readiness review, September 16, 2026
+
+This work is in progress on an isolated Development integration branch.
+Production records, decisions, source workbooks and email delivery remain unchanged.
+
+September 16, 01:59 Pacific checkpoint: root `f1649136` and private
+`3e776387` pass the fresh 557-migration replay, 338 pgTAP files and 8,923
+assertions. The accepted catalog and all ten drift controls pass. Root tests
+pass 346 files; root types, lint, formatting and the exact private-gitlink
+check pass. The full local browser run passes 142 checks, with ten failures,
+one intentional skip and two dependent checks not run. It is not accepted yet.
+Failures include outdated assertions and a real 455-pixel page overflow at a
+390-pixel phone viewport in Officers & access. Both are under correction.
+
+The user expanded the work to Production readiness, reviewed source-backed
+record corrections, and scoped removal of archived Classes 2024–2026. Separate
+Claude terminal branches own onboarding, notifications/proofs, officer editing,
+source intake and retention. Production deployment and data operations still
+require the repository's exact-source release and audit checks. No decision
+release or broadcast is part of this work.
+
+A fresh bounded source read at 01:49 Pacific supersedes the older response
+counts below: 475 regular and 21 late applications. The normal Production
+Recheck preview action saved a new regular-source preview at 01:56 Pacific.
+It has 475 source rows and the interface reports 225 rows needing officer
+matching. No commit ran, and automatic intake remains paused. Read-only
+Production checks find 257 current Fall applications, all pending, and no
+current application for the user's two active same-name Class of 2028 records.
+The live member view asks the user to connect with a class code. Those records
+and their account connections have not been changed. This is a matching case
+to resolve with verified evidence, not a reason to link by name.
+
+Archived cohort counts remain 84, 216 and 243 application profiles for Classes
+2024, 2025 and 2026. Retention work must preserve platform logins, current
+cohorts and immutable source/audit evidence. A direct cohort purge is not an
+accepted operation. No deletion has run.
+
+| ID               | Priority | Finding                                                                                                                                                                                                                                             | Required closure evidence                                                                                                         |
+| ---------------- | -------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------- |
+| CSF-READINESS-01 | P1       | Sheets decisions need private staging, immutable source evidence, explicit term release and immediate corrections after publication. Email-only and workbook-only matches do not prove response identity.                                           | Source matching regressions, pgTAP release and concurrency checks, member privacy and access tests, desktop/mobile role journeys. |
+| CSF-READINESS-02 | P1       | The pending officer activity editor does not bind its actions into the dashboard. Its correction APIs need payload-bound retries, both-term closure checks, credit ownership checks and protection for meeting/submission/shared-credit references. | Rendered officer controls, save/delete retry and reference-integrity regressions, historical member/officer readback.             |
+| CSF-READINESS-03 | P1       | The pending merge attestation checks the changed preview before replaying a completed request. The separate claims-resolution path does not supersede competing pending claims.                                                                     | Repeated attested merge and both connection entrypoints tested against the database.                                              |
+| CSF-READINESS-04 | P1       | The pending attendance fill parser ignores a non-A range origin and cannot distinguish effective display formatting from an officer-entered fill.                                                                                                   | Offset and formatting-provenance regressions, SQL/TypeScript mark parity, export round-trip checks.                               |
+| CSF-READINESS-05 | P2       | The officer-format export changes need a stable acceptance hash when meetings append, plus source/destination separation.                                                                                                                           | Header append acceptance, source overwrite refusal and separate output destination walkthrough.                                   |
+
+The read-only source audit accounts for 897 active roster profiles and resolves
+1,910 semester source rows through stored per-cell source evidence. It compares
+1,904 rows and holds six rows for duplicate or same-name review. The private
+report retains source references and proposed corrections outside Git. It flags
+28 unsupported marks credited as attendance and proposes 2,470 additions from
+officer-entered fills, with no existing attendance overwritten. It holds 73
+other fills and five original/copy differences for review. Of the roster,
+163 profiles have no compared semester history; missing evidence is not an error
+or permission to invent credit.
+No data correction is authorized by this report. The late application workbook
+exists but lacks an app source registration. A current source read found 493
+regular responses and 3 late responses, with two green regular rows.
+
+Local integration through `9c9a776e`, private `6e982bf4`, passes 345 root test files,
+425 private test files, lint, TypeScript and formatting. The private application
+package passes its independent lint, types, tests, build, data boundary and route
+inventory gates. These results do not close browser acceptance.
+
+The sixth fresh database replay passes all 556 migrations and 8,890 assertions
+across 336 files. The merge-delegation test now resolves its entry by function
+identity. The accepted catalog passes against the replayed schema, and all ten
+point-trigger and permission drift controls refuse their changes and roll back.
+The replay owns and removes its stack. This is local schema evidence, not hosted
+Development evidence.
+
+A later service-role API preflight found a P1 that direct SQL did not exercise:
+the request safe-update guard rejects unrestricted DELETE statements on the
+sync and release functions' temporary plan tables. Migration 20260917040000
+resets those exact session-local tables with TRUNCATE, preserving function ACLs
+and the request policy. It passes the 555-migration replay. The repaired fixture
+now records valid import provenance through the existing preview functions.
+The next API preflight found one remaining unrestricted temporary-plan UPDATE.
+Migration 20260917050000 qualifies that remaining UPDATE. The actual local
+PostgREST preflight now passes two independent scenarios: private staging,
+publication, and immediate acceptance reversal with revoked membership. It
+also confirms distinct identities and preserved prior scenario outcomes.
+
+Migration 20260917050000 adds `WHERE ordinal IS NOT NULL` to the temporary
+plan UPDATE. Every plan row has a WITH ORDINALITY ordinal, so this changes
+request-policy compatibility without changing decisions. Source checks verify
+the qualified writes and unchanged ACLs. The full 556-migration replay and
+actual API preflight both pass.
+
+The direct concurrent-session suite now passes meaningful sync/release races,
+permission revocation during a wait, and competing mapping saves. It verifies
+the transitive blocking chain and final state, then confirms that its sessions
+ended. Its synthetic audit and release receipts remain on the disposable stack
+until stack cleanup; the script does not bypass immutability to delete them.
+
+The next focused browser run completed all 36 journeys: 35 passed and one
+failed. The remaining history assertion matches both a legitimate completion
+badge and a completion summary inside the selected historical semester.
+Privacy, release, immediate access revocation, officer permissions, source
+failure handling, mobile officer controls and the four activity journeys pass.
+The assertion is being narrowed, and phone applicant coverage is being added.
+
+The actual Applications route now renders the Sheets workspace and binds its
+actions. Officer browser checks pass staging, filters, release permissions,
+publication, held explanations, immediate revocation, source failure preservation
+and mobile release. Each control follows its own action permission.
+
+The active My CSF profile now displays published rejection labels and
+explanations, with regressions for pending redaction and unknown decision values.
+The private suite passes 427 files after the source-format compatibility guard;
+TypeScript, lint, formatting and the independent application gates pass.
+Missing explicit Sheet formatting metadata now refuses fill-based attendance
+imports. Uploaded workbook and written-letter export contracts are preserved.
+
+Further review found two decision explanation defects. The publication helper
+copies its generic audit sentence into the member-facing reason when a red row
+has no explanation. The sync also skips reason-only changes when the normalized
+outcome remains rejected, including yellow-to-red removal. A forward migration
+and public-RPC regressions are in progress. The profile also needs to distinguish
+a revoked current-term membership from a finalized historical non-completion.
+These remain open under CSF-READINESS-01.
+
+The runner signal cleanup repair passes its regression and actual manual-server
+SIGTERM teardown. Its child processes end and its port ownership claim is removed.
+
+The existing CSF browser regression suite completed with 102 passed, one failed,
+four skipped and two not run after a serial failure. The failed identity test
+expects two hard merge blockers, while the reviewed attestation flow shows one
+hard email conflict and a separate corroboration requirement. The merge remains
+disabled. The expectation and remaining serial journeys still need verification.
+Three optional screenshot journeys and one historical import journey are skipped.
+
+Manual desktop and phone walkthroughs verify that a fictional historical activity
+creation and point edit produce matching officer and member totals. An attendance
+correction appears in both views without changing points. Removing the synthetic
+activity restores both views to the original total, and an explicit unknown mark restores the
+meeting to unknown attendance. These operations affect only the owned local
+fixtures. The same walkthrough exposes a P2 calendar-date defect: an activity
+entered as March 15 displays March 14 in both views in Pacific time, although the
+editor retains March 15. New date-only corrections normalize to noon UTC and pass focused calendar
+and editor regressions. The updated officer browser shows March 15 for a new
+March 15 activity, then preserves that date when a blank-date point edit changes
+the total from 3/7 to 4/7. The member view shows the same March 15 date and
+4/7 total. Removing the synthetic activity through the officer UI keeps its
+change history and restores both views to 2/7; the member view no longer lists
+the removed activity. Legacy timestamps remain
+unchanged; this does not resolve uncertain historical source dates.
+
+Hosted Development run `35057125551` passed for baseline `1f91d3b1`;
+it does not verify this readiness candidate. Private plugin PR `456` passed
+CI run `35074532332` against the existing Development host and merged as
+`3e776387`. The root pins that exact merged commit and passes the strict
+submodule check. The root candidate is not yet published or deployed.
+No Production schema or data has changed, and no real email has been sent.
+
+### Operational workflow audit, September 15, 2026
+
+Four findings from the posts/email/activity/point/meeting lane. Three are fixed
+on this branch, each with a regression test verified in both directions: the
+test fails against the old code and passes against the new. One is open.
+
+**Fixed, opt-out identity gate matched on LIKE wildcards.** The CSF unsubscribe
+request step gated its confirmation send with
+`.ilike("recipient_email", email)`. `ilike` is LIKE, so `_` and `%` are
+metacharacters, and `_` is a legal local-part character that zod v4 `.email()`
+accepts. A typed `m_mber@example.test` matched a stored `member@example.test`,
+and the chapter's sender identity mailed an address that had never appeared in
+any recipient snapshot. That is the one thing the gate exists to prevent. The
+lookup also could not use
+`csf_communication_recipient_snapshots_email_lookup_idx`. Now
+`.eq("normalized_recipient_email", email)` against the stored generated column
+`lower(btrim(recipient_email))`. The parsed input is already trimmed and
+lowercased, so both sides normalize the same way. No schema or ACL change.
+
+**Fixed, compose promised delivery.** The Communications compose dialog labelled
+the transactional option "always delivered". Amendment 3 makes "queue is not
+delivery" a release boundary, and nothing at compose time observes a provider
+outcome. What separates the two message kinds is consent, so the label now says
+unsubscribes do not apply. A wording contract test pins it and records the one
+legitimate use of "Delivered", on the recovery surface, where the provider has
+already reported.
+
+**Fixed, activity refusals reported as unknown outcomes.** The three activity
+Server Actions collapsed every RPC error into "the outcome may be unknown,
+reload Activities before trying again", so an invalid form told the officer
+their chapter's state was uncertain.
+
+The fix is deliberately narrow, because SQLSTATE answers the wrong question.
+`P0001` proves the attempt that raised it rolled back. It says nothing about an
+earlier attempt under the same request id whose response was lost, and these
+RPCs recheck authorization and row state before they look for the receipt. A
+first version of this fix treated any `P0001` as "nothing was saved", which
+would have retired a request id whose work was durable and let the next
+submission create a duplicate. Raise position cannot rescue it either:
+`csf_set_activity_status_locked_impl` raises `'CSF activity was not found in
+this organization.'` both before and after the receipt lookup, so the client
+cannot tell the sites apart.
+
+Only request-invariant refusals are definitive now, meaning those decided from
+the RPC arguments with no table read. Authorization, row and term state, and any
+untriaged message keep the unknown outcome and `retrySameRequest`. A structural
+test rejects an invariant entry whose raise site sits below the first `SELECT`
+in its function, which is how the two activity date refusals were caught: they
+validate arguments in create and update but check the stored row in the status
+RPC.
+
+**Open (P2), no executable legacy source-reconciliation tooling.**
+`docs/csf/source-data.md` described `CSF_SOURCE_DATA_DIR` and
+`.artifacts/legacy-csf/` as if tooling read them. A repo-wide search finds no
+consumer of either. The env var appears only in the sentence defining it, and
+`legacy-csf` only there plus two unrelated pgTAP literals. Nothing compares a
+source roster with stored records, and the UI import preview is not a write-free
+substitute because it persists immutable preview rows by design. The doc now
+states the gap and records the manual write-free route: pure `uploaded-workbook`
+parsing for the source side, a `BEGIN READ ONLY` query for the stored side, and
+salted-digest comparison reported as counts. Building the tool is not scheduled.
+
 ### Organization read latency, September 11, 2026
 
 `bcc1455b` passed CI run `34589118187`: 484 migrations, 275 SQL files,
@@ -7723,3 +7939,228 @@ Production forward migration run `35027128145` passed with a count-only receipt:
 Normal restoration runs `35027695366`, `35027746705`, `35027808986`, and `35027876684` passed with verified receipts through revision 4 on the new served release. Authenticated public status readback reports the exact main SHA, passing environment and database checks, workbook refresh, import commits, communications, and publication notifications enabled, and scheduled publishing disabled. Production Chrome typed a fictional class code one character at a time: the field retained `Z`, then `ZZ`, then all six characters and enabled Continue only at six. The value was cleared without submission. The isolated browser approval journey and hosted Development functional acceptance covered two-image proof bundling; no Production member proof was uploaded for this release.
 
 Fresh marketplace cards in both DVHS and the synthetic test workspace read DVHS CSF Enabled and installed 1.2.51. The settings summaries agree: one installed, one enabled, and zero updates pending. The source-selection P1 and officer-reviewed import, attendance, and identity decisions above remain open. This code release did not link class workbooks, commit imports, connect profiles, change source authorizations, or send email.
+
+#### September 16 overnight extension checkpoint
+
+Private PR 457 passed its exact-head quality checks and merged as `d86c676`.
+Root `845b81ce` records that gitlink. Its changes constrain long staff names on
+phones and bind import results, retries and history responses to the selected
+Sheet source. The combined local private suite passes 430 files. The focused
+staff-access browser run passes all five checks, including width and focus.
+
+Full local browser run M, built from root `3cf73bbe` with private `c620dc9`,
+passes 150 checks, fails four, and intentionally skips one. Two failures expect
+zero Fall points on a reused fictional account that has two valid awards from
+prior runs. The gallery still expects the retired "Current membership" label.
+The phone release-control check loses its bounding box during hydration and
+needs an interactive-state recheck. This is not a fully accepted browser run.
+
+A separate extension audit branch replays the new onboarding, communications,
+officer editing and historical correction migrations. The retention migration
+fails to apply because it calls an invalid schema-qualified multi-array
+`unnest`. Without retention, 341 pgTAP files execute 9,026 assertions but fail:
+the onboarding fixture uses an invalid profile lifecycle; the officer editor
+fixture inserts a closed term without its closure record; the pending snapshot
+shape changed; notification catalog/link assertions fail; historical attendance
+correction calls invalid `pg_catalog.nullif`. No extension is accepted for
+Production. Review also requires verified authentication addresses for personal
+email, permission-revocation locking for profile notes, and stronger retirement
+scope, identity erasure and retry binding.
+
+The pending typed-name connection function is absent from Production's current
+537-migration ledger. It enters through a pending migration and must not ship
+without the reviewed verified-contact restriction. The 557 core alone is not
+an acceptable Production candidate.
+
+Production source setup now includes a separate late-application source and an
+immutable 21-row preview. The regular preview has 475 rows. Neither preview was
+committed; current Fall decisions remain pending. Historical terms S24, F24,
+S25, F25 and S26 are open, and no imported attendance row lacks a canonical
+meeting reference. Earlier assumptions that closed terms block all historical
+corrections were incorrect. Colour-only and unexplained punctuation proposals
+remain held for source semantics rather than becoming invented credit.
+
+Claude terminal agents reached their account session limit, with a reported
+04:50 Pacific reset. Reviews, source verification and isolated tests continue;
+follow-up prompts preserve every concrete failure for the resumed agents.
+
+| ID               | Priority | Finding                                                                                                                                                                                              | Required closure evidence                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
+| ---------------- | -------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| CSF-READINESS-06 | P1       | The pending typed-name join can claim a record without ownership proof. The replacement requires a unique verified curated contact and routes unmatched students to staff.                           | Attacker, collision, revoked-link and returning/new-member database and browser journeys on the final migration tree.                                                                                                                                                                                                                                                                                                                                                                                                                  |
+| CSF-READINESS-07 | P1       | New personal notification emails need verified authentication addresses at enqueue and dispatch, durable send outcomes and permission/opt-out rechecks.                                              | **Reopened by a confirmed P1 at 13:30 UTC (06:30 PDT).** The 0800 draft omits `audience_kind` and `term_id`, so finalization violates `dispatch_identity_check` and no personal notice can be finalized. The communications owner is writing forward migration `20260917160000` for candidate 566; it is neither integrated nor tested. Recovery for drafts already written in the bad shape is also required. The 565 replay evidence stands for everything else in this row; hosted Development and Production readback remain open. |
+| CSF-READINESS-08 | P1       | New member-visible profile notes need permission-revocation serialization and a database projection that cannot disclose unreleased term decisions.                                                  | Candidate fixed and locally verified: ACL, revocation-serialization and member-projection tests pass in the 565 replay. Hosted Development and Production readback remain open.                                                                                                                                                                                                                                                                                                                                                        |
+| CSF-READINESS-09 | P1       | Proposed graduated-cohort retirement does not yet safely bind fresh scope and replay intent, erase all intended identifiers, or distinguish moved source rows. Its migration currently fails replay. | Candidate fixed and locally verified: the migration applies in the 565 replay and coverage for migrations ending in `100000` and `150000` passes. No live preview or commit has run, and immutable import and audit provenance is retained, so no total erasure is claimed. Hosted Development and Production remain open.                                                                                                                                                                                                             |
+| CSF-READINESS-10 | P2       | Spring 2025 imports produced both `feb_meeting` and `february_meeting` as required active meetings. A historical profile displays attended February Meeting beside Feb Meeting with no record.       | Compare official source headers and cohort provenance, then correct aliases or expected-meeting scope without inventing attendance or merging distinct events.                                                                                                                                                                                                                                                                                                                                                                         |
+| CSF-READINESS-11 | P2       | A newly connected application source inherited another source's last-import totals and retry control.                                                                                                | Source-switch and stale-response tests pass in private PR 457; hosted and Production readback remain outstanding.                                                                                                                                                                                                                                                                                                                                                                                                                      |
+
+#### Manual onboarding walkthrough Q
+
+On root `48595d37`, private `f062b1b` and isolated schema 558, the class QR
+visibly includes the Let's Assist logo. Signed-out wrong-class recovery returns
+to code entry, and Back returns to the public CSF page. Sign-in preserves the
+class invitation. A fictional unmatched returning applicant reaches Awaiting
+staff review. The adviser queue preserves the returning-member intent and
+requires identity checks before linking. The limited activity role cannot see
+that linking queue.
+
+Two P2 usability defects remain under CSF-READINESS-06. A zero-result name
+search has no edit-name control, and closing then reopening preserves the same
+result. Open My CSF sends the unmatched applicant to the general home page
+instead of a pending-review page. The onboarding agent has both reproductions.
+No real account, profile, admission decision or attendance changed in this run.
+
+#### September 16, 06:05 Pacific candidate checkpoint
+
+Candidate 565 covers the core work and the extensions. It **excludes** the
+meeting header declaration and its projection, migration 20260917120000, which
+is held as unsafe and incomplete rather than shipped partial.
+
+Private PR 459 merged as `40bf9d9`, whose tree is identical to `fb87`. The
+paired private CI run `35098609086` passed against private `fb87` and root
+`15eb0ead`. Root PR 619 is open for review.
+
+Replay Z is clean: 565 migrations, 124 tables, 347 pgTAP files and 9,280
+assertions, plus the accepted catalog and all ten negative controls. The log is
+`coordination/db-final-z.log`. This supersedes the overnight extension audit
+above, where the retention migration failed to apply and five fixtures and the
+historical correction failed. Each of those is fixed and verified locally.
+
+Root unit tests pass 348 files. Lint, formatting and database filename
+validation pass.
+
+The full browser run AA finished with 152 passes, four failures and four skips.
+The failures cover course dropdown interaction, two personal-notice worker
+checks and the phone staff-revocation dialog. Each is under repair. This is not
+a full acceptance claim.
+
+The two manual walkthrough Q defects are addressed by the onboarding
+pending-feed and change-name tests, which pass in browser run AA.
+
+Production is unchanged: 537 migrations, DVHS CSF installed at 1.2.51, 257 Fall
+applications all pending, and zero members. No import commit, retirement,
+decision release or email has run against it.
+
+Two things stay open and are not part of this candidate. The historical
+`feb_meeting` and `february_meeting` alias under CSF-READINESS-10 is unresolved.
+The source-only proposal derived from 22 ignored workbook snapshots and 53
+declared columns has not been applied and is review input, not a change.
+
+Two corrections from this branch are carried forward so they are not lost
+against the integration copy.
+
+The 28 unknown marks and the 2,470 colour-derived proposals are both
+`csf_meeting_attendance` rows, not `csf_profile_activity_events`. An earlier
+note read them as activity events, which was wrong and would have pointed any
+correction at the wrong table.
+
+A read-only Production audit at 02:23 Pacific found zero imported attendance
+rows without a `term_meeting_id`, and found S24, F24, S25, F25 and S26 all open.
+Every one of those rows is therefore reachable by the existing correction path,
+and the closed-semester acknowledgement added in 20260917110000 is hardening
+before those semesters close rather than an unblocking fix.
+
+The read-only source audit aggregates are unchanged and are restated here
+without any record detail: 897 roster profiles; 1,910 semester source rows, of
+which 1,904 were compared and six held; 2,470 colour-derived attendance
+proposals across 638 profiles; and 28 unknown marks across 26 profiles, all
+held. Unresolved identity means no blind merge, and none of these proposals is
+authorized by this checkpoint.
+
+#### September 16, 13:30 UTC (06:30 PDT) acceptance blockers
+
+Candidate 565 is not accepted. Three blockers and one correction.
+
+**Confirmed P1, personal notice finalization.** The 0800 draft omits
+`audience_kind` and `term_id`, so finalization violates
+`dispatch_identity_check`. This is a real defect, not a stale test expectation.
+The communications owner is writing forward migration `20260917160000` as part
+of candidate 566. That migration is **not integrated and not tested here**, and
+recovery for drafts already written in the bad shape is also required. Recorded
+against CSF-READINESS-07 rather than as a new identifier.
+
+**Root checks need a rerun.** Root PR 619 is open and not merged. CI run
+`35100259978` failed a root unit check on a stale `retrySameRequest`
+expectation, fixed locally as `d188eb7c`. The full final root checks have not
+been rerun since. There is no hosted Development candidate acceptance.
+
+**Browser.** Focused run AC is 9 passes and 2 failures. All seven staff checks
+pass, including single-click revoke, and the opt-out and member negative checks
+pass. The course and personal-email checks fail. Course test repairs are tracked
+as `0cb087bb`, with run AE pending.
+
+**Replay scope.** The clean Z replay of 565, with 347 pgTAP files, 9,280
+assertions and all ten negative controls, is evidence for 565 only. It says
+nothing about 566, which adds `20260917160000`.
+
+**Private.** PR 459 merged as `40bf`. PR 460 carries the hydration candidate
+`e60ef67` with its paired CI still pending; the old server-render contract is
+fixed.
+
+**Correction to the 06:05 entry above.** A fresh read-only Production check at
+13:27 UTC (06:27 PDT) confirms the ledger at 537 with head `20260915195501` and
+zero Fall memberships, but the 257 Fall applications are **not** literally
+status `pending`. They are 209 `needs_review` and 48 `needs_action`. Both are
+non-final review states; the earlier wording was imprecise and should not be
+read as a status value.
+
+The repo owner's own historical profile was visible at 13:11 UTC (06:11 PDT)
+with no account link and no Fall application. The unsafe name-only merge was
+not performed.
+
+The historical meeting header work, migration `20260917120000`, remains held,
+and no live source correction has run.
+
+This candidate performed no Production deployment, migration, live correction,
+deletion, decision release or email.
+
+The course correction rerun AE now passes both journeys on root `0cb087bb`
+with private `e60ef67`. It edits, removes, adds and restores course lines while
+preserving the imported snapshot. Private PR 460 passed paired CI
+`35101794123` and merged as `2ad61b5`, with the same tree as `e60ef67`. Root
+`8e014e5e` pins that merge.
+
+Root `6f182d7b` adds the forward notice identity repair as migration
+`20260917160000`, bringing the candidate to 566 migrations. Its database and
+mail-delivery acceptance are still pending. Source-text assertions were not
+accepted as proof of finalization; a separate behavioral database regression
+is being added. No Production change accompanied these local commits.
+
+#### September 16, 06:55 PDT verification checkpoint
+
+Candidate 566 remains unaccepted. Root candidate `a6d3c716` and private
+`2ad61b5` passed the combined unit runner: 348 root and 478 plugin test files.
+Formatting, lint and typecheck passed. Root CI `35103764213` passed quality;
+its database/browser job was still running at this checkpoint.
+
+The notice delivery journey AG passed both tests against isolated Mailpit.
+The behavioral notice identity regression passed all 28 assertions against
+566. A separate rollback-only legacy cancellation proof passed: the missing
+source draft remained cancelled on repeated replay, content stayed unchanged,
+and no delivery, dispatch attempt or provider event was created. The earlier
+legacy recovery script aborted its fixture precondition because browser AF
+had already repaired the two recoverable drafts. It is not a passed test.
+
+Full browser AH finished with 153 passes, two failures, four skips and one test
+not run. The report failure matched an inactive retained card as well as the
+active tab. Claude's active-panel locator fix, committed as `4f9d6669`, keeps
+an explicit assertion that only one report card is visible. Focused run AI
+passed all three report journeys. The Sheet decision filter still timed out
+opening the Done option in AH; its cause is unresolved. A passing focused
+report run does not replace full-suite acceptance.
+
+Claude Code reached its session quota during the final report fix and reports
+a 09:50 PDT reset. No alternate coding model replaced the requested Claude
+agents. A clean 566 replay is running serially after the browser checks.
+
+No hosted Development acceptance or Production deployment has occurred.
+The live account-link collision, source attendance reconciliation and meeting
+header mapping remain unresolved. No real correction, cohort deletion,
+decision release or live email was performed by this candidate.
+
+The clean 566 replay AI completed successfully: 348 pgTAP files and 9,308
+assertions passed. The accepted release catalog passed, and all ten point
+trigger and permission drift controls rejected their changes and rolled back.
+This covers the migrations at `987dd140`; that root differs from `a6d3c716`
+only by the focused report test repair and register entries. Root PR 619 was
+returned to draft because full browser acceptance remains incomplete. The
+owned replay stack cleaned up after completion. This is local evidence only.

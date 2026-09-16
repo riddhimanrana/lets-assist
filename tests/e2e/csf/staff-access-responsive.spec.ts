@@ -196,6 +196,14 @@ test.describe("DVHS CSF staff access presentation", () => {
       .getByRole("button", { name: /^Revoke .+ access$/ })
       .first();
     await expect(revoke).toHaveAccessibleName(/^Revoke .+ access$/);
+
+    // The roster is server-rendered and the revoke trigger opens a client
+    // dialog, so the control is inert until this subtree hydrates. It stays
+    // disabled until then, the way every other control with this hazard does,
+    // which makes readiness something the page states rather than something a
+    // test guesses at. One tap, once it is enabled: an officer never loses a
+    // tap, and neither does this journey.
+    await expect(revoke).toBeEnabled();
     await revoke.click();
     const dialog = page.getByRole("dialog", { name: "Revoke staff access" });
     await expect(
