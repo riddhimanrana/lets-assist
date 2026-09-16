@@ -164,13 +164,25 @@ INSERT INTO plugin_data.csf_application_decision_mappings (
   ARRAY[7], ARRAY[8], true
 );
 
+-- A commit job has to name the preview it came from, so the fixture follows
+-- the real preview-then-commit lineage rather than inventing a bare commit.
 INSERT INTO plugin_data.csf_sheet_import_jobs (
   id, organization_id, source_id, mode, status, source_file_id
 ) VALUES
+  ('de700000-0000-4000-8000-000000000011', 'de100000-0000-4000-8000-000000000001',
+   'de400000-0000-4000-8000-000000000001', 'preview', 'completed', 'de-regular-workbook'),
+  ('de700000-0000-4000-8000-000000000012', 'de100000-0000-4000-8000-000000000001',
+   'de400000-0000-4000-8000-000000000002', 'preview', 'completed', 'de-late-workbook');
+
+INSERT INTO plugin_data.csf_sheet_import_jobs (
+  id, organization_id, source_id, mode, status, source_file_id, preview_job_id
+) VALUES
   ('de700000-0000-4000-8000-000000000001', 'de100000-0000-4000-8000-000000000001',
-   'de400000-0000-4000-8000-000000000001', 'commit', 'completed', 'de-regular-workbook'),
+   'de400000-0000-4000-8000-000000000001', 'commit', 'completed', 'de-regular-workbook',
+   'de700000-0000-4000-8000-000000000011'),
   ('de700000-0000-4000-8000-000000000002', 'de100000-0000-4000-8000-000000000001',
-   'de400000-0000-4000-8000-000000000002', 'commit', 'completed', 'de-late-workbook');
+   'de400000-0000-4000-8000-000000000002', 'commit', 'completed', 'de-late-workbook',
+   'de700000-0000-4000-8000-000000000012');
 
 INSERT INTO plugin_data.csf_term_applications (
   id, organization_id, profile_id, cohort_id, term_id, source, status,
