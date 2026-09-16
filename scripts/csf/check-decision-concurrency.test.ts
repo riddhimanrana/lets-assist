@@ -31,6 +31,7 @@ const REPO_ROOT = resolve(import.meta.dir, "../..");
 
 type Attempt = {
   exitCode: number;
+  stdout: string;
   stderr: string;
   psqlInvocations: string[];
 };
@@ -39,8 +40,15 @@ type Attempt = {
  * Run the script with a recording `psql` ahead of the real one, and with a
  * `node` that is real, because the refusal itself is implemented in node.
  */
+type ResolverDouble = {
+  stdout: string;
+  stderr: string;
+  exitCode?: number;
+};
+
 async function runScript(
   env: Record<string, string | undefined>,
+  resolver?: ResolverDouble,
 ): Promise<Attempt> {
   const sandbox = mkdtempSync(join(tmpdir(), "csf-concurrency-guard-"));
   const binDir = join(sandbox, "bin");
@@ -57,9 +65,21 @@ async function runScript(
 
   const realNode = process.execPath;
   const nodeShim = join(binDir, "node");
+  // The resolver is the one node call that needs a real isolated stack. When a
+  // test supplies `resolver`, the shim answers that single invocation and
+  // delegates everything else to the real node, so the rest of the script runs
+  // as written. Detection is on the resolver's own import, which no other call
+  // in the script makes.
+  const resolverBranch = resolver
+    ? `if [[ "$*" == *getCsfIsolatedSupabaseEnv* ]]; then\n` +
+      `  printf '%s' ${JSON.stringify(resolver.stdout)}\n` +
+      `  printf '%s' ${JSON.stringify(resolver.stderr)} >&2\n` +
+      `  exit ${resolver.exitCode ?? 0}\n` +
+      `fi\n`
+    : "";
   writeFileSync(
     nodeShim,
-    `#!/usr/bin/env bash\nexec ${JSON.stringify(realNode)} "$@"\n`,
+    `#!/usr/bin/env bash\n${resolverBranch}exec ${JSON.stringify(realNode)} "$@"\n`,
   );
   chmodSync(nodeShim, 0o755);
 
@@ -73,13 +93,15 @@ async function runScript(
     stdout: "pipe",
     stderr: "pipe",
   });
-  const [exitCode, stderr] = await Promise.all([
+  const [exitCode, stdout, stderr] = await Promise.all([
     child.exited,
+    new Response(child.stdout).text(),
     new Response(child.stderr).text(),
   ]);
 
   return {
     exitCode,
+    stdout,
     stderr,
     psqlInvocations: readFileSync(recorder, "utf8").split("\n").filter(Boolean),
   };
@@ -159,6 +181,118 @@ describe("refusing a stack the script does not own", () => {
 
     expect(attempt.exitCode).toBe(2);
     expect(attempt.stderr).toContain("CSF_ISOLATED_WORK_DIR");
+    expect(attempt.psqlInvocations).toEqual([]);
+  });
+});
+
+/**
+ * The path the negative guards never reach.
+ *
+ * The first real run failed here: the resolver succeeded, the Supabase CLI wrote
+ * "Stopped services: [...]" to stderr, `2>&1` merged it into the JSON, and the
+ * script refused a stack that was in fact valid. Every guard above passed the
+ * whole time, because none of them got past validation.
+ */
+describe("a validation that succeeds", () => {
+  const VALID = JSON.stringify({
+    dbUrl: "postgresql://postgres:postgres@127.0.0.1:65432/postgres",
+    projectId: "lets-assist-csf-fake",
+    runId: "fake-run",
+  });
+  const CLI_NOISE =
+    "Stopped services: [supabase_imgproxy_lets-assist-csf-browser-ready0916 " +
+    "supabase_pooler_lets-assist-csf-browser-ready0916]\n";
+
+  test("stderr chatter does not corrupt the resolver's answer", async () => {
+    const attempt = await runScript(
+      { CSF_ISOLATED_WORK_DIR: tmpdir() },
+      { stdout: VALID, stderr: CLI_NOISE },
+    );
+
+    // The exact failure from decision-concurrency-a.log.
+    expect(attempt.stderr).not.toContain("is not valid JSON");
+    expect(attempt.stderr).not.toContain("SyntaxError");
+    expect(attempt.stderr).not.toContain("did not validate");
+    // Validation is a refusal at exit 2. Getting past it is the point.
+    expect(attempt.exitCode).not.toBe(2);
+    // And it reached the database rather than stopping at the door.
+    expect(attempt.psqlInvocations.length).toBeGreaterThan(0);
+    expect(attempt.stdout).toContain("lets-assist-csf-fake");
+  });
+
+  test("a clean resolver reaches the database too", async () => {
+    const attempt = await runScript(
+      { CSF_ISOLATED_WORK_DIR: tmpdir() },
+      { stdout: VALID, stderr: "" },
+    );
+
+    expect(attempt.exitCode).not.toBe(2);
+    expect(attempt.psqlInvocations.length).toBeGreaterThan(0);
+  });
+
+  test("a resolver that exits zero with no JSON is refused, not parsed", async () => {
+    // Exit zero is not an answer. Saying so beats letting a parse trace stand
+    // in for a diagnosis.
+    const attempt = await runScript(
+      { CSF_ISOLATED_WORK_DIR: tmpdir() },
+      { stdout: "", stderr: CLI_NOISE },
+    );
+
+    expect(attempt.exitCode).toBe(2);
+    expect(attempt.stderr).toContain("did not validate");
+    expect(attempt.psqlInvocations).toEqual([]);
+  });
+
+  test("a non-loopback answer is still refused after the split", async () => {
+    // Separating the streams must not have widened what the script accepts.
+    const attempt = await runScript(
+      { CSF_ISOLATED_WORK_DIR: tmpdir() },
+      {
+        stdout: JSON.stringify({
+          dbUrl:
+            "postgresql://postgres:secret@db.example.supabase.co:5432/postgres",
+          projectId: "hosted",
+          runId: "hosted",
+        }),
+        stderr: "",
+      },
+    );
+
+    expect(attempt.exitCode).toBe(2);
+    expect(attempt.stderr).toContain("not loopback Postgres");
+    expect(attempt.psqlInvocations).toEqual([]);
+  });
+
+  test("an answer missing its stack identity is refused", async () => {
+    const attempt = await runScript(
+      { CSF_ISOLATED_WORK_DIR: tmpdir() },
+      {
+        stdout: JSON.stringify({
+          dbUrl: "postgresql://postgres:postgres@127.0.0.1:65432/postgres",
+        }),
+        stderr: "",
+      },
+    );
+
+    expect(attempt.exitCode).toBe(2);
+    expect(attempt.stderr).toContain("no project or run identity");
+    expect(attempt.psqlInvocations).toEqual([]);
+  });
+
+  test("a resolver that fails still explains itself from stderr", async () => {
+    const attempt = await runScript(
+      { CSF_ISOLATED_WORK_DIR: tmpdir() },
+      {
+        stdout: "",
+        stderr: "Error: the marker is not ready\n",
+        exitCode: 1,
+      },
+    );
+
+    expect(attempt.exitCode).toBe(2);
+    expect(attempt.stderr).toContain("did not validate");
+    // The diagnostic survives the split rather than being discarded with it.
+    expect(attempt.stderr).toContain("the marker is not ready");
     expect(attempt.psqlInvocations).toEqual([]);
   });
 });
@@ -348,9 +482,12 @@ describe("the script's own shape", () => {
     // running would keep its lock while teardown deleted the rows underneath it.
     expect(source).toContain("HELD_SESSIONS=()");
     expect(source).toContain("release_all_holders");
-    // Released before teardown, not after it.
-    expect(source).toMatch(
-      /on_exit\(\) \{\n {2}local exit_code=\$\?\n {2}release_all_holders/,
+    // Released before teardown, not after it. Position rather than adjacency,
+    // so an unrelated line in the trap does not look like a regression.
+    const trap = source.slice(source.indexOf("on_exit() {"));
+    expect(trap.indexOf("release_all_holders")).toBeGreaterThan(-1);
+    expect(trap.indexOf("release_all_holders")).toBeLessThan(
+      trap.indexOf("if ! teardown"),
     );
     for (const holder of ["TERM_HOLDER", "STAFF_HOLDER", "MAPPING_HOLDER"]) {
       expect(source).toContain(`HELD_SESSIONS+=("\${${holder}}`);
@@ -371,6 +508,17 @@ describe("the script's own shape", () => {
     // which the column type rejects mid-run rather than at the door.
     expect(source).toContain("printf 'fc%s00000-0000-4000-8000-%s'");
     expect(source).toContain("minted identifier is not a UUID");
+  });
+
+  test("the resolver's streams are never merged", () => {
+    // `2>&1` on the resolver is what broke the first real run. stdout is the
+    // answer; stderr is chatter that only matters when explaining a refusal.
+    expect(source).not.toMatch(/getCsfIsolatedSupabaseEnv[\s\S]*?' 2>&1/);
+    expect(source).toContain('>"${VALIDATION_OUT}" 2>"${VALIDATION_ERR}"');
+    expect(source).toContain('ISOLATED_JSON="$(cat "${VALIDATION_OUT}")"');
+    expect(source).toContain(
+      "The isolated stack resolver did not return a JSON result.",
+    );
   });
 
   test("output carries no decorative symbols", () => {

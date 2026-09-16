@@ -41,8 +41,17 @@ if [[ -z "${CSF_ISOLATED_WORK_DIR:-}" ]]; then
   exit 2
 fi
 
-if ! ISOLATED_JSON="$(
-  node --input-type=module -e '
+# The resolver's two streams are kept apart. It writes the machine answer to
+# stdout and the Supabase CLI writes operational chatter to stderr, so the first
+# real run died on `Stopped services: [...]` landing inside the JSON. Merging
+# them with 2>&1 turned a successful validation into a parse error, and the
+# refusal message blamed the stack. stdout is the only thing parsed; stderr is
+# kept and printed only when the refusal needs explaining.
+VALIDATION_OUT="$(mktemp)"
+VALIDATION_ERR="$(mktemp)"
+trap 'rm -f "${VALIDATION_OUT}" "${VALIDATION_ERR}"' EXIT
+
+if ! node --input-type=module -e '
     import {
       getCsfIsolatedSupabaseEnv,
       inspectCsfIsolatedWorkDir,
@@ -56,26 +65,42 @@ if ! ISOLATED_JSON="$(
         runId: stack.runId,
       }),
     );
-  ' 2>&1
-)"; then
+  ' >"${VALIDATION_OUT}" 2>"${VALIDATION_ERR}"; then
   echo "Refusing to run: the CSF isolated stack did not validate." >&2
-  echo "${ISOLATED_JSON}" | sed 's/^/  /' >&2
+  sed 's/^/  /' "${VALIDATION_ERR}" >&2
   exit 2
 fi
+
+ISOLATED_JSON="$(cat "${VALIDATION_OUT}")"
 
 read_json_field() {
   node --input-type=module -e '
     let raw = "";
     process.stdin.on("data", (chunk) => { raw += chunk; });
     process.stdin.on("end", () => {
-      process.stdout.write(String(JSON.parse(raw)[process.argv[1]] ?? ""));
+      let parsed;
+      try {
+        parsed = JSON.parse(raw);
+      } catch {
+        // The resolver exited zero but did not produce a JSON answer. Say that
+        // plainly rather than letting a parse trace stand in for a diagnosis.
+        process.stderr.write(
+          "The isolated stack resolver did not return a JSON result.\n",
+        );
+        process.exit(1);
+      }
+      process.stdout.write(String(parsed[process.argv[1]] ?? ""));
     });
   ' "$1" <<<"${ISOLATED_JSON}"
 }
 
-DATABASE_URL="$(read_json_field dbUrl)"
-STACK_PROJECT_ID="$(read_json_field projectId)"
-STACK_RUN_ID="$(read_json_field runId)"
+if ! DATABASE_URL="$(read_json_field dbUrl)" \
+  || ! STACK_PROJECT_ID="$(read_json_field projectId)" \
+  || ! STACK_RUN_ID="$(read_json_field runId)"; then
+  echo "Refusing to run: the CSF isolated stack did not validate." >&2
+  sed 's/^/  /' "${VALIDATION_ERR}" >&2
+  exit 2
+fi
 
 # A literal second reading of the string that is about to be handed to psql, so
 # a future change to the resolver cannot quietly widen what this connects to.
@@ -211,6 +236,7 @@ release_all_holders() {
 
 on_exit() {
   local exit_code=$?
+  rm -f "${VALIDATION_OUT}" "${VALIDATION_ERR}"
   release_all_holders
   if ! teardown; then
     echo "FAIL: the fixture could not be torn down cleanly." >&2
