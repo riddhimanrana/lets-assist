@@ -21,8 +21,8 @@ test("the 540 officer identity authority release moves exactly three fingerprint
   const fullLedger = expectedVersions(
     fileURLToPath(new URL("../../", import.meta.url)),
   );
-  assert.equal(fullLedger.length, 568);
-  assert.equal(fullLedger.at(-1), "20260917180000");
+  assert.equal(fullLedger.length, 569);
+  assert.equal(fullLedger.at(-1), "20260917190000");
   const current = acceptedCatalogQuery(source, fullLedger.slice(0, 540));
   const preceding = acceptedCatalogQuery(source, fullLedger.slice(0, 539));
   // The migration replaces three reviewed definitions in place. Nothing else
@@ -988,7 +988,7 @@ test("the readiness release moves exactly the fingerprints measured on a replaye
 
   // The extension set, measured the same way, against the full ledger.
   const decisions = acceptedCatalogQuery(source, fullLedger.slice(0, 557));
-  const released = acceptedCatalogQuery(source, fullLedger);
+  const released = acceptedCatalogQuery(source, fullLedger.slice(0, 568));
   for (const entry of acceptedFingerprints565) {
     assert.equal(
       decisions.split(entry.before).length - 1,
@@ -1055,4 +1055,16 @@ test("each measured fingerprint is applied at the migration that produces it", (
     );
     assert.ok(at(length).includes(digest), `${why}: missing at ${length}`);
   }
+});
+
+test("member reminders pin the reviewed definition and server-only access", () => {
+  const query = acceptedCatalogQuery(
+    source,
+    expectedVersions(fileURLToPath(new URL("../../", import.meta.url))),
+  );
+  assert.match(query, /6e84959ba202168e3bdac4623d93da9b/u);
+  assert.match(
+    query,
+    /NOT has_function_privilege\('authenticated', p.oid, 'EXECUTE'\)/u,
+  );
 });

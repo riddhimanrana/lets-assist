@@ -2702,6 +2702,28 @@ sources.
 
 ## Repository-owned P0–P2
 
+### Urgent member workflow release, September 16, 2026
+
+The owner explicitly authorized Production deployment with focused local checks
+and waived hosted acceptance and remote CI for this release. The release
+controller records this as waived, not passed, with exact source SHAs and the
+operator identity. Exact-tree, migration digest, database security, and alias
+checks remain required.
+
+Meeting forms now report saving, success, and server refusals. The reported
+September meeting payload accepts an empty optional start time. Connect accounts
+opens the existing chapter record review queue across classes. Historical member
+terms show verified points and a Google Classroom note without drive categories
+or import dates presented as award dates. The summary meeting counter is hidden
+while attendance is reviewed. Pending applicants can see the reminder sidebar
+without gaining member tools or private decision access.
+
+Local evidence: historical UI checks and the 452-file private suite passed;
+meeting and queue checks passed 67 tests; Home, agenda, and tour checks passed
+55 tests. Typecheck passed for the historical, meeting, and reminder UI changes.
+Historical attendance reconciliation remains unfinished. This release does not
+publish application decisions or send email.
+
 ### Semester readiness review, September 16, 2026
 
 This work is in progress on an isolated Development integration branch.

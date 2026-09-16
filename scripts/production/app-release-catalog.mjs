@@ -256,6 +256,25 @@ export function acceptedCatalogQuery(source, versions) {
   const ledgerHash = createHash("sha256")
     .update(versions.join("\n"))
     .digest("hex");
+  if (
+    versions.length === 569 &&
+    ledgerHash ===
+      "2b47451e2fb5331055ecb1c893a6bbfe15879034f9678aceefa30e363cee8fd1"
+  ) {
+    const preceding = acceptedCatalogQuery(source, versions.slice(0, 568))
+      .trim()
+      .replace(/;$/u, "");
+    return `SELECT CASE WHEN (${preceding}) = 1 AND EXISTS (
+      SELECT 1 FROM pg_catalog.pg_proc AS p
+      WHERE p.oid = pg_catalog.to_regprocedure('plugin_data.csf_member_home_context_snapshot(uuid,uuid,timestamptz,timestamptz,date)')
+        AND md5(pg_catalog.pg_get_functiondef(p.oid)) = '6e84959ba202168e3bdac4623d93da9b'
+        AND p.prosecdef AND p.proowner = 'postgres'::regrole
+        AND NOT has_function_privilege('anon', p.oid, 'EXECUTE')
+        AND NOT has_function_privilege('authenticated', p.oid, 'EXECUTE')
+        AND has_function_privilege('service_role', p.oid, 'EXECUTE')
+        AND has_function_privilege('postgres', p.oid, 'EXECUTE')
+    ) THEN 1 ELSE 0 END AS csf_target_schema_verified;`;
+  }
   // Batch undo adds private functions without changing the pinned catalog.
   if (
     versions.length === 568 &&
