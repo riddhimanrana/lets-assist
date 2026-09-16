@@ -227,16 +227,39 @@ async function upsertSource(fixture: SheetDecisionFixture) {
 
   // The decision column mapping lives in its own table now, and an unconfigured
   // source reads nothing at all, so this has to go through the RPC rather than
-  // into settings.
+  // into settings. `20260917020100` takes the whole mapping as one jsonb value
+  // plus the version the caller believes it is replacing, so a save that
+  // arrives after somebody else's is refused rather than merged.
+  const existingVersion = await mappingVersionOrNull(fixture);
   checked(
     await rpc(fixture, "csf_set_application_decision_mapping", {
       p_organization_id: fixture.organizationId,
       p_actor_user_id: fixture.adviserUserId,
       p_source_id: SHEET_FIXTURE_IDS.source,
-      p_decision_columns: [7],
-      p_reason_columns: [8],
-      p_reads_cell_note: true,
+      p_mapping: {
+        decisionColumns: [7],
+        reasonColumns: [8],
+        readsCellNote: true,
+        identityColumns: { email: 2, submittedAt: 1 },
+        scope: { decision: "row" },
+        colors: {},
+      },
+      p_expected_version: existingVersion,
     }),
+  );
+}
+
+/** The stored mapping version for this spec's source, or null when unsaved. */
+async function mappingVersionOrNull(fixture: SheetDecisionFixture) {
+  const mappings = (checked(
+    await rpc(fixture, "csf_list_application_decision_mappings", {
+      p_organization_id: fixture.organizationId,
+      p_actor_user_id: fixture.adviserUserId,
+    }),
+  ) ?? []) as Array<{ sourceId: string; mappingVersion: number | null }>;
+  return (
+    mappings.find((entry) => entry.sourceId === SHEET_FIXTURE_IDS.source)
+      ?.mappingVersion ?? null
   );
 }
 
@@ -433,19 +456,11 @@ export async function stageDecisions(
 }
 
 async function currentMappingVersion(fixture: SheetDecisionFixture) {
-  const mappings = checked(
-    await rpc(fixture, "csf_list_application_decision_mappings", {
-      p_organization_id: fixture.organizationId,
-      p_actor_user_id: fixture.adviserUserId,
-    }),
-  ) as Array<{ sourceId: string; mappingVersion: number | null }>;
-  const mine = mappings.find(
-    (entry) => entry.sourceId === SHEET_FIXTURE_IDS.source,
-  );
-  if (!mine?.mappingVersion) {
+  const version = await mappingVersionOrNull(fixture);
+  if (!version) {
     throw new Error("The fixture source has no decision mapping version.");
   }
-  return String(mine.mappingVersion);
+  return String(version);
 }
 
 /** Publish the releasable staged rows through the real release RPC. */
@@ -509,6 +524,149 @@ export async function termState(fixture: SheetDecisionFixture) {
     releaseCount: number;
     counts: Record<string, number>;
   };
+}
+
+/**
+ * Synthetic accounts for the applicants whose own view matters.
+ *
+ * `unreviewed` is deliberately left out: an applicant with no account is the
+ * unlinked journey, and the product has to behave for them too.
+ *
+ * Every address is under `@local.test`, the password comes from the run-scoped
+ * isolated marker, and `loadSheetDecisionFixture` refuses to run at all without
+ * a validated isolated stack. There is no path here that could reach a real
+ * account.
+ */
+export const APPLICANT_ACCOUNTS = {
+  accepted: "e2e.sheet.green@local.test",
+  rejected: "e2e.sheet.red@local.test",
+  explained: "e2e.sheet.yellow@local.test",
+} as const;
+
+export type LinkedApplicantKey = keyof typeof APPLICANT_ACCOUNTS;
+
+async function findUserByEmail(fixture: SheetDecisionFixture, email: string) {
+  const { data, error } = await fixture.admin.auth.admin.listUsers({
+    page: 1,
+    perPage: 200,
+  });
+  if (error) throw new Error(error.message);
+  return data.users.find((user) => user.email === email) ?? null;
+}
+
+/**
+ * Create or refresh one fictional applicant account and link it to that
+ * applicant's CSF profile as a verified connection, which is what makes the
+ * member surfaces resolve to this person rather than to nobody.
+ */
+async function upsertApplicantAccount(
+  fixture: SheetDecisionFixture,
+  key: LinkedApplicantKey,
+  password: string,
+) {
+  const email = APPLICANT_ACCOUNTS[key];
+  const applicant = APPLICANTS[key];
+  const existing = await findUserByEmail(fixture, email);
+  const payload = {
+    password,
+    email_confirm: true,
+    user_metadata: { full_name: `Fictional ${applicant.lastName}` },
+  };
+
+  const user = existing
+    ? (() => fixture.admin.auth.admin.updateUserById(existing.id, payload))()
+    : (() => fixture.admin.auth.admin.createUser({ email, ...payload }))();
+  const { data, error } = await user;
+  if (error) throw new Error(error.message);
+  const userId = data.user!.id;
+
+  // An applicant has to be an organization member to reach the CSF tabs at all.
+  checked(
+    await fixture.admin.from("organization_members").upsert(
+      {
+        organization_id: fixture.organizationId,
+        user_id: userId,
+        role: "member",
+        status: "active",
+      },
+      { onConflict: "organization_id,user_id" },
+    ),
+  );
+
+  // A verified link is the only thing that makes this session the applicant.
+  // A pending claim must not resolve, which is why the status is explicit.
+  checked(
+    await fixture.admin
+      .schema("plugin_data")
+      .from("csf_profile_accounts")
+      .upsert(
+        {
+          organization_id: fixture.organizationId,
+          profile_id: applicant.profileId,
+          user_id: userId,
+          status: "verified",
+          connection_basis: "officer_decision",
+          is_primary: true,
+          linked_by: fixture.adviserUserId,
+        },
+        { onConflict: "organization_id,profile_id,user_id" },
+      ),
+  );
+
+  return { email, userId };
+}
+
+export async function linkApplicantAccounts(
+  fixture: SheetDecisionFixture,
+  password: string,
+) {
+  const linked: Record<string, { email: string; userId: string }> = {};
+  for (const key of Object.keys(APPLICANT_ACCOUNTS) as LinkedApplicantKey[]) {
+    linked[key] = await upsertApplicantAccount(fixture, key, password);
+  }
+  return linked as Record<
+    LinkedApplicantKey,
+    { email: string; userId: string }
+  >;
+}
+
+/**
+ * A permitted historical record for one applicant: a completed prior semester.
+ * The chapter's rule is that history stays readable while the current term is
+ * still unreleased, so the member journeys need something to read.
+ */
+export async function seedPriorSemesterRecord(
+  fixture: SheetDecisionFixture,
+  key: LinkedApplicantKey,
+) {
+  const plugin = fixture.admin.schema("plugin_data");
+  const priorTerm = checked(
+    await plugin
+      .from("csf_terms")
+      .select("id")
+      .eq("organization_id", fixture.organizationId)
+      .neq("id", fixture.termId)
+      .order("starts_on", { ascending: true })
+      .limit(1)
+      .maybeSingle(),
+  ) as { id: string } | null;
+  if (!priorTerm) return null;
+
+  checked(
+    await plugin.from("csf_term_memberships").upsert(
+      {
+        organization_id: fixture.organizationId,
+        term_id: priorTerm.id,
+        profile_id: APPLICANTS[key].profileId,
+        cohort_id: fixture.cohortId,
+        // A completed outcome is never revoked by a later sync, which is the
+        // invariant this record also guards.
+        status: "completed",
+      },
+      { onConflict: "organization_id,term_id,profile_id" },
+    ),
+  );
+  return priorTerm.id;
 }
 
 /**

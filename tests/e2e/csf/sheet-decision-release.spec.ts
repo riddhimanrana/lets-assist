@@ -26,10 +26,13 @@ import {
  *
  * The rule the whole feature turns on is that a decision read out of the
  * workbook is private until an officer releases the semester. A staged
- * acceptance grants nothing, a staged rejection tells nobody, and the reason an
- * officer typed next to a yellow row is not member-facing text yet. Release is
- * the single moment any of that becomes true, and a later sync corrects an
+ * acceptance grants nothing and a staged rejection tells nobody. Release is the
+ * single moment either becomes true, and a later sync corrects an
  * already-released row straight away, including taking membership back.
+ *
+ * Officers are allowed to read staged decisions and the reasons they wrote:
+ * that is the review surface. The applicant-facing half of the rule is
+ * `sheet-decision-applicant.spec.ts`, which signs in as each applicant.
  *
  * Nothing here touches Google. Rows are staged through
  * `csf_stage_sheet_application_decisions` with synthetic evidence, which is the
@@ -169,30 +172,21 @@ test.describe("staged decisions before any release", () => {
     expect(state.counts.blocked).toBeGreaterThanOrEqual(1);
   });
 
-  test("the officer reason is not rendered anywhere before release", async ({
+  test("an unrelated member sees none of this chapter's staged review", async ({
     page,
   }) => {
     const failures = watchBrowserFailures(page);
     await stageTheFiveOutcomes();
     await page.setViewportSize(DESKTOP);
-    await loginAs(page, "adviser");
-    await openApplications(page);
-
-    // The rejection reason is the officer's private note until the chapter
-    // publishes the semester. It must not reach the page in any form, including
-    // a hidden attribute or an inlined payload.
-    await expect(page.locator("body")).not.toContainText(EXPLAINED_REASON);
-    expect(await page.content()).not.toContain(EXPLAINED_REASON);
-
-    expectNoBrowserFailures(failures);
-  });
-
-  test("a member sees no trace of a staged decision", async ({ page }) => {
-    const failures = watchBrowserFailures(page);
-    await stageTheFiveOutcomes();
-    await page.setViewportSize(DESKTOP);
     await loginAs(page, "member");
 
+    // A bystander check, not the privacy acceptance. What each applicant can
+    // and cannot read of their OWN decision is
+    // `sheet-decision-applicant.spec.ts`, signed in as that applicant.
+    //
+    // Note what is deliberately absent here: nothing asserts that an officer
+    // page hides the reason. An officer is allowed to read the explanation they
+    // wrote. Member leakage is the requirement.
     for (const path of [
       `${CSF_ORGANIZATION_PATH}?tab=csf-home`,
       `${CSF_ORGANIZATION_PATH}?tab=csf-profile`,
