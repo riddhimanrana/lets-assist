@@ -141,6 +141,17 @@ connections view in earlier sections (§8.5, §9.5, §19.22–23, §22.1) are
 superseded and annotated in place. Where earlier text conflicts with this
 record, this record wins.
 
+### Amendment 7: Member self-connection by typed name (v1.7, September 15, 2026)
+
+- **Typed-name connection.** After a verified account enters a class code, the student types their full name as written on the CSF application. The server returns every unclaimed active record in that class whose name matches tolerantly: exact full name including middle name, exact first and last, a recorded preferred name or nickname, or a first-name prefix of at least three characters on an exact last name. Bigram-similar spellings remain officer-only.
+- **One match connects.** When exactly one record matches, **Yes, this is me** connects the account inside the identity lock. The database recomputes the match, requires the record to have no account row of any status, requires the account to have no verified connection in the chapter, and refuses when the account's verified email is the canonical or application address of a different record. The connection is recorded with basis `verified_email` when the login email is on the record and `self_confirmed_account_name` otherwise, and is audited as `profile.typed_name_connected`. Officers see the basis on the profile and may revoke it.
+- **Anything else is an officer request.** Two or more matches, a claimed record, or a token minted for a different name creates or reuses one class-scoped officer request carrying every candidate.
+- **The account name still helps.** On opening the connect page, the same tolerant match runs on the account's full name so a student whose account already reads correctly is shown their record without typing.
+
+This amendment supersedes the "Passive account-name confirmation" and "Typed names stay in review" clauses of Amendment 6 and invariant 8 for the typed-name path. It does not change how imports, class-history rows, or officer decisions link records.
+
+---
+
 ### Amendment 6: Member record matching, directory search, and source identity (v1.6, September 1, 2026)
 
 - **Passive account-name confirmation.** After a verified account enters a class code, the server may offer one exact account-name candidate. The preview shows only the record name and class. **Yes, this is me** submits a short-lived signed snapshot and creates or reuses one officer request. It never links from name evidence. A locked database recheck may connect only when verified email independently proves one active same-class record.
@@ -1618,7 +1629,7 @@ These invariants are mandatory across schema, server actions, UI, imports, tests
 5. Policy versions used by decisions and closed terms are immutable.
 6. Point totals, attendance completion, and recognition derive from normalized records through one shared evaluator.
 7. A multi-point activity produces one award with a numeric quantity, not duplicate one-point records.
-8. A manually entered, imported, or passive account name never links a student. Confirming one passive candidate creates or reuses one officer request. Automatic connection requires independently verified ownership. Matching a login email to an application contact is insufficient.
+8. An imported name never links a student. A student's own typed name connects only when exactly one unclaimed record in the class matches it under the tolerant rule of Amendment 7, inside the identity lock, and the connection is recorded as self-confirmed. Every other name outcome creates or reuses one officer request. Officers can revoke a self-confirmed connection.
 9. Preview precedes import commit; source provenance and raw snapshots are retained.
 10. Reviewed platform records are never silently overwritten by Google data.
 11. Google Forms/Sheets/Drive provide intake, evidence, and exports. Let's Assist remains authoritative. The sync candidate exports to restricted test copies first; inbound decisions await staff approval. Local formula-safe ZIP reports remain available.
