@@ -271,7 +271,7 @@ test.describe("officer permissions", () => {
       panel(page).getByRole("button", { name: "Configure" }).first(),
     ).toBeVisible();
     await expect(
-      panel(page).getByRole("button", { name: "Sync decisions" }),
+      panel(page).getByRole("button", { name: "Sync from Google Sheets" }),
     ).toBeVisible();
     await expect(
       panel(page).getByRole("button", { name: /^Release \d+ decision/ }),
@@ -458,7 +458,7 @@ test.describe("source failure feedback", () => {
     await loginAs(page, "adviser");
     await openApplications(page);
 
-    await panel(page).getByRole("button", { name: "Sync decisions" }).click();
+    await panel(page).getByRole("button", { name: "Sync from Google Sheets" }).click();
 
     // The isolated stack has no bound Drive token. The officer has to be told
     // that, because the alternative is a panel that looks like it finished

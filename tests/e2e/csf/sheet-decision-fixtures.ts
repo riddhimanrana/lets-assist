@@ -32,10 +32,17 @@ export const SHEET_FIXTURE_PREFIX = "E2E Sheet Review";
 export const SHEET_FIXTURE_TAB = "Form Responses 1";
 export const SHEET_FIXTURE_RANGE = "A1:AZ600";
 
+/**
+ * Fictional provider coordinates, and this spec's own handle on its source.
+ * Nothing fetches them; the Sync button failing against them is part of the
+ * test. The Drive id is how a repeat run finds the source it registered before.
+ */
+export const SHEET_FIXTURE_SPREADSHEET_ID = "e2e-fictional-spreadsheet-id";
+export const SHEET_FIXTURE_DRIVE_FILE_ID = "e2e-fictional-drive-file-id";
+
 const ID = (suffix: string) => `e2e5ee70-0000-4000-8000-0000000000${suffix}`;
 
 export const SHEET_FIXTURE_IDS = {
-  source: ID("01"),
   priorTerm: ID("02"),
   acceptedProfile: ID("10"),
   rejectedProfile: ID("11"),
@@ -60,6 +67,11 @@ export type SheetDecisionFixture = {
   cohortId: string;
   /** An actor holding every CSF permission, used for the seeding RPCs. */
   adviserUserId: string;
+  /**
+   * Assigned by the database when the source is registered, so it is unknown
+   * until `resetSheetDecisionFixture` has run.
+   */
+  sourceId: string | null;
 };
 
 type Applicant = {
@@ -172,7 +184,18 @@ export async function loadSheetDecisionFixture(): Promise<SheetDecisionFixture> 
     termId: String(term!.id),
     cohortId: String(cohort!.id),
     adviserUserId: String(adviser!.id),
+    sourceId: null,
   };
+}
+
+/** Fail loudly rather than staging against a source that was never registered. */
+function requireSourceId(fixture: SheetDecisionFixture) {
+  if (!fixture.sourceId) {
+    throw new Error(
+      "The Sheet decision source is not registered yet. Call resetSheetDecisionFixture first.",
+    );
+  }
+  return fixture.sourceId;
 }
 
 function rpc(
@@ -207,18 +230,35 @@ async function upsertSource(fixture: SheetDecisionFixture) {
   // `csf_sheet_sources` grants the server role SELECT and nothing else: every
   // write goes through an owned SECURITY DEFINER RPC. A fixture is not a reason
   // to widen that, so this registers the source the way the product does.
-  checked(
+  //
+  // The RPC reads `p_source_id` as "reconfigure this existing source" and
+  // rejects an id it cannot find, so the fixture cannot choose its own. A null
+  // id creates one and returns the generated id, and adoption only arbitrates
+  // uploaded files, never a Google source. So: find this spec's own source by
+  // the fictional Drive id that identifies it, reconfigure it if it is there,
+  // and create it once if it is not.
+  const existing = checked(
+    await fixture.admin
+      .schema("plugin_data")
+      .from("csf_sheet_sources")
+      .select("id")
+      .eq("organization_id", fixture.organizationId)
+      .eq("drive_file_id", SHEET_FIXTURE_DRIVE_FILE_ID)
+      .maybeSingle(),
+  ) as { id: string } | null;
+
+  const registered = checked(
     await rpc(fixture, "csf_register_sheet_source", {
       p_organization_id: fixture.organizationId,
       p_actor_user_id: fixture.adviserUserId,
-      p_source_id: SHEET_FIXTURE_IDS.source,
+      p_source_id: existing?.id ?? null,
       p_source_type: "application_responses",
       p_registration: {
         title: `${SHEET_FIXTURE_PREFIX} responses`,
         provider: "google_sheets",
         cohortId: null,
-        spreadsheetId: "e2e-fictional-spreadsheet-id",
-        driveFileId: "e2e-fictional-drive-file-id",
+        spreadsheetId: SHEET_FIXTURE_SPREADSHEET_ID,
+        driveFileId: SHEET_FIXTURE_DRIVE_FILE_ID,
         syncMode: "manual",
         tabMappings: [
           {
@@ -230,7 +270,11 @@ async function upsertSource(fixture: SheetDecisionFixture) {
         settings: { sourceKind: "application_responses" },
       },
     }),
-  );
+  ) as { sourceId: string };
+
+  // Every later helper stages against this exact source, so hold the id the
+  // database actually assigned rather than one the fixture wished for.
+  fixture.sourceId = String(registered.sourceId);
 
   // The decision column mapping lives in its own table now, and an unconfigured
   // source reads nothing at all, so this has to go through the RPC rather than
@@ -242,7 +286,7 @@ async function upsertSource(fixture: SheetDecisionFixture) {
     await rpc(fixture, "csf_set_application_decision_mapping", {
       p_organization_id: fixture.organizationId,
       p_actor_user_id: fixture.adviserUserId,
-      p_source_id: SHEET_FIXTURE_IDS.source,
+      p_source_id: fixture.sourceId,
       p_mapping: {
         decisionColumns: [7],
         reasonColumns: [8],
@@ -281,7 +325,7 @@ async function mappingVersionOrNull(fixture: SheetDecisionFixture) {
     }),
   ) ?? []) as Array<{ sourceId: string; mappingVersion: number | null }>;
   return (
-    mappings.find((entry) => entry.sourceId === SHEET_FIXTURE_IDS.source)
+    mappings.find((entry) => entry.sourceId === fixture.sourceId)
       ?.mappingVersion ?? null
   );
 }
@@ -440,7 +484,7 @@ export async function stageDecisions(
       p_run_id: crypto.randomUUID(),
       p_evidence: [
         {
-          sourceId: SHEET_FIXTURE_IDS.source,
+          sourceId: requireSourceId(fixture),
           sheetTabName: SHEET_FIXTURE_TAB,
           readStatus: "read",
           message: null,
@@ -457,7 +501,7 @@ export async function stageDecisions(
         },
       ],
       p_rows: rows.map((row) => ({
-        sourceId: SHEET_FIXTURE_IDS.source,
+        sourceId: requireSourceId(fixture),
         sheetTabName: SHEET_FIXTURE_TAB,
         observedRowNumber: row.applicant.rowNumber,
         applicationId: row.applicant.applicationId,
@@ -687,14 +731,30 @@ export async function seedPriorSemesterRecord(
 /**
  * The semester the applicants already finished.
  *
- * The isolated seed is not guaranteed to carry one, and skipping the history
- * journeys when it does not would quietly stop testing the rule they exist for.
- * So this spec owns a historical term of its own: past dates, not current, and
- * deliberately left `open` because a `closed` term needs a real closure
- * snapshot and none of these journeys are about term close.
+ * A seeded past semester is used when the chapter has one, because a term this
+ * spec invents would also show up in every other spec's semester picker. Only
+ * when there is genuinely no other semester does this create its own, so the
+ * history journeys never quietly skip.
+ *
+ * The owned term is deliberately left `open`: a `closed` term needs a real
+ * closure snapshot with a matching `active_closure_id`, and none of these
+ * journeys are about term close.
  */
 async function ensurePriorTerm(fixture: SheetDecisionFixture) {
   const plugin = fixture.admin.schema("plugin_data");
+  const seeded = checked(
+    await plugin
+      .from("csf_terms")
+      .select("id")
+      .eq("organization_id", fixture.organizationId)
+      .eq("is_current", false)
+      .neq("id", fixture.termId)
+      .order("starts_at", { ascending: false, nullsFirst: false })
+      .limit(1)
+      .maybeSingle(),
+  ) as { id: string } | null;
+  if (seeded) return String(seeded.id);
+
   checked(
     await plugin.from("csf_terms").upsert(
       {
