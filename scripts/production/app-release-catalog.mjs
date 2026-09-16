@@ -153,7 +153,7 @@ const importReviewDefinitions = [
 // has the migration applied. The four that are filled came from the owned
 // replay T. The two that are null moved but were not measured, and the release
 // cannot be pinned until they are.
-export const acceptedFingerprints561 = [
+export const acceptedFingerprints565 = [
   {
     object:
       "plugin_data.csf_join_class_by_code_identity_base(uuid,text,uuid,text,text,text,text,uuid,uuid)",
@@ -204,10 +204,21 @@ export const acceptedFingerprints561 = [
     after: null,
     occurrences: 1,
   },
+  {
+    // 1300 adds courses_corrected_at and courses_corrected_by. The relation
+    // digest hashes the column list, so it moved. Neither side was measured.
+    object: "plugin_data.csf_term_applications (relation)",
+    migration: "20260917130000",
+    before: null,
+    after: null,
+    occurrences: 1,
+  },
 ];
 
 function swapAcceptedFingerprints(catalog, replacements) {
-  const unmeasured = replacements.filter((entry) => !entry.after);
+  const unmeasured = replacements.filter(
+    (entry) => !entry.after || !entry.before,
+  );
   if (unmeasured.length)
     throw new ReleaseCheckError(
       `Accepted fingerprints moved but were never measured: ${unmeasured
@@ -235,13 +246,13 @@ export function acceptedCatalogQuery(source, versions) {
     .update(versions.join("\n"))
     .digest("hex");
   if (
-    versions.length === 561 &&
+    versions.length === 565 &&
     ledgerHash ===
-      "e5cec607b056143b844beda898beb83a07d93ac8dab4cf19c454910f237fb6de"
+      "d692b51d050b7b2b354fd2720ab2416585985931a08a7f27163ae85c3da8e075"
   )
     return swapAcceptedFingerprints(
       acceptedCatalogQuery(source, versions.slice(0, 557)),
-      acceptedFingerprints561,
+      acceptedFingerprints565,
     );
   if (
     versions.length === 557 &&

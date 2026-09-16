@@ -383,8 +383,24 @@ export const approvedMigrations = [
     "6824ed729ceebaa850f958534367e8ba5b63e0b3d5040638031c70fd2da7bc51",
   ],
   [
+    "20260917100000_csf_graduated_cohort_retention",
+    "c1d6395bc016e88a89b215c4768aa2a542b54c07f4a2610aa27c7995125a6030",
+  ],
+  [
     "20260917110000_csf_historical_attendance_correction",
-    "41e6571cc069a317249a1d1e0f669d5ad61dda837965f6f83f39aba0c9b15b7e",
+    "3c2fb4e2ba4334fc6cf83ea1a1cfedc3774c3c2b78f63ff2bec4ab7287d4d190",
+  ],
+  [
+    "20260917130000_csf_officer_course_corrections",
+    "1182a9c7efa7632aab04be4acfe95a74da1406bcb8308ebbfe124b53a00f3730",
+  ],
+  [
+    "20260917140000_csf_import_personal_notice_suppression",
+    "cad13e1d22c50dc4890ad99731b134fde159be5fb9f6a3c3c4bffeb96536ac01",
+  ],
+  [
+    "20260917150000_csf_course_retention_coverage",
+    "94eb448b69291abe979d0cf97f1f7afd10a0e2c62bbabf1339bdcfd654ac9651",
   ],
 ];
 

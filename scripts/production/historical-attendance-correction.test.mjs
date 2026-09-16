@@ -15,7 +15,8 @@ import { fileURLToPath } from "node:url";
 
 const NAME = "20260917110000_csf_historical_attendance_correction";
 const root = fileURLToPath(new URL("../../", import.meta.url));
-const read = (path) => readFileSync(new URL(path, new URL(root, import.meta.url)), "utf8");
+const read = (path) =>
+  readFileSync(new URL(path, new URL(root, import.meta.url)), "utf8");
 
 const current = read(`supabase/migrations/${NAME}.sql`);
 const previous = read(
@@ -59,7 +60,10 @@ test("every other qualified call names a real pg_catalog function", () => {
   const used = new Set(
     [...current.matchAll(/pg_catalog\.([a-z_0-9]+)/gu)].map((m) => m[1]),
   );
-  assert.deepEqual([...used].filter((name) => !allowed.has(name)), []);
+  assert.deepEqual(
+    [...used].filter((name) => !allowed.has(name)),
+    [],
+  );
 });
 
 test("the guarded behaviours the predecessor had all survive", () => {
@@ -79,9 +83,7 @@ test("the guarded behaviours the predecessor had all survive", () => {
 });
 
 test("the row is still located on the canonical meeting key, never on a label", () => {
-  assert.ok(
-    current.includes("attendance.meeting_key = v_meeting.meeting_key"),
-  );
+  assert.ok(current.includes("attendance.meeting_key = v_meeting.meeting_key"));
   assert.ok(current.includes("ON CONFLICT (profile_id, term_id, meeting_key)"));
 });
 
@@ -104,7 +106,9 @@ test("no timestamp, point value or meeting date is invented", () => {
 });
 
 test("the closed-semester escape is the reviewed one and is recorded", () => {
-  assert.ok(current.includes("CSF_CLOSED_SEMESTER_ACKNOWLEDGEMENT_REQUIRED=true"));
+  assert.ok(
+    current.includes("CSF_CLOSED_SEMESTER_ACKNOWLEDGEMENT_REQUIRED=true"),
+  );
   assert.ok(
     current.includes(
       "pg_catalog.set_config(\n      'plugin_data.csf_closed_term_edit_attested', 'on', true\n    )",
@@ -138,7 +142,9 @@ test("the replay is bound to the payload, not just to the request id", () => {
   );
   // The actor is checked too, so one officer cannot replay another's request.
   assert.ok(
-    current.includes("v_receipt.actor_user_id IS DISTINCT FROM p_actor_user_id"),
+    current.includes(
+      "v_receipt.actor_user_id IS DISTINCT FROM p_actor_user_id",
+    ),
   );
 });
 
@@ -277,7 +283,9 @@ test("same-request callers serialize before the receipt lookup", () => {
   assert.ok(lock < lookup, "the lock must precede the receipt lookup");
   // Scoped to the organization and the request, not to the table.
   assert.ok(
-    current.includes("p_organization_id::text || ':' || p_correlation_id::text"),
+    current.includes(
+      "p_organization_id::text || ':' || p_correlation_id::text",
+    ),
   );
 });
 
@@ -305,7 +313,10 @@ test("source evidence is scoped to officer coordinates", () => {
 
 test("the header does not claim the historical semesters are closed", () => {
   const header = current.slice(0, current.indexOf("BEGIN;"));
-  assert.equal(header.includes("Every historical semester is therefore"), false);
+  assert.equal(
+    header.includes("Every historical semester is therefore"),
+    false,
+  );
   assert.ok(header.includes("all open"));
 });
 

@@ -67,6 +67,14 @@ test("493 advances through observation invalidation and the current release tail
       "csf_point_submissions_personal_notifications",
       "csf_profiles_personal_notifications",
       "csf_communication_campaigns_notice_scope_guard",
+      "csf_retention_runs_immutable",
+      "csf_retention_preview_profiles_immutable",
+      "csf_retention_profile_tombstones_immutable",
+      "csf_retention_source_tombstones_immutable",
+      "csf_profile_cohort_memberships_retention_guard",
+      "csf_sheet_import_rows_retention_guard",
+      "csf_application_course_corrections_immutable",
+      "csf_application_course_entries_correction_guard",
     ],
   );
   assert.ok(result.query.includes("AND version = '1.2.32'"));

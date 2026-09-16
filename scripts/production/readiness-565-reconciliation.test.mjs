@@ -1,0 +1,190 @@
+import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
+import test from "node:test";
+import { fileURLToPath } from "node:url";
+import {
+  acceptedCatalogQuery,
+  acceptedFingerprints565,
+} from "./app-release-catalog.mjs";
+import { expectedVersions } from "./app-release-checks.mjs";
+import { approvedMigrations } from "./forward-migration-release.mjs";
+import {
+  prohibitedDataWrites,
+  topLevelDataWrites,
+  unreviewedDataWrites,
+} from "./migration-data-writes.mjs";
+
+// The 565 extension set is prepared here but not yet pinnable. These checks
+// hold the two open blockers still so neither is lost, and they keep working
+// unchanged once the blockers clear.
+
+const cwd = fileURLToPath(new URL("../../", import.meta.url));
+const source = readFileSync(
+  new URL("./verify-csf-target-schema.sql", import.meta.url),
+  "utf8",
+);
+const ledger = expectedVersions(cwd);
+const EXTENSIONS = [
+  "20260917070000_csf_class_join_review_only_onboarding",
+  "20260917080000_csf_detailed_publication_notices",
+  "20260917090000_csf_officer_application_editor_and_note_visibility",
+  "20260917100000_csf_graduated_cohort_retention",
+  "20260917110000_csf_historical_attendance_correction",
+  "20260917130000_csf_officer_course_corrections",
+  "20260917140000_csf_import_personal_notice_suppression",
+  "20260917150000_csf_course_retention_coverage",
+];
+
+test("the release is the 557 decisions baseline plus the four integrated extensions", () => {
+  assert.equal(ledger.length, 565);
+  assert.deepEqual(
+    ledger.slice(-8),
+    EXTENSIONS.map((name) => name.slice(0, 14)),
+  );
+  // 1200 header provenance is still with the source lane and must not appear.
+  assert.ok(!ledger.includes("20260917120000"));
+  for (const name of EXTENSIONS) {
+    assert.ok(
+      approvedMigrations.some(([entry]) => entry === name),
+      `${name} is not in the approved migration tail`,
+    );
+  }
+});
+
+test("each fingerprint the extensions move is measured, or named as unmeasured", () => {
+  const baseline = acceptedCatalogQuery(source, ledger.slice(0, 557));
+  for (const entry of acceptedFingerprints565) {
+    if (!entry.before) continue;
+    assert.equal(
+      baseline.split(entry.before).length - 1,
+      entry.occurrences,
+      `${entry.object}: the 557 catalog does not pin it ${entry.occurrences} time(s)`,
+    );
+    if (entry.after)
+      assert.ok(
+        !baseline.includes(entry.after),
+        `${entry.object}: the replacement predates its migration`,
+      );
+  }
+
+  // Both of these moved on a replayed database. Neither was reported, and
+  // neither can be derived from the migration text: one is
+  // md5(pg_get_functiondef(oid)), the other the relation digest the catalog
+  // builds from columns, constraints, indexes and triggers.
+  assert.deepEqual(
+    acceptedFingerprints565
+      .filter((entry) => !entry.after)
+      .map((e) => e.object),
+    [
+      "plugin_data.csf_record_publication_notifications()",
+      "plugin_data.csf_publication_events (relation)",
+      "plugin_data.csf_term_applications (relation)",
+    ],
+  );
+});
+
+test("the 565 catalog refuses to pin what was never measured", () => {
+  const unmeasured = acceptedFingerprints565.filter(
+    (entry) => !entry.after || !entry.before,
+  );
+  if (unmeasured.length) {
+    assert.throws(
+      () => acceptedCatalogQuery(source, ledger),
+      /moved but were never measured/u,
+      "an unmeasured drift must fail closed, not delegate",
+    );
+    return;
+  }
+  // Once every value is supplied the swap has to be complete and exact.
+  const current = acceptedCatalogQuery(source, ledger);
+  const baseline = acceptedCatalogQuery(source, ledger.slice(0, 557));
+  for (const entry of acceptedFingerprints565) {
+    assert.ok(!current.includes(entry.before), `${entry.object} survived`);
+    assert.equal(
+      current.split(entry.after).length - 1,
+      entry.occurrences,
+      `${entry.object} was not swapped everywhere`,
+    );
+  }
+  assert.equal(current.length, baseline.length);
+});
+
+test("a ledger the catalog has never reviewed still fails closed", () => {
+  const altered = [...ledger];
+  altered[558] = "20990101000000";
+  assert.throws(
+    () => acceptedCatalogQuery(source, altered),
+    /explicit release review/u,
+  );
+  assert.throws(
+    () => acceptedCatalogQuery(source, ledger.slice(0, 560)),
+    /explicit release review/u,
+  );
+});
+
+test("every data write a migration carries is on the reviewed allowlist", () => {
+  const found = [];
+  for (const name of EXTENSIONS) {
+    const sql = readFileSync(`${cwd}supabase/migrations/${name}.sql`, "utf8");
+    assert.deepEqual(
+      unreviewedDataWrites(sql),
+      [],
+      `${name} carries a data write nobody reviewed`,
+    );
+    assert.deepEqual(
+      prohibitedDataWrites(sql),
+      [],
+      `${name} writes to a table migrations may never write`,
+    );
+    for (const write of topLevelDataWrites(sql)) found.push(write.table);
+  }
+  // The whole reviewed set, and nothing beyond it: 0900's capability backfill
+  // and the static retention metadata 1000 and 1500 seed.
+  assert.deepEqual(found.sort(), [
+    "plugin_data.csf_retention_identity_inventory",
+    "plugin_data.csf_retention_identity_inventory",
+    "plugin_data.csf_retention_reference_policy",
+    "plugin_data.csf_retention_reference_policy",
+    "plugin_data.csf_role_permissions",
+  ]);
+});
+
+test("the allowlist refuses a write it did not review", () => {
+  // Same table and operation, different statement. The statement hash is what
+  // makes the entry a review rather than a category permit.
+  assert.deepEqual(
+    unreviewedDataWrites(
+      "INSERT INTO plugin_data.csf_role_permissions (organization_id) SELECT id FROM x;",
+    ).map((write) => write.table),
+    ["plugin_data.csf_role_permissions"],
+  );
+  // Installation state and the student's own record stay refused outright.
+  for (const table of [
+    "public.organization_plugin_installs",
+    "plugin_data.csf_term_applications",
+    "plugin_data.csf_profiles",
+    "plugin_data.csf_point_submissions",
+  ]) {
+    const sql = `UPDATE ${table} SET status = 'x';`;
+    assert.deepEqual(
+      prohibitedDataWrites(sql).map((write) => write.table),
+      [table],
+    );
+    assert.deepEqual(
+      unreviewedDataWrites(sql).map((w) => w.table),
+      [table],
+    );
+  }
+});
+
+test("a write cannot hide inside a dollar-quoted block", () => {
+  const hidden =
+    "DO $guard$ BEGIN INSERT INTO plugin_data.csf_profiles VALUES (1); END $guard$;";
+  assert.deepEqual(topLevelDataWrites(hidden), []);
+  // ... but the same statement at the top level is still caught.
+  assert.equal(
+    topLevelDataWrites("INSERT INTO plugin_data.csf_profiles VALUES (1);")
+      .length,
+    1,
+  );
+});
