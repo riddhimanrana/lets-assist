@@ -280,6 +280,12 @@ BEGIN
         )
     );
 
+  -- Either outcome makes the student an organization member, matching the
+  -- class-code join: a review request must not lock them out of the feed.
+  INSERT INTO public.organization_members (organization_id, user_id, role, status)
+  VALUES (p_organization_id, p_user_id, 'member', 'active')
+  ON CONFLICT (organization_id, user_id) DO NOTHING;
+
   IF v_allowed THEN
     v_basis := CASE
       WHEN v_email IN (
@@ -289,9 +295,6 @@ BEGIN
       ) THEN 'verified_email'
       ELSE 'self_confirmed_account_name'
     END;
-    INSERT INTO public.organization_members (organization_id, user_id, role, status)
-    VALUES (p_organization_id, p_user_id, 'member', 'active')
-    ON CONFLICT (organization_id, user_id) DO NOTHING;
     INSERT INTO plugin_data.csf_profile_accounts (
       organization_id, profile_id, user_id, status, is_primary, linked_by,
       linked_at, notes, connection_basis

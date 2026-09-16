@@ -4,7 +4,7 @@
 BEGIN;
 
 CREATE EXTENSION IF NOT EXISTS pgtap WITH SCHEMA extensions;
-SELECT extensions.plan(39);
+SELECT extensions.plan(40);
 
 -- Reach.
 SELECT extensions.ok(NOT has_function_privilege('anon',
@@ -181,6 +181,9 @@ SELECT extensions.is((SELECT cardinality(candidate_profile_ids) FROM plugin_data
   'the officer request carries both candidates');
 SELECT extensions.is((SELECT count(*)::int FROM plugin_data.csf_profile_accounts
   WHERE user_id='f2100000-0000-4000-8000-000000000003'), 0, 'an ambiguous confirm links nothing');
+SELECT extensions.is((SELECT count(*)::int FROM public.organization_members
+  WHERE organization_id='f2200000-0000-4000-8000-000000000001' AND user_id='f2100000-0000-4000-8000-000000000003' AND status='active'), 1,
+  'a student waiting on review is still an active organization member');
 
 -- A nickname connects.
 INSERT INTO typed_results VALUES ('nick', plugin_data.csf_confirm_class_code_typed_name_match(

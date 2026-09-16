@@ -1965,6 +1965,16 @@ This amendment records the repository implementation associated with v1.3. It do
 - Scheduled post persistence is not publication evidence. The publisher implementation and repository scheduler are accepted, but officers use the manual path in any environment that lacks exact opt-in, successful hosted invocation, and visible schedule → Feed evidence. No queued email may be attributed to a future schedule.
 - CLEAN-016 is closed by the Production Vercel Pro recurrence, repeated runtime starts, an authenticated `enabled: true` dispatcher response, and an unchanged empty delivery ledger. This proves the bounded communications worker is invoked without proving provider delivery or a fixed delivery time. The separate scheduled-post publisher remains disabled in Production, so scheduled publication stays open under CLEAN-015 and officers continue to use the manual path.
 
+## Sheet sync amendment, September 15, 2026
+
+This amendment changes the shape of what a class destination writes, not who may write it or how it is accepted.
+
+A class destination now writes the officers' own format, so the managed block on an empty tab **is** the roster sheet: `Profile ID`, `Last`, `First`, `LastFirst`, `Let's Assist Connected`, `Activity 1` through `Activity 5`, one column per required meeting in the semester labelled by the meeting's name, `All Meeting Attendance`, `All Reqs Met`, then `Source version`. Meeting cells use the marks the importer already reads: `X` attended, `E` excused, `N/A` not required, blank otherwise. `All Reqs Met` is `X` when the shared evaluator says the semester is complete, and that row's managed block is shaded green; nothing is shaded red while a semester is open. `Let's Assist Connected` is `Yes`, `No`, or `Awaiting review` as text; no cell is shaded yellow, because the importer reads that fill as an exception mark. `Profile ID` and `Source version` remain at the edges so row identity, drift detection, and acceptance receipts are unchanged.
+
+The meeting columns are fixed when the destination is configured. A meeting added later has no column until an officer reconfigures the destination, which is a new acceptance; until then the sync continues and simply does not write that meeting.
+
+An applications destination now writes only `Record ID`, `Approved on Let's Assist`, and `Source version`, with `X` when the application is approved. It has no requested-decision columns; application decisions are made in the app. Point-submission destinations are unchanged.
+
 ## Sheet sync amendment, September 10, 2026
 
 This amendment replaces the input-only restrictions above for explicitly configured, permission-checked destinations. It does not make Sheets authoritative.
