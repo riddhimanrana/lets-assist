@@ -43,17 +43,23 @@ INSERT INTO plugin_data.csf_cohorts (
   'df100000-0000-4000-8000-000000000001', 2036, 'c/o 2036', 'active'
 );
 
--- One student who was entered twice: the duplicate is merged into the keeper.
+-- One student entered twice. The merge refuses anything less than a
+-- corroborated duplicate, so these two records agree on the normalized name and
+-- share an exact school email; that is what makes them the same student rather
+-- than two classmates with similar records.
 INSERT INTO plugin_data.csf_profiles (
   id, organization_id, first_name, last_name,
-  normalized_first_name, normalized_last_name
+  normalized_first_name, normalized_last_name,
+  school_email, normalized_school_email
 ) VALUES
   ('df300000-0000-4000-8000-000000000001',
    'df100000-0000-4000-8000-000000000001',
-   'Duplicate', 'Applicant', 'duplicate', 'applicant'),
+   'Jordan', 'Rivera', 'jordan', 'rivera',
+   'Jordan.Rivera@student.local.test', 'jordan.rivera@student.local.test'),
   ('df300000-0000-4000-8000-000000000002',
    'df100000-0000-4000-8000-000000000001',
-   'Keeper', 'Applicant', 'keeper', 'applicant');
+   'Jordan', 'Rivera', 'jordan', 'rivera',
+   'jordan.rivera@student.local.test', 'jordan.rivera@student.local.test');
 
 INSERT INTO plugin_data.csf_sheet_sources (
   id, organization_id, title, provider, source_type, drive_file_id, spreadsheet_id

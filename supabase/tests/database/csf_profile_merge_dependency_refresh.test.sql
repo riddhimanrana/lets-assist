@@ -40,14 +40,47 @@ SELECT function_privs_are(
   'service role can call only the retry-safe merge wrapper'
 );
 
+-- Each new merge concern renames the previous entry point to a `_base` and
+-- wraps it, so the chain grows a link at a time. Walk it instead of pinning one
+-- hop: what matters is that the public merge still reaches the canonical
+-- preview, however many concerns sit in between.
 SELECT ok(
-  pg_get_functiondef(
-    'plugin_data.csf_merge_profiles(uuid,uuid,uuid,text,uuid)'::regprocedure
-  ) LIKE '%plugin_data.csf_merge_profiles_workbook_links_base(%'
-  AND pg_get_functiondef(
-    'plugin_data.csf_merge_profiles_workbook_links_base(uuid,uuid,uuid,text,uuid)'::regprocedure
-  ) LIKE '%plugin_data.csf_profile_merge_preview(%',
-  'the workbook-link merge delegates to the private implementation that calls the canonical preview'
+  (
+    WITH RECURSIVE delegation(signature, definition) AS (
+      SELECT
+        entry.oid::regprocedure::text,
+        pg_get_functiondef(entry.oid)
+      FROM pg_catalog.pg_proc AS entry
+      JOIN pg_catalog.pg_namespace AS entry_schema
+        ON entry_schema.oid = entry.pronamespace
+      WHERE entry_schema.nspname = 'plugin_data'
+        AND entry.proname = 'csf_merge_profiles'
+        AND pg_catalog.pg_get_function_identity_arguments(entry.oid)
+          = 'uuid, uuid, uuid, text, uuid'
+      UNION
+      SELECT
+        delegate.oid::regprocedure::text,
+        pg_get_functiondef(delegate.oid)
+      FROM delegation
+      JOIN pg_catalog.pg_proc AS delegate
+        ON delegation.definition
+          LIKE '%plugin_data.' || delegate.proname || '(%'
+      JOIN pg_catalog.pg_namespace AS delegate_schema
+        ON delegate_schema.oid = delegate.pronamespace
+      WHERE delegate_schema.nspname = 'plugin_data'
+        AND delegate.proname LIKE 'csf_merge_profiles%_base'
+    )
+    SELECT
+      EXISTS (
+        SELECT 1 FROM delegation
+        WHERE definition LIKE '%plugin_data.csf_profile_merge_preview(%'
+      )
+      AND EXISTS (
+        SELECT 1 FROM delegation
+        WHERE signature LIKE '%csf_merge_profiles_workbook_links_base%'
+      )
+  ),
+  'the public merge delegates through its private implementations to the canonical preview'
 );
 
 SELECT ok(
