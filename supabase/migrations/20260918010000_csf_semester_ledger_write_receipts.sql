@@ -128,6 +128,20 @@ BEGIN
     OR length(btrim(coalesce(p_reason,''))) NOT BETWEEN 4 AND 500 THEN
     RAISE EXCEPTION 'Record the reviewed semester columns and reason.' USING ERRCODE='22023';
   END IF;
+  IF (p_layout->>'firstWritableColumn')::integer <= GREATEST(
+      (p_layout->>'firstNameColumn')::integer,
+      (p_layout->>'lastNameColumn')::integer,
+      (p_layout->>'sourceKeyColumn')::integer)
+    OR (p_layout->>'lastWritableColumn')::integer < (p_layout->>'firstWritableColumn')::integer
+    OR EXISTS (SELECT 1 FROM jsonb_array_elements_text(
+      (p_layout->'activityColumns') ||
+      (SELECT coalesce(jsonb_agg(value->'columnIndex'),'[]'::jsonb)
+       FROM jsonb_array_elements(p_layout->'meetingColumns') AS meeting(value))
+    ) AS column_value(value)
+      WHERE column_value.value::integer NOT BETWEEN
+        (p_layout->>'firstWritableColumn')::integer AND (p_layout->>'lastWritableColumn')::integer) THEN
+    RAISE EXCEPTION 'Ledger columns must stay outside the student identity cells.' USING ERRCODE='22023';
+  END IF;
   SELECT * INTO m FROM plugin_data.csf_sheet_semester_ledger_mappings
     WHERE destination_id=d.id FOR UPDATE;
   IF FOUND THEN
@@ -203,6 +217,10 @@ BEGIN
       WHERE (cell.value->>'rowIndex')::integer IS DISTINCT FROM (p_plan->>'rowIndex')::integer
         OR (cell.value->>'columnIndex')::integer NOT BETWEEN
           (m.layout->>'firstWritableColumn')::integer AND (m.layout->>'lastWritableColumn')::integer
+        OR NOT (
+          m.layout->'activityColumns' @> jsonb_build_array((cell.value->>'columnIndex')::integer)
+          OR EXISTS (SELECT 1 FROM jsonb_array_elements(m.layout->'meetingColumns') AS meeting(value)
+            WHERE (meeting.value->>'columnIndex')::integer=(cell.value->>'columnIndex')::integer))
         OR coalesce(cell.value->>'expectedValue','')<>''
         OR nullif(btrim(cell.value->>'value'),'') IS NULL
         OR nullif(btrim(cell.value->>'evidenceId'),'') IS NULL) THEN
