@@ -2,7 +2,7 @@ BEGIN;
 
 CREATE EXTENSION IF NOT EXISTS pgtap WITH SCHEMA extensions;
 
-SELECT extensions.plan(2);
+SELECT extensions.plan(3);
 
 -- The exact table normalizeCsfMeetingAttendanceValue produces, kept beside the
 -- identical table in domain.test.ts. The import writes the SQL side, so a
@@ -35,7 +35,15 @@ SELECT * FROM (VALUES
   ('.', 'unknown'),
   ('Beach cleanup', 'unknown'),
   ('11/12 November meeting', 'unknown'),
-  ('?', 'unknown')
+  ('?', 'unknown'),
+  -- H2: JavaScript trim strips more than spaces, so the SQL side has to as
+  -- well or the two normalizers disagree for any writer that does not
+  -- pre-trim. Tab, newline, NBSP and BOM, leading and trailing.
+  (E'\tx', 'attended'),
+  (E'x\n', 'attended'),
+  (E'\u00A0excused\u00A0', 'excused'),
+  (E'\uFEFFmissed', 'missed'),
+  (E'\u00A0\t\n', 'unknown')
 ) AS parity(input, expected);
 
 SELECT extensions.is(
@@ -49,6 +57,12 @@ SELECT extensions.is(
   plugin_data.csf_meeting_attendance_value('Beach cleanup'),
   'unknown',
   'an activity title in a misaligned meeting column is never attendance'
+);
+
+SELECT extensions.is(
+  plugin_data.csf_meeting_attendance_value(E'\tx'),
+  'attended',
+  'a tab-prefixed mark trims the way the TypeScript twin trims it'
 );
 
 SELECT * FROM extensions.finish();

@@ -139,12 +139,22 @@ export function acceptedCatalogQuery(source, versions) {
     .update(versions.join("\n"))
     .digest("hex");
   if (
+    versions.length === 544 &&
+    ledgerHash ===
+      "09bec47840b48bdcc9bb927073b6c1efe8652c4d096413d01f55e7e29db7b78f"
+  )
+    // The review fixes replace four owner-internal and service-role
+    // functions of this stack's own and touch no reviewed definition.
+    return acceptedCatalogQuery(source, versions.slice(0, 543));
+  if (
     versions.length === 543 &&
     ledgerHash ===
       "53eb05c8b70ec491e20007b6815cde84e6bce056a668bea94fe6e9b3ecf4a64a"
   )
-    // The officer record editor adds two new owner-internal entrypoints
-    // and changes no reviewed definition, so the catalog is unchanged.
+    // The officer record editor adds two service-role entrypoints of its
+    // own. They are not part of the import-recovery inventory the accepted
+    // catalog tracks and they change no reviewed definition, so the catalog
+    // passes through unchanged.
     return acceptedCatalogQuery(source, versions.slice(0, 542));
   if (
     versions.length === 542 &&
