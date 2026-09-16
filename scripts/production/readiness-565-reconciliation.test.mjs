@@ -8,6 +8,7 @@ import {
   acceptedFingerprints565,
 } from "./app-release-catalog.mjs";
 import { expectedVersions } from "./app-release-checks.mjs";
+import { migrationDigests } from "./migration-digests.mjs";
 import { approvedMigrations } from "./forward-migration-release.mjs";
 import {
   prohibitedDataWrites,
@@ -182,28 +183,29 @@ test("a write cannot hide inside a dollar-quoted block", () => {
   );
 });
 
-test("the shipped migration bytes are the bytes the final capture measured", () => {
-  const capture = new Map(
-    readFileSync(
-      "/private/tmp/csf-readiness-coordination-20260916/final-y-migration-sha256.txt",
-      "utf8",
-    )
-      .trim()
-      .split("\n")
-      .map((line) => line.trim().split(/\s+/u))
-      .map(([digest, name]) => [name, digest]),
-  );
+test("the shipped migration bytes are the bytes the replay measured", () => {
+  const names = readdirSync(`${cwd}supabase/migrations`)
+    .filter((entry) => /^\d{14}_.+\.sql$/u.test(entry))
+    .sort();
+  assert.equal(names.length, ledger.length);
+  // Every migration, not a sample: the manifest and the tree have to agree in
+  // both directions, so neither an edited file nor a stale manifest entry can
+  // pass.
+  assert.deepEqual(names, Object.keys(migrationDigests).sort());
+
   const drifted = [];
-  for (const version of ledger) {
-    const name = readdirSync(`${cwd}supabase/migrations`).find((entry) =>
-      entry.startsWith(`${version}_`),
-    );
+  for (const name of names) {
     const actual = createHash("sha256")
       .update(readFileSync(`${cwd}supabase/migrations/${name}`, "utf8"))
       .digest("hex");
-    if (capture.get(name) !== actual) drifted.push(name);
+    if (migrationDigests[name] !== actual) drifted.push(name);
   }
   // The catalog digests were read off a stack built from exactly these files,
-  // so any drift here means the pins describe a schema nobody replayed.
+  // so any drift means the pins describe a schema nobody replayed.
   assert.deepEqual(drifted, []);
+  assert.ok(
+    Object.values(migrationDigests).every((digest) =>
+      /^[0-9a-f]{64}$/u.test(digest),
+    ),
+  );
 });
