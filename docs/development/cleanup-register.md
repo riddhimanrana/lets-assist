@@ -8124,3 +8124,35 @@ Root `6f182d7b` adds the forward notice identity repair as migration
 mail-delivery acceptance are still pending. Source-text assertions were not
 accepted as proof of finalization; a separate behavioral database regression
 is being added. No Production change accompanied these local commits.
+
+#### September 16, 06:55 PDT verification checkpoint
+
+Candidate 566 remains unaccepted. Root candidate `a6d3c716` and private
+`2ad61b5` passed the combined unit runner: 348 root and 478 plugin test files.
+Formatting, lint and typecheck passed. Root CI `35103764213` passed quality;
+its database/browser job was still running at this checkpoint.
+
+The notice delivery journey AG passed both tests against isolated Mailpit.
+The behavioral notice identity regression passed all 28 assertions against
+566. A separate rollback-only legacy cancellation proof passed: the missing
+source draft remained cancelled on repeated replay, content stayed unchanged,
+and no delivery, dispatch attempt or provider event was created. The earlier
+legacy recovery script aborted its fixture precondition because browser AF
+had already repaired the two recoverable drafts. It is not a passed test.
+
+Full browser AH finished with 153 passes, two failures, four skips and one test
+not run. The report failure matched an inactive retained card as well as the
+active tab. Claude's active-panel locator fix, committed as `4f9d6669`, keeps
+an explicit assertion that only one report card is visible. Focused run AI
+passed all three report journeys. The Sheet decision filter still timed out
+opening the Done option in AH; its cause is unresolved. A passing focused
+report run does not replace full-suite acceptance.
+
+Claude Code reached its session quota during the final report fix and reports
+a 09:50 PDT reset. No alternate coding model replaced the requested Claude
+agents. A clean 566 replay is running serially after the browser checks.
+
+No hosted Development acceptance or Production deployment has occurred.
+The live account-link collision, source attendance reconciliation and meeting
+header mapping remain unresolved. No real correction, cohort deletion,
+decision release or live email was performed by this candidate.
