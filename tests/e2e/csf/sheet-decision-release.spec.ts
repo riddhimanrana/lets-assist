@@ -131,11 +131,14 @@ test.describe("staged decisions before any release", () => {
     await expect(panel(page)).toContainText(
       "Applications are reviewed in the Sheet",
     );
+    // The panel's publication line is gated on the term's `releaseCount`, which
+    // is monotonic and shared by every scenario in this semester. Pinning the
+    // "nothing published yet" wording would therefore hold only until some
+    // earlier test released. Assert that the line is present in whichever of
+    // its two forms is true; the per-applicant rows below carry what this test
+    // actually means.
     await expect(panel(page)).toContainText(
-      "Decisions read from the workbook stay private until you release them.",
-    );
-    await expect(panel(page)).toContainText(
-      "Nothing has been published for this semester yet.",
+      /Decisions read from the workbook stay private until you release them\.|Released \d+ time/,
     );
 
     // Every staged verdict names itself and says it is not published.
@@ -387,13 +390,20 @@ test.describe("release, then a later sync that takes it back", () => {
       rosterRow(page, applicants.byRole.accepted.lastName),
     ).toContainText("Accepted in the Sheet · published");
 
+    // Release creates the membership as `accepted`. `active` is a later
+    // transition the chapter makes for itself, not something publishing does,
+    // so asserting it here would be asserting a state the RPC never produces.
     const accepted = await publishedState(fixture, applicants.byRole.accepted);
     expect(accepted.applicationStatus).toBe("accepted");
-    expect(accepted.membershipStatus).toBe("active");
+    expect(accepted.membershipStatus).toBe("accepted");
 
+    // A rejected applicant who was never a member gets no membership row at
+    // all: the decision only revokes an existing pending or accepted one. Not
+    // `active` would also pass on an accepted membership, which is the outcome
+    // this is meant to rule out.
     const rejected = await publishedState(fixture, applicants.byRole.rejected);
     expect(rejected.applicationStatus).toBe("rejected");
-    expect(rejected.membershipStatus).not.toBe("active");
+    expect(rejected.membershipStatus).toBeNull();
 
     // An uncoloured row is not a verdict, so release leaves it alone.
     const unreviewed = await publishedState(
@@ -439,7 +449,7 @@ test.describe("release, then a later sync that takes it back", () => {
       fixture,
       applicants.byRole.accepted,
     );
-    expect(beforeCorrection.membershipStatus).toBe("active");
+    expect(beforeCorrection.membershipStatus).toBe("accepted");
 
     // The officer recoloured the row red. A released row is corrected straight
     // away, without waiting for another release.
@@ -456,7 +466,9 @@ test.describe("release, then a later sync that takes it back", () => {
       applicants.byRole.accepted,
     );
     expect(afterCorrection.applicationStatus).toBe("rejected");
-    expect(afterCorrection.membershipStatus).not.toBe("active");
+    // Revoked exactly. `not("active")` would have passed on a membership still
+    // sitting at `accepted`, which is the access this correction has to remove.
+    expect(afterCorrection.membershipStatus).toBe("revoked");
 
     await page.setViewportSize(DESKTOP);
     await loginAs(page, "adviser");
@@ -474,7 +486,7 @@ test.describe("release, then a later sync that takes it back", () => {
     expect(
       (await publishedState(fixture, applicants.byRole.accepted))
         .membershipStatus,
-    ).toBe("active");
+    ).toBe("accepted");
 
     // The officer cleared the fill. The chapter's instruction is that this
     // retracts the published outcome rather than leaving a stale acceptance.
@@ -487,7 +499,8 @@ test.describe("release, then a later sync that takes it back", () => {
     ]);
 
     const retracted = await publishedState(fixture, applicants.byRole.accepted);
-    expect(retracted.membershipStatus).not.toBe("active");
+    expect(retracted.applicationStatus).toBe("needs_review");
+    expect(retracted.membershipStatus).toBe("revoked");
   });
 });
 
@@ -576,7 +589,7 @@ test.describe("mobile", () => {
     expect(
       (await publishedState(fixture, applicants.byRole.accepted))
         .membershipStatus,
-    ).toBe("active");
+    ).toBe("accepted");
 
     expectNoBrowserFailures(failures);
   });
