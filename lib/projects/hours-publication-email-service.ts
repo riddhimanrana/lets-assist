@@ -16,6 +16,7 @@ import type {
 } from "@/lib/projects/hours-publication-service";
 import { getAdminClient } from "@/lib/supabase/admin";
 import { sendEmail } from "@/services/email";
+import { resolvePlatformSenderHeader } from "@/services/email-sender-identity";
 
 export type HoursPublicationDeliverySummary = {
   emailsSent: number;
@@ -117,9 +118,7 @@ async function preparePublicationEmailPayload(
   // the first-writer-wins snapshot without rendering today's template or
   // reading today's deployment configuration.
   if (!delivery.payloadPrepared) {
-    sender =
-      process.env.EMAIL_FROM?.trim() ||
-      "Let's Assist <projects@notifications.lets-assist.com>";
+    sender = resolvePlatformSenderHeader();
     subject = `${isAutoPublished ? "[Auto-Published] " : ""}Your volunteer certificate for ${publication.projectTitle} is ready!`;
     html = await render(
       React.createElement(CertificatePublished, {

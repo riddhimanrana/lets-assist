@@ -289,7 +289,7 @@ SELECT extensions.is(
     FROM plugin_data.csf_communication_campaigns AS campaign
     WHERE campaign.source_announcement_id = 'e9400000-0000-4000-8000-000000000001'
   ),
-  'draft|broadcast|csf@notifications.lets-assist.com|term_members|true',
+  'draft|broadcast|projects@notifications.lets-assist.com|term_members|true',
   'the draft derives sender and campaign identity but is not dispatch-ready'
 );
 
