@@ -135,9 +135,16 @@ async function runBuildWindow() {
     announce("RUNNER-READY");
     // A stand-in for `next build`: a plain child in this process group, exactly
     // like the real build, so a group signal ends it the same way.
-    spawnSync(process.execPath, ["-e", "setTimeout(() => {}, 30000)"], {
-      stdio: "ignore",
-    });
+    const build = spawnSync(
+      process.execPath,
+      ["-e", "setTimeout(() => {}, 30000)"],
+      {
+        stdio: "ignore",
+      },
+    );
+    if (build.status !== 0) {
+      throw new Error(`The stand-in build exited with code ${build.status}.`);
+    }
     await supervisor.checkpoint();
     announce("BUILD-COMPLETED");
   } catch (error) {
