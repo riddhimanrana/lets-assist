@@ -194,7 +194,12 @@ test.afterAll(async () => {
   await restoreAppReview(fixture);
 });
 
-test.beforeEach(async (_fixtures, testInfo) => {
+// Playwright reads the hook's fixture list off the first parameter and rejects
+// anything that is not a destructuring pattern, so a named placeholder fails at
+// discovery time. The empty pattern is the documented way to take `testInfo`
+// while requesting no fixtures; `no-empty-pattern` is off for this line only.
+// eslint-disable-next-line no-empty-pattern
+test.beforeEach(async ({}, testInfo) => {
   applicants = await resetSheetDecisionFixture(fixture, testInfo.title);
   await linkApplicantAccounts(fixture, applicants, password);
 });
