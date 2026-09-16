@@ -1,128 +1,111 @@
 -- Which lanes announce a profile change, and which stay quiet.
 --
--- The risk this pins is asymmetric. Suppression reaching too far is silent: a
--- member simply never hears that their record was corrected, and nothing fails.
--- So the tests below state both halves, and the second half matters more than
--- the first.
+-- The risk here is asymmetric. Suppression reaching too far is silent: a member
+-- simply never hears that their record was corrected, and nothing fails. So
+-- both halves are stated, and the half that says a staff edit still announces
+-- matters more than the half that says an import does not.
 BEGIN;
 CREATE EXTENSION IF NOT EXISTS pgtap WITH SCHEMA extensions;
-SELECT extensions.plan(16);
+SELECT extensions.plan(23);
 
 -- ---------------------------------------------------------------------------
--- The bulk lanes carry the switch.
+-- No parameter privilege was taken, and none is needed.
 -- ---------------------------------------------------------------------------
-SELECT extensions.ok(
-  (SELECT bool_and(p.proconfig @> ARRAY['app.csf_suppress_notices=on']::text[])
-   FROM pg_proc AS p
-   JOIN pg_namespace AS n ON n.oid = p.pronamespace
-   WHERE n.nspname = 'plugin_data' AND p.proname = expected.name),
-  format('%s suppresses personal notices', expected.name)
-)
-FROM (VALUES
-  ('csf_commit_import_row_for_attempt'),
-  ('csf_commit_import_row_for_attempt_identity_base'),
-  ('csf_fill_application_profile_contacts'),
-  ('csf_prepare_automatic_application_profiles'),
-  ('csf_import_class_history_row_identity_base')
-) AS expected(name);
-
--- Every versioned class-history entry point, not just the one that exists
--- today. A new version added without the switch is the defect returning.
-SELECT extensions.ok(
-  (SELECT count(*) > 0 AND bool_and(
-     p.proconfig @> ARRAY['app.csf_suppress_notices=on']::text[])
-   FROM pg_proc AS p
-   JOIN pg_namespace AS n ON n.oid = p.pronamespace
-   WHERE n.nspname = 'plugin_data'
-     AND p.proname LIKE 'csf\_import\_class\_history\_row\_v%'),
-  'every versioned class-history row entry point suppresses personal notices'
+-- The first attempt at this attached the switch with ALTER FUNCTION ... SET,
+-- which needs SET privilege on the parameter and failed the replay with 42501.
+-- The fix must not have quietly acquired that privilege instead.
+SELECT extensions.is(
+  (SELECT count(*)::int FROM pg_parameter_acl
+   WHERE parname = 'app.csf_suppress_notices'),
+  0,
+  'no ACL was created for the suppression parameter'
 );
 
--- Attaching the switch must not have disturbed the search path these functions
--- already carried. Both settings have to survive together.
-SELECT extensions.ok(
-  (SELECT bool_and(p.proconfig @> ARRAY['search_path=""']::text[])
-   FROM pg_proc AS p
+-- And nothing persisted the parameter onto a function, a role, or the database.
+SELECT extensions.is(
+  (SELECT count(*)::int FROM pg_proc AS p
    JOIN pg_namespace AS n ON n.oid = p.pronamespace
    WHERE n.nspname = 'plugin_data'
-     AND (p.proname IN (
-       'csf_commit_import_row_for_attempt',
-       'csf_commit_import_row_for_attempt_identity_base',
-       'csf_fill_application_profile_contacts',
-       'csf_prepare_automatic_application_profiles',
-       'csf_import_class_history_row_identity_base')
-       OR p.proname LIKE 'csf\_import\_class\_history\_row\_v%')),
-  'the suppressed lanes keep their empty search path'
+     AND EXISTS (
+       SELECT 1 FROM unnest(coalesce(p.proconfig, ARRAY[]::text[])) AS setting
+       WHERE setting LIKE 'app.csf\_suppress\_notices=%'
+     )),
+  0,
+  'no function carries the parameter as a persisted setting'
+);
+
+SELECT extensions.is(
+  (SELECT count(*)::int FROM pg_db_role_setting
+   WHERE EXISTS (
+     SELECT 1 FROM unnest(coalesce(setconfig, ARRAY[]::text[])) AS setting
+     WHERE setting LIKE 'app.csf\_suppress\_notices=%'
+   )),
+  0,
+  'no role or database default carries the parameter'
 );
 
 -- ---------------------------------------------------------------------------
--- A staff edit still announces.
+-- The reader's own shape and reach.
 -- ---------------------------------------------------------------------------
--- This is the half that fails quietly if it is wrong, so it is stated by name.
--- An officer correcting a current member's record is precisely what a personal
--- notice exists for.
 SELECT extensions.ok(
-  (SELECT bool_and(
-     p.proconfig IS NULL
-     OR NOT (p.proconfig @> ARRAY['app.csf_suppress_notices=on']::text[]))
+  (SELECT p.prosecdef
+     AND p.provolatile = 's'
+     AND p.prolang = (SELECT oid FROM pg_language WHERE lanname = 'plpgsql')
+     AND p.proconfig @> ARRAY['search_path=""']::text[]
    FROM pg_proc AS p
    JOIN pg_namespace AS n ON n.oid = p.pronamespace
-   WHERE n.nspname = 'plugin_data' AND p.proname = expected.name),
-  format('%s still announces to the member', expected.name)
-)
-FROM (VALUES
-  ('csf_review_point_submission_request'),
-  ('csf_review_point_appeal_request')
-) AS expected(name);
+   WHERE n.nspname = 'plugin_data'
+     AND p.proname = 'csf_publication_notices_suppressed'),
+  'the reader is a stable plpgsql definer with an empty search path'
+);
 
--- Nothing in the decision lane carries it either, because nothing in the
--- decision lane queues a personal notice to begin with. A function there that
--- suddenly needed suppression would mean one had started to.
+-- CREATE OR REPLACE keeps an existing ACL, so a replacement that silently
+-- widened one would not be obvious. This states the whole reviewed posture.
+SELECT extensions.ok(
+  NOT has_function_privilege(role_name,
+    to_regprocedure('plugin_data.csf_publication_notices_suppressed()'), 'EXECUTE'),
+  format('%s cannot execute the suppression reader', role_name)
+)
+FROM (VALUES ('anon'), ('authenticated'), ('service_role')) AS expected(role_name);
+
+SELECT extensions.ok(
+  has_function_privilege('postgres',
+    to_regprocedure('plugin_data.csf_publication_notices_suppressed()'), 'EXECUTE'),
+  'the owner can still execute the suppression reader'
+);
+
+-- PUBLIC is a pseudo-role and cannot be asked with has_function_privilege, so
+-- the grant list is read directly. A PUBLIC entry would make every other
+-- revocation above meaningless.
 SELECT extensions.is(
   (SELECT count(*)::int
-   FROM pg_proc AS p
-   JOIN pg_namespace AS n ON n.oid = p.pronamespace
-   WHERE n.nspname = 'plugin_data'
-     AND p.proconfig @> ARRAY['app.csf_suppress_notices=on']::text[]
-     AND (p.proname LIKE '%decision%' OR p.proname LIKE '%release%')),
+   FROM pg_proc AS p, aclexplode(coalesce(p.proacl, acldefault('f', p.proowner))) AS a
+   WHERE p.oid IN (
+     to_regprocedure('plugin_data.csf_publication_notices_suppressed()'),
+     to_regprocedure('plugin_data.csf_suppress_publication_notices()'))
+     AND a.grantee = 0),
   0,
-  'no decision or release function suppresses notices, because none queues one'
+  'neither suppression function is granted to PUBLIC'
 );
 
--- ---------------------------------------------------------------------------
--- The switch stays narrow.
--- ---------------------------------------------------------------------------
--- Suppression is attached to import and reconciliation lanes only. A count that
--- has grown past those is the thing to look at, not to re-baseline.
+-- The switch entry point keeps its own reviewed posture too: the lanes that use
+-- it run as the service role.
 SELECT extensions.ok(
-  (SELECT bool_and(
-     p.proname LIKE 'csf\_import\_%'
-     OR p.proname LIKE 'csf\_commit\_import\_%'
-     OR p.proname LIKE 'csf\_prepare\_automatic\_%'
-     OR p.proname LIKE 'csf\_fill\_application\_%'
-     OR p.proname LIKE 'csf\_source\_%'
-     OR p.proname LIKE 'csf\_retention\_%')
-   FROM pg_proc AS p
-   JOIN pg_namespace AS n ON n.oid = p.pronamespace
-   WHERE n.nspname = 'plugin_data'
-     AND p.proconfig @> ARRAY['app.csf_suppress_notices=on']::text[]),
-  'only import, reconciliation and retention lanes carry the switch'
-);
+  NOT has_function_privilege(role_name,
+    to_regprocedure('plugin_data.csf_suppress_publication_notices()'), 'EXECUTE'),
+  format('%s cannot switch notices off', role_name)
+)
+FROM (VALUES ('anon'), ('authenticated')) AS expected(role_name);
 
--- ---------------------------------------------------------------------------
--- The reader the triggers consult is unchanged and still transaction-scoped.
--- ---------------------------------------------------------------------------
 SELECT extensions.ok(
-  (SELECT bool_and(strpos(pg_get_functiondef(
-     to_regprocedure('plugin_data.csf_publication_notices_suppressed()')
-   ), needle) > 0)
-   FROM unnest(ARRAY['current_setting', 'app.csf_suppress_notices']) AS needle),
-  'the notice trigger still reads the same switch'
+  has_function_privilege('service_role',
+    to_regprocedure('plugin_data.csf_suppress_publication_notices()'), 'EXECUTE'),
+  'a lane running as the service role can switch notices off'
 );
 
--- Read with the missing_ok form. A database where nothing has ever set the
--- switch must answer "not suppressed" rather than raising, or an ordinary
--- officer edit would fail instead of announcing.
+-- ---------------------------------------------------------------------------
+-- The explicit switch still works, and still ends.
+-- ---------------------------------------------------------------------------
 SELECT extensions.ok(
   NOT plugin_data.csf_publication_notices_suppressed(),
   'an ordinary transaction is not suppressed'
@@ -137,8 +120,6 @@ SELECT extensions.ok(
   'a transaction that set the switch is suppressed'
 );
 
--- And it goes back off, so one suppressed import cannot silence the rest of a
--- session.
 SELECT set_config('app.csf_suppress_notices', '', true);
 
 SELECT extensions.ok(
@@ -146,12 +127,100 @@ SELECT extensions.ok(
   'clearing the switch restores announcing'
 );
 
--- And the personal notice recorder still consults it before writing anything.
+-- ---------------------------------------------------------------------------
+-- The call stack recognises a bulk lane, and only a bulk lane.
+-- ---------------------------------------------------------------------------
+-- Fixtures would need a whole import to drive the real lanes, so the mechanism
+-- is exercised through functions named exactly as those lanes are. What is
+-- under test is the recogniser, not the import.
+CREATE FUNCTION pg_temp.csf_import_class_history_row_v99()
+RETURNS boolean LANGUAGE plpgsql AS $$
+BEGIN
+  RETURN plugin_data.csf_publication_notices_suppressed();
+END;
+$$;
+
+CREATE FUNCTION pg_temp.csf_commit_import_row_for_attempt_identity_base()
+RETURNS boolean LANGUAGE plpgsql AS $$
+BEGIN
+  RETURN plugin_data.csf_publication_notices_suppressed();
+END;
+$$;
+
+CREATE FUNCTION pg_temp.csf_review_point_submission_request()
+RETURNS boolean LANGUAGE plpgsql AS $$
+BEGIN
+  RETURN plugin_data.csf_publication_notices_suppressed();
+END;
+$$;
+
+CREATE FUNCTION pg_temp.csf_release_application_decisions()
+RETURNS boolean LANGUAGE plpgsql AS $$
+BEGIN
+  RETURN plugin_data.csf_publication_notices_suppressed();
+END;
+$$;
+
+SELECT extensions.ok(
+  pg_temp.csf_import_class_history_row_v99(),
+  'a class-history import lane on the stack suppresses, including a later version'
+);
+
+SELECT extensions.ok(
+  pg_temp.csf_commit_import_row_for_attempt_identity_base(),
+  'the application import commit lane and its identity base suppress'
+);
+
+-- The half that fails quietly if it is wrong.
+SELECT extensions.ok(
+  NOT pg_temp.csf_review_point_submission_request(),
+  'an officer reviewing a submission still announces to the member'
+);
+
+SELECT extensions.ok(
+  NOT pg_temp.csf_release_application_decisions(),
+  'a decision release still announces nothing and suppresses nothing'
+);
+
+-- A bare SQL caller is not a lane either, so nothing is suppressed by default.
+SELECT extensions.ok(
+  NOT plugin_data.csf_publication_notices_suppressed(),
+  'a plain caller is never treated as an import'
+);
+
+-- ---------------------------------------------------------------------------
+-- The recogniser names the lanes it claims to, and no officer surface.
+-- ---------------------------------------------------------------------------
+SELECT extensions.ok(
+  (SELECT bool_and(strpos(pg_get_functiondef(
+     to_regprocedure('plugin_data.csf_publication_notices_suppressed()')
+   ), needle) > 0)
+   FROM unnest(ARRAY[
+     'csf_commit_import_row_for_attempt',
+     'csf_fill_application_profile_contacts',
+     'csf_prepare_automatic_application_profiles',
+     'csf_import_class_history_row',
+     'PG_CONTEXT'
+   ]) AS needle),
+  'the recogniser covers every bulk lane this migration claims'
+);
+
+SELECT extensions.ok(
+  (SELECT bool_and(strpos(pg_get_functiondef(
+     to_regprocedure('plugin_data.csf_publication_notices_suppressed()')
+   ), needle) = 0)
+   FROM unnest(ARRAY[
+     'csf_review_point', 'decision', 'release', 'sync'
+   ]) AS needle),
+  'no officer review, decision or release surface is in the lane list'
+);
+
+-- And the recorder still asks before it writes anything.
 SELECT extensions.ok(
   strpos(pg_get_functiondef(to_regprocedure(
     'plugin_data.csf_record_personal_notification(uuid,text,uuid,uuid,text)')
   ), 'csf_publication_notices_suppressed()') > 0,
-  'the personal notice recorder still checks the switch'
+  'the personal notice recorder still checks before recording'
 );
 
 SELECT extensions.finish();
