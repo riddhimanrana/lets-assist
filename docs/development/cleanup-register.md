@@ -2715,17 +2715,25 @@ Production records, decisions, source workbooks and email delivery remain unchan
 | CSF-READINESS-04 | P1 | The pending attendance fill parser ignores a non-A range origin and cannot distinguish effective display formatting from an officer-entered fill. | Offset and formatting-provenance regressions, SQL/TypeScript mark parity, export round-trip checks. |
 | CSF-READINESS-05 | P2 | The officer-format export changes need a stable acceptance hash when meetings append, plus source/destination separation. | Header append acceptance, source overwrite refusal and separate output destination walkthrough. |
 
-The read-only source audit covers 897 active roster profiles and 1,910 available
-semester source rows. Its private report retains source references and proposed
-corrections outside Git. Attendance fill deltas, unsupported credited marks,
-original/copy drift and ambiguous identities remain separate unresolved categories.
+The read-only source audit accounts for 897 active roster profiles and resolves
+1,910 semester source rows through stored per-cell source evidence. It compares
+1,904 rows and holds six rows for duplicate or same-name review. The private
+report retains source references and proposed corrections outside Git. It flags
+28 unsupported marks credited as attendance and proposes 2,470 additions from
+officer-entered fills, with no existing attendance overwritten. It holds 73
+other fills and five original/copy differences for review. Of the roster,
+163 profiles have no compared semester history; missing evidence is not an error
+or permission to invent credit.
 No data correction is authorized by this report. The late application workbook
 exists but lacks an app source registration. A current source read found 493
 regular responses and 3 late responses, with two green regular rows.
 
-Local integration verification so far: 8 unsubscribe action tests and 17 activity
-action tests pass, including lost-response retries. The integrated database and
-browser gates are pending. Hosted Development acceptance run `35057125551`
+Local integration verification so far: TypeScript and migration filename checks
+pass. The first database run replayed the migrations and ran 8,793 assertions
+across 332 files. It failed on two incomplete fixtures and the new staging
+table's missing merge-reference policy. Private tests found two retry-result
+expectations needing updates, and lint found an 814-line service after merging.
+These gates and browser acceptance remain open. Hosted Development run `35057125551`
 passed for baseline `1f91d3b1`; it does not verify this readiness candidate.
 
 ### Operational workflow audit, September 15, 2026
