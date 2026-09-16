@@ -396,7 +396,7 @@ export const approvedMigrations = [
   ],
   [
     "20260917140000_csf_import_personal_notice_suppression",
-    "cad13e1d22c50dc4890ad99731b134fde159be5fb9f6a3c3c4bffeb96536ac01",
+    "c9167f3e815b81e849d183e3e3ffb768fc02ff3581ed10a7a703d81fdec7cf9f",
   ],
   [
     "20260917150000_csf_course_retention_coverage",

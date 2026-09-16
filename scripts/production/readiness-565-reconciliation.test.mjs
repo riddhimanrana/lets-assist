@@ -203,12 +203,7 @@ test("the shipped migration bytes are the bytes the final capture measured", () 
       .digest("hex");
     if (capture.get(name) !== actual) drifted.push(name);
   }
-  // 1400 is still being revised by the communications lane. Its final bytes are
-  // the ones the capture measured; this tree has the earlier revision, so its
-  // entry in the approved tail has to be repinned when the final file lands.
-  // Nothing else may drift: the catalog digests were read off a stack built
-  // from exactly these files.
-  assert.deepEqual(drifted, [
-    "20260917140000_csf_import_personal_notice_suppression.sql",
-  ]);
+  // The catalog digests were read off a stack built from exactly these files,
+  // so any drift here means the pins describe a schema nobody replayed.
+  assert.deepEqual(drifted, []);
 });
