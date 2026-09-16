@@ -28,10 +28,15 @@ import { getCsfIsolatedSupabaseEnv } from "../../../scripts/local-dev/dv-local-e
 /** Recognisable in the roster and unique to this spec. */
 export const SHEET_FIXTURE_PREFIX = "E2E Sheet Review";
 
+/** The tab and range every mapping, evidence entry, and staged row agrees on. */
+export const SHEET_FIXTURE_TAB = "Form Responses 1";
+export const SHEET_FIXTURE_RANGE = "A1:AZ600";
+
 const ID = (suffix: string) => `e2e5ee70-0000-4000-8000-0000000000${suffix}`;
 
 export const SHEET_FIXTURE_IDS = {
   source: ID("01"),
+  priorTerm: ID("02"),
   acceptedProfile: ID("10"),
   rejectedProfile: ID("11"),
   explainedProfile: ID("12"),
@@ -199,30 +204,32 @@ export async function setReviewSource(
  * never fetched: the Sync button's own failure against it is part of the test.
  */
 async function upsertSource(fixture: SheetDecisionFixture) {
-  const plugin = fixture.admin.schema("plugin_data");
+  // `csf_sheet_sources` grants the server role SELECT and nothing else: every
+  // write goes through an owned SECURITY DEFINER RPC. A fixture is not a reason
+  // to widen that, so this registers the source the way the product does.
   checked(
-    await plugin.from("csf_sheet_sources").upsert(
-      {
-        id: SHEET_FIXTURE_IDS.source,
-        organization_id: fixture.organizationId,
-        cohort_id: null,
+    await rpc(fixture, "csf_register_sheet_source", {
+      p_organization_id: fixture.organizationId,
+      p_actor_user_id: fixture.adviserUserId,
+      p_source_id: SHEET_FIXTURE_IDS.source,
+      p_source_type: "application_responses",
+      p_registration: {
         title: `${SHEET_FIXTURE_PREFIX} responses`,
         provider: "google_sheets",
-        source_type: "application_responses",
-        spreadsheet_id: "e2e-fictional-spreadsheet-id",
-        drive_file_id: "e2e-fictional-drive-file-id",
-        sync_mode: "manual",
-        tab_mappings: [
+        cohortId: null,
+        spreadsheetId: "e2e-fictional-spreadsheet-id",
+        driveFileId: "e2e-fictional-drive-file-id",
+        syncMode: "manual",
+        tabMappings: [
           {
-            tabName: "Form Responses 1",
-            rangeA1: "A1:AZ600",
+            tabName: SHEET_FIXTURE_TAB,
+            rangeA1: SHEET_FIXTURE_RANGE,
             headerRow: 1,
           },
         ],
         settings: { sourceKind: "application_responses" },
       },
-      { onConflict: "id" },
-    ),
+    }),
   );
 
   // The decision column mapping lives in its own table now, and an unconfigured
@@ -240,9 +247,25 @@ async function upsertSource(fixture: SheetDecisionFixture) {
         decisionColumns: [7],
         reasonColumns: [8],
         readsCellNote: true,
-        identityColumns: { email: 2, submittedAt: 1 },
-        scope: { decision: "row" },
-        colors: {},
+        // The response identity the sync matches on, never the student's
+        // editable account contact. `responseId` is the column the import
+        // froze onto `csf_term_applications.google_form_response_id`.
+        identityColumns: { email: 2, submittedAt: 1, responseId: 3 },
+        // The frame the column numbers above are relative to. `rangeA1` is the
+        // repository-wide spelling, the same one `tabMappings` uses.
+        scope: {
+          sheetTabName: SHEET_FIXTURE_TAB,
+          rangeA1: SHEET_FIXTURE_RANGE,
+          headerRow: 1,
+        },
+        // Explicit allowlists, including the fills that mean nothing: the live
+        // workbook bands its rows, and banding is not a verdict.
+        colors: {
+          accepted: ["#d9ead3"],
+          rejected: ["#f4cccc"],
+          rejectedWithExplanation: ["#fff2cc"],
+          ignoredFills: ["#f8f9fa", "#ffffff"],
+        },
       },
       p_expected_version: existingVersion,
     }),
@@ -418,14 +441,14 @@ export async function stageDecisions(
       p_evidence: [
         {
           sourceId: SHEET_FIXTURE_IDS.source,
-          sheetTabName: "Form Responses 1",
+          sheetTabName: SHEET_FIXTURE_TAB,
           readStatus: "read",
           message: null,
           spreadsheetFileId: "e2e-fictional-drive-file-id",
           spreadsheetTitle: `${SHEET_FIXTURE_PREFIX} responses`,
           providerVersion: `e2e-${readAt}`,
           sheetTabId: 1234567,
-          requestedRange: "A1:AZ600",
+          requestedRange: SHEET_FIXTURE_RANGE,
           contentHash: `e2e-content-${readAt}`,
           mappingVersion,
           decisionColumns: [7],
@@ -435,7 +458,7 @@ export async function stageDecisions(
       ],
       p_rows: rows.map((row) => ({
         sourceId: SHEET_FIXTURE_IDS.source,
-        sheetTabName: "Form Responses 1",
+        sheetTabName: SHEET_FIXTURE_TAB,
         observedRowNumber: row.applicant.rowNumber,
         applicationId: row.applicant.applicationId,
         importRowId: null,
@@ -639,34 +662,56 @@ export async function seedPriorSemesterRecord(
   fixture: SheetDecisionFixture,
   key: LinkedApplicantKey,
 ) {
-  const plugin = fixture.admin.schema("plugin_data");
-  const priorTerm = checked(
-    await plugin
-      .from("csf_terms")
-      .select("id")
-      .eq("organization_id", fixture.organizationId)
-      .neq("id", fixture.termId)
-      .order("starts_on", { ascending: true })
-      .limit(1)
-      .maybeSingle(),
-  ) as { id: string } | null;
-  if (!priorTerm) return null;
-
+  const priorTermId = await ensurePriorTerm(fixture);
   checked(
-    await plugin.from("csf_term_memberships").upsert(
+    await fixture.admin
+      .schema("plugin_data")
+      .from("csf_term_memberships")
+      .upsert(
+        {
+          organization_id: fixture.organizationId,
+          term_id: priorTermId,
+          profile_id: APPLICANTS[key].profileId,
+          cohort_id: fixture.cohortId,
+          // A completed outcome is never revoked by a later sync, which is the
+          // invariant this record also guards.
+          status: "completed",
+          completed_at: "2025-12-19T12:00:00-08:00",
+        },
+        { onConflict: "organization_id,term_id,profile_id" },
+      ),
+  );
+  return priorTermId;
+}
+
+/**
+ * The semester the applicants already finished.
+ *
+ * The isolated seed is not guaranteed to carry one, and skipping the history
+ * journeys when it does not would quietly stop testing the rule they exist for.
+ * So this spec owns a historical term of its own: past dates, not current, and
+ * deliberately left `open` because a `closed` term needs a real closure
+ * snapshot and none of these journeys are about term close.
+ */
+async function ensurePriorTerm(fixture: SheetDecisionFixture) {
+  const plugin = fixture.admin.schema("plugin_data");
+  checked(
+    await plugin.from("csf_terms").upsert(
       {
+        id: SHEET_FIXTURE_IDS.priorTerm,
         organization_id: fixture.organizationId,
-        term_id: priorTerm.id,
-        profile_id: APPLICANTS[key].profileId,
-        cohort_id: fixture.cohortId,
-        // A completed outcome is never revoked by a later sync, which is the
-        // invariant this record also guards.
-        status: "completed",
+        code: "E2EP1",
+        label: `${SHEET_FIXTURE_PREFIX} prior semester`,
+        school_year: "2025-2026",
+        semester: "fall",
+        starts_at: "2025-08-18",
+        ends_at: "2025-12-19",
+        is_current: false,
       },
-      { onConflict: "organization_id,term_id,profile_id" },
+      { onConflict: "id" },
     ),
   );
-  return priorTerm.id;
+  return SHEET_FIXTURE_IDS.priorTerm;
 }
 
 /**

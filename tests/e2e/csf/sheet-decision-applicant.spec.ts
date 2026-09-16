@@ -187,11 +187,7 @@ test.describe("before any release", () => {
     page,
   }) => {
     const failures = watchBrowserFailures(page);
-    const priorTermId = await seedPriorSemesterRecord(fixture, "explained");
-    test.skip(
-      priorTermId === null,
-      "The fixture chapter has only one semester, so there is no history to read.",
-    );
+    await seedPriorSemesterRecord(fixture, "explained");
     await stageTheOutcomes();
     await loginWithEmail(page, APPLICANT_ACCOUNTS.explained);
 
@@ -339,10 +335,6 @@ test.describe("stale access after a later sync", () => {
 
   test("a completed prior semester survives a current-term revocation", async () => {
     const priorTermId = await seedPriorSemesterRecord(fixture, "accepted");
-    test.skip(
-      priorTermId === null,
-      "The fixture chapter has only one semester, so there is no history to keep.",
-    );
     await stageTheOutcomes();
     await releaseDecisions(fixture);
     await stageDecisions(fixture, [
@@ -358,7 +350,7 @@ test.describe("stale access after a later sync", () => {
       .from("csf_term_memberships")
       .select("status")
       .eq("organization_id", fixture.organizationId)
-      .eq("term_id", priorTermId!)
+      .eq("term_id", priorTermId)
       .eq("profile_id", APPLICANTS.accepted.profileId)
       .maybeSingle();
     if (prior.error) throw new Error(prior.error.message);
@@ -368,48 +360,89 @@ test.describe("stale access after a later sync", () => {
 });
 
 /**
- * Guards the decisions lane owns. These are written as acceptance rather than
- * deleted, so the requirement is in the repository and turning it on is a
- * one-line change once the feature lands. `workflows-status.md` carries the
- * exact UI needs.
+ * The guards this lane implemented, against the copy the member surfaces
+ * actually render.
+ *
+ * `decisionCopy` in `CsfMemberWorkspaceModel` supplies the status label and
+ * `CsfMemberWorkspaceViews` prefers the application's own `decision_reason` as
+ * the row detail, so a released yellow rejection reads as "Application not
+ * approved" with the officer's words underneath. `CsfMemberSubmissionsView`
+ * gates on `termMembership.status` being accepted or active, and says so.
  */
-test.describe("awaiting the decisions lane", () => {
-  test.fixme("the yellow applicant reads the officer explanation after release", async ({
+test.describe("member guards", () => {
+  test("the yellow applicant reads the officer explanation after release", async ({
     page,
   }) => {
+    const failures = watchBrowserFailures(page);
     await stageTheOutcomes();
     await releaseDecisions(fixture);
 
     await loginWithEmail(page, APPLICANT_ACCOUNTS.explained);
     await page.goto(PROFILE, { waitUntil: "domcontentloaded" });
-    // Needs a member-facing published-explanation surface. Nothing renders
-    // the staged reason today, before or after release.
+
+    // A yellow mark is a rejection *with* an explanation. Once the chapter
+    // publishes it, the student is owed those words.
+    await expect(page.getByText("Application not approved")).toBeVisible();
     await expect(page.getByText(EXPLAINED_REASON)).toBeVisible();
+
+    expectNoBrowserFailures(failures);
   });
 
-  test.fixme("member tools refuse before the term is released", async ({
+  test("a red rejection publishes without inventing an explanation", async ({
     page,
   }) => {
-    await stageTheOutcomes();
-    await loginWithEmail(page, APPLICANT_ACCOUNTS.accepted);
-
-    await page.goto(SUBMISSIONS, { waitUntil: "domcontentloaded" });
-    // Needs the member surfaces to consume `csf_member_term_review_state`
-    // and gate current-term tools on `memberToolsAvailable`.
-    await expect(
-      page.getByText(/decisions for this semester have not been released/i),
-    ).toBeVisible();
-  });
-
-  test.fixme("a stale submission attempt is refused after revocation", async ({
-    page,
-  }) => {
+    const failures = watchBrowserFailures(page);
     await stageTheOutcomes();
     await releaseDecisions(fixture);
+
+    await loginWithEmail(page, APPLICANT_ACCOUNTS.rejected);
+    await page.goto(PROFILE, { waitUntil: "domcontentloaded" });
+
+    await expect(page.getByText("Application not approved")).toBeVisible();
+    // The yellow applicant's words belong to the yellow applicant.
+    expect(await page.content()).not.toContain(EXPLAINED_REASON);
+
+    expectNoBrowserFailures(failures);
+  });
+
+  test("member tools refuse before the term is released", async ({ page }) => {
+    const failures = watchBrowserFailures(page);
+    await stageTheOutcomes();
+    await loginWithEmail(page, APPLICANT_ACCOUNTS.accepted);
+
+    await page.goto(SUBMISSIONS, { waitUntil: "domcontentloaded" });
+    await expect(
+      page.getByText(
+        "Your current semester membership must be approved before you can submit points.",
+      ),
+    ).toBeVisible();
+    // A staged acceptance is not an acceptance, so there is nothing to click.
+    await expect(
+      page.getByRole("button", { name: "Submit points" }),
+    ).toHaveCount(0);
+
+    expectNoBrowserFailures(failures);
+  });
+
+  test("a stale page loses its tools once the officer recolours the row", async ({
+    page,
+  }) => {
+    const failures = watchBrowserFailures(page);
+    await stageTheOutcomes();
+    await releaseDecisions(fixture);
+
     await loginWithEmail(page, APPLICANT_ACCOUNTS.accepted);
     await page.goto(SUBMISSIONS, { waitUntil: "domcontentloaded" });
+    // Released and accepted: the refusal copy is absent, so the transition
+    // below is what this test is actually watching.
+    await expect(
+      page.getByText(
+        "Your current semester membership must be approved before you can submit points.",
+      ),
+    ).toHaveCount(0);
 
-    // The member has the page open when the officer recolours the row.
+    // The applicant keeps the page open while the officer recolours the row
+    // red. The sync applies it to the already-published row immediately.
     await stageDecisions(fixture, [
       {
         applicant: APPLICANTS.accepted,
@@ -417,15 +450,24 @@ test.describe("awaiting the decisions lane", () => {
         observedColor: "#f4cccc",
       },
     ]);
+    expect((await publishedState(fixture, APPLICANTS.accepted)).membershipStatus).toBe(
+      "revoked",
+    );
 
-    // Needs the submission action to revalidate membership at write time and
-    // refuse with a named reason rather than accepting the stale page.
-    await page
-      .getByRole("button", { name: /submit points/i })
-      .first()
-      .click();
+    // Whatever the stale page still shows, the next thing the member asks the
+    // server for has to refuse. The action layer refuses a stale post too;
+    // that is covered by `member-rejected-term-guard.test.ts` in the plugin,
+    // which drives the real submit action with a revoked membership.
+    await page.goto(SUBMISSIONS, { waitUntil: "domcontentloaded" });
     await expect(
-      page.getByText(/membership.*no longer active|not a current member/i),
+      page.getByText(
+        "Your current semester membership must be approved before you can submit points.",
+      ),
     ).toBeVisible();
+    await expect(
+      page.getByRole("button", { name: "Submit points" }),
+    ).toHaveCount(0);
+
+    expectNoBrowserFailures(failures);
   });
 });
