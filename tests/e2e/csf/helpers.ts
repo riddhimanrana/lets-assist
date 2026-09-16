@@ -98,7 +98,22 @@ export async function loginAs(
   actor: LocalActor,
   redirectPath = CSF_ORGANIZATION_PATH,
 ) {
-  const account = localActors[actor];
+  return loginWithEmail(page, localActors[actor].email, redirectPath);
+}
+
+/**
+ * Sign in as a fictional account that is not one of the named fixture actors.
+ *
+ * Specs that create their own synthetic applicants need this: the account does
+ * not exist in `localActors` and cannot, because it is created at run time. The
+ * password still comes from the run-scoped fixture marker, so there is no way
+ * to point this at a real account.
+ */
+export async function loginWithEmail(
+  page: Page,
+  accountEmail: string,
+  redirectPath = CSF_ORGANIZATION_PATH,
+) {
   await page.goto(`/login?redirect=${encodeURIComponent(redirectPath)}`);
   const main = page.getByRole("main");
   // The server-rendered form is inert until the client has hydrated. Wait for
@@ -110,9 +125,9 @@ export async function loginAs(
   ).toBeVisible();
   const email = main.getByRole("textbox", { name: "Email" });
   const password = main.getByLabel("Password");
-  await email.fill(account.email);
+  await email.fill(accountEmail);
   await password.fill(localTestPassword());
-  await expect(email).toHaveValue(account.email);
+  await expect(email).toHaveValue(accountEmail);
   const expectedUrl = new URL(redirectPath, page.url());
   await main.getByRole("button", { name: "Login", exact: true }).click();
   await page.waitForURL(

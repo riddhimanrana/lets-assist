@@ -95,3 +95,48 @@ test("modal predicate also fires on the connect route in CSF context", () => {
     false,
   );
 });
+
+test("waiting on staff settles the CSF step too, so account setup still finishes", () => {
+  // Most students now wait: a class code no longer creates a record. Gating
+  // on connection alone would leave a brand new account without a username.
+  const waiting = { ...csfContext, connectedParam: null, reviewParam: "1" };
+  assert.equal(isCsfConnectOnboardingContext(waiting), true);
+  assert.equal(
+    shouldShowOnboardingModal({
+      onboardingCompleted: false,
+      suppressOnboardingModal: false,
+      suppressOnboardingAfterReturn: false,
+      isHomeRoute: false,
+      isCsfConnectContext: isCsfConnectOnboardingContext(waiting),
+    }),
+    true,
+  );
+
+  // Mid-claim, before either signal, the modal still must not interrupt.
+  assert.equal(
+    isCsfConnectOnboardingContext({
+      ...csfContext,
+      connectedParam: null,
+      reviewParam: null,
+    }),
+    false,
+  );
+  assert.equal(
+    isCsfConnectOnboardingContext({
+      ...csfContext,
+      connectedParam: null,
+      reviewParam: "0",
+    }),
+    false,
+  );
+  // The signal is only trusted on the CSF connect route.
+  assert.equal(
+    isCsfConnectOnboardingContext({
+      ...csfContext,
+      connectedParam: null,
+      reviewParam: "1",
+      pathname: "/home",
+    }),
+    false,
+  );
+});

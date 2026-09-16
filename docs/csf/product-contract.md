@@ -9,6 +9,42 @@ This document defines the product, operating model, information architecture, te
 
 ## Amendment record
 
+### Amendment 9: A class code selects a record, it never grants one (September 16, 2026)
+
+The owner has closed the two remaining ways a student could settle their own
+identity. Amendments 7 and 8 below are the record of what was decided before
+and stay readable as history; this clause governs current behavior.
+
+A class join code no longer creates a roster record. Amendment 8 allowed a
+student with no existing candidate to create their own profile; that is
+withdrawn. Every unmatched join files one officer review request, and staff
+either create the profile or link the returning record.
+
+A typed name no longer connects an account. Amendment 7's
+`self_confirmed_account_name` basis is retired: a name and a class code are
+both things a classmate knows, and an exact name is no safer than a tolerant
+one because an attacker types the exact name deliberately. A name may select a
+record for confirmation; the only automatic connection is a verified
+signed-in address matching a contact staff curated onto that record, and onto
+no other active record in the chapter. Addresses a student reported on their
+own application are explicitly excluded, matching the stored contract on those
+columns. Any account row on the record, of any status including revoked, and
+any address shared with a second record, send the decision to an officer.
+
+No path mints `self_confirmed_account_name` any more. Connections that already
+carry it were granted under the rule of their day and are not revoked, hidden,
+or downgraded; withdrawing one is a deliberate staff decision.
+
+When no record can be matched, the student is asked the one thing they can
+answer about themselves, new member or returning member. That answer is
+recorded on the officer's request as context beside the class and the account.
+It is not a decision and not evidence, and resubmitting the same answer changes
+nothing and audits nothing.
+
+Waiting students are organization members so the class feed stays open, and
+nothing more. A pending connection cannot read the candidate's private history,
+and no member tool appears before staff release a decision.
+
 ### Amendment 8: Verified account ownership (September 9, 2026)
 
 The owner has superseded Amendment 7. Existing imported history can auto-connect only through independently verified account ownership. Application contact addresses and editable account names provide matching suggestions, not ownership proof. Other matches create or reuse a staff review request. Staff can connect a verified organization account after reviewing the identity. A pending connection cannot read the candidate's private history. New students with no existing candidate may create their own profile.
@@ -120,10 +156,12 @@ remains:
 - **Student journey.** A student opens the public `/connect/<code>` route or
   enters the **Join code** on **Join a class**, signs in, enters their name in
   **Join your class**, and selects **Continue**. An independently verified
-  existing connection opens the correct class. A student with no existing
-  candidate may create a self-owned profile. Names and application contact
-  emails can suggest a candidate but never establish ownership. Other matches
-  create or reuse a staff review request without exposing candidate history.
+  existing connection opens the correct class. Names and application contact
+  emails can suggest a candidate but never establish ownership, and a student
+  with no match never creates a profile: they declare **I’m a new member**
+  or **I’m a returning member** and staff set the record up. Every other
+  outcome creates or reuses a staff review request without exposing candidate
+  history (Amendment 9).
 - **Per-class review.** Unresolved joins wait in the class's **Record
   connections** queue. Authorized staff use **Review** and **Connect account**
   after verifying identity and recording their decision. Application and login
@@ -140,6 +178,17 @@ Clauses about onboarding links, invitations, profile claims, or the account
 connections view in earlier sections (§8.5, §9.5, §19.22–23, §22.1) are
 superseded and annotated in place. Where earlier text conflicts with this
 record, this record wins.
+
+### Amendment 7: Member self-connection by typed name (v1.7, September 15, 2026)
+
+- **Typed-name connection.** After a verified account enters a class code, the student types their full name as written on the CSF application. The server returns every unclaimed active record in that class whose name matches tolerantly: exact full name including middle name, exact first and last, a recorded preferred name or nickname, or a first-name prefix of at least three characters on an exact last name. Bigram-similar spellings remain officer-only.
+- **One match connects.** When exactly one record matches, **Yes, this is me** connects the account inside the identity lock. The database recomputes the match, requires the record to have no account row of any status, requires the account to have no verified connection in the chapter, and refuses when the account's verified email is the canonical or application address of a different record. The connection is recorded with basis `verified_email` when the login email is on the record and `self_confirmed_account_name` otherwise, and is audited as `profile.typed_name_connected`. Officers see the basis on the profile and may revoke it.
+- **Anything else is an officer request.** Two or more matches, a claimed record, or a token minted for a different name creates or reuses one class-scoped officer request carrying every candidate.
+- **The account name still helps.** On opening the connect page, the same tolerant match runs on the account's full name so a student whose account already reads correctly is shown their record without typing.
+
+This amendment supersedes the "Passive account-name confirmation" and "Typed names stay in review" clauses of Amendment 6 and invariant 8 for the typed-name path. It does not change how imports, class-history rows, or officer decisions link records.
+
+---
 
 ### Amendment 6: Member record matching, directory search, and source identity (v1.6, September 1, 2026)
 
@@ -850,7 +899,7 @@ The import workspace is specified in Section 12.
 **Actions:** Open the official site, sign in to My CSF, or open a class join page and enter that class's permanent join code.<br>
 **Empty state:** Retain the chapter identity, official links, sign-in, and class-code guidance without inventing public content.<br>
 **Privacy:** Public organization and class routes never expose Stream posts, Activities, semesters, rosters, codes, student-derived counts, applications, dues, eligibility, meeting attendance, points, proofs, notes, or account state. Class Stream and Activities require a signed-in, server-authorized class connection.<br>
-**Identity:** Amendment 8 requires independently verified ownership for existing history. Application contact emails and editable names never prove ownership. Other matches await staff review; a student with no existing candidate may create a self-owned profile.<br>
+**Identity:** Amendment 8 requires independently verified ownership for existing history. Application contact emails and editable names never prove ownership. Amendment 9 withdrew self-service profile creation and typed-name connection: other matches await staff review, and a student with no candidate declares new or returning for staff to act on.<br>
 **Mobile:** Same Let’s Assist public shell with a responsive join/sign-in flow.
 
 ---
@@ -1618,7 +1667,7 @@ These invariants are mandatory across schema, server actions, UI, imports, tests
 5. Policy versions used by decisions and closed terms are immutable.
 6. Point totals, attendance completion, and recognition derive from normalized records through one shared evaluator.
 7. A multi-point activity produces one award with a numeric quantity, not duplicate one-point records.
-8. A manually entered, imported, or passive account name never links a student. Confirming one passive candidate creates or reuses one officer request. Automatic connection requires independently verified ownership. Matching a login email to an application contact is insufficient.
+8. An imported name never links a student. A student's own typed name connects only when exactly one unclaimed record in the class matches it under the tolerant rule of Amendment 7, inside the identity lock, and the connection is recorded as self-confirmed. Every other name outcome creates or reuses one officer request. Officers can revoke a self-confirmed connection.
 9. Preview precedes import commit; source provenance and raw snapshots are retained.
 10. Reviewed platform records are never silently overwritten by Google data.
 11. Google Forms/Sheets/Drive provide intake, evidence, and exports. Let's Assist remains authoritative. The sync candidate exports to restricted test copies first; inbound decisions await staff approval. Local formula-safe ZIP reports remain available.
@@ -1954,11 +2003,21 @@ This amendment records the repository implementation associated with v1.3. It do
 - Scheduled post persistence is not publication evidence. The publisher implementation and repository scheduler are accepted, but officers use the manual path in any environment that lacks exact opt-in, successful hosted invocation, and visible schedule → Feed evidence. No queued email may be attributed to a future schedule.
 - CLEAN-016 is closed by the Production Vercel Pro recurrence, repeated runtime starts, an authenticated `enabled: true` dispatcher response, and an unchanged empty delivery ledger. This proves the bounded communications worker is invoked without proving provider delivery or a fixed delivery time. The separate scheduled-post publisher remains disabled in Production, so scheduled publication stays open under CLEAN-015 and officers continue to use the manual path.
 
+## Sheet sync amendment, September 15, 2026
+
+This amendment changes the shape of what a class destination writes, not who may write it or how it is accepted.
+
+A class destination now writes the officers' own format, so the managed block on an empty tab **is** the roster sheet: `Profile ID`, `Last`, `First`, `LastFirst`, `Let's Assist Connected`, `Activity 1` through `Activity 5`, one column per required meeting in the semester labelled by the meeting's name, appended in `sort_order` as the semester gains meetings, `All Meeting Attendance`, `All Reqs Met`, then `Source version`. Meeting cells use the marks the importer already reads: `X` attended, `E` excused, `N/A` not required, blank otherwise. `All Reqs Met` is `X` when the shared evaluator says the semester is complete, and that row's managed block is shaded green; nothing is shaded red while a semester is open. `Let's Assist Connected` is `Yes`, `No`, or `Awaiting review` as text; no cell is shaded yellow, because the importer reads that fill as an exception mark. `Profile ID` and `Source version` remain at the edges so row identity and drift detection are unchanged. The copied-workbook acceptance receipt pins only the fixed ends of this block, the five identity columns and the two summary columns with the version, so a meeting added mid-semester appends a column without revoking an officer's acceptance; any change to those fixed ends still demands a fresh acceptance.
+
+The meeting columns are fixed when the destination is configured. A meeting added later has no column until an officer reconfigures the destination, which is a new acceptance; until then the sync continues and simply does not write that meeting.
+
+An applications destination now writes only `Record ID`, `Approved on Let's Assist`, and `Source version`, with `X` when the application is approved. It has no requested-decision columns; application decisions are made in the app. Point-submission destinations are unchanged.
+
 ## Sheet sync amendment, September 10, 2026
 
 This amendment replaces the input-only restrictions above for explicitly configured, permission-checked destinations. It does not make Sheets authoritative.
 
-Staff may connect a restricted Sheet tab for applications, point submissions, or a named class and semester. Each exported row uses a stable internal record ID. Names are display labels. Account connection, application status, enrollment, verified points, and semester completion remain separate fields. Yellow marks only an unverified account connection cell; historical completion stays intact.
+Staff may connect a restricted Sheet tab for applications, point submissions, or a named class and semester. Each exported row uses a stable internal record ID, and names are display labels. Application and point destinations keep account connection, application status, enrollment, verified points, and semester completion as separate fields. A class destination does not: it writes the officers' format above, where the connection is one plain word, activities and meetings are marks, and points are read from the activity marks rather than totalled in a column. Colour on a class row states completion for the whole managed block and nothing else; a removed row keeps its identity and version, says so in the connection column, and has its colour cleared. Historical completion stays intact either way.
 
 The app exports confirmed state and preserves separate requested-decision columns. Sheet proposals enter a review queue and require the existing authorized application or point-submission action. A comment never changes an approval, credit, or account connection. Pending points never increase verified totals.
 

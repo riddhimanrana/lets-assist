@@ -19,6 +19,14 @@ on:
         description: "Required with waiver: explain why hosted performance acceptance is waived (20-1000 characters)"
         required: false
         type: string
+      local_validation_confirmation:
+        description: "Optional: deploy-with-local-validation:<release SHA>:<Development SHA>"
+        required: false
+        type: string
+      local_validation_reason:
+        description: "Required with local override: describe local evidence and acceptance of skipped hosted/remote CI checks (20-1000 characters)"
+        required: false
+        type: string
       production_confirmation:
         description: "Type deploy-app-only:<release SHA>"
         required: true
@@ -50,6 +58,8 @@ jobs:
       ACCEPTED_SHA: ${{ inputs.hosted_development_sha }}
       PERFORMANCE_WAIVER_CONFIRMATION: ${{ inputs.performance_waiver_confirmation }}
       PERFORMANCE_WAIVER_REASON: ${{ inputs.performance_waiver_reason }}
+      LOCAL_VALIDATION_CONFIRMATION: ${{ inputs.local_validation_confirmation }}
+      LOCAL_VALIDATION_REASON: ${{ inputs.local_validation_reason }}
       VERCEL_ORG_ID: ${{ vars.VERCEL_TEAM_ID }}
       VERCEL_PROJECT_ID: ${{ vars.VERCEL_ROOT_PROJECT_ID }}
       VERCEL_ROOT_PROJECT_ID: ${{ vars.VERCEL_ROOT_PROJECT_ID }}
@@ -118,7 +128,7 @@ jobs:
           set -euo pipefail
           mkdir -p .artifacts
           node ../scripts/production/app-release-checks.mjs source | tee .artifacts/source-verification.json
-      - name: Retain source verification and any performance waiver
+      - name: Retain source verification and any explicit waiver
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:

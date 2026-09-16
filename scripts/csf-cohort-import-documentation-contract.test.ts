@@ -303,9 +303,12 @@ describe("CSF cohort import documentation truthfulness guards", () => {
       "Existing imported records require independently verified ownership",
     );
     expect(studentRollout).toContain("**Members → Record connections**");
-    expect(studentRollout).toContain(
-      "A new student with no existing record candidate can create a self-owned profile",
-    );
+    // Amendment 9 withdrew self-service profile creation: the student declares
+    // which of the two they are, and staff act on it.
+    expect(studentRollout).toContain("A class code never creates a record");
+    expect(studentRollout).toContain("declares new or returning");
+    expect(studentRollout).not.toContain("create a self-owned profile");
+    // A name still must not be described as though it connected anything.
     expect(studentRollout).not.toContain(
       "verified sign-in email uniquely matches one same-class profile connects automatically",
     );

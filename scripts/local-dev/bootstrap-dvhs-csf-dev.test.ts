@@ -4,6 +4,7 @@ import {
   linkSync,
   mkdirSync,
   mkdtempSync,
+  readFileSync,
   rmSync,
   writeFileSync,
 } from "node:fs";
@@ -110,6 +111,24 @@ describe("one-command CSF local bootstrap", () => {
     linkSync(target, join(workDir, "second-name"));
     expect(() => ensureFixturePassword(workDir)).toThrow(
       "exactly one hard link",
+    );
+  });
+
+  test("outlives repeated teardown signals so the runner can release its claim", () => {
+    // Playwright signals this whole process group and then waits on *this*
+    // process before escalating to SIGKILL. A one-shot disposition handed the
+    // second signal back to Node's default, killed this bootstrap while the
+    // runner was still giving port 3000 back, and stranded the claim.
+    const bootstrapSource = readFileSync(
+      join(process.cwd(), "scripts/local-dev/bootstrap-dvhs-csf-dev.mjs"),
+      "utf8",
+    );
+    expect(bootstrapSource).toContain("process.on(signal, handler)");
+    expect(bootstrapSource).not.toContain("process.once(signal, handler)");
+    // And forwarding to a runner that has already exited is the normal case,
+    // not an uncaught exception in a signal handler.
+    expect(bootstrapSource).toMatch(
+      /try \{\n\s+child\.kill\(signal\);\n\s+\} catch \(error\) \{/u,
     );
   });
 });

@@ -214,10 +214,14 @@ function resolveSqlUsernameExpression(expression: string): string | null {
       : null;
   }
 
-  const uuidSuffix = trimmed.match(
-    /^left\(\s*replace\(\s*organization_id::text\s*,\s*'-'\s*,\s*''\s*\)\s*,\s*(\d+)\s*\)$/iu,
+  // Either end of the flattened uuid. `left` takes the version and variant
+  // nibbles, which are fixed for a generated id; `right` takes the node bits,
+  // which is where a fixture that mints one identifier per run puts the part
+  // that actually varies. Both resolve to N hex characters for schema checking.
+  const uuidSlice = trimmed.match(
+    /^(left|right)\(\s*replace\(\s*organization_id::text\s*,\s*'-'\s*,\s*''\s*\)\s*,\s*(\d+)\s*\)$/iu,
   );
-  if (uuidSuffix) return "a".repeat(Number(uuidSuffix[1]));
+  if (uuidSlice) return "a".repeat(Number(uuidSlice[2]));
 
   const repeated = trimmed.match(/^repeat\(\s*'([^']*)'\s*,\s*(\d+)\s*\)$/iu);
   if (repeated) return repeated[1].repeat(Number(repeated[2]));

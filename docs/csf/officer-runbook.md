@@ -72,7 +72,7 @@ Each graduating class has a join link, code, and QR code for the same destinatio
 3. The student enters the code at the public `/connect/<code>` route, or types it into **Join code** on **Join a class**, then creates or signs in to a verified Let's Assist account.
 4. An independently verified account connection opens the matching class. A contact email or account name alone cannot claim an imported record.
 5. A suggested existing record enters staff review. The student sees **Awaiting staff review** until staff verifies the connection. Confirming **Is this you?** saves a request; it does not grant access to history. Repeated attempts reuse the request.
-6. A new student with no existing candidate can create a self-owned profile. This grants class access, not semester completion or application approval.
+6. A student with no existing candidate creates nothing. They declare **I’m a new member** or **I’m a returning member**, and that answer reaches the same **Record connections** request for staff to act on. Creating the profile or linking the returning record is a staff decision, and it grants class access, not semester completion or application approval.
 7. Inactive or removed organization access requires administrator review. A class code cannot restore it automatically.
 
 Viewing, copying, regenerating, or disabling a class code does not send an email. The product must not display a sent time or resend count unless an explicit recipient email has entered the durable delivery ledger.
@@ -268,7 +268,7 @@ Acceptance: every populated canonical tab discovered in the approved Class of 20
 6. Confirm each class's permanent join code from **Invite students** (§4) — one per graduating class. These codes replace the Freshman/Sophomore/Junior/Senior Google Classroom codes everywhere the chapter publishes them.
 7. Existing imported records require independently verified ownership. Email matches, account-name matches, and student confirmation enter staff review when ownership has not been established.
 8. Staff resolve pending requests through **Members → Record connections** and the profile's **Connect account** action. Never expose a searchable student roster to an unconnected account.
-9. A new student with no existing record candidate can create a self-owned profile through the class code. Staff can also use **Add a student record**. Neither path awards historical credit or approves an application.
+9. A class code never creates a record. A student with no existing candidate declares new or returning, and staff create the profile from the request or use **Add a student record**. Neither path awards historical credit or approves an application.
 
 ### 10.4 Posts and announcement email
 

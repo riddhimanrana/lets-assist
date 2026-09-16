@@ -1,0 +1,291 @@
+// Existing signed catalog publications. These never advance organization installs.
+export const reviewedCatalogDataWrites = [
+  {
+    migration: "20260912002546",
+    file: "20260912002546_publish_dvhs_csf_1_2_34.sql",
+    operation: "UPDATE",
+    table: "public.plugins",
+    statement:
+      "c24b4f20b28232e15c2abd22f202aebfbc91810d65b706811f136a8b3074e561",
+  },
+  {
+    migration: "20260912033551",
+    file: "20260912033551_publish_dvhs_csf_1_2_35.sql",
+    operation: "UPDATE",
+    table: "public.plugins",
+    statement:
+      "f3aa8d629212ccc06915cf73c064ab793d1bb4ad019c43974899cb7215102a75",
+  },
+  {
+    migration: "20260912064503",
+    file: "20260912064503_publish_dvhs_csf_1_2_36.sql",
+    operation: "UPDATE",
+    table: "public.plugins",
+    statement:
+      "2be9feac0645818228213d7014aae1fd9d0cf56cf7a6fed9e89d5a127852176c",
+  },
+  {
+    migration: "20260913012424",
+    file: "20260913012424_publish_dvhs_csf_1_2_37.sql",
+    operation: "UPDATE",
+    table: "public.plugins",
+    statement:
+      "fbc9d79f7dc144f46f93473c34d3f1d52ebb45afefd3b751ed7b91b47fe3d6bd",
+  },
+  {
+    migration: "20260913053412",
+    file: "20260913053412_publish_dvhs_csf_1_2_38.sql",
+    operation: "UPDATE",
+    table: "public.plugins",
+    statement:
+      "2ff11de7c1396499d627911d7314758cc952d571b588c74fff3a82b73067b3b1",
+  },
+  {
+    migration: "20260913070513",
+    file: "20260913070513_publish_dvhs_csf_1_2_39.sql",
+    operation: "UPDATE",
+    table: "public.plugins",
+    statement:
+      "c4aaa190d1b45dddfc79e911d4e326138319632b9a8baff3864c63cdd45c32e8",
+  },
+  {
+    migration: "20260913175928",
+    file: "20260913175928_publish_dvhs_csf_1_2_40.sql",
+    operation: "UPDATE",
+    table: "public.plugins",
+    statement:
+      "8bee9b98ed04f588ccea62fcb75c48121186ec7dadb6fa5c686c80f55baac647",
+  },
+  {
+    migration: "20260913191541",
+    file: "20260913191541_publish_dvhs_csf_1_2_41.sql",
+    operation: "UPDATE",
+    table: "public.plugins",
+    statement:
+      "6281cc50eaec59ad4ca4ff966d4b0ccd73fa4c260a28deb6a911ae4cf7c905a6",
+  },
+  {
+    migration: "20260913202237",
+    file: "20260913202237_publish_dvhs_csf_1_2_42.sql",
+    operation: "UPDATE",
+    table: "public.plugins",
+    statement:
+      "087ca721280bfd77e93e0875b6d144ec9d8a45af1589b9ca5f6f39ecc8a7e4ab",
+  },
+  {
+    migration: "20260914030902",
+    file: "20260914030902_publish_dvhs_csf_1_2_43.sql",
+    operation: "UPDATE",
+    table: "public.plugins",
+    statement:
+      "f36a7f4334129d50dda6a5f245a3c0d7a5710ac4b473570746e8f5c3a3dbffbb",
+  },
+  {
+    migration: "20260914062207",
+    file: "20260914062207_publish_dvhs_csf_1_2_44.sql",
+    operation: "UPDATE",
+    table: "public.plugins",
+    statement:
+      "669da0c610f4aa12f066217301b1f659250f5680a3eb0a673940589e3ac9948c",
+  },
+  {
+    migration: "20260914072729",
+    file: "20260914072729_publish_dvhs_csf_1_2_45.sql",
+    operation: "UPDATE",
+    table: "public.plugins",
+    statement:
+      "36d77f3129e8a06e9acc1c16b2b6e2c98b52616b4ba072f9192b2ec525310fed",
+  },
+  {
+    migration: "20260915032757",
+    file: "20260915032757_publish_dvhs_csf_1_2_46.sql",
+    operation: "UPDATE",
+    table: "public.plugins",
+    statement:
+      "3af95b07d6e50b0a23a11f9ad773bca638c486b8d40f26641d2d0d82dd262745",
+  },
+  {
+    migration: "20260915051713",
+    file: "20260915051713_publish_dvhs_csf_1_2_47.sql",
+    operation: "UPDATE",
+    table: "public.plugins",
+    statement:
+      "40a349ad2f7774921e18aa7a244dd769a4e43b07f49ba9c0425f1cdb152b1a68",
+  },
+  {
+    migration: "20260915060928",
+    file: "20260915060928_publish_dvhs_csf_1_2_48.sql",
+    operation: "UPDATE",
+    table: "public.plugins",
+    statement:
+      "07ebd1614125f22a956ac1add67fa0e1e84654beed5d6aff5821608390fd324f",
+  },
+  {
+    migration: "20260915161001",
+    file: "20260915161001_publish_dvhs_csf_1_2_49.sql",
+    operation: "UPDATE",
+    table: "public.plugins",
+    statement:
+      "bdfa5ca02dc9148d48b8575d44c7bbe0e556054709661e5f34dffc89c0d83bb4",
+  },
+  {
+    migration: "20260915183410",
+    file: "20260915183410_publish_dvhs_csf_1_2_50.sql",
+    operation: "UPDATE",
+    table: "public.plugins",
+    statement:
+      "8bc542a09f3601658cb1c3b1a1015c38422cf9badd8e18ef51fe76f306028b2c",
+  },
+  {
+    migration: "20260915195501",
+    file: "20260915195501_publish_dvhs_csf_1_2_51.sql",
+    operation: "UPDATE",
+    table: "public.plugins",
+    statement:
+      "f6c6c46338f732b835323450ffe289f2bc50567cf3fc02276b8490fc3c2f11a4",
+  },
+  {
+    migration: "20260912002546",
+    file: "20260912002546_publish_dvhs_csf_1_2_34.sql",
+    operation: "INSERT",
+    table: "public.plugin_versions",
+    statement:
+      "6008f057151d132dff998666cbc336b46c4fac846e07c977a2dcdc240f3777ce",
+  },
+  {
+    migration: "20260912033551",
+    file: "20260912033551_publish_dvhs_csf_1_2_35.sql",
+    operation: "INSERT",
+    table: "public.plugin_versions",
+    statement:
+      "15551ec94f4c8e06a34fb4a96495c89cb45709f5109893a535a899b50ba030a8",
+  },
+  {
+    migration: "20260912064503",
+    file: "20260912064503_publish_dvhs_csf_1_2_36.sql",
+    operation: "INSERT",
+    table: "public.plugin_versions",
+    statement:
+      "f35cd4511af7e58faae2e0b1eb247ed0fc7486cfab4ef581457f4e14d62453f9",
+  },
+  {
+    migration: "20260913012424",
+    file: "20260913012424_publish_dvhs_csf_1_2_37.sql",
+    operation: "INSERT",
+    table: "public.plugin_versions",
+    statement:
+      "7ca4559d65e182f3a6133f7b391c88f0e6b47b1983394e0c3cedebbb9e2e88e8",
+  },
+  {
+    migration: "20260913053412",
+    file: "20260913053412_publish_dvhs_csf_1_2_38.sql",
+    operation: "INSERT",
+    table: "public.plugin_versions",
+    statement:
+      "143ac503adff2f55ea813c51f8efd2919b9bf04bb5e851a2a6f843bc86e84964",
+  },
+  {
+    migration: "20260913070513",
+    file: "20260913070513_publish_dvhs_csf_1_2_39.sql",
+    operation: "INSERT",
+    table: "public.plugin_versions",
+    statement:
+      "b3e12b5125ff6e8d9580bab80a5b48231798d44979a719e4a547c621b8e7c09c",
+  },
+  {
+    migration: "20260913175928",
+    file: "20260913175928_publish_dvhs_csf_1_2_40.sql",
+    operation: "INSERT",
+    table: "public.plugin_versions",
+    statement:
+      "9a588e33e4a955eeb77f903624f86e84020c1c53c6d8216783c684d9b8ba10c7",
+  },
+  {
+    migration: "20260913191541",
+    file: "20260913191541_publish_dvhs_csf_1_2_41.sql",
+    operation: "INSERT",
+    table: "public.plugin_versions",
+    statement:
+      "1503fc12c430e284d9851e497cfbcc7bc560d39fa5f0b6afe2378895d1f609c0",
+  },
+  {
+    migration: "20260913202237",
+    file: "20260913202237_publish_dvhs_csf_1_2_42.sql",
+    operation: "INSERT",
+    table: "public.plugin_versions",
+    statement:
+      "954178a238cca3df393d1761b747ae98c7686ef1cedf23d42b7eaeea07dcd4b7",
+  },
+  {
+    migration: "20260914030902",
+    file: "20260914030902_publish_dvhs_csf_1_2_43.sql",
+    operation: "INSERT",
+    table: "public.plugin_versions",
+    statement:
+      "97433e83b624a1a8ef37449fd9cb7d0d668916a9b402df07fd4936b97a456e86",
+  },
+  {
+    migration: "20260914062207",
+    file: "20260914062207_publish_dvhs_csf_1_2_44.sql",
+    operation: "INSERT",
+    table: "public.plugin_versions",
+    statement:
+      "39a91b3f4b0e9a769de18e741b53172ad9196077848340b5ff1c4ff9dfe32f8e",
+  },
+  {
+    migration: "20260914072729",
+    file: "20260914072729_publish_dvhs_csf_1_2_45.sql",
+    operation: "INSERT",
+    table: "public.plugin_versions",
+    statement:
+      "932cd8528990bc75be1bab5e938ef63dc983c5daca4a828d8b76bdda59bff64e",
+  },
+  {
+    migration: "20260915032757",
+    file: "20260915032757_publish_dvhs_csf_1_2_46.sql",
+    operation: "INSERT",
+    table: "public.plugin_versions",
+    statement:
+      "70195c7070ee02259c58e2a4a25628a3385476cf4003552be90187d3ae229911",
+  },
+  {
+    migration: "20260915051713",
+    file: "20260915051713_publish_dvhs_csf_1_2_47.sql",
+    operation: "INSERT",
+    table: "public.plugin_versions",
+    statement:
+      "76a02dcdec39cafac95f673beab804140518d1b1ba76ca063ca3038bf19f2b80",
+  },
+  {
+    migration: "20260915060928",
+    file: "20260915060928_publish_dvhs_csf_1_2_48.sql",
+    operation: "INSERT",
+    table: "public.plugin_versions",
+    statement:
+      "5f001e4b9a9012b87572d3cb3b31dbb23751d7142d602ec12c11ed2c45705dc4",
+  },
+  {
+    migration: "20260915161001",
+    file: "20260915161001_publish_dvhs_csf_1_2_49.sql",
+    operation: "INSERT",
+    table: "public.plugin_versions",
+    statement:
+      "3d059a062c16151ad91201ddb6212e9e26eb8cb1150168f3ffcaa150e6f03532",
+  },
+  {
+    migration: "20260915183410",
+    file: "20260915183410_publish_dvhs_csf_1_2_50.sql",
+    operation: "INSERT",
+    table: "public.plugin_versions",
+    statement:
+      "a6e5f7e61bef9041a87389899c208fd24ccd4c7f02fc4e02eed534809b1e5737",
+  },
+  {
+    migration: "20260915195501",
+    file: "20260915195501_publish_dvhs_csf_1_2_51.sql",
+    operation: "INSERT",
+    table: "public.plugin_versions",
+    statement:
+      "841095603115a50a9a4e5827cf0b98fb6306e5b38e6803252c4fb7417c219546",
+  },
+];

@@ -771,6 +771,10 @@ export function claimAppPort(env = process.env) {
  * unreadable, or carries someone else's token is left exactly where it is:
  * a stale claim is recoverable, a stolen one is not.
  *
+ * Nothing here adopts or reclaims a claim it did not take. The way a claim
+ * stops being left behind is that the owning process always reaches this
+ * function, which is what the supervisor below exists to guarantee.
+ *
  * @param {{ claimPath: string, ownerPath: string, token: string }} claim
  */
 export function releaseAppPort(claim) {
@@ -794,6 +798,226 @@ export function releaseAppPort(claim) {
   // this fails loudly instead of deleting it.
   rmdirSync(claim.claimPath);
   return true;
+}
+
+// ---------------------------------------------------------------------------
+// Owned children
+// ---------------------------------------------------------------------------
+
+/**
+ * Signalling a process group is not an assertion that the group still exists.
+ *
+ * Once a detached child exits, `kill(-pgid)` reports ESRCH after the child has
+ * been reaped and, on Darwin, EPERM in the window before it is — the group
+ * still holds a member the kernel will not let anyone signal. Both answers mean
+ * the same thing here: there is nothing left to stop.
+ */
+const ABSENT_PROCESS_GROUP_CODES = new Set(["ESRCH", "EPERM"]);
+
+/**
+ * How long a child group gets to leave on its own before it is killed. A Next
+ * development child stuck in compiler teardown must not keep Playwright's owned
+ * web-server plugin alive indefinitely.
+ */
+export const FORCED_SHUTDOWN_DELAY_MS = 5_000;
+
+/**
+ * Send one signal to one owned child's process group without ever throwing.
+ *
+ * This runs as a signal disposition. A throw from here is an uncaught exception
+ * that ends the runner on the spot — with the port claim still taken — which is
+ * exactly how a graceful Playwright teardown used to strand `app-port-3000`:
+ * the first signal made the children exit, and forwarding the second one hit
+ * their not-yet-reaped groups and raised EPERM.
+ *
+ * @param {number | undefined} pid
+ * @param {NodeJS.Signals} signal
+ * @param {(message: string) => void} [report]
+ * @returns {boolean} whether a live group was signalled
+ */
+export function forwardSignalToProcessGroup(
+  pid,
+  signal,
+  report = console.error,
+) {
+  if (!pid) return false;
+  try {
+    process.kill(-pid, signal);
+    return true;
+  } catch (error) {
+    if (!ABSENT_PROCESS_GROUP_CODES.has(error?.code)) {
+      report(
+        `Could not send ${signal} to isolated child group ${pid}: ${
+          error instanceof Error ? error.message : String(error)
+        }`,
+      );
+    }
+    return false;
+  }
+}
+
+/**
+ * The claim's lifetime, expressed once.
+ *
+ * The signal disposition is installed here, by construction, because the claim
+ * is taken before the first child exists: the isolated browser profile spends
+ * minutes in a production build between the two, and a teardown landing in that
+ * window used to kill the runner under Node's default disposition and leave the
+ * claim behind. `stop()` is the single release path, so every exit — a signal,
+ * a failed build, a child that never spawned, a normal shutdown — gives the
+ * port back through the same token check.
+ *
+ * @param {{
+ *   release: () => boolean,
+ *   forcedShutdownDelayMs?: number,
+ *   signals?: NodeJS.Signals[],
+ *   spawnChild?: typeof spawn,
+ *   report?: (message: string) => void,
+ * }} options
+ */
+export function createOwnedChildSupervisor({
+  release,
+  forcedShutdownDelayMs = FORCED_SHUTDOWN_DELAY_MS,
+  signals = ["SIGINT", "SIGTERM", "SIGHUP"],
+  spawnChild = spawn,
+  report = console.error,
+}) {
+  /** @type {import("node:child_process").ChildProcess[]} */
+  const children = [];
+  /** @type {Promise<{ name: string, code: number | null, signal: NodeJS.Signals | null }>[]} */
+  const exits = [];
+  /** @type {NodeJS.Signals | null} */
+  let requestedSignal = null;
+  /** @type {NodeJS.Timeout | null} */
+  let forcedShutdown = null;
+  let stopped = false;
+
+  const forward = (signal) => {
+    for (const child of children) {
+      forwardSignalToProcessGroup(child.pid, signal, report);
+    }
+  };
+
+  const escalate = () => {
+    if (forcedShutdown) return;
+    forcedShutdown = setTimeout(
+      () => forward("SIGKILL"),
+      forcedShutdownDelayMs,
+    );
+    forcedShutdown.unref();
+  };
+
+  const signalHandlers = new Map();
+  for (const signal of signals) {
+    const handler = () => {
+      requestedSignal ??= signal;
+      try {
+        forward(signal);
+        escalate();
+      } catch (error) {
+        // Belt and braces around the disposition itself: the runner must live
+        // long enough to release, whatever happened above.
+        report(
+          `Isolated teardown for ${signal} did not complete: ${
+            error instanceof Error ? error.message : String(error)
+          }`,
+        );
+      }
+    };
+    signalHandlers.set(signal, handler);
+    process.on(signal, handler);
+  }
+
+  return {
+    get requestedSignal() {
+      return requestedSignal;
+    },
+
+    /**
+     * A point a pending shutdown must not be carried past. Handling the signal
+     * is what stops Node from ending the process, so without this the runner
+     * would answer a teardown by starting a multi-minute production build.
+     *
+     * The turn of the event loop is load-bearing, not politeness: the phases
+     * between the claim and the first child are blocking `spawnSync` builds,
+     * and a signal that arrives during one is only recorded until the loop
+     * runs its handler. Checking synchronously on return from the build would
+     * read the shutdown flag just before it was set.
+     */
+    async checkpoint() {
+      await new Promise((resolve) => setImmediate(resolve));
+      if (requestedSignal) {
+        throw new Error(
+          `The isolated app runner received ${requestedSignal} before its children were running.`,
+        );
+      }
+    },
+
+    /**
+     * @param {string} name
+     * @param {string} command
+     * @param {string[]} args
+     * @param {{ cwd: string, env: Record<string, string> }} options
+     */
+    spawnOwnedChild(name, command, args, { cwd, env }) {
+      const child = spawnChild(command, args, {
+        cwd,
+        env,
+        stdio: ["ignore", "inherit", "inherit"],
+        detached: true,
+      });
+      children.push(child);
+      const exit = new Promise((resolve) => {
+        child.once("exit", (code, signal) => resolve({ name, code, signal }));
+        // A child that never starts emits `error` and no `exit`. Left alone it
+        // would make the drain below wait forever on an exit that cannot come,
+        // and the claim would only come back when someone killed the runner.
+        child.once("error", (error) => {
+          report(
+            `The isolated ${name} child could not start: ${error.message}`,
+          );
+          resolve({ name, code: 1, signal: null });
+        });
+      });
+      exits.push(exit);
+      // A signal that arrived while this child was being spawned still applies
+      // to it.
+      if (requestedSignal) {
+        forward(requestedSignal);
+        escalate();
+      }
+      return exit;
+    },
+
+    /**
+     * Wait for the whole owned group to be gone before the claim goes back:
+     * releasing first would let a peer take a port this runner is still
+     * vacating.
+     */
+    async drain() {
+      if (exits.length === 0) return null;
+      const firstExit = await Promise.race(exits);
+      forward("SIGTERM");
+      escalate();
+      await Promise.all(exits);
+      return firstExit;
+    },
+
+    /**
+     * Restore the default signal disposition and give the claim back, exactly
+     * once. Safe on every path, including the ones that threw before a child
+     * existed.
+     */
+    stop() {
+      if (stopped) return false;
+      stopped = true;
+      if (forcedShutdown) clearTimeout(forcedShutdown);
+      for (const [signal, handler] of signalHandlers) {
+        process.removeListener(signal, handler);
+      }
+      return release();
+    },
+  };
 }
 
 // ---------------------------------------------------------------------------
@@ -865,15 +1089,11 @@ async function main() {
     assertPortFree(LOCAL_PLUGIN_APPLICATION_PORT),
   ]);
   const claim = claimAppPort();
-
-  /** @type {import("node:child_process").ChildProcess[]} */
-  const children = [];
-  let released = false;
-  const release = () => {
-    if (released) return;
-    released = true;
-    releaseAppPort(claim);
-  };
+  // Installed with the claim, not with the children: everything below this line
+  // runs under a disposition that ends in `stop()`.
+  const supervisor = createOwnedChildSupervisor({
+    release: () => releaseAppPort(claim),
+  });
 
   try {
     // And free again after the claim: a server that appeared in between must
@@ -882,140 +1102,79 @@ async function main() {
       assertPortFree(APP_PORT),
       assertPortFree(LOCAL_PLUGIN_APPLICATION_PORT),
     ]);
-  } catch (error) {
-    release();
-    throw error;
-  }
 
-  console.log("DVHS CSF isolated app runner");
-  console.log(`  isolated project : ${isolated.projectId}`);
-  console.log(`  supabase api     : 127.0.0.1:${isolated.apiPort}`);
-  console.log(
-    `  mailpit smtp     : 127.0.0.1:${isolated.smtpPort} (local mail only)`,
-  );
-  console.log(
-    `  app              : http://127.0.0.1:${APP_PORT} (owned claim ${claim.claimPath})`,
-  );
-  console.log(
-    `  plugin app       : http://127.0.0.1:${LOCAL_PLUGIN_APPLICATION_PORT}`,
-  );
-  console.log(
-    `  plugin deps      : ${dependencySetup.installed ? "installed from lockfile" : "already present"}`,
-  );
-  console.log(`  child env keys   : ${Object.keys(childEnv).length}`);
-  console.log(`  .env* keys shadowed: ${shadowedEnvFileKeys.length}`);
-  console.log(`  plugin .env* keys bounded: ${pluginEnvFileKeys.length}`);
-  console.log(`  egress ledger    : ${ledgerPath}`);
+    console.log("DVHS CSF isolated app runner");
+    console.log(`  isolated project : ${isolated.projectId}`);
+    console.log(`  supabase api     : 127.0.0.1:${isolated.apiPort}`);
+    console.log(
+      `  mailpit smtp     : 127.0.0.1:${isolated.smtpPort} (local mail only)`,
+    );
+    console.log(
+      `  app              : http://127.0.0.1:${APP_PORT} (owned claim ${claim.claimPath})`,
+    );
+    console.log(
+      `  plugin app       : http://127.0.0.1:${LOCAL_PLUGIN_APPLICATION_PORT}`,
+    );
+    console.log(
+      `  plugin deps      : ${dependencySetup.installed ? "installed from lockfile" : "already present"}`,
+    );
+    console.log(`  child env keys   : ${Object.keys(childEnv).length}`);
+    console.log(`  .env* keys shadowed: ${shadowedEnvFileKeys.length}`);
+    console.log(`  plugin .env* keys bounded: ${pluginEnvFileKeys.length}`);
+    console.log(`  egress ledger    : ${ledgerPath}`);
 
-  if ("build" in next) {
-    console.log("  browser runtime  : production build");
-    const build = spawnSync(next.build.command, next.build.args, {
-      cwd: REPO_ROOT,
-      env: childEnv,
-      stdio: "inherit",
-    });
-    if (build.error) throw build.error;
-    if (build.status !== 0) {
-      release();
-      throw new Error(
-        `The isolated Next production build exited with code ${build.status}.`,
-      );
+    if ("build" in next) {
+      await supervisor.checkpoint();
+      console.log("  browser runtime  : production build");
+      const build = spawnSync(next.build.command, next.build.args, {
+        cwd: REPO_ROOT,
+        env: childEnv,
+        stdio: "inherit",
+      });
+      if (build.error) throw build.error;
+      if (build.status !== 0) {
+        throw new Error(
+          `The isolated Next production build exited with code ${build.status}.`,
+        );
+      }
+    } else {
+      console.log("  browser runtime  : development server");
     }
-  } else {
-    console.log("  browser runtime  : development server");
-  }
 
-  if ("build" in pluginNext) {
-    const build = spawnSync(pluginNext.build.command, pluginNext.build.args, {
-      cwd: PLUGIN_APPLICATION_ROOT,
-      env: pluginChildEnv,
-      stdio: "inherit",
-    });
-    if (build.error) throw build.error;
-    if (build.status !== 0) {
-      release();
-      throw new Error(
-        `The isolated plugin application build exited with code ${build.status}.`,
-      );
+    if ("build" in pluginNext) {
+      await supervisor.checkpoint();
+      const build = spawnSync(pluginNext.build.command, pluginNext.build.args, {
+        cwd: PLUGIN_APPLICATION_ROOT,
+        env: pluginChildEnv,
+        stdio: "inherit",
+      });
+      if (build.error) throw build.error;
+      if (build.status !== 0) {
+        throw new Error(
+          `The isolated plugin application build exited with code ${build.status}.`,
+        );
+      }
     }
-  }
 
-  const spawnOwnedChild = (command, args, cwd, env, name) => {
-    const child = spawn(command, args, {
-      cwd,
-      env,
-      stdio: ["ignore", "inherit", "inherit"],
-      detached: true,
-    });
-    children.push(child);
-    return new Promise((resolve) => {
-      child.once("exit", (code, signal) =>
-        resolve({ child, code, signal, name }),
-      );
-    });
-  };
-
-  const exits = [
-    spawnOwnedChild(
+    await supervisor.checkpoint();
+    supervisor.spawnOwnedChild(
+      "plugin application",
       pluginNext.start.command,
       pluginNext.start.args,
-      PLUGIN_APPLICATION_ROOT,
-      pluginChildEnv,
-      "plugin application",
-    ),
-    spawnOwnedChild(
+      { cwd: PLUGIN_APPLICATION_ROOT, env: pluginChildEnv },
+    );
+    supervisor.spawnOwnedChild(
+      "platform application",
       next.start.command,
       next.start.args,
-      REPO_ROOT,
-      childEnv,
-      "platform application",
-    ),
-  ];
+      { cwd: REPO_ROOT, env: childEnv },
+    );
 
-  const forward = (signal) => {
-    for (const child of children) {
-      if (!child.pid) continue;
-      try {
-        process.kill(-child.pid, signal);
-      } catch (error) {
-        if (error.code !== "ESRCH") throw error;
-      }
-    }
-  };
-
-  const signalHandlers = new Map();
-  let forcedShutdown = null;
-  for (const signal of ["SIGINT", "SIGTERM", "SIGHUP"]) {
-    const handler = () => {
-      forward(signal);
-      // A Next development child that is stuck during compiler teardown must
-      // not keep Playwright's owned web-server plugin alive indefinitely. The
-      // child has five seconds to exit cleanly before this runner terminates
-      // only its own detached process group.
-      if (!forcedShutdown) {
-        forcedShutdown = setTimeout(() => forward("SIGKILL"), 5_000);
-        forcedShutdown.unref();
-      }
-    };
-    signalHandlers.set(signal, handler);
-    process.on(signal, handler);
+    const firstExit = await supervisor.drain();
+    process.exitCode = firstExit.signal ? 1 : (firstExit.code ?? 1);
+  } finally {
+    supervisor.stop();
   }
-
-  // Wait for the whole group to be gone before the claim goes back: releasing
-  // first would let a peer take a port this runner is still vacating.
-  const firstExit = await Promise.race(exits);
-  forward("SIGTERM");
-  if (!forcedShutdown) {
-    forcedShutdown = setTimeout(() => forward("SIGKILL"), 5_000);
-    forcedShutdown.unref();
-  }
-  await Promise.all(exits);
-  if (forcedShutdown) clearTimeout(forcedShutdown);
-  for (const [registeredSignal, handler] of signalHandlers) {
-    process.removeListener(registeredSignal, handler);
-  }
-  release();
-  process.exitCode = firstExit.signal ? 1 : (firstExit.code ?? 1);
 }
 
 if (isEntrypoint()) {
