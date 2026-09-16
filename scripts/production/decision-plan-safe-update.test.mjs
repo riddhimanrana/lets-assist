@@ -115,8 +115,12 @@ test("the release function is not restated by this migration", () => {
 });
 
 test("the shipped bytes are the bytes the release pins", () => {
-  const [name, hash] = approvedMigrations.at(-1);
-  assert.equal(name, "20260917050000_csf_decision_plan_ordinal_safe_update");
+  const [name, hash] =
+    approvedMigrations.find(
+      ([entry]) =>
+        entry === "20260917050000_csf_decision_plan_ordinal_safe_update",
+    ) ?? [];
+  assert.ok(name, "the approved tail must still pin this migration");
   assert.equal(
     createHash("sha256").update(currentSource).digest("hex"),
     hash,

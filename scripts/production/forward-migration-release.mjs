@@ -366,6 +366,10 @@ export const approvedMigrations = [
     "20260917050000_csf_decision_plan_ordinal_safe_update",
     "456e0a170c96e6e6af57cec2d679835775130388a64e89228ee9b5fe47c727c1",
   ],
+  [
+    "20260917060000_csf_published_decision_reason",
+    "d199c0ce03fb29c837ce8fe7f3346e3224abed2c2812f2009502966a83df6a76",
+  ],
 ];
 
 const literal = (value) => `'${value.replaceAll("'", "''")}'`;

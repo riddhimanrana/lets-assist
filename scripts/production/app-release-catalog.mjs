@@ -146,6 +146,15 @@ export function acceptedCatalogQuery(source, versions) {
     .update(versions.join("\n"))
     .digest("hex");
   if (
+    versions.length === 557 &&
+    ledgerHash ===
+      "512cb507d345054714c396b086a710ede75187d26ec8e60256bea6674ad8575b"
+  )
+    // The published decision reason restates one RPC of the decisions lane's
+    // own so a red mark stops inventing an explanation. It was verified absent
+    // from the generated accepted catalog, so no reviewed fingerprint moves.
+    return acceptedCatalogQuery(source, versions.slice(0, 556));
+  if (
     versions.length === 556 &&
     ledgerHash ===
       "eeb3306cd09682d97c1cff06ea170e3b1f82620847ba974c096a3530717313e5"
