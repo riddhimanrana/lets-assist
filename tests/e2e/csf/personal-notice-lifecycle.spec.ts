@@ -3,7 +3,10 @@ import { randomUUID } from "node:crypto";
 
 import { expect, test, type Page } from "@playwright/test";
 
-import { inspectCsfIsolatedWorkDir } from "../../../scripts/local-dev/dv-local-env.mjs";
+import {
+  getCsfIsolatedSupabaseEnv,
+  inspectCsfIsolatedWorkDir,
+} from "../../../scripts/local-dev/dv-local-env.mjs";
 import { loadCsfFeedFixture, type CsfFeedFixture } from "./feed-fixtures";
 import {
   CSF_ORGANIZATION_PATH,
@@ -43,6 +46,72 @@ const MEMBER = localActors.member;
 
 /** Copy that would claim an outcome the app has not observed. */
 const DELIVERY_CLAIMS = /\b(delivered|arrived|received by|inbox)\b/iu;
+
+/**
+ * A privileged read of the durable notice queue, through psql on the isolated
+ * database rather than PostgREST.
+ *
+ * plugin_data.csf_publication_events and its deliveries revoke everything from
+ * the service role on purpose: the queue decides who hears about a member's
+ * record, and nothing outside the database is allowed to browse it. A spec that
+ * wanted to see those rows had no business asking as the service role, and the
+ * permission denial it got was the ACL working. So the instrumentation asks the
+ * owner directly, the way the import preview spec already does.
+ *
+ * getCsfIsolatedSupabaseEnv refuses a stopped, remote or mismatched stack before
+ * any of this runs, and the container is addressed by the validated project id.
+ * No credential is passed or printed: psql connects as postgres inside the
+ * isolated container.
+ */
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu;
+
+function assertUuid(value: string, what: string) {
+  if (!UUID.test(value)) throw new Error(`Refusing a non-identifier ${what}.`);
+  return value;
+}
+
+function uuidList(values: string[], what: string) {
+  return values.map((value) => `'${assertUuid(value, what)}'`).join(",");
+}
+
+function ownerSql() {
+  // Strict validation of the selected stack, including its live marker.
+  getCsfIsolatedSupabaseEnv();
+  const isolated = inspectCsfIsolatedWorkDir(process.env.CSF_ISOLATED_WORK_DIR);
+  const run = (args: string[], query: string) =>
+    execFileSync(
+      "docker",
+      [
+        "exec",
+        "-i",
+        `supabase_db_${isolated.projectId}`,
+        "psql",
+        "-X",
+        "-v",
+        "ON_ERROR_STOP=1",
+        "-U",
+        "postgres",
+        "-d",
+        "postgres",
+        ...args,
+      ],
+      { input: query, encoding: "utf8" },
+    );
+  return {
+    exec: (query: string) => {
+      run([], query);
+    },
+    rows: <T>(query: string): T[] => {
+      const output = run(
+        ["-t", "-A"],
+        `SELECT coalesce(json_agg(row_to_json(entry)), '[]'::json) FROM (${query}) AS entry;`,
+      );
+      return JSON.parse(output.trim() || "[]") as T[];
+    },
+  };
+}
+
+type OwnerSql = ReturnType<typeof ownerSql>;
 
 type MailpitSummary = Record<string, unknown>;
 
@@ -210,27 +279,23 @@ async function seedSubmission(
   return { activityId: String(activity.id), submissionId: String(submission.id) };
 }
 
-async function noticeEventsFor(fixture: CsfFeedFixture, sourceId: string) {
-  const { data, error } = await fixture.admin
-    .schema("plugin_data")
-    .from("csf_publication_events")
-    .select("id, source_kind, event_key")
-    .eq("organization_id", fixture.organizationId)
-    .eq("source_id", sourceId);
-  if (error) throw new Error(`Could not read notice events: ${error.message}`);
-  return data ?? [];
+function noticeEventsFor(sql: OwnerSql, organizationId: string, sourceId: string) {
+  return sql.rows<{ id: string; source_kind: string; event_key: string }>(
+    `SELECT id::text, source_kind, event_key
+     FROM plugin_data.csf_publication_events
+     WHERE organization_id = '${assertUuid(organizationId, "organization")}'
+       AND source_id = '${assertUuid(sourceId, "source")}'`,
+  );
 }
 
-async function deliveriesFor(fixture: CsfFeedFixture, eventIds: string[]) {
+function deliveriesFor(sql: OwnerSql, organizationId: string, eventIds: string[]) {
   if (eventIds.length === 0) return [];
-  const { data, error } = await fixture.admin
-    .schema("plugin_data")
-    .from("csf_publication_notification_deliveries")
-    .select("id, user_id, status")
-    .eq("organization_id", fixture.organizationId)
-    .in("event_id", eventIds);
-  if (error) throw new Error(`Could not read notice deliveries: ${error.message}`);
-  return data ?? [];
+  return sql.rows<{ id: string; user_id: string; status: string }>(
+    `SELECT id::text, user_id::text, status
+     FROM plugin_data.csf_publication_notification_deliveries
+     WHERE organization_id = '${assertUuid(organizationId, "organization")}'
+       AND event_id IN (${uuidList(eventIds, "event")})`,
+  );
 }
 
 async function notificationsFor(fixture: CsfFeedFixture, userId: string, eventIds: string[]) {
@@ -287,6 +352,7 @@ test.describe("personal notice lifecycle", () => {
     test.slow();
     const failures = watchBrowserFailures(page);
     const fixture = await loadCsfFeedFixture();
+    const sql = ownerSql();
     const member = await memberProfile(fixture);
     const title = `${PREFIX} ${testInfo.workerIndex} ${randomUUID().slice(0, 8)}`;
     const seeded = await seedSubmission(fixture, member.profileId, title);
@@ -314,13 +380,15 @@ test.describe("personal notice lifecycle", () => {
         .toBe("approved");
 
       // One event, for this submission, and exactly one delivery: the member.
-      const events = await noticeEventsFor(fixture, seeded.submissionId);
+      // The queue is read through the database owner, not the service role: the
+      // publication tables revoke everything from it, which is the point.
+      const events = noticeEventsFor(sql, fixture.organizationId, seeded.submissionId);
       expect(events).toHaveLength(1);
       expect(events[0].source_kind).toBe("point_submission");
       expect(String(events[0].event_key)).toContain("approved");
       const eventIds = events.map((event) => String(event.id));
 
-      const deliveries = await deliveriesFor(fixture, eventIds);
+      const deliveries = deliveriesFor(sql, fixture.organizationId, eventIds);
       expect(deliveries).toHaveLength(1);
       expect(String(deliveries[0].user_id)).toBe(member.userId);
 
@@ -415,7 +483,7 @@ test.describe("personal notice lifecycle", () => {
     } catch (error) {
       testFailure = error instanceof Error ? error : new Error(String(error));
     } finally {
-      await cleanUp(fixture, seeded, campaignIds, mailpitIds);
+      await cleanUp(fixture, sql, seeded, campaignIds, mailpitIds);
     }
     if (testFailure) throw testFailure;
   });
@@ -425,6 +493,7 @@ test.describe("personal notice lifecycle", () => {
   }, testInfo) => {
     const failures = watchBrowserFailures(page);
     const fixture = await loadCsfFeedFixture();
+    const sql = ownerSql();
     const member = await memberProfile(fixture);
     const title = `${PREFIX} OptOut ${testInfo.workerIndex} ${randomUUID().slice(0, 8)}`;
     const seeded = await seedSubmission(fixture, member.profileId, title);
@@ -462,11 +531,13 @@ test.describe("personal notice lifecycle", () => {
       await approveSubmissionInUi(page, title);
 
       await expect
-        .poll(async () => (await noticeEventsFor(fixture, seeded.submissionId)).length)
+        .poll(() => noticeEventsFor(sql, fixture.organizationId, seeded.submissionId).length)
         .toBe(1);
-      const eventIds = (await noticeEventsFor(fixture, seeded.submissionId)).map(
-        (event) => String(event.id),
-      );
+      const eventIds = noticeEventsFor(
+        sql,
+        fixture.organizationId,
+        seeded.submissionId,
+      ).map((event) => String(event.id));
 
       // The row is queued, then refused when the lease re-checks preferences.
       // Suppression happens at authorization, not at enqueue, which is what
@@ -478,7 +549,7 @@ test.describe("personal notice lifecycle", () => {
       expect(await notificationsFor(fixture, member.userId, eventIds)).toEqual([]);
       expect(await noticeCampaigns(fixture, eventIds)).toEqual([]);
 
-      const settled = await deliveriesFor(fixture, eventIds);
+      const settled = deliveriesFor(sql, fixture.organizationId, eventIds);
       expect(settled.every((row) => row.status === "skipped")).toBe(true);
       expectNoBrowserFailures(failures);
     } catch (error) {
@@ -491,7 +562,7 @@ test.describe("personal notice lifecycle", () => {
           // Reported below; the assertion failure is the more useful one.
         }
       }
-      await cleanUp(fixture, seeded, [], []);
+      await cleanUp(fixture, sql, seeded, [], []);
     }
     if (testFailure) throw testFailure;
   });
@@ -508,6 +579,7 @@ test.describe("personal notice lifecycle", () => {
  */
 async function cleanUp(
   fixture: CsfFeedFixture,
+  sql: OwnerSql,
   seeded: { activityId: string; submissionId: string },
   campaignIds: string[],
   mailpitIds: string[],
@@ -524,25 +596,39 @@ async function cleanUp(
   await attempt("mailpit", () => deleteMailpitMessages(mailpitIds));
   if (campaignIds.length > 0) {
     await attempt("campaign", async () => {
-      const { error } = await fixture.admin
-        .schema("plugin_data")
-        .from("csf_communication_campaigns")
-        .update({ status: "cancelled" })
-        .eq("organization_id", fixture.organizationId)
-        .in("id", campaignIds);
-      if (error) throw new Error(error.message);
+      // Cancelled, never deleted. The communications ledger is append-only on
+      // purpose: an attempt and its provider event are the record that
+      // something was sent, and a send receipt is not a spec's to erase.
+      // Cancellation is the disposition the ledger already models.
+      const organizationId = assertUuid(fixture.organizationId, "organization");
+      sql.exec(
+        `UPDATE plugin_data.csf_communication_campaigns
+         SET status = 'cancelled'
+         WHERE organization_id = '${organizationId}'
+           AND id IN (${uuidList(campaignIds, "campaign")});`,
+      );
     });
   }
   await attempt("notifications", async () => {
-    const events = await noticeEventsFor(fixture, seeded.submissionId);
-    const keys = events.map((event) => `csf-publication:${event.id}`);
-    if (keys.length === 0) return;
-    const { error } = await fixture.admin
-      .schema("public")
-      .from("notifications")
-      .delete()
-      .in("dedupe_key", keys);
-    if (error) throw new Error(error.message);
+    const events = noticeEventsFor(sql, fixture.organizationId, seeded.submissionId);
+    if (events.length === 0) return;
+    const keys = events
+      .map((event) => `'csf-publication:${assertUuid(event.id, "event")}'`)
+      .join(",");
+    sql.exec(`DELETE FROM public.notifications WHERE dedupe_key IN (${keys});`);
+  });
+
+  // The publication queue rows this spec created. Removed through the owner for
+  // the same reason they are read through it, and keyed to this submission so
+  // nothing else in the queue is touched.
+  await attempt("notice queue", async () => {
+    const organizationId = assertUuid(fixture.organizationId, "organization");
+    const submissionId = assertUuid(seeded.submissionId, "submission");
+    sql.exec(
+      `DELETE FROM plugin_data.csf_publication_events
+       WHERE organization_id = '${organizationId}'
+         AND source_id = '${submissionId}';`,
+    );
   });
   await attempt("submission", async () => {
     const { error } = await fixture.admin
