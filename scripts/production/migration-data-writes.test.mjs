@@ -68,3 +68,29 @@ test("statement boundaries ignore semicolons in literals and comments before DO 
   assert.equal(writes.length, 1);
   assert.equal(writes[0].table, "public.organization_plugin_installs");
 });
+
+for (const [label, body] of [
+  ["IF", `IF true THEN INSERT INTO ${table} VALUES (1); END IF;`],
+  [
+    "ELSE",
+    `IF false THEN PERFORM 1; ELSE INSERT INTO ${table} VALUES (1); END IF;`,
+  ],
+  [
+    "LOOP",
+    `FOR counter IN 1..2 LOOP INSERT INTO ${table} VALUES (1); END LOOP;`,
+  ],
+  [
+    "EXCEPTION",
+    `BEGIN PERFORM 1; EXCEPTION WHEN OTHERS THEN INSERT INTO ${table} VALUES (1); END;`,
+  ],
+])
+  test(`detects DO writes after ${label}`, () => {
+    const sql = `DO $body$ BEGIN PERFORM 1; ${body} END $body$;`;
+    assert.equal(prohibitedDataWrites(sql).length, 1);
+    assert.equal(unreviewedDataWrites(sql).length, 1);
+  });
+
+test("control-flow text in function bodies and DO strings remains excluded", () => {
+  const sql = `CREATE FUNCTION fixture() RETURNS void AS $fn$ BEGIN PERFORM 1; IF true THEN INSERT INTO ${table} VALUES (1); END IF; END $fn$ LANGUAGE plpgsql; DO $body$ BEGIN PERFORM 1; RAISE NOTICE 'IF true THEN INSERT INTO ${table} VALUES (1)'; END $body$;`;
+  assert.deepEqual(topLevelDataWrites(sql), []);
+});

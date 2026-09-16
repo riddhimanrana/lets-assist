@@ -257,6 +257,20 @@ export function acceptedCatalogQuery(source, versions) {
     .update(versions.join("\n"))
     .digest("hex");
   if (
+    versions.length === 572 &&
+    ledgerHash ===
+      "0fdd58d9380c7b5cc9a1ef99285774b16fc1e158c644a3635ff6e240a01ae5bc"
+  ) {
+    const preceding = acceptedCatalogQuery(source, versions.slice(0, 571));
+    const before = "17bfb459fed6fa6e07b22d67e45431b7";
+    if (preceding.split(before).length !== 2) {
+      throw new ReleaseCheckError(
+        "The report quota baseline fingerprint is missing or repeated.",
+      );
+    }
+    return preceding.replace(before, "7a6a48303831cd8a94d32f9cb3216631");
+  }
+  if (
     versions.length === 571 &&
     ledgerHash ===
       "050b0d277b1099eaccd134961a59a96874ef9a587496a3debe440aabb3717961"
