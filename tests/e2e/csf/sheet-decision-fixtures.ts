@@ -32,10 +32,12 @@ import {
  * disposable isolated stack. Repeat runs stay correct because every run id is
  * fresh and the stage table is keyed on the application, not the run.
  *
- * The applications carry fixed ids so a repeat run re-stages the same rows
- * instead of growing the roster. `resetSheetDecisionFixture` puts the term and
- * those rows back to a known start, which is what makes the journeys below
- * independent of whichever one ran last.
+ * Applicant identities are minted per scenario rather than fixed, because a
+ * staged decision is keyed on its application and no fixture may delete one:
+ * `csf_application_decision_stages` is SELECT-only for the server role. A test
+ * therefore starts clean by starting with applications the staging RPC has
+ * never seen, and nothing is overwritten or removed. See
+ * `sheet-decision-applicants.ts`.
  */
 
 export {
@@ -366,6 +368,7 @@ async function seedApplicants(
       termId: fixture.termId,
       cohortId: fixture.cohortId,
       sourceId: requireSourceId(fixture),
+      actorUserId: fixture.adviserUserId,
     },
     applicants,
     (work) => withIntakeOpen(fixture, work),

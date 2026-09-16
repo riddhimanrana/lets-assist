@@ -76,8 +76,8 @@ export type SheetApplicant = {
 export type SheetApplicants = {
   scenario: string;
   token: string;
+  /** Assigned by `csf_open_import_preview`; "pending" until seeding runs. */
   importJobId: string;
-  previewJobId: string;
   byRole: Record<ApplicantRole, SheetApplicant>;
   all: SheetApplicant[];
 };
@@ -125,11 +125,14 @@ export function allocateSheetApplicants(scenario: string): SheetApplicants {
       applicationId: randomUUID(),
       lastName: `${SHEET_FIXTURE_PREFIX} ${role} ${token}`,
       responseId: `e2e-response-${role}-${token}`,
-      // Workbook coordinates, never identity. Offset so two scenarios reading
-      // the same sheet do not claim the same row number.
+      // Workbook coordinates, never identity. Two scenarios do reuse these
+      // numbers, which is correct: a row number identifies nothing, and the
+      // staging RPC matches on recorded provenance rather than position.
       rowNumber: 100 + index,
+      // A placeholder the preview replaces with the row id it assigned. The
+      // fixture does not get to choose an import row's identity.
       importRowId:
-        matchBasisFor(role) === "import_row_provenance" ? randomUUID() : null,
+        matchBasisFor(role) === "import_row_provenance" ? "pending" : null,
       submittedAt: `2026-08-${String(10 + index).padStart(2, "0")}T18:00:00-07:00`,
       email: `e2e.sheet.${role}.${token}@local.test`,
     };
@@ -138,8 +141,7 @@ export function allocateSheetApplicants(scenario: string): SheetApplicants {
   return {
     scenario: slug,
     token,
-    importJobId: randomUUID(),
-    previewJobId: randomUUID(),
+    importJobId: "pending",
     byRole,
     all: APPLICANT_ROLES.map((role) => byRole[role]),
   };
@@ -151,6 +153,8 @@ type SeedContext = {
   termId: string;
   cohortId: string;
   sourceId: string;
+  /** The officer the preview functions record as having started it. */
+  actorUserId: string;
 };
 
 function checked<T>(result: { data: T; error: { message: string } | null }) {
@@ -161,10 +165,19 @@ function checked<T>(result: { data: T; error: { message: string } | null }) {
 /**
  * The import lineage behind this scenario's applications.
  *
- * A commit job has to name the preview it derived from, so both are written.
- * The rows carry the tab and file id the staging RPC re-checks, and
- * `matched_application_id` is what ties a row to its applicant; a row belonging
- * to somebody else is exactly what the database is meant to refuse.
+ * `csf_sheet_import_jobs` and `csf_sheet_import_rows` are SELECT-only for the
+ * server role: `20260730001004` revoked the inherited `GRANT ALL` precisely
+ * because a direct writer could forge a commit job or a terminal row state. The
+ * reviewed way in is the three owned preview functions, so that is what this
+ * uses. No ACL changes, no reset RPC, no disabled trigger.
+ *
+ * A preview job is enough. The staging RPC checks the row's `sheet_tab_name`,
+ * its job's `source_file_id` and its `matched_application_id`; it does not care
+ * whether the job was a preview or a commit, and a preview needs no
+ * commit-lineage pointer.
+ *
+ * `import_status` stays `pending` because a preview row may never claim a
+ * commit outcome, which is the whole point of the boundary.
  */
 async function seedImportLineage(
   context: SeedContext,
@@ -174,53 +187,92 @@ async function seedImportLineage(
   const imported = applicants.all.filter(
     (applicant) => applicant.importRowId !== null,
   );
-  if (imported.length === 0) return;
+  if (imported.length === 0) return new Map<string, string>();
+
+  const opened = checked(
+    await plugin.rpc("csf_open_import_preview", {
+      p_organization_id: context.organizationId,
+      p_actor_user_id: context.actorUserId,
+      p_source_id: context.sourceId,
+      p_source_type: "application_responses",
+      p_source_file_id: SHEET_FIXTURE_DRIVE_FILE_ID,
+      p_source_file_name: `${SHEET_FIXTURE_PREFIX} responses`,
+      p_source_sheet_tab: SHEET_FIXTURE_TAB,
+      p_source_range: SHEET_FIXTURE_RANGE,
+      p_source_modified_at: new Date().toISOString(),
+      p_source_file_metadata: { name: `${SHEET_FIXTURE_PREFIX} responses` },
+      p_mapping_snapshot: {
+        tabName: SHEET_FIXTURE_TAB,
+        rangeA1: SHEET_FIXTURE_RANGE,
+        headerRow: 1,
+      },
+      p_mapping_version: 1,
+      p_retry_of_job_id: null,
+      p_source_content_hash: `e2e-content-${applicants.token}`,
+      p_snapshot_hash: `e2e-snapshot-${applicants.token}`,
+      p_snapshot_row_count: imported.length,
+      p_snapshot_contract_version: "e2e-1",
+    }),
+  ) as { previewJobId: string };
+  const previewJobId = String(opened.previewJobId);
 
   checked(
-    await plugin.from("csf_sheet_import_jobs").upsert(
-      [
-        {
-          id: applicants.previewJobId,
-          organization_id: context.organizationId,
-          source_id: context.sourceId,
-          mode: "preview",
-          status: "completed",
-          source_file_id: SHEET_FIXTURE_DRIVE_FILE_ID,
-        },
-        {
-          id: applicants.importJobId,
-          organization_id: context.organizationId,
-          source_id: context.sourceId,
-          mode: "commit",
-          status: "completed",
-          source_file_id: SHEET_FIXTURE_DRIVE_FILE_ID,
-          preview_job_id: applicants.previewJobId,
-        },
-      ],
-      { onConflict: "id" },
-    ),
-  );
-
-  checked(
-    await plugin.from("csf_sheet_import_rows").upsert(
-      imported.map((applicant) => ({
-        id: applicant.importRowId!,
-        organization_id: context.organizationId,
-        job_id: applicants.importJobId,
+    await plugin.rpc("csf_append_import_preview_rows", {
+      p_organization_id: context.organizationId,
+      p_actor_user_id: context.actorUserId,
+      p_preview_job_id: previewJobId,
+      p_rows: imported.map((applicant) => ({
         source_id: context.sourceId,
-        term_id: context.termId,
         cohort_id: context.cohortId,
+        term_id: context.termId,
         sheet_tab_name: SHEET_FIXTURE_TAB,
         row_number: applicant.rowNumber,
         source_range: SHEET_FIXTURE_RANGE,
         row_hash: `e2e-row-hash-${applicant.responseId}`,
-        matched_application_id: applicant.applicationId,
         matched_profile_id: applicant.profileId,
-        import_status: "created",
+        matched_application_id: applicant.applicationId,
+        import_status: "pending",
+        raw_data: { responseId: applicant.responseId },
+        normalized_data: { responseId: applicant.responseId },
+        mapping_version: 1,
       })),
-      { onConflict: "id" },
-    ),
+    }),
   );
+
+  checked(
+    await plugin.rpc("csf_seal_import_preview", {
+      p_organization_id: context.organizationId,
+      p_actor_user_id: context.actorUserId,
+      p_preview_job_id: previewJobId,
+      p_status: "completed",
+      p_summary: { previewRows: imported.length },
+    }),
+  );
+
+  // The function assigns the row ids, so read them back by the coordinates it
+  // was given. The applications then point at the rows that really exist.
+  const rows = checked(
+    await plugin
+      .from("csf_sheet_import_rows")
+      .select("id, row_number")
+      .eq("organization_id", context.organizationId)
+      .eq("job_id", previewJobId),
+  ) as Array<{ id: string; row_number: number }>;
+
+  const byRowNumber = new Map(
+    rows.map((row) => [String(row.row_number), String(row.id)]),
+  );
+  for (const applicant of imported) {
+    const rowId = byRowNumber.get(String(applicant.rowNumber));
+    if (!rowId) {
+      throw new Error(
+        `The preview did not record a row at ${applicant.rowNumber} for ${applicant.lastName}.`,
+      );
+    }
+    applicant.importRowId = rowId;
+  }
+  applicants.importJobId = previewJobId;
+  return byRowNumber;
 }
 
 /**
@@ -269,8 +321,6 @@ export async function seedSheetApplicants(
     ),
   );
 
-  await seedImportLineage(context, applicants);
-
   await withIntake(async () =>
     checked(
       await plugin.from("csf_term_applications").upsert(
@@ -294,10 +344,10 @@ export async function seedSheetApplicants(
           source_sheet_tab: SHEET_FIXTURE_TAB,
           source_row_number: applicant.rowNumber,
           source_submitted_at: applicant.submittedAt,
-          source_import_job_id: applicant.importRowId
-            ? applicants.importJobId
-            : null,
-          source_import_row_id: applicant.importRowId,
+          // Filled in after the preview runs, because the preview assigns the
+          // row ids and a row matches an application that already exists.
+          source_import_job_id: null,
+          source_import_row_id: null,
           list_i_points: 5,
           list_i_ii_points: 3,
           grand_total_points: 8,
@@ -310,4 +360,23 @@ export async function seedSheetApplicants(
       ),
     ),
   );
+
+  await seedImportLineage(context, applicants);
+
+  // The product's identity loader only considers applications that name their
+  // import row, so the back-link is what makes these applicants reachable the
+  // way a real imported one is.
+  for (const applicant of applicants.all) {
+    if (!applicant.importRowId) continue;
+    checked(
+      await plugin
+        .from("csf_term_applications")
+        .update({
+          source_import_job_id: applicants.importJobId,
+          source_import_row_id: applicant.importRowId,
+        })
+        .eq("organization_id", context.organizationId)
+        .eq("id", applicant.applicationId),
+    );
+  }
 }
