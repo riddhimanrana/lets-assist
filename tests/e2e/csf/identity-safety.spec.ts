@@ -807,7 +807,9 @@ test.describe("CSF identity safety", () => {
     // Nothing contradicts, so nothing blocks. The database could simply not
     // corroborate the identity on its own.
     await expect(
-      dialog.getByRole("alert").filter({ hasText: /Resolve \d+ blockers? first/ }),
+      dialog
+        .getByRole("alert")
+        .filter({ hasText: /Resolve \d+ blockers? first/ }),
     ).toHaveCount(0);
     const attestation = dialog.getByRole("alert").filter({
       hasText: "Confirm this yourself before merging",

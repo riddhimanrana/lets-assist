@@ -450,9 +450,9 @@ test.describe("member guards", () => {
         observedColor: "#f4cccc",
       },
     ]);
-    expect((await publishedState(fixture, APPLICANTS.accepted)).membershipStatus).toBe(
-      "revoked",
-    );
+    expect(
+      (await publishedState(fixture, APPLICANTS.accepted)).membershipStatus,
+    ).toBe("revoked");
 
     // Whatever the stale page still shows, the next thing the member asks the
     // server for has to refuse. The action layer refuses a stale post too;

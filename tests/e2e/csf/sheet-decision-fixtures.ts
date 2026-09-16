@@ -742,17 +742,36 @@ export async function seedPriorSemesterRecord(
  */
 async function ensurePriorTerm(fixture: SheetDecisionFixture) {
   const plugin = fixture.admin.schema("plugin_data");
-  const seeded = checked(
+
+  // `is_current = false` is not "historical": this chapter is seeded with
+  // semesters running out to Spring 2028, and the newest non-current one is in
+  // the future. A completed record on a semester that has not started yet is
+  // not history, so the term has to actually begin before the current one.
+  const current = checked(
     await plugin
       .from("csf_terms")
-      .select("id")
+      .select("starts_at")
       .eq("organization_id", fixture.organizationId)
-      .eq("is_current", false)
-      .neq("id", fixture.termId)
-      .order("starts_at", { ascending: false, nullsFirst: false })
-      .limit(1)
-      .maybeSingle(),
-  ) as { id: string } | null;
+      .eq("id", fixture.termId)
+      .single(),
+  ) as { starts_at: string | null };
+
+  const seeded = current.starts_at
+    ? ((checked(
+        await plugin
+          .from("csf_terms")
+          .select("id")
+          .eq("organization_id", fixture.organizationId)
+          .eq("is_current", false)
+          .neq("id", fixture.termId)
+          .lt("starts_at", current.starts_at)
+          .order("starts_at", { ascending: false, nullsFirst: false })
+          .limit(1)
+          .maybeSingle(),
+      ) ?? null) as { id: string } | null)
+    : null;
+  // Only the applicant's membership is written onto a seeded term. Its
+  // lifecycle, dates, and current flag are the seed's and stay untouched.
   if (seeded) return String(seeded.id);
 
   checked(
