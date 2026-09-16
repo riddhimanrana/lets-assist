@@ -4,6 +4,76 @@ export type SemesterLedgerSlot = {
   evidenceId: string;
 };
 
+export type VerifiedSemesterActivity = {
+  title: string;
+  points: number;
+  evidenceId: string;
+};
+
+export type VerifiedMeetingMark = {
+  meetingId: string;
+  mark: "X" | "E" | "N/A";
+  evidenceId: string;
+};
+
+export type SemesterLedgerProjectionInput = {
+  activityColumns: ReadonlyArray<number>;
+  meetingColumns: ReadonlyArray<{ meetingId: string; columnIndex: number }>;
+  activities: ReadonlyArray<VerifiedSemesterActivity>;
+  meetingMarks: ReadonlyArray<VerifiedMeetingMark>;
+};
+
+// Historical point awards are repeated by point, as in the chapter's F25/S26/F26
+// activity columns. Missing meeting evidence leaves that meeting cell untouched.
+export function projectSemesterLedgerSlots(
+  input: SemesterLedgerProjectionInput,
+): SemesterLedgerSlot[] {
+  const slots: SemesterLedgerSlot[] = [];
+  let activityIndex = 0;
+  for (const activity of input.activities) {
+    if (
+      !activity.title.trim() ||
+      !activity.evidenceId.trim() ||
+      !Number.isSafeInteger(activity.points) ||
+      activity.points <= 0 ||
+      activityIndex + activity.points > input.activityColumns.length
+    ) {
+      throw new Error("An activity lacks evidence or exceeds the semester ledger capacity.");
+    }
+    for (let point = 0; point < activity.points; point += 1) {
+      slots.push({
+        columnIndex: input.activityColumns[activityIndex],
+        value: activity.title.trim(),
+        evidenceId: activity.evidenceId,
+      });
+      activityIndex += 1;
+    }
+  }
+
+  const meetingColumns = new Map<string, number>();
+  for (const meeting of input.meetingColumns) {
+    if (!meeting.meetingId || meetingColumns.has(meeting.meetingId)) {
+      throw new Error("The meeting column mapping is incomplete or duplicated.");
+    }
+    meetingColumns.set(meeting.meetingId, meeting.columnIndex);
+  }
+  const seenMarks = new Set<string>();
+  for (const mark of input.meetingMarks) {
+    const columnIndex = meetingColumns.get(mark.meetingId);
+    if (
+      columnIndex === undefined ||
+      seenMarks.has(mark.meetingId) ||
+      !mark.evidenceId.trim() ||
+      !["X", "E", "N/A"].includes(mark.mark)
+    ) {
+      throw new Error("A meeting mark lacks a unique mapped column or source evidence.");
+    }
+    seenMarks.add(mark.meetingId);
+    slots.push({ columnIndex, value: mark.mark, evidenceId: mark.evidenceId });
+  }
+  return slots;
+}
+
 export type SemesterLedgerRow = {
   rowIndex: number;
   sourceKey: string;

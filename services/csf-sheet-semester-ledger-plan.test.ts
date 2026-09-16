@@ -2,6 +2,7 @@ import { describe, expect, test } from "bun:test";
 
 import {
   planSemesterLedgerRow,
+  projectSemesterLedgerSlots,
   type SemesterLedgerPlanInput,
 } from "./csf-sheet-semester-ledger-plan";
 
@@ -25,6 +26,30 @@ const base: SemesterLedgerPlanInput = {
 };
 
 describe("semester ledger planning", () => {
+  test("repeats evidenced activity names by point and uses only explicit meeting marks", () => {
+    expect(projectSemesterLedgerSlots({
+      activityColumns: [2, 3, 4],
+      meetingColumns: [{ meetingId: "september", columnIndex: 5 }, { meetingId: "october", columnIndex: 6 }],
+      activities: [{ title: "Community service", points: 2, evidenceId: "credit-1" }],
+      meetingMarks: [{ meetingId: "september", mark: "X", evidenceId: "attendance-1" }],
+    })).toEqual([
+      { columnIndex: 2, value: "Community service", evidenceId: "credit-1" },
+      { columnIndex: 3, value: "Community service", evidenceId: "credit-1" },
+      { columnIndex: 5, value: "X", evidenceId: "attendance-1" },
+    ]);
+  });
+
+  test("holds overflow and unevidenced marks for officer review", () => {
+    expect(() => projectSemesterLedgerSlots({
+      activityColumns: [2], meetingColumns: [],
+      activities: [{ title: "Community service", points: 2, evidenceId: "credit-1" }], meetingMarks: [],
+    })).toThrow();
+    expect(() => projectSemesterLedgerSlots({
+      activityColumns: [], meetingColumns: [{ meetingId: "september", columnIndex: 5 }],
+      activities: [], meetingMarks: [{ meetingId: "september", mark: "X", evidenceId: "" }],
+    })).toThrow();
+  });
+
   test("writes only reviewed, evidenced cells and is repeat-safe", () => {
     const first = planSemesterLedgerRow(base);
     expect(first).toEqual({
