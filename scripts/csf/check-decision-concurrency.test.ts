@@ -314,31 +314,41 @@ describe("the script's own shape", () => {
     expect(exitCode).toBe(0);
   });
 
-  test("it never deletes by organization name", () => {
-    // A name is not an identity. Deleting by username took whatever fixture
-    // happened to share the name, including another run's.
-    expect(source).not.toMatch(
-      /DELETE FROM public\.organizations WHERE username/i,
-    );
-    expect(source).toMatch(
-      /DELETE FROM public\.organizations WHERE id = :'org_id'/,
-    );
+  test("it deletes nothing, because the audit trail is immutable", () => {
+    // Deleting the organization cascades into csf_admin_audit_events, which
+    // correctly refuses. Disabling that trigger or widening a grant to get a
+    // tidy exit would weaken the thing this script exists to check, so the
+    // fixture is retained instead.
+    expect(source).not.toMatch(/DELETE FROM/i);
+    expect(source).not.toMatch(/ALTER TABLE .* DISABLE TRIGGER/i);
+    expect(source).not.toMatch(/session_replication_role/i);
+    expect(source).not.toMatch(/\bGRANT\b/);
   });
 
-  test("teardown removes the auth user it created", () => {
-    expect(source).toMatch(/DELETE FROM auth\.users WHERE id = :'actor_id'/);
+  test("it names what it retained rather than claiming a clean exit", () => {
+    expect(source).toContain(
+      "Retained synthetic fixture on this disposable stack",
+    );
+    expect(source).toContain("retention_receipt");
+    // The receipt counts the evidence from the database instead of asserting it.
+    expect(source).toContain("plugin_data.csf_admin_audit_events");
+    expect(source).toContain("csf_application_decision_sync_runs");
+    expect(source).toContain("csf_application_decision_releases");
+    expect(source).toContain("are NOT deleted");
+    // No wording that would read as a clean row deletion.
+    expect(source).not.toMatch(/torn down cleanly|removed every fixture row/i);
   });
 
-  test("teardown failures are reported rather than suppressed", () => {
-    // The old cleanup ended in `|| true`, so a failed teardown looked like a
-    // clean run and left rows behind.
-    expect(source).not.toMatch(/teardown\.sql[^\n]*\|\|\s*true/);
-    expect(source).toContain("could not be torn down cleanly");
+  test("it proves it let go of every session it opened", () => {
+    expect(source).toContain("verify_sessions_ended");
+    expect(source).toContain("did not release every session it opened");
+    // Scoped to this run's own session names, not every connection on the stack.
+    expect(source).toMatch(/LIKE 'csf\\\\_%\\\\_\$\{RUN_SUFFIX\}'/);
   });
 
   test("it waits on observed lock state rather than on a fixed sleep", () => {
     expect(source).toContain("pg_catalog.pg_stat_activity");
-    expect(source).toContain("await_all_waiting");
+    expect(source).toContain("await_blocked_behind");
     // The shell must not time a race. `sleep 0.05` inside a polling loop is a
     // poll interval, not a race, so only whole-second shell sleeps are banned.
     expect(source).not.toMatch(/^\s*sleep [1-9][0-9]*\s*$/m);
@@ -349,13 +359,33 @@ describe("the script's own shape", () => {
     // finishes before the second arrives, and nothing was ever simultaneous.
     // The count has to come from a single query over the whole group.
     expect(source).toContain("SELECT count(DISTINCT application_name)");
-    expect(source).toMatch(/await_all_waiting 2 "'Lock'" "'advisory'"/);
   });
 
-  test("a second row waiter may report transactionid or tuple", () => {
-    // Which queue a waiter joins decides which event it reports, and accepting
-    // only one of them would make the barrier flaky rather than strict.
-    expect(source).toContain("\"'transactionid', 'tuple'\"");
+  test("contention is read from the wait graph, not from a shared wait event", () => {
+    // csf_assert_sheet_decision_authority takes an EXCLUSIVE staff advisory
+    // lock before the staging, release, and mapping functions reach their own
+    // lock or row. So one contender holds the staff lock and waits on the
+    // holder while the other waits on the staff lock behind it. They are
+    // simultaneous and both are stuck behind the holder, but they can never
+    // share an inner wait event, which is what the old assertion demanded.
+    expect(source).toContain("pg_catalog.pg_blocking_pids");
+    expect(source).toContain("await_blocked_behind");
+    // Transitive, so a contender queued behind another contender still counts.
+    expect(source).toContain("WITH RECURSIVE contender");
+    expect(source).toMatch(/WHERE w\.depth < \d+/);
+    expect(source).toContain("WHERE blocking_pid = ${holder_pid}");
+  });
+
+  test("every barrier names the holder its contenders must be behind", () => {
+    // A contender blocked behind something else on the stack is not this run's
+    // barrier, so each call passes the holder it expects.
+    for (const call of [
+      'await_blocked_behind "${TERM_HOLDER}" 2',
+      'await_blocked_behind "${STAFF_HOLDER}" 1',
+      'await_blocked_behind "${MAPPING_HOLDER}" 2',
+    ]) {
+      expect(source).toContain(call);
+    }
   });
 
   test("session names are run-scoped", () => {
@@ -487,8 +517,10 @@ describe("the script's own shape", () => {
     // so an unrelated line in the trap does not look like a regression.
     const trap = source.slice(source.indexOf("on_exit() {"));
     expect(trap.indexOf("release_all_holders")).toBeGreaterThan(-1);
+    // Before anything reads the database for the receipt, so a held lock cannot
+    // make the receipt itself the thing that hangs.
     expect(trap.indexOf("release_all_holders")).toBeLessThan(
-      trap.indexOf("if ! teardown"),
+      trap.indexOf("retention_receipt"),
     );
     for (const holder of ["TERM_HOLDER", "STAFF_HOLDER", "MAPPING_HOLDER"]) {
       expect(source).toContain(`HELD_SESSIONS+=("\${${holder}}`);

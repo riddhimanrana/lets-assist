@@ -21,7 +21,13 @@ set -euo pipefail
 # This is read-write. It refuses anything but a marker-validated CSF isolated
 # stack on loopback, and it refuses before it opens a connection. Every fixture
 # identifier and every session name is minted per run, so parallel runs cannot
-# see each other's barriers and no check deletes by organization name.
+# see each other's barriers.
+#
+# It does not delete its fixture. Decision work writes immutable audit evidence,
+# and removing the organization would have to erase that, which the product
+# correctly refuses. The run ends by naming what it retained and proving it let
+# go of every lock it took. The stack is disposable and the coordinator disposes
+# of it.
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 cd "${ROOT_DIR}"
@@ -192,35 +198,71 @@ psql_quiet() { psql "${DATABASE_URL}" -X -q -v ON_ERROR_STOP=1 "$@"; }
 psql_value() { psql "${DATABASE_URL}" -X -At -v ON_ERROR_STOP=1 "$@"; }
 
 # ---------------------------------------------------------------------------
-# Teardown by explicit identifier, and it reports failure
+# Retention, not deletion
 #
-# Nothing deletes by organization name: a name is not an identity, and a blanket
-# delete would take a fixture some other run owns. Deleting the organization
-# cascades the CSF rows, and the auth user is removed by its own minted id.
+# Deleting the organization cascades into csf_admin_audit_events, which is
+# immutable by design and correctly refuses. That refusal is the product working:
+# a decision run leaves an audit trail, and a test is not a reason to make that
+# trail erasable. Disabling the trigger or widening a grant to get a tidy exit
+# would weaken the thing this script exists to check.
+#
+# So the fixture stays. This run ends by naming exactly what it left behind and
+# proving it released everything it held. The stack is disposable and the
+# coordinator disposes of it once the evidence is read.
 # ---------------------------------------------------------------------------
 
-teardown() {
+# Nothing owned by this run is still connected or holding a lock.
+verify_sessions_ended() {
+  local attempt lingering
+  for ((attempt = 0; attempt < 200; attempt += 1)); do
+    lingering="$(
+      psql "${DATABASE_URL}" -X -At -c "
+        SELECT count(*) FROM pg_catalog.pg_stat_activity
+        WHERE application_name LIKE 'csf\\_%\\_${RUN_SUFFIX}';" \
+        2>/dev/null || echo ""
+    )"
+    [[ "${lingering}" == "0" ]] && return 0
+    # A reading that is not a count is not a slow session, it is an unreadable
+    # database. Waiting longer would only turn one failure into a hang.
+    if [[ ! "${lingering}" =~ ^[0-9]+$ ]]; then
+      echo "Could not read this run's session count." >&2
+      return 1
+    fi
+    sleep 0.05
+  done
+  echo "Sessions from this run are still connected (${lingering})." >&2
+  return 1
+}
+
+# What the run left, counted from the database rather than assumed.
+retention_receipt() {
   local status=0
-  if ! psql_quiet -v org_id="${ORG_ID}" -v actor_id="${ACTOR_ID}" <<'SQL'
-DELETE FROM public.organizations WHERE id = :'org_id'::uuid;
-DELETE FROM auth.users WHERE id = :'actor_id'::uuid;
+  echo "Retained synthetic fixture on this disposable stack:"
+  echo "  organization ${ORG_ID}"
+  echo "  actor        ${ACTOR_ID}"
+  echo "  term         ${TERM_ID}"
+  echo "  application  ${APPLICATION_ID}"
+  echo "  source       ${SOURCE_ID}"
+
+  if ! psql "${DATABASE_URL}" -X -At -F ' ' \
+    -v org_id="${ORG_ID}" <<'SQL' | sed 's/^/  /'
+SELECT 'audit events', count(*) FROM plugin_data.csf_admin_audit_events
+WHERE organization_id = :'org_id'::uuid
+UNION ALL
+SELECT 'sync runs', count(*) FROM plugin_data.csf_application_decision_sync_runs
+WHERE organization_id = :'org_id'::uuid
+UNION ALL
+SELECT 'release receipts', count(*)
+FROM plugin_data.csf_application_decision_releases
+WHERE organization_id = :'org_id'::uuid;
 SQL
   then
+    echo "Could not read the retention receipt." >&2
     status=1
   fi
 
-  local leftover
-  leftover="$(
-    psql "${DATABASE_URL}" -X -At \
-      -c "SELECT
-            (SELECT count(*) FROM public.organizations WHERE id = '${ORG_ID}')
-          + (SELECT count(*) FROM auth.users WHERE id = '${ACTOR_ID}');" \
-      2>/dev/null || echo "unknown"
-  )"
-  if [[ "${leftover}" != "0" ]]; then
-    echo "Teardown did not remove every fixture row (remaining: ${leftover})." >&2
-    status=1
-  fi
+  echo "These rows are immutable evidence and are NOT deleted. The coordinator"
+  echo "disposes of the whole isolated stack after reading them."
   return "${status}"
 }
 
@@ -238,8 +280,12 @@ on_exit() {
   local exit_code=$?
   rm -f "${VALIDATION_OUT}" "${VALIDATION_ERR}"
   release_all_holders
-  if ! teardown; then
-    echo "FAIL: the fixture could not be torn down cleanly." >&2
+  if ! verify_sessions_ended; then
+    echo "FAIL: this run did not release every session it opened." >&2
+    KEEP_EVIDENCE=true
+    [[ "${exit_code}" -eq 0 ]] && exit_code=1
+  fi
+  if ! retention_receipt; then
     KEEP_EVIDENCE=true
     [[ "${exit_code}" -eq 0 ]] && exit_code=1
   fi
@@ -288,6 +334,62 @@ await_all_waiting() {
           AND wait_event_type IN (${wait_types})
           AND wait_event IN (${wait_events})
           AND xact_start IS NOT NULL;" 2>/dev/null || echo "0"
+    )"
+    [[ "${observed}" == "${expected_count}" ]] && return 0
+    sleep 0.05
+  done
+  return 1
+}
+
+# Every contender blocked behind this run's holder, directly or transitively.
+#
+# Asserting that both contenders sit in the same wait event was wrong, and the
+# product is the reason. csf_assert_sheet_decision_authority takes an EXCLUSIVE
+# advisory lock on the staff-access key before the staging, release, and mapping
+# functions reach their own lock or row. So the first contender takes the staff
+# lock and blocks on whatever this run's holder is holding, and the second
+# blocks on the staff lock behind the first. They are genuinely simultaneous and
+# both are stuck behind the holder, but they can never both be in the inner
+# wait.
+#
+# pg_blocking_pids gives the real graph. The recursion follows it outward so a
+# contender queued behind another contender still counts, and the closure is
+# depth-bounded so a cycle cannot spin.
+await_blocked_behind() {
+  local holder_app="$1" expected_count="$2"
+  shift 2
+  local names_list holder_pid attempt observed
+  names_list="$(quote_sql_list "$@")"
+
+  holder_pid="$(backend_pid_for "${holder_app}")"
+  if [[ -z "${holder_pid}" ]]; then
+    echo "Could not find the backend for ${holder_app}." >&2
+    return 1
+  fi
+
+  for ((attempt = 0; attempt < 300; attempt += 1)); do
+    observed="$(
+      psql "${DATABASE_URL}" -X -At -c "
+        WITH RECURSIVE contender AS (
+          SELECT pid, application_name
+          FROM pg_catalog.pg_stat_activity
+          WHERE application_name IN (${names_list})
+            AND xact_start IS NOT NULL
+        ), waits AS (
+          SELECT c.application_name, blocker.pid AS blocking_pid, 1 AS depth
+          FROM contender AS c
+          CROSS JOIN LATERAL
+            unnest(pg_catalog.pg_blocking_pids(c.pid)) AS blocker(pid)
+          UNION ALL
+          SELECT w.application_name, outer_blocker.pid, w.depth + 1
+          FROM waits AS w
+          CROSS JOIN LATERAL
+            unnest(pg_catalog.pg_blocking_pids(w.blocking_pid))
+              AS outer_blocker(pid)
+          WHERE w.depth < 8
+        )
+        SELECT count(DISTINCT application_name)
+        FROM waits WHERE blocking_pid = ${holder_pid};" 2>/dev/null || echo "0"
     )"
     [[ "${observed}" == "${expected_count}" ]] && return 0
     sleep 0.05
@@ -591,10 +693,11 @@ SQL
 ) >"${WORK_DIR}/release.out" 2>"${WORK_DIR}/release.err" &
 RELEASE_PID=$!
 
-if await_all_waiting 2 "'Lock'" "'advisory'" "${SYNC_SESSION}" "${RELEASE_SESSION}"; then
-  report pass "the correction and the release wait on the term lock together"
+if await_blocked_behind "${TERM_HOLDER}" 2 \
+  "${SYNC_SESSION}" "${RELEASE_SESSION}"; then
+  report pass "the correction and the release are both stuck behind the term lock"
 else
-  report fail "the correction and the release wait on the term lock together"
+  report fail "the correction and the release are both stuck behind the term lock"
 fi
 
 if ! release_holder "${TERM_HOLDER}" "${HOLDER_PID}"; then
@@ -695,7 +798,7 @@ SQL
 ) >"${WORK_DIR}/revoked.out" 2>"${WORK_DIR}/revoked.err" &
 DEPRIVILEGED_PID=$!
 
-if await_all_waiting 1 "'Lock'" "'advisory'" "${DEPRIVILEGED_SESSION}"; then
+if await_blocked_behind "${STAFF_HOLDER}" 1 "${DEPRIVILEGED_SESSION}"; then
   report pass "the release reached the staff-access lock before the revocation"
 else
   report fail "the release reached the staff-access lock before the revocation"
@@ -817,8 +920,11 @@ for index in 0 1; do
   SAVER_PIDS+=("$!")
 done
 
-if await_all_waiting 2 "'Lock'" "'transactionid', 'tuple'" \
-  "${SAVER_ONE}" "${SAVER_TWO}"; then
+# One saver holds the staff lock and waits on the row; the other waits on the
+# staff lock behind it. Both are inside the function and both are stuck behind
+# this run's holder, which is what the wait graph shows and a shared wait event
+# never could.
+if await_blocked_behind "${MAPPING_HOLDER}" 2 "${SAVER_ONE}" "${SAVER_TWO}"; then
   report pass "both mapping saves are inside the function at the same time"
 else
   report fail "both mapping saves are inside the function at the same time"
