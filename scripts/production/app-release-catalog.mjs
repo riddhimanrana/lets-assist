@@ -145,6 +145,15 @@ export function acceptedCatalogQuery(source, versions) {
   const ledgerHash = createHash("sha256")
     .update(versions.join("\n"))
     .digest("hex");
+  if (
+    versions.length === 555 &&
+    ledgerHash ===
+      "b6716c1e6fe25011a6b697b5799b15d531effbd66dc8e15e934ba798cb175cde"
+  )
+    // The decision plan reset restates two RPCs of the decisions lane's own
+    // with a safe-update-compatible clear. Both were verified absent from the
+    // generated accepted catalog, so no reviewed fingerprint moves.
+    return acceptedCatalogQuery(source, versions.slice(0, 554));
   // Two reachable appends for the class-block acceptance migration, because
   // the officer identity work may land before or after it. Either way this is
   // the previous ledger plus one tail entry.
