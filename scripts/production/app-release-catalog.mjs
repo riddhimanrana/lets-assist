@@ -137,6 +137,21 @@ export function acceptedCatalogQuery(source, versions) {
   const ledgerHash = createHash("sha256")
     .update(versions.join("\n"))
     .digest("hex");
+  // Two reachable appends for the class-block acceptance migration, because
+  // the officer identity work may land before or after it. Either way this is
+  // the previous ledger plus one tail entry.
+  if (
+    versions.length === 544 &&
+    ledgerHash ===
+      "1b2639267c001a61f9c13d964323e2abb3383ce77785fda854418fe58d406575"
+  )
+    return acceptedCatalogQuery(source, versions.slice(0, 543));
+  if (
+    versions.length === 540 &&
+    ledgerHash ===
+      "fadde0135b73175fa602aece36774b7200e09515e901c5e0b1d31da343a676ee"
+  )
+    return acceptedCatalogQuery(source, versions.slice(0, 539));
   if (
     versions.length === 539 &&
     ledgerHash ===

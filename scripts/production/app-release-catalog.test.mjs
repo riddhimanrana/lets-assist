@@ -14,12 +14,12 @@ const versions = expectedVersions(
   fileURLToPath(new URL("../../", import.meta.url)),
 ).slice(0, 518);
 
-test("exact 539 release publication preserves the accepted 538 schema", () => {
+test("exact 540 release publication preserves the accepted 539 schema", () => {
   const fullLedger = expectedVersions(
     fileURLToPath(new URL("../../", import.meta.url)),
   );
-  assert.equal(fullLedger.length, 539);
-  assert.equal(fullLedger.at(-1), "20260916010000");
+  assert.equal(fullLedger.length, 540);
+  assert.equal(fullLedger.at(-1), "20260916070000");
   assert.equal(
     acceptedCatalogQuery(source, fullLedger),
     acceptedCatalogQuery(source, fullLedger.slice(0, 538)),
