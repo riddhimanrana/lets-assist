@@ -2728,8 +2728,8 @@ No data correction is authorized by this report. The late application workbook
 exists but lacks an app source registration. A current source read found 493
 regular responses and 3 late responses, with two green regular rows.
 
-Local integration `2960940b`, private `53b80d0`, passes 342 root test files,
-419 private test files, lint, TypeScript and formatting. The private application
+Local integration `1e4e1bc7`, private `6e982bf4`, passes 344 root test files,
+425 private test files, lint, TypeScript and formatting. The private application
 package passes its independent lint, types, tests, build, data boundary and route
 inventory gates. These results do not close browser acceptance.
 
@@ -2744,10 +2744,11 @@ A later service-role API preflight found a P1 that direct SQL did not exercise:
 the request safe-update guard rejects unrestricted DELETE statements on the
 sync and release functions' temporary plan tables. Migration 20260917040000
 resets those exact session-local tables with TRUNCATE, preserving function ACLs
-and the request policy. It passes the 555-migration replay. API verification
-remains open because the revised browser fixture still attempts a forbidden
-import-history write through the service role. The fixture repair must preserve
-those permissions and use only the guarded owned local database.
+and the request policy. It passes the 555-migration replay. The repaired fixture
+now records valid import provenance through the existing preview functions.
+The next API preflight found one remaining unrestricted temporary-plan UPDATE.
+A further forward fix and an actual API lifecycle pass are still required;
+direct SQL lifecycle success does not close this request-policy defect.
 
 The direct concurrent-session suite now passes meaningful sync/release races,
 permission revocation during a wait, and competing mapping saves. It verifies
@@ -2788,9 +2789,12 @@ activity restores both views to the original total, and an explicit unknown mark
 meeting to unknown attendance. These operations affect only the owned local
 fixtures. The same walkthrough exposes a P2 calendar-date defect: an activity
 entered as March 15 displays March 14 in both views in Pacific time, although the
-editor retains March 15. New date-only corrections now normalize to noon UTC and pass focused calendar
-and editor regressions. Legacy timestamps remain unchanged. Browser readback of
-the fix remains open under CSF-READINESS-02.
+editor retains March 15. New date-only corrections normalize to noon UTC and pass focused calendar
+and editor regressions. The updated officer browser shows March 15 for a new
+March 15 activity, then preserves that date when a blank-date point edit changes
+the total from 3/7 to 4/7. Member parity and removal readback remain pending.
+The synthetic activity is retained for that check. Legacy timestamps remain
+unchanged; this does not resolve uncertain historical source dates.
 
 Hosted Development run `35057125551` passed for baseline `1f91d3b1`;
 it does not verify this readiness candidate. No candidate has been published,
