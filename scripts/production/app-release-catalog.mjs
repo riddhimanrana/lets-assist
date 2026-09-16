@@ -257,6 +257,25 @@ export function acceptedCatalogQuery(source, versions) {
     .update(versions.join("\n"))
     .digest("hex");
   if (
+    versions.length === 570 &&
+    ledgerHash ===
+      "8cd5c5b8d76142fbd0f1f14f3acbb5a2d6ff3083cbb97f706c253517e1042798"
+  ) {
+    const preceding = acceptedCatalogQuery(source, versions.slice(0, 569))
+      .trim()
+      .replace(/;$/u, "");
+    return `SELECT CASE WHEN (${preceding}) = 1 AND EXISTS (
+      SELECT 1 FROM pg_catalog.pg_proc AS p
+      WHERE p.oid = pg_catalog.to_regprocedure('plugin_data.csf_unreconcile_sheet_import_row_identity_base(uuid,uuid,uuid,text,uuid)')
+        AND md5(pg_catalog.pg_get_functiondef(p.oid)) = '4ca4488557e8c00c2beaebabdcb2fcd3'
+        AND p.prosecdef AND p.proowner = 'postgres'::regrole
+        AND NOT has_function_privilege('anon', p.oid, 'EXECUTE')
+        AND NOT has_function_privilege('authenticated', p.oid, 'EXECUTE')
+        AND NOT has_function_privilege('service_role', p.oid, 'EXECUTE')
+        AND has_function_privilege('postgres', p.oid, 'EXECUTE')
+    ) THEN 1 ELSE 0 END AS csf_target_schema_verified;`;
+  }
+  if (
     versions.length === 569 &&
     ledgerHash ===
       "2b47451e2fb5331055ecb1c893a6bbfe15879034f9678aceefa30e363cee8fd1"
