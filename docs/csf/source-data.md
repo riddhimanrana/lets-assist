@@ -128,3 +128,32 @@ Per-file shape (sheet → meaning; only sheets relevant to Fall 25 credit listed
 When a workbook has both a points/total column and per-meeting marks, the points column is authoritative; derived attendance counts are evidence only.
 
 The 2026-08-17 partner-clubs simplification removed the legacy workbook inspector, normalizer, and partner-audit upload path. These files are now reference material for manual point vetting, not an import payload; no repository command transforms or imports them.
+
+## Separate class destination workbooks, September 16 inspection
+
+Read-only Drive inspection confirmed separate Class of 2027 and Class of 2028
+"Let's Assist" workbooks with existing semester tabs. Points and attendance
+belong in each matching semester's roster columns, not solely in an appended
+account-status summary. Original class workbooks remain separate sources.
+
+| Tab | Observed roster layout                                                                                                        |
+| --- | ----------------------------------------------------------------------------------------------------------------------------- |
+| F25 | Last, First, LastFirst, seven activity columns, October and November meetings, attendance aggregate, requirements outcome.    |
+| S26 | Last, First, LastFirst, seven activity columns, February through April meetings, attendance aggregate, requirements outcome.  |
+| F26 | Last, First, LastFirst, five activity columns, October through December meetings, attendance aggregate, requirements outcome. |
+
+Class of 2028 F26 also carries a legacy managed block beginning at column N:
+Profile ID, Profile, Account connection, Application status, Semester enrollment,
+Verified points, Semester completion, Source version. The inspected sample rows
+have this summary populated while the original roster cells remain blank.
+This is a sample observation, not a reconciliation of every row.
+
+Historical tabs carry activity names, including repeated names for multiple
+points. Preserve these and any formulas. The Class of 2028 S26 aggregate header
+is blank, and some aggregate values were converted to date serials by Sheets.
+Use displayed aggregate evidence without inventing individual meeting marks.
+A row's completion fill does not establish attendance at each meeting.
+
+The accessible Drive search returned original Class of 2029 and Class of 2030
+workbooks, but no separate "Let's Assist" copies. Treat these as destination
+setup gaps. Never substitute an original workbook automatically.

@@ -2702,6 +2702,43 @@ sources.
 
 ## Repository-owned P0–P2
 
+### Development-only staff and member follow-up, September 16, 2026
+
+The owner requested this follow-up without a Production release. The integrated
+local candidate includes the rich-text Enter/list repair, the explicitly approved
+claimed-account email notice, clearer Sheets decision labels and mapping checks,
+and shared platform sender identity with event-specific CSF notice context.
+It does not modify live Sheets, student records, application releases, or email
+delivery state.
+
+| Finding               | Status              | Evidence or remaining work                                                                                                                                                                                                                                                                                                                                                                     |
+| --------------------- | ------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| CSF-FOLLOWUP-EDITOR   | Fixed locally       | Sanitized output no longer resets the live editor. ProseMirror model/transform/view dependency copies are deduplicated. Desktop 1280x900 and mobile 390x844 component-browser checks passed for Enter, Shift+Enter, bullets, numbered lists and saved rendering, with no runtime errors. This was a component harness, not the authenticated application.                                      |
+| CSF-FOLLOWUP-CLAIM    | Implemented locally | Full linked email is shown only for a unique exact active class match with one verified owner, after session, confirmed-email, class-code and rate-limit checks. Ambiguity and lookup failures keep the generic notice. The explicit product exception is documented in Amendment 10.                                                                                                          |
+| CSF-FOLLOWUP-DECISION | Fixed locally       | Withdrawn published decisions no longer count as published. A saved decision mapping scoped to a different tab blocks sync. Release blockers use readable messages.                                                                                                                                                                                                                            |
+| CSF-FOLLOWUP-EMAIL    | Local candidate     | New campaigns reuse the existing platform default mailbox with the chapter display name. Frozen campaign identity and hashes stay unchanged. Notices carry permitted class/term/outcome context and settings links. Provider delivery remains unverified.                                                                                                                                      |
+| CSF-FOLLOWUP-LEDGER   | Open, P1            | The existing export appends a managed block instead of filling the original semester columns. The tested layout/row/cell planner preserves formulas, activity names and unknown attendance, but the officer consent, preview and per-cell apply path is unfinished. The separate agent worktree contains an unintegrated draft migration. Do not describe this as working two-way ledger sync. |
+| CSF-FOLLOWUP-TAB      | Open, P1            | Destination configuration still needs to validate the selected semester against the selected tab. Original-source/destination separation alone does not prevent the wrong semester tab.                                                                                                                                                                                                        |
+
+Read-only Drive inspection confirmed the Class of 2027 and 2028 separate
+"Let's Assist" workbooks and their F25/S26/F26 layouts. The sampled Class of
+2028 F26 rows have the old N:U summary populated and A:M blank. No separate
+Class of 2029 or 2030 destination appeared in the accessible search. These
+observations are not a full roster reconciliation. See source-data.md for
+column semantics; no student values were copied into this register.
+
+Integrated focused tests passed 257 tests across 17 files. Typecheck and
+zero-warning lint passed on the integrated candidate. The notification
+migration applied to a disposable local database cloned from fictional local
+fixtures. Six targeted pgTAP suites passed 303 assertions: sender identity,
+personal notice dispatch, detailed notices, communications contracts, post email
+authority and notification preferences. The broader durable-communications
+suite found an old fixture that reset only the sender name; that fixture is
+corrected, but its rerun stalled as Docker stopped responding under host disk
+pressure. It is not counted as passed. Claude terminal agents also exhausted
+their weekly quota after preserving their work. Hosted Development and
+Production acceptance were not run.
+
 ### Urgent member workflow release, September 16, 2026
 
 The owner explicitly authorized Production deployment with focused local checks
