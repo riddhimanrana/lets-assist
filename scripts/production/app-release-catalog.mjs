@@ -146,6 +146,15 @@ export function acceptedCatalogQuery(source, versions) {
     .update(versions.join("\n"))
     .digest("hex");
   if (
+    versions.length === 556 &&
+    ledgerHash ===
+      "eeb3306cd09682d97c1cff06ea170e3b1f82620847ba974c096a3530717313e5"
+  )
+    // The ordinal predicate restates one RPC of the decisions lane's own with a
+    // safe-update-compatible UPDATE. It was verified absent from the generated
+    // accepted catalog, so no reviewed fingerprint moves.
+    return acceptedCatalogQuery(source, versions.slice(0, 555));
+  if (
     versions.length === 555 &&
     ledgerHash ===
       "b6716c1e6fe25011a6b697b5799b15d531effbd66dc8e15e934ba798cb175cde"

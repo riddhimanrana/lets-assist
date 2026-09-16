@@ -2750,6 +2750,31 @@ The next API preflight found one remaining unrestricted temporary-plan UPDATE.
 A further forward fix and an actual API lifecycle pass are still required;
 direct SQL lifecycle success does not close this request-policy defect.
 
+The same guard rejects one further statement in that lane, which the DELETE fix
+did not reach. `csf_stage_sheet_application_decisions` computes `will_apply` and
+`will_retract` with an UPDATE of its temporary row plan that carries no WHERE
+clause, so the RPC still fails under the request policy after 20260917040000.
+Migration 20260917050000 restates that one function with a single added
+predicate, `WHERE ordinal IS NOT NULL`. Every plan row is inserted with a WITH
+ORDINALITY ordinal, and the preceding UPDATE already joins on it, so the
+predicate matches the whole table and no row's verdict changes. The release
+function is not restated: both of its writes already carry a WHERE clause.
+Function ACLs are restated unchanged and no session setting is altered. The
+accepted catalog delegates ledger 556 to the reviewed 555 catalog, because the
+staged-decision function is absent from the generated accepted catalog and no
+reviewed fingerprint moves.
+
+The evidence for it is source-level only. The safe-update guard lives in the
+request role's session policy, and neither pgTAP nor direct psql connects under
+that policy, so nothing in this repository can reproduce the failure or prove
+the fix. `scripts/production/decision-plan-safe-update.test.mjs` asserts instead
+that removing the added predicate reproduces the reviewed 555 body byte for
+byte, that no write to a plan table is left unqualified, that the TRUNCATE reset
+is carried forward, and that the pinned bytes are the shipped bytes. The 196
+production release checks pass at ledger 556. No database replay was run for
+this migration, and the guard itself stays unproven until the service-role API
+preflight runs against a database with 20260917050000 applied.
+
 The direct concurrent-session suite now passes meaningful sync/release races,
 permission revocation during a wait, and competing mapping saves. It verifies
 the transitive blocking chain and final state, then confirms that its sessions
