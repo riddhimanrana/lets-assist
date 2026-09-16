@@ -33,6 +33,7 @@ import {
 } from "./account-ownership-catalog.mjs";
 import { createHash } from "node:crypto";
 import { ReleaseCheckError } from "./app-release-checks.mjs";
+import { officerIdentityAuthorityCatalog } from "./officer-identity-authority-catalog.mjs";
 import {
   mergedSourceLineagePosture,
   reviewedWorkbookLinksPosture,
@@ -137,6 +138,68 @@ export function acceptedCatalogQuery(source, versions) {
   const ledgerHash = createHash("sha256")
     .update(versions.join("\n"))
     .digest("hex");
+  if (
+    versions.length === 545 &&
+    ledgerHash ===
+      "d3d92d95d7dfff7b1c76451fdf675989f9dbad8f4d838dd9c19e01aab6402d99"
+  )
+    // The decision replay and supersede follow-ups replace four functions
+    // of this stack's own and touch no reviewed definition.
+    return acceptedCatalogQuery(source, versions.slice(0, 544));
+  if (
+    versions.length === 544 &&
+    ledgerHash ===
+      "09bec47840b48bdcc9bb927073b6c1efe8652c4d096413d01f55e7e29db7b78f"
+  )
+    // The review fixes replace four owner-internal and service-role
+    // functions of this stack's own and touch no reviewed definition.
+    return acceptedCatalogQuery(source, versions.slice(0, 543));
+  if (
+    versions.length === 543 &&
+    ledgerHash ===
+      "53eb05c8b70ec491e20007b6815cde84e6bce056a668bea94fe6e9b3ecf4a64a"
+  )
+    // The officer record editor adds two service-role entrypoints of its
+    // own. They are not part of the import-recovery inventory the accepted
+    // catalog tracks and they change no reviewed definition, so the catalog
+    // passes through unchanged.
+    return acceptedCatalogQuery(source, versions.slice(0, 542));
+  if (
+    versions.length === 542 &&
+    ledgerHash ===
+      "8c9cb7fcf678bf07c08d5123dd7607f620319ebabff0cc69cd330f768e91cf8e"
+  )
+    // The closed-evidence guard keeps its reviewed shape and carries no
+    // reviewed fingerprint of its own, so the catalog is unchanged.
+    return acceptedCatalogQuery(source, versions.slice(0, 541));
+  if (
+    versions.length === 541 &&
+    ledgerHash ===
+      "f60cfebd893b0fe0d32979592cdc8e55f7656a9d15a27387d0f49b50a7029d25"
+  )
+    // csf_meeting_attendance_value is owner-internal and carries no
+    // reviewed fingerprint, so this release leaves the catalog untouched.
+    return acceptedCatalogQuery(source, versions.slice(0, 540));
+  if (
+    versions.length === 540 &&
+    ledgerHash ===
+      "7cbbdeea1274e00b99f18c281fac657585bb634574565046c88d8cdc131dac44"
+  )
+    return officerIdentityAuthorityCatalog(
+      acceptedCatalogQuery(source, versions.slice(0, 539)),
+    );
+  if (
+    versions.length === 539 &&
+    ledgerHash ===
+      "8d32e6a3d05883f41394d0960b847dbf8cfa53228b175733320436e16e04c4f2"
+  )
+    return acceptedCatalogQuery(source, versions.slice(0, 538));
+  if (
+    versions.length === 538 &&
+    ledgerHash ===
+      "341af96093ff350a31d62a9b51a7c43255bd98796f6efe19fbc6a837740addf7"
+  )
+    return acceptedCatalogQuery(source, versions.slice(0, 537));
   if (
     versions.length === 537 &&
     ledgerHash ===

@@ -2702,6 +2702,102 @@ sources.
 
 ## Repository-owned P0–P2
 
+### Semester readiness review, September 16, 2026
+
+This work is in progress on an isolated Development integration branch.
+Production records, decisions, source workbooks and email delivery remain unchanged.
+
+| ID               | Priority | Finding                                                                                                                                                                                                                                             | Required closure evidence                                                                                                         |
+| ---------------- | -------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------- |
+| CSF-READINESS-01 | P1       | Sheets decisions need private staging, immutable source evidence, explicit term release and immediate corrections after publication. Email-only and workbook-only matches do not prove response identity.                                           | Source matching regressions, pgTAP release and concurrency checks, member privacy and access tests, desktop/mobile role journeys. |
+| CSF-READINESS-02 | P1       | The pending officer activity editor does not bind its actions into the dashboard. Its correction APIs need payload-bound retries, both-term closure checks, credit ownership checks and protection for meeting/submission/shared-credit references. | Rendered officer controls, save/delete retry and reference-integrity regressions, historical member/officer readback.             |
+| CSF-READINESS-03 | P1       | The pending merge attestation checks the changed preview before replaying a completed request. The separate claims-resolution path does not supersede competing pending claims.                                                                     | Repeated attested merge and both connection entrypoints tested against the database.                                              |
+| CSF-READINESS-04 | P1       | The pending attendance fill parser ignores a non-A range origin and cannot distinguish effective display formatting from an officer-entered fill.                                                                                                   | Offset and formatting-provenance regressions, SQL/TypeScript mark parity, export round-trip checks.                               |
+| CSF-READINESS-05 | P2       | The officer-format export changes need a stable acceptance hash when meetings append, plus source/destination separation.                                                                                                                           | Header append acceptance, source overwrite refusal and separate output destination walkthrough.                                   |
+
+The read-only source audit accounts for 897 active roster profiles and resolves
+1,910 semester source rows through stored per-cell source evidence. It compares
+1,904 rows and holds six rows for duplicate or same-name review. The private
+report retains source references and proposed corrections outside Git. It flags
+28 unsupported marks credited as attendance and proposes 2,470 additions from
+officer-entered fills, with no existing attendance overwritten. It holds 73
+other fills and five original/copy differences for review. Of the roster,
+163 profiles have no compared semester history; missing evidence is not an error
+or permission to invent credit.
+No data correction is authorized by this report. The late application workbook
+exists but lacks an app source registration. A current source read found 493
+regular responses and 3 late responses, with two green regular rows.
+
+Local integration verification so far: TypeScript and migration filename checks
+pass. The first database run replayed the migrations and ran 8,793 assertions
+across 332 files. It failed on two incomplete fixtures and the new staging
+table's missing merge-reference policy. Private tests found two retry-result
+expectations needing updates, and lint found an 814-line service after merging.
+These gates and browser acceptance remain open. Hosted Development run `35057125551`
+passed for baseline `1f91d3b1`; it does not verify this readiness candidate.
+
+### Operational workflow audit, September 15, 2026
+
+Four findings from the posts/email/activity/point/meeting lane. Three are fixed
+on this branch, each with a regression test verified in both directions: the
+test fails against the old code and passes against the new. One is open.
+
+**Fixed, opt-out identity gate matched on LIKE wildcards.** The CSF unsubscribe
+request step gated its confirmation send with
+`.ilike("recipient_email", email)`. `ilike` is LIKE, so `_` and `%` are
+metacharacters, and `_` is a legal local-part character that zod v4 `.email()`
+accepts. A typed `m_mber@example.test` matched a stored `member@example.test`,
+and the chapter's sender identity mailed an address that had never appeared in
+any recipient snapshot. That is the one thing the gate exists to prevent. The
+lookup also could not use
+`csf_communication_recipient_snapshots_email_lookup_idx`. Now
+`.eq("normalized_recipient_email", email)` against the stored generated column
+`lower(btrim(recipient_email))`. The parsed input is already trimmed and
+lowercased, so both sides normalize the same way. No schema or ACL change.
+
+**Fixed, compose promised delivery.** The Communications compose dialog labelled
+the transactional option "always delivered". Amendment 3 makes "queue is not
+delivery" a release boundary, and nothing at compose time observes a provider
+outcome. What separates the two message kinds is consent, so the label now says
+unsubscribes do not apply. A wording contract test pins it and records the one
+legitimate use of "Delivered", on the recovery surface, where the provider has
+already reported.
+
+**Fixed, activity refusals reported as unknown outcomes.** The three activity
+Server Actions collapsed every RPC error into "the outcome may be unknown,
+reload Activities before trying again", so an invalid form told the officer
+their chapter's state was uncertain.
+
+The fix is deliberately narrow, because SQLSTATE answers the wrong question.
+`P0001` proves the attempt that raised it rolled back. It says nothing about an
+earlier attempt under the same request id whose response was lost, and these
+RPCs recheck authorization and row state before they look for the receipt. A
+first version of this fix treated any `P0001` as "nothing was saved", which
+would have retired a request id whose work was durable and let the next
+submission create a duplicate. Raise position cannot rescue it either:
+`csf_set_activity_status_locked_impl` raises `'CSF activity was not found in
+this organization.'` both before and after the receipt lookup, so the client
+cannot tell the sites apart.
+
+Only request-invariant refusals are definitive now, meaning those decided from
+the RPC arguments with no table read. Authorization, row and term state, and any
+untriaged message keep the unknown outcome and `retrySameRequest`. A structural
+test rejects an invariant entry whose raise site sits below the first `SELECT`
+in its function, which is how the two activity date refusals were caught: they
+validate arguments in create and update but check the stored row in the status
+RPC.
+
+**Open (P2), no executable legacy source-reconciliation tooling.**
+`docs/csf/source-data.md` described `CSF_SOURCE_DATA_DIR` and
+`.artifacts/legacy-csf/` as if tooling read them. A repo-wide search finds no
+consumer of either. The env var appears only in the sentence defining it, and
+`legacy-csf` only there plus two unrelated pgTAP literals. Nothing compares a
+source roster with stored records, and the UI import preview is not a write-free
+substitute because it persists immutable preview rows by design. The doc now
+states the gap and records the manual write-free route: pure `uploaded-workbook`
+parsing for the source side, a `BEGIN READ ONLY` query for the stored side, and
+salted-digest comparison reported as counts. Building the tool is not scheduled.
+
 ### Organization read latency, September 11, 2026
 
 `bcc1455b` passed CI run `34589118187`: 484 migrations, 275 SQL files,

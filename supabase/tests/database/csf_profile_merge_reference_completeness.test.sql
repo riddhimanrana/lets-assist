@@ -45,6 +45,7 @@ INSERT INTO expected_csf_profile_fk_references (reference) VALUES
   ('csf_communication_broadcast_preferences.profile_id'),
   ('csf_profile_notes.profile_id'),
   ('csf_reviewed_workbook_profile_links.profile_id'),
+  ('csf_member_reports.profile_id'),
   ('csf_application_decision_stages.profile_id');
 
 CREATE TEMP VIEW actual_csf_profile_fk_references AS
@@ -73,8 +74,8 @@ WHERE constraint_row.contype = 'f'
 
 SELECT extensions.is(
   (SELECT pg_catalog.count(*)::integer FROM actual_csf_profile_fk_references),
-  33,
-  'the exact current schema has thirty-three logical FK columns that reference CSF profiles'
+  34,
+  'the exact current schema has thirty-four logical FK columns that reference CSF profiles'
 );
 SELECT extensions.ok(
   NOT EXISTS (

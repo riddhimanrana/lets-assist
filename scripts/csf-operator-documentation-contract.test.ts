@@ -361,14 +361,22 @@ const STUDENT_JOURNEY: LabelContract[] = [
       "That class code didn’t work",
       "Already have a CSF record?",
       "New to CSF?",
-      "Sign in to continue",
+      "Sign up or sign in to continue",
       "Is this you?",
       "Yes, this is me",
-      "Use a different name",
+      "That's not me, search a different name",
       "Join your class",
-      "Student name",
-      "Continue",
     ],
+  },
+  {
+    // The name search moved into its own dialog when the single full-name box
+    // replaced the split fields.
+    component: "CsfClassCodeJoinDialog.tsx",
+    labels: ["Find my record", "Continue with this name"],
+  },
+  {
+    component: "CsfRecordSearchNameFields.tsx",
+    labels: ["Full name"],
   },
   {
     component: "CsfConnectedRecordPanel.tsx",
@@ -459,15 +467,21 @@ describe("CSF operator documentation truthfulness guards", () => {
       "That class code didn’t work",
       "Already have a CSF record?",
       "New to CSF?",
-      "Sign in to continue",
+      "Sign up or sign in to continue",
       "Is this you?",
       'idleLabel="Yes, this is me"',
-      'triggerLabel="Use a different name"',
+      'triggerLabel="That\'s not me, search a different name"',
       "Join your class",
-      'idleLabel="Continue"',
     ]) {
       expect(connectSource).toContain(label);
     }
+    const joinDialogSource = readComponent("CsfClassCodeJoinDialog.tsx");
+    for (const label of ["Find my record", "Continue with this name"]) {
+      expect(joinDialogSource).toContain(label);
+    }
+    expect(readComponent("CsfRecordSearchNameFields.tsx")).toContain(
+      'label="Full name"',
+    );
     const codeEntrySource = readComponent("CsfClassCodeEntryForm.tsx");
     expect(codeEntrySource).toContain("Join code");
     // The alphabet excludes lookalikes while allowing valid partial typing.
@@ -495,7 +509,8 @@ describe("CSF operator documentation truthfulness guards", () => {
       "**Join code**",
       "**Is this you?**",
       "**Yes, this is me**",
-      "**Continue**",
+      "**Find my record**",
+      "**Continue with this name**",
       "**Record connections**",
       "**Review**",
       "**Connect account**",

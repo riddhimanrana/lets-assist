@@ -330,10 +330,15 @@ test.describe("class-code signup onboarding", () => {
         name: "Join your class",
       });
       await expect(joinDialog).toBeVisible();
-      // This student has no imported record. Joining creates a self-owned profile.
-      await joinDialog.getByLabel("First name").fill("Casey");
-      await joinDialog.getByLabel("Last name").fill("Signup");
-      await joinDialog.getByRole("button", { name: "Continue" }).click();
+      // This student has no imported record. Searching finds nothing, and
+      // continuing under the typed name creates a self-owned profile.
+      const fullName = joinDialog.getByRole("textbox", { name: "Full name" });
+      await expect(fullName).toBeVisible();
+      await fullName.fill("Casey Signup");
+      await joinDialog.getByRole("button", { name: "Find my record" }).click();
+      await page
+        .getByRole("button", { name: "Continue with this name", exact: true })
+        .click();
 
       await expect
         .poll(async () => {

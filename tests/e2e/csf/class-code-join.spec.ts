@@ -20,10 +20,11 @@ import {
  * remaining connection path after the onboarding-link system was retired.
  *
  * The seeded active code for the Class of 2028 is HAWK28. A signed-in student
- * submits the join form. Application emails and account names suggest records
- * for staff review; neither establishes ownership.
- * Typed names and conflicting evidence go to the class's Members tab
- * "Record connections" queue, where an officer resolves them.
+ * types their name; the class is searched tolerantly (exact, nickname, or a
+ * first-name prefix of three or more letters on an exact last name). One
+ * unclaimed match connects when the student confirms it (Amendment 7). Two
+ * matches, a claimed record, or email-only evidence go to the class's Members
+ * tab "Record connections" queue, where an officer resolves them.
  */
 
 const classJoinCode = "HAWK28";
@@ -272,7 +273,12 @@ async function seedProfileWithOutsiderEmail(
   return profileId;
 }
 
-/** Opens the join dialog and submits the profile-details form. */
+/**
+ * Opens the join dialog, types one full name, and searches. When the class
+ * has records that match, the first "Yes, this is me" is confirmed (a unique
+ * match connects, a shared one goes to review); when nothing matches, the
+ * typed name is filed as the ordinary join request.
+ */
 async function submitJoinForm(
   page: Page,
   names: { first: string; last: string },
@@ -280,12 +286,26 @@ async function submitJoinForm(
   await page.getByRole("button", { name: "Continue", exact: true }).click();
   const dialog = page.getByRole("dialog", { name: "Join your class" });
   await expect(dialog).toBeVisible();
-  // The name fields prefill asynchronously from the signed-in account and
-  // remount when the prefill arrives. Submitted names are review context and
-  // never establish ownership of an existing record.
-  await dialog.getByLabel("First name").fill(names.first);
-  await dialog.getByLabel("Last name").fill(names.last);
-  await dialog.getByRole("button", { name: "Continue" }).click();
+  // The field prefills asynchronously from the signed-in account and remounts
+  // when the prefill arrives; wait for it before typing over it.
+  const fullName = dialog.getByRole("textbox", { name: "Full name" });
+  await expect(fullName).toBeVisible();
+  await fullName.fill(`${names.first} ${names.last}`);
+  await dialog.getByRole("button", { name: "Find my record" }).click();
+
+  const confirm = page
+    .getByRole("button", { name: "Yes, this is me", exact: true })
+    .first();
+  const fallback = page.getByRole("button", {
+    name: "Continue with this name",
+    exact: true,
+  });
+  await expect(confirm.or(fallback)).toBeVisible();
+  if (await confirm.isVisible()) {
+    await confirm.click();
+  } else {
+    await fallback.click();
+  }
 }
 
 test.describe("class join code connections", () => {
@@ -391,7 +411,7 @@ test.describe("class join code connections", () => {
     expectNoBrowserFailures(failures);
   });
 
-  test("confirming an editable account name creates a pending request that survives reload", async ({
+  test("confirming the account-name match connects the record and survives reload", async ({
     page,
   }) => {
     await cleanJoinFixture(fixture);
@@ -418,11 +438,13 @@ test.describe("class join code connections", () => {
       .click();
     await expect(
       page.getByRole("heading", {
-        name: "Awaiting staff review",
+        name: "Your CSF record is linked",
         exact: true,
       }),
     ).toBeVisible();
 
+    // The connection is recorded as self-confirmed, never as an email match
+    // (this record has no email), and the request settles as auto-linked.
     await expect
       .poll(async () => {
         const [{ data: member }, { data: account }, { data: request }] =
@@ -454,28 +476,99 @@ test.describe("class join code connections", () => {
         return { account, member, request };
       })
       .toEqual({
-        account: null,
+        account: {
+          status: "verified",
+          is_primary: true,
+          connection_basis: "self_confirmed_account_name",
+        },
         member: { role: "member", status: "active" },
         request: {
           candidate_profile_ids: [noEmailProfileId],
-          match_status: "needs_review",
-          matched_profile_id: null,
+          match_status: "auto_linked",
+          matched_profile_id: noEmailProfileId,
         },
       });
 
     await page.reload({ waitUntil: "domcontentloaded" });
     await expect(
       page.getByRole("heading", {
-        name: "Awaiting staff review",
+        name: "Your CSF record is linked",
         exact: true,
       }),
     ).toBeVisible();
     await expect(
       page.getByRole("button", { name: "Go to My CSF", exact: true }),
-    ).toHaveCount(0);
+    ).toBeVisible();
     await expect(
       page.getByRole("button", { name: "Yes, this is me", exact: true }),
     ).toHaveCount(0);
+
+    expectNoBrowserFailures(failures);
+  });
+
+  test("a shortened first name still finds and connects the unique record", async ({
+    page,
+  }) => {
+    await cleanJoinFixture(fixture);
+    // The roster says Saisampath; the student types Sai. Three letters on an
+    // exact last name is the tolerance the database allows.
+    const lastName = `Uppu-${runToken}`;
+    const longFirstProfileId = await seedProfileWithoutEmail(fixture, {
+      first: "Saisampath",
+      last: lastName,
+    });
+
+    const failures = watchBrowserFailures(page);
+    await loginAs(page, "outsider", connectPath);
+    await expect(
+      page.getByRole("heading", { name: "Join your class" }),
+    ).toBeVisible();
+
+    await page.getByRole("button", { name: "Continue", exact: true }).click();
+    const dialog = page.getByRole("dialog", { name: "Join your class" });
+    await expect(dialog).toBeVisible();
+    const fullName = dialog.getByRole("textbox", { name: "Full name" });
+    await expect(fullName).toBeVisible();
+    await fullName.fill(`Sai ${lastName}`);
+    await dialog.getByRole("button", { name: "Find my record" }).click();
+
+    // The record is shown with how it matched, and the copy says a unique
+    // match connects, before the student clicks anything.
+    const found = page.getByRole("dialog", { name: "Is this you?" });
+    await expect(found).toBeVisible();
+    await expect(
+      found.getByText(`Saisampath ${lastName}`, { exact: true }),
+    ).toBeVisible();
+    await expect(found.getByText("Starts the same way")).toBeVisible();
+    await expect(
+      found.getByText("Confirm it and you are connected."),
+    ).toBeVisible();
+    await found
+      .getByRole("button", { name: "Yes, this is me", exact: true })
+      .click();
+
+    await expect(
+      page.getByRole("heading", {
+        name: "Your CSF record is linked",
+        exact: true,
+      }),
+    ).toBeVisible();
+    await expect
+      .poll(async () => {
+        const { data: account } = await fixture.admin
+          .schema("plugin_data")
+          .from("csf_profile_accounts")
+          .select("status,connection_basis")
+          .eq("organization_id", fixture.organizationId)
+          .eq("profile_id", longFirstProfileId)
+          .eq("user_id", fixture.userId)
+          .maybeSingle();
+        return account;
+      })
+      .toEqual({
+        status: "verified",
+        connection_basis: "self_confirmed_account_name",
+      });
 
     expectNoBrowserFailures(failures);
   });
