@@ -2733,8 +2733,8 @@ Local integration `2960940b`, private `53b80d0`, passes 342 root test files,
 package passes its independent lint, types, tests, build, data boundary and route
 inventory gates. These results do not close browser acceptance.
 
-The fourth fresh database replay passes all 554 migrations and 8,885 assertions
-across 335 files. The merge-delegation test now resolves its entry by function
+The fifth fresh database replay passes all 555 migrations and 8,890 assertions
+across 336 files. The merge-delegation test now resolves its entry by function
 identity. The accepted catalog passes against the replayed schema, and all ten
 point-trigger and permission drift controls refuse their changes and roll back.
 The replay owns and removes its stack. This is local schema evidence, not hosted
@@ -2742,9 +2742,12 @@ Development evidence.
 
 A later service-role API preflight found a P1 that direct SQL did not exercise:
 the request safe-update guard rejects unrestricted DELETE statements on the
-sync and release functions' temporary plan tables. A forward migration will
-reset those exact session-local tables without weakening the request policy.
-The 554-migration pass does not close this runtime defect.
+sync and release functions' temporary plan tables. Migration 20260917040000
+resets those exact session-local tables with TRUNCATE, preserving function ACLs
+and the request policy. It passes the 555-migration replay. API verification
+remains open because the revised browser fixture still attempts a forbidden
+import-history write through the service role. The fixture repair must preserve
+those permissions and use only the guarded owned local database.
 
 The direct concurrent-session suite now passes meaningful sync/release races,
 permission revocation during a wait, and competing mapping saves. It verifies
@@ -2785,8 +2788,9 @@ activity restores both views to the original total, and an explicit unknown mark
 meeting to unknown attendance. These operations affect only the owned local
 fixtures. The same walkthrough exposes a P2 calendar-date defect: an activity
 entered as March 15 displays March 14 in both views in Pacific time, although the
-editor retains March 15. The date display fix and regression remain open under
-CSF-READINESS-02.
+editor retains March 15. New date-only corrections now normalize to noon UTC and pass focused calendar
+and editor regressions. Legacy timestamps remain unchanged. Browser readback of
+the fix remains open under CSF-READINESS-02.
 
 Hosted Development run `35057125551` passed for baseline `1f91d3b1`;
 it does not verify this readiness candidate. No candidate has been published,
