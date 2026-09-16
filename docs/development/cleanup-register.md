@@ -2707,6 +2707,38 @@ sources.
 This work is in progress on an isolated Development integration branch.
 Production records, decisions, source workbooks and email delivery remain unchanged.
 
+September 16, 01:59 Pacific checkpoint: root `f1649136` and private
+`3e776387` pass the fresh 557-migration replay, 338 pgTAP files and 8,923
+assertions. The accepted catalog and all ten drift controls pass. Root tests
+pass 346 files; root types, lint, formatting and the exact private-gitlink
+check pass. The full local browser run passes 142 checks, with ten failures,
+one intentional skip and two dependent checks not run. It is not accepted yet.
+Failures include outdated assertions and a real 455-pixel page overflow at a
+390-pixel phone viewport in Officers & access. Both are under correction.
+
+The user expanded the work to Production readiness, reviewed source-backed
+record corrections, and scoped removal of archived Classes 2024–2026. Separate
+Claude terminal branches own onboarding, notifications/proofs, officer editing,
+source intake and retention. Production deployment and data operations still
+require the repository's exact-source release and audit checks. No decision
+release or broadcast is part of this work.
+
+A fresh bounded source read at 01:49 Pacific supersedes the older response
+counts below: 475 regular and 21 late applications. The normal Production
+Recheck preview action saved a new regular-source preview at 01:56 Pacific.
+It has 475 source rows and the interface reports 225 rows needing officer
+matching. No commit ran, and automatic intake remains paused. Read-only
+Production checks find 257 current Fall applications, all pending, and no
+current application for the user's two active same-name Class of 2028 records.
+The live member view asks the user to connect with a class code. Those records
+and their account connections have not been changed. This is a matching case
+to resolve with verified evidence, not a reason to link by name.
+
+Archived cohort counts remain 84, 216 and 243 application profiles for Classes
+2024, 2025 and 2026. Retention work must preserve platform logins, current
+cohorts and immutable source/audit evidence. A direct cohort purge is not an
+accepted operation. No deletion has run.
+
 | ID               | Priority | Finding                                                                                                                                                                                                                                             | Required closure evidence                                                                                                         |
 | ---------------- | -------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------- |
 | CSF-READINESS-01 | P1       | Sheets decisions need private staging, immutable source evidence, explicit term release and immediate corrections after publication. Email-only and workbook-only matches do not prove response identity.                                           | Source matching regressions, pgTAP release and concurrency checks, member privacy and access tests, desktop/mobile role journeys. |
