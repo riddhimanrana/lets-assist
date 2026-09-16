@@ -309,7 +309,9 @@ SECURITY DEFINER
 SET search_path = ''
 AS $$
 DECLARE
-  v_limit integer := pg_catalog.least(pg_catalog.greatest(coalesce(p_limit, 50), 1), 100);
+  -- LEAST and GREATEST are SQL syntax, not catalog functions, so they take no
+  -- schema qualification even under an empty search_path.
+  v_limit integer := least(greatest(coalesce(p_limit, 50), 1), 100);
   v_search text := nullif(pg_catalog.btrim(coalesce(p_search, '')), '');
   v_decision text := nullif(pg_catalog.btrim(coalesce(p_decision, '')), '');
   v_release_state text := nullif(pg_catalog.btrim(coalesce(p_release_state, '')), '');

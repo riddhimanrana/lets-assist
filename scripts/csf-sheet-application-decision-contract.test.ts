@@ -45,6 +45,14 @@ const mappingFields = readFileSync(
   "utf8",
 );
 
+const finalizedGuard = readFileSync(
+  new URL(
+    "../supabase/migrations/20260917030000_csf_finalized_outcome_guard.sql",
+    import.meta.url,
+  ),
+  "utf8",
+);
+
 const all = [
   staging,
   publish,
@@ -52,6 +60,7 @@ const all = [
   release,
   mergeOwnership,
   mappingFields,
+  finalizedGuard,
 ].join("\n");
 
 /** Executable SQL only. Prose about a review campaign is not a mail send. */
@@ -361,8 +370,36 @@ describe("publication semantics", () => {
   });
 
   test("a historical outcome is refused instead of rewritten", () => {
-    expect(publish).toContain("CSF_RELEASE_BLOCKER=historical_outcome");
-    expect(publish).toContain("IN ('completed', 'not_completed')");
+    expect(finalizedGuard).toContain("CSF_RELEASE_BLOCKER=historical_outcome");
+    expect(finalizedGuard).toContain("IN ('completed', 'not_completed')");
+  });
+
+  test("an acceptance is held against a finalized outcome too", () => {
+    // The first cut exempted `accepted`, so a green mark on a finished
+    // semester republished an acceptance over it.
+    expect(finalizedGuard).toContain(
+      "IF v_membership.status IN ('completed', 'not_completed') THEN",
+    );
+    expect(finalizedGuard).not.toContain("IF p_decision <> 'accepted'");
+    // The release planner holds every terminal verdict, not only a rejection.
+    const heldBranches = finalizedGuard.split(
+      "IN ('accepted', 'rejected', 'rejected_with_explanation')",
+    ).length - 1;
+    expect(heldBranches).toBe(2);
+  });
+
+  test("the current semester is picked deterministically", () => {
+    expect(finalizedGuard).toContain(
+      "ORDER BY term.starts_at DESC NULLS LAST, term.created_at DESC, term.id DESC",
+    );
+  });
+
+  test("LEAST and GREATEST are not schema-qualified", () => {
+    // They are SQL syntax; qualifying them fails to parse.
+    for (const source of [release, finalizedGuard]) {
+      expect(source).not.toContain("pg_catalog.greatest");
+      expect(source).not.toContain("pg_catalog.least");
+    }
   });
 
   test("an uncolored row after release retracts and revokes", () => {
