@@ -8156,3 +8156,11 @@ No hosted Development acceptance or Production deployment has occurred.
 The live account-link collision, source attendance reconciliation and meeting
 header mapping remain unresolved. No real correction, cohort deletion,
 decision release or live email was performed by this candidate.
+
+The clean 566 replay AI completed successfully: 348 pgTAP files and 9,308
+assertions passed. The accepted release catalog passed, and all ten point
+trigger and permission drift controls rejected their changes and rolled back.
+This covers the migrations at `987dd140`; that root differs from `a6d3c716`
+only by the focused report test repair and register entries. Root PR 619 was
+returned to draft because full browser acceptance remains incomplete. The
+owned replay stack cleaned up after completion. This is local evidence only.
