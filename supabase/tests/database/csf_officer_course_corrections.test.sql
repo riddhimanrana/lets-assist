@@ -9,7 +9,7 @@ BEGIN;
 
 CREATE EXTENSION IF NOT EXISTS pgtap WITH SCHEMA extensions;
 
-SELECT extensions.plan(48);
+SELECT extensions.plan(50);
 
 -- ---------------------------------------------------------------------------
 -- A. Execution grants
@@ -808,11 +808,68 @@ SELECT extensions.ok(
   'the restore clears the officer-correction marker'
 );
 
-SELECT extensions.ok(
-  (SELECT count(*) >= 5
-   FROM plugin_data.csf_application_course_corrections
-   WHERE correlation_id = 'eb600000-0000-4000-8000-000000000020'),
-  'the restore records what it discarded as well as what it put back'
+-- The restore's ledger, exactly. Two lines stood when it ran (the corrected
+-- import line and the officer's addition), and the snapshot holds two, so it
+-- writes two `removed` receipts and two `restored` ones. A count threshold
+-- would have passed on the wrong shape; this names what each receipt is.
+SELECT extensions.is(
+  (SELECT pg_catalog.jsonb_agg(ledger.operation ORDER BY ledger.operation)
+   FROM plugin_data.csf_application_course_corrections AS ledger
+   WHERE ledger.correlation_id = 'eb600000-0000-4000-8000-000000000020'),
+  '["removed", "removed", "restored", "restored"]'::jsonb,
+  'the restore writes one receipt per discarded line and one per line put back'
+);
+
+-- What it threw away: the officer's own values at the moment of the restore,
+-- not the imported ones. `imported_values` is null on these because the
+-- original is not being discarded, it is being reinstated by the rows below.
+SELECT extensions.is(
+  (SELECT pg_catalog.jsonb_agg(
+     ledger.before_values ORDER BY ledger.before_values ->> 'courseName'
+   )
+   FROM plugin_data.csf_application_course_corrections AS ledger
+   WHERE ledger.correlation_id = 'eb600000-0000-4000-8000-000000000020'
+     AND ledger.operation = 'removed'
+     AND ledger.after_values = '{}'::jsonb
+     AND ledger.imported_values IS NULL),
+  jsonb_build_array(
+    jsonb_build_object(
+      'courseList', 'III', 'courseName', 'Civic Lab',
+      'grade', 'P', 'points', 1.00, 'isBonus', true
+    ),
+    jsonb_build_object(
+      'courseList', 'I', 'courseName', 'Synthetic Seminar Honors',
+      'grade', 'B', 'points', 3.00, 'isBonus', false
+    )
+  ),
+  'each discarded receipt carries the officer values it replaced'
+);
+
+-- What it put back: the imported snapshot, with every restored receipt naming
+-- the same values as both its result and its original. A receipt whose
+-- `imported_values` disagreed with what it wrote would drop out of this filter
+-- and fail the comparison rather than pass unnoticed.
+SELECT extensions.is(
+  (SELECT pg_catalog.jsonb_agg(
+     ledger.after_values ORDER BY ledger.after_values ->> 'courseList'
+   )
+   FROM plugin_data.csf_application_course_corrections AS ledger
+   WHERE ledger.correlation_id = 'eb600000-0000-4000-8000-000000000020'
+     AND ledger.operation = 'restored'
+     AND ledger.before_values = '{}'::jsonb
+     AND ledger.imported_values IS NOT DISTINCT FROM ledger.after_values
+     AND ledger.course_entry_id IS NOT NULL),
+  jsonb_build_array(
+    jsonb_build_object(
+      'courseList', 'I', 'courseName', 'Synthetic Seminar',
+      'grade', 'A', 'points', 3.00, 'isBonus', false
+    ),
+    jsonb_build_object(
+      'courseList', 'II', 'courseName', 'Applied Fiction',
+      'grade', 'B', 'points', 1.00, 'isBonus', false
+    )
+  ),
+  'each restored receipt is the imported original, and points at the row it created'
 );
 
 SELECT extensions.ok(
