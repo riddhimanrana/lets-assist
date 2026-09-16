@@ -110,24 +110,55 @@ async function openSeededApplication(page: Parameters<typeof loginAs>[0]) {
 }
 
 /**
- * A row's text fields, by role and exact accessible name.
+ * One course row, found by the course it holds rather than by position.
  *
- * Matching on label text alone is not safe here: it matches substrings, and an
- * unnamed new row's remove button is labelled "Remove this course line", which
- * contains the word Course. Asking for a textbox with that exact name cannot
- * resolve to a button at all.
+ * The editor reads its lines ordered by creation time then id, and a batch
+ * insert gives every row the same timestamp, so the tie falls to a random
+ * identifier and the on-screen order is not fixed. Each row is identified here
+ * by its remove control, whose accessible name carries the course name, so the
+ * journey targets the line it means whatever order they render in.
+ *
+ * A row the officer has just added has no name yet; `newCourseRow` finds that
+ * one, and it is only unique while it stays unnamed.
  */
-function courseField(
+function courseRow(
   dialog: ReturnType<Parameters<typeof loginAs>[0]["getByRole"]>,
-  name: "Course" | "Reported points",
-  row: "first" | "last",
+  courseName: string,
 ) {
-  const fields = dialog.getByRole("textbox", { name, exact: true });
-  return row === "first" ? fields.first() : fields.last();
+  return dialog.getByRole("listitem").filter({
+    has: dialog.getByRole("button", {
+      name: `Remove ${courseName}`,
+      exact: true,
+    }),
+  });
+}
+
+function newCourseRow(
+  dialog: ReturnType<Parameters<typeof loginAs>[0]["getByRole"]>,
+) {
+  return courseRow(dialog, "this course line");
 }
 
 /**
- * Choose a value from one of the editor's dropdowns.
+ * A row's text field, by role and exact accessible name.
+ *
+ * Matching on label text alone is not safe here: it matches substrings, and an
+ * unnamed row's remove button is labelled "Remove this course line", which
+ * contains the word Course. Asking for a textbox with that exact name cannot
+ * resolve to a button at all. Both fields are plain text inputs; the points
+ * field only carries a decimal inputMode, so it stays a textbox.
+ */
+function courseField(
+  row: ReturnType<
+    ReturnType<Parameters<typeof loginAs>[0]["getByRole"]>["filter"]
+  >,
+  name: "Course" | "Reported points",
+) {
+  return row.getByRole("textbox", { name, exact: true });
+}
+
+/**
+ * Choose a value from one of the row's dropdowns.
  *
  * These are Base UI comboboxes, not native selects: the trigger is a button and
  * the options render in a portal outside the dialog. So the trigger is clicked,
@@ -136,13 +167,13 @@ function courseField(
  */
 async function chooseCourseOption(
   page: Parameters<typeof loginAs>[0],
-  dialog: ReturnType<Parameters<typeof loginAs>[0]["getByRole"]>,
+  row: ReturnType<
+    ReturnType<Parameters<typeof loginAs>[0]["getByRole"]>["filter"]
+  >,
   label: "List" | "Grade",
-  row: "first" | "last",
   optionLabel: string,
 ) {
-  const triggers = dialog.getByRole("combobox", { name: label, exact: true });
-  const trigger = row === "first" ? triggers.first() : triggers.last();
+  const trigger = row.getByRole("combobox", { name: label, exact: true });
   await trigger.click();
   await page.getByRole("option", { name: optionLabel, exact: true }).click();
   await expect(trigger.locator('[data-slot="select-value"]')).toHaveText(
@@ -247,6 +278,10 @@ test.beforeAll(async () => {
           application_id: applicationId,
           course_list: "I",
           course_name: "Fictional Seminar",
+          // Explicit, one second apart: the reader orders by created_at then
+          // id, and a batch insert would otherwise tie and fall back to a
+          // random identifier.
+          created_at: "2026-02-02T17:00:00.000Z",
           grade: "A",
           points: 3,
           is_bonus: false,
@@ -258,6 +293,7 @@ test.beforeAll(async () => {
           application_id: applicationId,
           course_list: "II",
           course_name: "Applied Fiction",
+          created_at: "2026-02-02T17:00:01.000Z",
           grade: "B",
           points: 1,
           is_bonus: false,
@@ -381,32 +417,42 @@ test("an officer corrects, removes, and adds a course line, then restores the im
   });
   await expect(dialog).toBeVisible();
   // The editor reads its own lines when it opens, so the revision it submits
-  // belongs to the rows on screen.
-  await expect(courseField(dialog, "Course", "first")).toHaveValue(
-    "Fictional Seminar",
-  );
-
-  // Update: the transcript names the honors section, at a different grade.
-  await courseField(dialog, "Course", "first").fill("Fictional Seminar Honors");
-  await chooseCourseOption(page, dialog, "Grade", "first", "B");
-
-  // Remove: the second line is not on the transcript at all.
-  await dialog
-    .getByRole("button", { name: "Remove Applied Fiction", exact: true })
-    .click();
-
-  // Add: a line the form row missed.
-  await dialog
-    .getByRole("button", { name: "Add a course line", exact: true })
-    .click();
-  // Two rows now: the corrected import line and the empty one just added.
+  // belongs to the rows on screen. Both imported lines are here, in whatever
+  // order the read returned them.
   await expect(
     dialog.getByRole("textbox", { name: "Course", exact: true }),
   ).toHaveCount(2);
-  await courseField(dialog, "Course", "last").fill("Civic Lab");
-  await chooseCourseOption(page, dialog, "List", "last", "List III");
-  await chooseCourseOption(page, dialog, "Grade", "last", "P");
-  await courseField(dialog, "Reported points", "last").fill("1");
+  const seminarRow = courseRow(dialog, "Fictional Seminar");
+  await expect(courseField(seminarRow, "Course")).toHaveValue(
+    "Fictional Seminar",
+  );
+  await expect(
+    courseField(courseRow(dialog, "Applied Fiction"), "Course"),
+  ).toHaveValue("Applied Fiction");
+
+  // Update: the transcript names the honors section, at a different grade.
+  // Both edits land in the same row, found by the course it held.
+  await chooseCourseOption(page, seminarRow, "Grade", "B");
+  await courseField(seminarRow, "Course").fill("Fictional Seminar Honors");
+
+  // Remove: the second line is not on the transcript at all.
+  await courseRow(dialog, "Applied Fiction")
+    .getByRole("button", { name: "Remove Applied Fiction", exact: true })
+    .click();
+  await expect(
+    dialog.getByRole("textbox", { name: "Course", exact: true }),
+  ).toHaveCount(1);
+
+  // Add: a line the form row missed. The new row has no name until it is
+  // given one, so it is named first and addressed by that name afterwards.
+  await dialog
+    .getByRole("button", { name: "Add a course line", exact: true })
+    .click();
+  await courseField(newCourseRow(dialog), "Course").fill("Civic Lab");
+  const civicRow = courseRow(dialog, "Civic Lab");
+  await chooseCourseOption(page, civicRow, "List", "List III");
+  await chooseCourseOption(page, civicRow, "Grade", "P");
+  await courseField(civicRow, "Reported points").fill("1");
 
   // A correction without an explanation cannot be submitted.
   await expect(
