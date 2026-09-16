@@ -627,7 +627,9 @@ test.describe("CSF identity safety", () => {
       dialog.getByText("Confirm this yourself before merging"),
     ).toHaveCount(0);
     await expect(
-      dialog.getByLabel("I confirm as an officer that these are the same student."),
+      dialog.getByLabel(
+        "I confirm as an officer that these are the same student.",
+      ),
     ).toHaveCount(0);
 
     // The shared graduating class is consolidatable and must NOT be a blocker.
