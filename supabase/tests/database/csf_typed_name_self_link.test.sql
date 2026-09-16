@@ -1,10 +1,15 @@
--- A student who types their own name connects to their own record, and only
--- when the match is unambiguous and the record is unclaimed.
+-- A student who types their own name reaches their own record only when the
+-- verified address on their account is already a curated contact on it.
+--
+-- This file used to assert the opposite: that a unique prefix or nickname
+-- match self-connected on a `self_confirmed_account_name` basis. A typed name
+-- plus a class code is not ownership -- both are things a classmate knows --
+-- so 20260917070000 withdrew that, and the assertions below moved with it.
 
 BEGIN;
 
 CREATE EXTENSION IF NOT EXISTS pgtap WITH SCHEMA extensions;
-SELECT extensions.plan(40);
+SELECT extensions.no_plan();
 
 -- Reach.
 SELECT extensions.ok(NOT has_function_privilege('anon',
@@ -134,22 +139,19 @@ INSERT INTO typed_results VALUES ('sai', plugin_data.csf_confirm_class_code_type
   'f2100000-0000-4000-8000-000000000002', 'sai@local.test',
   (SELECT id::uuid FROM typed_code), 'f2300000-0000-4000-8000-000000000001',
   'Sai Uppu', pg_temp.typed_hash('Sai Uppu')));
-SELECT extensions.is((SELECT payload->>'connected' FROM typed_results WHERE scenario='sai'), 'true',
-  'a unique prefix match on an unclaimed record connects');
-SELECT extensions.is((SELECT payload->>'connectionBasis' FROM typed_results WHERE scenario='sai'), 'self_confirmed_account_name',
-  'the connection is recorded as self-confirmed, not as an email match');
+SELECT extensions.is((SELECT payload->>'needsReview' FROM typed_results WHERE scenario='sai'), 'true',
+  'a unique prefix match is a suggestion for an officer, not a connection');
 SELECT extensions.is((SELECT payload->>'matchKind' FROM typed_results WHERE scenario='sai'), 'prefix',
-  'the receipt says how the name matched');
+  'the receipt still says how the name matched');
 SELECT extensions.is((SELECT count(*)::int FROM plugin_data.csf_profile_accounts
-  WHERE profile_id='f2400000-0000-4000-8000-000000000001' AND user_id='f2100000-0000-4000-8000-000000000002'
-    AND status='verified' AND connection_basis='self_confirmed_account_name'), 1,
-  'one verified self-confirmed account row exists');
+  WHERE profile_id='f2400000-0000-4000-8000-000000000001' AND user_id='f2100000-0000-4000-8000-000000000002'), 0,
+  'a prefix match creates no account row at all');
 SELECT extensions.is((SELECT match_status FROM plugin_data.csf_profile_link_requests
-  WHERE organization_id='f2200000-0000-4000-8000-000000000001' AND user_id='f2100000-0000-4000-8000-000000000002'), 'auto_linked',
-  'the link request records the auto link');
+  WHERE organization_id='f2200000-0000-4000-8000-000000000001' AND user_id='f2100000-0000-4000-8000-000000000002'), 'needs_review',
+  'the link request waits for an officer');
 SELECT extensions.is((SELECT count(*)::int FROM plugin_data.csf_admin_audit_events
-  WHERE organization_id='f2200000-0000-4000-8000-000000000001' AND action='profile.typed_name_connected'), 1,
-  'the self-link is audited under its own action');
+  WHERE organization_id='f2200000-0000-4000-8000-000000000001' AND action='profile.typed_name_review_requested'), 1,
+  'the request is audited under its own action');
 SELECT extensions.is((SELECT count(*)::int FROM public.organization_members
   WHERE organization_id='f2200000-0000-4000-8000-000000000001' AND user_id='f2100000-0000-4000-8000-000000000002' AND status='active'), 1,
   'the student becomes an active organization member');
@@ -164,9 +166,13 @@ INSERT INTO typed_results VALUES ('sai_again', plugin_data.csf_confirm_class_cod
   (SELECT id::uuid FROM typed_code), 'f2300000-0000-4000-8000-000000000001',
   'Sai Uppu', pg_temp.typed_hash('Sai Uppu')));
 SELECT extensions.is((SELECT payload->>'replayed' FROM typed_results WHERE scenario='sai_again'), 'true',
-  'confirming twice replays the settled connection');
+  'confirming twice replays the waiting request');
+SELECT extensions.is((SELECT payload->>'needsReview' FROM typed_results WHERE scenario='sai_again'), 'true',
+  'the replay still says an officer decides');
 SELECT extensions.is((SELECT count(*)::int FROM plugin_data.csf_profile_accounts
-  WHERE user_id='f2100000-0000-4000-8000-000000000002'), 1, 'a replay adds no account row');
+  WHERE user_id='f2100000-0000-4000-8000-000000000002'), 0, 'a replay creates no account row');
+SELECT extensions.is((SELECT count(*)::int FROM plugin_data.csf_profile_link_requests
+  WHERE user_id='f2100000-0000-4000-8000-000000000002'), 1, 'and reuses the one request');
 
 -- Ambiguity goes to an officer.
 INSERT INTO typed_results VALUES ('ambiguous', plugin_data.csf_confirm_class_code_typed_name_match(
@@ -185,14 +191,16 @@ SELECT extensions.is((SELECT count(*)::int FROM public.organization_members
   WHERE organization_id='f2200000-0000-4000-8000-000000000001' AND user_id='f2100000-0000-4000-8000-000000000003' AND status='active'), 1,
   'a student waiting on review is still an active organization member');
 
--- A nickname connects.
+-- A nickname is the easiest thing for a classmate to know, so it reviews too.
 INSERT INTO typed_results VALUES ('nick', plugin_data.csf_confirm_class_code_typed_name_match(
   'f2200000-0000-4000-8000-000000000001', 'f2400000-0000-4000-8000-000000000004',
   'f2100000-0000-4000-8000-000000000004', 'nick@local.test',
   (SELECT id::uuid FROM typed_code), 'f2300000-0000-4000-8000-000000000001',
   'Nick Rao', pg_temp.typed_hash('Nick Rao')));
-SELECT extensions.is((SELECT payload->>'connected' FROM typed_results WHERE scenario='nick'), 'true',
-  'a recorded nickname connects');
+SELECT extensions.is((SELECT payload->>'needsReview' FROM typed_results WHERE scenario='nick'), 'true',
+  'a recorded nickname is a suggestion, not a connection');
+SELECT extensions.is((SELECT count(*)::int FROM plugin_data.csf_profile_accounts
+  WHERE user_id='f2100000-0000-4000-8000-000000000004'), 0, 'a nickname creates no account row');
 
 -- A claimed record cannot be taken.
 INSERT INTO typed_results VALUES ('claimed', plugin_data.csf_confirm_class_code_typed_name_match(
@@ -215,18 +223,46 @@ INSERT INTO typed_results VALUES ('email_elsewhere', plugin_data.csf_confirm_cla
 SELECT extensions.is((SELECT payload->>'needsReview' FROM typed_results WHERE scenario='email_elsewhere'), 'true',
   'an account whose email is on a different record cannot self-link elsewhere');
 
--- A verified email on the record itself is recorded as the stronger basis.
+-- An address the student typed into their own application is not proof. The
+-- column says so itself: "Never use for account ownership or automatic
+-- connection" (20260910043037).
 UPDATE plugin_data.csf_profiles SET reported_application_personal_email = 'middle@local.test'
 WHERE id = 'f2400000-0000-4000-8000-000000000008';
-INSERT INTO typed_results VALUES ('middle', plugin_data.csf_confirm_class_code_typed_name_match(
+INSERT INTO typed_results VALUES ('reported', plugin_data.csf_confirm_class_code_typed_name_match(
   'f2200000-0000-4000-8000-000000000001', 'f2400000-0000-4000-8000-000000000008',
   'f2100000-0000-4000-8000-000000000008', 'middle@local.test',
   (SELECT id::uuid FROM typed_code), 'f2300000-0000-4000-8000-000000000001',
   'Maya Elise Chen', pg_temp.typed_hash('Maya Elise Chen')));
-SELECT extensions.is((SELECT payload->>'connected' FROM typed_results WHERE scenario='middle'), 'true',
-  'a full name with middle name connects');
-SELECT extensions.is((SELECT payload->>'connectionBasis' FROM typed_results WHERE scenario='middle'), 'verified_email',
-  'when the login email is on the record, the basis is the email, not the name');
+SELECT extensions.is((SELECT payload->>'needsReview' FROM typed_results WHERE scenario='reported'), 'true',
+  'a self-reported application address does not connect an exact full name');
+SELECT extensions.is((SELECT count(*)::int FROM plugin_data.csf_profile_accounts
+  WHERE user_id='f2100000-0000-4000-8000-000000000008'), 0, 'and creates no account row');
+
+-- A contact an officer curated onto the record is. Same student, same name;
+-- the only thing that changed is who put the address there.
+UPDATE plugin_data.csf_profiles
+  SET reported_application_personal_email = NULL,
+      personal_email = 'middle@local.test',
+      normalized_personal_email = 'middle@local.test'
+WHERE id = 'f2400000-0000-4000-8000-000000000008';
+DELETE FROM plugin_data.csf_profile_link_requests
+  WHERE organization_id='f2200000-0000-4000-8000-000000000001'
+    AND user_id='f2100000-0000-4000-8000-000000000008';
+INSERT INTO typed_results VALUES ('curated', plugin_data.csf_confirm_class_code_typed_name_match(
+  'f2200000-0000-4000-8000-000000000001', 'f2400000-0000-4000-8000-000000000008',
+  'f2100000-0000-4000-8000-000000000008', 'middle@local.test',
+  (SELECT id::uuid FROM typed_code), 'f2300000-0000-4000-8000-000000000001',
+  'Maya Elise Chen', pg_temp.typed_hash('Maya Elise Chen')));
+SELECT extensions.is((SELECT payload->>'connected' FROM typed_results WHERE scenario='curated'), 'true',
+  'a verified login email matching a curated contact connects');
+SELECT extensions.is((SELECT payload->>'connectionBasis' FROM typed_results WHERE scenario='curated'), 'verified_email',
+  'the basis is the email, never the name');
+
+-- The retired basis is gone from every path in this file.
+SELECT extensions.is((SELECT count(*)::int FROM plugin_data.csf_profile_accounts
+  WHERE organization_id='f2200000-0000-4000-8000-000000000001'
+    AND connection_basis='self_confirmed_account_name'), 0,
+  'no typed-name path mints a self-confirmed connection');
 
 -- Guards.
 SELECT extensions.throws_ok($q$SELECT plugin_data.csf_confirm_class_code_typed_name_match(

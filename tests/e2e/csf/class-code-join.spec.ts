@@ -411,7 +411,7 @@ test.describe("class join code connections", () => {
     expectNoBrowserFailures(failures);
   });
 
-  test("confirming the account-name match connects the record and survives reload", async ({
+  test("confirming a name-only match reaches an officer and never claims the record", async ({
     page,
   }) => {
     await cleanJoinFixture(fixture);
@@ -438,13 +438,14 @@ test.describe("class join code connections", () => {
       .click();
     await expect(
       page.getByRole("heading", {
-        name: "Your CSF record is linked",
+        name: "Awaiting staff review",
         exact: true,
       }),
     ).toBeVisible();
 
-    // The connection is recorded as self-confirmed, never as an email match
-    // (this record has no email), and the request settles as auto-linked.
+    // This record carries no curated contact, so the typed name is the only
+    // evidence and a name is not ownership. No account row is created at all
+    // and the request waits for an officer.
     await expect
       .poll(async () => {
         const [{ data: member }, { data: account }, { data: request }] =
@@ -476,28 +477,23 @@ test.describe("class join code connections", () => {
         return { account, member, request };
       })
       .toEqual({
-        account: {
-          status: "verified",
-          is_primary: true,
-          connection_basis: "self_confirmed_account_name",
-        },
+        account: null,
         member: { role: "member", status: "active" },
         request: {
           candidate_profile_ids: [noEmailProfileId],
-          match_status: "auto_linked",
-          matched_profile_id: noEmailProfileId,
+          match_status: "needs_review",
+          matched_profile_id: null,
         },
       });
 
+    // A reload replays the same waiting answer rather than offering the
+    // confirm button again.
     await page.reload({ waitUntil: "domcontentloaded" });
     await expect(
       page.getByRole("heading", {
-        name: "Your CSF record is linked",
+        name: "Awaiting staff review",
         exact: true,
       }),
-    ).toBeVisible();
-    await expect(
-      page.getByRole("button", { name: "Go to My CSF", exact: true }),
     ).toBeVisible();
     await expect(
       page.getByRole("button", { name: "Yes, this is me", exact: true }),
@@ -506,7 +502,7 @@ test.describe("class join code connections", () => {
     expectNoBrowserFailures(failures);
   });
 
-  test("a shortened first name still finds and connects the unique record", async ({
+  test("a shortened first name finds the record but still needs an officer", async ({
     page,
   }) => {
     await cleanJoinFixture(fixture);
@@ -532,8 +528,8 @@ test.describe("class join code connections", () => {
     await fullName.fill(`Sai ${lastName}`);
     await dialog.getByRole("button", { name: "Find my record" }).click();
 
-    // The record is shown with how it matched, and the copy says a unique
-    // match connects, before the student clicks anything.
+    // The record is shown with how it matched, and the copy is honest about
+    // what decides, before the student clicks anything.
     const found = page.getByRole("dialog", { name: "Is this you?" });
     await expect(found).toBeVisible();
     await expect(
@@ -541,7 +537,7 @@ test.describe("class join code connections", () => {
     ).toBeVisible();
     await expect(found.getByText("Starts the same way")).toBeVisible();
     await expect(
-      found.getByText("Confirm it and you are connected."),
+      found.getByText(/otherwise a CSF officer checks it first/),
     ).toBeVisible();
     await found
       .getByRole("button", { name: "Yes, this is me", exact: true })
@@ -549,7 +545,7 @@ test.describe("class join code connections", () => {
 
     await expect(
       page.getByRole("heading", {
-        name: "Your CSF record is linked",
+        name: "Awaiting staff review",
         exact: true,
       }),
     ).toBeVisible();
@@ -565,10 +561,7 @@ test.describe("class join code connections", () => {
           .maybeSingle();
         return account;
       })
-      .toEqual({
-        status: "verified",
-        connection_basis: "self_confirmed_account_name",
-      });
+      .toEqual(null);
 
     expectNoBrowserFailures(failures);
   });
