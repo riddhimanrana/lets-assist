@@ -100,14 +100,21 @@ function otherApplicantIdentities(viewer: SheetApplicant) {
 }
 
 /**
- * The label the semester's own tab and panel heading carry.
+ * The two regions that state a member's semester status, both from
+ * `memberSemesterStatus`, so every status label renders twice on this page.
+ * Positive assertions name the region they mean; negative ones stay page-wide.
+ */
+const profileSummary = (page: Page) => page.getByLabel("CSF member profile");
+const selectedSemester = (page: Page) =>
+  page.getByLabel("Selected semester status and progress");
+
+/**
+ * The label a semester's tab and panel heading carry.
  *
- * The fixture hands back a term id, but the profile's semester tabs are keyed
- * on the ledger entry id, which is the term id only when the chapter's term
- * reached the profile's term list: `buildTermLedger` pre-registers the cohort's
- * eight generated semesters and a seeded membership merges into one of them by
- * code. The label is the identity both paths agree on, so the tab is found by
- * name and its panel by the `aria-controls` that tab publishes.
+ * Tabs are keyed on the ledger entry id, which equals the term id only when the
+ * chapter's term reached the profile's term list: `buildTermLedger` registers
+ * the cohort's eight generated semesters and a seeded membership merges into
+ * one by code. The label is the identity both paths share.
  */
 async function semesterLabel(termId: string) {
   const term = await fixture.admin
@@ -307,6 +314,9 @@ test.describe("before any release", () => {
     // A staged acceptance grants nothing, so the semester still reads as under
     // review rather than approved.
     await expect(page.getByText("Approved by CSF officers")).toHaveCount(0);
+    await expect(
+      profileSummary(page).getByText("Under officer review"),
+    ).toBeVisible();
     await expectNoStagedLeak(page, applicants.byRole.accepted);
 
     expect(
@@ -366,24 +376,20 @@ test.describe("before any release", () => {
     await loginWithEmail(page, applicants.byRole.explained.email);
 
     await page.goto(PROFILE, { waitUntil: "domcontentloaded" });
-    // The page opens on the semester being withheld, not on the one this test
-    // is about: `resolveDefaultProfileTermId` prefers the current term as soon
-    // as it holds any record, and a staged application is a record. So the
-    // current panel correctly reads "No semester record", and last semester's
-    // completion is one tab away. Asserting on the page before selecting that
-    // tab asserted nothing about history at all.
+    // The page opens on the current semester, because
+    // `resolveDefaultProfileTermId` prefers it once it holds any record and a
+    // staged application is one. Last semester has to be selected before
+    // anything can be asserted about it.
     const priorTab = page
       .getByRole("tablist", { name: "Member semesters" })
       .getByRole("tab", { name: priorSemester, exact: true });
     await priorTab.click();
     await expect(priorTab).toHaveAttribute("aria-selected", "true");
 
-    // `CsfProfileTermWorkspace` renders one panel, for the selected semester,
-    // and every tab names its panel through `aria-controls`. Reading that id
-    // off the tab just clicked is what makes the assertion below belong to last
-    // semester rather than to whichever panel happens to be open. The header
-    // badge follows the same selection, so an unscoped match would also be
-    // satisfied by the summary alone.
+    // One panel renders, for the selected semester, and each tab names its
+    // panel through `aria-controls`. Scoping to it is what binds the assertion
+    // to last semester rather than to the header badge, which follows the same
+    // selection.
     const panelId = await priorTab.getAttribute("aria-controls");
     expect(panelId).toBeTruthy();
     const priorPanel = page.locator(`[id="${panelId}"]`);
@@ -416,29 +422,19 @@ test.describe("after release", () => {
 
     await loginWithEmail(page, applicants.byRole.accepted.email);
     await page.goto(PROFILE, { waitUntil: "domcontentloaded" });
-    // The member profile states the verdict twice, and both are legitimate:
-    // `CsfMemberProfileSummary` puts it in the header badge and
-    // `CsfProfileTermWorkspace` puts it on the selected semester, each from the
-    // same `memberSemesterStatus`. That is why an unscoped match was a strict
-    // mode violation rather than a missing label, and why `.first()` would have
-    // been the wrong repair: it passes without ever saying which one rendered.
+    // Both regions state the verdict, so each is asserted by name rather than
+    // taken with `.first()`.
     await expect(
-      page
-        .getByLabel("CSF member profile")
-        .getByText("Approved by CSF officers"),
+      profileSummary(page).getByText("Approved by CSF officers"),
     ).toBeVisible();
-    const selectedSemester = page.getByLabel(
-      "Selected semester status and progress",
-    );
-    // Named, so the badge is pinned to the semester that was released rather
-    // than to whichever tab the page opened on.
+    // Named heading, so the badge belongs to the semester that was released.
     await expect(
-      selectedSemester.getByRole("heading", {
+      selectedSemester(page).getByRole("heading", {
         name: await semesterLabel(fixture.termId),
       }),
     ).toBeVisible();
     await expect(
-      selectedSemester.getByText("Approved by CSF officers"),
+      selectedSemester(page).getByText("Approved by CSF officers"),
     ).toBeVisible();
 
     // Even a published acceptance carries none of the workbook's evidence.
@@ -468,19 +464,15 @@ test.describe("after release", () => {
 
     await loginWithEmail(page, applicants.byRole.rejected.email);
     await page.goto(PROFILE, { waitUntil: "domcontentloaded" });
-    // The negative stays page-wide: no corner of any region may call this
-    // person approved.
+    // The negative stays page-wide: no region may call this person approved.
     await expect(page.getByText("Approved by CSF officers")).toHaveCount(0);
-    // And the positive names what the member is actually shown, so this test
-    // stops passing on an empty page. With no membership row and no activity,
-    // `memberSemesterStatus` returns "No semester record", the same words an
-    // applicant with no decision at all reads. A published rejection has no
-    // member-facing copy today: `decisionCopy`'s "Application not approved"
-    // lives in `CsfMemberWorkspace`, which no route renders any more. This
-    // assertion is what fails when that is fixed, which is the point of
-    // pinning it.
+    // A released rejection is stated, not left blank. `memberSemesterStatus`
+    // resolves it off `decision_status`, so both regions carry it.
     await expect(
-      page.getByLabel("CSF member profile").getByText("No semester record"),
+      profileSummary(page).getByText("Application not approved"),
+    ).toBeVisible();
+    await expect(
+      selectedSemester(page).getByText("Application not approved"),
     ).toBeVisible();
 
     expectNoBrowserFailures(failures);
@@ -618,11 +610,10 @@ test.describe("stale access after a later sync", () => {
  * The guards this lane implemented, against the copy the member surfaces
  * actually render.
  *
- * `decisionCopy` in `CsfMemberWorkspaceModel` supplies the status label and
- * `CsfMemberWorkspaceViews` prefers the application's own `decision_reason` as
- * the row detail, so a released yellow rejection reads as "Application not
- * approved" with the officer's words underneath. `CsfMemberSubmissionsView`
- * gates on `termMembership.status` being accepted or active, and says so.
+ * `memberSemesterStatus` names the published outcome in both profile regions,
+ * and `ApplicationDecisionReason` prints the officer's words in the selected
+ * semester, for a released rejection only. `CsfMemberSubmissionsView` gates on
+ * `termMembership.status` being accepted or active, and says so.
  */
 test.describe("member guards", () => {
   test("the yellow applicant reads the officer explanation after release", async ({
@@ -636,9 +627,20 @@ test.describe("member guards", () => {
     await page.goto(PROFILE, { waitUntil: "domcontentloaded" });
 
     // A yellow mark is a rejection *with* an explanation. Once the chapter
-    // publishes it, the student is owed those words.
-    await expect(page.getByText("Application not approved")).toBeVisible();
-    await expect(page.getByText(EXPLAINED_REASON)).toBeVisible();
+    // publishes it, the student is owed those words, in the semester they
+    // belong to.
+    await expect(
+      profileSummary(page).getByText("Application not approved"),
+    ).toBeVisible();
+    await expect(
+      selectedSemester(page).getByText("Application not approved"),
+    ).toBeVisible();
+    await expect(
+      selectedSemester(page).getByText("Why this application was not approved"),
+    ).toBeVisible();
+    await expect(
+      selectedSemester(page).getByText(EXPLAINED_REASON),
+    ).toBeVisible();
 
     expectNoBrowserFailures(failures);
   });
@@ -653,7 +655,9 @@ test.describe("member guards", () => {
     await loginWithEmail(page, applicants.byRole.rejected.email);
     await page.goto(PROFILE, { waitUntil: "domcontentloaded" });
 
-    await expect(page.getByText("Application not approved")).toBeVisible();
+    await expect(
+      profileSummary(page).getByText("Application not approved"),
+    ).toBeVisible();
     // The yellow applicant's words belong to the yellow applicant.
     expect(await page.content()).not.toContain(EXPLAINED_REASON);
 

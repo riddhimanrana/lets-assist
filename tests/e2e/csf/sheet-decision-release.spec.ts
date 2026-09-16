@@ -343,17 +343,23 @@ test.describe("officer permissions", () => {
     expectNoBrowserFailures(failures);
   });
 
-  test("a role without decide_applications cannot release", async ({
+  test("a role that reads applications but cannot decide gets no Release", async ({
     page,
   }) => {
     const failures = watchBrowserFailures(page);
     await stageTheFiveOutcomes();
     await page.setViewportSize(DESKTOP);
-    // The Treasurer template reads applications and is documented as unable to
-    // decide them.
-    await loginAs(page, "treasurer");
+    // Data Management is the role that reaches this panel without being able to
+    // publish from it: `import_applications` opens the route,
+    // `view_applications` loads the workspace, and there is no
+    // `decide_applications`, `manage_sheet_sync` or `manage_settings`.
+    await loginAs(page, "dataManagement");
     await openApplications(page);
 
+    // Reading the roster is allowed, so the panel itself is present.
+    await expect(panel(page)).toContainText(
+      "Applications are reviewed in the Sheet",
+    );
     await expect(
       panel(page).getByRole("button", { name: /^Release/ }),
     ).toHaveCount(0);
@@ -363,10 +369,35 @@ test.describe("officer permissions", () => {
     await expect(
       panel(page).getByRole("button", { name: /^Review in the/ }),
     ).toHaveCount(0);
-    // Reading the roster is still allowed, so the panel itself is present.
-    await expect(panel(page)).toContainText(
-      "Applications are reviewed in the Sheet",
+
+    expectNoBrowserFailures(failures);
+  });
+
+  test("the Applications route refuses a role it does not admit", async ({
+    page,
+  }) => {
+    const failures = watchBrowserFailures(page);
+    await stageTheFiveOutcomes();
+    await page.setViewportSize(DESKTOP);
+    // The Treasurer holds `view_applications`, which is what the review
+    // workspace itself checks, but `CSF_STAFF_ROUTE_PERMISSIONS.applications`
+    // admits only verify_submissions, manage_review_periods,
+    // import_applications, manage_sheet_sync or resolve_imports. Holding none
+    // of those, this officer never gets the tab and the workspace opens Home.
+    await loginAs(page, "treasurer");
+    await page.goto(
+      `${APPLICATIONS_PATH}&csf_review_term=${fixture.termId}&csf_review_cohort=${fixture.cohortId}`,
+      { waitUntil: "domcontentloaded" },
     );
+
+    await expect(
+      page.getByRole("tab", { name: "Home", exact: true }),
+    ).toHaveAttribute("aria-selected", "true");
+    await expect(page.getByRole("tab", { name: "Applications" })).toHaveCount(
+      0,
+    );
+    await expect(panel(page)).toHaveCount(0);
+    await expect(page.getByRole("button", { name: /^Release/ })).toHaveCount(0);
 
     expectNoBrowserFailures(failures);
   });
@@ -568,8 +599,14 @@ test.describe("mobile", () => {
       rosterRow(page, applicants.byRole.accepted.lastName),
     ).toContainText("Accepted in the Sheet · not published yet");
 
-    // The staged reason is no more visible on a phone than on a desktop.
-    expect(await page.content()).not.toContain(EXPLAINED_REASON);
+    // An officer may read the explanation they wrote, so this page carries the
+    // staged reason legitimately and a page-wide absence check was wrong here.
+    // What a phone has to keep legible is the row's staged state, including
+    // that it is an explained rejection nobody has published. Member privacy is
+    // asserted in `sheet-decision-applicant.spec.ts`, signed in as the member.
+    await expect(
+      rosterRow(page, applicants.byRole.explained.lastName),
+    ).toContainText("Rejected with a reason · not published yet");
 
     expectNoBrowserFailures(failures);
   });
