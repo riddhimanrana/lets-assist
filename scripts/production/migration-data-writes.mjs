@@ -72,7 +72,7 @@ export const prohibitedMigrationWriteTargets = [
 
 // Mask literals and comments without moving statement offsets. Function bodies
 // are definitions, not top-level data writes, so dollar-quoted bodies are masked.
-function maskSql(sql) {
+function maskSql(sql, executableBodies = []) {
   const chars = sql.split("");
   let statementStart = 0;
   const blank = (start, end) => {
@@ -128,6 +128,7 @@ function maskSql(sql) {
         index = end < 0 ? sql.length : end + delimiter.length;
         const prefix = chars.slice(statementStart, start).join("").trim();
         if (/^DO\b/iu.test(prefix) && end >= 0) {
+          executableBodies.push([start + delimiter.length, end]);
           blank(start, start + delimiter.length);
           const body = maskSql(sql.slice(start + delimiter.length, end));
           for (let offset = 0; offset < body.length; offset += 1)
@@ -163,16 +164,20 @@ function normalizedIdentifier(table) {
 }
 
 export function topLevelDataWrites(sql) {
-  const masked = maskSql(sql);
+  const executableBodies = [];
+  const masked = maskSql(sql, executableBodies);
   const writes = [];
   let offset = 0;
   for (const segment of masked.split(";")) {
     const first = segment.search(/\S/u);
     if (
       first >= 0 &&
-      /^(?:WITH|DO|INSERT|UPDATE|DELETE|MERGE|TRUNCATE)\b/iu.test(
-        segment.slice(first),
-      )
+      (executableBodies.some(
+        ([start, end]) => offset + first >= start && offset + first < end,
+      ) ||
+        /^(?:WITH|DO|INSERT|UPDATE|DELETE|MERGE|TRUNCATE)\b/iu.test(
+          segment.slice(first),
+        ))
     ) {
       const statement = sql.slice(
         offset + first,

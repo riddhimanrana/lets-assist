@@ -7,7 +7,7 @@ import {
   unreviewedWriteTables,
 } from "./migration-data-writes.mjs";
 test("catalog exceptions bind exact historical migration statements", () => {
-  assert.equal(reviewedCatalogDataWrites.length, 18);
+  assert.equal(reviewedCatalogDataWrites.length, 36);
   for (const entry of reviewedCatalogDataWrites) {
     const sql = readFileSync(
       new URL(`../../supabase/migrations/${entry.file}`, import.meta.url),
@@ -22,12 +22,15 @@ test("catalog exceptions bind exact historical migration statements", () => {
           write.statement === entry.statement,
       ),
     );
-    assert.ok(!unreviewedWriteTables(sql).includes("public.plugins"));
-    const changed = sql.replace(
-      /SET latest_version = '[^']+'/,
-      "SET latest_version = '99.0.0'",
-    );
-    assert.ok(unreviewedWriteTables(changed).includes("public.plugins"));
+    assert.ok(!unreviewedWriteTables(sql).includes(entry.table));
+    const changed =
+      entry.operation === "INSERT"
+        ? sql.replace(/(VALUES\s*\(\s*)'dvhs-csf'/u, "$1'unreviewed-plugin'")
+        : sql.replace(
+            /SET latest_version = '[^']+'/,
+            "SET latest_version = '99.0.0'",
+          );
+    assert.ok(unreviewedWriteTables(changed).includes(entry.table));
   }
 });
 test("catalog target alone never authorizes an unreviewed write", () => {
