@@ -315,12 +315,44 @@ export const approvedMigrations = [
     "d6c78052d9f6e104f48740797ebd1a7b39c3f851299e4bbbd2724b6462dc044e",
   ],
   [
+    "20260916070000_csf_class_block_acceptance_headers",
+    "e5f95d474c7a805214c96898289467f196824ac9e52d82e2cdd24985796d3c27",
+  ],
+  [
     "20260916080000_csf_officer_edit_review_fixes",
     "5f0cfa7c857e7488c2c2f614caef7f95263012823ac3443aac99f4f284e52051",
   ],
   [
     "20260916090000_csf_officer_decision_replay_and_supersede",
     "9ee43c89e583123bb264b81932fc9f3afe5144816e8b877325c7dea2a469290a",
+  ],
+  [
+    "20260917010000_csf_term_decision_staging",
+    "50240d63fef25984bc847637fb4f52e60c1a3497192e09233354c60a579b92cf",
+  ],
+  [
+    "20260917010100_csf_sheet_application_decision_rpcs",
+    "e755d58697227ec18c883765f3390a9892740f2e25b1c2bb9ef7e6bfe4d9dfe5",
+  ],
+  [
+    "20260917010200_csf_sheet_application_decision_sync",
+    "dd37949e7e7f4e0abd02b8c35ecc94b155566f330cf9936d77cd1290c79124d0",
+  ],
+  [
+    "20260917010300_csf_sheet_application_decision_release",
+    "6f10202570069dfc481c23e3f7f5232314d851c6a56af90ddc6560fd259406da",
+  ],
+  [
+    "20260917020000_csf_decision_stage_merge_ownership",
+    "e91815f78d2420c38701f8282de098f41b33286abd292a5de84bb7d53b533f66",
+  ],
+  [
+    "20260917020100_csf_application_decision_mapping_fields",
+    "dd32eeb78aeae26ac1254607bf95724e4559d2500a18228312ab916e95c2b31d",
+  ],
+  [
+    "20260917030000_csf_finalized_outcome_guard",
+    "0bea6a8e91ec661587012bb696a8e6baff65769d8f35cee8d9c3ee14f470530a",
   ],
 ];
 
