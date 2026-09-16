@@ -358,14 +358,6 @@ INSERT INTO plugin_data.csf_profiles (
   'fa100000-0000-4000-8000-000000000001',
   'Other', 'Member', 'other', 'member', '{}'
 );
-INSERT INTO plugin_data.csf_profile_cohort_memberships (
-  organization_id, profile_id, cohort_id, status
-) VALUES (
-  'fa100000-0000-4000-8000-000000000001',
-  'fa300000-0000-4000-8000-000000000002',
-  'fa200000-0000-4000-8000-000000000001',
-  'active'
-) ON CONFLICT DO NOTHING;
 INSERT INTO plugin_data.csf_credit_records (
   id, organization_id, profile_id, term_id, source, points, point_type, status
 ) VALUES (
@@ -499,6 +491,41 @@ SELECT extensions.throws_ok(
   'P0001',
   'That request identifier is already bound to a different change.',
   'C7 a different edit under the same identifier is refused, not replayed'
+);
+
+-- C6: the claims-queue resolution supersedes competing pending claims the
+-- same way the direct officer connection does.
+SELECT extensions.ok(
+  has_function_privilege(
+    'postgres',
+    'plugin_data.csf_supersede_competing_profile_claims(uuid,uuid,uuid,text,uuid,uuid)',
+    'EXECUTE'
+  ),
+  'C6 both decision paths share one supersede'
+);
+SELECT extensions.ok(
+  NOT has_function_privilege(
+    'service_role',
+    'plugin_data.csf_supersede_competing_profile_claims(uuid,uuid,uuid,text,uuid,uuid)',
+    'EXECUTE'
+  ),
+  'C6 the shared supersede is owner-internal, reachable only through a decision'
+);
+SELECT extensions.ok(
+  (SELECT pg_catalog.pg_get_functiondef(
+     pg_catalog.to_regprocedure(
+       'plugin_data.csf_resolve_profile_link_request(uuid,uuid,uuid,text,text,uuid)'
+     )
+   ) LIKE '%csf_supersede_competing_profile_claims%'),
+  'C6 the claims-queue resolution calls it'
+);
+SELECT extensions.ok(
+  (SELECT pg_catalog.pg_get_functiondef(
+     pg_catalog.to_regprocedure(
+       'plugin_data.csf_staff_connect_profile_account(uuid,uuid,uuid,text,text,uuid)'
+     )
+   ) LIKE '%csf_supersede_competing_profile_claims%'),
+  'C6 and so does the direct officer connection, from the same function'
 );
 
 SELECT * FROM extensions.finish();
