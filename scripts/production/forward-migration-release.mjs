@@ -423,6 +423,10 @@ export const approvedMigrations = [
     "20260917200000_csf_unreconcile_retry_receipt",
     "83b908d116f64d8c385b9c8fd472bc1e95040501f2272fb65165fa15e1e170ff",
   ],
+  [
+    "20260917210000_csf_member_report_term_scope",
+    "17edfc74f40f4293a9c83b5b80674bf9afe39bf11b6f8907bcb13b4293e22f61",
+  ],
 ];
 
 const literal = (value) => `'${value.replaceAll("'", "''")}'`;

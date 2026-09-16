@@ -257,6 +257,25 @@ export function acceptedCatalogQuery(source, versions) {
     .update(versions.join("\n"))
     .digest("hex");
   if (
+    versions.length === 571 &&
+    ledgerHash ===
+      "050b0d277b1099eaccd134961a59a96874ef9a587496a3debe440aabb3717961"
+  ) {
+    const preceding = acceptedCatalogQuery(source, versions.slice(0, 570))
+      .trim()
+      .replace(/;$/u, "");
+    return `SELECT CASE WHEN (${preceding}) = 1 AND EXISTS (
+      SELECT 1 FROM pg_catalog.pg_proc AS p
+      WHERE p.oid = pg_catalog.to_regprocedure('plugin_data.csf_submit_member_report(uuid,uuid,text,text,uuid)')
+        AND md5(pg_catalog.pg_get_functiondef(p.oid)) = '17bfb459fed6fa6e07b22d67e45431b7'
+        AND p.prosecdef AND p.proowner = 'postgres'::regrole
+        AND NOT has_function_privilege('anon', p.oid, 'EXECUTE')
+        AND NOT has_function_privilege('authenticated', p.oid, 'EXECUTE')
+        AND has_function_privilege('service_role', p.oid, 'EXECUTE')
+        AND has_function_privilege('postgres', p.oid, 'EXECUTE')
+    ) THEN 1 ELSE 0 END AS csf_target_schema_verified;`;
+  }
+  if (
     versions.length === 570 &&
     ledgerHash ===
       "8cd5c5b8d76142fbd0f1f14f3acbb5a2d6ff3083cbb97f706c253517e1042798"

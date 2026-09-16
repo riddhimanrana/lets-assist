@@ -2724,6 +2724,16 @@ meeting and queue checks passed 67 tests; Home, agenda, and tour checks passed
 Historical attendance reconciliation remains unfinished. This release does not
 publish application decisions or send email.
 
+The public join route now redirects a signed-in account with a verified link to
+an active chapter profile directly to My CSF. Five focused checks and typecheck
+passed. Follow-up database review fixes preserve successful undo receipts on
+retry and reject member reports attributed to another chapter's term. The
+571-migration catalog verifies locally. Migration write detection now covers
+SQL casing, common table expressions, quoted targets, and static DO-block writes.
+The corresponding focused regression tests pass. The previous required CI run
+failed because two readiness assertions still expected the older ledger; those
+assertions now preserve their original baseline and check the new extensions.
+
 ### Semester readiness review, September 16, 2026
 
 This work is in progress on an isolated Development integration branch.

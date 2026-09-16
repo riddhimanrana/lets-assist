@@ -21,8 +21,8 @@ test("the 540 officer identity authority release moves exactly three fingerprint
   const fullLedger = expectedVersions(
     fileURLToPath(new URL("../../", import.meta.url)),
   );
-  assert.equal(fullLedger.length, 570);
-  assert.equal(fullLedger.at(-1), "20260917200000");
+  assert.equal(fullLedger.length, 571);
+  assert.equal(fullLedger.at(-1), "20260917210000");
   const current = acceptedCatalogQuery(source, fullLedger.slice(0, 540));
   const preceding = acceptedCatalogQuery(source, fullLedger.slice(0, 539));
   // The migration replaces three reviewed definitions in place. Nothing else
@@ -1079,4 +1079,12 @@ test("unreconcile retries pin the receipt replay definition and owner-only base"
     query,
     /NOT has_function_privilege\('service_role', p.oid, 'EXECUTE'\)/u,
   );
+});
+
+test("member report submission pins organization-scoped term validation", () => {
+  const query = acceptedCatalogQuery(
+    source,
+    expectedVersions(fileURLToPath(new URL("../../", import.meta.url))),
+  );
+  assert.match(query, /17bfb459fed6fa6e07b22d67e45431b7/u);
 });
