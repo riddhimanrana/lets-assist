@@ -33,6 +33,7 @@ import {
 } from "./account-ownership-catalog.mjs";
 import { createHash } from "node:crypto";
 import { ReleaseCheckError } from "./app-release-checks.mjs";
+import { officerIdentityAuthorityCatalog } from "./officer-identity-authority-catalog.mjs";
 import {
   mergedSourceLineagePosture,
   reviewedWorkbookLinksPosture,
@@ -137,6 +138,14 @@ export function acceptedCatalogQuery(source, versions) {
   const ledgerHash = createHash("sha256")
     .update(versions.join("\n"))
     .digest("hex");
+  if (
+    versions.length === 540 &&
+    ledgerHash ===
+      "7cbbdeea1274e00b99f18c281fac657585bb634574565046c88d8cdc131dac44"
+  )
+    return officerIdentityAuthorityCatalog(
+      acceptedCatalogQuery(source, versions.slice(0, 539)),
+    );
   if (
     versions.length === 539 &&
     ledgerHash ===

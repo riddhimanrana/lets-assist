@@ -14,14 +14,36 @@ const versions = expectedVersions(
   fileURLToPath(new URL("../../", import.meta.url)),
 ).slice(0, 518);
 
-test("exact 539 release publication preserves the accepted 538 schema", () => {
+test("the 540 officer identity authority release moves exactly three fingerprints", () => {
   const fullLedger = expectedVersions(
     fileURLToPath(new URL("../../", import.meta.url)),
   );
-  assert.equal(fullLedger.length, 539);
-  assert.equal(fullLedger.at(-1), "20260916010000");
+  assert.equal(fullLedger.length, 540);
+  assert.equal(fullLedger.at(-1), "20260916040000");
+  const current = acceptedCatalogQuery(source, fullLedger);
+  const preceding = acceptedCatalogQuery(source, fullLedger.slice(0, 539));
+  // The migration replaces three reviewed definitions in place. Nothing else
+  // in the accepted catalog may move with them.
+  for (const [before, after] of [
+    ["abda3e08cd11a412fbb919906c95fe74", "eabcc76e3e61eea9bcd91a6487b10c20"],
+    ["524766459ce161c31250d01b691ca7c9", "f0aaa289ceda518c32ef0ea8468493ba"],
+    ["f55544457947c753af0a8f527d7d25d6", "3f0ee9027a1a89b94e395cd320ae2abb"],
+  ]) {
+    assert.ok(preceding.includes(before));
+    assert.ok(!preceding.includes(after));
+    assert.ok(!current.includes(before));
+    assert.ok(current.includes(after));
+    assert.equal(preceding.split(before).length, 2);
+    assert.equal(current.split(after).length, 2);
+  }
   assert.equal(
-    acceptedCatalogQuery(source, fullLedger),
+    current.length,
+    preceding.length,
+    "an in-place fingerprint swap cannot change the catalog's size",
+  );
+
+  assert.equal(
+    acceptedCatalogQuery(source, fullLedger.slice(0, 539)),
     acceptedCatalogQuery(source, fullLedger.slice(0, 538)),
   );
   assert.equal(
@@ -29,7 +51,7 @@ test("exact 539 release publication preserves the accepted 538 schema", () => {
     acceptedCatalogQuery(source, fullLedger.slice(0, 535)),
   );
   const alteredLedger = [...fullLedger];
-  alteredLedger[538] = "20990101000000";
+  alteredLedger[539] = "20990101000000";
   assert.throws(
     () => acceptedCatalogQuery(source, alteredLedger),
     /explicit release review/u,
