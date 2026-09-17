@@ -1,7 +1,7 @@
 BEGIN;
 
 CREATE EXTENSION IF NOT EXISTS pgtap WITH SCHEMA extensions;
-SELECT extensions.plan(67);
+SELECT extensions.plan(73);
 
 -- ---------------------------------------------------------------------------
 -- Shape and boundaries
@@ -255,14 +255,31 @@ VALUES
   -- must still be able to join a current one.
   ('bd300000-0000-4000-8000-000000000003', 'bd100000-0000-4000-8000-000000000001',
    'Robin', 'Fixture', 'robin', 'fixture',
-   'robin.newcomer@example.test', 'robin.newcomer@example.test', NULL);
+   'robin.newcomer@example.test', 'robin.newcomer@example.test', NULL),
+  ('bd300000-0000-4000-8000-000000000004', 'bd100000-0000-4000-8000-000000000001',
+   'Casey', 'Blocked', 'casey', 'blocked',
+   'casey.blocked@example.test', 'casey.blocked@example.test', NULL);
 
 INSERT INTO plugin_data.csf_profile_cohort_memberships (organization_id, profile_id, cohort_id)
 VALUES
   ('bd100000-0000-4000-8000-000000000001', 'bd300000-0000-4000-8000-000000000001',
    'bd200000-0000-4000-8000-000000000001'),
   ('bd100000-0000-4000-8000-000000000001', 'bd300000-0000-4000-8000-000000000002',
-   'bd200000-0000-4000-8000-000000000002');
+   'bd200000-0000-4000-8000-000000000002'),
+  ('bd100000-0000-4000-8000-000000000001', 'bd300000-0000-4000-8000-000000000004',
+   'bd200000-0000-4000-8000-000000000001');
+
+-- This open connection request blocks deletion, leaving an active profile in
+-- the class after its other eligible students are retired.
+INSERT INTO plugin_data.csf_profile_link_requests (
+  organization_id, cohort_id, first_name, last_name,
+  normalized_first_name, normalized_last_name, matched_profile_id, match_status
+) VALUES (
+  'bd100000-0000-4000-8000-000000000001',
+  'bd200000-0000-4000-8000-000000000001',
+  'Casey', 'Blocked', 'casey', 'blocked',
+  'bd300000-0000-4000-8000-000000000004', 'pending'
+);
 
 -- The retiring student has a connected login. The link row goes; the login
 -- account does not.
@@ -416,6 +433,12 @@ SELECT extensions.is(
   0,
   'the identically named student in a current class is not in the preview'
 );
+SELECT extensions.is(
+  (SELECT disposition FROM plugin_data.csf_retention_preview_profiles
+   WHERE profile_id = 'bd300000-0000-4000-8000-000000000004'),
+  'blocked',
+  'an open account connection leaves its retired-class profile for officer review'
+);
 
 SELECT extensions.is(
   (SELECT state FROM plugin_data.csf_retention_runs
@@ -427,7 +450,7 @@ SELECT extensions.is(
 SELECT extensions.is(
   (SELECT count(*)::integer FROM plugin_data.csf_profiles
    WHERE organization_id = 'bd100000-0000-4000-8000-000000000001'),
-  3,
+  4,
   'previewing changed no student record'
 );
 
@@ -779,6 +802,43 @@ SELECT extensions.is(
    WHERE id = 'bd200000-0000-4000-8000-000000000002'),
   'active',
   'the current class keeps its active status'
+);
+SELECT extensions.is(
+  (SELECT record_status FROM plugin_data.csf_profiles
+   WHERE id = 'bd300000-0000-4000-8000-000000000004'),
+  'active',
+  'the blocked profile remains active for the separate connection review'
+);
+SELECT extensions.is(
+  (SELECT count(profile_id) FROM plugin_data.csf_list_profiles_page(
+    'bd100000-0000-4000-8000-000000000001', p_search => 'Casey'
+  )),
+  0::bigint,
+  'retired-class-only profiles do not appear in the ordinary officer directory'
+);
+SELECT extensions.is(
+  (SELECT count(profile_id) FROM plugin_data.csf_list_class_directory_page(
+    'bd100000-0000-4000-8000-000000000001',
+    'bd500000-0000-4000-8000-000000000001',
+    'bd200000-0000-4000-8000-000000000001'
+  )),
+  0::bigint,
+  'a retired class has no operational class directory page'
+);
+SELECT extensions.lives_ok(
+  $$INSERT INTO plugin_data.csf_profile_cohort_memberships
+      (organization_id, profile_id, cohort_id)
+    VALUES ('bd100000-0000-4000-8000-000000000001',
+            'bd300000-0000-4000-8000-000000000004',
+            'bd200000-0000-4000-8000-000000000002')$$,
+  'the blocked profile can be linked to a current class after retirement'
+);
+SELECT extensions.is(
+  (SELECT count(profile_id) FROM plugin_data.csf_list_profiles_page(
+    'bd100000-0000-4000-8000-000000000001', p_search => 'Casey'
+  )),
+  1::bigint,
+  'a profile with retired and current classes appears through the current class'
 );
 SELECT extensions.throws_ok(
   $$UPDATE plugin_data.csf_cohort_terms SET status = 'active'
