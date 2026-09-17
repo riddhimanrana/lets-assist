@@ -630,6 +630,14 @@ SELECT extensions.throws_ok(
   'an existing retired-class post cannot be republished'
 );
 
+-- Simulate a pinned row left by an older release before the retirement guard.
+ALTER TABLE plugin_data.csf_announcements
+  DISABLE TRIGGER csf_guard_retired_class_post;
+UPDATE plugin_data.csf_announcements SET pinned = true
+  WHERE id = 'bd220000-0000-4000-8000-000000000001';
+ALTER TABLE plugin_data.csf_announcements
+  ENABLE TRIGGER csf_guard_retired_class_post;
+
 SELECT extensions.lives_ok(
   $$UPDATE plugin_data.csf_announcements
     SET pinned = false, updated_by = 'bd000000-0000-4000-8000-000000000001'

@@ -96,7 +96,8 @@ BEGIN
         AND OLD.audience = 'class' AND NEW.audience = 'class'
         AND OLD.audience_cohort_id = NEW.audience_cohort_id
         AND (
-          (OLD.status IS DISTINCT FROM NEW.status AND NEW.status = 'archived')
+          (OLD.status IS DISTINCT FROM NEW.status
+            AND NEW.status = 'archived' AND NOT NEW.pinned)
           OR (OLD.status = NEW.status AND OLD.pinned AND NOT NEW.pinned)
         )
         AND (to_jsonb(OLD) - ARRAY['status', 'pinned', 'updated_at', 'updated_by'])

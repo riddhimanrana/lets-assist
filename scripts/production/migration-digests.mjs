@@ -1203,5 +1203,5 @@ export const migrationDigests = {
   "20260918160000_csf_retired_class_post_and_actor_fence.sql":
     "291d1ebfef1da7354a8f2a2d405cbe0f3945dad72beaa2b9e8ba6375ca3989f0",
   "20260918170000_csf_retired_class_terminal_updates.sql":
-    "8fcf49654e655575b3bc6fa3605a8e9ee6698e68f6e0b1924692dbb30144499f",
+    "8db7074d3ea9460ea3c86f175959aa8e9ce19a386ea1c4a3b069f070f5ab3426",
 };
