@@ -1,7 +1,7 @@
 BEGIN;
 CREATE EXTENSION IF NOT EXISTS pgtap WITH SCHEMA extensions;
 SET search_path = public, extensions;
-SELECT plan(21);
+SELECT plan(23);
 
 SELECT is((SELECT count(*) FROM private.project_status_schedule_window('oneTime',
   '{"oneTime":{"date":"","startTime":"09:00","endTime":"10:00"}}', 'UTC')),
@@ -12,6 +12,12 @@ SELECT is((SELECT count(*) FROM private.project_status_schedule_window('oneTime'
 SELECT is((SELECT count(*) FROM private.project_status_schedule_window('oneTime',
   '{"oneTime":{"date":"2026-02-30","startTime":"09:00","endTime":"10:00"}}', 'UTC')),
   0::bigint, 'Impossible dates are unresolved');
+SELECT is((SELECT count(*) FROM private.project_status_schedule_window('oneTime',
+  '{"oneTime":{"date":"2026-09-16","startTime":"09:00","endTime":"09:00"}}', 'UTC')),
+  0::bigint, 'A zero-length one-time event cannot complete');
+SELECT is((SELECT count(*) FROM private.project_status_schedule_window('multiDay',
+  '{"multiDay":[{"date":"2026-09-16","slots":[{"startTime":"09:00","endTime":"09:00"}]}]}', 'UTC')),
+  0::bigint, 'A zero-length multi-day slot cannot complete');
 SELECT is((SELECT starts_at FROM private.project_status_schedule_window('oneTime',
   '{"oneTime":{"date":"2026-09-16","startTime":"09:00","endTime":"10:00"}}', 'America/Los_Angeles')),
   '2026-09-16 16:00:00+00'::timestamptz, 'Summer times use the project timezone and daylight saving');
