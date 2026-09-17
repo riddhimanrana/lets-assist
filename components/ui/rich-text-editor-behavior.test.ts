@@ -51,70 +51,87 @@ describe("rich text editor external content sync", () => {
   test("a parent echoing the editor's own value never replaces the document", () => {
     const sync = createRichTextContentSync();
     expect(sync.recordLocalEdit(emittedAfterEnter)).toBe(true);
-    expect(
-      sync.receive(emittedAfterEnter, documentAfterEnter, true),
-    ).toBeNull();
-    expect(sync.flushOnBlur(documentAfterEnter)).toBeNull();
+    expect(sync.receive(emittedAfterEnter, documentAfterEnter)).toBeNull();
   });
 
   test("the echo is still refused once the author clicks away", () => {
     const sync = createRichTextContentSync();
     sync.recordLocalEdit(emittedAfterEnter);
-    expect(
-      sync.receive(emittedAfterEnter, documentAfterEnter, false),
-    ).toBeNull();
+    expect(sync.receive(emittedAfterEnter, documentAfterEnter)).toBeNull();
   });
 
-  test("a genuinely new body is applied while the editor is idle", () => {
+  test("a new external body is applied while the editor is idle", () => {
     const sync = createRichTextContentSync();
     sync.recordLocalEdit(emittedAfterEnter);
-    expect(sync.receive("<p>Another post</p>", documentAfterEnter, false)).toBe(
+    expect(sync.receive("<p>Another post</p>", documentAfterEnter)).toBe(
       "<p>Another post</p>",
     );
   });
 
   test("the first external body is applied before anything is emitted", () => {
     const sync = createRichTextContentSync();
-    expect(sync.receive("<p>Stored body</p>", "<p></p>", false)).toBe(
+    expect(sync.receive("<p>Stored body</p>", "<p></p>")).toBe(
       "<p>Stored body</p>",
     );
   });
 
-  test("a focused external change wins on blur and blocks stale edits", () => {
+  test("a focused external change applies before the next edit", () => {
     const sync = createRichTextContentSync();
     sync.recordLocalEdit(emittedAfterEnter);
-    expect(
-      sync.receive("<p>Server edit</p>", documentAfterEnter, true),
-    ).toBeNull();
-    expect(sync.recordLocalEdit("<p>Stale local edit</p>")).toBe(false);
-    expect(sync.flushOnBlur("<p>Stale local edit</p>")).toBe(
+    expect(sync.receive("<p>Server edit</p>", documentAfterEnter)).toBe(
       "<p>Server edit</p>",
     );
+    expect(sync.recordLocalEdit("<p>Server edit with new text</p>")).toBe(true);
     expect(
-      sync.receive("<p>Server edit</p>", "<p>Server edit</p>", false),
+      sync.receive(
+        "<p>Server edit with new text</p>",
+        "<p>Server edit with new text</p>",
+      ),
     ).toBeNull();
-    expect(sync.recordLocalEdit("<p>New edit</p>")).toBe(true);
   });
 
-  test("a second external change replaces the deferred value", () => {
+  test("an older local echo cannot restore an earlier paragraph after newer typing", () => {
     const sync = createRichTextContentSync();
-    sync.receive("<p>First change</p>", documentAfterEnter, true);
-    sync.receive("<p>Second change</p>", documentAfterEnter, true);
-    expect(sync.flushOnBlur(documentAfterEnter)).toBe("<p>Second change</p>");
+    const first = "<p>First</p>";
+    const second = "<p>First and second</p>";
+    sync.recordLocalEdit(first);
+    sync.recordLocalEdit(second);
+    expect(sync.receive(first, second)).toBeNull();
+    expect(sync.receive(second, second)).toBeNull();
+    expect(sync.recordLocalEdit("<p>First, second, and third</p>")).toBe(true);
   });
 
-  test("a delayed parent echo cannot cancel a newer external change", () => {
+  test("an old local echo after an external switch cannot restore the old body", () => {
+    const sync = createRichTextContentSync();
+    sync.recordLocalEdit("<p>Old post draft</p>");
+    expect(sync.receive("<p>New post</p>", "<p>Old post draft</p>")).toBe(
+      "<p>New post</p>",
+    );
+    expect(sync.receive("<p>Old post draft</p>", "<p>New post</p>")).toBeNull();
+    expect(sync.recordLocalEdit("<p>New post edited</p>")).toBe(true);
+  });
+
+  test("repeated external revisions apply immediately", () => {
+    const sync = createRichTextContentSync();
+    expect(sync.receive("<p>First change</p>", documentAfterEnter)).toBe(
+      "<p>First change</p>",
+    );
+    expect(sync.receive("<p>Second change</p>", "<p>First change</p>")).toBe(
+      "<p>Second change</p>",
+    );
+  });
+
+  test("a delayed parent echo cannot replace a newer external change", () => {
     const sync = createRichTextContentSync();
     sync.recordLocalEdit(emittedAfterEnter);
-    sync.receive("<p>Server edit</p>", documentAfterEnter, true);
-    sync.receive(emittedAfterEnter, documentAfterEnter, true);
-    expect(sync.flushOnBlur(documentAfterEnter)).toBe("<p>Server edit</p>");
+    expect(sync.receive("<p>Server edit</p>", documentAfterEnter)).toBe(
+      "<p>Server edit</p>",
+    );
+    expect(sync.receive(emittedAfterEnter, "<p>Server edit</p>")).toBeNull();
   });
 
-  test("an identical body clears a pending replacement", () => {
+  test("an identical body needs no replacement", () => {
     const sync = createRichTextContentSync();
-    sync.receive("<p>Server edit</p>", "<p>Same</p>", true);
-    expect(sync.receive("<p>Same</p>", "<p>Same</p>", true)).toBeNull();
-    expect(sync.flushOnBlur("<p>Same</p>")).toBeNull();
+    expect(sync.receive("<p>Same</p>", "<p>Same</p>")).toBeNull();
   });
 });

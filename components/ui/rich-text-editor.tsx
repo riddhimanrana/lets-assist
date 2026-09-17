@@ -197,28 +197,14 @@ export function RichTextEditor({
     const contentToApply = contentSyncRef.current.receive(
       sanitizedContent,
       editor.getHTML(),
-      editor.isFocused,
     );
     if (contentToApply !== null) {
+      // A different post or server revision must be visible before typing
+      // resumes. Keeping focus here could send later keystrokes to the old body.
+      if (editor.isFocused) editor.commands.blur();
       editor.commands.setContent(contentToApply, { emitUpdate: false });
     }
   }, [editor, content, sanitizeEditorContent]);
-
-  useEffect(() => {
-    if (!editor) return;
-    const applyDeferredContent = () => {
-      const contentToApply = contentSyncRef.current.flushOnBlur(
-        editor.getHTML(),
-      );
-      if (contentToApply !== null) {
-        editor.commands.setContent(contentToApply, { emitUpdate: false });
-      }
-    };
-    editor.on("blur", applyDeferredContent);
-    return () => {
-      editor.off("blur", applyDeferredContent);
-    };
-  }, [editor]);
 
   const getCounterColor = (current: number, max: number | undefined) => {
     if (!max) return "text-muted-foreground";
