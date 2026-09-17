@@ -18,6 +18,12 @@ The tenant-index architecture check also identified three tables whose indexes n
 
 Local validation passed 20 focused pgTAP assertions and six additional rollback-only migration fixtures covering duplicate removal, repeated execution, unchanged canonical jobs, and rejection of a changed replacement schedule. These repository changes await integrated release. No live cron jobs, project statuses, or indexes were changed during diagnosis. Current provider readback showed 26 backends against a 60-connection limit and zero deadlocks. Advisor index notices and cumulative query counts are not proof of current connection exhaustion. Auth/API gateway error logs were not available through the configured connector or CLI.
 
+## Class workbook preview fill contract, September 17, 2026
+
+Production class workbook refreshes reached the F25 preview and failed at `csf_append_import_preview_rows` because the Google Sheets reader now sends `userEnteredBackground` for an officer-applied fill, while the database allowed only `background` and `note`. The worker retried the same running job and returned intermittent 503 responses. The failed previews did not grant credit or commit class records.
+
+Forward migration `20260918180000` accepts the explicit fill only as a lowercase RGB value, keeps all other annotation bounds, and preserves it in the immutable preview. The pgTAP envelope suite now checks acceptance, persistence, malformed fills, and rejection of unrelated fields. This is a schema candidate until local replay, hosted checks, and Production migration readback pass. Existing queued workbook jobs should be allowed to retry after the migration; do not mark them completed by hand.
+
 ## Directory latency, September 17, 2026
 
 The member directory waited for unrelated relation queries before fetching account labels and current-term records. Its search form also reloaded the full document, and pagination showed no pending feedback. The member loader now starts dependent reads when their own prerequisites finish, search/filter submissions use client navigation, and roster/import page links announce loading with a spinner.
