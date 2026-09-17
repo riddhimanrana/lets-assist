@@ -61,6 +61,14 @@ export const reviewedMigrationDataWrites = [
       "6102a2e35178d3cf0ca40be8ae74e594a46b1d542b038964c89e4c6de7271742",
     why: "Classifies settled semester Sheet write receipts for deletion with their owning profile. Static schema metadata only.",
   },
+  {
+    migration: "20260918040000",
+    table: "plugin_data.csf_cohorts",
+    operation: "UPDATE",
+    statement:
+      "64d5a3095f267f7d55977c6b3aac8e11e6e5ad283c6639ee980987d25be845fb",
+    why: "Projects only already-committed retention receipts into retired class status. The receipt table and organization join bound the update; the migration does not start a retention run.",
+  },
 ];
 
 // Nothing in this list may ever be written by a migration, reviewed or not.

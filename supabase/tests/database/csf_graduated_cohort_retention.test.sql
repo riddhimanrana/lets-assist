@@ -1,7 +1,7 @@
 BEGIN;
 
 CREATE EXTENSION IF NOT EXISTS pgtap WITH SCHEMA extensions;
-SELECT extensions.plan(53);
+SELECT extensions.plan(60);
 
 -- ---------------------------------------------------------------------------
 -- Shape and boundaries
@@ -275,6 +275,36 @@ VALUES
    'bd300000-0000-4000-8000-000000000002', 'bd200000-0000-4000-8000-000000000002',
    'bd500000-0000-4000-8000-000000000001', 'robin.current@example.test',
    '{"answer": "continuing student response"}'::jsonb, 42);
+
+-- Drive references have no Storage coordinate; a Storage attachment has both.
+INSERT INTO plugin_data.csf_application_files (
+  id, organization_id, application_id, profile_id, term_id, file_type,
+  provider, bucket, object_path, drive_file_id
+)
+VALUES
+  ('bd610000-0000-4000-8000-000000000001', 'bd100000-0000-4000-8000-000000000001',
+   'bd600000-0000-4000-8000-000000000001', 'bd300000-0000-4000-8000-000000000001',
+   'bd500000-0000-4000-8000-000000000001', 'import_snapshot',
+   'google_drive', NULL, NULL, 'fictional-drive-reference'),
+  ('bd610000-0000-4000-8000-000000000002', 'bd100000-0000-4000-8000-000000000001',
+   'bd600000-0000-4000-8000-000000000001', 'bd300000-0000-4000-8000-000000000001',
+   'bd500000-0000-4000-8000-000000000001', 'submission_evidence',
+   'supabase_storage', 'plugins', 'fixture/retiring-attachment', NULL);
+
+SELECT extensions.throws_ok(
+  $$INSERT INTO plugin_data.csf_application_files (
+      organization_id, application_id, profile_id, term_id, file_type,
+      provider, bucket, object_path
+    ) VALUES (
+      'bd100000-0000-4000-8000-000000000001',
+      'bd600000-0000-4000-8000-000000000001',
+      'bd300000-0000-4000-8000-000000000001',
+      'bd500000-0000-4000-8000-000000000001',
+      'submission_evidence', 'supabase_storage', 'plugins', NULL
+    )$$,
+  '23514', NULL,
+  'a partial Storage coordinate fails the file-location constraint'
+);
 
 -- An immutable import row that names the retiring student, with a content
 -- fingerprint. This is what forces erase-in-place and what gets tombstoned.
@@ -556,6 +586,20 @@ SELECT extensions.is(
 );
 
 SELECT extensions.is(
+  (SELECT count(*)::integer FROM plugin_data.csf_storage_deletion_queue
+   WHERE organization_id = 'bd100000-0000-4000-8000-000000000001'
+     AND bucket = 'plugins' AND object_path = 'fixture/retiring-attachment'),
+  1,
+  'the Storage-backed application file enters the deletion queue'
+);
+SELECT extensions.is(
+  (SELECT count(*)::integer FROM plugin_data.csf_storage_deletion_queue
+   WHERE organization_id = 'bd100000-0000-4000-8000-000000000001'),
+  1,
+  'the Drive application reference does not enter the Storage deletion queue'
+);
+
+SELECT extensions.is(
   (SELECT count(*)::integer FROM plugin_data.csf_sheet_import_rows
    WHERE id = 'bd900000-0000-4000-8000-000000000001'
      AND matched_profile_id = 'bd300000-0000-4000-8000-000000000001'),
@@ -713,6 +757,31 @@ SELECT extensions.is(
    WHERE organization_id = 'bd100000-0000-4000-8000-000000000001'),
   2,
   'every selected class represented by the retired profile is guarded'
+);
+SELECT extensions.is(
+  (SELECT count(*)::integer FROM plugin_data.csf_cohorts
+   WHERE organization_id = 'bd100000-0000-4000-8000-000000000001'
+     AND graduation_year IN (2024, 2025) AND status = 'retired'),
+  2,
+  'retired class anchors are marked out of operational class selectors'
+);
+SELECT extensions.is(
+  (SELECT status FROM plugin_data.csf_cohorts
+   WHERE id = 'bd200000-0000-4000-8000-000000000002'),
+  'active',
+  'the current class keeps its active status'
+);
+SELECT extensions.throws_ok(
+  $$UPDATE plugin_data.csf_cohorts SET status = 'active'
+    WHERE id = 'bd200000-0000-4000-8000-000000000001'$$,
+  '55000', NULL,
+  'a retained class anchor cannot be restored by ordinary status editing'
+);
+SELECT extensions.throws_ok(
+  $$UPDATE plugin_data.csf_cohorts SET status = 'retired'
+    WHERE id = 'bd200000-0000-4000-8000-000000000002'$$,
+  '55000', NULL,
+  'an active class cannot be marked retired without a retention receipt'
 );
 SELECT extensions.throws_ok(
   $$INSERT INTO plugin_data.csf_profile_cohort_memberships (organization_id, profile_id, cohort_id)

@@ -298,6 +298,7 @@ export async function getSpreadsheetMetadata(
   sheetTitle: string;
   tabs: string[];
   tabIds: Record<string, number>;
+  timeZone: string | null;
   /** Grid extent per tab title, so callers can build bounded A1 ranges. */
   tabGrids: Record<string, { rowCount: number; columnCount: number }>;
 } | null> {
@@ -305,7 +306,7 @@ export async function getSpreadsheetMetadata(
     const response = await fetch(
       `${GOOGLE_SHEETS_API}/${encodeURIComponent(
         sheetId,
-      )}?fields=spreadsheetId,properties.title,sheets.properties(sheetId,title,gridProperties(rowCount,columnCount))`,
+      )}?fields=spreadsheetId,properties(title,timeZone),sheets.properties(sheetId,title,gridProperties(rowCount,columnCount))`,
       {
         headers: {
           Authorization: `Bearer ${accessToken}`,
@@ -367,6 +368,10 @@ export async function getSpreadsheetMetadata(
     return {
       sheetId: data.spreadsheetId,
       sheetTitle: data.properties?.title || "Untitled Spreadsheet",
+      timeZone:
+        typeof data.properties?.timeZone === "string"
+          ? data.properties.timeZone
+          : null,
       tabs,
       tabIds: { ...tabIds },
       tabGrids: { ...tabGrids },

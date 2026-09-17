@@ -8,6 +8,24 @@ evidence and does not override the current tables or release gates.
 
 `AUD-` identifiers are allocated per branch and can drift while several audit branches are open at once. Current `development` includes the merged #152, #158, #174, #177, #179, and #181 findings, while open #180 can still carry overlapping historical identifiers. This branch retains `AUD-036` and `AUD-037` for its activity/partner authorization work without renumbering or restating the merged meeting findings.
 
+## Scheduled-maintenance diagnosis, September 17, 2026
+
+Read-only Production inspection found two generations of attendance cron jobs running each minute. The legacy entrypoints call the same current functions. Each of the four jobs ran successfully 1,440 times in the preceding day. Migration `20260918050000` removes the two legacy schedules only after checking their commands, wrapper definitions, replacement schedules, database, and owner. The canonical minute cadence stays intact.
+
+The `Process project status` job failed on all 288 runs in that day because historical schedules contain blank timestamps. Migration `20260918060000` leaves malformed schedules unchanged, continues valid project transitions, uses each project's timezone, and avoids unchanged status writes. Missing dates and times receive no invented default. One aggregate warning identifies the need for schedule corrections without exposing project data.
+
+The tenant-index architecture check also identified three tables whose indexes never led with `organization_id`. Production metadata confirmed that gap. Migration `20260918070000` adds tenant-leading indexes for decision-source runs, retention-preview runs, and semester-ledger profile/status reads.
+
+Local validation passed 20 focused pgTAP assertions and six additional rollback-only migration fixtures covering duplicate removal, repeated execution, unchanged canonical jobs, and rejection of a changed replacement schedule. These repository changes await integrated release. No live cron jobs, project statuses, or indexes were changed during diagnosis. Current provider readback showed 26 backends against a 60-connection limit and zero deadlocks. Advisor index notices and cumulative query counts are not proof of current connection exhaustion. Auth/API gateway error logs were not available through the configured connector or CLI.
+
+## Directory latency, September 17, 2026
+
+The member directory waited for unrelated relation queries before fetching account labels and current-term records. Its search form also reloaded the full document, and pagination showed no pending feedback. The member loader now starts dependent reads when their own prerequisites finish, search/filter submissions use client navigation, and roster/import page links announce loading with a spinner.
+
+Read-only Production EXPLAIN measured 211 ms for a 51-row unlinked directory projection. Repeated latest-dues lookups accounted for about 110 ms and 228,735 shared-buffer hits. Forward migration `20260918020000` adds the missing tenant/profile/term/recency index. A local synthetic 1,000-profile, 12,000-record benchmark reduced the same lookup pattern from 49.06 ms to 0.846 ms. Those measurements concern that query pattern, not end-to-end page latency.
+
+Local evidence: three pgTAP index assertions passed inside a rolled-back transaction; relation scheduling, explicit-term, pending-label, directory URL/filter, and import-pager tests passed; TypeScript and focused ESLint passed. Production catalog recognition includes the exact 582-migration ledger and index definition. Hosted Development and Production behavior for this change remain unverified until release.
+
 ## Release continuation, 2026-09-05
 
 ### Grouped acceptance and test-tool review, September 9, 2026
@@ -8499,3 +8517,25 @@ the alias `csf_target_schema_verified`. This follow-up corrects that final
 alias without changing SQL migrations. The corrected catalog returned
 `csf_target_schema_verified=1` against Production. The schema workflow was not
 retried, and the application deployment remains separate.
+
+### CSF operations integration, September 16, 2026
+
+- In progress: notification email context and controls, directory navigation feedback and query index, attendance time-window enforcement, retired-class visibility, and scheduled-job repairs. Application changes remain local until the final integrated release is verified.
+- Local evidence: the integrated notification/preference tests and directory scheduling tests pass. TypeScript passes for the notification/directory candidate. Chrome desktop and 390px phone previews show the synthetic email title, class/term, body, action, settings, and unsubscribe controls.
+- Production attendance corrections used the permission-checked officer RPC with source references. The import review now excludes handled duplicate/corrected rows and responses outside the approved window. Remaining identity conflicts stay in review. Protected operator evidence contains source identifiers and counts.
+- Production retention attempt rolled back atomically because external Drive attachments have no Storage location. Forward migration `20260918040000` scopes deletion-queue entries to Storage files; database regression evidence is pending. No target profile was removed by the failed attempt.
+- Provider log review requires Supabase dashboard MFA. Read-only database evidence identified duplicate automatic check-in/out jobs and a repeatedly failing project-status job. Those fixes are being tested separately; database activity counts alone do not establish Auth or gateway errors.
+
+### Class publication email audience, September 16, 2026
+
+- Fixed: class post and activity email discovery required an accepted term membership even though the same verified class account could read the publication and receive its in-app notice before decisions were released. Class-source broadcasts now use the existing in-app authorization predicate, confirmed account email, and current notification preferences. General member broadcasts and personal profile notices retain their existing audience rules.
+- Delivery rechecks the source, verified ownership, class, preferences, and confirmed frozen address. The change does not publish decisions, grant memberships, send email, or change historical notification records. Point-review notices now name the duplicate outcome instead of using a generic update label.
+- Local evidence: 78 pgTAP assertions across the new class audience, existing email preferences, and publication notification suites passed on the retained isolated stack. The new suite covers pending applications, unverified links, other classes, opt-outs, link revocation, class changes, withdrawn sources, changed account addresses, and personal profile boundaries. Notification/email unit suites, typecheck, and changed-file ESLint passed. The integrated branch now passes full lint after a formatting-only reduction of dashboard-profiles to the module limit. Hosted Development and Production delivery remain unverified; provider sends were not attempted.
+
+### Integrated CSF release verification, September 16, 2026
+
+- Combined the reviewed directory, attendance-window, retention, cron, tenant-index, and class-publication audience changes through migration `20260918080000`. The attendance batching draft is still separate and is not part of this candidate.
+- Local TypeScript, full lint, migration file validation, focused notification delivery and audience tests, and notification UI/email tests pass. The fresh combined database replay and exact release-catalog verification remain in progress. Migration file validation does not prove database replay.
+- Read-only Production reconciliation confirms the September source responses within the approved window are accounted for as credited profiles, repeated responses, or unresolved identity review. The attached workbook contains one header row; its row count is not its response count. No additional attendance credit, account connection, email send, or retention operation was performed during this verification.
+- Automatic safety review interrupted two agent runs without identifying a specific action. Their unfinished work remains isolated. Production release, worker activation, and remaining data operations have not run in this integration step.
+- The September 17 Production advisor read returned 313 informational unindexed-foreign-key findings, 283 informational unused-index findings, 144 informational RLS-without-policy findings, and six authenticated security-definer warnings. The six functions are the documented caller-scoped application proofs and staff view-mode setter; their reviewed grants require authentication and recheck membership. Removing their grants would break those routes. The `plugin_data` tables intentionally deny browser reads under RLS. The three organization-leading indexes in `20260918070000` target measured CSF operations queries; this pass does not claim to resolve every generic advisor suggestion. Auth and API gateway log trends still require provider access and have not been verified.
