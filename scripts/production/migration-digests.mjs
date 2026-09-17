@@ -1168,4 +1168,6 @@ export const migrationDigests = {
     "072c2db0883033daed77ae1c8cf7d38814bb615a71dd27081a4ec5a63e9b8e04",
   "20260918014000_csf_semester_ledger_link_revocation_fence.sql":
     "46c136f72146c58a58284e9287a8bec20bcfbfdf2125b00e7df6eb56a93be237",
+  "20260918015000_csf_semester_ledger_merge_claim_fence.sql":
+    "bd7b8b36cc9e7d5db9af2f3eb6ec8cc580edbd408cb9f6fe287973c2d2c8d56b",
 };

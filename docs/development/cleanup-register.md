@@ -8454,3 +8454,21 @@ assertions, including both affected semester-ledger tests. Its exact schema
 catalog returned `1`; four focused Production controller test files passed 97
 cases. This is local evidence only. Hosted Development and Production remain
 unverified for migration `20260918014000`.
+
+PR 641 later identified a target-side merge race in semester Sheet write claims.
+The claim held the staff-access lock but not the identity-mutation lock used by
+profile merges. A merge into the claimed target could change the target's
+source snapshot after validation but before receipt insertion, while leaving
+the target's reviewed workbook link unchanged. Forward migration
+`20260918015000` takes the identity lock after the staff lock and before any
+claim validation. If a claim wins, the merge sees its unsettled receipt and
+stops; if the merge wins, the claim rechecks the post-merge source version.
+Focused pgTAP uses a second database session to prove the shared lock wait and
+checks a claimed target blocks the later merge preview. The 580th exact schema
+catalog pins the claim body, lock order, and service-only execution. The
+isolated 580-migration replay passed 357 pgTAP files with 9,461 assertions,
+including the affected semester-ledger test; its exact schema catalog returned
+`1`. Four focused Production controller test files passed 97 cases, and
+`bun run db:validate` passed. This is local evidence only. Hosted Development
+and Production remain unverified for migration `20260918015000`. No live Sheet
+write or Production data change is included.

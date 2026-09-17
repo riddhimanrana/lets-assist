@@ -1,6 +1,35 @@
 BEGIN;
 CREATE EXTENSION IF NOT EXISTS pgtap WITH SCHEMA extensions;
-SELECT extensions.plan(13);
+CREATE EXTENSION IF NOT EXISTS dblink WITH SCHEMA extensions;
+SELECT extensions.plan(16);
+
+SELECT extensions.dblink_connect('semester_claim_merge_lock',
+  'hostaddr='||coalesce(host(inet_server_addr()),'127.0.0.1')||
+  ' port='||current_setting('port')||' dbname='||current_database()||
+  ' user='||current_user||' password='||current_user||' sslmode=disable');
+SELECT extensions.dblink_exec('semester_claim_merge_lock','SET lock_timeout=''750ms''');
+SELECT plugin_data.csf_lock_identity_mutation('cff10000-0000-4000-8000-000000000001');
+SELECT extensions.dblink_send_query('semester_claim_merge_lock',$query$
+  SELECT plugin_data.csf_claim_sheet_semester_ledger_write(
+    'cff10000-0000-4000-8000-000000000001','cff00000-0000-4000-8000-000000000001',
+    'cffb0000-0000-4000-8000-000000000001','cff80000-0000-4000-8000-000000000001',
+    'cff40000-0000-4000-8000-000000000001','fixture-version',repeat('a',64),
+    '{}'::jsonb,'cffc0000-0000-4000-8000-000000000001')::text
+$query$);
+SELECT * FROM extensions.dblink_get_result('semester_claim_merge_lock',false)
+  AS result(payload text);
+SELECT extensions.ok(position('canceling statement due to lock timeout' IN
+  extensions.dblink_error_message('semester_claim_merge_lock'))>0,
+  'a claim waits on the same identity lock used by a target-profile merge');
+SELECT extensions.dblink_disconnect('semester_claim_merge_lock');
+SELECT extensions.ok((SELECT position('csf_staff_access_lock_key(p_organization_id)' IN body)>0
+  AND position('csf_staff_access_lock_key(p_organization_id)' IN body)
+    < position('csf_lock_identity_mutation(p_organization_id)' IN body)
+  AND position('csf_lock_identity_mutation(p_organization_id)' IN body)
+    < position('SELECT * INTO m' IN body)
+  FROM (SELECT pg_get_functiondef(
+    'plugin_data.csf_claim_sheet_semester_ledger_write(uuid,uuid,uuid,uuid,uuid,text,text,jsonb,uuid)'::regprocedure) body) definition),
+  'claim takes staff then identity locks before reading the reviewed mapping');
 
 SELECT extensions.ok((SELECT count(*)=1 FROM aclexplode(
   (SELECT proacl FROM pg_proc WHERE oid=to_regprocedure('plugin_data.csf_guard_sheet_semester_ledger_immutable()'))) a
@@ -61,6 +90,11 @@ INSERT INTO claim_fixture VALUES (
 SELECT extensions.is(
   (SELECT plugin_data.csf_claim_sheet_semester_ledger_write('cff10000-0000-4000-8000-000000000001','cff00000-0000-4000-8000-000000000001','cffb0000-0000-4000-8000-000000000001','cff80000-0000-4000-8000-000000000001','cff40000-0000-4000-8000-000000000001',version,repeat('a',64),plan,'cffc0000-0000-4000-8000-000000000001')->>'claimed_now' FROM claim_fixture),
   'true','first reviewed claim is recorded');
+SELECT extensions.ok(EXISTS(SELECT 1 FROM jsonb_array_elements(plugin_data.csf_profile_merge_preview(
+  'cff10000-0000-4000-8000-000000000001','cff40000-0000-4000-8000-000000000002',
+  'cff40000-0000-4000-8000-000000000001')->'conflicts') conflict
+  WHERE conflict->>'type'='semester_sheet_write_needs_reconciliation'),
+  'a target-profile claim blocks a subsequent source-to-target merge');
 SELECT extensions.is(
   (SELECT plugin_data.csf_claim_sheet_semester_ledger_write('cff10000-0000-4000-8000-000000000001','cff00000-0000-4000-8000-000000000001','cffb0000-0000-4000-8000-000000000001','cff80000-0000-4000-8000-000000000001','cff40000-0000-4000-8000-000000000001',version,repeat('a',64),plan,'cffc0000-0000-4000-8000-000000000001')->>'claimed_now' FROM claim_fixture),
   'false','same identity and plan safely replay');
