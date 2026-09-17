@@ -8418,3 +8418,20 @@ with 9,433 assertions. The exact Production schema catalog returned `1` on
 that replay, and all ten deliberate point-trigger and permission drift cases
 were refused. The focused Production controller tests passed 89 cases. This is
 local evidence only; hosted Development and Production remain separate gates.
+
+Root PR 641 follow-up identified two more semester Sheet ledger defects. Three
+new trigger functions lacked explicit `postgres` execute grants after their
+public and runtime grants were revoked. A reused write request ID could also
+return an earlier receipt when the reviewed workbook link or current source
+version had changed, because the retry comparison checked only the mapping,
+profile, plan, and actor. Forward migration `20260918013000` grants the three
+trigger functions to their owner and binds a retry to the saved destination,
+reviewed source link, and source version. Focused pgTAP checks the grants,
+valid replay, changed link and version rejection, and unchanged receipt and
+audit counts. The exact 578-migration schema catalog pins the replacement
+function and trigger ACLs. The final isolated replay applied 578 migrations and
+passed 357 pgTAP files with 9,443 assertions. The exact schema catalog
+returned `1` and refused all ten deliberate drift probes; the four focused
+Production controller files passed 97 cases. Formatting and lint also passed.
+These are local results only. Hosted Development and Production remain separate
+gates. No live Sheet write is part of this change.

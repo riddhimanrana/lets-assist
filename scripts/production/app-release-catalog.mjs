@@ -1,4 +1,5 @@
 import { semesterLedgerReconciliationCatalog } from "./semester-ledger-reconciliation-catalog.mjs";
+import { semesterLedgerClaimIdentityCatalog } from "./semester-ledger-claim-identity-catalog.mjs";
 import { noticeLedgerCatalog } from "./notice-ledger-catalog.mjs";
 import {
   historyIdentityLedgers,
@@ -258,6 +259,24 @@ export function acceptedCatalogQuery(source, versions) {
   const ledgerHash = createHash("sha256")
     .update(versions.join("\n"))
     .digest("hex");
+  if (
+    versions.length === 578 &&
+    ledgerHash ===
+      "23ea816e5914264695361e683b7daf18e831822b03febadcd9be7e1dd63372a6"
+  ) {
+    const previous = acceptedCatalogQuery(source, versions.slice(0, 577));
+    return semesterLedgerClaimIdentityCatalog(
+      swapAcceptedFingerprints(previous, [
+        {
+          object: "semester ledger claim identity",
+          before: "c36579ace2984906abb4fc59dc469d50",
+          after: "1f68ca7ff0fb2a7725413c79d3b01436",
+          occurrences: 1,
+        },
+      ]),
+      "1f68ca7ff0fb2a7725413c79d3b01436",
+    );
+  }
   if (
     versions.length === 577 &&
     ledgerHash ===

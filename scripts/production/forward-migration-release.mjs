@@ -451,6 +451,10 @@ export const approvedMigrations = [
     "20260918012000_csf_semester_ledger_reconciliation_and_merge_fence",
     "d9faf916ff2937e2b50c6bc3b471e4e3796fdf80da47145f5140c70a4b1c04a4",
   ],
+  [
+    "20260918013000_csf_semester_ledger_claim_identity_and_trigger_grants",
+    "072c2db0883033daed77ae1c8cf7d38814bb615a71dd27081a4ec5a63e9b8e04",
+  ],
 ];
 
 const literal = (value) => `'${value.replaceAll("'", "''")}'`;
