@@ -1,7 +1,7 @@
 BEGIN;
 
 CREATE EXTENSION IF NOT EXISTS pgtap WITH SCHEMA extensions;
-SELECT extensions.plan(63);
+SELECT extensions.plan(67);
 
 -- ---------------------------------------------------------------------------
 -- Shape and boundaries
@@ -779,6 +779,37 @@ SELECT extensions.is(
    WHERE id = 'bd200000-0000-4000-8000-000000000002'),
   'active',
   'the current class keeps its active status'
+);
+SELECT extensions.throws_ok(
+  $$UPDATE plugin_data.csf_cohort_terms SET status = 'active'
+    WHERE organization_id = 'bd100000-0000-4000-8000-000000000001'
+      AND cohort_id = 'bd200000-0000-4000-8000-000000000001'$$,
+  'P0001', NULL, 'a retired class cannot change semester settings'
+);
+SELECT extensions.throws_ok(
+  $$INSERT INTO plugin_data.csf_opportunities
+      (organization_id, term_id, cohort_id, title, body)
+    VALUES ('bd100000-0000-4000-8000-000000000001',
+            'bd500000-0000-4000-8000-000000000001',
+            'bd200000-0000-4000-8000-000000000001',
+            'Retired activity', 'Must not publish')$$,
+  'P0001', NULL, 'a retired class cannot create an activity'
+);
+SELECT extensions.lives_ok(
+  $$INSERT INTO plugin_data.csf_opportunities
+      (organization_id, term_id, cohort_id, title, body)
+    VALUES ('bd100000-0000-4000-8000-000000000001',
+            'bd500000-0000-4000-8000-000000000001',
+            'bd200000-0000-4000-8000-000000000002',
+            'Current activity', 'Current class')$$,
+  'a current class can still create an activity'
+);
+SELECT extensions.throws_ok(
+  $$UPDATE plugin_data.csf_opportunities
+    SET cohort_id = 'bd200000-0000-4000-8000-000000000001'
+    WHERE organization_id = 'bd100000-0000-4000-8000-000000000001'
+      AND title = 'Current activity'$$,
+  'P0001', NULL, 'an activity cannot be reassigned to a retired class'
 );
 SELECT extensions.is(
   (SELECT status FROM plugin_data.csf_class_join_codes
