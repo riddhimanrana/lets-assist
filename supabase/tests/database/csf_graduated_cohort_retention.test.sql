@@ -1,7 +1,7 @@
 BEGIN;
 
 CREATE EXTENSION IF NOT EXISTS pgtap WITH SCHEMA extensions;
-SELECT extensions.plan(78);
+SELECT extensions.plan(87);
 
 -- ---------------------------------------------------------------------------
 -- Shape and boundaries
@@ -216,28 +216,39 @@ VALUES
   ('bd200000-0000-4000-8000-000000000002', 'bd100000-0000-4000-8000-000000000001', 2029, 'Class of 2029');
 
 INSERT INTO plugin_data.csf_announcements (
-  id, organization_id, title, body, audience, audience_cohort_id, created_by
+  id, organization_id, title, body, audience, audience_cohort_id, pinned, created_by
 ) VALUES (
   'bd220000-0000-4000-8000-000000000001',
   'bd100000-0000-4000-8000-000000000001',
   'Historical class post', 'Retained as an unpublished fixture.', 'class',
   'bd200000-0000-4000-8000-000000000001',
+  true,
   'bd000000-0000-4000-8000-000000000001'
 );
 
 -- One chapter-wide semester used by both classes. A record of the retiring
 -- student that lives here must still be in scope; the semester row and the
 -- continuing student's records must not be.
-INSERT INTO plugin_data.csf_terms (id, organization_id, code, label, school_year, semester)
+INSERT INTO plugin_data.csf_terms (id, organization_id, code, label, school_year, semester, starts_at, ends_at)
 VALUES ('bd500000-0000-4000-8000-000000000001', 'bd100000-0000-4000-8000-000000000001',
-        'F23', 'Fall 2023', '2023-2024', 'fall');
+        'F23', 'Fall 2023', '2023-2024', 'fall', '2023-08-01', '2023-12-31');
 
-INSERT INTO plugin_data.csf_cohort_terms (organization_id, cohort_id, term_id)
+INSERT INTO plugin_data.csf_cohort_terms (organization_id, cohort_id, term_id, sheet_tab_name)
 VALUES
   ('bd100000-0000-4000-8000-000000000001', 'bd200000-0000-4000-8000-000000000001',
-   'bd500000-0000-4000-8000-000000000001'),
+   'bd500000-0000-4000-8000-000000000001', 'F23'),
   ('bd100000-0000-4000-8000-000000000001', 'bd200000-0000-4000-8000-000000000002',
-   'bd500000-0000-4000-8000-000000000001');
+   'bd500000-0000-4000-8000-000000000001', 'F23');
+
+INSERT INTO plugin_data.csf_opportunities (
+  id, organization_id, term_id, cohort_id, title, body
+) VALUES (
+  'bd230000-0000-4000-8000-000000000001',
+  'bd100000-0000-4000-8000-000000000001',
+  'bd500000-0000-4000-8000-000000000001',
+  'bd200000-0000-4000-8000-000000000001',
+  'Historical class activity', 'Retained as an unpublished fixture.'
+);
 
 INSERT INTO plugin_data.csf_class_join_codes (
   id, organization_id, cohort_id, code, created_by
@@ -619,6 +630,35 @@ SELECT extensions.throws_ok(
   'an existing retired-class post cannot be republished'
 );
 
+-- Simulate a pinned row left by an older release before the retirement guard.
+ALTER TABLE plugin_data.csf_announcements
+  DISABLE TRIGGER csf_guard_retired_class_post;
+UPDATE plugin_data.csf_announcements SET pinned = true
+  WHERE id = 'bd220000-0000-4000-8000-000000000001';
+ALTER TABLE plugin_data.csf_announcements
+  ENABLE TRIGGER csf_guard_retired_class_post;
+
+SELECT extensions.lives_ok(
+  $$UPDATE plugin_data.csf_announcements
+    SET pinned = false, updated_by = 'bd000000-0000-4000-8000-000000000001'
+    WHERE id = 'bd220000-0000-4000-8000-000000000001'$$,
+  'officers can unpin a residual retired-class post'
+);
+
+SELECT extensions.lives_ok(
+  $$UPDATE plugin_data.csf_announcements
+    SET status = 'archived', updated_by = 'bd000000-0000-4000-8000-000000000001'
+    WHERE id = 'bd220000-0000-4000-8000-000000000001'$$,
+  'officers can archive a residual retired-class post'
+);
+
+SELECT extensions.throws_ok(
+  $$UPDATE plugin_data.csf_announcements SET status = 'published'
+    WHERE id = 'bd220000-0000-4000-8000-000000000001'$$,
+  '55000', NULL,
+  'an archived retired-class post cannot be published again'
+);
+
 SELECT extensions.lives_ok(
   $$INSERT INTO plugin_data.csf_announcements (
     organization_id, title, body, audience, audience_cohort_id
@@ -897,6 +937,67 @@ SELECT extensions.throws_ok(
     WHERE organization_id = 'bd100000-0000-4000-8000-000000000001'
       AND cohort_id = 'bd200000-0000-4000-8000-000000000001'$$,
   'P0001', NULL, 'a retired class cannot change semester settings'
+);
+SELECT extensions.throws_ok(
+  $$UPDATE plugin_data.csf_terms SET label = 'Changed shared semester'
+    WHERE id = 'bd500000-0000-4000-8000-000000000001'$$,
+  'P0001', NULL,
+  'a retired class blocks edits to its shared semester'
+);
+SELECT extensions.lives_ok(
+  $$UPDATE plugin_data.csf_terms SET updated_at = now()
+    WHERE id = 'bd500000-0000-4000-8000-000000000001'$$,
+  'a no-op shared semester timestamp touch remains allowed'
+);
+SELECT extensions.lives_ok(
+  $$UPDATE plugin_data.csf_cohort_terms SET status = 'inactive'
+    WHERE organization_id = 'bd100000-0000-4000-8000-000000000001'
+      AND cohort_id = 'bd200000-0000-4000-8000-000000000001'$$,
+  'officers can deactivate a retired-class semester link'
+);
+SELECT extensions.throws_ok(
+  $$DO $test$
+    DECLARE v_link_id uuid;
+    BEGIN
+      SELECT id INTO v_link_id FROM plugin_data.csf_cohort_terms
+      WHERE cohort_id = 'bd200000-0000-4000-8000-000000000001';
+      PERFORM plugin_data.csf_update_cohort_term(
+        'bd100000-0000-4000-8000-000000000001',
+        'bd990000-0000-4000-8000-000000000002',
+        jsonb_build_object('termId','bd500000-0000-4000-8000-000000000001',
+          'cohortTermId',v_link_id,'label','Changed shared semester',
+          'startsAt','2023-08-01','endsAt','2023-12-31',
+          'sheetTabName','F23','linkStatus','archived'),
+        'bd000000-0000-4000-8000-000000000001');
+    END $test$;$$,
+  'P0001', NULL,
+  'the audited class edit cannot mutate a shared semester during retirement'
+);
+SELECT extensions.lives_ok(
+  $$DO $test$
+    DECLARE v_link_id uuid;
+    BEGIN
+      SELECT id INTO v_link_id FROM plugin_data.csf_cohort_terms
+      WHERE cohort_id = 'bd200000-0000-4000-8000-000000000001';
+      PERFORM plugin_data.csf_update_cohort_term(
+        'bd100000-0000-4000-8000-000000000001',
+        'bd990000-0000-4000-8000-000000000003',
+        jsonb_build_object('termId','bd500000-0000-4000-8000-000000000001',
+          'cohortTermId',v_link_id,'label','Fall 2023',
+          'startsAt','2023-08-01','endsAt','2023-12-31',
+          'sheetTabName','F23','linkStatus','archived'),
+        'bd000000-0000-4000-8000-000000000001');
+    END $test$;$$,
+  'the audited class edit can archive its link without changing shared term fields'
+);
+SELECT extensions.lives_ok(
+  $$SELECT plugin_data.csf_set_activity_status(
+      'bd100000-0000-4000-8000-000000000001',
+      'bd230000-0000-4000-8000-000000000001',
+      'archived', NULL,
+      'bd000000-0000-4000-8000-000000000001',
+      'bd990000-0000-4000-8000-000000000001')$$,
+  'the audited officer action archives a residual retired-class activity'
 );
 SELECT extensions.throws_ok(
   $$INSERT INTO plugin_data.csf_opportunities
