@@ -1,8 +1,8 @@
 import { describe, expect, test } from "bun:test";
 
 import {
+  createRichTextContentSync,
   resolveRichTextKeyIntent,
-  shouldApplyExternalRichTextContent,
 } from "./rich-text-editor-behavior";
 
 describe("rich text editor keys", () => {
@@ -49,68 +49,72 @@ describe("rich text editor external content sync", () => {
   const emittedAfterEnter = "<p>First paragraph</p>";
 
   test("a parent echoing the editor's own value never replaces the document", () => {
+    const sync = createRichTextContentSync();
+    expect(sync.recordLocalEdit(emittedAfterEnter)).toBe(true);
     expect(
-      shouldApplyExternalRichTextContent({
-        incoming: emittedAfterEnter,
-        editorHtml: documentAfterEnter,
-        lastSyncedValue: emittedAfterEnter,
-        focused: true,
-      }),
-    ).toBe(false);
+      sync.receive(emittedAfterEnter, documentAfterEnter, true),
+    ).toBeNull();
+    expect(sync.flushOnBlur(documentAfterEnter)).toBeNull();
   });
 
   test("the echo is still refused once the author clicks away", () => {
+    const sync = createRichTextContentSync();
+    sync.recordLocalEdit(emittedAfterEnter);
     expect(
-      shouldApplyExternalRichTextContent({
-        incoming: emittedAfterEnter,
-        editorHtml: documentAfterEnter,
-        lastSyncedValue: emittedAfterEnter,
-        focused: false,
-      }),
-    ).toBe(false);
+      sync.receive(emittedAfterEnter, documentAfterEnter, false),
+    ).toBeNull();
   });
 
   test("a genuinely new body is applied while the editor is idle", () => {
-    expect(
-      shouldApplyExternalRichTextContent({
-        incoming: "<p>Another post</p>",
-        editorHtml: documentAfterEnter,
-        lastSyncedValue: emittedAfterEnter,
-        focused: false,
-      }),
-    ).toBe(true);
+    const sync = createRichTextContentSync();
+    sync.recordLocalEdit(emittedAfterEnter);
+    expect(sync.receive("<p>Another post</p>", documentAfterEnter, false)).toBe(
+      "<p>Another post</p>",
+    );
   });
 
   test("the first external body is applied before anything is emitted", () => {
-    expect(
-      shouldApplyExternalRichTextContent({
-        incoming: "<p>Stored body</p>",
-        editorHtml: "<p></p>",
-        lastSyncedValue: null,
-        focused: false,
-      }),
-    ).toBe(true);
+    const sync = createRichTextContentSync();
+    expect(sync.receive("<p>Stored body</p>", "<p></p>", false)).toBe(
+      "<p>Stored body</p>",
+    );
   });
 
-  test("a focused document is never reset under the caret", () => {
+  test("a focused external change wins on blur and blocks stale edits", () => {
+    const sync = createRichTextContentSync();
+    sync.recordLocalEdit(emittedAfterEnter);
     expect(
-      shouldApplyExternalRichTextContent({
-        incoming: "<p>Another post</p>",
-        editorHtml: documentAfterEnter,
-        lastSyncedValue: emittedAfterEnter,
-        focused: true,
-      }),
-    ).toBe(false);
+      sync.receive("<p>Server edit</p>", documentAfterEnter, true),
+    ).toBeNull();
+    expect(sync.recordLocalEdit("<p>Stale local edit</p>")).toBe(false);
+    expect(sync.flushOnBlur("<p>Stale local edit</p>")).toBe(
+      "<p>Server edit</p>",
+    );
+    expect(
+      sync.receive("<p>Server edit</p>", "<p>Server edit</p>", false),
+    ).toBeNull();
+    expect(sync.recordLocalEdit("<p>New edit</p>")).toBe(true);
   });
 
-  test("an identical body is not reapplied", () => {
-    expect(
-      shouldApplyExternalRichTextContent({
-        incoming: "<p>Same</p>",
-        editorHtml: "<p>Same</p>",
-        lastSyncedValue: null,
-        focused: false,
-      }),
-    ).toBe(false);
+  test("a second external change replaces the deferred value", () => {
+    const sync = createRichTextContentSync();
+    sync.receive("<p>First change</p>", documentAfterEnter, true);
+    sync.receive("<p>Second change</p>", documentAfterEnter, true);
+    expect(sync.flushOnBlur(documentAfterEnter)).toBe("<p>Second change</p>");
+  });
+
+  test("a delayed parent echo cannot cancel a newer external change", () => {
+    const sync = createRichTextContentSync();
+    sync.recordLocalEdit(emittedAfterEnter);
+    sync.receive("<p>Server edit</p>", documentAfterEnter, true);
+    sync.receive(emittedAfterEnter, documentAfterEnter, true);
+    expect(sync.flushOnBlur(documentAfterEnter)).toBe("<p>Server edit</p>");
+  });
+
+  test("an identical body clears a pending replacement", () => {
+    const sync = createRichTextContentSync();
+    sync.receive("<p>Server edit</p>", "<p>Same</p>", true);
+    expect(sync.receive("<p>Same</p>", "<p>Same</p>", true)).toBeNull();
+    expect(sync.flushOnBlur("<p>Same</p>")).toBeNull();
   });
 });

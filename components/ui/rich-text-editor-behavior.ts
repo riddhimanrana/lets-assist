@@ -28,27 +28,40 @@ export function resolveRichTextKeyIntent(
   return event.shiftKey ? "line-break" : "new-paragraph";
 }
 
-/**
- * Whether an incoming `content` prop should replace the live document.
- *
- * `lastSyncedValue` is the last value the editor emitted or applied. A parent
- * that stores that value and feeds it back is echoing the editor's own work,
- * so re-applying it would only undo trailing structure the canonical form
- * omits, such as the empty paragraph Enter just created.
- */
-export function shouldApplyExternalRichTextContent({
-  incoming,
-  editorHtml,
-  lastSyncedValue,
-  focused,
-}: {
-  incoming: string;
-  editorHtml: string;
-  lastSyncedValue: string | null;
-  focused: boolean;
-}): boolean {
-  if (incoming === lastSyncedValue) return false;
-  if (incoming === editorHtml) return false;
-  // Resetting a focused document moves the caret and drops in-flight input.
-  return !focused;
+/** Keep parent echoes out of the document while retaining external edits until blur. */
+export function createRichTextContentSync() {
+  let lastSyncedValue: string | null = null;
+  let deferredContent: string | null = null;
+
+  return {
+    receive(incoming: string, editorHtml: string, focused: boolean) {
+      // A parent echo may omit a trailing empty paragraph the author just made.
+      if (incoming === lastSyncedValue) return null;
+      if (incoming === editorHtml) {
+        deferredContent = null;
+        lastSyncedValue = incoming;
+        return null;
+      }
+      if (focused) {
+        deferredContent = incoming;
+        return null;
+      }
+      deferredContent = null;
+      lastSyncedValue = incoming;
+      return incoming;
+    },
+    recordLocalEdit(html: string) {
+      // Do not send an older document over an external value waiting for blur.
+      if (deferredContent !== null) return false;
+      lastSyncedValue = html;
+      return true;
+    },
+    flushOnBlur(editorHtml: string) {
+      const incoming = deferredContent;
+      if (incoming === null) return null;
+      deferredContent = null;
+      lastSyncedValue = incoming;
+      return incoming === editorHtml ? null : incoming;
+    },
+  };
 }

@@ -15,8 +15,8 @@ import { toast } from "sonner";
 
 import { RICH_TEXT_PROSE_CLASSNAME } from "@/components/ui/rich-text-classnames";
 import {
+  createRichTextContentSync,
   resolveRichTextKeyIntent,
-  shouldApplyExternalRichTextContent,
 } from "@/components/ui/rich-text-editor-behavior";
 import { sanitizeRichTextHtml } from "@/lib/security/html.client";
 import { normalizeRichTextLinkUrl } from "@/lib/security/html";
@@ -68,7 +68,7 @@ export function RichTextEditor({
   const [mounted, setMounted] = useState(false);
   const [linkDialogOpen, setLinkDialogOpen] = useState(false);
   const [linkUrl, setLinkUrl] = useState("");
-  const lastSyncedContentRef = useRef<string | null>(null);
+  const contentSyncRef = useRef(createRichTextContentSync());
   const sanitizeEditorContent = useCallback(
     (html: string): string => sanitizeRichTextHtml(html),
     [],
@@ -110,8 +110,9 @@ export function RichTextEditor({
       // paragraph Enter had just created, so writing it back reverted Enter.
       const canonicalHtml = sanitizeEditorContent(editor.getHTML());
 
-      lastSyncedContentRef.current = canonicalHtml;
-      onChange(canonicalHtml);
+      if (contentSyncRef.current.recordLocalEdit(canonicalHtml)) {
+        onChange(canonicalHtml);
+      }
     },
     immediatelyRender: false,
     editorProps: {
@@ -193,21 +194,31 @@ export function RichTextEditor({
     if (!editor) return;
 
     const sanitizedContent = sanitizeEditorContent(content);
-
-    if (
-      !shouldApplyExternalRichTextContent({
-        incoming: sanitizedContent,
-        editorHtml: editor.getHTML(),
-        lastSyncedValue: lastSyncedContentRef.current,
-        focused: editor.isFocused,
-      })
-    ) {
-      return;
+    const contentToApply = contentSyncRef.current.receive(
+      sanitizedContent,
+      editor.getHTML(),
+      editor.isFocused,
+    );
+    if (contentToApply !== null) {
+      editor.commands.setContent(contentToApply, { emitUpdate: false });
     }
-
-    editor.commands.setContent(sanitizedContent, { emitUpdate: false });
-    lastSyncedContentRef.current = sanitizedContent;
   }, [editor, content, sanitizeEditorContent]);
+
+  useEffect(() => {
+    if (!editor) return;
+    const applyDeferredContent = () => {
+      const contentToApply = contentSyncRef.current.flushOnBlur(
+        editor.getHTML(),
+      );
+      if (contentToApply !== null) {
+        editor.commands.setContent(contentToApply, { emitUpdate: false });
+      }
+    };
+    editor.on("blur", applyDeferredContent);
+    return () => {
+      editor.off("blur", applyDeferredContent);
+    };
+  }, [editor]);
 
   const getCounterColor = (current: number, max: number | undefined) => {
     if (!max) return "text-muted-foreground";
