@@ -515,6 +515,10 @@ export const approvedMigrations = [
     "20260918130000_csf_meeting_window_edit_authority",
     "8ec7caa99e644cbb0955e0d0ccfd835ad841008ee792dafd1db0ef268f426c15",
   ],
+  [
+    "20260918140000_csf_retired_cohort_mutation_fence",
+    "8f21ee4d3e8c4ead74e11e02036e07b67a65d1046c82b45b3df98c0a77a5aa0b",
+  ],
 ];
 
 const literal = (value) => `'${value.replaceAll("'", "''")}'`;
