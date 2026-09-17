@@ -8,6 +8,16 @@ evidence and does not override the current tables or release gates.
 
 `AUD-` identifiers are allocated per branch and can drift while several audit branches are open at once. Current `development` includes the merged #152, #158, #174, #177, #179, and #181 findings, while open #180 can still carry overlapping historical identifiers. This branch retains `AUD-036` and `AUD-037` for its activity/partner authorization work without renumbering or restating the merged meeting findings.
 
+## Scheduled-maintenance diagnosis, September 17, 2026
+
+Read-only Production inspection found two generations of attendance cron jobs running each minute. The legacy entrypoints call the same current functions. Each of the four jobs ran successfully 1,440 times in the preceding day. Migration `20260918050000` removes the two legacy schedules only after checking their commands, wrapper definitions, replacement schedules, database, and owner. The canonical minute cadence stays intact.
+
+The `Process project status` job failed on all 288 runs in that day because historical schedules contain blank timestamps. Migration `20260918060000` leaves malformed schedules unchanged, continues valid project transitions, uses each project's timezone, and avoids unchanged status writes. Missing dates and times receive no invented default. One aggregate warning identifies the need for schedule corrections without exposing project data.
+
+The tenant-index architecture check also identified three tables whose indexes never led with `organization_id`. Production metadata confirmed that gap. Migration `20260918070000` adds tenant-leading indexes for decision-source runs, retention-preview runs, and semester-ledger profile/status reads.
+
+Local validation passed 20 focused pgTAP assertions and six additional rollback-only migration fixtures covering duplicate removal, repeated execution, unchanged canonical jobs, and rejection of a changed replacement schedule. These repository changes await integrated release. No live cron jobs, project statuses, or indexes were changed during diagnosis. Current provider readback showed 26 backends against a 60-connection limit and zero deadlocks. Advisor index notices and cumulative query counts are not proof of current connection exhaustion. Auth/API gateway error logs were not available through the configured connector or CLI.
+
 ## Directory latency, September 17, 2026
 
 The member directory waited for unrelated relation queries before fetching account labels and current-term records. Its search form also reloaded the full document, and pagination showed no pending feedback. The member loader now starts dependent reads when their own prerequisites finish, search/filter submissions use client navigation, and roster/import page links announce loading with a spinner.
