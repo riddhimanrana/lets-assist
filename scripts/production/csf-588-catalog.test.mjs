@@ -15,9 +15,9 @@ const source = readFileSync(
 );
 const ledger = expectedVersions(cwd);
 
-test("595 release pins every new migration and its measured schema", () => {
-  assert.equal(ledger.length, 595);
-  assert.equal(ledger.at(-1), "20260918150000");
+test("596 release pins every new migration and its measured schema", () => {
+  assert.equal(ledger.length, 596);
+  assert.equal(ledger.at(-1), "20260918160000");
   const current = acceptedCatalogQuery(source, ledger);
   const prior592 = acceptedCatalogQuery(source, ledger.slice(0, 592));
   const previous = acceptedCatalogQuery(source, ledger.slice(0, 590));
@@ -41,7 +41,8 @@ test("595 release pins every new migration and its measured schema", () => {
   assert.match(current, /project_status_schedule_window/u);
   assert.match(previous, /0abd6c8cfe331766e22001d8744d5541/u);
   assert.doesNotMatch(current, /0abd6c8cfe331766e22001d8744d5541/u);
-  assert.match(current, /3b006244758b8eaee4535a5ea7d297a1/u);
+  assert.match(current, /4bab1cba993d8504681ff8eb869b6a05/u);
+  assert.doesNotMatch(current, /3b006244758b8eaee4535a5ea7d297a1/u);
   assert.match(current, /51a12d2ff4a3f2a44a297b136ed631fc/u);
   assert.match(current, /34cf3ce530ba6b9066b260d65f6d3f87/u);
   assert.match(prior592, /3e555109b43f9bee6d0b36dc2e0671fe/u);

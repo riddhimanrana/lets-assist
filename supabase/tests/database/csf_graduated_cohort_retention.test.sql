@@ -1,7 +1,7 @@
 BEGIN;
 
 CREATE EXTENSION IF NOT EXISTS pgtap WITH SCHEMA extensions;
-SELECT extensions.plan(73);
+SELECT extensions.plan(78);
 
 -- ---------------------------------------------------------------------------
 -- Shape and boundaries
@@ -214,6 +214,16 @@ INSERT INTO plugin_data.csf_cohorts (id, organization_id, graduation_year, label
 VALUES
   ('bd200000-0000-4000-8000-000000000001', 'bd100000-0000-4000-8000-000000000001', 2024, 'Class of 2024'),
   ('bd200000-0000-4000-8000-000000000002', 'bd100000-0000-4000-8000-000000000001', 2029, 'Class of 2029');
+
+INSERT INTO plugin_data.csf_announcements (
+  id, organization_id, title, body, audience, audience_cohort_id, created_by
+) VALUES (
+  'bd220000-0000-4000-8000-000000000001',
+  'bd100000-0000-4000-8000-000000000001',
+  'Historical class post', 'Retained as an unpublished fixture.', 'class',
+  'bd200000-0000-4000-8000-000000000001',
+  'bd000000-0000-4000-8000-000000000001'
+);
 
 -- One chapter-wide semester used by both classes. A record of the retiring
 -- student that lives here must still be in scope; the semester row and the
@@ -536,7 +546,7 @@ SELECT extensions.lives_ok(
   format(
     $$SELECT plugin_data.csf_retention_commit(
         'bd100000-0000-4000-8000-000000000001',
-        'bd000000-0000-4000-8000-000000000001',
+        'bd000000-0000-4000-8000-000000000002',
         'bd400000-0000-4000-8000-000000000005',
         %L, %L, ARRAY[2024, 2025],
         ARRAY['bd300000-0000-4000-8000-000000000001']::uuid[])$$,
@@ -551,7 +561,7 @@ SELECT extensions.lives_ok(
   format(
     $$SELECT plugin_data.csf_retention_commit(
         'bd100000-0000-4000-8000-000000000001',
-        'bd000000-0000-4000-8000-000000000001',
+        'bd000000-0000-4000-8000-000000000002',
         'bd400000-0000-4000-8000-000000000005',
         %L, %L, ARRAY[2024, 2025],
         ARRAY['bd300000-0000-4000-8000-000000000001']::uuid[])$$,
@@ -565,7 +575,7 @@ SELECT extensions.throws_ok(
   format(
     $$SELECT plugin_data.csf_retention_commit(
         'bd100000-0000-4000-8000-000000000001',
-        'bd000000-0000-4000-8000-000000000002',
+        'bd000000-0000-4000-8000-000000000001',
         'bd400000-0000-4000-8000-000000000005',
         %L, %L, ARRAY[2024, 2025],
         ARRAY['bd300000-0000-4000-8000-000000000001']::uuid[])$$,
@@ -575,6 +585,48 @@ SELECT extensions.throws_ok(
   '55000',
   NULL,
   'a replay by a different actor is refused rather than returning the receipt'
+);
+
+SELECT extensions.is(
+  (SELECT committed_by FROM plugin_data.csf_retention_runs
+   WHERE request_id = 'bd400000-0000-4000-8000-000000000001'),
+  'bd000000-0000-4000-8000-000000000002'::uuid,
+  'the committing officer, not the previewing officer, owns the run'
+);
+
+SELECT extensions.is(
+  (SELECT revoked_by FROM plugin_data.csf_class_join_codes
+   WHERE id = 'bd210000-0000-4000-8000-000000000001'),
+  'bd000000-0000-4000-8000-000000000002'::uuid,
+  'the committing officer is attributed on the revoked join code'
+);
+
+SELECT extensions.throws_ok(
+  $$INSERT INTO plugin_data.csf_announcements (
+    organization_id, title, body, audience, audience_cohort_id
+  ) VALUES (
+    'bd100000-0000-4000-8000-000000000001', 'Late post', 'Do not send',
+    'class', 'bd200000-0000-4000-8000-000000000001'
+  )$$,
+  '55000', NULL,
+  'a retired class cannot receive a new post'
+);
+
+SELECT extensions.throws_ok(
+  $$UPDATE plugin_data.csf_announcements SET title = 'Reposted'
+    WHERE id = 'bd220000-0000-4000-8000-000000000001'$$,
+  '55000', NULL,
+  'an existing retired-class post cannot be republished'
+);
+
+SELECT extensions.lives_ok(
+  $$INSERT INTO plugin_data.csf_announcements (
+    organization_id, title, body, audience, audience_cohort_id
+  ) VALUES (
+    'bd100000-0000-4000-8000-000000000001', 'Continuing post', 'Still active',
+    'class', 'bd200000-0000-4000-8000-000000000002'
+  )$$,
+  'the continuing class can still receive a post'
 );
 
 -- ---------------------------------------------------------------------------
