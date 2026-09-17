@@ -8383,3 +8383,18 @@ the term query to terms that have not ended and orders them by start date.
 The existing public-boundary test and root typecheck passed locally. This has
 not been deployed or checked on the hosted page; the Chrome observation remains
 the Production baseline.
+
+Root PR 639's first CI pass exposed stale Production migration approvals after
+the three new 20260918 migrations. The release catalog now pins their exact
+bytes, function definitions, relation shapes, role grants, and retention
+policy against a clean 576-migration replay. All 265 Production script tests
+passed locally; five deliberate schema-drift checks were rejected. The next
+CI run passed root and plugin tests, typecheck, lint, and the production build.
+Its database job reached CSF browser testing, where three checks exposed a
+stale expected meeting-count tile and an agenda now shown to pending members.
+The meeting count remains hidden while historical attendance is reconciled;
+the ledger still shows meeting records. The browser checks now expect that
+behavior. A pending applicant also received the full member tour despite
+lacking current-term tools. Private PR 477 fixed that gate, passed its plugin
+CI, and merged as `9e5fc662`; root pins that revision. Production and hosted
+Development behavior have not been verified for this follow-up.
