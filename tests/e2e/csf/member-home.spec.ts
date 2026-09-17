@@ -188,7 +188,10 @@ test.describe("member Home class feed", () => {
     ).toHaveCount(0);
     await expect(
       page.locator('[data-tour-id="csf-member-agenda"]'),
-    ).toHaveCount(0);
+    ).toHaveCount(1);
+    await expect(
+      page.locator('[data-tour-id="csf-member-agenda"]'),
+    ).toContainText("Coming up");
     await expect(
       page.locator('[data-tour-id="csf-tab-activities"]'),
     ).toHaveCount(0);
