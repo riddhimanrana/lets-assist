@@ -1194,4 +1194,6 @@ export const migrationDigests = {
     "4b336c44aeca209b1650cc189f4869b8f9914a72d36077bbb2cb2176238ccdc8",
   "20260918120000_csf_retired_join_code_backfill.sql":
     "29938f24aba3956fa2c607068c19ed916d6f5f85d032bb46699f6d3adcd73499",
+  "20260918130000_csf_meeting_window_edit_authority.sql":
+    "8ec7caa99e644cbb0955e0d0ccfd835ad841008ee792dafd1db0ef268f426c15",
 };

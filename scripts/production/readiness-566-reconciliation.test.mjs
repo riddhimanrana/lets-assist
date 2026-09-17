@@ -60,6 +60,7 @@ const EXTENSIONS = [
   "20260918100000_project_status_schedule_nonempty_windows",
   "20260918110000_csf_retired_cohort_operational_fence",
   "20260918120000_csf_retired_join_code_backfill",
+  "20260918130000_csf_meeting_window_edit_authority",
 ];
 
 test("the release is the 557 decisions baseline plus the reviewed integrated extensions", () => {

@@ -1,6 +1,6 @@
 BEGIN;
 CREATE EXTENSION IF NOT EXISTS pgtap WITH SCHEMA extensions;
-SELECT extensions.plan(21);
+SELECT extensions.plan(26);
 SELECT extensions.ok(NOT has_function_privilege('authenticated','plugin_data.csf_upsert_term_meeting_with_attendance_window(uuid,uuid,uuid,text,date[],timestamptz,text,text,boolean,integer,text,uuid,uuid,jsonb)','EXECUTE'),'client cannot bypass staff permission checks');
 SELECT extensions.lives_ok($$SELECT plugin_data.csf_validate_attendance_window('{"timeZone":"America/Los_Angeles","opensAt":"2026-09-16T20:00:00Z","closesAt":"2026-09-16T20:45:00Z"}')$$,'valid inclusive window');
 SELECT extensions.throws_ok($$SELECT plugin_data.csf_validate_attendance_window('{"timeZone":"invalid"}')$$,'P0001','Choose a valid attendance source time zone.','invalid time zone rejected');
@@ -42,6 +42,35 @@ SELECT extensions.is((SELECT source_submitted_at FROM plugin_data.csf_meeting_at
 SELECT extensions.is((SELECT source||':'||status FROM plugin_data.csf_meeting_attendance WHERE id='ed700000-0000-4000-8000-000000000001'),'sheet:attended','correction preserves source and attendance status');
 SELECT extensions.is((SELECT count(*)::integer FROM plugin_data.csf_admin_audit_events WHERE correlation_id='ed900000-0000-4000-8000-000000000002'),1,'repair audit written once');
 SELECT extensions.throws_ok($$SELECT pg_temp.correct_window_time('2026-09-16T20:22:16Z')$$,'P0001','The correction must reinterpret the original source wall clock in its verified time zone.','arbitrary timestamp cannot be substituted');
+
+INSERT INTO auth.users(id,aud,role,email,email_confirmed_at,raw_app_meta_data,raw_user_meta_data,created_at,updated_at)
+VALUES ('ed000000-0000-4000-8000-000000000002','authenticated','authenticated','window-editor@local.test',now(),'{}','{}',now(),now());
+INSERT INTO public.organization_members(organization_id,user_id,role,status)
+VALUES ('ed100000-0000-4000-8000-000000000001','ed000000-0000-4000-8000-000000000002','member','active');
+INSERT INTO plugin_data.csf_roles(id,organization_id,key,display_name,role_type)
+VALUES ('ed800000-0000-4000-8000-000000000001','ed100000-0000-4000-8000-000000000001','window_editor','Window editor','custom');
+INSERT INTO plugin_data.csf_role_permissions(organization_id,role_id,permission_key)
+VALUES
+  ('ed100000-0000-4000-8000-000000000001','ed800000-0000-4000-8000-000000000001','manage_meetings'),
+  ('ed100000-0000-4000-8000-000000000001','ed800000-0000-4000-8000-000000000001','import_meetings');
+INSERT INTO plugin_data.csf_staff_positions(organization_id,user_id,role_id,school_year,display_title,status)
+VALUES ('ed100000-0000-4000-8000-000000000001','ed000000-0000-4000-8000-000000000002','ed800000-0000-4000-8000-000000000001','2026-2027','Meeting editor','active');
+CREATE FUNCTION pg_temp.edit_window(p_request_id uuid,p_window jsonb) RETURNS jsonb LANGUAGE sql AS $$
+  SELECT plugin_data.csf_upsert_term_meeting_with_attendance_window(
+    'ed100000-0000-4000-8000-000000000001',
+    'ed200000-0000-4000-8000-000000000001',
+    (SELECT (payload->>'meetingId')::uuid FROM window_result),
+    'September meeting',ARRAY['2026-09-16'::date],NULL,'Gym',NULL,true,1,'active',
+    p_request_id,'ed000000-0000-4000-8000-000000000002',p_window
+  )
+$$;
+SELECT extensions.lives_ok($$SELECT pg_temp.edit_window('ed900000-0000-4000-8000-000000000003','{"timeZone":"America/Los_Angeles","opensAt":"2026-09-16T20:00:00Z","closesAt":"2026-09-16T20:45:00Z"}')$$,'meeting editor can save the unchanged attendance window');
+SELECT extensions.throws_ok($$SELECT pg_temp.edit_window('ed900000-0000-4000-8000-000000000004','{"timeZone":"America/Los_Angeles","opensAt":"2026-09-16T20:00:00Z","closesAt":"2026-09-16T20:40:00Z"}')$$,'42501','Not authorized for the requested CSF meeting operation.','meeting editor cannot change an existing cutoff without reconciliation authority');
+SELECT extensions.is((SELECT settings->'attendanceWindow'->>'closesAt' FROM plugin_data.csf_term_meetings WHERE id=(SELECT (payload->>'meetingId')::uuid FROM window_result)),'2026-09-16T20:45:00Z','denied cutoff edit leaves the stored window unchanged');
+INSERT INTO plugin_data.csf_role_permissions(organization_id,role_id,permission_key)
+VALUES ('ed100000-0000-4000-8000-000000000001','ed800000-0000-4000-8000-000000000001','reconcile_meeting_attendance');
+SELECT extensions.lives_ok($$SELECT pg_temp.edit_window('ed900000-0000-4000-8000-000000000005','{"timeZone":"America/Los_Angeles","opensAt":"2026-09-16T20:00:00Z","closesAt":"2026-09-16T20:40:00Z"}')$$,'reconciliation authority permits a changed cutoff');
+SELECT extensions.is((SELECT settings->'attendanceWindow'->>'closesAt' FROM plugin_data.csf_term_meetings WHERE id=(SELECT (payload->>'meetingId')::uuid FROM window_result)),'2026-09-16T20:40:00Z','authorized cutoff edit is stored');
 
 SELECT * FROM extensions.finish();
 ROLLBACK;
