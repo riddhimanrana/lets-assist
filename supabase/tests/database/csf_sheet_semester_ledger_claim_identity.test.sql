@@ -1,7 +1,7 @@
 BEGIN;
 CREATE EXTENSION IF NOT EXISTS pgtap WITH SCHEMA extensions;
 CREATE EXTENSION IF NOT EXISTS dblink WITH SCHEMA extensions;
-SELECT extensions.plan(16);
+SELECT extensions.plan(29);
 
 SELECT extensions.dblink_connect('semester_claim_merge_lock',
   'hostaddr='||coalesce(host(inet_server_addr()),'127.0.0.1')||
@@ -90,6 +90,48 @@ INSERT INTO claim_fixture VALUES (
 SELECT extensions.is(
   (SELECT plugin_data.csf_claim_sheet_semester_ledger_write('cff10000-0000-4000-8000-000000000001','cff00000-0000-4000-8000-000000000001','cffb0000-0000-4000-8000-000000000001','cff80000-0000-4000-8000-000000000001','cff40000-0000-4000-8000-000000000001',version,repeat('a',64),plan,'cffc0000-0000-4000-8000-000000000001')->>'claimed_now' FROM claim_fixture),
   'true','first reviewed claim is recorded');
+SELECT extensions.throws_ok($$UPDATE plugin_data.csf_sheet_sync_destinations
+  SET privacy_verified_at=NULL WHERE id='cff90000-0000-4000-8000-000000000001'$$,
+  '55000','Reconcile the semester Sheet write before changing its destination.',
+  'privacy deauthorization cannot race a claimed provider write');
+SELECT extensions.throws_ok($$UPDATE plugin_data.csf_sheet_sync_destinations
+  SET spreadsheet_file_id='fixture-other-ledger-copy' WHERE id='cff90000-0000-4000-8000-000000000001'$$,
+  '55000','Reconcile the semester Sheet write before changing its destination.',
+  'destination file identity cannot change during a claim');
+SELECT extensions.throws_ok($$UPDATE plugin_data.csf_sheet_sync_destinations
+  SET sheet_id=2 WHERE id='cff90000-0000-4000-8000-000000000001'$$,
+  '55000','Reconcile the semester Sheet write before changing its destination.',
+  'destination tab identity cannot change during a claim');
+SELECT extensions.throws_ok($$UPDATE plugin_data.csf_sheet_sync_destinations
+  SET enabled=true WHERE id='cff90000-0000-4000-8000-000000000001'$$,
+  '55000','Reconcile the semester Sheet write before changing its destination.',
+  'destination cannot be enabled during a claimed direct write');
+SELECT extensions.lives_ok($$UPDATE plugin_data.csf_sheet_sync_destinations
+  SET last_synced_at=now() WHERE id='cff90000-0000-4000-8000-000000000001'$$,
+  'routine destination polling metadata remains writable');
+SELECT extensions.throws_ok($$DELETE FROM plugin_data.csf_sheet_sync_destinations
+  WHERE id='cff90000-0000-4000-8000-000000000001'$$,
+  '55000','Reconcile the semester Sheet write before changing its destination.',
+  'destination deletion cannot cascade away an unsettled receipt');
+SELECT extensions.throws_ok($$DELETE FROM plugin_data.csf_sheet_semester_ledger_mappings
+  WHERE id='cffb0000-0000-4000-8000-000000000001'$$,
+  '55000','Reconcile the semester Sheet write before deleting its mapping.',
+  'accepted mapping deletion cannot cascade away an unsettled receipt');
+SELECT extensions.throws_ok($$UPDATE plugin_data.csf_reviewed_workbook_profile_links
+  SET source_key='ChangedKey' WHERE id='cff80000-0000-4000-8000-000000000001'$$,
+  '55000','Reconcile the semester Sheet write before moving this workbook link.',
+  'reviewed source identity cannot change during an unsettled write');
+SELECT extensions.throws_ok($$UPDATE plugin_data.csf_profile_cohort_memberships
+  SET status='archived' WHERE profile_id='cff40000-0000-4000-8000-000000000001'$$,
+  '55000','Reconcile the semester Sheet write before changing this membership.',
+  'cohort membership cannot be deactivated during a claim');
+SELECT extensions.throws_ok($$DELETE FROM plugin_data.csf_profile_cohort_memberships
+  WHERE profile_id='cff40000-0000-4000-8000-000000000001'$$,
+  '55000','Reconcile the semester Sheet write before changing this membership.',
+  'cohort membership cannot be deleted during a claim');
+SELECT extensions.lives_ok($$UPDATE plugin_data.csf_profile_cohort_memberships
+  SET updated_at=now() WHERE profile_id='cff40000-0000-4000-8000-000000000001'$$,
+  'routine membership metadata remains writable');
 SELECT extensions.ok(EXISTS(SELECT 1 FROM jsonb_array_elements(plugin_data.csf_profile_merge_preview(
   'cff10000-0000-4000-8000-000000000001','cff40000-0000-4000-8000-000000000002',
   'cff40000-0000-4000-8000-000000000001')->'conflicts') conflict
@@ -109,6 +151,14 @@ SELECT extensions.is(plugin_data.csf_finish_sheet_semester_ledger_write(
 SELECT extensions.is(
   (SELECT plugin_data.csf_claim_sheet_semester_ledger_write('cff10000-0000-4000-8000-000000000001','cff00000-0000-4000-8000-000000000001','cffb0000-0000-4000-8000-000000000001','cff80000-0000-4000-8000-000000000001','cff40000-0000-4000-8000-000000000001',version,repeat('a',64),plan,'cffc0000-0000-4000-8000-000000000002')->>'claimed_now' FROM claim_fixture),
   'true','same source version and preview can be retried with a new request after abort');
+SELECT extensions.is(plugin_data.csf_finish_sheet_semester_ledger_write(
+  'cff10000-0000-4000-8000-000000000001','cff00000-0000-4000-8000-000000000001',
+  'cffc0000-0000-4000-8000-000000000002','unknown_outcome',NULL)->>'status',
+  'unknown_outcome','ambiguous provider outcome remains unsettled');
+SELECT extensions.throws_ok($$UPDATE plugin_data.csf_sheet_sync_destinations
+  SET privacy_verified_at=NULL WHERE id='cff90000-0000-4000-8000-000000000001'$$,
+  '55000','Reconcile the semester Sheet write before changing its destination.',
+  'privacy deauthorization remains fenced during an unknown outcome');
 SELECT extensions.ok((SELECT count(*)=1 FROM pg_index i WHERE
   i.indexrelid=to_regclass('plugin_data.csf_sheet_semester_ledger_nonaborted_receipt_unique')
   AND i.indisunique AND pg_get_expr(i.indpred,i.indrelid) LIKE '%aborted%'),

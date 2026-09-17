@@ -15,7 +15,7 @@ const versions = expectedVersions(cwd);
 const at = (count) => acceptedCatalogQuery(source, versions.slice(0, count));
 
 test("notice and semester ledger pins begin at their exact migrations", () => {
-  assert.equal(versions.length, 580);
+  assert.equal(versions.length, 581);
   const before = at(573);
   const notice = at(574);
   const ledger = at(575);
@@ -24,6 +24,7 @@ test("notice and semester ledger pins begin at their exact migrations", () => {
   const claimIdentity = at(578);
   const recovered = at(579);
   const mergeSerialized = at(580);
+  const authorityFenced = at(581);
   assert.match(before, /f494ecf0746444bbb55bf2605123ab2a/u);
   assert.doesNotMatch(notice, /f494ecf0746444bbb55bf2605123ab2a/u);
   assert.match(notice, /8f8b113fd372dfe7b94ab2c26ca8708e/u);
@@ -54,6 +55,10 @@ test("notice and semester ledger pins begin at their exact migrations", () => {
     /csf_lock_identity_mutation\(p_organization_id\)/u,
   );
   assert.doesNotMatch(mergeSerialized, /1f68ca7ff0fb2a7725413c79d3b01436/u);
+  assert.match(authorityFenced, /csf_semester_write_destination_authority/u);
+  assert.match(authorityFenced, /csf_membership_unsettled_semester_write/u);
+  assert.match(authorityFenced, /bed09085445ef97e0a34f0bab63e3828/u);
+  assert.doesNotMatch(authorityFenced, /5c99b2d7923d08d11466dc58e5524211/u);
   for (const [signature, hash] of noticeLedgerDefinitions) {
     assert.ok(lifecycle.includes(signature), signature);
     assert.ok(lifecycle.includes(hash), signature);
@@ -69,7 +74,7 @@ test("new release catalog keeps exact ACL, relation and retention checks", () =>
     /child_column='profile_id' AND policy='delete_with_owner'/u,
   );
   assert.match(query, /actual.digest=expected.digest/u);
-  for (const count of [574, 575, 576, 577, 578, 579, 580]) {
+  for (const count of [574, 575, 576, 577, 578, 579, 580, 581]) {
     const changed = versions.slice(0, count);
     changed[count - 1] = "20991231000000";
     assert.throws(
