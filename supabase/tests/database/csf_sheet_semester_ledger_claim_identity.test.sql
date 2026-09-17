@@ -1,6 +1,6 @@
 BEGIN;
 CREATE EXTENSION IF NOT EXISTS pgtap WITH SCHEMA extensions;
-SELECT extensions.plan(10);
+SELECT extensions.plan(13);
 
 SELECT extensions.ok((SELECT count(*)=1 FROM aclexplode(
   (SELECT proacl FROM pg_proc WHERE oid=to_regprocedure('plugin_data.csf_guard_sheet_semester_ledger_immutable()'))) a
@@ -68,6 +68,17 @@ SELECT extensions.throws_ok($$SELECT plugin_data.csf_claim_sheet_semester_ledger
   'cff10000-0000-4000-8000-000000000001','cff00000-0000-4000-8000-000000000001','cffb0000-0000-4000-8000-000000000001','cff80000-0000-4000-8000-000000000003','cff40000-0000-4000-8000-000000000001',
   (SELECT version FROM claim_fixture),repeat('a',64),(SELECT plan FROM claim_fixture),'cffc0000-0000-4000-8000-000000000001')$$,
   '23505','This write request conflicts with its original plan.','request ID cannot replay against another reviewed source link');
+SELECT extensions.is(plugin_data.csf_finish_sheet_semester_ledger_write(
+  'cff10000-0000-4000-8000-000000000001','cff00000-0000-4000-8000-000000000001',
+  'cffc0000-0000-4000-8000-000000000001','aborted',NULL)->>'status',
+  'aborted','provider non-write settles the original attempt');
+SELECT extensions.is(
+  (SELECT plugin_data.csf_claim_sheet_semester_ledger_write('cff10000-0000-4000-8000-000000000001','cff00000-0000-4000-8000-000000000001','cffb0000-0000-4000-8000-000000000001','cff80000-0000-4000-8000-000000000001','cff40000-0000-4000-8000-000000000001',version,repeat('a',64),plan,'cffc0000-0000-4000-8000-000000000002')->>'claimed_now' FROM claim_fixture),
+  'true','same source version and preview can be retried with a new request after abort');
+SELECT extensions.ok((SELECT count(*)=1 FROM pg_index i WHERE
+  i.indexrelid=to_regclass('plugin_data.csf_sheet_semester_ledger_nonaborted_receipt_unique')
+  AND i.indisunique AND pg_get_expr(i.indpred,i.indrelid) LIKE '%aborted%'),
+  'deduplication excludes aborted attempts while retaining their receipts');
 UPDATE plugin_data.csf_profiles SET first_name='Updated' WHERE id='cff40000-0000-4000-8000-000000000001';
 SELECT extensions.isnt(
   (SELECT version FROM claim_fixture),
@@ -78,8 +89,8 @@ SELECT extensions.throws_ok($$SELECT plugin_data.csf_claim_sheet_semester_ledger
   md5(plugin_data.csf_sheet_sync_destination_snapshot('cff10000-0000-4000-8000-000000000001','cff90000-0000-4000-8000-000000000001','profile','cff40000-0000-4000-8000-000000000001')::text),
   repeat('a',64),(SELECT plan FROM claim_fixture),'cffc0000-0000-4000-8000-000000000001')$$,
   '23505','This write request conflicts with its original plan.','request ID cannot replay after source version changes');
-SELECT extensions.is((SELECT count(*)::integer FROM plugin_data.csf_sheet_semester_ledger_writes),1,
-  'conflicting retries make no duplicate receipt');
+SELECT extensions.is((SELECT count(*)::integer FROM plugin_data.csf_sheet_semester_ledger_writes),2,
+  'only the authorized retry creates another receipt');
 SELECT extensions.ok((SELECT count(*)=1 FROM plugin_data.csf_admin_audit_events
   WHERE action='sheet_sync.semester_write_claimed' AND target_id='cffc0000-0000-4000-8000-000000000001'),
   'conflicting retries make no duplicate audit');

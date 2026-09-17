@@ -8435,3 +8435,22 @@ returned `1` and refused all ten deliberate drift probes; the four focused
 Production controller files passed 97 cases. Formatting and lint also passed.
 These are local results only. Hosted Development and Production remain separate
 gates. No live Sheet write is part of this change.
+
+Further PR 641 review found three P1 semester Sheet write paths that could leave
+an officer unable to finish a copied-ledger update. Link revocation and deletion
+were not fenced during a claimed or ambiguous provider write. A claimed write
+whose lease expired could not enter the existing reconciliation path. A confirmed
+aborted attempt retained a unique receipt key that prevented a fresh request
+for the same source snapshot. Forward migration `20260918014000` extends the
+link trigger to revocation and deletion, allows an authorized officer to
+reconcile an expired claim with a checked provider readback and two audit
+transitions, and replaces unconditional receipt uniqueness with a partial
+unique index for non-aborted outcomes. Focused tests cover claimed and ambiguous
+link changes, both expired-claim outcomes, audit replay, and same-snapshot
+retry after abort. This is local implementation only; no Google write or
+Production data operation is part of the test.
+The isolated 579-migration replay passed 357 pgTAP files with 9,458
+assertions, including both affected semester-ledger tests. Its exact schema
+catalog returned `1`; four focused Production controller test files passed 97
+cases. This is local evidence only. Hosted Development and Production remain
+unverified for migration `20260918014000`.

@@ -1,6 +1,6 @@
 BEGIN;
 CREATE EXTENSION IF NOT EXISTS pgtap WITH SCHEMA extensions;
-SELECT extensions.plan(19);
+SELECT extensions.plan(31);
 
 INSERT INTO auth.users(id,aud,role,email,email_confirmed_at,raw_app_meta_data,raw_user_meta_data)
 VALUES ('cfe00000-0000-4000-8000-000000000001','authenticated','authenticated','officer@fixture.test',now(),'{}','{}'),
@@ -54,12 +54,26 @@ SELECT extensions.ok(EXISTS(SELECT 1 FROM jsonb_array_elements(plugin_data.csf_p
   WHERE c->>'type'='semester_sheet_write_needs_reconciliation'),'merge preview blocks a claimed write');
 SELECT extensions.throws_ok($$UPDATE plugin_data.csf_reviewed_workbook_profile_links SET profile_id='cfe40000-0000-4000-8000-000000000002' WHERE id='cfe80000-0000-4000-8000-000000000001'$$,
   '55000','Reconcile the semester Sheet write before moving this workbook link.','link transfer is blocked during claimed writes');
+SELECT extensions.throws_ok($$SELECT plugin_data.csf_revoke_workbook_profile_link('cfe10000-0000-4000-8000-000000000001','cfe80000-0000-4000-8000-000000000001','cfe00000-0000-4000-8000-000000000001','Fixture link correction.')$$,
+  '55000','Reconcile the semester Sheet write before moving this workbook link.','officer revocation is blocked while a provider write is claimed');
+SELECT extensions.throws_ok($$UPDATE plugin_data.csf_reviewed_workbook_profile_links
+  SET revoked_at=now(),revoked_by='cfe00000-0000-4000-8000-000000000001',revocation_reason='Fixture correction.'
+  WHERE id='cfe80000-0000-4000-8000-000000000001'$$,
+  '55000','Reconcile the semester Sheet write before moving this workbook link.','direct revocation is blocked while a provider write is claimed');
+SELECT extensions.throws_ok($$DELETE FROM plugin_data.csf_reviewed_workbook_profile_links WHERE id='cfe80000-0000-4000-8000-000000000001'$$,
+  '55000','Reconcile the semester Sheet write before moving this workbook link.','link deletion is blocked while a provider write is claimed');
 SELECT plugin_data.csf_finish_sheet_semester_ledger_write('cfe10000-0000-4000-8000-000000000001','cfe00000-0000-4000-8000-000000000001','cfec0000-0000-4000-8000-000000000001','unknown_outcome',NULL);
 SELECT extensions.ok(EXISTS(SELECT 1 FROM jsonb_array_elements(plugin_data.csf_profile_merge_preview(
   'cfe10000-0000-4000-8000-000000000001','cfe40000-0000-4000-8000-000000000001','cfe40000-0000-4000-8000-000000000002')->'conflicts') c
   WHERE c->>'type'='semester_sheet_write_needs_reconciliation'),'merge preview exposes the unsettled write blocker');
 SELECT extensions.throws_ok($$UPDATE plugin_data.csf_reviewed_workbook_profile_links SET profile_id='cfe40000-0000-4000-8000-000000000002' WHERE id='cfe80000-0000-4000-8000-000000000001'$$,
   '55000','Reconcile the semester Sheet write before moving this workbook link.','link transfer is blocked during unknown outcome');
+SELECT extensions.throws_ok($$UPDATE plugin_data.csf_reviewed_workbook_profile_links
+  SET revoked_at=now(),revoked_by='cfe00000-0000-4000-8000-000000000001',revocation_reason='Fixture correction.'
+  WHERE id='cfe80000-0000-4000-8000-000000000001'$$,
+  '55000','Reconcile the semester Sheet write before moving this workbook link.','direct revocation is blocked during an unknown provider outcome');
+SELECT extensions.throws_ok($$DELETE FROM plugin_data.csf_reviewed_workbook_profile_links WHERE id='cfe80000-0000-4000-8000-000000000001'$$,
+  '55000','Reconcile the semester Sheet write before moving this workbook link.','link deletion is blocked during an unknown provider outcome');
 SELECT extensions.throws_ok($$SELECT plugin_data.csf_merge_profiles('cfe10000-0000-4000-8000-000000000001','cfe40000-0000-4000-8000-000000000001','cfe40000-0000-4000-8000-000000000002','Officer verified duplicate fixture profiles.','cfe00000-0000-4000-8000-000000000001','cfed0000-0000-4000-8000-000000000001')$$,
   'P0001',NULL,'merge execution rejects the unresolved write');
 SELECT extensions.throws_ok($$SELECT plugin_data.csf_reconcile_sheet_semester_ledger_write('cfe10000-0000-4000-8000-000000000001','cfe00000-0000-4000-8000-000000000001','cfec0000-0000-4000-8000-000000000001',true,NULL,'Provider row checked and matched.')$$,
@@ -85,5 +99,38 @@ SELECT extensions.is((SELECT count(*)::integer FROM plugin_data.csf_admin_audit_
   'both ambiguous outcomes retain distinct audit receipts');
 SELECT extensions.ok(NOT EXISTS(SELECT 1 FROM plugin_data.csf_sheet_semester_ledger_writes WHERE status IN ('claimed','unknown_outcome')),
   'reconciled writes no longer block identity lifecycle');
+INSERT INTO plugin_data.csf_sheet_semester_ledger_writes
+  (request_id,organization_id,mapping_id,destination_id,source_link_id,profile_id,actor_user_id,
+    source_version,preview_digest,plan,lease_expires_at)
+VALUES ('cfec0000-0000-4000-8000-000000000003','cfe10000-0000-4000-8000-000000000001',
+  'cfeb0000-0000-4000-8000-000000000001','cfe90000-0000-4000-8000-000000000001',
+  'cfe80000-0000-4000-8000-000000000001','cfe40000-0000-4000-8000-000000000001',
+  'cfe00000-0000-4000-8000-000000000001','v3',repeat('d',64),'{}',clock_timestamp()-interval '1 minute');
+SELECT extensions.is(plugin_data.csf_reconcile_sheet_semester_ledger_write('cfe10000-0000-4000-8000-000000000001','cfe00000-0000-4000-8000-000000000001','cfec0000-0000-4000-8000-000000000003',false,NULL,'Provider row checked and was unchanged.')->>'status',
+  'aborted','expired claim can be recovered as a confirmed non-write');
+SELECT extensions.is((SELECT count(*)::integer FROM plugin_data.csf_admin_audit_events
+  WHERE target_id='cfec0000-0000-4000-8000-000000000003'
+    AND action='sheet_sync.semester_write_expired_recovered'),1,
+  'expired claim recovery records one audit transition');
+SELECT extensions.is(plugin_data.csf_reconcile_sheet_semester_ledger_write('cfe10000-0000-4000-8000-000000000001','cfe00000-0000-4000-8000-000000000001','cfec0000-0000-4000-8000-000000000003',false,NULL,'Provider row checked and was unchanged.')->>'replayed',
+  'true','expired claim reconciliation replays without a second recovery');
+INSERT INTO plugin_data.csf_sheet_semester_ledger_writes
+  (request_id,organization_id,mapping_id,destination_id,source_link_id,profile_id,actor_user_id,
+    source_version,preview_digest,plan,lease_expires_at)
+VALUES ('cfec0000-0000-4000-8000-000000000004','cfe10000-0000-4000-8000-000000000001',
+  'cfeb0000-0000-4000-8000-000000000001','cfe90000-0000-4000-8000-000000000001',
+  'cfe80000-0000-4000-8000-000000000001','cfe40000-0000-4000-8000-000000000001',
+  'cfe00000-0000-4000-8000-000000000001','v4',repeat('e',64),'{}',clock_timestamp()-interval '1 minute');
+SELECT extensions.is(plugin_data.csf_reconcile_sheet_semester_ledger_write('cfe10000-0000-4000-8000-000000000001','cfe00000-0000-4000-8000-000000000001','cfec0000-0000-4000-8000-000000000004',true,repeat('f',64),'Provider row checked and matched.')->>'status',
+  'applied','expired claim can be recovered as a confirmed write');
+SELECT extensions.is((SELECT count(*)::integer FROM plugin_data.csf_admin_audit_events
+  WHERE target_id='cfec0000-0000-4000-8000-000000000004'
+    AND action='sheet_sync.semester_write_expired_recovered'),1,
+  'confirmed expired write has one recovery audit transition');
+SELECT extensions.is(plugin_data.csf_revoke_workbook_profile_link('cfe10000-0000-4000-8000-000000000001','cfe80000-0000-4000-8000-000000000001','cfe00000-0000-4000-8000-000000000001','Fixture link correction.')->>'status',
+  'revoked','officer may revoke the link after all writes settle');
+SELECT extensions.ok((SELECT revoked_at IS NOT NULL FROM plugin_data.csf_reviewed_workbook_profile_links
+  WHERE id='cfe80000-0000-4000-8000-000000000001'),
+  'settled revocation persists within the transaction');
 SELECT * FROM extensions.finish();
 ROLLBACK;
