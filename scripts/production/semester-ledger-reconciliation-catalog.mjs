@@ -1,14 +1,33 @@
 // Exact postconditions for the 577th migration. Measured on an isolated replay.
 export const semesterLedgerReconciliationDefinitions = [
-  ["plugin_data.csf_profile_merge_preview_semester_ledger_base(uuid,uuid,uuid)", "23ea2120b5fa3169af8b78df80d93902", false],
-  ["plugin_data.csf_reconcile_sheet_semester_ledger_write(uuid,uuid,uuid,boolean,text,text)", "f43d2748697aefbe585cb17b7f12dcd8", true],
-  ["plugin_data.csf_guard_semester_write_link_owner()", "45766bcd4803ef8cbd7d4605f7744b47", false],
-  ["plugin_data.csf_guard_workbook_link_unsettled_write()", "681310b4b440be1ed2fe8ff92baabbb9", false],
+  [
+    "plugin_data.csf_profile_merge_preview_semester_ledger_base(uuid,uuid,uuid)",
+    "23ea2120b5fa3169af8b78df80d93902",
+    false,
+  ],
+  [
+    "plugin_data.csf_reconcile_sheet_semester_ledger_write(uuid,uuid,uuid,boolean,text,text)",
+    "f43d2748697aefbe585cb17b7f12dcd8",
+    true,
+  ],
+  [
+    "plugin_data.csf_guard_semester_write_link_owner()",
+    "45766bcd4803ef8cbd7d4605f7744b47",
+    false,
+  ],
+  [
+    "plugin_data.csf_guard_workbook_link_unsettled_write()",
+    "681310b4b440be1ed2fe8ff92baabbb9",
+    false,
+  ],
 ];
 
 export function semesterLedgerReconciliationCatalog(previous) {
   const definitions = semesterLedgerReconciliationDefinitions
-    .map(([signature, digest, service]) => `('${signature}','${digest}',${service})`)
+    .map(
+      ([signature, digest, service]) =>
+        `('${signature}','${digest}',${service})`,
+    )
     .join(",");
   return `SELECT CASE WHEN (${previous.trim().replace(/;$/u, "")})=1
     AND NOT EXISTS (
