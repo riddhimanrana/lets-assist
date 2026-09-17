@@ -22,7 +22,7 @@ Local validation passed 20 focused pgTAP assertions and six additional rollback-
 
 Production class workbook refreshes reached the F25 preview and failed at `csf_append_import_preview_rows` because the Google Sheets reader now sends `userEnteredBackground` for an officer-applied fill, while the database allowed only `background` and `note`. The worker retried the same running job and returned intermittent 503 responses. The failed previews did not grant credit or commit class records.
 
-Forward migration `20260918180000` accepts the explicit fill only as a lowercase RGB value, keeps all other annotation bounds, and preserves it in the immutable preview. The pgTAP envelope suite now checks acceptance, persistence, malformed fills, and rejection of unrelated fields. This is a schema candidate until local replay, hosted checks, and Production migration readback pass. Existing queued workbook jobs should be allowed to retry after the migration; do not mark them completed by hand.
+Forward migration `20260918180000` accepts the explicit fill only as a lowercase RGB value, keeps all other annotation bounds, and preserves it in the immutable preview. The pgTAP envelope suite checks acceptance, persistence, malformed fills, and rejection of unrelated fields. The release manifest pins its bytes and the measured function fingerprint; all 99 focused release-contract tests pass. This is a schema candidate until the exact-tree local gate, hosted checks, and Production migration readback pass. Existing queued workbook jobs should be allowed to retry after the migration; do not mark them completed by hand.
 
 ## Directory latency, September 17, 2026
 

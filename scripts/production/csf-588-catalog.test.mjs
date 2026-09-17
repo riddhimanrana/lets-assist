@@ -14,14 +14,15 @@ const source = readFileSync(
   "utf8",
 );
 const ledger = expectedVersions(cwd);
+const reviewed597 = ledger.slice(0, 597);
 
 test("597 release pins every new migration and its measured schema", () => {
-  assert.equal(ledger.length, 597);
-  assert.equal(ledger.at(-1), "20260918170000");
-  const current = acceptedCatalogQuery(source, ledger);
-  const prior592 = acceptedCatalogQuery(source, ledger.slice(0, 592));
-  const previous = acceptedCatalogQuery(source, ledger.slice(0, 590));
-  const preceding = acceptedCatalogQuery(source, ledger.slice(0, 582));
+  assert.equal(reviewed597.length, 597);
+  assert.equal(reviewed597.at(-1), "20260918170000");
+  const current = acceptedCatalogQuery(source, reviewed597);
+  const prior592 = acceptedCatalogQuery(source, reviewed597.slice(0, 592));
+  const previous = acceptedCatalogQuery(source, reviewed597.slice(0, 590));
+  const preceding = acceptedCatalogQuery(source, reviewed597.slice(0, 582));
   assert.match(current, /420a97da04211e530a3fe4bac9d10a46/u);
   assert.match(current, /5a2e7874ae626e96f5cda454a55ea748/u);
   assert.doesNotMatch(current, /57c41026b33ca412f0b73645d520b795/u);
@@ -66,7 +67,7 @@ test("597 release pins every new migration and its measured schema", () => {
       acceptedCatalogQuery(source, ledger.slice(0, count)),
       preceding,
     );
-  for (const version of ledger.slice(582)) {
+  for (const version of reviewed597.slice(582)) {
     const file = Object.keys(migrationDigests).find((name) =>
       name.startsWith(`${version}_`),
     );
