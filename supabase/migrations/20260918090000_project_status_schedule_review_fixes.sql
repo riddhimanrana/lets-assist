@@ -35,9 +35,9 @@ BEGIN
       segments := jsonb_build_array(p_schedule->'oneTime');
     WHEN 'sameDayMultiArea' THEN
       day_value := p_schedule->'sameDayMultiArea';
-      IF jsonb_typeof(day_value) IS DISTINCT FROM 'object'
-        OR jsonb_typeof(day_value->'roles') IS DISTINCT FROM 'array'
-        OR jsonb_array_length(day_value->'roles') = 0 THEN RETURN; END IF;
+      IF jsonb_typeof(day_value) IS DISTINCT FROM 'object' THEN RETURN; END IF;
+      IF jsonb_typeof(day_value->'roles') IS DISTINCT FROM 'array' THEN RETURN; END IF;
+      IF jsonb_array_length(day_value->'roles') = 0 THEN RETURN; END IF;
       segments := jsonb_build_array(jsonb_build_object(
         'date', day_value->>'date',
         'startTime', day_value->>'overallStart',

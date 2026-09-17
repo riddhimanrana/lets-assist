@@ -5,6 +5,7 @@ import { semesterLedgerMergeClaimCatalog } from "./semester-ledger-merge-claim-c
 import { semesterLedgerAuthorityCatalog } from "./semester-ledger-authority-catalog.mjs";
 import { noticeLedgerCatalog } from "./notice-ledger-catalog.mjs";
 import { csf588Catalog } from "./csf-588-catalog.mjs";
+import { csf589Catalog } from "./csf-589-catalog.mjs";
 import {
   historyIdentityLedgers,
   historyIdentityCatalog,
@@ -263,6 +264,12 @@ export function acceptedCatalogQuery(source, versions) {
   const ledgerHash = createHash("sha256")
     .update(versions.join("\n"))
     .digest("hex");
+  if (
+    versions.length === 589 &&
+    ledgerHash ===
+      "8f48a47ce1a6e08db56a56e38822e540f536f1a2117c4cddbf4f782caf9b3d92"
+  )
+    return csf589Catalog(acceptedCatalogQuery(source, versions.slice(0, 588)));
   const csf588Ledgers = new Map([
     [583, "bd9438d7d5cf9b8946c32261ccd83427056fbfd12558d5fedb984845a3558182"],
     [584, "5c23de4dcdeac676f9c8ceceed65930308de1b18cf2bc1150850d1cb36d8cdcf"],

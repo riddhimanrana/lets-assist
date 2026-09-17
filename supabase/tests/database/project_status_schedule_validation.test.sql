@@ -1,7 +1,7 @@
 BEGIN;
 CREATE EXTENSION IF NOT EXISTS pgtap WITH SCHEMA extensions;
 SET search_path = public, extensions;
-SELECT plan(20);
+SELECT plan(21);
 
 SELECT is((SELECT count(*) FROM private.project_status_schedule_window('oneTime',
   '{"oneTime":{"date":"","startTime":"09:00","endTime":"10:00"}}', 'UTC')),
@@ -48,6 +48,9 @@ SELECT is((SELECT count(*) FROM private.project_status_schedule_window('sameDayM
 SELECT is((SELECT count(*) FROM private.project_status_schedule_window('sameDayMultiArea',
   '{"sameDayMultiArea":{"date":"2026-09-16","overallStart":"09:00","overallEnd":"10:00","roles":[]}}', 'UTC')),
   0::bigint, 'A same-day schedule without roles is unresolved');
+SELECT is((SELECT count(*) FROM private.project_status_schedule_window('sameDayMultiArea',
+  '{"sameDayMultiArea":{"date":"2026-09-16","overallStart":"09:00","overallEnd":"10:00","roles":{}}}', 'UTC')),
+  0::bigint, 'A malformed role container cannot abort maintenance');
 SELECT is((SELECT count(*) FROM private.project_status_schedule_window('multiDay',
   '{"multiDay":{}}', 'UTC')), 0::bigint, 'Malformed schedule containers are unresolved');
 SELECT is((SELECT count(*) FROM private.project_status_schedule_window('oneTime',
