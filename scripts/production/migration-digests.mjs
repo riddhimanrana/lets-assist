@@ -1174,4 +1174,14 @@ export const migrationDigests = {
     "4f6b3bf45e2f3962bafdab592c616b181f867fd6f6883e6c39ab1a4345dad22a",
   "20260918020000_csf_directory_dues_lookup_index.sql":
     "41bf35437730e1620717feaa55080a0d8591d77fc21d921eded748ffce9b7e32",
+  "20260918030000_csf_attendance_response_window.sql":
+    "4404dce66a6c52b402e1efee7a565550a62c9ca4cb1bb66bac7827bbf49c05e6",
+  "20260918040000_csf_retired_cohort_visibility.sql":
+    "ec4cd4bc6af5e2aa58fd78e3bf988b71541f3dac40df6c28d78f57600c0c0f87",
+  "20260918050000_retire_duplicate_attendance_cron_jobs.sql":
+    "70e70f7c9509ddc0758a086a1bc6bcb42e6e23c190ccfda6d4091da1d4aca32d",
+  "20260918060000_project_status_schedule_validation.sql":
+    "c43ba788abcd38aaf344e44bad72a911293db7735f26fe33901e827c33948b6c",
+  "20260918070000_csf_missing_tenant_lookup_indexes.sql":
+    "78d9912ad06533de0568e5791e7f5e014a593a42935d553745994da1652855c5",
 };
