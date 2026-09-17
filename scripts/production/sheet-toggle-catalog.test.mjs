@@ -78,6 +78,8 @@ test("493 advances through observation invalidation and the current release tail
       "csf_communication_campaigns_aa_platform_sender",
       "csf_sheet_semester_mapping_immutable",
       "csf_sheet_semester_write_immutable",
+      "csf_semester_write_link_owner",
+      "csf_workbook_link_unsettled_write",
     ],
   );
   assert.ok(result.query.includes("AND version = '1.2.32'"));
