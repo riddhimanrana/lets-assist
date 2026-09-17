@@ -58,6 +58,7 @@ const EXTENSIONS = [
   "20260918080000_csf_class_publication_email_audience",
   "20260918090000_project_status_schedule_review_fixes",
   "20260918100000_project_status_schedule_nonempty_windows",
+  "20260918110000_csf_retired_cohort_operational_fence",
 ];
 
 test("the release is the 557 decisions baseline plus the reviewed integrated extensions", () => {

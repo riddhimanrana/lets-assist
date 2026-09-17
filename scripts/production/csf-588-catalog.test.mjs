@@ -15,11 +15,11 @@ const source = readFileSync(
 );
 const ledger = expectedVersions(cwd);
 
-test("590 release pins every new migration and its measured schema", () => {
-  assert.equal(ledger.length, 590);
-  assert.equal(ledger.at(-1), "20260918100000");
+test("591 release pins every new migration and its measured schema", () => {
+  assert.equal(ledger.length, 591);
+  assert.equal(ledger.at(-1), "20260918110000");
   const current = acceptedCatalogQuery(source, ledger);
-  const previous = acceptedCatalogQuery(source, ledger.slice(0, 589));
+  const previous = acceptedCatalogQuery(source, ledger.slice(0, 590));
   const preceding = acceptedCatalogQuery(source, ledger.slice(0, 582));
   assert.match(current, /420a97da04211e530a3fe4bac9d10a46/u);
   assert.match(current, /5a2e7874ae626e96f5cda454a55ea748/u);
@@ -38,8 +38,11 @@ test("590 release pins every new migration and its measured schema", () => {
   assert.match(current, /csf_class_publication_email_candidates/u);
   assert.match(current, /csf_correct_attendance_source_timestamp/u);
   assert.match(current, /project_status_schedule_window/u);
-  assert.match(previous, /a7a0680643c8c8a4f25ba969a3ff7459/u);
-  assert.doesNotMatch(current, /a7a0680643c8c8a4f25ba969a3ff7459/u);
+  assert.match(previous, /0abd6c8cfe331766e22001d8744d5541/u);
+  assert.doesNotMatch(current, /0abd6c8cfe331766e22001d8744d5541/u);
+  assert.match(current, /3b006244758b8eaee4535a5ea7d297a1/u);
+  assert.match(current, /51a12d2ff4a3f2a44a297b136ed631fc/u);
+  assert.match(current, /34cf3ce530ba6b9066b260d65f6d3f87/u);
   assert.match(current, /afebeb55895133dc30e7cde6e9b3bac3/u);
   assert.match(current, /Auto check-in signups/u);
   assert.match(preceding, /57c41026b33ca412f0b73645d520b795/u);
@@ -65,9 +68,9 @@ test("590 release pins every new migration and its measured schema", () => {
   }
 });
 
-test("590 release refuses a changed ledger and catalog predecessor", () => {
+test("591 release refuses a changed ledger and catalog predecessor", () => {
   const changed = [...ledger];
-  changed[589] = "20990101000000";
+  changed[590] = "20990101000000";
   assert.throws(
     () => acceptedCatalogQuery(source, changed),
     /explicit release review/u,

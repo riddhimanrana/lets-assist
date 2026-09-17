@@ -1,7 +1,7 @@
 BEGIN;
 
 CREATE EXTENSION IF NOT EXISTS pgtap WITH SCHEMA extensions;
-SELECT extensions.plan(60);
+SELECT extensions.plan(63);
 
 -- ---------------------------------------------------------------------------
 -- Shape and boundaries
@@ -228,6 +228,15 @@ VALUES
    'bd500000-0000-4000-8000-000000000001'),
   ('bd100000-0000-4000-8000-000000000001', 'bd200000-0000-4000-8000-000000000002',
    'bd500000-0000-4000-8000-000000000001');
+
+INSERT INTO plugin_data.csf_class_join_codes (
+  id, organization_id, cohort_id, code, created_by
+) VALUES (
+  'bd210000-0000-4000-8000-000000000001',
+  'bd100000-0000-4000-8000-000000000001',
+  'bd200000-0000-4000-8000-000000000001',
+  'ABC234', 'bd000000-0000-4000-8000-000000000001'
+);
 
 -- Two students with the same name, one in each class.
 INSERT INTO plugin_data.csf_profiles (
@@ -770,6 +779,27 @@ SELECT extensions.is(
    WHERE id = 'bd200000-0000-4000-8000-000000000002'),
   'active',
   'the current class keeps its active status'
+);
+SELECT extensions.is(
+  (SELECT status FROM plugin_data.csf_class_join_codes
+   WHERE id = 'bd210000-0000-4000-8000-000000000001'),
+  'revoked',
+  'retiring a class revokes its active join code'
+);
+SELECT extensions.throws_ok(
+  $$SELECT plugin_data.csf_rotate_class_join_code(
+      'bd100000-0000-4000-8000-000000000001',
+      'bd200000-0000-4000-8000-000000000001',
+      'bd000000-0000-4000-8000-000000000001')$$,
+  'P0001', NULL, 'officers cannot issue a new code for a retired class'
+);
+SELECT extensions.throws_ok(
+  $$SELECT plugin_data.csf_create_term_for_cohort(
+      'bd100000-0000-4000-8000-000000000001',
+      'bd220000-0000-4000-8000-000000000001',
+      '{"cohortYear":2024,"termCode":"F24","label":"Fall 2024","semester":"fall","schoolYear":"2024-2025"}'::jsonb,
+      'bd000000-0000-4000-8000-000000000001')$$,
+  'P0001', NULL, 'officers cannot add a semester to a retired class'
 );
 SELECT extensions.throws_ok(
   $$UPDATE plugin_data.csf_cohorts SET status = 'active'
