@@ -281,6 +281,17 @@ test("every root project_signups to projects embed names the canonical relations
   expect(ambiguous).toEqual([]);
 });
 
+test("created projects use the canonical signup relationship", () => {
+  const source = readFileSync(
+    resolve(REPOSITORY_ROOT, "app/projects/UserProjects.tsx"),
+    "utf8",
+  );
+  expect(source).toContain(
+    "project_signups!project_signups_project_id_fkey(id, user_id, status, schedule_id)",
+  );
+  expect(source).not.toMatch(/\bproject_signups\s*\(/u);
+});
+
 test("the source analyzer resolves relationship embeds in composed select strings", () => {
   const result = analyzeSource(
     "dynamic-select.ts",
