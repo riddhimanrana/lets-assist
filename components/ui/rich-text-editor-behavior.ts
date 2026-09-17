@@ -28,40 +28,29 @@ export function resolveRichTextKeyIntent(
   return event.shiftKey ? "line-break" : "new-paragraph";
 }
 
-/** Keep parent echoes out of the document while retaining external edits until blur. */
+/** Ignore parent echoes without delaying a new external document. */
 export function createRichTextContentSync() {
   let lastSyncedValue: string | null = null;
-  let deferredContent: string | null = null;
+  const recentLocalValues: string[] = [];
 
   return {
-    receive(incoming: string, editorHtml: string, focused: boolean) {
+    receive(incoming: string, editorHtml: string) {
       // A parent echo may omit a trailing empty paragraph the author just made.
       if (incoming === lastSyncedValue) return null;
+      // A delayed echo of an older keystroke must not replace the newer draft.
+      if (recentLocalValues.includes(incoming)) return null;
       if (incoming === editorHtml) {
-        deferredContent = null;
         lastSyncedValue = incoming;
         return null;
       }
-      if (focused) {
-        deferredContent = incoming;
-        return null;
-      }
-      deferredContent = null;
       lastSyncedValue = incoming;
       return incoming;
     },
     recordLocalEdit(html: string) {
-      // Do not send an older document over an external value waiting for blur.
-      if (deferredContent !== null) return false;
       lastSyncedValue = html;
+      recentLocalValues.push(html);
+      if (recentLocalValues.length > 32) recentLocalValues.shift();
       return true;
-    },
-    flushOnBlur(editorHtml: string) {
-      const incoming = deferredContent;
-      if (incoming === null) return null;
-      deferredContent = null;
-      lastSyncedValue = incoming;
-      return incoming === editorHtml ? null : incoming;
     },
   };
 }

@@ -23,9 +23,8 @@ describe("shared rich text editor contract", () => {
     expect(source).toContain(
       "contentSyncRef.current.recordLocalEdit(canonicalHtml)",
     );
-    expect(source).toContain("contentSyncRef.current.flushOnBlur(");
-    expect(source).toContain('editor.on("blur", applyDeferredContent)');
-    expect(source).toContain('editor.off("blur", applyDeferredContent)');
+    expect(source).toContain("if (editor.isFocused) editor.commands.blur()");
+    expect(source).not.toContain("flushOnBlur");
     expect(source).toContain("event.stopPropagation()");
   });
 
