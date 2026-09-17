@@ -8489,3 +8489,13 @@ catalog returned `1`; four focused Production controller test files passed 97
 cases. `bun run db:validate` and the strict private gitlink check passed.
 This is local evidence only. Hosted Development and Production remain
 unverified; no live Sheet writes or Production data changes are included.
+
+Production schema run `35182668369` committed the reviewed migration tail but
+reported an uncertain outcome during its readback. A read-only ledger check
+found all 581 versions through `20260918016000`, zero enabled CSF worker rows,
+and valid preference, write-posture, and worker-control checks. The exact live
+catalog returned `1` under the alias `valid`; the release controller requires
+the alias `csf_target_schema_verified`. This follow-up corrects that final
+alias without changing SQL migrations. The corrected catalog returned
+`csf_target_schema_verified=1` against Production. The schema workflow was not
+retried, and the application deployment remains separate.
