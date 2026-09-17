@@ -69,6 +69,22 @@ export const reviewedMigrationDataWrites = [
       "64d5a3095f267f7d55977c6b3aac8e11e6e5ad283c6639ee980987d25be845fb",
     why: "Projects only already-committed retention receipts into retired class status. The receipt table and organization join bound the update; the migration does not start a retention run.",
   },
+  {
+    migration: "20260918120000",
+    table: "plugin_data.csf_class_join_codes",
+    operation: "UPDATE",
+    statement:
+      "efdb0eded28d215bc0b20001e7ef06471e6d38993408031a935819aad701642e",
+    why: "Revokes only active codes scoped to a class with an existing retirement receipt and a retained actor.",
+  },
+  {
+    migration: "20260918120000",
+    table: "plugin_data.csf_admin_audit_events",
+    operation: "INSERT",
+    statement:
+      "efdb0eded28d215bc0b20001e7ef06471e6d38993408031a935819aad701642e",
+    why: "Records one audit event for each retired-class code revoked by the same statement.",
+  },
 ];
 
 // Nothing in this list may ever be written by a migration, reviewed or not.

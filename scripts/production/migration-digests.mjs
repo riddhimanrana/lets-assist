@@ -1192,4 +1192,6 @@ export const migrationDigests = {
     "f596ffce7f716652cabf2fa79a6f1466713e0f5d005b2971627f006ff273538e",
   "20260918110000_csf_retired_cohort_operational_fence.sql":
     "4b336c44aeca209b1650cc189f4869b8f9914a72d36077bbb2cb2176238ccdc8",
+  "20260918120000_csf_retired_join_code_backfill.sql":
+    "29938f24aba3956fa2c607068c19ed916d6f5f85d032bb46699f6d3adcd73499",
 };

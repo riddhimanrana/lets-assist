@@ -292,6 +292,9 @@ jobs:
       - name: Validate database tests on the same running isolated stack
         run: supabase test db --workdir "${CSF_ISOLATED_WORK_DIR}"
 
+      - name: Replay the retired-class join-code backfill
+        run: bun run csf:test:retired-code-backfill
+
       - name: Validate volunteer-hours lock concurrency
         run: bun run db:test:hours-concurrency
 

@@ -15,7 +15,7 @@ const versions = expectedVersions(cwd);
 const at = (count) => acceptedCatalogQuery(source, versions.slice(0, count));
 
 test("notice and semester ledger pins begin at their exact migrations", () => {
-  assert.equal(versions.length, 591);
+  assert.equal(versions.length, 592);
   const before = at(573);
   const notice = at(574);
   const ledger = at(575);
