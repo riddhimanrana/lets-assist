@@ -491,6 +491,10 @@ export const approvedMigrations = [
     "20260918070000_csf_missing_tenant_lookup_indexes",
     "78d9912ad06533de0568e5791e7f5e014a593a42935d553745994da1652855c5",
   ],
+  [
+    "20260918080000_csf_class_publication_email_audience",
+    "33d27adf92e5daf2aad86ef6478e9b440f49d65f2f0f047fe47da7b13bcb10d5",
+  ],
 ];
 
 const literal = (value) => `'${value.replaceAll("'", "''")}'`;

@@ -4,6 +4,7 @@ import { semesterLedgerRecoveryCatalog } from "./semester-ledger-recovery-catalo
 import { semesterLedgerMergeClaimCatalog } from "./semester-ledger-merge-claim-catalog.mjs";
 import { semesterLedgerAuthorityCatalog } from "./semester-ledger-authority-catalog.mjs";
 import { noticeLedgerCatalog } from "./notice-ledger-catalog.mjs";
+import { csf588Catalog } from "./csf-588-catalog.mjs";
 import {
   historyIdentityLedgers,
   historyIdentityCatalog,
@@ -262,6 +263,22 @@ export function acceptedCatalogQuery(source, versions) {
   const ledgerHash = createHash("sha256")
     .update(versions.join("\n"))
     .digest("hex");
+  const csf588Ledgers = new Map([
+    [583, "bd9438d7d5cf9b8946c32261ccd83427056fbfd12558d5fedb984845a3558182"],
+    [584, "5c23de4dcdeac676f9c8ceceed65930308de1b18cf2bc1150850d1cb36d8cdcf"],
+    [585, "ae18ae341c5329812bac41dc63058f6ab04d29fd8984ad5df0a25bb2406c45f6"],
+    [586, "4a624c33af08890ed02305cb11dcdc516ee0182575609ac050994e3c9a1682d1"],
+    [587, "b704815549ceaefcf2f1e74c4bb8d771115cc9d4b4915f65e067b97748db547b"],
+    [588, "58b13152c3ce5fe666c2995f760bcc52806ec9698fc0ea687fa246b6eac1510e"],
+  ]);
+  if (csf588Ledgers.get(versions.length) === ledgerHash) {
+    if (versions.length < 588)
+      return acceptedCatalogQuery(source, versions.slice(0, versions.length - 1));
+    return csf588Catalog(
+      acceptedCatalogQuery(source, versions.slice(0, 587)),
+      workerRelationSnapshotQuery,
+    );
+  }
   if (
     versions.length === 582 &&
     ledgerHash ===
