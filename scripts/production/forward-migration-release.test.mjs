@@ -124,6 +124,7 @@ const APPROVED_TAIL = [
   "20260918000000",
   "20260918010000",
   "20260918011000",
+  "20260918012000",
 ];
 
 const cwd = resolve(import.meta.dirname, "../..");
