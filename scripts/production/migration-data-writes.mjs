@@ -53,6 +53,14 @@ export const reviewedMigrationDataWrites = [
       "a1651ec40a62172a02cb69ecee2150d2b9b4c837f0a904dcb6a1bef400b8442f",
     why: "Extends the same reference policy to those records.",
   },
+  {
+    migration: "20260918011000",
+    table: "plugin_data.csf_retention_reference_policy",
+    operation: "INSERT",
+    statement:
+      "6102a2e35178d3cf0ca40be8ae74e594a46b1d542b038964c89e4c6de7271742",
+    why: "Classifies settled semester Sheet write receipts for deletion with their owning profile. Static schema metadata only.",
+  },
 ];
 
 // Nothing in this list may ever be written by a migration, reviewed or not.
