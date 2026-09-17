@@ -56,9 +56,7 @@ export function NotificationSettings() {
           return;
         }
 
-        const firstSetting = data?.[0]
-          ? readNotificationPreferences(data[0])
-          : null;
+        const firstSetting = readNotificationPreferences(data?.[0] ?? {});
         setSettings(firstSetting);
         setOriginalSettings(firstSetting);
       } catch (error) {
@@ -86,8 +84,9 @@ export function NotificationSettings() {
     try {
       const { error } = (await supabase
         .from("notification_settings")
-        .update(settings)
-        .eq("user_id", user.id)) as { error: { message?: string } | null };
+        .upsert({ user_id: user.id, ...settings }, { onConflict: "user_id" })
+        .select("user_id")
+        .single()) as { error: { message?: string } | null };
 
       if (error) {
         toast.error("Failed to save notification settings");
@@ -193,7 +192,8 @@ export function NotificationSettings() {
                         Organization updates
                       </Label>
                       <p className="text-sm text-muted-foreground">
-                        Posts and activities from your organizations.
+                        Posts, activities, and record updates from your
+                        organizations.
                       </p>
                     </div>
                     <Switch

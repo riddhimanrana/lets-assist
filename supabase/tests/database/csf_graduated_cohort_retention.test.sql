@@ -1,7 +1,7 @@
 BEGIN;
 
 CREATE EXTENSION IF NOT EXISTS pgtap WITH SCHEMA extensions;
-SELECT extensions.plan(53);
+SELECT extensions.plan(87);
 
 -- ---------------------------------------------------------------------------
 -- Shape and boundaries
@@ -215,19 +215,49 @@ VALUES
   ('bd200000-0000-4000-8000-000000000001', 'bd100000-0000-4000-8000-000000000001', 2024, 'Class of 2024'),
   ('bd200000-0000-4000-8000-000000000002', 'bd100000-0000-4000-8000-000000000001', 2029, 'Class of 2029');
 
+INSERT INTO plugin_data.csf_announcements (
+  id, organization_id, title, body, audience, audience_cohort_id, pinned, created_by
+) VALUES (
+  'bd220000-0000-4000-8000-000000000001',
+  'bd100000-0000-4000-8000-000000000001',
+  'Historical class post', 'Retained as an unpublished fixture.', 'class',
+  'bd200000-0000-4000-8000-000000000001',
+  true,
+  'bd000000-0000-4000-8000-000000000001'
+);
+
 -- One chapter-wide semester used by both classes. A record of the retiring
 -- student that lives here must still be in scope; the semester row and the
 -- continuing student's records must not be.
-INSERT INTO plugin_data.csf_terms (id, organization_id, code, label, school_year, semester)
+INSERT INTO plugin_data.csf_terms (id, organization_id, code, label, school_year, semester, starts_at, ends_at)
 VALUES ('bd500000-0000-4000-8000-000000000001', 'bd100000-0000-4000-8000-000000000001',
-        'F23', 'Fall 2023', '2023-2024', 'fall');
+        'F23', 'Fall 2023', '2023-2024', 'fall', '2023-08-01', '2023-12-31');
 
-INSERT INTO plugin_data.csf_cohort_terms (organization_id, cohort_id, term_id)
+INSERT INTO plugin_data.csf_cohort_terms (organization_id, cohort_id, term_id, sheet_tab_name)
 VALUES
   ('bd100000-0000-4000-8000-000000000001', 'bd200000-0000-4000-8000-000000000001',
-   'bd500000-0000-4000-8000-000000000001'),
+   'bd500000-0000-4000-8000-000000000001', 'F23'),
   ('bd100000-0000-4000-8000-000000000001', 'bd200000-0000-4000-8000-000000000002',
-   'bd500000-0000-4000-8000-000000000001');
+   'bd500000-0000-4000-8000-000000000001', 'F23');
+
+INSERT INTO plugin_data.csf_opportunities (
+  id, organization_id, term_id, cohort_id, title, body
+) VALUES (
+  'bd230000-0000-4000-8000-000000000001',
+  'bd100000-0000-4000-8000-000000000001',
+  'bd500000-0000-4000-8000-000000000001',
+  'bd200000-0000-4000-8000-000000000001',
+  'Historical class activity', 'Retained as an unpublished fixture.'
+);
+
+INSERT INTO plugin_data.csf_class_join_codes (
+  id, organization_id, cohort_id, code, created_by
+) VALUES (
+  'bd210000-0000-4000-8000-000000000001',
+  'bd100000-0000-4000-8000-000000000001',
+  'bd200000-0000-4000-8000-000000000001',
+  'ABC234', 'bd000000-0000-4000-8000-000000000001'
+);
 
 -- Two students with the same name, one in each class.
 INSERT INTO plugin_data.csf_profiles (
@@ -246,14 +276,31 @@ VALUES
   -- must still be able to join a current one.
   ('bd300000-0000-4000-8000-000000000003', 'bd100000-0000-4000-8000-000000000001',
    'Robin', 'Fixture', 'robin', 'fixture',
-   'robin.newcomer@example.test', 'robin.newcomer@example.test', NULL);
+   'robin.newcomer@example.test', 'robin.newcomer@example.test', NULL),
+  ('bd300000-0000-4000-8000-000000000004', 'bd100000-0000-4000-8000-000000000001',
+   'Casey', 'Blocked', 'casey', 'blocked',
+   'casey.blocked@example.test', 'casey.blocked@example.test', NULL);
 
 INSERT INTO plugin_data.csf_profile_cohort_memberships (organization_id, profile_id, cohort_id)
 VALUES
   ('bd100000-0000-4000-8000-000000000001', 'bd300000-0000-4000-8000-000000000001',
    'bd200000-0000-4000-8000-000000000001'),
   ('bd100000-0000-4000-8000-000000000001', 'bd300000-0000-4000-8000-000000000002',
-   'bd200000-0000-4000-8000-000000000002');
+   'bd200000-0000-4000-8000-000000000002'),
+  ('bd100000-0000-4000-8000-000000000001', 'bd300000-0000-4000-8000-000000000004',
+   'bd200000-0000-4000-8000-000000000001');
+
+-- This open connection request blocks deletion, leaving an active profile in
+-- the class after its other eligible students are retired.
+INSERT INTO plugin_data.csf_profile_link_requests (
+  organization_id, cohort_id, first_name, last_name,
+  normalized_first_name, normalized_last_name, matched_profile_id, match_status
+) VALUES (
+  'bd100000-0000-4000-8000-000000000001',
+  'bd200000-0000-4000-8000-000000000001',
+  'Casey', 'Blocked', 'casey', 'blocked',
+  'bd300000-0000-4000-8000-000000000004', 'pending'
+);
 
 -- The retiring student has a connected login. The link row goes; the login
 -- account does not.
@@ -275,6 +322,36 @@ VALUES
    'bd300000-0000-4000-8000-000000000002', 'bd200000-0000-4000-8000-000000000002',
    'bd500000-0000-4000-8000-000000000001', 'robin.current@example.test',
    '{"answer": "continuing student response"}'::jsonb, 42);
+
+-- Drive references have no Storage coordinate; a Storage attachment has both.
+INSERT INTO plugin_data.csf_application_files (
+  id, organization_id, application_id, profile_id, term_id, file_type,
+  provider, bucket, object_path, drive_file_id
+)
+VALUES
+  ('bd610000-0000-4000-8000-000000000001', 'bd100000-0000-4000-8000-000000000001',
+   'bd600000-0000-4000-8000-000000000001', 'bd300000-0000-4000-8000-000000000001',
+   'bd500000-0000-4000-8000-000000000001', 'import_snapshot',
+   'google_drive', NULL, NULL, 'fictional-drive-reference'),
+  ('bd610000-0000-4000-8000-000000000002', 'bd100000-0000-4000-8000-000000000001',
+   'bd600000-0000-4000-8000-000000000001', 'bd300000-0000-4000-8000-000000000001',
+   'bd500000-0000-4000-8000-000000000001', 'submission_evidence',
+   'supabase_storage', 'plugins', 'fixture/retiring-attachment', NULL);
+
+SELECT extensions.throws_ok(
+  $$INSERT INTO plugin_data.csf_application_files (
+      organization_id, application_id, profile_id, term_id, file_type,
+      provider, bucket, object_path
+    ) VALUES (
+      'bd100000-0000-4000-8000-000000000001',
+      'bd600000-0000-4000-8000-000000000001',
+      'bd300000-0000-4000-8000-000000000001',
+      'bd500000-0000-4000-8000-000000000001',
+      'submission_evidence', 'supabase_storage', 'plugins', NULL
+    )$$,
+  '23514', NULL,
+  'a partial Storage coordinate fails the file-location constraint'
+);
 
 -- An immutable import row that names the retiring student, with a content
 -- fingerprint. This is what forces erase-in-place and what gets tombstoned.
@@ -377,6 +454,12 @@ SELECT extensions.is(
   0,
   'the identically named student in a current class is not in the preview'
 );
+SELECT extensions.is(
+  (SELECT disposition FROM plugin_data.csf_retention_preview_profiles
+   WHERE profile_id = 'bd300000-0000-4000-8000-000000000004'),
+  'blocked',
+  'an open account connection leaves its retired-class profile for officer review'
+);
 
 SELECT extensions.is(
   (SELECT state FROM plugin_data.csf_retention_runs
@@ -388,7 +471,7 @@ SELECT extensions.is(
 SELECT extensions.is(
   (SELECT count(*)::integer FROM plugin_data.csf_profiles
    WHERE organization_id = 'bd100000-0000-4000-8000-000000000001'),
-  3,
+  4,
   'previewing changed no student record'
 );
 
@@ -474,7 +557,7 @@ SELECT extensions.lives_ok(
   format(
     $$SELECT plugin_data.csf_retention_commit(
         'bd100000-0000-4000-8000-000000000001',
-        'bd000000-0000-4000-8000-000000000001',
+        'bd000000-0000-4000-8000-000000000002',
         'bd400000-0000-4000-8000-000000000005',
         %L, %L, ARRAY[2024, 2025],
         ARRAY['bd300000-0000-4000-8000-000000000001']::uuid[])$$,
@@ -489,7 +572,7 @@ SELECT extensions.lives_ok(
   format(
     $$SELECT plugin_data.csf_retention_commit(
         'bd100000-0000-4000-8000-000000000001',
-        'bd000000-0000-4000-8000-000000000001',
+        'bd000000-0000-4000-8000-000000000002',
         'bd400000-0000-4000-8000-000000000005',
         %L, %L, ARRAY[2024, 2025],
         ARRAY['bd300000-0000-4000-8000-000000000001']::uuid[])$$,
@@ -503,7 +586,7 @@ SELECT extensions.throws_ok(
   format(
     $$SELECT plugin_data.csf_retention_commit(
         'bd100000-0000-4000-8000-000000000001',
-        'bd000000-0000-4000-8000-000000000002',
+        'bd000000-0000-4000-8000-000000000001',
         'bd400000-0000-4000-8000-000000000005',
         %L, %L, ARRAY[2024, 2025],
         ARRAY['bd300000-0000-4000-8000-000000000001']::uuid[])$$,
@@ -513,6 +596,77 @@ SELECT extensions.throws_ok(
   '55000',
   NULL,
   'a replay by a different actor is refused rather than returning the receipt'
+);
+
+SELECT extensions.is(
+  (SELECT committed_by FROM plugin_data.csf_retention_runs
+   WHERE request_id = 'bd400000-0000-4000-8000-000000000001'),
+  'bd000000-0000-4000-8000-000000000002'::uuid,
+  'the committing officer, not the previewing officer, owns the run'
+);
+
+SELECT extensions.is(
+  (SELECT revoked_by FROM plugin_data.csf_class_join_codes
+   WHERE id = 'bd210000-0000-4000-8000-000000000001'),
+  'bd000000-0000-4000-8000-000000000002'::uuid,
+  'the committing officer is attributed on the revoked join code'
+);
+
+SELECT extensions.throws_ok(
+  $$INSERT INTO plugin_data.csf_announcements (
+    organization_id, title, body, audience, audience_cohort_id
+  ) VALUES (
+    'bd100000-0000-4000-8000-000000000001', 'Late post', 'Do not send',
+    'class', 'bd200000-0000-4000-8000-000000000001'
+  )$$,
+  '55000', NULL,
+  'a retired class cannot receive a new post'
+);
+
+SELECT extensions.throws_ok(
+  $$UPDATE plugin_data.csf_announcements SET title = 'Reposted'
+    WHERE id = 'bd220000-0000-4000-8000-000000000001'$$,
+  '55000', NULL,
+  'an existing retired-class post cannot be republished'
+);
+
+-- Simulate a pinned row left by an older release before the retirement guard.
+ALTER TABLE plugin_data.csf_announcements
+  DISABLE TRIGGER csf_guard_retired_class_post;
+UPDATE plugin_data.csf_announcements SET pinned = true
+  WHERE id = 'bd220000-0000-4000-8000-000000000001';
+ALTER TABLE plugin_data.csf_announcements
+  ENABLE TRIGGER csf_guard_retired_class_post;
+
+SELECT extensions.lives_ok(
+  $$UPDATE plugin_data.csf_announcements
+    SET pinned = false, updated_by = 'bd000000-0000-4000-8000-000000000001'
+    WHERE id = 'bd220000-0000-4000-8000-000000000001'$$,
+  'officers can unpin a residual retired-class post'
+);
+
+SELECT extensions.lives_ok(
+  $$UPDATE plugin_data.csf_announcements
+    SET status = 'archived', updated_by = 'bd000000-0000-4000-8000-000000000001'
+    WHERE id = 'bd220000-0000-4000-8000-000000000001'$$,
+  'officers can archive a residual retired-class post'
+);
+
+SELECT extensions.throws_ok(
+  $$UPDATE plugin_data.csf_announcements SET status = 'published'
+    WHERE id = 'bd220000-0000-4000-8000-000000000001'$$,
+  '55000', NULL,
+  'an archived retired-class post cannot be published again'
+);
+
+SELECT extensions.lives_ok(
+  $$INSERT INTO plugin_data.csf_announcements (
+    organization_id, title, body, audience, audience_cohort_id
+  ) VALUES (
+    'bd100000-0000-4000-8000-000000000001', 'Continuing post', 'Still active',
+    'class', 'bd200000-0000-4000-8000-000000000002'
+  )$$,
+  'the continuing class can still receive a post'
 );
 
 -- ---------------------------------------------------------------------------
@@ -553,6 +707,20 @@ SELECT extensions.is(
    WHERE profile_id = 'bd300000-0000-4000-8000-000000000001'),
   0,
   'the retired student holds no class membership'
+);
+
+SELECT extensions.is(
+  (SELECT count(*)::integer FROM plugin_data.csf_storage_deletion_queue
+   WHERE organization_id = 'bd100000-0000-4000-8000-000000000001'
+     AND bucket = 'plugins' AND object_path = 'fixture/retiring-attachment'),
+  1,
+  'the Storage-backed application file enters the deletion queue'
+);
+SELECT extensions.is(
+  (SELECT count(*)::integer FROM plugin_data.csf_storage_deletion_queue
+   WHERE organization_id = 'bd100000-0000-4000-8000-000000000001'),
+  1,
+  'the Drive application reference does not enter the Storage deletion queue'
 );
 
 SELECT extensions.is(
@@ -713,6 +881,181 @@ SELECT extensions.is(
    WHERE organization_id = 'bd100000-0000-4000-8000-000000000001'),
   2,
   'every selected class represented by the retired profile is guarded'
+);
+SELECT extensions.is(
+  (SELECT count(*)::integer FROM plugin_data.csf_cohorts
+   WHERE organization_id = 'bd100000-0000-4000-8000-000000000001'
+     AND graduation_year IN (2024, 2025) AND status = 'retired'),
+  2,
+  'retired class anchors are marked out of operational class selectors'
+);
+SELECT extensions.is(
+  (SELECT status FROM plugin_data.csf_cohorts
+   WHERE id = 'bd200000-0000-4000-8000-000000000002'),
+  'active',
+  'the current class keeps its active status'
+);
+SELECT extensions.is(
+  (SELECT record_status FROM plugin_data.csf_profiles
+   WHERE id = 'bd300000-0000-4000-8000-000000000004'),
+  'active',
+  'the blocked profile remains active for the separate connection review'
+);
+SELECT extensions.is(
+  (SELECT count(profile_id) FROM plugin_data.csf_list_profiles_page(
+    'bd100000-0000-4000-8000-000000000001', p_search => 'Casey'
+  )),
+  0::bigint,
+  'retired-class-only profiles do not appear in the ordinary officer directory'
+);
+SELECT extensions.is(
+  (SELECT count(profile_id) FROM plugin_data.csf_list_class_directory_page(
+    'bd100000-0000-4000-8000-000000000001',
+    'bd500000-0000-4000-8000-000000000001',
+    'bd200000-0000-4000-8000-000000000001'
+  )),
+  0::bigint,
+  'a retired class has no operational class directory page'
+);
+SELECT extensions.lives_ok(
+  $$INSERT INTO plugin_data.csf_profile_cohort_memberships
+      (organization_id, profile_id, cohort_id)
+    VALUES ('bd100000-0000-4000-8000-000000000001',
+            'bd300000-0000-4000-8000-000000000004',
+            'bd200000-0000-4000-8000-000000000002')$$,
+  'the blocked profile can be linked to a current class after retirement'
+);
+SELECT extensions.is(
+  (SELECT count(profile_id) FROM plugin_data.csf_list_profiles_page(
+    'bd100000-0000-4000-8000-000000000001', p_search => 'Casey'
+  )),
+  1::bigint,
+  'a profile with retired and current classes appears through the current class'
+);
+SELECT extensions.throws_ok(
+  $$UPDATE plugin_data.csf_cohort_terms SET status = 'active'
+    WHERE organization_id = 'bd100000-0000-4000-8000-000000000001'
+      AND cohort_id = 'bd200000-0000-4000-8000-000000000001'$$,
+  'P0001', NULL, 'a retired class cannot change semester settings'
+);
+SELECT extensions.throws_ok(
+  $$UPDATE plugin_data.csf_terms SET label = 'Changed shared semester'
+    WHERE id = 'bd500000-0000-4000-8000-000000000001'$$,
+  'P0001', NULL,
+  'a retired class blocks edits to its shared semester'
+);
+SELECT extensions.lives_ok(
+  $$UPDATE plugin_data.csf_terms SET updated_at = now()
+    WHERE id = 'bd500000-0000-4000-8000-000000000001'$$,
+  'a no-op shared semester timestamp touch remains allowed'
+);
+SELECT extensions.lives_ok(
+  $$UPDATE plugin_data.csf_cohort_terms SET status = 'inactive'
+    WHERE organization_id = 'bd100000-0000-4000-8000-000000000001'
+      AND cohort_id = 'bd200000-0000-4000-8000-000000000001'$$,
+  'officers can deactivate a retired-class semester link'
+);
+SELECT extensions.throws_ok(
+  $$DO $test$
+    DECLARE v_link_id uuid;
+    BEGIN
+      SELECT id INTO v_link_id FROM plugin_data.csf_cohort_terms
+      WHERE cohort_id = 'bd200000-0000-4000-8000-000000000001';
+      PERFORM plugin_data.csf_update_cohort_term(
+        'bd100000-0000-4000-8000-000000000001',
+        'bd990000-0000-4000-8000-000000000002',
+        jsonb_build_object('termId','bd500000-0000-4000-8000-000000000001',
+          'cohortTermId',v_link_id,'label','Changed shared semester',
+          'startsAt','2023-08-01','endsAt','2023-12-31',
+          'sheetTabName','F23','linkStatus','archived'),
+        'bd000000-0000-4000-8000-000000000001');
+    END $test$;$$,
+  'P0001', NULL,
+  'the audited class edit cannot mutate a shared semester during retirement'
+);
+SELECT extensions.lives_ok(
+  $$DO $test$
+    DECLARE v_link_id uuid;
+    BEGIN
+      SELECT id INTO v_link_id FROM plugin_data.csf_cohort_terms
+      WHERE cohort_id = 'bd200000-0000-4000-8000-000000000001';
+      PERFORM plugin_data.csf_update_cohort_term(
+        'bd100000-0000-4000-8000-000000000001',
+        'bd990000-0000-4000-8000-000000000003',
+        jsonb_build_object('termId','bd500000-0000-4000-8000-000000000001',
+          'cohortTermId',v_link_id,'label','Fall 2023',
+          'startsAt','2023-08-01','endsAt','2023-12-31',
+          'sheetTabName','F23','linkStatus','archived'),
+        'bd000000-0000-4000-8000-000000000001');
+    END $test$;$$,
+  'the audited class edit can archive its link without changing shared term fields'
+);
+SELECT extensions.lives_ok(
+  $$SELECT plugin_data.csf_set_activity_status(
+      'bd100000-0000-4000-8000-000000000001',
+      'bd230000-0000-4000-8000-000000000001',
+      'archived', NULL,
+      'bd000000-0000-4000-8000-000000000001',
+      'bd990000-0000-4000-8000-000000000001')$$,
+  'the audited officer action archives a residual retired-class activity'
+);
+SELECT extensions.throws_ok(
+  $$INSERT INTO plugin_data.csf_opportunities
+      (organization_id, term_id, cohort_id, title, body)
+    VALUES ('bd100000-0000-4000-8000-000000000001',
+            'bd500000-0000-4000-8000-000000000001',
+            'bd200000-0000-4000-8000-000000000001',
+            'Retired activity', 'Must not publish')$$,
+  'P0001', NULL, 'a retired class cannot create an activity'
+);
+SELECT extensions.lives_ok(
+  $$INSERT INTO plugin_data.csf_opportunities
+      (organization_id, term_id, cohort_id, title, body)
+    VALUES ('bd100000-0000-4000-8000-000000000001',
+            'bd500000-0000-4000-8000-000000000001',
+            'bd200000-0000-4000-8000-000000000002',
+            'Current activity', 'Current class')$$,
+  'a current class can still create an activity'
+);
+SELECT extensions.throws_ok(
+  $$UPDATE plugin_data.csf_opportunities
+    SET cohort_id = 'bd200000-0000-4000-8000-000000000001'
+    WHERE organization_id = 'bd100000-0000-4000-8000-000000000001'
+      AND title = 'Current activity'$$,
+  'P0001', NULL, 'an activity cannot be reassigned to a retired class'
+);
+SELECT extensions.is(
+  (SELECT status FROM plugin_data.csf_class_join_codes
+   WHERE id = 'bd210000-0000-4000-8000-000000000001'),
+  'revoked',
+  'retiring a class revokes its active join code'
+);
+SELECT extensions.throws_ok(
+  $$SELECT plugin_data.csf_rotate_class_join_code(
+      'bd100000-0000-4000-8000-000000000001',
+      'bd200000-0000-4000-8000-000000000001',
+      'bd000000-0000-4000-8000-000000000001')$$,
+  'P0001', NULL, 'officers cannot issue a new code for a retired class'
+);
+SELECT extensions.throws_ok(
+  $$SELECT plugin_data.csf_create_term_for_cohort(
+      'bd100000-0000-4000-8000-000000000001',
+      'bd220000-0000-4000-8000-000000000001',
+      '{"cohortYear":2024,"termCode":"F24","label":"Fall 2024","semester":"fall","schoolYear":"2024-2025"}'::jsonb,
+      'bd000000-0000-4000-8000-000000000001')$$,
+  'P0001', NULL, 'officers cannot add a semester to a retired class'
+);
+SELECT extensions.throws_ok(
+  $$UPDATE plugin_data.csf_cohorts SET status = 'active'
+    WHERE id = 'bd200000-0000-4000-8000-000000000001'$$,
+  '55000', NULL,
+  'a retained class anchor cannot be restored by ordinary status editing'
+);
+SELECT extensions.throws_ok(
+  $$UPDATE plugin_data.csf_cohorts SET status = 'retired'
+    WHERE id = 'bd200000-0000-4000-8000-000000000002'$$,
+  '55000', NULL,
+  'an active class cannot be marked retired without a retention receipt'
 );
 SELECT extensions.throws_ok(
   $$INSERT INTO plugin_data.csf_profile_cohort_memberships (organization_id, profile_id, cohort_id)

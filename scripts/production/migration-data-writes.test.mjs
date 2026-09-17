@@ -45,6 +45,8 @@ test("reviewed statement hashes stay exact", () => {
     "20260917100000_csf_graduated_cohort_retention.sql",
     "20260917150000_csf_course_retention_coverage.sql",
     "20260918011000_csf_semester_ledger_identity_lifecycle.sql",
+    "20260918040000_csf_retired_cohort_visibility.sql",
+    "20260918120000_csf_retired_join_code_backfill.sql",
   ];
   const found = [];
   for (const file of files) {

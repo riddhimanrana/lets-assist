@@ -23,6 +23,8 @@ interface CsfPostNotificationProps {
    */
   termLabel?: string | null;
   postTitle: string;
+  kind?: "post" | "activity";
+  settingsUrl?: string;
   /**
    * Sanitized plain-text paragraphs of the post body. The campaign pipeline
    * strips rich text server-side BEFORE the campaign content digest is frozen;
@@ -44,6 +46,8 @@ export default function CsfPostNotification({
   chapterName = "DVHS CSF",
   audienceLabel = "Class of 2028",
   termLabel = null,
+  kind = "post",
+  settingsUrl,
   postTitle = "New volunteering opportunity",
   postParagraphs = [
     "We just posted a new opportunity in your class feed.",
@@ -92,7 +96,9 @@ export default function CsfPostNotification({
                   .join(" • ")}
               </Text>
               <Heading style={heading1}>{postTitle}</Heading>
-              <Text style={metaText}>Posted {publishedAtLabel}</Text>
+              <Text style={metaText}>
+                {chapterName} posted a new {kind} on {publishedAtLabel}.
+              </Text>
 
               {postParagraphs.map((paragraph, index) => (
                 <Text key={index} style={paragraphStyle}>
@@ -101,7 +107,9 @@ export default function CsfPostNotification({
               ))}
 
               <Section style={buttonContainer}>
-                <EmailButton href={postUrl}>View in Let's Assist</EmailButton>
+                <EmailButton href={postUrl}>
+                  {kind === "activity" ? "View activity" : "View post"}
+                </EmailButton>
               </Section>
 
               <Section style={linkSection}>
@@ -115,6 +123,14 @@ export default function CsfPostNotification({
                   </Link>
                 </Text>
               </Section>
+
+              {settingsUrl ? (
+                <Text style={smallText}>
+                  <Link href={settingsUrl} style={link}>
+                    Notification settings
+                  </Link>
+                </Text>
+              ) : null}
 
               <Section style={unsubscribeSection}>
                 <Text style={smallText}>

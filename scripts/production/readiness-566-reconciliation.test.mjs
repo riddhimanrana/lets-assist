@@ -49,6 +49,22 @@ const EXTENSIONS = [
   "20260918014000_csf_semester_ledger_link_revocation_fence",
   "20260918015000_csf_semester_ledger_merge_claim_fence",
   "20260918016000_csf_semester_ledger_authority_fences",
+  "20260918020000_csf_directory_dues_lookup_index",
+  "20260918030000_csf_attendance_response_window",
+  "20260918040000_csf_retired_cohort_visibility",
+  "20260918050000_retire_duplicate_attendance_cron_jobs",
+  "20260918060000_project_status_schedule_validation",
+  "20260918070000_csf_missing_tenant_lookup_indexes",
+  "20260918080000_csf_class_publication_email_audience",
+  "20260918090000_project_status_schedule_review_fixes",
+  "20260918100000_project_status_schedule_nonempty_windows",
+  "20260918110000_csf_retired_cohort_operational_fence",
+  "20260918120000_csf_retired_join_code_backfill",
+  "20260918130000_csf_meeting_window_edit_authority",
+  "20260918140000_csf_retired_cohort_mutation_fence",
+  "20260918150000_csf_retired_directory_projection",
+  "20260918160000_csf_retired_class_post_and_actor_fence",
+  "20260918170000_csf_retired_class_terminal_updates",
 ];
 
 test("the release is the 557 decisions baseline plus the reviewed integrated extensions", () => {
@@ -146,9 +162,12 @@ test("every data write a migration carries is on the reviewed allowlist", () => 
     );
     for (const write of topLevelDataWrites(sql)) found.push(write.table);
   }
-  // The whole reviewed set, and nothing beyond it: 0900's capability backfill
-  // and the static retention metadata 1000 and 1500 seed.
+  // The whole reviewed set, including the static retention metadata seed and
+  // the projection of previously committed retired-cohort receipts.
   assert.deepEqual(found.sort(), [
+    "plugin_data.csf_admin_audit_events",
+    "plugin_data.csf_class_join_codes",
+    "plugin_data.csf_cohorts",
     "plugin_data.csf_retention_identity_inventory",
     "plugin_data.csf_retention_identity_inventory",
     "plugin_data.csf_retention_reference_policy",

@@ -467,6 +467,70 @@ export const approvedMigrations = [
     "20260918016000_csf_semester_ledger_authority_fences",
     "4f6b3bf45e2f3962bafdab592c616b181f867fd6f6883e6c39ab1a4345dad22a",
   ],
+  [
+    "20260918020000_csf_directory_dues_lookup_index",
+    "41bf35437730e1620717feaa55080a0d8591d77fc21d921eded748ffce9b7e32",
+  ],
+  [
+    "20260918030000_csf_attendance_response_window",
+    "4404dce66a6c52b402e1efee7a565550a62c9ca4cb1bb66bac7827bbf49c05e6",
+  ],
+  [
+    "20260918040000_csf_retired_cohort_visibility",
+    "ec4cd4bc6af5e2aa58fd78e3bf988b71541f3dac40df6c28d78f57600c0c0f87",
+  ],
+  [
+    "20260918050000_retire_duplicate_attendance_cron_jobs",
+    "70e70f7c9509ddc0758a086a1bc6bcb42e6e23c190ccfda6d4091da1d4aca32d",
+  ],
+  [
+    "20260918060000_project_status_schedule_validation",
+    "c43ba788abcd38aaf344e44bad72a911293db7735f26fe33901e827c33948b6c",
+  ],
+  [
+    "20260918070000_csf_missing_tenant_lookup_indexes",
+    "78d9912ad06533de0568e5791e7f5e014a593a42935d553745994da1652855c5",
+  ],
+  [
+    "20260918080000_csf_class_publication_email_audience",
+    "33d27adf92e5daf2aad86ef6478e9b440f49d65f2f0f047fe47da7b13bcb10d5",
+  ],
+  [
+    "20260918090000_project_status_schedule_review_fixes",
+    "4fbe08745e9d218bc200c8ae00f898833867e4109f7b3e198f20194d638ebb76",
+  ],
+  [
+    "20260918100000_project_status_schedule_nonempty_windows",
+    "f596ffce7f716652cabf2fa79a6f1466713e0f5d005b2971627f006ff273538e",
+  ],
+  [
+    "20260918110000_csf_retired_cohort_operational_fence",
+    "4b336c44aeca209b1650cc189f4869b8f9914a72d36077bbb2cb2176238ccdc8",
+  ],
+  [
+    "20260918120000_csf_retired_join_code_backfill",
+    "29938f24aba3956fa2c607068c19ed916d6f5f85d032bb46699f6d3adcd73499",
+  ],
+  [
+    "20260918130000_csf_meeting_window_edit_authority",
+    "8ec7caa99e644cbb0955e0d0ccfd835ad841008ee792dafd1db0ef268f426c15",
+  ],
+  [
+    "20260918140000_csf_retired_cohort_mutation_fence",
+    "8f21ee4d3e8c4ead74e11e02036e07b67a65d1046c82b45b3df98c0a77a5aa0b",
+  ],
+  [
+    "20260918150000_csf_retired_directory_projection",
+    "1e7a021f5e6215164c3b8439b30f6b286f240a327819d4e44e44d57c5c6097fb",
+  ],
+  [
+    "20260918160000_csf_retired_class_post_and_actor_fence",
+    "291d1ebfef1da7354a8f2a2d405cbe0f3945dad72beaa2b9e8ba6375ca3989f0",
+  ],
+  [
+    "20260918170000_csf_retired_class_terminal_updates",
+    "219bceba59e4e0f0e1bb3271ba2c332959d246818c5ae273b629ccc6a5aa3dff",
+  ],
 ];
 
 const literal = (value) => `'${value.replaceAll("'", "''")}'`;

@@ -4,6 +4,16 @@ import { semesterLedgerRecoveryCatalog } from "./semester-ledger-recovery-catalo
 import { semesterLedgerMergeClaimCatalog } from "./semester-ledger-merge-claim-catalog.mjs";
 import { semesterLedgerAuthorityCatalog } from "./semester-ledger-authority-catalog.mjs";
 import { noticeLedgerCatalog } from "./notice-ledger-catalog.mjs";
+import { csf588Catalog } from "./csf-588-catalog.mjs";
+import { csf589Catalog } from "./csf-589-catalog.mjs";
+import { csf590Catalog } from "./csf-590-catalog.mjs";
+import { csf591Catalog } from "./csf-591-catalog.mjs";
+import { csf592Catalog } from "./csf-592-catalog.mjs";
+import { csf593Catalog } from "./csf-593-catalog.mjs";
+import { csf594Catalog } from "./csf-594-catalog.mjs";
+import { csf595Catalog } from "./csf-595-catalog.mjs";
+import { csf596Catalog } from "./csf-596-catalog.mjs";
+import { csf597Catalog } from "./csf-597-catalog.mjs";
 import {
   historyIdentityLedgers,
   historyIdentityCatalog,
@@ -262,6 +272,93 @@ export function acceptedCatalogQuery(source, versions) {
   const ledgerHash = createHash("sha256")
     .update(versions.join("\n"))
     .digest("hex");
+  if (
+    versions.length === 597 &&
+    ledgerHash ===
+      "2ab194e5950c7347ff756a3e338aada7d0de86820676f14e06bf17bd5c92465d"
+  )
+    return csf597Catalog(acceptedCatalogQuery(source, versions.slice(0, 596)));
+  if (
+    versions.length === 596 &&
+    ledgerHash ===
+      "f6a3b30dd7e3769e1fde7895fb0717d3e05a478fe13c7c592e789d3f325ce609"
+  )
+    return csf596Catalog(acceptedCatalogQuery(source, versions.slice(0, 595)));
+  if (
+    versions.length === 595 &&
+    ledgerHash ===
+      "bab9312eb38125d9ca7d7bd40f7567334f76acbaa9a73006b07591e8e3647269"
+  )
+    return csf595Catalog(acceptedCatalogQuery(source, versions.slice(0, 594)));
+  if (
+    versions.length === 594 &&
+    ledgerHash ===
+      "42e5cf40c048a21ef79a4ac8ad693c6b4660d7ec6ccc7baf88ee2abc6fb0f507"
+  )
+    return csf594Catalog(acceptedCatalogQuery(source, versions.slice(0, 593)));
+  if (
+    versions.length === 593 &&
+    ledgerHash ===
+      "d4b094626b437eb2f351b8f5353f9d265a461baf7a5413a34e2fe77cc3088f37"
+  )
+    return csf593Catalog(acceptedCatalogQuery(source, versions.slice(0, 592)));
+  if (
+    versions.length === 592 &&
+    ledgerHash ===
+      "d458c9d0f6736acb93e97ae5fc6a742133e70c3741d9940a2aceef00acfed548"
+  )
+    return csf592Catalog(acceptedCatalogQuery(source, versions.slice(0, 591)));
+  if (
+    versions.length === 591 &&
+    ledgerHash ===
+      "99b6a9aed306c590f34d3067bbc32fdd692cc55ebbd0eebe09f48889eb1df135"
+  )
+    return csf591Catalog(acceptedCatalogQuery(source, versions.slice(0, 590)));
+  if (
+    versions.length === 590 &&
+    ledgerHash ===
+      "cc5d8f0554fe07bc0141e1284021f9eaf4f44473e9a4c1d0f43514c29ca54292"
+  )
+    return csf590Catalog(acceptedCatalogQuery(source, versions.slice(0, 589)));
+  if (
+    versions.length === 589 &&
+    ledgerHash ===
+      "8f48a47ce1a6e08db56a56e38822e540f536f1a2117c4cddbf4f782caf9b3d92"
+  )
+    return csf589Catalog(acceptedCatalogQuery(source, versions.slice(0, 588)));
+  const csf588Ledgers = new Map([
+    [583, "bd9438d7d5cf9b8946c32261ccd83427056fbfd12558d5fedb984845a3558182"],
+    [584, "5c23de4dcdeac676f9c8ceceed65930308de1b18cf2bc1150850d1cb36d8cdcf"],
+    [585, "ae18ae341c5329812bac41dc63058f6ab04d29fd8984ad5df0a25bb2406c45f6"],
+    [586, "4a624c33af08890ed02305cb11dcdc516ee0182575609ac050994e3c9a1682d1"],
+    [587, "b704815549ceaefcf2f1e74c4bb8d771115cc9d4b4915f65e067b97748db547b"],
+    [588, "58b13152c3ce5fe666c2995f760bcc52806ec9698fc0ea687fa246b6eac1510e"],
+  ]);
+  if (csf588Ledgers.get(versions.length) === ledgerHash) {
+    if (versions.length < 588)
+      return acceptedCatalogQuery(
+        source,
+        versions.slice(0, versions.length - 1),
+      );
+    return csf588Catalog(
+      acceptedCatalogQuery(source, versions.slice(0, 587)),
+      workerRelationSnapshotQuery,
+    );
+  }
+  if (
+    versions.length === 582 &&
+    ledgerHash ===
+      "be7128ad34d0854a75f7d1b94cc4f8ffa3120b28169cb3b73961bb3495f01a78"
+  ) {
+    const previous = acceptedCatalogQuery(source, versions.slice(0, 581));
+    return `SELECT CASE WHEN (${previous.trim().replace(/;$/u, "")})=1
+      AND EXISTS (
+        SELECT 1 FROM pg_index
+        WHERE indexrelid=to_regclass('plugin_data.csf_dues_records_profile_term_latest_idx')
+          AND indisvalid AND indisready AND NOT indisunique
+          AND pg_get_indexdef(indexrelid)='CREATE INDEX csf_dues_records_profile_term_latest_idx ON plugin_data.csf_dues_records USING btree (organization_id, profile_id, term_id, updated_at DESC, id DESC) INCLUDE (status)'
+      ) THEN 1 ELSE 0 END AS csf_target_schema_verified;`;
+  }
   if (
     versions.length === 581 &&
     ledgerHash ===
