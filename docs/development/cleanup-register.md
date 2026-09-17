@@ -8344,8 +8344,10 @@ link or profile edit was applied.
 
 The isolated combined candidate adds officer-reviewed semester ledger mapping,
 preview, write receipts, and a bounded Google Sheets writer for separate class
-workbooks. It does not yet expose those actions in the staff UI or accept any
-real destination mapping. Root typecheck and zero-warning lint passed; nine
+workbooks. The advanced officer Sheet sync panel now accepts a reviewed mapping
+after checking the destination tab and headers, then previews one student's
+cell changes and requires typed confirmation before writing. No real mapping
+was accepted. Root typecheck and zero-warning lint passed; nine
 focused ledger tests passed. An isolated replay applied the new migration and
 ran 355 pgTAP files and 9,406 assertions. Its new ledger receipt file passed,
 but the complete replay failed in `csf_course_retention_coverage`,
@@ -8353,6 +8355,21 @@ but the complete replay failed in `csf_course_retention_coverage`,
 `csf_profile_merge_reference_completeness`. The new tables need classification
 in retention and merge catalogs before this candidate is accepted. No hosted
 Development or Production release has run for this combined candidate.
+
+Forward migration `20260918011000` classifies the new receipt reference for
+profile merges and graduated-class retention, blocks retirement while a Sheet
+write has an unknown outcome, and removes settled receipts with the owner.
+The second exact isolated replay passed: 576 migrations, 355 pgTAP files, and
+9,414 assertions. This replaces the failed replay as the current database
+evidence. The officer UI has focused authorization and provider-header tests.
+A hosted Development walkthrough with a fictional copied workbook is still
+needed before treating the workflow as ready for officers.
+
+The supported private-plugin test runner passed all 458 discovered test files
+after the Sheet writer was added to its explicit write boundary. Private
+Development PR 476 carries the reviewed plugin branch. Root build currently
+stops at the strict gitlink check because that private revision has not yet
+merged into private Development; it has not reached Next.js compilation.
 
 Chrome's signed-out public CSF page currently displays no meeting or deadline
 updates, even though a read-only Production query confirms an active scheduled
