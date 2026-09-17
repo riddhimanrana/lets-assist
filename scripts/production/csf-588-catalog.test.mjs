@@ -15,9 +15,9 @@ const source = readFileSync(
 );
 const ledger = expectedVersions(cwd);
 
-test("594 release pins every new migration and its measured schema", () => {
-  assert.equal(ledger.length, 594);
-  assert.equal(ledger.at(-1), "20260918140000");
+test("595 release pins every new migration and its measured schema", () => {
+  assert.equal(ledger.length, 595);
+  assert.equal(ledger.at(-1), "20260918150000");
   const current = acceptedCatalogQuery(source, ledger);
   const prior592 = acceptedCatalogQuery(source, ledger.slice(0, 592));
   const previous = acceptedCatalogQuery(source, ledger.slice(0, 590));

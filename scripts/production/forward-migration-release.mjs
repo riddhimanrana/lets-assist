@@ -519,6 +519,10 @@ export const approvedMigrations = [
     "20260918140000_csf_retired_cohort_mutation_fence",
     "8f21ee4d3e8c4ead74e11e02036e07b67a65d1046c82b45b3df98c0a77a5aa0b",
   ],
+  [
+    "20260918150000_csf_retired_directory_projection",
+    "1e7a021f5e6215164c3b8439b30f6b286f240a327819d4e44e44d57c5c6097fb",
+  ],
 ];
 
 const literal = (value) => `'${value.replaceAll("'", "''")}'`;
