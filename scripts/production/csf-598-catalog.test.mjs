@@ -27,7 +27,8 @@ test("598 pins the reviewed preview append function and migration", () => {
   assert.doesNotMatch(current, /13e8ee1bc7b071f00664f808b2cf504a/u);
   assert.match(current, /1e64a6a32f22099e11367757990182a0/u);
   assert.throws(
-    () => acceptedCatalogQuery(source, [...ledger.slice(0, 597), "20990101000000"]),
+    () =>
+      acceptedCatalogQuery(source, [...ledger.slice(0, 597), "20990101000000"]),
     /explicit release review/u,
   );
 });
