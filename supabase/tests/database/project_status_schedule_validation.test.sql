@@ -1,7 +1,7 @@
 BEGIN;
 CREATE EXTENSION IF NOT EXISTS pgtap WITH SCHEMA extensions;
 SET search_path = public, extensions;
-SELECT plan(14);
+SELECT plan(20);
 
 SELECT is((SELECT count(*) FROM private.project_status_schedule_window('oneTime',
   '{"oneTime":{"date":"","startTime":"09:00","endTime":"10:00"}}', 'UTC')),
@@ -28,8 +28,26 @@ SELECT is((SELECT ends_at FROM private.project_status_schedule_window('multiDay'
   '{"multiDay":[{"date":"2026-09-16","slots":[{"startTime":"09:00","endTime":"10:00"}]},{"date":"2026-09-17","slots":[{"startTime":"14:00","endTime":"15:00"}]}]}', 'UTC')),
   '2026-09-17 15:00:00+00'::timestamptz, 'Multi-day status includes the last slot');
 SELECT is((SELECT starts_at FROM private.project_status_schedule_window('sameDayMultiArea',
-  '{"sameDayMultiArea":{"date":"2026-09-16","overallStart":"09:00","overallEnd":"10:00","roles":[]}}', 'UTC')),
+  '{"sameDayMultiArea":{"date":"2026-09-16","overallStart":"09:00","overallEnd":"10:00","roles":[{"startTime":"09:15","endTime":"09:45"}]}}', 'UTC')),
   '2026-09-16 09:00:00+00'::timestamptz, 'Same-day status follows the application overall window');
+SELECT is((SELECT starts_at FROM private.project_status_schedule_window('oneTime',
+  '{"oneTime":{"date":"2026-09-16","startTime":"09:00","endTime":"10:00"}}', NULL)),
+  '2026-09-16 16:00:00+00'::timestamptz, 'Legacy null timezone uses the Pacific default');
+SELECT is((SELECT starts_at FROM private.project_status_schedule_window('oneTime',
+  '{"oneTime":{"date":"2026-01-16","startTime":"09:00","endTime":"10:00"}}', '  ')),
+  '2026-01-16 17:00:00+00'::timestamptz, 'Legacy blank timezone uses Pacific standard time');
+SELECT is((SELECT count(*) FROM private.project_status_schedule_window('sameDayMultiArea',
+  '{"sameDayMultiArea":{"date":"2026-09-16","overallStart":"09:00","overallEnd":"10:00","roles":[{"startTime":"08:45","endTime":"09:45"}]}}', 'UTC')),
+  0::bigint, 'A role beginning before the overall window is unresolved');
+SELECT is((SELECT count(*) FROM private.project_status_schedule_window('sameDayMultiArea',
+  '{"sameDayMultiArea":{"date":"2026-09-16","overallStart":"09:00","overallEnd":"10:00","roles":[{"startTime":"09:15","endTime":"10:15"}]}}', 'UTC')),
+  0::bigint, 'A role ending after the overall window is unresolved');
+SELECT is((SELECT count(*) FROM private.project_status_schedule_window('sameDayMultiArea',
+  '{"sameDayMultiArea":{"date":"2026-09-16","overallStart":"09:00","overallEnd":"10:00","roles":[{"startTime":"09:45","endTime":"09:15"}]}}', 'UTC')),
+  0::bigint, 'A reversed role window is unresolved');
+SELECT is((SELECT count(*) FROM private.project_status_schedule_window('sameDayMultiArea',
+  '{"sameDayMultiArea":{"date":"2026-09-16","overallStart":"09:00","overallEnd":"10:00","roles":[]}}', 'UTC')),
+  0::bigint, 'A same-day schedule without roles is unresolved');
 SELECT is((SELECT count(*) FROM private.project_status_schedule_window('multiDay',
   '{"multiDay":{}}', 'UTC')), 0::bigint, 'Malformed schedule containers are unresolved');
 SELECT is((SELECT count(*) FROM private.project_status_schedule_window('oneTime',

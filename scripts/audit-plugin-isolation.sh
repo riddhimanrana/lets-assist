@@ -110,6 +110,10 @@ unexpected_missing_tenant="$(
     where table_schema = 'plugin_data'
       and table_type = 'BASE TABLE'
       and table_name not in (
+        -- Global CSF schema policy catalogs contain table and column names,
+        -- never tenant or student rows. Both have RLS and no client grants.
+        'csf_retention_identity_inventory',
+        'csf_retention_reference_policy',
         'dv_sd_communication_deliveries',
         'dv_sd_family_service_ledger',
         'dv_sd_household_guardians',
