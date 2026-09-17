@@ -8398,3 +8398,23 @@ behavior. A pending applicant also received the full member tour despite
 lacking current-term tools. Private PR 477 fixed that gate, passed its plugin
 CI, and merged as `9e5fc662`; root pins that revision. Production and hosted
 Development behavior have not been verified for this follow-up.
+
+Root PR 641 review found two P1 gaps in the new semester ledger receipts.
+An `unknown_outcome` attempt could never leave that state, so a single ambiguous
+Google response blocked later writes and profile retirement indefinitely. A
+profile merge could also move a reviewed workbook link while a `claimed` or
+`unknown_outcome` write still targeted its former owner. Forward migration
+`20260918012000` adds a service-only, permission-checked reconciliation RPC.
+An officer records a checked provider readback, whether the write occurred, and
+a reason. It moves the ambiguous attempt to `applied` or `aborted`, audits the
+before and after state, and rejects conflicting retries. Merge preview now
+reports unsettled attempts on either record; the workbook-link transfer and
+write-claim triggers serialize ownership against an in-flight attempt. Focused
+pgTAP covers both reconciliation outcomes, authorization, retries, immutable
+evidence, and the merge guard. This is a Development candidate. No live Sheet
+write or Production data correction is claimed by the test.
+The final isolated replay applied 577 migrations and passed 356 pgTAP files
+with 9,433 assertions. The exact Production schema catalog returned `1` on
+that replay, and all ten deliberate point-trigger and permission drift cases
+were refused. The focused Production controller tests passed 89 cases. This is
+local evidence only; hosted Development and Production remain separate gates.

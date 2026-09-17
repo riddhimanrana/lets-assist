@@ -1,3 +1,4 @@
+import { semesterLedgerReconciliationCatalog } from "./semester-ledger-reconciliation-catalog.mjs";
 import { noticeLedgerCatalog } from "./notice-ledger-catalog.mjs";
 import {
   historyIdentityLedgers,
@@ -257,6 +258,41 @@ export function acceptedCatalogQuery(source, versions) {
   const ledgerHash = createHash("sha256")
     .update(versions.join("\n"))
     .digest("hex");
+  if (
+    versions.length === 577 &&
+    ledgerHash ===
+      "fa3eddbf677bfd66e94c7d95d075f8aa73dcafaf640ea8b6e2fd023c5ae86173"
+  ) {
+    const previous = acceptedCatalogQuery(source, versions.slice(0, 576));
+    return semesterLedgerReconciliationCatalog(
+      swapAcceptedFingerprints(previous, [
+        {
+          object: "semester ledger immutable guard",
+          before: "d0d9a05b0c292c7ff0552bd891dd9d62",
+          after: "e2559b6efb22a87d5dda62651f56f95f",
+          occurrences: 1,
+        },
+        {
+          object: "profile merge unsettled-write preview",
+          before: "eabcc76e3e61eea9bcd91a6487b10c20",
+          after: "b036b5c1b32f812b9f43fd23995b0fa8",
+          occurrences: 1,
+        },
+        {
+          object: "semester ledger write relation with ownership trigger",
+          before: "47ab6207ab62d8ab7970670627b47f59",
+          after: "ca122abe411c0d622a3267d67c91656a",
+          occurrences: 2,
+        },
+        {
+          object: "reviewed workbook links with unsettled-write trigger",
+          before: "26e1961c0e127c76250c5a81f689c758",
+          after: "7f155424a42dd0f6fe01fd911404f843",
+          occurrences: 1,
+        },
+      ]),
+    );
+  }
   if (
     versions.length === 576 &&
     ledgerHash ===
