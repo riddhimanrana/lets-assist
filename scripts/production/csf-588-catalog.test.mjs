@@ -43,7 +43,10 @@ test("592 release pins every new migration and its measured schema", () => {
   assert.match(current, /3b006244758b8eaee4535a5ea7d297a1/u);
   assert.match(current, /51a12d2ff4a3f2a44a297b136ed631fc/u);
   assert.match(current, /34cf3ce530ba6b9066b260d65f6d3f87/u);
-  assert.match(current, /NOT EXISTS \(\s*SELECT 1\s*FROM plugin_data\.csf_class_join_codes AS code/u);
+  assert.match(
+    current,
+    /NOT EXISTS \(\s*SELECT 1\s*FROM plugin_data\.csf_class_join_codes AS code/u,
+  );
   assert.match(current, /afebeb55895133dc30e7cde6e9b3bac3/u);
   assert.match(current, /Auto check-in signups/u);
   assert.match(preceding, /57c41026b33ca412f0b73645d520b795/u);
