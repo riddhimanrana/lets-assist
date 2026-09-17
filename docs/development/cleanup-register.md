@@ -8507,3 +8507,11 @@ the alias `csf_target_schema_verified`. This follow-up corrects that final
 alias without changing SQL migrations. The corrected catalog returned
 `csf_target_schema_verified=1` against Production. The schema workflow was not
 retried, and the application deployment remains separate.
+
+### CSF operations integration, September 16, 2026
+
+- In progress: notification email context and controls, directory navigation feedback and query index, attendance time-window enforcement, retired-class visibility, and scheduled-job repairs. Application changes remain local until the final integrated release is verified.
+- Local evidence: the integrated notification/preference tests and directory scheduling tests pass. TypeScript passes for the notification/directory candidate. Chrome desktop and 390px phone previews show the synthetic email title, class/term, body, action, settings, and unsubscribe controls.
+- Production attendance corrections used the permission-checked officer RPC with source references. The import review now excludes handled duplicate/corrected rows and responses outside the approved window. Remaining identity conflicts stay in review. Protected operator evidence contains source identifiers and counts.
+- Production retention attempt rolled back atomically because external Drive attachments have no Storage location. Forward migration `20260918040000` scopes deletion-queue entries to Storage files; database regression evidence is pending. No target profile was removed by the failed attempt.
+- Provider log review requires Supabase dashboard MFA. Read-only database evidence identified duplicate automatic check-in/out jobs and a repeatedly failing project-status job. Those fixes are being tested separately; database activity counts alone do not establish Auth or gateway errors.
