@@ -42,7 +42,10 @@ test("notice and semester ledger pins begin at their exact migrations", () => {
   assert.doesNotMatch(claimIdentity, /c36579ace2984906abb4fc59dc469d50/u);
   assert.match(recovered, /5c99b2d7923d08d11466dc58e5524211/u);
   assert.match(recovered, /dd5cb6c71170301102123cd714157921/u);
-  assert.match(recovered, /csf_sheet_semester_ledger_nonaborted_receipt_unique/u);
+  assert.match(
+    recovered,
+    /csf_sheet_semester_ledger_nonaborted_receipt_unique/u,
+  );
   assert.doesNotMatch(recovered, /681310b4b440be1ed2fe8ff92baabbb9/u);
   for (const [signature, hash] of noticeLedgerDefinitions) {
     assert.ok(lifecycle.includes(signature), signature);
