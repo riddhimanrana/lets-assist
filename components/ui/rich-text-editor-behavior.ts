@@ -4,10 +4,7 @@
  */
 
 export type RichTextKeyIntent =
-  | "open-link-dialog"
-  | "new-paragraph"
-  | "line-break"
-  | "pass-through";
+  "open-link-dialog" | "new-paragraph" | "line-break" | "pass-through";
 
 export type RichTextKeyEvent = {
   key: string;

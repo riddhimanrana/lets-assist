@@ -17,7 +17,9 @@ describe("resolving the configured platform sender", () => {
   });
 
   test("an isolated environment keeps its own transport address", () => {
-    const local = { EMAIL_FROM: "Let's Assist Local <noreply@lets-assist.local>" };
+    const local = {
+      EMAIL_FROM: "Let's Assist Local <noreply@lets-assist.local>",
+    };
     expect(resolvePlatformSenderHeader(local)).toBe(
       "Let's Assist Local <noreply@lets-assist.local>",
     );
@@ -34,12 +36,16 @@ describe("resolving the configured platform sender", () => {
   });
 
   test("parses a bare mailbox as well as a display-name header", () => {
-    expect(parsePlatformSender("Ops@Notifications.Example.Test")).toMatchObject({
-      mailbox: "ops@notifications.example.test",
-      displayName: null,
-      domain: "notifications.example.test",
-    });
-    expect(parsePlatformSender('"Lets Assist" <ops@example.test>')).toMatchObject({
+    expect(parsePlatformSender("Ops@Notifications.Example.Test")).toMatchObject(
+      {
+        mailbox: "ops@notifications.example.test",
+        displayName: null,
+        domain: "notifications.example.test",
+      },
+    );
+    expect(
+      parsePlatformSender('"Lets Assist" <ops@example.test>'),
+    ).toMatchObject({
       mailbox: "ops@example.test",
       displayName: "Lets Assist",
     });
@@ -90,6 +96,8 @@ describe("an organization sender over the platform mailbox", () => {
     ["a name carrying header punctuation", 'DVHS "CSF" <x@y.test>'],
     ["a name longer than a display name may be", "C".repeat(65)],
   ])("falls back to the platform sender for %s", (_label, name) => {
-    expect(buildOrganizationSenderHeader(name, {})).toBe(DEFAULT_PLATFORM_SENDER);
+    expect(buildOrganizationSenderHeader(name, {})).toBe(
+      DEFAULT_PLATFORM_SENDER,
+    );
   });
 });

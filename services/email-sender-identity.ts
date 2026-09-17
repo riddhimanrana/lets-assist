@@ -73,7 +73,10 @@ export function parsePlatformSender(value: string): PlatformSender {
   }
   const mailbox = bracketed[2].trim().toLowerCase();
   const displayName =
-    bracketed[1].trim().replace(/^"(.*)"$/u, "$1").trim() || null;
+    bracketed[1]
+      .trim()
+      .replace(/^"(.*)"$/u, "$1")
+      .trim() || null;
   return { header, mailbox, displayName, domain: senderDomain(mailbox) };
 }
 

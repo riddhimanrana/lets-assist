@@ -91,7 +91,9 @@ describe("canonical rich text round trip", () => {
 describe("plain text projection of a canonical body", () => {
   test("paragraphs become separate blocks", () => {
     expect(
-      richTextToPlainTextBlocks("<p>First paragraph</p><p>Second paragraph</p>"),
+      richTextToPlainTextBlocks(
+        "<p>First paragraph</p><p>Second paragraph</p>",
+      ),
     ).toEqual(["First paragraph", "Second paragraph"]);
   });
 

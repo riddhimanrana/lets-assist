@@ -24,9 +24,7 @@ function resolvedVersionsByPackage(
     seen.add(version);
     versions.set(name, seen);
   }
-  return new Map(
-    [...versions].map(([name, seen]) => [name, [...seen].sort()]),
-  );
+  return new Map([...versions].map(([name, seen]) => [name, [...seen].sort()]));
 }
 
 function duplicates(versions: Map<string, string[]>): string[] {
