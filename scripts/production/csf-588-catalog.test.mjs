@@ -42,8 +42,10 @@ test("597 release pins every new migration and its measured schema", () => {
   assert.match(previous, /0abd6c8cfe331766e22001d8744d5541/u);
   assert.doesNotMatch(current, /0abd6c8cfe331766e22001d8744d5541/u);
   assert.match(current, /4bab1cba993d8504681ff8eb869b6a05/u);
-  assert.match(current, /a6bfc7c31331671e7c7c90c918bbeb03/u);
+  assert.match(current, /d58de4f9bc9dc995dd44e10841ae1c76/u);
   assert.match(current, /77a0bba4132095cb3d2adecf33a30e00/u);
+  assert.match(current, /8b8658e8831e2a6acea19b544d049e02/u);
+  assert.match(current, /9dde0343c06362744e1e9b19de8190a0/u);
   assert.doesNotMatch(current, /61b3229cfbf62af18b217ac5e3255e64/u);
   assert.doesNotMatch(current, /f5b74163ac45204dc9249017e4aadd9e/u);
   assert.doesNotMatch(current, /3b006244758b8eaee4535a5ea7d297a1/u);

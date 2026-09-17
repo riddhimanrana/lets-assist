@@ -46,8 +46,22 @@ BEGIN
         AND OLD.cohort_id = NEW.cohort_id
         AND OLD.status IS DISTINCT FROM NEW.status
         AND NEW.status = ANY(v_terminal_statuses)
-        AND (to_jsonb(OLD) - ARRAY['status', 'updated_at'])
-          = (to_jsonb(NEW) - ARRAY['status', 'updated_at']) THEN
+        AND (
+          (TG_TABLE_NAME = 'csf_cohort_terms'
+            AND (to_jsonb(OLD) - ARRAY['status', 'updated_at'])
+              = (to_jsonb(NEW) - ARRAY['status', 'updated_at']))
+          OR (TG_TABLE_NAME = 'csf_opportunities'
+            AND NEW.status = 'archived'
+            AND nullif(to_jsonb(NEW)->>'archived_at', '') IS NOT NULL
+            AND (to_jsonb(OLD) - ARRAY['status', 'updated_at', 'archived_at'])
+              = (to_jsonb(NEW) - ARRAY['status', 'updated_at', 'archived_at']))
+          OR (TG_TABLE_NAME = 'csf_opportunities'
+            AND NEW.status = 'cancelled'
+            AND nullif(to_jsonb(NEW)->>'cancelled_at', '') IS NOT NULL
+            AND nullif(btrim(to_jsonb(NEW)->>'cancellation_reason'), '') IS NOT NULL
+            AND (to_jsonb(OLD) - ARRAY['status', 'updated_at', 'cancelled_at', 'cancellation_reason'])
+              = (to_jsonb(NEW) - ARRAY['status', 'updated_at', 'cancelled_at', 'cancellation_reason']))
+        ) THEN
         CONTINUE;
       END IF;
       RAISE EXCEPTION 'A retired CSF class cannot change activities or semester settings.';
@@ -57,6 +71,47 @@ BEGIN
   RETURN NEW;
 END;
 $$;
+
+-- A class-term status edit passes through the shared term RPC first. Fence
+-- changes to that shared term when any linked class has retired, while allowing
+-- its no-op timestamp touch so the existing audited status action can finish.
+CREATE FUNCTION plugin_data.csf_guard_retired_shared_term_update()
+RETURNS trigger
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = ''
+AS $$
+BEGIN
+  IF (to_jsonb(OLD) - 'updated_at') = (to_jsonb(NEW) - 'updated_at') THEN
+    RETURN NEW;
+  END IF;
+
+  PERFORM 1
+  FROM plugin_data.csf_cohort_terms AS link
+  JOIN plugin_data.csf_cohorts AS cohort
+    ON cohort.organization_id = link.organization_id
+   AND cohort.id = link.cohort_id
+  WHERE link.organization_id = OLD.organization_id
+    AND link.term_id = OLD.id
+    AND (
+      cohort.status = 'retired'
+      OR EXISTS (
+        SELECT 1 FROM plugin_data.csf_retention_retired_cohorts AS retired
+        WHERE retired.organization_id = link.organization_id
+          AND retired.cohort_id = link.cohort_id
+      )
+    )
+  FOR SHARE OF cohort;
+  IF FOUND THEN
+    RAISE EXCEPTION 'A shared semester with a retired CSF class cannot be edited.';
+  END IF;
+  RETURN NEW;
+END;
+$$;
+
+CREATE TRIGGER csf_guard_retired_shared_term_update
+BEFORE UPDATE ON plugin_data.csf_terms
+FOR EACH ROW EXECUTE FUNCTION plugin_data.csf_guard_retired_shared_term_update();
 
 CREATE OR REPLACE FUNCTION plugin_data.csf_guard_retired_class_post()
 RETURNS trigger
@@ -114,11 +169,15 @@ $$;
 
 ALTER FUNCTION plugin_data.csf_guard_retired_cohort_operational_write() OWNER TO postgres;
 ALTER FUNCTION plugin_data.csf_guard_retired_class_post() OWNER TO postgres;
+ALTER FUNCTION plugin_data.csf_guard_retired_shared_term_update() OWNER TO postgres;
 REVOKE ALL ON FUNCTION plugin_data.csf_guard_retired_cohort_operational_write()
   FROM PUBLIC, anon, authenticated, service_role, postgres;
 GRANT EXECUTE ON FUNCTION plugin_data.csf_guard_retired_cohort_operational_write() TO postgres;
 REVOKE ALL ON FUNCTION plugin_data.csf_guard_retired_class_post()
   FROM PUBLIC, anon, authenticated, service_role, postgres;
 GRANT EXECUTE ON FUNCTION plugin_data.csf_guard_retired_class_post() TO postgres;
+REVOKE ALL ON FUNCTION plugin_data.csf_guard_retired_shared_term_update()
+  FROM PUBLIC, anon, authenticated, service_role, postgres;
+GRANT EXECUTE ON FUNCTION plugin_data.csf_guard_retired_shared_term_update() TO postgres;
 
 COMMIT;
