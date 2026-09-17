@@ -455,6 +455,10 @@ export const approvedMigrations = [
     "20260918013000_csf_semester_ledger_claim_identity_and_trigger_grants",
     "072c2db0883033daed77ae1c8cf7d38814bb615a71dd27081a4ec5a63e9b8e04",
   ],
+  [
+    "20260918014000_csf_semester_ledger_link_revocation_fence",
+    "46c136f72146c58a58284e9287a8bec20bcfbfdf2125b00e7df6eb56a93be237",
+  ],
 ];
 
 const literal = (value) => `'${value.replaceAll("'", "''")}'`;

@@ -1,5 +1,6 @@
 import { semesterLedgerReconciliationCatalog } from "./semester-ledger-reconciliation-catalog.mjs";
 import { semesterLedgerClaimIdentityCatalog } from "./semester-ledger-claim-identity-catalog.mjs";
+import { semesterLedgerRecoveryCatalog } from "./semester-ledger-recovery-catalog.mjs";
 import { noticeLedgerCatalog } from "./notice-ledger-catalog.mjs";
 import {
   historyIdentityLedgers,
@@ -259,6 +260,41 @@ export function acceptedCatalogQuery(source, versions) {
   const ledgerHash = createHash("sha256")
     .update(versions.join("\n"))
     .digest("hex");
+  if (
+    versions.length === 579 &&
+    ledgerHash ===
+      "1f24291b4b8da9f226a20cf877422351d7ae2553c965404491d211bd03d53ff6"
+  ) {
+    const previous = acceptedCatalogQuery(source, versions.slice(0, 578));
+    return semesterLedgerRecoveryCatalog(
+      swapAcceptedFingerprints(previous, [
+        {
+          object: "semester ledger workbook-link guard",
+          before: "681310b4b440be1ed2fe8ff92baabbb9",
+          after: "5c99b2d7923d08d11466dc58e5524211",
+          occurrences: 1,
+        },
+        {
+          object: "expired semester ledger reconciliation",
+          before: "f43d2748697aefbe585cb17b7f12dcd8",
+          after: "dd5cb6c71170301102123cd714157921",
+          occurrences: 1,
+        },
+        {
+          object: "reviewed workbook link delete and revocation trigger",
+          before: "7f155424a42dd0f6fe01fd911404f843",
+          after: "4a013faa20065d7e620c1088900c4faf",
+          occurrences: 1,
+        },
+        {
+          object: "semester ledger non-aborted receipt index",
+          before: "ca122abe411c0d622a3267d67c91656a",
+          after: "7ce8fd6421c75a9a19ef3014e4998f5b",
+          occurrences: 2,
+        },
+      ]),
+    );
+  }
   if (
     versions.length === 578 &&
     ledgerHash ===
