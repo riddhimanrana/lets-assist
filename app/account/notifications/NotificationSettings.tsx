@@ -192,7 +192,8 @@ export function NotificationSettings() {
                         Organization updates
                       </Label>
                       <p className="text-sm text-muted-foreground">
-                        Posts, activities, and record updates from your organizations.
+                        Posts, activities, and record updates from your
+                        organizations.
                       </p>
                     </div>
                     <Switch

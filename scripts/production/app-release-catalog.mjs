@@ -273,7 +273,10 @@ export function acceptedCatalogQuery(source, versions) {
   ]);
   if (csf588Ledgers.get(versions.length) === ledgerHash) {
     if (versions.length < 588)
-      return acceptedCatalogQuery(source, versions.slice(0, versions.length - 1));
+      return acceptedCatalogQuery(
+        source,
+        versions.slice(0, versions.length - 1),
+      );
     return csf588Catalog(
       acceptedCatalogQuery(source, versions.slice(0, 587)),
       workerRelationSnapshotQuery,
