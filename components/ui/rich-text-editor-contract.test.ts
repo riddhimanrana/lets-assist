@@ -19,7 +19,13 @@ describe("shared rich text editor contract", () => {
 
   test("keyboard and sync decisions come from the tested policy module", () => {
     expect(source).toContain("resolveRichTextKeyIntent(event)");
-    expect(source).toContain("shouldApplyExternalRichTextContent({");
+    expect(source).toContain("contentSyncRef.current.receive(");
+    expect(source).toContain(
+      "contentSyncRef.current.recordLocalEdit(canonicalHtml)",
+    );
+    expect(source).toContain("contentSyncRef.current.flushOnBlur(");
+    expect(source).toContain('editor.on("blur", applyDeferredContent)');
+    expect(source).toContain('editor.off("blur", applyDeferredContent)');
     expect(source).toContain("event.stopPropagation()");
   });
 
