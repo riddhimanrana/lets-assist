@@ -35,6 +35,7 @@ import { Badge } from "@/components/ui/badge";
 import { createClient } from "@/lib/supabase/client";
 import { formatDistanceToNow } from "date-fns";
 import { cn } from "@/lib/utils";
+import { notificationActionLabel } from "@/services/notification-action-label";
 import { useRouter } from "next/navigation";
 import { useMediaQuery } from "@/hooks/use-media-query";
 import { useAuth } from "@/hooks/useAuth";
@@ -303,7 +304,6 @@ export function NotificationPopover({
   );
 
   const renderNotificationItem = (notification: Notification) => {
-    // We show "Open link" if there is an action URL, regardless of other conditions
     const showLink = Boolean(notification.action_url);
 
     return (
@@ -361,7 +361,7 @@ export function NotificationPopover({
                     }
                   }}
                 >
-                  Open link
+                  {notificationActionLabel(notification.data)}
                 </Button>
               </div>
             )}
@@ -506,7 +506,7 @@ export function NotificationPopover({
                 setOpen(false);
               }}
             >
-              Open Link
+              {notificationActionLabel(activeNotification.data)}
             </Button>
           )}
         </DialogFooter>
