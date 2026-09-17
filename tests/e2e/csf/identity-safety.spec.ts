@@ -895,8 +895,12 @@ test.describe("CSF identity safety", () => {
     await openMembersTab(page);
 
     const search = page.getByLabel("Search members");
-    await search.fill(`Vale-${fixture.suffix}`);
+    const mergeQuery = `Vale-${fixture.suffix}`;
+    await search.fill(mergeQuery);
     await search.press("Enter");
+    await expect(page).toHaveURL(
+      (url) => url.searchParams.get("csf_member_q") === mergeQuery,
+    );
 
     const sourceRow = page.getByRole("row").filter({
       hasText: fixture.validMergeSourceName,
