@@ -41,6 +41,14 @@ const EXTENSIONS = [
   "20260917210000_csf_member_report_term_scope",
   "20260917220000_csf_member_report_quota_serialization",
   "20260917230000_csf_profile_activity_authority_retry_guards",
+  "20260918000000_csf_notice_sender_and_context",
+  "20260918010000_csf_semester_ledger_write_receipts",
+  "20260918011000_csf_semester_ledger_identity_lifecycle",
+  "20260918012000_csf_semester_ledger_reconciliation_and_merge_fence",
+  "20260918013000_csf_semester_ledger_claim_identity_and_trigger_grants",
+  "20260918014000_csf_semester_ledger_link_revocation_fence",
+  "20260918015000_csf_semester_ledger_merge_claim_fence",
+  "20260918016000_csf_semester_ledger_authority_fences",
 ];
 
 test("the release is the 557 decisions baseline plus the reviewed integrated extensions", () => {
@@ -143,6 +151,7 @@ test("every data write a migration carries is on the reviewed allowlist", () => 
   assert.deepEqual(found.sort(), [
     "plugin_data.csf_retention_identity_inventory",
     "plugin_data.csf_retention_identity_inventory",
+    "plugin_data.csf_retention_reference_policy",
     "plugin_data.csf_retention_reference_policy",
     "plugin_data.csf_retention_reference_policy",
     "plugin_data.csf_role_permissions",

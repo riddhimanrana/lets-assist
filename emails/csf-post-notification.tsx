@@ -17,6 +17,11 @@ import EmailFooter from "./_components/EmailFooter";
 interface CsfPostNotificationProps {
   chapterName: string;
   audienceLabel: string;
+  /**
+   * The chapter-published term this post or activity belongs to, e.g.
+   * "Fall 2026". Optional so a caller that cannot read one still renders.
+   */
+  termLabel?: string | null;
   postTitle: string;
   /**
    * Sanitized plain-text paragraphs of the post body. The campaign pipeline
@@ -38,6 +43,7 @@ interface CsfPostNotificationProps {
 export default function CsfPostNotification({
   chapterName = "DVHS CSF",
   audienceLabel = "Class of 2028",
+  termLabel = null,
   postTitle = "New volunteering opportunity",
   postParagraphs = [
     "We just posted a new opportunity in your class feed.",
@@ -81,7 +87,9 @@ export default function CsfPostNotification({
 
             <Section style={content} className="content">
               <Text style={audienceChip}>
-                {chapterName} • {audienceLabel}
+                {[chapterName, audienceLabel, termLabel]
+                  .filter(Boolean)
+                  .join(" • ")}
               </Text>
               <Heading style={heading1}>{postTitle}</Heading>
               <Text style={metaText}>Posted {publishedAtLabel}</Text>

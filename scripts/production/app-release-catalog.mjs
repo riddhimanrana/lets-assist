@@ -1,3 +1,9 @@
+import { semesterLedgerReconciliationCatalog } from "./semester-ledger-reconciliation-catalog.mjs";
+import { semesterLedgerClaimIdentityCatalog } from "./semester-ledger-claim-identity-catalog.mjs";
+import { semesterLedgerRecoveryCatalog } from "./semester-ledger-recovery-catalog.mjs";
+import { semesterLedgerMergeClaimCatalog } from "./semester-ledger-merge-claim-catalog.mjs";
+import { semesterLedgerAuthorityCatalog } from "./semester-ledger-authority-catalog.mjs";
+import { noticeLedgerCatalog } from "./notice-ledger-catalog.mjs";
 import {
   historyIdentityLedgers,
   historyIdentityCatalog,
@@ -256,6 +262,203 @@ export function acceptedCatalogQuery(source, versions) {
   const ledgerHash = createHash("sha256")
     .update(versions.join("\n"))
     .digest("hex");
+  if (
+    versions.length === 581 &&
+    ledgerHash ===
+      "80ddb17ee1ca0ab40040b3223c8bffe978552386b34c7e819061aa71e7fd7e42"
+  ) {
+    const previous = acceptedCatalogQuery(source, versions.slice(0, 580));
+    return semesterLedgerAuthorityCatalog(
+      previous
+        .replaceAll(
+          "74b7a44aa7551dc5d2ada9fde7c40674",
+          "e8790bf64057b8bef76c691a7a3c852d",
+        )
+        .replaceAll(
+          "4a013faa20065d7e620c1088900c4faf",
+          "cbecc31831fe84c303a2941b59c01516",
+        )
+        .replaceAll(
+          "6d44d27f039ccd271c868e7aa72f6635",
+          "84df907f4eb3e77edb675ad7b57fffd9",
+        )
+        .replaceAll(
+          "7ce8fd6421c75a9a19ef3014e4998f5b",
+          "a3769fe20a17380a403737ac5511f7a1",
+        )
+        .replaceAll(
+          "45766bcd4803ef8cbd7d4605f7744b47",
+          "294c8d521ae3724d5561b619f60b3d49",
+        )
+        .replaceAll(
+          "5c99b2d7923d08d11466dc58e5524211",
+          "bed09085445ef97e0a34f0bab63e3828",
+        )
+        .replaceAll(
+          "BEFORE DELETE OR UPDATE OF profile_id, revoked_at ON plugin_data.csf_reviewed_workbook_profile_links",
+          "BEFORE DELETE OR UPDATE ON plugin_data.csf_reviewed_workbook_profile_links",
+        ),
+    );
+  }
+  if (
+    versions.length === 580 &&
+    ledgerHash ===
+      "7cb7d9f5d9cdc2f5ad67022b3864498225634f06913059d08f1239b0a1cda27e"
+  ) {
+    const previous = acceptedCatalogQuery(source, versions.slice(0, 579));
+    return semesterLedgerMergeClaimCatalog(
+      swapAcceptedFingerprints(previous, [
+        {
+          object: "semester ledger merge-serialized claim",
+          before: "1f68ca7ff0fb2a7725413c79d3b01436",
+          after: "1e4e11d23ea344399b5ec31195615abf",
+          occurrences: 2,
+        },
+      ]),
+    );
+  }
+  if (
+    versions.length === 579 &&
+    ledgerHash ===
+      "1f24291b4b8da9f226a20cf877422351d7ae2553c965404491d211bd03d53ff6"
+  ) {
+    const previous = acceptedCatalogQuery(source, versions.slice(0, 578));
+    return semesterLedgerRecoveryCatalog(
+      swapAcceptedFingerprints(previous, [
+        {
+          object: "semester ledger workbook-link guard",
+          before: "681310b4b440be1ed2fe8ff92baabbb9",
+          after: "5c99b2d7923d08d11466dc58e5524211",
+          occurrences: 1,
+        },
+        {
+          object: "expired semester ledger reconciliation",
+          before: "f43d2748697aefbe585cb17b7f12dcd8",
+          after: "dd5cb6c71170301102123cd714157921",
+          occurrences: 1,
+        },
+        {
+          object: "reviewed workbook link delete and revocation trigger",
+          before: "7f155424a42dd0f6fe01fd911404f843",
+          after: "4a013faa20065d7e620c1088900c4faf",
+          occurrences: 1,
+        },
+        {
+          object: "semester ledger non-aborted receipt index",
+          before: "ca122abe411c0d622a3267d67c91656a",
+          after: "7ce8fd6421c75a9a19ef3014e4998f5b",
+          occurrences: 2,
+        },
+      ]),
+    );
+  }
+  if (
+    versions.length === 578 &&
+    ledgerHash ===
+      "23ea816e5914264695361e683b7daf18e831822b03febadcd9be7e1dd63372a6"
+  ) {
+    const previous = acceptedCatalogQuery(source, versions.slice(0, 577));
+    return semesterLedgerClaimIdentityCatalog(
+      swapAcceptedFingerprints(previous, [
+        {
+          object: "semester ledger claim identity",
+          before: "c36579ace2984906abb4fc59dc469d50",
+          after: "1f68ca7ff0fb2a7725413c79d3b01436",
+          occurrences: 1,
+        },
+      ]),
+      "1f68ca7ff0fb2a7725413c79d3b01436",
+    );
+  }
+  if (
+    versions.length === 577 &&
+    ledgerHash ===
+      "fa3eddbf677bfd66e94c7d95d075f8aa73dcafaf640ea8b6e2fd023c5ae86173"
+  ) {
+    const previous = acceptedCatalogQuery(source, versions.slice(0, 576));
+    return semesterLedgerReconciliationCatalog(
+      swapAcceptedFingerprints(previous, [
+        {
+          object: "semester ledger immutable guard",
+          before: "d0d9a05b0c292c7ff0552bd891dd9d62",
+          after: "e2559b6efb22a87d5dda62651f56f95f",
+          occurrences: 1,
+        },
+        {
+          object: "profile merge unsettled-write preview",
+          before: "eabcc76e3e61eea9bcd91a6487b10c20",
+          after: "b036b5c1b32f812b9f43fd23995b0fa8",
+          occurrences: 1,
+        },
+        {
+          object: "semester ledger write relation with ownership trigger",
+          before: "47ab6207ab62d8ab7970670627b47f59",
+          after: "ca122abe411c0d622a3267d67c91656a",
+          occurrences: 2,
+        },
+        {
+          object: "reviewed workbook links with unsettled-write trigger",
+          before: "26e1961c0e127c76250c5a81f689c758",
+          after: "7f155424a42dd0f6fe01fd911404f843",
+          occurrences: 1,
+        },
+      ]),
+    );
+  }
+  if (
+    versions.length === 576 &&
+    ledgerHash ===
+      "e3c2e15ceb0d22ec4c1324a3a2f51268e346bc18296ad322598ad5b0983c1e1c"
+  ) {
+    let previous = acceptedCatalogQuery(source, versions.slice(0, 573));
+    previous = swapAcceptedFingerprints(previous, [
+      {
+        object: "publication notice authorization",
+        before: "f494ecf0746444bbb55bf2605123ab2a",
+        after: "8f8b113fd372dfe7b94ab2c26ca8708e",
+        occurrences: 1,
+      },
+      {
+        object: "semester ledger merge reference plan",
+        before: "48a500ad4960c56dffca1cf1a823d3ad",
+        after: "86ffad9d7360ad5b970528949b66454e",
+        occurrences: 1,
+      },
+    ]);
+    return noticeLedgerCatalog(previous, 576, workerRelationSnapshotQuery);
+  }
+  if (
+    versions.length === 575 &&
+    ledgerHash ===
+      "bc0ebdb840a6c8c5fed3e61724d317d054038c8b8a4e38ab3d1e28895d412feb"
+  ) {
+    let previous = acceptedCatalogQuery(source, versions.slice(0, 573));
+    previous = swapAcceptedFingerprints(previous, [
+      {
+        object: "publication notice authorization",
+        before: "f494ecf0746444bbb55bf2605123ab2a",
+        after: "8f8b113fd372dfe7b94ab2c26ca8708e",
+        occurrences: 1,
+      },
+    ]);
+    return noticeLedgerCatalog(previous, 575, workerRelationSnapshotQuery);
+  }
+  if (
+    versions.length === 574 &&
+    ledgerHash ===
+      "5eee4be52342c22b831aed6939929f59c0418b3c429593e175c773c2eb14b3af"
+  ) {
+    let previous = acceptedCatalogQuery(source, versions.slice(0, 573));
+    previous = swapAcceptedFingerprints(previous, [
+      {
+        object: "publication notice authorization",
+        before: "f494ecf0746444bbb55bf2605123ab2a",
+        after: "8f8b113fd372dfe7b94ab2c26ca8708e",
+        occurrences: 1,
+      },
+    ]);
+    return noticeLedgerCatalog(previous, 574, workerRelationSnapshotQuery);
+  }
   if (
     versions.length === 573 &&
     ledgerHash ===

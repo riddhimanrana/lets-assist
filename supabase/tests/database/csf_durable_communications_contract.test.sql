@@ -795,7 +795,9 @@ SELECT extensions.is(
       AND campaign.subject = 'Authored through the authorized door'
   ),
   -- The chapter contract, derived rather than accepted, and still only a draft.
-  'draft|DVHS CSF|csf@notifications.lets-assist.com|dvhighcsf@gmail.com|email|true',
+  -- 20260918000000 records the platform sender identity on a new campaign; the
+  -- reply-to is unchanged and no finalized campaign was rewritten.
+  'draft|DVHS CSF (Let''s Assist)|projects@notifications.lets-assist.com|dvhighcsf@gmail.com|email|true',
   'the authored draft carries the fixed chapter sender identity and is not yet dispatch-ready'
 );
 

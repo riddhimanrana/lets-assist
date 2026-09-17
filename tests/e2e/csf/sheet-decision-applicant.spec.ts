@@ -461,8 +461,13 @@ test.describe("before any release", () => {
       priorPanel.getByRole("heading", { name: priorSemester }),
     ).toBeVisible();
     // Withholding this semester's decision must not withhold last semester's
-    // completed record.
-    await expectSettledSemesterStatus(priorPanel, "Semester completed");
+    // completed record. Historical points remain a separate verified total.
+    await expect(
+      priorPanel.locator('[data-slot="badge"]', {
+        hasText: "Semester completed",
+      }),
+    ).toBeVisible();
+    await expect(priorPanel.getByText(/^\d+ verified points$/)).toBeVisible();
 
     expectNoBrowserFailures(failures);
   });

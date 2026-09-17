@@ -6,11 +6,18 @@ import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import {
   Bold,
   Italic,
+  List,
+  ListOrdered,
   Underline as UnderlineIcon,
   Link as LinkIcon,
 } from "lucide-react";
 import { toast } from "sonner";
 
+import { RICH_TEXT_PROSE_CLASSNAME } from "@/components/ui/rich-text-classnames";
+import {
+  createRichTextContentSync,
+  resolveRichTextKeyIntent,
+} from "@/components/ui/rich-text-editor-behavior";
 import { sanitizeRichTextHtml } from "@/lib/security/html.client";
 import { normalizeRichTextLinkUrl } from "@/lib/security/html";
 import { cn } from "@/lib/utils";
@@ -30,10 +37,18 @@ import { Label } from "@/components/ui/label";
 interface RichTextEditorProps {
   content: string;
   onChange: (html: string) => void;
+  /** Stable identity of the document when one editor instance can edit several records. */
+  documentKey?: string;
   placeholder?: string;
   maxLength?: number;
   className?: string;
   id?: string;
+  /**
+   * Shows a persistent bullet/numbered list toolbar. The bubble menu only
+   * appears over a selection, so there is otherwise no way to start a list on
+   * an empty line.
+   */
+  showListControls?: boolean;
   "aria-label"?: string;
   "aria-labelledby"?: string;
   "aria-describedby"?: string;
@@ -42,10 +57,12 @@ interface RichTextEditorProps {
 export function RichTextEditor({
   content,
   onChange,
+  documentKey,
   placeholder = "e.g., Join us for a day of fun and community service...",
   maxLength,
   className,
   id,
+  showListControls = false,
   "aria-label": ariaLabel,
   "aria-labelledby": ariaLabelledBy,
   "aria-describedby": ariaDescribedBy,
@@ -54,7 +71,8 @@ export function RichTextEditor({
   const [mounted, setMounted] = useState(false);
   const [linkDialogOpen, setLinkDialogOpen] = useState(false);
   const [linkUrl, setLinkUrl] = useState("");
-  const lastSyncedContentRef = useRef<string | null>(null);
+  const contentSyncRef = useRef(createRichTextContentSync());
+  const activeDocumentKeyRef = useRef(documentKey);
   const sanitizeEditorContent = useCallback(
     (html: string): string => sanitizeRichTextHtml(html),
     [],
@@ -62,22 +80,9 @@ export function RichTextEditor({
 
   const extensions = useMemo(
     () => [
+      // Lists are styled by RICH_TEXT_PROSE_CLASSNAME on the container. Per-node
+      // classes would make the editor's HTML differ from the saved HTML.
       StarterKit.configure({
-        bulletList: {
-          HTMLAttributes: {
-            class: "list-disc list-outside ml-4",
-          },
-        },
-        orderedList: {
-          HTMLAttributes: {
-            class: "list-decimal list-outside ml-4",
-          },
-        },
-        listItem: {
-          HTMLAttributes: {
-            class: "my-1",
-          },
-        },
         link: {
           openOnClick: true,
           HTMLAttributes: {
@@ -103,14 +108,15 @@ export function RichTextEditor({
     extensions,
     content: sanitizeEditorContent(content),
     onUpdate: ({ editor }) => {
-      const html = editor.getHTML();
-      const sanitizedHtml = sanitizeEditorContent(html);
+      // Sanitize what leaves the editor, not the live document. The document is
+      // already constrained by the ProseMirror schema and the link extension's
+      // protocol check, while the canonical form drops the trailing empty
+      // paragraph Enter had just created, so writing it back reverted Enter.
+      const canonicalHtml = sanitizeEditorContent(editor.getHTML());
 
-      if (sanitizedHtml !== html) {
-        editor.commands.setContent(sanitizedHtml, { emitUpdate: false });
+      if (contentSyncRef.current.recordLocalEdit(canonicalHtml)) {
+        onChange(canonicalHtml);
       }
-
-      onChange(sanitizedHtml);
     },
     immediatelyRender: false,
     editorProps: {
@@ -120,17 +126,27 @@ export function RichTextEditor({
         ...(ariaLabelledBy ? { "aria-labelledby": ariaLabelledBy } : {}),
         ...(ariaDescribedBy ? { "aria-describedby": ariaDescribedBy } : {}),
         class: cn(
-          "min-h-[150px] max-h-[200px] overflow-y-auto w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 prose prose-sm dark:prose-invert max-w-none [&_p]:my-0.5 [&_ul]:my-0.5 [&_ol]:my-0.5 [&_li]:my-0 [&_li_p]:my-0 [&_p]:min-h-[1.5em] text-foreground prose-headings:text-foreground prose-p:text-foreground prose-strong:text-foreground prose-li:text-foreground",
+          "min-h-[150px] max-h-[200px] overflow-y-auto w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50",
+          RICH_TEXT_PROSE_CLASSNAME,
           className,
         ),
       },
       handleKeyDown: (view, event) => {
-        // Handle Cmd+K / Ctrl+K for link
-        if ((event.metaKey || event.ctrlKey) && event.key === "k") {
+        const intent = resolveRichTextKeyIntent(event);
+
+        if (intent === "open-link-dialog") {
           event.preventDefault();
           openLinkDialog();
           return true;
         }
+
+        if (intent === "new-paragraph" || intent === "line-break") {
+          // The document handles the key. Stop it here so no ancestor form or
+          // dialog can read the keystroke as a submit.
+          event.stopPropagation();
+          return false;
+        }
+
         return false;
       },
     },
@@ -182,24 +198,21 @@ export function RichTextEditor({
     if (!editor) return;
 
     const sanitizedContent = sanitizeEditorContent(content);
-
-    if (lastSyncedContentRef.current === sanitizedContent) {
-      return;
+    const documentChanged = activeDocumentKeyRef.current !== documentKey;
+    activeDocumentKeyRef.current = documentKey;
+    const contentToApply = contentSyncRef.current.receive(
+      sanitizedContent,
+      editor.getHTML(),
+      documentKey,
+    );
+    // A record switch clears focus even when both posts contain the same HTML.
+    if ((documentChanged || contentToApply !== null) && editor.isFocused) {
+      editor.commands.blur();
     }
-
-    const currentHtml = editor.getHTML();
-    if (sanitizedContent === currentHtml) {
-      lastSyncedContentRef.current = sanitizedContent;
-      return;
+    if (contentToApply !== null) {
+      editor.commands.setContent(contentToApply, { emitUpdate: false });
     }
-
-    // Only sync external content changes when the editor is not actively being edited.
-    // This avoids resetting the ProseMirror selection/cursor on every keystroke.
-    if (!editor.isFocused) {
-      editor.commands.setContent(sanitizedContent, { emitUpdate: false });
-      lastSyncedContentRef.current = sanitizedContent;
-    }
-  }, [editor, content, sanitizeEditorContent]);
+  }, [editor, content, documentKey, sanitizeEditorContent]);
 
   const getCounterColor = (current: number, max: number | undefined) => {
     if (!max) return "text-muted-foreground";
@@ -273,6 +286,37 @@ export function RichTextEditor({
             </ToggleGroupItem>
           </ToggleGroup>
         </BubbleMenu>
+      )}
+
+      {showListControls && (
+        <div
+          role="group"
+          aria-label="List formatting"
+          className="flex items-center gap-1"
+        >
+          <Button
+            type="button"
+            size="icon-sm"
+            variant={editor.isActive("bulletList") ? "secondary" : "ghost"}
+            aria-pressed={editor.isActive("bulletList")}
+            aria-label="Bulleted list"
+            title="Bulleted list"
+            onClick={() => editor.chain().focus().toggleBulletList().run()}
+          >
+            <List className="h-4 w-4" />
+          </Button>
+          <Button
+            type="button"
+            size="icon-sm"
+            variant={editor.isActive("orderedList") ? "secondary" : "ghost"}
+            aria-pressed={editor.isActive("orderedList")}
+            aria-label="Numbered list"
+            title="Numbered list"
+            onClick={() => editor.chain().focus().toggleOrderedList().run()}
+          >
+            <ListOrdered className="h-4 w-4" />
+          </Button>
+        </div>
       )}
 
       <div>

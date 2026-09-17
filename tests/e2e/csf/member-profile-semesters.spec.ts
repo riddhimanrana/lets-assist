@@ -142,12 +142,11 @@ for (const viewport of [
       semesters.getByRole("tab", { name: "Spring 2026", exact: true }),
     ).toHaveAttribute("aria-selected", "true");
     await expect(points).toHaveText(/2\s*Service points/);
-    // One activity and one meeting. The points sheet writes genuine meeting
-    // rows into the activity events table, and `CsfMemberProfileSummary` stopped
-    // counting those as activities so the tiles cannot report the same row
-    // twice. Both rows stay in the ledger, which the two titles below assert.
+    // The points sheet writes genuine meeting rows into the activity events
+    // table. Historical attendance remains in the ledger, while the meeting
+    // count tile stays hidden until source reconciliation is complete.
     await expect(activities).toHaveText(/1\s*Activities/);
-    await expect(meetings).toHaveText(/1\s*Meetings/);
+    await expect(meetings).toHaveCount(0);
     await expect(
       page.getByRole("heading", { name: "Spring 2026", exact: true }),
     ).toBeVisible();
@@ -169,7 +168,7 @@ for (const viewport of [
       new RegExp(`^${currentTermPoints}\\s*Service points$`),
     );
     await expect(activities).toHaveText(/^0\s*Activities$/);
-    await expect(meetings).toHaveText(/^0\s*Meetings$/);
+    await expect(meetings).toHaveCount(0);
     await expect(
       page.getByRole("heading", { name: "Fall 2026", exact: true }),
     ).toBeVisible();

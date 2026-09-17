@@ -435,6 +435,38 @@ export const approvedMigrations = [
     "20260917230000_csf_profile_activity_authority_retry_guards",
     "7eb6b25cbffd326ff16728344b596e434fd576e469878baacba939a1171fcd9d",
   ],
+  [
+    "20260918000000_csf_notice_sender_and_context",
+    "dbcef45b66a5e7c34b2dceb68ab05b023a0d966a0f17bdb4140b0a0168dadc62",
+  ],
+  [
+    "20260918010000_csf_semester_ledger_write_receipts",
+    "f19acbed69f7b96a986887416d4aea5d9c3d1009ae11594ee3c40892c4803af4",
+  ],
+  [
+    "20260918011000_csf_semester_ledger_identity_lifecycle",
+    "e26771537c01517547a25d465a7297880e6c3fd15383c75d17d402e4fd6c7518",
+  ],
+  [
+    "20260918012000_csf_semester_ledger_reconciliation_and_merge_fence",
+    "d9faf916ff2937e2b50c6bc3b471e4e3796fdf80da47145f5140c70a4b1c04a4",
+  ],
+  [
+    "20260918013000_csf_semester_ledger_claim_identity_and_trigger_grants",
+    "072c2db0883033daed77ae1c8cf7d38814bb615a71dd27081a4ec5a63e9b8e04",
+  ],
+  [
+    "20260918014000_csf_semester_ledger_link_revocation_fence",
+    "46c136f72146c58a58284e9287a8bec20bcfbfdf2125b00e7df6eb56a93be237",
+  ],
+  [
+    "20260918015000_csf_semester_ledger_merge_claim_fence",
+    "bd7b8b36cc9e7d5db9af2f3eb6ec8cc580edbd408cb9f6fe287973c2d2c8d56b",
+  ],
+  [
+    "20260918016000_csf_semester_ledger_authority_fences",
+    "4f6b3bf45e2f3962bafdab592c616b181f867fd6f6883e6c39ab1a4345dad22a",
+  ],
 ];
 
 const literal = (value) => `'${value.replaceAll("'", "''")}'`;

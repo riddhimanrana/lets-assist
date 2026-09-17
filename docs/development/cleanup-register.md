@@ -2702,6 +2702,63 @@ sources.
 
 ## Repository-owned P0–P2
 
+### Development-only staff and member follow-up, September 16, 2026
+
+The owner requested this follow-up without a Production release. The integrated
+local candidate includes the rich-text Enter/list repair, the explicitly approved
+claimed-account email notice, clearer Sheets decision labels and mapping checks,
+and shared platform sender identity with event-specific CSF notice context.
+It does not modify live Sheets, student records, application releases, or email
+delivery state.
+
+| Finding               | Status              | Evidence or remaining work                                                                                                                                                                                                                                                                                                                                                                     |
+| --------------------- | ------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| CSF-FOLLOWUP-EDITOR   | Fixed locally       | Sanitized output no longer resets the live editor. ProseMirror model/transform/view dependency copies are deduplicated. Desktop 1280x900 and mobile 390x844 component-browser checks passed for Enter, Shift+Enter, bullets, numbered lists and saved rendering, with no runtime errors. This was a component harness, not the authenticated application.                                      |
+| CSF-FOLLOWUP-CLAIM    | Implemented locally | Full linked email is shown only for a unique exact active class match with one verified owner, after session, confirmed-email, class-code and rate-limit checks. Ambiguity and lookup failures keep the generic notice. The explicit product exception is documented in Amendment 10.                                                                                                          |
+| CSF-FOLLOWUP-DECISION | Fixed locally       | Withdrawn published decisions no longer count as published. A saved decision mapping scoped to a different tab blocks sync. Release blockers use readable messages.                                                                                                                                                                                                                            |
+| CSF-FOLLOWUP-EMAIL    | Local candidate     | New campaigns reuse the existing platform default mailbox with the chapter display name. Frozen campaign identity and hashes stay unchanged. Notices carry permitted class/term/outcome context and settings links. Provider delivery remains unverified.                                                                                                                                      |
+| CSF-FOLLOWUP-LEDGER   | Open, P1            | The existing export appends a managed block instead of filling the original semester columns. The tested layout/row/cell planner preserves formulas, activity names and unknown attendance, but the officer consent, preview and per-cell apply path is unfinished. The separate agent worktree contains an unintegrated draft migration. Do not describe this as working two-way ledger sync. |
+| CSF-FOLLOWUP-TAB      | Open, P1            | Destination configuration still needs to validate the selected semester against the selected tab. Original-source/destination separation alone does not prevent the wrong semester tab.                                                                                                                                                                                                        |
+
+Read-only Drive inspection confirmed the Class of 2027 and 2028 separate
+"Let's Assist" workbooks and their F25/S26/F26 layouts. The sampled Class of
+2028 F26 rows have the old N:U summary populated and A:M blank. No separate
+Class of 2029 or 2030 destination appeared in the accessible search. These
+observations are not a full roster reconciliation. See source-data.md for
+column semantics; no student values were copied into this register.
+
+Integrated focused tests passed 257 tests across 17 files. Typecheck and
+zero-warning lint passed on the integrated candidate. The notification
+migration applied to a disposable local database cloned from fictional local
+fixtures. Six targeted pgTAP suites passed 303 assertions: sender identity,
+personal notice dispatch, detailed notices, communications contracts, post email
+authority and notification preferences. The broader durable-communications
+suite found an old fixture that reset only the sender name; that fixture is
+corrected, but its rerun stalled as Docker stopped responding under host disk
+pressure. It is not counted as passed. Claude terminal agents also exhausted
+their weekly quota after preserving their work. Hosted Development and
+Production acceptance were not run.
+
+#### September meeting and account reconciliation follow-up
+
+Read-only Production inspection found the Fall 2026 September Meeting and its
+configured response Sheet, but no attendance rows for that meeting. The Sheet
+and supplied Excel export each contain 481 responses. A source-to-Production
+comparison using hashed identity fields found 136 rows that corroborate one
+active profile by exact email, first and last name, and class. Four repeat a
+profile already in that group, leaving 132 distinct proposed credits. Seven
+rows have an email/name conflict, 294 have only a name candidate, and 44 have
+no candidate. These are preview counts, not attendance corrections. The source
+also contains one malformed email. No Production attendance or account link
+was changed.
+
+The local attendance patch prevents an email-only mismatch or AI name proposal
+from automatically awarding attendance. The officer connection queue now
+shows source-reported contact matches and already-connected collisions as
+review-only context, without widening its connect authorization. Local private
+branch integration and focused tests passed; a full isolated database replay,
+hosted Development acceptance, officer review, and Production release remain.
+
 ### Urgent member workflow release, September 16, 2026
 
 The owner explicitly authorized Production deployment with focused local checks
@@ -8262,3 +8319,173 @@ profile details. Both are fixed: batch writes refresh the first pending page, pa
 load their target directly, and officer details receive scoped category flags. The
 member-only enrichment is already covered by scoped projection, privacy, and
 current-term access tests. The Production release has not completed.
+
+#### September 16, source reconciliation and combined local candidate
+
+The September meeting response workbook and its configured Google Sheet have
+481 nonempty responses. A read-only comparison to Production found 132 distinct
+profiles with exact email, full-name, and active-class corroboration. Four
+additional responses repeat those profiles. The remaining responses need
+officer review: 294 name-only candidates, seven email conflicts, and 44 with no
+candidate. The private, access-restricted review CSV is outside Git at
+`/private/tmp/csf-attendance-followup-20260916/.artifacts/csf/september-2026-attendance-officer-review-20260916T234131Z.csv`.
+The September meeting exists in Production, but has zero attendance rows. No
+attendance was written from this comparison. The importer now holds invalid
+emails, conflicting names, and wrong-class grades for review.
+
+A separate read-only account-connection audit covers all 110 open requests.
+Three have a unique canonical-email and exact-name match that the live evidence
+check would allow an officer to connect after fresh review. Four have canonical
+email/name conflicts, 12 match only an application-reported email, 79 are
+name-only, and 12 have no active-class candidate. Two requests point to
+different profiles depending on email versus name. The private report and
+candidate CSV are at `/private/tmp/csf-profile-review-20260916/`. No account
+link or profile edit was applied.
+
+The isolated combined candidate adds officer-reviewed semester ledger mapping,
+preview, write receipts, and a bounded Google Sheets writer for separate class
+workbooks. The advanced officer Sheet sync panel now accepts a reviewed mapping
+after checking the destination tab and headers, then previews one student's
+cell changes and requires typed confirmation before writing. No real mapping
+was accepted. Root typecheck and zero-warning lint passed; nine
+focused ledger tests passed. An isolated replay applied the new migration and
+ran 355 pgTAP files and 9,406 assertions. Its new ledger receipt file passed,
+but the complete replay failed in `csf_course_retention_coverage`,
+`csf_graduated_cohort_retention`, and
+`csf_profile_merge_reference_completeness`. The new tables need classification
+in retention and merge catalogs before this candidate is accepted. No hosted
+Development or Production release has run for this combined candidate.
+
+Forward migration `20260918011000` classifies the new receipt reference for
+profile merges and graduated-class retention, blocks retirement while a Sheet
+write has an unknown outcome, and removes settled receipts with the owner.
+The second exact isolated replay passed: 576 migrations, 355 pgTAP files, and
+9,414 assertions. This replaces the failed replay as the current database
+evidence. The officer UI has focused authorization and provider-header tests.
+A hosted Development walkthrough with a fictional copied workbook is still
+needed before treating the workflow as ready for officers.
+
+The supported private-plugin test runner passed all 459 discovered test files
+after the Sheet writer was added to its explicit write boundary and its planner
+was moved inside the private plugin. Private Development PR 476 passed CI and
+merged as `1ac4fcf`; the root now pins that exact revision, and the strict
+submodule check passes. Local Turbopack compilation fails because this isolated
+worktree symlinks `node_modules` outside its filesystem root. A separate
+Webpack build completed compilation and TypeScript, then stopped while
+prerendering public pages because this temporary worktree has no Supabase URL
+or API key. Root CI must prove the normal configured checkout build.
+
+Chrome's signed-out public CSF page currently displays no meeting or deadline
+updates, even though a read-only Production query confirms an active scheduled
+September 16 meeting. The public projection selected an unordered first 12 of
+20 open or planned terms, omitting Fall 2026. Private commit `433fc42` limits
+the term query to terms that have not ended and orders them by start date.
+The existing public-boundary test and root typecheck passed locally. This has
+not been deployed or checked on the hosted page; the Chrome observation remains
+the Production baseline.
+
+Root PR 639's first CI pass exposed stale Production migration approvals after
+the three new 20260918 migrations. The release catalog now pins their exact
+bytes, function definitions, relation shapes, role grants, and retention
+policy against a clean 576-migration replay. All 265 Production script tests
+passed locally; five deliberate schema-drift checks were rejected. The next
+CI run passed root and plugin tests, typecheck, lint, and the production build.
+Its database job reached CSF browser testing, where three checks exposed a
+stale expected meeting-count tile and an agenda now shown to pending members.
+The meeting count remains hidden while historical attendance is reconciled;
+the ledger still shows meeting records. The browser checks now expect that
+behavior. A pending applicant also received the full member tour despite
+lacking current-term tools. Private PR 477 fixed that gate, passed its plugin
+CI, and merged as `9e5fc662`; root pins that revision. Production and hosted
+Development behavior have not been verified for this follow-up.
+
+Root PR 641 review found two P1 gaps in the new semester ledger receipts.
+An `unknown_outcome` attempt could never leave that state, so a single ambiguous
+Google response blocked later writes and profile retirement indefinitely. A
+profile merge could also move a reviewed workbook link while a `claimed` or
+`unknown_outcome` write still targeted its former owner. Forward migration
+`20260918012000` adds a service-only, permission-checked reconciliation RPC.
+An officer records a checked provider readback, whether the write occurred, and
+a reason. It moves the ambiguous attempt to `applied` or `aborted`, audits the
+before and after state, and rejects conflicting retries. Merge preview now
+reports unsettled attempts on either record; the workbook-link transfer and
+write-claim triggers serialize ownership against an in-flight attempt. Focused
+pgTAP covers both reconciliation outcomes, authorization, retries, immutable
+evidence, and the merge guard. This is a Development candidate. No live Sheet
+write or Production data correction is claimed by the test.
+The final isolated replay applied 577 migrations and passed 356 pgTAP files
+with 9,433 assertions. The exact Production schema catalog returned `1` on
+that replay, and all ten deliberate point-trigger and permission drift cases
+were refused. The focused Production controller tests passed 89 cases. This is
+local evidence only; hosted Development and Production remain separate gates.
+
+Root PR 641 follow-up identified two more semester Sheet ledger defects. Three
+new trigger functions lacked explicit `postgres` execute grants after their
+public and runtime grants were revoked. A reused write request ID could also
+return an earlier receipt when the reviewed workbook link or current source
+version had changed, because the retry comparison checked only the mapping,
+profile, plan, and actor. Forward migration `20260918013000` grants the three
+trigger functions to their owner and binds a retry to the saved destination,
+reviewed source link, and source version. Focused pgTAP checks the grants,
+valid replay, changed link and version rejection, and unchanged receipt and
+audit counts. The exact 578-migration schema catalog pins the replacement
+function and trigger ACLs. The final isolated replay applied 578 migrations and
+passed 357 pgTAP files with 9,443 assertions. The exact schema catalog
+returned `1` and refused all ten deliberate drift probes; the four focused
+Production controller files passed 97 cases. Formatting and lint also passed.
+These are local results only. Hosted Development and Production remain separate
+gates. No live Sheet write is part of this change.
+
+Further PR 641 review found three P1 semester Sheet write paths that could leave
+an officer unable to finish a copied-ledger update. Link revocation and deletion
+were not fenced during a claimed or ambiguous provider write. A claimed write
+whose lease expired could not enter the existing reconciliation path. A confirmed
+aborted attempt retained a unique receipt key that prevented a fresh request
+for the same source snapshot. Forward migration `20260918014000` extends the
+link trigger to revocation and deletion, allows an authorized officer to
+reconcile an expired claim with a checked provider readback and two audit
+transitions, and replaces unconditional receipt uniqueness with a partial
+unique index for non-aborted outcomes. Focused tests cover claimed and ambiguous
+link changes, both expired-claim outcomes, audit replay, and same-snapshot
+retry after abort. This is local implementation only; no Google write or
+Production data operation is part of the test.
+The isolated 579-migration replay passed 357 pgTAP files with 9,458
+assertions, including both affected semester-ledger tests. Its exact schema
+catalog returned `1`; four focused Production controller test files passed 97
+cases. This is local evidence only. Hosted Development and Production remain
+unverified for migration `20260918014000`.
+
+PR 641 later identified a target-side merge race in semester Sheet write claims.
+The claim held the staff-access lock but not the identity-mutation lock used by
+profile merges. A merge into the claimed target could change the target's
+source snapshot after validation but before receipt insertion, while leaving
+the target's reviewed workbook link unchanged. Forward migration
+`20260918015000` takes the identity lock after the staff lock and before any
+claim validation. If a claim wins, the merge sees its unsettled receipt and
+stops; if the merge wins, the claim rechecks the post-merge source version.
+Focused pgTAP uses a second database session to prove the shared lock wait and
+checks a claimed target blocks the later merge preview. The 580th exact schema
+catalog pins the claim body, lock order, and service-only execution. The
+isolated 580-migration replay passed 357 pgTAP files with 9,461 assertions,
+including the affected semester-ledger test; its exact schema catalog returned
+`1`. Four focused Production controller test files passed 97 cases, and
+`bun run db:validate` passed. This is local evidence only. Hosted Development
+and Production remain unverified for migration `20260918015000`. No live Sheet
+write or Production data change is included.
+
+PR 641 identified a destination authority race after a semester Sheet write was
+claimed. A destination could lose privacy verification, change its accepted
+file or tab, or be deleted before the Google request, and accepted mapping
+deletion could cascade away the receipt. Forward migration `20260918016000`
+fences destination authority changes and deletion, accepted mapping deletion,
+and reviewed workbook link changes while a claim is unsettled. It also locks
+and rechecks the active cohort membership at receipt insertion, then fences
+membership deactivation or deletion until settlement. Routine destination
+polling timestamps remain writable. Focused pgTAP covers claimed and ambiguous
+outcomes, destination and mapping deletion, link identity, and membership
+changes. The isolated 581-migration replay passed 357 pgTAP files with 9,474
+assertions, including the affected semester-ledger tests. The exact schema
+catalog returned `1`; four focused Production controller test files passed 97
+cases. `bun run db:validate` and the strict private gitlink check passed.
+This is local evidence only. Hosted Development and Production remain
+unverified; no live Sheet writes or Production data changes are included.
