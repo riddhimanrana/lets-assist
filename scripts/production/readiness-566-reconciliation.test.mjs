@@ -44,6 +44,7 @@ const EXTENSIONS = [
   "20260918000000_csf_notice_sender_and_context",
   "20260918010000_csf_semester_ledger_write_receipts",
   "20260918011000_csf_semester_ledger_identity_lifecycle",
+  "20260918012000_csf_semester_ledger_reconciliation_and_merge_fence",
 ];
 
 test("the release is the 557 decisions baseline plus the reviewed integrated extensions", () => {
