@@ -1,7 +1,7 @@
 BEGIN;
 
 CREATE EXTENSION IF NOT EXISTS pgtap WITH SCHEMA extensions;
-SELECT extensions.plan(78);
+SELECT extensions.plan(83);
 
 -- ---------------------------------------------------------------------------
 -- Shape and boundaries
@@ -216,12 +216,13 @@ VALUES
   ('bd200000-0000-4000-8000-000000000002', 'bd100000-0000-4000-8000-000000000001', 2029, 'Class of 2029');
 
 INSERT INTO plugin_data.csf_announcements (
-  id, organization_id, title, body, audience, audience_cohort_id, created_by
+  id, organization_id, title, body, audience, audience_cohort_id, pinned, created_by
 ) VALUES (
   'bd220000-0000-4000-8000-000000000001',
   'bd100000-0000-4000-8000-000000000001',
   'Historical class post', 'Retained as an unpublished fixture.', 'class',
   'bd200000-0000-4000-8000-000000000001',
+  true,
   'bd000000-0000-4000-8000-000000000001'
 );
 
@@ -238,6 +239,16 @@ VALUES
    'bd500000-0000-4000-8000-000000000001'),
   ('bd100000-0000-4000-8000-000000000001', 'bd200000-0000-4000-8000-000000000002',
    'bd500000-0000-4000-8000-000000000001');
+
+INSERT INTO plugin_data.csf_opportunities (
+  id, organization_id, term_id, cohort_id, title, body
+) VALUES (
+  'bd230000-0000-4000-8000-000000000001',
+  'bd100000-0000-4000-8000-000000000001',
+  'bd500000-0000-4000-8000-000000000001',
+  'bd200000-0000-4000-8000-000000000001',
+  'Historical class activity', 'Retained as an unpublished fixture.'
+);
 
 INSERT INTO plugin_data.csf_class_join_codes (
   id, organization_id, cohort_id, code, created_by
@@ -620,6 +631,27 @@ SELECT extensions.throws_ok(
 );
 
 SELECT extensions.lives_ok(
+  $$UPDATE plugin_data.csf_announcements
+    SET pinned = false, updated_by = 'bd000000-0000-4000-8000-000000000001'
+    WHERE id = 'bd220000-0000-4000-8000-000000000001'$$,
+  'officers can unpin a residual retired-class post'
+);
+
+SELECT extensions.lives_ok(
+  $$UPDATE plugin_data.csf_announcements
+    SET status = 'archived', updated_by = 'bd000000-0000-4000-8000-000000000001'
+    WHERE id = 'bd220000-0000-4000-8000-000000000001'$$,
+  'officers can archive a residual retired-class post'
+);
+
+SELECT extensions.throws_ok(
+  $$UPDATE plugin_data.csf_announcements SET status = 'published'
+    WHERE id = 'bd220000-0000-4000-8000-000000000001'$$,
+  '55000', NULL,
+  'an archived retired-class post cannot be published again'
+);
+
+SELECT extensions.lives_ok(
   $$INSERT INTO plugin_data.csf_announcements (
     organization_id, title, body, audience, audience_cohort_id
   ) VALUES (
@@ -897,6 +929,17 @@ SELECT extensions.throws_ok(
     WHERE organization_id = 'bd100000-0000-4000-8000-000000000001'
       AND cohort_id = 'bd200000-0000-4000-8000-000000000001'$$,
   'P0001', NULL, 'a retired class cannot change semester settings'
+);
+SELECT extensions.lives_ok(
+  $$UPDATE plugin_data.csf_cohort_terms SET status = 'inactive'
+    WHERE organization_id = 'bd100000-0000-4000-8000-000000000001'
+      AND cohort_id = 'bd200000-0000-4000-8000-000000000001'$$,
+  'officers can deactivate a retired-class semester link'
+);
+SELECT extensions.lives_ok(
+  $$UPDATE plugin_data.csf_opportunities SET status = 'archived'
+    WHERE id = 'bd230000-0000-4000-8000-000000000001'$$,
+  'officers can archive a residual retired-class activity'
 );
 SELECT extensions.throws_ok(
   $$INSERT INTO plugin_data.csf_opportunities
