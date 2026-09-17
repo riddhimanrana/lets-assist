@@ -37,6 +37,8 @@ import { Label } from "@/components/ui/label";
 interface RichTextEditorProps {
   content: string;
   onChange: (html: string) => void;
+  /** Stable identity of the document when one editor instance can edit several records. */
+  documentKey?: string;
   placeholder?: string;
   maxLength?: number;
   className?: string;
@@ -55,6 +57,7 @@ interface RichTextEditorProps {
 export function RichTextEditor({
   content,
   onChange,
+  documentKey,
   placeholder = "e.g., Join us for a day of fun and community service...",
   maxLength,
   className,
@@ -69,6 +72,7 @@ export function RichTextEditor({
   const [linkDialogOpen, setLinkDialogOpen] = useState(false);
   const [linkUrl, setLinkUrl] = useState("");
   const contentSyncRef = useRef(createRichTextContentSync());
+  const activeDocumentKeyRef = useRef(documentKey);
   const sanitizeEditorContent = useCallback(
     (html: string): string => sanitizeRichTextHtml(html),
     [],
@@ -194,17 +198,21 @@ export function RichTextEditor({
     if (!editor) return;
 
     const sanitizedContent = sanitizeEditorContent(content);
+    const documentChanged = activeDocumentKeyRef.current !== documentKey;
+    activeDocumentKeyRef.current = documentKey;
     const contentToApply = contentSyncRef.current.receive(
       sanitizedContent,
       editor.getHTML(),
+      documentKey,
     );
+    // A record switch clears focus even when both posts contain the same HTML.
+    if ((documentChanged || contentToApply !== null) && editor.isFocused) {
+      editor.commands.blur();
+    }
     if (contentToApply !== null) {
-      // A different post or server revision must be visible before typing
-      // resumes. Keeping focus here could send later keystrokes to the old body.
-      if (editor.isFocused) editor.commands.blur();
       editor.commands.setContent(contentToApply, { emitUpdate: false });
     }
-  }, [editor, content, sanitizeEditorContent]);
+  }, [editor, content, documentKey, sanitizeEditorContent]);
 
   const getCounterColor = (current: number, max: number | undefined) => {
     if (!max) return "text-muted-foreground";

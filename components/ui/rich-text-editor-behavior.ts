@@ -31,25 +31,40 @@ export function resolveRichTextKeyIntent(
 /** Ignore parent echoes without delaying a new external document. */
 export function createRichTextContentSync() {
   let lastSyncedValue: string | null = null;
-  const recentLocalValues: string[] = [];
+  const recentDocumentValues: string[] = [];
+  let currentDocumentKey: string | undefined;
+  const remember = (value: string) => {
+    const earlier = recentDocumentValues.indexOf(value);
+    if (earlier !== -1) recentDocumentValues.splice(earlier, 1);
+    recentDocumentValues.push(value);
+    if (recentDocumentValues.length > 32) recentDocumentValues.shift();
+  };
 
   return {
-    receive(incoming: string, editorHtml: string) {
+    receive(incoming: string, editorHtml: string, documentKey?: string) {
+      if (documentKey !== currentDocumentKey) {
+        currentDocumentKey = documentKey;
+        recentDocumentValues.length = 0;
+        lastSyncedValue = incoming;
+        remember(incoming);
+        return incoming === editorHtml ? null : incoming;
+      }
       // A parent echo may omit a trailing empty paragraph the author just made.
       if (incoming === lastSyncedValue) return null;
-      // A delayed echo of an older keystroke must not replace the newer draft.
-      if (recentLocalValues.includes(incoming)) return null;
+      // An earlier value from this document must not replace the newer draft.
+      if (recentDocumentValues.includes(incoming)) return null;
       if (incoming === editorHtml) {
         lastSyncedValue = incoming;
+        remember(incoming);
         return null;
       }
       lastSyncedValue = incoming;
+      remember(incoming);
       return incoming;
     },
     recordLocalEdit(html: string) {
       lastSyncedValue = html;
-      recentLocalValues.push(html);
-      if (recentLocalValues.length > 32) recentLocalValues.shift();
+      remember(html);
       return true;
     },
   };

@@ -101,6 +101,27 @@ describe("rich text editor external content sync", () => {
     expect(sync.recordLocalEdit("<p>First, second, and third</p>")).toBe(true);
   });
 
+  test("a delayed echo stays ignored within the same document", () => {
+    const sync = createRichTextContentSync();
+    const first = "<p>First</p>";
+    const second = "<p>Second</p>";
+    expect(sync.receive(first, "<p></p>", "post-a")).toBe(first);
+    sync.recordLocalEdit(second);
+    expect(sync.receive(first, second, "post-a")).toBeNull();
+  });
+
+  test("switching documents applies a saved body matching an old local edit", () => {
+    const sync = createRichTextContentSync();
+    const first = "<p>First</p>";
+    const second = "<p>Second</p>";
+    expect(sync.receive(first, "<p></p>", "post-a")).toBe(first);
+    sync.recordLocalEdit(first);
+    sync.recordLocalEdit(second);
+    expect(sync.receive(first, second, "post-a")).toBeNull();
+    expect(sync.receive(first, second, "post-b")).toBe(first);
+    expect(sync.recordLocalEdit("<p>Post B edited</p>")).toBe(true);
+  });
+
   test("an old local echo after an external switch cannot restore the old body", () => {
     const sync = createRichTextContentSync();
     sync.recordLocalEdit("<p>Old post draft</p>");
