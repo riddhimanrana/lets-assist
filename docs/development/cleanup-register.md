@@ -8365,11 +8365,15 @@ evidence. The officer UI has focused authorization and provider-header tests.
 A hosted Development walkthrough with a fictional copied workbook is still
 needed before treating the workflow as ready for officers.
 
-The supported private-plugin test runner passed all 458 discovered test files
-after the Sheet writer was added to its explicit write boundary. Private
-Development PR 476 carries the reviewed plugin branch. Root build currently
-stops at the strict gitlink check because that private revision has not yet
-merged into private Development; it has not reached Next.js compilation.
+The supported private-plugin test runner passed all 459 discovered test files
+after the Sheet writer was added to its explicit write boundary and its planner
+was moved inside the private plugin. Private Development PR 476 passed CI and
+merged as `1ac4fcf`; the root now pins that exact revision, and the strict
+submodule check passes. Local Turbopack compilation fails because this isolated
+worktree symlinks `node_modules` outside its filesystem root. A separate
+Webpack build completed compilation and TypeScript, then stopped while
+prerendering public pages because this temporary worktree has no Supabase URL
+or API key. Root CI must prove the normal configured checkout build.
 
 Chrome's signed-out public CSF page currently displays no meeting or deadline
 updates, even though a read-only Production query confirms an active scheduled
