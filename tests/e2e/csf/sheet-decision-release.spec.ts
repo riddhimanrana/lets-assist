@@ -469,7 +469,9 @@ test.describe("release, then a later sync that takes it back", () => {
       .click();
 
     await expect(panel(page)).toContainText(/row.* held back/);
-    await expect(panel(page)).toContainText("missing_yellow_reason");
+    await expect(panel(page)).toContainText(
+      "Add the reason in the Sheet before releasing",
+    );
 
     expectNoBrowserFailures(failures);
   });
