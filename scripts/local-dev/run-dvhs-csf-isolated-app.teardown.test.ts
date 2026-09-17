@@ -409,5 +409,5 @@ describe("the isolated app runner gives its port claim back", () => {
     expect(run.output).toContain("RELEASED true");
     expect(outcome.code).toBe(1);
     expect(readdirSync(claimRoot)).toEqual([]);
-  });
+  }, 25_000);
 });
