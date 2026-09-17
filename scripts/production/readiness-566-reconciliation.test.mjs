@@ -48,6 +48,7 @@ const EXTENSIONS = [
   "20260918013000_csf_semester_ledger_claim_identity_and_trigger_grants",
   "20260918014000_csf_semester_ledger_link_revocation_fence",
   "20260918015000_csf_semester_ledger_merge_claim_fence",
+  "20260918016000_csf_semester_ledger_authority_fences",
 ];
 
 test("the release is the 557 decisions baseline plus the reviewed integrated extensions", () => {

@@ -2,6 +2,7 @@ import { semesterLedgerReconciliationCatalog } from "./semester-ledger-reconcili
 import { semesterLedgerClaimIdentityCatalog } from "./semester-ledger-claim-identity-catalog.mjs";
 import { semesterLedgerRecoveryCatalog } from "./semester-ledger-recovery-catalog.mjs";
 import { semesterLedgerMergeClaimCatalog } from "./semester-ledger-merge-claim-catalog.mjs";
+import { semesterLedgerAuthorityCatalog } from "./semester-ledger-authority-catalog.mjs";
 import { noticeLedgerCatalog } from "./notice-ledger-catalog.mjs";
 import {
   historyIdentityLedgers,
@@ -261,6 +262,44 @@ export function acceptedCatalogQuery(source, versions) {
   const ledgerHash = createHash("sha256")
     .update(versions.join("\n"))
     .digest("hex");
+  if (
+    versions.length === 581 &&
+    ledgerHash ===
+      "80ddb17ee1ca0ab40040b3223c8bffe978552386b34c7e819061aa71e7fd7e42"
+  ) {
+    const previous = acceptedCatalogQuery(source, versions.slice(0, 580));
+    return semesterLedgerAuthorityCatalog(
+      previous
+        .replaceAll(
+          "74b7a44aa7551dc5d2ada9fde7c40674",
+          "e8790bf64057b8bef76c691a7a3c852d",
+        )
+        .replaceAll(
+          "4a013faa20065d7e620c1088900c4faf",
+          "cbecc31831fe84c303a2941b59c01516",
+        )
+        .replaceAll(
+          "6d44d27f039ccd271c868e7aa72f6635",
+          "84df907f4eb3e77edb675ad7b57fffd9",
+        )
+        .replaceAll(
+          "7ce8fd6421c75a9a19ef3014e4998f5b",
+          "a3769fe20a17380a403737ac5511f7a1",
+        )
+        .replaceAll(
+          "45766bcd4803ef8cbd7d4605f7744b47",
+          "294c8d521ae3724d5561b619f60b3d49",
+        )
+        .replaceAll(
+          "5c99b2d7923d08d11466dc58e5524211",
+          "bed09085445ef97e0a34f0bab63e3828",
+        )
+        .replaceAll(
+          "BEFORE DELETE OR UPDATE OF profile_id, revoked_at ON plugin_data.csf_reviewed_workbook_profile_links",
+          "BEFORE DELETE OR UPDATE ON plugin_data.csf_reviewed_workbook_profile_links",
+        ),
+    );
+  }
   if (
     versions.length === 580 &&
     ledgerHash ===

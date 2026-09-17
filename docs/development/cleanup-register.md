@@ -8472,3 +8472,20 @@ including the affected semester-ledger test; its exact schema catalog returned
 `bun run db:validate` passed. This is local evidence only. Hosted Development
 and Production remain unverified for migration `20260918015000`. No live Sheet
 write or Production data change is included.
+
+PR 641 identified a destination authority race after a semester Sheet write was
+claimed. A destination could lose privacy verification, change its accepted
+file or tab, or be deleted before the Google request, and accepted mapping
+deletion could cascade away the receipt. Forward migration `20260918016000`
+fences destination authority changes and deletion, accepted mapping deletion,
+and reviewed workbook link changes while a claim is unsettled. It also locks
+and rechecks the active cohort membership at receipt insertion, then fences
+membership deactivation or deletion until settlement. Routine destination
+polling timestamps remain writable. Focused pgTAP covers claimed and ambiguous
+outcomes, destination and mapping deletion, link identity, and membership
+changes. The isolated 581-migration replay passed 357 pgTAP files with 9,474
+assertions, including the affected semester-ledger tests. The exact schema
+catalog returned `1`; four focused Production controller test files passed 97
+cases. `bun run db:validate` and the strict private gitlink check passed.
+This is local evidence only. Hosted Development and Production remain
+unverified; no live Sheet writes or Production data changes are included.
