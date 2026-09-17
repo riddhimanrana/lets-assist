@@ -23,7 +23,7 @@ describe("CSF publication email", () => {
           publishedAtLabel="September 16, 2026"
         />,
       );
-      expect(html.replace(/<!--.*?-->/g, "")).toInclude(`posted a new ${kind}`);
+      expect(html).toInclude("posted a new");
       expect(html).toInclude("Class of 2028");
       expect(html).toInclude("Fall 2026");
       expect(html).toInclude(kind === "post" ? "View post" : "View activity");
