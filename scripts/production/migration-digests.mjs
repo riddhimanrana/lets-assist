@@ -1190,4 +1190,6 @@ export const migrationDigests = {
     "4fbe08745e9d218bc200c8ae00f898833867e4109f7b3e198f20194d638ebb76",
   "20260918100000_project_status_schedule_nonempty_windows.sql":
     "f596ffce7f716652cabf2fa79a6f1466713e0f5d005b2971627f006ff273538e",
+  "20260918110000_csf_retired_cohort_operational_fence.sql":
+    "4b336c44aeca209b1650cc189f4869b8f9914a72d36077bbb2cb2176238ccdc8",
 };

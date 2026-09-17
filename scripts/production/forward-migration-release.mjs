@@ -503,6 +503,10 @@ export const approvedMigrations = [
     "20260918100000_project_status_schedule_nonempty_windows",
     "f596ffce7f716652cabf2fa79a6f1466713e0f5d005b2971627f006ff273538e",
   ],
+  [
+    "20260918110000_csf_retired_cohort_operational_fence",
+    "4b336c44aeca209b1650cc189f4869b8f9914a72d36077bbb2cb2176238ccdc8",
+  ],
 ];
 
 const literal = (value) => `'${value.replaceAll("'", "''")}'`;
