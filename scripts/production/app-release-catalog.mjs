@@ -1,3 +1,4 @@
+import { noticeLedgerCatalog } from "./notice-ledger-catalog.mjs";
 import {
   historyIdentityLedgers,
   historyIdentityCatalog,
@@ -256,6 +257,60 @@ export function acceptedCatalogQuery(source, versions) {
   const ledgerHash = createHash("sha256")
     .update(versions.join("\n"))
     .digest("hex");
+  if (
+    versions.length === 576 &&
+    ledgerHash ===
+      "e3c2e15ceb0d22ec4c1324a3a2f51268e346bc18296ad322598ad5b0983c1e1c"
+  ) {
+    let previous = acceptedCatalogQuery(source, versions.slice(0, 573));
+    previous = swapAcceptedFingerprints(previous, [
+      {
+        object: "publication notice authorization",
+        before: "f494ecf0746444bbb55bf2605123ab2a",
+        after: "8f8b113fd372dfe7b94ab2c26ca8708e",
+        occurrences: 1,
+      },
+      {
+        object: "semester ledger merge reference plan",
+        before: "48a500ad4960c56dffca1cf1a823d3ad",
+        after: "86ffad9d7360ad5b970528949b66454e",
+        occurrences: 1,
+      },
+    ]);
+    return noticeLedgerCatalog(previous, 576, workerRelationSnapshotQuery);
+  }
+  if (
+    versions.length === 575 &&
+    ledgerHash ===
+      "bc0ebdb840a6c8c5fed3e61724d317d054038c8b8a4e38ab3d1e28895d412feb"
+  ) {
+    let previous = acceptedCatalogQuery(source, versions.slice(0, 573));
+    previous = swapAcceptedFingerprints(previous, [
+      {
+        object: "publication notice authorization",
+        before: "f494ecf0746444bbb55bf2605123ab2a",
+        after: "8f8b113fd372dfe7b94ab2c26ca8708e",
+        occurrences: 1,
+      },
+    ]);
+    return noticeLedgerCatalog(previous, 575, workerRelationSnapshotQuery);
+  }
+  if (
+    versions.length === 574 &&
+    ledgerHash ===
+      "5eee4be52342c22b831aed6939929f59c0418b3c429593e175c773c2eb14b3af"
+  ) {
+    let previous = acceptedCatalogQuery(source, versions.slice(0, 573));
+    previous = swapAcceptedFingerprints(previous, [
+      {
+        object: "publication notice authorization",
+        before: "f494ecf0746444bbb55bf2605123ab2a",
+        after: "8f8b113fd372dfe7b94ab2c26ca8708e",
+        occurrences: 1,
+      },
+    ]);
+    return noticeLedgerCatalog(previous, 574, workerRelationSnapshotQuery);
+  }
   if (
     versions.length === 573 &&
     ledgerHash ===

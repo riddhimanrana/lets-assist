@@ -542,9 +542,9 @@ test.describe("personal notice lifecycle", () => {
       // point of the change: "New CSF post" told a member nothing.
       expect(String(notice.title)).toContain("updated your point submission");
       expect(String(notice.body)).toContain(title);
-      // And it says nothing about how the claim was judged.
+      // The member sees the reviewed outcome in this personal notice.
       const rendered = `${notice.title} ${notice.body}`;
-      expect(rendered.toLowerCase()).not.toContain("approved");
+      expect(rendered.toLowerCase()).toContain("approved");
       expect(rendered).not.toMatch(DELIVERY_CLAIMS);
       // The button selects this submission, on the tab that renders one.
       const actionUrl = String(notice.action_url);

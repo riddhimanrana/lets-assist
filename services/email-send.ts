@@ -1,6 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { render } from "react-email";
 import { logError, logInfo, logWarn } from "@/lib/logger";
+import { resolvePlatformSenderHeader } from "./email-sender-identity";
 import {
   classifyProviderError,
   emailLogAttributes,
@@ -213,10 +214,7 @@ export async function sendEmail({
     return mailpitResult;
   }
 
-  const resolvedFrom =
-    from ??
-    process.env.EMAIL_FROM?.trim() ??
-    "Let's Assist <projects@notifications.lets-assist.com>";
+  const resolvedFrom = from ?? resolvePlatformSenderHeader();
   const developmentGuard = guardDevelopmentProviderSend({
     to,
     from: resolvedFrom,

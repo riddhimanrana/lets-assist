@@ -41,6 +41,9 @@ const EXTENSIONS = [
   "20260917210000_csf_member_report_term_scope",
   "20260917220000_csf_member_report_quota_serialization",
   "20260917230000_csf_profile_activity_authority_retry_guards",
+  "20260918000000_csf_notice_sender_and_context",
+  "20260918010000_csf_semester_ledger_write_receipts",
+  "20260918011000_csf_semester_ledger_identity_lifecycle",
 ];
 
 test("the release is the 557 decisions baseline plus the reviewed integrated extensions", () => {
@@ -143,6 +146,7 @@ test("every data write a migration carries is on the reviewed allowlist", () => 
   assert.deepEqual(found.sort(), [
     "plugin_data.csf_retention_identity_inventory",
     "plugin_data.csf_retention_identity_inventory",
+    "plugin_data.csf_retention_reference_policy",
     "plugin_data.csf_retention_reference_policy",
     "plugin_data.csf_retention_reference_policy",
     "plugin_data.csf_role_permissions",

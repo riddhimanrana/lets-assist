@@ -9,6 +9,12 @@ This document defines the product, operating model, information architecture, te
 
 ## Amendment record
 
+### Amendment 10: Claimed-account recovery notice (September 16, 2026)
+
+The owner explicitly approved showing the linked account's full verified email in an already-claimed notice. The caller must be signed in with a verified email and use an active class code. The server applies the join rate limit and requires one exact active profile match in that organization and class, with one verified account owner. Duplicate matches, conflicting links, an unverified owner address, or an unavailable owner lookup receive a generic claimed notice.
+
+The notice offers signing in with the linked account or sending an officer review request. It never transfers ownership or releases an application decision. This exception reveals the linked email to another verified account holder with the class code and exact name; it does not open roster browsing or private record history. It supersedes generic-notice-only wording below. The implementation remains a Development candidate until separately released.
+
 ### Amendment 9: A class code selects a record, it never grants one (September 16, 2026)
 
 The owner has closed the two remaining ways a student could settle their own
