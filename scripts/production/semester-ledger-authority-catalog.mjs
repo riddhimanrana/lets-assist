@@ -42,5 +42,5 @@ export function semesterLedgerAuthorityCatalog(previous) {
         AND t.tgrelid=to_regclass(expected.table_name)
       WHERE t.oid IS NULL OR t.tgfoid IS DISTINCT FROM to_regprocedure(expected.signature)
         OR t.tgenabled<>'O' OR t.tgisinternal OR t.tgtype<>expected.trigger_type
-    ) THEN 1 ELSE 0 END AS valid;`;
+    ) THEN 1 ELSE 0 END AS csf_target_schema_verified;`;
 }

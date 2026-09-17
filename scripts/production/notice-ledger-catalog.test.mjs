@@ -59,6 +59,7 @@ test("notice and semester ledger pins begin at their exact migrations", () => {
   assert.match(authorityFenced, /csf_membership_unsettled_semester_write/u);
   assert.match(authorityFenced, /bed09085445ef97e0a34f0bab63e3828/u);
   assert.doesNotMatch(authorityFenced, /5c99b2d7923d08d11466dc58e5524211/u);
+  assert.match(authorityFenced, /AS csf_target_schema_verified;$/u);
   for (const [signature, hash] of noticeLedgerDefinitions) {
     assert.ok(lifecycle.includes(signature), signature);
     assert.ok(lifecycle.includes(hash), signature);
