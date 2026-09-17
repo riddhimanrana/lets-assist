@@ -499,6 +499,10 @@ export const approvedMigrations = [
     "20260918090000_project_status_schedule_review_fixes",
     "4fbe08745e9d218bc200c8ae00f898833867e4109f7b3e198f20194d638ebb76",
   ],
+  [
+    "20260918100000_project_status_schedule_nonempty_windows",
+    "f596ffce7f716652cabf2fa79a6f1466713e0f5d005b2971627f006ff273538e",
+  ],
 ];
 
 const literal = (value) => `'${value.replaceAll("'", "''")}'`;
