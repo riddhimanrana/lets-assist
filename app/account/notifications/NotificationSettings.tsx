@@ -192,7 +192,7 @@ export function NotificationSettings() {
                         Organization updates
                       </Label>
                       <p className="text-sm text-muted-foreground">
-                        Posts, activities, and updates to your CSF record.
+                        Posts, activities, and record updates from your organizations.
                       </p>
                     </div>
                     <Switch
