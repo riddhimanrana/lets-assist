@@ -8,6 +8,14 @@ evidence and does not override the current tables or release gates.
 
 `AUD-` identifiers are allocated per branch and can drift while several audit branches are open at once. Current `development` includes the merged #152, #158, #174, #177, #179, and #181 findings, while open #180 can still carry overlapping historical identifiers. This branch retains `AUD-036` and `AUD-037` for its activity/partner authorization work without renumbering or restating the merged meeting findings.
 
+## Directory latency, September 17, 2026
+
+The member directory waited for unrelated relation queries before fetching account labels and current-term records. Its search form also reloaded the full document, and pagination showed no pending feedback. The member loader now starts dependent reads when their own prerequisites finish, search/filter submissions use client navigation, and roster/import page links announce loading with a spinner.
+
+Read-only Production EXPLAIN measured 211 ms for a 51-row unlinked directory projection. Repeated latest-dues lookups accounted for about 110 ms and 228,735 shared-buffer hits. Forward migration `20260918020000` adds the missing tenant/profile/term/recency index. A local synthetic 1,000-profile, 12,000-record benchmark reduced the same lookup pattern from 49.06 ms to 0.846 ms. Those measurements concern that query pattern, not end-to-end page latency.
+
+Local evidence: three pgTAP index assertions passed inside a rolled-back transaction; relation scheduling, explicit-term, pending-label, directory URL/filter, and import-pager tests passed; TypeScript and focused ESLint passed. Production catalog recognition includes the exact 582-migration ledger and index definition. Hosted Development and Production behavior for this change remain unverified until release.
+
 ## Release continuation, 2026-09-05
 
 ### Grouped acceptance and test-tool review, September 9, 2026

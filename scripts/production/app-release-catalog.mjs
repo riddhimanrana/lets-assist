@@ -263,6 +263,20 @@ export function acceptedCatalogQuery(source, versions) {
     .update(versions.join("\n"))
     .digest("hex");
   if (
+    versions.length === 582 &&
+    ledgerHash ===
+      "be7128ad34d0854a75f7d1b94cc4f8ffa3120b28169cb3b73961bb3495f01a78"
+  ) {
+    const previous = acceptedCatalogQuery(source, versions.slice(0, 581));
+    return `SELECT CASE WHEN (${previous.trim().replace(/;$/u, "")})=1
+      AND EXISTS (
+        SELECT 1 FROM pg_index
+        WHERE indexrelid=to_regclass('plugin_data.csf_dues_records_profile_term_latest_idx')
+          AND indisvalid AND indisready AND NOT indisunique
+          AND pg_get_indexdef(indexrelid)='CREATE INDEX csf_dues_records_profile_term_latest_idx ON plugin_data.csf_dues_records USING btree (organization_id, profile_id, term_id, updated_at DESC, id DESC) INCLUDE (status)'
+      ) THEN 1 ELSE 0 END AS csf_target_schema_verified;`;
+  }
+  if (
     versions.length === 581 &&
     ledgerHash ===
       "80ddb17ee1ca0ab40040b3223c8bffe978552386b34c7e819061aa71e7fd7e42"

@@ -1172,4 +1172,6 @@ export const migrationDigests = {
     "bd7b8b36cc9e7d5db9af2f3eb6ec8cc580edbd408cb9f6fe287973c2d2c8d56b",
   "20260918016000_csf_semester_ledger_authority_fences.sql":
     "4f6b3bf45e2f3962bafdab592c616b181f867fd6f6883e6c39ab1a4345dad22a",
+  "20260918020000_csf_directory_dues_lookup_index.sql":
+    "41bf35437730e1620717feaa55080a0d8591d77fc21d921eded748ffce9b7e32",
 };

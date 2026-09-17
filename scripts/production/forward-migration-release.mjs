@@ -467,6 +467,10 @@ export const approvedMigrations = [
     "20260918016000_csf_semester_ledger_authority_fences",
     "4f6b3bf45e2f3962bafdab592c616b181f867fd6f6883e6c39ab1a4345dad22a",
   ],
+  [
+    "20260918020000_csf_directory_dues_lookup_index",
+    "41bf35437730e1620717feaa55080a0d8591d77fc21d921eded748ffce9b7e32",
+  ],
 ];
 
 const literal = (value) => `'${value.replaceAll("'", "''")}'`;

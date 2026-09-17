@@ -21,8 +21,8 @@ test("the 540 officer identity authority release moves exactly three fingerprint
   const fullLedger = expectedVersions(
     fileURLToPath(new URL("../../", import.meta.url)),
   );
-  assert.equal(fullLedger.length, 581);
-  assert.equal(fullLedger.at(-1), "20260918016000");
+  assert.equal(fullLedger.length, 582);
+  assert.equal(fullLedger.at(-1), "20260918020000");
   const current = acceptedCatalogQuery(source, fullLedger.slice(0, 540));
   const preceding = acceptedCatalogQuery(source, fullLedger.slice(0, 539));
   // The migration replaces three reviewed definitions in place. Nothing else
@@ -1128,4 +1128,16 @@ test("the 573 activity guards pin both definitions and reviewed roles", () => {
     current,
     /has_function_privilege\('service_role', p.oid, 'EXECUTE'\)/u,
   );
+});
+
+test("directory performance index is required only at its exact migration", () => {
+  const ledger = expectedVersions(
+    fileURLToPath(new URL("../../", import.meta.url)),
+  );
+  const before = acceptedCatalogQuery(source, ledger.slice(0, 581));
+  const current = acceptedCatalogQuery(source, ledger);
+  assert.ok(!before.includes("csf_dues_records_profile_term_latest_idx"));
+  assert.ok(current.includes("csf_dues_records_profile_term_latest_idx"));
+  assert.ok(current.includes("indisvalid AND indisready AND NOT indisunique"));
+  assert.match(current, /AS csf_target_schema_verified;$/u);
 });
