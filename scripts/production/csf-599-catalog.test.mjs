@@ -35,7 +35,8 @@ test("599 appends only the reviewed scoped application import", () => {
   assert.match(current, /expected_resolved_at/u);
   assert.match(current, /2a05cd9b2cad8ba623478a6aaec8fe8c/u);
   assert.throws(
-    () => acceptedCatalogQuery(source, [...ledger.slice(0, 598), "20990101000000"]),
+    () =>
+      acceptedCatalogQuery(source, [...ledger.slice(0, 598), "20990101000000"]),
     /explicit release review/u,
   );
 });
