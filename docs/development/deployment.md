@@ -64,6 +64,14 @@ Staged and public-domain machine checks use the existing automation bypass
 header. They do not disable the firewall or prove ordinary browser access;
 signed-in browser acceptance remains a separate check.
 
+The new release SHA starts with every CSF worker off, even when the previous
+release had workers enabled. After the public alias check passes, read the
+controls for both SHAs. Restore each previously approved worker through a
+separate `enable-production-csf-worker.yml` run against the new, publicly
+served SHA, then verify the saved controls and one bounded worker pass. Keep
+scheduled post publishing off. Do not call Sheet exports or notifications
+healthy from the app release result alone.
+
 This app-only path supersedes the schema-first requirement below only when its
 exact live schema checks pass. Database changes still use the separately
 reviewed schema workflow. A successful app release does not prove officer
