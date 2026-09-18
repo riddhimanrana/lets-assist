@@ -1,5 +1,5 @@
-// This append verifies the scoped import relation and its sole service-role
-// mutation function without changing any earlier catalog fingerprint.
+// This append verifies the scoped import relation and its reviewed functions
+// without changing any earlier catalog fingerprint.
 export function csf599Catalog(previous) {
   return `SELECT CASE WHEN (${previous.trim().replace(/;$/u, "")}) = 1
     AND EXISTS (
@@ -40,12 +40,32 @@ export function csf599Catalog(previous) {
         AND p.prokind = 'f' AND p.provolatile = 'v' AND p.proparallel = 'u'
         AND NOT p.proisstrict AND NOT p.proleakproof AND NOT p.proretset
         AND p.pronargdefaults = 0 AND p.proconfig = ARRAY['search_path=""']
-        AND md5(p.prosrc) = '2a05cd9b2cad8ba623478a6aaec8fe8c'
+        AND md5(p.prosrc) = '9b48f8ae14cc608d56678708a313ad31'
         AND has_function_privilege('service_role', p.oid, 'EXECUTE')
         AND NOT has_function_privilege('anon', p.oid, 'EXECUTE')
         AND NOT has_function_privilege('authenticated', p.oid, 'EXECUTE')
         AND (SELECT count(*) = 1 AND bool_and(
           a.grantee = 'service_role'::regrole
+          AND a.privilege_type = 'EXECUTE' AND NOT a.is_grantable
+          AND a.grantor = 'postgres'::regrole
+        ) FROM pg_catalog.aclexplode(p.proacl) a)
+    )
+    AND EXISTS (
+      SELECT 1 FROM pg_catalog.pg_proc p
+      JOIN pg_catalog.pg_language l ON l.oid = p.prolang
+      WHERE p.oid = to_regprocedure('plugin_data.csf_purge_import_recovery(uuid)')
+        AND p.proowner = 'postgres'::regrole AND p.prosecdef
+        AND p.prorettype = 'jsonb'::regtype AND l.lanname = 'plpgsql'
+        AND p.prokind = 'f' AND p.provolatile = 'v' AND p.proparallel = 'u'
+        AND NOT p.proisstrict AND NOT p.proleakproof AND NOT p.proretset
+        AND p.pronargdefaults = 0 AND p.proconfig = ARRAY['search_path=""']
+        AND md5(p.prosrc) = '336d3c82799ef2acc9c2756ff5fb22fc'
+        AND has_function_privilege('postgres', p.oid, 'EXECUTE')
+        AND NOT has_function_privilege('service_role', p.oid, 'EXECUTE')
+        AND NOT has_function_privilege('anon', p.oid, 'EXECUTE')
+        AND NOT has_function_privilege('authenticated', p.oid, 'EXECUTE')
+        AND (SELECT count(*) = 1 AND bool_and(
+          a.grantee = 'postgres'::regrole
           AND a.privilege_type = 'EXECUTE' AND NOT a.is_grantable
           AND a.grantor = 'postgres'::regrole
         ) FROM pg_catalog.aclexplode(p.proacl) a)

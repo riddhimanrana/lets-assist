@@ -115,6 +115,15 @@ SELECT extensions.ok(to_regclass('plugin_data.csf_scoped_application_imports') I
 SELECT extensions.ok(NOT has_function_privilege('authenticated',
   'plugin_data.csf_queue_scoped_application_import(uuid,uuid,uuid,uuid,timestamptz,uuid,text)', 'EXECUTE'),
   'members cannot call the scoped import function');
+SELECT extensions.ok((
+  SELECT position('csf_staff_access_lock_key' IN prosrc) > 0
+    AND position('csf_staff_access_lock_key' IN prosrc)
+      < position('csf_assert_import_actor_for_job' IN prosrc)
+    AND position('csf_assert_import_actor_for_job' IN prosrc)
+      < position('csf_lock_import_commit_coordinate' IN prosrc)
+  FROM pg_catalog.pg_proc
+  WHERE oid = 'plugin_data.csf_queue_scoped_application_import(uuid,uuid,uuid,uuid,timestamptz,uuid,text)'::regprocedure
+), 'staff access is locked before authorization and the import coordinate');
 SELECT extensions.throws_ok($sql$SELECT pg_temp.queue_scoped_fixture(
   'f3820000-0000-4000-8000-000000000001', 'f3880000-0000-4000-8000-000000000001',
   'f3810000-0000-4000-8000-000000000002', 'f3890000-0000-4000-8000-000000000001',
@@ -127,6 +136,17 @@ SELECT extensions.throws_ok($sql$SELECT pg_temp.queue_scoped_fixture(
   'an unresolved sibling cannot be imported by itself');
 SELECT extensions.is((SELECT count(*)::integer FROM plugin_data.csf_scoped_application_imports), 0,
   'refused attempts do not leave scope receipts');
+UPDATE public.organization_members SET status = 'inactive'
+WHERE organization_id = 'f3820000-0000-4000-8000-000000000001'
+  AND user_id = 'f3810000-0000-4000-8000-000000000001';
+SELECT extensions.throws_ok($sql$SELECT pg_temp.queue_scoped_fixture(
+  'f3820000-0000-4000-8000-000000000001', 'f3880000-0000-4000-8000-000000000001',
+  'f3810000-0000-4000-8000-000000000001', 'f3890000-0000-4000-8000-000000000008',
+  'Staff access has been revoked.')$sql$, '42501', NULL,
+  'revoked staff cannot create a scoped import');
+UPDATE public.organization_members SET status = 'active'
+WHERE organization_id = 'f3820000-0000-4000-8000-000000000001'
+  AND user_id = 'f3810000-0000-4000-8000-000000000001';
 UPDATE plugin_data.csf_sheet_import_jobs
 SET status = 'failed'
 WHERE id = 'f3870000-0000-4000-8000-000000000001';
@@ -161,6 +181,8 @@ INSERT INTO scoped_result SELECT pg_temp.queue_scoped_fixture(
   'Officer approved just this source response.');
 SELECT extensions.is((SELECT receipt ->> 'queued' FROM scoped_result), 'true',
   'the approved row enters the normal queue');
+SELECT extensions.is((SELECT receipt ->> 'queueStatus' FROM scoped_result), 'queued',
+  'the first receipt records the current queue status');
 SELECT extensions.is((SELECT snapshot_row_count FROM plugin_data.csf_sheet_import_jobs
   WHERE id = (SELECT (receipt ->> 'scopedJobId')::uuid FROM scoped_result)), 1,
   'the derived preview has one row');
@@ -196,8 +218,44 @@ SELECT extensions.is(pg_temp.queue_scoped_fixture(
   'f3810000-0000-4000-8000-000000000001', 'f3890000-0000-4000-8000-000000000003',
   'Officer approved just this source response.') ->> 'replayed', 'true',
   'a lost-response retry returns the existing receipt');
+SELECT extensions.is(pg_temp.queue_scoped_fixture(
+  'f3820000-0000-4000-8000-000000000001', 'f3880000-0000-4000-8000-000000000001',
+  'f3810000-0000-4000-8000-000000000001', 'f3890000-0000-4000-8000-000000000003',
+  'Officer approved just this source response.') ->> 'queueStatus', 'queued',
+  'a queued replay reports the live queue state');
 SELECT extensions.is((SELECT count(*)::integer FROM plugin_data.csf_scoped_application_imports), 1,
   'a retry does not duplicate scoped imports');
+UPDATE plugin_data.csf_sheet_sources
+SET drive_modified_at = '2039-09-02T00:00:00Z'
+WHERE id = 'f3860000-0000-4000-8000-000000000001';
+SELECT extensions.ok(cardinality(plugin_data.csf_import_preview_claim_blockers(
+  'f3820000-0000-4000-8000-000000000001',
+  (SELECT (receipt ->> 'scopedJobId')::uuid FROM scoped_result))) > 0,
+  'a later Sheet revision blocks the worker claim');
+SELECT extensions.throws_ok($sql$SELECT pg_temp.queue_scoped_fixture(
+  'f3820000-0000-4000-8000-000000000001', 'f3880000-0000-4000-8000-000000000001',
+  'f3810000-0000-4000-8000-000000000001', 'f3890000-0000-4000-8000-000000000003',
+  'Officer approved just this source response.')$sql$, '55000', NULL,
+  'a queued replay refuses changed source evidence');
+UPDATE plugin_data.csf_sheet_sources
+SET drive_modified_at = '2039-09-01T00:00:00Z'
+WHERE id = 'f3860000-0000-4000-8000-000000000001';
+UPDATE plugin_data.csf_import_commit_queue
+SET status = 'blocked', finished_at = now()
+WHERE preview_job_id = (SELECT (receipt ->> 'scopedJobId')::uuid FROM scoped_result);
+SELECT extensions.throws_ok($sql$SELECT pg_temp.queue_scoped_fixture(
+  'f3820000-0000-4000-8000-000000000001', 'f3880000-0000-4000-8000-000000000001',
+  'f3810000-0000-4000-8000-000000000001', 'f3890000-0000-4000-8000-000000000003',
+  'Officer approved just this source response.')$sql$, '55000', NULL,
+  'a blocked scoped queue cannot replay success');
+UPDATE plugin_data.csf_import_commit_queue
+SET status = 'failed'
+WHERE preview_job_id = (SELECT (receipt ->> 'scopedJobId')::uuid FROM scoped_result);
+SELECT extensions.throws_ok($sql$SELECT pg_temp.queue_scoped_fixture(
+  'f3820000-0000-4000-8000-000000000001', 'f3880000-0000-4000-8000-000000000001',
+  'f3810000-0000-4000-8000-000000000001', 'f3890000-0000-4000-8000-000000000003',
+  'Officer approved just this source response.')$sql$, '55000', NULL,
+  'a failed scoped queue cannot replay success');
 UPDATE plugin_data.csf_import_commit_queue
 SET status = 'completed', finished_at = now()
 WHERE preview_job_id = (SELECT (receipt ->> 'scopedJobId')::uuid FROM scoped_result);
@@ -206,6 +264,11 @@ SELECT extensions.is(pg_temp.queue_scoped_fixture(
   'f3810000-0000-4000-8000-000000000001', 'f3890000-0000-4000-8000-000000000003',
   'Officer approved just this source response.') ->> 'replayed', 'true',
   'the same request reads its receipt after queue completion');
+SELECT extensions.is(pg_temp.queue_scoped_fixture(
+  'f3820000-0000-4000-8000-000000000001', 'f3880000-0000-4000-8000-000000000001',
+  'f3810000-0000-4000-8000-000000000001', 'f3890000-0000-4000-8000-000000000003',
+  'Officer approved just this source response.') ->> 'queueStatus', 'completed',
+  'a completed replay reports completion rather than a pending queue');
 SELECT extensions.throws_ok($sql$SELECT plugin_data.csf_queue_scoped_application_import(
   'f3820000-0000-4000-8000-000000000001', 'f3880000-0000-4000-8000-000000000001',
   'f3810000-0000-4000-8000-000000000001', 'f3850000-0000-4000-8000-000000000002',
@@ -266,5 +329,20 @@ SELECT extensions.is(cardinality(plugin_data.csf_import_preview_claim_blockers(
 SELECT extensions.is((SELECT count(*)::integer FROM plugin_data.csf_term_applications
   WHERE organization_id = 'f3820000-0000-4000-8000-000000000001'), 0,
   'queueing never commits an application before the worker runs');
+CREATE TEMP TABLE scoped_purge_result (receipt jsonb);
+SELECT pg_catalog.set_config('plugin_data.csf_recovery_purge_organization',
+  'f3820000-0000-4000-8000-000000000001', true);
+INSERT INTO scoped_purge_result SELECT plugin_data.csf_purge_import_recovery(
+  'f3820000-0000-4000-8000-000000000001');
+SELECT extensions.is((SELECT receipt ->> 'scopedImportReceipts' FROM scoped_purge_result), '1',
+  'import recovery reports the removed scoped receipt');
+SELECT extensions.is((SELECT receipt ->> 'importRows' FROM scoped_purge_result), '3',
+  'import recovery deletes parent, sibling, and derived rows after the receipt');
+SELECT extensions.is((SELECT count(*)::integer FROM plugin_data.csf_scoped_application_imports
+  WHERE organization_id = 'f3820000-0000-4000-8000-000000000001'), 0,
+  'organization purge leaves no scoped receipt');
+SELECT extensions.is((SELECT count(*)::integer FROM plugin_data.csf_sheet_import_jobs
+  WHERE organization_id = 'f3820000-0000-4000-8000-000000000001'), 0,
+  'organization purge clears the referenced import jobs');
 SELECT * FROM extensions.finish();
 ROLLBACK;

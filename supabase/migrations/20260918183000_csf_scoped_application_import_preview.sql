@@ -58,6 +58,7 @@ DECLARE
   v_reason text := pg_catalog.btrim(p_reason);
   v_row_count integer;
   v_parent_job_id uuid;
+  v_queue_status text;
 BEGIN
   IF p_organization_id IS NULL OR p_parent_row_id IS NULL
     OR p_actor_user_id IS NULL OR p_expected_profile_id IS NULL
@@ -67,6 +68,12 @@ BEGIN
     RAISE EXCEPTION 'Choose one application row and enter a reason of 4 to 500 characters.'
       USING ERRCODE = '22023';
   END IF;
+
+  -- Staff revocation takes this lock before changing membership or position.
+  -- Hold it before checking authority and before the import coordinate.
+  PERFORM pg_catalog.pg_advisory_xact_lock(
+    plugin_data.csf_staff_access_lock_key(p_organization_id)
+  );
 
   -- Both a normal claim and another scoped request use the original preview's
   -- coordinate. This also orders the parent row before the source lock.
@@ -98,10 +105,30 @@ BEGIN
       RAISE EXCEPTION 'This application row already has a scoped import. Reload its status.'
         USING ERRCODE = '55000';
     END IF;
+    SELECT queue.status INTO v_queue_status
+    FROM plugin_data.csf_import_commit_queue AS queue
+    WHERE queue.organization_id = p_organization_id
+      AND queue.preview_job_id = v_existing.scoped_job_id
+    FOR UPDATE;
+    IF v_queue_status IS NULL OR v_queue_status IN ('blocked', 'failed') THEN
+      RAISE EXCEPTION 'This scoped import is no longer active. Refresh its source and preview.'
+        USING ERRCODE = '55000';
+    END IF;
+    IF v_queue_status = 'queued'
+      AND coalesce(pg_catalog.cardinality(
+        plugin_data.csf_import_preview_claim_blockers(
+          p_organization_id, v_existing.scoped_job_id
+        )
+      ), 0) > 0
+    THEN
+      RAISE EXCEPTION 'This scoped import needs a fresh source preview before it can run.'
+        USING ERRCODE = '55000';
+    END IF;
     RETURN pg_catalog.jsonb_build_object(
       'scopedJobId', v_existing.scoped_job_id,
       'scopedRowId', v_existing.scoped_row_id,
       'queued', true,
+      'queueStatus', v_queue_status,
       'replayed', true
     );
   END IF;
@@ -277,6 +304,7 @@ BEGIN
     'scopedJobId', v_scoped_job_id,
     'scopedRowId', v_scoped_row_id,
     'queued', true,
+    'queueStatus', 'queued',
     'replayed', false
   );
 END;
@@ -291,6 +319,91 @@ GRANT EXECUTE ON FUNCTION plugin_data.csf_queue_scoped_application_import(
 
 COMMENT ON FUNCTION plugin_data.csf_queue_scoped_application_import(
   uuid, uuid, uuid, uuid, timestamptz, uuid, text
-) IS 'Derives and queues exactly one officer-resolved application row from a sealed source preview. The regular commit worker rechecks live source evidence and atomically applies only the derived row.';
+) IS 'Derives and queues exactly one officer-resolved application row from a sealed source preview. The regular commit worker rechecks the persisted provider revision and atomically applies only the derived row.';
+
+-- Import recovery purges receipts before either referenced row or job. Keep the
+-- existing return fields and add an explicit receipt count for deletion audits.
+CREATE OR REPLACE FUNCTION plugin_data.csf_purge_import_recovery(
+  p_organization_id uuid
+)
+RETURNS jsonb
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = ''
+AS $$
+DECLARE
+  v_tokens integer := 0;
+  v_recovery integer := 0;
+  v_claims integer := 0;
+  v_objects integer := 0;
+  v_attempts integer := 0;
+  v_scoped integer := 0;
+  v_rows integer := 0;
+  v_jobs integer := 0;
+  v_sources integer := 0;
+BEGIN
+  IF p_organization_id IS NULL THEN
+    RAISE EXCEPTION 'A CSF import recovery purge requires an organization.'
+      USING ERRCODE = '22004';
+  END IF;
+
+  DELETE FROM plugin_data.csf_sheet_source_evidence_tokens AS token
+  WHERE token.organization_id = p_organization_id;
+  GET DIAGNOSTICS v_tokens = ROW_COUNT;
+
+  DELETE FROM plugin_data.csf_import_cleanup_recovery AS recovery
+  WHERE recovery.organization_id = p_organization_id;
+  GET DIAGNOSTICS v_recovery = ROW_COUNT;
+
+  DELETE FROM plugin_data.csf_sheet_import_staging_claims AS claim
+  WHERE claim.organization_id = p_organization_id;
+  GET DIAGNOSTICS v_claims = ROW_COUNT;
+
+  DELETE FROM plugin_data.csf_sheet_import_staging_objects AS staging
+  WHERE staging.organization_id = p_organization_id;
+  GET DIAGNOSTICS v_objects = ROW_COUNT;
+
+  DELETE FROM plugin_data.csf_sheet_import_commit_attempts AS attempt
+  WHERE attempt.organization_id = p_organization_id;
+  GET DIAGNOSTICS v_attempts = ROW_COUNT;
+
+  DELETE FROM plugin_data.csf_scoped_application_imports AS scoped
+  WHERE scoped.organization_id = p_organization_id;
+  GET DIAGNOSTICS v_scoped = ROW_COUNT;
+
+  DELETE FROM plugin_data.csf_sheet_import_rows AS import_row
+  WHERE import_row.organization_id = p_organization_id;
+  GET DIAGNOSTICS v_rows = ROW_COUNT;
+
+  DELETE FROM plugin_data.csf_sheet_import_jobs AS job
+  WHERE job.organization_id = p_organization_id;
+  GET DIAGNOSTICS v_jobs = ROW_COUNT;
+
+  DELETE FROM plugin_data.csf_sheet_sources AS source
+  WHERE source.organization_id = p_organization_id;
+  GET DIAGNOSTICS v_sources = ROW_COUNT;
+
+  RETURN pg_catalog.jsonb_build_object(
+    'organizationId', p_organization_id,
+    'evidenceTokens', v_tokens,
+    'cleanupRecoveries', v_recovery,
+    'stagingClaims', v_claims,
+    'stagingObjects', v_objects,
+    'commitAttempts', v_attempts,
+    'scopedImportReceipts', v_scoped,
+    'importRows', v_rows,
+    'importJobs', v_jobs,
+    'sheetSources', v_sources
+  );
+END;
+$$;
+
+REVOKE ALL ON FUNCTION plugin_data.csf_purge_import_recovery(uuid)
+  FROM PUBLIC, anon, authenticated, service_role, postgres;
+GRANT EXECUTE ON FUNCTION plugin_data.csf_purge_import_recovery(uuid)
+  TO postgres;
+
+COMMENT ON FUNCTION plugin_data.csf_purge_import_recovery(uuid) IS
+  'Owner-only import recovery purge. Deletes scoped application receipts before referenced import rows and jobs, and includes scopedImportReceipts in the deletion inventory.';
 
 COMMIT;
