@@ -1,6 +1,6 @@
 BEGIN;
 
-SELECT plan(30);
+SELECT plan(33);
 
 -- The writer (support-import-preview-rows.ts) records acquisition-time cell
 -- fills and notes into normalized_data.annotations, and the settlement RPC
@@ -94,6 +94,42 @@ SELECT is(
   'the note survives into the stored row'
 );
 
+-- The Sheets reader keeps the rendered fill and the officer's explicit fill
+-- separate. The preview must accept both without treating a stripe as a vote.
+SELECT lives_ok(
+  $$SELECT plugin_data.csf_append_import_preview_rows(
+      'a2a20000-0000-4000-8000-000000000002',
+      'a2a20000-0000-4000-8000-000000000001',
+      'a2a20000-0000-4000-8000-000000000004',
+      jsonb_build_array(pg_temp.envelope_row(
+        '{"1": {"background": "#b6d7a8", "userEnteredBackground": "#00ff00"}}'::jsonb
+      ) || '{"row_number": 13}'::jsonb)
+    )$$,
+  'rendered and explicitly entered fills are accepted together'
+);
+
+SELECT is(
+  (SELECT normalized_data -> 'annotations' -> '1' ->> 'userEnteredBackground'
+   FROM plugin_data.csf_sheet_import_rows
+   WHERE job_id = 'a2a20000-0000-4000-8000-000000000004'
+     AND row_number = 13),
+  '#00ff00',
+  'the explicit officer fill survives in the immutable preview'
+);
+
+SELECT throws_like(
+  $$SELECT plugin_data.csf_append_import_preview_rows(
+      'a2a20000-0000-4000-8000-000000000002',
+      'a2a20000-0000-4000-8000-000000000001',
+      'a2a20000-0000-4000-8000-000000000004',
+      jsonb_build_array(pg_temp.envelope_row(
+        '{"1": {"userEnteredBackground": "GREEN"}}'::jsonb
+      ) || '{"row_number": 14}'::jsonb)
+    )$$,
+  '%user-entered background must be a lowercase #rrggbb color%',
+  'an unnormalized explicit fill is refused'
+);
+
 -- Absent annotations remain fine: the empty-object write and the omitted key.
 SELECT lives_ok(
   $$SELECT plugin_data.csf_append_import_preview_rows(
@@ -141,7 +177,7 @@ SELECT throws_like(
         '{"1": {"background": "#b6d7a8", "author": "someone"}}'::jsonb
       ) || '{"row_number": 6}'::jsonb)
     )$$,
-  '%only "background" and "note"%',
+  '%only "background", "userEnteredBackground", and "note"%',
   'unknown annotation fields are refused'
 );
 

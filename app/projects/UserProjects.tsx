@@ -118,7 +118,7 @@ export default async function UserProjects() {
       `
       *,
       organizations(name, logo_url, username),
-      project_signups(id, user_id, status, schedule_id)
+      project_signups!project_signups_project_id_fkey(id, user_id, status, schedule_id)
     `,
     )
     .eq("creator_id", user.id)
