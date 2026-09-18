@@ -124,6 +124,12 @@ SELECT extensions.ok((
   FROM pg_catalog.pg_proc
   WHERE oid = 'plugin_data.csf_queue_scoped_application_import(uuid,uuid,uuid,uuid,timestamptz,uuid,text)'::regprocedure
 ), 'staff access is locked before authorization and the import coordinate');
+SELECT extensions.ok((
+  SELECT position('AND import_row.job_id = v_job.id
+  FOR UPDATE OF import_row;' IN prosrc) > 0
+  FROM pg_catalog.pg_proc
+  WHERE oid = 'plugin_data.csf_queue_scoped_application_import(uuid,uuid,uuid,uuid,timestamptz,uuid,text)'::regprocedure
+), 'the reviewed parent row is locked before its target is validated and copied');
 SELECT extensions.throws_ok($sql$SELECT pg_temp.queue_scoped_fixture(
   'f3820000-0000-4000-8000-000000000001', 'f3880000-0000-4000-8000-000000000001',
   'f3810000-0000-4000-8000-000000000002', 'f3890000-0000-4000-8000-000000000001',

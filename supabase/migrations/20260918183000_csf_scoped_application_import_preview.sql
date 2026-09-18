@@ -149,7 +149,8 @@ BEGIN
   FROM plugin_data.csf_sheet_import_rows AS import_row
   WHERE import_row.organization_id = p_organization_id
     AND import_row.id = p_parent_row_id
-    AND import_row.job_id = v_job.id;
+    AND import_row.job_id = v_job.id
+  FOR UPDATE OF import_row;
 
   IF v_parent.id IS NULL OR v_job.id IS NULL THEN
     RAISE EXCEPTION 'Application preview row was not found.' USING ERRCODE = '23503';

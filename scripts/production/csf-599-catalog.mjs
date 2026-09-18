@@ -40,7 +40,7 @@ export function csf599Catalog(previous) {
         AND p.prokind = 'f' AND p.provolatile = 'v' AND p.proparallel = 'u'
         AND NOT p.proisstrict AND NOT p.proleakproof AND NOT p.proretset
         AND p.pronargdefaults = 0 AND p.proconfig = ARRAY['search_path=""']
-        AND md5(p.prosrc) = '9b48f8ae14cc608d56678708a313ad31'
+        AND md5(p.prosrc) = '0846142ab0a3a7cfd1e169cbb117c011'
         AND has_function_privilege('service_role', p.oid, 'EXECUTE')
         AND NOT has_function_privilege('anon', p.oid, 'EXECUTE')
         AND NOT has_function_privilege('authenticated', p.oid, 'EXECUTE')
