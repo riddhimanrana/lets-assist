@@ -250,6 +250,7 @@ async function upsertSource(fixture: SheetDecisionFixture) {
         syncMode: "manual",
         tabMappings: [
           {
+            termCode: fixture.termCode,
             tabName: SHEET_FIXTURE_TAB,
             rangeA1: SHEET_FIXTURE_RANGE,
             headerRow: 1,

@@ -217,6 +217,52 @@ test.describe("officer post compose in the class Stream", () => {
     if (fixture) await safelyCleanPostPrefix(fixture, TITLE_PREFIX);
   });
 
+  test("Enter creates paragraphs and the post editor can start both list types", async ({
+    page,
+  }) => {
+    await loginAs(page, "admin");
+    await page.goto(
+      `${CSF_ORGANIZATION_PATH}?tab=csf-cohorts&csf_cohort=${fixture.cohortIdsByYear[2028]}&csf_cohort_tab=stream`,
+      { waitUntil: "domcontentloaded" },
+    );
+    const stream = page.getByRole("region", { name: "Class stream" });
+    await expect(stream).toBeVisible();
+    await stream
+      .getByRole("button", { name: "Announce something to Class of 2028" })
+      .click();
+    const dialog = page.getByRole("dialog");
+    const message = dialog.getByLabel("Message");
+    await message.fill("First line");
+    await message.press("Enter");
+    await message.type("Second line");
+    await expect(message.locator(":scope > p")).toHaveText([
+      "First line",
+      "Second line",
+    ]);
+
+    await message.press("Enter");
+    await dialog.getByRole("button", { name: "Bulleted list" }).click();
+    await expect(message).toBeFocused();
+    await page.keyboard.type("Bring water");
+    await expect(message.locator("ul > li")).toHaveText(["Bring water"]);
+    await page.keyboard.press("Enter");
+    await page.keyboard.press("Enter");
+    await dialog.getByRole("button", { name: "Numbered list" }).click();
+    await expect(message).toBeFocused();
+    await page.keyboard.type("Sign in");
+    await expect(message.locator("ol > li")).toHaveText(["Sign in"]);
+    await expect(message.locator(":scope > p").nth(0)).toHaveText("First line");
+    await expect(message.locator(":scope > p").nth(1)).toHaveText(
+      "Second line",
+    );
+    const submittedBody = await dialog
+      .locator('input[name="body"]')
+      .inputValue();
+    expect(submittedBody).toContain("<p>First line</p><p>Second line</p>");
+    expect(submittedBody).toContain("<ul><li><p>Bring water</p></li></ul>");
+    expect(submittedBody).toContain("<ol><li><p>Sign in</p></li></ol>");
+  });
+
   test("an organization admin composes and pins a published class post", async ({
     page,
   }) => {
