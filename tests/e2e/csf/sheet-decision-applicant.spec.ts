@@ -375,11 +375,11 @@ test.describe("before any release", () => {
     await loginWithEmail(page, applicants.byRole.accepted.email);
 
     await page.goto(PROFILE, { waitUntil: "domcontentloaded" });
-    // A staged acceptance grants nothing, so the semester still reads as under
-    // review rather than approved.
+    // A staged acceptance grants nothing, so the semester still reads as
+    // pending rather than approved.
     await expect(page.getByText("Approved by CSF officers")).toHaveCount(0);
     await expect(
-      profileSummary(page).getByText("Under officer review"),
+      profileSummary(page).getByText("Pending", { exact: true }),
     ).toBeVisible();
     await expectNoStagedLeak(page, applicants.byRole.accepted);
 
@@ -715,13 +715,13 @@ test.describe("stale access after a later sync", () => {
     await page.goto(PROFILE, { waitUntil: "domcontentloaded" });
     await expect(page.getByText("Approved by CSF officers")).toHaveCount(0);
     // A retraction returns the application to the officers, so the semester
-    // reads as under review again rather than as one the member failed.
+    // reads as pending again rather than as one the member failed.
     await expect(
-      profileSummary(page).getByText("Under officer review"),
+      profileSummary(page).getByText("Pending", { exact: true }),
     ).toBeVisible();
     await expectSettledSemesterStatus(
       selectedSemester(page),
-      "Under officer review",
+      "Pending",
     );
     // The decision and its reason are cleared together.
     expect(
@@ -993,7 +993,7 @@ test.describe("phone", () => {
 
     await page.goto(PROFILE, { waitUntil: "domcontentloaded" });
     await expect(
-      profileSummary(page).getByText("Under officer review"),
+      profileSummary(page).getByText("Pending", { exact: true }),
     ).toBeVisible();
     await expectNoHorizontalOverflow(page);
 
