@@ -301,6 +301,7 @@ export function RichTextEditor({
             aria-pressed={editor.isActive("bulletList")}
             aria-label="Bulleted list"
             title="Bulleted list"
+            onMouseDown={(event) => event.preventDefault()}
             onClick={() => editor.chain().focus().toggleBulletList().run()}
           >
             <List className="h-4 w-4" />
@@ -312,6 +313,7 @@ export function RichTextEditor({
             aria-pressed={editor.isActive("orderedList")}
             aria-label="Numbered list"
             title="Numbered list"
+            onMouseDown={(event) => event.preventDefault()}
             onClick={() => editor.chain().focus().toggleOrderedList().run()}
           >
             <ListOrdered className="h-4 w-4" />
