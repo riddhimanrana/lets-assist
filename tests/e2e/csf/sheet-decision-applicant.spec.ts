@@ -719,10 +719,7 @@ test.describe("stale access after a later sync", () => {
     await expect(
       profileSummary(page).getByText("Pending", { exact: true }),
     ).toBeVisible();
-    await expectSettledSemesterStatus(
-      selectedSemester(page),
-      "Pending",
-    );
+    await expectSettledSemesterStatus(selectedSemester(page), "Pending");
     // The decision and its reason are cleared together.
     expect(
       await publishedDecisionReason(applicants.byRole.accepted),
