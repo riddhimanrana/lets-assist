@@ -65,6 +65,7 @@ const EXTENSIONS = [
   "20260918150000_csf_retired_directory_projection",
   "20260918160000_csf_retired_class_post_and_actor_fence",
   "20260918170000_csf_retired_class_terminal_updates",
+  "20260918180000_csf_user_entered_sheet_fill_preview",
 ];
 
 test("the release is the 557 decisions baseline plus the reviewed integrated extensions", () => {
