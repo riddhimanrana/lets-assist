@@ -59,7 +59,7 @@ export function csf599Catalog(previous) {
         AND p.prokind = 'f' AND p.provolatile = 'v' AND p.proparallel = 'u'
         AND NOT p.proisstrict AND NOT p.proleakproof AND NOT p.proretset
         AND p.pronargdefaults = 0 AND p.proconfig = ARRAY['search_path=""']
-        AND md5(p.prosrc) = '336d3c82799ef2acc9c2756ff5fb22fc'
+        AND md5(p.prosrc) = '0c6beec791717f8028b9b5ffa0211b04'
         AND has_function_privilege('postgres', p.oid, 'EXECUTE')
         AND NOT has_function_privilege('service_role', p.oid, 'EXECUTE')
         AND NOT has_function_privilege('anon', p.oid, 'EXECUTE')

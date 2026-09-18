@@ -537,7 +537,7 @@ export const approvedMigrations = [
   ],
   [
     "20260918183000_csf_scoped_application_import_preview",
-    "4562acb2a11a473520b5316810846a5eb3fc3c6073b67fb9df72507740727d04",
+    "01fe74711aa53107772338c45a65a16c2ec2217e3e191c7a04f9fcbda69781b3",
   ],
 ];
 

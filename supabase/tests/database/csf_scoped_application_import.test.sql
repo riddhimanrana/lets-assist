@@ -335,6 +335,9 @@ SELECT extensions.is(cardinality(plugin_data.csf_import_preview_claim_blockers(
 SELECT extensions.is((SELECT count(*)::integer FROM plugin_data.csf_term_applications
   WHERE organization_id = 'f3820000-0000-4000-8000-000000000001'), 0,
   'queueing never commits an application before the worker runs');
+SELECT extensions.is((SELECT count(*)::integer FROM plugin_data.csf_import_approval_batches
+  WHERE organization_id = 'f3820000-0000-4000-8000-000000000001'), 2,
+  'the scoped and later parent queues each have an approval batch before purge');
 CREATE TEMP TABLE scoped_purge_result (receipt jsonb);
 SELECT pg_catalog.set_config('plugin_data.csf_recovery_purge_organization',
   'f3820000-0000-4000-8000-000000000001', true);
@@ -342,6 +345,10 @@ INSERT INTO scoped_purge_result SELECT plugin_data.csf_purge_import_recovery(
   'f3820000-0000-4000-8000-000000000001');
 SELECT extensions.is((SELECT receipt ->> 'scopedImportReceipts' FROM scoped_purge_result), '1',
   'import recovery reports the removed scoped receipt');
+SELECT extensions.is((SELECT receipt ->> 'approvalBatchItems' FROM scoped_purge_result), '2',
+  'import recovery reports approval items removed before their batches');
+SELECT extensions.is((SELECT receipt ->> 'approvalBatches' FROM scoped_purge_result), '2',
+  'import recovery reports approval batches removed before import jobs');
 SELECT extensions.is((SELECT receipt ->> 'importRows' FROM scoped_purge_result), '3',
   'import recovery deletes parent, sibling, and derived rows after the receipt');
 SELECT extensions.is((SELECT count(*)::integer FROM plugin_data.csf_scoped_application_imports
@@ -350,5 +357,8 @@ SELECT extensions.is((SELECT count(*)::integer FROM plugin_data.csf_scoped_appli
 SELECT extensions.is((SELECT count(*)::integer FROM plugin_data.csf_sheet_import_jobs
   WHERE organization_id = 'f3820000-0000-4000-8000-000000000001'), 0,
   'organization purge clears the referenced import jobs');
+SELECT extensions.is((SELECT count(*)::integer FROM plugin_data.csf_import_approval_batches
+  WHERE organization_id = 'f3820000-0000-4000-8000-000000000001'), 0,
+  'organization purge leaves no approval batches');
 SELECT * FROM extensions.finish();
 ROLLBACK;

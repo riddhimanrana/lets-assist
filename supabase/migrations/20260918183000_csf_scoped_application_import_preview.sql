@@ -339,6 +339,8 @@ DECLARE
   v_objects integer := 0;
   v_attempts integer := 0;
   v_scoped integer := 0;
+  v_approval_items integer := 0;
+  v_approval_batches integer := 0;
   v_rows integer := 0;
   v_jobs integer := 0;
   v_sources integer := 0;
@@ -372,6 +374,14 @@ BEGIN
   WHERE scoped.organization_id = p_organization_id;
   GET DIAGNOSTICS v_scoped = ROW_COUNT;
 
+  DELETE FROM plugin_data.csf_import_approval_batch_items AS item
+  WHERE item.organization_id = p_organization_id;
+  GET DIAGNOSTICS v_approval_items = ROW_COUNT;
+
+  DELETE FROM plugin_data.csf_import_approval_batches AS batch
+  WHERE batch.organization_id = p_organization_id;
+  GET DIAGNOSTICS v_approval_batches = ROW_COUNT;
+
   DELETE FROM plugin_data.csf_sheet_import_rows AS import_row
   WHERE import_row.organization_id = p_organization_id;
   GET DIAGNOSTICS v_rows = ROW_COUNT;
@@ -392,6 +402,8 @@ BEGIN
     'stagingObjects', v_objects,
     'commitAttempts', v_attempts,
     'scopedImportReceipts', v_scoped,
+    'approvalBatchItems', v_approval_items,
+    'approvalBatches', v_approval_batches,
     'importRows', v_rows,
     'importJobs', v_jobs,
     'sheetSources', v_sources
@@ -405,6 +417,6 @@ GRANT EXECUTE ON FUNCTION plugin_data.csf_purge_import_recovery(uuid)
   TO postgres;
 
 COMMENT ON FUNCTION plugin_data.csf_purge_import_recovery(uuid) IS
-  'Owner-only import recovery purge. Deletes scoped application receipts before referenced import rows and jobs, and includes scopedImportReceipts in the deletion inventory.';
+  'Owner-only import recovery purge. Deletes scoped receipts and approval batch items and batches before referenced import rows and jobs, and reports their counts in the deletion inventory.';
 
 COMMIT;
