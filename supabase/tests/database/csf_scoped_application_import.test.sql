@@ -194,7 +194,10 @@ SET resolved_at = (SELECT resolved_at FROM pg_temp.scoped_expected_review)
 WHERE id = 'f3880000-0000-4000-8000-000000000001';
 UPDATE plugin_data.csf_profiles
 SET record_status = 'merged',
-    merged_into_profile_id = 'f3850000-0000-4000-8000-000000000002'
+    merged_into_profile_id = 'f3850000-0000-4000-8000-000000000002',
+    merged_at = now(),
+    merged_by = 'f3810000-0000-4000-8000-000000000001',
+    merge_reason = 'Fictional duplicate fixture'
 WHERE id = 'f3850000-0000-4000-8000-000000000001';
 SELECT extensions.throws_ok($sql$SELECT pg_temp.queue_scoped_fixture(
   'f3820000-0000-4000-8000-000000000001', 'f3880000-0000-4000-8000-000000000001',
@@ -204,7 +207,8 @@ SELECT extensions.throws_ok($sql$SELECT pg_temp.queue_scoped_fixture(
 SELECT extensions.is((SELECT count(*)::integer FROM plugin_data.csf_scoped_application_imports), 0,
   'a merged target leaves no scoped receipt');
 UPDATE plugin_data.csf_profiles
-SET record_status = 'active', merged_into_profile_id = NULL
+SET record_status = 'active', merged_into_profile_id = NULL,
+    merged_at = NULL, merged_by = NULL, merge_reason = NULL
 WHERE id = 'f3850000-0000-4000-8000-000000000001';
 CREATE TEMP TABLE scoped_result (receipt jsonb);
 INSERT INTO scoped_result SELECT pg_temp.queue_scoped_fixture(
