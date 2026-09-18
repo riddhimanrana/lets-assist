@@ -424,9 +424,7 @@ test.describe("DVHS CSF role-aware navigation", () => {
     const profile = page.getByRole("region", { name: "CSF member profile" });
     const semesters = page.getByRole("tablist", { name: "Member semesters" });
     await expect(profile).toContainText("Spring 2026");
-    await expect(
-      profile.getByText("Under officer review", { exact: true }),
-    ).toBeVisible();
+    await expect(profile.getByText("Pending", { exact: true })).toBeVisible();
     await semesters.getByRole("tab", { name: /^Fall 2026/ }).click();
     await expect(profile).toContainText("Fall 2026");
     await expect(
