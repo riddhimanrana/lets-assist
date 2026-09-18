@@ -125,6 +125,18 @@ SELECT extensions.ok((
   WHERE oid = 'plugin_data.csf_queue_scoped_application_import(uuid,uuid,uuid,uuid,timestamptz,uuid,text)'::regprocedure
 ), 'staff access is locked before authorization and the import coordinate');
 SELECT extensions.ok((
+  SELECT position('csf_staff_access_lock_key' IN prosrc)
+      < position('csf_lock_identity_mutation' IN prosrc)
+    AND position('csf_lock_identity_mutation' IN prosrc)
+      < position('csf_lock_import_commit_coordinate' IN prosrc)
+    AND position('csf_lock_import_commit_coordinate' IN prosrc)
+      < position('csf_lock_active_import_profiles' IN prosrc)
+    AND position('csf_lock_active_import_profiles' IN prosrc)
+      < position('INSERT INTO plugin_data.csf_sheet_import_jobs' IN prosrc)
+  FROM pg_catalog.pg_proc
+  WHERE oid = 'plugin_data.csf_queue_scoped_application_import(uuid,uuid,uuid,uuid,timestamptz,uuid,text)'::regprocedure
+), 'scoped derivation takes the shared identity lock before the import coordinate and checks the active profile before copying the preview');
+SELECT extensions.ok((
   SELECT position('AND import_row.job_id = v_job.id
   FOR UPDATE OF import_row;' IN prosrc) > 0
   FROM pg_catalog.pg_proc
@@ -180,6 +192,20 @@ SELECT extensions.throws_ok($sql$SELECT pg_temp.queue_scoped_fixture(
 UPDATE plugin_data.csf_sheet_import_rows
 SET resolved_at = (SELECT resolved_at FROM pg_temp.scoped_expected_review)
 WHERE id = 'f3880000-0000-4000-8000-000000000001';
+UPDATE plugin_data.csf_profiles
+SET record_status = 'merged',
+    merged_into_profile_id = 'f3850000-0000-4000-8000-000000000002'
+WHERE id = 'f3850000-0000-4000-8000-000000000001';
+SELECT extensions.throws_ok($sql$SELECT pg_temp.queue_scoped_fixture(
+  'f3820000-0000-4000-8000-000000000001', 'f3880000-0000-4000-8000-000000000001',
+  'f3810000-0000-4000-8000-000000000001', 'f3890000-0000-4000-8000-000000000009',
+  'This reviewed target has since been merged.')$sql$, '55000', NULL,
+  'a reviewed row cannot derive a preview for a merged profile');
+SELECT extensions.is((SELECT count(*)::integer FROM plugin_data.csf_scoped_application_imports), 0,
+  'a merged target leaves no scoped receipt');
+UPDATE plugin_data.csf_profiles
+SET record_status = 'active', merged_into_profile_id = NULL
+WHERE id = 'f3850000-0000-4000-8000-000000000001';
 CREATE TEMP TABLE scoped_result (receipt jsonb);
 INSERT INTO scoped_result SELECT pg_temp.queue_scoped_fixture(
   'f3820000-0000-4000-8000-000000000001', 'f3880000-0000-4000-8000-000000000001',

@@ -74,6 +74,10 @@ BEGIN
   PERFORM pg_catalog.pg_advisory_xact_lock(
     plugin_data.csf_staff_access_lock_key(p_organization_id)
   );
+  -- Profile merges and import claims acquire identity before the import
+  -- coordinate. Keep that order so a merge cannot tombstone the reviewed
+  -- target while this request derives a new preview.
+  PERFORM plugin_data.csf_lock_identity_mutation(p_organization_id);
 
   -- Both a normal claim and another scoped request use the original preview's
   -- coordinate. This also orders the parent row before the source lock.
@@ -185,6 +189,10 @@ BEGIN
     RAISE EXCEPTION 'This application row needs a fresh reviewed match before a scoped import.'
       USING ERRCODE = '55000';
   END IF;
+
+  PERFORM plugin_data.csf_lock_active_import_profiles(
+    p_organization_id, ARRAY[v_parent.matched_profile_id]::uuid[]
+  );
 
   SELECT count(*) INTO v_row_count
   FROM plugin_data.csf_sheet_import_rows AS import_row
