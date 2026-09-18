@@ -242,17 +242,17 @@ test.describe("officer post compose in the class Stream", () => {
 
     await message.press("Enter");
     await dialog.getByRole("button", { name: "Bulleted list" }).click();
-    await message.type("Bring water");
+    await page.keyboard.type("Bring water");
     await expect(message.locator("ul > li")).toHaveText(["Bring water"]);
-    await message.press("Enter");
-    await message.press("Enter");
+    await page.keyboard.press("Enter");
+    await page.keyboard.press("Enter");
     await dialog.getByRole("button", { name: "Numbered list" }).click();
-    await message.type("Sign in");
+    await page.keyboard.type("Sign in");
     await expect(message.locator("ol > li")).toHaveText(["Sign in"]);
-    await expect(message.locator(":scope > p")).toHaveText([
-      "First line",
+    await expect(message.locator(":scope > p").nth(0)).toHaveText("First line");
+    await expect(message.locator(":scope > p").nth(1)).toHaveText(
       "Second line",
-    ]);
+    );
     const submittedBody = await dialog
       .locator('input[name="body"]')
       .inputValue();
