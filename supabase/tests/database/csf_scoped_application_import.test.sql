@@ -16,9 +16,13 @@ VALUES ('f3840000-0000-4000-8000-000000000001', 'f3820000-0000-4000-8000-0000000
 INSERT INTO plugin_data.csf_cohort_terms (organization_id, cohort_id, term_id)
 VALUES ('f3820000-0000-4000-8000-000000000001', 'f3830000-0000-4000-8000-000000000001', 'f3840000-0000-4000-8000-000000000001');
 INSERT INTO plugin_data.csf_profiles (id, organization_id, first_name, last_name, normalized_first_name, normalized_last_name)
-VALUES ('f3850000-0000-4000-8000-000000000001', 'f3820000-0000-4000-8000-000000000001', 'Fictional', 'Learner', 'fictional', 'learner');
+VALUES
+  ('f3850000-0000-4000-8000-000000000001', 'f3820000-0000-4000-8000-000000000001', 'Fictional', 'Learner', 'fictional', 'learner'),
+  ('f3850000-0000-4000-8000-000000000002', 'f3820000-0000-4000-8000-000000000001', 'Fictional', 'Neighbor', 'fictional', 'neighbor');
 INSERT INTO plugin_data.csf_profile_cohort_memberships (organization_id, profile_id, cohort_id, status)
-VALUES ('f3820000-0000-4000-8000-000000000001', 'f3850000-0000-4000-8000-000000000001', 'f3830000-0000-4000-8000-000000000001', 'active');
+VALUES
+  ('f3820000-0000-4000-8000-000000000001', 'f3850000-0000-4000-8000-000000000001', 'f3830000-0000-4000-8000-000000000001', 'active'),
+  ('f3820000-0000-4000-8000-000000000001', 'f3850000-0000-4000-8000-000000000002', 'f3830000-0000-4000-8000-000000000001', 'active');
 INSERT INTO plugin_data.csf_sheet_sources (
   id, organization_id, source_type, title, cohort_id, provider,
   drive_access_state, drive_trashed, drive_file_id, drive_file_name,
@@ -79,21 +83,44 @@ INSERT INTO plugin_data.csf_sheet_import_rows (
     'f3870000-0000-4000-8000-000000000001', 'f3860000-0000-4000-8000-000000000001',
     'f3830000-0000-4000-8000-000000000001', 'f3840000-0000-4000-8000-000000000001',
     'Responses', 3, 'Responses!A1:Z9', '{"fixture":"two"}'::jsonb,
-    '{}'::jsonb, repeat('d', 64), NULL,
+    jsonb_build_object('commitPayload', jsonb_build_object('version', 'csf-commit-payload/v1',
+      'sourceType', 'application_responses',
+      'identity', jsonb_build_object('firstName', 'Fictional', 'lastName', 'Neighbor',
+        'normalizedFirstName', 'fictional', 'normalizedLastName', 'neighbor'),
+      'canonicalEmails', jsonb_build_object('schoolEmail', 'neighbor@students.example.net',
+        'normalizedSchoolEmail', 'neighbor@students.example.net'),
+      'applicationData', jsonb_build_object('currentGradeLevel', 11))),
+    repeat('d', 64), NULL,
     'ambiguous', 'pending', NULL, NULL, NULL, NULL, 1
   );
+
+CREATE TEMP TABLE scoped_expected_review AS
+SELECT matched_profile_id, resolved_at
+FROM plugin_data.csf_sheet_import_rows
+WHERE id = 'f3880000-0000-4000-8000-000000000001';
+CREATE FUNCTION pg_temp.queue_scoped_fixture(
+  p_organization_id uuid, p_row_id uuid, p_actor_id uuid,
+  p_request_id uuid, p_reason text
+) RETURNS jsonb LANGUAGE sql AS $fixture$
+  SELECT plugin_data.csf_queue_scoped_application_import(
+    p_organization_id, p_row_id, p_actor_id,
+    (SELECT matched_profile_id FROM pg_temp.scoped_expected_review),
+    (SELECT resolved_at FROM pg_temp.scoped_expected_review),
+    p_request_id, p_reason
+  );
+$fixture$;
 
 SELECT extensions.ok(to_regclass('plugin_data.csf_scoped_application_imports') IS NOT NULL,
   'scoped import receipts have a durable ledger');
 SELECT extensions.ok(NOT has_function_privilege('authenticated',
-  'plugin_data.csf_queue_scoped_application_import(uuid,uuid,uuid,uuid,text)', 'EXECUTE'),
+  'plugin_data.csf_queue_scoped_application_import(uuid,uuid,uuid,uuid,timestamptz,uuid,text)', 'EXECUTE'),
   'members cannot call the scoped import function');
-SELECT extensions.throws_ok($sql$SELECT plugin_data.csf_queue_scoped_application_import(
+SELECT extensions.throws_ok($sql$SELECT pg_temp.queue_scoped_fixture(
   'f3820000-0000-4000-8000-000000000001', 'f3880000-0000-4000-8000-000000000001',
   'f3810000-0000-4000-8000-000000000002', 'f3890000-0000-4000-8000-000000000001',
   'Unauthorized request')$sql$, '42501', NULL,
   'an outsider cannot queue a resolved application row');
-SELECT extensions.throws_ok($sql$SELECT plugin_data.csf_queue_scoped_application_import(
+SELECT extensions.throws_ok($sql$SELECT pg_temp.queue_scoped_fixture(
   'f3820000-0000-4000-8000-000000000001', 'f3880000-0000-4000-8000-000000000002',
   'f3810000-0000-4000-8000-000000000001', 'f3890000-0000-4000-8000-000000000002',
   'Unresolved sibling')$sql$, '55000', NULL,
@@ -103,7 +130,7 @@ SELECT extensions.is((SELECT count(*)::integer FROM plugin_data.csf_scoped_appli
 UPDATE plugin_data.csf_sheet_import_jobs
 SET status = 'failed'
 WHERE id = 'f3870000-0000-4000-8000-000000000001';
-SELECT extensions.throws_ok($sql$SELECT plugin_data.csf_queue_scoped_application_import(
+SELECT extensions.throws_ok($sql$SELECT pg_temp.queue_scoped_fixture(
   'f3820000-0000-4000-8000-000000000001', 'f3880000-0000-4000-8000-000000000001',
   'f3810000-0000-4000-8000-000000000001', 'f3890000-0000-4000-8000-000000000005',
   'Officer checked the preview state.')$sql$, '55000', NULL,
@@ -116,8 +143,19 @@ SELECT extensions.is((SELECT count(*)::integer FROM plugin_data.csf_scoped_appli
 UPDATE plugin_data.csf_sheet_import_jobs
 SET status = 'needs_resolution'
 WHERE id = 'f3870000-0000-4000-8000-000000000001';
+UPDATE plugin_data.csf_sheet_import_rows
+SET resolved_at = resolved_at + interval '1 second'
+WHERE id = 'f3880000-0000-4000-8000-000000000001';
+SELECT extensions.throws_ok($sql$SELECT pg_temp.queue_scoped_fixture(
+  'f3820000-0000-4000-8000-000000000001', 'f3880000-0000-4000-8000-000000000001',
+  'f3810000-0000-4000-8000-000000000001', 'f3890000-0000-4000-8000-000000000006',
+  'This screen has an old reviewed match.')$sql$, '55000', NULL,
+  'a changed review timestamp refuses an old officer screen');
+UPDATE plugin_data.csf_sheet_import_rows
+SET resolved_at = (SELECT resolved_at FROM pg_temp.scoped_expected_review)
+WHERE id = 'f3880000-0000-4000-8000-000000000001';
 CREATE TEMP TABLE scoped_result (receipt jsonb);
-INSERT INTO scoped_result SELECT plugin_data.csf_queue_scoped_application_import(
+INSERT INTO scoped_result SELECT pg_temp.queue_scoped_fixture(
   'f3820000-0000-4000-8000-000000000001', 'f3880000-0000-4000-8000-000000000001',
   'f3810000-0000-4000-8000-000000000001', 'f3890000-0000-4000-8000-000000000003',
   'Officer approved just this source response.');
@@ -153,18 +191,64 @@ SELECT extensions.is(cardinality(plugin_data.csf_import_preview_claim_blockers(
   'f3820000-0000-4000-8000-000000000001',
   (SELECT (receipt ->> 'scopedJobId')::uuid FROM scoped_result))), 0,
   'the derived preview passes the normal commit claim evidence shape');
-SELECT extensions.is(plugin_data.csf_queue_scoped_application_import(
+SELECT extensions.is(pg_temp.queue_scoped_fixture(
   'f3820000-0000-4000-8000-000000000001', 'f3880000-0000-4000-8000-000000000001',
   'f3810000-0000-4000-8000-000000000001', 'f3890000-0000-4000-8000-000000000003',
   'Officer approved just this source response.') ->> 'replayed', 'true',
   'a lost-response retry returns the existing receipt');
 SELECT extensions.is((SELECT count(*)::integer FROM plugin_data.csf_scoped_application_imports), 1,
   'a retry does not duplicate scoped imports');
-SELECT extensions.throws_ok($sql$SELECT plugin_data.csf_queue_scoped_application_import(
+UPDATE plugin_data.csf_import_commit_queue
+SET status = 'completed', finished_at = now()
+WHERE preview_job_id = (SELECT (receipt ->> 'scopedJobId')::uuid FROM scoped_result);
+SELECT extensions.is(pg_temp.queue_scoped_fixture(
+  'f3820000-0000-4000-8000-000000000001', 'f3880000-0000-4000-8000-000000000001',
+  'f3810000-0000-4000-8000-000000000001', 'f3890000-0000-4000-8000-000000000003',
+  'Officer approved just this source response.') ->> 'replayed', 'true',
+  'the same request reads its receipt after queue completion');
+SELECT extensions.throws_ok($sql$SELECT pg_temp.queue_scoped_fixture(
+  'f3820000-0000-4000-8000-000000000001', 'f3880000-0000-4000-8000-000000000002',
+  'f3810000-0000-4000-8000-000000000001', 'f3890000-0000-4000-8000-000000000003',
+  'Another row with the same request ID.')$sql$, '55000', NULL,
+  'one request ID cannot approve another source row');
+SELECT extensions.throws_ok($sql$SELECT pg_temp.queue_scoped_fixture(
   'f3820000-0000-4000-8000-000000000001', 'f3880000-0000-4000-8000-000000000001',
   'f3810000-0000-4000-8000-000000000001', 'f3890000-0000-4000-8000-000000000004',
   'Different request')$sql$, '55000', NULL,
   'a new request cannot approve the same parent row twice');
+UPDATE plugin_data.csf_sheet_sources
+SET drive_modified_at = '2039-09-02T00:00:00Z'
+WHERE id = 'f3860000-0000-4000-8000-000000000001';
+SELECT extensions.ok(cardinality(plugin_data.csf_import_preview_claim_blockers(
+  'f3820000-0000-4000-8000-000000000001',
+  (SELECT (receipt ->> 'scopedJobId')::uuid FROM scoped_result))) > 0,
+  'a later Sheet revision blocks the worker claim');
+SELECT extensions.is(pg_temp.queue_scoped_fixture(
+  'f3820000-0000-4000-8000-000000000001', 'f3880000-0000-4000-8000-000000000001',
+  'f3810000-0000-4000-8000-000000000001', 'f3890000-0000-4000-8000-000000000003',
+  'Officer approved just this source response.') ->> 'replayed', 'true',
+  'a changed Sheet does not erase the existing request receipt');
+UPDATE plugin_data.csf_sheet_sources
+SET drive_modified_at = '2039-09-01T00:00:00Z'
+WHERE id = 'f3860000-0000-4000-8000-000000000001';
+UPDATE plugin_data.csf_sheet_import_rows
+SET import_status = 'pending', resolution_status = 'resolved',
+    matched_profile_id = 'f3850000-0000-4000-8000-000000000002',
+    resolution_reason_code = 'match',
+    resolution_notes = 'Officer verified the other fictional response.',
+    resolved_by = 'f3810000-0000-4000-8000-000000000001',
+    resolved_at = now()
+WHERE id = 'f3880000-0000-4000-8000-000000000002';
+SELECT extensions.is(plugin_data.csf_queue_import_preview_batch(
+  'f3820000-0000-4000-8000-000000000001',
+  'f3810000-0000-4000-8000-000000000001',
+  ARRAY['f3870000-0000-4000-8000-000000000001']::uuid[],
+  'f3890000-0000-4000-8000-000000000007') ->> 'queued', '1',
+  'the parent preview can later queue its remaining resolved sibling');
+SELECT extensions.is(cardinality(plugin_data.csf_import_preview_claim_blockers(
+  'f3820000-0000-4000-8000-000000000001',
+  'f3870000-0000-4000-8000-000000000001')), 0,
+  'the superseded row does not block the parent preview claim');
 SELECT extensions.is((SELECT count(*)::integer FROM plugin_data.csf_term_applications
   WHERE organization_id = 'f3820000-0000-4000-8000-000000000001'), 0,
   'queueing never commits an application before the worker runs');

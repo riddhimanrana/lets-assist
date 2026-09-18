@@ -36,6 +36,8 @@ CREATE OR REPLACE FUNCTION plugin_data.csf_queue_scoped_application_import(
   p_organization_id uuid,
   p_parent_row_id uuid,
   p_actor_user_id uuid,
+  p_expected_profile_id uuid,
+  p_expected_resolved_at timestamptz,
   p_request_id uuid,
   p_reason text
 )
@@ -56,7 +58,8 @@ DECLARE
   v_parent_job_id uuid;
 BEGIN
   IF p_organization_id IS NULL OR p_parent_row_id IS NULL
-    OR p_actor_user_id IS NULL OR p_request_id IS NULL
+    OR p_actor_user_id IS NULL OR p_expected_profile_id IS NULL
+    OR p_expected_resolved_at IS NULL OR p_request_id IS NULL
     OR v_reason IS NULL OR length(v_reason) NOT BETWEEN 4 AND 500
   THEN
     RAISE EXCEPTION 'Choose one application row and enter a reason of 4 to 500 characters.'
@@ -98,6 +101,14 @@ BEGIN
       'replayed', true
     );
   END IF;
+  IF EXISTS (
+    SELECT 1 FROM plugin_data.csf_scoped_application_imports AS scoped
+    WHERE scoped.organization_id = p_organization_id
+      AND scoped.request_id = p_request_id
+  ) THEN
+    RAISE EXCEPTION 'This request already belongs to another application row.'
+      USING ERRCODE = '55000';
+  END IF;
 
   SELECT * INTO v_job
   FROM plugin_data.csf_sheet_import_jobs AS preview
@@ -127,6 +138,8 @@ BEGIN
     OR v_parent.import_status <> 'pending'
     OR v_parent.resolution_status <> 'resolved'
     OR v_parent.matched_profile_id IS NULL
+    OR v_parent.matched_profile_id IS DISTINCT FROM p_expected_profile_id
+    OR v_parent.resolved_at IS DISTINCT FROM p_expected_resolved_at
     OR v_parent.cohort_id IS NULL OR v_parent.term_id IS NULL
     OR v_parent.source_id IS DISTINCT FROM v_job.source_id
     OR v_parent.mapping_version IS DISTINCT FROM v_job.mapping_version
@@ -264,14 +277,14 @@ END;
 $$;
 
 REVOKE ALL ON FUNCTION plugin_data.csf_queue_scoped_application_import(
-  uuid, uuid, uuid, uuid, text
+  uuid, uuid, uuid, uuid, timestamptz, uuid, text
 ) FROM PUBLIC, anon, authenticated, service_role, postgres;
 GRANT EXECUTE ON FUNCTION plugin_data.csf_queue_scoped_application_import(
-  uuid, uuid, uuid, uuid, text
+  uuid, uuid, uuid, uuid, timestamptz, uuid, text
 ) TO service_role;
 
 COMMENT ON FUNCTION plugin_data.csf_queue_scoped_application_import(
-  uuid, uuid, uuid, uuid, text
+  uuid, uuid, uuid, uuid, timestamptz, uuid, text
 ) IS 'Derives and queues exactly one officer-resolved application row from a sealed source preview. The regular commit worker rechecks live source evidence and atomically applies only the derived row.';
 
 COMMIT;
