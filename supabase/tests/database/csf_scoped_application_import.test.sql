@@ -206,6 +206,20 @@ SELECT extensions.is(pg_temp.queue_scoped_fixture(
   'f3810000-0000-4000-8000-000000000001', 'f3890000-0000-4000-8000-000000000003',
   'Officer approved just this source response.') ->> 'replayed', 'true',
   'the same request reads its receipt after queue completion');
+SELECT extensions.throws_ok($sql$SELECT plugin_data.csf_queue_scoped_application_import(
+  'f3820000-0000-4000-8000-000000000001', 'f3880000-0000-4000-8000-000000000001',
+  'f3810000-0000-4000-8000-000000000001', 'f3850000-0000-4000-8000-000000000002',
+  (SELECT resolved_at FROM pg_temp.scoped_expected_review),
+  'f3890000-0000-4000-8000-000000000003',
+  'Officer approved just this source response.')$sql$, '55000', NULL,
+  'the same request cannot replay with a different displayed profile');
+SELECT extensions.throws_ok($sql$SELECT plugin_data.csf_queue_scoped_application_import(
+  'f3820000-0000-4000-8000-000000000001', 'f3880000-0000-4000-8000-000000000001',
+  'f3810000-0000-4000-8000-000000000001', 'f3850000-0000-4000-8000-000000000001',
+  (SELECT resolved_at + interval '1 second' FROM pg_temp.scoped_expected_review),
+  'f3890000-0000-4000-8000-000000000003',
+  'Officer approved just this source response.')$sql$, '55000', NULL,
+  'the same request cannot replay with a different review timestamp');
 SELECT extensions.throws_ok($sql$SELECT pg_temp.queue_scoped_fixture(
   'f3820000-0000-4000-8000-000000000001', 'f3880000-0000-4000-8000-000000000002',
   'f3810000-0000-4000-8000-000000000001', 'f3890000-0000-4000-8000-000000000003',

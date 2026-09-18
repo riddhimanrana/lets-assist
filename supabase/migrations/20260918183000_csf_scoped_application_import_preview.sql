@@ -11,6 +11,8 @@ CREATE TABLE plugin_data.csf_scoped_application_imports (
   scoped_row_id uuid NOT NULL,
   request_id uuid NOT NULL,
   actor_user_id uuid NOT NULL REFERENCES auth.users(id),
+  expected_profile_id uuid NOT NULL,
+  expected_resolved_at timestamptz NOT NULL,
   reason text NOT NULL CHECK (length(reason) BETWEEN 4 AND 500),
   created_at timestamptz NOT NULL DEFAULT now(),
   PRIMARY KEY (organization_id, parent_row_id),
@@ -89,6 +91,8 @@ BEGIN
   IF FOUND THEN
     IF v_existing.request_id IS DISTINCT FROM p_request_id
       OR v_existing.actor_user_id IS DISTINCT FROM p_actor_user_id
+      OR v_existing.expected_profile_id IS DISTINCT FROM p_expected_profile_id
+      OR v_existing.expected_resolved_at IS DISTINCT FROM p_expected_resolved_at
       OR v_existing.reason IS DISTINCT FROM v_reason
     THEN
       RAISE EXCEPTION 'This application row already has a scoped import. Reload its status.'
@@ -237,10 +241,12 @@ BEGIN
 
   INSERT INTO plugin_data.csf_scoped_application_imports (
     organization_id, parent_job_id, parent_row_id, scoped_job_id,
-    scoped_row_id, request_id, actor_user_id, reason
+    scoped_row_id, request_id, actor_user_id, expected_profile_id,
+    expected_resolved_at, reason
   ) VALUES (
     p_organization_id, v_job.id, v_parent.id, v_scoped_job_id,
-    v_scoped_row_id, p_request_id, p_actor_user_id, v_reason
+    v_scoped_row_id, p_request_id, p_actor_user_id, p_expected_profile_id,
+    p_expected_resolved_at, v_reason
   );
 
   v_receipt := plugin_data.csf_queue_import_preview_batch(
