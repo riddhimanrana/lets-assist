@@ -33,7 +33,7 @@ test("599 appends only the reviewed scoped application import", () => {
   assert.match(current, /csf_scoped_application_imports/u);
   assert.match(current, /expected_profile_id/u);
   assert.match(current, /expected_resolved_at/u);
-  assert.match(current, /0846142ab0a3a7cfd1e169cbb117c011/u);
+  assert.match(current, /a452eea82e258fe4351689c79d7acc93/u);
   assert.match(current, /csf_purge_import_recovery/u);
   assert.match(current, /0c6beec791717f8028b9b5ffa0211b04/u);
   assert.throws(

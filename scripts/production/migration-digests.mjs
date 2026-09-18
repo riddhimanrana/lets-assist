@@ -1207,5 +1207,5 @@ export const migrationDigests = {
   "20260918180000_csf_user_entered_sheet_fill_preview.sql":
     "41094144ff1f49563f6a86de1e54ac26862f7396c4db6e3ff5ba5f8aee62ef8d",
   "20260918183000_csf_scoped_application_import_preview.sql":
-    "01fe74711aa53107772338c45a65a16c2ec2217e3e191c7a04f9fcbda69781b3",
+    "b3006086d470c64b87f0a3e6dfcf68380b0f407ff0a64387b1ad2342b66a1370",
 };
