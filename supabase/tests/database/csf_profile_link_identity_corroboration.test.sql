@@ -359,7 +359,10 @@ INSERT INTO plugin_data.csf_sheet_import_rows (
   id, organization_id, job_id, source_id, cohort_id, term_id,
   sheet_tab_name, row_number, normalized_data, row_hash,
   matched_profile_id, import_status, resolution_status,
-  commit_frozen_at, commit_frozen_row_hash
+  commit_frozen_at, commit_frozen_by_job_id, commit_frozen_row_hash,
+  commit_frozen_source_id, commit_frozen_payload_hash,
+  commit_frozen_actor_user_id, commit_frozen_actor_snapshot,
+  commit_target_profile_id, commit_resolution_snapshot
 ) VALUES (
   'ef800000-0000-4000-8000-000000000001',
   'ef100000-0000-4000-8000-000000000001',
@@ -380,7 +383,11 @@ INSERT INTO plugin_data.csf_sheet_import_rows (
   ),
   repeat('a', 64),
   'ef300000-0000-4000-8000-000000000003',
-  'created', 'resolved', now(), repeat('a', 64)
+  'created', 'resolved', now(),
+  'ef700000-0000-4000-8000-000000000001', repeat('a', 64),
+  'ef600000-0000-4000-8000-000000000001', repeat('d', 64),
+  'ef000000-0000-4000-8000-000000000001', '{}'::jsonb,
+  'ef300000-0000-4000-8000-000000000003', '{}'::jsonb
 );
 INSERT INTO plugin_data.csf_term_applications (
   id, organization_id, profile_id, cohort_id, term_id, source,
@@ -412,7 +419,7 @@ SELECT extensions.ok(
   'the decision records application-source email as its authority'
 );
 UPDATE plugin_data.csf_sheet_import_rows
-SET commit_frozen_row_hash = repeat('b', 64)
+SET row_hash = repeat('b', 64)
 WHERE id = 'ef800000-0000-4000-8000-000000000001';
 SELECT extensions.ok(
   NOT (plugin_data.csf_profile_link_connect_evidence(
@@ -423,7 +430,7 @@ SELECT extensions.ok(
   'a source row whose frozen hash no longer agrees cannot authorize a connection'
 );
 UPDATE plugin_data.csf_sheet_import_rows
-SET commit_frozen_row_hash = repeat('a', 64)
+SET row_hash = repeat('a', 64)
 WHERE id = 'ef800000-0000-4000-8000-000000000001';
 
 -- A committed address is not unique merely because one candidate has a
@@ -449,7 +456,10 @@ INSERT INTO plugin_data.csf_sheet_import_rows (
   id, organization_id, job_id, source_id, cohort_id, term_id,
   sheet_tab_name, row_number, normalized_data, row_hash,
   matched_profile_id, import_status, resolution_status,
-  commit_frozen_at, commit_frozen_row_hash
+  commit_frozen_at, commit_frozen_by_job_id, commit_frozen_row_hash,
+  commit_frozen_source_id, commit_frozen_payload_hash,
+  commit_frozen_actor_user_id, commit_frozen_actor_snapshot,
+  commit_target_profile_id, commit_resolution_snapshot
 ) VALUES (
   'ef800000-0000-4000-8000-000000000002',
   'ef100000-0000-4000-8000-000000000001',
@@ -470,7 +480,11 @@ INSERT INTO plugin_data.csf_sheet_import_rows (
   ),
   repeat('c', 64),
   'ef300000-0000-4000-8000-000000000012',
-  'created', 'resolved', now(), repeat('c', 64)
+  'created', 'resolved', now(),
+  'ef700000-0000-4000-8000-000000000001', repeat('c', 64),
+  'ef600000-0000-4000-8000-000000000001', repeat('e', 64),
+  'ef000000-0000-4000-8000-000000000001', '{}'::jsonb,
+  'ef300000-0000-4000-8000-000000000012', '{}'::jsonb
 );
 INSERT INTO plugin_data.csf_term_applications (
   id, organization_id, profile_id, cohort_id, term_id, source,
