@@ -291,6 +291,57 @@ function swapAcceptedFingerprints(catalog, replacements) {
   return swapped;
 }
 
+function reconcileCsf620SupersededStorageChecks(catalog) {
+  const replacements = [
+    [
+      `AND pg_catalog.strpos(p.prosrc, 'DELETE FROM plugin_data.csf_announcement_attachments')
+          < pg_catalog.strpos(p.prosrc, 'DELETE FROM plugin_data.csf_storage_deletion_queue')`,
+      `AND pg_catalog.strpos(p.prosrc, 'DELETE FROM plugin_data.csf_storage_deletion_queue') = 0`,
+      1,
+    ],
+    [
+      `AND pg_catalog.strpos(
+          procedure_record.prosrc,
+          'IF v_queue_rows > 0 THEN'
+        ) < pg_catalog.strpos(
+          procedure_record.prosrc,
+          'DELETE FROM plugin_data.csf_attachment_restore_preparations'
+        )`,
+      `AND pg_catalog.strpos(
+          procedure_record.prosrc,
+          'IF v_queue_rows > 0 THEN'
+        ) > 0`,
+      1,
+    ],
+    [
+      `AND pg_catalog.strpos(
+          procedure_record.prosrc,
+          'FOR UPDATE SKIP LOCKED'
+        ) > 0`,
+      `AND pg_catalog.strpos(
+          procedure_record.prosrc,
+          'FOR UPDATE OF queue SKIP LOCKED'
+        ) > 0`,
+      2,
+    ],
+    [
+      `AND pg_catalog.strpos(p.prosrc, 'FOR UPDATE SKIP LOCKED') > 0`,
+      `AND pg_catalog.strpos(p.prosrc, 'FOR UPDATE OF queue SKIP LOCKED') > 0`,
+      1,
+    ],
+  ];
+  let reconciled = catalog;
+  for (const [before, after, expectedOccurrences] of replacements) {
+    const occurrences = reconciled.split(before).length - 1;
+    if (occurrences !== expectedOccurrences)
+      throw new ReleaseCheckError(
+        `Expected ${expectedOccurrences} superseded 620 Storage catalog fragment(s), found ${occurrences}.`,
+      );
+    reconciled = reconciled.replaceAll(before, after);
+  }
+  return reconciled;
+}
+
 export function acceptedCatalogQuery(source, versions) {
   const ledgerHash = createHash("sha256")
     .update(versions.join("\n"))
@@ -306,7 +357,11 @@ export function acceptedCatalogQuery(source, versions) {
     ledgerHash ===
       "e268153d94400614684d5d3065ae0e05931ada50b0549d9346fb5447758f9f8c"
   )
-    return csf620Catalog(acceptedCatalogQuery(source, versions.slice(0, 619)));
+    return csf620Catalog(
+      reconcileCsf620SupersededStorageChecks(
+        acceptedCatalogQuery(source, versions.slice(0, 619)),
+      ),
+    );
   if (
     versions.length === 619 &&
     ledgerHash ===
