@@ -1211,5 +1211,5 @@ export const migrationDigests = {
   "20260918235900_csf_scoped_import_actor_detachment.sql":
     "37de17b04a16389ea95d4d6de3d81b1d390caea1e2b18d87baaec88ab3b596de",
   "20260919010000_csf_scoped_request_id_batch_fence.sql":
-    "a72783145b4e3f5718ea6d7dead4ea44537d3ccabd783aaa124063420cfc324b",
+    "fde365726f345424b30ee090aad91b77a636fff1e3cfccf5a656fd14b2f74ab7",
 };

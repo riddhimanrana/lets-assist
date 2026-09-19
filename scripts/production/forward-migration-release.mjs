@@ -545,7 +545,7 @@ export const approvedMigrations = [
   ],
   [
     "20260919010000_csf_scoped_request_id_batch_fence",
-    "a72783145b4e3f5718ea6d7dead4ea44537d3ccabd783aaa124063420cfc324b",
+    "fde365726f345424b30ee090aad91b77a636fff1e3cfccf5a656fd14b2f74ab7",
   ],
 ];
 

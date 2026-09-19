@@ -80,7 +80,6 @@ BEGIN
     SELECT 1
     FROM plugin_data.csf_scoped_application_imports AS scoped
     WHERE scoped.organization_id = p_organization_id
-      AND scoped.parent_row_id = p_parent_row_id
       AND scoped.request_id = p_request_id
   ) THEN
     RAISE EXCEPTION 'This request ID already belongs to another import approval.'
