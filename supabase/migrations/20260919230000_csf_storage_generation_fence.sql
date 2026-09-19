@@ -107,10 +107,10 @@ BEGIN
     AND audit.source_type = 'post_mutation_request'
     AND audit.action IN ('post_created', 'post_updated')
   LIMIT 1;
-  IF FOUND AND (
-    v_mutation_receipt.actor_user_id IS DISTINCT FROM p_actor_user_id
-    OR v_mutation_receipt.target_id IS DISTINCT FROM p_announcement_id
-  ) THEN
+  IF NOT FOUND
+    OR v_mutation_receipt.actor_user_id IS DISTINCT FROM p_actor_user_id
+    OR v_mutation_receipt.target_type IS DISTINCT FROM 'csf_announcement'
+    OR v_mutation_receipt.target_id IS DISTINCT FROM p_announcement_id THEN
     RAISE EXCEPTION 'That post image request is not bound to this post mutation.'
       USING ERRCODE = '55000';
   END IF;

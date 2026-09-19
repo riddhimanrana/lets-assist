@@ -103,6 +103,34 @@ SELECT plugin_data.csf_begin_post_publication_request(
   'ab300000-0000-4000-8000-000000000005',
   4, 12582912, false
 );
+SELECT plugin_data.csf_mutate_post(
+  'ab100000-0000-4000-8000-000000000001', 'update',
+  'ab400000-0000-4000-8000-000000000001',
+  '{"title":"Request 002","body":"Details","audience":"members","audienceCohortId":null,"pinned":false,"publish":true,"scheduledFor":null,"sendEmail":false}'::jsonb,
+  'ab000000-0000-4000-8000-000000000001',
+  'ab300000-0000-4000-8000-000000000002'
+);
+SELECT plugin_data.csf_mutate_post(
+  'ab100000-0000-4000-8000-000000000001', 'update',
+  'ab400000-0000-4000-8000-000000000001',
+  '{"title":"Request 003","body":"Details","audience":"members","audienceCohortId":null,"pinned":false,"publish":true,"scheduledFor":null,"sendEmail":false}'::jsonb,
+  'ab000000-0000-4000-8000-000000000001',
+  'ab300000-0000-4000-8000-000000000003'
+);
+SELECT plugin_data.csf_mutate_post(
+  'ab100000-0000-4000-8000-000000000001', 'update',
+  'ab400000-0000-4000-8000-000000000001',
+  '{"title":"Request 004","body":"Details","audience":"members","audienceCohortId":null,"pinned":false,"publish":true,"scheduledFor":null,"sendEmail":false}'::jsonb,
+  'ab000000-0000-4000-8000-000000000001',
+  'ab300000-0000-4000-8000-000000000004'
+);
+SELECT plugin_data.csf_mutate_post(
+  'ab100000-0000-4000-8000-000000000001', 'update',
+  'ab400000-0000-4000-8000-000000000001',
+  '{"title":"Request 005","body":"Details","audience":"members","audienceCohortId":null,"pinned":false,"publish":true,"scheduledFor":null,"sendEmail":false}'::jsonb,
+  'ab000000-0000-4000-8000-000000000001',
+  'ab300000-0000-4000-8000-000000000005'
+);
 SELECT extensions.is(
   plugin_data.csf_resolve_post_publication_completion(
     'ab100000-0000-4000-8000-000000000001',
@@ -388,7 +416,7 @@ SELECT extensions.is(
 SELECT extensions.is(
   (SELECT count(*)::integer FROM plugin_data.csf_storage_deletion_queue
    WHERE organization_id = 'ab100000-0000-4000-8000-000000000001'),
-  2, 'post deletion queues the final private object without duplicating prior cleanup'
+  3, 'post deletion preserves cleanup for the removed, rejected, and final generations'
 );
 
 SELECT * FROM extensions.finish();

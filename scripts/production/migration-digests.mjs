@@ -1248,4 +1248,6 @@ export const migrationDigests = {
     "05fc3ca33b9dea9958f1eeafd03519428ba1afbf0c116f535a2b99c2b102be52",
   "20260919220000_csf_attendance_cutoff_exclusive_readiness.sql":
     "8c62eb9578dd136f974972ccfd5b6c0c0581781830faf6c55f17187fb9eabfb3",
+  "20260919230000_csf_storage_generation_fence.sql":
+    "5ce652bbba0cbc303f746212cd67fe6ac29f7c1f8087de366c5089314ba13175",
 };

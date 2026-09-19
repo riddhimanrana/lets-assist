@@ -2,7 +2,7 @@
 BEGIN;
 
 CREATE EXTENSION IF NOT EXISTS pgtap WITH SCHEMA extensions;
-SELECT extensions.plan(24);
+SELECT extensions.plan(25);
 
 SELECT extensions.has_function(
   'plugin_data',
@@ -125,6 +125,33 @@ SELECT extensions.throws_ok(
   '55000',
   'That post image request is already bound to another change.',
   'a different attachment count cannot reuse the prepared request'
+);
+SELECT extensions.throws_ok(
+  $$ SELECT plugin_data.csf_replace_post_attachments(
+    'ae100000-0000-4000-8000-000000000001',
+    'ae400000-0000-4000-8000-000000000001',
+    'ae000000-0000-4000-8000-000000000001',
+    jsonb_build_array(jsonb_build_object(
+      'objectPath', 'ae100000-0000-4000-8000-000000000001/dvhs-csf/post-images/ae400000-0000-4000-8000-000000000001/ae300000-0000-4000-8000-000000000002/' || repeat('a', 64) || '.png',
+      'fileName', 'unbound.png',
+      'mimeType', 'image/png',
+      'sizeBytes', 1024,
+      'checksumSha256', repeat('a', 64),
+      'altText', 'Unbound upload'
+    )),
+    'ae300000-0000-4000-8000-000000000002'
+  ) $$,
+  '55000',
+  'That post image request is not bound to this post mutation.',
+  'attachment replacement requires the matching immutable post mutation receipt'
+);
+SELECT plugin_data.csf_mutate_post(
+  'ae100000-0000-4000-8000-000000000001',
+  'update',
+  'ae400000-0000-4000-8000-000000000001',
+  '{"title":"First post","body":"First body","audience":"members","audienceCohortId":null,"pinned":false,"publish":true,"scheduledFor":null,"sendEmail":false}'::jsonb,
+  'ae000000-0000-4000-8000-000000000001',
+  'ae300000-0000-4000-8000-000000000002'
 );
 SELECT extensions.throws_ok(
   $$ SELECT plugin_data.csf_replace_post_attachments(

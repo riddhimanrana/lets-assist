@@ -139,6 +139,14 @@ SELECT plugin_data.csf_begin_post_publication_request(
   'ac300000-0000-4000-8000-000000000001',
   1, 1024, false
 );
+SELECT plugin_data.csf_mutate_post(
+  'ac100000-0000-4000-8000-000000000001',
+  'update',
+  'ac400000-0000-4000-8000-000000000001',
+  '{"title":"Members flyer","body":"Members-only details.","audience":"members","audienceCohortId":null,"pinned":false,"publish":true,"scheduledFor":null,"sendEmail":false}'::jsonb,
+  'ac000000-0000-4000-8000-000000000001',
+  'ac300000-0000-4000-8000-000000000001'
+);
 
 SELECT plugin_data.csf_prepare_announcement_attachment_restore(
   'ac100000-0000-4000-8000-000000000001',
@@ -148,6 +156,7 @@ SELECT plugin_data.csf_prepare_announcement_attachment_restore(
   'plugins',
   'ac100000-0000-4000-8000-000000000001/dvhs-csf/post-images/'
     || 'ac400000-0000-4000-8000-000000000001/'
+    || 'ac300000-0000-4000-8000-000000000001/'
     || repeat('a', 64) || '.png'
 );
 
@@ -159,6 +168,7 @@ SELECT plugin_data.csf_replace_post_attachments(
     'objectPath',
       'ac100000-0000-4000-8000-000000000001/dvhs-csf/post-images/'
         || 'ac400000-0000-4000-8000-000000000001/'
+        || 'ac300000-0000-4000-8000-000000000001/'
         || repeat('a', 64) || '.png',
     'fileName', 'members-flyer.png',
     'mimeType', 'image/png',

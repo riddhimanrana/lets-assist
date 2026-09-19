@@ -21,7 +21,7 @@ const migration = readFileSync(
 );
 
 test("610 fences Storage deletion claims and request-bound restoration", () => {
-  assert.equal(fullLedger.length, 619);
+  assert.equal(fullLedger.length, 620);
   assert.equal(ledger.length, 609);
   assert.equal(ledger.at(-1), "20260919145700");
   assert.deepEqual(

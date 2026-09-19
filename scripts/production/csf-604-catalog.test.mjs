@@ -21,7 +21,7 @@ const migration = readFileSync(
 );
 
 test("604 pins the populated import foreign-key indexes", () => {
-  assert.equal(fullLedger.length, 619);
+  assert.equal(fullLedger.length, 620);
   assert.equal(ledger.length, 603);
   assert.equal(ledger.at(-1), "20260919091727");
   assert.deepEqual(

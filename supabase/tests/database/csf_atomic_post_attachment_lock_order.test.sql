@@ -58,6 +58,14 @@ SELECT plugin_data.csf_begin_post_publication_request(
   'ad300000-0000-4000-8000-000000000001',
   0, 0, false
 );
+SELECT plugin_data.csf_mutate_post(
+  'ad100000-0000-4000-8000-000000000001',
+  'update',
+  'ad400000-0000-4000-8000-000000000001',
+  '{"title":"Lock order flyer","body":"Original details.","audience":"members","audienceCohortId":null,"pinned":false,"publish":true,"scheduledFor":null,"sendEmail":false}'::jsonb,
+  'ad000000-0000-4000-8000-000000000001',
+  'ad300000-0000-4000-8000-000000000001'
+);
 SELECT plugin_data.csf_begin_post_publication_request(
   'ad100000-0000-4000-8000-000000000001',
   'ad000000-0000-4000-8000-000000000001',
@@ -264,14 +272,14 @@ SELECT extensions.ok(
   (SELECT title = 'Serialized flyer'
    FROM plugin_data.csf_announcements
    WHERE id = 'ad400000-0000-4000-8000-000000000001')
-    AND (SELECT pg_catalog.count(*) = 3
+    AND (SELECT pg_catalog.count(*) = 4
          FROM plugin_data.csf_admin_audit_events
          WHERE organization_id = 'ad100000-0000-4000-8000-000000000001'
            AND correlation_id IN (
              'ad300000-0000-4000-8000-000000000001',
              'ad300000-0000-4000-8000-000000000002'
            )),
-  'the serialized operations persist the post and all three receipts once'
+  'the serialized operations persist the post and all four receipts once'
 );
 
 SELECT extensions.dblink_disconnect('atomic_post_lock_barrier');
