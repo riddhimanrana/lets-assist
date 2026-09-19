@@ -21,7 +21,7 @@ const migration = readFileSync(
 );
 
 test("599 appends only the reviewed scoped application import", () => {
-  assert.equal(fullLedger.length, 620);
+  assert.equal(fullLedger.length, 621);
   assert.equal(ledger.length, 599);
   assert.equal(ledger.at(-1), "20260918183000");
   assert.deepEqual(
