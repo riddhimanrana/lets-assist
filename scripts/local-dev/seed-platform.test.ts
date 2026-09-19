@@ -178,9 +178,7 @@ describe("local platform seed authorization", () => {
       seedSource.indexOf("for (const table of csfTablesToReset"),
     );
     for (const table of [
-      "csf_storage_deletion_queue",
       "csf_post_publication_requests",
-      "csf_announcement_attachments",
       "csf_application_correction_requests",
       "csf_application_private_notes",
       "csf_application_checks",
@@ -204,6 +202,11 @@ describe("local platform seed authorization", () => {
     expect(resetList).toContain(
       'pluginDb.rpc("csf_purge_recovery_foundations"',
     );
+    expect(seedSource).toContain(
+      'pluginDb.rpc("csf_purge_storage_deletion_queue"',
+    );
+    expect(resetList).not.toContain('"csf_storage_deletion_queue"');
+    expect(resetList).not.toContain('"csf_announcement_attachments"');
   });
 
   test("tracks the simplified partner-club schema without retired audit tables", () => {
@@ -909,13 +912,12 @@ describe("seed modes have the footprint they claim", () => {
     const rpcs = csf.map((entry) => entry.rpc).filter(Boolean);
     expect(rpcs).toContain("csf_seed_reset_synthetic_import");
     expect(rpcs).toContain("csf_seed_synthetic_import_fixture");
+    expect(rpcs).toContain("csf_purge_storage_deletion_queue");
 
     const deleted = csf
       .filter((entry) => entry.op === "delete")
       .map((entry) => entry.table);
     for (const table of [
-      "csf_storage_deletion_queue",
-      "csf_announcement_attachments",
       "csf_term_memberships",
       "csf_point_submissions",
       "csf_roles",

@@ -180,6 +180,23 @@ SELECT extensions.is(
   0, 'an unauthorized image request writes no receipt'
 );
 
+SELECT plugin_data.csf_prepare_announcement_attachment_restore(
+  'ab100000-0000-4000-8000-000000000001',
+  'ab000000-0000-4000-8000-000000000001',
+  'ab300000-0000-4000-8000-000000000002',
+  'ab400000-0000-4000-8000-000000000001', 'plugins',
+  'ab100000-0000-4000-8000-000000000001/dvhs-csf/post-images/ab400000-0000-4000-8000-000000000001/'
+    || repeat('a', 64) || '.png'
+);
+SELECT plugin_data.csf_prepare_announcement_attachment_restore(
+  'ab100000-0000-4000-8000-000000000001',
+  'ab000000-0000-4000-8000-000000000001',
+  'ab300000-0000-4000-8000-000000000002',
+  'ab400000-0000-4000-8000-000000000001', 'plugins',
+  'ab100000-0000-4000-8000-000000000001/dvhs-csf/post-images/ab400000-0000-4000-8000-000000000001/'
+    || repeat('b', 64) || '.jpg'
+);
+
 SELECT plugin_data.csf_replace_post_attachments(
   'ab100000-0000-4000-8000-000000000001',
   'ab400000-0000-4000-8000-000000000001',

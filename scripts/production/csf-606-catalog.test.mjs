@@ -21,7 +21,7 @@ const migration = readFileSync(
 );
 
 test("606 pins the signed 1.2.53 catalog publication", () => {
-  assert.equal(fullLedger.length, 608);
+  assert.equal(fullLedger.length, 609);
   assert.equal(ledger.length, 605);
   assert.equal(ledger.at(-1), "20260919103635");
   assert.deepEqual(

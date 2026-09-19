@@ -4,7 +4,6 @@ export async function seedDvhsCsfFixtures({ admin, users, must }) {
   const pluginDb = admin.schema("plugin_data");
   const csfTablesToReset = [
     "csf_staff_view_preferences",
-    "csf_storage_deletion_queue",
     "csf_profile_activity_events",
     "csf_profile_merge_reviews",
     "csf_profile_link_requests",
@@ -32,7 +31,6 @@ export async function seedDvhsCsfFixtures({ admin, users, must }) {
     "csf_opportunity_signups",
     "csf_opportunities",
     "csf_post_publication_requests",
-    "csf_announcement_attachments",
     "csf_announcements",
     "csf_profile_restrictions",
     "csf_staff_positions",
@@ -81,6 +79,15 @@ export async function seedDvhsCsfFixtures({ admin, users, must }) {
   await must(
     "csf-reset-synthetic-import",
     pluginDb.rpc("csf_seed_reset_synthetic_import", {
+      p_organization_id: IDS.csfOrg,
+    }),
+  );
+
+  // Post-image metadata and its durable cleanup state are writable only through
+  // the fenced service RPC. Reset them before publication requests and posts.
+  await must(
+    "csf-reset-storage-deletion-state",
+    pluginDb.rpc("csf_purge_storage_deletion_queue", {
       p_organization_id: IDS.csfOrg,
     }),
   );

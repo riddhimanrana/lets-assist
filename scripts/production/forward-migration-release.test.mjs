@@ -156,6 +156,7 @@ const APPROVED_TAIL = [
   "20260919114409",
   "20260919133902",
   "20260919143851",
+  "20260919145700",
 ];
 
 const cwd = resolve(import.meta.dirname, "../..");
@@ -965,6 +966,7 @@ test("an applied 604 ledger writes the signed publication and both post repairs"
     "20260919114409",
     "20260919133902",
     "20260919143851",
+    "20260919145700",
   ]);
   assert.equal(
     (
@@ -972,7 +974,7 @@ test("an applied 604 ledger writes the signed publication and both post repairs"
         /INSERT INTO supabase_migrations.schema_migrations/gu,
       ) ?? []
     ).length,
-    4,
+    5,
   );
   assert.ok(
     publication.query.includes("'20260919103635','publish_dvhs_csf_1_2_53'"),
@@ -1012,6 +1014,7 @@ test("an applied 605 ledger writes both post repairs", () => {
     "20260919114409",
     "20260919133902",
     "20260919143851",
+    "20260919145700",
   ]);
   assert.equal(
     (
@@ -1019,7 +1022,7 @@ test("an applied 605 ledger writes both post repairs", () => {
         /INSERT INTO supabase_migrations.schema_migrations/gu,
       ) ?? []
     ).length,
-    3,
+    4,
   );
   assert.ok(
     repair.query.includes(
@@ -1051,6 +1054,7 @@ test("an applied 606 ledger writes both publication binding repairs", () => {
   assert.deepEqual(binding.versions.slice(606), [
     "20260919133902",
     "20260919143851",
+    "20260919145700",
   ]);
   assert.equal(
     (
@@ -1058,7 +1062,7 @@ test("an applied 606 ledger writes both publication binding repairs", () => {
         /INSERT INTO supabase_migrations.schema_migrations/gu,
       ) ?? []
     ).length,
-    2,
+    3,
   );
   assert.ok(
     binding.query.includes(
@@ -1078,18 +1082,26 @@ test("an applied 607 ledger writes only the publication recovery receipt guard",
     readFileSync,
     prepared.versions.slice(0, 607),
   );
-  assert.deepEqual(recovery.versions.slice(607), ["20260919143851"]);
+  assert.deepEqual(recovery.versions.slice(607), [
+    "20260919143851",
+    "20260919145700",
+  ]);
   assert.equal(
     (
       recovery.query.match(
         /INSERT INTO supabase_migrations.schema_migrations/gu,
       ) ?? []
     ).length,
-    1,
+    2,
   );
   assert.ok(
     recovery.query.includes(
       "'20260919143851','bind_csf_publication_recovery_to_receipt'",
+    ),
+  );
+  assert.ok(
+    recovery.query.includes(
+      "'20260919145700','csf_storage_deletion_claim_boundary'",
     ),
   );
 });
