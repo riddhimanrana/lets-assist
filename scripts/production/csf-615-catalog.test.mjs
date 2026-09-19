@@ -22,10 +22,10 @@ const migration = readFileSync(
 );
 
 test("615 distinguishes deterministic attendance cutoff exclusions", () => {
-  assert.equal(fullLedger.length, 618);
+  assert.equal(fullLedger.length, 619);
   assert.equal(ledger.length, 615);
   assert.equal(ledger.at(-1), "20260919190000");
-  assert.deepEqual(approvedMigrations.at(-4), [
+  assert.deepEqual(approvedMigrations.at(-5), [
     migrationName,
     createHash("sha256").update(migration).digest("hex"),
   ]);
@@ -46,7 +46,7 @@ test("615 refuses an unreviewed ledger or changed migration bytes", () => {
     /explicit release review/u,
   );
   assert.equal(
-    approvedMigrations.at(-4)[1],
+    approvedMigrations.at(-5)[1],
     createHash("sha256").update(migration).digest("hex"),
   );
 });

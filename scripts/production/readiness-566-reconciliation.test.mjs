@@ -75,8 +75,8 @@ const EXTENSIONS = [
 ];
 
 test("the release is the 557 decisions baseline plus the reviewed integrated extensions", () => {
-  assert.equal(ledger.length, 618);
-  assert.equal(ledger.at(-1), "20260919210000");
+  assert.equal(ledger.length, 619);
+  assert.equal(ledger.at(-1), "20260919220000");
   assert.deepEqual(
     ledger.slice(557, 604),
     EXTENSIONS.map((name) => name.slice(0, 14)),
