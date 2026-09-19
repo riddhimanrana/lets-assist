@@ -8,7 +8,8 @@ import { expectedVersions } from "./app-release-checks.mjs";
 import { approvedMigrations } from "./forward-migration-release.mjs";
 
 const cwd = fileURLToPath(new URL("../../", import.meta.url));
-const ledger = expectedVersions(cwd);
+const fullLedger = expectedVersions(cwd);
+const ledger = fullLedger.slice(0, 615);
 const source = readFileSync(
   new URL("./verify-csf-target-schema.sql", import.meta.url),
   "utf8",
@@ -21,9 +22,10 @@ const migration = readFileSync(
 );
 
 test("615 distinguishes deterministic attendance cutoff exclusions", () => {
+  assert.equal(fullLedger.length, 616);
   assert.equal(ledger.length, 615);
   assert.equal(ledger.at(-1), "20260919190000");
-  assert.deepEqual(approvedMigrations.at(-1), [
+  assert.deepEqual(approvedMigrations.at(-2), [
     migrationName,
     createHash("sha256").update(migration).digest("hex"),
   ]);
@@ -44,7 +46,7 @@ test("615 refuses an unreviewed ledger or changed migration bytes", () => {
     /explicit release review/u,
   );
   assert.equal(
-    approvedMigrations.at(-1)[1],
+    approvedMigrations.at(-2)[1],
     createHash("sha256").update(migration).digest("hex"),
   );
 });
