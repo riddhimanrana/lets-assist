@@ -18,23 +18,23 @@ export function csf602Catalog(previous) {
         AND p.proname = 'csf_queue_scoped_application_import'
         AND pg_catalog.pg_get_function_identity_arguments(p.oid)
           = 'p_organization_id uuid, p_parent_row_id uuid, p_actor_user_id uuid, p_expected_profile_id uuid, p_expected_resolved_at timestamp with time zone, p_request_id uuid, p_reason text'
-        AND pg_catalog.position('csf_import_approval_batch:' IN p.prosrc) > 0
-        AND pg_catalog.position(
-          'This request ID already belongs to another import approval.' IN p.prosrc
+        AND pg_catalog.strpos(p.prosrc, 'csf_import_approval_batch:') > 0
+        AND pg_catalog.strpos(
+          p.prosrc, 'This request ID already belongs to another import approval.'
         ) > 0
-        AND pg_catalog.position('csf_staff_access_lock_key' IN p.prosrc)
-          < pg_catalog.position('csf_assert_import_actor_for_job' IN p.prosrc)
-        AND pg_catalog.position('csf_assert_import_actor_for_job' IN p.prosrc)
-          < pg_catalog.position('csf_import_approval_batch:' IN p.prosrc)
-        AND pg_catalog.position('csf_import_approval_batch:' IN p.prosrc)
-          < pg_catalog.position('csf_lock_identity_mutation' IN p.prosrc)
-        AND pg_catalog.position('csf_lock_identity_mutation' IN p.prosrc)
-          < pg_catalog.position('csf_lock_import_commit_coordinate' IN p.prosrc)
-        AND pg_catalog.position('csf_import_approval_batch:' IN p.prosrc)
-          < pg_catalog.position('INSERT INTO plugin_data.csf_sheet_import_jobs' IN p.prosrc)
-        AND pg_catalog.position(
-          'This request ID already belongs to another import approval.' IN p.prosrc
-        ) < pg_catalog.position('INSERT INTO plugin_data.csf_sheet_import_jobs' IN p.prosrc)
+        AND pg_catalog.strpos(p.prosrc, 'csf_staff_access_lock_key')
+          < pg_catalog.strpos(p.prosrc, 'csf_assert_import_actor_for_job')
+        AND pg_catalog.strpos(p.prosrc, 'csf_assert_import_actor_for_job')
+          < pg_catalog.strpos(p.prosrc, 'csf_import_approval_batch:')
+        AND pg_catalog.strpos(p.prosrc, 'csf_import_approval_batch:')
+          < pg_catalog.strpos(p.prosrc, 'csf_lock_identity_mutation')
+        AND pg_catalog.strpos(p.prosrc, 'csf_lock_identity_mutation')
+          < pg_catalog.strpos(p.prosrc, 'csf_lock_import_commit_coordinate')
+        AND pg_catalog.strpos(p.prosrc, 'csf_import_approval_batch:')
+          < pg_catalog.strpos(p.prosrc, 'INSERT INTO plugin_data.csf_sheet_import_jobs')
+        AND pg_catalog.strpos(
+          p.prosrc, 'This request ID already belongs to another import approval.'
+        ) < pg_catalog.strpos(p.prosrc, 'INSERT INTO plugin_data.csf_sheet_import_jobs')
     )
     THEN 1 ELSE 0 END AS csf_target_schema_verified;`;
 }
