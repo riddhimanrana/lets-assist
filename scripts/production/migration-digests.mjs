@@ -1230,4 +1230,8 @@ export const migrationDigests = {
     "da1a7e86afa172e85af4900d0f9efef75eebc4da7f58426c2e73c6031fc97b47",
   "20260919155040_csf_two_phase_storage_teardown.sql":
     "9d1b012ed4bf07ac046b683712d95824b835560c6ba012ce4c13bfc3bc14e2d8",
+  "20260919161514_publish_dvhs_csf_1_2_54.sql":
+    "441fefd7974c6c1fe501135751c7701ae5772441e1ce167e8bd58ce70a51626d",
+  "20260919161824_csf_post_publication_actor_detachment.sql":
+    "7b65fa68ac58a7f8ee82ebcba8b2bdfc91fdff82647cc7dab480a651c5bc1482",
 };
