@@ -8,45 +8,42 @@ import { expectedVersions } from "./app-release-checks.mjs";
 import { approvedMigrations } from "./forward-migration-release.mjs";
 
 const cwd = fileURLToPath(new URL("../../", import.meta.url));
-const fullLedger = expectedVersions(cwd);
-const ledger = fullLedger.slice(0, 615);
+const ledger = expectedVersions(cwd);
 const source = readFileSync(
   new URL("./verify-csf-target-schema.sql", import.meta.url),
   "utf8",
 );
-const migrationName =
-  "20260919190000_csf_attendance_window_exclusion_readiness";
+const migrationName = "20260919203000_csf_batch_sheet_sync_observation";
 const migration = readFileSync(
   new URL(`../../supabase/migrations/${migrationName}.sql`, import.meta.url),
   "utf8",
 );
 
-test("615 distinguishes deterministic attendance cutoff exclusions", () => {
-  assert.equal(fullLedger.length, 617);
-  assert.equal(ledger.length, 615);
-  assert.equal(ledger.at(-1), "20260919190000");
-  assert.deepEqual(approvedMigrations.at(-3), [
+test("617 pins bounded, service-only Sheet observation batch wrappers", () => {
+  assert.equal(ledger.length, 617);
+  assert.equal(ledger.at(-1), "20260919203000");
+  assert.deepEqual(approvedMigrations.at(-1), [
     migrationName,
     createHash("sha256").update(migration).digest("hex"),
   ]);
 
-  const previous = acceptedCatalogQuery(source, ledger.slice(0, 614));
+  const previous = acceptedCatalogQuery(source, ledger.slice(0, 616));
   const current = acceptedCatalogQuery(source, ledger);
-  assert.doesNotMatch(previous, /attendance_window_excluded/u);
-  assert.match(current, /attendance_window_excluded/u);
-  assert.match(current, /attendanceWindowExcluded/u);
-  assert.match(current, /before attendance opened/u);
-  assert.match(current, /after attendance closed/u);
+  assert.doesNotMatch(previous, /csf_sheet_sync_destination_snapshots/u);
+  assert.match(current, /csf_sheet_sync_destination_snapshots/u);
+  assert.match(current, /csf_record_sheet_sync_changes/u);
+  assert.match(current, /p_destination_lease_token/u);
+  assert.match(current, /NOT BETWEEN 1 AND 100/u);
 });
 
-test("615 refuses an unreviewed ledger or changed migration bytes", () => {
+test("617 refuses an unreviewed ledger or changed migration bytes", () => {
   assert.throws(
     () =>
       acceptedCatalogQuery(source, [...ledger.slice(0, -1), "20990101000000"]),
     /explicit release review/u,
   );
   assert.equal(
-    approvedMigrations.at(-3)[1],
+    approvedMigrations.at(-1)[1],
     createHash("sha256").update(migration).digest("hex"),
   );
 });

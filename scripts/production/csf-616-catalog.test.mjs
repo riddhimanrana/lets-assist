@@ -12,7 +12,7 @@ const source = readFileSync(
   new URL("./verify-csf-target-schema.sql", import.meta.url),
   "utf8",
 );
-const ledger = expectedVersions(cwd);
+const ledger = expectedVersions(cwd).slice(0, 616);
 const migrationName =
   "20260919200000_csf_application_source_connection_evidence";
 const migration = readFileSync(
@@ -23,7 +23,7 @@ const migration = readFileSync(
 test("616 pins the reviewed application-source connection evidence", () => {
   assert.equal(ledger.length, 616);
   assert.equal(ledger.at(-1), "20260919200000");
-  assert.deepEqual(approvedMigrations.at(-1), [
+  assert.deepEqual(approvedMigrations.at(-2), [
     migrationName,
     createHash("sha256").update(migration).digest("hex"),
   ]);
