@@ -1236,4 +1236,6 @@ export const migrationDigests = {
     "7b65fa68ac58a7f8ee82ebcba8b2bdfc91fdff82647cc7dab480a651c5bc1482",
   "20260919161847_csf_storage_claim_lease_and_seed_cleanup.sql":
     "aedcd8b8fc3ca1e95e97a901a94982fd1718197335214c9bfe6c16e593ba0887",
+  "20260919172947_csf_restore_preparation_lease.sql":
+    "ff421332e5888f73d11ef01dd46ca1f2e674a9a3e41b99b41ca7b8068b365494",
 };

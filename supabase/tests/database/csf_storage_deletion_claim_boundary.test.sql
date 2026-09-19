@@ -148,8 +148,8 @@ SELECT extensions.is(
   'claiming cancels the stale live-reference queue row'
 );
 
--- Restoration owns and removes an unclaimed queue row before it publishes the
--- path again.
+-- Restoration retains an unclaimed queue row until attachment metadata
+-- publishes the path again in the same transaction that consumes cleanup.
 INSERT INTO plugin_data.csf_storage_deletion_queue (
   id, organization_id, bucket, object_path
 ) VALUES (
@@ -167,8 +167,8 @@ SELECT plugin_data.csf_prepare_announcement_attachment_restore(
 SELECT extensions.is(
   (SELECT count(*)::integer
    FROM plugin_data.csf_storage_deletion_queue
-   WHERE id = 'b7600000-0000-4000-8000-000000000002'), 0,
-  'pre-upload preparation cancels an unclaimed cleanup row'
+   WHERE id = 'b7600000-0000-4000-8000-000000000002'), 1,
+  'pre-upload preparation retains an unclaimed cleanup row'
 );
 INSERT INTO plugin_data.csf_announcement_attachments (
   id, organization_id, announcement_id, position, bucket, object_path,
