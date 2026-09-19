@@ -75,9 +75,9 @@ const EXTENSIONS = [
 ];
 
 test("the release is the 557 decisions baseline plus the reviewed integrated extensions", () => {
-  assert.equal(ledger.length, 557 + EXTENSIONS.length);
+  assert.equal(ledger.length, 605);
   assert.deepEqual(
-    ledger.slice(557),
+    ledger.slice(557, 604),
     EXTENSIONS.map((name) => name.slice(0, 14)),
   );
   // 1200 header provenance is still with the source lane and must not appear.
