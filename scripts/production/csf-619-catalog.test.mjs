@@ -24,7 +24,7 @@ const migration = readFileSync(
 test("619 requires every non-blocking attendance error to be a reviewed cutoff error", () => {
   assert.equal(ledger.length, 619);
   assert.equal(ledger.at(-1), "20260919220000");
-  assert.deepEqual(approvedMigrations.at(-2), [
+  assert.deepEqual(approvedMigrations.at(-3), [
     migrationName,
     createHash("sha256").update(migration).digest("hex"),
   ]);
@@ -45,7 +45,7 @@ test("619 refuses an unreviewed ledger or changed migration bytes", () => {
     /explicit release review/u,
   );
   assert.equal(
-    approvedMigrations.at(-2)[1],
+    approvedMigrations.at(-3)[1],
     createHash("sha256").update(migration).digest("hex"),
   );
 });

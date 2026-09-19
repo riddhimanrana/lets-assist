@@ -23,7 +23,7 @@ const migration = readFileSync(
 test("618 keeps application contacts advisory-only for record connections", () => {
   assert.equal(ledger.length, 618);
   assert.equal(ledger.at(-1), "20260919210000");
-  assert.deepEqual(approvedMigrations.at(-3), [
+  assert.deepEqual(approvedMigrations.at(-4), [
     migrationName,
     createHash("sha256").update(migration).digest("hex"),
   ]);

@@ -12,7 +12,8 @@ const source = readFileSync(
   new URL("./verify-csf-target-schema.sql", import.meta.url),
   "utf8",
 );
-const ledger = expectedVersions(cwd);
+const fullLedger = expectedVersions(cwd);
+const ledger = fullLedger.slice(0, 620);
 const migrationName = "20260919230000_csf_storage_generation_fence";
 const migration = readFileSync(
   new URL(`../../supabase/migrations/${migrationName}.sql`, import.meta.url),
@@ -22,7 +23,7 @@ const migration = readFileSync(
 test("620 fences restored images and cancels unfinished teardown leases", () => {
   assert.equal(ledger.length, 620);
   assert.equal(ledger.at(-1), "20260919230000");
-  assert.deepEqual(approvedMigrations.at(-1), [
+  assert.deepEqual(approvedMigrations.at(-2), [
     migrationName,
     createHash("sha256").update(migration).digest("hex"),
   ]);
@@ -43,7 +44,7 @@ test("620 refuses an unreviewed ledger or changed migration bytes", () => {
     /explicit release review/u,
   );
   assert.equal(
-    approvedMigrations.at(-1)[1],
+    approvedMigrations.at(-2)[1],
     createHash("sha256").update(migration).digest("hex"),
   );
 });
