@@ -85,6 +85,14 @@ export const reviewedMigrationDataWrites = [
       "efdb0eded28d215bc0b20001e7ef06471e6d38993408031a935819aad701642e",
     why: "Records one audit event for each retired-class code revoked by the same statement.",
   },
+  {
+    migration: "20260919172947",
+    table: "plugin_data.csf_storage_deletion_queue",
+    operation: "INSERT",
+    statement:
+      "5e97e8fe4ff539b769fd3db58274cd20eaa49634d658cfee5c089a045dcf7462",
+    why: "Recreates cleanup evidence only for an existing unconsumed restore preparation, with the queue path uniqueness constraint making the backfill repeat-safe.",
+  },
 ];
 
 // Nothing in this list may ever be written by a migration, reviewed or not.

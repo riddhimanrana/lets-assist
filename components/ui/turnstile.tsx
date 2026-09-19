@@ -9,7 +9,10 @@ import {
 import { ShieldCheck } from "lucide-react";
 import { forwardRef, useEffect, useImperativeHandle, useRef } from "react";
 
-import { shouldReinjectTurnstileScript } from "@/lib/auth/secure-check";
+import {
+  isSecureCheckBypassed,
+  shouldReinjectTurnstileScript,
+} from "@/lib/auth/secure-check";
 
 type WindowWithTurnstile = Window & {
   turnstile?: Window["turnstile"];
@@ -63,7 +66,12 @@ export const TurnstileComponent = forwardRef<
   TurnstileComponentProps
 >(({ onVerify, onError, onExpire, onLoad, className, theme = "auto" }, ref) => {
   const turnstileRef = useRef<TurnstileInstance>(null);
-  const bypassEnabled = process.env.NEXT_PUBLIC_TURNSTILE_BYPASS === "true";
+  const bypassEnabled = isSecureCheckBypassed({
+    nodeEnv: process.env.NODE_ENV,
+    bypass: process.env.NEXT_PUBLIC_TURNSTILE_BYPASS,
+    siteKey: process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY,
+    siteUrl: process.env.NEXT_PUBLIC_SITE_URL,
+  });
 
   useImperativeHandle(ref, () => ({
     reset: () => {

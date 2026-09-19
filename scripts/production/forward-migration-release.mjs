@@ -547,6 +547,70 @@ export const approvedMigrations = [
     "20260919010000_csf_scoped_request_id_batch_fence",
     "fde365726f345424b30ee090aad91b77a636fff1e3cfccf5a656fd14b2f74ab7",
   ],
+  [
+    "20260919020000_csf_post_image_attachments",
+    "893d647f0bb63fcf5be924d318c8eec5d8fda4124fda2597f6d812f6de304d49",
+  ],
+  [
+    "20260919091727_index_hot_uncovered_foreign_keys",
+    "b13b08f59979521d1064e984b64a42e99852e74d8025c38566f9672844db5c53",
+  ],
+  [
+    "20260919095826_atomic_csf_post_attachment_update",
+    "4d75516543a45dbc621321732570629ce5a23fa75220c6bc2dda126e7db0cf9f",
+  ],
+  [
+    "20260919103635_publish_dvhs_csf_1_2_53",
+    "ed9db3e0a49dff9bd0be933c5259d0432db6252f83f3077dd1ba95773c0cb632",
+  ],
+  [
+    "20260919114409_serialize_csf_atomic_post_attachment_update",
+    "6f9a3e5cc710bb4e0d4c2fdd46697f70e834de961897073c13d323f7b7d9ca78",
+  ],
+  [
+    "20260919133902_bind_csf_post_publication_requests",
+    "c96217505e6e97cbeb11ca639480e27526b6fbe132684af29624cd5b41078144",
+  ],
+  [
+    "20260919143851_bind_csf_publication_recovery_to_receipt",
+    "f2c380c809fd9d62ee2a606b8a35d1c94426e3ff8a1220523660907e9fb8e727",
+  ],
+  [
+    "20260919145700_csf_storage_deletion_claim_boundary",
+    "da1a7e86afa172e85af4900d0f9efef75eebc4da7f58426c2e73c6031fc97b47",
+  ],
+  [
+    "20260919155040_csf_two_phase_storage_teardown",
+    "9d1b012ed4bf07ac046b683712d95824b835560c6ba012ce4c13bfc3bc14e2d8",
+  ],
+  [
+    "20260919161514_publish_dvhs_csf_1_2_54",
+    "441fefd7974c6c1fe501135751c7701ae5772441e1ce167e8bd58ce70a51626d",
+  ],
+  [
+    "20260919161824_csf_post_publication_actor_detachment",
+    "7b65fa68ac58a7f8ee82ebcba8b2bdfc91fdff82647cc7dab480a651c5bc1482",
+  ],
+  [
+    "20260919161847_csf_storage_claim_lease_and_seed_cleanup",
+    "aedcd8b8fc3ca1e95e97a901a94982fd1718197335214c9bfe6c16e593ba0887",
+  ],
+  [
+    "20260919172947_csf_restore_preparation_lease",
+    "ff421332e5888f73d11ef01dd46ca1f2e674a9a3e41b99b41ca7b8068b365494",
+  ],
+  [
+    "20260919190000_csf_attendance_window_exclusion_readiness",
+    "18d317bbda1d675a0d66471b96f199aafdbb8765cb69cad5a1b34b132435c34c",
+  ],
+  [
+    "20260919200000_csf_application_source_connection_evidence",
+    "05d3dd2a1fee8c1e7933f6188ab1cce4a164fdcd2175884cdac70da7bce93fca",
+  ],
+  [
+    "20260919203000_csf_batch_sheet_sync_observation",
+    "900d58ca393653784abd398e145b83d0e42c4bca8e762caf59167763afee1bcf",
+  ],
 ];
 
 const literal = (value) => `'${value.replaceAll("'", "''")}'`;

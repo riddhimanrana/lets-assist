@@ -194,6 +194,26 @@ describe("GET /auth/confirm (runtime)", () => {
     }
   });
 
+  test("a mismatched PKCE verifier uses the same safe recovery page", async () => {
+    try {
+      state.exchangeError = {
+        message: "code challenge does not match previously saved code verifier",
+        code: "bad_code_verifier",
+      };
+      const destination = await redirectedTo(
+        "/auth/confirm?code=abc123&type=signup&email=confirm%40local.test",
+        { host: EVIL_HOST },
+      );
+      const url = new URL(destination);
+      expect(url.origin).toBe(HOSTED);
+      expect(url.pathname).toBe("/auth/email-expired");
+      expect(url.searchParams.get("email")).toBe("confirm@local.test");
+      expect(destination).not.toContain("code challenge");
+    } finally {
+      restoreEnv();
+    }
+  });
+
   test("a consumed signup link keeps a nested class continuation without carrying provider errors", async () => {
     try {
       const path = "/organization/dvhighcsf/plugins/dvhs-csf/connect/CNLVVP";

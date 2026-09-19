@@ -31,6 +31,8 @@ interface CsfPostNotificationProps {
    * this template never receives or embeds raw HTML.
    */
   postParagraphs: string[];
+  /** Images stay in private storage. Email names them and links to the post. */
+  attachmentCount?: number;
   postUrl: string;
   /**
    * Recipient-facing unsubscribe page for this chapter's announcement topic.
@@ -53,6 +55,7 @@ export default function CsfPostNotification({
     "We just posted a new opportunity in your class feed.",
     "Open Let's Assist for the details and to sign up.",
   ],
+  attachmentCount = 0,
   postUrl = "https://lets-assist.com/organization/dvhs-csf",
   unsubscribeUrl = "https://lets-assist.com/unsubscribe/csf/org/announcements",
   publishedAtLabel = "August 6, 2026",
@@ -105,6 +108,15 @@ export default function CsfPostNotification({
                   {paragraph}
                 </Text>
               ))}
+
+              {attachmentCount > 0 ? (
+                <Text style={attachmentNotice}>
+                  This post includes {attachmentCount}{" "}
+                  {attachmentCount === 1 ? "image" : "images"}. Open the post in
+                  Let&apos;s Assist to view{" "}
+                  {attachmentCount === 1 ? "it" : "them"}.
+                </Text>
+              ) : null}
 
               <Section style={buttonContainer}>
                 <EmailButton href={postUrl}>
@@ -207,6 +219,17 @@ const paragraphStyle = {
   textAlign: "left" as const,
   margin: "12px 0",
   whiteSpace: "pre-wrap" as const,
+};
+
+const attachmentNotice = {
+  color: "#374151",
+  backgroundColor: "#f9fafb",
+  border: "1px solid #e5e7eb",
+  borderRadius: "8px",
+  fontSize: "14px",
+  lineHeight: "1.6",
+  margin: "16px 0 0",
+  padding: "12px 14px",
 };
 
 const buttonContainer = {

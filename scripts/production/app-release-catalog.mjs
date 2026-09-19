@@ -18,6 +18,21 @@ import { csf598Catalog } from "./csf-598-catalog.mjs";
 import { csf599Catalog } from "./csf-599-catalog.mjs";
 import { csf600Catalog } from "./csf-600-catalog.mjs";
 import { csf602Catalog } from "./csf-602-catalog.mjs";
+import { csf603Catalog } from "./csf-603-catalog.mjs";
+import { csf604Catalog } from "./csf-604-catalog.mjs";
+import { csf605Catalog } from "./csf-605-catalog.mjs";
+import { csf606Catalog } from "./csf-606-catalog.mjs";
+import { csf607Catalog } from "./csf-607-catalog.mjs";
+import { csf608Catalog } from "./csf-608-catalog.mjs";
+import { csf609Catalog } from "./csf-609-catalog.mjs";
+import { csf610Catalog } from "./csf-610-catalog.mjs";
+import { csf611Catalog } from "./csf-611-catalog.mjs";
+import { csf612Catalog } from "./csf-612-catalog.mjs";
+import { csf613Catalog } from "./csf-613-catalog.mjs";
+import { csf614Catalog } from "./csf-614-catalog.mjs";
+import { csf615Catalog } from "./csf-615-catalog.mjs";
+import { csf616Catalog } from "./csf-616-catalog.mjs";
+import { csf617Catalog } from "./csf-617-catalog.mjs";
 import {
   historyIdentityLedgers,
   historyIdentityCatalog,
@@ -276,6 +291,102 @@ export function acceptedCatalogQuery(source, versions) {
   const ledgerHash = createHash("sha256")
     .update(versions.join("\n"))
     .digest("hex");
+  if (
+    versions.length === 617 &&
+    ledgerHash ===
+      "87f7793acb06135aba76cc71d59027c46ac68e780db751ffa0f2c6e886b95068"
+  )
+    return csf617Catalog(acceptedCatalogQuery(source, versions.slice(0, 616)));
+  if (
+    versions.length === 616 &&
+    ledgerHash ===
+      "e90356a42a8fb1ec429c9e74dff71e508da8fccad1f05e82776f9535c5a8d78d"
+  )
+    return csf616Catalog(acceptedCatalogQuery(source, versions.slice(0, 615)));
+  if (
+    versions.length === 615 &&
+    ledgerHash ===
+      "5d7ddb1682e3c51dea087b9aab09c51522573720282909cab84b21d39b5de69d"
+  )
+    return csf615Catalog(acceptedCatalogQuery(source, versions.slice(0, 614)));
+  if (
+    versions.length === 614 &&
+    ledgerHash ===
+      "153061ddcc830f8a2ef70c14b6c0655bd1efae0b3d40a39e42d13516a4865def"
+  )
+    return csf614Catalog(acceptedCatalogQuery(source, versions.slice(0, 613)));
+  if (
+    versions.length === 613 &&
+    ledgerHash ===
+      "939603f0d496a7a7fde6e68c54755b974ebace816645dbe84417912dd95faffd"
+  )
+    return csf613Catalog(acceptedCatalogQuery(source, versions.slice(0, 612)));
+  if (
+    versions.length === 612 &&
+    ledgerHash ===
+      "7927d7249742cf633ad5e7eaba8358ed9a7a39d31b208e4ba30c5f66e2bce878"
+  )
+    return csf612Catalog(acceptedCatalogQuery(source, versions.slice(0, 611)));
+  if (
+    versions.length === 611 &&
+    ledgerHash ===
+      "0f3f9ddec15d91f63e7ed8893617a82eeb4c7befacf44a48c986ac75c93e74aa"
+  )
+    return acceptedCatalogQuery(source, versions.slice(0, 610));
+  if (
+    versions.length === 610 &&
+    ledgerHash ===
+      "90222c4a9ebfaf8c250571bfabb1626ab97d0b9c3cc6e5cc7dc9100cd7e73822"
+  )
+    return csf611Catalog(acceptedCatalogQuery(source, versions.slice(0, 609)));
+  if (
+    versions.length === 609 &&
+    ledgerHash ===
+      "b63dfff4d54335dc08e7d2fd0758f27595c0b3f79cd8d58ba3196d66c2717955"
+  )
+    return csf610Catalog(acceptedCatalogQuery(source, versions.slice(0, 608)));
+  if (
+    versions.length === 608 &&
+    ledgerHash ===
+      "55c7eaeb5cbcce556ef780efcaadb0a9cf12e0ae23df6e575f872152846845c0"
+  )
+    return csf609Catalog(acceptedCatalogQuery(source, versions.slice(0, 607)));
+  if (
+    versions.length === 607 &&
+    ledgerHash ===
+      "56e1ac9e7efcc679fa90af7fe6de0f576605cfff521ad34064ba88fb06659273"
+  )
+    return csf608Catalog(acceptedCatalogQuery(source, versions.slice(0, 606)));
+  if (
+    versions.length === 606 &&
+    ledgerHash ===
+      "dd11334a4ba959187e6d6309010ecf29e5dff28a1151e51032c42c7fecaa717b"
+  )
+    return csf607Catalog(acceptedCatalogQuery(source, versions.slice(0, 605)));
+  if (
+    versions.length === 605 &&
+    ledgerHash ===
+      "a45acfd2dc0ebf349f446b1d2698dd1e6a5ae273ef480b2ab22cb0a3940333ac"
+  )
+    return csf606Catalog(acceptedCatalogQuery(source, versions.slice(0, 604)));
+  if (
+    versions.length === 604 &&
+    ledgerHash ===
+      "b816107d78196a8b5f1a5cc1079324d495c1c49bce236deabdaf164b6a34214b"
+  )
+    return csf605Catalog(acceptedCatalogQuery(source, versions.slice(0, 603)));
+  if (
+    versions.length === 603 &&
+    ledgerHash ===
+      "2b08b0903ece881d864054ffa9aa211a95b974d8603f35ce313bb4e98367ef41"
+  )
+    return csf604Catalog(acceptedCatalogQuery(source, versions.slice(0, 602)));
+  if (
+    versions.length === 602 &&
+    ledgerHash ===
+      "05d799198504999960f09e4c123dd42f66fec11a94680c2bd02aabe43579fd8e"
+  )
+    return csf603Catalog(acceptedCatalogQuery(source, versions.slice(0, 601)));
   if (
     versions.length === 601 &&
     ledgerHash ===

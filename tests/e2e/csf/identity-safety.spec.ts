@@ -1085,7 +1085,7 @@ test.describe("CSF identity safety", () => {
     await expect(dialog.getByText("Connection unavailable")).toBeVisible();
     await expect(
       dialog.getByText(
-        "The account's confirmed email does not match this student record.",
+        "The account's confirmed email does not match this student record or its committed application source.",
       ),
     ).toBeVisible();
 

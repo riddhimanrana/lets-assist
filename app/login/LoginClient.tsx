@@ -102,6 +102,13 @@ export default function LoginClient({
       return;
     }
 
+    if (authError === "auth-flow-expired") {
+      toast.error("That sign-in link no longer works.", {
+        description: "Start sign-in again to continue.",
+      });
+      return;
+    }
+
     if (authError === "account-banned") {
       toast.error("Your account has been banned.", {
         description:
