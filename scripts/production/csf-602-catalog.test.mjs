@@ -8,7 +8,8 @@ import { expectedVersions } from "./app-release-checks.mjs";
 import { approvedMigrations } from "./forward-migration-release.mjs";
 
 const cwd = fileURLToPath(new URL("../../", import.meta.url));
-const ledger = expectedVersions(cwd);
+const fullLedger = expectedVersions(cwd);
+const ledger = fullLedger.slice(0, 601);
 const source = readFileSync(
   new URL("./verify-csf-target-schema.sql", import.meta.url),
   "utf8",
@@ -20,12 +21,13 @@ const migration = readFileSync(
 );
 
 test("602 fences scoped request IDs before deriving import records", () => {
+  assert.equal(fullLedger.length, 621);
   assert.equal(ledger.length, 601);
   assert.equal(ledger.at(-1), "20260919010000");
-  assert.deepEqual(approvedMigrations.at(-1), [
-    migrationName,
-    createHash("sha256").update(migration).digest("hex"),
-  ]);
+  assert.deepEqual(
+    approvedMigrations.find(([name]) => name === migrationName),
+    [migrationName, createHash("sha256").update(migration).digest("hex")],
+  );
   const previous = acceptedCatalogQuery(source, ledger.slice(0, 600));
   const current = acceptedCatalogQuery(source, ledger);
   assert.match(previous, /a452eea82e258fe4351689c79d7acc93/u);

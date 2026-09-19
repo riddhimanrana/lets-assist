@@ -149,6 +149,26 @@ const APPROVED_TAIL = [
   "20260918183000",
   "20260918235900",
   "20260919010000",
+  "20260919020000",
+  "20260919091727",
+  "20260919095826",
+  "20260919103635",
+  "20260919114409",
+  "20260919133902",
+  "20260919143851",
+  "20260919145700",
+  "20260919155040",
+  "20260919161514",
+  "20260919161824",
+  "20260919161847",
+  "20260919172947",
+  "20260919190000",
+  "20260919200000",
+  "20260919203000",
+  "20260919210000",
+  "20260919220000",
+  "20260919230000",
+  "20260919230001",
 ];
 
 const cwd = resolve(import.meta.dirname, "../..");
@@ -944,5 +964,209 @@ test("an applied 536 ledger writes the signed 1.2.51 publication and the typed-n
   assert.doesNotMatch(
     publication.query,
     /(?:INSERT INTO|UPDATE|DELETE FROM) public\.organization_plugin_installs/u,
+  );
+});
+
+test("an applied 604 ledger writes the signed publication and later repairs", () => {
+  const publication = prepareMigration(
+    cwd,
+    readFileSync,
+    prepared.versions.slice(0, 604),
+  );
+  assert.deepEqual(publication.versions.slice(604), [
+    "20260919103635",
+    "20260919114409",
+    "20260919133902",
+    "20260919143851",
+    "20260919145700",
+    "20260919155040",
+    "20260919161514",
+    "20260919161824",
+    "20260919161847",
+    "20260919172947",
+    "20260919190000",
+    "20260919200000",
+    "20260919203000",
+    "20260919210000",
+    "20260919220000",
+    "20260919230000",
+    "20260919230001",
+  ]);
+  assert.equal(
+    (
+      publication.query.match(
+        /INSERT INTO supabase_migrations.schema_migrations/gu,
+      ) ?? []
+    ).length,
+    17,
+  );
+  assert.ok(
+    publication.query.includes("'20260919103635','publish_dvhs_csf_1_2_53'"),
+  );
+  assert.ok(
+    publication.query.includes("11d3f531b4b74ef9dd0a3a332604a4c80b835448"),
+  );
+  assert.ok(publication.query.includes("AND latest_version = '1.2.51'"));
+  assert.ok(
+    publication.query.includes(
+      "'20260919114409','serialize_csf_atomic_post_attachment_update'",
+    ),
+  );
+  assert.ok(
+    publication.query.includes(
+      "'20260919133902','bind_csf_post_publication_requests'",
+    ),
+  );
+  assert.ok(
+    publication.query.includes(
+      "'20260919143851','bind_csf_publication_recovery_to_receipt'",
+    ),
+  );
+  assert.doesNotMatch(
+    publication.query,
+    /(?:INSERT INTO|UPDATE|DELETE FROM) public\.organization_plugin_installs/u,
+  );
+});
+
+test("an applied 605 ledger writes the remaining post and cleanup repairs", () => {
+  const repair = prepareMigration(
+    cwd,
+    readFileSync,
+    prepared.versions.slice(0, 605),
+  );
+  assert.deepEqual(repair.versions.slice(605), [
+    "20260919114409",
+    "20260919133902",
+    "20260919143851",
+    "20260919145700",
+    "20260919155040",
+    "20260919161514",
+    "20260919161824",
+    "20260919161847",
+    "20260919172947",
+    "20260919190000",
+    "20260919200000",
+    "20260919203000",
+    "20260919210000",
+    "20260919220000",
+    "20260919230000",
+    "20260919230001",
+  ]);
+  assert.equal(
+    (
+      repair.query.match(
+        /INSERT INTO supabase_migrations.schema_migrations/gu,
+      ) ?? []
+    ).length,
+    16,
+  );
+  assert.ok(
+    repair.query.includes(
+      "'20260919114409','serialize_csf_atomic_post_attachment_update'",
+    ),
+  );
+  assert.ok(
+    repair.query.includes(
+      "'20260919133902','bind_csf_post_publication_requests'",
+    ),
+  );
+  assert.ok(
+    repair.query.includes(
+      "'20260919143851','bind_csf_publication_recovery_to_receipt'",
+    ),
+  );
+  assert.doesNotMatch(
+    repair.query,
+    /(?:INSERT INTO|UPDATE|DELETE FROM) public\.organization_plugin_installs/u,
+  );
+});
+
+test("an applied 606 ledger writes publication binding and cleanup repairs", () => {
+  const binding = prepareMigration(
+    cwd,
+    readFileSync,
+    prepared.versions.slice(0, 606),
+  );
+  assert.deepEqual(binding.versions.slice(606), [
+    "20260919133902",
+    "20260919143851",
+    "20260919145700",
+    "20260919155040",
+    "20260919161514",
+    "20260919161824",
+    "20260919161847",
+    "20260919172947",
+    "20260919190000",
+    "20260919200000",
+    "20260919203000",
+    "20260919210000",
+    "20260919220000",
+    "20260919230000",
+    "20260919230001",
+  ]);
+  assert.equal(
+    (
+      binding.query.match(
+        /INSERT INTO supabase_migrations.schema_migrations/gu,
+      ) ?? []
+    ).length,
+    15,
+  );
+  assert.ok(
+    binding.query.includes(
+      "'20260919133902','bind_csf_post_publication_requests'",
+    ),
+  );
+  assert.ok(
+    binding.query.includes(
+      "'20260919143851','bind_csf_publication_recovery_to_receipt'",
+    ),
+  );
+});
+
+test("an applied 607 ledger writes recovery and Storage cleanup guards", () => {
+  const recovery = prepareMigration(
+    cwd,
+    readFileSync,
+    prepared.versions.slice(0, 607),
+  );
+  assert.deepEqual(recovery.versions.slice(607), [
+    "20260919143851",
+    "20260919145700",
+    "20260919155040",
+    "20260919161514",
+    "20260919161824",
+    "20260919161847",
+    "20260919172947",
+    "20260919190000",
+    "20260919200000",
+    "20260919203000",
+    "20260919210000",
+    "20260919220000",
+    "20260919230000",
+    "20260919230001",
+  ]);
+  assert.equal(
+    (
+      recovery.query.match(
+        /INSERT INTO supabase_migrations.schema_migrations/gu,
+      ) ?? []
+    ).length,
+    14,
+  );
+  assert.ok(
+    recovery.query.includes(
+      "'20260919143851','bind_csf_publication_recovery_to_receipt'",
+    ),
+  );
+  assert.ok(
+    recovery.query.includes(
+      "'20260919145700','csf_storage_deletion_claim_boundary'",
+    ),
+  );
+  assert.ok(
+    recovery.query.includes(
+      "'20260919155040','csf_two_phase_storage_teardown'",
+    ),
   );
 });

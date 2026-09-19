@@ -274,7 +274,30 @@ function createPlanRecordingClient(ledgerPath) {
     }),
     rpc: (name) => {
       record({ schema, rpc: name, op: "rpc" });
+      if (name === "csf_purge_storage_deletion_queue") {
+        return settle({
+          status: "purged",
+          attachments: 0,
+          queueRows: 0,
+          claimedQueueRows: 0,
+          receipts: 0,
+          preparations: 0,
+        });
+      }
       return settle(null);
+    },
+    storage: {
+      from: (bucket) => ({
+        remove: (paths) => {
+          record({
+            schema: "storage",
+            bucket,
+            op: "remove",
+            rows: paths.length,
+          });
+          return settle(paths);
+        },
+      }),
     },
     auth: {
       admin: {

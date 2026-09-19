@@ -29,6 +29,25 @@ import {
 } from "@/lib/auth/mfa";
 import { getGoogleSigninCapRestriction } from "@/lib/security/google-cap";
 import { applyVerifiedDomainAffiliation } from "@/lib/organization/verified-domain-affiliation";
+import { isRestartableAuthFlowError } from "@/lib/auth/auth-flow-recovery";
+
+function authFlowRecoveryRedirect(input: {
+  authOrigin: string;
+  redirectAfterAuth: string | null;
+  staffToken: string | null;
+  orgUsername: string | null;
+}) {
+  const loginUrl = new URL("/login", input.authOrigin);
+  loginUrl.searchParams.set("error", "auth-flow-expired");
+
+  const continuation = normalizeRedirectPath(input.redirectAfterAuth);
+  if (continuation) loginUrl.searchParams.set("redirect", continuation);
+  if (input.staffToken)
+    loginUrl.searchParams.set("staff_token", input.staffToken);
+  if (input.orgUsername) loginUrl.searchParams.set("org", input.orgUsername);
+
+  return NextResponse.redirect(loginUrl.toString());
+}
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
@@ -38,6 +57,7 @@ export async function GET(request: Request) {
   const from = searchParams.get("from");
   const redirectAfterAuth = searchParams.get("redirectAfterAuth");
   const error = searchParams.get("error");
+  const errorCode = searchParams.get("error_code");
   const error_description = searchParams.get("error_description");
   const staffToken = searchParams.get("staffToken");
   const orgUsername = searchParams.get("orgUsername");
@@ -55,6 +75,29 @@ export async function GET(request: Request) {
 
   // Handle errors for all flows
   if (error) {
+    if (
+      isRestartableAuthFlowError({
+        code: errorCode ?? error,
+        message: error_description,
+      })
+    ) {
+      console.info("OAuth callback requires a new auth flow", {
+        category: error,
+        code: errorCode ?? error,
+      });
+      if (from === "authentication") {
+        return NextResponse.redirect(
+          `${authOrigin}/account/authentication?error=linking_failed`,
+        );
+      }
+      return authFlowRecoveryRedirect({
+        authOrigin,
+        redirectAfterAuth,
+        staffToken,
+        orgUsername,
+      });
+    }
+
     console.error("OAuth error:", error, error_description);
     // Check if the error is due to existing email-password account
     if (error_description?.includes("email already exists")) {
@@ -470,6 +513,23 @@ export async function GET(request: Request) {
         return NextResponse.redirect(`${authOrigin}/error`);
       }
     } else {
+      if (isRestartableAuthFlowError(exchangeError)) {
+        console.info("OAuth session exchange requires a new auth flow", {
+          code: exchangeError?.code ?? "unclassified",
+        });
+        if (from === "authentication") {
+          return NextResponse.redirect(
+            `${authOrigin}/account/authentication?error=linking_failed`,
+          );
+        }
+        return authFlowRecoveryRedirect({
+          authOrigin,
+          redirectAfterAuth,
+          staffToken,
+          orgUsername,
+        });
+      }
+
       console.error("Session error:", exchangeError);
       if (from === "authentication") {
         return NextResponse.redirect(

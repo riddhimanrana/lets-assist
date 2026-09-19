@@ -88,6 +88,11 @@ export default function SignupClient({
   async function onSubmit(data: SignupValues) {
     const turnstileToken = verification.token;
 
+    if (!turnstileToken?.trim()) {
+      toast.error("Complete the security check before creating your account.");
+      return;
+    }
+
     setIsLoading(true);
     const formData = new FormData();
     Object.entries(data).forEach(([key, value]) => formData.append(key, value));
@@ -95,9 +100,7 @@ export default function SignupClient({
       formData.append("redirectUrl", redirectPath);
     }
 
-    if (turnstileToken) {
-      formData.append("turnstileToken", turnstileToken);
-    }
+    formData.append("turnstileToken", turnstileToken);
 
     if (staffToken) {
       formData.append("staffToken", staffToken);
@@ -369,9 +372,7 @@ export default function SignupClient({
                 />
               </SecureCheckPanel>
             </div>
-            {/* The submit button is disabled while the security check runs.
-                Without this line the control simply ignores a click and the
-                visitor has no way to tell that from a broken page. */}
+            {/* Keep submission blocked until the widget returns a token. */}
             <p
               className="text-center text-sm text-muted-foreground"
               role="status"
@@ -379,15 +380,21 @@ export default function SignupClient({
             >
               {isLoading
                 ? "Creating your account…"
-                : isSecureCheckBlockingSubmit(verification.phase)
+                : verification.phase === "loading"
                   ? "Finishing the security check before this form can be submitted…"
-                  : ""}
+                  : verification.phase === "ready" && !verification.token
+                    ? "Complete the security check to create your account."
+                    : ""}
             </p>
             <Button
               type="submit"
               className="h-10 w-full rounded-full bg-primary font-semibold text-primary-foreground shadow-none hover:bg-primary/90"
               disabled={
-                isLoading || isSecureCheckBlockingSubmit(verification.phase)
+                isLoading ||
+                isSecureCheckBlockingSubmit(
+                  verification.phase,
+                  verification.token,
+                )
               }
             >
               {isLoading ? "Creating Account..." : "Create Account"}

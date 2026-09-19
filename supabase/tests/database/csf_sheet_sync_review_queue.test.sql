@@ -1,6 +1,6 @@
 BEGIN;
 CREATE EXTENSION IF NOT EXISTS pgtap WITH SCHEMA extensions;
-SELECT extensions.plan(223);
+SELECT extensions.plan(232);
 INSERT INTO auth.users(id,aud,role,email,raw_app_meta_data,raw_user_meta_data) VALUES
 ('ea000000-0000-4000-8000-000000000001','authenticated','authenticated','sheet-admin@local.test','{}','{}'),
 ('ea000000-0000-4000-8000-000000000002','authenticated','authenticated','sheet-outsider@local.test','{}','{}');
@@ -61,6 +61,41 @@ SELECT extensions.throws_ok($$INSERT INTO plugin_data.csf_sheet_writeback_ledger
 DELETE FROM plugin_data.csf_sheet_writeback_ledger WHERE source_version='forged-version';
 INSERT INTO plugin_data.csf_sheet_writeback_ledger(id,organization_id,spreadsheet_file_id,status,destination_id,record_kind,record_id,source_version,payload) SELECT 'eafc0000-0000-4000-8000-000000000001',organization_id,spreadsheet_file_id,'pending_export',destination_id,record_kind,record_id,md5((payload||'{"forged":"value"}'::jsonb)::text),payload||'{"forged":"value"}'::jsonb FROM plugin_data.csf_sheet_writeback_ledger WHERE id=(SELECT (value->>'id')::uuid FROM sync_fixture WHERE name='export');
 INSERT INTO sync_fixture VALUES('lease',plugin_data.csf_claim_sheet_sync_destination('ea100000-0000-4000-8000-000000000001',(SELECT (value->>'id')::uuid FROM sync_fixture WHERE name='destination'),true));
+SELECT extensions.ok(
+  has_function_privilege('service_role','plugin_data.csf_sheet_sync_destination_snapshots(uuid,uuid,jsonb)','EXECUTE')
+  AND has_function_privilege('service_role','plugin_data.csf_record_sheet_sync_changes(uuid,uuid,uuid,jsonb)','EXECUTE')
+  AND NOT has_function_privilege('anon','plugin_data.csf_sheet_sync_destination_snapshots(uuid,uuid,jsonb)','EXECUTE')
+  AND NOT has_function_privilege('authenticated','plugin_data.csf_sheet_sync_destination_snapshots(uuid,uuid,jsonb)','EXECUTE')
+  AND NOT has_function_privilege('anon','plugin_data.csf_record_sheet_sync_changes(uuid,uuid,uuid,jsonb)','EXECUTE')
+  AND NOT has_function_privilege('authenticated','plugin_data.csf_record_sheet_sync_changes(uuid,uuid,uuid,jsonb)','EXECUTE'),
+  'batch Sheet sync RPCs are service-only'
+);
+SELECT extensions.is(
+  plugin_data.csf_sheet_sync_destination_snapshots(
+    'ea100000-0000-4000-8000-000000000001',
+    (SELECT (value->>'id')::uuid FROM sync_fixture WHERE name='destination'),
+    '[{"record_kind":"application","record_id":"ea600000-0000-4000-8000-000000000001"}]'
+  )->0->'snapshot',
+  plugin_data.csf_sheet_sync_destination_snapshot(
+    'ea100000-0000-4000-8000-000000000001',
+    (SELECT (value->>'id')::uuid FROM sync_fixture WHERE name='destination'),
+    'application',
+    'ea600000-0000-4000-8000-000000000001'
+  ),
+  'batch snapshots preserve the canonical destination-scoped source snapshot'
+);
+SELECT extensions.throws_ok(
+  $$SELECT plugin_data.csf_sheet_sync_destination_snapshots('ea100000-0000-4000-8000-000000000001',(SELECT (value->>'id')::uuid FROM sync_fixture WHERE name='destination'),'[]')$$,
+  'P0001',
+  'Sheet snapshot batches must contain 1 to 100 records.',
+  'empty snapshot batches fail closed'
+);
+SELECT extensions.throws_ok(
+  $$SELECT plugin_data.csf_sheet_sync_destination_snapshots('ea100000-0000-4000-8000-000000000001',(SELECT (value->>'id')::uuid FROM sync_fixture WHERE name='destination'),'[{"record_kind":"application","record_id":"ea600000-0000-4000-8000-000000000001","extra":true}]')$$,
+  'P0001',
+  'Sheet snapshot record is invalid.',
+  'snapshot batches reject unreviewed fields'
+);
 SELECT extensions.ok(plugin_data.csf_claim_sheet_sync_destination('ea100000-0000-4000-8000-000000000001',(SELECT (value->>'id')::uuid FROM sync_fixture WHERE name='destination'),true) IS NULL,'manual and cron cannot share a destination lease');
 INSERT INTO sync_fixture SELECT 'claimed',to_jsonb(l) FROM plugin_data.csf_claim_sheet_sync_exports('ea100000-0000-4000-8000-000000000001',(SELECT (value->>'id')::uuid FROM sync_fixture WHERE name='destination'),(SELECT (value->>'poll_lease_token')::uuid FROM sync_fixture WHERE name='lease'),25) l;
 SELECT extensions.is((SELECT status FROM plugin_data.csf_sheet_writeback_ledger WHERE id='eafc0000-0000-4000-8000-000000000001'),'superseded','claim rejects a forged payload even with its matching hash');
@@ -72,6 +107,56 @@ SELECT extensions.lives_ok($$SELECT plugin_data.csf_finish_sheet_sync_export('ea
 SELECT extensions.throws_ok($$SELECT plugin_data.csf_finish_sheet_sync_export('ea100000-0000-4000-8000-000000000001',(SELECT (value->>'id')::uuid FROM sync_fixture WHERE name='claimed'),(SELECT (value->>'lease_token')::uuid FROM sync_fixture WHERE name='claimed'),'exported','different-remote',NULL)$$,'P0001','Export receipt conflicts with this attempt result.','changed remote version cannot replay a completed attempt');
 SELECT extensions.throws_ok($$SELECT plugin_data.csf_finish_sheet_sync_export('ea100000-0000-4000-8000-000000000001',(SELECT (value->>'id')::uuid FROM sync_fixture WHERE name='claimed'),(SELECT (value->>'lease_token')::uuid FROM sync_fixture WHERE name='claimed'),'unknown_outcome','remote-v1',NULL)$$,'P0001','Export receipt conflicts with this attempt result.','changed outcome cannot replay a completed attempt');
 SELECT extensions.throws_ok($$UPDATE plugin_data.csf_sheet_writeback_ledger SET attempt_receipts='{}' WHERE id=(SELECT (value->>'id')::uuid FROM sync_fixture WHERE name='claimed')$$,'23514','Export attempt receipts are immutable.','recorded attempt receipt cannot be erased');
+
+SELECT extensions.throws_ok(
+  $$SELECT plugin_data.csf_record_sheet_sync_changes('ea100000-0000-4000-8000-000000000001',(SELECT (value->>'id')::uuid FROM sync_fixture WHERE name='destination'),'eaff0000-0000-4000-8000-000000000001',jsonb_build_array(jsonb_build_object('record_kind','application','record_id','ea600000-0000-4000-8000-000000000001','source_version',(SELECT value->>'source_version' FROM sync_fixture WHERE name='export'),'remote_version','batch-stale','payload','{}'::jsonb)))$$,
+  'P0001',
+  'Sync lease expired or access changed.',
+  'batch changes keep the destination lease fence'
+);
+SELECT extensions.is(
+  plugin_data.csf_record_sheet_sync_changes(
+    'ea100000-0000-4000-8000-000000000001',
+    (SELECT (value->>'id')::uuid FROM sync_fixture WHERE name='destination'),
+    (SELECT (value->>'poll_lease_token')::uuid FROM sync_fixture WHERE name='lease'),
+    jsonb_build_array(jsonb_build_object(
+      'record_kind','application',
+      'record_id','ea600000-0000-4000-8000-000000000001',
+      'source_version',(SELECT value->>'source_version' FROM sync_fixture WHERE name='export'),
+      'remote_version','batch-empty',
+      'payload','{}'::jsonb
+    ))
+  )->0->'result'->>'status',
+  'unchanged',
+  'batch changes preserve empty-request handling'
+);
+SELECT extensions.is(
+  plugin_data.csf_record_sheet_sync_changes(
+    'ea100000-0000-4000-8000-000000000001',
+    (SELECT (value->>'id')::uuid FROM sync_fixture WHERE name='destination'),
+    (SELECT (value->>'poll_lease_token')::uuid FROM sync_fixture WHERE name='lease'),
+    jsonb_build_array(jsonb_build_object(
+      'record_kind','application',
+      'record_id','ea600000-0000-4000-8000-000000000001',
+      'source_version',(SELECT value->>'source_version' FROM sync_fixture WHERE name='export'),
+      'remote_version','batch-empty',
+      'payload','{}'::jsonb
+    ))
+  )->0->'result'->>'status',
+  'unchanged',
+  'an exact batch retry is idempotent'
+);
+SELECT extensions.throws_ok(
+  $$SELECT plugin_data.csf_record_sheet_sync_changes('ea100000-0000-4000-8000-000000000001',(SELECT (value->>'id')::uuid FROM sync_fixture WHERE name='destination'),(SELECT (value->>'poll_lease_token')::uuid FROM sync_fixture WHERE name='lease'),jsonb_build_array(jsonb_build_object('record_kind','application','record_id','ea600000-0000-4000-8000-000000000001','source_version',(SELECT value->>'source_version' FROM sync_fixture WHERE name='export'),'remote_version','batch-atomic','payload','{"action":"approved"}'::jsonb),jsonb_build_object('record_kind','application','record_id','ea600000-0000-4000-8000-000000000001','unexpected',true)))$$,
+  'P0001',
+  'Sheet change record is invalid.',
+  'an invalid item aborts the complete change batch'
+);
+SELECT extensions.is(
+  (SELECT count(*) FROM plugin_data.csf_sheet_sync_changes WHERE remote_version='batch-atomic'),
+  0::bigint,
+  'a failed batch leaves no partial inbound proposal'
+);
 
 SELECT extensions.throws_ok($$SELECT plugin_data.csf_record_sheet_sync_change('ea100000-0000-4000-8000-000000000001',(SELECT (value->>'id')::uuid FROM sync_fixture WHERE name='destination'),'application','ea600000-0000-4000-8000-000000000001',(SELECT value->>'source_version' FROM sync_fixture WHERE name='export'),'stale-worker','{}')$$,'P0001','Sync lease expired or access changed.','old inbound callers without lease fail closed');
 SELECT extensions.throws_ok($$SELECT plugin_data.csf_record_sheet_sync_change('ea100000-0000-4000-8000-000000000001',(SELECT (value->>'id')::uuid FROM sync_fixture WHERE name='destination'),'application','ea600000-0000-4000-8000-000000000001',(SELECT value->>'source_version' FROM sync_fixture WHERE name='export'),'stale-worker','{}','eaff0000-0000-4000-8000-000000000001')$$,'P0001','Sync lease expired or access changed.','replaced worker lease cannot enqueue a stale Sheet proposal');

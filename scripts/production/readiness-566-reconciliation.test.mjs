@@ -69,12 +69,16 @@ const EXTENSIONS = [
   "20260918183000_csf_scoped_application_import_preview",
   "20260918235900_csf_scoped_import_actor_detachment",
   "20260919010000_csf_scoped_request_id_batch_fence",
+  "20260919020000_csf_post_image_attachments",
+  "20260919091727_index_hot_uncovered_foreign_keys",
+  "20260919095826_atomic_csf_post_attachment_update",
 ];
 
 test("the release is the 557 decisions baseline plus the reviewed integrated extensions", () => {
-  assert.equal(ledger.length, 557 + EXTENSIONS.length);
+  assert.equal(ledger.length, 621);
+  assert.equal(ledger.at(-1), "20260919230001");
   assert.deepEqual(
-    ledger.slice(557),
+    ledger.slice(557, 604),
     EXTENSIONS.map((name) => name.slice(0, 14)),
   );
   // 1200 header provenance is still with the source lane and must not appear.
@@ -85,6 +89,20 @@ test("the release is the 557 decisions baseline plus the reviewed integrated ext
       `${name} is not in the approved migration tail`,
     );
   }
+  assert.ok(
+    approvedMigrations.some(
+      ([entry]) =>
+        entry === "20260919114409_serialize_csf_atomic_post_attachment_update",
+    ),
+    "the post attachment lock-order migration is not in the approved migration tail",
+  );
+  assert.ok(
+    approvedMigrations.some(
+      ([entry]) =>
+        entry === "20260919190000_csf_attendance_window_exclusion_readiness",
+    ),
+    "the attendance cutoff readiness migration is not in the approved migration tail",
+  );
 });
 
 test("each fingerprint the extensions move is measured, or named as unmeasured", () => {

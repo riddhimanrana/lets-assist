@@ -26,7 +26,7 @@ CREATE EXTENSION IF NOT EXISTS pgtap WITH SCHEMA extensions;
 
 -- An exact plan. no_plan() cannot distinguish "every assertion passed" from "some never
 -- ran", and a fence that silently stops running is the failure this file exists to catch.
-SELECT extensions.plan(20);
+SELECT extensions.plan(24);
 
 INSERT INTO auth.users (
   id, aud, role, email, email_confirmed_at, raw_app_meta_data, raw_user_meta_data, created_at, updated_at
@@ -347,6 +347,22 @@ SELECT extensions.is(
 -- ---------------------------------------------------------------------------
 -- C. The valid receipt commits, and is spent exactly once.
 -- ---------------------------------------------------------------------------
+-- This sibling has no exact identity match. Partial attendance commit must leave
+-- its immutable preview evidence and review state alone while committing the
+-- independently verified row above.
+INSERT INTO plugin_data.csf_sheet_import_rows (
+  id, organization_id, job_id, source_id, term_id, sheet_tab_name, row_number,
+  raw_data, normalized_data, row_hash, matched_profile_id, import_status, correlation_id
+) VALUES (
+  'e3700000-0000-4000-8000-000000000003', 'e3100000-0000-4000-8000-000000000001',
+  'e3600000-0000-4000-8000-000000000001', 'e3500000-0000-4000-8000-000000000001',
+  'e3200000-0000-4000-8000-000000000001', 'Responses', 3,
+  '{"Name":"Unresolved Attendee","Timestamp":"2033-09-01T17:00:00Z"}',
+  '{"meetingId":"e3400000-0000-4000-8000-000000000001","submittedName":"Unresolved Attendee","sourceSubmittedAt":"2033-09-01T17:00:00Z"}',
+  'evidence-unresolved-meeting-hash', NULL, 'conflict',
+  'e3d00000-0000-4000-8000-000000000001'
+);
+
 SELECT extensions.lives_ok(
   $$
     SELECT plugin_data.csf_commit_meeting_attendance_import(
@@ -355,7 +371,8 @@ SELECT extensions.lives_ok(
       'e3000000-0000-4000-8000-000000000001',
       'Committed the proved synthetic attendance preview.',
       'e3d00000-0000-4000-8000-000000000001',
-      'e3e00000-0000-4000-8000-000000000001'
+      'e3e00000-0000-4000-8000-000000000001',
+      true
     )
   $$,
   'a meeting commit holding a valid receipt commits'
@@ -365,6 +382,33 @@ SELECT extensions.is(
    WHERE source_row_id = 'e3700000-0000-4000-8000-000000000001'),
   1,
   'and wrote exactly its one ready row'
+);
+SELECT extensions.is(
+  (SELECT import_status FROM plugin_data.csf_sheet_import_rows
+   WHERE id = 'e3700000-0000-4000-8000-000000000003'),
+  'conflict',
+  'and left the unresolved sibling in officer review'
+);
+SELECT extensions.is(
+  (SELECT raw_data FROM plugin_data.csf_sheet_import_rows
+   WHERE id = 'e3700000-0000-4000-8000-000000000003'),
+  '{"Name":"Unresolved Attendee","Timestamp":"2033-09-01T17:00:00Z"}'::jsonb,
+  'and preserved the unresolved sibling source snapshot exactly'
+);
+SELECT extensions.is(
+  (SELECT status FROM plugin_data.csf_sheet_import_jobs
+   WHERE mode = 'commit'
+     AND summary->>'previewJobId' = 'e3600000-0000-4000-8000-000000000001'),
+  'partially_completed',
+  'and recorded a partial commit rather than claiming the preview completed'
+);
+SELECT extensions.is(
+  (SELECT after_data->>'remainingUnresolved'
+   FROM plugin_data.csf_admin_audit_events
+   WHERE action = 'term_meeting.attendance_commit'
+     AND target_id = 'e3400000-0000-4000-8000-000000000001'),
+  '1',
+  'and the attendance audit records the unresolved remainder'
 );
 SELECT extensions.ok(
   (SELECT consumed_at IS NOT NULL
@@ -410,7 +454,8 @@ SELECT extensions.ok(
       'e3000000-0000-4000-8000-000000000001',
       'Replayed the proved synthetic attendance preview.',
       'e3d00000-0000-4000-8000-000000000001',
-      NULL
+      NULL,
+      true
     )->>'idempotent'
   )::boolean,
   'replaying an already-committed meeting snapshot with a NULL receipt is idempotent'

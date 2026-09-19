@@ -12,6 +12,7 @@ import {
 } from "./redirect-utils";
 import { runOnCanonicalAuthOrigin } from "./canonical-auth-request";
 import { passwordSchema } from "@/lib/auth/password-policy";
+import { isTurnstileTokenRequired } from "@/lib/turnstile";
 
 const signupSchema = z.object({
   fullName: z.string().min(3, "Full name must be at least 3 characters"),
@@ -131,6 +132,15 @@ export async function signup(formData: FormData): Promise<SignupActionResult> {
     };
   }
 
+  const captchaToken = validatedFields.data.turnstileToken?.trim();
+  if (!captchaToken && isTurnstileTokenRequired()) {
+    return {
+      error: {
+        server: ["Complete the security check, then try again."],
+      },
+    };
+  }
+
   const canonicalSignupPath = buildCanonicalSignupPath({
     redirectPath: redirectUrl,
     staffToken: validatedFields.data.staffToken,
@@ -209,8 +219,8 @@ export async function signup(formData: FormData): Promise<SignupActionResult> {
         },
       };
 
-      if (turnstileToken) {
-        signUpOptions.options.captchaToken = turnstileToken;
+      if (captchaToken) {
+        signUpOptions.options.captchaToken = captchaToken;
       }
 
       // 1. Create auth user

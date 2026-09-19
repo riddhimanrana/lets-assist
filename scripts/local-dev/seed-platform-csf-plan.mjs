@@ -1,10 +1,133 @@
 import { IDS } from "./seed-platform-fixtures.mjs";
 
+const STORAGE_CLEANUP_BATCH_LIMIT = 500;
+const STORAGE_CLEANUP_MAX_PASSES = 1000;
+
+function readCleanupCount(value) {
+  return Number.isSafeInteger(value) && value >= 0 ? value : null;
+}
+
+function readCleanupClaimRows(value, organizationId) {
+  if (!Array.isArray(value) || value.length > STORAGE_CLEANUP_BATCH_LIMIT) {
+    return null;
+  }
+  const rows = [];
+  for (const row of value) {
+    if (
+      !row ||
+      typeof row !== "object" ||
+      typeof row.id !== "string" ||
+      row.organization_id !== organizationId ||
+      typeof row.bucket !== "string" ||
+      typeof row.object_path !== "string" ||
+      readCleanupCount(row.attempt_count) === null ||
+      typeof row.claim_token !== "string" ||
+      typeof row.claimed_at !== "string"
+    ) {
+      return null;
+    }
+    rows.push(row);
+  }
+  return rows;
+}
+
+function readPurgeStatus(value) {
+  if (!value || typeof value !== "object") return null;
+  const status = value.status;
+  const queueRows = readCleanupCount(value.queueRows);
+  const claimedQueueRows = readCleanupCount(value.claimedQueueRows);
+  if (
+    (status !== "purged" && status !== "cleanup_required") ||
+    queueRows === null ||
+    claimedQueueRows === null ||
+    claimedQueueRows > queueRows
+  ) {
+    return null;
+  }
+  return { status, queueRows, claimedQueueRows };
+}
+
+export async function drainCsfStorageDeletionState({
+  admin,
+  pluginDb,
+  organizationId,
+  must,
+}) {
+  for (let pass = 0; pass < STORAGE_CLEANUP_MAX_PASSES; pass += 1) {
+    const purged = readPurgeStatus(
+      await must(
+        `csf-reset-storage-purge-${pass}`,
+        pluginDb.rpc("csf_purge_storage_deletion_queue", {
+          p_organization_id: organizationId,
+        }),
+      ),
+    );
+    if (!purged) {
+      throw new Error("CSF storage cleanup returned an invalid purge receipt.");
+    }
+    if (purged.status === "purged") return;
+
+    const claimed = readCleanupClaimRows(
+      await must(
+        `csf-reset-storage-claim-${pass}`,
+        pluginDb.rpc("csf_claim_organization_storage_deletion_queue", {
+          p_organization_id: organizationId,
+          p_limit: STORAGE_CLEANUP_BATCH_LIMIT,
+        }),
+      ),
+      organizationId,
+    );
+    if (!claimed || claimed.length === 0) {
+      throw new Error(
+        "CSF storage cleanup could not make progress on the preserved queue.",
+      );
+    }
+
+    const byBucket = new Map();
+    for (const row of claimed) {
+      const bucketRows = byBucket.get(row.bucket) ?? [];
+      bucketRows.push(row);
+      byBucket.set(row.bucket, bucketRows);
+    }
+    for (const [bucket, rows] of byBucket) {
+      for (let index = 0; index < rows.length; index += 100) {
+        const batch = rows.slice(index, index + 100);
+        await must(
+          `csf-reset-storage-remove-${pass}-${index}`,
+          admin.storage
+            .from(bucket)
+            .remove(batch.map((row) => row.object_path)),
+        );
+        for (const row of batch) {
+          const acknowledgement = await must(
+            `csf-reset-storage-ack-${pass}-${row.id}`,
+            pluginDb.rpc("csf_ack_storage_deletion_claim", {
+              p_queue_id: row.id,
+              p_claim_token: row.claim_token,
+              p_succeeded: true,
+            }),
+          );
+          if (
+            !acknowledgement ||
+            typeof acknowledgement !== "object" ||
+            acknowledgement.status !== "deleted" ||
+            readCleanupCount(acknowledgement.attemptCount) === null
+          ) {
+            throw new Error(
+              "CSF storage cleanup returned an invalid acknowledgement.",
+            );
+          }
+        }
+      }
+    }
+  }
+  throw new Error("CSF storage cleanup exceeded its bounded reset passes.");
+}
+
 export async function seedDvhsCsfFixtures({ admin, users, must }) {
   const pluginDb = admin.schema("plugin_data");
   const csfTablesToReset = [
     "csf_staff_view_preferences",
-    "csf_storage_deletion_queue",
     "csf_profile_activity_events",
     "csf_profile_merge_reviews",
     "csf_profile_link_requests",
@@ -31,6 +154,7 @@ export async function seedDvhsCsfFixtures({ admin, users, must }) {
     "csf_point_categories",
     "csf_opportunity_signups",
     "csf_opportunities",
+    "csf_post_publication_requests",
     "csf_announcements",
     "csf_profile_restrictions",
     "csf_staff_positions",
@@ -82,6 +206,16 @@ export async function seedDvhsCsfFixtures({ admin, users, must }) {
       p_organization_id: IDS.csfOrg,
     }),
   );
+
+  // Purging attachment metadata may enqueue Storage work. Remove each claimed
+  // object, acknowledge its exact token, and repeat until the database confirms
+  // that no durable cleanup state remains.
+  await drainCsfStorageDeletionState({
+    admin,
+    pluginDb,
+    organizationId: IDS.csfOrg,
+    must,
+  });
 
   for (const table of csfTablesToReset) {
     await must(

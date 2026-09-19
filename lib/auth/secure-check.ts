@@ -23,6 +23,28 @@ export const SECURE_CHECK_TIMEOUT_MS = 10_000;
 
 export type SecureCheckPhase = "loading" | "ready" | "unavailable";
 
+export function isSecureCheckBypassed(input: {
+  nodeEnv: string | undefined;
+  bypass: string | undefined;
+  siteKey: string | undefined;
+  siteUrl?: string | undefined;
+}): boolean {
+  if (input.nodeEnv !== "production") {
+    return input.bypass === "true" || !input.siteKey;
+  }
+
+  if (input.bypass !== "true" || !input.siteUrl) {
+    return false;
+  }
+
+  try {
+    const hostname = new URL(input.siteUrl).hostname;
+    return hostname === "localhost" || hostname === "127.0.0.1";
+  } catch {
+    return false;
+  }
+}
+
 export interface SecureCheckPhaseInput {
   /** The Turnstile script reported itself loaded (`onLoad`). */
   isReady: boolean;
@@ -95,11 +117,14 @@ export function secureCheckWatchdogDelayMs(
 
 /**
  * Whether a submit control should stay disabled because the secure check has
- * not settled yet. A settled check — ready or unavailable — never blocks the
- * control, so the disabled state always maps to something the person can see.
+ * not produced a usable challenge token yet. A loaded widget is not enough:
+ * the challenge can still be pending or its prior token may have expired.
  */
-export function isSecureCheckBlockingSubmit(phase: SecureCheckPhase): boolean {
-  return phase === "loading";
+export function isSecureCheckBlockingSubmit(
+  phase: SecureCheckPhase,
+  token: string | null | undefined,
+): boolean {
+  return phase !== "ready" || !token?.trim();
 }
 
 /**

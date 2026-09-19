@@ -5,6 +5,7 @@ import { syncPrimaryUserEmail } from "@/lib/auth/primary-email";
 import { redirect } from "next/navigation";
 import { normalizeRedirectPath } from "@/app/signup/redirect-utils";
 import { resolveAuthRedirectOrigin } from "@/app/signup/request-origin";
+import { isRestartableAuthFlowError } from "@/lib/auth/auth-flow-recovery";
 
 /**
  * `origin` is the validated auth redirect origin, never `new URL(request.url)`:
@@ -72,17 +73,6 @@ export async function GET(request: NextRequest) {
     redirect(url.toString());
   };
 
-  const isPkceVerifierMissingError = (
-    message?: string,
-    code?: string | null,
-  ) => {
-    const lowered = (message ?? "").toLowerCase();
-    return (
-      code === "pkce_code_verifier_not_found" ||
-      lowered.includes("pkce code verifier not found")
-    );
-  };
-
   const getTrustedUser = async () => {
     const {
       data: { user },
@@ -108,16 +98,19 @@ export async function GET(request: NextRequest) {
     const { error } = await supabase.auth.exchangeCodeForSession(code);
 
     if (error) {
-      console.error("Code exchange error:", error);
-      if (
-        type === "signup" &&
-        isPkceVerifierMissingError(error.message, error.code)
-      ) {
+      if (type === "signup" && isRestartableAuthFlowError(error)) {
+        console.info("Signup confirmation requires a new auth flow", {
+          code: error.code ?? "unclassified",
+        });
         return redirectToExpiredLink();
       }
       if (type === "signup" && isExpiredLinkError(error.message ?? "")) {
+        console.info("Signup confirmation link expired", {
+          code: error.code ?? "unclassified",
+        });
         return redirectToExpiredLink();
       }
+      console.error("Code exchange error:", error);
       return redirectToError(authOrigin, error.message);
     }
 

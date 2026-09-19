@@ -2,7 +2,7 @@ BEGIN;
 
 CREATE EXTENSION IF NOT EXISTS pgtap WITH SCHEMA extensions;
 
-SELECT extensions.plan(34);
+SELECT extensions.plan(43);
 
 -- Structure: the hardened wrapper owns the name and the delegate is unreachable.
 SELECT extensions.ok(
@@ -314,6 +314,271 @@ SELECT extensions.ok(
   )->'blockers')::text LIKE '%confirmed email does not match%',
   'the blocked pair names the missing confirmed-account match explicitly'
 );
+
+-- A committed application response may corroborate the current confirmed
+-- account address without copying that address into the mutable roster fields.
+INSERT INTO plugin_data.csf_terms (
+  id, organization_id, code, label, school_year, semester
+) VALUES (
+  'ef500000-0000-4000-8000-000000000001',
+  'ef100000-0000-4000-8000-000000000001',
+  'F32', 'Fall 2032', '2032-2033', 'fall'
+);
+INSERT INTO plugin_data.csf_sheet_sources (
+  id, organization_id, title, provider, source_type
+) VALUES (
+  'ef600000-0000-4000-8000-000000000001',
+  'ef100000-0000-4000-8000-000000000001',
+  'Synthetic application evidence', 'uploaded_xlsx',
+  'application_responses'
+);
+INSERT INTO plugin_data.csf_sheet_import_jobs (
+  id, organization_id, source_id, initiated_by, mode, status, source_type
+) VALUES (
+  'ef700000-0000-4000-8000-000000000002',
+  'ef100000-0000-4000-8000-000000000001',
+  'ef600000-0000-4000-8000-000000000001',
+  'ef000000-0000-4000-8000-000000000001',
+  'preview', 'completed', 'application_responses'
+);
+INSERT INTO plugin_data.csf_sheet_import_jobs (
+  id, organization_id, source_id, initiated_by, mode, status, source_type,
+  preview_job_id, summary
+) VALUES (
+  'ef700000-0000-4000-8000-000000000001',
+  'ef100000-0000-4000-8000-000000000001',
+  'ef600000-0000-4000-8000-000000000001',
+  'ef000000-0000-4000-8000-000000000001',
+  'commit', 'completed', 'application_responses',
+  'ef700000-0000-4000-8000-000000000002',
+  jsonb_build_object(
+    'previewJobId', 'ef700000-0000-4000-8000-000000000002'
+  )
+);
+INSERT INTO plugin_data.csf_sheet_import_rows (
+  id, organization_id, job_id, source_id, cohort_id, term_id,
+  sheet_tab_name, row_number, normalized_data, row_hash,
+  matched_profile_id, import_status, resolution_status, resolved_by, resolved_at,
+  commit_frozen_at, commit_frozen_by_job_id, commit_frozen_row_hash,
+  commit_frozen_source_id, commit_frozen_payload_hash,
+  commit_frozen_actor_user_id, commit_frozen_actor_snapshot,
+  commit_target_profile_id, commit_resolution_snapshot
+) VALUES (
+  'ef800000-0000-4000-8000-000000000001',
+  'ef100000-0000-4000-8000-000000000001',
+  'ef700000-0000-4000-8000-000000000001',
+  'ef600000-0000-4000-8000-000000000001',
+  'ef200000-0000-4000-8000-000000000001',
+  'ef500000-0000-4000-8000-000000000001',
+  'Responses', 2,
+  jsonb_build_object(
+    'sourceType', 'application_responses',
+    'rowHash', repeat('a', 64),
+    'record', jsonb_build_object(
+      'contact', jsonb_build_object(
+        'responseEmail', 'unique.student@local.test',
+        'preferredContactEmail', 'unique.student@local.test'
+      )
+    )
+  ),
+  repeat('a', 64),
+  'ef300000-0000-4000-8000-000000000003',
+  'created', 'resolved', 'ef000000-0000-4000-8000-000000000001', now(), now(),
+  'ef700000-0000-4000-8000-000000000001', repeat('a', 64),
+  'ef600000-0000-4000-8000-000000000001', repeat('d', 64),
+  'ef000000-0000-4000-8000-000000000001', '{}'::jsonb,
+  'ef300000-0000-4000-8000-000000000003', '{}'::jsonb
+);
+INSERT INTO plugin_data.csf_term_applications (
+  id, organization_id, profile_id, cohort_id, term_id, source,
+  source_import_row_id
+) VALUES (
+  'ef900000-0000-4000-8000-000000000001',
+  'ef100000-0000-4000-8000-000000000001',
+  'ef300000-0000-4000-8000-000000000003',
+  'ef200000-0000-4000-8000-000000000001',
+  'ef500000-0000-4000-8000-000000000001',
+  'google_form_sheet',
+  'ef800000-0000-4000-8000-000000000001'
+);
+
+SELECT extensions.ok(
+  NOT (plugin_data.csf_profile_link_connect_evidence(
+    'ef100000-0000-4000-8000-000000000001',
+    'ef400000-0000-4000-8000-000000000002',
+    'ef300000-0000-4000-8000-000000000003'
+  )->>'canConnect')::boolean,
+  'a committed application contact cannot authorize access to a student record'
+);
+SELECT extensions.ok(
+  NOT (
+    (plugin_data.csf_profile_link_connect_evidence(
+      'ef100000-0000-4000-8000-000000000001',
+      'ef400000-0000-4000-8000-000000000002',
+      'ef300000-0000-4000-8000-000000000003'
+    )->'corroboration') @> '["application_source_email"]'::jsonb
+  ),
+  'application-source contact evidence is not recorded as connection authority'
+);
+SELECT extensions.ok(
+  (plugin_data.csf_profile_link_connect_evidence(
+    'ef100000-0000-4000-8000-000000000001',
+    'ef400000-0000-4000-8000-000000000002',
+    'ef300000-0000-4000-8000-000000000003'
+  )->'blockers')::text LIKE '%application contacts cannot verify student-record ownership%',
+  'officers receive a precise advisory-only application-contact blocker'
+);
+-- Simulate persisted evidence corruption below the immutable application layer.
+-- Ordinary writes must remain blocked by csf_preserve_import_row_snapshot.
+SET LOCAL session_replication_role = replica;
+UPDATE plugin_data.csf_sheet_import_rows
+SET row_hash = repeat('b', 64)
+WHERE id = 'ef800000-0000-4000-8000-000000000001';
+SET LOCAL session_replication_role = origin;
+SELECT extensions.ok(
+  NOT (plugin_data.csf_profile_link_connect_evidence(
+    'ef100000-0000-4000-8000-000000000001',
+    'ef400000-0000-4000-8000-000000000002',
+    'ef300000-0000-4000-8000-000000000003'
+  )->>'canConnect')::boolean,
+  'a source row whose frozen hash no longer agrees cannot authorize a connection'
+);
+SET LOCAL session_replication_role = replica;
+UPDATE plugin_data.csf_sheet_import_rows
+SET row_hash = repeat('a', 64)
+WHERE id = 'ef800000-0000-4000-8000-000000000001';
+SET LOCAL session_replication_role = origin;
+
+-- A committed address is not unique merely because one candidate has a
+-- matching application row. If a second active profile carries that same
+-- committed address, neither candidate may be connected.
+INSERT INTO plugin_data.csf_profiles (
+  id, organization_id, first_name, last_name,
+  normalized_first_name, normalized_last_name
+) VALUES (
+  'ef300000-0000-4000-8000-000000000012',
+  'ef100000-0000-4000-8000-000000000001',
+  'Priya', 'Raman', 'priya', 'raman'
+);
+INSERT INTO plugin_data.csf_profile_cohort_memberships (
+  organization_id, profile_id, cohort_id, status
+) VALUES (
+  'ef100000-0000-4000-8000-000000000001',
+  'ef300000-0000-4000-8000-000000000012',
+  'ef200000-0000-4000-8000-000000000001',
+  'active'
+);
+INSERT INTO plugin_data.csf_sheet_import_rows (
+  id, organization_id, job_id, source_id, cohort_id, term_id,
+  sheet_tab_name, row_number, normalized_data, row_hash,
+  matched_profile_id, import_status, resolution_status, resolved_by, resolved_at,
+  commit_frozen_at, commit_frozen_by_job_id, commit_frozen_row_hash,
+  commit_frozen_source_id, commit_frozen_payload_hash,
+  commit_frozen_actor_user_id, commit_frozen_actor_snapshot,
+  commit_target_profile_id, commit_resolution_snapshot
+) VALUES (
+  'ef800000-0000-4000-8000-000000000002',
+  'ef100000-0000-4000-8000-000000000001',
+  'ef700000-0000-4000-8000-000000000001',
+  'ef600000-0000-4000-8000-000000000001',
+  'ef200000-0000-4000-8000-000000000001',
+  'ef500000-0000-4000-8000-000000000001',
+  'Responses', 3,
+  jsonb_build_object(
+    'sourceType', 'application_responses',
+    'rowHash', repeat('c', 64),
+    'record', jsonb_build_object(
+      'contact', jsonb_build_object(
+        'responseEmail', 'unique.student@local.test',
+        'preferredContactEmail', 'unique.student@local.test'
+      )
+    )
+  ),
+  repeat('c', 64),
+  'ef300000-0000-4000-8000-000000000012',
+  'created', 'resolved', 'ef000000-0000-4000-8000-000000000001', now(), now(),
+  'ef700000-0000-4000-8000-000000000001', repeat('c', 64),
+  'ef600000-0000-4000-8000-000000000001', repeat('e', 64),
+  'ef000000-0000-4000-8000-000000000001', '{}'::jsonb,
+  'ef300000-0000-4000-8000-000000000012', '{}'::jsonb
+);
+INSERT INTO plugin_data.csf_term_applications (
+  id, organization_id, profile_id, cohort_id, term_id, source,
+  source_import_row_id
+) VALUES (
+  'ef900000-0000-4000-8000-000000000002',
+  'ef100000-0000-4000-8000-000000000001',
+  'ef300000-0000-4000-8000-000000000012',
+  'ef200000-0000-4000-8000-000000000001',
+  'ef500000-0000-4000-8000-000000000001',
+  'google_form_sheet',
+  'ef800000-0000-4000-8000-000000000002'
+);
+
+SELECT extensions.is(
+  (plugin_data.csf_profile_link_connect_evidence(
+    'ef100000-0000-4000-8000-000000000001',
+    'ef400000-0000-4000-8000-000000000002',
+    'ef300000-0000-4000-8000-000000000003'
+  )->'evidence'->>'applicationSourceEmailProfileMatches')::integer,
+  2,
+  'the first candidate counts both active profiles carrying the committed address'
+);
+SELECT extensions.ok(
+  NOT (plugin_data.csf_profile_link_connect_evidence(
+    'ef100000-0000-4000-8000-000000000001',
+    'ef400000-0000-4000-8000-000000000002',
+    'ef300000-0000-4000-8000-000000000003'
+  )->>'canConnect')::boolean,
+  'the first candidate is blocked when its committed address is not unique'
+);
+SELECT extensions.is(
+  (plugin_data.csf_profile_link_connect_evidence(
+    'ef100000-0000-4000-8000-000000000001',
+    'ef400000-0000-4000-8000-000000000002',
+    'ef300000-0000-4000-8000-000000000012'
+  )->'evidence'->>'applicationSourceEmailProfileMatches')::integer,
+  2,
+  'the second candidate counts both active profiles carrying the committed address'
+);
+SELECT extensions.ok(
+  NOT (plugin_data.csf_profile_link_connect_evidence(
+    'ef100000-0000-4000-8000-000000000001',
+    'ef400000-0000-4000-8000-000000000002',
+    'ef300000-0000-4000-8000-000000000012'
+  )->>'canConnect')::boolean,
+  'the second candidate is blocked when its committed address is not unique'
+);
+
+DELETE FROM plugin_data.csf_term_applications
+WHERE id = 'ef900000-0000-4000-8000-000000000002';
+DELETE FROM plugin_data.csf_sheet_import_rows
+WHERE id = 'ef800000-0000-4000-8000-000000000002';
+DELETE FROM plugin_data.csf_profile_cohort_memberships
+WHERE organization_id = 'ef100000-0000-4000-8000-000000000001'
+  AND profile_id = 'ef300000-0000-4000-8000-000000000012';
+DELETE FROM plugin_data.csf_profiles
+WHERE id = 'ef300000-0000-4000-8000-000000000012';
+
+INSERT INTO plugin_data.csf_profile_accounts (
+  organization_id, profile_id, user_id, status, is_primary
+) VALUES (
+  'ef100000-0000-4000-8000-000000000001',
+  'ef300000-0000-4000-8000-000000000003',
+  'ef000000-0000-4000-8000-000000000001',
+  'verified', true
+);
+SELECT extensions.ok(
+  NOT (plugin_data.csf_profile_link_connect_evidence(
+    'ef100000-0000-4000-8000-000000000001',
+    'ef400000-0000-4000-8000-000000000002',
+    'ef300000-0000-4000-8000-000000000003'
+  )->>'canConnect')::boolean,
+  'application evidence cannot connect a student record that already has an account'
+);
+DELETE FROM plugin_data.csf_profile_accounts
+WHERE organization_id = 'ef100000-0000-4000-8000-000000000001'
+  AND profile_id = 'ef300000-0000-4000-8000-000000000003';
 
 -- Consequential path -------------------------------------------------------
 

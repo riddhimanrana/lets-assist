@@ -4,11 +4,75 @@ import {
   SECURE_CHECK_TIMEOUT_MS,
   SECURE_CHECK_UNAVAILABLE_COPY,
   hasSecureCheckTimedOut,
+  isSecureCheckBypassed,
   isSecureCheckBlockingSubmit,
   resolveSecureCheckPhase,
   secureCheckWatchdogDelayMs,
   shouldReinjectTurnstileScript,
 } from "./secure-check";
+
+describe("isSecureCheckBypassed", () => {
+  it("uses the local fallback when no Turnstile site key is configured", () => {
+    expect(
+      isSecureCheckBypassed({
+        nodeEnv: "development",
+        bypass: undefined,
+        siteKey: undefined,
+      }),
+    ).toBe(true);
+  });
+
+  it("keeps the bypass disabled on a deployed production origin", () => {
+    expect(
+      isSecureCheckBypassed({
+        nodeEnv: "production",
+        bypass: "true",
+        siteKey: undefined,
+        siteUrl: "https://lets-assist.com",
+      }),
+    ).toBe(false);
+  });
+
+  it("allows the explicit bypass for a production build served on loopback", () => {
+    expect(
+      isSecureCheckBypassed({
+        nodeEnv: "production",
+        bypass: "true",
+        siteKey: undefined,
+        siteUrl: "http://localhost:3000",
+      }),
+    ).toBe(true);
+    expect(
+      isSecureCheckBypassed({
+        nodeEnv: "production",
+        bypass: "true",
+        siteKey: undefined,
+        siteUrl: "http://127.0.0.1:3000",
+      }),
+    ).toBe(true);
+  });
+
+  it("fails closed for an invalid production origin", () => {
+    expect(
+      isSecureCheckBypassed({
+        nodeEnv: "production",
+        bypass: "true",
+        siteKey: undefined,
+        siteUrl: "not-a-url",
+      }),
+    ).toBe(false);
+  });
+
+  it("requires the configured widget outside an explicit local bypass", () => {
+    expect(
+      isSecureCheckBypassed({
+        nodeEnv: "development",
+        bypass: undefined,
+        siteKey: "configured-site-key",
+      }),
+    ).toBe(false);
+  });
+});
 
 describe("resolveSecureCheckPhase", () => {
   it("waits while the widget is still initializing", () => {
@@ -96,10 +160,15 @@ describe("secureCheckWatchdogDelayMs", () => {
 });
 
 describe("isSecureCheckBlockingSubmit", () => {
-  it("blocks only while the check is still settling", () => {
-    expect(isSecureCheckBlockingSubmit("loading")).toBe(true);
-    expect(isSecureCheckBlockingSubmit("ready")).toBe(false);
-    expect(isSecureCheckBlockingSubmit("unavailable")).toBe(false);
+  it("blocks until the ready check produces a token", () => {
+    expect(isSecureCheckBlockingSubmit("loading", null)).toBe(true);
+    expect(isSecureCheckBlockingSubmit("ready", null)).toBe(true);
+    expect(isSecureCheckBlockingSubmit("ready", "")).toBe(true);
+    expect(isSecureCheckBlockingSubmit("ready", "   ")).toBe(true);
+    expect(isSecureCheckBlockingSubmit("unavailable", "expired-token")).toBe(
+      true,
+    );
+    expect(isSecureCheckBlockingSubmit("ready", "verified-token")).toBe(false);
   });
 });
 

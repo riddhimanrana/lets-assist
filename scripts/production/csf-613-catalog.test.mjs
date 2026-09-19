@@ -1,0 +1,53 @@
+import assert from "node:assert/strict";
+import { createHash } from "node:crypto";
+import { readFileSync } from "node:fs";
+import { fileURLToPath } from "node:url";
+import test from "node:test";
+import { acceptedCatalogQuery } from "./app-release-catalog.mjs";
+import { expectedVersions } from "./app-release-checks.mjs";
+import { approvedMigrations } from "./forward-migration-release.mjs";
+
+const cwd = fileURLToPath(new URL("../../", import.meta.url));
+const ledger = expectedVersions(cwd);
+const catalogLedger = ledger.slice(0, 613);
+const source = readFileSync(
+  new URL("./verify-csf-target-schema.sql", import.meta.url),
+  "utf8",
+);
+const migrationName = "20260919161847_csf_storage_claim_lease_and_seed_cleanup";
+const migration = readFileSync(
+  new URL(`../../supabase/migrations/${migrationName}.sql`, import.meta.url),
+  "utf8",
+);
+
+test("613 requires bounded takeover and token fencing for abandoned cleanup claims", () => {
+  assert.equal(catalogLedger.length, 613);
+  assert.equal(catalogLedger.at(-1), "20260919161847");
+  assert.deepEqual(
+    approvedMigrations.find(([name]) => name === migrationName),
+    [migrationName, createHash("sha256").update(migration).digest("hex")],
+  );
+
+  const previous = acceptedCatalogQuery(source, catalogLedger.slice(0, 612));
+  const current = acceptedCatalogQuery(source, catalogLedger);
+  assert.doesNotMatch(previous, /15 minutes/u);
+  assert.match(current, /15 minutes/u);
+  assert.match(current, /csf_storage_deletion_queue_stale_claim_idx/u);
+  assert.match(current, /csf_storage_deletion_queue_org_stale_claim_idx/u);
+  assert.match(current, /Storage deletion claim lease expired/u);
+});
+
+test("613 refuses an unreviewed ledger or changed migration bytes", () => {
+  assert.throws(
+    () =>
+      acceptedCatalogQuery(source, [
+        ...catalogLedger.slice(0, -1),
+        "20990101000000",
+      ]),
+    /explicit release review/u,
+  );
+  assert.equal(
+    approvedMigrations.find(([name]) => name === migrationName)[1],
+    createHash("sha256").update(migration).digest("hex"),
+  );
+});

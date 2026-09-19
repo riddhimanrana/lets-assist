@@ -34,6 +34,12 @@ type ProjectEmbed = {
   selection: string;
 };
 
+type SignupEmbed = {
+  file: string;
+  relationshipHint: string | null;
+  selection: string;
+};
+
 function unwrapExpression(expression: ts.Expression): ts.Expression {
   if (
     ts.isAsExpression(expression) ||
@@ -112,8 +118,9 @@ function staticStringValues(
   return null;
 }
 
-function projectSignupSelectArgument(
+function selectArgumentForTable(
   call: ts.CallExpression,
+  tableName: "projects" | "project_signups",
 ): ts.Expression | null {
   if (!ts.isPropertyAccessExpression(call.expression)) return null;
   if (call.expression.name.text !== "select") return null;
@@ -125,13 +132,29 @@ function projectSignupSelectArgument(
 
   const table = receiver.arguments[0];
   if (!table || !ts.isStringLiteralLike(unwrapExpression(table))) return null;
-  if (
-    (unwrapExpression(table) as ts.StringLiteralLike).text !== "project_signups"
-  ) {
+  if ((unwrapExpression(table) as ts.StringLiteralLike).text !== tableName) {
     return null;
   }
 
   return call.arguments[0] ?? null;
+}
+
+function parseSignupEmbeds(file: string, selection: string): SignupEmbed[] {
+  const compactSelection = selection.replace(/\s+/gu, "");
+  const embedPattern =
+    /(?:[A-Za-z_$][\w$]*:)?project_signups((?:![A-Za-z_$][\w$]*)*)\(/gu;
+
+  return [...compactSelection.matchAll(embedPattern)].map((match) => {
+    const modifiers = (match[1] ?? "").split("!").filter(Boolean);
+    return {
+      file,
+      relationshipHint:
+        modifiers.find(
+          (modifier) => modifier !== "inner" && modifier !== "left",
+        ) ?? null,
+      selection,
+    };
+  });
 }
 
 function parseProjectEmbeds(file: string, selection: string): ProjectEmbed[] {
@@ -168,6 +191,7 @@ function analyzeSource(
   source: string,
 ): {
   embeds: ProjectEmbed[];
+  signupEmbeds: SignupEmbed[];
   unresolvedSelects: string[];
 } {
   const sourceFile = ts.createSourceFile(
@@ -179,6 +203,7 @@ function analyzeSource(
   );
   const initializers = new Map<string, ts.Expression>();
   const embeds: ProjectEmbed[] = [];
+  const signupEmbeds: SignupEmbed[] = [];
   const unresolvedSelects: string[] = [];
 
   function collectInitializers(node: ts.Node) {
@@ -195,7 +220,9 @@ function analyzeSource(
 
   function inspect(node: ts.Node) {
     if (ts.isCallExpression(node)) {
-      const argument = projectSignupSelectArgument(node);
+      const projectArgument = selectArgumentForTable(node, "project_signups");
+      const signupArgument = selectArgumentForTable(node, "projects");
+      const argument = projectArgument ?? signupArgument;
       if (argument) {
         const selections = staticStringValues(argument, initializers);
         if (!selections) {
@@ -204,7 +231,12 @@ function analyzeSource(
           unresolvedSelects.push(`${file}:${line}`);
         } else {
           for (const selection of selections) {
-            embeds.push(...parseProjectEmbeds(file, selection));
+            if (projectArgument) {
+              embeds.push(...parseProjectEmbeds(file, selection));
+            }
+            if (signupArgument) {
+              signupEmbeds.push(...parseSignupEmbeds(file, selection));
+            }
           }
         }
       }
@@ -213,7 +245,7 @@ function analyzeSource(
   }
   inspect(sourceFile);
 
-  return { embeds, unresolvedSelects };
+  return { embeds, signupEmbeds, unresolvedSelects };
 }
 
 const sourceFiles = fg
@@ -227,6 +259,7 @@ const analysis = sourceFiles.map((file) =>
   analyzeSource(file, readFileSync(resolve(REPOSITORY_ROOT, file), "utf8")),
 );
 const projectEmbeds = analysis.flatMap((result) => result.embeds);
+const signupEmbeds = analysis.flatMap((result) => result.signupEmbeds);
 
 test("inventories every root project_signups to projects embed and its DTO shape", () => {
   expect(
@@ -282,14 +315,24 @@ test("every root project_signups to projects embed names the canonical relations
 });
 
 test("created projects use the canonical signup relationship", () => {
-  const source = readFileSync(
-    resolve(REPOSITORY_ROOT, "app/projects/UserProjects.tsx"),
-    "utf8",
-  );
-  expect(source).toContain(
-    "project_signups!project_signups_project_id_fkey(id, user_id, status, schedule_id)",
-  );
-  expect(source).not.toMatch(/\bproject_signups\s*\(/u);
+  expect(signupEmbeds).toEqual([
+    {
+      file: "app/projects/UserProjects.tsx",
+      relationshipHint: CANONICAL_PROJECT_RELATIONSHIP,
+      selection: expect.stringContaining(
+        "project_signups!project_signups_project_id_fkey(id, user_id, status, schedule_id)",
+      ),
+    },
+  ]);
+
+  const ambiguous = signupEmbeds
+    .filter(
+      ({ relationshipHint }) =>
+        relationshipHint !== CANONICAL_PROJECT_RELATIONSHIP,
+    )
+    .map(({ file, selection }) => `${file}: ${selection.trim()}`);
+
+  expect(ambiguous).toEqual([]);
 });
 
 test("the source analyzer resolves relationship embeds in composed select strings", () => {
@@ -310,6 +353,22 @@ test("the source analyzer resolves relationship embeds in composed select string
       relationshipHint: null,
       inner: false,
       selection: "id, projects (id, title)",
+    },
+  ]);
+  expect(result.signupEmbeds).toEqual([]);
+});
+
+test("the source analyzer detects an ambiguous reverse signup embed", () => {
+  const result = analyzeSource(
+    "ambiguous-created-projects.ts",
+    `client.from("projects").select("id, project_signups(id, status)");`,
+  );
+
+  expect(result.signupEmbeds).toEqual([
+    {
+      file: "ambiguous-created-projects.ts",
+      relationshipHint: null,
+      selection: "id, project_signups(id, status)",
     },
   ]);
 });
