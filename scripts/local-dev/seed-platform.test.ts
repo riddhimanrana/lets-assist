@@ -179,6 +179,7 @@ describe("local platform seed authorization", () => {
     );
     for (const table of [
       "csf_storage_deletion_queue",
+      "csf_announcement_attachments",
       "csf_application_correction_requests",
       "csf_application_private_notes",
       "csf_application_checks",
@@ -910,6 +911,7 @@ describe("seed modes have the footprint they claim", () => {
       .map((entry) => entry.table);
     for (const table of [
       "csf_storage_deletion_queue",
+      "csf_announcement_attachments",
       "csf_term_memberships",
       "csf_point_submissions",
       "csf_roles",

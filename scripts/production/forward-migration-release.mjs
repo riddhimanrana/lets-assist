@@ -547,6 +547,10 @@ export const approvedMigrations = [
     "20260919010000_csf_scoped_request_id_batch_fence",
     "fde365726f345424b30ee090aad91b77a636fff1e3cfccf5a656fd14b2f74ab7",
   ],
+  [
+    "20260919020000_csf_post_image_attachments",
+    "c017a637564387094ad94ae270280667b2ea79232f1d6c7ce292e087a6ca793e",
+  ],
 ];
 
 const literal = (value) => `'${value.replaceAll("'", "''")}'`;
