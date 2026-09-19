@@ -8684,3 +8684,9 @@ retried, and the application deployment remains separate.
 
 - P2 fixed locally: the signup button treated a loaded Turnstile widget as a completed challenge, so it could remain enabled before a token arrived or after the token expired. The client now requires both the ready phase and a non-empty token, announces the pending check, and rechecks the token inside submission before contacting the server action.
 - The focused secure-check and signup action suites passed 34 tests. Changed-file lint, formatting, and the root TypeScript check also passed. Hosted Development and Production remain unchanged until integration.
+
+### Final catalog 608 hosted candidate, September 19, 2026
+
+- Root PR #724 merged as `c20e4bac677b57d15f0e9b0fe50e23cdfd21fc19`. Its Turnstile submission gate passed 34 focused tests, changed-file lint and formatting, and the root TypeScript check locally.
+- Root PR #725 merged as Development `1f6f0a6ed34b2d5c962fff4534e3eae8de61b599`. Migration 608 binds each prepared CSF publication request to its actor, post, attachment count, byte total, saved payload, and matching post mutation before attachment metadata can change. The exact local isolated run replayed 607 migrations and passed 9,738 pgTAP assertions across 370 files. The 105 focused release and catalog tests, migration validation, strict private-submodule check, formatting, and diff checks also passed.
+- This marked integration requests a fresh managed build and exact-head hosted Development acceptance. Production remains unchanged, and no application decision or email is released by this marker.
