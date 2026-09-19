@@ -27,6 +27,7 @@ describe("CSF Production worker enablement", () => {
       "workbook_refresh",
       "import_commit",
       "communications",
+      "scheduled_post_publisher",
       "publication_notifications",
     ]) {
       expect(productionWorkerEnableWorkflow).toContain(`- ${worker}`);
