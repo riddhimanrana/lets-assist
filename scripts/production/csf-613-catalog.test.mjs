@@ -9,6 +9,7 @@ import { approvedMigrations } from "./forward-migration-release.mjs";
 
 const cwd = fileURLToPath(new URL("../../", import.meta.url));
 const ledger = expectedVersions(cwd);
+const catalogLedger = ledger.slice(0, 613);
 const source = readFileSync(
   new URL("./verify-csf-target-schema.sql", import.meta.url),
   "utf8",
@@ -20,15 +21,15 @@ const migration = readFileSync(
 );
 
 test("613 requires bounded takeover and token fencing for abandoned cleanup claims", () => {
-  assert.equal(ledger.length, 613);
-  assert.equal(ledger.at(-1), "20260919161847");
-  assert.deepEqual(approvedMigrations.at(-1), [
-    migrationName,
-    createHash("sha256").update(migration).digest("hex"),
-  ]);
+  assert.equal(catalogLedger.length, 613);
+  assert.equal(catalogLedger.at(-1), "20260919161847");
+  assert.deepEqual(
+    approvedMigrations.find(([name]) => name === migrationName),
+    [migrationName, createHash("sha256").update(migration).digest("hex")],
+  );
 
-  const previous = acceptedCatalogQuery(source, ledger.slice(0, 612));
-  const current = acceptedCatalogQuery(source, ledger);
+  const previous = acceptedCatalogQuery(source, catalogLedger.slice(0, 612));
+  const current = acceptedCatalogQuery(source, catalogLedger);
   assert.doesNotMatch(previous, /15 minutes/u);
   assert.match(current, /15 minutes/u);
   assert.match(current, /csf_storage_deletion_queue_stale_claim_idx/u);
@@ -39,11 +40,14 @@ test("613 requires bounded takeover and token fencing for abandoned cleanup clai
 test("613 refuses an unreviewed ledger or changed migration bytes", () => {
   assert.throws(
     () =>
-      acceptedCatalogQuery(source, [...ledger.slice(0, -1), "20990101000000"]),
+      acceptedCatalogQuery(source, [
+        ...catalogLedger.slice(0, -1),
+        "20990101000000",
+      ]),
     /explicit release review/u,
   );
   assert.equal(
-    approvedMigrations.at(-1)[1],
+    approvedMigrations.find(([name]) => name === migrationName)[1],
     createHash("sha256").update(migration).digest("hex"),
   );
 });
