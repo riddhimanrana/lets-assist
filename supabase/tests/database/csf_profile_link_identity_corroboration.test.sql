@@ -418,9 +418,13 @@ SELECT extensions.ok(
   )->'corroboration') @> '["application_source_email"]'::jsonb,
   'the decision records application-source email as its authority'
 );
+-- Simulate persisted evidence corruption below the immutable application layer.
+-- Ordinary writes must remain blocked by csf_preserve_import_row_snapshot.
+SET LOCAL session_replication_role = replica;
 UPDATE plugin_data.csf_sheet_import_rows
 SET row_hash = repeat('b', 64)
 WHERE id = 'ef800000-0000-4000-8000-000000000001';
+SET LOCAL session_replication_role = origin;
 SELECT extensions.ok(
   NOT (plugin_data.csf_profile_link_connect_evidence(
     'ef100000-0000-4000-8000-000000000001',
@@ -429,9 +433,11 @@ SELECT extensions.ok(
   )->>'canConnect')::boolean,
   'a source row whose frozen hash no longer agrees cannot authorize a connection'
 );
+SET LOCAL session_replication_role = replica;
 UPDATE plugin_data.csf_sheet_import_rows
 SET row_hash = repeat('a', 64)
 WHERE id = 'ef800000-0000-4000-8000-000000000001';
+SET LOCAL session_replication_role = origin;
 
 -- A committed address is not unique merely because one candidate has a
 -- matching application row. If a second active profile carries that same
