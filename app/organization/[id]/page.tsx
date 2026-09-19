@@ -21,6 +21,7 @@ import {
 } from "@/lib/plugins/resolve-org-plugins";
 import { getOrganizationReportData } from "./reports/actions";
 import { getPublicOrganizationReportSummary } from "@/lib/organization/report-service";
+import { getOrganizationCoreDataScope } from "@/lib/organization/organization-core-data-scope";
 import { organizationCanonicalUrl } from "@/lib/organization/canonical-url";
 import type { Organization, OrganizationNavigationBehavior } from "@/types";
 import {
@@ -221,18 +222,50 @@ export default async function OrganizationPage({
     );
   }
 
+  const navOverridesContributions = pluginRole
+    ? await resolveOrganizationPluginBehaviorHook({
+        organizationId: organization.id,
+        organizationSlug: organization.username ?? organization.id,
+        organizationName: organization.name,
+        hook: "organization.navigation.overrides",
+        viewerRole: pluginRole,
+        viewerUserId: pluginViewerUserId,
+        target: {
+          userId: user?.id ?? null,
+          userEmail: user?.email ?? null,
+        },
+        useAdminClient: true,
+      })
+    : [];
+  const navOverrides =
+    navOverridesContributions.reduce<OrganizationNavigationBehavior>(
+      (acc, contribution) => ({
+        ...acc,
+        ...contribution.behavior,
+        coreTabReplacements: {
+          ...(acc.coreTabReplacements ?? {}),
+          ...(contribution.behavior.coreTabReplacements ?? {}),
+        },
+      }),
+      {},
+    );
+
   // Check if members should be visible
   // Members are visible if: show_members_publicly is true OR user is a member
   const canViewMembers =
     organizationExperience?.members !== "hidden" &&
     (organization.show_members_publicly !== false || !!userRole);
+  const coreDataScope = getOrganizationCoreDataScope({
+    canViewMembers,
+    navigation: navOverrides,
+  });
 
   let memberCount = organization.public_member_count ?? 0;
 
-  // Only fetch full member data if they should be visible
+  // Hidden core tabs do not need the platform member list or profile lookup.
   let formattedMembers: FormattedOrganizationMember[] = [];
 
-  if (canViewMembers) {
+  if (coreDataScope.memberRows) {
     const memberSource = userRole
       ? readClient.from("organization_members")
       : readClient.from("organization_public_member_read_model");
@@ -297,7 +330,7 @@ export default async function OrganizationPage({
 
   // Get organization projects
   const { data: projects } =
-    organizationExperience?.projects === "hidden"
+    organizationExperience?.projects === "hidden" || !coreDataScope.projects
       ? { data: [] }
       : await readClient
           .from("projects")
@@ -308,34 +341,6 @@ export default async function OrganizationPage({
   const organizationCreatedLabel = formatUtcCalendarDateLabel(
     organization.created_at,
   );
-  const navOverridesContributions = pluginRole
-    ? await resolveOrganizationPluginBehaviorHook({
-        organizationId: organization.id,
-        organizationSlug: organization.username ?? organization.id,
-        organizationName: organization.name,
-        hook: "organization.navigation.overrides",
-        viewerRole: pluginRole,
-        viewerUserId: pluginViewerUserId,
-        target: {
-          userId: user?.id ?? null,
-          userEmail: user?.email ?? null,
-        },
-        useAdminClient: true,
-      })
-    : [];
-
-  const navOverrides =
-    navOverridesContributions.reduce<OrganizationNavigationBehavior>(
-      (acc, c) => ({
-        ...acc,
-        ...c.behavior,
-        coreTabReplacements: {
-          ...(acc.coreTabReplacements ?? {}),
-          ...(c.behavior.coreTabReplacements ?? {}),
-        },
-      }),
-      {},
-    );
   const [reportSummary, pluginOverviewExtensions, allResolvedPlugins] =
     await Promise.all([
       loadVisibleOrganizationReport({
