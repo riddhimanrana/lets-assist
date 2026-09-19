@@ -37,6 +37,40 @@ test("620 fences restored images and cancels unfinished teardown leases", () => 
   assert.match(current, /csf_attachment_restore_preparations/u);
 });
 
+test("620 replaces superseded Storage source checks without weakening earlier ledgers", () => {
+  const claimBoundary = acceptedCatalogQuery(source, ledger.slice(0, 609));
+  const twoPhaseTeardown = acceptedCatalogQuery(source, ledger.slice(0, 610));
+  const leaseTakeover = acceptedCatalogQuery(source, ledger.slice(0, 613));
+  const current = acceptedCatalogQuery(source, ledger);
+
+  assert.match(
+    claimBoundary,
+    /v_request\.attachment_status IS DISTINCT FROM ''pending''/u,
+  );
+  assert.match(
+    twoPhaseTeardown,
+    /'''claimedQueueRows'', v_claimed_queue_rows/u,
+  );
+  assert.match(leaseTakeover, /Storage deletion claim lease expired\./u);
+
+  assert.match(
+    current,
+    /v_request\.attachment_status IS DISTINCT FROM ''pending''/u,
+  );
+  assert.match(current, /'''claimedQueueRows'', v_claimed_queue_rows/u);
+  assert.match(current, /Storage deletion claim lease expired\./u);
+  assert.match(
+    current,
+    /DELETE FROM plugin_data\.csf_storage_deletion_queue'\) = 0/u,
+  );
+  assert.match(current, /'IF v_queue_rows > 0 THEN'\s+\) > 0/u);
+  assert.match(current, /'FOR UPDATE OF queue SKIP LOCKED'/u);
+  assert.doesNotMatch(current, /'FOR UPDATE SKIP LOCKED'/u);
+  assert.match(current, /csf_validate_attachment_restore_preparation/u);
+  assert.match(current, /restore_request_id::text/u);
+  assert.match(current, /row_error\.message NOT IN/u);
+});
+
 test("620 refuses an unreviewed ledger or changed migration bytes", () => {
   assert.throws(
     () =>
