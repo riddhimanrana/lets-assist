@@ -30,7 +30,11 @@ test("603 pins private CSF post-image storage and mutation authority", () => {
   const current = acceptedCatalogQuery(source, ledger);
   assert.doesNotMatch(previous, /csf_announcement_attachments/u);
   assert.match(current, /csf_announcement_attachments/u);
+  assert.match(current, /csf_post_publication_requests/u);
   assert.match(current, /csf_replace_post_attachments/u);
+  assert.match(current, /csf_begin_post_publication_request/u);
+  assert.match(current, /csf_resolve_post_publication_completion/u);
+  assert.match(current, /csf_post_attachments_ready_for_email/u);
   assert.match(current, /csf_actor_has_permission/u);
   assert.match(current, /post_attachments_replaced/u);
 });

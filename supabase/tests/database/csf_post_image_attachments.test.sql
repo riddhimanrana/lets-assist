@@ -2,7 +2,7 @@
 BEGIN;
 
 CREATE EXTENSION IF NOT EXISTS pgtap WITH SCHEMA extensions;
-SELECT extensions.plan(21);
+SELECT extensions.plan(26);
 
 SELECT extensions.has_table(
   'plugin_data', 'csf_announcement_attachments',
@@ -64,6 +64,73 @@ INSERT INTO plugin_data.csf_announcements (
 ) VALUES
   ('ab400000-0000-4000-8000-000000000001', 'ab100000-0000-4000-8000-000000000001', 'Flyer', 'Details', 'members', 'published', false, false, 'ab000000-0000-4000-8000-000000000001', 'ab000000-0000-4000-8000-000000000001'),
   ('ab400000-0000-4000-8000-000000000002', 'ab100000-0000-4000-8000-000000000002', 'Other', 'Private', 'members', 'published', false, false, 'ab000000-0000-4000-8000-000000000003', 'ab000000-0000-4000-8000-000000000003');
+
+SELECT plugin_data.csf_begin_post_publication_request(
+  'ab100000-0000-4000-8000-000000000001',
+  'ab000000-0000-4000-8000-000000000001',
+  'ab300000-0000-4000-8000-000000000006',
+  0, 0, true
+);
+SELECT extensions.is(
+  plugin_data.csf_resolve_post_publication_completion(
+    'ab100000-0000-4000-8000-000000000001',
+    'ab000000-0000-4000-8000-000000000001',
+    'ab300000-0000-4000-8000-000000000006',
+    'ab400000-0000-4000-8000-000000000001'
+  ),
+  '{"status":"incomplete","reason":"attachments_not_saved"}'::jsonb,
+  'recovery reports a committed post whose attachment step is incomplete'
+);
+SELECT extensions.is(
+  (SELECT attachment_status
+   FROM plugin_data.csf_post_publication_requests
+   WHERE organization_id = 'ab100000-0000-4000-8000-000000000001'
+     AND request_id = 'ab300000-0000-4000-8000-000000000006'),
+  'pending',
+  'observing an incomplete request does not falsely mark its images saved'
+);
+SELECT extensions.is(
+  plugin_data.csf_post_attachments_ready_for_email(
+    'ab100000-0000-4000-8000-000000000001',
+    'ab000000-0000-4000-8000-000000000001',
+    'ab400000-0000-4000-8000-000000000001'
+  ),
+  false,
+  'email remains blocked while image persistence is incomplete'
+);
+SELECT plugin_data.csf_replace_post_attachments(
+  'ab100000-0000-4000-8000-000000000001',
+  'ab400000-0000-4000-8000-000000000001',
+  'ab000000-0000-4000-8000-000000000001',
+  '[]'::jsonb,
+  'ab300000-0000-4000-8000-000000000006'
+);
+SELECT extensions.is(
+  plugin_data.csf_post_attachments_ready_for_email(
+    'ab100000-0000-4000-8000-000000000001',
+    'ab000000-0000-4000-8000-000000000001',
+    'ab400000-0000-4000-8000-000000000001'
+  ),
+  true,
+  'saving the intended image set enables explicit email retry'
+);
+SELECT plugin_data.csf_record_post_email_preparation(
+  'ab100000-0000-4000-8000-000000000001',
+  'ab000000-0000-4000-8000-000000000001',
+  'ab300000-0000-4000-8000-000000000006',
+  'ab400000-0000-4000-8000-000000000001',
+  'not_queued'
+);
+SELECT extensions.is(
+  plugin_data.csf_resolve_post_publication_completion(
+    'ab100000-0000-4000-8000-000000000001',
+    'ab000000-0000-4000-8000-000000000001',
+    'ab300000-0000-4000-8000-000000000006',
+    'ab400000-0000-4000-8000-000000000001'
+  ),
+  '{"status":"complete"}'::jsonb,
+  'recovery completes only after images and email preparation are recorded'
+);
 
 SELECT extensions.throws_ok(
   $$ SELECT plugin_data.csf_replace_post_attachments(

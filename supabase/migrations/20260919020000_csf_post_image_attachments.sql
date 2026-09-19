@@ -47,6 +47,144 @@ ALTER TABLE plugin_data.csf_announcement_attachments ENABLE ROW LEVEL SECURITY;
 REVOKE ALL ON TABLE plugin_data.csf_announcement_attachments FROM PUBLIC, anon, authenticated;
 GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE plugin_data.csf_announcement_attachments TO service_role;
 
+CREATE TABLE plugin_data.csf_post_publication_requests (
+  organization_id uuid NOT NULL REFERENCES public.organizations(id) ON DELETE CASCADE,
+  request_id uuid NOT NULL,
+  actor_user_id uuid NOT NULL REFERENCES auth.users(id) ON DELETE RESTRICT,
+  announcement_id uuid,
+  attachment_count smallint NOT NULL CHECK (attachment_count BETWEEN 0 AND 4),
+  attachment_total_bytes bigint NOT NULL CHECK (attachment_total_bytes BETWEEN 0 AND 12582912),
+  attachment_status text NOT NULL DEFAULT 'pending'
+    CHECK (attachment_status IN ('pending', 'saved')),
+  email_requested boolean NOT NULL,
+  email_status text NOT NULL
+    CHECK (email_status IN ('not_requested', 'pending', 'queued', 'not_queued', 'unknown')),
+  created_at timestamptz NOT NULL DEFAULT now(),
+  updated_at timestamptz NOT NULL DEFAULT now(),
+  PRIMARY KEY (organization_id, request_id),
+  CONSTRAINT csf_post_publication_requests_post_fkey
+    FOREIGN KEY (organization_id, announcement_id)
+    REFERENCES plugin_data.csf_announcements(organization_id, id)
+    ON DELETE CASCADE
+);
+
+ALTER TABLE plugin_data.csf_post_publication_requests ENABLE ROW LEVEL SECURITY;
+REVOKE ALL ON TABLE plugin_data.csf_post_publication_requests FROM PUBLIC, anon, authenticated;
+GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE plugin_data.csf_post_publication_requests TO service_role;
+
+CREATE OR REPLACE FUNCTION plugin_data.csf_begin_post_publication_request(
+  p_organization_id uuid,
+  p_actor_user_id uuid,
+  p_request_id uuid,
+  p_attachment_count integer,
+  p_attachment_total_bytes bigint,
+  p_email_requested boolean
+)
+RETURNS void
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = ''
+AS $$
+DECLARE
+  v_existing plugin_data.csf_post_publication_requests%ROWTYPE;
+BEGIN
+  IF p_organization_id IS NULL OR p_actor_user_id IS NULL OR p_request_id IS NULL
+    OR p_attachment_count NOT BETWEEN 0 AND 4
+    OR p_attachment_total_bytes NOT BETWEEN 0 AND 12582912
+    OR p_email_requested IS NULL THEN
+    RAISE EXCEPTION 'The post publication request is invalid.' USING ERRCODE = '22023';
+  END IF;
+  PERFORM pg_catalog.pg_advisory_xact_lock(
+    plugin_data.csf_staff_access_lock_key(p_organization_id)
+  );
+  IF plugin_data.csf_actor_has_permission(
+    p_organization_id, p_actor_user_id, 'manage_posts'
+  ) IS DISTINCT FROM true THEN
+    RAISE EXCEPTION 'Not authorized to manage CSF posts.' USING ERRCODE = '42501';
+  END IF;
+
+  SELECT * INTO v_existing
+  FROM plugin_data.csf_post_publication_requests AS request
+  WHERE request.organization_id = p_organization_id
+    AND request.request_id = p_request_id
+  FOR UPDATE;
+  IF FOUND THEN
+    IF v_existing.actor_user_id IS DISTINCT FROM p_actor_user_id
+      OR v_existing.attachment_count IS DISTINCT FROM p_attachment_count
+      OR v_existing.attachment_total_bytes IS DISTINCT FROM p_attachment_total_bytes
+      OR v_existing.email_requested IS DISTINCT FROM p_email_requested THEN
+      RAISE EXCEPTION 'That post request identifier is already bound to a different publication.'
+        USING ERRCODE = '55000';
+    END IF;
+    RETURN;
+  END IF;
+
+  INSERT INTO plugin_data.csf_post_publication_requests (
+    organization_id, request_id, actor_user_id, attachment_count,
+    attachment_total_bytes, email_requested, email_status
+  ) VALUES (
+    p_organization_id, p_request_id, p_actor_user_id, p_attachment_count,
+    p_attachment_total_bytes, p_email_requested,
+    CASE WHEN p_email_requested THEN 'pending' ELSE 'not_requested' END
+  );
+END;
+$$;
+
+REVOKE ALL ON FUNCTION plugin_data.csf_begin_post_publication_request(
+  uuid, uuid, uuid, integer, bigint, boolean
+) FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION plugin_data.csf_begin_post_publication_request(
+  uuid, uuid, uuid, integer, bigint, boolean
+) TO service_role;
+
+CREATE OR REPLACE FUNCTION plugin_data.csf_record_post_email_preparation(
+  p_organization_id uuid,
+  p_actor_user_id uuid,
+  p_request_id uuid,
+  p_announcement_id uuid,
+  p_outcome text
+)
+RETURNS void
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = ''
+AS $$
+BEGIN
+  IF p_outcome NOT IN ('queued', 'not_queued', 'unknown') THEN
+    RAISE EXCEPTION 'The post email preparation outcome is invalid.' USING ERRCODE = '22023';
+  END IF;
+  PERFORM pg_catalog.pg_advisory_xact_lock(
+    plugin_data.csf_staff_access_lock_key(p_organization_id)
+  );
+  IF plugin_data.csf_actor_has_permission(
+    p_organization_id, p_actor_user_id, 'manage_posts'
+  ) IS DISTINCT FROM true THEN
+    RAISE EXCEPTION 'Not authorized to manage CSF posts.' USING ERRCODE = '42501';
+  END IF;
+  UPDATE plugin_data.csf_post_publication_requests AS request
+  SET announcement_id = p_announcement_id,
+      email_status = p_outcome,
+      updated_at = now()
+  WHERE request.organization_id = p_organization_id
+    AND request.request_id = p_request_id
+    AND request.actor_user_id = p_actor_user_id
+    AND request.email_requested
+    AND request.attachment_status = 'saved'
+    AND (request.announcement_id IS NULL OR request.announcement_id = p_announcement_id);
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'The post images must be saved before email preparation is recorded.'
+      USING ERRCODE = '55000';
+  END IF;
+END;
+$$;
+
+REVOKE ALL ON FUNCTION plugin_data.csf_record_post_email_preparation(
+  uuid, uuid, uuid, uuid, text
+) FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION plugin_data.csf_record_post_email_preparation(
+  uuid, uuid, uuid, uuid, text
+) TO service_role;
+
 CREATE UNIQUE INDEX csf_admin_audit_events_post_attachment_request_idx
   ON plugin_data.csf_admin_audit_events (organization_id, correlation_id)
   WHERE correlation_id IS NOT NULL
@@ -75,6 +213,103 @@ REVOKE ALL ON FUNCTION plugin_data.csf_enqueue_announcement_attachment_cleanup()
 CREATE TRIGGER csf_announcement_attachment_cleanup
 AFTER DELETE ON plugin_data.csf_announcement_attachments
 FOR EACH ROW EXECUTE FUNCTION plugin_data.csf_enqueue_announcement_attachment_cleanup();
+
+CREATE OR REPLACE FUNCTION plugin_data.csf_resolve_post_publication_completion(
+  p_organization_id uuid,
+  p_actor_user_id uuid,
+  p_request_id uuid,
+  p_announcement_id uuid
+)
+RETURNS jsonb
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = ''
+AS $$
+DECLARE
+  v_request plugin_data.csf_post_publication_requests%ROWTYPE;
+BEGIN
+  PERFORM pg_catalog.pg_advisory_xact_lock(
+    plugin_data.csf_staff_access_lock_key(p_organization_id)
+  );
+  IF plugin_data.csf_actor_has_permission(
+    p_organization_id, p_actor_user_id, 'manage_posts'
+  ) IS DISTINCT FROM true THEN
+    RAISE EXCEPTION 'Not authorized to manage CSF posts.' USING ERRCODE = '42501';
+  END IF;
+  SELECT * INTO v_request
+  FROM plugin_data.csf_post_publication_requests AS request
+  WHERE request.organization_id = p_organization_id
+    AND request.request_id = p_request_id
+  FOR UPDATE;
+  IF NOT FOUND THEN
+    RETURN pg_catalog.jsonb_build_object('status', 'complete');
+  END IF;
+  IF v_request.announcement_id IS NOT NULL
+    AND v_request.announcement_id IS DISTINCT FROM p_announcement_id THEN
+    RAISE EXCEPTION 'That post request is bound to another post.' USING ERRCODE = '55000';
+  END IF;
+  UPDATE plugin_data.csf_post_publication_requests
+  SET announcement_id = p_announcement_id, updated_at = now()
+  WHERE organization_id = p_organization_id AND request_id = p_request_id;
+  IF v_request.attachment_status <> 'saved' THEN
+    RETURN pg_catalog.jsonb_build_object(
+      'status', 'incomplete', 'reason', 'attachments_not_saved'
+    );
+  END IF;
+  IF v_request.email_status = 'pending' THEN
+    RETURN pg_catalog.jsonb_build_object(
+      'status', 'incomplete', 'reason', 'email_preparation_unresolved'
+    );
+  END IF;
+  RETURN pg_catalog.jsonb_build_object('status', 'complete');
+END;
+$$;
+
+REVOKE ALL ON FUNCTION plugin_data.csf_resolve_post_publication_completion(
+  uuid, uuid, uuid, uuid
+) FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION plugin_data.csf_resolve_post_publication_completion(
+  uuid, uuid, uuid, uuid
+) TO service_role;
+
+CREATE OR REPLACE FUNCTION plugin_data.csf_post_attachments_ready_for_email(
+  p_organization_id uuid,
+  p_actor_user_id uuid,
+  p_announcement_id uuid
+)
+RETURNS boolean
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = ''
+AS $$
+DECLARE
+  v_status text;
+BEGIN
+  IF plugin_data.csf_actor_has_permission(
+    p_organization_id, p_actor_user_id, 'manage_posts'
+  ) IS DISTINCT FROM true THEN
+    RAISE EXCEPTION 'Not authorized to manage CSF posts.' USING ERRCODE = '42501';
+  END IF;
+  SELECT request.attachment_status INTO v_status
+  FROM plugin_data.csf_post_publication_requests AS request
+  LEFT JOIN plugin_data.csf_admin_audit_events AS mutation
+    ON mutation.organization_id = request.organization_id
+   AND mutation.correlation_id = request.request_id
+   AND mutation.source_type = 'post_mutation_request'
+  WHERE request.organization_id = p_organization_id
+    AND coalesce(request.announcement_id, mutation.target_id) = p_announcement_id
+  ORDER BY request.created_at DESC
+  LIMIT 1;
+  RETURN v_status IS NULL OR v_status = 'saved';
+END;
+$$;
+
+REVOKE ALL ON FUNCTION plugin_data.csf_post_attachments_ready_for_email(
+  uuid, uuid, uuid
+) FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION plugin_data.csf_post_attachments_ready_for_email(
+  uuid, uuid, uuid
+) TO service_role;
 
 CREATE OR REPLACE FUNCTION plugin_data.csf_replace_post_attachments(
   p_organization_id uuid,
@@ -290,6 +525,12 @@ BEGIN
     p_request_id, 'post_attachment_request', p_announcement_id::text,
     'officer_post_attachment_change'
   );
+
+  UPDATE plugin_data.csf_post_publication_requests
+  SET announcement_id = p_announcement_id,
+      attachment_status = 'saved',
+      updated_at = now()
+  WHERE organization_id = p_organization_id AND request_id = p_request_id;
 
   RETURN pg_catalog.jsonb_build_object('attachments', v_after);
 END;
