@@ -17,6 +17,7 @@ describe("CSF publication email", () => {
             "Meet at the entrance.\n• Bring gloves\n• Bring water",
             "<script>alert(1)</script>",
           ]}
+          attachmentCount={2}
           postUrl="https://lets-assist.com/organization/example?tab=csf-activities"
           unsubscribeUrl="https://lets-assist.com/unsubscribe/csf/example/announcements"
           settingsUrl="https://lets-assist.com/account/notifications"
@@ -31,6 +32,8 @@ describe("CSF publication email", () => {
       expect(html).toInclude("https://lets-assist.com/account/notifications");
       expect(html).toInclude("Unsubscribe from announcement emails");
       expect(html).toInclude("Bring gloves");
+      expect(html).toInclude("This post includes");
+      expect(html).toInclude("images");
       expect(html).not.toInclude("<script>");
     });
   }
