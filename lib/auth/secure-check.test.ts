@@ -96,10 +96,15 @@ describe("secureCheckWatchdogDelayMs", () => {
 });
 
 describe("isSecureCheckBlockingSubmit", () => {
-  it("blocks until the check is ready", () => {
-    expect(isSecureCheckBlockingSubmit("loading")).toBe(true);
-    expect(isSecureCheckBlockingSubmit("ready")).toBe(false);
-    expect(isSecureCheckBlockingSubmit("unavailable")).toBe(true);
+  it("blocks until the ready check produces a token", () => {
+    expect(isSecureCheckBlockingSubmit("loading", null)).toBe(true);
+    expect(isSecureCheckBlockingSubmit("ready", null)).toBe(true);
+    expect(isSecureCheckBlockingSubmit("ready", "")).toBe(true);
+    expect(isSecureCheckBlockingSubmit("ready", "   ")).toBe(true);
+    expect(isSecureCheckBlockingSubmit("unavailable", "expired-token")).toBe(
+      true,
+    );
+    expect(isSecureCheckBlockingSubmit("ready", "verified-token")).toBe(false);
   });
 });
 
