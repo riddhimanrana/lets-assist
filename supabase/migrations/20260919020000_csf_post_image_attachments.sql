@@ -461,13 +461,13 @@ BEGIN
         OR v_checksum IS NULL OR v_checksum !~ '^[0-9a-f]{64}$'
         OR v_file_name IS NULL OR length(v_file_name) NOT BETWEEN 1 AND 255
         OR v_size_bytes NOT BETWEEN 1 AND 4194304
-        OR v_object_path IS DISTINCT FROM p_organization_id::text
+        OR v_object_path IS DISTINCT FROM (p_organization_id::text
           || '/dvhs-csf/post-images/' || p_announcement_id::text || '/'
           || v_checksum || CASE v_mime_type
             WHEN 'image/jpeg' THEN '.jpg'
             WHEN 'image/png' THEN '.png'
             WHEN 'image/webp' THEN '.webp'
-          END THEN
+          END) THEN
         RAISE EXCEPTION 'A post image does not match its stored evidence.' USING ERRCODE = '22023';
       END IF;
       INSERT INTO plugin_data.csf_announcement_attachments (
