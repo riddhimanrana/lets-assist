@@ -4,7 +4,7 @@ BEGIN;
 CREATE EXTENSION IF NOT EXISTS pgtap WITH SCHEMA extensions;
 CREATE EXTENSION IF NOT EXISTS dblink WITH SCHEMA extensions;
 
-SELECT extensions.plan(26);
+SELECT extensions.plan(28);
 
 SELECT extensions.has_table(
   'plugin_data', 'csf_storage_deletion_receipts',
@@ -380,13 +380,30 @@ SELECT extensions.ok(
 SELECT extensions.dblink_disconnect('storage_claim_holder');
 SELECT extensions.dblink_disconnect('storage_restore_writer');
 
--- Cleanup committed concurrency fixtures.
+-- Organization teardown must preserve unresolved cleanup state until an
+-- external worker has settled every queue row.
 SELECT extensions.is(
   plugin_data.csf_purge_storage_deletion_queue(
     'b7100000-0000-4000-8000-000000000001'
   ),
-  '{"attachments":2,"queueRows":3,"receipts":2,"preparations":2}'::jsonb,
-  'organization teardown purges queued paths and durable preparation state'
+  '{"status":"cleanup_required","attachments":2,"queueRows":3,"claimedQueueRows":1,"receipts":0,"preparations":0}'::jsonb,
+  'organization teardown reports cleanup work without erasing it'
+);
+SELECT extensions.is(
+  (SELECT count(*)::integer
+   FROM plugin_data.csf_storage_deletion_queue
+   WHERE organization_id = 'b7100000-0000-4000-8000-000000000001'),
+  3,
+  'organization teardown preserves every unresolved and claimed queue row'
+);
+DELETE FROM plugin_data.csf_storage_deletion_queue
+WHERE organization_id = 'b7100000-0000-4000-8000-000000000001';
+SELECT extensions.is(
+  plugin_data.csf_purge_storage_deletion_queue(
+    'b7100000-0000-4000-8000-000000000001'
+  ),
+  '{"status":"purged","attachments":0,"queueRows":0,"claimedQueueRows":0,"receipts":2,"preparations":2}'::jsonb,
+  'organization teardown removes durable state only after cleanup is empty'
 );
 DELETE FROM plugin_data.csf_announcements
 WHERE organization_id = 'b7100000-0000-4000-8000-000000000001';

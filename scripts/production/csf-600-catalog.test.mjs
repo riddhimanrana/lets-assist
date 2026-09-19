@@ -21,7 +21,7 @@ const migration = readFileSync(
 );
 
 test("600 preserves scoped receipts when their actor account is deleted", () => {
-  assert.equal(fullLedger.length, 609);
+  assert.equal(fullLedger.length, 610);
   assert.equal(ledger.length, 600);
   assert.equal(ledger.at(-1), "20260918235900");
   assert.deepEqual(
