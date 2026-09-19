@@ -28,7 +28,9 @@ test("602 fences scoped request IDs before deriving import records", () => {
   ]);
   const previous = acceptedCatalogQuery(source, ledger.slice(0, 600));
   const current = acceptedCatalogQuery(source, ledger);
-  assert.ok(current.includes(previous.trim().replace(/;$/u, "")));
+  assert.match(previous, /a452eea82e258fe4351689c79d7acc93/u);
+  assert.doesNotMatch(current, /a452eea82e258fe4351689c79d7acc93/u);
+  assert.match(current, /42874a1ae35c55cd10b8f6ddd68d2835/u);
   assert.doesNotMatch(previous, /This request ID already belongs/u);
   assert.match(current, /csf_import_approval_batch:/u);
   assert.match(current, /This request ID already belongs/u);
