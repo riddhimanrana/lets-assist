@@ -1238,4 +1238,6 @@ export const migrationDigests = {
     "aedcd8b8fc3ca1e95e97a901a94982fd1718197335214c9bfe6c16e593ba0887",
   "20260919172947_csf_restore_preparation_lease.sql":
     "ff421332e5888f73d11ef01dd46ca1f2e674a9a3e41b99b41ca7b8068b365494",
+  "20260919190000_csf_attendance_window_exclusion_readiness.sql":
+    "18d317bbda1d675a0d66471b96f199aafdbb8765cb69cad5a1b34b132435c34c",
 };
