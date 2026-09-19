@@ -8,7 +8,8 @@ import { expectedVersions } from "./app-release-checks.mjs";
 import { approvedMigrations } from "./forward-migration-release.mjs";
 
 const cwd = fileURLToPath(new URL("../../", import.meta.url));
-const ledger = expectedVersions(cwd);
+const fullLedger = expectedVersions(cwd);
+const ledger = fullLedger.slice(0, 604);
 const source = readFileSync(
   new URL("./verify-csf-target-schema.sql", import.meta.url),
   "utf8",
@@ -20,12 +21,13 @@ const migration = readFileSync(
 );
 
 test("605 pins the atomic CSF post and attachment update", () => {
+  assert.equal(fullLedger.length, 605);
   assert.equal(ledger.length, 604);
   assert.equal(ledger.at(-1), "20260919095826");
-  assert.deepEqual(approvedMigrations.at(-1), [
-    migrationName,
-    createHash("sha256").update(migration).digest("hex"),
-  ]);
+  assert.deepEqual(
+    approvedMigrations.find(([name]) => name === migrationName),
+    [migrationName, createHash("sha256").update(migration).digest("hex")],
+  );
 
   const previous = acceptedCatalogQuery(source, ledger.slice(0, 603));
   const current = acceptedCatalogQuery(source, ledger);
@@ -43,7 +45,7 @@ test("605 refuses an unreviewed ledger or changed migration bytes", () => {
     /explicit release review/u,
   );
   assert.equal(
-    approvedMigrations.at(-1)[1],
+    approvedMigrations.find(([name]) => name === migrationName)[1],
     "4d75516543a45dbc621321732570629ce5a23fa75220c6bc2dda126e7db0cf9f",
   );
 });
