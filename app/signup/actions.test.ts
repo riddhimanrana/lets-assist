@@ -90,6 +90,7 @@ function signupForm(email = "person@local.test") {
   form.set("email", email);
   form.set("phone", "");
   form.set("password", "ValidPassword123!");
+  form.set("turnstileToken", "captcha-token");
   return form;
 }
 
@@ -118,6 +119,19 @@ beforeEach(() => {
 });
 
 describe("signup enumeration resistance", () => {
+  test("a missing captcha token never reaches Supabase Auth", async () => {
+    const form = signupForm();
+    form.delete("turnstileToken");
+
+    expect(await signup(form)).toEqual({
+      error: {
+        server: ["Complete the security check, then try again."],
+      },
+    });
+    expect(createClientCalls).toBe(0);
+    expect(signUpCalls).toBe(0);
+  });
+
   test("blacklisted, new, and existing addresses receive the same public success", async () => {
     blacklisted = true;
     const blockedResult = await signup(signupForm("blocked@local.test"));

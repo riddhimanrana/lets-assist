@@ -49,6 +49,7 @@ type ExchangeError = {
   message?: string;
   name?: string;
   status?: number;
+  code?: string;
 } | null;
 
 const state: {
@@ -215,6 +216,49 @@ function restoreEnv() {
 }
 
 describe("GET /auth/callback (runtime)", () => {
+  test("a missing PKCE verifier returns to login with the intended destination", async () => {
+    try {
+      state.exchangeError = {
+        message: "PKCE code verifier not found in storage",
+        code: "pkce_code_verifier_not_found",
+        status: 400,
+      };
+      const response = await GET(
+        request(
+          "/auth/callback?code=abc123&redirectAfterAuth=%2Forganization%2Fdvhighcsf%2Fplugins%2Fdvhs-csf%2Fpublic",
+          { host: EVIL_HOST },
+        ),
+      );
+      const url = location(response);
+      expect(url.origin).toBe(HOSTED);
+      expect(url.pathname).toBe("/login");
+      expect(url.searchParams.get("error")).toBe("auth-flow-expired");
+      expect(url.searchParams.get("redirect")).toBe(
+        "/organization/dvhighcsf/plugins/dvhs-csf/public",
+      );
+    } finally {
+      restoreEnv();
+    }
+  });
+
+  test("an already-used OAuth state returns to login without provider text", async () => {
+    try {
+      const response = await GET(
+        request(
+          "/auth/callback?error=invalid_request&error_description=State%20has%20already%20been%20used",
+          { host: EVIL_HOST },
+        ),
+      );
+      const url = location(response);
+      expect(url.origin).toBe(HOSTED);
+      expect(url.pathname).toBe("/login");
+      expect(url.searchParams.get("error")).toBe("auth-flow-expired");
+      expect(url.toString()).not.toContain("already");
+    } finally {
+      restoreEnv();
+    }
+  });
+
   test("recovery: redirects to the trusted origin's reset-password page, never the evil Host", async () => {
     try {
       const response = await GET(

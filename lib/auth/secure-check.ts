@@ -95,11 +95,11 @@ export function secureCheckWatchdogDelayMs(
 
 /**
  * Whether a submit control should stay disabled because the secure check has
- * not settled yet. A settled check — ready or unavailable — never blocks the
- * control, so the disabled state always maps to something the person can see.
+ * not produced a usable challenge yet. The unavailable state keeps the control
+ * blocked while the visible fallback explains how to retry the challenge.
  */
 export function isSecureCheckBlockingSubmit(phase: SecureCheckPhase): boolean {
-  return phase === "loading";
+  return phase !== "ready";
 }
 
 /**

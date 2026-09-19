@@ -131,6 +131,15 @@ export async function signup(formData: FormData): Promise<SignupActionResult> {
     };
   }
 
+  const captchaToken = validatedFields.data.turnstileToken?.trim();
+  if (!captchaToken) {
+    return {
+      error: {
+        server: ["Complete the security check, then try again."],
+      },
+    };
+  }
+
   const canonicalSignupPath = buildCanonicalSignupPath({
     redirectPath: redirectUrl,
     staffToken: validatedFields.data.staffToken,
@@ -209,9 +218,7 @@ export async function signup(formData: FormData): Promise<SignupActionResult> {
         },
       };
 
-      if (turnstileToken) {
-        signUpOptions.options.captchaToken = turnstileToken;
-      }
+      signUpOptions.options.captchaToken = captchaToken;
 
       // 1. Create auth user
       const {

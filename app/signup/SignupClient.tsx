@@ -369,9 +369,8 @@ export default function SignupClient({
                 />
               </SecureCheckPanel>
             </div>
-            {/* The submit button is disabled while the security check runs.
-                Without this line the control simply ignores a click and the
-                visitor has no way to tell that from a broken page. */}
+            {/* Keep submission blocked until the widget returns a token. The
+                secure-check panel owns loading and retry instructions. */}
             <p
               className="text-center text-sm text-muted-foreground"
               role="status"
@@ -379,7 +378,7 @@ export default function SignupClient({
             >
               {isLoading
                 ? "Creating your account…"
-                : isSecureCheckBlockingSubmit(verification.phase)
+                : verification.phase === "loading"
                   ? "Finishing the security check before this form can be submitted…"
                   : ""}
             </p>
