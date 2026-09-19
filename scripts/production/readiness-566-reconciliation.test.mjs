@@ -68,6 +68,7 @@ const EXTENSIONS = [
   "20260918180000_csf_user_entered_sheet_fill_preview",
   "20260918183000_csf_scoped_application_import_preview",
   "20260918235900_csf_scoped_import_actor_detachment",
+  "20260919000000_csf_application_source_connection_evidence",
 ];
 
 test("the release is the 557 decisions baseline plus the reviewed integrated extensions", () => {

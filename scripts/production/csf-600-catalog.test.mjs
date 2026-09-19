@@ -8,7 +8,8 @@ import { expectedVersions } from "./app-release-checks.mjs";
 import { approvedMigrations } from "./forward-migration-release.mjs";
 
 const cwd = fileURLToPath(new URL("../../", import.meta.url));
-const ledger = expectedVersions(cwd);
+const fullLedger = expectedVersions(cwd);
+const ledger = fullLedger.slice(0, 600);
 const source = readFileSync(
   new URL("./verify-csf-target-schema.sql", import.meta.url),
   "utf8",
@@ -20,12 +21,13 @@ const migration = readFileSync(
 );
 
 test("600 preserves scoped receipts when their actor account is deleted", () => {
+  assert.equal(fullLedger.length, 601);
   assert.equal(ledger.length, 600);
   assert.equal(ledger.at(-1), "20260918235900");
-  assert.deepEqual(approvedMigrations.at(-1), [
-    migrationName,
-    createHash("sha256").update(migration).digest("hex"),
-  ]);
+  assert.deepEqual(
+    approvedMigrations.find(([name]) => name === migrationName),
+    [migrationName, createHash("sha256").update(migration).digest("hex")],
+  );
   const previous = acceptedCatalogQuery(source, ledger.slice(0, 599));
   const current = acceptedCatalogQuery(source, ledger);
   assert.ok(current.includes(previous.trim().replace(/;$/u, "")));
