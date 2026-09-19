@@ -8722,6 +8722,12 @@ retried, and the application deployment remains separate.
 - The isolated CSF seed now treats `cleanup_required` as pending work. It claims only the target organization's rows, removes the grouped Storage paths, acknowledges each exact token, and repeats until the purge RPC returns `purged`. Malformed receipts, unknown Storage outcomes, active claims, and a no-progress pass stop the reset.
 - Catalog 613 pins both lease indexes, function owners, empty search paths, service-only execution, stale-lease predicate, row locking, replacement tokens, and retry evidence. The combined clean isolated replay applied all 613 migrations and passed the database, architecture, plugin access, typecheck, lint, plugin browser isolation, and cron authentication gates. The focused seed and release suite passed 134 tests with 352 expectations. Hosted Development and Production remain unchanged.
 
+### Final DVHS CSF 1.2.54 Development candidate, September 19, 2026
+
+- Signed private release `dvhs-csf/v1.2.54` pins source `c7274ecd602ed499f008b966741c7f704dd9cb11`, source tree `6d0742faca27c638c983c3be65e4a1ec11eabb94`, and content digest `sha256:c690ccfe4b183db4ad97bc2365130c0c8b052711cb7f0118ad8ddbe47dc1d787`. Signing workflow `35454318582` passed. The root publication migration is `20260919161514_publish_dvhs_csf_1_2_54.sql`.
+- Development `53f83079b972a039e4ece78f514345ab533f27be` contains the signed release integration plus forward catalogs 610 through 613. These changes add transactional Storage deletion claims, two-phase organization teardown, publication-request actor detachment, bounded abandoned-claim takeover, and deterministic seed cleanup. Root PRs #730 through #734 and private PRs #526 through #530 carry that exact lineage.
+- The final clean local gate replayed all 613 migrations and passed pgTAP, architecture and plugin access audits, TypeScript, lint, plugin browser isolation, and cron authentication. The Production controller suite passed 335 tests with 656 expectations; the focused seed and release suite passed 134 tests with 352 expectations. This marker requests exact-tree hosted Development acceptance. It changes no Production installation, organization record, application decision, or email state.
+
 ### CSF publication request actor retention, September 19, 2026
 
 - P2 fixed locally: `csf_post_publication_requests.actor_user_id` used `ON DELETE RESTRICT`, so an otherwise eligible officer account could not be deleted after application cleanup. The publication request is a recovery receipt and must outlive the login account.
