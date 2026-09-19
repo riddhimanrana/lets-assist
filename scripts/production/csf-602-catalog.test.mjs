@@ -8,31 +8,29 @@ import { expectedVersions } from "./app-release-checks.mjs";
 import { approvedMigrations } from "./forward-migration-release.mjs";
 
 const cwd = fileURLToPath(new URL("../../", import.meta.url));
-const fullLedger = expectedVersions(cwd);
-const ledger = fullLedger.slice(0, 600);
+const ledger = expectedVersions(cwd);
 const source = readFileSync(
   new URL("./verify-csf-target-schema.sql", import.meta.url),
   "utf8",
 );
-const migrationName = "20260918235900_csf_scoped_import_actor_detachment";
+const migrationName = "20260919010000_csf_scoped_request_id_batch_fence";
 const migration = readFileSync(
   new URL(`../../supabase/migrations/${migrationName}.sql`, import.meta.url),
   "utf8",
 );
 
-test("600 preserves scoped receipts when their actor account is deleted", () => {
-  assert.equal(fullLedger.length, 601);
-  assert.equal(ledger.length, 600);
-  assert.equal(ledger.at(-1), "20260918235900");
-  assert.deepEqual(
-    approvedMigrations.find(([name]) => name === migrationName),
-    [migrationName, createHash("sha256").update(migration).digest("hex")],
-  );
-  const previous = acceptedCatalogQuery(source, ledger.slice(0, 599));
+test("602 fences scoped request IDs before deriving import records", () => {
+  assert.equal(ledger.length, 601);
+  assert.equal(ledger.at(-1), "20260919010000");
+  assert.deepEqual(approvedMigrations.at(-1), [
+    migrationName,
+    createHash("sha256").update(migration).digest("hex"),
+  ]);
+  const previous = acceptedCatalogQuery(source, ledger.slice(0, 600));
   const current = acceptedCatalogQuery(source, ledger);
   assert.ok(current.includes(previous.trim().replace(/;$/u, "")));
-  assert.doesNotMatch(previous, /confdeltype = 'n'/u);
-  assert.match(current, /actor_user_id/u);
-  assert.match(current, /NOT a\.attnotnull/u);
-  assert.match(current, /confdeltype = 'n'/u);
+  assert.doesNotMatch(previous, /This request ID already belongs/u);
+  assert.match(current, /csf_import_approval_batch:/u);
+  assert.match(current, /This request ID already belongs/u);
+  assert.match(current, /INSERT INTO plugin_data\.csf_sheet_import_jobs/u);
 });
