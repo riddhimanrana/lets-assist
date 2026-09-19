@@ -179,6 +179,7 @@ describe("local platform seed authorization", () => {
     );
     for (const table of [
       "csf_storage_deletion_queue",
+      "csf_post_publication_requests",
       "csf_announcement_attachments",
       "csf_application_correction_requests",
       "csf_application_private_notes",
@@ -196,6 +197,9 @@ describe("local platform seed authorization", () => {
     );
     expect(resetList.indexOf('"csf_term_policy_drafts"')).toBeLessThan(
       resetList.indexOf('"csf_term_policies"'),
+    );
+    expect(resetList.indexOf('"csf_post_publication_requests"')).toBeLessThan(
+      resetList.indexOf('"csf_announcements"'),
     );
     expect(resetList).toContain(
       'pluginDb.rpc("csf_purge_recovery_foundations"',

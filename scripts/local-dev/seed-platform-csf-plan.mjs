@@ -31,6 +31,7 @@ export async function seedDvhsCsfFixtures({ admin, users, must }) {
     "csf_point_categories",
     "csf_opportunity_signups",
     "csf_opportunities",
+    "csf_post_publication_requests",
     "csf_announcement_attachments",
     "csf_announcements",
     "csf_profile_restrictions",
