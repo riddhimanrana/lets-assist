@@ -1228,4 +1228,6 @@ export const migrationDigests = {
     "f2c380c809fd9d62ee2a606b8a35d1c94426e3ff8a1220523660907e9fb8e727",
   "20260919145700_csf_storage_deletion_claim_boundary.sql":
     "da1a7e86afa172e85af4900d0f9efef75eebc4da7f58426c2e73c6031fc97b47",
+  "20260919155040_csf_two_phase_storage_teardown.sql":
+    "9d1b012ed4bf07ac046b683712d95824b835560c6ba012ce4c13bfc3bc14e2d8",
 };

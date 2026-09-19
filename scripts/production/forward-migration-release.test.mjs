@@ -157,6 +157,7 @@ const APPROVED_TAIL = [
   "20260919133902",
   "20260919143851",
   "20260919145700",
+  "20260919155040",
 ];
 
 const cwd = resolve(import.meta.dirname, "../..");
@@ -955,7 +956,7 @@ test("an applied 536 ledger writes the signed 1.2.51 publication and the typed-n
   );
 });
 
-test("an applied 604 ledger writes the signed publication and both post repairs", () => {
+test("an applied 604 ledger writes the signed publication and later repairs", () => {
   const publication = prepareMigration(
     cwd,
     readFileSync,
@@ -967,6 +968,7 @@ test("an applied 604 ledger writes the signed publication and both post repairs"
     "20260919133902",
     "20260919143851",
     "20260919145700",
+    "20260919155040",
   ]);
   assert.equal(
     (
@@ -974,7 +976,7 @@ test("an applied 604 ledger writes the signed publication and both post repairs"
         /INSERT INTO supabase_migrations.schema_migrations/gu,
       ) ?? []
     ).length,
-    5,
+    6,
   );
   assert.ok(
     publication.query.includes("'20260919103635','publish_dvhs_csf_1_2_53'"),
@@ -1004,7 +1006,7 @@ test("an applied 604 ledger writes the signed publication and both post repairs"
   );
 });
 
-test("an applied 605 ledger writes both post repairs", () => {
+test("an applied 605 ledger writes the remaining post and cleanup repairs", () => {
   const repair = prepareMigration(
     cwd,
     readFileSync,
@@ -1015,6 +1017,7 @@ test("an applied 605 ledger writes both post repairs", () => {
     "20260919133902",
     "20260919143851",
     "20260919145700",
+    "20260919155040",
   ]);
   assert.equal(
     (
@@ -1022,7 +1025,7 @@ test("an applied 605 ledger writes both post repairs", () => {
         /INSERT INTO supabase_migrations.schema_migrations/gu,
       ) ?? []
     ).length,
-    4,
+    5,
   );
   assert.ok(
     repair.query.includes(
@@ -1045,7 +1048,7 @@ test("an applied 605 ledger writes both post repairs", () => {
   );
 });
 
-test("an applied 606 ledger writes both publication binding repairs", () => {
+test("an applied 606 ledger writes publication binding and cleanup repairs", () => {
   const binding = prepareMigration(
     cwd,
     readFileSync,
@@ -1055,6 +1058,7 @@ test("an applied 606 ledger writes both publication binding repairs", () => {
     "20260919133902",
     "20260919143851",
     "20260919145700",
+    "20260919155040",
   ]);
   assert.equal(
     (
@@ -1062,7 +1066,7 @@ test("an applied 606 ledger writes both publication binding repairs", () => {
         /INSERT INTO supabase_migrations.schema_migrations/gu,
       ) ?? []
     ).length,
-    3,
+    4,
   );
   assert.ok(
     binding.query.includes(
@@ -1076,7 +1080,7 @@ test("an applied 606 ledger writes both publication binding repairs", () => {
   );
 });
 
-test("an applied 607 ledger writes only the publication recovery receipt guard", () => {
+test("an applied 607 ledger writes recovery and Storage cleanup guards", () => {
   const recovery = prepareMigration(
     cwd,
     readFileSync,
@@ -1085,6 +1089,7 @@ test("an applied 607 ledger writes only the publication recovery receipt guard",
   assert.deepEqual(recovery.versions.slice(607), [
     "20260919143851",
     "20260919145700",
+    "20260919155040",
   ]);
   assert.equal(
     (
@@ -1092,7 +1097,7 @@ test("an applied 607 ledger writes only the publication recovery receipt guard",
         /INSERT INTO supabase_migrations.schema_migrations/gu,
       ) ?? []
     ).length,
-    2,
+    3,
   );
   assert.ok(
     recovery.query.includes(
@@ -1102,6 +1107,11 @@ test("an applied 607 ledger writes only the publication recovery receipt guard",
   assert.ok(
     recovery.query.includes(
       "'20260919145700','csf_storage_deletion_claim_boundary'",
+    ),
+  );
+  assert.ok(
+    recovery.query.includes(
+      "'20260919155040','csf_two_phase_storage_teardown'",
     ),
   );
 });

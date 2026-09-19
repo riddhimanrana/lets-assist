@@ -579,6 +579,10 @@ export const approvedMigrations = [
     "20260919145700_csf_storage_deletion_claim_boundary",
     "da1a7e86afa172e85af4900d0f9efef75eebc4da7f58426c2e73c6031fc97b47",
   ],
+  [
+    "20260919155040_csf_two_phase_storage_teardown",
+    "9d1b012ed4bf07ac046b683712d95824b835560c6ba012ce4c13bfc3bc14e2d8",
+  ],
 ];
 
 const literal = (value) => `'${value.replaceAll("'", "''")}'`;
