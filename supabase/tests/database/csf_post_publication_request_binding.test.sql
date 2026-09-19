@@ -2,7 +2,7 @@
 BEGIN;
 
 CREATE EXTENSION IF NOT EXISTS pgtap WITH SCHEMA extensions;
-SELECT extensions.plan(21);
+SELECT extensions.plan(24);
 
 SELECT extensions.has_function(
   'plugin_data',
@@ -327,6 +327,52 @@ SELECT extensions.is(
      AND request_id = 'ae300000-0000-4000-8000-000000000003'),
   'pending',
   'a mutation receipt mismatch leaves the request pending'
+);
+
+-- Account deletion detaches the live actor without erasing or transferring
+-- the durable request coordinate.
+INSERT INTO auth.users (id, email)
+VALUES ('ae000000-0000-4000-8000-000000000003', 'deleted-publication-officer@local.test');
+
+INSERT INTO plugin_data.csf_post_publication_requests (
+  organization_id, request_id, actor_user_id, attachment_count,
+  attachment_total_bytes, attachment_status, email_requested, email_status
+) VALUES (
+  'ae100000-0000-4000-8000-000000000001',
+  'ae300000-0000-4000-8000-000000000004',
+  'ae000000-0000-4000-8000-000000000003',
+  0, 0, 'pending', false, 'not_requested'
+);
+
+DELETE FROM auth.users
+WHERE id = 'ae000000-0000-4000-8000-000000000003';
+
+SELECT extensions.is(
+  (SELECT count(*)::integer
+   FROM plugin_data.csf_post_publication_requests
+   WHERE organization_id = 'ae100000-0000-4000-8000-000000000001'
+     AND request_id = 'ae300000-0000-4000-8000-000000000004'),
+  1,
+  'account deletion retains the publication recovery request'
+);
+SELECT extensions.is(
+  (SELECT actor_user_id
+   FROM plugin_data.csf_post_publication_requests
+   WHERE organization_id = 'ae100000-0000-4000-8000-000000000001'
+     AND request_id = 'ae300000-0000-4000-8000-000000000004'),
+  NULL::uuid,
+  'account deletion detaches the publication request actor'
+);
+SELECT extensions.throws_ok(
+  $$ SELECT plugin_data.csf_begin_post_publication_request(
+    'ae100000-0000-4000-8000-000000000001',
+    'ae000000-0000-4000-8000-000000000001',
+    'ae300000-0000-4000-8000-000000000004',
+    0, 0, false
+  ) $$,
+  '55000',
+  'That post request identifier is already bound to a different publication.',
+  'another officer cannot adopt a detached publication request'
 );
 
 SELECT * FROM extensions.finish();

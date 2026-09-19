@@ -8,45 +8,44 @@ import { expectedVersions } from "./app-release-checks.mjs";
 import { approvedMigrations } from "./forward-migration-release.mjs";
 
 const cwd = fileURLToPath(new URL("../../", import.meta.url));
-const ledger = expectedVersions(cwd).slice(0, 610);
+const ledger = expectedVersions(cwd);
 const source = readFileSync(
   new URL("./verify-csf-target-schema.sql", import.meta.url),
   "utf8",
 );
-const migrationName = "20260919155040_csf_two_phase_storage_teardown";
+const migrationName = "20260919161824_csf_post_publication_actor_detachment";
 const migration = readFileSync(
   new URL(`../../supabase/migrations/${migrationName}.sql`, import.meta.url),
   "utf8",
 );
 
-test("611 requires organization-scoped claims and two-phase teardown", () => {
-  assert.equal(ledger.length, 610);
-  assert.equal(ledger.at(-1), "20260919155040");
-  assert.deepEqual(
-    approvedMigrations.find(([name]) => name === migrationName),
-    [migrationName, createHash("sha256").update(migration).digest("hex")],
-  );
+test("612 detaches a deleted publication request actor", () => {
+  assert.equal(ledger.length, 612);
+  assert.equal(ledger.at(-1), "20260919161824");
+  assert.deepEqual(approvedMigrations.at(-1), [
+    migrationName,
+    createHash("sha256").update(migration).digest("hex"),
+  ]);
 
-  const previous = acceptedCatalogQuery(source, ledger.slice(0, 609));
+  const releaseOnly = acceptedCatalogQuery(source, ledger.slice(0, 611));
   const current = acceptedCatalogQuery(source, ledger);
   assert.doesNotMatch(
-    previous,
-    /csf_claim_organization_storage_deletion_queue/u,
+    releaseOnly,
+    /csf_post_publication_requests_actor_user_id_fkey/u,
   );
-  assert.match(current, /csf_claim_organization_storage_deletion_queue/u);
-  assert.match(current, /cleanup_required/u);
-  assert.match(current, /claimedQueueRows/u);
-  assert.match(current, /csf_storage_deletion_queue_org_unclaimed_idx/u);
+  assert.match(current, /csf_post_publication_requests_actor_user_id_fkey/u);
+  assert.match(current, /actor_constraint\.confdeltype = 'n'/u);
+  assert.match(current, /NOT actor_column\.attnotnull/u);
 });
 
-test("611 refuses an unreviewed ledger or changed migration bytes", () => {
+test("612 refuses an unreviewed ledger or changed migration bytes", () => {
   assert.throws(
     () =>
       acceptedCatalogQuery(source, [...ledger.slice(0, -1), "20990101000000"]),
     /explicit release review/u,
   );
   assert.equal(
-    approvedMigrations.find(([name]) => name === migrationName)?.[1],
+    approvedMigrations.at(-1)[1],
     createHash("sha256").update(migration).digest("hex"),
   );
 });

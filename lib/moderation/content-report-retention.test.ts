@@ -210,4 +210,21 @@ describe("content report retention", () => {
     expect(deleted).toContain("notifications");
     expect(deleted).toContain("profiles");
   });
+
+  test("account deletion leaves publication recovery requests to database detachment", async () => {
+    const { client, operations } = recordingClient();
+
+    await deleteUserWithCleanup(client, USER_ID, {
+      deleteProjects: false,
+      deleteOrganizations: false,
+    });
+
+    expect(
+      operations.some(
+        (operation) =>
+          operation.relation === "csf_post_publication_requests" &&
+          (operation.verb === "delete" || operation.verb === "update"),
+      ),
+    ).toBe(false);
+  });
 });
