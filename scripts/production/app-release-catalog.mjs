@@ -15,6 +15,9 @@ import { csf595Catalog } from "./csf-595-catalog.mjs";
 import { csf596Catalog } from "./csf-596-catalog.mjs";
 import { csf597Catalog } from "./csf-597-catalog.mjs";
 import { csf598Catalog } from "./csf-598-catalog.mjs";
+import { csf599Catalog } from "./csf-599-catalog.mjs";
+import { csf600Catalog } from "./csf-600-catalog.mjs";
+import { csf602Catalog } from "./csf-602-catalog.mjs";
 import {
   historyIdentityLedgers,
   historyIdentityCatalog,
@@ -273,6 +276,24 @@ export function acceptedCatalogQuery(source, versions) {
   const ledgerHash = createHash("sha256")
     .update(versions.join("\n"))
     .digest("hex");
+  if (
+    versions.length === 601 &&
+    ledgerHash ===
+      "d7fee7af89a3e7a983b49ad328dc3a52cae5218eaca6dab1e9faaabfa4a1969d"
+  )
+    return csf602Catalog(acceptedCatalogQuery(source, versions.slice(0, 600)));
+  if (
+    versions.length === 600 &&
+    ledgerHash ===
+      "71e18e1e4e2971fad2b04a114376040b19c688579726da985d566db06975b4ad"
+  )
+    return csf600Catalog(acceptedCatalogQuery(source, versions.slice(0, 599)));
+  if (
+    versions.length === 599 &&
+    ledgerHash ===
+      "5889110aa4f99d3cea5ade80054728aa3bdb5e8b8ab0c99101e2189e2e5e1b6f"
+  )
+    return csf599Catalog(acceptedCatalogQuery(source, versions.slice(0, 598)));
   if (
     versions.length === 598 &&
     ledgerHash ===

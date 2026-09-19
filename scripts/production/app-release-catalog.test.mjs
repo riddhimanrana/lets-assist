@@ -21,8 +21,8 @@ test("the 540 officer identity authority release moves exactly three fingerprint
   const fullLedger = expectedVersions(
     fileURLToPath(new URL("../../", import.meta.url)),
   );
-  assert.equal(fullLedger.length, 598);
-  assert.equal(fullLedger.at(-1), "20260918180000");
+  assert.equal(fullLedger.length, 601);
+  assert.equal(fullLedger.at(-1), "20260919010000");
   const current = acceptedCatalogQuery(source, fullLedger.slice(0, 540));
   const preceding = acceptedCatalogQuery(source, fullLedger.slice(0, 539));
   // The migration replaces three reviewed definitions in place. Nothing else

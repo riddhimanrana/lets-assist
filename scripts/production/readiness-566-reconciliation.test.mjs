@@ -66,6 +66,9 @@ const EXTENSIONS = [
   "20260918160000_csf_retired_class_post_and_actor_fence",
   "20260918170000_csf_retired_class_terminal_updates",
   "20260918180000_csf_user_entered_sheet_fill_preview",
+  "20260918183000_csf_scoped_application_import_preview",
+  "20260918235900_csf_scoped_import_actor_detachment",
+  "20260919010000_csf_scoped_request_id_batch_fence",
 ];
 
 test("the release is the 557 decisions baseline plus the reviewed integrated extensions", () => {

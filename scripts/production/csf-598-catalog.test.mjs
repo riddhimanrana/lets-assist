@@ -11,9 +11,11 @@ const source = readFileSync(
   new URL("./verify-csf-target-schema.sql", import.meta.url),
   "utf8",
 );
-const ledger = expectedVersions(cwd);
+const fullLedger = expectedVersions(cwd);
+const ledger = fullLedger.slice(0, 598);
 
 test("598 pins the reviewed preview append function and migration", () => {
+  assert.equal(fullLedger.length, 601);
   assert.equal(ledger.length, 598);
   assert.equal(ledger.at(-1), "20260918180000");
   assert.ok(

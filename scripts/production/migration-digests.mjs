@@ -1206,4 +1206,10 @@ export const migrationDigests = {
     "219bceba59e4e0f0e1bb3271ba2c332959d246818c5ae273b629ccc6a5aa3dff",
   "20260918180000_csf_user_entered_sheet_fill_preview.sql":
     "41094144ff1f49563f6a86de1e54ac26862f7396c4db6e3ff5ba5f8aee62ef8d",
+  "20260918183000_csf_scoped_application_import_preview.sql":
+    "b3006086d470c64b87f0a3e6dfcf68380b0f407ff0a64387b1ad2342b66a1370",
+  "20260918235900_csf_scoped_import_actor_detachment.sql":
+    "37de17b04a16389ea95d4d6de3d81b1d390caea1e2b18d87baaec88ab3b596de",
+  "20260919010000_csf_scoped_request_id_batch_fence.sql":
+    "fde365726f345424b30ee090aad91b77a636fff1e3cfccf5a656fd14b2f74ab7",
 };
