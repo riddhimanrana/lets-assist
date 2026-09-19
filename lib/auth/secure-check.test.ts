@@ -4,11 +4,44 @@ import {
   SECURE_CHECK_TIMEOUT_MS,
   SECURE_CHECK_UNAVAILABLE_COPY,
   hasSecureCheckTimedOut,
+  isSecureCheckBypassed,
   isSecureCheckBlockingSubmit,
   resolveSecureCheckPhase,
   secureCheckWatchdogDelayMs,
   shouldReinjectTurnstileScript,
 } from "./secure-check";
+
+describe("isSecureCheckBypassed", () => {
+  it("uses the local fallback when no Turnstile site key is configured", () => {
+    expect(
+      isSecureCheckBypassed({
+        nodeEnv: "development",
+        bypass: undefined,
+        siteKey: undefined,
+      }),
+    ).toBe(true);
+  });
+
+  it("never enables the bypass in production", () => {
+    expect(
+      isSecureCheckBypassed({
+        nodeEnv: "production",
+        bypass: "true",
+        siteKey: undefined,
+      }),
+    ).toBe(false);
+  });
+
+  it("requires the configured widget outside an explicit local bypass", () => {
+    expect(
+      isSecureCheckBypassed({
+        nodeEnv: "development",
+        bypass: undefined,
+        siteKey: "configured-site-key",
+      }),
+    ).toBe(false);
+  });
+});
 
 describe("resolveSecureCheckPhase", () => {
   it("waits while the widget is still initializing", () => {

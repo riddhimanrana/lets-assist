@@ -95,6 +95,7 @@ function signupForm(email = "person@local.test") {
 }
 
 beforeEach(() => {
+  Object.assign(process.env, { NODE_ENV: "test" });
   requestHost = "lets-assist.com";
   redirects.length = 0;
   blacklisted = false;
@@ -116,10 +117,17 @@ beforeEach(() => {
   delete process.env.VERCEL;
   delete process.env.VERCEL_ENV;
   delete process.env.E2E_TEST_MODE;
+  delete process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY;
+  delete process.env.TURNSTILE_SECRET_KEY;
+  delete process.env.TURNSTILE_BYPASS;
 });
 
 describe("signup enumeration resistance", () => {
   test("a missing captcha token never reaches Supabase Auth", async () => {
+    Object.assign(process.env, {
+      NODE_ENV: "production",
+      TURNSTILE_BYPASS: "true",
+    });
     const form = signupForm();
     form.delete("turnstileToken");
 
@@ -130,6 +138,20 @@ describe("signup enumeration resistance", () => {
     });
     expect(createClientCalls).toBe(0);
     expect(signUpCalls).toBe(0);
+  });
+
+  test("shared-local signup proceeds when Turnstile is not configured", async () => {
+    Object.assign(process.env, { NODE_ENV: "development" });
+    const form = signupForm();
+    form.delete("turnstileToken");
+
+    expect(await signup(form)).toEqual({
+      success: true,
+      email: "person@local.test",
+      message:
+        "If this address can be registered, a confirmation email is on its way. Otherwise, sign in or request another verification email.",
+    });
+    expect(signUpCalls).toBe(1);
   });
 
   test("blacklisted, new, and existing addresses receive the same public success", async () => {
