@@ -27,11 +27,22 @@ export function isSecureCheckBypassed(input: {
   nodeEnv: string | undefined;
   bypass: string | undefined;
   siteKey: string | undefined;
+  siteUrl?: string | undefined;
 }): boolean {
-  return (
-    input.nodeEnv !== "production" &&
-    (input.bypass === "true" || !input.siteKey)
-  );
+  if (input.nodeEnv !== "production") {
+    return input.bypass === "true" || !input.siteKey;
+  }
+
+  if (input.bypass !== "true" || !input.siteUrl) {
+    return false;
+  }
+
+  try {
+    const hostname = new URL(input.siteUrl).hostname;
+    return hostname === "localhost" || hostname === "127.0.0.1";
+  } catch {
+    return false;
+  }
 }
 
 export interface SecureCheckPhaseInput {

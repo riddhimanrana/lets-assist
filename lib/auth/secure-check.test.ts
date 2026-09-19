@@ -22,12 +22,43 @@ describe("isSecureCheckBypassed", () => {
     ).toBe(true);
   });
 
-  it("never enables the bypass in production", () => {
+  it("keeps the bypass disabled on a deployed production origin", () => {
     expect(
       isSecureCheckBypassed({
         nodeEnv: "production",
         bypass: "true",
         siteKey: undefined,
+        siteUrl: "https://lets-assist.com",
+      }),
+    ).toBe(false);
+  });
+
+  it("allows the explicit bypass for a production build served on loopback", () => {
+    expect(
+      isSecureCheckBypassed({
+        nodeEnv: "production",
+        bypass: "true",
+        siteKey: undefined,
+        siteUrl: "http://localhost:3000",
+      }),
+    ).toBe(true);
+    expect(
+      isSecureCheckBypassed({
+        nodeEnv: "production",
+        bypass: "true",
+        siteKey: undefined,
+        siteUrl: "http://127.0.0.1:3000",
+      }),
+    ).toBe(true);
+  });
+
+  it("fails closed for an invalid production origin", () => {
+    expect(
+      isSecureCheckBypassed({
+        nodeEnv: "production",
+        bypass: "true",
+        siteKey: undefined,
+        siteUrl: "not-a-url",
       }),
     ).toBe(false);
   });
