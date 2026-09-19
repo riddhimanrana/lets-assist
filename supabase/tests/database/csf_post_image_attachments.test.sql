@@ -60,10 +60,10 @@ VALUES
 
 INSERT INTO plugin_data.csf_announcements (
   id, organization_id, title, body, audience, status, pinned,
-  email_requested, created_by, updated_by
+  email_requested, published_at, created_by, updated_by
 ) VALUES
-  ('ab400000-0000-4000-8000-000000000001', 'ab100000-0000-4000-8000-000000000001', 'Flyer', 'Details', 'members', 'published', false, false, 'ab000000-0000-4000-8000-000000000001', 'ab000000-0000-4000-8000-000000000001'),
-  ('ab400000-0000-4000-8000-000000000002', 'ab100000-0000-4000-8000-000000000002', 'Other', 'Private', 'members', 'published', false, false, 'ab000000-0000-4000-8000-000000000003', 'ab000000-0000-4000-8000-000000000003');
+  ('ab400000-0000-4000-8000-000000000001', 'ab100000-0000-4000-8000-000000000001', 'Flyer', 'Details', 'members', 'published', false, false, now(), 'ab000000-0000-4000-8000-000000000001', 'ab000000-0000-4000-8000-000000000001'),
+  ('ab400000-0000-4000-8000-000000000002', 'ab100000-0000-4000-8000-000000000002', 'Other', 'Private', 'members', 'published', false, false, now(), 'ab000000-0000-4000-8000-000000000003', 'ab000000-0000-4000-8000-000000000003');
 
 SELECT plugin_data.csf_begin_post_publication_request(
   'ab100000-0000-4000-8000-000000000001',
