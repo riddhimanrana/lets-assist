@@ -75,7 +75,7 @@ const EXTENSIONS = [
 ];
 
 test("the release is the 557 decisions baseline plus the reviewed integrated extensions", () => {
-  assert.equal(ledger.length, 605);
+  assert.equal(ledger.length, 606);
   assert.deepEqual(
     ledger.slice(557, 604),
     EXTENSIONS.map((name) => name.slice(0, 14)),
@@ -88,6 +88,13 @@ test("the release is the 557 decisions baseline plus the reviewed integrated ext
       `${name} is not in the approved migration tail`,
     );
   }
+  assert.ok(
+    approvedMigrations.some(
+      ([entry]) =>
+        entry === "20260919114409_serialize_csf_atomic_post_attachment_update",
+    ),
+    "the post attachment lock-order migration is not in the approved migration tail",
+  );
 });
 
 test("each fingerprint the extensions move is measured, or named as unmeasured", () => {

@@ -2,7 +2,7 @@
 BEGIN;
 
 CREATE EXTENSION IF NOT EXISTS pgtap WITH SCHEMA extensions;
-SELECT extensions.plan(19);
+SELECT extensions.plan(24);
 
 SELECT extensions.has_function(
   'plugin_data',
@@ -33,6 +33,58 @@ SELECT extensions.ok(
     'EXECUTE'
   ),
   'anonymous users cannot call the atomic update boundary'
+);
+SELECT extensions.is(
+  (
+    SELECT pg_catalog.pg_get_userbyid(proc.proowner)
+    FROM pg_catalog.pg_proc AS proc
+    WHERE proc.oid =
+      'plugin_data.csf_update_post_with_attachments(uuid,uuid,jsonb,jsonb,uuid,uuid)'::regprocedure
+  ),
+  'postgres',
+  'the atomic update boundary retains its postgres owner'
+);
+SELECT extensions.is(
+  (
+    SELECT proc.proconfig
+    FROM pg_catalog.pg_proc AS proc
+    WHERE proc.oid =
+      'plugin_data.csf_update_post_with_attachments(uuid,uuid,jsonb,jsonb,uuid,uuid)'::regprocedure
+  ),
+  ARRAY['search_path=""']::text[],
+  'the atomic update boundary retains its empty search path'
+);
+SELECT extensions.ok(
+  (
+    SELECT proc.prosecdef
+    FROM pg_catalog.pg_proc AS proc
+    WHERE proc.oid =
+      'plugin_data.csf_update_post_with_attachments(uuid,uuid,jsonb,jsonb,uuid,uuid)'::regprocedure
+  ),
+  'the atomic update boundary remains security definer'
+);
+SELECT extensions.ok(
+  pg_catalog.strpos(
+    pg_catalog.pg_get_functiondef(
+      'plugin_data.csf_update_post_with_attachments(uuid,uuid,jsonb,jsonb,uuid,uuid)'::regprocedure
+    ),
+    'PERFORM pg_catalog.pg_advisory_xact_lock('
+  ) > 0,
+  'the atomic update boundary takes the organization advisory transaction lock'
+);
+SELECT extensions.ok(
+  pg_catalog.strpos(
+    pg_catalog.pg_get_functiondef(
+      'plugin_data.csf_update_post_with_attachments(uuid,uuid,jsonb,jsonb,uuid,uuid)'::regprocedure
+    ),
+    'PERFORM pg_catalog.pg_advisory_xact_lock('
+  ) < pg_catalog.strpos(
+    pg_catalog.pg_get_functiondef(
+      'plugin_data.csf_update_post_with_attachments(uuid,uuid,jsonb,jsonb,uuid,uuid)'::regprocedure
+    ),
+    'v_mutation := plugin_data.csf_mutate_post('
+  ),
+  'the organization lock is acquired before the post mutation can lock the row'
 );
 
 INSERT INTO auth.users (

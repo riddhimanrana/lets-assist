@@ -153,6 +153,7 @@ const APPROVED_TAIL = [
   "20260919091727",
   "20260919095826",
   "20260919103635",
+  "20260919114409",
 ];
 
 const cwd = resolve(import.meta.dirname, "../..");
@@ -951,20 +952,23 @@ test("an applied 536 ledger writes the signed 1.2.51 publication and the typed-n
   );
 });
 
-test("an applied 604 ledger writes only the signed 1.2.53 publication", () => {
+test("an applied 604 ledger writes the signed 1.2.53 publication and lock-order repair", () => {
   const publication = prepareMigration(
     cwd,
     readFileSync,
     prepared.versions.slice(0, 604),
   );
-  assert.deepEqual(publication.versions.slice(604), ["20260919103635"]);
+  assert.deepEqual(publication.versions.slice(604), [
+    "20260919103635",
+    "20260919114409",
+  ]);
   assert.equal(
     (
       publication.query.match(
         /INSERT INTO supabase_migrations.schema_migrations/gu,
       ) ?? []
     ).length,
-    1,
+    2,
   );
   assert.ok(
     publication.query.includes("'20260919103635','publish_dvhs_csf_1_2_53'"),
@@ -973,8 +977,39 @@ test("an applied 604 ledger writes only the signed 1.2.53 publication", () => {
     publication.query.includes("11d3f531b4b74ef9dd0a3a332604a4c80b835448"),
   );
   assert.ok(publication.query.includes("AND latest_version = '1.2.51'"));
+  assert.ok(
+    publication.query.includes(
+      "'20260919114409','serialize_csf_atomic_post_attachment_update'",
+    ),
+  );
   assert.doesNotMatch(
     publication.query,
+    /(?:INSERT INTO|UPDATE|DELETE FROM) public\.organization_plugin_installs/u,
+  );
+});
+
+test("an applied 605 ledger writes only the lock-order repair", () => {
+  const repair = prepareMigration(
+    cwd,
+    readFileSync,
+    prepared.versions.slice(0, 605),
+  );
+  assert.deepEqual(repair.versions.slice(605), ["20260919114409"]);
+  assert.equal(
+    (
+      repair.query.match(
+        /INSERT INTO supabase_migrations.schema_migrations/gu,
+      ) ?? []
+    ).length,
+    1,
+  );
+  assert.ok(
+    repair.query.includes(
+      "'20260919114409','serialize_csf_atomic_post_attachment_update'",
+    ),
+  );
+  assert.doesNotMatch(
+    repair.query,
     /(?:INSERT INTO|UPDATE|DELETE FROM) public\.organization_plugin_installs/u,
   );
 });
