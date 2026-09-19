@@ -70,6 +70,7 @@ export const TurnstileComponent = forwardRef<
     nodeEnv: process.env.NODE_ENV,
     bypass: process.env.NEXT_PUBLIC_TURNSTILE_BYPASS,
     siteKey: process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY,
+    siteUrl: process.env.NEXT_PUBLIC_SITE_URL,
   });
 
   useImperativeHandle(ref, () => ({
