@@ -23,7 +23,7 @@ const migration = readFileSync(
 test("616 pins the reviewed application-source connection evidence", () => {
   assert.equal(ledger.length, 616);
   assert.equal(ledger.at(-1), "20260919200000");
-  assert.deepEqual(approvedMigrations.at(-2), [
+  assert.deepEqual(approvedMigrations.at(-3), [
     migrationName,
     createHash("sha256").update(migration).digest("hex"),
   ]);

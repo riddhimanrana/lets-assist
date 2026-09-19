@@ -33,6 +33,7 @@ import { csf614Catalog } from "./csf-614-catalog.mjs";
 import { csf615Catalog } from "./csf-615-catalog.mjs";
 import { csf616Catalog } from "./csf-616-catalog.mjs";
 import { csf617Catalog } from "./csf-617-catalog.mjs";
+import { csf618Catalog } from "./csf-618-catalog.mjs";
 import {
   historyIdentityLedgers,
   historyIdentityCatalog,
@@ -291,6 +292,12 @@ export function acceptedCatalogQuery(source, versions) {
   const ledgerHash = createHash("sha256")
     .update(versions.join("\n"))
     .digest("hex");
+  if (
+    versions.length === 618 &&
+    ledgerHash ===
+      "b62315f619e5275d7fe08840e9010112e534e0cd4eba493ba498b0b8b212a16c"
+  )
+    return csf618Catalog(acceptedCatalogQuery(source, versions.slice(0, 617)));
   if (
     versions.length === 617 &&
     ledgerHash ===
