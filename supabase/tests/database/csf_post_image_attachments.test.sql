@@ -71,6 +71,14 @@ SELECT plugin_data.csf_begin_post_publication_request(
   'ab300000-0000-4000-8000-000000000006',
   0, 0, true
 );
+SELECT plugin_data.csf_mutate_post(
+  'ab100000-0000-4000-8000-000000000001',
+  'update',
+  'ab400000-0000-4000-8000-000000000001',
+  '{"title":"Flyer","body":"Details","audience":"members","audienceCohortId":null,"pinned":false,"publish":true,"scheduledFor":null,"sendEmail":false}'::jsonb,
+  'ab000000-0000-4000-8000-000000000001',
+  'ab300000-0000-4000-8000-000000000006'
+);
 SELECT plugin_data.csf_begin_post_publication_request(
   'ab100000-0000-4000-8000-000000000001',
   'ab000000-0000-4000-8000-000000000001',
