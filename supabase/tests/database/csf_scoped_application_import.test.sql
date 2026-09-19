@@ -150,6 +150,23 @@ SELECT extensions.ok((
   WHERE oid = 'plugin_data.csf_queue_scoped_application_import(uuid,uuid,uuid,uuid,timestamptz,uuid,text)'::regprocedure
 ), 'scoped derivation takes the shared identity lock before the import coordinate and checks the active profile before copying the preview');
 SELECT extensions.ok((
+  SELECT position('csf_import_approval_batch:' IN prosrc) > 0
+    AND position('csf_staff_access_lock_key' IN prosrc)
+      < position('csf_assert_import_actor_for_job' IN prosrc)
+    AND position('csf_assert_import_actor_for_job' IN prosrc)
+      < position('csf_import_approval_batch:' IN prosrc)
+    AND position('csf_import_approval_batch:' IN prosrc)
+      < position('csf_lock_identity_mutation' IN prosrc)
+    AND position('csf_lock_identity_mutation' IN prosrc)
+      < position('csf_lock_import_commit_coordinate' IN prosrc)
+    AND position('csf_import_approval_batch:' IN prosrc)
+      < position('INSERT INTO plugin_data.csf_sheet_import_jobs' IN prosrc)
+    AND position('This request ID already belongs to another import approval.' IN prosrc)
+      < position('INSERT INTO plugin_data.csf_sheet_import_jobs' IN prosrc)
+  FROM pg_catalog.pg_proc
+  WHERE oid = 'plugin_data.csf_queue_scoped_application_import(uuid,uuid,uuid,uuid,timestamptz,uuid,text)'::regprocedure
+), 'the scoped request follows staff, actor, request, identity, and import lock order before deriving records');
+SELECT extensions.ok((
   SELECT position('AND import_row.job_id = v_job.id
   FOR UPDATE OF import_row;' IN prosrc) > 0
   FROM pg_catalog.pg_proc
@@ -223,6 +240,43 @@ UPDATE plugin_data.csf_profiles
 SET record_status = 'active', merged_into_profile_id = NULL,
     merged_at = NULL, merged_by = NULL, merge_reason = NULL
 WHERE id = 'f3850000-0000-4000-8000-000000000001';
+INSERT INTO plugin_data.csf_import_approval_batches (
+  id, organization_id, actor_user_id, request_id, status,
+  requested_count, queued_count
+) VALUES (
+  'f3890000-0000-4000-8000-000000000011',
+  'f3820000-0000-4000-8000-000000000001',
+  'f3810000-0000-4000-8000-000000000001',
+  'f3890000-0000-4000-8000-000000000010',
+  'queued', 1, 1
+);
+INSERT INTO plugin_data.csf_import_approval_batch_items (
+  id, organization_id, batch_id, preview_job_id, state
+) VALUES (
+  'f3890000-0000-4000-8000-000000000012',
+  'f3820000-0000-4000-8000-000000000001',
+  'f3890000-0000-4000-8000-000000000011',
+  'f3870000-0000-4000-8000-000000000001',
+  'queued'
+);
+SELECT extensions.throws_ok($sql$SELECT pg_temp.queue_scoped_fixture(
+  'f3820000-0000-4000-8000-000000000001', 'f3880000-0000-4000-8000-000000000001',
+  'f3810000-0000-4000-8000-000000000001', 'f3890000-0000-4000-8000-000000000010',
+  'This request belongs to an ordinary batch.')$sql$, '22023',
+  'This request ID already belongs to another import approval.',
+  'a one-item ordinary approval batch cannot be replayed as a scoped import');
+SELECT extensions.is((SELECT import_status FROM plugin_data.csf_sheet_import_rows
+  WHERE id = 'f3880000-0000-4000-8000-000000000001'), 'pending',
+  'a conflicting batch request does not supersede the reviewed parent');
+SELECT extensions.is((SELECT count(*)::integer FROM plugin_data.csf_sheet_import_jobs
+  WHERE organization_id = 'f3820000-0000-4000-8000-000000000001'), 1,
+  'a conflicting batch request creates no derived preview');
+SELECT extensions.is((SELECT count(*)::integer FROM plugin_data.csf_scoped_application_imports), 0,
+  'a conflicting batch request creates no scoped receipt');
+DELETE FROM plugin_data.csf_import_approval_batch_items
+WHERE id = 'f3890000-0000-4000-8000-000000000012';
+DELETE FROM plugin_data.csf_import_approval_batches
+WHERE id = 'f3890000-0000-4000-8000-000000000011';
 CREATE TEMP TABLE scoped_result (receipt jsonb);
 INSERT INTO scoped_result SELECT pg_temp.queue_scoped_fixture(
   'f3820000-0000-4000-8000-000000000001', 'f3880000-0000-4000-8000-000000000001',
