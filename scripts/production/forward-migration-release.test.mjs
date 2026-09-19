@@ -154,6 +154,7 @@ const APPROVED_TAIL = [
   "20260919095826",
   "20260919103635",
   "20260919114409",
+  "20260919133902",
 ];
 
 const cwd = resolve(import.meta.dirname, "../..");
@@ -952,7 +953,7 @@ test("an applied 536 ledger writes the signed 1.2.51 publication and the typed-n
   );
 });
 
-test("an applied 604 ledger writes the signed 1.2.53 publication and lock-order repair", () => {
+test("an applied 604 ledger writes the signed publication and both post repairs", () => {
   const publication = prepareMigration(
     cwd,
     readFileSync,
@@ -961,6 +962,7 @@ test("an applied 604 ledger writes the signed 1.2.53 publication and lock-order 
   assert.deepEqual(publication.versions.slice(604), [
     "20260919103635",
     "20260919114409",
+    "20260919133902",
   ]);
   assert.equal(
     (
@@ -968,7 +970,7 @@ test("an applied 604 ledger writes the signed 1.2.53 publication and lock-order 
         /INSERT INTO supabase_migrations.schema_migrations/gu,
       ) ?? []
     ).length,
-    2,
+    3,
   );
   assert.ok(
     publication.query.includes("'20260919103635','publish_dvhs_csf_1_2_53'"),
@@ -982,34 +984,69 @@ test("an applied 604 ledger writes the signed 1.2.53 publication and lock-order 
       "'20260919114409','serialize_csf_atomic_post_attachment_update'",
     ),
   );
+  assert.ok(
+    publication.query.includes(
+      "'20260919133902','bind_csf_post_publication_requests'",
+    ),
+  );
   assert.doesNotMatch(
     publication.query,
     /(?:INSERT INTO|UPDATE|DELETE FROM) public\.organization_plugin_installs/u,
   );
 });
 
-test("an applied 605 ledger writes only the lock-order repair", () => {
+test("an applied 605 ledger writes both post repairs", () => {
   const repair = prepareMigration(
     cwd,
     readFileSync,
     prepared.versions.slice(0, 605),
   );
-  assert.deepEqual(repair.versions.slice(605), ["20260919114409"]);
+  assert.deepEqual(repair.versions.slice(605), [
+    "20260919114409",
+    "20260919133902",
+  ]);
   assert.equal(
     (
       repair.query.match(
         /INSERT INTO supabase_migrations.schema_migrations/gu,
       ) ?? []
     ).length,
-    1,
+    2,
   );
   assert.ok(
     repair.query.includes(
       "'20260919114409','serialize_csf_atomic_post_attachment_update'",
     ),
   );
+  assert.ok(
+    repair.query.includes(
+      "'20260919133902','bind_csf_post_publication_requests'",
+    ),
+  );
   assert.doesNotMatch(
     repair.query,
     /(?:INSERT INTO|UPDATE|DELETE FROM) public\.organization_plugin_installs/u,
+  );
+});
+
+test("an applied 606 ledger writes only the publication request binding repair", () => {
+  const binding = prepareMigration(
+    cwd,
+    readFileSync,
+    prepared.versions.slice(0, 606),
+  );
+  assert.deepEqual(binding.versions.slice(606), ["20260919133902"]);
+  assert.equal(
+    (
+      binding.query.match(
+        /INSERT INTO supabase_migrations.schema_migrations/gu,
+      ) ?? []
+    ).length,
+    1,
+  );
+  assert.ok(
+    binding.query.includes(
+      "'20260919133902','bind_csf_post_publication_requests'",
+    ),
   );
 });

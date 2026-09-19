@@ -133,6 +133,13 @@ INSERT INTO plugin_data.csf_announcements (
   'ac000000-0000-4000-8000-000000000001'
 );
 
+SELECT plugin_data.csf_begin_post_publication_request(
+  'ac100000-0000-4000-8000-000000000001',
+  'ac000000-0000-4000-8000-000000000001',
+  'ac300000-0000-4000-8000-000000000001',
+  1, 1024, false
+);
+
 SELECT plugin_data.csf_replace_post_attachments(
   'ac100000-0000-4000-8000-000000000001',
   'ac400000-0000-4000-8000-000000000001',

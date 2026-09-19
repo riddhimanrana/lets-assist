@@ -71,6 +71,30 @@ SELECT plugin_data.csf_begin_post_publication_request(
   'ab300000-0000-4000-8000-000000000006',
   0, 0, true
 );
+SELECT plugin_data.csf_begin_post_publication_request(
+  'ab100000-0000-4000-8000-000000000001',
+  'ab000000-0000-4000-8000-000000000001',
+  'ab300000-0000-4000-8000-000000000002',
+  2, 3072, false
+);
+SELECT plugin_data.csf_begin_post_publication_request(
+  'ab100000-0000-4000-8000-000000000001',
+  'ab000000-0000-4000-8000-000000000001',
+  'ab300000-0000-4000-8000-000000000003',
+  1, 1024, false
+);
+SELECT plugin_data.csf_begin_post_publication_request(
+  'ab100000-0000-4000-8000-000000000001',
+  'ab000000-0000-4000-8000-000000000001',
+  'ab300000-0000-4000-8000-000000000004',
+  2, 2048, false
+);
+SELECT plugin_data.csf_begin_post_publication_request(
+  'ab100000-0000-4000-8000-000000000001',
+  'ab000000-0000-4000-8000-000000000001',
+  'ab300000-0000-4000-8000-000000000005',
+  4, 12582912, false
+);
 SELECT extensions.is(
   plugin_data.csf_resolve_post_publication_completion(
     'ab100000-0000-4000-8000-000000000001',
