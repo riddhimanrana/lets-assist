@@ -1,7 +1,16 @@
-// This append verifies the private post-image relation and the service-only
-// mutation boundary without changing an earlier catalog fingerprint.
+// This append verifies the private post-image relation and service-only
+// mutation boundary. Its request-receipt index also moves the reviewed
+// csf_admin_audit_events relation fingerprint.
 export function csf603Catalog(previous) {
-  return `SELECT CASE WHEN (${previous.trim().replace(/;$/u, "")}) = 1
+  const predecessor = previous
+    .trim()
+    .replace(/;$/u, "")
+    .replace(
+      "317cf813aa3f7dfdedaa8a21ac872343",
+      "fb4732ca4e5263b59a48b344b72c05a9",
+    );
+
+  return `SELECT CASE WHEN (${predecessor}) = 1
     AND EXISTS (
       SELECT 1
       FROM pg_catalog.pg_class c
