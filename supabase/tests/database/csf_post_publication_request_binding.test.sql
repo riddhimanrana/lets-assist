@@ -189,6 +189,15 @@ SET announcement_id = NULL
 WHERE organization_id = 'ae100000-0000-4000-8000-000000000001'
   AND request_id = 'ae300000-0000-4000-8000-000000000002';
 
+SELECT plugin_data.csf_prepare_announcement_attachment_restore(
+  'ae100000-0000-4000-8000-000000000001',
+  'ae000000-0000-4000-8000-000000000001',
+  'ae300000-0000-4000-8000-000000000002',
+  'ae400000-0000-4000-8000-000000000001', 'plugins',
+  'ae100000-0000-4000-8000-000000000001/dvhs-csf/post-images/ae400000-0000-4000-8000-000000000001/'
+    || repeat('c', 64) || '.png'
+);
+
 SELECT plugin_data.csf_replace_post_attachments(
   'ae100000-0000-4000-8000-000000000001',
   'ae400000-0000-4000-8000-000000000001',
