@@ -9,6 +9,7 @@ import { approvedMigrations } from "./forward-migration-release.mjs";
 
 const cwd = fileURLToPath(new URL("../../", import.meta.url));
 const ledger = expectedVersions(cwd);
+const catalogLedger = ledger.slice(0, 612);
 const source = readFileSync(
   new URL("./verify-csf-target-schema.sql", import.meta.url),
   "utf8",
@@ -20,15 +21,15 @@ const migration = readFileSync(
 );
 
 test("612 detaches a deleted publication request actor", () => {
-  assert.equal(ledger.length, 612);
-  assert.equal(ledger.at(-1), "20260919161824");
-  assert.deepEqual(approvedMigrations.at(-1), [
-    migrationName,
-    createHash("sha256").update(migration).digest("hex"),
-  ]);
+  assert.equal(catalogLedger.length, 612);
+  assert.equal(catalogLedger.at(-1), "20260919161824");
+  assert.deepEqual(
+    approvedMigrations.find(([name]) => name === migrationName),
+    [migrationName, createHash("sha256").update(migration).digest("hex")],
+  );
 
-  const releaseOnly = acceptedCatalogQuery(source, ledger.slice(0, 611));
-  const current = acceptedCatalogQuery(source, ledger);
+  const releaseOnly = acceptedCatalogQuery(source, catalogLedger.slice(0, 611));
+  const current = acceptedCatalogQuery(source, catalogLedger);
   assert.doesNotMatch(
     releaseOnly,
     /csf_post_publication_requests_actor_user_id_fkey/u,
@@ -41,11 +42,14 @@ test("612 detaches a deleted publication request actor", () => {
 test("612 refuses an unreviewed ledger or changed migration bytes", () => {
   assert.throws(
     () =>
-      acceptedCatalogQuery(source, [...ledger.slice(0, -1), "20990101000000"]),
+      acceptedCatalogQuery(source, [
+        ...catalogLedger.slice(0, -1),
+        "20990101000000",
+      ]),
     /explicit release review/u,
   );
   assert.equal(
-    approvedMigrations.at(-1)[1],
+    approvedMigrations.find(([name]) => name === migrationName)[1],
     createHash("sha256").update(migration).digest("hex"),
   );
 });

@@ -21,7 +21,7 @@ const migration = readFileSync(
 );
 
 test("602 fences scoped request IDs before deriving import records", () => {
-  assert.equal(fullLedger.length, 612);
+  assert.equal(fullLedger.length, 613);
   assert.equal(ledger.length, 601);
   assert.equal(ledger.at(-1), "20260919010000");
   assert.deepEqual(
