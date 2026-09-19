@@ -75,7 +75,8 @@ const EXTENSIONS = [
 ];
 
 test("the release is the 557 decisions baseline plus the reviewed integrated extensions", () => {
-  assert.equal(ledger.length, 614);
+  assert.equal(ledger.length, 616);
+  assert.equal(ledger.at(-1), "20260919200000");
   assert.deepEqual(
     ledger.slice(557, 604),
     EXTENSIONS.map((name) => name.slice(0, 14)),
@@ -94,6 +95,13 @@ test("the release is the 557 decisions baseline plus the reviewed integrated ext
         entry === "20260919114409_serialize_csf_atomic_post_attachment_update",
     ),
     "the post attachment lock-order migration is not in the approved migration tail",
+  );
+  assert.ok(
+    approvedMigrations.some(
+      ([entry]) =>
+        entry === "20260919190000_csf_attendance_window_exclusion_readiness",
+    ),
+    "the attendance cutoff readiness migration is not in the approved migration tail",
   );
 });
 

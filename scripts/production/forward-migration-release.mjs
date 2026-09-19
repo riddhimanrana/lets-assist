@@ -599,6 +599,14 @@ export const approvedMigrations = [
     "20260919172947_csf_restore_preparation_lease",
     "ff421332e5888f73d11ef01dd46ca1f2e674a9a3e41b99b41ca7b8068b365494",
   ],
+  [
+    "20260919190000_csf_attendance_window_exclusion_readiness",
+    "18d317bbda1d675a0d66471b96f199aafdbb8765cb69cad5a1b34b132435c34c",
+  ],
+  [
+    "20260919200000_csf_application_source_connection_evidence",
+    "05d3dd2a1fee8c1e7933f6188ab1cce4a164fdcd2175884cdac70da7bce93fca",
+  ],
 ];
 
 const literal = (value) => `'${value.replaceAll("'", "''")}'`;

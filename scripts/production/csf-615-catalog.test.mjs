@@ -9,40 +9,44 @@ import { approvedMigrations } from "./forward-migration-release.mjs";
 
 const cwd = fileURLToPath(new URL("../../", import.meta.url));
 const fullLedger = expectedVersions(cwd);
-const ledger = fullLedger.slice(0, 605);
+const ledger = fullLedger.slice(0, 615);
 const source = readFileSync(
   new URL("./verify-csf-target-schema.sql", import.meta.url),
   "utf8",
 );
-const migrationName = "20260919103635_publish_dvhs_csf_1_2_53";
+const migrationName =
+  "20260919190000_csf_attendance_window_exclusion_readiness";
 const migration = readFileSync(
   new URL(`../../supabase/migrations/${migrationName}.sql`, import.meta.url),
   "utf8",
 );
 
-test("606 pins the signed 1.2.53 catalog publication", () => {
+test("615 distinguishes deterministic attendance cutoff exclusions", () => {
   assert.equal(fullLedger.length, 616);
-  assert.equal(ledger.length, 605);
-  assert.equal(ledger.at(-1), "20260919103635");
-  assert.deepEqual(
-    approvedMigrations.find(([name]) => name === migrationName),
-    [migrationName, createHash("sha256").update(migration).digest("hex")],
-  );
+  assert.equal(ledger.length, 615);
+  assert.equal(ledger.at(-1), "20260919190000");
+  assert.deepEqual(approvedMigrations.at(-2), [
+    migrationName,
+    createHash("sha256").update(migration).digest("hex"),
+  ]);
 
-  const previous = acceptedCatalogQuery(source, ledger.slice(0, 604));
+  const previous = acceptedCatalogQuery(source, ledger.slice(0, 614));
   const current = acceptedCatalogQuery(source, ledger);
-  assert.equal(current, previous);
-  assert.match(current, /csf_update_post_with_attachments/u);
+  assert.doesNotMatch(previous, /attendance_window_excluded/u);
+  assert.match(current, /attendance_window_excluded/u);
+  assert.match(current, /attendanceWindowExcluded/u);
+  assert.match(current, /before attendance opened/u);
+  assert.match(current, /after attendance closed/u);
 });
 
-test("606 refuses an unreviewed ledger or changed migration bytes", () => {
+test("615 refuses an unreviewed ledger or changed migration bytes", () => {
   assert.throws(
     () =>
       acceptedCatalogQuery(source, [...ledger.slice(0, -1), "20990101000000"]),
     /explicit release review/u,
   );
   assert.equal(
-    approvedMigrations.find(([name]) => name === migrationName)[1],
-    "ed9db3e0a49dff9bd0be933c5259d0432db6252f83f3077dd1ba95773c0cb632",
+    approvedMigrations.at(-2)[1],
+    createHash("sha256").update(migration).digest("hex"),
   );
 });

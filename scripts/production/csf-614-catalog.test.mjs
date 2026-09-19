@@ -8,7 +8,7 @@ import { expectedVersions } from "./app-release-checks.mjs";
 import { approvedMigrations } from "./forward-migration-release.mjs";
 
 const cwd = fileURLToPath(new URL("../../", import.meta.url));
-const ledger = expectedVersions(cwd);
+const ledger = expectedVersions(cwd).slice(0, 614);
 const source = readFileSync(
   new URL("./verify-csf-target-schema.sql", import.meta.url),
   "utf8",
@@ -22,10 +22,10 @@ const migration = readFileSync(
 test("614 keeps cleanup durable through a bounded restore lease", () => {
   assert.equal(ledger.length, 614);
   assert.equal(ledger.at(-1), "20260919172947");
-  assert.deepEqual(approvedMigrations.at(-1), [
-    migrationName,
-    createHash("sha256").update(migration).digest("hex"),
-  ]);
+  assert.deepEqual(
+    approvedMigrations.find(([name]) => name === migrationName),
+    [migrationName, createHash("sha256").update(migration).digest("hex")],
+  );
 
   const previous = acceptedCatalogQuery(source, ledger.slice(0, 613));
   const current = acceptedCatalogQuery(source, ledger);
@@ -42,7 +42,7 @@ test("614 refuses an unreviewed ledger or changed migration bytes", () => {
     /explicit release review/u,
   );
   assert.equal(
-    approvedMigrations.at(-1)[1],
+    approvedMigrations.find(([name]) => name === migrationName)[1],
     createHash("sha256").update(migration).digest("hex"),
   );
 });
