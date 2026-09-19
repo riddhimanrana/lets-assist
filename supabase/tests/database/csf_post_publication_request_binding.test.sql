@@ -132,7 +132,7 @@ SELECT extensions.throws_ok(
     'ae400000-0000-4000-8000-000000000001',
     'ae000000-0000-4000-8000-000000000001',
     jsonb_build_array(jsonb_build_object(
-      'objectPath', 'ae100000-0000-4000-8000-000000000001/dvhs-csf/post-images/ae400000-0000-4000-8000-000000000001/' || repeat('a', 64) || '.png',
+      'objectPath', 'ae100000-0000-4000-8000-000000000001/dvhs-csf/post-images/ae400000-0000-4000-8000-000000000001/ae300000-0000-4000-8000-000000000002/' || repeat('a', 64) || '.png',
       'fileName', 'wrong-size.png',
       'mimeType', 'image/png',
       'sizeBytes', 2048,
@@ -171,7 +171,7 @@ SELECT extensions.throws_ok(
     'ae400000-0000-4000-8000-000000000002',
     'ae000000-0000-4000-8000-000000000001',
     jsonb_build_array(jsonb_build_object(
-      'objectPath', 'ae100000-0000-4000-8000-000000000001/dvhs-csf/post-images/ae400000-0000-4000-8000-000000000002/' || repeat('b', 64) || '.png',
+      'objectPath', 'ae100000-0000-4000-8000-000000000001/dvhs-csf/post-images/ae400000-0000-4000-8000-000000000002/ae300000-0000-4000-8000-000000000002/' || repeat('b', 64) || '.png',
       'fileName', 'wrong-post.png',
       'mimeType', 'image/png',
       'sizeBytes', 1024,
@@ -194,7 +194,7 @@ SELECT plugin_data.csf_prepare_announcement_attachment_restore(
   'ae000000-0000-4000-8000-000000000001',
   'ae300000-0000-4000-8000-000000000002',
   'ae400000-0000-4000-8000-000000000001', 'plugins',
-  'ae100000-0000-4000-8000-000000000001/dvhs-csf/post-images/ae400000-0000-4000-8000-000000000001/'
+  'ae100000-0000-4000-8000-000000000001/dvhs-csf/post-images/ae400000-0000-4000-8000-000000000001/ae300000-0000-4000-8000-000000000002/'
     || repeat('c', 64) || '.png'
 );
 
@@ -203,7 +203,7 @@ SELECT plugin_data.csf_replace_post_attachments(
   'ae400000-0000-4000-8000-000000000001',
   'ae000000-0000-4000-8000-000000000001',
   jsonb_build_array(jsonb_build_object(
-    'objectPath', 'ae100000-0000-4000-8000-000000000001/dvhs-csf/post-images/ae400000-0000-4000-8000-000000000001/' || repeat('c', 64) || '.png',
+    'objectPath', 'ae100000-0000-4000-8000-000000000001/dvhs-csf/post-images/ae400000-0000-4000-8000-000000000001/ae300000-0000-4000-8000-000000000002/' || repeat('c', 64) || '.png',
     'fileName', 'prepared.png',
     'mimeType', 'image/png',
     'sizeBytes', 1024,
@@ -243,7 +243,7 @@ SELECT extensions.is(
     'ae400000-0000-4000-8000-000000000001',
     'ae000000-0000-4000-8000-000000000001',
     jsonb_build_array(jsonb_build_object(
-      'objectPath', 'ae100000-0000-4000-8000-000000000001/dvhs-csf/post-images/ae400000-0000-4000-8000-000000000001/' || repeat('c', 64) || '.png',
+      'objectPath', 'ae100000-0000-4000-8000-000000000001/dvhs-csf/post-images/ae400000-0000-4000-8000-000000000001/ae300000-0000-4000-8000-000000000002/' || repeat('c', 64) || '.png',
       'fileName', 'prepared.png',
       'mimeType', 'image/png',
       'sizeBytes', 1024,
@@ -261,7 +261,7 @@ SELECT extensions.throws_ok(
     'ae400000-0000-4000-8000-000000000001',
     'ae000000-0000-4000-8000-000000000001',
     jsonb_build_array(jsonb_build_object(
-      'objectPath', 'ae100000-0000-4000-8000-000000000001/dvhs-csf/post-images/ae400000-0000-4000-8000-000000000001/' || repeat('d', 64) || '.png',
+      'objectPath', 'ae100000-0000-4000-8000-000000000001/dvhs-csf/post-images/ae400000-0000-4000-8000-000000000001/ae300000-0000-4000-8000-000000000002/' || repeat('d', 64) || '.png',
       'fileName', 'same-size-different-payload.png',
       'mimeType', 'image/png',
       'sizeBytes', 1024,
