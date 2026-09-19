@@ -41,6 +41,38 @@ test("retired publishing permits shutdown but never activation", () => {
   );
 });
 
+test("retired publisher shutdown accepts the public retired posture", async () => {
+  const shutdown = transitionConfig({
+    ...env,
+    WORKER: "scheduled_post_publisher",
+    WORKER_ENABLED: "false",
+    CONFIRMATION: `disable-csf-worker:scheduled_post_publisher:${sha}`,
+  });
+  const active = {
+    ...before,
+    workers: { ...off, scheduled_post_publisher: true },
+  };
+  const stopped = {
+    ...after,
+    requestId: shutdown.requestId,
+    workers: off,
+  };
+  const retiredStatus = status(active);
+  retiredStatus.checks[0].details.csfScheduledPostPublisher = false;
+  const mock = transport([
+    [{ controls: active }],
+    retiredStatus,
+    [{ receipt: stopped }],
+    [{ controls: stopped }],
+    status(stopped),
+  ]);
+  assert.equal(
+    (await transitionWorker(shutdown, mock.fetcher)).workers
+      .scheduled_post_publisher,
+    false,
+  );
+});
+
 test("management controls query reads the table without extra RPC grants", () => {
   const query = workerControlsQuery(sha);
   assert.match(

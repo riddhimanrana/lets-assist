@@ -35,4 +35,6 @@ test("602 fences scoped request IDs before deriving import records", () => {
   assert.match(current, /csf_import_approval_batch:/u);
   assert.match(current, /This request ID already belongs/u);
   assert.match(current, /INSERT INTO plugin_data\.csf_sheet_import_jobs/u);
+  assert.doesNotMatch(current, /pg_catalog\.position/u);
+  assert.match(current, /pg_catalog\.strpos\(p\.prosrc/u);
 });
