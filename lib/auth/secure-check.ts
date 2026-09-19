@@ -95,11 +95,14 @@ export function secureCheckWatchdogDelayMs(
 
 /**
  * Whether a submit control should stay disabled because the secure check has
- * not produced a usable challenge yet. The unavailable state keeps the control
- * blocked while the visible fallback explains how to retry the challenge.
+ * not produced a usable challenge token yet. A loaded widget is not enough:
+ * the challenge can still be pending or its prior token may have expired.
  */
-export function isSecureCheckBlockingSubmit(phase: SecureCheckPhase): boolean {
-  return phase !== "ready";
+export function isSecureCheckBlockingSubmit(
+  phase: SecureCheckPhase,
+  token: string | null | undefined,
+): boolean {
+  return phase !== "ready" || !token?.trim();
 }
 
 /**

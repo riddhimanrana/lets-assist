@@ -8679,3 +8679,8 @@ retried, and the application deployment remains separate.
 - Root Development `fa3ed68fa34767fd770f68694a6a07a347c4d53a` is the final 1.2.53 candidate submitted for exact-tree hosted Development acceptance. It includes catalog migration 607, which serializes the atomic post and attachment wrapper on the organization advisory lock before the announcement row lock, plus the deterministic seed-reset fix that clears `csf_post_publication_requests` before announcements.
 - Migration 607 passed the focused lock-order concurrency test, release-catalog checks, migration validation, and a full database replay before integration. The seed-reset regression passed its focused 34-test suite. Production remains unchanged until this exact candidate completes hosted acceptance and the reviewed release workflow.
 - Final hosted acceptance retry starts from Development `ae297fd730b79f6980526add263aaecd17b88c63`; the integration branch and deploy marker request a fresh managed build for the exact merge tree containing migration 607 and the seed-reset fix.
+
+### Signup Turnstile submission gate, September 19, 2026
+
+- P2 fixed locally: the signup button treated a loaded Turnstile widget as a completed challenge, so it could remain enabled before a token arrived or after the token expired. The client now requires both the ready phase and a non-empty token, announces the pending check, and rechecks the token inside submission before contacting the server action.
+- The focused secure-check and signup action suites passed 34 tests. Changed-file lint, formatting, and the root TypeScript check also passed. Hosted Development and Production remain unchanged until integration.
