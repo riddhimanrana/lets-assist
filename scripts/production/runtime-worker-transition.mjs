@@ -130,6 +130,13 @@ export function validatePublicPosture(payload, config, controls) {
     details?.csfControlMode !== "database" ||
     Object.entries(workerFields).some(([worker, field]) => {
       if (
+        worker === "scheduled_post_publisher" &&
+        config.worker === worker &&
+        config.enabled === false &&
+        controls.workers[worker] === true
+      )
+        return details?.[field] !== false;
+      if (
         worker === "publication_notifications" &&
         details?.[field] === undefined
       )
