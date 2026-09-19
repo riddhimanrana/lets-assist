@@ -55,6 +55,12 @@ INSERT INTO plugin_data.csf_announcements (
 SELECT plugin_data.csf_begin_post_publication_request(
   'ad100000-0000-4000-8000-000000000001',
   'ad000000-0000-4000-8000-000000000001',
+  'ad300000-0000-4000-8000-000000000001',
+  0, 0, false
+);
+SELECT plugin_data.csf_begin_post_publication_request(
+  'ad100000-0000-4000-8000-000000000001',
+  'ad000000-0000-4000-8000-000000000001',
   'ad300000-0000-4000-8000-000000000002',
   0, 0, false
 );
