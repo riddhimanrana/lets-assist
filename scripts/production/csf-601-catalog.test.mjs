@@ -36,10 +36,7 @@ test("601 pins the reviewed application-source connection evidence", () => {
   assert.equal(current.length, previous.length);
   assert.throws(
     () =>
-      acceptedCatalogQuery(source, [
-        ...ledger.slice(0, 600),
-        "20990101000000",
-      ]),
+      acceptedCatalogQuery(source, [...ledger.slice(0, 600), "20990101000000"]),
     /explicit release review/u,
   );
 });

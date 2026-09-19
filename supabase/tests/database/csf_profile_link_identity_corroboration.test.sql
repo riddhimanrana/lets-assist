@@ -335,11 +335,25 @@ INSERT INTO plugin_data.csf_sheet_sources (
 INSERT INTO plugin_data.csf_sheet_import_jobs (
   id, organization_id, source_id, initiated_by, mode, status, source_type
 ) VALUES (
+  'ef700000-0000-4000-8000-000000000002',
+  'ef100000-0000-4000-8000-000000000001',
+  'ef600000-0000-4000-8000-000000000001',
+  'ef000000-0000-4000-8000-000000000001',
+  'preview', 'completed', 'application_responses'
+);
+INSERT INTO plugin_data.csf_sheet_import_jobs (
+  id, organization_id, source_id, initiated_by, mode, status, source_type,
+  preview_job_id, summary
+) VALUES (
   'ef700000-0000-4000-8000-000000000001',
   'ef100000-0000-4000-8000-000000000001',
   'ef600000-0000-4000-8000-000000000001',
   'ef000000-0000-4000-8000-000000000001',
-  'commit', 'completed', 'application_responses'
+  'commit', 'completed', 'application_responses',
+  'ef700000-0000-4000-8000-000000000002',
+  jsonb_build_object(
+    'previewJobId', 'ef700000-0000-4000-8000-000000000002'
+  )
 );
 INSERT INTO plugin_data.csf_sheet_import_rows (
   id, organization_id, job_id, source_id, cohort_id, term_id,
