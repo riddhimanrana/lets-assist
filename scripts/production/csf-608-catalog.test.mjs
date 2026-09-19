@@ -8,7 +8,7 @@ import { expectedVersions } from "./app-release-checks.mjs";
 import { approvedMigrations } from "./forward-migration-release.mjs";
 
 const cwd = fileURLToPath(new URL("../../", import.meta.url));
-const ledger = expectedVersions(cwd);
+const ledger = expectedVersions(cwd).slice(0, 607);
 const source = readFileSync(
   new URL("./verify-csf-target-schema.sql", import.meta.url),
   "utf8",
@@ -22,10 +22,10 @@ const migration = readFileSync(
 test("608 pins publication request binding before attachment changes", () => {
   assert.equal(ledger.length, 607);
   assert.equal(ledger.at(-1), "20260919133902");
-  assert.deepEqual(approvedMigrations.at(-1), [
-    migrationName,
-    createHash("sha256").update(migration).digest("hex"),
-  ]);
+  assert.deepEqual(
+    approvedMigrations.find(([name]) => name === migrationName),
+    [migrationName, createHash("sha256").update(migration).digest("hex")],
+  );
 
   const previous = acceptedCatalogQuery(source, ledger.slice(0, 606));
   const current = acceptedCatalogQuery(source, ledger);
@@ -44,7 +44,7 @@ test("608 refuses an unreviewed ledger or changed migration bytes", () => {
     /explicit release review/u,
   );
   assert.equal(
-    approvedMigrations.at(-1)[1],
+    approvedMigrations.find(([name]) => name === migrationName)[1],
     "c96217505e6e97cbeb11ca639480e27526b6fbe132684af29624cd5b41078144",
   );
 });
