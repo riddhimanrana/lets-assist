@@ -73,3 +73,18 @@ export function isTurnstileEnabled(): boolean {
     )
   );
 }
+
+/**
+ * Hosted builds always require a real challenge token. Local development can
+ * use the existing bypass when explicitly enabled, and the documented shared
+ * local stack falls back to it when no Turnstile configuration exists.
+ */
+export function isTurnstileTokenRequired(): boolean {
+  if (process.env.NODE_ENV === "production") return true;
+  if (process.env.TURNSTILE_BYPASS === "true") return false;
+
+  return Boolean(
+    process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY ||
+    process.env.TURNSTILE_SECRET_KEY,
+  );
+}

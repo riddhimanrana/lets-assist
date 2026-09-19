@@ -23,6 +23,17 @@ export const SECURE_CHECK_TIMEOUT_MS = 10_000;
 
 export type SecureCheckPhase = "loading" | "ready" | "unavailable";
 
+export function isSecureCheckBypassed(input: {
+  nodeEnv: string | undefined;
+  bypass: string | undefined;
+  siteKey: string | undefined;
+}): boolean {
+  return (
+    input.nodeEnv !== "production" &&
+    (input.bypass === "true" || !input.siteKey)
+  );
+}
+
 export interface SecureCheckPhaseInput {
   /** The Turnstile script reported itself loaded (`onLoad`). */
   isReady: boolean;

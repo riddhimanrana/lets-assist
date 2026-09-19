@@ -57,6 +57,7 @@ export async function GET(request: Request) {
   const from = searchParams.get("from");
   const redirectAfterAuth = searchParams.get("redirectAfterAuth");
   const error = searchParams.get("error");
+  const errorCode = searchParams.get("error_code");
   const error_description = searchParams.get("error_description");
   const staffToken = searchParams.get("staffToken");
   const orgUsername = searchParams.get("orgUsername");
@@ -75,9 +76,15 @@ export async function GET(request: Request) {
   // Handle errors for all flows
   if (error) {
     if (
-      isRestartableAuthFlowError({ code: error, message: error_description })
+      isRestartableAuthFlowError({
+        code: errorCode ?? error,
+        message: error_description,
+      })
     ) {
-      console.info("OAuth callback requires a new auth flow", { code: error });
+      console.info("OAuth callback requires a new auth flow", {
+        category: error,
+        code: errorCode ?? error,
+      });
       if (from === "authentication") {
         return NextResponse.redirect(
           `${authOrigin}/account/authentication?error=linking_failed`,

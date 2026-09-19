@@ -259,6 +259,24 @@ describe("GET /auth/callback (runtime)", () => {
     }
   });
 
+  test("a structured Supabase error code restarts an expired OAuth flow while preserving its category", async () => {
+    try {
+      const response = await GET(
+        request(
+          "/auth/callback?error=access_denied&error_code=flow_state_expired&error_description=The%20request%20could%20not%20be%20completed",
+          { host: EVIL_HOST },
+        ),
+      );
+      const url = location(response);
+      expect(url.origin).toBe(HOSTED);
+      expect(url.pathname).toBe("/login");
+      expect(url.searchParams.get("error")).toBe("auth-flow-expired");
+      expect(url.toString()).not.toContain("could%20not%20be%20completed");
+    } finally {
+      restoreEnv();
+    }
+  });
+
   test("recovery: redirects to the trusted origin's reset-password page, never the evil Host", async () => {
     try {
       const response = await GET(
