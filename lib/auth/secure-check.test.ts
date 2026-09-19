@@ -96,10 +96,10 @@ describe("secureCheckWatchdogDelayMs", () => {
 });
 
 describe("isSecureCheckBlockingSubmit", () => {
-  it("blocks only while the check is still settling", () => {
+  it("blocks until the check is ready", () => {
     expect(isSecureCheckBlockingSubmit("loading")).toBe(true);
     expect(isSecureCheckBlockingSubmit("ready")).toBe(false);
-    expect(isSecureCheckBlockingSubmit("unavailable")).toBe(false);
+    expect(isSecureCheckBlockingSubmit("unavailable")).toBe(true);
   });
 });
 
