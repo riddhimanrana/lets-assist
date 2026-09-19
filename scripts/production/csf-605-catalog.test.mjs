@@ -21,7 +21,7 @@ const migration = readFileSync(
 );
 
 test("605 pins the atomic CSF post and attachment update", () => {
-  assert.equal(fullLedger.length, 619);
+  assert.equal(fullLedger.length, 620);
   assert.equal(ledger.length, 604);
   assert.equal(ledger.at(-1), "20260919095826");
   assert.deepEqual(

@@ -619,6 +619,10 @@ export const approvedMigrations = [
     "20260919220000_csf_attendance_cutoff_exclusive_readiness",
     "8c62eb9578dd136f974972ccfd5b6c0c0581781830faf6c55f17187fb9eabfb3",
   ],
+  [
+    "20260919230000_csf_storage_generation_fence",
+    "5ce652bbba0cbc303f746212cd67fe6ac29f7c1f8087de366c5089314ba13175",
+  ],
 ];
 
 const literal = (value) => `'${value.replaceAll("'", "''")}'`;

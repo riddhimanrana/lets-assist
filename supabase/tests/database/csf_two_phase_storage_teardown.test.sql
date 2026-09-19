@@ -4,7 +4,7 @@ BEGIN;
 CREATE EXTENSION IF NOT EXISTS pgtap WITH SCHEMA extensions;
 CREATE EXTENSION IF NOT EXISTS dblink WITH SCHEMA extensions;
 
-SELECT extensions.plan(24);
+SELECT extensions.plan(25);
 
 SELECT extensions.has_function(
   'plugin_data', 'csf_claim_organization_storage_deletion_queue',
@@ -134,6 +134,22 @@ INSERT INTO plugin_data.csf_storage_deletion_queue (
     'c7100000-0000-4000-8000-000000000002/dvhs-csf/staging/other.jpg'
   );
 
+-- Model an interrupted upload preparation whose 15-minute lease is still
+-- active when an isolated reset or authorized uninstall starts.
+SELECT plugin_data.csf_begin_post_publication_request(
+  'c7100000-0000-4000-8000-000000000001',
+  'c7000000-0000-4000-8000-000000000001',
+  'c7300000-0000-4000-8000-000000000002', 1, 100, false
+);
+SELECT plugin_data.csf_prepare_announcement_attachment_restore(
+  'c7100000-0000-4000-8000-000000000001',
+  'c7000000-0000-4000-8000-000000000001',
+  'c7300000-0000-4000-8000-000000000002',
+  'c7400000-0000-4000-8000-000000000001', 'plugins',
+  'c7100000-0000-4000-8000-000000000001/dvhs-csf/post-images/c7400000-0000-4000-8000-000000000001/c7300000-0000-4000-8000-000000000002/'
+    || repeat('b', 64) || '.png'
+);
+
 CREATE TEMP TABLE teardown_first_phase AS
 SELECT plugin_data.csf_purge_storage_deletion_queue(
   'c7100000-0000-4000-8000-000000000001'
@@ -150,8 +166,8 @@ SELECT extensions.is(
 );
 SELECT extensions.is(
   (SELECT (result ->> 'queueRows')::integer FROM teardown_first_phase),
-  2,
-  'first teardown phase reports both staging and attachment cleanup rows'
+  3,
+  'first teardown phase reports staging, attachment, and abandoned upload cleanup rows'
 );
 SELECT extensions.is(
   (SELECT (result ->> 'claimedQueueRows')::integer FROM teardown_first_phase),
@@ -162,7 +178,7 @@ SELECT extensions.is(
   (SELECT count(*)::integer
    FROM plugin_data.csf_storage_deletion_queue
    WHERE organization_id = 'c7100000-0000-4000-8000-000000000001'),
-  2,
+  3,
   'first teardown phase preserves every queue row'
 );
 SELECT extensions.is(
@@ -170,7 +186,15 @@ SELECT extensions.is(
    FROM plugin_data.csf_attachment_restore_preparations
    WHERE organization_id = 'c7100000-0000-4000-8000-000000000001'),
   1,
-  'first teardown phase preserves restore preparation evidence'
+  'first teardown phase preserves consumed restore evidence'
+);
+SELECT extensions.is(
+  (SELECT count(*)::integer
+   FROM plugin_data.csf_attachment_restore_preparations
+   WHERE organization_id = 'c7100000-0000-4000-8000-000000000001'
+     AND consumed_at IS NULL),
+  0,
+  'first teardown phase cancels active preparations before queue claiming'
 );
 SELECT extensions.ok(
   (SELECT claim_token IS NULL
@@ -208,7 +232,7 @@ FROM extensions.dblink(
   $query$
 ) AS result(claimed integer);
 SELECT extensions.is(
-  (SELECT claimed FROM teardown_held_claim_count), 2,
+  (SELECT claimed FROM teardown_held_claim_count), 3,
   'organization-scoped claim takes every available teardown row'
 );
 SELECT extensions.dblink_send_query(
@@ -238,7 +262,7 @@ SELECT extensions.is(
 SELECT extensions.is(
   (SELECT (result ->> 'claimedQueueRows')::integer
    FROM teardown_concurrent_purge),
-  2,
+  3,
   'concurrent purge reports every live claim'
 );
 SELECT extensions.is(
@@ -246,7 +270,7 @@ SELECT extensions.is(
    FROM plugin_data.csf_storage_deletion_queue
    WHERE organization_id = 'c7100000-0000-4000-8000-000000000001'
      AND claim_token IS NOT NULL),
-  2,
+  3,
   'purge never erases claimed queue rows'
 );
 SELECT extensions.dblink_disconnect('teardown_claim_holder');
@@ -265,8 +289,8 @@ SELECT extensions.is(
   (SELECT count(*)::integer
    FROM teardown_success_acks
    WHERE result ->> 'status' = 'deleted'),
-  2,
-  'token-bound acknowledgements settle both claimed Storage deletions'
+  3,
+  'token-bound acknowledgements settle every claimed Storage deletion'
 );
 SELECT extensions.is(
   (SELECT count(*)::integer
@@ -287,7 +311,7 @@ SELECT extensions.is(
   plugin_data.csf_purge_storage_deletion_queue(
     'c7100000-0000-4000-8000-000000000001'
   ),
-  '{"status":"purged","attachments":0,"queueRows":0,"claimedQueueRows":0,"receipts":2,"preparations":1}'::jsonb,
+  '{"status":"purged","attachments":0,"queueRows":0,"claimedQueueRows":0,"receipts":3,"preparations":1}'::jsonb,
   'final teardown removes receipts and preparations only after cleanup drains'
 );
 SELECT extensions.ok(

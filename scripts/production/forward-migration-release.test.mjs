@@ -167,6 +167,7 @@ const APPROVED_TAIL = [
   "20260919203000",
   "20260919210000",
   "20260919220000",
+  "20260919230000",
 ];
 
 const cwd = resolve(import.meta.dirname, "../..");
@@ -987,6 +988,7 @@ test("an applied 604 ledger writes the signed publication and later repairs", ()
     "20260919203000",
     "20260919210000",
     "20260919220000",
+    "20260919230000",
   ]);
   assert.equal(
     (
@@ -994,7 +996,7 @@ test("an applied 604 ledger writes the signed publication and later repairs", ()
         /INSERT INTO supabase_migrations.schema_migrations/gu,
       ) ?? []
     ).length,
-    15,
+    16,
   );
   assert.ok(
     publication.query.includes("'20260919103635','publish_dvhs_csf_1_2_53'"),
@@ -1045,6 +1047,7 @@ test("an applied 605 ledger writes the remaining post and cleanup repairs", () =
     "20260919203000",
     "20260919210000",
     "20260919220000",
+    "20260919230000",
   ]);
   assert.equal(
     (
@@ -1052,7 +1055,7 @@ test("an applied 605 ledger writes the remaining post and cleanup repairs", () =
         /INSERT INTO supabase_migrations.schema_migrations/gu,
       ) ?? []
     ).length,
-    14,
+    15,
   );
   assert.ok(
     repair.query.includes(
@@ -1095,6 +1098,7 @@ test("an applied 606 ledger writes publication binding and cleanup repairs", () 
     "20260919203000",
     "20260919210000",
     "20260919220000",
+    "20260919230000",
   ]);
   assert.equal(
     (
@@ -1102,7 +1106,7 @@ test("an applied 606 ledger writes publication binding and cleanup repairs", () 
         /INSERT INTO supabase_migrations.schema_migrations/gu,
       ) ?? []
     ).length,
-    13,
+    14,
   );
   assert.ok(
     binding.query.includes(
@@ -1135,6 +1139,7 @@ test("an applied 607 ledger writes recovery and Storage cleanup guards", () => {
     "20260919203000",
     "20260919210000",
     "20260919220000",
+    "20260919230000",
   ]);
   assert.equal(
     (
@@ -1142,7 +1147,7 @@ test("an applied 607 ledger writes recovery and Storage cleanup guards", () => {
         /INSERT INTO supabase_migrations.schema_migrations/gu,
       ) ?? []
     ).length,
-    12,
+    13,
   );
   assert.ok(
     recovery.query.includes(

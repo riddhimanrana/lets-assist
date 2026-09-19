@@ -2,7 +2,7 @@
 BEGIN;
 
 CREATE EXTENSION IF NOT EXISTS pgtap WITH SCHEMA extensions;
-SELECT extensions.plan(26);
+SELECT extensions.plan(28);
 
 SELECT extensions.has_table(
   'plugin_data', 'csf_announcement_attachments',
@@ -103,6 +103,34 @@ SELECT plugin_data.csf_begin_post_publication_request(
   'ab300000-0000-4000-8000-000000000005',
   4, 12582912, false
 );
+SELECT plugin_data.csf_mutate_post(
+  'ab100000-0000-4000-8000-000000000001', 'update',
+  'ab400000-0000-4000-8000-000000000001',
+  '{"title":"Request 002","body":"Details","audience":"members","audienceCohortId":null,"pinned":false,"publish":true,"scheduledFor":null,"sendEmail":false}'::jsonb,
+  'ab000000-0000-4000-8000-000000000001',
+  'ab300000-0000-4000-8000-000000000002'
+);
+SELECT plugin_data.csf_mutate_post(
+  'ab100000-0000-4000-8000-000000000001', 'update',
+  'ab400000-0000-4000-8000-000000000001',
+  '{"title":"Request 003","body":"Details","audience":"members","audienceCohortId":null,"pinned":false,"publish":true,"scheduledFor":null,"sendEmail":false}'::jsonb,
+  'ab000000-0000-4000-8000-000000000001',
+  'ab300000-0000-4000-8000-000000000003'
+);
+SELECT plugin_data.csf_mutate_post(
+  'ab100000-0000-4000-8000-000000000001', 'update',
+  'ab400000-0000-4000-8000-000000000001',
+  '{"title":"Request 004","body":"Details","audience":"members","audienceCohortId":null,"pinned":false,"publish":true,"scheduledFor":null,"sendEmail":false}'::jsonb,
+  'ab000000-0000-4000-8000-000000000001',
+  'ab300000-0000-4000-8000-000000000004'
+);
+SELECT plugin_data.csf_mutate_post(
+  'ab100000-0000-4000-8000-000000000001', 'update',
+  'ab400000-0000-4000-8000-000000000001',
+  '{"title":"Request 005","body":"Details","audience":"members","audienceCohortId":null,"pinned":false,"publish":true,"scheduledFor":null,"sendEmail":false}'::jsonb,
+  'ab000000-0000-4000-8000-000000000001',
+  'ab300000-0000-4000-8000-000000000005'
+);
 SELECT extensions.is(
   plugin_data.csf_resolve_post_publication_completion(
     'ab100000-0000-4000-8000-000000000001',
@@ -185,7 +213,7 @@ SELECT plugin_data.csf_prepare_announcement_attachment_restore(
   'ab000000-0000-4000-8000-000000000001',
   'ab300000-0000-4000-8000-000000000002',
   'ab400000-0000-4000-8000-000000000001', 'plugins',
-  'ab100000-0000-4000-8000-000000000001/dvhs-csf/post-images/ab400000-0000-4000-8000-000000000001/'
+  'ab100000-0000-4000-8000-000000000001/dvhs-csf/post-images/ab400000-0000-4000-8000-000000000001/ab300000-0000-4000-8000-000000000002/'
     || repeat('a', 64) || '.png'
 );
 SELECT plugin_data.csf_prepare_announcement_attachment_restore(
@@ -193,7 +221,7 @@ SELECT plugin_data.csf_prepare_announcement_attachment_restore(
   'ab000000-0000-4000-8000-000000000001',
   'ab300000-0000-4000-8000-000000000002',
   'ab400000-0000-4000-8000-000000000001', 'plugins',
-  'ab100000-0000-4000-8000-000000000001/dvhs-csf/post-images/ab400000-0000-4000-8000-000000000001/'
+  'ab100000-0000-4000-8000-000000000001/dvhs-csf/post-images/ab400000-0000-4000-8000-000000000001/ab300000-0000-4000-8000-000000000002/'
     || repeat('b', 64) || '.jpg'
 );
 
@@ -203,12 +231,12 @@ SELECT plugin_data.csf_replace_post_attachments(
   'ab000000-0000-4000-8000-000000000001',
   pg_catalog.jsonb_build_array(
     pg_catalog.jsonb_build_object(
-      'objectPath', 'ab100000-0000-4000-8000-000000000001/dvhs-csf/post-images/ab400000-0000-4000-8000-000000000001/' || repeat('a', 64) || '.png',
+      'objectPath', 'ab100000-0000-4000-8000-000000000001/dvhs-csf/post-images/ab400000-0000-4000-8000-000000000001/ab300000-0000-4000-8000-000000000002/' || repeat('a', 64) || '.png',
       'fileName', 'fundraiser.png', 'mimeType', 'image/png', 'sizeBytes', 1024,
       'checksumSha256', repeat('a', 64), 'altText', 'Fundraiser date and location'
     ),
     pg_catalog.jsonb_build_object(
-      'objectPath', 'ab100000-0000-4000-8000-000000000001/dvhs-csf/post-images/ab400000-0000-4000-8000-000000000001/' || repeat('b', 64) || '.jpg',
+      'objectPath', 'ab100000-0000-4000-8000-000000000001/dvhs-csf/post-images/ab400000-0000-4000-8000-000000000001/ab300000-0000-4000-8000-000000000002/' || repeat('b', 64) || '.jpg',
       'fileName', 'map.jpg', 'mimeType', 'image/jpeg', 'sizeBytes', 2048,
       'checksumSha256', repeat('b', 64), 'altText', 'Map of the fundraiser entrance'
     )
@@ -222,10 +250,42 @@ SELECT extensions.is(
   2, 'a valid request stores both scoped images'
 );
 SELECT extensions.is(
+  (SELECT count(*)::integer FROM plugin_data.csf_announcement_attachments
+   WHERE organization_id = 'ab100000-0000-4000-8000-000000000001'
+     AND announcement_id = 'ab400000-0000-4000-8000-000000000001'
+     AND object_path LIKE '%/ab300000-0000-4000-8000-000000000002/%'),
+  2,
+  'every new image path is fenced by its publication request generation'
+);
+SELECT extensions.is(
   (SELECT count(*)::integer FROM plugin_data.csf_admin_audit_events
    WHERE correlation_id = 'ab300000-0000-4000-8000-000000000002'
      AND source_type = 'post_attachment_request'),
   1, 'the image set writes one immutable receipt'
+);
+
+SELECT plugin_data.csf_prepare_announcement_attachment_restore(
+  'ab100000-0000-4000-8000-000000000001',
+  'ab000000-0000-4000-8000-000000000001',
+  'ab300000-0000-4000-8000-000000000003',
+  'ab400000-0000-4000-8000-000000000001', 'plugins',
+  'ab100000-0000-4000-8000-000000000001/dvhs-csf/post-images/ab400000-0000-4000-8000-000000000001/ab300000-0000-4000-8000-000000000003/'
+    || repeat('a', 64) || '.png'
+);
+SELECT extensions.throws_ok(
+  $$ SELECT plugin_data.csf_replace_post_attachments(
+    'ab100000-0000-4000-8000-000000000001',
+    'ab400000-0000-4000-8000-000000000001',
+    'ab000000-0000-4000-8000-000000000001',
+    pg_catalog.jsonb_build_array(pg_catalog.jsonb_build_object(
+      'objectPath', 'ab100000-0000-4000-8000-000000000001/dvhs-csf/post-images/ab400000-0000-4000-8000-000000000001/ab300000-0000-4000-8000-000000000003/' || repeat('a', 64) || '.png',
+      'fileName', 'duplicate.png', 'mimeType', 'image/png', 'sizeBytes', 1024,
+      'checksumSha256', repeat('a', 64), 'altText', 'Duplicate upload'
+    )),
+    'ab300000-0000-4000-8000-000000000003'
+  ) $$,
+  '22023', 'That post image already exists. Keep the existing image instead.',
+  'a new generation cannot silently retain old metadata for duplicate bytes'
 );
 
 SELECT plugin_data.csf_replace_post_attachments(
@@ -234,12 +294,12 @@ SELECT plugin_data.csf_replace_post_attachments(
   'ab000000-0000-4000-8000-000000000001',
   pg_catalog.jsonb_build_array(
     pg_catalog.jsonb_build_object(
-      'objectPath', 'ab100000-0000-4000-8000-000000000001/dvhs-csf/post-images/ab400000-0000-4000-8000-000000000001/' || repeat('a', 64) || '.png',
+      'objectPath', 'ab100000-0000-4000-8000-000000000001/dvhs-csf/post-images/ab400000-0000-4000-8000-000000000001/ab300000-0000-4000-8000-000000000002/' || repeat('a', 64) || '.png',
       'fileName', 'fundraiser.png', 'mimeType', 'image/png', 'sizeBytes', 1024,
       'checksumSha256', repeat('a', 64), 'altText', 'Fundraiser date and location'
     ),
     pg_catalog.jsonb_build_object(
-      'objectPath', 'ab100000-0000-4000-8000-000000000001/dvhs-csf/post-images/ab400000-0000-4000-8000-000000000001/' || repeat('b', 64) || '.jpg',
+      'objectPath', 'ab100000-0000-4000-8000-000000000001/dvhs-csf/post-images/ab400000-0000-4000-8000-000000000001/ab300000-0000-4000-8000-000000000002/' || repeat('b', 64) || '.jpg',
       'fileName', 'map.jpg', 'mimeType', 'image/jpeg', 'sizeBytes', 2048,
       'checksumSha256', repeat('b', 64), 'altText', 'Map of the fundraiser entrance'
     )
@@ -294,7 +354,7 @@ SELECT extensions.throws_ok(
     'ab400000-0000-4000-8000-000000000001',
     'ab000000-0000-4000-8000-000000000001',
     (SELECT pg_catalog.jsonb_agg(pg_catalog.jsonb_build_object(
-      'objectPath', 'ab100000-0000-4000-8000-000000000001/dvhs-csf/post-images/ab400000-0000-4000-8000-000000000001/' || repeat(chr(96 + item), 64) || '.png',
+      'objectPath', 'ab100000-0000-4000-8000-000000000001/dvhs-csf/post-images/ab400000-0000-4000-8000-000000000001/ab300000-0000-4000-8000-000000000005/' || repeat(chr(96 + item), 64) || '.png',
       'fileName', 'large-' || item::text || '.png',
       'mimeType', 'image/png', 'sizeBytes', 4194304,
       'checksumSha256', repeat(chr(96 + item), 64), 'altText', 'Large image'
@@ -356,7 +416,7 @@ SELECT extensions.is(
 SELECT extensions.is(
   (SELECT count(*)::integer FROM plugin_data.csf_storage_deletion_queue
    WHERE organization_id = 'ab100000-0000-4000-8000-000000000001'),
-  2, 'post deletion queues the final private object without duplicating prior cleanup'
+  3, 'post deletion preserves cleanup for the removed, rejected, and final generations'
 );
 
 SELECT * FROM extensions.finish();
