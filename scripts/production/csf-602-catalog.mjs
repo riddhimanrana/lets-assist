@@ -1,7 +1,15 @@
 // This append verifies that scoped application imports reserve the ordinary
 // approval request coordinate and refuse an existing batch before mutation.
 export function csf602Catalog(previous) {
-  return `SELECT CASE WHEN (${previous.trim().replace(/;$/u, "")}) = 1
+  const predecessor = previous
+    .trim()
+    .replace(/;$/u, "")
+    .replace(
+      "a452eea82e258fe4351689c79d7acc93",
+      "42874a1ae35c55cd10b8f6ddd68d2835",
+    );
+
+  return `SELECT CASE WHEN (${predecessor}) = 1
     AND EXISTS (
       SELECT 1
       FROM pg_catalog.pg_proc p
