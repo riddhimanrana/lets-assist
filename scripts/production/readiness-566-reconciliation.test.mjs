@@ -70,6 +70,7 @@ const EXTENSIONS = [
   "20260918235900_csf_scoped_import_actor_detachment",
   "20260919010000_csf_scoped_request_id_batch_fence",
   "20260919020000_csf_post_image_attachments",
+  "20260919091727_index_hot_uncovered_foreign_keys",
 ];
 
 test("the release is the 557 decisions baseline plus the reviewed integrated extensions", () => {
