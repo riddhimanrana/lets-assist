@@ -112,6 +112,19 @@ $fixture$;
 
 SELECT extensions.ok(to_regclass('plugin_data.csf_scoped_application_imports') IS NOT NULL,
   'scoped import receipts have a durable ledger');
+SELECT extensions.ok((
+  SELECT NOT attnotnull
+  FROM pg_catalog.pg_attribute
+  WHERE attrelid = 'plugin_data.csf_scoped_application_imports'::regclass
+    AND attname = 'actor_user_id'
+    AND NOT attisdropped
+), 'scoped import receipts allow a deleted actor reference to detach');
+SELECT extensions.is((
+  SELECT confdeltype::text
+  FROM pg_catalog.pg_constraint
+  WHERE conrelid = 'plugin_data.csf_scoped_application_imports'::regclass
+    AND conname = 'csf_scoped_application_imports_actor_user_id_fkey'
+), 'n', 'the actor foreign key uses ON DELETE SET NULL');
 SELECT extensions.ok(NOT has_function_privilege('authenticated',
   'plugin_data.csf_queue_scoped_application_import(uuid,uuid,uuid,uuid,timestamptz,uuid,text)', 'EXECUTE'),
   'members cannot call the scoped import function');
@@ -368,6 +381,16 @@ SELECT extensions.is((SELECT count(*)::integer FROM plugin_data.csf_term_applica
 SELECT extensions.is((SELECT count(*)::integer FROM plugin_data.csf_import_approval_batches
   WHERE organization_id = 'f3820000-0000-4000-8000-000000000001'), 2,
   'the scoped and later parent queues each have an approval batch before purge');
+UPDATE plugin_data.csf_scoped_application_imports
+SET actor_user_id = 'f3810000-0000-4000-8000-000000000002'
+WHERE organization_id = 'f3820000-0000-4000-8000-000000000001';
+DELETE FROM auth.users
+WHERE id = 'f3810000-0000-4000-8000-000000000002';
+SELECT extensions.is((SELECT count(*)::integer
+  FROM plugin_data.csf_scoped_application_imports
+  WHERE organization_id = 'f3820000-0000-4000-8000-000000000001'
+    AND actor_user_id IS NULL), 1,
+  'deleting an officer account preserves its immutable scoped import receipt');
 CREATE TEMP TABLE scoped_purge_result (receipt jsonb);
 SELECT pg_catalog.set_config('plugin_data.csf_recovery_purge_organization',
   'f3820000-0000-4000-8000-000000000001', true);

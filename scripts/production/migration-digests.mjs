@@ -1208,4 +1208,6 @@ export const migrationDigests = {
     "41094144ff1f49563f6a86de1e54ac26862f7396c4db6e3ff5ba5f8aee62ef8d",
   "20260918183000_csf_scoped_application_import_preview.sql":
     "b3006086d470c64b87f0a3e6dfcf68380b0f407ff0a64387b1ad2342b66a1370",
+  "20260918235900_csf_scoped_import_actor_detachment.sql":
+    "37de17b04a16389ea95d4d6de3d81b1d390caea1e2b18d87baaec88ab3b596de",
 };
