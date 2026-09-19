@@ -8,7 +8,7 @@ import { expectedVersions } from "./app-release-checks.mjs";
 import { approvedMigrations } from "./forward-migration-release.mjs";
 
 const cwd = fileURLToPath(new URL("../../", import.meta.url));
-const ledger = expectedVersions(cwd);
+const ledger = expectedVersions(cwd).slice(0, 617);
 const source = readFileSync(
   new URL("./verify-csf-target-schema.sql", import.meta.url),
   "utf8",
@@ -22,7 +22,7 @@ const migration = readFileSync(
 test("617 pins bounded, service-only Sheet observation batch wrappers", () => {
   assert.equal(ledger.length, 617);
   assert.equal(ledger.at(-1), "20260919203000");
-  assert.deepEqual(approvedMigrations.at(-1), [
+  assert.deepEqual(approvedMigrations.at(-2), [
     migrationName,
     createHash("sha256").update(migration).digest("hex"),
   ]);
@@ -43,7 +43,7 @@ test("617 refuses an unreviewed ledger or changed migration bytes", () => {
     /explicit release review/u,
   );
   assert.equal(
-    approvedMigrations.at(-1)[1],
+    approvedMigrations.at(-2)[1],
     createHash("sha256").update(migration).digest("hex"),
   );
 });

@@ -2,7 +2,7 @@ BEGIN;
 
 CREATE EXTENSION IF NOT EXISTS pgtap WITH SCHEMA extensions;
 
-SELECT extensions.plan(42);
+SELECT extensions.plan(43);
 
 -- Structure: the hardened wrapper owns the name and the delegate is unreachable.
 SELECT extensions.ok(
@@ -403,20 +403,30 @@ INSERT INTO plugin_data.csf_term_applications (
 );
 
 SELECT extensions.ok(
-  (plugin_data.csf_profile_link_connect_evidence(
+  NOT (plugin_data.csf_profile_link_connect_evidence(
     'ef100000-0000-4000-8000-000000000001',
     'ef400000-0000-4000-8000-000000000002',
     'ef300000-0000-4000-8000-000000000003'
   )->>'canConnect')::boolean,
-  'one exact-name same-class profile may use its committed application address'
+  'a committed application contact cannot authorize access to a student record'
+);
+SELECT extensions.ok(
+  NOT (
+    (plugin_data.csf_profile_link_connect_evidence(
+      'ef100000-0000-4000-8000-000000000001',
+      'ef400000-0000-4000-8000-000000000002',
+      'ef300000-0000-4000-8000-000000000003'
+    )->'corroboration') @> '["application_source_email"]'::jsonb
+  ),
+  'application-source contact evidence is not recorded as connection authority'
 );
 SELECT extensions.ok(
   (plugin_data.csf_profile_link_connect_evidence(
     'ef100000-0000-4000-8000-000000000001',
     'ef400000-0000-4000-8000-000000000002',
     'ef300000-0000-4000-8000-000000000003'
-  )->'corroboration') @> '["application_source_email"]'::jsonb,
-  'the decision records application-source email as its authority'
+  )->'blockers')::text LIKE '%application contacts cannot verify student-record ownership%',
+  'officers receive a precise advisory-only application-contact blocker'
 );
 -- Simulate persisted evidence corruption below the immutable application layer.
 -- Ordinary writes must remain blocked by csf_preserve_import_row_snapshot.
