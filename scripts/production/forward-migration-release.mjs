@@ -555,6 +555,10 @@ export const approvedMigrations = [
     "20260919091727_index_hot_uncovered_foreign_keys",
     "b13b08f59979521d1064e984b64a42e99852e74d8025c38566f9672844db5c53",
   ],
+  [
+    "20260919095826_atomic_csf_post_attachment_update",
+    "4d75516543a45dbc621321732570629ce5a23fa75220c6bc2dda126e7db0cf9f",
+  ],
 ];
 
 const literal = (value) => `'${value.replaceAll("'", "''")}'`;

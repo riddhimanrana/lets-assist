@@ -8,7 +8,8 @@ import { expectedVersions } from "./app-release-checks.mjs";
 import { approvedMigrations } from "./forward-migration-release.mjs";
 
 const cwd = fileURLToPath(new URL("../../", import.meta.url));
-const ledger = expectedVersions(cwd);
+const fullLedger = expectedVersions(cwd);
+const ledger = fullLedger.slice(0, 603);
 const source = readFileSync(
   new URL("./verify-csf-target-schema.sql", import.meta.url),
   "utf8",
@@ -20,12 +21,13 @@ const migration = readFileSync(
 );
 
 test("604 pins the populated import foreign-key indexes", () => {
+  assert.equal(fullLedger.length, 604);
   assert.equal(ledger.length, 603);
   assert.equal(ledger.at(-1), "20260919091727");
-  assert.deepEqual(approvedMigrations.at(-1), [
-    migrationName,
-    createHash("sha256").update(migration).digest("hex"),
-  ]);
+  assert.deepEqual(
+    approvedMigrations.find(([name]) => name === migrationName),
+    [migrationName, createHash("sha256").update(migration).digest("hex")],
+  );
 
   const previous = acceptedCatalogQuery(source, ledger.slice(0, 602));
   const current = acceptedCatalogQuery(source, ledger);
@@ -49,7 +51,7 @@ test("604 refuses an unreviewed ledger or changed migration bytes", () => {
     /explicit release review/u,
   );
   assert.equal(
-    approvedMigrations.at(-1)[1],
+    approvedMigrations.find(([name]) => name === migrationName)[1],
     "b13b08f59979521d1064e984b64a42e99852e74d8025c38566f9672844db5c53",
   );
 });
