@@ -2,7 +2,7 @@ BEGIN;
 
 CREATE EXTENSION IF NOT EXISTS pgtap WITH SCHEMA extensions;
 
-SELECT extensions.plan(11);
+SELECT extensions.plan(12);
 
 INSERT INTO public.organizations (id, name, username, type, join_code)
 VALUES (
@@ -73,6 +73,46 @@ INSERT INTO plugin_data.csf_sheet_import_rows (
     'aa520000-0000-4000-8000-000000000002',
     'Responses', 4, 'error',
     ARRAY['The submitted timestamp is not a valid date and must be corrected or explicitly excluded.']
+  ),
+  (
+    'aa530000-0000-4000-8000-000000000006',
+    'aa510000-0000-4000-8000-000000000001',
+    'aa520000-0000-4000-8000-000000000002',
+    'Responses', 5, 'error',
+    ARRAY[
+      'This response arrived after attendance closed and cannot count.',
+      'The submitted timestamp is not a valid date and must be corrected or explicitly excluded.'
+    ]
+  ),
+  (
+    'aa530000-0000-4000-8000-000000000007',
+    'aa510000-0000-4000-8000-000000000001',
+    'aa520000-0000-4000-8000-000000000002',
+    'Responses', 6, 'error',
+    ARRAY[
+      'This response arrived before attendance opened and cannot count.',
+      'The submitted identity does not match a verified CSF profile.'
+    ]
+  ),
+  (
+    'aa530000-0000-4000-8000-000000000008',
+    'aa510000-0000-4000-8000-000000000001',
+    'aa520000-0000-4000-8000-000000000002',
+    'Responses', 7, 'error',
+    ARRAY[
+      'This response arrived after attendance closed and cannot count.',
+      'A future reviewed error must continue to block attendance import.'
+    ]
+  ),
+  (
+    'aa530000-0000-4000-8000-000000000009',
+    'aa510000-0000-4000-8000-000000000001',
+    'aa520000-0000-4000-8000-000000000002',
+    'Responses', 8, 'error',
+    ARRAY[
+      'This response arrived before attendance opened and cannot count.',
+      NULL
+    ]::text[]
   );
 
 SELECT extensions.has_function(
@@ -198,7 +238,7 @@ SELECT extensions.is(
     'aa510000-0000-4000-8000-000000000001',
     'aa520000-0000-4000-8000-000000000002'
   )->>'error')::integer,
-  3,
+  7,
   'all attendance error rows remain excluded from credit'
 );
 
@@ -209,6 +249,19 @@ SELECT extensions.is(
   )->>'attendanceWindowExcluded')::integer,
   2,
   'only the deterministic early and late rows are non-blocking exclusions'
+);
+
+SELECT extensions.is(
+  (plugin_data.csf_import_preview_readiness(
+    'aa510000-0000-4000-8000-000000000001',
+    'aa520000-0000-4000-8000-000000000002'
+  )->>'error')::integer
+  - (plugin_data.csf_import_preview_readiness(
+    'aa510000-0000-4000-8000-000000000001',
+    'aa520000-0000-4000-8000-000000000002'
+  )->>'attendanceWindowExcluded')::integer,
+  5,
+  'mixed cutoff rows with malformed, identity, other, or null errors all remain blocking'
 );
 
 SELECT * FROM extensions.finish();

@@ -22,7 +22,7 @@ const migration = readFileSync(
 test("617 pins bounded, service-only Sheet observation batch wrappers", () => {
   assert.equal(ledger.length, 617);
   assert.equal(ledger.at(-1), "20260919203000");
-  assert.deepEqual(approvedMigrations.at(-2), [
+  assert.deepEqual(approvedMigrations.at(-3), [
     migrationName,
     createHash("sha256").update(migration).digest("hex"),
   ]);
@@ -43,7 +43,7 @@ test("617 refuses an unreviewed ledger or changed migration bytes", () => {
     /explicit release review/u,
   );
   assert.equal(
-    approvedMigrations.at(-2)[1],
+    approvedMigrations.at(-3)[1],
     createHash("sha256").update(migration).digest("hex"),
   );
 });
