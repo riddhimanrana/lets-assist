@@ -1012,13 +1012,12 @@ test.describe("CSF identity safety", () => {
     );
     await expect(page).toHaveURL(/[?&]csf_cohort_tab=members(?:&|$)/);
 
-    const connections = page.locator("section").filter({
-      has: page.getByRole("heading", {
-        name: "Record connections",
-        exact: true,
-      }),
+    const connections = page.locator("details").filter({
+      has: page.locator("summary").filter({ hasText: "Accounts to connect" }),
     });
     await expect(connections).toBeVisible();
+    await expect(connections).not.toHaveAttribute("open", "");
+    await connections.locator("summary").click();
     await expect(
       connections.getByText(fixture.classmateName, { exact: false }).first(),
     ).toBeVisible();
