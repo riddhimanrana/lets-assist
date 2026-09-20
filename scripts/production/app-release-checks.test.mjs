@@ -416,11 +416,12 @@ test("schema verification uses only fixed read-only management requests", async 
   );
   assert.equal(result.migrations, versions.length);
   assert.equal(calls.length, 4);
-  for (const { url, options } of calls) {
+  for (const [index, { url, options }] of calls.entries()) {
     assert.equal(
       url,
-      `https://api.supabase.com/v1/projects/${productionRef}/database/query/read-only`,
+      `https://api.supabase.com/v1/projects/${productionRef}/database/query${index === 1 ? "" : "/read-only"}`,
     );
+    assert.equal(JSON.parse(options.body).read_only, true);
     assert.equal(options.redirect, "error");
     assert.match(
       JSON.parse(options.body)
@@ -442,6 +443,25 @@ test("schema verification uses only fixed read-only management requests", async 
       throw new Error("must not call");
     }),
   );
+});
+
+test("owner catalog refusal stops without a writable fallback", async () => {
+  const cwd = resolve(import.meta.dirname, "../..");
+  const calls = [];
+  await assert.rejects(
+    verifySchema(
+      { projectRef: productionRef, token: "fictional", cwd },
+      async (url, options) => {
+        calls.push({ url, options });
+        return calls.length === 1
+          ? Response.json(expectedVersions(cwd).map((version) => ({ version })))
+          : new Response("private provider error", { status: 403 });
+      },
+    ),
+    { message: "Release verification refused: HTTP 403." },
+  );
+  assert.equal(calls.length, 2);
+  assert.equal(JSON.parse(calls[1].options.body).read_only, true);
 });
 
 test("catalog refusal and active write block stop deployment", async () => {

@@ -314,16 +314,18 @@ export async function verifySchema(
 ) {
   if (projectRef !== productionRef || !token)
     throw new ReleaseCheckError("Invalid Production database binding.");
-  const query = (sql) =>
+  const query = (sql, ownerCatalog = false) =>
     readJson(
-      `https://api.supabase.com/v1/projects/${projectRef}/database/query/read-only`,
+      `https://api.supabase.com/v1/projects/${projectRef}/database/query${ownerCatalog ? "" : "/read-only"}`,
       {
         method: "POST",
         headers: {
           Authorization: `Bearer ${token}`,
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ query: sql }),
+        // Cron RLS hides owner jobs from supabase_read_only_user. Keep the
+        // catalog query read-only on the authorized owner connection instead.
+        body: JSON.stringify({ query: sql, read_only: true }),
       },
       fetcher,
     );
@@ -342,6 +344,7 @@ export async function verifySchema(
       ),
       versions,
     ),
+    true,
   );
   if (result?.length !== 1 || result[0].csf_target_schema_verified !== 1) {
     throw new ReleaseCheckError("Production CSF catalog verification failed.");
