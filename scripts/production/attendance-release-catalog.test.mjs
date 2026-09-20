@@ -17,15 +17,15 @@ const readManifest = (count) =>
       "utf8",
     ),
   );
-const before = readManifest(632);
-const after = readManifest(636);
+const before = readManifest(633);
+const after = readManifest(637);
 const attendanceVersions = [
-  "20260920220700",
-  "20260920220701",
-  "20260920220702",
-  "20260920220703",
+  "20260920234000",
+  "20260920234001",
+  "20260920234002",
+  "20260920234003",
 ];
-const approvedLedger = ledger.filter(
+const baselineLedger = ledger.filter(
   (version) => !attendanceVersions.includes(version),
 );
 const previous = new Map(
@@ -89,11 +89,11 @@ const EXPECTED_CHANGED = [
   "relation:public.user_certificate_read_model",
 ];
 
-test("636 selects the exact attendance ledger without predecessor query rewriting", () => {
-  assert.equal(ledger.length, 636);
+test("637 selects the exact attendance ledger without predecessor query rewriting", () => {
+  assert.equal(ledger.length, 637);
   assert.equal(
     ledgerDigest(ledger),
-    "b2bd6628b3364af3e9497ec84f55a92483ae224b17cb5d4ec9129c794b554a1b",
+    "bb02a2d2fd164fbf3a741dee471e7dfbab444ce49b428c87aaea2baef16be22b",
   );
   assert.equal(
     acceptedCatalogQuery("invalid predecessor SQL", ledger),
@@ -103,15 +103,15 @@ test("636 selects the exact attendance ledger without predecessor query rewritin
   assert.doesNotThrow(() => assertCleanInventory(after.objects));
 });
 
-test("the 632 Production approval remains separate from the 636 schema catalog", () => {
-  assert.equal(approvedLedger.length, 632);
-  assert.deepEqual(ledger.slice(0, 632), approvedLedger);
-  assert.deepEqual(ledger.slice(632), attendanceVersions);
-  assert.equal(approvedLedger.at(-1), "20260920214013");
-  assert.equal(ledgerDigest(approvedLedger), before.ledger);
+test("the frozen 633 baseline remains separate from attendance Production approval", () => {
+  assert.equal(baselineLedger.length, 633);
+  assert.deepEqual(ledger.slice(0, 633), baselineLedger);
+  assert.deepEqual(ledger.slice(633), attendanceVersions);
+  assert.equal(baselineLedger.at(-1), "20260920233000");
+  assert.equal(ledgerDigest(baselineLedger), before.ledger);
   assert.equal(
-    acceptedCatalogQuery("", approvedLedger),
-    finalSchemaCatalog(before, approvedLedger),
+    acceptedCatalogQuery("", baselineLedger),
+    finalSchemaCatalog(before, baselineLedger),
   );
   for (const version of attendanceVersions) {
     assert.ok(
@@ -126,6 +126,13 @@ test("the attendance catalog refuses altered, reordered, and extended ledgers", 
     [...ledger, "20990101000000"],
     [...ledger].reverse(),
     ledger.slice(0, -1),
+    [
+      ...ledger.slice(0, 632),
+      "20260920220700",
+      "20260920220701",
+      "20260920220702",
+      "20260920220703",
+    ],
   ]) {
     assert.throws(
       () => acceptedCatalogQuery("", changed),
@@ -133,7 +140,7 @@ test("the attendance catalog refuses altered, reordered, and extended ledgers", 
     );
   }
   assert.throws(
-    () => finalSchemaCatalog(after, approvedLedger),
+    () => finalSchemaCatalog(after, baselineLedger),
     /reviewed ledger/u,
   );
 });

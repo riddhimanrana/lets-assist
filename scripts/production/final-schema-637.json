@@ -1,6 +1,6 @@
 {
   "format": 1,
-  "ledger": "b2bd6628b3364af3e9497ec84f55a92483ae224b17cb5d4ec9129c794b554a1b",
+  "ledger": "bb02a2d2fd164fbf3a741dee471e7dfbab444ce49b428c87aaea2baef16be22b",
   "inventory": "50d25e20102baa344f625914423b07f414daf1204214f9bd6cc7b9e6fe2c0efd",
   "objects": [
     {
@@ -521,7 +521,7 @@
     },
     {
       "identity": "function:plugin_data.csf_authorize_publication_notification(p_organization_id uuid, p_delivery_id uuid, p_lease_token uuid)",
-      "digest": "273bb6b366f743a0c198f4e881ef7393"
+      "digest": "5ae57c24813b36423c0610aa0c3bc612"
     },
     {
       "identity": "function:plugin_data.csf_automatic_application_new_profile_is_safe(p_organization_id uuid, p_row_id uuid)",
@@ -1997,7 +1997,7 @@
     },
     {
       "identity": "function:plugin_data.csf_publication_email_recipient_allowed(p_organization_id uuid, p_snapshot_id uuid)",
-      "digest": "365fef4093f845b1d37f19cdf6f6a6c3"
+      "digest": "2351c2a76bbfca10cb4948daf8fd1dfc"
     },
     {
       "identity": "function:plugin_data.csf_publication_notices_suppressed()",
@@ -2201,7 +2201,7 @@
     },
     {
       "identity": "function:plugin_data.csf_record_personal_notification(p_organization_id uuid, p_source_kind text, p_source_id uuid, p_profile_id uuid, p_discriminator text)",
-      "digest": "75599a7ec238bd7d08f3587b07df39fd"
+      "digest": "a070717c09dd659f566db1e6966d0307"
     },
     {
       "identity": "function:plugin_data.csf_record_point_submission_notification()",
@@ -2262,6 +2262,10 @@
     {
       "identity": "function:plugin_data.csf_recovery_teardown_authorized(p_organization_id uuid)",
       "digest": "9e0ed60d45c6faf4b52473d3918cc2dc"
+    },
+    {
+      "identity": "function:plugin_data.csf_redact_legacy_sheet_reasons()",
+      "digest": "71bb0fddae8d73193ebee2edd09500f9"
     },
     {
       "identity": "function:plugin_data.csf_refresh_sheet_source_drive_metadata(p_organization_id uuid, p_actor_user_id uuid, p_source_id uuid, p_expected_provider text, p_expected_file_id text, p_provider_file_id text, p_metadata jsonb)",
@@ -2337,7 +2341,7 @@
     },
     {
       "identity": "function:plugin_data.csf_release_sheet_application_decisions(p_organization_id uuid, p_actor_user_id uuid, p_term_id uuid, p_request_id uuid, p_application_ids uuid[])",
-      "digest": "be2030b7626628cebe405ffc2f56a39c"
+      "digest": "c93b4b29579d8f5b462f64deac0704dc"
     },
     {
       "identity": "function:plugin_data.csf_release_sheet_sync_destination(p_organization_id uuid, p_destination_id uuid, p_lease_token uuid)",
@@ -2868,8 +2872,12 @@
       "digest": "97dba6f1a1810664a9470a8b77ff1451"
     },
     {
+      "identity": "function:plugin_data.csf_transition_notice_fingerprint(p_organization_id uuid, p_profile_id uuid, p_user_id uuid, p_kind text, p_subject_id uuid)",
+      "digest": "62d7dac1bc6d33e8dc2913474caa85e5"
+    },
+    {
       "identity": "function:plugin_data.csf_transition_notice_recipient_allowed(p_organization_id uuid, p_source_kind text, p_profile_id uuid, p_user_id uuid, p_event_key text)",
-      "digest": "14cb116b76b01cb7e615ad344a8cb79b"
+      "digest": "238ec585505285be80c0e63126b38ed7"
     },
     {
       "identity": "function:plugin_data.csf_unlink_class_workbook(p_organization_id uuid, p_cohort_id uuid, p_actor_user_id uuid)",
