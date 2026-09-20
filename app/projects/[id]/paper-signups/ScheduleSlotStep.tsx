@@ -93,7 +93,7 @@ export function ScheduleSlotStep({
           </Empty>
         ) : (
           <RadioGroup
-            value={selectedSlotId ?? undefined}
+            value={selectedSlotId ?? ""}
             onValueChange={(value) => onSelect(String(value))}
             aria-label="Session for this sheet"
           >

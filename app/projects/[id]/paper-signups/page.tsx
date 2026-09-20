@@ -205,7 +205,9 @@ export default async function PaperSignupsPage({
         </nav>
       )}
       <PaperSignupsClient
-        key={openBatch?.id ?? "new"}
+        key={
+          typeof queryParams.batch === "string" ? queryParams.batch : "current"
+        }
         initialMode={queryParams.mode === "manual" ? "manual" : "scan"}
         projectId={projectId}
         projectTitle={project.title}

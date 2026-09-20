@@ -9,14 +9,14 @@ export function AttendanceTools({ projectId }: { projectId: string }) {
         size="sm"
         render={<Link href={`/projects/${projectId}/attendance-sheet`} />}
       >
-        Print attendance sheets
+        Print attendance sheet
       </Button>
       <Button
         variant="outline"
         size="sm"
         render={<Link href={`/projects/${projectId}/paper-signups`} />}
       >
-        Scan attendance sheets
+        Scan completed sheets
       </Button>
       <Button
         variant="outline"
@@ -25,7 +25,7 @@ export function AttendanceTools({ projectId }: { projectId: string }) {
           <Link href={`/projects/${projectId}/paper-signups?mode=manual`} />
         }
       >
-        Enter attendance manually
+        Add attendance manually
       </Button>
     </div>
   );

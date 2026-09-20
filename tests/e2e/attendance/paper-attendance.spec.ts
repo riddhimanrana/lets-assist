@@ -3,6 +3,10 @@ import { createClient } from "@supabase/supabase-js";
 import { expect, test, type Locator } from "@playwright/test";
 import { getCsfIsolatedSupabaseEnv } from "../../../scripts/local-dev/dv-local-env.mjs";
 
+process.env.PLAYWRIGHT_NO_COPY_PROMPT = "1";
+test.use({ trace: "off", video: "off", screenshot: "off" });
+test.setTimeout(180_000);
+
 function checked(error: { message: string } | null) {
   if (error) throw new Error(error.message);
 }
@@ -77,7 +81,10 @@ test("fictional guest attendance prints, publishes, exports, corrects, and links
   let userId: string | null = null;
   let linkedUserId: string | null = null;
   const errors: string[] = [];
-  page.on("pageerror", (error) => errors.push(error.message));
+  page.on("pageerror", (error) => {
+    errors.push(error.message);
+    console.error("Attendance page error:", error.message);
+  });
   try {
     const account = await admin.auth.admin.createUser({
       email: coordinatorEmail,
@@ -150,11 +157,23 @@ test("fictional guest attendance prints, publishes, exports, corrects, and links
     console.info("Attendance acceptance: authenticated hours page loaded");
 
     await page
-      .getByRole("link", { name: "Print attendance sheets", exact: true })
+      .locator(`a[href="/projects/${projectId}/attendance-sheet"]`)
+      .filter({ visible: true })
+      .first()
       .click();
-    await page
-      .getByRole("button", { name: "Prepare sheets", exact: true })
-      .click();
+    await expect(page).toHaveURL(
+      new RegExp(`/projects/${projectId}/attendance-sheet$`),
+    );
+    const prepareSheets = page.getByRole("button", {
+      name: "Prepare sheets",
+      exact: true,
+    });
+    const printSession = page.getByRole("checkbox").first();
+    await printSession.uncheck();
+    await expect(prepareSheets).toBeDisabled();
+    await printSession.check();
+    await expect(prepareSheets).toBeEnabled();
+    await prepareSheets.click();
     await expect(page.locator(".attendance-print-page").first()).toBeVisible();
     await expect(page.locator(".attendance-print-sheets")).toContainText(
       "Walk-ins",
@@ -194,9 +213,19 @@ test("fictional guest attendance prints, publishes, exports, corrects, and links
         () => document.documentElement.scrollWidth <= innerWidth + 1,
       ),
     ).toBe(true);
+    await review.evaluate((element) => {
+      element.scrollTop = 0;
+    });
     await page.screenshot({
       path: testInfo.outputPath("review-mobile.png"),
-      fullPage: true,
+      fullPage: false,
+    });
+    await review
+      .getByText("Visits and breaks", { exact: true })
+      .scrollIntoViewIfNeeded();
+    await page.screenshot({
+      path: testInfo.outputPath("review-mobile-visits.png"),
+      fullPage: false,
     });
     await review
       .getByRole("button", { name: "Save review", exact: true })
@@ -205,7 +234,10 @@ test("fictional guest attendance prints, publishes, exports, corrects, and links
     const include = page
       .getByLabel("Include when reviewed", { exact: true })
       .first();
-    if (!(await include.isChecked())) await include.check();
+    if (!(await include.isChecked())) {
+      await include.click();
+      await expect(include).toBeChecked();
+    }
     await page
       .getByRole("button", { name: "Add missed row or walk-in", exact: true })
       .click();
@@ -234,7 +266,7 @@ test("fictional guest attendance prints, publishes, exports, corrects, and links
 
     await page.reload();
     await expect(
-      page.getByText("Unresolved Fixture", { exact: true }),
+      page.getByRole("heading", { name: /Unresolved Fixture$/ }),
     ).toBeVisible();
     await expect(
       page.getByRole("button", {
@@ -392,6 +424,10 @@ test("fictional guest attendance prints, publishes, exports, corrects, and links
     expect(correctedCsv[0].creditedMinutes).toBe("150");
     expect(correctedCsv[0].certificateId).toBe(certificateId);
 
+    await page.screenshot({
+      path: testInfo.outputPath("corrected-hours.png"),
+      fullPage: true,
+    });
     await page.goto(`/certificates/${certificateId}`);
     await expect(
       page.getByText("2 hours 30 mins", { exact: true }),
@@ -491,9 +527,15 @@ test("fictional guest attendance prints, publishes, exports, corrects, and links
       errors.filter((message) => !message.includes("Failed to load resource")),
     ).toEqual([]);
   } finally {
-    checked((await admin.from("projects").delete().eq("id", projectId)).error);
-    if (userId) checked((await admin.auth.admin.deleteUser(userId)).error);
-    if (linkedUserId)
-      checked((await admin.auth.admin.deleteUser(linkedUserId)).error);
+    const cleanupErrors: string[] = [];
+    const deletion = await admin.from("projects").delete().eq("id", projectId);
+    if (deletion.error) cleanupErrors.push(deletion.error.message);
+    for (const id of [userId, linkedUserId]) {
+      if (!id) continue;
+      const accountDeletion = await admin.auth.admin.deleteUser(id);
+      if (accountDeletion.error)
+        cleanupErrors.push(accountDeletion.error.message);
+    }
+    expect.soft(cleanupErrors, "Fictional fixture cleanup").toEqual([]);
   }
 });

@@ -309,13 +309,16 @@ export function HoursClient({
                   </Badge>
                 </div>
                 <p className="text-sm">
-                  {attendees.length} volunteers ·{" "}
+                  {attendees.length}{" "}
+                  {attendees.length === 1 ? "volunteer" : "volunteers"} ·{" "}
                   {minutesLabel(summary.awardedMinutes)} awarded
                 </p>
                 {summary.pendingCount > 0 && (
                   <p className="text-sm text-muted-foreground">
                     {minutesLabel(summary.recordedMinutes)} recorded for{" "}
-                    {summary.pendingCount} volunteers awaiting publication.
+                    {summary.pendingCount}{" "}
+                    {summary.pendingCount === 1 ? "volunteer" : "volunteers"}{" "}
+                    awaiting publication.
                   </p>
                 )}
                 {published ? (
@@ -331,12 +334,16 @@ export function HoursClient({
                     disabled={busy !== null || !ready.length}
                     onClick={() => setConfirmSession(key)}
                   >
-                    Review and publish {ready.length} volunteers
+                    Review and publish {ready.length}{" "}
+                    {ready.length === 1 ? "volunteer" : "volunteers"}
                   </Button>
                 )}
                 {!published && ready.length !== attendees.length && (
                   <p className="text-sm text-muted-foreground">
-                    {attendees.length - ready.length} volunteers still need
+                    {attendees.length - ready.length}{" "}
+                    {attendees.length - ready.length === 1
+                      ? "volunteer still needs"
+                      : "volunteers still need"}{" "}
                     valid attendance times.
                   </p>
                 )}

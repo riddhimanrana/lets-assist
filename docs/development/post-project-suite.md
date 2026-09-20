@@ -63,6 +63,22 @@ Downloads use bounded server-side pagination and current authorization checks.
 They return private, non-cacheable responses and exclude guest tokens and scan
 photos. Oversized exports fail explicitly instead of returning a partial report.
 
+### Acceptance
+
+`tests/e2e/attendance/paper-attendance.spec.ts` exercises printing, mobile manual
+review, partial completion, publication, matching CSV/JSON totals, correction,
+guest certificate access, and later account linking with one award. It uses
+unique fictional data and removes its fixtures. The CSF release browser suite
+imports this platform journey through `platform-attendance.spec.ts`.
+
+For a focused run against an already-owned isolated application, set
+`CSF_ISOLATED_WORK_DIR`, its `CSF_ISOLATED_APP_PORT`, and
+`ATTENDANCE_EXISTING_SERVER=1`, then run
+`bunx playwright test --config=playwright.attendance.config.ts`. The configuration
+validates the isolated stack marker. It disables traces, video, and automatic
+failure screenshots so authentication details are not retained. Successful
+screenshots contain only fictional attendance.
+
 ## Private volunteer feedback
 
 Attendees of a completed project leave a 1–5 star rating plus an optional
