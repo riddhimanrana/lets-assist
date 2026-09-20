@@ -348,7 +348,7 @@ function reconcileCsf620SupersededStorageChecks(catalog) {
 export function acceptedCatalogQuery(source, versions) {
   if (
     ledgerDigest(versions) ===
-    "79e5490668c9b4404489ec0ae79cfff079adccc8965edfed3121b5cdda29026e"
+    "b2bd6628b3364af3e9497ec84f55a92483ae224b17cb5d4ec9129c794b554a1b"
   ) {
     return finalSchemaCatalog(
       JSON.parse(

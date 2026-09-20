@@ -20,10 +20,10 @@ const readManifest = (count) =>
 const before = readManifest(632);
 const after = readManifest(636);
 const attendanceVersions = [
-  "20260920183225",
-  "20260920183259",
-  "20260920184832",
-  "20260920190000",
+  "20260920220700",
+  "20260920220701",
+  "20260920220702",
+  "20260920220703",
 ];
 const approvedLedger = ledger.filter(
   (version) => !attendanceVersions.includes(version),
@@ -93,7 +93,7 @@ test("636 selects the exact attendance ledger without predecessor query rewritin
   assert.equal(ledger.length, 636);
   assert.equal(
     ledgerDigest(ledger),
-    "79e5490668c9b4404489ec0ae79cfff079adccc8965edfed3121b5cdda29026e",
+    "b2bd6628b3364af3e9497ec84f55a92483ae224b17cb5d4ec9129c794b554a1b",
   );
   assert.equal(
     acceptedCatalogQuery("invalid predecessor SQL", ledger),
@@ -105,6 +105,8 @@ test("636 selects the exact attendance ledger without predecessor query rewritin
 
 test("the 632 Production approval remains separate from the 636 schema catalog", () => {
   assert.equal(approvedLedger.length, 632);
+  assert.deepEqual(ledger.slice(0, 632), approvedLedger);
+  assert.deepEqual(ledger.slice(632), attendanceVersions);
   assert.equal(approvedLedger.at(-1), "20260920214013");
   assert.equal(ledgerDigest(approvedLedger), before.ledger);
   assert.equal(
