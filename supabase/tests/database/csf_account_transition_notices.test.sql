@@ -1,7 +1,7 @@
 -- Synthetic account and decision notices. No provider calls.
 BEGIN;
 CREATE EXTENSION IF NOT EXISTS pgtap WITH SCHEMA extensions;
-SELECT extensions.plan(24);
+SELECT extensions.plan(30);
 INSERT INTO auth.users(id,aud,role,email,email_confirmed_at,raw_app_meta_data,raw_user_meta_data,created_at,updated_at) VALUES
 ('ec200000-0000-4000-8000-000000000001','authenticated','authenticated','publication-admin@local.test',now(),'{}','{}',now(),now()),
 ('ec200000-0000-4000-8000-000000000002','authenticated','authenticated','publication-member@local.test',now(),'{}','{}',now(),now()),
@@ -117,6 +117,42 @@ SELECT extensions.ok(NOT plugin_data.csf_transition_notice_recipient_allowed(
  'ec100000-0000-4000-8000-000000000001','profile','ec300000-0000-4000-8000-000000000001',
  'ec200000-0000-4000-8000-000000000002',(SELECT event_key FROM transition_fixture)),
  'a new acceptance does not revive the old rejection notice');
+CREATE TEMP TABLE organization_access_fixture AS
+ SELECT e.event_key,m.id AS membership_id,m.access_revision
+ FROM plugin_data.csf_publication_events e
+ JOIN public.organization_members m ON m.id::text=split_part(e.event_key,':',2)
+ WHERE m.user_id='ec200000-0000-4000-8000-000000000002'
+ AND e.event_key LIKE 'access_granted:%';
+SELECT extensions.ok(plugin_data.csf_transition_notice_recipient_allowed(
+ 'ec100000-0000-4000-8000-000000000001','profile','ec300000-0000-4000-8000-000000000001',
+ 'ec200000-0000-4000-8000-000000000002',(SELECT event_key FROM organization_access_fixture)),
+ 'current organization access authorizes its own event');
+UPDATE public.organization_members SET is_visible=false,access_revision=gen_random_uuid()
+ WHERE id=(SELECT membership_id FROM organization_access_fixture);
+SELECT extensions.is((SELECT access_revision FROM public.organization_members WHERE id=(SELECT membership_id FROM organization_access_fixture)),
+ (SELECT access_revision FROM organization_access_fixture),'unrelated edits cannot replace the access revision');
+UPDATE public.organization_members SET status='inactive'
+ WHERE id=(SELECT membership_id FROM organization_access_fixture);
+SELECT extensions.ok(NOT plugin_data.csf_transition_notice_recipient_allowed(
+ 'ec100000-0000-4000-8000-000000000001','profile','ec300000-0000-4000-8000-000000000001',
+ 'ec200000-0000-4000-8000-000000000002',(SELECT event_key FROM organization_access_fixture)),
+ 'revoking organization access blocks its notice');
+UPDATE public.organization_members SET status='active',access_revision=(SELECT access_revision FROM organization_access_fixture)
+ WHERE id=(SELECT membership_id FROM organization_access_fixture);
+SELECT extensions.ok(NOT plugin_data.csf_transition_notice_recipient_allowed(
+ 'ec100000-0000-4000-8000-000000000001','profile','ec300000-0000-4000-8000-000000000001',
+ 'ec200000-0000-4000-8000-000000000002',(SELECT event_key FROM organization_access_fixture)),
+ 'restoring access cannot revive its original notice even with the old revision supplied');
+SELECT extensions.is((SELECT count(*)::integer FROM plugin_data.csf_publication_events e
+ WHERE e.source_id='ec300000-0000-4000-8000-000000000001'
+ AND split_part(e.event_key,':',2)=(SELECT membership_id::text FROM organization_access_fixture)
+ AND plugin_data.csf_transition_notice_recipient_allowed(e.organization_id,e.source_kind,e.source_id,
+ 'ec200000-0000-4000-8000-000000000002',e.event_key)),1,
+ 'only the current organization activation authorizes delivery');
+SELECT extensions.ok(NOT has_function_privilege('authenticated',
+ 'plugin_data.csf_stamp_organization_access_revision()','EXECUTE'),
+ 'clients cannot call the internal access revision trigger');
+
 CREATE TEMP TABLE access_fixture AS SELECT e.event_key FROM plugin_data.csf_publication_events e
  JOIN plugin_data.csf_profile_cohort_memberships m ON m.id::text=split_part(e.event_key,':',2)
  WHERE m.profile_id='ec300000-0000-4000-8000-000000000001' AND e.event_key LIKE 'access_granted:%';

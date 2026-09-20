@@ -9218,3 +9218,20 @@ exact-SHA Development Preview request. It refuses Production, other branches,
 and mismatched SHAs without changing shared project settings. The next reviewed
 merge will carry the existing release marker so both the build and hosted gate
 select that candidate. The 633-entry ledger and private gitlink stay unchanged.
+
+**AUDIT-20260920-20, P2:** Organization membership has no `updated_at` field, so
+revoking and restoring access could revive the earlier queued notice. Forward
+migration `20260920233100` adds a protected access revision to the existing
+membership. Its trigger changes the revision on organization, user, or status
+changes and preserves it for unrelated edits. Supplying an old revision cannot
+restore it. The notice fingerprint includes that revision. The regression fails
+against the earlier helper and passes after replacement. All 30 transition-notice
+assertions pass. The fresh 634-migration replay produces 1,239 catalog objects:
+one new internal trigger helper, one changed fingerprint helper, and the changed
+membership relation. The catalog accepts that state and rejects an unauthorized
+function grant in a rollback-only test.
+
+The `f08959e8` Development deployment and alias checks passed. Its full and hosted
+runs `35545534535` and `35545529339` were canceled when this new finding was
+confirmed. They are not final acceptance. Production still serves `3465de3c`;
+no student decision release or notification send occurred during these fixes.
