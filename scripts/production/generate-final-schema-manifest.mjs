@@ -17,6 +17,8 @@ export function assertCleanInventory(objects) {
     "csf_assert_fixture_keys",
     "csf_assert_synthetic_fixture_scope",
     "csf_is_synthetic_fixture_id",
+    "csf_test_begin_then_commit_race",
+    "csf_test_capture_import_merge_race",
   ];
   if (
     objects.some(({ identity }) =>
