@@ -40,7 +40,7 @@ export type AttendanceHoursSignup = ProjectSignup & {
     event_start: string;
     event_end: string;
     attendance_revision: number;
-    type: string;
+    type: string | null;
     canResendCorrection: boolean;
   }>;
 };
@@ -71,7 +71,10 @@ const savedIntervals = (signup: AttendanceHoursSignup) =>
         signup.check_out_time,
       );
 const certificateOf = (signup: AttendanceHoursSignup) =>
-  signup.certificates?.find((certificate) => certificate.type === "verified");
+  signup.certificates?.find(
+    (certificate) =>
+      certificate.type === "verified" || certificate.type === null,
+  );
 
 function sessionLabel(project: Project, sessionId: string) {
   const key = getPublishStateKey(project, sessionId);
@@ -269,6 +272,13 @@ export function HoursClient({
       {sessions
         .filter(([key]) => sessionFilter === "all" || sessionFilter === key)
         .map(([key, attendees]) => {
+          const sessionWindow = getAttendanceScheduleWindow(
+            project,
+            attendees[0].schedule_id,
+          );
+          const sessionEnded = Boolean(
+            sessionWindow && sessionWindow.endsAt <= Date.now(),
+          );
           const published = Boolean(
             project.published?.[key] || attendees.some(certificateOf),
           );
@@ -331,12 +341,19 @@ export function HoursClient({
                   </Button>
                 ) : (
                   <Button
-                    disabled={busy !== null || !ready.length}
+                    disabled={busy !== null || !ready.length || !sessionEnded}
                     onClick={() => setConfirmSession(key)}
                   >
                     Review and publish {ready.length}{" "}
                     {ready.length === 1 ? "volunteer" : "volunteers"}
                   </Button>
+                )}
+                {!published && !sessionEnded && (
+                  <p className="text-sm text-muted-foreground">
+                    {sessionWindow
+                      ? "Hours can be published after this session ends. Refresh then to publish reviewed attendance."
+                      : "This session needs a valid schedule before hours can be published."}
+                  </p>
                 )}
                 {!published && ready.length !== attendees.length && (
                   <p className="text-sm text-muted-foreground">
