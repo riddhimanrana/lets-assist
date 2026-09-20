@@ -79,6 +79,21 @@ validates the isolated stack marker. It disables traces, video, and automatic
 failure screenshots so authentication details are not retained. Successful
 screenshots contain only fictional attendance.
 
+The hosted Development workflow runs the same guest journey after verifying the
+exact Development SHA, alias, and database preview. Its separate
+`playwright.attendance-hosted.config.ts` refuses Production and any application
+origin other than `https://dev.lets-assist.com`. It requires a matching
+Development project reference and confirmation. The service key stays in the
+fixture process; browser sessions use the publishable key and scoped cookies.
+The hosted journey verifies logged-out certificate access before linking through
+an authenticated fictional account. It does not test the hosted CAPTCHA flow.
+
+Hosted reporting emits fixed outcomes without traces, screenshots, error
+payloads, or guest tokens. Cleanup deletes the synthetic certificates before the
+project, verifies that project-scoped rows are gone, and removes both fictional
+accounts. The attendance journey and the existing CSF acceptance must both pass
+before the workflow publishes success.
+
 ## Private volunteer feedback
 
 Attendees of a completed project leave a 1–5 star rating plus an optional
