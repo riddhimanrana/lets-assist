@@ -534,8 +534,10 @@ test.describe("CSF visible people lifecycle", () => {
         member: { role: "member", status: "active" },
         request: { match_status: "resolved" },
       });
-    // A resolved request leaves the queue and the connection guide stays visible.
+    // Reload restores the collapsed account panel after the request is resolved.
     await page.reload({ waitUntil: "domcontentloaded" });
+    await expect(connections).not.toHaveAttribute("open");
+    await connections.locator("summary").click();
     await expect(
       connections.getByText(
         "No accounts are waiting. Students can sign in and use the class join code to request a connection.",
