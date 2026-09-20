@@ -8835,3 +8835,17 @@ The signed private source is `593bddcab92ce700b108ff02cd802293baf02c72`, release
 | AUDIT-20260919-07 | One root integration PR and one signed private release cover this candidate. Preserve the recovery archive and remove temporary branches after integration.                                                                                                                                 | Final branch cleanup follows release.                                                   |
 
 Local validation passes 9,926 pgTAP assertions across 381 files, 3,353 root tests, typecheck, lint, formatting, dependency audit, and architecture/plugin-isolation checks. The full browser run passed 159 cases and skipped four opt-in/deferred cases. Its one failure was an outdated attendance-search wording assertion; the final test now expects active chapter records, including pending applicants, and all three attendance scenarios pass on rerun. Hosted Development and Production verification remain separate gates. Draft suppression, direct activity links, guarded deletion, notification opt-outs, account linking, and decision privacy passed in the integrated browser run.
+
+### Production schema reconciliation, September 20, 2026
+
+Root PR #756 and Production promotion #757 are merged. Development revision `e3d0d7b7eecadabe262ec5b8a8ec939bacffcaef` passed hosted acceptance run `35486721250`: 9,771 requests, zero request/browser errors, read p95 1,305 ms, mutation p95 1,816 ms. Promotion CI `35486744700` passed 9,926 database assertions and 160 CSF browser scenarios with four documented skips.
+
+Production migration run `35488504526` committed migrations 622–625, then correctly stopped on a schema mismatch. It did not deploy the app. The only inventory difference was an extra `Org admins can delete invitations` policy on `public.organization_invitations`. Browser roles already lacked the DELETE grant, so the policy did not grant effective deletion access.
+
+**AUDIT-20260920-01, P2:** Production-only invitation policy drift. Forward migration 626 removes that policy without changing the clean-replay schema or normal invitation policies. Focused pgTAP coverage exercises anonymous/authenticated deletion denial and service-role maintenance access. Applied migrations remain unchanged. Status: fixed locally. All six focused pgTAP assertions pass both on clean replay and after injecting/removing the observed policy drift. All 323 release-controller tests pass. The regenerated 1,225-object clean inventory exactly matches manifest 626. Hosted verification and Production app deployment remain pending.
+
+The four previously enabled Production workers were restored through audited workflows while this correction is reviewed. Scheduled publishing remains disabled. The app still serves the prior revision.
+
+Attendance review now excludes 23 out-of-window source rows with audited reasons. Five distinct profiles have timely name/class candidates without conflicting email evidence; one repeated response must not add a second attendance record. Two other candidates have email/name conflicts and remain unresolved. No account links or decisions were released.
+
+Root and private repositories were reduced to main/development before this corrective branch. Recovery bundles preserve all retired work, and the owned browser-test stack and generated build artifacts were removed. The final correction branch will be removed after integration.
