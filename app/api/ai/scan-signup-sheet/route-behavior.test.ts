@@ -5,6 +5,18 @@ import { fileURLToPath } from "node:url";
 // Isolate module mocks from the root suite's other provider and auth tests.
 for (const [scenario, description] of [
   [
+    "large-roster",
+    "roster and guest candidates past 1000 rows remain available",
+  ],
+  [
+    "printed-batch",
+    "300 printed rows authorize once and reuse batched reference lookups",
+  ],
+  [
+    "printed-without-candidate",
+    "validated printed signup wins independently of fuzzy candidate presence",
+  ],
+  [
     "extraction-lease",
     "active claims refuse retry and expired claims safely replace partial staging",
   ],

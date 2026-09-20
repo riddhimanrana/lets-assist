@@ -93,6 +93,142 @@ const printReferenceSchema = z
   })
   .strict();
 
+type PrintAccess = NonNullable<
+  Awaited<ReturnType<typeof requireAttendancePrintAccess>>
+>;
+type PrintReference = Pick<
+  z.infer<typeof printReferenceSchema>,
+  "sheetReference" | "rowReference"
+>;
+type ResolvedPrintReference = {
+  signupId: string | null;
+  userId: string | null;
+  anonymousId: string | null;
+  rowKind: "signup" | "walk_in" | "continuation";
+  rowNumber: number;
+};
+const REFERENCE_QUERY_CHUNK = 50;
+const MAX_SCAN_REFERENCES = 300;
+
+function chunks<T>(values: T[]): T[][] {
+  return Array.from(
+    { length: Math.ceil(values.length / REFERENCE_QUERY_CHUNK) },
+    (_, index) =>
+      values.slice(
+        index * REFERENCE_QUERY_CHUNK,
+        (index + 1) * REFERENCE_QUERY_CHUNK,
+      ),
+  );
+}
+function referenceKey(reference: PrintReference) {
+  return `${reference.sheetReference}:${reference.rowReference}`;
+}
+
+/** Server-only scan callers must supply their already-authorized manager context. */
+export async function resolveAuthorizedAttendancePrintReferences(
+  access: PrintAccess,
+  input: {
+    projectId: string;
+    scheduleId: string;
+    references: PrintReference[];
+  },
+): Promise<Array<ResolvedPrintReference | null>> {
+  if (input.references.length > MAX_SCAN_REFERENCES)
+    throw new Error("Too many printed references");
+  const empty = input.references.map(() => null);
+  if (input.projectId !== access.project.id) return empty;
+  const valid = input.references.filter(
+    (reference) =>
+      printReferenceSchema.safeParse({
+        projectId: input.projectId,
+        scheduleId: input.scheduleId,
+        ...reference,
+      }).success,
+  );
+  if (!valid.length) return empty;
+  const scheduleId = resolveScheduleId(access.project, input.scheduleId);
+  if (!getAttendanceScheduleWindow(access.project, scheduleId)) return empty;
+
+  const sheetIds = new Set<string>();
+  for (const ids of chunks([
+    ...new Set(valid.map((reference) => reference.sheetReference)),
+  ])) {
+    const { data, error } = await access.admin
+      .from("project_attendance_print_sheets")
+      .select("id")
+      .eq("project_id", input.projectId)
+      .eq("schedule_id", scheduleId)
+      .in("id", ids);
+    if (error) throw new Error(`Failed to load printed sheets: ${error.code}`);
+    for (const sheet of data ?? []) sheetIds.add(sheet.id);
+  }
+  const unique = [
+    ...new Map(
+      valid
+        .filter((reference) => sheetIds.has(reference.sheetReference))
+        .map((reference) => [referenceKey(reference), reference]),
+    ).values(),
+  ];
+  const rows = new Map<
+    string,
+    { signup_id: string | null; row_kind: string; row_number: number }
+  >();
+  for (const references of chunks(unique)) {
+    // Each strict UUID/hex pair selects at most one composite-key row.
+    const { data, error } = await access.admin
+      .from("project_attendance_print_rows")
+      .select("sheet_id, row_reference, signup_id, row_kind, row_number")
+      .eq("project_id", input.projectId)
+      .or(
+        references
+          .map(
+            (reference) =>
+              `and(sheet_id.eq.${reference.sheetReference},row_reference.eq.${reference.rowReference})`,
+          )
+          .join(","),
+      );
+    if (error) throw new Error(`Failed to load printed rows: ${error.code}`);
+    for (const row of data ?? [])
+      rows.set(`${row.sheet_id}:${row.row_reference}`, row);
+  }
+  const signups = new Map<
+    string,
+    { id: string; user_id: string | null; anonymous_id: string | null }
+  >();
+  const signupIds = [
+    ...new Set(
+      [...rows.values()].flatMap((row) =>
+        row.signup_id ? [row.signup_id] : [],
+      ),
+    ),
+  ];
+  for (const ids of chunks(signupIds)) {
+    const { data, error } = await access.admin
+      .from("project_signups")
+      .select("id, user_id, anonymous_id")
+      .eq("project_id", input.projectId)
+      .eq("schedule_id", scheduleId)
+      .in("status", ["approved", "attended"])
+      .in("id", ids);
+    if (error)
+      throw new Error(`Failed to validate printed signups: ${error.code}`);
+    for (const signup of data ?? []) signups.set(signup.id, signup);
+  }
+  return input.references.map((reference) => {
+    const row = rows.get(referenceKey(reference));
+    if (!row) return null;
+    const signup = row.signup_id ? signups.get(row.signup_id) : null;
+    if (row.signup_id && !signup) return null;
+    return {
+      signupId: row.signup_id,
+      userId: signup?.user_id ?? null,
+      anonymousId: signup?.anonymous_id ?? null,
+      rowKind: row.row_kind as ResolvedPrintReference["rowKind"],
+      rowNumber: row.row_number,
+    };
+  });
+}
+
 /** References only suggest a match. The reviewed attendance commit still authorizes the change. */
 export async function resolveAttendancePrintReference(
   input: z.infer<typeof printReferenceSchema>,
@@ -101,38 +237,16 @@ export async function resolveAttendancePrintReference(
   if (!parsed.success) return null;
   const access = await requireAttendancePrintAccess(parsed.data.projectId);
   if (!access) return null;
-  const scheduleId = resolveScheduleId(access.project, parsed.data.scheduleId);
-  if (!getAttendanceScheduleWindow(access.project, scheduleId)) return null;
-  const { data: sheet } = await access.admin
-    .from("project_attendance_print_sheets")
-    .select("id")
-    .eq("id", parsed.data.sheetReference)
-    .eq("project_id", parsed.data.projectId)
-    .eq("schedule_id", scheduleId)
-    .maybeSingle();
-  if (!sheet) return null;
-  const { data: row } = await access.admin
-    .from("project_attendance_print_rows")
-    .select("signup_id, row_kind, row_number")
-    .eq("sheet_id", sheet.id)
-    .eq("project_id", parsed.data.projectId)
-    .eq("row_reference", parsed.data.rowReference)
-    .maybeSingle();
-  if (!row) return null;
-  if (row.signup_id) {
-    const { data: signup } = await access.admin
-      .from("project_signups")
-      .select("id")
-      .eq("id", row.signup_id)
-      .eq("project_id", parsed.data.projectId)
-      .eq("schedule_id", scheduleId)
-      .in("status", ["approved", "attended"])
-      .maybeSingle();
-    if (!signup) return null;
-  }
-  return {
-    signupId: row.signup_id as string | null,
-    rowKind: row.row_kind as "signup" | "walk_in" | "continuation",
-    rowNumber: row.row_number as number,
-  };
+  const [resolved] = await resolveAuthorizedAttendancePrintReferences(access, {
+    projectId: parsed.data.projectId,
+    scheduleId: parsed.data.scheduleId,
+    references: [parsed.data],
+  });
+  return resolved
+    ? {
+        signupId: resolved.signupId,
+        rowKind: resolved.rowKind,
+        rowNumber: resolved.rowNumber,
+      }
+    : null;
 }
