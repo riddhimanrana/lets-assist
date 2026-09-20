@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
-import test from "node:test";
+import test, { after as afterTests } from "node:test";
 import {
   finalSchemaCatalog,
   finalSchemaInventory,
@@ -11,6 +11,7 @@ import {
 } from "./generate-final-schema-manifest.mjs";
 import { acceptedCatalogQuery } from "./app-release-catalog.mjs";
 import { expectedVersions } from "./app-release-checks.mjs";
+import { historicalReleaseTestFixture } from "./historical-release-test-fixture.mjs";
 const manifest = JSON.parse(
   readFileSync(new URL("./final-schema-625.json", import.meta.url), "utf8"),
 );
@@ -213,15 +214,16 @@ test("628 changes only the reviewed attendance commit fast path", () => {
 });
 
 test("632 publishes CSF 1.2.58 without changing the reviewed 631 schema", () => {
+  const fixture = historicalReleaseTestFixture();
+  afterTests(fixture.dispose);
   const before = JSON.parse(
     readFileSync(new URL("./final-schema-631.json", import.meta.url), "utf8"),
   );
   const after = JSON.parse(
     readFileSync(new URL("./final-schema-632.json", import.meta.url), "utf8"),
   );
-  const ledger = expectedVersions(
-    new URL("../../", import.meta.url).pathname,
-  ).slice(0, 632);
+  const ledger = expectedVersions(fixture.cwd);
+  assert.equal(ledger.length, 632);
   assert.equal(ledger.at(-1), "20260920214013");
   assert.deepEqual(after.objects, before.objects);
   assert.equal(after.inventory, before.inventory);
