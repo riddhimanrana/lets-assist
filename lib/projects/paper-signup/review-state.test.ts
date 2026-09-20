@@ -1,5 +1,6 @@
 import { expect, test } from "bun:test";
 import {
+  hasPersistedAttendance,
   isAttendanceRowReady,
   isFinalAttendanceRow,
   isSavedAttendanceRow,
@@ -106,4 +107,16 @@ test("readiness still requires included, complete reviewed times and an outside-
       window,
     ),
   ).toBe(true);
+});
+
+test("reopened persisted attendance remains protected while its edited draft can become ready", () => {
+  const edited = { ...roster, outcome: "pending", savedAttendance: true };
+  expect(isSavedAttendanceRow(edited)).toBe(false);
+  expect(hasPersistedAttendance(edited)).toBe(true);
+  expect(isAttendanceRowReady(edited, window)).toBe(true);
+  expect([edited].some(hasPersistedAttendance)).toBe(true);
+  expect([edited].filter((row) => !hasPersistedAttendance(row))).toEqual([]);
+  expect(
+    hasPersistedAttendance({ outcome: "pending", savedAttendance: false }),
+  ).toBe(false);
 });

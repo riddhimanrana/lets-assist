@@ -62,6 +62,7 @@ export interface PaperScanRowView {
   decision: "pending" | "include" | "exclude";
   outcome: string;
   outcomeDetail: string | null;
+  savedAttendance?: boolean;
   attendanceIntervals: import("@/lib/projects/paper-signup/intervals").AttendanceInterval[];
   reviewAcknowledged: boolean;
   identityConfirmed: boolean;

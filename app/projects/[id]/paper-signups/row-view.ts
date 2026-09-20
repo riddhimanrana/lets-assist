@@ -2,7 +2,7 @@ import { readAttendanceIntervals } from "@/lib/projects/paper-signup/intervals";
 import type { PaperScanRowView } from "./PaperSignupsClient";
 
 export const REVIEW_ROW_COLUMNS =
-  "id, sheet_row_number, image_id, raw_extraction, overall_confidence, name, email, phone, check_in_time, check_out_time, signature_present, match_kind, match_signup_id, match_score, match_reasons, decision, outcome, outcome_detail, attendance_intervals, review_acknowledged, identity_confirmed, time_exception_reason, review_revision";
+  "id, sheet_row_number, image_id, raw_extraction, overall_confidence, name, email, phone, check_in_time, check_out_time, signature_present, match_kind, match_signup_id, match_score, match_reasons, decision, outcome, outcome_detail, attendance_intervals, review_acknowledged, identity_confirmed, time_exception_reason, review_revision, committed_signup_id, project_paper_roster_entries(id)";
 
 export function paperRowView(row: Record<string, unknown>): PaperScanRowView {
   const raw = (row.raw_extraction ?? {}) as Record<
@@ -35,6 +35,11 @@ export function paperRowView(row: Record<string, unknown>): PaperScanRowView {
     decision: row.decision as PaperScanRowView["decision"],
     outcome: String(row.outcome ?? "pending"),
     outcomeDetail: row.outcome_detail as string | null,
+    savedAttendance:
+      Boolean(row.committed_signup_id) ||
+      (Array.isArray(row.project_paper_roster_entries)
+        ? row.project_paper_roster_entries.length > 0
+        : Boolean(row.project_paper_roster_entries)),
     attendanceIntervals: readAttendanceIntervals(
       row.attendance_intervals,
       row.check_in_time as string | null,

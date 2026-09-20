@@ -37,6 +37,7 @@ SELECT extensions.is((SELECT outcome FROM first_commit WHERE row_id='a7400000-00
 SELECT extensions.is((SELECT detail FROM first_commit WHERE row_id='a7400000-0000-4000-8000-000000000002'),'invalid_time_window','missing checkout cannot mint hours');
 SELECT extensions.is((SELECT detail FROM first_commit WHERE row_id='a7400000-0000-4000-8000-000000000003'),'review_required','include alone is not human review');
 SELECT extensions.is((SELECT status FROM public.project_paper_scan_batches WHERE id='a7300000-0000-4000-8000-000000000001'),'review','partial batch stays reviewable');
+SELECT extensions.is(public.discard_paper_scan_batch('a7300000-0000-4000-8000-000000000001','a7100000-0000-4000-8000-000000000001','a7000000-0000-4000-8000-000000000001'),'committed','partial saved attendance cannot be discarded');
 SELECT extensions.is((SELECT count(*)::integer FROM public.project_attendance_intervals WHERE signup_id='a7200000-0000-4000-8000-000000000001'),2,'stores both intervals');
 SELECT extensions.is((SELECT attendance_revision FROM public.project_signups WHERE id='a7200000-0000-4000-8000-000000000001'),1,'first reviewed attendance advances revision');
 SELECT extensions.results_eq($$SELECT * FROM public.commit_paper_signup_batch('a7300000-0000-4000-8000-000000000001','a7000000-0000-4000-8000-000000000001',
@@ -98,6 +99,17 @@ SELECT extensions.is((SELECT count(*)::integer FROM public.certificates WHERE si
 SELECT extensions.is(public.update_paper_scan_review_row((SELECT id FROM manual),'a7100000-0000-4000-8000-000000000001',(SELECT id FROM manual_row),'a7000000-0000-4000-8000-000000000001',
  '{"expectedRevision":1,"email":"roster-promoted@local.test","identityConfirmed":true,"reviewAcknowledged":true}'),'updated','terminal roster record can be reviewed again');
 SELECT extensions.is((SELECT status FROM public.project_paper_scan_batches WHERE id=(SELECT id FROM manual)),'review','roster review reopens batch');
+SELECT extensions.is(public.discard_paper_scan_batch((SELECT id FROM manual),'a7100000-0000-4000-8000-000000000001','a7000000-0000-4000-8000-000000000001'),'committed','reopened roster attendance cannot be discarded');
+SELECT extensions.is((SELECT status FROM public.project_paper_scan_batches WHERE id=(SELECT id FROM manual)),'review','refused discard preserves editable draft');
+SELECT extensions.is((SELECT count(*)::integer FROM public.project_paper_roster_entries WHERE scan_row_id=(SELECT id FROM manual_row)),1,'refused discard preserves saved headcount');
+CREATE TEMP TABLE roster_combine_peer AS SELECT public.add_paper_attendance_row('a7100000-0000-4000-8000-000000000001',(SELECT id FROM manual),'a7000000-0000-4000-8000-000000000001','a7500000-0000-4000-8000-000000000015') AS id;
+SELECT public.update_paper_scan_review_row((SELECT id FROM manual),'a7100000-0000-4000-8000-000000000001',(SELECT id FROM roster_combine_peer),'a7000000-0000-4000-8000-000000000001',
+ '{"expectedRevision":0,"name":"Roster attendee","email":"roster-promoted@local.test","identityConfirmed":true}');
+SELECT extensions.throws_ok($$SELECT public.combine_paper_attendance_rows('a7100000-0000-4000-8000-000000000001',(SELECT id FROM manual),'a7000000-0000-4000-8000-000000000001',(SELECT id FROM manual_row),ARRAY[(SELECT id FROM roster_combine_peer)],'a7500000-0000-4000-8000-000000000016')$$,
+ '22023','confirm an uncommitted identity before combining','reopened saved roster cannot become a combine target');
+SELECT extensions.throws_ok($$SELECT public.combine_paper_attendance_rows('a7100000-0000-4000-8000-000000000001',(SELECT id FROM manual),'a7000000-0000-4000-8000-000000000001',(SELECT id FROM roster_combine_peer),ARRAY[(SELECT id FROM manual_row)],'a7500000-0000-4000-8000-000000000017')$$,
+ '22023','source rows must have the same confirmed identity','reopened saved roster cannot become a combine source');
+
 SELECT extensions.is((SELECT detail FROM public.commit_paper_signup_batch((SELECT id FROM manual),'a7000000-0000-4000-8000-000000000001',ARRAY[(SELECT id FROM manual_row)],false,'a7500000-0000-4000-8000-000000000013')),'slot_full','roster promotion still enforces capacity');
 SELECT extensions.is((SELECT outcome FROM public.commit_paper_signup_batch((SELECT id FROM manual),'a7000000-0000-4000-8000-000000000001',ARRAY[(SELECT id FROM manual_row)],true,'a7500000-0000-4000-8000-000000000014')),'signup_created','explicit capacity override permits roster promotion');
 SELECT extensions.is((SELECT count(*)::integer FROM public.project_paper_roster_entries WHERE scan_row_id=(SELECT id FROM manual_row)),0,'promotion atomically removes old roster headcount');

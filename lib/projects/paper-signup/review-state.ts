@@ -20,6 +20,12 @@ export function isSavedAttendanceRow(row: Pick<ReviewState, "outcome">) {
   return isFinalAttendanceRow(row) || row.outcome === "roster_only";
 }
 
+export function hasPersistedAttendance(
+  row: Pick<ReviewState, "outcome"> & { savedAttendance?: boolean },
+) {
+  return Boolean(row.savedAttendance) || isSavedAttendanceRow(row);
+}
+
 export function isAttendanceRowReady(
   row: ReviewState,
   window: { startsAt: number; endsAt: number } | null,

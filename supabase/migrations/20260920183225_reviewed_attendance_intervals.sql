@@ -592,6 +592,81 @@ GRANT EXECUTE ON FUNCTION public.update_paper_scan_review_row(uuid, uuid, uuid, 
   TO service_role;
 
 
+-- Reopened drafts retain saved attendance and its source evidence.
+CREATE OR REPLACE FUNCTION public.discard_paper_scan_batch(
+  p_batch_id uuid,
+  p_project_id uuid,
+  p_actor_id uuid
+)
+RETURNS text
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = ''
+AS $$
+DECLARE
+  v_batch public.project_paper_scan_batches%ROWTYPE;
+BEGIN
+  IF p_batch_id IS NULL OR p_project_id IS NULL OR p_actor_id IS NULL THEN
+    RAISE EXCEPTION 'discard_paper_scan_batch: invalid input';
+  END IF;
+
+  SELECT batches.*
+  INTO v_batch
+  FROM public.project_paper_scan_batches AS batches
+  WHERE batches.id = p_batch_id
+    AND batches.project_id = p_project_id
+  FOR UPDATE;
+
+  IF NOT FOUND THEN
+    RETURN 'not_found';
+  END IF;
+
+  IF NOT private.lock_attendance_management(v_batch.project_id, p_actor_id) THEN
+    RAISE EXCEPTION 'discard_paper_scan_batch: actor is not a project organizer';
+  END IF;
+
+  -- commit_paper_signup_batch holds this same row lock for its entire
+  -- transaction. After waiting for it, this branch observes committed and
+  -- cannot overwrite the terminal state.
+  IF v_batch.status = 'committed'
+    OR EXISTS (SELECT 1 FROM public.project_paper_scan_rows
+      WHERE batch_id=p_batch_id AND committed_signup_id IS NOT NULL)
+    OR EXISTS (SELECT 1 FROM public.project_paper_roster_entries
+      WHERE batch_id=p_batch_id AND project_id=p_project_id) THEN
+    RETURN 'committed';
+  END IF;
+
+  IF v_batch.status NOT IN ('draft', 'extracting', 'review', 'failed', 'discarded') THEN
+    RETURN 'unavailable';
+  END IF;
+
+  INSERT INTO public.paper_scan_storage_deletion_queue (bucket_id, object_path)
+  SELECT images.bucket_id, images.object_path
+  FROM public.project_paper_scan_images AS images
+  WHERE images.batch_id = p_batch_id
+    AND images.purged_at IS NULL
+  ON CONFLICT (bucket_id, object_path) DO NOTHING;
+
+  UPDATE public.project_paper_scan_images
+  SET purged_at = now()
+  WHERE batch_id = p_batch_id
+    AND purged_at IS NULL;
+
+  UPDATE public.project_paper_scan_batches
+  SET status = 'discarded',
+      extraction_claim_id = NULL
+  WHERE id = p_batch_id;
+
+  RETURN 'discarded';
+END;
+$$;
+
+REVOKE ALL ON FUNCTION public.discard_paper_scan_batch(uuid, uuid, uuid)
+  FROM PUBLIC, anon, authenticated, service_role;
+GRANT EXECUTE ON FUNCTION public.discard_paper_scan_batch(uuid, uuid, uuid)
+  TO service_role;
+
+
 CREATE FUNCTION public.create_manual_attendance_batch(p_project_id uuid,p_schedule_id text,p_actor_id uuid,p_request_id uuid)
 RETURNS uuid LANGUAGE plpgsql SECURITY DEFINER SET search_path='' AS $$
 DECLARE v_batch public.project_paper_scan_batches%ROWTYPE; v_id uuid;
@@ -659,7 +734,8 @@ BEGIN
   END IF;
   IF v_batch.status<>'review' THEN RAISE EXCEPTION 'batch is not in review' USING ERRCODE='22023'; END IF;
   SELECT * INTO STRICT v_target FROM public.project_paper_scan_rows WHERE id=p_target_row_id AND batch_id=p_batch_id AND project_id=p_project_id FOR UPDATE;
-  IF NOT v_target.identity_confirmed OR v_target.committed_signup_id IS NOT NULL OR v_target.outcome='roster_only' THEN
+  IF NOT v_target.identity_confirmed OR v_target.committed_signup_id IS NOT NULL OR v_target.outcome='roster_only'
+    OR EXISTS (SELECT 1 FROM public.project_paper_roster_entries WHERE scan_row_id=v_target.id) THEN
     RAISE EXCEPTION 'confirm an uncommitted identity before combining' USING ERRCODE='22023';
   END IF;
   IF (SELECT count(*) FROM public.project_paper_scan_rows WHERE id=ANY(p_source_row_ids) AND batch_id=p_batch_id AND project_id=p_project_id) <> cardinality(p_source_row_ids) THEN
@@ -669,6 +745,7 @@ BEGIN
   IF v_intervals='[]'::jsonb THEN v_intervals:=jsonb_build_array(jsonb_build_object('checkIn',v_target.check_in_time,'checkOut',v_target.check_out_time)); END IF;
   FOR v_source IN SELECT * FROM public.project_paper_scan_rows WHERE id=ANY(p_source_row_ids) ORDER BY id FOR UPDATE LOOP
     IF NOT v_source.identity_confirmed OR v_source.committed_signup_id IS NOT NULL OR v_source.outcome='roster_only'
+      OR EXISTS (SELECT 1 FROM public.project_paper_roster_entries WHERE scan_row_id=v_source.id)
       OR NOT ((v_target.match_signup_id IS NOT NULL AND v_target.match_signup_id=v_source.match_signup_id)
         OR (v_target.match_signup_id IS NULL AND v_source.match_signup_id IS NULL AND
           NULLIF(lower(btrim(v_target.email)),'') IS NOT NULL AND lower(btrim(v_target.email))=lower(btrim(v_source.email)))

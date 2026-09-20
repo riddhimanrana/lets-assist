@@ -10,6 +10,7 @@ import {
 } from "@/lib/projects/paper-signup/commit-attempt";
 import { inspectAttendanceIntervals } from "@/lib/projects/paper-signup/intervals";
 import {
+  hasPersistedAttendance,
   isAttendanceRowReady,
   isFinalAttendanceRow,
   isSavedAttendanceRow,
@@ -93,7 +94,7 @@ export function ReviewTable({
       current = false;
     };
   }, [projectId, batch.id]);
-  const unfinished = rows.filter((row) => !isSavedAttendanceRow(row));
+  const unfinished = rows.filter((row) => !hasPersistedAttendance(row));
   const ready = useMemo(
     () => rows.filter((row) => isAttendanceRowReady(row, window)),
     [rows, window],
@@ -476,7 +477,7 @@ export function ReviewTable({
           </Button>
           <Button
             variant="ghost"
-            disabled={busy || discarding || rows.some(isSavedAttendanceRow)}
+            disabled={busy || discarding || rows.some(hasPersistedAttendance)}
             onClick={onDiscard}
           >
             Discard draft
