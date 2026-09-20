@@ -13,6 +13,7 @@ import { summarizeAttendanceHours } from "./attendance-hours-summary";
 
 const project: ExportProject = {
   id: "project-a",
+  event_type: "oneTime",
   title: "Community cleanup",
   organization_id: "org-a",
   creator_id: "creator",

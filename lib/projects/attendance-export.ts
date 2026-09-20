@@ -1,10 +1,11 @@
-import type { ProjectSchedule } from "@/types";
+import type { Project, ProjectSchedule } from "@/types";
 import {
   activeOrganizationRole,
   canManageProjectAccess,
   type OrganizationMembershipRow,
 } from "./management-access";
 import { certificateHours } from "./certificate-duration";
+import { getPublishStateKey } from "./hours-publish-key";
 
 export class AttendanceExportError extends Error {
   constructor(
@@ -89,6 +90,7 @@ export type ExportProject = {
   creator_id: string;
   can_be_managed_by_staff: boolean | null;
   project_timezone: string | null;
+  event_type: Project["event_type"];
   schedule: ProjectSchedule;
   published: Record<string, boolean> | null;
 };
@@ -166,21 +168,19 @@ export function serviceDate(
   instant?: string | null,
 ): string | null {
   const schedule = project.schedule;
-  if (sessionId === "oneTime" && schedule.oneTime) return schedule.oneTime.date;
-  const datedSlot = sessionId?.match(/^(\d{4}-\d{2}-\d{2})-(?:(\d+)-)?(\d+)$/);
-  if (datedSlot) {
-    const day = schedule.multiDay?.find((item) => item.date === datedSlot[1]);
-    if (day?.slots[Number(datedSlot[3])]) return day.date;
+  const key =
+    sessionId === null ? null : getPublishStateKey(project, sessionId);
+  if (project.event_type === "oneTime" && key === "oneTime" && schedule.oneTime)
+    return schedule.oneTime.date;
+  if (project.event_type === "multiDay") {
+    for (const day of schedule.multiDay ?? []) {
+      if (day.slots.some((_, index) => key === `${day.date}-${index}`))
+        return day.date;
+    }
   }
-  const day = sessionId?.match(/^day-(\d+)-slot-(\d+)$/);
-  if (day && schedule.multiDay?.[Number(day[1])]?.slots[Number(day[2])])
-    return schedule.multiDay[Number(day[1])].date;
   if (
-    schedule.sameDayMultiArea &&
-    sessionId &&
-    (schedule.sameDayMultiArea.roles.some((r) => r.name === sessionId) ||
-      (/^role-\d+$/.test(sessionId) &&
-        schedule.sameDayMultiArea.roles[Number(sessionId.slice(5))]))
+    project.event_type === "sameDayMultiArea" &&
+    schedule.sameDayMultiArea?.roles.some((role) => role.name === key)
   )
     return schedule.sameDayMultiArea.date;
   if (!instant) return null;
@@ -227,7 +227,10 @@ export function buildAttendanceExportRecords(
       cert?.event_start ?? signup?.check_in_time,
     );
     if (
-      (filters.sessionId && sessionId !== filters.sessionId) ||
+      (filters.sessionId &&
+        (sessionId === null ||
+          getPublishStateKey(project, sessionId) !==
+            getPublishStateKey(project, filters.sessionId))) ||
       (filters.from && (!date || date < filters.from)) ||
       (filters.to && (!date || date > filters.to))
     )

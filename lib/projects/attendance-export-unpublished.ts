@@ -1,3 +1,4 @@
+import { getPublishStateKey } from "./hours-publish-key";
 import {
   serviceDate,
   type AttendanceExportFilters,
@@ -90,7 +91,9 @@ export function buildUnpublishedAttendanceRecords(
   ) => {
     const date = serviceDate(project, sessionId, row.check_in_time);
     if (
-      (filters.sessionId && filters.sessionId !== sessionId) ||
+      (filters.sessionId &&
+        getPublishStateKey(project, filters.sessionId) !==
+          getPublishStateKey(project, sessionId)) ||
       (filters.from && (!date || date < filters.from)) ||
       (filters.to && (!date || date > filters.to))
     )

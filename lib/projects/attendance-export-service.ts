@@ -23,7 +23,7 @@ import {
 import { readAllExportPages } from "./attendance-export-pagination";
 
 const projectColumns =
-  "id,title,organization_id,creator_id,can_be_managed_by_staff,project_timezone,schedule,published";
+  "id,title,organization_id,creator_id,can_be_managed_by_staff,project_timezone,event_type,schedule,published";
 const headers = {
   "Cache-Control": "private, no-store, max-age=0",
   Vary: "Cookie",

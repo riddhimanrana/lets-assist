@@ -16,6 +16,7 @@ import { certificateHours } from "./certificate-duration";
 
 const project: ExportProject = {
   id: "project-a",
+  event_type: "oneTime",
   title: "Community cleanup",
   organization_id: "org-a",
   creator_id: "creator",
@@ -259,8 +260,9 @@ test("date filtering follows service dates and project timezones rather than iss
     serviceDate({ ...project, schedule: {} }, "old", "2026-09-20T02:00:00Z"),
     "2026-09-19",
   );
-  const multi = {
+  const multi: ExportProject = {
     ...project,
+    event_type: "multiDay",
     schedule: {
       multiDay: [
         {
