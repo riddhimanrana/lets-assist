@@ -2731,7 +2731,7 @@ sources.
 | Finding                                                                          | Current state           | Evidence and remaining work                                                                                                                                                                                                                                                                                                                                                               |
 | -------------------------------------------------------------------------------- | ----------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | ATTENDANCE-20260920-01, P1: unverified profile email could claim guest credit    | Fixed locally           | Account matching now requires a current verified Auth email or a verified alias. Six database identity assertions pass.                                                                                                                                                                                                                                                                   |
-| ATTENDANCE-20260920-02, P1: replay could restore rejected attendance             | Fixed locally           | Replayed requests return the recorded result without changing later status. The attendance and correction suite passes 80 assertions.                                                                                                                                                                                                                                                     |
+| ATTENDANCE-20260920-02, P1: replay could restore rejected attendance             | Fixed locally           | Replayed requests return the recorded result without changing later status. The attendance and correction suite passes 83 assertions.                                                                                                                                                                                                                                                     |
 | ATTENDANCE-20260920-03, P1: guest account linking could leave partial ownership  | Fixed locally           | One authorized transaction transfers signups, waivers, certificates, and the guest link. All 21 rollback-scoped assertions pass, including injected failure and retry recovery.                                                                                                                                                                                                           |
 | ATTENDANCE-20260920-04, P2: refreshed review could close an active editor        | Fixed locally           | Explicit saved-draft navigation changes the client key; ordinary refreshes preserve the active editor. The complete production-runtime browser journey passes.                                                                                                                                                                                                                            |
 | ATTENDANCE-20260920-05, P2: guest certificate detail required login              | Fixed locally           | Exact UUID certificate details use the existing public verification model and private no-store response. Collection and management routes remain protected. Public guest access and subsequent account linking pass in the browser.                                                                                                                                                       |
@@ -2742,16 +2742,22 @@ sources.
 | Attendance feature delivery                                                      | Local candidate         | Print, manual/scan review, intervals, audited corrections, durable corrected-certificate delivery, and project/organization exports are integrated. Clean migration replay, focused tests, lint, typecheck, formatting, and architecture/data-access audits pass. Full release and hosted Development acceptance remain pending.                                                          |
 | Requested organization associations                                              | Completed operationally | The reviewed two-project operation passed 17 rollback assertions, then committed atomically in Production. Independent database and organization-page readback confirmed the target organization and active-admin management. Protected state fingerprints and counts stayed unchanged. The private audit receipt remains under ignored `.artifacts`; no attendance feature was released. |
 
-The broad local database run was stopped during an existing scale test because
-its long transaction blocked browser fixtures. It is not counted as a passing
-full database gate. The production-runtime browser journey passes printing, mobile review, partial
+The production-runtime browser journey passes printing, mobile review, partial
 completion, publication, matching CSV/JSON totals, correction, public guest
 certificate access, and account linking with exactly one award. Four real
 two-connection races pass, and the attendance/correction pgTAP suite passes
 83 assertions. Separate sign-in/out pages pass 19 assertions and waiver
-restrictions pass 14. All 398 root test files passed before the final focused
-retry and scan additions, which also pass. The initial CI rehearsal was cancelled
-to include those fixes. The full release gate remains pending. Hosted Development
+restrictions pass 14. All 401 root and 509 plugin test files pass locally.
+
+CI run [35533557013](https://github.com/riddhimanrana/lets-assist/actions/runs/35533557013)
+passed quality, the production build, and 389 database files with 10,101
+assertions at `fe98af08`. Both CodeQL analyses passed. The four new attendance
+races passed. The subsequent legacy concurrency fixture tried to reset a
+reviewed signup directly and was rejected by the correction guard. The fixture
+now recreates fresh synthetic attendance between independent scenarios. The
+complete concurrency command passes locally, including delivery expiry, signup
+rejection, membership revocation, and competing supplemental issuance. Runtime
+guards remain unchanged. The full release gate is running again. Hosted Development
 acceptance awaits the active CSF release window; this branch has not moved it.
 
 ### Development-only staff and member follow-up, September 16, 2026
