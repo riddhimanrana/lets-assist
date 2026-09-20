@@ -122,7 +122,7 @@ test("anonymous account linking uses the service-only atomic transfer", () => {
   assert.match(source, /const user = await requireAuth\(\)/u);
   assert.doesNotMatch(source, /\.from\("certificates"\)/u);
   const migration = readFileSync(
-    "supabase/migrations/20260920220703_atomic_guest_account_link.sql",
+    "supabase/migrations/20260920234003_atomic_guest_account_link.sql",
     "utf8",
   );
   assert.match(
