@@ -255,13 +255,21 @@ describe("CI runs mock-sensitive tests through the shared process orchestrator",
     "scripts/local-dev/run-dvhs-csf-isolated-app.test.ts",
   ];
 
-  test("the quality job invokes the same test interface developers use", () => {
+  test("the quality job separates pull request and release validation", () => {
     const job = ciJob("quality");
     expect(job).toContain("run: bun run format:check");
     expect(job).toContain("run: bun run test");
     expect(job).toContain("run: bun run build");
-    expect(job).not.toMatch(/- name: Root and plugin tests\n\s+if:/u);
-    expect(job).not.toMatch(/- name: Production build\n\s+if:/u);
+    expect(job).toMatch(
+      /- name: Root and plugin tests\n\s+if: github\.event_name != 'pull_request'/u,
+    );
+    expect(job).toMatch(
+      /- name: Production build\n\s+if: github\.event_name != 'pull_request'/u,
+    );
+    expect(job).toContain("run: bun run plugin:apps:contract");
+    expect(job).toContain(
+      "run: bun test scripts/ci/*.test.mjs scripts/audit-agent-tooling.test.mjs",
+    );
     expect(job).not.toContain("bun test \\");
   });
 
@@ -384,7 +392,7 @@ describe("CI replays the twelve-route cron smoke in the right order", () => {
     expect(job.match(/bun run dev:test:cron/gu)?.length).toBe(1);
   });
 
-  test("the full DB replay runs for non-draft pull requests and release calls", () => {
+  test("the full DB replay runs only for candidate rehearsals and release calls", () => {
     const workflow = ciWorkflowSource();
     const job = dbReplayJob();
 
@@ -394,9 +402,8 @@ describe("CI replays the twelve-route cron smoke in the right order", () => {
       "  push:\n    branches:\n      - development",
     );
     expect(workflow).not.toContain("dorny/paths-filter");
-    expect(job).toContain(
-      "if: github.event_name != 'pull_request' || github.event.pull_request.draft == false",
-    );
+    expect(job).toContain("if: github.event_name != 'pull_request'");
+    expect(job).not.toContain("github.event.pull_request.draft");
   });
 
   test("CI still contacts neither Production nor preview", () => {

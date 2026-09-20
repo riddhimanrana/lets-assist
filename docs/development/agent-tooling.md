@@ -27,7 +27,7 @@ Provider CLIs and generic skills often show direct send commands. Those examples
 
 ## Local Claude and editor configuration
 
-`.claude/`, `.vscode/`, and `.agents/` contain machine-local state and stay ignored because they may contain paths, permissions, or credentials. Keep them small:
+The tracked `.agents/skills/lets-assist-delivery` skill gives Codex, Claude, Cursor, and Copilot the same delivery loop. Claude discovers it through the tracked `.claude/skills` link, Cursor through its project rule, and Copilot through its instruction pointer. Other files under `.claude/`, `.vscode/`, and `.agents/` remain machine-local because they may contain paths, permissions, or credentials. Keep them small:
 
 - launch CSF work with `bun run dev`;
 - use `bun run dev:next` only when a reviewed backend is already running;
@@ -39,9 +39,9 @@ The tracked configuration and this guide define the reviewable contract. Local c
 
 ## CI cost boundary
 
-Ordinary Markdown-only documentation pull requests run static quality checks and skip the isolated database and browser job. Any source, workflow, instruction, migration, script, configuration, or non-text evidence change runs the full gate. Manual and reusable invocations also fail closed to the full gate.
+Every non-draft pull request runs one short `ci-gate`. It covers repository policy, dependency audit, formatting, seed safety, lint, plugin contracts, type checking, and focused CI tooling tests. It skips full root/plugin tests, the production build, isolated database replay, scale checks, and browser suites.
 
-GitHub Actions uses read-only default permissions and cannot approve pull requests. Every workflow declares its own narrower permissions. Active rulesets protect `main` and `development` from deletion and force pushes, require pull requests with resolved review threads, and require the aggregate `ci-gate` check. That gate requires `quality` for every change and the database/browser job whenever the classifier selects full validation.
+Manual dispatch and reusable Production preflight calls run the full quality and database/browser jobs. Release verification still requires those successful check runs for the accepted SHA. GitHub Actions uses read-only default permissions and cannot approve pull requests. Every workflow declares its own narrower permissions. Active rulesets protect `main` and `development` from deletion and force pushes, require pull requests with resolved review threads, and require `ci-gate`.
 
 The Codex worktree cache currently contains 60 unregistered directories using about 332 MB. Twenty-six contain `.git` files that point into retired nested worktrees. They are excluded from active Git worktrees, but have not been deleted because unique-file recovery has not been proven. Inventory and preserve any unique content before removing them.
 

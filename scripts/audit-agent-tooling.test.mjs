@@ -7,6 +7,9 @@ function validInput() {
     agentGuide: "Repository rules override generic skills and tool defaults.",
     claudeGuide: "Read AGENTS.md.",
     copilotGuide: "Read AGENTS.md.",
+    cursorGuide: "Read AGENTS.md.",
+    deliverySkill:
+      "Keep one branch and pull request. Run the full `Code quality` workflow once.",
     mcpConfig: {
       mcpServers: {
         "supabase-local": {

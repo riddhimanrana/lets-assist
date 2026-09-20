@@ -11,6 +11,8 @@ export function collectAgentToolingIssues({
   agentGuide,
   claudeGuide,
   copilotGuide,
+  cursorGuide,
+  deliverySkill,
   mcpConfig,
   packageJson,
   rootFiles,
@@ -23,6 +25,15 @@ export function collectAgentToolingIssues({
     issues.push("CLAUDE.md must point to AGENTS.md.");
   if (!copilotGuide.includes("AGENTS.md"))
     issues.push("Copilot instructions must point to AGENTS.md.");
+  if (!cursorGuide.includes("AGENTS.md"))
+    issues.push("Cursor instructions must point to AGENTS.md.");
+  if (
+    !deliverySkill.includes("one branch and pull request") ||
+    !deliverySkill.includes("full `Code quality` workflow once")
+  )
+    issues.push(
+      "The delivery skill must preserve the efficient integration loop.",
+    );
   if (
     !agentGuide.includes("generic skills") ||
     !agentGuide.includes("tool defaults")
@@ -109,6 +120,8 @@ export function auditRepository(root) {
     agentGuide: read("AGENTS.md"),
     claudeGuide: read("CLAUDE.md"),
     copilotGuide: read(".github/copilot-instructions.md"),
+    cursorGuide: read(".cursor/rules/lets-assist.mdc"),
+    deliverySkill: read(".agents/skills/lets-assist-delivery/SKILL.md"),
     mcpConfig: JSON.parse(read(".mcp.json")),
     packageJson: JSON.parse(read("package.json")),
     rootFiles: readdirSync(root),

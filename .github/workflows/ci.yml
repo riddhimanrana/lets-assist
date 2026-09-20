@@ -24,35 +24,8 @@ env:
   PRIVATE_PLUGINS_BRANCH: ${{ (github.base_ref == 'main' || github.ref == 'refs/heads/main') && 'main' || 'development' }}
 
 jobs:
-  changes:
-    name: Classify change scope
-    runs-on: ubuntu-latest
-    outputs:
-      full_validation: ${{ steps.scope.outputs.full_validation }}
-    steps:
-      - name: Checkout root
-        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
-        with:
-          fetch-depth: 0
-          persist-credentials: false
-
-      - name: Classify the pull request
-        id: scope
-        env:
-          EVENT_NAME: ${{ github.event_name }}
-          BASE_SHA: ${{ github.event.pull_request.base.sha }}
-          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
-        run: |
-          set -euo pipefail
-          if [[ "${EVENT_NAME}" != "pull_request" ]]; then
-            echo "full_validation=true" >> "${GITHUB_OUTPUT}"
-            exit 0
-          fi
-          git diff --name-only --no-renames --diff-filter=ACDMRT "${BASE_SHA}" "${HEAD_SHA}" \
-            | node scripts/ci/classify-change.mjs >> "${GITHUB_OUTPUT}"
-
   quality:
-    name: ${{ github.event_name == 'pull_request' && 'quality' || 'full-quality' }}
+    name: quality
     runs-on: ubuntu-latest
     if: github.event_name != 'pull_request' || github.event.pull_request.draft == false
     steps:
@@ -135,13 +108,20 @@ jobs:
       # Application-profile plugins own their package graph and security gates.
       # The host verifies that ownership before excluding child sources from its
       # own compiler, linter, test discovery, and route inventory.
+      - name: Check private application contracts
+        if: github.event_name == 'pull_request'
+        run: bun run plugin:apps:contract
+
       - name: Check independent plugin applications
+        if: github.event_name != 'pull_request'
         run: bun run plugin:apps:check
 
       - name: Build and test the versioned plugin SDK
+        if: github.event_name != 'pull_request'
         run: bun run plugin:sdk:test
 
       - name: Test signed plugin release integration
+        if: github.event_name != 'pull_request'
         run: bun run plugin:test:release-integration
 
       - name: Typecheck
@@ -151,9 +131,15 @@ jobs:
       # installs global module mocks because Bun's module registry is per-process.
       # This is the same interface developers run.
       - name: Root and plugin tests
+        if: github.event_name != 'pull_request'
         run: bun run test
 
+      - name: Test pull request tooling contracts
+        if: github.event_name == 'pull_request'
+        run: bun test scripts/ci/*.test.mjs scripts/audit-agent-tooling.test.mjs
+
       - name: Production build
+        if: github.event_name != 'pull_request'
         run: bun run build
         env:
           VERCEL_ENV: preview
@@ -165,14 +151,11 @@ jobs:
           NEXT_PUBLIC_SITE_URL: http://localhost:3000
 
   db-replay-validation:
-    needs: changes
     runs-on: ubuntu-latest
     timeout-minutes: 40
-    # Non-draft pull requests and the exact reusable Production preflight run
-    # the same isolated database, scale, worker, and browser acceptance gate.
-    if: >-
-      (github.event_name != 'pull_request' || github.event.pull_request.draft == false) &&
-      needs.changes.outputs.full_validation == 'true'
+    # Full database, scale, worker, and browser validation belongs to a manual
+    # candidate rehearsal or the reusable Production preflight, not each PR.
+    if: github.event_name != 'pull_request'
     env:
       # Keep listening ports below Linux's usual ephemeral port range.
       CSF_ISOLATED_BASE_PORT: "25320"
@@ -450,7 +433,6 @@ jobs:
   ci-gate:
     name: ci-gate
     needs:
-      - changes
       - quality
       - db-replay-validation
     if: >-
@@ -458,15 +440,15 @@ jobs:
       (github.event_name != 'pull_request' || github.event.pull_request.draft == false)
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout root
-        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
-        with:
-          persist-credentials: false
-
       - name: Require the applicable validation jobs
         env:
-          CHANGES_RESULT: ${{ needs.changes.result }}
-          FULL_VALIDATION: ${{ needs.changes.outputs.full_validation }}
+          FULL_VALIDATION: ${{ github.event_name != 'pull_request' }}
           QUALITY_RESULT: ${{ needs.quality.result }}
           DATABASE_RESULT: ${{ needs.db-replay-validation.result }}
-        run: node scripts/ci/check-ci-gate.mjs
+        run: |
+          set -euo pipefail
+          [[ "${QUALITY_RESULT}" == "success" ]]
+          if [[ "${FULL_VALIDATION}" == "true" ]]; then
+            [[ "${DATABASE_RESULT}" == "success" ]]
+          else
+            [[ "${DATABASE_RESULT}" == "skipped" ]]

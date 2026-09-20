@@ -2,6 +2,14 @@
 
 Use the narrowest focused regression first, then expand to the appropriate gate. Mock-sensitive Bun suites run in separate processes because `mock.module` state is global to a process.
 
+## Delivery stages
+
+1. While coding, run the focused regression for the behavior you changed. Add the relevant static check when the change affects types, lint rules, formatting, dependencies, migrations, or agent configuration.
+2. Before updating the integration pull request, run all focused checks for that deliverable locally. The hosted pull-request `ci-gate` remains short and deterministic.
+3. After the coherent candidate is integrated, dispatch `Code quality` once. That manual run owns the full tests, production build, isolated database replay, scale checks, and browser suites used by release verification.
+
+Do not use a new pull request as a retry mechanism. Fix a failed local or hosted check on the same branch and update the same pull request.
+
 ## Evidence classes
 
 Keep evidence environment- and revision-specific. Record exact counts, SHAs, and run links in the cleanup register or release report produced by that run. Do not copy a dated assertion count into this operating guide because it becomes stale whenever a migration or test lands.
@@ -11,6 +19,8 @@ Keep evidence environment- and revision-specific. Record exact counts, SHAs, and
 - **Production verified:** checks run against the served Production revision and Production provider state through the approved read-only or release workflow.
 
 A local pass is not a deployment, a static inventory is not a runtime gate, and hosted database parity does not prove that the matching application SHA is deployed.
+For Hosted Development evidence, only checks run against the hosted Development database and exact deployed application SHA belong in this class.
+Unless the release report says otherwise, no Production database, application, browser, worker, or provider gate was run.
 
 ## Standard commands
 
@@ -30,6 +40,8 @@ The orchestrator keeps safety-sensitive groups explicit, discovers all remaining
 - `bun run build`
 - `bun run source:check:organization`
 - `bun run agent:check`
+
+The pull-request gate runs these static checks, seed safety, dependency audit, plugin contract validation, and the CI tooling tests. Full root/plugin tests and the production build run in the manual or reusable release gate.
 
 ## Database and plugin gates
 

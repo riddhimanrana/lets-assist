@@ -35,7 +35,10 @@
 *~
 /.cache/
 /.turbo/
-/.claude/
+/.claude/*
+!/.claude/skills/
+/.claude/skills/*
+!/.claude/skills/lets-assist-delivery
 
 # debug
 npm-debug.log*
@@ -88,7 +91,11 @@ lib/plugins/private/*
 !lib/plugins/private/.keep
 !lib/plugins/private/registry.ts
 
-.agents
+.agents/*
+!.agents/skills/
+.agents/skills/*
+!.agents/skills/lets-assist-delivery/
+!.agents/skills/lets-assist-delivery/**
 
 # scripts/local-dev/
 
