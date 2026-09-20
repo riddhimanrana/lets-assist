@@ -287,6 +287,14 @@ export async function updatePaperScanRow(input: {
     },
   );
   if (updateError) {
+    if (
+      updateError.code === "22023" &&
+      updateError.message === "saved attendance must remain included"
+    )
+      return {
+        error:
+          "This row already has saved attendance. Review it to make changes.",
+      };
     return {
       error:
         updateError.code === "40001"
