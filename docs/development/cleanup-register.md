@@ -9235,3 +9235,20 @@ The `f08959e8` Development deployment and alias checks passed. Its full and host
 runs `35545534535` and `35545529339` were canceled when this new finding was
 confirmed. They are not final acceptance. Production still serves `3465de3c`;
 no student decision release or notification send occurred during these fixes.
+
+**AUDIT-20260920-21, P2:** The campaign request builder concatenated organization
+names into `From` without quoting address punctuation. Forward migration
+`20260920233200` quotes and escapes the organization display name for the new
+`updates` sender. Earlier recorded sender formats stay unchanged. The canonical
+provider request still includes its required backend environment and routing
+tags. The same payload feeds both request hashing and dispatch.
+
+Eleven new provider-payload assertions cover commas, quotes, backslashes, address
+punctuation, Unicode, line-break removal, legacy sender preservation, Reply-To,
+retry stability, and client denial. The old formatter fails the new cases. Five
+focused database suites pass 609 assertions. All 341 Production-controller tests,
+zero-warning lint, and migration-file validation pass. Catalog 635 retains all
+1,239 identities and changes only the canonical request function; its measured
+verification returns success and refuses an unauthorized grant. Final full
+replay and hosted browser acceptance remain pending. Runs `35546000250` and
+`35545971800` were canceled after this finding; they are not acceptance evidence.
