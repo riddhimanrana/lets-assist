@@ -28,9 +28,6 @@ describe("production review consistency boundaries", () => {
     expect(editor).toContain('matchSignupId: ""');
     expect(editor).toContain("identityConfirmed: false");
     expect(editor).toContain("expectedRevision: row.reviewRevision");
-    expect(editor).toContain(
-      "onSaved({ ...row, ...patch, reviewRevision: row.reviewRevision + 1 })",
-    );
   });
 
   test("claim-owned final transitions prove a matched update", async () => {

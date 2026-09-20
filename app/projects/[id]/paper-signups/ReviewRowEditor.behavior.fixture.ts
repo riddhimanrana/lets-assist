@@ -175,6 +175,7 @@ if (scenario === "reason" || scenario === "roster") {
     };
     assert.equal(saved[0].outcome, "pending");
     assert.equal(saved[0].outcomeDetail, null);
+    assert.equal(saved[0].reviewRevision, row.reviewRevision + 1);
     assert.equal(isAttendanceRowReady(saved[0], window), false);
     assert.equal(saved[1].outcome, "pending");
     assert.equal(saved[1].outcomeDetail, null);
