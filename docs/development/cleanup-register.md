@@ -8972,14 +8972,14 @@ The first PR version still ran the release-scale database and browser job for ev
 
 ### CSF simplification and Fall reconciliation, September 20
 
-Current implementation status: private PRs #542 and #543 and root PRs #765, #767, and #768 are merged to Development. The deployed Development application revision is `adc8be47049c26650acadf09f077aae4d3bc79c8`, with private gitlink `8d0997033ba28e4a465d31fa870e9ea4c8168882`. Full candidate run `35534379977` passed unit tests, build, all 386 database files and 9,990 assertions, concurrency and scale checks, and all three DV browser journeys. Its CSF browser suite stopped after 63 passes, one skip, and three failures. The separate `codex/csf-browser-readiness` follow-up fixes a review-period completion race in the test and expands the account panel after reload in two tests. All twelve related compiled Chromium scenarios now pass locally, including review reopening, account rejection, and verified connection. Formatting, focused ESLint, and typecheck pass. A corrected full run remains pending. Hosted Development run `35534349163` passed against deployed revision `adc8be47`, before the test follow-up. Production remains unchanged.
+Current implementation status: root PRs #765, #767, #768, and #769 and private PRs #542 and #543 implement the CSF changes. The frozen CSF-only root candidate `3b41269817f2156fe9eca507f7b83a2847afb567`, with private gitlink `8d0997033ba28e4a465d31fa870e9ea4c8168882`, passed the complete gate in run `35536805764`. Hosted Development run `35534349163` passed on deployed root `adc8be47`; the later root diff changes three browser tests and this register. Private metadata PR #544 passed CI `35537064902` and merged as `6ea7f6905f35ed0c38d74561ceaab202e4197bba`, preparing version 1.2.58. The root gitlink remains unchanged. Signed publication, its root integration, Production rollout, and real-record commits remain open.
 
 | Area                   | Implemented and locally verified                                                                                                                                                                                                                      | Remaining work                                                                                                                                                      |
 | ---------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Sheet decisions        | Yellow stages as `on_hold`. Automatic checks only stage. Release requires the exact reviewed snapshot and atomically updates decisions, memberships, audit history, and notification events. Source comments remain private.                          | Finish the corrected integrated gate, verify hosted Development, then review fresh Production mappings and the proposed release.                                    |
-| Officer workspace      | Compact sync controls, roster-first class pages, separate account connections, three announcement previews, linked activity cards, meeting-scoped details and URL paging, and class-specific retry diagnostics. Application review splits are hidden. | Hosted Development walkthrough and Production rollout.                                                                                                              |
+| Sheet decisions        | Yellow stages as `on_hold`. Automatic checks only stage. Release requires the exact reviewed snapshot and atomically updates decisions, memberships, audit history, and notification events. Source comments remain private.                          | Publish and verify the signed release, then review fresh Production mappings and the proposed decision release.                                                     |
+| Officer workspace      | Compact sync controls, roster-first class pages, separate account connections, three announcement previews, linked activity cards, meeting-scoped details and URL paging, and class-specific retry diagnostics. Application review splits are hidden. | Signed release integration and Production rollout.                                                                                                                  |
 | Notifications          | Durable connection, access, and published-decision events use the existing workers. Organization mail defaults to `updates@notifications.lets-assist.com` with the chapter display name and monitored Reply-To. Historical messages are not replayed. | Sending domain, DKIM, and SPF verified read-only through Resend. Delivery receipts remain pending an approved live release.                                         |
-| Attendance and imports | AUDIT-20260920-05 and -06 are fixed locally. Readiness separates already-recorded attendance from unresolved responses. Officer-managed overwrite refusal is a deterministic validation error.                                                        | Refresh and reconcile the Production preview through officer actions. Preserve the meeting window and explicit test exclusions.                                     |
+| Attendance and imports | AUDIT-20260920-05 and -06 passed the full isolated gate. Readiness separates already-recorded attendance from unresolved responses. Officer-managed overwrite refusal is a deterministic validation error.                                            | Refresh and reconcile the Production preview through officer actions. Preserve the meeting window and explicit test exclusions.                                     |
 | Real records           | Official application and attendance sources were read through the chapter's connected Sheets/Drive accounts. Native Chrome restored read-only access to the officer workspace.                                                                        | Review source-tab duplication, profile matches, account ownership, and skipped responses. No records, source mappings, or decisions have been changed by this task. |
 
 **AUDIT-20260920-08, P2:** Yellow fills were interpreted as rejection with a reason. The candidate adds a distinct hold status, source shade controls, release guards, and tests for mixed colors, decorative fills, private notes, and cross-source conflicts. Existing mappings require officer review and fresh staging; historical decisions are preserved.
@@ -9028,3 +9028,148 @@ the Vercel revision, Supabase preview, branch alias, and unchanged Development h
 This establishes hosted behavior for that application revision, not Production
 record reconciliation or student delivery. The complete corrected browser gate
 remains required on the next integrated candidate.
+
+Final CSF-only verification: run `35536805764` passed unit tests across 391 root
+and 516 private-plugin files, the production build, 386 database files with
+9,990 assertions, concurrency and scale checks, worker checks, three DV browser
+journeys, and 136 CSF browser journeys. Four CSF cases remain skipped: the
+pre-existing disabled historical-workbook import scenario and three opt-in
+screenshot-gallery captures. Browser trace checks and owned-stack cleanup passed.
+No skipped case is counted as verified. This supersedes the earlier failed gate
+and pending-browser statements above.
+
+Private release metadata changes only the version, required schema, supported
+install range, and changelog. All eighteen private release-tooling tests and
+twenty-five host integration tests passed locally, followed by private CI.
+The metadata commit and its Development merge have identical Git trees. An
+unsigned manifest was reconstructed from the merged commit; no private main
+promotion or `dvhs-csf/v1.2.58` tag has occurred. Publication requires separate
+release approval. The separate attendance task's additional migrations are not
+part of this frozen CSF-only candidate or its Production authorization.
+
+Email verification: all three personal-notice templates were rendered locally at
+390 and 800 pixels without horizontal overflow. The mobile connection notice and
+desktop decision notice were visually inspected. Production has neither sender
+address override configured, so the candidate's organization sender defaults to
+`updates@notifications.lets-assist.com`. Resend domain authentication passed the
+read-only check. Live message headers and delivery receipts remain unverified.
+
+#### Requested completion audit, September 20 at 21:26–21:35 UTC
+
+Audit outcome: the implementation passed its recorded Development gates, but
+the original request is not complete in Production. This audit made no live
+record changes, account grants, source mapping updates, releases, or email sends.
+The local runtime and private gitlink were unchanged.
+
+The Production alias resolves to Ready deployment
+`dpl_BFzwuzDWS4KjVCxgnufXF65Xaz3C`, associated with root `3465de3c`.
+The live migration ledger ends at `20260920080000`. None of this candidate's
+three forward migrations is applied. This explains why the new hold behavior,
+interface, and account transition notices cannot be described as live.
+
+The following findings remain open:
+
+- **AUDIT-20260920-12, P1, Production source coverage:** The saved Fall source
+  configuration omits the populated `Form Responses 2` tab in the late workbook.
+  A fresh read found one new uncolored response on that tab, row 38. All earlier
+  response cells, fills, notes, comment text, and reply text were unchanged.
+  The source revisions were stable across acquisition: regular 1346 and late 193. There are 545 response rows and 530 distinct submission identities, not
+  necessarily 530 people. Only 272 rows match imported applications through
+  frozen source evidence; 264 have no matching application and nine fail source
+  provenance. Fifteen copied-response groups include one conflicting decision;
+  one other row contains mixed green/yellow fills. Register and review each tab,
+  resolve duplicates and provenance, and create a fresh release preview.
+- **AUDIT-20260920-13, P1, Production completion:** All 279 imported Fall
+  applications remain pending, all 250 decision stages remain unpublished, and
+  Fall semester memberships remain zero. Two stages still carry the legacy
+  yellow-as-rejection status covered by AUDIT-20260920-08. The chapter has 215
+  verified account links and 72 pending connection requests. None of the 63
+  evaluated candidate pairs passes the existing ownership predicate. Sixty
+  requests have candidate evidence and twelve have no candidate. Names and
+  reported contact addresses cannot close these requests. The original request
+  remains open until reviewed imports, connections, and releases have receipts.
+- **AUDIT-20260920-14, P2, Production delivery acceptance:** The communication
+  and notification workers are enabled for the current Production revision.
+  The old ledger has 1,649 completed in-app publication deliveries and six
+  delivered email attempts from one older campaign. It has no account-connected,
+  access-granted, or application-decision events. Those older receipts do not
+  prove the new notices. Resend currently reports the sending domain, DKIM, and
+  SPF verified. Neither sender override is configured. After the approved
+  rollout, verify the new sender and Reply-To headers, recipient deduplication,
+  and provider receipts against an approved audience.
+
+Requirement coverage was checked against the original plan:
+
+| Requirement                                                                    | Audit result and evidence                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
+| ------------------------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Green/red/yellow decisions, shade variants, decorative fills, private comments | Implemented in `sheet-decision-colors.ts` and the forward staging migration. Focused color, privacy, mapping, and staging tests pass. Live mappings and stages still require correction.                                                                                                                                                                                                                                                                                                                                                                  |
+| Source identity, copied responses, supporting files                            | Per-tab registration and cross-source conflict guards are implemented. The private report retains every source row and file reference. Unverified provenance and duplicate decisions remain review work.                                                                                                                                                                                                                                                                                                                                                  |
+| Automatic checks only stage; explicit atomic release                           | Automatic staging has no publication path. Reviewed-release tokens reject stale snapshots. The full database and browser gate covers publication, membership creation, private-note exclusion, and preservation of released decisions during later syncs.                                                                                                                                                                                                                                                                                                 |
+| Verified account ownership and merges                                          | Current server evidence grants no automatic connections for the pending requests. Existing audited connection and merge actions remain the required path. This audit did not merge or grant access.                                                                                                                                                                                                                                                                                                                                                       |
+| Actual semester counts                                                         | The candidate counts approved term memberships separately from applicants and connection requests. Production's zero Fall membership count is consistent with its unpublished decisions.                                                                                                                                                                                                                                                                                                                                                                  |
+| September response reconciliation                                              | Source revision 63 is unchanged. Current records contain 405 attended and five unknown attendance statuses. The 496 source responses classify as 130 already recorded, 284 previously audited attendance skips, two recorded by the latest import, four repeated responses, two test exclusions, 23 outside the approved window, and 51 needing review. Each unresolved response retains evidence, a reason, and a next action in the private report. These categories describe source responses and must not be added to the canonical attendance count. |
+| Partial-commit counts and deterministic overwrite refusal                      | Forward SQL fixes and database coverage pass. The old Production preview still overstates unresolved work by including already-recorded rows.                                                                                                                                                                                                                                                                                                                                                                                                             |
+| Officer navigation and Home                                                    | Permission-aware Home, Classes, Applications, and More remain. Home uses tasks, classes, deadlines, and the three latest published announcement previews.                                                                                                                                                                                                                                                                                                                                                                                                 |
+| Compact application sync and filters                                           | `SheetReviewPanel.tsx` separates sync/release controls from source details. Hold, unreviewed, accepted, rejected, and attention filters are covered. Split controls and assignment chips are absent from the active application workflow; historical assignments remain.                                                                                                                                                                                                                                                                                  |
+| Roster and account review                                                      | Roster appears first. Accounts to connect expands separately; opening a request loads evidence. Updated lifecycle browser tests pass.                                                                                                                                                                                                                                                                                                                                                                                                                     |
+| Meeting details and paging                                                     | Meeting selection is URL-backed and attendance rows appear in the selected detail view. Desktop/mobile keyboard navigation and selection persistence are covered by the browser gate; scoped preview isolation has database coverage.                                                                                                                                                                                                                                                                                                                     |
+| Activity cards and history                                                     | Activities use compact title links covering the card, with date, location, and points. No repeated New activity label or sparkle remains in that card. Import history is a separate collapsed section below the activity workflow.                                                                                                                                                                                                                                                                                                                        |
+| Class-sheet errors                                                             | Class-specific diagnostics and retry behavior are implemented. Class of 2029 remains blocked in Production with `refresh_attempts_exhausted`, last checked September 17. Reprepare/reconnect and a successful app-owned check remain outstanding. Connector access alone does not prove the app connection works.                                                                                                                                                                                                                                         |
+| Durable notices and retry safety                                               | Deferred transition triggers create existing publication events. The notification worker writes the in-app notice before handing mail to the existing campaign ledger. Event/recipient and campaign uniqueness, ownership rechecks, preferences, and unknown-delivery holds have focused and database coverage. Historical messages are not replayed.                                                                                                                                                                                                     |
+| Sender and email copy                                                          | The candidate uses the chapter display name, `updates@notifications.lets-assist.com`, and `dvhighcsf@gmail.com` Reply-To. The personal template removes the uppercase pill and long explanatory text. Local previews cover desktop and mobile; this audit inspected the mobile decision preview. Live headers and new delivery receipts are still unverified.                                                                                                                                                                                             |
+| Release and environment separation                                             | Root `3b412698` and private `8d099703` passed full run `35536805764`. Hosted fictional acceptance passed on root `adc8be47`, with only test/docs differences in the later root candidate. Private 1.2.58 metadata is prepared; signed publication, root integration, and Production rollout are still pending.                                                                                                                                                                                                                                            |
+
+Fresh focused verification passed **323 tests across 27 separately executed
+files**, including sender headers, email handoff, delivery retries, shade parsing,
+identity matching, source conflicts, stale review tokens, and review controls.
+The earlier full gate remains valid for its exact tree: 9,990 database assertions,
+136 CSF browser journeys, and four disclosed skips. This audit did not repeat
+the full gate or claim new Production browser acceptance.
+
+Private evidence is under the ignored
+`docs/csf/source-data/reconciliation-20260920/audit-*` files. The refreshed report
+preserves the original reconciliation report and its historical evidence.
+Timestamp matching ran with `TZ=UTC` to match the hosted importer convention.
+The focused test log, sender authentication readback, deployment inspection,
+and names-only environment inspection are under `.artifacts/csf-audit-*`.
+
+#### Authorized continuation, September 20
+
+The user approved continuing the audited release and reconciliation. A concrete
+student decision batch and recipient preview still require approval before
+publication. The separate paper-attendance release remains outside this scope.
+
+Class of 2029's blocked workbook was recovered through the authenticated app's
+Change sheet action, selecting the same official workbook. Rebuild previews
+refused the blocked connection, so the existing relink workflow renewed it.
+The new preparation job completed on its first attempt at 21:35:17 UTC.
+Read-only verification at 21:36:09 UTC confirmed `linked`, no active error, and
+prepared revision 1498 matching the provider revision. Historical failed jobs
+remain available. No semester import or decision was approved by this recovery.
+Evidence: `.artifacts/csf-class-recovery-readback-2.json`.
+
+Private promotion PR 545 merged after its quality check passed. PR 546 restored
+the release ancestry to Development. Tag `dvhs-csf/v1.2.58` points to the reviewed
+private commit `6ea7f6905f35ed0c38d74561ceaab202e4197bba`. Signed publication and
+root integration are in progress; Production still serves the prior app.
+
+Signed publication run `35539372029` succeeded. Root integration run
+`35539394841` verified the signature, reconstructed the package, and passed its
+validation before GitHub refused the bot's PR creation permission. The verified
+branch was preserved and PR 770 was opened with the authorized account. No
+repository permission was broadened. The generated publication changes only
+the plugin catalog and release record. Existing release tests now expect the
+new catalog head; historical migration files remain unchanged.
+
+The Production controller pins the publication's exact bytes and its two
+catalog statements. The 632-entry schema manifest uses the unchanged reviewed
+631 object inventory because this publication contains no schema changes.
+Focused controller, catalog, and data-write tests passed 75 tests. The integrated
+database replay must still verify that inventory before Production promotion.
+
+Release verification now compares the clean isolated database with that exact
+catalog before pgTAP or fictional fixture loading. The job rechecks ownership
+of the local stack and fails unless the comparison returns exactly `1`.
+Previously this comparison required an optional standalone replay flag. The
+integrated full gate now runs it for every candidate. Workflow contract tests
+cover its ordering and failure condition; the embedded shell passes `bash -n`.

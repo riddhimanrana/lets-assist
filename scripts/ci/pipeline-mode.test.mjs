@@ -39,4 +39,24 @@ describe("CI delivery modes", () => {
     expect(gate).toContain('[[ "${DATABASE_RESULT}" == "skipped" ]]');
     expect(gate).toContain("\n          fi\n");
   });
+
+  test("the clean replay must match the release catalog before fixtures", () => {
+    const replay = job("db-replay-validation", "ci-gate");
+    const catalog = replay.indexOf(
+      "Verify the release catalog before loading fixtures",
+    );
+    const databaseTests = replay.indexOf(
+      "Validate database tests on the same running isolated stack",
+    );
+    const seed = replay.indexOf("Seed fictional platform and DV fixtures");
+    expect(catalog).toBeGreaterThan(0);
+    expect(databaseTests).toBeGreaterThan(catalog);
+    expect(seed).toBeGreaterThan(databaseTests);
+    const check = replay.slice(catalog, databaseTests);
+    expect(check).toContain("dv-local-env.mjs --csf-health");
+    expect(check).toContain("expectedVersions(process.cwd())");
+    expect(check).toContain('psql "${DB_URL}" -X -v ON_ERROR_STOP=1 -At');
+    expect(check).toContain('if [[ "${catalog_result}" != "1" ]]; then');
+    expect(check).toContain("exit 1");
+  });
 });
