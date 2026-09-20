@@ -2739,7 +2739,7 @@ sources.
 | ATTENDANCE-20260920-07, P2: lost partial-save responses could trap later retries | Fixed locally           | Request keys now include reviewed revisions and operation scope. Unchanged uncertain retries replay; corrected inputs get a new key. The error message no longer claims nothing was saved. Focused retry tests pass.                                                                                                                                                                      |
 | ATTENDANCE-20260920-08, P2: empty photo extraction could block rescanning        | Fixed locally           | Zero readable rows now fail retryably while retaining the original photos. Nine real handler scenarios pass with mocked external services, including duplicate photos, leases, separate pages, and repeated visits. Live OCR quality is not established by these tests.                                                                                                                   |
 | ATTENDANCE-20260920-09, P2: saved scan failures required another upload          | Fixed locally           | Draft and failed batches with saved photos expose Retry scan. The action reuses the batch, skips uploads, and recovers from lost responses through durable status. Seven component behavior scenarios and existing authorization checks pass.                                                                                                                                             |
-| Attendance feature delivery                                                      | Local candidate         | Print, manual/scan review, intervals, audited corrections, durable corrected-certificate delivery, and project/organization exports are integrated. Clean migration replay, focused tests, lint, typecheck, formatting, and architecture/data-access audits pass. Full release and hosted Development acceptance remain pending.                                                          |
+| Attendance feature delivery                                                      | Verified local and CI   | Print, manual/scan review, intervals, audited corrections, durable corrected-certificate delivery, and project/organization exports are integrated. Clean migration replay, focused tests, lint, typecheck, formatting, and architecture/data-access audits pass. The full CI release gate passes. Hosted Development acceptance remains pending.                                                          |
 | Requested organization associations                                              | Completed operationally | The reviewed two-project operation passed 17 rollback assertions, then committed atomically in Production. Independent database and organization-page readback confirmed the target organization and active-admin management. Protected state fingerprints and counts stayed unchanged. The private audit receipt remains under ignored `.artifacts`; no attendance feature was released. |
 
 The production-runtime browser journey passes printing, mobile review, partial
@@ -2749,16 +2749,18 @@ two-connection races pass, and the attendance/correction pgTAP suite passes
 83 assertions. Separate sign-in/out pages pass 19 assertions and waiver
 restrictions pass 14. All 401 root and 509 plugin test files pass locally.
 
-CI run [35533557013](https://github.com/riddhimanrana/lets-assist/actions/runs/35533557013)
-passed quality, the production build, and 389 database files with 10,101
-assertions at `fe98af08`. Both CodeQL analyses passed. The four new attendance
-races passed. The subsequent legacy concurrency fixture tried to reset a
-reviewed signup directly and was rejected by the correction guard. The fixture
-now recreates fresh synthetic attendance between independent scenarios. The
-complete concurrency command passes locally, including delivery expiry, signup
-rejection, membership revocation, and competing supplemental issuance. Runtime
-guards remain unchanged. The full release gate is running again. Hosted Development
-acceptance awaits the active CSF release window; this branch has not moved it.
+CI run [35534147266](https://github.com/riddhimanrana/lets-assist/actions/runs/35534147266)
+passed the full release gate at `e34fe721`: quality, production build, 389 database
+files with 10,101 assertions, the complete concurrency command, workflow and
+scale checks, three DV browser tests, and 161 CSF/browser tests with four existing
+skips. The latter includes the full attendance guest journey. Both CodeQL
+analyses passed. Local owned stacks were removed after verification.
+
+The earlier legacy concurrency fixture failure was repaired by recreating fresh
+synthetic attendance between independent scenarios. Runtime guards remain
+unchanged. Hosted Development acceptance awaits the active CSF release window;
+this branch has not moved Development. The attendance feature has not been
+released to Production.
 
 ### Development-only staff and member follow-up, September 16, 2026
 
