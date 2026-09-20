@@ -102,6 +102,17 @@ for publication and deployment.
 
 ## Change discipline
 
+### Batch work and clean up after delivery
+
+- Keep `main` and `development` as the only long-lived branches in both repositories. Delete merged feature branches and retire their worktrees after preserving unique or dirty work.
+- Default to one active task and one root checkout. Create another worktree only for a concrete task that requires isolation. Do not leave dependency installations and build caches in retired worktrees.
+- Use one PR per coherent deliverable. Make review corrections, test repairs, formatting changes, and release-controller fixes in that PR while it remains open. Do not create a new PR for each iteration.
+- For private-plugin work, finish the private change first and perform one root integration. Additional PRs need a concrete independent scope or release boundary.
+- Consolidate unpublished migration drafts before their first deployment. Never rewrite migrations already applied to a shared environment.
+- Run focused checks while iterating and the full database/browser release gate on the integrated candidate. Repeat expensive checks only for a relevant change, failure, or unresolved risk.
+- Keep one current status table with links to historical evidence. Distinguish implemented code, deployed code, verified behavior, and unfinished real-data operations.
+- Do not create empty deployment-marker PRs as routine release coordination. Diagnose and repair the deployment trigger or artifact selection within the existing release work.
+
 - Preserve product routes and public action signatures during refactors. Use temporary barrel exports only while consumers migrate.
 - Add focused regression coverage for every defect or behavior extraction.
 - Keep handwritten React route/component modules at or below 600 lines, service/action modules at or below 800 lines, and test modules at or below 1,200 lines. Generated artifacts and historical migrations are exempt.

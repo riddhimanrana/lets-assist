@@ -1,3 +1,4 @@
+import { cronHistoryCatalog } from "./cron-history-catalog.mjs";
 import { semesterLedgerReconciliationCatalog } from "./semester-ledger-reconciliation-catalog.mjs";
 import { semesterLedgerClaimIdentityCatalog } from "./semester-ledger-claim-identity-catalog.mjs";
 import { semesterLedgerRecoveryCatalog } from "./semester-ledger-recovery-catalog.mjs";
@@ -346,6 +347,14 @@ export function acceptedCatalogQuery(source, versions) {
   const ledgerHash = createHash("sha256")
     .update(versions.join("\n"))
     .digest("hex");
+  if (
+    versions.length === 622 &&
+    ledgerHash ===
+      "271ea2171a799dc185d1bd99b5ca215a5180b1c50628b6e3189dede4abe5c48b"
+  )
+    return cronHistoryCatalog(
+      acceptedCatalogQuery(source, versions.slice(0, 621)),
+    );
   if (
     versions.length === 621 &&
     ledgerHash ===

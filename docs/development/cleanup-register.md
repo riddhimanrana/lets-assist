@@ -8756,3 +8756,44 @@ retried, and the application deployment remains separate.
 ### DVHS CSF 1.2.54 Development deployment retry, September 19, 2026
 
 - Development merge `4f8464ee42e462079b64c668fac8fcdadc7bda42` retained the exact accepted application tree, but Vercel received only the preceding `aeb01a2f1c9111279f3ccd179a12fc5a3fa39f49` push and correctly skipped that unmarked revision. No Vercel deployment or commit status was created for the final merge, so hosted acceptance timed out before browser checks. This marker requests a fresh exact Development deployment without changing product behavior or data.
+
+### System audit and repository recovery, September 19, 2026
+
+Current audit: [full system report](full-system-audit-20260919.md). This entry
+summarizes current findings; older release notes remain historical evidence.
+
+| Finding           | Priority | Current evidence                                                                                                                                                     | Next action                                                                                                         |
+| ----------------- | -------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------- |
+| AUDIT-20260919-01 | P1       | Accepted application lockfile reports six dependency advisories, one high and five moderate. PR quality does not run the dependency-audit script.                    | Review compatible upgrades and add the audit to PR quality in one maintenance change.                               |
+| AUDIT-20260919-02 | P1       | Certificate page selects `volunteer_email`; live verification view has no such column and Vercel reports `42703`.                                                    | Remove unsupported private-field selection and test valid/missing certificates.                                     |
+| AUDIT-20260919-03 | P1       | Live readback: 67 profile-link requests need review; 199 application exports pending and one retry. Older source audit retains 55 unresolved timely attendance rows. | Fresh source preview and reviewed reconciliation; measure remaining work after commits.                             |
+| AUDIT-20260919-04 | P1       | Nested release catalog retained superseded function-text predicates after the migration transaction committed. Controller repair now passes.                         | Replace manual predecessor patching with a canonical generated final-schema manifest; retain security/drift checks. |
+| AUDIT-20260919-05 | P2       | Cron execution history uses about 615 MB and has 2,020,648 exact rows, including 1,827,843 older than 30 days.                                                       | Define bounded operational-log retention and vacuum strategy, separate from student audit evidence.                 |
+| AUDIT-20260919-06 | P2       | Cumulative query statistics show heavy Realtime and CSF sync traffic; latest Production directory latency is unmeasured.                                             | Measure post-release call rates, queue latency, page turns, and empty-job cost before tuning.                       |
+| AUDIT-20260919-07 | P2       | Root and private repositories received 292 PRs since September 15. Latest 1,000 root workflow sample includes 293 quality and 126 hosted-acceptance runs.            | Follow the new batching/worktree rules in AGENTS.md and update CI documentation to match actual gates.              |
+
+Production app `293523193263933caa15a3bdeeaea6b6162bf949` deployed in run
+`35478202880`. Public alias, login, and protected-route checks passed. Migration
+reconciliation run `35478116257` passed against the 621-migration ledger.
+Worker readback at revision 4 enables workbook refresh, imports, communications,
+and publication notifications. Scheduled post publishing remains disabled.
+
+Both remotes and local repository branch sets now retain only main and
+development. Unique branch tips and dirty files were preserved in verified
+private recovery bundles before deletion. Retired worktrees are archived before
+removal. The former primary checkout conflicts and stale source were preserved
+outside the repository, then the primary checkout was aligned to Development
+and its exact private gitlink.
+
+Provider/account blockers: exact Vercel, Supabase, Resend, and GitHub invoices
+are not verified. Chrome lacks access to the Vercel team; Supabase billing
+requires two-factor authentication; Resend billing has no signed-in browser
+session or available billing connector. These are not repository defects.
+
+### Audit follow-up, September 19, 2026
+
+- Certificate query repaired without exposing private email. Projection contract and existing not-found behavior covered locally.
+- Dependency audit is clean after targeted Nodemailer, fflate, and baseline-browser-mapping updates. Production dependency audit added to CI.
+- Cron history retention prepared in one forward migration. Local replay passed 622 migrations and 9,898 assertions across 378 files; focused release-controller coverage passed 201 tests. Production application remains unchanged by these local edits.
+- Corrected export diagnosis: active destinations have no pending exports. The 200 outstanding application entries belong to a disabled legacy destination with unverified response-row bindings. Do not enable it to clear a dashboard count.
+- Account reconciliation remains staff work: 67 review requests, including 13 with no candidates, 53 with one, and one with multiple.

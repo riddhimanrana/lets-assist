@@ -41,7 +41,6 @@ interface CertificateData {
   type?: "verified" | "self-reported"; // Optional for backward compatibility
   event_start: string; // Assuming ISO string format from Supabase
   event_end: string; // Assuming ISO string format from Supabase
-  volunteer_email: string | null;
   user_id: string | null;
   check_in_method: string;
   created_at: string | null; // Keep for potential use, though issued_at is primary
@@ -118,7 +117,6 @@ export default async function VolunteerRecordPage({
       type,
       event_start,
       event_end,
-      volunteer_email,
       user_id,
       check_in_method,
       created_at,
