@@ -48,8 +48,9 @@ Before building, the controller verifies the trusted hosted run or explicit
 performance waiver, successful
 quality and database checks, exact private gitlink, and Vercel project. The
 existing Supabase management token uses the read-only query endpoint for ordinary checks.
-The final catalog uses the owner query endpoint with `read_only: true`, enforced
-by Supabase, because cron RLS hides owner jobs from `supabase_read_only_user`.
+The final catalog uses the owner query endpoint inside an explicit PostgreSQL
+`BEGIN READ ONLY` transaction because cron RLS hides owner jobs from
+`supabase_read_only_user`. The fixed catalog query cannot write in this transaction.
 Checks compare every migration version and verify the CSF tables, functions,
 grants, indexes, constraints, triggers, staff preference RPC, and absence of an
 unresolved application write block. A refused query stops the release without

@@ -323,9 +323,13 @@ export async function verifySchema(
           Authorization: `Bearer ${token}`,
           "Content-Type": "application/json",
         },
-        // Cron RLS hides owner jobs from supabase_read_only_user. Keep the
-        // catalog query read-only on the authorized owner connection instead.
-        body: JSON.stringify({ query: sql, read_only: true }),
+        // Cron RLS requires the owner connection. PostgreSQL itself prevents
+        // writes in the fixed catalog transaction; ordinary reads use the API flag.
+        body: JSON.stringify(
+          ownerCatalog
+            ? { query: `BEGIN READ ONLY;\n${sql};\nCOMMIT;` }
+            : { query: sql, read_only: true },
+        ),
       },
       fetcher,
     );

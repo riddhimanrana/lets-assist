@@ -775,9 +775,9 @@ export async function applyForwardMigrations(config, fetcher = fetch) {
       throw new ReleaseCheckError(
         "Production migration postconditions failed.",
       );
-  } catch {
+  } catch (error) {
     throw new ReleaseCheckError(
-      "Migration outcome requires ledger and catalog reconciliation. No automatic retry was made.",
+      `Migration outcome requires ledger and catalog reconciliation. No automatic retry was made. ${safeFailureMessage(error)}`,
     );
   }
   return {
