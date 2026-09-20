@@ -3505,7 +3505,7 @@
     },
     {
       "identity": "function:public.commit_paper_signup_batch(p_batch_id uuid, p_actor_id uuid, p_row_ids uuid[], p_allow_over_capacity boolean, p_idempotency_key uuid)",
-      "digest": "3b2d090a64026f07cad794845704f182"
+      "digest": "62d4b58e9359032822b8c894b2f1c31e"
     },
     {
       "identity": "function:public.complete_participant_checkout(p_signup_id uuid, p_user_id uuid, p_anonymous_id uuid)",

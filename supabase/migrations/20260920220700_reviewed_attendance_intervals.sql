@@ -968,7 +968,13 @@ BEGIN
           committed_signup_id=commit_paper_signup_batch.signup_id,committed_anonymous_id=commit_paper_signup_batch.anonymous_id,
           over_capacity=commit_paper_signup_batch.over_capacity,attendance_intervals=v_intervals WHERE rows.id=v_row.id;
       END IF;
-    EXCEPTION WHEN SQLSTATE '22023' OR invalid_datetime_format OR datetime_field_overflow OR invalid_text_representation THEN
+    EXCEPTION WHEN unique_violation THEN
+      GET STACKED DIAGNOSTICS v_detail=MESSAGE_TEXT;
+      IF v_detail<>'unlinked platform award requires reconciliation' THEN RAISE; END IF;
+      outcome:='failed'; signup_id:=NULL; anonymous_id:=NULL; user_id:=NULL; over_capacity:=false; v_reconciliation:=NULL;
+      detail:='unlinked_platform_award_requires_reconciliation';
+      UPDATE public.project_paper_scan_rows rows SET outcome='failed',outcome_detail=commit_paper_signup_batch.detail WHERE rows.id=v_row.id;
+    WHEN SQLSTATE '22023' OR invalid_datetime_format OR datetime_field_overflow OR invalid_text_representation THEN
       GET STACKED DIAGNOSTICS v_detail=MESSAGE_TEXT;
       outcome:='failed'; signup_id:=NULL; anonymous_id:=NULL; user_id:=NULL; over_capacity:=false; v_reconciliation:=NULL;
       detail:=CASE WHEN v_detail IN ('review_required','identity_confirmation_required','outside_schedule_requires_reason','invalid_signup_match',
