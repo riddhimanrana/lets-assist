@@ -9208,3 +9208,13 @@ Production-controller tests pass, and the new catalog/controller tests pass
 separately. Fifteen workflow contract tests, zero-warning lint, TypeScript, and
 the two-scenario decision preflight pass. The full database/browser and hosted
 Development gates must be repeated on the replacement integrated candidate.
+
+The replacement `165d55ea` exposed a Development deployment-selection gap before
+hosted acceptance. Its normal merge had no release marker, and a manual Vercel
+redeploy inherited the same ignored-build decision. Hosted run `35545281506`
+correctly refused the stale Development alias before running browser acceptance.
+No Production change ran. The build policy now accepts a deployment-scoped,
+exact-SHA Development Preview request. It refuses Production, other branches,
+and mismatched SHAs without changing shared project settings. The next reviewed
+merge will carry the existing release marker so both the build and hosted gate
+select that candidate. The 633-entry ledger and private gitlink stay unchanged.
