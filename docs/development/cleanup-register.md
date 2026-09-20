@@ -2739,6 +2739,8 @@ sources.
 | ATTENDANCE-20260920-07, P2: lost partial-save responses could trap later retries | Fixed locally           | Request keys now include reviewed revisions and operation scope. Unchanged uncertain retries replay; corrected inputs get a new key. The error message no longer claims nothing was saved. Focused retry tests pass.                                                                                                                                                                                                        |
 | ATTENDANCE-20260920-08, P2: empty photo extraction could block rescanning        | Fixed locally           | Zero readable rows now fail retryably while retaining the original photos. Nine real handler scenarios pass with mocked external services, including duplicate photos, leases, separate pages, and repeated visits. Live OCR quality is not established by these tests.                                                                                                                                                     |
 | ATTENDANCE-20260920-09, P2: saved scan failures required another upload          | Fixed locally           | Draft and failed batches with saved photos expose Retry scan. The action reuses the batch, skips uploads, and recovers from lost responses through durable status. Seven component behavior scenarios and existing authorization checks pass.                                                                                                                                                                               |
+| ATTENDANCE-20260920-10, P2: saved name-only rows stayed ready to submit          | Fixed locally           | Saved roster entries remain editable but are excluded from unchanged saves and row combinations. They show Saved without credit. Four review-state regressions and three retry tests pass.                                                                                                                                                                                                                                  |
+| ATTENDANCE-20260920-11, P2: failed scans disappeared after reload                | Fixed locally           | Failed batches are included in current and saved-draft queries. The production-runtime browser journey passes direct reopening, reload, and ordinary route recovery before continuing attendance review.                                                                                                                                                                                                                    |
 | Attendance feature delivery                                                      | Verified local and CI   | Print, manual/scan review, intervals, audited corrections, durable corrected-certificate delivery, and project/organization exports are integrated. Clean migration replay, focused tests, lint, typecheck, formatting, and architecture/data-access audits pass. The prior attendance candidate passed full CI. The combined Development candidate and guarded hosted attendance check are awaiting their integrated gate. |
 | Requested organization associations                                              | Completed operationally | The reviewed two-project operation passed 17 rollback assertions, then committed atomically in Production. Independent database and organization-page readback confirmed the target organization and active-admin management. Protected state fingerprints and counts stayed unchanged. The private audit receipt remains under ignored `.artifacts`; no attendance feature was released.                                   |
 
@@ -2768,6 +2770,14 @@ plugin revision. Historical release tests still use only their approved ledger;
 fictional attendance journey before the existing CSF load acceptance. Target,
 authorization, cookie, reporter, and cleanup tests pass; hosted execution remains
 pending. This acceptance addition does not authorize a Production release.
+
+The refreshed local candidate `0c17987e` passed a fresh 635-version migration
+replay, production build, and the complete attendance browser journey, including
+failed-scan recovery and cleanup. Readback found no remaining fictional records
+across the 15 checked tables, Auth users, and profiles. Seven review/retry tests
+also pass. The combined full run remains on hold for the separate CSF task's
+browser fixture repairs; its first test-only fix is included, with an additional
+hydration fix pending. Shared Development has not moved for attendance.
 
 ### Development-only staff and member follow-up, September 16, 2026
 
