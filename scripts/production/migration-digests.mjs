@@ -1266,4 +1266,10 @@ export const migrationDigests = {
     "9afd22f2e7e94f00f1024a3b15229c4828a0ce262eb414f558842f0582919e2c",
   "20260920080000_csf_attendance_existing_record_fast_path.sql":
     "87c9499eb132033a34e7aeae061ec0b1918981cef22ea13914e897b97cd266a7",
+  "20260920180915_csf_review_hold_and_explicit_release.sql":
+    "d855f3e9682adb45856841149e6e2e651919625d88a4601c1ccd80f7a3a758db",
+  "20260920181255_csf_durable_account_notices.sql":
+    "35cd0b79e5e6f209f0faa801636ef66b9e30938015eb2d5e94b3072a9aaa79f6",
+  "20260920181754_csf_attendance_reconciliation_counts.sql":
+    "bab7b7993df73dd1e53c8cc1f469412e4cfd719e7838ea7c1913a79955a318b9",
 };
