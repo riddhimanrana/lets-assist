@@ -184,6 +184,8 @@ const config = {
 };
 const prepared = prepareMigration(cwd);
 const rows = (versions) => versions.map((version) => ({ version }));
+const isWrite = (call) =>
+  call.url.endsWith("/database/query") && !call.readOnly;
 
 function transport({
   lost = false,
@@ -199,11 +201,13 @@ function transport({
   return {
     calls,
     fetch: async (url, options) => {
-      const sql = JSON.parse(options.body).query;
-      calls.push({ url, options, sql });
+      const { query: sql, read_only: readOnly = false } = JSON.parse(
+        options.body,
+      );
+      calls.push({ url, options, sql, readOnly });
       assert.equal(options.redirect, "error");
       let result;
-      if (url.endsWith("/database/query")) {
+      if (url.endsWith("/database/query") && !readOnly) {
         written = true;
         if (lost) throw new Error("Synthetic response loss");
         result = [];
@@ -285,10 +289,7 @@ test("performs one write and verifies ledger and permissions", async () => {
   assert.equal(result.migrations, prepared.versions.length);
   assert.equal(result.workers, "disabled");
   assert.equal(result.responseLost, false);
-  assert.equal(
-    t.calls.filter((call) => call.url.endsWith("/database/query")).length,
-    1,
-  );
+  assert.equal(t.calls.filter(isWrite).length, 1);
   assert.ok(
     t.calls.every((call) => new URL(call.url).hostname === "api.supabase.com"),
   );
@@ -301,10 +302,7 @@ test("settles a lost response through reads without resending SQL", async () => 
     (await applyForwardMigrations(config, t.fetch)).responseLost,
     true,
   );
-  assert.equal(
-    t.calls.filter((call) => call.url.endsWith("/database/query")).length,
-    1,
-  );
+  assert.equal(t.calls.filter(isWrite).length, 1);
 });
 
 test("a refused or rolled-back transaction remains unresolved without retry", async () => {
@@ -313,10 +311,7 @@ test("a refused or rolled-back transaction remains unresolved without retry", as
     applyForwardMigrations(config, t.fetch),
     /reconciliation/u,
   );
-  assert.equal(
-    t.calls.filter((call) => call.url.endsWith("/database/query")).length,
-    1,
-  );
+  assert.equal(t.calls.filter(isWrite).length, 1);
 });
 
 test("ledger drift stops before mutation", async () => {
@@ -334,10 +329,7 @@ test("enabled workers stop before migration and are rechecked under a lock", asy
     applyForwardMigrations(config, t.fetch),
     /enabled CSF worker/u,
   );
-  assert.equal(
-    t.calls.filter((call) => call.url.endsWith("/database/query")).length,
-    0,
-  );
+  assert.equal(t.calls.filter(isWrite).length, 0);
   assert.match(
     prepared.query,
     /LOCK TABLE app_private.csf_release_worker_controls IN SHARE MODE/u,
@@ -399,10 +391,7 @@ test("a matching ledger cannot hide a changed schema catalog", async () => {
     applyForwardMigrations(config, t.fetch),
     /reconciliation/u,
   );
-  assert.equal(
-    t.calls.filter((call) => call.url.endsWith("/database/query")).length,
-    1,
-  );
+  assert.equal(t.calls.filter(isWrite).length, 1);
 });
 
 test("schema-only workflow has no build, import, backup, or worker mutation", () => {
@@ -427,7 +416,7 @@ test("a reviewed partially applied tail writes only the remaining migrations", a
   assert.deepEqual(result.applied, [
     ...APPROVED_TAIL.slice(478 - REVIEWED_PREFIX_LENGTH),
   ]);
-  const writes = t.calls.filter((call) => call.url.endsWith("/database/query"));
+  const writes = t.calls.filter(isWrite);
   assert.equal(writes.length, 1);
   assert.ok(
     writes[0].sql.includes(
@@ -463,7 +452,9 @@ test("an already applied tail verifies the catalog without resending SQL", async
   assert.ok(
     t.calls.some((call) => call.sql.includes("csf_target_schema_verified")),
   );
-  assert.ok(t.calls.every((call) => call.url.endsWith("/read-only")));
+  assert.ok(
+    t.calls.every((call) => call.url.endsWith("/read-only") || call.readOnly),
+  );
 });
 
 test("an applied 522 ledger sends the reviewed schema and publication tail", async () => {
@@ -472,7 +463,7 @@ test("an applied 522 ledger sends the reviewed schema and publication tail", asy
   assert.deepEqual(result.applied, [
     ...APPROVED_TAIL.slice(522 - REVIEWED_PREFIX_LENGTH),
   ]);
-  const writes = t.calls.filter((call) => call.url.endsWith("/database/query"));
+  const writes = t.calls.filter(isWrite);
   assert.equal(writes.length, 1);
   assert.match(
     writes[0].sql,
@@ -494,7 +485,7 @@ test("an applied 523 ledger sends the mixed-category fix and publication", async
   assert.deepEqual(result.applied, [
     ...APPROVED_TAIL.slice(523 - REVIEWED_PREFIX_LENGTH),
   ]);
-  const writes = t.calls.filter((call) => call.url.endsWith("/database/query"));
+  const writes = t.calls.filter(isWrite);
   assert.equal(writes.length, 1);
   assert.match(
     writes[0].sql,
@@ -516,7 +507,7 @@ test("an applied 524 ledger sends the signed publication and reviewed guards", a
   assert.deepEqual(result.applied, [
     ...APPROVED_TAIL.slice(524 - REVIEWED_PREFIX_LENGTH),
   ]);
-  const writes = t.calls.filter((call) => call.url.endsWith("/database/query"));
+  const writes = t.calls.filter(isWrite);
   assert.equal(writes.length, 1);
   assert.match(writes[0].sql, /'20260915032757','publish_dvhs_csf_1_2_46'/u);
   assert.equal(
@@ -539,7 +530,9 @@ test("an already applied tail still refuses catalog drift", async () => {
     applyForwardMigrations(config, t.fetch),
     /reconciliation/u,
   );
-  assert.ok(t.calls.every((call) => call.url.endsWith("/read-only")));
+  assert.ok(
+    t.calls.every((call) => call.url.endsWith("/read-only") || call.readOnly),
+  );
 });
 
 test("only exact reviewed prefixes may skip approved migrations", async () => {

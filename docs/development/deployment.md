@@ -47,11 +47,13 @@ step fails.
 Before building, the controller verifies the trusted hosted run or explicit
 performance waiver, successful
 quality and database checks, exact private gitlink, and Vercel project. The
-existing Supabase management token calls only the read-only query endpoint.
+existing Supabase management token uses the read-only query endpoint for ordinary checks.
+The final catalog uses the owner query endpoint with `read_only: true`, enforced
+by Supabase, because cron RLS hides owner jobs from `supabase_read_only_user`.
 Checks compare every migration version and verify the CSF tables, functions,
 grants, indexes, constraints, triggers, staff preference RPC, and absence of an
 unresolved application write block. A refused query stops the release without
-falling back to a writable query endpoint.
+retrying with writes enabled.
 
 The job builds once with Production settings, stages the prebuilt output with
 all four CSF workers disabled, and checks the application SHA, environment,
