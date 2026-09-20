@@ -56,7 +56,7 @@ replace and approve them from the chapter calendar before a Production cutover.
    and history. An email match to an application is not ownership evidence.
 4. Test both an unconnected fictional applicant and a new student. Enter the
    **Student name** in **Join your class**, then select **Continue**. An existing
-   candidate creates or reuses one **Record connections** request and remains
+   candidate creates or reuses one **Accounts to connect** request and remains
    inaccessible until staff verifies identity. A student with no candidate
    declares **I’m a new member** or **I’m a returning member**, which
    files the same request and creates no profile. Staff must record their
@@ -179,7 +179,7 @@ or reuse a review request; it cannot prove ownership.
 
 Students without an existing candidate declare new or returning; the class code
 creates no profile for them. Those requests and every other match remain in
-**Record connections** until authorized staff verifies identity and records a
+**Accounts to connect** until authorized staff verifies identity and records a
 decision. Application and login emails may differ. Pending students
 can see their request status but cannot read the candidate's private history.
 

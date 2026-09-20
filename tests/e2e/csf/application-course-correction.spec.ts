@@ -94,7 +94,7 @@ async function openSeededApplication(page: Parameters<typeof loginAs>[0]) {
     if (await open.isVisible()) await open.click();
   }
   await expect(
-    page.getByRole("button", { name: "Split for review", exact: true }),
+    page.getByRole("textbox", { name: "Search by name", exact: true }),
   ).toBeVisible();
 
   await page

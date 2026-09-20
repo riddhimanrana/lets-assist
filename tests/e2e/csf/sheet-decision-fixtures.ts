@@ -296,7 +296,8 @@ async function upsertSource(fixture: SheetDecisionFixture) {
         colors: {
           accepted: ["#d9ead3"],
           rejected: ["#f4cccc"],
-          rejectedWithExplanation: ["#fff2cc"],
+          rejectedWithExplanation: [],
+          onHold: ["#fff2cc"],
           ignoredFills: ["#f8f9fa", "#ffffff"],
         },
       },
@@ -378,6 +379,7 @@ async function seedApplicants(
 
 type StageStatus =
   | "accepted"
+  | "on_hold"
   | "rejected"
   | "rejected_with_explanation"
   | "unreviewed"

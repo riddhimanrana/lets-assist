@@ -302,7 +302,7 @@ describe("CSF cohort import documentation truthfulness guards", () => {
     expect(studentRollout).toContain(
       "Existing imported records require independently verified ownership",
     );
-    expect(studentRollout).toContain("**Members → Record connections**");
+    expect(studentRollout).toContain("**Members → Accounts to connect**");
     // Amendment 9 withdrew self-service profile creation: the student declares
     // which of the two they are, and staff act on it.
     expect(studentRollout).toContain("A class code never creates a record");

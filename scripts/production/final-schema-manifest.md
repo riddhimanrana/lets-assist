@@ -63,3 +63,18 @@ Release 628 changes only the seven-argument attendance commit base function. The
 clean replay inventory must differ from 627 at that one function identity only.
 Existing attendance rows bypass insert guards; authorization, evidence validation,
 conflict handling and receipt behavior remain part of the database workflow tests.
+
+Release 631 was captured after a clean isolated replay and 9,990 passing database
+assertions. Local fixture helpers were removed only inside the capture transaction,
+which was rolled back. The inventory adds eleven functions and changes nine
+function definitions and nine relations. It removes no objects.
+
+Migration `20260920180915` adds hold and mapping-version guards, an approved-review
+token, automatic staging leases, and applicant counts. Its relation changes are
+the decision mappings, releases, stages, and sync rows. Migration `20260920181255`
+adds future-only connection, access, and decision notification triggers and updates
+sender identity and recipient checks. Its relation changes are communication
+campaigns, profile accounts, class memberships, applications, and organization
+members. Migration `20260920181754` changes import readiness and overwrite refusal
+and adds meeting-scoped preview and attendance counts. These migrations do not
+rewrite student records or send historical notices.

@@ -242,6 +242,28 @@ test.describe("CSF activity publication lifecycle", () => {
         waitUntil: "domcontentloaded",
       });
       await expect(memberPage.getByText(activity.title).first()).toBeVisible();
+      const activityLink = memberPage.getByRole("link", {
+        name: activity.title,
+        exact: true,
+      });
+      await expect(activityLink).toHaveCount(1);
+      await activityLink.focus();
+      await memberPage.keyboard.press("Enter");
+      await expect(memberPage).toHaveURL(
+        new RegExp(`csf_activity=${activity.id}`),
+      );
+      await memberPage.goto(MEMBER_FEED_PATH);
+      const card = memberPage.locator("article").filter({
+        has: memberPage.getByRole("link", {
+          name: activity.title,
+          exact: true,
+        }),
+      });
+      await expect(card.getByRole("button")).toHaveCount(0);
+      await card.click({ position: { x: 8, y: 8 } });
+      await expect(memberPage).toHaveURL(
+        new RegExp(`csf_activity=${activity.id}`),
+      );
     } finally {
       await memberPage.close();
     }

@@ -131,16 +131,13 @@ test.describe("member Home class feed", () => {
       olderTitle,
     ]);
 
-    // The interleaved activity is a distinct card kind: points chip plus a
-    // single View activity action into the Activities tab.
+    // The activity title links the whole card to its detail page.
     const activityCard = feed
       .getByRole("article")
       .filter({ hasText: activityTitle });
     await expect(activityCard.getByText("1.5 non-drive")).toBeVisible();
-    // Button-rendered links report role button in this tree (see the class
-    // workspace tabs note in posts-compose.spec.ts).
     await expect(
-      activityCard.getByRole("button", { name: "View activity" }),
+      activityCard.getByRole("link", { name: activityTitle, exact: true }),
     ).toBeVisible();
 
     // Members never see a reply affordance anywhere in the stream.

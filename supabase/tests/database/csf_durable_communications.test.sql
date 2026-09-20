@@ -608,10 +608,9 @@ SELECT extensions.is(
     WHERE id = 'bd400000-0000-4000-8000-000000000001'
   ),
   plugin_data.csf_communication_campaign_content_hash(
-    -- 20260918000000 records the platform sender identity on a new campaign, so
-    -- the digest the ledger derives is over that identity.
-    'broadcast', 'email', 'DVHS CSF',
-    'dvhs-csf@notifications.lets-assist.com',
+    -- New campaigns derive their sender from the organization.
+    'broadcast', 'email', 'CSF Comms One',
+    'updates@notifications.lets-assist.com',
     'dvhighcsf@gmail.com', 'Spring 2032 partner club audit',
     'Please submit your Spring 2032 audit.', NULL,
     '{}'::jsonb, 'partner_clubs'
@@ -1118,10 +1117,9 @@ SELECT extensions.is(
     WHERE id = 'bd400000-0000-4000-8000-000000000007'
   ),
   plugin_data.csf_communication_campaign_content_hash(
-    -- 20260918000000 records the platform sender identity on a new campaign, so
-    -- the digest the ledger derives is over that identity.
+    -- New campaigns derive their sender from the organization.
     'broadcast', 'email', 'DVHS CSF',
-    'dvhs-csf@notifications.lets-assist.com',
+    'updates@notifications.lets-assist.com',
     'dvhighcsf@gmail.com', 'Second pass at the subject',
     'Third pass at the body.', '<p>Second pass.</p>',
     '{"template":"audit-v2"}'::jsonb, 'partner_clubs'

@@ -1,16 +1,10 @@
--- A reason-only correction has to reach the applicant, and a red mark has to
--- publish no explanation.
---
--- This goes through the two public RPCs, not the publish primitive, because the
--- primitive was never the whole defect: the sync planner decided that a
--- yellow losing its explanation, a red gaining one, and an edit to a yellow
--- reason were all "no publish", since each normalizes to the same decision.
+-- Sheet notes stay private. Later marks require another explicit release.
 
 BEGIN;
 
 CREATE EXTENSION IF NOT EXISTS pgtap WITH SCHEMA extensions;
 
-SELECT extensions.plan(18);
+SELECT extensions.plan(20);
 
 INSERT INTO auth.users (
   id, aud, role, email, email_confirmed_at, raw_app_meta_data,
@@ -129,7 +123,7 @@ INSERT INTO plugin_data.csf_sheet_import_rows (
    'hash-finished', 'dd600000-0000-4000-8000-000000000003', 'created');
 
 -- ---------------------------------------------------------------------------
--- A. Stage and release: yellow with a reason, green, green with a reason
+-- A. Yellow remains pending while green releases without its private note
 -- ---------------------------------------------------------------------------
 
 SELECT plugin_data.csf_stage_sheet_application_decisions(
@@ -147,7 +141,7 @@ SELECT plugin_data.csf_stage_sheet_application_decisions(
     {"sourceId":"dd400000-0000-4000-8000-000000000001","sheetTabName":"Form Responses 1",
      "observedRowNumber":11,"applicationId":"dd600000-0000-4000-8000-000000000001",
      "importRowId":"dd800000-0000-4000-8000-000000000001",
-     "status":"rejected_with_explanation","observedColor":"#fff2cc",
+     "status":"on_hold","observedColor":"#fff2cc",
      "reason":"The service hours page was blank.",
      "identityDigest":"id-1","decisionDigest":"dec-1"},
     {"sourceId":"dd400000-0000-4000-8000-000000000001","sheetTabName":"Form Responses 1",
@@ -175,8 +169,8 @@ SELECT extensions.is(
     FROM plugin_data.csf_term_applications
     WHERE id = 'dd600000-0000-4000-8000-000000000001'
   ),
-  'The service hours page was blank.',
-  'the initial yellow release publishes the Sheet reason'
+  NULL::text,
+  'yellow remains pending and its note stays private'
 );
 
 SELECT extensions.is(
@@ -185,8 +179,8 @@ SELECT extensions.is(
     FROM plugin_data.csf_application_decision_stages
     WHERE application_id = 'dd600000-0000-4000-8000-000000000001'
   ),
-  'The service hours page was blank.',
-  'and the stage records what it released'
+  NULL::text,
+  'a hold has no published reason'
 );
 
 SELECT extensions.is(
@@ -200,7 +194,7 @@ SELECT extensions.is(
 );
 
 -- ---------------------------------------------------------------------------
--- B. Editing a yellow reason republishes, though the decision never moves
+-- B. Editing a yellow note does not publish a decision
 -- ---------------------------------------------------------------------------
 
 SELECT plugin_data.csf_stage_sheet_application_decisions(
@@ -218,7 +212,7 @@ SELECT plugin_data.csf_stage_sheet_application_decisions(
     {"sourceId":"dd400000-0000-4000-8000-000000000001","sheetTabName":"Form Responses 1",
      "observedRowNumber":11,"applicationId":"dd600000-0000-4000-8000-000000000001",
      "importRowId":"dd800000-0000-4000-8000-000000000001",
-     "status":"rejected_with_explanation","observedColor":"#fff2cc",
+     "status":"on_hold","observedColor":"#fff2cc",
      "reason":"The service hours page was missing two signatures.",
      "identityDigest":"id-1","decisionDigest":"dec-1b"}
   ]$rows$::jsonb
@@ -230,8 +224,8 @@ SELECT extensions.is(
     FROM plugin_data.csf_term_applications
     WHERE id = 'dd600000-0000-4000-8000-000000000001'
   ),
-  'The service hours page was missing two signatures.',
-  'an edit to a yellow reason reaches the applicant'
+  NULL::text,
+  'editing a hold note does not publish it'
 );
 
 SELECT extensions.is(
@@ -240,12 +234,12 @@ SELECT extensions.is(
     FROM plugin_data.csf_application_decision_stages
     WHERE application_id = 'dd600000-0000-4000-8000-000000000001'
   ),
-  'The service hours page was missing two signatures.',
-  'the released reason moves with it'
+  NULL::text,
+  'the published reason stays empty'
 );
 
 -- ---------------------------------------------------------------------------
--- C. Yellow to red clears the explanation, without losing the workflow note
+-- C. Yellow to red stays pending until a new release
 -- ---------------------------------------------------------------------------
 
 SELECT plugin_data.csf_stage_sheet_application_decisions(
@@ -274,7 +268,7 @@ SELECT extensions.is(
     WHERE id = 'dd600000-0000-4000-8000-000000000001'
   ),
   NULL::text,
-  'yellow to red clears the published explanation'
+  'a red mark does not expose a private note'
 );
 
 SELECT extensions.is(
@@ -283,9 +277,14 @@ SELECT extensions.is(
     FROM plugin_data.csf_term_applications
     WHERE id = 'dd600000-0000-4000-8000-000000000001'
   ),
-  'rejected',
-  'the applicant is still rejected'
+  'submitted',
+  'the new rejection is not published by sync'
 );
+
+SELECT plugin_data.csf_release_sheet_application_decisions(
+  'dd100000-0000-4000-8000-000000000001','dd000000-0000-4000-8000-000000000001',
+  'dd200000-0000-4000-8000-000000000001','ddc00000-0000-4000-8000-000000000002');
+SELECT extensions.is((SELECT status FROM plugin_data.csf_term_applications WHERE id='dd600000-0000-4000-8000-000000000001'),'rejected','a new officer release publishes the rejection');
 
 SELECT extensions.is(
   (
@@ -298,7 +297,7 @@ SELECT extensions.is(
 );
 
 -- ---------------------------------------------------------------------------
--- D. Red back to yellow publishes the new explanation
+-- D. Red back to yellow holds the change and keeps the published rejection
 -- ---------------------------------------------------------------------------
 
 SELECT plugin_data.csf_stage_sheet_application_decisions(
@@ -316,7 +315,7 @@ SELECT plugin_data.csf_stage_sheet_application_decisions(
     {"sourceId":"dd400000-0000-4000-8000-000000000001","sheetTabName":"Form Responses 1",
      "observedRowNumber":11,"applicationId":"dd600000-0000-4000-8000-000000000001",
      "importRowId":"dd800000-0000-4000-8000-000000000001",
-     "status":"rejected_with_explanation","observedColor":"#fff2cc",
+     "status":"on_hold","observedColor":"#fff2cc",
      "reason":"Two service entries could not be verified.",
      "identityDigest":"id-1","decisionDigest":"dec-1d"}
   ]$rows$::jsonb
@@ -328,8 +327,8 @@ SELECT extensions.is(
     FROM plugin_data.csf_term_applications
     WHERE id = 'dd600000-0000-4000-8000-000000000001'
   ),
-  'Two service entries could not be verified.',
-  'red back to yellow publishes the new explanation'
+  NULL::text,
+  'a new hold note stays private'
 );
 
 -- ---------------------------------------------------------------------------
@@ -369,7 +368,7 @@ SELECT plugin_data.csf_stage_sheet_application_decisions(
     {"sourceId":"dd400000-0000-4000-8000-000000000001","sheetTabName":"Form Responses 1",
      "observedRowNumber":11,"applicationId":"dd600000-0000-4000-8000-000000000001",
      "importRowId":"dd800000-0000-4000-8000-000000000001",
-     "status":"rejected_with_explanation","observedColor":"#fff2cc",
+     "status":"on_hold","observedColor":"#fff2cc",
      "reason":"Two service entries could not be verified.",
      "identityDigest":"id-1","decisionDigest":"dec-1d"}
   ]$rows$::jsonb
@@ -406,7 +405,7 @@ SELECT extensions.is(
 );
 
 -- ---------------------------------------------------------------------------
--- F. A published acceptance turned red revokes with no invented explanation
+-- F. A published acceptance turned red retains access until approval
 -- ---------------------------------------------------------------------------
 
 UPDATE plugin_data.csf_term_memberships
@@ -448,9 +447,14 @@ SELECT extensions.is(
     FROM plugin_data.csf_term_memberships
     WHERE application_id = 'dd600000-0000-4000-8000-000000000002'
   ),
-  'revoked',
-  'access still follows the Sheet'
+  'active',
+  'sync cannot revoke an active membership'
 );
+
+SELECT plugin_data.csf_release_sheet_application_decisions(
+  'dd100000-0000-4000-8000-000000000001','dd000000-0000-4000-8000-000000000001',
+  'dd200000-0000-4000-8000-000000000001','ddc00000-0000-4000-8000-000000000003');
+SELECT extensions.is((SELECT status FROM plugin_data.csf_term_memberships WHERE application_id='dd600000-0000-4000-8000-000000000002'),'revoked','the approved later release revokes membership');
 
 SELECT extensions.is(
   (
@@ -506,8 +510,8 @@ SELECT extensions.is(
     FROM plugin_data.csf_term_applications
     WHERE id = 'dd600000-0000-4000-8000-000000000003'
   ),
-  'Adviser confirmed the transcript.',
-  'the finished semester keeps the reason it published'
+  NULL::text,
+  'the finished semester never exposed its source note'
 );
 
 SELECT extensions.is(
