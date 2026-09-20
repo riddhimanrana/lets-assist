@@ -128,7 +128,13 @@ export function ReviewRowEditor({
         toast.error(result.error);
         return;
       }
-      onSaved({ ...row, ...patch, reviewRevision: row.reviewRevision + 1 });
+      onSaved({
+        ...row,
+        ...patch,
+        outcome: "pending",
+        outcomeDetail: null,
+        reviewRevision: row.reviewRevision + 1,
+      });
     } finally {
       setSaving(false);
     }
@@ -339,7 +345,13 @@ export function ReviewRowEditor({
           <Input
             id="attendance-reason"
             value={form.reason}
-            onChange={(e) => setForm({ ...form, reason: e.target.value })}
+            onChange={(e) =>
+              setForm({
+                ...form,
+                reason: e.target.value,
+                reviewAcknowledged: false,
+              })
+            }
           />
         </div>
         <label className="flex items-start gap-2 text-sm">
