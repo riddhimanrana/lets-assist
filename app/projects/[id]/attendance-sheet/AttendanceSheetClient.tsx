@@ -4,6 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { useHydrated } from "@/hooks/useHydrated";
 import type {
   AttendancePrintSession,
   AttendancePrintSheet,
@@ -23,6 +24,7 @@ export function AttendanceSheetClient({
   timezone: string;
   sessions: AttendancePrintSession[];
 }) {
+  const hydrated = useHydrated();
   const [selected, setSelected] = useState<string[]>(
     sessions.length === 1 ? [sessions[0].id] : [],
   );
@@ -64,7 +66,10 @@ export function AttendanceSheetClient({
   }
 
   return (
-    <main className={`attendance-sheet-root attendance-paper-${paper}`}>
+    <main
+      className={`attendance-sheet-root attendance-paper-${paper}`}
+      data-hydrated={hydrated}
+    >
       <style>{`@page { size: ${paper === "a4" ? "A4" : "letter"} portrait; margin: 12mm; }`}</style>
       <div className="attendance-print-controls mx-auto max-w-4xl space-y-6 px-4 py-8">
         <Link
@@ -81,7 +86,10 @@ export function AttendanceSheetClient({
           Registered volunteers appear by name only. Blank rows let walk-ins
           write their name and email. Each row has space for two visits.
         </p>
-        <fieldset disabled={busy} className="space-y-3 rounded-lg border p-4">
+        <fieldset
+          disabled={busy || !hydrated}
+          className="space-y-3 rounded-lg border p-4"
+        >
           <legend className="px-1 font-medium">Sessions</legend>
           {sessions.length === 0 && <p>No printable sessions are available.</p>}
           {sessions.map((session) => (
@@ -117,7 +125,7 @@ export function AttendanceSheetClient({
               min={0}
               max={100}
               value={blankRows}
-              disabled={busy}
+              disabled={busy || !hydrated}
               onChange={(event) =>
                 changeOptions(() => setBlankRows(event.target.valueAsNumber))
               }
@@ -130,7 +138,7 @@ export function AttendanceSheetClient({
               min={0}
               max={30}
               value={continuationRows}
-              disabled={busy}
+              disabled={busy || !hydrated}
               onChange={(event) =>
                 changeOptions(() =>
                   setContinuationRows(event.target.valueAsNumber),
@@ -143,6 +151,7 @@ export function AttendanceSheetClient({
             <select
               className="flex h-10 w-full rounded-md border bg-background px-3 text-sm"
               value={paper}
+              disabled={busy || !hydrated}
               onChange={(event) =>
                 setPaper(event.target.value as "letter" | "a4")
               }
@@ -158,7 +167,10 @@ export function AttendanceSheetClient({
           </p>
         )}
         <div className="flex flex-wrap gap-3">
-          <Button onClick={prepare} disabled={busy || selected.length === 0}>
+          <Button
+            onClick={prepare}
+            disabled={!hydrated || busy || selected.length === 0}
+          >
             {busy ? "Preparing sheets..." : "Prepare sheets"}
           </Button>
           {sheets.length > 0 && (

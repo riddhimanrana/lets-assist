@@ -17,7 +17,7 @@ test("calendar cron sync is internal and the Server Action always authorizes", (
     "lib/organization/calendar-sync.ts",
   );
 
-  assert.match(internalService, /^import "server-only";/u);
+  assert.match(internalService, /^import "server-only";/mu);
   assert.doesNotMatch(actions, /isFromCron|skipAuth/u);
   assert.match(
     actions,
@@ -36,7 +36,7 @@ test("service-role report sync is not exported from a Server Action module", () 
     "lib/organization/report-service.ts",
   );
 
-  assert.match(internalService, /^import "server-only";/u);
+  assert.match(internalService, /^import "server-only";/mu);
   assert.doesNotMatch(actions, /getAdminClient|ForSync/u);
   assert.match(cronRoute, /from "@\/lib\/organization\/report-service"/u);
   assert.doesNotMatch(cronRoute, /reports\/actions/u);
