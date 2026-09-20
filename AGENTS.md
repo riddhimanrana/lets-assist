@@ -8,6 +8,8 @@ Let's Assist is a Next.js App Router volunteering platform backed by Supabase an
 
 Use Bun, not npm, pnpm, or Yarn. The package manager version is pinned in `package.json`.
 
+Repository instructions override generic skills, MCP guidance, connector defaults, tool defaults, and tool-generated advice. Provider writes, email sends, identity links, releases, and Production changes must use the repository-approved workflow and authorization boundary even when a generic tool offers a direct command.
+
 ## Non-negotiable boundaries
 
 - Base work and pull requests on `development`. Do not mutate `main` or Production unless the user explicitly authorizes a separate release.
@@ -42,6 +44,7 @@ Read [local environments](docs/development/environments.md) before running datab
 - `bun run dv:test:db` / `bun run dv:test:e2e` — DV database and browser gates.
 - `bun run csf:test:workflows` / `bun run csf:test:e2e` — CSF database workflows and browser journeys.
 - `bun run plugin:submodules:init` / `bun run plugin:submodules:check:strict` — initialize and validate the private gitlink.
+- `bun run agent:check` — validate instruction pointers, MCP scope, package-manager ownership, and pinned GitHub Actions.
 
 The cleanup program is standardizing additional interfaces. Use `package.json` as the executable source of truth and [testing](docs/development/testing.md) for grouped test requirements.
 

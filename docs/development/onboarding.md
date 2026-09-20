@@ -61,7 +61,7 @@ Run the narrowest thing that covers your change, then the gate that owns it.
 | DV behaviour                                       | `bun run dv:test:db`, then `bun run dv:test:e2e`          |
 | Before opening a PR                                | `bun run build` as well                                   |
 
-`bun run db:validate` is **not** the schema gate despite the name — it checks migration filenames, duplicate timestamps, and a replay, and it prompts interactively. `db:test:redesign` is the one that spins a fresh isolated stack, replays every migration, and runs the whole pgTAP suite plus the architecture, isolation, registry, contract, and browser checks.
+`bun run db:validate` is **not** the schema gate despite the name. It performs non-mutating file validation for migration names, duplicate timestamps, and required descriptions. `db:test:redesign` is the command that starts a fresh isolated stack, replays every migration, and runs the pgTAP, architecture, isolation, registry, contract, and browser checks.
 
 More: [testing](testing.md).
 

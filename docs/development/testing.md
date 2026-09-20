@@ -4,11 +4,11 @@ Use the narrowest focused regression first, then expand to the appropriate gate.
 
 ## Evidence classes
 
-Keep evidence environment- and revision-specific:
+Keep evidence environment- and revision-specific. Record exact counts, SHAs, and run links in the cleanup register or release report produced by that run. Do not copy a dated assertion count into this operating guide because it becomes stale whenever a migration or test lands.
 
-- **Locally verified:** a fresh static inventory of this exact worktree contains 291 migration SQL files through `20260814051720_csf_post_mutation_outcome_recovery.sql` and 141 pgTAP SQL files. The current exact full local isolated union replay covered this exact shape: all 291 migrations and 141 pgTAP files passed with 5,761 assertions and 84 CSF tables present.
-- **Hosted Development verified:** only checks run against the hosted Development database and exact deployed application SHA belong in this class. This local-only closeout ran none; previously recorded hosted evidence remains historical and must not be promoted to exact-current parity.
-- **Production unverified:** no Production database, application, browser, worker, or provider gate was run. Production remains untouched and unverified by this closeout.
+- **Locally verified:** checks run against the exact local worktree and an owned local environment.
+- **Hosted Development verified:** checks run against the hosted Development database and exact deployed application SHA.
+- **Production verified:** checks run against the served Production revision and Production provider state through the approved read-only or release workflow.
 
 A local pass is not a deployment, a static inventory is not a runtime gate, and hosted database parity does not prove that the matching application SHA is deployed.
 
@@ -29,6 +29,7 @@ The orchestrator keeps safety-sensitive groups explicit, discovers all remaining
 - `bun run typecheck`
 - `bun run build`
 - `bun run source:check:organization`
+- `bun run agent:check`
 
 ## Database and plugin gates
 
