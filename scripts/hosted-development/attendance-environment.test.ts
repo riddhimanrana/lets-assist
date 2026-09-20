@@ -142,7 +142,7 @@ test("hosted sessions authenticate only fictional identities with the publishabl
   ).rejects.toThrow("fictional");
 });
 
-test("cleanup deletes certificate snapshots before the project and checks only fixture IDs", async () => {
+test("cleanup checks project columns including composite-key printed rows", async () => {
   const operations: string[] = [];
   const admin = {
     from: (table: string) => ({
@@ -154,18 +154,23 @@ test("cleanup deletes certificate snapshots before the project and checks only f
           return { error: null };
         },
       }),
-      select: () => ({
-        eq: async (column: string, value: string) => {
-          expect(value).toBe(
-            table === "profiles" ? "fixture-user" : "fixture-project",
-          );
-          expect(column).toBe(
-            ["projects", "profiles"].includes(table) ? "id" : "project_id",
-          );
-          operations.push(`verify:${table}`);
-          return { error: null, count: 0 };
-        },
-      }),
+      select: (selectedColumn: string) => {
+        expect(selectedColumn).toBe(
+          ["projects", "profiles"].includes(table) ? "id" : "project_id",
+        );
+        return {
+          eq: async (column: string, value: string) => {
+            expect(value).toBe(
+              table === "profiles" ? "fixture-user" : "fixture-project",
+            );
+            expect(column).toBe(
+              ["projects", "profiles"].includes(table) ? "id" : "project_id",
+            );
+            operations.push(`verify:${table}`);
+            return { error: null, count: 0 };
+          },
+        };
+      },
     }),
     auth: {
       admin: {
@@ -187,6 +192,7 @@ test("cleanup deletes certificate snapshots before the project and checks only f
     "delete:certificates",
     "delete:projects",
   ]);
+  expect(operations).toContain("verify:project_attendance_print_rows");
   expect(operations).toContain("verify:paper_signup_notification_outbox");
   expect(operations).toContain("verify:hours_publication_receipts");
   expect(operations.at(-1)).toBe("verify:profiles");
