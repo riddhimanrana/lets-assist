@@ -9072,3 +9072,23 @@ preserves the original reconciliation report and its historical evidence.
 Timestamp matching ran with `TZ=UTC` to match the hosted importer convention.
 The focused test log, sender authentication readback, deployment inspection,
 and names-only environment inspection are under `.artifacts/csf-audit-*`.
+
+#### Authorized continuation, September 20
+
+The user approved continuing the audited release and reconciliation. A concrete
+student decision batch and recipient preview still require approval before
+publication. The separate paper-attendance release remains outside this scope.
+
+Class of 2029's blocked workbook was recovered through the authenticated app's
+Change sheet action, selecting the same official workbook. Rebuild previews
+refused the blocked connection, so the existing relink workflow renewed it.
+The new preparation job completed on its first attempt at 21:35:17 UTC.
+Read-only verification at 21:36:09 UTC confirmed `linked`, no active error, and
+prepared revision 1498 matching the provider revision. Historical failed jobs
+remain available. No semester import or decision was approved by this recovery.
+Evidence: `.artifacts/csf-class-recovery-readback-2.json`.
+
+Private promotion PR 545 merged after its quality check passed. PR 546 restored
+the release ancestry to Development. Tag `dvhs-csf/v1.2.58` points to the reviewed
+private commit `6ea7f6905f35ed0c38d74561ceaab202e4197bba`. Signed publication and
+root integration are in progress; Production still serves the prior app.
