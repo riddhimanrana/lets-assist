@@ -64,7 +64,7 @@ export function verifyAcceptance(status, run, sha, repository) {
 }
 
 export function verifyQualityRuns(runs) {
-  for (const name of ["quality", "db-replay-validation"]) {
+  for (const name of ["full-quality", "db-replay-validation"]) {
     const matches = runs
       .filter((run) => run.name === name && run.app?.slug === "github-actions")
       .sort((a, b) => b.id - a.id);
@@ -248,7 +248,7 @@ export async function verifySource(
       );
     verifyQualityRuns(checks.check_runs ?? []);
     const ciRuns = new Set();
-    for (const name of ["quality", "db-replay-validation"]) {
+    for (const name of ["full-quality", "db-replay-validation"]) {
       const check = checks.check_runs
         .filter(
           (item) => item.name === name && item.app?.slug === "github-actions",
@@ -263,10 +263,16 @@ export async function verifySource(
         );
       ciRuns.add(match[1]);
     }
+    if (ciRuns.size !== 1) {
+      throw new ReleaseCheckError(
+        "Full quality and database checks must belong to the same run.",
+      );
+    }
     for (const runId of ciRuns) {
       const run = await request(`actions/runs/${runId}`);
       if (
         run.path !== ".github/workflows/ci.yml" ||
+        !["workflow_dispatch", "workflow_call"].includes(run.event) ||
         run.head_sha !== acceptedSha ||
         run.repository?.full_name !== repository ||
         run.head_repository?.full_name !== repository ||

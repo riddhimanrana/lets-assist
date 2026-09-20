@@ -5,7 +5,7 @@
  * The browser suite costs a full build, so every API-level thing the fixture
  * does is proved here first: the source registers, the applicants seed with
  * real import provenance, staging reaches the RPC, a release publishes, a
- * later sync corrects a published row, and two scenarios do not contaminate
+ * later sync stages a correction for another approval, and two scenarios do not contaminate
  * each other.
  *
  * Refuses anything but a marker-validated CSF isolated stack on loopback,
@@ -29,8 +29,6 @@ import {
   type SheetApplicants,
   type SheetDecisionFixture,
 } from "../../tests/e2e/csf/sheet-decision-fixtures";
-
-const EXPECTED_PROJECT = "lets-assist-csf-browser-ready0916";
 
 let failures = 0;
 
@@ -58,9 +56,12 @@ function assertOwnedStack() {
     projectId?: string;
     runId?: string;
   };
-  if (stack.projectId !== EXPECTED_PROJECT) {
+  if (
+    !stack.runId ||
+    stack.projectId !== `lets-assist-csf-browser-${stack.runId}`
+  ) {
     throw new Error(
-      `Refusing to run: the marker names project ${String(stack.projectId)}, not ${EXPECTED_PROJECT}.`,
+      `Refusing to run: the marker names project ${String(stack.projectId)}, not an owned CSF browser project.`,
     );
   }
   if (!stack.runId) {
@@ -101,7 +102,7 @@ async function stageThree(
     },
     {
       applicant: applicants.byRole.explained,
-      status: "rejected_with_explanation",
+      status: "on_hold",
       observedColor: "#fff2cc",
       reason: "Fictional synthetic reason: transcript page two was unreadable.",
     },
@@ -139,13 +140,20 @@ async function runScenario(fixture: SheetDecisionFixture, name: string) {
 
   const released = await releaseDecisions(fixture);
   check(
-    released.accepted === 1 && released.rejected === 2,
-    `${name}: release published one acceptance and two rejections`,
+    released.accepted === 1 && released.rejected === 1 && released.pending >= 1,
+    `${name}: release published one acceptance and one rejection, leaving the hold pending`,
     {
       accepted: released.accepted,
       rejected: released.rejected,
       held: released.heldCount,
     },
+  );
+
+  const held = await publishedState(fixture, applicants.byRole.explained);
+  check(
+    held.applicationStatus === "submitted" && held.membershipStatus === null,
+    `${name}: yellow remains undecided without membership`,
+    held,
   );
 
   const accepted = await publishedState(fixture, applicants.byRole.accepted);
@@ -156,7 +164,7 @@ async function runScenario(fixture: SheetDecisionFixture, name: string) {
     accepted,
   );
 
-  // A later sync that recolours a published row applies immediately.
+  // A later Sheet change stays private until an officer approves its release.
   const corrected = await stageDecisions(fixture, [
     {
       applicant: applicants.byRole.accepted,
@@ -165,9 +173,27 @@ async function runScenario(fixture: SheetDecisionFixture, name: string) {
     },
   ]);
   check(
-    corrected.counts.appliedToReleased === 1,
-    `${name}: the correction applied to the released row`,
+    corrected.counts.appliedToReleased === 0 &&
+      corrected.counts.retractedFromRelease === 0,
+    `${name}: sync staged the correction without changing the released decision`,
     corrected.counts,
+  );
+
+  const beforeCorrectionRelease = await publishedState(
+    fixture,
+    applicants.byRole.accepted,
+  );
+  check(
+    beforeCorrectionRelease.applicationStatus === "accepted" &&
+      beforeCorrectionRelease.membershipStatus === "accepted",
+    `${name}: sync preserves the approved membership`,
+    beforeCorrectionRelease,
+  );
+  const correctionRelease = await releaseDecisions(fixture);
+  check(
+    correctionRelease.rejected === 1,
+    `${name}: the officer releases the correction`,
+    correctionRelease,
   );
 
   const revoked = await publishedState(fixture, applicants.byRole.accepted);
