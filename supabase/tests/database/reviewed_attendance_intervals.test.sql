@@ -184,5 +184,10 @@ SELECT extensions.is(public.request_corrected_certificate_delivery('a7100000-000
  'a7500000-0000-4000-8000-000000000045','a7000000-0000-4000-8000-000000000001')->'deliveries'->0->>'creditedMinutes','180','a new explicit revision receives its own canonical snapshot');
 SELECT extensions.is((SELECT count(*)::integer FROM public.certificates WHERE signup_id='a7200000-0000-4000-8000-000000000001'),1,'multiple correction sends retain one certificate');
 
+SELECT extensions.ok(NOT has_function_privilege('authenticated','public.project_corrected_certificate_ids(uuid,uuid)','EXECUTE'),'corrected award discovery denies browser roles');
+SELECT extensions.is(public.project_corrected_certificate_ids('a7100000-0000-4000-8000-000000000001','a7000000-0000-4000-8000-000000000001'),ARRAY[(SELECT id FROM before_correction)],'only corrected awards appear in explicit resend controls');
+SELECT extensions.is(public.project_corrected_certificate_ids('a7100000-0000-4000-8000-000000000002','a7000000-0000-4000-8000-000000000001'),ARRAY[]::uuid[],'unpublished project has no corrected certificate controls');
+SELECT extensions.throws_ok($$SELECT public.project_corrected_certificate_ids('a7100000-0000-4000-8000-000000000001','a7000000-0000-4000-8000-000000000003')$$,'42501','not authorized to read corrected certificates','outsider cannot discover corrected awards');
+
 SELECT * FROM extensions.finish();
 ROLLBACK;

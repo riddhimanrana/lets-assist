@@ -117,6 +117,28 @@ $$;
 REVOKE ALL ON FUNCTION public.request_corrected_certificate_delivery(uuid,uuid,integer,uuid,uuid) FROM PUBLIC,anon,authenticated,service_role;
 GRANT EXECUTE ON FUNCTION public.request_corrected_certificate_delivery(uuid,uuid,integer,uuid,uuid) TO service_role;
 
+-- The Hours page lists only awards with a correction at their current revision.
+CREATE FUNCTION public.project_corrected_certificate_ids(p_project_id uuid,p_actor_id uuid)
+RETURNS uuid[] LANGUAGE plpgsql SECURITY DEFINER SET search_path='' AS $$
+DECLARE v_ids uuid[];
+BEGIN
+  IF NOT private.lock_attendance_management(p_project_id,p_actor_id) THEN
+    RAISE EXCEPTION 'not authorized to read corrected certificates' USING ERRCODE='42501';
+  END IF;
+  SELECT COALESCE(array_agg(certificates.id ORDER BY certificates.id),ARRAY[]::uuid[]) INTO v_ids
+  FROM public.certificates certificates
+  WHERE certificates.project_id=p_project_id AND certificates.type='verified'
+    AND certificates.credited_minutes IS NOT NULL
+    AND EXISTS(SELECT 1 FROM private.project_attendance_changes changes
+      WHERE changes.signup_id=certificates.signup_id
+        AND changes.new_revision=certificates.attendance_revision
+        AND changes.old_credited_minutes IS NOT NULL);
+  RETURN v_ids;
+END;
+$$;
+REVOKE ALL ON FUNCTION public.project_corrected_certificate_ids(uuid,uuid) FROM PUBLIC,anon,authenticated,service_role;
+GRANT EXECUTE ON FUNCTION public.project_corrected_certificate_ids(uuid,uuid) TO service_role;
+
 CREATE OR REPLACE FUNCTION private.hours_publication_result(
   p_receipt_id uuid,
   p_outcome text
