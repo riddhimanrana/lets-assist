@@ -7,13 +7,16 @@ set -euo pipefail
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 cd "${ROOT_DIR}"
 
+# Validate the owned stack and prove reviewed-attendance races before legacy cases.
+node scripts/local-dev/test-attendance-concurrency.mjs
+
 DATABASE_URL="${DATABASE_URL:-${SUPABASE_DB_URL:-}}"
 if [[ -z "${DATABASE_URL}" ]]; then
   DATABASE_URL="$(
-    bunx supabase status -o env \
-      | sed -n 's/^DB_URL=//p' \
-      | tr -d '"' \
-      | head -n 1
+    node --input-type=module -e '
+      import { getCsfIsolatedSupabaseEnv } from "./scripts/local-dev/dv-local-env.mjs";
+      process.stdout.write(getCsfIsolatedSupabaseEnv().dbUrl);
+    '
   )"
 fi
 
