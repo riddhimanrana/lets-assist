@@ -8912,7 +8912,7 @@ The first PR version still ran the release-scale database and browser job for ev
 
 ### CSF simplification and Fall reconciliation, September 20
 
-Current implementation status: private PR #542 and root PR #765 are merged to Development. Full candidate run `35532134141` found stale sender, publication, documentation-label, and historical migration-fixture expectations. Private follow-up PR #543 passed CI `35533091505` and merged as `8d0997033ba28e4a465d31fa870e9ea4c8168882`. Root branch `codex/csf-source-reconciliation` integrates that exact commit, fixes those checks, and records the live-source gaps below. Production remains unchanged.
+Current implementation status: private PRs #542 and #543 and root PRs #765, #767, and #768 are merged to Development. The current root candidate is `adc8be47049c26650acadf09f077aae4d3bc79c8`, with private gitlink `8d0997033ba28e4a465d31fa870e9ea4c8168882`. Full candidate run `35534379977` passed unit tests, build, all 386 database files and 9,990 assertions, concurrency and scale checks, and all three DV browser journeys. Its CSF browser suite stopped after 63 passes, one skip, and three failures. The follow-up fixes a review-period completion race in the test and expands the account panel after reload in two tests. All twelve related compiled Chromium scenarios now pass locally, including review reopening, account rejection, and verified connection. Formatting, focused ESLint, and typecheck pass. A corrected full run remains pending. Hosted Development run `35534349163` passed against the current candidate. Production remains unchanged.
 
 | Area                   | Implemented and locally verified                                                                                                                                                                                                                      | Remaining work                                                                                                                                                      |
 | ---------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -8957,3 +8957,14 @@ and focused diagnostic tests pass; the integrated browser run remains required.
 The superseded hosted run `35532122324` was canceled before a corrected candidate
 was integrated. It does not count as hosted acceptance. Production rollout,
 source configuration, record reconciliation, and decision publication remain open.
+
+Hosted Development evidence for root `adc8be47049c26650acadf09f077aae4d3bc79c8`
+and private `8d0997033ba28e4a465d31fa870e9ea4c8168882`: run `35534349163`
+passed on September 20 at 20:40 UTC. The guarded fictional workload used 90
+member sessions and 10 officer sessions for fifteen minutes after paced login.
+All 9,812 requests succeeded, with zero server errors and renderer crashes.
+Read p95 was 1.22 seconds and mutation p95 was 1.34 seconds. The workflow verified
+the Vercel revision, Supabase preview, branch alias, and unchanged Development head.
+This establishes hosted behavior for that application revision, not Production
+record reconciliation or student delivery. The complete corrected browser gate
+remains required on the next integrated candidate.
