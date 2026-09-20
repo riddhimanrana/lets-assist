@@ -253,8 +253,7 @@ export function buildAttendanceExportRecords(
         !signup);
     const published =
       !!cert &&
-      (cert.type === "verified" ||
-        (cert.type === null && cert.credited_minutes === null)) &&
+      (cert.type === "verified" || cert.type === null) &&
       currentCertificate;
     const complete =
       attendance.length > 0 &&

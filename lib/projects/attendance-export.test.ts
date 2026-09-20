@@ -423,3 +423,60 @@ test("historical account certificates without signup IDs appear once per account
   assert.equal(records[0].publicationState, "published");
   assert.equal(records[0].participantId, "account-a");
 });
+
+test("corrected legacy certificates retain published canonical minutes in JSON and CSV", () => {
+  for (const creditedMinutes of [120, 0]) {
+    const correctedLegacy = {
+      ...certificate,
+      type: null,
+      credited_minutes: creditedMinutes,
+    };
+    const records = buildAttendanceExportRecords(
+      project,
+      [signup],
+      [correctedLegacy],
+      [],
+      filters,
+    );
+    assert.equal(records.length, 1);
+    assert.equal(records[0].publicationState, "published");
+    assert.equal(records[0].creditedMinutes, creditedMinutes);
+    assert.equal(records[0].certificateId, certificate.id);
+    assert.equal(records[0].attendanceRevision, signup.attendance_revision);
+    const json = JSON.parse(JSON.stringify({ schemaVersion: 1, records }));
+    assert.equal(json.records[0].creditedMinutes, creditedMinutes);
+    const csv = attendanceExportCsv(records);
+    assert.ok(
+      csv.endsWith(`,"${creditedMinutes}","published","cert-a","2"\r\n`),
+    );
+    assert.ok(
+      csv
+        .split("\r\n")[0]
+        .endsWith(
+          '"creditedMinutes","publicationState","certificateId","attendanceRevision"',
+        ),
+    );
+  }
+});
+
+test("a corrected legacy certificate with a stale revision stays unpublished", () => {
+  const stale = {
+    ...certificate,
+    type: null,
+    attendance_revision: 1,
+  };
+  assert.deepEqual(
+    buildAttendanceExportRecords(project, [signup], [stale], [], filters),
+    [],
+  );
+  const [record] = buildAttendanceExportRecords(
+    project,
+    [signup],
+    [stale],
+    [],
+    { ...filters, includeUnpublished: true },
+  );
+  assert.equal(record.publicationState, "pending");
+  assert.equal(record.creditedMinutes, null);
+  assert.equal(record.certificateId, certificate.id);
+});
