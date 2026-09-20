@@ -14,6 +14,9 @@ The existing `/projects/[id]/paper-signups` route remains the review workspace.
   continuation rows, and ten adjustable walk-in rows. Browser printing supports
   Save as PDF. Opaque sheet and row references map to a private roster manifest;
   they grant no access and are checked against the current project and session.
+  Scanning resolves printed references in batches and reads all candidate pages.
+  Projects above the supported candidate limit fail explicitly rather than
+  silently losing roster matches.
 - Scanning stages the original extraction and source-photo reference. It proposes
   roster matches and visit times, but coordinators must confirm identity and
   attendance. Missing times, ambiguous clock times, overlaps, and reversed dates
@@ -22,6 +25,7 @@ The existing `/projects/[id]/paper-signups` route remains the review workspace.
 - Reviewers can add missed rows, combine related rows explicitly, correct
   transcription, and save valid rows while keeping unresolved rows editable.
   Draft revisions reject stale edits. Request IDs make retries safe.
+  Each review batch supports up to 300 rows, including manually added rows.
 - Coordinator-entered guests use project-scoped anonymous identities even when
   online signup requires an account. A known roster match does not require
   changing its email. A person without a match or email remains an uncredited
@@ -34,6 +38,8 @@ The existing `/projects/[id]/paper-signups` route remains the review workspace.
   fields remain compatibility summaries. Credit sums non-overlapping visits,
   rounds the final duration to whole minutes, and retains the 24-hour limit.
   Conflicting intervals across a participant's project sessions are rejected.
+  Actual visits cannot end in the future. Coordinators can save completed visits
+  during an ongoing session, but publication waits until the session ends.
 - Publication uses the existing transaction and durable email ledger. Attendance
   saved, hours published, and email delivery are separate states. Late attendance
   in an already published session can receive its certificate without a second
@@ -42,6 +48,8 @@ The existing `/projects/[id]/paper-signups` route remains the review workspace.
   values, update the existing certificate, and preserve its URL. Corrections do
   not automatically send email. New or corrected certificates have authoritative
   `credited_minutes`; historical certificates retain their previous calculation.
+  Historical certificates with no type remain platform awards. Corrections update
+  the same certificate, and corrected totals remain in CSV and JSON exports.
 - Private scan photos expire after the existing retention window. Structured
   review rows and provenance remain available so unresolved people are not lost
   when their source photos expire. Photos are deleted through the cleanup outbox.

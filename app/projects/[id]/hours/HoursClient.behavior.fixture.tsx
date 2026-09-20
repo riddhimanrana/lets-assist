@@ -38,7 +38,7 @@ mock.module("./actions", () => ({
 const scenario = process.argv[2];
 const future = scenario === "future";
 const date = future ? "2099-01-01" : "2020-01-01";
-const legacy = scenario === "legacy";
+const legacy = scenario === "legacy" || scenario === "corrected-legacy";
 const verified = scenario === "verified";
 const project = {
   id: "fictional-project",
@@ -72,7 +72,7 @@ const signup: AttendanceHoursSignup = {
       ? [
           {
             id: "original-certificate",
-            credited_minutes: legacy ? null : 90,
+            credited_minutes: scenario === "legacy" ? null : 90,
             event_start: `${date}T09:00:00Z`,
             event_end: `${date}T11:00:00Z`,
             attendance_revision: 0,
@@ -95,7 +95,7 @@ if (legacy || verified) {
   assert.ok(button("View certificate"));
   assert.equal(button("Edit visits"), undefined);
   assert.equal(button("Review and publish"), undefined);
-  assert.ok(markup.includes(legacy ? "2h 0m" : "1h 30m"));
+  assert.ok(markup.includes(scenario === "legacy" ? "2h 0m" : "1h 30m"));
   assert.ok(markup.includes("awarded"));
 } else {
   assert.ok(button("Edit visits"));

@@ -8,6 +8,7 @@ for (const [scenario, description] of [
     "legacy null-type awards retain credit and offer correction instead of new attendance",
   ],
   ["verified", "canonical awards use credited minutes and offer correction"],
+  ["corrected-legacy", "corrected legacy awards show canonical minutes"],
   [
     "self-reported",
     "self-reported certificates do not imply a published platform award",
