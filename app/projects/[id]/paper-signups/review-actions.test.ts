@@ -5,6 +5,7 @@ let rpcError: { code: string; message: string } | null = null;
 let rpcData: unknown = "updated";
 let scanRows: Array<{ committed_signup_id: string; outcome: string }> = [];
 const issuanceCalls: unknown[] = [];
+const certificateReads: string[][] = [];
 const calls: Array<{ name: string; args: Record<string, unknown> }> = [];
 mock.module("./access", () => ({
   requirePaperScanAccess: async () =>
@@ -23,6 +24,17 @@ mock.module("./access", () => ({
               return { data: rpcData, error: rpcError };
             },
             from: (table: string) => {
+              if (table === "certificates")
+                return {
+                  select: () => ({
+                    in: (_column: string, ids: string[]) => ({
+                      or: async () => {
+                        certificateReads.push(ids);
+                        return { count: 1, error: null };
+                      },
+                    }),
+                  }),
+                };
               if (table === "project_paper_scan_rows") {
                 let outcomes: string[] | undefined;
                 const query = {
@@ -94,6 +106,7 @@ beforeEach(() => {
   rpcData = "updated";
   scanRows = [];
   issuanceCalls.length = 0;
+  certificateReads.length = 0;
   calls.length = 0;
 });
 
@@ -214,4 +227,56 @@ test("certificate retries include primary attendance and omit reconciled referen
       actorId: "fictional-organizer",
     },
   ]);
+});
+
+test("a mixed batch reports the unresolved historical award without losing the valid result", async () => {
+  const validRow = "f7777777-7777-4777-8777-777777777777";
+  const validSignup = "f8888888-8888-4888-8888-888888888888";
+  rpcData = [
+    {
+      row_id: input.rowId,
+      outcome: "failed",
+      signup_id: null,
+      anonymous_id: null,
+      user_id: null,
+      over_capacity: false,
+      detail: "unlinked_platform_award_requires_reconciliation",
+    },
+    {
+      row_id: validRow,
+      outcome: "signup_updated",
+      signup_id: validSignup,
+      anonymous_id: null,
+      user_id: "fictional-volunteer",
+      over_capacity: false,
+      detail: null,
+    },
+  ];
+  expect(
+    await commitPaperScanBatch({
+      projectId: input.projectId,
+      batchId: input.batchId,
+      rowIds: [input.rowId, validRow],
+      allowOverCapacity: false,
+      idempotencyKey: "f6666666-6666-4666-8666-666666666666",
+    }),
+  ).toEqual({
+    success: true,
+    created: 0,
+    updated: 1,
+    rosterOnly: 0,
+    reconciled: 0,
+    overCapacity: 0,
+    failed: [
+      {
+        rowId: input.rowId,
+        detail: "unlinked_platform_award_requires_reconciliation",
+      },
+    ],
+    certificatesIssued: 1,
+    certificateErrors: [],
+    notificationsQueued: 0,
+  });
+  expect(certificateReads).toEqual([[validSignup]]);
+  expect(issuanceCalls).toEqual([]);
 });

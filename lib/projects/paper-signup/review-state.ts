@@ -43,3 +43,13 @@ export function isAttendanceRowReady(
     (!inspection.outsideSession || Boolean(row.timeExceptionReason?.trim()))
   );
 }
+
+export function describeAttendanceFailure(detail: string) {
+  if (detail === "unlinked_platform_award_requires_reconciliation") {
+    return "This volunteer has a historical award that is not linked to this signup. Contact support to link the existing award before saving this row. Other valid rows can still be saved.";
+  }
+  if (detail === "slot_full") {
+    return "The slot is full. Return to review and approve the capacity override if appropriate.";
+  }
+  return detail.replaceAll("_", " ");
+}

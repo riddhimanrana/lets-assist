@@ -10,6 +10,7 @@ import {
 } from "@/lib/projects/paper-signup/commit-attempt";
 import { inspectAttendanceIntervals } from "@/lib/projects/paper-signup/intervals";
 import {
+  describeAttendanceFailure,
   hasPersistedAttendance,
   isAttendanceRowReady,
   isFinalAttendanceRow,
@@ -276,7 +277,7 @@ export function ReviewTable({
           {summary.failed.map((failure) => (
             <p key={failure.rowId} className="text-destructive">
               Row {rows.find((row) => row.id === failure.rowId)?.sheetRowNumber}
-              : {failure.detail.replaceAll("_", " ")}
+              : {describeAttendanceFailure(failure.detail)}
             </p>
           ))}
           {summary.certificateErrors.map((error) => (
@@ -372,7 +373,7 @@ export function ReviewTable({
                   )}
                   {row.outcomeDetail && (
                     <p className="text-destructive">
-                      {row.outcomeDetail.replaceAll("_", " ")}
+                      {describeAttendanceFailure(row.outcomeDetail)}
                     </p>
                   )}
                 </div>

@@ -152,3 +152,34 @@ test("a reconciled reference is clearly recorded and cannot reopen ordinary revi
       .disabled,
   ).toBe(true);
 });
+
+test("a legacy award failure stays editable and explains how other rows can still save", () => {
+  const elements = render({
+    ...baseRow,
+    outcome: "failed",
+    outcomeDetail: "unlinked_platform_award_requires_reconciliation",
+  });
+  expect(
+    elements.some(
+      ({ props }) =>
+        typeof props.children === "string" &&
+        props.children.includes("Contact support to link the existing award"),
+    ),
+  ).toBe(true);
+  expect(
+    elements.some(
+      ({ props }) =>
+        typeof props.children === "string" &&
+        props.children.includes("Other valid rows can still be saved."),
+    ),
+  ).toBe(true);
+  const review = elements.find(
+    ({ props }) =>
+      Array.isArray(props.children) && props.children[0] === "Review row ",
+  )!;
+  expect(review.props.disabled).toBe(false);
+  const include = elements.find(
+    ({ props }) => props.type === "checkbox" && props.checked === true,
+  )!;
+  expect(include.props.disabled).toBe(false);
+});

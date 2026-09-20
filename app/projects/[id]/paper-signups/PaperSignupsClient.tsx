@@ -16,6 +16,7 @@ import {
 } from "@/components/ui/card";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
+import { describeAttendanceFailure } from "@/lib/projects/paper-signup/review-state";
 import { startManualAttendance } from "./manual-actions";
 import { ScheduleSlotStep } from "./ScheduleSlotStep";
 import { CaptureStep } from "./CaptureStep";
@@ -401,11 +402,7 @@ export function PaperSignupsClient({
                 </AlertTitle>
                 <AlertDescription>
                   {commitSummary.failed
-                    .map((failure) =>
-                      failure.detail === "slot_full"
-                        ? "The slot is full. Return to review and approve the capacity override if appropriate."
-                        : failure.detail,
-                    )
+                    .map((failure) => describeAttendanceFailure(failure.detail))
                     .join(" · ")}
                 </AlertDescription>
               </Alert>
