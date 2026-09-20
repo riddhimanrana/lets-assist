@@ -1,11 +1,13 @@
+-- Transfer guest attendance, waiver ownership, and existing awards atomically.
 BEGIN;
 
 CREATE TABLE private.anonymous_account_links (
   anonymous_id uuid PRIMARY KEY REFERENCES public.anonymous_signups(id) ON DELETE CASCADE,
-  user_id uuid NOT NULL REFERENCES auth.users(id),
+  user_id uuid NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
   signup_ids uuid[] NOT NULL,
   linked_at timestamptz NOT NULL DEFAULT now()
 );
+CREATE INDEX anonymous_account_links_user_idx ON private.anonymous_account_links(user_id);
 ALTER TABLE private.anonymous_account_links ENABLE ROW LEVEL SECURITY;
 REVOKE ALL ON private.anonymous_account_links FROM PUBLIC, anon, authenticated, service_role;
 GRANT SELECT ON private.anonymous_account_links TO service_role;
