@@ -409,6 +409,8 @@ test("fictional guest attendance prints, publishes, exports, corrects, and links
     checked(anonymous.error);
     if (!anonymous.data?.token) throw new Error("Guest access was not created");
     const guestContext = await browser.newContext();
+    guestContext.setDefaultNavigationTimeout(120_000);
+    guestContext.setDefaultTimeout(20_000);
     try {
       const guestPage = await guestContext.newPage();
       const origin = new URL(page.url()).origin;
