@@ -212,6 +212,26 @@ test("628 changes only the reviewed attendance commit fast path", () => {
   assert.throws(() => finalSchemaCatalog(after, ledger.slice(0, 627)));
 });
 
+test("632 publishes CSF 1.2.58 without changing the reviewed 631 schema", () => {
+  const before = JSON.parse(
+    readFileSync(new URL("./final-schema-631.json", import.meta.url), "utf8"),
+  );
+  const after = JSON.parse(
+    readFileSync(new URL("./final-schema-632.json", import.meta.url), "utf8"),
+  );
+  const ledger = expectedVersions(
+    new URL("../../", import.meta.url).pathname,
+  ).slice(0, 632);
+  assert.equal(ledger.at(-1), "20260920214013");
+  assert.deepEqual(after.objects, before.objects);
+  assert.equal(after.inventory, before.inventory);
+  assert.equal(
+    acceptedCatalogQuery("invalid predecessor SQL", ledger),
+    finalSchemaCatalog(after, ledger),
+  );
+  assert.throws(() => finalSchemaCatalog(after, ledger.slice(0, 631)));
+});
+
 test("persisted race-test helpers cannot enter a release manifest", () => {
   for (const identity of [
     "function:plugin_data.csf_test_begin_then_commit_race()",
