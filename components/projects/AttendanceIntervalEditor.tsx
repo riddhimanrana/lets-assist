@@ -202,7 +202,10 @@ export function AttendanceIntervalEditor({
             id="hours-reason"
             maxLength={1000}
             value={reason}
-            onChange={(e) => setReason(e.target.value)}
+            onChange={(e) => {
+              setReason(e.target.value);
+              setReviewed(false);
+            }}
           />
         </div>
         <label className="flex gap-2 text-sm">

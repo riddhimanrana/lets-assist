@@ -178,18 +178,20 @@ export function HoursClient({
       const result = await publishVolunteerHours(
         project.id,
         attendees[0].schedule_id,
-        attendees.filter(isReady).map((signup) => {
-          const draft = draftFor(signup);
-          return {
-            signupId: signup.id,
-            checkIn: draft.intervals[0]?.checkIn ?? null,
-            checkOut: draft.intervals.at(-1)?.checkOut ?? null,
-            isValid: true,
-            intervals: draft.intervals,
-            attendanceRevision: signup.attendance_revision,
-            timeExceptionReason: draft.reason,
-          };
-        }),
+        attendees
+          .filter((signup) => !certificateOf(signup) && isReady(signup))
+          .map((signup) => {
+            const draft = draftFor(signup);
+            return {
+              signupId: signup.id,
+              checkIn: draft.intervals[0]?.checkIn ?? null,
+              checkOut: draft.intervals.at(-1)?.checkOut ?? null,
+              isValid: true,
+              intervals: draft.intervals,
+              attendanceRevision: signup.attendance_revision,
+              timeExceptionReason: draft.reason,
+            };
+          }),
       );
       if (!result.success) {
         toast.error(result.error || "Hours could not be published.");
@@ -280,9 +282,10 @@ export function HoursClient({
             sessionWindow && sessionWindow.endsAt <= Date.now(),
           );
           const published = Boolean(
-            project.published?.[key] || attendees.some(certificateOf),
+            project.published?.[key] || attendees.every(certificateOf),
           );
-          const ready = attendees.filter(isReady);
+          const pending = attendees.filter((signup) => !certificateOf(signup));
+          const ready = pending.filter(isReady);
           const visible = attendees.filter((signup) =>
             `${nameOf(signup)} ${signup.profile?.email || signup.anonymous_signup?.email || ""}`
               .toLowerCase()
@@ -355,10 +358,10 @@ export function HoursClient({
                       : "This session needs a valid schedule before hours can be published."}
                   </p>
                 )}
-                {!published && ready.length !== attendees.length && (
+                {!published && ready.length !== pending.length && (
                   <p className="text-sm text-muted-foreground">
-                    {attendees.length - ready.length}{" "}
-                    {attendees.length - ready.length === 1
+                    {pending.length - ready.length}{" "}
+                    {pending.length - ready.length === 1
                       ? "volunteer still needs"
                       : "volunteers still need"}{" "}
                     valid attendance times.

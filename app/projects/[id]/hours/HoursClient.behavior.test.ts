@@ -13,6 +13,14 @@ for (const [scenario, description] of [
     "self-reported",
     "self-reported certificates do not imply a published platform award",
   ],
+  [
+    "mixed-legacy",
+    "legacy awards do not hide publication for other volunteers",
+  ],
+  [
+    "mixed-verified",
+    "verified awards do not hide publication for other volunteers",
+  ],
   ["past", "ended sessions can publish completed attendance"],
   ["future", "future sessions explain why publication is disabled"],
   ["missing-window", "unresolvable sessions cannot offer publication"],
