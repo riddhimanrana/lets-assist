@@ -432,7 +432,256 @@ test("fictional guest attendance prints, publishes, exports, corrects, and links
     console.info(
       "Attendance acceptance: CSV and JSON agree; unauthenticated export denied",
     );
+    // A saved name-only entry remains authoritative while its review draft changes.
+    await page.goto(`/projects/${projectId}/paper-signups`);
+    await page
+      .getByRole("button", { name: "Add missed row or walk-in", exact: true })
+      .click();
+    const rosterReview = page.getByRole("dialog");
+    await rosterReview
+      .getByLabel("Name", { exact: true })
+      .fill("Roster Snapshot Fixture");
+    await fillVisit(rosterReview, 0, date, "09:10", "09:40");
+    await rosterReview
+      .getByRole("button", { name: "Add another visit", exact: true })
+      .click();
+    await fillVisit(rosterReview, 1, date, "11:10", "11:40");
+    await rosterReview
+      .getByLabel(/I checked this volunteer's identity/)
+      .check();
+    await rosterReview.getByLabel(/I reviewed all times and dates/).check();
+    await rosterReview
+      .getByRole("button", { name: "Save review", exact: true })
+      .click();
+    await expect(rosterReview).not.toBeVisible();
+    const rosterArticle = page.locator("article").filter({
+      has: page.getByRole("heading", { name: /Roster Snapshot Fixture$/ }),
+    });
+    const rosterInclude = rosterArticle.getByLabel("Include when reviewed", {
+      exact: true,
+    });
+    if (!(await rosterInclude.isChecked())) {
+      await rosterInclude.click();
+      await expect(rosterInclude).toBeChecked();
+    }
+    await page
+      .getByRole("button", { name: "Save 1 reviewed rows", exact: true })
+      .click();
+    await expect(
+      rosterArticle.getByText("Saved without credit", { exact: true }),
+    ).toBeVisible();
+    const savedIncluded = rosterArticle.getByLabel(
+      "Saved attendance stays included",
+      { exact: true },
+    );
+    await expect(savedIncluded).toBeChecked();
+    await expect(savedIncluded).toBeDisabled();
+    await expect(
+      page.getByRole("button", { name: "Discard draft", exact: true }),
+    ).toBeDisabled();
+    const rosterSnapshotResponse = await context.request.get(
+      `/api/projects/${projectId}/hours/export?format=json&includeUnpublished=true`,
+    );
+    expect(rosterSnapshotResponse.status()).toBe(200);
+    const rosterSnapshotExport = await rosterSnapshotResponse.json();
+    expect(rosterSnapshotExport.records).toHaveLength(3);
+    const savedRosterExport = rosterSnapshotExport.records.find(
+      (record: { name: string }) => record.name === "Roster Snapshot Fixture",
+    );
+    expect(savedRosterExport).toMatchObject({
+      sourceType: "roster",
+      participantType: "guest",
+      creditedMinutes: null,
+      publicationState: "unresolved",
+      certificateId: null,
+    });
+    expect(savedRosterExport.intervals).toHaveLength(2);
+    const rosterEntry = await admin
+      .from("project_paper_roster_entries")
+      .select("id,scan_row_id,attendance_intervals")
+      .eq("project_id", projectId)
+      .eq("name", "Roster Snapshot Fixture")
+      .single();
+    checked(rosterEntry.error);
+    expect(rosterEntry.data?.id).toBe(savedRosterExport.sourceId);
+    expect(rosterEntry.data?.attendance_intervals).toEqual(
+      savedRosterExport.intervals,
+    );
+
+    await rosterArticle.getByRole("button", { name: /Review row/ }).click();
+    await fillVisit(rosterReview, 0, date, "09:20", "09:35");
+    await fillVisit(rosterReview, 1, date, "11:20", "11:35");
+    await expect(
+      rosterReview.getByLabel(/I reviewed all times and dates/),
+    ).not.toBeChecked();
+    await rosterReview
+      .getByRole("button", { name: "Save review", exact: true })
+      .click();
+    await expect(rosterReview).not.toBeVisible();
     await page.reload();
+    await expect(savedIncluded).toBeDisabled();
+    await expect(savedIncluded).toBeChecked();
+    await expect(
+      rosterArticle.getByRole("button", { name: /Review row/ }),
+    ).toBeEnabled();
+    const editedSnapshotResponse = await context.request.get(
+      `/api/projects/${projectId}/hours/export?format=json&includeUnpublished=true`,
+    );
+    expect(editedSnapshotResponse.status()).toBe(200);
+    const editedSnapshotExport = await editedSnapshotResponse.json();
+    expect(editedSnapshotExport.records).toHaveLength(3);
+    expect(
+      editedSnapshotExport.records.find(
+        (record: { sourceId: string }) =>
+          record.sourceId === savedRosterExport.sourceId,
+      ),
+    ).toEqual(savedRosterExport);
+    const editedDraft = await admin
+      .from("project_paper_scan_rows")
+      .select("attendance_intervals,outcome,review_acknowledged")
+      .eq("project_id", projectId)
+      .eq("id", rosterEntry.data!.scan_row_id)
+      .single();
+    checked(editedDraft.error);
+    expect(editedDraft.data?.outcome).toBe("pending");
+    expect(editedDraft.data?.review_acknowledged).toBe(false);
+    expect(editedDraft.data?.attendance_intervals).not.toEqual(
+      savedRosterExport.intervals,
+    );
+
+    const readAwardSnapshot = async () => {
+      const [signups, certificates, deliveries, notifications, intervals] =
+        await Promise.all([
+          admin
+            .from("project_signups")
+            .select(
+              "id,status,anonymous_id,user_id,check_in_time,check_out_time,attendance_revision",
+            )
+            .eq("project_id", projectId)
+            .order("id"),
+          admin
+            .from("certificates")
+            .select(
+              "id,signup_id,credited_minutes,attendance_revision,event_start,event_end",
+            )
+            .eq("project_id", projectId)
+            .order("id"),
+          admin
+            .from("hours_publication_email_outbox")
+            .select(
+              "id,receipt_id,certificate_id,delivery_revision,state,attempt_count",
+            )
+            .eq("certificate_id", certificateId)
+            .order("id"),
+          admin
+            .from("paper_signup_notification_outbox")
+            .select("id,source_scan_row_id,state,attempts")
+            .eq("project_id", projectId)
+            .order("id"),
+          admin
+            .from("project_attendance_intervals")
+            .select("*")
+            .eq("project_id", projectId)
+            .order("id"),
+        ]);
+      for (const result of [
+        signups,
+        certificates,
+        deliveries,
+        notifications,
+        intervals,
+      ])
+        checked(result.error);
+      return {
+        signups: signups.data,
+        certificates: certificates.data,
+        deliveries: deliveries.data,
+        notifications: notifications.data,
+        intervals: intervals.data,
+      };
+    };
+    const beforeReconciliation = await readAwardSnapshot();
+    expect(beforeReconciliation.signups).toHaveLength(1);
+    expect(beforeReconciliation.certificates).toHaveLength(1);
+    expect(beforeReconciliation.certificates![0]).toMatchObject({
+      id: certificateId,
+      credited_minutes: 120,
+      attendance_revision: certificate.data!.attendance_revision,
+    });
+    expect(beforeReconciliation.intervals).toHaveLength(2);
+    const guestSignupId = beforeReconciliation.signups![0].id;
+    await rosterArticle.getByRole("button", { name: /Review row/ }).click();
+    const existingSignup = rosterReview.getByLabel(
+      "Existing signup, if this person already signed up",
+      { exact: true },
+    );
+    await expect(
+      existingSignup.locator(`option[value="${guestSignupId}"]`),
+    ).toHaveCount(1);
+    await existingSignup.selectOption(guestSignupId);
+    await fillVisit(rosterReview, 0, date, "09:10", "09:40");
+    await fillVisit(rosterReview, 1, date, "11:10", "11:40");
+    await rosterReview
+      .getByLabel(/I checked this volunteer's identity/)
+      .check();
+    await rosterReview.getByLabel(/I reviewed all times and dates/).check();
+    await rosterReview
+      .getByRole("button", { name: "Save review", exact: true })
+      .click();
+    await expect(rosterReview).not.toBeVisible();
+    await expect(savedIncluded).toBeDisabled();
+    await page
+      .getByRole("button", { name: "Save 1 reviewed rows", exact: true })
+      .click();
+    await expect
+      .poll(async () => {
+        const result = await admin
+          .from("project_paper_scan_rows")
+          .select("outcome,outcome_detail")
+          .eq("project_id", projectId)
+          .eq("id", rosterEntry.data!.scan_row_id)
+          .single();
+        checked(result.error);
+        return result.data;
+      })
+      .toEqual({
+        outcome: "skipped",
+        outcome_detail: "reconciled_existing_attendance",
+      });
+    await expect(
+      rosterArticle.getByText("Already recorded", { exact: true }),
+    ).toBeVisible();
+    const remainingRoster = await admin
+      .from("project_paper_roster_entries")
+      .select("id")
+      .eq("project_id", projectId);
+    checked(remainingRoster.error);
+    expect(remainingRoster.data).toEqual([]);
+    expect(await readAwardSnapshot()).toEqual(beforeReconciliation);
+    await page.reload();
+    await expect(
+      rosterArticle.getByText("Already recorded", { exact: true }),
+    ).toBeVisible();
+    await expect(
+      rosterArticle.getByRole("button", { name: /Review row/ }),
+    ).toHaveCount(0);
+    expect(await readAwardSnapshot()).toEqual(beforeReconciliation);
+    const reconciledExportResponse = await context.request.get(
+      `/api/projects/${projectId}/hours/export?format=json&includeUnpublished=true`,
+    );
+    expect(reconciledExportResponse.status()).toBe(200);
+    const reconciledExport = await reconciledExportResponse.json();
+    expect(reconciledExport.records).toHaveLength(2);
+    expect(
+      reconciledExport.records.filter(
+        (record: { publicationState: string }) =>
+          record.publicationState === "published",
+      ),
+    ).toEqual(exported.records);
+    console.info(
+      "Attendance acceptance: saved roster reconciles split visits without changing its existing award or delivery",
+    );
+    await page.goto(`/projects/${projectId}/hours`);
     await page
       .getByRole("button", { name: "Correct hours", exact: true })
       .click();
