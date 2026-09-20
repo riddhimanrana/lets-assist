@@ -283,7 +283,7 @@ test("fictional guest attendance prints, publishes, exports, corrects, and links
       page.getByRole("heading", { name: "Walk-in Fixture" }),
     ).toBeVisible();
     await page
-      .getByRole("button", { name: /Review and publish 1 volunteers/ })
+      .getByRole("button", { name: /Review and publish 1 volunteers?/ })
       .click();
     await page
       .getByRole("button", { name: "Publish hours", exact: true })
