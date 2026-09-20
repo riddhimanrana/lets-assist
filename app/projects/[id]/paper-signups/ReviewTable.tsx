@@ -9,6 +9,11 @@ import {
   type PaperCommitAttempt,
 } from "@/lib/projects/paper-signup/commit-attempt";
 import { inspectAttendanceIntervals } from "@/lib/projects/paper-signup/intervals";
+import {
+  isAttendanceRowReady,
+  isFinalAttendanceRow,
+  isSavedAttendanceRow,
+} from "@/lib/projects/paper-signup/review-state";
 import { ReviewRowEditor } from "./ReviewRowEditor";
 import {
   commitPaperScanBatch,
@@ -37,8 +42,6 @@ interface Props {
   onDiscard: () => void;
   onCommitted: (summary: CommitSummary) => void;
 }
-const saved = (row: PaperScanRowView) =>
-  ["signup_created", "signup_updated", "skipped"].includes(row.outcome);
 
 export function ReviewTable({
   projectId,
@@ -90,24 +93,9 @@ export function ReviewTable({
       current = false;
     };
   }, [projectId, batch.id]);
-  const unfinished = rows.filter((row) => !saved(row));
+  const unfinished = rows.filter((row) => !isSavedAttendanceRow(row));
   const ready = useMemo(
-    () =>
-      rows.filter((row) => {
-        const inspection = inspectAttendanceIntervals(
-          row.attendanceIntervals,
-          window,
-        );
-        return (
-          !saved(row) &&
-          row.decision === "include" &&
-          row.reviewAcknowledged &&
-          row.identityConfirmed &&
-          inspection.problems.length === 0 &&
-          (!inspection.outsideSession ||
-            Boolean(row.timeExceptionReason?.trim()))
-        );
-      }),
+    () => rows.filter((row) => isAttendanceRowReady(row, window)),
     [rows, window],
   );
   const add = async () => {
@@ -173,7 +161,9 @@ export function ReviewTable({
       const next = await reload();
       if (
         next &&
-        next.every((row) => saved(row) || row.decision === "exclude") &&
+        next.every(
+          (row) => isFinalAttendanceRow(row) || row.decision === "exclude",
+        ) &&
         result.failed.length === 0
       )
         onCommitted(result);
@@ -314,12 +304,16 @@ export function ReviewTable({
                         : "No email: uncredited roster entry")}
                   </p>
                 </div>
-                <Badge variant={saved(row) ? "secondary" : "outline"}>
-                  {saved(row)
-                    ? "Saved"
-                    : row.reviewAcknowledged && row.identityConfirmed
-                      ? "Reviewed"
-                      : "Needs review"}
+                <Badge
+                  variant={isSavedAttendanceRow(row) ? "secondary" : "outline"}
+                >
+                  {row.outcome === "roster_only"
+                    ? "Saved without credit"
+                    : isFinalAttendanceRow(row)
+                      ? "Saved"
+                      : row.reviewAcknowledged && row.identityConfirmed
+                        ? "Reviewed"
+                        : "Needs review"}
                 </Badge>
               </div>
               <div className="space-y-1 text-sm">
@@ -336,7 +330,7 @@ export function ReviewTable({
                   </p>
                 )}
               </div>
-              {!saved(row) && (
+              {!isFinalAttendanceRow(row) && (
                 <div className="space-y-1 text-sm">
                   {inspection.problems.map((problem) => (
                     <p className="text-destructive" key={problem}>
@@ -373,7 +367,7 @@ export function ReviewTable({
                   )}
                 </div>
               )}
-              {!saved(row) && (
+              {!isFinalAttendanceRow(row) && (
                 <div className="flex items-center justify-between gap-3">
                   <label className="flex items-center gap-2 text-sm">
                     <input
@@ -482,7 +476,7 @@ export function ReviewTable({
           </Button>
           <Button
             variant="ghost"
-            disabled={busy || discarding || rows.some(saved)}
+            disabled={busy || discarding || rows.some(isSavedAttendanceRow)}
             onClick={onDiscard}
           >
             Discard draft
