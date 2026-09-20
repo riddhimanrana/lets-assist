@@ -452,6 +452,9 @@ test.describe("CSF visible people lifecycle", () => {
 
     // The roster opens first. Expand pending connections before reviewing one.
     await page.reload({ waitUntil: "domcontentloaded" });
+    await expect(
+      page.locator('[data-organization-tabs-hydrated="true"]'),
+    ).toBeVisible();
     const connections = page.locator("details").filter({
       has: page.locator("summary").filter({ hasText: "Accounts to connect" }),
     });
@@ -536,6 +539,9 @@ test.describe("CSF visible people lifecycle", () => {
       });
     // Reload restores the collapsed account panel after the request is resolved.
     await page.reload({ waitUntil: "domcontentloaded" });
+    await expect(
+      page.locator('[data-organization-tabs-hydrated="true"]'),
+    ).toBeVisible();
     await expect(connections).not.toHaveAttribute("open");
     await connections.locator("summary").click();
     await expect(

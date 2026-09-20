@@ -907,6 +907,9 @@ test.describe("class join code connections", () => {
 
     // Reload restores the collapsed account panel after the request is resolved.
     await page.reload({ waitUntil: "domcontentloaded" });
+    await expect(
+      page.locator('[data-organization-tabs-hydrated="true"]'),
+    ).toBeVisible();
     await expect(reviewQueue).not.toHaveAttribute("open");
     await reviewQueue.locator("summary").click();
     await expect(
