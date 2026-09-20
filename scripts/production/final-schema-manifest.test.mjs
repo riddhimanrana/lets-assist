@@ -24,6 +24,18 @@ test("625 selects the final catalog without consulting predecessor SQL", () => {
     finalSchemaCatalog(manifest, versions),
   );
 });
+test("626 removes hosted policy drift without changing the reviewed clean schema", () => {
+  const next = JSON.parse(
+    readFileSync(new URL("./final-schema-626.json", import.meta.url), "utf8"),
+  );
+  const nextVersions = [...versions, "20260920042000"];
+  assert.deepEqual(next.objects, manifest.objects);
+  assert.equal(
+    acceptedCatalogQuery("invalid predecessor SQL", nextVersions),
+    finalSchemaCatalog(next, nextVersions),
+  );
+  assert.throws(() => finalSchemaCatalog(next, versions));
+});
 test("inventory generation is repeatable and insensitive to incoming row order", () => {
   assert.deepEqual(
     generateFinalSchemaManifest(versions, [...manifest.objects].reverse()),
