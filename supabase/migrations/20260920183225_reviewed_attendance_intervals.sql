@@ -82,6 +82,81 @@ $$;
 REVOKE ALL ON FUNCTION private.lock_attendance_management(uuid,uuid) FROM PUBLIC,anon,authenticated,service_role;
 GRANT EXECUTE ON FUNCTION private.lock_attendance_management(uuid,uuid) TO postgres;
 
+-- Drafts may have missing endpoints, but a reviewed actual time cannot be future.
+CREATE FUNCTION private.assert_attendance_not_future(p_intervals jsonb)
+RETURNS void LANGUAGE plpgsql VOLATILE SET search_path='' AS $$
+DECLARE v_visit jsonb; v_endpoint text; v_time timestamptz;
+BEGIN
+  FOR v_visit IN SELECT value FROM jsonb_array_elements(COALESCE(p_intervals,'[]'::jsonb)) LOOP
+    FOREACH v_endpoint IN ARRAY ARRAY['checkIn','checkOut'] LOOP
+      IF v_visit->>v_endpoint IS NOT NULL THEN
+        v_time:=(v_visit->>v_endpoint)::timestamptz;
+        IF NOT isfinite(v_time) OR v_time>clock_timestamp() THEN
+          RAISE EXCEPTION 'attendance times cannot be in the future' USING ERRCODE='22023';
+        END IF;
+      END IF;
+    END LOOP;
+  END LOOP;
+END;
+$$;
+REVOKE ALL ON FUNCTION private.assert_attendance_not_future(jsonb) FROM PUBLIC,anon,authenticated,service_role;
+GRANT EXECUTE ON FUNCTION private.assert_attendance_not_future(jsonb) TO postgres;
+
+CREATE FUNCTION private.assert_attendance_session_ended(p_project_id uuid,p_schedule_id text)
+RETURNS void LANGUAGE plpgsql VOLATILE SET search_path='' AS $$
+DECLARE v_slot record;
+BEGIN
+  SELECT slot.* INTO v_slot FROM public.projects project CROSS JOIN LATERAL private.resolve_project_schedule_slot(
+    project.id,private.project_hours_publish_key(project.event_type,project.schedule,p_schedule_id)) slot WHERE project.id=p_project_id;
+  IF NOT FOUND THEN RAISE EXCEPTION 'invalid attendance session' USING ERRCODE='22023'; END IF;
+  IF v_slot.ends_at>clock_timestamp() THEN
+    RAISE EXCEPTION 'project session has not ended' USING ERRCODE='22023';
+  END IF;
+END;
+$$;
+REVOKE ALL ON FUNCTION private.assert_attendance_session_ended(uuid,text) FROM PUBLIC,anon,authenticated,service_role;
+GRANT EXECUTE ON FUNCTION private.assert_attendance_session_ended(uuid,text) TO postgres;
+
+-- An older account award without a signup link needs explicit reconciliation.
+CREATE FUNCTION private.assert_no_unlinked_platform_award(p_signup_id uuid)
+RETURNS void LANGUAGE plpgsql STABLE SET search_path='' AS $$
+BEGIN
+  IF EXISTS(SELECT 1 FROM public.project_signups signup JOIN public.projects project ON project.id=signup.project_id
+    JOIN public.certificates certificate ON certificate.project_id=signup.project_id AND certificate.user_id=signup.user_id
+    WHERE signup.id=p_signup_id AND certificate.signup_id IS NULL AND (certificate.type='verified' OR certificate.type IS NULL)
+      AND (private.project_hours_publish_key(project.event_type,project.schedule,certificate.schedule_id) IS NULL
+        OR private.project_hours_publish_key(project.event_type,project.schedule,certificate.schedule_id)
+          =private.project_hours_publish_key(project.event_type,project.schedule,signup.schedule_id))) THEN
+    RAISE EXCEPTION 'unlinked platform award requires reconciliation' USING ERRCODE='23505';
+  END IF;
+END;
+$$;
+REVOKE ALL ON FUNCTION private.assert_no_unlinked_platform_award(uuid) FROM PUBLIC,anon,authenticated,service_role;
+GRANT EXECUTE ON FUNCTION private.assert_no_unlinked_platform_award(uuid) TO postgres;
+
+-- Keep historical NULL-type awards in place. Serialize new award inserts with
+-- publication without rewriting or deduplicating any historical certificate.
+CREATE FUNCTION private.protect_legacy_platform_award()
+RETURNS trigger LANGUAGE plpgsql SECURITY DEFINER SET search_path='' AS $$
+BEGIN
+  IF NEW.signup_id IS NOT NULL AND (NEW.type='verified' OR NEW.type IS NULL) THEN
+    PERFORM projects.id FROM public.projects projects JOIN public.project_signups signups ON signups.project_id=projects.id
+      WHERE signups.id=NEW.signup_id FOR UPDATE OF projects;
+    PERFORM private.assert_no_unlinked_platform_award(NEW.signup_id);
+    IF EXISTS(SELECT 1 FROM public.certificates existing WHERE existing.signup_id=NEW.signup_id
+      AND existing.id<>NEW.id AND (existing.type='verified' OR existing.type IS NULL)
+      AND (NEW.type IS NULL OR existing.type IS NULL)) THEN
+      RAISE EXCEPTION 'platform award already exists; use the correction workflow' USING ERRCODE='23505';
+    END IF;
+  END IF;
+  RETURN NEW;
+END;
+$$;
+REVOKE ALL ON FUNCTION private.protect_legacy_platform_award() FROM PUBLIC,anon,authenticated,service_role;
+GRANT EXECUTE ON FUNCTION private.protect_legacy_platform_award() TO postgres;
+CREATE TRIGGER protect_legacy_platform_award BEFORE INSERT OR UPDATE OF type,signup_id ON public.certificates
+FOR EACH ROW EXECUTE FUNCTION private.protect_legacy_platform_award();
+
 CREATE FUNCTION private.normalize_attendance_intervals(p_intervals jsonb)
 RETURNS jsonb LANGUAGE plpgsql IMMUTABLE SET search_path = '' AS $$
 DECLARE
@@ -161,6 +236,8 @@ BEGIN
   PERFORM projects.id FROM public.projects projects JOIN public.project_signups signups ON signups.project_id = projects.id
     WHERE signups.id = p_signup_id FOR UPDATE OF projects;
   SELECT * INTO STRICT v_signup FROM public.project_signups WHERE id = p_signup_id FOR UPDATE;
+  PERFORM private.assert_attendance_not_future(v_intervals);
+  PERFORM private.assert_no_unlinked_platform_award(p_signup_id);
   SELECT * INTO v_slot FROM private.resolve_project_schedule_slot(v_signup.project_id, v_signup.schedule_id);
   IF NOT FOUND THEN RAISE EXCEPTION 'invalid attendance session' USING ERRCODE = '22023'; END IF;
   IF (v_first < v_slot.starts_at OR v_last > v_slot.ends_at)
@@ -184,7 +261,7 @@ BEGIN
       ELSE '[]'::jsonb END) prior
     CROSS JOIN jsonb_array_elements(v_intervals) fresh
     WHERE other.project_id = v_signup.project_id AND other.id <> p_signup_id
-      AND (other.status IN ('approved','attended') OR EXISTS(SELECT 1 FROM public.certificates award WHERE award.signup_id=other.id AND award.type='verified'))
+      AND (other.status IN ('approved','attended') OR EXISTS(SELECT 1 FROM public.certificates award WHERE award.signup_id=other.id AND (award.type='verified' OR award.type IS NULL)))
       AND (other.user_id = v_signup.user_id OR other.anonymous_id = v_signup.anonymous_id
         OR lower(COALESCE(account.email::text, anonymous.email)) = v_email
         OR EXISTS(SELECT 1 FROM public.user_emails alias WHERE alias.verified_at IS NOT NULL
@@ -213,6 +290,8 @@ RETURNS trigger LANGUAGE plpgsql SECURITY DEFINER SET search_path = '' AS $$
 DECLARE v_intervals jsonb;
 BEGIN
   IF NEW.type = 'verified' AND NEW.signup_id IS NOT NULL THEN
+    PERFORM private.assert_attendance_session_ended((SELECT project_id FROM public.project_signups WHERE id=NEW.signup_id),(SELECT schedule_id FROM public.project_signups WHERE id=NEW.signup_id));
+    PERFORM private.assert_attendance_not_future(jsonb_build_array(jsonb_build_object('checkIn',NEW.event_start,'checkOut',NEW.event_end)));
     v_intervals := private.signup_attendance_intervals(NEW.signup_id);
     IF jsonb_array_length(v_intervals) > 0 THEN
       NEW.credited_minutes := private.attendance_interval_minutes(v_intervals);
@@ -289,7 +368,10 @@ BEGIN
   IF v_signup.status NOT IN ('approved','attended') THEN
     RAISE EXCEPTION 'signup is not eligible for attendance' USING ERRCODE='22023';
   END IF;
-  SELECT * INTO v_certificate FROM public.certificates WHERE signup_id=p_signup_id AND type='verified' FOR UPDATE;
+  IF (SELECT count(*) FROM public.certificates WHERE signup_id=p_signup_id AND (type='verified' OR type IS NULL))>1 THEN
+    RAISE EXCEPTION 'multiple platform awards require reconciliation' USING ERRCODE='23505';
+  END IF;
+  SELECT * INTO v_certificate FROM public.certificates WHERE signup_id=p_signup_id AND (type='verified' OR type IS NULL) FOR UPDATE;
   v_old := private.signup_attendance_intervals(p_signup_id);
   IF v_old = '[]'::jsonb THEN
     v_old := jsonb_build_array(jsonb_build_object('checkIn',v_signup.check_in_time,'checkOut',v_signup.check_out_time));
@@ -306,7 +388,7 @@ BEGIN
   UPDATE public.certificates SET credited_minutes=v_minutes,attendance_revision=v_revision,
     event_start=(v_intervals->0->>'checkIn')::timestamptz,
     event_end=(v_intervals->-1->>'checkOut')::timestamptz
-  WHERE signup_id=p_signup_id AND type='verified' RETURNING id INTO v_certificate.id;
+  WHERE signup_id=p_signup_id AND (type='verified' OR type IS NULL) RETURNING id INTO v_certificate.id;
   v_result := jsonb_build_object('outcome','accepted','signupId',p_signup_id,'attendanceRevision',v_revision,
     'creditedMinutes',v_minutes,'certificateId',v_certificate.id);
   INSERT INTO private.project_attendance_changes(signup_id,project_id,actor_id,request_id,request_payload,reason,
@@ -548,7 +630,7 @@ BEGIN
   END IF;
   IF v_batch.status<>'review' THEN RAISE EXCEPTION 'batch is not in review' USING ERRCODE='22023'; END IF;
   SELECT COALESCE(max(sheet_row_number),0)+1 INTO v_number FROM public.project_paper_scan_rows WHERE batch_id=p_batch_id;
-  IF v_number>1000 THEN RAISE EXCEPTION 'batch row limit reached' USING ERRCODE='22023'; END IF;
+  IF v_number>300 THEN RAISE EXCEPTION 'batch row limit reached' USING ERRCODE='22023'; END IF;
   INSERT INTO public.project_paper_scan_rows(batch_id,project_id,sheet_row_number,raw_extraction,creation_request_id)
   VALUES(p_batch_id,p_project_id,v_number,jsonb_build_object('inputMethod','manual','recordedBy',p_actor_id),p_request_id) RETURNING id INTO v_id;
   UPDATE public.project_paper_scan_batches SET extracted_row_count=extracted_row_count+1 WHERE id=p_batch_id;
@@ -694,6 +776,7 @@ BEGIN
         IF NOT v_row.identity_confirmed THEN RAISE EXCEPTION 'identity_confirmation_required' USING ERRCODE='22023'; END IF;
         v_intervals:=private.normalize_attendance_intervals(CASE WHEN v_row.attendance_intervals='[]'::jsonb
           THEN jsonb_build_array(jsonb_build_object('checkIn',v_row.check_in_time,'checkOut',v_row.check_out_time)) ELSE v_row.attendance_intervals END);
+        PERFORM private.assert_attendance_not_future(v_intervals);
         v_first:=(v_intervals->0->>'checkIn')::timestamptz; v_last:=(v_intervals->-1->>'checkOut')::timestamptz;
         IF (v_first<v_slot.starts_at OR v_last>v_slot.ends_at) AND NULLIF(btrim(v_row.time_exception_reason),'') IS NULL THEN
           RAISE EXCEPTION 'outside_schedule_requires_reason' USING ERRCODE='22023';
@@ -722,10 +805,12 @@ BEGIN
           IF EXISTS(SELECT 1 FROM public.project_paper_scan_rows rows WHERE rows.committed_signup_id=v_existing.id) THEN
             RAISE EXCEPTION 'duplicate_attendance_requires_correction' USING ERRCODE='22023';
           END IF;
-          IF EXISTS(SELECT 1 FROM public.certificates certificates WHERE certificates.signup_id=v_existing.id AND certificates.type='verified'
+          IF EXISTS(SELECT 1 FROM public.certificates certificates WHERE certificates.signup_id=v_existing.id AND (certificates.type='verified' OR certificates.type IS NULL)
             AND (certificates.event_start IS DISTINCT FROM v_first OR certificates.event_end IS DISTINCT FROM v_last
               OR COALESCE(certificates.credited_minutes,round(extract(epoch FROM certificates.event_end-certificates.event_start)/60)::integer)
-                IS DISTINCT FROM private.attendance_interval_minutes(v_intervals)))
+                IS DISTINCT FROM private.attendance_interval_minutes(v_intervals)
+              OR v_intervals IS DISTINCT FROM COALESCE(NULLIF(private.signup_attendance_intervals(v_existing.id),'[]'::jsonb),
+                private.normalize_attendance_intervals(jsonb_build_array(jsonb_build_object('checkIn',certificates.event_start,'checkOut',certificates.event_end))))))
             OR (v_existing.attendance_revision>0 AND private.signup_attendance_intervals(v_existing.id)<>v_intervals) THEN
             RAISE EXCEPTION 'published_attendance_requires_correction' USING ERRCODE='22023';
           END IF;
@@ -967,6 +1052,8 @@ BEGIN
     RETURN private.hours_publication_result(v_receipt.id, 'replayed');
   END IF;
 
+  PERFORM private.assert_attendance_session_ended(p_project_id,p_schedule_id);
+
   SELECT count(*)
   INTO v_valid_count
   FROM pg_catalog.jsonb_array_elements(v_entries) AS entry(value)
@@ -1005,6 +1092,11 @@ BEGIN
       OR certificates.event_end IS DISTINCT FROM (entry.value ->> 'checkOut')::timestamptz
   ) THEN
     RAISE EXCEPTION USING ERRCODE = '23505', MESSAGE = 'an existing verified certificate conflicts with the requested hours';
+  END IF;
+
+  IF EXISTS(SELECT 1 FROM public.certificates certificates JOIN jsonb_array_elements(v_entries) entry(value)
+    ON certificates.signup_id=(entry.value->>'signupId')::uuid WHERE certificates.type IS NULL) THEN
+    RAISE EXCEPTION 'platform award already exists; use the correction workflow' USING ERRCODE='23505';
   END IF;
 
   SELECT profiles.full_name
@@ -1434,6 +1526,11 @@ BEGIN
     NEW.schedule_id
   );
 
+  PERFORM private.assert_attendance_not_future(jsonb_build_array(jsonb_build_object('checkIn',NEW.check_in_time,'checkOut',NEW.check_out_time)));
+  IF NOT EXISTS(SELECT 1 FROM private.resolve_project_schedule_slot(NEW.project_id,NEW.schedule_id) slot WHERE slot.ends_at<=clock_timestamp()) THEN
+    RETURN NEW;
+  END IF;
+
   IF v_publish_key IS NOT NULL
     AND COALESCE((v_project.published ->> v_publish_key)::boolean, false)
   THEN
@@ -1607,7 +1704,7 @@ BEGIN
   IF v_result->>'outcome' <> 'replayed' THEN
     UPDATE public.project_signups SET status='attended' WHERE id=p_signup_id;
   END IF;
-  SELECT id INTO v_certificate_id FROM public.certificates WHERE signup_id=p_signup_id AND type='verified';
+  SELECT id INTO v_certificate_id FROM public.certificates WHERE signup_id=p_signup_id AND (type='verified' OR type IS NULL);
   RETURN v_result || jsonb_build_object('certificateId',v_certificate_id);
 END;
 $$;
@@ -1659,6 +1756,8 @@ BEGIN
   IF NOT private.lock_attendance_management(p_project_id,p_actor_id) THEN
     RAISE EXCEPTION 'not authorized to issue certificates' USING ERRCODE='42501';
   END IF;
+
+  PERFORM private.assert_attendance_session_ended(p_project_id,p_schedule_id);
 
   RETURN QUERY
   INSERT INTO public.certificates AS inserted_certificates (
@@ -1718,6 +1817,7 @@ BEGIN
     AND signups.status = 'attended'
     AND signups.check_in_time IS NOT NULL
     AND signups.check_out_time IS NOT NULL
+    AND NOT EXISTS(SELECT 1 FROM public.certificates existing WHERE existing.signup_id=signups.id AND (existing.type='verified' OR existing.type IS NULL))
   ON CONFLICT (signup_id)
     WHERE type = 'verified' AND signup_id IS NOT NULL
     DO NOTHING
@@ -1737,4 +1837,54 @@ $$;
 
 REVOKE ALL ON FUNCTION public.issue_supplemental_verified_certificates(uuid,text,uuid[],uuid) FROM PUBLIC,anon,authenticated,service_role;
 GRANT EXECUTE ON FUNCTION public.issue_supplemental_verified_certificates(uuid,text,uuid[],uuid) TO service_role;
+CREATE OR REPLACE FUNCTION app_private.guard_hours_publication_completeness()
+RETURNS trigger
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = ''
+AS $$
+DECLARE
+  v_publish_key text;
+BEGIN
+  FOR v_publish_key IN
+    SELECT published.key
+    FROM pg_catalog.jsonb_each_text(COALESCE(NEW.published, '{}'::jsonb)) AS published(key, value)
+    WHERE published.value = 'true'
+      AND COALESCE(OLD.published ->> published.key, 'false') <> 'true'
+  LOOP
+    IF EXISTS (
+      SELECT 1
+      FROM public.project_signups AS signups
+      LEFT JOIN public.certificates AS certificates
+        ON certificates.signup_id = signups.id
+       AND (certificates.type = 'verified' OR certificates.type IS NULL)
+      WHERE signups.project_id = NEW.id
+        AND signups.status = 'attended'
+        AND signups.check_in_time IS NOT NULL
+        AND signups.check_out_time IS NOT NULL
+        AND signups.check_out_time > signups.check_in_time
+        AND signups.check_out_time <= signups.check_in_time + interval '24 hours'
+        AND private.project_hours_publish_key(
+          NEW.event_type,
+          NEW.schedule,
+          signups.schedule_id
+        ) = v_publish_key
+        AND certificates.id IS NULL
+    ) THEN
+      RAISE EXCEPTION USING
+        ERRCODE = 'P0001',
+        MESSAGE = 'publication snapshot is stale; refresh attendance before publishing';
+    END IF;
+  END LOOP;
+
+  RETURN NEW;
+END;
+$$;
+
+REVOKE ALL ON FUNCTION app_private.guard_hours_publication_completeness()
+  FROM PUBLIC, anon, authenticated, service_role;
+GRANT EXECUTE ON FUNCTION app_private.guard_hours_publication_completeness()
+  TO postgres;
+
+
 COMMIT;

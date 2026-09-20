@@ -76,8 +76,8 @@ BEGIN
     CROSS JOIN LATERAL jsonb_array_elements(COALESCE(NULLIF(private.signup_attendance_intervals(account.id),'[]'::jsonb),
       jsonb_build_array(jsonb_build_object('checkIn',account.check_in_time,'checkOut',account.check_out_time)))) account_visit
     WHERE guest.id=ANY(v_signup_ids) AND account.id<>ALL(v_signup_ids)
-      AND (guest.status IN ('approved','attended') OR EXISTS(SELECT 1 FROM public.certificates WHERE signup_id=guest.id AND type='verified'))
-      AND (account.status IN ('approved','attended') OR EXISTS(SELECT 1 FROM public.certificates WHERE signup_id=account.id AND type='verified'))
+      AND (guest.status IN ('approved','attended') OR EXISTS(SELECT 1 FROM public.certificates WHERE signup_id=guest.id AND (type='verified' OR type IS NULL)))
+      AND (account.status IN ('approved','attended') OR EXISTS(SELECT 1 FROM public.certificates WHERE signup_id=account.id AND (type='verified' OR type IS NULL)))
       AND (guest_visit.value->>'checkIn')::timestamptz < (account_visit.value->>'checkOut')::timestamptz
       AND (guest_visit.value->>'checkOut')::timestamptz > (account_visit.value->>'checkIn')::timestamptz
   ) THEN RAISE EXCEPTION 'account has overlapping attendance' USING ERRCODE='23505'; END IF;

@@ -158,8 +158,8 @@ async function race(firstSql, secondSql, expectedError) {
 
 const intervals = (minutes) => [
   {
-    checkIn: "2031-08-11T09:00:00Z",
-    checkOut: `2031-08-11T${String(9 + Math.floor(minutes / 60)).padStart(2, "0")}:${String(minutes % 60).padStart(2, "0")}:00Z`,
+    checkIn: "2021-08-11T09:00:00Z",
+    checkOut: `2021-08-11T${String(9 + Math.floor(minutes / 60)).padStart(2, "0")}:${String(minutes % 60).padStart(2, "0")}:00Z`,
   },
 ];
 const publicationKey = () =>
@@ -192,7 +192,7 @@ ${["owner", "volunteer", "staff"].map((role) => `(${quote(ids[role])},'authentic
 INSERT INTO public.organizations(id,name,username,type,join_code,verified) VALUES (${quote(ids.org)},'Attendance race fixture',${quote(`attendance_race_${runId.slice(0, 10)}`)},'nonprofit',${quote(String(100000 + (parseInt(runId.slice(0, 8), 16) % 900000)))},true);
 INSERT INTO public.organization_members(organization_id,user_id,role,status) VALUES (${quote(ids.org)},${quote(ids.staff)},'staff','active');
 INSERT INTO public.projects(id,creator_id,title,location,description,event_type,verification_method,schedule,status,project_timezone,organization_id,can_be_managed_by_staff) VALUES
-${[ids.project, ids.secondProject].map((project) => `(${quote(project)},${quote(ids.owner)},'Attendance race fixture','Local','Synthetic concurrency','oneTime','manual','{"oneTime":{"date":"2031-08-11","startTime":"09:00","endTime":"15:00","volunteers":5}}','upcoming','UTC',${quote(ids.org)},true)`).join(",")};
+${[ids.project, ids.secondProject].map((project) => `(${quote(project)},${quote(ids.owner)},'Attendance race fixture','Local','Synthetic concurrency','oneTime','manual','{"oneTime":{"date":"2021-08-11","startTime":"09:00","endTime":"15:00","volunteers":5}}','upcoming','UTC',${quote(ids.org)},true)`).join(",")};
 INSERT INTO public.project_signups(id,project_id,user_id,schedule_id,status) VALUES (${quote(ids.signup)},${quote(ids.project)},${quote(ids.volunteer)},'oneTime','approved'),(${quote(ids.secondSignup)},${quote(ids.secondProject)},${quote(ids.volunteer)},'oneTime','approved');
 COMMIT;`);
 
@@ -274,6 +274,42 @@ COMMIT;`);
   );
   console.log(
     "PASS revoked staff: blocked correction replay rechecks authorization and sends no new email",
+  );
+  const batchId = query(
+    `SELECT public.create_manual_attendance_batch(${quote(ids.project)},'oneTime',${quote(ids.owner)},${quote(randomUUID())});`,
+  );
+  query(`INSERT INTO public.project_paper_scan_rows(batch_id,project_id,sheet_row_number,raw_extraction)
+    SELECT ${quote(batchId)},${quote(ids.project)},row_number,'{}'::jsonb FROM generate_series(1,299) row_number;
+    UPDATE public.project_paper_scan_batches SET extracted_row_count=299 WHERE id=${quote(batchId)};`);
+  const addRequest = randomUUID();
+  const add = (request) =>
+    `SELECT public.add_paper_attendance_row(${quote(ids.project)},${quote(batchId)},${quote(ids.owner)},${quote(request)});`;
+  await race(
+    add(addRequest),
+    add(randomUUID()),
+    "22023.*batch row limit reached",
+  );
+  const finalRow = query(add(addRequest));
+  assert.equal(
+    query(
+      `SELECT count(*) FROM public.project_paper_scan_rows WHERE batch_id=${quote(batchId)};`,
+    ),
+    "300",
+  );
+  assert.equal(
+    query(
+      `SELECT sheet_row_number FROM public.project_paper_scan_rows WHERE id=${quote(finalRow)};`,
+    ),
+    "300",
+  );
+  assert.equal(
+    query(
+      `SELECT extracted_row_count FROM public.project_paper_scan_batches WHERE id=${quote(batchId)};`,
+    ),
+    "300",
+  );
+  console.log(
+    "PASS manual row limit: concurrent additions stop at 300 and successful request replays at the cap",
   );
 } finally {
   for (const state of sessions) {

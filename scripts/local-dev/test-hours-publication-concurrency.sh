@@ -132,7 +132,7 @@ VALUES (
   'ac000000-0000-4000-8000-000000000001',
   'Concurrent Hours Project', 'Local', 'Synthetic concurrency fixture',
   'oneTime', 'manual',
-  '{"oneTime":{"date":"2031-08-11","startTime":"09:00","endTime":"12:00","volunteers":1}}',
+  '{"oneTime":{"date":"2021-08-11","startTime":"09:00","endTime":"12:00","volunteers":1}}',
   true,
   'ac100000-0000-4000-8000-000000000001',
   true
@@ -162,7 +162,7 @@ SELECT public.publish_volunteer_hours_transactional(
   'ac000000-0000-4000-8000-000000000001',
   'ac200000-0000-4000-8000-000000000001',
   'oneTime',
-  '[{"signupId":"ac300000-0000-4000-8000-000000000001","checkIn":"2031-08-11T16:00:00Z","checkOut":"2031-08-11T18:00:00Z"}]'::jsonb,
+  '[{"signupId":"ac300000-0000-4000-8000-000000000001","checkIn":"2021-08-11T16:00:00Z","checkOut":"2021-08-11T18:00:00Z"}]'::jsonb,
   'hours-publication:v1:abababababababababababababababababababababababababababababababab'
 ) ->> 'outcome';
 COMMIT;
@@ -179,7 +179,7 @@ SELECT public.publish_volunteer_hours_transactional(
   'ac000000-0000-4000-8000-000000000001',
   'ac200000-0000-4000-8000-000000000001',
   'oneTime',
-  '[{"signupId":"ac300000-0000-4000-8000-000000000001","checkIn":"2031-08-11T16:00:00Z","checkOut":"2031-08-11T18:00:00Z"}]'::jsonb,
+  '[{"signupId":"ac300000-0000-4000-8000-000000000001","checkIn":"2021-08-11T16:00:00Z","checkOut":"2021-08-11T18:00:00Z"}]'::jsonb,
   'hours-publication:v1:abababababababababababababababababababababababababababababababab'
 ) ->> 'outcome';
 COMMIT;
@@ -220,7 +220,7 @@ SELECT public.publish_volunteer_hours_transactional(
   'ac000000-0000-4000-8000-000000000003',
   'ac200000-0000-4000-8000-000000000001',
   'oneTime',
-  '[{"signupId":"ac300000-0000-4000-8000-000000000001","checkIn":"2031-08-11T16:00:00Z","checkOut":"2031-08-11T18:00:00Z"}]'::jsonb,
+  '[{"signupId":"ac300000-0000-4000-8000-000000000001","checkIn":"2021-08-11T16:00:00Z","checkOut":"2021-08-11T18:00:00Z"}]'::jsonb,
   'hours-publication:v1:abababababababababababababababababababababababababababababababab'
 ) ->> 'outcome';
 SELECT pg_sleep(1);
@@ -486,7 +486,7 @@ SELECT public.publish_volunteer_hours_transactional(
   'ac000000-0000-4000-8000-000000000001',
   'ac200000-0000-4000-8000-000000000001',
   'oneTime',
-  '[{"signupId":"ac300000-0000-4000-8000-000000000001","checkIn":"2031-08-11T16:00:00Z","checkOut":"2031-08-11T18:00:00Z"}]'::jsonb,
+  '[{"signupId":"ac300000-0000-4000-8000-000000000001","checkIn":"2021-08-11T16:00:00Z","checkOut":"2021-08-11T18:00:00Z"}]'::jsonb,
   'hours-publication:v1:cdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcd'
 );
 COMMIT;
@@ -534,7 +534,7 @@ SELECT public.publish_volunteer_hours_transactional(
   'ac000000-0000-4000-8000-000000000003',
   'ac200000-0000-4000-8000-000000000001',
   'oneTime',
-  '[{"signupId":"ac300000-0000-4000-8000-000000000001","checkIn":"2031-08-11T16:00:00Z","checkOut":"2031-08-11T18:00:00Z"}]'::jsonb,
+  '[{"signupId":"ac300000-0000-4000-8000-000000000001","checkIn":"2021-08-11T16:00:00Z","checkOut":"2021-08-11T18:00:00Z"}]'::jsonb,
   'hours-publication:v1:efefefefefefefefefefefefefefefefefefefefefefefefefefefefefefefef'
 );
 COMMIT;
@@ -578,8 +578,8 @@ WHERE id IN (
 UPDATE public.project_signups
 SET
   status = 'attended',
-  check_in_time = '2031-08-11T16:00:00Z',
-  check_out_time = '2031-08-11T18:00:00Z'
+  check_in_time = '2021-08-11T16:00:00Z',
+  check_out_time = '2021-08-11T18:00:00Z'
 WHERE id = 'ac300000-0000-4000-8000-000000000001';
 
 INSERT INTO public.project_signups (
@@ -590,13 +590,13 @@ VALUES
     'ac300000-0000-4000-8000-000000000002',
     'ac200000-0000-4000-8000-000000000001',
     'ac000000-0000-4000-8000-000000000004',
-    'oneTime', 'attended', '2031-08-11T16:00:00Z', '2031-08-11T18:00:00Z'
+    'oneTime', 'attended', '2021-08-11T16:00:00Z', '2021-08-11T18:00:00Z'
   ),
   (
     'ac300000-0000-4000-8000-000000000003',
     'ac200000-0000-4000-8000-000000000001',
     'ac000000-0000-4000-8000-000000000005',
-    'oneTime', 'attended', '2031-08-11T16:00:00Z', '2031-08-11T18:00:00Z'
+    'oneTime', 'attended', '2021-08-11T16:00:00Z', '2021-08-11T18:00:00Z'
   );
 SQL
 

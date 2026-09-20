@@ -74,7 +74,7 @@ BEGIN
     RAISE EXCEPTION 'not authorized to send corrected certificate' USING ERRCODE='42501';
   END IF;
   SELECT * INTO STRICT v_project FROM public.projects WHERE id=p_project_id;
-  SELECT * INTO v_certificate FROM public.certificates WHERE id=p_certificate_id AND project_id=p_project_id AND type='verified' FOR UPDATE;
+  SELECT * INTO v_certificate FROM public.certificates WHERE id=p_certificate_id AND project_id=p_project_id AND (type='verified' OR type IS NULL) FOR UPDATE;
   IF NOT FOUND THEN RAISE EXCEPTION 'verified certificate not found' USING ERRCODE='22023'; END IF;
   v_request_key:='hours-publication:v1:'||encode(extensions.digest('corrected-certificate:'||p_request_id::text,'sha256'),'hex');
   v_request_hash:=encode(extensions.digest(jsonb_build_object('projectId',p_project_id,'certificateId',p_certificate_id,
@@ -127,7 +127,7 @@ BEGIN
   END IF;
   SELECT COALESCE(array_agg(certificates.id ORDER BY certificates.id),ARRAY[]::uuid[]) INTO v_ids
   FROM public.certificates certificates
-  WHERE certificates.project_id=p_project_id AND certificates.type='verified'
+  WHERE certificates.project_id=p_project_id AND (certificates.type='verified' OR certificates.type IS NULL)
     AND certificates.credited_minutes IS NOT NULL
     AND EXISTS(SELECT 1 FROM private.project_attendance_changes changes
       WHERE changes.signup_id=certificates.signup_id

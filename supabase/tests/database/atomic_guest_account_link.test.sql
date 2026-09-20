@@ -14,7 +14,7 @@ FROM generate_series(1,3) n;
 INSERT INTO public.projects(id,creator_id,title,location,description,event_type,verification_method,schedule,require_login,status)
 SELECT ('ac200000-0000-4000-8000-'||lpad(n::text,12,'0'))::uuid,'ac100000-0000-4000-8000-000000000001',
   'Guest link fixture '||n,'Local','Synthetic guest link test','oneTime','manual',
-  '{"oneTime":{"date":"2030-09-01","startTime":"09:00","endTime":"17:00","volunteers":10}}',true,'upcoming'
+  '{"oneTime":{"date":"2020-09-01","startTime":"09:00","endTime":"17:00","volunteers":10}}',true,'upcoming'
 FROM generate_series(1,3) n;
 INSERT INTO public.anonymous_signups(id,project_id,email,name,token,confirmed_at)
 SELECT ('ac300000-0000-4000-8000-'||lpad(n::text,12,'0'))::uuid,
@@ -24,13 +24,13 @@ FROM generate_series(1,3) n;
 INSERT INTO public.project_signups(id,project_id,anonymous_id,schedule_id,status,check_in_time,check_out_time)
 SELECT ('ac500000-0000-4000-8000-'||lpad(n::text,12,'0'))::uuid,
   ('ac200000-0000-4000-8000-'||lpad(n::text,12,'0'))::uuid,
-  ('ac300000-0000-4000-8000-'||lpad(n::text,12,'0'))::uuid,'oneTime','attended','2030-09-01T16:00Z','2030-09-01T19:00Z'
+  ('ac300000-0000-4000-8000-'||lpad(n::text,12,'0'))::uuid,'oneTime','attended','2020-09-01T16:00Z','2020-09-01T19:00Z'
 FROM generate_series(1,3) n;
 INSERT INTO public.certificates(id,project_id,signup_id,volunteer_name,volunteer_email,project_title,event_start,event_end,is_certified,creator_id,type,check_in_method,credited_minutes)
 SELECT ('ac600000-0000-4000-8000-'||lpad(n::text,12,'0'))::uuid,
   ('ac200000-0000-4000-8000-'||lpad(n::text,12,'0'))::uuid,
   ('ac500000-0000-4000-8000-'||lpad(n::text,12,'0'))::uuid,'Guest '||n,'guest-original-'||n||'@local.test','Guest link fixture '||n,
-  '2030-09-01T16:00Z','2030-09-01T19:00Z',false,'ac100000-0000-4000-8000-000000000001','verified','manual',120
+  '2020-09-01T16:00Z','2020-09-01T19:00Z',false,'ac100000-0000-4000-8000-000000000001','verified','manual',120
 FROM generate_series(1,3) n;
 INSERT INTO public.waiver_signatures(id,project_id,signup_id,anonymous_id,signer_name,signer_email,signature_type,signature_text)
 VALUES('ac700000-0000-4000-8000-000000000001','ac200000-0000-4000-8000-000000000001','ac500000-0000-4000-8000-000000000001','ac300000-0000-4000-8000-000000000001','Guest 1','guest-original-1@local.test','typed','Guest 1');
