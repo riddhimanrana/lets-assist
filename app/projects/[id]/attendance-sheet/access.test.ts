@@ -19,7 +19,7 @@ describe("attendance print access", () => {
       }
     }
   });
-  test("the route is dynamic and every manifest operation checks current manager access", async () => {
+  test("print routes authorize managers before server-only manifest access", async () => {
     const page = await Bun.file(new URL("./page.tsx", import.meta.url)).text();
     const action = await Bun.file(
       new URL("./actions.ts", import.meta.url),
@@ -38,10 +38,11 @@ describe("attendance print access", () => {
     expect(manifest).toContain(
       "requireAttendancePrintAccess(parsed.data.projectId)",
     );
-    expect(manifest).toContain('.eq("project_id", parsed.data.projectId)');
+    expect(manifest).toContain("if (input.projectId !== access.project.id)");
+    expect(manifest).toContain('.eq("project_id", input.projectId)');
     expect(manifest).toContain('.eq("schedule_id", scheduleId)');
     expect(manifest).toContain(
-      '.eq("row_reference", parsed.data.rowReference)',
+      "resolveAuthorizedAttendancePrintReferences(access, {",
     );
   });
 });
