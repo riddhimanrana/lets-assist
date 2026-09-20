@@ -385,6 +385,7 @@ export async function commitPaperScanBatch(input: {
       created: number;
       updated: number;
       rosterOnly: number;
+      reconciled: number;
       overCapacity: number;
       failed: Array<{ rowId: string; detail: string }>;
       certificatesIssued: number;
@@ -497,6 +498,11 @@ export async function commitPaperScanBatch(input: {
     created: created.length,
     updated: updated.length,
     rosterOnly: rosterOnly.length,
+    reconciled: results.filter(
+      (row) =>
+        row.outcome === "skipped" &&
+        row.detail === "reconciled_existing_attendance",
+    ).length,
     overCapacity: results.filter((row) => row.over_capacity).length,
     failed,
     certificatesIssued,

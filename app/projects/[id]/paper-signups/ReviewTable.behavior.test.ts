@@ -130,3 +130,25 @@ test("unsaved attendance can still be excluded with its expected revision", asyn
   await new Promise((resolve) => setImmediate(resolve));
   expect(patches).toEqual([{ decision: "exclude", expectedRevision: 4 }]);
 });
+
+test("a reconciled reference is clearly recorded and cannot reopen ordinary review", () => {
+  const elements = render({
+    ...baseRow,
+    outcome: "skipped",
+    outcomeDetail: "reconciled_existing_attendance",
+    savedAttendance: true,
+  });
+  expect(
+    elements.some(({ props }) => props.children === "Already recorded"),
+  ).toBe(true);
+  expect(
+    elements.some(
+      ({ props }) =>
+        Array.isArray(props.children) && props.children[0] === "Review row ",
+    ),
+  ).toBe(false);
+  expect(
+    elements.find(({ props }) => props.children === "Discard draft")!.props
+      .disabled,
+  ).toBe(true);
+});

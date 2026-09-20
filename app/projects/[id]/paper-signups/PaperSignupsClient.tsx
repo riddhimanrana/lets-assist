@@ -74,6 +74,7 @@ export interface CommitSummary {
   created: number;
   updated: number;
   rosterOnly: number;
+  reconciled?: number;
   overCapacity: number;
   failed: Array<{ rowId: string; detail: string }>;
   certificatesIssued: number;
@@ -333,6 +334,13 @@ export function PaperSignupsClient({
                 <strong>{commitSummary.rosterOnly}</strong> roster-only entries
                 (no email)
               </li>
+              {!!commitSummary.reconciled && (
+                <li>
+                  <strong>{commitSummary.reconciled}</strong> saved roster
+                  entries matched to existing attendance. No additional hours
+                  awarded.
+                </li>
+              )}
               {commitSummary.overCapacity > 0 && (
                 <li>
                   <strong>{commitSummary.overCapacity}</strong> recorded over

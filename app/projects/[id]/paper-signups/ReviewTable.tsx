@@ -267,6 +267,12 @@ export function ReviewTable({
             {summary.notificationsQueued} notifications queued. Queued does not
             mean delivered.
           </p>
+          {!!summary.reconciled && (
+            <p>
+              {summary.reconciled} saved roster entries matched to existing
+              attendance. No additional hours awarded.
+            </p>
+          )}
           {summary.failed.map((failure) => (
             <p key={failure.rowId} className="text-destructive">
               Row {rows.find((row) => row.id === failure.rowId)?.sheetRowNumber}
@@ -311,11 +317,13 @@ export function ReviewTable({
                 >
                   {row.outcome === "roster_only"
                     ? "Saved without credit"
-                    : isFinalAttendanceRow(row)
-                      ? "Saved"
-                      : row.reviewAcknowledged && row.identityConfirmed
-                        ? "Reviewed"
-                        : "Needs review"}
+                    : row.outcomeDetail === "reconciled_existing_attendance"
+                      ? "Already recorded"
+                      : isFinalAttendanceRow(row)
+                        ? "Saved"
+                        : row.reviewAcknowledged && row.identityConfirmed
+                          ? "Reviewed"
+                          : "Needs review"}
                 </Badge>
               </div>
               <div className="space-y-1 text-sm">
