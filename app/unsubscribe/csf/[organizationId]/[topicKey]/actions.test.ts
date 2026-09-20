@@ -1,4 +1,5 @@
-import { beforeEach, describe, expect, mock, test } from "bun:test";
+import { afterAll, beforeEach, describe, expect, mock, test } from "bun:test";
+import type { SendEmailParams } from "@/services/email";
 
 mock.module("server-only", () => ({}));
 
@@ -28,6 +29,46 @@ mock.module("server-only", () => ({}));
 
 const ORG = "bd100000-0000-4000-8000-000000000001";
 const TOPIC = "chapter_announcements";
+const CAMPAIGN = "bd100000-0000-4000-8000-000000000002";
+let organizationName: string | null = "Example High CSF";
+let campaignReplyTo: string | null = "chapter@example.test";
+let identityReadFails = false;
+const previousOrganizationSender = process.env.ORGANIZATION_EMAIL_FROM;
+process.env.ORGANIZATION_EMAIL_FROM =
+  "Let's Assist <updates@notifications.lets-assist.com>";
+afterAll(() => {
+  if (previousOrganizationSender === undefined)
+    delete process.env.ORGANIZATION_EMAIL_FROM;
+  else process.env.ORGANIZATION_EMAIL_FROM = previousOrganizationSender;
+});
+
+function identityQuery(table: "organizations" | "csf_communication_campaigns") {
+  const filters = new Map<string, unknown>();
+  const builder = {
+    select: () => builder,
+    eq: (column: string, value: unknown) => {
+      filters.set(column, value);
+      return builder;
+    },
+    maybeSingle: async () => {
+      const scoped =
+        table === "organizations"
+          ? filters.get("id") === ORG
+          : filters.get("organization_id") === ORG &&
+            filters.get("id") === CAMPAIGN;
+      return {
+        data:
+          scoped && !identityReadFails
+            ? table === "organizations"
+              ? { name: organizationName }
+              : { reply_to_email: campaignReplyTo }
+            : null,
+        error: identityReadFails ? { message: "Unavailable" } : null,
+      };
+    },
+  };
+  return builder;
+}
 
 /** Rows the chapter has actually snapshotted, in the shape the table stores. */
 let snapshotRows: Array<{ id: string; recipient_email: string }> = [];
@@ -76,7 +117,10 @@ function snapshotQuery() {
       const matched = snapshotRows
         .filter((row) => filters.every((filter) => filter(row)))
         .slice(0, count);
-      return Promise.resolve({ data: matched, error: null });
+      return Promise.resolve({
+        data: matched.map((row) => ({ ...row, campaign_id: CAMPAIGN })),
+        error: null,
+      });
     },
   };
   return builder;
@@ -85,6 +129,7 @@ function snapshotQuery() {
 mock.module("@/lib/plugins/supabase", () => ({
   createPluginAdminClient: () => ({
     from: (table: string) => {
+      if (table === "csf_communication_campaigns") return identityQuery(table);
       if (table !== "csf_communication_recipient_snapshots") {
         throw new Error(`Unexpected table read: ${table}`);
       }
@@ -97,6 +142,11 @@ mock.module("@/lib/plugins/supabase", () => ({
 let rateLimitAllows = true;
 mock.module("@/lib/supabase/admin", () => ({
   getAdminClient: () => ({
+    from: (table: string) => {
+      if (table !== "organizations")
+        throw new Error("Unexpected organization query");
+      return identityQuery(table);
+    },
     rpc: async () => ({
       data: [{ allowed: rateLimitAllows }],
       error: null,
@@ -104,9 +154,14 @@ mock.module("@/lib/supabase/admin", () => ({
   }),
 }));
 
-const sent: Array<{ to: string; type: string }> = [];
+const sent: Array<{
+  to: SendEmailParams["to"];
+  type: SendEmailParams["type"];
+}> = [];
+const sentMessages: SendEmailParams[] = [];
 mock.module("@/services/email-send", () => ({
-  sendEmail: async (message: { to: string; type: string }) => {
+  sendEmail: async (message: SendEmailParams) => {
+    sentMessages.push(message);
     sent.push({ to: message.to, type: message.type });
     return { success: true };
   },
@@ -136,7 +191,11 @@ beforeEach(() => {
     { id: "row-2", recipient_email: "Ada.Lovelace@Example.test" },
   ];
   sent.length = 0;
+  sentMessages.length = 0;
   rateLimitAllows = true;
+  organizationName = "Example High CSF";
+  campaignReplyTo = "chapter@example.test";
+  identityReadFails = false;
 });
 
 describe("CSF unsubscribe request step", () => {
@@ -144,6 +203,25 @@ describe("CSF unsubscribe request step", () => {
     expect(await submit("john@example.test")).toEqual({ submitted: true });
     expect(sent).toEqual([{ to: "john@example.test", type: "transactional" }]);
   });
+
+  test("uses the organization sender, name, and campaign Reply-To", async () => {
+    expect(await submit("john@example.test")).toEqual({ submitted: true });
+    expect(sentMessages[0]).toMatchObject({
+      from: "Example High CSF <updates@notifications.lets-assist.com>",
+      replyTo: "chapter@example.test",
+      react: { props: { chapterName: "Example High CSF" } },
+    });
+  });
+
+  for (const missing of ["organization", "replyTo", "readFailure"] as const) {
+    test(`keeps the neutral response and sends nothing for ${missing}`, async () => {
+      if (missing === "organization") organizationName = null;
+      if (missing === "replyTo") campaignReplyTo = null;
+      if (missing === "readFailure") identityReadFails = true;
+      expect(await submit("john@example.test")).toEqual({ submitted: true });
+      expect(sentMessages).toEqual([]);
+    });
+  }
 
   test("matches a snapshot stored with different casing", async () => {
     // The form lowercases what was typed; the stored column is generated as
