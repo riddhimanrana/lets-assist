@@ -37,7 +37,7 @@ interface CsfPostNotificationProps {
   /**
    * Recipient-facing unsubscribe page for this chapter's announcement topic.
    * The campaign body is byte-identical for every recipient, so this is the
-   * same organization+topic URL for everyone — the page itself verifies the
+   * same organization+topic URL for everyone. The page verifies the
    * address before recording an opt-out.
    */
   unsubscribeUrl: string;
@@ -93,14 +93,12 @@ export default function CsfPostNotification({
             <EmailHeader />
 
             <Section style={content} className="content">
-              <Text style={audienceChip}>
-                {[chapterName, audienceLabel, termLabel]
-                  .filter(Boolean)
-                  .join(" • ")}
-              </Text>
+              <Text style={smallText}>{chapterName}</Text>
               <Heading style={heading1}>{postTitle}</Heading>
               <Text style={metaText}>
-                {chapterName} posted a new {kind} on {publishedAtLabel}.
+                {[audienceLabel, termLabel, publishedAtLabel]
+                  .filter(Boolean)
+                  .join(" · ")}
               </Text>
 
               {postParagraphs.map((paragraph, index) => (
@@ -111,10 +109,8 @@ export default function CsfPostNotification({
 
               {attachmentCount > 0 ? (
                 <Text style={attachmentNotice}>
-                  This post includes {attachmentCount}{" "}
-                  {attachmentCount === 1 ? "image" : "images"}. Open the post in
-                  Let&apos;s Assist to view{" "}
-                  {attachmentCount === 1 ? "it" : "them"}.
+                  {attachmentCount} {attachmentCount === 1 ? "image" : "images"}{" "}
+                  in this {kind === "activity" ? "activity" : "announcement"}.
                 </Text>
               ) : null}
 
@@ -122,18 +118,6 @@ export default function CsfPostNotification({
                 <EmailButton href={postUrl}>
                   {kind === "activity" ? "View activity" : "View post"}
                 </EmailButton>
-              </Section>
-
-              <Section style={linkSection}>
-                <Text style={smallText}>
-                  Having trouble with the button? Copy and paste this link into
-                  your browser:
-                </Text>
-                <Text style={linkText}>
-                  <Link href={postUrl} style={link}>
-                    {postUrl}
-                  </Link>
-                </Text>
               </Section>
 
               {settingsUrl ? (
@@ -146,12 +130,9 @@ export default function CsfPostNotification({
 
               <Section style={unsubscribeSection}>
                 <Text style={smallText}>
-                  You're receiving this because you're part of {chapterName} on
-                  Let's Assist.{" "}
                   <Link href={unsubscribeUrl} style={link}>
                     Unsubscribe from announcement emails
                   </Link>
-                  .
                 </Text>
               </Section>
             </Section>
@@ -184,19 +165,6 @@ const content = {
   padding: "8px 24px 8px",
 };
 
-const audienceChip = {
-  color: "#166534",
-  backgroundColor: "#f0fdf4",
-  display: "inline-block",
-  fontSize: "12px",
-  fontWeight: "600" as const,
-  textTransform: "uppercase" as const,
-  letterSpacing: "0.05em",
-  padding: "4px 10px",
-  borderRadius: "9999px",
-  margin: "10px 0 0",
-};
-
 const heading1 = {
   color: "#000000",
   fontSize: "26px",
@@ -223,13 +191,9 @@ const paragraphStyle = {
 
 const attachmentNotice = {
   color: "#374151",
-  backgroundColor: "#f9fafb",
-  border: "1px solid #e5e7eb",
-  borderRadius: "8px",
   fontSize: "14px",
   lineHeight: "1.6",
   margin: "16px 0 0",
-  padding: "12px 14px",
 };
 
 const buttonContainer = {
@@ -237,22 +201,11 @@ const buttonContainer = {
   textAlign: "center" as const,
 };
 
-const linkSection = {
-  marginTop: "16px",
-  paddingTop: "16px",
-  borderTop: "1px solid #eef2f7",
-};
-
 const smallText = {
   color: "#6b7280",
   fontSize: "13px",
   lineHeight: "1.6",
   margin: "0 0 8px 0",
-};
-
-const linkText = {
-  margin: "0",
-  wordBreak: "break-all" as const,
 };
 
 const link = {
