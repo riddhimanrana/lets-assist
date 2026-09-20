@@ -1,14 +1,24 @@
 import { randomBytes, randomUUID } from "node:crypto";
 import { createClient } from "@supabase/supabase-js";
 import { expect, test, type Locator } from "@playwright/test";
-import { getCsfIsolatedSupabaseEnv } from "../../../scripts/local-dev/dv-local-env.mjs";
+import {
+  cleanupAttendanceFixture,
+  getAttendanceEnvironment,
+  prepareHostedContext,
+  signInHostedFixture,
+} from "./environment";
 
 process.env.PLAYWRIGHT_NO_COPY_PROMPT = "1";
 test.use({ trace: "off", video: "off", screenshot: "off" });
 test.setTimeout(180_000);
 
 function checked(error: { message: string } | null) {
-  if (error) throw new Error(error.message);
+  if (error)
+    throw new Error(
+      process.env.ATTENDANCE_HOSTED_DEVELOPMENT === "1"
+        ? "Hosted attendance fixture operation failed."
+        : error.message,
+    );
 }
 function parseCsv(text: string): Record<string, string>[] {
   const rows: string[][] = [];
@@ -63,7 +73,11 @@ test("fictional guest attendance prints, publishes, exports, corrects, and links
   context,
   browser,
 }, testInfo) => {
-  const env = getCsfIsolatedSupabaseEnv();
+  const env = getAttendanceEnvironment();
+  if (env.hosted && testInfo.project.use.baseURL !== env.appUrl)
+    throw new Error(
+      "Hosted attendance configuration does not match its target.",
+    );
   const admin = createClient(env.url, env.serviceRoleKey, {
     auth: { autoRefreshToken: false, persistSession: false },
   });
@@ -82,8 +96,8 @@ test("fictional guest attendance prints, publishes, exports, corrects, and links
   let linkedUserId: string | null = null;
   const errors: string[] = [];
   page.on("pageerror", (error) => {
-    errors.push(error.message);
-    console.error("Attendance page error:", error.message);
+    errors.push(env.hosted ? "Browser runtime error" : error.message);
+    if (!env.hosted) console.error("Attendance page error:", error.message);
   });
   try {
     const account = await admin.auth.admin.createUser({
@@ -134,19 +148,29 @@ test("fictional guest attendance prints, publishes, exports, corrects, and links
       ).error,
     );
 
-    await page.goto(
-      `/login?redirect=${encodeURIComponent(`/projects/${projectId}/hours`)}`,
-    );
-    const main = page.getByRole("main");
-    await expect(main.locator('form[data-hydrated="true"]')).toBeVisible();
-    await expect(
-      main.getByText("Secure check ready", { exact: true }),
-    ).toBeVisible();
-    await main
-      .getByRole("textbox", { name: "Email", exact: true })
-      .fill(coordinatorEmail);
-    await main.getByLabel("Password", { exact: true }).fill(password);
-    await main.getByRole("button", { name: "Login", exact: true }).click();
+    if (env.hosted) {
+      await prepareHostedContext(context, env);
+      await signInHostedFixture(context, env, {
+        email: coordinatorEmail,
+        password,
+        userId,
+      });
+      await page.goto(`/projects/${projectId}/hours`);
+    } else {
+      await page.goto(
+        `/login?redirect=${encodeURIComponent(`/projects/${projectId}/hours`)}`,
+      );
+      const main = page.getByRole("main");
+      await expect(main.locator('form[data-hydrated="true"]')).toBeVisible();
+      await expect(
+        main.getByText("Secure check ready", { exact: true }),
+      ).toBeVisible();
+      await main
+        .getByRole("textbox", { name: "Email", exact: true })
+        .fill(coordinatorEmail);
+      await main.getByLabel("Password", { exact: true }).fill(password);
+      await main.getByRole("button", { name: "Login", exact: true }).click();
+    }
     await expect(page).toHaveURL(new RegExp(`/projects/${projectId}/hours$`), {
       timeout: 120_000,
     });
@@ -179,10 +203,11 @@ test("fictional guest attendance prints, publishes, exports, corrects, and links
       "Walk-ins",
     );
     console.info("Attendance acceptance: print sheets prepared");
-    await page.screenshot({
-      path: testInfo.outputPath("print-desktop.png"),
-      fullPage: true,
-    });
+    if (!env.hosted)
+      await page.screenshot({
+        path: testInfo.outputPath("print-desktop.png"),
+        fullPage: true,
+      });
 
     await page.goto(`/projects/${projectId}/paper-signups?mode=manual`);
     await page.getByRole("radio").first().check();
@@ -216,17 +241,19 @@ test("fictional guest attendance prints, publishes, exports, corrects, and links
     await review.evaluate((element) => {
       element.scrollTop = 0;
     });
-    await page.screenshot({
-      path: testInfo.outputPath("review-mobile.png"),
-      fullPage: false,
-    });
+    if (!env.hosted)
+      await page.screenshot({
+        path: testInfo.outputPath("review-mobile.png"),
+        fullPage: false,
+      });
     await review
       .getByText("Visits and breaks", { exact: true })
       .scrollIntoViewIfNeeded();
-    await page.screenshot({
-      path: testInfo.outputPath("review-mobile-visits.png"),
-      fullPage: false,
-    });
+    if (!env.hosted)
+      await page.screenshot({
+        path: testInfo.outputPath("review-mobile-visits.png"),
+        fullPage: false,
+      });
     await review
       .getByRole("button", { name: "Save review", exact: true })
       .click();
@@ -357,6 +384,7 @@ test("fictional guest attendance prints, publishes, exports, corrects, and links
             : String(value),
       );
     const loggedOut = await browser.newContext();
+    if (env.hosted) await prepareHostedContext(loggedOut, env);
     const denied = await loggedOut.request.get(
       `${new URL(page.url()).origin}/api/projects/${projectId}/hours/export?format=json`,
     );
@@ -424,18 +452,20 @@ test("fictional guest attendance prints, publishes, exports, corrects, and links
     expect(correctedCsv[0].creditedMinutes).toBe("150");
     expect(correctedCsv[0].certificateId).toBe(certificateId);
 
-    await page.screenshot({
-      path: testInfo.outputPath("corrected-hours.png"),
-      fullPage: true,
-    });
+    if (!env.hosted)
+      await page.screenshot({
+        path: testInfo.outputPath("corrected-hours.png"),
+        fullPage: true,
+      });
     await page.goto(`/certificates/${certificateId}`);
     await expect(
       page.getByText("2 hours 30 mins", { exact: true }),
     ).toBeVisible();
-    await page.screenshot({
-      path: testInfo.outputPath("corrected-certificate.png"),
-      fullPage: true,
-    });
+    if (!env.hosted)
+      await page.screenshot({
+        path: testInfo.outputPath("corrected-certificate.png"),
+        fullPage: true,
+      });
     const anonymous = await admin
       .from("anonymous_signups")
       .select("id,token")
@@ -448,6 +478,7 @@ test("fictional guest attendance prints, publishes, exports, corrects, and links
     guestContext.setDefaultNavigationTimeout(120_000);
     guestContext.setDefaultTimeout(20_000);
     try {
+      if (env.hosted) await prepareHostedContext(guestContext, env);
       const guestPage = await guestContext.newPage();
       const origin = new URL(page.url()).origin;
       const guestUrl = `${origin}/anonymous/${anonymous.data.id}?token=${encodeURIComponent(anonymous.data.token)}`;
@@ -481,16 +512,28 @@ test("fictional guest attendance prints, publishes, exports, corrects, and links
       if (!linkedAccount.data.user)
         throw new Error("Linked account fixture was not created");
       linkedUserId = linkedAccount.data.user.id;
+      if (env.hosted)
+        await signInHostedFixture(guestContext, env, {
+          email: walkinEmail,
+          password,
+          userId: linkedUserId,
+        });
       await guestPage.goto(guestUrl);
       await guestPage
         .getByRole("button", { name: "Link or Create Account", exact: true })
         .click();
       const linker = guestPage.getByRole("dialog");
-      await linker.getByLabel("Email", { exact: true }).fill(walkinEmail);
-      await linker.getByLabel("Password", { exact: true }).fill(password);
-      await linker
-        .getByRole("button", { name: "Sign In & Link", exact: true })
-        .click();
+      if (env.hosted) {
+        await linker
+          .getByRole("button", { name: "Link to Current Account", exact: true })
+          .click();
+      } else {
+        await linker.getByLabel("Email", { exact: true }).fill(walkinEmail);
+        await linker.getByLabel("Password", { exact: true }).fill(password);
+        await linker
+          .getByRole("button", { name: "Sign In & Link", exact: true })
+          .click();
+      }
       await expect(guestPage).toHaveURL(/\/dashboard$/, { timeout: 120_000 });
       const linkedSignups = await admin
         .from("project_signups")
@@ -526,16 +569,17 @@ test("fictional guest attendance prints, publishes, exports, corrects, and links
     expect(
       errors.filter((message) => !message.includes("Failed to load resource")),
     ).toEqual([]);
+  } catch (error) {
+    if (env.hosted)
+      throw new Error(
+        "Hosted attendance journey failed (ATTENDANCE_JOURNEY_FAILED).",
+      );
+    throw error;
   } finally {
-    const cleanupErrors: string[] = [];
-    const deletion = await admin.from("projects").delete().eq("id", projectId);
-    if (deletion.error) cleanupErrors.push(deletion.error.message);
-    for (const id of [userId, linkedUserId]) {
-      if (!id) continue;
-      const accountDeletion = await admin.auth.admin.deleteUser(id);
-      if (accountDeletion.error)
-        cleanupErrors.push(accountDeletion.error.message);
-    }
+    const cleanupErrors = await cleanupAttendanceFixture(admin, projectId, [
+      userId,
+      linkedUserId,
+    ]);
     expect.soft(cleanupErrors, "Fictional fixture cleanup").toEqual([]);
   }
 });

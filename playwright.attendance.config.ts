@@ -9,6 +9,9 @@ import {
 // Do not capture authentication form values in Playwright error-context snapshots.
 process.env.PLAYWRIGHT_NO_COPY_PROMPT = "1";
 
+if (process.env.ATTENDANCE_HOSTED_DEVELOPMENT !== undefined)
+  throw new Error("Use the separate guarded hosted attendance configuration.");
+
 // This suite attaches only when a caller explicitly owns the already-running app.
 if (process.env.ATTENDANCE_EXISTING_SERVER !== "1")
   throw new Error(
