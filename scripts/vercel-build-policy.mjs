@@ -7,13 +7,14 @@ function normalizeOptional(value) {
   return normalized ? normalized : undefined;
 }
 
-/** @param {{ branch?: string, commitMessage?: string, environment?: string, commitSha?: string, explicitReleaseSha?: string }} input */
+/** @param {{ branch?: string, commitMessage?: string, environment?: string, commitSha?: string, explicitReleaseSha?: string, explicitDevelopmentSha?: string }} input */
 export function shouldRunVercelBuild({
   branch,
   commitMessage,
   environment = undefined,
   commitSha = undefined,
   explicitReleaseSha = undefined,
+  explicitDevelopmentSha = undefined,
 }) {
   // Only the staged release request supplies this per-deployment override.
   if (
@@ -23,6 +24,14 @@ export function shouldRunVercelBuild({
   )
     return true;
   const normalizedBranch = normalizeOptional(branch);
+  // An operator can request this exact Preview revision without changing shared settings.
+  if (
+    environment === "preview" &&
+    normalizedBranch === "development" &&
+    /^[0-9a-f]{40}$/u.test(explicitDevelopmentSha ?? "") &&
+    explicitDevelopmentSha === commitSha
+  )
+    return true;
 
   // A non-Git deployment is an explicit operator action. Do not block it.
   if (!normalizedBranch) return true;
@@ -47,6 +56,7 @@ if (import.meta.main) {
     environment: process.env.VERCEL_ENV,
     commitSha: process.env.VERCEL_GIT_COMMIT_SHA,
     explicitReleaseSha: process.env.LETS_ASSIST_EXPLICIT_RELEASE_SHA,
+    explicitDevelopmentSha: process.env.LETS_ASSIST_EXPLICIT_DEVELOPMENT_SHA,
   });
 
   if (shouldBuild) {

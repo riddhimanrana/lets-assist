@@ -33,6 +33,27 @@ describe("Vercel build policy", () => {
       expect(shouldRunVercelBuild({ ...source, ...override })).toBe(false);
     }
   });
+  test("permits an exact operator-selected Development Preview only", () => {
+    const source = {
+      branch: "development",
+      environment: "preview",
+      commitMessage: "ordinary merge",
+      commitSha: "a".repeat(40),
+      explicitDevelopmentSha: "a".repeat(40),
+    };
+    expect(shouldRunVercelBuild(source)).toBe(true);
+    for (const patch of [
+      { branch: "main" },
+      { branch: "codex/feature" },
+      { environment: "production" },
+      { explicitDevelopmentSha: "b".repeat(40) },
+      { explicitDevelopmentSha: "" },
+      { commitSha: undefined },
+    ]) {
+      expect(shouldRunVercelBuild({ ...source, ...patch })).toBe(false);
+    }
+  });
+
   test("holds Production Git pushes and builds explicit non-Git deployments", () => {
     expect(
       shouldRunVercelBuild({ branch: "main", commitMessage: "release" }),

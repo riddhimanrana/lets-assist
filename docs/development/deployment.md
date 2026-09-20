@@ -10,6 +10,19 @@ Promotion from `development` to `main` is a separate release operation. It requi
 
 Supabase changes follow [the deployment workflow](supabase-deployment.md). Private-plugin changes follow [the two-repository workflow](private-plugins.md).
 
+## Explicit Development builds
+
+A normal Development merge builds only when the first commit-message line carries
+`[deploy-development]` or matches the signed CSF integration convention. A manual
+Vercel redeploy retains that message, so it can be canceled by the same rule.
+
+For an approved manual Preview build of the current Development revision, set
+`LETS_ASSIST_EXPLICIT_DEVELOPMENT_SHA` on that deployment to its full Git SHA.
+The build policy accepts it only for `VERCEL_ENV=preview`, branch `development`,
+and an exact SHA match. It does not change shared project settings or authorize
+Production. Verify the Preview's Git metadata and Development alias before
+starting hosted acceptance. Do not create an empty marker commit to trigger a build.
+
 ## App-only Production release
 
 Use `Deploy accepted Production app` when Production already has the exact
