@@ -416,7 +416,10 @@ export async function commitPaperScanBatch(input: {
   );
   if (rpcError) {
     console.error("Paper commit RPC failed:", rpcError.message);
-    return { error: "The commit failed. Nothing was recorded." };
+    return {
+      error:
+        "We couldn't confirm whether attendance was saved. Refresh saved review before retrying.",
+    };
   }
 
   const results = (rpcRows ?? []) as CommitRpcRow[];

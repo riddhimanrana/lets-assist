@@ -1,9 +1,13 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import {
+  nextPaperCommitAttempt,
+  type PaperCommitAttempt,
+} from "@/lib/projects/paper-signup/commit-attempt";
 import { inspectAttendanceIntervals } from "@/lib/projects/paper-signup/intervals";
 import { ReviewRowEditor } from "./ReviewRowEditor";
 import {
@@ -54,7 +58,7 @@ export function ReviewTable({
   >([]);
   const [busy, setBusy] = useState(false);
   const [allowOverCapacity, setAllowOverCapacity] = useState(false);
-  const [requestKey, setRequestKey] = useState(() => crypto.randomUUID());
+  const commitAttempt = useRef<PaperCommitAttempt | null>(null);
   const [addKey, setAddKey] = useState(() => crypto.randomUUID());
   const [summary, setSummary] = useState<CommitSummary | null>(null);
   const [targetId, setTargetId] = useState("");
@@ -146,19 +150,26 @@ export function ReviewTable({
   const commit = async () => {
     setBusy(true);
     try {
+      const attempt = nextPaperCommitAttempt(commitAttempt.current, {
+        projectId,
+        batchId: batch.id,
+        rows: ready,
+        allowOverCapacity,
+      });
+      commitAttempt.current = attempt;
       const result = await commitPaperScanBatch({
         projectId,
         batchId: batch.id,
-        rowIds: ready.map((row) => row.id),
+        rowIds: attempt.rowIds,
         allowOverCapacity,
-        idempotencyKey: requestKey,
+        idempotencyKey: attempt.key,
       });
       if ("error" in result) {
         toast.error(result.error);
         return;
       }
       setSummary(result);
-      setRequestKey(crypto.randomUUID());
+      commitAttempt.current = null;
       const next = await reload();
       if (
         next &&
@@ -166,6 +177,10 @@ export function ReviewTable({
         result.failed.length === 0
       )
         onCommitted(result);
+    } catch {
+      toast.error(
+        "We couldn't confirm whether attendance was saved. Refresh saved review before retrying.",
+      );
     } finally {
       setBusy(false);
     }
@@ -457,7 +472,6 @@ export function ReviewTable({
             checked={allowOverCapacity}
             onChange={(e) => {
               setAllowOverCapacity(e.target.checked);
-              setRequestKey(crypto.randomUUID());
             }}
           />
           Allow reviewed walk-ins to exceed the scheduled volunteer capacity.
@@ -491,7 +505,6 @@ export function ReviewTable({
               current.map((row) => (row.id === updated.id ? updated : row)),
             );
             setEditing(null);
-            setRequestKey(crypto.randomUUID());
           }}
         />
       )}
