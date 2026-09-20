@@ -10,14 +10,20 @@ excluded. The manifest stores object identities and hashes, never function bodie
 student records, or provider credentials. Relation hashes include full policy
 expressions and roles, not only policy counts. ACL entries sort by named roles,
 privilege, grantor, and grantability. Policy roles sort by name rather than OID.
-Default privileges and sequence definitions are captured; sequence values are not. The retention cron definition is
+Default privileges for postgres and runtime roles and sequence definitions are
+captured; sequence values are not. Supabase-admin default privileges are
+provider-owned and excluded. Existing repository table ACLs remain fully checked,
+including grants made by provider roles. The retention cron definition is
 included; other environment-specific cron endpoints are excluded.
 
 To prepare another release:
 
 1. Replay the entire candidate ledger in an owned isolated database. Run its
    database and authorization tests before capturing the inventory.
-2. Run the inventory SQL read-only, wrapping its rows with `SELECT json_agg(row)
+2. Capture before installing local fixture helpers, or use the exact teardown
+   from `scripts/local-dev/seed-hosted-development.mjs`. The generator refuses
+   those helpers; the runtime inventory never silently excludes them.
+   Run the inventory SQL read-only, wrapping its rows with `SELECT json_agg(row)
 FROM (<inventory SQL>) row`. Save the result outside tracked directories.
 3. Run `node scripts/production/generate-final-schema-manifest.mjs <repository>
 <inventory.json>` and review its output against the preceding manifest. Every

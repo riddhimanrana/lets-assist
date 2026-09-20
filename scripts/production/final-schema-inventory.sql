@@ -82,8 +82,8 @@ WITH namespaces AS (
           pg_catalog.pg_get_userbyid(x.grantor),x.privilege_type,x.is_grantable) AS value
           FROM pg_catalog.aclexplode(NULLIF(d.defaclacl, '{}'::aclitem[])) x) entry)
   FROM pg_catalog.pg_default_acl d LEFT JOIN pg_catalog.pg_namespace n ON n.oid=d.defaclnamespace
-  WHERE d.defaclnamespace IN (SELECT oid FROM namespaces)
-    OR (d.defaclnamespace=0 AND pg_catalog.pg_get_userbyid(d.defaclrole) IN ('postgres','service_role','authenticated','anon'))
+  WHERE pg_catalog.pg_get_userbyid(d.defaclrole) IN ('postgres','service_role','authenticated','anon')
+    AND (d.defaclnamespace IN (SELECT oid FROM namespaces) OR d.defaclnamespace=0)
   UNION ALL
   SELECT 'cron:retain-cron-execution-history',pg_catalog.jsonb_build_object(
     'schedule',schedule,'command',command,'username',username,'active',active,

@@ -5,7 +5,10 @@ import {
   finalSchemaCatalog,
   finalSchemaInventory,
 } from "./final-schema-manifest.mjs";
-import { generateFinalSchemaManifest } from "./generate-final-schema-manifest.mjs";
+import {
+  assertCleanInventory,
+  generateFinalSchemaManifest,
+} from "./generate-final-schema-manifest.mjs";
 import { acceptedCatalogQuery } from "./app-release-catalog.mjs";
 import { expectedVersions } from "./app-release-checks.mjs";
 const manifest = JSON.parse(
@@ -111,4 +114,34 @@ test("inventory includes delegated private functions and canonical permission me
     "seqcycle",
   ])
     assert.ok(finalSchemaInventory.includes(key), key);
+});
+
+test("provider defaults stay outside the repository boundary and fixture capture fails closed", () => {
+  assert.ok(
+    manifest.objects.every(
+      (row) => !row.identity.startsWith("default-acl:supabase_admin:"),
+    ),
+  );
+  assert.match(
+    finalSchemaInventory,
+    /WHERE pg_catalog.pg_get_userbyid\(d.defaclrole\) IN \('postgres','service_role','authenticated','anon'\)/,
+  );
+  assert.match(finalSchemaInventory, /coalesce\(c.relacl/);
+  assert.throws(
+    () =>
+      assertCleanInventory([
+        {
+          identity:
+            "function:plugin_data.csf_assert_fixture_keys(p_scope text)",
+        },
+      ]),
+    /fixture helpers/,
+  );
+  assert.doesNotThrow(() =>
+    assertCleanInventory([
+      {
+        identity: "function:plugin_data.csf_actor_can_manage_staff(uuid,uuid)",
+      },
+    ]),
+  );
 });

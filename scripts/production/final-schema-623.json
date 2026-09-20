@@ -1,7 +1,7 @@
 {
   "format": 1,
   "ledger": "9161b2c012f44e3e6cd7b690d3c290602d5010fb564d7a99af3a423cede28521",
-  "inventory": "ebef05b17ed694a41c1eb4b85dd7206c88d425438dc11a9eee0dfb5be88d69af",
+  "inventory": "50d25e20102baa344f625914423b07f414daf1204214f9bd6cc7b9e6fe2c0efd",
   "objects": [
     {
       "identity": "cron:retain-cron-execution-history",
@@ -30,18 +30,6 @@
     {
       "identity": "default-acl:postgres:public:r",
       "digest": "b13c3052c7b73557b4e2eb74f248d3b2"
-    },
-    {
-      "identity": "default-acl:supabase_admin:public:S",
-      "digest": "ec97da31e9a9eb7bc53e82740bb4b6c9"
-    },
-    {
-      "identity": "default-acl:supabase_admin:public:f",
-      "digest": "b2dabfaee9b3e9ba753c5f12f8f05dd6"
-    },
-    {
-      "identity": "default-acl:supabase_admin:public:r",
-      "digest": "fedf5d4a8ab85f7ea6b6df1ee75f503c"
     },
     {
       "identity": "enum:plugin_data.connect_onboarding_status",
