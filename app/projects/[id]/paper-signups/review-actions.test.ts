@@ -3,6 +3,8 @@ import { beforeEach, expect, mock, test } from "bun:test";
 let allowed = true;
 let rpcError: { code: string; message: string } | null = null;
 let rpcData: unknown = "updated";
+let scanRows: Array<{ committed_signup_id: string; outcome: string }> = [];
+const issuanceCalls: unknown[] = [];
 const calls: Array<{ name: string; args: Record<string, unknown> }> = [];
 mock.module("./access", () => ({
   requirePaperScanAccess: async () =>
@@ -10,19 +12,51 @@ mock.module("./access", () => ({
       ? {
           ok: true,
           userId: "fictional-organizer",
-          project: { title: "Fictional project", project_timezone: "UTC" },
+          project: {
+            title: "Fictional project",
+            project_timezone: "UTC",
+            published: { oneTime: true },
+          },
           admin: {
             rpc: async (name: string, args: Record<string, unknown>) => {
               calls.push({ name, args });
               return { data: rpcData, error: rpcError };
             },
             from: (table: string) => {
+              if (table === "project_paper_scan_rows") {
+                let outcomes: string[] | undefined;
+                const query = {
+                  select: () => query,
+                  eq: () => query,
+                  in: (column: string, values: string[]) => {
+                    expect(column).toBe("outcome");
+                    outcomes = values;
+                    return query;
+                  },
+                  not: () => query,
+                  then: (
+                    resolve: (result: { data: typeof scanRows }) => unknown,
+                  ) =>
+                    resolve({
+                      data: scanRows.filter(
+                        (row) => !outcomes || outcomes.includes(row.outcome),
+                      ),
+                    }),
+                };
+                return query;
+              }
               if (table !== "project_paper_scan_batches")
                 throw new Error(`Unexpected read from ${table}`);
               const query = {
                 select: () => query,
                 eq: () => query,
-                single: async () => ({ data: { schedule_id: "oneTime" } }),
+                single: async () => ({
+                  data: {
+                    id: "fictional-batch",
+                    schedule_id: "oneTime",
+                    status: "committed",
+                  },
+                }),
               };
               return query;
             },
@@ -40,9 +74,13 @@ mock.module("@/lib/projects/hours-publication-email-service", () => ({
 }));
 mock.module("../hours/certificate-issuance", () => ({
   getPublishStateKey: () => "oneTime",
-  issueCertificatesForSignups: async () => {},
+  issueCertificatesForSignups: async (input: unknown) => {
+    issuanceCalls.push(input);
+    return { issued: 1, errors: [] };
+  },
 }));
-const { updatePaperScanRow, commitPaperScanBatch } = await import("./actions");
+const { updatePaperScanRow, commitPaperScanBatch, retryPaperScanCertificates } =
+  await import("./actions");
 
 const input = {
   projectId: "f1111111-1111-4111-8111-111111111111",
@@ -54,6 +92,8 @@ beforeEach(() => {
   allowed = true;
   rpcError = null;
   rpcData = "updated";
+  scanRows = [];
+  issuanceCalls.length = 0;
   calls.length = 0;
 });
 
@@ -141,4 +181,37 @@ test("reconciling a saved roster reports existing attendance without issuing cre
   });
   expect(calls).toHaveLength(1);
   expect(calls[0].name).toBe("commit_paper_signup_batch");
+  expect(issuanceCalls).toEqual([]);
+});
+
+test("a reconciled-only batch cannot issue an award through certificate retry", async () => {
+  scanRows = [{ committed_signup_id: "existing-signup", outcome: "skipped" }];
+  expect(
+    await retryPaperScanCertificates({
+      projectId: input.projectId,
+      batchId: input.batchId,
+    }),
+  ).toEqual({ success: true, certificatesIssued: 0, certificateErrors: [] });
+  expect(issuanceCalls).toEqual([]);
+});
+
+test("certificate retries include primary attendance and omit reconciled references", async () => {
+  scanRows = [
+    { committed_signup_id: "primary-signup", outcome: "signup_updated" },
+    { committed_signup_id: "reconciled-signup", outcome: "skipped" },
+  ];
+  expect(
+    await retryPaperScanCertificates({
+      projectId: input.projectId,
+      batchId: input.batchId,
+    }),
+  ).toEqual({ success: true, certificatesIssued: 1, certificateErrors: [] });
+  expect(issuanceCalls).toEqual([
+    {
+      projectId: input.projectId,
+      scheduleId: "oneTime",
+      signupIds: ["primary-signup"],
+      actorId: "fictional-organizer",
+    },
+  ]);
 });

@@ -547,12 +547,15 @@ export async function retryPaperScanCertificates(input: {
     .from("project_paper_scan_rows")
     .select("committed_signup_id")
     .eq("batch_id", batch.id)
+    .in("outcome", ["signup_created", "signup_updated"])
     .not("committed_signup_id", "is", null);
   if (rowsError || !rows) return { error: "Could not load committed rows." };
 
   const signupIds = rows.flatMap((row) =>
     row.committed_signup_id ? [row.committed_signup_id] : [],
   );
+  if (signupIds.length === 0)
+    return { success: true, certificatesIssued: 0, certificateErrors: [] };
   const issuance = await issueCertificatesForSignups({
     projectId: parsed.data.projectId,
     scheduleId: batch.schedule_id,
