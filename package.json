@@ -59,7 +59,7 @@
     "plugin:submodules:check": "node scripts/check-private-submodules.mjs",
     "plugin:submodules:check:strict": "node scripts/check-private-submodules.mjs --strict",
     "security:seeds": "node scripts/check-supabase-seed-safety.mjs",
-    "security:audit": "bun audit --production",
+    "security:audit": "bun audit --prod",
     "test:security:seeds": "bun test scripts/check-supabase-seed-safety.test.ts",
     "dev:test:cron": "bun scripts/local-dev/test-cron-endpoints.ts",
     "dv:tabroom:smoke": "DV_TABROOM_LIVE=1 node scripts/local-dev/tabroom-live-smoke.mjs",
