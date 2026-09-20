@@ -86,8 +86,13 @@ const RESTRICTED_PATHS_FOR_LOGGED_IN_USERS = [
   "/faq",
 ];
 
+// Certificate detail pages expose only the narrow public verification view.
+const PUBLIC_CERTIFICATE_PATH =
+  /^\/certificates\/[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
 // Function to check if a path requires authentication
 export function isProtectedPath(path: string) {
+  if (PUBLIC_CERTIFICATE_PATH.test(path)) return false;
   return (
     isCsfApplicationPath(path) ||
     PROTECTED_PATHS.some(
@@ -145,6 +150,7 @@ export function hasSensitiveAuthQuery(
 export function isAuthSensitiveProxyPath(path: string): boolean {
   if (
     isProtectedPath(path) ||
+    PUBLIC_CERTIFICATE_PATH.test(path) ||
     path === "/auth" ||
     path.startsWith("/auth/") ||
     path === "/reset-password" ||
