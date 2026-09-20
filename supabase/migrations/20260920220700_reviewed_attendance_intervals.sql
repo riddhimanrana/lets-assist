@@ -543,6 +543,10 @@ BEGIN
     END IF;
     v_decision := p_patch->>'decision';
   END IF;
+  IF COALESCE(v_decision,v_row.decision) IS DISTINCT FROM 'include'
+    AND EXISTS(SELECT 1 FROM public.project_paper_roster_entries entry WHERE entry.scan_row_id=v_row.id) THEN
+    RAISE EXCEPTION 'saved attendance must remain included' USING ERRCODE='22023';
+  END IF;
   IF p_patch ? 'matchSignupId' THEN
     IF jsonb_typeof(p_patch->'matchSignupId') NOT IN ('string', 'null') THEN
       RAISE EXCEPTION 'update_paper_scan_review_row: invalid signup match';

@@ -3929,7 +3929,7 @@
     },
     {
       "identity": "function:public.update_paper_scan_review_row(p_batch_id uuid, p_project_id uuid, p_row_id uuid, p_actor_id uuid, p_patch jsonb)",
-      "digest": "c0346c889baf03c606c67370ca7c2764"
+      "digest": "8b01df6bddeaf9b2068b390a69b6bad2"
     },
     {
       "identity": "function:public.update_plugin_execution_metrics(p_organization_id uuid, p_plugin_key text, p_execution_time_ms integer, p_is_error boolean, p_error_message text)",
