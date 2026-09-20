@@ -905,8 +905,13 @@ test.describe("class join code connections", () => {
         member: { role: "member", status: "active" },
       });
 
-    // A settled request leaves the queue and the connection guide stays visible.
+    // Reload restores the collapsed account panel after the request is resolved.
     await page.reload({ waitUntil: "domcontentloaded" });
+    await expect(
+      page.locator('[data-organization-tabs-hydrated="true"]'),
+    ).toBeVisible();
+    await expect(reviewQueue).not.toHaveAttribute("open");
+    await reviewQueue.locator("summary").click();
     await expect(
       reviewQueue.getByText(
         "No accounts are waiting. Students can sign in and use the class join code to request a connection.",
