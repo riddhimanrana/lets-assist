@@ -312,14 +312,15 @@ jobs:
         run: |
           set -euo pipefail
           node scripts/local-dev/dv-local-env.mjs --csf-health
-          catalog_result="$(node --input-type=module <<'NODE' | psql "${DB_URL}" -X -v ON_ERROR_STOP=1 -At
+          catalog_result="$(node --input-type=module <<'NODE' | psql "${DB_URL}" -X -q -v ON_ERROR_STOP=1 -At
           import { readFileSync } from 'node:fs';
           import { acceptedCatalogQuery } from './scripts/production/app-release-catalog.mjs';
           import { expectedVersions } from './scripts/production/app-release-checks.mjs';
-          console.log(acceptedCatalogQuery(
+          import { isolatedReleaseCatalogQuery } from './scripts/production/isolated-release-catalog.mjs';
+          console.log(isolatedReleaseCatalogQuery(acceptedCatalogQuery(
             readFileSync('./scripts/production/verify-csf-target-schema.sql', 'utf8'),
             expectedVersions(process.cwd()),
-          ));
+          )));
           NODE
           )"
           if [[ "${catalog_result}" != "1" ]]; then
