@@ -148,12 +148,17 @@ async function race(firstSql, secondSql, expectedError) {
   first.child.stdin.end("COMMIT;\n");
   await Promise.all([first.done, second.done]);
   assert.equal(first.code, 0, first.error);
-  assert.notEqual(
-    second.code,
-    0,
-    "the stale or unauthorized contender must fail",
-  );
-  assert.match(second.error, new RegExp(expectedError));
+  if (expectedError) {
+    assert.notEqual(
+      second.code,
+      0,
+      "the stale or unauthorized contender must fail",
+    );
+    assert.match(second.error, new RegExp(expectedError));
+  } else {
+    assert.equal(second.code, 0, second.error);
+  }
+  return second.output;
 }
 
 const intervals = (minutes) => [
@@ -275,6 +280,81 @@ COMMIT;`);
   console.log(
     "PASS revoked staff: blocked correction replay rechecks authorization and sends no new email",
   );
+  query(
+    `UPDATE public.project_signups SET status='attended' WHERE id=${quote(ids.secondSignup)};`,
+  );
+  const reconciliationBatch = query(
+    `SELECT public.create_manual_attendance_batch(${quote(ids.secondProject)},'oneTime',${quote(ids.owner)},${quote(randomUUID())});`,
+  );
+  const reconciliationRow = query(
+    `SELECT public.add_paper_attendance_row(${quote(ids.secondProject)},${quote(reconciliationBatch)},${quote(ids.owner)},${quote(randomUUID())});`,
+  );
+  const reviewReconciliation = (revision, minutes, match = false) =>
+    `SELECT public.update_paper_scan_review_row(${quote(reconciliationBatch)},${quote(ids.secondProject)},${quote(reconciliationRow)},${quote(ids.owner)},${quote(JSON.stringify({ expectedRevision: revision, name: "Synthetic roster volunteer", decision: "include", attendanceIntervals: intervals(minutes), reviewAcknowledged: true, identityConfirmed: true, ...(match ? { matchSignupId: ids.secondSignup } : {}) }))}::jsonb);`;
+  const reconcile = (request) =>
+    `SELECT outcome || ':' || coalesce(detail,'') FROM public.commit_paper_signup_batch(${quote(reconciliationBatch)},${quote(ids.owner)},ARRAY[${quote(reconciliationRow)}]::uuid[],false,${quote(request)});`;
+  query(reviewReconciliation(0, 90));
+  assert.equal(query(reconcile(randomUUID())), "roster_only:");
+  query(reviewReconciliation(1, 90, true));
+  const racedResult = await race(
+    correct(ids.secondSignup, 1, 60),
+    reconcile(randomUUID()),
+  );
+  assert.match(racedResult, /failed:duplicate_attendance_requires_correction/);
+  assert.deepEqual(awardState(ids.secondSignup), {
+    count: 1,
+    id: second.id,
+    minutes: 60,
+    revision: 2,
+  });
+  assert.equal(
+    query(
+      `SELECT count(*) FROM public.project_paper_roster_entries WHERE scan_row_id=${quote(reconciliationRow)};`,
+    ),
+    "1",
+  );
+  console.log(
+    "PASS correction beats reconciliation: blocked request checks current intervals and retains uncovered roster",
+  );
+
+  query(reviewReconciliation(2, 30, true));
+  const reconciliationRequest = randomUUID();
+  const beforeReconciliation = query(
+    `SELECT jsonb_build_object('signup',to_jsonb(s),'certificate',to_jsonb(c),'outbox',to_jsonb(o)) FROM public.project_signups s JOIN public.certificates c ON c.signup_id=s.id JOIN public.hours_publication_email_outbox o ON o.certificate_id=c.id WHERE s.id=${quote(ids.secondSignup)};`,
+  );
+  const replay = await race(
+    reconcile(reconciliationRequest),
+    reconcile(reconciliationRequest),
+  );
+  assert.match(replay, /skipped:reconciled_existing_attendance/);
+  assert.equal(
+    query(
+      `SELECT jsonb_build_object('signup',to_jsonb(s),'certificate',to_jsonb(c),'outbox',to_jsonb(o)) FROM public.project_signups s JOIN public.certificates c ON c.signup_id=s.id JOIN public.hours_publication_email_outbox o ON o.certificate_id=c.id WHERE s.id=${quote(ids.secondSignup)};`,
+    ),
+    beforeReconciliation,
+  );
+  assert.equal(
+    query(
+      `SELECT count(*) FROM private.paper_attendance_commit_receipts WHERE request_id=${quote(reconciliationRequest)};`,
+    ),
+    "1",
+  );
+  assert.equal(
+    query(
+      `SELECT results->0->'reconciliation'->'primary_scan_row_id' FROM private.paper_attendance_commit_receipts WHERE request_id=${quote(reconciliationRequest)};`,
+    ),
+    "null",
+  );
+  assert.equal(
+    query(
+      `SELECT count(*) FROM public.project_paper_roster_entries WHERE scan_row_id=${quote(reconciliationRow)};`,
+    ),
+    "0",
+  );
+  console.log(
+    "PASS simultaneous reconciliation retry: one audited reference, no primary required for Hours attendance, unchanged award and delivery",
+  );
+
   const batchId = query(
     `SELECT public.create_manual_attendance_batch(${quote(ids.project)},'oneTime',${quote(ids.owner)},${quote(randomUUID())});`,
   );

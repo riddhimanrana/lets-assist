@@ -3273,7 +3273,7 @@
     },
     {
       "identity": "function:private.publish_volunteer_hours_transactional_legacy_status_fallback(p_actor_id uuid, p_project_id uuid, p_schedule_id text, p_entries jsonb, p_request_key text)",
-      "digest": "761149067416097520e2681775321833"
+      "digest": "23013d5321c9607da38261cd01ed1daf"
     },
     {
       "identity": "function:private.record_organization_autojoin_suppression()",
@@ -3505,7 +3505,7 @@
     },
     {
       "identity": "function:public.commit_paper_signup_batch(p_batch_id uuid, p_actor_id uuid, p_row_ids uuid[], p_allow_over_capacity boolean, p_idempotency_key uuid)",
-      "digest": "3cd35605913ac11268e6be5c494a364a"
+      "digest": "3b2d090a64026f07cad794845704f182"
     },
     {
       "identity": "function:public.complete_participant_checkout(p_signup_id uuid, p_user_id uuid, p_anonymous_id uuid)",
@@ -4985,7 +4985,7 @@
     },
     {
       "identity": "relation:public.project_paper_scan_rows",
-      "digest": "2717e6d9f2c2299add6b91bb4cce53da"
+      "digest": "e6839a0f00745fa02356ff781f54ef5d"
     },
     {
       "identity": "relation:public.project_signups",

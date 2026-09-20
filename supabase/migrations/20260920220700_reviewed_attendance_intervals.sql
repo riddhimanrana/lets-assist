@@ -788,6 +788,12 @@ ALTER TABLE private.paper_attendance_commit_receipts ENABLE ROW LEVEL SECURITY;
 REVOKE ALL ON private.paper_attendance_commit_receipts FROM PUBLIC,anon,authenticated,service_role;
 GRANT SELECT ON private.paper_attendance_commit_receipts TO service_role;
 
+-- Reconciled references retain their source row without becoming a second primary.
+DROP INDEX public.project_paper_scan_rows_committed_signup_key;
+CREATE UNIQUE INDEX project_paper_scan_rows_committed_signup_key
+  ON public.project_paper_scan_rows(committed_signup_id)
+  WHERE committed_signup_id IS NOT NULL AND outcome<>'skipped';
+
 CREATE OR REPLACE FUNCTION public.commit_paper_signup_batch(
   p_batch_id uuid,p_actor_id uuid,p_row_ids uuid[],p_allow_over_capacity boolean DEFAULT false,p_idempotency_key uuid DEFAULT NULL
 ) RETURNS TABLE(row_id uuid,outcome text,signup_id uuid,anonymous_id uuid,user_id uuid,over_capacity boolean,detail text)
@@ -798,6 +804,11 @@ DECLARE
   v_row public.project_paper_scan_rows%ROWTYPE;
   v_existing public.project_signups%ROWTYPE;
   v_prior private.paper_attendance_commit_receipts%ROWTYPE;
+  v_roster public.project_paper_roster_entries%ROWTYPE;
+  v_primary_row_id uuid;
+  v_authoritative_intervals jsonb;
+  v_authoritative_union tstzmultirange;
+  v_reconciliation jsonb;
   v_slot record;
   v_email text;
   v_intervals jsonb;
@@ -847,6 +858,7 @@ BEGIN
   FOR v_row IN SELECT * FROM public.project_paper_scan_rows rows WHERE rows.batch_id=p_batch_id AND rows.id=ANY(p_row_ids)
     AND rows.decision='include' ORDER BY rows.sheet_row_number FOR UPDATE LOOP
     row_id:=v_row.id; signup_id:=NULL; anonymous_id:=NULL; user_id:=NULL; over_capacity:=false; detail:=NULL; outcome:='failed';
+    v_reconciliation:=NULL;
     BEGIN
       IF v_row.committed_signup_id IS NOT NULL OR v_row.outcome='roster_only' THEN
         outcome:=v_row.outcome; signup_id:=v_row.committed_signup_id; anonymous_id:=v_row.committed_anonymous_id;
@@ -883,10 +895,28 @@ BEGIN
           IF cardinality(v_candidates)=1 THEN SELECT * INTO v_existing FROM public.project_signups WHERE id=v_candidates[1] FOR UPDATE; END IF;
         END IF;
         IF v_existing.id IS NOT NULL THEN
-          IF EXISTS(SELECT 1 FROM public.project_paper_scan_rows rows WHERE rows.committed_signup_id=v_existing.id) THEN
-            RAISE EXCEPTION 'duplicate_attendance_requires_correction' USING ERRCODE='22023';
-          END IF;
-          IF EXISTS(SELECT 1 FROM public.certificates certificates WHERE certificates.signup_id=v_existing.id AND (certificates.type='verified' OR certificates.type IS NULL)
+          SELECT rows.id INTO v_primary_row_id FROM public.project_paper_scan_rows rows
+            WHERE rows.committed_signup_id=v_existing.id AND rows.outcome<>'skipped';
+          SELECT * INTO v_roster FROM public.project_paper_roster_entries entries
+            WHERE entries.scan_row_id=v_row.id AND entries.batch_id=p_batch_id
+              AND entries.project_id=v_batch.project_id AND entries.schedule_id=v_batch.schedule_id FOR UPDATE;
+          IF v_primary_row_id IS NOT NULL OR v_existing.attendance_revision>0
+            OR (v_roster.id IS NOT NULL AND v_existing.status='attended') THEN
+            IF v_roster.id IS NULL OR v_existing.status<>'attended' THEN
+              RAISE EXCEPTION 'duplicate_attendance_requires_correction' USING ERRCODE='22023';
+            END IF;
+            v_authoritative_intervals:=private.signup_attendance_intervals(v_existing.id);
+            SELECT range_agg(tstzrange((interval->>'checkIn')::timestamptz,(interval->>'checkOut')::timestamptz,'[)'))
+              INTO v_authoritative_union FROM jsonb_array_elements(v_authoritative_intervals) interval;
+            IF v_authoritative_union IS NULL OR EXISTS(SELECT 1 FROM jsonb_array_elements(v_intervals) interval
+              WHERE NOT tstzrange((interval->>'checkIn')::timestamptz,(interval->>'checkOut')::timestamptz,'[)') <@ v_authoritative_union) THEN
+              RAISE EXCEPTION 'duplicate_attendance_requires_correction' USING ERRCODE='22023';
+            END IF;
+            v_reconciliation:=jsonb_build_object('prior_roster',to_jsonb(v_roster),'review_revision',v_row.review_revision,
+              'reviewed_intervals',v_intervals,'attendance_revision',v_existing.attendance_revision,
+              'authoritative_intervals',v_authoritative_intervals,'primary_scan_row_id',v_primary_row_id);
+            outcome:='skipped'; detail:='reconciled_existing_attendance';
+          ELSIF EXISTS(SELECT 1 FROM public.certificates certificates WHERE certificates.signup_id=v_existing.id AND (certificates.type='verified' OR certificates.type IS NULL)
             AND (certificates.event_start IS DISTINCT FROM v_first OR certificates.event_end IS DISTINCT FROM v_last
               OR COALESCE(certificates.credited_minutes,round(extract(epoch FROM certificates.event_end-certificates.event_start)/60)::integer)
                 IS DISTINCT FROM private.attendance_interval_minutes(v_intervals)
@@ -895,7 +925,8 @@ BEGIN
             OR (v_existing.attendance_revision>0 AND private.signup_attendance_intervals(v_existing.id)<>v_intervals) THEN
             RAISE EXCEPTION 'published_attendance_requires_correction' USING ERRCODE='22023';
           END IF;
-          v_signup_id:=v_existing.id; outcome:='signup_updated';
+          v_signup_id:=v_existing.id;
+          IF v_reconciliation IS NULL THEN outcome:='signup_updated'; END IF;
           anonymous_id:=v_existing.anonymous_id; user_id:=v_existing.user_id;
         ELSIF v_email IS NULL THEN
           IF NULLIF(btrim(v_row.name),'') IS NULL THEN RAISE EXCEPTION 'missing_name' USING ERRCODE='22023'; END IF;
@@ -926,31 +957,34 @@ BEGIN
           outcome:='signup_created'; anonymous_id:=v_anon_id; user_id:=v_profile_id; over_capacity:=v_over;
         END IF;
         IF v_signup_id IS NOT NULL THEN
-          PERFORM private.set_project_attendance_intervals(v_signup_id,v_intervals,v_row.time_exception_reason);
-          UPDATE public.project_signups SET status='attended' WHERE id=v_signup_id;
+          IF v_reconciliation IS NULL THEN
+            PERFORM private.set_project_attendance_intervals(v_signup_id,v_intervals,v_row.time_exception_reason);
+            UPDATE public.project_signups SET status='attended' WHERE id=v_signup_id;
+          END IF;
           signup_id:=v_signup_id;
           DELETE FROM public.project_paper_roster_entries WHERE scan_row_id=v_row.id;
         END IF;
-        UPDATE public.project_paper_scan_rows rows SET outcome=commit_paper_signup_batch.outcome,outcome_detail=NULL,
+        UPDATE public.project_paper_scan_rows rows SET outcome=commit_paper_signup_batch.outcome,outcome_detail=commit_paper_signup_batch.detail,
           committed_signup_id=commit_paper_signup_batch.signup_id,committed_anonymous_id=commit_paper_signup_batch.anonymous_id,
           over_capacity=commit_paper_signup_batch.over_capacity,attendance_intervals=v_intervals WHERE rows.id=v_row.id;
       END IF;
     EXCEPTION WHEN SQLSTATE '22023' OR invalid_datetime_format OR datetime_field_overflow OR invalid_text_representation THEN
       GET STACKED DIAGNOSTICS v_detail=MESSAGE_TEXT;
-      outcome:='failed'; signup_id:=NULL; anonymous_id:=NULL; user_id:=NULL; over_capacity:=false;
+      outcome:='failed'; signup_id:=NULL; anonymous_id:=NULL; user_id:=NULL; over_capacity:=false; v_reconciliation:=NULL;
       detail:=CASE WHEN v_detail IN ('review_required','identity_confirmation_required','outside_schedule_requires_reason','invalid_signup_match',
         'ambiguous_identity','duplicate_attendance_requires_correction','published_attendance_requires_correction','missing_name','waiver_required','slot_full',
         'attendance_overlaps_another_session') THEN v_detail ELSE 'invalid_time_window' END;
       UPDATE public.project_paper_scan_rows rows SET outcome='failed',outcome_detail=commit_paper_signup_batch.detail WHERE rows.id=v_row.id;
     END;
-    v_results:=v_results||jsonb_build_array(jsonb_build_object('row_id',row_id,'outcome',outcome,'signup_id',signup_id,'anonymous_id',anonymous_id,'user_id',user_id,'over_capacity',over_capacity,'detail',detail));
+    v_results:=v_results||jsonb_build_array(jsonb_build_object('row_id',row_id,'outcome',outcome,'signup_id',signup_id,'anonymous_id',anonymous_id,'user_id',user_id,'over_capacity',over_capacity,'detail',detail)
+      || CASE WHEN v_reconciliation IS NULL THEN '{}'::jsonb ELSE jsonb_build_object('reconciliation',v_reconciliation) END);
     RETURN NEXT;
   END LOOP;
   UPDATE public.project_paper_scan_batches SET
     status=CASE WHEN EXISTS(SELECT 1 FROM public.project_paper_scan_rows rows WHERE rows.batch_id=p_batch_id AND rows.decision<>'exclude'
       AND rows.committed_signup_id IS NULL AND rows.outcome<>'roster_only') THEN 'review' ELSE 'committed' END,
     committed_at=now(),
-    committed_row_count=(SELECT count(*) FROM public.project_paper_scan_rows rows WHERE rows.batch_id=p_batch_id AND rows.committed_signup_id IS NOT NULL),
+    committed_row_count=(SELECT count(*) FROM public.project_paper_scan_rows rows WHERE rows.batch_id=p_batch_id AND rows.committed_signup_id IS NOT NULL AND rows.outcome<>'skipped'),
     roster_row_count=(SELECT count(*) FROM public.project_paper_scan_rows rows WHERE rows.batch_id=p_batch_id AND rows.outcome='roster_only')
     WHERE id=p_batch_id;
   INSERT INTO private.paper_attendance_commit_receipts(request_id,batch_id,actor_id,row_ids,allow_over_capacity,results)
@@ -1230,7 +1264,7 @@ BEGIN
     -- that reason only when publication preserves those exact intervals.
     IF private.signup_attendance_intervals(v_signup.id)=v_intervals AND v_exception_reason IS NULL THEN
       SELECT rows.time_exception_reason INTO v_exception_reason FROM public.project_paper_scan_rows rows
-        WHERE rows.committed_signup_id=v_signup.id AND rows.review_acknowledged;
+        WHERE rows.committed_signup_id=v_signup.id AND rows.outcome<>'skipped' AND rows.review_acknowledged;
       IF v_exception_reason IS NULL THEN
         SELECT changes.reason INTO v_exception_reason FROM private.project_attendance_changes changes
           WHERE changes.signup_id=v_signup.id AND changes.new_revision=v_signup.attendance_revision;
