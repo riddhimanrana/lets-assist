@@ -31,6 +31,17 @@ export default async function HoursPage({
   const access = await requirePaperScanAccess(projectId);
   if (!access.ok) notFound();
   const signups: AttendanceHoursSignup[] = [];
+  const { data: correctedIds, error: correctionError } = await access.admin.rpc(
+    "project_corrected_certificate_ids",
+    { p_project_id: projectId, p_actor_id: user.id },
+  );
+  if (correctionError)
+    return (
+      <p role="alert" className="p-6">
+        Could not load attendance corrections. Refresh to try again.
+      </p>
+    );
+  const corrected = new Set<string>(correctedIds ?? []);
   let cursor: string | null = null;
   for (;;) {
     let query = access.admin
@@ -66,6 +77,10 @@ export default async function HoursPage({
         ...row,
         profile: profile ?? undefined,
         anonymous_signup: guest ?? undefined,
+        certificates: (row.certificates ?? []).map((certificate) => ({
+          ...certificate,
+          canResendCorrection: corrected.has(certificate.id),
+        })),
       } as AttendanceHoursSignup);
     }
     if (!data || data.length < 200) break;

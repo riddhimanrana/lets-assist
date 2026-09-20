@@ -241,6 +241,8 @@ export function PaperSignupsClient({
             slotOptions={slotOptions}
             timezone={projectTimezone}
             selectedSlotId={selectedSlotId}
+            manual={initialMode === "manual"}
+            busy={starting}
             onSelect={setSelectedSlotId}
             onContinue={() =>
               initialMode === "manual"
@@ -248,13 +250,15 @@ export function PaperSignupsClient({
                 : selectedSlotId && setStep("capture")
             }
           />
-          <Button
-            variant="outline"
-            disabled={!selectedSlotId || starting}
-            onClick={startManual}
-          >
-            {starting ? "Opening attendance…" : "Add attendance manually"}
-          </Button>
+          {initialMode !== "manual" && (
+            <Button
+              variant="outline"
+              disabled={!selectedSlotId || starting}
+              onClick={startManual}
+            >
+              {starting ? "Opening attendance…" : "Add attendance manually"}
+            </Button>
+          )}
         </div>
       )}
 

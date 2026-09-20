@@ -25,6 +25,7 @@ import {
   recordVolunteerAttendance,
   publishVolunteerHours,
   resendCertificateEmails,
+  sendCorrectedCertificateEmail,
 } from "./actions";
 
 export type AttendanceHoursSignup = ProjectSignup & {
@@ -40,6 +41,7 @@ export type AttendanceHoursSignup = ProjectSignup & {
     event_end: string;
     attendance_revision: number;
     type: string;
+    canResendCorrection: boolean;
   }>;
 };
 type Draft = {
@@ -109,6 +111,36 @@ export function HoursClient({
   const [busy, setBusy] = useState<string | null>(null);
   const [confirmSession, setConfirmSession] = useState<string | null>(null);
   const [notice, setNotice] = useState("");
+  const [deliveryRequests] = useState(() => new Map<string, string>());
+  const sendCorrection = async (
+    certificate: AttendanceHoursSignup["certificates"][number],
+  ) => {
+    const key = `${certificate.id}:${certificate.attendance_revision}`;
+    const requestId = deliveryRequests.get(key) ?? crypto.randomUUID();
+    deliveryRequests.set(key, requestId);
+    setBusy(key);
+    try {
+      const result = await sendCorrectedCertificateEmail(
+        project.id,
+        certificate.id,
+        certificate.attendance_revision,
+        requestId,
+      );
+      if (!result.success) {
+        toast.error(
+          result.error || "The corrected certificate could not be sent.",
+        );
+        return;
+      }
+      setNotice(
+        result.emailErrors?.length
+          ? `Updated certificate saved. Delivery needs attention: ${result.emailErrors.join(" ")}`
+          : "Updated certificate accepted for delivery. Repeating this request will not send another copy of the same revision.",
+      );
+    } finally {
+      setBusy(null);
+    }
+  };
   const sessions = useMemo(() => {
     const groups = new Map<string, AttendanceHoursSignup[]>();
     for (const signup of initialSignups) {
@@ -400,6 +432,15 @@ export function HoursClient({
                             }
                           >
                             View certificate
+                          </Button>
+                        )}
+                        {certificate?.canResendCorrection && (
+                          <Button
+                            variant="outline"
+                            disabled={busy !== null}
+                            onClick={() => void sendCorrection(certificate)}
+                          >
+                            Send updated certificate
                           </Button>
                         )}
                         <Button
