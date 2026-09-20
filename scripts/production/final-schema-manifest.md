@@ -46,3 +46,9 @@ write posture, signed plugin release, worker controls, and deployment selection.
 The 625 inventory was captured after a clean replay of all candidate migrations.
 Local fixture helpers were removed inside a rollback-only transaction before
 capture. Hosted comparison remains a separate release check.
+
+Release 626 keeps the same reviewed object inventory and binds it to the next
+ledger digest. Its forward migration removes a Production-only invitation DELETE
+policy that never existed in the clean replay. Browser roles already lacked the
+table DELETE grant, so this corrects schema drift without widening access. The
+permission regression exercises anonymous, authenticated, and service-role SQL.
