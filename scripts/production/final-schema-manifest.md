@@ -5,10 +5,12 @@ Releases through migration 622 retain their historical catalog builders. Release
 query does not reconstruct or rewrite a predecessor catalog.
 
 `final-schema-inventory.sql` reads definitions and permissions from `public`,
-`plugin_data`, and `app_private`. Extension-owned functions and relations are
+`plugin_data`, `app_private`, and delegated-auth `private`. Extension-owned functions and relations are
 excluded. The manifest stores object identities and hashes, never function bodies,
 student records, or provider credentials. Relation hashes include full policy
-expressions and roles, not only policy counts. The retention cron definition is
+expressions and roles, not only policy counts. ACL entries sort by named roles,
+privilege, grantor, and grantability. Policy roles sort by name rather than OID.
+Default privileges and sequence definitions are captured; sequence values are not. The retention cron definition is
 included; other environment-specific cron endpoints are excluded.
 
 To prepare another release:

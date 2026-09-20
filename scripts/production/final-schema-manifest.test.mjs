@@ -78,3 +78,37 @@ test("inventory binds definitions, ACLs, owner, search paths, RLS and complete p
     assert.ok(finalSchemaInventory.includes(marker), marker);
   assert.doesNotMatch(finalSchemaInventory, /FROM (?:plugin_data|public)\./);
 });
+
+test("inventory includes delegated private functions and canonical permission metadata", () => {
+  assert.ok(
+    manifest.objects.some((row) =>
+      row.identity.startsWith("function:private."),
+    ),
+  );
+  assert.ok(
+    manifest.objects.some((row) =>
+      row.identity.startsWith("default-acl:postgres:"),
+    ),
+  );
+  assert.match(finalSchemaInventory, /pg_catalog\.aclexplode\(NULLIF\(/);
+  assert.match(finalSchemaInventory, /x\.privilege_type,x\.is_grantable/);
+  assert.match(finalSchemaInventory, /entry\.value::text COLLATE "C"/);
+  assert.match(
+    finalSchemaInventory,
+    /role_name ORDER BY role_name COLLATE "C"/,
+  );
+  assert.doesNotMatch(
+    finalSchemaInventory,
+    /(?:proacl|relacl|attacl|nspacl|typacl)::text/,
+  );
+  assert.doesNotMatch(finalSchemaInventory, /END ORDER BY r\)/);
+  for (const key of [
+    "seqstart",
+    "seqincrement",
+    "seqmin",
+    "seqmax",
+    "seqcache",
+    "seqcycle",
+  ])
+    assert.ok(finalSchemaInventory.includes(key), key);
+});
