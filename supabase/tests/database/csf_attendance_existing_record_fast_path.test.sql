@@ -2,8 +2,6 @@ BEGIN;
 
 CREATE EXTENSION IF NOT EXISTS pgtap WITH SCHEMA extensions;
 
--- An exact plan. no_plan() cannot distinguish "every assertion passed" from "some never
--- ran", and a fence that silently stops running is the failure this file exists to catch.
 SELECT extensions.plan(10);
 
 INSERT INTO auth.users (
@@ -39,9 +37,7 @@ INSERT INTO plugin_data.csf_terms (
   'F33', 'Fall 2033', '2033-2034', 'fall'
 );
 
--- The third profile remains active so the identity-lock wrapper admits it. A targeted
--- trigger below raises on the first business write, after the receipt has been consumed,
--- which proves transaction rollback without asking the wrapper to accept a merge tombstone.
+-- Synthetic active profiles satisfy the commit identity checks.
 INSERT INTO plugin_data.csf_profiles (
   id, organization_id, first_name, last_name, normalized_first_name, normalized_last_name,
   record_status, merged_into_profile_id, merged_at, merged_by, merge_reason
@@ -76,8 +72,7 @@ INSERT INTO plugin_data.csf_meeting_sessions (
   ('e3c00000-0000-4000-8000-000000000002', 'e3100000-0000-4000-8000-000000000001',
    'e3b00000-0000-4000-8000-000000000002', 'e3400000-0000-4000-8000-000000000002', '2033-10-01');
 
--- Two Google-backed sources, because only that family can carry a database receipt at
--- all. Each records the exact drive coordinates the receipts below attest to.
+-- Google Sheets fixture sources retain the coordinates attested by their receipts.
 INSERT INTO plugin_data.csf_sheet_sources (
   id, organization_id, source_type, title, provider, spreadsheet_id, uploaded_file_path,
   drive_file_id, drive_mime_type, drive_modified_at, sync_status, settings
@@ -112,8 +107,6 @@ INSERT INTO plugin_data.csf_sheet_import_jobs (
    'evidence-rolled-back-meeting', 'Rolled Back Meeting', 'Responses', 'Responses!A1:C10',
    '{"version":1,"sourceType":"meeting_attendance"}', 1,
    'e3d00000-0000-4000-8000-000000000002', '{}', now()),
-  -- A SECOND reviewed preview of the SAME source. This is what makes the preview binding
-  -- testable at all: a receipt issued against this one must not spend on the first.
   ('e3600000-0000-4000-8000-000000000003', 'e3100000-0000-4000-8000-000000000001',
    'e3500000-0000-4000-8000-000000000001', 'e3000000-0000-4000-8000-000000000001',
    'preview', 'completed', 'meeting_attendance',
@@ -131,8 +124,6 @@ INSERT INTO plugin_data.csf_sheet_import_rows (
    '{"meetingId":"e3400000-0000-4000-8000-000000000001","submittedName":"Proved Attendee","sourceSubmittedAt":"2033-09-01T20:20:00Z"}',
    'evidence-proved-meeting-hash', 'e3300000-0000-4000-8000-000000000001', 'pending',
    'e3d00000-0000-4000-8000-000000000001'),
-  -- Names an active member and a semester, so readiness and identity revalidation pass it.
-  -- The targeted commit-job trigger below is the post-consume failure.
   ('e3700000-0000-4000-8000-000000000002', 'e3100000-0000-4000-8000-000000000001',
    'e3600000-0000-4000-8000-000000000002', 'e3500000-0000-4000-8000-000000000002',
    'e3200000-0000-4000-8000-000000000001', 'Responses', 2, '{"Name":"Merged Attendee"}',
@@ -140,19 +131,8 @@ INSERT INTO plugin_data.csf_sheet_import_rows (
    'evidence-rolled-back-meeting-hash', 'e3300000-0000-4000-8000-000000000003', 'pending',
    'e3d00000-0000-4000-8000-000000000002');
 
--- ---------------------------------------------------------------------------
--- The receipts. Five, over two sources, each shaped exactly as its issuer writes it.
---
---   ...0001  valid, bound to the proved meeting preview
---   ...0002  identical but EXPIRED
---   ...0003  identical but issued for a DIFFERENT officer
---   ...0004  identical but issued for the SECOND preview of the same source
---   ...0005  valid, bound to the rolled-back meeting preview
---
--- The wrong-officer id is a bare uuid on purpose: `actor_user_id` on this table carries no
--- foreign key, and inventing a second auth user would imply this test says something about
--- authorization rather than about receipt binding.
--- ---------------------------------------------------------------------------
+-- The benchmark consumes receipt ...0001 for the first preview.
+-- Receipt binding and expiry behavior have separate contextual-evidence coverage.
 WITH minted AS (
   SELECT *
   FROM (VALUES
