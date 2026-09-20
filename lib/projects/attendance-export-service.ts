@@ -15,6 +15,11 @@ import {
   type ExportCertificate,
   type ExportInterval,
 } from "./attendance-export";
+import {
+  buildUnpublishedAttendanceRecords,
+  type ExportRosterEntry,
+  type ExportReviewRow,
+} from "./attendance-export-unpublished";
 import { readAllExportPages } from "./attendance-export-pagination";
 
 const projectColumns =
@@ -158,6 +163,25 @@ export async function attendanceExportResponse(
           filters,
         ),
       );
+      if (filters.includeUnpublished) {
+        const [roster, review] = await Promise.all([
+          projectRows<ExportRosterEntry>(
+            admin,
+            "project_paper_roster_entries",
+            "id,scan_row_id,schedule_id,name,check_in_time,check_out_time,scan_row:project_paper_scan_rows!scan_row_id(attendance_intervals)",
+            item.id,
+          ),
+          projectRows<ExportReviewRow>(
+            admin,
+            "project_paper_scan_rows",
+            "id,name,email,check_in_time,check_out_time,attendance_intervals,review_revision,review_acknowledged,identity_confirmed,decision,outcome,committed_signup_id,batch:project_paper_scan_batches!batch_id(schedule_id,status)",
+            item.id,
+          ),
+        ]);
+        records.push(
+          ...buildUnpublishedAttendanceRecords(item, roster, review, filters),
+        );
+      }
       if (records.length > 100_000)
         throw new AttendanceExportError(
           "Export exceeds the row limit. Select a narrower scope.",

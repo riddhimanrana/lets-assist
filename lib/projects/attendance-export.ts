@@ -135,12 +135,14 @@ export type AttendanceExportRecord = {
   sessionId: string | null;
   serviceDate: string | null;
   timezone: string;
+  sourceType: "signup" | "certificate" | "roster" | "review";
+  sourceId: string;
   signupId: string | null;
   participantId: string | null;
-  participantType: "account" | "guest";
+  participantType: "account" | "guest" | "unresolved";
   name: string;
   email: string;
-  intervals: { checkIn: string; checkOut: string | null }[];
+  intervals: { checkIn: string | null; checkOut: string | null }[];
   creditedMinutes: number | null;
   publicationState: "published" | "pending" | "unresolved";
   certificateId: string | null;
@@ -260,6 +262,8 @@ export function buildAttendanceExportRecords(
       sessionId,
       serviceDate: date,
       timezone: project.project_timezone || "America/Los_Angeles",
+      sourceType: signup ? "signup" : "certificate",
+      sourceId: signup?.id ?? cert!.id,
       signupId: signup?.id ?? cert?.signup_id ?? null,
       participantId:
         signup?.user_id ?? signup?.anonymous_id ?? cert?.user_id ?? null,
@@ -330,6 +334,8 @@ export function attendanceExportCsv(records: AttendanceExportRecord[]): string {
     "sessionId",
     "serviceDate",
     "timezone",
+    "sourceType",
+    "sourceId",
     "signupId",
     "participantId",
     "participantType",
