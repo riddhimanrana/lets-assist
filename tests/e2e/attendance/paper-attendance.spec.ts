@@ -568,14 +568,13 @@ test("fictional guest attendance prints, publishes, exports, corrects, and links
             .order("id"),
           admin
             .from("hours_publication_email_outbox")
-            .select(
-              "id,receipt_id,certificate_id,delivery_revision,state,attempt_count",
-            )
+            // Delivery workers may advance attempts during hosted review.
+            .select("id,receipt_id,certificate_id,delivery_revision")
             .eq("certificate_id", certificateId)
             .order("id"),
           admin
             .from("paper_signup_notification_outbox")
-            .select("id,source_scan_row_id,state,attempts")
+            .select("id,source_scan_row_id")
             .eq("project_id", projectId)
             .order("id"),
           admin
