@@ -609,12 +609,15 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    if (imagesProcessed === 0) {
+    if (imagesProcessed === 0 || stagedRows.length === 0) {
       const { data: failedBatch, error: failError } = await admin
         .from("project_paper_scan_batches")
         .update({
           status: "failed",
-          extraction_error: "no_images_extracted",
+          extraction_error:
+            imagesProcessed === 0
+              ? "no_images_extracted"
+              : "no_readable_attendance_rows",
           models_used: [...modelsUsed],
           extraction_claim_id: null,
         })
@@ -629,7 +632,10 @@ export async function POST(req: NextRequest) {
       }
       claimedBatch = null;
       return Response.json(
-        { error: "None of the photos could be read. Try clearer photos." },
+        {
+          error:
+            "No readable attendance rows were found. Try clearer photos or add attendance manually.",
+        },
         { status: 422 },
       );
     }
