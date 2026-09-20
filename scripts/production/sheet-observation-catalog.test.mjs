@@ -1,5 +1,6 @@
+import { historicalReleaseTestFixture } from "./historical-release-test-fixture.mjs";
 import assert from "node:assert/strict";
-import { test } from "node:test";
+import { after, test } from "node:test";
 import { readFileSync } from "node:fs";
 import { expectedVersions } from "./app-release-checks.mjs";
 import { acceptedCatalogQuery } from "./app-release-catalog.mjs";
@@ -8,7 +9,10 @@ import {
   sheetObservationTables,
 } from "./sheet-observation-catalog.mjs";
 import { prepareMigration } from "./forward-migration-release.mjs";
-const versions = expectedVersions(process.cwd()).slice(0, 518);
+const fixture = historicalReleaseTestFixture();
+const cwd = fixture.cwd;
+after(fixture.dispose);
+const versions = expectedVersions(cwd).slice(0, 518);
 const source = readFileSync(
   "scripts/production/verify-csf-target-schema.sql",
   "utf8",
@@ -36,18 +40,14 @@ test("491 pins complete observation functions and holds the destination state", 
   );
 });
 test("490 advances through the observation guard and signed publication", () => {
-  const result = prepareMigration(
-    process.cwd(),
-    undefined,
-    versions.slice(0, 490),
-  );
+  const result = prepareMigration(cwd, undefined, versions.slice(0, 490));
   assert.equal(
     (
       result.query.match(
         /INSERT INTO supabase_migrations.schema_migrations/gu,
       ) ?? []
     ).length,
-    expectedVersions(process.cwd()).length - 490,
+    expectedVersions(cwd).length - 490,
   );
   assert.ok(result.query.includes("ADD COLUMN observation_state"));
   assert.ok(!result.query.includes("ADD COLUMN observation_generation"));
@@ -59,18 +59,14 @@ test("492 preserves the observation catalog and appends only signed publication"
     acceptedCatalogQuery(source, versions.slice(0, 492)),
     acceptedCatalogQuery(source, versions.slice(0, 491)),
   );
-  const result = prepareMigration(
-    process.cwd(),
-    undefined,
-    versions.slice(0, 491),
-  );
+  const result = prepareMigration(cwd, undefined, versions.slice(0, 491));
   assert.equal(
     (
       result.query.match(
         /INSERT INTO supabase_migrations.schema_migrations/gu,
       ) ?? []
     ).length,
-    expectedVersions(process.cwd()).length - 491,
+    expectedVersions(cwd).length - 491,
   );
   assert.ok(result.query.includes("AND version = '1.2.31'"));
   assert.ok(!result.query.includes("ADD COLUMN observation_state"));

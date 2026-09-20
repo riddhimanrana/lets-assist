@@ -1,7 +1,8 @@
+import { historicalReleaseTestFixture } from "./historical-release-test-fixture.mjs";
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+import { readFileSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
-import test from "node:test";
+import test, { after } from "node:test";
 import {
   applyForwardMigrations,
   approvedMigrations,
@@ -17,7 +18,9 @@ import {
   REVIEWED_PREFIX_LENGTH,
 } from "./forward-migration-release-fixture.mjs";
 
-const cwd = resolve(import.meta.dirname, "../..");
+const fixture = historicalReleaseTestFixture();
+const cwd = fixture.cwd;
+after(fixture.dispose);
 const config = {
   cwd,
   projectRef: "fotdmeakexgrkronxlof",
@@ -1037,4 +1040,23 @@ test("an applied 607 ledger writes recovery and Storage cleanup guards", () => {
       "'20260919155040','csf_two_phase_storage_teardown'",
     ),
   );
+});
+
+test("unapproved migrations remain rejected beside the historical release fixture", () => {
+  const future = historicalReleaseTestFixture();
+  try {
+    writeFileSync(
+      resolve(
+        future.cwd,
+        "supabase/migrations/20990101000000_unapproved_test.sql",
+      ),
+      "SELECT 1;\n",
+    );
+    assert.throws(
+      () => prepareMigration(future.cwd),
+      /accepted migration tail is not approved/u,
+    );
+  } finally {
+    future.dispose();
+  }
 });
