@@ -1,5 +1,7 @@
 "use client";
 
+import { certificateHours } from "@/lib/projects/certificate-duration";
+
 import React, { useState, useMemo } from "react";
 import {
   Card,
@@ -36,6 +38,7 @@ type CertificateRecord = {
   volunteer_email?: string | null;
   event_start?: string | null;
   event_end?: string | null;
+  credited_minutes?: number | null;
   hours?: number | string | null;
   project_location?: string | null;
   is_certified?: boolean | null;
@@ -128,7 +131,9 @@ export function ExportSection({
             }
           })()
         : "Unknown",
-      duration: cert.hours ? cert.hours.toString() : "0",
+      duration: certificateHours(cert, () =>
+        Number(cert.hours || 0),
+      ).toString(),
       location: cert.project_location || "Unknown Location",
       supervisorContact: cert.creator_name || "Unknown Supervisor",
       isVerified: isVerified,

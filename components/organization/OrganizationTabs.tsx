@@ -535,6 +535,7 @@ export default function OrganizationTabs({
         !isCoreReplaced("projects") && (
           <TabsContent value="projects">
             <ProjectsTab
+              currentUserId={currentUserId}
               projects={projects}
               organizationId={organization.id}
               userRole={userRole}

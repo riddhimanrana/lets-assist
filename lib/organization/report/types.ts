@@ -74,6 +74,7 @@ export type CertificateRow = {
   project_title?: string | null;
   event_start?: string | null;
   event_end?: string | null;
+  credited_minutes?: number | null;
   signup_id?: string | null;
 };
 

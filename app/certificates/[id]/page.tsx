@@ -1,3 +1,4 @@
+import { certificateHours } from "@/lib/projects/certificate-duration";
 import { Metadata } from "next";
 import { getAdminClient } from "@/lib/supabase/admin";
 import { notFound } from "next/navigation";
@@ -40,7 +41,8 @@ interface CertificateData {
   is_certified: boolean;
   type?: "verified" | "self-reported"; // Optional for backward compatibility
   event_start: string; // Assuming ISO string format from Supabase
-  event_end: string; // Assuming ISO string format from Supabase
+  event_end: string;
+  credited_minutes?: number | null;
   user_id: string | null;
   check_in_method: string;
   created_at: string | null; // Keep for potential use, though issued_at is primary
@@ -56,14 +58,23 @@ interface CertificateData {
 }
 
 // Helper function to calculate and format duration
-function formatDuration(startISO: string, endISO: string): string {
+function formatDuration(
+  startISO: string,
+  endISO: string,
+  creditedMinutes?: number | null,
+): string {
   try {
     const start = parseISO(startISO);
     const end = parseISO(endISO);
     if (!isValid(start) || !isValid(end)) {
       return "N/A";
     }
-    const diffMins = differenceInMinutes(end, start);
+    const diffMins = Math.round(
+      certificateHours(
+        { credited_minutes: creditedMinutes },
+        () => differenceInMinutes(end, start) / 60,
+      ) * 60,
+    );
     if (diffMins < 0) return "Invalid";
     const hours = Math.floor(diffMins / 60);
     const minutes = diffMins % 60;
@@ -117,6 +128,7 @@ export default async function VolunteerRecordPage({
       type,
       event_start,
       event_end,
+      credited_minutes,
       user_id,
       check_in_method,
       created_at,
@@ -146,7 +158,11 @@ export default async function VolunteerRecordPage({
   const isSelfReported = data.type === "self-reported";
 
   // Calculate duration (this doesn't need timezone conversion)
-  const durationText = formatDuration(data.event_start, data.event_end);
+  const durationText = formatDuration(
+    data.event_start,
+    data.event_end,
+    data.credited_minutes,
+  );
 
   // Format ID for display
   const shortId = data.id.substring(0, 8);

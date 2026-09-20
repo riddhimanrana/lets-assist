@@ -1,3 +1,4 @@
+import { certificateHours } from "@/lib/projects/certificate-duration";
 import "server-only";
 
 import { escapeCsvCell } from "@/lib/organization/report-output-safety";
@@ -94,7 +95,7 @@ async function buildReportDataForOrg(
     let certificatesQuery = supabase
       .from("certificates")
       .select(
-        "id, user_id, volunteer_name, volunteer_email, is_certified, type, issued_at, project_id, project_title, event_start, event_end, signup_id",
+        "id, user_id, volunteer_name, volunteer_email, is_certified, type, issued_at, project_id, project_title, event_start, event_end, credited_minutes, signup_id",
       )
       .in("project_id", projectIds);
 
@@ -230,8 +231,8 @@ async function buildReportDataForOrg(
     };
 
     for (const cert of certificates || []) {
-      const hours = roundHours(
-        calculateHours(cert.event_start, cert.event_end),
+      const hours = certificateHours(cert, () =>
+        roundHours(calculateHours(cert.event_start, cert.event_end)),
       );
 
       const volunteerKey = cert.user_id
