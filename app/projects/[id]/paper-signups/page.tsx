@@ -121,8 +121,8 @@ export default async function PaperSignupsPage({
     .in(
       "status",
       queryParams.batch
-        ? ["draft", "extracting", "review", "committed"]
-        : ["draft", "extracting", "review"],
+        ? ["draft", "extracting", "review", "failed", "committed"]
+        : ["draft", "extracting", "review", "failed"],
     )
     .order("created_at", { ascending: false })
     .limit(1);
@@ -136,7 +136,7 @@ export default async function PaperSignupsPage({
     .from("project_paper_scan_batches")
     .select("id,schedule_id,created_at,input_method")
     .eq("project_id", projectId)
-    .in("status", ["draft", "extracting", "review", "committed"])
+    .in("status", ["draft", "extracting", "review", "failed", "committed"])
     .order("created_at", { ascending: false })
     .limit(30);
 

@@ -174,6 +174,44 @@ test("fictional guest attendance prints, publishes, exports, corrects, and links
     await expect(page).toHaveURL(new RegExp(`/projects/${projectId}/hours$`), {
       timeout: 120_000,
     });
+
+    const failedBatchId = randomUUID();
+    checked(
+      (
+        await admin.from("project_paper_scan_batches").insert({
+          id: failedBatchId,
+          project_id: projectId,
+          schedule_id: "oneTime",
+          created_by: userId,
+          status: "failed",
+          image_count: 1,
+          input_method: "scan",
+        })
+      ).error,
+    );
+    await page.goto(
+      `/projects/${projectId}/paper-signups?batch=${failedBatchId}`,
+    );
+    await expect(
+      page.getByRole("button", { name: "Retry scan", exact: true }),
+    ).toBeVisible();
+    await page.reload();
+    await expect(
+      page.getByRole("button", { name: "Retry scan", exact: true }),
+    ).toBeVisible();
+    await page.goto(`/projects/${projectId}/paper-signups`);
+    await expect(
+      page.getByRole("button", { name: "Retry scan", exact: true }),
+    ).toBeVisible();
+    checked(
+      (
+        await admin
+          .from("project_paper_scan_batches")
+          .delete()
+          .eq("id", failedBatchId)
+      ).error,
+    );
+    await page.goto(`/projects/${projectId}/hours`);
     await expect(
       page.getByRole("heading", { name: "Volunteer hours", exact: true }),
     ).toBeVisible();
