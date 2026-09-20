@@ -109,6 +109,7 @@ SELECT extensions.ok(
   pg_get_constraintdef(oid) LIKE '%csf@notifications.lets-assist.com%'
   AND pg_get_constraintdef(oid) LIKE '%projects@notifications.lets-assist.com%'
   AND pg_get_constraintdef(oid) LIKE '%dvhs-csf@notifications.lets-assist.com%'
+  AND pg_get_constraintdef(oid) LIKE '%updates@notifications.lets-assist.com%'
   AND pg_get_constraintdef(oid) LIKE '%dvhighcsf@gmail.com%',
   'the dispatch rule accepts the historical identity and the platform identity'
 )
@@ -198,7 +199,7 @@ $do$;
 
 SELECT extensions.is(
   (SELECT value FROM sender_behavior WHERE key = 'new.identity'),
-  'DVHS CSF|dvhs-csf@notifications.lets-assist.com|dvhighcsf@gmail.com',
+  'Sender Identity Chapter|updates@notifications.lets-assist.com|dvhighcsf@gmail.com',
   'a new campaign records the chapter mailbox and display name'
 );
 
