@@ -333,6 +333,7 @@ describe("CI runs mock-sensitive tests through the shared process orchestrator",
       // processes, so provider and component mocks cannot affect other suites.
       "app/api/ai/scan-signup-sheet/route-behavior.fixture.ts",
       "app/projects/[id]/paper-signups/CaptureStep.behavior.fixture.tsx",
+      "app/projects/[id]/hours/HoursClient.behavior.fixture.tsx",
     ]);
     const testFilePattern = /\.(?:test|spec)\.[cm]?[jt]sx?$/u;
     const mockModulePattern = /\bmock\s*\.\s*module\s*\(/u;
