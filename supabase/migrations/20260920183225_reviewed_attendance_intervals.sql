@@ -167,14 +167,14 @@ BEGIN
     AND NULLIF(btrim(p_exception_reason), '') IS NULL THEN
     RAISE EXCEPTION 'outside_schedule_requires_reason' USING ERRCODE = '22023';
   END IF;
-  SELECT lower(COALESCE(profile.email::text, anonymous.email)) INTO v_email
+  SELECT lower(COALESCE(account.email::text, anonymous.email)) INTO v_email
   FROM public.project_signups signup
-  LEFT JOIN public.profiles profile ON profile.id = signup.user_id
+  LEFT JOIN auth.users account ON account.id = signup.user_id AND account.email_confirmed_at IS NOT NULL
   LEFT JOIN public.anonymous_signups anonymous ON anonymous.id = signup.anonymous_id
   WHERE signup.id = p_signup_id;
   IF EXISTS (
     SELECT 1 FROM public.project_signups other
-    LEFT JOIN public.profiles profile ON profile.id = other.user_id
+    LEFT JOIN auth.users account ON account.id = other.user_id AND account.email_confirmed_at IS NOT NULL
     LEFT JOIN public.anonymous_signups anonymous ON anonymous.id = other.anonymous_id
     CROSS JOIN LATERAL jsonb_array_elements(CASE
       WHEN EXISTS (SELECT 1 FROM public.project_attendance_intervals intervals WHERE intervals.signup_id = other.id)
@@ -186,7 +186,7 @@ BEGIN
     WHERE other.project_id = v_signup.project_id AND other.id <> p_signup_id
       AND (other.status IN ('approved','attended') OR EXISTS(SELECT 1 FROM public.certificates award WHERE award.signup_id=other.id AND award.type='verified'))
       AND (other.user_id = v_signup.user_id OR other.anonymous_id = v_signup.anonymous_id
-        OR lower(COALESCE(profile.email::text, anonymous.email)) = v_email
+        OR lower(COALESCE(account.email::text, anonymous.email)) = v_email
         OR EXISTS(SELECT 1 FROM public.user_emails alias WHERE alias.verified_at IS NOT NULL
           AND ((alias.user_id=other.user_id AND lower(alias.email)=v_email)
             OR (alias.user_id=v_signup.user_id AND lower(alias.email)=lower(anonymous.email)))))
@@ -232,7 +232,8 @@ RETURNS trigger LANGUAGE plpgsql SECURITY DEFINER SET search_path = '' AS $$
 DECLARE v_intervals jsonb;
 BEGIN
   IF (current_setting('role', true) IN ('anon','authenticated'))
-    AND NEW.attendance_revision IS DISTINCT FROM OLD.attendance_revision THEN
+    AND ((TG_OP='INSERT' AND NEW.attendance_revision<>0)
+      OR (TG_OP='UPDATE' AND NEW.attendance_revision IS DISTINCT FROM OLD.attendance_revision)) THEN
     RAISE EXCEPTION 'reviewed attendance revision is server-owned' USING ERRCODE = '42501';
   END IF;
   v_intervals := private.signup_attendance_intervals(NEW.id);
@@ -246,7 +247,7 @@ END;
 $$;
 REVOKE ALL ON FUNCTION private.guard_reviewed_attendance_envelope() FROM PUBLIC, anon, authenticated, service_role;
 GRANT EXECUTE ON FUNCTION private.guard_reviewed_attendance_envelope() TO postgres;
-CREATE TRIGGER guard_reviewed_attendance_envelope BEFORE UPDATE OF check_in_time,check_out_time,attendance_revision ON public.project_signups
+CREATE TRIGGER guard_reviewed_attendance_envelope BEFORE INSERT OR UPDATE OF check_in_time,check_out_time,attendance_revision ON public.project_signups
 FOR EACH ROW EXECUTE FUNCTION private.guard_reviewed_attendance_envelope();
 
 CREATE FUNCTION public.correct_project_attendance(
@@ -411,7 +412,7 @@ BEGIN
     OR (p_patch ? 'timeExceptionReason' AND jsonb_typeof(p_patch->'timeExceptionReason') NOT IN ('string','null')) THEN
     RAISE EXCEPTION 'invalid attendance review confirmation' USING ERRCODE='22023';
   END IF;
-  v_changed := (p_patch - ARRAY['expectedRevision','reviewAcknowledged','identityConfirmed']) <> '{}'::jsonb;
+  v_changed := (p_patch - ARRAY['expectedRevision','reviewAcknowledged','identityConfirmed','decision']) <> '{}'::jsonb;
 
   IF p_patch ? 'name' THEN
     IF jsonb_typeof(p_patch->'name') NOT IN ('string', 'null') THEN
@@ -705,16 +706,15 @@ BEGIN
           IF NOT FOUND THEN RAISE EXCEPTION 'invalid_signup_match' USING ERRCODE='22023'; END IF;
         ELSIF v_email IS NOT NULL THEN
           SELECT array_agg(DISTINCT candidate.id) INTO v_candidates FROM (
-            SELECT profiles.id FROM public.profiles WHERE lower(profiles.email::text)=v_email
+            SELECT accounts.id FROM auth.users accounts WHERE lower(accounts.email::text)=v_email AND accounts.email_confirmed_at IS NOT NULL
             UNION SELECT emails.user_id FROM public.user_emails emails WHERE lower(emails.email)=v_email AND emails.verified_at IS NOT NULL
           ) candidate;
           IF cardinality(v_candidates)>1 THEN RAISE EXCEPTION 'ambiguous_identity' USING ERRCODE='22023'; END IF;
           v_profile_id:=v_candidates[1];
           SELECT array_agg(DISTINCT signups.id) INTO v_candidates FROM public.project_signups signups
-            LEFT JOIN public.profiles profiles ON profiles.id=signups.user_id
             LEFT JOIN public.anonymous_signups anonymous ON anonymous.id=signups.anonymous_id
             WHERE signups.project_id=v_batch.project_id AND signups.schedule_id=v_batch.schedule_id AND signups.status<>'rejected'
-              AND (signups.user_id=v_profile_id OR lower(profiles.email::text)=v_email OR lower(anonymous.email)=v_email);
+              AND (signups.user_id=v_profile_id OR lower(anonymous.email)=v_email);
           IF cardinality(v_candidates)>1 THEN RAISE EXCEPTION 'ambiguous_identity' USING ERRCODE='22023'; END IF;
           IF cardinality(v_candidates)=1 THEN SELECT * INTO v_existing FROM public.project_signups WHERE id=v_candidates[1] FOR UPDATE; END IF;
         END IF;
@@ -1604,7 +1604,9 @@ BEGIN
   v_result:=public.correct_project_attendance(p_signup_id,p_expected_revision,p_reason,p_intervals,p_request_id,p_actor_id);
   -- A first attendance record uses the existing late-publication transaction.
   -- Certificate uniqueness and the outbox dedupe key make retries harmless.
-  UPDATE public.project_signups SET status='attended' WHERE id=p_signup_id;
+  IF v_result->>'outcome' <> 'replayed' THEN
+    UPDATE public.project_signups SET status='attended' WHERE id=p_signup_id;
+  END IF;
   SELECT id INTO v_certificate_id FROM public.certificates WHERE signup_id=p_signup_id AND type='verified';
   RETURN v_result || jsonb_build_object('certificateId',v_certificate_id);
 END;

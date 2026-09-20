@@ -147,5 +147,42 @@ SELECT public.record_project_attendance('a7200000-0000-4000-8000-000000000004',0
 SELECT extensions.is((SELECT count(*)::integer FROM public.certificates WHERE signup_id='a7200000-0000-4000-8000-000000000004'),1,'late digital retry creates no second certificate');
 SELECT extensions.is((SELECT count(*)::integer FROM public.hours_publication_email_outbox WHERE certificate_id=(SELECT id FROM public.certificates WHERE signup_id='a7200000-0000-4000-8000-000000000004')),1,'late digital retry creates no second delivery');
 
+-- Replaying old reviewed attendance must not undo a later rejection.
+UPDATE public.project_signups SET status='rejected' WHERE id='a7200000-0000-4000-8000-000000000004';
+SELECT public.record_project_attendance('a7200000-0000-4000-8000-000000000004',0,'Reviewed late attendance',
+ '[{"checkIn":"2026-09-18T09:00:00Z","checkOut":"2026-09-18T10:00:00Z"},{"checkIn":"2026-09-18T12:00:00Z","checkOut":"2026-09-18T13:00:00Z"}]',
+ 'a7500000-0000-4000-8000-000000000033','a7000000-0000-4000-8000-000000000001');
+SELECT extensions.is((SELECT status FROM public.project_signups WHERE id='a7200000-0000-4000-8000-000000000004'),'rejected','record replay cannot resurrect a rejected participant');
+
+SELECT extensions.ok(NOT has_function_privilege('authenticated','public.request_corrected_certificate_delivery(uuid,uuid,integer,uuid,uuid)','EXECUTE'),'corrected email request is service-only');
+CREATE TEMP TABLE corrected_delivery AS SELECT public.request_corrected_certificate_delivery('a7100000-0000-4000-8000-000000000001',(SELECT id FROM before_correction),2,
+ 'a7500000-0000-4000-8000-000000000040','a7000000-0000-4000-8000-000000000001') AS result;
+SELECT extensions.is((SELECT result->>'outcome' FROM corrected_delivery),'accepted','explicit send creates a correction receipt');
+SELECT extensions.is((SELECT result->'deliveries'->0->>'creditedMinutes' FROM corrected_delivery),'150','explicit correction email snapshots canonical minutes');
+SELECT extensions.is((SELECT count(*)::integer FROM public.hours_publication_email_outbox WHERE certificate_id=(SELECT id FROM before_correction)),2,'correction creates a separate delivery from original publication');
+SELECT extensions.is((SELECT count(DISTINCT idempotency_key)::integer FROM public.hours_publication_email_outbox WHERE certificate_id=(SELECT id FROM before_correction)),2,'correction has a separate provider idempotency key');
+SELECT extensions.is(public.request_corrected_certificate_delivery('a7100000-0000-4000-8000-000000000001',(SELECT id FROM before_correction),2,
+ 'a7500000-0000-4000-8000-000000000040','a7000000-0000-4000-8000-000000000001')->>'receiptId',(SELECT result->>'receiptId' FROM corrected_delivery),'explicit correction send retry uses the same receipt');
+SELECT extensions.is(public.request_corrected_certificate_delivery('a7100000-0000-4000-8000-000000000001',(SELECT id FROM before_correction),2,
+ 'a7500000-0000-4000-8000-000000000041','a7000000-0000-4000-8000-000000000001')->>'receiptId',(SELECT result->>'receiptId' FROM corrected_delivery),'a second click cannot duplicate one correction revision');
+SELECT extensions.throws_ok($$SELECT public.request_corrected_certificate_delivery('a7100000-0000-4000-8000-000000000001',(SELECT id FROM before_correction),2,
+ 'a7500000-0000-4000-8000-000000000042','a7000000-0000-4000-8000-000000000003')$$,'42501','not authorized to send corrected certificate','outsider cannot queue a corrected certificate');
+SELECT extensions.throws_ok($$UPDATE public.hours_publication_email_outbox SET certificate_snapshot='{}' WHERE receipt_id=((SELECT result->>'receiptId' FROM corrected_delivery)::uuid)$$,
+ '22023','certificate delivery identity and snapshot are immutable','delivery snapshot cannot change after explicit request');
+SELECT public.correct_project_attendance('a7200000-0000-4000-8000-000000000001',2,'Second source review',
+ '[{"checkIn":"2026-09-18T09:00:00Z","checkOut":"2026-09-18T11:00:00Z"},{"checkIn":"2026-09-18T12:00:00Z","checkOut":"2026-09-18T13:00:00Z"}]',
+ 'a7500000-0000-4000-8000-000000000043','a7000000-0000-4000-8000-000000000001');
+SELECT extensions.is(public.request_corrected_certificate_delivery('a7100000-0000-4000-8000-000000000001',(SELECT id FROM before_correction),2,
+ 'a7500000-0000-4000-8000-000000000040','a7000000-0000-4000-8000-000000000001')->'deliveries'->0->>'creditedMinutes','150','lost-response recovery preserves the original requested revision');
+SELECT extensions.is(public.request_corrected_certificate_delivery('a7100000-0000-4000-8000-000000000001',(SELECT id FROM before_correction),2,
+ 'a7500000-0000-4000-8000-000000000041','a7000000-0000-4000-8000-000000000001')->'deliveries'->0->>'creditedMinutes','150','a deduplicated request also replays after a later correction');
+SELECT extensions.throws_ok($$SELECT public.request_corrected_certificate_delivery('a7100000-0000-4000-8000-000000000001',(SELECT id FROM before_correction),3,
+ 'a7500000-0000-4000-8000-000000000040','a7000000-0000-4000-8000-000000000001')$$,'22023','corrected certificate request key reused','reusing a send request for different hours fails');
+SELECT extensions.throws_ok($$SELECT public.request_corrected_certificate_delivery('a7100000-0000-4000-8000-000000000001',(SELECT id FROM before_correction),2,
+ 'a7500000-0000-4000-8000-000000000044','a7000000-0000-4000-8000-000000000001')$$,'40001','certificate changed; refresh before sending','a new stale send request cannot dispatch old hours');
+SELECT extensions.is(public.request_corrected_certificate_delivery('a7100000-0000-4000-8000-000000000001',(SELECT id FROM before_correction),3,
+ 'a7500000-0000-4000-8000-000000000045','a7000000-0000-4000-8000-000000000001')->'deliveries'->0->>'creditedMinutes','180','a new explicit revision receives its own canonical snapshot');
+SELECT extensions.is((SELECT count(*)::integer FROM public.certificates WHERE signup_id='a7200000-0000-4000-8000-000000000001'),1,'multiple correction sends retain one certificate');
+
 SELECT * FROM extensions.finish();
 ROLLBACK;

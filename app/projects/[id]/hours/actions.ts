@@ -10,7 +10,10 @@ import {
   drainPublicationEmails,
   loadDurablePublicationForRetry,
 } from "@/lib/projects/hours-publication-email-service";
-import { publishVolunteerHoursTransaction } from "@/lib/projects/hours-publication-service";
+import {
+  publishVolunteerHoursTransaction,
+  requestCorrectedCertificateDelivery,
+} from "@/lib/projects/hours-publication-service";
 import {
   getPublishStateKey,
   sendCertificatePublishedEmails,
@@ -550,4 +553,74 @@ export async function recordVolunteerAttendance(
     requestId,
     "record_project_attendance",
   );
+}
+
+export async function sendCorrectedCertificateEmail(
+  projectId: string,
+  certificateId: string,
+  expectedRevision: number,
+  requestId: string,
+): Promise<{
+  success: boolean;
+  error?: string;
+  emailsSent?: number;
+  emailErrors?: string[];
+  receiptId?: string;
+}> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+    error: userError,
+  } = await supabase.auth.getUser();
+  if (userError || !user)
+    return { success: false, error: "Authentication required." };
+  if (
+    !Number.isInteger(expectedRevision) ||
+    expectedRevision < 1 ||
+    !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
+      requestId,
+    )
+  ) {
+    return {
+      success: false,
+      error: "Refresh the corrected certificate before sending.",
+    };
+  }
+  const { data: project, error: projectError } = await supabase
+    .from("projects")
+    .select("creator_id, organization_id, can_be_managed_by_staff")
+    .eq("id", projectId)
+    .maybeSingle();
+  if (
+    projectError ||
+    !project ||
+    !(await canUserManageProjectHours(supabase, user.id, project))
+  ) {
+    return {
+      success: false,
+      error: "You cannot send certificates for this project.",
+    };
+  }
+  const transaction = await requestCorrectedCertificateDelivery({
+    actorId: user.id,
+    projectId,
+    certificateId,
+    expectedRevision,
+    requestId,
+  });
+  if (!transaction.publication)
+    return {
+      success: false,
+      error:
+        transaction.errorCode === "40001"
+          ? "The certificate changed. Refresh before sending."
+          : "The corrected certificate could not be queued. Save an award correction before sending it.",
+    };
+  const delivery = await drainPublicationEmails(transaction.publication);
+  return {
+    success: true,
+    emailsSent: delivery.emailsSent,
+    emailErrors: delivery.errors,
+    receiptId: transaction.publication.receiptId,
+  };
 }
