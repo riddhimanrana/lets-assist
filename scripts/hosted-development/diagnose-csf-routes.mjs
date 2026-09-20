@@ -17,7 +17,7 @@ const DEVELOPMENT_URL = `https://${DEVELOPMENT_REF}.supabase.co`;
 const MARKER = "\nCSF_ROUTE_METRIC=";
 const ROUTES = [
   { index: 2, tab: "csf-cohorts", marker: "csf-cohort-hub-classes" },
-  { index: 1, tab: "csf-applications", marker: "Split for review" },
+  { index: 1, tab: "csf-applications", marker: "Search by name" },
 ];
 
 export function validateDiagnosticTarget(env) {

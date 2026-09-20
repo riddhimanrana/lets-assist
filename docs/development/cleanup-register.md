@@ -8934,6 +8934,26 @@ The fresh source inventory found a second populated late-response tab, copied re
 
 **AUDIT-20260920-11, P2, implemented in follow-up:** A blocked class workbook with exhausted preparation retries returned only a generic officer-review message. The action now reads its scoped diagnostic and last known successful provider check. Home links to that class's Sheet settings and distinguishes reconnection from a request retry.
 
-Follow-up local evidence: the five database suites that failed candidate replay now pass 620 assertions after correcting their fixtures and expectations. They retain explicit checks that source notes stay private, a later rejection cannot revoke access before release, and finalized outcomes remain protected. Private verification passed 484 files before the final four-case staging integration test was added; that new test and the focused source, conflict, diagnostic, and documentation tests pass separately. Typecheck and zero-warning lint pass. The historical release-fixture repair is shared with the separate attendance task; it changes tests only and does not approve a Production migration tail.
+Follow-up local evidence: the five database suites that failed candidate replay now pass 620 assertions after correcting their fixtures and expectations. They retain explicit checks that source notes stay private, a later rejection cannot revoke access before release, and finalized outcomes remain protected. Private verification passed 484 files before the final four-case staging integration test was added; that new test and the focused source, conflict, diagnostic, and documentation tests pass separately. Typecheck and zero-warning lint pass. The historical release-fixture repair is shared with the separate attendance task. The later release preparation below adds the explicit migration review for this candidate.
 
 Live reconciliation evidence is stored in the ignored source-data directory with verified raw snapshot hashes. Each pending response or account request has a reason and next action. Prior audited attendance skips were compared with current canonical profiles and attendance records. No Production source registration, row resolution, account link, application release, or notification send has occurred. The current report is a review aid, not an import commit or recipient approval.
+
+Release preparation for the same root PR adds the exact SQL hashes for migrations
+`20260920180915`, `20260920181255`, and `20260920181754`. The controller's existing
+write and retry boundaries are unchanged. Its allowlist moved to a separate module
+to keep the controller within the service-module size limit. The clean owned
+`csfrelease0920c` replay passed all 386 database files and 9,990 assertions. The
+631-migration manifest contains 1,236 catalog objects, with eleven additions,
+eighteen expected changes, and no removals from the previous manifest. It stores
+only identities and hashes. The actual catalog returned pass, failed after a
+temporary unauthorized grant, then passed after rollback. All 53 focused release
+controller and manifest tests pass. The owned stack and workdir were removed after
+capture, with zero residual resources for that run.
+
+Browser selectors now open the collapsed account panel, locate the roster search
+instead of removed split controls, and follow activity title links. The hosted
+route diagnostic uses the current roster search marker. Typecheck, formatting,
+and focused diagnostic tests pass; the integrated browser run remains required.
+The superseded hosted run `35532122324` was canceled before a corrected candidate
+was integrated. It does not count as hosted acceptance. Production rollout,
+source configuration, record reconciliation, and decision publication remain open.

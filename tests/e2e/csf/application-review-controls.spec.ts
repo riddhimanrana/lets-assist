@@ -164,7 +164,7 @@ test("application review opens and recovers a legacy closed period without reset
       .click();
   }
   await expect(
-    page.getByRole("button", { name: "Split for review", exact: true }),
+    page.getByRole("textbox", { name: "Search by name", exact: true }),
   ).toBeVisible();
   await expect(
     page.getByRole("button", { name: "Close review", exact: true }),
@@ -211,7 +211,7 @@ test("application review opens and recovers a legacy closed period without reset
     .getByRole("button", { name: "Reopen review", exact: true })
     .click();
   await expect(
-    page.getByRole("button", { name: "Split for review", exact: true }),
+    page.getByRole("textbox", { name: "Search by name", exact: true }),
   ).toBeVisible();
   await expect(
     page.getByRole("button", { name: "Close review", exact: true }),

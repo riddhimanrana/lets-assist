@@ -27,7 +27,7 @@ describe("short hosted route diagnostic", () => {
         await new Promise((resolve) => setTimeout(resolve, 1));
         active -= 1;
         return {
-          body: "CSF hosted load fixture csf-cohort-hub-classes Split for review",
+          body: "CSF hosted load fixture csf-cohort-hub-classes Search by name",
         };
       },
       (cycle: number) => cycles.push(cycle),
