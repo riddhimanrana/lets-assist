@@ -119,6 +119,7 @@ export function ReviewTable({
     }
   };
   const include = async (row: PaperScanRowView, checked: boolean) => {
+    if (hasPersistedAttendance(row)) return;
     setBusy(true);
     try {
       const result = await updatePaperScanRow({
@@ -374,10 +375,12 @@ export function ReviewTable({
                     <input
                       type="checkbox"
                       checked={row.decision === "include"}
-                      disabled={busy}
+                      disabled={busy || hasPersistedAttendance(row)}
                       onChange={(e) => void include(row, e.target.checked)}
                     />
-                    Include when reviewed
+                    {hasPersistedAttendance(row)
+                      ? "Saved attendance stays included"
+                      : "Include when reviewed"}
                   </label>
                   <Button
                     variant="outline"
