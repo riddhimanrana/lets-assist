@@ -12,7 +12,7 @@ export type ExportRosterEntry = {
   name: string;
   check_in_time: string | null;
   check_out_time: string | null;
-  scan_row: { attendance_intervals: unknown } | null;
+  attendance_intervals: unknown;
 };
 export type ExportReviewRow = {
   id: string;
@@ -121,7 +121,7 @@ export function buildUnpublishedAttendanceRecords(
       row,
       row.schedule_id,
       readIntervals(
-        row.scan_row?.attendance_intervals,
+        row.attendance_intervals,
         row.check_in_time,
         row.check_out_time,
       ),

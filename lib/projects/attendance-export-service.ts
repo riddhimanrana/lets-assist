@@ -174,7 +174,7 @@ export async function attendanceExportResponse(
           projectRows<ExportRosterEntry>(
             admin,
             "project_paper_roster_entries",
-            "id,scan_row_id,schedule_id,name,check_in_time,check_out_time,scan_row:project_paper_scan_rows!scan_row_id(attendance_intervals)",
+            "id,scan_row_id,schedule_id,name,check_in_time,check_out_time,attendance_intervals",
             item.id,
           ),
           projectRows<ExportReviewRow>(

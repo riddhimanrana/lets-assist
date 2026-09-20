@@ -54,11 +54,9 @@ const roster: ExportRosterEntry = {
   name: "Walk-in Example",
   check_in_time: "2026-09-19T16:00:00Z",
   check_out_time: "2026-09-19T17:00:00Z",
-  scan_row: {
-    attendance_intervals: [
-      { checkIn: "2026-09-19T16:00:00Z", checkOut: "2026-09-19T17:00:00Z" },
-    ],
-  },
+  attendance_intervals: [
+    { checkIn: "2026-09-19T16:00:00Z", checkOut: "2026-09-19T17:00:00Z" },
+  ],
 };
 
 test("roster-only attendance remains unresolved and uncredited even for a published session", () => {
@@ -223,4 +221,60 @@ test("empty, zero, and invalid attendance have explicit summary counts", () => {
       unresolvedCount: 2,
     },
   );
+});
+
+test("saved roster exports preserve reviewed visits while the linked draft changes", () => {
+  const snapshot = [
+    { checkIn: "2026-09-19T16:00:00Z", checkOut: "2026-09-19T17:00:00Z" },
+    { checkIn: "2026-09-19T18:00:00Z", checkOut: "2026-09-19T19:00:00Z" },
+  ];
+  for (const draftIntervals of [
+    [{ checkIn: "2026-09-19T16:00:00Z", checkOut: "2026-09-19T22:00:00Z" }],
+    [{ checkIn: "2026-09-19T16:00:00Z", checkOut: null }],
+  ]) {
+    const persisted = {
+      ...roster,
+      attendance_intervals: snapshot,
+      check_out_time: "2026-09-19T19:00:00Z",
+      // Even an old joined response must not override the committed snapshot.
+      scan_row: { attendance_intervals: draftIntervals },
+    };
+    const records = buildUnpublishedAttendanceRecords(
+      project,
+      [persisted],
+      [
+        {
+          ...review,
+          name: "Unreviewed changed name",
+          attendance_intervals: draftIntervals,
+        },
+      ],
+      filters,
+    );
+    assert.equal(records.length, 1);
+    assert.equal(records[0].sourceType, "roster");
+    assert.equal(records[0].name, roster.name);
+    assert.deepEqual(records[0].intervals, snapshot);
+    assert.equal(records[0].publicationState, "unresolved");
+    assert.equal(records[0].creditedMinutes, null);
+  }
+});
+
+test("legacy roster entries use their saved envelope when the snapshot is empty", () => {
+  const legacy = {
+    ...roster,
+    attendance_intervals: [],
+    scan_row: { attendance_intervals: [{ checkIn: null, checkOut: null }] },
+  };
+  const [record] = buildUnpublishedAttendanceRecords(
+    project,
+    [legacy],
+    [review],
+    filters,
+  );
+  assert.deepEqual(record.intervals, [
+    { checkIn: roster.check_in_time, checkOut: roster.check_out_time },
+  ]);
+  assert.equal(record.creditedMinutes, null);
+  assert.equal(record.sourceId, roster.id);
 });
