@@ -61,6 +61,7 @@ DECLARE
   v_project public.projects%ROWTYPE;
   v_slot record;
   v_count integer;
+  v_schedule_key text;
 BEGIN
   IF NOT app_private.can_manage_project(p_project_id, p_actor_id) THEN
     RAISE EXCEPTION 'Not authorized to print this project' USING ERRCODE = '42501';
@@ -70,8 +71,12 @@ BEGIN
     OR p_schedule_id IS NULL OR length(p_schedule_id) NOT BETWEEN 1 AND 200 THEN
     RAISE EXCEPTION 'Invalid print options' USING ERRCODE = '22023';
   END IF;
-  SELECT * INTO v_project FROM public.projects WHERE id = p_project_id;
-  SELECT * INTO v_slot FROM private.resolve_project_schedule_slot(p_project_id, p_schedule_id);
+  SELECT * INTO v_project FROM public.projects WHERE id = p_project_id FOR UPDATE;
+  v_schedule_key:=private.project_hours_publish_key(v_project.event_type,v_project.schedule,p_schedule_id);
+  IF v_schedule_key IS NULL THEN
+    RAISE EXCEPTION 'Invalid schedule session' USING ERRCODE = '22023';
+  END IF;
+  SELECT * INTO v_slot FROM private.resolve_project_schedule_slot(p_project_id, v_schedule_key);
   IF NOT FOUND THEN
     RAISE EXCEPTION 'Invalid schedule session' USING ERRCODE = '22023';
   END IF;
@@ -90,7 +95,8 @@ BEGIN
   FROM public.project_signups AS signup
   LEFT JOIN public.profiles AS profile ON profile.id = signup.user_id
   LEFT JOIN public.anonymous_signups AS anonymous ON anonymous.id = signup.anonymous_id
-  WHERE signup.project_id = p_project_id AND signup.schedule_id = p_schedule_id
+  WHERE signup.project_id = p_project_id
+    AND private.project_hours_publish_key(v_project.event_type,v_project.schedule,signup.schedule_id)=v_schedule_key
     AND signup.status IN ('approved', 'attended');
   GET DIAGNOSTICS v_count = ROW_COUNT;
   IF v_count > 5000 THEN

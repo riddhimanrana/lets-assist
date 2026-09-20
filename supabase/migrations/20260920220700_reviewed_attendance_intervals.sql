@@ -238,7 +238,8 @@ BEGIN
   SELECT * INTO STRICT v_signup FROM public.project_signups WHERE id = p_signup_id FOR UPDATE;
   PERFORM private.assert_attendance_not_future(v_intervals);
   PERFORM private.assert_no_unlinked_platform_award(p_signup_id);
-  SELECT * INTO v_slot FROM private.resolve_project_schedule_slot(v_signup.project_id, v_signup.schedule_id);
+  SELECT slot.* INTO v_slot FROM public.projects project CROSS JOIN LATERAL private.resolve_project_schedule_slot(
+    project.id,private.project_hours_publish_key(project.event_type,project.schedule,v_signup.schedule_id)) slot WHERE project.id=v_signup.project_id;
   IF NOT FOUND THEN RAISE EXCEPTION 'invalid attendance session' USING ERRCODE = '22023'; END IF;
   IF (v_first < v_slot.starts_at OR v_last > v_slot.ends_at)
     AND NULLIF(btrim(p_exception_reason), '') IS NULL THEN
@@ -557,8 +558,10 @@ BEGIN
   END IF;
 
   IF v_match_signup_id IS NOT NULL AND NOT EXISTS (
-    SELECT 1 FROM public.project_signups WHERE id=v_match_signup_id AND project_id=p_project_id
-      AND schedule_id=v_batch.schedule_id AND status <> 'rejected'
+    SELECT 1 FROM public.project_signups signup JOIN public.projects project ON project.id=signup.project_id
+      WHERE signup.id=v_match_signup_id AND signup.project_id=p_project_id AND signup.status <> 'rejected'
+      AND private.project_hours_publish_key(project.event_type,project.schedule,signup.schedule_id)
+        =private.project_hours_publish_key(project.event_type,project.schedule,v_batch.schedule_id)
   ) THEN RAISE EXCEPTION 'invalid signup match' USING ERRCODE='22023'; END IF;
 
   UPDATE public.project_paper_scan_rows AS rows
@@ -685,7 +688,8 @@ BEGIN
     END IF;
     RETURN v_batch.id;
   END IF;
-  PERFORM 1 FROM private.resolve_project_schedule_slot(p_project_id,p_schedule_id);
+  PERFORM 1 FROM public.projects project CROSS JOIN LATERAL private.resolve_project_schedule_slot(
+    project.id,private.project_hours_publish_key(project.event_type,project.schedule,p_schedule_id)) slot WHERE project.id=p_project_id;
   IF NOT FOUND THEN RAISE EXCEPTION 'invalid schedule' USING ERRCODE='22023'; END IF;
   INSERT INTO public.project_paper_scan_batches(project_id,schedule_id,created_by,status,input_method,image_count,creation_request_id)
   VALUES(p_project_id,p_schedule_id,p_actor_id,'review','manual',0,p_request_id) RETURNING id INTO v_id;
@@ -810,6 +814,7 @@ DECLARE
   v_authoritative_union tstzmultirange;
   v_reconciliation jsonb;
   v_slot record;
+  v_schedule_key text;
   v_email text;
   v_intervals jsonb;
   v_first timestamptz;
@@ -851,9 +856,11 @@ BEGIN
   END IF;
   IF v_batch.status<>'review' THEN RAISE EXCEPTION 'batch is not reviewable' USING ERRCODE='22023'; END IF;
   IF COALESCE(v_project.workflow_status,'published')<>'published' THEN RAISE EXCEPTION 'project is not published' USING ERRCODE='22023'; END IF;
-  SELECT * INTO v_slot FROM private.resolve_project_schedule_slot(v_batch.project_id,v_batch.schedule_id);
+  v_schedule_key:=private.project_hours_publish_key(v_project.event_type,v_project.schedule,v_batch.schedule_id);
+  IF v_schedule_key IS NULL THEN RAISE EXCEPTION 'invalid_schedule' USING ERRCODE='22023'; END IF;
+  SELECT * INTO v_slot FROM private.resolve_project_schedule_slot(v_batch.project_id,v_schedule_key);
   IF NOT FOUND THEN RAISE EXCEPTION 'invalid_schedule' USING ERRCODE='22023'; END IF;
-  PERFORM pg_advisory_xact_lock(hashtextextended('lets-assist-project-signup:'||v_batch.project_id::text||':'||v_batch.schedule_id,0));
+  PERFORM pg_advisory_xact_lock(hashtextextended('lets-assist-project-signup:'||v_batch.project_id::text||':'||v_schedule_key,0));
   UPDATE public.project_paper_scan_batches SET status='committing',commit_idempotency_key=p_idempotency_key WHERE id=p_batch_id;
   FOR v_row IN SELECT * FROM public.project_paper_scan_rows rows WHERE rows.batch_id=p_batch_id AND rows.id=ANY(p_row_ids)
     AND rows.decision='include' ORDER BY rows.sheet_row_number FOR UPDATE LOOP
@@ -878,7 +885,7 @@ BEGIN
         v_existing:=NULL;
         IF v_row.match_signup_id IS NOT NULL THEN
           SELECT * INTO v_existing FROM public.project_signups WHERE id=v_row.match_signup_id AND project_id=v_batch.project_id
-            AND schedule_id=v_batch.schedule_id AND status<>'rejected' FOR UPDATE;
+            AND private.project_hours_publish_key(v_project.event_type,v_project.schedule,schedule_id)=v_schedule_key AND status<>'rejected' FOR UPDATE;
           IF NOT FOUND THEN RAISE EXCEPTION 'invalid_signup_match' USING ERRCODE='22023'; END IF;
         ELSIF v_email IS NOT NULL THEN
           SELECT array_agg(DISTINCT candidate.id) INTO v_candidates FROM (
@@ -889,17 +896,24 @@ BEGIN
           v_profile_id:=v_candidates[1];
           SELECT array_agg(DISTINCT signups.id) INTO v_candidates FROM public.project_signups signups
             LEFT JOIN public.anonymous_signups anonymous ON anonymous.id=signups.anonymous_id
-            WHERE signups.project_id=v_batch.project_id AND signups.schedule_id=v_batch.schedule_id AND signups.status<>'rejected'
+            WHERE signups.project_id=v_batch.project_id AND private.project_hours_publish_key(v_project.event_type,v_project.schedule,signups.schedule_id)=v_schedule_key AND signups.status<>'rejected'
               AND (signups.user_id=v_profile_id OR lower(anonymous.email)=v_email);
           IF cardinality(v_candidates)>1 THEN RAISE EXCEPTION 'ambiguous_identity' USING ERRCODE='22023'; END IF;
           IF cardinality(v_candidates)=1 THEN SELECT * INTO v_existing FROM public.project_signups WHERE id=v_candidates[1] FOR UPDATE; END IF;
         END IF;
         IF v_existing.id IS NOT NULL THEN
+          IF EXISTS(SELECT 1 FROM public.project_signups other WHERE other.project_id=v_batch.project_id
+            AND other.id<>v_existing.id AND other.status<>'rejected'
+            AND private.project_hours_publish_key(v_project.event_type,v_project.schedule,other.schedule_id)=v_schedule_key
+            AND (other.user_id=v_existing.user_id OR other.anonymous_id=v_existing.anonymous_id)) THEN
+            RAISE EXCEPTION 'ambiguous_identity' USING ERRCODE='22023';
+          END IF;
           SELECT rows.id INTO v_primary_row_id FROM public.project_paper_scan_rows rows
             WHERE rows.committed_signup_id=v_existing.id AND rows.outcome<>'skipped';
           SELECT * INTO v_roster FROM public.project_paper_roster_entries entries
             WHERE entries.scan_row_id=v_row.id AND entries.batch_id=p_batch_id
-              AND entries.project_id=v_batch.project_id AND entries.schedule_id=v_batch.schedule_id FOR UPDATE;
+              AND entries.project_id=v_batch.project_id
+              AND private.project_hours_publish_key(v_project.event_type,v_project.schedule,entries.schedule_id)=v_schedule_key FOR UPDATE;
           IF v_primary_row_id IS NOT NULL OR v_existing.attendance_revision>0
             OR (v_roster.id IS NOT NULL AND v_existing.status='attended') THEN
             IF v_roster.id IS NULL OR v_existing.status<>'attended' THEN
@@ -939,7 +953,7 @@ BEGIN
         ELSE
           IF v_project.waiver_required THEN RAISE EXCEPTION 'waiver_required' USING ERRCODE='22023'; END IF;
           SELECT count(*) INTO v_active_count FROM public.project_signups signups WHERE signups.project_id=v_batch.project_id
-            AND signups.schedule_id=v_batch.schedule_id AND signups.status IN ('approved','attended');
+            AND private.project_hours_publish_key(v_project.event_type,v_project.schedule,signups.schedule_id)=v_schedule_key AND signups.status IN ('approved','attended');
           v_over:=v_active_count>=v_slot.capacity;
           IF v_over AND NOT COALESCE(p_allow_over_capacity,false) THEN RAISE EXCEPTION 'slot_full' USING ERRCODE='22023'; END IF;
           IF v_profile_id IS NULL THEN
@@ -1648,7 +1662,7 @@ BEGIN
   );
 
   PERFORM private.assert_attendance_not_future(jsonb_build_array(jsonb_build_object('checkIn',NEW.check_in_time,'checkOut',NEW.check_out_time)));
-  IF NOT EXISTS(SELECT 1 FROM private.resolve_project_schedule_slot(NEW.project_id,NEW.schedule_id) slot WHERE slot.ends_at<=clock_timestamp()) THEN
+  IF NOT EXISTS(SELECT 1 FROM private.resolve_project_schedule_slot(NEW.project_id,v_publish_key) slot WHERE slot.ends_at<=clock_timestamp()) THEN
     RETURN NEW;
   END IF;
 

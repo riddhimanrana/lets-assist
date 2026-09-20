@@ -193,7 +193,7 @@
     },
     {
       "identity": "function:app_private.issue_verified_certificate_for_late_attendance()",
-      "digest": "3447f895488720f036bc265d9316ac2a"
+      "digest": "26b1f3d82a5cab187bc2275c4763680b"
     },
     {
       "identity": "function:app_private.lock_paper_scan_project_for_commit()",
@@ -3309,7 +3309,7 @@
     },
     {
       "identity": "function:private.set_project_attendance_intervals(p_signup_id uuid, p_intervals jsonb, p_exception_reason text)",
-      "digest": "a1a32286715958bf1de45ddff4c3a3bc"
+      "digest": "96cd9680373480853c2f34a231676b3e"
     },
     {
       "identity": "function:private.signup_attendance_intervals(p_signup_id uuid)",
@@ -3505,7 +3505,7 @@
     },
     {
       "identity": "function:public.commit_paper_signup_batch(p_batch_id uuid, p_actor_id uuid, p_row_ids uuid[], p_allow_over_capacity boolean, p_idempotency_key uuid)",
-      "digest": "62d4b58e9359032822b8c894b2f1c31e"
+      "digest": "3b1fdf31083e997bd84ca6439ef5706c"
     },
     {
       "identity": "function:public.complete_participant_checkout(p_signup_id uuid, p_user_id uuid, p_anonymous_id uuid)",
@@ -3541,11 +3541,11 @@
     },
     {
       "identity": "function:public.create_attendance_print_sheet(p_project_id uuid, p_schedule_id text, p_actor_id uuid, p_blank_rows integer, p_continuation_rows integer)",
-      "digest": "d8e8683110a9c6387124394544609285"
+      "digest": "874a99c7c2d5e1eb57a130bc77cc6614"
     },
     {
       "identity": "function:public.create_manual_attendance_batch(p_project_id uuid, p_schedule_id text, p_actor_id uuid, p_request_id uuid)",
-      "digest": "6fc827d253dfb33f0b44d28da83f3b8e"
+      "digest": "0eb149c0397b7f8cf791b2396e611b96"
     },
     {
       "identity": "function:public.delete_old_anonymous_signups()",
@@ -3929,7 +3929,7 @@
     },
     {
       "identity": "function:public.update_paper_scan_review_row(p_batch_id uuid, p_project_id uuid, p_row_id uuid, p_actor_id uuid, p_patch jsonb)",
-      "digest": "8b01df6bddeaf9b2068b390a69b6bad2"
+      "digest": "3ae675118cbc078b8dec92c34f5a5f60"
     },
     {
       "identity": "function:public.update_plugin_execution_metrics(p_organization_id uuid, p_plugin_key text, p_execution_time_ms integer, p_is_error boolean, p_error_message text)",
