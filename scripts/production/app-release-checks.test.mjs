@@ -429,10 +429,13 @@ test("schema verification uses only fixed read-only management requests", async 
       /^(SELECT|WITH)\b/u,
     );
   }
-  assert.match(JSON.parse(calls[1].options.body).query, /foreign_key_posture/u);
   assert.match(
     JSON.parse(calls[1].options.body).query,
-    /function_fragment_posture/u,
+    /pg_get_constraintdef/u,
+  );
+  assert.match(
+    JSON.parse(calls[1].options.body).query,
+    /actual.digest IS DISTINCT FROM expected.digest/u,
   );
   await assert.rejects(
     verifySchema({ projectRef: "wrong-project", token: "x", cwd }, () => {

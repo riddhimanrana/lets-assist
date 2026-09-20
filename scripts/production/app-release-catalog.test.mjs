@@ -21,8 +21,8 @@ test("the 540 officer identity authority release moves exactly three fingerprint
   const fullLedger = expectedVersions(
     fileURLToPath(new URL("../../", import.meta.url)),
   );
-  assert.equal(fullLedger.length, 621);
-  assert.equal(fullLedger.at(-1), "20260919230001");
+  assert.ok(fullLedger.length >= 621);
+  assert.equal(fullLedger[620], "20260919230001");
   const current = acceptedCatalogQuery(source, fullLedger.slice(0, 540));
   const preceding = acceptedCatalogQuery(source, fullLedger.slice(0, 539));
   // The migration replaces three reviewed definitions in place. Nothing else
@@ -1060,7 +1060,10 @@ test("each measured fingerprint is applied at the migration that produces it", (
 test("member reminders pin the reviewed definition and server-only access", () => {
   const query = acceptedCatalogQuery(
     source,
-    expectedVersions(fileURLToPath(new URL("../../", import.meta.url))),
+    expectedVersions(fileURLToPath(new URL("../../", import.meta.url))).slice(
+      0,
+      622,
+    ),
   );
   assert.match(query, /6e84959ba202168e3bdac4623d93da9b/u);
   assert.match(
@@ -1072,7 +1075,10 @@ test("member reminders pin the reviewed definition and server-only access", () =
 test("unreconcile retries pin the receipt replay definition and owner-only base", () => {
   const query = acceptedCatalogQuery(
     source,
-    expectedVersions(fileURLToPath(new URL("../../", import.meta.url))),
+    expectedVersions(fileURLToPath(new URL("../../", import.meta.url))).slice(
+      0,
+      622,
+    ),
   );
   assert.match(query, /4ca4488557e8c00c2beaebabdcb2fcd3/u);
   assert.match(
@@ -1116,7 +1122,7 @@ test("the 573 activity guards pin both definitions and reviewed roles", () => {
     fileURLToPath(new URL("../../", import.meta.url)),
   );
   const previous = acceptedCatalogQuery(source, ledger.slice(0, 572));
-  const current = acceptedCatalogQuery(source, ledger);
+  const current = acceptedCatalogQuery(source, ledger.slice(0, 622));
   for (const fingerprint of [
     "f4e9f791a741a384b600da27d75a692a",
     "15c473243b63716af2e192246526c4e4",
@@ -1135,7 +1141,7 @@ test("directory performance index is required only at its exact migration", () =
     fileURLToPath(new URL("../../", import.meta.url)),
   );
   const before = acceptedCatalogQuery(source, ledger.slice(0, 581));
-  const current = acceptedCatalogQuery(source, ledger);
+  const current = acceptedCatalogQuery(source, ledger.slice(0, 622));
   assert.ok(!before.includes("csf_dues_records_profile_term_latest_idx"));
   assert.ok(current.includes("csf_dues_records_profile_term_latest_idx"));
   assert.ok(current.includes("indisvalid AND indisready AND NOT indisunique"));

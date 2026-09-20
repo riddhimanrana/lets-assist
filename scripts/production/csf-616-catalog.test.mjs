@@ -23,10 +23,10 @@ const migration = readFileSync(
 test("616 pins the reviewed application-source connection evidence", () => {
   assert.equal(ledger.length, 616);
   assert.equal(ledger.at(-1), "20260919200000");
-  assert.deepEqual(approvedMigrations.at(-6), [
-    migrationName,
-    createHash("sha256").update(migration).digest("hex"),
-  ]);
+  assert.deepEqual(
+    approvedMigrations.find(([name]) => name === migrationName),
+    [migrationName, createHash("sha256").update(migration).digest("hex")],
+  );
 
   const previous = acceptedCatalogQuery(source, ledger.slice(0, 615));
   const current = acceptedCatalogQuery(source, ledger);

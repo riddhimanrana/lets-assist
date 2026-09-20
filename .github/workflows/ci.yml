@@ -80,6 +80,9 @@ jobs:
       - name: Install dependencies
         run: bun install --frozen-lockfile
 
+      - name: Audit production dependencies
+        run: bun run security:audit
+
       - name: Check formatting
         run: bun run format:check
 

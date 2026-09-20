@@ -601,9 +601,8 @@ If any changed, reload and resolve the current blocker.
 
 1. Open **Classes**, choose the class, then **Stream**. A class audience targets
    only that cohort; members read published results in **Feed**.
-2. In the composer choose **Save as draft** or **Publish now**. The final button
-   reads **Post saved**, **Publish post**, or **Save draft**. Scheduled publishing
-   is removed in the follow-up release; old scheduled posts return to drafts.
+2. Use **Save as draft** to keep an unpublished post, or **Publish post** to
+   publish it. These are separate buttons. Drafts never publish automatically.
 3. Interpret post persistence before the separate email result. **Post saved;
    email not queued** means the post is durable even though email work was not
    created. **Post saved; email status unknown** requires administrator review;
@@ -612,8 +611,8 @@ If any changed, reload and resolve the current blocker.
    reviewed term, audience, class, content, consent topic, and recipient
    snapshot. Read **Email queued**, **Email not queued**, or **Email queue status
    unknown** literally. Queued still does not mean sent or delivered.
-5. Scheduled posts never queue email. Use **Publish now** until the target
-   environment has an accepted enabled schedule → **Feed** transition.
+5. Saving a draft never queues email, even when the email option is checked.
+   Published activities also appear in the class stream with a link to their details.
 
 ## Communications and email
 

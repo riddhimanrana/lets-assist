@@ -22,13 +22,13 @@ const migration = readFileSync(
 );
 
 test("615 distinguishes deterministic attendance cutoff exclusions", () => {
-  assert.equal(fullLedger.length, 621);
+  assert.ok(fullLedger.length >= 621);
   assert.equal(ledger.length, 615);
   assert.equal(ledger.at(-1), "20260919190000");
-  assert.deepEqual(approvedMigrations.at(-7), [
-    migrationName,
-    createHash("sha256").update(migration).digest("hex"),
-  ]);
+  assert.deepEqual(
+    approvedMigrations.find(([name]) => name === migrationName),
+    [migrationName, createHash("sha256").update(migration).digest("hex")],
+  );
 
   const previous = acceptedCatalogQuery(source, ledger.slice(0, 614));
   const current = acceptedCatalogQuery(source, ledger);
@@ -46,7 +46,7 @@ test("615 refuses an unreviewed ledger or changed migration bytes", () => {
     /explicit release review/u,
   );
   assert.equal(
-    approvedMigrations.at(-7)[1],
+    approvedMigrations.find(([name]) => name === migrationName)[1],
     createHash("sha256").update(migration).digest("hex"),
   );
 });

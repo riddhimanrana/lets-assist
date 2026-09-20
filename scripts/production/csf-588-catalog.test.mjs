@@ -95,7 +95,7 @@ test("593 release refuses a changed ledger and catalog predecessor", () => {
     () =>
       acceptedCatalogQuery(
         source.replace("WHEN (SELECT valid FROM table_posture)", "WHEN true"),
-        ledger,
+        ledger.slice(0, 593),
       ),
     /accepted catalog|contract changed/u,
   );
