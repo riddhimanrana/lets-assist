@@ -222,7 +222,9 @@ test("632 publishes CSF 1.2.58 without changing the reviewed 631 schema", () => 
   const after = JSON.parse(
     readFileSync(new URL("./final-schema-632.json", import.meta.url), "utf8"),
   );
-  const ledger = expectedVersions(fixture.cwd);
+  const ledger = expectedVersions(fixture.cwd).filter(
+    (version) => version <= "20260920214013",
+  );
   assert.equal(ledger.length, 632);
   assert.equal(ledger.at(-1), "20260920214013");
   assert.deepEqual(after.objects, before.objects);
