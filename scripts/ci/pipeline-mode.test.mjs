@@ -37,5 +37,6 @@ describe("CI delivery modes", () => {
     );
     expect(gate).toContain('[[ "${DATABASE_RESULT}" == "success" ]]');
     expect(gate).toContain('[[ "${DATABASE_RESULT}" == "skipped" ]]');
+    expect(gate).toContain("\n          fi\n");
   });
 });

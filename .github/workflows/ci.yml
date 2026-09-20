@@ -452,3 +452,4 @@ jobs:
             [[ "${DATABASE_RESULT}" == "success" ]]
           else
             [[ "${DATABASE_RESULT}" == "skipped" ]]
+          fi
