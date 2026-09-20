@@ -9196,3 +9196,18 @@ The correction appends only the newly replayed publication hash and updates
 that expected count. No application code, schema, or private gitlink changes.
 The complete local root suite and all Production test modules are being checked
 before the next integrated gate. Production promotion PR 771 remains unmerged.
+
+The final email audit found the older announcement template still used the
+uppercase chapter pill and long fallback instructions. The root template now
+uses a plain chapter label, class/term/date metadata, content, and one destination
+button. Unsubscribe confirmation copy is shorter and still explains expiry,
+ignored requests, and required notices. Campaign routing, frozen content,
+preferences, and sender identity are unchanged. The two existing publication
+render tests pass with 26 assertions, targeted ESLint passes, and fictional
+announcement/unsubscribe previews render at 390px and 800px without overflow.
+Both mobile previews were inspected. Evidence is under
+`.artifacts/csf-email-review/`. No email was sent. This root-only correction
+advances the integrated candidate; the private gitlink and 632-entry ledger
+remain unchanged. Exact-candidate acceptance must complete before PR 771 merges.
+The unchanged announcement campaign service also passes all 31 focused tests,
+and root TypeScript checking passes for the email correction.

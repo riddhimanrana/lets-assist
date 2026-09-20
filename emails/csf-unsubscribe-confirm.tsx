@@ -7,7 +7,6 @@ import {
   Text,
   Heading,
   Preview,
-  Link,
 } from "react-email";
 import * as React from "react";
 import EmailButton from "./_components/EmailButton";
@@ -38,10 +37,7 @@ export default function CsfUnsubscribeConfirm({
             <Section style={content}>
               <Heading style={heading1}>Confirm unsubscribe</Heading>
               <Text style={paragraph}>
-                Someone — hopefully you — asked to stop receiving{" "}
-                <strong>{chapterName}</strong> announcement emails at this
-                address. Confirm below and we won't email announcements here
-                anymore.
+                Confirm to stop announcement emails from {chapterName}.
               </Text>
               <Section style={buttonContainer}>
                 <EmailButton href={confirmUrl}>
@@ -50,15 +46,10 @@ export default function CsfUnsubscribeConfirm({
               </Section>
               <Text style={smallText}>
                 This link expires in {expiresInMinutes} minutes. If you didn't
-                request this, ignore this email — nothing changes without the
-                confirmation above. Required emails about your own account or
-                membership are unaffected.
+                request this, ignore this email.
               </Text>
               <Text style={smallText}>
-                Button not working? Copy and paste:{" "}
-                <Link href={confirmUrl} style={link}>
-                  {confirmUrl}
-                </Link>
+                You'll still receive required account and membership notices.
               </Text>
             </Section>
             <EmailFooter />
@@ -114,12 +105,4 @@ const smallText = {
   fontSize: "13px",
   lineHeight: "1.6",
   margin: "10px 0 0",
-  wordBreak: "break-all" as const,
-};
-
-const link = {
-  color: "#16A34A",
-  fontSize: "13px",
-  fontWeight: "500" as const,
-  textDecoration: "underline",
 };
