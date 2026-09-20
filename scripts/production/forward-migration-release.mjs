@@ -631,6 +631,10 @@ export const approvedMigrations = [
     "20260920010000_bound_cron_execution_history",
     "f5221d182035524f5ac779af11dfce306738013ba7473d2756e5fbc23400d60d",
   ],
+  [
+    "20260920020000_csf_post_workflow",
+    "dc220de3fda1878c5bf8f6914b77c09185f82bce695837c5bb40df784443e49c",
+  ],
 ];
 
 const literal = (value) => `'${value.replaceAll("'", "''")}'`;

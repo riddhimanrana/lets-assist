@@ -170,6 +170,7 @@ const APPROVED_TAIL = [
   "20260919230000",
   "20260919230001",
   "20260920010000",
+  "20260920020000",
 ];
 
 const cwd = resolve(import.meta.dirname, "../..");
@@ -993,6 +994,7 @@ test("an applied 604 ledger writes the signed publication and later repairs", ()
     "20260919230000",
     "20260919230001",
     "20260920010000",
+    "20260920020000",
   ]);
   assert.equal(
     (
@@ -1054,6 +1056,7 @@ test("an applied 605 ledger writes the remaining post and cleanup repairs", () =
     "20260919230000",
     "20260919230001",
     "20260920010000",
+    "20260920020000",
   ]);
   assert.equal(
     (
@@ -1107,6 +1110,7 @@ test("an applied 606 ledger writes publication binding and cleanup repairs", () 
     "20260919230000",
     "20260919230001",
     "20260920010000",
+    "20260920020000",
   ]);
   assert.equal(
     (
@@ -1150,6 +1154,7 @@ test("an applied 607 ledger writes recovery and Storage cleanup guards", () => {
     "20260919230000",
     "20260919230001",
     "20260920010000",
+    "20260920020000",
   ]);
   assert.equal(
     (
