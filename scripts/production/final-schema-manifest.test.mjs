@@ -157,3 +157,23 @@ test("provider defaults stay outside the repository boundary and fixture capture
     ]),
   );
 });
+
+test("627 publishes the signed UI patch with the unchanged 626 schema inventory", () => {
+  const before = JSON.parse(
+    readFileSync(new URL("./final-schema-626.json", import.meta.url), "utf8"),
+  );
+  const after = JSON.parse(
+    readFileSync(new URL("./final-schema-627.json", import.meta.url), "utf8"),
+  );
+  const ledger = expectedVersions(
+    new URL("../../", import.meta.url).pathname,
+  ).slice(0, 627);
+  assert.equal(ledger.at(-1), "20260920062528");
+  assert.deepEqual(after.objects, before.objects);
+  assert.equal(after.inventory, before.inventory);
+  assert.equal(
+    acceptedCatalogQuery("invalid predecessor SQL", ledger),
+    finalSchemaCatalog(after, ledger),
+  );
+  assert.throws(() => finalSchemaCatalog(after, ledger.slice(0, 626)));
+});

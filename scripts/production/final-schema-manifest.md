@@ -52,3 +52,9 @@ ledger digest. Its forward migration removes a Production-only invitation DELETE
 policy that never existed in the clean replay. Browser roles already lacked the
 table DELETE grant, so this corrects schema drift without widening access. The
 permission regression exercises anonymous, authenticated, and service-role SQL.
+
+Release 627 publishes signed DVHS CSF 1.2.57. Its migration inserts the signed
+version and conditionally advances the catalog latest-version pointer. It changes
+no schema objects or organization installations. The 627 manifest therefore keeps
+the verified 626 object inventory and capture-contract hash, with only the reviewed
+migration-ledger binding changed.
