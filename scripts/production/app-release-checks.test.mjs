@@ -421,13 +421,20 @@ test("schema verification uses only fixed read-only management requests", async 
       url,
       `https://api.supabase.com/v1/projects/${productionRef}/database/query${index === 1 ? "" : "/read-only"}`,
     );
-    assert.equal(JSON.parse(options.body).read_only, true);
+    if (index === 1) {
+      assert.equal(JSON.parse(options.body).read_only, undefined);
+      assert.match(
+        JSON.parse(options.body).query,
+        /^BEGIN READ ONLY;\nSET LOCAL search_path TO public, extensions;\nWITH\b/u,
+      );
+      assert.match(JSON.parse(options.body).query, /;\nCOMMIT;$/u);
+    } else assert.equal(JSON.parse(options.body).read_only, true);
     assert.equal(options.redirect, "error");
     assert.match(
       JSON.parse(options.body)
         .query.replace(/^--.*$/gmu, "")
         .trim(),
-      /^(SELECT|WITH)\b/u,
+      /^(SELECT\b|WITH\b|BEGIN READ ONLY;)/u,
     );
   }
   assert.match(
@@ -461,7 +468,7 @@ test("owner catalog refusal stops without a writable fallback", async () => {
     { message: "Release verification refused: HTTP 403." },
   );
   assert.equal(calls.length, 2);
-  assert.equal(JSON.parse(calls[1].options.body).read_only, true);
+  assert.match(JSON.parse(calls[1].options.body).query, /^BEGIN READ ONLY;/u);
 });
 
 test("catalog refusal and active write block stop deployment", async () => {

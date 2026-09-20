@@ -201,9 +201,10 @@ function transport({
   return {
     calls,
     fetch: async (url, options) => {
-      const { query: sql, read_only: readOnly = false } = JSON.parse(
+      const { query: sql, read_only: apiReadOnly = false } = JSON.parse(
         options.body,
       );
+      const readOnly = apiReadOnly || sql.startsWith("BEGIN READ ONLY;\n");
       calls.push({ url, options, sql, readOnly });
       assert.equal(options.redirect, "error");
       let result;
