@@ -177,3 +177,49 @@ test("627 publishes the signed UI patch with the unchanged 626 schema inventory"
   );
   assert.throws(() => finalSchemaCatalog(after, ledger.slice(0, 626)));
 });
+
+test("628 changes only the reviewed attendance commit fast path", () => {
+  const before = JSON.parse(
+    readFileSync(new URL("./final-schema-627.json", import.meta.url), "utf8"),
+  );
+  const after = JSON.parse(
+    readFileSync(new URL("./final-schema-628.json", import.meta.url), "utf8"),
+  );
+  const ledger = expectedVersions(
+    new URL("../../", import.meta.url).pathname,
+  ).slice(0, 628);
+  assert.equal(ledger.at(-1), "20260920080000");
+  assert.deepEqual(
+    after.objects.map((row) => row.identity),
+    before.objects.map((row) => row.identity),
+  );
+  const previous = new Map(
+    before.objects.map((row) => [row.identity, row.digest]),
+  );
+  assert.deepEqual(
+    after.objects
+      .filter((row) => previous.get(row.identity) !== row.digest)
+      .map((row) => row.identity),
+    [
+      "function:plugin_data.csf_commit_meeting_attendance_import_identity_base(p_organization_id uuid, p_preview_job_id uuid, p_actor_user_id uuid, p_reason text, p_correlation_id uuid, p_evidence_token uuid, p_allow_unresolved boolean)",
+    ],
+  );
+  assert.equal(after.inventory, before.inventory);
+  assert.equal(
+    acceptedCatalogQuery("invalid predecessor SQL", ledger),
+    finalSchemaCatalog(after, ledger),
+  );
+  assert.throws(() => finalSchemaCatalog(after, ledger.slice(0, 627)));
+});
+
+test("persisted race-test helpers cannot enter a release manifest", () => {
+  for (const identity of [
+    "function:plugin_data.csf_test_begin_then_commit_race()",
+    "function:plugin_data.csf_test_capture_import_merge_race(p_operation text)",
+  ]) {
+    assert.throws(
+      () => assertCleanInventory([{ identity }]),
+      /fixture helpers/,
+    );
+  }
+});

@@ -58,3 +58,8 @@ version and conditionally advances the catalog latest-version pointer. It change
 no schema objects or organization installations. The 627 manifest therefore keeps
 the verified 626 object inventory and capture-contract hash, with only the reviewed
 migration-ledger binding changed.
+
+Release 628 changes only the seven-argument attendance commit base function. The
+clean replay inventory must differ from 627 at that one function identity only.
+Existing attendance rows bypass insert guards; authorization, evidence validation,
+conflict handling and receipt behavior remain part of the database workflow tests.
