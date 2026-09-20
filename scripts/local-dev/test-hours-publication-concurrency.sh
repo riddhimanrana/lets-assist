@@ -431,9 +431,32 @@ WHERE project_id = 'ac200000-0000-4000-8000-000000000001';
 UPDATE public.projects
 SET published = '{}'::jsonb
 WHERE id = 'ac200000-0000-4000-8000-000000000001';
-UPDATE public.project_signups
-SET status = 'approved', check_in_time = NULL, check_out_time = NULL
+-- The preceding publication established reviewed intervals. The independent
+-- legacy scenarios need a new signup, not an edit that bypasses corrections.
+DELETE FROM public.project_signups
 WHERE id = 'ac300000-0000-4000-8000-000000000001';
+INSERT INTO public.project_signups (id,project_id,user_id,schedule_id,status)
+VALUES (
+  'ac300000-0000-4000-8000-000000000001',
+  'ac200000-0000-4000-8000-000000000001',
+  'ac000000-0000-4000-8000-000000000002',
+  'oneTime',
+  'approved'
+);
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM public.project_signups
+    WHERE id='ac300000-0000-4000-8000-000000000001'
+      AND attendance_revision=0 AND check_in_time IS NULL AND check_out_time IS NULL
+  ) OR EXISTS (
+    SELECT 1 FROM public.project_attendance_intervals
+    WHERE signup_id='ac300000-0000-4000-8000-000000000001'
+  ) THEN
+    RAISE EXCEPTION 'legacy race fixture must begin without reviewed attendance';
+  END IF;
+END;
+$$;
 SQL
 
 # A status change that already owns the signup lock must settle before the
