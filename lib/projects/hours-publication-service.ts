@@ -16,6 +16,8 @@ export type PublicationDelivery = {
   volunteerEmail: string | null;
   eventStart: string;
   eventEnd: string;
+  creditedMinutes?: number | null;
+  attendanceRevision?: number;
 };
 
 export type TransactionalPublication = {
@@ -52,7 +54,14 @@ export async function publishVolunteerHoursTransaction(input: {
   actorId: string;
   projectId: string;
   scheduleId: string;
-  entries: Array<{ signupId: string; checkIn: string; checkOut: string }>;
+  entries: Array<{
+    signupId: string;
+    checkIn: string;
+    checkOut: string;
+    intervals?: Array<{ checkIn: string; checkOut: string }>;
+    attendanceRevision?: number;
+    timeExceptionReason?: string;
+  }>;
   requestKey: string;
   origin?: "manual" | "automatic";
 }): Promise<HoursPublicationRpcResult<TransactionalPublication>> {
