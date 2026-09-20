@@ -9214,3 +9214,16 @@ advances the integrated candidate; the private gitlink and 632-entry ledger
 remain unchanged. Exact-candidate acceptance must complete before PR 771 merges.
 The unchanged announcement campaign service also passes all 31 focused tests,
 and root TypeScript checking passes for the email correction.
+
+Tracing the unsubscribe template's caller found one remaining sender defect:
+the confirmation action used the platform sender and a hardcoded chapter name.
+It now reads the current organization name and the recorded campaign's Reply-To
+for the exact known recipient, then uses the organization sender helper.
+Missing identity data or read failures preserve the neutral response and send
+nothing. The existing rate limits and exact-address lookup remain. All twelve
+focused action tests pass, including sender headers, missing sender data,
+unknown recipients, and address-enumeration protections. This uses the existing
+transactional confirmation transport; account/access/decision notices still use
+the durable publication and campaign workers.
+The thirteen sender-identity tests, targeted ESLint, and root TypeScript check
+also pass for this correction. No provider send ran.
