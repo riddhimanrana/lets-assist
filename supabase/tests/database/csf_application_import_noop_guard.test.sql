@@ -199,7 +199,7 @@ SELECT extensions.throws_ok($$
     'staff-conflict-hash',
     jsonb_set((SELECT value FROM noop_application_data),'{courses,0,courseName}','"Changed after assignment"'),
     'd9000000-0000-4000-8000-000000000001')
-$$,'P0001','A reviewed or officer-managed application already exists and was not overwritten.',
+$$,'23514','A reviewed or officer-managed application already exists and was not overwritten.',
   'a changed source row still refuses to overwrite an assigned application');
 
 SELECT * FROM extensions.finish();

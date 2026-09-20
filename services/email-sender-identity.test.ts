@@ -2,6 +2,7 @@ import { describe, expect, test } from "bun:test";
 
 import {
   DEFAULT_PLATFORM_SENDER,
+  DEFAULT_ORGANIZATION_SENDER,
   buildOrganizationSenderHeader,
   parsePlatformSender,
   resolvePlatformSender,
@@ -55,7 +56,7 @@ describe("resolving the configured platform sender", () => {
 describe("an organization sender over the platform mailbox", () => {
   test("shows the chapter name and keeps the platform address", () => {
     expect(buildOrganizationSenderHeader("DVHS CSF", {})).toBe(
-      "DVHS CSF (Let's Assist) <projects@notifications.lets-assist.com>",
+      "DVHS CSF <updates@notifications.lets-assist.com>",
     );
   });
 
@@ -66,7 +67,7 @@ describe("an organization sender over the platform mailbox", () => {
       buildOrganizationSenderHeader("DVHS CSF", {
         EMAIL_FROM: "Local <noreply@lets-assist.local>",
       }),
-    ).toBe("DVHS CSF (Let's Assist) <noreply@lets-assist.local>");
+    ).toBe("DVHS CSF <noreply@lets-assist.local>");
   });
 
   // Two independent defences, and this exercises both: the newline is removed
@@ -79,13 +80,13 @@ describe("an organization sender over the platform mailbox", () => {
     );
     expect(header).not.toInclude("\n");
     expect(header).not.toInclude("Bcc");
-    expect(header).toBe(DEFAULT_PLATFORM_SENDER);
+    expect(header).toBe(DEFAULT_ORGANIZATION_SENDER);
   });
 
   // A name that only needed flattening is still usable.
   test("a name with stray inner whitespace is flattened and kept", () => {
     expect(buildOrganizationSenderHeader("  DVHS\t\tCSF  ", {})).toBe(
-      "DVHS CSF (Let's Assist) <projects@notifications.lets-assist.com>",
+      "DVHS CSF <updates@notifications.lets-assist.com>",
     );
   });
 
@@ -97,7 +98,7 @@ describe("an organization sender over the platform mailbox", () => {
     ["a name longer than a display name may be", "C".repeat(65)],
   ])("falls back to the platform sender for %s", (_label, name) => {
     expect(buildOrganizationSenderHeader(name, {})).toBe(
-      DEFAULT_PLATFORM_SENDER,
+      DEFAULT_ORGANIZATION_SENDER,
     );
   });
 });

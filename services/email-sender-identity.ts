@@ -1,27 +1,11 @@
-/**
- * The one place that answers "which mailbox does this platform send from".
- *
- * The same default sender literal was copied into `services/email-send.ts` and
- * `lib/projects/hours-publication-email-service.ts`, and a feature wanting its
- * own sender had nowhere to look one up. This module holds the default once and
- * lets a feature vary only the display name in front of it, so an organization
- * appears in an inbox as itself without a second address to configure.
- *
- * This module makes no claim about provider state. Sender verification is
- * normally a domain-level fact held at the provider, and whether any address
- * here is accepted for delivery is unverified by this code.
- *
- * `EMAIL_FROM` wins over the default, so an isolated or local run keeps the
- * address it is configured with and an organization sender built here follows
- * it. Only the display name is ever substituted.
- */
+/** Sender headers for platform and organization messages. */
 
 /** The platform default sender, used when `EMAIL_FROM` is unset. */
 export const DEFAULT_PLATFORM_SENDER =
   "Let's Assist <projects@notifications.lets-assist.com>";
 
-/** The product name shown in parentheses after an organization's own name. */
-export const PLATFORM_SENDER_SUFFIX = "Let's Assist";
+export const DEFAULT_ORGANIZATION_SENDER =
+  "Let's Assist <updates@notifications.lets-assist.com>";
 
 /**
  * The slice of the environment this module reads.
@@ -32,6 +16,7 @@ export const PLATFORM_SENDER_SUFFIX = "Let's Assist";
  */
 export type SenderEnvironment = {
   EMAIL_FROM?: string | undefined;
+  ORGANIZATION_EMAIL_FROM?: string | undefined;
   [key: string]: string | undefined;
 };
 
@@ -120,7 +105,11 @@ export function buildOrganizationSenderHeader(
   organizationName: string | null | undefined,
   environment: SenderEnvironment = process.env,
 ): string {
-  const sender = resolvePlatformSender(environment);
+  const sender = parsePlatformSender(
+    environment.ORGANIZATION_EMAIL_FROM?.trim() ||
+      environment.EMAIL_FROM?.trim() ||
+      DEFAULT_ORGANIZATION_SENDER,
+  );
   const flattened = (organizationName ?? "")
     .replace(/[\p{Cc}\p{Cf}]+/gu, " ")
     .replace(/\s+/gu, " ")
@@ -132,5 +121,5 @@ export function buildOrganizationSenderHeader(
   ) {
     return sender.header;
   }
-  return `${flattened} (${PLATFORM_SENDER_SUFFIX}) <${sender.mailbox}>`;
+  return `${flattened} <${sender.mailbox}>`;
 }

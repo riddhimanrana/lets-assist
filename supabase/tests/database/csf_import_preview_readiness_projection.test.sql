@@ -2,7 +2,7 @@ BEGIN;
 
 CREATE EXTENSION IF NOT EXISTS pgtap WITH SCHEMA extensions;
 
-SELECT extensions.plan(12);
+SELECT extensions.plan(16);
 
 INSERT INTO public.organizations (id, name, username, type, join_code)
 VALUES (
@@ -264,6 +264,26 @@ SELECT extensions.is(
   'mixed cutoff rows with malformed, identity, other, or null errors all remain blocking'
 );
 
+INSERT INTO plugin_data.csf_profiles(id,organization_id,first_name,last_name,normalized_first_name,normalized_last_name)
+VALUES('aa540000-0000-4000-8000-000000000001','aa510000-0000-4000-8000-000000000001','Fictional','Attendee','fictional','attendee');
+INSERT INTO plugin_data.csf_sheet_import_rows(organization_id,job_id,sheet_tab_name,row_number,import_status,matched_profile_id,errors)
+VALUES
+('aa510000-0000-4000-8000-000000000001','aa520000-0000-4000-8000-000000000002','Responses',10,'duplicate','aa540000-0000-4000-8000-000000000001',ARRAY['Attendance already exists and was not overwritten.']),
+('aa510000-0000-4000-8000-000000000001','aa520000-0000-4000-8000-000000000002','Responses',11,'duplicate','aa540000-0000-4000-8000-000000000001',ARRAY['This student appears more than once.']),
+('aa510000-0000-4000-8000-000000000001','aa520000-0000-4000-8000-000000000002','Responses',12,'duplicate',NULL,ARRAY['Attendance already exists and was not overwritten.']),
+('aa510000-0000-4000-8000-000000000001','aa520000-0000-4000-8000-000000000002','Responses',13,'duplicate','aa540000-0000-4000-8000-000000000001',ARRAY['Attendance already exists and was not overwritten.', 'Identity needs review.']);
+SELECT extensions.is((plugin_data.csf_import_preview_readiness(
+ 'aa510000-0000-4000-8000-000000000001','aa520000-0000-4000-8000-000000000002')->>'alreadyRecorded')::integer,1,
+ 'only a matched row with the exact settled result counts as already recorded');
+SELECT extensions.is((plugin_data.csf_import_preview_readiness(
+ 'aa510000-0000-4000-8000-000000000001','aa520000-0000-4000-8000-000000000002')->>'duplicate')::integer,4,
+ 'all duplicate source rows remain preserved');
+SELECT extensions.is((plugin_data.csf_import_preview_readiness(
+ 'aa510000-0000-4000-8000-000000000001','aa520000-0000-4000-8000-000000000001')->>'alreadyRecorded')::integer,0,
+ 'a class-history preview does not inherit attendance counts');
+SELECT extensions.is((plugin_data.csf_import_preview_readiness(
+ 'aa510000-0000-4000-8000-000000000002','aa520000-0000-4000-8000-000000000002')->>'alreadyRecorded')::integer,0,
+ 'another organization cannot read this preview count');
 SELECT * FROM extensions.finish();
 
 ROLLBACK;

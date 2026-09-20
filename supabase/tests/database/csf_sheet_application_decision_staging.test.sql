@@ -1,28 +1,8 @@
--- Sheets application review: private staging, atomic release, and what a later
--- sync does to an already-published row.
---
--- Proved here:
---   A. privilege boundaries and the service-role SELECT-only posture;
---   B. staging writes no application, membership, or platform-member state;
---   C. provenance is verified in the database, not claimed by the caller;
---   D. release publishes an accepted applicant whose in-app academic
---      evaluation is incomplete — the officer's Sheet verdict is the authority;
---   E. yellow with no reason is held, unreviewed stays pending;
---   F. a later sync revokes an active member, and an uncolored row retracts a
---      published decision;
---   G. a completed term outcome is never rewritten;
---   H. the in-app decision path cannot publish behind the release gate;
---   I. a sheet row cannot hand a verdict to the wrong applicant in the same
---      workbook, and an application with no recorded lineage stages nothing;
---   J. a mapping edited after the read cannot apply obsolete column semantics;
---   K. a reused request id is bound to its term and payload;
---   L. evidence is immutable and no notification delivery is ever enqueued.
-
 BEGIN;
 
 CREATE EXTENSION IF NOT EXISTS pgtap WITH SCHEMA extensions;
 
-SELECT extensions.plan(54);
+SELECT extensions.plan(65);
 
 -- ---------------------------------------------------------------------------
 -- A. Privilege boundaries
@@ -344,12 +324,12 @@ SELECT extensions.lives_ok(
         {"sourceId":"de400000-0000-4000-8000-000000000001","sheetTabName":"Form Responses 1",
          "observedRowNumber":12,"applicationId":"de600000-0000-4000-8000-000000000002",
          "importRowId":"de800000-0000-4000-8000-000000000002",
-         "status":"rejected_with_explanation","observedColor":"#fff2cc",
+         "status":"on_hold","observedColor":"#fff2cc",
          "identityDigest":"id-2","decisionDigest":"dec-2"},
         {"sourceId":"de400000-0000-4000-8000-000000000001","sheetTabName":"Form Responses 1",
          "observedRowNumber":13,"applicationId":"de600000-0000-4000-8000-000000000003",
          "importRowId":"de800000-0000-4000-8000-000000000003",
-         "status":"rejected_with_explanation","observedColor":"#fff2cc",
+         "status":"rejected","observedColor":"#f4cccc",
          "reason":"Course list does not meet the chapter standard.",
          "identityDigest":"id-3","decisionDigest":"dec-3"},
         {"sourceId":"de400000-0000-4000-8000-000000000001","sheetTabName":"Form Responses 1",
@@ -507,18 +487,44 @@ SELECT extensions.throws_ok(
 -- officer's Sheet verdict is the authority, so this must publish.
 -- ---------------------------------------------------------------------------
 
+CREATE TEMP TABLE reviewed_snapshot AS
+SELECT pg_catalog.encode(extensions.digest(pg_catalog.convert_to(coalesce(
+  string_agg(application_id::text || '|' || staged_decision || '|' ||
+    coalesce(block_reason, '') || '|' || release_state || '|' || coalesce(last_sync_run_id::text, ''),
+    E'\n' ORDER BY application_id), ''), 'UTF8'), 'sha256'), 'hex') AS token
+FROM plugin_data.csf_application_decision_stages
+WHERE organization_id = 'de100000-0000-4000-8000-000000000001'
+  AND term_id = 'de200000-0000-4000-8000-000000000001';
+SELECT extensions.throws_ok($$
+ SELECT plugin_data.csf_release_reviewed_sheet_decisions(
+  'de100000-0000-4000-8000-000000000001', 'de000000-0000-4000-8000-000000000001',
+  'de200000-0000-4000-8000-000000000001', 'dec00000-0000-4000-8000-000000000001', repeat('0',64))
+$$, '23514', 'Decisions changed. Review the release again.', 'a stale approval cannot publish decisions');
+SELECT extensions.is((SELECT count(*)::integer FROM plugin_data.csf_application_decision_releases
+ WHERE organization_id = 'de100000-0000-4000-8000-000000000001'), 0, 'stale approval creates no release');
 SELECT extensions.lives_ok(
   $$
-    SELECT plugin_data.csf_release_sheet_application_decisions(
+    SELECT plugin_data.csf_release_reviewed_sheet_decisions(
       'de100000-0000-4000-8000-000000000001',
       'de000000-0000-4000-8000-000000000001',
       'de200000-0000-4000-8000-000000000001',
-      'dec00000-0000-4000-8000-000000000001'
+      'dec00000-0000-4000-8000-000000000001', (SELECT token FROM reviewed_snapshot)
     )
   $$,
   'releasing a term with incomplete in-app academic evaluation succeeds'
 );
 
+SELECT extensions.is((SELECT reviewed_snapshot_hash FROM plugin_data.csf_application_decision_releases
+ WHERE request_id = 'dec00000-0000-4000-8000-000000000001'), (SELECT token FROM reviewed_snapshot), 'release records the approved snapshot');
+SELECT extensions.is((plugin_data.csf_release_reviewed_sheet_decisions(
+  'de100000-0000-4000-8000-000000000001', 'de000000-0000-4000-8000-000000000001',
+  'de200000-0000-4000-8000-000000000001', 'dec00000-0000-4000-8000-000000000001', (SELECT token FROM reviewed_snapshot))->>'replay')::boolean,
+  true, 'retry returns the committed receipt after staging state changed');
+SELECT extensions.throws_ok($$
+ SELECT plugin_data.csf_release_reviewed_sheet_decisions(
+  'de100000-0000-4000-8000-000000000001', 'de000000-0000-4000-8000-000000000001',
+  'de200000-0000-4000-8000-000000000001', 'dec00000-0000-4000-8000-000000000001', repeat('0',64))
+$$, '22023', 'That request belongs to a different reviewed release.', 'a request id cannot approve a different snapshot');
 SELECT extensions.is(
   (
     SELECT status || '/' || decision_status::text || '/' || decision_reason_code::text
@@ -546,7 +552,7 @@ SELECT extensions.is(
     WHERE id = 'de600000-0000-4000-8000-000000000003'
   ),
   'rejected',
-  'the explained yellow rejection publishes with its reason'
+  'a red rejection publishes'
 );
 
 SELECT extensions.is(
@@ -589,7 +595,14 @@ SELECT extensions.ok(
 );
 
 -- ---------------------------------------------------------------------------
--- G. A later sync follows the sheet, including revocation
+SELECT extensions.is((SELECT decision_reason FROM plugin_data.csf_term_applications
+  WHERE id = 'de600000-0000-4000-8000-000000000003'), NULL::text,
+  'private Sheet comments do not become published reasons');
+SELECT extensions.is((SELECT block_reason FROM plugin_data.csf_application_decision_stages
+  WHERE application_id = 'de600000-0000-4000-8000-000000000002'), 'awaiting_review',
+  'yellow has an explicit hold reason');
+
+-- G. A later sync stages changes and preserves published outcomes
 -- ---------------------------------------------------------------------------
 
 UPDATE plugin_data.csf_term_memberships
@@ -631,8 +644,8 @@ SELECT extensions.is(
     FROM plugin_data.csf_term_memberships
     WHERE application_id = 'de600000-0000-4000-8000-000000000001'
   ),
-  'revoked',
-  'a published acceptance turned red revokes the active member immediately'
+  'active',
+  'a later red mark leaves membership unchanged until release'
 );
 
 SELECT extensions.is(
@@ -641,8 +654,8 @@ SELECT extensions.is(
     FROM plugin_data.csf_term_applications
     WHERE id = 'de600000-0000-4000-8000-000000000003'
   ),
-  'needs_review/pending',
-  'an uncolored row retracts the published decision and presents as unreviewed'
+  'rejected/rejected',
+  'an uncolored row preserves the published rejection'
 );
 
 SELECT extensions.is(
@@ -651,19 +664,23 @@ SELECT extensions.is(
     FROM plugin_data.csf_application_decision_stages
     WHERE application_id = 'de600000-0000-4000-8000-000000000003'
   ),
-  'unreviewed',
-  'the retraction is recorded against the released row, not hidden'
+  'rejected',
+  'the previously released decision remains recorded'
 );
 
 SELECT extensions.ok(
-  NOT (
+  (
     plugin_data.csf_member_term_review_state(
       'de100000-0000-4000-8000-000000000001',
       'de000000-0000-4000-8000-000000000002'
     ) ->> 'memberToolsAvailable'
   )::boolean,
-  'the revoked member loses current-term member tools'
+  'sync preserves the member tools until release'
 );
+SELECT extensions.is((SELECT release_state FROM plugin_data.csf_application_decision_stages
+  WHERE application_id = 'de600000-0000-4000-8000-000000000001'), 'staged',
+  'changing a published decision creates a proposal that requires release');
+
 
 -- ---------------------------------------------------------------------------
 -- H. A completed term outcome is never rewritten
@@ -685,7 +702,8 @@ INSERT INTO plugin_data.csf_term_memberships (
 UPDATE plugin_data.csf_application_decision_stages
 SET release_state = 'released', released_decision = 'accepted',
     released_at = now(), release_id = (
-      SELECT id FROM plugin_data.csf_application_decision_releases LIMIT 1
+      SELECT id FROM plugin_data.csf_application_decision_releases
+      WHERE organization_id = 'de100000-0000-4000-8000-000000000001' LIMIT 1
     )
 WHERE application_id = 'de600000-0000-4000-8000-000000000003';
 
@@ -969,16 +987,25 @@ SELECT extensions.is(
   'no decision is written back into the workbook the chapter is reviewing in'
 );
 
+SET CONSTRAINTS ALL IMMEDIATE;
+
 SELECT extensions.is(
   (
     SELECT count(*)::integer
-    FROM plugin_data.csf_publication_notification_deliveries
-    WHERE organization_id = 'de100000-0000-4000-8000-000000000001'
+    FROM plugin_data.csf_publication_events
+    WHERE event_key LIKE 'application_decision:%' AND organization_id = 'de100000-0000-4000-8000-000000000001'
   ),
   0,
-  'releasing and re-syncing decisions enqueues no notification delivery'
+  'decisions do not notify an account without proven ownership and plugin access'
 );
 
+SELECT extensions.is((SELECT applicant_count FROM plugin_data.csf_count_cohort_term_applicants(
+ 'de100000-0000-4000-8000-000000000001', ARRAY['de500000-0000-4000-8000-000000000001']::uuid[], 'de200000-0000-4000-8000-000000000001')),
+ (SELECT count(*) FROM plugin_data.csf_term_applications WHERE organization_id='de100000-0000-4000-8000-000000000001' AND term_id='de200000-0000-4000-8000-000000000001' AND cohort_id='de500000-0000-4000-8000-000000000001'),
+ 'applicant totals include pending and released decisions separately from membership');
+SELECT extensions.is((SELECT count(*) FROM plugin_data.csf_count_cohort_term_applicants(
+ 'de100000-0000-4000-8000-000000000002', ARRAY['de500000-0000-4000-8000-000000000001']::uuid[], 'de200000-0000-4000-8000-000000000001')), 0::bigint, 'applicant counts remain organization scoped');
+SELECT extensions.ok(NOT has_function_privilege('authenticated','plugin_data.csf_count_cohort_term_applicants(uuid,uuid[],uuid)','EXECUTE'), 'browser clients cannot read applicant counts directly');
 SELECT * FROM extensions.finish();
 
 ROLLBACK;
