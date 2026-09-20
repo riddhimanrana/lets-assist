@@ -453,7 +453,7 @@ export async function commitPaperScanBatch(input: {
       .from("certificates")
       .select("id", { count: "exact", head: true })
       .in("signup_id", committedSignupIds)
-      .eq("type", "verified");
+      .or("type.eq.verified,type.is.null");
     if (certificateStatusError) {
       certificateErrors = [
         "Attendance was saved, but certificate status could not be confirmed. Retry certificate issuance.",
