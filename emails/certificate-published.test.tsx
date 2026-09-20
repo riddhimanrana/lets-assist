@@ -21,7 +21,7 @@ test("certificate email states credited split-shift time instead of the six-hour
     <CertificatePublished {...common} creditedMinutes={125} />,
   );
   assert.match(html, /Hours credited/);
-  assert.match(html.replace(/<!--[\s\S]*?-->/g, ""), /2h 5m, excluding breaks/);
+  assert.match(html, /2h 5m(?:<!-- -->)?, excluding breaks/);
   assert.doesNotMatch(html, /6h 0m/);
 });
 
@@ -37,7 +37,7 @@ test("automatic publication emails display the same canonical duration", async (
   const html = await render(
     <CertificatePublished {...common} isAutoPublished creditedMinutes={61} />,
   );
-  assert.match(html.replace(/<!--[\s\S]*?-->/g, ""), /1h 1m, excluding breaks/);
+  assert.match(html, /1h 1m(?:<!-- -->)?, excluding breaks/);
 });
 
 test("both delivery paths forward canonical totals while prepared durable payloads remain immutable", () => {
