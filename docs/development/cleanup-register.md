@@ -9125,3 +9125,12 @@ loader. It uses no cascading drops. The owned-stack check, exact catalog, and
 failure condition remain. Production checks do not import this test wrapper.
 Six workflow/wrapper tests and twelve schema-manifest tests pass locally.
 The full gate must pass on the corrected candidate before promotion.
+
+Corrected candidate `6186427a` passed the strict 632-entry catalog comparison
+and database test step in run `35540337710`. Its root unit job found two
+publication-fixture omissions: the measured migration digest list stopped at
+631, and the catalog statement test still expected 46 entries rather than 48.
+The correction appends only the newly replayed publication hash and updates
+that expected count. No application code, schema, or private gitlink changes.
+The complete local root suite and all Production test modules are being checked
+before the next integrated gate. Production promotion PR 771 remains unmerged.
