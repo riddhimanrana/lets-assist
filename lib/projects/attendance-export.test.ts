@@ -153,6 +153,26 @@ test("dates, duplicate filters, unknown scopes, and publication flags fail close
   assert.equal(filters.includeUnpublished, false);
 });
 
+test("organization project filters validate UUIDs and cannot change project scope", () => {
+  const projectId = "40000000-0000-4000-8000-000000000001";
+  assert.equal(
+    parseAttendanceExportFilters(
+      new URLSearchParams({ projectId }),
+      "organization",
+    ).projectId,
+    projectId,
+  );
+  assert.throws(() =>
+    parseAttendanceExportFilters(new URLSearchParams({ projectId }), "project"),
+  );
+  assert.throws(() =>
+    parseAttendanceExportFilters(
+      new URLSearchParams({ projectId: "bad" }),
+      "organization",
+    ),
+  );
+});
+
 test("guests outside membership are included with split intervals and canonical minutes", () => {
   const intervals = [
     {

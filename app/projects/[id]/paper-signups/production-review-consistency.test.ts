@@ -25,11 +25,12 @@ describe("production review consistency boundaries", () => {
     expect(source).not.toContain(
       '.from("project_paper_scan_rows")\n    .update({',
     );
-    expect(editor).toContain("const identityChanged =");
+    expect(editor).toContain('matchSignupId: ""');
+    expect(editor).toContain("identityConfirmed: false");
+    expect(editor).toContain("expectedRevision: row.reviewRevision");
     expect(editor).toContain(
-      "matchSignupId: identityChanged ? null : row.matchSignupId",
+      "onSaved({ ...row, ...patch, reviewRevision: row.reviewRevision + 1 })",
     );
-    expect(editor).toContain("matchSignupId: patch.matchSignupId");
   });
 
   test("claim-owned final transitions prove a matched update", async () => {

@@ -4,10 +4,6 @@ import { z } from "zod";
 
 import { getAuthUser } from "@/lib/supabase/auth-helpers";
 import { getAdminClient } from "@/lib/supabase/admin";
-import {
-  activeOrganizationRole,
-  canManageProjectAccess,
-} from "@/lib/projects/management-access";
 import { getAttendanceScheduleWindow } from "@/lib/attendance/challenge";
 import { resolveScheduleId } from "@/utils/project";
 import {
@@ -23,73 +19,7 @@ import {
   PAPER_SCAN_MAX_IMAGE_BYTES,
   PAPER_SCAN_MAX_ROWS_PER_BATCH,
 } from "@/lib/ai/paper-signup-schema";
-import type { Project } from "@/types";
-
-type PaperScanProject = Project & {
-  organization_id: string | null;
-  can_be_managed_by_staff: boolean | null;
-  published: Record<string, boolean> | null;
-};
-
-type AccessResult =
-  | {
-      ok: true;
-      userId: string;
-      project: PaperScanProject;
-      admin: ReturnType<typeof getAdminClient>;
-    }
-  | { ok: false; error: string };
-
-/** Every action re-derives authorization; none trusts a client-supplied id. */
-async function requirePaperScanAccess(
-  projectId: string,
-): Promise<AccessResult> {
-  const { user, error: authError } = await getAuthUser();
-  if (authError || !user) {
-    return { ok: false, error: "Authentication required." };
-  }
-
-  const admin = getAdminClient();
-  const { data: project, error: projectError } = await admin
-    .from("projects")
-    .select(
-      "id, creator_id, organization_id, can_be_managed_by_staff, status, event_type, schedule, project_timezone, title, location, published, verification_method",
-    )
-    .eq("id", projectId)
-    .single();
-  if (projectError || !project) {
-    return { ok: false, error: "Project not found." };
-  }
-
-  let organizationRole: string | null = null;
-  if (project.organization_id && project.creator_id !== user.id) {
-    const { data: membership } = await admin
-      .from("organization_members")
-      .select("role, status")
-      .eq("organization_id", project.organization_id)
-      .eq("user_id", user.id)
-      .maybeSingle();
-    organizationRole = activeOrganizationRole(membership);
-  }
-
-  if (
-    !canManageProjectAccess({
-      creatorId: project.creator_id,
-      userId: user.id,
-      organizationRole,
-      canBeManagedByStaff: project.can_be_managed_by_staff ?? false,
-    })
-  ) {
-    return { ok: false, error: "Not authorized to manage this project." };
-  }
-
-  return {
-    ok: true,
-    userId: user.id,
-    project: project as unknown as PaperScanProject,
-    admin,
-  };
-}
+import { requirePaperScanAccess } from "./access";
 
 const OBJECT_PATH_SEGMENT = "[0-9a-fA-F-]{36}";
 
@@ -275,6 +205,21 @@ const updateRowSchema = z
         signaturePresent: z.boolean().optional(),
         decision: z.enum(["pending", "include", "exclude"]).optional(),
         matchSignupId: z.string().uuid().nullable().optional(),
+        attendanceIntervals: z
+          .array(
+            z
+              .object({
+                checkIn: z.string().datetime().nullable(),
+                checkOut: z.string().datetime().nullable(),
+              })
+              .strict(),
+          )
+          .max(20)
+          .optional(),
+        reviewAcknowledged: z.boolean().optional(),
+        identityConfirmed: z.boolean().optional(),
+        timeExceptionReason: z.string().trim().max(1000).nullable().optional(),
+        expectedRevision: z.number().int().nonnegative().optional(),
       })
       .strict(),
   })
@@ -293,6 +238,14 @@ export async function updatePaperScanRow(input: {
     signaturePresent?: boolean;
     decision?: "pending" | "include" | "exclude";
     matchSignupId?: string | null;
+    attendanceIntervals?: Array<{
+      checkIn: string | null;
+      checkOut: string | null;
+    }>;
+    reviewAcknowledged?: boolean;
+    identityConfirmed?: boolean;
+    timeExceptionReason?: string | null;
+    expectedRevision?: number;
   };
 }): Promise<{ success: true } | { error: string }> {
   const parsed = updateRowSchema.safeParse(input);
@@ -336,9 +289,11 @@ export async function updatePaperScanRow(input: {
   if (updateError) {
     return {
       error:
-        updateError.code === "23514"
-          ? "Check-out must be after check-in."
-          : "Could not save the row.",
+        updateError.code === "40001"
+          ? "This row changed in another window. Reload before editing."
+          : updateError.code === "23514"
+            ? "Check-out must be after check-in."
+            : "Could not save the row.",
     };
   }
   if (outcome === "not_review") {

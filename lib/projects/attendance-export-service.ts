@@ -120,12 +120,18 @@ export async function attendanceExportResponse(
             .order("id")
             .limit(limit);
           if (after) query = query.gt("id", after);
+          if (filters.projectId) query = query.eq("id", filters.projectId);
           const result = await query;
           return {
             data: result.data as ExportProject[] | null,
             error: result.error,
           };
         });
+    if (filters.projectId && projects.length === 0)
+      throw new AttendanceExportError(
+        "Project is not in this organization",
+        403,
+      );
     if (
       filters.sessionId &&
       project &&

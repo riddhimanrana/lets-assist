@@ -1,73 +1,28 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { AlertTriangle, Pencil, Trash2, Users } from "lucide-react";
 import { toast } from "sonner";
-
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from "@/components/ui/alert-dialog";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Checkbox } from "@/components/ui/checkbox";
-import { Label } from "@/components/ui/label";
-import {
-  Card,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import { AspectRatio } from "@/components/ui/aspect-ratio";
-import {
-  Empty,
-  EmptyDescription,
-  EmptyMedia,
-  EmptyTitle,
-} from "@/components/ui/empty";
-import {
-  Item,
-  ItemActions,
-  ItemContent,
-  ItemDescription,
-  ItemGroup,
-  ItemMedia,
-  ItemTitle,
-} from "@/components/ui/item";
-import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import { cn } from "@/lib/utils";
-import { useIsMobile } from "@/hooks/use-mobile";
-
+import { Badge } from "@/components/ui/badge";
+import { inspectAttendanceIntervals } from "@/lib/projects/paper-signup/intervals";
 import { ReviewRowEditor } from "./ReviewRowEditor";
 import {
   commitPaperScanBatch,
   getPaperScanImageUrls,
   updatePaperScanRow,
 } from "./actions";
+import {
+  addAttendanceReviewRow,
+  combineAttendanceReviewRows,
+  loadAttendanceReview,
+} from "./manual-actions";
 import type {
   CommitSummary,
   PaperScanBatchView,
   PaperScanRowView,
 } from "./PaperSignupsClient";
 
-const LOW_CONFIDENCE = 0.7;
-
-interface ReviewTableProps {
+interface Props {
   projectId: string;
   batch: PaperScanBatchView;
   initialRows: PaperScanRowView[];
@@ -78,42 +33,8 @@ interface ReviewTableProps {
   onDiscard: () => void;
   onCommitted: (summary: CommitSummary) => void;
 }
-
-function formatTime(iso: string | null, timezone: string): string {
-  if (!iso) return "—";
-  return new Date(iso).toLocaleTimeString("en-US", {
-    timeZone: timezone,
-    hour: "numeric",
-    minute: "2-digit",
-  });
-}
-
-function CellValue({
-  value,
-  confidence,
-}: {
-  value: string | null;
-  confidence: number;
-}) {
-  if (value === null || value.length === 0) {
-    return <Badge variant="outline">unreadable</Badge>;
-  }
-  return (
-    <span
-      className={cn(
-        confidence < LOW_CONFIDENCE &&
-          "rounded ring-2 ring-amber-400/70 px-1 -mx-1",
-      )}
-      title={
-        confidence < LOW_CONFIDENCE
-          ? `Low transcription confidence (${Math.round(confidence * 100)}%) — check against the photo`
-          : undefined
-      }
-    >
-      {value}
-    </span>
-  );
-}
+const saved = (row: PaperScanRowView) =>
+  ["signup_created", "signup_updated", "skipped"].includes(row.outcome);
 
 export function ReviewTable({
   projectId,
@@ -125,388 +46,455 @@ export function ReviewTable({
   discarding,
   onDiscard,
   onCommitted,
-}: ReviewTableProps) {
-  const isMobile = useIsMobile();
-  const [rows, setRows] = useState<PaperScanRowView[]>(initialRows);
-  const [editingRow, setEditingRow] = useState<PaperScanRowView | null>(null);
+}: Props) {
+  const [rows, setRows] = useState(initialRows);
+  const [editing, setEditing] = useState<PaperScanRowView | null>(null);
   const [images, setImages] = useState<
     Array<{ imageId: string; sequence: number; url: string }>
   >([]);
-  const [zoomedImage, setZoomedImage] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
   const [allowOverCapacity, setAllowOverCapacity] = useState(false);
-  const [committing, setCommitting] = useState(false);
-  // One key per review session: retries of the same commit replay, never
-  // duplicate.
-  const [idempotencyKey] = useState(() => crypto.randomUUID());
-
+  const [requestKey, setRequestKey] = useState(() => crypto.randomUUID());
+  const [addKey, setAddKey] = useState(() => crypto.randomUUID());
+  const [summary, setSummary] = useState<CommitSummary | null>(null);
+  const [targetId, setTargetId] = useState("");
+  const [sourceId, setSourceId] = useState("");
+  const [combineConfirmed, setCombineConfirmed] = useState(false);
+  const [combineKey, setCombineKey] = useState(() => crypto.randomUUID());
+  const reload = async () => {
+    const result = await loadAttendanceReview({ projectId, batchId: batch.id });
+    if ("error" in result) {
+      toast.error(result.error);
+      return null;
+    }
+    setRows(result.rows ?? []);
+    return result.rows;
+  };
   useEffect(() => {
-    let cancelled = false;
-    getPaperScanImageUrls({ projectId, batchId: batch.id }).then((result) => {
-      if (!cancelled && "urls" in result) setImages(result.urls);
-    });
+    let current = true;
+    void loadAttendanceReview({ projectId, batchId: batch.id }).then(
+      (result) => {
+        if (current && "rows" in result) setRows(result.rows ?? []);
+      },
+    );
+    void getPaperScanImageUrls({ projectId, batchId: batch.id }).then(
+      (result) => {
+        if (current && "urls" in result) setImages(result.urls);
+      },
+    );
     return () => {
-      cancelled = true;
+      current = false;
     };
   }, [projectId, batch.id]);
-
-  const included = useMemo(
-    () => rows.filter((row) => row.decision === "include"),
-    [rows],
+  const unfinished = rows.filter((row) => !saved(row));
+  const ready = useMemo(
+    () =>
+      rows.filter((row) => {
+        const inspection = inspectAttendanceIntervals(
+          row.attendanceIntervals,
+          window,
+        );
+        return (
+          !saved(row) &&
+          row.decision === "include" &&
+          row.reviewAcknowledged &&
+          row.identityConfirmed &&
+          inspection.problems.length === 0 &&
+          (!inspection.outsideSession ||
+            Boolean(row.timeExceptionReason?.trim()))
+        );
+      }),
+    [rows, window],
   );
-  const summary = useMemo(() => {
-    const withEmail = included.filter((row) => row.email);
-    const rosterOnly = included.filter((row) => !row.email && row.name);
-    const excluded = rows.filter((row) => row.decision !== "include");
-    const duplicates = rows.filter((row) =>
-      row.outcomeDetail?.startsWith("duplicate_of_row_"),
-    );
-    return { withEmail, rosterOnly, excluded, duplicates };
-  }, [rows, included]);
-
-  const patchRow = async (
-    row: PaperScanRowView,
-    patch: Parameters<typeof updatePaperScanRow>[0]["patch"],
-    optimistic: Partial<PaperScanRowView>,
-  ) => {
-    const previous = rows;
-    setRows((current) =>
-      current.map((candidate) =>
-        candidate.id === row.id ? { ...candidate, ...optimistic } : candidate,
-      ),
-    );
-    const result = await updatePaperScanRow({
-      projectId,
-      batchId: batch.id,
-      rowId: row.id,
-      patch,
-    });
-    if ("error" in result) {
-      setRows(previous);
-      toast.error(result.error);
+  const add = async () => {
+    setBusy(true);
+    try {
+      const result = await addAttendanceReviewRow({
+        projectId,
+        batchId: batch.id,
+        requestId: addKey,
+      });
+      if ("error" in result) {
+        toast.error(result.error);
+        return;
+      }
+      setAddKey(crypto.randomUUID());
+      const next = await reload();
+      setEditing(next?.find((row) => row.id === result.rowId) ?? null);
+    } finally {
+      setBusy(false);
     }
   };
-
-  const toggleInclude = (row: PaperScanRowView, checked: boolean) => {
-    const decision = checked ? "include" : "exclude";
-    void patchRow(row, { decision }, { decision });
+  const include = async (row: PaperScanRowView, checked: boolean) => {
+    setBusy(true);
+    try {
+      const result = await updatePaperScanRow({
+        projectId,
+        batchId: batch.id,
+        rowId: row.id,
+        patch: {
+          decision: checked ? "include" : "exclude",
+          expectedRevision: row.reviewRevision,
+        },
+      });
+      if ("error" in result) toast.error(result.error);
+      await reload();
+    } finally {
+      setBusy(false);
+    }
   };
-
   const commit = async () => {
-    setCommitting(true);
-    const result = await commitPaperScanBatch({
-      projectId,
-      batchId: batch.id,
-      rowIds: included.map((row) => row.id),
-      allowOverCapacity,
-      idempotencyKey,
-    });
-    setCommitting(false);
-    if ("error" in result) {
-      toast.error(result.error);
-      return;
+    setBusy(true);
+    try {
+      const result = await commitPaperScanBatch({
+        projectId,
+        batchId: batch.id,
+        rowIds: ready.map((row) => row.id),
+        allowOverCapacity,
+        idempotencyKey: requestKey,
+      });
+      if ("error" in result) {
+        toast.error(result.error);
+        return;
+      }
+      setSummary(result);
+      setRequestKey(crypto.randomUUID());
+      const next = await reload();
+      if (
+        next &&
+        next.every((row) => saved(row) || row.decision === "exclude") &&
+        result.failed.length === 0
+      )
+        onCommitted(result);
+    } finally {
+      setBusy(false);
     }
-    onCommitted(result);
   };
-
-  const rowHighlights = (row: PaperScanRowView) =>
-    row.outcomeDetail?.startsWith("duplicate_of_row_") ? (
-      <Badge variant="secondary" className="gap-1">
-        <AlertTriangle className="size-3" />
-        duplicate of row {row.outcomeDetail.replace("duplicate_of_row_", "")}
-      </Badge>
-    ) : row.matchScore !== null && row.matchScore < 0.82 ? (
-      <Badge variant="outline">verify match</Badge>
-    ) : row.matchKind !== "none" ? (
-      <Badge variant="secondary">matched</Badge>
-    ) : null;
-
+  const combine = async () => {
+    if (!combineConfirmed || !targetId || !sourceId || sourceId === targetId)
+      return;
+    setBusy(true);
+    try {
+      const result = await combineAttendanceReviewRows({
+        projectId,
+        batchId: batch.id,
+        targetRowId: targetId,
+        sourceRowIds: [sourceId],
+        requestId: combineKey,
+      });
+      if ("error" in result) {
+        toast.error(result.error);
+        return;
+      }
+      setCombineKey(crypto.randomUUID());
+      setSourceId("");
+      setCombineConfirmed(false);
+      const next = await reload();
+      setEditing(next?.find((row) => row.id === targetId) ?? null);
+    } finally {
+      setBusy(false);
+    }
+  };
+  const time = (iso: string | null) =>
+    iso
+      ? new Date(iso).toLocaleString("en-US", {
+          timeZone: timezone,
+          month: "short",
+          day: "numeric",
+          hour: "numeric",
+          minute: "2-digit",
+        })
+      : "Missing time";
   return (
-    <div className="space-y-4 pb-28">
-      {/* Source photos: reviewing a transcription without the photo in view
-          is not review. */}
-      {images.length > 0 && (
-        <ScrollArea className="w-full rounded-lg border bg-muted/30">
-          <div className="flex gap-2 p-2">
-            {images.map((image) => (
-              <button
-                key={image.imageId}
-                type="button"
-                onClick={() => setZoomedImage(image.url)}
-                className="w-36 shrink-0 rounded-md outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50"
-                aria-label={`View sheet page ${image.sequence + 1}`}
-              >
-                <AspectRatio ratio={4 / 3}>
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img
-                    src={image.url}
-                    alt={`Sheet page ${image.sequence + 1}`}
-                    className="size-full rounded-md border object-cover"
-                  />
-                </AspectRatio>
-              </button>
-            ))}
-          </div>
-          <ScrollBar orientation="horizontal" />
-        </ScrollArea>
-      )}
-      {zoomedImage && (
-        <button
-          type="button"
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4"
-          onClick={() => setZoomedImage(null)}
-          aria-label="Close photo"
+    <div className="space-y-4 pb-6">
+      <div className="flex flex-wrap gap-2">
+        <Button
+          variant="outline"
+          onClick={add}
+          disabled={busy || rows.length >= 300}
         >
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src={zoomedImage}
-            alt="Sheet page"
-            className="max-h-full max-w-full rounded"
-          />
-        </button>
-      )}
-
-      {sessionPublished && (
-        <Card className="border-amber-400/60">
-          <CardHeader className="py-4">
-            <CardTitle className="text-sm">
-              This session&apos;s hours are already published
-            </CardTitle>
-            <CardDescription>
-              Confirmed rows will get certificates immediately instead of going
-              through the hours review page.
-            </CardDescription>
-          </CardHeader>
-        </Card>
-      )}
-
-      {rows.length === 0 ? (
-        <Empty className="border">
-          <EmptyMedia variant="icon">
-            <Users />
-          </EmptyMedia>
-          <EmptyTitle>No rows were read</EmptyTitle>
-          <EmptyDescription>
-            Nothing legible came back from the photos. Try re-scanning with
-            better lighting and the sheet filling the frame.
-          </EmptyDescription>
-        </Empty>
-      ) : isMobile ? (
-        <ItemGroup className="gap-2">
-          {rows.map((row) => (
-            <Item
-              key={row.id}
-              variant="outline"
-              className={cn(row.decision !== "include" && "opacity-60")}
+          Add missed row or walk-in
+        </Button>
+        <Button variant="ghost" disabled={busy} onClick={() => void reload()}>
+          Refresh saved review
+        </Button>
+      </div>
+      {images.length > 0 && (
+        <div className="flex gap-3 overflow-x-auto rounded border p-3">
+          {images.map((image) => (
+            <a
+              key={image.imageId}
+              href={image.url}
+              target="_blank"
+              rel="noreferrer"
+              className="w-40 shrink-0"
             >
-              <ItemMedia className="self-start pt-0.5">
-                <Checkbox
-                  checked={row.decision === "include"}
-                  onCheckedChange={(checked) =>
-                    toggleInclude(row, checked === true)
-                  }
-                  aria-label={`Include row ${row.sheetRowNumber}`}
-                />
-              </ItemMedia>
-              <ItemContent>
-                <ItemTitle>
-                  <CellValue
-                    value={row.name}
-                    confidence={row.fieldConfidence.name}
-                  />
-                </ItemTitle>
-                <ItemDescription>
-                  <CellValue
-                    value={row.email}
-                    confidence={row.fieldConfidence.email}
-                  />
-                </ItemDescription>
-                <ItemDescription className="text-xs">
-                  {formatTime(row.checkInTime, timezone)} –{" "}
-                  {formatTime(row.checkOutTime, timezone)}
-                  {row.signaturePresent ? " · signed" : ""}
-                </ItemDescription>
-                {rowHighlights(row) ? (
-                  <div className="mt-1">{rowHighlights(row)}</div>
-                ) : null}
-              </ItemContent>
-              <ItemActions className="self-start">
-                <Button
-                  size="icon"
-                  variant="ghost"
-                  onClick={() => setEditingRow(row)}
-                  aria-label={`Edit row ${row.sheetRowNumber}`}
-                >
-                  <Pencil className="size-4" />
-                </Button>
-              </ItemActions>
-            </Item>
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={image.url}
+                alt={`Source sheet page ${image.sequence + 1}`}
+                className="h-28 w-full rounded border object-contain"
+              />
+              <span className="text-sm underline">
+                Sheet page {image.sequence + 1}
+              </span>
+            </a>
           ))}
-        </ItemGroup>
-      ) : (
-        <div className="overflow-x-auto rounded-lg border">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead className="w-10" />
-                <TableHead className="w-10">#</TableHead>
-                <TableHead>Name</TableHead>
-                <TableHead>Email</TableHead>
-                <TableHead>Phone</TableHead>
-                <TableHead>In</TableHead>
-                <TableHead>Out</TableHead>
-                <TableHead>Signed</TableHead>
-                <TableHead>Match</TableHead>
-                <TableHead className="w-10" />
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {rows.map((row) => (
-                <TableRow
-                  key={row.id}
-                  className={cn(row.decision !== "include" && "opacity-50")}
-                >
-                  <TableCell>
-                    <Checkbox
-                      checked={row.decision === "include"}
-                      onCheckedChange={(checked) =>
-                        toggleInclude(row, checked === true)
-                      }
-                      aria-label={`Include row ${row.sheetRowNumber}`}
-                    />
-                  </TableCell>
-                  <TableCell className="text-muted-foreground">
-                    {row.sheetRowNumber}
-                  </TableCell>
-                  <TableCell>
-                    <CellValue
-                      value={row.name}
-                      confidence={row.fieldConfidence.name}
-                    />
-                  </TableCell>
-                  <TableCell>
-                    <CellValue
-                      value={row.email}
-                      confidence={row.fieldConfidence.email}
-                    />
-                  </TableCell>
-                  <TableCell>
-                    <CellValue
-                      value={row.phone}
-                      confidence={row.fieldConfidence.phone}
-                    />
-                  </TableCell>
-                  <TableCell>{formatTime(row.checkInTime, timezone)}</TableCell>
-                  <TableCell>
-                    {formatTime(row.checkOutTime, timezone)}
-                  </TableCell>
-                  <TableCell>{row.signaturePresent ? "Yes" : "—"}</TableCell>
-                  <TableCell>{rowHighlights(row)}</TableCell>
-                  <TableCell>
-                    <Button
-                      size="icon"
-                      variant="ghost"
-                      onClick={() => setEditingRow(row)}
-                      aria-label={`Edit row ${row.sheetRowNumber}`}
-                    >
-                      <Pencil className="size-4" />
-                    </Button>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
         </div>
       )}
-
-      {editingRow && (
+      {sessionPublished && (
+        <p className="rounded border p-3 text-sm">
+          This session's hours are published. New reviewed attendees receive
+          certificates when saved. Use the Hours correction action to change an
+          existing award.
+        </p>
+      )}
+      {summary && (
+        <div role="status" className="rounded border p-3 text-sm">
+          <p>
+            {summary.created + summary.updated} attendance records saved;{" "}
+            {summary.rosterOnly} uncredited roster entries saved;{" "}
+            {summary.certificatesIssued} certificates available.
+          </p>
+          <p>
+            {summary.notificationsQueued} notifications queued. Queued does not
+            mean delivered.
+          </p>
+          {summary.failed.map((failure) => (
+            <p key={failure.rowId} className="text-destructive">
+              Row {rows.find((row) => row.id === failure.rowId)?.sheetRowNumber}
+              : {failure.detail.replaceAll("_", " ")}
+            </p>
+          ))}
+          {summary.certificateErrors.map((error) => (
+            <p key={error} className="text-destructive">
+              {error}
+            </p>
+          ))}
+        </div>
+      )}
+      {rows.length === 0 && (
+        <p className="rounded border p-6 text-muted-foreground">
+          No attendance rows yet. Add a volunteer manually, or scan a completed
+          sheet.
+        </p>
+      )}
+      <div className="space-y-3">
+        {rows.map((row) => {
+          const inspection = inspectAttendanceIntervals(
+            row.attendanceIntervals,
+            window,
+          );
+          return (
+            <article key={row.id} className="rounded-lg border p-4 space-y-3">
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <h2 className="font-medium">
+                    Row {row.sheetRowNumber}: {row.name || "Name needs review"}
+                  </h2>
+                  <p className="text-sm text-muted-foreground">
+                    {row.email ||
+                      (row.matchSignupId
+                        ? "Existing signup selected"
+                        : "No email: uncredited roster entry")}
+                  </p>
+                </div>
+                <Badge variant={saved(row) ? "secondary" : "outline"}>
+                  {saved(row)
+                    ? "Saved"
+                    : row.reviewAcknowledged && row.identityConfirmed
+                      ? "Reviewed"
+                      : "Needs review"}
+                </Badge>
+              </div>
+              <div className="space-y-1 text-sm">
+                {row.attendanceIntervals.map((interval, index) => (
+                  <p key={index}>
+                    Visit {index + 1}: {time(interval.checkIn)} to{" "}
+                    {time(interval.checkOut)}
+                  </p>
+                ))}
+                {inspection.minutes !== null && (
+                  <p className="font-medium">
+                    {Math.floor(inspection.minutes / 60)}h{" "}
+                    {inspection.minutes % 60}m, excluding breaks
+                  </p>
+                )}
+              </div>
+              {!saved(row) && (
+                <div className="space-y-1 text-sm">
+                  {inspection.problems.map((problem) => (
+                    <p className="text-destructive" key={problem}>
+                      {problem}
+                    </p>
+                  ))}
+                  {inspection.outsideSession && (
+                    <p>
+                      Outside scheduled session
+                      {row.timeExceptionReason
+                        ? `: ${row.timeExceptionReason}`
+                        : ". Add a reviewed reason."}
+                    </p>
+                  )}
+                  {row.matchKind !== "none" && (
+                    <p>
+                      Suggested match:{" "}
+                      {row.matchReasons.join(", ").replaceAll("_", " ")}.
+                      Confirm identity in review.
+                    </p>
+                  )}
+                  {Object.values(row.fieldConfidence).some(
+                    (confidence) => confidence > 0 && confidence < 0.7,
+                  ) && (
+                    <p>
+                      Some writing has low confidence. Compare it with the
+                      source photo.
+                    </p>
+                  )}
+                  {row.outcomeDetail && (
+                    <p className="text-destructive">
+                      {row.outcomeDetail.replaceAll("_", " ")}
+                    </p>
+                  )}
+                </div>
+              )}
+              {!saved(row) && (
+                <div className="flex items-center justify-between gap-3">
+                  <label className="flex items-center gap-2 text-sm">
+                    <input
+                      type="checkbox"
+                      checked={row.decision === "include"}
+                      disabled={busy}
+                      onChange={(e) => void include(row, e.target.checked)}
+                    />
+                    Include when reviewed
+                  </label>
+                  <Button
+                    variant="outline"
+                    disabled={busy}
+                    onClick={() => setEditing(row)}
+                  >
+                    Review row {row.sheetRowNumber}
+                  </Button>
+                </div>
+              )}
+            </article>
+          );
+        })}
+      </div>
+      {unfinished.length > 1 && (
+        <details className="rounded border p-3">
+          <summary className="cursor-pointer font-medium">
+            Combine repeated visits or separate sign-in/out rows
+          </summary>
+          <div className="mt-3 space-y-3 text-sm">
+            <p>
+              Choose two rows for the same volunteer. Original scans remain
+              unchanged. Review the combined times before saving attendance.
+            </p>
+            <div className="grid gap-2 sm:grid-cols-2">
+              {(["target", "source"] as const).map((kind) => (
+                <select
+                  key={kind}
+                  aria-label={
+                    kind === "target" ? "Keep row" : "Combine source row"
+                  }
+                  className="rounded border bg-background p-2"
+                  value={kind === "target" ? targetId : sourceId}
+                  onChange={(e) => {
+                    if (kind === "target") setTargetId(e.target.value);
+                    else setSourceId(e.target.value);
+                    setCombineConfirmed(false);
+                    setCombineKey(crypto.randomUUID());
+                  }}
+                >
+                  <option value="">
+                    {kind === "target" ? "Keep row…" : "Combine with row…"}
+                  </option>
+                  {unfinished
+                    .filter((row) => row.decision !== "exclude")
+                    .map((row) => (
+                      <option key={row.id} value={row.id}>
+                        Row {row.sheetRowNumber}:{" "}
+                        {row.name || row.email || "Unnamed"}
+                      </option>
+                    ))}
+                </select>
+              ))}
+            </div>
+            <label className="flex gap-2">
+              <input
+                type="checkbox"
+                checked={combineConfirmed}
+                onChange={(e) => setCombineConfirmed(e.target.checked)}
+              />
+              I checked that both rows belong to the same volunteer.
+            </label>
+            <Button
+              variant="outline"
+              disabled={
+                busy ||
+                !combineConfirmed ||
+                !sourceId ||
+                !targetId ||
+                sourceId === targetId
+              }
+              onClick={combine}
+            >
+              Combine and review
+            </Button>
+          </div>
+        </details>
+      )}
+      <div className="sticky bottom-0 rounded-lg border bg-background p-4 space-y-3 shadow-sm">
+        <p className="text-sm">
+          {ready.length} reviewed rows ready to save. Other rows stay here for
+          later review.
+        </p>
+        <label className="flex items-start gap-2 text-sm">
+          <input
+            type="checkbox"
+            checked={allowOverCapacity}
+            onChange={(e) => {
+              setAllowOverCapacity(e.target.checked);
+              setRequestKey(crypto.randomUUID());
+            }}
+          />
+          Allow reviewed walk-ins to exceed the scheduled volunteer capacity.
+        </label>
+        <div className="flex flex-wrap gap-2">
+          <Button onClick={commit} disabled={busy || !ready.length}>
+            {busy ? "Saving…" : `Save ${ready.length} reviewed rows`}
+          </Button>
+          <Button
+            variant="ghost"
+            disabled={busy || discarding || rows.some(saved)}
+            onClick={onDiscard}
+          >
+            Discard draft
+          </Button>
+        </div>
+      </div>
+      {editing && (
         <ReviewRowEditor
           projectId={projectId}
           batchId={batch.id}
-          row={editingRow}
+          row={editing}
           timezone={timezone}
           window={window}
-          onClose={() => setEditingRow(null)}
+          sourceUrl={
+            images.find((image) => image.imageId === editing.imageId)?.url
+          }
+          onClose={() => setEditing(null)}
           onSaved={(updated) => {
             setRows((current) =>
-              current.map((candidate) =>
-                candidate.id === updated.id ? updated : candidate,
-              ),
+              current.map((row) => (row.id === updated.id ? updated : row)),
             );
-            setEditingRow(null);
+            setEditing(null);
+            setRequestKey(crypto.randomUUID());
           }}
         />
       )}
-
-      {/* Sticky commit bar: the consequence must be legible at the moment of
-          the click. */}
-      <div className="fixed inset-x-0 bottom-0 z-40 border-t bg-background/95 p-3 backdrop-blur">
-        <div className="container mx-auto flex max-w-5xl flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-          <p className="text-sm text-muted-foreground">
-            <strong>{summary.withEmail.length}</strong> will become attendance
-            records · <strong>{summary.rosterOnly.length}</strong> roster-only
-            (no email) · <strong>{summary.excluded.length}</strong> excluded
-            {summary.duplicates.length > 0 && (
-              <> · {summary.duplicates.length} flagged duplicate</>
-            )}
-          </p>
-          <div className="flex items-center gap-2">
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={onDiscard}
-              disabled={discarding || committing}
-            >
-              <Trash2 className="size-4" />
-              Discard
-            </Button>
-            <AlertDialog>
-              <AlertDialogTrigger
-                render={
-                  <Button disabled={committing || included.length === 0}>
-                    Confirm {included.length} row
-                    {included.length === 1 ? "" : "s"}
-                  </Button>
-                }
-              />
-              <AlertDialogContent>
-                <AlertDialogHeader>
-                  <AlertDialogTitle>Record these signups?</AlertDialogTitle>
-                  <AlertDialogDescription>
-                    {summary.withEmail.length} attendance record
-                    {summary.withEmail.length === 1 ? "" : "s"} will be created
-                    or updated, and {summary.rosterOnly.length} roster-only entr
-                    {summary.rosterOnly.length === 1 ? "y" : "ies"} saved.
-                    Volunteers with a new record are emailed a link to it. This
-                    can&apos;t be undone from this screen.
-                  </AlertDialogDescription>
-                </AlertDialogHeader>
-                <div className="flex items-start gap-2 rounded-md border p-3">
-                  <Checkbox
-                    id="allow-over-capacity"
-                    checked={allowOverCapacity}
-                    onCheckedChange={(checked) =>
-                      setAllowOverCapacity(checked === true)
-                    }
-                  />
-                  <Label
-                    htmlFor="allow-over-capacity"
-                    className="text-sm font-normal leading-snug"
-                  >
-                    Record attendees even if it exceeds the slot&apos;s
-                    volunteer cap (the event already happened)
-                  </Label>
-                </div>
-                <AlertDialogFooter>
-                  <AlertDialogCancel>Not yet</AlertDialogCancel>
-                  <AlertDialogAction onClick={commit} disabled={committing}>
-                    {committing ? "Recording…" : "Record signups"}
-                  </AlertDialogAction>
-                </AlertDialogFooter>
-              </AlertDialogContent>
-            </AlertDialog>
-          </div>
-        </div>
-      </div>
     </div>
   );
 }

@@ -5,6 +5,7 @@ import {
   composeSlotInstant,
   normalizeTimeString,
   resolveRowWindow,
+  transcribedTimeInstant,
 } from "./normalize";
 
 const TZ = "America/Los_Angeles";
@@ -86,20 +87,17 @@ describe("composeSlotInstant", () => {
 describe("resolveRowWindow", () => {
   const window = windowFor("2026-06-15", "10:00", "14:00");
 
-  test("null times fall back to the slot boundaries", () => {
+  test("null times stay unresolved", () => {
     const resolved = resolveRowWindow({
       window,
       timezone: TZ,
       timeIn: null,
       timeOut: null,
     });
-    expect(resolved).toEqual({
-      checkInMs: window.startsAt,
-      checkOutMs: window.endsAt,
-    });
+    expect(resolved).toBeNull();
   });
 
-  test("times outside the window are clamped, not rejected", () => {
+  test("actual times outside the window are preserved for review", () => {
     const resolved = resolveRowWindow({
       window,
       timezone: TZ,
@@ -107,8 +105,8 @@ describe("resolveRowWindow", () => {
       timeOut: "8pm",
     });
     expect(resolved).toEqual({
-      checkInMs: window.startsAt,
-      checkOutMs: window.endsAt,
+      checkInMs: new TZDate(2026, 5, 15, 8, 0, 0, TZ).getTime(),
+      checkOutMs: new TZDate(2026, 5, 15, 20, 0, 0, TZ).getTime(),
     });
   });
 
@@ -125,7 +123,7 @@ describe("resolveRowWindow", () => {
     });
   });
 
-  test("an overnight slot maps an earlier out-time to the next day", () => {
+  test("overnight dates require explicit review", () => {
     const overnight = windowFor("2026-06-15", "22:00", "02:00");
     const resolved = resolveRowWindow({
       window: overnight,
@@ -133,20 +131,19 @@ describe("resolveRowWindow", () => {
       timeIn: "22:30",
       timeOut: "1:00am",
     });
-    expect(resolved).toEqual({
-      checkInMs: new TZDate(2026, 5, 15, 22, 30, 0, TZ).getTime(),
-      checkOutMs: new TZDate(2026, 5, 16, 1, 0, 0, TZ).getTime(),
-    });
+    expect(resolved).toBeNull();
   });
 
-  test("a window that collapses after clamping is unusable", () => {
+  test("a complete interval after the session stays available for review", () => {
     const resolved = resolveRowWindow({
       window,
       timezone: TZ,
       timeIn: "3pm",
       timeOut: "4pm",
     });
-    expect(resolved).toBeNull();
+    expect(resolved).not.toBeNull();
+    if (!resolved) throw new Error("Expected actual attendance times");
+    expect(resolved.checkOutMs - resolved.checkInMs).toBe(3600000);
   });
 
   test("unreadable time -> null", () => {
@@ -157,5 +154,20 @@ describe("resolveRowWindow", () => {
       timeOut: null,
     });
     expect(resolved).toBeNull();
+  });
+});
+
+describe("transcribed clock evidence", () => {
+  test("bare morning/evening clock hours stay unresolved", () => {
+    const window = windowFor("2026-06-15", "10:00", "14:00");
+    expect(transcribedTimeInstant(window, TZ, "9")).toBeNull();
+    expect(transcribedTimeInstant(window, TZ, "1:30")).toBeNull();
+    expect(transcribedTimeInstant(window, TZ, "9am")).toBe(
+      "2026-06-15T16:00:00.000Z",
+    );
+  });
+  test("repeated fall clock times stay unresolved without an offset", () => {
+    const window = windowFor("2026-11-01", "00:00", "03:00");
+    expect(transcribedTimeInstant(window, TZ, "1:30am")).toBeNull();
   });
 });

@@ -117,7 +117,11 @@ export default function ProjectsTab({
       </div>
 
       {userRole === "admin" && (
-        <AttendanceExport scope="organization" scopeId={organizationId} />
+        <AttendanceExport
+          scope="organization"
+          scopeId={organizationId}
+          projects={projects}
+        />
       )}
 
       <Tabs

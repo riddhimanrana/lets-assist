@@ -1,3 +1,4 @@
+import { resolveAttendancePrintReference } from "@/lib/attendance/print-manifest";
 import { randomUUID } from "node:crypto";
 import { generateText, Output } from "ai";
 import { NextRequest } from "next/server";
@@ -14,16 +15,14 @@ import { getRequestIp } from "@/lib/ai/parse-project-rate-limit-config";
 import { prepareTrackedAiCall } from "@/lib/ai/with-ai-tracking";
 import {
   paperSignupExtractionSchema,
+  PAPER_SCAN_MAX_ROWS_PER_BATCH,
   shouldEscalatePaperScan,
   type PaperSignupExtraction,
   type PaperSignupRow,
 } from "@/lib/ai/paper-signup-schema";
 import { AI_MODEL_FALLBACK_CHAIN } from "@/lib/ai/models";
 import { buildPaperSignupExtractionPrompt } from "@/lib/ai/paper-signup-prompt";
-import {
-  normalizeTimeString,
-  resolveRowWindow,
-} from "@/lib/projects/paper-signup/normalize";
+import { transcribedTimeInstant } from "@/lib/projects/paper-signup/normalize";
 import {
   MATCH_AUTO_THRESHOLD,
   matchPaperRow,
@@ -179,6 +178,12 @@ async function extractImage(options: {
 }
 
 type StagedRowInsert = {
+  attendance_intervals: Array<{
+    checkIn: string | null;
+    checkOut: string | null;
+  }>;
+  review_acknowledged: boolean;
+  identity_confirmed: boolean;
   batch_id: string;
   project_id: string;
   image_id: string;
@@ -502,14 +507,45 @@ export async function POST(req: NextRequest) {
         const name = row.name.value?.trim() || null;
         const phone = row.phone.value?.trim() || null;
 
-        const resolved = resolveRowWindow({
-          window,
-          timezone,
-          timeIn: normalizeTimeString(row.timeIn.value),
-          timeOut: normalizeTimeString(row.timeOut.value),
-        });
-
-        const match = matchPaperRow({ name, email, phone }, candidates);
+        const writtenIntervals = row.intervals?.length
+          ? row.intervals
+          : [{ timeIn: row.timeIn, timeOut: row.timeOut }];
+        const intervals = writtenIntervals.map((interval) => ({
+          checkIn: transcribedTimeInstant(
+            window,
+            timezone,
+            interval.timeIn.value,
+          ),
+          checkOut: transcribedTimeInstant(
+            window,
+            timezone,
+            interval.timeOut.value,
+          ),
+        }));
+        let match = matchPaperRow({ name, email, phone }, candidates);
+        let referenceProblem = false;
+        if (row.sheetReference || row.rowReference) {
+          const printed = await resolveAttendancePrintReference({
+            projectId: batch.project_id,
+            scheduleId: batch.schedule_id,
+            sheetReference: row.sheetReference ?? "",
+            rowReference: row.rowReference ?? "",
+          });
+          if (printed?.signupId) {
+            const candidate = candidates.find(
+              (candidate) => candidate.signupId === printed.signupId,
+            );
+            if (candidate)
+              match = {
+                kind: "existing_signup",
+                signupId: candidate.signupId,
+                userId: candidate.userId,
+                anonymousId: candidate.anonymousId,
+                score: 1,
+                reasons: [],
+              };
+          } else if (!printed) referenceProblem = true;
+        }
 
         // Same person transcribed twice in this batch: flag for the reviewer.
         const duplicateOf = seenIdentities.find(
@@ -550,12 +586,11 @@ export async function POST(req: NextRequest) {
           name,
           email,
           phone,
-          check_in_time: resolved
-            ? new Date(resolved.checkInMs).toISOString()
-            : null,
-          check_out_time: resolved
-            ? new Date(resolved.checkOutMs).toISOString()
-            : null,
+          attendance_intervals: intervals,
+          review_acknowledged: false,
+          identity_confirmed: false,
+          check_in_time: intervals[0]?.checkIn ?? null,
+          check_out_time: intervals.at(-1)?.checkOut ?? null,
           signature_present: row.signaturePresent,
           match_kind: match.kind,
           match_signup_id: match.signupId,
@@ -564,9 +599,11 @@ export async function POST(req: NextRequest) {
           match_score: match.score > 0 ? match.score : null,
           match_reasons: match.reasons,
           decision: autoInclude ? "include" : "pending",
-          outcome_detail: duplicateOf
-            ? `duplicate_of_row_${duplicateOf.sheetRowNumber}`
-            : null,
+          outcome_detail: referenceProblem
+            ? "printed_reference_needs_review"
+            : duplicateOf
+              ? `duplicate_of_row_${duplicateOf.sheetRowNumber}`
+              : null,
         });
         nextRowNumber += 1;
       }
@@ -598,6 +635,27 @@ export async function POST(req: NextRequest) {
     }
 
     if (stagedRows.length > 0) {
+      if (stagedRows.length > PAPER_SCAN_MAX_ROWS_PER_BATCH) {
+        const { error } = await admin
+          .from("project_paper_scan_batches")
+          .update({
+            status: "failed",
+            extraction_error: "too_many_rows",
+            extraction_claim_id: null,
+          })
+          .eq("id", batchId)
+          .eq("extraction_claim_id", claimId);
+        if (error)
+          throw new Error(`Failed to settle oversized scan: ${error.code}`);
+        claimedBatch = null;
+        return Response.json(
+          {
+            error:
+              "These photos contain more than 300 rows. Split them into smaller batches so every row can be reviewed.",
+          },
+          { status: 422 },
+        );
+      }
       const { error: insertError } = await admin
         .from("project_paper_scan_rows")
         .insert(stagedRows);

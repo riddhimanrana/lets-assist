@@ -20,6 +20,7 @@ export type AttendanceExportFilters = {
   from: string | null;
   to: string | null;
   sessionId: string | null;
+  projectId?: string | null;
   includeUnpublished: boolean;
 };
 export function parseAttendanceExportFilters(
@@ -31,6 +32,7 @@ export function parseAttendanceExportFilters(
     "from",
     "to",
     "sessionId",
+    "projectId",
     "includeUnpublished",
   ]);
   for (const key of params.keys()) {
@@ -45,7 +47,16 @@ export function parseAttendanceExportFilters(
     );
   const from = params.get("from"),
     to = params.get("to"),
-    sessionId = params.get("sessionId");
+    sessionId = params.get("sessionId"),
+    projectId = params.get("projectId");
+  if (
+    projectId !== null &&
+    (scope !== "organization" ||
+      !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
+        projectId,
+      ))
+  )
+    throw new AttendanceExportError("Invalid project filter");
   for (const value of [from, to]) {
     if (
       value !== null &&
@@ -67,6 +78,7 @@ export function parseAttendanceExportFilters(
     from,
     to,
     sessionId,
+    projectId,
     includeUnpublished: include === "true",
   };
 }

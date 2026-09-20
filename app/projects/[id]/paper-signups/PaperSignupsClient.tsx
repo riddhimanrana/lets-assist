@@ -16,6 +16,7 @@ import {
 } from "@/components/ui/card";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
+import { startManualAttendance } from "./manual-actions";
 import { ScheduleSlotStep } from "./ScheduleSlotStep";
 import { CaptureStep } from "./CaptureStep";
 import { ReviewTable } from "./ReviewTable";
@@ -33,6 +34,7 @@ export interface PaperScanBatchView {
   scheduleId: string;
   status: "draft" | "extracting" | "review";
   imageCount: number;
+  inputMethod?: "scan" | "manual";
 }
 
 export interface PaperScanRowView {
@@ -60,6 +62,11 @@ export interface PaperScanRowView {
   decision: "pending" | "include" | "exclude";
   outcome: string;
   outcomeDetail: string | null;
+  attendanceIntervals: import("@/lib/projects/paper-signup/intervals").AttendanceInterval[];
+  reviewAcknowledged: boolean;
+  identityConfirmed: boolean;
+  timeExceptionReason: string | null;
+  reviewRevision: number;
 }
 
 export interface CommitSummary {
@@ -83,6 +90,7 @@ interface PaperSignupsClientProps {
   initialBatch: PaperScanBatchView | null;
   initialRows: PaperScanRowView[];
   activeWindow: { startsAt: number; endsAt: number } | null;
+  initialMode?: "scan" | "manual";
 }
 
 type Step = "slot" | "capture" | "review" | "done";
@@ -97,8 +105,40 @@ export function PaperSignupsClient({
   initialBatch,
   initialRows,
   activeWindow,
+  initialMode = "scan",
 }: PaperSignupsClientProps) {
   const router = useRouter();
+  const [starting, setStarting] = useState(false);
+  const [manualRequestId, setManualRequestId] = useState(() =>
+    crypto.randomUUID(),
+  );
+  const startManual = async () => {
+    if (!selectedSlotId) return;
+    setStarting(true);
+    try {
+      const result = await startManualAttendance({
+        projectId,
+        scheduleId: selectedSlotId,
+        requestId: manualRequestId,
+      });
+      if ("error" in result) {
+        toast.error(result.error);
+        return;
+      }
+      setBatch({
+        id: result.batchId,
+        scheduleId: selectedSlotId,
+        status: "review",
+        imageCount: 0,
+        inputMethod: "manual",
+      });
+      setManualRequestId(crypto.randomUUID());
+      setStep("review");
+      router.refresh();
+    } finally {
+      setStarting(false);
+    }
+  };
 
   const [selectedSlotId, setSelectedSlotId] = useState<string | null>(
     initialBatch?.scheduleId ?? null,
@@ -178,7 +218,7 @@ export function PaperSignupsClient({
         </Link>
         <div>
           <h1 className="text-xl font-semibold sm:text-2xl">
-            Scan paper signups
+            Paper attendance
           </h1>
           <p className="text-sm text-muted-foreground">{projectTitle}</p>
         </div>
@@ -190,19 +230,32 @@ export function PaperSignupsClient({
           <AlertTitle>This event hasn&apos;t finished yet</AlertTitle>
           <AlertDescription>
             Paper sheets are usually scanned after the event ends. You can still
-            scan now — recorded times are clamped to the scheduled slot.
+            scan now. Actual times outside the session need a reviewed reason.
           </AlertDescription>
         </Alert>
       )}
 
       {step === "slot" && (
-        <ScheduleSlotStep
-          slotOptions={slotOptions}
-          timezone={projectTimezone}
-          selectedSlotId={selectedSlotId}
-          onSelect={setSelectedSlotId}
-          onContinue={() => selectedSlotId && setStep("capture")}
-        />
+        <div className="space-y-3">
+          <ScheduleSlotStep
+            slotOptions={slotOptions}
+            timezone={projectTimezone}
+            selectedSlotId={selectedSlotId}
+            onSelect={setSelectedSlotId}
+            onContinue={() =>
+              initialMode === "manual"
+                ? void startManual()
+                : selectedSlotId && setStep("capture")
+            }
+          />
+          <Button
+            variant="outline"
+            disabled={!selectedSlotId || starting}
+            onClick={startManual}
+          >
+            {starting ? "Opening attendance…" : "Add attendance manually"}
+          </Button>
+        </div>
       )}
 
       {step === "capture" && selectedSlot && (
@@ -244,7 +297,7 @@ export function PaperSignupsClient({
           onDiscard={handleDiscard}
           onCommitted={(summary) => {
             setCommitSummary(summary);
-            setStep("done");
+            if (summary.failed.length === 0) setStep("done");
             router.refresh();
           }}
         />
@@ -337,7 +390,7 @@ export function PaperSignupsClient({
                   {commitSummary.failed
                     .map((failure) =>
                       failure.detail === "slot_full"
-                        ? "The slot is full — re-scan with the capacity override to include everyone."
+                        ? "The slot is full. Return to review and approve the capacity override if appropriate."
                         : failure.detail,
                     )
                     .join(" · ")}

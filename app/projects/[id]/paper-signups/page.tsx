@@ -1,3 +1,5 @@
+import Link from "next/link";
+import { z } from "zod";
 import { Metadata } from "next";
 import { notFound, redirect } from "next/navigation";
 
@@ -22,18 +24,7 @@ export const metadata: Metadata = {
   title: "Scan paper signups",
 };
 
-type RawExtractionField = { value: string | null; confidence: number };
-type RawExtraction = {
-  name?: RawExtractionField;
-  email?: RawExtractionField;
-  phone?: RawExtractionField;
-  timeIn?: RawExtractionField;
-  timeOut?: RawExtractionField;
-};
-
-function fieldConfidence(field: RawExtractionField | undefined): number {
-  return typeof field?.confidence === "number" ? field.confidence : 0;
-}
+import { REVIEW_ROW_COLUMNS, paperRowView } from "./row-view";
 
 function buildSlotOptions(project: Project): PaperScanSlotOption[] {
   const options: Array<{ id: string; label: string }> = [];
@@ -74,10 +65,13 @@ function buildSlotOptions(project: Project): PaperScanSlotOption[] {
 
 export default async function PaperSignupsPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ id: string }>;
+  searchParams: Promise<{ mode?: string; batch?: string }>;
 }) {
   const { id: projectId } = await params;
+  const queryParams = await searchParams;
 
   const { user, error: authError } = await getAuthUser();
   if (authError || !user) {
@@ -118,16 +112,33 @@ export default async function PaperSignupsPage({
   }
 
   // The organizer's SELECT policies cover these reads; no admin client needed.
-  const { data: batchRow } = await supabase
+  let batchQuery = supabase
     .from("project_paper_scan_batches")
     .select(
-      "id, schedule_id, status, image_count, extracted_row_count, created_at",
+      "id, schedule_id, status, image_count, extracted_row_count, created_at, input_method",
     )
     .eq("project_id", projectId)
-    .in("status", ["draft", "extracting", "review"])
+    .in(
+      "status",
+      queryParams.batch
+        ? ["draft", "extracting", "review", "committed"]
+        : ["draft", "extracting", "review"],
+    )
     .order("created_at", { ascending: false })
-    .limit(1)
-    .maybeSingle();
+    .limit(1);
+  if (
+    queryParams.batch &&
+    z.string().uuid().safeParse(queryParams.batch).success
+  )
+    batchQuery = batchQuery.eq("id", queryParams.batch);
+  const { data: batchRow } = await batchQuery.maybeSingle();
+  const { data: savedDrafts } = await supabase
+    .from("project_paper_scan_batches")
+    .select("id,schedule_id,created_at,input_method")
+    .eq("project_id", projectId)
+    .in("status", ["draft", "extracting", "review", "committed"])
+    .order("created_at", { ascending: false })
+    .limit(30);
 
   let openBatch: PaperScanBatchView | null = null;
   let rows: PaperScanRowView[] = [];
@@ -136,48 +147,22 @@ export default async function PaperSignupsPage({
     openBatch = {
       id: batchRow.id,
       scheduleId: batchRow.schedule_id,
-      status: batchRow.status as PaperScanBatchView["status"],
+      status:
+        batchRow.status === "committed"
+          ? "review"
+          : (batchRow.status as PaperScanBatchView["status"]),
       imageCount: batchRow.image_count,
+      inputMethod: batchRow.input_method,
     };
 
-    if (batchRow.status === "review") {
+    if (["review", "committed"].includes(batchRow.status)) {
       const { data: rowData } = await supabase
         .from("project_paper_scan_rows")
-        .select(
-          "id, sheet_row_number, image_id, raw_extraction, overall_confidence, name, email, phone, check_in_time, check_out_time, signature_present, match_kind, match_signup_id, match_score, match_reasons, decision, outcome, outcome_detail",
-        )
+        .select(REVIEW_ROW_COLUMNS)
         .eq("batch_id", batchRow.id)
         .order("sheet_row_number");
 
-      rows = (rowData ?? []).map((row) => {
-        const raw = (row.raw_extraction ?? {}) as RawExtraction;
-        return {
-          id: row.id,
-          sheetRowNumber: row.sheet_row_number,
-          imageId: row.image_id,
-          name: row.name,
-          email: row.email,
-          phone: row.phone,
-          checkInTime: row.check_in_time,
-          checkOutTime: row.check_out_time,
-          signaturePresent: row.signature_present,
-          overallConfidence: Number(row.overall_confidence ?? 0),
-          fieldConfidence: {
-            name: fieldConfidence(raw.name),
-            email: fieldConfidence(raw.email),
-            phone: fieldConfidence(raw.phone),
-            timeIn: fieldConfidence(raw.timeIn),
-            timeOut: fieldConfidence(raw.timeOut),
-          },
-          matchKind: row.match_kind,
-          matchSignupId: row.match_signup_id,
-          matchScore: row.match_score === null ? null : Number(row.match_score),
-          matchReasons: row.match_reasons ?? [],
-          decision: row.decision as PaperScanRowView["decision"],
-          outcome: row.outcome,
-          outcomeDetail: row.outcome_detail,
-        };
-      });
+      rows = (rowData ?? []).map(paperRowView);
     }
   }
 
@@ -189,20 +174,53 @@ export default async function PaperSignupsPage({
   const publishedState = (project.published ?? {}) as Record<string, boolean>;
 
   return (
-    <PaperSignupsClient
-      projectId={projectId}
-      projectTitle={project.title}
-      projectTimezone={project.project_timezone || "America/Los_Angeles"}
-      projectStatus={projectStatus}
-      publishedState={publishedState}
-      slotOptions={slotOptions}
-      initialBatch={openBatch}
-      initialRows={rows}
-      activeWindow={
-        activeWindow
-          ? { startsAt: activeWindow.startsAt, endsAt: activeWindow.endsAt }
-          : null
-      }
-    />
+    <>
+      {savedDrafts && savedDrafts.length > 0 && (
+        <nav
+          aria-label="Saved attendance drafts"
+          className="container mx-auto max-w-5xl px-4 pt-4"
+        >
+          <details>
+            <summary>Resume a saved attendance draft</summary>
+            <ul className="space-y-2 py-3">
+              {savedDrafts.map((draft) => (
+                <li key={draft.id}>
+                  <Link
+                    className="underline"
+                    href={`/projects/${projectId}/paper-signups?batch=${draft.id}`}
+                  >
+                    {draft.input_method === "manual"
+                      ? "Manual attendance"
+                      : "Scanned sheets"}
+                    : {draft.schedule_id},{" "}
+                    {new Date(draft.created_at).toLocaleDateString("en-US", {
+                      timeZone:
+                        project.project_timezone || "America/Los_Angeles",
+                    })}
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          </details>
+        </nav>
+      )}
+      <PaperSignupsClient
+        key={openBatch?.id ?? "new"}
+        initialMode={queryParams.mode === "manual" ? "manual" : "scan"}
+        projectId={projectId}
+        projectTitle={project.title}
+        projectTimezone={project.project_timezone || "America/Los_Angeles"}
+        projectStatus={projectStatus}
+        publishedState={publishedState}
+        slotOptions={slotOptions}
+        initialBatch={openBatch}
+        initialRows={rows}
+        activeWindow={
+          activeWindow
+            ? { startsAt: activeWindow.startsAt, endsAt: activeWindow.endsAt }
+            : null
+        }
+      />
+    </>
   );
 }
