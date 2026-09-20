@@ -32,7 +32,7 @@ export interface PaperScanSlotOption {
 export interface PaperScanBatchView {
   id: string;
   scheduleId: string;
-  status: "draft" | "extracting" | "review";
+  status: "draft" | "extracting" | "review" | "failed";
   imageCount: number;
   inputMethod?: "scan" | "manual";
 }
