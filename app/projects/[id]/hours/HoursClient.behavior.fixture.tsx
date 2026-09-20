@@ -84,7 +84,7 @@ if (scenario === "missing-window") project.schedule = {};
 const signup: AttendanceHoursSignup = {
   id: "fictional-signup",
   project_id: project.id,
-  schedule_id: "oneTime",
+  schedule_id: scenario === "past-legacy" ? "0" : "oneTime",
   user_id: "fictional-user",
   status: "attended",
   created_at: "2020-01-01T00:00:00Z",

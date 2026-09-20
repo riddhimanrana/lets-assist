@@ -22,6 +22,7 @@ for (const [scenario, description] of [
     "verified awards do not hide publication for other volunteers",
   ],
   ["past", "ended sessions can publish completed attendance"],
+  ["past-legacy", "an ended legacy session can publish reviewed attendance"],
   ["future", "future sessions explain why publication is disabled"],
   ["missing-window", "unresolvable sessions cannot offer publication"],
 ]) {

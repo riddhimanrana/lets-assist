@@ -3,6 +3,7 @@
 import { z } from "zod";
 import { getAttendanceScheduleWindow } from "@/lib/attendance/challenge";
 import { resolveScheduleId } from "@/utils/project";
+import { getScheduleIdAliases } from "@/lib/projects/hours-publish-key";
 import { requirePaperScanAccess } from "./access";
 import { REVIEW_ROW_COLUMNS, paperRowView } from "./row-view";
 
@@ -136,6 +137,8 @@ export async function loadAttendanceCandidates(input: {
     .eq("project_id", input.projectId)
     .single();
   if (!batch) return { error: "Batch not found." };
+  const aliases = getScheduleIdAliases(access.project, batch.schedule_id);
+  if (!aliases.length) return { error: "Session not found." };
   const candidates: Array<{ id: string; name: string; email: string | null }> =
     [];
   let cursor: string | null = null;
@@ -146,7 +149,7 @@ export async function loadAttendanceCandidates(input: {
         "id, profile:profiles!project_signups_user_id_fkey_profiles(full_name,email), guest:anonymous_signups!anonymous_id(name,email)",
       )
       .eq("project_id", input.projectId)
-      .eq("schedule_id", batch.schedule_id)
+      .in("schedule_id", aliases)
       .in("status", ["approved", "attended", "pending"])
       .order("id")
       .limit(200);
