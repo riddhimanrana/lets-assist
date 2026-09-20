@@ -9092,3 +9092,17 @@ Private promotion PR 545 merged after its quality check passed. PR 546 restored
 the release ancestry to Development. Tag `dvhs-csf/v1.2.58` points to the reviewed
 private commit `6ea7f6905f35ed0c38d74561ceaab202e4197bba`. Signed publication and
 root integration are in progress; Production still serves the prior app.
+
+Signed publication run `35539372029` succeeded. Root integration run
+`35539394841` verified the signature, reconstructed the package, and passed its
+validation before GitHub refused the bot's PR creation permission. The verified
+branch was preserved and PR 770 was opened with the authorized account. No
+repository permission was broadened. The generated publication changes only
+the plugin catalog and release record. Existing release tests now expect the
+new catalog head; historical migration files remain unchanged.
+
+The Production controller pins the publication's exact bytes and its two
+catalog statements. The 632-entry schema manifest uses the unchanged reviewed
+631 object inventory because this publication contains no schema changes.
+Focused controller, catalog, and data-write tests passed 75 tests. The integrated
+database replay must still verify that inventory before Production promotion.
