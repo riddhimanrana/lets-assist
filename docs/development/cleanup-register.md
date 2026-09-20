@@ -9162,3 +9162,49 @@ transactional confirmation transport; account/access/decision notices still use
 the durable publication and campaign workers.
 The thirteen sender-identity tests, targeted ESLint, and root TypeScript check
 also pass for this correction. No provider send ran.
+
+Candidate `31daff76` passed full gate `35542694719` and hosted Development
+acceptance `35542687645`. The full run covered 392 root test files, 516 private
+plugin files, 9,998 database assertions, the build, worker and scale checks,
+136 CSF browser cases, and three DV browser cases. Four documented CSF browser
+cases were skipped. Hosted acceptance used fictional records and the sustained
+100-account workload. These are candidate results, not Production verification.
+
+PR 771 could not merge because review discussions remained unresolved. Production
+still serves `3465de3c`; no worker switch, migration, or app rollout has run.
+The digest-manifest and catalog-count findings were already fixed. The remaining
+findings require the following corrections before a new integrated acceptance:
+
+- **AUDIT-20260920-15, P2:** A queued connection, access, or decision notice checked
+  profile ownership but not the transition that created it. Events now include a
+  digest of their scoped source state. Both in-app authorization and email handoff
+  recheck it. General member access cannot bypass that check, and older events
+  without sufficient transition evidence fail closed.
+- **AUDIT-20260920-16, P1:** Short PR and full quality jobs shared a check name.
+  They now report `pr-quality` and `full-quality`. Release verification requires
+  full quality and database checks from the same successful full workflow run.
+  A later short PR result cannot replace a failed full result.
+- **AUDIT-20260920-17, P1:** Earlier Sheet releases could leave private notes in
+  member-facing reasons. Forward migration `20260920233000` removes a reason only
+  where it still equals the recorded Sheet reason and has the Sheet review reason
+  code. It removes the matching membership copy and the stage's published copy.
+  Immutable source evidence and audit history remain. A separately edited officer
+  explanation remains. The cleanup helper is executable only by `postgres`.
+- **AUDIT-20260920-18, P2:** The standalone decision preflight still expected yellow
+  rejection and immediate publication during later syncs. It now proves pending
+  yellow, unchanged membership during sync, and a separate correction release.
+  Its project check accepts the validated launcher identity instead of an old
+  hardcoded run name. Both fictional scenarios pass.
+- **AUDIT-20260920-19, P2:** A held legacy yellow row with a current mapping reported
+  a stale mapping. Release receipts now distinguish missing legacy evidence from
+  the intentional review hold. Both receipt cases pass through the real RPC.
+
+The new forward migration preserves historical migration bytes and the signed
+private gitlink `6ea7f690`. Its 633-entry catalog adds two internal helpers and
+changes five reviewed functions. The measured catalog passes and refuses a
+transactional test grant to `authenticated`; rollback restores the original
+permissions. Four focused pgTAP files pass 189 assertions. The existing 335
+Production-controller tests pass, and the new catalog/controller tests pass
+separately. Fifteen workflow contract tests, zero-warning lint, TypeScript, and
+the two-scenario decision preflight pass. The full database/browser and hosted
+Development gates must be repeated on the replacement integrated candidate.

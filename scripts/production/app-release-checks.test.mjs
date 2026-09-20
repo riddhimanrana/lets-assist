@@ -131,7 +131,7 @@ test("hosted acceptance is tied to trusted workflow, source, and repository", ()
 });
 
 test("latest trusted quality and database checks must both succeed", () => {
-  const runs = ["quality", "db-replay-validation"].map((name, id) => ({
+  const runs = ["full-quality", "db-replay-validation"].map((name, id) => ({
     name,
     id,
     status: "completed",
@@ -139,11 +139,24 @@ test("latest trusted quality and database checks must both succeed", () => {
     app: { slug: "github-actions" },
   }));
   verifyQualityRuns(runs);
+  verifyQualityRuns([
+    ...runs,
+    { ...runs[0], name: "pr-quality", id: 200, conclusion: "failure" },
+  ]);
+  assert.throws(() =>
+    verifyQualityRuns(
+      runs.map((run) => ({
+        ...run,
+        name: run.name === "full-quality" ? "quality" : run.name,
+      })),
+    ),
+  );
   assert.throws(() => verifyQualityRuns(runs.slice(0, 1)));
   assert.throws(() =>
     verifyQualityRuns([
       ...runs,
       { ...runs[0], id: 100, conclusion: "failure" },
+      { ...runs[0], name: "pr-quality", id: 200, conclusion: "success" },
     ]),
   );
   assert.throws(() =>
@@ -243,6 +256,7 @@ test("source verification pins clean Git trees and the required CI workflow", as
   );
   git("update-ref", "refs/remotes/origin/development", acceptedSha);
   let ciPatch = {};
+  let splitCiRuns = false;
   const fetcher = async (url) => {
     if (url.endsWith("/status"))
       throw new Error("The combined-status endpoint omits the status creator.");
@@ -259,14 +273,16 @@ test("source verification pins clean Git trees and the required CI workflow", as
     if (url.endsWith("/check-runs?per_page=100"))
       return Response.json({
         total_count: 2,
-        check_runs: ["quality", "db-replay-validation"].map((name, id) => ({
-          name,
-          id,
-          status: "completed",
-          conclusion: "success",
-          app: { slug: "github-actions" },
-          details_url: `https://github.com/${repository}/actions/runs/43/job/${id}`,
-        })),
+        check_runs: ["full-quality", "db-replay-validation"].map(
+          (name, id) => ({
+            name,
+            id,
+            status: "completed",
+            conclusion: "success",
+            app: { slug: "github-actions" },
+            details_url: `https://github.com/${repository}/actions/runs/${splitCiRuns && id === 1 ? 44 : 43}/job/${id}`,
+          }),
+        ),
       });
     if (url.endsWith("/actions/runs/43"))
       return Response.json({
@@ -279,6 +295,12 @@ test("source verification pins clean Git trees and the required CI workflow", as
     throw new Error("Unexpected request");
   };
   assert.equal((await verifySource(config, fetcher)).releaseSha, releaseSha);
+  splitCiRuns = true;
+  await assert.rejects(verifySource(config, fetcher), /same run/);
+  splitCiRuns = false;
+  ciPatch = { event: "pull_request" };
+  await assert.rejects(verifySource(config, fetcher), /Required CI run/);
+  ciPatch = {};
   const waiver = {
     confirmation: `waive-csf-performance:${releaseSha}:${acceptedSha}`,
     reason: "Release owner accepts the measured hosted performance risk.",
