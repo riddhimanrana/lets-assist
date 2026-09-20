@@ -299,13 +299,7 @@ const SERVICE_AND_POINTS: LabelContract[] = [
 const POSTS: LabelContract[] = [
   {
     component: "CsfPostComposeDialog.tsx",
-    labels: [
-      "Save as draft",
-      "Publish now",
-      "Also send this as an email",
-      "Post saved",
-      "Email queued",
-    ],
+    labels: ["Also send this as an email", "Post saved", "Email queued"],
   },
   {
     // The outcome alerts and submit-button states were extracted from the
@@ -314,6 +308,7 @@ const POSTS: LabelContract[] = [
     labels: [
       "Post saved",
       "Publish post",
+      "Save as draft",
       "Post saved; email not queued",
       "Post saved; email status unknown",
       "Email queued",

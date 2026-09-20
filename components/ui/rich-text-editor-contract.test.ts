@@ -36,8 +36,8 @@ describe("shared rich text editor contract", () => {
     expect(source).toContain('aria-label="Numbered list"');
     expect(source).toContain("toggleBulletList().run()");
     expect(source).toContain("toggleOrderedList().run()");
-    expect(source).toContain('aria-pressed={editor.isActive("bulletList")}');
-    expect(source).toContain('aria-pressed={editor.isActive("orderedList")}');
+    expect(source).toContain("aria-pressed={formatting?.bulletList ?? false}");
+    expect(source).toContain("aria-pressed={formatting?.orderedList ?? false}");
   });
 
   test("the document carries no per-node classes the saved value would lose", () => {

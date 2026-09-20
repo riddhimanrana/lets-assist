@@ -277,7 +277,7 @@ Acceptance: every populated canonical tab discovered in the approved Class of 20
 3. Recipients can opt out via the link in every announcement email (verify-the-address confirmation). Opt-outs exclude the address from future snapshots automatically; do not hand-manage them.
 4. Grant posting rights via the `manage_posts` capability (Publicity VP and Web Master templates carry it; org admins and the owner always can).
 5. Review quarantined or unknown provider outcomes in **More → Communications → Delivery issues**. Reconcile only from exact provider evidence; an unknown attempt is never blindly resent. Closing a quarantine item acknowledges human triage and records a reason, but does not apply/rewrite the provider event or change delivery/address safety.
-6. Scheduled publishing is removed in the follow-up release. Existing scheduled posts return to drafts with an audit receipt. Choose **Publish now** or **Save as draft**; drafts never publish automatically.
+6. Scheduled publishing is removed in the follow-up release. Existing scheduled posts return to drafts with an audit receipt. Use the separate **Publish post** and **Save as draft** buttons; drafts never publish automatically or queue email.
 
 ## 11. Troubleshooting and stop rules
 

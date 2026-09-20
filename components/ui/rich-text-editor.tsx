@@ -1,4 +1,4 @@
-import { useEditor, EditorContent } from "@tiptap/react";
+import { useEditor, useEditorState, EditorContent } from "@tiptap/react";
 import { BubbleMenu } from "@tiptap/react/menus";
 import StarterKit from "@tiptap/starter-kit";
 import { Placeholder, CharacterCount } from "@tiptap/extensions";
@@ -152,6 +152,18 @@ export function RichTextEditor({
     },
   });
 
+  const formatting = useEditorState({
+    editor,
+    selector: ({ editor: active }) => ({
+      bold: active?.isActive("bold") ?? false,
+      italic: active?.isActive("italic") ?? false,
+      underline: active?.isActive("underline") ?? false,
+      link: active?.isActive("link") ?? false,
+      bulletList: active?.isActive("bulletList") ?? false,
+      orderedList: active?.isActive("orderedList") ?? false,
+    }),
+  });
+
   const openLinkDialog = useCallback(() => {
     if (!editor) return;
     const previousUrl = editor.getAttributes("link").href || "";
@@ -291,14 +303,51 @@ export function RichTextEditor({
       {showListControls && (
         <div
           role="group"
-          aria-label="List formatting"
-          className="flex items-center gap-1"
+          aria-label="Text formatting"
+          className="flex flex-wrap items-center gap-1"
         >
+          {(
+            [
+              [
+                "bold",
+                "Bold",
+                Bold,
+                () => editor.chain().focus().toggleBold().run(),
+              ],
+              [
+                "italic",
+                "Italic",
+                Italic,
+                () => editor.chain().focus().toggleItalic().run(),
+              ],
+              [
+                "underline",
+                "Underline",
+                UnderlineIcon,
+                () => editor.chain().focus().toggleUnderline().run(),
+              ],
+              ["link", "Insert link", LinkIcon, openLinkDialog],
+            ] as const
+          ).map(([key, label, Icon, run]) => (
+            <Button
+              key={key}
+              type="button"
+              size="icon-sm"
+              variant={formatting?.[key] ? "secondary" : "ghost"}
+              aria-pressed={formatting?.[key] ?? false}
+              aria-label={label}
+              title={label}
+              onMouseDown={(event) => event.preventDefault()}
+              onClick={run}
+            >
+              <Icon className="h-4 w-4" />
+            </Button>
+          ))}
           <Button
             type="button"
             size="icon-sm"
-            variant={editor.isActive("bulletList") ? "secondary" : "ghost"}
-            aria-pressed={editor.isActive("bulletList")}
+            variant={(formatting?.bulletList ?? false) ? "secondary" : "ghost"}
+            aria-pressed={formatting?.bulletList ?? false}
             aria-label="Bulleted list"
             title="Bulleted list"
             onMouseDown={(event) => event.preventDefault()}
@@ -309,8 +358,8 @@ export function RichTextEditor({
           <Button
             type="button"
             size="icon-sm"
-            variant={editor.isActive("orderedList") ? "secondary" : "ghost"}
-            aria-pressed={editor.isActive("orderedList")}
+            variant={(formatting?.orderedList ?? false) ? "secondary" : "ghost"}
+            aria-pressed={formatting?.orderedList ?? false}
             aria-label="Numbered list"
             title="Numbered list"
             onMouseDown={(event) => event.preventDefault()}

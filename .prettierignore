@@ -18,3 +18,7 @@ coverage/
 playwright-report/
 test-results/
 packages/plugin-sdk/dist/
+
+# Local agent notes and browser captures.
+.remember/
+.playwright-mcp/

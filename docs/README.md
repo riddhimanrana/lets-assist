@@ -11,6 +11,7 @@ This directory is the canonical documentation home for humans and coding agents.
 - [Testing](development/testing.md)
 - [Deployment boundaries](development/deployment.md)
 - [Cleanup register](development/cleanup-register.md)
+- [System audit, September 19, 2026](development/full-system-audit-20260919.md)
 - [Audit register, 2026-08-10](development/audit-register-20260810.md)
 - [Dependency modernization ledger](development/dependency-modernization.md)
 

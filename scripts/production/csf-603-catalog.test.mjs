@@ -21,7 +21,7 @@ const migration = readFileSync(
 );
 
 test("603 pins private CSF post-image storage and mutation authority", () => {
-  assert.equal(fullLedger.length, 621);
+  assert.ok(fullLedger.length >= 621);
   assert.equal(ledger.length, 602);
   assert.equal(ledger.at(-1), "20260919020000");
   assert.deepEqual(

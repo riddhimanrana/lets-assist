@@ -1252,4 +1252,12 @@ export const migrationDigests = {
     "5ce652bbba0cbc303f746212cd67fe6ac29f7c1f8087de366c5089314ba13175",
   "20260919230001_publish_dvhs_csf_1_2_55.sql":
     "f1d30b914c32a6bc2cf4eb6a19995ae88c196cef71c1fc83ae99579cd33a1c02",
+  "20260920010000_bound_cron_execution_history.sql":
+    "f5221d182035524f5ac779af11dfce306738013ba7473d2756e5fbc23400d60d",
+  "20260920020000_csf_post_workflow.sql":
+    "4d4081ab486f26760fdfa1d35a6fa1b6f6d4b426d4f8affaa886195b9ada28d4",
+  "20260920030000_release_catalog_convergence.sql":
+    "59002621fb410b6a5bb52e793375d21b5b54551e773def0d2eb5f289a2e24da1",
+  "20260920030001_publish_dvhs_csf_1_2_56.sql":
+    "4ee453b89c19845514a35adba93e939e467d3e22d5c299b11c73da6181c281c6",
 };

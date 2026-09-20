@@ -1,3 +1,4 @@
+import path from "node:path";
 import type { NextConfig } from "next";
 import { withMicrofrontends } from "@vercel/microfrontends/next/config";
 
@@ -32,6 +33,17 @@ const nextConfig: NextConfig = {
   // separate directory so it can coexist with the developer's normal server.
   distDir: requestedDistDir || ".next",
   cacheComponents: false,
+  // ProseMirror uses class identity across packages. Route every import to the
+  // same ESM entry, including dependencies that otherwise select CommonJS.
+  turbopack: {
+    resolveAlias: {
+      "prosemirror-model": "./node_modules/prosemirror-model/dist/index.js",
+      "prosemirror-state": "./node_modules/prosemirror-state/dist/index.js",
+      "prosemirror-transform":
+        "./node_modules/prosemirror-transform/dist/index.js",
+      "prosemirror-view": "./node_modules/prosemirror-view/dist/index.js",
+    },
+  },
 
   // Freeze the release identity into server output. A prebuilt Vercel deploy
   // must not depend on a runtime system-variable setting to report its SHA.
@@ -59,6 +71,24 @@ const nextConfig: NextConfig = {
   // require() instead of bundling it, so instrumentation.ts polyfills apply first.
   serverExternalPackages: ["pdfjs-dist"],
   transpilePackages: ["la-plugin-dv-speech-debate"],
+
+  webpack(config) {
+    config.resolve.alias = {
+      ...config.resolve.alias,
+      ...Object.fromEntries(
+        [
+          "prosemirror-model",
+          "prosemirror-state",
+          "prosemirror-transform",
+          "prosemirror-view",
+        ].map((name) => [
+          name,
+          path.resolve(process.cwd(), "node_modules", name, "dist/index.js"),
+        ]),
+      ),
+    };
+    return config;
+  },
 
   experimental: {
     serverActions: {

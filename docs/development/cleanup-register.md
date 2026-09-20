@@ -8756,3 +8756,82 @@ retried, and the application deployment remains separate.
 ### DVHS CSF 1.2.54 Development deployment retry, September 19, 2026
 
 - Development merge `4f8464ee42e462079b64c668fac8fcdadc7bda42` retained the exact accepted application tree, but Vercel received only the preceding `aeb01a2f1c9111279f3ccd179a12fc5a3fa39f49` push and correctly skipped that unmarked revision. No Vercel deployment or commit status was created for the final merge, so hosted acceptance timed out before browser checks. This marker requests a fresh exact Development deployment without changing product behavior or data.
+
+### System audit and repository recovery, September 19, 2026
+
+Current audit: [full system report](full-system-audit-20260919.md). This entry
+summarizes current findings; older release notes remain historical evidence.
+
+| Finding           | Priority | Current evidence                                                                                                                                                     | Next action                                                                                                         |
+| ----------------- | -------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------- |
+| AUDIT-20260919-01 | P1       | Accepted application lockfile reports six dependency advisories, one high and five moderate. PR quality does not run the dependency-audit script.                    | Review compatible upgrades and add the audit to PR quality in one maintenance change.                               |
+| AUDIT-20260919-02 | P1       | Certificate page selects `volunteer_email`; live verification view has no such column and Vercel reports `42703`.                                                    | Remove unsupported private-field selection and test valid/missing certificates.                                     |
+| AUDIT-20260919-03 | P1       | Live readback: 67 profile-link requests need review; 199 application exports pending and one retry. Older source audit retains 55 unresolved timely attendance rows. | Fresh source preview and reviewed reconciliation; measure remaining work after commits.                             |
+| AUDIT-20260919-04 | P1       | Nested release catalog retained superseded function-text predicates after the migration transaction committed. Controller repair now passes.                         | Replace manual predecessor patching with a canonical generated final-schema manifest; retain security/drift checks. |
+| AUDIT-20260919-05 | P2       | Cron execution history uses about 615 MB and has 2,020,648 exact rows, including 1,827,843 older than 30 days.                                                       | Define bounded operational-log retention and vacuum strategy, separate from student audit evidence.                 |
+| AUDIT-20260919-06 | P2       | Cumulative query statistics show heavy Realtime and CSF sync traffic; latest Production directory latency is unmeasured.                                             | Measure post-release call rates, queue latency, page turns, and empty-job cost before tuning.                       |
+| AUDIT-20260919-07 | P2       | Root and private repositories received 292 PRs since September 15. Latest 1,000 root workflow sample includes 293 quality and 126 hosted-acceptance runs.            | Follow the new batching/worktree rules in AGENTS.md and update CI documentation to match actual gates.              |
+
+Production app `293523193263933caa15a3bdeeaea6b6162bf949` deployed in run
+`35478202880`. Public alias, login, and protected-route checks passed. Migration
+reconciliation run `35478116257` passed against the 621-migration ledger.
+Worker readback at revision 4 enables workbook refresh, imports, communications,
+and publication notifications. Scheduled post publishing remains disabled.
+
+Both remotes and local repository branch sets now retain only main and
+development. Unique branch tips and dirty files were preserved in verified
+private recovery bundles before deletion. Retired worktrees are archived before
+removal. The former primary checkout conflicts and stale source were preserved
+outside the repository, then the primary checkout was aligned to Development
+and its exact private gitlink.
+
+Provider/account blockers: exact Vercel, Supabase, Resend, and GitHub invoices
+are not verified. Chrome lacks access to the Vercel team; Supabase billing
+requires two-factor authentication; Resend billing has no signed-in browser
+session or available billing connector. These are not repository defects.
+
+### Audit follow-up, September 19, 2026
+
+- Certificate query repaired without exposing private email. Projection contract and existing not-found behavior covered locally.
+- Dependency audit is clean after targeted Nodemailer, fflate, and baseline-browser-mapping updates. Production dependency audit added to CI.
+- Cron history retention prepared in one forward migration. Local replay passed 622 migrations and 9,898 assertions across 378 files; focused release-controller coverage passed 201 tests. Production application remains unchanged by these local edits.
+- Corrected export diagnosis: active destinations have no pending exports. The 200 outstanding application entries belong to a disabled legacy destination with unverified response-row bindings. Do not enable it to clear a dashboard count.
+- Account reconciliation remains staff work: 67 review requests, including 13 with no candidates, 53 with one, and one with multiple.
+
+### September 20 follow-up: provider health and post workflows
+
+- Live Supabase inventory confirms only main and persistent development, both healthy and both at 621 applied migrations. No Production schema change was made in this follow-up. All plugin tables have RLS and neither browser role has table grants.
+- Billing access is resolved. The full-system audit records the provider-specific billing periods, current totals, and measured cost drivers.
+- P1 editor defect reproduced in Production: Enter raised a ProseMirror Fragment class-identity error. The local bundler aliases and TipTap update pass all six post-composer Chromium scenarios, including paragraph/list editing, publication, replies, member permissions, and queued-email status. Hosted validation is still pending.
+- Local post changes add persistent formatting controls, separate draft/publish actions, activity cards in the officer stream, and audited deletion of unused activities. Deletion preserves activities with historical references. The nine focused database assertions pass; integrated release validation remains pending.
+- The new sender identity and deletion function are in one unpublished workflow migration. Existing frozen campaign identities remain unchanged. No notification email or application decision was sent or released.
+
+### September 20 release candidate verification
+
+Private PR #538 passed CI and merged into private development. The candidate fixes draft/publish controls, activity stream links, guarded activity deletion, and attendance searches that incorrectly excluded applicants without accepted memberships. Six composer browser scenarios and two draft/stream scenarios pass locally. The attendance search regression passes three cases. Four database authorization suites pass 137 assertions. The release-controller suites pass 321 tests. These are local and CI results, not Production deployment evidence.
+
+Fresh record review still finds 67 connection requests. Seven have one verified account-email match in the requested class; six have no existing owner, while one conflicts with an existing owner. Those links remain unapplied pending the browser-required access confirmation. Name-only candidates remain unresolved.
+
+The supplied September attendance workbook contains 481 responses plus its header. Of those, 472 fall within 1:00–1:45 pm inclusive, representing 457 distinct normalized email values; one response precedes the window and eight follow it. These are source counts, not awarded attendance. The current live preview has 495 responses and 365 unresolved rows, so it cannot be treated as the same immutable snapshot. No attendance was awarded in this pass.
+
+Active Sheet export destinations have no pending work. The 200 pending/retrying entries belong to one disabled legacy destination with unverified response bindings. It remains disabled. The late application preview has 24 ready rows and two conflicting responses; its commit remains blocked rather than silently choosing a source response.
+
+Read-only hosted schema comparison found a stale Development staff-authorization function and equivalent DV index names that differ across replay histories. Production also lacks some runtime MAINTAIN privileges present locally. A forward convergence repair is being prepared; no hosted schema mutation has occurred. Provider-owned default privileges and local-only fixture functions must not contaminate the final release manifest.
+
+A 164-second Production query sample showed zero new calls to the two high-count legacy import functions, and three calls each to automatic workbook claim/dispatch routines. Cumulative query totals do not establish current runaway traffic. Directory pagination visibly displays Loading; one captured directory response took about 2.9 seconds to first byte. This limited sample is not a performance percentile or proof of an improvement.
+
+### Integrated audit release checks, September 20, 2026
+
+The signed private source is `593bddcab92ce700b108ff02cd802293baf02c72`, release `dvhs-csf/v1.2.56`. Root PR #756 integrates it once. The final ledger has 625 append-only migrations and a 1,225-object final-schema manifest.
+
+| Finding           | Implementation and evidence                                                                                                                                                                                                                                                                 | Hosted state                                                                            |
+| ----------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------- |
+| AUDIT-20260919-01 | Fixed locally. Updated dependencies pass the production audit with zero vulnerabilities. CI requires `bun audit --prod`.                                                                                                                                                                    | Awaiting this release.                                                                  |
+| AUDIT-20260919-02 | Fixed locally. Certificate reads omit the nonexistent private email field; regression coverage passes.                                                                                                                                                                                      | Awaiting this release.                                                                  |
+| AUDIT-20260919-03 | Record review remains open. Six unowned verified-email matches await access confirmation. One verified-email match has an existing owner. Other candidates lack verified ownership evidence. Late application import retains two conflicting responses.                                     | No attendance, application decisions, or account links changed in this pass.            |
+| AUDIT-20260919-04 | Fixed locally. The final-schema manifest checks reviewed definitions, permissions, policies, and configuration. Forward convergence restores the stale Development function, normalizes equivalent indexes, and removes unnecessary MAINTAIN grants. All 322 release-controller tests pass. | Both hosted ledgers still require release verification.                                 |
+| AUDIT-20260919-05 | Fixed locally. Cron history retention caps each hourly batch at 50,000 completed rows, retaining successes for 30 days and failures for 90 days. Student evidence and audit records are excluded.                                                                                           | Execution and page reuse must be checked after deployment. No measured billing savings. |
+| AUDIT-20260919-06 | Measured. A 164-second sample found no new calls to the two historical high-volume import queries. Current evidence does not justify blanket indexes or faster polling.                                                                                                                     | Directory first-byte sample was about 2.9 seconds; no improvement claim.                |
+| AUDIT-20260919-07 | One root integration PR and one signed private release cover this candidate. Preserve the recovery archive and remove temporary branches after integration.                                                                                                                                 | Final branch cleanup follows release.                                                   |
+
+Local validation passes 9,926 pgTAP assertions across 381 files, 3,353 root tests, typecheck, lint, formatting, dependency audit, and architecture/plugin-isolation checks. The full browser run passed 159 cases and skipped four opt-in/deferred cases. Its one failure was an outdated attendance-search wording assertion; the final test now expects active chapter records, including pending applicants, and all three attendance scenarios pass on rerun. Hosted Development and Production verification remain separate gates. Draft suppression, direct activity links, guarded deletion, notification opt-outs, account linking, and decision privacy passed in the integrated browser run.
