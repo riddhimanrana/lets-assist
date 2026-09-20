@@ -1,8 +1,8 @@
+import { historicalReleaseTestFixture } from "./historical-release-test-fixture.mjs";
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
-import { fileURLToPath } from "node:url";
-import test from "node:test";
+import test, { after } from "node:test";
 import {
   acceptedCatalogQuery,
   workerRelationSnapshotQuery,
@@ -18,7 +18,7 @@ import {
   sheetSyncTriggers,
   sheetSyncPosture,
 } from "./sheet-sync-catalog.mjs";
-const cwd = fileURLToPath(new URL("../../", import.meta.url));
+
 const migrationName = "20260910232532_csf_sheet_sync_review_queue";
 const sql = readFileSync(
   new URL(`../../supabase/migrations/${migrationName}.sql`, import.meta.url),
@@ -28,6 +28,9 @@ const source = readFileSync(
   new URL("./verify-csf-target-schema.sql", import.meta.url),
   "utf8",
 );
+const fixture = historicalReleaseTestFixture();
+const cwd = fixture.cwd;
+after(fixture.dispose);
 const versions = expectedVersions(cwd).slice(0, 518);
 
 test("the sync catalog pins every new function body and execution role", () => {
@@ -128,7 +131,7 @@ test("an existing 482 migration release applies sync and signed publications", (
         /INSERT INTO supabase_migrations.schema_migrations/gu,
       ) ?? []
     ).length,
-    expectedVersions(process.cwd()).length - 482,
+    expectedVersions(cwd).length - 482,
   );
   assert.ok(
     prepared.query.includes(
@@ -180,7 +183,7 @@ test("an existing 483 release applies signed publications and the discussion ext
         /INSERT INTO supabase_migrations.schema_migrations/gu,
       ) ?? []
     ).length,
-    expectedVersions(process.cwd()).length - 483,
+    expectedVersions(cwd).length - 483,
   );
 });
 
@@ -206,7 +209,7 @@ test("an existing 484 release applies new signed publications and the discussion
         /INSERT INTO supabase_migrations.schema_migrations/gu,
       ) ?? []
     ).length,
-    expectedVersions(process.cwd()).length - 484,
+    expectedVersions(cwd).length - 484,
   );
 });
 
@@ -233,6 +236,6 @@ test("an existing 485 release applies the remaining signed publications and disc
         /INSERT INTO supabase_migrations.schema_migrations/gu,
       ) ?? []
     ).length,
-    expectedVersions(process.cwd()).length - 485,
+    expectedVersions(cwd).length - 485,
   );
 });

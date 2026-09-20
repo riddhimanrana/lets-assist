@@ -1,5 +1,6 @@
+import { historicalReleaseTestFixture } from "./historical-release-test-fixture.mjs";
 import assert from "node:assert/strict";
-import { test } from "node:test";
+import { after, test } from "node:test";
 import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
 import { expectedVersions } from "./app-release-checks.mjs";
@@ -12,7 +13,10 @@ import {
   prepareMigration,
   approvedMigrations,
 } from "./forward-migration-release.mjs";
-const cwd = process.cwd();
+
+const fixture = historicalReleaseTestFixture();
+const cwd = fixture.cwd;
+after(fixture.dispose);
 const versions = expectedVersions(cwd).slice(0, 518);
 const source = readFileSync(
   "scripts/production/verify-csf-target-schema.sql",
@@ -42,7 +46,7 @@ test("486 requires the discussion extension, publication, and reviewed recovery"
         /INSERT INTO supabase_migrations.schema_migrations/gu,
       ) ?? []
     ).length,
-    expectedVersions(process.cwd()).length - 486,
+    expectedVersions(cwd).length - 486,
   );
   assert.ok(prepared.query.includes("last_export_comments"));
   assert.ok(!prepared.query.includes("AND version = '1.2.27'"));
@@ -67,7 +71,7 @@ test("488 publication preserves 487 schema fingerprints before the recovery upgr
         /INSERT INTO supabase_migrations.schema_migrations/gu,
       ) ?? []
     ).length,
-    expectedVersions(process.cwd()).length - 487,
+    expectedVersions(cwd).length - 487,
   );
   assert.ok(prepared.query.includes("AND version = '1.2.28'"));
   assert.ok(!prepared.query.includes("ADD COLUMN discussion_transport"));
