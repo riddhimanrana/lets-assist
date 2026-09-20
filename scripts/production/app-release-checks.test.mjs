@@ -1,9 +1,10 @@
+import { historicalReleaseTestFixture } from "./historical-release-test-fixture.mjs";
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { resolve } from "node:path";
-import { test } from "node:test";
+import { after, test } from "node:test";
 import {
   expectedVersions,
   productionRef,
@@ -20,6 +21,9 @@ import {
   verifySource,
 } from "./app-release-checks.mjs";
 import { smoke, validateStatus } from "./app-release-smoke.mjs";
+
+const historicalFixture = historicalReleaseTestFixture();
+after(historicalFixture.dispose);
 
 const sha = "a".repeat(40);
 test("release diagnostics expose only controller-owned failure messages", () => {
@@ -398,7 +402,7 @@ test("migration equality includes missing, unexpected, duplicate, and reordered 
 });
 
 test("schema verification uses only fixed read-only management requests", async () => {
-  const cwd = resolve(import.meta.dirname, "../..");
+  const cwd = historicalFixture.cwd;
   const versions = expectedVersions(cwd);
   const responses = [
     versions.map((version) => ({ version })),
@@ -453,7 +457,7 @@ test("schema verification uses only fixed read-only management requests", async 
 });
 
 test("owner catalog refusal stops without a writable fallback", async () => {
-  const cwd = resolve(import.meta.dirname, "../..");
+  const cwd = historicalFixture.cwd;
   const calls = [];
   await assert.rejects(
     verifySchema(
@@ -472,7 +476,7 @@ test("owner catalog refusal stops without a writable fallback", async () => {
 });
 
 test("catalog refusal and active write block stop deployment", async () => {
-  const cwd = resolve(import.meta.dirname, "../..");
+  const cwd = historicalFixture.cwd;
   for (const index of [1, 2, 3]) {
     const responses = [
       expectedVersions(cwd).map((version) => ({ version })),

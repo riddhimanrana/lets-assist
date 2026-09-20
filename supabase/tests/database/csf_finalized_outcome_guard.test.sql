@@ -101,21 +101,32 @@ INSERT INTO plugin_data.csf_term_memberships (
    'ea500000-0000-4000-8000-000000000001',
    'ea600000-0000-4000-8000-000000000002', 'not_completed', now());
 
+-- Current mapping evidence lets this test reach the finalized-outcome guard.
+INSERT INTO plugin_data.csf_application_decision_mappings
+  (organization_id, source_id, decision_columns, reason_columns, reads_cell_note)
+VALUES ('ea100000-0000-4000-8000-000000000001','ea400000-0000-4000-8000-000000000001',ARRAY[1],ARRAY[]::integer[],true);
+INSERT INTO plugin_data.csf_application_decision_sync_runs
+  (id,organization_id,term_id,request_id,request_fingerprint,status)
+VALUES ('eab00000-0000-4000-8000-000000000001','ea100000-0000-4000-8000-000000000001','ea200000-0000-4000-8000-000000000001','eab00000-0000-4000-8000-000000000001','finalized-fixture','completed');
+INSERT INTO plugin_data.csf_application_decision_sync_sources
+  (organization_id,run_id,source_id,read_status,spreadsheet_file_id,sheet_tab_name,requested_range,content_hash,mapping_version,provider_version)
+VALUES ('ea100000-0000-4000-8000-000000000001','eab00000-0000-4000-8000-000000000001','ea400000-0000-4000-8000-000000000001','read','ea-workbook','Form Responses 1','A1:G10','finalized-fixture','1','1');
+
 -- A later sheet read marks both rows green.
 INSERT INTO plugin_data.csf_application_decision_stages (
   organization_id, application_id, term_id, profile_id, source_id,
-  staged_decision, observed_color
+  staged_decision, observed_color, last_sync_run_id
 ) VALUES
   ('ea100000-0000-4000-8000-000000000001',
    'ea600000-0000-4000-8000-000000000001',
    'ea200000-0000-4000-8000-000000000001',
    'ea300000-0000-4000-8000-000000000001',
-   'ea400000-0000-4000-8000-000000000001', 'accepted', '#d9ead3'),
+   'ea400000-0000-4000-8000-000000000001', 'accepted', '#d9ead3', 'eab00000-0000-4000-8000-000000000001'),
   ('ea100000-0000-4000-8000-000000000001',
    'ea600000-0000-4000-8000-000000000002',
    'ea200000-0000-4000-8000-000000000001',
    'ea300000-0000-4000-8000-000000000002',
-   'ea400000-0000-4000-8000-000000000001', 'accepted', '#d9ead3');
+   'ea400000-0000-4000-8000-000000000001', 'accepted', '#d9ead3', 'eab00000-0000-4000-8000-000000000001');
 
 -- ---------------------------------------------------------------------------
 -- A. An acceptance is held against both finalized shapes
@@ -286,6 +297,10 @@ SELECT extensions.is(
   'the term state reports the review source it was asked about'
 );
 
+INSERT INTO plugin_data.csf_sheet_sources
+  (id,organization_id,title,provider,source_type,drive_file_id,spreadsheet_id)
+VALUES ('ea400000-0000-4000-8000-000000000002','ea100000-0000-4000-8000-000000000001','Unconfigured application source','google_sheets','application_responses','ea-unconfigured','ea-unconfigured');
+
 SELECT extensions.is(
   (
     SELECT entry ->> 'configured'
@@ -295,7 +310,7 @@ SELECT extensions.is(
         'ea000000-0000-4000-8000-000000000001'
       )
     ) AS entry
-    WHERE entry ->> 'sourceId' = 'ea400000-0000-4000-8000-000000000001'
+    WHERE entry ->> 'sourceId' = 'ea400000-0000-4000-8000-000000000002'
   ),
   'false',
   'an unmapped source is reported unconfigured rather than defaulted'

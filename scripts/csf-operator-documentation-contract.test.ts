@@ -109,12 +109,7 @@ const MEMBER_AND_ACCESS: LabelContract[] = [
   },
   {
     component: "CsfCohortMembersReviewQueue.tsx",
-    labels: [
-      "Record connections",
-      "Review accounts waiting to connect to a student record in this class.",
-      "First page",
-      "Review",
-    ],
+    labels: ["Accounts to connect", "First page", "Review"],
   },
   {
     component: "CsfClassCodeEntryForm.tsx",
@@ -510,7 +505,7 @@ describe("CSF operator documentation truthfulness guards", () => {
 
     // The guide walks the one path in operating order: share the code, the
     // student joins at /connect/<code>, unresolved joins land in the per-class
-    // Record connections queue, and Review gates Connect on canonical evidence.
+    // Accounts to connect queue, and Review gates Connect on canonical evidence.
     const codePath = between(
       operatorGuide,
       "## Share the class join code",
@@ -531,7 +526,7 @@ describe("CSF operator documentation truthfulness guards", () => {
       "**I\u2019m a new member**",
       "**I\u2019m a returning member**",
       "**Check the spelling and search again**",
-      "**Record connections**",
+      "**Accounts to connect**",
       "**Review**",
       "**Connect account**",
       "**Reject request**",

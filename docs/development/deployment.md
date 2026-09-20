@@ -85,13 +85,13 @@ imports or provider delivery.
 
 ### Reviewed forward migrations
 
-`Apply accepted forward migrations` is the separate schema-only path for the
-reviewed migrations `20260905202837`, `20260905205847`, and `20260905212822`. It accepts explicit
-release and hosted-acceptance SHAs, verifies their identical trees and successful
-checks, and uses the Production environment's existing management credential.
-The controller checks both SQL hashes and all 448 preceding ledger versions.
-It applies both migrations and their exact ledger entries in one transaction,
-with a five-second lock timeout. A lost response triggers read-only ledger and
+`Apply accepted forward migrations` applies only the migration names and SQL
+hashes listed in `scripts/production/forward-migration-allowlist.mjs`. It accepts
+explicit release and hosted-acceptance SHAs, verifies their identical trees and
+successful checks, and uses the Production environment's existing management
+credential. The controller verifies the complete ledger and applies only the
+remaining approved suffix, with its exact ledger entries, in one transaction.
+The lock timeout is five seconds. A lost response triggers read-only ledger and
 catalog reconciliation, never another write attempt.
 
 This path does not export or restore data, deploy an app, change approvals,
