@@ -1,7 +1,7 @@
 # Final schema manifests
 
 Releases through migration 622 retain their historical catalog builders. Release
-623 selects a complete manifest by its exact migration-ledger digest. Its runtime
+625 selects a complete manifest by its exact migration-ledger digest. Its runtime
 query does not reconstruct or rewrite a predecessor catalog.
 
 `final-schema-inventory.sql` reads definitions and permissions from `public`,
@@ -43,6 +43,6 @@ The retired-class join-code and retention-policy data gates remain explicit.
 Release checks still separately verify the ledger, staff preference entrypoint,
 write posture, signed plugin release, worker controls, and deployment selection.
 
-The initial 623 inventory was captured from the owned fictional CSF database after
-the pending workflow migration. Its clean integrated replay and hosted comparison
-remain mandatory release checks.
+The 625 inventory was captured after a clean replay of all candidate migrations.
+Local fixture helpers were removed inside a rollback-only transaction before
+capture. Hosted comparison remains a separate release check.

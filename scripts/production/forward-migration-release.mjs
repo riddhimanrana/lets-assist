@@ -633,7 +633,15 @@ export const approvedMigrations = [
   ],
   [
     "20260920020000_csf_post_workflow",
-    "dc220de3fda1878c5bf8f6914b77c09185f82bce695837c5bb40df784443e49c",
+    "4d4081ab486f26760fdfa1d35a6fa1b6f6d4b426d4f8affaa886195b9ada28d4",
+  ],
+  [
+    "20260920030000_release_catalog_convergence",
+    "59002621fb410b6a5bb52e793375d21b5b54551e773def0d2eb5f289a2e24da1",
+  ],
+  [
+    "20260920030001_publish_dvhs_csf_1_2_56",
+    "4ee453b89c19845514a35adba93e939e467d3e22d5c299b11c73da6181c281c6",
   ],
 ];
 

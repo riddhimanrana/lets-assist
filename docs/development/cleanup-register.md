@@ -8797,3 +8797,25 @@ session or available billing connector. These are not repository defects.
 - Cron history retention prepared in one forward migration. Local replay passed 622 migrations and 9,898 assertions across 378 files; focused release-controller coverage passed 201 tests. Production application remains unchanged by these local edits.
 - Corrected export diagnosis: active destinations have no pending exports. The 200 outstanding application entries belong to a disabled legacy destination with unverified response-row bindings. Do not enable it to clear a dashboard count.
 - Account reconciliation remains staff work: 67 review requests, including 13 with no candidates, 53 with one, and one with multiple.
+
+### September 20 follow-up: provider health and post workflows
+
+- Live Supabase inventory confirms only main and persistent development, both healthy and both at 621 applied migrations. No Production schema change was made in this follow-up. All plugin tables have RLS and neither browser role has table grants.
+- Billing access is resolved. The full-system audit records the provider-specific billing periods, current totals, and measured cost drivers.
+- P1 editor defect reproduced in Production: Enter raised a ProseMirror Fragment class-identity error. The local bundler aliases and TipTap update pass all six post-composer Chromium scenarios, including paragraph/list editing, publication, replies, member permissions, and queued-email status. Hosted validation is still pending.
+- Local post changes add persistent formatting controls, separate draft/publish actions, activity cards in the officer stream, and audited deletion of unused activities. Deletion preserves activities with historical references. The nine focused database assertions pass; integrated release validation remains pending.
+- The new sender identity and deletion function are in one unpublished workflow migration. Existing frozen campaign identities remain unchanged. No notification email or application decision was sent or released.
+
+### September 20 release candidate verification
+
+Private PR #538 passed CI and merged into private development. The candidate fixes draft/publish controls, activity stream links, guarded activity deletion, and attendance searches that incorrectly excluded applicants without accepted memberships. Six composer browser scenarios and two draft/stream scenarios pass locally. The attendance search regression passes three cases. Four database authorization suites pass 137 assertions. The release-controller suites pass 321 tests. These are local and CI results, not Production deployment evidence.
+
+Fresh record review still finds 67 connection requests. Seven have one verified account-email match in the requested class; six have no existing owner, while one conflicts with an existing owner. Those links remain unapplied pending the browser-required access confirmation. Name-only candidates remain unresolved.
+
+The supplied September attendance workbook contains 481 responses plus its header. Of those, 472 fall within 1:00–1:45 pm inclusive, representing 457 distinct normalized email values; one response precedes the window and eight follow it. These are source counts, not awarded attendance. The current live preview has 495 responses and 365 unresolved rows, so it cannot be treated as the same immutable snapshot. No attendance was awarded in this pass.
+
+Active Sheet export destinations have no pending work. The 200 pending/retrying entries belong to one disabled legacy destination with unverified response bindings. It remains disabled. The late application preview has 24 ready rows and two conflicting responses; its commit remains blocked rather than silently choosing a source response.
+
+Read-only hosted schema comparison found a stale Development staff-authorization function and equivalent DV index names that differ across replay histories. Production also lacks some runtime MAINTAIN privileges present locally. A forward convergence repair is being prepared; no hosted schema mutation has occurred. Provider-owned default privileges and local-only fixture functions must not contaminate the final release manifest.
+
+A 164-second Production query sample showed zero new calls to the two high-count legacy import functions, and three calls each to automatic workbook claim/dispatch routines. Cumulative query totals do not establish current runaway traffic. Directory pagination visibly displays Loading; one captured directory response took about 2.9 seconds to first byte. This limited sample is not a performance percentile or proof of an improvement.

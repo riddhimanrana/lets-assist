@@ -6,16 +6,16 @@ The development process created too much integration work. The repository and pr
 
 The platform is not fully finished. Important member features exist and have hosted acceptance evidence, but identity review, attendance reconciliation, export backlog, dependency security, and Production performance still need work. A passing release does not close those items.
 
-This report covers Git and disk cleanup, the original CSF requests, release state, critical code paths, database health and access controls, runtime errors, email configuration and delivery, CI activity, and cost drivers. Exact provider invoices and a complete fresh end-to-end audit of every role remain unverified. This is not a claim that every line of code is defect-free.
+This report covers Git and disk cleanup, the original CSF requests, release state, critical code paths, database health and access controls, runtime errors, email configuration and delivery, CI activity, and cost drivers. Provider billing was verified in the follow-up below. A complete fresh end-to-end audit of every role remains unverified. This is not a claim that every line of code is defect-free.
 
 ## Follow-up status
 
-The audit follow-up is being implemented in one root branch. The private plugin stays at its accepted gitlink.
+The audit follow-up is being implemented in one root branch and one private-plugin branch. The follow-up also covers the requested post editor, draft actions, chapter sender, activity stream, and activity deletion.
 
 - The certificate query no longer requests the private email column omitted by its verification view.
 - Targeted dependency updates clear all six reported advisories. CI now runs the production dependency audit.
 - One forward migration adds hourly, bounded cron-log retention: 30 days for successful runs and 90 days for failures, at most 50,000 completed runs per invocation. Running jobs remain untouched.
-- Local type checking, lint, and 36 focused certificate/email tests pass. Isolated replay passes all 622 migrations and 9,898 assertions across 378 files. Release-controller regression coverage passes 201 tests.
+- Local type checking, lint, and 36 focused certificate/email tests pass. Isolated replay passes all 622 migrations and 9,898 assertions across 378 files. The earlier release-controller regression run passed 201 tests; the expanded controller suite now passes 321.
 - A fresh destination-level read corrects the export finding below. Active destinations have zero pending exports, with 1,150 exported application records and 1,045 exported class/profile records. All 200 pending/retrying entries belong to one disabled legacy application destination. It refuses unverified response-row bindings and must remain disabled until a reviewed replacement or retirement resolves those entries.
 - The 67 account requests include 13 without candidates, 53 with one candidate, and one with multiple candidates. A candidate count does not establish account ownership. These remain staff verification work.
 
@@ -77,7 +77,7 @@ Docker inventory showed 19 images totaling 13.46 GB, 87 containers with 16 activ
 | Flyer images in posts                             | Implemented: up to four JPEG, PNG, or WebP images, descriptions, private signed delivery, and member-feed display. Latest release is now live; a real staff-upload walkthrough remains distinct from synthetic acceptance.                                                                                               |
 | Detailed notifications and email                  | Implemented notification context, direct links, preference handling, and delivery ledger. Live CSF ledger contains six delivered entries. Provider-wide delivery metrics cannot prove each post/activity flow.                                                                                                           |
 | Scheduled posts                                   | Publisher exists but remains disabled in Production. Do not promise scheduled publication as complete.                                                                                                                                                                                                                   |
-| Sheets output to separate Let's Assist tabs       | Destination/export mechanisms are implemented. Live ledger has 199 pending application exports and one retry. Export drain and destination-tab readback remain open.                                                                                                                                                     |
+| Sheets output to separate Let's Assist tabs       | Active destinations have zero pending work. All 200 held entries belong to a disabled legacy destination whose row bindings remain unverified.                                                                                                                                                                           |
 | Member-directory speed                            | Query/index/loading changes exist. Earlier Production timing was about 6.35 seconds for a page turn. Latest Development performance passes, but fresh Production page-turn timings remain unmeasured.                                                                                                                    |
 | Every profile and semester accurate               | Not complete. Outstanding identity/attendance reviews and partial application imports prevent this claim.                                                                                                                                                                                                                |
 
@@ -168,7 +168,7 @@ The last 98 migration filenames dated September 15 or later contain roughly 33,4
 
 Applied migrations must remain immutable. Deleting them to improve the count would break replay and the release ledger. Consolidate unpublished drafts before first deployment; consider a separately reviewed fresh-install baseline later without rewriting live history.
 
-## Cost audit boundaries
+## Initial cost audit access limits (resolved September 20)
 
 | Provider | Verified                                                                                                                                       | Still unavailable                                                                                                                     |
 | -------- | ---------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------- |
@@ -177,7 +177,35 @@ Applied migrations must remain immutable. Deleting them to improve the count wou
 | Resend   | Delivery totals, verified domains, topics, webhook configuration                                                                               | Plan/invoice totals; billing tools are unavailable and Chrome has no signed-in Resend session                                         |
 | GitHub   | PR/branch inventory, sampled workflow counts, current protections                                                                              | Exact billed Actions minutes and storage charges                                                                                      |
 
-Supabase billing navigation reached two-factor authentication. The audit did not bypass it. Dollar totals and claimed dollar savings would be guesses, so none are reported.
+These were the initial access limits. The signed-in follow-up below resolves the provider billing-page blockers; exact GitHub Actions charges and measured savings remain unverified.
+
+## Billing and database follow-up, September 20 UTC
+
+Signed-in billing pages now verify these figures. They cover different billing periods and are not a single fixed monthly quote.
+
+| Provider | Verified current billing                                                  | Main drivers or limits                                                                                                                                |
+| -------- | ------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Vercel   | Upcoming invoice $75.33, cycle ending September 23                        | $40 platform/seats plus $35.33 usage after $20 credit. Observability events cost $23.46 for 19,551,721 events; build CPU costs $18.65 for 3d 18h 44m. |
+| Supabase | Projected $44.14, September 16 through October 16; current accrued $27.61 | Pro plan $25; spend cap enabled. Exactly main and persistent development exist, both ACTIVE_HEALTHY.                                                  |
+| Resend   | $20/month, renewal October 5                                              | 294 of 50,000 transactional emails used. Transactional overage disabled; four verified domains.                                                       |
+
+No plans, seats, spending controls, or notification preferences were changed. Fewer repeated builds should reduce build charges, but no dollar savings have been measured yet.
+
+Both hosted databases currently record 621 migrations through `20260919230001`. All plugin tables have RLS; anon and authenticated have zero plugin table grants. Pending local migrations are not yet deployed.
+
+The refreshed Production and Development security advisors report the same findings and no ERROR entries. Security reports six authenticated SECURITY DEFINER entry points and 149 INFO notices for RLS tables without policies. Performance reports 316 missing-covering-index notices and 288 unused-index notices. These are a review inventory, not 759 demonstrated defects. The CSF access-context and route functions are intentional authenticated boundaries; server-only tables deliberately deny browser access without RLS policies. Some composite foreign-key notices already have indexes that narrow by the unique referenced identifier or by the same columns in another order. Do not add browser policies or drop indexes merely to reduce advisor counts.
+
+### Database health and advisor classification
+
+The September 20 Production sample measured 1,042 MB total database size and 22 connections (two active, 19 idle, one background). Cumulative database statistics report zero deadlocks. These are point-in-time and cumulative observations, not a load test or proof of peak capacity.
+
+Cron execution history is the largest relation at 587 MB, followed by immutable CSF import rows at 183 MB, the writeback ledger at 74 MB, and the CSF audit log at 64 MB. The pending bounded cron-retention migration addresses disposable execution history without deleting student evidence. Deleting rows permits future page reuse; it does not guarantee an immediate reduction in the allocated file size or invoice.
+
+Live definitions of all six advisor-flagged public SECURITY DEFINER functions were inspected. Five access/route helpers pin an empty search path and use the existing access-control chain. The staff-view preference function pins its path and requires an active staff/admin membership for the requested organization. These functions remain part of the authenticated API contract. Their warnings cannot be removed by revoking access without breaking callers. Continued review includes their delegated authorization functions and existing denial tests.
+
+The highest cumulative CSF query totals belong to destination snapshots (1,269,975 calls, 5.17 ms mean) and recording sync changes (569,784 calls, 4.12 ms mean). Current source already batches these operations in groups of 100, so cumulative counts alone cannot establish a current polling defect. A before/after rate sample is required before changing worker schedules.
+
+The 149 RLS-without-policy notices must remain fail-closed for server-only data. Adding permissive policies to clear those notices would expose data. Missing-index and unused-index notices require query-plan and constraint review before changes; no bulk index creation or removal has been performed.
 
 ## Working rules from here
 
@@ -200,3 +228,19 @@ The audit report, documentation index, cleanup-register entries, and repository 
 - Complete the invoice audit after account access is available, and run the remaining Production member and notification acceptance cases.
 
 The audit found concrete defects and completed repository cleanup. It does not certify unfinished workflows as ready, and it does not justify another broad refactor before these specific items are addressed.
+
+## Coordinated release candidate, September 20
+
+Private release `dvhs-csf/v1.2.56` is signed at `593bddcab92ce700b108ff02cd802293baf02c72`. Cosign verified the tag-bound GitHub Actions identity and all release-asset checksums matched. The root integration uses the same reconstruction script inside PR #756 because the automatic integration on old Development correctly refused the not-yet-merged platform prerequisite.
+
+The candidate includes the post editor dependency and Enter repair, visible formatting controls, separate draft/publish actions, activity stream links, guarded activity deletion, the chapter-specific sender for new campaigns, and attendance searches that include pending applicants. Review also corrected completion handling to use the submitted button choice. Existing campaign identities and receipts remain unchanged.
+
+The schema comparison found a stale staff-permission function in hosted Development despite its ledger claiming the later migration, equivalent DV indexes with different names, and unnecessary local runtime MAINTAIN privileges. One forward migration restores the reviewed function, normalizes equivalent index names with definition guards, and revokes unnecessary privileges. Provider-owned default ACLs remain outside the repository contract; actual application-table grants remain fully checked.
+
+The release manifest must come from the clean replay without local fixture helpers. It records complete function and relation fingerprints, ACLs, policies, constraints, triggers, and reviewed configuration. It rejects extra, missing, or changed objects.
+
+Current Production query statistics show the common directory query averaging 55.52 ms over 390 calls and the common application page query averaging 4.91 ms over 388 calls. These cumulative averages have no known sampling-window start. The short live sample found no new calls to the two historically busiest import routines and roughly one automatic workbook claim/dispatch per minute. No index or worker-cadence change is justified by those observations alone.
+
+Cron history has about 1.81 million completed rows already eligible under the reviewed retention windows. The hourly batch still caps deletion at 50,000. Cleanup can permit page reuse over time; neither immediate file shrinkage nor billing savings has been measured.
+
+These candidate changes are not yet verified in hosted Development or Production. The final release receipt will record those environments separately.

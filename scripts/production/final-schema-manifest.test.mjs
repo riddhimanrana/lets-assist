@@ -12,13 +12,13 @@ import {
 import { acceptedCatalogQuery } from "./app-release-catalog.mjs";
 import { expectedVersions } from "./app-release-checks.mjs";
 const manifest = JSON.parse(
-  readFileSync(new URL("./final-schema-623.json", import.meta.url), "utf8"),
+  readFileSync(new URL("./final-schema-625.json", import.meta.url), "utf8"),
 );
 const versions = expectedVersions(
   new URL("../../", import.meta.url).pathname,
-).slice(0, 623);
+).slice(0, 625);
 
-test("623 selects the final catalog without consulting predecessor SQL", () => {
+test("625 selects the final catalog without consulting predecessor SQL", () => {
   assert.equal(
     acceptedCatalogQuery("invalid predecessor SQL", versions),
     finalSchemaCatalog(manifest, versions),
