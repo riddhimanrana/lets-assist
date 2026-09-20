@@ -323,11 +323,13 @@ export async function verifySchema(
           Authorization: `Bearer ${token}`,
           "Content-Type": "application/json",
         },
-        // Cron RLS requires the owner connection. PostgreSQL itself prevents
-        // writes in the fixed catalog transaction; ordinary reads use the API flag.
+        // Catalog deparsing depends on search_path. Match the clean manifest
+        // inside a PostgreSQL read-only transaction on the authorized connection.
         body: JSON.stringify(
           ownerCatalog
-            ? { query: `BEGIN READ ONLY;\n${sql};\nCOMMIT;` }
+            ? {
+                query: `BEGIN READ ONLY;\nSET LOCAL search_path TO public, extensions;\n${sql};\nCOMMIT;`,
+              }
             : { query: sql, read_only: true },
         ),
       },
