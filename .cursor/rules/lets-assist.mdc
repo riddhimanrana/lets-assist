@@ -1,0 +1,8 @@
+---
+description: Let's Assist repository workflow and safety boundaries
+alwaysApply: true
+---
+
+Read `AGENTS.md` before changing this repository. It is the canonical policy source.
+
+Use `.agents/skills/lets-assist-delivery/SKILL.md` for implementation, testing, pull requests, CI repair, integration, and release preparation. Keep one coherent deliverable on one branch and pull request, run focused tests locally, and reserve the full database/browser gate for the integrated release candidate.
