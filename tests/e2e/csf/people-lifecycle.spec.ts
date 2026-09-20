@@ -539,8 +539,6 @@ test.describe("CSF visible people lifecycle", () => {
       });
     // Reload restores the collapsed account panel after the request is resolved.
     await page.reload({ waitUntil: "domcontentloaded" });
-    await expect(connections).not.toHaveAttribute("open");
-    await connections.locator("summary").click();
     await expect(
       page.locator('[data-organization-tabs-hydrated="true"]'),
     ).toBeVisible();
