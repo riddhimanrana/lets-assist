@@ -55,7 +55,10 @@ describe("CI delivery modes", () => {
     const check = replay.slice(catalog, databaseTests);
     expect(check).toContain("dv-local-env.mjs --csf-health");
     expect(check).toContain("expectedVersions(process.cwd())");
-    expect(check).toContain('psql "${DB_URL}" -X -v ON_ERROR_STOP=1 -At');
+    expect(check).toContain('psql "${DB_URL}" -X -q -v ON_ERROR_STOP=1 -At');
+    expect(check).toContain(
+      "isolatedReleaseCatalogQuery(acceptedCatalogQuery(",
+    );
     expect(check).toContain('if [[ "${catalog_result}" != "1" ]]; then');
     expect(check).toContain("exit 1");
   });

@@ -9113,3 +9113,15 @@ of the local stack and fails unless the comparison returns exactly `1`.
 Previously this comparison required an optional standalone replay flag. The
 integrated full gate now runs it for every candidate. Workflow contract tests
 cover its ordering and failure condition; the embedded shell passes `bash -n`.
+
+The first integrated run, `35539836118`, exposed a local-fixture setup defect in
+that new comparison. The launcher installs seven SQL fixture helpers before
+manual seeding, so the comparison correctly rejected the extra functions.
+The run was stopped after the database job failed. No Production changes ran.
+
+The correction removes only those seven named local helpers inside the catalog
+check transaction, then rolls back to restore them for the browser fixture
+loader. It uses no cascading drops. The owned-stack check, exact catalog, and
+failure condition remain. Production checks do not import this test wrapper.
+Six workflow/wrapper tests and twelve schema-manifest tests pass locally.
+The full gate must pass on the corrected candidate before promotion.
