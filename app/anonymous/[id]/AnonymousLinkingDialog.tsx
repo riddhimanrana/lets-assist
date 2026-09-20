@@ -80,7 +80,6 @@ export function AnonymousLinkingDialog({
   defaultEmail,
   isLinked,
   onLinked,
-  onLinkedPendingVerification,
 }: AnonymousLinkingDialogProps) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
@@ -281,11 +280,10 @@ export function AnonymousLinkingDialog({
         setOpen(false);
 
         if (result.requiresEmailVerification) {
-          onLinkedPendingVerification(values.email);
           setVerificationEmail(values.email);
           setVerificationDialogOpen(true);
           toast.success(
-            "Account created! Check your email to finish accessing your dashboard.",
+            "Account created. Verify your email, then return here to link your saved attendance.",
           );
           return;
         }
@@ -653,11 +651,11 @@ export function AnonymousLinkingDialog({
           <DialogHeader>
             <DialogTitle>Check your email to finish account access</DialogTitle>
             <DialogDescription>
-              We created your account and linked this volunteer profile. Verify{" "}
+              Your guest attendance is saved. Verify{" "}
               <span className="font-medium text-foreground">
                 {verificationEmail}
               </span>
-              , then sign in to access your dashboard.
+              , then sign in and return here to link it to your account.
             </DialogDescription>
           </DialogHeader>
 
@@ -666,12 +664,12 @@ export function AnonymousLinkingDialog({
             <AlertTitle>What happens next</AlertTitle>
             <AlertDescription className="space-y-1 text-sm">
               <p>
-                Your volunteer signups are already attached to the new account.
+                Your volunteer signups and certificates remain available through
+                this guest link.
               </p>
               <p>
-                Once you verify the email address, you&apos;ll be able to sign
-                in and manage hours, attendance, and certificates from your
-                dashboard.
+                After verifying, sign in using the button below. You will return
+                to this profile to finish linking your attendance.
               </p>
             </AlertDescription>
           </Alert>
@@ -685,7 +683,11 @@ export function AnonymousLinkingDialog({
               Close
             </Button>
             <Button asChild>
-              <Link href="/login">Go to Login</Link>
+              <Link
+                href={`/login?redirect=${encodeURIComponent(`/anonymous/${anonymousId}?token=${encodeURIComponent(anonymousToken)}&link=1`)}`}
+              >
+                Go to Login
+              </Link>
             </Button>
           </DialogFooter>
         </DialogContent>
