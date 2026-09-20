@@ -308,6 +308,26 @@ jobs:
           # project, base port, and recorded database volume to agree.
           node scripts/local-dev/dv-local-env.mjs --csf-health
 
+      - name: Verify the release catalog before loading fixtures
+        run: |
+          set -euo pipefail
+          node scripts/local-dev/dv-local-env.mjs --csf-health
+          catalog_result="$(node --input-type=module <<'NODE' | psql "${DB_URL}" -X -v ON_ERROR_STOP=1 -At
+          import { readFileSync } from 'node:fs';
+          import { acceptedCatalogQuery } from './scripts/production/app-release-catalog.mjs';
+          import { expectedVersions } from './scripts/production/app-release-checks.mjs';
+          console.log(acceptedCatalogQuery(
+            readFileSync('./scripts/production/verify-csf-target-schema.sql', 'utf8'),
+            expectedVersions(process.cwd()),
+          ));
+          NODE
+          )"
+          if [[ "${catalog_result}" != "1" ]]; then
+            echo "The isolated schema does not match the reviewed release catalog." >&2
+            exit 1
+          fi
+          echo "The clean isolated schema matches the reviewed release catalog."
+
       - name: Validate database tests on the same running isolated stack
         run: supabase test db --workdir "${CSF_ISOLATED_WORK_DIR}"
 

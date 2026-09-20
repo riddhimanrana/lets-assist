@@ -9106,3 +9106,10 @@ catalog statements. The 632-entry schema manifest uses the unchanged reviewed
 631 object inventory because this publication contains no schema changes.
 Focused controller, catalog, and data-write tests passed 75 tests. The integrated
 database replay must still verify that inventory before Production promotion.
+
+Release verification now compares the clean isolated database with that exact
+catalog before pgTAP or fictional fixture loading. The job rechecks ownership
+of the local stack and fails unless the comparison returns exactly `1`.
+Previously this comparison required an optional standalone replay flag. The
+integrated full gate now runs it for every candidate. Workflow contract tests
+cover its ordering and failure condition; the embedded shell passes `bash -n`.
