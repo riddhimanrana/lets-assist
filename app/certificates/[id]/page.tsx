@@ -21,7 +21,10 @@ import { Separator } from "@/components/ui/separator";
 import { CardContainer, CardBody, CardItem } from "@/components/ui/3d-card";
 import { CertificateCardButton } from "./_components/CertificateCardButton";
 import Image from "next/image";
-import { PrintCertificate } from "./_components/PrintCertificate";
+import {
+  PrintCertificate,
+  type PrintCertificateData,
+} from "./_components/PrintCertificate";
 import {
   Tooltip,
   TooltipContent,
@@ -39,18 +42,14 @@ interface CertificateData {
   project_title: string;
   creator_name: string | null;
   is_certified: boolean;
-  type?: "verified" | "self-reported"; // Optional for backward compatibility
+  type?: "verified" | "self-reported" | null; // Optional for backward compatibility
   event_start: string; // Assuming ISO string format from Supabase
   event_end: string;
   credited_minutes?: number | null;
-  user_id: string | null;
   check_in_method: string;
-  created_at: string | null; // Keep for potential use, though issued_at is primary
   organization_name: string | null;
   project_id: string | null;
-  schedule_id: string | null;
   issued_at: string; // Assuming ISO string format from Supabase
-  signup_id: string | null;
   volunteer_name: string | null;
   project_location: string | null;
   description: string | null; // For self-reported description
@@ -129,14 +128,10 @@ export default async function VolunteerRecordPage({
       event_start,
       event_end,
       credited_minutes,
-      user_id,
       check_in_method,
-      created_at,
       organization_name,
       project_id,
-      schedule_id,
       issued_at,
-      signup_id,
       volunteer_name,
       project_location,
       description,
@@ -167,12 +162,17 @@ export default async function VolunteerRecordPage({
   // Format ID for display
   const shortId = data.id.substring(0, 8);
 
-  // Prepare the certificate data for the print component
-  const certificateData = {
-    ...data,
-    volunteer_email: null,
+  const certificateData: PrintCertificateData = {
+    id: data.id,
+    project_title: data.project_title,
+    creator_name: data.creator_name,
+    is_certified: data.is_certified,
+    event_start: data.event_start,
+    organization_name: data.organization_name,
+    issued_at: data.issued_at,
+    volunteer_name: data.volunteer_name,
+    project_location: data.project_location,
     durationText,
-    creator_username: data.creator_username || null,
   };
 
   return (
@@ -259,9 +259,9 @@ export default async function VolunteerRecordPage({
                         <span className="text-sm font-semibold text-foreground">
                           {data.creator_name}
                         </span>
-                      ) : certificateData.creator_username ? (
+                      ) : data.creator_username ? (
                         <Link
-                          href={`/profile/${certificateData.creator_username}`}
+                          href={`/profile/${data.creator_username}`}
                           className="text-sm font-semibold text-foreground hover:text-primary focus:outline-hidden focus:ring-2 focus:ring-primary/60 rounded"
                           aria-label={`View profile of ${data.creator_name}`}
                         >

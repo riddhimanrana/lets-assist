@@ -37,7 +37,18 @@ describe("public certificate projection", () => {
   });
 
   test("print data omits private email and missing records return not found", () => {
-    expect(page).toContain("volunteer_email: null");
+    const selection = [
+      ...page.matchAll(/\.select\(\s*(["`])([\s\S]*?)\1/g),
+    ][1][2];
+    for (const field of [
+      "volunteer_email",
+      "user_id",
+      "signup_id",
+      "schedule_id",
+      "access_token",
+    ]) {
+      expect(selection).not.toContain(field);
+    }
     expect(page).toMatch(/if \(error \|\| !record\) \{[\s\S]*?notFound\(\)/);
   });
 });
