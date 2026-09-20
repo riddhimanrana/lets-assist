@@ -158,7 +158,7 @@ test.describe("meeting attendance role boundaries", () => {
       await expect(dialog).toBeVisible();
       await expect(
         dialog.getByText(
-          "Enter at least two characters. Results are limited to this meeting's term.",
+          "Enter at least two characters. Search active chapter records, including pending applicants.",
         ),
       ).toBeVisible();
 
@@ -177,11 +177,11 @@ test.describe("meeting attendance role boundaries", () => {
     await test.step("searching surfaces exactly the matching member's label", async () => {
       const dialog = page.getByRole("dialog", { name: "Correct attendance" });
       await dialog
-        .getByRole("searchbox", { name: "Search meeting members" })
+        .getByRole("searchbox", { name: "Search CSF records" })
         .fill("Aarav");
       await dialog.getByRole("button", { name: "Search", exact: true }).click();
       await expect(
-        dialog.getByText("1 matching members.", { exact: true }),
+        dialog.getByText("1 matching records.", { exact: true }),
       ).toBeVisible();
 
       await dialog
