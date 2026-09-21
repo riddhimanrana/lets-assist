@@ -1313,6 +1313,23 @@ BEGIN
           WHERE changes.signup_id=v_signup.id AND changes.new_revision=v_signup.attendance_revision;
       END IF;
     END IF;
+    -- Preserve exact legacy duration. Canonical awards also require the same
+    -- reviewed intervals and revision; changing either requires a correction.
+    IF EXISTS (
+      SELECT 1 FROM public.certificates AS certificates
+      WHERE certificates.signup_id = v_signup.id AND certificates.type = 'verified'
+        AND (
+          COALESCE(certificates.credited_minutes::numeric,
+            extract(epoch FROM certificates.event_end - certificates.event_start) / 60)
+            IS DISTINCT FROM private.attendance_interval_minutes(v_intervals)::numeric
+          OR ((certificates.credited_minutes IS NOT NULL OR certificates.attendance_revision <> 0)
+            AND (certificates.attendance_revision IS DISTINCT FROM v_signup.attendance_revision
+              OR private.signup_attendance_intervals(v_signup.id) IS DISTINCT FROM v_intervals))
+        )
+    ) THEN
+      RAISE EXCEPTION USING ERRCODE = '23505',
+        MESSAGE = 'existing certificate attendance differs; use the correction workflow';
+    END IF;
     PERFORM private.set_project_attendance_intervals(v_signup.id,v_intervals,v_exception_reason);
   END LOOP;
 
