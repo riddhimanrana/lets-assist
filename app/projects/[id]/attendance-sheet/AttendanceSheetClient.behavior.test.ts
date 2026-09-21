@@ -22,6 +22,7 @@ mock.module("react", () => ({
 mock.module("@/hooks/useHydrated", () => ({ useHydrated: () => true }));
 const requests: Array<Record<string, unknown>> = [];
 let fail = true;
+let loseResponse = false;
 const sheet: AttendancePrintSheet = {
   sheetReference: "a1400000-0000-4000-8000-000000000001",
   projectTitle: "Fictional project",
@@ -34,6 +35,7 @@ const sheet: AttendancePrintSheet = {
 mock.module("./actions", () => ({
   createAttendancePrintSheets: async (input: Record<string, unknown>) => {
     requests.push(input);
+    if (loseResponse) throw new Error("Transport response lost");
     return fail ? { error: "Read temporarily failed" } : { sheets: [sheet] };
   },
 }));
@@ -77,6 +79,7 @@ beforeEach(() => {
   states = [];
   requests.length = 0;
   fail = true;
+  loseResponse = false;
 });
 
 test("a failed preparation keeps its request key until recovery succeeds", async () => {
@@ -124,4 +127,20 @@ test("a later preparation error preserves the last complete preview", async () =
     elements.find(({ props }) => Array.isArray(props.sheets))!.props.sheets,
   ).toEqual([sheet]);
   expect(elements.some(({ props }) => props.role === "alert")).toBe(true);
+});
+
+test("a lost response retries the same request even after changing paper size", async () => {
+  loseResponse = true;
+  await prepare();
+  const paper = render().find(({ props }) => props.value === "letter")!;
+  (paper.props.onChange as (event: { target: { value: string } }) => void)({
+    target: { value: "a4" },
+  });
+  loseResponse = false;
+  fail = false;
+  await prepare();
+  expect(requests[1].requestId).toBe(requests[0].requestId);
+  expect(
+    render().some(({ props }) => props.children === "Print / Save PDF"),
+  ).toBe(true);
 });
