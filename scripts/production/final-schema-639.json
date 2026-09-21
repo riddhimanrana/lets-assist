@@ -193,7 +193,7 @@
     },
     {
       "identity": "function:app_private.issue_verified_certificate_for_late_attendance()",
-      "digest": "26b1f3d82a5cab187bc2275c4763680b"
+      "digest": "7e3793b8fdd169aab141c55a087958c4"
     },
     {
       "identity": "function:app_private.lock_paper_scan_project_for_commit()",

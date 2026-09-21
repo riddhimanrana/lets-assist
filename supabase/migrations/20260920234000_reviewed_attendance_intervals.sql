@@ -1753,7 +1753,7 @@ BEGIN
           SELECT count(*)::integer
           FROM public.certificates AS certificates
           WHERE certificates.project_id = NEW.project_id
-            AND certificates.schedule_id = NEW.schedule_id
+            AND private.project_hours_publish_key(v_project.event_type,v_project.schedule,certificates.schedule_id) = v_publish_key
             AND certificates.type = 'verified'
         ),
         email_work_count = (
