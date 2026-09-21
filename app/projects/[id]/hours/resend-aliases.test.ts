@@ -22,8 +22,16 @@ let sent: string[] = [];
 let certificateReads = 0;
 let durable = false;
 let durableKey = "";
+let signedIn = true;
+const publicationInputs: Parameters<
+  typeof import("@/lib/projects/hours-publication-service").publishVolunteerHoursTransaction
+>[0][] = [];
 const client = {
-  auth: { getUser: async () => ({ data: { user: { id: "organizer" } } }) },
+  auth: {
+    getUser: async () => ({
+      data: { user: signedIn ? { id: "organizer" } : null },
+    }),
+  },
   from: (table: string) => {
     const filters: Array<(row: Certificate) => boolean> = [];
     const query = {
@@ -66,7 +74,15 @@ mock.module("@/lib/logger", () => ({
   logWarn() {},
 }));
 mock.module("@/lib/projects/hours-publication-service", () => ({
-  publishVolunteerHoursTransaction() {},
+  publishVolunteerHoursTransaction: async (
+    input: (typeof publicationInputs)[number],
+  ) => {
+    publicationInputs.push(input);
+    return {
+      publication: null,
+      error: { message: "Fixture refuses publication." },
+    };
+  },
   requestCorrectedCertificateDelivery() {},
 }));
 mock.module("@/lib/projects/hours-publication-email-service", () => ({
@@ -86,7 +102,8 @@ mock.module("./certificate-issuance", () => ({
     return { emailsSent: rows.length, errors: [] };
   },
 }));
-const { resendCertificateEmails } = await import("./actions");
+const { resendCertificateEmails, publishVolunteerHours } =
+  await import("./actions");
 const slot = { startTime: "09:00", endTime: "11:00", volunteers: 10 };
 beforeEach(() => {
   project = {
@@ -103,6 +120,8 @@ beforeEach(() => {
   certificateReads = 0;
   durable = false;
   durableKey = "";
+  signedIn = true;
+  publicationInputs.length = 0;
 });
 const cases: Array<{
   event_type: Project["event_type"];
@@ -194,4 +213,77 @@ test("unauthorized users cannot read or resend certificates", async () => {
   expect(result.success).toBe(false);
   expect(certificateReads).toBe(0);
   expect(durableKey).toBe("");
+});
+
+const publicationRow = {
+  signupId: "fictional-signup",
+  checkIn: "2020-09-18T08:30:00Z",
+  checkOut: "2020-09-18T11:00:00Z",
+  isValid: true,
+  intervals: [
+    { checkIn: "2020-09-18T08:30:00Z", checkOut: "2020-09-18T11:00:00Z" },
+  ],
+  attendanceRevision: 2,
+  timeExceptionReason: "  Coordinator confirmed early setup  ",
+};
+test("direct publication forwards the reviewed reason, actor, intervals, and revision", async () => {
+  await publishVolunteerHours(projectId, "default", [publicationRow]);
+  expect(publicationInputs).toHaveLength(1);
+  expect(publicationInputs[0]).toMatchObject({
+    actorId: "organizer",
+    projectId,
+    scheduleId: "default",
+    entries: [
+      {
+        signupId: publicationRow.signupId,
+        attendanceRevision: 2,
+        timeExceptionReason: "Coordinator confirmed early setup",
+        intervals: [
+          {
+            checkIn: "2020-09-18T08:30:00.000Z",
+            checkOut: "2020-09-18T11:00:00.000Z",
+          },
+        ],
+      },
+    ],
+  });
+});
+test("publication retries bind the normalized reason and exact reviewed intervals", async () => {
+  await publishVolunteerHours(projectId, "default", [publicationRow]);
+  await publishVolunteerHours(projectId, "default", [
+    {
+      ...publicationRow,
+      timeExceptionReason: publicationRow.timeExceptionReason.trim(),
+    },
+  ]);
+  await publishVolunteerHours(projectId, "default", [
+    {
+      ...publicationRow,
+      timeExceptionReason: "Coordinator confirmed late cleanup",
+    },
+  ]);
+  await publishVolunteerHours(projectId, "default", [
+    {
+      ...publicationRow,
+      intervals: [
+        { checkIn: "2020-09-18T08:45:00Z", checkOut: publicationRow.checkOut },
+      ],
+    },
+  ]);
+  expect(publicationInputs).toHaveLength(4);
+  expect(publicationInputs[1].requestKey).toBe(publicationInputs[0].requestKey);
+  expect(publicationInputs[2].requestKey).not.toBe(
+    publicationInputs[0].requestKey,
+  );
+  expect(publicationInputs[3].requestKey).not.toBe(
+    publicationInputs[0].requestKey,
+  );
+});
+test("an unauthenticated direct publication never reaches the transaction", async () => {
+  signedIn = false;
+  const result = await publishVolunteerHours(projectId, "default", [
+    publicationRow,
+  ]);
+  expect(result.success).toBe(false);
+  expect(publicationInputs).toEqual([]);
 });
