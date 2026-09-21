@@ -40,7 +40,12 @@ describe("attendance print access", () => {
     );
     expect(manifest).toContain("if (input.projectId !== access.project.id)");
     expect(manifest).toContain('.eq("project_id", input.projectId)');
-    expect(manifest).toContain('.eq("schedule_id", scheduleId)');
+    expect(manifest).toContain(
+      "getScheduleIdAliases(access.project, input.scheduleId)",
+    );
+    expect(manifest.match(/\.in\("schedule_id", scheduleIds\)/g)).toHaveLength(
+      2,
+    );
     expect(manifest).toContain(
       "resolveAuthorizedAttendancePrintReferences(access, {",
     );
