@@ -3,6 +3,7 @@ import { spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 
 for (const [scenario, description] of [
+  ["phone", "extracted phone numbers can be inspected, corrected, and removed"],
   [
     "roster",
     "edited roster rows become ready after renewed review and retain persisted-attendance protection",

@@ -124,8 +124,26 @@ if (scenario === "roster")
     outcomeDetail: "saved without email",
     savedAttendance: true,
   });
+if (scenario === "phone") row.phone = "+1 202-555-0100";
 render();
-if (scenario === "reason" || scenario === "roster") {
+if (scenario === "phone") {
+  assert.equal(
+    elements.find((element) => element.props.id === "attendance-phone")?.props
+      .value,
+    row.phone,
+  );
+  change("attendance-phone", "+1 202-555-0111");
+  assert.equal(checkboxes()[1].props.checked, false);
+  assert.equal(checkboxes()[0].props.checked, true);
+  await save();
+  assert.equal(patches[0].phone, "+1 202-555-0111");
+  assert.equal(saved[0].phone, "+1 202-555-0111");
+  assert.equal(patches[0].reviewAcknowledged, false);
+  change("attendance-phone", "");
+  await save();
+  assert.equal(patches[1].phone, null);
+  assert.equal(saved[1].phone, null);
+} else if (scenario === "reason" || scenario === "roster") {
   assert.equal(checkboxes()[1].props.checked, true);
   change(
     "attendance-reason",

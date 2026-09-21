@@ -200,6 +200,21 @@ export function ReviewRowEditor({
           </div>
         </div>
         <div className="space-y-1">
+          <Label htmlFor="attendance-phone">Phone (optional)</Label>
+          <Input
+            id="attendance-phone"
+            type="tel"
+            value={form.phone}
+            onChange={(e) =>
+              setForm({
+                ...form,
+                phone: e.target.value,
+                reviewAcknowledged: false,
+              })
+            }
+          />
+        </div>
+        <div className="space-y-1">
           <Label htmlFor="attendance-match">
             Existing signup, if this person already signed up
           </Label>

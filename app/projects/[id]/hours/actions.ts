@@ -4,6 +4,7 @@ import { createHash } from "node:crypto";
 import { createClient } from "@/lib/supabase/server";
 import { getAdminClient } from "@/lib/supabase/admin";
 import { canManageProjectAccess } from "@/lib/projects/management-access";
+import { getScheduleIdAliases } from "@/lib/projects/hours-publish-key";
 import { logError, logInfo, logWarn } from "@/lib/logger";
 import { hoursPublicationOutcome } from "@/lib/projects/hours-publication-delivery";
 import {
@@ -324,8 +325,10 @@ export async function resendCertificateEmails(
 
     const typedProject = project as ResendProject;
     const publishKey = getPublishStateKey(typedProject, sessionId);
-    const legacyScheduleIds =
-      publishKey === sessionId ? [sessionId] : [sessionId, publishKey];
+    const legacyScheduleIds = getScheduleIdAliases(typedProject, sessionId);
+    if (legacyScheduleIds.length === 0) {
+      return { success: false, error: "Project session not found." };
+    }
     try {
       const admin = getAdminClient();
       const durablePublication = await loadDurablePublicationForRetry(admin, {
