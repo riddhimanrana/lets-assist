@@ -1057,6 +1057,7 @@ DECLARE
   v_exception_reason text;
   v_exception_source jsonb;
   v_old_intervals jsonb;
+  v_old_award_minutes numeric;
   v_minutes integer;
   v_revision integer;
   v_project public.projects%ROWTYPE;
@@ -1306,6 +1307,10 @@ BEGIN
       RAISE EXCEPTION 'attendance changed; refresh before publishing' USING ERRCODE='40001';
     END IF;
     v_old_intervals:=private.signup_attendance_intervals(v_signup.id);
+    SELECT COALESCE(certificate.credited_minutes::numeric,
+      extract(epoch FROM certificate.event_end-certificate.event_start)/60)
+      INTO v_old_award_minutes FROM public.certificates certificate
+      WHERE certificate.signup_id=v_signup.id AND certificate.type='verified';
     v_intervals:=v_old_intervals;
     v_exception_reason:=v_entry->>'timeExceptionReason';
     v_exception_source:=CASE WHEN v_exception_reason IS NOT NULL THEN jsonb_build_object('kind','direct') END;
@@ -1365,9 +1370,7 @@ BEGIN
           'oldCheckIn',v_signup.check_in_time,'oldCheckOut',v_signup.check_out_time,
           'oldAttendanceMinutes',CASE WHEN v_old_intervals<>'[]'::jsonb THEN private.attendance_interval_minutes(v_old_intervals)::numeric
             WHEN v_signup.check_out_time>v_signup.check_in_time THEN extract(epoch FROM v_signup.check_out_time-v_signup.check_in_time)/60 END,
-          'oldAwardCreditedMinutes',(SELECT COALESCE(certificate.credited_minutes::numeric,
-            extract(epoch FROM certificate.event_end-certificate.event_start)/60) FROM public.certificates certificate
-            WHERE certificate.signup_id=v_signup.id AND certificate.type='verified')),
+          'oldAwardCreditedMinutes',v_old_award_minutes),
         v_exception_reason,v_old_intervals,v_intervals,NULL,v_minutes,v_signup.attendance_revision,v_revision,
         jsonb_build_object('outcome','published','publicationReceiptId',v_receipt.id,'signupId',v_signup.id,
           'attendanceRevision',v_revision,'creditedMinutes',v_minutes));

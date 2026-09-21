@@ -9,7 +9,7 @@ CREATE TEMP TABLE provenance_fixtures(id integer,project uuid,signup uuid,entrie
 DO $$
 DECLARE n integer;p uuid;s uuid;
 BEGIN
- FOR n IN 1..16 LOOP
+ FOR n IN 1..18 LOOP
   p:=gen_random_uuid();s:=('ce300000-0000-4000-8000-'||lpad(n::text,12,'0'))::uuid;
   INSERT INTO public.projects(id,creator_id,organization_id,title,location,description,event_type,verification_method,schedule,status,project_timezone)
    VALUES(p,'ce100000-0000-4000-8000-000000000001','ce200000-0000-4000-8000-000000000001','Exception review fixture','Local','Synthetic publication provenance','oneTime','manual','{"oneTime":{"date":"2020-09-18","startTime":"09:00","endTime":"15:00","volunteers":10}}','upcoming','UTC');
@@ -119,5 +119,25 @@ UPDATE provenance_fixtures SET entries=jsonb_set(entries,'{0,intervals}','[{"che
 CREATE TEMP TABLE old_review_snapshot AS SELECT pg_temp.provenance_snapshot(project) AS snapshot FROM provenance_fixtures WHERE id=16;
 SELECT extensions.throws_ok($$SELECT pg_temp.publish_provenance(16)$$,'22023','outside_schedule_requires_reason','a prior Hours reason cannot authorize different proposed visits');
 SELECT extensions.is(pg_temp.provenance_snapshot(project),(SELECT snapshot FROM old_review_snapshot),'failed inheritance preserves the original attendance review') FROM provenance_fixtures WHERE id=16;
+-- Legacy publication flags can cause the attendance setter to issue the first award.
+UPDATE public.project_signups SET status='attended',schedule_id='oneTime' WHERE id=(SELECT signup FROM provenance_fixtures WHERE id=17);
+UPDATE public.projects SET published='{"oneTime":true}' WHERE id=(SELECT project FROM provenance_fixtures WHERE id=17);
+SELECT extensions.is((SELECT count(*)::integer FROM public.certificates WHERE signup_id=f.signup),0,'legacy published session begins without an award') FROM provenance_fixtures f WHERE id=17;
+SELECT extensions.is((SELECT count(*)::integer FROM public.hours_publication_receipts WHERE project_id=f.project),0,'legacy published session begins without a durable receipt') FROM provenance_fixtures f WHERE id=17;
+SELECT extensions.is(pg_temp.publish_provenance(17)->>'outcome','accepted','direct review repairs a legacy published session');
+SELECT extensions.is((SELECT count(*)::integer FROM public.certificates WHERE signup_id=f.signup),1,'attendance setter and publication create exactly one first award') FROM provenance_fixtures f WHERE id=17;
+SELECT extensions.ok(a.request_payload->'oldAwardCreditedMinutes'='null'::jsonb AND a.old_credited_minutes IS NULL AND a.new_credited_minutes=120,'new late-issued certificate is not mislabeled as a prior award') FROM provenance_fixtures f JOIN private.project_attendance_changes a ON a.signup_id=f.signup WHERE f.id=17;
+CREATE TEMP TABLE legacy_repair_snapshot AS SELECT pg_temp.provenance_snapshot(project) AS snapshot FROM provenance_fixtures WHERE id=17;
+SELECT extensions.is(pg_temp.publish_provenance(17)->>'outcome','replayed','legacy publication repair retries safely');
+SELECT extensions.is(pg_temp.provenance_snapshot(project),(SELECT snapshot FROM legacy_repair_snapshot),'legacy repair retry preserves the original no-award snapshot') FROM provenance_fixtures WHERE id=17;
+
+-- An award that existed before publication retains its historical amount and URL.
+INSERT INTO public.certificates(project_id,user_id,signup_id,volunteer_name,volunteer_email,project_title,project_location,event_start,event_end,organization_name,creator_name,is_certified,creator_id,type,check_in_method,schedule_id)
+ SELECT f.project,v.id,f.signup,COALESCE(NULLIF(v.full_name,''),'No Name Volunteer'),v.email,p.title,p.location,'2020-09-18T08:00Z','2020-09-18T10:00Z',o.name,COALESCE(NULLIF(creator.full_name,''),'Project Organizer'),COALESCE(o.verified,false),p.creator_id,'verified','manual','oneTime'
+ FROM provenance_fixtures f JOIN public.projects p ON p.id=f.project JOIN public.profiles v ON v.id='ce100000-0000-4000-8000-000000000003' JOIN public.profiles creator ON creator.id=p.creator_id JOIN public.organizations o ON o.id=p.organization_id WHERE f.id=18;
+CREATE TEMP TABLE prior_award_snapshot AS SELECT to_jsonb(c) AS snapshot FROM public.certificates c JOIN provenance_fixtures f ON f.signup=c.signup_id WHERE f.id=18;
+SELECT extensions.is(pg_temp.publish_provenance(18)->>'outcome','accepted','matching historical award can publish with its reviewed reason');
+SELECT extensions.ok((a.request_payload->>'oldAwardCreditedMinutes')::numeric=120 AND a.old_credited_minutes IS NULL,'genuine prior award minutes are captured without claiming a correction') FROM provenance_fixtures f JOIN private.project_attendance_changes a ON a.signup_id=f.signup WHERE f.id=18;
+SELECT extensions.is(to_jsonb(c),(SELECT snapshot FROM prior_award_snapshot),'publication leaves the entire existing award unchanged') FROM public.certificates c JOIN provenance_fixtures f ON f.signup=c.signup_id WHERE f.id=18;
 SELECT * FROM extensions.finish();
 ROLLBACK;
