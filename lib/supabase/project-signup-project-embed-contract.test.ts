@@ -268,11 +268,6 @@ test("inventories every root project_signups to projects embed and its DTO shape
       .sort((left, right) => left.file.localeCompare(right.file)),
   ).toEqual([
     {
-      file: "app/account/calendar/page.tsx",
-      outputAlias: "project",
-      inner: false,
-    },
-    {
       file: "app/api/calendar/synced-events/route.ts",
       outputAlias: "projects",
       inner: false,
@@ -295,6 +290,11 @@ test("inventories every root project_signups to projects embed and its DTO shape
     {
       file: "app/projects/UserProjects.tsx",
       outputAlias: "projects",
+      inner: false,
+    },
+    {
+      file: "services/calendar-settings-data.ts",
+      outputAlias: "project",
       inner: false,
     },
   ]);
