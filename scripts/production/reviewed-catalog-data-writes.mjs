@@ -449,19 +449,19 @@ export const reviewedCatalogDataWrites = [
       "d6bc92276d468689ec77333a5ff642bab12ce6cb6425ca19df05f3545d33805e",
   },
   {
-    migration: "20260921102235",
-    file: "20260921102235_publish_dvhs_csf_1_2_64.sql",
+    migration: "20260921235401",
+    file: "20260921235401_publish_dvhs_csf_1_2_65.sql",
     operation: "INSERT",
     table: "public.plugin_versions",
     statement:
-      "42979f029b8957ecf222f21706a54ce1c47213cc5f8e517b5579bf9d19d09add",
+      "6abe981d54ca1a54e17293d9e95fffc79ddb00b5a9dd0aef5960c6e5324399b2",
   },
   {
-    migration: "20260921102235",
-    file: "20260921102235_publish_dvhs_csf_1_2_64.sql",
+    migration: "20260921235401",
+    file: "20260921235401_publish_dvhs_csf_1_2_65.sql",
     operation: "UPDATE",
     table: "public.plugins",
     statement:
-      "0bf43c242c08f656c5c526a849db8c369a686e17fa5f427b33ee2f35ee4a2c3b",
+      "74894bc991e8abe6e8e58470b970be130544c6124b753e73e2bf9ef07423c145",
   },
 ];

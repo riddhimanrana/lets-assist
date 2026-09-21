@@ -20,12 +20,12 @@ const read = (path) => readFileSync(new URL(path, import.meta.url), "utf8");
 const before = JSON.parse(read("./final-schema-643.json"));
 const after = JSON.parse(read("./final-schema-644.json"));
 const versions = expectedVersions(repository).slice(0, 644);
-const name = "20260921102235_publish_dvhs_csf_1_2_64";
+const name = "20260921235401_publish_dvhs_csf_1_2_65";
 const sql = read(`../../supabase/migrations/${name}.sql`);
 
 test("CSF calendar release publication preserves the reviewed database schema", () => {
   assert.equal(versions.length, 644);
-  assert.equal(versions.at(-1), "20260921102235");
+  assert.equal(versions.at(-1), "20260921235401");
   assert.deepEqual(after.objects, before.objects);
   assert.equal(after.inventory, before.inventory);
   assert.notEqual(after.ledger, before.ledger);
@@ -57,7 +57,7 @@ test("publication permits only the signed catalog statements", () => {
   assert.deepEqual(
     unreviewedWriteTables(
       sql.replace(
-        "SET latest_version = '1.2.64'",
+        "SET latest_version = '1.2.65'",
         "SET latest_version = '99.0.0'",
       ),
     ),
@@ -72,7 +72,7 @@ test("an accepted 643 ledger receives only the new publication", () => {
     versions.slice(0, 643),
   );
   assert.equal(prepared.prefix.length, 643);
-  assert.match(prepared.query, /'20260921102235','publish_dvhs_csf_1_2_64'/u);
+  assert.match(prepared.query, /'20260921235401','publish_dvhs_csf_1_2_65'/u);
   assert.ok(
     !prepared.query.includes(
       "'20260921020100','csf_reviewed_application_homonyms'",

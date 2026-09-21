@@ -1,6 +1,6 @@
 {
   "format": 1,
-  "ledger": "e00e15892ea25405e0b014199907aab23c502adbf380ddeb90c3ba05877229f4",
+  "ledger": "c55318b003133b512cefe89e7da520963e8f2035f8b2a5a713dd6121b39d03f4",
   "inventory": "50d25e20102baa344f625914423b07f414daf1204214f9bd6cc7b9e6fe2c0efd",
   "objects": [
     {
@@ -781,7 +781,7 @@
     },
     {
       "identity": "function:plugin_data.csf_commit_meeting_attendance_import_identity_base(p_organization_id uuid, p_preview_job_id uuid, p_actor_user_id uuid, p_reason text, p_correlation_id uuid, p_evidence_token uuid, p_allow_unresolved boolean)",
-      "digest": "758baec3268cec00772c98729cf1ff1b"
+      "digest": "460ef86e88b215b39e17e20799957a61"
     },
     {
       "identity": "function:plugin_data.csf_communication_address_safety_decision(p_organization_id uuid, p_recipient_email text)",
