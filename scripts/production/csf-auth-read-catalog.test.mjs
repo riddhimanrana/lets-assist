@@ -19,7 +19,7 @@ const repository = new URL("../../", import.meta.url).pathname;
 const read = (path) => readFileSync(new URL(path, import.meta.url), "utf8");
 const before = JSON.parse(read("./final-schema-639.json"));
 const after = JSON.parse(read("./final-schema-640.json"));
-const versions = expectedVersions(repository);
+const versions = expectedVersions(repository).slice(0, 640);
 const name = "20260921065123_publish_dvhs_csf_1_2_61";
 const sql = read(`../../supabase/migrations/${name}.sql`);
 

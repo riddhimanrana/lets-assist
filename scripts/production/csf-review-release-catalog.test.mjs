@@ -119,8 +119,8 @@ test("the three migrations are byte-pinned and do not rewrite student records", 
     ledger.slice(0, 628),
   );
   assert.equal(prepared.prefix.length, 628);
-  assert.equal(prepared.versions.length, 640);
-  assert.equal(prepared.versions.at(-1), "20260921065123");
+  assert.equal(prepared.versions.length, 643);
+  assert.equal(prepared.versions.at(-1), "20260921074847");
   for (const name of names)
     assert.ok(
       prepared.query.includes(`'${name.slice(0, 14)}','${name.slice(15)}'`),

@@ -150,12 +150,16 @@ export default function CalendarClient({
   };
 
   const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString("en-US", {
+    const dateOnly = /^\d{4}-\d{2}-\d{2}$/.test(dateString);
+    return new Date(
+      dateOnly ? `${dateString}T12:00:00` : dateString,
+    ).toLocaleDateString("en-US", {
       year: "numeric",
       month: "short",
       day: "numeric",
-      hour: "2-digit",
-      minute: "2-digit",
+      ...(dateOnly
+        ? {}
+        : { hour: "2-digit" as const, minute: "2-digit" as const }),
     });
   };
 
