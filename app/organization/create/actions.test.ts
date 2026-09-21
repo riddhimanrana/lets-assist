@@ -32,7 +32,7 @@ function serverClient() {
     },
     async rpc(name: string, args: { p_user: string }) {
       expect(name).toBe("is_trusted_member");
-      expect(args.p_user).toBe(authUser?.id);
+      expect(authUser?.id).toBe(args.p_user);
       return { data: profileTrustedMember === true, error: null };
     },
     from(table: string) {
