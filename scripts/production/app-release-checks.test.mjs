@@ -238,6 +238,52 @@ test("release checks pair the latest full run and ignore later PR database skips
   assert.throws(() => selectQualityChecks(pr, repository), /trusted workflow/);
 });
 
+test("rerunning an older workflow cannot replace a newer failed or unfinished run", () => {
+  const check = (
+    name,
+    id,
+    runId,
+    conclusion = "success",
+    status = "completed",
+  ) => ({
+    name,
+    id,
+    status,
+    conclusion,
+    app: { slug: "github-actions" },
+    details_url: `https://github.com/${repository}/actions/runs/${runId}/job/${id}`,
+  });
+  const oldRerun = [
+    check("full-quality", 100, 43),
+    check("db-replay-validation", 101, 43),
+  ];
+  for (const [conclusion, status] of [
+    ["failure", "completed"],
+    [null, "in_progress"],
+  ]) {
+    assert.throws(
+      () =>
+        selectQualityChecks(
+          [
+            ...oldRerun,
+            check("full-quality", 30, 45, conclusion, status),
+            check("db-replay-validation", 31, 45),
+          ],
+          repository,
+        ),
+      /not successful/,
+    );
+  }
+  const newer = [
+    check("full-quality", 30, 45),
+    check("db-replay-validation", 31, 45),
+  ];
+  assert.deepEqual(
+    selectQualityChecks([...oldRerun, ...newer], repository),
+    newer,
+  );
+});
+
 test("source verification pins clean Git trees and the required CI workflow", async (t) => {
   const cwd = mkdtempSync(resolve(tmpdir(), "csf-app-source-test-"));
   t.after(() => rmSync(cwd, { recursive: true, force: true }));

@@ -33,6 +33,7 @@ import {
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import type { CalendarConnection } from "@/types";
+import { removeSyncedCalendarEvent } from "@/lib/calendar-remove-event";
 
 interface CalendarClientProps {
   connection: CalendarConnection | null;
@@ -115,21 +116,13 @@ export default function CalendarClient({
   };
 
   const handleRemoveEvent = async (
-    eventId: string,
-    eventType: "creator" | "volunteer",
+    event:
+      | CalendarClientProps["creatorProjects"][number]
+      | CalendarClientProps["volunteerSignups"][number],
   ) => {
-    setRemovingEventId(eventId);
+    setRemovingEventId(event.id);
     try {
-      const response = await fetch("/api/calendar/remove-event", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ eventId, eventType }),
-      });
-
-      if (!response.ok) {
-        const data = await response.json();
-        throw new Error(data.error || "Failed to remove event");
-      }
+      await removeSyncedCalendarEvent(event);
 
       toast.success("Event Removed", {
         description: "The event has been removed from your calendar.",
@@ -304,10 +297,9 @@ export default function CalendarClient({
                         <Button
                           variant="ghost"
                           size="sm"
-                          onClick={() =>
-                            handleRemoveEvent(project.id, "creator")
-                          }
-                          disabled={removingEventId === project.id}
+                          onClick={() => handleRemoveEvent(project)}
+                          disabled={removingEventId !== null}
+                          aria-label={`Remove ${project.title} from calendar`}
                         >
                           <Trash2 className="h-4 w-4" />
                         </Button>
@@ -352,10 +344,9 @@ export default function CalendarClient({
                         <Button
                           variant="ghost"
                           size="sm"
-                          onClick={() =>
-                            handleRemoveEvent(signup.id, "volunteer")
-                          }
-                          disabled={removingEventId === signup.id}
+                          onClick={() => handleRemoveEvent(signup)}
+                          disabled={removingEventId !== null}
+                          aria-label={`Remove ${signup.projects.title} from calendar`}
                         >
                           <Trash2 className="h-4 w-4" />
                         </Button>

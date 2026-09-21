@@ -85,13 +85,19 @@ export function selectQualityChecks(runs, repository) {
     check?.details_url?.startsWith(prefix)
       ? check.details_url.slice(prefix.length).match(/^(\d+)\/job\/\d+$/u)?.[1]
       : undefined;
-  const latestQuality = runs
-    .filter(
-      (check) =>
-        check.name === "full-quality" && check.app?.slug === "github-actions",
-    )
-    .sort((a, b) => b.id - a.id)[0];
-  const selectedRunId = runId(latestQuality);
+  const qualityChecks = runs.filter(
+    (check) =>
+      check.name === "full-quality" && check.app?.slug === "github-actions",
+  );
+  if (!qualityChecks.length || qualityChecks.some((check) => !runId(check)))
+    throw new ReleaseCheckError(
+      "Required CI check has no trusted workflow run.",
+    );
+  const selectedRunId = qualityChecks
+    .map(runId)
+    .sort((a, b) =>
+      BigInt(a) > BigInt(b) ? -1 : BigInt(a) < BigInt(b) ? 1 : 0,
+    )[0];
   if (!selectedRunId)
     throw new ReleaseCheckError(
       "Required CI check has no trusted workflow run.",

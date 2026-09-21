@@ -9346,3 +9346,13 @@ The focused database replay passed all 16 new assertions. Its first catalog chec
 Signed CSF 1.2.63 integrated through PR 787 at Development `6393fea4447c72f4067abba6e7ec8c1048e7aff7`. Full gate `35575154640` verified the clean release catalog before fixtures, then its independent unit-test job found a source-contract assertion still looking for the calendar reconnect flag in the page. The flag now comes from the extracted calendar data service. The corrected assertion follows that boundary, and a behavior test verifies that an unbound legacy connection still returns the reconnect notice. The focused tests pass. This correction changes tests only; Production rollout remains pending the release gates.
 
 The user approved sending the prepared provider maintenance request. Supabase's authenticated support form confirmed "Support request sent" for the Production project. The request covers the collation rebuild and recovered replication incident. The optional project-access grant was disabled. Support has not yet confirmed a maintenance plan or completed a repair.
+
+### CSF release review follow-up, September 21, 2026
+
+| Finding                                                                                                  | Severity | Status                         | Evidence                                                                                                                             |
+| -------------------------------------------------------------------------------------------------------- | -------- | ------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------ |
+| An older Code quality rerun could displace a newer failed workflow when checks were sorted by job ID.    | P2       | Fixed locally; release pending | Select the greatest workflow run ID before checking its latest attempts. Focused regression covers failed and unfinished newer runs. |
+| Calendar removal sent a database row ID in a POST request to a DELETE route expecting a Google event ID. | P2       | Fixed locally; release pending | Both creator and volunteer actions now use the provider ID and validated route contract. Request and failure tests pass.             |
+
+Production account reconciliation continues through reviewed staff actions. Private
+source evidence stays in ignored artifacts. No application decisions were released.
