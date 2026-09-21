@@ -94,12 +94,10 @@ export async function createOrganization(data: OrganizationCreationData) {
   }
 
   // Trusted member gating (required regardless of org role)
-  const { data: tmProfile } = await supabase
-    .from("profiles")
-    .select("trusted_member")
-    .eq("id", user.id)
-    .single();
-  if (!tmProfile?.trusted_member) {
+  const { data: isTrustedMember } = await supabase.rpc("is_trusted_member", {
+    p_user: user.id,
+  });
+  if (isTrustedMember !== true) {
     // If profile flag isn't set, allow if application is accepted
     const { data: tmApp } = await supabase
       .from("trusted_member")

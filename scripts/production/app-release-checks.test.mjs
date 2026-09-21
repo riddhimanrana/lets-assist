@@ -17,6 +17,7 @@ import {
   verifyAcceptance,
   verifyLedger,
   verifyQualityRuns,
+  selectQualityChecks,
   verifySchema,
   verifySource,
 } from "./app-release-checks.mjs";
@@ -163,6 +164,123 @@ test("latest trusted quality and database checks must both succeed", () => {
     verifyQualityRuns(
       runs.map((run) => ({ ...run, app: { slug: "untrusted" } })),
     ),
+  );
+});
+
+test("release checks pair the latest full run and ignore later PR database skips", () => {
+  const check = (name, id, runId = 43, conclusion = "success") => ({
+    name,
+    id,
+    status: "completed",
+    conclusion,
+    app: { slug: "github-actions" },
+    details_url: `https://github.com/${repository}/actions/runs/${runId}/job/${id}`,
+  });
+  const full = [check("full-quality", 10), check("db-replay-validation", 11)];
+  const pr = [
+    check("pr-quality", 20, 44),
+    check("db-replay-validation", 21, 44, "skipped"),
+  ];
+  assert.deepEqual(selectQualityChecks([...full, ...pr], repository), full);
+  for (const conclusion of ["failure", "cancelled", "skipped"]) {
+    assert.throws(
+      () =>
+        selectQualityChecks(
+          [...full, ...pr, check("db-replay-validation", 22, 43, conclusion)],
+          repository,
+        ),
+      /not successful/,
+    );
+    assert.throws(
+      () =>
+        selectQualityChecks(
+          [
+            ...full,
+            check("full-quality", 30, 45, conclusion),
+            check("db-replay-validation", 31, 45),
+          ],
+          repository,
+        ),
+      /not successful/,
+    );
+  }
+  assert.throws(
+    () =>
+      selectQualityChecks(
+        [
+          ...full,
+          { ...check("full-quality", 30, 45), status: "in_progress" },
+          check("db-replay-validation", 31, 45),
+        ],
+        repository,
+      ),
+    /not successful/,
+  );
+  assert.throws(
+    () =>
+      selectQualityChecks([...full, check("full-quality", 30, 45)], repository),
+    /same run/,
+  );
+  assert.throws(
+    () =>
+      selectQualityChecks(
+        [
+          ...full,
+          {
+            ...check("full-quality", 30),
+            details_url: "https://untrusted.test/actions/runs/43/job/30",
+          },
+        ],
+        repository,
+      ),
+    /trusted workflow/,
+  );
+  assert.throws(() => selectQualityChecks(pr, repository), /trusted workflow/);
+});
+
+test("rerunning an older workflow cannot replace a newer failed or unfinished run", () => {
+  const check = (
+    name,
+    id,
+    runId,
+    conclusion = "success",
+    status = "completed",
+  ) => ({
+    name,
+    id,
+    status,
+    conclusion,
+    app: { slug: "github-actions" },
+    details_url: `https://github.com/${repository}/actions/runs/${runId}/job/${id}`,
+  });
+  const oldRerun = [
+    check("full-quality", 100, 43),
+    check("db-replay-validation", 101, 43),
+  ];
+  for (const [conclusion, status] of [
+    ["failure", "completed"],
+    [null, "in_progress"],
+  ]) {
+    assert.throws(
+      () =>
+        selectQualityChecks(
+          [
+            ...oldRerun,
+            check("full-quality", 30, 45, conclusion, status),
+            check("db-replay-validation", 31, 45),
+          ],
+          repository,
+        ),
+      /not successful/,
+    );
+  }
+  const newer = [
+    check("full-quality", 30, 45),
+    check("db-replay-validation", 31, 45),
+  ];
+  assert.deepEqual(
+    selectQualityChecks([...oldRerun, ...newer], repository),
+    newer,
   );
 });
 

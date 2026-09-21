@@ -120,7 +120,6 @@
     "@/services/csf-communications-environment",
     "@/services/csf-communications-worker",
     "@/services/csf-import-contract",
-    "@/services/email-send",
     "@/services/google-calendar-event-mutations",
     "@/services/google-drive",
     "@/services/google-sheets",

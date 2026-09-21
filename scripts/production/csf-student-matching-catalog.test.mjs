@@ -14,7 +14,9 @@ import {
 const read = (path) => readFileSync(new URL(path, import.meta.url), "utf8");
 const before = JSON.parse(read("./final-schema-635.json"));
 const after = JSON.parse(read("./final-schema-638.json"));
-const versions = expectedVersions(new URL("../../", import.meta.url).pathname);
+const versions = expectedVersions(
+  new URL("../../", import.meta.url).pathname,
+).filter((version) => version <= "20260921020100");
 const prior = new Map(before.objects.map((row) => [row.identity, row.digest]));
 
 test("student matching binds the signed publication and two reviewed migration versions", () => {
