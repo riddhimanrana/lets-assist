@@ -99,12 +99,13 @@ export function SubmitTrustedMemberForm({
         }
         const supabase = createClient();
         // First, check if profile is already trusted
-        const { data: profile } = await supabase
-          .from("profiles")
-          .select("trusted_member")
-          .eq("id", user.id)
-          .maybeSingle();
-        if (profile?.trusted_member) {
+        const { data: isTrustedMember } = await supabase.rpc(
+          "is_trusted_member",
+          {
+            p_user: user.id,
+          },
+        );
+        if (isTrustedMember === true) {
           if (mounted) setAppStatus("accepted");
           return;
         }
