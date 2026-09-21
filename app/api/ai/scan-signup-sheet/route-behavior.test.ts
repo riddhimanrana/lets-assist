@@ -5,12 +5,37 @@ import { fileURLToPath } from "node:url";
 // Isolate module mocks from the root suite's other provider and auth tests.
 for (const [scenario, description] of [
   [
+    "revoked-membership",
+    "staff revoked during extraction cannot stage ordinary handwritten rows",
+  ],
+  [
+    "revoked-staff-setting",
+    "disabled staff management is checked after extraction",
+  ],
+  [
+    "revoked-project-org",
+    "changed project organization is checked after extraction",
+  ],
+  ["revoked-session", "expired authentication cannot stage extracted rows"],
+  [
+    "revoked-identity",
+    "changed authenticated identity cannot finish another user's scan",
+  ],
+  [
+    "revoked-blank",
+    "revoked staff cannot settle even an unreadable extraction",
+  ],
+  [
+    "revoked-before-settlement",
+    "revocation after staging cannot advance the batch to review",
+  ],
+  [
     "large-roster",
     "roster and guest candidates past 1000 rows remain available",
   ],
   [
     "printed-batch",
-    "300 printed rows authorize once and reuse batched reference lookups",
+    "300 printed rows revalidate per write boundary and reuse batched reference lookups",
   ],
   [
     "printed-without-candidate",

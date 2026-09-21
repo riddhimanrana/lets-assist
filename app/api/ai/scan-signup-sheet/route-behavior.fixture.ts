@@ -33,6 +33,7 @@ const batch: Stored = {
 };
 const tables: Record<string, Stored[]> = {
   projects: [batch.projects as Stored],
+  organization_members: [],
   project_attendance_print_sheets: [],
   project_attendance_print_rows: [],
   project_paper_scan_batches: [batch],
@@ -48,6 +49,9 @@ const downloads: string[] = [];
 const aiCalls: string[] = [];
 let failReviewSettlement = false;
 let authCalls = 0;
+let currentUserId: string | null = userId;
+let duringExtraction: (() => void) | null = null;
+let afterStaging: (() => void) | null = null;
 const reads: Array<{ table: string; start: number; end: number }> = [];
 let omitPrintedCandidate = false;
 
@@ -150,6 +154,7 @@ class Query {
       );
     } else if (this.operation === "insert") {
       tables[this.table].push(...structuredClone(this.values as Stored[]));
+      afterStaging?.();
     }
     return {
       data: structuredClone(single ? (matching[0] ?? null) : matching),
@@ -189,7 +194,7 @@ mock.module("@/lib/supabase/admin", () => ({ getAdminClient: () => admin }));
 mock.module("@/lib/supabase/auth-helpers", () => ({
   getAuthUser: async () => {
     authCalls++;
-    return { user: { id: userId }, error: null };
+    return { user: currentUserId ? { id: currentUserId } : null, error: null };
   },
 }));
 mock.module("@/lib/ai/rate-limit", () => ({
@@ -210,6 +215,7 @@ mock.module("ai", () => ({
     const bytes = options.messages[0].content[1].data;
     const path = new TextDecoder().decode(bytes);
     aiCalls.push(path);
+    duringExtraction?.();
     const output = outputs.get(path);
     if (output instanceof Error) throw output;
     assert.ok(output, `No fictional extraction for ${path}`);
@@ -284,7 +290,49 @@ function assertNoCredit() {
 }
 
 const scenario = process.argv[2];
-if (
+if (scenario.startsWith("revoked-")) {
+  const project = tables.projects[0];
+  const membership = {
+    organization_id: "fictional-org",
+    user_id: userId,
+    role: "staff",
+    status: "active",
+  };
+  project.creator_id = "other-creator";
+  project.organization_id = membership.organization_id;
+  project.can_be_managed_by_staff = true;
+  tables.organization_members.push(membership);
+  photo(1, extraction(scenario === "revoked-blank" ? [] : [row()]));
+  const revoke = () => {
+    if (scenario === "revoked-session") currentUserId = null;
+    else if (scenario === "revoked-identity") currentUserId = "different-user";
+    else if (scenario === "revoked-staff-setting")
+      project.can_be_managed_by_staff = false;
+    else if (scenario === "revoked-project-org")
+      project.organization_id = "different-org";
+    else membership.status = "inactive";
+  };
+  if (scenario === "revoked-before-settlement") afterStaging = revoke;
+  else duringExtraction = revoke;
+  const response = await scan();
+  assert.equal(response.status, scenario === "revoked-session" ? 401 : 403);
+  assert.equal(
+    batch.status,
+    "failed",
+    "Release claim without granting review access",
+  );
+  assert.equal(batch.extraction_claim_id, null);
+  assert.equal(
+    tables.project_paper_scan_rows.length,
+    scenario === "revoked-before-settlement" ? 1 : 0,
+  );
+  assert.equal(
+    tables.project_paper_scan_images.length,
+    1,
+    "Keep photos available to an authorized coordinator",
+  );
+  assertNoCredit();
+} else if (
   ["large-roster", "printed-batch", "printed-without-candidate"].includes(
     scenario,
   )
@@ -370,11 +418,15 @@ if (
   assert.equal(first.match_user_id, target.user_id);
   assert.equal(first.match_score, 1);
   assert.equal(first.identity_confirmed, false);
-  assert.equal(authCalls, 1, "Scan authorizes once, not once per printed row");
+  assert.equal(
+    authCalls,
+    3,
+    "Authorize initially, before staging, and before settlement, not per row",
+  );
   assert.equal(
     reads.filter((read) => read.table === "projects").length,
-    0,
-    "Reuse the authorized route project",
+    2,
+    "Re-read project management policy before staging and settlement",
   );
   assert.equal(
     reads.filter((read) => read.table === "project_attendance_print_sheets")

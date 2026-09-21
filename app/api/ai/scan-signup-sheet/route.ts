@@ -1,3 +1,4 @@
+import { revalidateScanAccess, ScanAccessError } from "./scan-access";
 import { resolveAuthorizedAttendancePrintReferences } from "@/lib/attendance/print-manifest";
 import { loadScanCandidatePages } from "./scan-candidates";
 import { randomUUID } from "node:crypto";
@@ -586,6 +587,7 @@ export async function POST(req: NextRequest) {
     }
 
     if (imagesProcessed === 0 || stagedRows.length === 0) {
+      await revalidateScanAccess(admin, batch.project_id, user.id);
       const { data: failedBatch, error: failError } = await admin
         .from("project_paper_scan_batches")
         .update({
@@ -618,6 +620,7 @@ export async function POST(req: NextRequest) {
 
     if (stagedRows.length > 0) {
       if (stagedRows.length > PAPER_SCAN_MAX_ROWS_PER_BATCH) {
+        await revalidateScanAccess(admin, batch.project_id, user.id);
         const { error } = await admin
           .from("project_paper_scan_batches")
           .update({
@@ -666,6 +669,7 @@ export async function POST(req: NextRequest) {
             match_reasons: [],
           });
       });
+      await revalidateScanAccess(admin, batch.project_id, user.id);
       const { error: insertError } = await admin
         .from("project_paper_scan_rows")
         .insert(stagedRows);
@@ -674,6 +678,7 @@ export async function POST(req: NextRequest) {
       }
     }
 
+    await revalidateScanAccess(admin, batch.project_id, user.id);
     const { data: reviewBatch, error: reviewError } = await admin
       .from("project_paper_scan_batches")
       .update({
@@ -713,6 +718,9 @@ export async function POST(req: NextRequest) {
         })
         .eq("id", claimedBatch.id)
         .eq("extraction_claim_id", claimedBatch.claimId);
+    }
+    if (error instanceof ScanAccessError) {
+      return Response.json({ error: error.message }, { status: error.status });
     }
     return Response.json(
       { error: "Scanning failed. Please try again." },
