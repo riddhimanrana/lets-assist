@@ -13,6 +13,7 @@ import type {
 const optionsSchema = z
   .object({
     projectId: z.string().uuid(),
+    requestId: z.string().uuid().optional(),
     scheduleIds: z.array(z.string().min(1).max(200)).min(1).max(50),
     blankRows: z.number().int().min(0).max(100),
     continuationRows: z.number().int().min(0).max(30),
@@ -36,23 +37,42 @@ export async function createAttendancePrintSheets(
     return {
       error: "A selected session is no longer available. Reload and try again.",
     };
+  const { data: prepared, error: prepareError } = await access.admin.rpc(
+    "create_attendance_print_sheets",
+    {
+      p_project_id: parsed.data.projectId,
+      p_schedule_ids: selected.map((session) => session!.id),
+      p_actor_id: access.userId,
+      p_blank_rows: parsed.data.blankRows,
+      p_continuation_rows: parsed.data.continuationRows,
+      p_request_id: parsed.data.requestId ?? crypto.randomUUID(),
+    },
+  );
+  const receipt = z
+    .array(
+      z.object({
+        sheet_id: z.string().uuid(),
+        schedule_id: z.string(),
+      }),
+    )
+    .max(50)
+    .safeParse(prepared);
+  if (
+    prepareError ||
+    !receipt.success ||
+    receipt.data.length !== selected.length
+  )
+    return {
+      error:
+        "Could not prepare the attendance sheets. Retry to recover this request.",
+    };
   const sheets: AttendancePrintSheet[] = [];
-  for (const session of selected) {
-    if (!session) continue;
-    const { data: sheetId, error } = await access.admin.rpc(
-      "create_attendance_print_sheet",
-      {
-        p_project_id: parsed.data.projectId,
-        p_schedule_id: session.id,
-        p_actor_id: access.userId,
-        p_blank_rows: parsed.data.blankRows,
-        p_continuation_rows: parsed.data.continuationRows,
-      },
-    );
-    if (error || typeof sheetId !== "string")
+  for (const [index, session] of selected.entries()) {
+    if (!session || receipt.data[index].schedule_id !== session.id)
       return {
-        error: "Could not prepare the attendance sheet. Please try again.",
+        error: "Could not verify the prepared sessions. Reload and try again.",
       };
+    const sheetId = receipt.data[index].sheet_id;
     const { data: sheet, error: sheetError } = await access.admin
       .from("project_attendance_print_sheets")
       .select("id, project_title, project_timezone, starts_at, ends_at")
@@ -97,5 +117,10 @@ export async function createAttendancePrintSheets(
       })),
     });
   }
+  const currentAccess = await requireAttendancePrintAccess(
+    parsed.data.projectId,
+  );
+  if (!currentAccess || currentAccess.userId !== access.userId)
+    return { error: "You no longer have permission to print this roster." };
   return { sheets };
 }

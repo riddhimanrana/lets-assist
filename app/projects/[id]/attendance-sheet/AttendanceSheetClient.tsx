@@ -32,6 +32,7 @@ export function AttendanceSheetClient({
   const [continuationRows, setContinuationRows] = useState(4);
   const [paper, setPaper] = useState<"letter" | "a4">("letter");
   const [sheets, setSheets] = useState<AttendancePrintSheet[]>([]);
+  const [requestId, setRequestId] = useState(() => crypto.randomUUID());
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const date = new Intl.DateTimeFormat("en-US", {
@@ -43,16 +44,19 @@ export function AttendanceSheetClient({
   async function prepare() {
     setBusy(true);
     setError(null);
-    setSheets([]);
     try {
       const result = await createAttendancePrintSheets({
         projectId,
+        requestId,
         scheduleIds: selected,
         blankRows,
         continuationRows,
       });
       if ("error" in result) setError(result.error);
-      else setSheets(result.sheets);
+      else {
+        setSheets(result.sheets);
+        setRequestId(crypto.randomUUID());
+      }
     } catch {
       setError("Could not prepare the sheets. Please try again.");
     } finally {
@@ -63,6 +67,8 @@ export function AttendanceSheetClient({
   function changeOptions(change: () => void) {
     change();
     setSheets([]);
+    setError(null);
+    setRequestId(crypto.randomUUID());
   }
 
   return (
@@ -171,7 +177,11 @@ export function AttendanceSheetClient({
             onClick={prepare}
             disabled={!hydrated || busy || selected.length === 0}
           >
-            {busy ? "Preparing sheets..." : "Prepare sheets"}
+            {busy
+              ? "Preparing sheets..."
+              : error
+                ? "Retry preparation"
+                : "Prepare sheets"}
           </Button>
           {sheets.length > 0 && (
             <Button variant="outline" onClick={() => window.print()}>
