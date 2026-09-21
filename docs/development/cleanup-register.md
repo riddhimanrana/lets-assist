@@ -9349,10 +9349,10 @@ The user approved sending the prepared provider maintenance request. Supabase's 
 
 ### CSF release review follow-up, September 21, 2026
 
-| Finding | Severity | Status | Evidence |
-| --- | --- | --- | --- |
-| An older Code quality rerun could displace a newer failed workflow when checks were sorted by job ID. | P2 | Fixed locally; release pending | Select the greatest workflow run ID before checking its latest attempts. Focused regression covers failed and unfinished newer runs. |
-| Calendar removal sent a database row ID in a POST request to a DELETE route expecting a Google event ID. | P2 | Fixed locally; release pending | Both creator and volunteer actions now use the provider ID and validated route contract. Request and failure tests pass. |
+| Finding                                                                                                  | Severity | Status                         | Evidence                                                                                                                             |
+| -------------------------------------------------------------------------------------------------------- | -------- | ------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------ |
+| An older Code quality rerun could displace a newer failed workflow when checks were sorted by job ID.    | P2       | Fixed locally; release pending | Select the greatest workflow run ID before checking its latest attempts. Focused regression covers failed and unfinished newer runs. |
+| Calendar removal sent a database row ID in a POST request to a DELETE route expecting a Google event ID. | P2       | Fixed locally; release pending | Both creator and volunteer actions now use the provider ID and validated route contract. Request and failure tests pass.             |
 
 Production account reconciliation continues through reviewed staff actions. Private
 source evidence stays in ignored artifacts. No application decisions were released.
