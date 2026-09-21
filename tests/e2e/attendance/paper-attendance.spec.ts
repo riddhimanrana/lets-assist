@@ -269,6 +269,17 @@ test("fictional guest attendance prints, publishes, exports, corrects, and links
     await expect(review).toContainText("2h 0m, excluding breaks");
     await review.getByLabel(/I checked this volunteer's identity/).check();
     await review.getByLabel(/I reviewed all times and dates/).check();
+    const signature = review.getByLabel("Signature visible on the sheet", {
+      exact: true,
+    });
+    await expect(signature).not.toBeChecked();
+    await signature.check();
+    await expect(signature).toBeChecked();
+    await expect(
+      review.getByLabel(/I reviewed all times and dates/),
+    ).not.toBeChecked();
+    await signature.uncheck();
+    await review.getByLabel(/I reviewed all times and dates/).check();
     await page.setViewportSize({ width: 390, height: 844 });
     await expect(review).toBeVisible();
     expect(
@@ -848,6 +859,23 @@ test("fictional guest attendance prints, publishes, exports, corrects, and links
       expect(afterReload.count).toBe(1);
       console.info(
         "Attendance acceptance: guest account linking preserves exactly one award",
+      );
+      await guestPage.goto(`${origin}/projects/${projectId}`);
+      await expect(
+        guestPage.getByText("Volunteer Hours Published!", { exact: true }),
+      ).toBeVisible();
+      const volunteerTotal = guestPage
+        .getByText("Total Hours:", { exact: true })
+        .locator("..");
+      await expect(volunteerTotal).toContainText("2h 30m");
+      await expect(volunteerTotal).not.toContainText("3h 30m");
+      if (!env.hosted)
+        await guestPage.screenshot({
+          path: testInfo.outputPath("volunteer-corrected-hours.png"),
+          fullPage: true,
+        });
+      console.info(
+        "Attendance acceptance: volunteer total uses corrected150minutes across split visits",
       );
     } finally {
       await guestContext.close();
