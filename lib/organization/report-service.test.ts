@@ -58,93 +58,92 @@ let intervalFailure = false;
 let pageCap = 500;
 const adminTables: string[] = [];
 const calls: Array<{ table: string; method: string; args: unknown[] }> = [];
-const client = {
-  from(table: string) {
-    let after: string | null = null;
-    let signupIds: string[] = [];
-    let limit = 500;
-    const intervalRows = () =>
-      signups
-        .flatMap((row, signupIndex) =>
-          (row.project_attendance_intervals ?? []).map((interval, index) => ({
-            ...interval,
-            id: `${signupIndex.toString().padStart(4, "0")}-${index.toString().padStart(4, "0")}`,
-            signup_id: row.id,
-          })),
-        )
-        .filter(
-          (row) =>
-            signupIds.includes(row.signup_id) && (!after || row.id > after),
-        )
-        .slice(0, Math.min(limit, pageCap));
-    const result = () => ({
-      data:
-        table === "organization_members"
-          ? { role, status: membershipStatus }
-          : table === "projects"
-            ? [project]
-            : table === "certificates"
-              ? certificates
-              : table === "project_attendance_intervals"
-                ? intervalFailure
-                  ? null
-                  : intervalRows()
-                : attendanceFailure
-                  ? null
-                  : signups.map(
-                      ({ project_attendance_intervals: omitted, ...row }) => {
-                        void omitted;
-                        return row;
-                      },
-                    ),
-      error:
-        (table === "project_signups" && attendanceFailure) ||
-        (table === "project_attendance_intervals" && intervalFailure)
-          ? { message: "fixture unavailable" }
-          : null,
-    });
-    const query = {
-      select(value: string) {
-        calls.push({ table, method: "select", args: [value] });
-        return query;
-      },
-      eq(...args: unknown[]) {
-        calls.push({ table, method: "eq", args });
-        return query;
-      },
-      in(...args: unknown[]) {
-        if (args[0] === "signup_id") signupIds = args[1] as string[];
-        calls.push({ table, method: "in", args });
-        return query;
-      },
-      not(...args: unknown[]) {
-        calls.push({ table, method: "not", args });
-        return query;
-      },
-      gte(...args: unknown[]) {
-        calls.push({ table, method: "gte", args });
-        return query;
-      },
-      lte(...args: unknown[]) {
-        calls.push({ table, method: "lte", args });
-        return query;
-      },
-      order: () => query,
-      limit(value: number) {
-        limit = value;
-        return query;
-      },
-      gt(_column: string, value: string) {
-        after = value;
-        return query;
-      },
-      single: async () => result(),
-      then: (resolve: (value: ReturnType<typeof result>) => unknown) =>
-        Promise.resolve(result()).then(resolve),
-    };
-    return query;
-  },
-};
+function buildReadFixture(table: string) {
+  let after: string | null = null;
+  let signupIds: string[] = [];
+  let limit = 500;
+  const intervalRows = () =>
+    signups
+      .flatMap((row, signupIndex) =>
+        (row.project_attendance_intervals ?? []).map((interval, index) => ({
+          ...interval,
+          id: `${signupIndex.toString().padStart(4, "0")}-${index.toString().padStart(4, "0")}`,
+          signup_id: row.id,
+        })),
+      )
+      .filter(
+        (row) =>
+          signupIds.includes(row.signup_id) && (!after || row.id > after),
+      )
+      .slice(0, Math.min(limit, pageCap));
+  const result = () => ({
+    data:
+      table === "organization_members"
+        ? { role, status: membershipStatus }
+        : table === "projects"
+          ? [project]
+          : table === "certificates"
+            ? certificates
+            : table === "project_attendance_intervals"
+              ? intervalFailure
+                ? null
+                : intervalRows()
+              : attendanceFailure
+                ? null
+                : signups.map(
+                    ({ project_attendance_intervals: omitted, ...row }) => {
+                      void omitted;
+                      return row;
+                    },
+                  ),
+    error:
+      (table === "project_signups" && attendanceFailure) ||
+      (table === "project_attendance_intervals" && intervalFailure)
+        ? { message: "fixture unavailable" }
+        : null,
+  });
+  const query = {
+    select(value: string) {
+      calls.push({ table, method: "select", args: [value] });
+      return query;
+    },
+    eq(...args: unknown[]) {
+      calls.push({ table, method: "eq", args });
+      return query;
+    },
+    in(...args: unknown[]) {
+      if (args[0] === "signup_id") signupIds = args[1] as string[];
+      calls.push({ table, method: "in", args });
+      return query;
+    },
+    not(...args: unknown[]) {
+      calls.push({ table, method: "not", args });
+      return query;
+    },
+    gte(...args: unknown[]) {
+      calls.push({ table, method: "gte", args });
+      return query;
+    },
+    lte(...args: unknown[]) {
+      calls.push({ table, method: "lte", args });
+      return query;
+    },
+    order: () => query,
+    limit(value: number) {
+      limit = value;
+      return query;
+    },
+    gt(_column: string, value: string) {
+      after = value;
+      return query;
+    },
+    single: async () => result(),
+    then: (resolve: (value: ReturnType<typeof result>) => unknown) =>
+      Promise.resolve(result()).then(resolve),
+  };
+  return query;
+}
+const client = { from: buildReadFixture };
 mock.module("@/lib/supabase/server", () => ({
   createClient: async () => client,
 }));
@@ -162,7 +161,7 @@ mock.module("@/lib/supabase/admin", () => ({
         if (revokeMembershipAfterRead) membershipStatus = "inactive";
         if (changeAccountAfterRead) authId = "other-manager";
       }
-      return client.from(table);
+      return buildReadFixture(table);
     },
   }),
 }));
