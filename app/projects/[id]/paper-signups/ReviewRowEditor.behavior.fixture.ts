@@ -106,8 +106,10 @@ function change(id: string, value: string) {
   });
   render();
 }
-function checkboxes() {
-  return elements.filter((element) => element.props.type === "checkbox");
+function checkbox(id: string) {
+  const element = elements.find((element) => element.props.id === id);
+  assert.ok(element, `Missing checkbox ${id}`);
+  return element;
 }
 async function save() {
   const button = elements.find(
@@ -124,17 +126,44 @@ if (scenario === "roster")
     outcomeDetail: "saved without email",
     savedAttendance: true,
   });
+if (scenario === "signature") {
+  row.signaturePresent = true;
+  row.email = null;
+  row.matchSignupId = null;
+}
 if (scenario === "phone") row.phone = "+1 202-555-0100";
 render();
-if (scenario === "phone") {
+if (scenario === "signature") {
+  assert.equal(checkbox("attendance-signature").props.checked, true);
+  for (const checked of [false, true]) {
+    (
+      checkbox("attendance-signature").props.onChange as (event: {
+        target: { checked: boolean };
+      }) => void
+    )({ target: { checked } });
+    render();
+    assert.equal(checkbox("attendance-signature").props.checked, checked);
+    assert.equal(
+      checkbox("attendance-review-acknowledged").props.checked,
+      false,
+    );
+    assert.equal(checkbox("attendance-identity-confirmed").props.checked, true);
+    await save();
+    assert.equal(patches.at(-1)?.signaturePresent, checked);
+    assert.equal(saved.at(-1)?.signaturePresent, checked);
+    assert.equal(patches.at(-1)?.reviewAcknowledged, false);
+    assert.equal(patches.at(-1)?.email, null);
+    assert.equal(patches.at(-1)?.expectedRevision, 4);
+  }
+} else if (scenario === "phone") {
   assert.equal(
     elements.find((element) => element.props.id === "attendance-phone")?.props
       .value,
     row.phone,
   );
   change("attendance-phone", "+1 202-555-0111");
-  assert.equal(checkboxes()[1].props.checked, false);
-  assert.equal(checkboxes()[0].props.checked, true);
+  assert.equal(checkbox("attendance-review-acknowledged").props.checked, false);
+  assert.equal(checkbox("attendance-identity-confirmed").props.checked, true);
   await save();
   assert.equal(patches[0].phone, "+1 202-555-0111");
   assert.equal(saved[0].phone, "+1 202-555-0111");
@@ -144,18 +173,18 @@ if (scenario === "phone") {
   assert.equal(patches[1].phone, null);
   assert.equal(saved[1].phone, null);
 } else if (scenario === "reason" || scenario === "roster") {
-  assert.equal(checkboxes()[1].props.checked, true);
+  assert.equal(checkbox("attendance-review-acknowledged").props.checked, true);
   change(
     "attendance-reason",
     "Coordinator confirmed an earlier safety briefing",
   );
   assert.equal(
-    checkboxes()[1].props.checked,
+    checkbox("attendance-review-acknowledged").props.checked,
     false,
     "Changed reason requires renewed review",
   );
   assert.equal(
-    checkboxes()[0].props.checked,
+    checkbox("attendance-identity-confirmed").props.checked,
     true,
     "Time explanation does not change reviewed identity",
   );
@@ -175,7 +204,7 @@ if (scenario === "phone") {
     })),
   );
   (
-    checkboxes()[1].props.onChange as (event: {
+    checkbox("attendance-review-acknowledged").props.onChange as (event: {
       target: { checked: boolean };
     }) => void
   )({ target: { checked: true } });
@@ -215,7 +244,7 @@ if (scenario === "phone") {
   assert.equal(patches[0].timeExceptionReason, row.timeExceptionReason);
 } else if (scenario === "interval") {
   change("visit-0-start", "2020-09-18T08:45");
-  assert.equal(checkboxes()[1].props.checked, false);
+  assert.equal(checkbox("attendance-review-acknowledged").props.checked, false);
   await save();
   assert.equal(patches[0].reviewAcknowledged, false);
   assert.equal(patches[0].timeExceptionReason, row.timeExceptionReason);

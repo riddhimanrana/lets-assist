@@ -371,6 +371,22 @@ export function ReviewRowEditor({
         </div>
         <label className="flex items-start gap-2 text-sm">
           <input
+            id="attendance-signature"
+            type="checkbox"
+            checked={form.signaturePresent}
+            onChange={(e) =>
+              setForm({
+                ...form,
+                signaturePresent: e.target.checked,
+                reviewAcknowledged: false,
+              })
+            }
+          />
+          Signature visible on the sheet
+        </label>
+        <label className="flex items-start gap-2 text-sm">
+          <input
+            id="attendance-identity-confirmed"
             type="checkbox"
             checked={form.identityConfirmed}
             onChange={(e) =>
@@ -382,6 +398,7 @@ export function ReviewRowEditor({
         </label>
         <label className="flex items-start gap-2 text-sm">
           <input
+            id="attendance-review-acknowledged"
             type="checkbox"
             checked={form.reviewAcknowledged}
             onChange={(e) =>

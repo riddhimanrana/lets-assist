@@ -3,6 +3,10 @@ import { spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 
 for (const [scenario, description] of [
+  [
+    "signature",
+    "extracted signatures are visible and correctable for no-email attendance",
+  ],
   ["phone", "extracted phone numbers can be inspected, corrected, and removed"],
   [
     "roster",
