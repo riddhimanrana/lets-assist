@@ -3705,7 +3705,7 @@
     },
     {
       "identity": "function:public.link_guest_attendance_account(p_anonymous_id uuid, p_user_id uuid, p_token text)",
-      "digest": "9e2606cf475956601448fe19d08ea11d"
+      "digest": "f235d27fa6ef45fa345830eb6657a9af"
     },
     {
       "identity": "function:public.log_ai_usage(p_gateway_scope text, p_model_id text, p_organization_id uuid, p_user_id uuid, p_plugin_key text, p_feature text, p_input_tokens integer, p_output_tokens integer, p_estimated_cost_usd numeric, p_latency_ms integer, p_success boolean, p_error_message text, p_metadata jsonb)",

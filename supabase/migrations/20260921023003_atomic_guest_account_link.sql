@@ -69,7 +69,10 @@ BEGIN
       AND (account.schedule_id=guest.schedule_id
         OR private.project_hours_publish_key(project.event_type,project.schedule,account.schedule_id)
           =private.project_hours_publish_key(project.event_type,project.schedule,guest.schedule_id))
-    WHERE guest.id=ANY(v_signup_ids) AND account.user_id=p_user_id AND account.id<>guest.id) THEN
+    WHERE guest.id=ANY(v_signup_ids) AND account.user_id=p_user_id AND account.id<>guest.id
+      AND (account.status NOT IN ('cancelled','rejected')
+        OR EXISTS(SELECT 1 FROM public.certificates award
+          WHERE award.signup_id=account.id AND (award.type='verified' OR award.type IS NULL)))) THEN
     RAISE EXCEPTION 'account already has attendance for this session' USING ERRCODE='23505';
   END IF;
   IF EXISTS (
