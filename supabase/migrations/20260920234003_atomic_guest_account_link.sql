@@ -63,8 +63,12 @@ BEGIN
       OR (anonymous_id IS NOT NULL AND anonymous_id<>p_anonymous_id))) THEN
     RAISE EXCEPTION 'guest attendance ownership conflict' USING ERRCODE='23505';
   END IF;
-  IF EXISTS(SELECT 1 FROM public.project_signups guest JOIN public.project_signups account
-    ON account.project_id=guest.project_id AND account.schedule_id=guest.schedule_id
+  IF EXISTS(SELECT 1 FROM public.project_signups guest
+    JOIN public.projects project ON project.id=guest.project_id
+    JOIN public.project_signups account ON account.project_id=guest.project_id
+      AND (account.schedule_id=guest.schedule_id
+        OR private.project_hours_publish_key(project.event_type,project.schedule,account.schedule_id)
+          =private.project_hours_publish_key(project.event_type,project.schedule,guest.schedule_id))
     WHERE guest.id=ANY(v_signup_ids) AND account.user_id=p_user_id AND account.id<>guest.id) THEN
     RAISE EXCEPTION 'account already has attendance for this session' USING ERRCODE='23505';
   END IF;

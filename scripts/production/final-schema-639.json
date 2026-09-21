@@ -1,6 +1,6 @@
 {
   "format": 1,
-  "ledger": "bb02a2d2fd164fbf3a741dee471e7dfbab444ce49b428c87aaea2baef16be22b",
+  "ledger": "3e43cae1fe5e2100d72a23973698cfa957ccb24bae90f43053a50f58fa79d96a",
   "inventory": "50d25e20102baa344f625914423b07f414daf1204214f9bd6cc7b9e6fe2c0efd",
   "objects": [
     {
@@ -825,7 +825,7 @@
     },
     {
       "identity": "function:plugin_data.csf_communication_provider_request(p_organization_id uuid, p_campaign_id uuid, p_recipient_snapshot_id uuid, p_attempt_id uuid, p_attempt_number integer)",
-      "digest": "f647a37faac0c2d104f59a20294087fd"
+      "digest": "94e1e14a7d877d049dde62e0b7e897e0"
     },
     {
       "identity": "function:plugin_data.csf_communication_provider_request_hash(p_request jsonb)",
@@ -2812,6 +2812,10 @@
       "digest": "fb1904f860eb707545ebeb5d7fd51157"
     },
     {
+      "identity": "function:plugin_data.csf_stamp_organization_access_revision()",
+      "digest": "dab4f86ceb956f1e3c858bec4e5f88bb"
+    },
+    {
       "identity": "function:plugin_data.csf_submit_application_correction(p_organization_id uuid, p_application_id uuid, p_check_type plugin_data.csf_application_check_type, p_message text, p_proposed_data jsonb, p_actor_user_id uuid)",
       "digest": "1a5e51f518a60970d4c7e49e80f313ba"
     },
@@ -2873,7 +2877,7 @@
     },
     {
       "identity": "function:plugin_data.csf_transition_notice_fingerprint(p_organization_id uuid, p_profile_id uuid, p_user_id uuid, p_kind text, p_subject_id uuid)",
-      "digest": "62d7dac1bc6d33e8dc2913474caa85e5"
+      "digest": "ad5318f022aaf3ee82d0cf6f764091b2"
     },
     {
       "identity": "function:plugin_data.csf_transition_notice_recipient_allowed(p_organization_id uuid, p_source_kind text, p_profile_id uuid, p_user_id uuid, p_event_key text)",
@@ -3697,7 +3701,7 @@
     },
     {
       "identity": "function:public.link_guest_attendance_account(p_anonymous_id uuid, p_user_id uuid, p_token text)",
-      "digest": "b49cb09cdeb6c7394ae2f7143a722f66"
+      "digest": "9e2606cf475956601448fe19d08ea11d"
     },
     {
       "identity": "function:public.log_ai_usage(p_gateway_scope text, p_model_id text, p_organization_id uuid, p_user_id uuid, p_plugin_key text, p_feature text, p_input_tokens integer, p_output_tokens integer, p_estimated_cost_usd numeric, p_latency_ms integer, p_success boolean, p_error_message text, p_metadata jsonb)",
@@ -4869,7 +4873,7 @@
     },
     {
       "identity": "relation:public.organization_members",
-      "digest": "cbed13a1ed349fcbc18bb37332f6a400"
+      "digest": "93e74492d153d3f7b70b038f6167dc71"
     },
     {
       "identity": "relation:public.organization_plugin_access",

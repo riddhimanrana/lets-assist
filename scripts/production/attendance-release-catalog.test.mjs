@@ -17,8 +17,8 @@ const readManifest = (count) =>
       "utf8",
     ),
   );
-const before = readManifest(633);
-const after = readManifest(637);
+const before = readManifest(635);
+const after = readManifest(639);
 const attendanceVersions = [
   "20260920234000",
   "20260920234001",
@@ -89,11 +89,11 @@ const EXPECTED_CHANGED = [
   "relation:public.user_certificate_read_model",
 ];
 
-test("637 selects the exact attendance ledger without predecessor query rewriting", () => {
-  assert.equal(ledger.length, 637);
+test("639 selects the exact attendance ledger without predecessor query rewriting", () => {
+  assert.equal(ledger.length, 639);
   assert.equal(
     ledgerDigest(ledger),
-    "bb02a2d2fd164fbf3a741dee471e7dfbab444ce49b428c87aaea2baef16be22b",
+    "3e43cae1fe5e2100d72a23973698cfa957ccb24bae90f43053a50f58fa79d96a",
   );
   assert.equal(
     acceptedCatalogQuery("invalid predecessor SQL", ledger),
@@ -103,11 +103,11 @@ test("637 selects the exact attendance ledger without predecessor query rewritin
   assert.doesNotThrow(() => assertCleanInventory(after.objects));
 });
 
-test("the frozen 633 baseline remains separate from attendance Production approval", () => {
-  assert.equal(baselineLedger.length, 633);
-  assert.deepEqual(ledger.slice(0, 633), baselineLedger);
-  assert.deepEqual(ledger.slice(633), attendanceVersions);
-  assert.equal(baselineLedger.at(-1), "20260920233000");
+test("the frozen 635 baseline remains separate from attendance Production approval", () => {
+  assert.equal(baselineLedger.length, 635);
+  assert.deepEqual(ledger.slice(0, 635), baselineLedger);
+  assert.deepEqual(ledger.slice(635), attendanceVersions);
+  assert.equal(baselineLedger.at(-1), "20260920233200");
   assert.equal(ledgerDigest(baselineLedger), before.ledger);
   assert.equal(
     acceptedCatalogQuery("", baselineLedger),
@@ -126,6 +126,7 @@ test("the attendance catalog refuses altered, reordered, and extended ledgers", 
     [...ledger, "20990101000000"],
     [...ledger].reverse(),
     ledger.slice(0, -1),
+    [...ledger.slice(0, 633), ...attendanceVersions],
     [
       ...ledger.slice(0, 632),
       "20260920220700",
