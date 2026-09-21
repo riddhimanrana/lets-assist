@@ -111,27 +111,42 @@ BEGIN
         WHERE m.organization_id=p_organization_id AND m.profile_id=v_existing.id
           AND m.status='active' AND m.cohort_id=v_row.cohort_id
       )
-      OR v_existing.normalized_school_email = ANY(v_source_emails)
-      OR v_existing.normalized_personal_email = ANY(v_source_emails)
-      OR plugin_data.csf_normalize_email_text(v_existing.reported_application_school_email) = ANY(v_source_emails)
-      OR plugin_data.csf_normalize_email_text(v_existing.reported_application_personal_email) = ANY(v_source_emails)
-      OR EXISTS (
-        SELECT 1 FROM plugin_data.csf_term_applications a
-        WHERE a.organization_id=p_organization_id AND a.profile_id=v_existing.id
-          AND plugin_data.csf_normalize_email_text(a.most_checked_email) = ANY(v_source_emails)
-      )
-      OR EXISTS (
-        SELECT 1 FROM plugin_data.csf_profile_accounts a JOIN auth.users u ON u.id=a.user_id
-        WHERE a.organization_id=p_organization_id AND a.profile_id=v_existing.id
-          AND a.status='verified' AND u.email_confirmed_at IS NOT NULL
-          AND plugin_data.csf_normalize_email_text(u.email) = ANY(v_source_emails)
-      )
     THEN
       RAISE EXCEPTION 'Review the existing student and class before adding another record with this name.';
     END IF;
   END LOOP;
 
   IF v_has_homonym THEN
+    -- A contact may belong to a student whose recorded name is different.
+    IF EXISTS (
+      SELECT 1
+      FROM plugin_data.csf_profiles existing
+      WHERE existing.organization_id = p_organization_id
+        AND (
+          existing.normalized_school_email = ANY(v_source_emails)
+          OR existing.normalized_personal_email = ANY(v_source_emails)
+          OR plugin_data.csf_normalize_email_text(existing.reported_application_school_email) = ANY(v_source_emails)
+          OR plugin_data.csf_normalize_email_text(existing.reported_application_personal_email) = ANY(v_source_emails)
+          OR EXISTS (
+            SELECT 1 FROM plugin_data.csf_term_applications a
+            WHERE a.organization_id = p_organization_id
+              AND a.profile_id = existing.id
+              AND plugin_data.csf_normalize_email_text(a.most_checked_email) = ANY(v_source_emails)
+          )
+          OR EXISTS (
+            SELECT 1
+            FROM plugin_data.csf_profile_accounts a
+            JOIN auth.users u ON u.id = a.user_id
+            WHERE a.organization_id = p_organization_id
+              AND a.profile_id = existing.id
+              AND a.status = 'verified'
+              AND u.email_confirmed_at IS NOT NULL
+              AND plugin_data.csf_normalize_email_text(u.email) = ANY(v_source_emails)
+          )
+        )
+    ) THEN
+      RAISE EXCEPTION 'Review the existing student and class before adding another record with this name.';
+    END IF;
     IF NOT plugin_data.csf_actor_has_permission(p_organization_id,p_actor_user_id,'manage_profiles') THEN
       RAISE EXCEPTION 'Not authorized to manage CSF member profiles.';
     END IF;

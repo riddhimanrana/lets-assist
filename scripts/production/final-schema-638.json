@@ -964,7 +964,7 @@
       "identity": "function:plugin_data.csf_create_profile_for_application_import_row(p_organization_id uuid, p_row_id uuid, p_actor_user_id uuid, p_request_id uuid, p_reason text)"
     },
     {
-      "digest": "79954c91a152f03136e9977101766a48",
+      "digest": "ab130a29ccec8e0a3810391e7ccb906d",
       "identity": "function:plugin_data.csf_create_profile_for_application_import_row_legacy(p_organization_id uuid, p_row_id uuid, p_actor_user_id uuid, p_request_id uuid, p_reason text)"
     },
     {

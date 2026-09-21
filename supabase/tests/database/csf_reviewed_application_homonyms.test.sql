@@ -15,11 +15,11 @@ INSERT INTO plugin_data.csf_cohorts(id,organization_id,graduation_year,label) VA
 INSERT INTO plugin_data.csf_profiles(id,organization_id,first_name,last_name,normalized_first_name,normalized_last_name,personal_email,normalized_personal_email)
 SELECT md5('homonym-profile:'||n)::uuid,'eaa10000-0000-4000-8000-000000000001',
  'Zora','Fixture'||n,'zora','fixture'||n,'existing'||n||'@local.test','existing'||n||'@local.test'
-FROM generate_series(1,8) n WHERE n<>7;
+FROM generate_series(1,13) n WHERE n<>7;
 INSERT INTO plugin_data.csf_profile_cohort_memberships(organization_id,profile_id,cohort_id,status)
 SELECT 'eaa10000-0000-4000-8000-000000000001',md5('homonym-profile:'||n)::uuid,
  CASE WHEN n=2 THEN 'eaa20000-0000-4000-8000-000000000002' ELSE 'eaa20000-0000-4000-8000-000000000001' END::uuid,'active'
-FROM generate_series(1,8) n WHERE n NOT IN (4,7);
+FROM generate_series(1,13) n WHERE n NOT IN (4,7);
 INSERT INTO plugin_data.csf_profile_accounts(organization_id,profile_id,user_id,status,is_primary)
 VALUES ('eaa10000-0000-4000-8000-000000000001',md5('homonym-profile:6')::uuid,'eaa00000-0000-4000-8000-000000000002','verified',true);
 INSERT INTO plugin_data.csf_sheet_import_jobs(id,organization_id,mode,status,source_type)
@@ -28,8 +28,19 @@ INSERT INTO plugin_data.csf_sheet_import_rows(id,organization_id,job_id,cohort_i
 SELECT md5('homonym-row:'||n)::uuid,'eaa10000-0000-4000-8000-000000000001','eaa30000-0000-4000-8000-000000000001',
  'eaa20000-0000-4000-8000-000000000002','Responses',n+1,'conflict',
  jsonb_build_object('record',jsonb_build_object('identity',jsonb_build_object('firstName','Zora','lastName','Fixture'||n),
-   'contact',jsonb_build_object('responseEmail',CASE n WHEN 3 THEN 'existing3@local.test' WHEN 5 THEN NULL WHEN 6 THEN 'verified-student@local.test' ELSE 'applicant'||n||'@local.test' END)))
-FROM generate_series(1,8) n;
+   'contact',jsonb_build_object('responseEmail',CASE n WHEN 3 THEN 'existing3@local.test' WHEN 5 THEN NULL WHEN 6 THEN 'verified-student@local.test' WHEN 9 THEN 'existing3@local.test' WHEN 10 THEN 'verified-student@local.test' WHEN 11 THEN 'reported-owner@local.test' WHEN 12 THEN 'application-owner@local.test' WHEN 13 THEN 'foreign-owner@local.test' ELSE 'applicant'||n||'@local.test' END)))
+FROM generate_series(1,13) n;
+UPDATE plugin_data.csf_profiles SET reported_application_personal_email='reported-owner@local.test' WHERE id=md5('homonym-profile:3')::uuid;
+INSERT INTO plugin_data.csf_terms(id,organization_id,code,label,school_year,semester)
+VALUES ('eaa40000-0000-4000-8000-000000000001','eaa10000-0000-4000-8000-000000000001','F39','Fall 2039','2039-2040','fall');
+INSERT INTO plugin_data.csf_cohort_terms(organization_id,cohort_id,term_id)
+VALUES ('eaa10000-0000-4000-8000-000000000001','eaa20000-0000-4000-8000-000000000001','eaa40000-0000-4000-8000-000000000001');
+INSERT INTO plugin_data.csf_term_applications(organization_id,profile_id,cohort_id,term_id,source,most_checked_email)
+VALUES ('eaa10000-0000-4000-8000-000000000001',md5('homonym-profile:3')::uuid,'eaa20000-0000-4000-8000-000000000001','eaa40000-0000-4000-8000-000000000001','manual','application-owner@local.test');
+INSERT INTO public.organizations(id,name,username,type,join_code)
+VALUES ('eaa10000-0000-4000-8000-000000000002','Other fictional chapter','foreign-homonym-chapter','school','974824');
+INSERT INTO plugin_data.csf_profiles(organization_id,first_name,last_name,normalized_first_name,normalized_last_name,personal_email,normalized_personal_email)
+VALUES ('eaa10000-0000-4000-8000-000000000002','Different','Student','different','student','foreign-owner@local.test','foreign-owner@local.test');
 CREATE TEMP TABLE original_profiles AS SELECT id,to_jsonb(p) AS value FROM plugin_data.csf_profiles p WHERE organization_id='eaa10000-0000-4000-8000-000000000001';
 
 CREATE FUNCTION pg_temp.create_applicant(n integer, request_suffix text DEFAULT '') RETURNS jsonb LANGUAGE sql AS $$
@@ -50,6 +61,14 @@ SELECT extensions.throws_ok(format('SELECT pg_temp.create_applicant(%s)',n),'P00
  WHEN 4 THEN 'unknown existing class requires reconciliation' WHEN 5 THEN 'missing application contact requires reconciliation'
  WHEN 6 THEN 'matching verified account requires reconciliation' END)
 FROM generate_series(2,6) n;
+SELECT extensions.throws_ok(format('SELECT pg_temp.create_applicant(%s)',n),'P0001',
+ 'Review the existing student and class before adding another record with this name.',
+ CASE n WHEN 9 THEN 'a differently named canonical contact owner blocks duplicate creation'
+ WHEN 10 THEN 'a differently named verified account owner blocks duplicate creation'
+ WHEN 11 THEN 'a differently named reported contact owner still requires review'
+ WHEN 12 THEN 'a differently named application contact owner still requires review' END)
+FROM generate_series(9,12) n;
+SELECT extensions.lives_ok($$SELECT pg_temp.create_applicant(13)$$,'contact evidence in another chapter cannot block this chapter');
 SELECT extensions.lives_ok($$SELECT pg_temp.create_applicant(7)$$,'the ordinary new applicant path still works');
 
 CREATE FUNCTION pg_temp.refuse_homonym_match() RETURNS trigger LANGUAGE plpgsql AS $$
