@@ -22,9 +22,12 @@ import { ScheduleSlotStep } from "./ScheduleSlotStep";
 import { CaptureStep } from "./CaptureStep";
 import { ReviewTable } from "./ReviewTable";
 import { discardPaperScanBatch, retryPaperScanCertificates } from "./actions";
+import { findPaperScanSlot, isPaperScanSlotPublished } from "./slot-match";
 
 export interface PaperScanSlotOption {
   id: string;
+  aliases?: string[];
+  publishKey?: string;
   label: string;
   windowStartsAt: number;
   windowEndsAt: number;
@@ -144,7 +147,9 @@ export function PaperSignupsClient({
   };
 
   const [selectedSlotId, setSelectedSlotId] = useState<string | null>(
-    initialBatch?.scheduleId ?? null,
+    findPaperScanSlot(slotOptions, initialBatch?.scheduleId)?.id ??
+      initialBatch?.scheduleId ??
+      null,
   );
   const [batch, setBatch] = useState<PaperScanBatchView | null>(initialBatch);
   const [commitSummary, setCommitSummary] = useState<CommitSummary | null>(
@@ -160,7 +165,7 @@ export function PaperSignupsClient({
   });
 
   const selectedSlot = useMemo(
-    () => slotOptions.find((option) => option.id === selectedSlotId) ?? null,
+    () => findPaperScanSlot(slotOptions, selectedSlotId),
     [slotOptions, selectedSlotId],
   );
 
@@ -296,9 +301,7 @@ export function PaperSignupsClient({
           }
           sessionPublished={Boolean(
             publishedState[batch.scheduleId] ||
-            publishedState[
-              batch.scheduleId === "oneTime" ? "oneTime" : batch.scheduleId
-            ],
+            isPaperScanSlotPublished(selectedSlot, publishedState),
           )}
           discarding={discarding}
           onDiscard={handleDiscard}

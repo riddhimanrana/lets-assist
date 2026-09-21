@@ -23,6 +23,7 @@ import { PaperScanCameraInput } from "@/components/projects/paper-signup/PaperSc
 import { PAPER_SCAN_MAX_IMAGES } from "@/lib/ai/paper-signup-schema";
 
 import { createPaperScanBatch, queueOrphanedPaperScanUploads } from "./actions";
+import { paperScanSlotMatches } from "./slot-match";
 import type {
   PaperScanBatchView,
   PaperScanSlotOption,
@@ -121,7 +122,7 @@ export function CaptureStep({
   const busy = phase.kind !== "collecting" || cleanupBusy;
   const retryBatch =
     existingBatch &&
-    existingBatch.scheduleId === slot.id &&
+    paperScanSlotMatches(slot, existingBatch.scheduleId) &&
     ["draft", "failed"].includes(existingBatch.status) &&
     existingBatch.imageCount > 0
       ? existingBatch
@@ -329,7 +330,7 @@ export function CaptureStep({
       );
       onExtracted({
         id: registeredBatchId,
-        scheduleId: slot.id,
+        scheduleId: retryBatch?.scheduleId ?? slot.id,
         status: "review",
         imageCount,
       });

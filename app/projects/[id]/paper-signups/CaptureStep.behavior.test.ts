@@ -4,6 +4,18 @@ import { fileURLToPath } from "node:url";
 
 for (const [scenario, description] of [
   [
+    "oneTime-alias",
+    "saved one-time alias retries its existing batch and preserves its session ID",
+  ],
+  [
+    "multiDay-alias",
+    "saved multi-day alias retries its existing batch and preserves its session ID",
+  ],
+  [
+    "role-alias",
+    "saved role alias retries its existing batch and preserves its session ID",
+  ],
+  [
     "draft",
     "saved draft retries the same batch without uploading or registering photos",
   ],

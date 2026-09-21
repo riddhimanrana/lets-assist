@@ -10,6 +10,10 @@ import {
   canManageProjectAccess,
 } from "@/lib/projects/management-access";
 import { getAttendanceScheduleWindow } from "@/lib/attendance/challenge";
+import {
+  getPublishStateKey,
+  getScheduleIdAliases,
+} from "@/lib/projects/hours-publish-key";
 import { getMultiDaySlotDisplayName, getProjectStatus } from "@/utils/project";
 import type { Project } from "@/types";
 
@@ -55,6 +59,8 @@ function buildSlotOptions(project: Project): PaperScanSlotOption[] {
     return [
       {
         id: option.id,
+        aliases: getScheduleIdAliases(project, option.id),
+        publishKey: getPublishStateKey(project, option.id),
         label: option.label,
         windowStartsAt: window.startsAt,
         windowEndsAt: window.endsAt,

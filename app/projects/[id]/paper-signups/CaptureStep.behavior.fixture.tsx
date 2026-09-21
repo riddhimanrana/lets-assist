@@ -125,15 +125,28 @@ if (scenario === "failed" || scenario === "refused") batch.status = "failed";
 if (scenario === "empty") batch.imageCount = 0;
 if (scenario === "different-slot") batch.scheduleId = "other-slot";
 if (scenario === "extracting") batch.status = "extracting";
+const slot = {
+  id: "oneTime",
+  aliases: ["oneTime", "0", "default"],
+  label: "Fictional session",
+  windowStartsAt: 0,
+  windowEndsAt: 3600000,
+};
+if (scenario === "oneTime-alias") batch.scheduleId = "default";
+if (scenario === "multiDay-alias") {
+  slot.id = "2026-09-20-0-0";
+  slot.aliases = [slot.id, "2026-09-20-0", "0-0", "day-0-slot-0"];
+  batch.scheduleId = "0-0";
+}
+if (scenario === "role-alias") {
+  slot.id = "Setup";
+  slot.aliases = ["Setup", "role-0"];
+  batch.scheduleId = "role-0";
+}
 const markup = renderToStaticMarkup(
   <CaptureStep
     projectId="fictional-project"
-    slot={{
-      id: "oneTime",
-      label: "Fictional session",
-      windowStartsAt: 0,
-      windowEndsAt: 3600000,
-    }}
+    slot={slot}
     existingBatch={batch}
     onBack={() => {}}
     onExtracted={(result) => extracted.push(result)}
@@ -185,7 +198,7 @@ if (scenario === "empty" || scenario === "different-slot") {
     assert.deepEqual(extracted, [
       {
         id: "saved-batch",
-        scheduleId: "oneTime",
+        scheduleId: batch.scheduleId,
         status: "review",
         imageCount: 2,
       },
