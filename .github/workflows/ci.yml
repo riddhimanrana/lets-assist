@@ -385,7 +385,7 @@ jobs:
           bunx playwright install --with-deps chromium
 
       - name: Validate attendance match option refresh
-        run: bun lib/plugins/private/plugins/dvhs-csf/tests/browser/attendance-match-options.browser.ts
+        run: bun scripts/local-dev/test-csf-attendance-match-options.ts
 
       - name: Validate DV browser workflows
         if: ${{ hashFiles('lib/plugins/private/plugins/dv-speech-debate/plugin.tsx') != '' }}
