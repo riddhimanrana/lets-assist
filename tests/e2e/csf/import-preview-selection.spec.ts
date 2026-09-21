@@ -76,9 +76,26 @@ test("saved application previews keep their own rows through navigation and relo
     ).toHaveCount(1);
     const skip = page.getByRole("button", { name: "Skip tour", exact: true });
     if (await skip.isVisible()) await skip.click();
-    const dialog = page.getByRole("dialog", { name: "Application Sheet" });
+    const dialog = page.getByRole("dialog", {
+      name: /^(Match students|Sheet settings|Connect a Sheet)$/,
+    });
     await expect(dialog).toBeVisible();
+    const openSettings = async () => {
+      const button = dialog.getByRole("button", {
+        name: "Settings and history",
+        exact: true,
+      });
+      if (await button.isVisible()) await button.click();
+    };
+    const backToMatching = async () => {
+      const button = dialog.getByRole("button", {
+        name: "Back to matching",
+        exact: true,
+      });
+      if (await button.isVisible()) await button.click();
+    };
     const checkAutomaticControls = async () => {
+      await openSettings();
       const controls = dialog.getByRole("group", {
         name: "Automatic updates Off",
         exact: true,
@@ -108,15 +125,17 @@ test("saved application previews keep their own rows through navigation and relo
           exact: true,
         })
         .uncheck();
+      await backToMatching();
     };
     await checkAutomaticControls();
     await expect(
       page.getByRole("navigation", { name: "Import progress" }),
     ).toHaveCount(0);
     const openPreviousChecks = async () => {
+      await openSettings();
       const advanced = dialog.locator("details").filter({
         has: page.locator(":scope > summary", {
-          hasText: /^Advanced import settings$/,
+          hasText: /^Import details$/,
         }),
       });
       await expect(advanced).toHaveCount(1);
@@ -141,22 +160,22 @@ test("saved application previews keep their own rows through navigation and relo
     await expect(page).toHaveURL(new RegExp(`csf_import_preview=${olderId}`));
     await expect(
       dialog.getByRole("heading", {
-        name: "51 rows to check",
+        name: "51 to match",
         exact: true,
       }),
     ).toBeVisible();
-    await page.getByRole("button", { name: "Next rows", exact: true }).click();
+    await page.getByRole("button", { name: "Next", exact: true }).click();
     await expect(page).toHaveURL(new RegExp(`csf_import_preview=${olderId}`));
     await expect(
       dialog
-        .getByRole("region", { name: "51 rows to check", exact: true })
+        .getByRole("region", { name: "51 to match", exact: true })
         .getByText("SpringFixture Row51", { exact: true }),
     ).toBeVisible();
     await page.reload();
     await checkAutomaticControls();
     await expect(
       dialog
-        .getByRole("region", { name: "51 rows to check", exact: true })
+        .getByRole("region", { name: "51 to match", exact: true })
         .getByText("SpringFixture Row51", { exact: true }),
     ).toBeVisible();
     await openPreviousChecks();
@@ -170,7 +189,7 @@ test("saved application previews keep their own rows through navigation and relo
     );
     await expect(
       dialog.getByRole("heading", {
-        name: "1 row to check",
+        name: "1 to match",
         exact: true,
       }),
     ).toBeVisible();
@@ -197,14 +216,14 @@ test("saved application previews keep their own rows through navigation and relo
     await expect(page).toHaveURL(new RegExp(`csf_import_preview=${olderId}`));
     await expect(
       dialog.getByRole("heading", {
-        name: "51 rows to check",
+        name: "51 to match",
         exact: true,
       }),
     ).toBeVisible();
     await page.reload();
     await expect(
       dialog.getByRole("heading", {
-        name: "51 rows to check",
+        name: "51 to match",
         exact: true,
       }),
     ).toBeVisible();
@@ -212,10 +231,10 @@ test("saved application previews keep their own rows through navigation and relo
     await expect(
       page
         .getByRole("alert")
-        .filter({ hasText: "That saved preview is unavailable." }),
+        .filter({ hasText: "This saved preview is unavailable." }),
     ).toBeVisible();
     await expect(
-      dialog.getByRole("heading", { name: /^\d+ rows? to check$/ }),
+      dialog.getByRole("heading", { name: /^\d+ to match$/ }),
     ).toHaveCount(0);
   } finally {
     sql(`BEGIN;
