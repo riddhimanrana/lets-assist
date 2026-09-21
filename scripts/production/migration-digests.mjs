@@ -1285,5 +1285,5 @@ export const migrationDigests = {
   "20260921020000_csf_import_application_refusal_receipt.sql":
     "3bb215832151ed5c9cf2b5184210bbcaafc42c33153434ca5976442dd3c1e81e",
   "20260921020100_csf_reviewed_application_homonyms.sql":
-    "c0922ba61cc19c2a350db509712e8969dba4bffb720c3948c1f5f9a8304b29b2",
+    "c2e4883c7a02917811ef4085ae124e4770fdbbc9d7138afdadee669395533899",
 };

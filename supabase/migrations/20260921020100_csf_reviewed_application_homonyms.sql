@@ -88,6 +88,16 @@ BEGIN
     FROM unnest(ARRAY[
       v_row.normalized_data #>> '{record,contact,responseEmail}',
       v_row.normalized_data #>> '{record,contact,preferredContactEmail}',
+      v_row.normalized_data #>> '{record,contact,schoolEmail}',
+      v_row.normalized_data #>> '{record,contact,personalEmail}',
+      v_row.normalized_data #>> '{contact,responseEmail}',
+      v_row.normalized_data #>> '{contact,preferredContactEmail}',
+      v_row.normalized_data #>> '{contact,schoolEmail}',
+      v_row.normalized_data #>> '{contact,personalEmail}',
+      v_row.normalized_data #>> '{commitPayload,canonicalEmails,schoolEmail}',
+      v_row.normalized_data #>> '{commitPayload,canonicalEmails,personalEmail}',
+      v_row.normalized_data #>> '{commitPayload,canonicalEmails,normalizedSchoolEmail}',
+      v_row.normalized_data #>> '{commitPayload,canonicalEmails,normalizedPersonalEmail}',
       v_row.normalized_data #>> '{commitPayload,applicationData,mostCheckedEmail}'
     ]) AS contact(value)
   ) AS contacts

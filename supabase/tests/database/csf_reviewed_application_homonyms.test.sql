@@ -15,11 +15,11 @@ INSERT INTO plugin_data.csf_cohorts(id,organization_id,graduation_year,label) VA
 INSERT INTO plugin_data.csf_profiles(id,organization_id,first_name,last_name,normalized_first_name,normalized_last_name,personal_email,normalized_personal_email)
 SELECT md5('homonym-profile:'||n)::uuid,'eaa10000-0000-4000-8000-000000000001',
  'Zora','Fixture'||n,'zora','fixture'||n,'existing'||n||'@local.test','existing'||n||'@local.test'
-FROM generate_series(1,13) n WHERE n<>7;
+FROM generate_series(1,23) n WHERE n<>7;
 INSERT INTO plugin_data.csf_profile_cohort_memberships(organization_id,profile_id,cohort_id,status)
 SELECT 'eaa10000-0000-4000-8000-000000000001',md5('homonym-profile:'||n)::uuid,
  CASE WHEN n=2 THEN 'eaa20000-0000-4000-8000-000000000002' ELSE 'eaa20000-0000-4000-8000-000000000001' END::uuid,'active'
-FROM generate_series(1,13) n WHERE n NOT IN (4,7);
+FROM generate_series(1,23) n WHERE n NOT IN (4,7);
 INSERT INTO plugin_data.csf_profile_accounts(organization_id,profile_id,user_id,status,is_primary)
 VALUES ('eaa10000-0000-4000-8000-000000000001',md5('homonym-profile:6')::uuid,'eaa00000-0000-4000-8000-000000000002','verified',true);
 INSERT INTO plugin_data.csf_sheet_import_jobs(id,organization_id,mode,status,source_type)
@@ -30,6 +30,28 @@ SELECT md5('homonym-row:'||n)::uuid,'eaa10000-0000-4000-8000-000000000001','eaa3
  jsonb_build_object('record',jsonb_build_object('identity',jsonb_build_object('firstName','Zora','lastName','Fixture'||n),
    'contact',jsonb_build_object('responseEmail',CASE n WHEN 3 THEN 'existing3@local.test' WHEN 5 THEN NULL WHEN 6 THEN 'verified-student@local.test' WHEN 9 THEN 'existing3@local.test' WHEN 10 THEN 'verified-student@local.test' WHEN 11 THEN 'reported-owner@local.test' WHEN 12 THEN 'application-owner@local.test' WHEN 13 THEN 'foreign-owner@local.test' ELSE 'applicant'||n||'@local.test' END)))
 FROM generate_series(1,13) n;
+-- Each source contact must block creation even when the response address differs.
+CREATE TEMP TABLE contact_paths(n integer, path text[]);
+INSERT INTO contact_paths VALUES
+ (14,ARRAY['record','contact','schoolEmail']),
+ (15,ARRAY['record','contact','personalEmail']),
+ (16,ARRAY['commitPayload','canonicalEmails','schoolEmail']),
+ (17,ARRAY['commitPayload','canonicalEmails','personalEmail']),
+ (18,ARRAY['commitPayload','canonicalEmails','normalizedSchoolEmail']),
+ (19,ARRAY['commitPayload','canonicalEmails','normalizedPersonalEmail']),
+ (20,ARRAY['contact','schoolEmail']),
+ (21,ARRAY['contact','personalEmail']),
+ (22,ARRAY['contact','responseEmail']),
+ (23,ARRAY['contact','preferredContactEmail']);
+INSERT INTO plugin_data.csf_sheet_import_rows(id,organization_id,job_id,cohort_id,sheet_tab_name,row_number,import_status,normalized_data)
+SELECT md5('homonym-row:'||n)::uuid,'eaa10000-0000-4000-8000-000000000001','eaa30000-0000-4000-8000-000000000001',
+ 'eaa20000-0000-4000-8000-000000000002','Responses',n+1,'conflict',
+ jsonb_set(jsonb_build_object('record',jsonb_build_object(
+   'identity',jsonb_build_object('firstName','Zora','lastName','Fixture'||n),
+   'contact',jsonb_build_object('responseEmail','applicant'||n||'@local.test')),
+   'contact','{}'::jsonb,'commitPayload','{"canonicalEmails":{}}'::jsonb),
+   path,'" Existing3@LOCAL.test "'::jsonb)
+FROM contact_paths;
 UPDATE plugin_data.csf_profiles SET reported_application_personal_email='reported-owner@local.test' WHERE id=md5('homonym-profile:3')::uuid;
 INSERT INTO plugin_data.csf_terms(id,organization_id,code,label,school_year,semester)
 VALUES ('eaa40000-0000-4000-8000-000000000001','eaa10000-0000-4000-8000-000000000001','F39','Fall 2039','2039-2040','fall');
@@ -68,6 +90,10 @@ SELECT extensions.throws_ok(format('SELECT pg_temp.create_applicant(%s)',n),'P00
  WHEN 11 THEN 'a differently named reported contact owner still requires review'
  WHEN 12 THEN 'a differently named application contact owner still requires review' END)
 FROM generate_series(9,12) n;
+SELECT extensions.throws_ok(format('SELECT pg_temp.create_applicant(%s)',n),'P0001',
+ 'Review the existing student and class before adding another record with this name.',
+ 'a distinct response email cannot hide a collision in '||array_to_string(path,'.'))
+FROM contact_paths ORDER BY n;
 SELECT extensions.lives_ok($$SELECT pg_temp.create_applicant(13)$$,'contact evidence in another chapter cannot block this chapter');
 SELECT extensions.lives_ok($$SELECT pg_temp.create_applicant(7)$$,'the ordinary new applicant path still works');
 
