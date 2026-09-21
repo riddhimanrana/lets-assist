@@ -1280,6 +1280,8 @@ export const migrationDigests = {
     "8fb99d8bf5d74ca46cdcf7e9e183c1f71f12c56f9988d4f26e421a5d6d0246ba",
   "20260920233200_csf_organization_sender_header.sql":
     "4776da713d9097dcb656ed9b9e222b45414819c0e7ea0e413e1a6dd7b8172b84",
+  "20260921015005_publish_dvhs_csf_1_2_59.sql":
+    "9db8889c3aa641e1614263f8458dcb2334fe3a652f404880768f0c43da4b3c50",
   "20260921020000_csf_import_application_refusal_receipt.sql":
     "3bb215832151ed5c9cf2b5184210bbcaafc42c33153434ca5976442dd3c1e81e",
   "20260921020100_csf_reviewed_application_homonyms.sql":

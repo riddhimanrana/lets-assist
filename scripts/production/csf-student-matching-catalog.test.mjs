@@ -13,13 +13,17 @@ import {
 
 const read = (path) => readFileSync(new URL(path, import.meta.url), "utf8");
 const before = JSON.parse(read("./final-schema-635.json"));
-const after = JSON.parse(read("./final-schema-637.json"));
+const after = JSON.parse(read("./final-schema-638.json"));
 const versions = expectedVersions(new URL("../../", import.meta.url).pathname);
 const prior = new Map(before.objects.map((row) => [row.identity, row.digest]));
 
-test("student matching binds the two reviewed migration versions", () => {
-  assert.equal(versions.length, 637);
-  assert.deepEqual(versions.slice(-2), ["20260921020000", "20260921020100"]);
+test("student matching binds the signed publication and two reviewed migration versions", () => {
+  assert.equal(versions.length, 638);
+  assert.deepEqual(versions.slice(-3), [
+    "20260921015005",
+    "20260921020000",
+    "20260921020100",
+  ]);
   assert.equal(after.inventory, before.inventory);
   assert.equal(
     acceptedCatalogQuery("invalid predecessor SQL", versions),
@@ -50,6 +54,7 @@ test("matching changes only the batch refusal and reviewed profile helpers", () 
 
 test("matching migrations are byte-pinned and do not change live records", () => {
   for (const name of [
+    "20260921015005_publish_dvhs_csf_1_2_59",
     "20260921020000_csf_import_application_refusal_receipt",
     "20260921020100_csf_reviewed_application_homonyms",
   ]) {
