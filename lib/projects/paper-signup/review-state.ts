@@ -5,6 +5,7 @@ import {
 
 type ReviewState = {
   outcome: string;
+  outcomeDetail?: string | null;
   decision: string;
   reviewAcknowledged: boolean;
   identityConfirmed: boolean;
@@ -16,12 +17,28 @@ export function isFinalAttendanceRow(row: Pick<ReviewState, "outcome">) {
   return ["signup_created", "signup_updated", "skipped"].includes(row.outcome);
 }
 
-export function isSavedAttendanceRow(row: Pick<ReviewState, "outcome">) {
-  return isFinalAttendanceRow(row) || row.outcome === "roster_only";
+export function isCombinedAttendanceRow(
+  row: Pick<ReviewState, "outcome" | "outcomeDetail">,
+) {
+  return (
+    row.outcome === "skipped" &&
+    Boolean(row.outcomeDetail?.startsWith("combined_into:"))
+  );
+}
+
+export function isSavedAttendanceRow(
+  row: Pick<ReviewState, "outcome" | "outcomeDetail">,
+) {
+  return (
+    !isCombinedAttendanceRow(row) &&
+    (isFinalAttendanceRow(row) || row.outcome === "roster_only")
+  );
 }
 
 export function hasPersistedAttendance(
-  row: Pick<ReviewState, "outcome"> & { savedAttendance?: boolean },
+  row: Pick<ReviewState, "outcome" | "outcomeDetail"> & {
+    savedAttendance?: boolean;
+  },
 ) {
   return Boolean(row.savedAttendance) || isSavedAttendanceRow(row);
 }
@@ -35,6 +52,7 @@ export function isAttendanceRowReady(
     window,
   );
   return (
+    !isFinalAttendanceRow(row) &&
     !isSavedAttendanceRow(row) &&
     row.decision === "include" &&
     row.reviewAcknowledged &&

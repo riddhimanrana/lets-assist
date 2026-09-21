@@ -120,3 +120,29 @@ test("reopened persisted attendance remains protected while its edited draft can
     hasPersistedAttendance({ outcome: "pending", savedAttendance: false }),
   ).toBe(false);
 });
+
+test("combined sources are terminal review rows without persisted attendance", () => {
+  const combined = {
+    ...roster,
+    outcome: "skipped",
+    outcomeDetail: "combined_into:target-row",
+    decision: "exclude",
+    savedAttendance: false,
+  };
+  expect(isFinalAttendanceRow(combined)).toBe(true);
+  expect(isSavedAttendanceRow(combined)).toBe(false);
+  expect(hasPersistedAttendance(combined)).toBe(false);
+  expect(isAttendanceRowReady(combined, window)).toBe(false);
+  expect(
+    isAttendanceRowReady({ ...combined, decision: "include" }, window),
+  ).toBe(false);
+  expect(hasPersistedAttendance({ ...combined, savedAttendance: true })).toBe(
+    true,
+  );
+  expect(
+    hasPersistedAttendance({
+      ...combined,
+      outcomeDetail: "reconciled_existing_attendance",
+    }),
+  ).toBe(true);
+});

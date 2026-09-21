@@ -59,7 +59,7 @@ const baseRow: PaperScanRowView = {
 };
 
 type Element = { props: Record<string, unknown> };
-function render(row: PaperScanRowView) {
+function render(row: PaperScanRowView | PaperScanRowView[]) {
   patches.length = 0;
   const elements: Element[] = [];
   const tree = ReviewTable({
@@ -70,7 +70,7 @@ function render(row: PaperScanRowView) {
       status: "review",
       imageCount: 0,
     },
-    initialRows: [row],
+    initialRows: Array.isArray(row) ? row : [row],
     timezone: "UTC",
     window: null,
     sessionPublished: false,
@@ -182,4 +182,61 @@ test("a legacy award failure stays editable and explains how other rows can stil
     ({ props }) => props.type === "checkbox" && props.checked === true,
   )!;
   expect(include.props.disabled).toBe(false);
+});
+
+for (const savedTarget of [false, true]) {
+  test(`combined sources keep discard ${savedTarget ? "disabled after saving" : "available before saving"}`, () => {
+    const elements = render([
+      { ...baseRow, id: "target", savedAttendance: savedTarget },
+      {
+        ...baseRow,
+        id: "source",
+        sheetRowNumber: 2,
+        decision: "exclude",
+        outcome: "skipped",
+        outcomeDetail: "combined_into:target",
+        savedAttendance: false,
+      },
+    ]);
+    expect(
+      elements.find(({ props }) => props.children === "Discard draft")!.props
+        .disabled,
+    ).toBe(savedTarget);
+    expect(elements.some(({ props }) => props.children === "Combined")).toBe(
+      true,
+    );
+    expect(
+      elements.filter(
+        ({ props }) =>
+          Array.isArray(props.children) && props.children[0] === "Review row ",
+      ),
+    ).toHaveLength(1);
+    expect(
+      elements.some(
+        ({ props }) => props["aria-label"] === "Combine source row",
+      ),
+    ).toBe(false);
+  });
+}
+
+test("combined sources are absent from the remaining combine choices", () => {
+  const elements = render([
+    { ...baseRow, id: "target" },
+    { ...baseRow, id: "other", sheetRowNumber: 3 },
+    {
+      ...baseRow,
+      id: "source",
+      sheetRowNumber: 2,
+      decision: "exclude",
+      outcome: "skipped",
+      outcomeDetail: "combined_into:target",
+    },
+  ]);
+  expect(
+    elements.some(({ props }) => props["aria-label"] === "Combine source row"),
+  ).toBe(true);
+  expect(elements.some(({ props }) => props.value === "source")).toBe(false);
+  expect(elements.filter(({ props }) => props.value === "target")).toHaveLength(
+    2,
+  );
 });

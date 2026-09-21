@@ -13,6 +13,7 @@ import {
   describeAttendanceFailure,
   hasPersistedAttendance,
   isAttendanceRowReady,
+  isCombinedAttendanceRow,
   isFinalAttendanceRow,
   isSavedAttendanceRow,
 } from "@/lib/projects/paper-signup/review-state";
@@ -95,7 +96,12 @@ export function ReviewTable({
       current = false;
     };
   }, [projectId, batch.id]);
-  const unfinished = rows.filter((row) => !hasPersistedAttendance(row));
+  const unfinished = rows.filter(
+    (row) =>
+      !isFinalAttendanceRow(row) &&
+      !hasPersistedAttendance(row) &&
+      row.decision !== "exclude",
+  );
   const ready = useMemo(
     () => rows.filter((row) => isAttendanceRowReady(row, window)),
     [rows, window],
@@ -120,7 +126,7 @@ export function ReviewTable({
     }
   };
   const include = async (row: PaperScanRowView, checked: boolean) => {
-    if (hasPersistedAttendance(row)) return;
+    if (isFinalAttendanceRow(row) || hasPersistedAttendance(row)) return;
     setBusy(true);
     try {
       const result = await updatePaperScanRow({
@@ -320,11 +326,13 @@ export function ReviewTable({
                     ? "Saved without credit"
                     : row.outcomeDetail === "reconciled_existing_attendance"
                       ? "Already recorded"
-                      : isFinalAttendanceRow(row)
-                        ? "Saved"
-                        : row.reviewAcknowledged && row.identityConfirmed
-                          ? "Reviewed"
-                          : "Needs review"}
+                      : isCombinedAttendanceRow(row)
+                        ? "Combined"
+                        : isFinalAttendanceRow(row)
+                          ? "Saved"
+                          : row.reviewAcknowledged && row.identityConfirmed
+                            ? "Reviewed"
+                            : "Needs review"}
                 </Badge>
               </div>
               <div className="space-y-1 text-sm">
@@ -433,14 +441,12 @@ export function ReviewTable({
                   <option value="">
                     {kind === "target" ? "Keep row…" : "Combine with row…"}
                   </option>
-                  {unfinished
-                    .filter((row) => row.decision !== "exclude")
-                    .map((row) => (
-                      <option key={row.id} value={row.id}>
-                        Row {row.sheetRowNumber}:{" "}
-                        {row.name || row.email || "Unnamed"}
-                      </option>
-                    ))}
+                  {unfinished.map((row) => (
+                    <option key={row.id} value={row.id}>
+                      Row {row.sheetRowNumber}:{" "}
+                      {row.name || row.email || "Unnamed"}
+                    </option>
+                  ))}
                 </select>
               ))}
             </div>

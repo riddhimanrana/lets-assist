@@ -27,3 +27,15 @@ test("an unsaved draft remains discardable without exposing roster IDs", () => {
   expect(hasPersistedAttendance(row)).toBe(false);
   expect(row).not.toHaveProperty("project_paper_roster_entries");
 });
+
+test("a combined source does not imply saved attendance in server review data", () => {
+  const row = paperRowView({
+    id: "source-row",
+    outcome: "skipped",
+    outcome_detail: "combined_into:target-row",
+    committed_signup_id: null,
+    project_paper_roster_entries: [],
+  });
+  expect(row.savedAttendance).toBe(false);
+  expect(hasPersistedAttendance(row)).toBe(false);
+});
