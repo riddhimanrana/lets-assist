@@ -1,3 +1,5 @@
+import { resolveAuthorizedAttendancePrintReferences } from "@/lib/attendance/print-manifest";
+import { loadScanCandidatePages } from "./scan-candidates";
 import { randomUUID } from "node:crypto";
 import { generateText, Output } from "ai";
 import { NextRequest } from "next/server";
@@ -14,16 +16,14 @@ import { getRequestIp } from "@/lib/ai/parse-project-rate-limit-config";
 import { prepareTrackedAiCall } from "@/lib/ai/with-ai-tracking";
 import {
   paperSignupExtractionSchema,
+  PAPER_SCAN_MAX_ROWS_PER_BATCH,
   shouldEscalatePaperScan,
   type PaperSignupExtraction,
   type PaperSignupRow,
 } from "@/lib/ai/paper-signup-schema";
 import { AI_MODEL_FALLBACK_CHAIN } from "@/lib/ai/models";
 import { buildPaperSignupExtractionPrompt } from "@/lib/ai/paper-signup-prompt";
-import {
-  normalizeTimeString,
-  resolveRowWindow,
-} from "@/lib/projects/paper-signup/normalize";
+import { transcribedTimeInstant } from "@/lib/projects/paper-signup/normalize";
 import {
   MATCH_AUTO_THRESHOLD,
   matchPaperRow,
@@ -179,6 +179,12 @@ async function extractImage(options: {
 }
 
 type StagedRowInsert = {
+  attendance_intervals: Array<{
+    checkIn: string | null;
+    checkOut: string | null;
+  }>;
+  review_acknowledged: boolean;
+  identity_confirmed: boolean;
   batch_id: string;
   project_id: string;
   image_id: string;
@@ -391,29 +397,29 @@ export async function POST(req: NextRequest) {
     // (any slot — people sign the wrong sheet), plus anonymous identities.
     // Never a global name search; cross-tenant identity lookups are only by
     // exact email, inside the commit RPC.
-    const [
-      { data: signupCandidates, error: signupCandidatesError },
-      { data: anonCandidates, error: anonCandidatesError },
-    ] = await Promise.all([
-      admin
-        .from("project_signups")
-        .select(
-          "id, user_id, anonymous_id, created_at, profiles(full_name, email, phone), anonymous_signups(name, email, phone_number)",
-        )
-        .eq("project_id", batch.project_id)
-        .neq("status", "rejected")
-        .order("created_at"),
-      admin
-        .from("anonymous_signups")
-        .select("id, name, email, phone_number, created_at")
-        .eq("project_id", batch.project_id)
-        .order("created_at"),
+    const [signupCandidates, anonCandidates] = await Promise.all([
+      loadScanCandidatePages((start, end) =>
+        admin
+          .from("project_signups")
+          .select(
+            "id, user_id, anonymous_id, created_at, profiles(full_name, email, phone), anonymous_signups(name, email, phone_number)",
+          )
+          .eq("project_id", batch.project_id)
+          .neq("status", "rejected")
+          .order("created_at")
+          .order("id")
+          .range(start, end),
+      ),
+      loadScanCandidatePages((start, end) =>
+        admin
+          .from("anonymous_signups")
+          .select("id, name, email, phone_number, created_at")
+          .eq("project_id", batch.project_id)
+          .order("created_at")
+          .order("id")
+          .range(start, end),
+      ),
     ]);
-    if (signupCandidatesError || anonCandidatesError) {
-      throw new Error(
-        `Failed to load scan match candidates: ${signupCandidatesError?.code ?? anonCandidatesError?.code ?? "unknown"}`,
-      );
-    }
 
     const candidates: PaperMatchCandidate[] = [];
     for (const signup of signupCandidates ?? []) {
@@ -502,13 +508,21 @@ export async function POST(req: NextRequest) {
         const name = row.name.value?.trim() || null;
         const phone = row.phone.value?.trim() || null;
 
-        const resolved = resolveRowWindow({
-          window,
-          timezone,
-          timeIn: normalizeTimeString(row.timeIn.value),
-          timeOut: normalizeTimeString(row.timeOut.value),
-        });
-
+        const writtenIntervals = row.intervals?.length
+          ? row.intervals
+          : [{ timeIn: row.timeIn, timeOut: row.timeOut }];
+        const intervals = writtenIntervals.map((interval) => ({
+          checkIn: transcribedTimeInstant(
+            window,
+            timezone,
+            interval.timeIn.value,
+          ),
+          checkOut: transcribedTimeInstant(
+            window,
+            timezone,
+            interval.timeOut.value,
+          ),
+        }));
         const match = matchPaperRow({ name, email, phone }, candidates);
 
         // Same person transcribed twice in this batch: flag for the reviewer.
@@ -550,12 +564,11 @@ export async function POST(req: NextRequest) {
           name,
           email,
           phone,
-          check_in_time: resolved
-            ? new Date(resolved.checkInMs).toISOString()
-            : null,
-          check_out_time: resolved
-            ? new Date(resolved.checkOutMs).toISOString()
-            : null,
+          attendance_intervals: intervals,
+          review_acknowledged: false,
+          identity_confirmed: false,
+          check_in_time: intervals[0]?.checkIn ?? null,
+          check_out_time: intervals.at(-1)?.checkOut ?? null,
           signature_present: row.signaturePresent,
           match_kind: match.kind,
           match_signup_id: match.signupId,
@@ -572,12 +585,15 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    if (imagesProcessed === 0) {
+    if (imagesProcessed === 0 || stagedRows.length === 0) {
       const { data: failedBatch, error: failError } = await admin
         .from("project_paper_scan_batches")
         .update({
           status: "failed",
-          extraction_error: "no_images_extracted",
+          extraction_error:
+            imagesProcessed === 0
+              ? "no_images_extracted"
+              : "no_readable_attendance_rows",
           models_used: [...modelsUsed],
           extraction_claim_id: null,
         })
@@ -592,12 +608,64 @@ export async function POST(req: NextRequest) {
       }
       claimedBatch = null;
       return Response.json(
-        { error: "None of the photos could be read. Try clearer photos." },
+        {
+          error:
+            "No readable attendance rows were found. Try clearer photos or add attendance manually.",
+        },
         { status: 422 },
       );
     }
 
     if (stagedRows.length > 0) {
+      if (stagedRows.length > PAPER_SCAN_MAX_ROWS_PER_BATCH) {
+        const { error } = await admin
+          .from("project_paper_scan_batches")
+          .update({
+            status: "failed",
+            extraction_error: "too_many_rows",
+            extraction_claim_id: null,
+          })
+          .eq("id", batchId)
+          .eq("extraction_claim_id", claimId);
+        if (error)
+          throw new Error(`Failed to settle oversized scan: ${error.code}`);
+        claimedBatch = null;
+        return Response.json(
+          {
+            error:
+              "These photos contain more than 300 rows. Split them into smaller batches so every row can be reviewed.",
+          },
+          { status: 422 },
+        );
+      }
+      const referenceRows = stagedRows.filter(
+        (row) =>
+          row.raw_extraction.sheetReference || row.raw_extraction.rowReference,
+      );
+      const printedMatches = await resolveAuthorizedAttendancePrintReferences(
+        { admin, project, userId: user.id },
+        {
+          projectId: batch.project_id,
+          scheduleId: batch.schedule_id,
+          references: referenceRows.map((row) => ({
+            sheetReference: row.raw_extraction.sheetReference ?? "",
+            rowReference: row.raw_extraction.rowReference ?? "",
+          })),
+        },
+      );
+      referenceRows.forEach((row, index) => {
+        const printed = printedMatches[index];
+        if (!printed) row.outcome_detail = "printed_reference_needs_review";
+        else if (printed.signupId)
+          Object.assign(row, {
+            match_kind: "existing_signup",
+            match_signup_id: printed.signupId,
+            match_user_id: printed.userId,
+            match_anonymous_id: printed.anonymousId,
+            match_score: 1,
+            match_reasons: [],
+          });
+      });
       const { error: insertError } = await admin
         .from("project_paper_scan_rows")
         .insert(stagedRows);

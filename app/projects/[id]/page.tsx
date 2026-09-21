@@ -10,6 +10,7 @@ import {
 } from "@/lib/projects/volunteer-dashboard-state";
 import ProjectUnauthorized from "./ProjectUnauthorized";
 import { Signup } from "@/types";
+import { loadVolunteerAttendanceIntervals } from "@/lib/projects/volunteer-attendance-intervals";
 import VolunteerStatusCard from "@/app/projects/_components/VolunteerStatusCard";
 import ProjectClient from "./ProjectClient";
 import { Metadata } from "next";
@@ -253,6 +254,23 @@ export default async function ProjectPage({
       );
     } else if (relevantSignups) {
       userSignupsData = relevantSignups as Signup[];
+      try {
+        const intervals = await loadVolunteerAttendanceIntervals(
+          getAdminClient(),
+          project.id,
+          relevantSignups.map((signup) => signup.id),
+        );
+        userSignupsData = userSignupsData.map((signup) => ({
+          ...signup,
+          attendance_intervals: intervals[signup.id] ?? [],
+        }));
+      } catch {
+        console.error("Could not load volunteer attendance intervals.");
+        userSignupsData = userSignupsData.map((signup) => ({
+          ...signup,
+          attendance_intervals: null,
+        }));
+      }
 
       const dashboardState = buildVolunteerDashboardSlotState(userSignupsData);
 

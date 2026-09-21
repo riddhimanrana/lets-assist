@@ -9,6 +9,7 @@ import {
   classifyFreshUserValidation,
   hasSensitiveAuthQuery,
   isAuthSensitiveProxyPath,
+  isProtectedPath,
   isSupabaseAuthCookieName,
   shouldApplyPrivateNoStore,
   shouldRedirectAuthenticatedRestrictedRequest,
@@ -290,4 +291,45 @@ test("authenticated downstream responses use the real auth finalizer", () => {
     source,
     /const finalizeResponse = <T extends NextResponse>\(response: T\): T => \{[\s\S]*applyPendingAuthCookies\(response\)[\s\S]*pendingAuthHeaders\.forEach/u,
   );
+});
+
+test("guest certificate details are public and always use fresh verification data", () => {
+  for (const id of [
+    "e9200000-0000-4000-8000-000000000001",
+    "E9200000-0000-4000-8000-000000000001",
+  ]) {
+    const path = `/certificates/${id}`;
+    assert.equal(isProtectedPath(path), false);
+    assert.equal(isAuthSensitiveProxyPath(path), true);
+    assert.equal(
+      shouldApplyPrivateNoStore({
+        hasIncomingAuthContext: false,
+        authCookiesMutated: false,
+        authenticated: false,
+        authSensitiveRequest: isAuthSensitiveProxyPath(path),
+        isRedirect: false,
+        responseStatus: 200,
+      }),
+      true,
+    );
+  }
+});
+
+test("certificate lists, management paths, and malformed identifiers stay protected", () => {
+  const id = "e9200000-0000-4000-8000-000000000001";
+  for (const path of [
+    "/certificates",
+    "/certificates/",
+    "/certificates/create",
+    "/certificates/export",
+    "/certificates/not-a-uuid",
+    `/certificates/${id}/edit`,
+    `/certificates/${id}/delete`,
+    `/certificates/${id}/`,
+    `/certificates/${id}suffix`,
+    "/certificates/e9200000-0000-4000-0000-000000000001",
+    "/certificates/e9200000-0000-z000-8000-000000000001",
+    `/certificates/${id}%2fedit`,
+  ])
+    assert.equal(isProtectedPath(path), true, path);
 });

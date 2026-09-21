@@ -119,6 +119,13 @@ VALUES
    'c9100000-0000-4000-8000-000000000002', 1, '{}',
    'Staged Sam', 'paper-waiver-staged@local.test', NULL, NULL, 'include');
 
+-- These fixtures represent a reviewer who supplied and confirmed exact times.
+UPDATE public.project_paper_scan_rows rows SET review_acknowledged=true,identity_confirmed=true,
+  check_in_time=COALESCE(rows.check_in_time, slot.starts_at),check_out_time=COALESCE(rows.check_out_time,slot.ends_at),
+  time_exception_reason='Reviewer confirmed source attendance window'
+FROM public.project_paper_scan_batches batches CROSS JOIN LATERAL private.resolve_project_schedule_slot(batches.project_id,batches.schedule_id) slot
+WHERE rows.batch_id=batches.id AND rows.id::text LIKE 'c9%';
+
 -- ---------------------------------------------------------------------------
 -- An unpublished project refuses the whole batch
 -- ---------------------------------------------------------------------------
@@ -133,7 +140,7 @@ SELECT extensions.throws_ok(
       'c9500000-0000-4000-8000-000000000009'
     )
   $$,
-  'commit_paper_signup_batch: project is not published',
+  'project is not published',
   'a staged project cannot gain attendance through a paper commit'
 );
 

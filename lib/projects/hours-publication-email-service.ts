@@ -58,7 +58,9 @@ export async function loadDurablePublicationForRetry(
   const { data: certificates, error: certificateError } = certificateIds.length
     ? await admin
         .from("certificates")
-        .select("id, volunteer_name, volunteer_email, event_start, event_end")
+        .select(
+          "id, volunteer_name, volunteer_email, event_start, event_end, credited_minutes, attendance_revision",
+        )
         .in("id", certificateIds)
     : { data: [], error: null };
   if (certificateError || !certificates) {
@@ -83,6 +85,8 @@ export async function loadDurablePublicationForRetry(
       volunteerEmail: certificate.volunteer_email,
       eventStart: certificate.event_start,
       eventEnd: certificate.event_end,
+      creditedMinutes: certificate.credited_minutes,
+      attendanceRevision: certificate.attendance_revision,
     };
   });
 
@@ -106,7 +110,7 @@ async function pauseBeforeSettlementRetry(attemptNumber: number) {
 async function preparePublicationEmailPayload(
   admin: ReturnType<typeof getAdminClient>,
   publication: TransactionalPublication,
-  delivery: PublicationDelivery,
+  delivery: PublicationDelivery & { creditedMinutes?: number | null },
   siteUrl: string,
   isAutoPublished: boolean,
 ) {
@@ -129,6 +133,7 @@ async function preparePublicationEmailPayload(
         isAutoPublished,
         eventStart: delivery.eventStart,
         eventEnd: delivery.eventEnd,
+        creditedMinutes: delivery.creditedMinutes,
         timezone: publication.projectTimezone ?? undefined,
       }),
     );

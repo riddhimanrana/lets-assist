@@ -1,3 +1,4 @@
+import { certificateHours } from "@/lib/projects/certificate-duration";
 import React from "react";
 import { createClient } from "@/lib/supabase/server";
 import { getAuthUser } from "@/lib/supabase/auth-helpers";
@@ -285,7 +286,12 @@ export default async function ProfilePage(
   if (certificates) {
     totalHours = certificates.reduce((sum, cert) => {
       if (cert.event_start && cert.event_end) {
-        return sum + calculateHours(cert.event_start, cert.event_end);
+        return (
+          sum +
+          certificateHours(cert, () =>
+            calculateHours(cert.event_start, cert.event_end),
+          )
+        );
       }
       return sum;
     }, 0);

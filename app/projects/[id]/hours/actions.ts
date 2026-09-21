@@ -4,13 +4,17 @@ import { createHash } from "node:crypto";
 import { createClient } from "@/lib/supabase/server";
 import { getAdminClient } from "@/lib/supabase/admin";
 import { canManageProjectAccess } from "@/lib/projects/management-access";
+import { getScheduleIdAliases } from "@/lib/projects/hours-publish-key";
 import { logError, logInfo, logWarn } from "@/lib/logger";
 import { hoursPublicationOutcome } from "@/lib/projects/hours-publication-delivery";
 import {
   drainPublicationEmails,
   loadDurablePublicationForRetry,
 } from "@/lib/projects/hours-publication-email-service";
-import { publishVolunteerHoursTransaction } from "@/lib/projects/hours-publication-service";
+import {
+  publishVolunteerHoursTransaction,
+  requestCorrectedCertificateDelivery,
+} from "@/lib/projects/hours-publication-service";
 import {
   getPublishStateKey,
   sendCertificatePublishedEmails,
@@ -24,6 +28,9 @@ type SessionVolunteerData = {
   checkIn: string | null;
   checkOut: string | null;
   isValid: boolean;
+  intervals?: Array<{ checkIn: string | null; checkOut: string | null }>;
+  attendanceRevision?: number;
+  timeExceptionReason?: string;
 };
 
 type ManageableProject = {
@@ -83,7 +90,7 @@ async function canUserManageProjectHours(
 function publicationRequestKey(
   projectId: string,
   sessionId: string,
-  entries: Array<{ signupId: string; checkIn: string; checkOut: string }>,
+  entries: Parameters<typeof publishVolunteerHoursTransaction>[0]["entries"],
 ): string {
   const digest = createHash("sha256")
     .update(JSON.stringify({ projectId, sessionId, entries }))
@@ -119,17 +126,61 @@ export async function publishVolunteerHours(
       };
     }
 
-    const entries = sessionData
-      .filter((v) => v.isValid && v.checkIn && v.checkOut)
-      .map((volunteer) => {
-        const checkIn = normalizeHoursTimestamp(volunteer.checkIn!);
-        const checkOut = normalizeHoursTimestamp(volunteer.checkOut!);
-        return checkIn && checkOut
-          ? { signupId: volunteer.signupId, checkIn, checkOut }
-          : null;
-      })
-      .filter((entry): entry is NonNullable<typeof entry> => entry !== null)
-      .sort((left, right) => left.signupId.localeCompare(right.signupId));
+    const entries: Parameters<
+      typeof publishVolunteerHoursTransaction
+    >[0]["entries"] = [];
+    for (const volunteer of sessionData.filter((row) => row.isValid)) {
+      const sourceIntervals = volunteer.intervals ?? [
+        { checkIn: volunteer.checkIn, checkOut: volunteer.checkOut },
+      ];
+      if (
+        !Array.isArray(sourceIntervals) ||
+        sourceIntervals.length < 1 ||
+        sourceIntervals.length > 50
+      ) {
+        return {
+          outcome: "rejected",
+          success: false,
+          error: "Enter between 1 and 50 complete attendance intervals.",
+        };
+      }
+      const intervals: Array<{ checkIn: string; checkOut: string }> = [];
+      for (const interval of sourceIntervals) {
+        const checkIn =
+          typeof interval.checkIn === "string"
+            ? normalizeHoursTimestamp(interval.checkIn)
+            : null;
+        const checkOut =
+          typeof interval.checkOut === "string"
+            ? normalizeHoursTimestamp(interval.checkOut)
+            : null;
+        if (!checkIn || !checkOut) {
+          return {
+            outcome: "rejected",
+            success: false,
+            error:
+              "Resolve every selected volunteer's missing attendance times before publishing.",
+          };
+        }
+        intervals.push({ checkIn, checkOut });
+      }
+      intervals.sort((left, right) =>
+        left.checkIn.localeCompare(right.checkIn),
+      );
+      entries.push({
+        signupId: volunteer.signupId,
+        checkIn: intervals[0].checkIn,
+        checkOut: intervals[intervals.length - 1].checkOut,
+        ...(volunteer.intervals ? { intervals } : {}),
+        ...(volunteer.attendanceRevision !== undefined
+          ? { attendanceRevision: volunteer.attendanceRevision }
+          : {}),
+        ...(volunteer.timeExceptionReason?.trim()
+          ? { timeExceptionReason: volunteer.timeExceptionReason.trim() }
+          : {}),
+      });
+    }
+    entries.sort((left, right) => left.signupId.localeCompare(right.signupId));
 
     if (entries.length === 0) {
       return {
@@ -274,8 +325,6 @@ export async function resendCertificateEmails(
 
     const typedProject = project as ResendProject;
     const publishKey = getPublishStateKey(typedProject, sessionId);
-    const legacyScheduleIds =
-      publishKey === sessionId ? [sessionId] : [sessionId, publishKey];
     try {
       const admin = getAdminClient();
       const durablePublication = await loadDurablePublicationForRetry(admin, {
@@ -304,11 +353,16 @@ export async function resendCertificateEmails(
       };
     }
 
+    const legacyScheduleIds = getScheduleIdAliases(typedProject, sessionId);
+    if (legacyScheduleIds.length === 0) {
+      return { success: false, error: "Project session not found." };
+    }
+
     // 3. Fetch the certificates to resend
     const { data: certificates, error: certError } = await supabase
       .from("certificates")
       .select(
-        "id, volunteer_name, volunteer_email, project_title, event_start, event_end",
+        "id, volunteer_name, volunteer_email, project_title, event_start, event_end, credited_minutes",
       )
       .eq("project_id", projectId)
       .in("schedule_id", legacyScheduleIds);
@@ -347,4 +401,230 @@ export async function resendCertificateEmails(
     });
     return { success: false, error: "An unexpected server error occurred." };
   }
+}
+
+async function saveVolunteerAttendance(
+  projectId: string,
+  signupId: string,
+  expectedRevision: number,
+  reason: string,
+  intervals: Array<{ checkIn: string | null; checkOut: string | null }>,
+  requestId: string,
+  operation: "correct_project_attendance" | "record_project_attendance",
+): Promise<{
+  success: boolean;
+  error?: string;
+  attendanceRevision?: number;
+  creditedMinutes?: number;
+  certificateId?: string | null;
+}> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+    error: authError,
+  } = await supabase.auth.getUser();
+  if (authError || !user)
+    return { success: false, error: "Authentication required." };
+  if (
+    !Number.isInteger(expectedRevision) ||
+    expectedRevision < 0 ||
+    typeof reason !== "string" ||
+    !reason.trim() ||
+    reason.length > 1000 ||
+    !Array.isArray(intervals) ||
+    intervals.length < 1 ||
+    intervals.length > 50 ||
+    !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
+      requestId,
+    )
+  ) {
+    return {
+      success: false,
+      error: "Provide complete attendance intervals and a correction reason.",
+    };
+  }
+  const normalized = intervals.map((interval) => ({
+    checkIn:
+      typeof interval.checkIn === "string"
+        ? normalizeHoursTimestamp(interval.checkIn)
+        : null,
+    checkOut:
+      typeof interval.checkOut === "string"
+        ? normalizeHoursTimestamp(interval.checkOut)
+        : null,
+  }));
+  if (normalized.some((interval) => !interval.checkIn || !interval.checkOut)) {
+    return {
+      success: false,
+      error: "Resolve every missing attendance time before saving.",
+    };
+  }
+  const { data: project, error: projectError } = await supabase
+    .from("projects")
+    .select("creator_id, organization_id, can_be_managed_by_staff")
+    .eq("id", projectId)
+    .maybeSingle();
+  if (
+    projectError ||
+    !project ||
+    !(await canUserManageProjectHours(supabase, user.id, project))
+  ) {
+    return {
+      success: false,
+      error: "You cannot edit attendance for this project.",
+    };
+  }
+  const admin = getAdminClient();
+  const { data: signup, error: signupError } = await admin
+    .from("project_signups")
+    .select("id")
+    .eq("id", signupId)
+    .eq("project_id", projectId)
+    .maybeSingle();
+  if (signupError || !signup)
+    return { success: false, error: "Attendance record not found." };
+  const { data, error } = await admin.rpc(operation, {
+    p_signup_id: signupId,
+    p_expected_revision: expectedRevision,
+    p_reason: reason.trim(),
+    p_intervals: normalized,
+    p_request_id: requestId,
+    p_actor_id: user.id,
+  });
+  if (error)
+    return {
+      success: false,
+      error:
+        error.code === "40001"
+          ? "Attendance changed. Refresh before saving again."
+          : error.code === "42501"
+            ? "You cannot correct attendance for this project."
+            : "The correction could not be saved. Check the intervals for overlaps and try again.",
+    };
+  if (
+    !data ||
+    typeof data !== "object" ||
+    typeof data.attendanceRevision !== "number" ||
+    typeof data.creditedMinutes !== "number"
+  ) {
+    return {
+      success: false,
+      error:
+        "The correction receipt could not be verified. Retry with the same request.",
+    };
+  }
+  return {
+    success: true,
+    attendanceRevision: data.attendanceRevision,
+    creditedMinutes: data.creditedMinutes,
+    certificateId: data.certificateId ?? null,
+  };
+}
+
+export async function correctVolunteerAttendance(
+  projectId: string,
+  signupId: string,
+  expectedRevision: number,
+  reason: string,
+  intervals: Array<{ checkIn: string | null; checkOut: string | null }>,
+  requestId: string,
+) {
+  return saveVolunteerAttendance(
+    projectId,
+    signupId,
+    expectedRevision,
+    reason,
+    intervals,
+    requestId,
+    "correct_project_attendance",
+  );
+}
+
+export async function recordVolunteerAttendance(
+  projectId: string,
+  signupId: string,
+  expectedRevision: number,
+  reason: string,
+  intervals: Array<{ checkIn: string | null; checkOut: string | null }>,
+  requestId: string,
+) {
+  return saveVolunteerAttendance(
+    projectId,
+    signupId,
+    expectedRevision,
+    reason,
+    intervals,
+    requestId,
+    "record_project_attendance",
+  );
+}
+
+export async function sendCorrectedCertificateEmail(
+  projectId: string,
+  certificateId: string,
+  expectedRevision: number,
+  requestId: string,
+): Promise<{
+  success: boolean;
+  error?: string;
+  emailsSent?: number;
+  emailErrors?: string[];
+  receiptId?: string;
+}> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+    error: userError,
+  } = await supabase.auth.getUser();
+  if (userError || !user)
+    return { success: false, error: "Authentication required." };
+  if (
+    !Number.isInteger(expectedRevision) ||
+    expectedRevision < 1 ||
+    !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
+      requestId,
+    )
+  ) {
+    return {
+      success: false,
+      error: "Refresh the corrected certificate before sending.",
+    };
+  }
+  const { data: project, error: projectError } = await supabase
+    .from("projects")
+    .select("creator_id, organization_id, can_be_managed_by_staff")
+    .eq("id", projectId)
+    .maybeSingle();
+  if (
+    projectError ||
+    !project ||
+    !(await canUserManageProjectHours(supabase, user.id, project))
+  ) {
+    return {
+      success: false,
+      error: "You cannot send certificates for this project.",
+    };
+  }
+  const transaction = await requestCorrectedCertificateDelivery({
+    actorId: user.id,
+    projectId,
+    certificateId,
+    expectedRevision,
+    requestId,
+  });
+  if (!transaction.publication)
+    return {
+      success: false,
+      error:
+        transaction.errorCode === "40001"
+          ? "The certificate changed. Refresh before sending."
+          : "The corrected certificate could not be queued. Save an award correction before sending it.",
+    };
+  const delivery = await drainPublicationEmails(transaction.publication);
+  return {
+    success: true,
+    emailsSent: delivery.emailsSent,
+    emailErrors: delivery.errors,
+    receiptId: transaction.publication.receiptId,
+  };
 }

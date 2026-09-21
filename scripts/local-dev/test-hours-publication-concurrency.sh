@@ -7,13 +7,16 @@ set -euo pipefail
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 cd "${ROOT_DIR}"
 
+# Validate the owned stack and prove reviewed-attendance races before legacy cases.
+node scripts/local-dev/test-attendance-concurrency.mjs
+
 DATABASE_URL="${DATABASE_URL:-${SUPABASE_DB_URL:-}}"
 if [[ -z "${DATABASE_URL}" ]]; then
   DATABASE_URL="$(
-    bunx supabase status -o env \
-      | sed -n 's/^DB_URL=//p' \
-      | tr -d '"' \
-      | head -n 1
+    node --input-type=module -e '
+      import { getCsfIsolatedSupabaseEnv } from "./scripts/local-dev/dv-local-env.mjs";
+      process.stdout.write(getCsfIsolatedSupabaseEnv().dbUrl);
+    '
   )"
 fi
 
@@ -129,7 +132,7 @@ VALUES (
   'ac000000-0000-4000-8000-000000000001',
   'Concurrent Hours Project', 'Local', 'Synthetic concurrency fixture',
   'oneTime', 'manual',
-  '{"oneTime":{"date":"2031-08-11","startTime":"09:00","endTime":"12:00","volunteers":1}}',
+  '{"oneTime":{"date":"2021-08-11","startTime":"09:00","endTime":"12:00","volunteers":1}}',
   true,
   'ac100000-0000-4000-8000-000000000001',
   true
@@ -159,7 +162,7 @@ SELECT public.publish_volunteer_hours_transactional(
   'ac000000-0000-4000-8000-000000000001',
   'ac200000-0000-4000-8000-000000000001',
   'oneTime',
-  '[{"signupId":"ac300000-0000-4000-8000-000000000001","checkIn":"2031-08-11T16:00:00Z","checkOut":"2031-08-11T18:00:00Z"}]'::jsonb,
+  '[{"signupId":"ac300000-0000-4000-8000-000000000001","checkIn":"2021-08-11T16:00:00Z","checkOut":"2021-08-11T18:00:00Z"}]'::jsonb,
   'hours-publication:v1:abababababababababababababababababababababababababababababababab'
 ) ->> 'outcome';
 COMMIT;
@@ -176,7 +179,7 @@ SELECT public.publish_volunteer_hours_transactional(
   'ac000000-0000-4000-8000-000000000001',
   'ac200000-0000-4000-8000-000000000001',
   'oneTime',
-  '[{"signupId":"ac300000-0000-4000-8000-000000000001","checkIn":"2031-08-11T16:00:00Z","checkOut":"2031-08-11T18:00:00Z"}]'::jsonb,
+  '[{"signupId":"ac300000-0000-4000-8000-000000000001","checkIn":"2021-08-11T16:00:00Z","checkOut":"2021-08-11T18:00:00Z"}]'::jsonb,
   'hours-publication:v1:abababababababababababababababababababababababababababababababab'
 ) ->> 'outcome';
 COMMIT;
@@ -217,7 +220,7 @@ SELECT public.publish_volunteer_hours_transactional(
   'ac000000-0000-4000-8000-000000000003',
   'ac200000-0000-4000-8000-000000000001',
   'oneTime',
-  '[{"signupId":"ac300000-0000-4000-8000-000000000001","checkIn":"2031-08-11T16:00:00Z","checkOut":"2031-08-11T18:00:00Z"}]'::jsonb,
+  '[{"signupId":"ac300000-0000-4000-8000-000000000001","checkIn":"2021-08-11T16:00:00Z","checkOut":"2021-08-11T18:00:00Z"}]'::jsonb,
   'hours-publication:v1:abababababababababababababababababababababababababababababababab'
 ) ->> 'outcome';
 SELECT pg_sleep(1);
@@ -428,9 +431,32 @@ WHERE project_id = 'ac200000-0000-4000-8000-000000000001';
 UPDATE public.projects
 SET published = '{}'::jsonb
 WHERE id = 'ac200000-0000-4000-8000-000000000001';
-UPDATE public.project_signups
-SET status = 'approved', check_in_time = NULL, check_out_time = NULL
+-- The preceding publication established reviewed intervals. The independent
+-- legacy scenarios need a new signup, not an edit that bypasses corrections.
+DELETE FROM public.project_signups
 WHERE id = 'ac300000-0000-4000-8000-000000000001';
+INSERT INTO public.project_signups (id,project_id,user_id,schedule_id,status)
+VALUES (
+  'ac300000-0000-4000-8000-000000000001',
+  'ac200000-0000-4000-8000-000000000001',
+  'ac000000-0000-4000-8000-000000000002',
+  'oneTime',
+  'approved'
+);
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM public.project_signups
+    WHERE id='ac300000-0000-4000-8000-000000000001'
+      AND attendance_revision=0 AND check_in_time IS NULL AND check_out_time IS NULL
+  ) OR EXISTS (
+    SELECT 1 FROM public.project_attendance_intervals
+    WHERE signup_id='ac300000-0000-4000-8000-000000000001'
+  ) THEN
+    RAISE EXCEPTION 'legacy race fixture must begin without reviewed attendance';
+  END IF;
+END;
+$$;
 SQL
 
 # A status change that already owns the signup lock must settle before the
@@ -460,7 +486,7 @@ SELECT public.publish_volunteer_hours_transactional(
   'ac000000-0000-4000-8000-000000000001',
   'ac200000-0000-4000-8000-000000000001',
   'oneTime',
-  '[{"signupId":"ac300000-0000-4000-8000-000000000001","checkIn":"2031-08-11T16:00:00Z","checkOut":"2031-08-11T18:00:00Z"}]'::jsonb,
+  '[{"signupId":"ac300000-0000-4000-8000-000000000001","checkIn":"2021-08-11T16:00:00Z","checkOut":"2021-08-11T18:00:00Z"}]'::jsonb,
   'hours-publication:v1:cdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcd'
 );
 COMMIT;
@@ -508,7 +534,7 @@ SELECT public.publish_volunteer_hours_transactional(
   'ac000000-0000-4000-8000-000000000003',
   'ac200000-0000-4000-8000-000000000001',
   'oneTime',
-  '[{"signupId":"ac300000-0000-4000-8000-000000000001","checkIn":"2031-08-11T16:00:00Z","checkOut":"2031-08-11T18:00:00Z"}]'::jsonb,
+  '[{"signupId":"ac300000-0000-4000-8000-000000000001","checkIn":"2021-08-11T16:00:00Z","checkOut":"2021-08-11T18:00:00Z"}]'::jsonb,
   'hours-publication:v1:efefefefefefefefefefefefefefefefefefefefefefefefefefefefefefefef'
 );
 COMMIT;
@@ -552,8 +578,8 @@ WHERE id IN (
 UPDATE public.project_signups
 SET
   status = 'attended',
-  check_in_time = '2031-08-11T16:00:00Z',
-  check_out_time = '2031-08-11T18:00:00Z'
+  check_in_time = '2021-08-11T16:00:00Z',
+  check_out_time = '2021-08-11T18:00:00Z'
 WHERE id = 'ac300000-0000-4000-8000-000000000001';
 
 INSERT INTO public.project_signups (
@@ -564,13 +590,13 @@ VALUES
     'ac300000-0000-4000-8000-000000000002',
     'ac200000-0000-4000-8000-000000000001',
     'ac000000-0000-4000-8000-000000000004',
-    'oneTime', 'attended', '2031-08-11T16:00:00Z', '2031-08-11T18:00:00Z'
+    'oneTime', 'attended', '2021-08-11T16:00:00Z', '2021-08-11T18:00:00Z'
   ),
   (
     'ac300000-0000-4000-8000-000000000003',
     'ac200000-0000-4000-8000-000000000001',
     'ac000000-0000-4000-8000-000000000005',
-    'oneTime', 'attended', '2031-08-11T16:00:00Z', '2031-08-11T18:00:00Z'
+    'oneTime', 'attended', '2021-08-11T16:00:00Z', '2021-08-11T18:00:00Z'
   );
 SQL
 

@@ -1,3 +1,4 @@
+import { certificateHours } from "@/lib/projects/certificate-duration";
 import { createClient } from "@/lib/supabase/server";
 import { getAuthUser } from "@/lib/supabase/auth-helpers";
 import { redirect } from "next/navigation";
@@ -22,6 +23,7 @@ interface BackendCertificate {
   type?: "verified" | "self-reported"; // backend uses 'verified' | 'self-reported'
   event_start: string;
   event_end: string;
+  credited_minutes?: number | null;
   volunteer_email: string | null;
   organization_name: string | null;
   project_id: string | null;
@@ -48,6 +50,7 @@ interface UICertificate {
     project_timezone?: string;
   };
   event_end: string;
+  credited_minutes?: number | null;
   volunteer_email: string | null;
   organization_name: string | null;
   project_id: string | null;
@@ -230,6 +233,7 @@ export async function loadVolunteerDashboardData() {
     is_certified: boolean;
     event_start: string;
     event_end: string;
+    credited_minutes?: number | null;
     volunteer_email: string | null;
     organization_name: string | null;
     project_id: string | null;
@@ -344,7 +348,9 @@ export async function loadVolunteerDashboardData() {
   const processedCertificates = (certificates || []).map(
     (cert: BackendCertificate) => {
       // Calculate hours for this certificate
-      const hours = calculateHours(cert.event_start, cert.event_end);
+      const hours = certificateHours(cert, () =>
+        calculateHours(cert.event_start, cert.event_end),
+      );
 
       // Default to 'verified' for existing certificates that don't have the type field
       const certType = cert.type || "verified";

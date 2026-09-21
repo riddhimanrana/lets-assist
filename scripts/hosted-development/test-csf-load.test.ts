@@ -368,12 +368,30 @@ describe("hosted CSF load acceptance", () => {
       workflow.match(
         /VERCEL_AUTOMATION_BYPASS_SECRET: \$\{\{ secrets\.VERCEL_AUTOMATION_BYPASS_SECRET \}\}/gu,
       ) ?? [],
-    ).toHaveLength(3);
+    ).toHaveLength(4);
     expect(provisionStep).not.toContain("VERCEL_AUTOMATION_BYPASS_SECRET");
     expect(workflow.slice(0, provisionStepStart)).not.toContain(
       "SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}",
     );
-    expect(workflow.slice(provisionStepEnd)).not.toContain(
+    const attendanceStart = workflow.indexOf(
+      "- name: Run guarded hosted attendance acceptance",
+    );
+    expect(attendanceStart).toBeGreaterThan(provisionStepEnd);
+    expect(attendanceStart).toBeLessThan(hostedLoadStepStart);
+    const attendanceStep = workflow.slice(attendanceStart, hostedLoadStepStart);
+    expect(attendanceStep).toContain("playwright.attendance-hosted.config.ts");
+    expect(attendanceStep).toContain('ATTENDANCE_HOSTED_DEVELOPMENT: "1"');
+    expect(attendanceStep).toContain(
+      "attendance-hosted-development:${{ vars.CSF_DEVELOPMENT_SUPABASE_PROJECT_REF }}",
+    );
+    expect(attendanceStep).toContain(
+      "SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}",
+    );
+    expect(workflow.slice(provisionStepEnd, attendanceStart)).not.toContain(
+      "SUPABASE_SERVICE_ROLE_KEY",
+    );
+    expect(hostedLoadStep).not.toContain("SUPABASE_SERVICE_ROLE_KEY");
+    expect(workflow.slice(hostedLoadStepEnd)).not.toContain(
       "SUPABASE_SERVICE_ROLE_KEY",
     );
   });
