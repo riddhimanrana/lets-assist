@@ -20,10 +20,10 @@ const readManifest = (count) =>
 const before = readManifest(635);
 const after = readManifest(639);
 const attendanceVersions = [
-  "20260920234000",
-  "20260920234001",
-  "20260920234002",
-  "20260920234003",
+  "20260921023000",
+  "20260921023001",
+  "20260921023002",
+  "20260921023003",
 ];
 const baselineLedger = ledger.filter(
   (version) => !attendanceVersions.includes(version),
