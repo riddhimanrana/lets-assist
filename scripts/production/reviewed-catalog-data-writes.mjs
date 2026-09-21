@@ -400,4 +400,20 @@ export const reviewedCatalogDataWrites = [
     statement:
       "b3003ec6bfe95d61a5d66232ada3d876ba8388a93d1af46e371e221e58dc3bfb",
   },
+  {
+    migration: "20260921051524",
+    file: "20260921051524_publish_dvhs_csf_1_2_60.sql",
+    operation: "INSERT",
+    table: "public.plugin_versions",
+    statement:
+      "ab656c34876dcef8ebf8a224d343771ddcdf30b8811c2adde46dcc006cb999de",
+  },
+  {
+    migration: "20260921051524",
+    file: "20260921051524_publish_dvhs_csf_1_2_60.sql",
+    operation: "UPDATE",
+    table: "public.plugins",
+    statement:
+      "a3f6739dfe0fc483982c5c2805decf557029fc4032446f24523b17c7e56ce9f4",
+  },
 ];

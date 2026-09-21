@@ -85,10 +85,10 @@ test("point proof correction earns one verified credit only after officer approv
   const fixture = await loadCsfFeedFixture();
   const runId = randomUUID();
   const activityTitle = `Synthetic point lifecycle ${runId}`;
-  const initialDescription = `Fictional service proof ${runId}`;
-  const correctedDescription = `Fictional service proof with task details ${runId}`;
+  const initialDescription = activityTitle;
+  const correctedDescription = `Corrected fictional activity name ${runId}`;
   const correctionNotes =
-    "Describe the service task shown in this fictional proof.";
+    "Correct the activity name shown in this fictional proof.";
   await seedFeedActivities(fixture, [
     {
       title: activityTitle,
@@ -156,7 +156,9 @@ test("point proof correction earns one verified credit only after officer approv
     await page
       .getByRole("option", { name: activityTitle, exact: true })
       .click();
-    await dialog.getByLabel("Description").fill(initialDescription);
+    await expect(dialog.getByLabel("Description", { exact: true })).toHaveCount(
+      0,
+    );
     await dialog
       .getByRole("button", { name: "Submit for review", exact: true })
       .click();
@@ -216,7 +218,9 @@ test("point proof correction earns one verified credit only after officer approv
       exact: true,
     });
     await expect(correction).toContainText("Existing proof stays attached");
-    await correction.getByLabel("Description").fill(correctedDescription);
+    await correction
+      .getByLabel("Activity or club name")
+      .fill(correctedDescription);
     await correction
       .getByRole("button", { name: "Correct and resubmit", exact: true })
       .click();

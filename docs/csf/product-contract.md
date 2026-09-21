@@ -9,6 +9,26 @@ This document defines the product, operating model, information architecture, te
 
 ## Amendment record
 
+### Amendment 11: Weekly activities and shorter point submissions (September 20, 2026)
+
+The owner requested a compact activity list with search, a week filter, and
+collapsible date groups. Weeks start Sunday in the chapter's Pacific time zone.
+Undated activities stay in a separate group. Existing term, publication, and
+class visibility rules still decide which activities a viewer can see. Officer
+editing controls remain separate from the activity link.
+
+A point submission for a selected activity or approved club does not require a
+narrative. The server records the authorized source name when no older client
+provided a description. Other submissions ask for the activity or club name.
+Event date, claimed points, and private proof remain in the submission form.
+Published policy still controls outside volunteering and proof requirements.
+
+Selected image files show local previews. Uploads still accept up to five images
+or one PDF within the existing file and total size limits. Broken supported
+images and unreadable PDFs fail before storage. Failed submissions retain the
+selection and retry identity. Officers still review each claim before any
+verified credit changes.
+
 ### Amendment 10: Claimed-account recovery notice (September 16, 2026)
 
 The owner explicitly approved showing the linked account's full verified email in an already-claimed notice. The caller must be signed in with a verified email and use an active class code. The server applies the join rate limit and requires one exact active profile match in that organization and class, with one verified account owner. Duplicate matches, conflicting links, an unverified owner address, or an unavailable owner lookup receive a generic claimed notice.
