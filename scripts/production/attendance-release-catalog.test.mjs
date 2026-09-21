@@ -17,8 +17,8 @@ const readManifest = (count) =>
       "utf8",
     ),
   );
-const before = readManifest(635);
-const after = readManifest(639);
+const before = readManifest(638);
+const after = readManifest(642);
 const attendanceVersions = [
   "20260921023000",
   "20260921023001",
@@ -91,11 +91,11 @@ const EXPECTED_CHANGED = [
   "relation:public.user_certificate_read_model",
 ];
 
-test("639 selects the exact attendance ledger without predecessor query rewriting", () => {
-  assert.equal(ledger.length, 639);
+test("642 selects the exact attendance ledger without predecessor query rewriting", () => {
+  assert.equal(ledger.length, 642);
   assert.equal(
     ledgerDigest(ledger),
-    "3e43cae1fe5e2100d72a23973698cfa957ccb24bae90f43053a50f58fa79d96a",
+    "164c37c3002f3695ff2739e477c5dd028c28f5530c085a823beebf9f37f50aba",
   );
   assert.equal(
     acceptedCatalogQuery("invalid predecessor SQL", ledger),
@@ -105,11 +105,11 @@ test("639 selects the exact attendance ledger without predecessor query rewritin
   assert.doesNotThrow(() => assertCleanInventory(after.objects));
 });
 
-test("the frozen 635 baseline remains separate from attendance Production approval", () => {
-  assert.equal(baselineLedger.length, 635);
-  assert.deepEqual(ledger.slice(0, 635), baselineLedger);
-  assert.deepEqual(ledger.slice(635), attendanceVersions);
-  assert.equal(baselineLedger.at(-1), "20260920233200");
+test("the frozen 638 baseline remains separate from attendance Production approval", () => {
+  assert.equal(baselineLedger.length, 638);
+  assert.deepEqual(ledger.slice(0, 638), baselineLedger);
+  assert.deepEqual(ledger.slice(638), attendanceVersions);
+  assert.equal(baselineLedger.at(-1), "20260921020100");
   assert.equal(ledgerDigest(baselineLedger), before.ledger);
   assert.equal(
     acceptedCatalogQuery("", baselineLedger),

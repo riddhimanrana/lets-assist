@@ -2778,6 +2778,16 @@ sources.
 | Attendance feature delivery                                                                                | Verified locally        | Print, manual/scan review, intervals, audited corrections, durable corrected-certificate delivery, and project/organization exports are integrated. Clean migration replay, focused tests, lint, typecheck, formatting, and architecture/data-access audits pass. The prior attendance candidate passed full CI. PR #766 records the current combined candidate, release-gate results, and hosted Development evidence. Production feature release remains separate. |
 | Requested organization associations                                                                        | Completed operationally | The reviewed two-project operation passed 17 rollback assertions, then committed atomically in Production. Independent database and organization-page readback confirmed the target organization and active-admin management. Protected state fingerprints and counts stayed unchanged. The private audit receipt remains under ignored `.artifacts`; no attendance feature was released.                                                                            |
 
+The latest focused production-runtime journey at `4357db97` passes signature
+review, split visits, failed-scan recovery, publication, correction, guest access,
+and account linking with exactly one award. The linked volunteer sees the
+corrected 2h 30m certificate total instead of the 3h 30m attendance span. All 18
+fixture groups returned to zero, no provider delivery occurred, and the owned
+test stack was removed. The final integrated candidate now includes Development
+`fac55f66` and its exact private-plugin pin. Its four unpublished attendance
+migrations follow the 638-entry baseline. Final catalog and hosted acceptance
+remain pending.
+
 The production-runtime browser journey passes printing, mobile review, partial
 completion, publication, matching CSV/JSON totals, correction, public guest
 certificate access, and account linking with exactly one award. Four real
