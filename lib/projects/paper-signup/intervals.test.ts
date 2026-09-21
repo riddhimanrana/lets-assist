@@ -47,6 +47,64 @@ describe("reviewed attendance intervals", () => {
       localDateTimeCandidates("2026-02-30T10:00", "America/Los_Angeles"),
     ).toEqual([]);
   });
+  test.each([
+    [
+      "2025-10-26T01:30",
+      "Antarctica/Troll",
+      ["2025-10-25T23:30:00.000Z", "2025-10-26T01:30:00.000Z"],
+    ],
+    [
+      "2026-04-05T01:45",
+      "Australia/Lord_Howe",
+      ["2026-04-04T14:45:00.000Z", "2026-04-04T15:15:00.000Z"],
+    ],
+    [
+      "1969-09-30T12:00",
+      "Pacific/Kwajalein",
+      ["1969-09-30T01:00:00.000Z", "1969-10-01T00:00:00.000Z"],
+    ],
+    [
+      "1892-07-04T12:00",
+      "Pacific/Apia",
+      ["1892-07-03T23:26:56.000Z", "1892-07-04T23:26:56.000Z"],
+    ],
+    ["1900-01-01T12:00", "Europe/Paris", ["1900-01-01T11:50:39.000Z"]],
+    ["2026-09-20T10:00", "Asia/Kathmandu", ["2026-09-20T04:15:00.000Z"]],
+  ])("uses every actual offset for %s in %s", (value, timezone, expected) => {
+    expect(
+      localDateTimeCandidates(value as string, timezone as string),
+    ).toEqual(expected);
+  });
+  test.each([
+    ["2025-03-30T01:30", "Antarctica/Troll"],
+    ["2011-12-30T12:00", "Pacific/Apia"],
+    ["2026-04-31T10:00", "UTC"],
+    ["2026-09-20T24:00", "UTC"],
+    ["2026-09-20T10:00", "Invalid/Timezone"],
+  ])("rejects nonexistent local time %s in %s", (value, timezone) => {
+    expect(localDateTimeCandidates(value, timezone)).toEqual([]);
+  });
+  test("a later cached time does not hide an earlier fold on the same date", () => {
+    expect(
+      localDateTimeCandidates("2026-10-25T23:45", "Antarctica/Troll"),
+    ).toEqual(["2026-10-25T23:45:00.000Z"]);
+    expect(
+      localDateTimeCandidates("2026-10-25T01:30", "Antarctica/Troll"),
+    ).toEqual(["2026-10-24T23:30:00.000Z", "2026-10-25T01:30:00.000Z"]);
+  });
+  test("historical second offsets preserve both exact wall-clock occurrences", () => {
+    expect(localDateTimeCandidates("1911-03-10T23:55", "Europe/Paris")).toEqual(
+      ["1911-03-10T23:45:39.000Z", "1911-03-10T23:55:00.000Z"],
+    );
+  });
+  test("cached dates preserve both occurrences for later times on the same date", () => {
+    expect(
+      localDateTimeCandidates("1969-09-30T00:30", "Pacific/Kwajalein"),
+    ).toEqual(["1969-09-29T13:30:00.000Z"]);
+    expect(
+      localDateTimeCandidates("1969-09-30T23:45", "Pacific/Kwajalein"),
+    ).toEqual(["1969-09-30T12:45:00.000Z", "1969-10-01T11:45:00.000Z"]);
+  });
   test("repeated autumn clock times expose both offsets for review", () => {
     expect(
       localDateTimeCandidates("2026-11-01T01:30", "America/Los_Angeles"),

@@ -1,4 +1,4 @@
-import { TZDate } from "@date-fns/tz";
+import { TZDate, tzOffset } from "@date-fns/tz";
 
 export type AttendanceInterval = {
   checkIn: string | null;
@@ -12,32 +12,60 @@ export function localDateTime(iso: string | null, timezone: string): string {
   return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
 }
 
-// Return all possible instants so repeated autumn clock times need a choice.
+const dateOffsets = new Map<string, number[]>();
+const DAY_MS = 86400000;
+const MINUTE_MS = 60000;
+
+function offsetsForLocalDate(value: string, timezone: string): number[] {
+  const date = value.slice(0, 10);
+  const key = `${timezone}:${date}`;
+  const cached = dateOffsets.get(key);
+  if (cached) return cached;
+  const midnight = Date.parse(`${date}T00:00:00.000Z`);
+  if (!Number.isFinite(tzOffset(timezone, new Date(midnight)))) return [];
+  const offsets = new Set<number>();
+  // Cover the full date's possible UTC instants, including date-line changes.
+  // Retain second-based historical offsets returned as fractional minutes.
+  for (
+    let time = midnight - DAY_MS;
+    time <= midnight + 2 * DAY_MS;
+    time += MINUTE_MS
+  ) {
+    const offset = tzOffset(timezone, new Date(time));
+    if (Number.isFinite(offset)) offsets.add(Math.round(offset * MINUTE_MS));
+  }
+  const result = [...offsets];
+  if (dateOffsets.size >= 64) {
+    const oldest = dateOffsets.keys().next().value;
+    if (oldest !== undefined) dateOffsets.delete(oldest);
+  }
+  dateOffsets.set(key, result);
+  return result;
+}
+
+// Repeated local clock times require an explicit choice of instant.
 export function localDateTimeCandidates(
   value: string,
   timezone: string,
 ): string[] {
   if (!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(value)) return [];
-  const [year, month, day, hour, minute] = value.split(/[-T:]/).map(Number);
-  const instant = new TZDate(
-    year,
-    month - 1,
-    day,
-    hour,
-    minute,
-    0,
-    timezone,
-  ).getTime();
-  if (!Number.isFinite(instant)) return [];
-  return [
-    ...new Set(
-      [-3600000, -1800000, 0, 1800000, 3600000].map((delta) =>
-        new Date(instant + delta).toISOString(),
-      ),
-    ),
-  ]
-    .filter((iso) => localDateTime(iso, timezone) === value)
-    .sort();
+  const wallTime = Date.parse(`${value}:00.000Z`);
+  if (
+    !Number.isFinite(wallTime) ||
+    new Date(wallTime).toISOString().slice(0, 16) !== value
+  )
+    return [];
+  return offsetsForLocalDate(value, timezone)
+    .map((offset) => wallTime - offset)
+    .filter(
+      (instant) =>
+        instant +
+          Math.round(tzOffset(timezone, new Date(instant)) * MINUTE_MS) ===
+        wallTime,
+    )
+    .sort((left, right) => left - right)
+    .map((instant) => new Date(instant).toISOString())
+    .filter((iso) => localDateTime(iso, timezone) === value);
 }
 
 export function inspectAttendanceIntervals(
