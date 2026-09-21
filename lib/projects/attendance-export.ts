@@ -310,7 +310,18 @@ export function buildAttendanceExportRecords(
         signup?.attendance_revision ?? cert?.attendance_revision ?? null,
     });
   }
-  const legacyByAccountSession = new Map<string, ExportCertificate>();
+  const accountSessionKey = (userId: string, scheduleId: string) =>
+    `${userId}:${getPublishStateKey(project, scheduleId)}`;
+  const signupCountByAccountSession = new Map<string, number>();
+  for (const signup of signups) {
+    if (!signup.user_id) continue;
+    const key = accountSessionKey(signup.user_id, signup.schedule_id);
+    signupCountByAccountSession.set(
+      key,
+      (signupCountByAccountSession.get(key) ?? 0) + 1,
+    );
+  }
+  const legacyByAccountSession = new Map<string, ExportCertificate | null>();
   for (const cert of certificates) {
     if (
       !cert.signup_id &&
@@ -318,16 +329,25 @@ export function buildAttendanceExportRecords(
       cert.schedule_id &&
       cert.credited_minutes === null
     ) {
-      legacyByAccountSession.set(`${cert.user_id}:${cert.schedule_id}`, cert);
+      const key = accountSessionKey(cert.user_id, cert.schedule_id);
+      legacyByAccountSession.set(
+        key,
+        legacyByAccountSession.has(key) ? null : cert,
+      );
     }
   }
   const usedCertificates = new Set<string>();
   for (const signup of signups) {
+    const key = signup.user_id
+      ? accountSessionKey(signup.user_id, signup.schedule_id)
+      : null;
+    const legacy =
+      key && signupCountByAccountSession.get(key) === 1
+        ? legacyByAccountSession.get(key)
+        : undefined;
     const cert =
       certBySignup.get(signup.id) ??
-      (signup.user_id
-        ? legacyByAccountSession.get(`${signup.user_id}:${signup.schedule_id}`)
-        : undefined);
+      (legacy && !usedCertificates.has(legacy.id) ? legacy : undefined);
     if (cert) usedCertificates.add(cert.id);
     add(signup, cert);
   }

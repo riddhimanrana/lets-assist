@@ -482,3 +482,210 @@ test("a corrected legacy certificate with a stale revision stays unpublished", (
   assert.equal(record.creditedMinutes, null);
   assert.equal(record.certificateId, certificate.id);
 });
+
+const multiSessionProject: ExportProject = {
+  ...project,
+  event_type: "multiDay",
+  schedule: {
+    multiDay: [
+      {
+        date: "2026-09-19",
+        slots: [
+          { startTime: "09:00", endTime: "12:00", volunteers: 10 },
+          { startTime: "13:00", endTime: "15:00", volunteers: 10 },
+        ],
+      },
+    ],
+  },
+};
+const historicalAccountAward: ExportCertificate = {
+  ...certificate,
+  signup_id: null,
+  user_id: "account-a",
+  type: null,
+  credited_minutes: null,
+};
+const accountSignup: ExportSignup = {
+  ...signup,
+  user_id: "account-a",
+  anonymous_id: null,
+};
+
+for (const fixture of [
+  {
+    project,
+    signupSession: "0",
+    certificateSession: "default",
+    selected: "oneTime",
+  },
+  {
+    project,
+    signupSession: "oneTime",
+    certificateSession: "0",
+    selected: "default",
+  },
+  {
+    project: multiSessionProject,
+    signupSession: "day-0-slot-0",
+    certificateSession: "2026-09-19-0",
+    selected: "2026-09-19-0-0",
+  },
+  {
+    project: multiSessionProject,
+    signupSession: "0-0",
+    certificateSession: "2026-09-19-0-0",
+    selected: "day-0-slot-0",
+  },
+]) {
+  test(`historical ${fixture.certificateSession} award pairs once with ${fixture.signupSession} signup`, () => {
+    for (const includeUnpublished of [false, true]) {
+      const records = buildAttendanceExportRecords(
+        fixture.project,
+        [{ ...accountSignup, schedule_id: fixture.signupSession }],
+        [
+          {
+            ...historicalAccountAward,
+            schedule_id: fixture.certificateSession,
+          },
+        ],
+        [],
+        {
+          ...filters,
+          includeUnpublished,
+          sessionId: fixture.selected,
+          from: "2026-09-19",
+          to: "2026-09-19",
+        },
+      );
+      assert.equal(records.length, 1);
+      assert.equal(records[0].publicationState, "published");
+      assert.equal(records[0].signupId, signup.id);
+      assert.equal(records[0].certificateId, certificate.id);
+      assert.equal(records[0].sessionId, fixture.signupSession);
+      assert.equal(records[0].creditedMinutes, 360);
+      assert.equal(records[0].participantId, "account-a");
+    }
+  });
+}
+
+test("historical pairing preserves distinct sessions and account boundaries", () => {
+  const signups = [
+    { ...accountSignup, schedule_id: "0-0" },
+    { ...accountSignup, id: "second-session", schedule_id: "day-0-slot-1" },
+    {
+      ...accountSignup,
+      id: "another-account",
+      user_id: "account-b",
+      schedule_id: "0-0",
+    },
+  ];
+  const records = buildAttendanceExportRecords(
+    multiSessionProject,
+    signups,
+    [{ ...historicalAccountAward, schedule_id: "2026-09-19-0" }],
+    [],
+    { ...filters, includeUnpublished: true },
+  );
+  assert.deepEqual(
+    records.map((row) => [
+      row.signupId,
+      row.publicationState,
+      row.creditedMinutes,
+    ]),
+    [
+      [signup.id, "published", 360],
+      ["second-session", "pending", null],
+      ["another-account", "pending", null],
+    ],
+  );
+  const secondSession = buildAttendanceExportRecords(
+    multiSessionProject,
+    signups,
+    [{ ...historicalAccountAward, schedule_id: "2026-09-19-0" }],
+    [],
+    { ...filters, includeUnpublished: true, sessionId: "2026-09-19-1" },
+  );
+  assert.deepEqual(
+    secondSession.map((row) => row.signupId),
+    ["second-session"],
+  );
+});
+
+test("duplicate signup aliases do not consume or multiply a historical award", () => {
+  const records = buildAttendanceExportRecords(
+    project,
+    [
+      { ...accountSignup, schedule_id: "0" },
+      { ...accountSignup, id: "duplicate", schedule_id: "default" },
+    ],
+    [historicalAccountAward],
+    [],
+    { ...filters, includeUnpublished: true },
+  );
+  assert.equal(records.length, 3);
+  assert.deepEqual(
+    records
+      .filter((row) => row.publicationState === "published")
+      .map((row) => [row.sourceType, row.certificateId, row.creditedMinutes]),
+    [["certificate", certificate.id, 360]],
+  );
+  assert.ok(
+    records
+      .filter((row) => row.sourceType === "signup")
+      .every(
+        (row) => row.certificateId === null && row.creditedMinutes === null,
+      ),
+  );
+});
+
+test("multiple historical awards remain standalone instead of selecting an arbitrary alias", () => {
+  const awards = [
+    historicalAccountAward,
+    { ...historicalAccountAward, id: "second-award", schedule_id: "default" },
+  ];
+  const records = buildAttendanceExportRecords(
+    project,
+    [accountSignup],
+    awards,
+    [],
+    { ...filters, includeUnpublished: true },
+  );
+  assert.equal(records.length, 3);
+  assert.equal(records[0].certificateId, null);
+  assert.deepEqual(
+    records
+      .slice(1)
+      .map((row) => [row.sourceType, row.certificateId, row.creditedMinutes]),
+    [
+      ["certificate", certificate.id, 360],
+      ["certificate", "second-award", 360],
+    ],
+  );
+});
+
+test("an explicit certificate signup link takes precedence over a historical alias candidate", () => {
+  const linked = { ...certificate, user_id: "account-a" };
+  const orphan = {
+    ...historicalAccountAward,
+    id: "orphan-award",
+    schedule_id: "default",
+  };
+  const records = buildAttendanceExportRecords(
+    project,
+    [accountSignup],
+    [linked, orphan],
+    [],
+    { ...filters, includeUnpublished: true },
+  );
+  assert.deepEqual(
+    records.map((row) => [
+      row.signupId,
+      row.certificateId,
+      row.creditedMinutes,
+    ]),
+    [
+      [signup.id, linked.id, 120],
+      [null, orphan.id, 360],
+    ],
+  );
+});
