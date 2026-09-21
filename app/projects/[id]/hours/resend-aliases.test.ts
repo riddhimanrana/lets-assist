@@ -178,7 +178,15 @@ test("unknown sessions cannot read or resend certificates", async () => {
   const result = await resendCertificateEmails(projectId, "unknown");
   expect(result.success).toBe(false);
   expect(certificateReads).toBe(0);
-  expect(durableKey).toBe("");
+  expect(durableKey).toBe("unknown");
+});
+test("removed sessions can still retry their authorized durable publication", async () => {
+  durable = true;
+  const result = await resendCertificateEmails(projectId, "Removed role");
+  expect(result.deliveryMode).toBe("durable-retry");
+  expect(durableKey).toBe("Removed role");
+  expect(certificateReads).toBe(0);
+  expect(sent).toEqual([]);
 });
 test("unauthorized users cannot read or resend certificates", async () => {
   project.creator_id = "another-organizer";

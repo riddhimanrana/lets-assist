@@ -325,10 +325,6 @@ export async function resendCertificateEmails(
 
     const typedProject = project as ResendProject;
     const publishKey = getPublishStateKey(typedProject, sessionId);
-    const legacyScheduleIds = getScheduleIdAliases(typedProject, sessionId);
-    if (legacyScheduleIds.length === 0) {
-      return { success: false, error: "Project session not found." };
-    }
     try {
       const admin = getAdminClient();
       const durablePublication = await loadDurablePublicationForRetry(admin, {
@@ -355,6 +351,11 @@ export async function resendCertificateEmails(
         success: false,
         error: "The durable email ledger could not be checked safely.",
       };
+    }
+
+    const legacyScheduleIds = getScheduleIdAliases(typedProject, sessionId);
+    if (legacyScheduleIds.length === 0) {
+      return { success: false, error: "Project session not found." };
     }
 
     // 3. Fetch the certificates to resend
