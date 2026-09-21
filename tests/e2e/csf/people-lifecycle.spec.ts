@@ -450,16 +450,17 @@ test.describe("CSF visible people lifecycle", () => {
       requestError,
     );
 
-    // The class-scoped review queue renders directly on the Members tab; a
-    // page reload picks up the request row seeded above.
+    // The roster opens first. Expand pending connections before reviewing one.
     await page.reload({ waitUntil: "domcontentloaded" });
-    const connections = page.locator("section").filter({
-      has: page.getByRole("heading", {
-        name: "Record connections",
-        exact: true,
-      }),
+    await expect(
+      page.locator('[data-organization-tabs-hydrated="true"]'),
+    ).toBeVisible();
+    const connections = page.locator("details").filter({
+      has: page.locator("summary").filter({ hasText: "Accounts to connect" }),
     });
     await expect(connections).toBeVisible();
+    await expect(connections).not.toHaveAttribute("open", "");
+    await connections.locator("summary").click();
     const fixtureRequestCard = connections
       .getByText(`Login account: ${fixture.profileEmail}`, { exact: true })
       .locator("..")
@@ -536,8 +537,13 @@ test.describe("CSF visible people lifecycle", () => {
         member: { role: "member", status: "active" },
         request: { match_status: "resolved" },
       });
-    // A resolved request leaves the queue and the connection guide stays visible.
+    // Reload restores the collapsed account panel after the request is resolved.
     await page.reload({ waitUntil: "domcontentloaded" });
+    await expect(
+      page.locator('[data-organization-tabs-hydrated="true"]'),
+    ).toBeVisible();
+    await expect(connections).not.toHaveAttribute("open");
+    await connections.locator("summary").click();
     await expect(
       connections.getByText(
         "No accounts are waiting. Students can sign in and use the class join code to request a connection.",

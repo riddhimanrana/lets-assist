@@ -1266,4 +1266,18 @@ export const migrationDigests = {
     "9afd22f2e7e94f00f1024a3b15229c4828a0ce262eb414f558842f0582919e2c",
   "20260920080000_csf_attendance_existing_record_fast_path.sql":
     "87c9499eb132033a34e7aeae061ec0b1918981cef22ea13914e897b97cd266a7",
+  "20260920180915_csf_review_hold_and_explicit_release.sql":
+    "d855f3e9682adb45856841149e6e2e651919625d88a4601c1ccd80f7a3a758db",
+  "20260920181255_csf_durable_account_notices.sql":
+    "35cd0b79e5e6f209f0faa801636ef66b9e30938015eb2d5e94b3072a9aaa79f6",
+  "20260920181754_csf_attendance_reconciliation_counts.sql":
+    "bab7b7993df73dd1e53c8cc1f469412e4cfd719e7838ea7c1913a79955a318b9",
+  "20260920214013_publish_dvhs_csf_1_2_58.sql":
+    "7b4f95d8a4ea78c7f2d2e49916d87dbac55391f744513064668a79d873a2f89d",
+  "20260920233000_csf_notice_state_and_legacy_review_privacy.sql":
+    "a64a094567fba06822fdfef77ad91ba47917d5fda13ad9a918db6c3a0dc02748",
+  "20260920233100_csf_organization_access_notice_revision.sql":
+    "8fb99d8bf5d74ca46cdcf7e9e183c1f71f12c56f9988d4f26e421a5d6d0246ba",
+  "20260920233200_csf_organization_sender_header.sql":
+    "4776da713d9097dcb656ed9b9e222b45414819c0e7ea0e413e1a6dd7b8172b84",
 };

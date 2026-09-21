@@ -317,3 +317,34 @@ test.describe("meeting attendance role boundaries", () => {
     expectNoBrowserFailures(failures);
   });
 });
+
+for (const width of [1280, 390]) {
+  test(`meeting detail keeps its selection in the URL at ${width}px`, async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width, height: 900 });
+    await loginAs(page, "secretary", MEETINGS_PATH);
+    const row = await openMeetingsWorkspace(page);
+    await expect(
+      page.getByText("Attendance review", { exact: true }),
+    ).toHaveCount(0);
+    const link = row.getByRole("link", { name: MEETING_LABEL, exact: true });
+    await link.focus();
+    await page.keyboard.press("Enter");
+    await expect(page).toHaveURL(/csf_meeting=[0-9a-f-]+/);
+    const selected = new URL(page.url()).searchParams.get("csf_meeting");
+    await expect(
+      page.getByRole("heading", { name: MEETING_LABEL, exact: true }),
+    ).toBeVisible();
+    await page.reload();
+    expect(new URL(page.url()).searchParams.get("csf_meeting")).toBe(selected);
+    await expect(
+      page.getByRole("heading", { name: MEETING_LABEL, exact: true }),
+    ).toBeVisible();
+    await page.getByRole("link", { name: "All meetings", exact: true }).click();
+    await expect(
+      page.getByRole("heading", { name: "Meetings", exact: true }),
+    ).toBeVisible();
+    expect(new URL(page.url()).searchParams.has("csf_meeting")).toBe(false);
+  });
+}

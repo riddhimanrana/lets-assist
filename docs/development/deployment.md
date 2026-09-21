@@ -10,6 +10,19 @@ Promotion from `development` to `main` is a separate release operation. It requi
 
 Supabase changes follow [the deployment workflow](supabase-deployment.md). Private-plugin changes follow [the two-repository workflow](private-plugins.md).
 
+## Explicit Development builds
+
+A normal Development merge builds only when the first commit-message line carries
+`[deploy-development]` or matches the signed CSF integration convention. A manual
+Vercel redeploy retains that message, so it can be canceled by the same rule.
+
+For an approved manual Preview build of the current Development revision, set
+`LETS_ASSIST_EXPLICIT_DEVELOPMENT_SHA` on that deployment to its full Git SHA.
+The build policy accepts it only for `VERCEL_ENV=preview`, branch `development`,
+and an exact SHA match. It does not change shared project settings or authorize
+Production. Verify the Preview's Git metadata and Development alias before
+starting hosted acceptance. Do not create an empty marker commit to trigger a build.
+
 ## App-only Production release
 
 Use `Deploy accepted Production app` when Production already has the exact
@@ -85,13 +98,13 @@ imports or provider delivery.
 
 ### Reviewed forward migrations
 
-`Apply accepted forward migrations` is the separate schema-only path for the
-reviewed migrations `20260905202837`, `20260905205847`, and `20260905212822`. It accepts explicit
-release and hosted-acceptance SHAs, verifies their identical trees and successful
-checks, and uses the Production environment's existing management credential.
-The controller checks both SQL hashes and all 448 preceding ledger versions.
-It applies both migrations and their exact ledger entries in one transaction,
-with a five-second lock timeout. A lost response triggers read-only ledger and
+`Apply accepted forward migrations` applies only the migration names and SQL
+hashes listed in `scripts/production/forward-migration-allowlist.mjs`. It accepts
+explicit release and hosted-acceptance SHAs, verifies their identical trees and
+successful checks, and uses the Production environment's existing management
+credential. The controller verifies the complete ledger and applies only the
+remaining approved suffix, with its exact ledger entries, in one transaction.
+The lock timeout is five seconds. A lost response triggers read-only ledger and
 catalog reconciliation, never another write attempt.
 
 This path does not export or restore data, deploy an app, change approvals,

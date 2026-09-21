@@ -1,9 +1,10 @@
+import { historicalReleaseTestFixture } from "./historical-release-test-fixture.mjs";
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { resolve } from "node:path";
-import { test } from "node:test";
+import { after, test } from "node:test";
 import {
   expectedVersions,
   productionRef,
@@ -20,6 +21,9 @@ import {
   verifySource,
 } from "./app-release-checks.mjs";
 import { smoke, validateStatus } from "./app-release-smoke.mjs";
+
+const historicalFixture = historicalReleaseTestFixture();
+after(historicalFixture.dispose);
 
 const sha = "a".repeat(40);
 test("release diagnostics expose only controller-owned failure messages", () => {
@@ -127,7 +131,7 @@ test("hosted acceptance is tied to trusted workflow, source, and repository", ()
 });
 
 test("latest trusted quality and database checks must both succeed", () => {
-  const runs = ["quality", "db-replay-validation"].map((name, id) => ({
+  const runs = ["full-quality", "db-replay-validation"].map((name, id) => ({
     name,
     id,
     status: "completed",
@@ -135,11 +139,24 @@ test("latest trusted quality and database checks must both succeed", () => {
     app: { slug: "github-actions" },
   }));
   verifyQualityRuns(runs);
+  verifyQualityRuns([
+    ...runs,
+    { ...runs[0], name: "pr-quality", id: 200, conclusion: "failure" },
+  ]);
+  assert.throws(() =>
+    verifyQualityRuns(
+      runs.map((run) => ({
+        ...run,
+        name: run.name === "full-quality" ? "quality" : run.name,
+      })),
+    ),
+  );
   assert.throws(() => verifyQualityRuns(runs.slice(0, 1)));
   assert.throws(() =>
     verifyQualityRuns([
       ...runs,
       { ...runs[0], id: 100, conclusion: "failure" },
+      { ...runs[0], name: "pr-quality", id: 200, conclusion: "success" },
     ]),
   );
   assert.throws(() =>
@@ -239,6 +256,7 @@ test("source verification pins clean Git trees and the required CI workflow", as
   );
   git("update-ref", "refs/remotes/origin/development", acceptedSha);
   let ciPatch = {};
+  let splitCiRuns = false;
   const fetcher = async (url) => {
     if (url.endsWith("/status"))
       throw new Error("The combined-status endpoint omits the status creator.");
@@ -255,14 +273,16 @@ test("source verification pins clean Git trees and the required CI workflow", as
     if (url.endsWith("/check-runs?per_page=100"))
       return Response.json({
         total_count: 2,
-        check_runs: ["quality", "db-replay-validation"].map((name, id) => ({
-          name,
-          id,
-          status: "completed",
-          conclusion: "success",
-          app: { slug: "github-actions" },
-          details_url: `https://github.com/${repository}/actions/runs/43/job/${id}`,
-        })),
+        check_runs: ["full-quality", "db-replay-validation"].map(
+          (name, id) => ({
+            name,
+            id,
+            status: "completed",
+            conclusion: "success",
+            app: { slug: "github-actions" },
+            details_url: `https://github.com/${repository}/actions/runs/${splitCiRuns && id === 1 ? 44 : 43}/job/${id}`,
+          }),
+        ),
       });
     if (url.endsWith("/actions/runs/43"))
       return Response.json({
@@ -275,6 +295,12 @@ test("source verification pins clean Git trees and the required CI workflow", as
     throw new Error("Unexpected request");
   };
   assert.equal((await verifySource(config, fetcher)).releaseSha, releaseSha);
+  splitCiRuns = true;
+  await assert.rejects(verifySource(config, fetcher), /same run/);
+  splitCiRuns = false;
+  ciPatch = { event: "pull_request" };
+  await assert.rejects(verifySource(config, fetcher), /Required CI run/);
+  ciPatch = {};
   const waiver = {
     confirmation: `waive-csf-performance:${releaseSha}:${acceptedSha}`,
     reason: "Release owner accepts the measured hosted performance risk.",
@@ -398,7 +424,7 @@ test("migration equality includes missing, unexpected, duplicate, and reordered 
 });
 
 test("schema verification uses only fixed read-only management requests", async () => {
-  const cwd = resolve(import.meta.dirname, "../..");
+  const cwd = historicalFixture.cwd;
   const versions = expectedVersions(cwd);
   const responses = [
     versions.map((version) => ({ version })),
@@ -453,7 +479,7 @@ test("schema verification uses only fixed read-only management requests", async 
 });
 
 test("owner catalog refusal stops without a writable fallback", async () => {
-  const cwd = resolve(import.meta.dirname, "../..");
+  const cwd = historicalFixture.cwd;
   const calls = [];
   await assert.rejects(
     verifySchema(
@@ -472,7 +498,7 @@ test("owner catalog refusal stops without a writable fallback", async () => {
 });
 
 test("catalog refusal and active write block stop deployment", async () => {
-  const cwd = resolve(import.meta.dirname, "../..");
+  const cwd = historicalFixture.cwd;
   for (const index of [1, 2, 3]) {
     const responses = [
       expectedVersions(cwd).map((version) => ({ version })),

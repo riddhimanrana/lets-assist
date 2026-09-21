@@ -24,7 +24,7 @@ import {
  * first-name prefix of three or more letters on an exact last name). One
  * unclaimed match connects when the student confirms it (Amendment 7). Two
  * matches, a claimed record, or email-only evidence go to the class's Members
- * tab "Record connections" queue, where an officer resolves them.
+ * tab "Accounts to connect" panel, where an officer resolves them.
  */
 
 const classJoinCode = "HAWK28";
@@ -838,19 +838,12 @@ test.describe("class join code connections", () => {
     const failures = watchBrowserFailures(page);
     await loginAs(page, "admin", cohortMembersPath(fixture.cohortId));
 
-    const reviewQueue = page.locator("section").filter({
-      has: page.getByRole("heading", {
-        name: "Record connections",
-        exact: true,
-      }),
+    const reviewQueue = page.locator("details").filter({
+      has: page.locator("summary").filter({ hasText: "Accounts to connect" }),
     });
     await expect(reviewQueue).toBeVisible();
-    await expect(
-      reviewQueue.getByText(
-        "Review accounts waiting to connect to a student record in this class.",
-      ),
-    ).toBeVisible();
-
+    await expect(reviewQueue).not.toHaveAttribute("open", "");
+    await reviewQueue.locator("summary").click();
     const resolveButton = reviewQueue.getByRole("button", {
       name: "Review",
       exact: true,
@@ -912,8 +905,13 @@ test.describe("class join code connections", () => {
         member: { role: "member", status: "active" },
       });
 
-    // A settled request leaves the queue and the connection guide stays visible.
+    // Reload restores the collapsed account panel after the request is resolved.
     await page.reload({ waitUntil: "domcontentloaded" });
+    await expect(
+      page.locator('[data-organization-tabs-hydrated="true"]'),
+    ).toBeVisible();
+    await expect(reviewQueue).not.toHaveAttribute("open");
+    await reviewQueue.locator("summary").click();
     await expect(
       reviewQueue.getByText(
         "No accounts are waiting. Students can sign in and use the class join code to request a connection.",

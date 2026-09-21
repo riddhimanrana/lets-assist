@@ -146,25 +146,29 @@ test("application review opens and recovers a legacy closed period without reset
     await tour.getByRole("button", { name: "Skip tour", exact: true }).click();
     await expect(tour).toBeHidden();
   }
-  if (
-    await page
-      .getByRole("button", { name: "Reopen review", exact: true })
-      .isVisible()
-  ) {
-    await page
-      .getByRole("button", { name: "Reopen review", exact: true })
-      .click();
-  } else if (
-    await page
-      .getByRole("button", { name: "Open review", exact: true })
-      .isVisible()
-  ) {
-    await page
-      .getByRole("button", { name: "Open review", exact: true })
-      .click();
+  if (originalPeriod?.status !== "open") {
+    const openReview = page.getByRole("button", {
+      name: /^(Open|Reopen) review$/,
+    });
+    await openReview.click();
+    await expect(openReview).toBeHidden();
   }
+  await expect
+    .poll(async () => {
+      const { data, error } = await admin
+        .schema("plugin_data")
+        .from("csf_review_periods")
+        .select("status")
+        .eq("organization_id", organizationId)
+        .eq("term_id", termId)
+        .eq("kind", "membership_applications")
+        .maybeSingle();
+      checked(error);
+      return data?.status;
+    })
+    .toBe("open");
   await expect(
-    page.getByRole("button", { name: "Split for review", exact: true }),
+    page.getByRole("textbox", { name: "Search by name", exact: true }),
   ).toBeVisible();
   await expect(
     page.getByRole("button", { name: "Close review", exact: true }),
@@ -211,7 +215,10 @@ test("application review opens and recovers a legacy closed period without reset
     .getByRole("button", { name: "Reopen review", exact: true })
     .click();
   await expect(
-    page.getByRole("button", { name: "Split for review", exact: true }),
+    page.getByRole("button", { name: "Reopen review", exact: true }),
+  ).toBeHidden();
+  await expect(
+    page.getByRole("textbox", { name: "Search by name", exact: true }),
   ).toBeVisible();
   await expect(
     page.getByRole("button", { name: "Close review", exact: true }),

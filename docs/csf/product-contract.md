@@ -960,7 +960,7 @@ Prior-term closure and next-term setup may overlap.
 2. One active same-class record carrying the verified account email connects atomically.
 3. If email does not match, the server may show one passive **Is this you?** card derived from the account's current full name. The card contains only the record name and class. It appears only for one active, unclaimed exact-name record with exactly one active class membership in the class selected by the code.
 4. **Yes, this is me** submits a short-lived signed snapshot bound to the organization, user, verified email, class code, class, profile, normalized account name, and account-name hash. The database rechecks all evidence under lock and creates or reuses one officer request. It connects only if the verified email independently identifies one active same-class record.
-5. If the student types or changes a name, that name never creates or links a profile. The server may still connect one exact verified-email record. Every other result creates or reuses one request in that class's **Record connections** queue.
+5. If the student types or changes a name, that name never creates or links a profile. The server may still connect one exact verified-email record. Every other result creates or reuses one request in that class's **Accounts to connect** queue.
 6. Officer review uses the existing corroborating-email and class checks. Linking, unlinking, and merge resolution are audited. Unlinking and merging require a reason.
 
 ### 9.6 Verify dues

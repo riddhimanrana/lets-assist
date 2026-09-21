@@ -10,6 +10,7 @@ import { getInvitationBaseUrl } from "@/lib/organization/invitation-utils";
 import { createPluginAdminClient } from "@/lib/plugins/supabase";
 import { getAdminClient } from "@/lib/supabase/admin";
 import { sendEmail } from "@/services/email-send";
+import { buildOrganizationSenderHeader } from "@/services/email-sender-identity";
 import { createCsfUnsubscribeToken } from "@/services/csf-unsubscribe-token";
 
 /**
@@ -75,18 +76,18 @@ async function consumeBucket(key: string, limit: number): Promise<boolean> {
  * the same way, and the lookup lands on
  * `csf_communication_recipient_snapshots_email_lookup_idx` instead of scanning.
  */
-async function isKnownRecipient(
+async function findRecipientCampaign(
   organizationId: string,
   email: string,
-): Promise<boolean> {
+): Promise<string | null> {
   const { data, error } = await createPluginAdminClient()
     .from("csf_communication_recipient_snapshots")
-    .select("id")
+    .select("campaign_id")
     .eq("organization_id", organizationId)
     .eq("normalized_recipient_email", email)
     .limit(1);
-  if (error) return false;
-  return (data?.length ?? 0) > 0;
+  if (error) return null;
+  return data?.[0]?.campaign_id ?? null;
 }
 
 export async function requestCsfUnsubscribeAction(
@@ -123,7 +124,25 @@ export async function requestCsfUnsubscribeAction(
     // protects the mailbox and our sender, it does not report anything.
     if (!ipAllowed || !addressAllowed) return NEUTRAL_RESPONSE;
 
-    if (!(await isKnownRecipient(organizationId, email))) {
+    const campaignId = await findRecipientCampaign(organizationId, email);
+    if (!campaignId) return NEUTRAL_RESPONSE;
+
+    const [organization, campaign] = await Promise.all([
+      getAdminClient()
+        .from("organizations")
+        .select("name")
+        .eq("id", organizationId)
+        .maybeSingle(),
+      createPluginAdminClient()
+        .from("csf_communication_campaigns")
+        .select("reply_to_email")
+        .eq("organization_id", organizationId)
+        .eq("id", campaignId)
+        .maybeSingle(),
+    ]);
+    const chapterName = organization.data?.name?.trim();
+    const replyTo = campaign.data?.reply_to_email?.trim();
+    if (organization.error || campaign.error || !chapterName || !replyTo) {
       return NEUTRAL_RESPONSE;
     }
 
@@ -136,9 +155,11 @@ export async function requestCsfUnsubscribeAction(
 
     await sendEmail({
       to: email,
+      from: buildOrganizationSenderHeader(chapterName),
+      replyTo,
       subject: "Confirm your unsubscribe from chapter announcements",
       react: React.createElement(CsfUnsubscribeConfirm, {
-        chapterName: "DVHS CSF",
+        chapterName,
         confirmUrl,
         expiresInMinutes: 30,
       }),

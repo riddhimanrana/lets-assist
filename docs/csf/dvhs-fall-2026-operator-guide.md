@@ -215,7 +215,7 @@ history, and no member tool appears before staff release a decision.
 
 The historical class sheets do not establish account ownership. Application emails and editable account names are suggestions for staff review, not verification.
 
-1. Open **Members**, select **Record connections**, choose **Review**, and inspect the request and proposed student profile.
+1. Open **Members**, select **Accounts to connect**, choose **Review**, and inspect the request and proposed student profile.
 2. Independently verify that the organization account belongs to that student. Do not rely only on a matching name or application email.
 3. Open the profile and choose **Connect account**. Enter the confirmed Let's Assist login email, explain how you verified identity, and check the identity confirmation.
 4. The login email may differ from the application contact. Do not overwrite imported contacts to force a match.

@@ -1,8 +1,8 @@
+import { historicalReleaseTestFixture } from "./historical-release-test-fixture.mjs";
 import assert from "node:assert/strict";
 import { readdirSync, readFileSync } from "node:fs";
 import { createHash } from "node:crypto";
-import test from "node:test";
-import { fileURLToPath } from "node:url";
+import test, { after } from "node:test";
 import {
   acceptedCatalogQuery,
   acceptedFingerprints565,
@@ -16,9 +16,11 @@ import {
   unreviewedDataWrites,
 } from "./migration-data-writes.mjs";
 
+const fixture = historicalReleaseTestFixture();
+const cwd = fixture.cwd;
+after(fixture.dispose);
 // Pin the integrated extensions separately from the original fingerprint swaps.
 
-const cwd = fileURLToPath(new URL("../../", import.meta.url));
 const source = readFileSync(
   new URL("./verify-csf-target-schema.sql", import.meta.url),
   "utf8",
@@ -242,14 +244,13 @@ test("a write cannot hide inside a dollar-quoted block", () => {
   );
 });
 
-test("the shipped migration bytes are the bytes the replay measured", () => {
+test("the approved historical migration bytes are the bytes the replay measured", () => {
   const names = readdirSync(`${cwd}supabase/migrations`)
     .filter((entry) => /^\d{14}_.+\.sql$/u.test(entry))
     .sort();
   assert.equal(names.length, ledger.length);
-  // Every migration, not a sample: the manifest and the tree have to agree in
-  // both directions, so neither an edited file nor a stale manifest entry can
-  // pass.
+  // Compare every migration in the historical release with its replay manifest.
+  // New platform work has its own release boundary and stays outside this fixture.
   assert.deepEqual(names, Object.keys(migrationDigests).sort());
 
   const drifted = [];

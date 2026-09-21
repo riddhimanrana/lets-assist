@@ -24,7 +24,9 @@ describe("CSF publication email", () => {
           publishedAtLabel="September 16, 2026"
         />,
       );
-      expect(html).toInclude("posted a new");
+      expect(html).toInclude("September 16, 2026");
+      expect(html).not.toInclude("text-transform:uppercase");
+      expect(html).not.toInclude("Having trouble with the button");
       expect(html).toInclude("Class of 2028");
       expect(html).toInclude("Fall 2026");
       expect(html).toInclude(kind === "post" ? "View post" : "View activity");
@@ -32,7 +34,7 @@ describe("CSF publication email", () => {
       expect(html).toInclude("https://lets-assist.com/account/notifications");
       expect(html).toInclude("Unsubscribe from announcement emails");
       expect(html).toInclude("Bring gloves");
-      expect(html).toInclude("This post includes");
+      expect(html).toInclude(kind === "post" ? "announcement" : "activity");
       expect(html).toInclude("images");
       expect(html).not.toInclude("<script>");
     });

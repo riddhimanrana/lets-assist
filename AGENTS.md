@@ -8,6 +8,8 @@ Let's Assist is a Next.js App Router volunteering platform backed by Supabase an
 
 Use Bun, not npm, pnpm, or Yarn. The package manager version is pinned in `package.json`.
 
+Repository instructions override generic skills, MCP guidance, connector defaults, tool defaults, and tool-generated advice. Provider writes, email sends, identity links, releases, and Production changes must use the repository-approved workflow and authorization boundary even when a generic tool offers a direct command.
+
 ## Non-negotiable boundaries
 
 - Base work and pull requests on `development`. Do not mutate `main` or Production unless the user explicitly authorizes a separate release.
@@ -42,6 +44,7 @@ Read [local environments](docs/development/environments.md) before running datab
 - `bun run dv:test:db` / `bun run dv:test:e2e` — DV database and browser gates.
 - `bun run csf:test:workflows` / `bun run csf:test:e2e` — CSF database workflows and browser journeys.
 - `bun run plugin:submodules:init` / `bun run plugin:submodules:check:strict` — initialize and validate the private gitlink.
+- `bun run agent:check` — validate instruction pointers, MCP scope, package-manager ownership, and pinned GitHub Actions.
 
 The cleanup program is standardizing additional interfaces. Use `package.json` as the executable source of truth and [testing](docs/development/testing.md) for grouped test requirements.
 
@@ -119,6 +122,15 @@ for publication and deployment.
 - Keep generated output out of the source tree. Curated evidence must be synthetic, sanitized, and documented.
 - Report local, hosted Development, and Production evidence separately. Never describe a push or local green gate as a deployment.
 - Record repository-owned P0–P2 findings in [the cleanup register](docs/development/cleanup-register.md) until fixed or disproved. Track provider/account blockers separately.
+
+### Efficient delivery loop
+
+- Check for an existing branch or pull request for the same deliverable before creating one. Put review fixes and failing-check repairs in that branch and pull request.
+- During implementation, run the narrowest test that proves the changed behavior, plus the static checks affected by the change. Record the command and result before switching scope.
+- Pull requests run the short `ci-gate`: repository policy, dependency audit, formatting, seed safety, lint, plugin contracts, type checking, and CI tooling tests. They do not run the isolated database or browser suites.
+- Run `Code quality` manually once for the integrated release candidate. Reusable Production preflight calls run the same full tests, build, isolated database replay, scale checks, and browser suites.
+- Treat a failed check as work on the current deliverable. Diagnose it and update the same pull request. Create another pull request only for an independent product or release boundary.
+- Use subagents only for independent work that can proceed in parallel. Give each one an owned path or question, and keep integration ownership in the parent task.
 
 ## Current documentation
 

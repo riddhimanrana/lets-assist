@@ -164,7 +164,7 @@ function dbReplayJob() {
 }
 
 describe("db-replay-validation CI job contract", () => {
-  test("runs for non-draft pull requests and reusable release preflight calls", () => {
+  test("runs for manual candidate rehearsals and reusable release preflight calls", () => {
     const workflow = readFileSync(
       join(repositoryRoot, ".github/workflows/ci.yml"),
       "utf8",
@@ -172,9 +172,8 @@ describe("db-replay-validation CI job contract", () => {
     const job = dbReplayJob();
 
     expect(workflow).toContain("  workflow_call:");
-    expect(job).toContain(
-      "if: github.event_name != 'pull_request' || github.event.pull_request.draft == false",
-    );
+    expect(job).toContain("if: github.event_name != 'pull_request'");
+    expect(job).not.toContain("github.event.pull_request.draft");
   });
 
   test("starts exactly one launcher and never resets or nests a replay", () => {

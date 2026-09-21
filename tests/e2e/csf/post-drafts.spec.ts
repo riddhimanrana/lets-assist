@@ -125,7 +125,7 @@ test("officer stream shows its published activities with scoped direct links", a
     const card = stream.locator(`article[data-activity-id="${activity.id}"]`);
     await expect(card).toBeVisible();
     await expect(
-      card.getByRole("button", { name: "View activity" }),
+      card.getByRole("link", { name: `${prefix} own class`, exact: true }),
     ).toHaveAttribute(
       "href",
       expect.stringContaining(`csf_activity=${activity.id}`),

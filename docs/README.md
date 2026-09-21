@@ -5,6 +5,7 @@ This directory is the canonical documentation home for humans and coding agents.
 ## Start here
 
 - [Developer onboarding](development/onboarding.md)
+- [Agent and tool configuration](development/agent-tooling.md)
 - [Repository agent guide](../AGENTS.md)
 - [Platform architecture](architecture/platform.md)
 - [Local and hosted environments](development/environments.md)
