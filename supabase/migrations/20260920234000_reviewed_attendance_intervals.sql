@@ -469,14 +469,14 @@ BEGIN
   SELECT * INTO v_row FROM public.project_paper_scan_rows WHERE id=p_row_id AND batch_id=p_batch_id AND project_id=p_project_id FOR UPDATE;
   IF NOT FOUND THEN RETURN 'not_found'; END IF;
   IF v_row.committed_signup_id IS NOT NULL THEN RETURN 'already_committed'; END IF;
-  IF v_batch.status='committed' THEN
-    IF v_row.outcome<>'roster_only' THEN RETURN 'not_review'; END IF;
-    UPDATE public.project_paper_scan_batches SET status='review' WHERE id=p_batch_id;
-  END IF;
   IF p_patch ? 'expectedRevision' AND
     (jsonb_typeof(p_patch->'expectedRevision') IS DISTINCT FROM 'number'
      OR (p_patch->>'expectedRevision')::integer <> v_row.review_revision) THEN
     RAISE EXCEPTION 'review row changed; refresh before saving' USING ERRCODE='40001';
+  END IF;
+  IF v_batch.status='committed' THEN
+    IF v_row.outcome<>'roster_only' THEN RETURN 'not_review'; END IF;
+    UPDATE public.project_paper_scan_batches SET status='review' WHERE id=p_batch_id;
   END IF;
   IF p_patch ? 'attendanceIntervals' THEN
     IF jsonb_typeof(p_patch->'attendanceIntervals') <> 'array' OR jsonb_array_length(p_patch->'attendanceIntervals') > 50 THEN
@@ -589,6 +589,15 @@ BEGIN
   IF NOT FOUND THEN
     RETURN 'not_found';
   END IF;
+  UPDATE public.project_paper_scan_batches batches
+  SET status='committed',committed_at=COALESCE(batches.committed_at,now())
+  WHERE batches.id=p_batch_id
+    AND (EXISTS(SELECT 1 FROM public.project_paper_scan_rows saved
+      WHERE saved.batch_id=p_batch_id AND saved.committed_signup_id IS NOT NULL)
+      OR EXISTS(SELECT 1 FROM public.project_paper_roster_entries saved WHERE saved.batch_id=p_batch_id))
+    AND NOT EXISTS(SELECT 1 FROM public.project_paper_scan_rows unresolved
+      WHERE unresolved.batch_id=p_batch_id AND unresolved.decision<>'exclude'
+        AND unresolved.committed_signup_id IS NULL AND unresolved.outcome<>'roster_only');
   RETURN 'updated';
 END;
 $$;
@@ -772,6 +781,15 @@ BEGIN
     outcome='skipped',outcome_detail='combined_into:'||p_target_row_id::text WHERE id=ANY(p_source_row_ids);
   INSERT INTO private.paper_attendance_review_operations(request_id,project_id,batch_id,actor_id,operation,payload)
     VALUES(p_request_id,p_project_id,p_batch_id,p_actor_id,'combine',v_payload);
+  UPDATE public.project_paper_scan_batches batches
+  SET status='committed',committed_at=COALESCE(batches.committed_at,now())
+  WHERE batches.id=p_batch_id
+    AND (EXISTS(SELECT 1 FROM public.project_paper_scan_rows saved
+      WHERE saved.batch_id=p_batch_id AND saved.committed_signup_id IS NOT NULL)
+      OR EXISTS(SELECT 1 FROM public.project_paper_roster_entries saved WHERE saved.batch_id=p_batch_id))
+    AND NOT EXISTS(SELECT 1 FROM public.project_paper_scan_rows unresolved
+      WHERE unresolved.batch_id=p_batch_id AND unresolved.decision<>'exclude'
+        AND unresolved.committed_signup_id IS NULL AND unresolved.outcome<>'roster_only');
   RETURN p_target_row_id;
 END;
 $$;
@@ -825,6 +843,7 @@ DECLARE
   v_signup_id uuid;
   v_active_count integer;
   v_over boolean;
+  v_has_saved boolean;
   v_detail text;
   v_results jsonb := '[]'::jsonb;
 BEGIN
@@ -1000,10 +1019,14 @@ BEGIN
       || CASE WHEN v_reconciliation IS NULL THEN '{}'::jsonb ELSE jsonb_build_object('reconciliation',v_reconciliation) END);
     RETURN NEXT;
   END LOOP;
+  SELECT EXISTS(SELECT 1 FROM public.project_paper_scan_rows saved
+    WHERE saved.batch_id=p_batch_id AND saved.committed_signup_id IS NOT NULL)
+    OR EXISTS(SELECT 1 FROM public.project_paper_roster_entries saved WHERE saved.batch_id=p_batch_id)
+    INTO v_has_saved;
   UPDATE public.project_paper_scan_batches SET
-    status=CASE WHEN EXISTS(SELECT 1 FROM public.project_paper_scan_rows rows WHERE rows.batch_id=p_batch_id AND rows.decision<>'exclude'
-      AND rows.committed_signup_id IS NULL AND rows.outcome<>'roster_only') THEN 'review' ELSE 'committed' END,
-    committed_at=now(),
+    status=CASE WHEN v_has_saved AND NOT EXISTS(SELECT 1 FROM public.project_paper_scan_rows rows WHERE rows.batch_id=p_batch_id AND rows.decision<>'exclude'
+      AND rows.committed_signup_id IS NULL AND rows.outcome<>'roster_only') THEN 'committed' ELSE 'review' END,
+    committed_at=CASE WHEN v_has_saved THEN now() ELSE committed_at END,
     committed_row_count=(SELECT count(*) FROM public.project_paper_scan_rows rows WHERE rows.batch_id=p_batch_id AND rows.committed_signup_id IS NOT NULL AND rows.outcome<>'skipped'),
     roster_row_count=(SELECT count(*) FROM public.project_paper_scan_rows rows WHERE rows.batch_id=p_batch_id AND rows.outcome='roster_only')
     WHERE id=p_batch_id;

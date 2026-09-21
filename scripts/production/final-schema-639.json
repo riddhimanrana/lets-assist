@@ -3513,11 +3513,11 @@
     },
     {
       "identity": "function:public.combine_paper_attendance_rows(p_project_id uuid, p_batch_id uuid, p_actor_id uuid, p_target_row_id uuid, p_source_row_ids uuid[], p_request_id uuid)",
-      "digest": "18eba21fdb2cffc320bc7b1243d20455"
+      "digest": "c1551efe2c7068af1f9a8588da4a7ac1"
     },
     {
       "identity": "function:public.commit_paper_signup_batch(p_batch_id uuid, p_actor_id uuid, p_row_ids uuid[], p_allow_over_capacity boolean, p_idempotency_key uuid)",
-      "digest": "3b1fdf31083e997bd84ca6439ef5706c"
+      "digest": "f069345393e1a0b8ee6dc6c1534472aa"
     },
     {
       "identity": "function:public.complete_participant_checkout(p_signup_id uuid, p_user_id uuid, p_anonymous_id uuid)",
@@ -3941,7 +3941,7 @@
     },
     {
       "identity": "function:public.update_paper_scan_review_row(p_batch_id uuid, p_project_id uuid, p_row_id uuid, p_actor_id uuid, p_patch jsonb)",
-      "digest": "3ae675118cbc078b8dec92c34f5a5f60"
+      "digest": "4e235c302f4c3fee822a95d995b2f8c1"
     },
     {
       "identity": "function:public.update_plugin_execution_metrics(p_organization_id uuid, p_plugin_key text, p_execution_time_ms integer, p_is_error boolean, p_error_message text)",
