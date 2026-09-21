@@ -67,11 +67,12 @@ test.describe("applications review workspace", () => {
     await expect(importButton).toBeVisible();
     await importButton.click();
     await expect(page).toHaveURL(/csf_import_type=application_responses/);
-    const dialog = page.getByRole("dialog", { name: "Application Sheet" });
+    const dialog = page.getByRole("dialog", {
+      name: /^(Match students|Connect a Sheet)$/,
+    });
     await expect(dialog).toBeVisible();
-    await expect(dialog).toContainText("Connect the response Sheet once.");
     await expect(dialog).toContainText(
-      "Importing never approves an application.",
+      /Applications stay pending until you release decisions.|Choose your application responses Sheet./,
     );
     await expect(
       page.getByRole("navigation", { name: "Import progress" }),

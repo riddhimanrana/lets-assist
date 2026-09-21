@@ -474,7 +474,7 @@ test.describe("CSF historical workbook import", () => {
     expect(activityCount).toBe(0);
 
     const resolutionRegion = page.getByRole("region", {
-      name: "1 row to check",
+      name: "1 to match",
       exact: true,
     });
     await expect(resolutionRegion).toHaveCount(1);
@@ -486,19 +486,27 @@ test.describe("CSF historical workbook import", () => {
     await expect(resolution).toHaveCount(1);
     await expect(resolution).toBeVisible();
     const matchForm = resolution.locator("form").filter({
-      has: page.getByLabel("Match to member"),
+      has: page.getByLabel("Student"),
     });
     await expect(matchForm).toHaveCount(1);
-    const matchTarget = matchForm.getByLabel("Match to member");
-    const matchReason = matchForm.getByLabel("Match reason");
+    const matchTarget = matchForm.getByLabel("Student");
+    const matchReason = matchForm.getByLabel(
+      "How did you identify this student?",
+    );
     const useMatch = matchForm.getByRole("button", {
-      name: "Use match",
+      name: "Match",
       exact: true,
     });
     const resolutionReason =
       "Seeded Class of 2028 record matches this historical workbook row.";
-    await matchTarget.selectOption({ value: fixture.profileId });
-    await expect(matchTarget).toHaveValue(fixture.profileId);
+    await matchTarget.click();
+    await page
+      .getByRole("combobox", { name: "Search students" })
+      .fill("Aarav Mehta");
+    await page.getByRole("option", { name: /Aarav Mehta/ }).click();
+    await expect(matchForm.locator('input[name="profileId"]')).toHaveValue(
+      fixture.profileId,
+    );
     await matchReason.fill(resolutionReason);
     await expect(matchReason).toHaveValue(resolutionReason);
     await Promise.all([
@@ -506,10 +514,10 @@ test.describe("CSF historical workbook import", () => {
       useMatch.click(),
     ]);
     await expect(
-      page.getByText("Import row matched and ready.", { exact: true }),
+      page.getByText("Student matched.", { exact: true }),
     ).toBeVisible();
     await expect(matchForm).toHaveAttribute("aria-busy", "false");
-    await expect(matchTarget).toHaveValue("");
+    await expect(matchTarget).toHaveText("Search students…");
     await expect(matchReason).toHaveValue("");
 
     await expect

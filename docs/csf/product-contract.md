@@ -821,7 +821,7 @@ Clubs keep applying and renewing through the existing Google Form. An officer up
 
 **Purpose:** Safely convert Drive/Sheet source data into normalized records.<br>
 **Primary users:** Import operators and adviser.<br>
-**Shows:** a chapter-wide Application Sheet dialog with source selection, preview counts, and unresolved decisions. Disclosures retain Google account controls, column matches, the normalized snapshot, paged source rows, and import history with recorded outcomes and retry ancestry.<br>
+**Shows:** a chapter-wide response import. Connect a Sheet selects the source; Match students shows unresolved responses and a searchable student picker. Sheet settings holds Google account controls, mappings, source details, and import history with recorded outcomes and retry ancestry.<br>
 **Primary actions:** Start import; continue reconciliation; commit valid rows; retry corrected rows.<br>
 **Secondary actions:** Open source; download sanitized error report; compare mapping; open generated records.<br>
 **Filters/search:** Source type, status, operator, date, term.<br>
@@ -1235,7 +1235,7 @@ The same domain evaluator powers member UI, officer tables, reports, exports, an
 
 ### 12.2 Workspace sections and controls
 
-The import workspace is not a step wizard. Applications use one chapter-wide Application Sheet dialog. It shows source selection, a short preview, and unresolved decisions. Column matches, source evidence, and previous checks sit behind disclosures. Existing recorded job state controls readiness and recovery.
+The import workspace is not a step wizard. Applications use a chapter-wide dialog with separate matching and Sheet settings views. Matching shows unresolved responses and one searchable student picker. Settings contains source setup, mappings, evidence, and history. Recorded job state controls readiness and recovery.
 
 #### 12.2.1 Recorded import stages
 
@@ -1278,8 +1278,8 @@ The import workspace is not a step wizard. Applications use one chapter-wide App
 #### 12.2.6 Normalized rows and paging
 
 - The row table is a bounded display slice of one preview, ordered deterministically, with the position held in the URL so a page survives reload, sharing, and browser history.
-- Controls are **First rows**, **Previous rows**, and **Next rows**, in a labelled navigation region. A single-page preview renders none of them.
-- The control group states, on every page, that counts and import readiness describe the whole preview and not the visible page. A cursor that no longer selects rows says so and still offers **First rows**; it never renders as an empty preview.
+- Controls are **First**, **Previous**, and **Next**, in a labelled navigation region. A single-page preview renders none of them.
+- A cursor that no longer selects rows shows an empty-page message and still offers **First**. It never presents that page as an empty preview.
 - No count, badge, blocker, or commit decision is ever derived from the visible page. Readiness is server-counted across the whole preview.
 
 #### 12.2.7 Reconciliation decisions
