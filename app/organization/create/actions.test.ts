@@ -30,22 +30,12 @@ function serverClient() {
     auth: {
       getUser: async () => ({ data: { user: authUser }, error: null }),
     },
+    async rpc(name: string, args: { p_user: string }) {
+      expect(name).toBe("is_trusted_member");
+      expect(authUser?.id).toBe(args.p_user);
+      return { data: profileTrustedMember === true, error: null };
+    },
     from(table: string) {
-      if (table === "profiles") {
-        return {
-          select: () => ({
-            eq: () => ({
-              single: async () => ({
-                data:
-                  profileTrustedMember === null
-                    ? null
-                    : { trusted_member: profileTrustedMember },
-                error: null,
-              }),
-            }),
-          }),
-        };
-      }
       if (table === "trusted_member") {
         return {
           select: () => ({
@@ -181,6 +171,28 @@ describe("checkOrgUsername", () => {
 });
 
 describe("createOrganization reserved-slug enforcement", () => {
+  test("denies an untrusted caller before creating an organization", async () => {
+    profileTrustedMember = false;
+    const result = await createOrganization({
+      ...baseCreateData,
+      username: "acme-nonprofit",
+    });
+    expect(result.error).toContain("Only Trusted Members");
+    expect(insertedOrganizations).toHaveLength(0);
+    expect(insertedMembers).toHaveLength(0);
+  });
+
+  test("preserves the accepted application fallback", async () => {
+    profileTrustedMember = false;
+    trustedMemberAppStatus = true;
+    const result = await createOrganization({
+      ...baseCreateData,
+      username: "acme-nonprofit",
+    });
+    expect(result.error).toBeUndefined();
+    expect(insertedOrganizations).toHaveLength(1);
+  });
+
   test("refuses the reserved username 'create' with a truthful error and never inserts", async () => {
     const result = await createOrganization({
       ...baseCreateData,

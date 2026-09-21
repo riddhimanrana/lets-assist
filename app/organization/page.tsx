@@ -63,12 +63,10 @@ export default async function OrganizationsPage() {
   let isTrusted = false;
   let applicationStatus: boolean | null | undefined = undefined;
   if (user) {
-    const { data: profile } = await supabase
-      .from("profiles")
-      .select("trusted_member")
-      .eq("id", user.id)
-      .single();
-    isTrusted = !!profile?.trusted_member;
+    const { data: isTrustedMember } = await supabase.rpc("is_trusted_member", {
+      p_user: user.id,
+    });
+    isTrusted = isTrustedMember === true;
 
     const { data: tmApp } = await supabase
       .from("trusted_member")
