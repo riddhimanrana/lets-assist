@@ -368,3 +368,72 @@ test("oversized reference requests fail before reading manifests", async () => {
   ).rejects.toThrow("Too many printed references");
   expect(queried).toEqual([]);
 });
+
+const aliasSlot = { startTime: "10:00", endTime: "12:00", volunteers: 20 };
+for (const fixture of [
+  {
+    event_type: "oneTime",
+    schedule: { oneTime: { date: "2026-09-20", ...aliasSlot } },
+    aliases: ["oneTime", "0", "default"],
+    otherSession: "unknown",
+  },
+  {
+    event_type: "multiDay",
+    schedule: {
+      multiDay: [{ date: "2026-09-20", slots: [aliasSlot, aliasSlot] }],
+    },
+    aliases: ["2026-09-20-0-0", "2026-09-20-0", "0-0", "day-0-slot-0"],
+    otherSession: "2026-09-20-0-1",
+  },
+  {
+    event_type: "sameDayMultiArea",
+    schedule: {
+      sameDayMultiArea: {
+        date: "2026-09-20",
+        overallStart: "10:00",
+        overallEnd: "12:00",
+        roles: [
+          { name: "Setup", ...aliasSlot },
+          { name: "Cleanup", ...aliasSlot },
+        ],
+      },
+    },
+    aliases: ["Setup", "role-0"],
+    otherSession: "Cleanup",
+  },
+]) {
+  test(`${fixture.event_type} printed references retain exact roster identity across supported session aliases`, async () => {
+    Object.assign(tables.projects[0], {
+      event_type: fixture.event_type,
+      schedule: fixture.schedule,
+    });
+    for (const requested of fixture.aliases) {
+      for (const sheetSession of fixture.aliases) {
+        tables.project_attendance_print_sheets[0].schedule_id = sheetSession;
+        for (const signupSession of fixture.aliases) {
+          tables.project_signups[0].schedule_id = signupSession;
+          expect(
+            await resolveAttendancePrintReference({
+              ...input,
+              scheduleId: requested,
+            }),
+          ).toEqual({
+            signupId,
+            rowKind: "signup",
+            rowNumber: 1,
+          });
+        }
+      }
+    }
+    const request = { ...input, scheduleId: fixture.aliases[0] };
+    tables.project_signups[0].schedule_id = fixture.otherSession;
+    expect(await resolveAttendancePrintReference(request)).toBeNull();
+    tables.project_signups[0].schedule_id = fixture.aliases.at(-1);
+    tables.project_signups[0].project_id = other;
+    expect(await resolveAttendancePrintReference(request)).toBeNull();
+    tables.project_signups[0].project_id = projectId;
+    tables.project_attendance_print_sheets[0].schedule_id =
+      fixture.otherSession;
+    expect(await resolveAttendancePrintReference(request)).toBeNull();
+  });
+}

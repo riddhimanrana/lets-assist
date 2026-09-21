@@ -8,7 +8,8 @@ import {
   canManageProjectAccess,
 } from "@/lib/projects/management-access";
 import { getAttendanceScheduleWindow } from "@/lib/attendance/challenge";
-import { getMultiDaySlotDisplayName, resolveScheduleId } from "@/utils/project";
+import { getMultiDaySlotDisplayName } from "@/utils/project";
+import { getScheduleIdAliases } from "@/lib/projects/hours-publish-key";
 import type { Project } from "@/types";
 import type { AttendancePrintSession } from "./print-types";
 
@@ -146,8 +147,12 @@ export async function resolveAuthorizedAttendancePrintReferences(
       }).success,
   );
   if (!valid.length) return empty;
-  const scheduleId = resolveScheduleId(access.project, input.scheduleId);
-  if (!getAttendanceScheduleWindow(access.project, scheduleId)) return empty;
+  const scheduleIds = getScheduleIdAliases(access.project, input.scheduleId);
+  if (
+    !scheduleIds.length ||
+    !getAttendanceScheduleWindow(access.project, scheduleIds[0])
+  )
+    return empty;
 
   const sheetIds = new Set<string>();
   for (const ids of chunks([
@@ -157,7 +162,7 @@ export async function resolveAuthorizedAttendancePrintReferences(
       .from("project_attendance_print_sheets")
       .select("id")
       .eq("project_id", input.projectId)
-      .eq("schedule_id", scheduleId)
+      .in("schedule_id", scheduleIds)
       .in("id", ids);
     if (error) throw new Error(`Failed to load printed sheets: ${error.code}`);
     for (const sheet of data ?? []) sheetIds.add(sheet.id);
@@ -207,7 +212,7 @@ export async function resolveAuthorizedAttendancePrintReferences(
       .from("project_signups")
       .select("id, user_id, anonymous_id")
       .eq("project_id", input.projectId)
-      .eq("schedule_id", scheduleId)
+      .in("schedule_id", scheduleIds)
       .in("status", ["approved", "attended"])
       .in("id", ids);
     if (error)
