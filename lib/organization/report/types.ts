@@ -79,6 +79,10 @@ export type CertificateRow = {
 };
 
 export type SignupRow = {
+  project_attendance_intervals?: Array<{
+    check_in_time: string;
+    check_out_time: string | null;
+  }> | null;
   id: string;
   user_id?: string | null;
   anonymous_id?: string | null;
