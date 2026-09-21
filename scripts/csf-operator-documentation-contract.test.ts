@@ -243,7 +243,7 @@ const IMPORTS: LabelContract[] = [
   },
   {
     component: "CsfImportRowPager.tsx",
-    labels: ["First rows", "Previous rows", "Next rows"],
+    labels: ["First", "Previous", "Next"],
   },
 ];
 
@@ -753,8 +753,17 @@ describe("CSF operator documentation truthfulness guards", () => {
     const overview = readComponent("CsfSheetImportOverview.tsx");
     expect(overview).not.toContain('aria-label="Import progress"');
     expect(readComponent("CsfApplicationImportDialog.tsx")).toContain(
-      "<DialogTitle>Application Sheet</DialogTitle>",
+      "<DialogTitle>{title}</DialogTitle>",
     );
+    const workspace = readComponent("CsfSheetImportWorkspace.tsx");
+    for (const title of [
+      "Connect a Sheet",
+      "Match students",
+      "Sheet settings",
+    ]) {
+      expect(workspace).toContain(`"${title}"`);
+      expect(operatorGuide).toContain(`**${title}**`);
+    }
     const controller = readComponent("CsfSheetImportWorkspaceController.ts");
     for (const stage of [
       "Source",
@@ -771,13 +780,17 @@ describe("CSF operator documentation truthfulness guards", () => {
       "The import workspace is not a step wizard.",
     );
     expect(productContract).not.toContain("### 12.2 Wizard steps");
-    expect(operatorGuide).toContain("**Application Sheet** dialog");
   });
 
   test("row paging never stands in for whole-preview readiness", () => {
-    const pager = readComponent("CsfImportRowPager.tsx");
-    expect(pager).toContain(
-      "Counts and import readiness describe the whole preview, not this page.",
+    const controller = readComponent("CsfSheetImportWorkspaceController.ts");
+    expect(controller).toContain(
+      "const readiness = previewReadiness ?? EMPTY_CSF_IMPORT_PREVIEW_READINESS;",
+    );
+    expect(controller).toContain("const readyCount = readiness.pending;");
+    expect(controller).toContain("const previewRows = readiness.total;");
+    expect(controller).toContain(
+      "getCsfImportPreviewBlockers(latestPreview, readiness)",
     );
     expect(operatorGuide).toContain(
       "Counts and import readiness describe the whole preview, not this page.",
