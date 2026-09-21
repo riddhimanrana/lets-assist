@@ -3285,7 +3285,7 @@
     },
     {
       "identity": "function:private.publish_volunteer_hours_transactional_legacy_status_fallback(p_actor_id uuid, p_project_id uuid, p_schedule_id text, p_entries jsonb, p_request_key text)",
-      "digest": "e1cf34af0fe99ac55005cd4a69568fed"
+      "digest": "711e1d4b809b09c6c1b339368e96733d"
     },
     {
       "identity": "function:private.record_organization_autojoin_suppression()",

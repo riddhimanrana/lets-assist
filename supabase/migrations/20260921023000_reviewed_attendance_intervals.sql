@@ -1055,6 +1055,10 @@ DECLARE
   v_intervals jsonb;
   v_signup public.project_signups%ROWTYPE;
   v_exception_reason text;
+  v_exception_source jsonb;
+  v_old_intervals jsonb;
+  v_minutes integer;
+  v_revision integer;
   v_project public.projects%ROWTYPE;
   v_publish_key text;
   v_entries jsonb;
@@ -1122,6 +1126,15 @@ BEGIN
   );
   IF v_publish_key IS NULL THEN
     RAISE EXCEPTION USING ERRCODE = '22023', MESSAGE = 'project session is not valid';
+  END IF;
+
+  IF EXISTS (
+    SELECT 1 FROM jsonb_array_elements(p_entries) entry
+    WHERE entry ? 'timeExceptionReason'
+      AND (jsonb_typeof(entry->'timeExceptionReason') NOT IN ('string','null')
+        OR char_length(btrim(entry->>'timeExceptionReason')) > 1000)
+  ) THEN
+    RAISE EXCEPTION 'invalid attendance exception reason' USING ERRCODE='22023';
   END IF;
 
   BEGIN
@@ -1292,8 +1305,10 @@ BEGIN
     IF v_entry ? 'attendanceRevision' AND (v_entry->>'attendanceRevision')::integer IS DISTINCT FROM v_signup.attendance_revision THEN
       RAISE EXCEPTION 'attendance changed; refresh before publishing' USING ERRCODE='40001';
     END IF;
-    v_intervals:=private.signup_attendance_intervals(v_signup.id);
+    v_old_intervals:=private.signup_attendance_intervals(v_signup.id);
+    v_intervals:=v_old_intervals;
     v_exception_reason:=v_entry->>'timeExceptionReason';
+    v_exception_source:=CASE WHEN v_exception_reason IS NOT NULL THEN jsonb_build_object('kind','direct') END;
     IF v_entry ? 'intervals' THEN
       v_intervals:=v_entry->'intervals';
     ELSIF v_intervals='[]'::jsonb THEN
@@ -1306,11 +1321,19 @@ BEGIN
     -- A reviewed paper exception already has an actor-approved reason. Reuse
     -- that reason only when publication preserves those exact intervals.
     IF private.signup_attendance_intervals(v_signup.id)=v_intervals AND v_exception_reason IS NULL THEN
-      SELECT rows.time_exception_reason INTO v_exception_reason FROM public.project_paper_scan_rows rows
-        WHERE rows.committed_signup_id=v_signup.id AND rows.outcome<>'skipped' AND rows.review_acknowledged;
+      SELECT rows.time_exception_reason,
+        jsonb_build_object('kind','paper','scanRowId',rows.id,'reviewRevision',rows.review_revision)
+        INTO v_exception_reason,v_exception_source FROM public.project_paper_scan_rows rows
+        WHERE rows.committed_signup_id=v_signup.id AND rows.outcome<>'skipped' AND rows.review_acknowledged
+          AND CASE WHEN jsonb_array_length(rows.attendance_intervals)>0 THEN rows.attendance_intervals=v_intervals
+            ELSE rows.check_in_time IS NOT NULL AND rows.check_out_time>rows.check_in_time
+              AND jsonb_build_array(jsonb_build_object('checkIn',rows.check_in_time,'checkOut',rows.check_out_time))=v_intervals END;
       IF v_exception_reason IS NULL THEN
-        SELECT changes.reason INTO v_exception_reason FROM private.project_attendance_changes changes
-          WHERE changes.signup_id=v_signup.id AND changes.new_revision=v_signup.attendance_revision;
+        SELECT changes.reason,jsonb_build_object('kind','attendance_change','changeId',changes.id)
+          INTO v_exception_reason,v_exception_source FROM private.project_attendance_changes changes
+          WHERE changes.signup_id=v_signup.id AND changes.new_revision=v_signup.attendance_revision
+            AND changes.new_intervals=v_intervals
+          ORDER BY changes.created_at DESC,changes.id DESC LIMIT 1;
       END IF;
     END IF;
     -- Preserve exact legacy duration. Canonical awards also require the same
@@ -1330,7 +1353,25 @@ BEGIN
       RAISE EXCEPTION USING ERRCODE = '23505',
         MESSAGE = 'existing certificate attendance differs; use the correction workflow';
     END IF;
-    PERFORM private.set_project_attendance_intervals(v_signup.id,v_intervals,v_exception_reason);
+    v_minutes:=private.set_project_attendance_intervals(v_signup.id,v_intervals,v_exception_reason);
+    IF v_exception_reason IS NOT NULL THEN
+      SELECT attendance_revision INTO v_revision FROM public.project_signups WHERE id=v_signup.id;
+      -- Publication records the review decision without claiming an award correction.
+      INSERT INTO private.project_attendance_changes(signup_id,project_id,actor_id,request_id,request_payload,reason,
+        old_intervals,new_intervals,old_credited_minutes,new_credited_minutes,old_revision,new_revision,result)
+      VALUES(v_signup.id,p_project_id,v_actor_id,gen_random_uuid(),
+        jsonb_build_object('operation','publication','publicationReceiptId',v_receipt.id,'requestKey',p_request_key,
+          'signupId',v_signup.id,'actorId',v_actor_id,'scheduleId',v_publish_key,'reasonSource',v_exception_source,
+          'oldCheckIn',v_signup.check_in_time,'oldCheckOut',v_signup.check_out_time,
+          'oldAttendanceMinutes',CASE WHEN v_old_intervals<>'[]'::jsonb THEN private.attendance_interval_minutes(v_old_intervals)::numeric
+            WHEN v_signup.check_out_time>v_signup.check_in_time THEN extract(epoch FROM v_signup.check_out_time-v_signup.check_in_time)/60 END,
+          'oldAwardCreditedMinutes',(SELECT COALESCE(certificate.credited_minutes::numeric,
+            extract(epoch FROM certificate.event_end-certificate.event_start)/60) FROM public.certificates certificate
+            WHERE certificate.signup_id=v_signup.id AND certificate.type='verified')),
+        v_exception_reason,v_old_intervals,v_intervals,NULL,v_minutes,v_signup.attendance_revision,v_revision,
+        jsonb_build_object('outcome','published','publicationReceiptId',v_receipt.id,'signupId',v_signup.id,
+          'attendanceRevision',v_revision,'creditedMinutes',v_minutes));
+    END IF;
   END LOOP;
 
   UPDATE public.project_signups AS signups
