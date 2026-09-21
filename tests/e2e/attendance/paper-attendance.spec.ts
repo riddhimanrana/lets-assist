@@ -864,9 +864,19 @@ test("fictional guest attendance prints, publishes, exports, corrects, and links
       await expect(
         guestPage.getByText("Volunteer Hours Published!", { exact: true }),
       ).toBeVisible();
+      const feedback = guestPage.getByRole("dialog", {
+        name: "How did volunteering here go?",
+        exact: true,
+      });
+      await expect(feedback).toBeVisible();
+      await feedback
+        .getByRole("button", { name: "Close", exact: true })
+        .click();
+      await expect(feedback).not.toBeVisible();
       const volunteerTotal = guestPage
         .getByText("Total Hours:", { exact: true })
         .locator("..");
+      await expect(volunteerTotal).toBeVisible();
       await expect(volunteerTotal).toContainText("2h 30m");
       await expect(volunteerTotal).not.toContainText("3h 30m");
       if (!env.hosted)
