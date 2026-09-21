@@ -341,15 +341,17 @@ account_, and the product refuses to select files until it is corrected.
 
 ### Build and reconcile the preview
 
-For applications, select **Link Google Sheet** to open the **Application Sheet**
-dialog. Choose one chapter-wide response Sheet. Classes come from each row's
-grade and source semester, not the class filter in Applications. Confirm the
-semester found in the Sheet, or select it if it is missing. Select **Continue**
-to prepare the preview. Column matches appear under **Check column matches**;
-AI-proposed matches open for confirmation. The first application needing an
-officer decision opens by default. **Sheet details**, **View applications and
-class assignments**, and **Previous checks** retain the evidence without a
-seven-step strip. Closing the dialog returns to application review.
+For applications, select **Link Google Sheet** to open **Connect a Sheet**.
+Choose a chapter-wide response Sheet and confirm its semester. Classes come
+from each row's grade and source semester. Select **Continue** to prepare the
+preview.
+
+**Match students** shows unresolved responses. Open the student picker, search
+by name or email, check the class and contact details, and select **Match**.
+Routine matches receive a server-checked audit reason. Add a reason when the
+student's identity remains uncertain. **Sheet settings** contains source setup,
+column mappings, and import history. Closing the dialog returns to Applications.
+Matching a response does not connect an account or release a decision.
 
 The manual mapping fallback and class-source tools retain these controls:
 
@@ -374,17 +376,13 @@ The manual mapping fallback and class-source tools retain these controls:
    duplicate header names stay distinct.
 8. Select **Preview normalized rows**. Previewing does not import anything.
 
-The preview header carries four counts — **Rows**, **Ready**, **Existing**,
-**Needs review** — plus a **Normalized snapshot** block with the normalized row
-count, abbreviated snapshot and source digests, a not-retained field count, and
-badges for hidden, filtered, or formula-only rows. Record a reason for every
-manual match (**Use match**) and every **Skip row**.
+The general import preview shows **Rows**, **Ready**, **Existing**, and
+**Needs review**. **Sheet details** contains the **Normalized snapshot**, its
+source digests, and any hidden, filtered, or formula-only rows.
 
-**Normalized rows** below it shows one page at a time. Page it with **First
-rows**, **Previous rows**, and **Next rows**. Read the line those controls
-carry: _Counts and import readiness describe the whole preview, not this page._
-Never treat the visible page as the reconciliation total, and never conclude a
-preview is clean because the page you are on looks clean.
+**Normalized rows** shows one page at a time. Use **First**, **Previous**, and
+**Next** to page through it. Counts and import readiness describe the whole
+preview, not this page. The server checks every row before allowing an import.
 
 ### Commit
 

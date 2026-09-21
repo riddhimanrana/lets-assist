@@ -362,6 +362,21 @@ export function acceptedCatalogQuery(source, versions) {
   }
   if (
     ledgerDigest(versions) ===
+    "4e96d37cd4e572aecc101b27f9c20806c5f6c02c2b36b6bc4d86ce4556e9f0a7"
+  ) {
+    return finalSchemaCatalog(
+      JSON.parse(
+        readFileSync(
+          new URL("./final-schema-638.json", import.meta.url),
+          "utf8",
+        ),
+      ),
+      versions,
+    );
+  }
+
+  if (
+    ledgerDigest(versions) ===
     "fe689bbb1a464e61f0fec66784ba922b2a168a5df572ee001cfb7e1a38962407"
   ) {
     return finalSchemaCatalog(
