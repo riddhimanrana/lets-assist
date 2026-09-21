@@ -3553,7 +3553,11 @@
     },
     {
       "identity": "function:public.create_attendance_print_sheet(p_project_id uuid, p_schedule_id text, p_actor_id uuid, p_blank_rows integer, p_continuation_rows integer)",
-      "digest": "874a99c7c2d5e1eb57a130bc77cc6614"
+      "digest": "08feec7a5e4a1fc5d697a3ece27599e7"
+    },
+    {
+      "identity": "function:public.create_attendance_print_sheets(p_project_id uuid, p_schedule_ids text[], p_actor_id uuid, p_blank_rows integer, p_continuation_rows integer, p_request_id uuid)",
+      "digest": "0d75c461922253f00e3907d2b1e69f18"
     },
     {
       "identity": "function:public.create_manual_attendance_batch(p_project_id uuid, p_schedule_id text, p_actor_id uuid, p_request_id uuid)",
@@ -4710,6 +4714,10 @@
     {
       "identity": "relation:private.anonymous_feedback_email_preferences",
       "digest": "f60ff083b9dff9105630e73c7ff9543f"
+    },
+    {
+      "identity": "relation:private.attendance_print_requests",
+      "digest": "fdb4794b995baaefef8c298e71f6ce95"
     },
     {
       "identity": "relation:private.corrected_certificate_delivery_requests",

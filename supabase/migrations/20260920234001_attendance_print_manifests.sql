@@ -63,7 +63,8 @@ DECLARE
   v_count integer;
   v_schedule_key text;
 BEGIN
-  IF NOT app_private.can_manage_project(p_project_id, p_actor_id) THEN
+  SELECT * INTO v_project FROM public.projects WHERE id = p_project_id FOR UPDATE;
+  IF NOT FOUND OR NOT private.lock_attendance_management(p_project_id, p_actor_id) THEN
     RAISE EXCEPTION 'Not authorized to print this project' USING ERRCODE = '42501';
   END IF;
   IF p_blank_rows IS NULL OR p_blank_rows NOT BETWEEN 0 AND 100
@@ -71,7 +72,6 @@ BEGIN
     OR p_schedule_id IS NULL OR length(p_schedule_id) NOT BETWEEN 1 AND 200 THEN
     RAISE EXCEPTION 'Invalid print options' USING ERRCODE = '22023';
   END IF;
-  SELECT * INTO v_project FROM public.projects WHERE id = p_project_id FOR UPDATE;
   v_schedule_key:=private.project_hours_publish_key(v_project.event_type,v_project.schedule,p_schedule_id);
   IF v_schedule_key IS NULL THEN
     RAISE EXCEPTION 'Invalid schedule session' USING ERRCODE = '22023';
@@ -117,3 +117,64 @@ REVOKE ALL ON FUNCTION public.create_attendance_print_sheet(uuid, text, uuid, in
   FROM PUBLIC, anon, authenticated, service_role;
 GRANT EXECUTE ON FUNCTION public.create_attendance_print_sheet(uuid, text, uuid, integer, integer)
   TO service_role;
+
+
+CREATE TABLE private.attendance_print_requests (
+  request_id uuid PRIMARY KEY,
+  project_id uuid NOT NULL REFERENCES public.projects(id) ON DELETE CASCADE,
+  actor_id uuid NOT NULL,
+  request_payload jsonb NOT NULL CHECK (jsonb_typeof(request_payload)='object'),
+  sheets jsonb NOT NULL CHECK (jsonb_typeof(sheets)='array'),
+  created_at timestamptz NOT NULL DEFAULT now()
+);
+CREATE INDEX attendance_print_requests_project_idx ON private.attendance_print_requests(project_id);
+ALTER TABLE private.attendance_print_requests ENABLE ROW LEVEL SECURITY;
+REVOKE ALL ON private.attendance_print_requests FROM PUBLIC,anon,authenticated,service_role;
+GRANT ALL ON private.attendance_print_requests TO postgres;
+
+CREATE FUNCTION public.create_attendance_print_sheets(
+  p_project_id uuid,p_schedule_ids text[],p_actor_id uuid,
+  p_blank_rows integer,p_continuation_rows integer,p_request_id uuid
+) RETURNS jsonb LANGUAGE plpgsql SECURITY DEFINER SET search_path='' AS $$
+DECLARE
+  v_prior private.attendance_print_requests%ROWTYPE;
+  v_payload jsonb;
+  v_sheets jsonb:='[]'::jsonb;
+  v_schedule_id text;
+  v_sheet_id uuid;
+BEGIN
+  PERFORM id FROM public.projects WHERE id=p_project_id FOR UPDATE;
+  IF NOT FOUND OR NOT private.lock_attendance_management(p_project_id,p_actor_id) THEN
+    RAISE EXCEPTION 'Not authorized to print this project' USING ERRCODE='42501';
+  END IF;
+  IF p_request_id IS NULL OR p_schedule_ids IS NULL OR cardinality(p_schedule_ids) NOT BETWEEN 1 AND 50
+    OR array_ndims(p_schedule_ids) IS DISTINCT FROM 1 OR array_position(p_schedule_ids,NULL) IS NOT NULL
+    OR EXISTS(SELECT 1 FROM unnest(p_schedule_ids) id WHERE length(id) NOT BETWEEN 1 AND 200)
+    OR (SELECT count(DISTINCT id) FROM unnest(p_schedule_ids) id)<>cardinality(p_schedule_ids)
+    OR p_blank_rows IS NULL OR p_blank_rows NOT BETWEEN 0 AND 100
+    OR p_continuation_rows IS NULL OR p_continuation_rows NOT BETWEEN 0 AND 30 THEN
+    RAISE EXCEPTION 'Invalid print options' USING ERRCODE='22023';
+  END IF;
+  -- A request UUID cannot create sheets in two projects concurrently.
+  PERFORM pg_advisory_xact_lock(hashtextextended('lets-assist-attendance-print:'||p_request_id::text,0));
+  v_payload:=jsonb_build_object('projectId',p_project_id,'actorId',p_actor_id,
+    'scheduleIds',to_jsonb(p_schedule_ids),'blankRows',p_blank_rows,'continuationRows',p_continuation_rows);
+  SELECT * INTO v_prior FROM private.attendance_print_requests WHERE request_id=p_request_id;
+  IF FOUND THEN
+    IF v_prior.request_payload IS DISTINCT FROM v_payload THEN
+      RAISE EXCEPTION 'print request key reused' USING ERRCODE='22023';
+    END IF;
+    RETURN v_prior.sheets;
+  END IF;
+  FOREACH v_schedule_id IN ARRAY p_schedule_ids LOOP
+    v_sheet_id:=public.create_attendance_print_sheet(p_project_id,v_schedule_id,p_actor_id,p_blank_rows,p_continuation_rows);
+    v_sheets:=v_sheets||jsonb_build_array(jsonb_build_object('sheet_id',v_sheet_id,'schedule_id',v_schedule_id));
+  END LOOP;
+  INSERT INTO private.attendance_print_requests(request_id,project_id,actor_id,request_payload,sheets)
+    VALUES(p_request_id,p_project_id,p_actor_id,v_payload,v_sheets);
+  RETURN v_sheets;
+END;
+$$;
+REVOKE ALL ON FUNCTION public.create_attendance_print_sheets(uuid,text[],uuid,integer,integer,uuid)
+  FROM PUBLIC,anon,authenticated,service_role;
+GRANT EXECUTE ON FUNCTION public.create_attendance_print_sheets(uuid,text[],uuid,integer,integer,uuid) TO service_role;
