@@ -17,6 +17,7 @@ const creator = {
   creator_synced_at: null,
 };
 let queryError = false;
+let legacyReconnectRequired = false;
 let creatorRows: unknown[] = [creator];
 const reads: { table: string; fields: string; filters: string[][] }[] = [];
 mock.module("@/lib/supabase/server", () => ({
@@ -74,13 +75,21 @@ mock.module("@/lib/supabase/server", () => ({
 }));
 mock.module("@/services/calendar", () => ({
   getCalendarConnection: async () => null,
-  hasLegacyGoogleOAuthReconnectRequired: async () => false,
+  hasLegacyGoogleOAuthReconnectRequired: async () => legacyReconnectRequired,
 }));
 const { getCalendarData } = await import("./calendar-settings-data");
 beforeEach(() => {
   reads.length = 0;
   queryError = false;
+  legacyReconnectRequired = false;
   creatorRows = [creator];
+});
+
+test("preserves the reconnect notice for an unbound legacy calendar connection", async () => {
+  legacyReconnectRequired = true;
+  const result = await getCalendarData("fictional-user");
+  expect(result.connection).toBeNull();
+  expect(result.legacyReconnectRequired).toBe(true);
 });
 
 test("loads creator and signup events from canonical schedule columns within the signed-in user", async () => {
