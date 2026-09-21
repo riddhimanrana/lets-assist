@@ -356,8 +356,8 @@ test.describe("DVHS CSF proof submission", () => {
   }) => {
     const failures = watchBrowserFailures(page);
     const fixture = await loadCsfFeedFixture();
-    const description = `Synthetic phone point claim ${randomUUID()}`;
     const activityTitle = `Synthetic upload activity ${randomUUID()}`;
+    const description = activityTitle;
     await seedFeedActivities(fixture, [
       {
         title: activityTitle,
@@ -406,7 +406,9 @@ test.describe("DVHS CSF proof submission", () => {
         .getByRole("option", { name: activityTitle, exact: true })
         .click();
       await expect(dialog.getByText("Credit 1 non-drive point")).toBeVisible();
-      await dialog.getByLabel("Description").fill(description);
+      await expect(
+        dialog.getByLabel("Description", { exact: true }),
+      ).toHaveCount(0);
 
       submissionStarted = true;
       await dialog

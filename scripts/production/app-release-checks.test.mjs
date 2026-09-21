@@ -17,6 +17,7 @@ import {
   verifyAcceptance,
   verifyLedger,
   verifyQualityRuns,
+  selectQualityChecks,
   verifySchema,
   verifySource,
 } from "./app-release-checks.mjs";
@@ -164,6 +165,77 @@ test("latest trusted quality and database checks must both succeed", () => {
       runs.map((run) => ({ ...run, app: { slug: "untrusted" } })),
     ),
   );
+});
+
+test("release checks pair the latest full run and ignore later PR database skips", () => {
+  const check = (name, id, runId = 43, conclusion = "success") => ({
+    name,
+    id,
+    status: "completed",
+    conclusion,
+    app: { slug: "github-actions" },
+    details_url: `https://github.com/${repository}/actions/runs/${runId}/job/${id}`,
+  });
+  const full = [check("full-quality", 10), check("db-replay-validation", 11)];
+  const pr = [
+    check("pr-quality", 20, 44),
+    check("db-replay-validation", 21, 44, "skipped"),
+  ];
+  assert.deepEqual(selectQualityChecks([...full, ...pr], repository), full);
+  for (const conclusion of ["failure", "cancelled", "skipped"]) {
+    assert.throws(
+      () =>
+        selectQualityChecks(
+          [...full, ...pr, check("db-replay-validation", 22, 43, conclusion)],
+          repository,
+        ),
+      /not successful/,
+    );
+    assert.throws(
+      () =>
+        selectQualityChecks(
+          [
+            ...full,
+            check("full-quality", 30, 45, conclusion),
+            check("db-replay-validation", 31, 45),
+          ],
+          repository,
+        ),
+      /not successful/,
+    );
+  }
+  assert.throws(
+    () =>
+      selectQualityChecks(
+        [
+          ...full,
+          { ...check("full-quality", 30, 45), status: "in_progress" },
+          check("db-replay-validation", 31, 45),
+        ],
+        repository,
+      ),
+    /not successful/,
+  );
+  assert.throws(
+    () =>
+      selectQualityChecks([...full, check("full-quality", 30, 45)], repository),
+    /same run/,
+  );
+  assert.throws(
+    () =>
+      selectQualityChecks(
+        [
+          ...full,
+          {
+            ...check("full-quality", 30),
+            details_url: "https://untrusted.test/actions/runs/43/job/30",
+          },
+        ],
+        repository,
+      ),
+    /trusted workflow/,
+  );
+  assert.throws(() => selectQualityChecks(pr, repository), /trusted workflow/);
 });
 
 test("source verification pins clean Git trees and the required CI workflow", async (t) => {

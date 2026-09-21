@@ -79,6 +79,39 @@ export function verifyQualityRuns(runs) {
   }
 }
 
+export function selectQualityChecks(runs, repository) {
+  const prefix = `https://github.com/${repository}/actions/runs/`;
+  const runId = (check) =>
+    check?.details_url?.startsWith(prefix)
+      ? check.details_url.slice(prefix.length).match(/^(\d+)\/job\/\d+$/u)?.[1]
+      : undefined;
+  const latestQuality = runs
+    .filter(
+      (check) =>
+        check.name === "full-quality" && check.app?.slug === "github-actions",
+    )
+    .sort((a, b) => b.id - a.id)[0];
+  const selectedRunId = runId(latestQuality);
+  if (!selectedRunId)
+    throw new ReleaseCheckError(
+      "Required CI check has no trusted workflow run.",
+    );
+  // PRs intentionally skip the database job. Pair checks within the latest full
+  // run, retaining its newest attempts and failures instead of using a PR skip.
+  const selected = runs.filter(
+    (check) =>
+      ["full-quality", "db-replay-validation"].includes(check.name) &&
+      check.app?.slug === "github-actions" &&
+      runId(check) === selectedRunId,
+  );
+  if (!selected.some((check) => check.name === "db-replay-validation"))
+    throw new ReleaseCheckError(
+      "Full quality and database checks must belong to the same run.",
+    );
+  verifyQualityRuns(selected);
+  return selected;
+}
+
 export function performanceWaiver(
   { confirmation, reason, actor, runId },
   releaseSha,
@@ -246,10 +279,13 @@ export async function verifySource(
       throw new ReleaseCheckError(
         "Application checks exceed the bounded inventory.",
       );
-    verifyQualityRuns(checks.check_runs ?? []);
+    const selectedChecks = selectQualityChecks(
+      checks.check_runs ?? [],
+      repository,
+    );
     const ciRuns = new Set();
     for (const name of ["full-quality", "db-replay-validation"]) {
-      const check = checks.check_runs
+      const check = selectedChecks
         .filter(
           (item) => item.name === name && item.app?.slug === "github-actions",
         )
