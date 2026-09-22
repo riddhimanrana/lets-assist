@@ -81,6 +81,16 @@ test("independent navigation reads all start before any one resolves", async () 
     userEmail: input.userEmail,
   });
   expect(calls[2].options.userRole).toBe("staff");
+  for (const { options } of calls.slice(0, 2)) {
+    expect(options.useAdminClient).toBe(true);
+    expect(options.viewerRole).toBe(input.viewerRole);
+    expect(options.organizationSlug).toBe(input.organizationSlug);
+    expect(options.organizationName).toBe(input.organizationName);
+    expect(options.target).toEqual({
+      userId: input.userId,
+      userEmail: input.userEmail,
+    });
+  }
 });
 
 test("a viewer without a current organization role starts no plugin reads", async () => {
