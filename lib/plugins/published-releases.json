@@ -10,9 +10,7 @@
     "runtimeProfile": "embedded",
     "sourceTree": "8f1bbfcb8000e468f5339e6e004ee17def0cede0",
     "contentDigest": "sha256:5b7facdf91a1338bf19373007e413e1cea168f606bec8300480ae985b660c845",
-    "releaseInputs": [
-      "plugins/dv-speech-debate"
-    ],
+    "releaseInputs": ["plugins/dv-speech-debate"],
     "buildDigest": null,
     "buildArtifact": null,
     "sbomDigest": "sha256:634933965c17e2233bfc8d3e6961d61c6aae099c6ec53ca458ba5c6ea87571a2",
@@ -42,10 +40,7 @@
     "runtimeProfile": "application",
     "sourceTree": "52d3b3cd16e6bd7739e00c1b709f148ce5242e6b",
     "contentDigest": "sha256:d39258841bc7c2ed0acb71cc3116c05ec2c13de7355fc5641b60a918873d79c3",
-    "releaseInputs": [
-      "plugins/dvhs-csf",
-      "apps/csf"
-    ],
+    "releaseInputs": ["plugins/dvhs-csf", "apps/csf"],
     "buildDigest": "sha256:4fd4efaccc47c0f3072d3ae0604b615e1026e5498b8b7322a49596f91451a772",
     "buildArtifact": {
       "format": "vercel-prebuilt-multi-env-v1",
@@ -92,9 +87,7 @@
     "runtimeProfile": "embedded",
     "sourceTree": "3adebd9cad843d913ef852f364698671b3c429ef",
     "contentDigest": "sha256:17ed14eb28740ccda5d5875dbe8bcea3351eb22dcf8475ca5774b3540f856b3d",
-    "releaseInputs": [
-      "plugins/dvhs-csf"
-    ],
+    "releaseInputs": ["plugins/dvhs-csf"],
     "buildDigest": null,
     "buildArtifact": null,
     "sbomDigest": "sha256:e73b7b114bf4a427c6be73581573c93835ae76d4ff88e8f65cdbe00d36de913c",
