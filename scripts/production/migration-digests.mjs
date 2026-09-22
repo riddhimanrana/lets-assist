@@ -1308,4 +1308,6 @@ export const migrationDigests = {
     "7a6d76e434b9cb5db9bc06c6071083ebcb5fce3ac18a05086c8b1114081ab57b",
   "20260922054001_publish_dvhs_csf_1_2_67.sql":
     "1b52ef629c49bdcb763d23ddda1e4ca051fb3926c91b76c917373e8e9e20f67c",
+  "20260922081309_publish_dvhs_csf_1_2_68.sql":
+    "f3c535d68f333a883aa672a130aa629938e82aabb40f331b2504515af3f88a7f",
 };
