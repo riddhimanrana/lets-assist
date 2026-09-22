@@ -9483,3 +9483,7 @@ release after the default timeout rolled back at 8.02 seconds. This changes only
 test data and validation. The migration, application, and access rules are
 unchanged. Hosted run 35739214107 passed on the preceding candidate; the final
 candidate still requires integrated and hosted acceptance.
+
+## Published application roster status, September 22, 2026
+
+Repository finding CSF-REVIEW-20260922-16, P2, fixed in private PR #591: after a Sheet release, the officer roster still showed Pending because it read the separate review-period decision. Application reviews now read the canonical application outcome for the badge, pending filter, detail header and assignment counts. Point review retains its own decisions. The saved decisions and member view were already correct. Twenty-five focused service tests and private CI pass; desktop and phone publication journeys now assert that approved and rejected applications leave the pending list. Production verification follows the signed 1.2.72 integration.
