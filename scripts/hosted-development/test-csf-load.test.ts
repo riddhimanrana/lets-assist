@@ -188,6 +188,10 @@ describe("hosted CSF load acceptance", () => {
     expect(source).toContain(
       "browserErrorCounts: countBrowserFailures(browserResult.browserFailures)",
     );
+    expect(source).toContain(
+      "browserDiagnostics: browserResult.browserDiagnostics",
+    );
+    expect(source).toContain("result.browserErrors === 0");
     expect(source).toContain('name: "Next subject"');
     expect(source).toContain('name: "Previous subject"');
     expect(source).toContain("applicationsRosterSearch(officerPage)");
@@ -378,7 +382,7 @@ describe("hosted CSF load acceptance", () => {
     );
   });
 
-  test("uses only known fictional accounts and emits count-only output", () => {
+  test("uses only known fictional accounts and emits sanitized diagnostics", () => {
     expect(source).toContain('from "./csf-load-fixture.mjs"');
     expect(source).toContain('required("CSF_HOSTED_LOAD_PASSWORD")');
     expect(source).not.toContain("CSF_HOSTED_LOAD_MEMBER_ACCOUNTS_JSON");
