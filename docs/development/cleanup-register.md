@@ -9454,3 +9454,9 @@ profile-based outcomes without accounts, class isolation, stale-preview refusal
 and replay without duplicate exports. The same local fixture took 5.71 seconds
 before the repair and 3.26 seconds afterward. Hosted and Production acceptance
 remain pending for this repair.
+
+The first integrated run, 35729903927, rejected the unregistered 654-entry catalog
+and migration tail before browser validation. The follow-up registers the clean
+inventory, exact SQL digest and historical controller fixture. All 95 affected
+controller and catalog tests pass locally. A new integrated run and exact-commit
+hosted Development acceptance remain required before Production.

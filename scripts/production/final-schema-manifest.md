@@ -78,3 +78,10 @@ campaigns, profile accounts, class memberships, applications, and organization
 members. Migration `20260920181754` changes import readiness and overwrite refusal
 and adds meeting-scoped preview and attendance counts. These migrations do not
 rewrite student records or send historical notices.
+
+Release 654 adds the owner-only prebuilt snapshot queue function and changes the
+destination snapshot and export trigger functions. The clean local inventory
+changes exactly those three identities and removes no objects. Focused controller
+tests bind the inventory to the 654-entry ledger and verify that the forward
+controller writes no chapter data. The historical release fixture now includes
+this reviewed migration.
