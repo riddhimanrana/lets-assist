@@ -9472,3 +9472,14 @@ The 655 forward repair gives only `csf_release_reviewed_sheet_decisions` a finit
 request. No role timeout, decision policy or account access changes. The isolated
 REST regression forces a nine-second delay, proves the default timeout rolls
 back the transaction, and checks publication and retry through the actual RPC.
+
+Integrated run 35739217145 exposed a P2 defect in that regression fixture:
+unconstrained MD5 UUIDs passed PostgreSQL but failed the notification worker's
+version and variant checks. The fixture now generates the same valid UUID layout
+in SQL and JavaScript. Its local REST test also runs the real notification worker,
+verifies one delivered decision notice, and checks that publication adds no other
+notice events. The corrected fixture passed with 600 decisions and a 14.37-second
+release after the default timeout rolled back at 8.02 seconds. This changes only
+test data and validation. The migration, application, and access rules are
+unchanged. Hosted run 35739214107 passed on the preceding candidate; the final
+candidate still requires integrated and hosted acceptance.

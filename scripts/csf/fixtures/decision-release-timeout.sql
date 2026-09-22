@@ -1,4 +1,7 @@
-CREATE FUNCTION pg_temp.fid(text) RETURNS uuid LANGUAGE sql IMMUTABLE AS $$SELECT md5('runidplaceholder' || $1)::uuid$$;
+CREATE FUNCTION pg_temp.fid(text) RETURNS uuid LANGUAGE sql IMMUTABLE AS $$
+  SELECT (substr(h,1,12) || '4' || substr(h,14,3) || '8' || substr(h,18,15))::uuid
+  FROM (SELECT md5('runidplaceholder' || $1) AS h) digest
+$$;
 INSERT INTO auth.users(id,aud,role,email,email_confirmed_at,raw_app_meta_data,raw_user_meta_data) VALUES(pg_temp.fid('officer'),'authenticated','authenticated','release-runidplaceholder@local.test',now(),'{}','{}');
 INSERT INTO public.organizations(id,name,username,type,join_code) VALUES(pg_temp.fid('org'),'Release benchmark','release-runidplaceholder','school',(100000 + mod(abs(hashtextextended('runidplaceholder',0)),900000))::text);
 INSERT INTO public.organization_members(organization_id,user_id,role,status) VALUES(pg_temp.fid('org'),pg_temp.fid('officer'),'admin','active');
