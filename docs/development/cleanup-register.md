@@ -9438,3 +9438,19 @@ CSF 1.2.69 publication passed private quality, promotion, ancestry synchronizati
 CSF-APPLICATIONS-20260922-10 remains open after hosted run 35713253405 on Development `604e66e043b0654a38310512c30792f091ce6d21`: Applications p95 was 2,768 ms against 2,500 ms. All 9,677 requests returned HTTP 200, with zero browser errors. Full integrated run 35713280716 passed 949 test files, 10,218 database assertions and the CSF/DV browser gates. Private PR #585 removes the second serial application/evidence pass through the same term. A 1,101-application regression retains every course in three paged reads instead of six. Organization, term and class filters, named tenant foreign keys, ordering, complete paging and both officer access checks remain in place. All 46 focused tests, affected ESLint and TypeScript checks pass. Signed 1.2.70 integration requires fresh full and hosted acceptance; no latency waiver is authorized.
 
 Repository finding CSF-CALENDAR-20260922-11, P2: the month calendar ignored existing shift schedules and used the outer activity range. Private PR #588 reads the validated shift components, leaves gaps empty, and keeps the original activity link and points policy. The server includes published shift activities in bounded month reads while retaining chapter, class and private-deadline restrictions. All 22 focused tests, TypeScript and affected ESLint checks pass. Private publication 35721065783 signed 1.2.71 at `fd07c59049cfbd17d7e8d0a1c104898e7e762c14`; root and hosted verification remain pending.
+
+## CSF decision release export performance, September 22
+
+A Production term release reached the statement timeout while rebuilding Sheet
+export snapshots. The transaction rolled back its decisions, memberships and
+notices. The forward repair checks destination scope before loading profile
+history and queues the snapshot already built by the change trigger. Existing
+release authorization, preview hashes, destination leases and immutable export
+receipts stay in place.
+
+The local synthetic release covers 600 ready decisions with five enabled export
+destinations, plus held, conflicting and unstaged applications. It verifies
+profile-based outcomes without accounts, class isolation, stale-preview refusal
+and replay without duplicate exports. The same local fixture took 5.71 seconds
+before the repair and 3.26 seconds afterward. Hosted and Production acceptance
+remain pending for this repair.
