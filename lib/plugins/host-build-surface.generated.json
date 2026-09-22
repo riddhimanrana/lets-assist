@@ -51,6 +51,7 @@
     "@/components/ui/badge",
     "@/components/ui/button",
     "@/components/ui/button-variants",
+    "@/components/ui/calendar",
     "@/components/ui/card",
     "@/components/ui/checkbox",
     "@/components/ui/command",
