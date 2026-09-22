@@ -13,7 +13,7 @@ const fid = (name) => {
   const hex = createHash("md5")
     .update(runId + name)
     .digest("hex");
-  return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`;
+  return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-4${hex.slice(13, 16)}-8${hex.slice(17, 20)}-${hex.slice(20)}`;
 };
 const sql = (query) => {
   const result = spawnSync(
@@ -45,7 +45,8 @@ const readback = () =>
   'memberships', (SELECT count(*) FROM plugin_data.csf_term_memberships WHERE organization_id='${fid("org")}'),
   'releases', (SELECT count(*) FROM plugin_data.csf_application_decision_releases WHERE organization_id='${fid("org")}'),
   'exports', (SELECT count(*) FROM plugin_data.csf_sheet_writeback_ledger WHERE organization_id='${fid("org")}'),
-  'notices', (SELECT count(*) FROM plugin_data.csf_publication_events WHERE organization_id='${fid("org")}' AND event_key LIKE 'application_decision:%'))`),
+  'notices', (SELECT count(*) FROM plugin_data.csf_publication_events WHERE organization_id='${fid("org")}' AND event_key LIKE 'application_decision:%'),
+  'allNotices', (SELECT count(*) FROM plugin_data.csf_publication_events WHERE organization_id='${fid("org")}'))`),
   );
 const rpc = async (functionName, body, key = env.serviceRoleKey) => {
   const started = performance.now();
@@ -150,6 +151,7 @@ try {
     1,
     "only the connected profile gets a decision event",
   );
+  assert.equal(saved.allNotices, initial.allNotices + 1);
   const replay = await rpc(name, body);
   assert.equal(replay.status, 200);
   assert.equal(replay.body.replay, true);
@@ -158,12 +160,34 @@ try {
     saved,
     "retry creates no duplicate credits, exports or notices",
   );
+  const worker = spawnSync(
+    "bun",
+    ["run", "scripts/test-csf-publication-notice-worker.ts"],
+    { encoding: "utf8", env: process.env, timeout: 60000 },
+  );
+  assert.equal(
+    worker.status,
+    0,
+    `The real notification worker must consume the release fixture: ${worker.stderr}`,
+  );
+  const deliveredNotices = Number(
+    sql(`SELECT count(*) FROM plugin_data.csf_publication_notification_deliveries d
+      JOIN plugin_data.csf_publication_events e ON e.id=d.event_id AND e.organization_id=d.organization_id
+      WHERE d.organization_id='${fid("org")}' AND d.status='delivered'
+        AND e.event_key LIKE 'application_decision:%'`),
+  );
+  assert.equal(
+    deliveredNotices,
+    1,
+    "the connected profile receives one notice",
+  );
   console.log(
     JSON.stringify({
       success: true,
       defaultTimeoutMs: Math.round(timedOut.ms),
       releaseMs: Math.round(released.ms),
       ...saved,
+      deliveredNotices,
     }),
   );
 } finally {
