@@ -9487,3 +9487,7 @@ candidate still requires integrated and hosted acceptance.
 ## Published application roster status, September 22, 2026
 
 Repository finding CSF-REVIEW-20260922-16, P2, fixed in private PR #591: after a Sheet release, the officer roster still showed Pending because it read the separate review-period decision. Application reviews now read the canonical application outcome for the badge, pending filter, detail header and assignment counts. Point review retains its own decisions. The saved decisions and member view were already correct. Twenty-five focused service tests and private CI pass; desktop and phone publication journeys now assert that approved and rejected applications leave the pending list. Production verification follows the signed 1.2.72 integration.
+
+## Failed class-history row recovery, September 22, 2026
+
+Repository finding CSF-IMPORT-20260922-17, P2, open: the class settings review offers its ordinary "Leave out" form for rows whose commit already failed. The server correctly requires failed-row recovery and refuses that form, but the class workspace does not expose the existing recovery action. Reproduced after a current-semester history import refused to replace application-backed memberships. The refused transaction and subsequent skip left the application, membership and immutable import evidence unchanged. Add a class-scoped recovery control using the existing audited failed-row action, with authorization and receipt coverage. Do not weaken the current-semester ownership guard or retry these rows as new history.
