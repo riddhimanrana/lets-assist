@@ -22,6 +22,13 @@ const olderTitle = `${TITLE_PREFIX} older update`;
 const ownClassTitle = `${TITLE_PREFIX} class of 2028 notice`;
 const otherClassTitle = `${TITLE_PREFIX} class of 2029 notice`;
 const activityTitle = `${TITLE_PREFIX} beach cleanup activity`;
+const otherClassActivityTitle = `${TITLE_PREFIX} other class activity`;
+const activityStartsAt = new Date(
+  Date.now() + 7 * 24 * 60 * 60_000,
+).toISOString();
+const activityEndsAt = new Date(
+  Date.parse(activityStartsAt) + 2 * 24 * 60 * 60_000,
+).toISOString();
 
 function minutesAgo(minutes: number) {
   return new Date(Date.now() - minutes * 60_000).toISOString();
@@ -41,10 +48,19 @@ test.describe("member Home class feed", () => {
       {
         title: activityTitle,
         body: "Fictional shoreline cleanup seeded by the browser suite.",
-        startsAt: new Date(Date.now() + 7 * 24 * 60 * 60_000).toISOString(),
+        startsAt: activityStartsAt,
+        endsAt: activityEndsAt,
         location: "Fictional State Beach",
         pointValue: 1.5,
         pointType: "non_drive",
+        publishedAt: minutesAgo(90),
+      },
+      {
+        title: otherClassActivityTitle,
+        body: "Fictional event restricted to another class.",
+        startsAt: activityStartsAt,
+        endsAt: activityEndsAt,
+        cohortId: fixture.cohortIdsByYear[2029],
         publishedAt: minutesAgo(90),
       },
     ]);
@@ -201,6 +217,25 @@ test.describe("member Home class feed", () => {
     await expect(
       page.getByText("Membership pending", { exact: true }),
     ).toHaveCount(0);
+
+    // A pending decision must not hide an activity already visible in the feed.
+    const activityDay = new Intl.DateTimeFormat("en-CA", {
+      timeZone: "America/Los_Angeles",
+    }).format(new Date(Date.parse(activityStartsAt) + 24 * 60 * 60_000));
+    const calendarUrl = new URL(page.url());
+    calendarUrl.searchParams.set("csf_calendar_month", activityDay.slice(0, 7));
+    await page.goto(calendarUrl.toString());
+    await expect(feed.getByText(activityTitle, { exact: true })).toBeVisible();
+    const agenda = page.locator('[data-tour-id="csf-member-agenda"]');
+    const [year, month, day] = activityDay.split("-").map(Number);
+    const dateButton = agenda.locator(`[data-day="${month}/${day}/${year}"]`);
+    await expect(dateButton.locator("..")).toHaveClass(/after:bg-primary/);
+    await dateButton.click();
+    await expect(
+      agenda.getByRole("link", { name: new RegExp(activityTitle) }),
+    ).toBeVisible();
+    await expect(agenda).toContainText("1.5 non-drive");
+    expect(await page.content()).not.toContain(otherClassActivityTitle);
 
     expectNoBrowserFailures(failures);
   });
