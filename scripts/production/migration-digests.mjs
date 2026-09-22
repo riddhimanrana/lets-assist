@@ -1300,4 +1300,6 @@ export const migrationDigests = {
     "3e62abe4ce3bba5d6e6276f9fe72e1531804f64455629dd8711de3c46d8c437b",
   "20260922003000_csf_attendance_followup_commit.sql":
     "8ac8cbc10350ae34ab269bd68e528d207f958aeeabdd82b13d75ab724ef9ce93",
+  "20260922030507_csf_review_existing_account_ownership.sql":
+    "c6fc6ece1dc87f0561916317a88b79c78795c75689762cb3732439b783fa09a4",
 };
