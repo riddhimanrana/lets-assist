@@ -745,4 +745,8 @@ export const approvedMigrations = [
     "20260922124643_csf_sheet_snapshot_scope_fast_path",
     "a5b67e99fe1ede9145894d5e7bb1cbad08374fc1f9f4cec072bc4fb06d5dde8a",
   ],
+  [
+    "20260922135905_csf_reviewed_decision_release_timeout",
+    "f074088f73040010ed8729ff2f56fd09d60fb732bae68c1aea2df9b4036a9e49",
+  ],
 ];

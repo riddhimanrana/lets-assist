@@ -9460,3 +9460,26 @@ and migration tail before browser validation. The follow-up registers the clean
 inventory, exact SQL digest and historical controller fixture. All 95 affected
 controller and catalog tests pass locally. A new integrated run and exact-commit
 hosted Development acceptance remain required before Production.
+
+The 654 repair passed integrated run 35731188287 and hosted Development run
+35731185690, then deployed through migration controller 35735836122 and app
+controller 35735968086. The real term release still exceeded PostgREST's default
+eight-second statement limit and rolled back completely. Publication remains
+unresolved until the scoped timeout repair is deployed and read back.
+
+The 655 forward repair gives only `csf_release_reviewed_sheet_decisions` a finite
+60-second timeout. PostgREST hoists this function setting before executing the
+request. No role timeout, decision policy or account access changes. The isolated
+REST regression forces a nine-second delay, proves the default timeout rolls
+back the transaction, and checks publication and retry through the actual RPC.
+
+Integrated run 35739217145 exposed a P2 defect in that regression fixture:
+unconstrained MD5 UUIDs passed PostgreSQL but failed the notification worker's
+version and variant checks. The fixture now generates the same valid UUID layout
+in SQL and JavaScript. Its local REST test also runs the real notification worker,
+verifies one delivered decision notice, and checks that publication adds no other
+notice events. The corrected fixture passed with 600 decisions and a 14.37-second
+release after the default timeout rolled back at 8.02 seconds. This changes only
+test data and validation. The migration, application, and access rules are
+unchanged. Hosted run 35739214107 passed on the preceding candidate; the final
+candidate still requires integrated and hosted acceptance.
