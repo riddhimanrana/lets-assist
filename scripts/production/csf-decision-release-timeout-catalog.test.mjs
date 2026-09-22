@@ -9,7 +9,11 @@ import {
   approvedMigrations,
   prepareMigration,
 } from "./forward-migration-release.mjs";
-import { topLevelDataWrites } from "./migration-data-writes.mjs";
+import {
+  prohibitedDataWrites,
+  topLevelDataWrites,
+  unreviewedWriteTables,
+} from "./migration-data-writes.mjs";
 const repository = new URL("../../", import.meta.url).pathname;
 const read = (path) => readFileSync(new URL(path, import.meta.url), "utf8");
 const before = JSON.parse(read("./final-schema-654.json"));
@@ -62,10 +66,6 @@ test("the controller binds the finite timeout migration without chapter or role 
     prepared.query,
     /'20260922135905','csf_reviewed_decision_release_timeout'/u,
   );
-  assert.deepEqual(
-    topLevelDataWrites(prepared.query).filter(
-      ({ table }) => table !== "supabase_migrations.schema_migrations",
-    ),
-    [],
-  );
+  assert.deepEqual(prohibitedDataWrites(prepared.query), []);
+  assert.deepEqual(unreviewedWriteTables(prepared.query), []);
 });
