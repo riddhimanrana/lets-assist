@@ -709,4 +709,32 @@ export const approvedMigrations = [
     "20260922003000_csf_attendance_followup_commit",
     "8ac8cbc10350ae34ab269bd68e528d207f958aeeabdd82b13d75ab724ef9ce93",
   ],
+  [
+    "20260922030507_csf_review_existing_account_ownership",
+    "c6fc6ece1dc87f0561916317a88b79c78795c75689762cb3732439b783fa09a4",
+  ],
+  [
+    "20260922032811_publish_dvhs_csf_1_2_66",
+    "636a9c0449a9949f1c7d2d3013c77a0955f8386194437e06f7a675dd87a7ced3",
+  ],
+  [
+    "20260922054000_csf_review_credit_totals",
+    "7a6d76e434b9cb5db9bc06c6071083ebcb5fce3ac18a05086c8b1114081ab57b",
+  ],
+  [
+    "20260922054001_publish_dvhs_csf_1_2_67",
+    "1b52ef629c49bdcb763d23ddda1e4ca051fb3926c91b76c917373e8e9e20f67c",
+  ],
+  [
+    "20260922081309_publish_dvhs_csf_1_2_68",
+    "f3c535d68f333a883aa672a130aa629938e82aabb40f331b2504515af3f88a7f",
+  ],
+  [
+    "20260922094708_publish_dvhs_csf_1_2_69",
+    "a5c779f2b1d18a1879bd0c0532a664d6b86f7ecfe6032aff476358966678919d",
+  ],
+  [
+    "20260922105553_publish_dvhs_csf_1_2_70",
+    "2c907b00ff392c590dd351936e3bc9a516f076116ff9094df3025a0b4f027200",
+  ],
 ];

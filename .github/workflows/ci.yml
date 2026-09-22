@@ -384,6 +384,9 @@ jobs:
           done
           bunx playwright install --with-deps chromium
 
+      - name: Validate account ownership review form
+        run: bun lib/plugins/private/plugins/dvhs-csf/tests/browser/account-ownership-review.browser.ts
+
       - name: Validate attendance match option refresh
         run: bun scripts/local-dev/test-csf-attendance-match-options.ts
 
