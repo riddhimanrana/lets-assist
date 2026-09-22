@@ -621,3 +621,28 @@ test("the callback never leaks raw state, verifier, or provider text to the brow
     /redirectUrl\.searchParams\.set\("code", result\.correlationId\)/u,
   );
 });
+
+test("personal calendar returns only to the exact My CSF calendar surface", () => {
+  const destination = `/organization/${ORGANIZATION_ID}?tab=csf-profile#calendar`;
+  assert.deepEqual(
+    resolveGoogleOAuthReturnRoute({
+      purpose: "personal_calendar",
+      returnTo: destination,
+    }),
+    { returnTo: destination, allowlisted: true },
+  );
+  for (const invalid of [
+    destination.replace("csf-profile", "csf-applications"),
+    destination.replace("#calendar", "#other"),
+    destination.replace("#calendar", "&csf_profile=another-student#calendar"),
+    destination.replace(ORGANIZATION_ID, "unbound-slug"),
+  ]) {
+    assert.equal(
+      resolveGoogleOAuthReturnRoute({
+        purpose: "personal_calendar",
+        returnTo: invalid,
+      }).allowlisted,
+      false,
+    );
+  }
+});
