@@ -7,7 +7,7 @@ import {
   unreviewedWriteTables,
 } from "./migration-data-writes.mjs";
 test("catalog exceptions bind exact historical migration statements", () => {
-  assert.equal(reviewedCatalogDataWrites.length, 58);
+  assert.equal(reviewedCatalogDataWrites.length, 60);
   for (const entry of reviewedCatalogDataWrites) {
     const sql = readFileSync(
       new URL(`../../supabase/migrations/${entry.file}`, import.meta.url),
