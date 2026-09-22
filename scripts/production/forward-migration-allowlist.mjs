@@ -709,4 +709,12 @@ export const approvedMigrations = [
     "20260922003000_csf_attendance_followup_commit",
     "8ac8cbc10350ae34ab269bd68e528d207f958aeeabdd82b13d75ab724ef9ce93",
   ],
+  [
+    "20260922030507_csf_review_existing_account_ownership",
+    "c6fc6ece1dc87f0561916317a88b79c78795c75689762cb3732439b783fa09a4",
+  ],
+  [
+    "20260922032811_publish_dvhs_csf_1_2_66",
+    "636a9c0449a9949f1c7d2d3013c77a0955f8386194437e06f7a675dd87a7ced3",
+  ],
 ];
