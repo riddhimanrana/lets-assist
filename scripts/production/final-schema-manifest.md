@@ -85,3 +85,8 @@ changes exactly those three identities and removes no objects. Focused controlle
 tests bind the inventory to the 654-entry ledger and verify that the forward
 controller writes no chapter data. The historical release fixture now includes
 this reviewed migration.
+
+Release 655 changes only the function-level timeout on the reviewed term-release
+RPC. The clean replay inventory retains every object and ACL. The controller
+binds that single changed function to the exact migration and ledger digests.
+Ordinary role and database timeout settings remain unchanged.
