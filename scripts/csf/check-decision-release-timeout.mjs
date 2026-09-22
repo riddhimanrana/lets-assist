@@ -70,7 +70,7 @@ try {
   const fixture = readFileSync(
     new URL("./fixtures/decision-release-timeout.sql", import.meta.url),
     "utf8",
-  ).replaceAll("__RUN_ID__", runId);
+  ).replaceAll("runidplaceholder", runId);
   const token = sql(`BEGIN;\n${fixture}\nCOMMIT;`);
   assert.match(token, /^[a-f0-9]{64}$/u);
   sql(`
