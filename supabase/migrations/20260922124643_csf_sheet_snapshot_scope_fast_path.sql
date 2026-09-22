@@ -117,4 +117,3 @@ BEGIN
 END $$;
 REVOKE ALL ON FUNCTION plugin_data.csf_queue_changed_sheet_sync_record() FROM PUBLIC,anon,authenticated,service_role;
 GRANT EXECUTE ON FUNCTION plugin_data.csf_queue_changed_sheet_sync_record() TO postgres;
-
