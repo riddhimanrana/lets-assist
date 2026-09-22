@@ -136,6 +136,7 @@ export type SeededFeedActivity = {
   body: string;
   /** ISO timestamp for the activity itself. */
   startsAt: string;
+  endsAt?: string | null;
   termId?: string | null;
   location?: string | null;
   pointValue?: number;
@@ -164,6 +165,7 @@ export async function seedFeedActivities(
         title: activity.title,
         body: activity.body,
         starts_at: activity.startsAt,
+        ends_at: activity.endsAt ?? null,
         location: activity.location ?? null,
         point_value: activity.pointValue ?? 1,
         point_type: activity.pointType ?? "non_drive",
