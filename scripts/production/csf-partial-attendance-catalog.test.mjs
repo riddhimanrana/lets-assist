@@ -9,7 +9,11 @@ import {
   approvedMigrations,
   prepareMigration,
 } from "./forward-migration-release.mjs";
-import { topLevelDataWrites } from "./migration-data-writes.mjs";
+import {
+  prohibitedDataWrites,
+  topLevelDataWrites,
+  unreviewedWriteTables,
+} from "./migration-data-writes.mjs";
 
 const repository = new URL("../../", import.meta.url).pathname;
 const read = (path) => readFileSync(new URL(path, import.meta.url), "utf8");
@@ -59,5 +63,6 @@ test("the controller applies the exact repair without rewriting live records", (
     prepared.query,
     /'20260922003000','csf_attendance_followup_commit'/u,
   );
-  assert.deepEqual(topLevelDataWrites(prepared.query), []);
+  assert.deepEqual(prohibitedDataWrites(prepared.query), []);
+  assert.deepEqual(unreviewedWriteTables(prepared.query), []);
 });
