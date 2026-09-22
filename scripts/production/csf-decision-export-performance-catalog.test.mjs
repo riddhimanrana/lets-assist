@@ -9,7 +9,11 @@ import {
   approvedMigrations,
   prepareMigration,
 } from "./forward-migration-release.mjs";
-import { topLevelDataWrites } from "./migration-data-writes.mjs";
+import {
+  prohibitedDataWrites,
+  topLevelDataWrites,
+  unreviewedWriteTables,
+} from "./migration-data-writes.mjs";
 const repository = new URL("../../", import.meta.url).pathname;
 const read = (path) => readFileSync(new URL(path, import.meta.url), "utf8");
 const before = JSON.parse(read("./final-schema-653.json"));
@@ -51,7 +55,7 @@ test("decision export repair changes only the reviewed snapshot functions", () =
   );
   assert.throws(() => finalSchemaCatalog(after, versions.slice(0, 653)));
 });
-test("the forward controller applies only the exact performance repair", () => {
+test("the forward controller pins the performance repair and permits only reviewed catalog writes", () => {
   assert.deepEqual(
     approvedMigrations.find(([entry]) => entry === name),
     [name, createHash("sha256").update(sql).digest("hex")],
@@ -70,10 +74,6 @@ test("the forward controller applies only the exact performance repair", () => {
   assert.ok(
     !prepared.query.includes("'20260922112314','publish_dvhs_csf_1_2_71'"),
   );
-  assert.deepEqual(
-    topLevelDataWrites(prepared.query).filter(
-      ({ table }) => table !== "supabase_migrations.schema_migrations",
-    ),
-    [],
-  );
+  assert.deepEqual(prohibitedDataWrites(prepared.query), []);
+  assert.deepEqual(unreviewedWriteTables(prepared.query), []);
 });

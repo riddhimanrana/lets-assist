@@ -139,6 +139,17 @@ for (const width of [1280, 390]) {
         (await publishedState(fixture, applicants.byRole[role]))
           .applicationStatus,
       ).toBe("submitted");
+    await page.getByRole("button", { name: /^Pending \(/ }).click();
+    await expect(row(page, applicants.byRole.accepted.lastName)).toHaveCount(0);
+    await expect(row(page, applicants.byRole.rejected.lastName)).toHaveCount(0);
+    await expect(row(page, applicants.byRole.explained.lastName)).toBeVisible();
+    await page.getByRole("button", { name: /^All \(/ }).click();
+    await expect(row(page, applicants.byRole.accepted.lastName)).toContainText(
+      "Approved",
+    );
+    await expect(row(page, applicants.byRole.rejected.lastName)).toContainText(
+      "Rejected",
+    );
     await expectNoHorizontalOverflow(page);
     expectNoBrowserFailures(failures);
   });
