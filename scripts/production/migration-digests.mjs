@@ -1331,5 +1331,5 @@ export const migrationDigests = {
   "20260923011054_published_project_status_maintenance.sql":
     "445ad5c50c297d2db1818810361073c3e80fd772aa4c8a35d3f4ef3727c8b923",
   "20260923011212_csf_history_import_application_guard.sql":
-    "1d87382bc1df16240f2133d295fc00d7593da4a81858b79fff3b9672beeb5789",
+    "997fb1eda95ae1bc79da6add6ecaf82e9e84ec0c734b6bdf40ea0d294e98f819",
 };

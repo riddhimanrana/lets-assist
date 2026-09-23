@@ -709,7 +709,7 @@
     },
     {
       "identity": "function:plugin_data.csf_class_import_review_rows(p_organization_id uuid, p_job_id uuid, p_limit integer)",
-      "digest": "2b4116a0e229d7bb7c070f834e4cb30d"
+      "digest": "ec326c958701aee7065afc01dc7aa270"
     },
     {
       "identity": "function:plugin_data.csf_class_publication_email_candidates(p_organization_id uuid, p_term_id uuid, p_cohort_id uuid, p_source_kind text, p_source_id uuid, p_actor_user_id uuid, p_offset integer, p_limit integer)",

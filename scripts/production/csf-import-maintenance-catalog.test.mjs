@@ -29,7 +29,7 @@ test("maintenance and history guards replace only the three reviewed functions",
     changed.map((row) => row.digest).sort(),
     [
       "105f4c25d7af0c726d62f5bd46a874b5",
-      "2b4116a0e229d7bb7c070f834e4cb30d",
+      "ec326c958701aee7065afc01dc7aa270",
       "41eb317f8feb5770685b599e999be418",
     ].sort(),
   );
