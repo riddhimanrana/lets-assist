@@ -9523,3 +9523,13 @@ Repository finding CSF-CALENDAR-20260923, P2, implemented in private PR #600: th
 Private PR #600 also adds class, semester and status filtering before bounded point-submission paging, a shared proof and review dialog, and existing semester verification controls for lock/reopen. Synthetic Chrome desktop and phone checks pass. Tiana's live finalized image opened successfully before any evidence changes; the confusing two-step viewer was reproduced, and stored evidence remains unchanged.
 
 These findings are implemented or under verification, not Production completion claims. Supabase collation maintenance remains separate under SU-480199. No support access, metadata refresh, reindex, restart or replication-slot change was performed by this audit.
+
+## CSF continuation, September 23, 2026
+
+Repository finding CSF-QUEUE-20260923, P2: the class/semester submission queue exists, but officer Home still opens the legacy Service points view and officer navigation omits the new queue tab. Private PR #603 corrects the permission-checked entry points. Root browser journeys now start at the actual Home task link and assert the class, semester and status controls before reviewing proof. The correction awaits signed 1.2.76 integration and deployed verification.
+
+Repository finding CSF-EXCLUSIONS-20260923, P2: a workbook version change can reopen unchanged rows previously excluded by an officer. Fresh previews retain immutable evidence but do not carry the audited exclusion. Private PR #605 is under review. Carry-forward must require the same source, coordinates, evidence, mapping and target semester, and must reject an intervening officer review or stale worker lease atomically. No import approval or membership may be inferred from an exclusion.
+
+Repository finding CSF-ACTIVITY-MAIL-20260923, P2: the user reports that newly published activities do not send the expected announcement. Detailed campaign templates exist in 1.2.75. Publication triggers, consent, recipient selection and delivery receipts are under investigation. Do not treat a rendered email preview as delivery evidence or send a historical announcement batch to test the fix.
+
+The 1.2.75 full gate 35809980137 and hosted acceptance 35809979530 passed at Development fc770406. Production controllers 35812680771 and 35812768174 applied the reviewed ledger and deployed root 67b3d7ee. Chapter installation separately read back 1.2.75. Live Chrome rendered the reported finalized proof inside the review modal without modifying stored evidence. This closes the deployment gap for the proof viewer and calendar navigation findings above. Class-history settlement is being verified through saved audit receipts; newer queue, exclusion refresh and activity-mail findings remain open.
