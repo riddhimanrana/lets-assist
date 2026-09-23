@@ -1336,4 +1336,6 @@ export const migrationDigests = {
     "f7abc8f5dca2db1690a79328e9ba4e15e5c1c79ec86b6a844e37c0be39bd100c",
   "20260923033000_csf_history_exclusion_carry_forward.sql":
     "fba323ad0ab5d4d1dbb8c354f0cc5518dbc2ab7c9005e337dde8680ebaf153d9",
+  "20260923033010_csf_durable_activity_email_intent.sql":
+    "0a0d7127830beda228195bbde3f75dd01d8f6445bed9e8c79ea8772b48514bb5",
 };

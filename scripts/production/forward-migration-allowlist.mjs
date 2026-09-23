@@ -781,4 +781,8 @@ export const approvedMigrations = [
     "20260923033000_csf_history_exclusion_carry_forward",
     "fba323ad0ab5d4d1dbb8c354f0cc5518dbc2ab7c9005e337dde8680ebaf153d9",
   ],
+  [
+    "20260923033010_csf_durable_activity_email_intent",
+    "0a0d7127830beda228195bbde3f75dd01d8f6445bed9e8c79ea8772b48514bb5",
+  ],
 ];
