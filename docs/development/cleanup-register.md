@@ -2728,10 +2728,10 @@ sources.
 
 ### CSF proof uploads and officer navigation, September 22, 2026
 
-| Finding | Status | Evidence or remaining work |
-| --- | --- | --- |
-| CSF-PROOF-TRANSPORT | P2, fixed locally | The form accepted up to 12 MB of proof, exceeding the hosted 4.5 MB request limit. Images now prepare locally within a 4 MB aggregate budget, including HEIC conversion. A synthetic 8.7 MB selection passed desktop and phone browser checks with all files retained and identical retry hashes. PDFs over 4 MB receive an actionable error before upload. Hosted acceptance remains pending. |
-| CSF-OFFICER-TAB-FLASH | P2, reported, unconfirmed | The user reported a brief error during Home to Classes navigation on Production. Authenticated read-only navigation reached Classes without reproducing the flash. No speculative navigation change was made. Capture the transient error and corresponding request failure before changing fallback behavior. |
+| Finding               | Status                    | Evidence or remaining work                                                                                                                                                                                                                                                                                                                                                                     |
+| --------------------- | ------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| CSF-PROOF-TRANSPORT   | P2, fixed locally         | The form accepted up to 12 MB of proof, exceeding the hosted 4.5 MB request limit. Images now prepare locally within a 4 MB aggregate budget, including HEIC conversion. A synthetic 8.7 MB selection passed desktop and phone browser checks with all files retained and identical retry hashes. PDFs over 4 MB receive an actionable error before upload. Hosted acceptance remains pending. |
+| CSF-OFFICER-TAB-FLASH | P2, reported, unconfirmed | The user reported a brief error during Home to Classes navigation on Production. Authenticated read-only navigation reached Classes without reproducing the flash. No speculative navigation change was made. Capture the transient error and corresponding request failure before changing fallback behavior.                                                                                 |
 
 ### Activity closure recovery, September 23, 2026
 
