@@ -1322,4 +1322,6 @@ export const migrationDigests = {
     "f074088f73040010ed8729ff2f56fd09d60fb732bae68c1aea2df9b4036a9e49",
   "20260922181458_publish_dvhs_csf_1_2_72.sql":
     "8902a1c1256eb2ce075e1c4d76e603a37d9f94070efa5ea6280f92fe4500654f",
+  "20260922232103_csf_activity_sections_and_directory_status.sql":
+    "c8871181c221d67024aade09aeb4c81319238314cc2869bf5ad7c5b32863e86d",
 };
