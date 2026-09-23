@@ -64,7 +64,7 @@ AND NOT has_function_privilege('authenticated','plugin_data.csf_carry_forward_hi
 AND NOT has_function_privilege('anon','plugin_data.csf_carry_forward_history_exclusion(uuid,uuid,uuid,uuid,uuid,jsonb,uuid,uuid,uuid,uuid,text,text)','EXECUTE'),'only service_role can execute the internal guard');
 SELECT extensions.throws_ok($$SELECT pg_temp.carry(1,NULL,'ed760000-0000-4000-8000-000000000002')$$,'55000',NULL,'another actor cannot reuse the worker lease');
 SELECT extensions.throws_ok($$SELECT pg_temp.carry(1,NULL,'ed760000-0000-4000-8000-000000000001','3')$$,'55000',NULL,'changed provider generation refuses carry-forward');
-SELECT extensions.throws_ok($$SELECT pg_temp.carry(1,NULL,'ed760000-0000-4000-8000-000000000001','2','ed761000-0000-4000-8000-000000000002')$$,'23503',NULL,'cross-chapter request is denied');
+SELECT extensions.throws_ok($$SELECT pg_temp.carry(1,NULL,'ed760000-0000-4000-8000-000000000001','2','ed761000-0000-4000-8000-000000000002')$$,'42501',NULL,'cross-chapter request is denied');
 SELECT extensions.throws_ok($$SELECT pg_temp.carry(1,'{"importStatus":"pending"}')$$,'55000',NULL,'the expected current row state must match exactly');
 SELECT extensions.is((SELECT count(*) FROM plugin_data.csf_admin_audit_events WHERE target_id IN(SELECT new_id FROM exclusion_pairs)),0::bigint,'refused requests create no review receipts');
 

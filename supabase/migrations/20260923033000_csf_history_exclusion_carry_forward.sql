@@ -39,11 +39,7 @@ BEGIN
     RAISE EXCEPTION 'The exclusion carry-forward request is incomplete.' USING ERRCODE='22023';
   END IF;
 
-  -- Keep the worker lease and the review mutation in the same transaction.
-  PERFORM plugin_data.csf_heartbeat_class_workbook_refresh_generation(
-    p_organization_id,p_actor_user_id,p_refresh_job_id,p_refresh_lease_token,
-    p_workbook_id,p_cohort_id,p_drive_file_id,p_provider_version,300
-  );
+  PERFORM pg_catalog.pg_advisory_xact_lock(plugin_data.csf_staff_access_lock_key(p_organization_id));
   PERFORM plugin_data.csf_lock_identity_mutation(p_organization_id);
 
   SELECT * INTO v_current FROM plugin_data.csf_sheet_import_rows
@@ -69,6 +65,12 @@ BEGIN
     WHERE organization_id=p_organization_id AND id=v_current.job_id;
   SELECT * INTO STRICT v_previous_job FROM plugin_data.csf_sheet_import_jobs
     WHERE organization_id=p_organization_id AND id=v_previous.job_id;
+
+  -- Follow import commit lock order: staff, identity, preview rows, workbook, then source.
+  PERFORM plugin_data.csf_heartbeat_class_workbook_refresh_generation(
+    p_organization_id,p_actor_user_id,p_refresh_job_id,p_refresh_lease_token,
+    p_workbook_id,p_cohort_id,p_drive_file_id,p_provider_version,300
+  );
 
   IF v_current_job.mode<>'preview' OR v_previous_job.mode<>'preview'
     OR v_current_job.status NOT IN('completed','needs_resolution')
