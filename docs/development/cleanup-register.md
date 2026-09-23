@@ -2726,6 +2726,16 @@ sources.
 
 ## Repository-owned P0–P2
 
+### Activity closure recovery, September 23, 2026
+
+P2 `CSF-SIGNUP-CLOSE`: the activity menu allowed officers to close signups but provided no recovery action. Closed activities disappeared from member reads. The local candidate removes the close control, labels legacy closed records "Hidden", and offers "Restore activity" through the existing permission-checked, audited lifecycle. Forward migration `20260923200000` restores only closed activities in an open semester. Restoration preserves the original publication and creates no new announcement or delivery.
+
+| Implemented                                                                      | Deployed | Verified                                                                                                                            | Remaining                                                                                                                          |
+| -------------------------------------------------------------------------------- | -------- | ----------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------- |
+| Private UI/action patch and forward migration in `codex/csf-remove-signup-close` | No       | 20 restoration pgTAP assertions; 120 related database assertions; 124 focused action/contract tests; TypeScript and affected ESLint | Integrate the private patch and migration, run hosted release acceptance, then restore any reviewed live activity through its menu |
+
+Local test output is retained in the isolated worktree's ignored `.artifacts/signup-status/` directory. No live activity, signup, credit, notification, or semester was changed.
+
 ### Development-only staff and member follow-up, September 16, 2026
 
 The owner requested this follow-up without a Production release. The integrated
