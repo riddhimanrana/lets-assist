@@ -405,7 +405,9 @@ test.describe("DVHS CSF proof submission", () => {
       await page
         .getByRole("option", { name: activityTitle, exact: true })
         .click();
-      await expect(dialog.getByText("Credit 1 non-drive point")).toBeVisible();
+      await expect(
+        dialog.getByText("1 non-drive point", { exact: true }),
+      ).toBeVisible();
       await expect(
         dialog.getByLabel("Description", { exact: true }),
       ).toHaveCount(0);
