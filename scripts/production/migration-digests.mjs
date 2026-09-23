@@ -1328,4 +1328,8 @@ export const migrationDigests = {
     "0b16fde8ebf40ecddf3776bf2208cfb0e13d8e0054e0c559849a4fb7e2d05629",
   "20260923005225_publish_dvhs_csf_1_2_74.sql":
     "ee6b21ab56375bf67bf07029359ad488367faf079a9bc8c93c62f0f5e258a648",
+  "20260923011054_published_project_status_maintenance.sql":
+    "445ad5c50c297d2db1818810361073c3e80fd772aa4c8a35d3f4ef3727c8b923",
+  "20260923011212_csf_history_import_application_guard.sql":
+    "1d87382bc1df16240f2133d295fc00d7593da4a81858b79fff3b9672beeb5789",
 };
