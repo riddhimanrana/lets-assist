@@ -448,7 +448,7 @@ async function noticeCampaigns(fixture: CsfFeedFixture, eventIds: string[]) {
   return data ?? [];
 }
 
-const OFFICER_POINTS_PATH = `${CSF_ORGANIZATION_PATH}?tab=csf-activities&csf_service=points`;
+const OFFICER_HOME_PATH = `${CSF_ORGANIZATION_PATH}?tab=csf-overview`;
 
 /**
  * Approve the claim through the officer's own review dialog.
@@ -458,13 +458,28 @@ const OFFICER_POINTS_PATH = `${CSF_ORGANIZATION_PATH}?tab=csf-activities&csf_ser
  * spec is that the surface an officer actually uses is what produces the
  * notice.
  */
-async function approveSubmissionInUi(page: Page, activityTitle: string) {
-  await page.goto(OFFICER_POINTS_PATH, { waitUntil: "domcontentloaded" });
+async function approveSubmissionInUi(
+  page: Page,
+  activityTitle: string,
+  termId: string,
+) {
+  await page.goto(OFFICER_HOME_PATH, { waitUntil: "domcontentloaded" });
+  await page.getByRole("link", { name: /Review point submissions/ }).click();
+  await expect(page).toHaveURL(
+    (url) => url.searchParams.get("tab") === "csf-submissions",
+  );
+  await expect(
+    page.getByRole("combobox", { name: "Semester", exact: true }),
+  ).toHaveValue(termId);
+  await expect(
+    page.getByRole("combobox", { name: "Class", exact: true }),
+  ).toHaveValue("");
+  await expect(
+    page.getByRole("combobox", { name: "Status", exact: true }),
+  ).toHaveValue("review");
   const row = page.getByRole("row").filter({ hasText: activityTitle });
   await expect(row).toBeVisible();
-  await row
-    .getByRole("button", { name: "Review & proof", exact: true })
-    .click();
+  await row.getByRole("button", { name: "Review", exact: true }).click();
   const dialog = page.getByRole("dialog", {
     name: /^Review submission from .+$/,
   });
@@ -495,7 +510,7 @@ test.describe("personal notice lifecycle", () => {
     try {
       // The officer decision is what the member is entitled to hear about.
       await loginAs(page, "admin");
-      await approveSubmissionInUi(page, title);
+      await approveSubmissionInUi(page, title, fixture.currentTermId);
 
       await expect
         .poll(async () => {
@@ -683,7 +698,7 @@ test.describe("personal notice lifecycle", () => {
       };
 
       await loginAs(page, "admin");
-      await approveSubmissionInUi(page, title);
+      await approveSubmissionInUi(page, title, fixture.currentTermId);
 
       await expect
         .poll(

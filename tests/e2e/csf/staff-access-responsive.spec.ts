@@ -100,14 +100,14 @@ async function withdrawSyntheticSubmission(
     .filter({ has: page.getByText(description, { exact: true }) });
   await expect(submission).toBeVisible();
   await submission
-    .getByRole("button", { name: "Withdraw", exact: true })
+    .getByRole("button", { name: "Unsubmit", exact: true })
     .click();
   const withdrawal = page.getByRole("dialog", {
-    name: "Withdraw point submission?",
+    name: "Unsubmit points?",
   });
   await expect(withdrawal).toContainText(description);
   await withdrawal
-    .getByRole("button", { name: "Withdraw", exact: true })
+    .getByRole("button", { name: "Unsubmit", exact: true })
     .click();
   await expect(withdrawal).toBeHidden();
   await expect
@@ -436,21 +436,21 @@ test.describe("DVHS CSF proof submission", () => {
       ).toBeVisible();
 
       await submission
-        .getByRole("button", { name: "Withdraw", exact: true })
+        .getByRole("button", { name: "Unsubmit", exact: true })
         .click();
       const withdrawal = page.getByRole("dialog", {
-        name: "Withdraw point submission?",
+        name: "Unsubmit points?",
       });
       await expect(withdrawal).toContainText(description);
       await withdrawal
-        .getByRole("button", { name: "Withdraw", exact: true })
+        .getByRole("button", { name: "Unsubmit", exact: true })
         .click();
       await expect(withdrawal).toBeHidden();
       await expect(
         submission.getByText("Withdrawn", { exact: true }),
       ).toBeVisible();
       await expect(
-        submission.getByRole("button", { name: "Withdraw", exact: true }),
+        submission.getByRole("button", { name: "Unsubmit", exact: true }),
       ).toHaveCount(0);
       submissionWithdrawn = true;
     } catch (error) {

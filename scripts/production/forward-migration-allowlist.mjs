@@ -777,4 +777,20 @@ export const approvedMigrations = [
     "20260923013334_publish_dvhs_csf_1_2_75",
     "f7abc8f5dca2db1690a79328e9ba4e15e5c1c79ec86b6a844e37c0be39bd100c",
   ],
+  [
+    "20260923033000_csf_history_exclusion_carry_forward",
+    "fba323ad0ab5d4d1dbb8c354f0cc5518dbc2ab7c9005e337dde8680ebaf153d9",
+  ],
+  [
+    "20260923033010_csf_durable_activity_email_intent",
+    "7c30e3060cec4afa0e0bd114f2201d13cf1cd5c36777b5d4f840806b2c628206",
+  ],
+  [
+    "20260923033020_csf_point_exception_requests",
+    "d643886d3d80a74f94b11aa9992e89c6e3c377f67ca986bd36bdf7c8b60d6063",
+  ],
+  [
+    "20260923044405_publish_dvhs_csf_1_2_76",
+    "6eef58718bc02d889132ed16d015043d74eb3d6f422cd6fbe59918f064a47e64",
+  ],
 ];

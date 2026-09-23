@@ -348,6 +348,65 @@ function reconcileCsf620SupersededStorageChecks(catalog) {
 export function acceptedCatalogQuery(source, versions) {
   if (
     ledgerDigest(versions) ===
+    "76de99fd2142d97b71ea2f654b8a9e0fe5b97b238f1e60f59f30c095597927d8"
+  )
+    return finalSchemaCatalog(
+      JSON.parse(
+        readFileSync(
+          new URL("./final-schema-666.json", import.meta.url),
+          "utf8",
+        ),
+      ),
+      versions,
+    );
+
+  if (
+    ledgerDigest(versions) ===
+    "ce09d42c1f43c44293035c76ca19d7bb5b27fc25940e67be131bf525f58d4481"
+  ) {
+    return finalSchemaCatalog(
+      JSON.parse(
+        readFileSync(
+          new URL("./final-schema-665.json", import.meta.url),
+          "utf8",
+        ),
+      ),
+      versions,
+    );
+  }
+
+  if (
+    ledgerDigest(versions) ===
+    "0898161d9a50664a08a5384ab19bee268d6cf8fb193666918aa0805dd78aa8fc"
+  ) {
+    return finalSchemaCatalog(
+      JSON.parse(
+        readFileSync(
+          new URL("./final-schema-664.json", import.meta.url),
+          "utf8",
+        ),
+      ),
+      versions,
+    );
+  }
+
+  if (
+    ledgerDigest(versions) ===
+    "884f5f5e731bae0a7d6e83509ebfca86251ce5e187d5d5056274e3e3b921199d"
+  ) {
+    return finalSchemaCatalog(
+      JSON.parse(
+        readFileSync(
+          new URL("./final-schema-663.json", import.meta.url),
+          "utf8",
+        ),
+      ),
+      versions,
+    );
+  }
+
+  if (
+    ledgerDigest(versions) ===
     "c3fceb836ca0c5fc8bc238d3cb43186706f2b9f48ce329f8ce98dce1d833c08f"
   ) {
     return finalSchemaCatalog(
