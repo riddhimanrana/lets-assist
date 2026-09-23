@@ -48,7 +48,7 @@ test.describe("transactional semester-close preflight", () => {
       {
         label: "Point submissions",
         count: 0,
-        route: "csf-activities&csf_service=points",
+        route: "csf-submissions#review",
       },
       {
         label: "Point appeals",

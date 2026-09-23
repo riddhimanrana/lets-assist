@@ -16,7 +16,7 @@ import {
 } from "./helpers";
 
 const memberPath = `${CSF_ORGANIZATION_PATH}?tab=csf-submissions`;
-const officerPath = `${CSF_ORGANIZATION_PATH}?tab=csf-activities&csf_service=points`;
+const officerHomePath = `${CSF_ORGANIZATION_PATH}?tab=csf-overview`;
 
 async function verifiedTotal(page: Page) {
   const summary = page
@@ -61,19 +61,46 @@ async function creditRows(fixture: CsfFeedFixture, submissionId: string) {
 
 async function reviewSubmission(
   page: Page,
-  activityTitle: string,
+  submissionDescription: string,
+  termId: string,
   notes: string,
   decision: string,
 ) {
-  await page.goto(officerPath, { waitUntil: "domcontentloaded" });
-  const row = page.getByRole("row").filter({ hasText: activityTitle });
+  await page.goto(officerHomePath, { waitUntil: "domcontentloaded" });
+  await page.getByRole("link", { name: /Review point submissions/ }).click();
+  await expect(page).toHaveURL(
+    (url) => url.searchParams.get("tab") === "csf-submissions",
+  );
+  await expect(
+    page.getByRole("combobox", { name: "Semester", exact: true }),
+  ).toHaveValue(termId);
+  await expect(
+    page.getByRole("combobox", { name: "Class", exact: true }),
+  ).toHaveValue("");
+  await expect(
+    page.getByRole("combobox", { name: "Status", exact: true }),
+  ).toHaveValue("review");
+  const row = page.getByRole("row").filter({ hasText: submissionDescription });
   await expect(row).toBeVisible();
-  await row
-    .getByRole("button", { name: "Review & proof", exact: true })
-    .click();
+  await row.getByRole("button", { name: "Review", exact: true }).click();
   const dialog = page.getByRole("dialog", {
     name: /^Review submission from .+$/,
   });
+  const proof = dialog.getByRole("figure", {
+    name: "proof-images.pdf",
+    exact: true,
+  });
+  await expect(proof).toBeVisible();
+  const original = proof.getByRole("button", {
+    name: "Open original",
+    exact: true,
+  });
+  await expect(original).toBeVisible();
+  await expect(original).toHaveAttribute("href", /^https?:\/\//);
+  await expect(proof.locator('object[type="application/pdf"]')).toHaveAttribute(
+    "data",
+    (await original.getAttribute("href"))!,
+  );
   await dialog.getByLabel("Review notes").fill(notes);
   await dialog.getByRole("button", { name: decision, exact: true }).click();
   await expect(dialog).toBeHidden();
@@ -197,10 +224,11 @@ test("point proof correction earns one verified credit only after officer approv
       (await PDFDocument.load(await storedProof.arrayBuffer())).getPageCount(),
     ).toBe(2);
 
-    await loginAs(officer, "admin", officerPath);
+    await loginAs(officer, "admin", officerHomePath);
     await reviewSubmission(
       officer,
-      activityTitle,
+      initialDescription,
+      fixture.currentTermId,
       correctionNotes,
       "Request changes",
     );
@@ -240,7 +268,8 @@ test("point proof correction earns one verified credit only after officer approv
 
     await reviewSubmission(
       officer,
-      activityTitle,
+      correctedDescription,
+      fixture.currentTermId,
       "Fictional proof and corrected task details verified.",
       "Approve award",
     );

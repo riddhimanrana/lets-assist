@@ -15,6 +15,7 @@
 import { useEffect, useState, useMemo, useCallback, useRef } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
+import { createAuthStateLifecycle } from "./auth-state-lifecycle";
 
 export interface UserProfile {
   id: string;
@@ -59,6 +60,9 @@ export function useUserProfile(): UseUserProfileReturn {
     `profile-updates-${globalThis.crypto?.randomUUID?.() ?? `${Date.now()}-${Math.random()}`}`,
   );
   const channelRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
+  const loaderRef = useRef<{ refresh: () => Promise<void> | undefined } | null>(
+    null,
+  );
 
   useEffect(() => {
     if (!user?.id) return;
@@ -69,6 +73,7 @@ export function useUserProfile(): UseUserProfileReturn {
     }
 
     const channel = supabase.channel(`${channelNameRef.current}-${user.id}`);
+    let active = true;
 
     channel.on(
       "postgres_changes",
@@ -79,35 +84,22 @@ export function useUserProfile(): UseUserProfileReturn {
         filter: `id=eq.${user.id}`,
       },
       (payload) => {
-        if (payload.new) {
-          setProfile(payload.new as UserProfile);
-        } else if (payload.old) {
-          setProfile(payload.old as UserProfile);
-        }
+        if (!active) return;
+        const row = payload.eventType === "DELETE" ? payload.old : payload.new;
+        if (!row || !("id" in row) || row.id !== user.id) return;
+        setProfile(
+          payload.eventType === "DELETE" ? null : (row as UserProfile),
+        );
       },
     );
 
-    channel.on(
-      "postgres_changes",
-      {
-        event: "*",
-        schema: "public",
-        table: "notification_settings",
-        filter: `user_id=eq.${user.id}`,
-      },
-      (payload) => {
-        if (payload.new) {
-          setSettings(payload.new as NotificationSettings);
-        } else if (payload.old) {
-          setSettings(payload.old as NotificationSettings);
-        }
-      },
-    );
+    // Settings are read through RLS and refetch; they are not published to Realtime.
 
     channel.subscribe();
     channelRef.current = channel;
 
     return () => {
+      active = false;
       if (channelRef.current === channel) {
         supabase.removeChannel(channel);
         channelRef.current = null;
@@ -115,75 +107,65 @@ export function useUserProfile(): UseUserProfileReturn {
     };
   }, [user?.id, supabase]);
 
-  const fetchData = useCallback(
-    async (userId: string) => {
-      setLoading(true);
-      try {
-        // Fetch profile and settings in parallel
+  useEffect(() => {
+    if (authLoading) return;
+    const lifecycle = createAuthStateLifecycle({
+      resolve: async () => {
+        if (!user?.id) return { profile: null, settings: null };
         const [profileResult, settingsResult] = await Promise.all([
           supabase
             .from("profiles")
             .select(
               "id, full_name, avatar_url, username, phone, profile_visibility, created_at, updated_at, volunteer_goals",
             )
-            .eq("id", userId)
+            .eq("id", user.id)
             .maybeSingle(),
           supabase
             .from("notification_settings")
             .select("user_id, email_notifications, project_updates, general")
-            .eq("user_id", userId)
+            .eq("user_id", user.id)
             .maybeSingle(),
         ]);
-
-        if (profileResult.error) {
-          console.error(
-            "[useUserProfile] Profile error:",
-            profileResult.error.message,
-          );
-        }
-        if (settingsResult.error) {
-          console.error(
-            "[useUserProfile] Settings error:",
-            settingsResult.error.message,
-          );
-        }
-
-        setProfile(profileResult.data as UserProfile | null);
-        setSettings(settingsResult.data as NotificationSettings | null);
+        if (profileResult.error) throw profileResult.error;
+        if (settingsResult.error) throw settingsResult.error;
+        return {
+          profile: profileResult.data as UserProfile | null,
+          settings: settingsResult.data as NotificationSettings | null,
+        };
+      },
+      onStart: () => setLoading(true),
+      onResolved: (data) => {
+        setProfile(data.profile);
+        setSettings(data.settings);
         setError(null);
-      } catch (err) {
+      },
+      onSignedOut: () => {
+        setProfile(null);
+        setSettings(null);
+        setError(null);
+      },
+      onError: (err) => {
         console.error("[useUserProfile] Fetch error:", err);
         setError(err instanceof Error ? err : new Error(String(err)));
-      } finally {
-        setLoading(false);
-      }
-    },
-    [supabase],
-  );
-
-  useEffect(() => {
-    if (authLoading) return;
-
-    if (!user?.id) {
-      setProfile(null);
-      setSettings(null);
-      setLoading(false);
-      return;
-    }
-
-    fetchData(user.id);
-  }, [user?.id, authLoading, fetchData]);
+      },
+      onSettled: () => setLoading(false),
+    });
+    loaderRef.current = lifecycle;
+    if (user?.id) void lifecycle.refresh();
+    else lifecycle.signedOut();
+    return () => {
+      lifecycle.dispose();
+      if (loaderRef.current === lifecycle) loaderRef.current = null;
+    };
+  }, [user?.id, authLoading, supabase]);
 
   const refetch = useCallback(async () => {
-    if (user?.id) {
-      setLoading(true);
-      await fetchData(user.id);
-    }
-  }, [user?.id, fetchData]);
+    await loaderRef.current?.refresh();
+  }, []);
 
   return {
-    profile,
-    settings,
+    profile: profile?.id === user?.id ? profile : null,
+    settings: settings?.user_id === user?.id ? settings : null,
     loading: authLoading || loading,
     error,
     refetch,

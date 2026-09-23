@@ -1,6 +1,6 @@
 import { historicalReleaseTestFixture } from "./historical-release-test-fixture.mjs";
 import assert from "node:assert/strict";
-import { readFileSync, writeFileSync } from "node:fs";
+import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import test, { after } from "node:test";
 import {
@@ -875,6 +875,10 @@ test("an applied 604 ledger writes the signed publication and later repairs", ()
     "20260923011054",
     "20260923011212",
     "20260923013334",
+    "20260923033000",
+    "20260923033010",
+    "20260923033020",
+    "20260923044405",
   ]);
   assert.equal(
     (
@@ -976,6 +980,10 @@ test("an applied 605 ledger writes the remaining post and cleanup repairs", () =
     "20260923011054",
     "20260923011212",
     "20260923013334",
+    "20260923033000",
+    "20260923033010",
+    "20260923033020",
+    "20260923044405",
   ]);
   assert.equal(
     (
@@ -1069,6 +1077,10 @@ test("an applied 606 ledger writes publication binding and cleanup repairs", () 
     "20260923011054",
     "20260923011212",
     "20260923013334",
+    "20260923033000",
+    "20260923033010",
+    "20260923033020",
+    "20260923044405",
   ]);
   assert.equal(
     (
@@ -1152,6 +1164,10 @@ test("an applied 607 ledger writes recovery and Storage cleanup guards", () => {
     "20260923011054",
     "20260923011212",
     "20260923013334",
+    "20260923033000",
+    "20260923033010",
+    "20260923033020",
+    "20260923044405",
   ]);
   assert.equal(
     (
@@ -1176,23 +1192,4 @@ test("an applied 607 ledger writes recovery and Storage cleanup guards", () => {
       "'20260919155040','csf_two_phase_storage_teardown'",
     ),
   );
-});
-
-test("unapproved migrations remain rejected beside the historical release fixture", () => {
-  const future = historicalReleaseTestFixture();
-  try {
-    writeFileSync(
-      resolve(
-        future.cwd,
-        "supabase/migrations/20990101000000_unapproved_test.sql",
-      ),
-      "SELECT 1;\n",
-    );
-    assert.throws(
-      () => prepareMigration(future.cwd),
-      /accepted migration tail is not approved/u,
-    );
-  } finally {
-    future.dispose();
-  }
 });

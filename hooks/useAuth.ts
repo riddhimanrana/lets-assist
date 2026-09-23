@@ -12,6 +12,7 @@
 import { useEffect, useState, useMemo } from "react";
 import { createClient } from "@/lib/supabase/client";
 import type { User } from "@supabase/supabase-js";
+import { createAuthStateLifecycle } from "./auth-state-lifecycle";
 import {
   shouldPromptForMfaChallenge,
   deriveAuthenticatorAssurance,
@@ -123,27 +124,14 @@ export function useAuth(): AuthState {
   const supabase = useMemo(() => createClient(), []);
 
   useEffect(() => {
-    let mounted = true;
-
-    const syncAuthState = async () => {
-      try {
+    const lifecycle = createAuthStateLifecycle({
+      resolve: async (isCurrent) => {
         const resolvedAuthState = await resolveAuthState(supabase);
-
-        if (!mounted) return;
-
-        if (!resolvedAuthState.user) {
-          setUser(null);
-          setNeedsMfa(false);
-          return;
+        if (!resolvedAuthState.user || !isCurrent()) {
+          return { user: null, needsMfa: false };
         }
 
-        if (!mounted) return;
-
         const currentAal = resolvedAuthState.claims?.aal || "aal1";
-
-        // Middleware enforces MFA for protected routes. Client-side factor
-        // lookup is only needed on MFA/authentication screens; doing it on
-        // every page adds a network call and can create noisy local-dev errors.
         let mfaFactors: MfaListFactorsLike = { totp: [], phone: [] };
         const pathname =
           typeof window !== "undefined" ? window.location.pathname : "";
@@ -154,64 +142,51 @@ export function useAuth(): AuthState {
         if (shouldCheckClientMfa) {
           try {
             const { data: factors } = await supabase.auth.mfa.listFactors();
-            if (factors) {
-              mfaFactors = factors as MfaListFactorsLike;
-            }
+            if (factors) mfaFactors = factors as MfaListFactorsLike;
           } catch (mfaError) {
             console.debug("[useAuth] Could not fetch MFA factors:", mfaError);
           }
         }
 
-        // Determine if user needs MFA challenge
-        const userNeedsMfa = shouldPromptForMfaChallenge(
-          deriveAuthenticatorAssurance(currentAal, mfaFactors),
-          mfaFactors,
-        );
-
-        setNeedsMfa(userNeedsMfa);
-
-        setUser(resolvedAuthState.user);
-      } catch (error) {
+        return {
+          user: resolvedAuthState.user,
+          needsMfa: shouldPromptForMfaChallenge(
+            deriveAuthenticatorAssurance(currentAal, mfaFactors),
+            mfaFactors,
+          ),
+        };
+      },
+      onStart: () => setLoading(true),
+      onResolved: (state) => {
+        setUser(state.user);
+        setNeedsMfa(state.needsMfa);
+      },
+      onSignedOut: () => {
+        setUser(null);
+        setNeedsMfa(false);
+      },
+      onError: (error) => {
         console.error("[useAuth] Error during auth initialization:", error);
-        if (mounted) {
-          setUser(null);
-          setNeedsMfa(false);
-        }
-      } finally {
-        if (mounted) setLoading(false);
-      }
-    };
+        setUser(null);
+        setNeedsMfa(false);
+      },
+      onSettled: () => setLoading(false),
+    });
 
-    void syncAuthState();
-
-    // Subscribe to auth state changes for real-time updates
-    // This ensures user data stays fresh when login/logout occurs
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((event) => {
-      if (!mounted) return;
-
       if (event === "SIGNED_OUT") {
-        setUser(null);
-        setNeedsMfa(false);
-        setLoading(false);
-        return;
+        lifecycle.signedOut();
+      } else if (event !== "INITIAL_SESSION") {
+        // Resolve outside the SDK auth callback, after its session lock releases.
+        void lifecycle.refresh(true);
       }
-
-      if (event === "INITIAL_SESSION") {
-        return;
-      }
-
-      setLoading(true);
-      setTimeout(() => {
-        if (mounted) {
-          void syncAuthState();
-        }
-      }, 0);
     });
+    void lifecycle.refresh();
 
     return () => {
-      mounted = false;
+      lifecycle.dispose();
       subscription.unsubscribe();
     };
   }, [supabase]);
