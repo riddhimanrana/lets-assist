@@ -9556,3 +9556,7 @@ Publisher deletion follows existing account cleanup: the actor link becomes null
 Repository finding CSF-POINT-EXCEPTION-20260923, P2, implemented locally: members had no proof-bearing route for unlisted work when outside volunteering was disabled. Forward migration `20260923033020` adds an immutable request kind to the existing submission model. Other requests require a current accepted membership, open intake, an explanation, a date and finalized proof. They grant no credits at submission. Approval and appeal approval require an explicit officer award, category and reason under the existing permission, cap, receipt and audit checks. Ordinary review cannot grant exception credit.
 
 Local checks passed 47 new pgTAP assertions and 144 existing authority, receipt and proof assertions. A two-session test confirms the review waits for the semester coordinate before taking the submission lock. Catalog 665 adds internal functions and extends only the existing submission and credit relations. Hosted and Production verification remain pending.
+
+## Activity list organization, September 23, 2026
+
+Repository finding CSF-ACTIVITY-SORT-20260923, P2: choosing Latest date first with a specific week reversed the server's descending result a second time. The selected-week branch must normalize its input before the shared list applies sorting. The simplified section view also needs page-scoped empty states so an unloaded section does not appear globally empty. Both corrections are part of private PR #607 and require regression coverage before release.
