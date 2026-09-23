@@ -99,3 +99,9 @@ removed using the authoritative teardown inside a rolled-back capture transactio
 The mutation retains server-only execution, checks officer permissions, serializes
 semester edits, and records a fingerprinted receipt. The migration changes no
 existing student decisions, evidence, membership, or delivery records.
+
+Release 658 publishes signed CSF 1.2.73. Its generated migration writes only the
+signed version and catalog pointer. It changes no schema objects or chapter
+installations, so it retains the verified 657 inventory with the new ledger
+binding. The signature, source ancestry, release bytes and publication statements
+were verified before integration.
