@@ -9550,3 +9550,9 @@ Repository finding CSF-ACTIVITY-MAIL-20260923, P1, implemented locally: activity
 Local checks passed 60 new pgTAP assertions and 150 assertions across four existing email/publication suites. A two-session test held the staff lock while revoking the publisher; the waiting finalizer rejected the revoked actor and left the campaign draft with zero delivery attempts. The clean owned catalog extends only the existing publication event, campaign and recipient tables and adds internal guarded functions. Hosted and Production verification remain pending.
 
 Publisher deletion follows existing account cleanup: the actor link becomes null, frozen evidence remains, and unqueued email preparation stops. The officer status read separates campaign state, delivery review holds and delivered/failed counts from preparation state.
+
+## Point exception review, September 23, 2026
+
+Repository finding CSF-POINT-EXCEPTION-20260923, P2, implemented locally: members had no proof-bearing route for unlisted work when outside volunteering was disabled. Forward migration `20260923033020` adds an immutable request kind to the existing submission model. Other requests require a current accepted membership, open intake, an explanation, a date and finalized proof. They grant no credits at submission. Approval and appeal approval require an explicit officer award, category and reason under the existing permission, cap, receipt and audit checks. Ordinary review cannot grant exception credit.
+
+Local checks passed 47 new pgTAP assertions and 144 existing authority, receipt and proof assertions. A two-session test confirms the review waits for the semester coordinate before taking the submission lock. Catalog 665 adds internal functions and extends only the existing submission and credit relations. Hosted and Production verification remain pending.
