@@ -9505,3 +9505,22 @@ Repository finding CSF-CALENDAR-20260922-20, P2, implemented locally: the person
 ## Semester-bound activity workspaces, September 22, 2026
 
 Repository finding CSF-ACTIVITY-20260922-22, P2, implemented in private PR #597: activity creation from a class's selected historical semester still sent the current semester. The form now retains the selected class and term. Catalog queries show their semester and return no rows when no valid semester exists, instead of falling back to all historical activities. Current-term and class restrictions apply before pagination for every sort. Historical detail links and credits remain intact. Fifty focused tests, all 509 private-plugin test files, TypeScript and local Chrome desktop/phone checks pass. Signed publication, integrated acceptance and Production verification remain separate.
+
+
+## CSF submission and request audit, September 23, 2026
+
+Repository finding AUTH-REQUEST-20260923, P2, implemented locally: proxy MFA factor lookup fetched the same authoritative Auth user twice. The proxy reuses factors from its fresh request-local user read and still validates revocation, deletion, restrictions and current assurance. Real-client regression tests also cover factors enrolled after the session cookie was issued. Hosted request-volume verification remains open.
+
+Repository finding NOTIFICATION-REQUEST-20260923, P2, implemented locally: each Realtime row triggered separate notification list and unread-count reads. The provider combines bursts and cancels queued work on logout. Focused scheduling tests pass. One observed subscription filter error cannot be tied to a specific table or role; notification settings are outside the Realtime publication. That separate behavior remains unresolved, with no grant expansion proposed.
+
+Repository finding PROJECT-MAINTENANCE-20260923, P2, implemented locally: status maintenance scanned unpublished drafts and warned about intentionally incomplete schedules. Forward migration 20260923011054 excludes explicit unpublished states while retaining legacy publication semantics and validation of published schedules. Twenty-eight focused pgTAP assertions pass. Published projects with incomplete schedules still need their owners to correct the source data.
+
+Repository finding CSF-HISTORY-20260923, P1, implemented locally: a class-history import refused application-backed memberships but could create membership when an application existed without a membership row. Forward migration 20260923011212 refuses any application for that organization, profile and semester before writing history. Existing membership guards remain. New database regressions cover this case and accountless profiles; full integrated execution remains required.
+
+Repository finding CSF-IMPORT-20260923, P2, implemented locally: matched preview rows disappeared from review, leaving no way to exclude redundant current-semester rows before committing. The scoped reader and class settings retain unfrozen matched rows and use the existing audited exclusion action. Unresolved rows come first. No forced failed import is required, and frozen rows retain their recovery workflow.
+
+Repository finding CSF-CALENDAR-20260923, P2, implemented in private PR #600: the My CSF Calendar connection used app-router navigation for an OAuth redirect. Connect and Reconnect now use native browser navigation and preserve the scoped return URL. Focused regression tests pass; hosted acceptance remains required.
+
+Private PR #600 also adds class, semester and status filtering before bounded point-submission paging, a shared proof and review dialog, and existing semester verification controls for lock/reopen. Synthetic Chrome desktop and phone checks pass. Tiana's live finalized image opened successfully before any evidence changes; the confusing two-step viewer was reproduced, and stored evidence remains unchanged.
+
+These findings are implemented or under verification, not Production completion claims. Supabase collation maintenance remains separate under SU-480199. No support access, metadata refresh, reindex, restart or replication-slot change was performed by this audit.
