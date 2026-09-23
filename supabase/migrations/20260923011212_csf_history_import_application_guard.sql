@@ -541,39 +541,62 @@ STABLE
 SECURITY INVOKER
 SET search_path = ''
 AS $$
-  SELECT r.id, r.sheet_tab_name, r.row_number, r.import_status,
-    r.normalized_data, r.warnings, r.errors,
-    CASE WHEN r.import_status = 'pending' AND r.matched_profile_id IS NULL
-      THEN 'identity_review'::text END
-  FROM plugin_data.csf_sheet_import_rows AS r
-  JOIN plugin_data.csf_sheet_import_jobs AS j
-    ON j.id = r.job_id AND j.organization_id = r.organization_id
-  WHERE r.organization_id = p_organization_id
-    AND r.job_id = p_job_id
-    AND j.mode = 'preview'
-    AND j.source_type = 'class_history'
-    AND (
-      r.import_status IN ('ambiguous', 'conflict', 'duplicate', 'error')
-      OR (
-        r.import_status = 'pending'
-        AND (
-          r.matched_profile_id IS NOT NULL
-          OR NOT plugin_data.csf_class_history_has_stable_source_key(r.normalized_data)
-          OR plugin_data.csf_class_history_source_key_requires_review(r.organization_id, r.id)
-        )
-        AND r.commit_frozen_at IS NULL
-        AND r.commit_attempt_id IS NULL
-        AND NOT EXISTS (
-          SELECT 1 FROM plugin_data.csf_import_commit_queue AS queue
-          WHERE queue.organization_id = r.organization_id
-            AND queue.preview_job_id = r.job_id
-            AND queue.status IN ('queued', 'running')
+  WITH page_size AS (
+    SELECT greatest(1, least(50, coalesce(p_limit, 25))) AS size
+  ), eligible AS (
+    SELECT r.id, r.sheet_tab_name, r.row_number, r.import_status,
+      r.normalized_data, r.warnings, r.errors,
+      CASE WHEN r.import_status = 'pending' AND r.matched_profile_id IS NULL
+        THEN 'identity_review'::text END AS review_reason,
+      CASE WHEN r.import_status = 'pending' AND r.matched_profile_id IS NOT NULL
+        THEN 1 ELSE 0 END AS review_bucket
+    FROM plugin_data.csf_sheet_import_rows AS r
+    JOIN plugin_data.csf_sheet_import_jobs AS j
+      ON j.id = r.job_id AND j.organization_id = r.organization_id
+    WHERE r.organization_id = p_organization_id
+      AND r.job_id = p_job_id
+      AND j.mode = 'preview'
+      AND j.source_type = 'class_history'
+      AND (
+        r.import_status IN ('ambiguous', 'conflict', 'duplicate', 'error')
+        OR (
+          r.import_status = 'pending'
+          AND (
+            r.matched_profile_id IS NOT NULL
+            OR NOT plugin_data.csf_class_history_has_stable_source_key(r.normalized_data)
+            OR plugin_data.csf_class_history_source_key_requires_review(r.organization_id, r.id)
+          )
+          AND r.commit_frozen_at IS NULL
+          AND r.commit_attempt_id IS NULL
+          AND NOT EXISTS (
+            SELECT 1 FROM plugin_data.csf_import_commit_queue AS queue
+            WHERE queue.organization_id = r.organization_id
+              AND queue.preview_job_id = r.job_id
+              AND queue.status IN ('queued', 'running')
+          )
         )
       )
-    )
-  ORDER BY CASE WHEN r.import_status = 'pending' AND r.matched_profile_id IS NOT NULL
-    THEN 1 ELSE 0 END, r.row_number NULLS LAST, r.id
-  LIMIT greatest(1, least(50, coalesce(p_limit, 25)));
+  ), ranked AS (
+    SELECT eligible.*,
+      pg_catalog.row_number() OVER (
+        PARTITION BY review_bucket ORDER BY row_number NULLS LAST, id
+      ) AS bucket_position,
+      count(*) FILTER (WHERE review_bucket = 0) OVER () AS unresolved_count,
+      count(*) FILTER (WHERE review_bucket = 1) OVER () AS ready_count
+    FROM eligible
+  ), allocated AS (
+    SELECT ranked.*, page_size.size,
+      least(unresolved_count, greatest(
+        (page_size.size + 1) / 2, page_size.size - ready_count
+      )) AS unresolved_slots
+    FROM ranked CROSS JOIN page_size
+  )
+  SELECT id, sheet_tab_name, row_number, import_status,
+    normalized_data, warnings, errors, review_reason
+  FROM allocated
+  WHERE (review_bucket = 0 AND bucket_position <= unresolved_slots)
+    OR (review_bucket = 1 AND bucket_position <= size - unresolved_slots)
+  ORDER BY review_bucket, row_number NULLS LAST, id;
 $$;
 
 REVOKE ALL ON FUNCTION plugin_data.csf_class_import_review_rows(uuid,uuid,integer)
@@ -582,7 +605,7 @@ GRANT EXECUTE ON FUNCTION plugin_data.csf_class_import_review_rows(uuid,uuid,int
   TO postgres, service_role;
 
 COMMENT ON FUNCTION plugin_data.csf_class_import_review_rows(uuid,uuid,integer) IS
-  'Service-only bounded class preview rows. Unresolved rows precede unfrozen matched rows so officers can skip redundant history before committing. Does not change source or profile records.';
+  'Service-only bounded class preview rows. Shares page capacity between unresolved and unfrozen matched rows, showing unresolved rows first, so ready rows remain accessible for audited skips. Does not change source or profile records.';
 
 
 COMMIT;

@@ -1,7 +1,7 @@
 BEGIN;
 
 CREATE EXTENSION IF NOT EXISTS pgtap WITH SCHEMA extensions;
-SELECT extensions.plan(47);
+SELECT extensions.plan(57);
 
 INSERT INTO auth.users (
   id, aud, role, email, email_confirmed_at,
@@ -930,6 +930,97 @@ SELECT extensions.ok(
     'plugin_data.csf_import_class_history_row_identity_base(uuid,uuid,text,text,text,text,text,text,text,text,uuid,uuid,uuid,uuid,text,jsonb,jsonb,boolean,uuid)', 'EXECUTE'),
   'application guard preserves the fenced import execution boundary'
 );
+
+-- Ready rows remain reachable when held identities fill the review queue.
+INSERT INTO plugin_data.csf_sheet_import_jobs (
+  id, organization_id, source_id, mode, status, source_type, source_file_id
+) VALUES (
+  'f9500000-0000-4000-8000-000000000007', 'f9100000-0000-4000-8000-000000000001',
+  'f9400000-0000-4000-8000-000000000001', 'preview', 'completed', 'class_history', 'atomic-workbook-a'
+);
+CREATE FUNCTION pg_temp.add_fair_review_rows(p_start integer, p_end integer, p_status text)
+RETURNS void LANGUAGE sql AS $$
+  INSERT INTO plugin_data.csf_sheet_import_rows (
+    id, organization_id, job_id, source_id, cohort_id, term_id,
+    sheet_tab_name, row_number, normalized_data, row_hash, matched_profile_id, import_status
+  )
+  SELECT md5('fair-review-row-' || n)::uuid,
+    'f9100000-0000-4000-8000-000000000001', 'f9500000-0000-4000-8000-000000000007',
+    'f9400000-0000-4000-8000-000000000001', 'f9200000-0000-4000-8000-000000000001',
+    'f9300000-0000-4000-8000-000000000001', 'F40', n,
+    '{"record":{"identity":{"firstName":"Avery","lastName":"Pending","sourceStudentKey":"PendingAvery"}}}',
+    repeat('c',64), CASE WHEN p_status='pending' THEN 'f9710000-0000-4000-8000-000000000010'::uuid END,
+    p_status
+  FROM generate_series(p_start, p_end) AS n
+$$;
+CREATE FUNCTION pg_temp.fair_review_counts(p_limit integer DEFAULT 25)
+RETURNS jsonb LANGUAGE sql AS $$
+  SELECT jsonb_build_object('total', count(*),
+    'unresolved', count(*) FILTER (WHERE import_status='ambiguous'),
+    'ready', count(*) FILTER (WHERE import_status='pending'))
+  FROM plugin_data.csf_class_import_review_rows(
+    'f9100000-0000-4000-8000-000000000001', 'f9500000-0000-4000-8000-000000000007', p_limit)
+$$;
+SELECT pg_temp.add_fair_review_rows(1,25,'ambiguous');
+SELECT pg_temp.add_fair_review_rows(26,26,'pending');
+SELECT extensions.is(pg_temp.fair_review_counts(),
+  '{"total":25,"unresolved":24,"ready":1}'::jsonb,
+  'twenty-five held rows cannot hide the ready row and unused ready capacity returns to held rows');
+SELECT extensions.is(
+  (SELECT array_agg(import_status) FROM plugin_data.csf_class_import_review_rows(
+    'f9100000-0000-4000-8000-000000000001', 'f9500000-0000-4000-8000-000000000007', 25)),
+  array_fill('ambiguous'::text, ARRAY[24]) || ARRAY['pending']::text[],
+  'the allocated unresolved rows appear before ready rows');
+SELECT extensions.is(pg_temp.fair_review_counts(1),
+  '{"total":1,"unresolved":1,"ready":0}'::jsonb,
+  'a one-row page prioritizes the unresolved row');
+SELECT pg_temp.add_fair_review_rows(27,80,'pending');
+SELECT extensions.is(pg_temp.fair_review_counts(),
+  '{"total":25,"unresolved":13,"ready":12}'::jsonb,
+  'both populated buckets share the bounded page with the odd slot assigned to unresolved rows');
+UPDATE plugin_data.csf_sheet_import_rows SET import_status='skipped'
+WHERE job_id='f9500000-0000-4000-8000-000000000007' AND import_status='ambiguous';
+SELECT extensions.is(pg_temp.fair_review_counts(),
+  '{"total":25,"unresolved":0,"ready":25}'::jsonb,
+  'ready rows fill the page when no unresolved rows remain');
+SELECT extensions.is(pg_temp.fair_review_counts(500),
+  '{"total":50,"unresolved":0,"ready":50}'::jsonb,
+  'the total return remains capped at fifty for oversized limits');
+SELECT extensions.is(pg_temp.fair_review_counts(NULL),
+  '{"total":25,"unresolved":0,"ready":25}'::jsonb,
+  'a null limit retains the twenty-five-row default');
+UPDATE plugin_data.csf_sheet_import_rows SET import_status='ambiguous'
+WHERE job_id='f9500000-0000-4000-8000-000000000007' AND import_status='pending';
+SELECT extensions.is(pg_temp.fair_review_counts(),
+  '{"total":25,"unresolved":25,"ready":0}'::jsonb,
+  'unresolved rows fill the page when no ready rows remain');
+UPDATE plugin_data.csf_sheet_import_rows SET import_status='pending'
+WHERE job_id='f9500000-0000-4000-8000-000000000007' AND import_status='ambiguous';
+INSERT INTO plugin_data.csf_sheet_import_jobs (
+  id, organization_id, source_id, mode, status, source_type, source_file_id, preview_job_id
+) VALUES (
+  'f9510000-0000-4000-8000-000000000007', 'f9100000-0000-4000-8000-000000000001',
+  'f9400000-0000-4000-8000-000000000001', 'commit', 'running', 'class_history', 'atomic-workbook-a',
+  'f9500000-0000-4000-8000-000000000007'
+);
+UPDATE plugin_data.csf_sheet_import_rows
+SET commit_frozen_at=now(), commit_frozen_by_job_id='f9510000-0000-4000-8000-000000000007',
+    commit_frozen_row_hash=row_hash, commit_frozen_source_id=source_id,
+    commit_frozen_payload_hash=repeat('c',64),
+    commit_frozen_actor_user_id='f9000000-0000-4000-8000-000000000001',
+    commit_frozen_actor_snapshot='{}', commit_resolution_snapshot='{}', commit_outcome_state='frozen'
+WHERE id=md5('fair-review-row-26')::uuid;
+SELECT extensions.is(
+  (SELECT count(*) FROM plugin_data.csf_class_import_review_rows(
+    'f9100000-0000-4000-8000-000000000001', 'f9500000-0000-4000-8000-000000000007', 50)
+    WHERE id=md5('fair-review-row-26')::uuid),
+  0::bigint, 'fair allocation never exposes a frozen ready row');
+INSERT INTO plugin_data.csf_import_commit_queue (organization_id, preview_job_id, actor_user_id, status)
+VALUES ('f9100000-0000-4000-8000-000000000001', 'f9500000-0000-4000-8000-000000000007',
+  'f9000000-0000-4000-8000-000000000001', 'queued');
+SELECT extensions.is(pg_temp.fair_review_counts(),
+  '{"total":0,"unresolved":0,"ready":0}'::jsonb,
+  'fair allocation never exposes ready rows in a queued commit');
 
 SELECT * FROM extensions.finish();
 ROLLBACK;
