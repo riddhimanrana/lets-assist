@@ -9491,3 +9491,13 @@ Repository finding CSF-REVIEW-20260922-16, P2, fixed in private PR #591: after a
 ## Failed class-history row recovery, September 22, 2026
 
 Repository finding CSF-IMPORT-20260922-17, P2, open: the class settings review offers its ordinary "Leave out" form for rows whose commit already failed. The server correctly requires failed-row recovery and refuses that form, but the class workspace does not expose the existing recovery action. Reproduced after a current-semester history import refused to replace application-backed memberships. The refused transaction and subsequent skip left the application, membership and immutable import evidence unchanged. Add a class-scoped recovery control using the existing audited failed-row action, with authorization and receipt coverage. Do not weaken the current-semester ownership guard or retry these rows as new history.
+
+## Member and officer experience follow-up, September 22, 2026
+
+CSF-IMPORT-20260922-17 has a local repair: class settings pass failed rows to the existing audited recovery action. The ordinary matching form stays disabled for those rows. Production settlement remains pending deployment and authenticated officer readback.
+
+Repository finding CSF-STATUS-20260922-18, P2, implemented locally: the directory counted legacy eligibility and dues fields as unresolved after publication. The forward projection and member row display now separate published outcomes from service requirements. Focused UI tests cover approvals, rejections, pending reviews, revocation and accountless profiles. Database regression coverage checks both directory projections and selected-view attention counts. Deployment verification remains open.
+
+Repository finding CSF-PROOF-20260922-19, P2, implemented locally: proof readers selected one attachment while finalized submissions can contain several. Shared authorized reads now return the ordered collection, and review surfaces expose previews, originals, loading and failure states. Local Chrome checks cover desktop and phone views. The reported live failure remains unverified because the Chrome connector returns an authentication error; no stored evidence was changed.
+
+Repository finding CSF-CALENDAR-20260922-20, P2, implemented locally: the personal Calendar OAuth return allowlist omitted My CSF. The host now accepts only the exact organization profile route and calendar anchor, with invalid tabs, anchors and extra parameters rejected. Hosted OAuth acceptance remains open.

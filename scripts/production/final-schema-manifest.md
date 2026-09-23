@@ -90,3 +90,18 @@ Release 655 changes only the function-level timeout on the reviewed term-release
 RPC. The clean replay inventory retains every object and ACL. The controller
 binds that single changed function to the exact migration and ledger digests.
 Ordinary role and database timeout settings remain unchanged.
+
+Release 657 adds the semester activity layout mutation and two section/order
+relations. It changes the opportunity relation, both directory status projections,
+and the personal Calendar source authorization function. Its clean replay changes
+exactly these seven identities and removes no objects. Local fixture helpers were
+removed using the authoritative teardown inside a rolled-back capture transaction.
+The mutation retains server-only execution, checks officer permissions, serializes
+semester edits, and records a fingerprinted receipt. The migration changes no
+existing student decisions, evidence, membership, or delivery records.
+
+Release 658 publishes signed CSF 1.2.73. Its generated migration writes only the
+signed version and catalog pointer. It changes no schema objects or chapter
+installations, so it retains the verified 657 inventory with the new ledger
+binding. The signature, source ancestry, release bytes and publication statements
+were verified before integration.

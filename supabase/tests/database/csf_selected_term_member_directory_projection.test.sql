@@ -2,7 +2,7 @@ BEGIN;
 
 CREATE EXTENSION IF NOT EXISTS pgtap WITH SCHEMA extensions;
 
-SELECT extensions.plan(20);
+SELECT extensions.plan(25);
 
 SELECT extensions.ok(
   NOT has_function_privilege(
@@ -509,6 +509,43 @@ SELECT extensions.throws_ok(
   'CSF cohort count scope exceeds 100 classes.',
   'grouped class counts reject unbounded arrays'
 );
+
+
+-- Published application outcomes take precedence over unfinished legacy checks.
+UPDATE plugin_data.csf_term_applications SET eligibility_status='pending'
+WHERE id='fa600000-0000-4000-8000-000000000004';
+UPDATE plugin_data.csf_dues_records SET status='not_recorded',verified_at=NULL
+WHERE application_id='fa600000-0000-4000-8000-000000000004';
+UPDATE plugin_data.csf_term_memberships SET status='active'
+WHERE id='fa700000-0000-4000-8000-000000000004';
+SELECT extensions.is((SELECT count(*)::integer
+FROM plugin_data.csf_list_class_directory_page(
+'fa100000-0000-4000-8000-000000000001','fa200000-0000-4000-8000-000000000001',
+'fa300000-0000-4000-8000-000000000001','current','Current Delta',NULL,'attention',
+'name',NULL,NULL,50) WHERE profile_id IS NOT NULL),0,
+'published approval is absent from the attention queue despite legacy pending checks');
+SELECT extensions.is((SELECT count(*)::integer
+FROM plugin_data.csf_list_class_directory_page(
+'fa100000-0000-4000-8000-000000000001','fa200000-0000-4000-8000-000000000001',
+'fa300000-0000-4000-8000-000000000001','current','Current Delta',NULL,'eligibility',
+'name',NULL,NULL,50) WHERE profile_id IS NOT NULL),0,
+'published approval is absent from the eligibility queue despite legacy pending checks');
+SELECT extensions.is((SELECT count(*)::integer
+FROM plugin_data.csf_list_class_directory_page(
+'fa100000-0000-4000-8000-000000000001','fa200000-0000-4000-8000-000000000001',
+'fa300000-0000-4000-8000-000000000001','current','Current Delta',NULL,'dues',
+'name',NULL,NULL,50) WHERE profile_id IS NOT NULL),0,
+'published approval is absent from the dues queue despite legacy pending checks');
+SELECT extensions.is((SELECT max(attention_count)
+FROM plugin_data.csf_list_class_directory_page(
+'fa100000-0000-4000-8000-000000000001','fa200000-0000-4000-8000-000000000001',
+'fa300000-0000-4000-8000-000000000001','current',NULL,NULL,NULL,
+'name',NULL,NULL,50)),0::bigint,'current class attention count excludes directory-only records and legacy review fields');
+SELECT extensions.is((SELECT count(*)::integer
+FROM plugin_data.csf_list_profiles_page(
+'fa100000-0000-4000-8000-000000000001','current','Current Delta',NULL,NULL,'attention',
+'name',NULL,NULL,50) WHERE profile_id IS NOT NULL),0,
+'chapter directory also excludes published approval from attention');
 
 SELECT * FROM extensions.finish();
 ROLLBACK;
