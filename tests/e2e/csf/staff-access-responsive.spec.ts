@@ -297,7 +297,7 @@ test.describe("DVHS CSF proof submission", () => {
     ).toContainText("JPEG, PNG, WebP, HEIC, or PDF");
     await expect(
       dialog.locator("#csf-submission-evidence-constraints"),
-    ).toContainText("stored privately");
+    ).not.toContainText("stored privately");
 
     // An accepted file reports its own name and formatted size.
     await proof.setInputFiles({
