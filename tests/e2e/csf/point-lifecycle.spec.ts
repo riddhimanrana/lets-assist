@@ -86,9 +86,21 @@ async function reviewSubmission(
   const dialog = page.getByRole("dialog", {
     name: /^Review submission from .+$/,
   });
-  await expect(
-    dialog.getByRole("link", { name: "Open original", exact: true }),
-  ).toBeVisible();
+  const proof = dialog.getByRole("figure", {
+    name: "proof-images.pdf",
+    exact: true,
+  });
+  await expect(proof).toBeVisible();
+  const original = proof.getByRole("button", {
+    name: "Open original",
+    exact: true,
+  });
+  await expect(original).toBeVisible();
+  await expect(original).toHaveAttribute("href", /^https?:\/\//);
+  await expect(proof.locator('object[type="application/pdf"]')).toHaveAttribute(
+    "data",
+    (await original.getAttribute("href"))!,
+  );
   await dialog.getByLabel("Review notes").fill(notes);
   await dialog.getByRole("button", { name: decision, exact: true }).click();
   await expect(dialog).toBeHidden();
