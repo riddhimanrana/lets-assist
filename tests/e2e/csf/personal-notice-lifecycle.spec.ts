@@ -462,8 +462,12 @@ async function approveSubmissionInUi(page: Page, activityTitle: string) {
   await page.goto(OFFICER_POINTS_PATH, { waitUntil: "domcontentloaded" });
   const row = page.getByRole("row").filter({ hasText: activityTitle });
   await expect(row).toBeVisible();
-  await row.getByRole("button", { name: "Review", exact: true }).click();
-  const dialog = page.getByRole("dialog", { name: /^Review .+'s activity$/ });
+  await row
+    .getByRole("button", { name: "Review & proof", exact: true })
+    .click();
+  const dialog = page.getByRole("dialog", {
+    name: /^Review submission from .+$/,
+  });
   await expect(dialog).toBeVisible();
   await dialog
     .getByRole("button", { name: "Approve award", exact: true })

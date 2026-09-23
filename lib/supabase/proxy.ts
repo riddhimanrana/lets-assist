@@ -10,6 +10,7 @@ import {
   buildMfaRedirectPath,
   deriveMfaContinuationPath,
   type MfaListFactorsLike,
+  type MfaFactorLike,
 } from "@/lib/auth/mfa";
 import { resolveMfaSessionState } from "@/lib/auth/mfa-session-state";
 import { isMfaProtectedPath } from "@/lib/auth/mfa-paths";
@@ -29,6 +30,7 @@ type PendingAuthCookie = {
 type ProxyUser = {
   id: string;
   app_metadata?: Record<string, unknown> | null;
+  factors?: MfaFactorLike[];
 };
 
 export type AuthenticatedProxyContext = {
@@ -364,6 +366,7 @@ export async function updateSession(
     } else if (freshUser) {
       user = {
         id: freshUser.id,
+        factors: freshUser.factors,
         app_metadata:
           freshUser.app_metadata && typeof freshUser.app_metadata === "object"
             ? (freshUser.app_metadata as Record<string, unknown>)
@@ -452,17 +455,30 @@ export async function updateSession(
       creatorRouteInfo.isCreatorPath);
 
   if (shouldCheckMfa) {
-    const [assuranceResult, factorsResult] = await Promise.all([
-      supabase.auth.mfa.getAuthenticatorAssuranceLevel(),
-      supabase.auth.mfa.listFactors(),
-    ]);
-    const factorData =
-      (factorsResult.data as MfaListFactorsLike | null) ?? null;
+    const assuranceResult =
+      await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
+    // listFactors fetches the same auth user again. Reuse the authoritative
+    // factors read above, within this request only.
+    const factorData: MfaListFactorsLike = {
+      all: user?.factors ?? [],
+      totp: (user?.factors ?? []).filter(
+        (factor) =>
+          factor.factor_type === "totp" && factor.status === "verified",
+      ),
+    };
     const mfaState = resolveMfaSessionState({
-      assurance: assuranceResult.data,
+      assurance: assuranceResult.data
+        ? {
+            ...assuranceResult.data,
+            nextLevel: factorData.all?.some(
+              (factor) => factor.status === "verified",
+            )
+              ? "aal2"
+              : assuranceResult.data.currentLevel,
+          }
+        : null,
       factors: factorData,
       assuranceError: assuranceResult.error,
-      factorsError: factorsResult.error,
     });
 
     if (mfaState.invalidUser) {

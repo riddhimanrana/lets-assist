@@ -272,9 +272,10 @@ test.describe("DVHS CSF accessibility acceptance", () => {
     await expect(
       proof.getByRole("button", { name: "Proof file", exact: true }),
     ).toBeVisible();
-    await expect(proof.getByRole("status")).toHaveText(
-      /Selected service-proof\.png/,
-    );
+    const selectionStatus = proof.locator("#csf-submission-evidence-selection");
+    await expect(selectionStatus).toHaveAttribute("role", "status");
+    await expect(selectionStatus).toHaveAttribute("aria-live", "polite");
+    await expect(selectionStatus).toHaveText(/Selected service-proof\.png/);
 
     // The open dialog itself passes the same critical axe gate.
     await expectNoCriticalAxeViolations(page, testInfo, "member-submit-dialog");

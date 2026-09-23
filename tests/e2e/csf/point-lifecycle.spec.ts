@@ -68,8 +68,12 @@ async function reviewSubmission(
   await page.goto(officerPath, { waitUntil: "domcontentloaded" });
   const row = page.getByRole("row").filter({ hasText: activityTitle });
   await expect(row).toBeVisible();
-  await row.getByRole("button", { name: "Review", exact: true }).click();
-  const dialog = page.getByRole("dialog", { name: /^Review .+'s activity$/ });
+  await row
+    .getByRole("button", { name: "Review & proof", exact: true })
+    .click();
+  const dialog = page.getByRole("dialog", {
+    name: /^Review submission from .+$/,
+  });
   await dialog.getByLabel("Review notes").fill(notes);
   await dialog.getByRole("button", { name: decision, exact: true }).click();
   await expect(dialog).toBeHidden();
