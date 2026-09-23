@@ -1340,7 +1340,7 @@
       "identity": "function:plugin_data.csf_guard_activity_email_frozen_recipient()"
     },
     {
-      "digest": "3504febb0d3bbb48a96302d60558c463",
+      "digest": "59f4abcc95845514bf9a786a4c98f6a5",
       "identity": "function:plugin_data.csf_guard_activity_email_intent_snapshot()"
     },
     {
@@ -2176,7 +2176,7 @@
       "identity": "function:plugin_data.csf_queue_term_sheet_sync_records()"
     },
     {
-      "digest": "c1ffb57636ee933116a72b9cf28e2e80",
+      "digest": "1b232b1d1a5f56c8baf0952c9371ac08",
       "identity": "function:plugin_data.csf_read_activity_email_preparation(p_organization_id uuid, p_activity_id uuid, p_actor_user_id uuid)"
     },
     {
@@ -4288,7 +4288,7 @@
       "identity": "relation:plugin_data.csf_profiles"
     },
     {
-      "digest": "e83db6f8bc7a091548a82fd694997e90",
+      "digest": "8f3523f4243c7eec69d416e57a587146",
       "identity": "relation:plugin_data.csf_publication_events"
     },
     {

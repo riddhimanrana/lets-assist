@@ -132,5 +132,27 @@ INSERT INTO published VALUES(40,pg_temp.publish(40,true,NULL));
 SELECT extensions.is((SELECT jsonb_array_length(activity_email_snapshot->'recipients') FROM plugin_data.csf_publication_events WHERE id=(SELECT (result->>'emailEventId')::uuid FROM published WHERE n=40)),2,'term email keeps accepted account and accountless profile recipients');
 SELECT extensions.ok((SELECT EXISTS(SELECT 1 FROM jsonb_array_elements(activity_email_snapshot->'recipients') r WHERE r->>'email'='accountless@local.test' AND NOT(r?'userId')) FROM plugin_data.csf_publication_events WHERE id=(SELECT (result->>'emailEventId')::uuid FROM published WHERE n=40)),'accountless term member retains the exact chapter contact without inventing an account');
 
+
+SELECT extensions.throws_ok($q$INSERT INTO plugin_data.csf_publication_events(organization_id,source_kind,source_id,event_key,activity_email_requested,activity_email_state,activity_email_actor_id,activity_email_request_id,activity_email_snapshot)
+VALUES('ef100000-0000-4000-8000-000000000001','activity',gen_random_uuid(),'invalid-null-snapshot',true,'pending','ef200000-0000-4000-8000-000000000001',gen_random_uuid(),NULL)$q$,'23514',NULL,'a requested email cannot have a SQL NULL snapshot');
+SELECT extensions.throws_ok($q$UPDATE plugin_data.csf_publication_events SET activity_email_actor_id=NULL WHERE id=(SELECT (result->>'emailEventId')::uuid FROM published WHERE n=40)$q$,'55000',NULL,'an existing publisher cannot be manually detached from intent');
+SELECT extensions.is(plugin_data.csf_read_activity_email_preparation('ef100000-0000-4000-8000-000000000001',(SELECT (result->>'activityId')::uuid FROM published WHERE n=2),'ef200000-0000-4000-8000-000000000001')->>'campaignStatus','queued','status read distinguishes campaign delivery state from preparation');
+SELECT extensions.is((plugin_data.csf_read_activity_email_preparation('ef100000-0000-4000-8000-000000000001',(SELECT (result->>'activityId')::uuid FROM published WHERE n=2),'ef200000-0000-4000-8000-000000000001')->>'deliveredCount')::integer,0,'queued attempts are not reported as delivered');
+SELECT extensions.is((plugin_data.csf_read_activity_email_preparation('ef100000-0000-4000-8000-000000000001',(SELECT (result->>'activityId')::uuid FROM published WHERE n=2),'ef200000-0000-4000-8000-000000000001')->>'failedCount')::integer,0,'status reports only failed deliveries');
+SAVEPOINT held_campaign_status;
+UPDATE plugin_data.csf_communication_campaigns SET review_blocked_at=now(),review_blocked_reason='Synthetic provider outcome requires review' WHERE id=(SELECT id FROM campaign);
+UPDATE plugin_data.csf_communication_deliveries SET unknown_outcome_at=now(),review_state='pending',review_reason='Synthetic provider outcome requires review' WHERE campaign_id=(SELECT id FROM campaign);
+SELECT extensions.is(plugin_data.csf_read_activity_email_preparation('ef100000-0000-4000-8000-000000000001',(SELECT (result->>'activityId')::uuid FROM published WHERE n=2),'ef200000-0000-4000-8000-000000000001')->>'reviewBlocked','true','campaign review hold remains visible after preparation queued');
+SELECT extensions.is((plugin_data.csf_read_activity_email_preparation('ef100000-0000-4000-8000-000000000001',(SELECT (result->>'activityId')::uuid FROM published WHERE n=2),'ef200000-0000-4000-8000-000000000001')->>'unknownOutcomeCount')::integer,1,'status counts unresolved provider outcomes without exposing evidence');
+ROLLBACK TO held_campaign_status;
+-- Match deleteUserWithCleanup: retain another admin, then remove public memberships before auth deletion.
+UPDATE public.organization_members SET role='admin' WHERE organization_id='ef100000-0000-4000-8000-000000000001' AND user_id='ef200000-0000-4000-8000-000000000002';
+DELETE FROM public.organization_members WHERE user_id='ef200000-0000-4000-8000-000000000001';
+CREATE TEMP TABLE frozen_before_delete AS SELECT id,activity_email_snapshot FROM plugin_data.csf_publication_events WHERE organization_id='ef100000-0000-4000-8000-000000000001';
+SELECT extensions.lives_ok($q$DELETE FROM auth.users WHERE id='ef200000-0000-4000-8000-000000000001'$q$,'publication email intents do not block deleting a publisher account');
+SELECT extensions.ok((SELECT activity_email_actor_id IS NULL AND activity_email_state='blocked' AND activity_email_error_code='unauthorized' FROM plugin_data.csf_publication_events WHERE id=(SELECT (result->>'emailEventId')::uuid FROM published WHERE n=40)),'deleting the publisher blocks unqueued email preparation');
+SELECT extensions.is((SELECT activity_email_state FROM plugin_data.csf_publication_events WHERE id=(SELECT (result->>'emailEventId')::uuid FROM published WHERE n=1)),'not_requested','deletion preserves an earlier no-email choice');
+SELECT extensions.is((SELECT count(*)::integer FROM frozen_before_delete old JOIN plugin_data.csf_publication_events current USING(id) WHERE current.activity_email_snapshot IS DISTINCT FROM old.activity_email_snapshot),0,'publisher deletion preserves frozen content and recipients');
+
 SELECT * FROM extensions.finish();
 ROLLBACK;

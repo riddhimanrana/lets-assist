@@ -5,7 +5,7 @@ ALTER TABLE plugin_data.csf_publication_events
   ADD COLUMN activity_email_requested boolean,
   ADD COLUMN activity_email_state text NOT NULL DEFAULT 'not_requested'
     CHECK(activity_email_state IN('not_requested','pending','processing','queued','blocked')),
-  ADD COLUMN activity_email_actor_id uuid REFERENCES auth.users(id) ON DELETE RESTRICT,
+  ADD COLUMN activity_email_actor_id uuid REFERENCES auth.users(id) ON DELETE SET NULL,
   ADD COLUMN activity_email_request_id uuid,
   ADD COLUMN activity_email_snapshot jsonb,
   ADD COLUMN activity_email_campaign_id uuid,
@@ -18,7 +18,7 @@ ALTER TABLE plugin_data.csf_publication_events
     REFERENCES plugin_data.csf_communication_campaigns(id,organization_id) ON DELETE RESTRICT,
   ADD CONSTRAINT csf_activity_email_intent_shape CHECK(
     (activity_email_state='not_requested' AND activity_email_snapshot IS NULL)
-    OR (source_kind='activity' AND activity_email_requested=true AND activity_email_actor_id IS NOT NULL
+    OR (source_kind='activity' AND activity_email_requested=true AND activity_email_snapshot IS NOT NULL
       AND activity_email_request_id IS NOT NULL AND jsonb_typeof(activity_email_snapshot)='object'));
 CREATE INDEX csf_activity_email_preparation_ready_idx ON plugin_data.csf_publication_events(activity_email_next_attempt_at,id)
   WHERE activity_email_state IN('pending','processing');
@@ -159,7 +159,12 @@ BEGIN
  SELECT * INTO e FROM plugin_data.csf_publication_events WHERE organization_id=p_organization_id AND source_kind='activity' AND source_id=p_activity_id AND event_key='';
  RETURN jsonb_build_object('eventId',e.id,'status',coalesce(e.activity_email_state,'not_requested'),'attempts',coalesce(e.activity_email_attempts,0),
  'recipientCount',coalesce(jsonb_array_length(e.activity_email_snapshot->'recipients'),0),'campaignId',e.activity_email_campaign_id,
- 'errorCode',e.activity_email_error_code,'requested',coalesce(e.activity_email_requested,false));
+ 'errorCode',e.activity_email_error_code,'requested',coalesce(e.activity_email_requested,false),
+ 'campaignStatus',(SELECT c.status FROM plugin_data.csf_communication_campaigns c WHERE c.organization_id=p_organization_id AND c.id=e.activity_email_campaign_id),
+ 'deliveredCount',(SELECT count(*) FROM plugin_data.csf_communication_deliveries d WHERE d.organization_id=p_organization_id AND d.campaign_id=e.activity_email_campaign_id AND d.delivered_at IS NOT NULL),
+ 'reviewBlocked',coalesce((SELECT c.review_blocked_at IS NOT NULL FROM plugin_data.csf_communication_campaigns c WHERE c.organization_id=p_organization_id AND c.id=e.activity_email_campaign_id),false),
+ 'unknownOutcomeCount',(SELECT count(*) FROM plugin_data.csf_communication_deliveries d WHERE d.organization_id=p_organization_id AND d.campaign_id=e.activity_email_campaign_id AND d.unknown_outcome_at IS NOT NULL AND d.review_state IN ('pending','escalated')),
+ 'failedCount',(SELECT count(*) FROM plugin_data.csf_communication_deliveries d WHERE d.organization_id=p_organization_id AND d.campaign_id=e.activity_email_campaign_id AND d.status='failed'));
 END; $$;
 
 CREATE FUNCTION plugin_data.csf_bind_activity_email_campaign()
@@ -260,9 +265,17 @@ END; $$;
 CREATE FUNCTION plugin_data.csf_guard_activity_email_intent_snapshot()
 RETURNS trigger LANGUAGE plpgsql SECURITY DEFINER SET search_path='' AS $$
 BEGIN
- IF OLD.activity_email_requested IS NOT NULL AND ROW(NEW.activity_email_requested,NEW.activity_email_actor_id,NEW.activity_email_request_id,NEW.activity_email_snapshot)
-   IS DISTINCT FROM ROW(OLD.activity_email_requested,OLD.activity_email_actor_id,OLD.activity_email_request_id,OLD.activity_email_snapshot) THEN
+ IF OLD.activity_email_requested IS NOT NULL AND ROW(NEW.activity_email_requested,NEW.activity_email_request_id,NEW.activity_email_snapshot)
+   IS DISTINCT FROM ROW(OLD.activity_email_requested,OLD.activity_email_request_id,OLD.activity_email_snapshot) THEN
    RAISE EXCEPTION 'An activity publication email snapshot is immutable.' USING ERRCODE='55000'; END IF;
+ IF NEW.activity_email_actor_id IS DISTINCT FROM OLD.activity_email_actor_id AND OLD.activity_email_requested IS NOT NULL THEN
+   IF NEW.activity_email_actor_id IS NOT NULL OR EXISTS(SELECT 1 FROM auth.users WHERE id=OLD.activity_email_actor_id) THEN
+     RAISE EXCEPTION 'The publication email actor cannot be reassigned.' USING ERRCODE='55000'; END IF;
+   IF OLD.activity_email_state IN('pending','processing','blocked') THEN
+     NEW.activity_email_state:='blocked'; NEW.activity_email_error_code:='unauthorized';
+     NEW.activity_email_lease_token:=NULL; NEW.activity_email_lease_expires_at:=NULL;
+   END IF;
+ END IF;
  IF OLD.activity_email_campaign_id IS NOT NULL AND NEW.activity_email_campaign_id IS DISTINCT FROM OLD.activity_email_campaign_id THEN
    RAISE EXCEPTION 'The publication email campaign cannot be replaced.' USING ERRCODE='55000'; END IF;
  RETURN NEW;
