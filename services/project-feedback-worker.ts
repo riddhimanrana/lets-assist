@@ -16,7 +16,9 @@ import {
   getAttendanceScheduleWindow,
   listAttendanceScheduleIds,
 } from "@/lib/attendance/challenge";
-import ProjectFeedbackRequest from "@/emails/project-feedback-request";
+import ProjectFeedbackRequest, {
+  projectFeedbackRequestText,
+} from "@/emails/project-feedback-request";
 import type { Project } from "@/types";
 
 /**
@@ -614,21 +616,23 @@ export async function runProjectFeedbackWorker(options: {
 
     let result: Awaited<ReturnType<typeof sendEmail>>;
     try {
+      const emailProps = {
+        volunteerName: prepared.recipientName,
+        projectTitle: prepared.project.title,
+        organizationName: prepared.project.organization?.name ?? null,
+        feedbackUrl: prepared.feedbackUrl,
+        unsubscribeUrl: prepared.unsubscribeUrl,
+        eventDate: prepared.eventDate,
+        purpose: prepared.purpose,
+      };
       result = await sendEmail({
         to: prepared.recipientEmail,
         subject:
           prepared.purpose === "platform_experience"
             ? "How was using Let's Assist?"
             : `How did volunteering at ${prepared.titleForSubject} go?`,
-        react: React.createElement(ProjectFeedbackRequest, {
-          volunteerName: prepared.recipientName,
-          projectTitle: prepared.project.title,
-          organizationName: prepared.project.organization?.name ?? null,
-          feedbackUrl: prepared.feedbackUrl,
-          unsubscribeUrl: prepared.unsubscribeUrl,
-          eventDate: prepared.eventDate,
-          purpose: prepared.purpose,
-        }),
+        react: React.createElement(ProjectFeedbackRequest, emailProps),
+        text: projectFeedbackRequestText(emailProps),
         // userId deliberately omitted: sendEmail's preference gate is
         // unreachable from cron; consent was re-checked above.
         type: "project_updates",

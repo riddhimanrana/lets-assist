@@ -2,7 +2,9 @@ import { describe, expect, test } from "bun:test";
 import * as React from "react";
 import { render } from "react-email";
 
-import ProjectFeedbackRequest from "./project-feedback-request";
+import ProjectFeedbackRequest, {
+  projectFeedbackRequestText,
+} from "./project-feedback-request";
 
 describe("project-feedback-request email", () => {
   test("renders with default preview props without a fabricated date", async () => {
@@ -78,7 +80,10 @@ describe("experience email", () => {
       <ProjectFeedbackRequest {...props} purpose="platform_experience" />
     );
     const html = await render(email);
-    const text = await render(email, { plainText: true });
+    const text = projectFeedbackRequestText({
+      ...props,
+      purpose: "platform_experience",
+    });
     expect(html).toContain("How was using Let");
     expect(text.toLowerCase()).toContain("how was using let");
     expect(html).not.toContain("rating=");
@@ -86,6 +91,7 @@ describe("experience email", () => {
     expect(text).toContain("platform admins");
     expect(text).toContain(props.projectTitle);
     expect(text).toContain(props.unsubscribeUrl);
+    expect(text.split(props.feedbackUrl)).toHaveLength(2);
   });
   test("existing organizer mail keeps its original question and preselection", async () => {
     const html = await render(

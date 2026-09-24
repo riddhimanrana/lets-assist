@@ -34,6 +34,23 @@ interface ProjectFeedbackRequestProps {
   purpose?: "organizer" | "platform_experience";
 }
 
+export function projectFeedbackRequestText(props: ProjectFeedbackRequestProps) {
+  const platform = props.purpose === "platform_experience";
+  return [
+    platform
+      ? "How was using Let's Assist?"
+      : `How did volunteering at ${props.projectTitle} go?`,
+    `Hi ${props.volunteerName},`,
+    `You volunteered at ${props.projectTitle}${props.organizationName ? ` with ${props.organizationName}` : ""}${props.eventDate ? ` on ${props.eventDate}` : ""}.`,
+    platform
+      ? "Tell us how Let's Assist worked for you. Your rating and optional comment are private to you and Let's Assist platform admins."
+      : "Share how it went with the project organizer. Your feedback is never shown publicly.",
+    `Rate your experience: ${props.feedbackUrl}`,
+    `Unsubscribe from feedback requests: ${props.unsubscribeUrl}`,
+    "Let's Assist",
+  ].join("\n\n");
+}
+
 export default function ProjectFeedbackRequest({
   volunteerName = "Volunteer",
   projectTitle = "Beach Cleanup Drive",

@@ -747,6 +747,10 @@ describe("platform experience routing", () => {
     const result = await runProjectFeedbackWorker({ batchSize: 1 });
     expect(result.outcomes.sent).toBe(1);
     expect(sendEmailCalls[0].subject).toBe("How was using Let's Assist?");
+    expect(sendEmailCalls[0].text).toContain("platform admins");
+    expect(
+      String(sendEmailCalls[0].text).match(/Rate your experience:/g),
+    ).toHaveLength(1);
     expect(
       (sendEmailCalls[0].react as ReactElement<{ purpose: string }>).props
         .purpose,
