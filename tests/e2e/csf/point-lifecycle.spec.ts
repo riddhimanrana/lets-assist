@@ -268,7 +268,7 @@ test("point proof correction earns one verified credit only after officer approv
       "Your current proof stays attached until this edit saves.",
     );
     await correction
-      .getByLabel("What you did", { exact: true })
+      .getByRole("textbox", { name: "What you did", exact: true })
       .fill(correctedDescription);
     await correction
       .getByRole("button", { name: "Save changes", exact: true })
