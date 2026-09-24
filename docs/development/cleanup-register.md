@@ -8,6 +8,18 @@ evidence and does not override the current tables or release gates.
 
 `AUD-` identifiers are allocated per branch and can drift while several audit branches are open at once. Current `development` includes the merged #152, #158, #174, #177, #179, and #181 findings, while open #180 can still carry overlapping historical identifiers. This branch retains `AUD-036` and `AUD-037` for its activity/partner authorization work without renumbering or restating the merged meeting findings.
 
+## Dark theme before first paint, September 24, 2026
+
+P2 THEME-20260924: full document navigation could paint the light palette while the client instrumentation bundle loaded. The theme initializer now runs synchronously in the root layout head and sets both the theme class and browser color scheme before body content. Blocked storage falls back to the system preference. Theme changes also apply before the next React paint.
+
+The focused test executes the same literal initializer without application bundles. Compiled browser checks passed with external scripts blocked across repeated document navigation, plus phone, tablet and desktop layouts. This change is local until its release gates and deployed readback pass.
+
+## Class activity email audience, September 24, 2026
+
+P2 CSF-CLASS-EMAIL-20260924, implemented locally: class activity announcements selected connected accounts while the displayed semester roster also included accountless profiles. Forward migration `20260924095624` selects accepted current-term profiles with eligible contact addresses for both class and chapter activity announcements. It reports member, recipient, opt-out, missing-contact and duplicate-address counts. New snapshots carry audience version 2; previously frozen audiences and private decisions retain their original delivery rules.
+
+Local database coverage passed 117 assertions across the new profile-audience suite and existing publication, class audience and preference suites. It covers accountless recipients, opt-outs, identity ownership, stale contact addresses, changed memberships and duplicate queue prevention. The new template passed font, alignment and overflow checks at 1280, 390 and 320 pixels. Production reconciliation and release remain pending.
+
 ## Scheduled-maintenance diagnosis, September 17, 2026
 
 Read-only Production inspection found two generations of attendance cron jobs running each minute. The legacy entrypoints call the same current functions. Each of the four jobs ran successfully 1,440 times in the preceding day. Migration `20260918050000` removes the two legacy schedules only after checking their commands, wrapper definitions, replacement schedules, database, and owner. The canonical minute cadence stays intact.
