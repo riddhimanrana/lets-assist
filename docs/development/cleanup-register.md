@@ -2726,6 +2726,10 @@ sources.
 
 ## Repository-owned P0–P2
 
+### CSF 1.2.77 browser acceptance repair, September 23, 2026
+
+P2 `CSF-ACCEPTANCE-77`: full gate `35937319491` passed the database, scale and build checks, but two browser tests still expected the removed Close signups control and the previous proof-limit wording. The updated lifecycle journey restores a fictional legacy closed activity and verifies that its original publication and email intent remain unchanged. The proof journey checks separate image and PDF limits. TypeScript and affected zero-warning ESLint pass locally. Integrated browser verification remains required before Production release.
+
 ### CSF proof uploads and officer navigation, September 22, 2026
 
 | Finding               | Status                    | Evidence or remaining work                                                                                                                                                                                                                                                                                                                                                                     |

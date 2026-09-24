@@ -291,7 +291,10 @@ test.describe("DVHS CSF proof submission", () => {
     expect(describedBy).toContain("csf-submission-evidence-constraints");
     await expect(
       dialog.locator("#csf-submission-evidence-constraints"),
-    ).toContainText("10 MB maximum");
+    ).toContainText("Images: 10 MB each, 12 MB total");
+    await expect(
+      dialog.locator("#csf-submission-evidence-constraints"),
+    ).toContainText("PDF: 4 MB");
     await expect(
       dialog.locator("#csf-submission-evidence-constraints"),
     ).toContainText("JPEG, PNG, WebP, HEIC, or PDF");
