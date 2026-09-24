@@ -97,7 +97,7 @@ for (const width of [1280, 390]) {
       ).toBeNull();
       await releaseDecisions(fixture);
       await page.goto(PROFILE);
-      const summary = page.getByLabel("CSF member profile");
+      const summary = page.locator(`#csf-term-panel-${fixture.termId}`);
       await expect(summary).toBeVisible();
       if (role === "accepted") {
         await expect(
@@ -150,7 +150,9 @@ test("a new red proposal preserves the member's published access until release",
   await loginWithEmail(page, applicants.byRole.accepted.email);
   await page.goto(PROFILE);
   await expect(
-    page.getByLabel("CSF member profile").getByText("Approved by CSF officers"),
+    page
+      .locator(`#csf-term-panel-${fixture.termId}`)
+      .getByText("Approved by CSF officers", { exact: true }),
   ).toBeVisible();
   expect(
     (await publishedState(fixture, applicants.byRole.accepted))
@@ -159,7 +161,9 @@ test("a new red proposal preserves the member's published access until release",
   await releaseDecisions(fixture);
   await page.reload();
   await expect(
-    page.getByLabel("CSF member profile").getByText("Application not approved"),
+    page
+      .locator(`#csf-term-panel-${fixture.termId}`)
+      .getByText("Application not approved", { exact: true }),
   ).toBeVisible();
   expect(
     (await publishedState(fixture, applicants.byRole.accepted))

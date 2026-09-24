@@ -14,6 +14,46 @@ import { reviewedCatalogDataWrites } from "./reviewed-catalog-data-writes.mjs";
 // it is read from the migration file or from the SQL the controller assembles.
 export const reviewedMigrationDataWrites = [
   {
+    migration: "20260924033800",
+    table: "plugin_data.csf_opportunities",
+    operation: "UPDATE",
+    statement:
+      "0ce1ad5dbea87c976a62b44b8609f2f30d1ff4d86f3585e1a0a5ee20a177e0b4",
+    why: "Preserves existing officer section placements as manual before automatic week grouping begins.",
+  },
+  {
+    migration: "20260924033800",
+    table: "plugin_data.csf_activity_layouts",
+    operation: "UPDATE",
+    statement:
+      "f237f343c4d7f93ff0145519a88d6d9271e78ab24053e8077d688f8ca71a4f12",
+    why: "Advances existing layout revisions once so pre-migration cursors and edits cannot overwrite the new grouping.",
+  },
+  {
+    migration: "20260924034832",
+    table: "public.notification_settings",
+    operation: "UPDATE",
+    statement:
+      "4a5097e7b1de82a01f26b18602f5c882bf9890ebea9f6cd8b6bf17ea6bc5149e",
+    why: "Copies existing project-update opt-outs into the new feedback preference. Master email opt-outs remain enforced.",
+  },
+  {
+    migration: "20260924034832",
+    table: "app_private.platform_feedback_rollout",
+    operation: "INSERT",
+    statement:
+      "22ae17102b31f641f025c3dd620a913c595898f2a63b9cf233f4505ea7a2b88f",
+    why: "Records the rollout cutoff used to exclude historical projects from automatic feedback dispatch.",
+  },
+  {
+    migration: "20260924034832",
+    table: "plugin_data.csf_retention_reference_policy",
+    operation: "INSERT",
+    statement:
+      "8029183c080d3379084523032cefb9ada9207e36d6646e49f84d8499dbe4929c",
+    why: "Registers the new profile-owned prompt receipt for the existing retention workflow. Static schema metadata only.",
+  },
+  {
     migration: "20260917090000",
     table: "plugin_data.csf_role_permissions",
     operation: "INSERT",

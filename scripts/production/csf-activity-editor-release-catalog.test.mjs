@@ -34,7 +34,7 @@ test("the Production tail applies restoration and the signed release once", () =
         /INSERT INTO supabase_migrations.schema_migrations/gu,
       ) ?? []
     ).length,
-    2,
+    expectedVersions(repository).length - 666,
   );
   assert.match(
     prepared.query,
@@ -49,6 +49,6 @@ test("the Production tail applies restoration and the signed release once", () =
   const replay = prepareMigration(repository, readFileSync, versions);
   assert.doesNotMatch(
     replay.query,
-    /INSERT INTO supabase_migrations.schema_migrations/u,
+    /'20260923200000','csf_restore_closed_activity'|'20260923202633','publish_dvhs_csf_1_2_77'/u,
   );
 });

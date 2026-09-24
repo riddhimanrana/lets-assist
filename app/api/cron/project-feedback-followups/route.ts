@@ -41,7 +41,8 @@ function isAuthorized(request: NextRequest): boolean {
   // Read at request time so a rotated secret takes effect immediately.
   const allowedTokens = [
     process.env.PROJECT_FEEDBACK_WORKER_SECRET_TOKEN,
-    process.env.CRON_TOKEN ?? process.env.CRON_SECRET,
+    process.env.CRON_TOKEN,
+    process.env.CRON_SECRET,
   ].filter((value): value is string => Boolean(value));
 
   // No secret configured means no access, never fail-open.

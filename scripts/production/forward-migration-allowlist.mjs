@@ -801,4 +801,28 @@ export const approvedMigrations = [
     "20260923202633_publish_dvhs_csf_1_2_77",
     "1fe56d3d1a48cee42f559ae8a2e407bac22da869d572b1d27b6f24d9043b1df9",
   ],
+  [
+    "20260924033800_csf_activity_week_sections",
+    "049da230cc3ce818e912457469701088909bfc8b8ac2a6fe0ef939b4a526cb64",
+  ],
+  [
+    "20260924034832_platform_experience_feedback",
+    "9b9e92cbdeeedcba108a4369e905385144f179555c25613a1884b157a1afcbbc",
+  ],
+  [
+    "20260924034956_csf_member_submission_revisions",
+    "6342521d25b7baceb9a0db7da4d6d31a9024bcd9b0fe77856edd55e0703c8cab",
+  ],
+  [
+    "20260924050011_publish_dvhs_csf_1_2_78",
+    "a592396a315cff4c9958a8b68600728026ca001cbe4ed9d88feb4ab38e7f67c9",
+  ],
+  [
+    "20260924075152_csf_member_submission_deletion",
+    "8b8a06a4f7f11dd2e38f400b7850c0b3f183932dbcb3ddca70650b3f1dbe9cea",
+  ],
+  [
+    "20260924083054_publish_dvhs_csf_1_2_79",
+    "28dc8787557a193a5058259c7ef033570dc798659c6e6c3d0bd10b923f2120e4",
+  ],
 ];

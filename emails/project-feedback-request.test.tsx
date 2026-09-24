@@ -2,10 +2,12 @@ import { describe, expect, test } from "bun:test";
 import * as React from "react";
 import { render } from "react-email";
 
-import ProjectFeedbackRequest from "./project-feedback-request";
+import ProjectFeedbackRequest, {
+  projectFeedbackRequestText,
+} from "./project-feedback-request";
 
 describe("project-feedback-request email", () => {
-  test("renders with default preview props — no fabricated date", async () => {
+  test("renders with default preview props without a fabricated date", async () => {
     const html = await render(React.createElement(ProjectFeedbackRequest));
     expect(html).toContain("Beach Cleanup Drive");
     expect(html).toContain("never shown publicly");
@@ -62,5 +64,40 @@ describe("project-feedback-request email", () => {
       "https://lets-assist.com/feedback/req-1/unsubscribe?token=tok",
     );
     expect(html).toContain("Green Org");
+  });
+});
+
+const props = {
+  volunteerName: "Taylor",
+  projectTitle: "Fictional library helpers",
+  feedbackUrl: "https://example.test/feedback/fixture?token=synthetic",
+  unsubscribeUrl:
+    "https://example.test/feedback/fixture/unsubscribe?token=synthetic",
+};
+describe("experience email", () => {
+  test("HTML and plain text ask about the platform and never save through star links", async () => {
+    const email = (
+      <ProjectFeedbackRequest {...props} purpose="platform_experience" />
+    );
+    const html = await render(email);
+    const text = projectFeedbackRequestText({
+      ...props,
+      purpose: "platform_experience",
+    });
+    expect(html).toContain("How was using Let");
+    expect(text.toLowerCase()).toContain("how was using let");
+    expect(html).not.toContain("rating=");
+    expect(text).not.toContain("rating=");
+    expect(text).toContain("platform admins");
+    expect(text).toContain(props.projectTitle);
+    expect(text).toContain(props.unsubscribeUrl);
+    expect(text.split(props.feedbackUrl)).toHaveLength(2);
+  });
+  test("existing organizer mail keeps its original question and preselection", async () => {
+    const html = await render(
+      <ProjectFeedbackRequest {...props} purpose="organizer" />,
+    );
+    expect(html).toContain(`How did volunteering at ${props.projectTitle} go?`);
+    expect(html).toContain("rating=5");
   });
 });

@@ -42,6 +42,7 @@
   ],
   "dvhs-csf": [
     "@/app/organization/[id]/settings/actions",
+    "@/components/feedback/ExperienceFeedbackForm",
     "@/components/shared/NoAvatar",
     "@/components/ui/accordion",
     "@/components/ui/alert",
@@ -99,6 +100,7 @@
     "@/lib/auth/google-picker-config",
     "@/lib/auth/google-picker-preflight",
     "@/lib/cron/csf-worker-controls",
+    "@/lib/feedback/experience",
     "@/lib/logger",
     "@/lib/organization/csf-calendar-sync",
     "@/lib/organization/invitation-utils",

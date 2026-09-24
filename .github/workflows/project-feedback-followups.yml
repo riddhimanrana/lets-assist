@@ -1,8 +1,8 @@
 name: Project Feedback Follow-ups
 
+# Vercel Cron owns the hourly schedule. Keep this protected manual fallback
+# for recovery without holding automatic follow-ups at an environment review.
 on:
-  schedule:
-    - cron: "17 * * * *" # Hourly, off the top to avoid the */10 and */20 workers
   workflow_dispatch:
 
 permissions:
@@ -10,7 +10,7 @@ permissions:
 
 jobs:
   project-feedback-followups:
-    if: github.repository_owner == 'riddhimanrana'
+    if: github.repository_owner == 'riddhimanrana' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     environment: production
     timeout-minutes: 15

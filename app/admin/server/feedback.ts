@@ -35,6 +35,9 @@ export async function getAllFeedback() {
       feedback,
       page_path,
       metadata,
+      rating,
+      purpose,
+      context_kind,
       created_at
     `,
     )
@@ -49,7 +52,13 @@ export async function getAllFeedback() {
     return { data: [] };
   }
 
-  const userIds = [...new Set(data.map((item) => item.user_id))];
+  const userIds = [
+    ...new Set(
+      data
+        .map((item) => item.user_id)
+        .filter((id): id is string => typeof id === "string"),
+    ),
+  ];
   const feedbackIds = data.map((item) => item.id);
 
   const [

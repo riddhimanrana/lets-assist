@@ -10,6 +10,11 @@ on:
         description: "Exact private release tag, for example dvhs-csf/v1.2.0"
         required: true
         type: string
+      candidate_sha:
+        description: "Optional full root candidate SHA containing unreleased host migrations. Dispatch from that same commit."
+        required: false
+        default: ""
+        type: string
 
 concurrency:
   # The migration ledger is global. Serialize all plugin publications so two
@@ -43,12 +48,43 @@ jobs:
             exit 1
           fi
 
-      - name: Checkout root Development
+      - name: Resolve the root integration candidate
+        id: candidate
+        env:
+          CANDIDATE_SHA: ${{ inputs.candidate_sha }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ -z "${CANDIDATE_SHA}" ]]; then
+            echo "ref=development" >> "$GITHUB_OUTPUT"
+          elif [[ "$GITHUB_EVENT_NAME" == workflow_dispatch && "${CANDIDATE_SHA}" =~ ^[0-9a-f]{40}$ && "${CANDIDATE_SHA}" == "$GITHUB_SHA" ]]; then
+            echo "ref=${CANDIDATE_SHA}" >> "$GITHUB_OUTPUT"
+          else
+            echo "candidate_sha must be the full commit SHA of this manual workflow dispatch." >&2
+            exit 1
+          fi
+
+      - name: Checkout root integration source
         uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # ratchet:actions/checkout@v6
         with:
-          ref: development
+          repository: riddhimanrana/lets-assist
+          ref: ${{ steps.candidate.outputs.ref }}
           fetch-depth: 0
           submodules: false
+
+      - name: Verify root candidate ancestry
+        env:
+          CANDIDATE_SHA: ${{ inputs.candidate_sha }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ -z "${CANDIDATE_SHA}" ]]; then
+            exit 0
+          fi
+          test "$(git rev-parse HEAD)" = "${CANDIDATE_SHA}"
+          git fetch --no-tags https://github.com/riddhimanrana/lets-assist.git \
+            '+refs/heads/development:refs/remotes/root/development'
+          git merge-base --is-ancestor refs/remotes/root/development "${CANDIDATE_SHA}"
 
       - name: Refuse an unordered integration pull request
         env:

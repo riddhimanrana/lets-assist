@@ -105,3 +105,10 @@ signed version and catalog pointer. It changes no schema objects or chapter
 installations, so it retains the verified 657 inventory with the new ledger
 binding. The signature, source ancestry, release bytes and publication statements
 were verified before integration.
+
+Release 673 adds seven submission-deletion functions and two temporary cleanup tables.
+It changes the submission audit guard and Storage cleanup queue trigger. The reviewed
+inventory changes exactly those eleven identities. The provider-owned Storage table
+stays outside the shared catalog; the release query separately verifies the exact,
+enabled CSF upload trigger. The migration deletes no existing claims on deployment.
+Member actions remove their eligible claims and complete physical proof cleanup.

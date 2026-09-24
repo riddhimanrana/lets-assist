@@ -7,6 +7,8 @@ BEGIN;
 CREATE EXTENSION IF NOT EXISTS pgtap WITH SCHEMA extensions;
 
 SELECT extensions.plan(34);
+-- Exercise the existing retry ledger independently of the release cutoff.
+UPDATE app_private.platform_feedback_rollout SET enabled_at = now() - interval '90 days';
 
 -- ---------------------------------------------------------------------------
 -- Privileges

@@ -569,7 +569,7 @@ test("schema verification uses only fixed read-only management requests", async 
       assert.equal(JSON.parse(options.body).read_only, undefined);
       assert.match(
         JSON.parse(options.body).query,
-        /^BEGIN READ ONLY;\nSET LOCAL search_path TO public, extensions;\nWITH\b/u,
+        /^BEGIN READ ONLY;\nSET LOCAL search_path TO public, extensions;\nSELECT CASE WHEN \(WITH\b/u,
       );
       assert.match(JSON.parse(options.body).query, /;\nCOMMIT;$/u);
     } else assert.equal(JSON.parse(options.body).read_only, true);

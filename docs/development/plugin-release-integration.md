@@ -20,6 +20,14 @@ Plugin source, release publication, host integration, deployment, and organizati
 
 Production promotion remains a separate root `development` to `main` release. Do not create a private release tag or merge a root integration to `main` as part of routine plugin development.
 
+When a signed plugin requires unpublished host migrations, manually dispatch
+`plugin-release-integration.yml` from the root candidate with `candidate_sha`
+set to that same full commit SHA. The workflow checks that the commit descends
+from current Development, verifies the signed release as usual, and opens one
+integration PR containing the host changes and publication. Automatic dispatches
+continue to use Development. A candidate from another repository, an older
+Development lineage, or a different workflow revision is refused.
+
 ## Operator workflow
 
 For a normal release, the platform owner handles catalog publication and child

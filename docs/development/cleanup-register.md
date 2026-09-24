@@ -2726,6 +2726,27 @@ sources.
 
 ## Repository-owned P0–P2
 
+### CSF experience candidate, September 23, 2026
+
+Repository finding CSF-EXPERIENCE-SURVEY-SCHEDULE, P2, implemented: the hourly
+project feedback job waited for Production approval and blocked later runs.
+The existing authenticated worker now has one hourly Vercel trigger. GitHub
+retains a protected manual recovery path on `main`. The worker still requires
+its exact environment opt-in, current consent, and durable dispatch claims.
+The platform-feedback rollout cutoff excludes historical eligibility. Focused
+scheduler and worker-route checks pass; deployed scheduling and worker execution
+still require Production verification.
+
+| Finding                 | Status            | Evidence and remaining work                                                                                                                                                                                                                                                                               |
+| ----------------------- | ----------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| CSF-EXPERIENCE-PROGRESS | P2, fixed locally | Feed, My CSF and submissions now use one capped projection. Unknown categories and incomplete reads cannot display a false zero or trigger completion. Approved awards replace linked submitted credit without double counting. Hosted verification remains pending.                                      |
+| CSF-EXPERIENCE-REVIEW   | P1, fixed locally | A member edit could race a displayed officer review. The revision-aware review action now rejects stale decisions under the canonical lock. Both edit/review orderings and retry receipts pass database tests.                                                                                            |
+| CSF-EXPERIENCE-MERGE    | P2, fixed locally | Completion receipts now appear in the merge reference inventory and remain attached to source history. Merged profiles do not repeat the prompt, and only the original author with current verified ownership can update feedback. Focused merge, privacy and legacy-feedback checks pass 110 assertions. |
+
+The candidate adds automatic activity weeks with permanent officer placements, submission editing, and optional private platform feedback. All 527 private test files pass. Responsive component checks cover 1280, 390 and 320 pixels. Integrated release gates, hosted acceptance, the deployed app and chapter installation still require verification. This change does not resolve identity holds or publish student decisions.
+
+P2 `CSF-RELEASE-HOST-PAIR`: required private PR checks used the released host even when the candidate needed unpublished host interfaces. A committed host SHA now binds those PR checks to the reviewed root candidate, rejects divergence and returns to current Development after integration. Root signed integration accepts that same exact manual workflow commit so host migrations and plugin publication enter one PR. Local ancestry and workflow tests pass. Required private PR check `35957659336` passed, signed publication `35957945048` succeeded, and integration `35957989932` verified the signature, source and migration dependency before pushing its generated branch. Root PR832 continues the release gates. The automation token could not open the PR because of repository settings, so the authenticated CLI opened the verified branch without changing protection settings.
+
 ### CSF 1.2.77 browser acceptance repair, September 23, 2026
 
 P2 `CSF-ACCEPTANCE-77`: full gate `35937319491` passed the database, scale and build checks, but two browser tests still expected the removed Close signups control and the previous proof-limit wording. The updated lifecycle journey restores a fictional legacy closed activity and verifies that its original publication and email intent remain unchanged. The proof journey checks separate image and PDF limits. TypeScript and affected zero-warning ESLint pass locally. Integrated browser verification remains required before Production release.
