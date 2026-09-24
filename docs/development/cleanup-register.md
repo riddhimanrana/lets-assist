@@ -2736,6 +2736,8 @@ sources.
 
 The candidate adds automatic activity weeks with permanent officer placements, submission editing, and optional private platform feedback. All 527 private test files pass. Responsive component checks cover 1280, 390 and 320 pixels. Integrated release gates, hosted acceptance, the deployed app and chapter installation still require verification. This change does not resolve identity holds or publish student decisions.
 
+P2 `CSF-RELEASE-HOST-PAIR`: required private PR checks used the released host even when the candidate needed unpublished host interfaces. A committed host SHA now binds those PR checks to the reviewed root candidate, rejects divergence and returns to current Development after integration. Root signed integration accepts that same exact manual workflow commit so host migrations and plugin publication enter one PR. Local ancestry and workflow tests pass; required hosted checks remain pending.
+
 ### CSF 1.2.77 browser acceptance repair, September 23, 2026
 
 P2 `CSF-ACCEPTANCE-77`: full gate `35937319491` passed the database, scale and build checks, but two browser tests still expected the removed Close signups control and the previous proof-limit wording. The updated lifecycle journey restores a fictional legacy closed activity and verifies that its original publication and email intent remain unchanged. The proof journey checks separate image and PDF limits. TypeScript and affected zero-warning ESLint pass locally. Integrated browser verification remains required before Production release.
