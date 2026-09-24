@@ -144,6 +144,10 @@ RETURNS void LANGUAGE sql SECURITY DEFINER SET search_path='' AS $$
       s.position,s.id AS section_id
     FROM plugin_data.csf_opportunities a LEFT JOIN plugin_data.csf_activity_sections s ON s.id=a.section_id
     WHERE a.organization_id=p_organization_id AND a.term_id=p_term_id
+      AND NOT EXISTS (SELECT 1 FROM plugin_data.csf_cohorts c
+        WHERE c.id=a.cohort_id AND c.organization_id=a.organization_id AND c.status='retired')
+      AND NOT EXISTS (SELECT 1 FROM plugin_data.csf_retention_retired_cohorts r
+        WHERE r.cohort_id=a.cohort_id AND r.organization_id=a.organization_id)
   ), ordered AS (
     SELECT id,row_number() OVER(ORDER BY
       CASE WHEN week='custom' THEN 0 WHEN week='undated' THEN 2 ELSE 1 END,

@@ -20,9 +20,8 @@ import EmailFooter from "./_components/EmailFooter";
  * project-feedback-followups worker after hours publish (or the 96h
  * backstop).
  *
- * The five star links deep-link with ?rating=N as a PRE-SELECTION only —
- * the landing page still requires a submit press, because link prefetchers
- * and mail scanners follow GETs.
+ * Platform star links open the rating page. Legacy organizer links may
+ * preselect a rating; both require an interaction before saving.
  */
 
 interface ProjectFeedbackRequestProps {
@@ -32,6 +31,7 @@ interface ProjectFeedbackRequestProps {
   feedbackUrl: string;
   unsubscribeUrl: string;
   eventDate?: string | null;
+  purpose?: "organizer" | "platform_experience";
 }
 
 export default function ProjectFeedbackRequest({
@@ -41,8 +41,10 @@ export default function ProjectFeedbackRequest({
   feedbackUrl = "https://lets-assist.com/feedback/req-123?token=abc",
   unsubscribeUrl = "https://lets-assist.com/feedback/req-123/unsubscribe?token=abc",
   eventDate = null,
+  purpose = "organizer",
 }: ProjectFeedbackRequestProps) {
   const separator = feedbackUrl.includes("?") ? "&" : "?";
+  const platform = purpose === "platform_experience";
 
   return (
     <Html lang="en">
@@ -69,14 +71,18 @@ export default function ProjectFeedbackRequest({
 
             <Section style={content}>
               <Heading style={heading1}>
-                How did volunteering at {projectTitle} go?
+                {platform
+                  ? "How was using Let's Assist?"
+                  : `How did volunteering at ${projectTitle} go?`}
               </Heading>
               <Text style={paragraph}>Hi {volunteerName},</Text>
               <Text style={paragraph}>
                 You volunteered at <strong>{projectTitle}</strong>
                 {organizationName ? ` with ${organizationName}` : ""}
-                {eventDate ? ` on ${eventDate}` : ""}. We&apos;d love to hear
-                how it went — tap a star to answer in a few seconds:
+                {eventDate ? ` on ${eventDate}` : ""}.
+                {platform
+                  ? " Tell us how Let's Assist worked for you. Your feedback helps us improve the platform."
+                  : " Share how it went with the project organizer."}
               </Text>
 
               <Row style={starsRow}>
@@ -84,7 +90,11 @@ export default function ProjectFeedbackRequest({
                   {[1, 2, 3, 4, 5].map((value) => (
                     <Link
                       key={value}
-                      href={`${feedbackUrl}${separator}rating=${value}`}
+                      href={
+                        platform
+                          ? feedbackUrl
+                          : `${feedbackUrl}${separator}rating=${value}`
+                      }
                       style={starLink}
                       aria-label={`${value} star${value > 1 ? "s" : ""}`}
                     >
@@ -97,14 +107,15 @@ export default function ProjectFeedbackRequest({
               <Row style={buttonContainer}>
                 <Column>
                   <EmailButton href={feedbackUrl}>
-                    Share how it went
+                    {platform ? "Rate your experience" : "Share how it went"}
                   </EmailButton>
                 </Column>
               </Row>
 
               <Text style={smallText}>
-                Your feedback goes only to the project organizer — it&apos;s
-                never shown publicly.
+                {platform
+                  ? "Your rating and optional comment are private to you and Let's Assist platform admins."
+                  : "Your feedback goes only to the project organizer. It is never shown publicly."}
               </Text>
 
               <Text style={footnote}>

@@ -2726,6 +2726,16 @@ sources.
 
 ## Repository-owned P0–P2
 
+### CSF experience candidate, September 23, 2026
+
+| Finding                 | Status            | Evidence and remaining work                                                                                                                                                                                                                                                                               |
+| ----------------------- | ----------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| CSF-EXPERIENCE-PROGRESS | P2, fixed locally | Feed, My CSF and submissions now use one capped projection. Unknown categories and incomplete reads cannot display a false zero or trigger completion. Approved awards replace linked submitted credit without double counting. Hosted verification remains pending.                                      |
+| CSF-EXPERIENCE-REVIEW   | P1, fixed locally | A member edit could race a displayed officer review. The revision-aware review action now rejects stale decisions under the canonical lock. Both edit/review orderings and retry receipts pass database tests.                                                                                            |
+| CSF-EXPERIENCE-MERGE    | P2, fixed locally | Completion receipts now appear in the merge reference inventory and remain attached to source history. Merged profiles do not repeat the prompt, and only the original author with current verified ownership can update feedback. Focused merge, privacy and legacy-feedback checks pass 110 assertions. |
+
+The candidate adds automatic activity weeks with permanent officer placements, submission editing, and optional private platform feedback. All 527 private test files pass. Responsive component checks cover 1280, 390 and 320 pixels. Integrated release gates, hosted acceptance, the deployed app and chapter installation still require verification. This change does not resolve identity holds or publish student decisions.
+
 ### CSF 1.2.77 browser acceptance repair, September 23, 2026
 
 P2 `CSF-ACCEPTANCE-77`: full gate `35937319491` passed the database, scale and build checks, but two browser tests still expected the removed Close signups control and the previous proof-limit wording. The updated lifecycle journey restores a fictional legacy closed activity and verifies that its original publication and email intent remain unchanged. The proof journey checks separate image and PDF limits. TypeScript and affected zero-warning ESLint pass locally. Integrated browser verification remains required before Production release.

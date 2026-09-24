@@ -28,6 +28,7 @@ type LedgerRow = {
 };
 
 type Scenario = {
+  purpose: "organizer" | "platform_experience";
   ledger: LedgerRow[];
   project: Record<string, unknown> | null;
   signup: {
@@ -39,6 +40,7 @@ type Scenario = {
   settings: {
     email_notifications: boolean;
     project_updates: boolean;
+    feedback_requests?: boolean | null;
   } | null;
   queryErrors: Partial<Record<string, Error>>;
   rpcErrors: Partial<Record<string, Error>>;
@@ -85,6 +87,7 @@ function queuedRow(): LedgerRow {
 
 function defaultScenario(): Scenario {
   return {
+    purpose: "organizer",
     ledger: [queuedRow()],
     project: structuredClone(ONE_TIME_PROJECT),
     signup: {
@@ -165,6 +168,8 @@ class StatefulQuery {
     if (error) return { data: null, error };
 
     switch (this.table) {
+      case "project_feedback_requests":
+        return { data: { purpose: scenario.purpose }, error: null };
       case "project_feedback_candidate_read_model":
         return { data: [], error: null, count: 0 };
       case "projects":
@@ -733,5 +738,54 @@ describe("feedback retry state", () => {
     });
     expect(retry.claimed).toBe(0);
     expect(sendEmailCalls).toHaveLength(1);
+  });
+});
+
+describe("platform experience routing", () => {
+  test("new followups keep one receipt and ask about the platform", async () => {
+    scenario.purpose = "platform_experience";
+    const result = await runProjectFeedbackWorker({ batchSize: 1 });
+    expect(result.outcomes.sent).toBe(1);
+    expect(sendEmailCalls[0].subject).toBe("How was using Let's Assist?");
+    expect(
+      (sendEmailCalls[0].react as ReactElement<{ purpose: string }>).props
+        .purpose,
+    ).toBe("platform_experience");
+    await runProjectFeedbackWorker({ batchSize: 1 });
+    expect(sendEmailCalls).toHaveLength(1);
+  });
+  test.each([
+    {
+      email_notifications: false,
+      project_updates: true,
+      feedback_requests: true,
+    },
+    {
+      email_notifications: true,
+      project_updates: true,
+      feedback_requests: false,
+    },
+    { email_notifications: true, project_updates: false },
+  ])(
+    "master, feedback and legacy opt-outs prevent sending: %j",
+    async (settings) => {
+      scenario.purpose = "platform_experience";
+      scenario.settings = settings;
+      expect(
+        (await runProjectFeedbackWorker({ batchSize: 1 })).outcomes.skipped,
+      ).toBe(1);
+      expect(sendEmailCalls).toHaveLength(0);
+    },
+  );
+  test("an explicit feedback opt-in is independent from project updates", async () => {
+    scenario.purpose = "platform_experience";
+    scenario.settings = {
+      email_notifications: true,
+      project_updates: false,
+      feedback_requests: true,
+    };
+    expect(
+      (await runProjectFeedbackWorker({ batchSize: 1 })).outcomes.sent,
+    ).toBe(1);
   });
 });

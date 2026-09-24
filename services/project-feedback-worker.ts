@@ -248,6 +248,7 @@ type ClaimRow = {
   user_id: string | null;
   anonymous_id: string | null;
   attempts: number;
+  purpose?: "organizer" | "platform_experience";
 };
 
 type RecipientResolution =
@@ -259,6 +260,7 @@ type FeedbackProject = Project & {
 
 type PreparedFeedbackRequest = {
   kind: "ready";
+  purpose: "organizer" | "platform_experience";
   recipientEmail: string;
   recipientName: string;
   project: FeedbackProject;
@@ -286,7 +288,7 @@ async function resolveConsentedRecipient(
         .maybeSingle(),
       admin
         .from("notification_settings")
-        .select("email_notifications, project_updates")
+        .select("email_notifications, project_updates, feedback_requests")
         .eq("user_id", claim.user_id)
         .maybeSingle(),
     ]);
@@ -309,7 +311,11 @@ async function resolveConsentedRecipient(
     if (
       settings &&
       (settings.email_notifications === false ||
-        settings.project_updates === false)
+        (claim.purpose === "platform_experience"
+          ? settings.feedback_requests === false ||
+            (settings.feedback_requests == null &&
+              settings.project_updates === false)
+          : settings.project_updates === false))
     ) {
       return { ok: false, reason: "notifications_disabled" };
     }
@@ -346,7 +352,23 @@ async function prepareFeedbackRequest(input: {
   siteUrl: string;
 }): Promise<PreparedFeedbackRequest | SkippedFeedbackRequest> {
   const { admin, claim, siteUrl } = input;
-  const recipient = await resolveConsentedRecipient(claim, admin);
+  const request = await admin
+    .from("project_feedback_requests")
+    .select("purpose")
+    .eq("id", claim.id)
+    .maybeSingle();
+  if (request.error)
+    throwDatabaseError("Failed resolving feedback purpose", request.error);
+  if (
+    !request.data ||
+    !["organizer", "platform_experience"].includes(request.data.purpose)
+  )
+    return { kind: "skip", reason: "request_missing" };
+  const purpose = request.data.purpose as "organizer" | "platform_experience";
+  const recipient = await resolveConsentedRecipient(
+    { ...claim, purpose },
+    admin,
+  );
   if (!recipient.ok) {
     return { kind: "skip", reason: recipient.reason };
   }
@@ -434,6 +456,7 @@ async function prepareFeedbackRequest(input: {
 
   return {
     kind: "ready",
+    purpose,
     recipientEmail: recipient.email,
     recipientName: recipient.name,
     project,
@@ -593,7 +616,10 @@ export async function runProjectFeedbackWorker(options: {
     try {
       result = await sendEmail({
         to: prepared.recipientEmail,
-        subject: `How did volunteering at ${prepared.titleForSubject} go?`,
+        subject:
+          prepared.purpose === "platform_experience"
+            ? "How was using Let's Assist?"
+            : `How did volunteering at ${prepared.titleForSubject} go?`,
         react: React.createElement(ProjectFeedbackRequest, {
           volunteerName: prepared.recipientName,
           projectTitle: prepared.project.title,
@@ -601,6 +627,7 @@ export async function runProjectFeedbackWorker(options: {
           feedbackUrl: prepared.feedbackUrl,
           unsubscribeUrl: prepared.unsubscribeUrl,
           eventDate: prepared.eventDate,
+          purpose: prepared.purpose,
         }),
         // userId deliberately omitted: sendEmail's preference gate is
         // unreachable from cron; consent was re-checked above.
