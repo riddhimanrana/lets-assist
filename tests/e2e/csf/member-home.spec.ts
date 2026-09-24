@@ -229,7 +229,8 @@ test.describe("member Home class feed", () => {
     const agenda = page.locator('[data-tour-id="csf-member-agenda"]');
     const [year, month, day] = activityDay.split("-").map(Number);
     const dateButton = agenda.locator(`[data-day="${month}/${day}/${year}"]`);
-    await expect(dateButton.locator("..")).toHaveClass(/after:bg-primary/);
+    await expect(dateButton).toHaveAccessibleName(/has events/);
+    await expect(dateButton.locator('span[aria-hidden="true"]')).toBeVisible();
     await dateButton.click();
     await expect(
       agenda.getByRole("link", { name: new RegExp(activityTitle) }),
