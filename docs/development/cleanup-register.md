@@ -2726,6 +2726,27 @@ sources.
 
 ## Repository-owned P0–P2
 
+### CSF 1.2.77 browser acceptance repair, September 23, 2026
+
+P2 `CSF-ACCEPTANCE-77`: full gate `35937319491` passed the database, scale and build checks, but two browser tests still expected the removed Close signups control and the previous proof-limit wording. The updated lifecycle journey restores a fictional legacy closed activity and verifies that its original publication and email intent remain unchanged. The proof journey checks separate image and PDF limits. TypeScript and affected zero-warning ESLint pass locally. Integrated browser verification remains required before Production release.
+
+### CSF proof uploads and officer navigation, September 22, 2026
+
+| Finding               | Status                    | Evidence or remaining work                                                                                                                                                                                                                                                                                                                                                                     |
+| --------------------- | ------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| CSF-PROOF-TRANSPORT   | P2, fixed locally         | The form accepted up to 12 MB of proof, exceeding the hosted 4.5 MB request limit. Images now prepare locally within a 4 MB aggregate budget, including HEIC conversion. A synthetic 8.7 MB selection passed desktop and phone browser checks with all files retained and identical retry hashes. PDFs over 4 MB receive an actionable error before upload. Hosted acceptance remains pending. |
+| CSF-OFFICER-TAB-FLASH | P2, reported, unconfirmed | The user reported a brief error during Home to Classes navigation on Production. Authenticated read-only navigation reached Classes without reproducing the flash. No speculative navigation change was made. Capture the transient error and corresponding request failure before changing fallback behavior.                                                                                 |
+
+### Activity closure recovery, September 23, 2026
+
+P2 `CSF-SIGNUP-CLOSE`: the activity menu allowed officers to close signups but provided no recovery action. Closed activities disappeared from member reads. The local candidate removes the close control, labels legacy closed records "Hidden", and offers "Restore activity" through the existing permission-checked, audited lifecycle. Forward migration `20260923200000` restores only closed activities in an open semester. Restoration preserves the original publication and creates no new announcement or delivery.
+
+| Implemented                                                                      | Deployed | Verified                                                                                                                            | Remaining                                                                                                                          |
+| -------------------------------------------------------------------------------- | -------- | ----------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------- |
+| Private UI/action patch and forward migration in `codex/csf-remove-signup-close` | No       | 20 restoration pgTAP assertions; 120 related database assertions; 124 focused action/contract tests; TypeScript and affected ESLint | Integrate the private patch and migration, run hosted release acceptance, then restore any reviewed live activity through its menu |
+
+Local test output is retained in the isolated worktree's ignored `.artifacts/signup-status/` directory. No live activity, signup, credit, notification, or semester was changed.
+
 ### Development-only staff and member follow-up, September 16, 2026
 
 The owner requested this follow-up without a Production release. The integrated

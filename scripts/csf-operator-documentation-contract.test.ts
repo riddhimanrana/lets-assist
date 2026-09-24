@@ -264,7 +264,7 @@ const APPLICATIONS: LabelContract[] = [
 const SERVICE_AND_POINTS: LabelContract[] = [
   {
     component: "CsfFormControls.tsx",
-    labels: ["Save draft", "Publish activity"],
+    labels: ["Save as draft", "Publish"],
   },
   {
     component: "CsfServiceActivitiesView.tsx",

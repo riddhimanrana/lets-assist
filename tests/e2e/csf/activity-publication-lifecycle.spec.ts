@@ -335,7 +335,7 @@ test.describe("CSF activity publication lifecycle", () => {
     expectNoBrowserFailures(failures);
   });
 
-  test("a published activity reaches the member stream and can be closed", async ({
+  test("a published activity reaches the member stream and a legacy closed activity can be restored", async ({
     page,
   }) => {
     const failures = watchBrowserFailures(page);
@@ -390,16 +390,45 @@ test.describe("CSF activity publication lifecycle", () => {
 
     const publishedActions = await openActivity(page, activity);
     await publishedActions.click();
-    await page
-      .getByRole("menuitem", { name: "Close signups", exact: true })
-      .click();
+    await expect(
+      page.getByRole("menuitem", { name: "Close signups", exact: true }),
+    ).toHaveCount(0);
+    await page.keyboard.press("Escape");
 
-    // The persistent status, not the toast. "Activity marked closed." is a
-    // transient success message that can expire before this line runs, which
-    // failed the test on a change the page had already made. What an officer
-    // has to be able to come back to is the status on the activity itself.
-    await expect(page.getByText("Signups closed")).toBeVisible();
-    expect((await storedActivity(fixture, activity.id)).status).toBe("closed");
+    const published = await storedActivity(fixture, activity.id);
+    const originalIntent = emailIntentFor(fixture, activity.id);
+    // Seed the historical state that officers can still encounter.
+    const { error } = await fixture.admin
+      .schema("plugin_data")
+      .from("csf_opportunities")
+      .update({ status: "closed" })
+      .eq("organization_id", fixture.organizationId)
+      .eq("id", activity.id);
+    if (error)
+      throw new Error(`Could not seed a closed activity: ${error.message}`);
+
+    const closedActions = await openActivity(page, activity);
+    await closedActions.click();
+    await page
+      .getByRole("menuitem", { name: "Restore activity", exact: true })
+      .click();
+    const restoreDialog = page.getByRole("dialog", {
+      name: `Restore ${activity.title}?`,
+    });
+    await expect(restoreDialog).toContainText("no new announcement is sent");
+    await expect(restoreDialog.getByRole("checkbox")).toHaveCount(0);
+    await restoreDialog
+      .getByRole("button", { name: "Restore activity", exact: true })
+      .click();
+    await expect(restoreDialog).toBeHidden();
+    await expect
+      .poll(async () => (await storedActivity(fixture, activity.id)).status)
+      .toBe("published");
+    expect((await storedActivity(fixture, activity.id)).published_at).toBe(
+      published.published_at,
+    );
+    expect(emailIntentFor(fixture, activity.id)).toEqual(originalIntent);
+    expect(await campaignFor(fixture, activity.id)).toEqual([]);
 
     expectNoBrowserFailures(failures);
   });
