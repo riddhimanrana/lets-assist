@@ -111,10 +111,8 @@ async function withdrawSyntheticSubmission(
     .click();
   await expect(withdrawal).toBeHidden();
   await expect
-    .poll(
-      async () => (await loadSyntheticSubmission(fixture, description))?.status,
-    )
-    .toBe("withdrawn");
+    .poll(async () => await loadSyntheticSubmission(fixture, description))
+    .toBeNull();
 }
 
 test.describe("DVHS CSF staff access presentation", () => {
@@ -440,6 +438,20 @@ test.describe("DVHS CSF proof submission", () => {
         submission.getByText("Submitted", { exact: true }),
       ).toBeVisible();
 
+      const savedSubmission = await loadSyntheticSubmission(
+        fixture,
+        description,
+      );
+      expect(savedSubmission).not.toBeNull();
+      const { data: proofs, error: proofError } = await fixture.admin
+        .schema("plugin_data")
+        .from("csf_submission_files")
+        .select("bucket, object_path")
+        .eq("organization_id", fixture.organizationId)
+        .eq("submission_id", savedSubmission!.id);
+      expect(proofError).toBeNull();
+      expect(proofs).toHaveLength(1);
+
       await submission
         .getByRole("button", { name: "Unsubmit", exact: true })
         .click();
@@ -451,23 +463,53 @@ test.describe("DVHS CSF proof submission", () => {
         .getByRole("button", { name: "Unsubmit", exact: true })
         .click();
       await expect(withdrawal).toBeHidden();
-      await expect(
-        submission.getByText("Withdrawn", { exact: true }),
-      ).toBeVisible();
-      await expect(
-        submission.getByRole("button", { name: "Unsubmit", exact: true }),
-      ).toHaveCount(0);
+      await expect(submission).toHaveCount(0);
+      expect(await loadSyntheticSubmission(fixture, description)).toBeNull();
       submissionWithdrawn = true;
+      for (const table of [
+        "csf_submission_files",
+        "csf_submission_edit_requests",
+        "csf_submission_reviews",
+      ]) {
+        const result = await fixture.admin
+          .schema("plugin_data")
+          .from(table)
+          .select("submission_id")
+          .eq("organization_id", fixture.organizationId)
+          .eq("submission_id", savedSubmission!.id);
+        expect(result.error).toBeNull();
+        expect(result.data).toEqual([]);
+      }
+      const audit = await fixture.admin
+        .schema("plugin_data")
+        .from("csf_admin_audit_events")
+        .select("id")
+        .eq("organization_id", fixture.organizationId)
+        .eq("target_id", savedSubmission!.id);
+      expect(audit.error).toBeNull();
+      expect(audit.data).toEqual([]);
+      for (const proof of proofs ?? []) {
+        const split = proof.object_path.lastIndexOf("/");
+        const objects = await fixture.admin.storage
+          .from(proof.bucket)
+          .list(proof.object_path.slice(0, split), {
+            search: proof.object_path.slice(split + 1),
+          });
+        expect(objects.error).toBeNull();
+        expect(objects.data).toEqual([]);
+      }
+      await page.reload({ waitUntil: "domcontentloaded" });
+      await expect(
+        page.getByRole("heading", { name: "Point submissions", exact: true }),
+      ).toBeVisible();
+      await expect(submission).toHaveCount(0);
     } catch (error) {
       testFailure = error;
     }
 
     let cleanupFailure: unknown;
     try {
-      // A failed assertion must not leave a mutable synthetic submission in
-      // the shared isolated browser stack. A bounded service-role read observes
-      // whether the supported action materialized; cleanup itself still uses
-      // the member's audited UI withdrawal and retains immutable history.
+      // Use the member action to remove any claim left by a failed test.
       if (submissionStarted && !submissionWithdrawn) {
         await withdrawSyntheticSubmission(page, fixture, description);
       }

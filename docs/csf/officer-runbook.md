@@ -196,6 +196,7 @@ Notes are officer-only and redactable, never deletable. Every correction writes 
 3. An Activity Coordinator may verify participation but cannot perform final point processing unless separately granted.
 4. Verify the awarded quantity in the member's My CSF view. Multiple points are one numeric award, not repeated one-point rows.
 5. Process an open appeal from the same evidence panel as a separate reasoned decision; do not edit the original decision out of history.
+6. A member can Unsubmit an eligible unawarded claim while the term permits changes. Final decisions and exported or delivered review evidence require the correction workflow. This permanently deletes the claim, proofs and its submission history. It does not leave a Withdrawn entry for officers to review.
 
 Every submit/proof-finalize/withdraw/review/appeal action rechecks current account ownership or reviewer permission, open semester, active membership, published policy, source relationship, cap, class, and finalized proof as applicable. If any of those changed, reload and resolve the current blocker instead of retrying from an older page.
 
