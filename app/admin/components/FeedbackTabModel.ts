@@ -28,6 +28,9 @@ export interface FeedbackItem {
   section: string;
   title: string;
   feedback: string;
+  rating?: number | null;
+  purpose?: string;
+  context_kind?: string | null;
   created_at: string;
   email: string;
   page_path?: string | null;

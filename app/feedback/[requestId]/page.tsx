@@ -11,6 +11,8 @@ import {
 } from "@/components/ui/card";
 
 import { FeedbackTokenClient } from "./FeedbackTokenClient";
+import { ExperienceFeedbackForm } from "@/components/feedback/ExperienceFeedbackForm";
+import { saveExperienceFeedbackWithToken } from "./actions";
 
 export const metadata: Metadata = {
   title: "Share your feedback",
@@ -24,8 +26,7 @@ function InvalidLink() {
         <CardHeader>
           <CardTitle>This link isn&apos;t valid anymore</CardTitle>
           <CardDescription>
-            Feedback links expire after 30 days. If you have a Let&apos;s Assist
-            account, you can still rate the project from its page.
+            Feedback links expire after 30 days.
           </CardDescription>
         </CardHeader>
       </Card>
@@ -35,7 +36,7 @@ function InvalidLink() {
 
 /**
  * Email-link landing page. Works logged out: the HMAC token is the whole
- * authorization. ?rating= is only ever a pre-selection — nothing is written
+ * authorization. ?rating= only preselects legacy organizer ratings. Nothing is written
  * from a GET, because link prefetchers and mail scanners follow GETs.
  */
 export default async function FeedbackTokenPage({
@@ -56,10 +57,16 @@ export default async function FeedbackTokenPage({
   const admin = getAdminClient();
   const { data: request } = await admin
     .from("project_feedback_requests")
-    .select("id, project_id, user_id, anonymous_id")
+    .select("id, project_id, user_id, anonymous_id, purpose")
     .eq("id", requestId)
     .maybeSingle();
-  if (!request || request.project_id !== payload.projectId) {
+  if (
+    !request ||
+    request.project_id !== payload.projectId ||
+    (payload.subject.kind === "user"
+      ? request.user_id !== payload.subject.userId
+      : request.anonymous_id !== payload.subject.anonymousSignupId)
+  ) {
     return <InvalidLink />;
   }
 
@@ -69,6 +76,41 @@ export default async function FeedbackTokenPage({
     .eq("id", request.project_id)
     .maybeSingle();
   if (!project) return <InvalidLink />;
+
+  if (request.purpose === "platform_experience") {
+    const { data: feedback } = await admin
+      .from("feedback")
+      .select("rating, feedback")
+      .eq("purpose", "platform_experience")
+      .eq("project_request_id", requestId)
+      .maybeSingle();
+    return (
+      <main className="mx-auto flex min-h-[65vh] w-full max-w-md items-center px-4 py-10">
+        <Card className="w-full">
+          <CardHeader>
+            <CardTitle>How was using Let&apos;s Assist?</CardTitle>
+            <CardDescription>
+              Thanks for volunteering at {project.title}.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <ExperienceFeedbackForm
+              initial={
+                feedback?.rating
+                  ? { rating: feedback.rating, comment: feedback.feedback }
+                  : null
+              }
+              save={saveExperienceFeedbackWithToken.bind(
+                null,
+                requestId,
+                token!,
+              )}
+            />
+          </CardContent>
+        </Card>
+      </main>
+    );
+  }
 
   // Pre-fill an existing rating so the link doubles as an edit link.
   const identityColumn = request.user_id ? "user_id" : "anonymous_id";

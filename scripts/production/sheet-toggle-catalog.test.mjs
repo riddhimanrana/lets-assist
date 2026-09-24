@@ -101,6 +101,9 @@ test("493 advances through observation invalidation and the current release tail
       "csf_guard_activity_email_queue_transition",
       "csf_point_exception_review_guard",
       "csf_point_exception_credit_guard",
+      "csf_activity_catalog_changed",
+      "zz_csf_submission_revision",
+      "csf_cleanup_deleted_submission_edit",
     ],
   );
   assert.ok(result.query.includes("AND version = '1.2.32'"));

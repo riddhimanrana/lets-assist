@@ -158,7 +158,7 @@ describe("CSF profile-merge hardening source contract", () => {
     expect(referenceTest).toContain(
       "execution rechecks and refuses the same unknown import blocker",
     );
-    expect(referenceTest).toContain("SELECT extensions.plan(48)");
+    expect(referenceTest).toContain("SELECT extensions.plan(50)");
   });
 
   test("has one organization-first lock hierarchy and no global table locks", () => {

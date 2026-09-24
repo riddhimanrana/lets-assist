@@ -2,7 +2,7 @@ BEGIN;
 
 CREATE EXTENSION IF NOT EXISTS pgtap WITH SCHEMA extensions;
 
-SELECT extensions.plan(48);
+SELECT extensions.plan(50);
 
 -- ---------------------------------------------------------------------------
 -- Exact current-schema profile-reference catalog
@@ -14,6 +14,7 @@ CREATE TEMP TABLE expected_csf_profile_fk_references (
 
 INSERT INTO expected_csf_profile_fk_references (reference) VALUES
   ('csf_profiles.merged_into_profile_id'),
+  ('csf_experience_prompts.profile_id'),
   ('csf_profile_accounts.profile_id'),
   ('csf_profile_cohort_memberships.profile_id'),
   ('csf_term_applications.profile_id'),
@@ -75,8 +76,8 @@ WHERE constraint_row.contype = 'f'
 
 SELECT extensions.is(
   (SELECT pg_catalog.count(*)::integer FROM actual_csf_profile_fk_references),
-  35,
-  'the exact current schema has thirty-five logical FK columns that reference CSF profiles'
+  36,
+  'the exact current schema has thirty-six logical FK columns that reference CSF profiles'
 );
 SELECT extensions.ok(
   NOT EXISTS (
@@ -580,6 +581,9 @@ SELECT extensions.ok(
   'the catalog counts one live rewrite, two retained matches, two retained targets, and no blocker'
 );
 
+INSERT INTO plugin_data.csf_experience_prompts(id,organization_id,profile_id,term_id,user_id,qualifying_points,requirement)
+VALUES('fb990000-0000-4000-8000-000000000001','fb100000-0000-4000-8000-000000000001','fb300000-0000-4000-8000-000000000013','fb200000-0000-4000-8000-000000000001','fb000000-0000-4000-8000-000000000001',7,7);
+SELECT extensions.ok(EXISTS(SELECT 1 FROM jsonb_array_elements(plugin_data.csf_profile_merge_reference_plan('fb100000-0000-4000-8000-000000000001','fb300000-0000-4000-8000-000000000013')->'immutableHistoryRetentions') entry WHERE entry->>'reference'='plugin_data.csf_experience_prompts.profile_id' AND (entry->>'sourceCount')::int=1),'merge preview explicitly preserves consumed prompt history');
 SELECT extensions.is(
   plugin_data.csf_merge_profiles(
     'fb100000-0000-4000-8000-000000000001',
@@ -1036,6 +1040,7 @@ SELECT extensions.ok(
   'reference-rewrite audit receipts contain identifiers and counts, never names or addresses'
 );
 
+SELECT extensions.ok((SELECT profile_id='fb300000-0000-4000-8000-000000000013' AND qualifying_points=7 AND requirement=7 FROM plugin_data.csf_experience_prompts WHERE id='fb990000-0000-4000-8000-000000000001'),'merge execution retains the original prompt receipt and qualifying totals');
 SELECT * FROM extensions.finish();
 
 ROLLBACK;
