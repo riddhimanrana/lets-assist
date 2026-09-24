@@ -15,6 +15,7 @@ import CalendarOAuthCallbackHandler from "@/components/calendar/CalendarOAuthCal
 import { Suspense } from "react";
 import SystemStickyBanner from "@/components/layout/SystemStickyBanner";
 import { AppProviders } from "@/components/providers/AppProviders";
+import { INITIAL_THEME_SCRIPT } from "@/lib/theme/apply-initial-theme";
 
 export const metadata: Metadata = {
   title: {
@@ -112,6 +113,12 @@ export default async function RootLayout({
       className={`${GeistSans.className} ${GeistSans.variable} ${GeistMono.variable} ${overusedgrotesk.variable} ${nohemi.variable} ${cheeseMilky.variable}`}
       suppressHydrationWarning
     >
+      <head>
+        <script
+          id="initial-theme"
+          dangerouslySetInnerHTML={{ __html: INITIAL_THEME_SCRIPT }}
+        />
+      </head>
       <body className="antialiased">
         <AppProviders>
           <div className="bg-background text-foreground min-h-screen flex flex-col w-full">
