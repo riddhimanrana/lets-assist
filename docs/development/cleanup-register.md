@@ -2728,6 +2728,15 @@ sources.
 
 ### CSF experience candidate, September 23, 2026
 
+Repository finding CSF-EXPERIENCE-SURVEY-SCHEDULE, P2, implemented: the hourly
+project feedback job waited for Production approval and blocked later runs.
+The existing authenticated worker now has one hourly Vercel trigger. GitHub
+retains a protected manual recovery path on `main`. The worker still requires
+its exact environment opt-in, current consent, and durable dispatch claims.
+The platform-feedback rollout cutoff excludes historical eligibility. Focused
+scheduler and worker-route checks pass; deployed scheduling and worker execution
+still require Production verification.
+
 | Finding                 | Status            | Evidence and remaining work                                                                                                                                                                                                                                                                               |
 | ----------------------- | ----------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | CSF-EXPERIENCE-PROGRESS | P2, fixed locally | Feed, My CSF and submissions now use one capped projection. Unknown categories and incomplete reads cannot display a false zero or trigger completion. Approved awards replace linked submitted credit without double counting. Hosted verification remains pending.                                      |
