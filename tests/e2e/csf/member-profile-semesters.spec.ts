@@ -75,7 +75,7 @@ test.beforeAll(async () => {
   // rather than quietly reimplementing the cap here.
   expect(
     credits.filter((credit) => credit.point_type === "drive"),
-    "Deriving the tile from a plain sum requires no drive credits on the current term",
+    "Deriving approved progress from a plain sum requires no drive credits on the current term",
   ).toHaveLength(0);
   currentTermPoints = credits.reduce(
     (total, credit) => total + Math.max(0, Number(credit.points) || 0),
@@ -120,58 +120,69 @@ for (const viewport of [
     await expect(page).toHaveURL(/tab=csf-profile/);
     const profile = page.getByRole("region", { name: "CSF member profile" });
     const semesters = page.getByRole("tablist", { name: "Member semesters" });
-    const points = profile
-      .getByText("Service points", { exact: true })
-      .locator("..");
-    const activities = profile
-      .getByText("Activities", { exact: true })
-      .locator("..");
-    const meetings = profile
-      .getByText("Meetings", { exact: true })
-      .locator("..");
+    const semester = page.getByRole("tabpanel");
 
     await expect(
       profile.getByRole("heading", { name: "Aarav Mehta", exact: true }),
     ).toBeVisible();
+    await expect(
+      profile.getByText("Class of 2028", { exact: true }),
+    ).toBeVisible();
+    await expect(
+      profile.getByText("Service points", { exact: true }),
+    ).toHaveCount(0);
+    await expect(profile.getByText("Activities", { exact: true })).toHaveCount(
+      0,
+    );
+    await expect(profile.getByText("Meetings", { exact: true })).toHaveCount(0);
     // Existing current-term submissions can make Fall the opening semester.
     await semesters
       .getByRole("tab", { name: "Spring 2026", exact: true })
       .click();
-    await expect(profile).toContainText("Spring 2026");
+    await expect(
+      semester.getByRole("heading", { name: "Spring 2026", exact: true }),
+    ).toBeVisible();
     await expect(
       semesters.getByRole("tab", { name: "Spring 2026", exact: true }),
     ).toHaveAttribute("aria-selected", "true");
-    await expect(points).toHaveText(/2\s*Service points/);
-    // The points sheet writes genuine meeting rows into the activity events
-    // table. Historical attendance remains in the ledger, while the meeting
-    // count tile stays hidden until source reconciliation is complete.
-    await expect(activities).toHaveText(/1\s*Activities/);
-    await expect(meetings).toHaveCount(0);
     await expect(
-      page.getByRole("heading", { name: "Spring 2026", exact: true }),
+      semester.getByText("2 verified points", { exact: true }),
+    ).toBeVisible();
+    await expect(semester.getByRole("progressbar")).toHaveCount(0);
+    await expect(
+      semester
+        .getByText("Quail Run Suessical Musical", { exact: true })
+        .first(),
     ).toBeVisible();
     await expect(
-      page.getByText("Quail Run Suessical Musical", { exact: true }).first(),
-    ).toBeVisible();
-    await expect(
-      page.getByText("Spring General Meeting", { exact: true }).first(),
+      semester.getByText("Spring General Meeting", { exact: true }).first(),
     ).toBeVisible();
     await page.screenshot({
       path: testInfo.outputPath(`profile-history-${viewport.name}.png`),
     });
 
     await semesters.getByRole("tab", { name: /^Fall 2026/ }).click();
-    await expect(profile).toContainText("Fall 2026");
+    await expect(
+      semester.getByRole("heading", { name: "Fall 2026", exact: true }),
+    ).toBeVisible();
     // Exactly the current semester's own ledger, so last semester's 2 points
     // cannot satisfy it and a real award cannot be mistaken for a leak.
-    await expect(points).toHaveText(
-      new RegExp(`^${currentTermPoints}\\s*Service points$`),
-    );
-    await expect(activities).toHaveText(/^0\s*Activities$/);
-    await expect(meetings).toHaveCount(0);
+    const progress = semester.getByRole("progressbar", {
+      name: "Submitted and approved service points",
+    });
+    await expect(progress).toBeVisible();
+    await expect
+      .poll(
+        async () =>
+          (await progress.getAttribute("aria-valuetext"))?.split(", ")[1],
+      )
+      .toBe(`${currentTermPoints} approved`);
     await expect(
-      page.getByRole("heading", { name: "Fall 2026", exact: true }),
-    ).toBeVisible();
+      semester.getByText("Quail Run Suessical Musical", { exact: true }),
+    ).toHaveCount(0);
+    await expect(
+      semester.getByText("Spring General Meeting", { exact: true }),
+    ).toHaveCount(0);
     await page.screenshot({
       path: testInfo.outputPath(`profile-current-${viewport.name}.png`),
     });
@@ -179,8 +190,13 @@ for (const viewport of [
     await semesters
       .getByRole("tab", { name: "Spring 2026", exact: true })
       .click();
-    await expect(profile).toContainText("Spring 2026");
-    await expect(points).toHaveText(/2\s*Service points/);
+    await expect(
+      semester.getByRole("heading", { name: "Spring 2026", exact: true }),
+    ).toBeVisible();
+    await expect(
+      semester.getByText("2 verified points", { exact: true }),
+    ).toBeVisible();
+    await expect(semester.getByRole("progressbar")).toHaveCount(0);
     expect(
       await page.evaluate(
         () => document.documentElement.scrollWidth <= window.innerWidth,

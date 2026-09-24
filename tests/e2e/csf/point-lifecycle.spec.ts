@@ -21,9 +21,13 @@ const officerHomePath = `${CSF_ORGANIZATION_PATH}?tab=csf-overview`;
 async function verifiedTotal(page: Page) {
   const summary = page
     .getByRole("region", { name: "Point submissions", exact: true })
-    .getByText(/points verified this semester/);
+    .getByRole("progressbar", {
+      name: "Submitted and approved service points",
+    });
   await expect(summary).toBeVisible();
-  const value = (await summary.innerText()).match(/^([\d,.]+)/)?.[1];
+  const value = (await summary.getAttribute("aria-valuetext"))?.match(
+    /, ([\d.]+) approved,/,
+  )?.[1];
   if (!value)
     throw new Error("The verified point summary has no numeric total.");
   return Number(value.replaceAll(",", ""));
