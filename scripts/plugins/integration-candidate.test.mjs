@@ -16,7 +16,7 @@ const resolver = workflow
   .split("- name: Resolve the root integration candidate")[1]
   .split("- name: Checkout root integration source")[0]
   .split("run: |\n")[1]
-  .replace(/^          /gm, "");
+  .replace(/^ {10}/gm, "");
 const sha = "a".repeat(40);
 
 function resolveCandidate(
