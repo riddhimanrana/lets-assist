@@ -1,6 +1,6 @@
 BEGIN;
 CREATE EXTENSION IF NOT EXISTS pgtap WITH SCHEMA extensions;
-SELECT extensions.plan(22);
+SELECT extensions.plan(26);
 INSERT INTO auth.users (
   id, aud, role, email, email_confirmed_at, raw_app_meta_data,
   raw_user_meta_data, created_at, updated_at
@@ -119,7 +119,10 @@ INSERT INTO storage.objects(bucket_id,name,metadata) SELECT 'plugins',object_pat
 SELECT extensions.lives_ok($$SELECT pg_temp.commit_edit('f8900000-0000-4000-8000-000000000004','aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa')$$,'verified replacement commits atomically');
 SELECT extensions.is((SELECT count(*)::integer FROM plugin_data.csf_submission_files WHERE submission_id='f8500000-0000-4000-8000-000000000001' AND superseded_at IS NOT NULL),1,'prior proof remains in history');
 SELECT extensions.lives_ok($$SELECT pg_temp.begin_edit('f8900000-0000-4000-8000-000000000005',2)$$,'stage another submitted edit');
-SELECT plugin_data.csf_review_point_submission_request('f8100000-0000-4000-8000-000000000001','f8500000-0000-4000-8000-000000000001','approved',2,'Reviewed while edit was open.','f8000000-0000-4000-8000-000000000003','f8900000-0000-4000-8000-000000000006');
+SELECT extensions.throws_ok($$SELECT plugin_data.csf_review_point_submission_revision_request('f8100000-0000-4000-8000-000000000001','f8500000-0000-4000-8000-000000000001','approved',2,'Reviewed while edit was open.','f8000000-0000-4000-8000-000000000003','f8900000-0000-4000-8000-000000000006',1,NULL)$$,'40001','This submission changed. Reload its details and proof before reviewing.','edit before officer review blocks unseen proof approval');
+SELECT extensions.lives_ok($$SELECT plugin_data.csf_review_point_submission_revision_request('f8100000-0000-4000-8000-000000000001','f8500000-0000-4000-8000-000000000001','approved',2,'Reviewed while edit was open.','f8000000-0000-4000-8000-000000000003','f8900000-0000-4000-8000-000000000006',2,NULL)$$,'fresh officer view can review the edited revision');
+SELECT extensions.lives_ok($$SELECT plugin_data.csf_review_point_submission_revision_request('f8100000-0000-4000-8000-000000000001','f8500000-0000-4000-8000-000000000001','approved',2,'Reviewed while edit was open.','f8000000-0000-4000-8000-000000000003','f8900000-0000-4000-8000-000000000006',2,NULL)$$,'review response-loss retry recovers its revision receipt');
+SELECT extensions.throws_ok($$SELECT plugin_data.csf_review_point_submission_revision_request('f8100000-0000-4000-8000-000000000001','f8500000-0000-4000-8000-000000000001','approved',2,'Reviewed while edit was open.','f8000000-0000-4000-8000-000000000003','f8900000-0000-4000-8000-000000000006',1,NULL)$$,'P0001','That point request identifier is already bound to a different change.','review receipt binds expected revision');
 SELECT extensions.throws_ok($$SELECT pg_temp.commit_edit('f8900000-0000-4000-8000-000000000005')$$,'40001','This submission changed or was reviewed. Reload before editing.','officer review blocks outstanding edit');
 SELECT extensions.is((SELECT status FROM plugin_data.csf_point_submissions WHERE id='f8500000-0000-4000-8000-000000000001'),'approved','failed edit preserves officer decision');
 SELECT extensions.ok(NOT has_function_privilege('authenticated','plugin_data.csf_commit_submission_edit(uuid,uuid,uuid,uuid,text)','EXECUTE'),'browser cannot commit revisions');
