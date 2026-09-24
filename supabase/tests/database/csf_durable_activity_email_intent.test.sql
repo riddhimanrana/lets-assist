@@ -32,6 +32,7 @@ INSERT INTO plugin_data.csf_profile_accounts(organization_id,profile_id,user_id,
 ('ef100000-0000-4000-8000-000000000001','ef300000-0000-4000-8000-000000000002','ef200000-0000-4000-8000-000000000003','pending',false,'ef200000-0000-4000-8000-000000000001','unknown'),
 ('ef100000-0000-4000-8000-000000000001','ef300000-0000-4000-8000-000000000003','ef200000-0000-4000-8000-000000000004','verified',true,'ef200000-0000-4000-8000-000000000001','officer_decision');
 
+INSERT INTO plugin_data.csf_term_memberships(organization_id,profile_id,term_id,status) VALUES('ef100000-0000-4000-8000-000000000001','ef300000-0000-4000-8000-000000000001','ef500000-0000-4000-8000-000000000001','accepted');
 INSERT INTO plugin_data.csf_cohort_terms(organization_id,cohort_id,term_id) VALUES('ef100000-0000-4000-8000-000000000001','ef400000-0000-4000-8000-000000000001','ef500000-0000-4000-8000-000000000001');
 CREATE FUNCTION pg_temp.publish(n integer,send_email boolean DEFAULT true,cohort uuid DEFAULT 'ef400000-0000-4000-8000-000000000001') RETURNS jsonb LANGUAGE sql AS $$
 SELECT plugin_data.csf_create_activity_with_email('ef100000-0000-4000-8000-000000000001','ef500000-0000-4000-8000-000000000001',cohort,
@@ -39,7 +40,7 @@ jsonb_build_object('title','Fictional activity '||n,'body','<p>Frozen descriptio
 'ef200000-0000-4000-8000-000000000001',('ef800000-0000-4000-8000-'||lpad(n::text,12,'0'))::uuid,send_email,
 '{"topicKey":"announcements","resendTopicId":"resend_topic_publication_fixture"}'); $$;
 SELECT extensions.ok(NOT has_function_privilege('authenticated','plugin_data.csf_create_activity_with_email(uuid,uuid,uuid,jsonb,uuid,uuid,boolean,jsonb)','execute'),'browser cannot request durable activity emails');
-SELECT extensions.is((plugin_data.csf_preview_activity_email('ef100000-0000-4000-8000-000000000001','ef200000-0000-4000-8000-000000000001','ef500000-0000-4000-8000-000000000001','ef400000-0000-4000-8000-000000000001')->>'recipients')::integer,1,'preview uses the verified class audience without accepted membership');
+SELECT extensions.is((plugin_data.csf_preview_activity_email('ef100000-0000-4000-8000-000000000001','ef200000-0000-4000-8000-000000000001','ef500000-0000-4000-8000-000000000001','ef400000-0000-4000-8000-000000000001')->>'recipients')::integer,1,'preview uses accepted term profiles in the selected class');
 CREATE TEMP TABLE published(n integer PRIMARY KEY,result jsonb);
 INSERT INTO published VALUES(1,pg_temp.publish(1,false)),(2,pg_temp.publish(2));
 SELECT extensions.is((SELECT result->>'emailStatus' FROM published WHERE n=1),'not_requested','publishing without opt-in records no email work');
@@ -67,7 +68,7 @@ SELECT extensions.throws_ok($q$SELECT plugin_data.csf_snapshot_communication_rec
 UPDATE public.notification_settings SET email_notifications=false WHERE user_id='ef200000-0000-4000-8000-000000000002';
 SELECT extensions.ok(NOT(SELECT plugin_data.csf_publication_email_recipient_allowed('ef100000-0000-4000-8000-000000000001',id) FROM plugin_data.csf_communication_recipient_snapshots WHERE campaign_id=(SELECT id FROM campaign)),'dispatch still respects a later email opt-out');
 SELECT extensions.is((plugin_data.csf_finish_activity_email_preparation('ef100000-0000-4000-8000-000000000001',(SELECT (claim->>'eventId')::uuid FROM claimed),(SELECT (claim->>'leaseToken')::uuid FROM claimed),NULL,'transient')->>'status'),'pending','transient preparation failure remains durable for retry');
-SELECT extensions.is((SELECT count(*)::integer FROM plugin_data.csf_term_memberships WHERE organization_id='ef100000-0000-4000-8000-000000000001'),0,'email preparation never grants semester membership');
+SELECT extensions.is((SELECT count(*)::integer FROM plugin_data.csf_term_memberships WHERE organization_id='ef100000-0000-4000-8000-000000000001'),1,'email preparation preserves the existing semester membership');
 SELECT extensions.is((SELECT count(*)::integer FROM plugin_data.csf_credit_records WHERE organization_id='ef100000-0000-4000-8000-000000000001'),0,'email preparation creates no credits');
 
 SELECT extensions.throws_ok($q$SELECT plugin_data.csf_preview_activity_email('ef100000-0000-4000-8000-000000000001','ef200000-0000-4000-8000-000000000002','ef500000-0000-4000-8000-000000000001',NULL)$q$,'42501',NULL,'members cannot inspect activity email audiences');
@@ -126,8 +127,7 @@ SELECT extensions.is(jsonb_array_length(plugin_data.csf_claim_activity_email_pre
 INSERT INTO plugin_data.csf_profiles(id,organization_id,first_name,last_name,normalized_first_name,normalized_last_name,personal_email,normalized_personal_email)
 VALUES('ef300000-0000-4000-8000-000000000004','ef100000-0000-4000-8000-000000000001','Fictional','Accountless','fictional','accountless','accountless@local.test','accountless@local.test');
 INSERT INTO plugin_data.csf_term_memberships(organization_id,profile_id,term_id,status)
-VALUES('ef100000-0000-4000-8000-000000000001','ef300000-0000-4000-8000-000000000001','ef500000-0000-4000-8000-000000000001','accepted'),
-('ef100000-0000-4000-8000-000000000001','ef300000-0000-4000-8000-000000000004','ef500000-0000-4000-8000-000000000001','active');
+VALUES('ef100000-0000-4000-8000-000000000001','ef300000-0000-4000-8000-000000000004','ef500000-0000-4000-8000-000000000001','active');
 INSERT INTO published VALUES(40,pg_temp.publish(40,true,NULL));
 SELECT extensions.is((SELECT jsonb_array_length(activity_email_snapshot->'recipients') FROM plugin_data.csf_publication_events WHERE id=(SELECT (result->>'emailEventId')::uuid FROM published WHERE n=40)),2,'term email keeps accepted account and accountless profile recipients');
 SELECT extensions.ok((SELECT EXISTS(SELECT 1 FROM jsonb_array_elements(activity_email_snapshot->'recipients') r WHERE r->>'email'='accountless@local.test' AND NOT(r?'userId')) FROM plugin_data.csf_publication_events WHERE id=(SELECT (result->>'emailEventId')::uuid FROM published WHERE n=40)),'accountless term member retains the exact chapter contact without inventing an account');

@@ -263,7 +263,7 @@ test.describe("DVHS CSF staff access presentation", () => {
 });
 
 test.describe("DVHS CSF proof submission", () => {
-  test("phone proof field states its constraints and rejects an oversized file", async ({
+  test("phone proof field lists formats and rejects an oversized file", async ({
     page,
   }) => {
     const failures = watchBrowserFailures(page);
@@ -284,18 +284,16 @@ test.describe("DVHS CSF proof submission", () => {
     });
     await expect(proof).toBeVisible();
 
-    // The constraints are associated with the input, not merely nearby.
+    // Supported formats are inside Add proof and describe the input.
     const describedBy = await proof.getAttribute("aria-describedby");
     expect(describedBy).toContain("csf-submission-evidence-constraints");
     await expect(
       dialog.locator("#csf-submission-evidence-constraints"),
-    ).toContainText("Images: 10 MB each, 12 MB total");
+    ).toHaveText("JPEG, PNG, WebP, HEIC, or PDF");
     await expect(
-      dialog.locator("#csf-submission-evidence-constraints"),
-    ).toContainText("PDF: 4 MB");
-    await expect(
-      dialog.locator("#csf-submission-evidence-constraints"),
-    ).toContainText("JPEG, PNG, WebP, HEIC, or PDF");
+      dialog.getByText("Images: 10 MB each, 12 MB total"),
+    ).toHaveCount(0);
+    await expect(dialog.getByText("PDF: 4 MB")).toHaveCount(0);
     await expect(
       dialog.locator("#csf-submission-evidence-constraints"),
     ).not.toContainText("stored privately");

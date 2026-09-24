@@ -1,7 +1,4 @@
 import posthog from "posthog-js";
-import { applyInitialTheme } from "@/lib/theme/apply-initial-theme";
-
-applyInitialTheme();
 
 const posthogToken = process.env.NEXT_PUBLIC_POSTHOG_PROJECT_TOKEN?.trim();
 if (posthogToken) {
