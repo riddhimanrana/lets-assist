@@ -764,13 +764,15 @@ Activity lifecycle: `draft`, `published`, `closed`, `cancelled`, `archived`.
 **Purpose:** Let members submit one claim and let officers turn it into an explicit awarded quantity.<br>
 **Primary users:** Members, point reviewers, and adviser.<br>
 **Shows:** Member, related activity/partner club, service date, claimed points, evidence, submission state, awarded points, reviewer, and appeal state.<br>
-**Member actions:** Submit, correct requested information, withdraw before review, appeal a decision.<br>
+**Member actions:** Submit, edit an unreviewed or correction-requested claim, Unsubmit, appeal a decision.<br>
 **Officer actions:** Approve, adjust with reason, request correction, reject, process appeal, and open member context.<br>
 **Filters/search:** Term, submission state, activity, point type, reviewer, appeal state, date, member search.<br>
 **Empty states:** Member has no submissions; officer queue is clear; no filter matches.<br>
 **Validation:** A submission chooses a published activity or a partner club with active standing for the current term unless an officer records a permitted manual adjustment. One submission may award any valid numeric amount up to policy and activity caps; it is never represented by duplicated one-point slots.<br>
 **Permissions:** Members see only their own records and student-facing notes.<br>
 **Mobile:** Review becomes a full-height sheet/page with evidence and decision footer.
+
+Unsubmit permanently deletes an eligible owned, unawarded submission, its proof files, previous edits, reviews and submission audit snapshots. It leaves no withdrawn row in member or officer history. The server rechecks ownership and term authority, serializes against officer review, and confirms file deletion before reporting success. Failed cleanup remains retryable with temporary file coordinates, which are removed when cleanup finishes. Final decisions, awarded claims, and claims with exported or delivered review evidence use the correction workflow.
 
 A `needs_action` correction resubmits the same submission; it is not an appeal or a replacement claim. The atomic transition revalidates verified ownership, current open term, active membership, current activity policy or active partner-club standing, and proof requirements while preserving prior review, audit, and correlated resubmission history.
 
