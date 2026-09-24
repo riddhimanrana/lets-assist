@@ -557,9 +557,9 @@ it into a Fall 2026 rule.
 
 1. Open **Activities** and use its creation control. Enter the reviewed term,
    audience, date, location, signup mode, point type/value/cap, and proof rule.
-   Use **Save draft** while incomplete; draft activities remain officer-only.
+   Use **Save as draft** while incomplete; draft activities remain officer-only.
 2. Review the saved details and member-facing signup/proof consequence. Select
-   **Publish activity** only when the record is complete. A row reading
+   **Publish** only when the record is complete. A row reading
    **Published** is publication evidence; a saved draft is not.
 3. Open **Point submissions**. Select **Review**, inspect the activity or club,
    claimed number, source relationship, and proof, then enter **Awarded points**
