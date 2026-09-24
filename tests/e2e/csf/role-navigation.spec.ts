@@ -419,16 +419,35 @@ test.describe("DVHS CSF role-aware navigation", () => {
       page.getByRole("menuitem", { name: "Help", exact: true }),
     ).toBeVisible();
     await page.keyboard.press("Escape");
-    // The profile summary and history show the same selected semester.
+    // Identity stays fixed while the selected semester owns its outcome.
     await page.getByRole("tab", { name: "My CSF", exact: true }).click();
     const profile = page.getByRole("region", { name: "CSF member profile" });
     const semesters = page.getByRole("tablist", { name: "Member semesters" });
-    await expect(profile).toContainText("Spring 2026");
-    await expect(profile.getByText("Pending", { exact: true })).toBeVisible();
-    await semesters.getByRole("tab", { name: /^Fall 2026/ }).click();
-    await expect(profile).toContainText("Fall 2026");
     await expect(
-      profile.getByText("No semester record", { exact: true }),
+      profile.getByRole("heading", { name: "Evan Chen", exact: true }),
+    ).toBeVisible();
+    const springTab = semesters.getByRole("tab", {
+      name: "Spring 2026",
+      exact: true,
+    });
+    await springTab.click();
+    const spring = page.locator(
+      `[id="${await springTab.getAttribute("aria-controls")}"]`,
+    );
+    await expect(
+      spring.getByRole("heading", { name: "Spring 2026", exact: true }),
+    ).toBeVisible();
+    await expect(spring.getByText("Pending", { exact: true })).toBeVisible();
+    const fallTab = semesters.getByRole("tab", { name: /^Fall 2026/ });
+    await fallTab.click();
+    const fall = page.locator(
+      `[id="${await fallTab.getAttribute("aria-controls")}"]`,
+    );
+    await expect(
+      fall.getByRole("heading", { name: "Fall 2026", exact: true }),
+    ).toBeVisible();
+    await expect(
+      fall.getByText("No semester record", { exact: true }),
     ).toBeVisible();
     for (const tab of ["Applications", "Members", "Service", "Classes"]) {
       await expect(

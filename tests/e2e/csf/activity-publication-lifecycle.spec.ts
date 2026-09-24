@@ -367,8 +367,7 @@ test.describe("CSF activity publication lifecycle", () => {
         exact: true,
       });
       await expect(activityLink).toHaveCount(1);
-      await activityLink.focus();
-      await memberPage.keyboard.press("Enter");
+      await activityLink.press("Enter");
       await expect(memberPage).toHaveURL(
         new RegExp(`csf_activity=${activity.id}`),
       );

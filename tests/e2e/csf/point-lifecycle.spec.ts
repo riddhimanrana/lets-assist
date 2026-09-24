@@ -38,7 +38,7 @@ async function submissionFor(fixture: CsfFeedFixture, opportunityId: string) {
     .schema("plugin_data")
     .from("csf_point_submissions")
     .select(
-      "id, profile_id, term_id, status, description, claimed_points, reviewed_by",
+      "id, profile_id, term_id, status, description, claimed_points, reviewed_by, revision",
     )
     .eq("organization_id", fixture.organizationId)
     .eq("opportunity_id", opportunityId)
@@ -239,6 +239,7 @@ test("point proof correction earns one verified credit only after officer approv
     await expect
       .poll(async () => (await submissionFor(fixture, activity.id))?.status)
       .toBe("needs_action");
+    const changesRequested = (await submissionFor(fixture, activity.id))!;
     await page.reload({ waitUntil: "domcontentloaded" });
     expect(await verifiedTotal(page)).toBe(before);
     expect(await creditRows(fixture, submitted.id)).toEqual([]);
@@ -246,19 +247,31 @@ test("point proof correction earns one verified credit only after officer approv
       .getByRole("article")
       .filter({ hasText: initialDescription });
     await expect(card).toContainText(correctionNotes);
-    await card
-      .getByRole("button", { name: "Update and resubmit", exact: true })
-      .click();
-    const correction = page.getByRole("dialog", {
-      name: "Correct and resubmit",
+    await expect(
+      card.getByRole("button", { name: "Edit", exact: true }),
+    ).toBeVisible();
+    await card.getByRole("button", { name: "Details", exact: true }).click();
+    const details = page.getByRole("dialog", {
+      name: "Submission details",
       exact: true,
     });
-    await expect(correction).toContainText("Existing proof stays attached");
+    await expect(
+      details.getByRole("figure", { name: "proof-images.pdf", exact: true }),
+    ).toBeVisible();
+    await expect(details).toContainText(correctionNotes);
+    await details.getByRole("button", { name: "Edit", exact: true }).click();
+    const correction = page.getByRole("dialog", {
+      name: "Edit submission",
+      exact: true,
+    });
+    await expect(correction).toContainText(
+      "Your current proof stays attached until this edit saves.",
+    );
     await correction
-      .getByLabel("Activity or club name")
+      .getByLabel("What you did", { exact: true })
       .fill(correctedDescription);
     await correction
-      .getByRole("button", { name: "Correct and resubmit", exact: true })
+      .getByRole("button", { name: "Save changes", exact: true })
       .click();
     await expect(correction).toBeHidden();
     await expect
@@ -266,6 +279,10 @@ test("point proof correction earns one verified credit only after officer approv
       .toBe("submitted");
     expect((await submissionFor(fixture, activity.id))?.description).toBe(
       correctedDescription,
+    );
+    expect((await submissionFor(fixture, activity.id))?.id).toBe(submitted.id);
+    expect((await submissionFor(fixture, activity.id))?.revision).toBe(
+      changesRequested.revision + 1,
     );
     expect(await verifiedTotal(page)).toBe(before);
     expect(await creditRows(fixture, submitted.id)).toEqual([]);
@@ -320,9 +337,9 @@ test("point proof correction earns one verified credit only after officer approv
           previous_status: "needs_action",
           next_status: "submitted",
           details: expect.objectContaining({
-            proofRetained: true,
-            previousDescription: initialDescription,
-            description: correctedDescription,
+            requestId: expect.stringMatching(/^[0-9a-f-]{36}$/),
+            previousRevision: changesRequested.revision,
+            revision: changesRequested.revision + 1,
           }),
         }),
         expect.objectContaining({
@@ -331,6 +348,34 @@ test("point proof correction earns one verified credit only after officer approv
         }),
       ]),
     );
+    const { data: revisions, error: revisionError } = await fixture.admin
+      .schema("plugin_data")
+      .from("csf_admin_audit_events")
+      .select("before_data, after_data, correlation_id")
+      .eq("organization_id", fixture.organizationId)
+      .eq("target_id", submitted.id)
+      .eq("action", "point_submission.revised");
+    if (revisionError)
+      throw new Error(
+        `Could not read the fictional revision audit: ${revisionError.message}`,
+      );
+    expect(revisions).toHaveLength(1);
+    expect(revisions![0]).toMatchObject({
+      before_data: {
+        description: initialDescription,
+        revision: changesRequested.revision,
+      },
+      after_data: {
+        intent: { description: correctedDescription },
+        replacementFileId: null,
+        result: {
+          submissionId: submitted.id,
+          revision: changesRequested.revision + 1,
+        },
+      },
+      correlation_id: reviews?.find((review) => review.action === "resubmitted")
+        ?.details.requestId,
+    });
     const { data: proofAfter, error: retainedProofError } = await fixture.admin
       .schema("plugin_data")
       .from("csf_submission_files")
