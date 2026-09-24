@@ -78,8 +78,10 @@ the email layer's invariant.
   the admin client immediately before each send — `sendEmail`'s own
   preference gate is cookie-bound and silently inert from cron.
 - Route: `app/api/cron/project-feedback-followups` (hardened bearer
-  grammar + `cronAuthShapeProbe`), scheduled by
-  `.github/workflows/project-feedback-followups.yml` at `17 * * * *`.
+  grammar + `cronAuthShapeProbe`), scheduled by Vercel at `17 * * * *`.
+  `.github/workflows/project-feedback-followups.yml` is the protected manual
+  recovery path. It requires Production approval; automatic runs use the same
+  authenticated endpoint through the deployed Vercel schedule.
 - Links carry an HMAC token (`services/project-feedback-token.ts`, 30-day
   TTL) that authorizes exactly one request row — deliberately not
   `anonymous_signups.token`. Landing page `/feedback/[requestId]` works

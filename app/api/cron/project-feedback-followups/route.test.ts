@@ -2,8 +2,8 @@ import { afterEach, beforeEach, describe, expect, mock, test } from "bun:test";
 
 /**
  * Auth grammar and enable-flag behavior for the follow-up worker route.
- * The worker module is mocked to throw, which doubles as the proof that a
- * disabled or unauthorized request performs zero database or provider work.
+ * The worker counter proves that disabled or unauthorized requests perform
+ * no database or provider work.
  */
 
 let workerCalls = 0;
@@ -23,15 +23,15 @@ mock.module("@/services/project-feedback-worker", () => ({
   },
 }));
 
-const { POST } = await import("./route");
+const { GET, POST } = await import("./route");
 
 const SECRET = "feedback-cron-secret-for-tests";
 
-function request(headers: Record<string, string> = {}) {
+function request(headers: Record<string, string> = {}, method = "POST") {
   // The route only reads headers, so a plain Request satisfies it.
   return new Request(
     "http://127.0.0.1:3000/api/cron/project-feedback-followups",
-    { method: "POST", headers },
+    { method, headers },
   ) as unknown as Parameters<typeof POST>[0];
 }
 
@@ -61,6 +61,24 @@ afterEach(() => {
 });
 
 describe("project-feedback-followups auth grammar", () => {
+  test("Vercel GET accepts CRON_SECRET even when the legacy CRON_TOKEN differs", async () => {
+    delete process.env.PROJECT_FEEDBACK_WORKER_SECRET_TOKEN;
+    process.env.CRON_TOKEN = "legacy-manual-cron-token";
+    process.env.CRON_SECRET = SECRET;
+    const response = await GET(
+      request({ authorization: `Bearer ${SECRET}` }, "GET"),
+    );
+    expect(response.status).toBe(200);
+    expect((await response.json()).enabled).toBe(true);
+    expect(workerCalls).toBe(1);
+  });
+
+  test("an unauthenticated GET cannot trigger delivery", async () => {
+    const response = await GET(request({}, "GET"));
+    expect(response.status).toBe(401);
+    expect(workerCalls).toBe(0);
+  });
+
   test("a well-formed bearer token is accepted", async () => {
     const response = await POST(request({ authorization: `Bearer ${SECRET}` }));
     expect(response.status).toBe(200);
