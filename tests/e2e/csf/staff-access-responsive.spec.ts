@@ -466,11 +466,7 @@ test.describe("DVHS CSF proof submission", () => {
       await expect(submission).toHaveCount(0);
       expect(await loadSyntheticSubmission(fixture, description)).toBeNull();
       submissionWithdrawn = true;
-      for (const table of [
-        "csf_submission_files",
-        "csf_submission_edit_requests",
-        "csf_submission_reviews",
-      ]) {
+      for (const table of ["csf_submission_files", "csf_submission_reviews"]) {
         const result = await fixture.admin
           .schema("plugin_data")
           .from(table)
