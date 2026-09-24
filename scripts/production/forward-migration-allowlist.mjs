@@ -827,6 +827,6 @@ export const approvedMigrations = [
   ],
   [
     "20260924095624_csf_activity_email_profile_audience",
-    "86ccd2f9342195e382b699098e07f0242ce283e03975008d22ed3a41c65ccdd1",
+    "0ac17d359304ffe6a6fafb5bee6710e27e83a3625bd577fb43149320bc254961",
   ],
 ];

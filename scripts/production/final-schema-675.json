@@ -289,7 +289,7 @@
     },
     {
       "identity": "function:plugin_data.csf_activity_email_audience_snapshot(p_organization_id uuid, p_actor_user_id uuid, p_term_id uuid, p_cohort_id uuid, p_activity_id uuid)",
-      "digest": "59908fea7b13ddd4cf100c4f26fdbbc3"
+      "digest": "355cbe6a2e6537d8920d98981a91abdd"
     },
     {
       "identity": "function:plugin_data.csf_actor_can_edit_term_policy_draft(p_organization_id uuid, p_actor_user_id uuid)",
@@ -2141,7 +2141,7 @@
     },
     {
       "identity": "function:plugin_data.csf_publication_email_recipient_allowed(p_organization_id uuid, p_snapshot_id uuid)",
-      "digest": "a9cf28e6517fe05fb8d3879aea7c1d57"
+      "digest": "fe00a74c8d0babcbb346c9a443185c74"
     },
     {
       "identity": "function:plugin_data.csf_publication_notices_suppressed()",

@@ -67,6 +67,18 @@ ON CONFLICT(user_id) DO UPDATE SET organization_updates=false;
 SELECT extensions.is(pg_temp.preview()->>'recipients','1','organization opt-out excludes connected profile contact');
 ROLLBACK TO organization_opt_out;
 
+INSERT INTO plugin_data.csf_term_applications(id,organization_id,profile_id,cohort_id,term_id,most_checked_email)
+VALUES('ef600000-0000-4000-8000-000000000006','ef100000-0000-4000-8000-000000000001','ef300000-0000-4000-8000-000000000006','ef400000-0000-4000-8000-000000000001','ef500000-0000-4000-8000-000000000001','application-contact@local.test');
+SELECT extensions.is(pg_temp.preview()->>'recipients','2','an unassociated application cannot supply a membership contact');
+UPDATE plugin_data.csf_term_memberships SET application_id='ef600000-0000-4000-8000-000000000006' WHERE profile_id='ef300000-0000-4000-8000-000000000006';
+SELECT extensions.is(pg_temp.preview()->>'recipients','3','the accepted membership can use its own application contact');
+SELECT extensions.is(pg_temp.preview()->'summary','{"members":5,"unavailable":0,"unsubscribed":1,"duplicates":1}'::jsonb,'application fallback reconciles the membership count');
+SAVEPOINT application_opt_out;
+INSERT INTO plugin_data.csf_communication_broadcast_preferences(organization_id,topic_key,recipient_email,subscription_state,opt_out_at,opt_out_source)
+VALUES('ef100000-0000-4000-8000-000000000001','announcements','application-contact@local.test','unsubscribed',now(),'recipient_unsubscribe_link');
+SELECT extensions.is(pg_temp.preview()->>'recipients','2','application contacts retain the same broadcast opt-out');
+ROLLBACK TO application_opt_out;
+
 INSERT INTO plugin_data.csf_cohort_terms(organization_id,cohort_id,term_id) VALUES('ef100000-0000-4000-8000-000000000001','ef400000-0000-4000-8000-000000000001','ef500000-0000-4000-8000-000000000001');
 CREATE TEMP TABLE publication AS SELECT plugin_data.csf_create_activity_with_email(
 'ef100000-0000-4000-8000-000000000001','ef500000-0000-4000-8000-000000000001','ef400000-0000-4000-8000-000000000001',
@@ -74,7 +86,7 @@ CREATE TEMP TABLE publication AS SELECT plugin_data.csf_create_activity_with_ema
 'ef200000-0000-4000-8000-000000000001','ef800000-0000-4000-8000-000000000001',true,
 '{"topicKey":"announcements","resendTopicId":"resend_topic_publication_fixture"}') AS result;
 CREATE TEMP TABLE claimed AS SELECT value AS claim FROM jsonb_array_elements(plugin_data.csf_claim_activity_email_preparations(3));
-SELECT extensions.is((SELECT jsonb_array_length(claim->'recipients') FROM claimed),2,'publication freezes the same recipients as the preview');
+SELECT extensions.is((SELECT jsonb_array_length(claim->'recipients') FROM claimed),3,'publication freezes the same recipients as the preview');
 SELECT extensions.is((SELECT activity_email_snapshot->>'audienceVersion' FROM plugin_data.csf_publication_events WHERE id=(SELECT (result->>'emailEventId')::uuid FROM publication)),'2','new audience rules are tagged without rewriting old intents');
 CREATE TEMP TABLE campaign AS SELECT (plugin_data.csf_open_activity_email_preparation_campaign('ef100000-0000-4000-8000-000000000001',(claim->>'eventId')::uuid,(claim->>'leaseToken')::uuid,'New activity: Fictional','Bring books.','<p>Bring books.</p>','{"csf_environment":"local"}','profile-audience-campaign')->>'campaignId')::uuid AS id FROM claimed;
 SELECT plugin_data.csf_finalize_activity_email_campaign_content('ef100000-0000-4000-8000-000000000001',(SELECT id FROM campaign),'ef200000-0000-4000-8000-000000000001','profile-audience-content');
@@ -84,6 +96,19 @@ CREATE FUNCTION pg_temp.contact_allowed() RETURNS boolean LANGUAGE sql AS $$
  FROM plugin_data.csf_communication_recipient_snapshots WHERE campaign_id=(SELECT id FROM campaign) AND normalized_recipient_email='profile-contact@local.test';
 $$;
 SELECT extensions.ok(pg_temp.contact_allowed(),'accountless class profile passes the actual delivery authorization');
+CREATE FUNCTION pg_temp.application_contact_allowed() RETURNS boolean LANGUAGE sql AS $$
+ SELECT plugin_data.csf_publication_email_recipient_allowed('ef100000-0000-4000-8000-000000000001',id)
+ FROM plugin_data.csf_communication_recipient_snapshots WHERE campaign_id=(SELECT id FROM campaign) AND normalized_recipient_email='application-contact@local.test';
+$$;
+SELECT extensions.ok(pg_temp.application_contact_allowed(),'accountless application contact passes delivery authorization');
+SAVEPOINT application_contact_changed;
+UPDATE plugin_data.csf_term_applications SET most_checked_email='changed-application@local.test' WHERE id='ef600000-0000-4000-8000-000000000006';
+SELECT extensions.ok(NOT pg_temp.application_contact_allowed(),'delivery rejects a changed application contact');
+ROLLBACK TO application_contact_changed;
+SAVEPOINT application_detached;
+UPDATE plugin_data.csf_term_memberships SET application_id=NULL WHERE profile_id='ef300000-0000-4000-8000-000000000006';
+SELECT extensions.ok(NOT pg_temp.application_contact_allowed(),'delivery rejects a detached application');
+ROLLBACK TO application_detached;
 SAVEPOINT membership_changed;
 UPDATE plugin_data.csf_term_memberships SET status='withdrawn' WHERE profile_id='ef300000-0000-4000-8000-000000000004';
 SELECT extensions.ok(NOT pg_temp.contact_allowed(),'withdrawn term membership blocks frozen delivery');

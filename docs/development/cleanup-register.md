@@ -16,9 +16,13 @@ The focused test executes the same literal initializer without application bundl
 
 ## Class activity email audience, September 24, 2026
 
-P2 CSF-CLASS-EMAIL-20260924, implemented locally: class activity announcements selected connected accounts while the displayed semester roster also included accountless profiles. Forward migration `20260924095624` selects accepted current-term profiles with eligible contact addresses for both class and chapter activity announcements. It reports member, recipient, opt-out, missing-contact and duplicate-address counts. New snapshots carry audience version 2; previously frozen audiences and private decisions retain their original delivery rules.
+P2 CSF-CLASS-EMAIL-20260924, implemented locally: class activity announcements selected connected accounts while the displayed semester roster also included accountless profiles. Forward migration `20260924095624` selects accepted current-term profiles with eligible contact addresses for both class and chapter activity announcements. A member without a profile address can use the contact on the application associated with that membership. Delivery rechecks the association and address. It reports member, recipient, opt-out, missing-contact and duplicate-address counts. New snapshots carry audience version 2; previously frozen audiences and private decisions retain their original delivery rules.
 
-Local database coverage passed 117 assertions across the new profile-audience suite and existing publication, class audience and preference suites. It covers accountless recipients, opt-outs, identity ownership, stale contact addresses, changed memberships and duplicate queue prevention. The new template passed font, alignment and overflow checks at 1280, 390 and 320 pixels. Production reconciliation and release remain pending.
+Local database coverage passed 124 assertions across the new profile-audience suite and existing publication, class audience and preference suites. It covers accountless recipients, opt-outs, identity ownership, stale profile and application contacts, detached applications, changed memberships and duplicate queue prevention. The new template passed font, alignment and overflow checks at 1280, 390 and 320 pixels. Production reconciliation and release remain pending.
+
+## Class import recovery submission, September 24, 2026
+
+P2 CSF-IMPORT-BUTTON-20260924: Leave out and Retry import used Base UI's default button type and did not submit their recovery forms. Private PR #621 sets an explicit submit type. The browser regression reproduces the failure before the fix and verifies both decisions with pointer and keyboard input at 1280, 390 and 320 pixels afterward. TypeScript and focused lint pass. Existing database permissions, receipts and application guards stay in place. Signed integration and live recovery remain pending.
 
 ## Scheduled-maintenance diagnosis, September 17, 2026
 

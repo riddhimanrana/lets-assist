@@ -34,6 +34,8 @@ BEGIN
         WHERE member.organization_id=p_organization_id AND member.user_id=a.user_id AND member.status='active')) AS account_active
     FROM plugin_data.csf_term_memberships m
     JOIN plugin_data.csf_profiles p ON p.organization_id=m.organization_id AND p.id=m.profile_id AND p.record_status='active'
+    LEFT JOIN plugin_data.csf_term_applications application ON application.id=m.application_id
+      AND application.organization_id=m.organization_id AND application.profile_id=m.profile_id AND application.term_id=m.term_id
     LEFT JOIN LATERAL (
       SELECT account.user_id FROM plugin_data.csf_profile_accounts account
       WHERE account.organization_id=p_organization_id AND account.profile_id=p.id
@@ -43,6 +45,7 @@ BEGIN
     CROSS JOIN LATERAL (SELECT CASE
       WHEN plugin_data.csf_communication_email_is_storable(lower(btrim(p.personal_email))) THEN lower(btrim(p.personal_email))
       WHEN plugin_data.csf_communication_email_is_storable(lower(btrim(p.school_email))) THEN lower(btrim(p.school_email))
+      WHEN plugin_data.csf_communication_email_is_storable(lower(btrim(application.most_checked_email))) THEN lower(btrim(application.most_checked_email))
       ELSE NULL END AS email) pref
     WHERE m.organization_id=p_organization_id AND m.term_id=p_term_id AND m.status IN('accepted','active','completed')
       AND (p_cohort_id IS NULL OR EXISTS(SELECT 1 FROM plugin_data.csf_profile_cohort_memberships cm
@@ -102,6 +105,7 @@ DECLARE
   v_source_term uuid;
   v_source_cohort uuid;
   v_source_audience text;
+  v_profile_activity_audience boolean := false;
 BEGIN
   SELECT * INTO STRICT s FROM plugin_data.csf_communication_recipient_snapshots
     WHERE organization_id=p_organization_id AND id=p_snapshot_id;
@@ -152,14 +156,15 @@ BEGIN
     OR c.audience_cohort_id IS DISTINCT FROM v_source_cohort THEN RETURN false; END IF;
   IF NOT EXISTS (SELECT 1 FROM public.organization_plugin_access WHERE organization_id=p_organization_id
     AND plugin_key='dvhs-csf' AND enabled AND is_accessible) THEN RETURN false; END IF;
-  -- Previously frozen class announcements retain their account-address rules.
-  -- Version 2 activity audiences use the term/profile checks below.
-  IF c.audience_kind='cohort_members' AND NOT (v_source_kind='activity' AND EXISTS(
+  v_profile_activity_audience := v_source_kind='activity' AND EXISTS(
     SELECT 1 FROM plugin_data.csf_publication_events publication
     WHERE publication.organization_id=p_organization_id AND publication.source_kind='activity'
       AND publication.source_id=v_source_id AND publication.event_key=''
       AND publication.activity_email_snapshot->>'audienceVersion'='2'
-  )) THEN
+  );
+  -- Previously frozen class announcements retain their account-address rules.
+  -- Version 2 activity audiences use the term/profile checks below.
+  IF c.audience_kind='cohort_members' AND NOT v_profile_activity_audience THEN
     RETURN s.user_id IS NOT NULL AND s.profile_id IS NOT NULL
       AND plugin_data.csf_publication_account_is_owned(p_organization_id,s.profile_id,s.user_id)
       AND plugin_data.csf_publication_recipient_allowed(p_organization_id,v_source_kind,v_source_id,s.user_id)
@@ -190,6 +195,15 @@ BEGIN
       WHEN plugin_data.csf_communication_email_is_storable(lower(btrim(p.school_email)))
         THEN lower(btrim(p.school_email))
       ELSE NULL END;
+    IF v_current_email IS NULL AND v_profile_activity_audience THEN
+      SELECT lower(btrim(application.most_checked_email)) INTO v_current_email
+      FROM plugin_data.csf_term_memberships membership
+      JOIN plugin_data.csf_term_applications application ON application.id=membership.application_id
+        AND application.organization_id=membership.organization_id AND application.profile_id=membership.profile_id
+        AND application.term_id=membership.term_id
+      WHERE membership.organization_id=p_organization_id AND membership.profile_id=s.profile_id AND membership.term_id=c.term_id
+        AND plugin_data.csf_communication_email_is_storable(lower(btrim(application.most_checked_email)));
+    END IF;
   END IF;
   IF c.audience_kind IN ('term_members','cohort_members') THEN
     IF s.profile_id IS NULL OR NOT EXISTS (SELECT 1 FROM plugin_data.csf_term_memberships
