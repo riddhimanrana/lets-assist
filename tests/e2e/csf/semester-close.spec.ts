@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/test";
+import { loadCsfFeedFixture } from "./feed-fixtures";
 
 import {
   CSF_ORGANIZATION_PATH,
@@ -15,6 +16,17 @@ test.describe("transactional semester-close preflight", () => {
     page,
   }) => {
     const failures = watchBrowserFailures(page);
+    const fixture = await loadCsfFeedFixture();
+    const { count: unresolvedSubmissions, error: submissionsError } =
+      await fixture.admin
+        .schema("plugin_data")
+        .from("csf_point_submissions")
+        .select("id", { count: "exact", head: true })
+        .eq("organization_id", fixture.organizationId)
+        .eq("term_id", fixture.currentTermId)
+        .in("status", ["submitted", "needs_action"]);
+    expect(submissionsError).toBeNull();
+    expect(unresolvedSubmissions).not.toBeNull();
     await loginAs(page, "admin", chapterRulesPath);
 
     // The canonical Terms URL opens Chapter rules explicitly.
@@ -37,17 +49,13 @@ test.describe("transactional semester-close preflight", () => {
       dialog.getByText("Semester close preflight", { exact: true }),
     ).toBeVisible();
 
-    // Counts that other journeys can only add to are asserted as floors, not
-    // as exact values: this stack is not reseeded between suite runs, so every
-    // synthetic application and dues row an earlier journey left in the current
-    // term is legitimately unresolved here. What stays exact is the domain that
-    // no journey writes to, the seeded dues row that is always outstanding, and
-    // the total below, which is summed from what actually rendered.
+    // Earlier journeys retain their records. Compare submission blockers with
+    // the current ledger, and retain the seeded floors for applications/dues.
     const expectedGroups = [
       { label: "Applications", count: null, route: "csf-applications" },
       {
         label: "Point submissions",
-        count: 0,
+        count: unresolvedSubmissions!,
         route: "csf-submissions#review",
       },
       {
