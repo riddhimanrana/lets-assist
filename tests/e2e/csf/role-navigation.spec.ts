@@ -437,7 +437,11 @@ test.describe("DVHS CSF role-aware navigation", () => {
     await expect(
       spring.getByRole("heading", { name: "Spring 2026", exact: true }),
     ).toBeVisible();
-    await expect(spring.getByText("Pending", { exact: true })).toBeVisible();
+    await expect(
+      spring
+        .getByLabel("Selected semester status and progress", { exact: true })
+        .getByText("Pending", { exact: true }),
+    ).toBeVisible();
     const fallTab = semesters.getByRole("tab", { name: /^Fall 2026/ });
     await fallTab.click();
     const fall = page.locator(
