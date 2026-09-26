@@ -2753,7 +2753,9 @@ sources.
 | CSF-TERM-PREFLIGHT-20260925   | P2, open | The first authenticated Terms load at 2026-09-26 01:16:46 UTC failed with `Failed to load CSF semester closure readiness: canceling statement due to statement timeout`, digest `1450891581`. Two fresh reloads succeeded; the close dialog correctly disabled closure for unresolved blockers. Investigate the existing readiness RPC on live data without committing a term transition.       |
 | CSF-WORKBOOK-RUNTIME-20260925 | P2, open | After worker restoration, workbook cron requests alternated between HTTP 200 and 503 from 01:16 to 01:20 UTC; the last observed request was 200. The route can report unsettled or blocked subtasks with 503. The failing subtask is not established, and successful requests do not prove Google delivery. Correlate bounded worker receipts and provider results before closing this finding. |
 
-### CSF experience candidate, September 23, 2026
+### Historical CSF experience candidate, September 23, 2026
+
+This subsection preserves the September 23 pre-release assessment. Its local and pending labels describe that earlier checkpoint, not the current installation. For the current release and verification limits, use the CSF 1.2.81 Production observations above and the linked release evidence. This release record does not independently close older findings whose specific live acceptance is unrecorded.
 
 Repository finding CSF-EXPERIENCE-SURVEY-SCHEDULE, P2, implemented: the hourly
 project feedback job waited for Production approval and blocked later runs.
