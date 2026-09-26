@@ -2,7 +2,7 @@
 
 This audit covers member submissions, officer review, Sheets, semester transitions, class lifecycle, graduation, and partner clubs. Local changes live on `codex/csf-experience-audit` in both repositories. The root started at `e4fd3c2`; private Development started at `ac6c470`, whose tree matches the pinned `a294ee5` source.
 
-This is an implementation candidate. It has not been merged, deployed, or installed by the chapter. No live student records or Google destinations were changed.
+Private implementation and promotion passed hosted quality checks in PRs #622 and #623. Signed release `dvhs-csf/v1.2.81` binds source `613ebefecc02cfd03b1dc4f4f1dc70348461fd5e`. Root integration, hosted Development acceptance, Production deployment, and the chapter Update are in progress. No live student records or Google destinations were changed by the audit.
 
 ## Findings and changes
 
