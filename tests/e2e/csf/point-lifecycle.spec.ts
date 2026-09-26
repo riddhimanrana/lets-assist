@@ -101,10 +101,71 @@ async function reviewSubmission(
   });
   await expect(original).toBeVisible();
   await expect(original).toHaveAttribute("href", /^https?:\/\//);
-  await expect(proof.locator('object[type="application/pdf"]')).toHaveAttribute(
-    "data",
-    (await original.getAttribute("href"))!,
-  );
+  await expect(proof.getByText("Page 1 of 2", { exact: true })).toBeVisible();
+  await expect(
+    proof.getByRole("img", { name: "proof-images.pdf, page 1", exact: true }),
+  ).toBeVisible();
+  await proof
+    .getByRole("button", { name: "Next proof page", exact: true })
+    .click();
+  await expect(proof.getByText("Page 2 of 2", { exact: true })).toBeVisible();
+  await expect(
+    proof.getByRole("img", { name: "proof-images.pdf, page 2", exact: true }),
+  ).toBeVisible();
+  await expect(
+    proof.getByRole("button", { name: "Next proof page", exact: true }),
+  ).toBeDisabled();
+  await proof
+    .getByRole("button", { name: "Zoom in proof page", exact: true })
+    .click();
+  await proof
+    .getByRole("button", { name: "Rotate proof page", exact: true })
+    .click();
+  await proof.getByRole("button", { name: "Reset view", exact: true }).click();
+  await page.setViewportSize({ width: 390, height: 844 });
+  await expect(proof).toBeVisible();
+  expect(
+    await dialog.evaluate(
+      (element) => element.scrollWidth <= element.clientWidth + 1,
+    ),
+  ).toBe(true);
+  await proof
+    .getByRole("button", { name: "Previous proof page", exact: true })
+    .click();
+  await expect(
+    proof.getByRole("img", { name: "proof-images.pdf, page 1", exact: true }),
+  ).toBeVisible();
+  await page.screenshot({
+    path: test
+      .info()
+      .outputPath(`proof-mobile-${decision.replaceAll(" ", "-")}.png`),
+  });
+  await page.setViewportSize({ width: 1280, height: 900 });
+  const canvas = proof.getByRole("img", {
+    name: "proof-images.pdf, page 1",
+    exact: true,
+  });
+  await expect
+    .poll(() =>
+      canvas.evaluate((element) => {
+        const canvas = element as HTMLCanvasElement;
+        return (
+          Math.abs(
+            canvas.getBoundingClientRect().width -
+              canvas.parentElement!.clientWidth,
+          ) < 2 && getComputedStyle(canvas).visibility === "visible"
+        );
+      }),
+    )
+    .toBe(true);
+  await dialog.evaluate((element) => {
+    element.scrollTop = 0;
+  });
+  await page.screenshot({
+    path: test
+      .info()
+      .outputPath(`proof-desktop-${decision.replaceAll(" ", "-")}.png`),
+  });
   await dialog.getByLabel("Review notes").fill(notes);
   await dialog.getByRole("button", { name: decision, exact: true }).click();
   await expect(dialog).toBeHidden();
@@ -115,6 +176,17 @@ test("point proof correction earns one verified credit only after officer approv
   browser,
 }) => {
   test.setTimeout(180_000);
+  await page.addLocatorHandler(
+    page.getByRole("dialog", {
+      name: "How was using Let's Assist?",
+      exact: true,
+    }),
+    async (feedback) => {
+      await feedback
+        .getByRole("button", { name: "Close", exact: true })
+        .click();
+    },
+  );
   // The fixture loader refuses remote or mismatched databases using the live
   // isolated-stack marker. Every new row belongs to this random activity.
   const fixture = await loadCsfFeedFixture();

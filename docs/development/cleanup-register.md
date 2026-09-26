@@ -2,6 +2,8 @@
 
 This register separates actionable repository defects from provider/account and Production-readiness blockers. A finding leaves the active section only when fixed with evidence, disproved with evidence, or moved to the external section with a named dependency.
 
+The [September 25 CSF experience audit](../csf/experience-audit-20260925.md) tracks an active local candidate for P2 lifecycle reachability, pending request handling, proof layout, Sheet status recovery, and club term-context defects. Its status table separates implementation from remaining verification. None of these findings is closed by a code edit alone.
+
 The authoritative current release status begins at **Repository-owned P0–P2**
 below. Every dated implementation narrative before that heading is historical
 evidence and does not override the current tables or release gates.

@@ -112,3 +112,8 @@ inventory changes exactly those eleven identities. The provider-owned Storage ta
 stays outside the shared catalog; the release query separately verifies the exact,
 enabled CSF upload trigger. The migration deletes no existing claims on deployment.
 Member actions remove their eligible claims and complete physical proof cleanup.
+
+Release 677 publishes signed CSF 1.2.81. The reviewed migration writes only the
+signed version and catalog pointer, with no schema or organization-install change.
+It retains the verified 676 object inventory and binds it to the new ledger.
+Focused controller tests verify the exact publication statements and retry fence.
