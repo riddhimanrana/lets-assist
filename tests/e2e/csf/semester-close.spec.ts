@@ -56,7 +56,7 @@ test.describe("transactional semester-close preflight", () => {
       {
         label: "Point submissions",
         count: unresolvedSubmissions!,
-        route: "csf-submissions#review",
+        route: "csf-submissions",
       },
       {
         label: "Point appeals",
@@ -83,6 +83,14 @@ test.describe("transactional semester-close preflight", () => {
         new RegExp(`tab=${group.route}(?:&|#|$)`),
       );
 
+      if (group.label === "Point submissions") {
+        expect(
+          new URL(
+            (await link.getAttribute("href"))!,
+            page.url(),
+          ).searchParams.get("csf_point_term"),
+        ).toBe(fixture.currentTermId);
+      }
       const badgeText = (
         await link.locator('[data-slot="badge"]').innerText()
       ).trim();
