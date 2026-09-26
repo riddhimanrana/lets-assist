@@ -1,8 +1,8 @@
 # CSF experience audit, September 25, 2026
 
-This audit covers member submissions, officer review, Sheets, semester transitions, class lifecycle, graduation, and partner clubs. Local changes live on `codex/csf-experience-audit` in both repositories. The root started at `e4fd3c2`; private Development started at `ac6c470`, whose tree matches the pinned `a294ee5` source.
+This audit covers member submissions, officer review, Sheets, semester transitions, class lifecycle, graduation, and partner clubs. The implementation merged through private PR #622 and root PR #844. The root started at `e4fd3c2`; private Development started at `ac6c470`, whose tree matches the pinned `a294ee5` source.
 
-Private implementation and promotion passed hosted quality checks in PRs #622 and #623. Signed release `dvhs-csf/v1.2.81` binds source `613ebefecc02cfd03b1dc4f4f1dc70348461fd5e`. Root integration, hosted Development acceptance, Production deployment, and the chapter Update are in progress. No live student records or Google destinations were changed by the audit.
+CSF 1.2.81 is deployed in Production and installed for the chapter. Signed release `dvhs-csf/v1.2.81` binds private source `613ebefecc02cfd03b1dc4f4f1dc70348461fd5e`. Production PR #845 merged as `f48ab77f4d4b6d52ecd5e64b848a710d21b6db63`, with the same Git tree as accepted Development `36267d058ff474931228c220e615fb97b97ddd62`. The audit changed no live student records or Google destinations.
 
 ## Findings and changes
 
@@ -44,6 +44,22 @@ The initial database run used browser-seeded fixtures and failed clean-database 
 
 Generated logs and screenshots stay ignored under `.artifacts/csf-experience-*` and `.artifacts/dvhs-csf-e2e/`. They contain only local synthetic test evidence, but are not publication artifacts.
 
-## Remaining release evidence
+## Release evidence
 
-The full browser run and targeted retry cover all 144 enabled journeys. Three optional screenshot-gallery tests and the existing historical-workbook browser test remain skipped. The complete suite was not repeated after the test-only feedback-dialog correction. Hosted Development acceptance, copied-workbook provider acceptance, Production deployment, and the chapter installation update remain separate steps. Local fixtures do not prove live Google delivery, actual student reconciliation, or the chapter's installed version.
+| Stage                | Verified result                                                                                                                                                                                                                                                                                                                                                 |
+| -------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Integrated quality   | [Run 36204843126](https://github.com/riddhimanrana/lets-assist/actions/runs/36204843126) passed the build, root and plugin tests, 427 database suites with 10,707 assertions, three DV browser journeys, and all 144 enabled CSF journeys. One existing activity-navigation journey passed on retry; four optional or historical-workbook tests remain skipped. |
+| Hosted Development   | [Run 36204837890](https://github.com/riddhimanrana/lets-assist/actions/runs/36204837890) passed with 100 synthetic sessions and 9,214 requests. Read p95 was 1,048.7 ms; mutation p95 was 1,815.8 ms. No request, 5xx, or browser errors occurred.                                                                                                              |
+| Production migration | [Run 36207467442](https://github.com/riddhimanrana/lets-assist/actions/runs/36207467442) applied publication migration `20260926000900`, bringing the ledger to 677. Catalog readback confirmed signed source and version 1.2.81.                                                                                                                               |
+| Production app       | [Run 36207534887](https://github.com/riddhimanrana/lets-assist/actions/runs/36207534887) deployed and verified `dpl_3CdK3yLh3V5H1oPczbtrC68SUSxi` for release `f48ab77f`.                                                                                                                                                                                       |
+| Chapter installation | Authenticated organization Update completed. Independent read-only database verification confirmed installed version 1.2.81 and enabled status.                                                                                                                                                                                                                 |
+| Workers              | Approved controls restored workbook refresh, import commit, communications, and publication notifications on the new release at revision 4. Scheduled post publishing remains disabled. Independent readback confirmed the old release's workers remain disabled.                                                                                               |
+
+Live checks confirmed the updated Sheets panel, club search and standing filter, Terms controls, and disabled closure actions while readiness blockers remain. No live term closure, student decision, or provider sync was manually submitted during acceptance.
+
+## Open Production observations
+
+- `CSF-TERM-PREFLIGHT-20260925`, P2: the first Terms load at 2026-09-26 01:16:46 UTC failed because `csf_term_closure_readiness` exceeded the statement timeout. Error digest `1450891581`. Two fresh reloads succeeded and the close dialog enforced its blockers. This remains an intermittent failure, not a resolved finding.
+- `CSF-WORKBOOK-RUNTIME-20260925`, P2: the restored workbook cron returned alternating 200 and 503 responses between 01:16 and 01:20 UTC. The last observed request returned 200. The precise failing subtask is unproven; enabling the worker and receiving a successful request do not prove delivery to Google Sheets.
+
+These observations remain open in the cleanup register. Local fixtures and hosted synthetic acceptance do not prove copied-workbook provider acceptance, actual student reconciliation, or every live data path.

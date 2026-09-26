@@ -2,7 +2,7 @@
 
 This register separates actionable repository defects from provider/account and Production-readiness blockers. A finding leaves the active section only when fixed with evidence, disproved with evidence, or moved to the external section with a named dependency.
 
-The [September 25 CSF experience audit](../csf/experience-audit-20260925.md) tracks an active local candidate for P2 lifecycle reachability, pending request handling, proof layout, Sheet status recovery, and club term-context defects. Its status table separates implementation from remaining verification. None of these findings is closed by a code edit alone.
+The [September 25 CSF experience audit](../csf/experience-audit-20260925.md) shipped as CSF 1.2.81 through Production PR #845. Its evidence table records local, hosted Development, Production, chapter installation, and restored worker verification. Intermittent Terms readiness and workbook worker errors remain open below.
 
 The authoritative current release status begins at **Repository-owned P0–P2**
 below. Every dated implementation narrative before that heading is historical
@@ -2744,7 +2744,18 @@ sources.
 
 ## Repository-owned P0–P2
 
-### CSF experience candidate, September 23, 2026
+### CSF 1.2.81 Production observations, September 25, 2026
+
+[Release evidence](../csf/experience-audit-20260925.md) records accepted Development `36267d05`, Production `f48ab77f`, deployment `dpl_3CdK3yLh3V5H1oPczbtrC68SUSxi`, and chapter installation 1.2.81. Full quality and hosted acceptance passed. The four previously enabled workers were restored through approved controls after chapter Update.
+
+| Finding                       | Status   | Evidence and remaining work                                                                                                                                                                                                                                                                                                                                                                     |
+| ----------------------------- | -------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| CSF-TERM-PREFLIGHT-20260925   | P2, open | The first authenticated Terms load at 2026-09-26 01:16:46 UTC failed with `Failed to load CSF semester closure readiness: canceling statement due to statement timeout`, digest `1450891581`. Two fresh reloads succeeded; the close dialog correctly disabled closure for unresolved blockers. Investigate the existing readiness RPC on live data without committing a term transition.       |
+| CSF-WORKBOOK-RUNTIME-20260925 | P2, open | After worker restoration, workbook cron requests alternated between HTTP 200 and 503 from 01:16 to 01:20 UTC; the last observed request was 200. The route can report unsettled or blocked subtasks with 503. The failing subtask is not established, and successful requests do not prove Google delivery. Correlate bounded worker receipts and provider results before closing this finding. |
+
+### Historical CSF experience candidate, September 23, 2026
+
+This subsection preserves the September 23 pre-release assessment. Its local and pending labels describe that earlier checkpoint, not the current installation. For the current release and verification limits, use the CSF 1.2.81 Production observations above and the linked release evidence. This release record does not independently close older findings whose specific live acceptance is unrecorded.
 
 Repository finding CSF-EXPERIENCE-SURVEY-SCHEDULE, P2, implemented: the hourly
 project feedback job waited for Production approval and blocked later runs.
