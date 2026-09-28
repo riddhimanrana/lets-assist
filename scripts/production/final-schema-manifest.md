@@ -117,3 +117,14 @@ Release 677 publishes signed CSF 1.2.81. The reviewed migration writes only the
 signed version and catalog pointer, with no schema or organization-install change.
 It retains the verified 676 object inventory and binds it to the new ledger.
 Focused controller tests verify the exact publication statements and retry fence.
+
+Release 678 changes only the member point-submission deletion function. Its clean
+replay inventory contains the same object identities as 677, with one changed
+function digest. The focused deletion suite passes 61 assertions, including
+in-flight exports, unknown outcomes and previously attempted rows. Release 679
+publishes signed CSF 1.2.82 and preserves that inventory.
+
+Release 680 publishes signed CSF 1.2.83. Its generated SQL writes only the signed
+plugin version and catalog pointer. It preserves the verified 679 object inventory
+and binds it to the new ledger. Controller regression covers the complete suffix
+and a retry with no remaining migrations.

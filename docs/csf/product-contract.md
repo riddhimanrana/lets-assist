@@ -190,7 +190,7 @@ remains:
   history (Amendment 9).
 - **Per-class review.** Unresolved joins wait in the class's **Record
   connections** queue. Authorized staff use **Review** and **Connect account**
-  after verifying identity and recording their decision. Application and login
+  after verifying identity and checking the ownership confirmation. A written reason is not required for connections; the audit records the staff confirmation. Suggestions load in the queue, and staff can choose another record when needed. Recorded student name confirmations remain context only. Application and login
   emails may differ. **Reject request** requires a reason. Connecting an account
   does not approve an application, award points, or grant a staff position.
   Officer Home shows the pending **Connection requests** count.

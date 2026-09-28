@@ -178,6 +178,17 @@ INSERT INTO plugin_data.csf_sheet_writeback_ledger
 VALUES
   ('f8100000-0000-4000-8000-000000000001','fixture-sheet-2031','pending_export','f8800000-0000-4000-8000-000000000001','point_submission','f8500000-0000-4000-8000-000000000002',md5('{"fixture":2}'::jsonb::text),'{"fixture":2}');
 SELECT extensions.throws_ok($$SELECT pg_temp.delete_claim(5)$$,'55000','This submission has synchronized records. Use the correction workflow.','an exported claim retains its correction boundary');
+UPDATE plugin_data.csf_sheet_writeback_ledger SET status='exporting',attempts=1,lease_token=gen_random_uuid()
+WHERE record_id='f8500000-0000-4000-8000-000000000002';
+SELECT extensions.throws_ok($$SELECT pg_temp.delete_claim(2)$$,'55000','This submission has synchronized records. Use the correction workflow.','an in-flight export blocks deletion before its receipt arrives');
+UPDATE plugin_data.csf_sheet_writeback_ledger SET status='unknown_outcome',lease_token=NULL
+WHERE record_id='f8500000-0000-4000-8000-000000000002';
+SELECT extensions.throws_ok($$SELECT pg_temp.delete_claim(2)$$,'55000','This submission has synchronized records. Use the correction workflow.','an uncertain provider outcome retains its claim');
+UPDATE plugin_data.csf_sheet_writeback_ledger SET status='pending_export'
+WHERE record_id='f8500000-0000-4000-8000-000000000002';
+SELECT extensions.throws_ok($$SELECT pg_temp.delete_claim(2)$$,'55000','This submission has synchronized records. Use the correction workflow.','requeueing a previous attempt does not make deletion safe');
+UPDATE plugin_data.csf_sheet_writeback_ledger SET attempts=0
+WHERE record_id='f8500000-0000-4000-8000-000000000002';
 INSERT INTO plugin_data.csf_submission_reviews(organization_id,submission_id,action,notes)
 VALUES('f8100000-0000-4000-8000-000000000001','f8500000-0000-4000-8000-000000000002','resubmitted','Synthetic prior note');
 SELECT extensions.is(pg_temp.delete_claim(2)->>'status','deleted','queued but never exported claim deletes immediately');
