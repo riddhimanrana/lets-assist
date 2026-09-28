@@ -165,11 +165,27 @@ SELECT extensions.is((SELECT count(*)::integer FROM plugin_data.csf_member_submi
 SELECT extensions.is((SELECT count(*)::integer FROM plugin_data.csf_member_submission_deletion_paths),0,'worker clears temporary deletion paths');
 SELECT extensions.is((SELECT count(*)::integer FROM plugin_data.csf_storage_deletion_receipts r JOIN worker_claim w ON r.queue_id=w.id),0,'worker does not retain erased proof receipt');
 SELECT extensions.throws_ok($$SELECT plugin_data.csf_ack_storage_deletion_claim(id,claim_token,true) FROM worker_claim$$,'55000','The storage deletion claim is no longer current.','late acknowledgement cannot recreate erased history');
+INSERT INTO plugin_data.csf_sheet_sync_destinations
+  (id,organization_id,spreadsheet_file_id,sheet_id,kind,term_id,is_test)
+VALUES ('f8800000-0000-4000-8000-000000000001','f8100000-0000-4000-8000-000000000001','fixture-sheet-2031',1,'point_submissions','f8200000-0000-4000-8000-000000000001',true);
+INSERT INTO plugin_data.csf_sheet_sync_bindings
+  (organization_id,destination_id,record_kind,record_id,profile_id,logical_key,sheet_id,last_export_version)
+VALUES
+  ('f8100000-0000-4000-8000-000000000001','f8800000-0000-4000-8000-000000000001','point_submission','f8500000-0000-4000-8000-000000000002','f8300000-0000-4000-8000-000000000001','point_submission:2',1,NULL),
+  ('f8100000-0000-4000-8000-000000000001','f8800000-0000-4000-8000-000000000001','point_submission','f8500000-0000-4000-8000-000000000005','f8300000-0000-4000-8000-000000000001','point_submission:5',1,'exported-version');
+INSERT INTO plugin_data.csf_sheet_writeback_ledger
+  (organization_id,spreadsheet_file_id,status,destination_id,record_kind,record_id,source_version,payload)
+VALUES
+  ('f8100000-0000-4000-8000-000000000001','fixture-sheet-2031','pending_export','f8800000-0000-4000-8000-000000000001','point_submission','f8500000-0000-4000-8000-000000000002',md5('{"fixture":2}'::jsonb::text),'{"fixture":2}');
+SELECT extensions.throws_ok($$SELECT pg_temp.delete_claim(5)$$,'55000','This submission has synchronized records. Use the correction workflow.','an exported claim retains its correction boundary');
 INSERT INTO plugin_data.csf_submission_reviews(organization_id,submission_id,action,notes)
 VALUES('f8100000-0000-4000-8000-000000000001','f8500000-0000-4000-8000-000000000002','resubmitted','Synthetic prior note');
-SELECT extensions.is(pg_temp.delete_claim(2)->>'status','deleted','unreviewed submission without proof deletes immediately');
+SELECT extensions.is(pg_temp.delete_claim(2)->>'status','deleted','queued but never exported claim deletes immediately');
+SELECT extensions.is((SELECT count(*)::integer FROM plugin_data.csf_sheet_sync_bindings WHERE record_id='f8500000-0000-4000-8000-000000000002'),0,'queued claim binding is removed');
+SELECT extensions.is((SELECT count(*)::integer FROM plugin_data.csf_sheet_writeback_ledger WHERE record_id='f8500000-0000-4000-8000-000000000002'),0,'queued claim export is cancelled');
 SELECT extensions.is((SELECT count(*)::integer FROM plugin_data.csf_submission_reviews WHERE submission_id='f8500000-0000-4000-8000-000000000002'),0,'review notes for unreviewed edits are erased');
 SELECT extensions.is((SELECT count(*)::integer FROM plugin_data.csf_admin_audit_events WHERE target_id='f8500000-0000-4000-8000-000000000002'),0,'no-proof submission audit is erased');
+DELETE FROM plugin_data.csf_sheet_sync_bindings WHERE record_id='f8500000-0000-4000-8000-000000000005';
 
 -- In-app-only notices are erased with their claim; active senders are fenced.
 INSERT INTO plugin_data.csf_publication_events(id,organization_id,source_kind,source_id,event_key)
