@@ -959,7 +959,13 @@ AS $$
 $$;
 
 -- Records a retryable outcome for the chapter-verified certificates in one
--- failed or deferred statement. Never raises. Only a SQLSTATE is kept.
+-- failed or deferred statement. Never raises, and never waits past its own
+-- lock bound (N3): each row is recorded in its own subtransaction behind a
+-- NOWAIT lock on an existing outcome row, and the function carries the same
+-- lock_timeout as the inline projection for the insert path. The first
+-- contended row stops recording; unrecorded sources are replayed by the next
+-- event, a staff retry, or a backfill, which project every eligible
+-- certificate without an active evidence row. Only a SQLSTATE is kept.
 CREATE FUNCTION plugin_data.csf_record_attendance_failure(
   p_organization_id uuid,
   p_project_id uuid,
@@ -972,6 +978,7 @@ RETURNS integer
 LANGUAGE plpgsql
 SECURITY DEFINER
 SET search_path = ''
+SET lock_timeout = '200ms'
 AS $$
 DECLARE
   v_certificate_id uuid;
@@ -997,13 +1004,23 @@ BEGIN
       ORDER BY certificate.id
       LIMIT 2000
     LOOP
-      PERFORM plugin_data.csf_record_attendance_outcome(
-        p_organization_id, v_certificate_id, p_project_id, NULL, NULL, NULL,
-        CASE WHEN p_outcome = 'deferred' THEN 'deferred' ELSE 'failed' END,
-        coalesce(nullif(p_sqlstate, ''), 'XX000'), NULL,
-        v_certificate_id = ANY (coalesce(p_guest_certificate_ids, ARRAY[]::uuid[]))
-      );
-      v_count := v_count + 1;
+      BEGIN
+        PERFORM 1
+        FROM plugin_data.csf_attendance_projection_outcomes AS outcome
+        WHERE outcome.organization_id = p_organization_id
+          AND outcome.certificate_id = v_certificate_id
+        FOR UPDATE NOWAIT;
+        PERFORM plugin_data.csf_record_attendance_outcome(
+          p_organization_id, v_certificate_id, p_project_id, NULL, NULL, NULL,
+          CASE WHEN p_outcome = 'deferred' THEN 'deferred' ELSE 'failed' END,
+          coalesce(nullif(p_sqlstate, ''), 'XX000'), NULL,
+          v_certificate_id = ANY (coalesce(p_guest_certificate_ids, ARRAY[]::uuid[]))
+        );
+        v_count := v_count + 1;
+      EXCEPTION WHEN lock_not_available THEN
+        -- Leave this and later sources unrecorded; replay finds them.
+        EXIT;
+      END;
     END LOOP;
   EXCEPTION WHEN OTHERS THEN
     -- Recording a failure must never fail the host transaction.
@@ -1104,6 +1121,7 @@ BEGIN
         p_organization_id::text || ':' || v_term.id::text, 0
       )) THEN
         RETURN pg_catalog.jsonb_build_object(
+          'contended', true,
           'deferred',
           plugin_data.csf_record_attendance_failure(
             p_organization_id, p_project_id, p_certificate_ids, '55P03',
@@ -1294,8 +1312,9 @@ BEGIN
       v_activity := NULL;
       v_key := NULL;
 
-      -- R1: a certificate is consumed once. Evidence on a reviewed or
-      -- appealed claim, in any state, blocks every other activity.
+      -- R1 and N2: a certificate is consumed once. Evidence on a reviewed
+      -- (approved, rejected, needs_action, duplicate) or appealed claim, in any
+      -- state, blocks every activity.
       SELECT submission.id INTO v_claim_id
       FROM plugin_data.csf_attendance_evidence AS evidence
       JOIN plugin_data.csf_point_submissions AS submission
@@ -1304,7 +1323,7 @@ BEGIN
       WHERE evidence.organization_id = p_organization_id
         AND evidence.certificate_id = v_source.certificate_id
         AND (
-          submission.status IN ('approved', 'rejected', 'needs_action')
+          submission.status IN ('approved', 'rejected', 'needs_action', 'duplicate')
           OR EXISTS (
             SELECT 1 FROM plugin_data.csf_point_appeals AS appeal
             WHERE appeal.organization_id = submission.organization_id
@@ -1460,8 +1479,8 @@ BEGIN
         IF NOT FOUND THEN v_outcome := 'not_member'; END IF;
       END IF;
 
-      -- Prior decisions on this activity: a rejected or approved fixed claim,
-      -- or a reviewed shift claim that already covers this shift key.
+      -- Prior decisions on this activity: a rejected, duplicate, or approved
+      -- fixed claim, or a reviewed shift claim that already covers this key.
       IF v_outcome IS NULL THEN
         SELECT submission.id INTO v_claim_id
         FROM plugin_data.csf_point_submissions AS submission
@@ -1469,7 +1488,7 @@ BEGIN
           AND submission.profile_id = v_source.profile_id
           AND submission.term_id = v_term.id
           AND submission.opportunity_id = v_activity.id
-          AND submission.status IN ('approved', 'rejected')
+          AND submission.status IN ('approved', 'rejected', 'duplicate')
           AND (
             v_rules ->> 'mode' <> 'shifts'
             OR EXISTS (
@@ -1719,6 +1738,9 @@ DECLARE
   v_pair record;
   v_sqlstate text;
   v_guest_ids uuid[] := ARRAY[]::uuid[];
+  v_started timestamptz := pg_catalog.clock_timestamp();
+  v_contended boolean := false;
+  v_result jsonb;
 BEGIN
   -- Collect changed certificates as (id, old project, new project).
   IF TG_OP = 'INSERT' THEN
@@ -1798,14 +1820,27 @@ BEGIN
     GROUP BY targets.organization_id, targets.project_id
     ORDER BY targets.organization_id, targets.project_id
   LOOP
-    -- R2: the inline entry never waits for CSF locks. Contention (55P03) is
-    -- deferred for replay; any other error is a recorded failure.
+    -- N1: one wait budget per host statement. After 250 ms, or once any
+    -- chapter was contended, the remaining pairs are deferred unattempted.
+    IF v_contended
+      OR pg_catalog.clock_timestamp() - v_started >= interval '250 milliseconds' THEN
+      PERFORM plugin_data.csf_record_attendance_failure(
+        v_pair.organization_id, v_pair.project_id, v_pair.certificate_ids, '55P03',
+        'deferred', v_guest_ids
+      );
+      CONTINUE;
+    END IF;
+    -- R2: the inline entry never waits for CSF locks past its bound.
+    -- Contention (55P03) is deferred for replay; any other error is a
+    -- recorded failure.
     BEGIN
-      PERFORM plugin_data.csf_project_attendance_inline(
+      v_result := plugin_data.csf_project_attendance_inline(
         v_pair.organization_id, v_pair.project_id, v_pair.certificate_ids, v_guest_ids
       );
+      v_contended := coalesce((v_result ->> 'contended')::boolean, false);
     EXCEPTION WHEN OTHERS THEN
       GET STACKED DIAGNOSTICS v_sqlstate = RETURNED_SQLSTATE;
+      v_contended := v_sqlstate = '55P03';
       PERFORM plugin_data.csf_record_attendance_failure(
         v_pair.organization_id, v_pair.project_id, v_pair.certificate_ids, v_sqlstate,
         CASE WHEN v_sqlstate = '55P03' THEN 'deferred' ELSE 'failed' END, v_guest_ids

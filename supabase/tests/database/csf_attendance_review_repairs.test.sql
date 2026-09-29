@@ -6,7 +6,7 @@
 BEGIN;
 
 CREATE EXTENSION IF NOT EXISTS pgtap WITH SCHEMA extensions;
-SELECT extensions.plan(17);
+SELECT extensions.plan(19);
 
 -- ---------------------------------------------------------------------------
 -- ---------------------------------------------------------------------------
@@ -350,6 +350,37 @@ SELECT extensions.ok(
    WHERE profile_id = 'a7400000-0000-4000-8000-000000000007'
      AND opportunity_id = 'a7700000-0000-4000-8000-000000000003' AND status = 'submitted'),
   'R7: approving the first shift re-drives the waiting slot into its own claim'
+);
+
+-- ---------------------------------------------------------------------------
+-- N2: a staff "duplicate" decision is never reopened by source-side churn
+-- ---------------------------------------------------------------------------
+
+-- Member one attends the library day late; the only claim on this
+-- certificate is the one staff mark duplicate.
+INSERT INTO public.project_signups (id, project_id, user_id, schedule_id, status, check_in_time, check_out_time)
+VALUES ('a7600000-0000-4000-8000-000000000023', 'a7500000-0000-4000-8000-000000000003',
+  'a7000000-0000-4000-8000-000000000002', 'oneTime', 'attended', '2041-08-30T17:00:00Z', '2041-08-30T19:00:00Z');
+SELECT pg_temp.review(
+  pg_temp.claim('a7400000-0000-4000-8000-000000000002', 'a7700000-0000-4000-8000-000000000004'),
+  'duplicate', 'a7900000-0000-4000-8000-000000000141');
+UPDATE plugin_data.csf_profile_accounts SET status = 'revoked', revoked_at = now()
+WHERE organization_id = 'a7100000-0000-4000-8000-000000000001' AND user_id = 'a7000000-0000-4000-8000-000000000002';
+UPDATE plugin_data.csf_profile_accounts SET status = 'verified', revoked_at = NULL
+WHERE organization_id = 'a7100000-0000-4000-8000-000000000001' AND user_id = 'a7000000-0000-4000-8000-000000000002';
+SELECT pg_temp.retry('a7700000-0000-4000-8000-000000000004', 'a7900000-0000-4000-8000-000000000142');
+SELECT extensions.is(
+  (SELECT count(*)::integer FROM plugin_data.csf_point_submissions
+   WHERE profile_id = 'a7400000-0000-4000-8000-000000000002'
+     AND opportunity_id = 'a7700000-0000-4000-8000-000000000004'
+     AND status IN ('draft', 'submitted')),
+  0,
+  'N2: revoking and restoring the account does not reopen a duplicate decision'
+);
+SELECT extensions.is(
+  pg_temp.outcome_for('a7600000-0000-4000-8000-000000000023'),
+  'prior_decision',
+  'N2: the certificate behind a duplicate decision is a prior decision'
 );
 
 -- ---------------------------------------------------------------------------

@@ -6,7 +6,7 @@
 CREATE EXTENSION IF NOT EXISTS pgtap WITH SCHEMA extensions;
 CREATE EXTENSION IF NOT EXISTS dblink WITH SCHEMA extensions;
 
-SELECT extensions.plan(14);
+SELECT extensions.plan(22);
 
 CREATE OR REPLACE FUNCTION pg_temp.cleanup_attendance_race_fixtures()
 RETURNS void
@@ -114,6 +114,50 @@ SET LOCAL session_replication_role = replica;
 SELECT pg_temp.cleanup_attendance_race_receipts();
 COMMIT;
 SELECT pg_temp.cleanup_attendance_race_fixtures();
+
+-- N1 fixture: fifteen fictional chapters linking one partner project.
+CREATE OR REPLACE FUNCTION pg_temp.cleanup_attendance_multi_fixtures()
+RETURNS void
+LANGUAGE plpgsql
+SET search_path = ''
+AS $function$
+BEGIN
+  DELETE FROM plugin_data.csf_opportunities WHERE organization_id::text LIKE 'a8c10000-%';
+  DELETE FROM plugin_data.csf_point_submissions WHERE organization_id::text LIKE 'a8c10000-%';
+  DELETE FROM plugin_data.csf_attendance_projection_outcomes WHERE organization_id::text LIKE 'a8c10000-%';
+  DELETE FROM public.certificates WHERE project_id = 'a8500000-0000-4000-8000-000000000003';
+  DELETE FROM public.hours_publication_receipts WHERE project_id = 'a8500000-0000-4000-8000-000000000003';
+  DELETE FROM public.notifications WHERE user_id = 'a8000000-0000-4000-8000-000000000005';
+  DELETE FROM public.project_signups WHERE project_id = 'a8500000-0000-4000-8000-000000000003';
+  DELETE FROM public.projects WHERE id = 'a8500000-0000-4000-8000-000000000003';
+  DELETE FROM plugin_data.csf_term_memberships WHERE organization_id::text LIKE 'a8c10000-%';
+  DELETE FROM plugin_data.csf_profile_accounts WHERE organization_id::text LIKE 'a8c10000-%';
+  DELETE FROM plugin_data.csf_profiles WHERE organization_id::text LIKE 'a8c10000-%';
+  DELETE FROM plugin_data.csf_term_policies WHERE organization_id::text LIKE 'a8c10000-%';
+  DELETE FROM plugin_data.csf_terms WHERE organization_id::text LIKE 'a8c10000-%';
+  DELETE FROM public.organization_plugin_installs WHERE organization_id::text LIKE 'a8c10000-%';
+  DELETE FROM public.organization_plugin_entitlements WHERE organization_id::text LIKE 'a8c10000-%';
+  DELETE FROM public.organization_members WHERE organization_id::text LIKE 'a8c10000-%';
+  DELETE FROM public.organizations WHERE id::text LIKE 'a8c10000-%';
+  DELETE FROM auth.users WHERE id = 'a8000000-0000-4000-8000-000000000005';
+END;
+$function$;
+
+CREATE OR REPLACE FUNCTION pg_temp.cleanup_attendance_multi_receipts()
+RETURNS void
+LANGUAGE plpgsql
+SET search_path = ''
+AS $function$
+BEGIN
+  DELETE FROM plugin_data.csf_admin_audit_events WHERE organization_id::text LIKE 'a8c10000-%';
+END;
+$function$;
+
+BEGIN;
+SET LOCAL session_replication_role = replica;
+SELECT pg_temp.cleanup_attendance_multi_receipts();
+COMMIT;
+SELECT pg_temp.cleanup_attendance_multi_fixtures();
 
 INSERT INTO auth.users (
   id, aud, role, email, email_confirmed_at, raw_app_meta_data,
@@ -332,6 +376,186 @@ SELECT extensions.ok(
   'a certificate projected after the unlink commits creates no claim and no active evidence'
 );
 
+-- 15-18 (N1): fifteen chapters link one partner project and every chapter's
+-- member row is locked. Under a 2 s statement_timeout the publication must
+-- commit, spending one bounded wait for the whole statement, not one per
+-- chapter.
+INSERT INTO auth.users (
+  id, aud, role, email, email_confirmed_at, raw_app_meta_data,
+  raw_user_meta_data, created_at, updated_at
+) VALUES ('a8000000-0000-4000-8000-000000000005', 'authenticated', 'authenticated',
+  'race-member-multi@local.test', now(), '{}', '{"full_name":"Race Member Multi"}', now(), now());
+INSERT INTO public.organizations (id, name, username, type, join_code)
+SELECT ('a8c10000-0000-4000-8000-' || lpad(i::text, 12, '0'))::uuid,
+  'Race Multi Chapter ' || i, 'race-multi-chapter-' || i, 'school', '99' || lpad(i::text, 4, '0')
+FROM generate_series(1, 15) AS i;
+INSERT INTO public.organization_members (organization_id, user_id, role, status)
+SELECT ('a8c10000-0000-4000-8000-' || lpad(i::text, 12, '0'))::uuid,
+  'a8000000-0000-4000-8000-000000000005', 'member', 'active'
+FROM generate_series(1, 15) AS i;
+INSERT INTO public.organization_plugin_installs (organization_id, plugin_key, installed_version, configuration, installed_by)
+SELECT ('a8c10000-0000-4000-8000-' || lpad(i::text, 12, '0'))::uuid, 'dvhs-csf', '0.1.0', '{}',
+  'a8000000-0000-4000-8000-000000000005'
+FROM generate_series(1, 15) AS i;
+INSERT INTO public.organization_plugin_entitlements (organization_id, plugin_key, status, created_by)
+SELECT ('a8c10000-0000-4000-8000-' || lpad(i::text, 12, '0'))::uuid, 'dvhs-csf', 'active',
+  'a8000000-0000-4000-8000-000000000005'
+FROM generate_series(1, 15) AS i;
+INSERT INTO plugin_data.csf_terms (id, organization_id, code, label, school_year, semester, lifecycle_status, is_current)
+SELECT ('a8c20000-0000-4000-8000-' || lpad(i::text, 12, '0'))::uuid,
+  ('a8c10000-0000-4000-8000-' || lpad(i::text, 12, '0'))::uuid,
+  'F41', 'Fall 2041', '2041-2042', 'fall', 'open', true
+FROM generate_series(1, 15) AS i;
+INSERT INTO plugin_data.csf_term_policies (organization_id, term_id, max_points_per_activity, outside_volunteering_allowed, published_at)
+SELECT ('a8c10000-0000-4000-8000-' || lpad(i::text, 12, '0'))::uuid,
+  ('a8c20000-0000-4000-8000-' || lpad(i::text, 12, '0'))::uuid, 3, true, now()
+FROM generate_series(1, 15) AS i;
+INSERT INTO plugin_data.csf_profiles (id, organization_id, first_name, last_name, normalized_first_name, normalized_last_name, record_status)
+SELECT ('a8c40000-0000-4000-8000-' || lpad(i::text, 12, '0'))::uuid,
+  ('a8c10000-0000-4000-8000-' || lpad(i::text, 12, '0'))::uuid, 'Race', 'Multi', 'race', 'multi', 'active'
+FROM generate_series(1, 15) AS i;
+INSERT INTO plugin_data.csf_profile_accounts (organization_id, profile_id, user_id, status, is_primary)
+SELECT ('a8c10000-0000-4000-8000-' || lpad(i::text, 12, '0'))::uuid,
+  ('a8c40000-0000-4000-8000-' || lpad(i::text, 12, '0'))::uuid,
+  'a8000000-0000-4000-8000-000000000005', 'verified', true
+FROM generate_series(1, 15) AS i;
+INSERT INTO plugin_data.csf_term_memberships (organization_id, profile_id, term_id, status, accepted_at)
+SELECT ('a8c10000-0000-4000-8000-' || lpad(i::text, 12, '0'))::uuid,
+  ('a8c40000-0000-4000-8000-' || lpad(i::text, 12, '0'))::uuid,
+  ('a8c20000-0000-4000-8000-' || lpad(i::text, 12, '0'))::uuid, 'accepted', now()
+FROM generate_series(1, 15) AS i;
+INSERT INTO public.projects (
+  id, creator_id, organization_id, title, location, description, event_type,
+  verification_method, schedule, require_login, visibility
+) VALUES ('a8500000-0000-4000-8000-000000000003', 'a8000000-0000-4000-8000-000000000003',
+  'a8100000-0000-4000-8000-000000000002', 'Race Shared Day', 'Plaza', 'Fictional', 'oneTime', 'manual',
+  '{"oneTime":{"date":"2041-09-29","startTime":"09:00","endTime":"11:00","volunteers":10}}', true, 'public');
+INSERT INTO public.project_signups (id, project_id, user_id, schedule_id, status)
+VALUES ('a8600000-0000-4000-8000-000000000010', 'a8500000-0000-4000-8000-000000000003',
+  'a8000000-0000-4000-8000-000000000005', 'oneTime', 'approved');
+INSERT INTO plugin_data.csf_opportunities (
+  id, organization_id, term_id, title, body, status, signup_mode, linked_project_id,
+  signup_url, point_value, point_type, requires_point_submission, evidence_policy,
+  attendance_submission_mode, published_at, created_by_user_id
+)
+SELECT ('a8c70000-0000-4000-8000-' || lpad(i::text, 12, '0'))::uuid,
+  ('a8c10000-0000-4000-8000-' || lpad(i::text, 12, '0'))::uuid,
+  ('a8c20000-0000-4000-8000-' || lpad(i::text, 12, '0'))::uuid,
+  'Race shared', 'Shared', 'published', 'lets_assist_project', 'a8500000-0000-4000-8000-000000000003',
+  '/projects/a8500000-0000-4000-8000-000000000003', 1, 'non_drive', true, 'none', 'pending_submission', now(),
+  'a8000000-0000-4000-8000-000000000005'
+FROM generate_series(1, 15) AS i;
+
+SELECT extensions.dblink_connect('attendance_race_multi', pg_temp.attendance_race_dsn());
+SELECT extensions.dblink_exec('attendance_race_multi', 'BEGIN');
+SELECT extensions.dblink_exec('attendance_race_multi', $query$
+  DO $hold$
+  BEGIN
+    PERFORM 1 FROM plugin_data.csf_profiles WHERE id::text LIKE 'a8c40000-%' FOR UPDATE;
+  END
+  $hold$
+$query$);
+CREATE TEMP TABLE attendance_race_multi (label text PRIMARY KEY, at timestamptz, payload text);
+INSERT INTO attendance_race_multi VALUES ('start', clock_timestamp(), NULL);
+SET statement_timeout = '2s';
+INSERT INTO attendance_race_multi
+SELECT 'publish', clock_timestamp(), public.publish_volunteer_hours_transactional(
+  'a8000000-0000-4000-8000-000000000003', 'a8500000-0000-4000-8000-000000000003', 'oneTime',
+  '[{"signupId":"a8600000-0000-4000-8000-000000000010","checkIn":"2041-09-29T16:00:00Z","checkOut":"2041-09-29T18:00:00Z"}]'::jsonb,
+  'hours-publication:v1:9999999999999999999999999999999999999999999999999999999999999999'
+)::text;
+RESET statement_timeout;
+UPDATE attendance_race_multi SET at = clock_timestamp() WHERE label = 'publish';
+SELECT extensions.dblink_exec('attendance_race_multi', 'ROLLBACK');
+SELECT extensions.dblink_disconnect('attendance_race_multi');
+SELECT extensions.is(
+  (SELECT payload::jsonb ->> 'outcome' FROM attendance_race_multi WHERE label = 'publish'),
+  'accepted',
+  'N1: the publication commits under a 2 s timeout with fifteen contended chapters'
+);
+SELECT extensions.ok(
+  (SELECT (p.at - s.at) < interval '1 second'
+   FROM attendance_race_multi AS p, attendance_race_multi AS s
+   WHERE p.label = 'publish' AND s.label = 'start'),
+  'N1: the host statement spends one bounded wait, not one per chapter'
+);
+SELECT extensions.is(
+  (SELECT count(*)::integer FROM plugin_data.csf_attendance_projection_outcomes
+   WHERE organization_id::text LIKE 'a8c10000-%' AND outcome = 'deferred' AND sqlstate = '55P03'),
+  15,
+  'N1: every contended chapter records a deferred source for replay'
+);
+SELECT extensions.is(
+  (SELECT count(*)::integer FROM public.certificates
+   WHERE signup_id = 'a8600000-0000-4000-8000-000000000010' AND type = 'verified'),
+  1,
+  'N1: the verified certificate committed'
+);
+SELECT extensions.diag('N1 host publication elapsed: ' || (
+  SELECT round(extract(epoch FROM p.at - s.at) * 1000)::text || ' ms'
+  FROM attendance_race_multi AS p, attendance_race_multi AS s
+  WHERE p.label = 'publish' AND s.label = 'start'));
+
+-- 19-22 (N3): chapter one's semester lock and its outcome row are held. The
+-- failure recorder must not wait for the row: the host write commits, the
+-- source stays as it was, and a later replay projects it.
+SELECT extensions.dblink_connect('attendance_race_record', pg_temp.attendance_race_dsn());
+SELECT extensions.dblink_exec('attendance_race_record', 'BEGIN');
+SELECT extensions.dblink_exec('attendance_race_record', $query$
+  DO $hold$
+  BEGIN
+    PERFORM pg_catalog.pg_advisory_xact_lock(pg_catalog.hashtextextended(
+      'a8c10000-0000-4000-8000-000000000001:a8c20000-0000-4000-8000-000000000001', 0));
+    PERFORM 1 FROM plugin_data.csf_attendance_projection_outcomes
+    WHERE organization_id = 'a8c10000-0000-4000-8000-000000000001' FOR UPDATE;
+  END
+  $hold$
+$query$);
+CREATE TEMP TABLE attendance_race_record AS
+SELECT outcome, attempt_count FROM plugin_data.csf_attendance_projection_outcomes
+WHERE organization_id = 'a8c10000-0000-4000-8000-000000000001';
+INSERT INTO attendance_race_multi VALUES ('record-start', clock_timestamp(), NULL);
+SET statement_timeout = '2s';
+UPDATE public.certificates SET event_end = event_end + interval '1 minute'
+WHERE signup_id = 'a8600000-0000-4000-8000-000000000010';
+RESET statement_timeout;
+INSERT INTO attendance_race_multi VALUES ('record-end', clock_timestamp(), NULL);
+SELECT extensions.ok(
+  (SELECT (e.at - s.at) < interval '1 second'
+   FROM attendance_race_multi AS e, attendance_race_multi AS s
+   WHERE e.label = 'record-end' AND s.label = 'record-start'),
+  'N3: the host write commits without waiting on a locked outcome row'
+);
+SELECT extensions.dblink_exec('attendance_race_record', 'ROLLBACK');
+SELECT extensions.dblink_disconnect('attendance_race_record');
+SELECT extensions.ok(
+  (SELECT o.outcome = r.outcome AND o.attempt_count = r.attempt_count
+   FROM plugin_data.csf_attendance_projection_outcomes AS o, attendance_race_record AS r
+   WHERE o.organization_id = 'a8c10000-0000-4000-8000-000000000001'),
+  'N3: the contended outcome row is left unrecorded rather than waited on'
+);
+SELECT plugin_data.csf_project_attendance_sources(
+  'a8c10000-0000-4000-8000-000000000001', 'a8500000-0000-4000-8000-000000000003', NULL);
+SELECT extensions.is(
+  (SELECT outcome FROM plugin_data.csf_attendance_projection_outcomes
+   WHERE organization_id = 'a8c10000-0000-4000-8000-000000000001'),
+  'projected',
+  'N3: replay projects the source the recorder skipped'
+);
+SELECT extensions.is(
+  (SELECT count(*)::integer FROM plugin_data.csf_point_submissions
+   WHERE organization_id = 'a8c10000-0000-4000-8000-000000000001' AND source = 'attendance'),
+  1,
+  'N3: the replay creates exactly one pending claim'
+);
+DROP TABLE attendance_race_record;
+DROP TABLE attendance_race_multi;
+
+BEGIN;
+SET LOCAL session_replication_role = replica;
+SELECT pg_temp.cleanup_attendance_multi_receipts();
+COMMIT;
+SELECT pg_temp.cleanup_attendance_multi_fixtures();
 BEGIN;
 SET LOCAL session_replication_role = replica;
 SELECT pg_temp.cleanup_attendance_race_receipts();
