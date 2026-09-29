@@ -221,7 +221,7 @@ The historical class sheets do not establish account ownership. Application emai
 4. The login email may differ from the application contact. Do not overwrite imported contacts to force a match.
 5. Connect the account only after verification. For an incorrect request, enter a **Decision reason** and select **Reject request**. Pending connections cannot access the student's history. Connecting a record does not approve an application, award points, or grant a staff position.
 
-The older review dialog may show **Review only**, **Connection unavailable**, or
+The older review dialog may show **Review only** or
 **Identity checks**. These labels do not establish ownership.
 Use the profile's verification form after checking identity independently.
 

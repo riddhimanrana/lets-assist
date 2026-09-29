@@ -13,8 +13,9 @@ const changed = JSON.parse(read("./final-schema-678.json"));
 const published = JSON.parse(read("./final-schema-679.json"));
 const latest = JSON.parse(read("./final-schema-680.json"));
 const retryFix = JSON.parse(read("./final-schema-681.json"));
+const queueLockOrder = JSON.parse(read("./final-schema-682.json"));
 const repository = new URL("../../", import.meta.url).pathname;
-const versions = expectedVersions(repository).slice(0, 681);
+const versions = expectedVersions(repository).slice(0, 682);
 
 test("queued export release changes only the deletion and both queue functions", () => {
   const previous = new Map(
@@ -42,6 +43,7 @@ test("queued export release changes only the deletion and both queue functions",
     [679, published],
     [680, latest],
     [681, retryFix],
+    [682, queueLockOrder],
   ]) {
     assert.equal(
       acceptedCatalogQuery("invalid predecessor", versions.slice(0, count)),
@@ -85,5 +87,37 @@ test("forward controller applies the exact fix and publication once", () => {
   assert.doesNotMatch(
     retry.query,
     /'20260928225322','publish_dvhs_csf_1_2_82'/u,
+  );
+});
+
+test("nonblocking deletion fence changes only the two queue helpers", () => {
+  const previous = new Map(
+    retryFix.objects.map((row) => [row.identity, row.digest]),
+  );
+  assert.deepEqual(
+    queueLockOrder.objects.map((row) => row.identity),
+    retryFix.objects.map((row) => row.identity),
+  );
+  assert.deepEqual(
+    queueLockOrder.objects
+      .filter((row) => previous.get(row.identity) !== row.digest)
+      .map((row) => row.identity),
+    [
+      "function:plugin_data.csf_queue_sheet_sync_record_internal(p_organization_id uuid, p_destination_id uuid, p_record_kind text, p_record_id uuid)",
+      "function:plugin_data.csf_queue_sheet_sync_snapshot_internal(p_organization_id uuid, p_destination_id uuid, p_record_kind text, p_record_id uuid, p_snapshot jsonb)",
+    ],
+  );
+  const prepared = prepareMigration(
+    repository,
+    readFileSync,
+    versions.slice(0, 681),
+  );
+  assert.match(
+    prepared.query,
+    /'20260929003720','csf_sheet_queue_deletion_lock_order'/u,
+  );
+  assert.doesNotMatch(
+    prepareMigration(repository, readFileSync, versions).query,
+    /'20260929003720','csf_sheet_queue_deletion_lock_order'/u,
   );
 });

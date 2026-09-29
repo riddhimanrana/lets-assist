@@ -133,3 +133,8 @@ and a retry with no remaining migrations.
 Release 681 publishes signed CSF 1.2.84, including the ownership-confirmation retry
 fix. The publication preserves the 680 schema inventory and changes no organization
 installation. The controller verifies the complete four-migration suffix.
+
+Release 682 changes only the two Sheet queue helpers to acquire the deletion fence
+without waiting. A conflicting mutation rolls back with a retry response instead
+of waiting while holding submission or binding rows. Both queue paths retain the
+post-lock snapshot check. The focused database suite passes 339 assertions.
