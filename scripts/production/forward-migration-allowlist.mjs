@@ -857,4 +857,8 @@ export const approvedMigrations = [
     "20260929003720_csf_sheet_queue_deletion_lock_order",
     "f5882a03050549e8ae9d52d0bd3374a9703cd3acfaa33ee911f0bff9ff2feb86",
   ],
+  [
+    "20260929031000_csf_existing_homonym_profile_edits",
+    "3f7271daba99fba662d7d5caf5fdeb925adc18cdcc26e8aac32c3a3b4e4e476a",
+  ],
 ];

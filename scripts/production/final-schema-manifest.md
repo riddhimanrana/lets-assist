@@ -138,3 +138,9 @@ Release 682 changes only the two Sheet queue helpers to acquire the deletion fen
 without waiting. A conflicting mutation rolls back with a retry response instead
 of waiting while holding submission or binding rows. Both queue paths retain the
 post-lock snapshot check. The focused database suite passes 339 assertions.
+
+Release 683 changes only `csf_upsert_profile`. Staff can edit existing reviewed
+homonyms while retaining the same normalized name. Creation and name changes
+still check for collisions. Email checks also protect confirmed login addresses
+on other verified profile accounts and reported application contact evidence. The clean
+replay changes one function digest, with no added or removed objects.
