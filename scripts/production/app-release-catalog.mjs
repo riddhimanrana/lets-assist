@@ -349,6 +349,84 @@ function reconcileCsf620SupersededStorageChecks(catalog) {
 export function acceptedCatalogQuery(source, versions) {
   if (
     ledgerDigest(versions) ===
+    "905f562fe418fe346e987fc584c3842bcee002da9bad6fe784a53d11e369f672"
+  )
+    return csfSubmissionDeletionCatalog(
+      finalSchemaCatalog(
+        JSON.parse(
+          readFileSync(
+            new URL("./final-schema-682.json", import.meta.url),
+            "utf8",
+          ),
+        ),
+        versions,
+      ),
+    );
+  if (
+    ledgerDigest(versions) ===
+    "cdcb9afed015eff26e04fe0d7ecac055c4bd3839111380b7bac5e6f19fe48013"
+  )
+    return csfSubmissionDeletionCatalog(
+      finalSchemaCatalog(
+        JSON.parse(
+          readFileSync(
+            new URL("./final-schema-681.json", import.meta.url),
+            "utf8",
+          ),
+        ),
+        versions,
+      ),
+    );
+  if (
+    ledgerDigest(versions) ===
+    "6fa9e0e77c160dbae662bc9df06f1ae000dd4614af3dbdfc502f5edcded1ad97"
+  ) {
+    return csfSubmissionDeletionCatalog(
+      finalSchemaCatalog(
+        JSON.parse(
+          readFileSync(
+            new URL("./final-schema-680.json", import.meta.url),
+            "utf8",
+          ),
+        ),
+        versions,
+      ),
+    );
+  }
+  if (
+    ledgerDigest(versions) ===
+    "d466d5f9c1be358058e7403f165d3df8c128e01ad8818fc5f775fa4e6ba3af09"
+  ) {
+    return csfSubmissionDeletionCatalog(
+      finalSchemaCatalog(
+        JSON.parse(
+          readFileSync(
+            new URL("./final-schema-679.json", import.meta.url),
+            "utf8",
+          ),
+        ),
+        versions,
+      ),
+    );
+  }
+  if (
+    ledgerDigest(versions) ===
+    "78c27b5c43c616c6dfc1e6c2ddea20a8d781b4618e20245ce6e96717edc0c8e3"
+  ) {
+    return csfSubmissionDeletionCatalog(
+      finalSchemaCatalog(
+        JSON.parse(
+          readFileSync(
+            new URL("./final-schema-678.json", import.meta.url),
+            "utf8",
+          ),
+        ),
+        versions,
+      ),
+    );
+  }
+  if (
+    ledgerDigest(versions) ===
     "9f776a4506c87bdc94912c8be16338b78905bd5f2969b25fa6ec6ea7bd0aac3d"
   ) {
     return csfSubmissionDeletionCatalog(

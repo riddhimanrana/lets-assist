@@ -235,9 +235,9 @@ async function submitConnection(page: Page, fixture: Fixture, index: number) {
     checked(before.error);
     expect(before.data).toHaveLength(0);
     await dialog.getByRole("checkbox").check();
-    await dialog
-      .getByLabel("How did you verify this student?")
-      .fill("Cancelled verification must not carry over.");
+    await expect(
+      dialog.getByLabel("How did you verify this student?"),
+    ).toHaveCount(0);
     await page.keyboard.press("Escape");
     await expect(dialog).toBeHidden();
     await page
@@ -247,7 +247,7 @@ async function submitConnection(page: Page, fixture: Fixture, index: number) {
     await expect(dialog.getByLabel("Let's Assist login email")).toHaveValue("");
     await expect(
       dialog.getByLabel("How did you verify this student?"),
-    ).toHaveValue("");
+    ).toHaveCount(0);
     await expect(dialog.getByLabel("Find an organization account")).toHaveValue(
       "",
     );
@@ -259,9 +259,9 @@ async function submitConnection(page: Page, fixture: Fixture, index: number) {
       .getByLabel("Let's Assist login email")
       .fill(fixture.loginEmail);
   }
-  await dialog
-    .getByLabel("How did you verify this student?")
-    .fill("Confirmed the fictional student identity in person.");
+  await expect(
+    dialog.getByLabel("How did you verify this student?"),
+  ).toHaveCount(0);
   await dialog.getByRole("checkbox").check();
   await dialog
     .getByRole("button", { name: "Connect account", exact: true })

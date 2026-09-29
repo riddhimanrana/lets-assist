@@ -117,3 +117,24 @@ Release 677 publishes signed CSF 1.2.81. The reviewed migration writes only the
 signed version and catalog pointer, with no schema or organization-install change.
 It retains the verified 676 object inventory and binds it to the new ledger.
 Focused controller tests verify the exact publication statements and retry fence.
+
+Release 678 changes the member deletion and both Sheet queue functions. Queue creation
+shares the deletion lock, and cleanup scopes records by kind. Its clean
+replay inventory contains the same object identities as 677, with three changed
+function digests. The focused deletion suite passes 69 assertions, including
+in-flight exports, unknown outcomes and previously attempted rows. Release 679
+publishes signed CSF 1.2.82 and preserves that inventory.
+
+Release 680 publishes signed CSF 1.2.83. Its generated SQL writes only the signed
+plugin version and catalog pointer. It preserves the verified 679 object inventory
+and binds it to the new ledger. Controller regression covers the complete suffix
+and a retry with no remaining migrations.
+
+Release 681 publishes signed CSF 1.2.84, including the ownership-confirmation retry
+fix. The publication preserves the 680 schema inventory and changes no organization
+installation. The controller verifies the complete four-migration suffix.
+
+Release 682 changes only the two Sheet queue helpers to acquire the deletion fence
+without waiting. A conflicting mutation rolls back with a retry response instead
+of waiting while holding submission or binding rows. Both queue paths retain the
+post-lock snapshot check. The focused database suite passes 339 assertions.

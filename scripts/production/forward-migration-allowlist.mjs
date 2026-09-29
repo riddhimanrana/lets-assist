@@ -837,4 +837,24 @@ export const approvedMigrations = [
     "20260926000900_publish_dvhs_csf_1_2_81",
     "31b2ad295f73ea0b3f7ef9e03b99cb22f66888be10f4bcd0448e180d0c2ffb4d",
   ],
+  [
+    "20260928025013_csf_unsubmit_unexported_sheet_claim",
+    "12e3614f226422c19c3309caa3e0b9cebaf29c580ab97fea59d4112e4765441a",
+  ],
+  [
+    "20260928225322_publish_dvhs_csf_1_2_82",
+    "519438ebc444bae563314d25f3de0b67caed6ba6c6940a931899f4b63739ff81",
+  ],
+  [
+    "20260928234812_publish_dvhs_csf_1_2_83",
+    "53ed99fec3d3c5dd30789935c7a7a76a8d2d7992c63ca0bc0bb1e2a2e28d8cd5",
+  ],
+  [
+    "20260929001956_publish_dvhs_csf_1_2_84",
+    "9df288eabcfcc74f41eb636b02bba4adc372050513bf639c4645f000b17197c5",
+  ],
+  [
+    "20260929003720_csf_sheet_queue_deletion_lock_order",
+    "f5882a03050549e8ae9d52d0bd3374a9703cd3acfaa33ee911f0bff9ff2feb86",
+  ],
 ];
