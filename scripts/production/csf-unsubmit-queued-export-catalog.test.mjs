@@ -12,8 +12,9 @@ const before = JSON.parse(read("./final-schema-677.json"));
 const changed = JSON.parse(read("./final-schema-678.json"));
 const published = JSON.parse(read("./final-schema-679.json"));
 const latest = JSON.parse(read("./final-schema-680.json"));
+const retryFix = JSON.parse(read("./final-schema-681.json"));
 const repository = new URL("../../", import.meta.url).pathname;
-const versions = expectedVersions(repository).slice(0, 680);
+const versions = expectedVersions(repository).slice(0, 681);
 
 test("queued export release changes only the deletion and queue functions", () => {
   const previous = new Map(
@@ -34,10 +35,12 @@ test("queued export release changes only the deletion and queue functions", () =
   );
   assert.deepEqual(published.objects, changed.objects);
   assert.deepEqual(latest.objects, changed.objects);
+  assert.deepEqual(retryFix.objects, changed.objects);
   for (const [count, manifest] of [
     [678, changed],
     [679, published],
     [680, latest],
+    [681, retryFix],
   ]) {
     assert.equal(
       acceptedCatalogQuery("invalid predecessor", versions.slice(0, count)),
@@ -64,7 +67,12 @@ test("forward controller applies the exact fix and publication once", () => {
     /Plugin catalog moved since this signed integration was prepared/u,
   );
   assert.match(prepared.query, /'20260928234812','publish_dvhs_csf_1_2_83'/u);
+  assert.match(prepared.query, /'20260929001956','publish_dvhs_csf_1_2_84'/u);
   const retry = prepareMigration(repository, readFileSync, versions);
+  assert.doesNotMatch(
+    retry.query,
+    /'20260929001956','publish_dvhs_csf_1_2_84'/u,
+  );
   assert.doesNotMatch(
     retry.query,
     /'20260928234812','publish_dvhs_csf_1_2_83'/u,

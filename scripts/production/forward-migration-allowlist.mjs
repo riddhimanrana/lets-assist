@@ -849,4 +849,8 @@ export const approvedMigrations = [
     "20260928234812_publish_dvhs_csf_1_2_83",
     "53ed99fec3d3c5dd30789935c7a7a76a8d2d7992c63ca0bc0bb1e2a2e28d8cd5",
   ],
+  [
+    "20260929001956_publish_dvhs_csf_1_2_84",
+    "9df288eabcfcc74f41eb636b02bba4adc372050513bf639c4645f000b17197c5",
+  ],
 ];
