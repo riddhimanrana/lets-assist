@@ -170,14 +170,14 @@ test("officers can delete an unused activity through the audited action", async 
       .getByRole("button", { name: `Actions for ${title}`, exact: true })
       .click();
     await page
-      .getByRole("menuitem", { name: "Delete activity", exact: true })
+      .getByRole("menuitem", { name: "Remove activity", exact: true })
       .click();
     const dialog = page.getByRole("dialog", {
-      name: `Delete ${title}?`,
+      name: `Remove ${title}?`,
       exact: true,
     });
     await dialog
-      .getByRole("button", { name: "Delete activity", exact: true })
+      .getByRole("button", { name: "Remove activity", exact: true })
       .click();
     await expect(dialog).not.toBeVisible();
     const remaining = await fixture.admin
