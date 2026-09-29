@@ -236,7 +236,7 @@ jobs:
         timeout-minutes: 2
         uses: supabase/setup-cli@3c2f5e2ae34c34e428e8e206e2c4d21fa2d20fbf # v2.1.1
         with:
-          version: 2.111.0
+          version: 2.117.0
 
       - name: Validate trusted recovery contract
         timeout-minutes: 2

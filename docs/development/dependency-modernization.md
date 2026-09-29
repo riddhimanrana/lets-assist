@@ -58,6 +58,18 @@ Validation completed for this group:
 - pinned Supabase CLI `--help`, version, and existing exact-version contract tests
 - production dependency audit re-run; unrelated findings remain open under `CLEAN-003`
 
+## Supabase CLI — 2026-09-28
+
+The pinned CLI moves from `2.111.0` to `2.117.0` in the version helper, the isolated-stack scripts, and every workflow that installs it. Release notes for `2.112.0` through `2.117.0` that affect this repository:
+
+- `supabase start`, `db start`, `db test`, and `db reset` are now served by the TypeScript shell. Container, volume, and network names still follow `supabase_<service>_<project id>`, so the Docker identity oracle keeps the same names. Its provenance now cites the TypeScript port, because the Go `start.go` no longer exists at the tag.
+- `supabase test db` exits non-zero when it finds zero pgTAP tests (`2.115.0`). Every call in this repository points at a populated test tree.
+- `db diff` and `db pull` use the bundled pg-delta engine only (`2.115.0`, made permanent in `2.117.0`). No gate depends on diff output.
+- An unset `[api].auto_expose_new_tables` keeps the default Data API grants on new `public` entities again (`2.116.0`), matching hosted projects. Under `2.111.0` an unset value revoked them, so local replays were stricter than hosted. Migrations must keep revoking access explicitly.
+- `db reset` batches migration and seed statements (`2.115.0`).
+
+The isolated database replay in the full `Code quality` run is the acceptance proof for this bump.
+
 ## Playwright and test-tooling group — 2026-08-05
 
 | Package family           | Previous | Selected | Decision                                                                                                                      |
