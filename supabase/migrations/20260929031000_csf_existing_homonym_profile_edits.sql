@@ -311,6 +311,18 @@ BEGIN
           OR duplicate.normalized_personal_email = ANY (
             ARRAY[v_normalized_school_email, v_normalized_personal_email]
           )
+          OR EXISTS (
+            SELECT 1
+            FROM plugin_data.csf_profile_accounts AS account
+            JOIN auth.users AS auth_user ON auth_user.id = account.user_id
+            WHERE account.organization_id = p_organization_id
+              AND account.profile_id = duplicate.id
+              AND account.status = 'verified'
+              AND auth_user.email_confirmed_at IS NOT NULL
+              AND plugin_data.csf_normalize_email_text(auth_user.email) = ANY (
+                ARRAY[v_normalized_school_email, v_normalized_personal_email]
+              )
+          )
         )
     ) THEN
     RAISE EXCEPTION 'Another active CSF member already uses one of these email addresses. Review or link the existing record instead.';

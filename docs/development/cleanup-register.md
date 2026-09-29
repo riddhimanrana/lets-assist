@@ -9664,6 +9664,6 @@ Production review found a reversed lock order when a trigger already held submis
 ## P2: Existing same-name profiles cannot receive contact edits, September 28
 
 - Finding: `csf_upsert_profile` rejects an edit whenever another active profile has the same normalized name, including distinct students admitted through reviewed application imports. This blocks approved contact backfills.
-- Fix: forward migration `20260929031000_csf_existing_homonym_profile_edits` checks duplicate names for creates and normalized-name changes. Existing email collision, staff authorization, audit, and replay guards remain.
-- Local evidence: the profile-write suite passes 67 assertions; reviewed application homonyms pass 35 assertions. The clean 683-migration catalog changes only the profile-write function. Focused release-controller tests pass.
+- Fix: forward migration `20260929031000_csf_existing_homonym_profile_edits` checks duplicate names for creates and normalized-name changes. Email collision checks also include confirmed addresses on other verified accounts. Staff authorization, audit, and replay guards remain.
+- Local evidence: the profile-write suite passes 69 assertions; reviewed application homonyms pass 35 assertions. The clean 683-migration catalog changes only the profile-write function. Focused release-controller tests pass.
 - Status: implemented and verified locally. Hosted Development and Production are pending. Two observed live contact edits remain blocked until deployment; other approved edits continue through the staff form.

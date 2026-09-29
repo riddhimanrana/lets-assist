@@ -1,7 +1,7 @@
 BEGIN;
 
 CREATE EXTENSION IF NOT EXISTS pgtap WITH SCHEMA extensions;
-SELECT extensions.plan(67);
+SELECT extensions.plan(69);
 
 SELECT extensions.ok(
   to_regprocedure('plugin_data.csf_upsert_profile(uuid,uuid,uuid,jsonb)') IS NOT NULL,
@@ -696,6 +696,33 @@ SELECT extensions.is(
   (SELECT personal_email FROM plugin_data.csf_profiles WHERE id = 'be400000-0000-4000-8000-000000000081'),
   'taylor.one@personal.test',
   'rejected identity and email changes preserve the saved contact'
+);
+
+INSERT INTO plugin_data.csf_profile_accounts (
+  organization_id, profile_id, user_id, status, is_primary
+) VALUES (
+  'be100000-0000-4000-8000-000000000001',
+  'be400000-0000-4000-8000-000000000082',
+  'be000000-0000-4000-8000-000000000002', 'verified', true
+);
+SELECT extensions.throws_ok(
+  $$SELECT plugin_data.csf_upsert_profile(
+    'be100000-0000-4000-8000-000000000001',
+    'be000000-0000-4000-8000-000000000001',
+    'be900000-0000-4000-8000-000000000084',
+    jsonb_build_object(
+      'profileId', 'be400000-0000-4000-8000-000000000081',
+      'firstName', 'Taylor', 'lastName', 'Reed',
+      'schoolEmail', 'taylor.one@school.test', 'personalEmail', 'PROFILE-MEMBER@LOCAL.TEST'
+    )
+  )$$,
+  'P0001', 'Another active CSF member already uses one of these email addresses. Review or link the existing record instead.',
+  'a confirmed login owned by another homonym cannot become this profile contact'
+);
+SELECT extensions.is(
+  (SELECT personal_email FROM plugin_data.csf_profiles WHERE id = 'be400000-0000-4000-8000-000000000081'),
+  'taylor.one@personal.test',
+  'the verified-account collision leaves the existing contact unchanged'
 );
 
 SELECT * FROM extensions.finish();
