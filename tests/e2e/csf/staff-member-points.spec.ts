@@ -101,7 +101,7 @@ test("organization staff in member view sees only their own point history withou
             source: "staff",
             claimed_points: 1,
             point_type: "non_drive",
-            status: "withdrawn",
+            status: "rejected",
             description: index === 0 ? ownDescription : otherDescription,
           })),
         )

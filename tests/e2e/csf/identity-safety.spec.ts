@@ -999,7 +999,7 @@ test.describe("CSF identity safety", () => {
     expectNoBrowserFailures(failures);
   });
 
-  test("a same-named classmate cannot be connected without corroboration", async ({
+  test("a same-named classmate cannot be connected without staff confirmation", async ({
     page,
   }) => {
     const failures = watchBrowserFailures(page);
@@ -1059,10 +1059,7 @@ test.describe("CSF identity safety", () => {
     });
     await expect(dialog).toBeVisible();
 
-    // Suggestions load only after the officer opens the request. Ranking stays
-    // advisory, and both same-name candidates must expose the blocked state.
-    // The dialog makes the page body inert, so use the suggestion region's
-    // stable DOM label instead of an accessibility-role ancestor outside it.
+    // Name similarity remains advisory even when suggestions load automatically.
     const advisorySuggestions = page.locator(
       '[aria-label="Advisory student record suggestions"]',
     );
@@ -1074,27 +1071,49 @@ test.describe("CSF identity safety", () => {
     await page.keyboard.press("Escape");
     await expect(dialog).toBeHidden();
 
-    const unsafeClassmateReviews = connections.getByRole("button", {
-      name: `Review match ${fixture.classmateName}`,
+    const classmateConnections = connections.getByRole("button", {
+      name: `Connect account ${fixture.classmateName}`,
     });
-    await expect(unsafeClassmateReviews).toHaveCount(2);
-    await unsafeClassmateReviews.first().click();
-
+    await expect(classmateConnections).toHaveCount(2);
+    await classmateConnections.first().click();
+    const confirmation = page.getByRole("dialog", {
+      name: `Connect account to ${fixture.classmateName}`,
+      exact: true,
+    });
+    await expect(confirmation).toBeVisible();
+    const ownershipCheckbox = confirmation.getByRole("checkbox");
+    await expect(ownershipCheckbox).not.toBeChecked();
+    await ownershipCheckbox.evaluate((input) => {
+      input.addEventListener(
+        "invalid",
+        () => input.setAttribute("data-validation-blocked", "true"),
+        { once: true },
+      );
+    });
+    await confirmation
+      .getByRole("button", { name: "Connect account", exact: true })
+      .click();
+    await expect(ownershipCheckbox).toHaveAttribute(
+      "data-validation-blocked",
+      "true",
+    );
+    await expect(ownershipCheckbox).toBeFocused();
+    await expect(confirmation).toBeVisible();
+    const { data: unconfirmedLinks, error: unconfirmedError } = await plugin
+      .from("csf_profile_accounts")
+      .select("id")
+      .eq("organization_id", fixture.organizationId)
+      .eq("user_id", requestUserId);
+    assertNoSupabaseError(
+      "Could not verify unconfirmed links",
+      unconfirmedError,
+    );
+    expect(unconfirmedLinks ?? []).toEqual([]);
+    await page.keyboard.press("Escape");
+    await expect(confirmation).toBeHidden();
+    await reviewRequest.click();
     await expect(dialog).toBeVisible();
-    await expect(dialog.getByText("Connection unavailable")).toBeVisible();
-    await expect(
-      dialog.getByText(
-        "The account's confirmed email does not match this student record.",
-      ),
-    ).toBeVisible();
-
-    // The one-click connect is not merely disabled: it is not offered at all.
-    await expect(
-      dialog.getByRole("button", { name: "Connect account" }),
-    ).toHaveCount(0);
-    await expect(
-      dialog.getByRole("button", { name: "Reject request" }),
-    ).toBeVisible();
+    await dialog.getByText("Reject this request", { exact: true }).click();
 
     await dialog
       .getByLabel("Decision reason")

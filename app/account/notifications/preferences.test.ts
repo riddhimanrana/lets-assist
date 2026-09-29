@@ -17,6 +17,7 @@ test("settings edits retain opt-outs and exclude row identity fields", () => {
   ).toEqual({
     email_notifications: false,
     project_updates: false,
+    feedback_requests: false,
     organization_updates: false,
     general: false,
   });
@@ -49,12 +50,32 @@ test("an account without saved preferences can choose its first opt-out", () => 
     email_notifications: true,
     project_updates: true,
     organization_updates: true,
+    feedback_requests: true,
     general: true,
   });
   expect(
     notificationPreferencesChanged(initial, {
       ...initial,
       email_notifications: false,
+    }),
+  ).toBe(true);
+});
+
+test("feedback preference inherits old opt-outs and can be changed independently", () => {
+  expect(
+    readNotificationPreferences({ project_updates: false }).feedback_requests,
+  ).toBe(false);
+  expect(
+    readNotificationPreferences({
+      project_updates: false,
+      feedback_requests: true,
+    }).feedback_requests,
+  ).toBe(true);
+  const initial = readNotificationPreferences({});
+  expect(
+    notificationPreferencesChanged(initial, {
+      ...initial,
+      feedback_requests: false,
     }),
   ).toBe(true);
 });

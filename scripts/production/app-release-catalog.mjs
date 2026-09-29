@@ -1,3 +1,4 @@
+import { csfSubmissionDeletionCatalog } from "./csf-submission-deletion-catalog.mjs";
 import { readFileSync } from "node:fs";
 import { finalSchemaCatalog, ledgerDigest } from "./final-schema-manifest.mjs";
 import { cronHistoryCatalog } from "./cron-history-catalog.mjs";
@@ -348,7 +349,594 @@ function reconcileCsf620SupersededStorageChecks(catalog) {
 export function acceptedCatalogQuery(source, versions) {
   if (
     ledgerDigest(versions) ===
-    "164c37c3002f3695ff2739e477c5dd028c28f5530c085a823beebf9f37f50aba"
+    "08211404c85b848f262937e27fc807c145677bd9f5d7b009fcfa0f4650f0ebd9"
+  )
+    return csfSubmissionDeletionCatalog(
+      finalSchemaCatalog(
+        JSON.parse(
+          readFileSync(
+            new URL("./final-schema-687.json", import.meta.url),
+            "utf8",
+          ),
+        ),
+        versions,
+      ),
+    );
+  if (
+    ledgerDigest(versions) ===
+    "6e998e105900ed40d8b2e40ce1333fb354aa6875641deac558256de97e4aba89"
+  )
+    return csfSubmissionDeletionCatalog(
+      finalSchemaCatalog(
+        JSON.parse(
+          readFileSync(
+            new URL("./final-schema-683.json", import.meta.url),
+            "utf8",
+          ),
+        ),
+        versions,
+      ),
+    );
+  if (
+    ledgerDigest(versions) ===
+    "905f562fe418fe346e987fc584c3842bcee002da9bad6fe784a53d11e369f672"
+  )
+    return csfSubmissionDeletionCatalog(
+      finalSchemaCatalog(
+        JSON.parse(
+          readFileSync(
+            new URL("./final-schema-682.json", import.meta.url),
+            "utf8",
+          ),
+        ),
+        versions,
+      ),
+    );
+  if (
+    ledgerDigest(versions) ===
+    "cdcb9afed015eff26e04fe0d7ecac055c4bd3839111380b7bac5e6f19fe48013"
+  )
+    return csfSubmissionDeletionCatalog(
+      finalSchemaCatalog(
+        JSON.parse(
+          readFileSync(
+            new URL("./final-schema-681.json", import.meta.url),
+            "utf8",
+          ),
+        ),
+        versions,
+      ),
+    );
+  if (
+    ledgerDigest(versions) ===
+    "6fa9e0e77c160dbae662bc9df06f1ae000dd4614af3dbdfc502f5edcded1ad97"
+  ) {
+    return csfSubmissionDeletionCatalog(
+      finalSchemaCatalog(
+        JSON.parse(
+          readFileSync(
+            new URL("./final-schema-680.json", import.meta.url),
+            "utf8",
+          ),
+        ),
+        versions,
+      ),
+    );
+  }
+  if (
+    ledgerDigest(versions) ===
+    "d466d5f9c1be358058e7403f165d3df8c128e01ad8818fc5f775fa4e6ba3af09"
+  ) {
+    return csfSubmissionDeletionCatalog(
+      finalSchemaCatalog(
+        JSON.parse(
+          readFileSync(
+            new URL("./final-schema-679.json", import.meta.url),
+            "utf8",
+          ),
+        ),
+        versions,
+      ),
+    );
+  }
+  if (
+    ledgerDigest(versions) ===
+    "78c27b5c43c616c6dfc1e6c2ddea20a8d781b4618e20245ce6e96717edc0c8e3"
+  ) {
+    return csfSubmissionDeletionCatalog(
+      finalSchemaCatalog(
+        JSON.parse(
+          readFileSync(
+            new URL("./final-schema-678.json", import.meta.url),
+            "utf8",
+          ),
+        ),
+        versions,
+      ),
+    );
+  }
+  if (
+    ledgerDigest(versions) ===
+    "9f776a4506c87bdc94912c8be16338b78905bd5f2969b25fa6ec6ea7bd0aac3d"
+  ) {
+    return csfSubmissionDeletionCatalog(
+      finalSchemaCatalog(
+        JSON.parse(
+          readFileSync(
+            new URL("./final-schema-677.json", import.meta.url),
+            "utf8",
+          ),
+        ),
+        versions,
+      ),
+    );
+  }
+
+  if (
+    ledgerDigest(versions) ===
+    "4c5a421bf69784725c631bb194df6ba9ab8e92ce91bde106951a7912b2613e39"
+  ) {
+    return csfSubmissionDeletionCatalog(
+      finalSchemaCatalog(
+        JSON.parse(
+          readFileSync(
+            new URL("./final-schema-676.json", import.meta.url),
+            "utf8",
+          ),
+        ),
+        versions,
+      ),
+    );
+  }
+
+  if (
+    ledgerDigest(versions) ===
+    "7c6417c792b81e892b72d2dec7797a3ec4a2f806e4d9863bc574f088d1783c5c"
+  ) {
+    return csfSubmissionDeletionCatalog(
+      finalSchemaCatalog(
+        JSON.parse(
+          readFileSync(
+            new URL("./final-schema-675.json", import.meta.url),
+            "utf8",
+          ),
+        ),
+        versions,
+      ),
+    );
+  }
+
+  if (
+    ledgerDigest(versions) ===
+    "2f0a7e3446bfdff4705fb66fb76420c35b5f29828abdf257652529a403bdbc09"
+  ) {
+    return csfSubmissionDeletionCatalog(
+      finalSchemaCatalog(
+        JSON.parse(
+          readFileSync(
+            new URL("./final-schema-674.json", import.meta.url),
+            "utf8",
+          ),
+        ),
+        versions,
+      ),
+    );
+  }
+
+  if (
+    ledgerDigest(versions) ===
+    "20fef09d257c8c11f9d73d9c7b2c5c0dcc7416e92ba169921a9e59f535bd513e"
+  ) {
+    return csfSubmissionDeletionCatalog(
+      finalSchemaCatalog(
+        JSON.parse(
+          readFileSync(
+            new URL("./final-schema-673.json", import.meta.url),
+            "utf8",
+          ),
+        ),
+        versions,
+      ),
+    );
+  }
+
+  if (
+    ledgerDigest(versions) ===
+    "3c975bc7646aab44e450d844188e668d4bfd90f713add5010a50b2c6a5e932c3"
+  ) {
+    return finalSchemaCatalog(
+      JSON.parse(
+        readFileSync(
+          new URL("./final-schema-672.json", import.meta.url),
+          "utf8",
+        ),
+      ),
+      versions,
+    );
+  }
+
+  if (
+    ledgerDigest(versions) ===
+    "7db424cd527efdb2810ce1d445d29c38fe754e8c0e6b66dd9b536884d15b9ab9"
+  ) {
+    return finalSchemaCatalog(
+      JSON.parse(
+        readFileSync(
+          new URL("./final-schema-671.json", import.meta.url),
+          "utf8",
+        ),
+      ),
+      versions,
+    );
+  }
+
+  if (
+    ledgerDigest(versions) ===
+    "9c64733147814bf09352e057c39d5009cbc4d1635693ed5aaf8dd97d8dbb2a6f"
+  ) {
+    return finalSchemaCatalog(
+      JSON.parse(
+        readFileSync(
+          new URL("./final-schema-668.json", import.meta.url),
+          "utf8",
+        ),
+      ),
+      versions,
+    );
+  }
+
+  if (
+    ledgerDigest(versions) ===
+    "5deb9b77b666318772bf9237b9492541ec07deda7e76c85050898912a1cfe42f"
+  ) {
+    return finalSchemaCatalog(
+      JSON.parse(
+        readFileSync(
+          new URL("./final-schema-667.json", import.meta.url),
+          "utf8",
+        ),
+      ),
+      versions,
+    );
+  }
+
+  if (
+    ledgerDigest(versions) ===
+    "76de99fd2142d97b71ea2f654b8a9e0fe5b97b238f1e60f59f30c095597927d8"
+  )
+    return finalSchemaCatalog(
+      JSON.parse(
+        readFileSync(
+          new URL("./final-schema-666.json", import.meta.url),
+          "utf8",
+        ),
+      ),
+      versions,
+    );
+
+  if (
+    ledgerDigest(versions) ===
+    "ce09d42c1f43c44293035c76ca19d7bb5b27fc25940e67be131bf525f58d4481"
+  ) {
+    return finalSchemaCatalog(
+      JSON.parse(
+        readFileSync(
+          new URL("./final-schema-665.json", import.meta.url),
+          "utf8",
+        ),
+      ),
+      versions,
+    );
+  }
+
+  if (
+    ledgerDigest(versions) ===
+    "0898161d9a50664a08a5384ab19bee268d6cf8fb193666918aa0805dd78aa8fc"
+  ) {
+    return finalSchemaCatalog(
+      JSON.parse(
+        readFileSync(
+          new URL("./final-schema-664.json", import.meta.url),
+          "utf8",
+        ),
+      ),
+      versions,
+    );
+  }
+
+  if (
+    ledgerDigest(versions) ===
+    "884f5f5e731bae0a7d6e83509ebfca86251ce5e187d5d5056274e3e3b921199d"
+  ) {
+    return finalSchemaCatalog(
+      JSON.parse(
+        readFileSync(
+          new URL("./final-schema-663.json", import.meta.url),
+          "utf8",
+        ),
+      ),
+      versions,
+    );
+  }
+
+  if (
+    ledgerDigest(versions) ===
+    "c3fceb836ca0c5fc8bc238d3cb43186706f2b9f48ce329f8ce98dce1d833c08f"
+  ) {
+    return finalSchemaCatalog(
+      JSON.parse(
+        readFileSync(
+          new URL("./final-schema-662.json", import.meta.url),
+          "utf8",
+        ),
+      ),
+      versions,
+    );
+  }
+
+  if (
+    ledgerDigest(versions) ===
+    "4dd4e4f8307882a3091d86d2da03b877c6ab02ca3f4178e8691460b82fc0acf5"
+  )
+    return finalSchemaCatalog(
+      JSON.parse(
+        readFileSync(
+          new URL("./final-schema-661.json", import.meta.url),
+          "utf8",
+        ),
+      ),
+      versions,
+    );
+
+  if (
+    ledgerDigest(versions) ===
+    "2cbf2283d8bac09551e1ce47db64ed3f57a8e28b3b1c91d86024364f5fef12a7"
+  ) {
+    return finalSchemaCatalog(
+      JSON.parse(
+        readFileSync(
+          new URL("./final-schema-659.json", import.meta.url),
+          "utf8",
+        ),
+      ),
+      versions,
+    );
+  }
+
+  if (
+    ledgerDigest(versions) ===
+    "239c8f7ce73febfbf7e72160152274e182e1e8cca945d8c4c005c49c7fae9bdf"
+  ) {
+    return finalSchemaCatalog(
+      JSON.parse(
+        readFileSync(
+          new URL("./final-schema-658.json", import.meta.url),
+          "utf8",
+        ),
+      ),
+      versions,
+    );
+  }
+
+  if (
+    ledgerDigest(versions) ===
+    "eb98692308a133916008b74043e69782bd595171e8ee3778dda05310b12e92b7"
+  ) {
+    return finalSchemaCatalog(
+      JSON.parse(
+        readFileSync(
+          new URL("./final-schema-657.json", import.meta.url),
+          "utf8",
+        ),
+      ),
+      versions,
+    );
+  }
+
+  if (
+    ledgerDigest(versions) ===
+    "272418f582d3ec097e31553a8d15f6be6d36e43f6cce1856f140a02db25a427f"
+  ) {
+    return finalSchemaCatalog(
+      JSON.parse(
+        readFileSync(
+          new URL("./final-schema-656.json", import.meta.url),
+          "utf8",
+        ),
+      ),
+      versions,
+    );
+  }
+
+  if (
+    ledgerDigest(versions) ===
+    "1c975d0799cb952b13317381dc7a0ec94601d5ba2d85d0a1fbf364c0e2e08ac5"
+  ) {
+    return finalSchemaCatalog(
+      JSON.parse(
+        readFileSync(
+          new URL("./final-schema-655.json", import.meta.url),
+          "utf8",
+        ),
+      ),
+      versions,
+    );
+  }
+
+  if (
+    ledgerDigest(versions) ===
+    "c13c183a6632f5be6f7439d843321adfb5f08f030a5c57ec4e95e1b4b54dd1ed"
+  ) {
+    return finalSchemaCatalog(
+      JSON.parse(
+        readFileSync(
+          new URL("./final-schema-654.json", import.meta.url),
+          "utf8",
+        ),
+      ),
+      versions,
+    );
+  }
+
+  if (
+    ledgerDigest(versions) ===
+    "407b174684eda5c46b256c3ff5d9bd324815edd8926ff0559bccc4b35e32e8a8"
+  ) {
+    return finalSchemaCatalog(
+      JSON.parse(
+        readFileSync(
+          new URL("./final-schema-653.json", import.meta.url),
+          "utf8",
+        ),
+      ),
+      versions,
+    );
+  }
+
+  if (
+    ledgerDigest(versions) ===
+    "b17fa82961232d465d03daa17778ea77c352805c732578622849ff668b071106"
+  ) {
+    return finalSchemaCatalog(
+      JSON.parse(
+        readFileSync(
+          new URL("./final-schema-652.json", import.meta.url),
+          "utf8",
+        ),
+      ),
+      versions,
+    );
+  }
+
+  if (
+    ledgerDigest(versions) ===
+    "058c43e0cea9ca9a8d9d810a3ad034b49ccbee78b281b7c06bc2dea48d3cec48"
+  ) {
+    return finalSchemaCatalog(
+      JSON.parse(
+        readFileSync(
+          new URL("./final-schema-651.json", import.meta.url),
+          "utf8",
+        ),
+      ),
+      versions,
+    );
+  }
+  if (
+    ledgerDigest(versions) ===
+    "e29356e5dee152b36cec3a3200da2a0e9b498b49ce86041015f832abfd62b0ad"
+  ) {
+    return finalSchemaCatalog(
+      JSON.parse(
+        readFileSync(
+          new URL("./final-schema-650.json", import.meta.url),
+          "utf8",
+        ),
+      ),
+      versions,
+    );
+  }
+  if (
+    ledgerDigest(versions) ===
+    "6724bea264961162818d9b569329ef41e2d6d249763499f49caa7c5f5c253c47"
+  ) {
+    return finalSchemaCatalog(
+      JSON.parse(
+        readFileSync(
+          new URL("./final-schema-649.json", import.meta.url),
+          "utf8",
+        ),
+      ),
+      versions,
+    );
+  }
+  if (
+    ledgerDigest(versions) ===
+    "8668d5a8894488faf2763de07b23f6e52711175b283d0fa41ca7e62d38a39dd3"
+  ) {
+    return finalSchemaCatalog(
+      JSON.parse(
+        readFileSync(
+          new URL("./final-schema-648.json", import.meta.url),
+          "utf8",
+        ),
+      ),
+      versions,
+    );
+  }
+  if (
+    ledgerDigest(versions) ===
+    "6a7bc017be63769c96184429f5f1b38f564563c3cefd06200a32698b643fe601"
+  ) {
+    return finalSchemaCatalog(
+      JSON.parse(
+        readFileSync(
+          new URL("./final-schema-647.json", import.meta.url),
+          "utf8",
+        ),
+      ),
+      versions,
+    );
+  }
+  if (
+    ledgerDigest(versions) ===
+    "9e829405873a50245d250a6d38a363b5079dab61aa8ac96fe69ea6c435f552b1"
+  ) {
+    return finalSchemaCatalog(
+      JSON.parse(
+        readFileSync(
+          new URL("./final-schema-646.json", import.meta.url),
+          "utf8",
+        ),
+      ),
+      versions,
+    );
+  }
+  if (
+    ledgerDigest(versions) ===
+    "c55318b003133b512cefe89e7da520963e8f2035f8b2a5a713dd6121b39d03f4"
+  ) {
+    return finalSchemaCatalog(
+      JSON.parse(
+        readFileSync(
+          new URL("./final-schema-645.json", import.meta.url),
+          "utf8",
+        ),
+      ),
+      versions,
+    );
+  }
+  if (
+    ledgerDigest(versions) ===
+    "e00e15892ea25405e0b014199907aab23c502adbf380ddeb90c3ba05877229f4"
+  ) {
+    return finalSchemaCatalog(
+      JSON.parse(
+        readFileSync(
+          new URL("./final-schema-644.json", import.meta.url),
+          "utf8",
+        ),
+      ),
+      versions,
+    );
+  }
+  if (
+    ledgerDigest(versions) ===
+    "0220a010c2f275170941a7858fd4aa3977ffc1b66b16636b0bcb75cbea68b366"
+  ) {
+    return finalSchemaCatalog(
+      JSON.parse(
+        readFileSync(
+          new URL("./final-schema-643.json", import.meta.url),
+          "utf8",
+        ),
+      ),
+      versions,
+    );
+  }
+  if (
+    ledgerDigest(versions) ===
+    "6d7eb7641659813b342bfc1451787da0686b0acb6ac334f523f33bacbf9431d3"
   ) {
     return finalSchemaCatalog(
       JSON.parse(
@@ -360,6 +948,50 @@ export function acceptedCatalogQuery(source, versions) {
       versions,
     );
   }
+  if (
+    ledgerDigest(versions) ===
+    "dcfa4fbda9288d39e51909ac56f3121331c3e43b7e480cd25c6ad671db206947"
+  ) {
+    return finalSchemaCatalog(
+      JSON.parse(
+        readFileSync(
+          new URL("./final-schema-641.json", import.meta.url),
+          "utf8",
+        ),
+      ),
+      versions,
+    );
+  }
+  if (
+    ledgerDigest(versions) ===
+    "17ee39b59fd2ec0749ad9c18fe81ad268af3a38e8980ff2c2d1bd8125414e674"
+  ) {
+    return finalSchemaCatalog(
+      JSON.parse(
+        readFileSync(
+          new URL("./final-schema-640.json", import.meta.url),
+          "utf8",
+        ),
+      ),
+      versions,
+    );
+  }
+
+  if (
+    ledgerDigest(versions) ===
+    "87d4561134e95f53c565f2c2317560114878b6fa657b35e8ce5332ef6f99a38c"
+  ) {
+    return finalSchemaCatalog(
+      JSON.parse(
+        readFileSync(
+          new URL("./final-schema-639.json", import.meta.url),
+          "utf8",
+        ),
+      ),
+      versions,
+    );
+  }
+
   if (
     ledgerDigest(versions) ===
     "4e96d37cd4e572aecc101b27f9c20806c5f6c02c2b36b6bc4d86ce4556e9f0a7"

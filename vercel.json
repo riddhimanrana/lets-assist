@@ -24,6 +24,10 @@
     {
       "path": "/api/cron/csf-publication-notifications",
       "schedule": "* * * * *"
+    },
+    {
+      "path": "/api/cron/project-feedback-followups",
+      "schedule": "17 * * * *"
     }
   ]
 }

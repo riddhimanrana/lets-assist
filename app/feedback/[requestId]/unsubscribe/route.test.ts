@@ -11,7 +11,11 @@ const rpcWrites: Array<{
   functionName: string;
   values: Record<string, unknown>;
 }> = [];
-let feedbackSubject: { user_id: string | null; anonymous_id: string | null };
+let feedbackSubject: {
+  user_id: string | null;
+  anonymous_id: string | null;
+  purpose?: string;
+};
 
 class Query {
   constructor(private readonly table: string) {}
@@ -115,6 +119,26 @@ describe("project feedback unsubscribe confirmation", () => {
       },
     ]);
     expect(await response.text()).toContain("turned off");
+  });
+
+  test("platform unsubscribe changes only feedback requests", async () => {
+    feedbackSubject.purpose = "platform_experience";
+    const body = new FormData();
+    body.set("token", token());
+    body.set("decision", "unsubscribe");
+    await route.POST(
+      new NextRequest(
+        `https://example.test/feedback/${REQUEST_ID}/unsubscribe`,
+        { method: "POST", body },
+      ),
+      context(),
+    );
+    expect(writes).toEqual([
+      {
+        table: "notification_settings",
+        values: { user_id: USER_ID, feedback_requests: false },
+      },
+    ]);
   });
 
   test("anonymous POST propagates the address-level decision through the service RPC", async () => {

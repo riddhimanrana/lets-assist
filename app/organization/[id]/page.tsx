@@ -12,12 +12,11 @@ import { loadOrganizationSetupChecklist } from "./server/setup-checklist-query";
 import OrganizationTabs from "@/components/organization/OrganizationTabs";
 import type { OrganizationPluginRouteTabLink } from "@/components/organization/OrganizationTabs";
 import { getRegisteredPlugin } from "@/lib/plugins/registry";
-import { resolveOrganizationPluginBehaviorHook } from "@/lib/plugins/resolve-plugin-behaviors";
+import { loadOrganizationPluginNavigation } from "./server/plugin-navigation-read";
 import { resolveOrganizationPluginSurfaces } from "@/lib/plugins/resolve-plugin-surfaces";
 import {
   hasOrganizationPluginAccess,
   resolveOrganizationPluginExperiences,
-  resolveOrganizationPlugins,
 } from "@/lib/plugins/resolve-org-plugins";
 import { getOrganizationReportData } from "./reports/actions";
 import { getPublicOrganizationReportSummary } from "@/lib/organization/report-service";
@@ -155,42 +154,37 @@ export default async function OrganizationPage({
   const pluginViewerUserId =
     previewSource === "remote" ? undefined : effectiveUserId;
 
-  let userRole: string | null = null;
-  if (user && effectiveUserId) {
-    const { data: memberRecord } = (await readClient
-      .from("organization_members")
-      .select("user_id, role, status")
-      .eq("organization_id", organization.id)
-      .eq("user_id", effectiveUserId)
-      .eq("status", "active")
-      .maybeSingle()) as {
-      data: OrganizationMemberRecord | null;
-      error: { message?: string } | null;
-    };
-    userRole = memberRecord?.role || null;
-  }
-
-  const [pluginExperience] = await resolveOrganizationPluginExperiences([
-    organization.id,
+  const [membershipResult, [pluginExperience]] = await Promise.all([
+    user && effectiveUserId
+      ? readClient
+          .from("organization_members")
+          .select("user_id, role, status")
+          .eq("organization_id", organization.id)
+          .eq("user_id", effectiveUserId)
+          .eq("status", "active")
+          .maybeSingle()
+      : Promise.resolve({ data: null }),
+    resolveOrganizationPluginExperiences([organization.id]),
   ]);
+  const memberRecord = membershipResult.data as OrganizationMemberRecord | null;
+  const userRole = memberRecord?.role || null;
+
   const organizationExperience = pluginExperience?.experience ?? null;
   const pluginRole = toOrganizationPluginAccessRole(userRole);
-  const pluginTabsContributions = pluginRole
-    ? await resolveOrganizationPluginBehaviorHook({
-        organizationId: organization.id,
-        organizationSlug: organization.username ?? organization.id,
-        organizationName: organization.name,
-        hook: "organization.tabs",
-        viewerRole: pluginRole,
-        viewerUserId: pluginViewerUserId,
-        target: {
-          userId: user?.id ?? null,
-          userEmail: user?.email ?? null,
-        },
-        hookInput: { searchParams: resolvedSearchParams },
-        useAdminClient: true,
-      })
-    : [];
+  const {
+    tabs: pluginTabsContributions,
+    overrides: navOverridesContributions,
+    plugins: allResolvedPlugins,
+  } = await loadOrganizationPluginNavigation({
+    organizationId: organization.id,
+    organizationSlug: organization.username ?? organization.id,
+    organizationName: organization.name,
+    viewerRole: pluginRole,
+    viewerUserId: pluginViewerUserId,
+    userId: user?.id ?? null,
+    userEmail: user?.email ?? null,
+    searchParams: resolvedSearchParams,
+  });
   const hasEmbeddedOrganizationTabs = pluginTabsContributions.some(
     (contribution) => contribution.pluginKey === pluginExperience?.pluginKey,
   );
@@ -222,21 +216,6 @@ export default async function OrganizationPage({
     );
   }
 
-  const navOverridesContributions = pluginRole
-    ? await resolveOrganizationPluginBehaviorHook({
-        organizationId: organization.id,
-        organizationSlug: organization.username ?? organization.id,
-        organizationName: organization.name,
-        hook: "organization.navigation.overrides",
-        viewerRole: pluginRole,
-        viewerUserId: pluginViewerUserId,
-        target: {
-          userId: user?.id ?? null,
-          userEmail: user?.email ?? null,
-        },
-        useAdminClient: true,
-      })
-    : [];
   const navOverrides =
     navOverridesContributions.reduce<OrganizationNavigationBehavior>(
       (acc, contribution) => ({
@@ -341,33 +320,25 @@ export default async function OrganizationPage({
   const organizationCreatedLabel = formatUtcCalendarDateLabel(
     organization.created_at,
   );
-  const [reportSummary, pluginOverviewExtensions, allResolvedPlugins] =
-    await Promise.all([
-      loadVisibleOrganizationReport({
-        hidden: navOverrides.hideOverviewTab === true,
-        userRole,
-        getStaffReport: () => getOrganizationReportData(organization.id),
-        getPublicSummary: () =>
-          getPublicOrganizationReportSummary(organization.id),
-      }),
-      pluginRole && !navOverrides.hideOverviewTab
-        ? resolveOrganizationPluginSurfaces({
-            organizationId: organization.id,
-            surface: "organization.overview.cards",
-            viewerRole: pluginRole,
-            viewerUserId: pluginViewerUserId,
-            target: { userId: user?.id ?? null },
-            useAdminClient: true,
-          })
-        : Promise.resolve([]),
-      pluginRole
-        ? resolveOrganizationPlugins({
-            organizationId: organization.id,
-            userRole: pluginRole,
-            viewerUserId: pluginViewerUserId,
-          })
-        : Promise.resolve([]),
-    ]);
+  const [reportSummary, pluginOverviewExtensions] = await Promise.all([
+    loadVisibleOrganizationReport({
+      hidden: navOverrides.hideOverviewTab === true,
+      userRole,
+      getStaffReport: () => getOrganizationReportData(organization.id),
+      getPublicSummary: () =>
+        getPublicOrganizationReportSummary(organization.id),
+    }),
+    pluginRole && !navOverrides.hideOverviewTab
+      ? resolveOrganizationPluginSurfaces({
+          organizationId: organization.id,
+          surface: "organization.overview.cards",
+          viewerRole: pluginRole,
+          viewerUserId: pluginViewerUserId,
+          target: { userId: user?.id ?? null },
+          useAdminClient: true,
+        })
+      : Promise.resolve([]),
+  ]);
   const allowedPluginSurfaces = navOverrides.pluginSurfaceAllowlist;
   const isAllowedPluginSurface = (pluginKey: string) =>
     !allowedPluginSurfaces?.length || allowedPluginSurfaces.includes(pluginKey);

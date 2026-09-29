@@ -23,6 +23,7 @@ import {
   passesHostedReadRouteBudgets,
 } from "./csf-load-metrics.mjs";
 import { applicationsRosterSearch } from "./csf-load-applications-roster.mjs";
+import { createBrowserDiagnostics } from "./browser-diagnostics.mjs";
 
 const EXPECTED_ORIGIN = "https://dev.lets-assist.com";
 const MEMBER_SESSIONS = MEMBER_SESSION_COUNT;
@@ -518,19 +519,53 @@ function countBrowserFailures(failures) {
 
 async function runBrowserAcceptance({ appUrl, memberPage, officerPage }) {
   const browserFailures = [];
-  for (const page of [memberPage, officerPage]) {
-    page.on("crash", () => browserFailures.push("renderer_crash"));
-    page.on("pageerror", () => browserFailures.push("page_error"));
+  const browserDiagnostics = createBrowserDiagnostics((sample) =>
+    console.log(JSON.stringify({ browserDiagnostic: sample })),
+  );
+  for (const [role, page] of [
+    ["member", memberPage],
+    ["officer", officerPage],
+  ]) {
+    const record = (kind, details = {}) =>
+      browserDiagnostics.record({
+        kind,
+        role,
+        pageUrl: page.url(),
+        ...details,
+      });
+    page.on("crash", () => {
+      browserFailures.push("renderer_crash");
+      record("renderer_crash");
+    });
+    page.on("pageerror", (error) => {
+      browserFailures.push("page_error");
+      record("page_error", { text: error.message });
+    });
     page.on("console", (message) => {
-      if (message.type() === "error") browserFailures.push("console_error");
+      if (message.type() === "error") {
+        browserFailures.push("console_error");
+        record("console_error", {
+          text: message.text(),
+          url: message.location().url,
+        });
+      }
     });
     page.on("requestfailed", (request) => {
       if (!isExpectedNavigationAbort(request)) {
         browserFailures.push("request_failed");
+        record("request_failed", {
+          text: request.failure()?.errorText,
+          url: request.url(),
+        });
       }
     });
     page.on("response", (response) => {
       if (response.status() >= 500) browserFailures.push("http_5xx");
+      if (response.status() >= 400)
+        record("http_error", {
+          status: response.status(),
+          url: response.url(),
+        });
     });
   }
   const memberSession = await memberPage.context().newCDPSession(memberPage);
@@ -761,6 +796,7 @@ async function runBrowserAcceptance({ appUrl, memberPage, officerPage }) {
   return {
     baselineHeap,
     browserFailures,
+    browserDiagnostics: browserDiagnostics.summarize(),
     clsSampleCount: cls.length,
     clsP75: percentile(cls, 0.75),
     finalHeap,
@@ -863,6 +899,7 @@ async function main() {
         distinctAuthSessions: allSessionIds.size,
         reviewNavigationCount: browserResult.reviewNavigationCount,
         browserErrors: browserResult.browserFailures.length,
+        browserDiagnostics: browserResult.browserDiagnostics,
         mutationCount: browserResult.mutationCount,
       };
       result.ok = passesHostedFunctionalAcceptance(result);
@@ -898,6 +935,7 @@ async function main() {
       ).length,
       reviewNavigationCount: browserResult.reviewNavigationCount,
       browserErrors: browserResult.browserFailures.length,
+      browserDiagnostics: browserResult.browserDiagnostics,
       browserErrorCounts: countBrowserFailures(browserResult.browserFailures),
       baselineHeapBytes: browserResult.baselineHeap,
       finalHeapBytes: browserResult.finalHeap,

@@ -1,7 +1,7 @@
 BEGIN;
 
 CREATE EXTENSION IF NOT EXISTS pgtap WITH SCHEMA extensions;
-SELECT extensions.plan(59);
+SELECT extensions.plan(73);
 
 SELECT extensions.ok(
   to_regprocedure('plugin_data.csf_upsert_profile(uuid,uuid,uuid,jsonb)') IS NOT NULL,
@@ -608,6 +608,179 @@ SELECT extensions.is(
   (SELECT count(*)::integer FROM plugin_data.csf_cohort_terms WHERE organization_id = 'be100000-0000-4000-8000-000000000001'),
   2,
   'all failures and successes leave class-semester configuration unchanged'
+);
+
+-- Reviewed imports can contain different students with the same name.
+INSERT INTO plugin_data.csf_profiles (
+  id, organization_id, first_name, last_name,
+  normalized_first_name, normalized_last_name, school_email, normalized_school_email
+) VALUES
+  ('be400000-0000-4000-8000-000000000081', 'be100000-0000-4000-8000-000000000001', 'Taylor', 'Reed', 'taylor', 'reed', 'taylor.one@school.test', 'taylor.one@school.test'),
+  ('be400000-0000-4000-8000-000000000082', 'be100000-0000-4000-8000-000000000001', 'Taylor', 'Reed', 'taylor', 'reed', 'taylor.two@school.test', 'taylor.two@school.test');
+
+SELECT extensions.lives_ok(
+  $$SELECT plugin_data.csf_upsert_profile(
+    'be100000-0000-4000-8000-000000000001',
+    'be000000-0000-4000-8000-000000000001',
+    'be900000-0000-4000-8000-000000000081',
+    jsonb_build_object(
+      'profileId', 'be400000-0000-4000-8000-000000000081',
+      'firstName', 'Taylor', 'lastName', 'Reed',
+      'schoolEmail', 'taylor.one@school.test', 'personalEmail', 'taylor.one@personal.test'
+    )
+  )$$,
+  'staff can fill a contact on an existing homonym without renaming either student'
+);
+SELECT extensions.results_eq(
+  $$SELECT first_name, last_name, school_email, personal_email
+    FROM plugin_data.csf_profiles
+    WHERE id = 'be400000-0000-4000-8000-000000000081'$$,
+  $$VALUES ('Taylor'::text, 'Reed'::text, 'taylor.one@school.test'::text, 'taylor.one@personal.test'::text)$$,
+  'the selected homonym keeps its identity and existing school contact'
+);
+SELECT extensions.results_eq(
+  $$SELECT first_name, last_name, school_email, personal_email
+    FROM plugin_data.csf_profiles
+    WHERE id = 'be400000-0000-4000-8000-000000000082'$$,
+  $$VALUES ('Taylor'::text, 'Reed'::text, 'taylor.two@school.test'::text, NULL::text)$$,
+  'the other homonym remains unchanged'
+);
+SELECT extensions.is(
+  (SELECT count(*)::integer FROM plugin_data.csf_admin_audit_events
+    WHERE correlation_id = 'be900000-0000-4000-8000-000000000081' AND action = 'profile.edit'),
+  1,
+  'the contact edit retains its staff audit receipt'
+);
+SELECT extensions.is(
+  (plugin_data.csf_upsert_profile(
+    'be100000-0000-4000-8000-000000000001',
+    'be000000-0000-4000-8000-000000000001',
+    'be900000-0000-4000-8000-000000000081',
+    jsonb_build_object(
+      'profileId', 'be400000-0000-4000-8000-000000000081',
+      'firstName', 'Taylor', 'lastName', 'Reed',
+      'schoolEmail', 'taylor.one@school.test', 'personalEmail', 'taylor.one@personal.test'
+    )
+  ) ->> 'idempotent'), 'true',
+  'the homonym contact edit remains retry-safe'
+);
+SELECT extensions.throws_ok(
+  $$SELECT plugin_data.csf_upsert_profile(
+    'be100000-0000-4000-8000-000000000001',
+    'be000000-0000-4000-8000-000000000001',
+    'be900000-0000-4000-8000-000000000082',
+    jsonb_build_object(
+      'profileId', 'be400000-0000-4000-8000-000000000081',
+      'firstName', 'Maya', 'lastName', 'Chen',
+      'schoolEmail', 'taylor.one@school.test', 'personalEmail', 'taylor.one@personal.test'
+    )
+  )$$,
+  'P0001', 'Another active CSF member already has this normalized name. Review the existing record instead of creating a duplicate.',
+  'renaming an existing profile to another normalized name still rejects a collision'
+);
+SELECT extensions.throws_ok(
+  $$SELECT plugin_data.csf_upsert_profile(
+    'be100000-0000-4000-8000-000000000001',
+    'be000000-0000-4000-8000-000000000001',
+    'be900000-0000-4000-8000-000000000083',
+    jsonb_build_object(
+      'profileId', 'be400000-0000-4000-8000-000000000081',
+      'firstName', 'Taylor', 'lastName', 'Reed',
+      'schoolEmail', 'taylor.one@school.test', 'personalEmail', 'taylor.two@school.test'
+    )
+  )$$,
+  'P0001', 'Another active CSF member already uses one of these email addresses. Review or link the existing record instead.',
+  'existing homonyms cannot take each other''s contact addresses'
+);
+SELECT extensions.is(
+  (SELECT personal_email FROM plugin_data.csf_profiles WHERE id = 'be400000-0000-4000-8000-000000000081'),
+  'taylor.one@personal.test',
+  'rejected identity and email changes preserve the saved contact'
+);
+
+INSERT INTO plugin_data.csf_profile_accounts (
+  organization_id, profile_id, user_id, status, is_primary
+) VALUES (
+  'be100000-0000-4000-8000-000000000001',
+  'be400000-0000-4000-8000-000000000082',
+  'be000000-0000-4000-8000-000000000002', 'verified', true
+);
+SELECT extensions.throws_ok(
+  $$SELECT plugin_data.csf_upsert_profile(
+    'be100000-0000-4000-8000-000000000001',
+    'be000000-0000-4000-8000-000000000001',
+    'be900000-0000-4000-8000-000000000084',
+    jsonb_build_object(
+      'profileId', 'be400000-0000-4000-8000-000000000081',
+      'firstName', 'Taylor', 'lastName', 'Reed',
+      'schoolEmail', 'taylor.one@school.test', 'personalEmail', 'PROFILE-MEMBER@LOCAL.TEST'
+    )
+  )$$,
+  'P0001', 'Another active CSF member already uses one of these email addresses. Review or link the existing record instead.',
+  'a confirmed login owned by another homonym cannot become this profile contact'
+);
+SELECT extensions.is(
+  (SELECT personal_email FROM plugin_data.csf_profiles WHERE id = 'be400000-0000-4000-8000-000000000081'),
+  'taylor.one@personal.test',
+  'the verified-account collision leaves the existing contact unchanged'
+);
+
+UPDATE plugin_data.csf_profiles
+SET reported_application_school_email = 'reported.school@local.test',
+    reported_application_personal_email = 'reported.personal@local.test'
+WHERE id = 'be400000-0000-4000-8000-000000000082';
+UPDATE plugin_data.csf_term_applications
+SET most_checked_email = 'reported.checked@local.test'
+WHERE profile_id = (SELECT id FROM plugin_data.csf_profiles
+  WHERE organization_id = 'be100000-0000-4000-8000-000000000001'
+    AND normalized_first_name = 'maya' AND normalized_last_name = 'chen');
+
+SELECT extensions.throws_ok(
+  $$SELECT plugin_data.csf_upsert_profile(
+    'be100000-0000-4000-8000-000000000001',
+    'be000000-0000-4000-8000-000000000001',
+    'be900000-0000-4000-8000-000000000085',
+    jsonb_build_object(
+      'profileId', 'be400000-0000-4000-8000-000000000081',
+      'firstName', 'Taylor', 'lastName', 'Reed',
+      'schoolEmail', 'taylor.one@school.test', 'personalEmail', 'REPORTED.SCHOOL@LOCAL.TEST'
+    )
+  )$$,
+  'P0001', 'Another active CSF member already uses one of these email addresses. Review or link the existing record instead.',
+  'reported school contact evidence on another profile blocks the edit'
+);
+SELECT extensions.throws_ok(
+  $$SELECT plugin_data.csf_upsert_profile(
+    'be100000-0000-4000-8000-000000000001',
+    'be000000-0000-4000-8000-000000000001',
+    'be900000-0000-4000-8000-000000000086',
+    jsonb_build_object(
+      'profileId', 'be400000-0000-4000-8000-000000000081',
+      'firstName', 'Taylor', 'lastName', 'Reed',
+      'schoolEmail', 'taylor.one@school.test', 'personalEmail', 'REPORTED.PERSONAL@LOCAL.TEST'
+    )
+  )$$,
+  'P0001', 'Another active CSF member already uses one of these email addresses. Review or link the existing record instead.',
+  'reported personal contact evidence on another profile blocks the edit'
+);
+SELECT extensions.throws_ok(
+  $$SELECT plugin_data.csf_upsert_profile(
+    'be100000-0000-4000-8000-000000000001',
+    'be000000-0000-4000-8000-000000000001',
+    'be900000-0000-4000-8000-000000000087',
+    jsonb_build_object(
+      'profileId', 'be400000-0000-4000-8000-000000000081',
+      'firstName', 'Taylor', 'lastName', 'Reed',
+      'schoolEmail', 'taylor.one@school.test', 'personalEmail', 'REPORTED.CHECKED@LOCAL.TEST'
+    )
+  )$$,
+  'P0001', 'Another active CSF member already uses one of these email addresses. Review or link the existing record instead.',
+  'reported checked contact evidence on another profile blocks the edit'
+);
+SELECT extensions.is(
+  (SELECT personal_email FROM plugin_data.csf_profiles WHERE id = 'be400000-0000-4000-8000-000000000081'),
+  'taylor.one@personal.test',
+  'reported-contact conflicts preserve the saved contact'
 );
 
 SELECT * FROM extensions.finish();

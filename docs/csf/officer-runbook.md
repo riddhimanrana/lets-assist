@@ -83,7 +83,7 @@ The class link, QR code, and typed code all start the same student workflow. Sta
 
 1. Open the existing student profile and choose **Connect account**. This action requires permission to manage profiles.
 2. Enter the student's **Let's Assist login email**. It can differ from the school or personal email on the imported CSF profile. The account must have a confirmed login email and active membership in this organization.
-3. Confirm the identity with the student, explain how in **How did you verify this student?**, and check the identity confirmation. The explanation must contain 8 to 500 characters.
+3. Confirm the identity with the student and check the ownership confirmation. A written reason is not required. The audit records the acting staff member and their confirmation.
 4. Choose **Connect account**. The connection keeps the profile's existing history and records the staff decision. It does not change the profile's contact emails, award semester credit, or grant staff access.
 5. To grant a position, use **Officers & access** separately. An existing connection cannot be replaced by this form. Review and unlink the incorrect connection before moving an account.
 
@@ -91,9 +91,9 @@ A pending class-code request is not required for this staff workflow. The server
 
 ### Officer review
 
-1. Open the class's **Members** tab and work **Accounts to connect**, which opens the pending requests below the roster. The queue is paged with **First page** and **Next**. **Home** shows a **Connection requests** chip with the total pending count, linking to the classes hub. Open the request with **Review**, or a ranked candidate with **Review match**; both open the **Review account connection** dialog.
+1. Open the class's **Members** tab and work **Accounts to connect**, which opens the pending requests below the roster. The queue is paged with **First page** and **Next**. **Home** shows a **Connection requests** chip with the total pending count, linking to the classes hub. Suggestions load with the queue. Choose **Connect account** beside a suggested student, or use **Review** and **Choose another record** to search. The **Review account connection** dialog shows the selected record. **Review match** opens suggestions that need closer inspection. A recorded student name confirmation appears as context and does not establish ownership.
 2. Compare the request with the student's submitted evidence; never match on a typed name alone. Everything under **Suggestions · advisory only** is a discovery aid, including a candidate badged **Canonical evidence ready**. A conflicting cohort, verified email, or existing account is a hard stop.
-3. After independently verifying the student's identity, open their profile and use **Connect account** with the confirmed login email and a verification reason. Do not overwrite imported contacts to force an email match. Use **Reject request** when the request is incorrect.
+3. After independently verifying the student's identity, open their profile and use **Connect account** with the confirmed login email and ownership confirmation. Do not overwrite imported contacts to force an email match. Use **Reject request** when the request is incorrect.
 4. Account connections do not award semester credit. Review applications separately.
 5. A connection held for ownership review keeps login and organization access, but cannot read or act on the imported student history until staff verifies it.
 
@@ -196,6 +196,7 @@ Notes are officer-only and redactable, never deletable. Every correction writes 
 3. An Activity Coordinator may verify participation but cannot perform final point processing unless separately granted.
 4. Verify the awarded quantity in the member's My CSF view. Multiple points are one numeric award, not repeated one-point rows.
 5. Process an open appeal from the same evidence panel as a separate reasoned decision; do not edit the original decision out of history.
+6. A member can Unsubmit an eligible unawarded claim while the term permits changes. A queued Sheet export with no write attempt is cancelled. Final decisions, Sheet exports that have started, and delivered review evidence require the correction workflow. Unsubmit permanently deletes the claim, proofs and its submission history. It does not leave a Withdrawn entry for officers to review.
 
 Every submit/proof-finalize/withdraw/review/appeal action rechecks current account ownership or reviewer permission, open semester, active membership, published policy, source relationship, cap, class, and finalized proof as applicable. If any of those changed, reload and resolve the current blocker instead of retrying from an older page.
 

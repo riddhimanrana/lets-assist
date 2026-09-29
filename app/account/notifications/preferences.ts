@@ -1,6 +1,7 @@
 export type NotificationPreferences = {
   email_notifications: boolean;
   project_updates: boolean;
+  feedback_requests: boolean;
   organization_updates: boolean;
   general: boolean;
 };
@@ -11,6 +12,10 @@ export function readNotificationPreferences(
   return {
     email_notifications: row.email_notifications !== false,
     project_updates: row.project_updates !== false,
+    feedback_requests:
+      row.feedback_requests == null
+        ? row.project_updates !== false
+        : row.feedback_requests !== false,
     organization_updates: row.organization_updates !== false,
     general: row.general !== false,
   };

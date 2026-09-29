@@ -243,7 +243,7 @@ test.afterAll(async () => {
   }
 });
 
-test("member correction stays attached until officer review and a separate application decision", async ({
+test("existing member correction remains reviewable after the duplicate entry point is removed", async ({
   page,
   browser,
 }) => {
@@ -251,21 +251,38 @@ test("member correction stays attached until officer review and a separate appli
   const memberFailures = watchBrowserFailures(page);
   const initialApplication = await application();
   const initialChecks = await applicationChecks();
+  const { data: account, error: accountError } = await admin
+    .schema("plugin_data")
+    .from("csf_profile_accounts")
+    .select("user_id")
+    .eq("organization_id", organizationId)
+    .eq("profile_id", profileId)
+    .eq("status", "verified")
+    .single();
+  checked(accountError);
+  // Seed a correction filed before the duplicate entry point was removed.
+  checked(
+    (
+      await admin
+        .schema("plugin_data")
+        .rpc("csf_submit_application_correction", {
+          p_organization_id: organizationId,
+          p_application_id: applicationId,
+          p_check_type: "required_information",
+          p_message: correctionMessage,
+          p_proposed_data: { source: "member_workspace" },
+          p_actor_user_id: account!.user_id,
+        })
+    ).error,
+  );
   await loginAs(page, "applicant", `${CSF_ORGANIZATION_PATH}?tab=csf-overview`);
   await page.getByRole("tab", { name: "My CSF", exact: true }).click();
-  await page
-    .getByRole("button", { name: "Submit correction", exact: true })
-    .click();
-  const correctionDialog = page.getByRole("dialog", {
-    name: "Correct application information",
-  });
-  await correctionDialog
-    .getByRole("textbox", { name: "Corrected information" })
-    .fill(correctionMessage);
-  await correctionDialog
-    .getByRole("button", { name: "Submit correction", exact: true })
-    .click();
-  await expect(correctionDialog).toBeHidden();
+  await expect(
+    page.getByRole("button", { name: "Submit correction", exact: true }),
+  ).toHaveCount(0);
+  await expect(
+    page.getByRole("button", { name: /Something is wrong\?/ }),
+  ).toBeVisible();
   await expect(
     page.getByText("Profile correction under review", { exact: true }),
   ).toBeVisible();
@@ -414,7 +431,7 @@ test("member correction stays attached until officer review and a separate appli
     ]);
     await page.reload();
     await expect(
-      page.getByRole("button", { name: "Submit correction", exact: true }),
+      page.getByRole("button", { name: /Something is wrong\?/ }),
     ).toBeVisible();
     expectNoBrowserFailures(memberFailures);
     expectNoBrowserFailures(officerFailures);

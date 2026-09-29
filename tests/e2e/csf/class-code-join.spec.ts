@@ -861,6 +861,9 @@ test.describe("class join code connections", () => {
       resolveDialog.getByRole("button", { name: "Connect account" }),
     ).toHaveCount(0);
     await resolveDialog
+      .getByText("Reject this request", { exact: true })
+      .click();
+    await resolveDialog
       .getByLabel("Decision reason")
       .fill("Two roster records share this email; rejecting for follow-up.");
     await resolveDialog.getByRole("button", { name: "Reject request" }).click();

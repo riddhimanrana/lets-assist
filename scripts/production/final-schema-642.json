@@ -1,6 +1,6 @@
 {
   "format": 1,
-  "ledger": "164c37c3002f3695ff2739e477c5dd028c28f5530c085a823beebf9f37f50aba",
+  "ledger": "6d7eb7641659813b342bfc1451787da0686b0acb6ac334f523f33bacbf9431d3",
   "inventory": "50d25e20102baa344f625914423b07f414daf1204214f9bd6cc7b9e6fe2c0efd",
   "objects": [
     {
@@ -161,7 +161,7 @@
     },
     {
       "identity": "function:app_private.guard_hours_publication_completeness()",
-      "digest": "d26e7bec9c71da1988435c6703800513"
+      "digest": "abb2a167e7e44c9b65a50682da0ab7de"
     },
     {
       "identity": "function:app_private.guard_paper_scan_registration_during_cleanup()",
@@ -193,7 +193,7 @@
     },
     {
       "identity": "function:app_private.issue_verified_certificate_for_late_attendance()",
-      "digest": "7e3793b8fdd169aab141c55a087958c4"
+      "digest": "c4e8f856b5909e28601baabf0417dd36"
     },
     {
       "identity": "function:app_private.lock_paper_scan_project_for_commit()",
@@ -3008,28 +3008,12 @@
       "digest": "b14a6d6dc9b906c68ffad5159e61586b"
     },
     {
-      "identity": "function:private.assert_attendance_not_future(p_intervals jsonb)",
-      "digest": "f5ebae883b3ca015b64444324398e7e3"
-    },
-    {
-      "identity": "function:private.assert_attendance_session_ended(p_project_id uuid, p_schedule_id text)",
-      "digest": "213e8e7aef7e7c3beb921efa36051fa6"
-    },
-    {
       "identity": "function:private.assert_dvhs_csf_1_2_1_release_identity()",
       "digest": "46120cabdd83a52671499d2fa0473822"
     },
     {
-      "identity": "function:private.assert_no_unlinked_platform_award(p_signup_id uuid)",
-      "digest": "7fc50cdedf33d670efd96683fee01806"
-    },
-    {
       "identity": "function:private.assign_project_recurrence_generation()",
       "digest": "14d13d7df7c2dac269b5918c650930e3"
-    },
-    {
-      "identity": "function:private.attendance_interval_minutes(p_intervals jsonb)",
-      "digest": "d66aa1f11a1c3b34e348b235fa2f9825"
     },
     {
       "identity": "function:private.backfill_plugin_application_deployment_targets_20260822()",
@@ -3148,12 +3132,8 @@
       "digest": "e62261578d92f5c601f27b37216c1547"
     },
     {
-      "identity": "function:private.guard_reviewed_attendance_envelope()",
-      "digest": "80e8f2f96de65c9a5fb86be534314ae8"
-    },
-    {
       "identity": "function:private.hours_publication_result(p_receipt_id uuid, p_outcome text)",
-      "digest": "47ff941dff57961840574609b84b764d"
+      "digest": "6781d8629ec4c811f2775a08413daf29"
     },
     {
       "identity": "function:private.insert_project_signup_locked(p_project_id uuid, p_schedule_id text, p_user_id uuid, p_anonymous_id uuid, p_status text, p_volunteer_comment text, p_response_data jsonb, p_waiver jsonb, p_anonymous_profile jsonb)",
@@ -3182,14 +3162,6 @@
     {
       "identity": "function:private.lease_plugin_application_runtime_20260822(p_organization_id uuid, p_plugin_key text, p_environment text, p_deployment_id text, p_runtime_version text, p_actor_user_id uuid)",
       "digest": "c494d3d43d165601e5dd04fc2529da94"
-    },
-    {
-      "identity": "function:private.lock_attendance_management(p_project_id uuid, p_actor_id uuid)",
-      "digest": "15307841f540185dd714da5d46aad641"
-    },
-    {
-      "identity": "function:private.normalize_attendance_intervals(p_intervals jsonb)",
-      "digest": "9c46640bca1f9974f36f8881da870c6a"
     },
     {
       "identity": "function:private.plugin_host_api_version()",
@@ -3236,14 +3208,6 @@
       "digest": "40738a706fe27a4f2ea73ddec326f438"
     },
     {
-      "identity": "function:private.protect_corrected_certificate_snapshot()",
-      "digest": "320b367acf07e5260db3fdb3dc7ffe26"
-    },
-    {
-      "identity": "function:private.protect_legacy_platform_award()",
-      "digest": "b9fcafa85f7543e79c098af1862c3f89"
-    },
-    {
       "identity": "function:private.protect_organization_capability_columns()",
       "digest": "821f40a8d110a8148816d79e36d49234"
     },
@@ -3285,7 +3249,7 @@
     },
     {
       "identity": "function:private.publish_volunteer_hours_transactional_legacy_status_fallback(p_actor_id uuid, p_project_id uuid, p_schedule_id text, p_entries jsonb, p_request_key text)",
-      "digest": "2db1b0942fb453a12843612101a88f18"
+      "digest": "65c954c1997a5f7d175e1146dc8d8c1e"
     },
     {
       "identity": "function:private.record_organization_autojoin_suppression()",
@@ -3318,18 +3282,6 @@
     {
       "identity": "function:private.set_plugin_application_runtime_unhardened_20260822(p_organization_id uuid, p_plugin_key text, p_target_version text, p_environment text, p_enabled boolean, p_actor_id uuid, p_request_id uuid)",
       "digest": "dc51afbb0362a9dd699910bcfbfb4da6"
-    },
-    {
-      "identity": "function:private.set_project_attendance_intervals(p_signup_id uuid, p_intervals jsonb, p_exception_reason text)",
-      "digest": "96cd9680373480853c2f34a231676b3e"
-    },
-    {
-      "identity": "function:private.signup_attendance_intervals(p_signup_id uuid)",
-      "digest": "9ff910c0f81cec6b235b395fca2e88e0"
-    },
-    {
-      "identity": "function:private.stamp_certificate_attendance()",
-      "digest": "3d3784bf499306eb790e6437605f5661"
     },
     {
       "identity": "function:private.storage_plugin_namespace_is_active(p_organization_segment text, p_plugin_key_segment text)",
@@ -3386,10 +3338,6 @@
     {
       "identity": "function:public.acquire_plugin_control_plane_transition_lock(p_organization_id uuid, p_plugin_key text, p_lock_token uuid, p_ttl_seconds integer)",
       "digest": "cf2ad91780bc11f8f02e88ad3d6c6669"
-    },
-    {
-      "identity": "function:public.add_paper_attendance_row(p_project_id uuid, p_batch_id uuid, p_actor_id uuid, p_request_id uuid)",
-      "digest": "4b4f780ee11085ddc546f256a46de9bd"
     },
     {
       "identity": "function:public.apply_project_waiver_settings(p_project_id uuid, p_actor_id uuid, p_waiver_required boolean, p_waiver_allow_upload boolean, p_waiver_disable_esignature boolean)",
@@ -3512,12 +3460,8 @@
       "digest": "ef11922669cb75aba8ede25accd57a4e"
     },
     {
-      "identity": "function:public.combine_paper_attendance_rows(p_project_id uuid, p_batch_id uuid, p_actor_id uuid, p_target_row_id uuid, p_source_row_ids uuid[], p_request_id uuid)",
-      "digest": "c1551efe2c7068af1f9a8588da4a7ac1"
-    },
-    {
       "identity": "function:public.commit_paper_signup_batch(p_batch_id uuid, p_actor_id uuid, p_row_ids uuid[], p_allow_over_capacity boolean, p_idempotency_key uuid)",
-      "digest": "f069345393e1a0b8ee6dc6c1534472aa"
+      "digest": "5732767a6339f7feae5e48f2f7f1307f"
     },
     {
       "identity": "function:public.complete_participant_checkout(p_signup_id uuid, p_user_id uuid, p_anonymous_id uuid)",
@@ -3548,22 +3492,6 @@
       "digest": "e83ba253b9466a050d090d3f53ee7565"
     },
     {
-      "identity": "function:public.correct_project_attendance(p_signup_id uuid, p_expected_revision integer, p_reason text, p_intervals jsonb, p_request_id uuid, p_actor_id uuid)",
-      "digest": "1bd8e9ea03b32a8bbc701fe8cbc538b8"
-    },
-    {
-      "identity": "function:public.create_attendance_print_sheet(p_project_id uuid, p_schedule_id text, p_actor_id uuid, p_blank_rows integer, p_continuation_rows integer)",
-      "digest": "08feec7a5e4a1fc5d697a3ece27599e7"
-    },
-    {
-      "identity": "function:public.create_attendance_print_sheets(p_project_id uuid, p_schedule_ids text[], p_actor_id uuid, p_blank_rows integer, p_continuation_rows integer, p_request_id uuid)",
-      "digest": "0d75c461922253f00e3907d2b1e69f18"
-    },
-    {
-      "identity": "function:public.create_manual_attendance_batch(p_project_id uuid, p_schedule_id text, p_actor_id uuid, p_request_id uuid)",
-      "digest": "0eb149c0397b7f8cf791b2396e611b96"
-    },
-    {
       "identity": "function:public.delete_old_anonymous_signups()",
       "digest": "f9e5507473c6130d73f5a09e2ea12fa1"
     },
@@ -3581,7 +3509,7 @@
     },
     {
       "identity": "function:public.discard_paper_scan_batch(p_batch_id uuid, p_project_id uuid, p_actor_id uuid)",
-      "digest": "838314e35527db2af26a4c729e83cfc9"
+      "digest": "86b8e443efc801c8dfd6ff5e487111b2"
     },
     {
       "identity": "function:public.discard_user_email_alias_verification(p_challenge_id uuid, p_user_id uuid, p_token_hash text)",
@@ -3693,7 +3621,7 @@
     },
     {
       "identity": "function:public.issue_supplemental_verified_certificates(p_project_id uuid, p_schedule_id text, p_signup_ids uuid[], p_actor_id uuid)",
-      "digest": "fe8bb0a71b3885c362e97349fe84887e"
+      "digest": "c4efd6a74f84285c3399a6ca31f3e55d"
     },
     {
       "identity": "function:public.issue_user_email_alias_verification(p_user_id uuid, p_email text, p_token_hash text, p_expires_at timestamp with time zone)",
@@ -3702,10 +3630,6 @@
     {
       "identity": "function:public.join_organization_with_code(p_user_id uuid, p_join_code text)",
       "digest": "c6eb54ad6e1fea5eafa3d94b0d6ccfc5"
-    },
-    {
-      "identity": "function:public.link_guest_attendance_account(p_anonymous_id uuid, p_user_id uuid, p_token text)",
-      "digest": "f235d27fa6ef45fa345830eb6657a9af"
     },
     {
       "identity": "function:public.log_ai_usage(p_gateway_scope text, p_model_id text, p_organization_id uuid, p_user_id uuid, p_plugin_key text, p_feature text, p_input_tokens integer, p_output_tokens integer, p_estimated_cost_usd numeric, p_latency_ms integer, p_success boolean, p_error_message text, p_metadata jsonb)",
@@ -3729,7 +3653,7 @@
     },
     {
       "identity": "function:public.prepare_hours_publication_email_delivery(p_delivery_id uuid, p_sender text, p_subject text, p_html text)",
-      "digest": "12f31f0e6744f6f28a9645d38edbc215"
+      "digest": "3749e4f7bb267420144ddb518b21401c"
     },
     {
       "identity": "function:public.prevent_trusted_member_edit()",
@@ -3760,10 +3684,6 @@
       "digest": "b36f944787ad72325a0ac1f77aafcdba"
     },
     {
-      "identity": "function:public.project_corrected_certificate_ids(p_project_id uuid, p_actor_id uuid)",
-      "digest": "23794ca47a0393a92b79a8139c7fdd7d"
-    },
-    {
       "identity": "function:public.publish_volunteer_hours_transactional(p_actor_id uuid, p_project_id uuid, p_schedule_id text, p_entries jsonb, p_request_key text)",
       "digest": "ea1c9c46504fe3bb1315973a01805194"
     },
@@ -3777,7 +3697,7 @@
     },
     {
       "identity": "function:public.purge_expired_paper_scan_batches(p_limit integer)",
-      "digest": "e3203ff219d92ba8388226f22eb2483f"
+      "digest": "c783577ebbfa4a62c3c0958c479de291"
     },
     {
       "identity": "function:public.queue_orphaned_paper_scan_uploads(p_object_paths text[])",
@@ -3810,10 +3730,6 @@
     {
       "identity": "function:public.record_plugin_data_deletion_audit_result(p_request_id uuid, p_audit_status text, p_audit_event_id uuid, p_audit_error_code text)",
       "digest": "fd04a527dcd2b41da60c52961d51d395"
-    },
-    {
-      "identity": "function:public.record_project_attendance(p_signup_id uuid, p_expected_revision integer, p_reason text, p_intervals jsonb, p_request_id uuid, p_actor_id uuid)",
-      "digest": "ba3c385799a24560685c35ba2e0af12d"
     },
     {
       "identity": "function:public.redact_project_cancellation_destinations(p_limit integer)",
@@ -3850,10 +3766,6 @@
     {
       "identity": "function:public.report_plugin_deployment_health(p_plugin_key text, p_environment text, p_deployment_id text, p_health_status text, p_promotion_status text, p_health_evidence jsonb)",
       "digest": "cad077c88cfe1b420c0734adfb4977ee"
-    },
-    {
-      "identity": "function:public.request_corrected_certificate_delivery(p_project_id uuid, p_certificate_id uuid, p_expected_revision integer, p_request_id uuid, p_actor_id uuid)",
-      "digest": "64d59c278127d6349e4bcf31ce9f6c56"
     },
     {
       "identity": "function:public.rls_auto_enable()",
@@ -3945,7 +3857,7 @@
     },
     {
       "identity": "function:public.update_paper_scan_review_row(p_batch_id uuid, p_project_id uuid, p_row_id uuid, p_actor_id uuid, p_patch jsonb)",
-      "digest": "4e235c302f4c3fee822a95d995b2f8c1"
+      "digest": "3ea75a604a2eca750014016b69738c76"
     },
     {
       "identity": "function:public.update_plugin_execution_metrics(p_organization_id uuid, p_plugin_key text, p_execution_time_ms integer, p_is_error boolean, p_error_message text)",
@@ -4077,11 +3989,11 @@
     },
     {
       "identity": "relation:plugin_data.csf_automatic_import_approval_rows",
-      "digest": "64dad81d17fd44f746160ff42c3ffe67"
+      "digest": "e6598fcfcff9ef7f960ca808e5225e8a"
     },
     {
       "identity": "relation:plugin_data.csf_automatic_import_approvals",
-      "digest": "462997c910a285f4255c5a72c4d10abc"
+      "digest": "2608b1b3f140cb5202f944a3752077c7"
     },
     {
       "identity": "relation:plugin_data.csf_class_join_codes",
@@ -4373,7 +4285,7 @@
     },
     {
       "identity": "relation:plugin_data.csf_sheet_import_rows",
-      "digest": "56e683aa9358243f4cd5267a2e0728cb"
+      "digest": "ad1f3a9d337b4889e656b5b06f9a2f7b"
     },
     {
       "identity": "relation:plugin_data.csf_sheet_import_staging_claims",
@@ -4708,32 +4620,12 @@
       "digest": "88e7ff28252ea05c3eef9c0c585b6b74"
     },
     {
-      "identity": "relation:private.anonymous_account_links",
-      "digest": "2ee3889c4e5ea2ebb45d8daaa492937c"
-    },
-    {
       "identity": "relation:private.anonymous_feedback_email_preferences",
       "digest": "f60ff083b9dff9105630e73c7ff9543f"
     },
     {
-      "identity": "relation:private.attendance_print_requests",
-      "digest": "fdb4794b995baaefef8c298e71f6ce95"
-    },
-    {
-      "identity": "relation:private.corrected_certificate_delivery_requests",
-      "digest": "3bf936ee8f27ec23ab0d1287b203d9b0"
-    },
-    {
       "identity": "relation:private.google_cap_event_receipts",
       "digest": "688f044add0e686490715f3b54439797"
-    },
-    {
-      "identity": "relation:private.paper_attendance_commit_receipts",
-      "digest": "d8d8e29e43e8dc8a0369e97f7a61b24b"
-    },
-    {
-      "identity": "relation:private.paper_attendance_review_operations",
-      "digest": "1b0617e6f284d1a00ac87973cccc69bb"
     },
     {
       "identity": "relation:private.paper_scan_storage_cleanup_lock",
@@ -4772,10 +4664,6 @@
       "digest": "c260474f7db72b8cc12d81fa4583622b"
     },
     {
-      "identity": "relation:private.project_attendance_changes",
-      "digest": "61233a3dd36ba9c9bdd1188f6ecb87a3"
-    },
-    {
       "identity": "relation:private.project_series_end_receipts",
       "digest": "dd895f7328ef05f6eadf68c4e7d32c58"
     },
@@ -4805,11 +4693,11 @@
     },
     {
       "identity": "relation:public.certificate_verification_read_model",
-      "digest": "d7b1d11c6ec6f1da7d7866f79abd4816"
+      "digest": "132e02e69d3c63805b218aeafa1754f4"
     },
     {
       "identity": "relation:public.certificates",
-      "digest": "c79eb169be55ca2461de994e53819e0e"
+      "digest": "4d6423ac949f3d9f57714602c7bd9581"
     },
     {
       "identity": "relation:public.content_flags",
@@ -4833,7 +4721,7 @@
     },
     {
       "identity": "relation:public.hours_publication_email_outbox",
-      "digest": "0d492be7b739c3e6b7fb4f2ca2513729"
+      "digest": "065fafd2c248b87960a559e77b5bd692"
     },
     {
       "identity": "relation:public.hours_publication_receipts",
@@ -4952,18 +4840,6 @@
       "digest": "78f18892cc88dde92eef02c8acb08ab4"
     },
     {
-      "identity": "relation:public.project_attendance_intervals",
-      "digest": "feff4be9eef17a422e6db1b2e6be9c82"
-    },
-    {
-      "identity": "relation:public.project_attendance_print_rows",
-      "digest": "3ad4afc05a501c20cdf24ae7db1ff667"
-    },
-    {
-      "identity": "relation:public.project_attendance_print_sheets",
-      "digest": "c87d2d25c196ba5d6236557c1c76d9b9"
-    },
-    {
       "identity": "relation:public.project_cancellation_deliveries",
       "digest": "c5ce6c28ab18741251b91294aeb5863d"
     },
@@ -4993,11 +4869,11 @@
     },
     {
       "identity": "relation:public.project_paper_roster_entries",
-      "digest": "82f87a9ebffdea2f2fd2fc7d99d671e8"
+      "digest": "ccc221ca9fbd7bea62d2d037e135532d"
     },
     {
       "identity": "relation:public.project_paper_scan_batches",
-      "digest": "177ae3aa94e27316f7d29f0ea0773901"
+      "digest": "575bd7ca41651f7b9947d090b54326a4"
     },
     {
       "identity": "relation:public.project_paper_scan_images",
@@ -5005,11 +4881,11 @@
     },
     {
       "identity": "relation:public.project_paper_scan_rows",
-      "digest": "e6839a0f00745fa02356ff781f54ef5d"
+      "digest": "f8445c320223c54da7870fc4aeda482e"
     },
     {
       "identity": "relation:public.project_signups",
-      "digest": "b3b15efa1ff9fc266675cbd07d1bbac4"
+      "digest": "a410679db2957c5ef20121b950544f86"
     },
     {
       "identity": "relation:public.projects",
@@ -5041,7 +4917,7 @@
     },
     {
       "identity": "relation:public.user_certificate_read_model",
-      "digest": "514b0eeac37cabb6cf2e9f28f956a805"
+      "digest": "2de25b42bffc4b8f6dba4fd8ad1029ec"
     },
     {
       "identity": "relation:public.user_emails",

@@ -78,3 +78,78 @@ campaigns, profile accounts, class memberships, applications, and organization
 members. Migration `20260920181754` changes import readiness and overwrite refusal
 and adds meeting-scoped preview and attendance counts. These migrations do not
 rewrite student records or send historical notices.
+
+Release 654 adds the owner-only prebuilt snapshot queue function and changes the
+destination snapshot and export trigger functions. The clean local inventory
+changes exactly those three identities and removes no objects. Focused controller
+tests bind the inventory to the 654-entry ledger and verify that the forward
+controller writes no chapter data. The historical release fixture now includes
+this reviewed migration.
+
+Release 655 changes only the function-level timeout on the reviewed term-release
+RPC. The clean replay inventory retains every object and ACL. The controller
+binds that single changed function to the exact migration and ledger digests.
+Ordinary role and database timeout settings remain unchanged.
+
+Release 657 adds the semester activity layout mutation and two section/order
+relations. It changes the opportunity relation, both directory status projections,
+and the personal Calendar source authorization function. Its clean replay changes
+exactly these seven identities and removes no objects. Local fixture helpers were
+removed using the authoritative teardown inside a rolled-back capture transaction.
+The mutation retains server-only execution, checks officer permissions, serializes
+semester edits, and records a fingerprinted receipt. The migration changes no
+existing student decisions, evidence, membership, or delivery records.
+
+Release 658 publishes signed CSF 1.2.73. Its generated migration writes only the
+signed version and catalog pointer. It changes no schema objects or chapter
+installations, so it retains the verified 657 inventory with the new ledger
+binding. The signature, source ancestry, release bytes and publication statements
+were verified before integration.
+
+Release 673 adds seven submission-deletion functions and two temporary cleanup tables.
+It changes the submission audit guard and Storage cleanup queue trigger. The reviewed
+inventory changes exactly those eleven identities. The provider-owned Storage table
+stays outside the shared catalog; the release query separately verifies the exact,
+enabled CSF upload trigger. The migration deletes no existing claims on deployment.
+Member actions remove their eligible claims and complete physical proof cleanup.
+
+Release 677 publishes signed CSF 1.2.81. The reviewed migration writes only the
+signed version and catalog pointer, with no schema or organization-install change.
+It retains the verified 676 object inventory and binds it to the new ledger.
+Focused controller tests verify the exact publication statements and retry fence.
+
+Release 678 changes the member deletion and both Sheet queue functions. Queue creation
+shares the deletion lock, and cleanup scopes records by kind. Its clean
+replay inventory contains the same object identities as 677, with three changed
+function digests. The focused deletion suite passes 69 assertions, including
+in-flight exports, unknown outcomes and previously attempted rows. Release 679
+publishes signed CSF 1.2.82 and preserves that inventory.
+
+Release 680 publishes signed CSF 1.2.83. Its generated SQL writes only the signed
+plugin version and catalog pointer. It preserves the verified 679 object inventory
+and binds it to the new ledger. Controller regression covers the complete suffix
+and a retry with no remaining migrations.
+
+Release 681 publishes signed CSF 1.2.84, including the ownership-confirmation retry
+fix. The publication preserves the 680 schema inventory and changes no organization
+installation. The controller verifies the complete four-migration suffix.
+
+Release 682 changes only the two Sheet queue helpers to acquire the deletion fence
+without waiting. A conflicting mutation rolls back with a retry response instead
+of waiting while holding submission or binding rows. Both queue paths retain the
+post-lock snapshot check. The focused database suite passes 339 assertions.
+
+Release 683 changes only `csf_upsert_profile`. Staff can edit existing reviewed
+homonyms while retaining the same normalized name. Creation and name changes
+still check for collisions. Email checks also protect confirmed login addresses
+on other verified profile accounts and reported application contact evidence. The clean
+replay changes one function digest, with no added or removed objects.
+
+Release 687 appends the four unpublished attendance migrations to the 683
+ledger: reviewed intervals, print manifests, corrected-certificate delivery, and
+atomic guest account linking. They were renumbered after Development's ledger
+without content changes. The manifest applies the reviewed 638-to-642 attendance
+delta (31 added and 18 changed objects) to the 683 inventory. Neither delta
+touches an object the other changes, and no object is removed. The manifest is
+derived from those two replays; the next isolated replay must confirm it. These
+migrations are not approved for Production.

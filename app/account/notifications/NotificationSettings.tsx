@@ -144,6 +144,25 @@ export function NotificationSettings() {
             ) : (
               <div className="space-y-6">
                 <div className="space-y-5">
+                  <div className="flex items-center justify-between gap-4 border p-4 rounded-md">
+                    <div className="space-y-0.5">
+                      <Label htmlFor="feedback-requests" className="text-base">
+                        Feedback requests
+                      </Label>
+                      <p className="text-sm text-muted-foreground">
+                        An optional survey about using Let&apos;s Assist after
+                        you volunteer.
+                      </p>
+                    </div>
+                    <Switch
+                      id="feedback-requests"
+                      checked={settings.feedback_requests}
+                      disabled={!settings.email_notifications}
+                      onCheckedChange={(value) =>
+                        handleChange("feedback_requests", value)
+                      }
+                    />
+                  </div>
                   <div className="flex items-center justify-between border p-4 rounded-md">
                     <div className="space-y-0.5">
                       <Label

@@ -87,7 +87,7 @@ async function applyDecision(
   const admin = getAdminClient();
   const { data: feedbackRequest } = await admin
     .from("project_feedback_requests")
-    .select("id, user_id, anonymous_id")
+    .select("id, user_id, anonymous_id, purpose")
     .eq("id", requestId)
     .maybeSingle();
   if (!feedbackRequest) {
@@ -118,7 +118,9 @@ async function applyDecision(
     const { error } = await admin.from("notification_settings").upsert(
       {
         user_id: payload.subject.userId,
-        project_updates: resubscribe,
+        ...(feedbackRequest.purpose === "platform_experience"
+          ? { feedback_requests: resubscribe }
+          : { project_updates: resubscribe }),
       },
       { onConflict: "user_id" },
     );
@@ -127,6 +129,21 @@ async function applyDecision(
     }
   }
 
+  if (feedbackRequest.purpose === "platform_experience") {
+    return htmlPage(
+      resubscribe
+        ? "Feedback request emails are turned on."
+        : "Feedback request emails are turned off. You can change this in notification settings.",
+      resubscribe
+        ? undefined
+        : {
+            requestId,
+            token: token!,
+            decision: "resubscribe",
+            label: "Resubscribe",
+          },
+    );
+  }
   return resubscribe
     ? htmlPage("You're resubscribed to project update emails.")
     : htmlPage(

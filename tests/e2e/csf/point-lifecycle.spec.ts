@@ -16,14 +16,18 @@ import {
 } from "./helpers";
 
 const memberPath = `${CSF_ORGANIZATION_PATH}?tab=csf-submissions`;
-const officerPath = `${CSF_ORGANIZATION_PATH}?tab=csf-activities&csf_service=points`;
+const officerHomePath = `${CSF_ORGANIZATION_PATH}?tab=csf-overview`;
 
 async function verifiedTotal(page: Page) {
   const summary = page
     .getByRole("region", { name: "Point submissions", exact: true })
-    .getByText(/points verified this semester/);
+    .getByRole("progressbar", {
+      name: "Submitted and approved service points",
+    });
   await expect(summary).toBeVisible();
-  const value = (await summary.innerText()).match(/^([\d,.]+)/)?.[1];
+  const value = (await summary.getAttribute("aria-valuetext"))?.match(
+    /, ([\d.]+) approved,/,
+  )?.[1];
   if (!value)
     throw new Error("The verified point summary has no numeric total.");
   return Number(value.replaceAll(",", ""));
@@ -34,7 +38,7 @@ async function submissionFor(fixture: CsfFeedFixture, opportunityId: string) {
     .schema("plugin_data")
     .from("csf_point_submissions")
     .select(
-      "id, profile_id, term_id, status, description, claimed_points, reviewed_by",
+      "id, profile_id, term_id, status, description, claimed_points, reviewed_by, revision",
     )
     .eq("organization_id", fixture.organizationId)
     .eq("opportunity_id", opportunityId)
@@ -61,15 +65,107 @@ async function creditRows(fixture: CsfFeedFixture, submissionId: string) {
 
 async function reviewSubmission(
   page: Page,
-  activityTitle: string,
+  submissionDescription: string,
+  termId: string,
   notes: string,
   decision: string,
 ) {
-  await page.goto(officerPath, { waitUntil: "domcontentloaded" });
-  const row = page.getByRole("row").filter({ hasText: activityTitle });
+  await page.goto(officerHomePath, { waitUntil: "domcontentloaded" });
+  await page.getByRole("link", { name: /Review point submissions/ }).click();
+  await expect(page).toHaveURL(
+    (url) => url.searchParams.get("tab") === "csf-submissions",
+  );
+  await expect(
+    page.getByRole("combobox", { name: "Semester", exact: true }),
+  ).toHaveValue(termId);
+  await expect(
+    page.getByRole("combobox", { name: "Class", exact: true }),
+  ).toHaveValue("");
+  await expect(
+    page.getByRole("combobox", { name: "Status", exact: true }),
+  ).toHaveValue("review");
+  const row = page.getByRole("row").filter({ hasText: submissionDescription });
   await expect(row).toBeVisible();
   await row.getByRole("button", { name: "Review", exact: true }).click();
-  const dialog = page.getByRole("dialog", { name: /^Review .+'s activity$/ });
+  const dialog = page.getByRole("dialog", {
+    name: /^Review submission from .+$/,
+  });
+  const proof = dialog.getByRole("figure", {
+    name: "proof-images.pdf",
+    exact: true,
+  });
+  await expect(proof).toBeVisible();
+  const original = proof.getByRole("button", {
+    name: "Open original",
+    exact: true,
+  });
+  await expect(original).toBeVisible();
+  await expect(original).toHaveAttribute("href", /^https?:\/\//);
+  await expect(proof.getByText("Page 1 of 2", { exact: true })).toBeVisible();
+  await expect(
+    proof.getByRole("img", { name: "proof-images.pdf, page 1", exact: true }),
+  ).toBeVisible();
+  await proof
+    .getByRole("button", { name: "Next proof page", exact: true })
+    .click();
+  await expect(proof.getByText("Page 2 of 2", { exact: true })).toBeVisible();
+  await expect(
+    proof.getByRole("img", { name: "proof-images.pdf, page 2", exact: true }),
+  ).toBeVisible();
+  await expect(
+    proof.getByRole("button", { name: "Next proof page", exact: true }),
+  ).toBeDisabled();
+  await proof
+    .getByRole("button", { name: "Zoom in proof page", exact: true })
+    .click();
+  await proof
+    .getByRole("button", { name: "Rotate proof page", exact: true })
+    .click();
+  await proof.getByRole("button", { name: "Reset view", exact: true }).click();
+  await page.setViewportSize({ width: 390, height: 844 });
+  await expect(proof).toBeVisible();
+  expect(
+    await dialog.evaluate(
+      (element) => element.scrollWidth <= element.clientWidth + 1,
+    ),
+  ).toBe(true);
+  await proof
+    .getByRole("button", { name: "Previous proof page", exact: true })
+    .click();
+  await expect(
+    proof.getByRole("img", { name: "proof-images.pdf, page 1", exact: true }),
+  ).toBeVisible();
+  await page.screenshot({
+    path: test
+      .info()
+      .outputPath(`proof-mobile-${decision.replaceAll(" ", "-")}.png`),
+  });
+  await page.setViewportSize({ width: 1280, height: 900 });
+  const canvas = proof.getByRole("img", {
+    name: "proof-images.pdf, page 1",
+    exact: true,
+  });
+  await expect
+    .poll(() =>
+      canvas.evaluate((element) => {
+        const canvas = element as HTMLCanvasElement;
+        return (
+          Math.abs(
+            canvas.getBoundingClientRect().width -
+              canvas.parentElement!.clientWidth,
+          ) < 2 && getComputedStyle(canvas).visibility === "visible"
+        );
+      }),
+    )
+    .toBe(true);
+  await dialog.evaluate((element) => {
+    element.scrollTop = 0;
+  });
+  await page.screenshot({
+    path: test
+      .info()
+      .outputPath(`proof-desktop-${decision.replaceAll(" ", "-")}.png`),
+  });
   await dialog.getByLabel("Review notes").fill(notes);
   await dialog.getByRole("button", { name: decision, exact: true }).click();
   await expect(dialog).toBeHidden();
@@ -80,15 +176,26 @@ test("point proof correction earns one verified credit only after officer approv
   browser,
 }) => {
   test.setTimeout(180_000);
+  await page.addLocatorHandler(
+    page.getByRole("dialog", {
+      name: "How was using Let's Assist?",
+      exact: true,
+    }),
+    async (feedback) => {
+      await feedback
+        .getByRole("button", { name: "Close", exact: true })
+        .click();
+    },
+  );
   // The fixture loader refuses remote or mismatched databases using the live
   // isolated-stack marker. Every new row belongs to this random activity.
   const fixture = await loadCsfFeedFixture();
   const runId = randomUUID();
   const activityTitle = `Synthetic point lifecycle ${runId}`;
-  const initialDescription = `Fictional service proof ${runId}`;
-  const correctedDescription = `Fictional service proof with task details ${runId}`;
+  const initialDescription = activityTitle;
+  const correctedDescription = `Corrected fictional activity name ${runId}`;
   const correctionNotes =
-    "Describe the service task shown in this fictional proof.";
+    "Correct the activity name shown in this fictional proof.";
   await seedFeedActivities(fixture, [
     {
       title: activityTitle,
@@ -156,7 +263,9 @@ test("point proof correction earns one verified credit only after officer approv
     await page
       .getByRole("option", { name: activityTitle, exact: true })
       .click();
-    await dialog.getByLabel("Description").fill(initialDescription);
+    await expect(dialog.getByLabel("Description", { exact: true })).toHaveCount(
+      0,
+    );
     await dialog
       .getByRole("button", { name: "Submit for review", exact: true })
       .click();
@@ -191,16 +300,18 @@ test("point proof correction earns one verified credit only after officer approv
       (await PDFDocument.load(await storedProof.arrayBuffer())).getPageCount(),
     ).toBe(2);
 
-    await loginAs(officer, "admin", officerPath);
+    await loginAs(officer, "admin", officerHomePath);
     await reviewSubmission(
       officer,
-      activityTitle,
+      initialDescription,
+      fixture.currentTermId,
       correctionNotes,
       "Request changes",
     );
     await expect
       .poll(async () => (await submissionFor(fixture, activity.id))?.status)
       .toBe("needs_action");
+    const changesRequested = (await submissionFor(fixture, activity.id))!;
     await page.reload({ waitUntil: "domcontentloaded" });
     expect(await verifiedTotal(page)).toBe(before);
     expect(await creditRows(fixture, submitted.id)).toEqual([]);
@@ -208,17 +319,31 @@ test("point proof correction earns one verified credit only after officer approv
       .getByRole("article")
       .filter({ hasText: initialDescription });
     await expect(card).toContainText(correctionNotes);
-    await card
-      .getByRole("button", { name: "Update and resubmit", exact: true })
-      .click();
-    const correction = page.getByRole("dialog", {
-      name: "Correct and resubmit",
+    await expect(
+      card.getByRole("button", { name: "Edit", exact: true }),
+    ).toBeVisible();
+    await card.getByRole("button", { name: "Details", exact: true }).click();
+    const details = page.getByRole("dialog", {
+      name: "Submission details",
       exact: true,
     });
-    await expect(correction).toContainText("Existing proof stays attached");
-    await correction.getByLabel("Description").fill(correctedDescription);
+    await expect(
+      details.getByRole("figure", { name: "proof-images.pdf", exact: true }),
+    ).toBeVisible();
+    await expect(details).toContainText(correctionNotes);
+    await details.getByRole("button", { name: "Edit", exact: true }).click();
+    const correction = page.getByRole("dialog", {
+      name: "Edit submission",
+      exact: true,
+    });
+    await expect(correction).toContainText(
+      "Your current proof stays attached until this edit saves.",
+    );
     await correction
-      .getByRole("button", { name: "Correct and resubmit", exact: true })
+      .getByRole("textbox", { name: "What you did", exact: true })
+      .fill(correctedDescription);
+    await correction
+      .getByRole("button", { name: "Save changes", exact: true })
       .click();
     await expect(correction).toBeHidden();
     await expect
@@ -227,12 +352,17 @@ test("point proof correction earns one verified credit only after officer approv
     expect((await submissionFor(fixture, activity.id))?.description).toBe(
       correctedDescription,
     );
+    expect((await submissionFor(fixture, activity.id))?.id).toBe(submitted.id);
+    expect((await submissionFor(fixture, activity.id))?.revision).toBe(
+      changesRequested.revision + 1,
+    );
     expect(await verifiedTotal(page)).toBe(before);
     expect(await creditRows(fixture, submitted.id)).toEqual([]);
 
     await reviewSubmission(
       officer,
-      activityTitle,
+      correctedDescription,
+      fixture.currentTermId,
       "Fictional proof and corrected task details verified.",
       "Approve award",
     );
@@ -279,9 +409,9 @@ test("point proof correction earns one verified credit only after officer approv
           previous_status: "needs_action",
           next_status: "submitted",
           details: expect.objectContaining({
-            proofRetained: true,
-            previousDescription: initialDescription,
-            description: correctedDescription,
+            requestId: expect.stringMatching(/^[0-9a-f-]{36}$/),
+            previousRevision: changesRequested.revision,
+            revision: changesRequested.revision + 1,
           }),
         }),
         expect.objectContaining({
@@ -290,6 +420,34 @@ test("point proof correction earns one verified credit only after officer approv
         }),
       ]),
     );
+    const { data: revisions, error: revisionError } = await fixture.admin
+      .schema("plugin_data")
+      .from("csf_admin_audit_events")
+      .select("before_data, after_data, correlation_id")
+      .eq("organization_id", fixture.organizationId)
+      .eq("target_id", submitted.id)
+      .eq("action", "point_submission.revised");
+    if (revisionError)
+      throw new Error(
+        `Could not read the fictional revision audit: ${revisionError.message}`,
+      );
+    expect(revisions).toHaveLength(1);
+    expect(revisions![0]).toMatchObject({
+      before_data: {
+        description: initialDescription,
+        revision: changesRequested.revision,
+      },
+      after_data: {
+        intent: { description: correctedDescription },
+        replacementFileId: null,
+        result: {
+          submissionId: submitted.id,
+          revision: changesRequested.revision + 1,
+        },
+      },
+      correlation_id: reviews?.find((review) => review.action === "resubmitted")
+        ?.details.requestId,
+    });
     const { data: proofAfter, error: retainedProofError } = await fixture.admin
       .schema("plugin_data")
       .from("csf_submission_files")

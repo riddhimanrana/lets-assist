@@ -26,7 +26,7 @@ CREATE EXTENSION IF NOT EXISTS pgtap WITH SCHEMA extensions;
 
 -- An exact plan. no_plan() cannot distinguish "every assertion passed" from "some never
 -- ran", and a fence that silently stops running is the failure this file exists to catch.
-SELECT extensions.plan(24);
+SELECT extensions.plan(37);
 
 INSERT INTO auth.users (
   id, aud, role, email, email_confirmed_at, raw_app_meta_data, raw_user_meta_data, created_at, updated_at
@@ -466,6 +466,119 @@ SELECT extensions.is(
      AND summary->>'previewJobId' = 'e3600000-0000-4000-8000-000000000001'),
   1,
   'and the replay did not duplicate the commit job'
+);
+
+-- Resolve the remaining row after the first partial commit. A new receipt is
+-- required for the new write; a retry after that write stays idempotent.
+UPDATE plugin_data.csf_sheet_import_rows
+SET import_status = 'pending',
+    matched_profile_id = 'e3300000-0000-4000-8000-000000000003'
+WHERE id = 'e3700000-0000-4000-8000-000000000003';
+
+SELECT extensions.throws_ok(
+  $$ SELECT plugin_data.csf_commit_meeting_attendance_import(
+    'e3100000-0000-4000-8000-000000000001',
+    'e3600000-0000-4000-8000-000000000001',
+    'e3000000-0000-4000-8000-000000000001',
+    'Import the newly resolved attendance row.', NULL, NULL, true
+  ) $$,
+  '55000',
+  'This CSF import must re-verify its source immediately before committing.',
+  'a follow-up partial commit cannot reuse the settled-replay path'
+);
+SELECT extensions.is(
+  (SELECT count(*)::integer FROM plugin_data.csf_meeting_attendance
+   WHERE term_meeting_id = 'e3400000-0000-4000-8000-000000000001'),
+  1, 'refusing the follow-up preserves the previously saved attendance'
+);
+
+INSERT INTO plugin_data.csf_sheet_source_evidence_tokens (
+  organization_id, source_id, actor_user_id, preview_job_id, provider, nonce,
+  evidence_generation, metadata_digest, provider_file_id, provider_version,
+  mime_type, modified_time, access_checked_at, expires_at
+)
+SELECT organization_id, source_id, actor_user_id, preview_job_id, provider,
+  'e3e00000-0000-4000-8000-000000000006',
+  evidence_generation, metadata_digest, provider_file_id, provider_version,
+  mime_type, modified_time, now(), now() + interval '2 minutes'
+FROM plugin_data.csf_sheet_source_evidence_tokens
+WHERE nonce = 'e3e00000-0000-4000-8000-000000000001';
+
+SELECT extensions.lives_ok(
+  $$ SELECT plugin_data.csf_commit_meeting_attendance_import(
+    'e3100000-0000-4000-8000-000000000001',
+    'e3600000-0000-4000-8000-000000000001',
+    'e3000000-0000-4000-8000-000000000001',
+    'Import the newly resolved attendance row.', NULL,
+    'e3e00000-0000-4000-8000-000000000006', true
+  ) $$,
+  'a follow-up partial commit accepts fresh source evidence'
+);
+SELECT extensions.ok(
+  EXISTS (SELECT 1 FROM plugin_data.csf_meeting_attendance
+    WHERE source_row_id = 'e3700000-0000-4000-8000-000000000003'
+      AND profile_id = 'e3300000-0000-4000-8000-000000000003')
+  AND NOT EXISTS (SELECT 1 FROM plugin_data.csf_profile_accounts
+    WHERE profile_id = 'e3300000-0000-4000-8000-000000000003'),
+  'the follow-up saves attendance directly on a profile without an account'
+);
+SELECT extensions.is(
+  (SELECT count(*)::integer FROM plugin_data.csf_sheet_import_jobs
+   WHERE mode = 'commit'
+     AND summary->>'previewJobId' = 'e3600000-0000-4000-8000-000000000001'),
+  1, 'the two reviewed populations retain one logical commit receipt'
+);
+SELECT extensions.ok(
+  (plugin_data.csf_commit_meeting_attendance_import(
+    'e3100000-0000-4000-8000-000000000001',
+    'e3600000-0000-4000-8000-000000000001',
+    'e3000000-0000-4000-8000-000000000001',
+    'Replay the completed follow-up.', NULL, NULL, true
+  )->>'idempotent')::boolean,
+  'replaying the completed follow-up needs no new receipt'
+);
+SELECT extensions.is(
+  (SELECT count(*)::integer FROM plugin_data.csf_meeting_attendance
+   WHERE term_meeting_id = 'e3400000-0000-4000-8000-000000000001'),
+  2, 'the follow-up retry creates no duplicate attendance'
+);
+SELECT extensions.is(
+  (SELECT count(*)::integer FROM plugin_data.csf_sheet_import_jobs
+   WHERE mode = 'commit'
+     AND summary->>'previewJobId' = 'e3600000-0000-4000-8000-000000000001'),
+  1, 'the follow-up retry creates no duplicate commit receipt'
+);
+SELECT extensions.is(
+  (SELECT raw_data FROM plugin_data.csf_sheet_import_rows
+   WHERE id = 'e3700000-0000-4000-8000-000000000003'),
+  '{"Name":"Unresolved Attendee","Timestamp":"2033-09-01T17:00:00Z"}'::jsonb,
+  'resolution and follow-up commit preserve the immutable source row'
+);
+
+SELECT extensions.is(
+  (plugin_data.csf_commit_meeting_attendance_import(
+    'e3100000-0000-4000-8000-000000000001',
+    'e3600000-0000-4000-8000-000000000001',
+    'e3000000-0000-4000-8000-000000000001',
+    'Read the settled batch result.', NULL, NULL, true
+  )->>'created')::integer,
+  1, 'a settled retry reports its batch count rather than the cumulative receipt'
+);
+SELECT extensions.is(
+  (SELECT (summary->>'created')::integer FROM plugin_data.csf_sheet_import_jobs
+   WHERE mode = 'commit' AND preview_job_id = 'e3600000-0000-4000-8000-000000000001'),
+  2, 'the logical receipt counts attendance from both batches'
+);
+SELECT extensions.is(
+  (SELECT count(*)::integer FROM plugin_data.csf_admin_audit_events
+   WHERE action = 'term_meeting.attendance_commit'
+     AND target_id = 'e3400000-0000-4000-8000-000000000001'),
+  2, 'each new population has an audit event and the retry adds none'
+);
+SELECT extensions.ok(
+  (SELECT consumed_at IS NOT NULL FROM plugin_data.csf_sheet_source_evidence_tokens
+   WHERE nonce = 'e3e00000-0000-4000-8000-000000000006'),
+  'the follow-up consumes its own fresh evidence receipt'
 );
 
 -- ---------------------------------------------------------------------------

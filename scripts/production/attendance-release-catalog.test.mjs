@@ -4,6 +4,7 @@ import { resolve } from "node:path";
 import test from "node:test";
 import { expectedVersions } from "./app-release-checks.mjs";
 import { acceptedCatalogQuery } from "./app-release-catalog.mjs";
+import { csfSubmissionDeletionCatalog } from "./csf-submission-deletion-catalog.mjs";
 import { finalSchemaCatalog, ledgerDigest } from "./final-schema-manifest.mjs";
 import { assertCleanInventory } from "./generate-final-schema-manifest.mjs";
 import { approvedMigrations } from "./forward-migration-release.mjs";
@@ -17,13 +18,17 @@ const readManifest = (count) =>
       "utf8",
     ),
   );
-const before = readManifest(638);
-const after = readManifest(642);
+// The attendance delta was reviewed on a fresh 638 -> 642 replay. It was then
+// renumbered after Development's 683-entry ledger. 687 applies that delta to
+// the 683 inventory, so the objects each side changes must stay disjoint.
+const reviewedBase = readManifest(638);
+const before = readManifest(683);
+const after = readManifest(687);
 const attendanceVersions = [
-  "20260921023000",
-  "20260921023001",
-  "20260921023002",
-  "20260921023003",
+  "20260929120000",
+  "20260929120001",
+  "20260929120002",
+  "20260929120003",
 ];
 const baselineLedger = ledger.filter(
   (version) => !attendanceVersions.includes(version),
@@ -91,29 +96,32 @@ const EXPECTED_CHANGED = [
   "relation:public.user_certificate_read_model",
 ];
 
-test("642 selects the exact attendance ledger without predecessor query rewriting", () => {
-  assert.equal(ledger.length, 642);
+test("687 selects the exact attendance ledger without predecessor query rewriting", () => {
+  assert.equal(ledger.length, 687);
   assert.equal(
     ledgerDigest(ledger),
-    "164c37c3002f3695ff2739e477c5dd028c28f5530c085a823beebf9f37f50aba",
+    "08211404c85b848f262937e27fc807c145677bd9f5d7b009fcfa0f4650f0ebd9",
   );
   assert.equal(
     acceptedCatalogQuery("invalid predecessor SQL", ledger),
-    finalSchemaCatalog(after, ledger),
+    csfSubmissionDeletionCatalog(finalSchemaCatalog(after, ledger)),
   );
   assert.equal(after.inventory, before.inventory);
   assert.doesNotThrow(() => assertCleanInventory(after.objects));
 });
 
-test("the frozen 638 baseline remains separate from attendance Production approval", () => {
-  assert.equal(baselineLedger.length, 638);
-  assert.deepEqual(ledger.slice(0, 638), baselineLedger);
-  assert.deepEqual(ledger.slice(638), attendanceVersions);
-  assert.equal(baselineLedger.at(-1), "20260921020100");
+test("the frozen 683 baseline remains separate from attendance Production approval", () => {
+  assert.equal(baselineLedger.length, 683);
+  assert.deepEqual(ledger.slice(0, 683), baselineLedger);
+  assert.deepEqual(ledger.slice(683), attendanceVersions);
+  assert.equal(baselineLedger.at(-1), "20260929031000");
+  assert.ok(
+    attendanceVersions.every((version) => version > baselineLedger.at(-1)),
+  );
   assert.equal(ledgerDigest(baselineLedger), before.ledger);
   assert.equal(
     acceptedCatalogQuery("", baselineLedger),
-    finalSchemaCatalog(before, baselineLedger),
+    csfSubmissionDeletionCatalog(finalSchemaCatalog(before, baselineLedger)),
   );
   for (const version of attendanceVersions) {
     assert.ok(
@@ -128,13 +136,20 @@ test("the attendance catalog refuses altered, reordered, and extended ledgers", 
     [...ledger, "20990101000000"],
     [...ledger].reverse(),
     ledger.slice(0, -1),
-    [...ledger.slice(0, 633), ...attendanceVersions],
+    [...ledger.slice(0, 678), ...attendanceVersions],
     [
-      ...ledger.slice(0, 632),
-      "20260920220700",
-      "20260920220701",
-      "20260920220702",
-      "20260920220703",
+      ...ledger.slice(0, 638),
+      "20260921023000",
+      "20260921023001",
+      "20260921023002",
+      "20260921023003",
+    ],
+    [
+      ...ledger.slice(0, 683),
+      "20260921023000",
+      "20260921023001",
+      "20260921023002",
+      "20260921023003",
     ],
   ]) {
     assert.throws(
@@ -190,4 +205,23 @@ test("existing definitions and permissions change only for attendance objects", 
   );
   for (const row of [...added, ...changed])
     assert.ok(!row.identity.includes(":plugin_data."));
+});
+
+test("the renumbered attendance delta is disjoint from Development's 638 to 683 changes", () => {
+  const base = new Map(
+    reviewedBase.objects.map((row) => [row.identity, row.digest]),
+  );
+  const developmentChanged = before.objects
+    .filter((row) => base.get(row.identity) !== row.digest)
+    .map((row) => row.identity);
+  const attendance = new Set([...added, ...changed].map((row) => row.identity));
+  assert.deepEqual(
+    developmentChanged.filter((identity) => attendance.has(identity)),
+    [],
+  );
+  assert.deepEqual(
+    reviewedBase.objects.filter((row) => !previous.has(row.identity)),
+    [],
+  );
+  assert.equal(before.inventory, reviewedBase.inventory);
 });

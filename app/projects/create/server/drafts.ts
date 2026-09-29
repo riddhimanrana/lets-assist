@@ -377,13 +377,11 @@ export async function updateDraft(
     projectData.visibility || project.visibility || "unlisted";
 
   if (targetVisibility === "public") {
-    const { data: tmProfile } = await supabase
-      .from("profiles")
-      .select("trusted_member")
-      .eq("id", user.id)
-      .single();
+    const { data: isTrustedMember } = await supabase.rpc("is_trusted_member", {
+      p_user: user.id,
+    });
 
-    if (!tmProfile?.trusted_member) {
+    if (isTrustedMember !== true) {
       const { data: tmApp } = await supabase
         .from("trusted_member")
         .select("status")

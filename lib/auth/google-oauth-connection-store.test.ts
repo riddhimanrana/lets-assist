@@ -171,6 +171,7 @@ describe("Google OAuth credential purpose boundaries", () => {
     const store = readSource("lib/auth/google-oauth-connection-store.ts");
     const service = readCalendarServiceSource();
     const calendarPage = readSource("app/account/calendar/page.tsx");
+    const calendarData = readSource("services/calendar-settings-data.ts");
     const csfGoogleImportActions = readSource(
       "lib/plugins/private/plugins/dvhs-csf/server/actions/import-google.ts",
     );
@@ -182,7 +183,9 @@ describe("Google OAuth credential purpose boundaries", () => {
       "binding_identity_verified_at: binding.identityVerifiedAt",
     );
     expect(service).toContain("hasLegacyGoogleOAuthReconnectRequired");
-    expect(calendarPage).toContain("legacyReconnectRequired");
+    expect(calendarPage).toContain("getCalendarData(user.id)");
+    expect(calendarPage).toContain("<CalendarClient {...calendarData}");
+    expect(calendarData).toContain("legacyReconnectRequired");
     expect(csfGoogleImportActions).toContain('"legacy_unbound"');
   });
 });

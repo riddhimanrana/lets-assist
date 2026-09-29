@@ -97,11 +97,11 @@ app runner; those remain the only permitted live stack and app launchers.
    atomically claims a free port bundle, proves Docker holds no container,
    volume, or network for the project, starts once, and records the exact
    `supabase_db_<project-id>` volume in its ownership marker.
-   If Docker repeatedly kills only the optional local Logflare analytics
-   container during startup, set `CSF_ISOLATED_ANALYTICS_MODE=disabled` for that
-   run. The launcher still reserves the analytics port and validates every
-   required database/auth/storage service; this switch never changes app or
-   provider behavior. Any value other than `enabled` or `disabled` is refused.
+   The launcher disables local Analytics and Studio by default to save memory.
+   Set `CSF_ISOLATED_ANALYTICS_MODE=enabled` or
+   `CSF_ISOLATED_STUDIO_MODE=enabled` before starting a new stack when you need
+   them. The launcher reserves their ports in either mode. Existing stacks keep
+   their original configuration until their owners stop them.
 3. Export that work directory and load the app environment through the
    **exact-byte validated loader**, one `KEY=VALUE` line at a time. Never
    `source` or `eval` the generated file on this path:

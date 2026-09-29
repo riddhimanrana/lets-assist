@@ -61,7 +61,7 @@ V9: judge ≠ tournament entry; eligibility checks clearance+training+availabili
 V10: AI output cannot persist assignment; staff approval + server revalidation required.
 V11: Tabroom import immutable raw snapshot + normalized data + sync status; manual overrides preserved.
 V12: external integration local/CI default = fixture; live call explicit opt-in.
-V13: consequential transition → immutable audit event.
+V13: consequential transition → immutable audit event, except the member deletion described in V132.
 V14: guardian token single-purpose + hashed + expires + one-time consume.
 V15: service credit mutation balanced ledger; no derived total overwrite.
 V16: build/typecheck/lint/tests pass after staged dependency upgrade.
@@ -74,7 +74,7 @@ V22: CSF meeting = logical requirement + ≥1 cohort session; attendance → sta
 V23: CSF partner club identity → canonical id + aliases + per-term record (relationship status, standing, policy-review flag + notes, reference-only spreadsheet link).
 V24: CSF import → immutable raw row + source id/hash + idempotent commit; color/name alone ≠ authoritative state.
 V25: CSF prior-term close + next-term onboarding may overlap.
-V26: CSF consequential mutation → server permission enforcement + immutable audit event.
+V26: CSF consequential mutation → server permission enforcement + immutable audit event, except V132.
 V27: CSF student files → private storage + scoped signed access; lifecycle delete removes objects.
 V28: CSF requirement evaluation shared by member UI, staff grid, reports, export, term close.
 V29: CSF route → fetch route-required data only; all-dashboard aggregate load ⊥.
@@ -180,6 +180,8 @@ V128: CSF activity/partner-club staff-authority mutation → each of `csf_create
 V129: independently deployed CSF application read → request-scoped publishable-key client + server-verified Supabase user + active organization membership + generic application-profile entitlement/install/runtime proof + caller-only current CSF role projection; microfrontend routing, submitted organization id, unverified cookie claims, service-role child credentials, and browser-direct CSF domain reads ⊥.
 V130: class Members search → controlled server query after two characters with a 300 ms debounce, explicit Search, immediate clear, cursor reset, and preservation of class, semester, standing, account, sort, and view parameters; typing without a request and unscoped roster search ⊥.
 V131: CSF release deployment → local gates first, then one marked Development build for the integrated root/private tree; ordinary feature branches, unmarked Development commits, and `main` Git pushes do not build the application; a signed embedded publication adds only its exact release catalog row and preserves the preceding reviewed schema catalog; Production uses the exact accepted tree and one approved Production pull request merged with a merge commit, preserving the accepted Development SHA as an ancestor and the accepted tree unchanged; the confirmed Production workflow prebuilds that tree, verifies schema first, stages and health-checks one prebuilt deployment, then promotes and verifies its alias.
+
+V132: Member Unsubmit permanently deletes an eligible owned, unawarded submission and its associated proof, revisions, reviews and submission audit snapshots. The action rechecks account ownership and open-term authority under lock, rejects finalized awards and records with exported or delivered review evidence, and reports success only after Storage deletion is confirmed. Temporary cleanup coordinates exist only while deletion is unfinished; completed deletion retains no submission history. This exception does not authorize deletion of another member's records or unrelated audit events.
 
 §T
 

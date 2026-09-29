@@ -109,16 +109,18 @@ test.each([undefined, "", "   "])(
 test("undated draft publication reaches the atomic status action without inventing dates", async () => {
   expect(await setCsfActivityStatusAction(org, form())).toEqual({
     success: true,
-    message: "Activity published.",
+    message: "Activity published. No announcement requested.",
   });
   expect(calls).toEqual([
     {
-      name: "csf_set_activity_status",
+      name: "csf_set_activity_status_with_email",
       payload: {
         p_organization_id: org,
         p_activity_id: activity,
         p_status: "published",
         p_reason: null,
+        p_email_requested: false,
+        p_email_topic: null,
         p_actor_user_id: actor,
         p_request_id: request,
       },

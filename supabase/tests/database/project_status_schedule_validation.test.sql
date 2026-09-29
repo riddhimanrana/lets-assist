@@ -1,7 +1,7 @@
 BEGIN;
 CREATE EXTENSION IF NOT EXISTS pgtap WITH SCHEMA extensions;
 SET search_path = public, extensions;
-SELECT plan(23);
+SELECT plan(28);
 
 SELECT is((SELECT count(*) FROM private.project_status_schedule_window('oneTime',
   '{"oneTime":{"date":"","startTime":"09:00","endTime":"10:00"}}', 'UTC')),
@@ -71,15 +71,42 @@ SELECT ok(NOT has_function_privilege('authenticated', 'private.project_status_sc
 
 INSERT INTO auth.users(id, aud, role, email, raw_app_meta_data, raw_user_meta_data)
 VALUES ('71050000-0000-4000-8000-000000000001', 'authenticated', 'authenticated', 'status-maintenance@local.test', '{}', '{}');
-INSERT INTO public.projects(id, creator_id, title, location, description, event_type, verification_method, schedule, status, project_timezone)
+INSERT INTO public.projects(id, creator_id, title, location, description, event_type, verification_method, schedule, status, project_timezone, workflow_status)
 VALUES
- ('71050000-0000-4000-8000-000000000002', '71050000-0000-4000-8000-000000000001', 'Incomplete schedule', 'Local', 'Synthetic', 'oneTime', 'manual', '{"oneTime":{"date":"","startTime":"","endTime":""}}', 'upcoming', 'UTC'),
- ('71050000-0000-4000-8000-000000000003', '71050000-0000-4000-8000-000000000001', 'Finished schedule', 'Local', 'Synthetic', 'oneTime', 'manual', '{"oneTime":{"date":"2020-01-01","startTime":"09:00","endTime":"10:00"}}', 'upcoming', 'UTC');
+ ('71050000-0000-4000-8000-000000000002', '71050000-0000-4000-8000-000000000001', 'Incomplete schedule', 'Local', 'Synthetic', 'oneTime', 'manual', '{"oneTime":{"date":"","startTime":"","endTime":""}}', 'upcoming', 'UTC', 'published'),
+ ('71050000-0000-4000-8000-000000000003', '71050000-0000-4000-8000-000000000001', 'Finished schedule', 'Local', 'Synthetic', 'oneTime', 'manual', '{"oneTime":{"date":"2020-01-01","startTime":"09:00","endTime":"10:00"}}', 'upcoming', 'UTC', 'published');
+INSERT INTO public.projects(id, creator_id, title, location, description, event_type, verification_method, schedule, status, project_timezone, workflow_status)
+VALUES
+ ('71050000-0000-4000-8000-000000000004', '71050000-0000-4000-8000-000000000001', 'Finished draft schedule', 'Local', 'Synthetic', 'oneTime', 'manual', '{"oneTime":{"date":"2020-01-01","startTime":"09:00","endTime":"10:00"}}', 'upcoming', 'UTC', 'draft'),
+ ('71050000-0000-4000-8000-000000000005', '71050000-0000-4000-8000-000000000001', 'Incomplete draft schedule', 'Local', 'Synthetic', 'oneTime', 'manual', '{"oneTime":{"date":"","startTime":"","endTime":""}}', 'upcoming', 'UTC', 'draft'),
+ ('71050000-0000-4000-8000-000000000006', '71050000-0000-4000-8000-000000000001', 'Legacy published schedule', 'Local', 'Synthetic', 'oneTime', 'manual', '{"oneTime":{"date":"2020-01-01","startTime":"09:00","endTime":"10:00"}}', 'upcoming', 'UTC', NULL);
 SELECT public.process_projects();
 SELECT results_eq(
   $$SELECT status FROM public.projects WHERE id IN ('71050000-0000-4000-8000-000000000002','71050000-0000-4000-8000-000000000003') ORDER BY id$$,
   $$VALUES ('upcoming'::text),('completed'::text)$$,
   'Malformed project stays unchanged while a valid project completes in the same pass'
+);
+SELECT results_eq(
+  $$SELECT status, workflow_status FROM public.projects WHERE id IN ('71050000-0000-4000-8000-000000000004','71050000-0000-4000-8000-000000000005') ORDER BY id$$,
+  $$VALUES ('upcoming'::text,'draft'::text),('upcoming'::text,'draft'::text)$$,
+  'Maintenance preserves both valid and incomplete drafts'
+);
+SELECT is(
+  (SELECT schedule->'oneTime'->>'date' FROM public.projects WHERE id = '71050000-0000-4000-8000-000000000005'),
+  '', 'Maintenance does not invent a date for an incomplete draft'
+);
+UPDATE public.projects SET workflow_status = 'published'
+WHERE id = '71050000-0000-4000-8000-000000000004';
+SELECT public.process_projects();
+SELECT is(
+  (SELECT status FROM public.projects WHERE id = '71050000-0000-4000-8000-000000000004'),
+  'completed', 'A valid draft enters status maintenance after publication'
+);
+SELECT ok(has_function_privilege('service_role', 'public.process_projects()', 'EXECUTE'),
+  'The service worker retains permission to maintain published projects');
+SELECT is(
+  (SELECT status FROM public.projects WHERE id = '71050000-0000-4000-8000-000000000006'),
+  'completed', 'Legacy null workflow status retains its published behavior'
 );
 SELECT * FROM finish();
 ROLLBACK;

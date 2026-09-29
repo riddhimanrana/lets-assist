@@ -12,6 +12,7 @@ import { createClient } from "@/lib/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import type { RealtimeChannel } from "@supabase/supabase-js";
 import { toast } from "sonner";
+import { createNotificationRefreshScheduler } from "./notification-refresh";
 
 // Types
 type NotificationSeverity = "info" | "warning" | "success";
@@ -183,6 +184,23 @@ export function NotificationProvider({
 
     console.log("[NotificationContext] Subscribing to channel:", channelName);
 
+    let cancelled = false;
+    const refreshScheduler = createNotificationRefreshScheduler(async () => {
+      refresh();
+      try {
+        const { count, error } = await supabase
+          .from("notifications")
+          .select("*", { count: "exact", head: true })
+          .eq("user_id", user.id)
+          .eq("read", false);
+        if (cancelled) return;
+        if (error) throw error;
+        if (count !== null) setUnreadCount(count);
+      } catch (error) {
+        if (!cancelled) console.error("Error refreshing notifications:", error);
+      }
+    });
+
     const channel = supabase
       .channel(channelName)
       .on(
@@ -194,14 +212,14 @@ export function NotificationProvider({
           filter: `user_id=eq.${user.id}`, // RLS Filter
         },
         async (payload: { new: NotificationRecord }) => {
-          if (!mountedRef.current) return;
+          if (cancelled || !mountedRef.current) return;
           console.log("[NotificationContext] INSERT received");
 
           // 1. Increment Unread Count
           setUnreadCount((prev) => prev + 1);
 
-          // 2. Trigger Refresh for lists
-          refresh();
+          // Realtime sends one event per row, including bulk updates.
+          refreshScheduler.schedule();
 
           // 3. Show Toast
           const newNotification = payload.new as NotificationRecord;
@@ -219,30 +237,9 @@ export function NotificationProvider({
           filter: `user_id=eq.${user.id}`,
         },
         () => {
-          if (!mountedRef.current) return;
+          if (cancelled || !mountedRef.current) return;
           console.log("[NotificationContext] UPDATE received");
-          // Just refresh list, might impact unread count if marked read externally
-          // Ideally we refetch unread count here too, or let the list refresh handle it?
-          // Let's refetch unread count to be safe/accurate:
-          refresh();
-
-          // Re-fetch unread count separately or rely on components to react to 'refreshTrigger'?
-          // Since unreadCount is local state here, we should update it.
-          // A simple way is to re-run the fetchUnreadCount logic, but that's in a different effect.
-          // We can just rely on the list component (NotificationPopover) to update the unread count?
-          // No, the Badge lives in Popover but uses count from here (eventually).
-          // ACTUALLY: In the new plan, Popover gets count FROM HERE.
-          // So we should re-fetch unread count on update.
-
-          // Quick fetch for accurate count
-          supabase
-            .from("notifications")
-            .select("*", { count: "exact", head: true })
-            .eq("user_id", user.id)
-            .eq("read", false)
-            .then(({ count }: { count: number | null }) => {
-              if (mountedRef.current && count !== null) setUnreadCount(count);
-            });
+          refreshScheduler.schedule();
         },
       )
       .subscribe((status: string, err?: Error) => {
@@ -265,6 +262,8 @@ export function NotificationProvider({
     channelRef.current = channel;
 
     return () => {
+      cancelled = true;
+      refreshScheduler.dispose();
       mountedRef.current = false;
       if (channelRef.current) {
         console.log("[NotificationContext] Cleaning up channel");

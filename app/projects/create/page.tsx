@@ -1,6 +1,7 @@
 import { Metadata } from "next";
 import ProjectCreator from "./ProjectCreator";
 import { createClient } from "@/lib/supabase/server";
+import { getProjectCreatorProfileById } from "@/lib/profile/public";
 import { resolveOrganizationPluginBehaviorHook } from "@/lib/plugins/resolve-plugin-behaviors";
 import { toOrganizationPluginAccessRole } from "@/lib/plugins/access-role";
 import { redirect } from "next/navigation";
@@ -121,11 +122,7 @@ export default async function CreateProjectPage({
   }
 
   // Get user profile information including profile picture
-  const { data: userProfile } = await supabase
-    .from("profiles")
-    .select("profile_image_url, trusted_member")
-    .eq("id", user.id)
-    .single();
+  const { data: userProfile } = await getProjectCreatorProfileById(user.id);
 
   // Public visibility requires trusted status. Accept either profile sync flag
   // or approved trusted_member application row.
@@ -165,7 +162,7 @@ export default async function CreateProjectPage({
     {
       id: "personal",
       name: "Personal Project",
-      logo_url: userProfile?.profile_image_url || null,
+      logo_url: userProfile?.avatar_url || null,
       role: "creator",
     },
   ];

@@ -100,21 +100,19 @@ async function withdrawSyntheticSubmission(
     .filter({ has: page.getByText(description, { exact: true }) });
   await expect(submission).toBeVisible();
   await submission
-    .getByRole("button", { name: "Withdraw", exact: true })
+    .getByRole("button", { name: "Unsubmit", exact: true })
     .click();
   const withdrawal = page.getByRole("dialog", {
-    name: "Withdraw point submission?",
+    name: "Unsubmit points?",
   });
   await expect(withdrawal).toContainText(description);
   await withdrawal
-    .getByRole("button", { name: "Withdraw", exact: true })
+    .getByRole("button", { name: "Unsubmit", exact: true })
     .click();
   await expect(withdrawal).toBeHidden();
   await expect
-    .poll(
-      async () => (await loadSyntheticSubmission(fixture, description))?.status,
-    )
-    .toBe("withdrawn");
+    .poll(async () => await loadSyntheticSubmission(fixture, description))
+    .toBeNull();
 }
 
 test.describe("DVHS CSF staff access presentation", () => {
@@ -265,7 +263,7 @@ test.describe("DVHS CSF staff access presentation", () => {
 });
 
 test.describe("DVHS CSF proof submission", () => {
-  test("phone proof field states its constraints and rejects an oversized file", async ({
+  test("phone proof field lists formats and rejects an oversized file", async ({
     page,
   }) => {
     const failures = watchBrowserFailures(page);
@@ -286,18 +284,19 @@ test.describe("DVHS CSF proof submission", () => {
     });
     await expect(proof).toBeVisible();
 
-    // The constraints are associated with the input, not merely nearby.
+    // Supported formats are inside Add proof and describe the input.
     const describedBy = await proof.getAttribute("aria-describedby");
     expect(describedBy).toContain("csf-submission-evidence-constraints");
     await expect(
       dialog.locator("#csf-submission-evidence-constraints"),
-    ).toContainText("10 MB maximum");
+    ).toHaveText("JPEG, PNG, WebP, HEIC, or PDF");
+    await expect(
+      dialog.getByText("Images: 10 MB each, 12 MB total"),
+    ).toHaveCount(0);
+    await expect(dialog.getByText("PDF: 4 MB")).toHaveCount(0);
     await expect(
       dialog.locator("#csf-submission-evidence-constraints"),
-    ).toContainText("JPEG, PNG, WebP, HEIC, or PDF");
-    await expect(
-      dialog.locator("#csf-submission-evidence-constraints"),
-    ).toContainText("stored privately");
+    ).not.toContainText("stored privately");
 
     // An accepted file reports its own name and formatted size.
     await proof.setInputFiles({
@@ -356,8 +355,8 @@ test.describe("DVHS CSF proof submission", () => {
   }) => {
     const failures = watchBrowserFailures(page);
     const fixture = await loadCsfFeedFixture();
-    const description = `Synthetic phone point claim ${randomUUID()}`;
     const activityTitle = `Synthetic upload activity ${randomUUID()}`;
+    const description = activityTitle;
     await seedFeedActivities(fixture, [
       {
         title: activityTitle,
@@ -405,8 +404,12 @@ test.describe("DVHS CSF proof submission", () => {
       await page
         .getByRole("option", { name: activityTitle, exact: true })
         .click();
-      await expect(dialog.getByText("Credit 1 non-drive point")).toBeVisible();
-      await dialog.getByLabel("Description").fill(description);
+      await expect(
+        dialog.getByText("1 non-drive point", { exact: true }),
+      ).toBeVisible();
+      await expect(
+        dialog.getByLabel("Description", { exact: true }),
+      ).toHaveCount(0);
 
       submissionStarted = true;
       await dialog
@@ -433,34 +436,74 @@ test.describe("DVHS CSF proof submission", () => {
         submission.getByText("Submitted", { exact: true }),
       ).toBeVisible();
 
+      const savedSubmission = await loadSyntheticSubmission(
+        fixture,
+        description,
+      );
+      expect(savedSubmission).not.toBeNull();
+      const { data: proofs, error: proofError } = await fixture.admin
+        .schema("plugin_data")
+        .from("csf_submission_files")
+        .select("bucket, object_path")
+        .eq("organization_id", fixture.organizationId)
+        .eq("submission_id", savedSubmission!.id);
+      expect(proofError).toBeNull();
+      expect(proofs).toHaveLength(1);
+
       await submission
-        .getByRole("button", { name: "Withdraw", exact: true })
+        .getByRole("button", { name: "Unsubmit", exact: true })
         .click();
       const withdrawal = page.getByRole("dialog", {
-        name: "Withdraw point submission?",
+        name: "Unsubmit points?",
       });
       await expect(withdrawal).toContainText(description);
       await withdrawal
-        .getByRole("button", { name: "Withdraw", exact: true })
+        .getByRole("button", { name: "Unsubmit", exact: true })
         .click();
       await expect(withdrawal).toBeHidden();
-      await expect(
-        submission.getByText("Withdrawn", { exact: true }),
-      ).toBeVisible();
-      await expect(
-        submission.getByRole("button", { name: "Withdraw", exact: true }),
-      ).toHaveCount(0);
+      await expect(submission).toHaveCount(0);
+      expect(await loadSyntheticSubmission(fixture, description)).toBeNull();
       submissionWithdrawn = true;
+      for (const table of ["csf_submission_files", "csf_submission_reviews"]) {
+        const result = await fixture.admin
+          .schema("plugin_data")
+          .from(table)
+          .select("submission_id")
+          .eq("organization_id", fixture.organizationId)
+          .eq("submission_id", savedSubmission!.id);
+        expect(result.error).toBeNull();
+        expect(result.data).toEqual([]);
+      }
+      const audit = await fixture.admin
+        .schema("plugin_data")
+        .from("csf_admin_audit_events")
+        .select("id")
+        .eq("organization_id", fixture.organizationId)
+        .eq("target_id", savedSubmission!.id);
+      expect(audit.error).toBeNull();
+      expect(audit.data).toEqual([]);
+      for (const proof of proofs ?? []) {
+        const split = proof.object_path.lastIndexOf("/");
+        const objects = await fixture.admin.storage
+          .from(proof.bucket)
+          .list(proof.object_path.slice(0, split), {
+            search: proof.object_path.slice(split + 1),
+          });
+        expect(objects.error).toBeNull();
+        expect(objects.data).toEqual([]);
+      }
+      await page.reload({ waitUntil: "domcontentloaded" });
+      await expect(
+        page.getByRole("heading", { name: "Point submissions", exact: true }),
+      ).toBeVisible();
+      await expect(submission).toHaveCount(0);
     } catch (error) {
       testFailure = error;
     }
 
     let cleanupFailure: unknown;
     try {
-      // A failed assertion must not leave a mutable synthetic submission in
-      // the shared isolated browser stack. A bounded service-role read observes
-      // whether the supported action materialized; cleanup itself still uses
-      // the member's audited UI withdrawal and retains immutable history.
+      // Use the member action to remove any claim left by a failed test.
       if (submissionStarted && !submissionWithdrawn) {
         await withdrawSyntheticSubmission(page, fixture, description);
       }

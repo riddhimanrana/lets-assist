@@ -65,7 +65,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     return () => mediaQuery.removeEventListener("change", handleChange);
   }, []);
 
-  React.useEffect(() => {
+  React.useLayoutEffect(() => {
     applyTheme(theme, systemTheme);
   }, [theme, systemTheme]);
 
@@ -81,6 +81,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const setTheme = React.useCallback((nextTheme: Theme) => {
+    applyTheme(nextTheme, getSystemTheme());
     setThemeState(nextTheme);
 
     try {

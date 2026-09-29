@@ -54,6 +54,7 @@ This directory is the canonical documentation home for humans and coding agents.
 - [Product contract](csf/product-contract.md)
 - [Officer runbook](csf/officer-runbook.md)
 - [Testing, release, and residual risk](csf/testing-and-release.md)
+- [CSF experience audit, September 25, 2026](csf/experience-audit-20260925.md)
 - [Synthetic reference workbook](csf/reference/c-o-2028-synthetic.xlsx)
 - [Real source-data layout and semantics](csf/source-data.md) (the files themselves live git-ignored in `docs/csf/source-data/`)
 - [Current curated evidence](csf/evidence/20260806-post-cleanup/index.html)

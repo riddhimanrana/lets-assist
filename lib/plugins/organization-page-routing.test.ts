@@ -31,9 +31,15 @@ describe("organization plugin member routing", () => {
       "utf8",
     );
 
-    expect(pageSource).toMatch(
-      /hook:\s*"organization\.tabs"[\s\S]{0,500}useAdminClient:\s*true/,
+    const navigationSource = readFileSync(
+      join(
+        import.meta.dir,
+        "../../app/organization/[id]/server/plugin-navigation-read.ts",
+      ),
+      "utf8",
     );
+    expect(pageSource).toContain("await loadOrganizationPluginNavigation({");
+    expect(navigationSource.startsWith('import "server-only";')).toBe(true);
   });
 
   test("remote preview keeps its active remote membership role without local revalidation", () => {

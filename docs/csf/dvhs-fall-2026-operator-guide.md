@@ -217,11 +217,11 @@ The historical class sheets do not establish account ownership. Application emai
 
 1. Open **Members**, select **Accounts to connect**, choose **Review**, and inspect the request and proposed student profile.
 2. Independently verify that the organization account belongs to that student. Do not rely only on a matching name or application email.
-3. Open the profile and choose **Connect account**. Enter the confirmed Let's Assist login email, explain how you verified identity, and check the identity confirmation.
+3. Open the profile and choose **Connect account**. Enter the confirmed Let's Assist login email and check the ownership confirmation. A written reason is not required.
 4. The login email may differ from the application contact. Do not overwrite imported contacts to force a match.
 5. Connect the account only after verification. For an incorrect request, enter a **Decision reason** and select **Reject request**. Pending connections cannot access the student's history. Connecting a record does not approve an application, award points, or grant a staff position.
 
-The older review dialog may show **Review only**, **Connection unavailable**, or
+The older review dialog may show **Review only** or
 **Identity checks**. These labels do not establish ownership.
 Use the profile's verification form after checking identity independently.
 
@@ -557,9 +557,9 @@ it into a Fall 2026 rule.
 
 1. Open **Activities** and use its creation control. Enter the reviewed term,
    audience, date, location, signup mode, point type/value/cap, and proof rule.
-   Use **Save draft** while incomplete; draft activities remain officer-only.
+   Use **Save as draft** while incomplete; draft activities remain officer-only.
 2. Review the saved details and member-facing signup/proof consequence. Select
-   **Publish activity** only when the record is complete. A row reading
+   **Publish** only when the record is complete. A row reading
    **Published** is publication evidence; a saved draft is not.
 3. Open **Point submissions**. Select **Review**, inspect the activity or club,
    claimed number, source relationship, and proof, then enter **Awarded points**

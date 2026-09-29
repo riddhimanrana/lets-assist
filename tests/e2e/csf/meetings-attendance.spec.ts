@@ -11,7 +11,7 @@ const MEETINGS_PATH = `${CSF_ORGANIZATION_PATH}?tab=csf-activities&csf_service=m
 const MEETING_LABEL = "Spring General Meeting";
 const ROSTER_MEMBER_NAME = "Aarav Mehta";
 const ROSTER_MEMBER_EMAIL = "aarav.mehta28@students.local.test";
-const ROSTER_MEMBER_LABEL = `${ROSTER_MEMBER_NAME} · ${ROSTER_MEMBER_EMAIL}`;
+const ROSTER_MEMBER_LABEL = `${ROSTER_MEMBER_NAME} · ${ROSTER_MEMBER_EMAIL} · Record 10000000`;
 
 const MENU_ACTIONS = [
   "Import attendance",

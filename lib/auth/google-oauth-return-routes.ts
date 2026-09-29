@@ -8,7 +8,7 @@
  * is matched against that set instead.
  *
  * The call sites this mirrors are exact:
- *   personal_calendar     account/calendar, a project page
+ *   personal_calendar     account/calendar, a project page, My CSF calendar
  *   personal_sheets       account/calendar (no initiating surface today)
  *   organization_calendar organization settings, calendar section
  *   organization_sheets   organization settings sheets section, reports tab
@@ -41,6 +41,7 @@ type ReturnRouteQueryValueRule =
 type ReturnRouteRule = {
   /** Path segments; `:org` matches an allowed organization id or slug. */
   path: readonly string[];
+  hash?: string;
   /** Exactly the query keys allowed, each with its allowed values. */
   query?: Readonly<Record<string, ReturnRouteQueryValueRule>>;
   /** Query keys that must be present exactly once. */
@@ -71,6 +72,12 @@ const RETURN_ROUTE_RULES: Readonly<
   personal_calendar: [
     { path: ["account", "calendar"] },
     { path: ["projects", ":id"] },
+    {
+      path: ["organization", ":id"],
+      query: { tab: ["csf-profile"] },
+      requiredQuery: ["tab"],
+      hash: "#calendar",
+    },
   ],
   personal_sheets: [{ path: ["account", "calendar"] }],
   organization_calendar: [
@@ -189,7 +196,7 @@ function matchesRule(
   url: URL,
   allowedOrganizationSegments: ReadonlySet<string>,
 ): boolean {
-  if (url.hash) return false;
+  if (url.hash !== (rule.hash ?? "")) return false;
 
   const segments = url.pathname.split("/").filter(Boolean);
   if (segments.length !== rule.path.length) return false;

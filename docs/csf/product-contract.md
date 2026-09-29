@@ -9,6 +9,26 @@ This document defines the product, operating model, information architecture, te
 
 ## Amendment record
 
+### Amendment 11: Weekly activities and shorter point submissions (September 20, 2026)
+
+The owner requested a compact activity list with search, a week filter, and
+collapsible date groups. Weeks start Sunday in the chapter's Pacific time zone.
+Undated activities stay in a separate group. Existing term, publication, and
+class visibility rules still decide which activities a viewer can see. Officer
+editing controls remain separate from the activity link.
+
+A point submission for a selected activity or approved club does not require a
+narrative. The server records the authorized source name when no older client
+provided a description. Other submissions ask for the activity or club name.
+Event date, claimed points, and private proof remain in the submission form.
+Published policy still controls outside volunteering and proof requirements.
+
+Selected image files show local previews. Uploads still accept up to five images
+or one PDF within the existing file and total size limits. Broken supported
+images and unreadable PDFs fail before storage. Failed submissions retain the
+selection and retry identity. Officers still review each claim before any
+verified credit changes.
+
 ### Amendment 10: Claimed-account recovery notice (September 16, 2026)
 
 The owner explicitly approved showing the linked account's full verified email in an already-claimed notice. The caller must be signed in with a verified email and use an active class code. The server applies the join rate limit and requires one exact active profile match in that organization and class, with one verified account owner. Duplicate matches, conflicting links, an unverified owner address, or an unavailable owner lookup receive a generic claimed notice.
@@ -170,7 +190,7 @@ remains:
   history (Amendment 9).
 - **Per-class review.** Unresolved joins wait in the class's **Record
   connections** queue. Authorized staff use **Review** and **Connect account**
-  after verifying identity and recording their decision. Application and login
+  after verifying identity and checking the ownership confirmation. A written reason is not required for connections; the audit records the staff confirmation. Suggestions load in the queue, and staff can choose another record when needed. Recorded student name confirmations remain context only. Application and login
   emails may differ. **Reject request** requires a reason. Connecting an account
   does not approve an application, award points, or grant a staff position.
   Officer Home shows the pending **Connection requests** count.
@@ -744,13 +764,15 @@ Activity lifecycle: `draft`, `published`, `closed`, `cancelled`, `archived`.
 **Purpose:** Let members submit one claim and let officers turn it into an explicit awarded quantity.<br>
 **Primary users:** Members, point reviewers, and adviser.<br>
 **Shows:** Member, related activity/partner club, service date, claimed points, evidence, submission state, awarded points, reviewer, and appeal state.<br>
-**Member actions:** Submit, correct requested information, withdraw before review, appeal a decision.<br>
+**Member actions:** Submit, edit an unreviewed or correction-requested claim, Unsubmit, appeal a decision.<br>
 **Officer actions:** Approve, adjust with reason, request correction, reject, process appeal, and open member context.<br>
 **Filters/search:** Term, submission state, activity, point type, reviewer, appeal state, date, member search.<br>
 **Empty states:** Member has no submissions; officer queue is clear; no filter matches.<br>
 **Validation:** A submission chooses a published activity or a partner club with active standing for the current term unless an officer records a permitted manual adjustment. One submission may award any valid numeric amount up to policy and activity caps; it is never represented by duplicated one-point slots.<br>
 **Permissions:** Members see only their own records and student-facing notes.<br>
 **Mobile:** Review becomes a full-height sheet/page with evidence and decision footer.
+
+Unsubmit permanently deletes an eligible owned, unawarded submission, its proof files, previous edits, reviews and submission audit snapshots. It leaves no withdrawn row in member or officer history. The server rechecks ownership and term authority, serializes against officer review, and confirms file deletion before reporting success. Failed cleanup remains retryable with temporary file coordinates, which are removed when cleanup finishes. A queued Sheet export with no write attempt is cancelled during deletion. Final decisions, awarded claims, Sheet exports that have started, and delivered review evidence use the correction workflow.
 
 A `needs_action` correction resubmits the same submission; it is not an appeal or a replacement claim. The atomic transition revalidates verified ownership, current open term, active membership, current activity policy or active partner-club standing, and proof requirements while preserving prior review, audit, and correlated resubmission history.
 

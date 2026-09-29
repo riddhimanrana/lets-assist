@@ -300,6 +300,7 @@ export function FeedbackTabView({
                           </div>
                           <p className="line-clamp-1 text-sm font-medium">
                             {item.title}
+                            {item.rating ? ` · ${item.rating}/5` : ""}
                           </p>
                         </div>
                         <span className="shrink-0 text-[11px] text-muted-foreground">
@@ -375,6 +376,9 @@ export function FeedbackTabView({
 
                 <h3 className="text-lg font-semibold leading-tight">
                   {selectedFeedback.title}
+                  {selectedFeedback.rating
+                    ? ` · ${selectedFeedback.rating}/5`
+                    : ""}
                 </h3>
                 <p className="whitespace-pre-wrap text-sm leading-relaxed text-foreground/90">
                   {selectedFeedback.feedback}

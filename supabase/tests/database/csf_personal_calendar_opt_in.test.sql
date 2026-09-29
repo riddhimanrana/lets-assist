@@ -1,7 +1,7 @@
 BEGIN;
 
 CREATE EXTENSION IF NOT EXISTS pgtap WITH SCHEMA extensions;
-SELECT extensions.plan(42);
+SELECT extensions.plan(46);
 
 SELECT extensions.ok(
   to_regclass('plugin_data.csf_personal_calendar_bindings') IS NOT NULL
@@ -475,6 +475,23 @@ SELECT extensions.is(
   4,
   'the durable ledger contains create, reconcile, withdraw, and removed no-op receipts only'
 );
+
+
+-- Shift-only activities keep the same class authorization as dated activities.
+UPDATE plugin_data.csf_opportunities SET cohort_id='ca300000-0000-4000-8000-000000000001',
+starts_at=NULL,ends_at=NULL,earning_rules='{"version":1,"mode":"shifts","components":[{"kind":"shift","key":"morning","label":"Morning","points":2,"category":"non_drive","startsAt":"2038-09-01T16:00:00Z","endsAt":"2038-09-01T18:00:00Z"}],"shiftPolicy":{"allowMultiple":false,"combinedMaxPoints":2}}'::jsonb
+WHERE id='ca600000-0000-4000-8000-000000000001';
+SELECT extensions.ok(NOT plugin_data.csf_personal_calendar_source_is_authorized('ca100000-0000-4000-8000-000000000001','ca000000-0000-4000-8000-000000000001','csf_opportunity','ca600000-0000-4000-8000-000000000001'),'term membership alone cannot authorize another class activity');
+INSERT INTO plugin_data.csf_profile_cohort_memberships(organization_id,profile_id,cohort_id,status)
+VALUES('ca100000-0000-4000-8000-000000000001','ca400000-0000-4000-8000-000000000001','ca300000-0000-4000-8000-000000000001','active');
+SELECT extensions.ok(plugin_data.csf_personal_calendar_source_is_authorized('ca100000-0000-4000-8000-000000000001','ca000000-0000-4000-8000-000000000001','csf_opportunity','ca600000-0000-4000-8000-000000000001'),'active class member may add an activity whose only dates are shifts');
+UPDATE plugin_data.csf_profile_cohort_memberships SET status='archived'
+WHERE profile_id='ca400000-0000-4000-8000-000000000001';
+SELECT extensions.ok(NOT plugin_data.csf_personal_calendar_source_is_authorized('ca100000-0000-4000-8000-000000000001','ca000000-0000-4000-8000-000000000001','csf_opportunity','ca600000-0000-4000-8000-000000000001'),'archived class access cannot add the activity');
+UPDATE plugin_data.csf_profile_cohort_memberships SET status='active'
+WHERE profile_id='ca400000-0000-4000-8000-000000000001';
+UPDATE plugin_data.csf_opportunities SET status='cancelled',cancelled_at=now(),cancellation_reason='Fictional cancellation' WHERE id='ca600000-0000-4000-8000-000000000001';
+SELECT extensions.ok(NOT plugin_data.csf_personal_calendar_source_is_authorized('ca100000-0000-4000-8000-000000000001','ca000000-0000-4000-8000-000000000001','csf_opportunity','ca600000-0000-4000-8000-000000000001'),'a cancelled shift activity cannot be added');
 
 SELECT * FROM extensions.finish();
 ROLLBACK;

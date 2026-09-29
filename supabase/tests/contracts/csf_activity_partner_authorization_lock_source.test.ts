@@ -28,6 +28,14 @@ const partnerClubActions = read(
   "lib/plugins/private/plugins/dvhs-csf/server/actions/partner-clubs.ts",
 );
 
+const emailIntentMigration = read(
+  "supabase/migrations/20260923033010_csf_durable_activity_email_intent.sql",
+);
+const activityEmailWrappers: Record<string, string> = {
+  csf_create_activity: "csf_create_activity_with_email",
+  csf_set_activity_status: "csf_set_activity_status_with_email",
+};
+
 const ACTIVITY_DENIAL = "Not authorized to manage CSF activities.";
 const PARTNER_DENIAL = "Not authorized to manage CSF partner clubs.";
 
@@ -401,19 +409,37 @@ describe("CSF activity and partner mutation authorization lock boundary", () => 
     }
   });
 
-  test("every calling Server Action surfaces the database authorization denial verbatim", () => {
-    // The intentional replay change means a denied call can follow a durable
-    // committed outcome. No call site may replace the database's authorization
-    // sentence with a generic failure string, and none may report success.
+  test("email wrappers preserve the authorized mutation before capturing email intent", () => {
+    for (const [operation, wrapper] of Object.entries(activityEmailWrappers)) {
+      const start = emailIntentMigration.indexOf(
+        `CREATE FUNCTION plugin_data.${wrapper}(`,
+      );
+      const next = emailIntentMigration.indexOf("CREATE FUNCTION", start + 1);
+      expect(start).toBeGreaterThanOrEqual(0);
+      const body = emailIntentMigration.slice(start, next);
+      const authorizedCall = `plugin_data.${operation}(${argumentNames[operation].join(",")})`;
+      expect(body).toContain(authorizedCall);
+      expect(body.indexOf(authorizedCall)).toBeLessThan(
+        body.indexOf("plugin_data.csf_capture_activity_email_intent("),
+      );
+      expect(body).not.toMatch(/EXCEPTION\s+WHEN/iu);
+    }
+  });
+
+  test("every calling Server Action keeps authorization failures out of success results", () => {
+    // Activity refusals retain the request ID because a denied retry can follow
+    // an earlier commit whose response was lost.
     for (const operation of operations) {
       expect(operation.caller).toMatch(
-        new RegExp(`\\.rpc\\(\\s*"${escaped(operation.name)}"`),
+        new RegExp(
+          `\\.rpc\\(\\s*"${escaped(activityEmailWrappers[operation.name] ?? operation.name)}"`,
+        ),
       );
     }
 
     for (const caller of [opportunityActions, partnerClubActions]) {
-      // Every RPC error is thrown, so it reaches the shared catch that returns
-      // `error.message`; nothing swallows it into a success result.
+      // Errors reach a failure result, either directly or through the activity
+      // refusal classifier. They never claim that an earlier attempt rolled back.
       expect(caller).toContain("error instanceof Error");
       expect(caller).toContain("? error.message");
       expect(caller).not.toMatch(
@@ -430,7 +456,9 @@ describe("CSF activity and partner mutation authorization lock boundary", () => 
         ),
     );
     for (const operation of operations) {
-      expect(rpcCallSites).toContain(operation.name);
+      expect(rpcCallSites).toContain(
+        activityEmailWrappers[operation.name] ?? operation.name,
+      );
     }
   });
 });
