@@ -4,6 +4,12 @@ import { useState, useEffect, useMemo } from "react";
 import { Project, Signup } from "@/types";
 import { AuthUser } from "@/lib/supabase/types";
 import {
+  isVolunteerSessionPublished,
+  matchVolunteerCertificate,
+  volunteerAttendanceDuration,
+  type VolunteerCertificate,
+} from "@/lib/projects/volunteer-attendance-duration";
+import {
   Card,
   CardContent,
   CardDescription,
@@ -14,6 +20,7 @@ import { Button, buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { Progress } from "@/components/ui/progress";
 import { getSlotDetails } from "@/utils/project";
+import { getScheduleIdAliases } from "@/lib/projects/hours-publish-key";
 import {
   getProjectStartDateTime,
   getProjectEndDateTime,
@@ -85,56 +92,6 @@ function getCombinedDateTime(dateStr: string, timeStr: string): Date | null {
   }
 }
 
-// Helper function to calculate and format duration between check-in and check-out
-function calculateVolunteerDuration(
-  checkIn: string | null,
-  checkOut: string | null,
-): {
-  text: string;
-  isValid: boolean;
-  totalMinutes: number;
-} {
-  if (!checkIn || !checkOut) {
-    return { text: "Incomplete", isValid: false, totalMinutes: 0 };
-  }
-
-  try {
-    const checkInDate = parseISO(checkIn);
-    const checkOutDate = parseISO(checkOut);
-
-    if (isNaN(checkInDate.getTime()) || isNaN(checkOutDate.getTime())) {
-      return { text: "Invalid times", isValid: false, totalMinutes: 0 };
-    }
-
-    const diffMinutes = differenceInMinutes(checkOutDate, checkInDate);
-
-    if (diffMinutes < 0) {
-      return { text: "Invalid duration", isValid: false, totalMinutes: 0 };
-    }
-
-    if (diffMinutes > 24 * 60) {
-      return { text: "Over 24h", isValid: false, totalMinutes: diffMinutes };
-    }
-
-    const hours = Math.floor(diffMinutes / 60);
-    const minutes = diffMinutes % 60;
-
-    if (hours > 0 && minutes > 0) {
-      return {
-        text: `${hours}h ${minutes}m`,
-        isValid: true,
-        totalMinutes: diffMinutes,
-      };
-    } else if (hours > 0) {
-      return { text: `${hours}h`, isValid: true, totalMinutes: diffMinutes };
-    } else {
-      return { text: `${minutes}m`, isValid: true, totalMinutes: diffMinutes };
-    }
-  } catch {
-    return { text: "Error calculating", isValid: false, totalMinutes: 0 };
-  }
-}
-
 interface Props {
   project: Project;
   user: AuthUser;
@@ -158,8 +115,11 @@ export default function UserDashboard({
   >(null);
   const [isMounted, setIsMounted] = useState(false);
 
-  // 🆕 store map of signup_id → certificate.id
-  const [certMap, setCertMap] = useState<Record<string, string>>({});
+  // Certificate snapshots are keyed by their exact signup.
+  const [certMap, setCertMap] = useState<Record<string, VolunteerCertificate>>(
+    {},
+  );
+  const [certificateReadComplete, setCertificateReadComplete] = useState(false);
   const [waiverSignatures, setWaiverSignatures] = useState<
     Array<{ id: string; signed_at: string | null; created_at: string }>
   >([]);
@@ -222,32 +182,47 @@ export default function UserDashboard({
     return () => clearInterval(intervalId);
   }, []);
 
-  // 🆕 fetch certificates for all signups once
   useEffect(() => {
+    let current = true;
+    setCertMap({});
+    setCertificateReadComplete(false);
     const supabase = createClient();
     supabase
       .from("certificates")
-      .select("id, signup_id")
+      .select(
+        "id, signup_id, project_id, schedule_id, type, credited_minutes, event_start, event_end",
+      )
+      .eq("project_id", project.id)
+      .or("type.eq.verified,type.is.null")
+      .order("created_at", { ascending: false })
       .in(
         "signup_id",
         signups.map((s) => s.id),
       )
       .then(({ data, error }) => {
+        if (!current) return;
+        setCertificateReadComplete(true);
         if (error) {
-          console.error("Error fetching certificates:", error);
+          console.error("Could not load volunteer certificates.");
         } else {
-          const map: Record<string, string> = {};
-          const certificates = (data ?? []) as Array<{
-            id: string;
-            signup_id: string;
-          }>;
-          certificates.forEach((cert) => {
-            map[cert.signup_id] = cert.id;
-          });
+          const map: Record<string, VolunteerCertificate> = {};
+          for (const cert of (data ?? []) as VolunteerCertificate[]) {
+            const signup = signups.find((item) => item.id === cert.signup_id);
+            if (
+              signup &&
+              !map[signup.id] &&
+              matchVolunteerCertificate(project, signup, cert)
+            ) {
+              map[signup.id] = cert;
+            }
+          }
           setCertMap(map);
         }
       });
-  }, [signups]);
+    return () => {
+      current = false;
+    };
+  }, [signups, project]);
 
   // --- ADDED: Calculate overall project phase for signup-only alerts ---
   const projectStartDateTime = useMemo(
@@ -319,7 +294,11 @@ export default function UserDashboard({
 
         // Handle pending signups (e.g., from linked anonymous profiles)
         if (signup.status === "pending") {
-          const details = getSlotDetails(project, signup.schedule_id);
+          const details = getSlotDetails(
+            project,
+            getScheduleIdAliases(project, signup.schedule_id)[0] ??
+              signup.schedule_id,
+          );
           if (!details) return null; // Skip if slot details not found
 
           // Find the date for the slot
@@ -362,7 +341,11 @@ export default function UserDashboard({
           };
         }
 
-        const details = getSlotDetails(project, signup.schedule_id);
+        const details = getSlotDetails(
+          project,
+          getScheduleIdAliases(project, signup.schedule_id)[0] ??
+            signup.schedule_id,
+        );
         if (!details) return null; // Skip if slot details not found
 
         // Find the date for the slot
@@ -416,11 +399,14 @@ export default function UserDashboard({
         const isPastPostEventWindow = sessionOver && hoursSinceEnd >= 48;
 
         // --- ADDED: Check if hours are published for this specific schedule_id ---
-        const areHoursPublished =
-          project.published && project.published[signup.schedule_id] === true;
+        const areHoursPublished = isVolunteerSessionPublished(
+          project,
+          signup.schedule_id,
+        );
 
         // --- Check for corresponding certificate based on signup_id ---
-        const certificateId = certMap[signup.id] ?? null;
+        const certificate = certMap[signup.id];
+        const certificateId = certificate?.id ?? null;
         // --- END ADDED ---
 
         // --- For approved users who didn't attend, show no-show message after event ---
@@ -727,26 +713,25 @@ export default function UserDashboard({
                         </span>
                       </div>
                     )}
-                    {status.checkInTime &&
-                      status.checkOutTime &&
-                      (() => {
-                        const duration = calculateVolunteerDuration(
-                          status.checkInTime.toISOString(),
-                          status.checkOutTime.toISOString(),
-                        );
-                        return (
-                          <div className="flex justify-between items-center">
-                            <span className="font-medium text-muted-foreground">
-                              Total Hours:
-                            </span>
-                            <span
-                              className={`font-semibold ${duration.isValid ? "text-success" : "text-destructive"}`}
-                            >
-                              {duration.text}
-                            </span>
-                          </div>
-                        );
-                      })()}
+                    {(() => {
+                      const duration = volunteerAttendanceDuration(
+                        status.signup,
+                        certMap[status.signup.id],
+                        { certificateReadComplete },
+                      );
+                      return (
+                        <div className="flex justify-between items-center">
+                          <span className="font-medium text-muted-foreground">
+                            Total Hours:
+                          </span>
+                          <span
+                            className={`font-semibold ${duration.isValid ? "text-success" : "text-destructive"}`}
+                          >
+                            {duration.text}
+                          </span>
+                        </div>
+                      );
+                    })()}
                   </div>
 
                   {/* Info Section */}
@@ -831,26 +816,24 @@ export default function UserDashboard({
                         </span>
                       </div>
                     )}
-                    {status.checkInTime &&
-                      status.checkOutTime &&
-                      (() => {
-                        const duration = calculateVolunteerDuration(
-                          status.checkInTime.toISOString(),
-                          status.checkOutTime.toISOString(),
-                        );
-                        return (
-                          <div className="flex justify-between items-center">
-                            <span className="font-medium text-muted-foreground">
-                              Total Hours:
-                            </span>
-                            <span
-                              className={`font-semibold ${duration.isValid ? "text-warning" : "text-destructive"}`}
-                            >
-                              {duration.text}
-                            </span>
-                          </div>
-                        );
-                      })()}
+                    {(() => {
+                      const duration = volunteerAttendanceDuration(
+                        status.signup,
+                        certMap[status.signup.id],
+                      );
+                      return (
+                        <div className="flex justify-between items-center">
+                          <span className="font-medium text-muted-foreground">
+                            Total Hours:
+                          </span>
+                          <span
+                            className={`font-semibold ${duration.isValid ? "text-warning" : "text-destructive"}`}
+                          >
+                            {duration.text}
+                          </span>
+                        </div>
+                      );
+                    })()}
                   </div>
 
                   {/* Processing information with visual timeline */}
@@ -1208,6 +1191,8 @@ export default function UserDashboard({
   }, [
     signupStatuses,
     project,
+    certMap,
+    certificateReadComplete,
     setSelectedScheduleForScan,
     setIsCameraModalOpen,
     isSignupOnly,

@@ -167,3 +167,65 @@ describe("getAttendanceScheduleWindow — timezone handling", () => {
     }
   });
 });
+
+describe("legacy attendance session windows", () => {
+  test("one-time aliases resolve to the same actual window", () => {
+    const project = oneTimeProject();
+    const expected = getAttendanceScheduleWindow(project, "oneTime");
+    for (const id of ["0", "default"])
+      expect(getAttendanceScheduleWindow(project, id)).toEqual(expected);
+    expect(getAttendanceScheduleWindow(project, "unknown")).toBeNull();
+  });
+  test("all multi-day aliases preserve the selected session window", () => {
+    const project = oneTimeProject({
+      event_type: "multiDay",
+      schedule: {
+        multiDay: [
+          {
+            date: "2026-09-15",
+            slots: [
+              { startTime: "09:00", endTime: "12:00", volunteers: 5 },
+              { startTime: "13:00", endTime: "15:00", volunteers: 5 },
+            ],
+          },
+        ],
+      },
+    });
+    const expected = getAttendanceScheduleWindow(project, "2026-09-15-0-1");
+    expect(expected).not.toBeNull();
+    for (const id of ["2026-09-15-1", "0-1", "day-0-slot-1"])
+      expect(getAttendanceScheduleWindow(project, id)).toEqual(expected);
+    expect(getAttendanceScheduleWindow(project, "day-0-slot-2")).toBeNull();
+    expect(getAttendanceScheduleWindow(project, "2026-09-15-7-1")).toBeNull();
+  });
+  test("role aliases resolve without crossing into another role", () => {
+    const project = oneTimeProject({
+      event_type: "sameDayMultiArea",
+      schedule: {
+        sameDayMultiArea: {
+          date: "2026-09-15",
+          overallStart: "09:00",
+          overallEnd: "15:00",
+          roles: [
+            {
+              name: "Setup",
+              startTime: "09:00",
+              endTime: "12:00",
+              volunteers: 5,
+            },
+            {
+              name: "Cleanup",
+              startTime: "13:00",
+              endTime: "15:00",
+              volunteers: 5,
+            },
+          ],
+        },
+      },
+    });
+    const expected = getAttendanceScheduleWindow(project, "Cleanup");
+    expect(expected).not.toBeNull();
+    expect(getAttendanceScheduleWindow(project, "role-1")).toEqual(expected);
+    expect(getAttendanceScheduleWindow(project, "role-2")).toBeNull();
+  });
+});

@@ -16,13 +16,18 @@ import {
 } from "@/components/ui/card";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
+import { describeAttendanceFailure } from "@/lib/projects/paper-signup/review-state";
+import { startManualAttendance } from "./manual-actions";
 import { ScheduleSlotStep } from "./ScheduleSlotStep";
 import { CaptureStep } from "./CaptureStep";
 import { ReviewTable } from "./ReviewTable";
 import { discardPaperScanBatch, retryPaperScanCertificates } from "./actions";
+import { findPaperScanSlot, isPaperScanSlotPublished } from "./slot-match";
 
 export interface PaperScanSlotOption {
   id: string;
+  aliases?: string[];
+  publishKey?: string;
   label: string;
   windowStartsAt: number;
   windowEndsAt: number;
@@ -31,8 +36,9 @@ export interface PaperScanSlotOption {
 export interface PaperScanBatchView {
   id: string;
   scheduleId: string;
-  status: "draft" | "extracting" | "review";
+  status: "draft" | "extracting" | "review" | "failed";
   imageCount: number;
+  inputMethod?: "scan" | "manual";
 }
 
 export interface PaperScanRowView {
@@ -60,12 +66,19 @@ export interface PaperScanRowView {
   decision: "pending" | "include" | "exclude";
   outcome: string;
   outcomeDetail: string | null;
+  savedAttendance?: boolean;
+  attendanceIntervals: import("@/lib/projects/paper-signup/intervals").AttendanceInterval[];
+  reviewAcknowledged: boolean;
+  identityConfirmed: boolean;
+  timeExceptionReason: string | null;
+  reviewRevision: number;
 }
 
 export interface CommitSummary {
   created: number;
   updated: number;
   rosterOnly: number;
+  reconciled?: number;
   overCapacity: number;
   failed: Array<{ rowId: string; detail: string }>;
   certificatesIssued: number;
@@ -83,6 +96,7 @@ interface PaperSignupsClientProps {
   initialBatch: PaperScanBatchView | null;
   initialRows: PaperScanRowView[];
   activeWindow: { startsAt: number; endsAt: number } | null;
+  initialMode?: "scan" | "manual";
 }
 
 type Step = "slot" | "capture" | "review" | "done";
@@ -97,11 +111,45 @@ export function PaperSignupsClient({
   initialBatch,
   initialRows,
   activeWindow,
+  initialMode = "scan",
 }: PaperSignupsClientProps) {
   const router = useRouter();
+  const [starting, setStarting] = useState(false);
+  const [manualRequestId, setManualRequestId] = useState(() =>
+    crypto.randomUUID(),
+  );
+  const startManual = async () => {
+    if (!selectedSlotId) return;
+    setStarting(true);
+    try {
+      const result = await startManualAttendance({
+        projectId,
+        scheduleId: selectedSlotId,
+        requestId: manualRequestId,
+      });
+      if ("error" in result) {
+        toast.error(result.error);
+        return;
+      }
+      setBatch({
+        id: result.batchId,
+        scheduleId: selectedSlotId,
+        status: "review",
+        imageCount: 0,
+        inputMethod: "manual",
+      });
+      setManualRequestId(crypto.randomUUID());
+      setStep("review");
+      router.refresh();
+    } finally {
+      setStarting(false);
+    }
+  };
 
   const [selectedSlotId, setSelectedSlotId] = useState<string | null>(
-    initialBatch?.scheduleId ?? null,
+    findPaperScanSlot(slotOptions, initialBatch?.scheduleId)?.id ??
+      initialBatch?.scheduleId ??
+      null,
   );
   const [batch, setBatch] = useState<PaperScanBatchView | null>(initialBatch);
   const [commitSummary, setCommitSummary] = useState<CommitSummary | null>(
@@ -117,7 +165,7 @@ export function PaperSignupsClient({
   });
 
   const selectedSlot = useMemo(
-    () => slotOptions.find((option) => option.id === selectedSlotId) ?? null,
+    () => findPaperScanSlot(slotOptions, selectedSlotId),
     [slotOptions, selectedSlotId],
   );
 
@@ -178,7 +226,7 @@ export function PaperSignupsClient({
         </Link>
         <div>
           <h1 className="text-xl font-semibold sm:text-2xl">
-            Scan paper signups
+            Paper attendance
           </h1>
           <p className="text-sm text-muted-foreground">{projectTitle}</p>
         </div>
@@ -190,19 +238,36 @@ export function PaperSignupsClient({
           <AlertTitle>This event hasn&apos;t finished yet</AlertTitle>
           <AlertDescription>
             Paper sheets are usually scanned after the event ends. You can still
-            scan now — recorded times are clamped to the scheduled slot.
+            scan now. Actual times outside the session need a reviewed reason.
           </AlertDescription>
         </Alert>
       )}
 
       {step === "slot" && (
-        <ScheduleSlotStep
-          slotOptions={slotOptions}
-          timezone={projectTimezone}
-          selectedSlotId={selectedSlotId}
-          onSelect={setSelectedSlotId}
-          onContinue={() => selectedSlotId && setStep("capture")}
-        />
+        <div className="space-y-3">
+          <ScheduleSlotStep
+            slotOptions={slotOptions}
+            timezone={projectTimezone}
+            selectedSlotId={selectedSlotId}
+            manual={initialMode === "manual"}
+            busy={starting}
+            onSelect={setSelectedSlotId}
+            onContinue={() =>
+              initialMode === "manual"
+                ? void startManual()
+                : selectedSlotId && setStep("capture")
+            }
+          />
+          {initialMode !== "manual" && (
+            <Button
+              variant="outline"
+              disabled={!selectedSlotId || starting}
+              onClick={startManual}
+            >
+              {starting ? "Opening attendance…" : "Add attendance manually"}
+            </Button>
+          )}
+        </div>
       )}
 
       {step === "capture" && selectedSlot && (
@@ -236,15 +301,13 @@ export function PaperSignupsClient({
           }
           sessionPublished={Boolean(
             publishedState[batch.scheduleId] ||
-            publishedState[
-              batch.scheduleId === "oneTime" ? "oneTime" : batch.scheduleId
-            ],
+            isPaperScanSlotPublished(selectedSlot, publishedState),
           )}
           discarding={discarding}
           onDiscard={handleDiscard}
           onCommitted={(summary) => {
             setCommitSummary(summary);
-            setStep("done");
+            if (summary.failed.length === 0) setStep("done");
             router.refresh();
           }}
         />
@@ -275,6 +338,13 @@ export function PaperSignupsClient({
                 <strong>{commitSummary.rosterOnly}</strong> roster-only entries
                 (no email)
               </li>
+              {!!commitSummary.reconciled && (
+                <li>
+                  <strong>{commitSummary.reconciled}</strong> saved roster
+                  entries matched to existing attendance. No additional hours
+                  awarded.
+                </li>
+              )}
               {commitSummary.overCapacity > 0 && (
                 <li>
                   <strong>{commitSummary.overCapacity}</strong> recorded over
@@ -335,11 +405,7 @@ export function PaperSignupsClient({
                 </AlertTitle>
                 <AlertDescription>
                   {commitSummary.failed
-                    .map((failure) =>
-                      failure.detail === "slot_full"
-                        ? "The slot is full — re-scan with the capacity override to include everyone."
-                        : failure.detail,
-                    )
+                    .map((failure) => describeAttendanceFailure(failure.detail))
                     .join(" · ")}
                 </AlertDescription>
               </Alert>

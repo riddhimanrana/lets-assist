@@ -144,3 +144,12 @@ homonyms while retaining the same normalized name. Creation and name changes
 still check for collisions. Email checks also protect confirmed login addresses
 on other verified profile accounts and reported application contact evidence. The clean
 replay changes one function digest, with no added or removed objects.
+
+Release 687 appends the four unpublished attendance migrations to the 683
+ledger: reviewed intervals, print manifests, corrected-certificate delivery, and
+atomic guest account linking. They were renumbered after Development's ledger
+without content changes. The manifest applies the reviewed 638-to-642 attendance
+delta (31 added and 18 changed objects) to the 683 inventory. Neither delta
+touches an object the other changes, and no object is removed. The manifest is
+derived from those two replays; the next isolated replay must confirm it. These
+migrations are not approved for Production.

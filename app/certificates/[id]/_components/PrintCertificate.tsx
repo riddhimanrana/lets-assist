@@ -7,28 +7,20 @@ import { format, parseISO } from "date-fns";
 import { tz } from "@date-fns/tz";
 import { useEffect, useState, useRef } from "react";
 
-interface CertificateData {
+export interface PrintCertificateData {
   id: string;
   project_title: string;
   creator_name: string | null;
   is_certified: boolean;
   event_start: string;
-  event_end: string;
-  volunteer_email: string | null;
-  user_id: string | null;
-  check_in_method: string;
-  created_at: string | null;
   organization_name: string | null;
-  project_id: string | null;
-  schedule_id: string | null;
   issued_at: string;
-  signup_id: string | null;
   volunteer_name: string | null;
   project_location: string | null;
   durationText: string;
 }
 
-export function PrintCertificate({ data }: { data: CertificateData }) {
+export function PrintCertificate({ data }: { data: PrintCertificateData }) {
   const [mounted, setMounted] = useState(false);
   const printCanceledRef = useRef(false);
 

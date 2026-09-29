@@ -1,5 +1,7 @@
 "use client";
 
+import { certificateHours } from "@/lib/projects/certificate-duration";
+
 import React, { useState } from "react";
 import {
   Card,
@@ -47,6 +49,7 @@ interface Certificate {
   type?: "platform" | "self-reported"; // Optional for backward compatibility
   event_start: string;
   event_end: string;
+  credited_minutes?: number | null;
   volunteer_email: string | null;
   organization_name: string | null;
   project_id: string | null;
@@ -141,9 +144,8 @@ export function AllHoursSection({ certificates }: AllHoursSectionProps) {
     cert: Certificate;
     isSelfReported?: boolean;
   }) => {
-    const durationHours = calculateDecimalHours(
-      cert.event_start,
-      cert.event_end,
+    const durationHours = certificateHours(cert, () =>
+      calculateDecimalHours(cert.event_start, cert.event_end),
     );
     const formattedDuration = formatTotalDuration(durationHours);
 

@@ -1,5 +1,7 @@
 "use client";
 
+import { certificateHours } from "@/lib/projects/certificate-duration";
+
 import { useState } from "react";
 import {
   format,
@@ -77,6 +79,7 @@ interface Certificate {
   type?: "platform" | "self-reported"; // Optional for backward compatibility
   event_start: string;
   event_end: string;
+  credited_minutes?: number | null;
   volunteer_email: string | null;
   organization_name: string | null;
   project_id: string | null;
@@ -206,7 +209,9 @@ export function CertificatesList({
   // Add hours property to certificates
   const certificatesWithHours = displayCertificates.map((cert) => ({
     ...cert,
-    hours: calculateHours(cert.event_start, cert.event_end),
+    hours: certificateHours(cert, () =>
+      calculateHours(cert.event_start, cert.event_end),
+    ),
   }));
 
   // Apply search filter
@@ -391,7 +396,7 @@ export function CertificatesList({
                     }
                   })()}`,
                 )}</td>
-                <td>${escapeHtml(formatTotalDuration(calculateDecimalHours(cert.event_start, cert.event_end)))}</td>
+                <td>${escapeHtml(formatTotalDuration(certificateHours(cert, () => calculateDecimalHours(cert.event_start, cert.event_end))))}</td>
                 <td>${escapeHtml(cert.is_certified ? "Yes" : "No")}</td>
               </tr>
             `,

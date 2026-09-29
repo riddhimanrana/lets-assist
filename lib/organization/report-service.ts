@@ -1,3 +1,6 @@
+import { certificateHours } from "@/lib/projects/certificate-duration";
+import { inspectAttendanceIntervals } from "@/lib/projects/paper-signup/intervals";
+import { readAllExportPages } from "@/lib/projects/attendance-export-pagination";
 import "server-only";
 
 import { escapeCsvCell } from "@/lib/organization/report-output-safety";
@@ -94,7 +97,7 @@ async function buildReportDataForOrg(
     let certificatesQuery = supabase
       .from("certificates")
       .select(
-        "id, user_id, volunteer_name, volunteer_email, is_certified, type, issued_at, project_id, project_title, event_start, event_end, signup_id",
+        "id, user_id, volunteer_name, volunteer_email, is_certified, type, issued_at, project_id, project_title, event_start, event_end, credited_minutes, signup_id",
       )
       .in("project_id", projectIds);
 
@@ -158,6 +161,48 @@ async function buildReportDataForOrg(
     const attendanceWithoutCertificates = (signups || []).filter(
       (signup) => !certificateSignupIds.has(signup.id),
     );
+
+    if (attendanceWithoutCertificates.length) {
+      const admin = getAdminClient();
+      const intervalsBySignup = new Map<
+        string,
+        NonNullable<SignupRow["project_attendance_intervals"]>
+      >();
+      for (
+        let offset = 0;
+        offset < attendanceWithoutCertificates.length;
+        offset += 200
+      ) {
+        const signupIds = attendanceWithoutCertificates
+          .slice(offset, offset + 200)
+          .map((signup) => signup.id);
+        const intervals = await readAllExportPages<{
+          id: string;
+          signup_id: string;
+          check_in_time: string;
+          check_out_time: string | null;
+        }>(async (after, limit) => {
+          let query = admin
+            .from("project_attendance_intervals")
+            .select("id, signup_id, check_in_time, check_out_time")
+            .in("project_id", projectIds)
+            .in("signup_id", signupIds)
+            .order("id")
+            .limit(limit);
+          if (after) query = query.gt("id", after);
+          return await query;
+        }, signupIds.length * 50);
+        for (const interval of intervals) {
+          const existing = intervalsBySignup.get(interval.signup_id) ?? [];
+          existing.push(interval);
+          intervalsBySignup.set(interval.signup_id, existing);
+        }
+      }
+      for (const signup of attendanceWithoutCertificates) {
+        signup.project_attendance_intervals =
+          intervalsBySignup.get(signup.id) ?? [];
+      }
+    }
 
     const volunteerMap = new Map<string, VolunteerSummary>();
     const monthlyMap = new Map<string, MonthlyHours>();
@@ -230,8 +275,8 @@ async function buildReportDataForOrg(
     };
 
     for (const cert of certificates || []) {
-      const hours = roundHours(
-        calculateHours(cert.event_start, cert.event_end),
+      const hours = certificateHours(cert, () =>
+        roundHours(calculateHours(cert.event_start, cert.event_end)),
       );
 
       const volunteerKey = cert.user_id
@@ -287,9 +332,15 @@ async function buildReportDataForOrg(
     }
 
     for (const signup of attendanceWithoutCertificates) {
-      const hours = roundHours(
-        calculateHours(signup.check_in_time, signup.check_out_time),
-      );
+      const reviewed = signup.project_attendance_intervals;
+      const hours = reviewed?.length
+        ? (inspectAttendanceIntervals(
+            reviewed.map((interval) => ({
+              checkIn: interval.check_in_time,
+              checkOut: interval.check_out_time,
+            })),
+          ).minutes ?? 0) / 60
+        : calculateHours(signup.check_in_time, signup.check_out_time);
       if (hours <= 0) continue;
 
       const projectForSignup = signup.project_id
@@ -342,7 +393,8 @@ async function buildReportDataForOrg(
       }
     }
 
-    const volunteers = Array.from(volunteerMap.values())
+    const rawVolunteers = Array.from(volunteerMap.values());
+    const volunteers = rawVolunteers
       .map((volunteer) => ({
         ...volunteer,
         totalHours: roundHours(volunteer.totalHours),
@@ -368,11 +420,14 @@ async function buildReportDataForOrg(
       volunteerCount: projectVolunteerMap.get(project.id)?.size || 0,
     }));
 
-    const verifiedHours = volunteers.reduce(
+    const verifiedHours = rawVolunteers.reduce(
       (sum, v) => sum + v.verifiedHours,
       0,
     );
-    const pendingHours = volunteers.reduce((sum, v) => sum + v.pendingHours, 0);
+    const pendingHours = rawVolunteers.reduce(
+      (sum, v) => sum + v.pendingHours,
+      0,
+    );
 
     const metrics: ReportMetrics = {
       totalVolunteers: volunteers.length,
@@ -408,26 +463,37 @@ export async function getOrganizationReportData(
   const supabase = await createClient();
 
   try {
-    // Get current user using getClaims() for better performance
-    const { user: authData } = await getAuthUser();
+    const { user: authData } = await getAuthUser({ sensitive: true });
     if (!authData) {
       return { error: "Authentication required" };
     }
 
-    const { data: membership } = await supabase
-      .from("organization_members")
-      .select("role")
-      .eq("organization_id", organizationId)
-      .eq("user_id", authData.id)
-      .single();
+    const canViewReport = async () => {
+      const { data: membership, error } = await supabase
+        .from("organization_members")
+        .select("role,status")
+        .eq("organization_id", organizationId)
+        .eq("user_id", authData.id)
+        .single();
+      return (
+        !error &&
+        membership?.status === "active" &&
+        (membership.role === "admin" || membership.role === "staff")
+      );
+    };
+    if (!(await canViewReport())) return { error: "Permission denied" };
 
-    const canView =
-      membership?.role === "admin" || membership?.role === "staff";
-    if (!canView) {
-      return { error: "Permission denied" };
-    }
-
-    return buildReportDataForOrg(supabase, organizationId, dateRange);
+    const result = await buildReportDataForOrg(
+      supabase,
+      organizationId,
+      dateRange,
+    );
+    if (!result.data) return result;
+    const { user: currentUser } = await getAuthUser({ sensitive: true });
+    if (currentUser?.id !== authData.id)
+      return { error: "Authentication required" };
+    if (!(await canViewReport())) return { error: "Permission denied" };
+    return result;
   } catch (error) {
     console.error("Error generating report data:", error);
     return { error: "Failed to generate report data" };

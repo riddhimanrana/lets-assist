@@ -1,5 +1,7 @@
 "use client";
 
+import { AttendanceExport } from "@/components/projects/AttendanceExport";
+import { canManageProjectAccess } from "@/lib/projects/management-access";
 import { useState, useEffect } from "react";
 import { Button, buttonVariants } from "@/components/ui/button";
 import {
@@ -36,12 +38,14 @@ interface ProjectsTabProps {
   projects: Project[];
   userRole: string | null;
   organizationId: string;
+  currentUserId?: string;
 }
 
 export default function ProjectsTab({
   projects,
   userRole,
   organizationId,
+  currentUserId,
 }: ProjectsTabProps) {
   const [searchTerm, setSearchTerm] = useState("");
   const [filteredProjects, setFilteredProjects] = useState<Project[]>(projects);
@@ -112,6 +116,14 @@ export default function ProjectsTab({
         </div>
       </div>
 
+      {userRole === "admin" && (
+        <AttendanceExport
+          scope="organization"
+          scopeId={organizationId}
+          projects={projects}
+        />
+      )}
+
       <Tabs
         defaultValue="all"
         value={activeTab}
@@ -144,7 +156,26 @@ export default function ProjectsTab({
           {filteredProjects.length > 0 ? (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               {filteredProjects.map((project) => (
-                <ProjectCard key={project.id} project={project} />
+                <div key={project.id} className="flex flex-col gap-2">
+                  <ProjectCard project={project} />
+                  {currentUserId &&
+                    canManageProjectAccess({
+                      creatorId: project.creator_id,
+                      userId: currentUserId,
+                      organizationRole: userRole,
+                      canBeManagedByStaff: project.can_be_managed_by_staff,
+                    }) && (
+                      <Link
+                        className={buttonVariants({
+                          variant: "outline",
+                          size: "sm",
+                        })}
+                        href={`/projects/${project.id}/hours`}
+                      >
+                        Volunteer hours
+                      </Link>
+                    )}
+                </div>
               ))}
             </div>
           ) : (
@@ -206,7 +237,7 @@ function ProjectCard({ project }: { project: Project }) {
   const currentStatus = getProjectStatus(project);
 
   return (
-    <Link href={`/projects/${project.id}`} className="group block h-full">
+    <Link href={`/projects/${project.id}`} className="group block flex-1">
       <Card className="h-full hover:shadow-xl transition-all duration-200 overflow-hidden border-border/50 bg-card">
         <div className="px-4 flex flex-col h-full">
           <CardHeader className="p-0 mb-2">

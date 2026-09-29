@@ -2,7 +2,7 @@
 
 import { createClient } from "@/lib/supabase/server";
 import { getAdminClient } from "@/lib/supabase/admin";
-import { getAnonymousSignupAccessRecord } from "@/lib/anonymous-signup-access";
+import { normalizeAnonymousSignupToken } from "@/lib/anonymous-signup-access";
 import { requireAuth } from "@/lib/supabase/auth-helpers";
 import { revalidatePath } from "next/cache";
 import { runOnCanonicalAuthOrigin } from "@/app/signup/canonical-auth-request";
@@ -12,93 +12,25 @@ async function transferAnonymousDataToUser(
   userId: string,
   anonymousToken?: string,
 ): Promise<{ error?: string }> {
-  const adminClient = getAdminClient();
-
-  const { data: profile, error: profileError } =
-    await getAnonymousSignupAccessRecord<{
-      id: string;
-      linked_user_id: string | null;
-    }>({
-      anonymousSignupId: anonymousId,
-      token: anonymousToken,
-      columns: "id, linked_user_id",
-    });
-
-  if (profileError || !profile) {
-    return { error: "Anonymous profile not found or access denied." };
-  }
-
-  if (profile.linked_user_id && profile.linked_user_id !== userId) {
-    return { error: "This profile is already linked to another account." };
-  }
-
-  const { data: signupRows, error: signupRowsError } = await adminClient
-    .from("project_signups")
-    .select("id")
-    .eq("anonymous_id", anonymousId);
-
-  if (signupRowsError) {
-    console.error("Error loading anonymous project signups:", signupRowsError);
-    return { error: "Failed to prepare profile transfer. Please try again." };
-  }
-
-  const signupIds = (signupRows ?? [])
-    .map((row) => row.id)
-    .filter((id): id is string => typeof id === "string" && id.length > 0);
-
-  const { error: transferSignupsError } = await adminClient
-    .from("project_signups")
-    .update({ user_id: userId, anonymous_id: null })
-    .eq("anonymous_id", anonymousId)
-    .is("user_id", null);
-
-  if (transferSignupsError) {
-    console.error("Error transferring project signups:", transferSignupsError);
-    return { error: "Failed to transfer signups. Please try again." };
-  }
-
-  const { error: transferWaiversError } = await adminClient
-    .from("waiver_signatures")
-    .update({ user_id: userId, anonymous_id: null })
-    .eq("anonymous_id", anonymousId)
-    .is("user_id", null);
-
-  if (transferWaiversError) {
-    console.error(
-      "Error transferring waiver signatures:",
-      transferWaiversError,
-    );
-    return { error: "Failed to transfer waiver data. Please try again." };
-  }
-
-  if (signupIds.length > 0) {
-    const { error: transferCertificatesError } = await adminClient
-      .from("certificates")
-      .update({ user_id: userId })
-      .in("signup_id", signupIds)
-      .is("user_id", null);
-
-    if (transferCertificatesError) {
-      console.error(
-        "Error transferring certificates:",
-        transferCertificatesError,
-      );
-      return {
-        error: "Failed to transfer certificate data. Please try again.",
-      };
-    }
-  }
-
-  if (profile.linked_user_id !== userId) {
-    const { error: linkError } = await adminClient
-      .from("anonymous_signups")
-      .update({ linked_user_id: userId })
-      .eq("id", anonymousId);
-
-    if (linkError) {
-      console.error("Error linking anonymous profile:", linkError);
-      return { error: "Failed to complete account linking. Please try again." };
-    }
+  const token = normalizeAnonymousSignupToken(anonymousToken);
+  if (!token) return { error: "Anonymous profile not found or access denied." };
+  const { error } = await getAdminClient().rpc(
+    "link_guest_attendance_account",
+    {
+      p_anonymous_id: anonymousId,
+      p_user_id: userId,
+      p_token: token,
+    },
+  );
+  if (error) {
+    return {
+      error:
+        error.code === "23505"
+          ? "This account already has conflicting attendance. Ask the project coordinator to resolve it before linking."
+          : error.code === "42501"
+            ? "Anonymous profile not found, access denied, or already linked to another account."
+            : "Could not link attendance. Your records were left unchanged. Please try again.",
+    };
   }
 
   revalidatePath(`/anonymous/${anonymousId}`);
@@ -235,7 +167,7 @@ export async function linkAnonymousToNewAccount(
           data: {
             full_name: fullName,
           },
-          emailRedirectTo: `${origin}/auth/confirm`,
+          emailRedirectTo: `${origin}/auth/confirm?redirectAfterAuth=${encodeURIComponent(`${canonicalPath}&link=1`)}`,
           captchaToken,
         },
       },
@@ -265,6 +197,9 @@ export async function linkAnonymousToNewAccount(
       return { error: "Failed to create account." };
     }
 
+    // A confirmation-required signup has no authenticated destination session.
+    // The guest can return with the same token after confirming and signing in.
+    if (!signupData.session) return { requiresEmailVerification: true };
     const userId = signupData.user.id;
 
     const transferResult = await transferAnonymousDataToUser(

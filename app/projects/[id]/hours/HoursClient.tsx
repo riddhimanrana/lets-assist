@@ -1,2265 +1,550 @@
 "use client";
 
-import React, { useState, useMemo, useEffect } from "react";
-import { Project, ProjectSignup } from "@/types"; // Use ProjectSignup type
-import { cn } from "@/lib/utils";
-import { Input } from "@/components/ui/input";
-import {
-  Search,
-  ArrowLeft,
-  ScanText,
-  Clock,
-  CheckCircle,
-  Loader2,
-  UserRoundCheck,
-  Info,
-  Edit,
-  AlertCircle,
-  PencilLine,
-  FileText,
-  Mail,
-} from "lucide-react";
-import { format, parseISO, differenceInMinutes, isAfter } from "date-fns";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
+import { useMemo, useState } from "react";
 import Link from "next/link";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-  DialogDescription,
-  DialogClose,
-  DialogFooter,
-} from "@/components/ui/dialog";
-import { Button, buttonVariants } from "@/components/ui/button";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { useRouter } from "next/navigation";
-import { toast } from "sonner"; // Import sonner toast
-// Fixed: Added the missing Select imports
+import { toast } from "sonner";
+import type { Project, ProjectSignup } from "@/types";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Badge } from "@/components/ui/badge";
+import { AttendanceTools } from "@/components/projects/AttendanceTools";
+import { AttendanceExport } from "@/components/projects/AttendanceExport";
+import { AttendanceIntervalEditor } from "@/components/projects/AttendanceIntervalEditor";
+import { getAttendanceScheduleWindow } from "@/lib/attendance/challenge";
+import { getPublishStateKey } from "@/lib/projects/hours-publish-key";
+import { summarizeAttendanceHours } from "@/lib/projects/attendance-hours-summary";
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-// Import the server action
-import { publishVolunteerHours, resendCertificateEmails } from "./actions";
-import { TimePicker } from "@/components/ui/time-picker"; // Import the TimePicker
-import { formatTimeTo12Hour } from "@/lib/utils"; // Assuming this exists and works
+  inspectAttendanceIntervals,
+  readAttendanceIntervals,
+  type AttendanceInterval,
+} from "@/lib/projects/paper-signup/intervals";
 import { getMultiDaySlotDisplayName } from "@/utils/project";
-import { calculateHoursDuration as calculateDuration } from "./hours-duration";
+import {
+  correctVolunteerAttendance,
+  recordVolunteerAttendance,
+  publishVolunteerHours,
+  resendCertificateEmails,
+  sendCorrectedCertificateEmail,
+} from "./actions";
 
-// Define the structure for edited times
-type EditedTime = {
-  check_in_time: string | null;
-  check_out_time: string | null; // Add check_out_time
+export type AttendanceHoursSignup = ProjectSignup & {
+  attendance_revision: number;
+  project_attendance_intervals: Array<{
+    check_in_time: string;
+    check_out_time: string;
+  }>;
+  certificates: Array<{
+    id: string;
+    credited_minutes: number | null;
+    event_start: string;
+    event_end: string;
+    attendance_revision: number;
+    type: string | null;
+    canResendCorrection: boolean;
+  }>;
 };
+type Draft = {
+  intervals: AttendanceInterval[];
+  reason: string;
+  reviewed: boolean;
+};
+const nameOf = (signup: ProjectSignup) =>
+  signup.profile?.full_name ||
+  signup.anonymous_signup?.name ||
+  "Unnamed volunteer";
+const minutesLabel = (minutes: number | null) =>
+  minutes === null
+    ? "Needs review"
+    : `${Math.floor(minutes / 60)}h ${minutes % 60}m`;
+const savedIntervals = (signup: AttendanceHoursSignup) =>
+  signup.project_attendance_intervals?.length
+    ? signup.project_attendance_intervals
+        .map((interval) => ({
+          checkIn: interval.check_in_time,
+          checkOut: interval.check_out_time,
+        }))
+        .sort((a, b) => a.checkIn.localeCompare(b.checkIn))
+    : readAttendanceIntervals(
+        null,
+        signup.check_in_time,
+        signup.check_out_time,
+      );
+const certificateOf = (signup: AttendanceHoursSignup) =>
+  signup.certificates?.find(
+    (certificate) =>
+      certificate.type === "verified" || certificate.type === null,
+  );
 
-interface Props {
-  project: Project;
-  initialSignups: ProjectSignup[];
+function sessionLabel(project: Project, sessionId: string) {
+  const key = getPublishStateKey(project, sessionId);
+  if (project.event_type === "oneTime") return "Main session";
+  if (project.event_type === "multiDay") {
+    for (const [dayIndex, day] of (project.schedule.multiDay ?? []).entries()) {
+      for (const [slotIndex, slot] of day.slots.entries()) {
+        if (
+          getPublishStateKey(
+            project,
+            `${day.date}-${dayIndex}-${slotIndex}`,
+          ) === key
+        )
+          return `${day.date}: ${getMultiDaySlotDisplayName(slot, slotIndex)}`;
+      }
+    }
+  }
+  return sessionId;
 }
 
 export function HoursClient({
   project,
   initialSignups,
-}: Props): React.JSX.Element {
-  const _router = useRouter();
-  const [signups, _setSignups] = useState<ProjectSignup[]>(initialSignups);
-  const [loading, _setLoading] = useState(false); // Initially false as data comes from server
-  const [_refreshing, _setRefreshing] = useState(false);
-  const [searchTerm, setSearchTerm] = useState("");
-  const [sessionFilter, setSessionFilter] = useState<string>("all");
-
-  // State to track which sessions are currently being published
-  const [publishingSessions, setPublishingSessions] = useState<
-    Record<string, boolean>
-  >({});
-
-  // Add state for confirmation dialog
-  const [confirmPublishSessionId, setConfirmPublishSessionId] = useState<
-    string | null
-  >(null);
-  const [confirmPublishCount, setConfirmPublishCount] = useState<number>(0);
-
-  // State for publish success modal
-  const [showPublishSuccessModal, setShowPublishSuccessModal] = useState(false);
-  const [currentPublishedSessionName, setCurrentPublishedSessionName] =
-    useState<string>("");
-  const [publishSummary, setPublishSummary] = useState<{
-    certificatesCreated: number;
-    totalVolunteers: number;
-    registeredVolunteers: number;
-    anonymousVolunteers: number;
-    emailsSent: number;
-    emailErrors: string[];
-    missingEmailCount: number;
-  } | null>(null);
-
-  // State for certificates modal
-  const [showCertificatesModal, setShowCertificatesModal] = useState(false);
-  const [certificatesModalData, setCertificatesModalData] = useState<{
-    sessionName: string;
-    volunteers: Array<{
-      name: string;
-      email: string;
-      checkInTime: string;
-      checkOutTime: string;
-      hours: string;
-      durationMinutes: number;
-    }>;
-  } | null>(null);
-  const [loadingCertificates, setLoadingCertificates] = useState(false);
-
-  // State for resending certificates
-  const [showResendDialog, setShowResendDialog] = useState<string | null>(null);
-  const [resendingSessions, setResendingSessions] = useState<
-    Record<string, boolean>
-  >({});
-
-  // State to hold edited times, keyed by signup ID
-  const [editedTimes, setEditedTimes] = useState<Record<string, EditedTime>>(
-    {},
+}: {
+  project: Project;
+  initialSignups: AttendanceHoursSignup[];
+}) {
+  const router = useRouter();
+  const timezone = project.project_timezone || "America/Los_Angeles";
+  const [search, setSearch] = useState("");
+  const [sessionFilter, setSessionFilter] = useState("all");
+  const [drafts, setDrafts] = useState<Record<string, Draft>>({});
+  const [editing, setEditing] = useState<AttendanceHoursSignup | null>(null);
+  const [correctionRequest, setCorrectionRequest] = useState(() =>
+    crypto.randomUUID(),
   );
-
-  // Initialize editedTimes state when initialSignups change
-  useEffect(() => {
-    const initialEdits: Record<string, EditedTime> = {};
-    initialSignups.forEach((signup) => {
-      // --- CORRECTED ACCESS ---
-      initialEdits[signup.id] = {
-        check_in_time: signup.check_in_time ?? null, // Ensure type is string | null
-        check_out_time: signup.check_out_time || null, // Use check_out_time if available
-      };
-      // --- END CORRECTION ---
-    });
-    setEditedTimes(initialEdits);
-  }, [initialSignups]);
-
-  // Keep session labels consistent across the review, publish, and certificate flows.
-  const formatSessionName = (proj: Project, sessionId: string): string => {
-    if (!proj) return sessionId; // Added missing return statement
-
-    // One-time events
-    if (
-      proj.event_type === "oneTime" &&
-      sessionId === "oneTime" &&
-      proj.schedule.oneTime
-    ) {
-      const date = parseISO(proj.schedule.oneTime.date);
-      const startTime = formatTimeTo12Hour(proj.schedule.oneTime.startTime);
-      const endTime = formatTimeTo12Hour(proj.schedule.oneTime.endTime);
-      return `${format(date, "MMMM d, yyyy")} (${startTime} - ${endTime})`;
-    }
-
-    // Multi-day events
-    if (
-      proj.event_type === "multiDay" &&
-      sessionId.startsWith("day-") &&
-      proj.schedule.multiDay
-    ) {
-      const parts = sessionId.split("-");
-      if (parts.length >= 4) {
-        const dayIndex = parseInt(parts[1], 10);
-        const slotIndex = parseInt(parts[3], 10);
-
-        if (
-          proj.schedule.multiDay[dayIndex] &&
-          proj.schedule.multiDay[dayIndex].slots[slotIndex]
-        ) {
-          const day = proj.schedule.multiDay[dayIndex];
-          const slot = day.slots[slotIndex];
-          const date = parseISO(day.date);
-          const startTime = formatTimeTo12Hour(slot.startTime);
-          const endTime = formatTimeTo12Hour(slot.endTime);
-          const slotLabel = getMultiDaySlotDisplayName(slot, slotIndex);
-
-          return `${format(date, "MMMM d, yyyy")} - ${slotLabel} (${startTime} - ${endTime})`;
-        }
-      }
-    }
-
-    // Same-day multi-area events
-    if (
-      proj.event_type === "sameDayMultiArea" &&
-      sessionId.startsWith("role-") &&
-      proj.schedule.sameDayMultiArea
-    ) {
-      const roleIndex = parseInt(sessionId.split("-")[1], 10);
-      if (proj.schedule.sameDayMultiArea.roles[roleIndex]) {
-        const role = proj.schedule.sameDayMultiArea.roles[roleIndex];
-        const date = parseISO(proj.schedule.sameDayMultiArea.date);
-        const startTime = formatTimeTo12Hour(role.startTime);
-        const endTime = formatTimeTo12Hour(role.endTime);
-
-        return `${format(date, "MMMM d, yyyy")} - ${role.name} (${startTime} - ${endTime})`;
-      }
-    }
-
-    return sessionId; // Fallback if no formatting rules matched
-  };
-
-  // Handler for DateTimePicker changes
-  const handleTimeChange = (
-    signupId: string,
-    field: keyof EditedTime,
-    timeStr: string,
+  const [busy, setBusy] = useState<string | null>(null);
+  const [confirmSession, setConfirmSession] = useState<string | null>(null);
+  const [notice, setNotice] = useState("");
+  const [deliveryRequests] = useState(() => new Map<string, string>());
+  const sendCorrection = async (
+    certificate: AttendanceHoursSignup["certificates"][number],
   ) => {
-    // Get existing date from the current value
-    const currentValue = editedTimes[signupId]?.[field];
-    const date = currentValue ? new Date(currentValue) : new Date();
-
-    // Parse the new time string (format: "HH:mm")
-    const [hours, minutes] = timeStr.split(":").map(Number);
-
-    // Update just the time portion of the date
-    date.setHours(hours, minutes);
-
-    setEditedTimes((prev) => ({
-      ...prev,
-      [signupId]: {
-        ...prev[signupId],
-        [field]: date.toISOString(),
-      },
-    }));
-  };
-
-  // Function to load certificates data for a session
-  const loadCertificatesData = async (sessionId: string) => {
-    setLoadingCertificates(true);
+    const key = `${certificate.id}:${certificate.attendance_revision}`;
+    const requestId = deliveryRequests.get(key) ?? crypto.randomUUID();
+    deliveryRequests.set(key, requestId);
+    setBusy(key);
     try {
-      // Find all signups for this session
-      let sessionSignups: ProjectSignup[] = [];
-      const allSessions = getAllProjectSessions;
-
-      // Try exact match first
-      if (signupsBySession[sessionId]) {
-        sessionSignups = signupsBySession[sessionId];
-      } else {
-        // Try all alternative IDs
-        const session = allSessions.find(
-          (s: {
-            id: string;
-            name: string;
-            endDateTime: Date;
-            status: "upcoming" | "in-progress" | "completed" | "editing";
-            alternativeIds: string[];
-          }) => s.id === sessionId,
-        );
-        if (session) {
-          for (const altId of session.alternativeIds) {
-            if (signupsBySession[altId]) {
-              sessionSignups = signupsBySession[altId];
-              break;
-            }
-          }
-        }
-      }
-
-      // Filter to only volunteers with valid hours (those that would have certificates)
-      const volunteersWithHours = sessionSignups
-        .map((signup) => {
-          const edited = editedTimes[signup.id];
-          if (!edited || !edited.check_in_time || !edited.check_out_time) {
-            return null;
-          }
-          const duration = calculateDuration(
-            edited.check_in_time,
-            edited.check_out_time,
-          );
-          if (!duration.isValid) {
-            return null;
-          }
-
-          return {
-            name:
-              signup.profile?.full_name ||
-              signup.anonymous_signup?.name ||
-              "Anonymous Volunteer",
-            email:
-              signup.profile?.email || signup.anonymous_signup?.email || "N/A",
-            checkInTime: format(
-              new Date(edited.check_in_time),
-              "MMM d, yyyy h:mm a",
-            ),
-            checkOutTime: format(
-              new Date(edited.check_out_time),
-              "MMM d, yyyy h:mm a",
-            ),
-            hours: duration.text,
-            durationMinutes: duration.minutes,
-          };
-        })
-        .filter((v) => v !== null) as Array<{
-        name: string;
-        email: string;
-        checkInTime: string;
-        checkOutTime: string;
-        hours: string;
-        durationMinutes: number;
-      }>;
-
-      setCertificatesModalData({
-        sessionName: formatSessionName(project, sessionId),
-        volunteers: volunteersWithHours,
-      });
-      setShowCertificatesModal(true);
-    } catch (error) {
-      console.error("Error loading certificates data:", error);
-      toast.error("Failed to load certificates data");
-    } finally {
-      setLoadingCertificates(false);
-    }
-  };
-
-  // Add function to initiate the publish confirmation
-  const initiatePublishHours = (sessionId: string) => {
-    // Find all signups for this session to show count in confirmation
-    let sessionSignups: ProjectSignup[] = [];
-    const allSessions = getAllProjectSessions; // Ensure getAllProjectSessions is in scope
-
-    // Try exact match first
-    if (signupsBySession[sessionId]) {
-      sessionSignups = signupsBySession[sessionId];
-    } else {
-      // Try all alternative IDs
-      const session = allSessions.find(
-        (s: {
-          id: string;
-          name: string;
-          endDateTime: Date;
-          status: "upcoming" | "in-progress" | "completed" | "editing";
-          alternativeIds: string[];
-        }) => s.id === sessionId,
+      const result = await sendCorrectedCertificateEmail(
+        project.id,
+        certificate.id,
+        certificate.attendance_revision,
+        requestId,
       );
-      if (session) {
-        for (const altId of session.alternativeIds) {
-          if (signupsBySession[altId]) {
-            sessionSignups = signupsBySession[altId];
-            break;
-          }
-        }
-      }
-    }
-
-    // Count valid volunteers
-    const validVolunteers = sessionSignups.filter((signup) => {
-      const edit = editedTimes[signup.id] || {
-        check_in_time: null,
-        check_out_time: null,
-      };
-      const duration = calculateDuration(
-        edit.check_in_time,
-        edit.check_out_time,
-      );
-      return duration.isValid && edit.check_in_time && edit.check_out_time;
-    });
-
-    // Set state for confirmation dialog
-    setConfirmPublishCount(validVolunteers.length);
-    setConfirmPublishSessionId(sessionId);
-  };
-
-  // Modify the handle publish function to be called after confirmation
-  const handlePublishHours = async (sessionId: string) => {
-    // Close the confirmation dialog
-    setConfirmPublishSessionId(null);
-
-    setPublishingSessions((prev: Record<string, boolean>) => ({
-      // Added type for prev
-      ...prev,
-      [sessionId]: true,
-    }));
-
-    try {
-      // Find all signups for this session
-      let sessionSignups: ProjectSignup[] = [];
-      // Try exact match first
-      if (signupsBySession[sessionId]) {
-        sessionSignups = signupsBySession[sessionId];
-      } else {
-        // Fallback for alternative session IDs (e.g., from getAllProjectSessions)
-        const allProjSessions = getAllProjectSessions; // Ensure getAllProjectSessions is in scope
-        const targetSessionInfo = allProjSessions.find(
-          (s: { id: string; alternativeIds: string[] }) =>
-            s.id === sessionId || s.alternativeIds.includes(sessionId),
+      if (!result.success) {
+        toast.error(
+          result.error || "The corrected certificate could not be sent.",
         );
-        if (targetSessionInfo) {
-          // Check primary ID first
-          if (signupsBySession[targetSessionInfo.id]) {
-            sessionSignups = signupsBySession[targetSessionInfo.id];
-          } else {
-            // Check alternative IDs
-            for (const altId of targetSessionInfo.alternativeIds) {
-              if (signupsBySession[altId]) {
-                sessionSignups = signupsBySession[altId];
-                break;
-              }
-            }
-          }
-        }
-      }
-
-      const volunteersData = sessionSignups
-        .map((signup) => {
-          const edited = editedTimes[signup.id];
-          if (!edited || !edited.check_in_time || !edited.check_out_time) {
-            return null; // Skip if no valid times
-          }
-          const duration = calculateDuration(
-            edited.check_in_time,
-            edited.check_out_time,
-          );
-          return {
-            signupId: signup.id,
-            userId: signup.user_id,
-            name:
-              signup.profile?.full_name ||
-              signup.anonymous_signup?.name ||
-              "Anonymous Volunteer",
-            email: signup.profile?.email || signup.anonymous_signup?.email,
-            checkIn: edited.check_in_time,
-            checkOut: edited.check_out_time,
-            durationMinutes: duration.minutes,
-            isValid: duration.isValid,
-          };
-        })
-        .filter((v) => v !== null && v.isValid) as {
-        signupId: string;
-        userId: string | null;
-        name: string | null;
-        email: string | null;
-        checkIn: string;
-        checkOut: string;
-        durationMinutes: number;
-        isValid: boolean;
-      }[]; // Type assertion
-
-      if (volunteersData.length === 0) {
-        toast.error("No Valid Hours", {
-          description:
-            "No volunteers with valid check-in and check-out times to publish.",
-        });
         return;
       }
-
-      const publicationEntries = volunteersData.map((volunteer) => ({
-        signupId: volunteer.signupId,
-        checkIn: volunteer.checkIn,
-        checkOut: volunteer.checkOut,
-        isValid: volunteer.isValid,
-      }));
+      setNotice(
+        result.emailErrors?.length
+          ? `Updated certificate saved. Delivery needs attention: ${result.emailErrors.join(" ")}`
+          : "Updated certificate accepted for delivery. Repeating this request will not send another copy of the same revision.",
+      );
+    } finally {
+      setBusy(null);
+    }
+  };
+  const sessions = useMemo(() => {
+    const groups = new Map<string, AttendanceHoursSignup[]>();
+    for (const signup of initialSignups) {
+      const key = getPublishStateKey(project, signup.schedule_id);
+      groups.set(key, [...(groups.get(key) ?? []), signup]);
+    }
+    return [...groups.entries()];
+  }, [initialSignups, project]);
+  const draftFor = (signup: AttendanceHoursSignup): Draft =>
+    drafts[signup.id] ?? {
+      intervals: savedIntervals(signup),
+      reason: "",
+      reviewed: signup.attendance_revision > 0,
+    };
+  const isReady = (signup: AttendanceHoursSignup) => {
+    const draft = draftFor(signup);
+    const inspection = inspectAttendanceIntervals(
+      draft.intervals,
+      getAttendanceScheduleWindow(project, signup.schedule_id),
+    );
+    return (
+      inspection.minutes !== null &&
+      (draft.reviewed || !inspection.outsideSession) &&
+      (!inspection.outsideSession ||
+        signup.attendance_revision > 0 ||
+        Boolean(draft.reason))
+    );
+  };
+  const publish = async (key: string, attendees: AttendanceHoursSignup[]) => {
+    setBusy(key);
+    try {
       const result = await publishVolunteerHours(
         project.id,
-        sessionId,
-        publicationEntries,
+        attendees[0].schedule_id,
+        attendees
+          .filter((signup) => !certificateOf(signup) && isReady(signup))
+          .map((signup) => {
+            const draft = draftFor(signup);
+            return {
+              signupId: signup.id,
+              checkIn: draft.intervals[0]?.checkIn ?? null,
+              checkOut: draft.intervals.at(-1)?.checkOut ?? null,
+              isValid: true,
+              intervals: draft.intervals,
+              attendanceRevision: signup.attendance_revision,
+              timeExceptionReason: draft.reason,
+            };
+          }),
       );
-
-      if (result.success) {
-        const emailsSent = result.emailsSent ?? 0;
-        const emailErrors = result.emailErrors ?? [];
-        const wasReplayed = result.outcome === "replayed";
-        const wasPartial = result.outcome === "partial";
-
-        if (wasReplayed) {
-          toast.success("Hours Already Published", {
-            description: `The existing publication receipt was replayed safely for session: ${formatSessionName(project, sessionId)}. No certificates were duplicated.`,
-          });
-        } else if (emailsSent > 0 && !wasPartial) {
-          toast.success("Hours Published & Emails Sent!", {
-            description: `${result.certificatesCreated} certificates generated and ${emailsSent} email notifications sent for session: ${formatSessionName(project, sessionId)}.`,
-          });
-        } else if (wasPartial) {
-          toast.warning("Hours Published; Delivery Needs Attention", {
-            description: `${result.certificatesCreated} certificates were committed for session: ${formatSessionName(project, sessionId)}. Some email work was recorded for safe follow-up.`,
-          });
-        } else {
-          toast.success("Hours Published!", {
-            description: `${result.certificatesCreated} certificates generated for session: ${formatSessionName(project, sessionId)}. ${emailErrors.length > 0 ? "However, some email notifications failed to send." : "Email notifications were not sent."}`,
-          });
-        }
-
-        // Update published status locally
-        const publishKey = getPublishStateKey(sessionId); // Ensure getPublishStateKey is in scope
-        setPublishedSessions((prev: Record<string, boolean>) => ({
-          ...prev,
-          [publishKey]: true,
-        })); // Corrected to setPublishedSessions and added type for prev
-
-        // Prepare for success modal with updated information
-        setCurrentPublishedSessionName(formatSessionName(project, sessionId));
-
-        const totalVolunteers = volunteersData.length;
-        const registeredVolunteers = volunteersData.filter(
-          (volunteer) => volunteer.userId,
-        ).length;
-        const anonymousVolunteers = totalVolunteers - registeredVolunteers;
-        const missingEmailCount = volunteersData.filter(
-          (volunteer) => !volunteer.email,
-        ).length;
-
-        // Store email sent information for the modal
-        setPublishSummary({
-          certificatesCreated: result.certificatesCreated ?? totalVolunteers,
-          totalVolunteers,
-          registeredVolunteers,
-          anonymousVolunteers,
-          emailsSent,
-          emailErrors,
-          missingEmailCount,
-        });
-        setShowPublishSuccessModal(true);
-      } else {
-        toast.error("Publishing Failed", {
-          description: result.error || "An unknown error occurred.",
-        });
-      }
-    } catch (error) {
-      console.error("Error publishing hours:", error);
-      toast.error("Publishing Error", {
-        description: "An unexpected error occurred while publishing hours.",
-      });
-    } finally {
-      setPublishingSessions((prev) => ({
-        ...prev,
-        [sessionId]: false,
-      }));
-    }
-  };
-
-  // Handler for resending certificate emails
-  const handleResendCertificates = async (sessionId: string) => {
-    setResendingSessions((prev) => ({
-      ...prev,
-      [sessionId]: true,
-    }));
-
-    try {
-      const result = await resendCertificateEmails(project.id, sessionId);
       if (!result.success) {
-        toast.error("Certificates were not resent", {
-          description: result.error || "No eligible certificates were found.",
-        });
+        toast.error(result.error || "Hours could not be published.");
         return;
       }
-
-      const emailsSent = result.emailsSent ?? 0;
-      const emailErrors = result.emailErrors ?? [];
-      if (result.deliveryMode === "durable-retry") {
-        toast.success(
-          `${emailsSent} certificate email${emailsSent === 1 ? " is" : "s are"} confirmed accepted`,
-          emailErrors.length > 0
-            ? {
-                description: `${emailErrors.length} durable delivery item${emailErrors.length === 1 ? " still needs" : "s still need"} attention.`,
-              }
-            : {
-                description:
-                  "The durable publication ledger is fully reconciled.",
-              },
-        );
-        return;
-      }
-      toast.success(
-        `${emailsSent} certificate email${emailsSent === 1 ? "" : "s"} resent`,
-        emailErrors.length > 0
-          ? {
-              description: `${emailErrors.length} email${emailErrors.length === 1 ? "" : "s"} could not be sent.`,
-            }
-          : undefined,
+      setNotice(
+        `Hours published. ${result.certificatesCreated ?? 0} certificates created; ${result.emailsSent ?? 0} emails accepted for delivery.${result.emailErrors?.length ? ` Delivery needs attention: ${result.emailErrors.join(" ")}` : ""}`,
       );
-    } catch (error) {
-      console.error("Error resending certificates:", error);
-      toast.error("Resend Error", {
-        description: "An error occurred while resending certificates.",
-      });
+      setConfirmSession(null);
+      router.refresh();
     } finally {
-      setResendingSessions((prev) => ({
-        ...prev,
-        [sessionId]: false,
-      }));
-      setShowResendDialog(null);
+      setBusy(null);
     }
   };
-
-  // Group signups by session (similar to AttendanceClient)
-  const signupsBySession = useMemo(() => {
-    return signups.reduce(
-      (acc, record) => {
-        // Include both 'attended' and 'approved' signups with check-in data
-        if (
-          (record.status === "attended" || record.status === "approved") &&
-          record.check_in_time
-        ) {
-          // Make sure we have a valid schedule_id
-          const scheduleId = record.schedule_id || "unknown";
-
-          if (!acc[scheduleId]) {
-            acc[scheduleId] = [];
-          }
-          acc[scheduleId].push(record);
-        }
-        return acc;
-      },
-      {} as Record<string, ProjectSignup[]>,
-    );
-  }, [signups]);
-
-  // Filter and sort signups (similar to AttendanceClient, but simpler sorting for now)
-  const filteredSignupsBySession = useMemo(() => {
-    let sessionData: Record<string, ProjectSignup[]> = {};
-    if (sessionFilter === "all") {
-      sessionData = { ...signupsBySession };
-    } else {
-      sessionData = { [sessionFilter]: signupsBySession[sessionFilter] || [] };
-    }
-
-    let filtered: Record<string, ProjectSignup[]> = {};
-    if (!searchTerm) {
-      filtered = { ...sessionData };
-    } else {
-      const searchLower = searchTerm.toLowerCase();
-      Object.entries(sessionData).forEach(([session, sessionSignups]) => {
-        const matchingSignups = sessionSignups.filter((record) => {
-          // --- CORRECTED ACCESS ---
-          const nameMatch = record.user_id
-            ? record.profile?.full_name?.toLowerCase().includes(searchLower) ||
-              false
-            : record.anonymous_signup?.name
-                ?.toLowerCase()
-                .includes(searchLower) || false;
-          const emailMatch = record.user_id
-            ? record.profile?.email?.toLowerCase().includes(searchLower) ||
-              false
-            : record.anonymous_signup?.email
-                ?.toLowerCase()
-                .includes(searchLower) || false;
-          // --- END CORRECTION ---
-          return nameMatch || emailMatch;
-        });
-        if (matchingSignups.length > 0) {
-          filtered[session] = matchingSignups;
-        }
-      });
-    }
-    // Basic sort by name for now
-    Object.keys(filtered).forEach((session) => {
-      if (filtered[session]) {
-        // Add null check for filtered[session]
-        filtered[session].sort((a, b) => {
-          // --- CORRECTED ACCESS ---
-          const nameA =
-            (a.user_id ? a.profile?.full_name : a.anonymous_signup?.name) || "";
-          const nameB =
-            (b.user_id ? b.profile?.full_name : b.anonymous_signup?.name) || "";
-          // --- END CORRECTION ---
-          return nameA.localeCompare(nameB);
-        });
-      }
-    });
-
-    return filtered;
-  }, [signupsBySession, searchTerm, sessionFilter]);
-
-  // Get all possible sessions from the project
-  const getAllProjectSessions = useMemo(() => {
-    const sessions: {
-      id: string;
-      name: string;
-      endDateTime: Date;
-      status: "upcoming" | "in-progress" | "completed" | "editing";
-      alternativeIds: string[];
-    }[] = [];
-    const now = new Date();
-
-    if (project.event_type === "oneTime" && project.schedule.oneTime) {
-      const date = parseISO(project.schedule.oneTime.date);
-      const [endHours, endMinutes] = project.schedule.oneTime.endTime
-        .split(":")
-        .map(Number);
-      const endDateTime = new Date(
-        new Date(date).setHours(endHours, endMinutes),
-      );
-
-      // Determine status
-      let status: "upcoming" | "in-progress" | "completed" | "editing" =
-        "upcoming";
-      if (isAfter(now, endDateTime)) {
-        // Check if in editing window
-        const hoursSinceEnd = differenceInMinutes(now, endDateTime) / 60;
-        if (hoursSinceEnd < 48) {
-          status = "editing";
-        } else {
-          status = "completed";
-        }
-      } else {
-        const [startHours, startMinutes] = project.schedule.oneTime.startTime
-          .split(":")
-          .map(Number);
-        const startDateTime = new Date(
-          new Date(date).setHours(startHours, startMinutes),
-        );
-        if (isAfter(now, startDateTime)) {
-          status = "in-progress";
-        }
-      }
-
-      sessions.push({
-        id: "oneTime",
-        name: formatSessionName(project, "oneTime"),
-        endDateTime,
-        status,
-        alternativeIds: ["0", "oneTime", "default"],
-      });
-    } else if (project.event_type === "multiDay" && project.schedule.multiDay) {
-      project.schedule.multiDay.forEach((day, dayIndex) => {
-        const dayDate = parseISO(day.date);
-
-        day.slots.forEach((slot, slotIndex) => {
-          const sessionId = `${day.date}-${dayIndex}-${slotIndex}`;
-          const [endHours, endMinutes] = slot.endTime.split(":").map(Number);
-          const endDateTime = new Date(
-            new Date(dayDate).setHours(endHours, endMinutes),
-          );
-
-          // Determine status
-          let status: "upcoming" | "in-progress" | "completed" | "editing" =
-            "upcoming";
-          if (isAfter(now, endDateTime)) {
-            // Check if in editing window
-            const hoursSinceEnd = differenceInMinutes(now, endDateTime) / 60;
-            if (hoursSinceEnd < 48) {
-              status = "editing";
-            } else {
-              status = "completed";
-            }
-          } else {
-            const [startHours, startMinutes] = slot.startTime
-              .split(":")
-              .map(Number);
-            const startDateTime = new Date(
-              new Date(dayDate).setHours(startHours, startMinutes),
-            );
-            if (isAfter(now, startDateTime)) {
-              status = "in-progress";
-            }
-          }
-
-          // Create alternative IDs that might be used in the database
-          const simplifiedId = `${dayIndex}-${slotIndex}`;
-          const dateString = format(dayDate, "yyyy-MM-dd");
-          const dateBasedId = `${dateString}-${slotIndex}`;
-
-          sessions.push({
-            id: sessionId,
-            name: formatSessionName(project, sessionId),
-            endDateTime,
-            status,
-            alternativeIds: [simplifiedId, dateBasedId],
-          });
-        });
-      });
-    } else if (
-      project.event_type === "sameDayMultiArea" &&
-      project.schedule.sameDayMultiArea
-    ) {
-      const date = parseISO(project.schedule.sameDayMultiArea.date);
-
-      project.schedule.sameDayMultiArea.roles.forEach((role) => {
-        const [endHours, endMinutes] = role.endTime.split(":").map(Number);
-        const endDateTime = new Date(
-          new Date(date).setHours(endHours, endMinutes),
-        );
-
-        // Use role name directly as the session ID
-        const sessionId = role.name;
-
-        // Determine status
-        let status: "upcoming" | "in-progress" | "completed" | "editing" =
-          "upcoming";
-        if (isAfter(now, endDateTime)) {
-          const hoursSinceEnd = differenceInMinutes(now, endDateTime) / 60;
-          if (hoursSinceEnd < 48) {
-            status = "editing";
-          } else {
-            status = "completed";
-          }
-        } else {
-          const [startHours, startMinutes] = role.startTime
-            .split(":")
-            .map(Number);
-          const startDateTime = new Date(
-            new Date(date).setHours(startHours, startMinutes),
-          );
-          if (isAfter(now, startDateTime)) {
-            status = "in-progress";
-          }
-        }
-
-        sessions.push({
-          id: sessionId, // Use role name as ID
-          name: formatSessionName(project, sessionId),
-          endDateTime,
-          status,
-          alternativeIds: [sessionId], // The role name is the only ID we need
-        });
-      });
-    }
-
-    return sessions;
-  }, [project]);
-
-  // State for batch time adjustment
-  const [showBatchAdjustment, setShowBatchAdjustment] = useState<
-    Record<string, boolean>
-  >({});
-  const [batchMinutesAdjustment, setBatchMinutesAdjustment] =
-    useState<number>(30);
-  const [applyingBatchAdjustment, setApplyingBatchAdjustment] = useState<
-    Record<string, boolean>
-  >({});
-
-  // Function to handle batch time adjustment
-  const handleBatchAdjustment = (sessionId: string, minutes: number) => {
-    setApplyingBatchAdjustment((prev) => ({
-      ...prev,
-      [sessionId]: true,
-    }));
-    const allSessions = getAllProjectSessions; // Ensure getAllProjectSessions is in scope
-
+  const resend = async (key: string, scheduleId: string) => {
+    setBusy(key);
     try {
-      // Get all signups for this session
-      let sessionSignups: ProjectSignup[] = [];
-
-      // First try exact match
-      if (signupsBySession[sessionId]) {
-        sessionSignups = signupsBySession[sessionId];
-      } else {
-        // Try all alternative IDs
-        const session = allSessions.find((s) => s.id === sessionId);
-        if (session) {
-          for (const altId of session.alternativeIds) {
-            if (signupsBySession[altId]) {
-              sessionSignups = signupsBySession[altId];
-              break;
-            }
-          }
-        }
-      }
-
-      if (sessionSignups.length === 0) {
-        toast.error("No volunteers found for this session.");
-        return;
-      }
-
-      // Apply the adjustment to all signups in the session
-      const newEditedTimes = { ...editedTimes };
-      let successCount = 0;
-
-      sessionSignups.forEach((signup) => {
-        const currentCheckOut = editedTimes[signup.id]?.check_out_time;
-
-        if (currentCheckOut) {
-          // Create a date object from the current checkout time
-          const checkOutDate = new Date(currentCheckOut);
-
-          // Add the specified minutes
-          checkOutDate.setMinutes(checkOutDate.getMinutes() + minutes);
-
-          // Update the edited times
-          newEditedTimes[signup.id] = {
-            ...newEditedTimes[signup.id],
-            check_out_time: checkOutDate.toISOString(),
-          };
-
-          successCount++;
-        }
-      });
-
-      // Update state with new times
-      setEditedTimes(newEditedTimes);
-
-      // Show success message
-      if (successCount > 0) {
-        toast.success(
-          `Successfully adjusted ${successCount} volunteer${successCount !== 1 ? "s" : ""} by ${minutes} minutes.`,
+      const result = await resendCertificateEmails(project.id, scheduleId);
+      if (!result.success)
+        toast.error(result.error || "Could not retry delivery.");
+      else
+        setNotice(
+          `${result.emailsSent ?? 0} certificate emails accepted for delivery.${result.emailErrors?.length ? ` ${result.emailErrors.join(" ")}` : ""}`,
         );
-      } else {
-        toast.warning(
-          "No checkout times were adjusted. Make sure volunteers have check-out times set.",
-        );
-      }
-
-      // Close the batch adjustment UI
-      setShowBatchAdjustment((prev) => ({
-        ...prev,
-        [sessionId]: false,
-      }));
-    } catch (error) {
-      console.error("Error applying batch adjustment:", error);
-      toast.error("Failed to apply time adjustment.");
     } finally {
-      setApplyingBatchAdjustment((prev) => ({
-        ...prev,
-        [sessionId]: false,
-      }));
+      setBusy(null);
     }
   };
-
-  // Add state to track published status from project
-  const [publishedSessions, setPublishedSessions] = useState<
-    Record<string, boolean>
-  >(() => {
-    // Initialize from project.published
-    if (!project.published) return {};
-    return project.published as Record<string, boolean>;
-  });
-
-  // Function to check if a session is published
-  const isSessionPublished = (sessionId: string): boolean => {
-    if (project.event_type === "oneTime") {
-      return !!publishedSessions["oneTime"];
-    } else if (project.event_type === "multiDay") {
-      const publishKey = getPublishStateKey(sessionId);
-      return !!publishedSessions[publishKey];
-    } else if (project.event_type === "sameDayMultiArea") {
-      // For multi-area events, use the sessionId directly as it's the role name
-      return !!publishedSessions[sessionId];
-    }
-    return false;
-  };
-
-  // Function to get session identifier for publishing
-  const getPublishStateKey = (sessionId: string): string => {
-    if (project.event_type === "oneTime") {
-      return "oneTime";
-    } else if (project.event_type === "multiDay") {
-      const parts = sessionId.split("-");
-      if (parts.length === 5) {
-        // New format: YYYY-MM-DD-dayIndex-slotIndex
-        const dateKey = `${parts[0]}-${parts[1]}-${parts[2]}`;
-        const slotIndex = parts[4];
-        return `${dateKey}-${slotIndex}`;
-      } else if (parts.length === 4) {
-        // Legacy format: YYYY-MM-DD-slotIndex
-        return sessionId;
-      }
-    } else if (project.event_type === "sameDayMultiArea") {
-      // For multi-area events, the sessionId is already the role name
-      return sessionId;
-    }
-    return sessionId;
-  };
-
-  // --- Filter active sessions for the header display - only show sessions in "editing" status that are unpublished ---
-  const activeUnpublishedSessions = useMemo(() => {
-    // First get all sessions in editing status from getAllProjectSessions
-    const editingSessions = getAllProjectSessions.filter(
-      (session) => session.status === "editing",
-    );
-
-    // Then filter out published sessions and add hoursRemaining calculation
-    return editingSessions
-      .filter((session) => !isSessionPublished(session.id))
-      .map((session) => {
-        // Calculate hours remaining (48 hour editing window)
-        const now = new Date();
-        const hoursSinceEnd =
-          differenceInMinutes(now, session.endDateTime) / 60;
-        const hoursRemaining = Math.max(0, 48 - hoursSinceEnd);
-
-        return {
-          ...session,
-          hoursRemaining: Math.floor(hoursRemaining),
-        };
-      });
-  }, [getAllProjectSessions, publishedSessions]);
-  // --- End filter ---
-
-  const siteUrl = (
-    process.env.NEXT_PUBLIC_SITE_URL || "https://lets-assist.com"
-  ).replace(/\/$/, "");
-  const certificateBaseUrl = `${siteUrl}/certificates`;
-  const publishEmailErrors = publishSummary?.emailErrors ?? [];
-  const failedEmailCount = publishEmailErrors.filter((err) => {
-    const lower = err.toLowerCase();
-    return (
-      !lower.includes("missing email") && !lower.includes("skipped certificate")
-    );
-  }).length;
-  const skippedEmailCount = Math.max(
-    publishSummary?.missingEmailCount ?? 0,
-    publishEmailErrors.length - failedEmailCount,
-  );
-  const totalVolunteers = publishSummary?.totalVolunteers ?? 0;
-  const certificatesCreated = publishSummary?.certificatesCreated ?? 0;
-  const emailsSent = publishSummary?.emailsSent ?? 0;
-  const registeredVolunteers = publishSummary?.registeredVolunteers ?? 0;
-  const anonymousVolunteers = publishSummary?.anonymousVolunteers ?? 0;
-
-  const sessionLabelMap = useMemo(() => {
-    const map = new Map<string, string>();
-    map.set("all", "All Sessions");
-
-    getAllProjectSessions.forEach((session) => {
-      map.set(session.id, session.name);
-      session.alternativeIds?.forEach((altId) => {
-        map.set(altId, session.name);
-      });
-    });
-
-    return map;
-  }, [getAllProjectSessions]);
-
   return (
-    <div className="container mx-auto px-4 py-6 max-w-7xl">
-      <div className="mb-4 flex items-center justify-between sm:mb-6">
-        <Link
-          href={`/projects/${project.id}`}
-          className={cn(buttonVariants({ variant: "ghost" }), "gap-2")}
+    <main className="container mx-auto max-w-6xl space-y-6 px-4 py-6">
+      <Link href={`/projects/${project.id}`} className="text-sm underline">
+        Back to project
+      </Link>
+      <header>
+        <h1 className="text-2xl font-semibold">Volunteer hours</h1>
+        <p className="text-muted-foreground">{project.title}</p>
+        <p className="mt-2 text-sm">
+          Review actual attendance, publish credit, and correct earlier awards.
+          Times use {timezone}.
+        </p>
+      </header>
+      <AttendanceTools projectId={project.id} />
+      <AttendanceExport
+        scope="project"
+        scopeId={project.id}
+        sessionId={sessionFilter}
+      />
+      {notice && (
+        <p role="status" className="rounded border p-4 text-sm">
+          {notice}
+        </p>
+      )}
+      <div className="flex flex-col gap-3 sm:flex-row">
+        <Input
+          aria-label="Search volunteers"
+          placeholder="Search name or email"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+        />
+        <select
+          aria-label="Filter sessions"
+          value={sessionFilter}
+          onChange={(e) => setSessionFilter(e.target.value)}
+          className="rounded border bg-background p-2"
         >
-          <ArrowLeft className="h-4 w-4" />
-          <span className="hidden sm:inline">Back to Project</span>
-          <span className="sm:hidden">Back</span>
-        </Link>
-        <Link
-          href={`/projects/${project.id}/paper-signups`}
-          className={cn(buttonVariants({ variant: "outline" }), "gap-2")}
-        >
-          <ScanText className="h-4 w-4" />
-          <span className="hidden sm:inline">Add from paper sheet</span>
-          <span className="sm:hidden">Paper sheet</span>
-        </Link>
+          <option value="all">All sessions</option>
+          {sessions.map(([key, attendees]) => (
+            <option key={key} value={key}>
+              {sessionLabel(project, attendees[0].schedule_id)}
+            </option>
+          ))}
+        </select>
       </div>
-
-      {/* Publish Success Modal */}
-      <Dialog
-        open={showPublishSuccessModal}
-        onOpenChange={(open) => {
-          setShowPublishSuccessModal(open);
-          if (!open) {
-            setPublishSummary(null);
-          }
-        }}
-      >
-        <DialogContent className="sm:max-w-lg">
-          <DialogHeader>
-            <DialogTitle>
-              Hours Published for {currentPublishedSessionName}
-            </DialogTitle>
-            <DialogDescription>
-              Volunteer hours have been finalized and certificates generated.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4 py-4">
-            <div className="grid gap-3 sm:grid-cols-2">
-              <div className="flex items-center gap-2 p-3 rounded-md bg-success/10 border border-success/80">
-                <CheckCircle className="h-5 w-5 text-success" />
-                <div className="text-sm">
-                  <div className="font-medium">Certificates generated</div>
-                  <div className="text-xs text-muted-foreground">
-                    {certificatesCreated} certificate
-                    {certificatesCreated !== 1 ? "s" : ""} for {totalVolunteers}{" "}
-                    volunteer{totalVolunteers !== 1 ? "s" : ""}
-                  </div>
+      {!sessions.length && (
+        <p className="rounded border p-6 text-muted-foreground">
+          No approved volunteers or recorded attendance yet. Add a walk-in or
+          scan a completed sheet to begin.
+        </p>
+      )}
+      {sessions
+        .filter(([key]) => sessionFilter === "all" || sessionFilter === key)
+        .map(([key, attendees]) => {
+          const sessionWindow = getAttendanceScheduleWindow(
+            project,
+            attendees[0].schedule_id,
+          );
+          const sessionEnded = Boolean(
+            sessionWindow && sessionWindow.endsAt <= Date.now(),
+          );
+          const published = Boolean(
+            project.published?.[key] || attendees.every(certificateOf),
+          );
+          const pending = attendees.filter((signup) => !certificateOf(signup));
+          const ready = pending.filter(isReady);
+          const visible = attendees.filter((signup) =>
+            `${nameOf(signup)} ${signup.profile?.email || signup.anonymous_signup?.email || ""}`
+              .toLowerCase()
+              .includes(search.toLowerCase()),
+          );
+          const summary = summarizeAttendanceHours(
+            attendees.map((signup) => {
+              const certificate = certificateOf(signup);
+              const minutes = certificate
+                ? (certificate.credited_minutes ??
+                  Math.round(
+                    (Date.parse(certificate.event_end) -
+                      Date.parse(certificate.event_start)) /
+                      60000,
+                  ))
+                : null;
+              return {
+                creditedMinutes: minutes,
+                recordedMinutes: inspectAttendanceIntervals(
+                  draftFor(signup).intervals,
+                ).minutes,
+              };
+            }),
+          );
+          return (
+            <section key={key} className="rounded-lg border overflow-hidden">
+              <div className="bg-muted/30 p-4 space-y-2">
+                <div className="flex flex-wrap justify-between gap-2">
+                  <h2 className="font-semibold">
+                    {sessionLabel(project, attendees[0].schedule_id)}
+                  </h2>
+                  <Badge variant={published ? "secondary" : "outline"}>
+                    {published ? "Published" : "Not published"}
+                  </Badge>
                 </div>
-              </div>
-              <div className="flex items-center gap-2 p-3 rounded-md bg-muted/50 border">
-                <UserRoundCheck className="h-5 w-5 text-muted-foreground" />
-                <div className="text-sm">
-                  <div className="font-medium">Volunteer breakdown</div>
-                  <div className="text-xs text-muted-foreground">
-                    {registeredVolunteers} registered • {anonymousVolunteers}{" "}
-                    anonymous
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <div className="text-muted-foreground text-sm">
-              PDF certificates are ready, and volunteer access is now live.
-            </div>
-
-            <div className="mt-2 p-3 bg-muted rounded-md text-xs text-muted-foreground border">
-              <div className="flex items-center gap-2 mb-2 font-semibold">
-                <Info className="h-4 w-4" />
-                Verification Info
-              </div>
-              Each certificate includes a unique ID and verification link inside
-              the PDF/email.
-              <span className="block font-mono mt-1 select-all bg-background p-1 rounded border">
-                {certificateBaseUrl}/{"<certificate-id>"}
-              </span>
-            </div>
-
-            <div className="flex items-start gap-2 p-3 rounded-md bg-info/10 border border-info/80">
-              <Mail className="h-5 w-5 text-info mt-0.5" />
-              <div className="text-sm">
-                <p className="font-medium text-info">Email Notifications</p>
-                <p className="text-muted-foreground">
-                  {emailsSent > 0
-                    ? `Sent ${emailsSent} notification email${emailsSent !== 1 ? "s" : ""}.`
-                    : "No notification emails were sent."}
+                <p className="text-sm">
+                  {attendees.length}{" "}
+                  {attendees.length === 1 ? "volunteer" : "volunteers"} ·{" "}
+                  {minutesLabel(summary.awardedMinutes)} awarded
                 </p>
-                {skippedEmailCount > 0 && (
-                  <p className="text-muted-foreground">
-                    Skipped {skippedEmailCount} volunteer
-                    {skippedEmailCount !== 1 ? "s" : ""} without email
-                    addresses.
+                {summary.pendingCount > 0 && (
+                  <p className="text-sm text-muted-foreground">
+                    {minutesLabel(summary.recordedMinutes)} recorded for{" "}
+                    {summary.pendingCount}{" "}
+                    {summary.pendingCount === 1 ? "volunteer" : "volunteers"}{" "}
+                    awaiting publication.
                   </p>
                 )}
-                {failedEmailCount > 0 && (
-                  <p className="text-muted-foreground">
-                    {failedEmailCount} email{failedEmailCount !== 1 ? "s" : ""}{" "}
-                    failed to send. You can retry later.
+                {published ? (
+                  <Button
+                    variant="outline"
+                    disabled={busy !== null}
+                    onClick={() => void resend(key, attendees[0].schedule_id)}
+                  >
+                    Retry certificate delivery
+                  </Button>
+                ) : (
+                  <Button
+                    disabled={busy !== null || !ready.length || !sessionEnded}
+                    onClick={() => setConfirmSession(key)}
+                  >
+                    Review and publish {ready.length}{" "}
+                    {ready.length === 1 ? "volunteer" : "volunteers"}
+                  </Button>
+                )}
+                {!published && !sessionEnded && (
+                  <p className="text-sm text-muted-foreground">
+                    {sessionWindow
+                      ? "Hours can be published after this session ends. Refresh then to publish reviewed attendance."
+                      : "This session needs a valid schedule before hours can be published."}
                   </p>
                 )}
-              </div>
-            </div>
-
-            <Alert variant="default" className="mt-4">
-              <Info className="h-4 w-4" />
-              <AlertTitle className="font-semibold">
-                What happens next?
-              </AlertTitle>
-              <AlertDescription className="text-xs space-y-1">
-                <ul className="list-disc pl-5 space-y-0.5 mt-2">
-                  <li>
-                    <strong>Volunteers with accounts:</strong> Can access
-                    certificates via their profile or the project page
-                  </li>
-                  <li>
-                    <strong>Anonymous volunteers:</strong> Receive an email with
-                    a direct certificate link (if an email was provided)
-                  </li>
-                  <li>
-                    <strong>Verification:</strong> Anyone with a certificate
-                    link can verify it using the certificate page
-                  </li>
-                </ul>
-                <p className="mt-2">
-                  If volunteers need help accessing their certificates, direct
-                  them to contact you or support@lets-assist.com
-                </p>
-              </AlertDescription>
-            </Alert>
-          </div>
-          <DialogFooter>
-            <DialogClose
-              render={
-                <Button type="button" variant="secondary">
-                  Close
-                </Button>
-              }
-            />
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* Add confirmation dialog */}
-      <Dialog
-        open={confirmPublishSessionId !== null}
-        onOpenChange={(open) => !open && setConfirmPublishSessionId(null)}
-      >
-        <DialogContent className="sm:max-w-[425px]">
-          <DialogHeader>
-            <DialogTitle className="text-xl flex items-center">
-              <AlertCircle className="h-5 w-5 text-warning mr-2" />
-              Publish Volunteer Hours
-            </DialogTitle>
-            <DialogDescription className="pt-2">
-              You are about to publish volunteer hours and generate official
-              certificates for <strong>{confirmPublishCount}</strong> volunteer
-              {confirmPublishCount !== 1 ? "s" : ""}.
-            </DialogDescription>
-          </DialogHeader>
-
-          <div className="my-2 p-3 border rounded-md bg-muted/50">
-            <p className="text-sm text-warning font-medium">Important:</p>
-            <p className="text-sm mt-1">
-              This action is final. Once published, these hours cannot be
-              modified. Volunteers will have access to their certificates
-              immediately.
-            </p>
-          </div>
-
-          <p className="text-sm text-muted-foreground">
-            For any changes after publishing, you&apos;ll need to contact
-            support at{" "}
-            <a
-              href="mailto:support@lets-assist.com"
-              className="text-primary underline"
-            >
-              support@lets-assist.com
-            </a>
-          </p>
-
-          <DialogFooter className="gap-2 mt-4">
-            <DialogClose render={<Button variant="outline">Cancel</Button>} />
-            <Button
-              onClick={() =>
-                confirmPublishSessionId &&
-                handlePublishHours(confirmPublishSessionId)
-              }
-              variant="default"
-            >
-              Confirm & Publish
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* Certificates Modal */}
-      <Dialog
-        open={showCertificatesModal}
-        onOpenChange={setShowCertificatesModal}
-      >
-        <DialogContent className="w-[95vw] max-w-4xl flex flex-col">
-          <DialogHeader className="shrink-0">
-            <DialogTitle className="text-lg sm:text-xl flex items-center">
-              <FileText className="h-4 w-4 sm:h-5 sm:w-5 text-primary mr-2 shrink-0" />
-              <span className="truncate">Certificate Details</span>
-            </DialogTitle>
-            <DialogDescription className="text-sm">
-              {certificatesModalData ? (
-                <>
-                  <span className="block sm:inline">
-                    Session:{" "}
-                    <strong className="wrap-break-word">
-                      {certificatesModalData.sessionName}
-                    </strong>
-                  </span>
-                  <span className="block sm:inline sm:ml-2">
-                    • {certificatesModalData.volunteers.length} volunteer
-                    {certificatesModalData.volunteers.length !== 1 ? "s" : ""}
-                  </span>
-                </>
-              ) : (
-                "Loading certificate details..."
-              )}
-            </DialogDescription>
-          </DialogHeader>
-
-          <div className="flex-1 overflow-hidden flex flex-col min-h-0">
-            {certificatesModalData ? (
-              <div className="flex flex-col h-full space-y-4">
-                <div className="flex-1 overflow-auto min-h-0">
-                  <Table>
-                    <TableHeader className="sticky top-0 bg-background z-10">
-                      <TableRow>
-                        <TableHead className="w-[120px] sm:w-[150px]">
-                          Name
-                        </TableHead>
-                        <TableHead className="w-[150px] sm:w-[200px] hidden sm:table-cell">
-                          Email
-                        </TableHead>
-                        <TableHead className="w-[100px] sm:w-[140px]">
-                          Check-in
-                        </TableHead>
-                        <TableHead className="w-[100px] sm:w-[140px]">
-                          Check-out
-                        </TableHead>
-                        <TableHead className="w-[80px] sm:w-[100px]">
-                          Hours
-                        </TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {certificatesModalData.volunteers.length > 0 ? (
-                        certificatesModalData.volunteers.map(
-                          (volunteer, index) => (
-                            <TableRow key={index}>
-                              <TableCell className="font-medium">
-                                <div className="space-y-1">
-                                  <div className="truncate">
-                                    {volunteer.name}
-                                  </div>
-                                  <div className="sm:hidden text-xs text-muted-foreground truncate">
-                                    {volunteer.email}
-                                  </div>
-                                </div>
-                              </TableCell>
-                              <TableCell className="hidden sm:table-cell">
-                                {volunteer.email}
-                              </TableCell>
-                              <TableCell className="text-xs sm:text-sm">
-                                <div className="space-y-1">
-                                  <div>
-                                    {format(
-                                      new Date(volunteer.checkInTime),
-                                      "MMM d",
-                                    )}
-                                  </div>
-                                  <div className="text-muted-foreground">
-                                    {format(
-                                      new Date(volunteer.checkInTime),
-                                      "h:mm a",
-                                    )}
-                                  </div>
-                                </div>
-                              </TableCell>
-                              <TableCell className="text-xs sm:text-sm">
-                                <div className="space-y-1">
-                                  <div>
-                                    {format(
-                                      new Date(volunteer.checkOutTime),
-                                      "MMM d",
-                                    )}
-                                  </div>
-                                  <div className="text-muted-foreground">
-                                    {format(
-                                      new Date(volunteer.checkOutTime),
-                                      "h:mm a",
-                                    )}
-                                  </div>
-                                </div>
-                              </TableCell>
-                              <TableCell className="font-medium">
-                                {volunteer.hours}
-                              </TableCell>
-                            </TableRow>
-                          ),
-                        )
-                      ) : (
-                        <TableRow>
-                          <TableCell
-                            colSpan={5}
-                            className="text-center text-muted-foreground py-8"
-                          >
-                            No volunteers with valid hours found for this
-                            session.
-                          </TableCell>
-                        </TableRow>
-                      )}
-                    </TableBody>
-                  </Table>
-                </div>
-
-                {certificatesModalData.volunteers.length > 0 && (
-                  <div className="shrink-0 bg-muted/30 rounded-md p-4">
-                    <p className="text-sm font-medium mb-2">Summary:</p>
-                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4 text-sm">
-                      <div className="text-center sm:text-left">
-                        <span className="text-muted-foreground block sm:inline">
-                          Total Volunteers:
-                        </span>
-                        <div className="font-semibold text-lg sm:text-base">
-                          {certificatesModalData.volunteers.length}
-                        </div>
-                      </div>
-                      <div className="text-center sm:text-left">
-                        <span className="text-muted-foreground block sm:inline">
-                          Total Hours:
-                        </span>
-                        <div className="font-semibold text-lg sm:text-base">
-                          {(() => {
-                            const totalMinutes =
-                              certificatesModalData.volunteers.reduce(
-                                (sum, v) => {
-                                  return (
-                                    sum +
-                                    (typeof v.durationMinutes === "number" &&
-                                    !isNaN(v.durationMinutes)
-                                      ? v.durationMinutes
-                                      : 0)
-                                  );
-                                },
-                                0,
-                              );
-                            const hours = Math.floor(totalMinutes / 60);
-                            const minutes = totalMinutes % 60;
-                            return minutes > 0
-                              ? `${hours}h ${minutes}m`
-                              : `${hours}h`;
-                          })()}
-                        </div>
-                      </div>
-                      <div className="text-center sm:text-left">
-                        <span className="text-muted-foreground block sm:inline">
-                          Average Hours:
-                        </span>
-                        <div className="font-semibold text-lg sm:text-base">
-                          {(() => {
-                            const totalMinutes =
-                              certificatesModalData.volunteers.reduce(
-                                (sum, v) => {
-                                  return (
-                                    sum +
-                                    (typeof v.durationMinutes === "number" &&
-                                    !isNaN(v.durationMinutes)
-                                      ? v.durationMinutes
-                                      : 0)
-                                  );
-                                },
-                                0,
-                              );
-                            const avgMinutes = Math.round(
-                              totalMinutes /
-                                certificatesModalData.volunteers.length,
-                            );
-                            const hours = Math.floor(avgMinutes / 60);
-                            const minutes = avgMinutes % 60;
-                            return minutes > 0
-                              ? `${hours}h ${minutes}m`
-                              : `${hours}h`;
-                          })()}
-                        </div>
-                      </div>
+                {!published && ready.length !== pending.length && (
+                  <p className="text-sm text-muted-foreground">
+                    {pending.length - ready.length}{" "}
+                    {pending.length - ready.length === 1
+                      ? "volunteer still needs"
+                      : "volunteers still need"}{" "}
+                    valid attendance times.
+                  </p>
+                )}
+                {confirmSession === key && (
+                  <div className="rounded border bg-background p-3 space-y-3">
+                    <p className="text-sm">
+                      Publish {ready.length} reviewed attendance records and
+                      queue their certificate emails? Search filters do not
+                      change the publication selection. Missing or invalid times
+                      receive no credit.
+                    </p>
+                    <div className="flex gap-2">
+                      <Button
+                        disabled={busy !== null}
+                        onClick={() => void publish(key, attendees)}
+                      >
+                        {busy === key ? "Publishing…" : "Publish hours"}
+                      </Button>
+                      <Button
+                        variant="outline"
+                        disabled={busy !== null}
+                        onClick={() => setConfirmSession(null)}
+                      >
+                        Cancel
+                      </Button>
                     </div>
                   </div>
                 )}
               </div>
-            ) : (
-              <div className="flex items-center justify-center py-8">
-                <Loader2 className="h-6 w-6 animate-spin mr-2" />
-                <span>Loading certificate data...</span>
-              </div>
-            )}
-          </div>
-
-          <DialogFooter className="shrink-0 gap-2 flex-col sm:flex-row mt-4">
-            <DialogClose
-              render={
-                <Button variant="outline" className="w-full sm:w-auto">
-                  Close
-                </Button>
-              }
-            />
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      <Card className="min-h-[400px] relative">
-        {loading && (
-          <div className="absolute inset-0 flex items-center justify-center z-10 bg-background/50">
-            <div className="flex flex-col items-center gap-2 mt-10">
-              <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-              <span className="text-sm text-muted-foreground">Loading...</span>
-            </div>
-          </div>
-        )}
-        <CardHeader className="">
-          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-            <div>
-              <CardTitle className="text-lg sm:text-xl">
-                Manage Volunteer Hours
-              </CardTitle>
-              <CardDescription className="text-sm">
-                Review and edit volunteer check-in/out times. If no changes are
-                made, the system will automatically publish hours after 48
-                hours.
-              </CardDescription>
-            </div>
-          </div>
-
-          {/* Display active session information - ONLY if there are active UNPUBLISHED sessions */}
-          {activeUnpublishedSessions.length > 0 && (
-            <div className="space-y-4">
-              <div className="mt-4">
-                <div className="flex items-center gap-2 mb-2">
-                  <Edit className="h-4 w-4 text-warning" aria-hidden="true" />
-                  <span className="text-sm sm:text-base font-semibold text-warning">
-                    Editing Windows Open
-                  </span>
-                </div>
-                <p className="text-sm text-muted-foreground">
-                  You have active sessions that can still be edited.
-                </p>
-              </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
-                {activeUnpublishedSessions.map((session) => (
-                  <button
-                    key={session.id}
-                    onClick={() => setSessionFilter(session.id)}
-                    className="flex flex-col gap-1 p-3 sm:p-4 rounded-xl border border-warning/30 bg-linear-to-br from-warning/10 to-white/80 dark:to-background shadow-xs transition hover:shadow-lg"
-                  >
-                    <div className="flex items-center justify-between w-full">
-                      <span className="font-medium text-sm text-warning line-clamp-1">
-                        {session.name}
-                      </span>
-                      {publishingSessions[session.id] ? (
-                        <Loader2 className="h-3.5 w-3.5 text-warning animate-spin" />
-                      ) : (
-                        <Clock className="h-3.5 w-3.5 text-warning/70" />
-                      )}
-                    </div>
-                    <div className="text-xs text-muted-foreground mt-1 flex items-center gap-1">
-                      <span className="font-semibold text-warning">
-                        {session.hoursRemaining}h
-                      </span>{" "}
-                      left to edit
-                    </div>
-                  </button>
-                ))}
-              </div>
-            </div>
-          )}
-        </CardHeader>
-
-        <CardContent className="space-y-4 sm:space-y-6 px-3 sm:px-6">
-          {/* Search and Filter */}
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-center justify-between">
-            <div className="flex flex-col gap-2 flex-1 sm:flex-row sm:items-center">
-              <div className="relative w-full">
-                <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-                <Input
-                  placeholder="Search by name or email..."
-                  className="pl-8 w-full"
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  aria-label="Search by name or email"
-                />
-              </div>
-              <div className="flex flex-row gap-2 w-full sm:w-auto items-center">
-                <Select
-                  value={sessionFilter}
-                  onValueChange={(val) => setSessionFilter(val || "all")}
-                >
-                  <SelectTrigger
-                    className="w-full sm:min-w-[240px] sm:w-auto"
-                    aria-label="Filter by session"
-                  >
-                    <SelectValue>
-                      {(value) => {
-                        if (!value) {
-                          return "Filter by session";
-                        }
-
-                        return (
-                          sessionLabelMap.get(String(value)) ?? String(value)
-                        );
-                      }}
-                    </SelectValue>
-                  </SelectTrigger>
-                  <SelectContent className="max-w-[400px]">
-                    <SelectItem value="all">All Sessions</SelectItem>
-
-                    {/* Group sessions by status */}
-                    {getAllProjectSessions.filter((s) => s.status === "editing")
-                      .length > 0 && (
-                      <>
-                        <SelectItem
-                          value="header-editing"
-                          disabled
-                          className="text-xs font-semibold opacity-70"
-                        >
-                          Editing Window Open
-                        </SelectItem>
-                        {getAllProjectSessions
-                          .filter((s) => s.status === "editing")
-                          .map((session) => (
-                            <SelectItem
-                              key={`editing-${session.id}`}
-                              value={session.id}
-                              className="pl-6"
-                            >
-                              {session.name}
-                            </SelectItem>
-                          ))}
-                      </>
-                    )}
-
-                    {getAllProjectSessions.filter(
-                      (s) => s.status === "in-progress",
-                    ).length > 0 && (
-                      <>
-                        <SelectItem
-                          value="header-in-progress"
-                          disabled
-                          className="text-xs font-semibold opacity-70"
-                        >
-                          In Progress
-                        </SelectItem>
-                        {getAllProjectSessions
-                          .filter((s) => s.status === "in-progress")
-                          .map((session) => (
-                            <SelectItem
-                              key={`in-progress-${session.id}`}
-                              value={session.id}
-                              className="pl-6"
-                            >
-                              {session.name}
-                            </SelectItem>
-                          ))}
-                      </>
-                    )}
-
-                    {getAllProjectSessions.filter(
-                      (s) => s.status === "upcoming",
-                    ).length > 0 && (
-                      <>
-                        <SelectItem
-                          value="header-upcoming"
-                          disabled
-                          className="text-xs font-semibold opacity-70"
-                        >
-                          Upcoming
-                        </SelectItem>
-                        {getAllProjectSessions
-                          .filter((s) => s.status === "upcoming")
-                          .map((session) => (
-                            <SelectItem
-                              key={`upcoming-${session.id}`}
-                              value={session.id}
-                              className="pl-6"
-                            >
-                              {session.name}
-                            </SelectItem>
-                          ))}
-                      </>
-                    )}
-
-                    {getAllProjectSessions.filter(
-                      (s) => s.status === "completed",
-                    ).length > 0 && (
-                      <>
-                        <SelectItem
-                          value="header-completed"
-                          disabled
-                          className="text-xs font-semibold opacity-70"
-                        >
-                          Completed
-                        </SelectItem>
-                        {getAllProjectSessions
-                          .filter((s) => s.status === "completed")
-                          .map((session) => (
-                            <SelectItem
-                              key={`completed-${session.id}`}
-                              value={session.id}
-                              className="pl-6"
-                            >
-                              {session.name}
-                            </SelectItem>
-                          ))}
-                      </>
-                    )}
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-          </div>
-
-          {/* Display all sessions */}
-          {(sessionFilter === "all"
-            ? getAllProjectSessions
-            : getAllProjectSessions.filter((s) => s.id === sessionFilter)
-          ).map((session) => {
-            // Find signups for this session by checking both exact ID and alternative IDs
-            let sessionSignups: ProjectSignup[] = [];
-            const currentFilteredSignups = filteredSignupsBySession; // Ensure filteredSignupsBySession is in scope
-
-            // Try exact match first
-            if (currentFilteredSignups[session.id]) {
-              sessionSignups = currentFilteredSignups[session.id];
-            } else {
-              // Try all alternative IDs
-              for (const altId of session.alternativeIds) {
-                if (currentFilteredSignups[altId]) {
-                  sessionSignups = currentFilteredSignups[altId];
-                  break;
-                }
-              }
-            }
-
-            const hasSignups = sessionSignups.length > 0;
-            const isPublishing = publishingSessions[session.id] || false;
-            // --- Use the isSessionPublished function ---
-            const isPublished = isSessionPublished(session.id);
-            // --- End Use the isSessionPublished function ---
-            const hasInvalidTimes =
-              hasSignups &&
-              sessionSignups.some((signup) => {
-                const edit = editedTimes[signup.id] || {
-                  check_in_time: null,
-                  check_out_time: null,
-                };
-                const duration = calculateDuration(
-                  edit.check_in_time,
-                  edit.check_out_time,
-                );
-                return !duration.isValid;
-              });
-
-            // Check if any volunteer in this session has valid hours data
-            const hasValidHoursData =
-              hasSignups &&
-              sessionSignups.some((signup) => {
-                const edit = editedTimes[signup.id] || {
-                  check_in_time: null,
-                  check_out_time: null,
-                };
-                return edit.check_in_time && edit.check_out_time;
-              });
-
-            return (
-              <div
-                key={session.id}
-                className="space-y-4 mb-8 border rounded-lg p-4"
-              >
-                <div className="flex flex-col gap-3">
-                  <div className="flex flex-wrap sm:flex-row justify-between gap-3">
-                    <div>
-                      <h3 className="font-medium text-base">{session.name}</h3>
-                      <div className="flex items-center gap-2 mt-1">
-                        {session.status === "upcoming" && (
-                          <span className="text-xs px-2 py-1 rounded-full bg-info/10 text-info font-medium">
-                            Upcoming
+              <div className="divide-y">
+                {visible.map((signup) => {
+                  const certificate = certificateOf(signup);
+                  const draft = draftFor(signup);
+                  const inspection = inspectAttendanceIntervals(
+                    draft.intervals,
+                  );
+                  const minutes = certificate
+                    ? (certificate.credited_minutes ??
+                      Math.round(
+                        (Date.parse(certificate.event_end) -
+                          Date.parse(certificate.event_start)) /
+                          60000,
+                      ))
+                    : inspection.minutes;
+                  return (
+                    <article
+                      key={signup.id}
+                      className="p-4 flex flex-col gap-3 sm:flex-row sm:justify-between"
+                    >
+                      <div className="space-y-1">
+                        <h3 className="font-medium">
+                          {nameOf(signup)}{" "}
+                          <span className="text-xs text-muted-foreground">
+                            {signup.user_id ? "Account" : "Guest"}
                           </span>
-                        )}
-                        {session.status === "in-progress" && (
-                          <span className="text-xs px-2 py-1 rounded-full bg-secondary/10 text-secondary font-medium">
-                            In Progress
-                          </span>
-                        )}
-                        {/* --- Conditionally render Editing Window badge --- */}
-                        {session.status === "editing" && !isPublished && (
-                          <span className="text-xs px-2 py-1 rounded-full bg-warning/10 text-warning font-medium">
-                            Editing Window Open
-                          </span>
-                        )}
-                        {/* --- End Conditional render --- */}
-                        {session.status === "completed" &&
-                          !isPublished && ( // Show completed only if not published
-                            <span className="text-xs px-2 py-1 rounded-full bg-muted text-muted-foreground font-medium">
-                              Completed
-                            </span>
-                          )}
-                        {/* Add published badge */}
-                        {isPublished && (
-                          <span className="text-xs px-2 py-1 rounded-full bg-primary/10 text-primary font-medium">
-                            Published
-                          </span>
-                        )}
-                      </div>
-                    </div>
-
-                    {/* Make the batch adjustment and publish buttons appear side by side, aligned horizontally */}
-                    <div className="flex flex-row gap-2 items-center">
-                      {session.status === "editing" &&
-                        hasSignups &&
-                        !isPublished && (
-                          <>
-                            <Dialog>
-                              <DialogTrigger
-                                render={
-                                  <Button
-                                    variant="outline"
-                                    size="sm"
-                                    className="whitespace-nowrap"
-                                  >
-                                    <Clock className="h-4 w-4 mr-2" />
-                                    <span className="hidden sm:inline">
-                                      Adjust All Times
-                                    </span>
-                                    <span className="sm:hidden">
-                                      Batch Edit
-                                    </span>
-                                  </Button>
-                                }
-                              />
-                              <DialogContent className="sm:max-w-[425px]">
-                                <DialogHeader>
-                                  <DialogTitle>
-                                    Batch Adjust Check-out Times
-                                  </DialogTitle>
-                                  <DialogDescription>
-                                    Add time to all volunteer check-out times in
-                                    this session. This is useful when volunteers
-                                    stayed longer than initially recorded.
-                                  </DialogDescription>
-                                </DialogHeader>
-                                <div className="grid gap-4 py-4">
-                                  <div className="flex items-center justify-center gap-4">
-                                    <Button
-                                      variant="outline"
-                                      size="sm"
-                                      onClick={() =>
-                                        setBatchMinutesAdjustment((prev) =>
-                                          Math.max(5, prev - 5),
-                                        )
-                                      }
-                                      disabled={
-                                        applyingBatchAdjustment[session.id]
-                                      }
-                                    >
-                                      -
-                                    </Button>
-                                    <div className="flex flex-col items-center gap-1">
-                                      <span className="text-2xl font-semibold">
-                                        {batchMinutesAdjustment}
-                                      </span>
-                                      <span className="text-sm text-muted-foreground">
-                                        minutes
-                                      </span>
-                                    </div>
-                                    <Button
-                                      variant="outline"
-                                      size="sm"
-                                      onClick={() =>
-                                        setBatchMinutesAdjustment((prev) =>
-                                          Math.min(120, prev + 5),
-                                        )
-                                      }
-                                      disabled={
-                                        applyingBatchAdjustment[session.id]
-                                      }
-                                    >
-                                      +
-                                    </Button>
-                                  </div>
-                                  <div className="text-sm text-muted-foreground text-center">
-                                    This will extend the check-out time for{" "}
-                                    {
-                                      sessionSignups.filter(
-                                        (signup) =>
-                                          editedTimes[signup.id]
-                                            ?.check_out_time,
-                                      ).length
-                                    }{" "}
-                                    volunteers
-                                  </div>
-                                </div>
-                                <DialogFooter>
-                                  <DialogClose
-                                    render={
-                                      <Button
-                                        variant="outline"
-                                        className="hidden sm:inline"
-                                      >
-                                        Cancel
-                                      </Button>
-                                    }
-                                  />
-                                  <Button
-                                    onClick={() =>
-                                      handleBatchAdjustment(
-                                        session.id,
-                                        batchMinutesAdjustment,
-                                      )
-                                    }
-                                    disabled={
-                                      applyingBatchAdjustment[session.id]
-                                    }
-                                  >
-                                    {applyingBatchAdjustment[session.id] ? (
-                                      <>
-                                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                                        Applying...
-                                      </>
-                                    ) : (
-                                      "Apply Adjustment"
-                                    )}
-                                  </Button>
-                                </DialogFooter>
-                              </DialogContent>
-                            </Dialog>
-                          </>
-                        )}
-
-                      {session.status === "editing" &&
-                        hasSignups &&
-                        !isPublished && (
-                          <Button
-                            onClick={() => initiatePublishHours(session.id)}
-                            disabled={
-                              isPublishing ||
-                              !hasValidHoursData ||
-                              hasInvalidTimes
-                            }
-                            className="whitespace-nowrap"
-                            size="sm"
-                          >
-                            {isPublishing ? (
-                              <>
-                                <Loader2 className="h-4 w-4 animate-spin" />
-                                Publishing...
-                              </>
-                            ) : (
-                              <>
-                                <CheckCircle className="h-4 w-4 mr-1.5" />
-                                <span>Publish Hours</span>
-                              </>
-                            )}
-                          </Button>
-                        )}
-
-                      {/* Show view certificates button if published */}
-                      {isPublished && (
-                        <>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            className="whitespace-nowrap"
-                            onClick={() => loadCertificatesData(session.id)}
-                            disabled={loadingCertificates}
-                          >
-                            {loadingCertificates ? (
-                              <>
-                                <Loader2 className="h-4 w-4 mr-1.5 animate-spin" />
-                                Loading...
-                              </>
-                            ) : (
-                              <>
-                                <FileText className="h-4 w-4 mr-1.5" />
-                                <span className="hidden sm:inline">
-                                  View Certificates
-                                </span>
-                                <span className="sm:hidden">Certificates</span>
-                              </>
-                            )}
-                          </Button>
-
-                          <Dialog
-                            open={showResendDialog === session.id}
-                            onOpenChange={(open) => {
-                              if (!open) setShowResendDialog(null);
-                            }}
-                          >
-                            <DialogTrigger
-                              render={
-                                <Button
-                                  variant="outline"
-                                  size="sm"
-                                  className="whitespace-nowrap"
-                                  disabled={resendingSessions[session.id]}
-                                >
-                                  {resendingSessions[session.id] ? (
-                                    <>
-                                      <Loader2 className="h-4 w-4 mr-1.5 animate-spin" />
-                                      Resending...
-                                    </>
-                                  ) : (
-                                    <>
-                                      <Mail className="h-4 w-4 mr-1.5" />
-                                      <span className="hidden sm:inline">
-                                        Resend
-                                      </span>
-                                      <span className="sm:hidden">Resend</span>
-                                    </>
-                                  )}
-                                </Button>
-                              }
-                              onClick={() => setShowResendDialog(session.id)}
-                            />
-                            <DialogContent className="sm:max-w-lg">
-                              <DialogHeader>
-                                <DialogTitle>Resend Certificates</DialogTitle>
-                                <DialogDescription>
-                                  Resend certificate emails to volunteers who
-                                  have already received their certificates. This
-                                  is useful for corrections or if volunteers
-                                  didn't receive their original email.
-                                </DialogDescription>
-                              </DialogHeader>
-
-                              <div className="space-y-4 py-4">
-                                <p className="text-sm text-muted-foreground">
-                                  Are you sure you want to resend all
-                                  certificates for this session to volunteers?
-                                </p>
-                              </div>
-
-                              <DialogFooter className="gap-2">
-                                <DialogClose
-                                  render={
-                                    <Button variant="outline">Cancel</Button>
-                                  }
-                                />
-                                <Button
-                                  onClick={() =>
-                                    handleResendCertificates(session.id)
-                                  }
-                                  disabled={resendingSessions[session.id]}
-                                >
-                                  {resendingSessions[session.id] ? (
-                                    <>
-                                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                                      Resending...
-                                    </>
-                                  ) : (
-                                    <>
-                                      <Mail className="h-4 w-4 mr-2" />
-                                      Resend All Certificates
-                                    </>
-                                  )}
-                                </Button>
-                              </DialogFooter>
-                            </DialogContent>
-                          </Dialog>
-                        </>
-                      )}
-                    </div>
-                  </div>
-
-                  {/* Batch adjustment description */}
-                  {showBatchAdjustment[session.id] &&
-                    !applyingBatchAdjustment[session.id] && (
-                      <div className="text-sm text-muted-foreground bg-muted/40 p-2 rounded border">
-                        <p>
-                          This will add{" "}
-                          <span className="font-semibold">
-                            {batchMinutesAdjustment} minutes
-                          </span>{" "}
-                          to all volunteer check-out times in this session.
-                          Useful for extending hours when volunteers stayed
-                          longer than initially recorded.
+                        </h3>
+                        <p className="text-sm text-muted-foreground">
+                          {signup.profile?.email ||
+                            signup.anonymous_signup?.email ||
+                            "Email missing"}
+                        </p>
+                        {draft.intervals.map((interval, index) => (
+                          <p className="text-sm" key={index}>
+                            Visit {index + 1}:{" "}
+                            {interval.checkIn
+                              ? new Date(interval.checkIn).toLocaleString(
+                                  "en-US",
+                                  { timeZone: timezone },
+                                )
+                              : "Sign-in missing"}{" "}
+                            to{" "}
+                            {interval.checkOut
+                              ? new Date(interval.checkOut).toLocaleString(
+                                  "en-US",
+                                  { timeZone: timezone },
+                                )
+                              : "Sign-out missing"}
+                          </p>
+                        ))}
+                        <p className="font-medium text-sm">
+                          {minutesLabel(minutes)}
+                          {draft.intervals.length > 1
+                            ? ", excluding breaks"
+                            : ""}
                         </p>
                       </div>
-                    )}
-                </div>
-
-                {hasInvalidTimes && (
-                  <Alert variant="destructive" className="mb-4">
-                    <AlertCircle className="h-4 w-4" />
-                    <AlertTitle>Invalid Hours Detected</AlertTitle>
-                    <AlertDescription>
-                      Some volunteers have invalid hours (negative or over 24
-                      hours). Please fix these before publishing.
-                    </AlertDescription>
-                  </Alert>
-                )}
-
-                {isPublished && (
-                  <div className="border rounded-md p-4 bg-primary/5 flex flex-col items-center justify-center py-6 text-center">
-                    <p className="text-primary font-medium">
-                      This session&apos;s hours have been published and
-                      certificates generated.
-                    </p>
-                    <p className="text-xs text-muted-foreground mt-1">
-                      Hours can no longer be modified. Contact support for any
-                      needed changes.
-                    </p>
-                  </div>
-                )}
-
-                {hasSignups && !isPublished ? (
-                  <div className="overflow-x-auto -mx-3 sm:mx-0 pb-2">
-                    <div className="inline-block min-w-full align-middle">
-                      <Table>
-                        <TableHeader>
-                          <TableRow>
-                            <TableHead className="whitespace-nowrap min-w-[140px]">
-                              Name
-                            </TableHead>
-                            <TableHead className="whitespace-nowrap">
-                              Email
-                            </TableHead>
-                            <TableHead className="whitespace-nowrap">
-                              Check-in
-                            </TableHead>
-                            <TableHead className="whitespace-nowrap">
-                              Check-out
-                            </TableHead>
-                            <TableHead className="whitespace-nowrap flex items-center gap-1">
-                              Duration
-                              <span>
-                                <div>
-                                  <TooltipProvider>
-                                    <Tooltip>
-                                      <TooltipTrigger
-                                        render={
-                                          <span
-                                            tabIndex={0}
-                                            aria-label="Duration info"
-                                          >
-                                            <Info
-                                              className="h-4 w-4 cursor-pointer"
-                                              aria-hidden="true"
-                                            />
-                                          </span>
-                                        }
-                                      />
-                                      <TooltipContent side="top" align="center">
-                                        Times may be off by ±1 minute due to
-                                        rounding seconds to the nearest minute.
-                                      </TooltipContent>
-                                    </Tooltip>
-                                  </TooltipProvider>
-                                </div>
-                              </span>
-                            </TableHead>
-                          </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                          {sessionSignups.map((signup) => {
-                            const isRegistered = !!signup.user_id;
-                            const name = isRegistered
-                              ? signup.profile?.full_name
-                              : signup.anonymous_signup?.name;
-                            const email = isRegistered
-                              ? signup.profile?.email
-                              : signup.anonymous_signup?.email;
-                            const currentEdit = editedTimes[signup.id] || {
-                              check_in_time: null,
-                              check_out_time: null,
-                            };
-                            const duration = calculateDuration(
-                              currentEdit.check_in_time,
-                              currentEdit.check_out_time,
-                            );
-
-                            // Check if this record has been edited
-                            const checkInOriginal = signup.check_in_time;
-                            const checkOutOriginal = signup.check_out_time;
-                            const hasBeenEdited =
-                              currentEdit.check_in_time !== checkInOriginal ||
-                              currentEdit.check_out_time !== checkOutOriginal;
-
-                            return (
-                              <TableRow
-                                key={signup.id}
-                                className={hasBeenEdited ? "bg-muted/40" : ""}
-                              >
-                                <TableCell className="font-medium py-2.5 px-3 sm:p-4">
-                                  {name || "N/A"}
-                                  {hasBeenEdited && (
-                                    <span className="ml-2 text-xs text-muted-foreground">
-                                      <PencilLine className="h-3 w-3 inline-block" />{" "}
-                                      Edited
-                                    </span>
-                                  )}
-                                </TableCell>
-                                <TableCell className="py-2.5 px-3 sm:p-4">
-                                  <span className="truncate max-w-[120px] sm:max-w-none block">
-                                    {email || "N/A"}
-                                  </span>
-                                </TableCell>
-                                <TableCell className="py-2.5 px-3 sm:p-4">
-                                  <div className="max-w-[120px]">
-                                    <TimePicker
-                                      value={
-                                        currentEdit.check_in_time
-                                          ? format(
-                                              new Date(
-                                                currentEdit.check_in_time,
-                                              ),
-                                              "HH:mm",
-                                            )
-                                          : ""
-                                      }
-                                      onChangeAction={(time) =>
-                                        handleTimeChange(
-                                          signup.id,
-                                          "check_in_time",
-                                          time,
-                                        )
-                                      }
-                                      disabled={session.status !== "editing"}
-                                    />
-                                  </div>
-                                </TableCell>
-                                <TableCell className="py-2.5 px-3 sm:p-4">
-                                  <div className="max-w-[120px]">
-                                    <TimePicker
-                                      value={
-                                        currentEdit.check_out_time
-                                          ? format(
-                                              new Date(
-                                                currentEdit.check_out_time,
-                                              ),
-                                              "HH:mm",
-                                            )
-                                          : ""
-                                      }
-                                      onChangeAction={(time) =>
-                                        handleTimeChange(
-                                          signup.id,
-                                          "check_out_time",
-                                          time,
-                                        )
-                                      }
-                                      disabled={session.status !== "editing"}
-                                    />
-                                  </div>
-                                </TableCell>
-                                <TableCell className="py-2.5 px-3 sm:p-4">
-                                  <span
-                                    className={`text-xs font-medium ${!duration.isValid ? "text-destructive" : ""}`}
-                                  >
-                                    {duration.text}
-                                  </span>
-                                </TableCell>
-                              </TableRow>
-                            );
-                          })}
-                        </TableBody>
-                      </Table>
-                    </div>
-                  </div>
-                ) : (
-                  !isPublished && (
-                    <div className="border rounded-md p-4 bg-muted/30 flex flex-col items-center justify-center py-6 text-center">
-                      {session.status === "upcoming" && (
-                        <>
-                          <p className="text-muted-foreground">
-                            This session hasn&apos;t started yet.
-                          </p>
-                          <p className="text-xs text-muted-foreground mt-1">
-                            Check back after the session is complete.
-                          </p>
-                        </>
-                      )}
-                      {session.status === "in-progress" && (
-                        <>
-                          <p className="text-muted-foreground">
-                            This session is currently in progress.
-                          </p>
-                          <p className="text-xs text-muted-foreground mt-1">
-                            Volunteer hours will be available after the session
-                            ends.
-                          </p>
-                        </>
-                      )}
-                      {(session.status === "editing" ||
-                        session.status === "completed") && (
-                        <>
-                          <p className="text-muted-foreground">
-                            No volunteers attended this session.
-                          </p>
-                          <p className="text-xs text-muted-foreground mt-1">
-                            There are no hours to manage.
-                          </p>
-                        </>
-                      )}
-                    </div>
-                  )
-                )}
+                      <div className="flex items-start flex-wrap gap-2">
+                        {certificate && (
+                          <Button
+                            variant="outline"
+                            render={
+                              <Link href={`/certificates/${certificate.id}`} />
+                            }
+                          >
+                            View certificate
+                          </Button>
+                        )}
+                        {certificate?.canResendCorrection && (
+                          <Button
+                            variant="outline"
+                            disabled={busy !== null}
+                            onClick={() => void sendCorrection(certificate)}
+                          >
+                            Send updated certificate
+                          </Button>
+                        )}
+                        <Button
+                          variant="outline"
+                          disabled={busy !== null}
+                          onClick={() => {
+                            setEditing(signup);
+                            setCorrectionRequest(crypto.randomUUID());
+                          }}
+                        >
+                          {certificate ? "Correct hours" : "Edit visits"}
+                        </Button>
+                      </div>
+                    </article>
+                  );
+                })}
               </div>
-            );
-          })}
-
-          {getAllProjectSessions.length === 0 && !loading && (
-            <div className="flex flex-col items-center text-muted-foreground space-y-2 py-10">
-              <UserRoundCheck className="h-8 w-8 mt-10" />
-              <p className="text-lg font-medium">No Sessions Found</p>
-              <p className="text-sm">
-                This project doesn&apos;t have any scheduled sessions.
-              </p>
-            </div>
-          )}
-        </CardContent>
-      </Card>
-    </div>
+            </section>
+          );
+        })}
+      {editing && (
+        <AttendanceIntervalEditor
+          name={nameOf(editing)}
+          timezone={timezone}
+          initialIntervals={draftFor(editing).intervals}
+          window={getAttendanceScheduleWindow(project, editing.schedule_id)}
+          correction={Boolean(certificateOf(editing))}
+          onClose={() => setEditing(null)}
+          onSave={async (intervals, reason) => {
+            if (certificateOf(editing)) {
+              const result = await correctVolunteerAttendance(
+                project.id,
+                editing.id,
+                editing.attendance_revision,
+                reason,
+                intervals,
+                correctionRequest,
+              );
+              if ("error" in result && result.error) {
+                toast.error(result.error);
+                return false;
+              }
+              setNotice(
+                "Correction saved. The existing certificate now shows the corrected hours. No email was sent.",
+              );
+              setDrafts((current) => {
+                const next = { ...current };
+                delete next[editing.id];
+                return next;
+              });
+              router.refresh();
+            } else {
+              const result = await recordVolunteerAttendance(
+                project.id,
+                editing.id,
+                editing.attendance_revision,
+                reason || "Coordinator reviewed attendance",
+                intervals,
+                correctionRequest,
+              );
+              if ("error" in result && result.error) {
+                toast.error(result.error);
+                return false;
+              }
+              setDrafts((current) => ({
+                ...current,
+                [editing.id]: { intervals, reason, reviewed: true },
+              }));
+              setNotice(
+                "Attendance saved. If this session is already published, its certificate is available. Otherwise publish the session to award hours.",
+              );
+              router.refresh();
+            }
+            return true;
+          }}
+        />
+      )}
+    </main>
   );
 }

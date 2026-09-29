@@ -1,3 +1,4 @@
+import { certificateHours } from "@/lib/projects/certificate-duration";
 import { createClient } from "@/lib/supabase/server";
 import { NextRequest, NextResponse } from "next/server";
 
@@ -32,6 +33,7 @@ export async function GET(
         is_certified,
         event_start,
         event_end,
+        credited_minutes,
         volunteer_name,
         volunteer_email,
         issued_at,
@@ -68,6 +70,15 @@ export async function GET(
       event: {
         startDate: certificate.event_start,
         endDate: certificate.event_end,
+        creditedMinutes: certificate.credited_minutes,
+        duration: certificateHours(certificate, () =>
+          Math.max(
+            0,
+            (Date.parse(certificate.event_end) -
+              Date.parse(certificate.event_start)) /
+              3600000,
+          ),
+        ),
       },
       project: {
         id: certificate.project_id,

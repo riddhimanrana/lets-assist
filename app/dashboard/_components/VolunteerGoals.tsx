@@ -1,5 +1,7 @@
 "use client";
 
+import { certificateHours } from "@/lib/projects/certificate-duration";
+
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -195,7 +197,7 @@ export function VolunteerGoals({
       // Fetch filtered certificates based on date range
       let query = supabase
         .from("certificates")
-        .select("event_start, event_end")
+        .select("event_start, event_end, credited_minutes")
         .eq("user_id", userId);
 
       if (startDate) {
@@ -207,7 +209,13 @@ export function VolunteerGoals({
 
       const certificatesResult = await withRetryableSupabaseQuery(() => query);
       const { data: certificates, error } = certificatesResult as {
-        data: { event_start: string; event_end: string }[] | null;
+        data:
+          | {
+              event_start: string;
+              event_end: string;
+              credited_minutes?: number | null;
+            }[]
+          | null;
         error: { message?: string } | null;
       };
 
@@ -223,7 +231,7 @@ export function VolunteerGoals({
           const start = new Date(cert.event_start);
           const end = new Date(cert.event_end);
           const duration = (end.getTime() - start.getTime()) / (1000 * 60 * 60); // Convert to hours
-          totalFilteredHours += duration;
+          totalFilteredHours += certificateHours(cert, () => duration);
         });
       }
 

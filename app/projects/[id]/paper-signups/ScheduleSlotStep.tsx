@@ -35,6 +35,8 @@ interface ScheduleSlotStepProps {
   selectedSlotId: string | null;
   onSelect: (slotId: string) => void;
   onContinue: () => void;
+  manual?: boolean;
+  busy?: boolean;
 }
 
 function formatWindow(option: PaperScanSlotOption, timezone: string): string {
@@ -65,14 +67,16 @@ export function ScheduleSlotStep({
   selectedSlotId,
   onSelect,
   onContinue,
+  manual = false,
+  busy = false,
 }: ScheduleSlotStepProps) {
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Which session is this sheet for?</CardTitle>
+        <CardTitle>Which session is this attendance for?</CardTitle>
         <CardDescription>
-          Each scan records attendance for a single session. Scan multiple
-          sheets one at a time.
+          Select one session to record attendance. Each session keeps its own
+          roster and reviewed hours.
         </CardDescription>
       </CardHeader>
       <CardContent>
@@ -89,7 +93,7 @@ export function ScheduleSlotStep({
           </Empty>
         ) : (
           <RadioGroup
-            value={selectedSlotId ?? undefined}
+            value={selectedSlotId ?? ""}
             onValueChange={(value) => onSelect(String(value))}
             aria-label="Session for this sheet"
           >
@@ -119,11 +123,15 @@ export function ScheduleSlotStep({
       </CardContent>
       <CardFooter>
         <Button
-          disabled={!selectedSlotId}
+          disabled={!selectedSlotId || busy}
           onClick={onContinue}
           className="w-full sm:w-auto"
         >
-          Continue to photos
+          {busy
+            ? "Opening attendance..."
+            : manual
+              ? "Add attendance manually"
+              : "Continue to photos"}
         </Button>
       </CardFooter>
     </Card>

@@ -1,4 +1,5 @@
 import { TZDate } from "@date-fns/tz";
+import { localDateTime, localDateTimeCandidates } from "./intervals";
 
 /**
  * Normalization for AI-transcribed paper sheet values.
@@ -6,8 +7,7 @@ import { TZDate } from "@date-fns/tz";
  * The model returns times as loose strings ("9", "9am", "9:00 AM") and never
  * as timestamps: it has no reliable notion of the event's date or timezone.
  * The server composes real instants here from the resolved slot window in the
- * project's timezone, mirroring the clamping the commit RPC applies again as
- * the authoritative pass.
+ * project's timezone. The reviewer resolves missing or ambiguous times.
  */
 
 const TIME_PATTERN =
@@ -93,15 +93,7 @@ export function composeSlotInstant(
   }
 }
 
-/**
- * Resolve a transcribed in/out pair against the slot window.
- *
- * - A missing time falls back to the slot boundary.
- * - An out-time at or before the in-time is treated as overnight (+1 day),
- *   matching private.resolve_project_schedule_slot.
- * - Both instants are clamped inside the window; a window that collapses to
- *   nothing after clamping is unusable and returns null.
- */
+/** Preserve written times. Missing values and overnight dates require review. */
 export function resolveRowWindow(options: {
   window: SlotWindow;
   timezone: string;
@@ -109,26 +101,35 @@ export function resolveRowWindow(options: {
   timeOut: string | null;
 }): ResolvedRowWindow | null {
   const { window, timezone, timeIn, timeOut } = options;
-
-  let checkInMs =
-    timeIn === null
-      ? window.startsAt
-      : composeSlotInstant(window, timezone, timeIn);
-  let checkOutMs =
-    timeOut === null
-      ? window.endsAt
-      : composeSlotInstant(window, timezone, timeOut);
-
-  if (checkInMs === null || checkOutMs === null) return null;
-
-  if (checkOutMs <= checkInMs) {
-    checkOutMs += 24 * 60 * 60 * 1000;
-  }
-
-  checkInMs = Math.max(checkInMs, window.startsAt);
-  checkOutMs = Math.min(checkOutMs, window.endsAt);
-
-  if (checkOutMs <= checkInMs) return null;
-
+  if (!timeIn || !timeOut) return null;
+  const checkInMs = composeSlotInstant(window, timezone, timeIn);
+  const checkOutMs = composeSlotInstant(window, timezone, timeOut);
+  if (checkInMs === null || checkOutMs === null || checkOutMs <= checkInMs)
+    return null;
   return { checkInMs, checkOutMs };
+}
+
+/** A bare 1..12 clock hour has no AM/PM evidence and stays unresolved. */
+export function transcribedTimeInstant(
+  window: SlotWindow,
+  timezone: string,
+  raw: string | null | undefined,
+): string | null {
+  if (!raw) return null;
+  const normalized = normalizeTimeString(raw);
+  if (!normalized) return null;
+  const hours = Number(normalized.slice(0, 2));
+  if (
+    hours >= 1 &&
+    hours <= 12 &&
+    !/[ap]/i.test(raw) &&
+    !/^0\d[:.]|^\d{4}$/.test(raw.trim())
+  )
+    return null;
+  const day = localDateTime(
+    new Date(window.startsAt).toISOString(),
+    timezone,
+  ).slice(0, 10);
+  const candidates = localDateTimeCandidates(`${day}T${normalized}`, timezone);
+  return candidates.length === 1 ? candidates[0] : null;
 }

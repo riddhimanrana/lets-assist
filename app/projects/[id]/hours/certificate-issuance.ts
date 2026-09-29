@@ -21,6 +21,7 @@ export type CertificateEmailRow = {
   project_title: string;
   event_start?: string;
   event_end?: string;
+  credited_minutes?: number | null;
 };
 
 export const sendCertificatePublishedEmails = async (
@@ -53,6 +54,7 @@ export const sendCertificatePublishedEmails = async (
           isAutoPublished,
           eventStart: cert.event_start,
           eventEnd: cert.event_end,
+          creditedMinutes: cert.credited_minutes,
           timezone: projectTimezone,
         }),
         type: "transactional",
@@ -162,6 +164,7 @@ export async function issueCertificatesForSignups(options: {
       project_title: cert.project_title,
       event_start: cert.event_start ?? undefined,
       event_end: cert.event_end ?? undefined,
+      credited_minutes: cert.credited_minutes,
     })),
     projectData.project_timezone ?? undefined,
   );

@@ -329,6 +329,14 @@ describe("CI runs mock-sensitive tests through the shared process orchestrator",
       "scripts/local-dev/server-only-test-preload.ts",
       "scripts/local-dev/test-plugin-registry-gates.ts",
       "scripts/local-dev/test-plugin-runtime-contracts.mjs",
+      // Their discoverable behavior tests execute these fixtures in child
+      // processes, so provider and component mocks cannot affect other suites.
+      "app/api/ai/scan-signup-sheet/route-behavior.fixture.ts",
+      "app/projects/[id]/paper-signups/CaptureStep.behavior.fixture.tsx",
+      "app/projects/[id]/paper-signups/PaperSignupsClient.aliases.fixture.tsx",
+      "app/projects/[id]/paper-signups/ReviewRowEditor.behavior.fixture.ts",
+      "app/projects/[id]/hours/HoursClient.behavior.fixture.tsx",
+      "app/certificates/[id]/public-projection.fixture.ts",
     ]);
     const testFilePattern = /\.(?:test|spec)\.[cm]?[jt]sx?$/u;
     const mockModulePattern = /\bmock\s*\.\s*module\s*\(/u;

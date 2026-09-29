@@ -235,6 +235,18 @@ jobs:
       - name: Install Playwright Chromium
         run: bunx playwright install --with-deps chromium
 
+      - name: Run guarded hosted attendance acceptance
+        env:
+          ATTENDANCE_HOSTED_DEVELOPMENT: "1"
+          ATTENDANCE_APP_URL: https://dev.lets-assist.com/
+          ATTENDANCE_HOSTED_CONFIRMATION: attendance-hosted-development:${{ vars.CSF_DEVELOPMENT_SUPABASE_PROJECT_REF }}
+          EXPECTED_NON_PRODUCTION_SUPABASE_PROJECT_REF: ${{ vars.CSF_DEVELOPMENT_SUPABASE_PROJECT_REF }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          SUPABASE_PUBLISHABLE_KEY: ${{ secrets.CSF_DEVELOPMENT_SUPABASE_PUBLISHABLE_KEY }}
+          SUPABASE_URL: https://${{ vars.CSF_DEVELOPMENT_SUPABASE_PROJECT_REF }}.supabase.co
+          VERCEL_AUTOMATION_BYPASS_SECRET: ${{ secrets.VERCEL_AUTOMATION_BYPASS_SECRET }}
+        run: bunx playwright test --config=playwright.attendance-hosted.config.ts
+
       - name: Run hosted CSF acceptance
         env:
           CSF_HOSTED_ACCEPTANCE_MODE: ${{ env.ACCEPTANCE_MODE }}

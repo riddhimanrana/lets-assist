@@ -1,174 +1,10 @@
-import { createClient } from "@/lib/supabase/server";
-import { getAuthUser } from "@/lib/supabase/auth-helpers";
 import { notFound, redirect } from "next/navigation";
-import { Metadata } from "next";
-import { differenceInHours, isAfter, format, parseISO } from "date-fns";
-import {
-  getMultiDaySlotDisplayName,
-  getProjectEndDateTime,
-} from "@/utils/project";
-import { Project, ProjectSignup } from "@/types";
-import { HoursClient } from "./HoursClient";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-  CardDescription,
-  CardFooter,
-} from "@/components/ui/card";
-import { buttonVariants } from "@/components/ui/button-variants";
-import { cn } from "@/lib/utils";
-import Link from "next/link";
-import { AlertCircle, ArrowLeft, CalendarClock } from "lucide-react";
+import type { Metadata } from "next";
+import { getAuthUser } from "@/lib/supabase/auth-helpers";
+import { requirePaperScanAccess } from "../paper-signups/access";
 import { getProject } from "../actions";
-import { canManageProjectAccess } from "@/lib/projects/management-access";
-
-// Define session type for easier handling
-type ProjectSession = {
-  id: string;
-  name: string;
-  endDateTime: Date;
-  hoursRemaining: number;
-};
-
-type SignupRow = Omit<ProjectSignup, "profile" | "anonymous_signup"> & {
-  profile?: ProjectSignup["profile"] | ProjectSignup["profile"][] | null;
-  anonymous_signup?:
-    | ProjectSignup["anonymous_signup"]
-    | ProjectSignup["anonymous_signup"][]
-    | null;
-};
-
-// Helper function to check if user has permission (Creator or Org Admin/Staff)
-async function checkPermissions(
-  projectId: string,
-  userId: string,
-): Promise<boolean> {
-  const supabase = await createClient();
-  const { data: project } = await supabase
-    .from("projects")
-    .select("creator_id, organization_id, can_be_managed_by_staff")
-    .eq("id", projectId)
-    .single();
-
-  if (!project) return false;
-
-  let organizationRole: string | null = null;
-  if (project.organization_id) {
-    const { data: member } = await supabase
-      .from("organization_members")
-      .select("role")
-      .eq("user_id", userId)
-      .eq("organization_id", project.organization_id)
-      .single();
-    organizationRole = member?.role ?? null;
-  }
-
-  return canManageProjectAccess({
-    creatorId: project.creator_id,
-    userId,
-    organizationRole,
-    canBeManagedByStaff: project.can_be_managed_by_staff,
-  });
-}
-
-// NEW: Helper function to get sessions that are in editing window
-function getSessionsInEditingWindow(project: Project): ProjectSession[] {
-  const now = new Date();
-  const result: ProjectSession[] = [];
-
-  // Helper function to format time to 12-hour format
-  const formatTime12h = (timeStr: string) => {
-    const [hours, minutes] = timeStr.split(":").map(Number);
-    const period = hours >= 12 ? "PM" : "AM";
-    const hour12 = hours % 12 || 12; // Convert 0 to 12 for 12 AM
-    return `${hour12}:${minutes.toString().padStart(2, "0")} ${period}`;
-  };
-
-  // Check one-time events
-  if (project.event_type === "oneTime" && project.schedule.oneTime) {
-    const date = parseISO(project.schedule.oneTime.date);
-    const [hours, minutes] = project.schedule.oneTime.endTime
-      .split(":")
-      .map(Number);
-    const sessionEndTime = new Date(date.setHours(hours, minutes));
-    const hoursSinceEnd = differenceInHours(now, sessionEndTime);
-
-    if (
-      isAfter(now, sessionEndTime) &&
-      hoursSinceEnd >= 0 &&
-      hoursSinceEnd < 48
-    ) {
-      result.push({
-        id: "oneTime",
-        name: `${format(date, "MMMM d")} (${formatTime12h(project.schedule.oneTime.startTime)} - ${formatTime12h(project.schedule.oneTime.endTime)})`,
-        endDateTime: sessionEndTime,
-        hoursRemaining: 48 - hoursSinceEnd,
-      });
-    }
-  }
-
-  // Check multi-day events
-  else if (project.event_type === "multiDay" && project.schedule.multiDay) {
-    project.schedule.multiDay.forEach((day, dayIndex) => {
-      const dayDate = parseISO(day.date);
-
-      day.slots.forEach((slot, slotIndex) => {
-        const [hours, minutes] = slot.endTime.split(":").map(Number);
-        const slotEndTime = new Date(
-          new Date(dayDate).setHours(hours, minutes),
-        );
-        const hoursSinceEnd = differenceInHours(now, slotEndTime);
-
-        if (
-          isAfter(now, slotEndTime) &&
-          hoursSinceEnd >= 0 &&
-          hoursSinceEnd < 48
-        ) {
-          const sessionId = `day-${dayIndex}-slot-${slotIndex}`;
-          result.push({
-            id: sessionId,
-            name: `${format(dayDate, "MMMM d")} - ${getMultiDaySlotDisplayName(slot, slotIndex)} (${formatTime12h(slot.startTime)} - ${formatTime12h(slot.endTime)})`,
-            endDateTime: slotEndTime,
-            hoursRemaining: 48 - hoursSinceEnd,
-          });
-        }
-      });
-    });
-  }
-
-  // Check same-day multi-area events
-  else if (
-    project.event_type === "sameDayMultiArea" &&
-    project.schedule.sameDayMultiArea
-  ) {
-    const date = parseISO(project.schedule.sameDayMultiArea.date);
-
-    project.schedule.sameDayMultiArea.roles.forEach((role, roleIndex) => {
-      const [hours, minutes] = role.endTime.split(":").map(Number);
-      const roleEndTime = new Date(new Date(date).setHours(hours, minutes));
-      const hoursSinceEnd = differenceInHours(now, roleEndTime);
-
-      if (
-        isAfter(now, roleEndTime) &&
-        hoursSinceEnd >= 0 &&
-        hoursSinceEnd < 48
-      ) {
-        const sessionId = `role-${roleIndex}`;
-        result.push({
-          id: sessionId,
-          name: `${role.name} (${formatTime12h(role.startTime)} - ${formatTime12h(role.endTime)})`,
-          endDateTime: roleEndTime,
-          hoursRemaining: 48 - hoursSinceEnd,
-        });
-      }
-    });
-  }
-
-  return result;
-}
+import { HoursClient, type AttendanceHoursSignup } from "./HoursClient";
+import type { Project } from "@/types";
 
 export async function generateMetadata({
   params,
@@ -176,16 +12,11 @@ export async function generateMetadata({
   params: Promise<{ id: string }>;
 }): Promise<Metadata> {
   const { id } = await params;
-  const { project } = await getProject(id);
-  const title = project
-    ? `Volunteer Hours — ${project.title}`
-    : "Volunteer Hours";
-
+  const result = await getProject(id);
   return {
-    title,
-    description: project
-      ? `Manage volunteer hours for ${project.title}.`
-      : "Manage volunteer hours for this project.",
+    title: result.project
+      ? `Volunteer hours: ${result.project.title}`
+      : "Volunteer hours",
   };
 }
 
@@ -194,208 +25,68 @@ export default async function HoursPage({
 }: {
   params: Promise<{ id: string }>;
 }) {
-  const supabase = await createClient();
   const { id: projectId } = await params;
-
-  // 1. Check User Authentication using getClaims() for better performance
-  const { user, error: userError } = await getAuthUser();
-  if (userError || !user) {
-    redirect(`/login?redirect=/projects/${projectId}/hours`);
-  }
-
-  // 2. Check User Permissions
-  const hasPermission = await checkPermissions(projectId, user.id);
-  if (!hasPermission) {
-    // Or redirect to project page with an error message?
-    notFound();
-  }
-
-  // 3. Fetch Project Data
-  const { data: project, error: projectError } = await supabase
-    .from("projects")
-    .select("*") // Select all project fields needed by HoursClient
-    .eq("id", projectId)
-    .single();
-
-  if (projectError || !project) {
-    notFound();
-  }
-
-  // 4. Check if Project Type is Eligible (Exclude 'auto')
-  if (project.verification_method === "auto") {
+  const { user } = await getAuthUser();
+  if (!user) redirect(`/login?redirect=/projects/${projectId}/hours`);
+  const access = await requirePaperScanAccess(projectId);
+  if (!access.ok) notFound();
+  const signups: AttendanceHoursSignup[] = [];
+  const { data: correctedIds, error: correctionError } = await access.admin.rpc(
+    "project_corrected_certificate_ids",
+    { p_project_id: projectId, p_actor_id: user.id },
+  );
+  if (correctionError)
     return (
-      <div className="container mx-auto px-4 py-6 max-w-5xl">
-        <div className="mb-6">
-          <Link
-            href={`/projects/${projectId}`}
-            className={cn(buttonVariants({ variant: "ghost" }), "gap-2")}
-          >
-            <ArrowLeft className="h-4 w-4" />
-            Back to Project
-          </Link>
-        </div>
-        <Card>
-          <CardHeader>
-            <CardTitle>Manage Volunteer Hours</CardTitle>
-            <CardDescription>Review volunteer participation.</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <Alert
-              variant="default"
-              className="border-secondary/50 bg-secondary/10"
-            >
-              <AlertCircle className="h-4 w-4" />
-              <AlertTitle>Automatic Check-in</AlertTitle>
-              <AlertDescription>
-                This project uses automatic check-in. Volunteer hours are
-                recorded based on the schedule and cannot be manually edited
-                here. View attendance records for details.
-              </AlertDescription>
-            </Alert>
-          </CardContent>
-          <CardFooter className="justify-center border-t p-4">
-            <Link
-              href={`/projects/${projectId}/attendance`}
-              className={cn(buttonVariants({ variant: "outline" }))}
-            >
-              View Attendance Records
-            </Link>
-          </CardFooter>
-        </Card>
-      </div>
+      <p role="alert" className="p-6">
+        Could not load attendance corrections. Refresh to try again.
+      </p>
     );
-  }
-
-  // 5. Calculate Post-Event Editing Window Status using our new session-specific logic
-  const now = new Date();
-  const projectEndDateTime = getProjectEndDateTime(project);
-  const activeSessions = getSessionsInEditingWindow(project);
-  const hasActiveSessions = activeSessions.length > 0;
-
-  // 6. Fetch Attendance Data (Signups)
-  const { data: signupsData, error: signupsError } = (await supabase
-    .from("project_signups")
-    .select(
-      `
-      id,
-      project_id,
-      created_at,
-      check_in_time,
-      check_out_time,
-      schedule_id,
-      user_id,
-      anonymous_id,
-      status,
-      profile:profiles!left (
-        id,
-        full_name,
-        username,
-        email,
-        phone
-      ),
-      anonymous_signup:anonymous_signups!project_signups_anonymous_id_fkey (
-        id,
-        name,
-        email,
-        phone_number
-      )
+  const corrected = new Set<string>(correctedIds ?? []);
+  let cursor: string | null = null;
+  for (;;) {
+    let query = access.admin
+      .from("project_signups")
+      .select(
+        `
+      id, project_id, created_at, check_in_time, check_out_time, schedule_id,
+      user_id, anonymous_id, status, attendance_revision,
+      profile:profiles!project_signups_user_id_fkey_profiles(id,full_name,username,email,phone),
+      anonymous_signup:anonymous_signups!project_signups_anonymous_id_fkey(id,name,email,phone_number),
+      project_attendance_intervals(check_in_time,check_out_time),
+      certificates(id,credited_minutes,event_start,event_end,attendance_revision,type)
     `,
-    )
-    .eq("project_id", projectId)
-    .in("status", ["attended", "approved"])) as {
-    data: SignupRow[] | null;
-    error: { message: string } | null;
-  }; // Fetch both attended and approved
-
-  if (signupsError) {
-    console.error("Error fetching signups:", signupsError);
-    return <div>Error loading volunteer data.</div>;
+      )
+      .eq("project_id", projectId)
+      .in("status", ["attended", "approved"])
+      .order("id")
+      .limit(200);
+    if (cursor) query = query.gt("id", cursor);
+    const { data, error } = await query;
+    if (error)
+      return (
+        <p className="p-6" role="alert">
+          Could not load attendance. Refresh to try again.
+        </p>
+      );
+    for (const row of data ?? []) {
+      const profile = Array.isArray(row.profile) ? row.profile[0] : row.profile;
+      const guest = Array.isArray(row.anonymous_signup)
+        ? row.anonymous_signup[0]
+        : row.anonymous_signup;
+      signups.push({
+        ...row,
+        profile: profile ?? undefined,
+        anonymous_signup: guest ?? undefined,
+        certificates: (row.certificates ?? []).map((certificate) => ({
+          ...certificate,
+          canResendCorrection: corrected.has(certificate.id),
+        })),
+      } as AttendanceHoursSignup);
+    }
+    if (!data || data.length < 200) break;
+    cursor = data[data.length - 1].id;
   }
-
-  // Transform Supabase response arrays to single objects for profile and anonymous_signup
-  const signups: ProjectSignup[] = (signupsData || []).map((s: SignupRow) => {
-    const profile = Array.isArray(s.profile) ? s.profile[0] : s.profile;
-    const anonymousSignup = Array.isArray(s.anonymous_signup)
-      ? s.anonymous_signup[0]
-      : s.anonymous_signup;
-
-    return {
-      ...s,
-      profile: profile ?? undefined,
-      anonymous_signup: anonymousSignup ?? undefined,
-    };
-  });
-
-  // 7. Render Client Component or "Not Yet Available" Message
-  if (!hasActiveSessions) {
-    const eventHasEnded =
-      projectEndDateTime && isAfter(now, projectEndDateTime);
-    const hoursUntilWindowOpens = projectEndDateTime
-      ? differenceInHours(projectEndDateTime, now)
-      : null;
-
-    return (
-      <div className="container mx-auto px-4 py-6 max-w-5xl">
-        <div className="mb-6">
-          <Link
-            href={`/projects/${projectId}`}
-            className={cn(buttonVariants({ variant: "ghost" }), "gap-2")}
-          >
-            <ArrowLeft className="h-4 w-4" />
-            Back to Project
-          </Link>
-        </div>
-        <Card className="min-h-[400px] relative">
-          <CardHeader>
-            <CardTitle>Manage Volunteer Hours</CardTitle>
-            <CardDescription>
-              {eventHasEnded
-                ? "The editing window for volunteer hours has closed (48 hours post-event)."
-                : "Volunteer hours can be edited after the event concludes."}
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="flex flex-col items-center justify-center py-10 text-center space-y-4">
-            <div className="rounded-full bg-muted p-6 w-fit">
-              <CalendarClock className="h-10 w-10 text-muted-foreground" />
-            </div>
-            <h3 className="text-xl font-semibold mt-6">
-              {eventHasEnded
-                ? "Editing Window Closed"
-                : "Editing Not Yet Available"}
-            </h3>
-            <p className="text-muted-foreground max-w-md">
-              {eventHasEnded
-                ? "The 48-hour window to edit volunteer hours after the event has ended."
-                : `You can manage volunteer hours here for 48 hours after the event ends.`}
-              {!eventHasEnded &&
-                hoursUntilWindowOpens !== null &&
-                hoursUntilWindowOpens > 0 && (
-                  <span className="block mt-2 text-sm">
-                    (Window opens in approximately {hoursUntilWindowOpens} hour
-                    {hoursUntilWindowOpens !== 1 ? "s" : ""})
-                  </span>
-                )}
-              {!eventHasEnded && projectEndDateTime && (
-                <span className="block mt-2 text-sm">
-                  Event ends:{" "}
-                  {format(projectEndDateTime, "MMMM d, yyyy 'at' h:mm a")}
-                </span>
-              )}
-            </p>
-          </CardContent>
-          <CardFooter className="justify-center border-t p-4">
-            <Link
-              href={`/projects/${projectId}`}
-              className={cn(buttonVariants({ variant: "outline" }))}
-            >
-              Return to Project
-            </Link>
-          </CardFooter>
-        </Card>
-      </div>
-    );
-  }
-
-  // Pass data to the client component
-  return <HoursClient project={project as Project} initialSignups={signups} />;
+  return (
+    <HoursClient project={access.project as Project} initialSignups={signups} />
+  );
 }

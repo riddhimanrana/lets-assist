@@ -1,5 +1,7 @@
 "use server";
 
+import { certificateHours } from "@/lib/projects/certificate-duration";
+
 import { createClient } from "@/lib/supabase/server";
 import { parseISO, differenceInMinutes } from "date-fns";
 
@@ -34,6 +36,7 @@ type CertificateRowBase = {
   project_title: string;
   event_start: string;
   event_end: string;
+  credited_minutes?: number | null;
   issued_at: string;
   is_certified: boolean;
   organization_name: string | null;
@@ -121,6 +124,7 @@ export async function getMemberVolunteerHours(
         project_title,
         event_start,
         event_end,
+        credited_minutes,
         issued_at,
         is_certified,
         organization_name
@@ -159,7 +163,9 @@ export async function getMemberVolunteerHours(
           };
         }
 
-        const hours = calculateHours(cert.event_start, cert.event_end);
+        const hours = certificateHours(cert, () =>
+          calculateHours(cert.event_start, cert.event_end),
+        );
         memberHours[cert.user_id].totalHours += hours;
         memberHours[cert.user_id].eventCount += 1;
 
@@ -238,6 +244,7 @@ export async function getMemberEventDetails(
         project_title,
         event_start,
         event_end,
+        credited_minutes,
         issued_at,
         is_certified,
         organization_name
@@ -273,7 +280,9 @@ export async function getMemberEventDetails(
 
     if (certificates) {
       certificates.forEach((cert) => {
-        const hours = calculateHours(cert.event_start, cert.event_end);
+        const hours = certificateHours(cert, () =>
+          calculateHours(cert.event_start, cert.event_end),
+        );
         totalHours += hours;
 
         events.push({

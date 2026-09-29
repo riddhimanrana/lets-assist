@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
-import test from "node:test";
+import test, { after as afterTests } from "node:test";
 import { expectedVersions } from "./app-release-checks.mjs";
 import { acceptedCatalogQuery } from "./app-release-catalog.mjs";
 import { csfSubmissionDeletionCatalog } from "./csf-submission-deletion-catalog.mjs";
@@ -10,10 +10,14 @@ import {
   prohibitedDataWrites,
   unreviewedDataWrites,
 } from "./migration-data-writes.mjs";
+import { historicalReleaseTestFixture } from "./historical-release-test-fixture.mjs";
 const read = (file) => readFileSync(new URL(file, import.meta.url), "utf8");
 const before = JSON.parse(read("./final-schema-673.json"));
 const after = JSON.parse(read("./final-schema-674.json"));
-const repository = new URL("../../", import.meta.url).pathname;
+// Keep this historical release proof on its approved migration ledger.
+const fixture = historicalReleaseTestFixture();
+afterTests(fixture.dispose);
+const repository = fixture.cwd;
 const versions = expectedVersions(repository).slice(0, 674);
 test("signed Unsubmit publication preserves the reviewed schema and install boundary", () => {
   assert.deepEqual(after.objects, before.objects);

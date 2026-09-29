@@ -64,6 +64,7 @@ interface VerificationResult {
   };
   event?: {
     startDate: string;
+    creditedMinutes?: number | null;
     endDate: string;
   };
   project?: {
@@ -632,6 +633,10 @@ export function CsvVerificationModal({ children }: CsvVerificationModalProps) {
             Math.round(
               ((end.getTime() - start.getTime()) / (1000 * 60 * 60)) * 10,
             ) / 10; // Round to 1 decimal
+        }
+
+        if (typeof result.event?.creditedMinutes === "number") {
+          calculatedHours = result.event.creditedMinutes / 60;
         }
 
         // Compare with CSV data

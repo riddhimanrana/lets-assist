@@ -1,17 +1,21 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
-import test from "node:test";
+import test, { after as afterTests } from "node:test";
 import { expectedVersions } from "./app-release-checks.mjs";
 import { acceptedCatalogQuery } from "./app-release-catalog.mjs";
 import { finalSchemaCatalog } from "./final-schema-manifest.mjs";
 import { csfSubmissionDeletionCatalog } from "./csf-submission-deletion-catalog.mjs";
 import { prepareMigration } from "./forward-migration-release.mjs";
 import { topLevelDataWrites } from "./migration-data-writes.mjs";
+import { historicalReleaseTestFixture } from "./historical-release-test-fixture.mjs";
 
 const read = (file) => readFileSync(new URL(file, import.meta.url), "utf8");
 const before = JSON.parse(read("./final-schema-674.json"));
 const after = JSON.parse(read("./final-schema-675.json"));
-const repository = new URL("../../", import.meta.url).pathname;
+// Keep this historical release proof on its approved migration ledger.
+const fixture = historicalReleaseTestFixture();
+afterTests(fixture.dispose);
+const repository = fixture.cwd;
 const versions = expectedVersions(repository).slice(0, 675);
 
 test("profile email audiences change only the reviewed selection and delivery functions", () => {
