@@ -53,3 +53,15 @@ test("the forward controller applies the activity removal once", () => {
     /'20260929044000','csf_remove_activity_preserve_history'/u,
   );
 });
+
+test("the signed 1.2.85 publication preserves the reviewed schema", () => {
+  const published = JSON.parse(read("./final-schema-686.json"));
+  const publishedVersions = expectedVersions(repository).slice(0, 686);
+  assert.deepEqual(published.objects, after.objects);
+  assert.equal(
+    acceptedCatalogQuery("invalid predecessor", publishedVersions),
+    csfSubmissionDeletionCatalog(
+      finalSchemaCatalog(published, publishedVersions),
+    ),
+  );
+});

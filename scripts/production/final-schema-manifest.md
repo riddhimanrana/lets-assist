@@ -153,3 +153,6 @@ rules while using indexed reported-contact lookups. Capture uses the same
 `postgres` search path as the release controller. The Supabase admin default
 includes `auth`, which changes rendered catalog expressions and is unsuitable
 for this comparison.
+
+Release 686 adds the signed CSF 1.2.85 publication without changing schema objects.
+It reuses the reviewed 685 inventory with the exact 686 ledger binding.
