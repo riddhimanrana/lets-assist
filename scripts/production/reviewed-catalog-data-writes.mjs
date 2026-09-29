@@ -720,4 +720,52 @@ export const reviewedCatalogDataWrites = [
     migration: "20260926000900",
     file: "20260926000900_publish_dvhs_csf_1_2_81.sql",
   },
+  {
+    operation: "INSERT",
+    table: "public.plugin_versions",
+    statement:
+      "fb1c9366a09bca134150101fae1c3f868c4f94edd80785089bae2194d9269073",
+    migration: "20260928225322",
+    file: "20260928225322_publish_dvhs_csf_1_2_82.sql",
+  },
+  {
+    operation: "UPDATE",
+    table: "public.plugins",
+    statement:
+      "30a79acf9a716f3178a58417440ad16a53a2cf3acd1182a201bbac7eed6a965d",
+    migration: "20260928225322",
+    file: "20260928225322_publish_dvhs_csf_1_2_82.sql",
+  },
+  {
+    operation: "INSERT",
+    table: "public.plugin_versions",
+    statement:
+      "39282c5220c305b151a60363b84c3a1f13a24992e301f324d3235a96d5cfe5be",
+    migration: "20260928234812",
+    file: "20260928234812_publish_dvhs_csf_1_2_83.sql",
+  },
+  {
+    operation: "UPDATE",
+    table: "public.plugins",
+    statement:
+      "7e560a1a3b68c2abfce13ba5dd5f437632243bff7b2655d1c350c6ff5957f353",
+    migration: "20260928234812",
+    file: "20260928234812_publish_dvhs_csf_1_2_83.sql",
+  },
+  {
+    migration: "20260929001956",
+    file: "20260929001956_publish_dvhs_csf_1_2_84.sql",
+    operation: "INSERT",
+    table: "public.plugin_versions",
+    statement:
+      "0e118eebe47cb148f946886ed1cd63125383570f6fd75ed0c29b011ee7ea1781",
+  },
+  {
+    migration: "20260929001956",
+    file: "20260929001956_publish_dvhs_csf_1_2_84.sql",
+    operation: "UPDATE",
+    table: "public.plugins",
+    statement:
+      "a143d64736d59b8d7d04362aa0e57c5a0f94ef5f0dd1a1188245cd4c9a8d994a",
+  },
 ];

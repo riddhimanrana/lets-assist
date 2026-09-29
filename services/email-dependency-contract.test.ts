@@ -3,17 +3,9 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 
 /**
- * The email transport's dependency floor, asserted against the real lockfile.
- *
- * Dependabot alert 101 (GHSA-p6gq-j5cr-w38f) is HIGH against nodemailer <= 9.0.0:
- * a raw `path`/`href` on a message part bypassed the earlier content-access guards,
- * turning any attacker-influenced attachment field into a local-file-read or SSRF
- * primitive. 9.0.1 is the first patched release.
- *
- * A declared range in package.json is not the thing that ships -- the RESOLVED
- * version is. And a single resolution matters as much as the floor: a transitive
- * dependant pinning an old nodemailer would put a vulnerable copy on disk while the
- * direct range still read `^9.0.3`. So this asserts both.
+ * Assert the shipped dependency floor for Nodemailer content-access fixes and
+ * TLS server-name isolation (GHSA-6vj9-mwq6-2f5v, patched in 10.0.2).
+ * Check both the declared version and every resolved copy in the lockfile.
  */
 
 const repositoryRoot = join(import.meta.dir, "..");
@@ -35,7 +27,7 @@ function atLeast(version: string, floor: string): boolean {
 describe("email transport dependency floor", () => {
   const lockfile = readFileSync(join(repositoryRoot, "bun.lock"), "utf8");
 
-  test("exactly one nodemailer resolves, at or above the patched 9.0.1", () => {
+  test("exactly one nodemailer resolves, at or above the patched 10.0.2", () => {
     // Lockfile entries look like:  "nodemailer": ["nodemailer@9.0.3", ...
     const resolutions = [
       ...lockfile.matchAll(/"nodemailer@(\d+\.\d+\.\d+)"/g),
@@ -49,7 +41,7 @@ describe("email transport dependency floor", () => {
     expect(distinct).toHaveLength(1);
 
     const [resolved] = distinct;
-    expect(atLeast(resolved, "9.0.1")).toBe(true);
+    expect(atLeast(resolved, "10.0.2")).toBe(true);
   });
 
   test("the declared nodemailer range cannot drift below the patched floor", () => {
@@ -63,7 +55,7 @@ describe("email transport dependency floor", () => {
     // A caret range is only safe if its floor is already patched: ^8.x would happily
     // resolve a vulnerable release.
     const floor = String(declared).replace(/^[\^~>=\s]+/, "");
-    expect(atLeast(floor, "9.0.1")).toBe(true);
+    expect(atLeast(floor, "10.0.2")).toBe(true);
   });
 
   test("resend resolves at or above the version whose types carry topicId", () => {

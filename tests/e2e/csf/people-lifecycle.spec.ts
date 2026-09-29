@@ -472,6 +472,14 @@ test.describe("CSF visible people lifecycle", () => {
     const resolveDialog = page.getByRole("dialog", {
       name: "Review account connection",
     });
+    await expect(
+      resolveDialog.getByText("Loading student record evidence…"),
+    ).toBeHidden();
+    const chooseAnother = resolveDialog.getByRole("button", {
+      name: "Choose another record",
+      exact: true,
+    });
+    if (await chooseAnother.isVisible()) await chooseAnother.click();
     await resolveDialog
       .getByRole("combobox", { name: "Student record" })
       .click();
@@ -499,12 +507,20 @@ test.describe("CSF visible people lifecycle", () => {
       ),
     ).toBeVisible();
     await resolveDialog
-      .getByLabel("Decision reason")
-      .fill("Confirmed email, exact name, and Class of 2028 match.");
-    await resolveDialog
-      .getByRole("button", { name: "Connect account" })
+      .getByRole("button", { name: "Connect account", exact: true })
       .click();
     await expect(resolveDialog).toBeHidden();
+    const confirmation = page.getByRole("dialog", {
+      name: /^Connect account to Avery/,
+    });
+    await expect(
+      confirmation.getByLabel("How did you verify this student?"),
+    ).toHaveCount(0);
+    await confirmation.getByRole("checkbox").check();
+    await confirmation
+      .getByRole("button", { name: "Connect account", exact: true })
+      .click();
+    await expect(confirmation).toBeHidden();
 
     await expect
       .poll(async () => {

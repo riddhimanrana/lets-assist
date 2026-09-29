@@ -190,7 +190,7 @@ remains:
   history (Amendment 9).
 - **Per-class review.** Unresolved joins wait in the class's **Record
   connections** queue. Authorized staff use **Review** and **Connect account**
-  after verifying identity and recording their decision. Application and login
+  after verifying identity and checking the ownership confirmation. A written reason is not required for connections; the audit records the staff confirmation. Suggestions load in the queue, and staff can choose another record when needed. Recorded student name confirmations remain context only. Application and login
   emails may differ. **Reject request** requires a reason. Connecting an account
   does not approve an application, award points, or grant a staff position.
   Officer Home shows the pending **Connection requests** count.
@@ -772,7 +772,7 @@ Activity lifecycle: `draft`, `published`, `closed`, `cancelled`, `archived`.
 **Permissions:** Members see only their own records and student-facing notes.<br>
 **Mobile:** Review becomes a full-height sheet/page with evidence and decision footer.
 
-Unsubmit permanently deletes an eligible owned, unawarded submission, its proof files, previous edits, reviews and submission audit snapshots. It leaves no withdrawn row in member or officer history. The server rechecks ownership and term authority, serializes against officer review, and confirms file deletion before reporting success. Failed cleanup remains retryable with temporary file coordinates, which are removed when cleanup finishes. Final decisions, awarded claims, and claims with exported or delivered review evidence use the correction workflow.
+Unsubmit permanently deletes an eligible owned, unawarded submission, its proof files, previous edits, reviews and submission audit snapshots. It leaves no withdrawn row in member or officer history. The server rechecks ownership and term authority, serializes against officer review, and confirms file deletion before reporting success. Failed cleanup remains retryable with temporary file coordinates, which are removed when cleanup finishes. A queued Sheet export with no write attempt is cancelled during deletion. Final decisions, awarded claims, Sheet exports that have started, and delivered review evidence use the correction workflow.
 
 A `needs_action` correction resubmits the same submission; it is not an appeal or a replacement claim. The atomic transition revalidates verified ownership, current open term, active membership, current activity policy or active partner-club standing, and proof requirements while preserving prior review, audit, and correlated resubmission history.
 
