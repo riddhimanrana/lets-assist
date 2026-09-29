@@ -20,7 +20,14 @@ For an approved manual Preview build of the current Development revision, set
 `LETS_ASSIST_EXPLICIT_DEVELOPMENT_SHA` on that deployment to its full Git SHA.
 The build policy accepts it only for `VERCEL_ENV=preview`, branch `development`,
 and an exact SHA match. It does not change shared project settings or authorize
-Production. Verify the Preview's Git metadata and Development alias before
+Production. The hosted Development acceptance workflow exposes
+`build_current_revision` for this recovery path. Its build job uses the protected
+Production environment's root-project credential because Development's credential
+belongs to the plugin project. The deployment target remains Preview, and the
+job requires the environment review before using that credential. It checks the current branch and
+project binding, creates one Preview, retains its identity, and waits for that
+same deployment before running the usual acceptance gates. A failed or unknown
+create outcome must be reconciled before another request. Verify the Preview's Git metadata and Development alias before
 starting hosted acceptance. Do not create an empty marker commit to trigger a build.
 
 ## App-only Production release

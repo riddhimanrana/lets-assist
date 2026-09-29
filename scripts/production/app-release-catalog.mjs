@@ -349,6 +349,66 @@ function reconcileCsf620SupersededStorageChecks(catalog) {
 export function acceptedCatalogQuery(source, versions) {
   if (
     ledgerDigest(versions) ===
+    "d13565c216eb0c1c9085e9eacd736a6d6ce1a922b3c2ed7cebf9a089380ca425"
+  )
+    return csfSubmissionDeletionCatalog(
+      finalSchemaCatalog(
+        JSON.parse(
+          readFileSync(
+            new URL("./final-schema-687.json", import.meta.url),
+            "utf8",
+          ),
+        ),
+        versions,
+      ),
+    );
+  if (
+    ledgerDigest(versions) ===
+    "6dc284853b3df3f8e40536af1f40b6b1e8c654adc1d9c8805d90153c5264b6c9"
+  )
+    return csfSubmissionDeletionCatalog(
+      finalSchemaCatalog(
+        JSON.parse(
+          readFileSync(
+            new URL("./final-schema-686.json", import.meta.url),
+            "utf8",
+          ),
+        ),
+        versions,
+      ),
+    );
+  if (
+    ledgerDigest(versions) ===
+    "ab6d90b0736ddf69e54603351c72866a4fdf85b30e5260f34501d6ccb60be538"
+  )
+    return csfSubmissionDeletionCatalog(
+      finalSchemaCatalog(
+        JSON.parse(
+          readFileSync(
+            new URL("./final-schema-685.json", import.meta.url),
+            "utf8",
+          ),
+        ),
+        versions,
+      ),
+    );
+  if (
+    ledgerDigest(versions) ===
+    "6e998e105900ed40d8b2e40ce1333fb354aa6875641deac558256de97e4aba89"
+  )
+    return csfSubmissionDeletionCatalog(
+      finalSchemaCatalog(
+        JSON.parse(
+          readFileSync(
+            new URL("./final-schema-683.json", import.meta.url),
+            "utf8",
+          ),
+        ),
+        versions,
+      ),
+    );
+  if (
+    ledgerDigest(versions) ===
     "905f562fe418fe346e987fc584c3842bcee002da9bad6fe784a53d11e369f672"
   )
     return csfSubmissionDeletionCatalog(

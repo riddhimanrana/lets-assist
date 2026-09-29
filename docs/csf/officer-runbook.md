@@ -187,7 +187,7 @@ Notes are officer-only and redactable, never deletable. Every correction writes 
 
 1. Create the activity as a draft with term, audience, location, signup method, point type/value/cap, and evidence rule. Dates are optional when creating, editing, or publishing. If you enter an end, provide a start and keep the end at or after it.
 2. Preview it as a member before publishing.
-3. Publish only complete activities. Close, cancel, or archive with the matching operational state instead of deleting history. Published undated activities appear in the member feed. Only dated activities appear in the calendar agenda.
+3. Publish only complete activities. Use Remove activity to clear it from the activity list. Existing signups, submissions, points, email history, and linked projects remain intact; only empty activities are permanently deleted. Archive also clears the activity list while retaining the activity. Published undated activities appear in the member feed. Only dated activities appear in the calendar agenda.
 
 ### Point submissions
 

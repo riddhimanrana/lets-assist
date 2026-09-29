@@ -255,7 +255,7 @@ describe("hosted CSF load acceptance", () => {
     expect(hostedJob).toContain("      statuses: write");
     expect(workflow).toContain("push:");
     expect(workflow).toContain("isDevelopmentReleaseCommitMessage");
-    expect(workflow).toContain("needs: release-selection");
+    expect(workflow).toContain("needs: [release-selection, preview-build]");
     expect(workflow).toContain("environment: development");
     expect(workflow).not.toContain("core.getIDToken()");
     expect(workflow).not.toContain("VERCEL_TRUSTED_OIDC_TOKEN");
@@ -276,9 +276,29 @@ describe("hosted CSF load acceptance", () => {
     expect(workflow).toContain(
       '.status == "completed" and .conclusion == "success"',
     );
-    expect(workflow).not.toContain("secrets.VERCEL_TOKEN");
-    expect(workflow).not.toContain("vars.VERCEL_TEAM_ID");
-    expect(workflow).not.toContain("vars.VERCEL_ROOT_PROJECT_ID");
+    const previewStep = workflow.slice(
+      workflow.indexOf("      - name: Build the exact Development Preview"),
+      workflow.indexOf("      - name: Retain the explicit Preview identity"),
+    );
+    expect(previewStep).toContain("if: inputs.build_current_revision == true");
+    expect(previewStep).toContain(
+      "run: node scripts/hosted-development/deploy-exact-preview.mjs",
+    );
+    expect(previewStep).toContain("secrets.VERCEL_TOKEN");
+    const previewJob = workflow.slice(
+      workflow.indexOf("  preview-build:"),
+      workflow.indexOf("  hosted-acceptance:"),
+    );
+    expect(previewJob).toContain("environment: production");
+    expect(previewJob).toContain(
+      "github.ref == 'refs/heads/development' && inputs.build_current_revision == true",
+    );
+    expect(previewJob).toContain('[[ "${GITHUB_RUN_ATTEMPT}" == "1" ]]');
+    expect(hostedJob).not.toContain("secrets.VERCEL_TOKEN");
+    const acceptanceOnly = workflow.replace(previewStep, "");
+    expect(acceptanceOnly).not.toContain("secrets.VERCEL_TOKEN");
+    expect(acceptanceOnly).not.toContain("vars.VERCEL_TEAM_ID");
+    expect(acceptanceOnly).not.toContain("vars.VERCEL_ROOT_PROJECT_ID");
     expect(aliasVerifier).toContain("https://dev.lets-assist.com/api/status");
     expect(aliasVerifier).not.toContain("https://api.vercel.com");
     expect(aliasVerifier).toContain("--connect-timeout 10");

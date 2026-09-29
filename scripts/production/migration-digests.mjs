@@ -1374,4 +1374,14 @@ export const migrationDigests = {
     "9df288eabcfcc74f41eb636b02bba4adc372050513bf639c4645f000b17197c5",
   "20260929003720_csf_sheet_queue_deletion_lock_order.sql":
     "f5882a03050549e8ae9d52d0bd3374a9703cd3acfaa33ee911f0bff9ff2feb86",
+  "20260929031000_csf_existing_homonym_profile_edits.sql":
+    "3f7271daba99fba662d7d5caf5fdeb925adc18cdcc26e8aac32c3a3b4e4e476a",
+  "20260929044000_csf_remove_activity_preserve_history.sql":
+    "2c4f5310f390ef625c82ccac888026fccf02c18592601d462afd83064948fc86",
+  "20260929044100_csf_index_contact_collision_evidence.sql":
+    "37ab07a0c85560a484ad47aa7f6a8fee022c4da42606c2175e632ce3b89e3338",
+  "20260929044725_publish_dvhs_csf_1_2_85.sql":
+    "fec4982c4bd1836bdbcbb1cad28412263ecc97b76f5a9d1bfe50a43a19263e8b",
+  "20260929051500_csf_review_removed_activity_submissions.sql":
+    "643e7b1bf86b767cee6ca8a5544f65b5a51604ee52a58c19e74b6d9cde6f47c9",
 };

@@ -48,16 +48,19 @@ if [[ ! "${BASE_PORT}" =~ ^[0-9]+$ ]] || ((BASE_PORT < 1024 || BASE_PORT > 65526
   fail "CSF_ISOLATED_BASE_PORT must be an integer between 1024 and 65526."
 fi
 
-# Logflare analytics is not part of the CSF product/runtime contract. Keep it
-# enabled by default for parity with the root Supabase config, but allow an
-# explicit local-only recovery run to omit that optional container when Docker
-# cannot keep it healthy. The analytics port remains claimed with the bundle so
-# a second stack can never move into the reserved topology while this run lives.
-CSF_ISOLATED_ANALYTICS_MODE="${CSF_ISOLATED_ANALYTICS_MODE:-enabled}"
+# Analytics and Studio are optional for the CSF app. Keep their ports claimed
+# even when disabled so concurrent stacks cannot overlap this bundle.
+CSF_ISOLATED_ANALYTICS_MODE="${CSF_ISOLATED_ANALYTICS_MODE:-disabled}"
 case "${CSF_ISOLATED_ANALYTICS_MODE}" in
   enabled) ;;
   disabled) ;;
   *) fail "CSF_ISOLATED_ANALYTICS_MODE must be exactly enabled or disabled." ;;
+esac
+CSF_ISOLATED_STUDIO_MODE="${CSF_ISOLATED_STUDIO_MODE:-disabled}"
+case "${CSF_ISOLATED_STUDIO_MODE}" in
+  enabled) ;;
+  disabled) ;;
+  *) fail "CSF_ISOLATED_STUDIO_MODE must be exactly enabled or disabled." ;;
 esac
 
 # The exact bundle this launcher writes into the generated config.toml.
@@ -682,9 +685,9 @@ rsync -a \
   supabase/ "${WORK_DIR}/supabase/"
 chmod -R go-rwx "${WORK_DIR}"
 
-node - "${WORK_DIR}/supabase/config.toml" "${PROJECT_ID}" "${BASE_PORT}" "${CSF_ISOLATED_ANALYTICS_MODE}" <<'NODE'
+node - "${WORK_DIR}/supabase/config.toml" "${PROJECT_ID}" "${BASE_PORT}" "${CSF_ISOLATED_ANALYTICS_MODE}" "${CSF_ISOLATED_STUDIO_MODE}" <<'NODE'
 const fs = require("node:fs");
-const [path, projectId, rawBase, analyticsMode] = process.argv.slice(2);
+const [path, projectId, rawBase, analyticsMode, studioMode] = process.argv.slice(2);
 const base = Number(rawBase);
 let source = fs.readFileSync(path, "utf8");
 const replacements = new Map([
@@ -705,29 +708,30 @@ for (const [before, after] of replacements) {
   source = source.replace(before, after);
 }
 
-if (analyticsMode === "disabled") {
-  const analyticsSections = [...source.matchAll(/^\[analytics\][ \t]*$/gmu)];
-  if (analyticsSections.length !== 1) {
-    throw new Error(`Expected exactly one [analytics] section, found ${analyticsSections.length}.`);
+for (const [section, mode] of [["analytics", analyticsMode], ["studio", studioMode]]) {
+  if (mode !== "disabled") continue;
+  const sections = [...source.matchAll(new RegExp(`^\\[${section}\\][ \\t]*$`, "gmu"))];
+  if (sections.length !== 1) {
+    throw new Error(`Expected exactly one [${section}] section, found ${sections.length}.`);
   }
-  const analyticsHeader = analyticsSections[0];
-  const analyticsBodyStart = analyticsHeader.index + analyticsHeader[0].length;
-  const afterAnalyticsHeader = source.slice(analyticsBodyStart);
-  const nextAnalyticsSection = /^[ \t]*\[/mu.exec(afterAnalyticsHeader);
-  const analyticsBodyEnd = nextAnalyticsSection
-    ? analyticsBodyStart + nextAnalyticsSection.index
+  const header = sections[0];
+  const bodyStart = header.index + header[0].length;
+  const afterHeader = source.slice(bodyStart);
+  const nextSection = /^[ \t]*\[/mu.exec(afterHeader);
+  const bodyEnd = nextSection
+    ? bodyStart + nextSection.index
     : source.length;
-  const analyticsBody = source.slice(analyticsBodyStart, analyticsBodyEnd);
-  const enabledTokens = analyticsBody.match(/^enabled = true[ \t]*$/gmu) ?? [];
+  const body = source.slice(bodyStart, bodyEnd);
+  const enabledTokens = body.match(/^enabled = true[ \t]*$/gmu) ?? [];
   if (enabledTokens.length !== 1) {
     throw new Error(
-      `Expected exactly one enabled = true token in [analytics], found ${enabledTokens.length}.`,
+      `Expected exactly one enabled = true token in [${section}], found ${enabledTokens.length}.`,
     );
   }
   source =
-    source.slice(0, analyticsBodyStart) +
-    analyticsBody.replace(/^enabled = true[ \t]*$/mu, "enabled = false") +
-    source.slice(analyticsBodyEnd);
+    source.slice(0, bodyStart) +
+    body.replace(/^enabled = true[ \t]*$/mu, "enabled = false") +
+    source.slice(bodyEnd);
 }
 
 // ---------------------------------------------------------------------------
@@ -956,6 +960,7 @@ echo "Status snapshot: ${ENV_FILE}"
 echo "App environment: ${APP_ENV_FILE}"
 echo "Startup log: ${START_LOG}"
 echo "Optional local analytics: ${CSF_ISOLATED_ANALYTICS_MODE}"
+echo "Optional local Studio: ${CSF_ISOLATED_STUDIO_MODE}"
 echo "This new volume applied the current migrations and the configured SQL seed paths."
 echo "Fictional platform/DV records still require bun run csf:seed:platform:isolated and bun run dv:fixtures."
 echo "Load command: export CSF_ISOLATED_WORK_DIR='${WORK_DIR}', then read"

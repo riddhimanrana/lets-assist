@@ -2932,7 +2932,7 @@ INSERT INTO csf_intended_import_acl (signature, service_role_execute) VALUES
   ('plugin_data.csf_payload_string(jsonb)', false),
   ('plugin_data.csf_payload_number(jsonb)', false),
   ('plugin_data.csf_normalize_identity_part(text)', false),
-  ('plugin_data.csf_normalize_email_text(text)', false),
+  ('plugin_data.csf_normalize_email_text(text)', true),
   ('plugin_data.csf_meeting_key_from_label(text, integer)', false),
   ('plugin_data.csf_meeting_attendance_value(text)', false),
   ('plugin_data.csf_normalized_record_schema(text)', false),
