@@ -1383,5 +1383,5 @@ export const migrationDigests = {
   "20260929044725_publish_dvhs_csf_1_2_85.sql":
     "fec4982c4bd1836bdbcbb1cad28412263ecc97b76f5a9d1bfe50a43a19263e8b",
   "20260929051500_csf_review_removed_activity_submissions.sql":
-    "ccb6e58a1e02dcfcadbbd682a0efbbae15763c7be1ca2dd970ebe92a1a09eafe",
+    "643e7b1bf86b767cee6ca8a5544f65b5a51604ee52a58c19e74b6d9cde6f47c9",
 };

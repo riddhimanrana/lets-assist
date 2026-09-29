@@ -66,7 +66,7 @@ test("the signed 1.2.85 publication preserves the reviewed schema", () => {
   );
 });
 
-test("removed activity review changes only the three existing eligibility paths", () => {
+test("removed activity review changes only the reviewed eligibility paths and index helper ACL", () => {
   const previous = JSON.parse(read("./final-schema-686.json"));
   const current = JSON.parse(read("./final-schema-687.json"));
   const currentVersions = expectedVersions(repository).slice(0, 687);
@@ -84,6 +84,7 @@ test("removed activity review changes only the three existing eligibility paths"
     [
       "function:plugin_data.csf_assert_point_submission_eligibility",
       "function:plugin_data.csf_assert_point_submission_row_eligibility",
+      "function:plugin_data.csf_normalize_email_text",
       "function:plugin_data.csf_resubmit_point_submission",
     ],
   );

@@ -1917,7 +1917,7 @@
     },
     {
       "identity": "function:plugin_data.csf_normalize_email_text(p_value text)",
-      "digest": "fee4d887440df0c37e8880e54ef2f1b2"
+      "digest": "66e753ff3038333fe98c35e20589d0b5"
     },
     {
       "identity": "function:plugin_data.csf_normalize_identity_part(p_value text)",

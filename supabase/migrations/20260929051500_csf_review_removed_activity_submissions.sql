@@ -458,4 +458,8 @@ $function$;
 REVOKE ALL ON FUNCTION plugin_data.csf_resubmit_point_submission(uuid,uuid,numeric,text,date,text,uuid,uuid) FROM PUBLIC,anon,authenticated,service_role;
 GRANT EXECUTE ON FUNCTION plugin_data.csf_resubmit_point_submission(uuid,uuid,numeric,text,date,text,uuid,uuid) TO postgres;
 
+-- Indexed contact writes evaluate this pure text normalizer as the server role.
+REVOKE ALL ON FUNCTION plugin_data.csf_normalize_email_text(text) FROM PUBLIC,anon,authenticated;
+GRANT EXECUTE ON FUNCTION plugin_data.csf_normalize_email_text(text) TO service_role;
+
 COMMIT;

@@ -1,6 +1,6 @@
 BEGIN;
 CREATE EXTENSION IF NOT EXISTS pgtap WITH SCHEMA extensions;
-SELECT extensions.plan(10);
+SELECT extensions.plan(12);
 INSERT INTO auth.users (
   id, aud, role, email, email_confirmed_at, raw_app_meta_data,
   raw_user_meta_data, created_at, updated_at
@@ -140,5 +140,9 @@ SELECT extensions.throws_ok($q$SELECT plugin_data.csf_assert_point_submission_el
 SELECT extensions.throws_ok($q$SELECT plugin_data.csf_assert_point_submission_row_eligibility('f8500000-0000-4000-8000-000000000099','f8100000-0000-4000-8000-000000000001','f8300000-0000-4000-8000-000000000001','f8200000-0000-4000-8000-000000000001','f8400000-0000-4000-8000-000000000001',NULL,'student',2,'non_drive',true,false,false)$q$,'P0001','This CSF activity is not available for this point action.','a fabricated submission cannot use the preservation path');
 SELECT extensions.throws_ok($q$SELECT plugin_data.csf_assert_point_submission_eligibility('f8100000-0000-4000-8000-000000000001','f8300000-0000-4000-8000-000000000001','f8200000-0000-4000-8000-000000000001','f8400000-0000-4000-8000-000000000001',NULL,'student',2,'non_drive',false,true,false)$q$,'P0001','A proof file is required for this point action.','preservation still requires proof');
 SELECT extensions.ok(NOT has_function_privilege('service_role','plugin_data.csf_assert_point_submission_row_eligibility(uuid,uuid,uuid,uuid,uuid,uuid,text,numeric,text,boolean,boolean,boolean)','EXECUTE'),'the internal preservation helper remains owner-only');
+SET LOCAL ROLE service_role;
+SELECT extensions.lives_ok($q$UPDATE plugin_data.csf_profiles SET reported_application_personal_email='contact-index@local.test' WHERE id='f8300000-0000-4000-8000-000000000001'$q$,'server role can maintain the normalized contact indexes');
+RESET ROLE;
+SELECT extensions.ok(NOT has_function_privilege('anon','plugin_data.csf_normalize_email_text(text)','EXECUTE') AND NOT has_function_privilege('authenticated','plugin_data.csf_normalize_email_text(text)','EXECUTE'),'the pure index helper stays unavailable to browser roles');
 SELECT * FROM extensions.finish();
 ROLLBACK;
