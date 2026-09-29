@@ -9677,3 +9677,7 @@ Status: Implemented locally, private PR #636 pending review. Production remains 
 An archived activity with only an email campaign still appeared in the staff catalog and could not be deleted. The user approved removing activities from view while preserving student points and history. The forward migration retains dependent records under the existing archived lifecycle, records the removal atomically, and permanently deletes only empty activities. CSF 1.2.85 excludes archived rows before catalog pagination and direct lookup and explains the retained history in the confirmation.
 
 Local proof: 20 activity-removal database assertions, 69 existing Unsubmit assertions, 73 profile-write assertions, and 23 focused action/catalog tests passed. All 538 private-plugin test files passed. Typecheck and focused lint passed. Three contact lookup plans used their indexes with 20,000 synthetic records; the combined profile lookup took 0.078 ms locally. The contact lookup indexes address the open performance review on Production PR #854. Hosted and Production acceptance remain pending for this combined candidate.
+
+### P2: Removed activities block preserved point reviews, September 28
+
+Fixed locally in the activity removal release follow-up. The archived activity guard prevented pending point approval and correction. Forward migration 687 keeps existing claims reviewable without reopening new submissions. Ten new pgTAP assertions and 192 existing point and activity assertions pass. Production remains pending the updated release checks.
