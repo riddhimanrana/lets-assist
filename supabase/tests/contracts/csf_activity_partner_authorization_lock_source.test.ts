@@ -468,7 +468,7 @@ describe("CSF activity and partner mutation authorization lock boundary", () => 
 const linkingMigrationName = readdirSync(
   join(repositoryRoot, "supabase/migrations"),
 ).find((name) =>
-  /^\d{14}_csf_partner_project_linking_predicate\.sql$/u.test(name),
+  /^\d{14}_csf_partner_projects_attendance_submissions\.sql$/u.test(name),
 );
 const linkingMigration = linkingMigrationName
   ? read(`supabase/migrations/${linkingMigrationName}`)
