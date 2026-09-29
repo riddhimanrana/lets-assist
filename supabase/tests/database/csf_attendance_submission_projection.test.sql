@@ -592,12 +592,13 @@ SELECT extensions.is(
 );
 
 -- ---------------------------------------------------------------------------
--- Late paper attendance for a member after publication
+-- Late attendance after publication on an existing digital signup (a paper row
+-- that matched it keeps its identity; see R9 for email-bound paper rows)
 -- ---------------------------------------------------------------------------
 
 INSERT INTO public.project_signups (id, project_id, user_id, schedule_id, status, check_in_time, check_out_time, source)
 VALUES ('a7600000-0000-4000-8000-000000000005', 'a7500000-0000-4000-8000-000000000001',
-  'a7000000-0000-4000-8000-000000000007', 'oneTime', 'attended', '2041-09-20T16:30:00Z', '2041-09-20T18:30:00Z', 'paper_scan');
+  'a7000000-0000-4000-8000-000000000007', 'oneTime', 'attended', '2041-09-20T16:30:00Z', '2041-09-20T18:30:00Z', 'digital');
 SELECT extensions.ok(
   (SELECT source = 'attendance' AND status = 'submitted' AND claimed_points = 2
    FROM plugin_data.csf_point_submissions

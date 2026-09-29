@@ -6,7 +6,7 @@
 CREATE EXTENSION IF NOT EXISTS pgtap WITH SCHEMA extensions;
 CREATE EXTENSION IF NOT EXISTS dblink WITH SCHEMA extensions;
 
-SELECT extensions.plan(13);
+SELECT extensions.plan(14);
 
 CREATE OR REPLACE FUNCTION pg_temp.cleanup_attendance_race_fixtures()
 RETURNS void
@@ -176,11 +176,14 @@ INSERT INTO plugin_data.csf_opportunities (
    '/projects/a8500000-0000-4000-8000-000000000002', 1, 'non_drive', true, 'none', 'off', now(),
    'a8000000-0000-4000-8000-000000000001');
 
--- 1-4: publication waits for a member's in-flight manual claim, then attaches.
+-- 1-6 (R2): a member's in-flight claim holds the semester lock. The
+-- organizer's publication runs under a short statement_timeout, never waits
+-- for CSF, commits, and defers the source; a staff retry then attaches it.
 SELECT extensions.dblink_connect('attendance_race_begin', pg_temp.attendance_race_dsn());
 CREATE TEMP TABLE attendance_race_pids (label text PRIMARY KEY, pid integer NOT NULL);
 INSERT INTO attendance_race_pids
 SELECT 'begin', pid FROM extensions.dblink('attendance_race_begin', 'SELECT pg_backend_pid()') AS t(pid integer);
+SELECT extensions.dblink_exec('attendance_race_begin', 'SET statement_timeout = 2000');
 BEGIN;
 SELECT plugin_data.csf_begin_point_submission_request_v2(
   'a8100000-0000-4000-8000-000000000001', 'a8400000-0000-4000-8000-000000000002',
@@ -196,21 +199,33 @@ SELECT extensions.dblink_send_query('attendance_race_begin', $query$
   )::text
 $query$);
 SELECT extensions.ok(
-  pg_temp.wait_for_attendance_race_lock((SELECT pid FROM attendance_race_pids WHERE label = 'begin')),
-  'the publication projection waits behind the member''s uncommitted claim'
-);
-COMMIT;
-SELECT extensions.ok(
   pg_temp.wait_for_attendance_race_result('attendance_race_begin'),
-  'the publication completes after the member claim commits'
+  'R2: the publication finishes while the member claim still holds the semester lock'
 );
 SELECT extensions.is(
   (SELECT payload::jsonb ->> 'outcome'
    FROM extensions.dblink_get_result('attendance_race_begin', false) AS result(payload text)),
   'accepted',
-  'the organizer publication commits'
+  'R2: the organizer publication commits instead of timing out'
 );
+COMMIT;
 SELECT extensions.dblink_disconnect('attendance_race_begin');
+SELECT extensions.is(
+  (SELECT o.outcome || ':' || o.sqlstate FROM plugin_data.csf_attendance_projection_outcomes o
+   JOIN public.certificates c ON c.id = o.certificate_id
+   WHERE c.signup_id = 'a8600000-0000-4000-8000-000000000001'),
+  'deferred:55P03',
+  'R2: the contended source is deferred with its SQLSTATE'
+);
+SELECT extensions.ok(
+  (plugin_data.csf_linked_project_attendance_summary(
+    'a8100000-0000-4000-8000-000000000001', 'a8700000-0000-4000-8000-000000000001'
+  ) ->> 'needsStaffAttention')::integer >= 1,
+  'R2: a deferred source counts as needing staff attention'
+);
+SELECT plugin_data.csf_retry_activity_attendance_sync(
+  'a8100000-0000-4000-8000-000000000001', 'a8700000-0000-4000-8000-000000000001',
+  'a8000000-0000-4000-8000-000000000001', 'a8900000-0000-4000-8000-000000000003');
 SELECT extensions.ok(
   (SELECT count(*) = 1 FROM plugin_data.csf_point_submissions
    WHERE opportunity_id = 'a8700000-0000-4000-8000-000000000001')
@@ -219,7 +234,13 @@ SELECT extensions.ok(
     JOIN plugin_data.csf_point_submissions s ON s.id = e.submission_id
     WHERE s.opportunity_id = 'a8700000-0000-4000-8000-000000000001' AND s.source = 'student' AND e.state = 'active'
   ),
-  'the race produces one claim: the member''s, with organizer evidence attached'
+  'R2: the retry attaches the deferred evidence to the member''s own claim'
+);
+SELECT extensions.is(
+  (SELECT count(*)::integer FROM public.certificates
+   WHERE signup_id = 'a8600000-0000-4000-8000-000000000001' AND type = 'verified'),
+  1,
+  'R2: the verified certificate committed with the publication'
 );
 
 -- 5-8: enabling waits for an in-flight publication and backfills its certificates.
@@ -262,7 +283,9 @@ SELECT extensions.is(
   'no certificate is missed or duplicated across the publication and enable race'
 );
 
--- 9-13: an account unlink commits while a publication projection waits for it.
+-- 12-16: an account unlink is in flight while late attendance is written.
+-- The host write never waits for CSF; the source is deferred and a later
+-- retry sees the committed unlink.
 UPDATE public.project_signups SET status = 'attended',
   check_in_time = '2041-09-27T16:30:00Z', check_out_time = '2041-09-27T18:00:00Z'
 WHERE id = 'a8600000-0000-4000-8000-000000000001';
@@ -284,14 +307,13 @@ SELECT extensions.dblink_send_query('attendance_race_unlink', $query$
   RETURNING id::text
 $query$);
 SELECT extensions.ok(
-  pg_temp.wait_for_attendance_race_lock((SELECT pid FROM attendance_race_pids WHERE label = 'unlink')),
-  'the late-attendance projection waits on the account row being unlinked'
+  pg_temp.wait_for_attendance_race_result('attendance_race_unlink'),
+  'the attendance write completes while the unlink is still uncommitted'
 );
 COMMIT;
-SELECT extensions.ok(
-  pg_temp.wait_for_attendance_race_result('attendance_race_unlink'),
-  'the attendance write completes after the unlink commits'
-);
+SELECT plugin_data.csf_retry_activity_attendance_sync(
+  'a8100000-0000-4000-8000-000000000001', 'a8700000-0000-4000-8000-000000000001',
+  'a8000000-0000-4000-8000-000000000001', 'a8900000-0000-4000-8000-000000000004');
 SELECT extensions.is(
   (SELECT payload FROM extensions.dblink_get_result('attendance_race_unlink', false) AS result(payload text)),
   'a8600000-0000-4000-8000-000000000004',

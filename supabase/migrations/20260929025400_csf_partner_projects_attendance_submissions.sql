@@ -146,6 +146,7 @@ CREATE TABLE plugin_data.csf_attendance_projection_outcomes (
   first_attempt_at timestamptz NOT NULL DEFAULT now(),
   last_attempt_at timestamptz NOT NULL DEFAULT now(),
   source_revision text,
+  guest_claim boolean NOT NULL DEFAULT false,
   PRIMARY KEY (organization_id, certificate_id),
   CONSTRAINT csf_attendance_outcomes_opportunity_fkey
     FOREIGN KEY (opportunity_id, organization_id)
@@ -158,12 +159,13 @@ CREATE TABLE plugin_data.csf_attendance_projection_outcomes (
   CONSTRAINT csf_attendance_outcomes_outcome_check CHECK (outcome IN (
     'projected', 'attached', 'prior_decision', 'not_member', 'not_eligible',
     'term_closed', 'project_unavailable', 'rule_not_derivable', 'capped',
-    'failed', 'stale', 'released'
+    'failed', 'stale', 'released', 'deferred', 'awaiting_decision',
+    'identity_unverified'
   )),
   CONSTRAINT csf_attendance_outcomes_sqlstate_check
     CHECK (sqlstate IS NULL OR sqlstate ~ '^[0-9A-Z]{5}$'),
   CONSTRAINT csf_attendance_outcomes_failure_shape
-    CHECK ((outcome = 'failed') = (sqlstate IS NOT NULL)),
+    CHECK ((outcome IN ('failed', 'deferred')) = (sqlstate IS NOT NULL)),
   CONSTRAINT csf_attendance_outcomes_attempt_check CHECK (attempt_count >= 1),
   CONSTRAINT csf_attendance_outcomes_revision_check
     CHECK (source_revision IS NULL OR source_revision ~ '^[0-9a-f]{64}$')
@@ -182,7 +184,7 @@ REVOKE ALL ON TABLE plugin_data.csf_attendance_projection_outcomes FROM PUBLIC, 
 GRANT SELECT ON TABLE plugin_data.csf_attendance_projection_outcomes TO service_role;
 
 COMMENT ON TABLE plugin_data.csf_attendance_projection_outcomes IS
-  'Latest projection outcome per chapter and certificate. Failed rows carry only a SQLSTATE. Only certificates of accounts verified in the chapter are recorded.';
+  'Latest projection outcome per chapter and certificate. Failed and deferred rows carry only a SQLSTATE. Only certificates of accounts verified in the chapter are recorded. guest_claim marks a certificate whose account was bound by a guest claim.';
 
 -- Transition receipts for projection audits and the two service wrappers.
 CREATE UNIQUE INDEX csf_admin_audit_events_attendance_projection_idx
@@ -447,14 +449,13 @@ AS $$
         AND account.user_id = p_evidence.user_id
         AND account.status = 'verified'
     )
+    -- R8: an active chapter organization membership, as the manual path requires.
     AND EXISTS (
       SELECT 1
-      FROM plugin_data.csf_opportunities AS activity
-      WHERE activity.organization_id = p_evidence.organization_id
-        AND activity.id = p_evidence.opportunity_id
-        AND activity.linked_project_id = p_evidence.project_id
-        AND activity.attendance_submission_mode = 'pending_submission'
-        AND activity.status IN ('published', 'closed')
+      FROM public.organization_members AS member
+      WHERE member.organization_id = p_evidence.organization_id
+        AND member.user_id = p_evidence.user_id
+        AND member.status = 'active'
     );
 $$;
 
@@ -552,6 +553,18 @@ AS $$
         AND evidence.opportunity_id = p_opportunity_id
         AND evidence.state = 'active'
         AND evidence.project_id IS DISTINCT FROM p_keep_project_id
+        -- R1: activity-side changes never stale a reviewed or appealed claim.
+        AND EXISTS (
+          SELECT 1 FROM plugin_data.csf_point_submissions AS submission
+          WHERE submission.organization_id = evidence.organization_id
+            AND submission.id = evidence.submission_id
+            AND submission.status IN ('draft', 'submitted')
+            AND NOT EXISTS (
+              SELECT 1 FROM plugin_data.csf_point_appeals AS appeal
+              WHERE appeal.organization_id = submission.organization_id
+                AND appeal.submission_id = submission.id
+            )
+        )
       ORDER BY evidence.id
     ),
     p_reason
@@ -906,7 +919,8 @@ CREATE FUNCTION plugin_data.csf_record_attendance_outcome(
   p_evidence_id uuid,
   p_outcome text,
   p_sqlstate text,
-  p_source_revision text
+  p_source_revision text,
+  p_guest_claim boolean
 )
 RETURNS void
 LANGUAGE sql
@@ -915,10 +929,11 @@ SET search_path = ''
 AS $$
   INSERT INTO plugin_data.csf_attendance_projection_outcomes AS outcome (
     organization_id, certificate_id, project_id, opportunity_id, submission_id,
-    evidence_id, outcome, sqlstate, source_revision
+    evidence_id, outcome, sqlstate, source_revision, guest_claim
   ) VALUES (
     p_organization_id, p_certificate_id, p_project_id, p_opportunity_id,
-    p_submission_id, p_evidence_id, p_outcome, p_sqlstate, p_source_revision
+    p_submission_id, p_evidence_id, p_outcome, p_sqlstate, p_source_revision,
+    coalesce(p_guest_claim, false)
   )
   ON CONFLICT (organization_id, certificate_id) DO UPDATE
   SET project_id = coalesce(EXCLUDED.project_id, outcome.project_id),
@@ -928,31 +943,39 @@ AS $$
       outcome = EXCLUDED.outcome,
       sqlstate = EXCLUDED.sqlstate,
       source_revision = coalesce(EXCLUDED.source_revision, outcome.source_revision),
+      guest_claim = outcome.guest_claim OR EXCLUDED.guest_claim,
       attempt_count = outcome.attempt_count + 1,
       last_attempt_at = pg_catalog.now()
   WHERE (outcome.outcome, outcome.sqlstate, outcome.opportunity_id,
-      outcome.submission_id, outcome.evidence_id, outcome.source_revision)
+      outcome.submission_id, outcome.evidence_id, outcome.source_revision,
+      outcome.guest_claim)
     IS DISTINCT FROM (EXCLUDED.outcome, EXCLUDED.sqlstate,
       coalesce(EXCLUDED.opportunity_id, outcome.opportunity_id),
       coalesce(EXCLUDED.submission_id, outcome.submission_id),
       coalesce(EXCLUDED.evidence_id, outcome.evidence_id),
-      coalesce(EXCLUDED.source_revision, outcome.source_revision))
-    OR EXCLUDED.outcome = 'failed';
+      coalesce(EXCLUDED.source_revision, outcome.source_revision),
+      outcome.guest_claim OR EXCLUDED.guest_claim)
+    OR EXCLUDED.outcome IN ('failed', 'deferred');
 $$;
 
+-- Records a retryable outcome for the chapter-verified certificates in one
+-- failed or deferred statement. Never raises. Only a SQLSTATE is kept.
 CREATE FUNCTION plugin_data.csf_record_attendance_failure(
   p_organization_id uuid,
   p_project_id uuid,
   p_certificate_ids uuid[],
-  p_sqlstate text
+  p_sqlstate text,
+  p_outcome text,
+  p_guest_certificate_ids uuid[]
 )
-RETURNS void
+RETURNS integer
 LANGUAGE plpgsql
 SECURITY DEFINER
 SET search_path = ''
 AS $$
 DECLARE
   v_certificate_id uuid;
+  v_count integer := 0;
 BEGIN
   BEGIN
     FOR v_certificate_id IN
@@ -965,18 +988,28 @@ BEGIN
       WHERE certificate.project_id = p_project_id
         AND certificate.type = 'verified'
         AND (p_certificate_ids IS NULL OR certificate.id = ANY (p_certificate_ids))
+        AND NOT EXISTS (
+          SELECT 1 FROM plugin_data.csf_attendance_evidence AS evidence
+          WHERE evidence.organization_id = p_organization_id
+            AND evidence.certificate_id = certificate.id
+            AND evidence.state = 'active'
+        )
       ORDER BY certificate.id
       LIMIT 2000
     LOOP
       PERFORM plugin_data.csf_record_attendance_outcome(
         p_organization_id, v_certificate_id, p_project_id, NULL, NULL, NULL,
-        'failed', coalesce(nullif(p_sqlstate, ''), 'XX000'), NULL
+        CASE WHEN p_outcome = 'deferred' THEN 'deferred' ELSE 'failed' END,
+        coalesce(nullif(p_sqlstate, ''), 'XX000'), NULL,
+        v_certificate_id = ANY (coalesce(p_guest_certificate_ids, ARRAY[]::uuid[]))
       );
+      v_count := v_count + 1;
     END LOOP;
   EXCEPTION WHEN OTHERS THEN
     -- Recording a failure must never fail the host transaction.
     NULL;
   END;
+  RETURN v_count;
 END;
 $$;
 
@@ -984,10 +1017,17 @@ $$;
 -- H. Projection core
 -- ---------------------------------------------------------------------------
 
-CREATE FUNCTION plugin_data.csf_project_attendance_sources(
+-- The projection core. p_inline marks a call from inside a host transaction:
+-- it never waits for the semester lock (pg_try_advisory_xact_lock), its entry
+-- point bounds every CSF row-lock wait with a function-scoped lock_timeout,
+-- and it projects at most 200 sources per host statement. The rest, and any
+-- contended source, is recorded as deferred and replayed later.
+CREATE FUNCTION plugin_data.csf_project_attendance_run(
   p_organization_id uuid,
   p_project_id uuid,
-  p_certificate_ids uuid[]
+  p_certificate_ids uuid[],
+  p_inline boolean,
+  p_guest_certificate_ids uuid[]
 )
 RETURNS jsonb
 LANGUAGE plpgsql
@@ -1001,26 +1041,31 @@ DECLARE
   v_term plugin_data.csf_terms%ROWTYPE;
   v_has_term boolean := false;
   v_counts jsonb := '{}'::jsonb;
-  v_evidence record;
+  v_stale record;
+  v_stale_rows jsonb := '[]'::jsonb;
+  v_reason text;
   v_source record;
   v_activity plugin_data.csf_opportunities%ROWTYPE;
   v_membership plugin_data.csf_term_memberships%ROWTYPE;
   v_submission plugin_data.csf_point_submissions%ROWTYPE;
   v_rules jsonb;
+  v_claim_rules jsonb;
   v_publish_key text;
   v_window tstzrange;
   v_key text;
   v_revision text;
   v_outcome text;
+  v_sqlstate text;
   v_evidence_id uuid;
   v_submission_id uuid;
   v_calculation jsonb;
   v_settle text;
   v_affected_claims uuid[] := ARRAY[]::uuid[];
-  v_stale_ids uuid[];
-  v_reason text;
   v_origin text;
+  v_guest boolean;
   v_claim_id uuid;
+  v_processed integer := 0;
+  v_guest_ids uuid[] := coalesce(p_guest_certificate_ids, ARRAY[]::uuid[]);
 BEGIN
   IF p_organization_id IS NULL OR p_project_id IS NULL THEN
     RAISE EXCEPTION 'Organization and project are required.';
@@ -1053,20 +1098,63 @@ BEGIN
   LIMIT 1;
   v_has_term := FOUND;
   IF v_has_term THEN
-    PERFORM pg_catalog.pg_advisory_xact_lock(pg_catalog.hashtextextended(
-      p_organization_id::text || ':' || v_term.id::text,
-      0
-    ));
+    IF coalesce(p_inline, false) THEN
+      -- R2: never wait in the host transaction.
+      IF NOT pg_catalog.pg_try_advisory_xact_lock(pg_catalog.hashtextextended(
+        p_organization_id::text || ':' || v_term.id::text, 0
+      )) THEN
+        RETURN pg_catalog.jsonb_build_object(
+          'deferred',
+          plugin_data.csf_record_attendance_failure(
+            p_organization_id, p_project_id, p_certificate_ids, '55P03',
+            'deferred', v_guest_ids
+          )
+        );
+      END IF;
+    ELSE
+      PERFORM pg_catalog.pg_advisory_xact_lock(pg_catalog.hashtextextended(
+        p_organization_id::text || ':' || v_term.id::text, 0
+      ));
+    END IF;
   END IF;
 
-  -- 1. Invalidate evidence whose source or activity no longer qualifies.
-  FOR v_reason IN SELECT unnest(ARRAY[
-    'certificate_removed', 'project_unavailable', 'activity_relinked',
-    'activity_unavailable', 'attendance_disabled', 'account_revoked'
-  ]) LOOP
-    SELECT pg_catalog.array_agg(evidence.id ORDER BY evidence.id)
-    INTO v_stale_ids
+  -- 1. Find evidence whose source or activity no longer qualifies, with no
+  --    row locks yet. Reviewed claims keep evidence through activity-side
+  --    changes (R1); only source-side removal marks it.
+  FOR v_stale IN
+    SELECT evidence.id, evidence.submission_id, evidence.user_id,
+      submission.profile_id, submission.term_id,
+      CASE
+        WHEN NOT EXISTS (
+          SELECT 1 FROM public.certificates AS certificate
+          WHERE certificate.id = evidence.certificate_id
+            AND certificate.type = 'verified'
+            AND certificate.user_id = evidence.user_id
+            AND certificate.project_id = evidence.project_id
+            AND certificate.signup_id = evidence.signup_id
+        ) THEN 'certificate_removed'
+        WHEN NOT EXISTS (
+          SELECT 1 FROM plugin_data.csf_profile_accounts AS account
+          WHERE account.organization_id = evidence.organization_id
+            AND account.user_id = evidence.user_id
+            AND account.status = 'verified'
+        ) THEN 'account_revoked'
+        WHEN submission.status NOT IN ('draft', 'submitted')
+          OR EXISTS (
+            SELECT 1 FROM plugin_data.csf_point_appeals AS appeal
+            WHERE appeal.organization_id = submission.organization_id
+              AND appeal.submission_id = submission.id
+          ) THEN NULL
+        WHEN NOT v_linkable AND evidence.project_id = p_project_id THEN 'project_unavailable'
+        WHEN activity.linked_project_id IS DISTINCT FROM evidence.project_id THEN 'activity_relinked'
+        WHEN activity.status NOT IN ('published', 'closed') THEN 'activity_unavailable'
+        WHEN activity.attendance_submission_mode <> 'pending_submission' THEN 'attendance_disabled'
+        ELSE NULL
+      END AS reason
     FROM plugin_data.csf_attendance_evidence AS evidence
+    JOIN plugin_data.csf_point_submissions AS submission
+      ON submission.organization_id = evidence.organization_id
+     AND submission.id = evidence.submission_id
     LEFT JOIN plugin_data.csf_opportunities AS activity
       ON activity.organization_id = evidence.organization_id
      AND activity.id = evidence.opportunity_id
@@ -1074,46 +1162,61 @@ BEGIN
       AND evidence.state = 'active'
       AND (evidence.project_id = p_project_id
         OR evidence.certificate_id = ANY (coalesce(p_certificate_ids, ARRAY[]::uuid[])))
-      AND CASE v_reason
-        WHEN 'certificate_removed' THEN NOT EXISTS (
-          SELECT 1 FROM public.certificates AS certificate
-          WHERE certificate.id = evidence.certificate_id
-            AND certificate.type = 'verified'
-            AND certificate.user_id = evidence.user_id
-            AND certificate.project_id = evidence.project_id
-            AND certificate.signup_id = evidence.signup_id
-        )
-        WHEN 'project_unavailable' THEN NOT v_linkable AND evidence.project_id = p_project_id
-        WHEN 'activity_relinked' THEN activity.linked_project_id IS DISTINCT FROM evidence.project_id
-        WHEN 'activity_unavailable' THEN activity.status NOT IN ('published', 'closed')
-        WHEN 'attendance_disabled' THEN activity.attendance_submission_mode <> 'pending_submission'
-        WHEN 'account_revoked' THEN NOT EXISTS (
-          SELECT 1 FROM plugin_data.csf_profile_accounts AS account
-          WHERE account.organization_id = evidence.organization_id
-            AND account.user_id = evidence.user_id
-            AND account.status = 'verified'
-        )
-        ELSE false
-      END;
-    IF v_stale_ids IS NOT NULL THEN
-      SELECT pg_catalog.array_agg(DISTINCT evidence.submission_id) || v_affected_claims
-      INTO v_affected_claims
-      FROM plugin_data.csf_attendance_evidence AS evidence
-      WHERE evidence.id = ANY (v_stale_ids) AND evidence.submission_id IS NOT NULL;
-      -- Lock the claims before their evidence (submission, then evidence).
-      PERFORM 1 FROM plugin_data.csf_point_submissions AS submission
-      WHERE submission.organization_id = p_organization_id
-        AND submission.id = ANY (v_affected_claims)
-      ORDER BY submission.id
-      FOR UPDATE;
-      PERFORM plugin_data.csf_invalidate_attendance_evidence(p_organization_id, v_stale_ids, v_reason);
-      v_counts := v_counts || pg_catalog.jsonb_build_object(
-        'stale', coalesce((v_counts ->> 'stale')::integer, 0) + pg_catalog.cardinality(v_stale_ids)
-      );
+    ORDER BY evidence.id
+  LOOP
+    IF v_stale.reason IS NOT NULL THEN
+      v_stale_rows := v_stale_rows || pg_catalog.jsonb_build_array(pg_catalog.to_jsonb(v_stale));
     END IF;
   END LOOP;
 
-  -- 2. Project each eligible chapter member's verified certificate.
+  IF pg_catalog.jsonb_array_length(v_stale_rows) > 0 THEN
+    -- R12: profile, membership, and account before any submission or
+    -- evidence lock for those users (contract 1.9: evidence last).
+    PERFORM 1 FROM plugin_data.csf_profiles AS profile
+    WHERE profile.organization_id = p_organization_id
+      AND profile.id IN (SELECT (row.value ->> 'profile_id')::uuid
+        FROM pg_catalog.jsonb_array_elements(v_stale_rows) AS row(value))
+    ORDER BY profile.id FOR SHARE;
+    PERFORM 1 FROM plugin_data.csf_term_memberships AS membership
+    WHERE membership.organization_id = p_organization_id
+      AND (membership.profile_id, membership.term_id) IN (
+        SELECT (row.value ->> 'profile_id')::uuid, (row.value ->> 'term_id')::uuid
+        FROM pg_catalog.jsonb_array_elements(v_stale_rows) AS row(value))
+    ORDER BY membership.id FOR SHARE;
+    PERFORM 1 FROM plugin_data.csf_profile_accounts AS account
+    WHERE account.organization_id = p_organization_id
+      AND account.user_id IN (SELECT (row.value ->> 'user_id')::uuid
+        FROM pg_catalog.jsonb_array_elements(v_stale_rows) AS row(value))
+    ORDER BY account.id FOR SHARE;
+    SELECT coalesce(pg_catalog.array_agg(DISTINCT (row.value ->> 'submission_id')::uuid), ARRAY[]::uuid[])
+    INTO v_affected_claims
+    FROM pg_catalog.jsonb_array_elements(v_stale_rows) AS row(value);
+    PERFORM 1 FROM plugin_data.csf_point_submissions AS submission
+    WHERE submission.organization_id = p_organization_id
+      AND submission.id = ANY (v_affected_claims)
+    ORDER BY submission.id FOR UPDATE;
+    FOR v_reason IN
+      SELECT DISTINCT row.value ->> 'reason'
+      FROM pg_catalog.jsonb_array_elements(v_stale_rows) AS row(value)
+    LOOP
+      PERFORM plugin_data.csf_invalidate_attendance_evidence(
+        p_organization_id,
+        ARRAY(
+          SELECT (row.value ->> 'id')::uuid
+          FROM pg_catalog.jsonb_array_elements(v_stale_rows) AS row(value)
+          WHERE row.value ->> 'reason' = v_reason
+          ORDER BY 1
+        ),
+        v_reason
+      );
+    END LOOP;
+    v_counts := v_counts || pg_catalog.jsonb_build_object(
+      'stale', pg_catalog.jsonb_array_length(v_stale_rows)
+    );
+  END IF;
+
+  -- 2. Project each eligible chapter member's verified certificate. Deferred
+  --    and failed sources are re-driven first.
   IF v_project_found THEN
     FOR v_source IN
       SELECT certificate.id AS certificate_id,
@@ -1123,7 +1226,10 @@ BEGIN
         certificate.event_start,
         certificate.event_end,
         account.profile_id,
-        account.id AS account_id
+        account.id AS account_id,
+        signup.source AS signup_source,
+        prior.outcome AS prior_outcome,
+        coalesce(prior.guest_claim, false) AS prior_guest
       FROM public.certificates AS certificate
       JOIN plugin_data.csf_profile_accounts AS account
         ON account.organization_id = p_organization_id
@@ -1133,13 +1239,32 @@ BEGIN
         ON profile.organization_id = account.organization_id
        AND profile.id = account.profile_id
        AND profile.record_status = 'active'
+      -- R8: an active chapter organization membership, as the manual path requires.
+      JOIN public.organization_members AS member
+        ON member.organization_id = p_organization_id
+       AND member.user_id = certificate.user_id
+       AND member.status = 'active'
+      LEFT JOIN public.project_signups AS signup
+        ON signup.id = certificate.signup_id
+      LEFT JOIN plugin_data.csf_attendance_projection_outcomes AS prior
+        ON prior.organization_id = p_organization_id
+       AND prior.certificate_id = certificate.id
       WHERE certificate.project_id = p_project_id
         AND certificate.type = 'verified'
         AND certificate.signup_id IS NOT NULL
         AND certificate.user_id IS NOT NULL
         AND certificate.event_end > certificate.event_start
-      ORDER BY certificate.id
+        AND NOT EXISTS (
+          SELECT 1 FROM plugin_data.csf_attendance_evidence AS evidence
+          WHERE evidence.organization_id = p_organization_id
+            AND evidence.certificate_id = certificate.id
+            AND evidence.state = 'active'
+        )
+        -- A member Unsubmit (or any claim removal) is a durable decline.
+        AND prior.outcome IS DISTINCT FROM 'released'
+      ORDER BY (prior.outcome IN ('deferred', 'failed')) DESC NULLS LAST, certificate.id
     LOOP
+      v_guest := v_source.prior_guest OR v_source.certificate_id = ANY (v_guest_ids);
       v_publish_key := private.project_hours_publish_key(
         v_project.event_type, v_project.schedule, v_source.schedule_id
       );
@@ -1149,34 +1274,62 @@ BEGIN
         v_source.event_start, v_source.event_end
       );
 
-      -- Already attached and still current: nothing to do.
-      IF EXISTS (
-        SELECT 1 FROM plugin_data.csf_attendance_evidence AS evidence
-        WHERE evidence.organization_id = p_organization_id
-          AND evidence.certificate_id = v_source.certificate_id
-          AND evidence.state = 'active'
-      ) THEN
+      IF coalesce(p_inline, false) AND v_processed >= 200 THEN
+        -- R2: bound inline work per host statement; the rest replays later.
+        PERFORM plugin_data.csf_record_attendance_outcome(
+          p_organization_id, v_source.certificate_id, p_project_id, NULL, NULL,
+          NULL, 'deferred', '54000', v_revision, v_guest
+        );
+        v_counts := v_counts || pg_catalog.jsonb_build_object(
+          'deferred', coalesce((v_counts ->> 'deferred')::integer, 0) + 1
+        );
         CONTINUE;
       END IF;
-      -- A member Unsubmit (or any claim removal) is a durable decline.
-      IF EXISTS (
-        SELECT 1 FROM plugin_data.csf_attendance_projection_outcomes AS outcome
-        WHERE outcome.organization_id = p_organization_id
-          AND outcome.certificate_id = v_source.certificate_id
-          AND outcome.outcome = 'released'
-      ) THEN
-        CONTINUE;
-      END IF;
+      v_processed := v_processed + 1;
 
       v_outcome := NULL;
+      v_sqlstate := NULL;
       v_evidence_id := NULL;
       v_submission_id := NULL;
       v_activity := NULL;
+      v_key := NULL;
 
-      IF NOT v_linkable THEN
-        v_outcome := 'project_unavailable';
-      ELSIF NOT v_has_term THEN
-        v_outcome := 'term_closed';
+      -- R1: a certificate is consumed once. Evidence on a reviewed or
+      -- appealed claim, in any state, blocks every other activity.
+      SELECT submission.id INTO v_claim_id
+      FROM plugin_data.csf_attendance_evidence AS evidence
+      JOIN plugin_data.csf_point_submissions AS submission
+        ON submission.organization_id = evidence.organization_id
+       AND submission.id = evidence.submission_id
+      WHERE evidence.organization_id = p_organization_id
+        AND evidence.certificate_id = v_source.certificate_id
+        AND (
+          submission.status IN ('approved', 'rejected', 'needs_action')
+          OR EXISTS (
+            SELECT 1 FROM plugin_data.csf_point_appeals AS appeal
+            WHERE appeal.organization_id = submission.organization_id
+              AND appeal.submission_id = submission.id
+          )
+        )
+      ORDER BY submission.created_at, submission.id
+      LIMIT 1;
+      IF FOUND THEN
+        v_outcome := 'prior_decision';
+        v_submission_id := v_claim_id;
+      END IF;
+
+      -- R9: a paper row bound to an account by its handwritten email is not
+      -- organizer-verified identity. Matched digital signups keep theirs.
+      IF v_outcome IS NULL AND v_source.signup_source = 'paper_scan' THEN
+        v_outcome := 'identity_unverified';
+      END IF;
+
+      IF v_outcome IS NULL THEN
+        IF NOT v_linkable THEN
+          v_outcome := 'project_unavailable';
+        ELSIF NOT v_has_term THEN
+          v_outcome := 'term_closed';
+        END IF;
       END IF;
 
       IF v_outcome IS NULL THEN
@@ -1188,15 +1341,7 @@ BEGIN
           AND membership.status IN ('accepted', 'active');
         IF NOT FOUND THEN
           v_outcome := CASE
-            WHEN EXISTS (
-              SELECT 1 FROM plugin_data.csf_opportunities AS activity
-              JOIN plugin_data.csf_terms AS term
-                ON term.organization_id = activity.organization_id AND term.id = activity.term_id
-              WHERE activity.organization_id = p_organization_id
-                AND activity.linked_project_id = p_project_id
-                AND activity.attendance_submission_mode = 'pending_submission'
-                AND (term.lifecycle_status <> 'open' OR term.is_current IS DISTINCT FROM true)
-            ) AND NOT EXISTS (
+            WHEN NOT EXISTS (
               SELECT 1 FROM plugin_data.csf_opportunities AS activity
               WHERE activity.organization_id = p_organization_id
                 AND activity.linked_project_id = p_project_id
@@ -1257,7 +1402,6 @@ BEGIN
         v_rules := plugin_data.csf_effective_earning_rules(
           v_activity.earning_rules, v_activity.point_value, v_activity.point_type
         );
-        v_key := NULL;
         IF v_rules IS NULL OR v_rules ->> 'mode' NOT IN ('fixed', 'shifts') THEN
           v_outcome := 'rule_not_derivable';
         ELSIF v_rules ->> 'mode' = 'shifts' THEN
@@ -1271,15 +1415,13 @@ BEGIN
         END IF;
       END IF;
 
+      -- Row locks in the begin-transaction order (lock_timeout-bounded inline).
       IF v_outcome IS NULL THEN
-        -- Row locks in the begin-transaction order.
         PERFORM 1 FROM plugin_data.csf_profiles AS profile
         WHERE profile.organization_id = p_organization_id AND profile.id = v_source.profile_id
           AND profile.record_status = 'active'
         FOR SHARE;
-        IF NOT FOUND THEN
-          v_outcome := 'not_member';
-        END IF;
+        IF NOT FOUND THEN v_outcome := 'not_member'; END IF;
       END IF;
       IF v_outcome IS NULL THEN
         PERFORM 1 FROM plugin_data.csf_terms AS term
@@ -1318,8 +1460,8 @@ BEGIN
         IF NOT FOUND THEN v_outcome := 'not_member'; END IF;
       END IF;
 
-      -- Prior decisions: a rejected or approved fixed claim, or a reviewed
-      -- shift claim that already covers this shift key.
+      -- Prior decisions on this activity: a rejected or approved fixed claim,
+      -- or a reviewed shift claim that already covers this shift key.
       IF v_outcome IS NULL THEN
         SELECT submission.id INTO v_claim_id
         FROM plugin_data.csf_point_submissions AS submission
@@ -1347,15 +1489,7 @@ BEGIN
       END IF;
 
       IF v_outcome IS NULL THEN
-        -- C7: a guest who later claimed this account on the same project.
-        v_origin := CASE
-          WHEN EXISTS (
-            SELECT 1 FROM public.anonymous_signups AS guest
-            WHERE guest.project_id = p_project_id
-              AND guest.linked_user_id = v_source.user_id
-          ) THEN 'guest_claim'
-          ELSE 'account'
-        END;
+        v_origin := CASE WHEN v_guest THEN 'guest_claim' ELSE 'account' END;
 
         SELECT submission.* INTO v_submission
         FROM plugin_data.csf_point_submissions AS submission
@@ -1369,39 +1503,56 @@ BEGIN
         FOR UPDATE;
 
         IF FOUND THEN
-          INSERT INTO plugin_data.csf_attendance_evidence (
-            organization_id, opportunity_id, term_id, submission_id, user_id,
-            certificate_id, signup_id, project_id, schedule_id, publish_key,
-            event_start, event_end, verified_minutes, matched_shift_key,
-            identity_origin, source_revision
-          ) VALUES (
-            p_organization_id, v_activity.id, v_term.id, v_submission.id, v_source.user_id,
-            v_source.certificate_id, v_source.signup_id, p_project_id, v_source.schedule_id,
-            v_publish_key, v_source.event_start, v_source.event_end,
-            greatest(1, (pg_catalog.date_part('epoch', v_source.event_end - v_source.event_start) / 60)::integer),
-            v_key, v_origin, v_revision
-          )
-          RETURNING id INTO v_evidence_id;
-          v_submission_id := v_submission.id;
-          v_outcome := CASE WHEN v_submission.status = 'needs_action' THEN 'prior_decision' ELSE 'attached' END;
-          INSERT INTO plugin_data.csf_admin_audit_events (
-            organization_id, actor_user_id, action, target_type, target_id, term_id,
-            before_data, after_data, correlation_id, source_type, source_id, reason_code
-          ) VALUES (
-            p_organization_id, NULL, 'point_submission.attendance_attached',
-            'csf_point_submissions', v_submission.id, v_term.id, NULL,
-            pg_catalog.jsonb_build_object('evidenceId', v_evidence_id,
-              'certificateId', v_source.certificate_id, 'sourceRevision', v_revision,
-              'matchedShiftKey', v_key),
-            plugin_data.csf_attendance_correlation_id(ARRAY[
-              p_organization_id::text, v_source.certificate_id::text, v_revision, 'attached'
-            ]),
-            'attendance_projection', v_evidence_id::text, 'attendance_verified'
-          )
-          ON CONFLICT (organization_id, correlation_id) WHERE source_type = 'attendance_projection'
-          DO NOTHING;
-          IF plugin_data.csf_attendance_claim_is_system_only(v_submission) THEN
-            v_settle := plugin_data.csf_settle_attendance_claim(p_organization_id, v_submission.id);
+          -- R7: a claim whose rules allow one shift does not absorb a
+          -- different shift; that slot waits for the claim's decision.
+          v_claim_rules := coalesce(v_submission.earning_rules_snapshot, v_rules);
+          IF v_key IS NOT NULL
+            AND v_claim_rules ->> 'mode' = 'shifts'
+            AND coalesce((v_claim_rules -> 'shiftPolicy' ->> 'allowMultiple')::boolean, false) = false
+            AND EXISTS (
+              SELECT 1
+              FROM pg_catalog.jsonb_array_elements(
+                coalesce(v_submission.earning_selection -> 'items', '[]'::jsonb)
+              ) AS item(value)
+              WHERE item.value ->> 'key' IS DISTINCT FROM v_key
+            ) THEN
+            v_outcome := 'awaiting_decision';
+            v_submission_id := v_submission.id;
+          ELSE
+            INSERT INTO plugin_data.csf_attendance_evidence (
+              organization_id, opportunity_id, term_id, submission_id, user_id,
+              certificate_id, signup_id, project_id, schedule_id, publish_key,
+              event_start, event_end, verified_minutes, matched_shift_key,
+              identity_origin, source_revision
+            ) VALUES (
+              p_organization_id, v_activity.id, v_term.id, v_submission.id, v_source.user_id,
+              v_source.certificate_id, v_source.signup_id, p_project_id, v_source.schedule_id,
+              v_publish_key, v_source.event_start, v_source.event_end,
+              greatest(1, (pg_catalog.date_part('epoch', v_source.event_end - v_source.event_start) / 60)::integer),
+              v_key, v_origin, v_revision
+            )
+            RETURNING id INTO v_evidence_id;
+            v_submission_id := v_submission.id;
+            v_outcome := CASE WHEN v_submission.status = 'needs_action' THEN 'prior_decision' ELSE 'attached' END;
+            INSERT INTO plugin_data.csf_admin_audit_events (
+              organization_id, actor_user_id, action, target_type, target_id, term_id,
+              before_data, after_data, correlation_id, source_type, source_id, reason_code
+            ) VALUES (
+              p_organization_id, NULL, 'point_submission.attendance_attached',
+              'csf_point_submissions', v_submission.id, v_term.id, NULL,
+              pg_catalog.jsonb_build_object('evidenceId', v_evidence_id,
+                'certificateId', v_source.certificate_id, 'sourceRevision', v_revision,
+                'matchedShiftKey', v_key, 'identityOrigin', v_origin),
+              plugin_data.csf_attendance_correlation_id(ARRAY[
+                p_organization_id::text, v_source.certificate_id::text, v_revision, 'attached'
+              ]),
+              'attendance_projection', v_evidence_id::text, 'attendance_verified'
+            )
+            ON CONFLICT (organization_id, correlation_id) WHERE source_type = 'attendance_projection'
+            DO NOTHING;
+            IF plugin_data.csf_attendance_claim_is_system_only(v_submission) THEN
+              v_settle := plugin_data.csf_settle_attendance_claim(p_organization_id, v_submission.id);
+            END IF;
           END IF;
         ELSE
           v_calculation := plugin_data.csf_attendance_claim_calculation(
@@ -1447,7 +1598,8 @@ BEGIN
               pg_catalog.jsonb_build_object('evidenceId', v_evidence_id,
                 'certificateId', v_source.certificate_id, 'sourceRevision', v_revision,
                 'claimedPoints', (v_calculation ->> 'points')::numeric,
-                'selection', v_calculation -> 'selection', 'status', 'submitted'),
+                'selection', v_calculation -> 'selection', 'status', 'submitted',
+                'identityOrigin', v_origin),
               plugin_data.csf_attendance_correlation_id(ARRAY[
                 p_organization_id::text, v_source.certificate_id::text, v_revision, 'created'
               ]),
@@ -1462,7 +1614,7 @@ BEGIN
 
       PERFORM plugin_data.csf_record_attendance_outcome(
         p_organization_id, v_source.certificate_id, p_project_id, v_activity.id,
-        v_submission_id, v_evidence_id, v_outcome, NULL, v_revision
+        v_submission_id, v_evidence_id, v_outcome, v_sqlstate, v_revision, v_guest
       );
       v_counts := v_counts || pg_catalog.jsonb_build_object(
         v_outcome, coalesce((v_counts ->> v_outcome)::integer, 0) + 1
@@ -1471,7 +1623,7 @@ BEGIN
   END IF;
 
   -- 3. Settle claims that lost evidence (current open term only). This also
-  -- settles claims whose evidence a C4 trigger or a relink staled earlier.
+  --    settles claims whose evidence a C4 trigger or a relink staled earlier.
   IF v_has_term THEN
     SELECT coalesce(pg_catalog.array_agg(DISTINCT evidence.submission_id), ARRAY[]::uuid[])
       || v_affected_claims
@@ -1514,6 +1666,44 @@ BEGIN
 END;
 $$;
 
+-- Staff, backfill, and review paths: may wait for locks normally.
+CREATE FUNCTION plugin_data.csf_project_attendance_sources(
+  p_organization_id uuid,
+  p_project_id uuid,
+  p_certificate_ids uuid[]
+)
+RETURNS jsonb
+LANGUAGE sql
+SECURITY DEFINER
+SET search_path = ''
+AS $$
+  SELECT plugin_data.csf_project_attendance_run(
+    p_organization_id, p_project_id, p_certificate_ids, false, NULL
+  );
+$$;
+
+-- Host-trigger path (R2). The function-scoped lock_timeout bounds any CSF row
+-- lock or trigger-side wait; it reverts when this call returns and never
+-- changes the caller's session settings.
+CREATE FUNCTION plugin_data.csf_project_attendance_inline(
+  p_organization_id uuid,
+  p_project_id uuid,
+  p_certificate_ids uuid[],
+  p_guest_certificate_ids uuid[]
+)
+RETURNS jsonb
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = ''
+SET lock_timeout = '200ms'
+AS $$
+BEGIN
+  RETURN plugin_data.csf_project_attendance_run(
+    p_organization_id, p_project_id, p_certificate_ids, true, p_guest_certificate_ids
+  );
+END;
+$$;
+
 -- ---------------------------------------------------------------------------
 -- I. Statement triggers on public.certificates
 -- ---------------------------------------------------------------------------
@@ -1528,6 +1718,7 @@ DECLARE
   v_changes jsonb;
   v_pair record;
   v_sqlstate text;
+  v_guest_ids uuid[] := ARRAY[]::uuid[];
 BEGIN
   -- Collect changed certificates as (id, old project, new project).
   IF TG_OP = 'INSERT' THEN
@@ -1561,6 +1752,13 @@ BEGIN
             old_row.type, old_row.event_start, old_row.event_end)
         AND old_row.project_id IS DISTINCT FROM new_row.project_id
     ) AS change;
+    -- R4: a certificate whose account was bound after publication is a
+    -- guest claim, whatever order the claiming request writes its rows in.
+    SELECT coalesce(pg_catalog.array_agg(new_row.id), ARRAY[]::uuid[])
+    INTO v_guest_ids
+    FROM csf_new_certificates AS new_row
+    JOIN csf_old_certificates AS old_row ON old_row.id = new_row.id
+    WHERE old_row.user_id IS NULL AND new_row.user_id IS NOT NULL;
   ELSE
     SELECT pg_catalog.jsonb_agg(pg_catalog.jsonb_build_object(
       'id', old_row.id, 'project', old_row.project_id))
@@ -1600,14 +1798,17 @@ BEGIN
     GROUP BY targets.organization_id, targets.project_id
     ORDER BY targets.organization_id, targets.project_id
   LOOP
+    -- R2: the inline entry never waits for CSF locks. Contention (55P03) is
+    -- deferred for replay; any other error is a recorded failure.
     BEGIN
-      PERFORM plugin_data.csf_project_attendance_sources(
-        v_pair.organization_id, v_pair.project_id, v_pair.certificate_ids
+      PERFORM plugin_data.csf_project_attendance_inline(
+        v_pair.organization_id, v_pair.project_id, v_pair.certificate_ids, v_guest_ids
       );
     EXCEPTION WHEN OTHERS THEN
       GET STACKED DIAGNOSTICS v_sqlstate = RETURNED_SQLSTATE;
       PERFORM plugin_data.csf_record_attendance_failure(
-        v_pair.organization_id, v_pair.project_id, v_pair.certificate_ids, v_sqlstate
+        v_pair.organization_id, v_pair.project_id, v_pair.certificate_ids, v_sqlstate,
+        CASE WHEN v_sqlstate = '55P03' THEN 'deferred' ELSE 'failed' END, v_guest_ids
       );
     END;
   END LOOP;
@@ -1992,7 +2193,7 @@ BEGIN
         AND (outcome.opportunity_id = p_opportunity_id
           OR (outcome.opportunity_id IS NULL AND outcome.project_id = v_activity.linked_project_id))
         AND (
-          outcome.outcome = 'failed'
+          outcome.outcome IN ('failed', 'deferred', 'awaiting_decision')
           OR (outcome.outcome IN ('prior_decision', 'stale')
             AND submission.status IN ('approved', 'rejected', 'needs_action'))
         )
@@ -2073,10 +2274,14 @@ REVOKE ALL ON FUNCTION plugin_data.csf_attendance_claim_calculation(uuid, uuid, 
 GRANT EXECUTE ON FUNCTION plugin_data.csf_attendance_claim_calculation(uuid, uuid, uuid, uuid, jsonb, text[]) TO postgres;
 REVOKE ALL ON FUNCTION plugin_data.csf_settle_attendance_claim(uuid, uuid) FROM PUBLIC, anon, authenticated, service_role;
 GRANT EXECUTE ON FUNCTION plugin_data.csf_settle_attendance_claim(uuid, uuid) TO postgres;
-REVOKE ALL ON FUNCTION plugin_data.csf_record_attendance_outcome(uuid, uuid, uuid, uuid, uuid, uuid, text, text, text) FROM PUBLIC, anon, authenticated, service_role;
-GRANT EXECUTE ON FUNCTION plugin_data.csf_record_attendance_outcome(uuid, uuid, uuid, uuid, uuid, uuid, text, text, text) TO postgres;
-REVOKE ALL ON FUNCTION plugin_data.csf_record_attendance_failure(uuid, uuid, uuid[], text) FROM PUBLIC, anon, authenticated, service_role;
-GRANT EXECUTE ON FUNCTION plugin_data.csf_record_attendance_failure(uuid, uuid, uuid[], text) TO postgres;
+REVOKE ALL ON FUNCTION plugin_data.csf_record_attendance_outcome(uuid, uuid, uuid, uuid, uuid, uuid, text, text, text, boolean) FROM PUBLIC, anon, authenticated, service_role;
+GRANT EXECUTE ON FUNCTION plugin_data.csf_record_attendance_outcome(uuid, uuid, uuid, uuid, uuid, uuid, text, text, text, boolean) TO postgres;
+REVOKE ALL ON FUNCTION plugin_data.csf_record_attendance_failure(uuid, uuid, uuid[], text, text, uuid[]) FROM PUBLIC, anon, authenticated, service_role;
+GRANT EXECUTE ON FUNCTION plugin_data.csf_record_attendance_failure(uuid, uuid, uuid[], text, text, uuid[]) TO postgres;
+REVOKE ALL ON FUNCTION plugin_data.csf_project_attendance_run(uuid, uuid, uuid[], boolean, uuid[]) FROM PUBLIC, anon, authenticated, service_role;
+GRANT EXECUTE ON FUNCTION plugin_data.csf_project_attendance_run(uuid, uuid, uuid[], boolean, uuid[]) TO postgres;
+REVOKE ALL ON FUNCTION plugin_data.csf_project_attendance_inline(uuid, uuid, uuid[], uuid[]) FROM PUBLIC, anon, authenticated, service_role;
+GRANT EXECUTE ON FUNCTION plugin_data.csf_project_attendance_inline(uuid, uuid, uuid[], uuid[]) TO postgres;
 REVOKE ALL ON FUNCTION plugin_data.csf_project_attendance_sources(uuid, uuid, uuid[]) FROM PUBLIC, anon, authenticated, service_role;
 GRANT EXECUTE ON FUNCTION plugin_data.csf_project_attendance_sources(uuid, uuid, uuid[]) TO postgres;
 REVOKE ALL ON FUNCTION plugin_data.csf_certificates_attendance_projection() FROM PUBLIC, anon, authenticated, service_role;
@@ -2288,6 +2493,7 @@ DECLARE
   v_has_finalized_proof boolean := false;
   v_lock_term_id uuid;
   v_review_notes text := nullif(pg_catalog.btrim(coalesce(p_review_notes, '')), '');
+  v_result jsonb;
 BEGIN
   IF p_action IS NULL
     OR p_action NOT IN ('approved', 'rejected', 'needs_action', 'duplicate') THEN
@@ -2340,6 +2546,11 @@ BEGIN
   END IF;
 
   IF p_action='approved' AND v_submission.request_kind='exception' THEN RAISE EXCEPTION 'Explicit exception review is required before awarding points.'; END IF;
+  -- R6: a member cannot edit or resubmit a system claim, so staff decide it.
+  IF p_action = 'needs_action' AND v_submission.source = 'attendance' THEN
+    RAISE EXCEPTION 'Attendance claims cannot be sent back for changes. Approve, reject, or retry attendance sync.'
+      USING ERRCODE = '55000';
+  END IF;
   IF p_action = 'approved' THEN
     SELECT policy.*
     INTO v_policy
@@ -2428,7 +2639,7 @@ BEGIN
     END IF;
   END IF;
 
-  RETURN plugin_data.csf_review_point_submission_v2_authority_base_20260810(
+  v_result := plugin_data.csf_review_point_submission_v2_authority_base_20260810(
     p_organization_id,
     p_submission_id,
     p_action,
@@ -2436,6 +2647,13 @@ BEGIN
     p_review_notes,
     p_actor_user_id
   );
+  -- R7: a decision releases shifts that waited on this single-shift claim.
+  IF p_action IN ('approved', 'rejected') THEN
+    PERFORM plugin_data.csf_redrive_attendance_after_review(
+      p_organization_id, p_submission_id, p_action
+    );
+  END IF;
+  RETURN v_result;
 END;
 $function$;
 
@@ -2600,6 +2818,269 @@ REVOKE ALL ON FUNCTION plugin_data.csf_delete_member_point_submission_request(
 GRANT EXECUTE ON FUNCTION plugin_data.csf_delete_member_point_submission_request(
   uuid, uuid, uuid, uuid, uuid
 ) TO postgres, service_role;
+
+-- R5: forward replacement of the appeal decision.
+CREATE OR REPLACE FUNCTION plugin_data.csf_review_point_appeal(p_organization_id uuid, p_appeal_id uuid, p_decision text, p_resolution_notes text, p_actor_user_id uuid, p_correlation_id uuid)
+ RETURNS jsonb
+ LANGUAGE plpgsql
+ SECURITY DEFINER
+ SET search_path TO ''
+AS $function$
+DECLARE
+  v_appeal plugin_data.csf_point_appeals%ROWTYPE;
+  v_submission plugin_data.csf_point_submissions%ROWTYPE;
+  v_term plugin_data.csf_terms%ROWTYPE;
+  v_policy plugin_data.csf_term_policies%ROWTYPE;
+  v_credit plugin_data.csf_credit_records%ROWTYPE;
+  v_awarded_points numeric(6,2);
+  v_has_finalized_proof boolean := false;
+  v_resolution_notes text := nullif(pg_catalog.btrim(coalesce(p_resolution_notes, '')), '');
+  v_lock_term_id uuid;
+BEGIN
+  IF p_decision IS NULL
+    OR p_decision NOT IN ('approved', 'rejected', 'under_review') THEN
+    RAISE EXCEPTION 'Invalid point-appeal decision.';
+  END IF;
+  IF v_resolution_notes IS NULL OR pg_catalog.length(v_resolution_notes) > 2000 THEN
+    RAISE EXCEPTION 'Point-appeal resolution notes must contain between 1 and 2000 characters.';
+  END IF;
+  IF p_correlation_id IS NULL THEN
+    RAISE EXCEPTION 'A point-appeal decision correlation identifier is required.';
+  END IF;
+
+  -- Permission is resolved and locked before any private appeal evidence.
+  PERFORM plugin_data.csf_assert_point_actor_authority(
+    p_organization_id,
+    p_actor_user_id,
+    ARRAY['process_points']::text[]
+  );
+
+  SELECT appeal.term_id
+  INTO v_lock_term_id
+  FROM plugin_data.csf_point_appeals AS appeal
+  WHERE appeal.organization_id = p_organization_id
+    AND appeal.id = p_appeal_id;
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'Point appeal was not found or has already been decided.';
+  END IF;
+
+  PERFORM pg_catalog.pg_advisory_xact_lock(pg_catalog.hashtextextended(
+    p_organization_id::text || ':' || v_lock_term_id::text,
+    0
+  ));
+
+  SELECT appeal.*
+  INTO v_appeal
+  FROM plugin_data.csf_point_appeals AS appeal
+  WHERE appeal.organization_id = p_organization_id
+    AND appeal.id = p_appeal_id
+  FOR UPDATE;
+  IF NOT FOUND OR v_appeal.status NOT IN ('submitted', 'under_review') THEN
+    RAISE EXCEPTION 'Point appeal was not found or has already been decided.';
+  END IF;
+  IF v_appeal.term_id IS DISTINCT FROM v_lock_term_id THEN
+    RAISE EXCEPTION 'Point appeal semester changed; refresh and try again.';
+  END IF;
+
+  SELECT submission.*
+  INTO v_submission
+  FROM plugin_data.csf_point_submissions AS submission
+  WHERE submission.organization_id = p_organization_id
+    AND submission.id = v_appeal.submission_id
+    AND submission.profile_id = v_appeal.profile_id
+    AND submission.term_id = v_appeal.term_id
+  FOR UPDATE;
+  IF NOT FOUND OR v_submission.status NOT IN ('approved', 'rejected') THEN
+    RAISE EXCEPTION 'The appealed point submission is no longer reviewable.';
+  END IF;
+
+  SELECT term.*
+  INTO v_term
+  FROM plugin_data.csf_terms AS term
+  WHERE term.organization_id = p_organization_id
+    AND term.id = v_submission.term_id
+  FOR UPDATE;
+  IF NOT FOUND OR v_term.is_current IS DISTINCT FROM true
+    OR v_term.lifecycle_status <> 'open' THEN
+    RAISE EXCEPTION 'Point appeals can only be reviewed in the current open semester.';
+  END IF;
+
+  IF p_decision = 'approved' THEN
+    SELECT policy.*
+    INTO v_policy
+    FROM plugin_data.csf_term_policies AS policy
+    WHERE policy.organization_id = p_organization_id
+      AND policy.term_id = v_submission.term_id
+    FOR UPDATE;
+    IF NOT FOUND OR v_policy.published_at IS NULL THEN
+      RAISE EXCEPTION 'A published semester policy is required before approving an appeal.';
+    END IF;
+
+    v_awarded_points := coalesce(v_appeal.requested_points, v_submission.claimed_points);
+    IF v_awarded_points IS NULL OR v_awarded_points <= 0
+      OR v_awarded_points > v_policy.max_points_per_activity THEN
+      RAISE EXCEPTION 'Appeal award must be between 0 and %.',
+        v_policy.max_points_per_activity;
+    END IF;
+
+    IF EXISTS (
+      SELECT 1
+      FROM plugin_data.csf_submission_files AS proof
+      WHERE proof.organization_id = p_organization_id
+        AND proof.submission_id = v_submission.id
+        AND proof.upload_status <> 'finalized'
+    ) THEN
+      RAISE EXCEPTION 'Point-submission proof must be finalized before appeal approval.';
+    END IF;
+    SELECT EXISTS (
+      SELECT 1
+      FROM plugin_data.csf_submission_files AS proof
+      WHERE proof.organization_id = p_organization_id
+        AND proof.submission_id = v_submission.id
+        AND proof.upload_status = 'finalized'
+        AND proof.bucket = 'plugins'
+        AND nullif(pg_catalog.btrim(proof.object_path), '') IS NOT NULL
+    ) INTO v_has_finalized_proof;
+    -- R5: current organizer evidence satisfies proof, as in review v2.
+    v_has_finalized_proof := v_has_finalized_proof
+      OR plugin_data.csf_attendance_claim_valid_evidence(p_organization_id, v_submission.id) > 0;
+
+    PERFORM plugin_data.csf_assert_point_submission_eligibility(
+      p_organization_id,
+      v_submission.profile_id,
+      v_submission.term_id,
+      v_submission.opportunity_id,
+      v_submission.partner_club_term_id,
+      v_submission.source,
+      v_awarded_points,
+      v_submission.point_type,
+      v_has_finalized_proof,
+      true,
+      true
+    );
+    IF v_submission.opportunity_id IS NOT NULL THEN
+      PERFORM plugin_data.csf_assert_activity_earning_award(
+        p_organization_id,
+        v_submission.profile_id,
+        v_submission.opportunity_id,
+        v_submission.id,
+        v_awarded_points,
+        v_submission.earning_rules_snapshot,
+        v_submission.earning_selection
+      );
+    END IF;
+  END IF;
+
+  SELECT credit.*
+  INTO v_credit
+  FROM plugin_data.csf_credit_records AS credit
+  WHERE credit.organization_id = p_organization_id
+    AND credit.submission_id = v_submission.id
+  ORDER BY credit.created_at DESC, credit.id DESC
+  LIMIT 1
+  FOR UPDATE;
+
+  RETURN plugin_data.csf_review_point_appeal_authority_base_20260810(
+    p_organization_id,
+    p_appeal_id,
+    p_decision,
+    v_resolution_notes,
+    p_actor_user_id,
+    p_correlation_id
+  );
+END;
+$function$;
+REVOKE ALL ON FUNCTION plugin_data.csf_review_point_appeal(
+  uuid, uuid, text, text, uuid, uuid
+) FROM PUBLIC, anon, authenticated, service_role;
+GRANT EXECUTE ON FUNCTION plugin_data.csf_review_point_appeal(
+  uuid, uuid, text, text, uuid, uuid
+) TO postgres;
+
+-- R7: after staff decide a single-shift claim, re-drive the certificates that
+-- waited on it. Approval lets each create its own claim; rejection records a
+-- prior decision. Runs inside the review transaction under its semester lock.
+CREATE FUNCTION plugin_data.csf_redrive_attendance_after_review(
+  p_organization_id uuid,
+  p_submission_id uuid,
+  p_action text
+)
+RETURNS integer
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = ''
+AS $$
+DECLARE
+  v_project_id uuid;
+  v_certificate_ids uuid[];
+  v_count integer := 0;
+BEGIN
+  IF p_action = 'rejected' THEN
+    UPDATE plugin_data.csf_attendance_projection_outcomes
+    SET outcome = 'prior_decision',
+        attempt_count = attempt_count + 1,
+        last_attempt_at = pg_catalog.now()
+    WHERE organization_id = p_organization_id
+      AND submission_id = p_submission_id
+      AND outcome = 'awaiting_decision';
+    GET DIAGNOSTICS v_count = ROW_COUNT;
+    RETURN v_count;
+  END IF;
+  IF p_action IS DISTINCT FROM 'approved' THEN
+    RETURN 0;
+  END IF;
+  FOR v_project_id, v_certificate_ids IN
+    SELECT outcome.project_id, pg_catalog.array_agg(outcome.certificate_id ORDER BY outcome.certificate_id)
+    FROM plugin_data.csf_attendance_projection_outcomes AS outcome
+    WHERE outcome.organization_id = p_organization_id
+      AND outcome.submission_id = p_submission_id
+      AND outcome.outcome = 'awaiting_decision'
+      AND outcome.project_id IS NOT NULL
+    GROUP BY outcome.project_id
+    ORDER BY outcome.project_id
+  LOOP
+    PERFORM plugin_data.csf_project_attendance_sources(
+      p_organization_id, v_project_id, v_certificate_ids
+    );
+    v_count := v_count + pg_catalog.cardinality(v_certificate_ids);
+  END LOOP;
+  RETURN v_count;
+END;
+$$;
+
+REVOKE ALL ON FUNCTION plugin_data.csf_redrive_attendance_after_review(uuid, uuid, text)
+  FROM PUBLIC, anon, authenticated, service_role;
+GRANT EXECUTE ON FUNCTION plugin_data.csf_redrive_attendance_after_review(uuid, uuid, text) TO postgres;
+
+-- R3: the current open semester lock, taken by activity implementations
+-- before CSF row locks when a change may run the attendance backfill.
+CREATE FUNCTION plugin_data.csf_lock_current_attendance_term(p_organization_id uuid)
+RETURNS void
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = ''
+AS $$
+DECLARE
+  v_term_id uuid;
+BEGIN
+  SELECT term.id INTO v_term_id
+  FROM plugin_data.csf_terms AS term
+  WHERE term.organization_id = p_organization_id
+    AND term.is_current
+    AND term.lifecycle_status = 'open'
+  ORDER BY term.id
+  LIMIT 1;
+  IF v_term_id IS NOT NULL THEN
+    PERFORM pg_catalog.pg_advisory_xact_lock(pg_catalog.hashtextextended(
+      p_organization_id::text || ':' || v_term_id::text, 0
+    ));
+  END IF;
+END;
+$$;
+
+REVOKE ALL ON FUNCTION plugin_data.csf_lock_current_attendance_term(uuid)
+  FROM PUBLIC, anon, authenticated, service_role;
+GRANT EXECUTE ON FUNCTION plugin_data.csf_lock_current_attendance_term(uuid) TO postgres;
 
 -- ===========================================================================
 -- Part 1: partner-project linking
@@ -2950,6 +3431,9 @@ BEGIN
   WHERE project.id IN (v_stored_project_id, v_linked_project_id)
   ORDER BY project.id
   FOR KEY SHARE;
+  -- R3: the backfill below takes the current semester lock; take it before
+  -- any CSF row lock so a concurrent member claim cannot invert the order.
+  PERFORM plugin_data.csf_lock_current_attendance_term(p_organization_id);
   PERFORM pg_catalog.pg_advisory_xact_lock(pg_catalog.hashtextextended(
     'plugin_data.csf_atomic_request:' || p_organization_id::text || ':' || p_request_id::text,
     0
@@ -3063,6 +3547,17 @@ BEGIN
     );
   END IF;
 
+  -- R3: a new link on an enabled, published or closed activity backfills
+  -- attendance the project already published.
+  IF v_after.linked_project_id IS NOT NULL
+    AND v_after.linked_project_id IS DISTINCT FROM v_before.linked_project_id
+    AND v_after.status IN ('published', 'closed')
+    AND v_after.attendance_submission_mode = 'pending_submission' THEN
+    PERFORM plugin_data.csf_project_attendance_sources(
+      p_organization_id, v_after.linked_project_id, NULL
+    );
+  END IF;
+
   INSERT INTO plugin_data.csf_admin_audit_events (
     organization_id, actor_user_id, action, target_type, target_id, term_id,
     before_data, after_data, correlation_id, reason_code
@@ -3120,6 +3615,9 @@ BEGIN
   WHERE project.id IN (v_stored_project_id, p_project_id)
   ORDER BY project.id
   FOR KEY SHARE;
+  -- R3: the backfill below takes the current semester lock; take it before
+  -- any CSF row lock so a concurrent member claim cannot invert the order.
+  PERFORM plugin_data.csf_lock_current_attendance_term(p_organization_id);
   PERFORM pg_catalog.pg_advisory_xact_lock(pg_catalog.hashtextextended(
     'plugin_data.csf_atomic_request:' || p_organization_id::text || ':' || p_request_id::text,
     0
@@ -3166,6 +3664,17 @@ BEGIN
   IF v_after.linked_project_id IS DISTINCT FROM v_before.linked_project_id THEN
     PERFORM plugin_data.csf_invalidate_activity_attendance_evidence(
       p_organization_id, p_activity_id, 'activity_relinked', v_after.linked_project_id
+    );
+  END IF;
+
+  -- R3: a new link on an enabled, published or closed activity backfills
+  -- attendance the project already published.
+  IF v_after.linked_project_id IS NOT NULL
+    AND v_after.linked_project_id IS DISTINCT FROM v_before.linked_project_id
+    AND v_after.status IN ('published', 'closed')
+    AND v_after.attendance_submission_mode = 'pending_submission' THEN
+    PERFORM plugin_data.csf_project_attendance_sources(
+      p_organization_id, v_after.linked_project_id, NULL
     );
   END IF;
 
@@ -3241,6 +3750,9 @@ BEGIN
     WHERE project.id = v_stored_project_id
     FOR KEY SHARE;
   END IF;
+  -- R3: the backfill below takes the current semester lock; take it before
+  -- any CSF row lock so a concurrent member claim cannot invert the order.
+  PERFORM plugin_data.csf_lock_current_attendance_term(p_organization_id);
 
   IF v_target_status = 'published' THEN
     SELECT activity.term_id
@@ -3389,6 +3901,16 @@ BEGIN
   IF v_target_status IN ('cancelled', 'archived') THEN
     PERFORM plugin_data.csf_invalidate_activity_attendance_evidence(
       p_organization_id, p_activity_id, 'activity_unavailable', NULL
+    );
+  END IF;
+
+  -- R3: publishing or restoring an enabled activity backfills attendance the
+  -- linked project already published.
+  IF v_target_status = 'published'
+    AND v_after.linked_project_id IS NOT NULL
+    AND v_after.attendance_submission_mode = 'pending_submission' THEN
+    PERFORM plugin_data.csf_project_attendance_sources(
+      p_organization_id, v_after.linked_project_id, NULL
     );
   END IF;
 
