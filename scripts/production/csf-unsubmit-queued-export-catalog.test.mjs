@@ -15,7 +15,7 @@ const latest = JSON.parse(read("./final-schema-680.json"));
 const repository = new URL("../../", import.meta.url).pathname;
 const versions = expectedVersions(repository).slice(0, 680);
 
-test("queued export release changes only the member deletion function", () => {
+test("queued export release changes only the deletion and queue functions", () => {
   const previous = new Map(
     before.objects.map((row) => [row.identity, row.digest]),
   );
@@ -29,6 +29,7 @@ test("queued export release changes only the member deletion function", () => {
       .map((row) => row.identity),
     [
       "function:plugin_data.csf_delete_member_point_submission_request(p_organization_id uuid, p_profile_id uuid, p_submission_id uuid, p_actor_user_id uuid, p_request_id uuid)",
+      "function:plugin_data.csf_queue_sheet_sync_record_internal(p_organization_id uuid, p_destination_id uuid, p_record_kind text, p_record_id uuid)",
     ],
   );
   assert.deepEqual(published.objects, changed.objects);

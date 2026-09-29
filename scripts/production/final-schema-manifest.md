@@ -118,7 +118,8 @@ signed version and catalog pointer, with no schema or organization-install chang
 It retains the verified 676 object inventory and binds it to the new ledger.
 Focused controller tests verify the exact publication statements and retry fence.
 
-Release 678 changes only the member point-submission deletion function. Its clean
+Release 678 changes the member deletion and Sheet queue functions. Queue creation
+shares the deletion lock, and cleanup scopes records by kind. Its clean
 replay inventory contains the same object identities as 677, with one changed
 function digest. The focused deletion suite passes 61 assertions, including
 in-flight exports, unknown outcomes and previously attempted rows. Release 679

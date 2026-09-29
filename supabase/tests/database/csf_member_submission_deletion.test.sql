@@ -1,5 +1,6 @@
 BEGIN;
 CREATE EXTENSION IF NOT EXISTS pgtap WITH SCHEMA extensions;
+CREATE EXTENSION IF NOT EXISTS dblink WITH SCHEMA extensions;
 SELECT extensions.no_plan();
 INSERT INTO auth.users (
   id, aud, role, email, email_confirmed_at, raw_app_meta_data,
@@ -191,12 +192,33 @@ UPDATE plugin_data.csf_sheet_writeback_ledger SET attempts=0
 WHERE record_id='f8500000-0000-4000-8000-000000000002';
 INSERT INTO plugin_data.csf_submission_reviews(organization_id,submission_id,action,notes)
 VALUES('f8100000-0000-4000-8000-000000000001','f8500000-0000-4000-8000-000000000002','resubmitted','Synthetic prior note');
+-- Polymorphic records may share a UUID without belonging to the same claim.
+INSERT INTO plugin_data.csf_sheet_sync_bindings
+  (organization_id,destination_id,record_kind,record_id,profile_id,logical_key,sheet_id)
+VALUES ('f8100000-0000-4000-8000-000000000001','f8800000-0000-4000-8000-000000000001','application','f8500000-0000-4000-8000-000000000002','f8300000-0000-4000-8000-000000000001','application:collision',1);
+INSERT INTO plugin_data.csf_sheet_writeback_ledger
+  (organization_id,spreadsheet_file_id,status,destination_id,record_kind,record_id,source_version,payload)
+VALUES ('f8100000-0000-4000-8000-000000000001','fixture-sheet-2031','pending_export','f8800000-0000-4000-8000-000000000001','application','f8500000-0000-4000-8000-000000000002',md5('{"unrelated":true}'::jsonb::text),'{"unrelated":true}');
 SELECT extensions.is(pg_temp.delete_claim(2)->>'status','deleted','queued but never exported claim deletes immediately');
-SELECT extensions.is((SELECT count(*)::integer FROM plugin_data.csf_sheet_sync_bindings WHERE record_id='f8500000-0000-4000-8000-000000000002'),0,'queued claim binding is removed');
-SELECT extensions.is((SELECT count(*)::integer FROM plugin_data.csf_sheet_writeback_ledger WHERE record_id='f8500000-0000-4000-8000-000000000002'),0,'queued claim export is cancelled');
+SELECT extensions.is((SELECT count(*)::integer FROM plugin_data.csf_sheet_sync_bindings WHERE record_kind='point_submission' AND record_id='f8500000-0000-4000-8000-000000000002'),0,'queued claim binding is removed');
+SELECT extensions.is((SELECT count(*)::integer FROM plugin_data.csf_sheet_writeback_ledger WHERE record_kind='point_submission' AND record_id='f8500000-0000-4000-8000-000000000002'),0,'queued claim export is cancelled');
 SELECT extensions.is((SELECT count(*)::integer FROM plugin_data.csf_submission_reviews WHERE submission_id='f8500000-0000-4000-8000-000000000002'),0,'review notes for unreviewed edits are erased');
 SELECT extensions.is((SELECT count(*)::integer FROM plugin_data.csf_admin_audit_events WHERE target_id='f8500000-0000-4000-8000-000000000002'),0,'no-proof submission audit is erased');
 DELETE FROM plugin_data.csf_sheet_sync_bindings WHERE record_id='f8500000-0000-4000-8000-000000000005';
+
+SELECT extensions.is((SELECT count(*)::integer FROM plugin_data.csf_sheet_sync_bindings WHERE record_kind='application' AND record_id='f8500000-0000-4000-8000-000000000002'),1,'unrelated application binding survives the same UUID');
+SELECT extensions.is((SELECT count(*)::integer FROM plugin_data.csf_sheet_writeback_ledger WHERE record_kind='application' AND record_id='f8500000-0000-4000-8000-000000000002'),1,'unrelated application export survives the same UUID');
+UPDATE plugin_data.csf_sheet_sync_destinations SET enabled=true,privacy_verified_at=now(),comment_capability='available' WHERE id='f8800000-0000-4000-8000-000000000001';
+SELECT extensions.throws_ok($$SELECT plugin_data.csf_queue_sheet_sync_record_internal('f8100000-0000-4000-8000-000000000001','f8800000-0000-4000-8000-000000000001','point_submission','f8500000-0000-4000-8000-000000000002')$$,'P0001','Record is outside this destination.','queueing after unsubmit cannot recreate the removed export');
+
+-- A second session holds the deletion fence before any claim snapshot exists.
+SELECT extensions.dblink_connect('unsubmit_queue_fence','hostaddr='||coalesce(host(inet_server_addr()),'127.0.0.1')||' port='||current_setting('port')||' dbname='||current_database()||' user='||current_user||' password='||current_user||' sslmode=disable');
+SELECT * FROM extensions.dblink('unsubmit_queue_fence',$$SELECT pg_advisory_lock(hashtextextended('csf-member-delete:f8500000-0000-4000-8000-000000000099',0))::text$$) AS held(result text);
+SET LOCAL lock_timeout='750ms';
+SELECT extensions.throws_ok($$SELECT plugin_data.csf_queue_sheet_sync_record_internal('f8100000-0000-4000-8000-000000000001','f8800000-0000-4000-8000-000000000001','point_submission','f8500000-0000-4000-8000-000000000099')$$,'55P03','canceling statement due to lock timeout','queue creation waits for the same member deletion fence');
+SET LOCAL lock_timeout='0';
+SELECT extensions.dblink_disconnect('unsubmit_queue_fence');
+SELECT extensions.ok(NOT has_function_privilege('service_role','plugin_data.csf_queue_sheet_sync_record_internal(uuid,uuid,text,uuid)','EXECUTE'),'queue helper remains owner-only');
 
 -- In-app-only notices are erased with their claim; active senders are fenced.
 INSERT INTO plugin_data.csf_publication_events(id,organization_id,source_kind,source_id,event_key)

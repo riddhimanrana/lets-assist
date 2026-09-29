@@ -1085,7 +1085,7 @@
     },
     {
       "identity": "function:plugin_data.csf_delete_member_point_submission_request(p_organization_id uuid, p_profile_id uuid, p_submission_id uuid, p_actor_user_id uuid, p_request_id uuid)",
-      "digest": "fc2e10e6d00a9698210cb71491d8a200"
+      "digest": "b764567a24854e45e03195bc1d57f8ba"
     },
     {
       "identity": "function:plugin_data.csf_deleted_submission_result(p_organization_id uuid, p_submission_id uuid)",
@@ -2253,7 +2253,7 @@
     },
     {
       "identity": "function:plugin_data.csf_queue_sheet_sync_record_internal(p_organization_id uuid, p_destination_id uuid, p_record_kind text, p_record_id uuid)",
-      "digest": "c92f90cb0687ee673eae7c6a902fee6c"
+      "digest": "9df575fb7d0d2c869183bc96efaf6f76"
     },
     {
       "identity": "function:plugin_data.csf_queue_sheet_sync_snapshot_internal(p_organization_id uuid, p_destination_id uuid, p_record_kind text, p_record_id uuid, p_snapshot jsonb)",
