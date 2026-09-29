@@ -126,7 +126,7 @@ const MEMBER_AND_ACCESS: LabelContract[] = [
       "Decision reason",
       "Reject request",
       "Connect account",
-      "Connection unavailable",
+      "Choose another record",
       "Identity checks",
     ],
   },
