@@ -16,7 +16,7 @@ describe("AI dependency boundaries", () => {
           const undici = providerRequire("undici");
           const { version } = providerRequire("undici/package.json");
           const agent = new undici.Agent();
-          if (version !== "7.29.0") throw new Error(\`unexpected Undici version: \${version}\`);
+          if (version !== "7.29.1") throw new Error(\`unexpected Undici version: \${version}\`);
           for (const name of ["fetch", "Agent"]) {
             if (typeof undici[name] !== "function") throw new Error(\`missing Undici export: \${name}\`);
           }
