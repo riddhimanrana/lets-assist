@@ -22,6 +22,30 @@ SELECT ok(
   'only committed lineage enters the lookup index'
 );
 
+-- Prove the index is usable for this predicate, not that it wins a cost race.
+-- The table has many indexes led by organization_id or cohort_id, and on sparse
+-- fixture data their estimated costs tie, so the planner's pick varied with
+-- statistics and image versions. Drop every other non-constraint index inside
+-- this rolled-back transaction so only applicability decides the plan.
+DO $$
+DECLARE
+  v_index regclass;
+BEGIN
+  FOR v_index IN
+    SELECT i.indexrelid::regclass
+    FROM pg_index AS i
+    WHERE i.indrelid = 'plugin_data.csf_sheet_import_rows'::regclass
+      AND i.indexrelid
+        <> 'plugin_data.csf_import_rows_committed_source_key_idx'::regclass
+      AND NOT EXISTS (
+        SELECT 1 FROM pg_constraint AS c WHERE c.conindid = i.indexrelid
+      )
+  LOOP
+    EXECUTE format('DROP INDEX %s', v_index);
+  END LOOP;
+END;
+$$;
+
 CREATE TEMP TABLE source_key_lookup_plan (plan jsonb);
 SET LOCAL enable_seqscan = off;
 DO $$
@@ -48,6 +72,10 @@ SELECT ok(
    FROM source_key_lookup_plan),
   'the lineage equality predicate can use the scoped expression index'
 );
+
+SELECT diag(plan::text)
+FROM source_key_lookup_plan
+WHERE plan::text NOT LIKE '%csf_import_rows_committed_source_key_idx%';
 
 SELECT * FROM finish();
 ROLLBACK;

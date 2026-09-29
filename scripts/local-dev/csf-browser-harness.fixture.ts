@@ -79,7 +79,7 @@ export const FAKE_SUPABASE = [
   "fi",
   'case "$1" in',
   "  --version)",
-  "    printf '%s\\n' '2.111.0'",
+  "    printf '%s\\n' '2.117.0'",
   "    ;;",
   "  start)",
   '    if [ -n "${FAKE_SUPABASE_START_FAIL:-}" ]; then echo "fake start failure" >&2; exit 1; fi',

@@ -41,17 +41,17 @@ async function runHelperWithVersion(version: string) {
 }
 
 describe("pinned Supabase CLI helper", () => {
-  test("accepts exactly 2.111.0", async () => {
-    const result = await runHelperWithVersion("2.111.0");
+  test("accepts exactly 2.117.0", async () => {
+    const result = await runHelperWithVersion("2.117.0");
     expect(result.exitCode).toBe(0);
-    expect(result.stdout.toString()).toContain("2.111.0 verified");
+    expect(result.stdout.toString()).toContain("2.117.0 verified");
   });
 
   test("rejects any other Supabase CLI version", async () => {
     const result = await runHelperWithVersion("2.110.0");
     expect(result.exitCode).toBe(1);
     expect(result.stderr.toString()).toContain(
-      "2.111.0 is required; found 2.110.0",
+      "2.117.0 is required; found 2.110.0",
     );
   });
 
@@ -84,7 +84,7 @@ describe("pinned Supabase CLI helper", () => {
     await Bun.write(path.join(directory, "sentinel.txt"), "keep");
     await mkdir(fakeBin);
     const fakeCli = path.join(fakeBin, "supabase");
-    await writeFile(fakeCli, "#!/bin/sh\nprintf '%s\\n' '2.111.0'\n");
+    await writeFile(fakeCli, "#!/bin/sh\nprintf '%s\\n' '2.117.0'\n");
     await chmod(fakeCli, 0o700);
 
     const result = Bun.spawnSync(
@@ -124,7 +124,7 @@ describe("pinned Supabase CLI helper", () => {
     const fakeBin = path.join(directory, "bin");
     await mkdir(fakeBin);
     const fakeCli = path.join(fakeBin, "supabase");
-    await writeFile(fakeCli, "#!/bin/sh\nprintf '%s\\n' '2.111.0'\n");
+    await writeFile(fakeCli, "#!/bin/sh\nprintf '%s\\n' '2.117.0'\n");
     await chmod(fakeCli, 0o700);
     const target = path.join(directory, "must-not-exist");
 
@@ -163,7 +163,7 @@ describe("pinned Supabase CLI helper", () => {
     const fakeBin = path.join(directory, "bin");
     await mkdir(fakeBin);
     const fakeCli = path.join(fakeBin, "supabase");
-    await writeFile(fakeCli, "#!/bin/sh\nprintf '%s\\n' '2.111.0'\n");
+    await writeFile(fakeCli, "#!/bin/sh\nprintf '%s\\n' '2.117.0'\n");
     await chmod(fakeCli, 0o700);
 
     for (const [script, key] of [
@@ -196,7 +196,7 @@ describe("pinned Supabase CLI helper", () => {
     const fakeBin = path.join(directory, "bin");
     await mkdir(fakeBin);
     const fakeCli = path.join(fakeBin, "supabase");
-    await writeFile(fakeCli, "#!/bin/sh\nprintf '%s\\n' '2.111.0'\n");
+    await writeFile(fakeCli, "#!/bin/sh\nprintf '%s\\n' '2.117.0'\n");
     await chmod(fakeCli, 0o700);
     const rootLink = path.join(directory, "repo-link");
     await symlink(repositoryRoot, rootLink);
@@ -508,9 +508,11 @@ describe("pinned Supabase CLI helper", () => {
     expect(fixtureCode).not.toContain("import ");
     expect(fixtureCode).not.toContain("require(");
     // It must name the tag and the files the list was transcribed from.
-    expect(fixture).toContain("v2.111.0");
+    expect(fixture).toContain("v2.117.0");
     expect(fixture).toContain("apps/cli-go/internal/utils/config.go");
-    expect(fixture).toContain("apps/cli-go/internal/start/start.go");
+    expect(fixture).toContain(
+      "apps/cli/src/command-internal/legacy-docker-ids.ts",
+    );
     // And it must record the names that must never come back.
     for (const unsupported of [
       "supabase_differ_",
