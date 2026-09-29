@@ -428,6 +428,19 @@ test.describe("CSF visible people lifecycle", () => {
       );
     }
     fixture.userId = createdUser.user.id;
+    // Class join requests come from active organization members.
+    const { error: memberError } = await fixture.admin
+      .from("organization_members")
+      .insert({
+        organization_id: fixture.organizationId,
+        user_id: fixture.userId,
+        role: "member",
+        status: "active",
+      });
+    assertNoSupabaseError(
+      "Could not create the fixture membership",
+      memberError,
+    );
 
     const { error: requestError } = await plugin
       .from("csf_profile_link_requests")
