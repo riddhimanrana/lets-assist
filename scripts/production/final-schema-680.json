@@ -2257,7 +2257,7 @@
     },
     {
       "identity": "function:plugin_data.csf_queue_sheet_sync_snapshot_internal(p_organization_id uuid, p_destination_id uuid, p_record_kind text, p_record_id uuid, p_snapshot jsonb)",
-      "digest": "8107fd2142fe6fa47a816f8978a4f6a7"
+      "digest": "cfc34ad0889fe2f6e2ea2ec39efc00ca"
     },
     {
       "identity": "function:plugin_data.csf_queue_term_sheet_sync_records()",

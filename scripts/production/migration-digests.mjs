@@ -1365,7 +1365,7 @@ export const migrationDigests = {
   "20260926000900_publish_dvhs_csf_1_2_81.sql":
     "31b2ad295f73ea0b3f7ef9e03b99cb22f66888be10f4bcd0448e180d0c2ffb4d",
   "20260928025013_csf_unsubmit_unexported_sheet_claim.sql":
-    "05b14ad5d6b7d50e74e19da64238fe882d3c0cc1e8be914a23787324fbcde6bd",
+    "12e3614f226422c19c3309caa3e0b9cebaf29c580ab97fea59d4112e4765441a",
   "20260928225322_publish_dvhs_csf_1_2_82.sql":
     "519438ebc444bae563314d25f3de0b67caed6ba6c6940a931899f4b63739ff81",
   "20260928234812_publish_dvhs_csf_1_2_83.sql":

@@ -211,11 +211,15 @@ SELECT extensions.is((SELECT count(*)::integer FROM plugin_data.csf_sheet_writeb
 UPDATE plugin_data.csf_sheet_sync_destinations SET enabled=true,privacy_verified_at=now(),comment_capability='available' WHERE id='f8800000-0000-4000-8000-000000000001';
 SELECT extensions.throws_ok($$SELECT plugin_data.csf_queue_sheet_sync_record_internal('f8100000-0000-4000-8000-000000000001','f8800000-0000-4000-8000-000000000001','point_submission','f8500000-0000-4000-8000-000000000002')$$,'P0001','Record is outside this destination.','queueing after unsubmit cannot recreate the removed export');
 
+SELECT extensions.is(plugin_data.csf_queue_sheet_sync_snapshot_internal('f8100000-0000-4000-8000-000000000001','f8800000-0000-4000-8000-000000000001','point_submission','f8500000-0000-4000-8000-000000000002','{"profile_id":"f8300000-0000-4000-8000-000000000001"}'::jsonb),NULL::jsonb,'a stale prebuilt snapshot cannot recreate an unsubmitted claim');
+SELECT extensions.is((SELECT count(*)::integer FROM plugin_data.csf_sheet_writeback_ledger WHERE record_kind='point_submission' AND record_id='f8500000-0000-4000-8000-000000000002'),0,'both queue paths leave the deleted export absent');
+
 -- A second session holds the deletion fence before any claim snapshot exists.
 SELECT extensions.dblink_connect('unsubmit_queue_fence','hostaddr='||coalesce(host(inet_server_addr()),'127.0.0.1')||' port='||current_setting('port')||' dbname='||current_database()||' user='||current_user||' password='||current_user||' sslmode=disable');
 SELECT * FROM extensions.dblink('unsubmit_queue_fence',$$SELECT pg_advisory_lock(hashtextextended('csf-member-delete:f8500000-0000-4000-8000-000000000099',0))::text$$) AS held(result text);
 SET LOCAL lock_timeout='750ms';
 SELECT extensions.throws_ok($$SELECT plugin_data.csf_queue_sheet_sync_record_internal('f8100000-0000-4000-8000-000000000001','f8800000-0000-4000-8000-000000000001','point_submission','f8500000-0000-4000-8000-000000000099')$$,'55P03','canceling statement due to lock timeout','queue creation waits for the same member deletion fence');
+SELECT extensions.throws_ok($$SELECT plugin_data.csf_queue_sheet_sync_snapshot_internal('f8100000-0000-4000-8000-000000000001','f8800000-0000-4000-8000-000000000001','point_submission','f8500000-0000-4000-8000-000000000099','{}')$$,'55P03','canceling statement due to lock timeout','snapshot queue creation also waits for the member deletion fence');
 SET LOCAL lock_timeout='0';
 SELECT extensions.dblink_disconnect('unsubmit_queue_fence');
 SELECT extensions.ok(NOT has_function_privilege('service_role','plugin_data.csf_queue_sheet_sync_record_internal(uuid,uuid,text,uuid)','EXECUTE'),'queue helper remains owner-only');
