@@ -15,10 +15,9 @@ import {
 } from "@/services/calendar";
 import { authorizeGoogleOAuthOrganizationRequest } from "@/lib/auth/google-oauth-authorization";
 import { cronAuthShapeProbe } from "@/lib/cron/auth-shape-probe";
+import { cronTokens, isCronBearerAuthorized } from "@/lib/cron/cron-auth";
 
 const WORKER_ENABLED = process.env.ORG_SHEET_SYNC_WORKER_ENABLED === "true";
-const WORKER_TOKEN = process.env.ORG_SHEET_SYNC_WORKER_SECRET_TOKEN;
-const CRON_SECRET = process.env.CRON_TOKEN ?? process.env.CRON_SECRET;
 const DEFAULT_TAB_NAME = "Member Hours";
 const SHEET_SYNC_CONCURRENCY = readPositiveInteger(
   process.env.ORG_SHEET_SYNC_CONCURRENCY,
@@ -27,22 +26,10 @@ const SHEET_SYNC_CONCURRENCY = readPositiveInteger(
 );
 
 function isAuthorized(request: NextRequest) {
-  const authHeader = request.headers.get("authorization") || "";
-  const token = authHeader.replace("Bearer ", "");
-
-  const allowedTokens = [WORKER_TOKEN, CRON_SECRET].filter(
-    (value): value is string => Boolean(value),
+  return isCronBearerAuthorized(
+    request.headers.get("authorization"),
+    cronTokens(process.env.ORG_SHEET_SYNC_WORKER_SECRET_TOKEN),
   );
-
-  if (allowedTokens.length === 0) {
-    return false;
-  }
-
-  if (!token || !allowedTokens.includes(token)) {
-    return false;
-  }
-
-  return true;
 }
 
 function isDue(lastSyncedAt: string | null, intervalMinutes: number) {
