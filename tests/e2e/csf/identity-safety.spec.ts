@@ -1081,10 +1081,23 @@ test.describe("CSF identity safety", () => {
       exact: true,
     });
     await expect(confirmation).toBeVisible();
-    await expect(confirmation.getByRole("checkbox")).not.toBeChecked();
+    const ownershipCheckbox = confirmation.getByRole("checkbox");
+    await expect(ownershipCheckbox).not.toBeChecked();
+    await ownershipCheckbox.evaluate((input) => {
+      input.addEventListener(
+        "invalid",
+        () => input.setAttribute("data-validation-blocked", "true"),
+        { once: true },
+      );
+    });
     await confirmation
       .getByRole("button", { name: "Connect account", exact: true })
       .click();
+    await expect(ownershipCheckbox).toHaveAttribute(
+      "data-validation-blocked",
+      "true",
+    );
+    await expect(ownershipCheckbox).toBeFocused();
     await expect(confirmation).toBeVisible();
     const { data: unconfirmedLinks, error: unconfirmedError } = await plugin
       .from("csf_profile_accounts")
