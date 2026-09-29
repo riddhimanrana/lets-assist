@@ -98,6 +98,7 @@ test("an applied 604 ledger writes the signed publication and later repairs", ()
     "20260929044000",
     "20260929044100",
     "20260929044725",
+    "20260929051500",
   ]);
   assert.equal(
     (
@@ -223,6 +224,7 @@ test("an applied 605 ledger writes the remaining post and cleanup repairs", () =
     "20260929044000",
     "20260929044100",
     "20260929044725",
+    "20260929051500",
   ]);
   assert.equal(
     (
@@ -340,6 +342,7 @@ test("an applied 606 ledger writes publication binding and cleanup repairs", () 
     "20260929044000",
     "20260929044100",
     "20260929044725",
+    "20260929051500",
   ]);
   assert.equal(
     (
@@ -447,6 +450,7 @@ test("an applied 607 ledger writes recovery and Storage cleanup guards", () => {
     "20260929044000",
     "20260929044100",
     "20260929044725",
+    "20260929051500",
   ]);
   assert.equal(
     (
