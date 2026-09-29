@@ -31,6 +31,24 @@ test("deployment workflow verifies immutable release identity before deploy", ()
   assert.match(workflow, /--environment "\$\{DEPLOYMENT_ENVIRONMENT\}"/u);
 });
 
+test("deployment workflow refuses embedded releases before downloading builds", () => {
+  const downloadStep = workflow.match(
+    /- name: Download the immutable private release[\s\S]*?(?=\n {6}- name:)/u,
+  )?.[0];
+  assert.ok(downloadStep);
+  const profileCheck = downloadStep.indexOf('"${profile}" != application');
+  assert.ok(profileCheck > 0);
+  assert.ok(
+    profileCheck <
+      downloadStep.indexOf(".buildArtifact.artifacts.development.name"),
+  );
+  assert.match(
+    downloadStep,
+    /Only application releases have a deployable build/u,
+  );
+  assert.match(downloadStep, /lib\/plugins\/published-releases\.json/u);
+});
+
 test("deployment workflow separates Vercel Preview and Production targets", () => {
   assert.doesNotMatch(workflow, /--target=development/u);
   assert.match(workflow, /args\+=\(--prod\)/u);
