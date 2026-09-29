@@ -751,6 +751,8 @@ Published undated activities appear in the member feed. Only dated activities ap
 
 Activity lifecycle: `draft`, `published`, `closed`, `cancelled`, `archived`.
 
+Remove activity clears the activity from the catalog. An activity with signups, submissions, earned points, email history, or a linked project moves to archived status, retaining those records and references. An empty activity is permanently deleted. The same staff-authorized, organization-scoped request records either outcome atomically and replays safely. Archived activities are excluded before catalog pagination and direct catalog lookup.
+
 ### 8.10 Activity detail/editor
 
 **Purpose:** Inspect configuration, signups, submissions, and resulting awards for one activity.<br>

@@ -144,3 +144,12 @@ homonyms while retaining the same normalized name. Creation and name changes
 still check for collisions. Email checks also protect confirmed login addresses
 on other verified profile accounts and reported application contact evidence. The clean
 replay changes one function digest, with no added or removed objects.
+
+Release 685 retains the 683 object identities. A clean replay changes only
+`csf_delete_activity`, `csf_upsert_profile`, and the profile and application
+relations that receive three contact lookup indexes. Activity removal retains
+linked records under archived status. Profile contact checks keep their identity
+rules while using indexed reported-contact lookups. Capture uses the same
+`postgres` search path as the release controller. The Supabase admin default
+includes `auth`, which changes rendered catalog expressions and is unsuitable
+for this comparison.
