@@ -201,12 +201,11 @@ describe("isolated launcher Docker identity matrix", () => {
     );
   });
 
-  test("optional analytics disablement uses config without an obsolete exclusion name", async () => {
+  test("new isolated stacks omit optional Analytics and Studio by default", async () => {
     const sandbox = await createSandbox();
     const result = launch(sandbox, {
       CSF_ISOLATED_RUN_ID: "no-analytics",
       CSF_ISOLATED_WORK_DIR: sandbox.workDir("no-analytics"),
-      CSF_ISOLATED_ANALYTICS_MODE: "disabled",
     });
 
     expect(result.exitCode).toBe(0);
@@ -220,6 +219,25 @@ describe("isolated launcher Docker identity matrix", () => {
       "utf8",
     );
     expect(generatedConfig).toContain("[analytics]\nenabled = false");
+    expect(generatedConfig).toContain("[studio]\nenabled = false");
+  });
+
+  test("optional services can be enabled for an inspection run", async () => {
+    const sandbox = await createSandbox();
+    const result = launch(sandbox, {
+      CSF_ISOLATED_RUN_ID: "with-optional",
+      CSF_ISOLATED_WORK_DIR: sandbox.workDir("with-optional"),
+      CSF_ISOLATED_ANALYTICS_MODE: "enabled",
+      CSF_ISOLATED_STUDIO_MODE: "enabled",
+    });
+
+    expect(result.exitCode).toBe(0);
+    const generatedConfig = await readFile(
+      join(sandbox.workDir("with-optional"), "supabase", "config.toml"),
+      "utf8",
+    );
+    expect(generatedConfig).toContain("[analytics]\nenabled = true");
+    expect(generatedConfig).toContain("[studio]\nenabled = true");
   });
 
   test("unknown analytics modes fail before any Supabase mutation", async () => {
@@ -233,6 +251,21 @@ describe("isolated launcher Docker identity matrix", () => {
     expect(result.exitCode).toBe(1);
     expect(result.stderr).toContain(
       "CSF_ISOLATED_ANALYTICS_MODE must be exactly enabled or disabled.",
+    );
+    expect(await readCalls(sandbox.supabaseCalls)).toEqual(["--version"]);
+  });
+
+  test("unknown Studio modes fail before any Supabase mutation", async () => {
+    const sandbox = await createSandbox();
+    const result = launch(sandbox, {
+      CSF_ISOLATED_RUN_ID: "bad-studio",
+      CSF_ISOLATED_WORK_DIR: sandbox.workDir("bad-studio"),
+      CSF_ISOLATED_STUDIO_MODE: "sometimes",
+    });
+
+    expect(result.exitCode).toBe(1);
+    expect(result.stderr).toContain(
+      "CSF_ISOLATED_STUDIO_MODE must be exactly enabled or disabled.",
     );
     expect(await readCalls(sandbox.supabaseCalls)).toEqual(["--version"]);
   });
