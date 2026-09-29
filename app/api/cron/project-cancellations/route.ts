@@ -1,7 +1,7 @@
-import { timingSafeEqual } from "node:crypto";
 import { NextRequest, NextResponse } from "next/server";
 
 import { cronAuthShapeProbe } from "@/lib/cron/auth-shape-probe";
+import { cronTokens, isCronBearerAuthorized } from "@/lib/cron/cron-auth";
 import { readPositiveInteger } from "@/lib/async/map-with-concurrency";
 import {
   CANCELLATION_WORKER_MAX_BATCH_SIZE,
@@ -29,44 +29,10 @@ const RUN_DEADLINE_MS = 45_000;
  * most it may learn.
  */
 
-/**
- * Hardened cron auth (shared shape with csf-communications-dispatch and
- * project-feedback-followups): one anchored grammar so the token cannot carry
- * padding, whitespace, or control bytes, timing-safe comparison, env re-read
- * per request, and deny-when-unconfigured.
- */
-const BEARER_GRAMMAR = /^Bearer ([\x21-\x7E]+)$/;
-
-function extractBearerSecret(header: string | null): string | null {
-  if (typeof header !== "string") return null;
-  const match = BEARER_GRAMMAR.exec(header);
-  return match ? match[1] : null;
-}
-
-function secretsMatch(expected: string, presented: string): boolean {
-  const a = Buffer.from(expected, "utf8");
-  const b = Buffer.from(presented, "utf8");
-  if (a.length !== b.length) return false;
-  return timingSafeEqual(a, b);
-}
-
 function isAuthorized(request: NextRequest): boolean {
-  const presented = extractBearerSecret(request.headers.get("authorization"));
-  if (presented === null) return false;
-
-  // Read at request time so a rotated secret takes effect immediately.
-  const allowedTokens = [
-    process.env.PROJECT_CANCELLATION_WORKER_SECRET_TOKEN,
-    process.env.CRON_TOKEN ?? process.env.CRON_SECRET,
-  ].filter((value): value is string => Boolean(value));
-
-  // No secret configured means no access, never fail-open.
-  if (allowedTokens.length === 0) return false;
-
-  // reduce, not some: comparison count must not depend on which matched.
-  return allowedTokens.reduce(
-    (matched, candidate) => secretsMatch(candidate, presented) || matched,
-    false,
+  return isCronBearerAuthorized(
+    request.headers.get("authorization"),
+    cronTokens(process.env.PROJECT_CANCELLATION_WORKER_SECRET_TOKEN),
   );
 }
 
