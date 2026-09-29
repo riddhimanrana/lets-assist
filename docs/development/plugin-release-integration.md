@@ -13,7 +13,7 @@ Plugin source, release publication, host integration, deployment, and organizati
 7. The root workflow downloads assets from the fixed private repository, verifies the signature issuer and tag-bound workflow identity, checks the release tag and private `main` plus `development` ancestry, then independently reconstructs every signed digest.
 8. The root workflow validates the exact signed private commit and updates the code-owned release registry. Embedded releases advance the serving gitlink to that commit. Application releases record the signed source separately and preserve the existing root serving gitlink. The workflow generates one forward publication migration plus its exact pgTAP contract and opens a pull request against root `development`. The workflow serializes jobs and refuses a new release while an earlier `codex/plugin-release-*` pull request is open because the migration ledger is global.
 9. Root CI, Supabase Preview, and Vercel Preview validate that integration. Merging the root pull request publishes the release contract to Development. It does not deploy or activate an application profile.
-10. Run `Deploy signed plugin application` from root `development` with the exact plugin key, tag, and `development` environment. The workflow verifies the signed release and host allowlist, deploys the recorded prebuilt bytes, checks `/api/health`, and records the deployment in Development Supabase.
+10. Run `Deploy signed plugin application` from root `development` with the exact plugin key, application release tag, and `development` environment. Embedded release tags have no child build and are refused with the current application tag from the registry. The workflow verifies the signed release and host allowlist, deploys the recorded prebuilt bytes, checks `/api/health`, and records the deployment in Development Supabase.
 11. Enable the organization's application runtime only after the Development deployment is healthy. The embedded version remains the rollback path.
 12. Promote root `development` to `main` through the normal production release. Run the same deployment workflow from `main` with `production`. It deploys the same signed build digest and records Production health.
 13. In Production organization settings, update the install and enable the application runtime only after the Production deployment is healthy. The control plane resolves that organization to the exact immutable deployment; it does not move every tenant to the newest child deployment.
@@ -27,6 +27,12 @@ from current Development, verifies the signed release as usual, and opens one
 integration PR containing the host changes and publication. Automatic dispatches
 continue to use Development. A candidate from another repository, an older
 Development lineage, or a different workflow revision is refused.
+
+An automatic run that fails with "required platform schema migration ... is
+not present in the root ledger" is this case, not a workflow defect. The
+signed release depends on a host migration that has not merged into
+Development. Merge the host change first and rerun, or use the `candidate_sha`
+dispatch above.
 
 ## Operator workflow
 
@@ -71,6 +77,7 @@ needed; extra microfrontend projects are a separate paid resource.
 The workflows intentionally fail closed until their scoped secrets exist:
 
 - Private repository `PLUGIN_ROOT_INTEGRATION_TOKEN`: may call `POST /repos/riddhimanrana/lets-assist/dispatches` and nothing else beyond what GitHub requires for that endpoint.
+- Root repository `PLUGIN_ROOT_INTEGRATION_TOKEN`: may open pull requests in `riddhimanrana/lets-assist` (Pull requests: write). The root integration workflow uses it only for `gh pr create`. Repository settings do not let `GITHUB_TOKEN` open pull requests, and a pull request opened by `GITHUB_TOKEN` would not start root CI. The branch itself is still pushed with `GITHUB_TOKEN`. One fine-grained token scoped to `riddhimanrana/lets-assist` with Contents: write and Pull requests: write can serve as both secrets. Until the root secret exists, the workflow pushes the integration branch, prints a compare link for opening the pull request by hand, and fails.
 - Root repository `PRIVATE_PLUGIN_RELEASE_TOKEN`: read-only access to `riddhimanrana/lets-assist-plugins` contents, commits, tags, and release assets.
 - Private and root repository `VERCEL_TOKEN`: may build or deploy the approved child project. It is never exposed to plugin code or release assets.
 - Root GitHub `development` environment `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY`: may record Development deployment evidence only.

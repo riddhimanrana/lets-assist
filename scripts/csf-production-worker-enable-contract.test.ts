@@ -27,11 +27,14 @@ describe("CSF Production worker enablement", () => {
       "workbook_refresh",
       "import_commit",
       "communications",
-      "scheduled_post_publisher",
       "publication_notifications",
     ]) {
       expect(productionWorkerEnableWorkflow).toContain(`- ${worker}`);
     }
+    // Scheduled publishing is retired; the database refuses to enable it.
+    expect(productionWorkerEnableWorkflow).not.toContain(
+      "- scheduled_post_publisher",
+    );
     expect(productionWorkerEnableWorkflow).toContain("environment: production");
     expect(productionWorkerEnableWorkflow).toContain(
       "group: production-schema-deployment",
