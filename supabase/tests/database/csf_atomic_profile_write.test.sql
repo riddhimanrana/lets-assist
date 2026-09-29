@@ -1,7 +1,7 @@
 BEGIN;
 
 CREATE EXTENSION IF NOT EXISTS pgtap WITH SCHEMA extensions;
-SELECT extensions.plan(69);
+SELECT extensions.plan(73);
 
 SELECT extensions.ok(
   to_regprocedure('plugin_data.csf_upsert_profile(uuid,uuid,uuid,jsonb)') IS NOT NULL,
@@ -723,6 +723,64 @@ SELECT extensions.is(
   (SELECT personal_email FROM plugin_data.csf_profiles WHERE id = 'be400000-0000-4000-8000-000000000081'),
   'taylor.one@personal.test',
   'the verified-account collision leaves the existing contact unchanged'
+);
+
+UPDATE plugin_data.csf_profiles
+SET reported_application_school_email = 'reported.school@local.test',
+    reported_application_personal_email = 'reported.personal@local.test'
+WHERE id = 'be400000-0000-4000-8000-000000000082';
+UPDATE plugin_data.csf_term_applications
+SET most_checked_email = 'reported.checked@local.test'
+WHERE profile_id = (SELECT id FROM plugin_data.csf_profiles
+  WHERE organization_id = 'be100000-0000-4000-8000-000000000001'
+    AND normalized_first_name = 'maya' AND normalized_last_name = 'chen');
+
+SELECT extensions.throws_ok(
+  $$SELECT plugin_data.csf_upsert_profile(
+    'be100000-0000-4000-8000-000000000001',
+    'be000000-0000-4000-8000-000000000001',
+    'be900000-0000-4000-8000-000000000085',
+    jsonb_build_object(
+      'profileId', 'be400000-0000-4000-8000-000000000081',
+      'firstName', 'Taylor', 'lastName', 'Reed',
+      'schoolEmail', 'taylor.one@school.test', 'personalEmail', 'REPORTED.SCHOOL@LOCAL.TEST'
+    )
+  )$$,
+  'P0001', 'Another active CSF member already uses one of these email addresses. Review or link the existing record instead.',
+  'reported school contact evidence on another profile blocks the edit'
+);
+SELECT extensions.throws_ok(
+  $$SELECT plugin_data.csf_upsert_profile(
+    'be100000-0000-4000-8000-000000000001',
+    'be000000-0000-4000-8000-000000000001',
+    'be900000-0000-4000-8000-000000000086',
+    jsonb_build_object(
+      'profileId', 'be400000-0000-4000-8000-000000000081',
+      'firstName', 'Taylor', 'lastName', 'Reed',
+      'schoolEmail', 'taylor.one@school.test', 'personalEmail', 'REPORTED.PERSONAL@LOCAL.TEST'
+    )
+  )$$,
+  'P0001', 'Another active CSF member already uses one of these email addresses. Review or link the existing record instead.',
+  'reported personal contact evidence on another profile blocks the edit'
+);
+SELECT extensions.throws_ok(
+  $$SELECT plugin_data.csf_upsert_profile(
+    'be100000-0000-4000-8000-000000000001',
+    'be000000-0000-4000-8000-000000000001',
+    'be900000-0000-4000-8000-000000000087',
+    jsonb_build_object(
+      'profileId', 'be400000-0000-4000-8000-000000000081',
+      'firstName', 'Taylor', 'lastName', 'Reed',
+      'schoolEmail', 'taylor.one@school.test', 'personalEmail', 'REPORTED.CHECKED@LOCAL.TEST'
+    )
+  )$$,
+  'P0001', 'Another active CSF member already uses one of these email addresses. Review or link the existing record instead.',
+  'reported checked contact evidence on another profile blocks the edit'
+);
+SELECT extensions.is(
+  (SELECT personal_email FROM plugin_data.csf_profiles WHERE id = 'be400000-0000-4000-8000-000000000081'),
+  'taylor.one@personal.test',
+  'reported-contact conflicts preserve the saved contact'
 );
 
 SELECT * FROM extensions.finish();

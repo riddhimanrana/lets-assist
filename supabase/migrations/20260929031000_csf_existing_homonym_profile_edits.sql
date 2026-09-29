@@ -311,6 +311,21 @@ BEGIN
           OR duplicate.normalized_personal_email = ANY (
             ARRAY[v_normalized_school_email, v_normalized_personal_email]
           )
+          OR plugin_data.csf_normalize_email_text(duplicate.reported_application_school_email) = ANY (
+            ARRAY[v_normalized_school_email, v_normalized_personal_email]
+          )
+          OR plugin_data.csf_normalize_email_text(duplicate.reported_application_personal_email) = ANY (
+            ARRAY[v_normalized_school_email, v_normalized_personal_email]
+          )
+          OR EXISTS (
+            SELECT 1
+            FROM plugin_data.csf_term_applications AS application
+            WHERE application.organization_id = p_organization_id
+              AND application.profile_id = duplicate.id
+              AND plugin_data.csf_normalize_email_text(application.most_checked_email) = ANY (
+                ARRAY[v_normalized_school_email, v_normalized_personal_email]
+              )
+          )
           OR EXISTS (
             SELECT 1
             FROM plugin_data.csf_profile_accounts AS account

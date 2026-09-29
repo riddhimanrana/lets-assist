@@ -3149,7 +3149,7 @@
     },
     {
       "identity": "function:plugin_data.csf_upsert_profile(p_organization_id uuid, p_actor_user_id uuid, p_request_id uuid, p_request jsonb)",
-      "digest": "0a8b1341398067a5ae9b74814915d26d"
+      "digest": "97606d71def3a31752f68e903b8b98b2"
     },
     {
       "identity": "function:plugin_data.csf_upsert_term_deadline(p_organization_id uuid, p_deadline_id uuid, p_term_id uuid, p_deadline jsonb, p_actor_user_id uuid)",
