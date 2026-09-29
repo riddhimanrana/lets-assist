@@ -1,6 +1,6 @@
 BEGIN;
 CREATE EXTENSION IF NOT EXISTS pgtap WITH SCHEMA extensions;
-SELECT extensions.plan(20);
+SELECT extensions.plan(23);
 INSERT INTO auth.users (
   id, aud, role, email, email_confirmed_at, raw_app_meta_data,
   raw_user_meta_data, created_at, updated_at
@@ -76,6 +76,13 @@ SELECT extensions.ok((SELECT archived_at IS NOT NULL FROM plugin_data.csf_opport
 SELECT extensions.is((SELECT jsonb_agg(to_jsonb(s)) FROM plugin_data.csf_point_submissions s WHERE opportunity_id='fc500000-0000-4000-8000-000000000001'),(SELECT submissions FROM removal_history_before),'submissions remain unchanged');
 SELECT extensions.is((SELECT jsonb_agg(to_jsonb(c)) FROM plugin_data.csf_credit_records c WHERE opportunity_id='fc500000-0000-4000-8000-000000000001'),(SELECT credits FROM removal_history_before),'earned points remain unchanged');
 SELECT extensions.is((SELECT jsonb_agg(to_jsonb(c)) FROM plugin_data.csf_communication_campaigns c WHERE source_activity_id='fc500000-0000-4000-8000-000000000001'),(SELECT campaigns FROM removal_history_before),'email history remains unchanged');
+INSERT INTO plugin_data.csf_opportunities (id, organization_id, term_id, title, body, status, created_by_user_id)
+VALUES ('fc500000-0000-4000-8000-000000000004','fc100000-0000-4000-8000-000000000001','fc200000-0000-4000-8000-000000000001','Email-only activity','Email-only activity','archived','fc000000-0000-4000-8000-000000000001');
+INSERT INTO plugin_data.csf_communication_campaigns (organization_id,campaign_kind,status,sender_email,subject,source_activity_id,term_id,audience_kind,audience_snapshot_version,provider_idempotency_key)
+VALUES ('fc100000-0000-4000-8000-000000000001','broadcast','draft','draft@local.test','Email-only history','fc500000-0000-4000-8000-000000000004','fc200000-0000-4000-8000-000000000001','term_members',1,'email-only-removal');
+SELECT extensions.is((plugin_data.csf_delete_activity('fc100000-0000-4000-8000-000000000001','fc500000-0000-4000-8000-000000000004','fc000000-0000-4000-8000-000000000001','fc900000-0000-4000-8000-000000000012')->>'historyRetained'),'true','an archived activity with only email history can be removed');
+SELECT extensions.is((SELECT count(*)::int FROM plugin_data.csf_communication_campaigns WHERE source_activity_id='fc500000-0000-4000-8000-000000000004'),1,'email-only removal preserves its campaign');
+SELECT extensions.is((SELECT reason_code FROM plugin_data.csf_admin_audit_events WHERE correlation_id='fc900000-0000-4000-8000-000000000012'),'activity_removed_history_retained','email-only removal records preserved history');
 -- The remaining checks use a separate empty activity.
 INSERT INTO plugin_data.csf_opportunities (id, organization_id, term_id, title, body, status, created_by_user_id)
 VALUES ('fc500000-0000-4000-8000-000000000003','fc100000-0000-4000-8000-000000000001','fc200000-0000-4000-8000-000000000001','Unused draft','Unused draft','draft','fc000000-0000-4000-8000-000000000001');
