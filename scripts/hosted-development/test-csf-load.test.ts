@@ -276,9 +276,19 @@ describe("hosted CSF load acceptance", () => {
     expect(workflow).toContain(
       '.status == "completed" and .conclusion == "success"',
     );
-    expect(workflow).not.toContain("secrets.VERCEL_TOKEN");
-    expect(workflow).not.toContain("vars.VERCEL_TEAM_ID");
-    expect(workflow).not.toContain("vars.VERCEL_ROOT_PROJECT_ID");
+    const previewStep = workflow.slice(
+      workflow.indexOf("      - name: Build the exact Development Preview"),
+      workflow.indexOf("      - name: Retain the explicit Preview identity"),
+    );
+    expect(previewStep).toContain("if: inputs.build_current_revision == true");
+    expect(previewStep).toContain(
+      "run: node scripts/hosted-development/deploy-exact-preview.mjs",
+    );
+    expect(previewStep).toContain("secrets.VERCEL_TOKEN");
+    const acceptanceOnly = workflow.replace(previewStep, "");
+    expect(acceptanceOnly).not.toContain("secrets.VERCEL_TOKEN");
+    expect(acceptanceOnly).not.toContain("vars.VERCEL_TEAM_ID");
+    expect(acceptanceOnly).not.toContain("vars.VERCEL_ROOT_PROJECT_ID");
     expect(aliasVerifier).toContain("https://dev.lets-assist.com/api/status");
     expect(aliasVerifier).not.toContain("https://api.vercel.com");
     expect(aliasVerifier).toContain("--connect-timeout 10");
