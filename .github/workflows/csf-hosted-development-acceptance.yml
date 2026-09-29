@@ -64,12 +64,55 @@ jobs:
             'import { isDevelopmentReleaseCommitMessage } from "./scripts/vercel-build-policy.mjs"; process.stdout.write(String(isDevelopmentReleaseCommitMessage(process.env.COMMIT_MESSAGE)));')"
           echo "should_run=${should_run}" >> "${GITHUB_OUTPUT}"
 
+  preview-build:
+    name: Build approved Development Preview
+    needs: release-selection
+    if: github.ref == 'refs/heads/development' && inputs.build_current_revision == true
+    runs-on: ubuntu-latest
+    environment: production
+    timeout-minutes: 30
+    env:
+      ACCEPTED_SHA: ${{ inputs.development_sha }}
+      DEPLOYED_APP_SHA: ${{ inputs.development_sha }}
+    steps:
+      - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
+        with:
+          fetch-depth: 0
+          ref: ${{ inputs.development_sha }}
+      - name: Check explicit Preview request
+        env:
+          CONFIRMATION: ${{ inputs.confirmation }}
+          DEVELOPMENT_PROJECT_REF: ${{ vars.CSF_DEVELOPMENT_SUPABASE_PROJECT_REF }}
+        run: |
+          set -euo pipefail
+          [[ "${GITHUB_RUN_ATTEMPT}" == "1" ]]
+          [[ "${CONFIRMATION}" == "load-hosted-development:${DEVELOPMENT_PROJECT_REF}" ]]
+
+      - name: Build the exact Development Preview when requested
+        if: inputs.build_current_revision == true
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_ROOT_PROJECT_ID: ${{ vars.VERCEL_ROOT_PROJECT_ID }}
+          VERCEL_TEAM_ID: ${{ vars.VERCEL_TEAM_ID }}
+        run: node scripts/hosted-development/deploy-exact-preview.mjs
+
+      - name: Retain the explicit Preview identity
+        if: always() && inputs.build_current_revision == true
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: exact-development-preview-${{ github.run_id }}
+          path: .artifacts/exact-development-preview.json
+          if-no-files-found: ignore
+          retention-days: 30
+
   hosted-acceptance:
     name: Hosted CSF acceptance
-    needs: release-selection
+    needs: [release-selection, preview-build]
     if: >-
+      always() && !cancelled() &&
       github.ref == 'refs/heads/development' &&
-      needs.release-selection.outputs.should_run == 'true'
+      needs.release-selection.outputs.should_run == 'true' &&
+      (needs.preview-build.result == 'success' || needs.preview-build.result == 'skipped')
     runs-on: ubuntu-latest
     environment: development
     permissions:
@@ -127,23 +170,6 @@ jobs:
             -f context="${ACCEPTANCE_CONTEXT}" \
             -f description='Hosted Development acceptance is running' \
             -f target_url="https://github.com/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
-
-      - name: Build the exact Development Preview when requested
-        if: inputs.build_current_revision == true
-        env:
-          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
-          VERCEL_ROOT_PROJECT_ID: ${{ vars.VERCEL_ROOT_PROJECT_ID }}
-          VERCEL_TEAM_ID: ${{ vars.VERCEL_TEAM_ID }}
-        run: node scripts/hosted-development/deploy-exact-preview.mjs
-
-      - name: Retain the explicit Preview identity
-        if: always() && inputs.build_current_revision == true
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
-        with:
-          name: exact-development-preview-${{ github.run_id }}
-          path: .artifacts/exact-development-preview.json
-          if-no-files-found: ignore
-          retention-days: 30
 
       - name: Require successful Vercel deployment for the SHA
         if: inputs.build_current_revision != true

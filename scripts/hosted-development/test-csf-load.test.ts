@@ -255,7 +255,7 @@ describe("hosted CSF load acceptance", () => {
     expect(hostedJob).toContain("      statuses: write");
     expect(workflow).toContain("push:");
     expect(workflow).toContain("isDevelopmentReleaseCommitMessage");
-    expect(workflow).toContain("needs: release-selection");
+    expect(workflow).toContain("needs: [release-selection, preview-build]");
     expect(workflow).toContain("environment: development");
     expect(workflow).not.toContain("core.getIDToken()");
     expect(workflow).not.toContain("VERCEL_TRUSTED_OIDC_TOKEN");
@@ -285,6 +285,16 @@ describe("hosted CSF load acceptance", () => {
       "run: node scripts/hosted-development/deploy-exact-preview.mjs",
     );
     expect(previewStep).toContain("secrets.VERCEL_TOKEN");
+    const previewJob = workflow.slice(
+      workflow.indexOf("  preview-build:"),
+      workflow.indexOf("  hosted-acceptance:"),
+    );
+    expect(previewJob).toContain("environment: production");
+    expect(previewJob).toContain(
+      "github.ref == 'refs/heads/development' && inputs.build_current_revision == true",
+    );
+    expect(previewJob).toContain('[[ "${GITHUB_RUN_ATTEMPT}" == "1" ]]');
+    expect(hostedJob).not.toContain("secrets.VERCEL_TOKEN");
     const acceptanceOnly = workflow.replace(previewStep, "");
     expect(acceptanceOnly).not.toContain("secrets.VERCEL_TOKEN");
     expect(acceptanceOnly).not.toContain("vars.VERCEL_TEAM_ID");
