@@ -1426,4 +1426,18 @@ export const migrationDigests = {
     "dd2803db7c27c46f706e095e5d4195484ae089a71e883ec63c6170fd1d223763",
   "20261008040000_public_image_server_writes.sql":
     "1881e138bc06520999393634f6176df35bd80e733d250969e864607ddbf999d8",
+  "20261009010000_reviewed_attendance_intervals.sql":
+    "9df5cedc6fce967690d21cd626be2bc58a9d7e084a327b0cc0586fc5432234a8",
+  "20261009010001_attendance_print_manifests.sql":
+    "9f884c45f75bbcc1eb2bf0125a8224ce32b545fc7ae49f30268a9b9b82bef4cd",
+  "20261009010002_corrected_certificate_delivery.sql":
+    "addb925b46310d308468c83e49cf8341291fe18e8738ccafde1476781bd90510",
+  "20261009010003_atomic_guest_account_link.sql":
+    "4d4e8cbda896a7dee5f491646ac5fc8187def76ff53290794afa1f13b4c1255a",
+  "20261009020000_csf_individual_officer_approval.sql":
+    "0176ade7c60225e3bac4bd85f17d8ef115964f73f59fbe4cba6bce4d5ebe16b9",
+  "20261009030000_csf_partner_projects_attendance_submissions.sql":
+    "187c912ddcbe6bffcdeec6d6e6f786d0b0ceb042d719d6b459024dc10f8d5093",
+  "20261009040000_platform_experience_in_app_prompts.sql":
+    "fff696c593622e0fe5b7ae843cc56111aa841460cd5c0c77cedf289f74c75bed",
 };
