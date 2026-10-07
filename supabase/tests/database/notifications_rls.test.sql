@@ -45,7 +45,7 @@ VALUES (
   'fc000000-0000-4000-8000-0000000000a1',
   'Notification boundary project', 'd', 'l',
   'fc000000-0000-4000-8000-000000000001',
-  'oneTime', 'manual', '{}'::jsonb
+  'oneTime', 'manual', '{"oneTime":{"date":"2030-01-01","startTime":"09:00","endTime":"10:00","volunteers":5}}'::jsonb
 );
 
 INSERT INTO public.project_signups (id, project_id, user_id, schedule_id, status)

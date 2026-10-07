@@ -46,9 +46,9 @@ VALUES (
   'Versioned Waiver Project',
   'Local',
   'Version-on-write fixture',
-  'single',
+  'oneTime',
   'manual',
-  '{}'::jsonb,
+  '{"oneTime":{"date":"2030-01-01","startTime":"09:00","endTime":"10:00","volunteers":5}}'::jsonb,
   true,
   'project_waivers/e2000000-0000-4000-8000-000000000001/source.pdf',
   'https://project.supabase.co/storage/v1/object/public/waiver-uploads/project_waivers/e2000000-0000-4000-8000-000000000001/source.pdf'

@@ -88,9 +88,9 @@ VALUES (
   'Active membership Storage contract',
   'Local',
   'Synthetic Storage authority fixture',
-  'single',
+  'oneTime',
   'manual',
-  '{}'::jsonb,
+  '{"oneTime":{"date":"2030-01-01","startTime":"09:00","endTime":"10:00","volunteers":5}}'::jsonb,
   true,
   'ae100000-0000-4000-8000-000000000001',
   true

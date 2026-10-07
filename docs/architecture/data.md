@@ -10,6 +10,14 @@ Ordinary application tables use Supabase RLS as the primary row boundary. Server
 
 The database counts pending, approved, and attended signup rows before returning a compact project summary, so the Data API row limit cannot truncate occupancy. Empty schedule IDs contribute to the total but not the schedule map. Callers validate every result and treat missing projects or errors as unavailable. The aggregate is informational; signup capacity transactions remain authoritative.
 
+## Project schedule health
+
+Publishing a project requires a complete schedule accepted by the existing status-window validator. The publication trigger checks new published rows and changes to the schedule, event type, timezone, or publication state. An unrelated edit to a legacy invalid row stays available. Drafts can remain incomplete.
+
+`process_projects` continues valid status changes even when another schedule needs correction. Its private health row records an invalid-project count, an opaque fingerprint, and separate check and change timestamps. The count includes locked rows that the status pass skipped. Repeated runs with the same backlog update the check time without repeating the warning. Neither logs nor the health row contain schedule payloads.
+
+The Admin Overview uses the service-only `get_project_schedule_health` projection, which independently checks current super-admin metadata and the account deletion fence. It returns the current count and at most 100 correction references; the page requests 25. A missing run and a run older than 15 minutes have separate warnings even when the current backlog is zero. Correct each legacy schedule only after reviewing its intended event with the organizer. Migration code never invents dates or updates legacy schedules.
+
 ## Plugin data
 
 `plugin_data` is not a browser API. Only server-side code may access it, every query or transaction must include organization scope, and externally reachable actions must prove the relevant plugin capability. Cross-tenant foreign keys and pgTAP denial tests are required for new relationships.

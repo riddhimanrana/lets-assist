@@ -45,9 +45,9 @@ VALUES
     'Waiver Project One',
     'Local',
     'Invariant fixture',
-    'single',
+    'oneTime',
     'manual',
-    '{}'::jsonb,
+    '{"oneTime":{"date":"2030-01-01","startTime":"09:00","endTime":"10:00","volunteers":5}}'::jsonb,
     true
   ),
   (
@@ -56,9 +56,9 @@ VALUES
     'Waiver Project Two',
     'Local',
     'Invariant fixture',
-    'single',
+    'oneTime',
     'manual',
-    '{}'::jsonb,
+    '{"oneTime":{"date":"2030-01-01","startTime":"09:00","endTime":"10:00","volunteers":5}}'::jsonb,
     true
   );
 
