@@ -153,7 +153,7 @@ export default function VolunteerJourneySection() {
 
         <div className="mx-auto max-w-6xl grid grid-cols-1 gap-4 sm:gap-6 md:grid-cols-2 lg:grid-cols-2 items-start">
           <div className="order-2 lg:order-1">
-            <div className="rounded-2xl border border-border/60 bg-background overflow-hidden">
+            <div className="rounded-2xl border border-border/60 bg-background/80 shadow-md overflow-hidden">
               <AnimatePresence mode="wait">
                 <motion.div
                   key={steps[active].key}
@@ -193,7 +193,7 @@ export default function VolunteerJourneySection() {
                   className="w-full text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 rounded-2xl"
                 >
                   <Card
-                    className={`h-full bg-background ${i === active ? "ring-2 ring-primary/30" : ""}`}
+                    className={`h-full border-border/60 bg-background/90 shadow-xs ${i === active ? "ring-2 ring-primary/30" : ""}`}
                   >
                     <CardContent className="flex items-start gap-4 p-4">
                       <div className="rounded-full bg-primary/10 p-2 text-primary mt-1">

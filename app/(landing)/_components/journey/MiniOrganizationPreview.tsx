@@ -28,7 +28,7 @@ export function MiniOrganizationPreview({
   const totalHours = members.reduce((sum, m) => sum + m.verifiedHours, 0);
 
   return (
-    <Card className="bg-background">
+    <Card className="border-border/60 bg-background/80">
       <CardHeader className="pb-2">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">

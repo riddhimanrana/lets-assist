@@ -27,7 +27,7 @@ export const HeroVideo = () => {
           className="mx-auto max-w-5xl"
         >
           <Dialog open={open} onOpenChange={setOpen}>
-            <Card className="overflow-hidden py-0">
+            <Card className="overflow-hidden py-0 border-0 ring-0 shadow-[0_25px_80px_-40px_rgba(15,23,42,0.6)]">
               <CardContent className="p-0">
                 <DialogTrigger
                   render={

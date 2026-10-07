@@ -60,7 +60,7 @@ function HomeContent() {
 
     return (
       <div className="min-h-screen flex items-center justify-center">
-        <Card className="w-95">
+        <Card className="w-95 shadow-lg">
           <CardHeader className="text-center">
             <CardTitle className="flex items-center justify-center gap-2 text-destructive">
               <AlertCircle className="h-6 w-6" />

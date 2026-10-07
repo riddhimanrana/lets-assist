@@ -74,7 +74,7 @@ function TestimonialCard({
   return (
     <article
       className={cn(
-        "w-[330px] shrink-0 rounded-3xl border border-foreground/10 bg-card p-5",
+        "w-[330px] shrink-0 rounded-3xl border border-foreground/10 bg-card/95 p-5 shadow-xs backdrop-blur",
         className,
       )}
     >

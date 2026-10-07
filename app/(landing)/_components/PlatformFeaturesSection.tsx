@@ -91,7 +91,7 @@ export default function PlatformFeaturesSection() {
               viewport={{ once: true, amount: 0.3 }}
               transition={{ duration: 0.4, delay: i * 0.06 }}
             >
-              <div className="relative h-full rounded-2xl border p-2">
+              <div className="relative h-full rounded-2xl border p-2 hover:shadow-md transition duration-200">
                 <GlowingEffect
                   spread={40}
                   glow={true}
@@ -100,7 +100,7 @@ export default function PlatformFeaturesSection() {
                   inactiveZone={0.01}
                   borderWidth={3}
                 />
-                <div className="relative flex h-full flex-col justify-start gap-6 overflow-hidden rounded-xl border p-6 bg-background">
+                <div className="relative flex h-full flex-col justify-start gap-6 overflow-hidden rounded-xl border p-6 dark:shadow-[0px_0px_27px_0px_#2D2D2D] bg-background">
                   <div className="flex items-start justify-between mb-3">
                     <div className="rounded-lg bg-primary/10 p-2.5 text-primary">
                       <feat.icon className="h-5 w-5" />

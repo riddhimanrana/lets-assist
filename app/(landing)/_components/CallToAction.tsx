@@ -45,7 +45,7 @@ export const CallToAction = () => {
                       type="button"
                       variant="outline"
                       size="lg"
-                      className="rounded-full px-7 text-base"
+                      className="rounded-full border-border/70 bg-background/80 px-7 text-base shadow-xs"
                     >
                       <Play className="mr-2 size-5" />
                       Play demo video
