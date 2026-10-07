@@ -2,12 +2,16 @@
 -- exercised separately by the isolated maintenance acceptance runner.
 BEGIN;
 CREATE EXTENSION IF NOT EXISTS pgtap WITH SCHEMA extensions;
-SELECT extensions.plan(26);
+SELECT extensions.plan(27);
 
 SELECT extensions.has_function('public', 'enforce_application_request_write_fence', ARRAY[]::text[],
   'the permanent request hook has no arguments');
 SELECT extensions.is((SELECT provolatile::text FROM pg_catalog.pg_proc
-  WHERE oid = 'public.enforce_application_request_write_fence()'::regprocedure), 's', 'the hook is stable');
+  WHERE oid = 'public.enforce_application_request_write_fence()'::regprocedure), 'v', 'the hook refreshes its snapshot after waiting');
+SELECT public.enforce_application_request_write_fence();
+SELECT extensions.ok(EXISTS (SELECT 1 FROM pg_catalog.pg_locks WHERE pid=pg_catalog.pg_backend_pid()
+  AND locktype='advisory' AND classid=592043 AND objid=1 AND mode='ShareLock' AND granted),
+  'the hook holds the shared request gate for the transaction');
 SELECT extensions.ok((SELECT NOT prosecdef FROM pg_catalog.pg_proc
   WHERE oid = 'public.enforce_application_request_write_fence()'::regprocedure), 'the hook uses caller privileges');
 SELECT extensions.is((SELECT prorettype::regtype::text FROM pg_catalog.pg_proc
