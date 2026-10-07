@@ -512,7 +512,7 @@ test("content rejection keeps the draft and a valid retry creates one project", 
     expect(reviewReadback.data).toEqual({
       review_notes: reviewNote,
       reviewed_by: ownerId,
-      reviewed_at: "2038-02-03T04:05:06+00:00",
+      reviewed_at: "2038-02-03T04:05:06",
     });
     const deniedInsert = await fixture.admin
       .from("projects")
