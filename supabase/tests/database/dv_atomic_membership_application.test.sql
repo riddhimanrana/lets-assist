@@ -76,7 +76,7 @@ UPDATE public.organization_plugin_installs SET enabled=true
 WHERE organization_id='da100000-0000-4000-8000-000000000001' AND plugin_key='dv-speech-debate';
 INSERT INTO private.plugin_control_plane_transition_locks(organization_id,plugin_key,lock_token,acquired_at,expires_at)
 VALUES ('da100000-0000-4000-8000-000000000001','dv-speech-debate',gen_random_uuid(),now(),now()+interval '5 minutes');
-SELECT extensions.throws_ok($$SELECT pg_temp.apply_dv()$$,'40001','DV plugin transition is in progress.','control-plane transition blocks writes');
+SELECT extensions.throws_ok($$SELECT pg_temp.apply_dv()$$,'PT409','DV plugin transition is in progress.','control-plane transition blocks writes');
 DELETE FROM private.plugin_control_plane_transition_locks WHERE organization_id='da100000-0000-4000-8000-000000000001';
 INSERT INTO app_private.account_deletion_operations(target_user_id,requested_by,mode,phase)
 VALUES ('da200000-0000-4000-8000-000000000001','da200000-0000-4000-8000-000000000001','self_delete','database_pending');

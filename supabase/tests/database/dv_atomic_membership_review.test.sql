@@ -32,8 +32,8 @@ SELECT extensions.ok(NOT has_function_privilege('authenticated','plugin_data.rev
 SELECT extensions.ok(has_function_privilege('service_role','plugin_data.review_dv_membership_application(uuid,uuid,uuid,jsonb)','EXECUTE'),'checked server can review');
 SELECT extensions.throws_ok($$SELECT pg_temp.review_dv('{}',gen_random_uuid(),'db200000-0000-4000-8000-000000000002')$$,'42501','Active organization staff access required.','member cannot approve themself');
 SELECT extensions.throws_ok($$SELECT pg_temp.review_dv('{"membershipId":"db500000-0000-4000-8000-000000000099"}')$$,'42501','Membership does not belong to this organization and season.','out-of-scope membership refused');
-SELECT extensions.throws_ok($$SELECT pg_temp.review_dv('{"expectedUpdatedAt":"2000-01-01T00:00:00Z"}')$$,'40001','Membership changed. Reload before reviewing.','old timestamp refused');
-SELECT extensions.throws_ok($$SELECT pg_temp.review_dv('{"expectedStatus":"approved"}')$$,'40001','Membership changed. Reload before reviewing.','old status refused');
+SELECT extensions.throws_ok($$SELECT pg_temp.review_dv('{"expectedUpdatedAt":"2000-01-01T00:00:00Z"}')$$,'PT409','Membership changed. Reload before reviewing.','old timestamp refused');
+SELECT extensions.throws_ok($$SELECT pg_temp.review_dv('{"expectedStatus":"approved"}')$$,'PT409','Membership changed. Reload before reviewing.','old status refused');
 UPDATE plugin_data.dv_sd_seasonal_memberships SET status='draft' WHERE organization_id='db100000-0000-4000-8000-000000000001';
 SELECT extensions.throws_ok($$SELECT pg_temp.review_dv('{"expectedStatus":"draft"}')$$,'55000','A draft must be submitted before staff review.','unsubmitted draft refused');
 UPDATE plugin_data.dv_sd_seasonal_memberships SET status='submitted' WHERE organization_id='db100000-0000-4000-8000-000000000001';
@@ -51,7 +51,7 @@ SELECT extensions.is((SELECT count(*)::integer FROM plugin_data.dv_sd_audit_even
 SELECT extensions.is(pg_temp.review_dv('{}','db400000-0000-4000-8000-000000000001')->>'status','approved','same request is acknowledged after revision changes');
 SELECT extensions.is((SELECT count(*)::integer FROM plugin_data.dv_sd_audit_events WHERE organization_id='db100000-0000-4000-8000-000000000001' AND action='membership.approved'),1,'retry does not duplicate audit');
 SELECT extensions.throws_ok($$SELECT pg_temp.review_dv('{"notes":"Different decision text"}','db400000-0000-4000-8000-000000000001')$$,'22023','Request ID was already used for different membership data.','request key cannot hide changed notes');
-SELECT extensions.throws_ok($$SELECT pg_temp.review_dv('{"status":"needs_action"}')$$,'40001','Membership changed. Reload before reviewing.','another decision must reload the changed record');
+SELECT extensions.throws_ok($$SELECT pg_temp.review_dv('{"status":"needs_action"}')$$,'PT409','Membership changed. Reload before reviewing.','another decision must reload the changed record');
 
 UPDATE plugin_data.dv_sd_seasonal_memberships SET status='submitted',updated_at=clock_timestamp() WHERE organization_id='db100000-0000-4000-8000-000000000001';
 UPDATE review_fixture_input SET input=input || (SELECT jsonb_build_object('expectedStatus',status,'expectedUpdatedAt',updated_at) FROM plugin_data.dv_sd_seasonal_memberships WHERE organization_id='db100000-0000-4000-8000-000000000001');
@@ -76,7 +76,7 @@ SELECT extensions.throws_ok($$SELECT pg_temp.review_dv()$$,'42501','DV plugin ac
 UPDATE public.organization_plugin_installs SET enabled=true WHERE organization_id='db100000-0000-4000-8000-000000000001' AND plugin_key='dv-speech-debate';
 INSERT INTO private.plugin_control_plane_transition_locks(organization_id,plugin_key,lock_token,acquired_at,expires_at)
 VALUES ('db100000-0000-4000-8000-000000000001','dv-speech-debate',gen_random_uuid(),now(),now()+interval '5 minutes');
-SELECT extensions.throws_ok($$SELECT pg_temp.review_dv()$$,'40001','DV plugin transition is in progress.','plugin transition refuses decisions');
+SELECT extensions.throws_ok($$SELECT pg_temp.review_dv()$$,'PT409','DV plugin transition is in progress.','plugin transition refuses decisions');
 DELETE FROM private.plugin_control_plane_transition_locks WHERE organization_id='db100000-0000-4000-8000-000000000001';
 INSERT INTO app_private.account_deletion_operations(target_user_id,requested_by,mode,phase)
 VALUES ('db200000-0000-4000-8000-000000000001','db200000-0000-4000-8000-000000000001','self_delete','database_pending');
