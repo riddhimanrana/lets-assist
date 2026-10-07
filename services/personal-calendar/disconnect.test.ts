@@ -174,6 +174,10 @@ test.each([
     expect((error as Error).message).not.toContain(
       "private-provider-diagnostic",
     );
+    if (code === "54000") {
+      expect((error as Error).message).toContain("Contact support");
+      expect((error as Error).message).not.toContain("Retry");
+    }
     expect(rpc).toHaveBeenCalledTimes(1);
   },
 );

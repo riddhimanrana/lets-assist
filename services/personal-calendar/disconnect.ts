@@ -78,7 +78,12 @@ export async function preparePersonalCalendarDisconnect(
           "Calendar access changed. Refresh before disconnecting.",
           403,
         );
-      if (["55P03", "55000", "54000"].includes(error.code))
+      if (error.code === "54000")
+        throw new CalendarSyncError(
+          "Contact support to preserve your calendar history before disconnecting. Your connection has been kept.",
+          409,
+        );
+      if (["55P03", "55000"].includes(error.code))
         throw new CalendarSyncError(
           "Calendar cleanup is not ready. Retry before disconnecting.",
           409,
