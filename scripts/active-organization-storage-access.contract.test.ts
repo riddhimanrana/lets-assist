@@ -221,9 +221,49 @@ describe("data export relation caller and ACL source contract", () => {
     expect(callersOf("account_data_export_jobs")).toEqual([
       "app/account/security/data-export-actions.ts",
       "lib/supabase/data-export-access.ts",
+      "scripts/local-dev/account-export-rehearsal.ts",
     ]);
     expect(dataExportWorker).not.toContain('from "./server"');
     expect(dataExportWorker).not.toContain('from("account_data_export_jobs")');
+  });
+
+  test("the local worker rehearsal only reads jobs and claims its verified fictional request", () => {
+    const source = read("scripts/local-dev/account-export-rehearsal.ts");
+    const reads = [
+      ...source.matchAll(
+        /\.from\("account_data_export_jobs"\)([\s\S]*?)(?:\.single\(\)|\.limit\(2\))/gu,
+      ),
+    ].map((match) => match[1]);
+    expect(reads).toHaveLength(3);
+    for (const query of reads) {
+      expect(query).toContain(".select(");
+      expect(query).not.toMatch(/\.(?:insert|upsert|update|delete)\(/u);
+    }
+    expect(reads[0]).toContain('.eq("id", jobId)');
+    expect(reads[1]).toContain(
+      '"status.in.(pending,processing),and(status.eq.completed,delivery_status.eq.not_attempted)"',
+    );
+    expect(reads[2]).toContain('.eq("id", jobId)');
+    expect(reads[2]).toContain('.eq("user_id", userId)');
+    expect(source).toContain("const local = getCsfIsolatedSupabaseEnv();");
+    expect(source).toContain("createClient(local.url, local.serviceRoleKey");
+    expect(source).toContain(
+      'createRequire(import.meta.url)("./cron-egress-guard.cjs")',
+    );
+    expect(source).toContain(
+      'process.env.CRON_EGRESS_ALLOWED_SMTP_PORTS = "";',
+    );
+    expect(source).toContain('process.env.CRON_EGRESS_SMTP_PORTS = "";');
+    const authorization = source.indexOf("  assertExportRehearsalSubject(\n");
+    const claim = source.indexOf('admin.rpc("claim_account_data_export_jobs"');
+    expect(authorization).toBeGreaterThan(0);
+    expect(claim).toBeGreaterThan(authorization);
+    expect(source).toContain("claimed.data[0].id !== jobId");
+    expect(source).toContain("claimed.data[0].user_id !== userId");
+    expect(source).toContain("message.to !== userResult.data.user.email");
+    expect(source).toContain('outcome: "skipped"');
+    expect(source).toContain('result.delivery !== "skipped"');
+    expect(source).toContain('readFileSync(ledger, "utf8") !== ""');
   });
 
   test("the reviewed relation catalog removes only server-only export grants", () => {
