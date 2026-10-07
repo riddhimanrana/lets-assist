@@ -1,5 +1,7 @@
 import { format } from "date-fns";
 
+import { escapeCsvCell } from "@/lib/organization/report-output-safety";
+
 import { formatHours, type MemberHoursPeriod } from "./members-shared";
 
 export interface MemberEventDetail {
@@ -47,28 +49,33 @@ export function downloadMemberDetailsCsv({
   events.forEach((event) => {
     csvRows.push(
       [
-        `"${memberName}"`,
+        memberName,
         username,
         role,
-        `"${joined}"`,
-        `"${event.projectTitle}"`,
-        `"${format(new Date(event.eventDate), "MMM d, yyyy")}"`,
+        joined,
+        event.projectTitle,
+        format(new Date(event.eventDate), "MMM d, yyyy"),
         formatHours(event.hours),
         event.isCertified ? "Certified" : "Completed",
         event.id,
         event.isCertified
           ? `${window.location.origin}/certificates/${event.id}`
           : "N/A",
-      ].join(","),
+      ]
+        .map(escapeCsvCell)
+        .join(","),
     );
   });
 
-  csvRows.push(`"Total Hours","${formatHours(totalHours)}"`);
-  csvRows.push(`"Total Events","${events.length}"`);
-  csvRows.push(
-    `"Certified Events","${events.filter((e) => e.isCertified).length}"`,
-  );
-  csvRows.push(`"Member Since","${joined}"`);
+  const summaryRows: Array<[string, string | number]> = [
+    ["Total Hours", formatHours(totalHours)],
+    ["Total Events", events.length],
+    ["Certified Events", events.filter((e) => e.isCertified).length],
+    ["Member Since", joined],
+  ];
+  for (const row of summaryRows) {
+    csvRows.push(row.map(escapeCsvCell).join(","));
+  }
 
   const blob = new Blob([csvRows.join("\n")], {
     type: "text/csv;charset=utf-8;",

@@ -1,5 +1,7 @@
 import { format } from "date-fns";
 
+import { escapeCsvCell } from "@/lib/organization/report-output-safety";
+
 import {
   formatHours,
   getMemberProfile,
@@ -35,13 +37,15 @@ export function downloadMemberHoursCsv({
 
     csvRows.push(
       [
-        `"${profile?.full_name || "Unknown User"}"`,
+        profile?.full_name || "Unknown User",
         profile?.username || "",
         member.role,
-        `"${format(new Date(member.joined_at), "MMM d, yyyy")}"`,
+        format(new Date(member.joined_at), "MMM d, yyyy"),
         formatHours(totalHours),
         eventCount,
-      ].join(","),
+      ]
+        .map(escapeCsvCell)
+        .join(","),
     );
   }
 
