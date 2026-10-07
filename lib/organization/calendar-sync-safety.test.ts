@@ -12,7 +12,9 @@ test("the Sheets worker reauthorizes its owner and disables stale syncs before e
   const authorization = postSource.indexOf(
     "authorizeGoogleOAuthOrganizationRequest({",
   );
-  const disableAutoSync = postSource.indexOf(".update({ auto_sync: false");
+  const disableAutoSync = postSource.search(
+    /\.update\(\s*\{\s*auto_sync:\s*false/u,
+  );
   const tokenRead = postSource.indexOf("getGoogleAccessTokenForSheetsForUser(");
   const reportRead = postSource.indexOf("buildOrganizationReportRowsForSync(");
   const googleWrite = postSource.indexOf(
