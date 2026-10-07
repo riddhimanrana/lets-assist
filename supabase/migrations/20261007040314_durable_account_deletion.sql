@@ -55,7 +55,7 @@ REVOKE ALL ON FUNCTION app_private.account_deletion_actor_is_active(uuid)
  FROM PUBLIC, anon, authenticated, service_role;
 GRANT EXECUTE ON FUNCTION app_private.account_deletion_actor_is_active(uuid) TO service_role;
 COMMENT ON FUNCTION app_private.account_deletion_actor_is_active(uuid) IS
- 'Acquire lets-assist-account-write:{actor UUID} advisory transaction lock before this predicate in a write transaction. False for pending or completed account removal, including retained blacklisted Auth rows.';
+ 'Hold the account write advisory lock before this predicate: ordinary write guards use try-shared; deletion and domain RPCs acquire exclusive before other locks. False for pending or completed account removal.';
 
 CREATE FUNCTION public.account_deletion_pending()
 RETURNS boolean LANGUAGE sql STABLE SECURITY DEFINER SET search_path = ''
@@ -63,13 +63,18 @@ AS $$ SELECT NOT app_private.account_deletion_actor_is_active(auth.uid()); $$;
 REVOKE ALL ON FUNCTION public.account_deletion_pending() FROM PUBLIC, anon, authenticated, service_role;
 GRANT EXECUTE ON FUNCTION public.account_deletion_pending() TO authenticated;
 
+-- Ordinary writes share the account fence. Refuse contention before waiting
+-- on an account lock while holding organization or row locks from an outer RPC.
+-- Account removal owns the exclusive lock before acquiring those other locks.
 CREATE FUNCTION app_private.guard_account_deletion_write()
 RETURNS trigger LANGUAGE plpgsql SECURITY DEFINER SET search_path = ''
 AS $$
 DECLARE actor_id uuid := auth.uid();
 BEGIN
  IF actor_id IS NOT NULL THEN
-   PERFORM pg_advisory_xact_lock(hashtextextended('lets-assist-account-write:' || actor_id::text, 0));
+   IF NOT pg_try_advisory_xact_lock_shared(hashtextextended('lets-assist-account-write:' || actor_id::text, 0)) THEN
+     RAISE EXCEPTION 'Account writes are temporarily unavailable. Retry the transaction.' USING ERRCODE = '55P03';
+   END IF;
    IF NOT app_private.account_deletion_actor_is_active(actor_id) THEN
      RAISE EXCEPTION 'Account deletion is pending or complete.' USING ERRCODE = '42501';
    END IF;
@@ -95,7 +100,9 @@ BEGIN
      AND (TG_OP = 'INSERT' OR new_values ->> column_name IS DISTINCT FROM old_values ->> column_name)
    ORDER BY 1
  LOOP
-   PERFORM pg_advisory_xact_lock(hashtextextended('lets-assist-account-write:' || target_id::text, 0));
+   IF NOT pg_try_advisory_xact_lock_shared(hashtextextended('lets-assist-account-write:' || target_id::text, 0)) THEN
+     RAISE EXCEPTION 'Account writes are temporarily unavailable. Retry the transaction.' USING ERRCODE = '55P03';
+   END IF;
    IF EXISTS (
      SELECT 1 FROM app_private.account_deletion_operations operation
      WHERE operation.target_user_id = target_id
@@ -202,7 +209,9 @@ BEGIN
     AND NEW.name ~ '^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}[-/]'
     THEN left(NEW.name,36)::uuid END
  ) candidates WHERE candidate IS NOT NULL ORDER BY 1 LOOP
-   PERFORM pg_advisory_xact_lock(hashtextextended('lets-assist-account-write:' || target::text,0));
+   IF NOT pg_try_advisory_xact_lock_shared(hashtextextended('lets-assist-account-write:' || target::text,0)) THEN
+     RAISE EXCEPTION 'Account writes are temporarily unavailable. Retry the transaction.' USING ERRCODE = '55P03';
+   END IF;
    IF NOT app_private.account_deletion_actor_is_active(target) THEN
      RAISE EXCEPTION 'Storage writes are blocked for an account being deleted.' USING ERRCODE='42501';
    END IF;
