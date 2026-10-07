@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, mock, test } from "bun:test";
+import sharp from "sharp";
 
 mock.module("server-only", () => ({}));
 mock.module("next/cache", () => ({ revalidatePath: () => {} }));
@@ -21,12 +22,20 @@ let profileTrustedMember: boolean | null = true;
 let trustedMemberAppStatus: boolean | null = null;
 let existingUsernames = new Set<string>();
 let rateLimitCount = 0;
+let createdId = "org-1";
+const imageCalls: string[] = [];
+let committedLogo: string | null = null;
 let organizationsSelectCalls = 0;
 const insertedOrganizations: Array<Record<string, unknown>> = [];
 const insertedMembers: Array<Record<string, unknown>> = [];
 
 function serverClient() {
   return {
+    storage: {
+      from: () => {
+        throw new Error("Browser Storage must not upload logos");
+      },
+    },
     auth: {
       getUser: async () => ({ data: { user: authUser }, error: null }),
     },
@@ -66,11 +75,24 @@ function serverClient() {
               },
             }),
           }),
+          update: ({ logo_url }: { logo_url: string }) => ({
+            eq: () => ({
+              is: () => ({
+                select: () => ({
+                  maybeSingle: async () => {
+                    committedLogo = logo_url;
+                    imageCalls.push("commit");
+                    return { data: { id: createdId }, error: null };
+                  },
+                }),
+              }),
+            }),
+          }),
           insert: (row: Record<string, unknown>) => ({
             select: () => ({
               single: async () => {
                 insertedOrganizations.push(row);
-                return { data: { id: "org-1" }, error: null };
+                return { data: { id: createdId }, error: null };
               },
             }),
           }),
@@ -83,6 +105,28 @@ function serverClient() {
 
 function adminClient() {
   return {
+    rpc: async (name: string, args: { p_actor: string; p_owner: string }) => {
+      expect(name).toBe("reserve_public_image_cleanup");
+      expect(args.p_actor).toBe(authUser!.id);
+      expect(args.p_owner).toBe(createdId);
+      imageCalls.push("reserve");
+      return { error: null };
+    },
+    storage: {
+      from: (bucket: string) => ({
+        getPublicUrl: (path: string) => ({
+          data: {
+            publicUrl: `https://storage.example.test/storage/v1/object/public/${bucket}/${path}`,
+          },
+        }),
+        upload: async (_path: string, bytes: Buffer) => {
+          expect(bucket).toBe("organization-logos");
+          expect((await sharp(bytes).metadata()).format).toBe("webp");
+          imageCalls.push("upload");
+          return { error: null };
+        },
+      }),
+    },
     from(table: string) {
       if (table === "organizations") {
         return {
@@ -130,6 +174,9 @@ beforeEach(() => {
   trustedMemberAppStatus = null;
   existingUsernames = new Set();
   rateLimitCount = 0;
+  createdId = "org-1";
+  imageCalls.length = 0;
+  committedLogo = null;
   organizationsSelectCalls = 0;
   insertedOrganizations.length = 0;
   insertedMembers.length = 0;
@@ -273,4 +320,23 @@ describe("createOrganization reserved-slug enforcement", () => {
       error: "You must be logged in to create an organization",
     });
   });
+});
+
+test("organization creation uploads a decoded logo through server Storage after reservation", async () => {
+  createdId = "fc181000-0000-4000-8000-000000000001";
+  const png = await sharp({
+    create: { width: 2, height: 2, channels: 3, background: "red" },
+  })
+    .png()
+    .toBuffer();
+  const result = await createOrganization({
+    ...baseCreateData,
+    username: "image-test-org",
+    logoUrl: `data:image/png;base64,${png.toString("base64")}`,
+  });
+  expect(result.success).toBe(true);
+  expect(result.logoWarning).toBeUndefined();
+  expect(result.logoUrl).toBe(committedLogo);
+  expect(committedLogo).toContain(`${createdId}.`);
+  expect(imageCalls).toEqual(["reserve", "upload", "commit"]);
 });

@@ -5,6 +5,23 @@ uploading or changing a reference. The reservation binds the actor, owner,
 previous URL and a new object key. The database checks current ownership and
 active membership. A stale expected URL returns HTTP 409.
 
+Avatar and logo writes use server credentials only after that reservation and
+image decoding. Browser roles cannot insert, update, delete or move these
+Storage objects. Restrictive policies preserve that boundary even if another
+permissive policy grants broader access. Public downloads remain available.
+Other buckets keep their existing authorization rules.
+
+The direct API regression first uploaded harmless non-image bytes tagged as
+WebP with a fictional user's JWT and downloaded them publicly. Existing policies
+already refused overwrite and left the object intact after a delete request.
+Migration `20261008040000_public_image_server_writes.sql` closes the upload
+bypass. Both avatar and logo API checks now reject user uploads, accept a
+reserved server upload, preserve its bytes after user mutation attempts, and
+allow public reads. The fixtures made no external requests and were removed.
+The focused policy suites passed 85 assertions, including a deliberately broad
+permissive grant and cross-bucket move attempts. Existing objects were not
+revalidated or rewritten.
+
 ## Object lifecycle
 
 Each replacement uses a new WebP key. The old image remains available until its

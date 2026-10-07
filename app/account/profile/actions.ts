@@ -9,6 +9,7 @@ import {
 } from "@/lib/storage/replace-public-image";
 
 import { createClient } from "@/lib/supabase/server";
+import { getAdminClient } from "@/lib/supabase/admin";
 import { checkOffensiveLanguage } from "@/utils/moderation-helpers";
 import { ProfileVisibility } from "@/types";
 import {
@@ -277,7 +278,7 @@ export async function completeOnboarding(formData: FormData) {
         ownerId: userId,
         previousUrl,
         image,
-        storage: supabase.storage.from("avatars"),
+        storage: getAdminClient({ timeoutMs: 10_000 }).storage.from("avatars"),
         commit: async (url): Promise<ImageReferenceCommit> => {
           let query = supabase
             .from("profiles")
