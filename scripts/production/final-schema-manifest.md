@@ -216,3 +216,30 @@ RPCs can retain those isolation levels. The exact verifier also rejects
 incompatible served-role or writable RPC defaults, changed hook bodies or
 privileges, and conflicting configuration. The maintenance signal lives in
 fixed authenticator role-catalog metadata; it is not a client-controlled GUC.
+
+Release 708 combines the accepted bootstrap with the reviewed remediation
+suffix. A fresh replay of `6af61c9e` produced 1,364 objects. Relative to the
+historical 702 catalog, 13 objects were added, 43 changed and none were removed.
+The additions are the request guard, eight image functions, two private image
+tables and two organization authorization functions. The changes are the 39
+reviewed business-conflict functions, the worker receipt reader and table, and
+the profile and organization relations carrying the new indexes, triggers and
+organization policies. All 687 published migration files remain unchanged.
+
+The full 464-file SQL run completed 11,737 assertions with one stale test
+expectation: an inactive administrator's update now returns zero rows through
+RLS before reaching the trigger. The corrected 93-assertion file passed and
+still proves that the issuer stays unchanged. The other full-suite assertions
+passed. Database, seed, workflow and scale checks are recorded separately from
+the candidate private-plugin runtime contract, which refuses unpublished
+version metadata until signed release integration.
+
+The 708 acceptance query also pins the exact enabled Auth image-reference and
+Storage upload triggers, preserving the existing account-deletion and CSF
+Storage checks. It requires Storage RLS, the fixed 21-row policy contract digest
+and no difference between that contract and live policies. Ten actual local
+rollback cases verified the accepted catalog and refusal of missing or disabled
+hooks, changed RPC grants, weakened organization policy, disabled Storage RLS,
+an extra browser policy, and coordinated live-policy and contract changes.
+Historical 688 and 699–702 manifests retain their original acceptance branches.
+No later publication ledger is accepted by this record.

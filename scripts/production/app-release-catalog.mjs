@@ -1,5 +1,6 @@
 import { csfSubmissionDeletionCatalog } from "./csf-submission-deletion-catalog.mjs";
 import { accountDeletionStorageCatalog } from "./account-deletion-storage-catalog.mjs";
+import { publicImageStorageCatalog } from "./public-image-storage-catalog.mjs";
 import { readFileSync } from "node:fs";
 import { finalSchemaCatalog, ledgerDigest } from "./final-schema-manifest.mjs";
 import { cronHistoryCatalog } from "./cron-history-catalog.mjs";
@@ -348,6 +349,25 @@ function reconcileCsf620SupersededStorageChecks(catalog) {
 }
 
 export function acceptedCatalogQuery(source, versions) {
+  if (
+    ledgerDigest(versions) ===
+    "96b052049c2676ff1077b327bc94e466f185820535061b9885c6ad11140d93bb"
+  )
+    return publicImageStorageCatalog(
+      accountDeletionStorageCatalog(
+        csfSubmissionDeletionCatalog(
+          finalSchemaCatalog(
+            JSON.parse(
+              readFileSync(
+                new URL("./final-schema-708.json", import.meta.url),
+                "utf8",
+              ),
+            ),
+            versions,
+          ),
+        ),
+      ),
+    );
   if (
     ledgerDigest(versions) ===
     "9f7db7cf060c86a8ff4829cfe7a3c2e9acfbcd5ddd932ca4e1cff51bb813d404"

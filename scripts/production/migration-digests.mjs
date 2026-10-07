@@ -1416,4 +1416,14 @@ export const migrationDigests = {
     "fa734e21002b3fed8cee9c43137395844aa7dd4cf5cd6f09fa7513ee75633f68",
   "20261007230000_project_client_read_columns.sql":
     "b2422616e826bcd85f9577757e19a0c6c0d6eb1fd2440c7a48284f8990fed42e",
+  "20261008000000_extend_worker_observation_scope.sql":
+    "21483b39b32b05d95c42e6ad05e6b28be165455b33e8842cd6530db3c8787cf3",
+  "20261008010000_public_image_cleanup_outbox.sql":
+    "5dfa583225eaba89f444476891c1ce13f06318a0bffa1342c9ff5eeb443e274d",
+  "20261008020000_business_conflict_http_status.sql":
+    "55f8e50707d662e2a97775fe13dc1debfd589f0bc3a2bb7c44ecad35902fb3e0",
+  "20261008030000_organization_profile_write_authorization.sql":
+    "dd2803db7c27c46f706e095e5d4195484ae089a71e883ec63c6170fd1d223763",
+  "20261008040000_public_image_server_writes.sql":
+    "1881e138bc06520999393634f6176df35bd80e733d250969e864607ddbf999d8",
 };
