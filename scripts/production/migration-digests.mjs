@@ -1408,4 +1408,6 @@ export const migrationDigests = {
     "f1670cfa9bbd4f97b0ba5b2718569ee206e19d1f1dc026025aaccdbe31326e3e",
   "20261007200000_dv_atomic_membership_application.sql":
     "c702cfaa4af34dac3ee935f88e7b26b1cae2d29a1dc843cb51b2806cc5522ab4",
+  "20261007210000_service_only_google_oauth_credentials.sql":
+    "9db378fd836c7f8a4d196200eba8152f2718533c573b3de9aa8df24a9498988f",
 };

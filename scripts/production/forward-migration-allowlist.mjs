@@ -925,4 +925,8 @@ export const approvedMigrations = [
     "20261007200000_dv_atomic_membership_application",
     "c702cfaa4af34dac3ee935f88e7b26b1cae2d29a1dc843cb51b2806cc5522ab4",
   ],
+  [
+    "20261007210000_service_only_google_oauth_credentials",
+    "9db378fd836c7f8a4d196200eba8152f2718533c573b3de9aa8df24a9498988f",
+  ],
 ];

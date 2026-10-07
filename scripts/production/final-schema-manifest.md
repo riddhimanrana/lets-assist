@@ -156,3 +156,12 @@ for this comparison.
 
 Release 686 adds the signed CSF 1.2.85 publication without changing schema objects.
 It reuses the reviewed 685 inventory with the exact 686 ledger binding.
+
+Release 700 removes browser table and column privileges on Google OAuth
+credentials and keeps only service-role CRUD. Its clean replay preserves all
+1,350 object identities and changes exactly two fingerprints: the credential
+relation and the explicit client-grant catalog. The full 455-file SQL suite
+passed 11,374 assertions. The accepted catalog query returned one on that
+replay, with local fixture helpers removed only inside a rolled-back transaction.
+The previous 699 catalog remains accepted for its exact historical ledger.
+Unknown future migrations and changed migration bytes still refuse release.
