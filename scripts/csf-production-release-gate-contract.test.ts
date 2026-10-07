@@ -919,7 +919,14 @@ describe("CSF Production release preflight", () => {
     expect(applicationWriteBlock.match(/timeout 60s/gu) ?? []).toHaveLength(1);
     expect(
       applicationWriteBlock.match(/run_linked_query "/gu) ?? [],
-    ).toHaveLength(4);
+    ).toHaveLength(5);
+    expect(applicationWriteBlock).toContain(
+      "BEGIN; ${request_guard_check} ALTER ROLE authenticator SET",
+    );
+    expect(applicationWriteBlock).toContain("request-write-fence.mjs");
+    expect(applicationWriteBlock).toContain(
+      "Fresh API verification is required.",
+    );
     expect(postgrestWriteBlockVerifier).toContain(
       "id.eq.00000000-0000-0000-0000-000000000000,id.neq.00000000-0000-0000-0000-000000000000",
     );

@@ -13,6 +13,8 @@ import {
 import { ledgerDigest } from "./final-schema-manifest.mjs";
 import { maintenanceDataChecks } from "./maintenance-preflight-checks.mjs";
 import { migrationDigests } from "./migration-digests.mjs";
+import { applicationRequestWriteFenceQuery } from "./request-write-fence.mjs";
+export { applicationRequestWriteFenceQuery } from "./request-write-fence.mjs";
 
 const literal = (value) => `'${value.replaceAll("'", "''")}'`;
 const transaction = (sql) => `BEGIN ISOLATION LEVEL REPEATABLE READ READ ONLY;
@@ -81,6 +83,7 @@ const requireBoolean = (query) => `${query.trim().replace(/;$/u, "")}\n\\gset
 
 export const maintenancePostureQuery = `SELECT
   current_setting('transaction_read_only') = 'on'
+  AND (${applicationRequestWriteFenceQuery.replace(/ AS valid$/u, "")})
   AND EXISTS (SELECT 1 FROM pg_catalog.pg_roles WHERE rolname = 'authenticator'
     AND 'default_transaction_read_only=on' = ANY(coalesce(rolconfig, ARRAY[]::text[])))
   AND NOT EXISTS (SELECT 1 FROM pg_catalog.pg_db_role_setting setting
