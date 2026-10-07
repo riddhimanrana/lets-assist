@@ -804,11 +804,11 @@ Complete these gates before using real chapter credentials or rows:
       Production databases, links, tokens, previews, and decisions isolated.
 - [ ] Verify the root tree is the approved exact commit and the private plugin
       remains a clean gitlink at its approved SHA.
-- [ ] Run the read-only
-      `scripts/production-cutover-preflight.sql` with the reviewed Production
-      read-only URL. It must select the live Production baseline, pass every
-      shared blocker, and name any cancellation-job transitions for explicit
-      review. Rehearse the complete pending transition on a Production-shaped
+- [ ] Run `node scripts/production/maintenance-preflight.mjs before` with the
+      reviewed Production read-only URL and `EXPECTED_SUPABASE_PROJECT_REF`.
+      It must verify the live Production baseline against an accepted catalog
+      and pass every current blocker. Review data transitions separately.
+      Rehearse the complete pending transition on a Production-shaped
       clone and verify the backup restore before scheduling the window.
 - [ ] At T-0 stop writers and scheduled workers, take the final snapshots, then
       merge the exact accepted Production pull request with a merge commit. The

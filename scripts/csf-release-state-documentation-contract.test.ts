@@ -376,19 +376,31 @@ describe("CSF release-state documentation truthfulness guards", () => {
       "Replay the ordered migration ledger through the exact approved repository head",
     );
     expect(cutover).toContain(
-      "`scripts/production-cutover-preflight.sql` with the reviewed Production read-only URL",
+      "`node scripts/production/maintenance-preflight.mjs before` with the reviewed Production read-only URL",
     );
     expect(cutover).toContain("live Production baseline");
     expect(cutover).toContain("complete pending transition");
     expect(cutover).toContain("preflight on the exact repository target");
   });
 
-  test("production cutover baseline tracks the exact pending migration range", () => {
+  test("historical cutover evidence retains its exact migration range", () => {
+    expect(productionCutoverRunbook).toContain(
+      "## Current maintenance preflight",
+    );
+    expect(productionCutoverRunbook).toContain(
+      "node scripts/production/maintenance-preflight.mjs before",
+    );
+    expect(productionCutoverRunbook).toContain(
+      "node scripts/production/maintenance-preflight.mjs target",
+    );
+    expect(productionCutoverRunbook).toContain(
+      "## Historical 414-to-444 rehearsal",
+    );
     expect(productionCutoverRunbook).toContain(
       "Production was verified read-only on 2026-09-01 in Supabase project `fotdmeakexgrkronxlof` at 414 ordered migrations through `20260829092823_publish_dvhs_csf_1_2_24`",
     );
     expect(productionCutoverRunbook).toContain(
-      "current repository release candidate has exactly 444 ordered migrations through `20260903050000_csf_staff_view_mode_single_rpc`",
+      "At that time, the repository release candidate had exactly 444 ordered migrations through `20260903050000_csf_staff_view_mode_single_rpc`",
     );
     expect(productionCutoverRunbook).toContain(
       "read-only preflight pins an exact 30-migration tail",

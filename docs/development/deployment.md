@@ -199,6 +199,13 @@ imports or provider delivery.
 
 ### Reviewed forward migrations
 
+This online path refuses outstanding credential and project-column permission
+contractions. Those changes require the reviewed maintenance workflow, because
+the previously served app can issue queries the new grants reject. See the
+[current maintenance preflight](production-cutover-runbook.md#current-maintenance-preflight).
+An evidence override does not waive this ordering requirement. Already-applied
+changes can still be reconciled without another mutation.
+
 `Apply accepted forward migrations` applies only the migration names and SQL
 hashes listed in `scripts/production/forward-migration-allowlist.mjs`. It accepts
 explicit release and hosted-acceptance SHAs, verifies their identical trees and

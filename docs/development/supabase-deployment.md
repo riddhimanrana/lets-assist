@@ -53,6 +53,11 @@ Vercel Git builds are cost-gated. Ordinary commits and pull requests do not
 request a hosted build. The reviewed Development integration commit carries the
 release marker once, which produces one candidate deployment.
 
+A provider success status does not prove app-before-schema ordering. Permission
+contractions need a reviewed maintenance sequence for Development as well as
+Production. Do not merge a contracting migration while an incompatible app can
+still receive traffic. Stale browser tabs may need a reload after the cutover.
+
 ## Production release
 
 Production uses the manually dispatched
@@ -66,16 +71,19 @@ The workflow performs these operations in order:
 2. Run the reusable root, plugin, build, database, scale, and browser gates.
 3. Prove that `main` has the same tree as the accepted Development SHA.
 4. Build the exact application once with Production environment values.
-5. Link and verify the reviewed Supabase project, then show the pending
-   migration set.
+5. Link and verify the reviewed Supabase project, then run the current
+   `maintenance-preflight.mjs before` against reviewed migration bytes and its
+   exact accepted catalog. Show the pending migration set.
 6. Stage both the repository-owned static maintenance artifact and the exact
    application without moving domains. Prove both artifacts and retain the
    recovery manifest.
 7. Set `authenticator.default_transaction_read_only=on`, terminate existing
    authenticator sessions, and prove that a fresh PostgREST mutation returns
    SQLSTATE `25006`.
-8. Promote and verify the maintenance deployment at the Production alias.
-9. Apply the pending migrations and verify exact migration-ledger parity.
+8. Promote and verify the maintenance deployment at the Production alias, then
+   repeat the current read-only `before` preflight.
+9. Apply the pending migrations, verify exact migration-ledger parity and require
+   `maintenance-preflight.mjs target` to verify the complete accepted catalog.
 10. Check the same staged application's deep status endpoint against
     Production.
 11. Promote the staged application and verify that the Production alias points
@@ -87,6 +95,10 @@ The write block covers application traffic through PostgREST. It does not block
 Supabase Auth, Storage, direct database sessions, or internal provider writers.
 The operator must still stop scheduled workers and confirm database quiescence
 as described in the [Production cutover runbook](production-cutover-runbook.md).
+The helper proves configured read-only state; it does not replace the fresh
+PostgREST mutation probe. All five CSF worker flags and all database cron jobs
+must remain stopped. The historical 414/444 SQL preflight is retained as evidence
+and is not used by the current maintenance workflow.
 
 If a step fails after the write block is enabled, the failure path reasserts the
 block. Do not open writes or retry a partial migration push until the migration
