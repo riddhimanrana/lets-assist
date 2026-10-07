@@ -2764,6 +2764,16 @@ sources.
 
 ## Repository-owned P0–P2
 
+### Private integration review, October 7
+
+Private PR 643's Codex review identified three defects in the partner attendance feature. Commit `6c271f0` fixes them; hosted acceptance remains pending.
+
+| Finding                                | Local disposition                                                                                                                                                                                                   |
+| -------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| CSF-ATTEND-MODE-READ-20261007, P1      | Failed or missing mode reads now return an unconfirmed outcome. Only explicit missing-schema errors permit the legacy off no-op. Six tests cover read failures, confirmed disabling and a lost write response.      |
+| CSF-ATTEND-EVIDENCE-CAP-20261007, P2   | Organizer evidence is loaded for every submission in bounded chunks and ordered pages. Unexpected failures refuse the review load. Tests cover 1,101 submissions, 1,001 rows for one claim and a failed later page. |
+| CSF-PARTNER-OVERNIGHT-DST-20261007, P2 | Overnight ends advance the local calendar date before timezone conversion. Schedule bounds and proposed shifts share the helper. Spring and fall transition regressions pass.                                       |
+
 The [October 7 integration status](integration-status-20261007.md) tracks the combined brand/audit candidate, preserved feature branches, local checks and remaining provider gates. Integration regressions in draft serialization, account export/deletion layout, uncertain delivery copy and CSV formula prefixes are fixed locally. Final database/browser and hosted acceptance remain open.
 
 ### Full-stack remediation, October 7, 2026
