@@ -123,6 +123,11 @@ function serverClient() {
 
 function adminClient() {
   return {
+    rpc: async (name: string) => {
+      expect(name).toBe("reserve_public_image_cleanup");
+      imageCalls.push("reserve");
+      return { error: null };
+    },
     from(table: string) {
       if (table === "organization_members") {
         return {
@@ -416,10 +421,10 @@ describe("organization logo replacement", () => {
   }
   test("saves an immutable logo before retiring the custom-origin predecessor", async () => {
     const result = await updateOrganization(await input());
-    expect(result).toEqual({ success: true });
-    expect(imageCalls[0]).toStartWith(`upload:${id}.`);
-    expect(imageCalls[1]).toBe("commit");
-    expect(imageCalls[2]).toBe(`remove:${oldKey}`);
+    expect(result).toEqual({ success: true, cleanupPending: true });
+    expect(imageCalls[0]).toBe("reserve");
+    expect(imageCalls[1]).toStartWith(`upload:${id}.`);
+    expect(imageCalls[2]).toBe("commit");
     expect(appliedUpdate?.logo_url).toMatch(/\.webp$/);
     expect(updateFilters).toEqual([
       { operator: "eq", column: "id", value: id },
@@ -431,26 +436,22 @@ describe("organization logo replacement", () => {
     const result = await updateOrganization(await input());
     expect(result.error).toBeString();
     expect(updateCalled).toBe(false);
-    expect(imageCalls).toHaveLength(1);
+    expect(imageCalls).toHaveLength(2);
   });
   test("uncertain reference commit never deletes the predecessor or candidate", async () => {
     updateError = { message: "Synthetic database failure" };
     const result = await updateOrganization(await input());
     expect(result.error).toBeString();
-    expect(imageCalls).toHaveLength(2);
+    expect(imageCalls).toHaveLength(3);
   });
-  test("a competing reference update removes only this request's candidate", async () => {
+  test("a competing reference update leaves a durable candidate intent", async () => {
     referenceConflict = true;
     const result = await updateOrganization(await input());
     expect(result.error).toBe(
       "The image changed while you were editing. Refresh before trying again.",
     );
-    const uploadedKey = imageCalls[0].slice("upload:".length);
-    expect(imageCalls).toEqual([
-      `upload:${uploadedKey}`,
-      "commit",
-      `remove:${uploadedKey}`,
-    ]);
+    const uploadedKey = imageCalls[1].slice("upload:".length);
+    expect(imageCalls).toEqual(["reserve", `upload:${uploadedKey}`, "commit"]);
     expect(uploadedKey).not.toBe(oldKey);
     expect(updateFilters).toContainEqual({
       operator: "eq",
@@ -462,11 +463,8 @@ describe("organization logo replacement", () => {
     revokeMembershipOnUpload = true;
     const result = await updateOrganization(await input());
     expect(result.error).toBeString();
-    const uploadedKey = imageCalls[0].slice("upload:".length);
-    expect(imageCalls).toEqual([
-      `upload:${uploadedKey}`,
-      `remove:${uploadedKey}`,
-    ]);
+    const uploadedKey = imageCalls[1].slice("upload:".length);
+    expect(imageCalls).toEqual(["reserve", `upload:${uploadedKey}`]);
     expect(updateCalled).toBe(false);
     expect(updateFilters).toEqual([]);
   });

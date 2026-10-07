@@ -89,6 +89,8 @@ export function ownedPublicImagePath(
     const separator = bucket === "avatars" ? "-" : ".";
     if (
       !objectPath.startsWith(`${ownerId}${separator}`) ||
+      objectPath.length > 160 ||
+      objectPath.includes("..") ||
       !/^[a-fA-F0-9.-]+\.(?:jpg|jpeg|png|webp)$/i.test(objectPath)
     )
       return null;
