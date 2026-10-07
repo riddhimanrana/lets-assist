@@ -380,7 +380,7 @@ export function SignupConfirmationModal({
                     Loading your information...
                   </div>
                 ) : profileError ? (
-                  <div className="text-sm text-red-600">{profileError}</div>
+                  <div className="text-sm text-destructive">{profileError}</div>
                 ) : currentUserProfile ? (
                   <div className="space-y-2">
                     <div className="flex items-center gap-3">

@@ -33,7 +33,7 @@ export function DataExportSection() {
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <FileSpreadsheet className="h-5 w-5" />
-            Data Export & Analytics
+            Data export & analytics
           </CardTitle>
           <CardDescription>
             Export your data for reports, analysis, and school requirements
@@ -42,7 +42,7 @@ export function DataExportSection() {
         <CardContent className="space-y-4">
           <div className="grid md:grid-cols-3 gap-4">
             <div className="space-y-2">
-              <h4 className="font-semibold text-sm">Personal Data</h4>
+              <h4 className="font-semibold text-sm">Personal data</h4>
               <ul className="space-y-1 text-xs text-muted-foreground">
                 <li>• Your volunteer certificates</li>
                 <li>• Hour tracking data</li>
@@ -50,7 +50,7 @@ export function DataExportSection() {
               </ul>
             </div>
             <div className="space-y-2">
-              <h4 className="font-semibold text-sm">Organization Data</h4>
+              <h4 className="font-semibold text-sm">Organization data</h4>
               <ul className="space-y-1 text-xs text-muted-foreground">
                 <li>• Member volunteer hours</li>
                 <li>• Project participation rates</li>
@@ -58,7 +58,7 @@ export function DataExportSection() {
               </ul>
             </div>
             <div className="space-y-2">
-              <h4 className="font-semibold text-sm">Export Formats</h4>
+              <h4 className="font-semibold text-sm">Export formats</h4>
               <div className="flex flex-wrap gap-1">
                 <Badge variant="outline" className="text-xs">
                   CSV
@@ -124,7 +124,7 @@ export function DataExportSection() {
             </div>
 
             <div className="bg-info/20 p-4 rounded-lg">
-              <h6 className="font-medium text-sm mb-2">CSV Export Contents:</h6>
+              <h6 className="font-medium text-sm mb-2">CSV export contents:</h6>
               <div className="grid md:grid-cols-2 gap-3 text-xs">
                 <div>
                   <strong>Basic Information:</strong>
@@ -162,7 +162,7 @@ export function DataExportSection() {
           <AccordionContent className="space-y-4 pt-4">
             <div className="grid md:grid-cols-2 gap-4">
               <div>
-                <h6 className="font-medium mb-2">Member Hours Export</h6>
+                <h6 className="font-medium mb-2">Member hours export</h6>
                 <ol className="list-decimal list-inside space-y-1 text-sm">
                   <li>Navigate to your organization page</li>
                   <li>Click &quot;Members&quot; tab</li>
@@ -176,7 +176,7 @@ export function DataExportSection() {
                 </div>
               </div>
               <div>
-                <h6 className="font-medium mb-2">Individual Member Details</h6>
+                <h6 className="font-medium mb-2">Individual member details</h6>
                 <ol className="list-decimal list-inside space-y-1 text-sm">
                   <li>Go to Members tab</li>
                   <li>Click &quot;View Details&quot; on any member</li>
@@ -193,7 +193,7 @@ export function DataExportSection() {
 
             <div className="bg-primary/10 p-4 rounded-lg">
               <h6 className="font-medium text-sm mb-2">
-                Organization Export Features:
+                Organization export features:
               </h6>
               <div className="grid md:grid-cols-2 gap-3 text-xs">
                 <div>
@@ -235,7 +235,7 @@ export function DataExportSection() {
             <div className="grid md:grid-cols-2 gap-4">
               <div>
                 <h6 className="font-medium mb-2">
-                  Personal Dashboard Analytics
+                  Personal dashboard analytics
                 </h6>
                 <ul className="list-disc list-inside space-y-1 text-sm">
                   <li>Total volunteer hours tracked</li>
@@ -248,7 +248,6 @@ export function DataExportSection() {
                   href="/dashboard"
                   className={cn(
                     buttonVariants({
-                      size: "sm",
                       variant: "outline",
                       className: "mt-2",
                     }),
@@ -259,7 +258,7 @@ export function DataExportSection() {
               </div>
               <div>
                 <h6 className="font-medium mb-2">
-                  Organization Analytics (Admin)
+                  Organization analytics (admin)
                 </h6>
                 <ul className="list-disc list-inside space-y-1 text-sm">
                   <li>Member engagement statistics</li>
@@ -272,7 +271,6 @@ export function DataExportSection() {
                   href="/organization"
                   className={cn(
                     buttonVariants({
-                      size: "sm",
                       variant: "outline",
                       className: "mt-2",
                     }),
@@ -285,7 +283,7 @@ export function DataExportSection() {
 
             <div className="bg-muted/50 p-4 rounded-lg">
               <h6 className="font-medium text-sm mb-2">
-                Using Data for Impact:
+                Using data for impact:
               </h6>
               <div className="grid md:grid-cols-3 gap-3 text-xs">
                 <div>
@@ -330,7 +328,7 @@ export function DataExportSection() {
           <AccordionContent className="space-y-4 pt-4">
             <div className="grid md:grid-cols-2 gap-4">
               <div>
-                <h6 className="font-medium mb-2">For School Submissions:</h6>
+                <h6 className="font-medium mb-2">For school submissions:</h6>
                 <ul className="list-disc list-inside space-y-1 text-sm">
                   <li>Export data regularly, don&apos;t wait for deadlines</li>
                   <li>Use specific date ranges for academic periods</li>
@@ -353,7 +351,7 @@ export function DataExportSection() {
 
             <div className="grid md:grid-cols-3 gap-3">
               <div className="p-3 border rounded">
-                <h6 className="font-medium text-xs mb-1">File Formats</h6>
+                <h6 className="font-medium text-xs mb-1">File formats</h6>
                 <ul className="text-xs text-muted-foreground space-y-1">
                   <li>• CSV: For data analysis</li>
                   <li>• PDF: For printing/submission</li>
@@ -361,7 +359,7 @@ export function DataExportSection() {
                 </ul>
               </div>
               <div className="p-3 border rounded">
-                <h6 className="font-medium text-xs mb-1">Data Privacy</h6>
+                <h6 className="font-medium text-xs mb-1">Data privacy</h6>
                 <ul className="text-xs text-muted-foreground space-y-1">
                   <li>• Only your data in personal exports</li>
                   <li>• Org exports respect member privacy</li>
@@ -369,7 +367,7 @@ export function DataExportSection() {
                 </ul>
               </div>
               <div className="p-3 border rounded">
-                <h6 className="font-medium text-xs mb-1">Technical Tips</h6>
+                <h6 className="font-medium text-xs mb-1">Technical tips</h6>
                 <ul className="text-xs text-muted-foreground space-y-1">
                   <li>• CSV opens in Excel/Sheets</li>
                   <li>• Use filters for large datasets</li>

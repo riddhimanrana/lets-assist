@@ -1,9 +1,37 @@
 "use client";
 
-import { Badge } from "@/components/ui/badge";
+import { X } from "lucide-react";
+
 import { Button } from "@/components/ui/button";
-import { Calendar, Filter, Search, Users, X } from "lucide-react";
+
+import {
+  DATE_SORT_LABELS,
+  EVENT_TYPE_LABELS,
+  VOLUNTEER_SORT_LABELS,
+} from "./ProjectFeedFilterMenu";
 import type { ProjectFeedFilterProps } from "./types";
+
+/** A removable chip: the whole chip is the 36px press target. */
+function FilterChip({
+  label,
+  onRemove,
+}: {
+  label: string;
+  onRemove: () => void;
+}) {
+  return (
+    <Button
+      variant="outline"
+      size="sm"
+      className="h-9 max-w-full sm:h-8"
+      aria-label={`Remove filter: ${label}`}
+      onClick={onRemove}
+    >
+      <span className="truncate">{label}</span>
+      <X data-icon="inline-end" aria-hidden="true" />
+    </Button>
+  );
+}
 
 export function ProjectFeedActiveFilters(props: ProjectFeedFilterProps) {
   const {
@@ -21,109 +49,56 @@ export function ProjectFeedActiveFilters(props: ProjectFeedFilterProps) {
     dateFilterLabel,
     clearAllFilters,
   } = props;
+
+  if (activeFilterCount === 0) return null;
+
   return (
-    <>
-      {activeFilterCount > 0 && (
-        <div className="flex flex-wrap items-center gap-2 mt-3">
-          {activeFilterCount > 0 && (
-            <Badge variant="secondary" className="gap-1">
-              <Filter className="size-3" />
-              {activeFilterCount}{" "}
-              {activeFilterCount === 1 ? "filter" : "filters"} applied
-            </Badge>
-          )}
-
-          {debouncedSearchTerm && (
-            <Badge variant="outline" className="gap-1">
-              <Search className="size-3" />
-              &quot;{debouncedSearchTerm}&quot;
-              <Button
-                variant="ghost"
-                size="icon"
-                className="size-3 ml-1 p-0"
-                onClick={() => setSearchTerm("")}
-              >
-                <X className="size-3" />
-              </Button>
-            </Badge>
-          )}
-
-          {eventTypeFilter && (
-            <Badge variant="outline" className="gap-1">
-              <Calendar className="size-3" />
-              {eventTypeFilter === "oneTime" && "Single Event"}
-              {eventTypeFilter === "multiDay" && "Multi-day Event"}
-              {eventTypeFilter === "sameDayMultiArea" && "Multi-role Event"}
-              <Button
-                variant="ghost"
-                size="icon"
-                className="size-3 ml-1 p-0"
-                onClick={() => setEventTypeFilter(undefined)}
-              >
-                <X className="size-3" />
-              </Button>
-            </Badge>
-          )}
-
-          {dateFilter?.from && (
-            <Badge variant="outline" className="gap-1">
-              <Calendar className="size-3" />
-              {dateFilterLabel}
-              <Button
-                variant="ghost"
-                size="icon"
-                className="size-3 ml-1 p-0"
-                onClick={() => setDateFilter(undefined)}
-              >
-                <X className="size-3" />
-              </Button>
-            </Badge>
-          )}
-
-          {dateSort && (
-            <Badge variant="outline" className="gap-1">
-              <Calendar className="size-3" />
-              {dateSort === "desc" ? "Most recent first" : "Future dates first"}
-              <Button
-                variant="ghost"
-                size="icon"
-                className="size-3 ml-1 p-0"
-                onClick={() => setDateSort(undefined)}
-              >
-                <X className="size-3" />
-              </Button>
-            </Badge>
-          )}
-
-          {volunteersSort && (
-            <Badge variant="outline" className="gap-1">
-              <Users className="size-3" />
-              {volunteersSort === "desc"
-                ? "Most volunteers needed"
-                : "Least volunteers needed"}
-              <Button
-                variant="ghost"
-                size="icon"
-                className="size-3 ml-1 p-0"
-                onClick={() => setVolunteersSort(undefined)}
-              >
-                <X className="size-3" />
-              </Button>
-            </Badge>
-          )}
-
-          {activeFilterCount > 1 && (
-            <Button
-              variant="ghost"
-              size="sm"
-              className="h-7 px-2 text-sm"
-              onClick={clearAllFilters}
-            >
-              Clear all
-            </Button>
-          )}
-        </div>
+    <div className="mt-3 flex flex-wrap items-center gap-2">
+      {debouncedSearchTerm && (
+        <FilterChip
+          label={`“${debouncedSearchTerm}”`}
+          onRemove={() => setSearchTerm("")}
+        />
       )}
-    </>
+
+      {eventTypeFilter && (
+        <FilterChip
+          label={EVENT_TYPE_LABELS[eventTypeFilter] ?? eventTypeFilter}
+          onRemove={() => setEventTypeFilter(undefined)}
+        />
+      )}
+
+      {dateFilter?.from && (
+        <FilterChip
+          label={dateFilterLabel ?? "Date range"}
+          onRemove={() => setDateFilter(undefined)}
+        />
+      )}
+
+      {dateSort && (
+        <FilterChip
+          label={DATE_SORT_LABELS[dateSort]}
+          onRemove={() => setDateSort(undefined)}
+        />
+      )}
+
+      {volunteersSort && (
+        <FilterChip
+          label={VOLUNTEER_SORT_LABELS[volunteersSort]}
+          onRemove={() => setVolunteersSort(undefined)}
+        />
+      )}
+
+      {activeFilterCount > 1 && (
+        <Button
+          variant="ghost"
+          size="sm"
+          className="h-9 sm:h-8"
+          onClick={clearAllFilters}
+        >
+          Clear all
+        </Button>
+      )}
+    </div>
   );
 }

@@ -1,11 +1,12 @@
 "use client";
 
 import { useState, useMemo } from "react";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Input } from "@/components/ui/input";
-import { Button, buttonVariants } from "@/components/ui/button";
-import { cn } from "@/lib/utils";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Search, X } from "lucide-react";
+
+import { MessageCircleIcon } from "@/components/icons/animated";
+import { PageHeader } from "@/components/layout/PageHeader";
+import { AnimatedLinkButton } from "@/components/projects/AnimatedLinkButton";
+import { Badge } from "@/components/ui/badge";
 import {
   Command,
   CommandEmpty,
@@ -13,19 +14,13 @@ import {
   CommandItem,
   CommandList,
 } from "@/components/ui/command";
-import { Badge } from "@/components/ui/badge";
 import {
-  Search,
-  X,
-  HelpCircle,
-  Rocket,
-  Layout,
-  Users,
-  GraduationCap,
-  Award,
-  Download,
-} from "lucide-react";
-import Link from "next/link";
+  InputGroup,
+  InputGroupAddon,
+  InputGroupButton,
+  InputGroupInput,
+} from "@/components/ui/input-group";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 // Import section components
 import { GettingStartedSection } from "./sections/getting-started";
@@ -297,146 +292,113 @@ export default function HelpPage() {
     setShowSearchResults(false);
   };
 
+  const tabs = [
+    { value: "getting-started", label: "Getting started" },
+    { value: "projects", label: "Projects" },
+    { value: "organizations", label: "Organizations" },
+    { value: "schools", label: "Schools & CSF" },
+    { value: "certificates", label: "Certificates" },
+    { value: "data-export", label: "Data export" },
+  ];
+
   return (
-    <div className="container mx-auto px-4 py-8 max-w-6xl">
-      <div className="text-center mb-8">
-        <h1 className="text-3xl sm:text-4xl font-bold tracking-tight mb-4">
-          Help Center
-        </h1>
-        <p className="text-base sm:text-xl text-muted-foreground max-w-2xl mx-auto">
-          Everything you need to know about using Let&apos;s Assist for
-          volunteer hour tracking, project management, and certificate
-          generation.
-        </p>
-      </div>
+    <div className="mx-auto w-full max-w-4xl px-4 py-8 sm:px-6">
+      <PageHeader
+        title="Help center"
+        description="Everything you need to know about using Let's Assist for volunteer hour tracking, project management, and certificate generation."
+      />
 
       {/* Search Section */}
-      <div className="mb-8 relative">
-        <div className="relative max-w-2xl mx-auto">
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
-          <Input
-            placeholder="Search help articles... (e.g., 'export member data', 'CSF hours', 'certificates')"
+      <div className="relative mt-6 max-w-xl">
+        <InputGroup>
+          <InputGroupAddon>
+            <Search aria-hidden="true" />
+          </InputGroupAddon>
+          <InputGroupInput
+            type="search"
+            aria-label="Search help articles"
+            placeholder="Search help articles, such as “export member data”"
             value={searchQuery}
             onChange={(e) => {
               setSearchQuery(e.target.value);
               setShowSearchResults(e.target.value.length > 0);
             }}
-            className="pl-10 pr-10"
           />
           {searchQuery && (
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={clearSearch}
-              className="absolute right-1 top-1/2 transform -translate-y-1/2 h-6 w-6 p-0"
-            >
-              <X className="h-3 w-3" />
-            </Button>
+            <InputGroupAddon align="inline-end">
+              <InputGroupButton
+                size="icon-xs"
+                aria-label="Clear search"
+                onClick={clearSearch}
+              >
+                <X aria-hidden="true" />
+              </InputGroupButton>
+            </InputGroupAddon>
           )}
-        </div>
+        </InputGroup>
 
         {/* Search Results Dropdown */}
         {showSearchResults && searchResults.length > 0 && (
-          <Card className="absolute top-full mt-2 w-full max-w-2xl mx-auto left-1/2 transform -translate-x-1/2 z-50 shadow-lg">
-            <CardContent className="p-0">
-              <Command>
-                <CommandList className="max-h-60">
-                  <CommandEmpty>No results found.</CommandEmpty>
-                  <CommandGroup>
-                    {searchResults.map((item) => (
-                      <CommandItem
-                        key={item.id}
-                        onSelect={() => handleSearchSelect(item)}
-                        className="cursor-pointer"
-                      >
-                        <div className="flex items-center justify-between w-full">
-                          <div>
-                            <div className="font-medium">{item.title}</div>
-                            <div className="text-sm text-muted-foreground">
-                              {item.section}
-                            </div>
+          <div className="bg-popover text-popover-foreground absolute inset-x-0 top-full z-50 mt-2 overflow-hidden rounded-lg border shadow-md">
+            <Command>
+              <CommandList className="max-h-72">
+                <CommandEmpty>No results found.</CommandEmpty>
+                <CommandGroup>
+                  {searchResults.map((item) => (
+                    <CommandItem
+                      key={item.id}
+                      onSelect={() => handleSearchSelect(item)}
+                      className="cursor-pointer"
+                    >
+                      <div className="flex w-full items-center justify-between gap-3">
+                        <div className="min-w-0">
+                          <div className="truncate font-medium">
+                            {item.title}
                           </div>
-                          <Badge variant="outline" className="text-xs">
-                            {item.category.replace("-", " ")}
-                          </Badge>
+                          <div className="text-muted-foreground truncate text-sm">
+                            {item.section}
+                          </div>
                         </div>
-                      </CommandItem>
-                    ))}
-                  </CommandGroup>
-                </CommandList>
-              </Command>
-            </CardContent>
-          </Card>
+                        <Badge variant="outline" className="shrink-0">
+                          {item.category.replace("-", " ")}
+                        </Badge>
+                      </div>
+                    </CommandItem>
+                  ))}
+                </CommandGroup>
+              </CommandList>
+            </Command>
+          </div>
         )}
 
         {/* No Results Message */}
         {showSearchResults && searchQuery && searchResults.length === 0 && (
-          <Card className="absolute top-full mt-2 w-full max-w-2xl mx-auto left-1/2 transform -translate-x-1/2 z-50">
-            <CardContent className="p-4 text-center">
-              <p className="text-muted-foreground">
-                No results found for &quot;{searchQuery}&quot;
-              </p>
-              <p className="text-sm text-muted-foreground mt-1">
-                Try searching for terms like &quot;export&quot;,
-                &quot;CSF&quot;, &quot;certificates&quot;, or
-                &quot;organizations&quot;
-              </p>
-            </CardContent>
-          </Card>
+          <div className="bg-popover text-popover-foreground absolute inset-x-0 top-full z-50 mt-2 grid gap-1 rounded-lg border p-4 text-sm shadow-md">
+            <p>No results found for &quot;{searchQuery}&quot;</p>
+            <p className="text-muted-foreground">
+              Try searching for terms like &quot;export&quot;, &quot;CSF&quot;,
+              &quot;certificates&quot;, or &quot;organizations&quot;
+            </p>
+          </div>
         )}
       </div>
 
       <Tabs
         value={selectedTab}
         onValueChange={(val) => val && setSelectedTab(val)}
-        className="w-full"
+        className="mt-8 w-full gap-6"
       >
-        <div className="flex justify-center mb-8 overflow-x-auto scrollbar-none [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
-          <TabsList className="inline-flex gap-0 bg-muted/50 p-1 h-auto">
+        <TabsList variant="line" className="border-b">
+          {tabs.map((tab) => (
             <TabsTrigger
-              value="getting-started"
-              className="flex-none flex items-center gap-2 px-4 py-2 whitespace-nowrap"
+              key={tab.value}
+              value={tab.value}
+              className="flex-none px-3"
             >
-              <Rocket className="h-4 w-4" />
-              <span>Getting Started</span>
+              {tab.label}
             </TabsTrigger>
-            <TabsTrigger
-              value="projects"
-              className="flex-none flex items-center gap-2 px-4 py-2 whitespace-nowrap"
-            >
-              <Layout className="h-4 w-4" />
-              <span>Projects</span>
-            </TabsTrigger>
-            <TabsTrigger
-              value="organizations"
-              className="flex-none flex items-center gap-2 px-4 py-2 whitespace-nowrap"
-            >
-              <Users className="h-4 w-4" />
-              <span>Organizations</span>
-            </TabsTrigger>
-            <TabsTrigger
-              value="schools"
-              className="flex-none flex items-center gap-2 px-4 py-2 whitespace-nowrap"
-            >
-              <GraduationCap className="h-4 w-4" />
-              <span>Schools & CSF</span>
-            </TabsTrigger>
-            <TabsTrigger
-              value="certificates"
-              className="flex-none flex items-center gap-2 px-4 py-2 whitespace-nowrap"
-            >
-              <Award className="h-4 w-4" />
-              <span>Certificates</span>
-            </TabsTrigger>
-            <TabsTrigger
-              value="data-export"
-              className="flex-none flex items-center gap-2 px-4 py-2 whitespace-nowrap"
-            >
-              <Download className="h-4 w-4" />
-              <span>Data Export</span>
-            </TabsTrigger>
-          </TabsList>
-        </div>
+          ))}
+        </TabsList>
 
         <TabsContent value="getting-started" className="space-y-6">
           <GettingStartedSection />
@@ -463,33 +425,22 @@ export default function HelpPage() {
         </TabsContent>
       </Tabs>
 
-      <div className="mt-12 text-center">
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center justify-center gap-2">
-              <HelpCircle className="h-5 w-5" />
-              Still Need Help?
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <p className="text-muted-foreground">
-              Can&apos;t find what you&apos;re looking for? We&apos;re here to
-              help!
-            </p>
-            <div className="flex flex-col sm:flex-row gap-3 justify-center">
-              <Link
-                href="/contact"
-                className={cn(buttonVariants({ variant: "outline" }))}
-              >
-                Contact Support
-              </Link>
-              {/* <Button variant="outline" asChild>
-                <Link href="/">Send Feedback</Link>
-              </Button> */}
-            </div>
-          </CardContent>
-        </Card>
-      </div>
+      <section className="mt-12 flex flex-col gap-4 border-t pt-6 sm:flex-row sm:items-center sm:justify-between">
+        <div className="grid gap-1">
+          <h2 className="font-medium">Still need help?</h2>
+          <p className="text-muted-foreground text-sm">
+            Can&apos;t find what you&apos;re looking for? We&apos;re here to
+            help!
+          </p>
+        </div>
+        <AnimatedLinkButton
+          href="/contact"
+          icon={MessageCircleIcon}
+          className="shrink-0"
+        >
+          Contact support
+        </AnimatedLinkButton>
+      </section>
     </div>
   );
 }

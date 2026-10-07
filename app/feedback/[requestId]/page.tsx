@@ -10,6 +10,11 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 
+import { NoticePage } from "@/components/projects/NoticePage";
+import { buttonVariants } from "@/components/ui/button-variants";
+import { CircleAlert } from "lucide-react";
+import Link from "next/link";
+
 import { FeedbackTokenClient } from "./FeedbackTokenClient";
 import { ExperienceFeedbackForm } from "@/components/feedback/ExperienceFeedbackForm";
 import { saveExperienceFeedbackWithToken } from "./actions";
@@ -21,16 +26,16 @@ export const metadata: Metadata = {
 
 function InvalidLink() {
   return (
-    <div className="container mx-auto flex min-h-[60vh] max-w-md items-center px-4">
-      <Card className="w-full">
-        <CardHeader>
-          <CardTitle>This link isn&apos;t valid anymore</CardTitle>
-          <CardDescription>
-            Feedback links expire after 30 days.
-          </CardDescription>
-        </CardHeader>
-      </Card>
-    </div>
+    <NoticePage
+      icon={<CircleAlert aria-hidden="true" />}
+      title="This link isn't valid anymore"
+      description="Feedback links expire after 30 days."
+      actions={
+        <Link href="/projects" className={buttonVariants()}>
+          Browse projects
+        </Link>
+      }
+    />
   );
 }
 
@@ -85,7 +90,7 @@ export default async function FeedbackTokenPage({
       .eq("project_request_id", requestId)
       .maybeSingle();
     return (
-      <main className="mx-auto flex min-h-[65vh] w-full max-w-md items-center px-4 py-10">
+      <main className="mx-auto flex min-h-[70vh] w-full max-w-md items-center px-4 py-12 sm:px-6">
         <Card className="w-full">
           <CardHeader>
             <CardTitle>How was using Let&apos;s Assist?</CardTitle>
@@ -127,7 +132,7 @@ export default async function FeedbackTokenPage({
   const preselected = Number.parseInt(rating ?? "", 10);
 
   return (
-    <div className="container mx-auto flex min-h-[60vh] max-w-md items-center px-4 py-10">
+    <main className="mx-auto flex min-h-[70vh] w-full max-w-md items-center px-4 py-12 sm:px-6">
       <Card className="w-full">
         <CardHeader>
           <CardTitle>How did volunteering go?</CardTitle>
@@ -148,6 +153,6 @@ export default async function FeedbackTokenPage({
           />
         </CardContent>
       </Card>
-    </div>
+    </main>
   );
 }

@@ -133,9 +133,7 @@ export default function FilePreview({
         <div
           className={cn(
             "flex-1 relative w-full h-full overflow-hidden bg-dot-pattern",
-            isPDF
-              ? "bg-slate-100 dark:bg-slate-900"
-              : "bg-neutral-50/50 dark:bg-neutral-900/50",
+            isPDF ? "bg-muted" : "bg-muted/50",
           )}
         >
           {loading && (

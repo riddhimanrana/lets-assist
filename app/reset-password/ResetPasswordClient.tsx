@@ -6,7 +6,7 @@ import { z } from "zod";
 import { requestPasswordReset } from "./actions";
 import { normalizeRedirectPath } from "@/app/signup/redirect-utils";
 import { passwordRecoveryPath } from "./continuation";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import {
   Card,
   CardContent,
@@ -95,10 +95,10 @@ export default function ResetPasswordClient({
 
   if (emailSent) {
     return (
-      <div className="flex items-center justify-center min-h-screen p-4">
-        <Card className="w-full max-w-sm mx-auto mb-12">
-          <CardHeader className="space-y-1">
-            <CardTitle className="text-2xl">Check your email</CardTitle>
+      <div className="flex min-h-[70vh] items-center justify-center px-4 py-12 sm:px-6">
+        <Card className="w-full max-w-sm">
+          <CardHeader>
+            <CardTitle className="text-lg">Check your email</CardTitle>
             <CardDescription>
               If an account exists with that email address, we&apos;ve sent
               password reset instructions.
@@ -109,19 +109,13 @@ export default function ResetPasswordClient({
               The email should arrive within a few minutes. Please check your
               spam folder if you don&apos;t see it.
             </p>
-            <div className="space-y-2">
-              <Button
-                variant="outline"
-                className="w-full"
-                onClick={() => setEmailSent(false)}
-              >
+            <div className="grid gap-2">
+              <Link href={loginPath} className={buttonVariants()}>
+                Back to login
+              </Link>
+              <Button variant="outline" onClick={() => setEmailSent(false)}>
                 Try another email
               </Button>
-              <Link href={loginPath}>
-                <Button variant="link" className="w-full">
-                  Back to login
-                </Button>
-              </Link>
             </div>
           </CardContent>
         </Card>
@@ -130,10 +124,10 @@ export default function ResetPasswordClient({
   }
 
   return (
-    <div className="flex items-center justify-center min-h-screen p-4">
-      <Card className="w-full max-w-sm mx-auto mb-12">
-        <CardHeader className="space-y-1">
-          <CardTitle className="text-2xl">Reset password</CardTitle>
+    <div className="flex min-h-[70vh] items-center justify-center px-4 py-12 sm:px-6">
+      <Card className="w-full max-w-sm">
+        <CardHeader>
+          <CardTitle className="text-lg">Reset password</CardTitle>
           <CardDescription>
             Enter your email address and we&apos;ll send you a link to reset
             your password.
@@ -169,8 +163,8 @@ export default function ResetPasswordClient({
               <SecureCheckPanel
                 phase={verification.phase}
                 onRetry={verification.retry}
-                className="w-75 rounded-lg border-border/50 bg-muted/30"
-                fallbackClassName="w-75 rounded-lg border-border/50 bg-muted/30"
+                className="w-75 rounded-lg"
+                fallbackClassName="w-75 rounded-lg"
               >
                 <TurnstileComponent
                   key={verification.widgetKey}
@@ -183,14 +177,17 @@ export default function ResetPasswordClient({
               </SecureCheckPanel>
             </div>
             <Button type="submit" className="w-full" disabled={isLoading}>
-              {isLoading ? "Sending Reset Link..." : "Send Reset Link"}
+              {isLoading ? "Sending reset link..." : "Send reset link"}
             </Button>
-            <div className="text-center text-sm">
+            <p className="text-muted-foreground text-center text-sm">
               Remember your password?{" "}
-              <Link href={loginPath} className="underline">
+              <Link
+                href={loginPath}
+                className="text-foreground underline underline-offset-4"
+              >
                 Sign in
               </Link>
-            </div>
+            </p>
           </form>
         </CardContent>
       </Card>

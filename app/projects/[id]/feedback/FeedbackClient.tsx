@@ -97,7 +97,7 @@ export function FeedbackClient({
               <span className="w-3 text-muted-foreground">{value}</span>
               <Star
                 aria-hidden="true"
-                className="size-3.5 fill-amber-400 text-amber-400"
+                className="size-3.5 fill-warning text-warning"
               />
               <Progress
                 aria-label={`${summary.distribution[value]} ${value}-star responses`}

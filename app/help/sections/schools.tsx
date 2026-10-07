@@ -57,7 +57,7 @@ export function SchoolsSection() {
             <CardContent>
               <Link
                 href="/organization"
-                className={cn(buttonVariants({ size: "sm" }))}
+                className={cn(buttonVariants({ variant: "outline" }))}
               >
                 Open organizations
               </Link>
@@ -250,7 +250,7 @@ export function SchoolsSection() {
           </p>
           <Link
             href="/organization/create"
-            className={cn(buttonVariants({ size: "sm", variant: "outline" }))}
+            className={cn(buttonVariants({ variant: "outline" }))}
           >
             Create an organization
           </Link>

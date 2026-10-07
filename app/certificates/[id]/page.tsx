@@ -191,7 +191,7 @@ export default async function VolunteerRecordPage({
         <CardBody
           className={`relative h-auto w-full max-w-3xl rounded-xl border border-border/40 ${
             isSelfReported
-              ? "bg-linear-to-br from-gray-50 via-gray-100/50 to-gray-200/30 dark:from-gray-800/20 dark:via-gray-700/10 dark:to-gray-600/20"
+              ? "bg-muted/40"
               : "bg-linear-to-br from-background via-background to-muted"
           }`}
         >
@@ -200,7 +200,7 @@ export default async function VolunteerRecordPage({
             translateZ={20}
             className={`w-full rounded-t-xl p-6 ${
               isSelfReported
-                ? "bg-linear-to-r from-gray-200/40 via-gray-100/30 to-gray-50/20 dark:from-gray-700/30 dark:via-gray-600/20 dark:to-gray-500/10"
+                ? "bg-muted"
                 : "bg-linear-to-r from-primary/10 via-primary/5 to-background"
             }`}
           >
@@ -233,7 +233,7 @@ export default async function VolunteerRecordPage({
                         {isSelfReported ? "Supervised by" : "Issued by"}
                       </span>
                       <User
-                        className={`h-4 w-4 ${isSelfReported ? "text-gray-600 dark:text-gray-400" : "text-primary"}`}
+                        className={`h-4 w-4 ${isSelfReported ? "text-muted-foreground" : "text-primary"}`}
                         aria-hidden="true"
                       />
                       {isSelfReported ? (
@@ -387,11 +387,8 @@ export default async function VolunteerRecordPage({
                     translateZ={50}
                     className="flex items-start gap-3 mt-6 group/item"
                   >
-                    <div
-                      className="h-10 w-10 rounded-lg bg-linear-to-br from-gray-200/60 to-gray-100/30 dark:from-gray-600/40 dark:to-gray-700/20
-                      flex items-center justify-center border border-gray-200/50 dark:border-gray-600/30 shrink-0"
-                    >
-                      <Clipboard className="h-5 w-5 text-gray-600 dark:text-gray-400" />
+                    <div className="bg-muted flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border">
+                      <Clipboard className="text-muted-foreground h-5 w-5" />
                     </div>
                     <div>
                       <p className="text-sm font-medium text-muted-foreground">

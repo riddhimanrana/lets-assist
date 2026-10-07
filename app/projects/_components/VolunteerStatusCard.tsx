@@ -5,6 +5,7 @@ import { parseISO, differenceInSeconds } from "date-fns";
 import { Project } from "@/types";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
+import { buttonVariants } from "@/components/ui/button-variants";
 import {
   getMultiDaySlotByScheduleId,
   getMultiDaySlotDisplayName,
@@ -29,7 +30,7 @@ export default function VolunteerStatusCard({
   if (project.event_type === "oneTime" && project.schedule.oneTime) {
     sessionDate = project.schedule.oneTime.date;
     endTime = project.schedule.oneTime.endTime;
-    sessionLabel = "Main Event";
+    sessionLabel = "Main event";
   } else if (project.event_type === "multiDay" && project.schedule.multiDay) {
     const slotData = getMultiDaySlotByScheduleId(project, scheduleId);
     if (slotData) {
@@ -76,33 +77,31 @@ export default function VolunteerStatusCard({
   }
 
   return (
-    <Card className="mb-6">
-      <CardHeader>
-        <CardTitle>Current Check-in Status</CardTitle>
-      </CardHeader>
-      <CardContent>
-        <p className="mb-2">
-          You are checked in to <strong>{project.title}</strong> ({sessionLabel}
-          ).
-        </p>
-        {/* Ensure Progress component receives a valid number */}
-        <Progress
-          value={percent}
-          className="h-4 mb-2"
-          aria-label="Session progress"
-        />
-        <p className="text-sm text-muted-foreground">
-          {percent}% of session completed
-        </p>
-        <div className="mt-4">
+    <main className="mx-auto flex min-h-[70vh] w-full max-w-md items-center px-4 py-12 sm:px-6">
+      <Card className="w-full">
+        <CardHeader>
+          <CardTitle>Current check-in status</CardTitle>
+        </CardHeader>
+        <CardContent className="grid gap-3">
+          <p>
+            You are checked in to <strong>{project.title}</strong> (
+            {sessionLabel}).
+          </p>
+          {/* Ensure Progress component receives a valid number */}
+          <div className="grid gap-1.5">
+            <Progress value={percent} aria-label="Session progress" />
+            <p className="text-muted-foreground text-sm tabular-nums">
+              {percent}% of session completed
+            </p>
+          </div>
           <Link
             href="/profile"
-            className="text-sm text-blue-600 hover:underline"
+            className={buttonVariants({ variant: "outline" })}
           >
-            View My Contributions
+            View my contributions
           </Link>
-        </div>
-      </CardContent>
-    </Card>
+        </CardContent>
+      </Card>
+    </main>
   );
 }

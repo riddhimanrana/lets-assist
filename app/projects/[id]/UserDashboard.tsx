@@ -594,14 +594,11 @@ export default function UserDashboard({
           // --- ADDED: New case for pending linked signups ---
           case "pendingLinked":
             return (
-              <Card
-                key={status.signup.id}
-                className="ring-blue-300/30 bg-blue-50/5"
-              >
+              <Card key={status.signup.id} className="ring-info/30">
                 <CardHeader className="pb-2">
                   <div className="flex items-center gap-3">
-                    <div className="bg-blue-100/20 p-2 rounded-full">
-                      <Mail className="h-5 w-5 text-blue-600" />
+                    <div className="bg-info/10 p-2 rounded-full">
+                      <Mail className="h-5 w-5 text-info" />
                     </div>
                     <div>
                       <CardTitle className="text-lg">
@@ -625,10 +622,10 @@ export default function UserDashboard({
                     </div>
                   </div>
                   {/* Information with visual timeline */}
-                  <div className="relative pl-6 border-blue-300/30 mt-3 space-y-3">
+                  <div className="relative pl-6 border-info/30 mt-3 space-y-3">
                     <div className="relative">
-                      <div className="absolute -left-7 top-0 size-5 rounded-full bg-blue-200/40 flex items-center justify-center">
-                        <div className="size-2 rounded-full bg-blue-600"></div>
+                      <div className="absolute -left-7 top-0 size-5 rounded-full bg-info/20 flex items-center justify-center">
+                        <div className="size-2 rounded-full bg-info"></div>
                       </div>
                       <p className="text-sm font-medium">How it got here</p>
                       <p className="text-xs text-muted-foreground">
@@ -639,8 +636,8 @@ export default function UserDashboard({
                     </div>
 
                     <div className="relative">
-                      <div className="absolute -left-7 top-0 size-5 rounded-full bg-blue-200/40 flex items-center justify-center">
-                        <div className="size-2 rounded-full bg-blue-600"></div>
+                      <div className="absolute -left-7 top-0 size-5 rounded-full bg-info/20 flex items-center justify-center">
+                        <div className="size-2 rounded-full bg-info"></div>
                       </div>
                       <p className="text-sm font-medium">What to expect</p>
                       <p className="text-xs text-muted-foreground">
@@ -651,8 +648,8 @@ export default function UserDashboard({
                     </div>
 
                     <div className="relative">
-                      <div className="absolute -left-7 top-0 size-5 rounded-full bg-blue-200/40 flex items-center justify-center">
-                        <div className="size-2 rounded-full bg-blue-600"></div>
+                      <div className="absolute -left-7 top-0 size-5 rounded-full bg-info/20 flex items-center justify-center">
+                        <div className="size-2 rounded-full bg-info"></div>
                       </div>
                       <p className="text-sm font-medium">Questions?</p>
                       <p className="text-xs text-muted-foreground">
@@ -663,8 +660,8 @@ export default function UserDashboard({
                   </div>
 
                   {/* Status badge */}
-                  <div className="mt-4 px-3 py-2 bg-blue-100/40 rounded-md border border-blue-200/50">
-                    <p className="text-xs font-medium text-blue-700">
+                  <div className="mt-4 px-3 py-2 bg-info/10 rounded-md border border-info/25">
+                    <p className="text-xs font-medium text-info">
                       Status:{" "}
                       <span className="font-semibold">
                         Pending Coordinator Review

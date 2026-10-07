@@ -7,7 +7,7 @@ import { ProjectFeedMobileFilters } from "./ProjectFeedMobileFilters";
 
 export function ProjectFeedFilters(props: ProjectFeedFilterProps) {
   return (
-    <div className="mb-8">
+    <div className="mb-6">
       <div className="w-full" data-tour-id="home-project-filters">
         <ProjectFeedMobileFilters {...props} />
         <ProjectFeedDesktopFilters {...props} />

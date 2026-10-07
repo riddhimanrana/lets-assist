@@ -1,19 +1,14 @@
 "use client";
 
-import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardFooter,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import { AlertCircle } from "lucide-react";
+import Link from "next/link";
+import { CircleAlert } from "lucide-react";
 import { useEffect, useState } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useSearchParams } from "next/navigation";
+
+import { NoticePage } from "@/components/projects/NoticePage";
+import { buttonVariants } from "@/components/ui/button-variants";
 
 export default function ErrorClient() {
-  const router = useRouter();
   const searchParams = useSearchParams();
   const [hashErrorDescription, setHashErrorDescription] = useState<
     string | null
@@ -35,25 +30,28 @@ export default function ErrorClient() {
     "There was a problem with the link.";
 
   return (
-    <div className="min-h-screen flex items-center justify-center">
-      <Card className="w-95">
-        <CardHeader className="text-center">
-          <CardTitle className="flex items-center justify-center gap-2 text-destructive">
-            <AlertCircle className="h-6 w-6" />
-            Authentication Error
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="text-center text-muted-foreground">
-          <p className="text-sm font-mono text-destructive mb-2">{message}</p>
-          <p>Please try again or contact support if the issue persists.</p>
-        </CardContent>
-        <CardFooter className="flex justify-center gap-2">
-          <Button variant="outline" onClick={() => router.push("/login")}>
-            Back to Login
-          </Button>
-          <Button onClick={() => router.push("/")}>Go to Home</Button>
-        </CardFooter>
-      </Card>
-    </div>
+    <NoticePage
+      icon={<CircleAlert aria-hidden="true" />}
+      tone="destructive"
+      title="Authentication error"
+      description="Please try again or contact support if the issue persists."
+      actions={
+        <>
+          <Link href="/login" className={buttonVariants()}>
+            Back to login
+          </Link>
+          <Link href="/" className={buttonVariants({ variant: "outline" })}>
+            Go to home
+          </Link>
+        </>
+      }
+    >
+      <p
+        className="bg-muted rounded-md px-3 py-2 text-sm wrap-break-word"
+        role="alert"
+      >
+        {message}
+      </p>
+    </NoticePage>
   );
 }

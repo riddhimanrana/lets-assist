@@ -34,7 +34,7 @@ export function OrganizationsSection() {
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Users className="h-5 w-5" />
-            Working with Organizations
+            Working with organizations
           </CardTitle>
           <CardDescription>
             Connect with volunteer organizations and manage team projects
@@ -49,7 +49,7 @@ export function OrganizationsSection() {
               </h4>
               <Accordion>
                 <AccordionItem value="join-org">
-                  <AccordionTrigger>Joining Organizations</AccordionTrigger>
+                  <AccordionTrigger>Joining organizations</AccordionTrigger>
                   <AccordionContent className="space-y-2 text-sm">
                     <ol className="list-decimal list-inside space-y-1">
                       <li>
@@ -63,7 +63,6 @@ export function OrganizationsSection() {
                       href="/organization"
                       className={cn(
                         buttonVariants({
-                          size: "sm",
                           variant: "outline",
                           className: "mt-2",
                         }),
@@ -81,7 +80,7 @@ export function OrganizationsSection() {
                   <AccordionContent className="space-y-3 text-sm">
                     <div className="space-y-2">
                       <h6 className="font-medium">
-                        Benefits of Organization Projects:
+                        Benefits of organization projects:
                       </h6>
                       <ul className="list-disc list-inside space-y-1 ml-2">
                         <li>
@@ -138,7 +137,7 @@ export function OrganizationsSection() {
                 </AccordionItem>
 
                 <AccordionItem value="verified-organizations">
-                  <AccordionTrigger>Verified Organizations</AccordionTrigger>
+                  <AccordionTrigger>Verified organizations</AccordionTrigger>
                   <AccordionContent className="space-y-3 text-sm">
                     <div className="space-y-2">
                       <p>
@@ -179,7 +178,7 @@ export function OrganizationsSection() {
               </h4>
               <Accordion>
                 <AccordionItem value="create-org">
-                  <AccordionTrigger>Creating Organizations</AccordionTrigger>
+                  <AccordionTrigger>Creating organizations</AccordionTrigger>
                   <AccordionContent className="space-y-2 text-sm">
                     <ol className="list-decimal list-inside space-y-1">
                       <li>Apply to create an organization account</li>
@@ -193,10 +192,13 @@ export function OrganizationsSection() {
                     <Link
                       href="/organization/create"
                       className={cn(
-                        buttonVariants({ size: "sm", className: "mt-2" }),
+                        buttonVariants({
+                          variant: "outline",
+                          className: "mt-2",
+                        }),
                       )}
                     >
-                      Create Organization
+                      Create organization
                     </Link>
                   </AccordionContent>
                 </AccordionItem>
@@ -208,7 +210,7 @@ export function OrganizationsSection() {
                   <AccordionContent className="space-y-3 text-sm">
                     <div className="space-y-3">
                       <div>
-                        <h6 className="font-medium mb-1">Member Management:</h6>
+                        <h6 className="font-medium mb-1">Member management:</h6>
                         <ul className="list-disc list-inside space-y-1 ml-2 text-xs">
                           <li>Review and approve volunteer applications</li>
                           <li>Assign roles (Member, Staff, Admin)</li>
@@ -218,7 +220,7 @@ export function OrganizationsSection() {
                         </ul>
                       </div>
                       <div>
-                        <h6 className="font-medium mb-1">Hour Verification:</h6>
+                        <h6 className="font-medium mb-1">Hour verification:</h6>
                         <ul className="list-disc list-inside space-y-1 ml-2 text-xs">
                           <li>Verify submitted volunteer hours</li>
                           <li>Bulk approve hours for events</li>
@@ -251,7 +253,7 @@ export function OrganizationsSection() {
                         <Download className="h-4 w-4 mt-1 text-primary" />
                         <div>
                           <h6 className="font-medium text-xs">
-                            Export Member Data
+                            Export member data
                           </h6>
                           <p className="text-xs text-muted-foreground">
                             Download CSV reports of member hours and
@@ -263,7 +265,7 @@ export function OrganizationsSection() {
                         <Settings className="h-4 w-4 mt-1 text-primary" />
                         <div>
                           <h6 className="font-medium text-xs">
-                            Organization Settings
+                            Organization settings
                           </h6>
                           <p className="text-xs text-muted-foreground">
                             Manage organization profile, verification, and
@@ -285,7 +287,7 @@ export function OrganizationsSection() {
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <FileSpreadsheet className="h-5 w-5" />
-            Organization Data Management
+            Organization data management
           </CardTitle>
           <CardDescription>
             Export member data, manage hours, and generate reports
@@ -305,7 +307,7 @@ export function OrganizationsSection() {
                 <div className="grid md:grid-cols-2 gap-4">
                   <div>
                     <h6 className="font-medium mb-2">
-                      From Organization Page:
+                      From organization page:
                     </h6>
                     <ol className="list-decimal list-inside space-y-1 text-xs">
                       <li>Go to your organization&apos;s page</li>
@@ -316,7 +318,7 @@ export function OrganizationsSection() {
                     </ol>
                   </div>
                   <div>
-                    <h6 className="font-medium mb-2">What&apos;s Included:</h6>
+                    <h6 className="font-medium mb-2">What&apos;s included:</h6>
                     <ul className="list-disc list-inside space-y-1 text-xs">
                       <li>Member names and usernames</li>
                       <li>Roles and join dates</li>
@@ -352,7 +354,7 @@ export function OrganizationsSection() {
                 </ol>
                 <div className="mt-3 p-3 bg-muted/50 rounded-lg">
                   <h6 className="font-medium text-xs mb-1">
-                    Available Actions:
+                    Available actions:
                   </h6>
                   <ul className="text-xs space-y-1">
                     <li>• View detailed hour logs and certificates</li>
@@ -374,7 +376,7 @@ export function OrganizationsSection() {
                 </p>
                 <div className="grid md:grid-cols-2 gap-4">
                   <div>
-                    <h6 className="font-medium mb-2">Overview Tab Metrics:</h6>
+                    <h6 className="font-medium mb-2">Overview tab metrics:</h6>
                     <ul className="list-disc list-inside space-y-1 text-xs">
                       <li>Total active members</li>
                       <li>Admin and staff counts</li>
@@ -384,7 +386,7 @@ export function OrganizationsSection() {
                     </ul>
                   </div>
                   <div>
-                    <h6 className="font-medium mb-2">Projects Tab Features:</h6>
+                    <h6 className="font-medium mb-2">Projects tab features:</h6>
                     <ul className="list-disc list-inside space-y-1 text-xs">
                       <li>View all organization projects</li>
                       <li>Filter by status and date</li>
