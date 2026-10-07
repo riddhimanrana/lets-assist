@@ -933,4 +933,8 @@ export const approvedMigrations = [
     "20261007220000_prepare_personal_calendar_disconnect",
     "fa734e21002b3fed8cee9c43137395844aa7dd4cf5cd6f09fa7513ee75633f68",
   ],
+  [
+    "20261007230000_project_client_read_columns",
+    "b2422616e826bcd85f9577757e19a0c6c0d6eb1fd2440c7a48284f8990fed42e",
+  ],
 ];

@@ -176,3 +176,18 @@ original exact ledger. All historical migration bytes remain unchanged.
 The fresh 456-file SQL suite passed 11,416 assertions at source `a6257a20`.
 The exact accepted catalog query returned one after transactional local-helper
 teardown; that transaction rolled back. Controller coverage passed 467 tests.
+
+Release 702 makes the three project review fields service-owned. Browser roles
+receive explicit access to the other 43 columns, and the legacy creator view
+loses browser access. The clean replay retains all 1,351 object identities and
+changes exactly the project relation, legacy view and client-grant catalog
+fingerprints. Existing row policies, authenticated deletion and service CRUD
+remain in place. Every prior migration file retains its original bytes.
+
+The fresh 457-file SQL suite passed 11,501 assertions on runtime source
+`09f6dc0a` with the test-only fixture correction integrated at `072dedf4`.
+All 15 following database, seed, contract and scale gates passed. The exact
+accepted catalog query returned one after transactional fixture-helper teardown;
+the transaction rolled back. Controller coverage passed 471 tests. Historical
+700 and 701 manifests remain accepted only for their exact ledgers. Hosted
+Development comparison and browser acceptance are separate release checks.
