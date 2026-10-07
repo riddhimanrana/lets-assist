@@ -36,6 +36,7 @@ This directory is the canonical documentation home for humans and coding agents.
 - [Plugin install and entitlement guide](development/plugin-install-guide.md)
 - [Signed plugin release integration](development/plugin-release-integration.md)
 - [Supabase deployment workflow](development/supabase-deployment.md)
+- [Database workload and retention plan](development/database-operations-plan.md)
 - [Production cutover runbook](development/production-cutover-runbook.md)
 - [Local fictional accounts](development/local-accounts.md)
 - [Member import parser setup](development/member-imports.md)
