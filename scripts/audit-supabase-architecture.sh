@@ -932,6 +932,7 @@ reviewed_service_rpc_drift="$(
         ('public.claim_account_data_export_jobs(integer)', true, 'v'),
         ('public.advance_account_data_export(uuid,uuid,text,jsonb)', true, 'v'),
         ('public.project_occupancy_for_visible_projects(uuid[],uuid,uuid)', false, 's'),
+        ('public.prepare_personal_calendar_disconnect(uuid,uuid,timestamp with time zone)', false, 'v'),
         ('public.preflight_account_deletion(uuid,uuid,text,boolean)', true, 's'),
         ('public.begin_account_deletion(uuid,uuid,text,boolean,text)', true, 'v'),
         ('public.claim_account_deletion_cleanup(uuid)', true, 'v'),
