@@ -36,12 +36,27 @@ let currentOrgRow: {
 let updateError: { message?: string } | null = null;
 let updateCalled = false;
 let uploadFails = false;
+let accountDeletionPending: boolean | null = false;
+let accountStatusError: { message: string } | null = null;
+let accountStatusCalls = 0;
+let referenceConflict = false;
+let revokeMembershipOnUpload = false;
+const updateFilters: Array<{
+  operator: "eq" | "is";
+  column: string;
+  value: unknown;
+}> = [];
 const imageCalls: string[] = [];
 let appliedUpdate: Record<string, unknown> | null = null;
 let existingUsernames = new Set<string>();
 
 function serverClient() {
   return {
+    rpc: async (name: string) => {
+      expect(name).toBe("account_deletion_pending");
+      accountStatusCalls += 1;
+      return { data: accountDeletionPending, error: accountStatusError };
+    },
     storage: {
       from: () => ({
         getPublicUrl: (key: string) => ({
@@ -51,6 +66,7 @@ function serverClient() {
         }),
         upload: async (key: string) => {
           imageCalls.push(`upload:${key}`);
+          if (revokeMembershipOnUpload) isOrgAdmin = false;
           return {
             error: uploadFails ? new Error("Synthetic storage failure") : null,
           };
@@ -141,13 +157,19 @@ function adminClient() {
             appliedUpdate = patch;
             imageCalls.push("commit");
             return {
-              data: updateError ? null : { id: "org-1" },
+              data: updateError || referenceConflict ? null : { id: "org-1" },
               error: updateError,
             };
           };
           const query = {
-            eq: () => query,
-            is: () => query,
+            eq: (column: string, value: unknown) => {
+              updateFilters.push({ operator: "eq", column, value });
+              return query;
+            },
+            is: (column: string, value: unknown) => {
+              updateFilters.push({ operator: "is", column, value });
+              return query;
+            },
             select: () => query,
             maybeSingle: async () => settle(),
             then: (resolve: (value: unknown) => unknown) =>
@@ -191,6 +213,12 @@ beforeEach(() => {
   updateError = null;
   updateCalled = false;
   uploadFails = false;
+  accountDeletionPending = false;
+  accountStatusError = null;
+  accountStatusCalls = 0;
+  referenceConflict = false;
+  revokeMembershipOnUpload = false;
+  updateFilters.length = 0;
   imageCalls.length = 0;
   appliedUpdate = null;
   existingUsernames = new Set();
@@ -319,6 +347,56 @@ describe("updateOrganization reserved-slug enforcement", () => {
   });
 });
 
+describe("organization update account-deletion guard", () => {
+  test.each([true, null])(
+    "refuses an account without a confirmed active status: %s",
+    async (status) => {
+      accountDeletionPending = status;
+      expect(
+        await updateOrganization({
+          ...baseUpdateData,
+          username: "acme-nonprofit",
+        }),
+      ).toEqual({
+        error: "You must be logged in to update an organization",
+      });
+      expect(accountStatusCalls).toBe(1);
+      expect(updateCalled).toBe(false);
+      expect(imageCalls).toEqual([]);
+    },
+  );
+
+  test("a failed account-status lookup cannot authorize an update", async () => {
+    accountStatusError = { message: "Synthetic account-status failure" };
+    expect(
+      await updateOrganization({
+        ...baseUpdateData,
+        username: "acme-nonprofit",
+      }),
+    ).toEqual({
+      error: "You must be logged in to update an organization",
+    });
+    expect(accountStatusCalls).toBe(1);
+    expect(updateCalled).toBe(false);
+    expect(imageCalls).toEqual([]);
+  });
+
+  test("an unauthenticated caller cannot query account status or write", async () => {
+    claims = null;
+    expect(
+      await updateOrganization({
+        ...baseUpdateData,
+        username: "acme-nonprofit",
+      }),
+    ).toEqual({
+      error: "You must be logged in to update an organization",
+    });
+    expect(accountStatusCalls).toBe(0);
+    expect(updateCalled).toBe(false);
+    expect(imageCalls).toEqual([]);
+  });
+});
+
 describe("organization logo replacement", () => {
   const id = "11111111-1111-4111-8111-111111111111";
   const oldKey = `${id}.png`;
@@ -343,6 +421,10 @@ describe("organization logo replacement", () => {
     expect(imageCalls[1]).toBe("commit");
     expect(imageCalls[2]).toBe(`remove:${oldKey}`);
     expect(appliedUpdate?.logo_url).toMatch(/\.webp$/);
+    expect(updateFilters).toEqual([
+      { operator: "eq", column: "id", value: id },
+      { operator: "eq", column: "logo_url", value: currentOrgRow!.logo_url },
+    ]);
   });
   test("storage refusal leaves the organization reference and prior logo alone", async () => {
     uploadFails = true;
@@ -356,5 +438,36 @@ describe("organization logo replacement", () => {
     const result = await updateOrganization(await input());
     expect(result.error).toBeString();
     expect(imageCalls).toHaveLength(2);
+  });
+  test("a competing reference update removes only this request's candidate", async () => {
+    referenceConflict = true;
+    const result = await updateOrganization(await input());
+    expect(result.error).toBe(
+      "The image changed while you were editing. Refresh before trying again.",
+    );
+    const uploadedKey = imageCalls[0].slice("upload:".length);
+    expect(imageCalls).toEqual([
+      `upload:${uploadedKey}`,
+      "commit",
+      `remove:${uploadedKey}`,
+    ]);
+    expect(uploadedKey).not.toBe(oldKey);
+    expect(updateFilters).toContainEqual({
+      operator: "eq",
+      column: "logo_url",
+      value: currentOrgRow!.logo_url,
+    });
+  });
+  test("membership revoked during upload prevents the reference commit", async () => {
+    revokeMembershipOnUpload = true;
+    const result = await updateOrganization(await input());
+    expect(result.error).toBeString();
+    const uploadedKey = imageCalls[0].slice("upload:".length);
+    expect(imageCalls).toEqual([
+      `upload:${uploadedKey}`,
+      `remove:${uploadedKey}`,
+    ]);
+    expect(updateCalled).toBe(false);
+    expect(updateFilters).toEqual([]);
   });
 });
