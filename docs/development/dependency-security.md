@@ -88,6 +88,14 @@ new literal imports of the affected glob packages or their reviewed importers.
 This check supplements the reviewed dependency paths; it is not a general proof
 that arbitrary computed imports or future transitive inputs are safe.
 
+The logging privacy rule changed the root ESLint fingerprint. The reviewed
+change adds only repository-owned literal file patterns for runtime modules and
+test exclusions, plus rules that reject direct console access. It does not add a
+request, environment variable, or user-controlled pattern. The updated
+fingerprint keeps the same dependency versions, graph inventory, expiry, and
+operator-input restriction. Private application configuration still requires
+its own review when the private gitlink advances.
+
 On October 7, 2026, provider metadata readback covered all 119 root Vercel
 environment records and all 6 private application records. Neither project had
 `VC_MICROFRONTENDS_CONFIG_FILE_NAME`. No values were printed or saved. The gate
