@@ -1,0 +1,49 @@
+"use client";
+
+import dynamic from "next/dynamic";
+
+const BayAreaExamples = dynamic(() => import("./_components/BayAreaExamples"), {
+  loading: () => null,
+  ssr: false,
+});
+const ComparisonSection = dynamic(
+  () => import("./_components/ComparisonSection"),
+  { loading: () => null, ssr: false },
+);
+const VolunteerJourneySection = dynamic(
+  () => import("./_components/VolunteerJourneySection"),
+  { loading: () => null, ssr: false },
+);
+const OrgToolingSection = dynamic(
+  () => import("./_components/OrgToolingSection"),
+  {
+    loading: () => null,
+    ssr: false,
+  },
+);
+const TestimonialsSection = dynamic(
+  () => import("./_components/TestimonialsSection"),
+  { loading: () => null, ssr: false },
+);
+const RealCheckIn = dynamic(
+  () => import("./_components/RealCheckIn").then((mod) => mod.RealCheckIn),
+  { loading: () => null, ssr: false },
+);
+const GetStarted = dynamic(
+  () => import("./_components/GetStarted").then((mod) => mod.GetStarted),
+  { loading: () => null, ssr: false },
+);
+
+export function LandingLazySections() {
+  return (
+    <>
+      <BayAreaExamples />
+      <ComparisonSection />
+      <RealCheckIn />
+      <VolunteerJourneySection />
+      <OrgToolingSection />
+      <TestimonialsSection />
+      <GetStarted />
+    </>
+  );
+}

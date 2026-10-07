@@ -7,7 +7,7 @@ const DEMO_VIDEO_URL = "https://www.youtube.com/watch?v=0Smto1UOqTY";
 
 export function GetStarted() {
   return (
-    <section id="cta" className="bg-background py-16 sm:py-24">
+    <section id="cta" className="border-t bg-muted/30 py-16 sm:py-24">
       <div className="container mx-auto max-w-6xl px-4 sm:px-6">
         <div className="grid gap-6 md:grid-cols-2">
           <div className="rounded-3xl border bg-card p-8 sm:p-10">
@@ -66,7 +66,7 @@ export function GetStarted() {
             rel="noreferrer"
             className="font-medium text-foreground underline underline-offset-4"
           >
-            Watch the two-minute demo
+            Watch the demo video
           </a>
         </p>
       </div>
