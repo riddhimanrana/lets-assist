@@ -228,6 +228,7 @@ export default function OrganizationCreator({ userId }: { userId: string }) {
       }
 
       toast.success("Organization created successfully!");
+      if (result.logoWarning) toast.warning(result.logoWarning);
       router.push(`/organization/${data.username}`);
     } catch (error) {
       console.error("Error creating organization:", error);

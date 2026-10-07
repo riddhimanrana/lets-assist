@@ -541,7 +541,7 @@ describe("guest confirmation delivery status", () => {
     "definitive_failure",
     "retryable_pre_send",
     "unknown_outcome",
-  ]) {
+  ] as const) {
     test(`saved signup reports ${outcome} without discarding the signup`, async () => {
       emailOutcome = outcome;
       rpcHandlers.insert_project_signup_with_waiver = () => ({

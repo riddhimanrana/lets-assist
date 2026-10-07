@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, mock, test } from "bun:test";
+import sharp from "sharp";
 
 mock.module("server-only", () => ({}));
 mock.module("next/cache", () => ({ revalidatePath: () => {} }));
@@ -34,11 +35,32 @@ let currentOrgRow: {
 };
 let updateError: { message?: string } | null = null;
 let updateCalled = false;
+let uploadFails = false;
+const imageCalls: string[] = [];
 let appliedUpdate: Record<string, unknown> | null = null;
 let existingUsernames = new Set<string>();
 
 function serverClient() {
   return {
+    storage: {
+      from: () => ({
+        getPublicUrl: (key: string) => ({
+          data: {
+            publicUrl: `https://storage.example.test/storage/v1/object/public/organization-logos/${key}`,
+          },
+        }),
+        upload: async (key: string) => {
+          imageCalls.push(`upload:${key}`);
+          return {
+            error: uploadFails ? new Error("Synthetic storage failure") : null,
+          };
+        },
+        remove: async (keys: string[]) => {
+          imageCalls.push(`remove:${keys.join()}`);
+          return { error: null };
+        },
+      }),
+    },
     auth: {
       getClaims: async () => ({
         data: claims ? { claims: { sub: claims.sub } } : null,
@@ -113,13 +135,26 @@ function adminClient() {
             single: async () => ({ data: currentOrgRow, error: null }),
           }),
         }),
-        update: (patch: Record<string, unknown>) => ({
-          eq: async () => {
+        update: (patch: Record<string, unknown>) => {
+          const settle = () => {
             updateCalled = true;
             appliedUpdate = patch;
-            return { error: updateError };
-          },
-        }),
+            imageCalls.push("commit");
+            return {
+              data: updateError ? null : { id: "org-1" },
+              error: updateError,
+            };
+          };
+          const query = {
+            eq: () => query,
+            is: () => query,
+            select: () => query,
+            maybeSingle: async () => settle(),
+            then: (resolve: (value: unknown) => unknown) =>
+              Promise.resolve(settle()).then(resolve),
+          };
+          return query;
+        },
       };
     },
   };
@@ -155,6 +190,8 @@ beforeEach(() => {
   };
   updateError = null;
   updateCalled = false;
+  uploadFails = false;
+  imageCalls.length = 0;
   appliedUpdate = null;
   existingUsernames = new Set();
 });
@@ -279,5 +316,45 @@ describe("updateOrganization reserved-slug enforcement", () => {
       error: "Only admins can update organization details",
     });
     expect(updateCalled).toBe(false);
+  });
+});
+
+describe("organization logo replacement", () => {
+  const id = "11111111-1111-4111-8111-111111111111";
+  const oldKey = `${id}.png`;
+  async function input() {
+    currentOrgRow!.logo_url = `https://storage.example.test/storage/v1/object/public/organization-logos/${oldKey}`;
+    const image = await sharp({
+      create: { width: 2, height: 2, channels: 3, background: "red" },
+    })
+      .png()
+      .toBuffer();
+    return {
+      ...baseUpdateData,
+      id,
+      username: "acme-nonprofit",
+      logoUrl: `data:image/png;base64,${image.toString("base64")}`,
+    };
+  }
+  test("saves an immutable logo before retiring the custom-origin predecessor", async () => {
+    const result = await updateOrganization(await input());
+    expect(result).toEqual({ success: true });
+    expect(imageCalls[0]).toStartWith(`upload:${id}.`);
+    expect(imageCalls[1]).toBe("commit");
+    expect(imageCalls[2]).toBe(`remove:${oldKey}`);
+    expect(appliedUpdate?.logo_url).toMatch(/\.webp$/);
+  });
+  test("storage refusal leaves the organization reference and prior logo alone", async () => {
+    uploadFails = true;
+    const result = await updateOrganization(await input());
+    expect(result.error).toBeString();
+    expect(updateCalled).toBe(false);
+    expect(imageCalls).toHaveLength(1);
+  });
+  test("uncertain reference commit never deletes the predecessor or candidate", async () => {
+    updateError = { message: "Synthetic database failure" };
+    const result = await updateOrganization(await input());
+    expect(result.error).toBeString();
+    expect(imageCalls).toHaveLength(2);
   });
 });

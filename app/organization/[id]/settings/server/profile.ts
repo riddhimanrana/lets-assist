@@ -1,6 +1,11 @@
 "use server";
 
 import "server-only";
+import { preparePublicImage } from "@/lib/storage/public-image";
+import {
+  replacePublicImage,
+  type ImageReferenceCommit,
+} from "@/lib/storage/replace-public-image";
 
 import { createClient } from "@/lib/supabase/server";
 import { getAuthUser } from "@/lib/supabase/auth-helpers";
@@ -13,16 +18,6 @@ import {
 } from "@/lib/organization/reserved-slugs";
 import { validateOrganizationUsername } from "@/lib/organization/username";
 import { hasActiveOrganizationAdminMembership } from "@/lib/organization/active-membership";
-
-const ALLOWED_FILE_TYPES = [
-  "image/jpeg",
-  "image/jpg",
-  "image/png",
-  "image/webp",
-];
-
-// Max file size (5MB)
-const MAX_FILE_SIZE = 5 * 1024 * 1024;
 
 type OrganizationUpdateData = {
   id: string;
@@ -123,7 +118,7 @@ export async function updateOrganization(data: OrganizationUpdateData) {
   }
 
   try {
-    let logoUrl = currentOrg.logo_url;
+    let cleanupPending = false;
     const autoJoinDomain: string | null = currentOrg.auto_join_domain;
 
     if (data.autoJoinDomain) {
@@ -152,122 +147,73 @@ export async function updateOrganization(data: OrganizationUpdateData) {
       };
     }
 
-    // Handle logo update
-    if (data.logoUrl !== undefined) {
-      // Case: Logo was explicitly set to null - remove the current logo
-      if (data.logoUrl === null) {
-        logoUrl = null;
-
-        // If there was a previous logo, delete it from storage
-        if (currentOrg.logo_url) {
-          try {
-            const fileName = currentOrg.logo_url.split("/").pop();
-            if (fileName) {
-              await supabase.storage
-                .from("organization-logos")
-                .remove([fileName]);
-            }
-          } catch (error) {
-            console.error("Error removing old logo:", error);
-            // Continue even if logo deletion fails
-          }
-        }
+    const fields = {
+      name: data.name,
+      username: data.username,
+      description: data.description || null,
+      website: data.website || null,
+      type: data.type,
+      auto_join_domain: autoJoinDomain,
+      show_members_publicly: data.showMembersPublicly !== false,
+    };
+    const commit = async (
+      url: string | null,
+    ): Promise<ImageReferenceCommit> => {
+      if (
+        !(await hasActiveOrganizationAdminMembership(admin, data.id, user.id))
+      )
+        return "refused";
+      let query = admin
+        .from("organizations")
+        .update({ ...fields, logo_url: url })
+        .eq("id", data.id);
+      query =
+        currentOrg.logo_url === null
+          ? query.is("logo_url", null)
+          : query.eq("logo_url", currentOrg.logo_url);
+      const { data: changed, error } = await query.select("id").maybeSingle();
+      return error ? "unknown" : changed ? "committed" : "refused";
+    };
+    if (data.logoUrl !== undefined && data.logoUrl !== currentOrg.logo_url) {
+      const image = data.logoUrl
+        ? await preparePublicImage(data.logoUrl)
+        : null;
+      const replaced = await replacePublicImage({
+        bucket: "organization-logos",
+        ownerId: data.id,
+        previousUrl: currentOrg.logo_url,
+        image,
+        storage: supabase.storage.from("organization-logos"),
+        commit,
+      });
+      if (!replaced.success) return { error: replaced.error };
+      cleanupPending = replaced.cleanupPending;
+    } else {
+      if (
+        !(await hasActiveOrganizationAdminMembership(admin, data.id, user.id))
+      ) {
+        return { error: "Only admins can update organization details" };
       }
-      // Case: New logo provided
-      else if (data.logoUrl && data.logoUrl.startsWith("data:")) {
-        // Extract the MIME type and verify it's allowed
-        const mimeType = data.logoUrl.split(";")[0].split(":")[1];
-
-        if (!ALLOWED_FILE_TYPES.includes(mimeType)) {
-          return { error: "Invalid file type. Allowed types: JPEG, PNG, WebP" };
-        }
-
-        // Extract the base64 content and determine file extension
-        const base64Data = data.logoUrl.split(",")[1];
-
-        // Size check
-        const approxFileSize = base64Data.length * 0.75;
-        if (approxFileSize > MAX_FILE_SIZE) {
-          return { error: "File size exceeds the 5MB limit" };
-        }
-
-        // Determine file extension from MIME type
-        let fileExt;
-        if (mimeType === "image/jpeg" || mimeType === "image/jpg") {
-          fileExt = "jpg";
-        } else if (mimeType === "image/png") {
-          fileExt = "png";
-        } else if (mimeType === "image/webp") {
-          fileExt = "webp";
-        } else {
-          fileExt = "jpg";
-        }
-
-        // File name based on organization ID
-        const fileName = `${data.id}.${fileExt}`;
-
-        // Delete previous logo if it exists
-        if (currentOrg.logo_url) {
-          try {
-            const oldFileName = currentOrg.logo_url.split("/").pop();
-            if (oldFileName) {
-              await supabase.storage
-                .from("organization-logos")
-                .remove([oldFileName]);
-            }
-          } catch (error) {
-            console.error("Error removing old logo:", error);
-            // Continue even if logo deletion fails
-          }
-        }
-
-        // Upload new logo
-        const { error: uploadError } = await supabase.storage
-          .from("organization-logos")
-          .upload(fileName, Buffer.from(base64Data, "base64"), {
-            contentType: mimeType,
-            upsert: false,
-          });
-
-        if (uploadError) throw uploadError;
-
-        // Get public URL for the uploaded image
-        const { data: publicUrlData } = supabase.storage
-          .from("organization-logos")
-          .getPublicUrl(fileName);
-
-        logoUrl = publicUrlData.publicUrl;
-      }
+      const { error } = await admin
+        .from("organizations")
+        .update(fields)
+        .eq("id", data.id);
+      if (error)
+        return {
+          error:
+            "The organization update could not be confirmed. Refresh before trying again.",
+        };
     }
-
-    // Update the organization
-    if (
-      !(await hasActiveOrganizationAdminMembership(admin, data.id, user.id))
-    ) {
-      return { error: "Only admins can update organization details" };
-    }
-    const { error: updateError } = await admin
-      .from("organizations")
-      .update({
-        name: data.name,
-        username: data.username,
-        description: data.description || null,
-        website: data.website || null,
-        type: data.type,
-        logo_url: logoUrl,
-        auto_join_domain: autoJoinDomain,
-        show_members_publicly: data.showMembersPublicly !== false,
-      })
-      .eq("id", data.id);
-
-    if (updateError) throw updateError;
 
     // Revalidate paths
     revalidatePath(`/organization/${currentOrg.username}`);
     revalidatePath(`/organization/${data.username}`);
     revalidatePath("/organization");
 
-    return { success: true };
+    return {
+      success: true,
+      ...(cleanupPending ? { cleanupPending: true } : {}),
+    };
   } catch (error) {
     console.error("Error updating organization:", error);
     return {

@@ -1,5 +1,11 @@
 "use server";
 
+import { preparePublicImage } from "@/lib/storage/public-image";
+import {
+  replacePublicImage,
+  type ImageReferenceCommit,
+} from "@/lib/storage/replace-public-image";
+
 import { createClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
 import { customAlphabet } from "nanoid";
@@ -27,17 +33,6 @@ function isJoinCodeCollision(
     error.message?.includes("organizations_join_code_unique_idx"),
   );
 }
-
-// Allowed image MIME types
-const ALLOWED_FILE_TYPES = [
-  "image/jpeg",
-  "image/jpg",
-  "image/png",
-  "image/webp",
-];
-
-// Max file size (5MB)
-const MAX_FILE_SIZE = 5 * 1024 * 1024;
 
 type OrganizationCreationData = {
   name: string;
@@ -221,73 +216,35 @@ export async function createOrganization(data: OrganizationCreationData) {
       throw memberError;
     }
 
-    let logoUrl = null;
-
-    // 3. Process the logo upload AFTER the organization admin is added
-    if (data.logoUrl && data.logoUrl.startsWith("data:")) {
+    let logoUrl: string | null = null;
+    let logoWarning: string | undefined;
+    if (data.logoUrl) {
       try {
-        // Extract the MIME type and verify it's allowed
-        const mimeType = data.logoUrl.split(";")[0].split(":")[1];
-
-        if (!ALLOWED_FILE_TYPES.includes(mimeType)) {
-          console.warn(`Invalid file type: ${mimeType}. Skipping logo upload.`);
-          throw new Error(`Invalid file type. Allowed types: JPEG, PNG, WebP`);
-        }
-
-        // Extract the base64 content and determine file extension
-        const base64Data = data.logoUrl.split(",")[1];
-
-        // Size check (approximate check for base64)
-        const approxFileSize = base64Data.length * 0.75;
-        if (approxFileSize > MAX_FILE_SIZE) {
-          throw new Error(`File size exceeds the 5MB limit`);
-        }
-
-        let fileExt;
-        if (mimeType === "image/jpeg" || mimeType === "image/jpg") {
-          fileExt = "jpg";
-        } else if (mimeType === "image/png") {
-          fileExt = "png";
-        } else if (mimeType === "image/webp") {
-          fileExt = "webp";
-        } else {
-          fileExt = "jpg";
-        }
-
-        // Create a clean filename using organization id and extension
-        const fileName = `${organization.id}.${fileExt}`;
-
-        // Upload to Supabase storage (ensure the 'organization-logos' bucket exists)
-        const { error: uploadError } = await supabase.storage
-          .from("organization-logos")
-          .upload(fileName, Buffer.from(base64Data, "base64"), {
-            contentType: mimeType,
-            upsert: false,
-          });
-
-        if (uploadError) throw uploadError;
-
-        // Get the public URL for the uploaded image
-        const { data: publicUrlData } = supabase.storage
-          .from("organization-logos")
-          .getPublicUrl(fileName);
-
-        logoUrl = publicUrlData.publicUrl;
-        if (!logoUrl) {
-          throw new Error("Failed to get public URL for the uploaded logo");
-        }
-        console.log("Logo uploaded successfully:", logoUrl);
-
-        // Update the organization with the new logo URL
-        await supabase
-          .from("organizations")
-          .update({ logo_url: logoUrl })
-          .eq("id", organization.id)
-          .select("logo_url")
-          .single();
-      } catch (error) {
-        console.error("Error updating organization logo:", error);
-        // Continue without interrupting organization creation if logo upload fails.
+        const image = await preparePublicImage(data.logoUrl);
+        const replaced = await replacePublicImage({
+          bucket: "organization-logos",
+          ownerId: organization.id,
+          previousUrl: null,
+          image,
+          storage: supabase.storage.from("organization-logos"),
+          commit: async (url): Promise<ImageReferenceCommit> => {
+            const { data: changed, error } = await supabase
+              .from("organizations")
+              .update({ logo_url: url })
+              .eq("id", organization.id)
+              .is("logo_url", null)
+              .select("id")
+              .maybeSingle();
+            return error ? "unknown" : changed ? "committed" : "refused";
+          },
+        });
+        if (replaced.success) logoUrl = replaced.url;
+        else
+          logoWarning =
+            "Your organization was created, but its logo update could not be confirmed. Refresh before trying again.";
+      } catch {
+        logoWarning =
+          "Your organization was created without a logo. Choose a valid JPEG, PNG, or WebP in settings.";
       }
     }
 
@@ -299,6 +256,7 @@ export async function createOrganization(data: OrganizationCreationData) {
       success: true,
       organizationId: organization.id,
       logoUrl,
+      logoWarning,
     };
   } catch (error) {
     console.error("Error creating organization:", error);

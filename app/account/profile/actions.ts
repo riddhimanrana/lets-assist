@@ -1,6 +1,12 @@
 "use server";
 
 import { z } from "zod";
+import { preparePublicImage } from "@/lib/storage/public-image";
+import {
+  replacePublicImage,
+  type ImageReferenceCommit,
+} from "@/lib/storage/replace-public-image";
+
 import { createClient } from "@/lib/supabase/server";
 import { checkOffensiveLanguage } from "@/utils/moderation-helpers";
 import { ProfileVisibility } from "@/types";
@@ -226,82 +232,72 @@ export async function completeOnboarding(formData: FormData) {
   if (validUsername !== undefined)
     updateFields.username = validUsername.trim().toLowerCase();
 
-  // Only process avatarUrl if it was explicitly included in the form data
-  let metadataAvatarUrl: string | null | undefined = undefined;
+  let metadataAvatarUrl: string | null | undefined;
+  let profileUpdated = false;
+  let cleanupPending = false;
+  updateFields.updated_at = new Date().toISOString();
 
   if (avatarUrlValue !== null && validAvatarUrl !== undefined) {
-    // Process avatar URL only if explicitly included in the form
-    if (
-      validAvatarUrl &&
-      typeof validAvatarUrl === "string" &&
-      validAvatarUrl.startsWith("data:image")
-    ) {
-      // First, get the current avatar URL to check if we need to delete an old image
-      const { data: profile } = (await supabase
-        .from("profiles")
-        .select("avatar_url")
-        .eq("id", userId)
-        .single()) as { data: { avatar_url?: string | null } | null };
-
-      // Delete old image if it exists and is from Supabase storage
-      if (profile?.avatar_url?.includes("supabase.co")) {
-        // note: when and if i use a custom supabase domain we need to change this
+    const { data: profile, error: profileError } = await supabase
+      .from("profiles")
+      .select("avatar_url")
+      .eq("id", userId)
+      .single();
+    if (profileError || !profile)
+      return {
+        error: { server: ["Unable to read the current profile image"] },
+      };
+    const previousUrl: string | null = profile.avatar_url ?? null;
+    metadataAvatarUrl = previousUrl;
+    if (validAvatarUrl !== previousUrl) {
+      let image: Buffer | null = null;
+      if (validAvatarUrl) {
         try {
-          const urlParts = new URL(profile.avatar_url);
-          const pathParts = urlParts.pathname.split("/");
-          const oldFileName = pathParts[pathParts.length - 1];
-
-          if (oldFileName) {
-            await supabase.storage.from("avatars").remove([oldFileName]);
-          }
+          image = await preparePublicImage(validAvatarUrl);
         } catch (error) {
-          console.error("Error deleting old avatar:", error);
-          // Continue with upload even if delete fails
+          return {
+            error: {
+              avatarUrl: [
+                error instanceof Error ? error.message : "Invalid image",
+              ],
+            },
+          };
         }
       }
-
-      // Handle base64 image upload
-      const base64Str = validAvatarUrl.split(",")[1];
-      const buffer = Buffer.from(base64Str, "base64");
-      const fileName = `${userId}-${Date.now()}.jpg`;
-
-      const { error: uploadError } = await supabase.storage
-        .from("avatars")
-        .upload(fileName, buffer, {
-          contentType: "image/jpeg",
-          upsert: false,
-          cacheControl: "0",
-        });
-
-      if (uploadError) {
-        console.log(uploadError);
-        return { error: { avatarUrl: ["Failed to upload avatar"] } };
-      }
-
-      const { data: publicUrlData } = supabase.storage
-        .from("avatars")
-        .getPublicUrl(fileName);
-
-      const timestamp = Date.now();
-      metadataAvatarUrl = `${publicUrlData.publicUrl}?v=${timestamp}`;
-      updateFields.avatar_url = metadataAvatarUrl;
-    } else {
-      // If avatarUrl was included but null or empty, set avatar_url to null
-      updateFields.avatar_url = null;
-      metadataAvatarUrl = null;
+      const replaced = await replacePublicImage({
+        bucket: "avatars",
+        ownerId: userId,
+        previousUrl,
+        image,
+        storage: supabase.storage.from("avatars"),
+        commit: async (url): Promise<ImageReferenceCommit> => {
+          let query = supabase
+            .from("profiles")
+            .update({ ...updateFields, avatar_url: url })
+            .eq("id", userId);
+          query =
+            previousUrl === null
+              ? query.is("avatar_url", null)
+              : query.eq("avatar_url", previousUrl);
+          const { data: changed, error } = await query
+            .select("id")
+            .maybeSingle();
+          return error ? "unknown" : changed ? "committed" : "refused";
+        },
+      });
+      if (!replaced.success) return { error: { avatarUrl: [replaced.error] } };
+      profileUpdated = true;
+      metadataAvatarUrl = replaced.url;
+      cleanupPending = replaced.cleanupPending;
     }
   }
 
-  updateFields.updated_at = new Date().toISOString();
-
-  const { error: updateError } = (await supabase
-    .from("profiles")
-    .update(updateFields)
-    .eq("id", userId)) as { error: { message?: string } | null };
-
-  if (updateError) {
-    console.log(updateError);
-    return { error: { server: ["Failed to update profile"] } };
+  if (!profileUpdated) {
+    const { error: updateError } = await supabase
+      .from("profiles")
+      .update(updateFields)
+      .eq("id", userId);
+    if (updateError) return { error: { server: ["Failed to update profile"] } };
   }
 
   if (metadataAvatarUrl !== undefined) {
@@ -319,7 +315,7 @@ export async function completeOnboarding(formData: FormData) {
       return { error: { server: ["Failed to update user metadata"] } };
     }
   }
-  return { success: true };
+  return { success: true, ...(cleanupPending ? { cleanupPending: true } : {}) };
 }
 
 export async function checkUsernameUnique(username: string) {
@@ -351,77 +347,9 @@ export async function checkUsernameUnique(username: string) {
 }
 
 export async function removeProfilePicture() {
-  const { supabase, user } = await ensureProfileExists();
-
-  if (!user) {
-    return { error: { server: ["Not authenticated"] } };
-  }
-
-  // Get the current avatar URL to extract filename
-  const { data: profile } = (await supabase
-    .from("profiles")
-    .select("avatar_url")
-    .eq("id", user.id)
-    .single()) as { data: { avatar_url?: string | null } | null };
-
-  if (profile?.avatar_url && profile.avatar_url.includes("supabase.co")) {
-    // note: when and if i use a custom supabase domain we need to change this
-    try {
-      // Extract filename from the full URL
-      const urlParts = new URL(profile.avatar_url);
-      const pathParts = urlParts.pathname.split("/");
-      const fileName = pathParts[pathParts.length - 1];
-
-      if (fileName) {
-        // Delete the file from storage
-        const { error: deleteError } = await supabase.storage
-          .from("avatars")
-          .remove([fileName]);
-        if (deleteError) {
-          console.error(
-            "removeProfilePicture: Error deleting file:",
-            deleteError,
-          );
-          return { error: { server: ["Failed to delete avatar file"] } };
-        }
-      }
-    } catch (error) {
-      console.error("removeProfilePicture: Error parsing avatar URL:", error);
-      return { error: { server: ["Failed to delete avatar file"] } };
-    }
-  }
-
-  // Update profile to remove avatar_url
-  const { error: updateError } = (await supabase
-    .from("profiles")
-    .update({
-      avatar_url: null,
-      updated_at: new Date().toISOString(),
-    })
-    .eq("id", user.id)) as { error: { message?: string } | null };
-  if (updateError) {
-    console.error("removeProfilePicture: Error updating profile:", updateError);
-    return { error: { server: ["Failed to update profile"] } };
-  }
-
-  const metadataPayload = {
-    ...(user.user_metadata || {}),
-    avatar_url: null,
-  };
-
-  const { error: metadataError } = await supabase.auth.updateUser({
-    data: metadataPayload,
-  });
-
-  if (metadataError) {
-    console.error(
-      "removeProfilePicture: Error updating auth metadata:",
-      metadataError,
-    );
-    return { error: { server: ["Failed to update user metadata"] } };
-  }
-
-  return { success: true };
+  const formData = new FormData();
+  formData.set("avatarUrl", "");
+  return completeOnboarding(formData);
 }
 
 // Extremely simple function with no avatar handling at all
