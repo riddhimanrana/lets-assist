@@ -50,22 +50,25 @@ a fault. These counters do not claim inbox delivery.
 
 Other workers count their own decisions:
 
-| Worker                                               | Counter meaning                                                                                                                                            |
-| ---------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Public image cleanup                                 | Claimed objects finish as deleted, retained because still referenced, retryable, or failed. Completed combines deleted and retained decisions.             |
-| Anonymous, waiver, paper scan, and CSF proof cleanup | Confirmed database cleanup and Storage operations. CSF proof counts also include enqueue and sweep decisions. These totals are not unique objects deleted. |
-| AI moderation                                        | Checked items, applied moderation decisions, and warning counts. A clean scan can finish without flagging content.                                         |
-| Automatic hours                                      | Processed sessions, successful sessions, deferred sessions, and per-session error counts. A failed query returns failure instead of an empty queue.        |
-| Recurring projects                                   | Checked parent projects and errors. Created occurrences are validated separately and are not the completed counter.                                        |
-| Organization calendar and sheet sync                 | Reported per-organization success or failure.                                                                                                              |
-| Paper signup and feedback notifications              | Reported sends, skips, unknown outcomes, retries, and recovered stale attempts. Feedback also counts newly enqueued intents as completed queue decisions.  |
-| CSF publication notifications                        | Delivered bell notifications and skips; email handoff counts do not prove email delivery. An unavailable handoff adds a fault.                             |
-| CSF import and workbook refresh                      | Settled jobs plus component-level preparation, queue, reconnect, and review decisions.                                                                     |
+| Worker                                               | Counter meaning                                                                                                                                                                      |
+| ---------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Public image cleanup                                 | Claimed objects finish as deleted, retained because still referenced, retryable, or failed. Completed combines deleted and retained decisions.                                       |
+| Anonymous, waiver, paper scan, and CSF proof cleanup | Confirmed database cleanup and Storage operations. CSF proof counts also include enqueue and sweep decisions. These totals are not unique objects deleted.                           |
+| AI moderation                                        | Checked items, applied moderation decisions, and warning counts. A clean scan can finish without flagging content.                                                                   |
+| Automatic hours                                      | Processed sessions, successful sessions, deferred sessions, and per-session error counts. A failed query returns failure instead of an empty queue.                                  |
+| Recurring projects                                   | Checked parents, parents that settled without errors, and failed parents. Multiple occurrence errors still count as one failed parent. Created occurrences are validated separately. |
+| Organization calendar and sheet sync                 | Reported per-organization success or failure.                                                                                                                                        |
+| Paper signup and feedback notifications              | Reported sends, skips, unknown outcomes, retries, and recovered stale attempts. Feedback also counts newly enqueued intents as completed queue decisions.                            |
+| CSF publication notifications                        | Delivered bell notifications and skips; email handoff counts do not prove email delivery. An unavailable handoff adds a fault.                                                       |
+| CSF import and workbook refresh                      | Settled jobs plus component-level preparation, queue, reconnect, and review decisions.                                                                                               |
 
 The classifiers copy only fixed counters and outcome codes into receipts. They
 do not persist recipients, source identities, returned job rows, or raw errors.
-An invalid or oversized response records a failure without changing the worker
-response. The two CSF workers with an 800-second route budget accept monitoring
+The default reader rejects invalid or oversized response evidence without
+changing the business response. Calendar sync, sheet sync, moderation and automatic
+hours capture their fixed counters before serializing larger results, so a valid
+response above the reader limit does not create a false failure. An HTTP error
+cannot be overridden by a captured successful summary. The two CSF workers with an 800-second route budget accept monitoring
 budgets up to 800 seconds; other worker policies remain capped at 600 seconds.
 Stored elapsed time has a 900-second ceiling so a legitimate long pass retains
 its duration instead of failing the receipt write.

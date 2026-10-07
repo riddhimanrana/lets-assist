@@ -5,7 +5,14 @@ let observations = 0;
 mock.module("@/services/recurring-project-worker", () => ({
   processRecurringProjects: async () => {
     executions++;
-    return { processedProjects: 0, createdOccurrences: 0, errors: [] };
+    return {
+      processedProjects: 0,
+      checkedProjects: 0,
+      successfulProjects: 0,
+      failedParents: 0,
+      createdOccurrences: 0,
+      errors: [],
+    };
   },
 }));
 mock.module("@/lib/cron/worker-observation", () => ({

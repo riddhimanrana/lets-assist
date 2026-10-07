@@ -9,6 +9,7 @@ const { observeWorkerRun, serverWorkerIdentity } =
   await import("./worker-observation");
 import type { WorkerObservationDependencies } from "./worker-observation";
 import { failedWorkerOutcome } from "./worker-outcome";
+import { workerResponseSummary } from "./worker-response-summary";
 const body = {
   claimed: 0,
   outcomes: {
@@ -38,6 +39,74 @@ function harness() {
   };
   return { writes, warnings, deps };
 }
+test("large successful business responses retain bounded in-memory counters and unchanged output", async () => {
+  const body = {
+    processed: 400,
+    results: Array.from({ length: 400 }, (_, index) => ({
+      success: true,
+      organizationId: `private-organization-${index}`,
+      diagnostic: "private ".repeat(20),
+    })),
+  };
+  expect(JSON.stringify(body).length).toBeGreaterThan(32_768);
+  const summary = workerResponseSummary("organization-calendar-sync");
+  const h = harness();
+  const response = Response.json(body);
+  expect(
+    await observeWorkerRun(
+      "organization-calendar-sync",
+      async () => {
+        summary.capture(body);
+        return response;
+      },
+      summary,
+      h.deps,
+    ),
+  ).toBe(response);
+  expect(await response.json()).toEqual(body);
+  expect(h.writes[1].parameters.p_result).toMatchObject({
+    outcome: "processed",
+    attempted: 400,
+    completed: 400,
+  });
+  expect(JSON.stringify(h.writes)).not.toContain("private");
+  expect(JSON.stringify(h.writes).length).toBeLessThan(2000);
+});
+test("in-memory summary cannot hide an error response or manufacture evidence before capture", async () => {
+  for (const status of [200, 503]) {
+    const summary = workerResponseSummary("ai-moderation");
+    if (status === 503) summary.capture({ success: true, moderated: 0 });
+    const h = harness();
+    await observeWorkerRun(
+      "ai-moderation",
+      async () => Response.json({}, { status }),
+      summary,
+      h.deps,
+    );
+    expect(h.writes[1].parameters.p_result).toMatchObject({
+      outcome: "failed",
+      code: status === 503 ? "worker_failed" : "invalid_response",
+    });
+  }
+});
+test("the default response parser still refuses oversized evidence", async () => {
+  const h = harness();
+  await observeWorkerRun(
+    "ai-moderation",
+    async () =>
+      Response.json({
+        success: true,
+        moderated: 0,
+        diagnostics: "x".repeat(33_000),
+      }),
+    undefined,
+    h.deps,
+  );
+  expect(h.writes[1].parameters.p_result).toMatchObject({
+    outcome: "failed",
+    code: "invalid_response",
+  });
+});
 test("an 800-second worker retains its elapsed time and still caps malformed timing", async () => {
   for (const elapsed of [800_100, 950_000]) {
     const h = harness();

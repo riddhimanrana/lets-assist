@@ -27,6 +27,9 @@ export type WorkerObservationDependencies = {
   sourceSha: string | null;
   unavailable: (phase: "start" | "finish") => void;
 };
+export type WorkerOutcomeSupplier = {
+  outcome: () => WorkerObservation;
+};
 
 export function serverWorkerIdentity(env: Record<string, string | undefined>) {
   const environment: WorkerEnvironment =
@@ -108,10 +111,10 @@ async function boundedResponseJson(response: Response): Promise<unknown> {
 export async function observeWorkerRun<T extends Response>(
   worker: ObservedWorker,
   operation: () => Promise<T>,
-  classify: (status: number, body: unknown) => WorkerObservation = (
-    status,
-    body,
-  ) => classifyWorkerResponse(worker, status, body),
+  classify:
+    | ((status: number, body: unknown) => WorkerObservation)
+    | WorkerOutcomeSupplier = (status, body) =>
+    classifyWorkerResponse(worker, status, body),
   dependencies?: WorkerObservationDependencies,
 ): Promise<T> {
   if (!observedWorkers.includes(worker))
@@ -168,7 +171,11 @@ export async function observeWorkerRun<T extends Response>(
   let outcome: WorkerOutcome;
   try {
     outcome = validateWorkerOutcome(
-      classify(response.status, await boundedResponseJson(response)),
+      typeof classify === "function"
+        ? classify(response.status, await boundedResponseJson(response))
+        : response.ok
+          ? classify.outcome()
+          : failedWorkerOutcome("worker_failed"),
     );
   } catch {
     outcome = failedWorkerOutcome("invalid_response");

@@ -55,8 +55,15 @@ const cases: Array<
   ],
   [
     "generate-recurring-projects",
-    { processedProjects: 1, failedProjects: 1, createdOccurrences: 2 },
-    "partial",
+    {
+      processedProjects: 1,
+      checkedProjects: 1,
+      successfulProjects: 0,
+      failedParents: 1,
+      failedProjects: 1,
+      createdOccurrences: 2,
+    },
+    "failed",
   ],
   [
     "organization-calendar-sync",

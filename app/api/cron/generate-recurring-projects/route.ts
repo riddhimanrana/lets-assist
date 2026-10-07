@@ -52,6 +52,9 @@ export async function POST(request: NextRequest) {
         {
           message: "Recurring projects processed",
           processedProjects: result.processedProjects,
+          checkedProjects: result.checkedProjects,
+          successfulProjects: result.successfulProjects,
+          failedParents: result.failedParents,
           createdOccurrences: result.createdOccurrences,
           failedProjects: result.errors.length,
           executionTimeMs: executionTime,
