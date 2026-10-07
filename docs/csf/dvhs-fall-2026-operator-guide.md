@@ -35,14 +35,14 @@ procedure; this is the DVHS path through them.
    `/organization/dvhighcsf` on the environment you are working in. If it does
    not exist, sign in as the accepted trusted member who will own setup; the
    route states that only Trusted Members can create organizations. Open
-   **Organizations**, select **Create Organization**, and confirm the form route
+   **Organizations**, select **Create organization**, and confirm the form route
    is `/organization/create`. Under **Basic Information**, enter
    **Organization Name** = `DVHigh CSF`, **Username** = `dvhighcsf`, the required
    **Description** using only reviewed public chapter wording, **Website** =
    `https://www.dvhighcsf.org`, and the required **Organization Type** selected
    from the reviewed chapter classification. **Upload Logo** is optional; do not
    invent a description, type, or private contact value. After the username
-   availability check succeeds, select **Create Organization**. The creator is
+   availability check succeeds, select **Create organization**. The creator is
    inserted as the organization `admin`, and the successful form opens
    `/organization/dvhighcsf`.
 2. **Entitle the plugin** (platform super admin — onboarding Stage 1). Open
@@ -55,11 +55,11 @@ procedure; this is the DVHS path through them.
    behavior was authorized, and select **Save access**. **Force install** is a
    different operation and lives on **Advanced**; entitling never needs it.
 3. **Install the plugin** (organization admin — onboarding Stage 2). Open
-   `/organization/dvhighcsf/settings#organization-plugins`, find **Organization
-   Plugins**, and select **Open plugin marketplace**. Under **Available to
+   `/organization/dvhighcsf/settings?section=plugins`, find **Organization
+   plugins**, and select **Open plugin marketplace**. Under **Available to
    install**, find **DVHS CSF** and select **Install**. In **Install DVHS CSF?**,
    review **This plugin requests access to:**, check **I approve installing this
-   plugin and grant the requested access.**, and select **Install Plugin**.
+   plugin and grant the requested access.**, and select **Install plugin**.
    After installing, verify that the seeded roles list and point categories are
    populated. If either is empty the install hook failed and was compensated:
    check `plugin_audit_logs` instead of continuing, and never hand-seed the

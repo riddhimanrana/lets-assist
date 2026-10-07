@@ -565,14 +565,14 @@ describe("CSF operator documentation truthfulness guards", () => {
     expect(page).toContain('redirect("/login?redirect=/organization/create")');
     expect(page).toContain("Only Trusted Members can create organizations.");
     expect(organizations).toContain('href="/organization/create"');
-    expect(organizations).toContain("Create Organization");
+    expect(organizations).toContain("Create organization");
     for (const label of [
       "Organization Name *",
       "Username *",
       "Description *",
       "Website",
       "Organization Type *",
-      "Create Organization",
+      "Create organization",
     ]) {
       expect(form).toContain(label);
     }
@@ -586,14 +586,14 @@ describe("CSF operator documentation truthfulness guards", () => {
     );
     expectInOrder(createPath, [
       "**Organizations**",
-      "**Create Organization**",
+      "**Create organization**",
       "`/organization/create`",
       "**Organization Name** = `DVHigh CSF`",
       "**Username** = `dvhighcsf`",
       "**Description**",
       "**Website** = `https://www.dvhighcsf.org`",
       "**Organization Type**",
-      "**Create Organization**",
+      "**Create organization**",
       "`admin`",
       "`/organization/dvhighcsf`",
     ]);
@@ -640,13 +640,13 @@ describe("CSF operator documentation truthfulness guards", () => {
     expect(pluginManifest).toContain("key: DVHS_CSF_PLUGIN_KEY");
     const organizationPluginLabels = flow(organizationPlugins);
     for (const label of [
-      "Organization Plugins",
+      "Organization plugins",
       "Open plugin marketplace",
       "Available to install",
       "Install",
       "This plugin requests access to:",
       "I approve installing this plugin and grant the requested access.",
-      "Install Plugin",
+      "Install plugin",
     ]) {
       expect(organizationPluginLabels).toContain(label);
     }
@@ -677,15 +677,15 @@ describe("CSF operator documentation truthfulness guards", () => {
       "**Create the graduating classes",
     );
     expectInOrder(installPath, [
-      "`/organization/dvhighcsf/settings#organization-plugins`",
-      "**Organization Plugins**",
+      "`/organization/dvhighcsf/settings?section=plugins`",
+      "**Organization plugins**",
       "**Open plugin marketplace**",
       "**Available to install**",
       "**DVHS CSF**",
       "**Install**",
       "**This plugin requests access to:**",
       "**I approve installing this plugin and grant the requested access.**",
-      "**Install Plugin**",
+      "**Install plugin**",
     ]);
   });
 
