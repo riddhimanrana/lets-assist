@@ -62,6 +62,32 @@ admins, staff on staff-managed projects, and platform admins — never public.
   (`components/projects/ProjectFeedbackForm.tsx`). Organizer UI:
   `/projects/[id]/feedback` with distribution and response rate.
 
+## In-app platform ratings
+
+Signed-in users can rate Let's Assist from an owned, active project signup or
+the dashboard's All hours tab after saving volunteer hours. A manager can rate
+a completed, uncancelled project once. These ratings use `public.feedback`
+with `purpose = 'platform_experience'`; project organizers cannot read a
+volunteer's platform rating.
+
+`get_platform_experience_prompt_state` checks account and context eligibility
+and hides prompts for 90 days after the user's latest platform rating or comment
+update. The browser also stores a 30-day dismissal per account. A prompt read
+failure hides the optional form. The Server Action binds the user to the session
+and refuses writes when quota checks fail. The service-only save RPC locks and
+rechecks the context, so a stale page cannot bypass a cancelled signup or revoked
+management access. A second manager cannot overwrite the first manager's rating.
+
+The existing email-link and CSF feedback paths keep their own authorization.
+This feature does not enable or send email. Its unpublished migration is
+`20261009040000_platform_experience_in_app_prompts.sql`.
+
+Focused validation covers the action, prompt service, dashboard composition,
+and `supabase/tests/database/platform_experience_in_app.test.sql`. Run those
+alongside the existing platform feedback and public function ACL tests before
+integration. Browser and hosted Development acceptance use the integrated
+release candidate.
+
 ## Follow-up email
 
 One "How did volunteering at X go?" email per attendee per completed
