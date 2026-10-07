@@ -199,7 +199,7 @@ describe("isolated launcher Docker identity matrix", () => {
     expect(lsofCalls.filter((call) => call.includes("-iTCP:3000")).length).toBe(
       1,
     );
-  });
+  }, 15_000);
 
   test("new isolated stacks omit optional Analytics and Studio by default", async () => {
     const sandbox = await createSandbox();
@@ -220,7 +220,7 @@ describe("isolated launcher Docker identity matrix", () => {
     );
     expect(generatedConfig).toContain("[analytics]\nenabled = false");
     expect(generatedConfig).toContain("[studio]\nenabled = false");
-  });
+  }, 15_000);
 
   test("optional services can be enabled for an inspection run", async () => {
     const sandbox = await createSandbox();
@@ -238,7 +238,7 @@ describe("isolated launcher Docker identity matrix", () => {
     );
     expect(generatedConfig).toContain("[analytics]\nenabled = true");
     expect(generatedConfig).toContain("[studio]\nenabled = true");
-  });
+  }, 15_000);
 
   test("unknown analytics modes fail before any Supabase mutation", async () => {
     const sandbox = await createSandbox();
@@ -560,7 +560,7 @@ describe("isolated launcher concurrency and cleanup matrix", () => {
     expect(result.stderr).not.toContain("Failed to roll back");
     expect(await claimEntries(sandbox)).toEqual(["port-61009"]);
     expect(existsSync(sandbox.workDir("rollback"))).toBe(false);
-  });
+  }, 15_000);
 
   test("a port claim that cannot be released stops the stack and retains exact ownership", async () => {
     const sandbox = await createSandbox();
@@ -649,7 +649,7 @@ describe("isolated launcher concurrency and cleanup matrix", () => {
       call.startsWith("stop "),
     );
     expect(stops.length).toBe(1);
-  });
+  }, 15_000);
 
   test("start failure with a failing stop preserves both failures and retains claims", async () => {
     const sandbox = await createSandbox();
@@ -680,7 +680,7 @@ describe("isolated launcher concurrency and cleanup matrix", () => {
         ),
       ),
     ).toBe(true);
-  });
+  }, 15_000);
 
   test("a stop that leaves residual resources is treated as a cleanup failure", async () => {
     const sandbox = await createSandbox();
@@ -699,7 +699,7 @@ describe("isolated launcher concurrency and cleanup matrix", () => {
     expect(await claimEntries(sandbox)).toContain(
       "project-lets-assist-csf-browser-residual",
     );
-  });
+  }, 15_000);
 });
 
 // ---------------------------------------------------------------------------

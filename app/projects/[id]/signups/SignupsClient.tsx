@@ -1,4 +1,6 @@
 "use client";
+import { PROJECT_CLIENT_SELECT } from "@/lib/projects/client-projection";
+import { safeConsole } from "@/lib/safe-console";
 
 import React, { useEffect, useState, useMemo } from "react";
 import { Input } from "@/components/ui/input";
@@ -79,7 +81,6 @@ interface Props {
   projectId: string;
 }
 
-// Update Signup type to reflect new structure
 type Signup = {
   id: string;
   created_at: string;
@@ -350,12 +351,12 @@ export function SignupsClient({ projectId }: Props): React.JSX.Element {
     const supabase = createClient();
     const { data: project, error } = await supabase
       .from("projects")
-      .select("*")
+      .select(PROJECT_CLIENT_SELECT)
       .eq("id", projectId)
       .single();
 
     if (error) {
-      console.error("Error loading project:", error);
+      safeConsole.error("Error loading project:", error);
       return;
     }
 
@@ -378,7 +379,7 @@ export function SignupsClient({ projectId }: Props): React.JSX.Element {
         }
       }
     } catch (error) {
-      console.error("Error loading signups:", error);
+      safeConsole.error("Error loading signups:", error);
       toast.error("Failed to load signups");
     }
 
@@ -423,7 +424,7 @@ export function SignupsClient({ projectId }: Props): React.JSX.Element {
 
       toast.success("Signup rejected and the volunteer was notified.");
     } catch (error) {
-      console.error("Error rejecting signup:", error);
+      safeConsole.error("Error rejecting signup:", error);
       toast.error("Failed to reject signup");
     } finally {
       setProcessingSignups((prev) => ({ ...prev, [signupId]: false }));
@@ -457,7 +458,7 @@ export function SignupsClient({ projectId }: Props): React.JSX.Element {
         });
         setPreviewOpen(true);
       } catch (error) {
-        console.error("Error resolving waiver signature:", error);
+        safeConsole.error("Error resolving waiver signature:", error);
         toast.error("Failed to open waiver preview");
       }
     }
@@ -490,7 +491,7 @@ export function SignupsClient({ projectId }: Props): React.JSX.Element {
 
       toast.error("Signature not found");
     } catch (error) {
-      console.error("Error downloading waiver:", error);
+      safeConsole.error("Error downloading waiver:", error);
       toast.error("Failed to download waiver");
     }
   };
@@ -517,7 +518,7 @@ export function SignupsClient({ projectId }: Props): React.JSX.Element {
 
       toast.success("Waiver downloaded successfully");
     } catch (error) {
-      console.error("Error downloading waiver:", error);
+      safeConsole.error("Error downloading waiver:", error);
       toast.error("Failed to download waiver");
     } finally {
       setWaiverDownloads((prev) => ({ ...prev, [signatureId]: false }));
@@ -538,7 +539,7 @@ export function SignupsClient({ projectId }: Props): React.JSX.Element {
       await loadSignups();
       toast.success("Signup approved successfully");
     } catch (error) {
-      console.error("Error unrejecting signup:", error);
+      safeConsole.error("Error unrejecting signup:", error);
       toast.error(
         error instanceof Error ? error.message : "Failed to unreject signup",
       );
@@ -568,7 +569,7 @@ export function SignupsClient({ projectId }: Props): React.JSX.Element {
           : "Signups have been resumed",
       );
     } catch (error) {
-      console.error("Error toggling pause state:", error);
+      safeConsole.error("Error toggling pause state:", error);
       toast.error("Failed to update signup status");
     } finally {
       setIsPausingSignups(false);

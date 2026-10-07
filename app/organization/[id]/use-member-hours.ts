@@ -1,4 +1,6 @@
 "use client";
+import { safeConsole } from "@/lib/safe-console";
+
 
 import { useEffect, useState } from "react";
 
@@ -49,7 +51,7 @@ export function useMemberHours({
           setMemberHours(result.memberHours);
         }
       } catch (error) {
-        console.error("Error loading member hours:", error);
+        safeConsole.error("Error loading member hours:", error);
       } finally {
         if (!cancelled) setLoadingHours(false);
       }
@@ -100,7 +102,7 @@ export function useMemberDirectory({
         }
         setDirectory(next);
       } catch (error) {
-        console.error("Error loading member directory details:", error);
+        safeConsole.error("Error loading member directory details:", error);
       } finally {
         if (!cancelled) setLoadingDirectory(false);
       }

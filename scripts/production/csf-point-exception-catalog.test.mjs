@@ -1,7 +1,8 @@
+import { historicalReleaseTestFixture } from "./historical-release-test-fixture.mjs";
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
-import test from "node:test";
+import test, { after as afterTests } from "node:test";
 import { expectedVersions } from "./app-release-checks.mjs";
 import { acceptedCatalogQuery } from "./app-release-catalog.mjs";
 import { finalSchemaCatalog } from "./final-schema-manifest.mjs";
@@ -12,7 +13,9 @@ import {
 import { topLevelDataWrites } from "./migration-data-writes.mjs";
 
 const read = (path) => readFileSync(new URL(path, import.meta.url), "utf8");
-const repository = new URL("../../", import.meta.url).pathname;
+const fixture = historicalReleaseTestFixture();
+const repository = fixture.cwd;
+afterTests(fixture.dispose);
 const before = JSON.parse(read("./final-schema-664.json"));
 const after = JSON.parse(read("./final-schema-665.json"));
 const versions = expectedVersions(repository).slice(0, 665);

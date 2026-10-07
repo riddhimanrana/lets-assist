@@ -1,3 +1,4 @@
+import { safeConsole } from "@/lib/safe-console";
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { getAdminClient } from "@/lib/supabase/admin";
@@ -81,7 +82,7 @@ export async function GET(request: Request) {
         message: error_description,
       })
     ) {
-      console.info("OAuth callback requires a new auth flow", {
+      safeConsole.info("OAuth callback requires a new auth flow", {
         category: error,
         code: errorCode ?? error,
       });
@@ -98,7 +99,7 @@ export async function GET(request: Request) {
       });
     }
 
-    console.error("OAuth error:", error, error_description);
+    safeConsole.error("OAuth error:", error, error_description);
     // Check if the error is due to existing email-password account
     if (error_description?.includes("email already exists")) {
       const loginUrl = new URL("/login", authOrigin);
@@ -142,7 +143,7 @@ export async function GET(request: Request) {
         return result;
       });
     } catch (retryError) {
-      console.error("Session exchange retry exhausted:", retryError);
+      safeConsole.error("Session exchange retry exhausted:", retryError);
 
       if (!isRetryableAuthError(retryError)) {
         return NextResponse.redirect(`${authOrigin}/error`);
@@ -183,7 +184,7 @@ export async function GET(request: Request) {
         } = await supabase.auth.getUser();
 
         if (userError || !user) {
-          console.error(
+          safeConsole.error(
             "Authenticated user lookup failed after code exchange:",
             userError,
           );
@@ -373,7 +374,7 @@ export async function GET(request: Request) {
             })) as { error: { message?: string } | null };
 
           if (profileError) {
-            console.error("Profile creation error:", profileError);
+            safeConsole.error("Profile creation error:", profileError);
             throw profileError;
           }
 
@@ -382,7 +383,7 @@ export async function GET(request: Request) {
             try {
               await applyVerifiedDomainAffiliation(user.id);
             } catch (affiliationError) {
-              console.error(
+              safeConsole.error(
                 "Error processing email affiliation:",
                 affiliationError,
               );
@@ -408,7 +409,7 @@ export async function GET(request: Request) {
             if (csfMetadataError) {
               // Metadata tagging is best-effort; the connect flow still works
               // without it, the user just sees the generic onboarding instead.
-              console.error(
+              safeConsole.error(
                 "Failed to tag CSF connect signup metadata:",
                 csfMetadataError,
               );
@@ -434,7 +435,7 @@ export async function GET(request: Request) {
             .eq("id", user.id)) as { error: { message?: string } | null };
 
           if (updateError) {
-            console.error("Profile update error:", updateError);
+            safeConsole.error("Profile update error:", updateError);
             throw updateError;
           }
 
@@ -453,7 +454,7 @@ export async function GET(request: Request) {
           await supabase.auth.getClaims();
 
         if (claimsError && process.env.NODE_ENV === "development") {
-          console.debug(
+          safeConsole.debug(
             "Could not fetch auth claims during callback:",
             claimsError,
           );
@@ -471,7 +472,7 @@ export async function GET(request: Request) {
             mfaFactors = factors as MfaListFactorsLike;
           }
         } catch (mfaError) {
-          console.debug(
+          safeConsole.debug(
             "Could not fetch MFA factors during callback:",
             mfaError,
           );
@@ -509,12 +510,12 @@ export async function GET(request: Request) {
 
         return NextResponse.redirect(`${authOrigin}${destinationPath}`);
       } catch (error) {
-        console.error("Error in callback:", error);
+        safeConsole.error("Error in callback:", error);
         return NextResponse.redirect(`${authOrigin}/error`);
       }
     } else {
       if (isRestartableAuthFlowError(exchangeError)) {
-        console.info("OAuth session exchange requires a new auth flow", {
+        safeConsole.info("OAuth session exchange requires a new auth flow", {
           code: exchangeError?.code ?? "unclassified",
         });
         if (from === "authentication") {
@@ -530,7 +531,7 @@ export async function GET(request: Request) {
         });
       }
 
-      console.error("Session error:", exchangeError);
+      safeConsole.error("Session error:", exchangeError);
       if (from === "authentication") {
         return NextResponse.redirect(
           `${authOrigin}/account/authentication?error=linking_failed`,

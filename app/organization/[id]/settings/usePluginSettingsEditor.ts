@@ -3,15 +3,13 @@
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 
+import { buildPluginConfigFields } from "./plugin-config-fields";
 import type { OrganizationPluginAdminSetting } from "@/types";
 
 import { updateOrganizationPluginConfiguration } from "./actions";
 import {
-  formatFieldLabel,
   isPlainRecord,
-  resolveConfigFieldKind,
   stringifyConfig,
-  type ConfigFieldDescriptor,
   type SettingsEditorMode,
 } from "./organization-plugin-helpers";
 
@@ -44,22 +42,10 @@ export function usePluginSettingsEditor({
     [plugins, settingsPluginKey],
   );
 
-  const configFields = useMemo<ConfigFieldDescriptor[]>(() => {
-    if (!activeSettingsPlugin?.configSchema) {
-      return [];
-    }
-
-    const schema = activeSettingsPlugin.configSchema;
-    const required = new Set(schema.required ?? []);
-
-    return Object.entries(schema.properties).map(([key, property]) => ({
-      key,
-      label: property.title ?? formatFieldLabel(key),
-      required: required.has(key),
-      kind: resolveConfigFieldKind(property),
-      property,
-    }));
-  }, [activeSettingsPlugin]);
+  const configFields = useMemo(
+    () => buildPluginConfigFields(activeSettingsPlugin?.configSchema),
+    [activeSettingsPlugin],
+  );
 
   const guidedFields = useMemo(
     () => configFields.filter((field) => field.kind !== "unsupported"),

@@ -1,4 +1,6 @@
 "use client";
+import { safeConsole } from "@/lib/safe-console";
+
 
 import { Fragment, useCallback, useEffect, useState } from "react";
 import Link from "next/link";
@@ -93,7 +95,7 @@ export function EmailAddressesSection({
       setEmails(data as UserEmail[]);
       setPendingPrimaryEmail(null);
     } catch (error) {
-      console.error("Failed to fetch emails:", error);
+      safeConsole.error("Failed to fetch emails:", error);
       toast.error("Failed to load email addresses");
     } finally {
       setEmailLoading(false);
@@ -128,7 +130,7 @@ export function EmailAddressesSection({
       toast.success("Verification code sent to " + newEmail);
     } catch (error: unknown) {
       const err = error as Error;
-      console.error("Error adding email:", error);
+      safeConsole.error("Error adding email:", error);
       toast.error(err.message || "Failed to add email");
     } finally {
       setAdding(false);
@@ -150,7 +152,7 @@ export function EmailAddressesSection({
       fetchEmails();
     } catch (error: unknown) {
       const err = error as Error;
-      console.error("Error verifying email:", error);
+      safeConsole.error("Error verifying email:", error);
       toast.error(err.message || "Invalid verification code");
     } finally {
       setVerifying(false);
@@ -164,7 +166,7 @@ export function EmailAddressesSection({
       fetchEmails();
     } catch (error: unknown) {
       const err = error as Error;
-      console.error("Error removing email:", error);
+      safeConsole.error("Error removing email:", error);
       toast.error(err.message || "Failed to remove email");
     }
   };
@@ -189,7 +191,7 @@ export function EmailAddressesSection({
       setTimeout(fetchEmails, 500);
     } catch (error: unknown) {
       const err = error as Error;
-      console.error("Error setting primary email:", error);
+      safeConsole.error("Error setting primary email:", error);
       toast.error(err.message || "Failed to update primary email");
     }
   };

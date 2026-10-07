@@ -1,4 +1,5 @@
 "use server";
+import { safeConsole } from "@/lib/safe-console";
 
 import "server-only";
 import { createClient } from "@/lib/supabase/server";
@@ -26,7 +27,7 @@ export async function getUserProfile() {
       .single();
 
     if (profileError || !profile) {
-      console.error("Error fetching profile:", profileError);
+      safeConsole.error("Error fetching profile:", profileError);
       return { error: "Failed to fetch profile" };
     }
 
@@ -38,7 +39,7 @@ export async function getUserProfile() {
       },
     };
   } catch (error) {
-    console.error("Error in getUserProfile:", error);
+    safeConsole.error("Error in getUserProfile:", error);
     return { error: "An unexpected error occurred" };
   }
 }
@@ -173,7 +174,7 @@ export async function getWaiverDownloadUrl(
 
     return { error: "No waiver data available" };
   } catch (error) {
-    console.error("Error generating waiver download URL:", error);
+    safeConsole.error("Error generating waiver download URL:", error);
     return { error: "Failed to generate waiver URL" };
   }
 }
@@ -230,7 +231,10 @@ export async function getAnonymousWaiverSignatureMeta(
       .maybeSingle();
 
     if (sigError) {
-      console.error("Error loading anonymous waiver signature meta:", sigError);
+      safeConsole.error(
+        "Error loading anonymous waiver signature meta:",
+        sigError,
+      );
       return { error: "Failed to load waiver" };
     }
 
@@ -244,7 +248,7 @@ export async function getAnonymousWaiverSignatureMeta(
       signed_at: sig.signed_at ?? null,
     };
   } catch (error) {
-    console.error("Error in getAnonymousWaiverSignatureMeta:", error);
+    safeConsole.error("Error in getAnonymousWaiverSignatureMeta:", error);
     return { error: "Failed to load waiver" };
   }
 }
@@ -282,13 +286,13 @@ export async function getMyWaiverSignatures(projectId: string): Promise<
       .order("signed_at", { ascending: false });
 
     if (error) {
-      console.error("Error fetching my waiver signatures:", error);
+      safeConsole.error("Error fetching my waiver signatures:", error);
       return { error: "Failed to load waivers" };
     }
 
     return { signatures: data ?? [] };
   } catch (error) {
-    console.error("Error in getMyWaiverSignatures:", error);
+    safeConsole.error("Error in getMyWaiverSignatures:", error);
     return { error: "Failed to load waivers" };
   }
 }

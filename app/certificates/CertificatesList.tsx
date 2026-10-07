@@ -1,4 +1,5 @@
 "use client";
+import { safeConsole } from "@/lib/safe-console";
 
 import { useState } from "react";
 import {
@@ -137,7 +138,7 @@ function calculateDecimalHours(
     const minutes = differenceInMinutes(end, start);
     return minutes > 0 ? minutes / 60 : 0;
   } catch (e) {
-    console.error("Error calculating duration:", e);
+    safeConsole.error("Error calculating duration:", e);
     return 0; // Return 0 if parsing fails
   }
 }

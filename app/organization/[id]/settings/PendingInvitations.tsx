@@ -51,7 +51,9 @@ import {
   resendInvitation,
 } from "@/app/organization/[id]/admin/actions";
 import type { OrganizationInvitationWithDetails } from "@/types/invitation";
-import type { InvitationDuration } from "@/lib/organization/invitation-utils";
+import {
+  type InvitationDuration,
+} from "@/lib/organization/invitation-utils";
 
 import PendingInvitationsTable from "./PendingInvitationsTable";
 

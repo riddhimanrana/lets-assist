@@ -1,3 +1,5 @@
+import { PROJECT_CLIENT_SELECT } from "@/lib/projects/client-projection";
+import { safeConsole } from "@/lib/safe-console";
 import React from "react";
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
@@ -140,7 +142,6 @@ export default async function ProfilePage(
     profile_visibility: rawProfile.profile_visibility,
   };
 
-  // Get current user using getClaims() for better performance
   const { user } = await getAuthUser();
   const isOwner = user?.id === profile.id;
 
@@ -191,7 +192,7 @@ export default async function ProfilePage(
 
   const { data: createdProjects } = await supabase
     .from("projects")
-    .select("*")
+    .select(PROJECT_CLIENT_SELECT)
     .eq("creator_id", profile.id)
     .eq("workflow_status", "published")
     .order("created_at", { ascending: false });
@@ -206,7 +207,7 @@ export default async function ProfilePage(
     const projectIds = attendedProjectIds.map((item) => item.project_id);
     const { data: fetchedProjects } = await supabase
       .from("projects")
-      .select("*")
+      .select(PROJECT_CLIENT_SELECT)
       .in("id", projectIds)
       .order("created_at", { ascending: false });
 
@@ -267,7 +268,7 @@ export default async function ProfilePage(
     .order("created_at", { ascending: false });
 
   if (certificatesError) {
-    console.error(
+    safeConsole.error(
       "Error fetching certificates for profile page:",
       certificatesError,
     );

@@ -19,6 +19,11 @@ describe("CI delivery modes", () => {
     const quality = job("quality", "db-replay-validation");
     expect(quality).toContain("run: bun run plugin:apps:contract");
     expect(quality).toContain("run: bun run typecheck");
+    expect(quality).toContain('run: bun run test:affected "$PR_BASE_SHA"');
+    expect(quality).toContain(
+      "PR_BASE_SHA: ${{ github.event.pull_request.base.sha }}",
+    );
+    expect(quality).toContain("fetch-depth: 0");
     expect(quality).toContain("if: github.event_name != 'pull_request'");
     expect(quality).toContain("run: bun run test");
     expect(quality).toContain("run: bun run build");

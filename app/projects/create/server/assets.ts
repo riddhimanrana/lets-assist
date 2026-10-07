@@ -1,4 +1,5 @@
 "use server";
+import { safeConsole } from "@/lib/safe-console";
 
 import "server-only";
 
@@ -53,7 +54,7 @@ export async function uploadCoverImage(projectId: string, imageBase64: string) {
       });
 
     if (uploadError) {
-      console.error("Error uploading cover image:", uploadError);
+      safeConsole.error("Error uploading cover image:", uploadError);
       return { error: "Failed to upload cover image." };
     }
 
@@ -71,13 +72,13 @@ export async function uploadCoverImage(projectId: string, imageBase64: string) {
       .eq("id", projectId);
 
     if (updateError) {
-      console.error("Error linking cover image to project:", updateError);
+      safeConsole.error("Error linking cover image to project:", updateError);
       return { error: "Failed to link cover image to project." };
     }
 
     return { success: true, url: publicUrlData.publicUrl };
   } catch (error) {
-    console.error("Error uploading cover image:", error);
+    safeConsole.error("Error uploading cover image:", error);
     return { error: "An unexpected error occurred during image upload." };
   }
 }
@@ -132,7 +133,7 @@ export async function uploadProjectDocument(
       });
 
     if (uploadError) {
-      console.error("Error uploading document:", {
+      safeConsole.error("Error uploading document:", {
         fileName,
         error: uploadError,
       });
@@ -171,13 +172,13 @@ export async function uploadProjectDocument(
       .eq("id", projectId);
 
     if (updateError) {
-      console.error("Error linking document to project:", updateError);
+      safeConsole.error("Error linking document to project:", updateError);
       return { error: "Failed to link document to project." };
     }
 
     return { success: true, document: newDoc };
   } catch (error) {
-    console.error("Error uploading document:", error);
+    safeConsole.error("Error uploading document:", error);
     return { error: "An unexpected error occurred during document upload." };
   }
 }
@@ -208,7 +209,7 @@ export async function linkProjectUploadedAssets(
     .single();
 
   if (projectError || !project) {
-    console.error(
+    safeConsole.error(
       "Error loading project for uploaded file linking:",
       projectError,
     );
@@ -268,7 +269,7 @@ export async function linkProjectUploadedAssets(
     .eq("id", projectId);
 
   if (updateError) {
-    console.error("Error linking uploaded project assets:", updateError);
+    safeConsole.error("Error linking uploaded project assets:", updateError);
     return { error: "Uploaded files could not be attached to the project." };
   }
 
@@ -316,7 +317,7 @@ export async function uploadWaiverPdf(
       });
 
     if (uploadError) {
-      console.error("Error uploading waiver PDF:", uploadError);
+      safeConsole.error("Error uploading waiver PDF:", uploadError);
       return { error: "Failed to upload waiver PDF." };
     }
 
@@ -335,7 +336,7 @@ export async function uploadWaiverPdf(
       .eq("id", projectId);
 
     if (updateError) {
-      console.error("Error linking waiver PDF to project:", updateError);
+      safeConsole.error("Error linking waiver PDF to project:", updateError);
       // Clean up uploaded file
       await supabase.storage.from("waiver-uploads").remove([storagePath]);
       return { error: "Failed to link waiver PDF to project." };
@@ -343,7 +344,7 @@ export async function uploadWaiverPdf(
 
     return { success: true, url: publicUrlData.publicUrl };
   } catch (error) {
-    console.error("Error uploading waiver PDF:", error);
+    safeConsole.error("Error uploading waiver PDF:", error);
     return { error: "An unexpected error occurred during waiver PDF upload." };
   }
 }

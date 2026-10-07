@@ -1,4 +1,5 @@
 "use server";
+import { safeConsole } from "@/lib/safe-console";
 
 import { z } from "zod";
 
@@ -460,7 +461,7 @@ export async function commitPaperScanBatch(input: {
     },
   );
   if (rpcError) {
-    console.error("Paper commit RPC failed:", rpcError.message);
+    safeConsole.error("Paper commit RPC failed:", rpcError.message);
     return { error: "The commit failed. Nothing was recorded." };
   }
 
@@ -623,7 +624,7 @@ export async function discardPaperScanBatch(input: {
     p_actor_id: userId,
   });
   if (error) {
-    console.error("Paper discard RPC failed:", error.message);
+    safeConsole.error("Paper discard RPC failed:", error.message);
     return { error: "Could not discard the batch." };
   }
   if (outcome === "not_found") return { error: "Batch not found." };

@@ -1,18 +1,20 @@
 "use client";
+import { safeConsole } from "@/lib/safe-console";
 
 import { useEffect, useRef, useState } from "react";
 
 import type { EventFormState } from "@/hooks/use-event-form";
 
-import { autoSaveDraft } from "./actions";
+import type { createProjectDraftSession } from "@/lib/projects/draft-session";
 import type { AutosaveStatus } from "./CreateActionBar";
 
 /**
  * Debounced, change-based autosave of the create form to a draft row. Moved
- * out of ProjectCreator unchanged; the submit path still clears the timer and
- * the tracked draft id through the values returned here.
+ * through the same serialized session used by copying and publication.
  */
 export function useDraftAutosave({
+  draftSession,
+  updateDraftUrl,
   state,
   stateSnapshot,
   initialDraftId,
@@ -20,6 +22,8 @@ export function useDraftAutosave({
   isSavingDraft,
   getDraftSafeState,
 }: {
+  draftSession: ReturnType<typeof createProjectDraftSession>;
+  updateDraftUrl: (id?: string) => void;
   state: EventFormState;
   stateSnapshot: string;
   initialDraftId?: string | null;
@@ -64,9 +68,6 @@ export function useDraftAutosave({
       return;
     }
 
-    // Update previous state reference
-    previousStateRef.current = stateSnapshot;
-
     // Clear existing timer
     if (autosaveTimerRef.current) {
       clearTimeout(autosaveTimerRef.current);
@@ -77,16 +78,12 @@ export function useDraftAutosave({
       try {
         setAutosaveStatus("saving");
 
-        const result = await autoSaveDraft(
-          getDraftSafeState(),
-          autosaveDraftId,
-        );
+        const result = await draftSession.save(getDraftSafeState());
 
         if (result.autosaved && result.id) {
-          // Set the draft ID if this is the first autosave
-          if (!autosaveDraftId) {
-            setAutosaveDraftId(result.id);
-          }
+          previousStateRef.current = stateSnapshot;
+          setAutosaveDraftId(draftSession.id);
+          updateDraftUrl(draftSession.id);
 
           setAutosaveStatus("saved");
           setLastAutosaveTime(new Date());
@@ -97,7 +94,7 @@ export function useDraftAutosave({
           }, 3000);
         } else if (result.error) {
           setAutosaveStatus("error");
-          console.warn("Autosave error:", result.error);
+          safeConsole.warn("Autosave error:", result.error);
 
           // Clear error status after 5 seconds
           setTimeout(() => {
@@ -105,7 +102,7 @@ export function useDraftAutosave({
           }, 5000);
         }
       } catch (err) {
-        console.error("Failed to autosave draft", err);
+        safeConsole.error("Failed to autosave draft", err);
         setAutosaveStatus("error");
         setTimeout(() => {
           setAutosaveStatus((prev) => (prev === "error" ? "idle" : prev));
@@ -125,6 +122,8 @@ export function useDraftAutosave({
     isSubmitting,
     isSavingDraft,
     getDraftSafeState,
+    draftSession,
+    updateDraftUrl,
   ]);
 
   return {

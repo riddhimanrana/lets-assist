@@ -1,4 +1,6 @@
 "use client";
+import { safeConsole } from "@/lib/safe-console";
+
 
 import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
@@ -68,7 +70,7 @@ export function AvatarField({
         router.refresh();
       }, 1000);
     } catch (error) {
-      console.error("Error uploading profile picture:", error);
+      safeConsole.error("Error uploading profile picture:", error);
       toast.error("Failed to upload profile picture");
     } finally {
       setIsUploading(false);

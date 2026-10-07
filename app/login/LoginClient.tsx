@@ -1,4 +1,5 @@
 "use client";
+import { safeConsole } from "@/lib/safe-console";
 
 import { passwordRecoveryPath } from "@/app/reset-password/continuation";
 
@@ -192,7 +193,7 @@ export default function LoginClient({
         return;
       }
 
-      console.log(
+      safeConsole.log(
         "[LoginClient] Login successful, user:",
         authData.user?.email,
       );
@@ -228,7 +229,7 @@ export default function LoginClient({
       navigateAfterAuth(finalRedirectUrl);
       return;
     } catch (error) {
-      console.error("[LoginClient] Login error:", error);
+      safeConsole.error("[LoginClient] Login error:", error);
 
       if (
         error instanceof TypeError &&

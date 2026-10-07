@@ -1,4 +1,5 @@
 "use client";
+import { safeConsole } from "@/lib/safe-console";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
@@ -86,7 +87,7 @@ export function useTwoFactor() {
       }
 
       if (claimsError) {
-        console.error(
+        safeConsole.error(
           "Failed to load auth claims for MFA settings:",
           claimsError,
         );
@@ -122,7 +123,7 @@ export function useTwoFactor() {
         nextLevel: assuranceData?.nextLevel ?? null,
       });
     } catch (error) {
-      console.error("Failed to load MFA settings:", error);
+      safeConsole.error("Failed to load MFA settings:", error);
       toast.error("We couldn't load your authenticator settings right now.");
       setMfaFactors([]);
       setAalState(null);
@@ -151,7 +152,7 @@ export function useTwoFactor() {
     const { error } = await supabase.auth.refreshSession();
 
     if (error) {
-      console.warn("Session refresh after MFA update failed:", error);
+      safeConsole.warn("Session refresh after MFA update failed:", error);
     }
   }, [supabase]);
 
@@ -191,7 +192,7 @@ export function useTwoFactor() {
         "Scan the QR code with your authenticator app, then enter the 6-digit code to finish setup.",
       );
     } catch (error) {
-      console.error("Failed to enroll authenticator factor:", error);
+      safeConsole.error("Failed to enroll authenticator factor:", error);
       toast.error(
         error instanceof Error
           ? error.message
@@ -250,7 +251,7 @@ export function useTwoFactor() {
         "Authenticator app enabled. Future sign-ins will require a verification code.",
       );
     } catch (error) {
-      console.error("Failed to verify authenticator factor:", error);
+      safeConsole.error("Failed to verify authenticator factor:", error);
       toast.error(
         error instanceof Error
           ? error.message
@@ -282,7 +283,7 @@ export function useTwoFactor() {
       await loadMfaState();
       toast.info("Authenticator setup canceled.");
     } catch (error) {
-      console.error("Failed to cancel authenticator setup:", error);
+      safeConsole.error("Failed to cancel authenticator setup:", error);
       toast.error(
         error instanceof Error
           ? error.message
@@ -331,7 +332,7 @@ export function useTwoFactor() {
       );
       setFactorToDisable(null);
     } catch (error) {
-      console.error("Failed to remove authenticator factor:", error);
+      safeConsole.error("Failed to remove authenticator factor:", error);
       toast.error(
         error instanceof Error
           ? error.message

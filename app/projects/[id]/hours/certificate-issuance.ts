@@ -42,7 +42,7 @@ export const sendCertificatePublishedEmails = async (
     try {
       const certificateUrl = `${siteUrl}/certificates/${cert.id}`;
 
-      const { error: emailError } = await sendEmail({
+      const delivery = await sendEmail({
         to: cert.volunteer_email,
         subject: `Your volunteer certificate for ${cert.project_title} is ready!`,
         react: React.createElement(CertificatePublished, {
@@ -58,18 +58,16 @@ export const sendCertificatePublishedEmails = async (
         type: "transactional",
       });
 
-      if (emailError) {
-        console.error(`Error sending certificate ${cert.id}:`, emailError);
-        errors.push(`Failed to send certificate ${cert.id}: ${emailError}`);
-      } else {
+      if (delivery.outcome === "accepted") {
         emailsSent++;
+      } else {
+        errors.push(
+          `Certificate ${cert.id}: ${delivery.outcome} (${delivery.code})`,
+        );
       }
-    } catch (error) {
-      const errorMessage =
-        error instanceof Error ? error.message : "Unknown error";
-      console.error(`Unexpected error sending certificate ${cert.id}:`, error);
+    } catch {
       errors.push(
-        `Unexpected error for certificate ${cert.id}: ${errorMessage}`,
+        `Certificate ${cert.id}: delivery outcome could not be confirmed`,
       );
     }
   }

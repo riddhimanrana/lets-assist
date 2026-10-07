@@ -1,4 +1,6 @@
 "use client";
+import { safeConsole } from "@/lib/safe-console";
+
 
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
@@ -60,7 +62,7 @@ export function VisibilitySection({
         toast.success(`Profile is now ${result.visibility}`);
       }
     } catch (error) {
-      console.error("Error updating visibility:", error);
+      safeConsole.error("Error updating visibility:", error);
       toast.error("Failed to update profile visibility");
     } finally {
       setIsSaving(false);

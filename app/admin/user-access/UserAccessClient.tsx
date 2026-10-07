@@ -171,6 +171,7 @@ export default function UserAccessClient() {
       );
 
       setReason(updated.reason ?? "");
+      if (result.warning) toast.warning(result.warning);
       toast.success(
         updated.status === "active"
           ? "User access restored."
@@ -194,7 +195,8 @@ export default function UserAccessClient() {
         return;
       }
 
-      toast.success("User data deleted and email blacklisted.");
+      toast.success("Personal account records removed and email blacklisted.");
+      if (result.warning) toast.warning(result.warning);
       setSelectedUserId("");
       setTargetUser(null);
       setStatus("active");

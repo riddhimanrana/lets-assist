@@ -91,6 +91,16 @@ mock.module(
   }),
 );
 
+const observationCalls: string[] = [];
+mock.module("@/lib/cron/worker-observation", () => ({
+  observeWorkerRun: async (
+    worker: string,
+    operation: () => Promise<Response>,
+  ) => {
+    observationCalls.push(worker);
+    return operation();
+  },
+}));
 const { GET, POST, maxDuration } = await import("./route");
 const { NextRequest } = await import("next/server");
 
@@ -116,6 +126,7 @@ function request(token = "synthetic-workbook-token", method = "POST") {
 afterEach(() => restoreWarnings());
 
 beforeEach(() => {
+  observationCalls.length = 0;
   warnings = [];
   const warningSpy = spyOn(console, "warn").mockImplementation(
     (...args: unknown[]) => {
@@ -210,6 +221,7 @@ describe("CSF class workbook refresh route", () => {
   test("rejects unauthorized calls before the database or action", async () => {
     expect((await POST(request("wrong-token"))).status).toBe(401);
     expect(rpcCalls).toHaveLength(0);
+    expect(observationCalls).toHaveLength(0);
     expect(actionCalls).toHaveLength(0);
     expect(applicationCalls).toBe(0);
     expect(metadataCalls).toBe(0);
@@ -226,6 +238,7 @@ describe("CSF class workbook refresh route", () => {
       blocked: 0,
     });
     expect(rpcCalls).toHaveLength(0);
+    expect(observationCalls).toHaveLength(0);
     expect(applicationCalls).toBe(0);
     expect(metadataCalls).toBe(0);
     expect(dispatchCalls).toBe(0);
@@ -238,6 +251,7 @@ describe("CSF class workbook refresh route", () => {
     const response = await GET(request("synthetic-cron-secret", "GET"));
     expect(response.status).toBe(503);
     expect(rpcCalls).toHaveLength(0);
+    expect(observationCalls).toEqual(["csf-class-workbook-refresh"]);
   });
 
   test("returns count-only truth when no job is available", async () => {
@@ -279,6 +293,7 @@ describe("CSF class workbook refresh route", () => {
       status: "completed",
     });
     expect(actionCalls).toHaveLength(1);
+    expect(observationCalls).toEqual(["csf-class-workbook-refresh"]);
     const formData = actionCalls[0]?.[1] as FormData;
     expect(formData.get("expectedProviderVersion")).toBe("125");
     expect(rpcCalls.map((call) => call.name)).toEqual([

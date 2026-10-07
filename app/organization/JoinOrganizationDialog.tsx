@@ -1,4 +1,5 @@
 "use client";
+import { safeConsole } from "@/lib/safe-console";
 
 import { useId, useState } from "react";
 import {
@@ -77,7 +78,7 @@ export function JoinOrganizationDialog({
         router.refresh();
       }
     } catch (error) {
-      console.error("Error joining organization:", error);
+      safeConsole.error("Error joining organization:", error);
       toast.error("Failed to join organization. Please try again.");
     } finally {
       setIsLoading(false);

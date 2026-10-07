@@ -1,3 +1,6 @@
+import { workerResponseSummary } from "@/lib/cron/worker-response-summary";
+import { observeWorkerRun } from "@/lib/cron/worker-observation";
+import { safeConsole } from "@/lib/safe-console";
 import { NextRequest, NextResponse } from "next/server";
 import { performAiModerationScan } from "@/app/admin/moderation/ai-scan-logic";
 
@@ -29,16 +32,25 @@ export async function GET(request: NextRequest) {
   const auth = authorizeCronRequest(request);
   if (!auth.ok) return auth.response;
 
-  try {
-    const result = await performAiModerationScan();
-    return NextResponse.json(result);
-  } catch (error) {
-    console.error("Cron job failed:", error);
-    return NextResponse.json(
-      {
-        error: error instanceof Error ? error.message : "Internal server error",
-      },
-      { status: 500 },
-    );
-  }
+  const summary = workerResponseSummary("ai-moderation");
+  return observeWorkerRun(
+    "ai-moderation",
+    async () => {
+      try {
+        const result = await performAiModerationScan();
+        summary.capture(result);
+        return NextResponse.json(result);
+      } catch (error) {
+        safeConsole.error("Cron job failed:", error);
+        return NextResponse.json(
+          {
+            error:
+              error instanceof Error ? error.message : "Internal server error",
+          },
+          { status: 500 },
+        );
+      }
+    },
+    summary,
+  );
 }

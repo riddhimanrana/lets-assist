@@ -7,9 +7,33 @@ import {
 } from "./runtime-worker-transition.mjs";
 
 const sha = "a".repeat(40);
+function monitoringReceipt(worker = "csf-class-workbook-refresh") {
+  const now = Date.now();
+  return {
+    worker,
+    environment: "production",
+    sourceSha: sha,
+    scheduler: "vercel",
+    scheduleEnabled: true,
+    expectedEverySeconds: 60,
+    staleAfterSeconds: 180,
+    maxRunSeconds: 50,
+    verifiedAt: new Date(now - 1000).toISOString(),
+    validUntil: new Date(now + 60_000).toISOString(),
+    changeRecord: "https://github.com/riddhimanrana/lets-assist/issues/1",
+    reviewedBy: "fixture-operator",
+    alerting: {
+      owner: "fixture-operator",
+      destination: "fixture-alerts",
+      missedRunTestedAt: new Date(now - 2000).toISOString(),
+      validUntil: new Date(now + 60_000).toISOString(),
+    },
+  };
+}
 const env = {
   RELEASE_SHA: sha,
   WORKER: "workbook_refresh",
+  WORKER_MONITORING_EVIDENCE: JSON.stringify(monitoringReceipt()),
   WORKER_ENABLED: "true",
   SUPABASE_PROJECT_ID: "fotdmeakexgrkronxlof",
   SUPABASE_ACCESS_TOKEN: "fixture-token",
@@ -20,6 +44,49 @@ const env = {
   CONFIRMATION: `enable-csf-worker:workbook_refresh:${sha}`,
 };
 const config = transitionConfig(env);
+
+test("every active worker requires matching monitoring before activation", async () => {
+  for (const [worker, observed] of Object.entries({
+    workbook_refresh: "csf-class-workbook-refresh",
+    import_commit: "csf-import-commit",
+    communications: "csf-communications-dispatch",
+    publication_notifications: "csf-publication-notifications",
+  })) {
+    const activation = {
+      ...env,
+      WORKER: worker,
+      CONFIRMATION: `enable-csf-worker:${worker}:${sha}`,
+    };
+    assert.throws(() =>
+      transitionConfig({
+        ...activation,
+        WORKER_MONITORING_EVIDENCE: undefined,
+      }),
+    );
+    const accepted = transitionConfig({
+      ...activation,
+      WORKER_MONITORING_EVIDENCE: JSON.stringify(monitoringReceipt(observed)),
+    });
+    assert.equal(accepted.monitoringEvidence.worker, observed);
+    let calls = 0;
+    await assert.rejects(
+      transitionWorker({ ...accepted, monitoringEvidence: null }, async () => {
+        calls++;
+        throw new Error("unexpected provider read");
+      }),
+    );
+    assert.equal(calls, 0);
+    assert.equal(
+      transitionConfig({
+        ...activation,
+        WORKER_ENABLED: "false",
+        WORKER_MONITORING_EVIDENCE: undefined,
+        CONFIRMATION: `disable-csf-worker:${worker}:${sha}`,
+      }).enabled,
+      false,
+    );
+  }
+});
 
 test("retired publishing permits shutdown but never activation", () => {
   const worker = "scheduled_post_publisher";
@@ -373,6 +440,9 @@ test("bell activation is independent of email and import workers", async () => {
   const bell = transitionConfig({
     ...env,
     WORKER: "publication_notifications",
+    WORKER_MONITORING_EVIDENCE: JSON.stringify(
+      monitoringReceipt("csf-publication-notifications"),
+    ),
     CONFIRMATION: `enable-csf-worker:publication_notifications:${sha}`,
   });
   const enabled = {
@@ -408,6 +478,9 @@ test("old host status supports legacy controls but cannot activate bell delivery
   const bell = transitionConfig({
     ...env,
     WORKER: "publication_notifications",
+    WORKER_MONITORING_EVIDENCE: JSON.stringify(
+      monitoringReceipt("csf-publication-notifications"),
+    ),
     CONFIRMATION: `enable-csf-worker:publication_notifications:${sha}`,
   });
   const refused = transport([[{ controls: before }], legacyStatus]);
@@ -430,4 +503,77 @@ test("a legacy receipt cannot hide a concurrent change to bell delivery", async 
     transitionWorker(config, mock.fetcher),
     /changed after the transition/,
   );
+});
+
+test("communications enable requires exact current operator monitoring evidence before provider reads", async () => {
+  const monitoredEnv = {
+    ...env,
+    WORKER: "communications",
+    CONFIRMATION: `enable-csf-worker:communications:${sha}`,
+  };
+  assert.throws(() => transitionConfig(monitoredEnv), /monitoring|scheduler/u);
+  const now = Date.now();
+  const policy = {
+    worker: "csf-communications-dispatch",
+    environment: "production",
+    sourceSha: sha,
+    scheduler: "vercel",
+    scheduleEnabled: true,
+    expectedEverySeconds: 60,
+    staleAfterSeconds: 180,
+    maxRunSeconds: 50,
+    verifiedAt: new Date(now - 1000).toISOString(),
+    validUntil: new Date(now + 60_000).toISOString(),
+    changeRecord: "https://github.com/riddhimanrana/lets-assist/issues/1",
+    reviewedBy: env.GITHUB_ACTOR,
+    alerting: {
+      owner: env.GITHUB_ACTOR,
+      destination: "fixture-alerts",
+      missedRunTestedAt: new Date(now - 2000).toISOString(),
+      validUntil: new Date(now + 60_000).toISOString(),
+    },
+  };
+  const accepted = transitionConfig({
+    ...monitoredEnv,
+    WORKER_MONITORING_EVIDENCE: JSON.stringify(policy),
+  });
+  assert.equal(accepted.monitoringEvidence.sourceSha, sha);
+  for (const invalid of [
+    { ...policy, sourceSha: "b".repeat(40) },
+    { ...policy, reviewedBy: "another-operator" },
+    { ...policy, validUntil: new Date(now - 1).toISOString() },
+    { ...policy, alerting: undefined },
+    { ...policy, token: "forbidden" },
+  ])
+    assert.throws(() =>
+      transitionConfig({
+        ...monitoredEnv,
+        WORKER_MONITORING_EVIDENCE: JSON.stringify(invalid),
+      }),
+    );
+  assert.equal(
+    transitionConfig({
+      ...monitoredEnv,
+      WORKER_ENABLED: "false",
+      CONFIRMATION: `disable-csf-worker:communications:${sha}`,
+    }).enabled,
+    false,
+  );
+  let calls = 0;
+  await assert.rejects(
+    transitionWorker(
+      {
+        ...accepted,
+        monitoringEvidence: {
+          ...policy,
+          validUntil: new Date(now - 1).toISOString(),
+        },
+      },
+      async () => {
+        calls++;
+        throw new Error("must not call provider");
+      },
+    ),
+  );
+  assert.equal(calls, 0);
 });

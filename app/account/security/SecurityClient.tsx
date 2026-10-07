@@ -4,8 +4,8 @@ import { Suspense } from "react";
 import { PageHeader, SectionHeader } from "@/components/layout/PageHeader";
 import { SettingsSection } from "@/components/layout/SettingsSection";
 import { Skeleton } from "@/components/ui/skeleton";
-import { DataExportSection } from "./DataExportSection";
-import { DeleteAccountSection } from "./DeleteAccountSection";
+import DataExportSection from "./DataExportSection";
+import AccountDeletionSection from "./AccountDeletionSection";
 import { GoogleSignInSection } from "./GoogleSignInSection";
 import { LoginEmailSection } from "./LoginEmailSection";
 import { PasswordSection } from "./PasswordSection";
@@ -46,7 +46,7 @@ export default function SecurityClient() {
         className="pt-2"
       />
       <DataExportSection />
-      <DeleteAccountSection />
+      <AccountDeletionSection />
     </div>
   );
 }

@@ -13,6 +13,8 @@ import {
 import { PageHeader } from "@/components/layout/PageHeader";
 import { AdminLoadError, AdminPage } from "./components/AdminPage";
 import { OverviewTab } from "./components/OverviewTab";
+import { ProjectScheduleHealth } from "./components/ProjectScheduleHealth";
+import { getProjectScheduleHealth } from "./server/project-schedule-health";
 
 export const metadata = {
   title: "Admin Dashboard | Let's Assist",
@@ -37,6 +39,7 @@ export default async function AdminOverviewPage() {
     pendingReports,
     reportsStats,
     underReviewReports,
+    scheduleHealth,
   ] = await Promise.all([
     getAllFeedback(),
     getTrustedMemberApplications(),
@@ -45,6 +48,7 @@ export default async function AdminOverviewPage() {
     getContentReports("pending"),
     getContentReportsStats(),
     getContentReports("under_review"),
+    getProjectScheduleHealth(),
   ]);
 
   const stats = moderationStats.data;
@@ -69,6 +73,7 @@ export default async function AdminOverviewPage() {
     return (
       <AdminPage>
         <PageHeader title="Admin overview" />
+        <ProjectScheduleHealth result={scheduleHealth} />
         <AdminLoadError title="Error loading admin data" message={firstError} />
       </AdminPage>
     );
@@ -92,11 +97,16 @@ export default async function AdminOverviewPage() {
   };
 
   return (
-    <OverviewTab
-      stats={overviewStats}
-      flaggedContent={flaggedContentData}
-      reportPreview={reportPreview}
-      reportsStats={aggregateReportStats}
-    />
+    <>
+      <OverviewTab
+        stats={overviewStats}
+        flaggedContent={flaggedContentData}
+        reportPreview={reportPreview}
+        reportsStats={aggregateReportStats}
+      />
+      <div className="px-4 pb-6 sm:px-6">
+        <ProjectScheduleHealth result={scheduleHealth} />
+      </div>
+    </>
   );
 }

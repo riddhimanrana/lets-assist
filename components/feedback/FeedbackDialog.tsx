@@ -1,4 +1,5 @@
 "use client";
+import { safeConsole } from "@/lib/safe-console";
 
 import * as React from "react";
 import { Button } from "@/components/ui/button";
@@ -176,7 +177,7 @@ export function FeedbackDialog({
 
       onOpenChangeAction(false);
     } catch (error) {
-      console.error("Error submitting feedback:", error);
+      safeConsole.error("Error submitting feedback:", error);
       toast.error("Error sending feedback", {
         description: "Please try again later.",
       });

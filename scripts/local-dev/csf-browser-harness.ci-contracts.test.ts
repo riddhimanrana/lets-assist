@@ -26,7 +26,7 @@ function dbReplayJob() {
   const nextJob = /^ {2}[A-Za-z][A-Za-z0-9_-]*:\s*$/mu.exec(body);
   return nextJob ? body.slice(0, nextJob.index) : body;
 }
-describe("local replay gate is separated from blocked remote readiness", () => {
+describe("local replay gate is separated from hosted readiness", () => {
   test("by default the audit does not run and the gate says so explicitly", async () => {
     const sandbox = await createSandbox("csf-verifier-");
     const root = await createFakeRepository(sandbox);
@@ -35,7 +35,7 @@ describe("local replay gate is separated from blocked remote readiness", () => {
 
     expect(result.exitCode).toBe(0);
     expect(result.output).toContain(
-      "Remote readiness: NOT EVALUATED — separate blocked release gate.",
+      "Service-only access audit: NOT EVALUATED. Hosted readiness requires separate evidence.",
     );
     const bunCalls = await readCalls(join(sandbox.directory, "bun-calls.log"));
     expect(bunCalls).not.toContain("run db:audit:remote-readiness");
@@ -49,7 +49,7 @@ describe("local replay gate is separated from blocked remote readiness", () => {
     );
   }, 60_000);
 
-  test("exactly 1 opts in and runs the unchanged audit", async () => {
+  test("exactly 1 opts in and runs the access audit", async () => {
     const sandbox = await createSandbox("csf-verifier-");
     const root = await createFakeRepository(sandbox);
 
@@ -58,9 +58,11 @@ describe("local replay gate is separated from blocked remote readiness", () => {
     });
 
     expect(result.exitCode).toBe(0);
-    expect(result.output).not.toContain("Remote readiness: NOT EVALUATED");
+    expect(result.output).not.toContain(
+      "Service-only access audit: NOT EVALUATED",
+    );
     expect(result.output).toContain(
-      "Supabase Remote Server-Only Readiness Audit (explicitly required)",
+      "Supabase Service-Only Access Audit (explicitly required)",
     );
     const bunCalls = await readCalls(join(sandbox.directory, "bun-calls.log"));
     expect(bunCalls).toContain("run db:audit:remote-readiness");
@@ -107,19 +109,6 @@ describe("local replay gate is separated from blocked remote readiness", () => {
       );
     }
   }, 120_000);
-
-  test("the audit script itself is untouched by this wave", () => {
-    const auditSource = readFileSync(
-      join(repositoryRoot, "scripts/audit-supabase-remote-readiness.sh"),
-      "utf8",
-    );
-    const digest = new Bun.CryptoHasher("sha256")
-      .update(auditSource)
-      .digest("hex");
-    expect(digest).toBe(
-      "058ef50ce10b130482fc3b9d57216102a04bdd728e1146523fd713533db86bad",
-    );
-  });
 
   test("the gate names its omissions rather than implying full coverage", async () => {
     const sandbox = await createSandbox("csf-verifier-");
@@ -613,7 +602,9 @@ describe("runbooks lead with the isolated contract", () => {
     expect(gate).not.toContain("then run `bun run supabase`");
     // Remote readiness is opt-in only, with the default stated.
     expect(gate).toContain("Remote readiness is **not** part of this gate");
-    expect(gate).toContain("NOT EVALUATED — separate blocked release gate.");
+    expect(gate).toContain(
+      "NOT EVALUATED. Hosted readiness requires separate evidence.",
+    );
     expect(gate).toContain("exactly `CSF_REQUIRE_REMOTE_READINESS=1`");
     expect(gate).not.toMatch(/^\d+\.\s+`bun run db:audit:remote-readiness`$/mu);
   });

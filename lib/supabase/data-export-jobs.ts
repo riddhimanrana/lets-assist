@@ -1,354 +1,273 @@
-import * as React from "react";
+import "server-only";
 
-import DataExportReadyEmail from "@/emails/data-export-ready";
-import { logError, logInfo, logWarn } from "@/lib/logger";
-import { sendEmail } from "@/services/email";
-
+import { createHash } from "node:crypto";
+import { z } from "zod";
+import type { SupabaseClient } from "@supabase/supabase-js";
+import { logError, logWarn } from "@/lib/logger";
+import { sendEmail, type SendEmailResult } from "@/services/email";
 import { getAdminClient } from "./admin";
 import { createUserDataExportArchive } from "./user-data-export";
+import { ACCOUNT_EXPORT_MAX_ZIP_BYTES } from "./data-export-limits";
 
-const EXPORT_BUCKET = "data-exports";
-const EXPORT_BUCKET_FILE_SIZE_LIMIT = "50MB";
-const DEFAULT_SIGNED_URL_TTL_SECONDS = 60 * 60 * 24 * 7; // 7 days
-const DEFAULT_ATTACHMENT_MAX_BYTES = 8 * 1024 * 1024; // 8MB
-
-type ExportJobStatus = "pending" | "processing" | "completed" | "failed";
-
-type ExportJobRecord = {
-  id: string;
-  user_id: string;
-  requested_by: string | null;
-  status: ExportJobStatus;
-  delivery_email: string;
-  attempt_count: number;
-  request_metadata: Record<string, unknown> | null;
+const BUCKET = "data-exports";
+const jobSchema = z.object({
+  id: z.string().uuid(),
+  user_id: z.string().uuid(),
+  lease_token: z.string().uuid(),
+  status: z.enum(["pending", "processing", "completed", "failed"]),
+  storage_path: z.string().nullable(),
+  artifact_sha256: z.string().nullable(),
+  zip_size_bytes: z.number().nullable(),
+  artifact_ready_at: z.string().nullable(),
+  artifact_expires_at: z.string().nullable(),
+  delivery_status: z.enum([
+    "not_attempted",
+    "sending",
+    "accepted",
+    "skipped",
+    "failed",
+  ]),
+  delivery_email: z.string().email(),
+  export_metadata: z.record(z.string(), z.unknown()),
+});
+export type DataExportWorkerJob = z.infer<typeof jobSchema>;
+type Archive = Awaited<ReturnType<typeof createUserDataExportArchive>>;
+type Dependencies = {
+  client?: SupabaseClient;
+  archive?: (userId: string) => Promise<Archive>;
+  send?: typeof sendEmail;
 };
+const hash = (bytes: Buffer) =>
+  createHash("sha256").update(bytes).digest("hex");
+const ownedPath = (job: DataExportWorkerJob, path: string) =>
+  new RegExp(`^${job.user_id}/${job.id}/[a-f0-9-]{36}\\.zip$`).test(path);
 
-function getSignedUrlTTLSeconds(): number {
-  const raw = process.env.DATA_EXPORT_SIGNED_URL_TTL_SECONDS;
-  const parsed = raw ? Number(raw) : NaN;
-  return Number.isFinite(parsed) && parsed > 0
-    ? parsed
-    : DEFAULT_SIGNED_URL_TTL_SECONDS;
-}
-
-function getAttachmentMaxBytes(): number {
-  const raw = process.env.DATA_EXPORT_ATTACHMENT_MAX_BYTES;
-  const parsed = raw ? Number(raw) : NaN;
-  return Number.isFinite(parsed) && parsed > 0
-    ? parsed
-    : DEFAULT_ATTACHMENT_MAX_BYTES;
-}
-
-async function ensureExportBucket() {
-  const supabase = getAdminClient();
-  const { data: buckets, error: listError } =
-    await supabase.storage.listBuckets();
-
-  if (listError) {
-    throw new Error(`Unable to list storage buckets: ${listError.message}`);
+async function advance(
+  client: SupabaseClient,
+  job: DataExportWorkerJob,
+  step: string,
+  data: Record<string, unknown> = {},
+) {
+  const result = await client.rpc("advance_account_data_export", {
+    p_job_id: job.id,
+    p_lease: job.lease_token,
+    p_step: step,
+    p_data: data,
+  });
+  if (result.error || !result.data)
+    throw new Error("Account export transition unconfirmed");
+  // Settlement clears the claim, so its acknowledgment is checked separately.
+  if (step === "settle_delivery" || step === "failed") {
+    if (result.data.id !== job.id || result.data.user_id !== job.user_id)
+      throw new Error("Account export receipt mismatch");
+    return job;
   }
+  const next = jobSchema.parse(result.data);
+  if (
+    next.id !== job.id ||
+    next.user_id !== job.user_id ||
+    next.lease_token !== job.lease_token
+  ) {
+    throw new Error("Account export receipt mismatch");
+  }
+  return next;
+}
 
-  const exists = (buckets ?? []).some(
-    (bucket) => bucket.name === EXPORT_BUCKET,
+async function verifyStoredArchive(
+  client: SupabaseClient,
+  job: DataExportWorkerJob,
+): Promise<boolean> {
+  if (
+    !job.storage_path ||
+    !ownedPath(job, job.storage_path) ||
+    !job.artifact_sha256 ||
+    !job.zip_size_bytes
+  ) {
+    throw new Error("Account export artifact identity missing");
+  }
+  const result = await client.storage.from(BUCKET).download(job.storage_path);
+  if (result.error) {
+    const status = String(
+      (result.error as { statusCode?: unknown }).statusCode,
+    );
+    if (status === "404") return false;
+    throw new Error("Account export object read unconfirmed");
+  }
+  if (
+    !result.data ||
+    result.data.size !== job.zip_size_bytes ||
+    result.data.size > ACCOUNT_EXPORT_MAX_ZIP_BYTES
+  ) {
+    throw new Error("Account export object size mismatch");
+  }
+  if (
+    hash(Buffer.from(await result.data.arrayBuffer())) !== job.artifact_sha256
+  ) {
+    throw new Error("Account export object digest mismatch");
+  }
+  return true;
+}
+
+export async function processClaimedDataExport(
+  jobInput: DataExportWorkerJob,
+  dependencies: Dependencies = {},
+) {
+  const client = dependencies.client ?? getAdminClient({ timeoutMs: 30_000 });
+  const archiveFactory = dependencies.archive ?? createUserDataExportArchive;
+  const dispatch = dependencies.send ?? sendEmail;
+  let job = jobSchema.parse(jobInput);
+  try {
+    if (!job.artifact_ready_at) {
+      const recovered = job.storage_path
+        ? await verifyStoredArchive(client, job)
+        : false;
+      if (!recovered) {
+        const archive = await archiveFactory(job.user_id);
+        job = await advance(client, job, "plan_artifact", {
+          sha256: hash(archive.zipBuffer),
+          size_bytes: archive.zipBuffer.length,
+          record_count: archive.payload.metadata.totalRecords,
+          datasets_count: archive.payload.metadata.totalDatasets,
+          manifest: archive.manifest,
+        });
+        if (!job.storage_path || !ownedPath(job, job.storage_path))
+          throw new Error("Account export upload path refused");
+        const { error } = await client.storage
+          .from(BUCKET)
+          .upload(job.storage_path, archive.zipBuffer, {
+            contentType: "application/zip",
+            upsert: false,
+            cacheControl: "0",
+          });
+        if (error) throw new Error("Account export upload unconfirmed");
+        if (!(await verifyStoredArchive(client, job)))
+          throw new Error("Account export upload missing");
+      }
+      job = await advance(client, job, "archive_ready");
+    }
+    if (job.delivery_status !== "not_attempted")
+      return { ready: true, delivery: job.delivery_status };
+    const origin = new URL(process.env.NEXT_PUBLIC_SITE_URL || "");
+    if (
+      origin.protocol !== "https:" &&
+      !["localhost", "127.0.0.1", "[::1]"].includes(origin.hostname)
+    ) {
+      throw new Error("Account export notification origin refused");
+    }
+    job = await advance(client, job, "begin_delivery");
+    let outcome: SendEmailResult | undefined;
+    try {
+      outcome = await dispatch({
+        to: job.delivery_email,
+        type: "transactional",
+        subject: "Your Let's Assist data export is ready",
+        text: `Your account export is ready. Sign in to download it from ${origin.origin}/account/security. The archive is available until ${job.artifact_expires_at}.`,
+        idempotencyKey: `account-export/${job.id}/ready-v2`,
+        signal: AbortSignal.timeout(30_000),
+      });
+    } catch {
+      /* A thrown provider call leaves an unknown delivery receipt. */
+    }
+    const delivery =
+      outcome?.outcome === "accepted"
+        ? "accepted"
+        : outcome?.outcome === "skipped"
+          ? "skipped"
+          : outcome?.outcome === "definitive_failure" ||
+              outcome?.outcome === "retryable_pre_send"
+            ? "failed"
+            : "unknown";
+    await advance(client, job, "settle_delivery", {
+      outcome: delivery,
+      ...(outcome?.outcome === "accepted"
+        ? { message_id: outcome.messageId }
+        : {}),
+    });
+    return { ready: true, delivery };
+  } catch (error) {
+    // The database refuses this transition after archive_ready, during delivery,
+    // or after another worker owns the job. Never overwrite newer progress.
+    await advance(client, job, "failed").catch(() => undefined);
+    logError("Data export job failed", error, { job_id: job.id });
+    return { ready: Boolean(job.artifact_ready_at), delivery: "unconfirmed" };
+  }
+}
+
+async function cleanupExpiredArtifacts(client: SupabaseClient) {
+  const { data, error } = await client.rpc("expired_account_export_artifacts", {
+    p_limit: 10,
+  });
+  if (error || !Array.isArray(data))
+    throw new Error("Account export cleanup inventory unavailable");
+  let removed = 0;
+  let failed = 0;
+  for (const row of data) {
+    const path = row.storage_path;
+    if (
+      typeof path !== "string" ||
+      !/^[a-f0-9-]{36}\/[a-f0-9-]{36}\/[a-f0-9-]{36}\.zip$/.test(path)
+    ) {
+      throw new Error("Account export cleanup path refused");
+    }
+    const result = await client.storage.from(BUCKET).remove([path]);
+    if (result.error) {
+      failed++;
+      continue;
+    }
+    const confirmed = await client.rpc(
+      "confirm_account_export_artifact_removed",
+      { p_path: path },
+    );
+    if (!confirmed.error && confirmed.data === true) removed++;
+    else failed++;
+  }
+  return { removed, failed };
+}
+
+export async function processPendingDataExportJobs(
+  limit = 1,
+  dependencies: Dependencies = {},
+) {
+  const client = dependencies.client ?? getAdminClient({ timeoutMs: 30_000 });
+  const boundedLimit = Math.min(
+    5,
+    Math.max(1, Math.floor(Number.isFinite(limit) ? limit : 1)),
   );
-  if (exists) return;
-
-  const { error: createError } = await supabase.storage.createBucket(
-    EXPORT_BUCKET,
-    {
-      public: false,
-      fileSizeLimit: EXPORT_BUCKET_FILE_SIZE_LIMIT,
-    },
-  );
-
-  if (createError) {
-    throw new Error(
-      `Unable to create storage bucket '${EXPORT_BUCKET}': ${createError.message}`,
-    );
+  const bucket = await client.storage.getBucket(BUCKET);
+  if (bucket.error || !bucket.data || bucket.data.public)
+    throw new Error("Private export bucket unavailable");
+  let removed = 0;
+  let cleanupFailed = false;
+  try {
+    const cleanup = await cleanupExpiredArtifacts(client);
+    removed = cleanup.removed;
+    cleanupFailed = cleanup.failed > 0;
+  } catch {
+    cleanupFailed = true;
+    logWarn("Data export artifact cleanup unconfirmed");
   }
-}
-
-async function writeAuditEvent(params: {
-  jobId: string | null;
-  userId: string | null;
-  eventType: string;
-  status: "info" | "error";
-  source: string;
-  details?: Record<string, unknown>;
-}) {
-  const supabase = getAdminClient();
-
-  const { error } = await supabase
-    .from("account_data_export_audit_logs")
-    .insert({
-      job_id: params.jobId,
-      user_id: params.userId,
-      event_type: params.eventType,
-      status: params.status,
-      source: params.source,
-      details: params.details ?? {},
-    });
-
-  if (error) {
-    logWarn("Failed to write data export audit event", {
-      event_type: params.eventType,
-      job_id: params.jobId ?? undefined,
-      user_id: params.userId ?? undefined,
-      error_message: error.message,
-    });
-  }
-}
-
-async function completeJob(jobId: string, updates: Record<string, unknown>) {
-  const supabase = getAdminClient();
-  const { error } = await supabase
-    .from("account_data_export_jobs")
-    .update({ ...updates, updated_at: new Date().toISOString() })
-    .eq("id", jobId);
-
-  if (error) {
-    throw new Error(`Failed to update export job ${jobId}: ${error.message}`);
-  }
-}
-
-async function claimPendingJob(
-  job: ExportJobRecord,
-): Promise<ExportJobRecord | null> {
-  const supabase = getAdminClient();
-  const now = new Date().toISOString();
-
-  const { data, error } = await supabase
-    .from("account_data_export_jobs")
-    .update({
-      status: "processing",
-      started_at: now,
-      attempt_count: (job.attempt_count ?? 0) + 1,
-      last_attempt_at: now,
-      updated_at: now,
-    })
-    .eq("id", job.id)
-    .eq("status", "pending")
-    .select(
-      "id, user_id, requested_by, status, delivery_email, attempt_count, request_metadata",
-    )
-    .maybeSingle();
-
-  if (error) {
-    throw new Error(`Failed to claim export job ${job.id}: ${error.message}`);
-  }
-
-  return (data as ExportJobRecord | null) ?? null;
-}
-
-async function processSingleJob(job: ExportJobRecord) {
-  const supabase = getAdminClient();
-  const signedUrlTtl = getSignedUrlTTLSeconds();
-  const attachmentMaxBytes = getAttachmentMaxBytes();
-
-  await writeAuditEvent({
-    jobId: job.id,
-    userId: job.user_id,
-    eventType: "processing_started",
-    status: "info",
-    source: "cron-worker",
-  });
-
-  const archive = await createUserDataExportArchive(job.user_id, {
-    sanitizeSensitive: true,
-  });
-
-  const storagePath = `${job.user_id}/${job.id}/${archive.fileName}`;
-
-  const { error: uploadError } = await supabase.storage
-    .from(EXPORT_BUCKET)
-    .upload(storagePath, archive.zipBuffer, {
-      contentType: "application/zip",
-      upsert: true,
-      cacheControl: "3600",
-    });
-
-  if (uploadError) {
-    throw new Error(`Failed to upload data export ZIP: ${uploadError.message}`);
-  }
-
-  const { data: signedData, error: signedError } = await supabase.storage
-    .from(EXPORT_BUCKET)
-    .createSignedUrl(storagePath, signedUrlTtl);
-
-  if (signedError || !signedData?.signedUrl) {
-    throw new Error(
-      `Failed to create signed URL: ${signedError?.message || "Unknown error"}`,
-    );
-  }
-
-  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000";
-  const accountUrl = `${siteUrl.replace(/\/$/, "")}/account/security`;
-  const userName =
-    (job.request_metadata?.full_name as string | undefined) ||
-    (job.request_metadata?.name as string | undefined) ||
-    "there";
-
-  const shouldAttach = archive.zipBuffer.length <= attachmentMaxBytes;
-  const attachmentContent = shouldAttach
-    ? archive.zipBuffer.toString("base64")
-    : undefined;
-
-  const expiresAt = new Date(Date.now() + signedUrlTtl * 1000).toISOString();
-
-  const emailResponse = await sendEmail({
-    to: job.delivery_email,
-    subject: "Your Let’s Assist data export is ready",
-    react: React.createElement(DataExportReadyEmail, {
-      userName,
-      generatedAt: archive.payload.metadata.generatedAt,
-      recordsExported: archive.payload.metadata.totalRecords,
-      attachmentName: archive.fileName,
-      accountUrl,
-      downloadUrl: signedData.signedUrl,
-      linkExpiresAt: expiresAt,
-      deliveryMode: shouldAttach ? "attachment_and_link" : "link_only",
-      zipSizeBytes: archive.zipBuffer.length,
-    }),
-    type: "transactional",
-    attachments: shouldAttach
-      ? [
-          {
-            filename: archive.fileName,
-            content: attachmentContent!,
-          },
-        ]
-      : undefined,
-  });
-
-  if (!emailResponse.success && !emailResponse.skipped) {
-    const errorMessage =
-      "error" in emailResponse && emailResponse.error
-        ? typeof emailResponse.error === "string"
-          ? emailResponse.error
-          : (emailResponse.error as { message?: string }).message ||
-            "Email send failed"
-        : "Email send failed";
-
-    throw new Error(errorMessage);
-  }
-
-  await completeJob(job.id, {
-    status: "completed",
-    completed_at: new Date().toISOString(),
-    storage_path: storagePath,
-    signed_url: signedData.signedUrl,
-    signed_url_expires_at: expiresAt,
-    zip_size_bytes: archive.zipBuffer.length,
-    record_count: archive.payload.metadata.totalRecords,
-    datasets_count: archive.payload.metadata.totalDatasets,
-    export_metadata: {
-      manifest: archive.manifest,
-      deliveryMode: shouldAttach ? "attachment_and_link" : "link_only",
-      emailSkipped: emailResponse.skipped || false,
-      emailReason: emailResponse.reason || null,
-    },
-    error_message: null,
-  });
-
-  await writeAuditEvent({
-    jobId: job.id,
-    userId: job.user_id,
-    eventType: "processing_completed",
-    status: "info",
-    source: "cron-worker",
-    details: {
-      delivery_mode: shouldAttach ? "attachment_and_link" : "link_only",
-      zip_size_bytes: archive.zipBuffer.length,
-      record_count: archive.payload.metadata.totalRecords,
-    },
-  });
-
-  logInfo("Data export job completed", {
-    job_id: job.id,
-    user_id: job.user_id,
-    zip_size_bytes: archive.zipBuffer.length,
-    record_count: archive.payload.metadata.totalRecords,
-  });
-}
-
-export async function processPendingDataExportJobs(limit = 5) {
-  const supabase = getAdminClient();
-  await ensureExportBucket();
-
-  const { data: pendingJobs, error: pendingError } = await supabase
-    .from("account_data_export_jobs")
-    .select(
-      "id, user_id, requested_by, status, delivery_email, attempt_count, request_metadata",
-    )
-    .eq("status", "pending")
-    .order("requested_at", { ascending: true })
-    .limit(limit);
-
-  if (pendingError) {
-    throw new Error(
-      `Failed to fetch pending export jobs: ${pendingError.message}`,
-    );
-  }
-
-  const jobs = (pendingJobs as ExportJobRecord[] | null) ?? [];
-  if (jobs.length === 0) {
-    return { processed: 0, completed: 0, failed: 0, skipped: 0 };
-  }
-
+  let processed = 0;
   let completed = 0;
   let failed = 0;
   let skipped = 0;
-
-  for (const pendingJob of jobs) {
-    let claimed: ExportJobRecord | null = null;
-
-    try {
-      claimed = await claimPendingJob(pendingJob);
-      if (!claimed) {
-        skipped += 1;
-        continue;
-      }
-
-      await processSingleJob(claimed);
-      completed += 1;
-    } catch (error) {
-      failed += 1;
-      const message =
-        error instanceof Error
-          ? error.message
-          : "Unknown export processing error";
-
-      logError("Data export job failed", error, {
-        job_id: pendingJob.id,
-        user_id: pendingJob.user_id,
-      });
-
-      await completeJob(pendingJob.id, {
-        status: "failed",
-        failed_at: new Date().toISOString(),
-        error_message: message,
-      }).catch((completeError) => {
-        logError("Failed to mark export job as failed", completeError, {
-          job_id: pendingJob.id,
-        });
-      });
-
-      await writeAuditEvent({
-        jobId: pendingJob.id,
-        userId: pendingJob.user_id,
-        eventType: "processing_failed",
-        status: "error",
-        source: "cron-worker",
-        details: { error: message },
-      });
-    }
+  for (let i = 0; i < boundedLimit; i++) {
+    // Claim only when ready to process. A batch's last job must not wait out its lease.
+    const claim = await client.rpc("claim_account_data_export_jobs", {
+      p_limit: 1,
+    });
+    if (claim.error || !Array.isArray(claim.data))
+      throw new Error("Account export claim unavailable");
+    if (claim.data.length === 0) break;
+    if (claim.data.length !== 1)
+      throw new Error("Account export claim count mismatch");
+    const result = await processClaimedDataExport(
+      jobSchema.parse(claim.data[0]),
+      { ...dependencies, client },
+    );
+    processed++;
+    if (result.ready) completed++;
+    else failed++;
+    if (result.delivery !== "accepted") skipped++;
   }
-
-  return {
-    processed: jobs.length,
-    completed,
-    failed,
-    skipped,
-  };
+  return { processed, completed, failed, skipped, removed, cleanupFailed };
 }

@@ -1,4 +1,5 @@
 "use client";
+import { safeConsole } from "@/lib/safe-console";
 
 import React from "react";
 import { parseISO, differenceInSeconds } from "date-fns";
@@ -69,10 +70,13 @@ export default function VolunteerStatusCard({
         );
         percent = Math.round((elapsedSec / totalSec) * 100);
       } else {
-        console.error("Invalid session end time:", `${sessionDate}T${endTime}`);
+        safeConsole.error(
+          "Invalid session end time:",
+          `${sessionDate}T${endTime}`,
+        );
       }
     } catch (error) {
-      console.error("Error parsing dates for progress:", error);
+      safeConsole.error("Error parsing dates for progress:", error);
     }
   }
 

@@ -1,4 +1,5 @@
 "use server";
+import { safeConsole } from "@/lib/safe-console";
 
 import { revalidatePath } from "next/cache";
 import { getAdminClient } from "@/lib/supabase/admin";
@@ -29,7 +30,7 @@ export async function unlinkSheetSync(
     .maybeSingle();
 
   if (existingSyncError) {
-    console.error(
+    safeConsole.error(
       "Failed to load sheet sync before unlink:",
       existingSyncError,
     );
@@ -65,7 +66,7 @@ export async function unlinkSheetSync(
     .eq("organization_id", organizationId);
 
   if (error) {
-    console.error("Failed to unlink sheet sync:", error);
+    safeConsole.error("Failed to unlink sheet sync:", error);
     return { success: false, error: "Failed to unlink sheet" };
   }
 
@@ -92,7 +93,7 @@ export async function disconnectOrganizationSheetConnection(
     .maybeSingle();
 
   if (existingSyncError) {
-    console.error(
+    safeConsole.error(
       "Failed to load sheet sync before disconnect:",
       existingSyncError,
     );
@@ -140,7 +141,10 @@ export async function disconnectOrganizationSheetConnection(
       .eq("organization_id", organizationId);
 
     if (error) {
-      console.error("Failed to remove organization sheet connection:", error);
+      safeConsole.error(
+        "Failed to remove organization sheet connection:",
+        error,
+      );
       return { success: false, error: "Failed to disconnect Google account" };
     }
   }
@@ -180,7 +184,7 @@ export async function getAvailableSheetOwners(organizationId: string): Promise<
     .eq("status", "active");
 
   if (error || !members) {
-    console.error("Failed to load organization members:", error);
+    safeConsole.error("Failed to load organization members:", error);
     return { success: false, error: "Failed to load organization members" };
   }
 
@@ -279,7 +283,7 @@ export async function updateSheetOwner(
     .eq("organization_id", organizationId);
 
   if (error) {
-    console.error("Failed to update sheet owner:", error);
+    safeConsole.error("Failed to update sheet owner:", error);
     return { success: false, error: "Failed to update sheet owner" };
   }
 

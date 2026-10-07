@@ -1,4 +1,6 @@
 "use client";
+import { safeConsole } from "@/lib/safe-console";
+import { useCreationSession } from "./use-creation-session";
 import { useState, useEffect, useMemo, useCallback } from "react";
 import { useEventForm } from "@/hooks/use-event-form";
 import type { EventFormState } from "@/hooks/use-event-form";
@@ -10,12 +12,9 @@ import {
   publishWaiverStagedProject,
   uploadWaiverPdf,
   finalizeProject,
-  saveProjectAsNewDraft,
-  deleteDraft,
   checkProfanity,
 } from "./actions";
 import { saveWaiverDefinition } from "../[id]/actions";
-import { useRouter } from "next/navigation";
 import { getWaiverConfigurationError } from "@/lib/projects/waiver-validation";
 import {
   clearStagedWaiverAttempt,
@@ -44,11 +43,12 @@ import {
 } from "./CreateStepContent";
 import { CreateStepper } from "./CreateStepper";
 import { useDraftAutosave } from "./use-draft-autosave";
-import { useRestoreDraft, useWaiverReuploadNotice } from "./use-draft-restore";
+import { useWaiverReuploadNotice } from "./use-draft-restore";
 import { useProjectFileUploads } from "./use-project-file-uploads";
 import { useStepValidation } from "./use-step-validation";
 
 interface ProjectCreatorProps {
+  creationSessionId: string;
   initialOrgId?: string;
   initialOrgOptions?: CreateOrgOption[];
   canUsePublicVisibility?: boolean;
@@ -59,6 +59,7 @@ interface ProjectCreatorProps {
 }
 
 export default function ProjectCreator({
+  creationSessionId,
   initialOrgId,
   initialOrgOptions,
   canUsePublicVisibility = true,
@@ -67,7 +68,10 @@ export default function ProjectCreator({
   initialDraftId,
   pluginSteps = [],
 }: ProjectCreatorProps) {
-  const form = useEventForm();
+  const form = useEventForm({
+    draft: initialDraftData,
+    organizationId: initialOrgId,
+  });
   const {
     state,
     nextStep,
@@ -86,10 +90,12 @@ export default function ProjectCreator({
     removeDay,
     removeRole,
     updateRecurrence,
-    loadDraftState,
   } = form;
 
-  const router = useRouter();
+  const { draftSession, updateDraftUrl, attemptStorage } = useCreationSession(
+    creationSessionId,
+    initialDraftId,
+  );
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSavingDraft, setIsSavingDraft] = useState(false);
 
@@ -138,8 +144,6 @@ export default function ProjectCreator({
     validateCurrentStep,
   } = validation;
 
-  useRestoreDraft(initialDraftData, loadDraftState);
-
   // Serialize state for change detection
   const stateSnapshot = useMemo(() => JSON.stringify(state), [state]);
 
@@ -168,8 +172,9 @@ export default function ProjectCreator({
     autosaveStatus,
     setAutosaveStatus,
     autosaveTimerRef,
-    previousStateRef,
   } = useDraftAutosave({
+    draftSession,
+    updateDraftUrl,
     state,
     stateSnapshot,
     initialDraftId,
@@ -229,8 +234,6 @@ export default function ProjectCreator({
   // The attempt lives in browser storage, not in a ref, so a reload between
   // creating the staged row and publishing it resumes the same project instead
   // of stranding an invisible draft and inserting a duplicate on retry.
-  const attemptStorage = (): Storage | null =>
-    typeof window === "undefined" ? null : window.localStorage;
 
   const persistAttempt = (attempt: StagedWaiverAttempt) => {
     writeStagedWaiverAttempt(attemptStorage(), attempt);
@@ -281,12 +284,13 @@ export default function ProjectCreator({
       const publishResult = await publishWaiverStagedProject(projectId);
       return publishResult.error ?? null;
     } catch (error) {
-      console.error("Error completing waiver publication:", error);
+      safeConsole.error("Error completing waiver publication:", error);
       return "The waiver could not be attached. Please try again.";
     }
   };
 
   const handleSubmit = async () => {
+    if (draftSession.publishing) return;
     if (state.step !== finalStep) {
       handleNextStep();
       return;
@@ -330,6 +334,11 @@ export default function ProjectCreator({
       }
 
       setIsSubmitting(true);
+      if (autosaveTimerRef.current) {
+        clearTimeout(autosaveTimerRef.current);
+        autosaveTimerRef.current = null;
+      }
+      await draftSession.beginPublication();
 
       const profanityToast = toast.loading(
         "Checking content for inappropriate language...",
@@ -341,10 +350,11 @@ export default function ProjectCreator({
       });
       toast.dismiss(profanityToast);
 
-      if (profanityCheck?.hasProfanity) {
-        setHasProfanity(true);
+      if (!profanityCheck.success || profanityCheck.hasProfanity) {
+        setHasProfanity(profanityCheck.hasProfanity);
         toast.error(
-          "Please fix the flagged content before creating your project",
+          profanityCheck.error ||
+            "Please fix the flagged content before creating your project",
         );
         setIsSubmitting(false);
         return;
@@ -440,26 +450,14 @@ export default function ProjectCreator({
 
       // Step 5: Finalize project (non-blocking)
       finalizeProject(projectId).catch((error) => {
-        console.error("Error finalizing project:", error);
+        safeConsole.error("Error finalizing project:", error);
       });
 
-      // Step 6: Cleanup draft/autosave entry if it exists
-      if (autosaveDraftId) {
-        const draftIdToDelete = autosaveDraftId;
-
-        // Clear local autosave tracking first so we don't attempt further updates
-        setAutosaveDraftId(undefined);
-        setAutosaveStatus("idle");
-        previousStateRef.current = "";
-
-        const deleteResult = await deleteDraft(draftIdToDelete);
-        if (deleteResult && "error" in deleteResult && deleteResult.error) {
-          console.error(
-            "Failed to delete draft after project creation:",
-            deleteResult.error,
-          );
-        }
-      }
+      const deleteResult = await draftSession.consume();
+      setAutosaveDraftId(draftSession.id);
+      setAutosaveStatus("idle");
+      if (deleteResult.error)
+        toast.warning("Project created. Its draft could not be removed.");
 
       // Dismiss loading toast and show success
       toast.dismiss(loadingToast);
@@ -481,10 +479,12 @@ export default function ProjectCreator({
       // eslint-disable-next-line @next/next/no-location-assign-relative-destination
       window.location.href = `/projects/${projectId}`;
     } catch (error) {
-      console.error("Error submitting project:", error);
+      safeConsole.error("Error submitting project:", error);
       toast.dismiss();
       toast.error("Something went wrong. Please try again.");
       setIsSubmitting(false);
+    } finally {
+      draftSession.endPublication();
     }
   };
 
@@ -505,10 +505,11 @@ export default function ProjectCreator({
       setIsSavingDraft(true);
       const loadingToast = toast.loading("Saving new draft...");
 
-      const formData = new FormData();
-      formData.append("projectData", JSON.stringify(getDraftSafeState()));
-
-      const result = await saveProjectAsNewDraft(formData);
+      if (autosaveTimerRef.current) {
+        clearTimeout(autosaveTimerRef.current);
+        autosaveTimerRef.current = null;
+      }
+      const result = await draftSession.copy(getDraftSafeState());
 
       if ("error" in result) {
         toast.dismiss(loadingToast);
@@ -518,14 +519,13 @@ export default function ProjectCreator({
       }
 
       toast.dismiss(loadingToast);
-      toast.success("New draft saved!");
-
-      // Refresh the page to update the drafts list
-      router.refresh();
+      setAutosaveDraftId(draftSession.id);
+      toast.success("New draft saved. Further edits will update this draft.");
+      updateDraftUrl(draftSession.id);
 
       setIsSavingDraft(false);
     } catch (error) {
-      console.error("Error saving draft:", error);
+      safeConsole.error("Error saving draft:", error);
       toast.dismiss();
       toast.error("Failed to save draft. Please try again.");
       setIsSavingDraft(false);
@@ -573,7 +573,6 @@ export default function ProjectCreator({
         uploads={uploads}
         pluginSteps={pluginSteps}
         finalStep={finalStep}
-        initialOrgId={initialOrgId}
         initialOrgOptions={initialOrgOptions}
         canUsePublicVisibility={canUsePublicVisibility}
         showLocationPointer={showLocationPointer}

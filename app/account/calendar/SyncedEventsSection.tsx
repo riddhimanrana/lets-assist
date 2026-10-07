@@ -34,7 +34,7 @@ export type SyncedEvent = {
   start: string;
   end: string | null;
   location: string | null;
-  syncedAt: string;
+  syncedAt: string | null;
 };
 
 function formatDate(dateString: string) {
@@ -84,7 +84,11 @@ function SyncedEventRow({
               <span className="truncate">{event.location}</span>
             </span>
           ) : null}
-          <span>Synced {formatDate(event.syncedAt)}</span>
+          <span>
+            {event.syncedAt
+              ? `Synced ${formatDate(event.syncedAt)}`
+              : "Sync incomplete. Reopen the project to retry, or remove it."}
+          </span>
         </div>
       </ItemContent>
       <ItemActions>

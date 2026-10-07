@@ -1,3 +1,4 @@
+import { safeConsole } from "@/lib/safe-console";
 import { createClient } from "@/lib/supabase/server";
 import { getAdminClient } from "@/lib/supabase/admin";
 import { getAuthUser } from "@/lib/supabase/auth-helpers";
@@ -129,7 +130,7 @@ export default async function ProjectPage({
     project.creator_id,
   );
   if (profileError) {
-    console.error("Error fetching creator profile:", profileError);
+    safeConsole.error("Error fetching creator profile:", profileError);
   }
   if (!creator) {
     notFound();
@@ -247,7 +248,7 @@ export default async function ProjectPage({
       };
 
     if (relevantSignupsError) {
-      console.error(
+      safeConsole.error(
         "Error fetching user dashboard signups:",
         relevantSignupsError,
       );

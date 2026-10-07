@@ -1,3 +1,5 @@
+import { PROJECT_CLIENT_SELECT } from "@/lib/projects/client-projection";
+import { safeConsole } from "@/lib/safe-console";
 import { getPublicOrganizationForRender } from "./server/public-organization-read";
 import { loadVisibleOrganizationReport } from "./server/overview-report-read";
 import { notFound, redirect } from "next/navigation";
@@ -258,7 +260,7 @@ export default async function OrganizationPage({
     };
 
     if (membersError) {
-      console.error("Error fetching organization members:", membersError);
+      safeConsole.error("Error fetching organization members:", membersError);
     }
 
     memberCount = membersData?.length ?? memberCount;
@@ -276,7 +278,7 @@ export default async function OrganizationPage({
         };
 
       if (profilesError) {
-        console.error("Error fetching member profiles:", profilesError);
+        safeConsole.error("Error fetching member profiles:", profilesError);
       } else {
         profilesData = profiles || [];
       }
@@ -308,7 +310,7 @@ export default async function OrganizationPage({
       ? { data: [] }
       : await readClient
           .from("projects")
-          .select("*")
+          .select(PROJECT_CLIENT_SELECT)
           .eq("organization_id", organization.id)
           .order("created_at", { ascending: false });
 

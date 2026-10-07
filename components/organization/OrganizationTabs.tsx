@@ -1,4 +1,6 @@
 "use client";
+import { safeConsole } from "@/lib/safe-console";
+
 
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Tabs, TabsContent } from "@/components/ui/tabs";
@@ -455,7 +457,7 @@ export default function OrganizationTabs({
 
   // Validate input data
   if (!Array.isArray(members)) {
-    console.error("OrganizationTabs: members prop is not an array");
+    safeConsole.error("OrganizationTabs: members prop is not an array");
     return (
       <Alert variant="destructive">
         <AlertDescription>Member data could not be loaded.</AlertDescription>
@@ -464,7 +466,7 @@ export default function OrganizationTabs({
   }
 
   if (!Array.isArray(projects)) {
-    console.error("OrganizationTabs: projects prop is not an array");
+    safeConsole.error("OrganizationTabs: projects prop is not an array");
     return (
       <Alert variant="destructive">
         <AlertDescription>Project data could not be loaded.</AlertDescription>

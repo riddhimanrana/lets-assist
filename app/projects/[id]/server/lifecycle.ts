@@ -1,4 +1,6 @@
 "use server";
+import { PROJECT_CLIENT_SELECT } from "@/lib/projects/client-projection";
+import { safeConsole } from "@/lib/safe-console";
 
 import "server-only";
 import { createClient } from "@/lib/supabase/server";
@@ -51,7 +53,7 @@ async function applyWaiverSettings(
   });
 
   if (error) {
-    console.error("Error applying project waiver settings:", error);
+    safeConsole.error("Error applying project waiver settings:", error);
     return "This project's waiver settings could not be saved.";
   }
 
@@ -72,7 +74,7 @@ async function getProjectForMutation(
   // state. These actions only need the project row and its organization_id.
   const { data: project, error } = await supabase
     .from("projects")
-    .select("*")
+    .select(PROJECT_CLIENT_SELECT)
     .eq("id", projectId)
     .maybeSingle();
 
@@ -131,7 +133,7 @@ export async function updateProjectStatus(
 
     if (cancellationError || !cancellationReceipt) {
       if (process.env.NODE_ENV !== "test") {
-        console.error("Error cancelling project transactionally:", {
+        safeConsole.error("Error cancelling project transactionally:", {
           code: cancellationError?.code,
         });
       }
@@ -149,7 +151,7 @@ export async function updateProjectStatus(
       try {
         await removeCalendarEventForProject(projectId);
       } catch (calendarError) {
-        console.error(
+        safeConsole.error(
           "Error removing calendar event for cancelled project:",
           calendarError,
         );
@@ -178,7 +180,7 @@ export async function updateProjectStatus(
           headers: { authorization: `Bearer ${workerToken}` },
         }).catch((err) => {
           if (process.env.NODE_ENV !== "test") {
-            console.error(
+            safeConsole.error(
               "Failed to trigger project cancellation worker:",
               err,
             );
@@ -213,7 +215,7 @@ export async function updateProjectStatus(
       transitionReceipt.status !== newStatus
     ) {
       if (process.env.NODE_ENV !== "test") {
-        console.error("Error updating project status transactionally:", {
+        safeConsole.error("Error updating project status transactionally:", {
           code: transitionError?.code,
         });
       }
@@ -237,10 +239,9 @@ export async function cloneProject(projectId: string) {
   const { user } = await getAuthUser();
   if (!user) return { error: "You must be logged in to clone a project" };
 
-  // Fetch source project
   const { data: source, error: fetchError } = await supabase
     .from("projects")
-    .select("*")
+    .select(PROJECT_CLIENT_SELECT)
     .eq("id", projectId)
     .single();
 
@@ -313,7 +314,6 @@ export async function cloneProject(projectId: string) {
     workflow_status: "draft",
   };
 
-  // Insert new project
   const { data: newProject, error: insertError } = await supabase
     .from("projects")
     .insert(newProjectData)
@@ -321,7 +321,7 @@ export async function cloneProject(projectId: string) {
     .single();
 
   if (insertError) {
-    console.error("Error creating clone:", insertError);
+    safeConsole.error("Error creating clone:", insertError);
     return { error: `Failed to create clone: ${insertError.message}` };
   }
 
@@ -360,7 +360,7 @@ export async function cloneProject(projectId: string) {
         }
       }
     } catch (pluginError) {
-      console.error("Error triggering plugin clone hooks:", pluginError);
+      safeConsole.error("Error triggering plugin clone hooks:", pluginError);
       // Don't fail the whole clone if plugins fail
     }
   }
@@ -443,7 +443,7 @@ export async function deleteProject(projectId: string) {
       await serviceSupabase.storage.from("project-documents").list();
 
     if (storageListError) {
-      console.error("Error listing project documents:", storageListError);
+      safeConsole.error("Error listing project documents:", storageListError);
       return { error: "Failed to clean up project documents" };
     } else if (storageData) {
       const projectFiles = storageData.filter((file) =>
@@ -456,7 +456,7 @@ export async function deleteProject(projectId: string) {
           .remove(projectFiles.map((file) => file.name));
 
         if (documentRemovalError) {
-          console.error(
+          safeConsole.error(
             "Error removing project documents:",
             documentRemovalError,
           );
@@ -475,7 +475,10 @@ export async function deleteProject(projectId: string) {
         .remove([fileName]);
 
       if (coverRemovalError) {
-        console.error("Error removing project cover image:", coverRemovalError);
+        safeConsole.error(
+          "Error removing project cover image:",
+          coverRemovalError,
+        );
         return { error: "Failed to clean up the project cover image" };
       }
     }
@@ -499,7 +502,7 @@ export async function deleteProject(projectId: string) {
     .maybeSingle();
 
   if (deleteError) {
-    console.error("Error deleting project:", deleteError);
+    safeConsole.error("Error deleting project:", deleteError);
     return { error: "Failed to delete project" };
   }
 
@@ -567,6 +570,7 @@ export async function updateProject(
       "creator_synced_at",
       "reviewed_by",
       "reviewed_at",
+      "review_notes",
       "status",
       "cancelled_at",
       "cancellation_reason",
@@ -711,7 +715,7 @@ export async function updateProject(
       const receipt = getExactRecurringSeriesEndReceipt(seriesEndResult);
       if (seriesEndError || !receipt) {
         if (process.env.NODE_ENV !== "test") {
-          console.error("Error ending recurring project series:", {
+          safeConsole.error("Error ending recurring project series:", {
             code: seriesEndError?.code,
           });
         }
@@ -730,7 +734,7 @@ export async function updateProject(
         try {
           await removeCalendarEventForProject(cleanupProjectId);
         } catch (calendarError) {
-          console.error(
+          safeConsole.error(
             "Error removing calendar event for recurring occurrence:",
             calendarError,
           );
@@ -767,7 +771,7 @@ export async function updateProject(
       cancelledOccurrences,
     };
   } catch (error) {
-    console.error("Error updating project:", error);
+    safeConsole.error("Error updating project:", error);
     return { error: "Failed to update project" };
   }
 }

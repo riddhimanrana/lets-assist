@@ -282,4 +282,16 @@ describe("cloneProject validation and identity reset", () => {
       expect(updatedPayload).not.toHaveProperty(protectedField);
     }
   });
+
+  test("generic updates discard forged review metadata while saving ordinary fields", async () => {
+    const result = await updateProject("source-project", {
+      title: "Updated volunteer event",
+      reviewed_by: "forged-reviewer",
+      reviewed_at: "2026-10-07T00:00:00Z",
+      review_notes: "Forged internal approval",
+    } as never);
+
+    expect(result.success).toBe(true);
+    expect(updatedPayload).toEqual({ title: "Updated volunteer event" });
+  });
 });

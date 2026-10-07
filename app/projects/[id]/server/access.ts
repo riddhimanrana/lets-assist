@@ -1,4 +1,6 @@
 "use server";
+import { PROJECT_CLIENT_SELECT } from "@/lib/projects/client-projection";
+import { safeConsole } from "@/lib/safe-console";
 
 import "server-only";
 import { createClient } from "@/lib/supabase/server";
@@ -128,7 +130,7 @@ export async function getProject(projectId: string) {
     .from("projects")
     .select(
       `
-      *,
+      ${PROJECT_CLIENT_SELECT},
       organization:organizations (
         id,
         name,
@@ -141,13 +143,13 @@ export async function getProject(projectId: string) {
     `,
     )
     .eq("id", projectId)
-    .single()) as {
+    .maybeSingle()) as {
     data: Project | null;
     error: { message: string } | null;
   };
 
   if (error) {
-    console.error("Error fetching project:", JSON.stringify(error, null, 2));
+    safeConsole.error("Error fetching project:", error);
     return { error: "Failed to fetch project" };
   }
 
@@ -201,7 +203,7 @@ export async function getCreatorProfile(userId: string) {
   const { data: profile, error } = await getProjectCreatorProfileById(userId);
 
   if (error) {
-    console.error("Error fetching creator profile:", error);
+    safeConsole.error("Error fetching creator profile:", error);
     return { error: "Failed to fetch creator profile" };
   }
 
@@ -247,7 +249,7 @@ export async function getProjectWaiver(projectId: string) {
     }
 
     if (projectError) {
-      console.error("Error fetching project waiver config:", projectError);
+      safeConsole.error("Error fetching project waiver config:", projectError);
       return { error: "Failed to load project waiver configuration" };
     }
 
@@ -311,7 +313,7 @@ export async function getProjectWaiver(projectId: string) {
       definition: null,
     };
   } catch (error) {
-    console.error("Error fetching project waiver:", error);
+    safeConsole.error("Error fetching project waiver:", error);
     return { error: "Failed to load project waiver" };
   }
 }

@@ -36,7 +36,7 @@ export function CalendarConnectionSection({
   onConnect,
   onDisconnect,
 }: {
-  connection: CalendarConnection | null;
+  connection: Pick<CalendarConnection, "calendar_email" | "created_at"> | null;
   legacyReconnectRequired: boolean;
   isDisconnecting: boolean;
   onConnect: () => void;

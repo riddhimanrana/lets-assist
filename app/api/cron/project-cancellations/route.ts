@@ -1,6 +1,8 @@
+import { safeConsole } from "@/lib/safe-console";
 import { timingSafeEqual } from "node:crypto";
 import { NextRequest, NextResponse } from "next/server";
 
+import { observeWorkerRun } from "@/lib/cron/worker-observation";
 import { cronAuthShapeProbe } from "@/lib/cron/auth-shape-probe";
 import { readPositiveInteger } from "@/lib/async/map-with-concurrency";
 import {
@@ -94,6 +96,10 @@ async function handle(request: NextRequest) {
     );
   }
 
+  return observeWorkerRun("project-cancellations", runEnabledWorker);
+}
+
+async function runEnabledWorker() {
   const batchSize = readPositiveInteger(
     process.env.PROJECT_CANCELLATION_WORKER_BATCH_SIZE,
     50,
@@ -123,7 +129,7 @@ async function handle(request: NextRequest) {
       { status: 200 },
     );
   } catch (error) {
-    console.error("Project cancellation worker failed:", error);
+    safeConsole.error("Project cancellation worker failed:", error);
     return NextResponse.json({ error: "Worker run failed" }, { status: 500 });
   }
 }

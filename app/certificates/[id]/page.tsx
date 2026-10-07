@@ -1,3 +1,4 @@
+import { safeConsole } from "@/lib/safe-console";
 import { Metadata } from "next";
 import { getAdminClient } from "@/lib/supabase/admin";
 import { notFound } from "next/navigation";
@@ -135,7 +136,7 @@ export default async function VolunteerRecordPage({
     .single();
 
   if (error || !record) {
-    console.error("Error fetching volunteer record:", error);
+    safeConsole.error("Error fetching volunteer record:", error);
     notFound(); // Show 404 if record not found or error occurs
   }
 

@@ -1,3 +1,4 @@
+import { safeConsole } from "@/lib/safe-console";
 import { revalidatePath } from "next/cache";
 import { SuccessMessage } from "./SuccessMessage";
 import { ErrorMessage } from "./ErrorMessage";
@@ -28,12 +29,12 @@ async function performConfirmation(
       });
 
     if (findError) {
-      console.error("Error finding anonymous signup:", findError);
+      safeConsole.error("Error finding anonymous signup:", findError);
       return { status: "error", message: "Database error finding signup." };
     }
 
     if (!anonSignup) {
-      console.error("Confirmation failed: Invalid token or ID");
+      safeConsole.error("Confirmation failed: Invalid token or ID");
       return { status: "invalid" };
     }
 
@@ -43,7 +44,7 @@ async function performConfirmation(
     const confirmation =
       await confirmAnonymousSignupWithCapacity(anonymousSignupId);
     if (confirmation.error || !confirmation.data) {
-      console.error(
+      safeConsole.error(
         "Error atomically confirming anonymous signup:",
         confirmation.error,
       );
@@ -75,7 +76,10 @@ async function performConfirmation(
       }
       revalidatePath(`/anonymous/${anonymousSignupId}`);
     } catch (revalidateError) {
-      console.warn("Path revalidation failed (non-critical):", revalidateError);
+      safeConsole.warn(
+        "Path revalidation failed (non-critical):",
+        revalidateError,
+      );
     }
 
     return {
@@ -86,7 +90,7 @@ async function performConfirmation(
           : "success",
     };
   } catch (error) {
-    console.error("Unexpected error during confirmation:", error);
+    safeConsole.error("Unexpected error during confirmation:", error);
     return { status: "error", message: "An unexpected error occurred." };
   }
 }
@@ -109,7 +113,7 @@ export default async function ConfirmationPage({
   };
 
   if (!token || !anonymousSignupId) {
-    console.error("Confirmation failed: Missing token or ID in URL");
+    safeConsole.error("Confirmation failed: Missing token or ID in URL");
     confirmationResult = { status: "invalid" };
   } else {
     // Perform the confirmation logic on the server

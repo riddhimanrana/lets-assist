@@ -1,4 +1,6 @@
 "use client";
+import { safeConsole } from "@/lib/safe-console";
+
 
 import { useState, useEffect, useCallback, useMemo } from "react";
 import * as VisuallyHidden from "@radix-ui/react-visually-hidden";
@@ -141,7 +143,7 @@ export function NotificationPopover({
 
   useEffect(() => {
     if (queryError) {
-      console.error(
+      safeConsole.error(
         "NotificationPopover: Error fetching notifications",
         queryError,
       );
@@ -193,7 +195,7 @@ export function NotificationPopover({
 
       refresh();
     } catch (error) {
-      console.error("Error marking all notifications as read:", error);
+      safeConsole.error("Error marking all notifications as read:", error);
     }
   };
 
@@ -205,7 +207,7 @@ export function NotificationPopover({
       await supabase.from("notifications").update({ read: true }).eq("id", id);
       refresh();
     } catch (error) {
-      console.error("Error marking notification as read:", error);
+      safeConsole.error("Error marking notification as read:", error);
     }
   }
 

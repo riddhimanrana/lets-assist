@@ -1,4 +1,6 @@
 "use client";
+import { safeConsole } from "@/lib/safe-console";
+
 
 import { useEffect, useState, useCallback, useRef } from "react";
 import { toast } from "sonner";
@@ -275,7 +277,7 @@ export function useModerationDashboard({
             break;
         }
       } catch (e) {
-        console.error("Failed to parse SSE event:", e);
+        safeConsole.error("Failed to parse SSE event:", e);
       }
     };
 

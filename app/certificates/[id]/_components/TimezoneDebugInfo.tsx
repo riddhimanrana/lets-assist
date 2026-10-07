@@ -1,4 +1,5 @@
 "use client";
+import { safeConsole } from "@/lib/safe-console";
 
 import { useEffect, useState } from "react";
 import { Badge } from "@/components/ui/badge";
@@ -40,7 +41,7 @@ export function TimezoneDebugInfo({
         isClient: true,
       });
     } catch (error) {
-      console.error("Error getting timezone info:", error);
+      safeConsole.error("Error getting timezone info:", error);
       setTimezoneInfo({
         timezone: "Unknown",
         offset: "Unknown",

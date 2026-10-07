@@ -1,3 +1,4 @@
+import { safeConsole } from "@/lib/safe-console";
 import { useState } from "react";
 import {
   detectPdfWidgets,
@@ -23,7 +24,7 @@ export function usePdfFieldDetection() {
       const errorMessage =
         err instanceof Error ? err.message : "Failed to detect PDF fields";
       setError(errorMessage);
-      console.error("PDF field detection error:", err);
+      safeConsole.error("PDF field detection error:", err);
       return null;
     } finally {
       setIsDetecting(false);

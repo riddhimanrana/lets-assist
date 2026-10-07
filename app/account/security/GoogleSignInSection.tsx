@@ -1,4 +1,5 @@
 "use client";
+import { safeConsole } from "@/lib/safe-console";
 
 import Image from "next/image";
 import Link from "next/link";
@@ -67,7 +68,7 @@ export function GoogleSignInSection() {
         await supabase.auth.getUserIdentities();
 
       if (error) {
-        console.error("Error fetching identities:", error);
+        safeConsole.error("Error fetching identities:", error);
         return;
       }
 
@@ -85,7 +86,7 @@ export function GoogleSignInSection() {
         setLinkedGoogleEmail(null);
       }
     } catch (error) {
-      console.error("Check connection exception:", error);
+      safeConsole.error("Check connection exception:", error);
     } finally {
       setHasCheckedConnection(true);
     }
@@ -144,7 +145,7 @@ export function GoogleSignInSection() {
 
       toast.info("Redirecting to Google to link your account...");
     } catch {
-      console.error("Google account linking failed");
+      safeConsole.error("Google account linking failed");
       toast.error("Failed to link Google account. Please try again.");
       setIsConnecting(false);
     }
@@ -202,7 +203,7 @@ export function GoogleSignInSection() {
       setIsGoogleConnected(false);
       setLinkedGoogleEmail(null);
     } catch (error) {
-      console.error("Error disconnecting Google account:", error);
+      safeConsole.error("Error disconnecting Google account:", error);
       toast.error(
         `Failed to disconnect Google account. ${error instanceof Error ? error.message : "Please try again."}`,
       );

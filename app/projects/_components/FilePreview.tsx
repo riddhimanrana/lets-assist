@@ -1,4 +1,5 @@
 "use client";
+import { safeConsole } from "@/lib/safe-console";
 
 import { useState, useEffect } from "react";
 import {
@@ -63,7 +64,7 @@ export default function FilePreview({
       document.body.removeChild(link);
       URL.revokeObjectURL(href);
     } catch (error) {
-      console.error("Download error:", error);
+      safeConsole.error("Download error:", error);
       // Fallback to simple window open if fetch fails
       window.open(url, "_blank");
     }

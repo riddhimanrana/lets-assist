@@ -1,5 +1,6 @@
 // components/Navbar.tsx
 "use client";
+import { safeConsole } from "@/lib/safe-console";
 
 import * as React from "react";
 import { useState } from "react";
@@ -103,11 +104,11 @@ export default function Navbar() {
           window.location.href = "/";
         }, 100);
       } else {
-        console.error("Logout failed:", result.error);
+        safeConsole.error("Logout failed:", result.error);
         setIsLoggingOut(false);
       }
     } catch (error) {
-      console.error("Logout failed:", error);
+      safeConsole.error("Logout failed:", error);
       setIsLoggingOut(false);
     }
   };

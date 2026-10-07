@@ -1,3 +1,5 @@
+import { PROJECT_CLIENT_SELECT } from "@/lib/projects/client-projection";
+import { safeConsole } from "@/lib/safe-console";
 import { createClient } from "@/lib/supabase/server";
 import { getAuthUser } from "@/lib/supabase/auth-helpers";
 import { getPublicProfilesByIds } from "@/lib/profile/public";
@@ -29,7 +31,10 @@ import type { Project, RecurrenceRule, RecurrenceWeekday } from "@/types";
 import { ProjectCard } from "./ProjectCard";
 import { format } from "date-fns";
 import { ACTIVE_PROJECT_SIGNUP_STATUSES } from "@/lib/projects/availability";
-import { deduplicateVolunteerProjectCards } from "@/lib/projects/user-project-cards";
+import {
+  deduplicateVolunteerProjectCards,
+  isHoursPublished,
+} from "@/lib/projects/user-project-cards";
 
 // Helper to format recurrence summary for display
 function formatRecurrenceSummary(rule: RecurrenceRule): string {
@@ -153,7 +158,7 @@ export default async function UserProjects() {
     .from("projects")
     .select(
       `
-      *,
+      ${PROJECT_CLIENT_SELECT},
       organizations(name, logo_url, username),
       project_signups!project_signups_project_id_fkey(id, user_id, status, schedule_id)
     `,
@@ -162,7 +167,7 @@ export default async function UserProjects() {
     .order("created_at", { ascending: false });
 
   if (createdError) {
-    console.error("Error fetching created projects:", createdError);
+    safeConsole.error("Error fetching created projects:", createdError);
   }
 
   // Get projects user has signed up for
@@ -174,9 +179,8 @@ export default async function UserProjects() {
       status,
       schedule_id,
       projects!project_signups_project_id_fkey (
-        *,
-        organizations(name, logo_url, username),
-        published
+        ${PROJECT_CLIENT_SELECT},
+        organizations(name, logo_url, username)
       )
     `,
     )
@@ -185,7 +189,7 @@ export default async function UserProjects() {
     .order("created_at", { ascending: false });
 
   if (signupsError) {
-    console.error("Error fetching signups:", signupsError);
+    safeConsole.error("Error fetching signups:", signupsError);
   }
 
   // After getting the signups, fetch creator profiles separately if needed
@@ -225,10 +229,10 @@ export default async function UserProjects() {
           : signup.projects;
         const creator = creatorProfiles[projectData.creator_id];
 
-        // Determine if hours are published for this specific signup's schedule_id
-        const areHoursPublished =
-          projectData.published_hours &&
-          projectData.published_hours[signup.schedule_id] === true;
+        const areHoursPublished = isHoursPublished(
+          projectData.published,
+          signup.schedule_id,
+        );
 
         return {
           ...(projectData as unknown as Project),

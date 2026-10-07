@@ -1,4 +1,6 @@
 "use client";
+import { safeConsole } from "@/lib/safe-console";
+
 
 import { useState, useRef, useCallback } from "react";
 import {
@@ -117,7 +119,7 @@ export function WaiverSettings({
         if (!detectionResult.success) {
           // Log technical details to console for debugging
           if (detectionResult.errors) {
-            console.warn("PDF analysis warnings:", detectionResult.errors);
+            safeConsole.warn("PDF analysis warnings:", detectionResult.errors);
           }
         }
 
@@ -151,7 +153,7 @@ export function WaiverSettings({
           setShowBuilder(true);
         }
       } catch (error) {
-        console.error("Error validating PDF:", error);
+        safeConsole.error("Error validating PDF:", error);
         setPdfError("Error reading PDF file. Please try again.");
       } finally {
         setIsValidatingPdf(false);

@@ -1,4 +1,5 @@
 "use client";
+import { safeConsole } from "@/lib/safe-console";
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
@@ -140,13 +141,10 @@ export default function DraftsSidebar({
   saveDraftBlockedReason,
 }: DraftsSidebarProps) {
   const router = useRouter();
-  const [drafts, setDrafts] = useState(initialDrafts);
-  // The server sends a fresh list after a draft is saved; show it.
-  const [syncedDrafts, setSyncedDrafts] = useState(initialDrafts);
-  if (syncedDrafts !== initialDrafts) {
-    setSyncedDrafts(initialDrafts);
-    setDrafts(initialDrafts);
-  }
+  const [removedDraftIds, setRemovedDraftIds] = useState<string[]>([]);
+  const drafts = initialDrafts.filter(
+    (draft) => !removedDraftIds.includes(draft.id),
+  );
   const [isDeleting, setIsDeleting] = useState<string | null>(null);
   const [isPublishing, setIsPublishing] = useState<string | null>(null);
   const [isOpenDesktop, setIsOpenDesktop] = useState(false);
@@ -162,13 +160,13 @@ export default function DraftsSidebar({
       } else {
         toast.success("Draft deleted");
         // Update local state and keep the sheet/drawer open
-        setDrafts((prevDrafts) => prevDrafts.filter((d) => d.id !== draftId));
+        setRemovedDraftIds((ids) => [...ids, draftId]);
         setDeleteDialogOpen(null);
         // Refresh the page data in the background
         router.refresh();
       }
     } catch (error) {
-      console.error("Delete error:", error);
+      safeConsole.error("Delete error:", error);
       toast.error("Failed to delete draft");
     } finally {
       setIsDeleting(null);
@@ -184,11 +182,11 @@ export default function DraftsSidebar({
       } else if ("success" in result && result.success && result.id) {
         toast.success("Project published successfully!");
         // Update local state
-        setDrafts((prevDrafts) => prevDrafts.filter((d) => d.id !== draftId));
+        setRemovedDraftIds((ids) => [...ids, draftId]);
         router.push(`/projects/${result.id}`);
       }
     } catch (error) {
-      console.error("Publish error:", error);
+      safeConsole.error("Publish error:", error);
       toast.error("Failed to publish project");
     } finally {
       setIsPublishing(null);

@@ -1,4 +1,5 @@
 "use server";
+import { safeConsole } from "@/lib/safe-console";
 
 import { createClient } from "@/lib/supabase/server";
 import { parseISO, differenceInMinutes } from "date-fns";
@@ -51,7 +52,7 @@ function calculateHours(startTime: string, endTime: string): number {
     const minutes = differenceInMinutes(end, start);
     return Math.round((minutes / 60) * 10) / 10; // Round to 1 decimal place
   } catch (e) {
-    console.error("Error calculating hours:", e);
+    safeConsole.error("Error calculating hours:", e);
     return 0;
   }
 }
@@ -141,7 +142,7 @@ export async function getMemberVolunteerHours(
     };
 
     if (certsError) {
-      console.error("Error fetching certificates:", certsError);
+      safeConsole.error("Error fetching certificates:", certsError);
       return { memberHours: {}, error: "Failed to fetch volunteer hours" };
     }
 
@@ -176,7 +177,7 @@ export async function getMemberVolunteerHours(
 
     return { memberHours };
   } catch (error) {
-    console.error("Error in getMemberVolunteerHours:", error);
+    safeConsole.error("Error in getMemberVolunteerHours:", error);
     return { memberHours: {}, error: "Failed to fetch volunteer hours" };
   }
 }
@@ -260,7 +261,7 @@ export async function getMemberEventDetails(
     };
 
     if (certsError) {
-      console.error("Error fetching member certificates:", certsError);
+      safeConsole.error("Error fetching member certificates:", certsError);
       return {
         events: [],
         totalHours: 0,
@@ -289,7 +290,7 @@ export async function getMemberEventDetails(
 
     return { events, totalHours };
   } catch (error) {
-    console.error("Error in getMemberEventDetails:", error);
+    safeConsole.error("Error in getMemberEventDetails:", error);
     return {
       events: [],
       totalHours: 0,
@@ -407,7 +408,7 @@ export async function exportMemberHours(
     const csvData = csvRows.join("\n");
     return { csvData };
   } catch (error) {
-    console.error("Error in exportMemberHours:", error);
+    safeConsole.error("Error in exportMemberHours:", error);
     return { error: "Failed to export member hours" };
   }
 }

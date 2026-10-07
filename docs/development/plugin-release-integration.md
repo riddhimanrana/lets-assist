@@ -28,6 +28,92 @@ integration PR containing the host changes and publication. Automatic dispatches
 continue to use Development. A candidate from another repository, an older
 Development lineage, or a different workflow revision is refused.
 
+## Paired embedded releases
+
+The single-release lane refuses a private commit that changes another published
+embedded plugin. When one reviewed commit changes multiple embedded plugins,
+prepare and sign a separate release for each changed plugin at that same exact
+private commit. Do not publish an intermediate registry record or relax the
+single-release tree check to make the first release pass.
+
+Dispatch the existing `plugin-release-integration.yml` workflow from the reviewed
+root feature branch. Leave `release_tag` empty and supply `release_tags` as a JSON
+array of two through sixteen exact tags, the full `candidate_sha` and the
+`existing_pr_number`. The registered entry calls the reusable batch workflow at
+that same revision; the new batch file is not a standalone dispatch entry.
+The candidate must equal the workflow commit, descend from current Development
+and be the current head of that same-repository PR. The workflow updates that
+review branch; it does not open another integration PR or merge either branch.
+
+The batch controller verifies each tag-bound Cosign signature, its source and
+SBOM digests, exact tag resolution and private main plus Development ancestry.
+All releases must be embedded, name one private commit, advance distinct known
+plugins and retain the published install contracts. Every changed published
+embedded tree must be covered by a verified release. Independent applications
+continue through their separate single-release and deployment workflows.
+
+All validation and serving-test planning complete before the first host write.
+The controller generates one publication transaction immediately after the
+current migration head, with a guarded immutable publication for each plugin,
+both registry entries and per-release pgTAP contracts. It updates shared serving
+expectations together and moves the gitlink once. No organization install moves.
+It does not add the new migration to any accepted catalog or digest allowlist.
+Review and prove that generated migration before accepting the new ledger.
+
+Before pushing, the workflow rechecks PR identity and the exact original remote
+head. It proves the immutable result commit descends from that candidate and uses
+an exact expected-head lease. A forward update, rewind or missing remote branch
+refuses the push; the workflow never refreshes the lease to overwrite drift.
+Final strict registry, generated host surface, database/browser and hosted
+Development checks still apply to the complete pair. After reviewing and accepting
+the generated ledger, explicitly dispatch `Code quality` through `ci.yml` for the
+resulting branch and verify the run uses the exact reviewed result SHA. A push
+authenticated with `GITHUB_TOKEN` does not guarantee ordinary push-triggered CI.
+Inspect PR checks too, and approve any pending run only for that exact reviewed
+SHA. A workflow push or successful integration job is not final acceptance.
+
+## Application database preflight
+
+The signed application deployment workflow verifies the database before extracting
+or deploying the prebuilt artifact. Production must use the committed Production
+project ref and `main`. Development must use `development` and the exact repository
+variable `CSF_DEVELOPMENT_SUPABASE_PROJECT_REF`. The selected environment's
+`SUPABASE_PROJECT_ID` and API origin must match that target. Production accepts
+its canonical Supabase origin or the approved `api.lets-assist.com` alias;
+Development requires its canonical Supabase origin.
+
+Each GitHub environment must provide its own reviewed `SUPABASE_ACCESS_TOKEN`
+with access to that project's management query endpoints. The workflow exposes
+this credential only to the trusted database-preflight step. The object catalog
+uses the owner-query endpoint inside `BEGIN READ ONLY`, following the existing
+Production verifier. That endpoint carries broader authority than the dedicated
+read-only endpoint, so review and scope the credential to the selected project.
+The controller sends only fixed read queries. It does not pass
+it to artifact extraction, Vercel deployment, the child build or the application.
+A missing credential blocks deployment. Development credential setup remains
+unperformed; the controller does not borrow the protected Production credential.
+Configure and review that environment separately before attempting deployment.
+
+The preflight binds the signed `requiredPlatformSchemaVersion` to the published
+registry and requires that migration in the accepted host ledger. It reads the
+entire applied migration sequence and evaluates the existing exact object catalog
+inside a read-only transaction. Missing migrations, unexpected tails and catalog
+drift all refuse deployment. Production retains its existing preference-RPC and
+application-write-posture checks. A version number alone is insufficient evidence.
+
+A bounded GET of the immutable `plugin_versions` identity then uses the same
+API origin and observation credential as the later deployment-recording calls.
+It must return one matching published application version, source commit, build
+digest and required schema version. This proves that credential can read the
+publication on the selected target; it does not simulate or perform the later
+write. Provider denials, redirects, timeouts and inconsistent records fail before
+Vercel mutation. Logs contain only the verification outcome and public release
+coordinates, not provider responses or credentials.
+
+This gate verifies the database at preflight time. It does not replace signed
+artifact verification, child runtime health, hosted browser acceptance, or the
+separate leased organization activation action.
+
 ## Operator workflow
 
 For a normal release, the platform owner handles catalog publication and child

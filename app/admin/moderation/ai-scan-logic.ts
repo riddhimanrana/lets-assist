@@ -1,3 +1,4 @@
+import { safeConsole } from "@/lib/safe-console";
 /**
  * Shared AI moderation scan logic that can be called from both
  * the cron job and admin actions without making HTTP requests
@@ -354,7 +355,11 @@ export async function performAiModerationScan() {
             });
 
           if (flagError) {
-            console.error(`Failed to flag project ${decision.id}:`, flagError);
+            safeConsole.error(
+              "Application diagnostic from app/admin/moderation/ai-scan-logic",
+              `Failed to flag project ${decision.id}:`,
+              flagError,
+            );
             continue;
           }
 
@@ -400,7 +405,11 @@ export async function performAiModerationScan() {
             .eq("id", report.id);
 
           if (updateError) {
-            console.error(`Failed to update report ${report.id}:`, updateError);
+            safeConsole.error(
+              "Application diagnostic from app/admin/moderation/ai-scan-logic",
+              `Failed to update report ${report.id}:`,
+              updateError,
+            );
             continue;
           }
 
@@ -409,7 +418,11 @@ export async function performAiModerationScan() {
       } catch (error) {
         const message = error instanceof Error ? error.message : String(error);
         scanWarnings.push(`Batch ${index + 1} failed: ${message}`);
-        console.error(`AI moderation batch ${index + 1} failed:`, error);
+        safeConsole.error(
+          "Application diagnostic from app/admin/moderation/ai-scan-logic",
+          `AI moderation batch ${index + 1} failed:`,
+          error,
+        );
       }
     }
 
@@ -435,7 +448,7 @@ export async function performAiModerationScan() {
       ...(scanWarnings.length > 0 ? { warnings: scanWarnings } : {}),
     };
   } catch (error) {
-    console.error("AI moderation scan failed:", error);
+    safeConsole.error("AI moderation scan failed:", error);
     throw error;
   }
 }

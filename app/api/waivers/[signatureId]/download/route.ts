@@ -1,3 +1,4 @@
+import { safeConsole } from "@/lib/safe-console";
 import { NextRequest, NextResponse } from "next/server";
 import { getAuthUser } from "@/lib/supabase/auth-helpers";
 import { getAdminClient } from "@/lib/supabase/admin";
@@ -184,7 +185,7 @@ export async function GET(
     }
 
     // Other errors are genuine query/database failures - return 500
-    console.error("Database query error in download route:", sigError);
+    safeConsole.error("Database query error in download route:", sigError);
     return NextResponse.json(
       { error: "Database query failed" },
       { status: 500 },
@@ -213,7 +214,7 @@ export async function GET(
       return NextResponse.json({ error: "Project not found" }, { status: 404 });
     }
 
-    console.error(
+    safeConsole.error(
       "Database query error while loading project in download route:",
       projectError,
     );
@@ -241,7 +242,7 @@ export async function GET(
       .maybeSingle();
 
     if (orgMemberError) {
-      console.error(
+      safeConsole.error(
         "Database query error while loading org membership in download route:",
         orgMemberError,
       );
@@ -316,7 +317,7 @@ export async function GET(
         .download(typedSignature.upload_storage_path);
 
       if (error || !data) {
-        console.error("Uploaded waiver file not found:", error);
+        safeConsole.error("Uploaded waiver file not found:", error);
         return NextResponse.json(
           { error: "Uploaded waiver file not found" },
           { status: 404 },
@@ -342,7 +343,7 @@ export async function GET(
         },
       });
     } catch (error) {
-      console.error("Error serving uploaded waiver:", error);
+      safeConsole.error("Error serving uploaded waiver:", error);
       return NextResponse.json(
         { error: "Failed to serve waiver file" },
         { status: 500 },
@@ -407,7 +408,7 @@ export async function GET(
         },
       });
     } catch (error) {
-      console.error("PDF generation failed:", error);
+      safeConsole.error("PDF generation failed:", error);
       return NextResponse.json(
         { error: "Failed to generate signed PDF" },
         { status: 500 },
@@ -419,7 +420,7 @@ export async function GET(
   if (typedSignature.signature_storage_path) {
     try {
       if (!hasSourcePdf) {
-        console.error(
+        safeConsole.error(
           "Legacy signature found but no waiver PDF source available",
         );
         return NextResponse.json(
@@ -500,7 +501,7 @@ export async function GET(
         },
       });
     } catch (error) {
-      console.error("Legacy signature PDF generation failed:", error);
+      safeConsole.error("Legacy signature PDF generation failed:", error);
       return NextResponse.json(
         { error: "Failed to generate PDF for legacy signature" },
         { status: 500 },
@@ -582,7 +583,7 @@ export async function GET(
         },
       });
     } catch (error) {
-      console.error("Legacy typed signature PDF generation failed:", error);
+      safeConsole.error("Legacy typed signature PDF generation failed:", error);
       return NextResponse.json(
         { error: "Failed to generate PDF for typed signature" },
         { status: 500 },
@@ -591,7 +592,7 @@ export async function GET(
   }
 
   // No signature data found
-  console.error("No signature data found for signature ID:", signatureId);
+  safeConsole.error("No signature data found for signature ID:", signatureId);
   return NextResponse.json(
     { error: "Signature file not found" },
     { status: 404 },

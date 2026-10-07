@@ -1,3 +1,4 @@
+import { safeConsole } from "@/lib/safe-console";
 import { useEffect, useMemo, useState } from "react";
 import {
   Dialog,
@@ -57,7 +58,7 @@ export function CancelProjectDialog({
       await onConfirm(reason.trim());
       onClose();
     } catch (error) {
-      console.error("Error cancelling project:", error);
+      safeConsole.error("Error cancelling project:", error);
       toast.error("Failed to cancel project. Please try again.");
     } finally {
       setIsSubmitting(false);
@@ -121,7 +122,10 @@ export function CancelProjectDialog({
           setRecipientCount(count);
         }
       } catch (error) {
-        console.error("Error fetching cancellation recipient count:", error);
+        safeConsole.error(
+          "Error fetching cancellation recipient count:",
+          error,
+        );
         if (isActive) {
           setRecipientCount(null);
           setRecipientError(

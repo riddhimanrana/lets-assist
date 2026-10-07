@@ -222,7 +222,7 @@ const initialState: EventFormState = {
     location: "",
     locationData: undefined,
     description: "",
-    organizationId: undefined as unknown as string | null,
+    organizationId: null,
   },
   schedule: {
     oneTime: {
@@ -686,8 +686,30 @@ const eventFormReducer: Reducer<EventFormState, EventFormAction> = (
 
 // --- Hook Export ---
 
-export const useEventForm = () => {
-  const [state, dispatch] = useReducer(eventFormReducer, initialState);
+type EventFormInitialInput = {
+  draft?: Partial<EventFormState>;
+  organizationId?: string;
+};
+
+export function createInitialEventFormState({
+  draft,
+  organizationId,
+}: EventFormInitialInput = {}): EventFormState {
+  const state = structuredClone(initialState);
+  if (draft)
+    return eventFormReducer(state, { type: "LOAD_DRAFT", payload: draft });
+  return {
+    ...state,
+    basicInfo: { ...state.basicInfo, organizationId: organizationId ?? null },
+  };
+}
+
+export const useEventForm = (input: EventFormInitialInput = {}) => {
+  const [state, dispatch] = useReducer(
+    eventFormReducer,
+    input,
+    createInitialEventFormState,
+  );
 
   const nextStep = () => dispatch({ type: "NEXT_STEP" });
   const prevStep = () => dispatch({ type: "PREV_STEP" });

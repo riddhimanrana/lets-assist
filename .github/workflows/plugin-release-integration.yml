@@ -8,7 +8,18 @@ on:
     inputs:
       release_tag:
         description: "Exact private release tag, for example dvhs-csf/v1.2.0"
-        required: true
+        required: false
+        default: ""
+        type: string
+      release_tags:
+        description: "Optional JSON array of embedded release tags at one private source. Use instead of release_tag."
+        required: false
+        default: ""
+        type: string
+      existing_pr_number:
+        description: "Existing reviewed Development PR for batch integration"
+        required: false
+        default: ""
         type: string
       candidate_sha:
         description: "Optional full root candidate SHA containing unreleased host migrations. Dispatch from that same commit."
@@ -27,7 +38,49 @@ permissions:
   pull-requests: write
 
 jobs:
+  route:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    outputs:
+      mode: ${{ steps.route.outputs.mode }}
+    steps:
+      - name: Choose the integration mode
+        id: route
+        env:
+          SINGLE_TAG: ${{ inputs.release_tag }}
+          BATCH_TAGS: ${{ inputs.release_tags }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ "$GITHUB_EVENT_NAME" == repository_dispatch ]]; then
+            echo 'mode=single' >> "$GITHUB_OUTPUT"
+          elif [[ "$GITHUB_EVENT_NAME" == workflow_dispatch && -n "$SINGLE_TAG" && -z "$BATCH_TAGS" ]]; then
+            echo 'mode=single' >> "$GITHUB_OUTPUT"
+          elif [[ "$GITHUB_EVENT_NAME" == workflow_dispatch && -z "$SINGLE_TAG" && -n "$BATCH_TAGS" ]]; then
+            echo 'mode=batch' >> "$GITHUB_OUTPUT"
+          else
+            echo 'Choose exactly one of release_tag or release_tags for manual integration.' >&2
+            exit 1
+          fi
+
+  batch:
+    needs: route
+    if: needs.route.outputs.mode == 'batch'
+    permissions:
+      contents: write
+      pull-requests: read
+    uses: ./.github/workflows/plugin-release-batch-integration.yml
+    with:
+      release_tags: ${{ inputs.release_tags }}
+      candidate_sha: ${{ inputs.candidate_sha }}
+      existing_pr_number: ${{ inputs.existing_pr_number }}
+    secrets:
+      PRIVATE_PLUGIN_RELEASE_TOKEN: ${{ secrets.PRIVATE_PLUGIN_RELEASE_TOKEN }}
+
   integrate:
+    needs: route
+    if: needs.route.outputs.mode == 'single'
     runs-on: ubuntu-latest
     env:
       PRIVATE_REPOSITORY: riddhimanrana/lets-assist-plugins

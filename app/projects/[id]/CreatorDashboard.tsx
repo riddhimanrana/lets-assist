@@ -1,3 +1,4 @@
+import { safeConsole } from "@/lib/safe-console";
 import { createClient } from "@/lib/supabase/client";
 import { Button, buttonVariants } from "@/components/ui/button";
 import Link from "next/link";
@@ -100,7 +101,7 @@ export default function CreatorDashboard({
   // Calendar integration states
   const [showCalendarModal, setShowCalendarModal] = useState(false);
   const [isCalendarSynced, setIsCalendarSynced] = useState(
-    !!project.creator_calendar_event_id,
+    !!project.creator_calendar_event_id && !!project.creator_synced_at,
   );
 
   // Auto-sync calendar on page load if user is connected and project isn't synced
@@ -130,7 +131,7 @@ export default function CreatorDashboard({
           }
         }
       } catch (error) {
-        console.error("Auto calendar sync failed:", error);
+        safeConsole.error("Auto calendar sync failed:", error);
       }
     };
 
@@ -223,8 +224,8 @@ export default function CreatorDashboard({
         .not("profiles.email", "is", null);
 
       if (error) {
-        console.log("Error fetching signups:", error);
-        console.error("Error fetching signups:", error);
+        safeConsole.log("Error fetching signups:", error);
+        safeConsole.error("Error fetching signups:", error);
         toast.error("Failed to fetch signup emails" + error.message);
         return;
       }
@@ -268,7 +269,7 @@ export default function CreatorDashboard({
         `Opening email client with ${signups.length} volunteer emails`,
       );
     } catch (_error) {
-      console.error("Error fetching signups:", _error);
+      safeConsole.error("Error fetching signups:", _error);
       toast.error("Failed to fetch signup emails");
     }
   };

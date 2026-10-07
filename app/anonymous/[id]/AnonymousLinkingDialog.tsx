@@ -1,4 +1,5 @@
 "use client";
+import { safeConsole } from "@/lib/safe-console";
 
 import { zodResolver } from "@hookform/resolvers/zod";
 import {
@@ -200,7 +201,7 @@ export function AnonymousLinkingDialog({
         "Account linked successfully! Your volunteer dashboard is ready.",
       );
     } catch (error) {
-      console.error("Error linking current account:", error);
+      safeConsole.error("Error linking current account:", error);
       toast.error("Failed to link your current account. Please try again.");
     } finally {
       setIsLinkingCurrent(false);
@@ -238,7 +239,7 @@ export function AnonymousLinkingDialog({
           "Account linked successfully! Redirecting to your dashboard...",
         );
       } catch (error) {
-        console.error("Error linking existing account:", error);
+        safeConsole.error("Error linking existing account:", error);
         toast.error("Failed to link your account. Please try again.");
         verification.reset();
       } finally {
@@ -294,7 +295,7 @@ export function AnonymousLinkingDialog({
           "Account created and linked successfully! Redirecting to your dashboard...",
         );
       } catch (error) {
-        console.error("Error creating linked account:", error);
+        safeConsole.error("Error creating linked account:", error);
         toast.error("Failed to create your account. Please try again.");
         verification.reset();
       } finally {
@@ -321,7 +322,7 @@ export function AnonymousLinkingDialog({
 
       window.location.assign(result.url);
     } catch (error) {
-      console.error("Error starting Google linking:", error);
+      safeConsole.error("Error starting Google linking:", error);
       toast.error("Failed to start Google linking. Please try again.");
     } finally {
       setIsGoogleLoading(false);

@@ -1,4 +1,5 @@
 "use client";
+import { safeConsole } from "@/lib/safe-console";
 
 import { useCallback, useEffect, useRef, useState, Suspense } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
@@ -176,7 +177,7 @@ function GlobalNotificationProviderInner({
       const result = await markIntroTourAsComplete();
 
       if (result.error) {
-        console.error(
+        safeConsole.error(
           "Failed to mark intro tour complete via server action:",
           result.error,
         );
@@ -190,18 +191,21 @@ function GlobalNotificationProviderInner({
       } = await supabase.auth.getUser();
 
       if (error) {
-        console.warn("Error fetching updated user after tour complete:", error);
+        safeConsole.warn(
+          "Error fetching updated user after tour complete:",
+          error,
+        );
       }
 
       // Auth state is managed by useAuth hook automatically via onAuthStateChange
       if (updatedUser && process.env.NODE_ENV === "development") {
-        console.log(
+        safeConsole.log(
           "[GlobalNotificationProvider] User updated after tour complete:",
           updatedUser.email,
         );
       }
     } catch (error) {
-      console.error("Unexpected error updating intro tour status:", error);
+      safeConsole.error("Unexpected error updating intro tour status:", error);
     }
   }, []);
 
@@ -386,7 +390,7 @@ function GlobalNotificationProviderInner({
             onClose={() => {
               setShowOnboardingModal(false);
               onboardingCompletedRef.current = true;
-              console.log("Onboarding modal closed by user.");
+              safeConsole.log("Onboarding modal closed by user.");
               setTimeout(() => {
                 // Trigger any higher-level refreshes if needed
               }, 500);

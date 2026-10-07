@@ -1,3 +1,5 @@
+import { observeWorkerRun } from "@/lib/cron/worker-observation";
+import { safeConsole } from "@/lib/safe-console";
 import { timingSafeEqual } from "node:crypto";
 import { NextRequest, NextResponse } from "next/server";
 
@@ -78,23 +80,25 @@ async function handle(request: NextRequest) {
     FEEDBACK_WORKER_MAX_BATCH_SIZE,
   );
 
-  try {
-    const startedAt = Date.now();
-    const result = await runProjectFeedbackWorker({
-      batchSize,
-      deadlineMs: RUN_DEADLINE_MS,
-    });
+  return observeWorkerRun("project-feedback-followups", async () => {
+    try {
+      const startedAt = Date.now();
+      const result = await runProjectFeedbackWorker({
+        batchSize,
+        deadlineMs: RUN_DEADLINE_MS,
+      });
 
-    // Aggregates only: no request ids, no addresses, no provider error text.
-    return NextResponse.json({
-      enabled: true,
-      ...result,
-      durationMs: Date.now() - startedAt,
-    });
-  } catch (error) {
-    console.error("Project feedback follow-up worker failed:", error);
-    return NextResponse.json({ error: "Worker run failed" }, { status: 500 });
-  }
+      // Aggregates only: no request ids, no addresses, no provider error text.
+      return NextResponse.json({
+        enabled: true,
+        ...result,
+        durationMs: Date.now() - startedAt,
+      });
+    } catch (error) {
+      safeConsole.error("Project feedback follow-up worker failed:", error);
+      return NextResponse.json({ error: "Worker run failed" }, { status: 500 });
+    }
+  });
 }
 
 export async function POST(request: NextRequest) {

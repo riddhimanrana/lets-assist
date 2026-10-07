@@ -1,4 +1,5 @@
 "use client";
+import { safeConsole } from "@/lib/safe-console";
 
 import { Fragment, useEffect, useState } from "react";
 import { BellOff } from "lucide-react";
@@ -145,7 +146,7 @@ export function NotificationSettings() {
         };
 
         if (error) {
-          console.error("Error loading notification settings:", error);
+          safeConsole.error("Error loading notification settings:", error);
           return;
         }
 
@@ -153,7 +154,7 @@ export function NotificationSettings() {
         setSettings(firstSetting);
         setOriginalSettings(firstSetting);
       } catch (error) {
-        console.error("Failed to load notification settings", error);
+        safeConsole.error("Failed to load notification settings", error);
       } finally {
         setLoading(false);
       }
@@ -185,7 +186,7 @@ export function NotificationSettings() {
 
       if (error) {
         toast.error("Failed to save notification settings");
-        console.error("Error saving settings:", error);
+        safeConsole.error("Error saving settings:", error);
         return;
       }
 
@@ -193,7 +194,7 @@ export function NotificationSettings() {
       setOriginalSettings(settings);
     } catch (error) {
       toast.error("Failed to save notification settings");
-      console.error("Failed to save settings", error);
+      safeConsole.error("Failed to save settings", error);
     } finally {
       setSaving(false);
     }

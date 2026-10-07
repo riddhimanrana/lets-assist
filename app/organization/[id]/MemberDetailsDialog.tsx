@@ -1,4 +1,6 @@
 "use client";
+import { safeConsole } from "@/lib/safe-console";
+
 
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
@@ -125,7 +127,7 @@ export default function MemberDetailsDialog({
           setTotalHours(result.totalHours);
         }
       } catch (err) {
-        console.error("Error fetching member details:", err);
+        safeConsole.error("Error fetching member details:", err);
         if (!cancelled) setError("Failed to load member details");
       } finally {
         if (!cancelled) setLoading(false);
@@ -164,7 +166,7 @@ export default function MemberDetailsDialog({
       });
       toast.success(`${memberName}'s volunteer data exported successfully`);
     } catch (exportError) {
-      console.error("Error exporting member data:", exportError);
+      safeConsole.error("Error exporting member data:", exportError);
       toast.error("Failed to export member data");
     } finally {
       setIsExporting(false);

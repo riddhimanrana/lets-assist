@@ -1,4 +1,5 @@
 "use client";
+import { safeConsole } from "@/lib/safe-console";
 
 import { useRef, useState } from "react";
 import Link from "next/link";
@@ -203,7 +204,7 @@ export default function OrganizationCreator({ userId }: { userId: string }) {
       const isAvailable = await checkOrgUsername(username);
       setUsernameAvailable(isAvailable);
     } catch (error) {
-      console.error("Error checking username:", error);
+      safeConsole.error("Error checking username:", error);
       toast.error("Failed to check username availability");
     } finally {
       setCheckingUsername(false);
@@ -229,9 +230,10 @@ export default function OrganizationCreator({ userId }: { userId: string }) {
       }
 
       toast.success("Organization created successfully!");
+      if (result.logoWarning) toast.warning(result.logoWarning);
       router.push(`/organization/${data.username}`);
     } catch (error) {
-      console.error("Error creating organization:", error);
+      safeConsole.error("Error creating organization:", error);
       toast.error("Failed to create organization. Please try again.");
     } finally {
       setIsCreating(false);

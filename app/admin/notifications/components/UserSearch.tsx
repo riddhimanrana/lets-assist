@@ -1,4 +1,5 @@
 "use client";
+import { safeConsole } from "@/lib/safe-console";
 
 import * as React from "react";
 import { Check, ChevronsUpDown, Loader2 } from "lucide-react";
@@ -61,7 +62,7 @@ export function UserSearch({
           );
         }
       } catch (e) {
-        console.error("Search failed", e);
+        safeConsole.error("Search failed", e);
       } finally {
         setLoading(false);
       }

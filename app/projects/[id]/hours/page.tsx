@@ -1,3 +1,5 @@
+import { PROJECT_CLIENT_SELECT } from "@/lib/projects/client-projection";
+import { safeConsole } from "@/lib/safe-console";
 import { createClient } from "@/lib/supabase/server";
 import { getAuthUser } from "@/lib/supabase/auth-helpers";
 import { notFound, redirect } from "next/navigation";
@@ -213,7 +215,7 @@ export default async function HoursPage({
   // 3. Fetch Project Data
   const { data: project, error: projectError } = await supabase
     .from("projects")
-    .select("*") // Select all project fields needed by HoursClient
+    .select(PROJECT_CLIENT_SELECT)
     .eq("id", projectId)
     .single();
 
@@ -308,7 +310,7 @@ export default async function HoursPage({
   }; // Fetch both attended and approved
 
   if (signupsError) {
-    console.error("Error fetching signups:", signupsError);
+    safeConsole.error("Error fetching signups:", signupsError);
     return <div>Error loading volunteer data.</div>;
   }
 

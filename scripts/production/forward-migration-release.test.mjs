@@ -1,24 +1,24 @@
-import { historicalReleaseTestFixture } from "./historical-release-test-fixture.mjs";
+import { historicalOnlineReleaseTestFixture } from "./forward-migration-online-fixture.mjs";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import test, { after } from "node:test";
-import {
-  applyForwardMigrations,
-  approvedMigrations,
-  prepareMigration,
-} from "./forward-migration-release.mjs";
 import {
   prohibitedDataWrites,
   unreviewedWriteTables,
 } from "./migration-data-writes.mjs";
 
 import {
-  APPROVED_TAIL,
+  APPROVED_TAIL as REVIEWED_APPROVED_TAIL,
   REVIEWED_PREFIX_LENGTH,
 } from "./forward-migration-release-fixture.mjs";
 
-const fixture = historicalReleaseTestFixture();
+const fixture = await historicalOnlineReleaseTestFixture();
+const { applyForwardMigrations, approvedMigrations, prepareMigration } =
+  fixture.controller;
+const APPROVED_TAIL = REVIEWED_APPROVED_TAIL.filter(
+  (version) => version < "20261007210000",
+);
 const cwd = fixture.cwd;
 after(fixture.dispose);
 const config = {

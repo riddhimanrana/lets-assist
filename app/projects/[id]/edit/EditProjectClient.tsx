@@ -1,4 +1,5 @@
 "use client";
+import { safeConsole } from "@/lib/safe-console";
 
 import {
   Project,
@@ -115,6 +116,7 @@ import { WaiverDefinitionFull } from "@/types/waiver-definitions";
 import { getWaiverDefinition, saveWaiverDefinition } from "../actions";
 import { Settings } from "lucide-react";
 import { buildRecurrenceRuleFromState } from "@/lib/projects/recurrence";
+import { ProjectDeleteTrigger } from "./ProjectDeleteTrigger";
 
 // Constants for character limits
 const TITLE_LIMIT = 125;
@@ -366,7 +368,7 @@ export default function EditProjectClient({ project }: Props) {
             setWaiverDefinition(result.definition);
           }
         } catch (error) {
-          console.error("Error fetching waiver definition:", error);
+          safeConsole.error("Error fetching waiver definition:", error);
         }
       }
     }
@@ -391,7 +393,7 @@ export default function EditProjectClient({ project }: Props) {
         throw new Error(result.error || "Failed to save waiver configuration");
       }
     } catch (error) {
-      console.error("Error saving waiver definition:", error);
+      safeConsole.error("Error saving waiver definition:", error);
       toast.dismiss(loadingToast);
       toast.error("Failed to save waiver configuration");
     }
@@ -761,7 +763,7 @@ export default function EditProjectClient({ project }: Props) {
       setWaiverPdfValidation(validation);
       return validation;
     } catch (error) {
-      console.error("Error validating waiver PDF:", error);
+      safeConsole.error("Error validating waiver PDF:", error);
       setWaiverPdfError("Error reading PDF file. Please try again.");
       return null;
     }
@@ -803,7 +805,7 @@ export default function EditProjectClient({ project }: Props) {
         toast.success("Cover image uploaded successfully");
         router.refresh();
       } catch (error) {
-        console.error("Upload error:", error);
+        safeConsole.error("Upload error:", error);
         toast.dismiss(loadingToast);
         toast.error("Failed to upload cover image");
       } finally {
@@ -825,7 +827,7 @@ export default function EditProjectClient({ project }: Props) {
         .from("project-images")
         .remove([fileName]);
 
-      if (deleteError) console.warn("Storage delete error:", deleteError);
+      if (deleteError) safeConsole.warn("Storage delete error:", deleteError);
 
       const result = await updateProject(project.id, {
         cover_image_url: null,
@@ -836,7 +838,7 @@ export default function EditProjectClient({ project }: Props) {
       toast.success("Cover image removed");
       router.refresh();
     } catch (error) {
-      console.error("Delete error:", error);
+      safeConsole.error("Delete error:", error);
       toast.error("Failed to remove cover image");
     }
   };
@@ -912,7 +914,7 @@ export default function EditProjectClient({ project }: Props) {
       toast.success(`${uploadedDocs.length} document(s) uploaded successfully`);
       router.refresh();
     } catch (error) {
-      console.error("Upload error:", error);
+      safeConsole.error("Upload error:", error);
       toast.dismiss(loadingToast);
       toast.error("Failed to upload documents");
     } finally {
@@ -959,7 +961,7 @@ export default function EditProjectClient({ project }: Props) {
       toast.success("Waiver PDF uploaded successfully");
       router.refresh();
     } catch (error) {
-      console.error("Upload waiver PDF error:", error);
+      safeConsole.error("Upload waiver PDF error:", error);
       toast.dismiss(loadingToast);
       toast.error("Failed to upload waiver PDF");
     } finally {
@@ -989,7 +991,7 @@ export default function EditProjectClient({ project }: Props) {
       setWaiverPdfValidation(null);
       router.refresh();
     } catch (error) {
-      console.error("Remove waiver PDF error:", error);
+      safeConsole.error("Remove waiver PDF error:", error);
       toast.dismiss(loadingToast);
       toast.error("Failed to remove waiver PDF");
     } finally {
@@ -1008,7 +1010,7 @@ export default function EditProjectClient({ project }: Props) {
         .from("project-documents")
         .remove([fileName]);
 
-      if (storageError) console.warn("Storage delete error:", storageError);
+      if (storageError) safeConsole.warn("Storage delete error:", storageError);
 
       const updatedDocs = (project.documents || []).filter(
         (doc) => doc.url !== docUrl,
@@ -1022,7 +1024,7 @@ export default function EditProjectClient({ project }: Props) {
       toast.success("Document deleted");
       router.refresh();
     } catch (error) {
-      console.error("Delete error:", error);
+      safeConsole.error("Delete error:", error);
       toast.error("Failed to delete document");
     }
   };
@@ -1094,7 +1096,7 @@ export default function EditProjectClient({ project }: Props) {
         try {
           await updateCalendarEventForProject(project.id);
         } catch (calendarError) {
-          console.error("Error updating calendar event:", calendarError);
+          safeConsole.error("Error updating calendar event:", calendarError);
           // Don't show error to user - this is non-critical
         }
 
@@ -2098,17 +2100,11 @@ export default function EditProjectClient({ project }: Props) {
                     <TooltipTrigger
                       render={
                         <span className="w-full" tabIndex={canDelete ? -1 : 0}>
-                          <Button
-                            onClick={() => setShowDeleteDialog(true)}
-                            variant="destructive"
-                            className="w-full"
-                            disabled={isDeleting || !canDelete}
-                          >
-                            {isDeleting ? (
-                              <Loader2 className="size-4 animate-spin mr-2" />
-                            ) : null}
-                            Delete Project
-                          </Button>
+                          <ProjectDeleteTrigger
+                            onDeleteRequested={() => setShowDeleteDialog(true)}
+                            isDeleting={isDeleting}
+                            canDelete={canDelete}
+                          />
                         </span>
                       }
                     />

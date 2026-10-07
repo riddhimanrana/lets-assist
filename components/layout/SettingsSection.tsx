@@ -44,7 +44,9 @@ function SettingsSection({
       {...props}
     >
       <CardHeader>
-        <CardTitle>{title}</CardTitle>
+        <CardTitle>
+          <h2>{title}</h2>
+        </CardTitle>
         {description ? <CardDescription>{description}</CardDescription> : null}
         {status ? <CardAction>{status}</CardAction> : null}
       </CardHeader>

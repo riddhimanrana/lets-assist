@@ -60,7 +60,7 @@ SELECT extensions.dblink_connect(
   ' dbname=' || current_database() ||
   ' user=' || current_user ||
   ' password=' || current_user ||
-  ' sslmode=disable'
+  ' sslmode=disable options=' || quote_literal('-c statement_timeout=5000')
 );
 SELECT extensions.dblink_connect(
   'cross_org_editor',
@@ -69,7 +69,7 @@ SELECT extensions.dblink_connect(
   ' dbname=' || current_database() ||
   ' user=' || current_user ||
   ' password=' || current_user ||
-  ' sslmode=disable'
+  ' sslmode=disable options=' || quote_literal('-c statement_timeout=5000')
 );
 
 CREATE TEMP TABLE identity_lock_results (

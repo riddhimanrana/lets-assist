@@ -1,4 +1,6 @@
 "use client";
+import { safeConsole } from "@/lib/safe-console";
+
 
 import { useState } from "react";
 import { toast } from "sonner";
@@ -103,7 +105,7 @@ export function useProjectFileUploads() {
           coverImageUrl = publicUrlData.publicUrl;
           setCoverImageUploadState("processing");
         } catch (error) {
-          console.error("Cover image upload failed:", error);
+          safeConsole.error("Cover image upload failed:", error);
           setCoverImageUploadState("error");
           hasErrors = true;
         }
@@ -160,7 +162,7 @@ export function useProjectFileUploads() {
           [uploadKey]: "processing",
         }));
       } catch (error) {
-        console.error(`Document upload failed for ${document.name}:`, error);
+        safeConsole.error(`Document upload failed for ${document.name}:`, error);
         setDocumentUploadStates((current) => ({
           ...current,
           [uploadKey]: "error",

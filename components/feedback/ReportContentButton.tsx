@@ -1,4 +1,5 @@
 "use client";
+import { safeConsole } from "@/lib/safe-console";
 
 import {
   cloneElement,
@@ -158,7 +159,7 @@ export function ReportContentButton({
       setDescription("");
       setOpen(false);
     } catch (error) {
-      console.error("Error submitting report:", error);
+      safeConsole.error("Error submitting report:", error);
       toast.error(
         error instanceof Error ? error.message : "Failed to submit report",
       );

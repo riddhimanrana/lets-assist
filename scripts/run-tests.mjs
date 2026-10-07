@@ -8,6 +8,7 @@ const supportedArguments = new Set([
   "--root-only",
   "--plugins-only",
   "--private-only",
+  "--application-only",
 ]);
 const unknownArguments = process.argv
   .slice(2)
@@ -18,13 +19,15 @@ if (unknownArguments.length > 0) {
   );
 }
 
+const applicationOnly = process.argv.includes("--application-only");
 const rootOnly = process.argv.includes("--root-only");
 const pluginsOnly = process.argv.includes("--plugins-only");
 const privateOnly = process.argv.includes("--private-only");
-if ([rootOnly, pluginsOnly, privateOnly].filter(Boolean).length > 1) {
-  throw new Error(
-    "--root-only, --plugins-only, and --private-only cannot be combined.",
-  );
+if (
+  [rootOnly, pluginsOnly, privateOnly, applicationOnly].filter(Boolean).length >
+  1
+) {
+  throw new Error("Test scope arguments cannot be combined.");
 }
 
 const preload = [
@@ -113,7 +116,11 @@ function isTestFileArgument(argument) {
 }
 
 function filesNamedByGroup(group) {
-  return group.args.filter(isTestFileArgument);
+  return group.args.filter(
+    (argument) =>
+      isTestFileArgument(argument) &&
+      (!applicationOnly || !argument.startsWith("scripts/")),
+  );
 }
 
 function hasGlobalModuleMock(file) {
@@ -121,12 +128,14 @@ function hasGlobalModuleMock(file) {
 }
 
 const explicitlyGroupedFiles = new Set(groups.flatMap(filesNamedByGroup));
-const discoveredRootFiles = await fg(testFilePatterns, {
-  cwd: process.cwd(),
-  ignore: discoveryIgnore,
-  onlyFiles: true,
-  unique: true,
-});
+const discoveredRootFiles = (
+  await fg(testFilePatterns, {
+    cwd: process.cwd(),
+    ignore: discoveryIgnore,
+    onlyFiles: true,
+    unique: true,
+  })
+).filter((file) => !applicationOnly || !file.startsWith("scripts/"));
 const remainingRootFiles = discoveredRootFiles
   .filter((file) => !explicitlyGroupedFiles.has(file))
   .sort();

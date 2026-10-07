@@ -1,4 +1,5 @@
 "use client";
+import { safeConsole } from "@/lib/safe-console";
 
 import { useState } from "react";
 import { SettingsSection } from "@/components/layout/SettingsSection";
@@ -79,7 +80,7 @@ export default function JoinCodeAdminDisplay({
         toast.success("Join code regenerated successfully");
       }
     } catch (error) {
-      console.error("Error regenerating join code:", error);
+      safeConsole.error("Error regenerating join code:", error);
       toast.error("Failed to regenerate join code");
     } finally {
       setIsRegenerating(false);

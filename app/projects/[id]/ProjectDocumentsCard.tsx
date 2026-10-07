@@ -1,4 +1,6 @@
 "use client";
+import { safeConsole } from "@/lib/safe-console";
+
 
 import { Download, Eye, File, FileImage, FileText } from "lucide-react";
 
@@ -28,7 +30,7 @@ const downloadFile = async (url: string, filename: string) => {
     document.body.removeChild(link);
     URL.revokeObjectURL(href);
   } catch (error) {
-    console.error("Download error:", error);
+    safeConsole.error("Download error:", error);
   }
 };
 

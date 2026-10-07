@@ -1,4 +1,6 @@
 "use client";
+import { safeConsole } from "@/lib/safe-console";
+
 
 import { useState } from "react";
 import { toast } from "sonner";
@@ -45,7 +47,7 @@ export function useMemberActions({
         window.location.reload();
       }
     } catch (error) {
-      console.error("Error updating member role:", error);
+      safeConsole.error("Error updating member role:", error);
       toast.error("Failed to update member role");
     } finally {
       setProcessingMember(null);
@@ -67,7 +69,7 @@ export function useMemberActions({
         window.location.reload();
       }
     } catch (error) {
-      console.error("Error removing member:", error);
+      safeConsole.error("Error removing member:", error);
       toast.error("Failed to remove member");
     } finally {
       setProcessingMember(null);

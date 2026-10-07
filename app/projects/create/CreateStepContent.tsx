@@ -35,7 +35,6 @@ export function CreateStepContent({
   uploads,
   pluginSteps,
   finalStep,
-  initialOrgId,
   initialOrgOptions,
   canUsePublicVisibility,
   showLocationPointer,
@@ -48,7 +47,6 @@ export function CreateStepContent({
   uploads: ReturnType<typeof useProjectFileUploads>;
   pluginSteps: CreatePluginStep[];
   finalStep: number;
-  initialOrgId?: string;
   initialOrgOptions?: CreateOrgOption[];
   canUsePublicVisibility: boolean;
   showLocationPointer: boolean;
@@ -138,7 +136,6 @@ export function CreateStepContent({
         <BasicInfo
           state={state}
           updateBasicInfoAction={handleBasicInfoUpdate}
-          initialOrgId={initialOrgId}
           initialOrganizations={initialOrgOptions}
           showLocationPointer={showLocationPointer}
           onLocationPointerDismiss={onLocationPointerDismiss}

@@ -1,4 +1,5 @@
 "use client";
+import { safeConsole } from "@/lib/safe-console";
 
 import {
   Card,
@@ -420,7 +421,7 @@ export default function AnonymousSignupClient({
         router.replace("/dashboard");
         router.refresh();
       } catch (error) {
-        console.error("Error auto-linking account:", error);
+        safeConsole.error("Error auto-linking account:", error);
         setAutoLinkError(
           "Failed to link account automatically. You can still finish linking below.",
         );
@@ -465,7 +466,7 @@ export default function AnonymousSignupClient({
       setRemovedSlots((prev) => new Set(prev).add(cancellingSlotId));
       setCancelDialogOpen(false);
     } catch (error) {
-      console.error("Error cancelling signup:", error);
+      safeConsole.error("Error cancelling signup:", error);
       toast.error("Failed to cancel signup. Please try again.");
     } finally {
       setIsCancelling(false);

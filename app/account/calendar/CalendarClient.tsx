@@ -1,4 +1,5 @@
 "use client";
+import { safeConsole } from "@/lib/safe-console";
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
@@ -16,13 +17,17 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { removeSyncedCalendarEvent } from "@/lib/calendar-remove-event";
+import { SettingsSection } from "@/components/layout/SettingsSection";
+import { Button } from "@/components/ui/button";
+import type { CalendarCleanupEvent } from "@/services/personal-calendar/cleanup";
 import type { CalendarConnection } from "@/types";
 
 import { CalendarConnectionSection } from "./CalendarConnectionSection";
 import { SyncedEventsSection, type SyncedEvent } from "./SyncedEventsSection";
 
 interface CalendarClientProps {
-  connection: CalendarConnection | null;
+  cleanupEvents?: CalendarCleanupEvent[];
+  connection: Pick<CalendarConnection, "calendar_email" | "created_at"> | null;
   legacyReconnectRequired: boolean;
   creatorProjects: Array<{
     id: string;
@@ -32,13 +37,13 @@ interface CalendarClientProps {
     end_date: string | null;
     location: string | null;
     creator_calendar_event_id: string;
-    creator_synced_at: string;
+    creator_synced_at: string | null;
     schedule_type: string;
   }>;
   volunteerSignups: Array<{
     id: string;
     volunteer_calendar_event_id: string;
-    volunteer_synced_at: string;
+    volunteer_synced_at: string | null;
     scheduled_start: string;
     scheduled_end: string;
     projects: {
@@ -52,13 +57,14 @@ interface CalendarClientProps {
 }
 
 type RemovableEvent =
-  | CalendarClientProps["creatorProjects"][number]
-  | CalendarClientProps["volunteerSignups"][number];
+  | { id: string; creator_calendar_event_id: string }
+  | { id: string; volunteer_calendar_event_id: string };
 
 /** A row for the list, plus the original record the remove call needs. */
 type SyncedEventEntry = SyncedEvent & { source: RemovableEvent };
 
 export default function CalendarClient({
+  cleanupEvents = [],
   connection,
   legacyReconnectRequired,
   creatorProjects,
@@ -68,9 +74,10 @@ export default function CalendarClient({
   const [isDisconnecting, setIsDisconnecting] = useState(false);
   const [showDisconnectDialog, setShowDisconnectDialog] = useState(false);
   const [removingEventId, setRemovingEventId] = useState<string | null>(null);
-  const [eventToRemove, setEventToRemove] = useState<SyncedEventEntry | null>(
-    null,
-  );
+  const [eventToRemove, setEventToRemove] = useState<{
+    title: string;
+    source: RemovableEvent;
+  } | null>(null);
 
   const creatorEvents: SyncedEventEntry[] = creatorProjects.map((project) => ({
     key: project.id,
@@ -116,12 +123,12 @@ export default function CalendarClient({
 
       toast.success("Calendar disconnected", {
         description:
-          "Your Google Calendar has been disconnected. Existing synced events will remain in your calendar.",
+          "Your Google Calendar has been disconnected. Existing events remain. Reconnect the same Google account to remove them through Let's Assist.",
       });
 
       router.refresh();
     } catch (error) {
-      console.error("Failed to disconnect calendar:", error);
+      safeConsole.error("Failed to disconnect calendar:", error);
       toast.error("Could not disconnect", {
         description:
           error instanceof Error
@@ -145,7 +152,7 @@ export default function CalendarClient({
 
       router.refresh();
     } catch (error) {
-      console.error("Failed to remove event:", error);
+      safeConsole.error("Failed to remove event:", error);
       toast.error("Could not remove event", {
         description:
           error instanceof Error
@@ -182,6 +189,56 @@ export default function CalendarClient({
         />
       )}
 
+      {cleanupEvents.length > 0 && (
+        <SettingsSection
+          title="Calendar entries awaiting removal"
+          description="These entries remain in Google Calendar after their project or signup was removed. Removal clears every occurrence in the saved plan."
+        >
+          <div className="flex flex-col gap-3">
+            {cleanupEvents.map((event) => {
+              const title =
+                event.source_kind === "project"
+                  ? "Removed project"
+                  : "Removed volunteer signup";
+              return (
+                <div
+                  key={`${event.source_kind}:${event.source_id}`}
+                  className="flex flex-wrap items-center justify-between gap-3"
+                >
+                  <span>{title}</span>
+                  <Button
+                    variant="outline"
+                    disabled={removingEventId !== null}
+                    onClick={() =>
+                      setEventToRemove({
+                        title,
+                        source:
+                          event.source_kind === "project"
+                            ? {
+                                id: event.source_id,
+                                creator_calendar_event_id: event.event_id,
+                              }
+                            : {
+                                id: event.source_id,
+                                volunteer_calendar_event_id: event.event_id,
+                              },
+                      })
+                    }
+                  >
+                    Remove from calendar
+                  </Button>
+                </div>
+              );
+            })}
+            {cleanupEvents.length === 100 && (
+              <p className="text-sm text-muted-foreground">
+                More entries may remain. This list refreshes as you remove them.
+              </p>
+            )}
+          </div>
+        </SettingsSection>
+      )}
+
       <AlertDialog
         open={showDisconnectDialog}
         onOpenChange={setShowDisconnectDialog}
@@ -192,7 +249,9 @@ export default function CalendarClient({
             <AlertDialogDescription>
               This will disconnect your Google Calendar from Let&apos;s Assist.
               Your existing synced events will remain in your calendar, but new
-              events won&apos;t be automatically synced.
+              events won&apos;t be automatically synced. Reconnect the same
+              Google account to remove those events through Let&apos;s Assist
+              later.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

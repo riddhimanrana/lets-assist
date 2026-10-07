@@ -20,6 +20,46 @@ function response(status: number) {
 }
 
 describe("personal CSF Google Calendar mutations", () => {
+  test("refuses malicious path identifiers before any provider request", async () => {
+    const fetchImpl = mock(async () =>
+      response(200),
+    ) as unknown as typeof fetch;
+    for (const id of [
+      "..",
+      "../../another/events/event",
+      "%2e%2e%2fother",
+      "event?query=secret",
+    ]) {
+      await deleteGoogleCalendarOwnedEvent("token", "primary", id, fetchImpl);
+      await updateGoogleCalendarOwnedEvent(
+        "token",
+        "primary",
+        id,
+        event,
+        fetchImpl,
+      );
+    }
+    expect(fetchImpl).not.toHaveBeenCalled();
+  });
+
+  test("blocks redirect following and bounds a valid mutation request", async () => {
+    const fetchImpl = mock(
+      async (_input: string | URL | Request, init?: RequestInit) => {
+        expect(init?.redirect).toBe("error");
+        expect(init?.signal).toBeInstanceOf(AbortSignal);
+        return response(204);
+      },
+    ) as unknown as typeof fetch;
+    expect(
+      await deleteGoogleCalendarOwnedEvent(
+        "token",
+        "primary",
+        "event12345",
+        fetchImpl,
+      ),
+    ).toEqual({ status: "confirmed_deleted" });
+    expect(fetchImpl).toHaveBeenCalledTimes(1);
+  });
   test("derives a stable provider-safe event id from the local coordinate", () => {
     const input = {
       userId: "11111111-1111-4111-8111-111111111111",

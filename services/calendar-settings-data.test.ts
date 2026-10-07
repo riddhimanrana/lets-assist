@@ -1,6 +1,9 @@
 import { beforeEach, expect, mock, test } from "bun:test";
 
 mock.module("server-only", () => ({}));
+mock.module("./personal-calendar/cleanup", () => ({
+  getPersonalCalendarCleanup: async () => [],
+}));
 const creator = {
   id: "fictional-project",
   title: "Park cleanup",
@@ -17,8 +20,27 @@ const creator = {
   creator_synced_at: null,
 };
 let queryError = false;
+let calendarConnection: Record<string, unknown> | null = null;
 let legacyReconnectRequired = false;
 let creatorRows: unknown[] = [creator];
+let signupScheduleId = "oneTime";
+let signupProjectOverride: Record<string, unknown> | null = null;
+const signupProject = {
+  id: "fictional-project",
+  title: "Park cleanup",
+  event_type: "oneTime" as "oneTime" | "multiDay",
+  schedule: {
+    oneTime: {
+      date: "2039-09-22",
+      startTime: "09:00",
+      endTime: "10:00",
+      volunteers: 10,
+    },
+  },
+  project_timezone: "America/Los_Angeles",
+  description: null,
+  location: null,
+};
 const reads: { table: string; fields: string; filters: string[][] }[] = [];
 mock.module("@/lib/supabase/server", () => ({
   createClient: async () => ({
@@ -38,9 +60,10 @@ mock.module("@/lib/supabase/server", () => ({
           return query;
         },
         then(resolve: (result: unknown) => unknown) {
-          const legacy = /\b(start_date|end_date|schedule_type)\b/.test(
-            read.fields,
-          );
+          const legacy =
+            /\b(start_date|end_date|schedule_type|scheduled_start|scheduled_end)\b/.test(
+              read.fields,
+            );
           return Promise.resolve(
             resolve({
               error: queryError || legacy ? { code: "42703" } : null,
@@ -52,17 +75,8 @@ mock.module("@/lib/supabase/server", () => ({
                         id: "fictional-signup",
                         volunteer_calendar_event_id: "signup-event",
                         volunteer_synced_at: null,
-                        scheduled_start: "2039-09-22T16:00:00Z",
-                        scheduled_end: "2039-09-22T17:00:00Z",
-                        project: [
-                          {
-                            id: "fictional-project",
-                            title: "Park cleanup",
-                            event_type: "oneTime",
-                            description: null,
-                            location: null,
-                          },
-                        ],
+                        schedule_id: signupScheduleId,
+                        project: [signupProjectOverride ?? signupProject],
                       },
                     ],
             }),
@@ -74,15 +88,18 @@ mock.module("@/lib/supabase/server", () => ({
   }),
 }));
 mock.module("@/services/calendar", () => ({
-  getCalendarConnection: async () => null,
+  getCalendarConnection: async () => calendarConnection,
   hasLegacyGoogleOAuthReconnectRequired: async () => legacyReconnectRequired,
 }));
 const { getCalendarData } = await import("./calendar-settings-data");
 beforeEach(() => {
   reads.length = 0;
   queryError = false;
+  calendarConnection = null;
   legacyReconnectRequired = false;
   creatorRows = [creator];
+  signupScheduleId = "oneTime";
+  signupProjectOverride = null;
 });
 
 test("preserves the reconnect notice for an unbound legacy calendar connection", async () => {
@@ -99,7 +116,13 @@ test("loads creator and signup events from canonical schedule columns within the
     end_date: "2039-09-24",
     schedule_type: "multiDay",
   });
-  expect(result.volunteerSignups[0].projects.schedule_type).toBe("oneTime");
+  expect(result.volunteerSignups[0]).toMatchObject({
+    scheduled_start: "2039-09-22T16:00:00.000Z",
+    scheduled_end: "2039-09-22T17:00:00.000Z",
+    projects: { schedule_type: "oneTime" },
+  });
+  expect(reads[1].fields).toContain("schedule_id");
+  expect(reads[1].fields).toContain("project_timezone");
   expect(reads[0].filters).toContainEqual(["creator_id", "fictional-user"]);
   expect(reads[1].filters).toContainEqual(["user_id", "fictional-user"]);
 });
@@ -117,4 +140,77 @@ test("does not invent event dates for missing or malformed schedules", async () 
     { ...creator, schedule: { multiDay: [{ date: "2039-02-30" }] } },
   ];
   expect((await getCalendarData("fictional-user")).creatorProjects).toEqual([]);
+});
+
+test("keeps incomplete calendar records available for removal without inventing a sync timestamp", async () => {
+  const result = await getCalendarData("fictional-user");
+  expect(result.creatorProjects[0].creator_calendar_event_id).toBe(
+    "fictional-event",
+  );
+  expect(result.creatorProjects[0].creator_synced_at).toBeNull();
+  expect(result.volunteerSignups[0].volunteer_calendar_event_id).toBe(
+    "signup-event",
+  );
+  expect(result.volunteerSignups[0].volunteer_synced_at).toBeNull();
+});
+
+test("refuses a signup whose selected schedule no longer exists", async () => {
+  signupScheduleId = "removed-slot";
+  expect((await getCalendarData("fictional-user")).volunteerSignups).toEqual(
+    [],
+  );
+});
+
+test("uses the selected multi-day signup slot and its project timezone", async () => {
+  signupScheduleId = "2039-09-24-1-0";
+  signupProjectOverride = {
+    ...signupProject,
+    event_type: "multiDay",
+    schedule: {
+      multiDay: [
+        {
+          date: "2039-09-22",
+          slots: [{ startTime: "08:00", endTime: "09:00", volunteers: 10 }],
+        },
+        {
+          date: "2039-09-24",
+          slots: [{ startTime: "13:00", endTime: "15:00", volunteers: 10 }],
+        },
+      ],
+    },
+  };
+  const result = await getCalendarData("fictional-user");
+  expect(result.volunteerSignups[0]).toMatchObject({
+    scheduled_start: "2039-09-24T20:00:00.000Z",
+    scheduled_end: "2039-09-24T22:00:00.000Z",
+    projects: { schedule_type: "multiDay" },
+  });
+});
+
+test("sends only calendar display fields to the browser, excluding stored credential and binding data", async () => {
+  calendarConnection = {
+    calendar_email: "fictional.calendar@example.test",
+    created_at: "2039-09-01T00:00:00Z",
+    access_token: "fictional-encrypted-access-token",
+    refresh_token: "fictional-encrypted-refresh-token",
+    binding_identity_email: "fictional-private-binding@example.test",
+    preferences: { private_setting: "fictional-private-preference" },
+    future_private_field: "fictional-future-private-field",
+  };
+  const result = await getCalendarData("fictional-user");
+  expect(result.connection).toEqual({
+    calendar_email: "fictional.calendar@example.test",
+    created_at: "2039-09-01T00:00:00Z",
+  });
+  const serialized = JSON.stringify(result);
+  for (const key of [
+    "access_token",
+    "refresh_token",
+    "binding_identity_email",
+    "preferences",
+    "future_private_field",
+  ]) {
+    expect(serialized).not.toContain(key);
+    expect(serialized).not.toContain(JSON.stringify(calendarConnection[key]));
+  }
 });

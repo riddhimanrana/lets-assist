@@ -1,4 +1,6 @@
 "use client";
+import { safeConsole } from "@/lib/safe-console";
+
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
@@ -212,7 +214,7 @@ export function ProfileForm({
               message: errors[key as keyof typeof errors]?.[0],
             });
           } else {
-            console.warn(`Unexpected error key from server: ${key}`);
+            safeConsole.warn(`Unexpected error key from server: ${key}`);
             form.setError("root.serverError", {
               type: "server",
               message: "An unexpected validation error occurred.",
@@ -227,7 +229,7 @@ export function ProfileForm({
         }, 1000);
       }
     } catch (error) {
-      console.error("Error updating profile:", error);
+      safeConsole.error("Error updating profile:", error);
       toast.error("An unexpected error occurred. Please try again.");
     } finally {
       setIsSaving(false);

@@ -1,4 +1,5 @@
 "use server";
+import { safeConsole } from "@/lib/safe-console";
 
 import "server-only";
 import { createClient } from "@/lib/supabase/server";
@@ -128,7 +129,7 @@ export async function unrejectSignup(signupId: string) {
 
     return { success: true };
   } catch (error) {
-    console.error("Error unrejecting signup:", error);
+    safeConsole.error("Error unrejecting signup:", error);
     return { error: "Failed to unreject signup" };
   }
 }
@@ -204,6 +205,7 @@ function rejectionErrorMessage(code?: string): string {
       return "Signup not found";
     case "22023":
       return "This signup can no longer be rejected. Refresh the signups list and try again.";
+    case "PT409":
     case "40001":
       return "The signup changed while it was being rejected. Refresh the signups list and try again.";
     default:
@@ -263,7 +265,7 @@ async function rejectSignupTransactionally(
   });
 
   if (error) {
-    console.error("Signup rejection refused at the database boundary:", {
+    safeConsole.error("Signup rejection refused at the database boundary:", {
       code: error.code,
     });
     return { outcome: "rejected", error: rejectionErrorMessage(error.code) };
@@ -274,7 +276,9 @@ async function rejectSignupTransactionally(
     data.signupId !== canonicalSignupId ||
     data.projectId !== signup.project_id
   ) {
-    console.error("Signup rejection returned an unrecognized outcome envelope");
+    safeConsole.error(
+      "Signup rejection returned an unrecognized outcome envelope",
+    );
     return { outcome: "rejected", error: "Failed to reject signup" };
   }
 
@@ -405,7 +409,7 @@ export async function cancelSignup(
       .maybeSingle();
 
     if (cancelError) {
-      console.error("Failed to cancel signup:", cancelError);
+      safeConsole.error("Failed to cancel signup:", cancelError);
       return { error: "Failed to cancel signup" };
     }
 
@@ -425,7 +429,7 @@ export async function cancelSignup(
           .maybeSingle();
 
       if (currentSignupError) {
-        console.error(
+        safeConsole.error(
           "Failed to verify idempotent signup cancellation:",
           currentSignupError,
         );
@@ -447,11 +451,11 @@ export async function cancelSignup(
     try {
       await removeCalendarEventForSignup(canonicalSignupId);
     } catch (calendarError) {
-      console.error("Error removing calendar event:", calendarError);
+      safeConsole.error("Error removing calendar event:", calendarError);
       // Don't fail the cancellation if calendar removal fails
     }
 
-    console.log("Signup record cancelled successfully.");
+    safeConsole.log("Signup record cancelled successfully.");
 
     revalidateSignupPaths(signup.project_id);
 
@@ -459,7 +463,7 @@ export async function cancelSignup(
     // the retention-aware anonymous cleanup transaction archives them.
     return { success: true, removedAnonymousProfile: false };
   } catch (error) {
-    console.error("Error cancelling signup:", error);
+    safeConsole.error("Error cancelling signup:", error);
     return { error: "Failed to cancel signup" };
   }
 }

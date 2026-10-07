@@ -20,7 +20,10 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import type { InvitationDuration } from "@/lib/organization/invitation-utils";
+import {
+  isInvitationDeliveryUnconfirmed,
+  type InvitationDuration,
+} from "@/lib/organization/invitation-utils";
 import type { OrganizationInvitationWithDetails } from "@/types/invitation";
 
 type EffectiveStatus = "pending" | "accepted" | "expired" | "cancelled";
@@ -59,6 +62,8 @@ function InvitationStatusBadge({ status }: { status: EffectiveStatus }) {
 }
 
 function DeliveryBadge({ status }: { status: string }) {
+  if (status === "unconfirmed")
+    return <Badge variant="outline">Unconfirmed</Badge>;
   if (status === "sent") {
     return <Badge variant="outline">Sent</Badge>;
   }
@@ -121,7 +126,7 @@ export default function PendingInvitationsTable({
             <TableHead>Role</TableHead>
             <TableHead>Status</TableHead>
             <TableHead>Email status</TableHead>
-            <TableHead>Sent</TableHead>
+            <TableHead>Email activity</TableHead>
             <TableHead>Expires</TableHead>
             <TableHead className="w-12">
               <span className="sr-only">Actions</span>
@@ -133,7 +138,9 @@ export default function PendingInvitationsTable({
             const effectiveStatus = getEffectiveInvitationStatus(invitation);
             const canCancel = effectiveStatus === "pending";
             const canResend =
-              effectiveStatus === "pending" || effectiveStatus === "expired";
+              (effectiveStatus === "pending" ||
+                effectiveStatus === "expired") &&
+              !isInvitationDeliveryUnconfirmed(invitation);
             const isRowBusy = busyInvitationId === invitation.id;
 
             return (
@@ -174,8 +181,18 @@ export default function PendingInvitationsTable({
                 <TableCell>
                   <div className="grid gap-1">
                     <DeliveryBadge
-                      status={invitation.email_delivery_status || "pending"}
+                      status={
+                        isInvitationDeliveryUnconfirmed(invitation)
+                          ? "unconfirmed"
+                          : invitation.email_delivery_status || "pending"
+                      }
                     />
+                    {isInvitationDeliveryUnconfirmed(invitation) &&
+                      !invitation.email_delivery_error && (
+                        <p className="max-w-56 text-xs text-muted-foreground">
+                          Check delivery before sending another invitation.
+                        </p>
+                      )}
                     {invitation.email_delivery_error ? (
                       <p className="text-destructive max-w-56 truncate text-xs">
                         {invitation.email_delivery_error}

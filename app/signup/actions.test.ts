@@ -1,6 +1,31 @@
-import { beforeEach, describe, expect, mock, test } from "bun:test";
+import { afterEach, beforeEach, describe, expect, mock, test } from "bun:test";
 
 mock.module("server-only", () => ({}));
+
+const environmentKeys = [
+  "NODE_ENV",
+  "NEXT_PUBLIC_SITE_URL",
+  "NEXT_PUBLIC_SUPABASE_URL",
+  "NEXT_PUBLIC_REMOTE_SUPABASE_URL",
+  "VERCEL_URL",
+  "VERCEL_BRANCH_URL",
+  "VERCEL",
+  "VERCEL_ENV",
+  "E2E_TEST_MODE",
+  "NEXT_PUBLIC_TURNSTILE_SITE_KEY",
+  "TURNSTILE_SECRET_KEY",
+  "TURNSTILE_BYPASS",
+];
+const originalEnvironment = Object.fromEntries(
+  environmentKeys.map((key) => [key, process.env[key]]),
+);
+afterEach(() => {
+  for (const key of environmentKeys) {
+    const original = originalEnvironment[key];
+    if (original === undefined) delete process.env[key];
+    else process.env[key] = original;
+  }
+});
 
 let requestHost = "lets-assist.com";
 const redirects: string[] = [];
@@ -113,7 +138,10 @@ beforeEach(() => {
   resendError = null;
   oauthError = null;
   process.env.NEXT_PUBLIC_SITE_URL = "https://lets-assist.com";
+  process.env.NEXT_PUBLIC_SUPABASE_URL = "https://synthetic.supabase.co";
+  delete process.env.NEXT_PUBLIC_REMOTE_SUPABASE_URL;
   delete process.env.VERCEL_URL;
+  delete process.env.VERCEL_BRANCH_URL;
   delete process.env.VERCEL;
   delete process.env.VERCEL_ENV;
   delete process.env.E2E_TEST_MODE;
@@ -141,7 +169,12 @@ describe("signup enumeration resistance", () => {
   });
 
   test("shared-local signup proceeds when Turnstile is not configured", async () => {
-    Object.assign(process.env, { NODE_ENV: "development" });
+    Object.assign(process.env, {
+      NODE_ENV: "development",
+      NEXT_PUBLIC_SITE_URL: "http://localhost:3000",
+      NEXT_PUBLIC_SUPABASE_URL: "http://127.0.0.1:54321",
+    });
+    requestHost = "localhost:3000";
     const form = signupForm();
     form.delete("turnstileToken");
 
@@ -152,7 +185,49 @@ describe("signup enumeration resistance", () => {
         "If this address can be registered, a confirmation email is on its way. Otherwise, sign in or request another verification email.",
     });
     expect(signUpCalls).toBe(1);
+    expect(verifierCookieHosts).toEqual(["localhost:3000"]);
   });
+
+  const nonlocalConfigurations: Array<
+    [string, Record<string, string | undefined>]
+  > = [
+    ["a remote site", { NEXT_PUBLIC_SITE_URL: "https://lets-assist.com" }],
+    [
+      "a remote Supabase endpoint",
+      { NEXT_PUBLIC_SUPABASE_URL: "https://synthetic.supabase.co" },
+    ],
+    [
+      "an alternate remote Supabase endpoint",
+      { NEXT_PUBLIC_REMOTE_SUPABASE_URL: "https://synthetic.supabase.co" },
+    ],
+    ["a hosted runtime", { VERCEL: "1" }],
+    ["a Preview runtime", { VERCEL_ENV: "preview" }],
+    ["a missing Supabase endpoint", { NEXT_PUBLIC_SUPABASE_URL: undefined }],
+  ];
+  test.each(nonlocalConfigurations)(
+    "local bypass cannot waive signup verification with %s",
+    async (_label, configuration) => {
+      Object.assign(process.env, {
+        NODE_ENV: "development",
+        TURNSTILE_BYPASS: "true",
+        NEXT_PUBLIC_SITE_URL: "http://localhost:3000",
+        NEXT_PUBLIC_SUPABASE_URL: "http://127.0.0.1:54321",
+      });
+      for (const [key, value] of Object.entries(configuration)) {
+        if (value === undefined) delete process.env[key];
+        else process.env[key] = value;
+      }
+      requestHost = "localhost:3000";
+      const form = signupForm();
+      form.delete("turnstileToken");
+      expect(await signup(form)).toEqual({
+        error: { server: ["Complete the security check, then try again."] },
+      });
+      expect(createClientCalls).toBe(0);
+      expect(signUpCalls).toBe(0);
+      expect(verifierCookieHosts).toEqual([]);
+    },
+  );
 
   test("blacklisted, new, and existing addresses receive the same public success", async () => {
     blacklisted = true;
@@ -170,7 +245,7 @@ describe("signup enumeration resistance", () => {
     expect(existingResult).toEqual(newResult);
   });
 
-  test("unexpected provider details are logged server-side but never returned", async () => {
+  test("unexpected provider failures return only a generic public error", async () => {
     signUpResult = {
       data: { user: null },
       error: { message: "SMTP api key secret-provider-detail" },

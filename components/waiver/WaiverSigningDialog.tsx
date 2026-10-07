@@ -1,4 +1,5 @@
 "use client";
+import { safeConsole } from "@/lib/safe-console";
 
 import { useState, useMemo, useEffect } from "react";
 import dynamic from "next/dynamic";
@@ -247,7 +248,7 @@ export function WaiverSigningDialog({
       onClose(false);
       toast.success("Waiver signed successfully!");
     } catch (error) {
-      console.error("Submission failed", error);
+      safeConsole.error("Submission failed", error);
       toast.error("Failed to sign waiver", {
         description:
           error instanceof Error ? error.message : "Please try again.",
@@ -280,7 +281,7 @@ export function WaiverSigningDialog({
       document.body.removeChild(link);
       URL.revokeObjectURL(downloadUrl);
     } catch (error) {
-      console.error("Download failed", error);
+      safeConsole.error("Download failed", error);
       toast.error("Failed to download waiver PDF");
     }
   };
@@ -325,7 +326,7 @@ export function WaiverSigningDialog({
           onClose(false);
           toast.success("Waiver uploaded successfully!");
         } catch (err) {
-          console.error("Upload failed", err);
+          safeConsole.error("Upload failed", err);
           toast.error("Failed to upload waiver", {
             description: "Please check your file and try again.",
           });

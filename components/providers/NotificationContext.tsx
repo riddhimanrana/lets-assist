@@ -1,4 +1,5 @@
 "use client";
+import { safeConsole } from "@/lib/safe-console";
 
 import React, {
   createContext,
@@ -79,14 +80,14 @@ export function NotificationProvider({
       // Remove strict deduplication or make it time-based if needed.
       // For now, we trust the realtime event is unique per insert.
       if (displayedNotifications.has(notification.id)) {
-        console.log(
+        safeConsole.log(
           "[NotificationContext] Notification already displayed:",
           notification.id,
         );
         return;
       }
 
-      console.log(
+      safeConsole.log(
         "[NotificationContext] Displaying toast:",
         notification.title,
         notification,
@@ -125,7 +126,7 @@ export function NotificationProvider({
           .update({ displayed: true })
           .eq("id", notification.id);
       } catch (error) {
-        console.error("Error marking notification as displayed:", error);
+        safeConsole.error("Error marking notification as displayed:", error);
       }
     },
     [supabase],
@@ -149,7 +150,7 @@ export function NotificationProvider({
         if (error) throw error;
         setUnreadCount(count ?? 0);
       } catch (error) {
-        console.error("Error fetching unread count:", error);
+        safeConsole.error("Error fetching unread count:", error);
       }
     };
 
@@ -182,7 +183,10 @@ export function NotificationProvider({
       supabase.removeChannel(channelRef.current);
     }
 
-    console.log("[NotificationContext] Subscribing to channel:", channelName);
+    safeConsole.log(
+      "[NotificationContext] Subscribing to channel:",
+      channelName,
+    );
 
     let cancelled = false;
     const refreshScheduler = createNotificationRefreshScheduler(async () => {
@@ -197,7 +201,8 @@ export function NotificationProvider({
         if (error) throw error;
         if (count !== null) setUnreadCount(count);
       } catch (error) {
-        if (!cancelled) console.error("Error refreshing notifications:", error);
+        if (!cancelled)
+          safeConsole.error("Error refreshing notifications:", error);
       }
     });
 
@@ -213,7 +218,7 @@ export function NotificationProvider({
         },
         async (payload: { new: NotificationRecord }) => {
           if (cancelled || !mountedRef.current) return;
-          console.log("[NotificationContext] INSERT received");
+          safeConsole.log("[NotificationContext] INSERT received");
 
           // 1. Increment Unread Count
           setUnreadCount((prev) => prev + 1);
@@ -238,7 +243,7 @@ export function NotificationProvider({
         },
         () => {
           if (cancelled || !mountedRef.current) return;
-          console.log("[NotificationContext] UPDATE received");
+          safeConsole.log("[NotificationContext] UPDATE received");
           refreshScheduler.schedule();
         },
       )
@@ -246,16 +251,22 @@ export function NotificationProvider({
         if (status === "CHANNEL_ERROR") {
           if (process.env.NODE_ENV !== "development") {
             if (err) {
-              console.error("[NotificationContext] Subscription Error:", err);
+              safeConsole.error(
+                "[NotificationContext] Subscription Error:",
+                err,
+              );
             } else {
-              console.warn(
+              safeConsole.warn(
                 "[NotificationContext] Subscription Error: Unknown error",
               );
             }
           }
           // Optional: Retry logic?
         } else {
-          console.log(`[NotificationContext] Status: ${status}`);
+          safeConsole.log(
+            "Application diagnostic from components/providers/NotificationContext",
+            `[NotificationContext] Status: ${status}`,
+          );
         }
       });
 
@@ -266,7 +277,7 @@ export function NotificationProvider({
       refreshScheduler.dispose();
       mountedRef.current = false;
       if (channelRef.current) {
-        console.log("[NotificationContext] Cleaning up channel");
+        safeConsole.log("[NotificationContext] Cleaning up channel");
         supabase.removeChannel(channelRef.current);
         channelRef.current = null;
       }

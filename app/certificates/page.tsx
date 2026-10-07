@@ -1,3 +1,4 @@
+import { safeConsole } from "@/lib/safe-console";
 import { redirect } from "next/navigation";
 import { getAdminClient } from "@/lib/supabase/admin";
 import { getAuthUser } from "@/lib/supabase/auth-helpers";
@@ -73,7 +74,7 @@ export default async function CertificatesPage() {
     error: { message?: string } | null;
   };
   if (certError) {
-    console.error("Error loading certificates:", certError);
+    safeConsole.error("Error loading certificates:", certError);
     return <p className="p-4 text-destructive">Failed to load certificates.</p>;
   }
 

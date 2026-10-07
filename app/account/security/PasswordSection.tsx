@@ -1,4 +1,5 @@
 "use client";
+import { safeConsole } from "@/lib/safe-console";
 
 import { useEffect, useState } from "react";
 import {
@@ -189,7 +190,7 @@ export function PasswordSection() {
             null,
         );
       } catch (error) {
-        console.error("Error checking auth methods:", error);
+        safeConsole.error("Error checking auth methods:", error);
       } finally {
         setIsCheckingAuth(false);
       }

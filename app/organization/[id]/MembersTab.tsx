@@ -1,4 +1,6 @@
 "use client";
+import { safeConsole } from "@/lib/safe-console";
+
 
 import { useMemo, useState } from "react";
 import { EyeOff } from "lucide-react";
@@ -195,7 +197,7 @@ export default function MembersTab({
       });
       toast.success("Member hours exported successfully");
     } catch (error) {
-      console.error("Error exporting member hours:", error);
+      safeConsole.error("Error exporting member hours:", error);
       toast.error("Failed to export member hours");
     } finally {
       setIsExporting(false);

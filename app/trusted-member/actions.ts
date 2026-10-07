@@ -1,4 +1,5 @@
 "use server";
+import { safeConsole } from "@/lib/safe-console";
 
 import { createClient } from "@/lib/supabase/server";
 import { notifyAdminsBatched } from "@/services/admin-notifications";
@@ -37,10 +38,10 @@ export async function submitTrustedMember(input: {
     .or(`id.eq.${userId},user_id.eq.${userId}`)
     .maybeSingle();
 
-  console.log("existing:", existing);
+  safeConsole.log("existing:", existing);
   if (selectError) {
-    console.error("Error checking existing application:", selectError);
-    console.log("existing:", existing);
+    safeConsole.error("Error checking existing application:", selectError);
+    safeConsole.log("existing:", existing);
     return { error: "Failed to check existing application" };
   }
 
@@ -73,7 +74,7 @@ export async function submitTrustedMember(input: {
       { onConflict: "id" },
     );
     if (upsertError) {
-      console.error("Error inserting application:", upsertError);
+      safeConsole.error("Error inserting application:", upsertError);
       return { error: "Failed to submit application" };
     }
   } else if (existing.status === null) {
@@ -86,7 +87,7 @@ export async function submitTrustedMember(input: {
       })
       .eq("id", existing.id);
     if (updateError) {
-      console.error("Error updating application:", updateError);
+      safeConsole.error("Error updating application:", updateError);
       return { error: "Failed to update application" };
     }
   }
@@ -100,7 +101,7 @@ export async function submitTrustedMember(input: {
         applicantEmail: parsed.data.email,
       });
     } catch (error) {
-      console.error(
+      safeConsole.error(
         "Error notifying admins of trusted member application:",
         error,
       );

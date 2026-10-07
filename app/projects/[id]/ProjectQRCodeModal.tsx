@@ -1,4 +1,5 @@
 "use client";
+import { safeConsole } from "@/lib/safe-console";
 
 import { useState, useRef, useEffect } from "react";
 import {
@@ -76,7 +77,7 @@ export function ProjectQRCodeModal({
       if (result.success) {
         setAttendanceChallenges(result.challenges);
       } else {
-        console.error(
+        safeConsole.error(
           "Failed to create secure attendance QR codes:",
           result.error,
         );

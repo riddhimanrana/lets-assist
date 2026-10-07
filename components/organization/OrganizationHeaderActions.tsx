@@ -1,4 +1,6 @@
 "use client";
+import { safeConsole } from "@/lib/safe-console";
+
 
 import { useState } from "react";
 import Link from "next/link";
@@ -80,7 +82,7 @@ export function OrganizationHeaderActions({
         return;
       } catch (err) {
         if ((err as Error)?.name !== "AbortError") {
-          console.error("Share failed: ", err);
+          safeConsole.error("Share failed: ", err);
           toast.error("Could not share link");
         } else {
           return;

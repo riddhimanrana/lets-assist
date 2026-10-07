@@ -1,4 +1,5 @@
 "use server";
+import { safeConsole } from "@/lib/safe-console";
 
 import "server-only";
 import { createClient } from "@/lib/supabase/server";
@@ -28,6 +29,12 @@ import { registerAnonymousSignup } from "./signup-anonymous";
 import { registerAuthenticatedSignup } from "./signup-registered";
 
 export type SignupActionResult = {
+  confirmationDelivery?:
+    | "accepted"
+    | "definitive_failure"
+    | "retryable_pre_send"
+    | "unknown_outcome"
+    | "skipped";
   success?: boolean;
   error?: string;
   canResend?: boolean;
@@ -62,7 +69,7 @@ export async function togglePauseSignups(
       .eq("id", projectId);
 
     if (error) {
-      console.error("Error updating pause state:", error);
+      safeConsole.error("Error updating pause state:", error);
       return { error: "Failed to update signup status" };
     }
 
@@ -72,7 +79,7 @@ export async function togglePauseSignups(
 
     return { success: true };
   } catch (error) {
-    console.error("Error toggling pause state:", error);
+    safeConsole.error("Error toggling pause state:", error);
     return { error: "An unexpected error occurred" };
   }
 }
@@ -104,6 +111,7 @@ export async function signUpForProject(
   let createdSignupId: string | undefined = undefined; // Track the created signup ID
   let createdAnonymousSignupId: string | null = null;
   let anonymousProfileAlreadyConfirmed = false;
+  let confirmationDelivery: SignupActionResult["confirmationDelivery"];
   let anonymousContinuationToken: string | undefined;
   const traceId = crypto.randomUUID();
 
@@ -262,7 +270,7 @@ export async function signUpForProject(
             validationResult.warnings &&
             validationResult.warnings.length > 0
           ) {
-            console.warn(
+            safeConsole.warn(
               "Waiver validation warnings:",
               validationResult.warnings,
             );
@@ -433,6 +441,7 @@ export async function signUpForProject(
       }
       createdSignupId = anonymousResult.createdSignupId;
       createdAnonymousSignupId = anonymousResult.createdAnonymousSignupId;
+      confirmationDelivery = anonymousResult.confirmationDelivery;
       anonymousProfileAlreadyConfirmed =
         anonymousResult.anonymousProfileAlreadyConfirmed;
     } else {
@@ -552,6 +561,7 @@ export async function signUpForProject(
       projectId: project.id,
       traceId,
       anonymousContinuationToken,
+      confirmationDelivery,
     };
   } catch (error) {
     logSignupDebug(traceId, "unhandled_exception", {

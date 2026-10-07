@@ -1,4 +1,5 @@
 "use client";
+import { safeConsole } from "@/lib/safe-console";
 
 /**
  * Hook: useDebouncedAuthChange
@@ -63,7 +64,7 @@ export function useDebouncedAuthChange(
       const isUserChanged = userId !== lastUserIdRef.current;
 
       if (process.env.NODE_ENV === "development") {
-        console.log("[DebouncedAuth] Event fired:", {
+        safeConsole.log("[DebouncedAuth] Event fired:", {
           userId,
           isChanged: isUserChanged,
           isProcessing: isProcessingRef.current,
@@ -73,7 +74,7 @@ export function useDebouncedAuthChange(
       // If user didn't change and we're not processing, skip
       if (!isUserChanged && isProcessingRef.current) {
         if (process.env.NODE_ENV === "development") {
-          console.log("[DebouncedAuth] Ignoring duplicate event");
+          safeConsole.log("[DebouncedAuth] Ignoring duplicate event");
         }
         return;
       }
@@ -83,7 +84,10 @@ export function useDebouncedAuthChange(
         if (isUserChanged) {
           lastUserIdRef.current = userId;
           if (process.env.NODE_ENV === "development") {
-            console.log("[DebouncedAuth] User changed, fetching data:", userId);
+            safeConsole.log(
+              "[DebouncedAuth] User changed, fetching data:",
+              userId,
+            );
           }
         }
 
@@ -91,7 +95,7 @@ export function useDebouncedAuthChange(
           isProcessingRef.current = true;
           await onAuthChange(user);
         } catch (error) {
-          console.error("[DebouncedAuth] Error in callback:", error);
+          safeConsole.error("[DebouncedAuth] Error in callback:", error);
         } finally {
           isProcessingRef.current = false;
         }
@@ -104,7 +108,7 @@ export function useDebouncedAuthChange(
     const supabase = createClient();
 
     if (process.env.NODE_ENV === "development") {
-      console.log("[DebouncedAuth] Setting up listener");
+      safeConsole.log("[DebouncedAuth] Setting up listener");
     }
 
     // Subscribe to auth changes
@@ -118,7 +122,10 @@ export function useDebouncedAuthChange(
 
       void supabase.auth.getUser().then(({ data, error }) => {
         if (error) {
-          console.error("[DebouncedAuth] Error resolving trusted user:", error);
+          safeConsole.error(
+            "[DebouncedAuth] Error resolving trusted user:",
+            error,
+          );
           handleAuthChange(null);
           return;
         }
@@ -165,7 +172,7 @@ export function debounceAuthChange<T extends (...args: unknown[]) => unknown>(
         try {
           (callback as (...args: Parameters<T>) => void)(...lastArgs);
         } catch (error) {
-          console.error("[DebouncedAuth] Callback error:", error);
+          safeConsole.error("[DebouncedAuth] Callback error:", error);
         }
       }
       timeoutId = null;

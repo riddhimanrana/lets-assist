@@ -1,4 +1,5 @@
 "use client";
+import { safeConsole } from "@/lib/safe-console";
 
 import { REGEXP_ONLY_DIGITS } from "input-otp";
 import { AlertTriangle, LogOut, ShieldCheck, Smartphone } from "lucide-react";
@@ -89,7 +90,7 @@ export default function MfaChallengeClient({
       }
 
       if (claimsError) {
-        console.error(
+        safeConsole.error(
           "Failed to load auth claims for MFA challenge:",
           claimsError,
         );
@@ -133,7 +134,7 @@ export default function MfaChallengeClient({
         return verifiedFactors[0]?.id ?? null;
       });
     } catch (error) {
-      console.error("Failed to load MFA challenge state:", error);
+      safeConsole.error("Failed to load MFA challenge state:", error);
       setErrorMessage(
         error instanceof Error
           ? error.message
@@ -178,7 +179,7 @@ export default function MfaChallengeClient({
       router.replace(redirectPath);
       router.refresh();
     } catch (error) {
-      console.error("Failed to verify MFA challenge:", error);
+      safeConsole.error("Failed to verify MFA challenge:", error);
       const message = getMfaVerificationErrorMessage(error);
 
       setErrorMessage(message);

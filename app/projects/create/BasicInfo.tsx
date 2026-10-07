@@ -52,7 +52,6 @@ interface BasicInfoProps {
     field: keyof EventFormState["basicInfo"],
     value: EventFormState["basicInfo"][keyof EventFormState["basicInfo"]],
   ) => void;
-  initialOrgId?: string;
   initialOrganizations?: OrganizationOption[];
   showLocationPointer?: boolean;
   onLocationPointerDismiss?: () => void;
@@ -66,7 +65,6 @@ interface BasicInfoProps {
 export default function BasicInfo({
   state,
   updateBasicInfoAction,
-  initialOrgId,
   initialOrganizations = [],
   showLocationPointer,
   onLocationPointerDismiss,
@@ -90,19 +88,11 @@ export default function BasicInfo({
   );
   const initRef = useRef(false);
 
-  // Set default organization and timezone on initial render only
+  // Set a browser timezone only when the form does not already have one.
   useEffect(() => {
     if (initRef.current) return;
 
     initRef.current = true;
-
-    // If initialOrgId is provided, use it
-    if (initialOrgId && state.basicInfo.organizationId !== initialOrgId) {
-      updateBasicInfoAction("organizationId", initialOrgId);
-    } else if (state.basicInfo.organizationId === undefined) {
-      // Otherwise, if no organization is set, default to personal (null)
-      updateBasicInfoAction("organizationId", null);
-    }
 
     // Initialize timezone to user's current timezone if not set
     if (!state.basicInfo.projectTimezone) {

@@ -1,0 +1,284 @@
+name: Integrate signed private plugin release batch
+
+on:
+  workflow_call:
+    inputs:
+      release_tags:
+        description: "JSON array of 2 to 16 exact embedded release tags at one private source commit"
+        required: true
+        type: string
+      candidate_sha:
+        description: "Full reviewed root candidate SHA. Dispatch from this exact branch revision."
+        required: true
+        type: string
+      existing_pr_number:
+        description: "Existing reviewed root Development pull request to update"
+        required: true
+        type: string
+
+    secrets:
+      PRIVATE_PLUGIN_RELEASE_TOKEN:
+        required: true
+
+permissions:
+  contents: write
+  pull-requests: read
+
+jobs:
+  integrate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      ROOT_REPOSITORY: riddhimanrana/lets-assist
+      PRIVATE_REPOSITORY: riddhimanrana/lets-assist-plugins
+      RELEASE_TAGS: ${{ inputs.release_tags }}
+      CANDIDATE_SHA: ${{ inputs.candidate_sha }}
+      EXISTING_PR_NUMBER: ${{ inputs.existing_pr_number }}
+    steps:
+      - name: Validate the manual batch request
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$GITHUB_EVENT_NAME" = workflow_dispatch
+          test "$GITHUB_REPOSITORY" = "$ROOT_REPOSITORY"
+          [[ "$CANDIDATE_SHA" =~ ^[0-9a-f]{40}$ ]]
+          test "$CANDIDATE_SHA" = "$GITHUB_SHA"
+          [[ "$EXISTING_PR_NUMBER" =~ ^[1-9][0-9]{0,8}$ ]]
+          [[ "$GITHUB_REF_NAME" == codex/* ]]
+          test "$GITHUB_REF" = "refs/heads/$GITHUB_REF_NAME"
+          git check-ref-format "refs/heads/$GITHUB_REF_NAME"
+          node --input-type=module <<'NODE'
+          import assert from 'node:assert/strict';
+          assert(/^[1-9][0-9]{0,8}$/.test(process.env.EXISTING_PR_NUMBER ?? ''));
+          const tags = JSON.parse(process.env.RELEASE_TAGS);
+          const stable = '(?:0|[1-9][0-9]{0,8})';
+          const tagPattern = new RegExp(`^[a-z0-9]+(?:-[a-z0-9]+)*/v${stable}\\.${stable}\\.${stable}$`);
+          assert(Array.isArray(tags) && tags.length >= 2 && tags.length <= 16);
+          assert(tags.every(tag => typeof tag === 'string' && tag.length <= 160 && tagPattern.test(tag)));
+          assert.equal(new Set(tags.map(tag => tag.split('/')[0])).size, tags.length);
+          NODE
+
+      - name: Checkout the reviewed root candidate
+        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # ratchet:actions/checkout@v6
+        with:
+          repository: riddhimanrana/lets-assist
+          ref: ${{ inputs.candidate_sha }}
+          fetch-depth: 0
+          submodules: false
+          persist-credentials: false
+
+      - name: Authorize the existing Development pull request
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$CANDIDATE_SHA"
+          git fetch --no-tags https://github.com/riddhimanrana/lets-assist.git \
+            '+refs/heads/development:refs/remotes/root/development'
+          development_sha="$(git rev-parse refs/remotes/root/development)"
+          git merge-base --is-ancestor "$development_sha" "$CANDIDATE_SHA"
+          pr="$(gh api "/repos/$ROOT_REPOSITORY/pulls/$EXISTING_PR_NUMBER")"
+          jq -e --argjson number "$EXISTING_PR_NUMBER" --arg repository "$ROOT_REPOSITORY" \
+            --arg branch "$GITHUB_REF_NAME" --arg candidate "$CANDIDATE_SHA" --arg development "$development_sha" \
+            '.number == $number and .state == "open" and .merged == false
+             and .head.repo.full_name == $repository and .base.repo.full_name == $repository
+             and .head.ref == $branch and .head.sha == $candidate
+             and .base.ref == "development" and .base.sha == $development' <<<"$pr" >/dev/null
+          open_prs="$(gh api --paginate --slurp "/repos/$ROOT_REPOSITORY/pulls?state=open&per_page=100")"
+          jq -e --argjson number "$EXISTING_PR_NUMBER" \
+            '[.[][] | select(.number != $number and (.head.ref | startswith("codex/plugin-release-")))] | length == 0' \
+            <<<"$open_prs" >/dev/null
+
+      - name: Setup Node
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version-file: .node-version
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
+        with:
+          bun-version: 1.3.14
+
+      - name: Download each known release asset
+        env:
+          GH_TOKEN: ${{ secrets.PRIVATE_PLUGIN_RELEASE_TOKEN }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "${GH_TOKEN:-}"
+          mkdir -p .artifacts/plugin-release-batch
+          printf '[]\n' > .artifacts/plugin-release-batch/releases.json
+          index=0
+          while IFS= read -r tag; do
+            directory=".artifacts/plugin-release-batch/$index"
+            mkdir "$directory"
+            for asset in release-manifest.json release.cdx.json release-manifest.sigstore.json SHA256SUMS; do
+              gh release download "$tag" --repo "$PRIVATE_REPOSITORY" --pattern "$asset" --dir "$directory"
+              test -s "$directory/$asset"
+              test ! -L "$directory/$asset"
+            done
+            jq --arg tag "$tag" --arg directory "$directory" \
+              '. + [{tag: $tag, manifestPath: ($directory + "/release-manifest.json"),
+                sbomPath: ($directory + "/release.cdx.json"), bundlePath: ($directory + "/release-manifest.sigstore.json")}]' \
+              .artifacts/plugin-release-batch/releases.json > .artifacts/plugin-release-batch/releases.next.json
+            mv .artifacts/plugin-release-batch/releases.next.json .artifacts/plugin-release-batch/releases.json
+            index=$((index + 1))
+          done < <(jq -r '.[]' <<<"$RELEASE_TAGS")
+          node --input-type=module <<'NODE'
+          import assert from 'node:assert/strict';
+          import { createHash } from 'node:crypto';
+          import { readFileSync } from 'node:fs';
+          import { dirname, join } from 'node:path';
+          const releases = JSON.parse(readFileSync('.artifacts/plugin-release-batch/releases.json', 'utf8'));
+          assert.equal(releases.length, JSON.parse(process.env.RELEASE_TAGS).length);
+          const assets = ['release-manifest.json', 'release.cdx.json', 'release-manifest.sigstore.json'];
+          for (const release of releases) {
+            const directory = dirname(release.manifestPath);
+            const lines = readFileSync(join(directory, 'SHA256SUMS'), 'utf8').trim().split('\n');
+            assert.equal(lines.length, assets.length);
+            const entries = new Map(lines.map(line => {
+              const match = /^([0-9a-f]{64})  (release-manifest\.json|release\.cdx\.json|release-manifest\.sigstore\.json)$/.exec(line);
+              assert(match, 'Refusing unknown checksum asset path');
+              return [match[2], match[1]];
+            }));
+            assert.equal(entries.size, assets.length);
+            for (const asset of assets) {
+              const digest = createHash('sha256').update(readFileSync(join(directory, asset))).digest('hex');
+              assert.equal(digest, entries.get(asset), 'Release asset checksum mismatch');
+            }
+          }
+          NODE
+
+      - name: Inspect the untrusted common source claim
+        id: batch
+        shell: bash
+        run: |
+          set -euo pipefail
+          node scripts/plugins/integrate-private-release-batch.mjs \
+            --mode inspect --releases .artifacts/plugin-release-batch/releases.json \
+            > .artifacts/plugin-release-batch/inspection.json
+          source_commit="$(jq -er '.sourceCommit | select(test("^[0-9a-f]{40}$"))' .artifacts/plugin-release-batch/inspection.json)"
+          printf 'source_commit=%s\n' "$source_commit" >> "$GITHUB_OUTPUT"
+          printf 'serving_commit=%s\n' "$(git rev-parse HEAD:lib/plugins/private)" >> "$GITHUB_OUTPUT"
+
+      - name: Checkout the claimed private source for verification
+        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # ratchet:actions/checkout@v6
+        with:
+          repository: riddhimanrana/lets-assist-plugins
+          ref: ${{ steps.batch.outputs.source_commit }}
+          path: lib/plugins/private
+          token: ${{ secrets.PRIVATE_PLUGIN_RELEASE_TOKEN }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Fetch exact private tags and promotion refs
+        env:
+          GH_TOKEN: ${{ secrets.PRIVATE_PLUGIN_RELEASE_TOKEN }}
+          SOURCE_COMMIT: ${{ steps.batch.outputs.source_commit }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git -C lib/plugins/private rev-parse HEAD)" = "$SOURCE_COMMIT"
+          gh auth setup-git
+          git -C lib/plugins/private remote set-url origin https://github.com/riddhimanrana/lets-assist-plugins.git
+          git -C lib/plugins/private fetch --force origin \
+            refs/heads/main:refs/remotes/origin/main \
+            refs/heads/development:refs/remotes/origin/development
+          while IFS= read -r tag; do
+            git -C lib/plugins/private fetch --force origin "refs/tags/$tag:refs/tags/$tag"
+          done < <(jq -r '.[].tag' .artifacts/plugin-release-batch/releases.json)
+          git submodule absorbgitdirs lib/plugins/private
+
+      - name: Install Cosign
+        uses: sigstore/cosign-installer@6f9f17788090df1f26f669e9d70d6ae9567deba6 # v4.1.2
+
+      - name: Verify every signed release before batch integration
+        shell: bash
+        env:
+          SERVING_PRIVATE_COMMIT: ${{ steps.batch.outputs.serving_commit }}
+        run: |
+          set -euo pipefail
+          node scripts/plugins/integrate-private-release-batch.mjs \
+            --mode integrate --releases .artifacts/plugin-release-batch/releases.json \
+            --private-root lib/plugins/private --registry lib/plugins/published-releases.json \
+            --migrations-dir supabase/migrations --serving-private-commit "$SERVING_PRIVATE_COMMIT" \
+            > .artifacts/plugin-release-batch/integration-summary.json
+
+      - name: Validate and commit the generated batch
+        id: result
+        shell: bash
+        run: |
+          set -euo pipefail
+          git submodule init lib/plugins/private
+          git add -- lib/plugins/private
+          bun install --frozen-lockfile
+          bun run plugin:surface:generate
+          bunx prettier --write lib/plugins/published-releases.json lib/plugins/host-build-surface.generated.json
+          bun run plugin:submodules:check:strict
+          bun run plugin:test:registry
+          bun run plugin:check:boundary
+          node --test scripts/plugins/integrate-private-release.test.mjs scripts/plugins/integrate-private-release-batch.test.mjs
+          node --input-type=module <<'NODE'
+          import assert from 'node:assert/strict';
+          import { execFileSync } from 'node:child_process';
+          import { readFileSync } from 'node:fs';
+          import { relative, resolve } from 'node:path';
+          const summary = JSON.parse(readFileSync('.artifacts/plugin-release-batch/integration-summary.json', 'utf8'));
+          const migration = relative(process.cwd(), resolve(summary.migrationPath));
+          assert(/^supabase\/migrations\/\d{14}_publish_private_plugin_batch\.sql$/.test(migration));
+          assert(Array.isArray(summary.migrationTestPaths) && summary.migrationTestPaths.length >= 2);
+          const tests = summary.migrationTestPaths.map(path => relative(process.cwd(), resolve(path)));
+          assert(tests.every(path => /^supabase\/tests\/database\/[a-zA-Z0-9_.-]+\.test\.sql$/.test(path)));
+          const paths = ['lib/plugins/private', 'lib/plugins/published-releases.json',
+            'lib/plugins/host-build-surface.generated.json', migration, ...tests];
+          const changed = execFileSync('git', ['status', '--porcelain=v1', '--untracked-files=all'], { encoding: 'utf8' }).trimEnd().split('\n').filter(Boolean);
+          assert(changed.every(line => paths.includes(line.slice(3))), 'Unexpected source change during batch validation');
+          execFileSync('git', ['add', '--', ...paths], { stdio: 'inherit' });
+          NODE
+          git diff --cached --check
+          git diff --exit-code
+          git config user.name 'lets-assist-release[bot]'
+          git config user.email 'lets-assist-release[bot]@users.noreply.github.com'
+          git commit -m 'release(plugins): integrate verified embedded batch'
+          result_sha="$(git rev-parse HEAD)"
+          git merge-base --is-ancestor "$CANDIDATE_SHA" "$result_sha"
+          printf 'result_sha=%s\n' "$result_sha" >> "$GITHUB_OUTPUT"
+
+      - name: Recheck authority and advance only the reviewed branch
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RESULT_SHA: ${{ steps.result.outputs.result_sha }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          [[ "$RESULT_SHA" =~ ^[0-9a-f]{40}$ ]]
+          test "$(git rev-parse HEAD)" = "$RESULT_SHA"
+          git merge-base --is-ancestor "$CANDIDATE_SHA" "$RESULT_SHA"
+          git fetch --no-tags https://github.com/riddhimanrana/lets-assist.git \
+            '+refs/heads/development:refs/remotes/root/development'
+          development_sha="$(git rev-parse refs/remotes/root/development)"
+          git merge-base --is-ancestor "$development_sha" "$CANDIDATE_SHA"
+          pr="$(gh api "/repos/$ROOT_REPOSITORY/pulls/$EXISTING_PR_NUMBER")"
+          jq -e --argjson number "$EXISTING_PR_NUMBER" --arg repository "$ROOT_REPOSITORY" \
+            --arg branch "$GITHUB_REF_NAME" --arg candidate "$CANDIDATE_SHA" --arg development "$development_sha" \
+            '.number == $number and .state == "open" and .merged == false
+             and .head.repo.full_name == $repository and .base.repo.full_name == $repository
+             and .head.ref == $branch and .head.sha == $candidate
+             and .base.ref == "development" and .base.sha == $development' <<<"$pr" >/dev/null
+          open_prs="$(gh api --paginate --slurp "/repos/$ROOT_REPOSITORY/pulls?state=open&per_page=100")"
+          jq -e --argjson number "$EXISTING_PR_NUMBER" \
+            '[.[][] | select(.number != $number and (.head.ref | startswith("codex/plugin-release-")))] | length == 0' \
+            <<<"$open_prs" >/dev/null
+          remote_sha="$(git ls-remote https://github.com/riddhimanrana/lets-assist.git "refs/heads/$GITHUB_REF_NAME" | cut -f1)"
+          test "$remote_sha" = "$CANDIDATE_SHA"
+          gh auth setup-git
+          git push --force-with-lease="refs/heads/$GITHUB_REF_NAME:$CANDIDATE_SHA" \
+            https://github.com/riddhimanrana/lets-assist.git "$RESULT_SHA:refs/heads/$GITHUB_REF_NAME"
+          pr="$(gh api "/repos/$ROOT_REPOSITORY/pulls/$EXISTING_PR_NUMBER")"
+          jq -e --argjson number "$EXISTING_PR_NUMBER" --arg repository "$ROOT_REPOSITORY" \
+            --arg branch "$GITHUB_REF_NAME" --arg result "$RESULT_SHA" \
+            '.number == $number and .state == "open" and .merged == false
+             and .head.repo.full_name == $repository and .base.repo.full_name == $repository
+             and .head.ref == $branch and .head.sha == $result and .base.ref == "development"' \
+            <<<"$pr" >/dev/null

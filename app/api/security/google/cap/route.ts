@@ -1,3 +1,4 @@
+import { safeConsole } from "@/lib/safe-console";
 import { randomUUID } from "node:crypto";
 
 import { NextResponse } from "next/server";
@@ -61,7 +62,7 @@ export async function POST(request: Request) {
     claim = await claimGoogleCapEvent(descriptor, rawToken);
 
     if (claim.decision === "replayed") {
-      console.info("Google CAP event accepted", {
+      safeConsole.info("Google CAP event accepted", {
         requestId,
         outcome: "replayed",
         attemptCount: claim.attemptCount,
@@ -71,7 +72,7 @@ export async function POST(request: Request) {
     }
 
     if (claim.decision === "in_progress" || !claim.claimToken) {
-      console.warn("Google CAP event deferred", {
+      safeConsole.warn("Google CAP event deferred", {
         requestId,
         outcome: "in_progress",
         attemptCount: claim.attemptCount,
@@ -93,7 +94,7 @@ export async function POST(request: Request) {
         googleSubject: descriptor.googleSubject,
       });
       if (effect.decision !== "execute" || !effect.userId) {
-        console.warn("Google CAP event deferred", {
+        safeConsole.warn("Google CAP event deferred", {
           requestId,
           outcome: effect.decision,
           attemptCount: claim.attemptCount,
@@ -106,7 +107,7 @@ export async function POST(request: Request) {
 
     const result = await handleGoogleCapPayload(decoded, effectUserId);
     if (result.settlement === "hold") {
-      console.error("Google CAP Auth outcome requires reconciliation", {
+      safeConsole.error("Google CAP Auth outcome requires reconciliation", {
         requestId,
         outcome: result.safeOutcome,
         durationMs: Math.round(performance.now() - startedAt),
@@ -124,7 +125,7 @@ export async function POST(request: Request) {
     });
 
     if (!settled || !succeeded) {
-      console.error("Google CAP event requires retry", {
+      safeConsole.error("Google CAP event requires retry", {
         requestId,
         outcome: settled ? "action_failed" : "settlement_lost",
         actionCount: result.actionCount,
@@ -134,7 +135,7 @@ export async function POST(request: Request) {
       return retryResponse(requestId);
     }
 
-    console.info("Google CAP event accepted", {
+    safeConsole.info("Google CAP event accepted", {
       requestId,
       outcome: result.safeOutcome,
       actionCount: result.actionCount,
@@ -150,7 +151,7 @@ export async function POST(request: Request) {
     ) {
       const status =
         error instanceof GoogleCapRequestError ? error.status : 400;
-      console.warn("Google CAP event rejected", {
+      safeConsole.warn("Google CAP event rejected", {
         requestId,
         outcome: status === 413 ? "body_too_large" : "invalid_token",
         durationMs: Math.round(performance.now() - startedAt),
@@ -170,7 +171,7 @@ export async function POST(request: Request) {
     // A configuration, JWKS, database, auth-admin, or settlement failure must
     // stay retryable. Returning 400 here would tell Google to discard a valid
     // security event permanently.
-    console.error("Google CAP event processing unavailable", {
+    safeConsole.error("Google CAP event processing unavailable", {
       requestId,
       outcome: claim ? "post_claim_failure" : "pre_claim_failure",
       durationMs: Math.round(performance.now() - startedAt),

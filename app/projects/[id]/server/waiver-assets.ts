@@ -1,4 +1,5 @@
 "use server";
+import { safeConsole } from "@/lib/safe-console";
 
 import "server-only";
 import { getAdminClient } from "@/lib/supabase/admin";
@@ -56,7 +57,7 @@ export async function uploadProjectWaiverPdf(
       });
 
     if (uploadError) {
-      console.error("Error uploading waiver PDF:", uploadError);
+      safeConsole.error("Error uploading waiver PDF:", uploadError);
       return { error: "Failed to upload waiver PDF" };
     }
 
@@ -75,7 +76,7 @@ export async function uploadProjectWaiverPdf(
       .eq("id", projectId);
 
     if (updateError) {
-      console.error("Error updating project with waiver PDF:", updateError);
+      safeConsole.error("Error updating project with waiver PDF:", updateError);
       // Clean up uploaded file
       await serviceSupabase.storage
         .from(WAIVER_UPLOAD_BUCKET)
@@ -92,7 +93,7 @@ export async function uploadProjectWaiverPdf(
       waiverPdfStoragePath: storagePath,
     };
   } catch (error) {
-    console.error("Error uploading project waiver:", error);
+    safeConsole.error("Error uploading project waiver:", error);
     return { error: "An unexpected error occurred" };
   }
 }
@@ -146,10 +147,13 @@ export async function removeProjectWaiverPdf(projectId: string) {
       ]);
 
       if (signatureReferenceError || definitionReferenceError) {
-        console.error("Failed to verify waiver source retention references", {
-          signatureReferenceError,
-          definitionReferenceError,
-        });
+        safeConsole.error(
+          "Failed to verify waiver source retention references",
+          {
+            signatureReferenceError,
+            definitionReferenceError,
+          },
+        );
         return {
           error: "Failed to verify whether the waiver PDF can be removed",
         };
@@ -161,7 +165,7 @@ export async function removeProjectWaiverPdf(projectId: string) {
           .remove([project.waiver_pdf_storage_path]);
 
         if (removeError) {
-          console.error(
+          safeConsole.error(
             "Failed to remove unreferenced waiver PDF:",
             removeError,
           );
@@ -182,7 +186,7 @@ export async function removeProjectWaiverPdf(projectId: string) {
       .eq("id", projectId);
 
     if (updateError) {
-      console.error("Error removing waiver PDF from project:", updateError);
+      safeConsole.error("Error removing waiver PDF from project:", updateError);
       return { error: "Failed to remove waiver PDF" };
     }
 
@@ -191,7 +195,7 @@ export async function removeProjectWaiverPdf(projectId: string) {
 
     return { success: true };
   } catch (error) {
-    console.error("Error removing project waiver:", error);
+    safeConsole.error("Error removing project waiver:", error);
     return { error: "An unexpected error occurred" };
   }
 }
