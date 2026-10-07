@@ -5,7 +5,6 @@ import { motion, useReducedMotion } from "motion/react";
 import { Quote } from "lucide-react";
 
 import { cn } from "@/lib/utils";
-import { AnimatedText } from "./AnimatedText";
 
 const testimonials = [
   {
@@ -109,25 +108,15 @@ export default function TestimonialsSection() {
   const shouldReduceMotion = useReducedMotion();
 
   return (
-    <section className="relative overflow-hidden border-y border-foreground/10 bg-background py-14 sm:py-20">
-      <div
-        aria-hidden
-        className="absolute inset-x-0 top-0 h-40 bg-[radial-gradient(ellipse_at_50%_0%,color-mix(in_srgb,var(--primary)_12%,transparent),transparent_68%)]"
-      />
-      <div className="container relative mx-auto px-4 sm:px-6">
-        <div className="mx-auto mb-9 max-w-3xl text-center">
-          <p className="[font-family:var(--font-geist-sans)] text-xs font-medium uppercase tracking-[0.28em] text-primary">
-            Testimonials from demos
-          </p>
-          <h2 className="mt-3 text-4xl font-semibold leading-tight tracking-tight text-foreground sm:text-5xl">
-            <AnimatedText
-              text="Trusted by the people leading service."
-              mode="words"
-            />
+    <section className="relative overflow-hidden border-b bg-background py-16 sm:py-24">
+      <div className="container relative mx-auto max-w-6xl px-4 sm:px-6">
+        <div className="mb-9">
+          <h2 className="max-w-2xl text-3xl font-semibold tracking-tight text-foreground sm:text-5xl">
+            What teachers and advisors told us
           </h2>
-          <p className="mx-auto mt-4 max-w-2xl font-sans text-base leading-8 text-muted-foreground">
-            Feedback from DVHS educators, SRVUSD community demos, and local
-            service organizations already evaluating Lets Assist.
+          <p className="mt-4 max-w-2xl text-base leading-7 text-muted-foreground">
+            From demos with Dougherty Valley High School staff and local service
+            groups.
           </p>
         </div>
 

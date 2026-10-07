@@ -4,8 +4,6 @@ import Image from "next/image";
 import Link from "next/link";
 import { motion, useReducedMotion } from "motion/react";
 import {
-  ArrowRight,
-  BadgeCheck,
   CheckCircle2,
   Clock,
   FileText,
@@ -24,7 +22,6 @@ import {
 } from "@/components/projects/SlotAttendeesDropdown";
 import type { AnonymousSignupData, Organization, Project } from "@/types";
 import type { ProjectCreatorProfileRecord } from "@/lib/profile/public";
-import { AnimatedText } from "./AnimatedText";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
@@ -36,7 +33,6 @@ import {
   DialogDescription,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
 } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
 import { landingDemoAssets } from "./landing-demo-assets";
@@ -119,34 +115,6 @@ const slotAttendees: Record<string, SlotAttendee[]> = {
   ],
 };
 
-const platformHighlights = [
-  {
-    icon: QrCode,
-    title: "QR-Code Verification at events",
-    desc: "Check volunteers in on-site and keep attendance tied to the project record.",
-  },
-  {
-    icon: BadgeCheck,
-    title: "Track all your volunteer hours in one place",
-    desc: "Verified, pending, and self-reported service hours stay organized together.",
-  },
-  {
-    icon: null,
-    title: "Google Sheets/Calendar Syncing",
-    desc: "Push project rosters and dates into the tools your organization already uses.",
-    logos: [
-      {
-        src: "/resources/google-sheets-logo-2026.png",
-        alt: "Google Sheets",
-      },
-      {
-        src: "/resources/google-calendar-logo-2026.png",
-        alt: "Google Calendar",
-      },
-    ],
-  },
-];
-
 function getFutureProjectDate() {
   const date = new Date();
   date.setDate(date.getDate() + 31);
@@ -162,75 +130,6 @@ function formatProjectDate(date: Date) {
     month: "long",
     day: "numeric",
   }).format(date);
-}
-
-type MotionLinkButtonProps = {
-  href: string;
-  children: React.ReactNode;
-  tone?: "solid" | "outline";
-  className?: string;
-};
-
-function MotionLinkButton({
-  href,
-  children,
-  tone = "solid",
-  className,
-}: MotionLinkButtonProps) {
-  const shouldReduceMotion = useReducedMotion();
-
-  return (
-    <motion.div
-      className="w-full sm:w-auto"
-      initial={false}
-      whileHover={shouldReduceMotion ? undefined : "hover"}
-      whileTap={shouldReduceMotion ? undefined : "tap"}
-      variants={{
-        hover: { y: -2 },
-        tap: { y: 1, scale: 0.985 },
-      }}
-      transition={{ type: "spring", stiffness: 420, damping: 28 }}
-    >
-      <Button
-        asChild
-        variant={tone === "solid" ? "default" : "outline"}
-        className={cn(
-          "group relative h-11 w-full overflow-hidden rounded-full px-5 text-sm font-medium shadow-xs sm:w-auto",
-          tone === "solid"
-            ? "bg-foreground text-background hover:bg-foreground/90"
-            : "border-border bg-background/80 text-foreground backdrop-blur hover:bg-accent",
-          className,
-        )}
-      >
-        <Link href={href}>
-          <span className="relative grid h-full place-items-center overflow-hidden">
-            <motion.span
-              className="inline-flex items-center gap-2"
-              variants={{
-                hover: { y: "-140%" },
-                tap: { y: "-140%" },
-              }}
-              transition={{ duration: 0.34, ease: [0.16, 1, 0.3, 1] }}
-            >
-              {children}
-            </motion.span>
-            <motion.span
-              aria-hidden
-              className="absolute inline-flex items-center gap-2"
-              initial={{ y: "140%" }}
-              variants={{
-                hover: { y: 0 },
-                tap: { y: 0 },
-              }}
-              transition={{ duration: 0.34, ease: [0.16, 1, 0.3, 1] }}
-            >
-              {children}
-            </motion.span>
-          </span>
-        </Link>
-      </Button>
-    </motion.div>
-  );
 }
 
 function ProjectSlotCard({
@@ -777,7 +676,7 @@ function buildDemoProject(): {
   return { project, creator, organization, attendees };
 }
 
-function RealProjectDemoWindow() {
+export function LandingDemo() {
   const [demoScrollEnabled, setDemoScrollEnabled] = useState(false);
   const demoWindowRef = useRef<HTMLDivElement>(null);
   const { project, creator, organization, attendees } = useMemo(
@@ -923,160 +822,10 @@ function RealProjectDemoWindow() {
             strokeLinejoin="round"
           />
         </svg>
-        <p className="absolute bottom-2 left-1/2 m-0 -translate-x-1/2 text-balance text-center text-sm font-medium text-foreground sm:bottom-0 sm:left-auto sm:right-0 sm:translate-x-0 sm:text-base">
+        <p className="font-cheese-milky absolute bottom-2 left-1/2 m-0 -translate-x-1/2 -rotate-2 whitespace-nowrap text-center text-2xl leading-none text-foreground sm:bottom-0 sm:left-auto sm:right-0 sm:translate-x-0 sm:text-3xl">
           try our interactive demo
         </p>
       </div>
     </motion.div>
   );
 }
-
-export const HeroContent = () => {
-  const [awardDialogOpen, setAwardDialogOpen] = useState(false);
-
-  return (
-    <section className="container relative isolate mx-auto w-full px-4 pb-12 pt-10 sm:px-6 md:pb-16 md:pt-16">
-      <div className="mx-auto flex max-w-5xl flex-col items-center text-center">
-        <Dialog open={awardDialogOpen} onOpenChange={setAwardDialogOpen}>
-          <DialogTrigger
-            render={
-              <button
-                type="button"
-                className="group flex items-center gap-2 rounded-full border bg-background/80 px-3 py-1.5 text-xs font-medium text-muted-foreground shadow-xs backdrop-blur transition-colors hover:border-primary/30 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-              >
-                <Image
-                  src="/logos/congressional-app-challenge-cropped.svg"
-                  alt=""
-                  width={24}
-                  height={16}
-                  className="h-4 w-auto object-contain transition-transform duration-300 group-hover:scale-105"
-                  style={{
-                    filter:
-                      "drop-shadow(0 0 0.65px rgba(255,255,255,0.95)) drop-shadow(0 0 1.25px rgba(255,255,255,0.7))",
-                  }}
-                />
-                Awarded Special Recognition at 2025 Congressional App Challenge
-              </button>
-            }
-          />
-          <DialogContent className="max-h-[90vh] w-[95vw] overflow-y-auto p-0 sm:max-w-3xl">
-            <div className="relative aspect-[4/3] w-full overflow-hidden rounded-t-lg bg-muted">
-              <Image
-                src="/images/congressional-recognition-certificate.jpeg"
-                alt="Certificate of Special Congressional Recognition for the 2025 Congressional App Challenge"
-                fill
-                sizes="(min-width: 768px) 720px, 95vw"
-                className="object-cover"
-              />
-            </div>
-            <DialogHeader className="px-6 pb-6 text-left">
-              <DialogTitle className="text-2xl font-semibold tracking-tight">
-                Congressional recognition
-              </DialogTitle>
-              <DialogDescription className="text-sm leading-6">
-                Let&apos;s Assist received a Certificate of Special
-                Congressional Recognition from Congressman Mark DeSaulnier for
-                the 2025 Congressional App Challenge. The recognition was
-                presented to Riddhiman Rana for building software that helps
-                communities coordinate volunteering, signups, and service
-                records.
-              </DialogDescription>
-            </DialogHeader>
-          </DialogContent>
-        </Dialog>
-
-        <h1 className="mt-5 max-w-5xl text-[2.6rem] font-semibold leading-[1.02] tracking-[-0.03em] text-foreground sm:text-6xl sm:leading-[0.98] md:text-[5rem]">
-          <AnimatedText
-            text="The modern way to do"
-            mode="letters"
-            className="justify-center"
-            delay={0.04}
-          />
-          <AnimatedText
-            text="volunteering"
-            mode="letters"
-            className="justify-center text-primary"
-            delay={0.46}
-          />
-        </h1>
-
-        <motion.p
-          initial={{ opacity: 0, y: 16, filter: "blur(8px)" }}
-          animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
-          transition={{ delay: 0.78, duration: 0.58, ease: [0.16, 1, 0.3, 1] }}
-          className="mx-auto mt-4 max-w-xl text-[0.95rem] leading-6.5 text-muted-foreground sm:mt-5 sm:max-w-2xl sm:text-lg sm:leading-8"
-        >
-          One link for public signups, QR attendance, verified hours,
-          certificates, and organization workflows that scale from student clubs
-          to citywide volunteer programs.
-        </motion.p>
-
-        <motion.div
-          initial={{ opacity: 0, y: 14 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.95, duration: 0.48, ease: [0.16, 1, 0.3, 1] }}
-          className="mt-6 flex w-full max-w-[560px] flex-col items-center justify-center gap-3 sm:mt-7 sm:w-auto sm:max-w-none sm:flex-row"
-        >
-          <MotionLinkButton href="/signup">
-            Get started
-            <ArrowRight data-icon="inline-end" />
-          </MotionLinkButton>
-          <MotionLinkButton href="/contact" tone="outline">
-            Contact us
-          </MotionLinkButton>
-        </motion.div>
-      </div>
-
-      <motion.div
-        initial={{ opacity: 0, y: 24, filter: "blur(10px)" }}
-        animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
-        transition={{ delay: 1.12, duration: 0.65, ease: [0.16, 1, 0.3, 1] }}
-        className="mt-10"
-      >
-        <RealProjectDemoWindow />
-      </motion.div>
-
-      <motion.div
-        initial={{ opacity: 0, y: 18 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 1.28, duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
-        className="mx-auto mt-6 grid w-full max-w-6xl gap-3 sm:grid-cols-3"
-      >
-        {platformHighlights.map((item) => (
-          <Card key={item.title} className="bg-card/80 shadow-xs backdrop-blur">
-            <CardContent className="p-4">
-              <div className="mb-4 flex h-10 items-center">
-                {item.logos ? (
-                  <div className="flex items-center gap-2">
-                    {item.logos.map((logo) => (
-                      <span
-                        key={logo.src}
-                        className="flex size-10 items-center justify-center rounded-lg border bg-background shadow-xs"
-                      >
-                        <Image
-                          src={logo.src}
-                          alt={logo.alt}
-                          width={24}
-                          height={24}
-                          className="size-6 object-contain"
-                        />
-                      </span>
-                    ))}
-                  </div>
-                ) : item.icon ? (
-                  <div className="flex size-10 items-center justify-center rounded-full bg-primary/10 text-primary">
-                    <item.icon className="size-5" />
-                  </div>
-                ) : null}
-              </div>
-              <h3 className="text-sm font-semibold">{item.title}</h3>
-              <p className="mt-1 text-sm leading-6 text-muted-foreground">
-                {item.desc}
-              </p>
-            </CardContent>
-          </Card>
-        ))}
-      </motion.div>
-    </section>
-  );
-};

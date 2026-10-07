@@ -14,9 +14,13 @@ import {
 import { buttonVariants } from "@/components/ui/button-variants";
 import { cn } from "@/lib/utils";
 
+import { GetStarted } from "./_components/GetStarted";
 import { Hero } from "./_components/Hero";
-import { LandingLazySections } from "./LandingLazySections";
+import { IncludedFeatures } from "./_components/IncludedFeatures";
+import { Partners } from "./_components/Partners";
 import SmoothScroll from "./_components/SmoothScroll";
+import TestimonialsSection from "./_components/TestimonialsSection";
+import { VerifiedHoursSteps } from "./_components/VerifiedHoursSteps";
 
 // This page calls getAuthUser() which reads cookies — it must be dynamic.
 // Without this, Next.js attempts a build-time prerender and fails when
@@ -133,7 +137,11 @@ export default async function HomePage(props: {
     <main className="flex min-h-screen flex-col overflow-x-hidden bg-background text-foreground">
       <SmoothScroll />
       <Hero />
-      <LandingLazySections />
+      <Partners />
+      <VerifiedHoursSteps />
+      <IncludedFeatures />
+      <TestimonialsSection />
+      <GetStarted />
     </main>
   );
 }
