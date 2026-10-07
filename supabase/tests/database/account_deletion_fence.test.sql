@@ -47,9 +47,10 @@ SELECT extensions.lives_ok($$UPDATE public.profiles SET full_name = 'Synthetic' 
 SELECT extensions.is((SELECT count(*) FROM pg_trigger WHERE tgname = 'account_deletion_write_fence'
  AND tgrelid = 'storage.objects'::regclass), 1::bigint, 'Storage client writes use the same account fence');
 SELECT extensions.ok(NOT EXISTS (SELECT 1 FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace
- WHERE n.nspname IN ('public', 'plugin_data') AND c.relkind = 'r' AND NOT EXISTS (
+ WHERE n.nspname IN ('public', 'plugin_data') AND c.relkind = 'r'
+ AND has_table_privilege('authenticated',c.oid,'INSERT,UPDATE,DELETE') AND NOT EXISTS (
  SELECT 1 FROM pg_trigger t WHERE t.tgrelid = c.oid AND t.tgname = 'account_deletion_write_fence')),
- 'every current platform and plugin table receives the client write fence');
+ 'every browser-writable platform and plugin table receives the client write fence');
 UPDATE app_private.account_deletion_operations SET phase = 'completed', completed_at = now();
 SELECT extensions.ok(NOT app_private.account_deletion_actor_is_active(
  'fc000000-0000-4000-8000-000000000001'), 'completed blacklist receipts keep retained Auth accounts frozen');

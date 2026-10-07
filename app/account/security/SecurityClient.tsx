@@ -844,7 +844,7 @@ export default function SecurityClient() {
           <CardHeader className="">
             <CardTitle className="text-destructive">Delete Account</CardTitle>
             <CardDescription>
-              Permanently delete your account and all associated data
+              Remove your account and personal platform data
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -866,8 +866,9 @@ export default function SecurityClient() {
                   </AlertDialogMedia>
                   <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
                   <AlertDialogDescription>
-                    This action cannot be undone. This will permanently delete
-                    your account and remove all associated data.
+                    This action cannot be undone. Account removal preserves
+                    records needed for organization history and moderation.
+                    Transfer ownership and disconnect linked providers first.
                   </AlertDialogDescription>
                 </AlertDialogHeader>
                 <div className="space-y-4 py-2">
