@@ -149,10 +149,7 @@ export async function getProject(projectId: string) {
   };
 
   if (error) {
-    safeConsole.error(
-      "Error fetching project:",
-      JSON.stringify(error, null, 2),
-    );
+    safeConsole.error("Error fetching project:", error);
     return { error: "Failed to fetch project" };
   }
 
