@@ -4,7 +4,7 @@ import "server-only";
 
 import { createClient } from "@/lib/supabase/server";
 import { getAuthUser } from "@/lib/supabase/auth-helpers";
-import { sendEmail } from "@/services/email";
+import { deliverInvitation } from "@/lib/organization/invitation-delivery";
 import OrganizationInvitation from "@/emails/organization-invitation";
 import type {
   BulkInviteResult,
@@ -17,7 +17,6 @@ import {
   getInvitationBaseUrl,
   normalizeInvitationDuration,
   isInvitationToken,
-  type InvitationDeliveryStatus,
   type InvitationDuration,
 } from "@/lib/organization/invitation-utils";
 import { isOrgAdmin } from "./shared";
@@ -189,61 +188,35 @@ export async function bulkInviteMembers({
     const inviteUrl = `${baseUrl}/organization/join/invite?token=${invitation.token}`;
 
     // Send invitation email
-    const attemptedAtIso = new Date().toISOString();
-    const emailResult = await sendEmail({
-      to: normalizedEmail,
-      subject: `You're invited to join ${org.name} on Let's Assist`,
-      react: OrganizationInvitation({
-        organizationName: org.name,
-        organizationUsername: org.username,
-        inviterName,
-        role,
-        inviteUrl,
-        expiresAt: expiresAtDisplay,
-      }),
-      type: "transactional",
+    pendingEmails.add(normalizedEmail);
+    const emailResult = await deliverInvitation({
+      supabase,
+      invitationId: invitation.id,
+      email: {
+        to: normalizedEmail,
+        subject: `You're invited to join ${org.name} on Let's Assist`,
+        react: OrganizationInvitation({
+          organizationName: org.name,
+          organizationUsername: org.username,
+          inviterName,
+          role,
+          inviteUrl,
+          expiresAt: expiresAtDisplay,
+        }),
+        type: "transactional",
+      },
     });
 
-    if (!emailResult.success && !emailResult.skipped) {
-      await supabase
-        .from("organization_invitations")
-        .update({
-          email_delivery_status: "failed",
-          email_delivery_error: "Failed to send invitation email",
-          last_email_attempt_at: attemptedAtIso,
-          last_email_sent_at: null,
-          email_message_id: null,
-          email_transport: null,
-        })
-        .eq("id", invitation.id);
-
+    if (!emailResult.success) {
       results.push({
         email: normalizedEmail,
         success: false,
-        error: "Failed to send invitation email",
+        error: emailResult.error,
         invitationId: invitation.id,
       });
       failed++;
       continue;
     }
-
-    const deliveryStatus: InvitationDeliveryStatus = emailResult.skipped
-      ? "skipped"
-      : "sent";
-
-    await supabase
-      .from("organization_invitations")
-      .update({
-        email_delivery_status: deliveryStatus,
-        email_delivery_error: emailResult.skipped
-          ? emailResult.reason || null
-          : null,
-        last_email_attempt_at: attemptedAtIso,
-        last_email_sent_at: emailResult.success ? attemptedAtIso : null,
-        email_message_id: emailResult.data?.id || null,
-        email_transport: emailResult.data?.transport || null,
-      })
-      .eq("id", invitation.id);
 
     results.push({
       email: normalizedEmail,
@@ -491,75 +464,35 @@ export async function resendInvitation(
     resolvedInvitationDuration,
   );
 
-  const attemptedAtIso = new Date().toISOString();
-
-  // Update the invitation with new expiration
-  await supabase
-    .from("organization_invitations")
-    .update({
-      status: "pending",
-      invitation_duration: resolvedInvitationDuration,
-      expires_at: expiresAtIso,
-      email_delivery_status: "pending",
-      email_delivery_error: null,
-      last_email_attempt_at: attemptedAtIso,
-    })
-    .eq("id", invitationId);
-
   // Build invitation URL
   const baseUrl = getInvitationBaseUrl();
   const inviteUrl = `${baseUrl}/organization/join/invite?token=${invitation.token}`;
 
   // Send email
-  const emailResult = await sendEmail({
-    to: invitation.email,
-    subject: `Reminder: You're invited to join ${org.name} on Let's Assist`,
-    react: OrganizationInvitation({
-      organizationName: org.name,
-      organizationUsername: org.username,
-      inviterName,
-      role: invitation.role as "staff" | "member",
-      inviteUrl,
-      expiresAt: expiresAtDisplay,
-    }),
-    type: "transactional",
+  return deliverInvitation({
+    supabase,
+    invitationId,
+    previousAttempt: invitation.last_email_attempt_at,
+    previousDelivery: invitation.email_delivery_status,
+    previousStatus: status,
+    renewal: {
+      invitation_duration: resolvedInvitationDuration,
+      expires_at: expiresAtIso,
+    },
+    email: {
+      to: invitation.email,
+      subject: `Reminder: You're invited to join ${org.name} on Let's Assist`,
+      react: OrganizationInvitation({
+        organizationName: org.name,
+        organizationUsername: org.username,
+        inviterName,
+        role: invitation.role as "staff" | "member",
+        inviteUrl,
+        expiresAt: expiresAtDisplay,
+      }),
+      type: "transactional",
+    },
   });
-
-  if (!emailResult.success && !emailResult.skipped) {
-    await supabase
-      .from("organization_invitations")
-      .update({
-        email_delivery_status: "failed",
-        email_delivery_error: "Failed to resend invitation email",
-        last_email_attempt_at: attemptedAtIso,
-        last_email_sent_at: null,
-        email_message_id: null,
-        email_transport: null,
-      })
-      .eq("id", invitationId);
-
-    return { success: false, error: "Failed to send email" };
-  }
-
-  const deliveryStatus: InvitationDeliveryStatus = emailResult.skipped
-    ? "skipped"
-    : "sent";
-
-  await supabase
-    .from("organization_invitations")
-    .update({
-      email_delivery_status: deliveryStatus,
-      email_delivery_error: emailResult.skipped
-        ? emailResult.reason || null
-        : null,
-      last_email_attempt_at: attemptedAtIso,
-      last_email_sent_at: emailResult.success ? attemptedAtIso : null,
-      email_message_id: emailResult.data?.id || null,
-      email_transport: emailResult.data?.transport || null,
-    })
-    .eq("id", invitationId);
-
-  return { success: true };
 }
 
 // Get invitation by token (for public access during acceptance)

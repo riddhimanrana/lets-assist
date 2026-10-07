@@ -54,7 +54,10 @@ import {
   resendInvitation,
 } from "@/app/organization/[id]/admin/actions";
 import type { OrganizationInvitationWithDetails } from "@/types/invitation";
-import type { InvitationDuration } from "@/lib/organization/invitation-utils";
+import {
+  isInvitationDeliveryUnconfirmed,
+  type InvitationDuration,
+} from "@/lib/organization/invitation-utils";
 
 interface PendingInvitationsProps {
   organizationId: string;
@@ -274,6 +277,9 @@ export default function PendingInvitations({
   };
 
   const getDeliveryBadge = (invitation: OrganizationInvitationWithDetails) => {
+    if (isInvitationDeliveryUnconfirmed(invitation)) {
+      return <Badge variant="outline">Unconfirmed</Badge>;
+    }
     const deliveryStatus = invitation.email_delivery_status || "pending";
 
     if (deliveryStatus === "sent") {
@@ -443,7 +449,7 @@ export default function PendingInvitations({
                 <TableHead>Role</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead>Email status</TableHead>
-                <TableHead>Sent</TableHead>
+                <TableHead>Email activity</TableHead>
                 <TableHead>Expires</TableHead>
                 <TableHead className="w-12.5"></TableHead>
               </TableRow>
@@ -453,8 +459,9 @@ export default function PendingInvitations({
                 const effectiveStatus = getEffectiveStatus(invitation);
                 const canCancel = effectiveStatus === "pending";
                 const canResend =
-                  effectiveStatus === "pending" ||
-                  effectiveStatus === "expired";
+                  (effectiveStatus === "pending" ||
+                    effectiveStatus === "expired") &&
+                  !isInvitationDeliveryUnconfirmed(invitation);
                 const isRowBusy = actionPending === invitation.id;
 
                 return (
@@ -493,6 +500,12 @@ export default function PendingInvitations({
                     <TableCell>
                       <div className="space-y-1">
                         {getDeliveryBadge(invitation)}
+                        {isInvitationDeliveryUnconfirmed(invitation) &&
+                        !invitation.email_delivery_error ? (
+                          <p className="max-w-56 text-xs text-muted-foreground">
+                            Check delivery before sending another invitation.
+                          </p>
+                        ) : null}
                         {invitation.email_delivery_error ? (
                           <p className="max-w-56 truncate text-xs text-destructive">
                             {invitation.email_delivery_error}
