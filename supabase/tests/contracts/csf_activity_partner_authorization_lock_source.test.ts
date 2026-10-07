@@ -462,3 +462,97 @@ describe("CSF activity and partner mutation authorization lock boundary", () => 
     }
   });
 });
+
+// Partner-project linking (contract v2 section 1.8). The coordinator assigns
+// the final timestamp, so the draft is located by its stable suffix.
+const linkingMigrationName = readdirSync(
+  join(repositoryRoot, "supabase/migrations"),
+).find((name) =>
+  /^\d{14}_csf_partner_projects_attendance_submissions\.sql$/u.test(name),
+);
+const linkingMigration = linkingMigrationName
+  ? read(`supabase/migrations/${linkingMigrationName}`)
+  : "";
+
+function replacedImplementation(name: string): string {
+  const start = linkingMigration.indexOf(
+    `CREATE OR REPLACE FUNCTION plugin_data.${name}(`,
+  );
+  const end = linkingMigration.indexOf("$function$;", start);
+  expect(start).toBeGreaterThanOrEqual(0);
+  return linkingMigration.slice(start, end);
+}
+
+describe("CSF partner-project linking predicate", () => {
+  const LINK_REFUSAL = "Linked project is not available to this organization.";
+  const implementations = [
+    "csf_create_activity_locked_impl",
+    "csf_update_activity_locked_impl",
+    "csf_link_activity_project_locked_impl",
+    "csf_set_activity_status_locked_impl",
+  ];
+
+  test("the linking migration defines a service-free predicate", () => {
+    expect(linkingMigrationName).toBeDefined();
+    expect(linkingMigration).toContain(
+      "CREATE OR REPLACE FUNCTION plugin_data.csf_project_is_linkable(",
+    );
+    expect(linkingMigration).toMatch(
+      /REVOKE ALL ON FUNCTION plugin_data\.csf_project_is_linkable\(uuid, uuid\)\s+FROM PUBLIC, anon, authenticated, service_role;/u,
+    );
+    expect(linkingMigration).toMatch(
+      /GRANT EXECUTE ON FUNCTION plugin_data\.csf_project_is_linkable\(uuid, uuid\) TO postgres;/u,
+    );
+    expect(linkingMigration).toContain("project.visibility = 'public'");
+    expect(linkingMigration).toContain(
+      "coalesce(project.workflow_status, 'published') = 'published'",
+    );
+    expect(linkingMigration).toContain(
+      "project.status IS DISTINCT FROM 'cancelled'",
+    );
+  });
+
+  for (const name of implementations) {
+    test(`${name} uses the predicate and locks the project first`, () => {
+      const body = replacedImplementation(name);
+      const projectLock = body.indexOf("FOR KEY SHARE");
+      const requestLock = body.indexOf("plugin_data.csf_atomic_request:");
+      const activityLock = body.indexOf(
+        "FROM plugin_data.csf_opportunities AS activity\n  WHERE activity.organization_id = p_organization_id AND activity.id = p_activity_id\n  FOR UPDATE",
+      );
+
+      expect(body).toContain("plugin_data.csf_project_is_linkable(");
+      expect(body).toContain(`RAISE EXCEPTION '${LINK_REFUSAL}'`);
+      expect(body).not.toContain(
+        "Linked project was not found in this organization.",
+      );
+      expect(projectLock).toBeGreaterThanOrEqual(0);
+      expect(projectLock).toBeLessThan(requestLock);
+      if (activityLock >= 0) expect(projectLock).toBeLessThan(activityLock);
+      expect(linkingMigration).toMatch(
+        new RegExp(
+          `REVOKE ALL ON FUNCTION plugin_data\\.${escaped(name)}\\([^)]*\\)\\s+FROM PUBLIC, anon, authenticated, service_role;\\s+GRANT EXECUTE ON FUNCTION plugin_data\\.${escaped(name)}\\([^)]*\\) TO postgres;`,
+          "u",
+        ),
+      );
+    });
+  }
+
+  test("update checks the predicate only when the link changes", () => {
+    const body = replacedImplementation("csf_update_activity_locked_impl");
+    expect(body).toContain(
+      "AND v_linked_project_id IS DISTINCT FROM v_before.linked_project_id\n    AND NOT plugin_data.csf_project_is_linkable(",
+    );
+  });
+
+  test("links are cleared for other signup modes on create and update", () => {
+    for (const name of [
+      "csf_create_activity_locked_impl",
+      "csf_update_activity_locked_impl",
+    ]) {
+      expect(replacedImplementation(name)).toContain(
+        "IF v_signup_mode <> 'lets_assist_project' THEN\n    v_linked_project_id := NULL;",
+      );
+    }
+  });
+});
