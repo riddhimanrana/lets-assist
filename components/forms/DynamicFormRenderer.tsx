@@ -13,6 +13,11 @@
  *  - Support for all field types
  */
 
+import {
+  Progress,
+  ProgressLabel,
+  ProgressValue,
+} from "@/components/ui/progress";
 import { useState, useCallback, useMemo } from "react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -135,20 +140,12 @@ export function DynamicFormRenderer({
     <form onSubmit={handleSubmit} className={className}>
       {/* Progress bar for multi-section forms */}
       {isMultiSection && uiSchema?.showProgress && (
-        <div className="mb-6">
-          <div className="flex justify-between text-sm text-muted-foreground mb-1">
-            <span>
-              Section {currentSection + 1} of {schema.sections.length}
-            </span>
-            <span>{progressPercent}%</span>
-          </div>
-          <div className="h-2 bg-muted rounded-full overflow-hidden">
-            <div
-              className="h-full bg-primary rounded-full transition-all duration-300"
-              style={{ width: `${progressPercent}%` }}
-            />
-          </div>
-        </div>
+        <Progress value={progressPercent} className="mb-6">
+          <ProgressLabel className="text-muted-foreground font-normal">
+            Section {currentSection + 1} of {schema.sections.length}
+          </ProgressLabel>
+          <ProgressValue />
+        </Progress>
       )}
 
       {/* Render current section (or all sections if single) */}
@@ -257,9 +254,9 @@ function FieldRenderer({ field, value, onChange, error }: FieldRendererProps) {
           </Label>
         </div>
         {field.helpText && (
-          <p className="text-xs text-muted-foreground ml-6">{field.helpText}</p>
+          <p className="text-muted-foreground ml-6 text-sm">{field.helpText}</p>
         )}
-        {error && <p className="text-xs text-destructive ml-6">{error}</p>}
+        {error && <p className="text-destructive ml-6 text-sm">{error}</p>}
       </div>
     );
   }
@@ -273,12 +270,12 @@ function FieldRenderer({ field, value, onChange, error }: FieldRendererProps) {
       </Label>
 
       {field.helpText && (
-        <p className="text-xs text-muted-foreground">{field.helpText}</p>
+        <p className="text-muted-foreground text-sm">{field.helpText}</p>
       )}
 
       <FieldInput field={field} value={value} onChange={onChange} />
 
-      {error && <p className="text-xs text-destructive">{error}</p>}
+      {error && <p className="text-destructive text-sm">{error}</p>}
     </div>
   );
 }

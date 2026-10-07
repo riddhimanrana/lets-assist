@@ -96,7 +96,7 @@ export function ExperienceFeedbackForm({
               aria-label={`${value} star${value === 1 ? "" : "s"}`}
               tabIndex={preview === value ? 0 : -1}
               disabled={ratingPending}
-              className="grid h-12 min-w-0 max-w-12 flex-1 place-items-center rounded-lg outline-none hover:bg-amber-50 focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-60"
+              className="grid h-12 min-w-0 max-w-12 flex-1 place-items-center rounded-lg outline-none hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-60"
               onMouseEnter={() => setHover(value)}
               onClick={() => void saveRating(value)}
               onFocus={() => {
@@ -128,7 +128,7 @@ export function ExperienceFeedbackForm({
                 className={cn(
                   "size-8 motion-safe:transition-colors",
                   value <= shown
-                    ? "fill-amber-400 text-amber-500"
+                    ? "fill-warning text-warning"
                     : "text-muted-foreground/40",
                 )}
               />

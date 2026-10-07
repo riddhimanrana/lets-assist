@@ -502,10 +502,10 @@ export function WaiverBuilderDialog({
               >
                 <span>
                   {showSamplePreview
-                    ? "Hide Sample Preview"
+                    ? "Hide sample preview"
                     : isPhone
                       ? "Preview"
-                      : "Preview Sample Data"}
+                      : "Preview sample data"}
                 </span>
               </Button>
 

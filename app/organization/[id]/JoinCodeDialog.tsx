@@ -3,8 +3,14 @@ import { safeConsole } from "@/lib/safe-console";
 
 import { useState, useRef, useEffect } from "react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
+import {
+  InputGroup,
+  InputGroupAddon,
+  InputGroupButton,
+  InputGroupInput,
+} from "@/components/ui/input-group";
+import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
 import {
   Dialog,
@@ -23,19 +29,8 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import {
-  Check,
-  ClipboardCopy,
-  Copy,
-  Link as LinkIcon,
-  RefreshCw,
-  Share,
-  CheckCircle2,
-  QrCode,
-} from "lucide-react";
+import { Check, Copy, Download, RefreshCw, Share } from "lucide-react";
 import { getOrganizationJoinCode, regenerateJoinCode } from "../create/actions";
-import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-import { Separator } from "@/components/ui/separator";
 import { QRCode } from "react-qrcode-logo";
 import type { Organization } from "@/types";
 import { copyToClipboard, isMobileDevice } from "@/lib/utils";
@@ -156,9 +151,14 @@ export default function JoinCodeDialog({
     }
   };
 
+  const canShare =
+    isMobileDevice() &&
+    typeof navigator !== "undefined" &&
+    typeof navigator.share === "function";
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className="sm:max-w-xl">
         <DialogHeader>
           <DialogTitle>Invite members</DialogTitle>
           <DialogDescription>
@@ -167,188 +167,133 @@ export default function JoinCodeDialog({
           </DialogDescription>
         </DialogHeader>
 
-        <Tabs defaultValue="code" className="mt-2">
-          <TabsList className="grid w-full grid-cols-3">
-            <TabsTrigger value="code">Code</TabsTrigger>
-            <TabsTrigger value="link">Link</TabsTrigger>
-            <TabsTrigger value="qr">QR code</TabsTrigger>
-          </TabsList>
+        <div className="grid gap-6 sm:grid-cols-[minmax(0,1fr)_auto]">
+          <FieldGroup className="gap-4">
+            <Field>
+              <FieldLabel htmlFor="join-code">Join code</FieldLabel>
+              <InputGroup className="h-11">
+                <InputGroupInput
+                  id="join-code"
+                  value={loading ? "Loading..." : joinCode}
+                  readOnly
+                  className="font-mono text-lg tracking-widest"
+                  disabled={loading}
+                />
+                <InputGroupAddon align="inline-end">
+                  <InputGroupButton
+                    size="icon-sm"
+                    aria-label="Copy"
+                    onClick={() => handleCopyToClipboard(joinCode, "code")}
+                    disabled={loading || regenerating}
+                  >
+                    {copied === "code" ? (
+                      <Check aria-hidden="true" />
+                    ) : (
+                      <Copy aria-hidden="true" />
+                    )}
+                  </InputGroupButton>
+                </InputGroupAddon>
+              </InputGroup>
+            </Field>
 
-          <TabsContent value="code" className="pt-4">
-            <div className="space-y-4">
-              <div className="flex flex-col space-y-2">
-                <Label htmlFor="join-code" className="text-sm">
-                  Join code
-                </Label>
-                <div className="flex items-center justify-between">
-                  <div className="relative w-full">
-                    <Input
-                      id="join-code"
-                      value={loading ? "Loading..." : joinCode}
-                      readOnly
-                      className="pr-12 text-center font-mono text-lg tracking-widest"
-                      disabled={loading}
-                    />
-                    <Button
-                      size="icon"
-                      variant="ghost"
-                      className="absolute right-0 top-0"
-                      onClick={() => handleCopyToClipboard(joinCode, "code")}
-                      disabled={loading || regenerating}
-                    >
-                      {copied === "code" ? (
-                        <Check className="h-4 w-4" />
-                      ) : (
-                        <Copy className="h-4 w-4" />
-                      )}
-                      <span className="sr-only">Copy</span>
-                    </Button>
-                  </div>
-                </div>
-              </div>
-
-              <Separator />
-
-              <div className="flex flex-col space-y-2">
-                <Button
-                  onClick={() => setConfirmRegenerate(true)}
-                  variant="outline"
-                  disabled={loading || regenerating}
-                  className="w-full gap-1.5"
-                >
-                  {regenerating ? (
-                    <>
-                      <RefreshCw className="h-4 w-4 animate-spin" />
-                      <span>Regenerating...</span>
-                    </>
-                  ) : (
-                    <>
-                      <RefreshCw className="h-4 w-4" />
-                      <span>Regenerate code</span>
-                    </>
-                  )}
-                </Button>
-
-                {isMobileDevice() &&
-                  typeof navigator !== "undefined" &&
-                  typeof navigator.share === "function" && (
-                    <Button
-                      onClick={shareInvitation}
-                      variant="secondary"
-                      disabled={loading}
-                      className="w-full gap-1.5"
-                    >
-                      <Share className="h-4 w-4" />
-                      <span>Share</span>
-                    </Button>
-                  )}
-              </div>
-            </div>
-          </TabsContent>
-
-          <TabsContent value="link" className="pt-4">
-            <div className="space-y-4">
-              <div className="flex flex-col space-y-2">
-                <Label htmlFor="invite-link" className="text-sm">
-                  Invitation link
-                </Label>
-                <div className="relative">
-                  <Input
-                    ref={linkInputRef}
-                    id="invite-link"
-                    value={loading ? "Loading..." : joinLink}
-                    readOnly
-                    className="pr-12"
-                    disabled={loading}
-                  />
-                  <Button
-                    size="icon"
-                    variant="ghost"
-                    className="absolute right-0 top-0"
+            <Field>
+              <FieldLabel htmlFor="invite-link">Invitation link</FieldLabel>
+              <InputGroup>
+                <InputGroupInput
+                  ref={linkInputRef}
+                  id="invite-link"
+                  value={loading ? "Loading..." : joinLink}
+                  readOnly
+                  disabled={loading}
+                />
+                <InputGroupAddon align="inline-end">
+                  <InputGroupButton
+                    size="icon-sm"
+                    aria-label="Copy link"
                     onClick={() => handleCopyToClipboard(joinLink, "link")}
                     disabled={loading}
                   >
                     {copied === "link" ? (
-                      <Check className="h-4 w-4" />
+                      <Check aria-hidden="true" />
                     ) : (
-                      <ClipboardCopy className="h-4 w-4" />
+                      <Copy aria-hidden="true" />
                     )}
-                    <span className="sr-only">Copy link</span>
-                  </Button>
-                </div>
-              </div>
+                  </InputGroupButton>
+                </InputGroupAddon>
+              </InputGroup>
+            </Field>
 
-              <div className="flex justify-end">
+            <div className="flex flex-wrap gap-2">
+              {canShare ? (
                 <Button
-                  onClick={() => handleCopyToClipboard(joinLink, "link")}
-                  variant="secondary"
+                  onClick={shareInvitation}
+                  variant="outline"
                   disabled={loading}
-                  className="gap-1.5 w-full sm:w-auto"
                 >
-                  {copied === "link" ? (
-                    <>
-                      <CheckCircle2 className="h-4 w-4" />
-                      <span>Copied!</span>
-                    </>
-                  ) : (
-                    <>
-                      <LinkIcon className="h-4 w-4" />
-                      <span>Copy link</span>
-                    </>
-                  )}
+                  <Share data-icon="inline-start" aria-hidden="true" />
+                  Share
                 </Button>
-              </div>
-            </div>
-          </TabsContent>
-
-          <TabsContent value="qr" className="pt-4">
-            <div className="flex flex-col items-center justify-center space-y-4">
-              <div className="bg-white p-4 rounded-lg">
-                {!loading && (
-                  <QRCode
-                    value={joinLink}
-                    size={180}
-                    bgColor="#FFFFFF"
-                    fgColor="#000000"
-                    logoImage="/logo.png"
-                    qrStyle="dots"
-                    eyeRadius={{ outer: 8, inner: 1 }}
-                    removeQrCodeBehindLogo
-                    logoPadding={2}
-                    ecLevel="M"
-                  />
-                )}
-                {loading && (
-                  <div className="h-[180px] w-[180px] animate-pulse bg-muted" />
-                )}
-              </div>
-
-              <div className="text-sm text-muted-foreground text-center">
-                Scan this QR code to join <br />{" "}
-                <span className="font-semibold">{organization.name}</span>
-              </div>
-
+              ) : null}
               <Button
-                onClick={() => {
-                  // Create canvas from QR code and download as image
-                  const canvas = document.querySelector("canvas");
-                  if (!canvas) return;
-
-                  const link = document.createElement("a");
-                  link.download = `${organization.name.replace(/\s+/g, "-")}-join-qr.png`;
-                  link.href = canvas.toDataURL("image/png");
-                  link.click();
-                }}
+                onClick={() => setConfirmRegenerate(true)}
                 variant="outline"
-                className="gap-1.5"
-                disabled={loading}
+                disabled={loading || regenerating}
               >
-                <QrCode className="h-4 w-4" />
-                <span>Download QR code</span>
+                <RefreshCw
+                  data-icon="inline-start"
+                  aria-hidden="true"
+                  className={regenerating ? "animate-spin" : undefined}
+                />
+                {regenerating ? "Regenerating..." : "Regenerate code"}
               </Button>
             </div>
-          </TabsContent>
-        </Tabs>
+          </FieldGroup>
+
+          <figure className="grid w-fit content-start gap-2">
+            {/* QR codes need a white quiet zone to scan in either theme. */}
+            <div className="w-fit rounded-lg border bg-white p-3">
+              {loading ? (
+                <Skeleton className="size-45 rounded-md" />
+              ) : (
+                <QRCode
+                  value={joinLink}
+                  size={180}
+                  bgColor="#FFFFFF"
+                  fgColor="#000000"
+                  logoImage="/logo.png"
+                  qrStyle="dots"
+                  eyeRadius={{ outer: 8, inner: 1 }}
+                  removeQrCodeBehindLogo
+                  logoPadding={2}
+                  ecLevel="M"
+                />
+              )}
+            </div>
+            <figcaption className="text-muted-foreground max-w-52 text-sm">
+              Scan this QR code to join{" "}
+              <span className="text-foreground font-medium">
+                {organization.name}
+              </span>
+            </figcaption>
+            <Button
+              onClick={() => {
+                // Create canvas from QR code and download as image
+                const canvas = document.querySelector("canvas");
+                if (!canvas) return;
+
+                const link = document.createElement("a");
+                link.download = `${organization.name.replace(/\s+/g, "-")}-join-qr.png`;
+                link.href = canvas.toDataURL("image/png");
+                link.click();
+              }}
+              variant="outline"
+              disabled={loading}
+            >
+              <Download data-icon="inline-start" aria-hidden="true" />
+              Download QR code
+            </Button>
+          </figure>
+        </div>
 
         <DialogFooter className="sm:items-center sm:justify-between">
           <Button

@@ -300,7 +300,7 @@ export function SignatureCapture({
 
         <TabsContent value="typed" className="space-y-4 mt-4">
           <div className="space-y-2">
-            <Label htmlFor="type-sig">Full Name</Label>
+            <Label htmlFor="type-sig">Full name</Label>
             <Input
               id="type-sig"
               placeholder="Start typing your name..."
@@ -323,7 +323,7 @@ export function SignatureCapture({
         {allowUpload && (
           <TabsContent value="upload" className="space-y-4 mt-4">
             <div className="flex flex-col gap-3">
-              <Label htmlFor="upload-sig">Upload Signature Image</Label>
+              <Label htmlFor="upload-sig">Upload signature image</Label>
               <Input
                 id="upload-sig"
                 type="file"

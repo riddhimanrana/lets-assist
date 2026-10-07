@@ -2,6 +2,13 @@ import { ChevronRight, SlidersHorizontal } from "lucide-react";
 import Link from "next/link";
 
 import { buttonVariants } from "@/components/ui/button-variants";
+import {
+  Card,
+  CardAction,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { resolvePlatformFeedItems } from "@/lib/plugins/resolve-platform-surfaces";
 import { cn } from "@/lib/utils";
 
@@ -29,25 +36,25 @@ export async function PluginFeedSection({ userId }: { userId: string }) {
   const viewAllHref = sources.length === 1 ? sources[0] : "/organizations";
 
   return (
-    <section className="mb-6 sm:mb-8" data-tour-id="home-plugin-feed">
-      <div className="rounded-xl border bg-card">
-        <div className="flex items-center justify-between gap-3 border-b px-4 py-3 sm:px-5">
-          <div className="min-w-0">
-            <h2 className="text-base font-semibold">From your organizations</h2>
-            <p className="truncate text-sm text-muted-foreground">
-              Recent updates from groups you belong to
-            </p>
-          </div>
-          <div className="flex shrink-0 items-center gap-1">
+    <section data-tour-id="home-plugin-feed">
+      <Card className="gap-0 py-0">
+        <CardHeader className="border-b py-4">
+          <CardTitle>
+            <h2>From your organizations</h2>
+          </CardTitle>
+          <CardDescription>
+            Recent updates from groups you belong to
+          </CardDescription>
+          <CardAction className="flex items-center gap-1">
             <Link
               href={viewAllHref}
               className={cn(
-                buttonVariants({ variant: "ghost", size: "sm" }),
+                buttonVariants({ variant: "ghost" }),
                 "text-muted-foreground",
               )}
             >
               View all
-              <ChevronRight className="h-4 w-4" aria-hidden="true" />
+              <ChevronRight data-icon="inline-end" aria-hidden="true" />
             </Link>
             {/* Quiet route to the switch that turns this section off. */}
             <Link
@@ -58,11 +65,11 @@ export async function PluginFeedSection({ userId }: { userId: string }) {
                 "text-muted-foreground",
               )}
             >
-              <SlidersHorizontal className="h-4 w-4" aria-hidden="true" />
+              <SlidersHorizontal aria-hidden="true" />
               <span className="sr-only">Organization content settings</span>
             </Link>
-          </div>
-        </div>
+          </CardAction>
+        </CardHeader>
         <ul className="divide-y">
           {items.map((item) => (
             <li key={`${item.href}-${item.id}`}>
@@ -70,7 +77,7 @@ export async function PluginFeedSection({ userId }: { userId: string }) {
             </li>
           ))}
         </ul>
-      </div>
+      </Card>
     </section>
   );
 }

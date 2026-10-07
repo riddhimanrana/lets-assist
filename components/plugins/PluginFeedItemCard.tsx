@@ -18,16 +18,16 @@ export function PluginFeedItemCard({ item }: { item: PlatformFeedItem }) {
   return (
     <Link
       href={item.href}
-      className="flex items-start gap-3 px-4 py-3 outline-none transition-colors hover:bg-muted/40 focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring motion-reduce:transition-none sm:px-5"
+      className="hover:bg-muted/50 focus-visible:ring-ring/50 flex items-center gap-3 px-4 py-3 transition-colors outline-none focus-visible:ring-[3px] focus-visible:ring-inset motion-reduce:transition-none"
     >
-      <div className="min-w-0 flex-1 space-y-1">
+      <div className="grid min-w-0 flex-1 gap-1">
         <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
           <Badge variant="secondary" className="shrink-0">
             {item.badgeLabel}
           </Badge>
           {item.pinned && (
-            <Badge variant="outline" className="shrink-0 gap-1">
-              <Pin className="h-3 w-3" aria-hidden="true" />
+            <Badge variant="outline" className="shrink-0">
+              <Pin data-icon="inline-start" aria-hidden="true" />
               Pinned
             </Badge>
           )}
@@ -46,7 +46,7 @@ export function PluginFeedItemCard({ item }: { item: PlatformFeedItem }) {
         )}
       </div>
       <ChevronRight
-        className="mt-1 h-4 w-4 shrink-0 text-muted-foreground"
+        className="text-muted-foreground size-4 shrink-0"
         aria-hidden="true"
       />
     </Link>

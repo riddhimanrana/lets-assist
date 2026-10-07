@@ -43,7 +43,7 @@ const searchIndex = [
   },
   {
     id: "getting-started-account",
-    title: "Setting Up Your Account",
+    title: "Setting up your account",
     category: "getting-started",
     content:
       "account setup profile full name contact information upload picture avatar time zone notification preferences connect organizations settings dashboard",
@@ -51,7 +51,7 @@ const searchIndex = [
   },
   {
     id: "getting-started-navigation",
-    title: "Navigating the Platform",
+    title: "Navigating the platform",
     category: "getting-started",
     content:
       "navigation platform home dashboard projects organizations certificates quick actions create new projects settings profile menu export data main sections",
@@ -59,7 +59,7 @@ const searchIndex = [
   },
   {
     id: "getting-started-first-steps",
-    title: "Your First Volunteer Project",
+    title: "Your first volunteer project",
     category: "getting-started",
     content:
       "first volunteer project join organization create individual project import existing hours csv upload manual tracking",
@@ -69,7 +69,7 @@ const searchIndex = [
   // Projects
   {
     id: "projects-creating",
-    title: "Creating Projects",
+    title: "Creating projects",
     category: "projects",
     content:
       "create new project project name description start end dates category team members hour tracking preferences individual team organization event ongoing location invite",
@@ -77,7 +77,7 @@ const searchIndex = [
   },
   {
     id: "projects-tracking",
-    title: "Hour Tracking Methods",
+    title: "Hour tracking methods",
     category: "projects",
     content:
       "tracking hours live timer start stop manual entry bulk import upload spreadsheet verification project supervisors organization coordinators automatic verification",
@@ -85,7 +85,7 @@ const searchIndex = [
   },
   {
     id: "projects-certificates",
-    title: "Earning Certificates",
+    title: "Earning certificates",
     category: "projects",
     content:
       "earning certificates digital certificate project details hour totals verification status downloadable pdf shareable links verification automatic generation",
@@ -93,7 +93,7 @@ const searchIndex = [
   },
   {
     id: "projects-csv",
-    title: "CSV Export & Import",
+    title: "CSV export & import",
     category: "projects",
     content:
       "csv export import data reports school requirements dashboard export data date range format pdf download existing records upload map columns spreadsheet",
@@ -101,7 +101,7 @@ const searchIndex = [
   },
   {
     id: "projects-management",
-    title: "Managing Projects",
+    title: "Managing projects",
     category: "projects",
     content:
       "managing projects project status planning active completed cancelled edit details add remove team members update status participant statistics export project data",
@@ -111,7 +111,7 @@ const searchIndex = [
   // Organizations
   {
     id: "organizations-volunteers",
-    title: "Joining Organizations",
+    title: "Joining organizations",
     category: "organizations",
     content:
       "joining organizations browse available request join invitation code approval organization admin participating organization projects browse organizations page",
@@ -119,7 +119,7 @@ const searchIndex = [
   },
   {
     id: "organizations-benefits",
-    title: "Organization Project Benefits",
+    title: "Organization project benefits",
     category: "organizations",
     content:
       "organization projects volunteer opportunities team projects automatic hour verification organization admins resources guidelines higher credibility networking verified organizations",
@@ -127,7 +127,7 @@ const searchIndex = [
   },
   {
     id: "organizations-roles",
-    title: "Organization Roles",
+    title: "Organization roles",
     category: "organizations",
     content:
       "organization roles member staff admin permissions participate projects create projects verify hours full organization management member oversight",
@@ -135,7 +135,7 @@ const searchIndex = [
   },
   {
     id: "organizations-admins",
-    title: "Creating & Managing Organizations",
+    title: "Creating & managing organizations",
     category: "organizations",
     content:
       "creating organizations apply organization account details verification projects volunteer opportunities invite volunteers manage volunteers review approve applications verify hours admin tools",
@@ -143,7 +143,7 @@ const searchIndex = [
   },
   {
     id: "organization-data-management",
-    title: "Organization Data Export",
+    title: "Organization data export",
     category: "organizations",
     content:
       "export member data organization admin staff member hours participation csv download member details individual reports member management analytics",
@@ -151,7 +151,7 @@ const searchIndex = [
   },
   {
     id: "organization-verification",
-    title: "Organization Verification & Badges",
+    title: "Organization verification & badges",
     category: "organizations",
     content:
       "organization verification trust badges verified organization benefits higher trust enhanced visibility official verification badge blue check badge priority search results apply verification credibility certificates academic requirements project listings",
@@ -161,7 +161,7 @@ const searchIndex = [
   // Schools & CSF
   {
     id: "schools-csf",
-    title: "Chapter CSF Workspaces",
+    title: "Chapter CSF workspaces",
     category: "schools",
     content:
       "california scholarship federation chapter workspace member officer role help class links student links membership applications policy deadlines account connections",
@@ -169,7 +169,7 @@ const searchIndex = [
   },
   {
     id: "schools-students",
-    title: "CSF Member Workflow",
+    title: "CSF member workflow",
     category: "schools",
     content:
       "connect student record verified account my csf membership status activities signups point submissions proof officer review class feed",
@@ -177,7 +177,7 @@ const searchIndex = [
   },
   {
     id: "schools-projects",
-    title: "CSF Activities and Point Claims",
+    title: "CSF activities and point claims",
     category: "schools",
     content:
       "approved activities signups schedule location point type service proof returned claim verification chapter published policy",
@@ -185,7 +185,7 @@ const searchIndex = [
   },
   {
     id: "schools-setup",
-    title: "CSF Chapter Setup",
+    title: "CSF chapter setup",
     category: "schools",
     content:
       "semester setup applications imports google sheets members account connections staff access officer positions class posts meetings communications reports change history",
@@ -195,7 +195,7 @@ const searchIndex = [
   // Certificates
   {
     id: "certificates-understanding",
-    title: "Understanding Certificates",
+    title: "Understanding certificates",
     category: "certificates",
     content:
       "understanding certificates digital proof volunteer work automatically generated completing projects shareable links downloadable verification",
@@ -203,7 +203,7 @@ const searchIndex = [
   },
   {
     id: "certificates-viewing",
-    title: "Viewing Your Certificates",
+    title: "Viewing your certificates",
     category: "certificates",
     content:
       "viewing certificates certificates page dashboard access browse grid view filter date organization project sort newest oldest hours",
@@ -211,7 +211,7 @@ const searchIndex = [
   },
   {
     id: "certificates-sharing",
-    title: "Sharing & Verification",
+    title: "Sharing & verification",
     category: "certificates",
     content:
       "sharing verification direct links pdf downloads print options unique url schools employers scholarship committees verification qr codes",
@@ -219,7 +219,7 @@ const searchIndex = [
   },
   {
     id: "certificates-export",
-    title: "Exporting Certificate Data",
+    title: "Exporting certificate data",
     category: "certificates",
     content:
       "exporting certificate data dashboard certificates page csv export date range filter print bulk print summary data reporting",
@@ -229,7 +229,7 @@ const searchIndex = [
   // Data Export
   {
     id: "data-export-personal",
-    title: "Personal Data Exports",
+    title: "Personal data exports",
     category: "data-export",
     content:
       "personal data exports certificate export dashboard date range filtering csv download comprehensive data volunteer certificates hour tracking project participation",
@@ -237,7 +237,7 @@ const searchIndex = [
   },
   {
     id: "data-export-organization",
-    title: "Organization Data Exports",
+    title: "Organization data exports",
     category: "data-export",
     content:
       "organization data exports member hours export admin staff permissions member details individual reports organization page members tab csv download",
@@ -245,7 +245,7 @@ const searchIndex = [
   },
   {
     id: "data-export-analytics",
-    title: "Analytics & Insights",
+    title: "Analytics & insights",
     category: "data-export",
     content:
       "analytics insights personal dashboard analytics organization analytics member engagement statistics project participation rates total organizational impact trends",

@@ -138,10 +138,10 @@ export function SignaturePlacementsEditor({
                             }
                           >
                             <SelectTrigger
-                              className="h-8 text-[11px] px-2"
+                              className="h-8 px-2 text-xs"
                               onClick={(e) => e.stopPropagation()}
                             >
-                              <SelectValue placeholder="Field Type">
+                              <SelectValue placeholder="Field type">
                                 {
                                   CUSTOM_PLACEMENT_FIELD_TYPE_OPTIONS.find(
                                     (o) =>
@@ -168,10 +168,7 @@ export function SignaturePlacementsEditor({
                             </SelectContent>
                           </Select>
                         </div>
-                        <Badge
-                          variant="secondary"
-                          className="shrink-0 text-[10px] h-5"
-                        >
+                        <Badge variant="secondary" className="shrink-0">
                           P{placement.pageIndex + 1}
                         </Badge>
                       </div>
@@ -191,7 +188,7 @@ export function SignaturePlacementsEditor({
                               className="h-8 text-xs font-normal"
                               onClick={(e) => e.stopPropagation()}
                             >
-                              <SelectValue placeholder="Assign Role">
+                              <SelectValue placeholder="Assign role">
                                 {getSignerLabel(placement.signerRoleKey)}
                               </SelectValue>
                             </SelectTrigger>

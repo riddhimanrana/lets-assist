@@ -57,7 +57,7 @@ export function useWaiverSigningDefinition(
       {
         id: "review",
         type: "review",
-        title: "Review Waiver",
+        title: "Review waiver",
         description: "Please review the waiver document.",
       },
     ];
@@ -70,7 +70,7 @@ export function useWaiverSigningDefinition(
       result.push({
         id: "global-fields",
         type: "fields",
-        title: "Your Information",
+        title: "Your information",
         description: "Please provide your details.",
       });
     }
@@ -85,7 +85,7 @@ export function useWaiverSigningDefinition(
         result.push({
           id: `fields-${signer.role_key}`,
           type: "fields",
-          title: `${signer.label} Information`,
+          title: `${signer.label} information`,
           description: `Please fill in the required fields for ${signer.label}.`,
           signer,
         });

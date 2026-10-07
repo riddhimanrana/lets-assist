@@ -13,6 +13,7 @@ import {
   Dialog,
   DialogContent,
   DialogDescription,
+  DialogFooter,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
@@ -25,8 +26,14 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { Field, FieldLabel } from "@/components/ui/field";
-import { Flag, AlertTriangle } from "lucide-react";
+import {
+  Field,
+  FieldDescription,
+  FieldGroup,
+  FieldLabel,
+} from "@/components/ui/field";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Flag } from "lucide-react";
 import { toast } from "sonner";
 
 // The types the moderation queue can actually resolve and act on. The wider
@@ -70,14 +77,14 @@ interface ReportContentButtonProps {
 }
 
 const REPORT_REASONS: { value: ReportReason; label: string }[] = [
-  { value: "spam", label: "Spam or Misleading" },
-  { value: "harassment", label: "Harassment or Bullying" },
-  { value: "inappropriate_content", label: "Inappropriate Content" },
-  { value: "misinformation", label: "False Information" },
-  { value: "copyright", label: "Copyright Violation" },
-  { value: "privacy_violation", label: "Privacy Violation" },
-  { value: "violence", label: "Violence or Threats" },
-  { value: "hate_speech", label: "Hate Speech" },
+  { value: "spam", label: "Spam or misleading" },
+  { value: "harassment", label: "Harassment or bullying" },
+  { value: "inappropriate_content", label: "Inappropriate content" },
+  { value: "misinformation", label: "False information" },
+  { value: "copyright", label: "Copyright violation" },
+  { value: "privacy_violation", label: "Privacy violation" },
+  { value: "violence", label: "Violence or threats" },
+  { value: "hate_speech", label: "Hate speech" },
   { value: "other", label: "Other" },
 ];
 
@@ -191,15 +198,14 @@ export function ReportContentButton({
       ) : null
     ) : (
       <Button
-        variant="ghost"
+        variant="destructive-ghost"
         size="sm"
-        className="text-destructive hover:text-destructive"
         onClick={(event) => {
           event.stopPropagation();
           setOpen(true);
         }}
       >
-        <Flag className="h-4 w-4 mr-2" />
+        <Flag data-icon="inline-start" aria-hidden="true" />
         Report
       </Button>
     );
@@ -208,21 +214,18 @@ export function ReportContentButton({
     <>
       {triggerElement}
       <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent className="sm:max-w-[500px]">
+        <DialogContent className="sm:max-w-lg">
           <DialogHeader>
-            <div className="flex items-center gap-2">
-              <AlertTriangle className="h-5 w-5 text-destructive" />
-              <DialogTitle>Report Content</DialogTitle>
-            </div>
+            <DialogTitle>Report content</DialogTitle>
             <DialogDescription>
               Help us keep our community safe by reporting inappropriate
               content. Your report will be reviewed by our moderation team.
             </DialogDescription>
           </DialogHeader>
 
-          <div className="space-y-4 py-4">
+          <FieldGroup className="gap-4">
             <Field>
-              <FieldLabel htmlFor="reason">Reason for Report *</FieldLabel>
+              <FieldLabel htmlFor="reason">Reason for report *</FieldLabel>
               <Select
                 value={reason}
                 onValueChange={(value) => setReason(value as ReportReason)}
@@ -247,12 +250,12 @@ export function ReportContentButton({
             </Field>
 
             <Field>
-              <FieldLabel htmlFor="description">
-                Description *{" "}
-                <span className="text-muted-foreground text-xs">
-                  (minimum 10 characters)
+              <div className="flex items-baseline justify-between gap-2">
+                <FieldLabel htmlFor="description">Description *</FieldLabel>
+                <span className="text-muted-foreground text-xs tabular-nums">
+                  {description.length}/1000
                 </span>
-              </FieldLabel>
+              </div>
               <Textarea
                 id="description"
                 placeholder="Please provide specific details about why you're reporting this content..."
@@ -262,24 +265,24 @@ export function ReportContentButton({
                 maxLength={1000}
                 className="resize-none"
               />
-              <p className="text-xs text-muted-foreground text-right">
-                {description.length}/1000
-              </p>
+              <FieldDescription>Minimum 10 characters</FieldDescription>
             </Field>
 
-            <div className="rounded-md bg-muted p-3 text-sm text-muted-foreground">
-              <p className="font-medium mb-1">What happens next?</p>
-              <ul className="list-disc list-inside space-y-1 text-xs">
-                <li>Our moderation team will review in 1-2 weeks</li>
-                <li>
-                  Appropriate action will be taken if violations are found
-                </li>
-                <li>You may receive a notification about the outcome</li>
-              </ul>
-            </div>
-          </div>
+            <Alert variant="info">
+              <AlertTitle>What happens next?</AlertTitle>
+              <AlertDescription>
+                <ul className="list-disc pl-4">
+                  <li>Our moderation team will review in 1-2 weeks</li>
+                  <li>
+                    Appropriate action will be taken if violations are found
+                  </li>
+                  <li>You may receive a notification about the outcome</li>
+                </ul>
+              </AlertDescription>
+            </Alert>
+          </FieldGroup>
 
-          <div className="flex justify-end gap-2">
+          <DialogFooter>
             <Button
               variant="outline"
               onClick={() => setOpen(false)}
@@ -291,9 +294,9 @@ export function ReportContentButton({
               onClick={handleSubmit}
               disabled={isSubmitting || !reason || !description.trim()}
             >
-              {isSubmitting ? "Submitting..." : "Submit Report"}
+              {isSubmitting ? "Submitting..." : "Submit report"}
             </Button>
-          </div>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </>

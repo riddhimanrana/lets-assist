@@ -14,6 +14,7 @@ import {
   Printer,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { Skeleton } from "@/components/ui/skeleton";
 
 interface WaiverSigningPdfPaneProps {
   pdfUrl: string;
@@ -262,10 +263,7 @@ function PdfPage({ pdfDoc, pageNumber, scale }: PdfPageProps) {
     };
   }, [pdfDoc, pageNumber, scale]);
 
-  if (!viewport)
-    return (
-      <div className="w-[300px] h-[400px] bg-background animate-pulse rounded" />
-    );
+  if (!viewport) return <Skeleton className="h-100 w-75" />;
 
   return (
     <div className="relative ring-1 ring-border h-fit bg-white">
