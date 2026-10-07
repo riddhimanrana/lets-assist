@@ -9,7 +9,7 @@ export { SettingsIcon } from "./settings";
 export { PlusIcon } from "./plus";
 export { ArrowRightIcon } from "./arrow-right";
 export { DownloadIcon } from "./download";
-export { CopyIcon } from "./copy";
+export { CopyIcon } from "./duplicate";
 export { RefreshCWIcon } from "./refresh-cw";
 export { UsersIcon } from "./users";
 export { SearchIcon } from "./search";
