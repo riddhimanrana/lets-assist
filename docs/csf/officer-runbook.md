@@ -193,8 +193,8 @@ Notes are officer-only and redactable, never deletable. Every correction writes 
 
 ### Point submissions
 
-1. Open the submission and inspect the selected activity or club, member description, claimed points, configured point rule, proof, and any existing appeal. A partner-club claim also shows the club's review state and saved spreadsheet reference.
-2. Request correction, reject, adjust, or approve with the required reason.
+1. Select **Review & proof** and inspect the selected activity or club, member description, claimed points, configured point rule, proof, and any existing appeal. A partner-club claim also shows the club's review state and saved spreadsheet reference.
+2. Reject, adjust, or approve with the required reason. Use **Request changes** for a member-submitted claim that needs correction. Organizer attendance claims cannot return to the member for editing; staff approve, reject, or retry attendance sync.
 3. An Activity Coordinator may verify participation but cannot perform final point processing unless separately granted.
 4. Verify the awarded quantity in the member's My CSF view. Multiple points are one numeric award, not repeated one-point rows.
 5. Process an open appeal from the same evidence panel as a separate reasoned decision; do not edit the original decision out of history.
