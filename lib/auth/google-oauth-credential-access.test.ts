@@ -8,6 +8,8 @@ let sessionError: boolean;
 let bound: boolean;
 let expires: string;
 let revokeDuringRefresh: boolean;
+let disconnectDuringRefresh: boolean;
+let writeFailure: "error" | "missing" | null;
 let providerCalls: number;
 const reads: Array<{ table: string; filters: Record<string, unknown> }> = [];
 const writes: Array<{
@@ -45,7 +47,11 @@ mock.module("@/lib/supabase/admin", () => ({
         const result = () => {
           if (update) {
             writes.push({ table, filters: { ...filters }, data: update });
-            return { data: { id: connectionId }, error: null };
+            return {
+              data: writeFailure ? null : { id: connectionId },
+              error:
+                writeFailure === "error" ? { message: "write refused" } : null,
+            };
           }
           reads.push({ table, filters: { ...filters } });
           if (table === "user_google_oauth_connection_bindings") {
@@ -116,6 +122,7 @@ const provider = mock(async (url: string | URL | Request) => {
   expect(String(url)).toBe("https://oauth2.googleapis.com/token");
   providerCalls++;
   if (revokeDuringRefresh) sessionUser = other;
+  if (disconnectDuringRefresh) bound = false;
   return Response.json({
     access_token: "fictional-refreshed",
     expires_in: 3600,
@@ -143,6 +150,8 @@ beforeEach(() => {
   bound = true;
   expires = "2020-01-01T00:00:00Z";
   revokeDuringRefresh = false;
+  disconnectDuringRefresh = false;
+  writeFailure = null;
   providerCalls = 0;
   reads.length = 0;
   writes.length = 0;
@@ -271,3 +280,27 @@ test("a session subject change during refresh prevents persistence and token ret
   expect(providerCalls).toBe(1);
   expect(writes).toEqual([]);
 });
+
+test("personal refresh rechecks the current subject after the provider response", async () => {
+  revokeDuringRefresh = true;
+  expect(await getValidAccessToken(owner)).toBeNull();
+  expect(providerCalls).toBe(1);
+  expect(writes).toEqual([]);
+});
+
+test("personal refresh refuses a concurrently disconnected binding", async () => {
+  disconnectDuringRefresh = true;
+  expect(await getValidAccessToken(owner)).toBeNull();
+  expect(providerCalls).toBe(1);
+  expect(writes).toEqual([]);
+});
+
+test.each(["error", "missing"] as const)(
+  "personal refresh requires confirmed persistence after %s result",
+  async (failure) => {
+    writeFailure = failure;
+    expect(await getValidAccessToken(owner)).toBeNull();
+    expect(providerCalls).toBe(1);
+    expect(writes).toHaveLength(1);
+  },
+);
