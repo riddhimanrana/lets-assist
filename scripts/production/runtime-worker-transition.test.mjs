@@ -431,3 +431,76 @@ test("a legacy receipt cannot hide a concurrent change to bell delivery", async 
     /changed after the transition/,
   );
 });
+
+test("communications enable requires exact current operator monitoring evidence before provider reads", async () => {
+  const monitoredEnv = {
+    ...env,
+    WORKER: "communications",
+    CONFIRMATION: `enable-csf-worker:communications:${sha}`,
+  };
+  assert.throws(() => transitionConfig(monitoredEnv), /monitoring|scheduler/u);
+  const now = Date.now();
+  const policy = {
+    worker: "csf-communications-dispatch",
+    environment: "production",
+    sourceSha: sha,
+    scheduler: "vercel",
+    scheduleEnabled: true,
+    expectedEverySeconds: 60,
+    staleAfterSeconds: 180,
+    maxRunSeconds: 50,
+    verifiedAt: new Date(now - 1000).toISOString(),
+    validUntil: new Date(now + 60_000).toISOString(),
+    changeRecord: "https://github.com/riddhimanrana/lets-assist/issues/1",
+    reviewedBy: env.GITHUB_ACTOR,
+    alerting: {
+      owner: env.GITHUB_ACTOR,
+      destination: "fixture-alerts",
+      missedRunTestedAt: new Date(now - 2000).toISOString(),
+      validUntil: new Date(now + 60_000).toISOString(),
+    },
+  };
+  const accepted = transitionConfig({
+    ...monitoredEnv,
+    WORKER_MONITORING_EVIDENCE: JSON.stringify(policy),
+  });
+  assert.equal(accepted.monitoringEvidence.sourceSha, sha);
+  for (const invalid of [
+    { ...policy, sourceSha: "b".repeat(40) },
+    { ...policy, reviewedBy: "another-operator" },
+    { ...policy, validUntil: new Date(now - 1).toISOString() },
+    { ...policy, alerting: undefined },
+    { ...policy, token: "forbidden" },
+  ])
+    assert.throws(() =>
+      transitionConfig({
+        ...monitoredEnv,
+        WORKER_MONITORING_EVIDENCE: JSON.stringify(invalid),
+      }),
+    );
+  assert.equal(
+    transitionConfig({
+      ...monitoredEnv,
+      WORKER_ENABLED: "false",
+      CONFIRMATION: `disable-csf-worker:communications:${sha}`,
+    }).enabled,
+    false,
+  );
+  let calls = 0;
+  await assert.rejects(
+    transitionWorker(
+      {
+        ...accepted,
+        monitoringEvidence: {
+          ...policy,
+          validUntil: new Date(now - 1).toISOString(),
+        },
+      },
+      async () => {
+        calls++;
+        throw new Error("must not call provider");
+      },
+    ),
+  );
+  assert.equal(calls, 0);
+});

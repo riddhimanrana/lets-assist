@@ -151,7 +151,10 @@ The new release SHA starts with every CSF worker off, even when the previous
 release had workers enabled. After the public alias check passes, read the
 controls for both SHAs. Restore each previously approved worker through a
 separate `enable-production-csf-worker.yml` run against the new, publicly
-served SHA, then verify the saved controls and one bounded worker pass. Keep
+served SHA, then verify the saved controls and one bounded worker pass. The
+communications enable path also requires the exact-release, expiring
+[worker monitoring evidence receipt](worker-health.md). Disable remains
+available without that receipt. Keep
 scheduled post publishing off. Do not call Sheet exports or notifications
 healthy from the app release result alone.
 
