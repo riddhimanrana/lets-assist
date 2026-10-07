@@ -516,8 +516,13 @@ export function preparePrivateReleaseIntegration({
       file.startsWith(`${manifest.requiredPlatformSchemaVersion}_`),
     )
   ) {
+    // A correct refusal: the release depends on a host migration that this
+    // root source does not contain yet. Name the version and the two ways out.
     fail(
-      "required platform schema migration is not present in the root ledger",
+      `required platform schema migration ${manifest.requiredPlatformSchemaVersion} is not present in the root ledger. ` +
+        "Merge the host migration into development and rerun this integration, " +
+        "or dispatch plugin-release-integration.yml from the root candidate commit " +
+        "with candidate_sha set to that commit (see docs/development/plugin-release-integration.md).",
     );
   }
 
