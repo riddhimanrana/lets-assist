@@ -17,6 +17,12 @@ const workerFields = {
   scheduled_post_publisher: "csfScheduledPostPublisher",
   publication_notifications: "csfPublicationNotifications",
 };
+const monitoredWorkers = {
+  workbook_refresh: "csf-class-workbook-refresh",
+  import_commit: "csf-import-commit",
+  communications: "csf-communications-dispatch",
+  publication_notifications: "csf-publication-notifications",
+};
 const literal = (value) => `'${String(value).replaceAll("'", "''")}'`;
 
 export function workerControlsQuery(sha) {
@@ -60,7 +66,7 @@ export function transitionConfig(env) {
     throw new ReleaseCheckError("Worker transition configuration is invalid.");
   }
   let monitoringEvidence = null;
-  if (enabled && env.WORKER === "communications") {
+  if (enabled) {
     try {
       if (
         !env.WORKER_MONITORING_EVIDENCE ||
@@ -70,7 +76,7 @@ export function transitionConfig(env) {
       monitoringEvidence = requireWorkerActivationMonitoring(
         JSON.parse(env.WORKER_MONITORING_EVIDENCE),
         {
-          worker: "csf-communications-dispatch",
+          worker: monitoredWorkers[env.WORKER],
           environment: "production",
           sourceSha: sha,
         },
@@ -79,7 +85,7 @@ export function transitionConfig(env) {
         throw new Error("Receipt must belong to the dispatching operator");
     } catch {
       throw new ReleaseCheckError(
-        "Communications activation requires current exact-release scheduler and missed-run alert evidence from this operator.",
+        "Worker activation requires current exact-release scheduler and missed-run alert evidence from this operator.",
       );
     }
   }
@@ -181,9 +187,9 @@ export async function transitionWorker(
   fetcher = fetch,
   record = () => {},
 ) {
-  if (config.enabled && config.worker === "communications")
+  if (config.enabled)
     requireWorkerActivationMonitoring(config.monitoringEvidence, {
-      worker: "csf-communications-dispatch",
+      worker: monitoredWorkers[config.worker],
       environment: "production",
       sourceSha: config.sha,
     });

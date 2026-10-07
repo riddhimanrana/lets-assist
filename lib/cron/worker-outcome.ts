@@ -1,8 +1,11 @@
-export const observedWorkers = [
-  "project-cancellations",
-  "csf-communications-dispatch",
-  "data-exports",
-] as const;
+import { observedWorkers } from "./worker-keys.mjs";
+export { observedWorkers } from "./worker-keys.mjs";
+import {
+  workerRecord as record,
+  workerCount as count,
+  workerSum as sum,
+} from "./worker-aggregate";
+import { readAdditionalWorkerCounts } from "./worker-additional-outcomes";
 export type ObservedWorker = (typeof observedWorkers)[number];
 export type WorkerEnvironment = "local" | "development" | "production";
 export type WorkerOutcome = {
@@ -41,26 +44,6 @@ export function failedWorkerOutcome(
     deadlineReached: false,
   };
 }
-function record(value: unknown): Record<string, unknown> {
-  if (!value || typeof value !== "object" || Array.isArray(value))
-    throw new Error("invalid_response");
-  return value as Record<string, unknown>;
-}
-function count(value: unknown): number {
-  if (
-    !Number.isSafeInteger(value) ||
-    Number(value) < 0 ||
-    Number(value) > 1_000_000
-  )
-    throw new Error("invalid_response");
-  return Number(value);
-}
-function sum(...values: unknown[]) {
-  return count(
-    values.reduce<number>((total, value) => total + count(value), 0),
-  );
-}
-
 export function classifyWorkerResponse(
   worker: ObservedWorker,
   status: number,
@@ -76,7 +59,8 @@ export function classifyWorkerResponse(
     if (
       typeof value.message === "string" &&
       typeof value.timestamp === "string" &&
-      !Object.hasOwn(value, "outcomes")
+      !Object.hasOwn(value, "outcomes") &&
+      !Object.hasOwn(value, "results")
     )
       return { outcome: "no_run", code: "status_only" };
     const result: WorkerOutcome = {
@@ -90,7 +74,12 @@ export function classifyWorkerResponse(
       faults: 0,
       deadlineReached: false,
     };
-    const outcomes = worker === "data-exports" ? {} : record(value.outcomes);
+    const outcomes = [
+      "csf-communications-dispatch",
+      "project-cancellations",
+    ].includes(worker)
+      ? record(value.outcomes)
+      : {};
     if (worker === "csf-communications-dispatch") {
       result.attempted = count(value.claimed);
       result.completed = count(outcomes.sent);
@@ -113,13 +102,17 @@ export function classifyWorkerResponse(
         notifications.failed,
         notifications.retryable,
       );
-    } else {
+    } else if (!readAdditionalWorkerCounts(worker, value, result)) {
       // The export worker must supply its own reviewed aggregate classifier.
       return failedWorkerOutcome("invalid_response");
     }
-    if (typeof value.deadlineReached !== "boolean")
-      return failedWorkerOutcome("invalid_response");
-    result.deadlineReached = value.deadlineReached;
+    if (
+      ["csf-communications-dispatch", "project-cancellations"].includes(worker)
+    ) {
+      if (typeof value.deadlineReached !== "boolean")
+        return failedWorkerOutcome("invalid_response");
+      result.deadlineReached = value.deadlineReached;
+    }
     if (
       result.failed ||
       result.pending ||

@@ -1,3 +1,4 @@
+import { observeWorkerRun } from "@/lib/cron/worker-observation";
 import { safeConsole } from "@/lib/safe-console";
 import { NextRequest, NextResponse } from "next/server";
 import { getAdminClient } from "@/lib/supabase/admin";
@@ -138,17 +139,19 @@ export async function GET(request: NextRequest) {
   const auth = authorizeCronRequest(request);
   if (!auth.ok) return auth.response;
 
-  try {
-    const result = await cleanupExpiredWaivers();
-    if ("error" in result) {
-      return NextResponse.json(result, { status: 500 });
+  return observeWorkerRun("waiver-cleanup", async () => {
+    try {
+      const result = await cleanupExpiredWaivers();
+      if ("error" in result) {
+        return NextResponse.json(result, { status: 500 });
+      }
+      return NextResponse.json(result);
+    } catch (error) {
+      safeConsole.error("Waiver cleanup cron failed:", error);
+      return NextResponse.json(
+        { error: "Internal server error" },
+        { status: 500 },
+      );
     }
-    return NextResponse.json(result);
-  } catch (error) {
-    safeConsole.error("Waiver cleanup cron failed:", error);
-    return NextResponse.json(
-      { error: "Internal server error" },
-      { status: 500 },
-    );
-  }
+  });
 }

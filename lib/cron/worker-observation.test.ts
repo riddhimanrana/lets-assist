@@ -38,6 +38,24 @@ function harness() {
   };
   return { writes, warnings, deps };
 }
+test("an 800-second worker retains its elapsed time and still caps malformed timing", async () => {
+  for (const elapsed of [800_100, 950_000]) {
+    const h = harness();
+    let reads = 0;
+    h.deps.now = () => (reads++ === 0 ? 0 : elapsed);
+    await observeWorkerRun(
+      "csf-class-workbook-refresh",
+      async () => Response.json({ claimed: 0, prepared: 0, blocked: 0 }),
+      undefined,
+      h.deps,
+    );
+    expect(h.writes[1].parameters.p_result).toMatchObject({
+      outcome: "no_run",
+      durationMs: Math.min(elapsed, 900_000),
+    });
+    expect(h.warnings).toHaveLength(0);
+  }
+});
 test("records start before execution and a bounded aggregate finish while preserving the response", async () => {
   const h = harness();
   const response = Response.json(body, {
