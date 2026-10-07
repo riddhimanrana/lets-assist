@@ -848,7 +848,7 @@ describe("CSF Production release preflight", () => {
     expect(productionQuiescenceVerifier).toContain("FROM cron.job");
     expect(productionQuiescenceVerifier).toContain("FROM cron.job_run_details");
     expect(productionQuiescenceVerifier).toContain(
-      "'default_transaction_read_only=on' = ANY",
+      "'app.maintenance_write_block=on' = ANY",
     );
     expect(productionQuiescenceVerifier).toContain(
       "SELECT 1 / 0 AS quiescence_check_failed;",
@@ -902,10 +902,10 @@ describe("CSF Production release preflight", () => {
       },
     });
     expect(applicationWriteBlock).toContain(
-      "ALTER ROLE authenticator SET default_transaction_read_only TO 'on'",
+      "ALTER ROLE authenticator SET app.maintenance_write_block TO 'on'",
     );
     expect(applicationWriteBlock).toContain(
-      "ALTER ROLE authenticator RESET default_transaction_read_only",
+      "ALTER ROLE authenticator RESET app.maintenance_write_block",
     );
     expect(applicationWriteBlock).toContain("array_agg(pid)");
     expect(applicationWriteBlock).toContain(

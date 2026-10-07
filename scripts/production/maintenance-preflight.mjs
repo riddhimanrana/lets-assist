@@ -85,11 +85,11 @@ export const maintenancePostureQuery = `SELECT
   current_setting('transaction_read_only') = 'on'
   AND (${applicationRequestWriteFenceQuery.replace(/ AS valid$/u, "")})
   AND EXISTS (SELECT 1 FROM pg_catalog.pg_roles WHERE rolname = 'authenticator'
-    AND 'default_transaction_read_only=on' = ANY(coalesce(rolconfig, ARRAY[]::text[])))
+    AND 'app.maintenance_write_block=on' = ANY(coalesce(rolconfig, ARRAY[]::text[])))
   AND NOT EXISTS (SELECT 1 FROM pg_catalog.pg_db_role_setting setting
     WHERE setting.setrole = 'authenticator'::regrole
       AND setting.setdatabase IN (0, (SELECT oid FROM pg_catalog.pg_database WHERE datname=current_database()))
-      AND 'default_transaction_read_only=off' = ANY(setting.setconfig))
+      AND 'app.maintenance_write_block=off' = ANY(setting.setconfig))
   AND NOT EXISTS (SELECT 1 FROM cron.job WHERE active)
   AND NOT EXISTS (SELECT 1 FROM cron.job_run_details WHERE status = 'running')
   AND NOT EXISTS (SELECT 1 FROM app_private.csf_release_worker_controls
@@ -258,7 +258,7 @@ export function verifyMaintenancePreflight(
     ledger: ledgerDigest(versions),
     targetMigrations: target.length,
     catalog: "verified",
-    writes: "configured-read-only",
+    writes: "configured-request-guard",
     workers: "disabled",
     cron: "quiescent",
   };

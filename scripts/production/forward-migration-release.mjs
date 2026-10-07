@@ -1,5 +1,6 @@
 import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
+import { applicationRequestWritesOpenQuery } from "./request-write-fence.mjs";
 import { resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 import {
@@ -118,10 +119,9 @@ export async function applyForwardMigrations(config, fetcher = fetch) {
     throw new ReleaseCheckError(
       "Pending credential or project-column access changes require the reviewed maintenance cutover. Online migration deployment is refused.",
     );
-  const posture = await request(`SELECT NOT EXISTS (
-    SELECT 1 FROM pg_catalog.pg_roles WHERE rolname='authenticator'
-      AND 'default_transaction_read_only=on'=ANY(coalesce(rolconfig,ARRAY[]::text[]))
-  ) AND NOT EXISTS (SELECT 1 FROM app_private.csf_release_worker_controls
+  const posture =
+    await request(`SELECT (${applicationRequestWritesOpenQuery.replace(/ AS valid$/u, "")})
+    AND NOT EXISTS (SELECT 1 FROM app_private.csf_release_worker_controls
     WHERE workbook_refresh OR import_commit OR communications OR scheduled_post_publisher
       OR coalesce((to_jsonb(csf_release_worker_controls)->>'publication_notifications')::boolean,false)) AS valid;`);
   if (posture?.length !== 1 || posture[0].valid !== true)
