@@ -5,7 +5,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { passwordSchema } from "@/lib/auth/password-policy";
-import { AlertCircle, CheckCircle2, Mail, Trash2Icon } from "lucide-react";
+import { AlertCircle, CheckCircle2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -15,33 +15,19 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Field, FieldLabel, FieldError } from "@/components/ui/field";
 import { Controller } from "react-hook-form";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogMedia,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
 import { motion } from "motion/react";
 import {
-  deleteAccount,
-  emailDataExport,
-  getDataExportJobs,
   setPasswordAction,
   updateEmailAction,
   updatePasswordAction,
 } from "./actions";
 import { useAuth } from "@/hooks/useAuth";
 import { createClient } from "@/lib/supabase/client";
+import AccountDeletionSection from "./AccountDeletionSection";
+import DataExportSection from "./DataExportSection";
 
 const updatePasswordSchema = z
   .object({
@@ -86,58 +72,11 @@ const updateEmailSchema = z
   });
 type UpdateEmailValues = z.infer<typeof updateEmailSchema>;
 
-type ExportJobStatus = "pending" | "processing" | "completed" | "failed";
-
-type ExportJob = {
-  id: string;
-  status: ExportJobStatus;
-  delivery_email: string;
-  requested_at: string;
-  started_at?: string | null;
-  completed_at?: string | null;
-  failed_at?: string | null;
-  error_message?: string | null;
-  zip_size_bytes?: number | null;
-  record_count?: number | null;
-  signed_url?: string | null;
-  signed_url_expires_at?: string | null;
-};
-
 export default function SecurityClient() {
   const { user } = useAuth(); // Use centralized auth hook
-  const [isDeleting, setIsDeleting] = useState(false);
-  const [countdown, setCountdown] = useState(5);
-  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
-  const [deleteConfirmation, setDeleteConfirmation] = useState("");
-  const [countdownInterval, setCountdownInterval] =
-    useState<NodeJS.Timeout | null>(null);
   const [currentEmail, setCurrentEmail] = useState("");
   const [isPasswordLoading, setIsPasswordLoading] = useState(false);
   const [isEmailLoading, setIsEmailLoading] = useState(false);
-  const [isExportEmailing, setIsExportEmailing] = useState(false);
-  const [exportJobs, setExportJobs] = useState<ExportJob[]>([]);
-  const [isExportJobsLoading, setIsExportJobsLoading] = useState(true);
-
-  // Poll for export jobs
-  useEffect(() => {
-    const fetchJobs = async () => {
-      const result = await getDataExportJobs();
-      if (result.success) {
-        setExportJobs(result.jobs as ExportJob[]);
-      }
-      setIsExportJobsLoading(false);
-    };
-
-    fetchJobs();
-    const interval = setInterval(fetchJobs, 10000); // Poll every 10s
-
-    return () => clearInterval(interval);
-  }, []);
-
-  const hasActiveExportRequest = exportJobs.some(
-    (job) => job.status === "pending" || job.status === "processing",
-  );
-
   // OAuth detection state
   const [hasPassword, setHasPassword] = useState<boolean | null>(null);
   const [oauthProvider, setOauthProvider] = useState<string | null>(null);
@@ -343,110 +282,6 @@ export default function SecurityClient() {
       setHasPassword(true);
     }
     setIsPasswordLoading(false);
-  };
-
-  const handleDeleteAccount = async () => {
-    if (deleteConfirmation !== "delete my account") {
-      toast.error("Please type the confirmation phrase correctly");
-      return;
-    }
-
-    try {
-      setIsDeleting(true);
-      let count = 5;
-      setCountdown(count);
-      const interval = setInterval(() => {
-        count--;
-        setCountdown(count);
-        if (count === 0) {
-          clearInterval(interval);
-          setCountdownInterval(null);
-        }
-      }, 1000);
-      setCountdownInterval(interval);
-
-      await new Promise((resolve) => setTimeout(resolve, 5000));
-
-      if (count === 0) {
-        const result = await deleteAccount();
-        if (result.success) {
-          localStorage.clear();
-          sessionStorage.clear();
-          // Account deletion must reload the document so no authenticated client state survives.
-          // eslint-disable-next-line @next/next/no-location-assign-relative-destination
-          window.location.href = "/?deleted=true&noRedirect=1";
-        }
-      }
-    } catch (error) {
-      toast.error(
-        error instanceof Error ? error.message : "Failed to delete account",
-      );
-      setIsDeleting(false);
-    }
-    setShowDeleteDialog(false);
-  };
-
-  const handleCancelDelete = () => {
-    if (countdownInterval) {
-      clearInterval(countdownInterval);
-      setCountdownInterval(null);
-    }
-    setIsDeleting(false);
-    setCountdown(5);
-    setShowDeleteDialog(false);
-  };
-
-  const handleEmailDataExport = async () => {
-    try {
-      setIsExportEmailing(true);
-      const result = await emailDataExport();
-
-      if (!result.success) {
-        toast.error(result.error || "Failed to send export email");
-        return;
-      }
-
-      toast.success(
-        result.email
-          ? `Export queued. We'll email ${result.email} when it's ready.`
-          : "Export queued. We'll email you when it's ready.",
-      );
-
-      const queuedJobId = result.jobId ?? `queued-${Date.now()}`;
-      const queuedJob: ExportJob = {
-        id: queuedJobId,
-        status: "pending",
-        delivery_email: result.email ?? currentEmail,
-        requested_at: result.requestedAt ?? new Date().toISOString(),
-        started_at: null,
-        completed_at: null,
-        failed_at: null,
-        error_message: null,
-        zip_size_bytes: null,
-        record_count: null,
-        signed_url: null,
-        signed_url_expires_at: null,
-      };
-
-      setExportJobs((previousJobs) => {
-        const dedupedJobs = previousJobs.filter(
-          (job) => job.id !== queuedJobId,
-        );
-        return [queuedJob, ...dedupedJobs].slice(0, 5);
-      });
-      setIsExportJobsLoading(false);
-
-      const refreshedJobs = await getDataExportJobs();
-      if (refreshedJobs.success) {
-        setExportJobs(refreshedJobs.jobs as ExportJob[]);
-      }
-    } catch (error) {
-      toast.error(
-        error instanceof Error ? error.message : "Failed to email data export",
-      );
-    } finally {
-      setIsExportEmailing(false);
-    }
   };
 
   return (
@@ -719,194 +554,9 @@ export default function SecurityClient() {
             </CardContent>
           </Card>
         </div>
-        <Card className="mt-6">
-          <CardHeader>
-            <CardTitle className="text-xl">Export Your Data</CardTitle>
-            <CardDescription>
-              Queue a background ZIP export and receive it via email.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <p className="text-sm text-muted-foreground">
-              Exports include categorized files for profile data, certificates
-              and hours, notifications, trust/safety history, auth details, and
-              internal export logs. Large exports are delivered via secure
-              signed link to avoid attachment limits.
-              <b>
-                {" "}
-                Note: Background exports are processed every 20 minutes; you
-                will receive your email within 24 hours.
-              </b>
-            </p>
+        <DataExportSection />
 
-            {isExportJobsLoading && (
-              <p className="text-xs text-muted-foreground">
-                Loading export history...
-              </p>
-            )}
-
-            {exportJobs.length > 0 && (
-              <div className="space-y-3 pt-2">
-                <Label className="text-sm font-medium">
-                  Recent Export Requests
-                </Label>
-                <div className="grid grid-cols-1 gap-2">
-                  {exportJobs.map((job) => (
-                    <div
-                      key={job.id}
-                      className="flex flex-col sm:flex-row sm:items-center justify-between p-3 rounded-lg border bg-muted/30 text-xs sm:text-sm gap-2"
-                    >
-                      <div className="flex flex-col gap-0.5">
-                        <span className="font-medium flex items-center gap-2">
-                          {new Date(job.requested_at).toLocaleString()}
-                          {job.status === "pending" && (
-                            <span className="px-1.5 py-0.5 rounded-full border border-info/40 bg-info/15 text-info text-[10px] font-bold uppercase animate-pulse">
-                              Pending
-                            </span>
-                          )}
-                          {job.status === "processing" && (
-                            <span className="px-1.5 py-0.5 rounded-full border border-warning/40 bg-warning/15 text-warning text-[10px] font-bold uppercase animate-pulse">
-                              Processing
-                            </span>
-                          )}
-                          {job.status === "completed" && (
-                            <span className="px-1.5 py-0.5 rounded-full border border-success/40 bg-success/15 text-success text-[10px] font-bold uppercase">
-                              Sent
-                            </span>
-                          )}
-                          {job.status === "failed" && (
-                            <span className="px-1.5 py-0.5 rounded-full border border-destructive/40 bg-destructive/15 text-destructive text-[10px] font-bold uppercase">
-                              Failed
-                            </span>
-                          )}
-                        </span>
-                        <span className="text-muted-foreground truncate">
-                          To: {job.delivery_email}
-                          {job.zip_size_bytes &&
-                            ` • ${(job.zip_size_bytes / 1024 / 1024).toFixed(2)} MB`}
-                        </span>
-                      </div>
-                      {job.status === "completed" && job.signed_url && (
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="h-8 text-xs shrink-0"
-                          asChild
-                        >
-                          <a
-                            href={job.signed_url}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                          >
-                            Download Now
-                          </a>
-                        </Button>
-                      )}
-                      {job.status === "failed" && job.error_message && (
-                        <span
-                          className="text-destructive truncate max-w-50"
-                          title={job.error_message}
-                        >
-                          {job.error_message}
-                        </span>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            <div className="flex flex-col sm:flex-row gap-3">
-              <Button
-                type="button"
-                onClick={handleEmailDataExport}
-                disabled={isExportEmailing || hasActiveExportRequest}
-                className="w-full sm:w-auto"
-              >
-                <Mail className="h-4 w-4 mr-2" />
-                {isExportEmailing
-                  ? "Queueing Export..."
-                  : hasActiveExportRequest
-                    ? "Export Already Queued"
-                    : "Email My Zipped Data"}
-              </Button>
-            </div>
-            {hasActiveExportRequest && (
-              <p className="text-xs text-muted-foreground">
-                Your export request is already queued. No refresh needed —
-                you&apos;re good to go.
-              </p>
-            )}
-          </CardContent>
-        </Card>
-
-        <Card className="border-destructive mt-6">
-          <CardHeader className="">
-            <CardTitle className="text-destructive">Delete Account</CardTitle>
-            <CardDescription>
-              Remove your account and personal platform data
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <AlertDialog
-              open={showDeleteDialog}
-              onOpenChange={setShowDeleteDialog}
-            >
-              <AlertDialogTrigger
-                render={
-                  <Button variant="destructive" className="w-full sm:w-auto">
-                    Delete Account
-                  </Button>
-                }
-              />
-              <AlertDialogContent>
-                <AlertDialogHeader>
-                  <AlertDialogMedia className="bg-destructive/10 text-destructive dark:bg-destructive/20 dark:text-destructive">
-                    <Trash2Icon className="size-5" />
-                  </AlertDialogMedia>
-                  <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
-                  <AlertDialogDescription>
-                    This action cannot be undone. Account removal preserves
-                    records needed for organization history and moderation.
-                    Transfer ownership and disconnect linked providers first.
-                  </AlertDialogDescription>
-                </AlertDialogHeader>
-                <div className="space-y-4 py-2">
-                  <div className="space-y-2">
-                    <Label htmlFor="confirm">
-                      Type &quot;delete my account&quot; to confirm
-                    </Label>
-                    <Input
-                      id="confirm"
-                      value={deleteConfirmation}
-                      onChange={(e) => setDeleteConfirmation(e.target.value)}
-                      placeholder="delete my account"
-                    />
-                  </div>
-                </div>
-                <AlertDialogFooter>
-                  <AlertDialogCancel onClick={handleCancelDelete}>
-                    Cancel
-                  </AlertDialogCancel>
-                  <AlertDialogAction
-                    variant="destructive"
-                    onClick={(e) => {
-                      e.preventDefault();
-                      handleDeleteAccount();
-                    }}
-                    disabled={
-                      deleteConfirmation !== "delete my account" || isDeleting
-                    }
-                  >
-                    {isDeleting
-                      ? `Deleting in ${countdown}s...`
-                      : "Delete Account"}
-                  </AlertDialogAction>
-                </AlertDialogFooter>
-              </AlertDialogContent>
-            </AlertDialog>
-          </CardContent>
-        </Card>
+        <AccountDeletionSection />
       </div>
     </motion.div>
   );
