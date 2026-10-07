@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import Link from "next/link";
 import { format } from "date-fns";
 import { tz } from "@date-fns/tz";
@@ -55,7 +56,11 @@ export function VolunteerDashboardView({
   user,
   uiCertificates,
   pluginCards = [],
-}: VolunteerDashboardData & { pluginCards?: PlatformDashboardCard[] }) {
+  ratingPrompt,
+}: VolunteerDashboardData & {
+  pluginCards?: PlatformDashboardCard[];
+  ratingPrompt?: ReactNode;
+}) {
   const stats = [
     {
       label: "Verified hours",
@@ -305,6 +310,7 @@ export function VolunteerDashboardView({
           />
 
           <AllHoursSection certificates={uiCertificates} />
+          {ratingPrompt}
         </TabsContent>
 
         <TabsContent value="export" className="grid gap-6">
