@@ -8,6 +8,24 @@ CREATE EXTENSION IF NOT EXISTS dblink WITH SCHEMA extensions;
 
 SELECT extensions.plan(48);
 
+-- Keep September sessions ended while preserving their PDT wall clocks.
+-- Freeze the year across autocommit statements and expand remote SQL locally.
+CREATE TEMP TABLE attendance_fixture_year AS
+SELECT extract(year FROM current_date)::integer - 1 AS year;
+
+CREATE FUNCTION pg_temp.ended_fixture(p_fixture text)
+RETURNS text
+LANGUAGE sql
+STABLE
+STRICT
+SET search_path = ''
+AS $function$
+  SELECT pg_catalog.replace(p_fixture, '2041-', year::text || '-')
+  FROM pg_temp.attendance_fixture_year;
+$function$;
+REVOKE ALL ON FUNCTION pg_temp.ended_fixture(text) FROM PUBLIC, anon, authenticated, service_role;
+GRANT EXECUTE ON FUNCTION pg_temp.ended_fixture(text) TO postgres;
+
 CREATE OR REPLACE FUNCTION pg_temp.cleanup_attendance_race_fixtures()
 RETURNS void
 LANGUAGE plpgsql
@@ -198,10 +216,10 @@ INSERT INTO public.projects (
 ) VALUES
   ('a8500000-0000-4000-8000-000000000001', 'a8000000-0000-4000-8000-000000000003', 'a8100000-0000-4000-8000-000000000002',
    'Race Park Day', 'Park', 'Fictional', 'oneTime', 'manual',
-   '{"oneTime":{"date":"2041-09-27","startTime":"09:00","endTime":"11:00","volunteers":10}}', true, 'public'),
+   pg_temp.ended_fixture('{"oneTime":{"date":"2041-09-27","startTime":"09:00","endTime":"11:00","volunteers":10}}')::jsonb, true, 'public'),
   ('a8500000-0000-4000-8000-000000000002', 'a8000000-0000-4000-8000-000000000003', 'a8100000-0000-4000-8000-000000000002',
    'Race Garden Day', 'Garden', 'Fictional', 'oneTime', 'manual',
-   '{"oneTime":{"date":"2041-09-28","startTime":"09:00","endTime":"11:00","volunteers":10}}', true, 'public');
+   pg_temp.ended_fixture('{"oneTime":{"date":"2041-09-28","startTime":"09:00","endTime":"11:00","volunteers":10}}')::jsonb, true, 'public');
 INSERT INTO public.project_signups (id, project_id, user_id, schedule_id, status) VALUES
   ('a8600000-0000-4000-8000-000000000001', 'a8500000-0000-4000-8000-000000000001', 'a8000000-0000-4000-8000-000000000002', 'oneTime', 'approved'),
   ('a8600000-0000-4000-8000-000000000002', 'a8500000-0000-4000-8000-000000000002', 'a8000000-0000-4000-8000-000000000002', 'oneTime', 'approved'),
@@ -232,16 +250,16 @@ BEGIN;
 SELECT plugin_data.csf_begin_point_submission_request_v2(
   'a8100000-0000-4000-8000-000000000001', 'a8400000-0000-4000-8000-000000000002',
   'a8200000-0000-4000-8000-000000000001', 'a8700000-0000-4000-8000-000000000001', NULL,
-  'student', 'Park day', 1, 'non_drive', '2041-09-27',
+  'student', 'Park day', 1, 'non_drive', pg_temp.ended_fixture('2041-09-27')::date,
   'a8000000-0000-4000-8000-000000000002', NULL, NULL, NULL, NULL,
   'a8900000-0000-4000-8000-000000000001', NULL);
-SELECT extensions.dblink_send_query('attendance_race_begin', $query$
+SELECT extensions.dblink_send_query('attendance_race_begin', pg_temp.ended_fixture($query$
   SELECT public.publish_volunteer_hours_transactional(
     'a8000000-0000-4000-8000-000000000003', 'a8500000-0000-4000-8000-000000000001', 'oneTime',
     '[{"signupId":"a8600000-0000-4000-8000-000000000001","checkIn":"2041-09-27T16:00:00Z","checkOut":"2041-09-27T18:00:00Z"}]'::jsonb,
     'hours-publication:v1:7777777777777777777777777777777777777777777777777777777777777777'
   )::text
-$query$);
+$query$));
 SELECT extensions.ok(
   pg_temp.wait_for_attendance_race_result('attendance_race_begin'),
   'R2: the publication finishes while the member claim still holds the semester lock'
@@ -294,8 +312,8 @@ SELECT 'enable', pid FROM extensions.dblink('attendance_race_enable', 'SELECT pg
 BEGIN;
 SELECT public.publish_volunteer_hours_transactional(
   'a8000000-0000-4000-8000-000000000003', 'a8500000-0000-4000-8000-000000000002', 'oneTime',
-  '[{"signupId":"a8600000-0000-4000-8000-000000000002","checkIn":"2041-09-28T16:00:00Z","checkOut":"2041-09-28T18:00:00Z"},
-    {"signupId":"a8600000-0000-4000-8000-000000000003","checkIn":"2041-09-28T16:00:00Z","checkOut":"2041-09-28T18:00:00Z"}]'::jsonb,
+  pg_temp.ended_fixture('[{"signupId":"a8600000-0000-4000-8000-000000000002","checkIn":"2041-09-28T16:00:00Z","checkOut":"2041-09-28T18:00:00Z"},
+    {"signupId":"a8600000-0000-4000-8000-000000000003","checkIn":"2041-09-28T16:00:00Z","checkOut":"2041-09-28T18:00:00Z"}]')::jsonb,
   'hours-publication:v1:8888888888888888888888888888888888888888888888888888888888888888'
 );
 SELECT extensions.dblink_send_query('attendance_race_enable', $query$
@@ -331,7 +349,8 @@ SELECT extensions.is(
 -- The host write never waits for CSF; the source is deferred and a later
 -- retry sees the committed unlink.
 UPDATE public.project_signups SET status = 'attended',
-  check_in_time = '2041-09-27T16:30:00Z', check_out_time = '2041-09-27T18:00:00Z'
+  check_in_time = pg_temp.ended_fixture('2041-09-27T16:30:00Z')::timestamptz,
+  check_out_time = pg_temp.ended_fixture('2041-09-27T18:00:00Z')::timestamptz
 WHERE id = 'a8600000-0000-4000-8000-000000000001';
 INSERT INTO public.project_signups (id, project_id, user_id, schedule_id, status)
 VALUES ('a8600000-0000-4000-8000-000000000004', 'a8500000-0000-4000-8000-000000000001',
@@ -344,12 +363,12 @@ SELECT plugin_data.csf_unlink_profile_account(
   'a8100000-0000-4000-8000-000000000001', 'a8400000-0000-4000-8000-000000000004',
   'a8410000-0000-4000-8000-000000000004', 'Fixture unlink during publication',
   'a8000000-0000-4000-8000-000000000001');
-SELECT extensions.dblink_send_query('attendance_race_unlink', $query$
+SELECT extensions.dblink_send_query('attendance_race_unlink', pg_temp.ended_fixture($query$
   UPDATE public.project_signups SET status = 'attended',
     check_in_time = '2041-09-27T16:00:00Z', check_out_time = '2041-09-27T18:00:00Z'
   WHERE id = 'a8600000-0000-4000-8000-000000000004'
   RETURNING id::text
-$query$);
+$query$));
 SELECT extensions.ok(
   pg_temp.wait_for_attendance_race_result('attendance_race_unlink'),
   'the attendance write completes while the unlink is still uncommitted'
@@ -429,7 +448,7 @@ INSERT INTO public.projects (
   verification_method, schedule, require_login, visibility
 ) VALUES ('a8500000-0000-4000-8000-000000000003', 'a8000000-0000-4000-8000-000000000003',
   'a8100000-0000-4000-8000-000000000002', 'Race Shared Day', 'Plaza', 'Fictional', 'oneTime', 'manual',
-  '{"oneTime":{"date":"2041-09-29","startTime":"09:00","endTime":"11:00","volunteers":10}}', true, 'public');
+  pg_temp.ended_fixture('{"oneTime":{"date":"2041-09-29","startTime":"09:00","endTime":"11:00","volunteers":10}}')::jsonb, true, 'public');
 INSERT INTO public.project_signups (id, project_id, user_id, schedule_id, status)
 VALUES ('a8600000-0000-4000-8000-000000000010', 'a8500000-0000-4000-8000-000000000003',
   'a8000000-0000-4000-8000-000000000005', 'oneTime', 'approved');
@@ -461,7 +480,7 @@ SET statement_timeout = '2s';
 INSERT INTO attendance_race_multi
 SELECT 'publish', clock_timestamp(), public.publish_volunteer_hours_transactional(
   'a8000000-0000-4000-8000-000000000003', 'a8500000-0000-4000-8000-000000000003', 'oneTime',
-  '[{"signupId":"a8600000-0000-4000-8000-000000000010","checkIn":"2041-09-29T16:00:00Z","checkOut":"2041-09-29T18:00:00Z"}]'::jsonb,
+  pg_temp.ended_fixture('[{"signupId":"a8600000-0000-4000-8000-000000000010","checkIn":"2041-09-29T16:00:00Z","checkOut":"2041-09-29T18:00:00Z"}]')::jsonb,
   'hours-publication:v1:9999999999999999999999999999999999999999999999999999999999999999'
 )::text;
 RESET statement_timeout;
