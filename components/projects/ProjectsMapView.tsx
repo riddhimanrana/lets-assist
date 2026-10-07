@@ -525,6 +525,19 @@ export function ProjectsMapView({
   projects,
   className,
 }: ProjectsMapViewProps) {
+  const apiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY?.trim();
+  if (!apiKey) {
+    return (
+      <p
+        className={cn(
+          "rounded-md border p-6 text-sm text-muted-foreground",
+          className,
+        )}
+      >
+        Map view is unavailable. Use list view to browse projects.
+      </p>
+    );
+  }
   return (
     <div
       className={cn(
@@ -533,7 +546,7 @@ export function ProjectsMapView({
         className,
       )}
     >
-      <APIProvider apiKey={process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || ""}>
+      <APIProvider apiKey={apiKey}>
         <MapContent
           initialProjects={initialProjects}
           projects={projects}
