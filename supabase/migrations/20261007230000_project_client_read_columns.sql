@@ -1,23 +1,28 @@
--- Project review fields stay server-only even when the project is public.
--- Other project columns and all existing write privileges keep their contract.
+-- Only server services may read or write the three project review fields.
+-- Other project columns retain their existing browser access.
 BEGIN;
 SET LOCAL lock_timeout = '2s';
 SET LOCAL statement_timeout = '30s';
 
-REVOKE SELECT ON TABLE public.projects, public.projects_with_creator
+REVOKE SELECT, INSERT, UPDATE ON TABLE public.projects
+  FROM PUBLIC, anon, authenticated;
+REVOKE SELECT ON TABLE public.projects_with_creator
   FROM PUBLIC, anon, authenticated;
 
 -- A table-level revocation leaves independent column ACLs in place.
 DO $$
-DECLARE relation_name text; column_names text;
+DECLARE relation_name text; column_names text; privileges text;
 BEGIN
   FOREACH relation_name IN ARRAY ARRAY['projects', 'projects_with_creator'] LOOP
     SELECT string_agg(quote_ident(attname), ', ' ORDER BY attnum)
       INTO column_names FROM pg_attribute
       WHERE attrelid = format('public.%I', relation_name)::regclass
         AND attnum > 0 AND NOT attisdropped;
-    EXECUTE format('REVOKE SELECT (%s) ON TABLE public.%I FROM PUBLIC, anon, authenticated',
-      column_names, relation_name);
+    privileges := CASE WHEN relation_name = 'projects'
+      THEN format('SELECT (%1$s), INSERT (%1$s), UPDATE (%1$s)', column_names)
+      ELSE format('SELECT (%s)', column_names) END;
+    EXECUTE format('REVOKE %s ON TABLE public.%I FROM PUBLIC, anon, authenticated',
+      privileges, relation_name);
   END LOOP;
 END;
 $$;
@@ -67,6 +72,95 @@ GRANT SELECT (
   recurrence_generation_id,
   creation_idempotency_key
 ) ON TABLE public.projects TO anon, authenticated;
+GRANT INSERT (
+  id,
+  creator_id,
+  title,
+  location,
+  description,
+  event_type,
+  verification_method,
+  created_at,
+  schedule,
+  status,
+  require_login,
+  cover_image_url,
+  documents,
+  organization_id,
+  cancellation_reason,
+  cancelled_at,
+  location_data,
+  pause_signups,
+  session_id,
+  published,
+  creator_calendar_event_id,
+  creator_synced_at,
+  project_timezone,
+  restrict_to_org_domains,
+  visibility,
+  can_be_managed_by_staff,
+  workflow_status,
+  enable_volunteer_comments,
+  show_attendees_publicly,
+  recurrence_rule,
+  recurrence_parent_id,
+  recurrence_sequence,
+  waiver_required,
+  waiver_allow_upload,
+  waiver_pdf_storage_path,
+  waiver_pdf_url,
+  waiver_definition_id,
+  waiver_disable_esignature,
+  recurrence_occurrence_date,
+  signup_form_schema,
+  cancellation_tenant_id,
+  recurrence_generation_id,
+  creation_idempotency_key
+), UPDATE (
+  id,
+  creator_id,
+  title,
+  location,
+  description,
+  event_type,
+  verification_method,
+  created_at,
+  schedule,
+  status,
+  require_login,
+  cover_image_url,
+  documents,
+  organization_id,
+  cancellation_reason,
+  cancelled_at,
+  location_data,
+  pause_signups,
+  session_id,
+  published,
+  creator_calendar_event_id,
+  creator_synced_at,
+  project_timezone,
+  restrict_to_org_domains,
+  visibility,
+  can_be_managed_by_staff,
+  workflow_status,
+  enable_volunteer_comments,
+  show_attendees_publicly,
+  recurrence_rule,
+  recurrence_parent_id,
+  recurrence_sequence,
+  waiver_required,
+  waiver_allow_upload,
+  waiver_pdf_storage_path,
+  waiver_pdf_url,
+  waiver_definition_id,
+  waiver_disable_esignature,
+  recurrence_occurrence_date,
+  signup_form_schema,
+  cancellation_tenant_id,
+  recurrence_generation_id,
+  creation_idempotency_key
+) ON TABLE public.projects TO authenticated;
 
 CREATE OR REPLACE FUNCTION app_private.client_relation_grant_catalog()
 RETURNS TABLE (
@@ -171,9 +265,9 @@ AS $$
       ('project_signups'::text, 'authenticated'::text, 'UPDATE'::text, NULL),
       ('projects'::text, 'anon'::text, 'SELECT'::text, ARRAY['can_be_managed_by_staff', 'cancellation_reason', 'cancellation_tenant_id', 'cancelled_at', 'cover_image_url', 'created_at', 'creation_idempotency_key', 'creator_calendar_event_id', 'creator_id', 'creator_synced_at', 'description', 'documents', 'enable_volunteer_comments', 'event_type', 'id', 'location', 'location_data', 'organization_id', 'pause_signups', 'project_timezone', 'published', 'recurrence_generation_id', 'recurrence_occurrence_date', 'recurrence_parent_id', 'recurrence_rule', 'recurrence_sequence', 'require_login', 'restrict_to_org_domains', 'schedule', 'session_id', 'show_attendees_publicly', 'signup_form_schema', 'status', 'title', 'verification_method', 'visibility', 'waiver_allow_upload', 'waiver_definition_id', 'waiver_disable_esignature', 'waiver_pdf_storage_path', 'waiver_pdf_url', 'waiver_required', 'workflow_status']::text[]),
       ('projects'::text, 'authenticated'::text, 'DELETE'::text, NULL),
-      ('projects'::text, 'authenticated'::text, 'INSERT'::text, NULL),
+      ('projects'::text, 'authenticated'::text, 'INSERT'::text, ARRAY['can_be_managed_by_staff', 'cancellation_reason', 'cancellation_tenant_id', 'cancelled_at', 'cover_image_url', 'created_at', 'creation_idempotency_key', 'creator_calendar_event_id', 'creator_id', 'creator_synced_at', 'description', 'documents', 'enable_volunteer_comments', 'event_type', 'id', 'location', 'location_data', 'organization_id', 'pause_signups', 'project_timezone', 'published', 'recurrence_generation_id', 'recurrence_occurrence_date', 'recurrence_parent_id', 'recurrence_rule', 'recurrence_sequence', 'require_login', 'restrict_to_org_domains', 'schedule', 'session_id', 'show_attendees_publicly', 'signup_form_schema', 'status', 'title', 'verification_method', 'visibility', 'waiver_allow_upload', 'waiver_definition_id', 'waiver_disable_esignature', 'waiver_pdf_storage_path', 'waiver_pdf_url', 'waiver_required', 'workflow_status']::text[]),
       ('projects'::text, 'authenticated'::text, 'SELECT'::text, ARRAY['can_be_managed_by_staff', 'cancellation_reason', 'cancellation_tenant_id', 'cancelled_at', 'cover_image_url', 'created_at', 'creation_idempotency_key', 'creator_calendar_event_id', 'creator_id', 'creator_synced_at', 'description', 'documents', 'enable_volunteer_comments', 'event_type', 'id', 'location', 'location_data', 'organization_id', 'pause_signups', 'project_timezone', 'published', 'recurrence_generation_id', 'recurrence_occurrence_date', 'recurrence_parent_id', 'recurrence_rule', 'recurrence_sequence', 'require_login', 'restrict_to_org_domains', 'schedule', 'session_id', 'show_attendees_publicly', 'signup_form_schema', 'status', 'title', 'verification_method', 'visibility', 'waiver_allow_upload', 'waiver_definition_id', 'waiver_disable_esignature', 'waiver_pdf_storage_path', 'waiver_pdf_url', 'waiver_required', 'workflow_status']::text[]),
-      ('projects'::text, 'authenticated'::text, 'UPDATE'::text, NULL),
+      ('projects'::text, 'authenticated'::text, 'UPDATE'::text, ARRAY['can_be_managed_by_staff', 'cancellation_reason', 'cancellation_tenant_id', 'cancelled_at', 'cover_image_url', 'created_at', 'creation_idempotency_key', 'creator_calendar_event_id', 'creator_id', 'creator_synced_at', 'description', 'documents', 'enable_volunteer_comments', 'event_type', 'id', 'location', 'location_data', 'organization_id', 'pause_signups', 'project_timezone', 'published', 'recurrence_generation_id', 'recurrence_occurrence_date', 'recurrence_parent_id', 'recurrence_rule', 'recurrence_sequence', 'require_login', 'restrict_to_org_domains', 'schedule', 'session_id', 'show_attendees_publicly', 'signup_form_schema', 'status', 'title', 'verification_method', 'visibility', 'waiver_allow_upload', 'waiver_definition_id', 'waiver_disable_esignature', 'waiver_pdf_storage_path', 'waiver_pdf_url', 'waiver_required', 'workflow_status']::text[]),
       ('public_profile_read_model'::text, 'anon'::text, 'SELECT'::text, NULL),
       ('public_profile_read_model'::text, 'authenticated'::text, 'SELECT'::text, NULL),
       ('system_banners'::text, 'authenticated'::text, 'SELECT'::text, NULL),
@@ -204,7 +298,8 @@ BEGIN
   IF EXISTS (
     SELECT 1 FROM (VALUES ('anon'), ('authenticated')) AS client(role_name)
     CROSS JOIN unnest(ARRAY['review_notes', 'reviewed_by', 'reviewed_at']) AS field(column_name)
-    WHERE has_column_privilege(client.role_name, 'public.projects', field.column_name, 'SELECT')
+    CROSS JOIN unnest(ARRAY['SELECT', 'INSERT', 'UPDATE']) AS action(privilege)
+    WHERE has_column_privilege(client.role_name, 'public.projects', field.column_name, action.privilege)
       OR has_any_column_privilege(client.role_name, 'public.projects_with_creator', 'SELECT')
   ) THEN
     RAISE EXCEPTION 'project client review-field privileges remain effective';
