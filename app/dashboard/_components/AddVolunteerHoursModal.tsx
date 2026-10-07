@@ -161,6 +161,7 @@ export function AddVolunteerHoursModal({
         date: formData.date ? format(formData.date, "yyyy-MM-dd") : "",
         startTime: formData.startTime,
         endTime: formData.endTime,
+        timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,
         description: formData.description?.trim() || null,
       };
 
