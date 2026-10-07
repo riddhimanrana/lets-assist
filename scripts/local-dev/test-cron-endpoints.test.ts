@@ -654,7 +654,13 @@ describe("the run-scoped egress guard rejects and records", () => {
     const scratch = scratchDirectory("csf-cron-egress-");
     const ledger = join(scratch, "ledger.jsonl");
     const result = Bun.spawnSync(
-      [resolveNodeExecutable(), "--require", guardPath, "-e", body],
+      [
+        resolveNodeExecutable(),
+        "--require",
+        guardPath,
+        "-e",
+        `const guardTestDeadline = setTimeout(() => { console.error("guard_fixture_timeout"); process.exit(2); }, 2500); guardTestDeadline.unref();\n${body}`,
+      ],
       {
         env: {
           PATH: process.env.PATH ?? "/usr/bin:/bin",
@@ -754,15 +760,15 @@ describe("the run-scoped egress guard rejects and records", () => {
   test("ordinary loopback traffic is allowed and records nothing", () => {
     const result = runGuarded(`
       const http = require("node:http");
-      const request = http.request(
-        { host: "127.0.0.1", port: 55321, path: "/" },
-        (response) => {
-          console.log("ALLOWED");
-          response.destroy();
-        },
-      );
-      request.on("error", () => { console.log("ALLOWED"); });
-      request.end();
+      const server = http.createServer((_request, response) => response.end("fictional response"));
+      server.listen(0, "127.0.0.1", () => {
+        const request = http.get({ host: "127.0.0.1", port: server.address().port, path: "/" }, (response) => {
+          response.resume();
+          response.on("end", () => { console.log("ALLOWED"); server.close(); });
+        });
+        request.setTimeout(1000, () => request.destroy(new Error("fixture timeout")));
+        request.on("error", () => { console.log("FIXTURE_FAILED"); server.close(); process.exitCode = 1; });
+      });
     `);
     expect(result.output).toContain("ALLOWED");
     expect(result.entries.length).toBe(0);
@@ -773,12 +779,18 @@ describe("the run-scoped egress guard rejects and records", () => {
   // and nothing else on loopback; the cron harness permits no SMTP at all.
   // -------------------------------------------------------------------------
 
-  test("the app runner's own validated Mailpit port is permitted", () => {
-    const result = runGuarded(
-      `
+  test("the app runner's own validated Mailpit port is permitted", async () => {
+    const server = createServer((socket) => socket.destroy());
+    await new Promise<void>((resolve) =>
+      server.listen(0, "127.0.0.1", resolve),
+    );
+    const port = (server.address() as { port: number }).port;
+    try {
+      const result = runGuarded(
+        `
       const net = require("node:net");
       try {
-        const socket = net.connect(55325, "127.0.0.1");
+        const socket = net.connect(${port}, "127.0.0.1");
         socket.on("connect", () => {
           console.log("ALLOWED");
           socket.destroy();
@@ -786,15 +798,19 @@ describe("the run-scoped egress guard rejects and records", () => {
         socket.on("error", () => { console.log("ALLOWED"); });
       } catch (error) { console.log("BLOCKED:" + error.message); }
     `,
-      {
-        CRON_EGRESS_SMTP_PORTS: "55325",
-        CRON_EGRESS_ALLOWED_SMTP_PORTS: "55325",
-        CRON_EGRESS_ALLOWED_LOOPBACK_PORTS: "55321,55322,55325,3000",
-      },
-    );
-    expect(result.output).toContain("ALLOWED");
-    expect(result.output).not.toContain("BLOCKED:");
-    expect(result.entries.length).toBe(0);
+        {
+          CRON_EGRESS_SMTP_PORTS: String(port),
+          CRON_EGRESS_ALLOWED_SMTP_PORTS: String(port),
+          CRON_EGRESS_ALLOWED_LOOPBACK_PORTS: String(port),
+        },
+      );
+      expect(result.output).toContain("ALLOWED");
+      expect(result.output).not.toContain("BLOCKED:");
+      expect(result.exitCode).toBe(0);
+      expect(result.entries.length).toBe(0);
+    } finally {
+      await new Promise<void>((resolve) => server.close(() => resolve()));
+    }
   });
 
   test("an arbitrary loopback port is still refused under the runner's allowlist", () => {
