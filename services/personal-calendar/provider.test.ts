@@ -239,10 +239,11 @@ test.each([false, true])(
     steps.length = 0;
     receipt = {
       source_kind: "project",
-      source_id: "3f92ceab-e4b9-4657-91c0-166249d2a101",
-      user_id: "3f92ceab-e4b9-4657-91c0-166249d2a102",
-      project_id: "3f92ceab-e4b9-4657-91c0-166249d2a101",
-      generation: "3f92ceab-e4b9-4657-91c0-166249d2a103",
+      // Synthetic UUIDs used only by the mocked receipt store.
+      source_id: "00000000-0000-4000-8000-000000000101",
+      user_id: "00000000-0000-4000-8000-000000000102",
+      project_id: "00000000-0000-4000-8000-000000000101",
+      generation: "00000000-0000-4000-8000-000000000103",
       phase: "removing",
       requested_schedule_id: null,
       legacy_event_id: null,
@@ -252,7 +253,7 @@ test.each([false, true])(
         { id: "laanother01", event: null },
       ],
       confirmed_event_ids: [],
-      claim_token: "3f92ceab-e4b9-4657-91c0-166249d2a104",
+      claim_token: "00000000-0000-4000-8000-000000000104",
     };
     const f = owned
       ? responses(
