@@ -154,9 +154,9 @@ function BannerScopeForm({ scope, banner }: BannerScopeFormProps) {
       <CardHeader>
         <CardTitle className="flex items-center gap-2 text-xl">
           {isLandingScope ? (
-            <Home className="h-5 w-5" />
+            <Home className="size-5" />
           ) : (
-            <Globe className="h-5 w-5" />
+            <Globe className="size-5" />
           )}
           {isLandingScope ? "Landing-only banner" : "Sitewide banner"}
         </CardTitle>
@@ -343,7 +343,7 @@ function BannerScopeForm({ scope, banner }: BannerScopeFormProps) {
             </div>
           </div>
 
-          <div className="grid gap-4 rounded-md border p-3 md:grid-cols-2">
+          <div className="grid gap-4 rounded-lg border p-3 md:grid-cols-2">
             <label className="inline-flex cursor-pointer items-center gap-2 text-sm font-medium">
               <Checkbox
                 checked={formValues.isActive}
@@ -413,7 +413,7 @@ function BannerScopeForm({ scope, banner }: BannerScopeFormProps) {
               {savePending ? "Saving..." : "Save banner"}
             </Button>
 
-            <AlertTriangle className="h-4 w-4 text-muted-foreground" />
+            <AlertTriangle className="size-4 text-muted-foreground" />
             <span className="text-xs text-muted-foreground">
               Only one active banner per scope is allowed. Activating this one
               auto-disables other active banners in the same scope.

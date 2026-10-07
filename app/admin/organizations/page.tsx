@@ -43,7 +43,7 @@ export default async function AdminOrganizationsPage() {
         </p>
       </div>
 
-      <Card className="border-border bg-card text-card-foreground shadow-xs">
+      <Card>
         <CardHeader>
           <CardTitle>Organization Verification</CardTitle>
           <CardDescription>

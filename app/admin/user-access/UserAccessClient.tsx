@@ -356,7 +356,7 @@ export default function UserAccessClient() {
           ) : null}
           {targetUser.bannedUntil ? (
             <p className="mt-1 flex items-center gap-1 text-xs text-muted-foreground">
-              <Clock className="h-3 w-3" />
+              <Clock className="size-3" />
               Ban expires: {formatBannedUntil(targetUser.bannedUntil)}
             </p>
           ) : null}
@@ -376,7 +376,7 @@ export default function UserAccessClient() {
             <RadioGroupItem value="active" className="mt-0.5" />
             <div>
               <div className="flex items-center gap-1 font-medium">
-                <ShieldCheck className="h-4 w-4 text-emerald-600" /> Active
+                <ShieldCheck className="size-4 text-emerald-600" /> Active
               </div>
               <p className="text-xs text-muted-foreground">
                 Restore sign-in access
@@ -388,7 +388,7 @@ export default function UserAccessClient() {
             <RadioGroupItem value="banned" className="mt-0.5" />
             <div>
               <div className="flex items-center gap-1 font-medium">
-                <Ban className="h-4 w-4 text-destructive" /> Banned
+                <Ban className="size-4 text-destructive" /> Banned
               </div>
               <p className="text-xs text-muted-foreground">
                 Block sign-in (data kept)
@@ -406,7 +406,7 @@ export default function UserAccessClient() {
         {/* Ban duration picker */}
         {status === "banned" && (
           <div className="flex items-center gap-3 rounded-lg border border-destructive/30 bg-destructive/5 px-3 py-2">
-            <Clock className="h-4 w-4 shrink-0 text-destructive" />
+            <Clock className="size-4 shrink-0 text-destructive" />
             <div className="flex flex-1 flex-wrap items-center gap-2">
               <span className="text-sm font-medium">Duration:</span>
               <Select
@@ -417,7 +417,7 @@ export default function UserAccessClient() {
                 }}
                 disabled={isBusy}
               >
-                <SelectTrigger className="h-8 w-44 text-sm">
+                <SelectTrigger size="sm" className="w-44">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -505,7 +505,7 @@ export default function UserAccessClient() {
           <Separator />
           <div className="space-y-3 rounded-lg border border-destructive/40 bg-destructive/5 p-4">
             <div className="flex items-start gap-3">
-              <Trash2 className="mt-0.5 h-5 w-5 shrink-0 text-destructive" />
+              <Trash2 className="mt-0.5 size-5 shrink-0 text-destructive" />
               <div>
                 <p className="font-semibold text-destructive">
                   Delete &amp; Blacklist

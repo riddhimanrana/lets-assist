@@ -37,7 +37,7 @@ export default async function AdminModerationPage() {
     reportsStats.error
   ) {
     return (
-      <div className="container mx-auto max-w-7xl px-4 py-8">
+      <div className="container mx-auto max-w-7xl px-4 py-8 md:px-6">
         <div className="rounded-lg border border-destructive/50 bg-destructive/10 p-6 text-destructive">
           <p className="font-medium">Error loading moderation data</p>
           <p className="mt-2 text-sm opacity-90">

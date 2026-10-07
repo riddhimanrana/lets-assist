@@ -120,11 +120,11 @@ export function OverviewTab({
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         <Link href="/admin/trusted-members">
           <Card className="hover:bg-muted/50 transition-colors cursor-pointer h-full">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardHeader className="flex flex-row items-center justify-between pb-2">
               <CardTitle className="text-sm font-medium">
                 Trusted Applications
               </CardTitle>
-              <Users className="h-4 w-4 text-muted-foreground" />
+              <Users className="size-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">
@@ -136,11 +136,11 @@ export function OverviewTab({
         </Link>
         <Link href="/admin/feedback">
           <Card className="hover:bg-muted/50 transition-colors cursor-pointer h-full">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardHeader className="flex flex-row items-center justify-between pb-2">
               <CardTitle className="text-sm font-medium">
                 User Feedback
               </CardTitle>
-              <MessageSquare className="h-4 w-4 text-muted-foreground" />
+              <MessageSquare className="size-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">{stats.feedbackCount}</div>
@@ -150,11 +150,11 @@ export function OverviewTab({
         </Link>
         <Link href="/admin/moderation">
           <Card className="hover:bg-muted/50 transition-colors cursor-pointer h-full">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardHeader className="flex flex-row items-center justify-between pb-2">
               <CardTitle className="text-sm font-medium">
                 Flagged Content
               </CardTitle>
-              <Activity className="h-4 w-4 text-muted-foreground" />
+              <Activity className="size-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">
@@ -166,11 +166,11 @@ export function OverviewTab({
         </Link>
         <Link href="/admin/moderation">
           <Card className="hover:bg-muted/50 transition-colors cursor-pointer h-full">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardHeader className="flex flex-row items-center justify-between pb-2">
               <CardTitle className="text-sm font-medium">
                 User Reports
               </CardTitle>
-              <ShieldAlert className="h-4 w-4 text-muted-foreground" />
+              <ShieldAlert className="size-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">
@@ -193,10 +193,7 @@ export function OverviewTab({
             </CardDescription>
           </CardHeader>
           <CardContent className="pl-2">
-            <ChartContainer
-              config={chartConfig}
-              className="min-h-[200px] w-full"
-            >
+            <ChartContainer config={chartConfig} className="min-h-50 w-full">
               <BarChart accessibilityLayer data={data}>
                 <CartesianGrid vertical={false} />
                 <XAxis
@@ -215,9 +212,9 @@ export function OverviewTab({
         <Card className="col-span-3">
           <CardHeader>
             <CardTitle>Reports Health</CardTitle>
-            <p className="text-sm text-muted-foreground">
+            <CardDescription>
               Week-over-week activity across the moderation queue.
-            </p>
+            </CardDescription>
           </CardHeader>
           <CardContent>
             <dl className="grid gap-4 sm:grid-cols-2">
@@ -262,15 +259,15 @@ export function OverviewTab({
 
       <div className="grid gap-4 lg:grid-cols-2">
         <Card className="h-full">
-          <CardHeader className="flex flex-row items-start justify-between space-y-0">
+          <CardHeader className="flex flex-row items-start justify-between">
             <div>
               <CardTitle>AI Flag Queue</CardTitle>
               <CardDescription>
                 Latest items surfaced by automated scans.
               </CardDescription>
             </div>
-            <Badge variant="outline" className="gap-1 text-xs">
-              <Bot className="h-3 w-3" />
+            <Badge variant="outline">
+              <Bot />
               Auto
             </Badge>
           </CardHeader>
@@ -322,21 +319,21 @@ export function OverviewTab({
               )}
             >
               View all
-              <ArrowUpRight className="h-3 w-3" />
+              <ArrowUpRight className="size-3" />
             </Link>
           </CardFooter>
         </Card>
 
         <Card className="h-full">
-          <CardHeader className="flex flex-row items-start justify-between space-y-0">
+          <CardHeader className="flex flex-row items-start justify-between">
             <div>
               <CardTitle>Report Inbox</CardTitle>
               <CardDescription>
                 Highest-signal community reports.
               </CardDescription>
             </div>
-            <Badge variant="secondary" className="gap-1 text-xs">
-              <AlertTriangle className="h-3 w-3" />
+            <Badge variant="secondary">
+              <AlertTriangle />
               Queue
             </Badge>
           </CardHeader>
@@ -390,7 +387,7 @@ export function OverviewTab({
               )}
             >
               Go to reports
-              <ArrowUpRight className="h-3 w-3" />
+              <ArrowUpRight className="size-3" />
             </Link>
           </CardFooter>
         </Card>

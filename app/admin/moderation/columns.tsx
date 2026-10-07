@@ -149,7 +149,7 @@ export const getReportColumns = (
                   : "bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-950/30 dark:text-blue-400 dark:border-blue-900"
             }`}
           >
-            <Sparkles className="h-3 w-3" />
+            <Sparkles className="size-3" />
             {action}
           </div>
           <TooltipProvider>
@@ -176,10 +176,10 @@ export const getReportColumns = (
         <Button
           variant="ghost"
           onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
-          className="-ml-4"
+          className="-ml-2.5"
         >
           Status
-          <ArrowUpDown className="ml-2 h-4 w-4" />
+          <ArrowUpDown data-icon="inline-end" />
         </Button>
       );
     },
@@ -204,12 +204,16 @@ export const getReportColumns = (
       return (
         <Button
           size="sm"
+          variant="outline"
           onClick={() => onViewDetails(row.original)}
-          className="group rounded-full bg-primary/10 bg-none text-primary shadow-none hover:bg-primary hover:text-primary-foreground hover:brightness-100 active:shadow-none"
+          className="group rounded-full"
         >
-          <Eye className="mr-2 h-3.5 w-3.5" />
+          <Eye data-icon="inline-start" className="size-3.5" />
           Open Case
-          <ChevronRight className="ml-1 h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5" />
+          <ChevronRight
+            data-icon="inline-end"
+            className="size-3.5 transition-transform group-hover:translate-x-0.5"
+          />
         </Button>
       );
     },
@@ -291,10 +295,10 @@ export const getFlaggedColumns = (
         <Button
           variant="ghost"
           onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
-          className="-ml-4"
+          className="-ml-2.5"
         >
           Status
-          <ArrowUpDown className="ml-2 h-4 w-4" />
+          <ArrowUpDown data-icon="inline-end" />
         </Button>
       );
     },
@@ -309,7 +313,7 @@ export const getFlaggedColumns = (
               ? "outline"
               : "secondary";
       return (
-        <Badge variant={variant} className="capitalize shadow-sm">
+        <Badge variant={variant} className="capitalize">
           {status}
         </Badge>
       );
@@ -322,10 +326,10 @@ export const getFlaggedColumns = (
         <Button
           variant="ghost"
           onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
-          className="-ml-4"
+          className="-ml-2.5"
         >
           Severity
-          <ArrowUpDown className="ml-2 h-4 w-4" />
+          <ArrowUpDown data-icon="inline-end" />
         </Button>
       );
     },
@@ -349,12 +353,16 @@ export const getFlaggedColumns = (
       return (
         <Button
           size="sm"
+          variant="outline"
           onClick={() => onViewDetails(row.original)}
-          className="group rounded-full bg-primary/10 bg-none text-primary shadow-none hover:bg-primary hover:text-primary-foreground hover:brightness-100 active:shadow-none"
+          className="group rounded-full"
         >
-          <Eye className="mr-2 h-3.5 w-3.5" />
+          <Eye data-icon="inline-start" className="size-3.5" />
           Open Flag
-          <ChevronRight className="ml-1 h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5" />
+          <ChevronRight
+            data-icon="inline-end"
+            className="size-3.5 transition-transform group-hover:translate-x-0.5"
+          />
         </Button>
       );
     },

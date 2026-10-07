@@ -74,7 +74,7 @@ export function DataTable<TData extends RowData>({
 
   return (
     <div className="w-full">
-      <div className="flex items-center py-4 gap-2">
+      <div className="flex items-center gap-2 py-4">
         {searchKey && (
           <Input
             placeholder="Filter..."
@@ -91,7 +91,7 @@ export function DataTable<TData extends RowData>({
           <DropdownMenuTrigger
             render={
               <Button variant="outline" className="ml-auto">
-                Columns <ChevronDown className="ml-2 h-4 w-4" />
+                Columns <ChevronDown data-icon="inline-end" />
               </Button>
             }
           />
@@ -118,7 +118,7 @@ export function DataTable<TData extends RowData>({
           </DropdownMenuContent>
         </DropdownMenu>
       </div>
-      <div className="rounded-md border bg-card text-card-foreground shadow-sm">
+      <div className="overflow-hidden rounded-xl border bg-card text-card-foreground">
         <Table>
           <TableHeader>
             {table.getHeaderGroups().map((headerGroup) => (
@@ -168,12 +168,12 @@ export function DataTable<TData extends RowData>({
           </TableBody>
         </Table>
       </div>
-      <div className="flex items-center justify-end space-x-2 py-4">
+      <div className="flex items-center justify-end gap-2 py-4">
         <div className="flex-1 text-sm text-muted-foreground">
           {table.getFilteredSelectedRowModel().rows.length} of{" "}
           {table.getFilteredRowModel().rows.length} row(s) selected.
         </div>
-        <div className="space-x-2">
+        <div className="flex items-center gap-2">
           <Button
             variant="outline"
             size="sm"

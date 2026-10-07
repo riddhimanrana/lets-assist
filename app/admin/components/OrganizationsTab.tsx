@@ -135,7 +135,7 @@ export function OrganizationsTab({ organizations }: OrganizationsTabProps) {
                     >
                       <td className="px-4 py-3">
                         <div className="flex items-center gap-3">
-                          <Avatar className="h-9 w-9 border">
+                          <Avatar className="size-9 border">
                             <AvatarImage
                               src={org.logo_url || undefined}
                               alt={org.name}

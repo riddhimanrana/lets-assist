@@ -42,7 +42,7 @@ function RuntimeRows({ profiles }: { profiles: RuntimeProfile[] }) {
       {profiles.map((profile) => (
         <div
           key={`${profile.plugin_key}:${profile.profile}`}
-          className="flex items-center justify-between gap-3 rounded-lg border border-border/60 bg-background/70 px-3 py-2"
+          className="flex items-center justify-between gap-3 rounded-lg border border-border/60 bg-background px-3 py-2"
         >
           <div className="flex min-w-0 items-center gap-2.5">
             <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-muted text-muted-foreground">
@@ -120,7 +120,7 @@ export default function PluginOverview({
             ["Needs attention", attentionCount, "blocked or forced"],
           ].map(([label, value, detail]) => (
             <div key={label} className="px-5 py-4">
-              <p className="text-xs font-medium uppercase tracking-[0.12em] text-muted-foreground">
+              <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
                 {label}
               </p>
               <div className="mt-1 flex items-baseline gap-2">
@@ -167,14 +167,14 @@ export default function PluginOverview({
               <Card
                 key={plugin.key}
                 className={cn(
-                  "overflow-hidden border-border/70 shadow-sm",
+                  "overflow-hidden",
                   !plugin.is_active && "opacity-70",
                 )}
               >
                 <CardContent className="p-0">
                   <div className="flex items-start justify-between gap-4 border-b bg-muted/15 p-5">
                     <div className="flex min-w-0 gap-3">
-                      <span className="flex size-10 shrink-0 items-center justify-center rounded-xl border bg-background shadow-sm">
+                      <span className="flex size-10 shrink-0 items-center justify-center rounded-xl border bg-background">
                         <PackageCheck className="size-5 text-primary" />
                       </span>
                       <div className="min-w-0">
@@ -205,14 +205,14 @@ export default function PluginOverview({
 
                   <div className="grid gap-5 p-5 md:grid-cols-[1.15fr_0.85fr]">
                     <div className="space-y-3">
-                      <p className="text-xs font-medium uppercase tracking-[0.12em] text-muted-foreground">
+                      <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
                         Release channels
                       </p>
                       <RuntimeRows profiles={profiles} />
                     </div>
 
                     <div className="space-y-3">
-                      <p className="text-xs font-medium uppercase tracking-[0.12em] text-muted-foreground">
+                      <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
                         Organization state
                       </p>
                       <div className="rounded-xl border bg-muted/15 p-3">

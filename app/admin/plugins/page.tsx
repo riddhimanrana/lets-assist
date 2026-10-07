@@ -26,7 +26,7 @@ export default async function AdminPluginsPage() {
 
   if (data.error) {
     return (
-      <div className="container mx-auto max-w-7xl px-4 py-8">
+      <div className="container mx-auto max-w-7xl px-4 py-8 md:px-6">
         <Card>
           <CardHeader>
             <CardTitle>Plugins</CardTitle>

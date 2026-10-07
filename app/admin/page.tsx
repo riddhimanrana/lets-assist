@@ -100,7 +100,7 @@ export default async function AdminPage() {
           members, and moderation.
         </p>
       </div>
-      <section className="rounded-2xl border bg-card/80 p-4 shadow-xs sm:p-6">
+      <section className="rounded-2xl border bg-card p-4 sm:p-6">
         <OverviewTab
           stats={overviewStats}
           flaggedContent={flaggedContentData}

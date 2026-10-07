@@ -91,7 +91,7 @@ export function AdminSidebar({
   const pathname = usePathname();
 
   return (
-    <div className="hidden w-64 flex-col border-r bg-muted/10 p-4 md:flex md:h-screen md:sticky md:top-0">
+    <div className="hidden w-64 flex-col border-r bg-muted/10 p-4 md:sticky md:top-0 md:flex md:h-screen">
       <div className="mb-6 px-2">
         <h2 className="text-lg font-semibold tracking-tight">Admin Console</h2>
         <p className="text-sm text-muted-foreground">Manage your platform</p>
@@ -118,20 +118,17 @@ export function AdminSidebar({
             <Button
               key={item.id}
               variant={isActive ? "secondary" : "ghost"}
-              className={cn(
-                "w-full justify-start gap-2",
-                isActive && "bg-secondary",
-              )}
+              className="w-full justify-start gap-2"
               {...buttonProps}
             >
               {onTabChange ? (
                 <>
-                  <item.icon className="h-4 w-4" />
+                  <item.icon className="size-4" />
                   {item.label}
                 </>
               ) : (
                 <Link href={item.href} className="flex items-center gap-2">
-                  <item.icon className="h-4 w-4" />
+                  <item.icon className="size-4" />
                   {item.label}
                 </Link>
               )}
@@ -157,7 +154,7 @@ export function AdminMobileNav({
           "md:hidden",
         )}
       >
-        <Menu className="h-5 w-5" />
+        <Menu className="size-5" />
       </SheetTrigger>
       <SheetContent side="left" className="flex h-full w-72 flex-col p-4">
         <SheetHeader className="text-left">
@@ -177,23 +174,17 @@ export function AdminMobileNav({
               return (
                 <SheetClose
                   key={item.id}
-                  className={cn(
-                    "w-full justify-start gap-2",
-                    isActive && "bg-secondary",
-                  )}
+                  className="w-full justify-start gap-2"
                   render={
                     <Button
                       type="button"
                       variant={isActive ? "secondary" : "ghost"}
-                      className={cn(
-                        "w-full justify-start gap-2",
-                        isActive && "bg-secondary",
-                      )}
+                      className="w-full justify-start gap-2"
                       onClick={() => onTabChange(item.id)}
                     />
                   }
                 >
-                  <item.icon className="h-4 w-4" />
+                  <item.icon className="size-4" />
                   {item.label}
                 </SheetClose>
               );
@@ -209,13 +200,12 @@ export function AdminMobileNav({
                       buttonVariants({
                         variant: isActive ? "secondary" : "ghost",
                       }),
-                      "w-full justify-start gap-2 flex items-center",
-                      isActive && "bg-secondary",
+                      "flex w-full justify-start gap-2",
                     )}
                   />
                 }
               >
-                <item.icon className="h-4 w-4" />
+                <item.icon className="size-4" />
                 {item.label}
               </SheetClose>
             );

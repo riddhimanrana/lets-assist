@@ -82,8 +82,8 @@ export function DataTable<TData extends RowData>({
         <DropdownMenu>
           <DropdownMenuTrigger
             render={
-              <Button variant="outline" className="ml-auto bg-card">
-                <SlidersHorizontal className="mr-2 h-4 w-4" />
+              <Button variant="outline" className="ml-auto">
+                <SlidersHorizontal data-icon="inline-start" />
                 View
               </Button>
             }
@@ -109,7 +109,7 @@ export function DataTable<TData extends RowData>({
           </DropdownMenuContent>
         </DropdownMenu>
       </div>
-      <div className="rounded-xl border bg-card overflow-hidden">
+      <div className="overflow-hidden rounded-xl border bg-card">
         <Table>
           <TableHeader>
             {table.getHeaderGroups().map((headerGroup) => (
@@ -160,27 +160,27 @@ export function DataTable<TData extends RowData>({
           </TableBody>
         </Table>
       </div>
-      <div className="flex items-center justify-end space-x-2">
+      <div className="flex items-center justify-end gap-2">
         <div className="flex-1 text-sm text-muted-foreground">
           {table.getFilteredRowModel().rows.length} row(s).
         </div>
-        <div className="space-x-2">
+        <div className="flex items-center gap-2">
           <Button
             variant="outline"
-            size="sm"
+            size="icon-sm"
             onClick={() => table.previousPage()}
             disabled={!table.getCanPreviousPage()}
           >
-            <ChevronLeft className="h-4 w-4" />
+            <ChevronLeft />
             <span className="sr-only">Previous</span>
           </Button>
           <Button
             variant="outline"
-            size="sm"
+            size="icon-sm"
             onClick={() => table.nextPage()}
             disabled={!table.getCanNextPage()}
           >
-            <ChevronRight className="h-4 w-4" />
+            <ChevronRight />
             <span className="sr-only">Next</span>
           </Button>
         </div>
