@@ -1,6 +1,16 @@
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
-import { readFileSync, readdirSync } from "node:fs";
+import {
+  copyFileSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  readdirSync,
+  rmSync,
+  writeFileSync,
+} from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import test from "node:test";
 import { expectedVersions } from "./app-release-checks.mjs";
 import { acceptedCatalogQuery } from "./app-release-catalog.mjs";
@@ -13,15 +23,33 @@ import { csfSubmissionDeletionCatalog } from "./csf-submission-deletion-catalog.
 
 const root = new URL("../../", import.meta.url).pathname;
 const versions = expectedVersions(root).slice(0, 708);
+const migrationNames = readdirSync(`${root}supabase/migrations`)
+  .filter((name) => /^\d{14}_.+\.sql$/u.test(name))
+  .sort();
+const historicalNames = migrationNames.slice(0, 708);
 const manifest = JSON.parse(
   readFileSync(new URL("./final-schema-708.json", import.meta.url), "utf8"),
 );
 
-test("the observed708 ledger accepts exact migration bytes and all managed boundary guards", () => {
+function historicalRoot(t) {
+  const fixture = mkdtempSync(join(tmpdir(), "lets-assist-catalog-708-"));
+  t.after(() => rmSync(fixture, { recursive: true, force: true }));
+  const migrations = join(fixture, "supabase/migrations");
+  mkdirSync(migrations, { recursive: true });
+  for (const name of historicalNames) {
+    copyFileSync(
+      join(root, "supabase/migrations", name),
+      join(migrations, name),
+    );
+  }
+  return fixture;
+}
+
+test("the observed708 ledger accepts exact migration bytes and all managed boundary guards", (t) => {
   assert.equal(versions.length, 708);
   assert.equal(versions.at(-1), "20261008040000");
   assert.equal(manifest.objects.length, 1364);
-  assert.deepEqual(maintenanceTarget(root).slice(0, 708), versions);
+  assert.deepEqual(maintenanceTarget(historicalRoot(t)), versions);
   assert.equal(
     acceptedCatalogQuery("untrusted predecessor", versions),
     publicImageStorageCatalog(
@@ -30,10 +58,7 @@ test("the observed708 ledger accepts exact migration bytes and all managed bound
       ),
     ),
   );
-  const names = readdirSync(`${root}supabase/migrations`)
-    .filter((name) => /^\d{14}_.+\.sql$/u.test(name))
-    .sort()
-    .slice(0, 708);
+  const names = historicalNames;
   assert.equal(names.length, 708);
   assert.ok(names.every((name) => Object.hasOwn(migrationDigests, name)));
   for (const name of names)
@@ -44,6 +69,37 @@ test("the observed708 ledger accepts exact migration bytes and all managed bound
       migrationDigests[name],
       name,
     );
+});
+
+test("maintenance refuses unreviewed tails in both the live tree and an isolated fixture", (t) => {
+  if (migrationNames.some((name) => !Object.hasOwn(migrationDigests, name))) {
+    assert.throws(
+      () => maintenanceTarget(root),
+      /migration bytes are not reviewed/u,
+    );
+  }
+  const fixture = historicalRoot(t);
+  writeFileSync(
+    join(fixture, "supabase/migrations/20990101000000_unapproved_fixture.sql"),
+    "-- Synthetic unapproved migration.\nSELECT 1;\n",
+  );
+  assert.throws(
+    () => maintenanceTarget(fixture),
+    /migration bytes are not reviewed/u,
+  );
+});
+
+test("maintenance refuses changed bytes in the frozen708 ledger", (t) => {
+  const fixture = historicalRoot(t);
+  const changed = join(fixture, "supabase/migrations", historicalNames.at(-1));
+  writeFileSync(
+    changed,
+    `${readFileSync(changed, "utf8")}\n-- Fixture change.\n`,
+  );
+  assert.throws(
+    () => maintenanceTarget(fixture),
+    /migration bytes are not reviewed/u,
+  );
 });
 
 test("708 adds only the reviewed guard, image cleanup and organization objects", () => {
