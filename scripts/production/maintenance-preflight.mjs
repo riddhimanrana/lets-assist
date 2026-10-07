@@ -192,7 +192,10 @@ export function executeMaintenanceQuery(
       !username ||
       !password ||
       !/^[A-Za-z0-9_-]+$/u.test(database) ||
-      /[\u0000-\u001f\u007f]/u.test(username + password) ||
+      [...(username + password)].some(
+        (character) =>
+          character.charCodeAt(0) < 32 || character.charCodeAt(0) === 127,
+      ) ||
       url.hash ||
       (url.port && (Number(url.port) < 1 || Number(url.port) > 65535)) ||
       [...url.searchParams.keys()].some((key) => key !== "sslmode") ||
